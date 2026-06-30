@@ -77,6 +77,11 @@ export interface SkillInvocationPlanBuildResult extends SkillManifestValidationR
 	readonly plan: SkillInvocationPlanV1 | null;
 }
 
+export interface SkillInvocationPlanPrepareResult extends SkillManifestValidationResult {
+	readonly manifest: SkillManifestV1 | null;
+	readonly plan: SkillInvocationPlanV1 | null;
+}
+
 export interface SkillManifestParseOptions {
 	readonly sourceUri?: string;
 }
@@ -96,4 +101,8 @@ export interface SkillContractV1Adapter {
 	buildInvocationPlan(
 		manifest: SkillManifestV1,
 	): SkillInvocationPlanBuildResult | Promise<SkillInvocationPlanBuildResult>;
+	prepareInvocationPlan(
+		source: string,
+		options?: SkillManifestParseOptions,
+	): SkillInvocationPlanPrepareResult | Promise<SkillInvocationPlanPrepareResult>;
 }

@@ -7,6 +7,7 @@ export {
 	buildSkillInvocationPlan,
 	createSkillContractV1Adapter,
 	parseSkillMarkdown,
+	prepareSkillInvocationPlan,
 	validateSkillInvocationPlan,
 	validateSkillManifest,
 } from "./manifest.js";
@@ -17,6 +18,7 @@ export type {
 	SkillExecutionMode,
 	SkillInvocationPlanBuildResult,
 	SkillInvocationPlanCapability,
+	SkillInvocationPlanPrepareResult,
 	SkillInvocationPlanSkillRef,
 	SkillInvocationPlanV1,
 	SkillManifestIssue,

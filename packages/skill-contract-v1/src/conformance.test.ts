@@ -9,6 +9,7 @@ import {
 	buildSkillInvocationPlan,
 	createSkillContractV1Adapter,
 	parseSkillMarkdown,
+	prepareSkillInvocationPlan,
 	validateSkillInvocationPlan,
 	validateSkillManifest,
 } from "./manifest.js";
@@ -134,12 +135,39 @@ describe("skill-contract-v1", () => {
 		});
 	});
 
+	it("prepares a manifest and invocation plan from one SKILL.md source", () => {
+		const result = prepareSkillInvocationPlan(VALID_SKILL_MARKDOWN_FIXTURE, {
+			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.issues).toEqual([]);
+		expect(result.manifest).not.toBeNull();
+		expect(result.plan).not.toBeNull();
+		expect(result.plan?.skill.id).toBe(result.manifest?.id);
+		expect(result.plan?.skill.source.sha256).toBe(result.manifest?.source.sha256);
+		expect(result.plan?.requiresHostPolicyApproval).toBe(true);
+	});
+
+	it("fails closed while preparing a SKILL.md without capabilities", () => {
+		const result = prepareSkillInvocationPlan(MISSING_CAPABILITIES_SKILL_MARKDOWN_FIXTURE);
+
+		expect(result.ok).toBe(false);
+		expect(result.manifest).toBeNull();
+		expect(result.plan).toBeNull();
+		expect(result.issues).toContainEqual({
+			code: "CAPABILITY_LIST_EMPTY",
+			path: "$.capabilities.requires",
+			message: "Expected at least one required capability.",
+		});
+	});
+
 	it("passes the conformance suite with the reference adapter", async () => {
 		const result = await runSkillContractV1Conformance(createSkillContractV1Adapter());
 
 		expect(result.pass).toBe(true);
 		expect(result.failed).toBe(0);
 		expect(result.failures).toEqual([]);
-		expect(result.total).toBe(5);
+		expect(result.total).toBe(6);
 	});
 });

@@ -96,6 +96,25 @@ export async function runSkillContractV1Conformance(
 
 	total++;
 	try {
+		const result = await adapter.prepareInvocationPlan(VALID_SKILL_MARKDOWN_FIXTURE, {
+			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
+		});
+		if (!result.ok || !result.manifest || !result.plan) {
+			failures.push(`valid SKILL.md did not prepare invocation plan: ${formatIssues(result.issues)}`);
+		} else {
+			if (result.plan.skill.id !== result.manifest.id) {
+				failures.push("prepared invocation plan must reference the prepared manifest");
+			}
+			if (result.plan.skill.source.sha256 !== result.manifest.source.sha256) {
+				failures.push("prepared invocation plan must preserve manifest source integrity");
+			}
+		}
+	} catch (error) {
+		failures.push(`prepareInvocationPlan(valid) threw: ${String(error)}`);
+	}
+
+	total++;
+	try {
 		const result = await adapter.parseMarkdown(MISSING_CAPABILITIES_SKILL_MARKDOWN_FIXTURE);
 		if (result.ok || result.manifest) {
 			failures.push("SKILL.md without required capabilities must fail closed");

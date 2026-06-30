@@ -5,6 +5,7 @@ import {
 	SKILL_MANIFEST_SCHEMA,
 	type SkillContractV1Adapter,
 	type SkillInvocationPlanBuildResult,
+	type SkillInvocationPlanPrepareResult,
 	type SkillInvocationPlanV1,
 	type SkillManifestIssue,
 	type SkillManifestParseOptions,
@@ -126,6 +127,28 @@ export function buildSkillInvocationPlan(
 	};
 }
 
+export function prepareSkillInvocationPlan(
+	source: string,
+	options: SkillManifestParseOptions = {},
+): SkillInvocationPlanPrepareResult {
+	const parsed = parseSkillMarkdown(source, options);
+	if (!parsed.ok || !parsed.manifest) {
+		return { ok: false, manifest: null, plan: null, issues: parsed.issues };
+	}
+
+	const built = buildSkillInvocationPlan(parsed.manifest);
+	if (!built.ok || !built.plan) {
+		return { ok: false, manifest: parsed.manifest, plan: null, issues: built.issues };
+	}
+
+	return {
+		ok: true,
+		manifest: parsed.manifest,
+		plan: built.plan,
+		issues: [],
+	};
+}
+
 export function validateSkillInvocationPlan(value: unknown): SkillManifestValidationResult {
 	const issues: SkillManifestIssue[] = [];
 	if (!isRecord(value)) {
@@ -150,6 +173,7 @@ export function createSkillContractV1Adapter(): SkillContractV1Adapter {
 	return {
 		buildInvocationPlan: buildSkillInvocationPlan,
 		parseMarkdown: parseSkillMarkdown,
+		prepareInvocationPlan: prepareSkillInvocationPlan,
 		validateManifest: validateSkillManifest,
 	};
 }
