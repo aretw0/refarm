@@ -101,7 +101,7 @@ test("package registry does not promise publication ahead of release policy", ()
 
 test("vault seed convergence keeps current handoff hashes in the manifest", () => {
 	const currentHandoffSection = vaultSeedConvergenceDoc
-		.split("**2026-06-29 full `vault-seed-ready` handoff:**")[1]
+		.split("**2026-06-30 full `vault-seed-ready` handoff:**")[1]
 		.split("### Additional Assimilation Matrix")[0];
 
 	assert.match(currentHandoffSection, /packages\[\]\.sha256/);

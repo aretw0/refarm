@@ -402,7 +402,7 @@ This makes the `vault-seed` need a force multiplier for v0.1.0:
 `@refarm.dev/ds/html`. ADR-072 supersedes the earlier `@refarm.dev/homestead-ssr`
 packet: Homestead SSR package/subpath surfaces were removed pre-publication and the public consumer
 lane ships the DS-owned helper surface without pulling the full Homestead SDK dependency
-closure. The current handoff lives under `.refarm/handoff/vault-seed/2026-06-29/`:
+closure. The current full handoff lives under `.refarm/handoff/vault-seed/2026-06-30/`:
 
 - `refarm.dev-ds-0.1.0.tgz`
 
@@ -420,7 +420,7 @@ shell-splitting. The package is the build-free `vault-seed-ready` leaf;
 `@refarm.dev/cli/process-handoff` stays as a compatibility re-export. The
 `vault-seed-ready` publish dry-run passes with this leaf included and the full
 CLI closure excluded. Candidate tarball:
-`.refarm/handoff/vault-seed/2026-06-29/refarm.dev-process-handoff-0.1.0.tgz`.
+`.refarm/handoff/vault-seed/2026-06-30/refarm.dev-process-handoff-0.1.0.tgz`.
 The official `vault-seed` proof remains downstream: `@aretw0/dgk-runner` or
 `@aretw0/dgk-cli` should import
 `@refarm.dev/process-handoff` internally while keeping the exported
@@ -431,7 +431,7 @@ manifest that references the tokenized process boundary.
 now includes a Refarm-side fixture for `vault-seed` Lab datasets, publication
 outbox manifests, and notebook snapshots using generic roles plus labels instead
 of upstreaming notebook UX or vault schema. Candidate tarball:
-`.refarm/handoff/vault-seed/2026-06-29/refarm.dev-artifact-contract-v1-0.1.0.tgz`.
+`.refarm/handoff/vault-seed/2026-06-30/refarm.dev-artifact-contract-v1-0.1.0.tgz`.
 Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
 `LICENSE`. The official proof remains downstream: `vault-seed` should emit
 `refarm.task-artifacts.v1` manifests from its Lab/outbox/notebook producers.
@@ -440,13 +440,13 @@ Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
 consumer-pulled handoff for Telegram/outbox evidence without moving provider API
 behavior, Markdown formatting, or `dgk outbox/inbox` UX upstream. Candidate
 tarball:
-`.refarm/handoff/vault-seed/2026-06-29/refarm.dev-channel-policy-v1-0.1.0.tgz`.
+`.refarm/handoff/vault-seed/2026-06-30/refarm.dev-channel-policy-v1-0.1.0.tgz`.
 Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
 `LICENSE`. The official proof remains downstream: the `vault-seed` Telegram
 adapter should emit `refarm.channel-delivery-envelope.v1` while keeping provider
 calls and user-facing command semantics local.
 
-**2026-06-29 full `vault-seed-ready` handoff:** after ADR-072 the release-policy
+**2026-06-30 full `vault-seed-ready` handoff:** after ADR-072 the release-policy
 selection contains 9 packages. `@refarm.dev/homestead-ssr` was removed pre-publication;
 `@refarm.dev/ds/html` ships through the DS tarball.
 
@@ -468,13 +468,13 @@ for example, `@refarm.dev/dispatch-surface` depends on
 `@refarm.dev/effort-contract-v1`, and `@refarm.dev/silo` depends on
 `@refarm.dev/heartwood`.
 
-As of 2026-06-29, `pnpm --silent run release:vault-seed:handoff -- --pack
---prune-extra --json --out .refarm/handoff/vault-seed/2026-06-29/manifest.json`
+As of 2026-06-30, `pnpm --silent run release:vault-seed:handoff -- --pack
+--prune-extra --json --out .refarm/handoff/vault-seed/2026-06-30/manifest.json`
 materializes the tarballs sequentially, prunes only unexpected generated `.tgz`
 files, writes `manifest.json` beside the tarballs, and emits the same package
 acceptance summary exposed by the release plan. The companion
 `pnpm --silent run release:vault-seed:handoff -- --out
-.refarm/handoff/vault-seed/2026-06-29/manifest.md` writes the operator-readable
+.refarm/handoff/vault-seed/2026-06-30/manifest.md` writes the operator-readable
 Markdown view of the same packet. The current packet reports
 `acceptance.status: "accepted"`, 9 packages, 4 required gates, 20 required
 checks, one publish provider, `manualApprovalRequired: true`, and no stale
@@ -483,7 +483,7 @@ acceptance line before the tarball table, so a consumer handoff can verify
 readiness without reinterpreting the full release plan. The JSON manifest is
 versioned (`schemaVersion: 1`) and carries the current `packages[].sha256`,
 `consumerPull` per package, `consumerProofs`, `distributionEvidence`, and
-`prunedExtra` fields. As of 2026-06-30, it also embeds
+`prunedExtra` fields. It also embeds
 `releaseBoundaryAudit`, the same machine-readable naming/package-boundary guard
 run by `pnpm run release:boundary:audit`; `distributionEvidence.update.evidenceRefs`
 points to that field when present, and a failing audit blocks `ok: true`. Treat
