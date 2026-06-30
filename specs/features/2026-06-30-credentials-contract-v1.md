@@ -30,6 +30,19 @@ it?"* — it carries an issuer and a `proof`. A **record** answers *"what does t
 structurally?"* — no inherent attestation. They compose (a record may reference a credential) but do
 not merge: `credentials:v1` owns issuance/trust/proof; `records:v1` owns the knowledge envelope.
 
+### Prerequisite: real `identity:v1` signing (heartwood-backed) — ship first
+
+A verifiable credential is only verifiable if its `proof` is a **real** signature. `credentials:v1`
+composes `identity:v1` for `sign`/`verify`, but `@refarm.dev/identity-nostr` currently returns
+**placeholder** keypair/signature values (pending `nostr-tools`). A VC demo on stubbed signatures
+verifies nothing — the differentiator dies.
+
+`@refarm.dev/heartwood` already performs **real Ed25519** `generateKeypair`/`sign` (it backs `silo`).
+The shortest path is to back an `identity:v1` provider with heartwood so signing is real now, instead
+of waiting on `nostr-tools`. **Batch order: (1) real `identity:v1` signing (heartwood-backed) →
+(2) `credentials:v1` on top.** Because `proof.type` is open, a later OPAQUE/Sentinel/hardware-backed
+signature replaces the scheme without an envelope break.
+
 ### Confirmed decisions
 
 | Decision | Choice | Reason |
