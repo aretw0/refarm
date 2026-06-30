@@ -343,6 +343,7 @@ test("source librarian adapters stay profiled but proof-gated", () => {
 		"@refarm.dev/source-contract-v1",
 		"@refarm.dev/source-git",
 		"@refarm.dev/source-local",
+		"@refarm.dev/source-web",
 	]) {
 		const profile = byId.get(packageName);
 		assert.ok(profile, `${packageName} must be release-profiled`);
@@ -365,6 +366,46 @@ test("source librarian adapters stay profiled but proof-gated", () => {
 	}
 
 	assert.doesNotMatch(policyText, /@refarm\.dev\/source-dispatch/);
+});
+
+test("requirements supply packages stay profiled but proof-gated", () => {
+	const config = JSON.parse(read("refarm.config.json"));
+	const profiles = config.releasePolicy.packageProfiles;
+	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
+	const vaultSeedReady = new Set(
+		profiles
+			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.map((profile) => profile.id),
+	);
+
+	for (const packageName of [
+		"@refarm.dev/source-web",
+		"@refarm.dev/enrichment-contract-v1",
+		"@refarm.dev/records-contract-v1",
+	]) {
+		const profile = byId.get(packageName);
+		assert.ok(profile, `${packageName} must be release-profiled`);
+		assert.ok(
+			profile.tags.includes("requirements-supply"),
+			`${packageName} must declare requirements-supply scope`,
+		);
+		assert.ok(
+			profile.tags.includes("boundary-review"),
+			`${packageName} must stay boundary-reviewed`,
+		);
+		assert.ok(
+			profile.tags.includes("candidate-hold"),
+			`${packageName} must stay held until selected downstream proof`,
+		);
+		assert.ok(
+			Array.isArray(profile.mustPassChecks) && profile.mustPassChecks.length >= 2,
+			`${packageName} must declare package checks before handoff planning`,
+		);
+		assert.ok(
+			!vaultSeedReady.has(packageName),
+			`${packageName} must not enter vault-seed-ready without selected downstream proof`,
+		);
+	}
 });
 
 test("release-engine docs keep host integration product-neutral", () => {

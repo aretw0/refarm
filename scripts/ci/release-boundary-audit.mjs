@@ -228,6 +228,7 @@ function auditSourceHolds(profiles, policyText, issues) {
 		"@refarm.dev/source-contract-v1",
 		"@refarm.dev/source-git",
 		"@refarm.dev/source-local",
+		"@refarm.dev/source-web",
 	]) {
 		const profile = byId.get(packageName);
 		if (!profile) {
@@ -264,6 +265,46 @@ function auditSourceHolds(profiles, policyText, issues) {
 	}
 }
 
+function auditRequirementsSupplyHolds(profiles, issues) {
+	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
+	const selected = new Set(
+		profiles
+			.filter((profile) => profile.tags?.includes(VAULT_SEED_READY))
+			.map((profile) => profile.id),
+	);
+	for (const packageName of [
+		"@refarm.dev/source-web",
+		"@refarm.dev/enrichment-contract-v1",
+		"@refarm.dev/records-contract-v1",
+	]) {
+		const profile = byId.get(packageName);
+		if (!profile) {
+			issues.push(issue({
+				code: "REQUIREMENTS_SUPPLY_PACKAGE_NOT_RELEASE_PROFILED",
+				packageName,
+				message: "Requirements supply packages must be release-profiled while proof-gated.",
+			}));
+			continue;
+		}
+		for (const tag of ["requirements-supply", "boundary-review", "candidate-hold"]) {
+			if (!profile.tags.includes(tag)) {
+				issues.push(issue({
+					code: "REQUIREMENTS_SUPPLY_PACKAGE_MISSING_HOLD_TAG",
+					packageName,
+					message: `${packageName} must declare ${tag}.`,
+				}));
+			}
+		}
+		if (selected.has(packageName)) {
+			issues.push(issue({
+				code: "REQUIREMENTS_SUPPLY_PACKAGE_PREMATURELY_SELECTED",
+				packageName,
+				message: `${packageName} must not enter vault-seed-ready without selected downstream proof.`,
+			}));
+		}
+	}
+}
+
 export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
 	const configText = readText(root, "refarm.config.json");
 	const config = JSON.parse(configText);
@@ -281,6 +322,7 @@ export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
 	auditSelectedPackageNaming(root, profiles, issues);
 	auditSelectedLeaves(profiles, configText, issues);
 	auditSourceHolds(profiles, configText, issues);
+	auditRequirementsSupplyHolds(profiles, issues);
 
 	if (!releaseCheck.ok) {
 		issues.push(issue({
