@@ -20,6 +20,10 @@ package/plugin manifest surface, not `apps/refarm`.
   manifest model, for example `extensions.surfaces[]` with `layer: "pi"`,
   `kind: "skill"`, and `assets` pointing at the `SKILL.md`. A package can carry
   guides, references, themes, and executable plugin code next to the skill.
+- **Authoring space**: user and project spaces may carry unpublished skills,
+  extensions, guides, themes, and experiments before packaging. These are local
+  sources, not installed runtime artifacts. Packaging is an explicit promotion
+  step for sharing, release, tarball handoff, or future peer/device replication.
 - **Runtime adapter**: a small adapter maps `SKILL.md` content into a
   policy-checkable invocation plan. It does not execute shell/file operations by
   parsing Markdown directly.
@@ -36,6 +40,8 @@ package/plugin manifest surface, not `apps/refarm`.
 - Verify the native skill surface has a clear owner outside `apps/refarm`.
 - Verify the selected package/plugin manifest declares the skill surface instead
   of creating a standalone skill install path.
+- Verify local unpublished sources can remain in user/project space until the
+  operator chooses to package or replicate them.
 - Select one minimal skill fixture (`agents-lab/git-workflow` wrapper or one
   DGK gardening skill) as dogfood.
 - Record which existing Refarm engine or capability the skill calls.
@@ -61,6 +67,9 @@ package/plugin manifest surface, not `apps/refarm`.
   surface, not as a separate skill installer.
 - Keep executable code, guides, themes, and skill text under one package
   identity when they are distributed together.
+- If the selected fixture starts as a local user/project skill, record the
+  promotion boundary from authoring space to package/bundle instead of requiring
+  publication before dogfood.
 - Gate: manifest validation accepts the declared skill surface and rejects
   missing capability declarations.
 
