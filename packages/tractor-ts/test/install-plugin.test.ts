@@ -1,7 +1,7 @@
+import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installPlugin } from "../src/lib/install-plugin";
 import { clearRuntimeDescriptorRevocationListCache } from "../src/lib/runtime-descriptor-revocation";
-import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 
 type RefarmGlobals = typeof globalThis & {
 	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__?: string;
@@ -472,6 +472,7 @@ describe("installPlugin", () => {
 
 		expect(global.fetch).toHaveBeenCalledWith(
 			"https://github.com/aretw0/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-manifest.json",
+			expect.objectContaining({ signal: expect.any(AbortSignal) }),
 		);
 		expect(cachePluginRuntimeModule).toHaveBeenCalledWith(
 			"test-plugin",
