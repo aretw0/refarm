@@ -174,9 +174,9 @@ test("remote workspace control horizon stays transport and app neutral", () => {
 	assert.match(roadmap, /Remote workspace control plane/);
 	assert.match(roadmap, /PWA, Android, CLI, Telegram, Matrix/);
 	assert.match(roadmap, /Tailscale is a strong private-network fixture, not the canonical protocol/);
-	assert.match(roadmap, /first proof spec ready/);
+	assert.match(roadmap, /first loopback proof implemented/);
 	assert.match(readiness, /remote workspace control plane/);
-	assert.match(readiness, /proof-spec ready, not product-ready/);
+	assert.match(readiness, /first proof implemented, not product-ready/);
 	assert.match(readiness, /remote Refarm node must be allowed to refuse,\s+serialize, or degrade work/);
 	assert.match(decisionLog, /Remote workspace control plane/);
 	assert.match(decisionLog, /not a Telegram\/Matrix\/Tailscale-specific protocol/);
