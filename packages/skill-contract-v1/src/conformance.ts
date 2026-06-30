@@ -102,6 +102,40 @@ export async function runSkillContractV1Conformance(
 	total++;
 	if (manifest) {
 		try {
+			const surfaceResult = await adapter.buildSurfaceDeclaration(manifest, {
+				assetPath: "skills/refarm-git-workflow/SKILL.md",
+			});
+			if (!surfaceResult.ok || !surfaceResult.surface) {
+				failures.push(`valid manifest could not produce source integrity surface: ${formatIssues(surfaceResult.issues)}`);
+			} else {
+				const result = await adapter.buildSourceIntegrityEvidence(
+					VALID_SKILL_MARKDOWN_FIXTURE,
+					manifest,
+					surfaceResult.surface,
+					{ sourceUri: "fixture:refarm-git-workflow/SKILL.md" },
+				);
+				if (!result.ok || !result.evidence) {
+					failures.push(`valid SKILL.md source integrity evidence did not verify: ${formatIssues(result.issues)}`);
+				} else {
+					if (result.evidence.schema !== "refarm.skill-source-integrity.v1") {
+						failures.push("source integrity evidence schema must be refarm.skill-source-integrity.v1");
+					}
+					if (result.evidence.verified !== true) {
+						failures.push("source integrity evidence must mark matching package skill source as verified");
+					}
+					if (result.evidence.assetPath !== "skills/refarm-git-workflow/SKILL.md") {
+						failures.push("source integrity evidence must preserve package skill asset path");
+					}
+				}
+			}
+		} catch (error) {
+			failures.push(`buildSourceIntegrityEvidence(valid) threw: ${String(error)}`);
+		}
+	}
+
+	total++;
+	if (manifest) {
+		try {
 			const result = await adapter.buildInvocationPlan(manifest);
 			if (!result.ok || !result.plan) {
 				failures.push(`valid manifest did not build invocation plan: ${formatIssues(result.issues)}`);

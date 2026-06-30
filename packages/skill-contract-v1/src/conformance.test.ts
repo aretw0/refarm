@@ -10,6 +10,7 @@ import {
 	buildSkillInvocationPlan,
 	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
+	buildSkillSourceIntegrityEvidence,
 	buildSkillSurfaceDeclaration,
 	createSkillContractV1Adapter,
 	createSkillSourceRef,
@@ -133,6 +134,32 @@ describe("skill-contract-v1", () => {
 		expect(result.actual).toEqual(expected);
 	});
 
+	it("builds package skill source integrity evidence for activation preflight", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE, {
+			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
+		});
+		const surface = buildSkillSurfaceDeclaration(parsed.manifest!, {
+			assetPath: "skills/refarm-git-workflow/SKILL.md",
+		});
+
+		const result = buildSkillSourceIntegrityEvidence(
+			VALID_SKILL_MARKDOWN_FIXTURE,
+			parsed.manifest!,
+			surface.surface!,
+			{ sourceUri: "fixture:refarm-git-workflow/SKILL.md" },
+		);
+
+		expect(result.ok).toBe(true);
+		expect(result.issues).toEqual([]);
+		expect(result.evidence).toEqual({
+			schema: "refarm.skill-source-integrity.v1",
+			source: parsed.manifest?.source,
+			assetPath: "skills/refarm-git-workflow/SKILL.md",
+			verified: true,
+			issues: [],
+		});
+	});
+
 	it("rejects loaded SKILL.md source when hash, bytes, or uri drift", () => {
 		const expected = createSkillSourceRef(VALID_SKILL_MARKDOWN_FIXTURE, {
 			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
@@ -150,6 +177,34 @@ describe("skill-contract-v1", () => {
 				expect.objectContaining({ code: "SOURCE_URI_MISMATCH" }),
 			]),
 		});
+	});
+
+	it("blocks source integrity evidence when the package skill source drifts", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE, {
+			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
+		});
+		const surface = buildSkillSurfaceDeclaration(parsed.manifest!, {
+			assetPath: "skills/refarm-git-workflow/SKILL.md",
+		});
+
+		const result = buildSkillSourceIntegrityEvidence(
+			`${VALID_SKILL_MARKDOWN_FIXTURE}\nChanged`,
+			parsed.manifest!,
+			surface.surface!,
+			{ sourceUri: "fixture:other/SKILL.md" },
+		);
+
+		expect(result.ok).toBe(false);
+		expect(result.evidence).toMatchObject({
+			schema: "refarm.skill-source-integrity.v1",
+			assetPath: "skills/refarm-git-workflow/SKILL.md",
+			verified: false,
+		});
+		expect(result.issues).toEqual(expect.arrayContaining([
+			expect.objectContaining({ code: "SOURCE_SHA256_MISMATCH" }),
+			expect.objectContaining({ code: "SOURCE_BYTES_MISMATCH" }),
+			expect.objectContaining({ code: "SOURCE_URI_MISMATCH" }),
+		]));
 	});
 
 	it("builds a host-policy-checkable invocation plan", () => {
@@ -594,6 +649,6 @@ describe("skill-contract-v1", () => {
 		expect(result.pass).toBe(true);
 		expect(result.failed).toBe(0);
 		expect(result.failures).toEqual([]);
-		expect(result.total).toBe(11);
+		expect(result.total).toBe(12);
 	});
 });

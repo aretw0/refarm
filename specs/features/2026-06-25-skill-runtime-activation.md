@@ -33,8 +33,8 @@ Start this item only when all are true:
    external skill, and `native:skills:dgk-vault-search-smoke` records the same wrapper/evidence
    pattern plus a package-declared `pi/skill` surface for `vault-seed`'s
    `dgk-skills/vault-search` without executing `dgk` or Obsidian CLI. The
-   wrapper smoke now also records activation preflight as blocked until
-   integrity and install policy evidence exist.
+   wrapper smoke now also records source integrity evidence and activation
+   preflight blocked until install policy evidence exists.
 
 ## Scope
 

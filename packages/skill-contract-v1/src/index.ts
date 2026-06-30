@@ -8,6 +8,7 @@ export {
 	buildSkillInvocationPlan,
 	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
+	buildSkillSourceIntegrityEvidence,
 	buildSkillSurfaceDeclaration,
 	createSkillContractV1Adapter,
 	createSkillSourceRef,
@@ -63,6 +64,8 @@ export type {
 	SkillOutputEnvelope,
 	SkillPolicyEnvelope,
 	SkillSourceRef,
+	SkillSourceIntegrityBuildResult,
+	SkillSourceIntegrityEvidenceV1,
 	SkillSourceVerificationResult,
 	SkillSurfaceDeclarationBuildResult,
 	SkillSurfaceDeclarationOptions,
@@ -77,4 +80,5 @@ export {
 	SKILL_INVOCATION_RECEIPT_SCHEMA,
 	SKILL_INVOCATION_REQUEST_SCHEMA,
 	SKILL_MANIFEST_SCHEMA,
+	SKILL_SOURCE_INTEGRITY_SCHEMA,
 } from "./types.js";
