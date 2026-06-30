@@ -144,6 +144,35 @@ test("factory readiness records hard environment ceilings", () => {
 	assert.match(readiness, /command\s+planning ceilings/);
 });
 
+test("work focus keeps adjacent tracks orbiting without premature product work", () => {
+	const focus = read("docs/REFARM_WORK_FOCUS.md");
+	const roadmap = read("docs/CONVERGENCE_ROADMAP.md");
+
+	assert.match(focus, /Track orbit ledger/);
+	assert.match(focus, /"Dormant" means gated by evidence, not abandoned/);
+
+	assert.match(focus, /WASM substrate \/ Astro 7/);
+	assert.match(focus, /Active as substrate, red as Astro-on-Tractor product adapter/);
+	assert.match(focus, /ADR-070 Parts A\/B remain the lane/);
+	assert.match(focus, /`wasm-surface:v1`, loader\/manifest policy/);
+	assert.match(focus, /Reopening Astro SSR on Tractor as product work without a new upstream WASI profile or second-consumer proof/);
+	assert.match(roadmap, /WASM substrate remains active, but Astro 7\/WASI Part C is closed red/);
+	assert.match(roadmap, /Tractor native-first plus WASM-fallback posture/);
+
+	assert.match(focus, /Native skills/);
+	assert.match(focus, /not a second plugin ecosystem/);
+	assert.match(focus, /plugin-manifest skill surface/);
+	assert.match(focus, /outside Barn\/plugin policy/);
+
+	assert.match(focus, /Distributed availability \/ Pears/);
+	assert.match(focus, /runtime-adoption-gated/);
+	assert.match(focus, /Adopting Bare\/Hypercore\/Pears wholesale/);
+
+	assert.match(focus, /Remote workspace control/);
+	assert.match(focus, /capability-scoped control/);
+	assert.match(focus, /Treating mounts, host paths, Telegram, Matrix, or Tailscale as the core abstraction/);
+});
+
 test("remote workspace control horizon stays transport and app neutral", () => {
 	const adr = read("specs/ADRs/ADR-074-remote-workspace-control-plane.md");
 	const spec = read("specs/features/2026-06-30-remote-workspace-control-plane-proof.md");
