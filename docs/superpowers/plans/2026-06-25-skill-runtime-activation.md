@@ -5,16 +5,21 @@
 > `dgk-skills` or `agents-lab` skills into Refarm as product-owned code.
 
 This plan is not only about adopting existing skills. Refarm needs a native
-skill system that can read `SKILL.md`-style workflow packages, declare required
+skill surface that can read `SKILL.md`-style workflow content, declare required
 capabilities, pass through policy, and invoke existing Refarm engines. External
-skills are fixtures and consumer pressure; the durable owner is a Refarm package
-or plugin surface, not `apps/refarm`.
+skills are fixtures and consumer pressure; the durable owner is a Refarm
+package/plugin manifest surface, not `apps/refarm`.
 
 ## Target shape
 
 - **Contract package**: `skill-contract-v1` (or equivalent selected name) owns
   `SkillManifestV1`, metadata parsing, capability declarations, input/output
-  envelopes, and conformance fixtures.
+  envelopes, and conformance fixtures. It is a schema helper, not an installer
+  or runtime.
+- **Manifest surface**: a package exposes skills through the existing plugin
+  manifest model, for example `extensions.surfaces[]` with `layer: "pi"`,
+  `kind: "skill"`, and `assets` pointing at the `SKILL.md`. A package can carry
+  guides, references, themes, and executable plugin code next to the skill.
 - **Runtime adapter**: a small adapter maps `SKILL.md` content into a
   policy-checkable invocation plan. It does not execute shell/file operations by
   parsing Markdown directly.
@@ -28,7 +33,9 @@ or plugin surface, not `apps/refarm`.
 
 ## Task 1 - Confirm native owner
 
-- Verify the native skill system has a clear owner outside `apps/refarm`.
+- Verify the native skill surface has a clear owner outside `apps/refarm`.
+- Verify the selected package/plugin manifest declares the skill surface instead
+  of creating a standalone skill install path.
 - Select one minimal skill fixture (`agents-lab/git-workflow` wrapper or one
   DGK gardening skill) as dogfood.
 - Record which existing Refarm engine or capability the skill calls.
@@ -48,20 +55,29 @@ or plugin surface, not `apps/refarm`.
   source hash, and policy envelope.
 - Gate: contract tests pass without loading runtime-agent.
 
-## Task 4 - Implement adapter
+## Task 4 - Declare the plugin manifest surface
+
+- Add or fixture one manifest declaration for the selected skill as a plugin
+  surface, not as a separate skill installer.
+- Keep executable code, guides, themes, and skill text under one package
+  identity when they are distributed together.
+- Gate: manifest validation accepts the declared skill surface and rejects
+  missing capability declarations.
+
+## Task 5 - Implement adapter
 
 - Implement the smallest adapter needed for the selected skill.
 - Keep product vocabulary in adapter input fixtures, not in Refarm engine code.
 - Gate: adapter tests pass.
 
-## Task 5 - Invocation smoke
+## Task 6 - Invocation smoke
 
 - Run the selected skill through Refarm's invocation surface.
 - Compare output with direct DGK fixture or approved snapshot.
 - Record engine calls and capability checks.
 - Gate: smoke passes or records the concrete runtime blocker.
 
-## Task 6 - Consumer handoff
+## Task 7 - Consumer handoff
 
 - Update `docs/GARDENING_SKILLS_TAXONOMY.md` with the selected skill and runtime evidence.
 - Update `docs/CONVERGENCE_FACTORY_READINESS.md` if the item moves from deferred to ready.

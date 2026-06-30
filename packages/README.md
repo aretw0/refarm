@@ -21,6 +21,7 @@ publication remains held by the daily-driver gate or explicit human override.
 | [`@refarm.dev/sync-contract-v1`](./sync-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
 | [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ Conformance | 🟢 Candidate | `kernel-candidates`; held |
 | [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | ✅ Fixture Validation | 🟡 Candidate | `kernel-candidates` + `vault-seed-ready`; held |
+| [`@refarm.dev/skill-contract-v1`](./skill-contract-v1) | ✅ Manifest Validation | 🟡 Proof-gated | held until plugin-manifest surface + adapter smoke |
 
 ## 📚 Librarian Source Primitives
 
@@ -38,6 +39,18 @@ needs `source:v1` through `dispatch-surface` with an executable proof.
 | [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` capability contract and conformance suite | release-profiled; held |
 | [`@refarm.dev/source-git`](./source-git) | Clean cached git checkout provider for remote repositories | release-profiled; held |
 | [`@refarm.dev/source-local`](./source-local) | Live local working-tree provider with dirty/untracked status | release-profiled; held |
+
+## 🌿 Native Skill Surface Contract
+
+`@refarm.dev/skill-contract-v1` is the schema/conformance helper for native
+Refarm skill surfaces. It parses `SKILL.md`-style content into
+`SkillManifestV1`, records source hashes, requires explicit capabilities, and
+defaults to plan-only, declared-capability tool access.
+
+It is deliberately not a second plugin system. Packages and plugin manifests
+remain the distribution/trust boundary; skills are declared as surfaces or
+assets inside that bundle and are consumed by runtime hosts only after policy
+and adapter proof.
 
 ## 🌱 Consumer-Pulled Candidate Lane
 
