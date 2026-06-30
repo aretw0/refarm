@@ -51,7 +51,10 @@ host-owned execution receipts from engine-call evidence. It also builds
 `pi/skill` surface declarations for package manifest handoff from a validated
 manifest plus a relative package asset path. The first engine dogfood smoke
 uses `source:v1` through `@refarm.dev/source-local`; external `dgk-skills` or
-`agents-lab` fixture proof remains the promotion gate.
+`agents-lab` fixtures must stay wrapper/evidence based. The first
+`agents-lab` git-workflow wrapper smoke records upstream source evidence without
+installing or executing the external skill; a `dgk-skills` fixture remains the
+next promotion gate.
 
 It is deliberately not a second plugin system. Packages and plugin manifests
 remain the distribution/trust boundary; skills are declared as surfaces or

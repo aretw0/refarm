@@ -140,12 +140,12 @@ export function buildAgentsLabSkillImportManifest({ root = DEFAULT_ROOT } = {}) 
 		sourceAudit: "agents-lab-assimilation-audit",
 		mode: "plan-only",
 		activationGate: {
-			currentState: "native-skill-system-planning-active",
+			currentState: "native-skill-system-wrapper-dogfood-active",
 			canStartNow: [
-				"Define the native Refarm skill contract owner outside apps/refarm.",
+				"Use @refarm.dev/skill-contract-v1 as the native Refarm skill contract owner outside apps/refarm.",
 				"Review git-skills against Refarm commit, branch, PR, and handoff conventions.",
 				"Review lab-skills essentials for Pi-specific wording or extension API assumptions.",
-				"Record accepted skill content, required edits, or upstream follow-up before contract work.",
+				"Record accepted skill content, required edits, or upstream follow-up before wrapper work.",
 			],
 			unlocksRuntimeAdapterWhen: [
 				"A Refarm skill contract can parse SKILL.md metadata into a policy-checkable manifest.",
@@ -155,9 +155,9 @@ export function buildAgentsLabSkillImportManifest({ root = DEFAULT_ROOT } = {}) 
 				"A dogfood smoke runs the selected skill through Refarm and records engine calls.",
 			],
 			stillBlockedBy: [
-				"No native Refarm skill contract package exists yet.",
-				"No Refarm skill wrapper or invocation smoke selected for dogfood yet.",
-				"Runtime fanout and @refarm.dev/pi-agent publication remain held by reference-driver gates.",
+				"No external skill is installed or vendored yet; wrappers must remain package-declared surfaces.",
+				"Runtime-agent dispatch remains held by policy, cancellation, observability, and cost-control gates.",
+				"DGK skill fixture proof remains pending.",
 			],
 		},
 		install: {
@@ -178,15 +178,15 @@ export function buildAgentsLabSkillImportManifest({ root = DEFAULT_ROOT } = {}) 
 		boundaries: [
 			"No files are installed by this manifest.",
 			"Only SKILL.md-style Markdown skills are in scope.",
-			"Convention review and a native Refarm skill contract are mandatory before copying or installing any skill.",
+			"Convention review and the native Refarm skill contract are mandatory before wrapping any skill.",
 			"Pi extension APIs, hooks, and runtime packaging remain out of scope.",
-			"Refarm skill runtime remains deferred until a dogfood invocation surface exists.",
+			"External skills remain source evidence until package-declared wrapper smokes pass.",
 		],
 		nextActions: [
 			"Inspect the source skill content from agents-lab.",
 			"Record convention deltas before any local installation.",
 			"Prefer skill text fixes upstream instead of local forks when possible.",
-			"Only after native contract and wrapper smoke, install or vendor Refarm-owned skill wrappers.",
+			"Use wrapper smokes as package-declared evidence before any installation or vendoring discussion.",
 		],
 		issueCount: issues.length,
 		issues,

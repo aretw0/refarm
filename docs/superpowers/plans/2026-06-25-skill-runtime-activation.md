@@ -31,6 +31,11 @@ package/plugin manifest surface, not `apps/refarm`.
   approved policy decision. `native:skills:source-engine-smoke` proves this
   internally with `source:v1` through `@refarm.dev/source-local`; it does not
   claim runtime-agent or external skill execution.
+- **External wrapper proof**: `native:skills:agents-lab-git-workflow-smoke`
+  proves the first external source fixture by recording upstream hash/source
+  evidence, running a Refarm wrapper, calling `source:v1` over the external
+  checkout, and emitting a receipt without installing or executing upstream
+  skill text.
 - **Execution host**: `runtime-agent` may be the first dogfood host, but the
   contract stays host-neutral so a Refarm plugin can provide or consume skills
   later.
@@ -90,7 +95,8 @@ package/plugin manifest surface, not `apps/refarm`.
 - Record engine calls and capability checks.
 - Gate: smoke passes or records the concrete runtime blocker. Internal
   source-status dogfood now records a `source:v1` execution receipt; the
-  external DGK/agents-lab fixture comparison remains pending.
+  external `agents-lab` wrapper proof now records a `source:v1` receipt; the
+  DGK fixture comparison remains pending.
 
 ## Task 7 - Consumer handoff
 

@@ -223,14 +223,14 @@ export function buildAgentsLabSkillConventionReview({
 		boundaries: [
 			"This review does not install, copy, or vendor the agents-lab skill.",
 			"Non-interactive git guidance is useful, but Refarm operator-loop rules must wrap it.",
-			"Adapter smoke remains blocked until the Refarm wrapper is written and reviewed.",
+			"Adapter smoke must use a Refarm wrapper and keep the upstream skill as source evidence.",
 		],
 		nextActions:
 			decision === "requires-refarm-wrapper-before-install"
 				? [
-					"Draft a Refarm git-workflow wrapper that prepends operator-loop, source-sovereignty, and confirmation rules.",
+					"Run the Refarm git-workflow wrapper smoke to prove operator-loop, source-sovereignty, and confirmation rules.",
 					"Keep upstream git-workflow as source evidence instead of copying it directly into a runtime path.",
-					"Only then select a minimal SKILL.md invocation smoke.",
+					"Promote only package-declared wrapper evidence; do not install the external skill directly.",
 				]
 				: [
 					"Resolve convention review issues before installation or adapter smoke planning.",

@@ -9,7 +9,7 @@ test("agents-lab skill import manifest plans only reviewed markdown skills", () 
 	assert.equal(manifest.command, "agents-lab-skill-import-manifest");
 	assert.equal(manifest.ok, true);
 	assert.equal(manifest.mode, "plan-only");
-	assert.equal(manifest.activationGate.currentState, "native-skill-system-planning-active");
+	assert.equal(manifest.activationGate.currentState, "native-skill-system-wrapper-dogfood-active");
 	assert.match(manifest.activationGate.canStartNow.join("\n"), /native Refarm skill contract/);
 	assert.match(manifest.activationGate.canStartNow.join("\n"), /Review git-skills/);
 	assert.match(
@@ -22,7 +22,7 @@ test("agents-lab skill import manifest plans only reviewed markdown skills", () 
 	);
 	assert.match(
 		manifest.activationGate.stillBlockedBy.join("\n"),
-		/No native Refarm skill contract package/,
+		/DGK skill fixture proof remains pending/,
 	);
 	assert.equal(manifest.install.performsInstall, false);
 	assert.equal(manifest.install.requiresHumanReview, true);
@@ -55,8 +55,8 @@ test("agents-lab skill import manifest plans only reviewed markdown skills", () 
 	);
 	assert.match(manifest.boundaries.join("\n"), /No files are installed/);
 	assert.match(manifest.boundaries.join("\n"), /native Refarm skill contract/);
-	assert.match(manifest.boundaries.join("\n"), /Refarm skill runtime remains deferred/);
+	assert.match(manifest.boundaries.join("\n"), /External skills remain source evidence/);
 	assert.match(manifest.nextActions.join("\n"), /Inspect the source skill content/);
-	assert.match(manifest.nextActions.join("\n"), /native contract and wrapper smoke/);
+	assert.match(manifest.nextActions.join("\n"), /wrapper smokes as package-declared evidence/);
 	assert.deepEqual(manifest.issues, []);
 });
