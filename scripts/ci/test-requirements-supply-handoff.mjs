@@ -142,10 +142,49 @@ test("requirements supply handoff can target clean packages first", () => {
 		"@refarm.dev/enrichment-contract-v1",
 		"@refarm.dev/records-contract-v1",
 	]);
+	assert.equal(result.manifestFile, "manifest.clean.json");
 	assert.equal(result.distributionEvidence.expectedLocalCopies, 2);
 	assert.deepEqual(result.missingTarballs, [
 		"refarm.dev-enrichment-contract-v1-0.1.0.tgz",
 		"refarm.dev-records-contract-v1-0.1.0.tgz",
+	]);
+});
+
+test("requirements supply handoff can target source-web with source-contract support", () => {
+	const handoffDir = path.join(makeTempRoot(), "empty-handoff");
+	const result = buildRequirementsSupplyHandoff({
+		generatedAt: "2026-06-30T00:00:00.000Z",
+		scope: "source-web",
+		handoffDir,
+	});
+
+	assert.equal(result.ok, true);
+	assert.equal(result.state, "candidate-hold");
+	assert.equal(result.selection.scope, "source-web");
+	assert.deepEqual(
+		result.packages.map((entry) => entry.packageName),
+		["@refarm.dev/source-web"],
+	);
+	assert.deepEqual(
+		result.supportingPackages.map((entry) => entry.packageName),
+		["@refarm.dev/source-contract-v1"],
+	);
+	assert.deepEqual(result.consumerInstall.fileSpecs, {
+		"@refarm.dev/source-web": "file:./vendor/refarm.dev-source-web-0.1.0.tgz",
+	});
+	assert.deepEqual(result.consumerInstall.pnpmOverrides, {
+		"@refarm.dev/source-web": "file:./vendor/refarm.dev-source-web-0.1.0.tgz",
+		"@refarm.dev/source-contract-v1": "file:./vendor/refarm.dev-source-contract-v1-0.1.0.tgz",
+	});
+	assert.deepEqual(result.consumerInstall.copyFiles, [
+		"manifest.source-web.json",
+		"refarm.dev-source-web-0.1.0.tgz",
+		"refarm.dev-source-contract-v1-0.1.0.tgz",
+	]);
+	assert.equal(result.distributionEvidence.expectedLocalCopies, 2);
+	assert.deepEqual(result.missingTarballs, [
+		"refarm.dev-source-web-0.1.0.tgz",
+		"refarm.dev-source-contract-v1-0.1.0.tgz",
 	]);
 });
 
