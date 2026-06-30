@@ -64,6 +64,7 @@
 		"extension-sandbox:poc:test": "node --test validations/extension-sandbox-poc/extension-sandbox-poc.test.mjs",
 		"governed-note-box:poc": "node validations/governed-note-box-poc/governed-note-box-poc.mjs",
 		"governed-note-box:poc:test": "node --test validations/governed-note-box-poc/governed-note-box-poc.test.mjs",
+		"remote-workspace-control:poc:test": "node --test validations/remote-workspace-control-plane/remote-workspace-control-plane.test.mjs",
 		"validation-pocs:index": "node scripts/ci/build-validation-poc-evidence-index.mjs",
 		"validation-pocs:index:test": "node --test scripts/ci/test-validation-poc-evidence-index.mjs",
 		"validation-pocs:consumer:test": "node scripts/ci/run-workspace-script.mjs packages/artifact-contract-v1 build && node scripts/ci/check-validation-poc-consumers.mjs",

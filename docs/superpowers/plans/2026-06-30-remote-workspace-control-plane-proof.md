@@ -6,50 +6,50 @@
 
 ## Task 1 - Proof Fixture
 
-- Add a proof-local remote node descriptor fixture.
-- Include node id, label, transport kind, workspace root/mode, capabilities,
+- [x] Add a proof-local remote node descriptor fixture.
+- [x] Include node id, label, transport kind, workspace root/mode, capabilities,
   and policy flags.
-- Keep the schema name marked as proof-only.
-- Gate: descriptor is not exported as a public package contract.
+- [x] Keep the schema name marked as proof-only.
+- [x] Gate: descriptor is not exported as a public package contract.
 
 ## Task 2 - Status Shape
 
-- Build a status payload from the descriptor.
-- Include runtime readiness, allowed operations, refused operations, and
+- [x] Build a status payload from the descriptor.
+- [x] Include runtime readiness, allowed operations, refused operations, and
   environment pressure decision.
-- Gate: status can be rendered by an app, but the shape is not owned by
+- [x] Gate: status can be rendered by an app, but the shape is not owned by
   `apps/refarm`.
 
 ## Task 3 - Bounded Read-Only Effort
 
-- Represent one read-only command through `process-handoff`.
-- Prefer a cheap command such as `refarm check --next-action --json` or a
+- [x] Represent one read-only command through `process-handoff`.
+- [x] Prefer a cheap command such as `refarm check --next-action --json` or a
   single focused test fixture.
-- Refuse mutation and raw shell by policy.
-- Gate: no generic remote shell.
+- [x] Refuse mutation and raw shell by policy.
+- [x] Gate: no generic remote shell.
 
 ## Task 4 - Stream and Cancel Semantics
 
-- Attach stream-shaped output to the proof.
-- Represent cancellation as `cancelled`, `not-cancellable`,
+- [x] Attach stream-shaped output to the proof.
+- [x] Represent cancellation as `cancelled`, `not-cancellable`,
   `already-complete`, or `refused-by-policy`.
-- Gate: fast commands may simulate cancellation, but must not omit the cancel
+- [x] Gate: fast commands may simulate cancellation, but must not omit the cancel
   semantics.
 
 ## Task 5 - Evidence Envelope
 
-- Emit a proof evidence object containing process, node descriptor reference,
+- [x] Emit a proof evidence object containing process, node descriptor reference,
   policy decisions, environment pressure summary, stream reference, and final
   status.
-- Map the fields toward `artifact-contract-v1` without making
+- [x] Map the fields toward `artifact-contract-v1` without making
   `artifact-contract-v1` depend on the proof harness.
 
 ## Task 6 - Documentation And Boundary Guard
 
-- Update roadmap/readiness when the proof exists.
-- Keep tests guarding that Telegram, Matrix, Tailscale, PWA, Android, and
+- [x] Update roadmap/readiness when the proof exists.
+- [x] Keep tests guarding that Telegram, Matrix, Tailscale, PWA, Android, and
   `apps/refarm` are adapters/surfaces, not canonical protocol owners.
-- Revisit package extraction only after a promotion signal appears.
+- [ ] Revisit package extraction only after a promotion signal appears.
 
 ## Non-Goals
 
