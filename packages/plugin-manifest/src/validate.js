@@ -32,6 +32,63 @@ function isNonEmptyStringArray(values) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isRelativePackagePath(value) {
+	if (!isNonEmptyString(value)) return false;
+	const trimmed = value.trim();
+	return !trimmed.startsWith("/") && !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isSkillMarkdownAsset(value) {
+	return isRelativePackagePath(value) && /(^|\/)SKILL\.md$/.test(value.trim());
+}
+
+/**
+ * @param {import('./types.js').ExtensionSurfaceDeclaration} surface
+ * @param {number} index
+ * @param {string[]} errors
+ * @returns {void}
+ */
+function validatePiSkillSurface(surface, index, errors) {
+	if (surface.layer !== "pi" || surface.kind !== "skill") return;
+
+	if (surface.slot !== undefined) {
+		errors.push(
+			`extensions.surfaces[${index}].slot must not be provided for pi skill surfaces`,
+		);
+	}
+
+	if (
+		!Array.isArray(surface.capabilities) ||
+		surface.capabilities.length === 0 ||
+		!surface.capabilities.every(isNonEmptyString)
+	) {
+		errors.push(
+			`extensions.surfaces[${index}].capabilities must be a non-empty array for pi skill surfaces`,
+		);
+	}
+
+	if (!Array.isArray(surface.assets) || surface.assets.length === 0) {
+		errors.push(
+			`extensions.surfaces[${index}].assets must include a relative SKILL.md asset for pi skill surfaces`,
+		);
+		return;
+	}
+
+	if (!surface.assets.some(isSkillMarkdownAsset)) {
+		errors.push(
+			`extensions.surfaces[${index}].assets must include a relative SKILL.md asset for pi skill surfaces`,
+		);
+	}
+}
+
+/**
  * @param {import('./types.js').PluginManifest} manifest
  * @param {string[]} errors
  * @returns {void}
@@ -100,6 +157,8 @@ function validateExtensionSurfaces(manifest, errors) {
 				`extensions.surfaces[${index}].assets must be an array of non-empty strings when provided`,
 			);
 		}
+
+		validatePiSkillSurface(surface, index, errors);
 
 		if (isNonEmptyString(surface.layer) && isNonEmptyString(surface.id)) {
 			surfaceKeys.push(`${surface.layer}:${surface.id}`);
