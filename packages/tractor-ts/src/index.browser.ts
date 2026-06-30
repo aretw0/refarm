@@ -40,7 +40,7 @@ import {
 	fetchRuntimeDescriptorRevocationList,
 	isDescriptorHashRevoked,
 } from "./lib/runtime-descriptor-revocation.js";
-import type { TelemetryEvent } from "./lib/telemetry.js";
+import { type TelemetryEvent, TelemetryHost } from "./lib/telemetry.js";
 import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager.js";
 import type { SecurityMode, TractorConfig, TractorLogger, TractorLogLevel } from "./lib/types.js";
 
@@ -714,6 +714,7 @@ export class Tractor {
 	readonly defaultSecurityMode: SecurityMode;
 	readonly logLevel: TractorLogLevel;
 	readonly commands: CommandHost;
+	readonly telemetry: TelemetryHost;
 	private readonly telemetryHandlers: BrowserTelemetryHandler[] = [];
 	private readonly nodeHandlers = new Map<string, BrowserNodeHandler[]>();
 
@@ -726,6 +727,7 @@ export class Tractor {
 		this.defaultSecurityMode = config.securityMode ?? "strict";
 		this.logLevel = config.logLevel ?? "info";
 		this.registry = new SovereignRegistry();
+		this.telemetry = new TelemetryHost({ capacity: 1000 });
 		this.plugins = new PluginHost(
 			(event) => this.emitTelemetry(event),
 			this.registry,
@@ -745,6 +747,7 @@ export class Tractor {
 	}
 
 	emitTelemetry(event: TelemetryEvent): void {
+		this.telemetry.push(event);
 		for (const handler of this.telemetryHandlers) {
 			void handler(event);
 		}
