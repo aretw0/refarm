@@ -106,6 +106,20 @@ export interface SkillInvocationRequestV1 {
 	readonly requiresHostPolicyApproval: true;
 }
 
+export interface SkillSurfaceDeclarationOptions {
+	readonly assetPath: string;
+	readonly id?: string;
+	readonly includeOptionalCapabilities?: boolean;
+}
+
+export interface SkillSurfaceDeclarationV1 {
+	readonly layer: "pi";
+	readonly kind: "skill";
+	readonly id: string;
+	readonly assets: readonly string[];
+	readonly capabilities: readonly string[];
+}
+
 export interface SkillManifestIssue {
 	readonly code: string;
 	readonly path: string;
@@ -127,6 +141,10 @@ export interface SkillInvocationPlanBuildResult extends SkillManifestValidationR
 
 export interface SkillInvocationRequestBuildResult extends SkillManifestValidationResult {
 	readonly request: SkillInvocationRequestV1 | null;
+}
+
+export interface SkillSurfaceDeclarationBuildResult extends SkillManifestValidationResult {
+	readonly surface: SkillSurfaceDeclarationV1 | null;
 }
 
 export interface SkillInvocationPlanPrepareResult extends SkillManifestValidationResult {
@@ -162,6 +180,10 @@ export interface SkillContractV1Adapter {
 		plan: SkillInvocationPlanV1,
 		input: string,
 	): SkillInvocationRequestBuildResult | Promise<SkillInvocationRequestBuildResult>;
+	buildSurfaceDeclaration(
+		manifest: SkillManifestV1,
+		options: SkillSurfaceDeclarationOptions,
+	): SkillSurfaceDeclarationBuildResult | Promise<SkillSurfaceDeclarationBuildResult>;
 	prepareInvocationPlan(
 		source: string,
 		options?: SkillManifestParseOptions,

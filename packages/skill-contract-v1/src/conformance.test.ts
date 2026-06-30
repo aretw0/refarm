@@ -8,6 +8,7 @@ import {
 import {
 	buildSkillInvocationPlan,
 	buildSkillInvocationRequest,
+	buildSkillSurfaceDeclaration,
 	createSkillContractV1Adapter,
 	createSkillSourceRef,
 	parseSkillMarkdown,
@@ -15,6 +16,7 @@ import {
 	validateSkillInvocationPlan,
 	validateSkillInvocationRequest,
 	validateSkillManifest,
+	validateSkillSurfaceDeclaration,
 	verifySkillSource,
 } from "./manifest.js";
 
@@ -266,6 +268,65 @@ describe("skill-contract-v1", () => {
 		});
 	});
 
+	it("builds a plugin-manifest-compatible skill surface declaration", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE, {
+			sourceUri: "file:skills/refarm-git-workflow/SKILL.md",
+		});
+
+		const result = buildSkillSurfaceDeclaration(parsed.manifest!, {
+			assetPath: "skills/refarm-git-workflow/SKILL.md",
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.issues).toEqual([]);
+		expect(result.surface).toEqual({
+			layer: "pi",
+			kind: "skill",
+			id: "refarm-git-workflow",
+			assets: ["skills/refarm-git-workflow/SKILL.md"],
+			capabilities: ["refarm.operator-loop", "refarm.git.write"],
+		});
+	});
+
+	it("rejects skill surface declarations that are not package asset declarations", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE);
+		const built = buildSkillSurfaceDeclaration(parsed.manifest!, {
+			assetPath: "file:skills/refarm-git-workflow/SKILL.md",
+			id: "Bad Id",
+		});
+		const missingOptions = buildSkillSurfaceDeclaration(parsed.manifest!, undefined as never);
+
+		expect(built).toMatchObject({
+			ok: false,
+			surface: null,
+			issues: expect.arrayContaining([
+				expect.objectContaining({ code: "SURFACE_ASSET_PATH_INVALID", path: "$.assetPath" }),
+				expect.objectContaining({ code: "SURFACE_ID_INVALID", path: "$.id" }),
+			]),
+		});
+		expect(missingOptions).toMatchObject({
+			ok: false,
+			surface: null,
+			issues: expect.arrayContaining([
+				expect.objectContaining({ code: "SURFACE_OPTIONS_NOT_OBJECT", path: "$" }),
+			]),
+		});
+
+		expect(validateSkillSurfaceDeclaration({
+			layer: "pi",
+			kind: "skill",
+			id: "refarm-git-workflow",
+			assets: ["/tmp/SKILL.md"],
+			capabilities: [],
+		})).toMatchObject({
+			ok: false,
+			issues: expect.arrayContaining([
+				expect.objectContaining({ code: "SURFACE_ASSET_PATH_INVALID", path: "$.assets.0" }),
+				expect.objectContaining({ code: "CAPABILITY_LIST_EMPTY", path: "$.capabilities" }),
+			]),
+		});
+	});
+
 	it("prepares a manifest and invocation plan from one SKILL.md source", () => {
 		const result = prepareSkillInvocationPlan(VALID_SKILL_MARKDOWN_FIXTURE, {
 			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
@@ -301,6 +362,6 @@ describe("skill-contract-v1", () => {
 		expect(result.pass).toBe(true);
 		expect(result.failed).toBe(0);
 		expect(result.failures).toEqual([]);
-		expect(result.total).toBe(8);
+		expect(result.total).toBe(9);
 	});
 });

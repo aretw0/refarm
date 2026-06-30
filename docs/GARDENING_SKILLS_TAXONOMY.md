@@ -15,7 +15,8 @@
   Pi proving ground.
 - **`refarm`**: **no executable skill surface yet.** It has a native contract package that parses
   `SKILL.md` into a policy-checkable manifest/invocation plan handoff, carries markdown I/O
-  envelopes and declarative engine bindings, and verifies loaded source integrity, plus *engines* — `sower` (scaffold/import), `thresher`
+  envelopes and declarative engine bindings, verifies loaded source integrity,
+  and builds plugin-manifest-compatible `pi/skill` surface declarations, plus *engines* — `sower` (scaffold/import), `thresher`
   (integrity/compat audit), `windmill` (infra reconcile), `toolbox` (dev CLI), plus contracts
   (`context-provider-v1`, the in-progress `source:v1`). The skill invocation path is the future
   "Refarm as engine" milestone.
@@ -57,7 +58,9 @@ plans carry markdown input/output envelopes so hosts can validate payload shape
 before policy or engine dispatch, and declarative engine bindings so hosts can
 check required Refarm engine availability before dispatch. The contract can also
 build a host-policy-checkable invocation request from a plan and markdown input
-without calling a runtime. It exposes `prepareSkillInvocationPlan` as the
+without calling a runtime, and can build a `layer: "pi", kind: "skill"` surface
+declaration from a valid manifest plus relative package asset path. It exposes
+`prepareSkillInvocationPlan` as the
 adapter/host handoff for one source and `verifySkillSource` for source integrity
 checks before host trust. The
 remaining runtime work is to pass that plan through policy and invoke Refarm engines
@@ -73,8 +76,9 @@ manifest decides which host can see each surface.
 Activation sequence:
 
 1. **done:** create the contract package for skill metadata, capability
-   declarations, source hash, and policy-checkable invocation plan, scoped as a
-   schema helper for plugin-declared skill surfaces;
+   declarations, source hash, policy-checkable invocation plan/request, and
+   package surface declaration helper, scoped as a schema helper for
+   plugin-declared skill surfaces;
 2. add a minimal adapter that maps one reviewed external skill into the
    policy-checkable invocation plan;
 3. represent that skill as a manifest-declared surface such as

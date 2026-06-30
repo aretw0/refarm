@@ -157,6 +157,30 @@ export async function runSkillContractV1Conformance(
 	}
 
 	total++;
+	if (manifest) {
+		try {
+			const result = await adapter.buildSurfaceDeclaration(manifest, {
+				assetPath: "skills/refarm-git-workflow/SKILL.md",
+			});
+			if (!result.ok || !result.surface) {
+				failures.push(`valid manifest did not build skill surface declaration: ${formatIssues(result.issues)}`);
+			} else {
+				if (result.surface.layer !== "pi" || result.surface.kind !== "skill") {
+					failures.push("skill surface declaration must use pi/skill surface vocabulary");
+				}
+				if (!result.surface.assets.includes("skills/refarm-git-workflow/SKILL.md")) {
+					failures.push("skill surface declaration must preserve the package asset path");
+				}
+				if (!result.surface.capabilities.includes("refarm.operator-loop")) {
+					failures.push("skill surface declaration must expose required capabilities");
+				}
+			}
+		} catch (error) {
+			failures.push(`buildSurfaceDeclaration(valid) threw: ${String(error)}`);
+		}
+	}
+
+	total++;
 	try {
 		const result = await adapter.prepareInvocationPlan(VALID_SKILL_MARKDOWN_FIXTURE, {
 			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
