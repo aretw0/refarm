@@ -146,6 +146,14 @@ entries that later become installable plugins must still pass through
 `plugin-manifest` and Barn; the capability index only explains which Refarm
 primitive is supplyable and what proof still blocks promotion.
 
+Incubation note: ADR-073 splits this vocabulary into capability registry,
+supply/readiness index, and downstream assimilation map. The current
+`@refarm.dev/cli/capability-index` placement is acceptable while the surface is
+operator-owned discovery and release preflight. It should move to a narrower
+package only after a second non-CLI consumer, install-closure pressure, stable
+CI/release contract pressure, public tgz/npm handoff pressure, or
+reference-driver runtime API pressure proves that CLI is the wrong owner.
+
 ## Librarian follow-up
 
 The librarian question is no longer open-ended. The selected base path is:

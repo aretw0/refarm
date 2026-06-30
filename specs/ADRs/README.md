@@ -57,6 +57,8 @@ Architecture Decision Records for Refarm.
 | [069](ADR-069-npm-scope-canonicalization.md)                   | npm Scope Canonicalization                                                        | Accepted   | 2026-06-25 |
 | [070](ADR-070-wasm-surface-substrate.md)                       | WASM Surface Substrate, Ecosystem Dependency Depth, and Tractor Distribution       | Proposed   | 2026-06-25 |
 | [071](ADR-071-workspace-namespace-policy.md)                   | Workspace Namespace Policy                                                        | Accepted   | 2026-06-28 |
+| [072](ADR-072-consumer-leaf-distribution-policy.md)            | Consumer Leaf Distribution Policy                                                 | Accepted   | 2026-06-29 |
+| [073](ADR-073-capability-index-incubation-boundary.md)         | Capability Index Incubation Boundary                                              | Accepted   | 2026-06-30 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 
