@@ -40,8 +40,9 @@ package/plugin manifest surface, not `apps/refarm`.
   first `vault-seed` `dgk-skills` fixture by recording the upstream
   `vault-search` hash/source evidence, running a Refarm wrapper, calling
   `source:v1` over the external checkout, validating a package-declared
-  `pi/skill` surface, and emitting a receipt without installing or executing
-  upstream skill text, `dgk`, or Obsidian CLI.
+  `pi/skill` surface, recording activation preflight as blocked until integrity
+  and install policy evidence exist, and emitting a receipt without installing
+  or executing upstream skill text, `dgk`, or Obsidian CLI.
 - **Execution host**: `runtime-agent` may be the first dogfood host, but the
   contract stays host-neutral so a Refarm plugin can provide or consume skills
   later.
@@ -104,7 +105,8 @@ package/plugin manifest surface, not `apps/refarm`.
   source-status dogfood now records a `source:v1` execution receipt; the
   external `agents-lab` wrapper proof now records a `source:v1` receipt; the
   external DGK `vault-search` wrapper proof now records a `source:v1` receipt
-  and validates the wrapper as a package-declared `pi/skill` surface;
+  and validates the wrapper as a package-declared `pi/skill` surface; activation
+  preflight records the missing integrity and install policy evidence;
   runtime-host execution and direct DGK fixture comparison remain pending.
 
 ## Task 7 - Consumer handoff

@@ -1,11 +1,14 @@
 import { createHash } from "node:crypto";
 
 import {
+	SKILL_ACTIVATION_PREFLIGHT_SCHEMA,
 	SKILL_INVOCATION_DECISION_SCHEMA,
 	SKILL_INVOCATION_PLAN_SCHEMA,
 	SKILL_INVOCATION_RECEIPT_SCHEMA,
 	SKILL_INVOCATION_REQUEST_SCHEMA,
 	SKILL_MANIFEST_SCHEMA,
+	type SkillActivationPreflightBuildResult,
+	type SkillActivationPreflightOptions,
 	type SkillContractV1Adapter,
 	type SkillEngineBindingEnvelope,
 	type SkillInvocationDecisionBuildResult,
@@ -374,6 +377,133 @@ export function buildSkillSurfaceDeclaration(
 	};
 }
 
+export function evaluateSkillActivationPreflight(
+	manifest: SkillManifestV1,
+	surface: SkillSurfaceDeclarationV1,
+	options: SkillActivationPreflightOptions,
+): SkillActivationPreflightBuildResult {
+	const issues: SkillManifestIssue[] = [];
+
+	const manifestValidation = validateSkillManifest(manifest);
+	if (!manifestValidation.ok) {
+		issues.push(...manifestValidation.issues);
+	}
+
+	const surfaceValidation = validateSkillSurfaceDeclaration(surface);
+	if (!surfaceValidation.ok) {
+		issues.push(...surfaceValidation.issues.map((item) => ({
+			...item,
+			path: `$.surface${item.path === "$" ? "" : item.path.slice(1)}`,
+		})));
+	}
+
+	if (!isRecord(options)) {
+		return {
+			ok: false,
+			preflight: null,
+			issues: [issue("ACTIVATION_OPTIONS_NOT_OBJECT", "$", "Expected activation preflight options.")],
+		};
+	}
+
+	validateCapabilityArray(options.approvedCapabilities, "$.approvedCapabilities", issues);
+	validateEngineBindingArray(options.availableEngineBindings, "$.availableEngineBindings", issues);
+	validateActivationInstallEvidence(options.install, "$.install", issues);
+	const install = isActivationInstallEvidence(options.install)
+		? options.install
+		: {
+			pluginManifestValid: false,
+			integrityVerified: false,
+			policyAccepted: false,
+		};
+
+	if (surface.id !== slugify(manifest.name)) {
+		issues.push(issue(
+			"ACTIVATION_SURFACE_SKILL_MISMATCH",
+			"$.surface.id",
+			"Expected surface id to match the skill manifest name slug.",
+		));
+	}
+
+	const surfaceCapabilities = new Set(surface.capabilities);
+	for (const capability of manifest.capabilities.requires) {
+		if (!surfaceCapabilities.has(capability)) {
+			issues.push(issue(
+				"ACTIVATION_SURFACE_CAPABILITY_MISSING",
+				"$.surface.capabilities",
+				"Expected package skill surface to declare every required capability.",
+			));
+			break;
+		}
+	}
+
+	const approvedCapabilities = new Set(options.approvedCapabilities);
+	for (const capability of manifest.capabilities.requires) {
+		if (!approvedCapabilities.has(capability)) {
+			issues.push(issue(
+				"ACTIVATION_REQUIRED_CAPABILITY_NOT_APPROVED",
+				"$.approvedCapabilities",
+				"Expected host policy to approve every required capability before runtime dispatch.",
+			));
+			break;
+		}
+	}
+
+	const availableEngineBindings = new Set(options.availableEngineBindings);
+	for (const binding of manifest.engineBindings.requires) {
+		if (!availableEngineBindings.has(binding)) {
+			issues.push(issue(
+				"ACTIVATION_REQUIRED_ENGINE_UNAVAILABLE",
+				"$.availableEngineBindings",
+				"Expected every required engine binding to be available before runtime dispatch.",
+			));
+			break;
+		}
+	}
+
+	if (install.pluginManifestValid !== true) {
+		issues.push(issue(
+			"ACTIVATION_PLUGIN_MANIFEST_NOT_VALID",
+			"$.install.pluginManifestValid",
+			"Expected plugin-manifest validation evidence before activation.",
+		));
+	}
+	if (install.integrityVerified !== true) {
+		issues.push(issue(
+			"ACTIVATION_INTEGRITY_NOT_VERIFIED",
+			"$.install.integrityVerified",
+			"Expected integrity verification evidence before activation.",
+		));
+	}
+	if (install.policyAccepted !== true) {
+		issues.push(issue(
+			"ACTIVATION_POLICY_NOT_ACCEPTED",
+			"$.install.policyAccepted",
+			"Expected host install policy acceptance before activation.",
+		));
+	}
+
+	const state = issues.length === 0 ? "ready" : "blocked";
+	return {
+		ok: issues.length === 0,
+		preflight: {
+			schema: SKILL_ACTIVATION_PREFLIGHT_SCHEMA,
+			skill: {
+				id: manifest.id,
+				name: manifest.name,
+				source: manifest.source,
+			},
+			surface,
+			install,
+			approvedCapabilities: options.approvedCapabilities,
+			availableEngineBindings: options.availableEngineBindings,
+			state,
+			readyForRuntimeDispatch: state === "ready",
+			issues,
+		},
+		issues,
+	};
+}
+
 export function prepareSkillInvocationPlan(
 	source: string,
 	options: SkillManifestParseOptions = {},
@@ -574,6 +704,7 @@ export function createSkillContractV1Adapter(): SkillContractV1Adapter {
 		buildInvocationRequest: buildSkillInvocationRequest,
 		buildInvocationPlan: buildSkillInvocationPlan,
 		buildSurfaceDeclaration: buildSkillSurfaceDeclaration,
+		evaluateActivationPreflight: evaluateSkillActivationPreflight,
 		parseMarkdown: parseSkillMarkdown,
 		prepareInvocationPlan: prepareSkillInvocationPlan,
 		validateManifest: validateSkillManifest,
@@ -1034,6 +1165,33 @@ function validateEngineBindingArray(
 			issues.push(issue("ENGINE_BINDING_ID_INVALID", `${path}.${index}`, "Expected a valid engine binding id."));
 		}
 	});
+}
+
+function validateActivationInstallEvidence(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
+	if (!isRecord(value)) {
+		issues.push(issue("ACTIVATION_INSTALL_NOT_OBJECT", path, "Expected install evidence object."));
+		return;
+	}
+	for (const key of ["pluginManifestValid", "integrityVerified", "policyAccepted"]) {
+		if (typeof value[key] !== "boolean") {
+			issues.push(issue("ACTIVATION_INSTALL_FLAG_INVALID", `${path}.${key}`, "Expected boolean."));
+		}
+	}
+}
+
+function isActivationInstallEvidence(value: unknown): value is {
+	pluginManifestValid: boolean;
+	integrityVerified: boolean;
+	policyAccepted: boolean;
+} {
+	return isRecord(value) &&
+		typeof value.pluginManifestValid === "boolean" &&
+		typeof value.integrityVerified === "boolean" &&
+		typeof value.policyAccepted === "boolean";
 }
 
 function normalizeCapabilityList(value: unknown): readonly string[] {

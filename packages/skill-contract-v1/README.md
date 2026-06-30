@@ -27,6 +27,8 @@ content:
 - build a plugin-manifest-compatible skill surface declaration
   (`layer: "pi", kind: "skill"`) from a validated manifest and package asset
   path;
+- evaluate an activation preflight from the manifest, package skill surface,
+  host-approved capabilities, available engine bindings, and install evidence;
 - prepare a manifest and invocation plan from one `SKILL.md` source so hosts and
   adapters do not reimplement the parse/build handoff;
 - provide conformance helpers for future adapters and hosts.
@@ -50,6 +52,7 @@ import {
 	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
 	buildSkillSurfaceDeclaration,
+	evaluateSkillActivationPreflight,
 	prepareSkillInvocationPlan,
 	verifySkillSource,
 } from "@refarm.dev/skill-contract-v1";
@@ -77,6 +80,19 @@ const surface = buildSkillSurfaceDeclaration(result.manifest, {
 });
 if (!surface.ok) {
 	throw new Error(surface.issues.map((issue) => issue.message).join("; "));
+}
+
+const activation = evaluateSkillActivationPreflight(result.manifest, surface.surface, {
+	approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+	availableEngineBindings: ["runtime-agent", "source:v1"],
+	install: {
+		pluginManifestValid: true,
+		integrityVerified: true,
+		policyAccepted: true,
+	},
+});
+if (!activation.ok) {
+	throw new Error(activation.issues.map((issue) => issue.message).join("; "));
 }
 
 const request = buildSkillInvocationRequest(result.plan, "Review this working tree.");
@@ -138,3 +154,7 @@ or an error for failure.
 Skill surface declarations require a relative package asset path; local
 `file:`/`fixture:` sources can be reviewed and parsed before packaging, but they
 do not become package manifest assets by accident.
+Activation preflight is declarative. It does not install or execute skills; it
+records whether the host has already supplied package manifest validation,
+integrity verification, policy acceptance, required capabilities, and required
+engine bindings before runtime dispatch.

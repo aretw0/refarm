@@ -4,6 +4,7 @@ export const SKILL_INVOCATION_PLAN_SCHEMA = "refarm.skill-invocation-plan.v1" as
 export const SKILL_INVOCATION_REQUEST_SCHEMA = "refarm.skill-invocation-request.v1" as const;
 export const SKILL_INVOCATION_DECISION_SCHEMA = "refarm.skill-invocation-decision.v1" as const;
 export const SKILL_INVOCATION_RECEIPT_SCHEMA = "refarm.skill-invocation-receipt.v1" as const;
+export const SKILL_ACTIVATION_PREFLIGHT_SCHEMA = "refarm.skill-activation-preflight.v1" as const;
 
 export type SkillExecutionMode = "plan-only" | "host-invoked";
 export type SkillToolAccess = "declared-capabilities-only";
@@ -182,6 +183,32 @@ export interface SkillSurfaceDeclarationV1 {
 	readonly capabilities: readonly string[];
 }
 
+export type SkillActivationPreflightState = "ready" | "blocked";
+
+export interface SkillActivationInstallEvidence {
+	readonly pluginManifestValid: boolean;
+	readonly integrityVerified: boolean;
+	readonly policyAccepted: boolean;
+}
+
+export interface SkillActivationPreflightOptions {
+	readonly approvedCapabilities: readonly string[];
+	readonly availableEngineBindings: readonly string[];
+	readonly install: SkillActivationInstallEvidence;
+}
+
+export interface SkillActivationPreflightV1 {
+	readonly schema: typeof SKILL_ACTIVATION_PREFLIGHT_SCHEMA;
+	readonly skill: SkillInvocationPlanSkillRef;
+	readonly surface: SkillSurfaceDeclarationV1;
+	readonly install: SkillActivationInstallEvidence;
+	readonly approvedCapabilities: readonly string[];
+	readonly availableEngineBindings: readonly string[];
+	readonly state: SkillActivationPreflightState;
+	readonly readyForRuntimeDispatch: boolean;
+	readonly issues: readonly SkillManifestIssue[];
+}
+
 export interface SkillManifestIssue {
 	readonly code: string;
 	readonly path: string;
@@ -215,6 +242,10 @@ export interface SkillInvocationReceiptBuildResult extends SkillManifestValidati
 
 export interface SkillSurfaceDeclarationBuildResult extends SkillManifestValidationResult {
 	readonly surface: SkillSurfaceDeclarationV1 | null;
+}
+
+export interface SkillActivationPreflightBuildResult extends SkillManifestValidationResult {
+	readonly preflight: SkillActivationPreflightV1 | null;
 }
 
 export interface SkillInvocationPlanPrepareResult extends SkillManifestValidationResult {
@@ -258,6 +289,11 @@ export interface SkillContractV1Adapter {
 		manifest: SkillManifestV1,
 		options: SkillSurfaceDeclarationOptions,
 	): SkillSurfaceDeclarationBuildResult | Promise<SkillSurfaceDeclarationBuildResult>;
+	evaluateActivationPreflight(
+		manifest: SkillManifestV1,
+		surface: SkillSurfaceDeclarationV1,
+		options: SkillActivationPreflightOptions,
+	): SkillActivationPreflightBuildResult | Promise<SkillActivationPreflightBuildResult>;
 	prepareInvocationPlan(
 		source: string,
 		options?: SkillManifestParseOptions,

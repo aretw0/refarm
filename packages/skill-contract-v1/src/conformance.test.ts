@@ -13,6 +13,7 @@ import {
 	buildSkillSurfaceDeclaration,
 	createSkillContractV1Adapter,
 	createSkillSourceRef,
+	evaluateSkillActivationPreflight,
 	parseSkillMarkdown,
 	prepareSkillInvocationPlan,
 	validateSkillInvocationDecision,
@@ -496,6 +497,68 @@ describe("skill-contract-v1", () => {
 		});
 	});
 
+	it("evaluates activation preflight before a package skill surface can dispatch", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE);
+		const surface = buildSkillSurfaceDeclaration(parsed.manifest!, {
+			assetPath: "skills/refarm-git-workflow/SKILL.md",
+		});
+
+		const result = evaluateSkillActivationPreflight(parsed.manifest!, surface.surface!, {
+			approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+			availableEngineBindings: ["runtime-agent", "source:v1"],
+			install: {
+				pluginManifestValid: true,
+				integrityVerified: true,
+				policyAccepted: true,
+			},
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.issues).toEqual([]);
+		expect(result.preflight).toMatchObject({
+			schema: "refarm.skill-activation-preflight.v1",
+			state: "ready",
+			readyForRuntimeDispatch: true,
+			surface: surface.surface,
+			install: {
+				pluginManifestValid: true,
+				integrityVerified: true,
+				policyAccepted: true,
+			},
+		});
+	});
+
+	it("blocks activation preflight when host install or runtime evidence is missing", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE);
+		const surface = buildSkillSurfaceDeclaration(parsed.manifest!, {
+			assetPath: "skills/refarm-git-workflow/SKILL.md",
+		});
+
+		const result = evaluateSkillActivationPreflight(parsed.manifest!, surface.surface!, {
+			approvedCapabilities: ["refarm.operator-loop"],
+			availableEngineBindings: ["source:v1"],
+			install: {
+				pluginManifestValid: true,
+				integrityVerified: false,
+				policyAccepted: false,
+			},
+		});
+
+		expect(result.ok).toBe(false);
+		expect(result.preflight).toMatchObject({
+			schema: "refarm.skill-activation-preflight.v1",
+			state: "blocked",
+			readyForRuntimeDispatch: false,
+		});
+		expect(result.issues).toEqual(expect.arrayContaining([
+			expect.objectContaining({ code: "ACTIVATION_REQUIRED_CAPABILITY_NOT_APPROVED" }),
+			expect.objectContaining({ code: "ACTIVATION_REQUIRED_ENGINE_UNAVAILABLE" }),
+			expect.objectContaining({ code: "ACTIVATION_INTEGRITY_NOT_VERIFIED" }),
+			expect.objectContaining({ code: "ACTIVATION_POLICY_NOT_ACCEPTED" }),
+		]));
+		expect(result.preflight?.issues).toEqual(result.issues);
+	});
+
 	it("prepares a manifest and invocation plan from one SKILL.md source", () => {
 		const result = prepareSkillInvocationPlan(VALID_SKILL_MARKDOWN_FIXTURE, {
 			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
@@ -531,6 +594,6 @@ describe("skill-contract-v1", () => {
 		expect(result.pass).toBe(true);
 		expect(result.failed).toBe(0);
 		expect(result.failures).toEqual([]);
-		expect(result.total).toBe(10);
+		expect(result.total).toBe(11);
 	});
 });
