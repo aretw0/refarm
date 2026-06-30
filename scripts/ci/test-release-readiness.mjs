@@ -23,6 +23,7 @@ test("prints an ordered release readiness plan", () => {
 	assert.match(output, /github-actions-contracts: .*actions:contracts/);
 	assert.match(output, /codemod-registry: .*codemods:check/);
 	assert.match(output, /audience-boundary: .*audience:boundary:test/);
+	assert.match(output, /release-boundary-audit: .*release:boundary:audit/);
 	assert.match(output, /reference-driver: .*reference-driver:smoke/);
 	assert.match(output, /publish-dry-run: .*release:check/);
 });
@@ -54,6 +55,7 @@ test("prints structured release readiness metadata", () => {
 			"github-actions-contracts",
 			"codemod-registry",
 			"audience-boundary",
+			"release-boundary-audit",
 			"reference-driver",
 			"publish-dry-run",
 		],
@@ -73,5 +75,6 @@ test("accepts package-manager argument separators before json flags", () => {
 	assert.equal(parsed.json, true);
 	assert.equal(payload.steps.at(-1).id, "publish-dry-run");
 	assert.equal(payload.steps.at(-2).id, "reference-driver");
-	assert.equal(payload.steps.at(-3).id, "audience-boundary");
+	assert.equal(payload.steps.at(-3).id, "release-boundary-audit");
+	assert.equal(payload.steps.at(-4).id, "audience-boundary");
 });
