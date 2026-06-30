@@ -27,6 +27,10 @@ const releaseGateDoc = readFileSync(
 	path.join(ROOT, "docs/v0.1.0-release-gate.md"),
 	"utf8",
 );
+const factoryReadinessDoc = readFileSync(
+	path.join(ROOT, "docs/CONVERGENCE_FACTORY_READINESS.md"),
+	"utf8",
+);
 const vaultSeedHandoffPlan = readFileSync(
 	path.join(ROOT, "docs/superpowers/plans/2026-06-26-vault-seed-ready-handoff.md"),
 	"utf8",
@@ -140,4 +144,11 @@ test("vault-seed handoff docs distinguish historical 10-package packets from cur
 	);
 	assert.match(vaultSeedHandoffPlan, /historical 2026-06-26/);
 	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 9 packages and 20 required checks/);
+});
+
+test("factory readiness records the current local vault-seed handoff state", () => {
+	assert.match(factoryReadinessDoc, /local handoff ready/);
+	assert.match(factoryReadinessDoc, /\.refarm\/handoff\/vault-seed\/2026-06-30\/manifest\.json/);
+	assert.match(factoryReadinessDoc, /distributionEvidence\.state: "local-handoff-ready"/);
+	assert.match(factoryReadinessDoc, /no stale tarball\/build-output issues/);
 });
