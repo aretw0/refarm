@@ -166,6 +166,7 @@ pnpm run release:readiness
 pnpm run release:readiness:test
 pnpm run release:boundary:audit
 pnpm run requirements:supply:handoff
+pnpm run requirements:supply:handoff -- --pack --clean-only
 pnpm run release:vault-seed:check
 pnpm --silent run release:vault-seed:handoff -- --pack --json
 pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json

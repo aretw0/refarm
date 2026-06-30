@@ -1,7 +1,19 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	statSync,
+	writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+	detectPackageManager,
+	packageManagerSpawnCommand,
+} from "../../packages/config/src/package-manager.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SCHEMA = "refarm.requirements-supply-handoff.v1";
@@ -9,6 +21,7 @@ const SOURCE = "requirements-supply-handoff";
 const REQUIREMENTS_SUPPLY_TAG = "requirements-supply";
 const HOLD_TAGS = [REQUIREMENTS_SUPPLY_TAG, "boundary-review", "candidate-hold"];
 const VAULT_SEED_READY = "vault-seed-ready";
+const DEFAULT_HANDOFF_DIR = `.refarm/handoff/requirements-supply/${new Date().toISOString().slice(0, 10)}`;
 
 const CONSUMER_PULLS = {
 	"@refarm.dev/source-web": {
@@ -42,6 +55,22 @@ const CONSUMER_PULLS = {
 
 function readJson(filePath) {
 	return JSON.parse(readFileSync(filePath, "utf8"));
+}
+
+function sha256File(filePath) {
+	return createHash("sha256").update(readFileSync(filePath)).digest("hex");
+}
+
+function maybeRelative(cwd, targetPath) {
+	const relative = path.relative(cwd, targetPath);
+	if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+		return targetPath;
+	}
+	return relative.replace(/\\/g, "/");
+}
+
+function trimOutput(value) {
+	return String(value ?? "").trim().split("\n").slice(-8).join("\n");
 }
 
 function packageDir(packageName) {
@@ -151,23 +180,66 @@ function packageEntry({ cwd, profile, selected }) {
 	};
 }
 
-function buildConsumerInstall({ packages, supportingPackages }) {
+function annotateTarball(entry, { cwd, handoffDir }) {
+	if (!entry.tarball || !handoffDir) {
+		return {
+			...entry,
+			path: null,
+			exists: false,
+			sha256: null,
+			sizeBytes: null,
+		};
+	}
+	const filePath = path.join(path.resolve(cwd, handoffDir), entry.tarball);
+	const exists = existsSync(filePath);
+	const stats = exists ? statSync(filePath) : null;
+	return {
+		...entry,
+		path: maybeRelative(cwd, filePath),
+		exists,
+		sha256: exists ? sha256File(filePath) : null,
+		sizeBytes: stats?.size ?? null,
+	};
+}
+
+function packageHasRefarmDependencies(entry) {
+	return entry.refarmDependencies.length > 0;
+}
+
+function selectScope(packages, scope) {
+	if (scope === "clean") {
+		return packages.filter((entry) => !packageHasRefarmDependencies(entry));
+	}
+	return packages;
+}
+
+function sortForCleanFirst(packages) {
+	return [...packages].sort((left, right) => {
+		const leftCost = packageHasRefarmDependencies(left) ? 1 : 0;
+		const rightCost = packageHasRefarmDependencies(right) ? 1 : 0;
+		if (leftCost !== rightCost) return leftCost - rightCost;
+		return left.packageName.localeCompare(right.packageName);
+	});
+}
+
+function buildConsumerInstall({ packages, supportingPackages, cwd, handoffDir }) {
+	const allPackages = [...packages, ...supportingPackages];
 	const candidateFileSpecs = Object.fromEntries(
 		packages
 			.filter((entry) => entry.tarball)
 			.map((entry) => [entry.packageName, `file:./vendor/${entry.tarball}`]),
 	);
 	const pnpmOverrides = Object.fromEntries(
-		[...packages, ...supportingPackages]
+		allPackages
 			.filter((entry) => entry.tarball)
 			.map((entry) => [entry.packageName, `file:./vendor/${entry.tarball}`]),
 	);
 	return {
-		mode: "planned-local-handoff",
+		mode: packages.every((entry) => entry.exists) ? "local-handoff-ready" : "planned-local-handoff",
 		vendorDir: "vendor",
-		copyFrom: null,
+		copyFrom: handoffDir ? maybeRelative(cwd, path.resolve(cwd, handoffDir)) : null,
 		copyFiles: ["manifest.json", ...Object.keys(pnpmOverrides).map((name) => {
-			const entry = [...packages, ...supportingPackages].find((item) => item.packageName === name);
+			const entry = allPackages.find((item) => item.packageName === name);
 			return entry.tarball;
 		})],
 		fileSpecs: candidateFileSpecs,
@@ -176,17 +248,117 @@ function buildConsumerInstall({ packages, supportingPackages }) {
 	};
 }
 
+function parseArgs(argv = []) {
+	const options = {
+		json: false,
+		pack: false,
+		scope: "all",
+		handoffDir: DEFAULT_HANDOFF_DIR,
+		out: null,
+	};
+
+	for (let index = 0; index < argv.length; index += 1) {
+		const arg = argv[index];
+		if (arg === "--") {
+			continue;
+		}
+		if (arg === "--json") {
+			options.json = true;
+			continue;
+		}
+		if (arg === "--pack") {
+			options.pack = true;
+			continue;
+		}
+		if (arg === "--clean-only") {
+			options.scope = "clean";
+			continue;
+		}
+		if (arg === "--all") {
+			options.scope = "all";
+			continue;
+		}
+		if (arg === "--dir") {
+			options.handoffDir = requireValue(argv, index, arg);
+			index += 1;
+			continue;
+		}
+		if (arg === "--out") {
+			options.out = requireValue(argv, index, arg);
+			index += 1;
+			continue;
+		}
+		throw new Error(`Unknown requirements supply handoff argument: ${arg}`);
+	}
+
+	return options;
+}
+
+function requireValue(argv, index, flag) {
+	const value = argv[index + 1];
+	if (!value || value.startsWith("--")) {
+		throw new Error(`${flag} requires a value`);
+	}
+	return value;
+}
+
+export function materializeRequirementsSupplyTarballs({
+	cwd = ROOT,
+	env = process.env,
+	handoffDir = DEFAULT_HANDOFF_DIR,
+	packages,
+	supportingPackages = [],
+} = {}) {
+	const absoluteHandoffDir = path.resolve(cwd, handoffDir);
+	mkdirSync(absoluteHandoffDir, { recursive: true });
+
+	const packageManager = detectPackageManager({ cwd, env });
+	const spawnCommand = packageManagerSpawnCommand(packageManager, [
+		"pack",
+		"--pack-destination",
+		absoluteHandoffDir,
+	]);
+	const packed = [];
+	for (const entry of [...packages, ...supportingPackages]) {
+		const result = spawnSync(spawnCommand.command, spawnCommand.args, {
+			cwd: path.join(cwd, entry.packageDir),
+			encoding: "utf8",
+		});
+		if (result.error) {
+			throw new Error(`${entry.packageName} pack failed: ${result.error.message}`);
+		}
+		if (result.status !== 0) {
+			const details = trimOutput(result.stderr) || trimOutput(result.stdout);
+			throw new Error(
+				`${entry.packageName} pack failed with status ${result.status}` +
+					(details ? `: ${details}` : ""),
+			);
+		}
+		packed.push({
+			packageName: entry.packageName,
+			packageDir: entry.packageDir,
+			tarball: entry.tarball,
+			command: `${packageManager} pack --pack-destination ${maybeRelative(cwd, absoluteHandoffDir)}`,
+		});
+	}
+	return packed;
+}
+
 export function buildRequirementsSupplyHandoff({
 	cwd = ROOT,
 	generatedAt = "2026-06-30T00:00:00.000Z",
+	scope = "all",
+	handoffDir = DEFAULT_HANDOFF_DIR,
+	packed = [],
 } = {}) {
 	const config = readJson(path.join(cwd, "refarm.config.json"));
 	const policy = config.releasePolicy;
 	const selected = new Set(
 		profilePackages(policy, VAULT_SEED_READY).map((profile) => profile.id),
 	);
-	const packages = profilePackages(policy, REQUIREMENTS_SUPPLY_TAG)
-		.map((profile) => packageEntry({ cwd, profile, selected }));
+	const allPackages = sortForCleanFirst(profilePackages(policy, REQUIREMENTS_SUPPLY_TAG)
+		.map((profile) => packageEntry({ cwd, profile, selected })));
+	const packages = selectScope(allPackages, scope);
 	const supportingByName = new Map();
 	for (const entry of packages) {
 		for (const dependency of entry.refarmDependencies) {
@@ -198,38 +370,59 @@ export function buildRequirementsSupplyHandoff({
 	const supportingPackages = [...supportingByName.values()].sort((left, right) =>
 		left.packageName.localeCompare(right.packageName),
 	);
-	const issues = packages.flatMap((entry) =>
-		entry.issues.map((message) => ({ packageName: entry.packageName, message })),
+	const materializedPackages = packages.map((entry) => annotateTarball(entry, { cwd, handoffDir }));
+	const materializedSupportingPackages = supportingPackages.map((entry) =>
+		annotateTarball(entry, { cwd, handoffDir }),
 	);
+	const missingTarballs = [...materializedPackages, ...materializedSupportingPackages]
+		.filter((entry) => !entry.exists)
+		.map((entry) => entry.tarball);
+	const issues = [
+		...packages.flatMap((entry) =>
+			entry.issues.map((message) => ({ packageName: entry.packageName, message })),
+		),
+	];
 	const ok = issues.length === 0;
+	const allExpectedTarballsExist = missingTarballs.length === 0;
+	const state = !ok ? "blocked" : allExpectedTarballsExist ? "local-handoff-ready" : "candidate-hold";
 
 	return {
 		schema: SCHEMA,
 		schemaVersion: 1,
 		source: SOURCE,
 		generatedAt,
-		ok,
-		state: ok ? "candidate-hold" : "blocked",
+		ok: ok && (packed.length === 0 || allExpectedTarballsExist),
+		state,
 		selection: {
 			id: "requirements-supply-candidates",
 			source: "releasePolicy.packageProfiles",
 			profileTag: REQUIREMENTS_SUPPLY_TAG,
+			scope,
 			selectedForVaultSeedReady: false,
 		},
-		packages,
-		supportingPackages,
-		consumerInstall: buildConsumerInstall({ packages, supportingPackages }),
-		consumerProofs: packages.map((entry) => entry.consumerPull).filter(Boolean),
+		handoffDir: maybeRelative(cwd, path.resolve(cwd, handoffDir)),
+		packages: materializedPackages,
+		supportingPackages: materializedSupportingPackages,
+		packed,
+		consumerInstall: buildConsumerInstall({
+			packages: materializedPackages,
+			supportingPackages: materializedSupportingPackages,
+			cwd,
+			handoffDir,
+		}),
+		consumerProofs: materializedPackages.map((entry) => entry.consumerPull).filter(Boolean),
 		distributionEvidence: {
-			state: ok ? "candidate-hold" : "blocked",
-			verifiedLocalCopies: 0,
-			tarballFreshness: "not-checked-until-pack",
+			state,
+			verifiedLocalCopies: [...materializedPackages, ...materializedSupportingPackages]
+				.filter((entry) => entry.exists).length,
+			expectedLocalCopies: materializedPackages.length + materializedSupportingPackages.length,
+			tarballFreshness: allExpectedTarballsExist ? "checked-present" : "not-checked-until-pack",
 			promotionBoundary:
 				"requires named downstream proof before vault-seed-ready selection or tarball handoff publication",
 		},
 		boundaries: [
-			"does not pack tarballs",
-			"does not write .refarm/handoff artifacts",
+			"packs only when --pack is explicit",
+			"writes only requirements-supply handoff artifacts, not vault-seed-ready artifacts",
 			"does not select requirements-supply packages for vault-seed-ready",
 			"does not move private login, selectors, enrichment providers, or vocabulary into Refarm",
 		],
@@ -238,15 +431,42 @@ export function buildRequirementsSupplyHandoff({
 			"promote only the consumed leaves after downstream proof and release boundary audit pass",
 			"keep supporting Refarm dependencies visible as local overrides while unpublished",
 		],
+		missingTarballs,
 		issueCount: issues.length,
 		issues,
 	};
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-	const json = process.argv.includes("--json");
-	const result = buildRequirementsSupplyHandoff();
-	if (json) {
+	const options = parseArgs(process.argv.slice(2));
+	let packed = [];
+	if (options.pack) {
+		const plan = buildRequirementsSupplyHandoff({
+			scope: options.scope,
+			handoffDir: options.handoffDir,
+		});
+		if (plan.issueCount > 0) {
+			console.error(`requirements-supply-handoff: blocked (${plan.issueCount} issue(s))`);
+			process.exit(1);
+		}
+		packed = materializeRequirementsSupplyTarballs({
+			handoffDir: options.handoffDir,
+			packages: plan.packages,
+			supportingPackages: plan.supportingPackages,
+		});
+	}
+	const result = buildRequirementsSupplyHandoff({
+		scope: options.scope,
+		handoffDir: options.handoffDir,
+		packed,
+	});
+	const manifestOut = options.out ?? (options.pack ? path.join(result.handoffDir, "manifest.json") : null);
+	if (manifestOut) {
+		const absoluteOut = path.resolve(ROOT, manifestOut);
+		mkdirSync(path.dirname(absoluteOut), { recursive: true });
+		writeFileSync(absoluteOut, `${JSON.stringify(result, null, 2)}\n`);
+	}
+	if (options.json) {
 		console.log(JSON.stringify(result, null, 2));
 	} else {
 		console.log(`requirements-supply-handoff: ${result.ok ? "ok" : "blocked"} (${result.state})`);

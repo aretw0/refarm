@@ -104,7 +104,9 @@ Private downstream proofs own:
    for `vault-seed-ready` until the downstream checkout records a consumer pull
    proof through the local handoff lane. `requirements:supply:handoff` exposes
    the planned candidate handoff contract without packing tarballs or writing
-   `.refarm/handoff` artifacts.
+   `.refarm/handoff` artifacts unless `--pack` is explicit. The first materialized
+   handoff uses `--pack --clean-only` so `enrichment:v1` and `records:v1` can be
+   consumed before the `source-web` + `source-contract-v1` pair.
 
 ## First Proof Shape
 
@@ -151,6 +153,9 @@ Current handoff planning proof:
 - `pnpm run requirements:supply:handoff` emits candidate leaves, supporting
   unpublished Refarm dependencies, planned `file:./vendor/*.tgz` specs,
   `pnpmOverrides`, consumer proof metadata, and fallbacks;
+- `pnpm run requirements:supply:handoff -- --pack --clean-only` materializes only
+  `@refarm.dev/enrichment-contract-v1` and `@refarm.dev/records-contract-v1`
+  tarballs plus `manifest.json` for consumer vendor directories;
 - `pnpm run release:boundary:audit` blocks missing hold tags or premature
   `vault-seed-ready` selection;
 - downstream POCs may keep private login, selectors, and enrichment providers
