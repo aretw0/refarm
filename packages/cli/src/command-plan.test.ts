@@ -262,6 +262,67 @@ describe("command plan runner", () => {
 		});
 	});
 
+	it("stops before running a step when a resource ceiling blocks it", () => {
+		const runStep = vi.fn((step: CommandPlanStep) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+		}));
+
+		const result = runCommandPlan([processSteps[0]!], runStep, {
+			planResourceCeiling: () => ({
+				ok: true,
+				decision: "degrade",
+				workClass: "broad-check",
+				pressureDecision: "safe-mode",
+				reason: "Safe mode requires a smaller proof instead of broad work.",
+				nextActions: ["Run the bounded fallback: pnpm -C packages/cli run type-check"],
+				nextCommands: ["pnpm -C packages/cli run type-check"],
+				maxConcurrency: null,
+				recommendations: [
+					{
+						diagnostic: "host-memory-available",
+						severity: "warning",
+					},
+				],
+			}),
+		});
+
+		expect(runStep).not.toHaveBeenCalled();
+		expect(result).toMatchObject({
+			ok: false,
+			status: "failed",
+			failedStepId: "type-check",
+			failedCommand: "refarm agent finish --workspace packages/cli --json",
+			nextActions: ["Run the bounded fallback: pnpm -C packages/cli run type-check"],
+			nextCommands: ["pnpm -C packages/cli run type-check"],
+			nextProcesses: [],
+			recommendations: [
+				{
+					diagnostic: "host-memory-available",
+					severity: "warning",
+				},
+			],
+			steps: [
+				{
+					id: "type-check",
+					ok: false,
+					exitCode: 1,
+					payload: {
+						ok: false,
+						resourceCeiling: {
+							decision: "degrade",
+							workClass: "broad-check",
+							pressureDecision: "safe-mode",
+						},
+					},
+				},
+			],
+		});
+	});
+
 	it("turns nested spawn restrictions into direct-run guidance", () => {
 		const runStep = vi.fn((step: CommandPlanStep) => ({
 			...step,

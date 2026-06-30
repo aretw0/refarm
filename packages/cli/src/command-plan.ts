@@ -28,7 +28,43 @@ export interface CommandProcessSpec {
 
 export interface CommandProcessResourcePolicy {
 	concurrency?: number;
+	fallbackCommand?: string;
 	timeoutMs?: number;
+	workClass?: CommandPlanWorkClass;
+}
+
+export type CommandPlanWorkClass =
+	| "focused-check"
+	| "package-check"
+	| "broad-check"
+	| "worker-fanout"
+	| "mutation";
+
+export type CommandPlanResourceCeilingDecision =
+	| "allow"
+	| "degrade"
+	| "serialize"
+	| "refuse";
+
+export interface CommandPlanResourceCeilingPlan {
+	schemaVersion?: 1;
+	ok: boolean;
+	decision: CommandPlanResourceCeilingDecision;
+	workClass: CommandPlanWorkClass;
+	pressureDecision?: string;
+	reason: string;
+	nextAction?: string | null;
+	nextActions?: string[];
+	nextCommand?: string | null;
+	nextCommands?: string[];
+	maxConcurrency?: number | null;
+	recommendations?: unknown[];
+}
+
+export interface CommandPlanRunOptions {
+	planResourceCeiling?: (
+		step: CommandPlanStep,
+	) => CommandPlanResourceCeilingPlan | null | undefined;
 }
 
 export interface CommandPlanStep {
@@ -345,9 +381,33 @@ function commandPlanSpawnErrorMessage(
 export function runCommandPlan(
 	stepsToRun: readonly CommandPlanStep[],
 	runStep: (step: CommandPlanStep) => CommandPlanStepRunResult,
+	options: CommandPlanRunOptions = {},
 ): CommandPlanRunResult {
 	const steps: CommandPlanStepRunResult[] = [];
 	for (const [index, step] of stepsToRun.entries()) {
+		const resourceCeiling = options.planResourceCeiling?.(step);
+		if (resourceCeiling && shouldStopForResourceCeiling(resourceCeiling)) {
+			const normalized = commandPlanResourceCeilingStepResult(step, resourceCeiling);
+			steps.push(normalized);
+			const remainingSteps = stepsToRun.slice(index + 1);
+			const nextActions = commandPlanResourceCeilingNextActions(resourceCeiling);
+			const nextCommands = commandPlanResourceCeilingNextCommands(resourceCeiling);
+			return {
+				ok: false,
+				status: "failed",
+				steps,
+				remainingSteps,
+				remainingCommands: commandPlanStepCommands(remainingSteps),
+				remainingProcesses: commandPlanStepProcesses(remainingSteps),
+				failedStepId: step.id,
+				failedCommand: step.command,
+				failedProcess: step.process ?? null,
+				nextActions,
+				nextCommands,
+				nextProcesses: [],
+				recommendations: resourceCeiling.recommendations ?? [],
+			};
+		}
 		const observed = runStep(step);
 		const result = {
 			...observed,
@@ -420,4 +480,49 @@ function commandPlanStepFallbackNextActions(
 
 function isNestedSpawnRestricted(result: CommandPlanStepRunResult): boolean {
 	return /spawnSync .* EPERM/.test(result.stderr);
+}
+
+function shouldStopForResourceCeiling(
+	resourceCeiling: CommandPlanResourceCeilingPlan,
+): boolean {
+	return resourceCeiling.ok === false || resourceCeiling.decision !== "allow";
+}
+
+function commandPlanResourceCeilingStepResult(
+	step: CommandPlanStep,
+	resourceCeiling: CommandPlanResourceCeilingPlan,
+): CommandPlanStepRunResult {
+	return {
+		...step,
+		ok: false,
+		exitCode: 1,
+		stdout: "",
+		stderr: resourceCeiling.reason,
+		payload: {
+			ok: false,
+			resourceCeiling,
+			nextActions: commandPlanResourceCeilingNextActions(resourceCeiling),
+			nextCommands: commandPlanResourceCeilingNextCommands(resourceCeiling),
+			recommendations: resourceCeiling.recommendations ?? [],
+		},
+	};
+}
+
+function commandPlanResourceCeilingNextActions(
+	resourceCeiling: CommandPlanResourceCeilingPlan,
+): string[] {
+	const nextActions = normalizeHandoffValues([
+		...(resourceCeiling.nextActions ?? []),
+		resourceCeiling.nextAction ?? "",
+	]);
+	return nextActions.length > 0 ? nextActions : [resourceCeiling.reason];
+}
+
+function commandPlanResourceCeilingNextCommands(
+	resourceCeiling: CommandPlanResourceCeilingPlan,
+): string[] {
+	return normalizeHandoffValues([
+		...(resourceCeiling.nextCommands ?? []),
+		resourceCeiling.nextCommand ?? "",
+	]);
 }
