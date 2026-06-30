@@ -31,10 +31,12 @@
 
 Official `vault-seed` assimilation remains downstream. Pre-publication consumers
 should install from the local handoff directory and override unpublished
-workspace dependencies to the matching tarballs. Known direct pairings:
+workspace dependencies to the matching tarballs when those optional or direct
+surfaces are exercised. Known pairings:
 
 - `@refarm.dev/dispatch-surface` -> `@refarm.dev/effort-contract-v1`;
-- `@refarm.dev/silo` -> `@refarm.dev/heartwood`;
+- identity-only: `@refarm.dev/silo` -> `@refarm.dev/heartwood`
+  (`SiloCore` storage helpers do not require this closure);
 - historical only: `@refarm.dev/homestead-ssr` -> `@refarm.dev/ds`; ADR-072
   replaced this with direct `@refarm.dev/ds/html` consumption before public
   release.

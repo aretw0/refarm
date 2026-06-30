@@ -102,8 +102,8 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/release-engine",
 		"@refarm.dev/ds",
 		"@refarm.dev/heartwood",
-		"@refarm.dev/dispatch-surface",
 		"@refarm.dev/silo",
+		"@refarm.dev/dispatch-surface",
 	]);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/homestead-ssr"), false);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/homestead"), false);

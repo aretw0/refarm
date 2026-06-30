@@ -4,7 +4,13 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { resolveSiloHome, SiloCore } from "./index.js";
 
+const heartwoodImport = vi.hoisted(() => ({ count: 0 }));
+
 vi.mock("@refarm.dev/heartwood", () => ({
+    ...(() => {
+        heartwoodImport.count += 1;
+        return {};
+    })(),
     default: {
         generateKeypair: async () => ({
             secretKey: new Uint8Array(32),
@@ -92,10 +98,26 @@ describe("@refarm.dev/silo Smoke Tests", () => {
         }
     });
 
+    it("does not resolve heartwood for storage-only operations", async () => {
+        const tempDir = await mkdtemp(path.join(os.tmpdir(), "refarm-silo-storage-"));
+        const silo = new SiloCore({ storagePath: path.join(tempDir, "identity.json") });
+        heartwoodImport.count = 0;
+
+        try {
+            await silo.saveSecret("publishing", "TELEGRAM_BOT_TOKEN", "tok");
+            await expect(silo.loadSecret("publishing", "TELEGRAM_BOT_TOKEN")).resolves.toBe("tok");
+            expect(heartwoodImport.count).toBe(0);
+        } finally {
+            await rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
     it("should bootstrap identity using KeyManager", async () => {
         const silo = new SiloCore({});
+        heartwoodImport.count = 0;
         const res = await silo.bootstrapIdentity();
         expect(res.status).toBe("ready");
         expect(res.publicKey).toBeDefined();
+        expect(heartwoodImport.count).toBe(1);
     });
 });

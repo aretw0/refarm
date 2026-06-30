@@ -1,9 +1,24 @@
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { KeyManager } from "./key-manager.js";
 
 export * from "./collect.js";
+
+const DIRECTORY_MODE = 0o700;
+const FILE_MODE = 0o600;
+
+function canApplyPosixModes() {
+    return process.platform !== "win32";
+}
+
+function applyMode(targetPath, mode) {
+    if (!canApplyPosixModes()) return;
+    try {
+        chmodSync(targetPath, mode);
+    } catch {
+        // Some filesystems ignore POSIX modes; storage remains usable.
+    }
+}
 
 /**
  * SiloCore: Context and Secret Provisioner.
@@ -21,24 +36,37 @@ export class SiloCore {
     _ensureStorage() {
         const dir = path.dirname(this.storagePath);
         if (!existsSync(dir)) {
-            mkdirSync(dir, { recursive: true });
+            mkdirSync(dir, { recursive: true, mode: DIRECTORY_MODE });
         }
+        applyMode(dir, DIRECTORY_MODE);
+    }
+
+    _readStore(failureLabel = "store") {
+        if (!existsSync(this.storagePath)) return {};
+        try {
+            return JSON.parse(readFileSync(this.storagePath, "utf-8"));
+        } catch (e) {
+            console.error(`[Silo] Failed to load ${failureLabel}: ${e.message}`);
+            return {};
+        }
+    }
+
+    _writeStore(store) {
+        this._ensureStorage();
+        writeFileSync(this.storagePath, JSON.stringify(store, null, 2), { mode: FILE_MODE });
+        applyMode(this.storagePath, FILE_MODE);
     }
 
     /**
      * Save tokens to persistent storage.
      */
     async saveTokens(tokens) {
-        this._ensureStorage();
-        let current = {};
-        if (existsSync(this.storagePath)) {
-            current = JSON.parse(readFileSync(this.storagePath, "utf-8"));
-        }
+        const current = this._readStore("tokens");
         
         current.tokens = { ...current.tokens, ...tokens };
         current.updatedAt = new Date().toISOString();
         
-        writeFileSync(this.storagePath, JSON.stringify(current, null, 2));
+        this._writeStore(current);
         return { status: "success", path: this.storagePath };
     }
 
@@ -46,14 +74,7 @@ export class SiloCore {
      * Load tokens from persistent storage.
      */
     async loadTokens() {
-        if (!existsSync(this.storagePath)) return {};
-        try {
-            const data = JSON.parse(readFileSync(this.storagePath, "utf-8"));
-            return data.tokens || {};
-        } catch (e) {
-            console.error(`[Silo] Failed to load tokens: ${e.message}`);
-            return {};
-        }
+        return this._readStore("tokens").tokens || {};
     }
 
     /**
@@ -63,18 +84,14 @@ export class SiloCore {
      * @param {string} value
      */
     async saveSecret(namespace, id, value) {
-        this._ensureStorage();
-        let current = {};
-        if (existsSync(this.storagePath)) {
-            current = JSON.parse(readFileSync(this.storagePath, "utf-8"));
-        }
+        const current = this._readStore("secret");
 
         current.secrets = current.secrets || {};
         current.secrets[namespace] = current.secrets[namespace] || {};
         current.secrets[namespace][id] = value;
         current.updatedAt = new Date().toISOString();
 
-        writeFileSync(this.storagePath, JSON.stringify(current, null, 2));
+        this._writeStore(current);
         return { status: "success", namespace, id, path: this.storagePath };
     }
 
@@ -85,14 +102,42 @@ export class SiloCore {
      * @returns {Promise<string|undefined>}
      */
     async loadSecret(namespace, id) {
-        if (!existsSync(this.storagePath)) return undefined;
-        try {
-            const data = JSON.parse(readFileSync(this.storagePath, "utf-8"));
-            return data.secrets?.[namespace]?.[id];
-        } catch (e) {
-            console.error(`[Silo] Failed to load secret: ${e.message}`);
-            return undefined;
+        const data = this._readStore("secret");
+        return data.secrets?.[namespace]?.[id];
+    }
+
+    /**
+     * List all secrets under a namespace.
+     * @param {string} namespace
+     * @returns {Promise<Record<string, string>>}
+     */
+    async listSecrets(namespace) {
+        const data = this._readStore("secrets");
+        return { ...(data.secrets?.[namespace] || {}) };
+    }
+
+    /**
+     * Remove one namespaced secret.
+     * @param {string} namespace
+     * @param {string} id
+     */
+    async removeSecret(namespace, id) {
+        const current = this._readStore("secret");
+        const secrets = current.secrets?.[namespace];
+        const removed = Boolean(secrets && Object.hasOwn(secrets, id));
+
+        if (!removed) {
+            return { status: "success", namespace, id, removed: false, path: this.storagePath };
         }
+
+        delete secrets[id];
+        if (Object.keys(secrets).length === 0) {
+            delete current.secrets[namespace];
+        }
+        current.updatedAt = new Date().toISOString();
+        this._writeStore(current);
+
+        return { status: "success", namespace, id, removed: true, path: this.storagePath };
     }
 
     /**
@@ -161,6 +206,7 @@ export class SiloCore {
      * Reconstruct identity artifacts.
      */
     async bootstrapIdentity() {
+        const { KeyManager } = await import("./key-manager.js");
         const km = new KeyManager(this.config);
         const masterKey = await km.generateMasterKey();
         
@@ -180,16 +226,12 @@ export class SiloCore {
      * Save non-sensitive identity metadata to the identity.json file.
      */
     async saveIdentityMetadata(metadata) {
-        this._ensureStorage();
-        let current = {};
-        if (existsSync(this.storagePath)) {
-            current = JSON.parse(readFileSync(this.storagePath, "utf-8"));
-        }
+        const current = this._readStore("identity metadata");
         
         current.identity = { ...current.identity, ...metadata };
         current.updatedAt = new Date().toISOString();
         
-        writeFileSync(this.storagePath, JSON.stringify(current, null, 2));
+        this._writeStore(current);
     }
 
 
