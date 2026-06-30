@@ -119,7 +119,8 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    `file:./vendor/*.tgz` specs, unpublished Refarm dependency overrides, consumer proofs, and
    fallback paths without promoting those leaves into `vault-seed-ready`. The clean first packet is
    materialized with `pnpm run requirements:supply:handoff -- --pack --clean-only` for
-   `enrichment:v1` + `records:v1`; `source-web` follows with `source-contract-v1`.
+   `enrichment:v1` + `records:v1`; `pnpm run requirements:supply:handoff -- --pack
+   --source-web-only` materializes `source-web` with `source-contract-v1`.
 7. WASM substrate (Tractor, ADR-049 / ADR-044) as the common distribution layer for lab/site
    surfaces — learn from Marimo (Pyodide) and Astro 7 (Rust toolchain) without embedding
    either app.

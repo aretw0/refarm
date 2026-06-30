@@ -93,10 +93,17 @@ contract slice:
 pnpm run requirements:supply:handoff -- --pack --clean-only
 ```
 
-It writes `.refarm/handoff/requirements-supply/<YYYY-MM-DD>/manifest.json` plus
+It writes `.refarm/handoff/requirements-supply/<YYYY-MM-DD>/manifest.clean.json` plus
 `refarm.dev-enrichment-contract-v1-0.1.0.tgz` and
-`refarm.dev-records-contract-v1-0.1.0.tgz`. `source-web` remains the next packet
-because it must travel with `@refarm.dev/source-contract-v1`.
+`refarm.dev-records-contract-v1-0.1.0.tgz`. The follow-up transitive packet is:
+
+```bash
+pnpm run requirements:supply:handoff -- --pack --source-web-only
+```
+
+It writes `manifest.source-web.json`, `refarm.dev-source-web-0.1.0.tgz`, and
+`refarm.dev-source-contract-v1-0.1.0.tgz` together so consumers can vendor the
+adapter and its held source contract as one pair.
 
 ## Non-Goal
 

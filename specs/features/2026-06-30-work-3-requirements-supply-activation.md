@@ -106,7 +106,8 @@ Private downstream proofs own:
    the planned candidate handoff contract without packing tarballs or writing
    `.refarm/handoff` artifacts unless `--pack` is explicit. The first materialized
    handoff uses `--pack --clean-only` so `enrichment:v1` and `records:v1` can be
-   consumed before the `source-web` + `source-contract-v1` pair.
+   consumed before the `--pack --source-web-only` handoff for the `source-web` +
+   `source-contract-v1` pair.
 
 ## First Proof Shape
 
@@ -155,7 +156,11 @@ Current handoff planning proof:
   `pnpmOverrides`, consumer proof metadata, and fallbacks;
 - `pnpm run requirements:supply:handoff -- --pack --clean-only` materializes only
   `@refarm.dev/enrichment-contract-v1` and `@refarm.dev/records-contract-v1`
-  tarballs plus `manifest.json` for consumer vendor directories;
+  tarballs plus `manifest.clean.json` for consumer vendor directories;
+- `pnpm run requirements:supply:handoff -- --pack --source-web-only`
+  materializes `@refarm.dev/source-web` plus the supporting
+  `@refarm.dev/source-contract-v1` tarball plus `manifest.source-web.json` as
+  one transitive packet;
 - `pnpm run release:boundary:audit` blocks missing hold tags or premature
   `vault-seed-ready` selection;
 - downstream POCs may keep private login, selectors, and enrichment providers

@@ -210,6 +210,9 @@ function selectScope(packages, scope) {
 	if (scope === "clean") {
 		return packages.filter((entry) => !packageHasRefarmDependencies(entry));
 	}
+	if (scope === "source-web") {
+		return packages.filter((entry) => entry.packageName === "@refarm.dev/source-web");
+	}
 	return packages;
 }
 
@@ -222,7 +225,11 @@ function sortForCleanFirst(packages) {
 	});
 }
 
-function buildConsumerInstall({ packages, supportingPackages, cwd, handoffDir }) {
+function manifestFileForScope(scope) {
+	return scope === "all" ? "manifest.json" : `manifest.${scope}.json`;
+}
+
+function buildConsumerInstall({ packages, supportingPackages, cwd, handoffDir, manifestFile }) {
 	const allPackages = [...packages, ...supportingPackages];
 	const candidateFileSpecs = Object.fromEntries(
 		packages
@@ -238,7 +245,7 @@ function buildConsumerInstall({ packages, supportingPackages, cwd, handoffDir })
 		mode: packages.every((entry) => entry.exists) ? "local-handoff-ready" : "planned-local-handoff",
 		vendorDir: "vendor",
 		copyFrom: handoffDir ? maybeRelative(cwd, path.resolve(cwd, handoffDir)) : null,
-		copyFiles: ["manifest.json", ...Object.keys(pnpmOverrides).map((name) => {
+		copyFiles: [manifestFile, ...Object.keys(pnpmOverrides).map((name) => {
 			const entry = allPackages.find((item) => item.packageName === name);
 			return entry.tarball;
 		})],
@@ -272,6 +279,10 @@ function parseArgs(argv = []) {
 		}
 		if (arg === "--clean-only") {
 			options.scope = "clean";
+			continue;
+		}
+		if (arg === "--source-web-only") {
+			options.scope = "source-web";
 			continue;
 		}
 		if (arg === "--all") {
@@ -385,6 +396,7 @@ export function buildRequirementsSupplyHandoff({
 	const ok = issues.length === 0;
 	const allExpectedTarballsExist = missingTarballs.length === 0;
 	const state = !ok ? "blocked" : allExpectedTarballsExist ? "local-handoff-ready" : "candidate-hold";
+	const manifestFile = manifestFileForScope(scope);
 
 	return {
 		schema: SCHEMA,
@@ -401,6 +413,7 @@ export function buildRequirementsSupplyHandoff({
 			selectedForVaultSeedReady: false,
 		},
 		handoffDir: maybeRelative(cwd, path.resolve(cwd, handoffDir)),
+		manifestFile,
 		packages: materializedPackages,
 		supportingPackages: materializedSupportingPackages,
 		packed,
@@ -409,6 +422,7 @@ export function buildRequirementsSupplyHandoff({
 			supportingPackages: materializedSupportingPackages,
 			cwd,
 			handoffDir,
+			manifestFile,
 		}),
 		consumerProofs: materializedPackages.map((entry) => entry.consumerPull).filter(Boolean),
 		distributionEvidence: {
@@ -460,7 +474,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 		handoffDir: options.handoffDir,
 		packed,
 	});
-	const manifestOut = options.out ?? (options.pack ? path.join(result.handoffDir, "manifest.json") : null);
+	const manifestOut = options.out ?? (options.pack ? path.join(result.handoffDir, result.manifestFile) : null);
 	if (manifestOut) {
 		const absoluteOut = path.resolve(ROOT, manifestOut);
 		mkdirSync(path.dirname(absoluteOut), { recursive: true });
