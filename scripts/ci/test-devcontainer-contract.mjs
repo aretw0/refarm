@@ -6,6 +6,25 @@ function readJson(path) {
 	return JSON.parse(readFileSync(path, "utf8"));
 }
 
+function runArgValue(config, flag) {
+	const prefix = `${flag}=`;
+	const inline = config.runArgs.find((arg) => arg.startsWith(prefix));
+	if (inline) return inline.slice(prefix.length);
+	const index = config.runArgs.indexOf(flag);
+	return index >= 0 ? config.runArgs[index + 1] : undefined;
+}
+
+function memoryToMiB(value) {
+	const match = String(value ?? "").match(/^(\d+)(gb|g|mb|m|kb|k)?$/i);
+	assert.ok(match, `invalid memory value: ${value}`);
+	const amount = Number(match[1]);
+	const unit = (match[2] ?? "m").toLowerCase();
+	if (unit === "gb" || unit === "g") return amount * 1024;
+	if (unit === "mb" || unit === "m") return amount;
+	if (unit === "kb" || unit === "k") return Math.ceil(amount / 1024);
+	throw new Error(`unsupported memory unit: ${unit}`);
+}
+
 test("devcontainer publishes operator-facing local services", () => {
 	const config = readJson(".devcontainer/devcontainer.json");
 	const expectedPorts = [4321, 42000, 42001, 1455, 53692];
@@ -174,22 +193,45 @@ test("devcontainer marks and locks host-write-sensitive workspace checkouts", ()
 	assert.match(envSafety, /Checkout is marked devcontainer-owned/);
 });
 
-test("devcontainer environment ceilings are declared in project config before cgroup enforcement", () => {
+test("devcontainer environment ceilings are enforced at the container boundary", () => {
+	const config = readJson(".devcontainer/devcontainer.json");
 	const refarmConfig = readJson("refarm.config.json");
 	const ceilings = refarmConfig.environmentCeilings;
+	const containerMemoryMiB = memoryToMiB(runArgValue(config, "--memory"));
+	const swapMemoryMiB = memoryToMiB(runArgValue(config, "--memory-swap"));
+	const pidsLimit = Number(runArgValue(config, "--pids-limit"));
 
 	assert.equal(ceilings.schemaVersion, 1);
-	assert.equal(ceilings.status, "declared-only");
+	assert.equal(ceilings.status, "enforced");
 	assert.equal(ceilings.source, "ADR-078");
 	assert.equal(ceilings.scope, "local-devcontainer");
-	assert.equal(ceilings.enforcement, "planned-cgroup-v2");
+	assert.equal(ceilings.enforcement, "cgroup-v2");
 	assert.equal(ceilings.cgroupVersion, 2);
+	assert.equal(containerMemoryMiB, 6144);
+	assert.equal(swapMemoryMiB, containerMemoryMiB);
+	assert.equal(Number(runArgValue(config, "--cpus")), 4);
+	assert.equal(pidsLimit, 1024);
+	assert.equal(config.hostRequirements.cpus, 4);
+	assert.equal(memoryToMiB(config.hostRequirements.memory), 8192);
 	assert.equal(ceilings.slices.control.pidsMax, 256);
 	assert.equal(ceilings.slices.control.memoryMinMiB, 1024);
+	assert.equal(ceilings.slices.control.memoryMaxMiB, 2048);
 	assert.equal(ceilings.slices.control.oomScoreAdj, -500);
-	assert.equal(ceilings.slices.workload.memoryMaxMiB, 5632);
+	assert.equal(ceilings.slices.workload.memoryMaxMiB, 4096);
 	assert.equal(ceilings.slices.workload.oomScoreAdj, 500);
-	assert.equal(ceilings.slices.agent.memoryMaxMiB, 2048);
+	assert.equal(ceilings.slices.agent.memoryMaxMiB, 1536);
+	assert.equal(
+		ceilings.slices.control.memoryMaxMiB + ceilings.slices.workload.memoryMaxMiB,
+		containerMemoryMiB,
+	);
+	assert.ok(
+		ceilings.slices.agent.memoryMaxMiB <= ceilings.slices.control.memoryMaxMiB,
+		"agent sessions must fit under the control plane slice",
+	);
+	assert.ok(
+		ceilings.slices.control.pidsMax + ceilings.slices.workload.pidsMax <= pidsLimit,
+		"declared process ceilings must fit under the Docker pids cgroup",
+	);
 	assert.equal(ceilings.heavyLanes.strictPressureGate, true);
 	assert.equal(ceilings.heavyLanes.serializedLock, ".refarm/locks/heavy-lane.lock");
 	assert.equal(ceilings.heavyLanes.maxConcurrency, 1);

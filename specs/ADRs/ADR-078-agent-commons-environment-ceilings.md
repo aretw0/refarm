@@ -107,27 +107,30 @@ are hoping. Seven principles:
 - Disabling pnpm self-management means the image must provision the pinned pnpm (Corepack); a drifted
   image would run a mismatched pnpm (compatible, but unpinned).
 
-## Implementation (plan — phased, no live hot-patch)
+## Implementation (phased, no live hot-patch)
 
 1. **Tooling guard (done).** `.npmrc manage-package-manager-versions=false`; ensure the image
    provisions the pinned pnpm via Corepack.
-2. **Config declaration (done).** `refarm.config.json` now owns the `environmentCeilings`
+2. **Config declaration (done).** `refarm.config.json` owns the `environmentCeilings`
    declaration and `@refarm.dev/config/environment-ceilings` normalizes it. This keeps the ceiling
    policy product-neutral and lets `.devcontainer`, remote nodes, and future watchdogs consume the
    same source of truth.
-3. **Slice layout in `.devcontainer`.** Define cgroup v2 slices — `control` (agent + refarm
-   runtimes), `workload` (turbo/vitest/cargo/suite), and per-agent sub-slices — with `pids.max`,
-   `memory.high`/`memory.max`, `cpu.weight`, `memory.min`, and `oom_score_adj` favoring killing
-   workload over control. Delegate cgroup v2 at container start.
-4. **Entrypoint placement.** A boot hook puts each agent session and the refarm runtime into its
+3. **Devcontainer boundary cgroup (done; active after rebuild).** `.devcontainer/devcontainer.json`
+   applies Docker cgroup limits at the shared runtime boundary: 6 GiB memory, no swap above that
+   memory cap, 4 CPUs, and 1024 PIDs. The declared `control` + `workload` maxima are calibrated to
+   fit inside that boundary, and `scripts/ci/test-devcontainer-contract.mjs` locks the contract.
+4. **Sub-slice layout in `.devcontainer` (pending root/entrypoint lane).** Define cgroup v2 slices —
+   `control` (agent + refarm runtimes), `workload` (turbo/vitest/cargo/suite), and per-agent
+   sub-slices — with `pids.max`, `memory.high`/`memory.max`, `cpu.weight`, `memory.min`, and
+   `oom_score_adj` favoring killing workload over control. Delegate cgroup v2 at container start.
+5. **Entrypoint placement.** A boot hook puts each agent session and the refarm runtime into its
    slice; heavy lanes run in the workload slice.
-5. **Gate the heavy lanes.** Make `factory:pressure --strict` a precondition for heavy lanes, behind
+6. **Gate the heavy lanes.** Make `factory:pressure --strict` a precondition for heavy lanes, behind
    a `flock` serialized heavy-lane; set bounded default workers in `test-runner:contracts`.
-6. **Identity at boot.** Force user 1001 for agent entrypoints; promote `workspace:*:ownership` from
+7. **Identity at boot.** Force user 1001 for agent entrypoints; promote `workspace:*:ownership` from
    check to boot enforcement.
-7. **Commons watchdog (v2, optional).** A small supervisor (reusing `@refarm.dev/health`) that kills
+8. **Commons watchdog (v2, optional).** A small supervisor (reusing `@refarm.dev/health`) that kills
    the heaviest offending slice when global pressure is critical.
-8. **Regression-test the guarantee.** Extend `scripts/ci/test-devcontainer-contract.mjs` from the
-   current config-declaration assertion to active cgroup assertions once the rebuild lane lands —
-   turning the existing contract-test pattern toward enforcement, so the guarantee cannot silently
-   regress.
+9. **Regression-test the guarantee (started).** `scripts/ci/test-devcontainer-contract.mjs` now
+   asserts the active Docker cgroup boundary and slice arithmetic. Extend it again when sub-slice
+   delegation lands so the guarantee cannot silently regress.

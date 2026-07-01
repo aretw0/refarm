@@ -85,6 +85,67 @@ describe("environment ceiling declarations", () => {
         expect(declaredEnvironmentCeilingsFromConfig({})).toBeNull();
     });
 
+    it("normalizes enforced cgroup-v2 ceilings", () => {
+        expect(declaredEnvironmentCeilingsFromConfig({
+            environmentCeilings: {
+                status: "enforced",
+                source: "ADR-078",
+                scope: "local-devcontainer",
+                enforcement: "cgroup-v2",
+                cgroupVersion: 2,
+                slices: {
+                    control: {
+                        pidsMax: 256,
+                        memoryMinMiB: 1024,
+                        memoryHighMiB: 2048,
+                        memoryMaxMiB: 2048,
+                        cpuWeight: 100,
+                        oomScoreAdj: -500,
+                    },
+                    workload: {
+                        pidsMax: 768,
+                        memoryHighMiB: 3072,
+                        memoryMaxMiB: 4096,
+                        cpuWeight: 200,
+                        oomScoreAdj: 500,
+                    },
+                    agent: {
+                        pidsMax: 192,
+                        memoryMinMiB: 512,
+                        memoryHighMiB: 1024,
+                        memoryMaxMiB: 1536,
+                        cpuWeight: 100,
+                        oomScoreAdj: -250,
+                    },
+                },
+            },
+        })).toMatchObject({
+            status: "enforced",
+            source: "ADR-078",
+            scope: "local-devcontainer",
+            enforcement: "cgroup-v2",
+            cgroupVersion: 2,
+            slices: {
+                control: {
+                    kind: "control",
+                    memoryMaxMiB: 2048,
+                    oomScoreAdj: -500,
+                },
+                workload: {
+                    kind: "workload",
+                    memoryHighMiB: 3072,
+                    memoryMaxMiB: 4096,
+                    oomScoreAdj: 500,
+                },
+                agent: {
+                    kind: "agent",
+                    memoryMaxMiB: 1536,
+                    oomScoreAdj: -250,
+                },
+            },
+        });
+    });
+
     it("parses known enum values", () => {
         expect(parseEnvironmentCeilingStatus("enforced")).toBe("enforced");
         expect(parseEnvironmentCeilingStatus("unknown")).toBeNull();

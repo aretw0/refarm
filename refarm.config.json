@@ -79,10 +79,10 @@
   },
   "environmentCeilings": {
     "schemaVersion": 1,
-    "status": "declared-only",
+    "status": "enforced",
     "source": "ADR-078",
     "scope": "local-devcontainer",
-    "enforcement": "planned-cgroup-v2",
+    "enforcement": "cgroup-v2",
     "cgroupVersion": 2,
     "slices": {
       "control": {
@@ -90,15 +90,15 @@
         "pidsMax": 256,
         "memoryMinMiB": 1024,
         "memoryHighMiB": 2048,
-        "memoryMaxMiB": 3072,
+        "memoryMaxMiB": 2048,
         "cpuWeight": 100,
         "oomScoreAdj": -500
       },
       "workload": {
         "purpose": "Contain builds, tests, package-manager work, cargo, and turbo fan-out.",
         "pidsMax": 768,
-        "memoryHighMiB": 4096,
-        "memoryMaxMiB": 5632,
+        "memoryHighMiB": 3072,
+        "memoryMaxMiB": 4096,
         "cpuWeight": 200,
         "oomScoreAdj": 500
       },
@@ -106,8 +106,8 @@
         "purpose": "Bound each individual coding-agent session beneath the shared control plane.",
         "pidsMax": 192,
         "memoryMinMiB": 512,
-        "memoryHighMiB": 1536,
-        "memoryMaxMiB": 2048,
+        "memoryHighMiB": 1024,
+        "memoryMaxMiB": 1536,
         "cpuWeight": 100,
         "oomScoreAdj": -250
       }

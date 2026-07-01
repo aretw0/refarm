@@ -5,8 +5,10 @@
     "context": "."
   },
   "runArgs": [
-    "--memory=4g",
+    "--memory=6g",
+    "--memory-swap=6g",
     "--cpus=4",
+    "--pids-limit=1024",
     "--publish",
     "127.0.0.1:4321:4321",
     "--publish",
