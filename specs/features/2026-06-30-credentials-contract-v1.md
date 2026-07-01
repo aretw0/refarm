@@ -147,6 +147,17 @@ over `storage:v1`. The contract owns the envelope + the roles, not the crypto or
 - Proof `type` is open, so a future proof suite (e.g. an OPAQUE/Sentinel-backed signature from
   `silo`/`heartwood`) drops in without breaking the envelope.
 
+### Context resolution
+
+Refarm serves the package-owned JSON-LD context at
+`https://refarm.dev/contexts/credentials/v1` from the public site route
+`/contexts/credentials/v1`. The v1 context defines only the neutral extension
+terms used by the contract and conformance evidence: proof metadata,
+verification checks, policy fields, local status-list references, and the
+`RefarmConformanceCredential` fixture type. Issuer authorities, credential
+schemas, DID methods, trust registries, and remote status-list vocabularies stay
+downstream-owned.
+
 ## 4. Boundary
 
 Refarm owns: the VC/VP envelope, the issuer/holder/verifier roles, conformance, the reference
