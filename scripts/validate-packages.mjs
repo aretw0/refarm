@@ -124,20 +124,29 @@ export function validatePublishSurface(pkg) {
     return ["public packages must declare a non-empty files allowlist"];
   }
 
+  let includesDist = false;
+  let excludesDistTsBuildInfo = false;
+
   for (const entry of pkg.files) {
     if (typeof entry !== "string") {
       violations.push("files entries must be strings");
       continue;
     }
+    if (entry === "dist") includesDist = true;
+    if (entry === "!dist/**/*.tsbuildinfo") excludesDistTsBuildInfo = true;
     if (entry === "" || entry === ".") {
       violations.push('files must not include "." or empty entries');
     }
     if (entry.includes(".turbo") || entry.includes(".pi-lens") || entry.includes("node_modules")) {
       violations.push(`files entry "${entry}" must not include local cache/runtime state`);
     }
-    if (entry.includes("tsbuildinfo")) {
+    if (!entry.startsWith("!") && entry.includes("tsbuildinfo")) {
       violations.push(`files entry "${entry}" must not include TypeScript incremental state`);
     }
+  }
+
+  if (includesDist && !excludesDistTsBuildInfo) {
+    violations.push('files includes "dist" and must exclude "dist/**/*.tsbuildinfo"');
   }
 
   return violations;

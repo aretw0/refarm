@@ -22,7 +22,7 @@
 		"test:unit": "vitest run",
 		"clean": "rm -rf dist"
 	},
-	"files": ["dist", "README.md"],
+	"files": ["dist", "!dist/**/*.tsbuildinfo", "README.md"],
 	"publishConfig": { "access": "public" },
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",
