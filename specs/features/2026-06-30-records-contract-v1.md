@@ -44,6 +44,13 @@ Per the dogfood gate, `records:v1` is supplyable only after Refarm consumes it. 
 are Refarm's own surfaces: `surveyor` reads `records:v1` envelopes as graph nodes/edges, and the lab
 renders them. A requirements-vault and any domain vocabulary come later.
 
+### Downstream consumer proof (vault-seed, 2026-07)
+
+An external consumer vault has landed the downstream proof beyond Refarm's own surveyor/lab consumption:
+`vault-seed` vendors `records:v1` with a consumer-contract test, projects its PARA notes into `records:v1`
+(the reference-vault composition proof), and round-trips a record through the YAML-LD codec
+(`recordToYamlLdObject` ↔ note front matter).
+
 ---
 
 ## 1. Contract interface (`packages/records-contract-v1/src/types.ts`)

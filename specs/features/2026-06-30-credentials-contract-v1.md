@@ -1,6 +1,6 @@
 # Spec: Credentials Contract v1 (`credentials:v1`) — Verifiable Credentials & Data Wallet
 
-**Status:** IMPLEMENTED — T2 package slice and sanitized sovereign-citizen reference proof landed; promotion remains downstream/trust-policy gated
+**Status:** IMPLEMENTED — T2 package slice and sanitized sovereign-citizen reference proof landed; downstream consumer proof landed (vault-seed vendors the contract + identity-heartwood + storage-memory; a heartwood-signed provider passes the full conformance) and the trust-policy gate is closed (see the verify-policy companion feature)
 **Authors:** Arthur Silva, Claude
 **Date:** 2026-06-30
 **Related:** `packages/identity-contract-v1` (`identity:v1` — keypair sign/verify, composed here),
