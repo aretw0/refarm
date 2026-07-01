@@ -120,10 +120,23 @@ function rewriteImports(source) {
 	const kept = [];
 	const vitestNames = new Set();
 	const moduleImports = [];
+	const moduleDeclarations = [];
+	const usedIdentifiers = new Set(source.match(/\b[A-Za-z_$][\w$]*\b/g) ?? []);
 	let firstImportIndex = null;
 	let importsRewritten = 0;
 	let commonJsRewritten = 0;
+	let jsonImportIndex = 0;
 	let assertName = null;
+
+	const nextJsonModuleIdentifier = () => {
+		while (usedIdentifiers.has(`__refarmJsonModule${jsonImportIndex}`)) {
+			jsonImportIndex += 1;
+		}
+		const identifier = `__refarmJsonModule${jsonImportIndex}`;
+		usedIdentifiers.add(identifier);
+		jsonImportIndex += 1;
+		return identifier;
+	};
 
 	for (const line of lines) {
 		const vitest = /^import\s+\{\s*([^}]+)\s*\}\s+from\s+["']vitest["'];?\s*$/.exec(line);
@@ -180,9 +193,10 @@ function rewriteImports(source) {
 				continue;
 			}
 
-			const moduleImport = commonJsRequireImportLine(binding, specifier);
+			const moduleImport = commonJsRequireImport(binding, specifier, nextJsonModuleIdentifier);
 			if (moduleImport) {
-				moduleImports.push(moduleImport);
+				moduleImports.push(...moduleImport.imports);
+				moduleDeclarations.push(...moduleImport.declarations);
 				if (firstImportIndex === null) firstImportIndex = kept.length;
 				importsRewritten += 1;
 				commonJsRewritten += 1;
@@ -224,7 +238,7 @@ function rewriteImports(source) {
 		if (moduleImports.length === 0) {
 			return { code: source, importsRewritten: 0, assertName, renameToMjs: false };
 		}
-		kept.splice(firstImportIndex ?? 0, 0, ...moduleImports);
+		kept.splice(firstImportIndex ?? 0, 0, ...moduleImports, ...moduleDeclarations);
 		return {
 			code: kept.join("\n"),
 			importsRewritten,
@@ -242,7 +256,7 @@ function rewriteImports(source) {
 		return leftIndex - rightIndex;
 	});
 	const importLine = `import { ${ordered.join(", ")} } from "vitest";`;
-	kept.splice(firstImportIndex ?? 0, 0, importLine, ...moduleImports);
+	kept.splice(firstImportIndex ?? 0, 0, importLine, ...moduleImports, ...moduleDeclarations);
 	return {
 		code: kept.join("\n"),
 		importsRewritten,
@@ -261,18 +275,29 @@ function parseAssertRequireBinding(binding, specifier) {
 	return null;
 }
 
-function commonJsRequireImportLine(binding, specifier) {
+function commonJsRequireImport(binding, specifier, nextJsonModuleIdentifier) {
 	if (/^[A-Za-z_$][\w$]*$/.test(binding)) {
 		if (specifier.endsWith(".json")) {
-			return `import ${binding} from "${specifier}" with { type: "json" };`;
+			return {
+				imports: [`import ${binding} from "${specifier}" with { type: "json" };`],
+				declarations: [],
+			};
 		}
-		return `import ${binding} from "${specifier}";`;
+		return { imports: [`import ${binding} from "${specifier}";`], declarations: [] };
 	}
 
-	if (!binding.startsWith("{") || specifier.endsWith(".json")) return null;
+	if (!binding.startsWith("{")) return null;
+	if (specifier.endsWith(".json")) {
+		if (!isSupportedCommonJsDestructuring(binding.slice(1, -1))) return null;
+		const identifier = nextJsonModuleIdentifier();
+		return {
+			imports: [`import ${identifier} from "${specifier}" with { type: "json" };`],
+			declarations: [`const ${binding} = ${identifier};`],
+		};
+	}
 	const named = parseCommonJsNamedImportSpec(binding.slice(1, -1));
 	if (!named) return null;
-	return `import { ${named} } from "${specifier}";`;
+	return { imports: [`import { ${named} } from "${specifier}";`], declarations: [] };
 }
 
 function parseCommonJsNamedImportSpec(source) {
@@ -295,6 +320,22 @@ function parseCommonJsNamedImportSpec(source) {
 		mapped.push(`${imported} as ${local}`);
 	}
 	return mapped.join(", ");
+}
+
+function isSupportedCommonJsDestructuring(source) {
+	const items = source
+		.split(",")
+		.map((item) => item.trim())
+		.filter(Boolean);
+	if (items.length === 0) return false;
+
+	for (const item of items) {
+		if (item.startsWith("...") || /[={}\[\]]/.test(item)) return false;
+		const [property, local] = item.split(/\s*:\s*/);
+		if (!/^[A-Za-z_$][\w$]*$/.test(property)) return false;
+		if (local !== undefined && !/^[A-Za-z_$][\w$]*$/.test(local)) return false;
+	}
+	return true;
 }
 
 function parseNodeTestRequireClause(clause) {
