@@ -121,7 +121,7 @@ Avoid two failure modes:
 pnpm run validation-pocs:test
 ```
 
-This command runs all three synthetic POCs, validates every
+This command runs the indexed synthetic POCs, validates every
 `refarm.task-artifacts.v1` manifest, and verifies consumer selection through
 `@refarm.dev/artifact-contract-v1`. It also checks
 `validations/poc-evidence-index.json`, the reader-facing map from each theme to
@@ -148,6 +148,9 @@ prefer machine-readable evidence navigation.
 | Governed note box | Local knowledge artifacts can keep provenance while separating intake, lab, and publication snapshots. | `metadata-index.json`, `lab-snapshot.json`, `publication-snapshot.json` | Real vault integration is implemented. |
 | Governed note box | Publication can remain blocked on human review while still producing useful lab evidence. | `publication-preflight.json`, `human-review.md`, `scorecard.json` | Editorial policy completeness is proven. |
 | Governed note box | Downstream consumers can navigate evidence through manifest selectors instead of hard-coded file names. | `consumer-evidence.json`, `task-artifacts.json`, `poc-evidence-index.json` | Obsidian, Astro, Marimo, or work-mirror UX is owned by Refarm. |
+| Tool-less orchestration | A key-holding conductor can be modeled without owning environment tool capabilities. | `proof.json`, `results-table.md`, `limits.md` | The production runtime conductor has fully adopted this split. |
+| Tool-less orchestration | A keyless workspace actor can return fenced evidence without receiving operator secrets. | `proof.json`, `scorecard.json`, `task-artifacts.json` | Unattended production agent operation is safe. |
+| Tool-less orchestration | Completion can require source hash checks and recoverable raw evidence instead of trusting a compact summary. | `proof.json`, `results-table.md`, `scenario.md` | Remote workspace delegation or machine-to-machine execution is implemented. |
 
 For all themes, phrase the POC as "repeatable validation evidence" or "pilot
 evidence" rather than as a finished implementation. Stronger wording should

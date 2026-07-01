@@ -885,6 +885,258 @@
           "unreviewed": 1
         }
       }
+    },
+    {
+      "id": "toolless-orchestrator",
+      "theme": "tool-less orchestration",
+      "manifestUri": "validations/toolless-orchestrator-proof/fixtures/expected/task-artifacts.json",
+      "taskId": "task-toolless-orchestrator-proof",
+      "effortId": "effort-toolless-orchestrator-proof-001",
+      "evidence": {
+        "scenario": {
+          "id": "scenario",
+          "uri": "validations/toolless-orchestrator-proof/fixtures/expected/scenario.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "scenario",
+            "reader-path",
+            "toolless-orchestrator"
+          ]
+        },
+        "annex": {
+          "id": "annex",
+          "uri": "validations/toolless-orchestrator-proof/fixtures/expected/annex.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "annex",
+            "reader-path",
+            "toolless-orchestrator"
+          ]
+        },
+        "scorecard": {
+          "id": "scorecard",
+          "uri": "validations/toolless-orchestrator-proof/fixtures/expected/scorecard.json",
+          "role": "report",
+          "mediaType": "application/json",
+          "reviewState": "accepted",
+          "labels": [
+            "scorecard",
+            "pilot"
+          ]
+        },
+        "resultsTable": {
+          "id": "results-table",
+          "uri": "validations/toolless-orchestrator-proof/fixtures/expected/results-table.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "results-table",
+            "reader-path",
+            "claim-boundary"
+          ]
+        },
+        "riskAndStandards": null,
+        "limits": {
+          "id": "limits",
+          "uri": "validations/toolless-orchestrator-proof/fixtures/expected/limits.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "limits",
+            "adoption",
+            "claim-boundary"
+          ]
+        },
+        "claimPromotion": [
+          {
+            "id": "toolless-orchestrator-proof",
+            "uri": "validations/toolless-orchestrator-proof/fixtures/expected/proof.json",
+            "role": "audit-trail",
+            "mediaType": "application/json",
+            "reviewState": "accepted",
+            "labels": [
+              "toolless-orchestrator",
+              "conductor",
+              "keyless-actor",
+              "claim-promotion"
+            ]
+          }
+        ],
+        "readerStart": {
+          "id": "scenario",
+          "uri": "validations/toolless-orchestrator-proof/fixtures/expected/scenario.md",
+          "role": "report",
+          "mediaType": "text/markdown",
+          "reviewState": "accepted",
+          "labels": [
+            "scenario",
+            "reader-path",
+            "toolless-orchestrator"
+          ]
+        }
+      },
+      "writingClaims": [
+        {
+          "id": "key-holding-conductor-without-tools",
+          "carefulClaim": "A key-holding conductor can be modeled without owning environment tool capabilities.",
+          "primaryEvidence": [
+            {
+              "id": "toolless-orchestrator-proof",
+              "uri": "validations/toolless-orchestrator-proof/fixtures/expected/proof.json",
+              "role": "audit-trail",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "toolless-orchestrator",
+                "conductor",
+                "keyless-actor",
+                "claim-promotion"
+              ]
+            },
+            {
+              "id": "results-table",
+              "uri": "validations/toolless-orchestrator-proof/fixtures/expected/results-table.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "results-table",
+                "reader-path",
+                "claim-boundary"
+              ]
+            },
+            {
+              "id": "limits",
+              "uri": "validations/toolless-orchestrator-proof/fixtures/expected/limits.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "limits",
+                "adoption",
+                "claim-boundary"
+              ]
+            }
+          ],
+          "doNotSayYet": "The production runtime conductor has fully adopted this split."
+        },
+        {
+          "id": "keyless-actor-fenced-evidence",
+          "carefulClaim": "A keyless workspace actor can return fenced evidence without receiving operator secrets.",
+          "primaryEvidence": [
+            {
+              "id": "toolless-orchestrator-proof",
+              "uri": "validations/toolless-orchestrator-proof/fixtures/expected/proof.json",
+              "role": "audit-trail",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "toolless-orchestrator",
+                "conductor",
+                "keyless-actor",
+                "claim-promotion"
+              ]
+            },
+            {
+              "id": "scorecard",
+              "uri": "validations/toolless-orchestrator-proof/fixtures/expected/scorecard.json",
+              "role": "report",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "scorecard",
+                "pilot"
+              ]
+            },
+            {
+              "id": "task-artifacts",
+              "uri": "validations/toolless-orchestrator-proof/fixtures/expected/task-artifacts.json",
+              "role": "manifest",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "provenance",
+                "manifest"
+              ]
+            }
+          ],
+          "doNotSayYet": "Unattended production agent operation is safe."
+        },
+        {
+          "id": "completion-requires-source-evidence",
+          "carefulClaim": "Completion can require source hash checks and recoverable raw evidence instead of trusting a compact summary.",
+          "primaryEvidence": [
+            {
+              "id": "toolless-orchestrator-proof",
+              "uri": "validations/toolless-orchestrator-proof/fixtures/expected/proof.json",
+              "role": "audit-trail",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "toolless-orchestrator",
+                "conductor",
+                "keyless-actor",
+                "claim-promotion"
+              ]
+            },
+            {
+              "id": "results-table",
+              "uri": "validations/toolless-orchestrator-proof/fixtures/expected/results-table.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "results-table",
+                "reader-path",
+                "claim-boundary"
+              ]
+            },
+            {
+              "id": "scenario",
+              "uri": "validations/toolless-orchestrator-proof/fixtures/expected/scenario.md",
+              "role": "report",
+              "mediaType": "text/markdown",
+              "reviewState": "accepted",
+              "labels": [
+                "scenario",
+                "reader-path",
+                "toolless-orchestrator"
+              ]
+            }
+          ],
+          "doNotSayYet": "Remote workspace delegation or machine-to-machine execution is implemented."
+        }
+      ],
+      "consumerHints": {
+        "labels": [
+          "adoption",
+          "annex",
+          "claim-boundary",
+          "claim-promotion",
+          "conductor",
+          "keyless-actor",
+          "limits",
+          "pilot",
+          "reader-path",
+          "results-table",
+          "scenario",
+          "scorecard",
+          "toolless-orchestrator"
+        ],
+        "countByRole": {
+          "audit-trail": 1,
+          "report": 5
+        },
+        "countByReviewState": {
+          "accepted": 6
+        }
+      }
     }
   ]
 }

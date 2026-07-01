@@ -75,7 +75,7 @@
 		"validation-pocs:consumer:test": "node scripts/ci/run-workspace-script.mjs packages/artifact-contract-v1 build && node scripts/ci/check-validation-poc-consumers.mjs",
 		"validation-pocs:coding-agent:test": "node scripts/ci/run-workspace-script.mjs packages/artifact-contract-v1 build && node scripts/ci/check-coding-agent-poc-packets.mjs",
 		"validation-pocs:writing-consumer:test": "node --test scripts/ci/test-validation-poc-writing-consumer-lib.mjs && node scripts/ci/check-validation-poc-writing-consumer.mjs",
-		"validation-pocs:test": "node scripts/ci/run-root-scripts.mjs wallet:poc:test sovereign-citizen:reference:test extension-sandbox:poc:test governed-note-box:poc:test task-artifacts:check validation-pocs:consumer:test validation-pocs:coding-agent:test validation-pocs:index:test validation-pocs:writing-consumer:test",
+		"validation-pocs:test": "node scripts/ci/run-root-scripts.mjs wallet:poc:test sovereign-citizen:reference:test extension-sandbox:poc:test governed-note-box:poc:test toolless-orchestrator:poc:test task-artifacts:check validation-pocs:consumer:test validation-pocs:coding-agent:test validation-pocs:index:test validation-pocs:writing-consumer:test",
 		"io-uring:probe": "node validations/io-uring-substrate/run-probe.mjs --json",
 		"io-uring:probe:test": "node --test validations/io-uring-substrate/probe.test.mjs",
 		"xr-surface:poc:test": "node --test validations/xr-surface-poc/xr-surface.test.mjs",
