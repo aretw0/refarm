@@ -7,6 +7,13 @@ The contract defines record envelopes, sections, relations, attachments, source
 references, content hashes, and review state. It does not define domain
 vocabulary, storage, sync, PARA placement, editorial workflow, or rendering.
 
+The public base JSON-LD context is served at
+`https://refarm.dev/contexts/records/v1`. It includes the neutral
+`KnowledgeRecord`, `Requirement`, and `Source` type names plus
+`sourceKind`/`sourceLocation` terms for source-like records. Those are vocabulary
+terms only: this package still preserves open `@type`/`fields`, does not
+dereference sources, and does not import `@refarm.dev/source-contract-v1`.
+
 ## Usage
 
 ```ts

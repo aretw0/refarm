@@ -6,6 +6,7 @@ const recordsContext = {
 		"@vocab": "https://refarm.dev/contexts/records/v1#",
 		KnowledgeRecord: "https://refarm.dev/contexts/records/v1#KnowledgeRecord",
 		Requirement: "https://refarm.dev/contexts/records/v1#Requirement",
+		Source: "https://refarm.dev/contexts/records/v1#Source",
 		RecordAttachment: "https://refarm.dev/contexts/records/v1#RecordAttachment",
 		RecordRelation: "https://refarm.dev/contexts/records/v1#RecordRelation",
 		RecordReview: "https://refarm.dev/contexts/records/v1#RecordReview",
@@ -32,6 +33,8 @@ const recordsContext = {
 		review: "https://refarm.dev/contexts/records/v1#review",
 		schemaVersion: "https://refarm.dev/contexts/records/v1#schemaVersion",
 		sections: "https://refarm.dev/contexts/records/v1#sections",
+		sourceKind: "https://refarm.dev/contexts/records/v1#sourceKind",
+		sourceLocation: "https://refarm.dev/contexts/records/v1#sourceLocation",
 		sourceRefs: {
 			"@container": "@set",
 			"@id": "https://refarm.dev/contexts/records/v1#sourceRefs",

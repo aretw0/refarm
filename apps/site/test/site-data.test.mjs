@@ -135,11 +135,14 @@ test("public site serves the records:v1 JSON-LD context route", async () => {
 	assert.equal(context["@vocab"], "https://refarm.dev/contexts/records/v1#");
 	assert.equal(context.KnowledgeRecord, "https://refarm.dev/contexts/records/v1#KnowledgeRecord");
 	assert.equal(context.Requirement, "https://refarm.dev/contexts/records/v1#Requirement");
+	assert.equal(context.Source, "https://refarm.dev/contexts/records/v1#Source");
 	assert.equal(context.manifestVersion, "https://refarm.dev/contexts/records/v1#manifestVersion");
 	assert.equal(context.records, "https://refarm.dev/contexts/records/v1#records");
 	assert.equal(context.schemaVersion, "https://refarm.dev/contexts/records/v1#schemaVersion");
 	assert.equal(context.fields, "https://refarm.dev/contexts/records/v1#fields");
 	assert.equal(context.contentHash, "https://refarm.dev/contexts/records/v1#contentHash");
+	assert.equal(context.sourceKind, "https://refarm.dev/contexts/records/v1#sourceKind");
+	assert.equal(context.sourceLocation, "https://refarm.dev/contexts/records/v1#sourceLocation");
 	assert.equal(context.hash, "https://refarm.dev/contexts/records/v1#hash");
 	assert.equal(context.at, "https://refarm.dev/contexts/records/v1#at");
 	assert.deepEqual(context.sourceRefs, {

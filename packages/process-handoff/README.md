@@ -6,6 +6,13 @@ This is the leaf package for consumers that need structured process specs,
 runner adaptation, detached process starts, or artifact provenance without
 installing a CLI dependency closure.
 
+Long-running local services need one more layer than a detached spawn: a
+workspace-scoped lease that records owner, target, pid, ports, health URL, log
+path, and stop policy. The design baseline lives in
+`specs/features/2026-07-01-process-handoff-lease.md`; the important boundary is
+that process leases belong in this neutral process layer, not in `apps/site`,
+Refarm Studio, or the runtime-agent product surface.
+
 ## Boundary
 
 - Produces structured `{ command, args, cwd, display }` process specs.
