@@ -462,6 +462,17 @@ test("requirements supply packages are selected only after downstream proof", ()
 	);
 });
 
+test("records yaml README documents lean parse completion", () => {
+	const readme = read("packages/records-contract-v1/README.md");
+
+	assert.match(readme, /parseRecordsYamlLdFrontMatter/);
+	assert.match(readme, /schemaVersion/);
+	assert.match(readme, /contentHash/);
+	assert.match(readme, /recomputeContentHash: true/);
+	assert.match(readme, /optional peer dependency/);
+	assert.match(readme, /fieldKeyMap/);
+});
+
 test("t2 credentials seam is consumer-pulled with reference issuer and wallet proof", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const profiles = config.releasePolicy.packageProfiles;
