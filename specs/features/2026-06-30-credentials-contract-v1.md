@@ -1,6 +1,6 @@
 # Spec: Credentials Contract v1 (`credentials:v1`) — Verifiable Credentials & Data Wallet
 
-**Status:** IMPLEMENTED — first T2 package slice landed; promotion remains proof-gated
+**Status:** IMPLEMENTED — T2 package slice and sanitized sovereign-citizen reference proof landed; promotion remains downstream/trust-policy gated
 **Authors:** Arthur Silva, Claude
 **Date:** 2026-06-30
 **Related:** `packages/identity-contract-v1` (`identity:v1` — keypair sign/verify, composed here),
@@ -57,8 +57,12 @@ OPAQUE/Sentinel/hardware-backed signature replaces the scheme without an envelop
 
 ### First consumer is Refarm
 
-Per the dogfood gate, the first consumer is Refarm itself: a sovereign profile self-issues and holds a
-credential, then verifies it, using `identity-nostr` (or the in-memory provider) under `identity:v1`.
+Per the dogfood gate, the first consumer is Refarm itself. The current proof is
+`validations/sovereign-citizen-reference`: a sanitized T2 reference that creates
+Heartwood-backed issuer/holder identities, issues a `credentials:v1` credential,
+verifies it, rejects tampering, signs/verifies a presentation, and stores/lists
+the credential through a holder wallet backed by `storage:v1`. The report
+redacts identity ids and signatures while keeping deterministic check evidence.
 
 ---
 
@@ -158,6 +162,7 @@ registries (who is an accepted issuer). The contract never bakes in a trust list
 3. presentation verify (holder proof over bundled credentials);
 4. expiry test; wallet store/list/remove round-trip;
 5. forward-safety: unknown fields / extended `@context` verify without loss.
+6. sanitized T2 reference: `pnpm run sovereign-citizen:reference:test`.
 
 ## Non-Goals
 
