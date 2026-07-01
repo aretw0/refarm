@@ -17,6 +17,8 @@ Objetivo: materializar decisão de release como **política declarativa + grafo 
 - API pública para hosts como `refarm release`
 - JSON Schema importável em `@refarm.dev/release-engine/release-policy.schema.json`
 - JSON Schema importável em `@refarm.dev/release-engine/release-output.schema.json`
+- `$id` públicos servidos pelo site Refarm em `/schemas/release-policy.schema.json`
+  e `/schemas/release-output.schema.json`
 - CLI local minimal para smoke do próprio pacote (`node packages/release-engine/src/cli.mjs`): `plan`, `check`, `gates`
 
 ## Arquitetura inicial

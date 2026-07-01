@@ -25,7 +25,7 @@ serialize back, preserve unknown keys — is the same for every YAML-native cons
 capability; only the **conventions** (which front-matter keys map to which fields, the vocabulary)
 are product/config and stay downstream.
 
-## Decision (proposed, proof-gated)
+## Decision (implemented candidate)
 
 A **YAML-LD codec for `records:v1`** — implemented as
 `@refarm.dev/records-contract-v1/yaml` — that:

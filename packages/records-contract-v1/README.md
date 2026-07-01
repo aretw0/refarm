@@ -46,7 +46,7 @@ materialization, or graph indexing.
 
 ## YAML-LD Codec Candidate
 
-`@refarm.dev/records-contract-v1/yaml` provides the proof-gated YAML-LD codec for
+`@refarm.dev/records-contract-v1/yaml` provides the proof-backed YAML-LD codec for
 YAML front matter and YAML documents that already carry the `records:v1` model.
 It parses YAML-LD into a `KnowledgeRecord`, writes records back to YAML-LD, and
 preserves unknown top-level keys for forward-safe consumers.

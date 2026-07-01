@@ -9,6 +9,18 @@ const RECORDS_CONTEXT_ROUTE = path.join(
 	ROOT,
 	"apps/site/src/pages/contexts/records/v1.ts",
 );
+const CREDENTIALS_CONTEXT_ROUTE = path.join(
+	ROOT,
+	"apps/site/src/pages/contexts/credentials/v1.ts",
+);
+const RELEASE_OUTPUT_SCHEMA_ROUTE = path.join(
+	ROOT,
+	"apps/site/src/pages/schemas/release-output.schema.json.ts",
+);
+const RELEASE_POLICY_SCHEMA_ROUTE = path.join(
+	ROOT,
+	"apps/site/src/pages/schemas/release-policy.schema.json.ts",
+);
 
 function read(relativePath) {
 	return readFileSync(path.join(ROOT, relativePath), "utf8");
@@ -104,4 +116,35 @@ test("public site serves the records:v1 JSON-LD context route", () => {
 	assert.match(source, /schemaVersion: "records:schemaVersion"/);
 	assert.match(source, /sourceRefs/);
 	assert.match(source, /"@type": "@id"/);
+});
+
+test("public site serves the credentials:v1 JSON-LD context route", () => {
+	const source = readFileSync(CREDENTIALS_CONTEXT_ROUTE, "utf8");
+
+	assert.match(source, /export const prerender = true/);
+	assert.match(source, /Content-Type": "application\/ld\+json; charset=utf-8"/);
+	assert.match(source, /credentials: "https:\/\/refarm\.dev\/contexts\/credentials\/v1#"/);
+	assert.match(source, /CredentialProof: "credentials:CredentialProof"/);
+	assert.match(source, /CredentialVerificationPolicy: "credentials:CredentialVerificationPolicy"/);
+	assert.match(source, /CredentialVerificationResult: "credentials:CredentialVerificationResult"/);
+	assert.match(source, /RefarmConformanceCredential: "credentials:RefarmConformanceCredential"/);
+	assert.match(source, /trustedIssuers/);
+	assert.match(source, /verificationMethod/);
+	assert.match(source, /"@type": "@id"/);
+});
+
+test("public site serves release-engine JSON Schema routes from package sources", () => {
+	const outputRoute = readFileSync(RELEASE_OUTPUT_SCHEMA_ROUTE, "utf8");
+	const policyRoute = readFileSync(RELEASE_POLICY_SCHEMA_ROUTE, "utf8");
+	const outputSchema = readJson("packages/release-engine/release-output.schema.json");
+	const policySchema = readJson("packages/release-engine/release-policy.schema.json");
+
+	assert.match(outputRoute, /export const prerender = true/);
+	assert.match(outputRoute, /Content-Type": "application\/schema\+json; charset=utf-8"/);
+	assert.match(outputRoute, /packages\/release-engine\/release-output\.schema\.json/);
+	assert.match(policyRoute, /export const prerender = true/);
+	assert.match(policyRoute, /Content-Type": "application\/schema\+json; charset=utf-8"/);
+	assert.match(policyRoute, /packages\/release-engine\/release-policy\.schema\.json/);
+	assert.equal(outputSchema.$id, "https://refarm.dev/schemas/release-output.schema.json");
+	assert.equal(policySchema.$id, "https://refarm.dev/schemas/release-policy.schema.json");
 });
