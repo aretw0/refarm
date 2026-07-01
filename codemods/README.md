@@ -87,9 +87,14 @@ node codemods/package-workspace-adoption.mjs --input vault-seed/package.template
 - rewrites `node:test` imports to Vitest imports, mapping simple
   `before`/`after` calls to `beforeAll`/`afterAll` and `mock.*` namespace uses
   to `vi.*`;
-- rewrites simple CommonJS `require("node:test")` and
-  `require("node:assert/strict")` bindings to Vitest imports, but does not
-  rename `.js` files or change package `type`;
+- rewrites simple CommonJS `require("node:test")`,
+  `require("node:assert/strict")`, literal module requires, local requires, and
+  JSON requires to ESM imports, using JSON import attributes for `.json`;
+- rewrites `__dirname` to `import.meta.dirname` when a CommonJS test file is
+  converted;
+- reports `renameToMjs: true` in JSON output when the converted file should be
+  renamed from `.js` to `.mjs` by the consuming runner; it does not rename files
+  or change package `type` itself;
 - rewrites common `node:assert` / `node:assert/strict` calls (`equal`, `notEqual`,
   `deepEqual`, `ok`, `match`, `doesNotMatch`, `throws`, `rejects`,
   `doesNotReject`, `fail`) to `expect`;

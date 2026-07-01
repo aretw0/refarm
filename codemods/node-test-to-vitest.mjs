@@ -44,10 +44,13 @@ export function transformNodeTestToVitest(source) {
 
 export function transformNodeTestToVitestWithReport(source) {
 	const imports = rewriteImports(source);
-	const unsupported = detectUnsupportedCommonJs(imports.code);
-	const bindings = imports.importsRewritten > 0
-		? rewriteNodeTestBindings(imports.code)
-		: { code: imports.code };
+	const dirname = imports.renameToMjs
+		? rewriteCommonJsGlobals(imports.code)
+		: { code: imports.code, rewritten: 0 };
+	const unsupported = detectUnsupportedCommonJs(dirname.code);
+	const bindings = imports.importsRewritten > 0 || dirname.rewritten > 0
+		? rewriteNodeTestBindings(dirname.code)
+		: { code: dirname.code };
 	const assertions = rewriteAssertions(bindings.code, imports.assertName);
 	const unhandled = collectUnhandled(assertions.code, imports.assertName);
 	const code = unhandled.length > 0 && imports.assertName
@@ -60,6 +63,7 @@ export function transformNodeTestToVitestWithReport(source) {
 		assertionsRewritten: assertions.assertionsRewritten,
 		unhandled,
 		unsupported,
+		renameToMjs: imports.renameToMjs || dirname.rewritten > 0,
 	};
 }
 
@@ -88,7 +92,18 @@ function detectUnsupportedCommonJs(source) {
 	for (const check of checks) {
 		if (check.re.test(source)) unsupported.push(check.message);
 	}
+	const remainingRequires = source
+		.replace(/\brequire\s*\(\s*["']node:test["']\s*\)/g, "")
+		.replace(/\brequire\s*\(\s*["']node:assert(?:\/strict)?["']\s*\)/g, "");
+	if (/\brequire\s*\(/.test(remainingRequires)) {
+		unsupported.push("unsupported CommonJS require remains; convert or remove it before renaming the file to .mjs");
+	}
 	return unsupported;
+}
+
+function rewriteCommonJsGlobals(source) {
+	const code = source.replace(/\b__dirname\b/g, "import.meta.dirname");
+	return { code, rewritten: code === source ? 0 : 1 };
 }
 
 function ensureAssertImport(source, assertName) {
@@ -104,8 +119,10 @@ function rewriteImports(source) {
 	const lines = source.split("\n");
 	const kept = [];
 	const vitestNames = new Set();
+	const moduleImports = [];
 	let firstImportIndex = null;
 	let importsRewritten = 0;
+	let commonJsRewritten = 0;
 	let assertName = null;
 
 	for (const line of lines) {
@@ -129,15 +146,46 @@ function rewriteImports(source) {
 			continue;
 		}
 
-		const nodeTestRequire = /^(?:const|let|var)\s+(.+?)\s*=\s*require\s*\(\s*["']node:test["']\s*\);?\s*$/.exec(line);
-		if (nodeTestRequire) {
-			const names = parseNodeTestRequireClause(nodeTestRequire[1]);
-			if (names.length > 0) {
-				for (const name of names) {
-					vitestNames.add(NODE_TEST_NAME_MAP.get(name) ?? name);
+		const commonJsRequire = /^(?:const|let|var)\s+(.+?)\s*=\s*require\s*\(\s*["']([^"']+)["']\s*\);?\s*$/.exec(line);
+		if (commonJsRequire) {
+			const binding = commonJsRequire[1].trim();
+			const specifier = commonJsRequire[2];
+
+			if (specifier === "node:test") {
+				const names = parseNodeTestRequireClause(binding);
+				if (names.length > 0) {
+					for (const name of names) {
+						vitestNames.add(NODE_TEST_NAME_MAP.get(name) ?? name);
+					}
+					if (firstImportIndex === null) firstImportIndex = kept.length;
+					importsRewritten += 1;
+					commonJsRewritten += 1;
+					continue;
 				}
+				kept.push(line);
+				continue;
+			}
+
+			if (specifier === "node:assert" || specifier === "node:assert/strict") {
+				const mappedAssertName = parseAssertRequireBinding(binding, specifier);
+				if (mappedAssertName) {
+					assertName = mappedAssertName;
+					vitestNames.add("expect");
+					if (firstImportIndex === null) firstImportIndex = kept.length;
+					importsRewritten += 1;
+					commonJsRewritten += 1;
+					continue;
+				}
+				kept.push(line);
+				continue;
+			}
+
+			const moduleImport = commonJsRequireImportLine(binding, specifier);
+			if (moduleImport) {
+				moduleImports.push(moduleImport);
 				if (firstImportIndex === null) firstImportIndex = kept.length;
 				importsRewritten += 1;
+				commonJsRewritten += 1;
 				continue;
 			}
 		}
@@ -145,24 +193,6 @@ function rewriteImports(source) {
 		const nodeAssertDefault = /^import\s+([A-Za-z_$][\w$]*)\s+from\s+["']node:assert(?:\/strict)?["'];?\s*$/.exec(line);
 		if (nodeAssertDefault) {
 			assertName = nodeAssertDefault[1];
-			vitestNames.add("expect");
-			if (firstImportIndex === null) firstImportIndex = kept.length;
-			importsRewritten += 1;
-			continue;
-		}
-
-		const nodeAssertRequire = /^(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\s*\(\s*["']node:assert(?:\/strict)?["']\s*\);?\s*$/.exec(line);
-		if (nodeAssertRequire) {
-			assertName = nodeAssertRequire[1];
-			vitestNames.add("expect");
-			if (firstImportIndex === null) firstImportIndex = kept.length;
-			importsRewritten += 1;
-			continue;
-		}
-
-		const nodeAssertStrictRequire = /^(?:const|let|var)\s+\{\s*strict\s*:\s*([A-Za-z_$][\w$]*)\s*\}\s*=\s*require\s*\(\s*["']node:assert["']\s*\);?\s*$/.exec(line);
-		if (nodeAssertStrictRequire) {
-			assertName = nodeAssertStrictRequire[1];
 			vitestNames.add("expect");
 			if (firstImportIndex === null) firstImportIndex = kept.length;
 			importsRewritten += 1;
@@ -191,7 +221,16 @@ function rewriteImports(source) {
 	}
 
 	if (vitestNames.size === 0) {
-		return { code: source, importsRewritten: 0, assertName };
+		if (moduleImports.length === 0) {
+			return { code: source, importsRewritten: 0, assertName, renameToMjs: false };
+		}
+		kept.splice(firstImportIndex ?? 0, 0, ...moduleImports);
+		return {
+			code: kept.join("\n"),
+			importsRewritten,
+			assertName,
+			renameToMjs: commonJsRewritten > 0,
+		};
 	}
 
 	const ordered = [...vitestNames].sort((left, right) => {
@@ -203,12 +242,59 @@ function rewriteImports(source) {
 		return leftIndex - rightIndex;
 	});
 	const importLine = `import { ${ordered.join(", ")} } from "vitest";`;
-	kept.splice(firstImportIndex ?? 0, 0, importLine);
+	kept.splice(firstImportIndex ?? 0, 0, importLine, ...moduleImports);
 	return {
 		code: kept.join("\n"),
 		importsRewritten,
 		assertName,
+		renameToMjs: commonJsRewritten > 0,
 	};
+}
+
+function parseAssertRequireBinding(binding, specifier) {
+	if (/^[A-Za-z_$][\w$]*$/.test(binding)) return binding;
+	if (specifier === "node:assert") {
+		const strict = /^\{\s*strict\s*:\s*([A-Za-z_$][\w$]*)\s*\}$/.exec(binding);
+		if (strict) return strict[1];
+		if (/^\{\s*strict\s*\}$/.test(binding)) return "strict";
+	}
+	return null;
+}
+
+function commonJsRequireImportLine(binding, specifier) {
+	if (/^[A-Za-z_$][\w$]*$/.test(binding)) {
+		if (specifier.endsWith(".json")) {
+			return `import ${binding} from "${specifier}" with { type: "json" };`;
+		}
+		return `import ${binding} from "${specifier}";`;
+	}
+
+	if (!binding.startsWith("{") || specifier.endsWith(".json")) return null;
+	const named = parseCommonJsNamedImportSpec(binding.slice(1, -1));
+	if (!named) return null;
+	return `import { ${named} } from "${specifier}";`;
+}
+
+function parseCommonJsNamedImportSpec(source) {
+	const items = source
+		.split(",")
+		.map((item) => item.trim())
+		.filter(Boolean);
+	if (items.length === 0) return null;
+
+	const mapped = [];
+	for (const item of items) {
+		if (item.startsWith("...") || /[={}\[\]]/.test(item)) return null;
+		const [imported, local] = item.split(/\s*:\s*/);
+		if (!/^[A-Za-z_$][\w$]*$/.test(imported)) return null;
+		if (local === undefined) {
+			mapped.push(imported);
+			continue;
+		}
+		if (!/^[A-Za-z_$][\w$]*$/.test(local)) return null;
+		mapped.push(`${imported} as ${local}`);
+	}
+	return mapped.join(", ");
 }
 
 function parseNodeTestRequireClause(clause) {
@@ -561,6 +647,7 @@ export function runNodeTestToVitestCli(
 				assertionsRewritten: result.assertionsRewritten,
 				unhandled: result.unhandled,
 				unsupported: result.unsupported,
+				renameToMjs: result.renameToMjs,
 				written: Boolean(args.get("write")),
 			}, null, 2)}\n`,
 		);
