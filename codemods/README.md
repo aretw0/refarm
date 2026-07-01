@@ -82,11 +82,14 @@ Dry run:
 node codemods/package-workspace-adoption.mjs --input vault-seed/package.template.json --external @aretw0/dgk-astro-plugins=latest --json
 ```
 
-`node-test-to-vitest` covers opt-in ESM JavaScript/MJS test runner migrations:
+`node-test-to-vitest` covers opt-in JavaScript/MJS test runner migrations:
 
 - rewrites `node:test` imports to Vitest imports, mapping simple
   `before`/`after` calls to `beforeAll`/`afterAll` and `mock.*` namespace uses
   to `vi.*`;
+- rewrites simple CommonJS `require("node:test")` and
+  `require("node:assert/strict")` bindings to Vitest imports, but does not
+  rename `.js` files or change package `type`;
 - rewrites common `node:assert` / `node:assert/strict` calls (`equal`, `notEqual`,
   `deepEqual`, `ok`, `match`, `doesNotMatch`, `throws`, `rejects`,
   `doesNotReject`, `fail`) to `expect`;
@@ -98,8 +101,8 @@ node codemods/package-workspace-adoption.mjs --input vault-seed/package.template
   `.resolves`, so Vitest receives the Promise instead of the function object;
 - leaves unsupported `assert.*` calls in place, keeps the assert import, and
   reports them in the JSON dry-run output for manual review;
-- reports CommonJS `require("node:test")` / `require("node:assert")` files as
-  unsupported instead of silently rewriting them into invalid ESM-in-CJS;
+- reports unsupported CommonJS require shapes instead of silently rewriting
+  aliases into invalid imports;
 - does not add Vitest config, package dependencies, or CI wiring.
 
 Dry run:

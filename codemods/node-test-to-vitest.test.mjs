@@ -77,19 +77,31 @@ test("node:test to vitest maps message args for common assert import forms", () 
 	}
 });
 
-test("node:test to vitest reports CommonJS requires as unsupported", () => {
+test("node:test to vitest maps simple CommonJS requires", () => {
 	const source = `const test = require("node:test");\nconst assert = require("node:assert/strict");\n\ntest("ok", () => {\n\tassert.equal(1, 1);\n});\n`;
+	const result = transformNodeTestToVitestWithReport(source);
+
+	assert.equal(result.changed, true);
+	assert.equal(result.importsRewritten, 2);
+	assert.equal(result.assertionsRewritten, 1);
+	assert.deepEqual(result.unhandled, []);
+	assert.deepEqual(result.unsupported, []);
+	assert.equal(
+		result.code,
+		`import { test, expect } from "vitest";\n\ntest("ok", () => {\n\texpect(1).toBe(1);\n});\n`,
+	);
+});
+
+test("node:test to vitest reports unsupported CommonJS require forms", () => {
+	const source = `const nodeTest = require("node:test");\nconst { strict } = require("node:assert");\n`;
 	const result = transformNodeTestToVitestWithReport(source);
 
 	assert.equal(result.changed, false);
 	assert.equal(result.importsRewritten, 0);
-	assert.equal(result.assertionsRewritten, 0);
-	assert.deepEqual(result.unhandled, []);
 	assert.deepEqual(result.unsupported, [
 		"unsupported CommonJS require: node:test; migrate the file to ESM before applying this codemod",
 		"unsupported CommonJS require: node:assert; migrate the file to ESM before applying this codemod",
 	]);
-	assert.match(result.code, /require\("node:test"\)/);
 });
 
 test("node:test to vitest handles throws predicate and doesNotReject function semantics", () => {
