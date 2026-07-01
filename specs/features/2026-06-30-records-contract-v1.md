@@ -176,6 +176,22 @@ the records reference.
 5. fallback: a consumer without a `records:v1` provider degrades to treating records as opaque notes
    (no graph features), so distributed scripts do not break without the package.
 
+## 6. Context resolution — open
+
+Records stamp `@context: "https://refarm.dev/contexts/records/v1"` (reference provider), but that URL is
+**not yet served** — no `/contexts/records/v1` route exists (the public `apps/site` has none). Today the
+`@context` is validated only as a string/object and used as an **opaque namespace** (vocabulary-as-data,
+never dereferenced), which works for the current consumers.
+
+For records:v1 to be **dereferenceable linked data** (a third party fetches the context to expand terms),
+Refarm must serve a real JSON-LD context document at that URL. The pattern already exists
+(`schemas/sovereign-graph.jsonld`, `tractor-ts/src/schema/*.jsonld`); the new public `apps/site` is the
+natural host. Until then the URL is a stable identifier, not a resolvable document.
+
+Flagged by the vault-seed consumer (2026-07-01): the base context is used downstream as
+`RECORDS_BASE_CONTEXT`, so its resolvability — or a documented decision to keep it opaque — is a shared
+records:v1 completeness item.
+
 ## Non-Goals
 
 - No OKF mapping, editorial governance, or publication copy in the contract.
