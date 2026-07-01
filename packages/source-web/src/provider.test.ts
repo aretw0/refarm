@@ -29,6 +29,16 @@ describe("source-web provider", () => {
 		expect(result.web.pacing.maxRequestsPerMinute).toBe(12);
 		expect(result.web.cache.offlineReplay).toBe(true);
 		expect(result.web.cache.hash).toMatch(/^sha256:/);
+		expect(result.web.egress).toEqual({
+			enforced: true,
+			allowed: true,
+			refKind: "fixture",
+			host: null,
+			policy: {
+				allowedHosts: ["example.invalid"],
+				blockPrivateHosts: true,
+			},
+		});
 		expect(result.web.redaction).toEqual({
 			applied: true,
 			fields: ["cookie", "authorization", "set-cookie"],
@@ -53,5 +63,48 @@ describe("source-web provider", () => {
 
 		expect(provenance?.session.kind).toBe("fixture");
 		expect(JSON.stringify(provenance)).not.toMatch(/selector|password|token/i);
+	});
+
+	it("requires an egress allowlist for http fixture refs", async () => {
+		const provider = createWebSourceProvider({ cacheRoot: await cacheRoot() });
+
+		await expect(provider.resolve("https://docs.example/refarm/requirements")).rejects.toThrow(
+			/EGRESS_DENIED/,
+		);
+	});
+
+	it("records allowed http fixture egress provenance", async () => {
+		const provider = createWebSourceProvider({
+			cacheRoot: await cacheRoot(),
+			egress: {
+				allowedHosts: ["docs.example"],
+			},
+		});
+
+		const result = await provider.materialize("https://docs.example/refarm/requirements", { offline: true });
+
+		expect(result.web.egress).toEqual({
+			enforced: true,
+			allowed: true,
+			refKind: "http",
+			host: "docs.example",
+			policy: {
+				allowedHosts: ["docs.example"],
+				blockPrivateHosts: true,
+			},
+		});
+	});
+
+	it("blocks private hosts even when they are allowlisted by name", async () => {
+		const provider = createWebSourceProvider({
+			cacheRoot: await cacheRoot(),
+			egress: {
+				allowedHosts: ["localhost"],
+			},
+		});
+
+		await expect(provider.materialize("http://localhost/private")).rejects.toThrow(
+			/EGRESS_DENIED: source-web blocks private host/,
+		);
 	});
 });

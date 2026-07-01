@@ -42,6 +42,8 @@ Source: `github.com/NotASithLord/peerd`. Vanilla ESM, browser platform primitive
     allowlist** so an authenticated web capture cannot reach arbitrary hosts.
   - ADR-074 control plane — the "policy precedes execution" rule gains a concrete egress gate.
   Gate: proof-gated; spec it when `source-web` or a remote node needs the enforced allowlist.
+  Status: `@refarm.dev/source-web` now declares this chokepoint for `http(s)` fixture refs through
+  provider egress policy and provenance. ADR-074 still needs the broader remote-node gate.
 
 ## 2. Accordion — reversible context management (integrates with `pi` = `pi.dev`)
 
