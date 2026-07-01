@@ -54,6 +54,27 @@ test("node:test to vitest reports unsupported assertions without dropping them",
 	assert.match(result.code, /assert\.ifError\(error\)/);
 });
 
+test("node:test to vitest maps message args for common assert import forms", () => {
+	const cases = [
+		{
+			source: `import * as assert from "node:assert/strict";\nassert.ok(value, "value message");\n`,
+			expected: `import { expect } from "vitest";\nexpect(value, "value message").toBeTruthy();\n`,
+		},
+		{
+			source: `import assert from "node:assert";\nassert.match(actual, /ok/, "match message");\n`,
+			expected: `import { expect } from "vitest";\nexpect(actual, "match message").toMatch(/ok/);\n`,
+		},
+		{
+			source: `import { strict as assert } from "node:assert";\nassert.doesNotMatch(actual, /bad/, "negative message");\n`,
+			expected: `import { expect } from "vitest";\nexpect(actual, "negative message").not.toMatch(/bad/);\n`,
+		},
+	];
+
+	for (const item of cases) {
+		assert.equal(transformNodeTestToVitest(item.source), item.expected);
+	}
+});
+
 test("node:test to vitest cli can emit a dry-run json report", () => {
 	const root = mkdtempSync(path.join(os.tmpdir(), "refarm-node-test-codemod-"));
 	const input = path.join(root, "sample.test.mjs");

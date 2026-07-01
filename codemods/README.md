@@ -87,7 +87,7 @@ node codemods/package-workspace-adoption.mjs --input vault-seed/package.template
 - rewrites `node:test` imports to Vitest imports, mapping simple
   `before`/`after` calls to `beforeAll`/`afterAll` and `mock.*` namespace uses
   to `vi.*`;
-- rewrites common `node:assert/strict` calls (`equal`, `notEqual`,
+- rewrites common `node:assert` / `node:assert/strict` calls (`equal`, `notEqual`,
   `deepEqual`, `ok`, `match`, `doesNotMatch`, `throws`, `rejects`,
   `doesNotReject`, `fail`) to `expect`;
 - preserves assertion messages as Vitest expect messages for mapped assertions,

@@ -106,9 +106,27 @@ function rewriteImports(source) {
 			continue;
 		}
 
-		const nodeAssert = /^import\s+([A-Za-z_$][\w$]*)\s+from\s+["']node:assert\/strict["'];?\s*$/.exec(line);
-		if (nodeAssert) {
-			assertName = nodeAssert[1];
+		const nodeAssertDefault = /^import\s+([A-Za-z_$][\w$]*)\s+from\s+["']node:assert(?:\/strict)?["'];?\s*$/.exec(line);
+		if (nodeAssertDefault) {
+			assertName = nodeAssertDefault[1];
+			vitestNames.add("expect");
+			if (firstImportIndex === null) firstImportIndex = kept.length;
+			importsRewritten += 1;
+			continue;
+		}
+
+		const nodeAssertNamespace = /^import\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s+["']node:assert(?:\/strict)?["'];?\s*$/.exec(line);
+		if (nodeAssertNamespace) {
+			assertName = nodeAssertNamespace[1];
+			vitestNames.add("expect");
+			if (firstImportIndex === null) firstImportIndex = kept.length;
+			importsRewritten += 1;
+			continue;
+		}
+
+		const nodeAssertStrictAlias = /^import\s+\{\s*strict\s+as\s+([A-Za-z_$][\w$]*)\s*\}\s+from\s+["']node:assert["'];?\s*$/.exec(line);
+		if (nodeAssertStrictAlias) {
+			assertName = nodeAssertStrictAlias[1];
 			vitestNames.add("expect");
 			if (firstImportIndex === null) firstImportIndex = kept.length;
 			importsRewritten += 1;
