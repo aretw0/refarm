@@ -115,12 +115,44 @@ describe("runtime plugin client", () => {
 		).resolves.toEqual({
 			reloaded: ["@refarm/pi-agent"],
 			skipped: [],
+			timedOut: false,
 		});
 		expect(onDeferred).toHaveBeenCalledWith("@refarm/pi-agent");
 		expect(fetchSpy).toHaveBeenNthCalledWith(
 			2,
 			expect.stringContaining("/plugins/reload/status/reload-1"),
 		);
+	});
+
+	it("times out and reports pending deferred plugins as skipped", async () => {
+		const fetchSpy = vi
+			.fn()
+			.mockResolvedValueOnce({
+				ok: true,
+				json: vi.fn().mockResolvedValue({
+					reloadId: "reload-timeout",
+					reloaded: [],
+					deferred: ["pi-agent"],
+					skipped: [],
+				}),
+			});
+		const onDeferred = vi.fn();
+		vi.stubGlobal("fetch", fetchSpy);
+
+		await expect(
+			reloadRuntimePluginsAndWait(["pi-agent"], {
+				onDeferred,
+				pollIntervalMs: 1,
+				maxWaitMs: 0,
+			}),
+		).resolves.toEqual({
+			reloaded: [],
+			skipped: ["@refarm/pi-agent"],
+			timedOut: true,
+		});
+		expect(onDeferred).toHaveBeenCalledWith("@refarm/pi-agent");
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+		expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("/plugins/reload"));
 	});
 
 	it("returns null when the runtime endpoint is unavailable", async () => {

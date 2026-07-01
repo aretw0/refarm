@@ -1,7 +1,7 @@
 /**
  * @refarm.dev/silo — browser-safe entrypoint
  *
- * SiloCore's persistent storage relies on node:fs and the local ~/.refarm directory.
+ * SiloCore's persistent storage relies on node:fs and the local Silo home directory.
  * Methods that require the filesystem throw at call time.
  * Read-only or network operations degrade gracefully.
  */
@@ -32,7 +32,9 @@ export class SiloCore {
   }
 
   async loadRemoteConfig(url) {
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(15_000),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     this.config = { ...this.config, ...data };
@@ -71,6 +73,10 @@ export class KeyManager {
   async generateMasterKey() {
     throw new Error(FS_ERROR);
   }
+}
+
+export function resolveSiloHome() {
+  throw new Error(FS_ERROR);
 }
 
 export default SiloCore;

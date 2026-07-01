@@ -1,13 +1,14 @@
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { canonicalRuntimeAgentContent } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
 
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -26,6 +27,9 @@ import {
 	sessionParticipantFields,
 } from "./session-participants.js";
 import { reportSidecarError } from "./sidecar-error.js";
+import {
+	fetchSidecarWithTimeout,
+} from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 interface SessionNode {
@@ -57,6 +61,14 @@ interface SessionListReport {
 	activeSessionId: string | null;
 	activeSessionStatus: "none" | "active" | "stale";
 	sessions: SessionNode[];
+}
+
+interface SessionListRecommendation {
+	diagnostic: string;
+	summary: string;
+	action: string;
+	command: string;
+	severity: "warning" | "info" | "error";
 }
 
 interface ActiveSessionReport {
@@ -96,6 +108,16 @@ const SESSIONS_LIST_JSON_COMMAND = refarmCommand(["sessions", "list", "--json"])
 const SESSIONS_NEW_JSON_COMMAND = refarmCommand(["sessions", "new", "--json"]);
 const SESSIONS_CLEAR_COMMAND = refarmCommand(["sessions", "clear"]);
 const SESSIONS_CLEAR_JSON_COMMAND = refarmCommand(["sessions", "clear", "--json"]);
+const REFARM_SESSIONS_REQUEST_TIMEOUT_MS = "REFARM_SESSIONS_REQUEST_TIMEOUT_MS";
+
+const STALE_ACTIVE_SESSION_RECOMMENDATION: SessionListRecommendation = {
+	diagnostic: "session:active-stale",
+	summary: "Active session pointer references a session that no longer exists.",
+	action: "Clear the stale active session pointer.",
+	command: SESSIONS_CLEAR_JSON_COMMAND,
+	severity: "warning",
+};
+
 function sessionShowJsonCommand(sessionId: string): string {
 	return refarmCommand(["sessions", "show", quoteCommandArg(sessionId), "--json"]);
 }
@@ -109,6 +131,14 @@ function enrichSessionHistory(history: SessionHistory): SessionHistory {
 		...history,
 		...sessionParticipantFields(history.session.participants),
 	};
+}
+
+function sessionActiveStaleRecommendation(
+	activeSessionStatus: SessionListReport["activeSessionStatus"],
+): SessionListRecommendation[] {
+	return activeSessionStatus === "stale"
+		? [STALE_ACTIVE_SESSION_RECOMMENDATION]
+		: [];
 }
 
 function printSessionJsonSuccess<TExtra extends object>(
@@ -131,7 +161,7 @@ function resolveSessionsCommandServices(
 ): SessionsCommandServices {
 	return {
 		clearActiveSessionId: deps.clearActiveSessionId ?? clearActiveSessionId,
-		fetch: deps.fetch ?? ((input, init) => fetch(input, init)),
+		fetch: deps.fetch ?? ((input, init) => fetchSidecarWithTimeout(input, init)),
 		readActiveSessionId: deps.readActiveSessionId ?? readActiveSessionId,
 		sidecarUrl: deps.sidecarUrl ?? sidecarUrl,
 		writeActiveSessionIdAndVerify:
@@ -355,7 +385,14 @@ export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
 }
 
 async function fetchSessions(services: SessionsCommandServices): Promise<SessionNode[]> {
-	const response = await services.fetch(services.sidecarUrl("/sessions"));
+	const response = await fetchSidecarWithTimeout(
+		services.sidecarUrl("/sessions"),
+		{},
+		{
+			timeoutEnvVar: REFARM_SESSIONS_REQUEST_TIMEOUT_MS,
+			defaultTimeoutMs: 500,
+		},
+	);
 	if (!response.ok) {
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
@@ -397,15 +434,28 @@ async function listSessions(
 			? report.sessions.find((session) => session["@id"] === report.activeSessionId)
 			: undefined;
 		const nextSessionId = activeSession?.["@id"] ?? report.sessions[0]?.["@id"];
-		const nextCommands = nextSessionId
-			? [
-					sessionShowJsonCommand(nextSessionId),
-					sessionUseJsonCommand(nextSessionId),
-				]
-			: report.activeSessionStatus === "stale"
-				? [SESSIONS_CLEAR_JSON_COMMAND, SESSIONS_NEW_JSON_COMMAND]
-				: [SESSIONS_NEW_JSON_COMMAND];
-		printSessionJsonSuccess("list", report, nextCommands);
+		const nextCommands: string[] = [];
+		if (report.activeSessionStatus === "stale") {
+			nextCommands.push(SESSIONS_CLEAR_JSON_COMMAND);
+		}
+		if (nextSessionId) {
+			nextCommands.push(
+				sessionShowJsonCommand(nextSessionId),
+				sessionUseJsonCommand(nextSessionId),
+			);
+		} else {
+			nextCommands.push(SESSIONS_NEW_JSON_COMMAND);
+		}
+		const recommendations = sessionActiveStaleRecommendation(
+			report.activeSessionStatus,
+		);
+		const payload: SessionListReport & {
+			recommendations?: SessionListRecommendation[];
+		} = { ...report };
+		if (recommendations.length > 0) {
+			payload.recommendations = recommendations;
+		}
+		printSessionJsonSuccess("list", payload, nextCommands);
 		return;
 	}
 
@@ -431,6 +481,16 @@ async function listSessions(
 
 	// Sort newest first by created_at_ns
 	sessions = report.sessions;
+
+	if (report.activeSessionStatus === "stale") {
+		console.log(
+			chalk.yellow(
+				`⚠  Active session pointer is stale: ${chalk.cyan(formatSessionId(activeId!))}`,
+			),
+		);
+		console.log(chalk.dim(`   Clear it with: ${SESSIONS_CLEAR_COMMAND}`));
+		console.log();
+	}
 
 	console.log(chalk.bold(`\n  Sessions  (${sessions.length} total)\n`));
 
@@ -802,15 +862,66 @@ async function showSession(
 
 	if (opts.json) {
 		const activeSessionId = services.readActiveSessionId();
-		const nextCommands =
-			activeSessionId === history.session["@id"]
-				? []
-				: [sessionUseJsonCommand(history.session["@id"]), SESSIONS_LIST_JSON_COMMAND];
-		printSessionJsonSuccess("show", history, nextCommands);
+		let recommendations: SessionListRecommendation[] = [];
+		const nextCommands: string[] = [];
+		if (
+			activeSessionId &&
+			activeSessionId !== history.session["@id"]
+		) {
+			try {
+				const sessions = await fetchSessions(services);
+				const activeSessionStatus = activeSessionId
+					? sessions.some((session) => session["@id"] === activeSessionId)
+						? "active"
+						: "stale"
+					: "none";
+				recommendations = sessionActiveStaleRecommendation(activeSessionStatus);
+				if (activeSessionStatus === "stale") {
+					nextCommands.push(SESSIONS_CLEAR_JSON_COMMAND);
+				}
+			} catch {
+				// best effort recommendations; keep show payload stable
+			}
+		}
+		if (activeSessionId !== history.session["@id"]) {
+			nextCommands.push(sessionUseJsonCommand(history.session["@id"]));
+			nextCommands.push(SESSIONS_LIST_JSON_COMMAND);
+		}
+		const payload: SessionHistory & {
+			recommendations?: SessionListRecommendation[];
+		} = {
+			...history,
+		};
+		if (recommendations.length > 0) {
+			payload.recommendations = recommendations;
+		}
+		printSessionJsonSuccess("show", payload, nextCommands);
 		return;
 	}
 
 	const session = history.session;
+	const activeSessionId = services.readActiveSessionId();
+	if (activeSessionId && activeSessionId !== session["@id"]) {
+		try {
+			const sessions = await fetchSessions(services);
+			const activeSessionStatus = sessions.some(
+				(sessionId) => sessionId["@id"] === activeSessionId,
+			)
+				? "active"
+				: "stale";
+			if (activeSessionStatus === "stale") {
+				console.log(
+					chalk.yellow(
+						`⚠  Active session pointer is stale: ${chalk.cyan(formatSessionId(activeSessionId))}`,
+					),
+				);
+				console.log(chalk.dim(`   Clear it with: ${SESSIONS_CLEAR_COMMAND}`));
+				console.log();
+			}
+		} catch {
+			// Best effort: keep show output stable even if session recovery check fails.
+		}
+	}
 	const short = formatSessionId(session["@id"]);
 	const name = session.name ? chalk.white(session.name) : chalk.dim("unnamed");
 	console.log(chalk.bold(`\n  Session ${chalk.cyan(short)}  ${name}`));

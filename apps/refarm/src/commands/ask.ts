@@ -1,32 +1,15 @@
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { isRuntimeAgentPluginId, isRuntimeSubscriptionModelProvider, isSubscriptionModelProvider, RUNTIME_AGENT_PLUGIN_ID, } from "@refarm.dev/config";
 import {
-	isRuntimeAgentPluginId,
-	isRuntimeSubscriptionModelProvider,
-	isSubscriptionModelProvider,
-	RUNTIME_AGENT_PLUGIN_ID,
-} from "@refarm.dev/config";
-import {
-	buildSystemPrompt,
-	ContextRegistry,
-	CwdContextProvider,
-	DateContextProvider,
-	FilesContextProvider,
-	GitStatusContextProvider,
-	OperatorStateProvider,
-	PolicyFilesContextProvider,
-	SessionDigestContextProvider,
-	type ContextProvider,
-} from "@refarm.dev/context-provider-v1";
+	buildSystemPrompt, ContextRegistry, CwdContextProvider, DateContextProvider, FilesContextProvider, GitStatusContextProvider, OperatorStateProvider, PolicyFilesContextProvider, SessionDigestContextProvider, type ContextProvider, } from "@refarm.dev/context-provider-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import {
-	MODEL_SCOPES,
-	parseModelScope,
-	type ModelScope,
-} from "../model-routing.js";
+	MODEL_SCOPES, parseModelScope, type ModelScope, } from "../model-routing.js";
 import { RUNTIME_AUTOSTART_ENV_VAR } from "../utils/runtime-config.js";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
 	LOCAL_MODEL_JSON_COMMAND,
@@ -44,7 +27,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 import {
 	buildCurrentModelStatus,
 	defaultModelDeps,
@@ -100,6 +83,7 @@ import {
 	isSidecarUnavailable,
 	printSidecarUnavailable,
 } from "./sidecar-error.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand([
@@ -168,7 +152,7 @@ export {
 	}
 
 	async function submitViaHttp(effort: Effort): Promise<string> {
-	const response = await fetch(sidecarUrl("/efforts"), {
+	const response = await fetchSidecarWithTimeout(sidecarUrl("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(effort),
@@ -227,7 +211,7 @@ export {
 	): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 
-	const response = await fetch(sidecarUrl("/sessions"));
+	const response = await fetchSidecarWithTimeout(sidecarUrl("/sessions"));
 	if (!response.ok) {
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
@@ -295,7 +279,7 @@ export {
 			chalk.dim("   Install bundled plugins:  refarm plugin install"),
 		);
 		console.error(
-			chalk.dim("   Reload runtime plugins:   /reload runtime-agent"),
+			chalk.dim("   Reload runtime plugins:   /reload agent (or /r agent)"),
 		);
 		console.error(
 			chalk.dim(`   Or restart runtime:       ${RUNTIME_START_COMMAND}`),
@@ -347,10 +331,24 @@ export {
 	nextCommand?: string | null;
 	nextCommands?: string[];
 	} {
+	const runtimeAgentShortId = RUNTIME_AGENT_PLUGIN_ID.split("/").at(-1) ?? "";
+	const runtimeAgentShortIdText = runtimeAgentShortId.toLowerCase();
+	const normalizedMessage = message.toLowerCase();
+	const runtimeAgentMentioned =
+		normalizedMessage.includes(RUNTIME_AGENT_PLUGIN_ID.toLowerCase()) ||
+		(runtimeAgentShortIdText.length > 0 &&
+			normalizedMessage.includes(runtimeAgentShortIdText));
 	const isRuntimeAgentMissing =
-		message.includes(`${RUNTIME_AGENT_PLUGIN_ID} not loaded`) ||
-		message.includes("pi-agent not loaded") ||
-		message.includes(`Plugin "${RUNTIME_AGENT_PLUGIN_ID}" is not loaded`);
+		normalizedMessage.includes(
+			`${RUNTIME_AGENT_PLUGIN_ID.toLowerCase()} not loaded`,
+		) ||
+		normalizedMessage.includes(
+			`plugin "${RUNTIME_AGENT_PLUGIN_ID.toLowerCase()}" is not loaded`,
+		) ||
+		(normalizedMessage.includes("agent not loaded") &&
+			runtimeAgentMentioned) ||
+		(runtimeAgentShortIdText.length > 0 &&
+			normalizedMessage.includes(`${runtimeAgentShortIdText} not loaded`));
 
 	const isProviderError =
 		message.includes("model-bridge request failed") ||
@@ -360,7 +358,6 @@ export {
 		message.includes("Connection refused") ||
 		message.includes("ECONNREFUSED") ||
 		message.includes("/v1/chat/completions");
-	const normalizedMessage = message.toLowerCase();
 	const isQuotaError =
 		normalizedMessage.includes("current quota") ||
 		normalizedMessage.includes("quota exceeded") ||
@@ -852,7 +849,13 @@ export {
 			chalk.dim("   Install bundled plugins:  refarm plugin install"),
 		);
 	}
-	console.error(chalk.dim("   Reload runtime plugins:   /reload"));
+	console.error(
+		chalk.dim(
+			agentInstalled
+				? "   Reload runtime plugins:   /reload agent (or /r agent)"
+				: "   Reload runtime plugins:   /reload (or /r)",
+		),
+	);
 	console.error(
 		chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`),
 	);

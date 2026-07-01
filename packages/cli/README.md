@@ -11,10 +11,13 @@ building blocks that should remain useful outside the app layer:
   helpers. App-specific wrappers belong in their app layer.
 - Command plan and execution plan envelopes.
 - Surface action affordance formatting and selection.
-- Browser-open, launch-process, launch-readiness, Git, and GitHub Actions
-  adapters.
+- Browser-open, launch-readiness, Git, and GitHub Actions adapters.
 - Runner-style process adapters for consumer CLIs that already expose
   `(command, args, options) => Promise<void>` execution seams.
+- Compact capability discovery, including the reference-driver supply map that
+  tells consumers which primitives are SDK exports, runtime artifacts, WIT
+  boundaries, crate-held implementations, or publication holds, with primary
+  source references for the adopted driver lessons.
 - Refarm status schema contracts and compatibility aliases where public callers
   still rely on Refarm-specific names.
 
@@ -37,9 +40,9 @@ Consumer CLIs can keep their own command vocabulary and inject Refarm's process
 adapter only at the execution boundary:
 
 ```ts
-import { createLaunchProcessRunner } from "@refarm.dev/cli/launch-process";
+import { createProcessHandoffRunner } from "@refarm.dev/process-handoff";
 
-const runner = createLaunchProcessRunner();
+const runner = createProcessHandoffRunner();
 await runner("node", ["scripts/prepare_lab_datasets.mjs"], {
 	cwd: "/workspaces/vault",
 	display: "node scripts/prepare_lab_datasets.mjs",
@@ -52,6 +55,10 @@ CLIs such as vault cockpits: their commands stay local, while Refarm can later
 record richer handoffs, provenance, and task artifacts around the same process
 boundary.
 
+`@refarm.dev/cli/process-handoff` remains a compatibility re-export. New
+consumers should import `@refarm.dev/process-handoff` so they do not pull the
+full CLI dependency closure.
+
 Structured process handoffs should identify the producing executor through
 `process.tool`, not by parsing `display` or argv strings. Use labels such as
 `package-script` and `turbo` today; future adapters can add labels such as `nx`,
@@ -61,3 +68,147 @@ runner output, but command-plan JSON should expose normalized `cache` fields and
 aggregate `cache.steps[]` data.
 
 See [ROADMAP.md](./ROADMAP.md) for the strategic evolution of the CLI.
+
+## Capability Discovery
+
+Consumers can inspect Refarm's compact capability surface without scraping docs
+or invoking a provider:
+
+```ts
+import {
+	buildCapabilityIndex,
+	buildReferenceDriverSupplyMap,
+	buildReferenceDriverSupplyPreflight,
+} from "@refarm.dev/cli/capability-index";
+
+const index = buildCapabilityIndex();
+const referenceDriverSupply = buildReferenceDriverSupplyMap();
+const referenceDriverPreflight = buildReferenceDriverSupplyPreflight();
+```
+
+`buildRefarmCapabilityIndex()` and `getRefarmCapabilityDescriptors()` remain as
+compatibility aliases for callers that already adopted the original names. New
+consumer code should prefer `buildCapabilityIndex()` and
+`getCapabilityDescriptors()`.
+
+The CLI exposes the same static posture for agents and downstream scripts that
+cannot import the package yet:
+
+```bash
+refarm capabilities --tag reference-driver --supply reference-driver --json
+refarm capabilities --supply-preflight reference-driver --json
+```
+
+The supply map is intentionally conservative. Today it marks
+`@refarm.dev/cli/capability-index` as the exported discovery SDK, exposes
+`@refarm.dev/cli/interaction-driver` for ask-loop promotion readiness, exposes
+`@refarm.dev/cli` plus `@refarm.dev/cli/worker-profile` as the plan-only
+worker descriptor/readiness/result SDK,
+keeps `@refarm.dev/pi-agent` publication on hold while the plugin package is
+private, and records `agent-tools`, plugin WIT, and Tractor code-ops as
+WIT/runtime/crate boundaries rather than pretending they are ready npm APIs.
+Each entry also carries compact `referenceLessons` and `referenceSources`, so a
+consumer can inspect why a primitive exists and which primary references shaped
+it without loading the full research note.
+The top-level `publicationBoundary` makes the package boundary explicit:
+discovery currently lives at `@refarm.dev/cli/capability-index`,
+`@refarm.dev/cli` remains in `boundary-review`, it is not a `vault-seed-ready`
+leaf, and runtime execution stays private until promotion proofs pass.
+The top-level `adoptionCriteria` list is the promotion bar for reference-driver
+work: structured lifecycle events, resumable sessions, steering/cancellation,
+bounded worker isolation, policy-before-hooks, skills/plugins as package
+surfaces, gateway parity, and budget/observability must be proven before a
+runtime primitive moves from candidate or hold into public engine supply.
+The supply preflight is the compact plan-only view for agents and consumers that
+only need blocked posture: candidate, internal, and hold targets plus the next
+decision for each reference-driver primitive. It also carries the global
+`adoptionCriteria` promotion bar. It omits exported SDK targets so consumers can
+focus on what still must not be treated as public engine runtime. Each preflight
+target carries its `promotionProofTargets`, and worker targets also carry
+`budgetContract`, so a consumer can explain the blocked posture without loading
+the full supply map. The top-level `proofSummary` gives the cheap promotion
+ledger: blocked target count, targets with explicit proof targets, unique proof
+target count, and blocked targets that already carry a budget contract. The
+top-level `promotionQueue` orders blocked targets as candidate, internal, then
+hold, carrying proof count, budget-contract presence, and the next decision for
+each item so a lab or downstream planner can choose the next proof slice without
+rebuilding the queue.
+
+This is not the plugin capability catalog. `@refarm.dev/plugin-manifest` owns
+plugin-declared `capabilities.provides` / `capabilities.requires` and runtime
+manifest validation; Barn owns installed plugin inventory, cache, and integrity.
+The CLI capability index is a package/work-driver supply index for Refarm
+primitives such as handoffs, interaction-driver, worker-profile, and
+reference-driver readiness. If an entry becomes an installable plugin artifact,
+its executable manifest and integrity still graduate through
+`plugin-manifest`/Barn.
+
+`@refarm.dev/cli/interaction-driver` describes the local ask loop as an
+embeddable interaction contract and reports why gateway/RPC promotion remains
+blocked. It does not call a provider, start a runtime, or depend on any app
+shell. The minimal JSON event contract includes accepted, streamed, completed,
+and failed events so automation can consume both successful and terminal-error
+paths without scraping terminal text. Consumers can import
+`INTERACTION_DRIVER_TERMINAL_EVENTS` when they only need to branch on terminal
+success or failure. The reference-driver supply map also carries the same
+`eventContract`, so discovery clients can inspect required and terminal events
+without importing the interaction-driver subpath.
+Worker-profile supply targets similarly carry `budgetContract`, so discovery
+clients can inspect provider token use, max turns, max parallelism, and the
+required stop condition without importing the worker-profile subpath.
+
+`@refarm.dev/cli` and `@refarm.dev/cli/worker-profile` expose the first
+"agents as tools" contract. `createWorkerProfile()` defines the bounded worker,
+and `createWorkerToolDescriptor()` wraps it as a plan-only tool descriptor with
+explicit model scope, provider token use, max turns, max concurrency, and a
+stop condition. Runtime dispatch is intentionally rejected until the worker
+engine has policy, cancellation, observability, and cost-control proofs.
+
+```ts
+import {
+	assessWorkerToolReadiness,
+	createWorkerProfile,
+	createWorkerToolDescriptor,
+	createWorkerToolResult,
+	validateWorkerToolResult,
+} from "@refarm.dev/cli";
+
+const profile = createWorkerProfile({
+	id: "worker.plan-review",
+	title: "Plan Review Worker",
+	description: "Review a plan and return a compact risk summary.",
+	objective: "Find risks before implementation starts.",
+	allowedTools: ["read", "search"],
+	output: { format: "json", requiredFields: ["summary", "risks"] },
+});
+
+const descriptor = createWorkerToolDescriptor(profile, {
+	name: "worker.planReview",
+	inputFields: ["task", "scope"],
+	stopCondition: "stop after the plan risks are summarized or maxTurns is reached",
+});
+
+const readiness = assessWorkerToolReadiness(descriptor);
+if (!readiness.ok) {
+	throw new Error(readiness.issues.join("; "));
+}
+
+const result = createWorkerToolResult(descriptor, {
+	summary: "Plan is bounded; rollback evidence is missing.",
+	output: {
+		summary: "Plan is bounded.",
+		risks: ["Missing rollback evidence."],
+	},
+});
+
+validateWorkerToolResult(descriptor, result);
+```
+
+Consumers can call `assessWorkerToolReadiness()` to get structured blockers
+instead of parsing validation strings when deciding whether to expose a worker
+as a real tool. Each blocker includes a `proofTarget` so downstream tools can
+show the missing policy, cancellation, observability, or cost-control proof
+without inventing their own checklist. `createWorkerToolResult()` and
+`validateWorkerToolResult()` define the matching return envelope: workers must
+return a compact summary, satisfy the descriptor's declared output fields when
+completed, and explain blocked, failed, or cancelled statuses through `issues`.

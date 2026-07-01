@@ -11,9 +11,14 @@ Este documento descreve como o Refarm está consolidando seu fluxo de release em
 
 ## Estado atual
 
-O primeiro motor foi introduzido em `packages/release-engine` e o Refarm já declara sua política de release em `.refarm/config.json` (`releasePolicy`).
+O primeiro motor foi introduzido em `packages/release-engine` e o Refarm já declara sua política de release em `refarm.config.json` (`releasePolicy`). `.refarm/config.json` continua sendo lido como legado local quando não há configuração versionada.
 
 Esta camada de engine não embute política do Refarm; ela só fornece defaults neutros. As escolhas de gate, ordem e publicação ficam declaradas no bloco `releasePolicy` (ou políticas por projeto).
+
+Compatibilidade de policy é defensiva: o runtime só aceita versões em
+`SUPPORTED_POLICY_VERSIONS` (hoje `2026-01`). Versão maior ou desconhecida falha
+fechado com `RELEASE_POLICY_VERSION_UNSUPPORTED`, para evitar interpretar uma
+policy futura com semântica antiga.
 
 ## Como usar hoje
 
@@ -23,6 +28,34 @@ Esta camada de engine não embute política do Refarm; ela só fornece defaults 
 - `--selection <id>` seleciona grupos declarados em `releasePolicy.selections`; `--selection default` resolve `releasePolicy.defaultSelection`.
 - Seleção explícita que não existe falha cedo. Isso evita que erro de política vire plano baseado em changesets por acidente.
 - A policy runtime também valida invariantes estruturais: providers e perfis de pacote não podem ter IDs duplicados, providers publicadores precisam declarar `publishCommands`, `defaultSelection` precisa apontar para uma seleção declarada, toda seleção precisa declarar `profileTags` não vazias e `risk`/`bump` seguem os enums do schema.
+
+## Contrato de provider/CI
+
+Provider no `release-engine` é uma declaração de intenção, não um plugin com
+credenciais. O pacote gera `publishIntents` e gates; o host/CI decide se pode
+executar publicação real.
+
+- `supportsPublish: true` exige `publishCommands`.
+- `publishDryRunCommands` descreve a validação sem publicar; se ausente, herda
+  `publishCommands`.
+- `publishRequiresManualApproval` permite que o host mostre uma barreira humana.
+- `supportsPublish: false` permite providers de contexto ou legado sem bloquear
+  parsing.
+- `providers: []` é aceito como contrato neutro quando o consumidor ainda não
+  declarou publicação real.
+- Erros de provider saem como `ReleasePolicyValidationError` com `code` estável
+  e `details.providerId` quando aplicável.
+
+Fluxo CI recomendado:
+
+1. `refarm release plan --selection default --json`
+2. Validar `schemaVersion: 1` com `@refarm.dev/release-engine/release-output.schema.json`.
+3. `refarm release check --selection default --dry-run --json`
+4. Só o workflow que possui secrets executa comandos de publicação.
+
+`apps/refarm` integra isso como control-plane não bloqueante: para workspaces
+externos, ausência de policy ou seleção inválida vira blocker/nextCommand, não
+tentativa implícita de publicar pelo Refarm atual.
 
 Comandos operacionais:
 
@@ -38,6 +71,29 @@ Readiness de primeira release:
 - `pnpm run release:readiness:plan` → mostra a sequência de gates que responde "estamos prontos para publicar?" sem executar nada.
 - `pnpm run release:readiness` → executa o corte local de readiness para npm/crates/workflows usando gates existentes.
 - `pnpm run release:policy:check` → valida só a política declarada e os gates obrigatórios em dry-run.
+- `pnpm run release:vault-seed:plan` → resolve a seleção `vault-seed-ready`
+  para o plano de publicação aceito sem executar publicação ou dry-run dos 18
+  pacotes.
+- `pnpm run reference-driver:smoke` → prova leve, sem provider, do loop
+  `ask`, dos SDKs `interaction-driver`/`worker-profile` e das primitivas
+  `runtime-agent`/reference-driver que precisam continuar funcionando antes de
+  empacotar SDKs ou runtime de publicação.
+
+Evidência local mais recente (2026-06-27): `pnpm run release:readiness`
+passou fim a fim para a seleção padrão `kernel-candidates`. O dry-run de
+publicação cobriu `@refarm.dev/storage-contract-v1`, `@refarm.dev/sync-contract-v1`,
+`@refarm.dev/identity-contract-v1` e `@refarm.dev/channel-policy-v1`. Esse
+resultado prova readiness local; não substitui aprovação explícita de publicação
+nem credenciais de npm/crates.
+
+Evidência de plano mais recente (2026-06-28): `pnpm run release:readiness:test`
+prova que `test-runner:contracts`, `audience:boundary:test` e
+`reference-driver:smoke` estão no plano antes do dry-run de publicação. O próprio
+smoke começa pelo loop local `ask` e então pelo contrato plan-only de workers
+antes das primitivas de sessão/tree/code-ops do `runtime-agent`. O teste de
+readiness também roda dentro do `pnpm` sem depender de
+`execFileSync`/`spawnSync` nos testes-alvo, mantendo o corte validável em
+sandboxes de agente sem obrigar um smoke Rust completo em cada micro-slice.
 
 Essa camada não substitui o `release-engine`: ela é um orquestrador de repo que
 amarra saúde do operador, política de release, substratos Node/Rust, ownership de
@@ -71,11 +127,14 @@ A intenção aqui é manter `release-engine` neutro e permitir que o control-pla
 - `refarm release check --selection default --dry-run --json`
 - `node --test scripts/ci/test-smoke-refarm-host-cli-flows.mjs`
 - `git diff` limpo e saída de `check` não precisa bloquear fluxos legados em execução já existente.
-- `releasePolicy` no `refarm` validado em `.refarm/config.json` (fallback neutro confirmado).
+- `releasePolicy` no `refarm` validado em `refarm.config.json` (fallback neutro confirmado).
+- Payloads bloqueados também preservam o contrato JSON: `plan` inclui
+  `publishIntents: []`, e `check`/`gates` incluem `gateResult.results`,
+  `gateResult.policy` e `gateResult.dryRun`.
 
 ## Próximo movimento de convergência
 
-- Consolidar providers reais para `refarm`, `vault-seed`, `agents-lab` via o mesmo contrato de política sem duplicar scripts de fluxo.
+- Consolidar providers reais para `refarm`, `vault-seed`, `agents-lab` via o mesmo contrato de política sem duplicar scripts de fluxo, apenas depois de cada consumidor ter policy própria.
 - Publicar somente a API de política/gating do `release-engine` quando estabilidade da suíte de testes e integrações de projeto estabilizar.
 - Integrar o contrato `@refarm.dev/dispatch-surface` ao policy de publicação: releases de pacotes/ambientes que alteram a superfície de dispatch devem rodar `dispatch-surface:build-rs:release` em modo estrito, conforme já ligado em `.github/workflows/release-changesets.yml`, `.github/workflows/publish-packages.yml`, e `.github/workflows/publish-crates.yml`.
 - A detecção de impacto desta cláusula está centralizada em `scripts/ci/release-dispatch-surface-build.sh` para evitar divergência entre workflows de publicação (inclusive `.github/workflows/test.yml`, usando `--check`).

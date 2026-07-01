@@ -1,0 +1,28 @@
+{
+	"name": "@refarm.dev/site",
+	"version": "0.1.0",
+	"description": "Refarm public site and documentation surface",
+	"type": "module",
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"astro:check": "astro check",
+		"lint": "eslint src",
+		"test": "node --test test/site-data.test.mjs",
+		"type-check": "astro check && tsc --project tsconfig.json --noEmit",
+		"type-check:dist": "astro check && tsc --project tsconfig.build.json --noEmit"
+	},
+	"dependencies": {
+		"@refarm.dev/ds": "workspace:*",
+		"astro": "^6.4.8"
+	},
+	"devDependencies": {
+		"@astrojs/check": "^0.9.9",
+		"@refarm.dev/config": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "catalog:"
+	},
+	"license": "MIT"
+}

@@ -6,6 +6,7 @@ import { findDerivedArtifactOwnershipIssues } from "./check-derived-artifact-own
 import { findWorkspaceSourceOwnershipIssues } from "./check-workspace-source-ownership.mjs";
 import { checkNodeSubstrate } from "./check-node-substrate.mjs";
 import { checkRustSubstrate } from "./check-rust-substrate.mjs";
+import { buildEnvironmentPressureReport } from "./lib/environment-pressure.mjs";
 
 function usage() {
 	console.error("Usage: node scripts/ci/check-environment-substrate.mjs [--json]");
@@ -180,6 +181,19 @@ function pnpmToolAlternatives(env = process.env) {
 
 const nodeSubstrate = await checkNodeSubstrate();
 const rustSubstrate = checkRustSubstrate();
+const environmentPressure = buildEnvironmentPressureReport({
+	guidance: {
+		diskPressureAction:
+			"Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
+		diskPressureCommand: "pnpm run clean:rust:check",
+		diskProbeFailureAction: "Run `pnpm run disk:check` only if disk pressure is suspected.",
+		diskProbeFailureCommand: "pnpm run disk:check",
+		memoryPressureAction:
+			"Use explicit test files, bounded workers, and package-scoped checks until memory pressure drops.",
+		gitGcLogAction:
+			"Inspect `.git/gc.log`; do not run prune or destructive Git cleanup from an agent without explicit operator intent.",
+	},
+});
 
 function ownershipCheck(id, kind, command, findIssues) {
 	try {
@@ -232,7 +246,6 @@ const tools = [
 	toolCheck("tool_cargo", "cargo", ["-V"]),
 ];
 const diagnosticTools = [
-	toolCheck("diagnostic_rustup_version", "rustup", ["--version"], { required: false }),
 	toolCheck("diagnostic_wasm_tools", "wasm-tools", ["--version"], { required: false }),
 	toolCheck("diagnostic_bash", "bash", ["--version"], { required: false }),
 	toolCheck("diagnostic_jq", "jq", ["--version"], { required: false }),
@@ -261,6 +274,15 @@ const checks = [
 		command: "node scripts/ci/check-rust-substrate.mjs --json",
 		exitCode: rustSubstrate.ok ? 0 : 1,
 	},
+	{
+		id: "environment_pressure",
+		kind: "operational-pressure",
+		required: true,
+		ok: environmentPressure.ok === true,
+		command: "pnpm run factory:pressure:json",
+		decision: environmentPressure.decision,
+		signalCount: environmentPressure.signals.length,
+	},
 	sourceOwnershipCheck,
 	artifactOwnershipCheck,
 	...tools,
@@ -277,6 +299,11 @@ const recommendations = [
 	...(Array.isArray(rustSubstrate.recommendations)
 		? rustSubstrate.recommendations.map((recommendation) =>
 			normalizeRecommendation("rust-substrate", recommendation),
+		)
+		: []),
+	...(Array.isArray(environmentPressure.recommendations)
+		? environmentPressure.recommendations.map((recommendation) =>
+			normalizeRecommendation("environment-pressure", recommendation),
 		)
 		: []),
 	...tools
@@ -318,21 +345,13 @@ const recommendations = [
 		]),
 	...diagnosticTools
 		.filter((check) => !check.ok)
-		.map((check) => check.id === "diagnostic_rustup_version"
-			? {
-				diagnostic: "environment-substrate:rustup-version-probe",
-				severity: "warning",
-				summary: "rustup --version failed, but Rust target validation is handled by rust-substrate.",
-				action: "Inspect rustup --version only if Rust diagnostics need the exact rustup manager version.",
-				target: check.command,
-			}
-			: {
-				diagnostic: `environment-substrate:missing-${check.id.replace(/^diagnostic_/, "")}`,
-				severity: "warning",
-				summary: `Diagnostic tool is not available: ${check.command}`,
-				action: `Install or expose ${check.command} in PATH when this environment should support agent diagnostics.`,
-				target: check.command,
-			}),
+		.map((check) => ({
+			diagnostic: `environment-substrate:missing-${check.id.replace(/^diagnostic_/, "")}`,
+			severity: "warning",
+			summary: `Diagnostic tool is not available: ${check.command}`,
+			action: `Install or expose ${check.command} in PATH when this environment should support agent diagnostics.`,
+			target: check.command,
+		})),
 	...networkDiagnostics
 		.filter((check) => !check.ok)
 		.map((check) => ({
@@ -349,6 +368,7 @@ const recommendations = [
 const nextCommands = [
 	...(Array.isArray(nodeSubstrate.nextCommands) ? nodeSubstrate.nextCommands : []),
 	...(Array.isArray(rustSubstrate.nextCommands) ? rustSubstrate.nextCommands : []),
+	...(Array.isArray(environmentPressure.nextCommands) ? environmentPressure.nextCommands : []),
 ];
 const blockingRecommendations = recommendations.filter(
 	(recommendation) => recommendation.severity !== "warning" && recommendation.severity !== "info",
@@ -371,6 +391,7 @@ const result = {
 	substrate: {
 		node: nodeSubstrate,
 		rust: rustSubstrate,
+		environmentPressure,
 		tools,
 		diagnosticTools,
 		networkDiagnostics,
@@ -383,6 +404,10 @@ const result = {
 		rustSubstrate: compactImportedCheck(
 			rustSubstrate,
 			"node scripts/ci/check-rust-substrate.mjs --json",
+		),
+		environmentPressure: compactImportedCheck(
+			environmentPressure,
+			"pnpm run factory:pressure:json",
 		),
 	},
 	recommendations,

@@ -1,6 +1,7 @@
 # @refarm.dev/ds
 
-The Refarm Design System (DS) is the source of truth for all visual tokens, styles, and headless UI primitives used across the Refarm ecosystem.
+The Design System (DS) is the source of truth for visual tokens, styles, and
+headless UI primitives shared by host and downstream ecosystem apps.
 
 ## Features
 
@@ -10,37 +11,93 @@ The Refarm Design System (DS) is the source of truth for all visual tokens, styl
 
 ## CSS primitives
 
+Import the scoped token contract and one theme before using DS primitives:
+
+```css
+@import "@refarm.dev/ds/tokens.css";
+@import "@refarm.dev/ds/themes/tractor-green.css";
+@import "@refarm.dev/ds/components.css";
+```
+
+Apply the theme on the consuming shell:
+
+```html
+<body data-ds-theme="tractor-green">
+```
+
+The previous product-specific theme attribute remains an alias:
+
+```html
+<body data-refarm-theme="tractor-green">
+```
+
+Available themes are `tractor-green`, `oceano`, `terracota`, and `verde-jardim`.
+`verde-jardim` also ships a Lab-proven light override; set `data-mode="light"`
+on the themed element or an ancestor to use it. The unqualified preset remains
+dark for backward compatibility.
+`tokens.css` never writes contract variables to bare `:root`; `--ds-*` aliases
+are scoped under `[data-ds-theme]` and `[data-refarm-theme]`. Legacy
+`--refarm-*` aliases are still emitted for existing host app surfaces.
+
 Import `@refarm.dev/ds/styles/styles.css` once in a host shell to expose shared,
 framework-agnostic primitives:
 
-- layout: `.refarm-grid`, `.refarm-stack`, `.refarm-cluster`, `.refarm-split-grid`, `.refarm-scroll-region`, `.refarm-scroll-region-y`, `.refarm-scroll-region-x`;
-- surfaces: `.refarm-surface`, `.refarm-surface-tinted`, `.refarm-panel`, `.refarm-surface-card`, `.refarm-card-roomy`;
-- actions: `.refarm-btn`, `.refarm-btn-primary`, `.refarm-btn-pill`;
-- data display: `.refarm-pill`, `.refarm-badge`, `.refarm-tag`, `.refarm-code`, `.refarm-data-table`;
-- workbench composition: `.refarm-workbench`, `.refarm-workbench-grid`, `.refarm-workbench-title`, `.refarm-workbench-lead`, `.refarm-workbench-actions`, `.refarm-workbench-card`, `.refarm-eyebrow-chip`, `.refarm-muted-list`, `.refarm-proof-list`;
-- loading states: `.refarm-loading-state`, `.refarm-spinner`.
+- layout: `.ds-grid`, `.ds-stack`, `.ds-cluster`, `.ds-split-grid`, `.ds-scroll-region`, `.ds-scroll-region-y`, `.ds-scroll-region-x`;
+- surfaces: `.ds-surface`, `.ds-surface-tinted`, `.ds-panel`, `.ds-surface-card`, `.ds-card-roomy`;
+- actions: `.ds-btn`, `.ds-btn-primary`, `.ds-btn-pill`;
+- data display: `.ds-pill`, `.ds-badge`, `.ds-tag`, `.ds-code`, `.ds-data-table`;
+- workbench composition: `.ds-workbench`, `.ds-workbench-grid`, `.ds-workbench-title`, `.ds-workbench-lead`, `.ds-workbench-actions`, `.ds-workbench-card`, `.ds-eyebrow-chip`, `.ds-muted-list`, `.ds-proof-list`;
+- loading states: `.ds-loading-state`, `.ds-spinner`.
+
+The previous `.refarm-*`, `data-refarm-theme`, and `data-refarm-scroll-region`
+forms remain aliases so existing host apps can migrate incrementally.
 
 Host packages should keep domain logic local and consume these classes for
 agnostic presentation. For example, Homestead owns stream node rendering while
 the DS owns the generic pill, panel, card, badge, workbench, and scroll-region
 styling.
 
+## HTML helpers
+
+Use `@refarm.dev/ds/html` when a consumer needs build-free HTML strings over DS
+classes without installing Homestead, Astro, runtime, sync, or storage packages.
+The helpers are isomorphic and safe for server-side rendering, static generation,
+CLI/admin documents, and browser-side composition.
+
+```ts
+import { cardHtml, documentHtml } from "@refarm.dev/ds/html";
+
+const bodyHtml = cardHtml({
+	title: "Vault",
+	rows: ["<p>Ready</p>"],
+});
+
+const html = documentHtml({
+	title: "Admin",
+	theme: "verde-jardim",
+	bodyHtml,
+});
+```
+
+`documentHtml` links the DS CSS assets under `/_ds` by default. Set `assetBase` if
+the host serves `tokens.css`, theme CSS, and `components.css` from another path.
+
 ## Scroll region utilities
 
 Use explicit scroll regions instead of relying on document/page scroll when a host owns the viewport.
 
 ```html
-<section class="refarm-scroll-region" aria-label="Inspector log">...</section>
-<section class="refarm-scroll-region-y" aria-label="Event stream">...</section>
-<div class="refarm-scroll-region-x" aria-label="Wide data table">...</div>
+<section class="ds-scroll-region" aria-label="Inspector log">...</section>
+<section class="ds-scroll-region-y" aria-label="Event stream">...</section>
+<div class="ds-scroll-region-x" aria-label="Wide data table">...</div>
 ```
 
 Equivalent data attributes are available for host/surface protocols:
 
 ```html
-<main data-refarm-scroll-region="main">...</main>
-<section data-refarm-scroll-region="y">...</section>
-<div data-refarm-scroll-region="x">...</div>
+<main data-ds-scroll-region="main">...</main>
+<section data-ds-scroll-region="y">...</section>
+<div data-ds-scroll-region="x">...</div>
 ```
 
 The utilities set bounded overflow, containment, stable scrollbar gutters, and theme-aligned scrollbars. Nested scroll regions should be labelled when their purpose is not obvious.

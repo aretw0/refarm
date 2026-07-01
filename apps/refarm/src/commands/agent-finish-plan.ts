@@ -1,23 +1,4 @@
-import { readGitCommand } from "@refarm.dev/cli/git-command";
-import {
-	affectedWorkspacePackagesFromChangedPaths,
-	changedFilePathsFromGitNameOnly,
-	changedFilePathsFromGitStatus,
-	findWorkspaceRoot as findWorkspaceRootFromMarkers,
-} from "@refarm.dev/config";
-import { parseTurboCacheRunSummary } from "@refarm.dev/infra-turbo-cache";
-import { Command } from "commander";
-import fs from "node:fs";
-import path from "node:path";
-import type { AgentFinishSessionRecorder } from "./agent-finish-session.js";
-import {
-	AGENT_FINISH_LANE_HELP,
-	agentFinishCommand,
-	agentFinishLaneCatalog,
-	type AgentFinishLane,
-	type AgentFinishLaneValidationScope,
-} from "./agent-handoff-plan.js";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildCommandPlanEnvelope,
 	commandPlanCacheObservations,
@@ -25,16 +6,39 @@ import {
 	runCommandPlan,
 	runCommandPlanCliStep,
 	runCommandPlanProcessStep,
+	type CommandPlanResourceCeilingPlan,
 	type CommandPlanRunResult,
 	type CommandPlanStep,
 	type CommandPlanStepRunResult,
-} from "./command-plan.js";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+	type CommandPlanWorkClass,
+} from "@refarm.dev/cli/command-plan";
+import { readGitCommand } from "@refarm.dev/cli/git-command";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import {
+	affectedWorkspacePackagesFromChangedPaths, changedFilePathsFromGitNameOnly, changedFilePathsFromGitStatus,
+	findWorkspaceRoot as findWorkspaceRootFromMarkers,
+	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
+} from "@refarm.dev/config";
+import {
+	buildEnvironmentPressureReport,
+	planEnvironmentWorkCeiling,
+} from "@refarm.dev/health/environment-pressure";
+import { parseTurboCacheRunSummary } from "@refarm.dev/infra-turbo-cache";
+import { Command } from "commander";
+import fs from "node:fs";
+import path from "node:path";
+import type { AgentFinishSessionRecorder } from "./agent-finish-session.js";
+import {
+	AGENT_FINISH_LANE_HELP, agentFinishCommand, agentFinishLaneCatalog, type AgentFinishLane, type AgentFinishLaneValidationScope,
+} from "./agent-handoff-plan.js";
 import {
 	createPackageBinaryCommand,
 	createPackageScriptCommand,
 } from "./package-manager.js";
 import { workspaceCanUseTurboAdapter } from "./workspace-execution.js";
+
+const FINISH_TURBO_CONCURRENCY = 2;
+const FINISH_PROCESS_TIMEOUT_MS = 180_000;
 
 export interface AgentCommandDeps {
 	runRefarm(args: string[]): CommandPlanStepRunResult;
@@ -94,6 +98,7 @@ export function runRefarmCommand(args: string[]): CommandPlanStepRunResult {
 		entrypoint: process.argv[1]!,
 		command: refarmCommand(args),
 		description: "Refarm command execution result.",
+		timeoutMs: FINISH_PROCESS_TIMEOUT_MS,
 	});
 }
 
@@ -122,6 +127,7 @@ function packageScriptStep(
 	script: string,
 	description: string,
 	idPrefix = "package",
+	workClass: CommandPlanWorkClass = "package-check",
 ): CommandPlanStep {
 	const repoRoot = findWorkspaceRoot();
 	const cwd = path.resolve(repoRoot, workspace);
@@ -142,6 +148,9 @@ function packageScriptStep(
 			cwd: repoRoot,
 			display: command.display,
 			packageManager: command.packageManager,
+			resourcePolicy: {
+				workClass,
+			},
 			tool: "package-script",
 		},
 	};
@@ -228,6 +237,9 @@ function scriptTestStep(input: {
 			cwd: repoRoot,
 			display: input.args.join(" "),
 			packageManager: null,
+			resourcePolicy: {
+				workClass: "focused-check",
+			},
 		},
 	};
 }
@@ -265,8 +277,15 @@ function packageFinishStepsForWorkspace(
 		...(includeTests ? [["test", "Run the package test suite."]] as const : []),
 		["build", "Build the package after source changes."],
 	] as const;
-	const availableCandidates = candidates
+	const baseCandidates = candidates.filter(([script]) => script !== "test");
+	const availableBaseCandidates = baseCandidates
 		.filter(([script]) => typeof scripts[script] === "string");
+	const availableCandidates = [
+		...candidates,
+		...(!includeTests && availableBaseCandidates.length === 0
+			? [["test", "Run the package test suite."]] as const
+			: []),
+	].filter(([script]) => typeof scripts[script] === "string");
 	if (availableCandidates.length === 0) return [];
 	if (workspaceCanUseTurboAdapter(findWorkspaceRoot()) && workspace !== ".") {
 		return [turboPackageValidationStep(
@@ -295,6 +314,7 @@ function turboPackageValidationStep(
 	const command = createPackageBinaryCommand("turbo", [
 		"run",
 		...scripts,
+		`--concurrency=${FINISH_TURBO_CONCURRENCY}`,
 		`--filter=./${workspace}`,
 		"--output-logs=errors-only",
 		"--ui=stream",
@@ -311,6 +331,12 @@ function turboPackageValidationStep(
 			cwd: repoRoot,
 			display: command.display,
 			packageManager: command.packageManager,
+			resourcePolicy: {
+				concurrency: FINISH_TURBO_CONCURRENCY,
+				timeoutMs: FINISH_PROCESS_TIMEOUT_MS,
+				workClass: "package-check",
+			},
+			timeoutMs: FINISH_PROCESS_TIMEOUT_MS,
 			tool: "turbo",
 		},
 	};
@@ -371,7 +397,10 @@ function changedPathsFromGit(options: {
 	}
 }
 
-function affectedScriptChecksFromChangedPaths(paths: string[]): string[] {
+function affectedScriptChecksFromChangedPaths(
+	paths: string[],
+	options: { includeHeavy?: boolean } = {},
+): string[] {
 	const checks = new Set<string>();
 	for (const file of paths) {
 		if (
@@ -381,7 +410,7 @@ function affectedScriptChecksFromChangedPaths(paths: string[]): string[] {
 		) {
 			checks.add("organize-imports");
 		}
-		if (isAgentRuntimeE2ePath(file)) {
+		if (options.includeHeavy === true && isAgentRuntimeE2ePath(file)) {
 			checks.add("agent-e2e-mock");
 		}
 	}
@@ -389,13 +418,14 @@ function affectedScriptChecksFromChangedPaths(paths: string[]): string[] {
 }
 
 function isAgentRuntimeE2ePath(file: string): boolean {
+	const runtimeAgentWorkspaceDir = `${RUNTIME_AGENT_PLUGIN_DESCRIPTOR.workspaceDir}/`;
 	return (
 		file === "apps/refarm/src/commands/ask.ts" ||
-		file === "apps/refarm/src/commands/pi-agent-effort.ts" ||
 		file === "apps/refarm/src/commands/runtime-agent-effort.ts" ||
 		file === "apps/refarm/src/commands/runtime-plugins.ts" ||
 		file === "scripts/ci/smoke-refarm-agent-model-mock.mjs" ||
-		file.startsWith("packages/pi-agent/") ||
+		file === RUNTIME_AGENT_PLUGIN_DESCRIPTOR.workspaceDir ||
+		file.startsWith(runtimeAgentWorkspaceDir) ||
 		file.startsWith("packages/model-mock/") ||
 		file.startsWith("packages/tractor/src/host/wasi_bridge/")
 	);
@@ -572,11 +602,37 @@ export function runAgentFinishPlan(
 		affectedWorkspaces?: string[];
 	} = {},
 ): CommandPlanRunResult {
+	const environmentPressure = buildEnvironmentPressureReport({
+		command: "agent",
+		operation: "finish",
+	});
 	return runCommandPlan(selectedFinishSteps(options), (step) =>
 		step.process
 			? enrichFinishStepResult(step, deps.runProcess(step))
 			: deps.runRefarm(step.args),
+	{
+		planResourceCeiling: (step) =>
+			finishStepResourceCeiling(step, environmentPressure),
+	},
 	);
+}
+
+function finishStepResourceCeiling(
+	step: CommandPlanStep,
+	environmentPressure: ReturnType<typeof buildEnvironmentPressureReport>,
+): CommandPlanResourceCeilingPlan | null {
+	const resourcePolicy = step.process?.resourcePolicy;
+	if (!resourcePolicy?.workClass) return null;
+	return planEnvironmentWorkCeiling(environmentPressure, {
+		workClass: resourcePolicy.workClass,
+		command: step.command,
+		...(resourcePolicy.fallbackCommand
+			? { fallbackCommand: resourcePolicy.fallbackCommand }
+			: {}),
+		...(resourcePolicy.concurrency
+			? { maxConcurrency: resourcePolicy.concurrency }
+			: {}),
+	}) as CommandPlanResourceCeilingPlan;
 }
 
 function enrichFinishStepResult(
@@ -674,7 +730,9 @@ export function resolveFinishSelectionContext(
 		since: sinceRef,
 	});
 	return {
-		affectedScriptChecks: affectedScriptChecksFromChangedPaths(changedPaths),
+		affectedScriptChecks: affectedScriptChecksFromChangedPaths(changedPaths, {
+			includeHeavy: selection.includeTests === true,
+		}),
 		affectedWorkspaces: affectedWorkspacePackagesFromChangedPaths(repoRoot, changedPaths),
 		...(sinceRef ? { sinceRef } : {}),
 	};

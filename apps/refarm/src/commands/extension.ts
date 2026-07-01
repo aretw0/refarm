@@ -1,15 +1,16 @@
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { Command } from "commander";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 	type JsonSuccessEnvelope,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 import { PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 
 const EXTENSION_LIST_JSON_COMMAND = refarmCommand([
@@ -229,7 +230,7 @@ async function newExtension(
     nextActions: [
       reloadCommand,
       "restart the Refarm runtime",
-      `inside refarm chat, run /reload @local/${name}`,
+      `inside refarm chat, run /reload @local/${name} (or /r @local/${name})`,
     ],
     nextCommand: reloadCommand,
     nextCommands: [reloadCommand, EXTENSION_LIST_JSON_COMMAND],
@@ -410,7 +411,7 @@ Examples:
 Notes:
   Local extensions are loaded by the Refarm runtime. After editing one, run
   refarm plugin reload @local/<name> --json or restart the runtime.
-  Inside refarm chat, /reload @local/<name> is the interactive equivalent.
+  Inside refarm chat, /reload @local/<name> (or /r @local/<name>) is the interactive equivalent.
 `,
 );
 

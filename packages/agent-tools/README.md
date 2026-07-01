@@ -34,7 +34,7 @@ edit(path: string, diff: string)               // apply unified diff (diffy)
 
 ```wit
 spawn(req: spawn-request) -> result<spawn-result, string>
-// Policy: 30-second timeout cap, non-empty argv enforced
+// Policy: 120-second timeout cap, non-empty argv enforced
 ```
 
 ### `structured-io`
@@ -59,7 +59,7 @@ pnpm --filter @refarm.dev/agent-tools build
 
 ## Policy enforcement
 
-- **Subprocess timeout**: capped at 30 seconds regardless of caller request.
+- **Subprocess timeout**: capped at 120 seconds regardless of caller request.
 - **Argv**: non-empty argv is enforced — empty command is rejected.
 - **Writes**: structured writes validate content before touching disk; on parse error, the file is not modified.
 - **Atomic writes**: plain `write()` uses a tmp file + rename to prevent partial writes on crash.

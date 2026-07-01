@@ -107,14 +107,87 @@ impl SidecarState {
         let results_dir = base_dir.join("task-results");
         fs::create_dir_all(&streams_dir)?;
         fs::create_dir_all(&results_dir)?;
+        let efforts = load_persisted_efforts(&results_dir);
         Ok(Self {
-            efforts: Arc::new(RwLock::new(HashMap::new())),
+            efforts: Arc::new(RwLock::new(efforts)),
             agent_channels,
             active_agent_id,
             streams_dir,
             results_dir,
             namespace,
         })
+    }
+}
+
+fn effort_result_path(results_dir: &Path, effort_id: &str) -> PathBuf {
+    results_dir.join(format!("{}.json", safe_effort_result_filename(effort_id)))
+}
+
+fn safe_effort_result_filename(effort_id: &str) -> String {
+    let filename: String = effort_id
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == '.' {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if filename.is_empty() {
+        "unknown".to_string()
+    } else {
+        filename
+    }
+}
+
+fn load_persisted_efforts(results_dir: &Path) -> HashMap<String, EffortResult> {
+    let mut efforts = HashMap::new();
+    let Ok(entries) = fs::read_dir(results_dir) else {
+        return efforts;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
+            continue;
+        }
+        let Ok(content) = fs::read_to_string(&path) else {
+            tracing::warn!(path = %path.display(), "sidecar: failed to read persisted effort");
+            continue;
+        };
+        match serde_json::from_str::<EffortResult>(&content) {
+            Ok(result) => {
+                efforts.insert(result.effort_id.clone(), result);
+            }
+            Err(error) => {
+                tracing::warn!(path = %path.display(), %error, "sidecar: ignored invalid persisted effort");
+            }
+        }
+    }
+    efforts
+}
+
+fn persist_effort_result(results_dir: &Path, result: &EffortResult) -> std::io::Result<()> {
+    let path = effort_result_path(results_dir, &result.effort_id);
+    let tmp_path = path.with_extension("json.tmp");
+    let body = serde_json::to_vec_pretty(result)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+    fs::write(&tmp_path, body)?;
+    fs::rename(tmp_path, path)?;
+    Ok(())
+}
+
+fn record_effort_result(state: &SidecarState, result: EffortResult) {
+    {
+        let mut store = state.efforts.write().expect("effort store poisoned");
+        store.insert(result.effort_id.clone(), result.clone());
+    }
+    if let Err(error) = persist_effort_result(&state.results_dir, &result) {
+        tracing::warn!(
+            effort_id = %result.effort_id,
+            %error,
+            "sidecar: failed to persist effort result"
+        );
     }
 }
 
@@ -273,25 +346,22 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
         let submitted_at = effort.submitted_at.clone();
 
         // Mark active
-        {
-            let mut store = state.efforts.write().expect("effort store poisoned");
-            store.insert(
-                effort_id.clone(),
-                EffortResult {
-                    effort_id: effort_id.clone(),
-                    status: "active".to_string(),
-                    results: vec![],
-                    submitted_at: submitted_at.clone(),
-                    completed_at: None,
-                },
-            );
-        }
+        record_effort_result(
+            &state,
+            EffortResult {
+                effort_id: effort_id.clone(),
+                status: "active".to_string(),
+                results: vec![],
+                submitted_at: submitted_at.clone(),
+                completed_at: None,
+            },
+        );
 
         let task = match effort.tasks.first() {
             Some(t) => t.clone(),
             None => {
                 finalise_effort(
-                    &state.efforts,
+                    &state,
                     &effort_id,
                     "failed",
                     vec![TaskResult {
@@ -309,7 +379,7 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
         // Only `respond` function is supported. The plugin must be the active agent.
         if fn_name != "respond" {
             finalise_effort(
-                &state.efforts,
+                &state,
                 &effort_id,
                 "failed",
                 vec![TaskResult {
@@ -327,7 +397,7 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
             Ok(args) => args,
             Err(error) => {
                 finalise_effort(
-                    &state.efforts,
+                    &state,
                     &effort_id,
                     "failed",
                     vec![TaskResult {
@@ -405,7 +475,7 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
                     None,
                 );
                 finalise_effort(
-                    &state.efforts,
+                    &state,
                     &effort_id,
                     "failed",
                     vec![TaskResult {
@@ -425,7 +495,7 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
                     None,
                 );
                 finalise_effort(
-                    &state.efforts,
+                    &state,
                     &effort_id,
                     "failed",
                     vec![TaskResult {
@@ -439,7 +509,7 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
                 // Success — the plugin runner thread will write stream chunks.
                 // Mark done optimistically; a future improvement polls the CRDT for the real result.
                 finalise_effort(
-                    &state.efforts,
+                    &state,
                     &effort_id,
                     "done",
                     vec![TaskResult {
@@ -453,12 +523,24 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
     });
 }
 
-fn finalise_effort(store: &EffortStore, effort_id: &str, status: &str, results: Vec<TaskResult>) {
-    let mut s = store.write().expect("effort store poisoned");
-    if let Some(entry) = s.get_mut(effort_id) {
-        entry.status = status.to_string();
-        entry.results = results;
-        entry.completed_at = Some(chrono_now_iso());
+fn finalise_effort(state: &SidecarState, effort_id: &str, status: &str, results: Vec<TaskResult>) {
+    let result = {
+        let mut s = state.efforts.write().expect("effort store poisoned");
+        s.get_mut(effort_id).map(|entry| {
+            entry.status = status.to_string();
+            entry.results = results;
+            entry.completed_at = Some(chrono_now_iso());
+            entry.clone()
+        })
+    };
+    if let Some(result) = result {
+        if let Err(error) = persist_effort_result(&state.results_dir, &result) {
+            tracing::warn!(
+                effort_id = %result.effort_id,
+                %error,
+                "sidecar: failed to persist final effort result"
+            );
+        }
     }
 }
 

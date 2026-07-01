@@ -1,15 +1,21 @@
+import {
+	buildReferenceDriverSupplyPreflight,
+	type ReferenceDriverSupplyPreflight,
+} from "@refarm.dev/cli/capability-index";
+import { printJson } from "@refarm.dev/cli/json-output";
 import type {
 	ReleaseGateResult,
 	ReleasePlan,
+	ReleasePlanAuditRecord,
 	ReleasePlanSummary,
 } from "@refarm.dev/release-engine";
 import chalk from "chalk";
 import { Command } from "commander";
-import { printJson } from "./json-output.js";
 
 export interface ReleaseCommandDeps {
 	cwd?: () => string;
 	buildReleasePlan?: ReleaseEngine["buildReleasePlan"];
+	createReleasePlanAuditRecord?: ReleaseEngine["createReleasePlanAuditRecord"];
 	formatPlan?: ReleaseEngine["formatPlan"];
 	runReleaseGates?: ReleaseEngine["runReleaseGates"];
 	summarizePlan?: ReleaseEngine["summarizePlan"];
@@ -17,6 +23,7 @@ export interface ReleaseCommandDeps {
 
 interface ReleaseEngine {
 	buildReleasePlan: (input: BuildReleasePlanInput) => ReleasePlan;
+	createReleasePlanAuditRecord: (plan: ReleasePlan) => ReleasePlanAuditRecord;
 	formatPlan: (plan: ReleasePlan) => string;
 	runReleaseGates: (
 		plan: ReleasePlan,
@@ -40,6 +47,7 @@ export interface ReleasePlanCommandOptions {
 	tag?: string[];
 	selection?: string;
 	json?: boolean;
+	audit?: boolean;
 	checkGates?: boolean;
 	dryRun?: boolean;
 	onlyRequired?: boolean;
@@ -59,12 +67,14 @@ function resolveTags(options: { tag?: string[] }): string[] {
 async function loadReleaseEngine(deps: ReleaseCommandDeps | undefined): Promise<ReleaseEngine> {
 	if (
 		deps?.buildReleasePlan &&
+		deps.createReleasePlanAuditRecord &&
 		deps.formatPlan &&
 		deps.runReleaseGates &&
 		deps.summarizePlan
 	) {
 		return {
 			buildReleasePlan: deps.buildReleasePlan,
+			createReleasePlanAuditRecord: deps.createReleasePlanAuditRecord,
 			formatPlan: deps.formatPlan,
 			runReleaseGates: deps.runReleaseGates,
 			summarizePlan: deps.summarizePlan,
@@ -73,6 +83,7 @@ async function loadReleaseEngine(deps: ReleaseCommandDeps | undefined): Promise<
 	const imported = await import("@refarm.dev/release-engine");
 	if (
 		typeof imported.buildReleasePlan !== "function" ||
+		typeof imported.createReleasePlanAuditRecord !== "function" ||
 		typeof imported.formatPlan !== "function" ||
 		typeof imported.runReleaseGates !== "function" ||
 		typeof imported.summarizePlan !== "function"
@@ -81,6 +92,7 @@ async function loadReleaseEngine(deps: ReleaseCommandDeps | undefined): Promise<
 	}
 	return {
 		buildReleasePlan: imported.buildReleasePlan,
+		createReleasePlanAuditRecord: imported.createReleasePlanAuditRecord,
 		formatPlan: imported.formatPlan,
 		runReleaseGates: imported.runReleaseGates,
 		summarizePlan: imported.summarizePlan,
@@ -93,6 +105,8 @@ function releaseJsonPayload(input: {
 	plan: ReleasePlan;
 	gateResult?: ReleaseGateResult;
 	commandNote?: string;
+	supplyPreflight?: ReferenceDriverSupplyPreflight;
+	audit?: boolean;
 }): ReleasePlanSummary & {
 	command: "release";
 	operation: string;
@@ -104,6 +118,8 @@ function releaseJsonPayload(input: {
 	publishIntents?: ReleasePlan["publishIntents"];
 	gateResult?: ReleaseGateResult;
 	commandNote?: string;
+	supplyPreflight?: ReferenceDriverSupplyPreflight;
+	auditRecord?: ReleasePlanAuditRecord;
 } {
 	return {
 		...input.engine.summarizePlan(input.plan),
@@ -117,6 +133,8 @@ function releaseJsonPayload(input: {
 		publishIntents: input.plan.publishIntents,
 		...(input.gateResult ? { gateResult: input.gateResult } : {}),
 		...(input.commandNote ? { commandNote: input.commandNote } : {}),
+		...(input.supplyPreflight ? { supplyPreflight: input.supplyPreflight } : {}),
+		...(input.audit ? { auditRecord: input.engine.createReleasePlanAuditRecord(input.plan) } : {}),
 	};
 }
 
@@ -183,6 +201,13 @@ function printPlan(plan: ReleasePlan, engine: ReleaseEngine): void {
 	}
 }
 
+function printSupplyPreflight(preflight: ReferenceDriverSupplyPreflight): void {
+	const summary = preflight.summary
+		.map((entry) => `${entry.status}: ${entry.count}`)
+		.join(", ");
+	console.log(chalk.dim(`Supply targets (${preflight.mode}): ${summary}`));
+}
+
 export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 	const command = new Command("release")
 		.description("Plan and verify release policy from Refarm config")
@@ -192,8 +217,10 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 				"",
 				"Examples:",
 				"  $ refarm release plan --selection default --json",
+				"  $ refarm release plan --selection default --json --audit",
 				"  $ refarm release plan --tag kernel --tag candidate --json",
 				"  $ refarm release plan @refarm.dev/storage-contract-v1 --json",
+				"  $ refarm release preflight --selection default --json",
 				"  $ refarm release check --tag kernel-contract --dry-run",
 				"  $ refarm release gates --dry-run --only-required",
 				"",
@@ -215,6 +242,7 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 		.option("--dry-run", "Skip command execution when --check-gates is used")
 		.option("--only-required", "Run only required gates when --check-gates is used")
 		.option("--json", "Output machine-readable release plan")
+		.option("--audit", "Include a deterministic release plan audit record in JSON output")
 		.action(async (packages: string[], options: ReleasePlanCommandOptions) => {
 			try {
 				const engine = await loadReleaseEngine(deps);
@@ -228,7 +256,13 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 					: undefined;
 
 				if (options.json) {
-					printJson(releaseJsonPayload({ operation: "plan", engine, plan, gateResult }));
+					printJson(releaseJsonPayload({
+						operation: "plan",
+						engine,
+						plan,
+						gateResult,
+						audit: Boolean(options.audit),
+					}));
 				} else {
 					printPlan(plan, engine);
 					if (gateResult) {
@@ -238,6 +272,42 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 				if (!plan.ok || gateResult?.ok === false) process.exitCode = 1;
 			} catch (error) {
 				handleReleaseCommandError("plan", options, error);
+			}
+		});
+
+	command
+		.command("preflight")
+		.description("Build a plan-only release preflight with supply target posture")
+		.argument("[packages...]", "Explicit workspace package names to plan")
+		.option("--cwd <dir>", "Workspace root for plan resolution")
+		.option("--policy <file>", "Policy filename or path")
+		.option("--selection <id>", "Select packages using a release policy selection")
+		.option("--tag <tag>", "Select packages whose release profile contains this tag", collectTag, [])
+		.option("--json", "Output machine-readable release preflight")
+		.option("--audit", "Include a deterministic release plan audit record in JSON output")
+		.action(async (packages: string[], options: ReleasePlanCommandOptions) => {
+			try {
+				const engine = await loadReleaseEngine(deps);
+				const plan = planFromOptions(packages, { ...options, dryRun: true }, deps, engine);
+				const supplyPreflight = buildReferenceDriverSupplyPreflight();
+
+				if (options.json) {
+					printJson(releaseJsonPayload({
+						operation: "preflight",
+						engine,
+						plan,
+						supplyPreflight,
+						commandNote:
+							"Plan-only release preflight; no gates, builds, publish dry-runs, or runtime dispatch were executed.",
+						audit: Boolean(options.audit),
+					}));
+				} else {
+					printPlan(plan, engine);
+					printSupplyPreflight(supplyPreflight);
+				}
+				if (!plan.ok) process.exitCode = 1;
+			} catch (error) {
+				handleReleaseCommandError("preflight", options, error);
 			}
 		});
 
@@ -252,6 +322,7 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 		.option("--dry-run", "Keep gate commands in dry-run mode", true)
 		.option("--only-required", "Run only required gates")
 		.option("--json", "Output machine-readable release check")
+		.option("--audit", "Include a deterministic release plan audit record in JSON output")
 		.action(async (packages: string[], options: ReleaseCheckCommandOptions) => {
 			try {
 				const engine = await loadReleaseEngine(deps);
@@ -278,6 +349,7 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 							commandNote: plan.ok
 								? "Dry-run gate check complete."
 								: "Plan is blocked before gate execution.",
+							audit: Boolean(options.audit),
 						}),
 					);
 				} else {
@@ -300,6 +372,7 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 		.option("--dry-run", "Skip command execution")
 		.option("--only-required", "Run only required gates")
 		.option("--json", "Output machine-readable gate result")
+		.option("--audit", "Include a deterministic release plan audit record in JSON output")
 		.action(async (packages: string[], options: ReleaseGatesCommandOptions) => {
 			try {
 				const engine = await loadReleaseEngine(deps);
@@ -317,7 +390,13 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 						dryRun: Boolean(options.dryRun),
 					};
 				if (options.json) {
-					printJson(releaseJsonPayload({ operation: "gates", engine, plan, gateResult }));
+					printJson(releaseJsonPayload({
+						operation: "gates",
+						engine,
+						plan,
+						gateResult,
+						audit: Boolean(options.audit),
+					}));
 				} else {
 					console.log(gateResult.ok ? "Release gates passed." : "Release gates blocked.");
 					printPlan(plan, engine);

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	probeRuntimeLiveness,
 	probeRuntimeReadiness,
 	probeRuntimeReady,
 	waitForRuntimeReady,
@@ -43,6 +44,52 @@ describe("runtime readiness", () => {
 		await expect(probeRuntimeReady()).resolves.toBe(false);
 	});
 
+	it("does not probe /sessions when /efforts/summary is unreachable", async () => {
+		const fetch = vi
+			.fn()
+			.mockRejectedValueOnce(new Error("down"));
+		vi.stubGlobal("fetch", fetch);
+
+		await expect(probeRuntimeReady()).resolves.toBe(false);
+
+		expect(fetch).toHaveBeenCalledTimes(1);
+		expect(fetch.mock.calls[0]?.[0]).toBe(
+			"http://127.0.0.1:42001/efforts/summary",
+		);
+	});
+
+	it("checks /sessions as an additional readiness requirement", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValueOnce(response(true)).mockResolvedValueOnce(response(false, 503)),
+		);
+
+		await expect(probeRuntimeReadiness()).resolves.toEqual({
+			url: "http://127.0.0.1:42001/sessions",
+			ready: false,
+			status: 503,
+		});
+	});
+
+	it("checks liveness without requiring the session endpoint", async () => {
+		const fetch = vi
+			.fn()
+			.mockResolvedValueOnce(response(true))
+			.mockResolvedValueOnce(response(false, 503));
+		vi.stubGlobal("fetch", fetch);
+
+		await expect(probeRuntimeLiveness()).resolves.toEqual({
+			url: "http://127.0.0.1:42001/efforts/summary",
+			ready: true,
+			status: 200,
+		});
+
+		expect(fetch).toHaveBeenCalledTimes(1);
+		expect(fetch.mock.calls[0]?.[0]).toBe(
+			"http://127.0.0.1:42001/efforts/summary",
+		);
+	});
+
 	it("returns readiness probe transport errors", async () => {
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
 
@@ -71,9 +118,7 @@ describe("runtime readiness", () => {
 	it("waits until a probe succeeds", async () => {
 		vi.stubGlobal(
 			"fetch",
-			vi.fn()
-				.mockResolvedValueOnce(response(false))
-				.mockResolvedValueOnce(response(true)),
+			vi.fn().mockResolvedValueOnce(response(false)).mockResolvedValue(response(true)),
 		);
 
 		await expect(

@@ -14,7 +14,9 @@
 		"test:integration": "echo 'No integration tests for this crate'"
 	},
 	"files": [
-		"dist"
+		"dist/pi_agent.wasm",
+		"dist/plugin.json",
+		"dist/jco"
 	],
 	"devDependencies": {
 		"@bytecodealliance/jco": "catalog:",

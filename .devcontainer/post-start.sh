@@ -6,6 +6,7 @@ export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-$ROOT/.cache/npm}"
 export REFARM_DEVCONTAINER="${REFARM_DEVCONTAINER:-true}"
+export REFARM_WORKSPACE_HOST_WRITE_LOCK="${REFARM_WORKSPACE_HOST_WRITE_LOCK:-1}"
 export REFARM_HOME="${REFARM_HOME:-$ROOT/.refarm}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
 export REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
@@ -34,6 +35,15 @@ repair_owned_dir() {
 	}
 	if [ ! -w "$dir" ] && command -v sudo >/dev/null 2>&1; then
 		sudo chown -R "$(id -u):$(id -g)" "$dir" || true
+	fi
+}
+
+workspace_protect() {
+	local operation="$1"
+	if [ -f "$ROOT/scripts/workspace-protect.mjs" ]; then
+		node "$ROOT/scripts/workspace-protect.mjs" "$operation" || echo "[refarm-devcontainer][warn] workspace-protect $operation failed"
+	else
+		echo "[refarm-devcontainer][warn] scripts/workspace-protect.mjs is missing"
 	fi
 }
 
@@ -203,6 +213,7 @@ check_coding_agent_tools() {
 }
 
 ensure_pnpm
+workspace_protect mark
 ensure_hooks
 ensure_refarm_cli
 ensure_git_transport
@@ -216,5 +227,6 @@ if [ -x "$ROOT/scripts/env-safety-check.sh" ]; then
 else
 	echo "[refarm-devcontainer][warn] scripts/env-safety-check.sh is missing"
 fi
+workspace_protect apply
 
 echo "[refarm-devcontainer] Post-start sanity check complete."

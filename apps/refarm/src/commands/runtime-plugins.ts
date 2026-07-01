@@ -1,4 +1,5 @@
 import { normalizePluginId } from "@refarm.dev/config";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 export interface RuntimePluginState {
@@ -20,7 +21,16 @@ export interface RuntimePluginReloadResult {
 export interface RuntimePluginReloadWaitOptions {
 	onDeferred?(pluginId: string): void;
 	pollIntervalMs?: number;
+	maxWaitMs?: number;
 }
+
+export interface RuntimePluginReloadWaitResult {
+	reloaded: string[];
+	skipped: string[];
+	timedOut: boolean;
+}
+
+const DEFAULT_PLUGIN_RELOAD_MAX_WAIT_MS = 120000;
 
 function stringArray(value: unknown): string[] {
 	return Array.isArray(value)
@@ -40,7 +50,7 @@ function reloadBody(pluginIds?: string[]): string | undefined {
 
 export async function readRuntimePluginState(): Promise<RuntimePluginState | null> {
 	try {
-		const response = await fetch(sidecarUrl("/plugins"));
+		const response = await fetchSidecarWithTimeout(sidecarUrl("/plugins"));
 		if (!response.ok) return null;
 		const payload = (await response.json()) as Partial<RuntimePluginState>;
 		const raw = payload as Record<string, unknown>;
@@ -63,7 +73,7 @@ export async function reloadRuntimePlugins(
 	pluginIds?: string[],
 ): Promise<RuntimePluginReloadResult | null> {
 	try {
-		const response = await fetch(sidecarUrl("/plugins/reload"), {
+		const response = await fetchSidecarWithTimeout(sidecarUrl("/plugins/reload"), {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: reloadBody(pluginIds),
@@ -84,29 +94,53 @@ export async function reloadRuntimePlugins(
 export async function reloadRuntimePluginsAndWait(
 	pluginIds?: string[],
 	options: RuntimePluginReloadWaitOptions = {},
-): Promise<{ reloaded: string[]; skipped: string[] } | null> {
+): Promise<RuntimePluginReloadWaitResult | null> {
 	const initial = await reloadRuntimePlugins(pluginIds);
 	if (!initial) return null;
+
+	const configuredMaxWaitMs = Number.parseInt(
+		options.maxWaitMs?.toString() ??
+			process.env.REFARM_PLUGIN_RELOAD_MAX_WAIT_MS ??
+			String(DEFAULT_PLUGIN_RELOAD_MAX_WAIT_MS),
+		10,
+	);
+	const maxWaitMs = Number.isNaN(configuredMaxWaitMs)
+		? DEFAULT_PLUGIN_RELOAD_MAX_WAIT_MS
+		: configuredMaxWaitMs;
+	const deadlineMs = maxWaitMs > 0 ? Date.now() + maxWaitMs : Date.now();
+	const pollIntervalMs = options.pollIntervalMs ?? 500;
+	let timedOut = false;
 
 	const pending = new Set(initial.deferred);
 	const completed = new Set(initial.reloaded);
 	const failed = new Set(initial.skipped);
 	if (!initial.reloadId || pending.size === 0) {
-		return { reloaded: [...completed], skipped: [...failed] };
+		return { reloaded: [...completed], skipped: [...failed], timedOut: false };
 	}
 
 	for (const pluginId of pending) {
 		options.onDeferred?.(pluginId);
 	}
 
-	const pollIntervalMs = options.pollIntervalMs ?? 500;
 	while (pending.size > 0) {
+		if (Date.now() >= deadlineMs) {
+			timedOut = true;
+			for (const pluginId of pending) failed.add(pluginId);
+			pending.clear();
+			break;
+		}
+
 		await new Promise<void>((resolve) => setTimeout(resolve, pollIntervalMs));
 
-		const response = await fetch(
+		const response = await fetchSidecarWithTimeout(
 			sidecarUrl(`/plugins/reload/status/${initial.reloadId}`),
 		);
-		if (!response.ok) break;
+		if (!response.ok) {
+			timedOut = true;
+			for (const pluginId of pending) failed.add(pluginId);
+			pending.clear();
+			break;
+		}
 
 		const status = (await response.json()) as {
 			pending?: unknown;
@@ -128,5 +162,5 @@ export async function reloadRuntimePluginsAndWait(
 		}
 	}
 
-	return { reloaded: [...completed], skipped: [...failed] };
+	return { reloaded: [...completed], skipped: [...failed], timedOut };
 }

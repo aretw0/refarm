@@ -13,8 +13,8 @@ const meta: Meta<ButtonArgs> = {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.innerText = args.label;
-    btn.className = args.primary ? "refarm-btn refarm-btn-primary" : "refarm-btn";
-    
+    btn.className = args.primary ? "ds-btn ds-btn-primary" : "ds-btn";
+
     if (args.onClick) {
       btn.addEventListener("click", args.onClick);
     }

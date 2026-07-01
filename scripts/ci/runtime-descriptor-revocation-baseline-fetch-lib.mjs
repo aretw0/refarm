@@ -14,6 +14,7 @@ import {
 } from "./runtime-descriptor-revocation-baseline-lib.mjs";
 
 const execFileAsync = promisify(execFile);
+const GITHUB_REQUEST_TIMEOUT_MS = 15_000;
 
 function resolveCliString(value, fallback = "") {
 	if (typeof value === "string" && value.trim().length > 0) {
@@ -33,6 +34,7 @@ function createGitHubApiClient({ token, apiBase, fetchImpl = fetch }) {
 				"X-GitHub-Api-Version": "2022-11-28",
 			},
 			redirect: "follow",
+			signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
 		});
 		if (!response.ok) {
 			throw new Error(

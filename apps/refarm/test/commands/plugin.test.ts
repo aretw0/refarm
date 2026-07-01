@@ -10,7 +10,7 @@ const {
 	mockMkdir,
 	mockRequireResolve,
 	mockDigest,
-	mockRunLaunchProcess,
+	mockRunProcessHandoff,
 } = vi.hoisted(() => {
 	const mockDigest = vi.fn().mockReturnValue("abc123");
 	return {
@@ -22,7 +22,7 @@ const {
 		mockMkdir: vi.fn().mockResolvedValue(undefined),
 		mockRequireResolve: vi.fn(),
 		mockDigest,
-		mockRunLaunchProcess: vi.fn(),
+		mockRunProcessHandoff: vi.fn(),
 	};
 });
 
@@ -64,13 +64,13 @@ vi.mock("node:module", () => ({
 	),
 }));
 
-vi.mock("@refarm.dev/cli/launch-process", async () => {
-	const actual = await vi.importActual<typeof import("@refarm.dev/cli/launch-process")>(
-		"@refarm.dev/cli/launch-process",
+vi.mock("@refarm.dev/cli/process-handoff", async () => {
+	const actual = await vi.importActual<typeof import("@refarm.dev/cli/process-handoff")>(
+		"@refarm.dev/cli/process-handoff",
 	);
 	return {
 		...actual,
-		runLaunchProcess: mockRunLaunchProcess,
+		runProcessHandoff: mockRunProcessHandoff,
 	};
 });
 
@@ -97,8 +97,9 @@ describe("plugin install", () => {
 		pluginCommand.outputHelp();
 
 		expect(help).toContain("refarm plugin status");
-		expect(help).toContain("refarm plugin reload runtime-agent --json");
-		expect(help).toContain("/reload runtime-agent");
+		expect(help).toContain("refarm plugin reload agent --json");
+		expect(help).toContain("/reload agent");
+		expect(help).toContain("/r agent");
 		expect(help).toContain("refarm runtime ensure --wait --next-command");
 		expect(help).toContain("refarm doctor --next-action");
 		expect(help).toContain("refarm doctor");
@@ -119,8 +120,9 @@ describe("plugin install", () => {
 		install?.outputHelp();
 
 		expect(help).toContain("start or restart the runtime");
-		expect(help).toContain("refarm plugin reload runtime-agent --json");
-		expect(help).toContain("/reload runtime-agent");
+		expect(help).toContain("refarm plugin reload agent --json");
+		expect(help).toContain("/reload agent");
+		expect(help).toContain("/r agent");
 		expect(help).toContain("refarm plugin status");
 	});
 
@@ -529,7 +531,7 @@ describe("plugin status", () => {
 		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
 		expect(output).toContain("Runtime agent plugin is not loaded");
 		expect(output).toContain("refarm plugin install");
-		expect(output).toContain("refarm plugin reload runtime-agent --json");
+		expect(output).toContain("refarm plugin reload agent --json");
 		expect(output).toContain("refarm ask hello");
 		consoleSpy.mockRestore();
 	});
@@ -585,14 +587,14 @@ describe("plugin status", () => {
 				local: true,
 			},
 		]);
-		expect(payload.nextAction).toBe("refarm plugin reload runtime-agent --json");
+		expect(payload.nextAction).toBe("refarm plugin reload agent --json");
 		expect(payload.nextActions).toEqual([
-			"refarm plugin reload runtime-agent --json",
+			"refarm plugin reload agent --json",
 			"refarm plugin status --json",
 		]);
-		expect(payload.nextCommand).toBe("refarm plugin reload runtime-agent --json");
+		expect(payload.nextCommand).toBe("refarm plugin reload agent --json");
 		expect(payload.nextCommands).toEqual([
-			"refarm plugin reload runtime-agent --json",
+			"refarm plugin reload agent --json",
 			"refarm plugin status --json",
 		]);
 		expect(process.exitCode).toBe(1);
@@ -700,7 +702,7 @@ describe("plugin status", () => {
 			command: "plugin",
 			operation: "reload",
 			error: "runtime-plugin-reload-partial",
-			message: "One or more runtime plugins require a runtime restart to reload.",
+			message: "One or more runtime plugins require runtime restart to reload.",
 			requested: ["pi-agent"],
 			reloaded: ["@local/tool"],
 			skipped: ["@refarm/pi-agent"],
@@ -766,14 +768,14 @@ describe("plugin status", () => {
 				}),
 			}),
 		);
-		mockRunLaunchProcess.mockResolvedValue({ exitCode: 0 });
+		mockRunProcessHandoff.mockResolvedValue({ exitCode: 0 });
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		await run("reload", "runtime-agent", "--restart-if-needed", "--wait", "--json");
 
 		expect(errorSpy).not.toHaveBeenCalled();
-		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+		expect(mockRunProcessHandoff).toHaveBeenCalledWith(
 			{
 				command: "refarm",
 				args: ["runtime", "restart", "--wait"],
@@ -781,7 +783,7 @@ describe("plugin status", () => {
 			},
 			{ capture: false },
 		);
-		expect(mockRunLaunchProcess).toHaveBeenCalledTimes(1);
+		expect(mockRunProcessHandoff).toHaveBeenCalledTimes(1);
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			ok: true,
 			command: "plugin",
@@ -798,14 +800,14 @@ describe("plugin status", () => {
 
 	it("restarts runtime when reload endpoint is unavailable and restart is allowed", async () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
-		mockRunLaunchProcess.mockResolvedValue({ exitCode: 0 });
+		mockRunProcessHandoff.mockResolvedValue({ exitCode: 0 });
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		await run("reload", "runtime-agent", "--restart-if-needed", "--wait", "--json");
 
 		expect(errorSpy).not.toHaveBeenCalled();
-		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+		expect(mockRunProcessHandoff).toHaveBeenCalledWith(
 			{
 				command: "refarm",
 				args: ["runtime", "restart", "--wait"],
@@ -829,7 +831,7 @@ describe("plugin status", () => {
 
 	it("reports restart failure when reload endpoint is unavailable", async () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
-		mockRunLaunchProcess.mockResolvedValue({ exitCode: 1 });
+		mockRunProcessHandoff.mockResolvedValue({ exitCode: 1 });
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -944,7 +946,7 @@ describe("plugin bundle", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.env.REFARM_PACKAGE_MANAGER = "pnpm";
-		mockRunLaunchProcess.mockResolvedValue({ exitCode: 0 });
+		mockRunProcessHandoff.mockResolvedValue({ exitCode: 0 });
 	});
 
 	afterEach(() => {
@@ -961,7 +963,7 @@ describe("plugin bundle", () => {
 
 		await run("bundle", "my-plugin.wasm", "-o", "./out");
 
-		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+		expect(mockRunProcessHandoff).toHaveBeenCalledWith(
 			expect.objectContaining({
 				command: "pnpm",
 				args: expect.arrayContaining(["exec", "jco", "transpile", "my-plugin.wasm", "-o", "./out"]),
@@ -998,7 +1000,7 @@ describe("plugin bundle", () => {
 
 		await run("bundle", "my plugin.wasm", "-o", "./out dir", "--dry-run", "--json");
 
-		expect(mockRunLaunchProcess).not.toHaveBeenCalled();
+		expect(mockRunProcessHandoff).not.toHaveBeenCalled();
 		expect(errorSpy).not.toHaveBeenCalled();
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			ok: boolean;
@@ -1069,7 +1071,7 @@ describe("plugin bundle", () => {
 
 		await run("bundle", "my-plugin.wasm");
 
-		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+		expect(mockRunProcessHandoff).toHaveBeenCalledWith(
 			expect.objectContaining({
 				command: "pnpm",
 				args: expect.arrayContaining(["--name", "my-plugin"]),
@@ -1084,7 +1086,7 @@ describe("plugin bundle", () => {
 
 		await run("bundle", "my-plugin.wasm", "--name", "custom-name");
 
-		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+		expect(mockRunProcessHandoff).toHaveBeenCalledWith(
 			expect.objectContaining({
 				command: "pnpm",
 				args: expect.arrayContaining(["--name", "custom-name"]),
@@ -1095,7 +1097,7 @@ describe("plugin bundle", () => {
 	});
 
 	it("captures bundle output in JSON mode", async () => {
-		mockRunLaunchProcess.mockResolvedValue({
+		mockRunProcessHandoff.mockResolvedValue({
 			exitCode: 0,
 			stdout: "generated component\n",
 			stderr: "jco warning\n",
@@ -1104,7 +1106,7 @@ describe("plugin bundle", () => {
 
 		await run("bundle", "my-plugin.wasm", "--json");
 
-		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+		expect(mockRunProcessHandoff).toHaveBeenCalledWith(
 			expect.objectContaining({
 				command: "pnpm",
 				args: expect.arrayContaining(["jco", "transpile", "my-plugin.wasm"]),
@@ -1137,7 +1139,7 @@ describe("plugin bundle", () => {
 	});
 
 	it("sets process.exitCode = 1 when jco fails", async () => {
-		mockRunLaunchProcess.mockImplementation(() => {
+		mockRunProcessHandoff.mockImplementation(() => {
 			throw new Error("jco not found");
 		});
 		const originalExitCode = process.exitCode;
@@ -1157,7 +1159,7 @@ describe("plugin bundle", () => {
 	});
 
 	it("prints bundle failures as JSON without operator stderr", async () => {
-		mockRunLaunchProcess.mockImplementation(() => {
+		mockRunProcessHandoff.mockImplementation(() => {
 			throw new Error("jco not found");
 		});
 		const originalExitCode = process.exitCode;
@@ -1166,7 +1168,7 @@ describe("plugin bundle", () => {
 
 		await run("bundle", "bad-plugin.wasm", "--json");
 
-		expect(mockRunLaunchProcess).toHaveBeenCalledWith(
+		expect(mockRunProcessHandoff).toHaveBeenCalledWith(
 			expect.objectContaining({
 				command: "pnpm",
 				args: expect.arrayContaining(["jco", "transpile", "bad-plugin.wasm"]),

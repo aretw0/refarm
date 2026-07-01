@@ -6,6 +6,17 @@
 Este pacote é a primeira abstração consolidada da política de release do Refarm como produto reutilizável.
 
 > Contexto atual: o pacote ainda **não foi publicado**. Neste ciclo, a prioridade é preparar um **primeiro release com qualidade de minor madura**, reduzindo risco de mudanças de breaking logo após lançar.
+>
+> Evidência local (2026-06-27): `pnpm run release:readiness` passou fim a fim
+> para a seleção padrão `kernel-candidates`, incluindo o dry-run de publicação
+> dos quatro candidatos atuais (`storage-contract-v1`, `sync-contract-v1`,
+> `identity-contract-v1`, `channel-policy-v1`). A publicação real continua
+> pendente de aprovação humana e credenciais de registry.
+>
+> Evidência de consumidor (2026-06-27): `scripts/ci/test-vault-seed-release-consumer.mjs`
+> gera um vault fixture pelo manifest atual, lê `inventory.json` e prova que as
+> dependências `@refarm.dev/*` do `package.json` gerado estão cobertas pela
+> seleção `vault-seed-ready` e seus checks.
 
 ## V0 — Núcleo de Planejamento Determinístico
 
@@ -24,13 +35,17 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 ### TDD (Test Driven)
 - [x] Testes unitários de parsing de policy.
 - [x] Testes de ordenação topológica de dependências.
-- [ ] Testes de integração com policy por projeto (refarm/vault-seed/agents-lab).
+- [x] Testes de integração com policy do Refarm e seleção `vault-seed-ready`
+      via CLI JSON.
+- [x] Prova de consumidor gerado: vault fixture -> inventory/package -> seleção
+      `vault-seed-ready`. Policies oficiais de `vault-seed`/`agents-lab` ficam
+      para quando esses projetos consumirem o pacote publicado ou um fixture próprio.
 
 ### DDD (Domain Delivery)
 - [x] CLI e API em módulo próprio (`packages/release-engine`).
 - [x] Política padrão embutida via `.refarm/config.json` com fallback seguro.
 - [x] Compatibilidade de leitura com `release-policy.json` (override explícito) preservada.
-- [ ] Documentar contratos de provider e integração em CI.
+- [x] Documentar contratos de provider e integração em CI.
 - [ ] Publicar o pacote como `@refarm.dev/release-engine` quando cobertura de uso estabilizar.
 
 ## V0.x — Composição segura pré-publicação
@@ -38,25 +53,31 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 **Objetivo:** dar base para uso por outros projetos, com qualidade suficiente para chegar ao primeiro minor de forma saudável.
 
 ### SDD (Spec Driven)
-- [ ] Definir contrato formal de provider (interface mínima, campos obrigatórios/ opcionais, códigos de erro estruturados).
-- [ ] Definir política de compatibilidade por versão do `release-policy` (incluindo fallback defensivo para mudanças no schema).
-- [ ] Especificar formato de saída de `plan`/`check` estável para consumidores de máquina.
+- [x] Definir contrato formal de provider (interface mínima, campos obrigatórios/ opcionais, códigos de erro estruturados).
+- [x] Definir política de compatibilidade por versão do `release-policy` (incluindo fallback defensivo para mudanças no schema).
+- [x] Especificar formato de saída de `plan`/`check` estável para consumidores de máquina.
 
 ### BDD (Behaviour Driven)
-- [ ] Registrar cenário de fallback: política local ausente usa default neutro, sem mudar side-effects.
-- [ ] Registrar cenários com `--policy` explícito preservando comportamento atual.
-- [ ] Registrar cenários de provider opcional: planos podem ter providers inativos/ausentes sem bloquear parsing.
+- [x] Registrar cenário de fallback: política local ausente usa default neutro, sem mudar side-effects.
+- [x] Registrar cenários com `--policy` explícito preservando comportamento atual.
+- [x] Registrar cenários de provider opcional: planos podem ter providers inativos/ausentes sem bloquear parsing.
 
 ### TDD (Test Driven)
-- [ ] Testes de contrato para compatibilidade com config embutida + arquivo legado.
-- [ ] Teste de “non-breaking migration”: política antiga carregada continua válida.
-- [ ] Testes de contrato JSON Schema para retorno de `plan`/`check` (campos estáveis, sem surpresa).
+- [x] Testes de contrato para compatibilidade com config embutida
+      (`refarm.config.json`) + arquivo legado (`.refarm/config.json`).
+- [x] Teste de “non-breaking migration”: política antiga carregada continua
+      válida, enquanto `release-policy.json` explícito preserva override legado.
+- [x] Testes de contrato JSON para retorno de `plan`/`check` com `schemaVersion: 1`
+      e campos estáveis; `release-output.schema.json` é exportado como subpath
+      público para consumidores de máquina.
 
 ### DDD (Domain Delivery)
-- [ ] Documentar integração de providers com `apps/refarm` (controle de release por vault) em modo não bloqueante.
-- [ ] Adicionar `CHANGELOG` inicial (`0.0.1-dev` → `0.0.z`) com disciplina de semver.
-- [ ] Definir pacote de exemplo `release-provider` canônico (changesets) sem alterar engine principal.
-- [ ] Adotar o padrão “adição por append, sem remoção” nos contratos críticos.
+- [x] Documentar integração de providers via host/control-plane consumidor em
+      modo não bloqueante, sem acoplar o engine ao `apps/refarm` ou a um produto
+      vault.
+- [x] Adicionar `CHANGELOG` inicial (`0.0.1-dev` → `0.1.0-dev`) com disciplina de semver.
+- [x] Definir pacote de exemplo `release-provider` canônico (changesets) sem alterar engine principal.
+- [x] Adotar o padrão “adição por append, sem remoção” nos contratos críticos.
 - [ ] Publicar **primeiro minor** com base em critérios objetivos de estabilidade funcional e integração (não por pressa).
 
 ## V1 — Engine de Convergência (pós-primeira minor)
@@ -64,14 +85,14 @@ Este pacote é a primeira abstração consolidada da política de release do Ref
 **Objetivo:** suportar vários ecossistemas de publicação e prover plano auditável.
 
 - [ ] Provider plugin model para `npm`, `github-release`, `pypi` etc.
-- [ ] Output imutável de plano para logs/audit.
+- [x] Output imutável de plano para logs/audit.
 - [ ] Integração com `refarm`, `vault-seed`, `agents-lab` via policy local.
-- [ ] Bloqueios explícitos por superfície (`core`, `app`, `plugin`, `agent`).
+- [x] Bloqueios explícitos por superfície (`core`, `app`, `plugin`, `agent`).
 
 ## V2 — Release-as-a-Service do ecossistema
 
 **Objetivo:** engine virar base para publicação orquestrada entre projetos.
 
 - [ ] Composição com `toolbox` para comandos de operador.
-- [ ] Publicação de política e plano com evidência hash.
+- [x] Publicação de política e plano com evidência hash.
 - [ ] Métricas de conformidade de release por projeto.

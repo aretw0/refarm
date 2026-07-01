@@ -39,6 +39,15 @@ export interface ExtensionSurfaceDeclaration {
 	assets?: string[];
 }
 
+export interface SkillExtensionSurfaceDeclaration
+	extends ExtensionSurfaceDeclaration {
+	layer: "pi";
+	kind: "skill";
+	assets: string[];
+	capabilities: string[];
+	slot?: never;
+}
+
 export interface PluginExtensions {
 	surfaces?: ExtensionSurfaceDeclaration[];
 }

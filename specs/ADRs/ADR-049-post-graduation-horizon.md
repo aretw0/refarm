@@ -118,3 +118,22 @@ This ADR is foundational for:
 - [ADR-048: Tractor Graduation](ADR-048-tractor-graduation.md)
 - [packages/tractor/docs/ARCHITECTURE.md](../../packages/tractor/docs/ARCHITECTURE.md) — Consumer map
 - [docs/proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md](../../docs/proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md)
+
+---
+
+## 2026-06-25 Amendment — Distribution emphasis: native-first + WASM-fallback (per ADR-070 Part B)
+
+This ADR's "Neutral" note frames `tractor-ts` (`@refarm.dev/tractor`) as the **primary**
+recommendation for browser/Node and the native `tractor` binary as additive. ADR-070 (Part B),
+informed by the ecosystem's Rust-artifact distribution discipline (Astro 7's *"native binaries for
+supported platforms, with a WASM fallback"*, the same pattern as esbuild/SWC/Rolldown), refines the
+**distribution default** — without changing the dual-runtime decision:
+
+- **Native-first.** The native `tractor` binary is the primary distribution artifact where it can
+  run (its ~27MB, dependency-free, IoT/edge/air-gapped reach is the strength).
+- **WASM-fallback.** `tractor-ts` / WASM is the fallback for environments that cannot run native
+  (the browser, locked-down CI, WebContainers, unusual arch).
+
+Both runtimes still ship (the dual-runtime decision stands); only the *emphasis* inverts. Consumer
+guidance that currently leads with `tractor-ts` should be reworded to "native where you can, WASM
+where you must." Tracked as the ADR-070 Part B follow-up.

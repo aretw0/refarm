@@ -1,3 +1,4 @@
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 export interface RuntimeReadinessProbe {
@@ -41,17 +42,21 @@ function readinessError(error: unknown): { error: string; timedOut?: boolean } {
 	return { error: String(error) };
 }
 
-export async function probeRuntimeReadiness(
-	probeTimeoutMs = DEFAULT_RUNTIME_PROBE_TIMEOUT_MS,
-): Promise<RuntimeReadinessProbe> {
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	const url = sidecarUrl("/efforts/summary");
+type RuntimeProbeResult = {
+	url: string;
+	ready: boolean;
+	status?: number;
+	error?: string;
+	timedOut?: boolean;
+};
+
+async function probeRuntimeEndpoint(
+	path: string,
+	probeTimeoutMs: number,
+): Promise<RuntimeProbeResult> {
+	const url = sidecarUrl(path);
 	try {
-		const controller = new AbortController();
-		timer = setTimeout(() => controller.abort(), probeTimeoutMs);
-		const response = await fetch(url, {
-			signal: controller.signal,
-		});
+		const response = await fetchSidecarWithTimeout(url, {}, { timeoutMs: probeTimeoutMs });
 		return {
 			url,
 			ready: response.ok,
@@ -63,9 +68,28 @@ export async function probeRuntimeReadiness(
 			ready: false,
 			...readinessError(error),
 		};
-	} finally {
-		if (timer) clearTimeout(timer);
 	}
+}
+
+export async function probeRuntimeReadiness(
+	probeTimeoutMs = DEFAULT_RUNTIME_PROBE_TIMEOUT_MS,
+): Promise<RuntimeReadinessProbe> {
+	const effortsProbe = await probeRuntimeEndpoint("/efforts/summary", probeTimeoutMs);
+	if (!effortsProbe.ready) return effortsProbe;
+
+	const sessionsProbe = await probeRuntimeEndpoint("/sessions", probeTimeoutMs);
+	if (!sessionsProbe.ready) return sessionsProbe;
+
+	return {
+		...effortsProbe,
+		status: sessionsProbe.status,
+	};
+}
+
+export async function probeRuntimeLiveness(
+	probeTimeoutMs = DEFAULT_RUNTIME_PROBE_TIMEOUT_MS,
+): Promise<RuntimeReadinessProbe> {
+	return probeRuntimeEndpoint("/efforts/summary", probeTimeoutMs);
 }
 
 export async function probeRuntimeReady(

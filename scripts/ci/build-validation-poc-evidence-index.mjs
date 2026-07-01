@@ -114,6 +114,35 @@ export const POCS = [
 			},
 		],
 	},
+	{
+		id: "toolless-orchestrator",
+		theme: "tool-less orchestration",
+		root: "validations/toolless-orchestrator-proof/fixtures/expected",
+		manifestUri: "validations/toolless-orchestrator-proof/fixtures/expected/task-artifacts.json",
+		writingClaims: [
+			{
+				id: "key-holding-conductor-without-tools",
+				carefulClaim:
+					"A key-holding conductor can be modeled without owning environment tool capabilities.",
+				evidenceIds: ["toolless-orchestrator-proof", "results-table", "limits"],
+				doNotSayYet: "The production runtime conductor has fully adopted this split.",
+			},
+			{
+				id: "keyless-actor-fenced-evidence",
+				carefulClaim:
+					"A keyless workspace actor can return fenced evidence without receiving operator secrets.",
+				evidenceIds: ["toolless-orchestrator-proof", "scorecard", "task-artifacts"],
+				doNotSayYet: "Unattended production agent operation is safe.",
+			},
+			{
+				id: "completion-requires-source-evidence",
+				carefulClaim:
+					"Completion can require source hash checks and recoverable raw evidence instead of trusting a compact summary.",
+				evidenceIds: ["toolless-orchestrator-proof", "results-table", "scenario"],
+				doNotSayYet: "Remote workspace delegation or machine-to-machine execution is implemented.",
+			},
+		],
+	},
 ];
 
 function readJson(filePath) {

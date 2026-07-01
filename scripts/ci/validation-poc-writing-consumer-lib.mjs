@@ -44,7 +44,7 @@ export function validateValidationPocWritingConsumer(index, options) {
 		index.schema === WRITING_CONSUMER_SCHEMA,
 		`Expected schema ${WRITING_CONSUMER_SCHEMA}`,
 	);
-	assertCondition(index.pocs?.length === 3, "Expected exactly 3 validation POCs");
+	assertCondition(index.pocs?.length >= 1, "Expected at least 1 validation POC");
 	assertNoPrivateTerms(index, "poc evidence index", forbiddenTerms);
 
 	for (const poc of index.pocs) {

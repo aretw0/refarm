@@ -2,12 +2,12 @@ import { setGitHubActionsSecret } from "@refarm.dev/cli/github-actions";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 
 const CONFIGURE_SCHEMA_VERSION = 1;
 const MISSING_GITHUB_CREDENTIALS_COMMAND = refarmCommand([

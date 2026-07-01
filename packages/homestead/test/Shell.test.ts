@@ -20,11 +20,25 @@ describe("StudioShell Orchestrator", () => {
     beforeEach(() => {
         // Setup JSDOM environment
         document.body.innerHTML = `
-            <div id="refarm-slot-header" class="slot"></div>
-            <div id="refarm-slot-main" class="slot"></div>
-            <div id="refarm-slot-streams" class="slot" hidden></div>
-            <div id="refarm-slot-statusbar" class="slot"></div>
-            <div id="system-status"></div>
+            <div id="refarm-shell" data-refarm-shell="viewport">
+                <header id="refarm-header" data-refarm-shell-region="header">
+                    <div id="refarm-slot-logo" class="slot"></div>
+                    <nav id="refarm-slot-nav" class="slot" aria-label="Refarm sections">
+                        <a href="/">Dashboard</a>
+                    </nav>
+                </header>
+                <main id="refarm-main" data-refarm-shell-region="main" data-refarm-scroll-region="main">
+                    <div id="refarm-main-frame">
+                        <div id="refarm-slot-main" class="slot"></div>
+                        <aside id="refarm-slot-streams" class="slot" hidden></aside>
+                    </div>
+                </main>
+                <footer id="refarm-footer" data-refarm-shell-region="statusbar">
+                    <div id="refarm-slot-statusbar" class="slot" role="status" aria-live="polite">
+                        <span id="system-status"></span>
+                    </div>
+                </footer>
+            </div>
         `;
 
         nodeHandlers = {};
@@ -57,8 +71,10 @@ describe("StudioShell Orchestrator", () => {
         const shell = new StudioShell(tractorMock as unknown as StudioHost);
         // Accessing private map for verification (via cast)
         const slots = (shell as unknown as { slots: Map<string, Element> }).slots;
-        expect(slots.has("header")).toBe(true);
+        expect(slots.has("logo")).toBe(true);
+        expect(slots.has("nav")).toBe(true);
         expect(slots.has("main")).toBe(true);
+        expect(slots.has("streams")).toBe(true);
         expect(slots.has("statusbar")).toBe(true);
     });
 

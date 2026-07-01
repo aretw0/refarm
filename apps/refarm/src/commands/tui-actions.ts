@@ -9,7 +9,7 @@ import {
 	type SurfaceActionAffordanceSelectionMetadata,
 	type SurfaceActionAffordanceSelectionReason,
 	type SurfaceActionReadinessDryRunEnvelope,
-} from "./action-affordances.js";
+} from "@refarm.dev/cli/action-affordances";
 
 export type TuiSurfaceActionRow = SurfaceActionAffordanceRow;
 export type TuiSurfaceActionSelectionReason =

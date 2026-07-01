@@ -7,5 +7,10 @@ Config provides sovereign configuration management for Refarm distros and plugin
 - **Hierarchical Configuration**: Support for Repo-level, User-level, and Graph-level overrides.
 - **Type-Safe Access**: Integration with TypeScript for validated config access.
 - **Plugin Configuration**: Standardized way for plugins to request and read their own settings.
+- **Configuration as a Node**: `@refarm.dev/config/config-node` turns loaded config into a redacted,
+  hash-addressed `refarm.config.node.v1` envelope for graph handoff and policy review.
+- **Environment Ceilings**: `@refarm.dev/config/environment-ceilings` reads the ADR-078 ceiling
+  declaration that devcontainers and remote nodes can enforce without hardcoding the policy in app
+  code.
 
 See [ROADMAP.md](./ROADMAP.md) for the path to "Configuration as a Node".

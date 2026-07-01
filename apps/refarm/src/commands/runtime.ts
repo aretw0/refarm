@@ -1,18 +1,16 @@
-import { runLaunchProcessSync } from "@refarm.dev/cli/launch-process";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { printJson } from "@refarm.dev/cli/json-output";
+import { runProcessHandoffSync } from "@refarm.dev/cli/process-handoff";
 import {
-	RUNTIME_ENGINE_MODES,
-	type RuntimeSidecarProbeSummary,
-	type RuntimeStatusSummary,
+	RUNTIME_ENGINE_MODES, type RuntimeSidecarProbeSummary, type RuntimeStatusSummary,
 } from "@refarm.dev/runtime";
 import chalk from "chalk";
 import { Command } from "commander";
 import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import {
-	resolveRuntimeSidecarUrl,
-	TRACTOR_ENGINE_ENV_VAR,
+	resolveRuntimeSidecarUrl, TRACTOR_ENGINE_ENV_VAR,
 } from "../utils/runtime-config.js";
-import { refarmCommand } from "./command-handoff.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -22,16 +20,15 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { printJson } from "./json-output.js";
 import {
 	resolveRuntimeLaunchCommand,
 	startRuntimeProcess,
 	type RuntimeLaunchCommand,
 } from "./runtime-launcher.js";
 import {
-	probeRuntimeReadiness,
+	probeRuntimeLiveness,
 	waitForRuntimeReady,
-	type RuntimeReadinessProbe,
+	type RuntimeReadinessProbe
 } from "./runtime-readiness.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
@@ -147,7 +144,7 @@ function defaultDeps(): RuntimeCommandDeps {
 		readAutostart: readAutostartMode,
 		readSidecarUrl: resolveRuntimeSidecarUrl,
 		resolveRuntime: resolveLaunchRuntime,
-		probeReadiness: () => probeRuntimeReadiness(300),
+		probeReadiness: () => probeRuntimeLiveness(),
 		waitUntilReady: waitForRuntimeReady,
 	};
 }
@@ -349,7 +346,7 @@ function findDefaultPortRuntimeSocketProcesses(): number[] {
 	}
 	if (process.env.NODE_ENV === "test" || process.env.VITEST) return [];
 	if (process.platform !== "linux") return [];
-	const result = runLaunchProcessSync(
+	const result = runProcessHandoffSync(
 		{
 			command: "ss",
 			args: ["-tlnp"],

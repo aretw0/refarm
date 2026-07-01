@@ -81,6 +81,7 @@ export function getAliases(root) {
 
   return {
     '@refarm.dev/tractor/test/test-utils': path.resolve(packagesDir, 'tractor-ts', 'test', 'test-utils.ts'),
+    '@refarm.dev/tractor/browser': path.resolve(packagesDir, 'tractor-ts', useDistGlobal || forcedDistPackages.includes('@refarm.dev/tractor') ? 'dist/src/index.browser.js' : 'src/index.browser.ts'),
     '@refarm.dev/tractor': path.resolve(packagesDir, 'tractor-ts', getSuffix('@refarm.dev/tractor')),
     '@refarm.dev/plugin-manifest': path.resolve(packagesDir, 'plugin-manifest', getSuffix('@refarm.dev/plugin-manifest')),
     '@refarm.dev/barn': path.resolve(packagesDir, 'barn', getSuffix('@refarm.dev/barn')),
@@ -91,6 +92,7 @@ export function getAliases(root) {
     '@refarm.dev/config': path.resolve(packagesDir, 'config', getSuffix('@refarm.dev/config')),
     '@refarm.dev/vtconfig': path.resolve(packagesDir, 'vtconfig', getSuffix('@refarm.dev/vtconfig')),
     '@refarm.dev/toolbox': path.resolve(packagesDir, 'toolbox', getSuffix('@refarm.dev/toolbox')),
+    '@refarm.dev/process-handoff': path.resolve(packagesDir, 'process-handoff', getSuffix('@refarm.dev/process-handoff')),
     '@refarm.dev/storage-sqlite': path.resolve(packagesDir, 'storage-sqlite', getSuffix('@refarm.dev/storage-sqlite')),
     '@refarm.dev/locales': localesDir,
   };
@@ -122,6 +124,11 @@ export const baseConfig = {
     exclude: ['node_modules/', '**/dist/**', '.idea', '.git', '.cache', 'validations/'],
     testTimeout: 15000,
     hookTimeout: 15000,
+    // OOM-freeze guard: bound the worker pool so no test run (even a broad filter) can
+    // exhaust the container's 4GB cap. Vitest 4 moved this limit to a top-level option.
+    // ~4 workers ≈ 1GB + base ≈ 2GB, safely under 4GB.
+    // Tune up if the host gives the container more memory (see .devcontainer --memory).
+    maxWorkers: 4,
     ...getCiVitestReporterOptions(),
   },
   resolve: {

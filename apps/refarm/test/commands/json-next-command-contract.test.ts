@@ -1,4 +1,9 @@
 import {
+	commandTemplateParameters,
+	instantiateCommandTemplate,
+} from "@refarm.dev/cli/command-handoff";
+import {
+	mkdirSync,
 	mkdtempSync,
 	readdirSync,
 	readFileSync,
@@ -12,11 +17,8 @@ import { describe, expect, it, vi } from "vitest";
 import { createActionsCommand } from "../../src/commands/actions.js";
 import { createAgentCommand } from "../../src/commands/agent.js";
 import { createAskCommand } from "../../src/commands/ask.js";
+import { createCapabilitiesCommand } from "../../src/commands/capabilities.js";
 import { createCheckCommand } from "../../src/commands/check.js";
-import {
-	commandTemplateParameters,
-	instantiateCommandTemplate,
-} from "../../src/commands/command-handoff.js";
 import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
 import { doctorCommand } from "../../src/commands/doctor.js";
@@ -30,6 +32,7 @@ import { createModelCommand } from "../../src/commands/model.js";
 import { createOpenUrlCommand } from "../../src/commands/open-url.js";
 import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
 import { pluginCommand } from "../../src/commands/plugin.js";
+import { createProjectCommand } from "../../src/commands/project.js";
 import { provisionCommand } from "../../src/commands/provision.js";
 import { createResumeCommand } from "../../src/commands/resume.js";
 import { createRuntimeCommand } from "../../src/commands/runtime.js";
@@ -591,6 +594,28 @@ function createTempConfigCommand() {
 	};
 }
 
+function createTempProjectCommand() {
+	const cwd = mkdtempSync(join(tmpdir(), "refarm-project-contract-"));
+	const projectDir = join(cwd, ".project");
+	mkdirSync(projectDir, { recursive: true });
+	writeFileSync(
+		join(projectDir, "handoff.json"),
+		`${JSON.stringify({
+			context: "contract handoff",
+			timestamp: "2026-05-01T00:00:00.000Z",
+			current_phase: 12,
+			next_actions: ["continue"],
+		}, null, 2)}\n`,
+	);
+	return {
+		cleanup: () => rmSync(cwd, { recursive: true, force: true }),
+		command: createProjectCommand({
+			cwd: () => cwd,
+			now: () => new Date("2026-05-01T00:00:00.000Z"),
+		}),
+	};
+}
+
 function createTempStatusFile(diagnostics: string[]) {
 	const dir = mkdtempSync(join(tmpdir(), "refarm-status-contract-"));
 	const path = join(dir, "status.json");
@@ -616,7 +641,7 @@ function createContractGuideCommand() {
 		loadConfig: () => ({ brand: { name: "contract farm" } }),
 		createSilo: () => ({
 			provision: vi.fn().mockResolvedValue({
-				REFARM_GITHUB_TOKEN: "ghp_contract",
+				GITHUB_TOKEN: "ghp_contract",
 			}),
 			loadTokens: vi.fn().mockResolvedValue({
 				modelProvider: "openai",
@@ -958,17 +983,20 @@ function createContractSowCommand() {
 			model: {
 				id: "model",
 				label: "Model Provider",
+				namespace: "model",
 				collect: vi.fn(),
 				collectModel: vi.fn(),
 			},
 			github: {
 				id: "github",
 				label: "GitHub",
+				namespace: "runtime",
 				collect: vi.fn(),
 			},
 			cloudflare: {
 				id: "cloudflare",
 				label: "Cloudflare",
+				namespace: "runtime",
 				collect: vi.fn(),
 			},
 		},
@@ -1188,6 +1216,7 @@ describe("JSON next command contract", () => {
 	it("keeps generated public nextCommands executable", async () => {
 		const config = createTempConfigCommand();
 		const init = createContractInitCommand();
+		const project = createTempProjectCommand();
 		const status = createTempStatusFile(["runtime:not-ready"]);
 		try {
 			vi.stubGlobal("fetch", makeContractFetch());
@@ -1249,6 +1278,11 @@ describe("JSON next command contract", () => {
 					id: "ask-session-not-found",
 					command: createContractAskCommand(),
 					args: ["hello", "--session", "abc123", "--json"],
+				},
+				{
+					id: "capabilities",
+					command: createCapabilitiesCommand(),
+					args: ["--json"],
 				},
 				{
 					id: "config-set-local",
@@ -1418,6 +1452,23 @@ describe("JSON next command contract", () => {
 					id: "provision-cloudflare-turbo-cache",
 					command: provisionCommand,
 					args: ["cloudflare", "turbo-cache", "--dry-run", "--json"],
+				},
+				{
+					id: "project-handoff-validate",
+					command: project.command,
+					args: ["handoff", "validate", "--json"],
+				},
+				{
+					id: "project-handoff-write-dry-run",
+					command: project.command,
+					args: [
+						"handoff",
+						"write",
+						"--context",
+						"contract handoff update",
+						"--dry-run",
+						"--json",
+					],
 				},
 				{
 					id: "resume-with-passed-finish",
@@ -1757,6 +1808,7 @@ describe("JSON next command contract", () => {
 			status.cleanup();
 			init.cleanup();
 			config.cleanup();
+			project.cleanup();
 		}
 	}, 45_000);
 

@@ -13,6 +13,7 @@ export type {
 	EventTrigger,
 	JsonSchema,
 	ManualTrigger,
+	OneShotTrigger,
 	PluginBody,
 	StaticBody,
 	TemplateBody,

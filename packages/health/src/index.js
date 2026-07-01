@@ -92,5 +92,15 @@ export class HealthCore {
 import { FileSystemAuditor } from "./auditors/generic.js";
 import { ProjectAuditor, RefarmProjectAuditor } from "./auditors/project.js";
 import { ComplexityAuditor } from "./auditors/complexity.js";
+export {
+    buildSessionPressureBudget,
+    buildEnvironmentPressureReport,
+    bytesToMiB,
+    classifyDiskPressure,
+    classifyMemoryPressure,
+    decideEnvironmentPressure,
+    planEnvironmentWorkCeiling,
+    DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
+} from "./environment-pressure.js";
 
 export { ComplexityAuditor, FileSystemAuditor, ProjectAuditor, RefarmProjectAuditor };

@@ -24,7 +24,11 @@ async fn shutdown_drains_plugin_channels_after_registration() {
 
     tractor.register_for_events(handle);
     assert_eq!(
-        tractor.agent_channels.read().expect("channels poisoned").len(),
+        tractor
+            .agent_channels
+            .read()
+            .expect("channels poisoned")
+            .len(),
         1,
         "expected one registered plugin channel before shutdown"
     );

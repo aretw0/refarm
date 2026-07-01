@@ -75,7 +75,7 @@ describe("session command", () => {
 
 		expect(help).toContain("refarm session --new");
 		expect(help).toContain("Bare refarm runs the same launch flow");
-		expect(help).toContain("/model, /login, and /reload");
+		expect(help).toContain("/model, /login, /reload, or /r");
 	});
 
 	it("sets exitCode and returns when readiness is not sufficient", async () => {

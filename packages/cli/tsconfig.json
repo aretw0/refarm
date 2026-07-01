@@ -17,7 +17,10 @@
 				"packages/homestead/dist/sdk/host-renderer.d.ts"
 			],
 			"@refarm.dev/trust": ["packages/trust/dist/index.d.ts"],
-			"@refarm.dev/runtime": ["packages/runtime/dist/index.d.ts"]
+			"@refarm.dev/runtime": ["packages/runtime/dist/index.d.ts"],
+			"@refarm.dev/process-handoff": [
+				"packages/process-handoff/dist/index.d.ts"
+			]
 		},
 		"maxNodeModuleJsDepth": 2
 	},

@@ -8,10 +8,13 @@
   "exports": {
     ".": "./src/index.js",
     "./astro": "./src/astro.js",
+    "./config-node": "./src/config-node.js",
+    "./environment-ceilings": "./src/environment-ceilings.js",
     "./model-routing": "./src/model-routing.js",
     "./package-manager": "./src/package-manager.js",
     "./plugin-identity": "./src/plugin-identity.js",
     "./workspace": "./src/workspace.js",
+    "./workspace-namespaces-config": "./src/workspace-namespaces-config.js",
     "./workspaces-config": "./src/workspaces-config.js"
   },
   "scripts": {
@@ -22,6 +25,10 @@
     "README.md",
     "ROADMAP.md",
     "src/astro.js",
+    "src/config-node.d.ts",
+    "src/config-node.js",
+    "src/environment-ceilings.d.ts",
+    "src/environment-ceilings.js",
     "src/index.d.ts",
     "src/index.js",
     "src/model-routing.d.ts",
@@ -33,6 +40,8 @@
     "src/types.js",
     "src/workspace.d.ts",
     "src/workspace.js",
+    "src/workspace-namespaces-config.d.ts",
+    "src/workspace-namespaces-config.js",
     "src/workspaces-config.d.ts",
     "src/workspaces-config.js"
   ],

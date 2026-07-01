@@ -6,13 +6,18 @@ import type {
 } from "@refarm.dev/effort-contract-v1";
 import fs from "node:fs";
 import path from "node:path";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
-import { quoteCommandArgIfNeeded, refarmCommand } from "./command-handoff.js";
+import { quoteCommandArgIfNeeded } from "@refarm.dev/cli/command-handoff";
 import { observedEffortStatus } from "./task-observation.js";
 import { isFinalEffortStatus } from "./task-status.js";
 
 const SESSION_VERSION = 1 as const;
 const DEFAULT_MAX_EFFORTS = 25;
+
+export function taskSessionFilePath(baseDir = resolveRefarmHome()): string {
+	return path.join(baseDir, "sessions", "task-session.v1.json");
+}
 
 export type SessionStatus = EffortStatus | "not-found";
 
@@ -79,7 +84,11 @@ function nowIso(): string {
 export function buildTaskStatusCommand(
 	effortId: string,
 	transport: string,
-	options: { json?: boolean; watch?: boolean } = {},
+	options: {
+		json?: boolean;
+		watch?: boolean;
+		watchLimit?: number;
+	} = {},
 ): string {
 	return refarmCommand([
 		"task",
@@ -88,6 +97,9 @@ export function buildTaskStatusCommand(
 		"--transport",
 		quoteCommandArgIfNeeded(transport),
 		...(options.watch ? ["--watch"] : []),
+		...(typeof options.watchLimit === "number"
+			? ["--watch-limit", String(options.watchLimit)]
+			: []),
 		...(options.json ? ["--json"] : []),
 	]);
 }
@@ -284,7 +296,7 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 		private readonly maxEfforts = DEFAULT_MAX_EFFORTS,
 	) {
 		this.sessionsDir = path.join(baseDir, "sessions");
-		this.sessionFilePath = path.join(this.sessionsDir, "task-session.v1.json");
+		this.sessionFilePath = taskSessionFilePath(baseDir);
 	}
 
 	rememberRun(input: { effort: Effort; transport: string }): void {

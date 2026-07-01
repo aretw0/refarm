@@ -1,4 +1,4 @@
-import { normalizeHandoffValues } from "./command-handoff.js";
+import { normalizeHandoffValues } from "@refarm.dev/cli/command-handoff";
 
 export type DiagnosticRecommendationSeverity = "failure" | "warning" | "info";
 

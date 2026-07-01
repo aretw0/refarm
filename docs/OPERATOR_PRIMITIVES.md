@@ -72,6 +72,29 @@ refarm check --next-action --json
 If `resume` returns `nextCommands`, follow the first command before inferring
 state from memory.
 
+### Project Handoff
+
+Purpose: preserve durable project context across sessions without turning
+session memory into hidden control flow.
+
+Project Handoff Rules:
+
+- `.project/handoff.json` is contextual recovery state for `resume`, not an
+  implicit command queue.
+- `resume --json` may surface `context`, `currentTasks`, `nextActions`, and open
+  questions from the handoff, but runtime/task/model recovery commands still
+  take priority in `nextCommands`.
+- Agents may treat handoff content as current work only when it is checked into
+  source and the current slice has passed `refarm resume --json` and
+  `refarm check --next-action --json`.
+- Handoff writes must be explicit source edits or `refarm project handoff write`;
+  prompt-only intent is not durable project state.
+- Use `refarm project handoff validate --json` before trusting handoff freshness
+  in an automated consumer.
+- If handoff data conflicts with live runtime/task status, live status wins for
+  recovery. The handoff becomes planning context to reconcile after the blocking
+  runtime/task path is healthy.
+
 ### Session
 
 Purpose: preserve the operator timeline and make agent output inspectable.
@@ -79,7 +102,22 @@ Purpose: preserve the operator timeline and make agent output inspectable.
 Session Rules:
 
 - `sessions show <id> --json` is terminal when the session is already active.
-- `sessions list --json` should not suggest stale active-session recovery.
+- `sessions list --json` must emit explicit stale-pointer recovery guidance when
+  the active pointer references a non-existent session.
+- `sessions show --json` must include the same stale-pointer recovery guidance when
+  continuing from a stale active pointer.
+- `resume` session-history read (`/sessions`) is bounded by
+  `REFARM_RECENT_SESSION_TIMEOUT_MS` (default `300` ms) to keep operator
+  output responsive when sidecar session access is slow.
+- `sessions list/use` runtime session fetches are bounded by
+  `REFARM_SESSIONS_REQUEST_TIMEOUT_MS` (default `500` ms) to keep interactive
+  flow responsive when `/sessions` stalls.
+- Human-facing `sessions show` should also surface stale-pointer recovery hints when
+  continuing from a stale active session so operators get the same guidance without
+  JSON mode.
+- Session recovery and lookup are source-scoped by design: default operator flows are
+  `refarm` session roots only; legacy `~/.pi` sources must be explicitly selected
+  only for migration or forensics.
 - New runtime-agent sessions should identify the participant as
   `urn:refarm:agent:runtime-agent`.
 - Historical `urn:refarm:agent:pi-agent` participants and `[pi-agent ...]`
@@ -95,15 +133,18 @@ Task Rules:
 - Terminal or failed old efforts must not produce misleading resume handoffs.
 - `task status --json` should distinguish active, done, failed, and unknown
   states with log and resume handoffs.
+- `task status --watch --json` watch polling is bounded by
+  `REFARM_TASK_STATUS_WATCH_LIMIT` (default `120`). Set to `0` to avoid
+  additional polling and return immediately after the initial status read.
 - `task logs --json` should be inspectable after terminal states.
-- Operator-facing runtime-agent dispatch uses:
+- Operator-facing agent dispatch uses:
 
 ```bash
-refarm task run runtime-agent respond --args '{"prompt":"hello"}' --json
+refarm task run agent respond --args '{"prompt":"hello"}' --json
 ```
 
 The physical plugin id may still be `@refarm/pi-agent` in stored task metadata.
-The no-token `refarm:agent:e2e:mock` gate exercises this alias through HTTP
+The no-token `refarm:agent:e2e:mock` gate exercises this command shape through HTTP
 task dispatch against the model mock and follows the returned status/log
 handoffs. It also checks `task resume --json` before and after the effort
 reaches `done`, so active continuations stay visible and terminal efforts do
@@ -141,6 +182,9 @@ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
   converge and the startup log has no actionable output, the recovery handoff
   should point to `refarm runtime start --dry-run --json` before retrying
   `ensure`.
+- Streaming waits in `runtime stream --follow` are bounded by
+  `REFARM_STREAM_FOLLOW_TIMEOUT_MS` (default `45000` ms). Set it to `0` to
+  avoid blocking and return immediately when no stream chunks arrive.
 - `check --next-action --json` is the composite readiness gate.
 - `check --json` should include the local model provider doctor as a warning
   signal. `check --next-action --json` remains blocking-only: `ok: true` means
@@ -165,14 +209,17 @@ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
 - Plugin recovery should prefer the operator alias:
 
 ```bash
-refarm plugin reload runtime-agent --json
+refarm plugin reload agent --json
 ```
 
 - Plugin status may expose `@refarm/pi-agent` as installed/loaded identity
   because that is the manifest id.
 - Reload outcomes must distinguish `reloaded`, `skipped`, and `deferred`.
+- Runtime deferred reload waits are bounded by `REFARM_PLUGIN_RELOAD_MAX_WAIT_MS`
+  (default `120000` ms). Set it to `0` to skip waiting immediately and return
+  deferred plugins in `skipped`.
 - The no-token `refarm:agent:e2e:mock` gate exercises
-  `plugin reload runtime-agent --json` against the isolated runtime and follows
+  `plugin reload agent --json` against the isolated runtime and follows
   the returned `plugin status --json` handoff. A loaded plugin may report
   `skipped`; the contract is that the public alias normalizes to
   `@refarm/pi-agent` and status remains inspectable.
@@ -409,8 +456,9 @@ work in this order:
    shared packages only after repeated use proves the boundary.
 4. Exercise one non-Refarm task through the same primitives to prove Refarm is a
    daily-driver tool, not only a self-maintenance loop.
-5. Keep `runtime-agent` as the operator concept and `@refarm/pi-agent` as the
-   compatibility identity until a package rename is worth the migration cost.
+5. Keep `runtime-agent` as the compatibility identity and `@refarm/pi-agent` as
+   the canonical storage identity until a package rename is worth the migration
+   cost.
 
 ## Cut Discipline
 

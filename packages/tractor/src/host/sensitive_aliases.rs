@@ -236,7 +236,11 @@ mod tests {
             );
         }
 
-        let segment_blocked = ["MODEL_FOO_AWS_BAR", "MODEL_FOO_GITHUB_BAR", "MODEL_FOO_KUBE_BAR"];
+        let segment_blocked = [
+            "MODEL_FOO_AWS_BAR",
+            "MODEL_FOO_GITHUB_BAR",
+            "MODEL_FOO_KUBE_BAR",
+        ];
         for key in segment_blocked {
             assert!(
                 is_shared_sensitive_env_namespace_segment(key),

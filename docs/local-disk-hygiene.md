@@ -11,8 +11,24 @@ boundaries.
 Before starting work, measure rather than guess:
 
 ```bash
+pnpm run factory:pressure
 pnpm run clean:rust:check
 ```
+
+`factory:pressure` is the cheap operator preflight. It does not scan the tree and
+does not delete anything. It samples filesystem free space, host memory, and a
+few maintenance markers, then returns one of:
+
+- `continue`: focused work can proceed normally.
+- `safe-mode`: keep commands explicit and bounded; avoid broad worker fan-out,
+  full `cargo test`, full `turbo build`, or repo-wide Vitest.
+- `stop-and-investigate`: pause broad work and recover disk/memory headroom
+  before running expensive gates.
+
+This mirrors the operational lesson from downstream agents-lab work: environment
+pain should become an explicit signal, not a surprise crash. Cleanup remains
+operator-directed. Sessions and global agent history are protected by default;
+do not delete them from an agent unless the operator explicitly asks for that.
 
 At the end of a normal session:
 
@@ -66,6 +82,11 @@ Use the smallest command that can falsify the change you just made. Bigger gates
 are still valuable, but they should be checkpoints, not reflexes after every
 edit.
 
+`refarm` operator lanes should stay lean by default. If `refarm agent finish` or
+another daily-driver command needs to do expensive work, that cost should be
+explainable as a checkpoint or cache miss, not hidden routine pressure on the
+devcontainer.
+
 | Situation                                  | Preferred local signal                                                                           | Avoid until checkpoint                        |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------------------------------- |
 | Pure Rust parser/helper edit               | `cargo test --lib <test_or_module> --quiet`                                                      | full `cargo test`                             |
@@ -74,6 +95,26 @@ edit.
 | pi-agent/Tractor boundary changed          | filtered `pi_agent_harness` run, sequential                                                      | full harness suite repeatedly                 |
 | TS package edit                            | `pnpm --filter <pkg> run type-check` or direct unit suite                                         | repo-wide `turbo build`                       |
 | Before push                                | reproduce likely failures locally with the closest scoped command, then CI as final confirmation | using GitHub Actions as the first test runner |
+
+## Container memory discipline for JS tests
+
+The devcontainer is a shared factory runtime, not an unlimited CI runner. Treat
+ambiguous JS test filters as high-risk: a command like `vitest run -- credentials`
+can match unrelated suites and fan out workers until the container stalls.
+
+For development slices, prefer explicit files and bounded workers:
+
+```bash
+pnpm -C apps/refarm exec vitest run \
+  src/credentials/model.test.ts \
+  src/credentials/token-auth-error.test.ts \
+  --pool=forks --maxWorkers=1
+```
+
+Use package or repo-wide JS gates only at checkpoints, after the focused signal
+has passed. If a Refarm finish lane expands to a large app validation, let that
+be a checkpoint cost and avoid stacking another broad Vitest or Turbo command
+in the same slice.
 
 For the current pi-agent streaming lane, prefer the wrapper scripts:
 

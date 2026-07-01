@@ -3,6 +3,7 @@
     use crate::host::plugin_host::refarm::plugin::{
         agent_fs::Host as AgentFsHost,
         agent_shell::{Host as AgentShellHost, SpawnRequest},
+        code_ops::{Host as CodeOpsHost, SymbolLocation},
     };
 
     fn make_bindings() -> TractorNativeBindings {
@@ -27,6 +28,14 @@
 
     fn configured_fs_root_err_for(raw: &str) -> String {
         configured_fs_root_from_raw(raw).unwrap_err()
+    }
+
+    fn python3_is_available_for_code_ops_test() -> bool {
+        std::process::Command::new("python3")
+            .arg("--version")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
     }
 
     #[test]
@@ -1185,3 +1194,146 @@
             );
         }
     }
+
+    // ── code-ops ─────────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn code_ops_find_references_uses_lsp_bridge_without_provider() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        if !python3_is_available_for_code_ops_test() {
+            eprintln!("skipping code-ops bridge test: python3 is not runnable");
+            return;
+        }
+
+        let temp = tempfile::tempdir().unwrap();
+        let script = temp.path().join("fake_lsp.py");
+        std::fs::write(&script, FAKE_CODE_OPS_LSP_SERVER).unwrap();
+        std::env::set_var("REFACTOR_LSP_CMD", format!("python3 {}", script.display()));
+
+        let mut b = make_bindings();
+        let refs = CodeOpsHost::find_references(
+            &mut b,
+            SymbolLocation {
+                file: "src/lib.rs".to_string(),
+                line: 1,
+                column: 1,
+            },
+        )
+        .await
+        .unwrap();
+
+        std::env::remove_var("REFACTOR_LSP_CMD");
+        crate::host::lsp_bridge::LspBridge::stop_lsp_session().unwrap();
+        assert_eq!(refs.len(), 1);
+        assert_eq!(refs[0].file, "/workspace/code-ops/src/lib.rs");
+        assert_eq!(refs[0].line, 3);
+        assert_eq!(refs[0].column, 5);
+    }
+
+    #[tokio::test]
+    async fn code_ops_rename_symbol_applies_lsp_workspace_edit_without_provider() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        if !python3_is_available_for_code_ops_test() {
+            eprintln!("skipping code-ops bridge rename test: python3 is not runnable");
+            return;
+        }
+
+        let temp = tempfile::tempdir().unwrap();
+        let script = temp.path().join("fake_lsp.py");
+        let source = temp.path().join("lib.rs");
+        std::fs::write(&script, FAKE_CODE_OPS_LSP_SERVER).unwrap();
+        std::fs::write(&source, "let old = old;\n").unwrap();
+        std::env::set_var("REFACTOR_LSP_CMD", format!("python3 {}", script.display()));
+
+        let mut b = make_bindings();
+        let result = CodeOpsHost::rename_symbol(
+            &mut b,
+            SymbolLocation {
+                file: source.to_string_lossy().to_string(),
+                line: 1,
+                column: 5,
+            },
+            "new_name".to_string(),
+        )
+        .await
+        .unwrap();
+
+        std::env::remove_var("REFACTOR_LSP_CMD");
+        crate::host::lsp_bridge::LspBridge::stop_lsp_session().unwrap();
+        assert_eq!(result.files_changed, 1);
+        assert_eq!(result.edits_applied, 2);
+        assert_eq!(
+            std::fs::read_to_string(source).unwrap(),
+            "let new_name = new_name;\n"
+        );
+    }
+
+    const FAKE_CODE_OPS_LSP_SERVER: &str = r#"
+import json
+import sys
+
+def read_message():
+    headers = {}
+    while True:
+        line = sys.stdin.buffer.readline()
+        if not line:
+            return None
+        if line == b'\r\n':
+            break
+        name, value = line.decode('ascii').split(':', 1)
+        headers[name.lower()] = value.strip()
+    body = sys.stdin.buffer.read(int(headers['content-length']))
+    return json.loads(body)
+
+def send(message):
+    body = json.dumps(message, separators=(',', ':')).encode('utf-8')
+    sys.stdout.buffer.write(b'Content-Length: ' + str(len(body)).encode('ascii') + b'\r\n\r\n' + body)
+    sys.stdout.buffer.flush()
+
+while True:
+    message = read_message()
+    if message is None:
+        break
+    method = message.get('method')
+    if method == 'initialize':
+        send({'jsonrpc': '2.0', 'id': message['id'], 'result': {'capabilities': {}}})
+    elif method == 'textDocument/references':
+        send({
+            'jsonrpc': '2.0',
+            'id': message['id'],
+            'result': [{
+                'uri': 'file:///workspace/code-ops/src/lib.rs',
+                'range': {
+                    'start': {'line': 2, 'character': 4},
+                    'end': {'line': 2, 'character': 8},
+                },
+            }],
+        })
+    elif method == 'textDocument/rename':
+        uri = message['params']['textDocument']['uri']
+        new_name = message['params']['newName']
+        send({
+            'jsonrpc': '2.0',
+            'id': message['id'],
+            'result': {
+                'changes': {
+                    uri: [
+                        {
+                            'range': {
+                                'start': {'line': 0, 'character': 4},
+                                'end': {'line': 0, 'character': 7},
+                            },
+                            'newText': new_name,
+                        },
+                        {
+                            'range': {
+                                'start': {'line': 0, 'character': 10},
+                                'end': {'line': 0, 'character': 13},
+                            },
+                            'newText': new_name,
+                        },
+                    ],
+                },
+            },
+        })
+"#;

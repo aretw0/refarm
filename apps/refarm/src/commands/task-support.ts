@@ -1,30 +1,21 @@
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { isRuntimeAgentPluginId } from "@refarm.dev/config";
 import {
-	assertChannelControlCapability,
-	parseTaskTransport as parseDispatchTransport,
-	resolveChannelControlSurfaceAdapter,
-	resolveChannelFromTransport,
-	type ChannelControlSurfaceAdapter,
-	type DispatchTransport,
-} from "@refarm.dev/dispatch-surface";
+	assertChannelControlCapability, parseTaskTransport as parseDispatchTransport, resolveChannelControlSurfaceAdapter, resolveChannelFromTransport, type ChannelControlSurfaceAdapter, type DispatchTransport, } from "@refarm.dev/dispatch-surface";
 import type {
-	Effort,
-	EffortLogEntry,
-	EffortResult,
-	EffortSummary,
-	EffortTransportAdapter,
-} from "@refarm.dev/effort-contract-v1";
+	Effort, EffortLogEntry, EffortResult, EffortSummary, EffortTransportAdapter, } from "@refarm.dev/effort-contract-v1";
 import chalk from "chalk";
 import { InvalidArgumentError } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -545,7 +536,7 @@ class HttpTransportClient implements TaskOperationsAdapter {
 	constructor(private readonly baseUrl: string) {}
 
 	async submit(effort: Effort): Promise<string> {
-		const response = await fetch(`${this.baseUrl}/efforts`, {
+		const response = await fetchSidecarWithTimeout(`${this.baseUrl}/efforts`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify(effort),
@@ -557,20 +548,24 @@ class HttpTransportClient implements TaskOperationsAdapter {
 	}
 
 	async query(effortId: string): Promise<EffortResult | null> {
-		const response = await fetch(`${this.baseUrl}/efforts/${effortId}`);
+		const response = await fetchSidecarWithTimeout(
+			`${this.baseUrl}/efforts/${effortId}`,
+		);
 		if (response.status === 404) return null;
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return (await response.json()) as EffortResult;
 	}
 
 	async list(): Promise<EffortResult[]> {
-		const response = await fetch(`${this.baseUrl}/efforts`);
+		const response = await fetchSidecarWithTimeout(`${this.baseUrl}/efforts`);
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return (await response.json()) as EffortResult[];
 	}
 
 	async logs(effortId: string): Promise<EffortLogEntry[] | null> {
-		const response = await fetch(`${this.baseUrl}/efforts/${effortId}/logs`);
+		const response = await fetchSidecarWithTimeout(
+			`${this.baseUrl}/efforts/${effortId}/logs`,
+		);
 		if (response.status === 404) return null;
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return (await response.json()) as EffortLogEntry[];
@@ -580,7 +575,7 @@ class HttpTransportClient implements TaskOperationsAdapter {
 		effortId: string,
 		action: "retry" | "cancel",
 	): Promise<boolean> {
-		const response = await fetch(
+		const response = await fetchSidecarWithTimeout(
 			`${this.baseUrl}/efforts/${effortId}/${action}`,
 			{
 				method: "POST",
@@ -601,7 +596,9 @@ class HttpTransportClient implements TaskOperationsAdapter {
 	}
 
 	async summary(): Promise<EffortSummary> {
-		const response = await fetch(`${this.baseUrl}/efforts/summary`);
+		const response = await fetchSidecarWithTimeout(
+			`${this.baseUrl}/efforts/summary`,
+		);
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return (await response.json()) as EffortSummary;
 	}
@@ -627,7 +624,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 
 	async submit(effort: Effort): Promise<string> {
 		assertChannelControlCapability(this.adapter, "submit");
-		const response = await fetch(this.channelEffortsPath(), {
+		const response = await fetchSidecarWithTimeout(this.channelEffortsPath(), {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify(effort),
@@ -640,7 +637,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 
 	async query(effortId: string): Promise<EffortResult | null> {
 		assertChannelControlCapability(this.adapter, "query");
-		const response = await fetch(
+		const response = await fetchSidecarWithTimeout(
 			this.adapter.buildQueryPath(this.baseUrl, this.channel, effortId),
 		);
 		if (response.status === 404) return null;
@@ -650,7 +647,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 
 	async list(): Promise<EffortResult[]> {
 		assertChannelControlCapability(this.adapter, "list");
-		const response = await fetch(
+		const response = await fetchSidecarWithTimeout(
 			this.adapter.buildListPath(this.baseUrl, this.channel),
 		);
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -659,7 +656,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 
 	async logs(effortId: string): Promise<EffortLogEntry[] | null> {
 		assertChannelControlCapability(this.adapter, "logs");
-		const response = await fetch(
+		const response = await fetchSidecarWithTimeout(
 			this.adapter.buildLogsPath(this.baseUrl, this.channel, effortId),
 		);
 		if (response.status === 404) return null;
@@ -676,7 +673,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 			action === "retry"
 				? this.adapter.buildRetryPath(this.baseUrl, this.channel, effortId)
 				: this.adapter.buildCancelPath(this.baseUrl, this.channel, effortId);
-		const response = await fetch(path, {
+		const response = await fetchSidecarWithTimeout(path, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 		});
@@ -695,7 +692,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 
 	async summary(): Promise<EffortSummary> {
 		assertChannelControlCapability(this.adapter, "summary");
-		const response = await fetch(
+		const response = await fetchSidecarWithTimeout(
 			this.adapter.buildSummaryPath(this.baseUrl, this.channel),
 		);
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);

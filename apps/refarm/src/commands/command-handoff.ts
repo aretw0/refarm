@@ -1,11 +1,24 @@
+/**
+ * Compatibility shim.
+ *
+ * @deprecated Prefer importing from `@refarm.dev/cli/command-handoff` directly.
+ */
 import {
-	applicationCommand,
-	applicationProcess,
 	type ApplicationProcessSpec,
 } from "@refarm.dev/cli/command-handoff";
 
+/**
+ * Compatibility shim.
+ *
+ * @deprecated Prefer importing from `@refarm.dev/cli/command-handoff` directly.
+ */
 export type { ApplicationProcessSpec };
 
+/**
+ * Compatibility shim.
+ *
+ * @deprecated Prefer importing from `@refarm.dev/cli/command-handoff` directly.
+ */
 export {
 	applicationCommand,
 	applicationProcess,
@@ -22,12 +35,6 @@ export {
 	substituteCommandTemplateValue,
 	substituteCommandTemplateValues,
 	workspaceCommand,
+	refarmCommand,
+	refarmProcess,
 } from "@refarm.dev/cli/command-handoff";
-
-export function refarmCommand(args: string[]): string {
-	return applicationCommand("refarm", args);
-}
-
-export function refarmProcess(args: string[]): ApplicationProcessSpec {
-	return applicationProcess("refarm", args);
-}

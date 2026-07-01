@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 import process from "node:process";
 import path from "node:path";
-import { buildReleasePlan, runReleaseGates, formatPlan, summarizePlan } from "./index.mjs";
+import {
+  RELEASE_ENGINE_JSON_SCHEMA_VERSION,
+  buildReleasePlan,
+  createReleasePlanAuditRecord,
+  runReleaseGates,
+  formatPlan,
+  summarizePlan,
+} from "./index.mjs";
 
 const args = process.argv.slice(2);
 
@@ -16,6 +23,7 @@ function usage() {
     `  --policy <file>    Policy filename; when omitted uses embedded .refarm/config.json releasePolicy with fallback to release-policy.json/neutral defaults\n` +
     `  --selection <id>   Select packages using a policy selection; "default" resolves releasePolicy.defaultSelection\n` +
     `  --tag <tag>        Select packages whose release policy profile contains the tag; repeat for AND filtering\n` +
+    `  --audit            Include a deterministic release plan audit record in JSON output\n` +
     `  --only-required    Run only required release gates\n` +
     `  --check-gates      Also run gate validation after plan\n`);
   process.exit(1);
@@ -37,6 +45,7 @@ function parseArgsRobust(rawArgs) {
     policyPath: "release-policy.json",
     dryRun: false,
     json: false,
+    audit: false,
     checkGates: false,
     onlyRequired: false,
     tags: [],
@@ -58,6 +67,9 @@ function parseArgsRobust(rawArgs) {
     switch (arg) {
       case "--json":
         parsed.json = true;
+        break;
+      case "--audit":
+        parsed.audit = true;
         break;
       case "--dry-run":
         parsed.dryRun = true;
@@ -97,6 +109,25 @@ function parseArgsRobust(rawArgs) {
   return parsed;
 }
 
+function blockedGateResult(plan, dryRun) {
+  return {
+    ok: false,
+    results: [],
+    policy: plan.policy,
+    dryRun,
+    reason: "Plan blocked",
+    blockers: plan.blockers,
+  };
+}
+
+function appendAuditRecord(payload, plan, audit) {
+  if (audit) {
+    payload.auditRecord = createReleasePlanAuditRecord(plan);
+  }
+
+  return payload;
+}
+
 async function main() {
   const parsed = parseArgsRobust(args);
   if (!parsed.command) usage();
@@ -113,15 +144,12 @@ async function main() {
   if (parsed.command === "gates") {
     if (!basePlan.ok) {
       if (parsed.json) {
-        console.log(JSON.stringify({
+        console.log(JSON.stringify(appendAuditRecord({
+          schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
           ...summarizePlan(basePlan),
           command: "gates",
-          gateResult: {
-            ok: false,
-            reason: "Plan blocked",
-            blockers: basePlan.blockers,
-          },
-        }, null, 2));
+          gateResult: blockedGateResult(basePlan, parsed.dryRun),
+        }, basePlan, parsed.audit), null, 2));
       } else {
         console.error(formatPlan(basePlan));
       }
@@ -135,11 +163,12 @@ async function main() {
       onlyRequired: parsed.onlyRequired,
     });
 
-    const summary = {
+    const summary = appendAuditRecord({
+      schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
       ...summarizePlan(basePlan),
       gateResult,
       command: "gates",
-    };
+    }, basePlan, parsed.audit);
 
     if (parsed.json) {
       console.log(JSON.stringify(summary, null, 2));
@@ -159,16 +188,13 @@ async function main() {
   if (parsed.command === "check") {
     if (!basePlan.ok) {
       if (parsed.json) {
-        console.log(JSON.stringify({
+        console.log(JSON.stringify(appendAuditRecord({
+          schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
           ...summarizePlan(basePlan),
-          gateResult: {
-            ok: false,
-            reason: "Plan blocked",
-            blockers: basePlan.blockers,
-          },
+          gateResult: blockedGateResult(basePlan, true),
           command: "check",
           commandNote: "Plan is blocked before gate execution.",
-        }, null, 2));
+        }, basePlan, parsed.audit), null, 2));
       } else {
         console.error(formatPlan(basePlan));
       }
@@ -182,12 +208,13 @@ async function main() {
       onlyRequired: parsed.onlyRequired,
     });
 
-    const payload = {
+    const payload = appendAuditRecord({
+      schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
       ...summarizePlan(basePlan),
       gateResult,
       command: "check",
       commandNote: "Dry-run gate check complete.",
-    };
+    }, basePlan, parsed.audit);
 
     if (parsed.json) {
       console.log(JSON.stringify(payload, null, 2));
@@ -203,13 +230,14 @@ async function main() {
     const summary = summarizePlan(basePlan);
 
     if (parsed.json) {
-      const payload = {
+      const payload = appendAuditRecord({
+        schemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
         ...summary,
         gates: basePlan.gates,
         blockers: basePlan.blockers,
-        publishIntents: basePlan.publishIntents,
+        publishIntents: basePlan.publishIntents || [],
         command: "plan",
-      };
+      }, basePlan, parsed.audit);
 
       if (parsed.checkGates) {
         payload.gateResult = runReleaseGates(basePlan, {

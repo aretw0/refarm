@@ -20,8 +20,31 @@
     "lint": {
       "dependsOn": ["build"]
     },
+    "lint:prepush": {
+      "inputs": [
+        "src/**",
+        "test/**",
+        "tests/**",
+        "*.config.*",
+        "**/*.rs",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
+    },
     "test": {
       "dependsOn": ["build"],
+      "inputs": [
+        "src/**",
+        "test/**",
+        "tests/**",
+        "*.config.*",
+        "**/*.rs",
+        "Cargo.toml",
+        "Cargo.lock"
+      ],
+      "env": ["VITEST_USE_DIST", "VITEST_FORCE_DIST"]
+    },
+    "test:prepush": {
       "inputs": [
         "src/**",
         "test/**",

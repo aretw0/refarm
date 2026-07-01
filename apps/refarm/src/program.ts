@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { actionsCommand } from "./commands/actions.js";
 import { agentCommand } from "./commands/agent.js";
 import { askCommand } from "./commands/ask.js";
+import { capabilitiesCommand } from "./commands/capabilities.js";
 import { chatCommand } from "./commands/chat.js";
 import { checkCommand } from "./commands/check.js";
 import { configCommand } from "./commands/config.js";
@@ -16,6 +17,7 @@ import { modelCommand } from "./commands/model.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
 import { pluginCommand } from "./commands/plugin.js";
+import { projectCommand } from "./commands/project.js";
 import { provisionCommand } from "./commands/provision.js";
 import { releaseCommand } from "./commands/release.js";
 import { resumeCommand } from "./commands/resume.js";
@@ -110,7 +112,9 @@ program
 			"  $ refarm tidy imports --check    Check import organization on changed files",
 			"  $ refarm package-manager --json  Inspect detected npm/pnpm/yarn/bun launcher",
 			"  $ refarm workspace execution --json Inspect workspace executor/cache readiness",
-			"  $ refarm release plan --selection default --json Plan release candidates by configured policy selection",
+			"  $ refarm capabilities --json List compact capability descriptors for consumers",
+			"  $ refarm project handoff validate --json Validate durable project handoff state",
+			"  $ refarm release preflight --selection default --json Inspect release candidates and supply posture",
 			"  $ refarm agent --next-command    Print the first agent handoff command",
 			"  $ refarm agent finish --next-command Print the next end-of-slice command",
 			"  $ refarm agent finish --lane after-edit --run --json Verify changed workspaces",
@@ -127,7 +131,7 @@ program
 			`  $ refarm model ${OPENAI_DEFAULT_REF}`,
 			"  $ refarm model base-url http://127.0.0.1:8000",
 			"",
-			"Inside the interactive session, use /help for /model, /login, /reload, and session commands.",
+			"Inside the interactive session, use /help for /model, /login, /reload, /clear, /cls, and session commands.",
 		].join("\n"),
 	)
 	.action(async () => {
@@ -257,6 +261,8 @@ program.addCommand(deployCommand);
 program.addCommand(doctorCommand);
 program.addCommand(packageManagerCommand);
 program.addCommand(pluginCommand);
+program.addCommand(capabilitiesCommand);
+program.addCommand(projectCommand);
 program.addCommand(extensionCommand);
 program.addCommand(agentCommand);
 program.addCommand(openUrlCommand);

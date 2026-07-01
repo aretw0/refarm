@@ -10,6 +10,15 @@ Refarm is moving toward a unified `refarm` host experience: one product command
 and runtime posture that can expose Web, headless, and later TUI renderers over
 the same plugin/surface/action/telemetry contracts.
 
+Refarm is also the ecosystem supplier. That expands rather than replaces the
+native Refarm product path: the `refarm` CLI, apps, runtime-agent, Farmhand,
+Tractor, and operator loop remain first-class consumers of the same blocks.
+`vault-seed` and `agents-lab` should not carry local copies of substrate that
+Refarm can supply as SDK blocks, engines, npm packages, crates, generators,
+codemods, or policy contracts. Their product surfaces remain their own; their
+reusable machinery should become Refarm-owned when it can serve more than the
+single downstream context.
+
 The CLI product should be named `refarm` and live as a distro under
 `apps/refarm`. Packages remain reusable blocks. This preserves Refarm's
 composition model: apps make product choices; packages provide primitives.
@@ -17,18 +26,86 @@ composition model: apps make product choices; packages provide primitives.
 ## 2026-06 release focus
 
 Treat `v0.1.0` as an earned reliability label, not as a calendar milestone. The
-useful cut is three lanes:
+useful cut is four lanes:
 
 | Lane | Purpose | Release posture |
 | --- | --- | --- |
 | Release Kernel | Small reusable contracts and SDK primitives: storage, sync, identity, artifacts, process handoffs, dispatch surfaces, provenance, health, and policy envelopes. | Publish only when conformance, docs, and consumer-neutral boundaries are clear. |
 | Daily Driver | The `refarm` command, runtime readiness, finish gates, sessions, plugin lifecycle, model credentials, logs, recovery, and local operator UX. | Gates public version confidence; must work for the creator before broad promises. |
-| Lab | POCs, benchmark harnesses, `vault-seed`, `agents-lab`, external workspaces, and prize-writing evidence pressure. | Feeds reusable primitives back into Refarm without making consumer UX part of core. |
+| Consumer Pull | `vault-seed` and adjacent consumers pulling candidate blocks before public release to avoid rebuilding future Refarm substrate locally. | Accelerates v0.1.0 when the proof uses packed packages, manifests, codemod dry-runs, and downstream-owned product behavior. |
+| Lab | POCs, benchmark harnesses, `agents-lab`, external workspaces, and prize-writing evidence pressure. | Feeds reusable primitives back into Refarm without making consumer UX part of core. |
 
 This keeps convergence productive: Refarm becomes the shared substrate, while
 consumer projects keep their vocabulary, publishing surface, and local workflow.
 Do not promote a lab pattern into the Release Kernel until a second consumer or
 the daily-driver loop needs the same primitive.
+
+The supply posture is powered-by for downstream products and native for Refarm
+itself. `dgk` can keep being the vault-facing command surface while importing
+Refarm internals for process execution, artifacts, channels, credentials,
+release policy, source handling, health checks, and skills. `dgk` fills its own
+labels, package names, commands, and user-facing semantics around those blocks.
+The Refarm CLI and apps expose the same capabilities directly for users who
+choose Refarm as the product. Users should experience a better `vault-seed`, not
+a forced Refarm rebrand.
+
+`vault-seed` is the active exception to passive lab pressure: it already needs
+`ds`/`ds-html`, process/artifact handoffs, `silo`, and generator/codemod
+support. When those needs match a Refarm block, the next slice should include a
+consumer proof instead of letting `vault-seed` keep building local stand-ins that
+will be migrated later.
+
+The same rule applies to new downstream substrate. Before expanding
+`vault-seed` scripts/packages, classify whether the repeated part belongs in
+Refarm as channel policy, artifact/provenance, release/package readiness,
+health/environment checks, text-quality, or generator/codemod machinery. Keep
+PARA, Obsidian, Astro rendering, notebook UX, Telegram adapter details, and
+publication copy downstream.
+
+When the classification is "belongs in Refarm", prefer building or hardening the
+Refarm block first, then let `vault-seed` or `agents-lab` consume it. Do not
+create more downstream local substrate as a placeholder unless there is a clear
+rollback path and an explicit Refarm follow-up.
+
+### Track orbit ledger
+
+Use this ledger to keep adjacent tracks visible without turning every prompt
+into a new control plane. "Dormant" means gated by evidence, not abandoned.
+
+| Track | Current posture | Next safe touch | Avoid |
+| --- | --- | --- | --- |
+| Release kernel / `vault-seed` handoff | Active. Candidate blocks must be packable and consumable before public release. | Keep using `vault-seed-ready` selection, local tarball handoffs, generator/codemod dry-runs, and downstream-owned product behavior as proof. | Publishing or renaming surfaces before conformance/docs/consumer neutrality are settled. |
+| Daily-driver Refarm | Active. The `refarm` CLI, runtime, finish gates, sessions, plugins, credentials, and recovery loops are first-class dogfood. | Harden operator loops and environment-pressure ceilings when they unblock current work. | Moving product-specific choices into reusable packages. |
+| Silo / security | Active, storage-ready. Silo has namespaces, storage helpers, hardened file modes, and protected envelopes. | Add stronger protection providers only behind the existing envelope/key-manager boundary when dogfood or a consumer proves the need. | Claiming full encryption before the provider exists, or putting crypto policy into `apps/refarm`. |
+| WASM substrate / Astro 7 | Active as substrate, red as Astro-on-Tractor product adapter. ADR-070 Parts A/B remain the lane; Part C evidence is red under `validations/astro-wasi-ssr/`. | Define/consume `wasm-surface:v1`, loader/manifest policy, and Tractor native-first plus WASM-fallback behavior when a lab/site consumer needs it. | Reopening Astro SSR on Tractor as product work without a new upstream WASI profile or second-consumer proof. |
+| Native skills | Activation-gated. Skills are distributed capabilities over plugin/manifest/policy substrate, not a second plugin ecosystem. | Write/execute the native skill contract plus plugin-manifest skill surface with one `dgk-skills` or `agents-lab` fixture. | Copying external skills into Refarm or building a parallel runtime outside Barn/plugin policy. |
+| Source librarian | Partially active. `source:v1`, `source-git`, and `source-local` exist; `source-dispatch` waits for executable dispatch pressure. | Wire `source:v1` through `dispatch-surface` only when the agent/kernel path needs it. | Creating a generic source megasystem before dogfood, `vault-seed`, or `agents-lab` proves dispatch semantics. |
+| Distributed availability / Pears | Evidence-active, runtime-adoption-gated. ADR-075 is reference pressure for portable core and thin surfaces. | Turn the existing availability proof into install/update descriptor or blind-replica policy only when dogfood or a second consumer needs it. | Adopting Bare/Hypercore/Pears wholesale as Refarm storage/runtime before the boundary is proven. |
+| Remote workspace control | Horizon-active. The desired shape is capability-scoped control of local and remote machines through explicit handoffs. | Extend workspace descriptors, read-only probes, and environment ceilings when current workflows need cross-machine observation or dispatch. | Treating mounts, host paths, Telegram, Matrix, or Tailscale as the core abstraction. |
+
+Validation packages under `validations/` are evidence surfaces, not publication
+surfaces. They may use workspace package metadata so Turbo and the compatibility
+matrix can build them, but they must stay `private: true`, carry no
+`publishConfig`, and remain outside `releasePolicy`. Graduation means opening a
+new package under `packages/` with a neutral name, docs, contract, consumer
+proof, and explicit release-policy selection; do not publish a POC in place.
+
+The rest of the `vault-seed` roadmap is now classified the same way:
+
+- source IaC, extraction profiles, cache/staging, and data lifecycle attach to
+  `source:v1`, artifact/provenance, and storage/retention policy;
+- `target: "auto"` placement attaches to a model/task classification contract,
+  while PARA rules and review UX stay downstream;
+- Mastodon, Bluesky, Telegram, Nostr, Instagram, newsletter, and future channel
+  work attach to channel policy plus `silo` identity namespaces; provider API
+  adapters stay downstream until two providers prove one adapter API;
+- `dgk publish workspace`, custom distributions, package provenance, and
+  changelog-as-content attach to generator/codemod work plus `release-engine`;
+- Lab WASM HTTP/feed/OpenGraph helpers attach to the WASM substrate plus
+  source/artifact contracts, with Marimo notebooks downstream;
+- OKF, JSON-LD, semantic graph, and knowledge export remain future
+  content/knowledge manifest pressure until a second consumer needs the same
+  envelope.
 
 ### Current consolidation checkpoint
 

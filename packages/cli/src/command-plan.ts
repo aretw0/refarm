@@ -21,7 +21,50 @@ export interface CommandProcessSpec {
 	cwd?: string;
 	display: string;
 	packageManager?: string | null;
+	resourcePolicy?: CommandProcessResourcePolicy;
+	timeoutMs?: number;
 	tool?: string;
+}
+
+export interface CommandProcessResourcePolicy {
+	concurrency?: number;
+	fallbackCommand?: string;
+	timeoutMs?: number;
+	workClass?: CommandPlanWorkClass;
+}
+
+export type CommandPlanWorkClass =
+	| "focused-check"
+	| "package-check"
+	| "broad-check"
+	| "worker-fanout"
+	| "mutation";
+
+export type CommandPlanResourceCeilingDecision =
+	| "allow"
+	| "degrade"
+	| "serialize"
+	| "refuse";
+
+export interface CommandPlanResourceCeilingPlan {
+	schemaVersion?: 1;
+	ok: boolean;
+	decision: CommandPlanResourceCeilingDecision;
+	workClass: CommandPlanWorkClass;
+	pressureDecision?: string;
+	reason: string;
+	nextAction?: string | null;
+	nextActions?: string[];
+	nextCommand?: string | null;
+	nextCommands?: string[];
+	maxConcurrency?: number | null;
+	recommendations?: unknown[];
+}
+
+export interface CommandPlanRunOptions {
+	planResourceCeiling?: (
+		step: CommandPlanStep,
+	) => CommandPlanResourceCeilingPlan | null | undefined;
 }
 
 export interface CommandPlanStep {
@@ -62,6 +105,7 @@ export interface CommandPlanStepRunResult extends CommandPlanStep {
 export interface CommandPlanCommandRunOptions {
 	cwd?: string;
 	env?: NodeJS.ProcessEnv;
+	timeoutMs?: number;
 }
 
 export interface CommandPlanCliStepRunOptions extends CommandPlanCommandRunOptions {
@@ -270,10 +314,16 @@ export function runCommandPlanCliStep(
 		cwd: options.cwd ?? process.cwd(),
 		env: options.env ?? process.env,
 		encoding: "utf-8",
+		timeout: options.timeoutMs,
 	});
 	const exitCode = result.status ?? (result.error ? 1 : 0);
 	const stdout = result.stdout ?? "";
-	const stderr = result.stderr ?? "";
+	const stderr = commandPlanSpawnErrorMessage(
+		result.stderr,
+		exitCode === 0 ? undefined : result.error,
+		result.signal,
+		options.timeoutMs,
+	);
 	const payload = parseCommandJsonPayload(stdout);
 	return {
 		id: args.join(" "),
@@ -299,6 +349,7 @@ export function runCommandPlanProcessStep(
 		cwd: step.process.cwd ?? options.cwd ?? process.cwd(),
 		env: options.env ?? process.env,
 		encoding: "utf-8",
+		timeout: step.process.timeoutMs ?? options.timeoutMs,
 	});
 	const exitCode = result.status ?? (result.error ? 1 : 0);
 	return {
@@ -306,39 +357,49 @@ export function runCommandPlanProcessStep(
 		ok: exitCode === 0,
 		exitCode,
 		stdout: result.stdout ?? "",
-		stderr: result.stderr ?? "",
+		stderr: commandPlanSpawnErrorMessage(
+			result.stderr,
+			exitCode === 0 ? undefined : result.error,
+			result.signal,
+			step.process.timeoutMs ?? options.timeoutMs,
+		),
 	};
+}
+
+function commandPlanSpawnErrorMessage(
+	stderr: string | null | undefined,
+	error: Error | undefined,
+	signal: NodeJS.Signals | null,
+	timeoutMs: number | undefined,
+): string {
+	if (stderr) return stderr;
+	if (error?.message) return error.message;
+	if (signal && timeoutMs) return `Command timed out after ${timeoutMs}ms (${signal}).`;
+	return "";
 }
 
 export function runCommandPlan(
 	stepsToRun: readonly CommandPlanStep[],
 	runStep: (step: CommandPlanStep) => CommandPlanStepRunResult,
+	options: CommandPlanRunOptions = {},
 ): CommandPlanRunResult {
 	const steps: CommandPlanStepRunResult[] = [];
 	for (const [index, step] of stepsToRun.entries()) {
-		const observed = runStep(step);
-		const result = {
-			...observed,
-			id: step.id,
-			command: step.command,
-			args: step.args,
-			description: step.description,
-			effect: step.effect,
-		};
-		const payloadOk = commandPayloadOk(result.payload);
-		const ok = result.exitCode === 0 && payloadOk !== false;
-		const normalized = { ...result, ok };
-		steps.push(normalized);
-		if (!ok) {
+		const resourceCeiling = options.planResourceCeiling?.(step);
+		const serializedStep = resourceCeiling
+			? commandPlanSerializedStep(step, resourceCeiling)
+			: null;
+		const executableStep = serializedStep ?? step;
+		if (
+			resourceCeiling &&
+			!serializedStep &&
+			shouldStopForResourceCeiling(resourceCeiling)
+		) {
+			const normalized = commandPlanResourceCeilingStepResult(step, resourceCeiling);
+			steps.push(normalized);
 			const remainingSteps = stepsToRun.slice(index + 1);
-			const payloadNextCommands = commandPayloadNextCommands(result.payload);
-			const nextActions = normalizeHandoffValues(
-				commandPayloadNextActions(result.payload) ??
-					payloadNextCommands ?? [step.command],
-			);
-			const nextCommands = normalizeHandoffValues(
-				payloadNextCommands ?? [step.command],
-			);
+			const nextActions = commandPlanResourceCeilingNextActions(resourceCeiling);
+			const nextCommands = commandPlanResourceCeilingNextCommands(resourceCeiling);
 			return {
 				ok: false,
 				status: "failed",
@@ -351,7 +412,47 @@ export function runCommandPlan(
 				failedProcess: step.process ?? null,
 				nextActions,
 				nextCommands,
-				nextProcesses: payloadNextCommands ? [] : commandPlanStepProcesses([step]),
+				nextProcesses: [],
+				recommendations: resourceCeiling.recommendations ?? [],
+			};
+		}
+		const observed = runStep(executableStep);
+		const result = {
+			...observed,
+			id: executableStep.id,
+			command: executableStep.command,
+			args: executableStep.args,
+			description: executableStep.description,
+			effect: executableStep.effect,
+		};
+		const payloadOk = commandPayloadOk(result.payload);
+		const ok = result.exitCode === 0 && payloadOk !== false;
+		const normalized = { ...result, ok };
+		steps.push(normalized);
+		if (!ok) {
+			const remainingSteps = stepsToRun.slice(index + 1);
+			const payloadNextCommands = commandPayloadNextCommands(result.payload);
+			const fallbackNextActions = commandPlanStepFallbackNextActions(executableStep, result);
+			const nextActions = normalizeHandoffValues(
+				commandPayloadNextActions(result.payload) ??
+					payloadNextCommands ?? fallbackNextActions,
+			);
+			const nextCommands = normalizeHandoffValues(
+				payloadNextCommands ?? [executableStep.command],
+			);
+			return {
+				ok: false,
+				status: "failed",
+				steps,
+				remainingSteps,
+				remainingCommands: commandPlanStepCommands(remainingSteps),
+				remainingProcesses: commandPlanStepProcesses(remainingSteps),
+				failedStepId: executableStep.id,
+				failedCommand: executableStep.command,
+				failedProcess: executableStep.process ?? null,
+				nextActions,
+				nextCommands,
+				nextProcesses: payloadNextCommands ? [] : commandPlanStepProcesses([executableStep]),
 				recommendations: commandPayloadRecommendations(result.payload) ?? [],
 			};
 		}
@@ -371,4 +472,139 @@ export function runCommandPlan(
 		nextProcesses: [],
 		recommendations: [],
 	};
+}
+
+function commandPlanStepFallbackNextActions(
+	step: CommandPlanStep,
+	result: CommandPlanStepRunResult,
+): string[] {
+	if (isNestedSpawnRestricted(result)) {
+		return [
+			`Run \`${step.command}\` directly; this environment restricts nested process spawning.`,
+		];
+	}
+	return [step.command];
+}
+
+function isNestedSpawnRestricted(result: CommandPlanStepRunResult): boolean {
+	return /spawnSync .* EPERM/.test(result.stderr);
+}
+
+function shouldStopForResourceCeiling(
+	resourceCeiling: CommandPlanResourceCeilingPlan,
+): boolean {
+	return resourceCeiling.ok === false || resourceCeiling.decision !== "allow";
+}
+
+function commandPlanSerializedStep(
+	step: CommandPlanStep,
+	resourceCeiling: CommandPlanResourceCeilingPlan,
+): CommandPlanStep | null {
+	if (resourceCeiling.decision !== "serialize") return null;
+	const maxConcurrency = resourceCeiling.maxConcurrency;
+	if (!Number.isInteger(maxConcurrency) || Number(maxConcurrency) < 1) {
+		return null;
+	}
+	const process = step.process;
+	const currentConcurrency = process?.resourcePolicy?.concurrency;
+	if (!process || !Number.isInteger(currentConcurrency)) return null;
+	if (Number(currentConcurrency) <= Number(maxConcurrency)) return step;
+	const serializedProcessArgs = commandPlanSerializedConcurrencyArgs(
+		process.args,
+		Number(maxConcurrency),
+	);
+	if (!serializedProcessArgs) return null;
+	const serializedDisplay = commandPlanSerializedConcurrencyText(
+		process.display,
+		Number(maxConcurrency),
+	) ?? shellCommand(process.command, serializedProcessArgs);
+	const serializedCommand = commandPlanSerializedConcurrencyText(
+		step.command,
+		Number(maxConcurrency),
+	) ?? serializedDisplay;
+	return {
+		...step,
+		command: serializedCommand,
+		args: [process.command, ...serializedProcessArgs],
+		process: {
+			...process,
+			args: serializedProcessArgs,
+			display: serializedDisplay,
+			resourcePolicy: {
+				...process.resourcePolicy,
+				concurrency: Number(maxConcurrency),
+			},
+		},
+	};
+}
+
+function commandPlanSerializedConcurrencyArgs(
+	args: readonly string[],
+	maxConcurrency: number,
+): string[] | null {
+	for (const [index, arg] of args.entries()) {
+		if (/^--concurrency=\d+$/.test(arg)) {
+			const nextArgs = [...args];
+			nextArgs[index] = `--concurrency=${maxConcurrency}`;
+			return nextArgs;
+		}
+		if (arg === "--concurrency" && /^\d+$/.test(args[index + 1] ?? "")) {
+			const nextArgs = [...args];
+			nextArgs[index + 1] = String(maxConcurrency);
+			return nextArgs;
+		}
+	}
+	return null;
+}
+
+function commandPlanSerializedConcurrencyText(
+	value: string,
+	maxConcurrency: number,
+): string | null {
+	if (/--concurrency=\d+/.test(value)) {
+		return value.replace(/--concurrency=\d+/, `--concurrency=${maxConcurrency}`);
+	}
+	if (/--concurrency\s+\d+/.test(value)) {
+		return value.replace(/--concurrency\s+\d+/, `--concurrency ${maxConcurrency}`);
+	}
+	return null;
+}
+
+function commandPlanResourceCeilingStepResult(
+	step: CommandPlanStep,
+	resourceCeiling: CommandPlanResourceCeilingPlan,
+): CommandPlanStepRunResult {
+	return {
+		...step,
+		ok: false,
+		exitCode: 1,
+		stdout: "",
+		stderr: resourceCeiling.reason,
+		payload: {
+			ok: false,
+			resourceCeiling,
+			nextActions: commandPlanResourceCeilingNextActions(resourceCeiling),
+			nextCommands: commandPlanResourceCeilingNextCommands(resourceCeiling),
+			recommendations: resourceCeiling.recommendations ?? [],
+		},
+	};
+}
+
+function commandPlanResourceCeilingNextActions(
+	resourceCeiling: CommandPlanResourceCeilingPlan,
+): string[] {
+	const nextActions = normalizeHandoffValues([
+		...(resourceCeiling.nextActions ?? []),
+		resourceCeiling.nextAction ?? "",
+	]);
+	return nextActions.length > 0 ? nextActions : [resourceCeiling.reason];
+}
+
+function commandPlanResourceCeilingNextCommands(
+	resourceCeiling: CommandPlanResourceCeilingPlan,
+): string[] {
+	return normalizeHandoffValues([
+		...(resourceCeiling.nextCommands ?? []),
+		resourceCeiling.nextCommand ?? "",
+	]);
 }

@@ -19,9 +19,21 @@ export interface ReleasePolicyProvider {
 export interface ReleasePackageProfile {
 	id: string;
 	risk?: string;
+	surface?: "core" | "app" | "plugin" | "agent" | "shared";
 	bump?: "patch" | "minor" | "major";
 	tags?: string[];
 	mustPassChecks?: string[];
+}
+
+export interface ReleaseAudienceBoundary {
+	consumer: string;
+	naming: string;
+	productLocal: string;
+}
+
+export interface ReleaseSurfaceBlock {
+	surface: "core" | "app" | "plugin" | "agent" | "shared";
+	reason?: string;
 }
 
 export interface ReleasePolicy {
@@ -31,14 +43,23 @@ export interface ReleasePolicy {
 	defaultSelection?: string;
 	selections?: ReleasePolicySelection[];
 	packageProfiles?: ReleasePackageProfile[];
+	surfaceBlocks?: ReleaseSurfaceBlock[];
 	phases: ReleasePolicyPhase[];
 	notes?: string[];
+}
+
+export declare class ReleasePolicyValidationError extends Error {
+	name: "ReleasePolicyValidationError";
+	code: string;
+	details: Record<string, unknown>;
+	constructor(code: string, message: string, details?: Record<string, unknown>);
 }
 
 export interface ReleasePolicySelection {
 	id: string;
 	description?: string;
 	profileTags: string[];
+	audienceBoundary?: ReleaseAudienceBoundary;
 }
 
 export interface ReleasePlanPackage {
@@ -57,6 +78,7 @@ export interface ReleasePlanBlocker {
 	bump?: "patch" | "minor" | "major";
 	source?: string;
 	status: "missing" | "blocked" | string;
+	surface?: string | null;
 	note?: string;
 }
 
@@ -84,6 +106,7 @@ export interface ReleasePlan {
 	selection?: {
 		id: string;
 		description: string | null;
+		audienceBoundary: ReleaseAudienceBoundary | null;
 	} | null;
 	dryRun: boolean;
 	releaseNotes: string;
@@ -116,9 +139,11 @@ export interface ReleasePlanSummary {
 	packageCount: number;
 	packages: string[];
 	blockers: ReleasePlanBlocker[];
+	acceptance: ReleasePlanAcceptance;
 	packageProfiles: Array<{
 		id: string;
 		risk: string | null;
+		surface: string | null;
 		tags: string[];
 		mustPassChecks: string[];
 	}>;
@@ -130,7 +155,66 @@ export interface ReleasePlanSummary {
 	dryRun: boolean;
 }
 
+export interface ReleasePlanAcceptance {
+	status: "accepted" | "blocked";
+	packageCount: number;
+	blockerCount: number;
+	requiredGateCount: number;
+	requiredCheckCount: number;
+	providerCount: number;
+	manualApprovalRequired: boolean;
+	surfaces: string[];
+	profileTags: string[];
+	requiredChecks: Array<{
+		command: string;
+		package: string;
+	}>;
+}
+
+export interface ReleasePlanAuditRecord {
+	schemaVersion: 1;
+	createdAt: string;
+	digest: {
+		algorithm: "sha256";
+		value: string;
+	};
+	payload: {
+		schemaVersion: 1;
+		releaseOutputSchemaVersion: 1;
+		ok: boolean;
+		status: ReleasePlan["status"];
+		policyVersion: string | null;
+		mode: ReleasePolicy["mode"] | null;
+		packageCount: number;
+		packages: string[];
+		blockers: ReleasePlanBlocker[];
+		acceptance: ReleasePlanAcceptance;
+		packageProfiles: ReleasePlanSummary["packageProfiles"];
+		requiredGates: string[];
+		gates: Array<{
+			id: string;
+			required: boolean;
+			riskWeight: number;
+			commandCount: number;
+		}>;
+		publishIntents: Array<{
+			provider: string;
+			type: string | null;
+			mode: ReleasePolicy["mode"] | null;
+			commandCount: number;
+			dryRunCommandCount: number;
+			requiresManualApproval: boolean;
+		}>;
+		profileTags: string[];
+		selection: ReleasePlan["selection"];
+		dryRun: boolean;
+	};
+}
+
 export declare const DEFAULT_POLICY_VERSION: string;
+export declare const SUPPORTED_POLICY_VERSIONS: readonly string[];
+export declare const RELEASE_ENGINE_JSON_SCHEMA_VERSION: 1;
+export declare const RELEASE_PLAN_AUDIT_SCHEMA_VERSION: 1;
 
 export function loadPolicy(policyPath?: string, cwd?: string): ReleasePolicy;
 export function validatePolicy(policy: ReleasePolicy): true;
@@ -153,6 +237,12 @@ export function runReleaseGates(plan: ReleasePlan, options?: {
 }): ReleaseGateResult;
 export function formatPlan(plan: ReleasePlan): string;
 export function summarizePlan(plan: ReleasePlan): ReleasePlanSummary;
+export function releasePlanAcceptance(plan: ReleasePlan): ReleasePlanAcceptance;
+export function stringifyReleasePlanAuditPayload(payload: unknown): string;
+export function createReleasePlanAuditRecord(
+	plan: ReleasePlan,
+	options?: { createdAt?: string },
+): ReleasePlanAuditRecord;
 export function resolvePolicySelection(
 	policy: ReleasePolicy,
 	selectionId?: string,

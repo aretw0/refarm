@@ -185,6 +185,17 @@ describe("refarm sessions", () => {
 				"refarm sessions use 'urn:refarm:session:v1:newer' --json",
 			],
 		});
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			recommendations?: Array<{
+				diagnostic: string;
+				summary: string;
+				action: string;
+				command: string;
+				severity: "warning" | "info" | "error";
+			}>;
+		};
+		expect(payload.recommendations).toBeUndefined();
 	});
 
 	it("list JSON falls back to the newest session when active is stale", async () => {
@@ -214,14 +225,33 @@ describe("refarm sessions", () => {
 			activeSessionStatus: string;
 			nextCommand: string;
 			nextCommands: string[];
+			recommendations?: Array<{
+				diagnostic: string;
+				summary: string;
+				action: string;
+				command: string;
+				severity: "warning" | "info" | "error";
+			}>;
 		};
 		expect(payload.activeSessionStatus).toBe("stale");
 		expect(payload.nextCommand).toBe(
+			"refarm sessions clear --json",
+		);
+		expect(payload.nextCommands).toEqual([
+			"refarm sessions clear --json",
 			"refarm sessions show 'urn:refarm:session:v1:newer' --json",
-		);
-		expect(payload.nextCommands).toContain(
 			"refarm sessions use 'urn:refarm:session:v1:newer' --json",
-		);
+		]);
+		expect(payload.recommendations).toEqual([
+			{
+				diagnostic: "session:active-stale",
+				summary:
+					"Active session pointer references a session that no longer exists.",
+				action: "Clear the stale active session pointer.",
+				command: "refarm sessions clear --json",
+				severity: "warning",
+			},
+		]);
 	});
 
 	it("lists sessions as JSON from the list subcommand", async () => {
@@ -286,12 +316,44 @@ describe("refarm sessions", () => {
 			activeSessionId: "urn:refarm:session:v1:stale",
 			activeSessionStatus: "stale",
 			sessions: [],
+			recommendations: [
+				{
+					diagnostic: "session:active-stale",
+					summary:
+						"Active session pointer references a session that no longer exists.",
+					action: "Clear the stale active session pointer.",
+					command: "refarm sessions clear --json",
+					severity: "warning",
+				},
+			],
 			nextCommand: "refarm sessions clear --json",
 			nextCommands: [
 				"refarm sessions clear --json",
 				"refarm sessions new --json",
 			],
 		});
+	});
+
+	it("list warns about stale active pointer in human output when no sessions exist", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					sessions: [],
+				}),
+			}),
+		);
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:stale");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand().parseAsync([], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0] ?? "")).join("\n");
+		expect(output).toContain("No sessions found");
+		expect(output).toContain("Active pointer is stale");
+		expect(output).toContain("Clear it with: refarm sessions clear");
 	});
 
 	it("prints runtime errors as JSON when session listing cannot reach the runtime", async () => {
@@ -451,6 +513,9 @@ describe("refarm sessions", () => {
 
 	it("sessions clear prints clear result as JSON", async () => {
 		vi.spyOn(fs, "unlinkSync").mockImplementation(() => undefined);
+		vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+			throw new Error("missing");
+		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createSessionsCommand()
@@ -530,6 +595,124 @@ describe("refarm sessions", () => {
 				"refarm sessions list --json",
 			],
 		});
+	});
+
+	it("sessions show surfaces stale active pointer recovery recommendation as JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockImplementation(async (input: string) => {
+				const url = String(input);
+				if (url.includes("/history")) {
+					return {
+						ok: true,
+						status: 200,
+						json: async () => ({
+							session: {
+								"@id": "urn:refarm:session:v1:newer",
+								"@type": "Session",
+								name: "planning",
+							},
+							entries: [],
+							total: 0,
+						}),
+					};
+				}
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ({
+						sessions: [
+							{
+								"@id": "urn:refarm:session:v1:older",
+								"@type": "Session",
+								name: "older",
+							},
+						],
+					}),
+				};
+			}),
+		);
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:stale");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "sessions",
+			operation: "show",
+			session: {
+				"@id": "urn:refarm:session:v1:newer",
+				"@type": "Session",
+				name: "planning",
+			},
+			nextCommand: "refarm sessions clear --json",
+			nextCommands: [
+				"refarm sessions clear --json",
+				"refarm sessions use 'urn:refarm:session:v1:newer' --json",
+				"refarm sessions list --json",
+			],
+			recommendations: [
+				{
+					diagnostic: "session:active-stale",
+					summary:
+						"Active session pointer references a session that no longer exists.",
+					action: "Clear the stale active session pointer.",
+					command: "refarm sessions clear --json",
+					severity: "warning",
+				},
+			],
+		});
+	});
+
+	it("sessions show warns about stale active pointer in human output", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockImplementation(async (input: string) => {
+				const url = String(input);
+				if (url.includes("/history")) {
+					return {
+						ok: true,
+						status: 200,
+						json: async () => ({
+							session: {
+								"@id": "urn:refarm:session:v1:newer",
+								"@type": "Session",
+								name: "planning",
+							},
+							entries: [],
+							total: 0,
+						}),
+					};
+				}
+				return {
+					ok: true,
+					status: 200,
+					json: async () => ({
+						sessions: [
+							{
+								"@id": "urn:refarm:session:v1:older",
+								"@type": "Session",
+								name: "older",
+							},
+						],
+					}),
+				};
+			}),
+		);
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:stale");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createSessionsCommand()
+			.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["abc123"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0] ?? "")).join("\n");
+		expect(output).toContain("Active session pointer is stale");
+		expect(output).toContain("Clear it with: refarm sessions clear");
 	});
 
 	it("sessions show canonicalizes legacy runtime agent prefixes in human output", async () => {

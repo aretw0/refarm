@@ -6,7 +6,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.tsbuildinfo"
   ],
   "exports": {
     ".": {
@@ -33,6 +34,9 @@
     "task",
     "channel"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@refarm.dev/effort-contract-v1": "workspace:*"
   },

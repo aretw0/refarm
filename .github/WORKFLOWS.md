@@ -15,15 +15,19 @@ Runs the main quality checks for code changes:
 
 ### `deploy-dev.yml` — GitHub Pages Deploy
 
-Builds and deploys `apps/dev` to GitHub Pages.
+Builds and deploys `apps/site` to GitHub Pages.
+
+`apps/dev` remains Refarm Studio for runtime dogfood, Homestead diagnostics,
+plugin surfaces, streams, graph, and internal workbenches. It is not the public
+home for `refarm.dev`.
 
 Properties:
 
-- trigger: push to `main`/`master` for app/package/deploy files, plus manual dispatch;
+- trigger: push to `main`/`master` for site/package/deploy files, plus manual dispatch;
 - permissions: `contents: read`, `pages: write`, `id-token: write`;
 - setup cache mode: `off`;
-- build gate: Heartwood WASM package, `apps/dev`, and Astro base-path check;
-- artifact path: `apps/dev/dist`;
+- build gate: `apps/site` data alignment test, static build, and Astro base-path check;
+- artifact path: `apps/site/dist`;
 - no npm publish or release token usage.
 
 ### `release-changesets.yml` — Package Release

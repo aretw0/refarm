@@ -1,0 +1,219 @@
+#!/usr/bin/env node
+import { readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const IMPORTS = [
+	'@import "@refarm.dev/ds/tokens.css";',
+	'@import "@refarm.dev/ds/themes/verde-jardim.css";',
+	'@import "@refarm.dev/ds/components.css";',
+];
+
+const SEMANTIC_TOKENS = new Set([
+	"background",
+	"foreground",
+	"card",
+	"card-foreground",
+	"popover",
+	"popover-foreground",
+	"muted",
+	"muted-foreground",
+	"primary",
+	"primary-foreground",
+	"secondary",
+	"secondary-foreground",
+	"accent",
+	"accent-foreground",
+	"border",
+	"input",
+	"ring",
+	"error",
+	"warning",
+	"success",
+	"info",
+	"radius-sm",
+	"radius-md",
+	"radius-lg",
+	"shadow-sm",
+	"shadow-md",
+	"shadow-lg",
+	"font-sans",
+	"font-mono",
+]);
+
+function parseArgs(argv) {
+	const args = new Map();
+	for (let i = 0; i < argv.length; i += 1) {
+		const arg = argv[i];
+		if (!arg.startsWith("--")) continue;
+		const key = arg.slice(2);
+		const next = argv[i + 1];
+		if (!next || next.startsWith("--")) {
+			args.set(key, true);
+		} else {
+			args.set(key, next);
+			i += 1;
+		}
+	}
+	return args;
+}
+
+function ensureImports(css) {
+	return ensureImportsWithReport(css).css;
+}
+
+function ensureImportsWithReport(css) {
+	const missing = IMPORTS.filter((line) => !css.includes(line));
+	if (missing.length === 0) {
+		return {
+			css,
+			importsAdded: 0,
+		};
+	}
+	return {
+		css: `${missing.join("\n")}\n\n${css.replace(/^\s+/, "")}`,
+		importsAdded: missing.length,
+	};
+}
+
+function stripSemanticDeclarations(css) {
+	return stripSemanticDeclarationsWithReport(css).css;
+}
+
+function stripSemanticDeclarationsWithReport(css) {
+	let output = "";
+	let cursor = 0;
+	let semanticDeclarationsRemoved = 0;
+
+	for (const block of topLevelBlocks(css)) {
+		output += css.slice(cursor, block.start);
+		const selector = css.slice(block.start, block.open).trim();
+		if (!isSemanticTokenSelector(selector)) {
+			output += css.slice(block.start, block.end + 1);
+			cursor = block.end + 1;
+			continue;
+		}
+
+		const body = css.slice(block.open + 1, block.end);
+		const kept = body
+			.split("\n")
+			.filter((line) => {
+				const declaration = /^\s*--([a-z0-9-]+)\s*:/.exec(line);
+				const shouldRemove = declaration && SEMANTIC_TOKENS.has(declaration[1]);
+				if (shouldRemove) semanticDeclarationsRemoved += 1;
+				return !shouldRemove;
+			})
+			.join("\n")
+			.replace(/\n{3,}/g, "\n\n")
+			.trimEnd();
+
+		if (kept.trim().length > 0) {
+			output += `${css.slice(block.start, block.open + 1)}${kept}\n}`;
+		}
+		cursor = block.end + 1;
+	}
+
+	return {
+		css: output + css.slice(cursor),
+		semanticDeclarationsRemoved,
+	};
+}
+
+function isSemanticTokenSelector(selector) {
+	return (
+		selector.includes(":root") ||
+		selector.includes("data-vault-marimo-theme")
+	);
+}
+
+function topLevelBlocks(css) {
+	const blocks = [];
+	let depth = 0;
+	let start = 0;
+	let open = -1;
+
+	for (let index = 0; index < css.length; index += 1) {
+		const char = css[index];
+		if (char === "{") {
+			if (depth === 0) {
+				open = index;
+				start = previousRuleBoundary(css, index);
+			}
+			depth += 1;
+			continue;
+		}
+		if (char !== "}") continue;
+
+		depth -= 1;
+		if (depth === 0 && open >= 0) {
+			blocks.push({ start, open, end: index });
+			open = -1;
+		}
+	}
+
+	return blocks;
+}
+
+function previousRuleBoundary(css, openIndex) {
+	const boundary = css.lastIndexOf("}", openIndex);
+	return boundary === -1 ? 0 : boundary + 1;
+}
+
+export function transformDsTokenAdoption(css) {
+	return transformDsTokenAdoptionWithReport(css).css;
+}
+
+export function transformDsTokenAdoptionWithReport(css) {
+	const imports = ensureImportsWithReport(css);
+	const stripped = stripSemanticDeclarationsWithReport(imports.css);
+	const output = stripped.css
+		.replace(/\n{3,}/g, "\n\n")
+		.trim()
+		.concat("\n");
+	return {
+		css: output,
+		changed: output !== css,
+		importsAdded: imports.importsAdded,
+		semanticDeclarationsRemoved: stripped.semanticDeclarationsRemoved,
+	};
+}
+
+export function runDsTokenAdoptionCli(
+	argv = process.argv.slice(2),
+	{ stdout = process.stdout, stderr = process.stderr } = {},
+) {
+	const args = parseArgs(argv);
+	const input = args.get("input");
+	if (typeof input !== "string") {
+		stderr.write("Usage: node codemods/ds-token-adoption.mjs --input <css> [--write]\n");
+		return 2;
+	}
+
+	const original = readFileSync(input, "utf8");
+	const result = transformDsTokenAdoptionWithReport(original);
+	if (args.get("write")) {
+		writeFileSync(input, result.css);
+	}
+	if (args.get("json")) {
+		stdout.write(
+			`${JSON.stringify({
+				input,
+				changed: result.changed,
+				importsAdded: result.importsAdded,
+				semanticDeclarationsRemoved: result.semanticDeclarationsRemoved,
+				written: Boolean(args.get("write")),
+			}, null, 2)}\n`,
+		);
+	} else {
+		stdout.write(result.css);
+	}
+	return 0;
+}
+
+function isMain() {
+	return process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+}
+
+if (isMain() && process.argv.slice(2).length > 0) {
+	process.exit(runDsTokenAdoptionCli());
+}

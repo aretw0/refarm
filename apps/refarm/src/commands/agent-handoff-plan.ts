@@ -1,4 +1,5 @@
-import { quoteCommandArg, refarmCommand, refarmProcess } from "./command-handoff.js";
+import { quoteCommandArg, refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
+import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -12,7 +13,6 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND
 } from "./credential-handoffs.js";
-import { buildJsonSuccessEnvelope } from "./json-output.js";
 import {
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
@@ -146,13 +146,13 @@ function agentFinishTemplates() {
 			useWhen: "Inspect every workspace declared in the current Refarm config, including bridge resolution and non-blocking recommendations.",
 		},
 		{
-			id: "declared-release-kernel-candidates-json",
-			command: refarmCommand(["release", "plan", "--selection", "default", "--json"]),
-			process: refarmProcess(["release", "plan", "--selection", "default", "--json"]),
+			id: "declared-release-supply-preflight-json",
+			command: refarmCommand(["release", "preflight", "--selection", "default", "--json"]),
+			process: refarmProcess(["release", "preflight", "--selection", "default", "--json"]),
 			effects: ["observe"],
 			writes: false,
 			parameters: [],
-			useWhen: "Inspect the current workspace default release-policy selection without executing gates or publishing.",
+			useWhen: "Inspect the current workspace release-policy selection and supply posture without executing gates, builds, or publishing.",
 		},
 		{
 			id: "external-consumer-release-plan-json",
@@ -182,6 +182,16 @@ function agentFinishTemplates() {
 			parameters: ["dir"],
 			cwdParameter: "dir",
 			useWhen: "Generate a reviewed health policy candidate in a non-Refarm consumer workspace without writing .refarm/config.json.",
+		},
+		{
+			id: "external-consumer-project-handoff-validate-json",
+			command: refarmCommand(["project", "handoff", "validate", "--json"]),
+			process: refarmProcess(["project", "handoff", "validate", "--json"]),
+			effects: ["observe"],
+			writes: false,
+			parameters: ["dir"],
+			cwdParameter: "dir",
+			useWhen: "Validate governed project handoff state in a non-Refarm consumer workspace without writing .project/handoff.json.",
 		},
 		{
 			id: "package-workspace-plan",
@@ -296,7 +306,7 @@ export const agentRuntimePlan = {
 		packageManager: refarmCommand(["package-manager", "--json"]),
 		workspaceExecution: refarmCommand(["workspace", "execution", "--json"]),
 		workspaceSweep: refarmCommand(["workspace", "execution", "--all", "--json"]),
-		releaseKernelCandidates: refarmCommand(["release", "plan", "--selection", "default", "--json"]),
+		releaseSupplyPreflight: refarmCommand(["release", "preflight", "--selection", "default", "--json"]),
 		codingProfile: refarmCommand(["config", "profile", "coding", "--local", "--json"]),
 	},
 	runtime: {

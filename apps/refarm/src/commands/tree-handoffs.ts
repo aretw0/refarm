@@ -1,4 +1,4 @@
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 
 export const TREE_LIST_JSON_COMMAND = refarmCommand([
 	"tree",

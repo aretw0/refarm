@@ -19,6 +19,7 @@ const { title = "Refarm Studio" } = Astro.props;
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{title}</title>
+		<slot name="head" />
 		<style is:global>
 			@import "../styles/tokens.css";
 			@import "../styles/global.css";

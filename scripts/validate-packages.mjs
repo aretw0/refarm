@@ -124,22 +124,232 @@ export function validatePublishSurface(pkg) {
     return ["public packages must declare a non-empty files allowlist"];
   }
 
+  let includesDist = false;
+  let excludesDistTsBuildInfo = false;
+
   for (const entry of pkg.files) {
     if (typeof entry !== "string") {
       violations.push("files entries must be strings");
       continue;
     }
+    if (entry === "dist") includesDist = true;
+    if (entry === "!dist/**/*.tsbuildinfo") excludesDistTsBuildInfo = true;
     if (entry === "" || entry === ".") {
       violations.push('files must not include "." or empty entries');
     }
     if (entry.includes(".turbo") || entry.includes(".pi-lens") || entry.includes("node_modules")) {
       violations.push(`files entry "${entry}" must not include local cache/runtime state`);
     }
-    if (entry.includes("tsbuildinfo")) {
+    if (!entry.startsWith("!") && entry.includes("tsbuildinfo")) {
       violations.push(`files entry "${entry}" must not include TypeScript incremental state`);
     }
   }
 
+  if (includesDist && !excludesDistTsBuildInfo) {
+    violations.push('files includes "dist" and must exclude "dist/**/*.tsbuildinfo"');
+  }
+
+  return violations;
+}
+
+export function validateRuntimeAgentPluginPackage(pkg) {
+  const violations = [];
+  if (pkg?.name !== "@refarm.dev/pi-agent") return violations;
+
+  const files = Array.isArray(pkg.files) ? pkg.files : [];
+  const requiredFiles = [
+    "dist/pi_agent.wasm",
+    "dist/plugin.json",
+    "dist/jco",
+  ];
+  for (const entry of requiredFiles) {
+    if (!files.includes(entry)) {
+      violations.push(`runtime-agent plugin package files must include "${entry}"`);
+    }
+  }
+
+  if (pkg.private !== true && pkg.publishConfig?.access !== "public") {
+    violations.push("runtime-agent plugin package must declare publishConfig.access=\"public\" before publication");
+  }
+
+  const buildWasm = pkg.scripts?.["build:wasm"] ?? "";
+  if (!buildWasm.includes("check:wit")) {
+    violations.push('runtime-agent plugin build:wasm must run "check:wit" before building artifacts');
+  }
+  if (!buildWasm.includes("dist/pi_agent.wasm")) {
+    violations.push('runtime-agent plugin build:wasm must write "dist/pi_agent.wasm"');
+  }
+  if (!buildWasm.includes("dist/plugin.json")) {
+    violations.push('runtime-agent plugin build:wasm must write "dist/plugin.json"');
+  }
+
+  const buildJco = pkg.scripts?.["build:jco"] ?? "";
+  if (!buildJco.includes("dist/pi_agent.wasm")) {
+    violations.push('runtime-agent plugin build:jco must read "dist/pi_agent.wasm"');
+  }
+  if (!buildJco.includes("dist/jco")) {
+    violations.push('runtime-agent plugin build:jco must write "dist/jco"');
+  }
+
+  return violations;
+}
+
+export function validateSiloPublicApi(pkg) {
+  const violations = [];
+  if (pkg?.name !== "@refarm.dev/silo") return violations;
+
+  const requiredSubpaths = {
+    "./collect": {
+      import: "./dist/collect.js",
+      types: "./dist/collect.d.ts",
+    },
+    "./key-manager": {
+      import: "./dist/key-manager.js",
+      types: "./dist/key-manager.d.ts",
+    },
+  };
+
+  for (const [subpath, expected] of Object.entries(requiredSubpaths)) {
+    const exported = pkg.exports?.[subpath];
+    if (!exported || typeof exported !== "object") {
+      violations.push(`silo public API must declare exports["${subpath}"]`);
+      continue;
+    }
+    if (exported.import !== expected.import) {
+      violations.push(`silo exports["${subpath}"].import must be "${expected.import}"`);
+    }
+    if (exported.types !== expected.types) {
+      violations.push(`silo exports["${subpath}"].types must be "${expected.types}"`);
+    }
+  }
+
+  return violations;
+}
+
+export function validateDsPublicApi(pkg) {
+  const violations = [];
+  if (pkg?.name !== "@refarm.dev/ds") return violations;
+
+  const requiredSubpaths = {
+    "./contract": {
+      import: "./dist/contract.js",
+      types: "./dist/contract.d.ts",
+    },
+    "./theme-conformance": {
+      import: "./dist/theme-conformance.js",
+      types: "./dist/theme-conformance.d.ts",
+    },
+    "./html": {
+      import: "./dist/html.js",
+      types: "./dist/html.d.ts",
+    },
+  };
+
+  for (const [subpath, expected] of Object.entries(requiredSubpaths)) {
+    const exported = pkg.exports?.[subpath];
+    if (!exported || typeof exported !== "object") {
+      violations.push(`ds public API must declare exports["${subpath}"]`);
+      continue;
+    }
+    if (exported.import !== expected.import) {
+      violations.push(`ds exports["${subpath}"].import must be "${expected.import}"`);
+    }
+    if (exported.types !== expected.types) {
+      violations.push(`ds exports["${subpath}"].types must be "${expected.types}"`);
+    }
+  }
+
+  return violations;
+}
+
+const WIT_COMPONENT_DISTRIBUTION_TARGETS = [
+  {
+    id: "agent-tools",
+    packageDir: "packages/agent-tools",
+    cargoPackage: "refarm:agent-tools",
+    targetPath: "wit",
+    targetWorld: "agent-tools-provider",
+    witPath: "wit/world.wit",
+    witPackage: "refarm:agent-tools@0.1.0",
+    world: "agent-tools-provider",
+    imports: ["host-spawn"],
+    exports: ["agent-fs", "agent-shell", "structured-io"],
+  },
+  {
+    id: "refarm-plugin",
+    packageDir: "packages/refarm-plugin-wit",
+    cargoPackage: "refarm:plugin",
+    targetPath: "wit",
+    witPath: "wit/refarm-plugin-host.wit",
+    witPackage: "refarm:plugin@0.1.0",
+    world: "refarm-plugin-host",
+    imports: ["tractor-bridge", "model-bridge", "agent-fs", "agent-shell", "structured-io", "code-ops"],
+    exports: ["integration"],
+  },
+];
+
+export function validateWitComponentDistributionTarget(target, contents) {
+  const violations = [];
+  const cargoToml = contents?.cargoToml ?? "";
+  const wit = contents?.wit ?? "";
+
+  if (!cargoToml.includes("[package.metadata.component]")) {
+    violations.push(`${target.id} Cargo.toml must declare [package.metadata.component]`);
+  }
+  if (!cargoToml.includes(`package = "${target.cargoPackage}"`)) {
+    violations.push(`${target.id} Cargo.toml must declare component package "${target.cargoPackage}"`);
+  }
+  if (!cargoToml.includes("[package.metadata.component.target]")) {
+    violations.push(`${target.id} Cargo.toml must declare [package.metadata.component.target]`);
+  }
+  if (!cargoToml.includes(`path = "${target.targetPath}"`)) {
+    violations.push(`${target.id} Cargo.toml component target must point at "${target.targetPath}"`);
+  }
+  if (target.targetWorld && !cargoToml.includes(`world = "${target.targetWorld}"`)) {
+    violations.push(`${target.id} Cargo.toml component target must declare world "${target.targetWorld}"`);
+  }
+
+  if (!wit.includes(`package ${target.witPackage};`)) {
+    violations.push(`${target.id} WIT must declare package ${target.witPackage}`);
+  }
+  if (!wit.includes(`world ${target.world} {`)) {
+    violations.push(`${target.id} WIT must declare world ${target.world}`);
+  }
+  for (const importName of target.imports) {
+    if (!wit.includes(`import ${importName};`)) {
+      violations.push(`${target.id} WIT world must import ${importName}`);
+    }
+  }
+  for (const exportName of target.exports) {
+    if (!wit.includes(`export ${exportName};`)) {
+      violations.push(`${target.id} WIT world must export ${exportName}`);
+    }
+  }
+
+  return violations;
+}
+
+export function validateWitComponentDistributionPreflight(targets = WIT_COMPONENT_DISTRIBUTION_TARGETS) {
+  const violations = [];
+  for (const target of targets) {
+    const packageDir = join(ROOT, target.packageDir);
+    const cargoPath = join(packageDir, "Cargo.toml");
+    const witPath = join(packageDir, target.witPath);
+    if (!existsSync(cargoPath)) {
+      violations.push(`${target.id} Cargo.toml missing at ${target.packageDir}/Cargo.toml`);
+      continue;
+    }
+    if (!existsSync(witPath)) {
+      violations.push(`${target.id} WIT missing at ${target.packageDir}/${target.witPath}`);
+      continue;
+    }
+    violations.push(
+      ...validateWitComponentDistributionTarget(target, {
+        cargoToml: readFileSync(cargoPath, "utf8"),
+        wit: readFileSync(witPath, "utf8"),
+      }),
+    );
+  }
   return violations;
 }
 
@@ -260,13 +470,34 @@ function validateSourceOnly(pkgDir, pkg) {
   return violations;
 }
 
-function validateWasmComponent(pkgDir, pkg) {
+export function validateWasmComponent(pkgDir, pkg) {
   const violations = [];
 
   if (!existsSync(join(pkgDir, "Cargo.toml"))) violations.push("Cargo.toml missing");
   if (!pkg.scripts?.["build:wasm"]) violations.push('script "build:wasm" missing');
   if (!pkg.scripts?.["build:transpile"]) violations.push('script "build:transpile" missing');
   if (!pkg.scripts?.build) violations.push('script "build" missing');
+
+  if (pkg.private !== true && pkg.publishConfig?.access === "public") {
+    if (typeof pkg.main !== "string" || !pkg.main.endsWith(".js")) {
+      violations.push("public WASM component packages must declare a JavaScript main entry");
+    }
+    if (typeof pkg.types !== "string" || !pkg.types.endsWith(".d.ts")) {
+      violations.push("public WASM component packages must declare a .d.ts types entry");
+    }
+
+    const dot = pkg.exports?.["."];
+    if (!dot || typeof dot !== "object") {
+      violations.push('public WASM component packages must declare exports["."] with "import" and "types" fields');
+    } else {
+      if (dot.import !== pkg.main) {
+        violations.push('public WASM component exports["."].import must match package main');
+      }
+      if (dot.types !== pkg.types) {
+        violations.push('public WASM component exports["."].types must match package types');
+      }
+    }
+  }
 
   return violations;
 }
@@ -429,6 +660,16 @@ function main() {
     }
   }
 
+  const witComponentDistributionViolations = validateWitComponentDistributionPreflight();
+  if (witComponentDistributionViolations.length === 0) {
+    console.log("  ✓ WIT component distribution preflight");
+  } else {
+    for (const v of witComponentDistributionViolations) {
+      console.log(`  ✗ WIT component distribution preflight — ${v}`);
+      violations++;
+    }
+  }
+
   for (const pkgDir of packageDirs) {
     const name = pkgDir.split("/").at(-1);
     const { type, pkg, reason } = classifyPackage(pkgDir);
@@ -459,6 +700,9 @@ function main() {
     else if (type === "config-pkg") pkgViolations = validateConfigPkg(pkgDir, pkg);
     pkgViolations.push(...validateTestScriptRequiresTests(pkg));
     pkgViolations.push(...validatePublishSurface(pkg));
+    pkgViolations.push(...validateRuntimeAgentPluginPackage(pkg));
+    pkgViolations.push(...validateSiloPublicApi(pkg));
+    pkgViolations.push(...validateDsPublicApi(pkg));
 
     if (pkgViolations.length === 0) {
       console.log(`  ✓ ${name.padEnd(30)} ${type}`);

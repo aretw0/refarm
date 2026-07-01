@@ -6,7 +6,12 @@
 	"compilerOptions": {
 		"outDir": "dist",
 		"rootDir": "src",
-		"baseUrl": "../.."
+		"baseUrl": "../..",
+		"paths": {
+			"@refarm.dev/session-contract-v1": [
+				"./packages/session-contract-v1/dist/index.d.ts"
+			]
+		}
 	},
 	"include": [
 		"src/**/*"

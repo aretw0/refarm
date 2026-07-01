@@ -178,8 +178,8 @@ interface structured-io {
 ///
 /// Host manages the LSP server subprocess; plugin calls clean primitives without
 /// knowing whether the backend is rust-analyzer, typescript-language-server, etc.
-/// Returns "lsp not connected" stub until tractor-side LSP bridge is implemented
-/// (ROADMAP v0.3.0 code-ops section).
+/// Tractor exposes these operations through its generic LSP bridge; concrete
+/// backend readiness remains a host concern.
 interface code-ops {
     /// Location of a symbol in source code.
     record symbol-location {

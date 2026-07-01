@@ -29,6 +29,9 @@
 
 - [x] Unit: `LoroDoc` snapshot and delta encoding/decoding.
 - [x] Unit: Projector mapping logic (Doc → SQL).
+- [x] Unit: `BrowserSyncClient` connects to `ws://localhost:42000`, sends local
+      binary state on open, forwards local deltas, and applies received binary
+      snapshots/updates.
 - [x] Coverage: >85%
 
 ### DDD (Domain Implementation) ✅
@@ -61,4 +64,21 @@
 
 - See [packages/sync-loro/src/loro-crdt-storage.ts](./src/loro-crdt-storage.ts) for core logic.
 - `BrowserSyncClient` remains schema-neutral: it transports Loro binary updates and must not special-case `AgentResponse`, `StreamChunk`, or `StreamSession`; stream rendering belongs in the UI subscriber that reads materialized Tractor nodes.
+- The browser sync client contract is covered with a fake WebSocket. The
+  `apps/me` Gate 3b app-level proof now boots the browser app, applies a runtime
+  snapshot, and proves an offline local mutation is included in the reconnect
+  payload. The combined release-gate observation is covered by
+  `pnpm -C apps/me run smoke:real-daemon-roundtrip`, which proves
+  `apps/me` -> real Tractor daemon -> read-model query for the exact offline
+  node.
+- `BrowserSyncClient` emits lifecycle/update events for host-owned telemetry
+  (`connecting`, `open`, local send, remote receive/apply, close, error). These
+  events are intentionally transport-level and do not interpret the Loro
+  payload.
+- Runtime transport smoke is available through
+  `REFARM_SYNC_RUNTIME_URL=ws://127.0.0.1:42000 pnpm -C packages/sync-loro exec node scripts/smoke-browser-sync-runtime.mjs`.
+  It proves a running Tractor daemon sends a non-empty initial binary snapshot
+  that reaches `BrowserSyncClient.applyUpdate`. In this sandbox, the command
+  needs local-network permission; Vitest workers return `EPERM` for the same
+  socket.
 - The "Blood" of the sovereign farm — ensuring information flows consistently across all nodes.

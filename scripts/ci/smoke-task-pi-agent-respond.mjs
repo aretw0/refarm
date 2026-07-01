@@ -25,6 +25,7 @@ import {
 } from "./subprocess-utils.mjs";
 
 const TERMINAL_STATUSES = new Set(["done", "failed", "cancelled"]);
+const SIDE_CAR_POLL_TIMEOUT_MS = 2_000;
 
 function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
@@ -93,7 +94,9 @@ async function waitForSidecarReady(url, farmhand, timeoutMs = 20_000) {
 			throw new Error(`Farmhand exited early with code ${farmhand.exitCode}`);
 		}
 		try {
-			const response = await fetch(url);
+			const response = await fetch(url, {
+				signal: AbortSignal.timeout(SIDE_CAR_POLL_TIMEOUT_MS),
+			});
 			if (response.ok) return;
 		} catch {
 			// sidecar still booting

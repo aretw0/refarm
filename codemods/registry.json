@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "node-test-to-vitest",
+      "status": "ready",
+      "ownerSurface": "consumer repo",
+      "tool": "codemod",
+      "inputs": ["JavaScript/MJS tests importing node:test or using simple CommonJS require(\"node:test\") plus simple node:assert/strict assertions; simple literal CommonJS requires are converted to ESM and .js-to-.mjs renames are reported via renameToMjs"],
+      "fixtures": [
+        "codemods/fixtures/node-test-to-vitest.before.mjs",
+        "codemods/fixtures/node-test-to-vitest.after.mjs",
+        "codemods/fixtures/node-test-to-vitest-cjs.before.js",
+        "codemods/fixtures/node-test-to-vitest-cjs.after.mjs"
+      ],
+      "dryRunCommand": "node codemods/node-test-to-vitest.mjs --input path/to/test.mjs --json",
+      "verificationGate": "node --test codemods/registry.test.mjs codemods/node-test-to-vitest.test.mjs; migrated consumer test files run under vitest; unhandled assertions reviewed before --write",
+      "rollbackNote": "Runner/API migration only; rerun without --write for review, keep unhandled report, and revert the changed test files if Vitest parity regresses"
+    },
+    {
+      "id": "npm-scope-doc-sweep",
+      "status": "candidate",
+      "ownerSurface": "docs",
+      "tool": "manual-reviewed",
+      "inputs": ["docs that name @aretw0 as a refarm publish scope (ADR-069 Migration)"],
+      "fixtures": [],
+      "dryRunCommand": null,
+      "verificationGate": "no refarm publish target names @aretw0",
+      "rollbackNote": "git revert the doc commit; reviewed replace list avoids blind owner-handle rewrites"
+    },
+    {
+      "id": "credential-provider-rehome",
+      "status": "retired",
+      "ownerSurface": "package",
+      "tool": "ts-morph",
+      "inputs": ["apps/refarm/src/credentials/*.ts import of local types.ts"],
+      "fixtures": [],
+      "dryRunCommand": null,
+      "verificationGate": "landed manually in 6ba34fce; providers import @refarm.dev/silo through types.ts and existing credential tests passed",
+      "rollbackNote": "retired before codemod promotion because the manual 4c change was smaller than fixture/tooling setup"
+    },
+    {
+      "id": "ds-token-adoption",
+      "status": "ready",
+      "ownerSurface": "consumer repo",
+      "tool": "codemod",
+      "inputs": ["vault-seed/.site/styles/marimo-vault.css locally-defined contract vars"],
+      "fixtures": [
+        "codemods/fixtures/ds-token-adoption.before.css",
+        "codemods/fixtures/ds-token-adoption.after.css"
+      ],
+      "dryRunCommand": "node codemods/ds-token-adoption.mjs --input vault-seed/.site/styles/marimo-vault.css --json",
+      "verificationGate": "node --test codemods/registry.test.mjs codemods/ds-token-adoption.test.mjs; Lab CSS imports @refarm.dev/ds tokens + verde-jardim; no visual regression",
+      "rollbackNote": "CSS custom-property migration; rerun without --write for review, and revert the stylesheet commit if adoption regresses"
+    },
+    {
+      "id": "package-workspace-adoption",
+      "status": "ready",
+      "ownerSurface": "consumer repo",
+      "tool": "codemod",
+      "inputs": ["package.json/package.template.json package name and selected workspace: dependency ranges for generated or external consumers"],
+      "fixtures": [
+        "codemods/fixtures/package-workspace-adoption.before.json",
+        "codemods/fixtures/package-workspace-adoption.after.json"
+      ],
+      "dryRunCommand": "node codemods/package-workspace-adoption.mjs --input vault-seed/package.template.json --external @aretw0/dgk-astro-plugins=latest --json",
+      "verificationGate": "node --test codemods/registry.test.mjs codemods/package-workspace-adoption.test.mjs; generated consumer package has no workspace: dependencies that point at excluded packages",
+      "rollbackNote": "Package JSON migration; rerun without --write for review, and revert the package manifest commit if installation or package identity regresses"
+    },
+    {
+      "id": "vault-seed-manifest-inventory",
+      "status": "retired",
+      "ownerSurface": "cross-repo",
+      "tool": "generator",
+      "inputs": ["generators/vault-seed/manifest.json (item 9a)"],
+      "fixtures": [],
+      "dryRunCommand": null,
+      "verificationGate": "landed as generator in 51e2a15e/bdd85184/ca978295; generated-vault smoke passed against the vault-seed checkout",
+      "rollbackNote": "retired from codemod promotion because item 9a fulfilled the manifest/inventory contract as generator-first work"
+    }
+  ]
+}

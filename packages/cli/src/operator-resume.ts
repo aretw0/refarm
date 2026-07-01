@@ -74,14 +74,74 @@ export interface OperatorResumeFinishRecord {
 	remainingCommands: readonly string[];
 }
 
+export interface OperatorResumeScheduledWorkSummary {
+	total: number;
+	due: number;
+	scheduled: number;
+	unsupported: number;
+}
+
+export interface OperatorResumeScheduledWorkJob {
+	id: string;
+	automationId: string;
+	name: string;
+	owner: string;
+	kind: "one-shot" | "recurring";
+	status: "due" | "scheduled" | "unsupported";
+	schedule: {
+		type: string;
+		at?: string;
+		schedule?: string;
+		timezone?: string;
+	};
+	unsupportedReason?: string;
+	modelRoute: "none" | string;
+	tokenUse: "none" | string;
+	resume?: {
+		visible: boolean;
+		summary?: string;
+	};
+}
+
+export interface OperatorResumeScheduledWorkInspection {
+	schemaVersion: number;
+	owner: string;
+	generatedAt: string;
+	summary: OperatorResumeScheduledWorkSummary;
+	jobs: readonly OperatorResumeScheduledWorkJob[];
+}
+
+export interface OperatorResumeEnvironmentPressureSignal {
+	id: string;
+	kind: string;
+	severity: "info" | "warning" | "failure";
+	ok: boolean;
+	summary: string;
+	action: string | null;
+	command?: string | null;
+	path?: string;
+}
+
+export interface OperatorResumeEnvironmentPressure {
+	command: string;
+	operation: string;
+	ok: boolean;
+	decision: "continue" | "safe-mode" | "stop-and-investigate";
+	signals: readonly OperatorResumeEnvironmentPressureSignal[];
+	nextCommands: readonly string[];
+}
+
 export interface OperatorResumeInput {
 	status?: RefarmStatusJson;
 	model?: OperatorResumeModelSummary;
+	project?: OperatorResumeProjectSummary | null;
 	taskCheckpoint?: OperatorResumeTaskCheckpoint | null;
 	activeSessionId?: string | null;
 	recentSessions?: readonly OperatorResumeSessionRecord[];
 	recentPrompts?: readonly string[];
 	finish?: OperatorResumeFinishRecord | null;
+	scheduledWork?: OperatorResumeScheduledWorkInspection | null;
+	environmentPressure?: OperatorResumeEnvironmentPressure | null;
 	commands?: Partial<OperatorResumeCommands>;
 }
 
@@ -112,6 +172,17 @@ export interface OperatorResumeModelSummary {
 	doctorCommand?: string;
 }
 
+export interface OperatorResumeProjectSummary {
+	path: string;
+	timestamp?: string;
+	currentPhase?: string | number;
+	context?: string;
+	currentTasks: readonly string[];
+	blockers: readonly string[];
+	nextActions: readonly string[];
+	openQuestions: readonly string[];
+}
+
 export interface OperatorResumeSessionSummary {
 	status: "none" | "active" | "stale";
 	activeSessionId?: string;
@@ -139,6 +210,9 @@ export interface OperatorResumeSummary {
 	status: "empty" | "ok";
 	runtime?: OperatorResumeRuntimeSummary;
 	model?: OperatorResumeModelSummary;
+	project?: OperatorResumeProjectSummary;
+	scheduledWork?: OperatorResumeScheduledWorkInspection;
+	environmentPressure?: OperatorResumeEnvironmentPressure;
 	session: OperatorResumeSessionSummary;
 	recentPrompts: readonly string[];
 	finish: OperatorResumeFinishSummary;
@@ -227,6 +301,10 @@ function taskJsonSummary(
 			: undefined,
 		recentEfforts,
 	};
+}
+
+function isRefarmResumeCommand(command: string): boolean {
+	return command.trim().startsWith("refarm ");
 }
 
 function isTerminalTaskStatus(status: string | undefined): boolean {
@@ -353,15 +431,21 @@ export function buildOperatorResumeSummary(
 	return {
 			status: runtime ||
 				Boolean(input.model) ||
+				Boolean(input.project) ||
+				Boolean(input.scheduledWork) ||
+				Boolean(input.environmentPressure) ||
 				session.status !== "none" ||
 			session.recentSessions.length > 0 ||
 			efforts.length > 0 ||
 			(input.recentPrompts?.length ?? 0) > 0 ||
 			finish.status !== "none"
 			? "ok"
-			: "empty",
+		: "empty",
 		runtime,
 		model: input.model,
+		project: input.project ?? undefined,
+		scheduledWork: input.scheduledWork ?? undefined,
+		environmentPressure: input.environmentPressure ?? undefined,
 		session,
 		recentPrompts: (input.recentPrompts ?? []).slice(0, 5),
 		finish,
@@ -385,15 +469,20 @@ export function operatorResumeNextCommands(
 
 	const nextCommands: string[] = [];
 
+	if (summary.environmentPressure?.decision === "stop-and-investigate") {
+		nextCommands.push(
+			...summary.environmentPressure.nextCommands.filter(isRefarmResumeCommand),
+		);
+		return [...new Set(nextCommands)];
+	}
+
 	// Recovery: finish failed — the most urgent resumption point.
 	if (summary.finish.status === "failed") {
 		nextCommands.push(...summary.finish.nextCommands);
 	}
 
-	// Context: show the active or most recent session.
-	const sessionCommand = summary.session.showCommand
-		?? summary.session.recentSessions[0]?.showCommand;
-	if (sessionCommand) nextCommands.push(sessionCommand);
+	// Context: only active sessions are actionable; recent sessions stay contextual.
+	if (summary.session.showCommand) nextCommands.push(summary.session.showCommand);
 	else if (summary.session.status === "stale") {
 		nextCommands.push(resolved.sessionClear);
 		nextCommands.push(resolved.sessionList);
@@ -583,6 +672,67 @@ export function formatOperatorResumeSummary(
 	} else {
 		lines.push("Model: not inspected");
 	}
+	if (summary.project) {
+		const phase = summary.project.currentPhase !== undefined
+			? ` phase=${summary.project.currentPhase}`
+			: "";
+		const timestamp = summary.project.timestamp
+			? ` timestamp=${summary.project.timestamp}`
+			: "";
+		lines.push(`Project handoff: ${summary.project.path}${phase}${timestamp}`);
+		if (summary.project.context) {
+			lines.push(`  context: ${truncateResumeText(summary.project.context, 180)}`);
+		}
+		for (const task of summary.project.currentTasks) {
+			lines.push(`  current: ${task}`);
+		}
+		for (const action of summary.project.nextActions) {
+			lines.push(`  next: ${action}`);
+		}
+		for (const blocker of summary.project.blockers) {
+			lines.push(`  blocker: ${blocker}`);
+		}
+		for (const question of summary.project.openQuestions) {
+			lines.push(`  question: ${question}`);
+		}
+	} else {
+		lines.push("Project handoff: none");
+	}
+	if (summary.scheduledWork) {
+		const { summary: scheduledSummary } = summary.scheduledWork;
+		lines.push(
+			`Scheduled work: ${scheduledSummary.total} local job${scheduledSummary.total === 1 ? "" : "s"} due=${scheduledSummary.due} scheduled=${scheduledSummary.scheduled} unsupported=${scheduledSummary.unsupported}`,
+		);
+		lines.push(`  owner: ${summary.scheduledWork.owner}`);
+		for (const job of summary.scheduledWork.jobs.slice(0, 10)) {
+			const schedule = formatScheduledWorkSchedule(job);
+			lines.push(
+				`  ${job.id} ${job.status} ${job.kind} ${job.name}${schedule ? ` ${schedule}` : ""}`,
+			);
+			if (job.resume?.summary) {
+				lines.push(`    resume: ${job.resume.summary}`);
+			}
+			if (job.unsupportedReason) {
+				lines.push(`    unsupported: ${job.unsupportedReason}`);
+			}
+		}
+	} else {
+		lines.push("Scheduled work: none");
+	}
+	if (summary.environmentPressure) {
+		lines.push(
+			`Environment pressure: ${summary.environmentPressure.decision} (${summary.environmentPressure.signals.length} signals)`,
+		);
+		for (const signal of summary.environmentPressure.signals.filter(
+			(signal) => signal.severity !== "info",
+		).slice(0, 5)) {
+			lines.push(`  ${signal.severity}: ${signal.summary}`);
+			if (signal.action) lines.push(`    action: ${signal.action}`);
+			if (signal.command) lines.push(`    command: ${signal.command}`);
+		}
+	} else {
+		lines.push("Environment pressure: not inspected");
+	}
 	if (
 		(summary.session.status === "active" || summary.session.status === "stale") &&
 		summary.session.activeSessionId
@@ -677,4 +827,20 @@ export function formatOperatorResumeSummary(
 		lines.push(`    logs:   ${effort.logsCommand}`);
 	}
 	return lines.join("\n");
+}
+
+function formatScheduledWorkSchedule(
+	job: OperatorResumeScheduledWorkJob,
+): string | undefined {
+	if (job.schedule.type === "once" && job.schedule.at) {
+		return `at=${job.schedule.at}`;
+	}
+	if (job.schedule.type === "cron" && job.schedule.schedule) {
+		return `cron=${job.schedule.schedule}${job.schedule.timezone ? ` timezone=${job.schedule.timezone}` : ""}`;
+	}
+	return undefined;
+}
+
+function truncateResumeText(value: string, maxLength: number): string {
+	return value.length <= maxLength ? value : `${value.slice(0, maxLength - 3)}...`;
 }

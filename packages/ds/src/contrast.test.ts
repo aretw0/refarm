@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 
 const AA_NORMAL_TEXT = 4.5;
 
@@ -30,7 +30,7 @@ function channelLuminance(channel: number): number {
 	return srgb <= 0.03928 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
 }
 
-describe("Refarm DS text contrast", () => {
+describe("DS text contrast", () => {
 	it("keeps secondary text accessible on dark DS surfaces", () => {
 		for (const background of ["#0d1117", "#161b22", "#21262d"]) {
 			expect(contrastRatio("#8b949e", background)).toBeGreaterThanOrEqual(
@@ -46,7 +46,7 @@ describe("Refarm DS text contrast", () => {
 		);
 		const styles = readFileSync(stylesPath, "utf8");
 		const workbenchBlock =
-			styles.match(/\.refarm-workbench\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
+			styles.match(/\.ds-workbench[\s\S]*?\.refarm-workbench\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
 
 		expect(workbenchBlock).toContain("rgba(22, 27, 34");
 		expect(workbenchBlock).toContain("rgba(13, 17, 23");

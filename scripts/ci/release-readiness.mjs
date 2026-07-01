@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createPackageScriptCommand } from "../../packages/config/src/package-manager.js";
 import { parseJsonOutput, runSubprocess } from "./subprocess-utils.mjs";
 
@@ -41,6 +43,12 @@ const RELEASE_READINESS_STEPS = [
 		reason: "Generated artifacts must stay derived from source, not manually edited.",
 	},
 	{
+		id: "test-runner-contracts",
+		script: "test-runner:contracts",
+		reason:
+			"Test runner scripts must keep cheap gates explicit and avoid misleading app-level Vitest footguns.",
+	},
+	{
 		id: "github-actions-pins",
 		script: "actions:pins",
 		reason: "Release workflows must keep third-party actions pinned immutably.",
@@ -51,9 +59,39 @@ const RELEASE_READINESS_STEPS = [
 		reason: "Reusable workflow and publish contracts must remain valid.",
 	},
 	{
+		id: "codemod-registry",
+		script: "codemods:check",
+		reason:
+			"Consumer-pulled mechanical adoption paths must keep fixtures, dry-run commands, and rollback notes.",
+	},
+	{
+		id: "audience-boundary",
+		script: "audience:boundary:test",
+		reason:
+			"Public SDK and release surfaces must keep product-specific naming behind explicit boundaries.",
+	},
+	{
+		id: "release-boundary-audit",
+		script: "release:boundary:audit",
+		reason:
+			"Release handoff packages must expose consumer-neutral names, selected leaves, and proof-gated holds as machine-readable audit output.",
+	},
+	{
+		id: "reference-driver",
+		script: "reference-driver:smoke",
+		reason:
+			"Runtime-agent/reference-driver primitives must pass their lightweight no-provider smoke before publication packaging.",
+	},
+	{
+		id: "vault-seed-publish-plan",
+		script: "release:vault-seed:plan",
+		reason:
+			"Consumer-pulled vault-seed-ready packages must resolve to an accepted publish plan before release approval.",
+	},
+	{
 		id: "publish-dry-run",
 		script: "release:check",
-		reason: "Workspace package manifests must survive a publish dry-run.",
+		reason: "Release-policy package manifests must survive a publish dry-run.",
 	},
 ];
 
@@ -76,14 +114,14 @@ function packageScriptCommand(script) {
 	};
 }
 
-function buildPlan() {
+export function buildPlan() {
 	return RELEASE_READINESS_STEPS.map((step) => ({
 		...step,
 		...packageScriptCommand(step.script),
 	}));
 }
 
-function serializeStep({ id, script, reason, display }) {
+export function serializeStep({ id, script, reason, display }) {
 	return {
 		id,
 		script,
@@ -92,7 +130,7 @@ function serializeStep({ id, script, reason, display }) {
 	};
 }
 
-function serializePlan(plan) {
+export function serializePlan(plan) {
 	return plan.map((step) => serializeStep(step));
 }
 
@@ -239,61 +277,72 @@ function aggregateResults(results) {
 	};
 }
 
-const args = process.argv.slice(2).filter((arg) => arg !== "--");
-const planOnly = args.includes("--plan");
-const json = args.includes("--json");
-const unknownArgs = args.filter((arg) => arg !== "--plan" && arg !== "--json");
-
-if (unknownArgs.length > 0) {
-	console.error(`Unknown argument: ${unknownArgs[0]}`);
-	usage();
-	process.exit(1);
+export function parseReleaseReadinessArgs(argv = []) {
+	const args = argv.filter((arg) => arg !== "--");
+	const planOnly = args.includes("--plan");
+	const json = args.includes("--json");
+	const unknownArgs = args.filter((arg) => arg !== "--plan" && arg !== "--json");
+	return { planOnly, json, unknownArgs };
 }
 
-const plan = buildPlan();
+function isMain() {
+	return process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+}
 
-if (planOnly) {
+if (isMain()) {
+	const { planOnly, json, unknownArgs } = parseReleaseReadinessArgs(process.argv.slice(2));
+
+	if (unknownArgs.length > 0) {
+		console.error(`Unknown argument: ${unknownArgs[0]}`);
+		usage();
+		process.exit(1);
+	}
+
+	const plan = buildPlan();
+
+	if (planOnly) {
+		if (json) {
+			console.log(
+				JSON.stringify(
+					{
+						ok: true,
+						command: "release-readiness",
+						mode: "plan",
+						steps: serializePlan(plan),
+					},
+					null,
+					2,
+				),
+			);
+			process.exit(0);
+		}
+
+		for (const step of plan) {
+			console.log(`${step.id}: ${step.display}`);
+		}
+		process.exit(0);
+	}
+
+	const runResult = await runPlan(plan, { json });
+	const aggregate = aggregateResults(runResult.results);
+
 	if (json) {
 		console.log(
 			JSON.stringify(
 				{
-					ok: true,
+					ok: runResult.ok,
 					command: "release-readiness",
-					mode: "plan",
+					mode: "run",
+					failedStepId: runResult.failedStepId,
 					steps: serializePlan(plan),
+					results: runResult.results,
+					...aggregate,
 				},
 				null,
 				2,
 			),
 		);
-		process.exit(0);
 	}
 
-	for (const step of plan) {
-		console.log(`${step.id}: ${step.display}`);
-	}
-	process.exit(0);
+	if (!runResult.ok) process.exit(1);
 }
-
-const runResult = await runPlan(plan, { json });
-const aggregate = aggregateResults(runResult.results);
-
-if (json) {
-	console.log(
-		JSON.stringify(
-			{
-				ok: runResult.ok,
-				command: "release-readiness",
-				mode: "run",
-				failedStepId: runResult.failedStepId,
-				steps: serializePlan(plan),
-				results: runResult.results,
-				...aggregate,
-			},
-			null,
-			2,
-		),
-	);
-}
-
-if (!runResult.ok) process.exit(1);

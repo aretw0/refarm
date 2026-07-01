@@ -90,6 +90,133 @@ Prefer commands that emit JSON when another agent or script will consume the
 result. Public JSON commands expose `ok`, `nextCommand`, `nextCommands`, and
 enough context to recover without hidden session knowledge.
 
+## Cadence and Resource Safety
+
+When the environment feels healthy, keep execution fast. When it becomes noisy, go
+protective without stopping momentum:
+
+- **Fast lane (default):**
+  - use `pnpm run refarm:safety:micro-safe` before local work loops.
+  - keep commands focused and single-purpose.
+  - proceed normally while commands stay under ~60–90s and no visible contention.
+- quick safe slices for chat work:
+  - `pnpm run refarm:safety:test:chat-session`
+  - `pnpm run refarm:safety:test:chat-batch`
+  - `pnpm -C apps/refarm run test:chat-session`
+  - `pnpm -C apps/refarm run test:chat-batch`
+  - `pnpm run session:heavy -- --count 40` (trace the most recent agent session before changing scope)
+  - `pnpm run session:heavy:repeat` (detect repeated heavy command patterns and fail on excess reruns)
+  - `pnpm run session:heavy:repeat:chat-session` (focus signal on chat session tests)
+  - `pnpm run session:heavy:sources` (print resolved session roots for current workspace)
+  - `pnpm run session:heavy:sources:refarm` (print refarm-specific resolution candidates)
+  - `pnpm run session:heavy:sources:legacy` (print legacy `.pi` candidates)
+  - `pnpm run session:heavy:refarm` (default, refarm-owned source: ~/.refarm/agent-sessions)
+  - `pnpm run session:heavy:legacy-pi` (legacy .pi sessions: ~/.pi/agent/sessions, explicit migration/forensics path)
+  - `pnpm run session:heavy:pi` (compatibility alias; prefer explicit `legacy-pi` path)
+- quick safe slices for adjacent areas:
+  - `pnpm run refarm:safety:test:tree`
+  - `pnpm run refarm:safety:test:actions`
+- direct package slices:
+  - `pnpm -C apps/refarm run test:file -- test/commands/<file>.test.ts`
+  - `pnpm -C apps/refarm run test:capabilities`
+  - `pnpm -C apps/refarm run test:tree-safety`
+  - `pnpm -C apps/refarm run test:actions-safety`
+  - avoid `pnpm -C apps/refarm run test -- <word>` during daily work; a loose
+    Vitest filter can discover unrelated suites. Use an explicit test file path
+    or a named package script. Under container pressure, treat app-level Vitest
+    as a package checkpoint, not a micro-slice gate.
+- **Protective lane trigger:**
+  - command re-runs due to repeated `--filter ... test` slices,
+  - observed flakiness/timeouts under load,
+  - CPU/memory pressure or shell slowdown.
+- **Protective lane response:**
+  - switch to narrower commands (single test path, filtered harness, explicit timeout),
+  - keep budget checks enabled via `refarm:safety` profiles,
+  - reopen at normal lane only after 3 stable slices.
+
+For test-lane triage, `test/commands/chat-repl-session.test.ts` is a fast, unit-style file (mock-heavy, no network/file side effects). If it still appears as a repeated heavy command, treat it as a signaling symptom:
+
+- run isolated:
+  - `pnpm -C apps/refarm run test:chat-session`
+  - `pnpm -C apps/refarm run test:chat-session -- --clearCache`
+- inspect loop origin with:
+  - `pnpm run session:heavy:repeat -- --filter \"pnpm -C apps/refarm run test:chat-session\" --repeat-max-count 3`
+  - `pnpm run session:heavy:repeat:chat-session`
+  - `pnpm run session:heavy -- --filter \"chat-repl-session.test.ts\" --recent 6 --count 40`
+- quick CI-loop triage before/after CI-heavy work:
+  - `pnpm run session:heavy:ci-watch`
+  - if this returns non-zero, it means likely CI-watch/polling loops exceeded a
+    conservative threshold and should be reviewed before continuing CI-heavy
+    commands.
+  - this is the fast lane check for immediate gating.
+
+- periodic baseline safety check before heavier refactor blocks:
+  - `pnpm run refarm:safety:micro-safe:baseline`
+
+The command is generic enough for cross-workspace inspection with:
+
+`scripts/session-heavy.mjs` is the canonical entrypoint. `scripts/pi-session-heavy.mjs` is kept as a compatibility shim (`session:heavy:pi`) for historical `.pi` workflows and keeps `session:heavy:legacy-pi` as the explicit path. Prefer `session:heavy:refarm` for ongoing operator work.
+
+```bash
+pnpm run session:heavy:sources
+node scripts/session-heavy.mjs --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
+node scripts/session-heavy.mjs --session-dir /path/to/agent/sessions --recent 2 --count 20 --filter "gh " --ci-loop-signal
+node scripts/session-heavy.mjs --session-root /path/to/agent/sessions/root --workspace-dir /path/to/workspace --recent 2 --count 20 --filter "gh " --ci-loop-signal
+```
+
+To keep session boundaries clear when different coding agents touch the same
+workspace tag, you can isolate by agent-level metadata (when present):
+
+```bash
+node scripts/session-heavy.mjs \
+  --recent 3 --count 50 \
+  --agent-role assistant \
+  --agent-provider openai-codex \
+  --agent-model gpt-5.5
+```
+
+You can query more than one provider/model in one pass:
+
+```bash
+node scripts/session-heavy.mjs \
+  --recent 6 --count 50 \
+  --agent-role assistant \
+  --agent-provider openai-codex,claude-code \
+  --agent-model gpt-5.3-codex-spark,gpt-4.1
+```
+```
+
+Or isolate by session filename (the workspace folder usually accumulates sessions from
+multiple agents):
+
+```bash
+node scripts/session-heavy.mjs --session-file-prefix "2026-06-20T20-24-39-577Z_"
+```
+
+You can also raise/lower limits per run with env vars:
+
+```bash
+CI_LOOP_MAX_MS=600000 CI_LOOP_MAX_COUNT=12 pnpm run session:heavy:ci-watch
+```
+
+If `chat-repl-session.test.ts` (or any command family) is being re-run too many times, use:
+
+```bash
+pnpm run session:heavy:repeat -- --repeat-max-count 6
+pnpm run session:heavy:repeat:chat-session
+```
+
+This gate fails when a single normalized command appears more than `repeat-max-count`
+times in the sampled sessions (current default is 4 over the last 6 sessions).
+
+For broader baseline visibility (5 sessions) during heavier slices:
+
+```bash
+pnpm run session:heavy:ci-watch:baseline
+```
+
+`session:heavy:ci-watch:baseline` is a broad-view command (no strict loop gate by default).
+
 ## Configurações locais vs ações de sincronização
 
 - `refarm config` modifica **configuração local persistida do CLI** (ex.:
@@ -108,16 +235,15 @@ When running in agentic JSON mode, commands are self-guiding:
 - `tidy imports --json` success → `nextCommands`: resume; `--check` success is terminal
 - `sow --json` configured → `nextCommands`: check, model current
 
-Runtime-agent operator aliases:
+Agent operator aliases:
 
 ```bash
-refarm task run runtime-agent respond --args '{"prompt":"hello"}' --json
-refarm plugin reload runtime-agent --json
+refarm task run agent respond --args '{"prompt":"hello"}' --json
+refarm plugin reload agent --json
 ```
 
-`runtime-agent` is the operator-facing alias. JSON payloads and plugin status may
-still expose the physical bundled plugin id, `@refarm/pi-agent`, for compatibility
-with installed plugin manifests and existing task history.
+The canonical runtime plugin identity remains `runtime-agent` in payloads and
+status, while the operator UX uses `agent` as the public alias.
 
 ## Model And Credentials
 
@@ -158,6 +284,94 @@ refarm resume --json
 refarm sessions list --json
 refarm sessions show <id-prefix>
 refarm sessions use <id-prefix>
+```
+When `sessions list --json` reports `activeSessionStatus: "stale"`, treat
+`refarm sessions clear --json` as the highest-priority next command before
+continuing with `sessions show`/`sessions use`.
+The same stale-pointer recovery applies to `sessions show` human output: if
+`show` is continuing from a stale active pointer, surface the same clear hint before
+other follow-ups.
+
+By default, workspace-tagged session lookup uses the `refarm` source:
+
+- `~/.refarm/agent-sessions`
+- `~/.refarm/sessions`
+- `~/.config/refarm/sessions`
+
+To inspect legacy `pi` agent logs (migration/forensics only), use explicit legacy source selection:
+
+```bash
+pnpm run session:heavy:legacy-pi -- --workspace-dir /path/to/workspace --recent 1 --count 20
+pnpm run session:heavy:pi -- --workspace-dir /path/to/workspace --recent 1 --count 20
+REFARM_SESSION_SOURCE=pi pnpm run session:heavy:pi -- --workspace-dir /path/to/workspace --recent 1 --count 20
+```
+
+To probe both sources explicitly (legacy fallback enabled), pass either:
+
+```bash
+node scripts/session-heavy.mjs --session-source auto --allow-legacy-pi-roots --workspace-dir /path/to/workspace --recent 1 --count 20
+REFARM_SESSION_SOURCE=auto REFARM_ALLOW_LEGACY_PI_ROOTS=1 node scripts/session-heavy.mjs --workspace-dir /path/to/workspace --recent 1 --count 20
+```
+
+`~/.pi/agent/sessions` is intentionally excluded from the default `refarm` source and only
+used through explicit source selection for migration clarity.
+
+If you need to migrate legacy `.pi` sessions into the refarm namespace, use the
+existing migration script on each session file and then inspect by explicit source
+during validation:
+
+```bash
+pnpm run session:migrate:pi-agent -- --check --input /path/to/.pi/session.jsonl
+pnpm run session:migrate:pi-agent -- --in-place --input /path/to/.pi/session.jsonl
+# or emit a migrated copy:
+pnpm run session:migrate:pi-agent -- --input /path/to/.pi/session.jsonl --output /path/to/refarm/session.jsonl
+pnpm run session:heavy:ci-watch -- --session-source refarm --recent 2 --count 20
+```
+
+For this repo, representative default paths are:
+
+```bash
+ls -la ~/.refarm/agent-sessions/--workspaces-refarm--/    # tag-style layout (legacy/alt)
+ls -la ~/.refarm/sessions/                               # root-style v1 layout (current default in this workspace)
+```
+
+`session-heavy` now consumes both `*.jsonl` and `*.v1.json` session files in these
+paths, with best-effort parsing for the v1 format.
+
+`session:heavy:ci-watch -- --ci-loop-signal` now prints a signal breakdown by
+CI polling pattern (`gh run view`, `gh pr checks`, `gh run watch`) and a concrete
+suggestion to switch away from manual client-side loops when available.
+
+If you ever move the workspace path, pass `--workspace-dir <path>` to
+`scripts/session-heavy.mjs` to force the session lookup:
+
+```bash
+node scripts/session-heavy.mjs --workspace-dir /new/path --help
+```
+
+If your agent writes logs elsewhere, replace workspace lookup with direct directory mode:
+
+```bash
+node scripts/session-heavy.mjs --session-dir /path/to/your/agent/sessions --help
+```
+
+If you want to keep lookup workspace-scoped but under a custom root (or a different
+agent platform), set `--session-root` or `REFARM_SESSION_ROOT`:
+
+```bash
+node scripts/session-heavy.mjs --session-root /path/to/agent/session-root --workspace-dir /path/to/workspace --recent 1 --count 20
+REFARM_SESSION_ROOT=/path/to/agent/session-root pnpm run session:heavy
+```
+
+If two agents write the same workspace tag frequently, you can additionally pin the
+analysis to a narrower session set:
+
+```bash
+node scripts/session-heavy.mjs \
+  --workspace-dir /path \
+  --session-file-prefix "2026-06-" \
+  --recent 1 \
+  --count 20
 ```
 
 Use session prefixes only when they are unique. If a prefix is ambiguous, list
@@ -210,7 +424,7 @@ refarm agent finish --fix --run --json
 - `apps/refarm`: final CLI UX, command orchestration, runtime HTTP calls, human
   output.
 - `packages/cli`: reusable CLI contracts, JSON envelopes, command plans,
-  handoff primitives, agnostic binary command builders, launch process specs,
+  handoff primitives, agnostic binary command builders, process handoff specs,
   detached process launch, launch readiness policy, status schemas, Git command
   helpers, GitHub Actions CLI adapters, resume formatting.
 - `packages/config`: provider, model, package-manager, and operator policy.

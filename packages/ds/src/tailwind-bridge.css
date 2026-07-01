@@ -1,0 +1,12 @@
+@layer ds.tokens {
+	:where([data-ds-theme], [data-refarm-theme]) {
+		--color-background: var(--background);
+		--color-foreground: var(--foreground);
+		--color-card: var(--card);
+		--color-primary: var(--primary);
+		--color-secondary: var(--secondary);
+		--color-accent: var(--accent);
+		--color-muted: var(--muted);
+		--color-border: var(--border);
+	}
+}

@@ -152,6 +152,7 @@ export const modelCredentialProvider: CredentialProvider & {
 } = {
 	id: "model",
 	label: "Model Provider",
+	namespace: "model",
 
 	async collectModel(ctx: CollectContext): Promise<ModelCredential> {
 		console.log(chalk.bold("\n  Model Provider"));

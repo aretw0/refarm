@@ -1,13 +1,9 @@
-import {
-	createLaunchProcessSpec,
-	launchProcess,
-	type LaunchProcessSpec,
-} from "@refarm.dev/cli/launch-process";
+import { formatSurfaceActionReadinessOutput } from "@refarm.dev/cli/action-affordances";
+import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import { createProcessHandoffSpec, executeProcessHandoff, type ProcessHandoffSpec, } from "@refarm.dev/cli/process-handoff";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { formatSurfaceActionReadinessOutput } from "./action-affordances.js";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions, resolveLaunchGuardError } from "./launch-guards.js";
@@ -30,7 +26,7 @@ const TUI_LAUNCHER_MODES = ["watch", "prompt"] as const;
 
 export type RefarmTuiLauncherMode = (typeof TUI_LAUNCHER_MODES)[number];
 
-export type TuiLaunchSpec = LaunchProcessSpec;
+export type TuiLaunchSpec = ProcessHandoffSpec;
 
 interface TuiOptions {
 	input?: string;
@@ -56,14 +52,14 @@ export function resolveTuiLaunchSpec(
 	mode: RefarmTuiLauncherMode,
 ): TuiLaunchSpec {
 	if (mode === "prompt") {
-		return createLaunchProcessSpec("tractor prompt");
+		return createProcessHandoffSpec("tractor prompt");
 	}
 
-	return createLaunchProcessSpec("tractor watch");
+	return createProcessHandoffSpec("tractor watch");
 }
 
 export function launchTuiProcess(spec: TuiLaunchSpec): Promise<number> {
-	return launchProcess(spec);
+	return executeProcessHandoff(spec);
 }
 
 function tuiLaunchCommand(launcher: RefarmTuiLauncherMode): string {
@@ -244,7 +240,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				dryRunRuntimeLabel: "tui runtime",
 				startRuntimeLabel: "TUI runtime",
 				resolveLaunchSpec: () => resolveTuiLaunchSpec(launchMode),
-				launchProcess: resolvedDeps.launch,
+				executeProcessHandoff: resolvedDeps.launch,
 				dryRunJson: options.json,
 				dryRunJsonCommand: "tui",
 				dryRunJsonNextCommand: tuiLaunchCommand(launchMode),

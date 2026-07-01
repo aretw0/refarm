@@ -1,0 +1,43 @@
+{
+	"name": "@refarm.dev/source-local",
+	"version": "0.1.0",
+	"private": false,
+	"description": "Local working-tree implementation of the source:v1 capability.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"test:conformance": "vitest run src/provider.test.ts",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@refarm.dev/source-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"license": "MIT"
+}

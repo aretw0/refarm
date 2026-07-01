@@ -1,0 +1,16 @@
+{
+	"name": "@refarm.dev/astro-wasi-ssr-poc",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "astro build",
+		"componentize": "timeout 45s node scripts/componentize.mjs",
+		"test": "astro build && node --test test/*.test.mjs"
+	},
+	"dependencies": {
+		"@bytecodealliance/componentize-js": "0.19.3",
+		"@bytecodealliance/jco": "catalog:",
+		"astro": "^7.0.3"
+	}
+}

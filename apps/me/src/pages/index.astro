@@ -1,8 +1,31 @@
 ---
+import { loadProjectScheduledWork } from "@refarm.dev/cli/project-automations";
 import { Layout } from "@refarm.dev/homestead/ui";
+
+const scheduledWork = await loadProjectScheduledWork();
+const refarmMeOperatorStatusScript = scheduledWork
+  ? `globalThis.__REFARM_ME_BOOTSTRAP_OPERATOR_STATUS__ = ${serializeRefarmMeJson({
+      scheduledWork,
+    })};`
+  : "";
+
+function serializeRefarmMeJson(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
 ---
 
 <Layout title="Refarm.me — My Sovereign Space">
+  <Fragment slot="head">
+    <link rel="manifest" href={`${import.meta.env.BASE_URL}manifest.webmanifest`} />
+    <meta name="theme-color" content="#1b5e3b" />
+    {refarmMeOperatorStatusScript ? (
+      <script is:inline set:html={refarmMeOperatorStatusScript} />
+    ) : null}
+  </Fragment>
+
   <div id="loading-overlay" class="refarm-loading-state">
     <div class="refarm-spinner"></div>
     <p>Opening your personal vault...</p>
@@ -14,6 +37,17 @@ import { Layout } from "@refarm.dev/homestead/ui";
     bootRefarmMeWorkbench,
     renderRefarmMeBootFailure,
   } from "../lib/me-runtime";
+  import { registerRefarmMePwa } from "../lib/me-pwa";
 
-  bootRefarmMeWorkbench().catch((err) => renderRefarmMeBootFailure(err));
+  registerRefarmMePwa({ baseUrl: import.meta.env.BASE_URL }).catch((err) =>
+    console.warn("[me] PWA registration failed", err),
+  );
+  bootRefarmMeWorkbench()
+    .then((workbench) => {
+      const refarmMeGlobal = globalThis as typeof globalThis & {
+        __REFARM_ME_ON_WORKBENCH_READY__?: (workbench: unknown) => void;
+      };
+      refarmMeGlobal.__REFARM_ME_ON_WORKBENCH_READY__?.(workbench);
+    })
+    .catch((err) => renderRefarmMeBootFailure(err));
 </script>

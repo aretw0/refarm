@@ -2,7 +2,8 @@
 
 Shared primitives for dispatch/control-surface transport handling.
 
-> Note: this package is the TS boundary used by `refarm` and `farmhand`.
+> Note: this package is the TypeScript boundary for hosts that need shared
+> dispatch and effort control-plane primitives.
 > Its behavior is now backed by an optional Wasm/WIT contract from
 > `packages/dispatch-surface-rs` when available, with transparent fallback to the
 > native TypeScript implementation.
@@ -49,3 +50,62 @@ If you need a release-like build that requires native artifacts to be present:
 ## Public API
 
 See `src/index.ts` / exported surface.
+
+## External consumer contract
+
+External consumers import the package root only. Do not deep-import `src/*`;
+the package owns whether calls are served by the optional Rust/Wasm backend or
+the TypeScript fallback.
+
+Parse a channel transport:
+
+```ts
+import {
+	parseTaskTransport,
+	resolveChannelFromTransport,
+} from "@refarm.dev/dispatch-surface";
+
+const transport = parseTaskTransport("channel:matrix");
+const channel = resolveChannelFromTransport(transport);
+
+if (!channel) {
+	throw new Error("Expected a channel transport");
+}
+
+console.log(channel);
+```
+
+Build channel control paths:
+
+```ts
+import {
+	buildChannelEffortPath,
+	buildChannelEffortsPath,
+	resolveChannelControlSurfaceAdapter,
+} from "@refarm.dev/dispatch-surface";
+
+const baseUrl = "http://127.0.0.1:42001";
+const channel = "matrix";
+const effortId = "effort-1";
+const adapter = resolveChannelControlSurfaceAdapter(channel).adapter;
+
+const submitPath = buildChannelEffortsPath(baseUrl, channel);
+const statusPath = buildChannelEffortPath(baseUrl, channel, effortId, "status");
+const logsPath = adapter.buildLogsPath(baseUrl, channel, effortId);
+
+console.log({ submitPath, statusPath, logsPath });
+```
+
+Assert capabilities before dispatch:
+
+```ts
+import {
+	assertChannelControlCapability,
+	resolveChannelControlSurfaceAdapter,
+} from "@refarm.dev/dispatch-surface";
+
+const { adapter } = resolveChannelControlSurfaceAdapter("matrix");
+
+assertChannelControlCapability(adapter, "submit");
+assertChannelControlCapability(adapter, "query");
+```

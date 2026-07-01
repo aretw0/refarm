@@ -3,12 +3,25 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 
 export const DEFAULT_POLICY_VERSION = "2026-01";
+export const SUPPORTED_POLICY_VERSIONS = [DEFAULT_POLICY_VERSION];
+export const RELEASE_ENGINE_JSON_SCHEMA_VERSION = 1;
+export const RELEASE_PLAN_AUDIT_SCHEMA_VERSION = 1;
+
+export class ReleasePolicyValidationError extends Error {
+  constructor(code, message, details = {}) {
+    super(message);
+    this.name = "ReleasePolicyValidationError";
+    this.code = code;
+    this.details = details;
+  }
+}
 
 const DEFAULT_EMBEDDED_CONFIG_CANDIDATES = [
-  ".refarm/config.json",
   "refarm.config.json",
+  ".refarm/config.json",
 ];
 
 const DEFAULT_PHASES = [
@@ -56,6 +69,9 @@ const BUMP_WEIGHT = {
   minor: 2,
   major: 3,
 };
+
+const ALLOWED_PROFILE_RISKS = ["core", "app", "plugin", "shared"];
+const ALLOWED_RELEASE_SURFACES = ["core", "app", "plugin", "agent", "shared"];
 
 function ensureDirExists(baseDir) {
   if (!fs.existsSync(baseDir)) {
@@ -110,7 +126,21 @@ export function loadPolicy(policyPath = "release-policy.json", cwd = process.cwd
 }
 
 export function validatePolicy(policy) {
-  assert.equal(typeof policy.policyVersion, "string", "policyVersion must be a string");
+  assertPolicy(
+    typeof policy.policyVersion === "string",
+    "RELEASE_POLICY_VERSION_REQUIRED",
+    "policyVersion must be a string",
+    { policyVersion: policy.policyVersion ?? null },
+  );
+  assertPolicy(
+    SUPPORTED_POLICY_VERSIONS.includes(policy.policyVersion),
+    "RELEASE_POLICY_VERSION_UNSUPPORTED",
+    `policyVersion must be one of: ${SUPPORTED_POLICY_VERSIONS.join(", ")}`,
+    {
+      policyVersion: policy.policyVersion,
+      supportedPolicyVersions: SUPPORTED_POLICY_VERSIONS,
+    },
+  );
   const allowedModes = ["changeset", "tagged", "hybrid"];
   assert.ok(
     allowedModes.includes(policy.mode),
@@ -127,6 +157,10 @@ export function validatePolicy(policy) {
     throw new Error("packageProfiles must be an array when declared");
   }
 
+  if (policy.surfaceBlocks !== undefined && !Array.isArray(policy.surfaceBlocks)) {
+    throw new Error("surfaceBlocks must be an array when declared");
+  }
+
   for (const phase of policy.phases) {
     assert.ok(phase.id, `phase id is required: ${JSON.stringify(phase)}`);
     assert.ok(phase.name, `phase name is required: ${phase.id}`);
@@ -137,25 +171,62 @@ export function validatePolicy(policy) {
 
   const providerIds = new Set();
   for (const provider of policy.providers) {
-    assert.ok(provider.id, `provider id is required: ${JSON.stringify(provider)}`);
+    assertProvider(
+      provider.id,
+      "RELEASE_POLICY_PROVIDER_ID_REQUIRED",
+      `provider id is required: ${JSON.stringify(provider)}`,
+      { provider },
+    );
     if (providerIds.has(provider.id)) {
-      throw new Error(`Duplicate provider id: ${provider.id}`);
+      throw providerPolicyError(
+        "RELEASE_POLICY_PROVIDER_DUPLICATE_ID",
+        `Duplicate provider id: ${provider.id}`,
+        provider,
+      );
     }
     providerIds.add(provider.id);
 
-    assert.equal(typeof provider.type, "string", `provider.type must be string for ${provider.id}`);
-    assert.equal(typeof provider.supportsPublish, "boolean", `provider.supportsPublish must be boolean for ${provider.id}`);
-    assert.equal(typeof provider.supportsDryRun, "boolean", `provider.supportsDryRun must be boolean for ${provider.id}`);
-    validateCommandList(provider.publishCommands, `provider.publishCommands for ${provider.id}`);
-    validateCommandList(provider.publishDryRunCommands, `provider.publishDryRunCommands for ${provider.id}`);
+    assertProvider(
+      typeof provider.type === "string",
+      "RELEASE_POLICY_PROVIDER_TYPE_INVALID",
+      `provider.type must be string for ${provider.id}`,
+      { providerId: provider.id },
+    );
+    assertProvider(
+      typeof provider.supportsPublish === "boolean",
+      "RELEASE_POLICY_PROVIDER_SUPPORTS_PUBLISH_INVALID",
+      `provider.supportsPublish must be boolean for ${provider.id}`,
+      { providerId: provider.id },
+    );
+    assertProvider(
+      typeof provider.supportsDryRun === "boolean",
+      "RELEASE_POLICY_PROVIDER_SUPPORTS_DRY_RUN_INVALID",
+      `provider.supportsDryRun must be boolean for ${provider.id}`,
+      { providerId: provider.id },
+    );
+    validateCommandList(
+      provider.publishCommands,
+      `provider.publishCommands for ${provider.id}`,
+      "RELEASE_POLICY_PROVIDER_COMMANDS_INVALID",
+      provider.id,
+    );
+    validateCommandList(
+      provider.publishDryRunCommands,
+      `provider.publishDryRunCommands for ${provider.id}`,
+      "RELEASE_POLICY_PROVIDER_DRY_RUN_COMMANDS_INVALID",
+      provider.id,
+    );
 
     if (provider.supportsPublish && (!Array.isArray(provider.publishCommands) || provider.publishCommands.length === 0)) {
-      throw new Error(`provider publishCommands must be a non-empty array when supportsPublish is true for ${provider.id}`);
+      throw providerPolicyError(
+        "RELEASE_POLICY_PROVIDER_PUBLISH_COMMANDS_REQUIRED",
+        `provider publishCommands must be a non-empty array when supportsPublish is true for ${provider.id}`,
+        provider,
+      );
     }
   }
 
   const profileIds = new Set();
-  const allowedProfileRisks = ["core", "app", "plugin", "shared"];
   const allowedProfileBumps = ["patch", "minor", "major"];
   for (const profile of policy.packageProfiles || []) {
     assert.ok(profile.id, `package profile id is required: ${JSON.stringify(profile)}`);
@@ -164,8 +235,12 @@ export function validatePolicy(policy) {
     }
     profileIds.add(profile.id);
 
-    if (profile.risk !== undefined && !allowedProfileRisks.includes(profile.risk)) {
-      throw new Error(`package profile risk must be one of: ${allowedProfileRisks.join(", ")} for ${profile.id}`);
+    if (profile.risk !== undefined && !ALLOWED_PROFILE_RISKS.includes(profile.risk)) {
+      throw new Error(`package profile risk must be one of: ${ALLOWED_PROFILE_RISKS.join(", ")} for ${profile.id}`);
+    }
+
+    if (profile.surface !== undefined && !ALLOWED_RELEASE_SURFACES.includes(profile.surface)) {
+      throw new Error(`package profile surface must be one of: ${ALLOWED_RELEASE_SURFACES.join(", ")} for ${profile.id}`);
     }
 
     if (profile.bump !== undefined && !allowedProfileBumps.includes(profile.bump)) {
@@ -174,6 +249,23 @@ export function validatePolicy(policy) {
 
     if (profile.tags !== undefined && !Array.isArray(profile.tags)) {
       throw new Error(`package profile tags must be array for ${profile.id}`);
+    }
+  }
+
+  const blockedSurfaces = new Set();
+  for (const block of policy.surfaceBlocks || []) {
+    if (!block || typeof block !== "object") {
+      throw new Error("surfaceBlocks entries must be objects");
+    }
+    if (!ALLOWED_RELEASE_SURFACES.includes(block.surface)) {
+      throw new Error(`surfaceBlocks.surface must be one of: ${ALLOWED_RELEASE_SURFACES.join(", ")}`);
+    }
+    if (blockedSurfaces.has(block.surface)) {
+      throw new Error(`Duplicate release surface block: ${block.surface}`);
+    }
+    blockedSurfaces.add(block.surface);
+    if (block.reason !== undefined && typeof block.reason !== "string") {
+      throw new Error(`surfaceBlocks.reason must be a string for ${block.surface}`);
     }
   }
 
@@ -203,6 +295,10 @@ export function validatePolicy(policy) {
         throw new Error(`selection profileTags must contain non-empty strings for ${selection.id}`);
       }
     }
+
+    if (selection.audienceBoundary !== undefined) {
+      validateAudienceBoundary(selection.audienceBoundary, `selection audienceBoundary for ${selection.id}`);
+    }
   }
 
   if (policy.defaultSelection && !selectionIds.has(policy.defaultSelection)) {
@@ -212,17 +308,63 @@ export function validatePolicy(policy) {
   return true;
 }
 
-function validateCommandList(commands, label) {
+function providerPolicyError(code, message, provider) {
+  return new ReleasePolicyValidationError(code, message, {
+    providerId: provider?.id ?? null,
+    providerType: provider?.type ?? null,
+  });
+}
+
+function assertProvider(condition, code, message, details) {
+  if (!condition) {
+    throw new ReleasePolicyValidationError(code, message, details);
+  }
+}
+
+function assertPolicy(condition, code, message, details) {
+  if (!condition) {
+    throw new ReleasePolicyValidationError(code, message, details);
+  }
+}
+
+function validateCommandList(commands, label, code, providerId) {
   if (commands === undefined) return;
   if (!Array.isArray(commands)) {
-    throw new Error(`${label} must be an array`);
+    throw new ReleasePolicyValidationError(code, `${label} must be an array`, {
+      providerId,
+    });
   }
 
   for (const command of commands) {
     if (typeof command !== "string" || command.length === 0) {
-      throw new Error(`${label} must contain non-empty strings`);
+      throw new ReleasePolicyValidationError(code, `${label} must contain non-empty strings`, {
+        providerId,
+      });
     }
   }
+}
+
+function validateAudienceBoundary(boundary, label) {
+  assert.ok(boundary && typeof boundary === "object" && !Array.isArray(boundary), `${label} must be an object`);
+  for (const field of ["consumer", "naming", "productLocal"]) {
+    assert.ok(
+      typeof boundary[field] === "string" && boundary[field].length > 0,
+      `${label}.${field} must be a non-empty string`,
+    );
+  }
+}
+
+function audienceBoundarySummary(boundary) {
+  if (!boundary || typeof boundary !== "object" || Array.isArray(boundary)) return null;
+  const { consumer, naming, productLocal } = boundary;
+  if (
+    typeof consumer !== "string" ||
+    typeof naming !== "string" ||
+    typeof productLocal !== "string"
+  ) {
+    return null;
+  }
+  return { consumer, naming, productLocal };
 }
 
 function readJson(absPath) {
@@ -314,6 +456,9 @@ function readChangesetCandidates(cwd = process.cwd()) {
 
 function resolveCandidatePackages({ cwd, packageNames, policy, profileTags = [] }) {
   const allPackages = readPackageJsonsForWorkspace(cwd);
+  const surfaceBlocks = new Map(
+    (policy.surfaceBlocks || []).map((block) => [block.surface, block]),
+  );
   const explicitPackageNames = Array.isArray(packageNames)
     ? packageNames.filter(Boolean)
     : [];
@@ -351,12 +496,25 @@ function resolveCandidatePackages({ cwd, packageNames, policy, profileTags = [] 
     }
 
     const profile = (policy.packageProfiles || []).find((item) => item.id === candidate.name);
+    const surface = profile?.surface || profile?.risk || null;
+    if (surface && surfaceBlocks.has(surface)) {
+      const block = surfaceBlocks.get(surface);
+      normalized.push({
+        ...candidate,
+        status: "blocked",
+        surface,
+        note: block.reason || `Release surface is blocked: ${surface}`,
+      });
+      continue;
+    }
+
     normalized.push({
       ...candidate,
       status: "ok",
       source: candidate.source || "manual",
       bump: candidate.bump || (profile && profile.bump) || "patch",
       profile,
+      surface,
       packageDir: entry.dir,
       currentVersion: entry.version,
     });
@@ -525,6 +683,7 @@ export function buildReleasePlan({
       ? {
           id: selection.id,
           description: selection.description || null,
+          audienceBoundary: audienceBoundarySummary(selection.audienceBoundary),
         }
       : null,
     dryRun,
@@ -624,6 +783,7 @@ export function summarizePlan(plan) {
     packageCount: plan.orderedNames?.length || 0,
     packages: plan.orderedNames || [],
     blockers: plan.blockers || [],
+    acceptance: releasePlanAcceptance(plan),
     packageProfiles: releasePlanPackageProfiles(plan),
     requiredGates: (plan.gates || []).filter((gate) => gate.required).map((gate) => gate.id),
     providers: (plan.publishIntents || []).map((item) => item.provider),
@@ -634,6 +794,114 @@ export function summarizePlan(plan) {
   };
 }
 
+function stableJsonValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => stableJsonValue(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .filter((key) => value[key] !== undefined)
+        .map((key) => [key, stableJsonValue(value[key])]),
+    );
+  }
+
+  return value;
+}
+
+export function stringifyReleasePlanAuditPayload(payload) {
+  return JSON.stringify(stableJsonValue(payload));
+}
+
+function hashReleasePlanAuditPayload(payload) {
+  return createHash("sha256")
+    .update(stringifyReleasePlanAuditPayload(payload))
+    .digest("hex");
+}
+
+export function createReleasePlanAuditRecord(plan, { createdAt = new Date().toISOString() } = {}) {
+  const payload = {
+    schemaVersion: RELEASE_PLAN_AUDIT_SCHEMA_VERSION,
+    releaseOutputSchemaVersion: RELEASE_ENGINE_JSON_SCHEMA_VERSION,
+    ok: Boolean(plan.ok),
+    status: plan.status,
+    policyVersion: plan.policy?.policyVersion ?? null,
+    mode: plan.policy?.mode ?? null,
+    packageCount: plan.orderedNames?.length || 0,
+    packages: plan.orderedNames || [],
+    blockers: plan.blockers || [],
+    acceptance: releasePlanAcceptance(plan),
+    packageProfiles: releasePlanPackageProfiles(plan),
+    requiredGates: (plan.gates || [])
+      .filter((gate) => gate.required)
+      .map((gate) => gate.id),
+    gates: (plan.gates || []).map((gate) => ({
+      id: gate.id,
+      required: gate.required,
+      riskWeight: gate.riskWeight,
+      commandCount: Array.isArray(gate.commands) ? gate.commands.length : 0,
+    })),
+    publishIntents: (plan.publishIntents || []).map((intent) => ({
+      provider: intent.provider,
+      type: intent.type || null,
+      mode: intent.plan?.mode || null,
+      commandCount: Array.isArray(intent.plan?.commands) ? intent.plan.commands.length : 0,
+      dryRunCommandCount: Array.isArray(intent.plan?.dryRunCommands)
+        ? intent.plan.dryRunCommands.length
+        : 0,
+      requiresManualApproval: Boolean(intent.plan?.requiresManualApproval),
+    })),
+    profileTags: plan.profileTags || [],
+    selection: plan.selection || null,
+    dryRun: Boolean(plan.dryRun),
+  };
+
+  return {
+    schemaVersion: RELEASE_PLAN_AUDIT_SCHEMA_VERSION,
+    createdAt,
+    digest: {
+      algorithm: "sha256",
+      value: hashReleasePlanAuditPayload(payload),
+    },
+    payload,
+  };
+}
+
+export function releasePlanAcceptance(plan) {
+  const packageProfiles = releasePlanPackageProfiles(plan);
+  const requiredGates = (plan.gates || []).filter((gate) => gate.required);
+  const publishIntents = plan.publishIntents || [];
+  const requiredChecks = packageProfiles.flatMap((profile) =>
+    profile.mustPassChecks.map((command) => ({
+      command,
+      package: profile.id,
+    })),
+  );
+  const surfaces = [...new Set(
+    packageProfiles
+      .map((profile) => profile.surface)
+      .filter(Boolean),
+  )].sort();
+  const profileTags = [...new Set(plan.profileTags || [])].sort();
+
+  return {
+    status: plan.ok ? "accepted" : "blocked",
+    packageCount: plan.orderedNames?.length || 0,
+    blockerCount: (plan.blockers || []).length,
+    requiredGateCount: requiredGates.length,
+    requiredCheckCount: requiredChecks.length,
+    providerCount: publishIntents.length,
+    manualApprovalRequired: publishIntents.some((intent) =>
+      Boolean(intent.plan?.requiresManualApproval)
+    ),
+    surfaces,
+    profileTags,
+    requiredChecks,
+  };
+}
+
 export function releasePlanPackageProfiles(plan) {
   return (plan.orderedPackages || [])
     .map((entry) => {
@@ -641,6 +909,7 @@ export function releasePlanPackageProfiles(plan) {
         return {
           id: entry.name,
           risk: null,
+          surface: null,
           tags: [],
           mustPassChecks: [],
         };
@@ -648,6 +917,7 @@ export function releasePlanPackageProfiles(plan) {
       return {
         id: entry.name,
         risk: entry.profile.risk ?? null,
+        surface: entry.profile.surface ?? entry.profile.risk ?? null,
         tags: Array.isArray(entry.profile.tags) ? entry.profile.tags : [],
         mustPassChecks: Array.isArray(entry.profile.mustPassChecks)
           ? entry.profile.mustPassChecks

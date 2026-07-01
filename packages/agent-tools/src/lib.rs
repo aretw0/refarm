@@ -237,4 +237,98 @@ fn atomic_write(path: &str, content: &[u8]) -> Result<(), String> {
     std::fs::rename(&tmp, path).map_err(|e| format!("write/rename({path}): {e}"))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn spawn_request(argv: &[&str], timeout_ms: u32) -> SpawnRequest {
+        SpawnRequest {
+            argv: argv.iter().map(|arg| (*arg).to_string()).collect(),
+            env: vec![],
+            cwd: None,
+            timeout_ms,
+            stdin: None,
+        }
+    }
+
+    #[test]
+    fn spawn_policy_rejects_empty_argv() {
+        let err = enforce_spawn_policy(&spawn_request(&[], 1_000)).unwrap_err();
+        assert_eq!(err, "spawn: argv must be non-empty");
+    }
+
+    #[test]
+    fn spawn_policy_rejects_timeout_above_cap() {
+        let err = enforce_spawn_policy(&spawn_request(&["echo", "ok"], MAX_TIMEOUT_MS + 1))
+            .unwrap_err();
+        assert!(err.contains("exceeds policy cap"));
+        assert!(err.contains(&MAX_TIMEOUT_MS.to_string()));
+    }
+
+    #[test]
+    fn spawn_policy_accepts_timeout_at_cap() {
+        enforce_spawn_policy(&spawn_request(&["echo", "ok"], MAX_TIMEOUT_MS))
+            .expect("timeout at cap should be accepted");
+    }
+
+    #[test]
+    fn structured_io_pages_json_arrays_without_provider() {
+        let parsed = structured_parse(
+            br#"[{"id":1},{"id":2},{"id":3}]"#,
+            "json",
+            2,
+            1,
+        );
+
+        assert!(
+            parsed.starts_with(
+                "[structured-io | json | array | total=3 | offset=1 | returned=2 | truncated=false]"
+            ),
+            "unexpected structured-io header: {parsed}",
+        );
+        assert!(parsed.contains(r#""id": 2"#));
+        assert!(parsed.contains(r#""id": 3"#));
+        assert!(!parsed.contains(r#""id": 1"#));
+    }
+
+    #[test]
+    fn structured_io_rejects_invalid_writes_without_touching_file() {
+        let path = unique_temp_path("structured-io-write.json");
+        std::fs::write(&path, r#"{"ok":true}"#).expect("seed temp file");
+
+        let err = <AgentTools as StructuredIoGuest>::write_structured(
+            path.to_string_lossy().into_owned(),
+            "{broken".into(),
+            Some(FileFormat::Json),
+        )
+        .unwrap_err();
+
+        assert!(err.contains("JSON parse error"));
+        assert_eq!(
+            std::fs::read_to_string(&path).expect("read temp file"),
+            r#"{"ok":true}"#,
+        );
+
+        <AgentTools as StructuredIoGuest>::write_structured(
+            path.to_string_lossy().into_owned(),
+            r#"{"ok":false}"#.into(),
+            Some(FileFormat::Json),
+        )
+        .expect("valid structured write should succeed");
+        assert_eq!(
+            std::fs::read_to_string(&path).expect("read rewritten temp file"),
+            r#"{"ok":false}"#,
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    fn unique_temp_path(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "refarm-agent-tools-{}-{name}",
+            std::process::id(),
+        ))
+    }
+}
+
 export!(AgentTools);

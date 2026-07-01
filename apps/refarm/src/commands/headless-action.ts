@@ -12,11 +12,11 @@ import type { ExtensionSurfaceDeclaration } from "@refarm.dev/plugin-manifest";
 import {
 	getStatusAvailableSurfaceActions,
 	type SurfaceActionAffordanceSelectionMetadata,
-} from "./action-affordances.js";
+} from "@refarm.dev/cli/action-affordances";
 import {
 	formatExecutionPlanReadinessLine,
 	type ExecutionPlanReadinessLine,
-} from "./execution-plan.js";
+} from "@refarm.dev/cli/execution-plan";
 
 export type HeadlessSurfaceActionMountSource =
 	| "legacy-ui-slot"

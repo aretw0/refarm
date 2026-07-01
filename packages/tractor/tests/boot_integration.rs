@@ -21,7 +21,11 @@ fn memory_config() -> TractorNativeConfig {
 #[tokio::test]
 async fn boot_default_config_succeeds() {
     let result = TractorNative::boot(memory_config()).await;
-    assert!(result.is_ok(), "boot() with :memory: must succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "boot() with :memory: must succeed: {:?}",
+        result.err()
+    );
 }
 
 // ── 2. boot_creates_sync_ready_to_store ──────────────────────────────────────
@@ -30,7 +34,9 @@ async fn boot_default_config_succeeds() {
 /// then the same node is retrievable by the same sync instance.
 #[tokio::test]
 async fn boot_creates_sync_ready_to_store() {
-    let tractor = TractorNative::boot(memory_config()).await.expect("boot must succeed");
+    let tractor = TractorNative::boot(memory_config())
+        .await
+        .expect("boot must succeed");
 
     tractor
         .sync
@@ -52,9 +58,15 @@ async fn boot_creates_sync_ready_to_store() {
 /// then it returns Ok and does not panic.
 #[tokio::test]
 async fn boot_shutdown_is_clean() {
-    let tractor = TractorNative::boot(memory_config()).await.expect("boot must succeed");
+    let tractor = TractorNative::boot(memory_config())
+        .await
+        .expect("boot must succeed");
     let result = tractor.shutdown().await;
-    assert!(result.is_ok(), "shutdown() must return Ok: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "shutdown() must return Ok: {:?}",
+        result.err()
+    );
 }
 
 // ── 4. boot_two_instances_independent ────────────────────────────────────────
@@ -63,8 +75,12 @@ async fn boot_shutdown_is_clean() {
 /// when a node is stored in instance A, then instance B does not see it.
 #[tokio::test]
 async fn boot_two_instances_independent() {
-    let a = TractorNative::boot(memory_config()).await.expect("boot A must succeed");
-    let b = TractorNative::boot(memory_config()).await.expect("boot B must succeed");
+    let a = TractorNative::boot(memory_config())
+        .await
+        .expect("boot A must succeed");
+    let b = TractorNative::boot(memory_config())
+        .await
+        .expect("boot B must succeed");
 
     a.sync
         .store_node("urn:test:isolation-1", "Note", None, "{}", None)
@@ -87,7 +103,9 @@ async fn boot_two_instances_independent() {
 /// nonexistent path, then it returns Err and does not panic.
 #[tokio::test]
 async fn load_plugin_path_not_found_returns_error() {
-    let tractor = TractorNative::boot(memory_config()).await.expect("boot must succeed");
+    let tractor = TractorNative::boot(memory_config())
+        .await
+        .expect("boot must succeed");
 
     let result = tractor
         .load_plugin(Path::new("/nonexistent/path/plugin.wasm"))

@@ -34,9 +34,19 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 	assert.ok(Array.isArray(output.nextCommands));
 	assert.equal(typeof output.substrate.node.ok, "boolean");
 	assert.equal(typeof output.substrate.rust.ok, "boolean");
+	assert.equal(output.substrate.environmentPressure.command, "environment-pressure");
+	assert.match(output.substrate.environmentPressure.decision, /^(continue|safe-mode|stop-and-investigate)$/);
+	assert.ok(Array.isArray(output.substrate.environmentPressure.signals));
 	assert.ok(Array.isArray(output.substrate.networkDiagnostics));
 	assert.ok(output.checks.some((check) => check.id === "node_substrate"));
 	assert.ok(output.checks.some((check) => check.id === "rust_substrate"));
+	assert.ok(output.checks.some((check) =>
+		check.id === "environment_pressure" &&
+		check.kind === "operational-pressure" &&
+		check.required === true &&
+		check.command === "pnpm run factory:pressure:json" &&
+		/^(continue|safe-mode|stop-and-investigate)$/.test(check.decision),
+	));
 	assert.ok(output.checks.some((check) =>
 		check.id === "workspace_source_ownership" &&
 		check.kind === "workspace-source" &&
@@ -57,10 +67,7 @@ test("environment substrate check emits a stable JSON handoff envelope", () => {
 		check.attempts.some((attempt) => attempt.command === "corepack"),
 	));
 	assert.ok(output.checks.some((check) => check.id === "diagnostic_wasm_tools" && check.required === false));
-	assert.ok(output.checks.some((check) =>
-		check.id === "diagnostic_rustup_version" &&
-		check.required === false,
-	));
+	assert.equal(output.checks.some((check) => check.id === "diagnostic_rustup_version"), false);
 	assert.ok(output.checks.some((check) => check.id === "diagnostic_jq" && check.required === false));
 	assert.ok(output.checks.some((check) =>
 		check.id === "diagnostic_network_registry_dns" &&
@@ -81,6 +88,12 @@ test("environment substrate check keeps optional diagnostics non-blocking", () =
 		output.failedChecks.some((check) => check.required === false),
 		false,
 	);
+	if (output.substrate.environmentPressure.decision !== "stop-and-investigate") {
+		assert.equal(
+			output.failedChecks.some((check) => check.id === "environment_pressure"),
+			false,
+		);
+	}
 	assert.equal(
 		output.failedChecks.some((check) => check.id === "diagnostic_rustup_version"),
 		false,
