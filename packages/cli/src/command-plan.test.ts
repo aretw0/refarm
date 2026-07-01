@@ -278,8 +278,8 @@ describe("command plan runner", () => {
 				workClass: "broad-check",
 				pressureDecision: "safe-mode",
 				reason: "Safe mode requires a smaller proof instead of broad work.",
-				nextActions: ["Run the bounded fallback: pnpm -C packages/cli run type-check"],
-				nextCommands: ["pnpm -C packages/cli run type-check"],
+				nextActions: ["Run the bounded fallback package check."],
+				nextCommands: ["refarm agent finish --workspace packages/cli --json"],
 				maxConcurrency: null,
 				recommendations: [
 					{
@@ -296,8 +296,8 @@ describe("command plan runner", () => {
 			status: "failed",
 			failedStepId: "type-check",
 			failedCommand: "refarm agent finish --workspace packages/cli --json",
-			nextActions: ["Run the bounded fallback: pnpm -C packages/cli run type-check"],
-			nextCommands: ["pnpm -C packages/cli run type-check"],
+			nextActions: ["Run the bounded fallback package check."],
+			nextCommands: ["refarm agent finish --workspace packages/cli --json"],
 			nextProcesses: [],
 			recommendations: [
 				{

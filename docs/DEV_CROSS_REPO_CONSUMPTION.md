@@ -102,6 +102,13 @@ Do not replace the tarball gate with an unverified assertion.
 The **tarball is the gate** because it ships exactly the `files` /
 `exports` whitelist npm would publish — catching packaging bugs the proof must catch.
 
+When iterating on a pre-publication `file:` tarball, do not trust package
+name/version alone. If `manifest.json` reports a changed `packages[].sha256` for
+the same tarball name, replace the consumer's `vendor/*.tgz`, refresh the
+package-manager lockfile integrity entry or reinstall from clean `node_modules`,
+and rerun the consumer proof. The generated handoff exposes this as
+`consumerInstall.revendorPolicy`.
+
 **Real consumption:** once `@refarm.dev` packages publish (ADR-069 scope settled + first release),
 `vault-seed` swaps the `file:` dependency for a normal semver range. The tarball / `file:` link is
 **dev-only scaffolding, removed at adoption.**

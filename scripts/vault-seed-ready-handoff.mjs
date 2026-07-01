@@ -118,6 +118,18 @@ const VAULT_SEED_CONSUMER_PULLS = {
 	},
 };
 
+const REVENDOR_POLICY = {
+	sameNameVersionBehavior:
+		"file: tarballs can keep the same package name and version while their bytes change during pre-publication handoff.",
+	changedContentDetection: "compare packages[].sha256 against the consumer vendor tarball and lockfile integrity",
+	requiredWhenShaChanges: [
+		"replace the matching vendor/*.tgz file from the same handoff directory",
+		"refresh the package-manager lockfile entry for the changed file: tarball",
+		"if the package manager keeps the old bytes, reinstall from a clean node_modules before running consumer proofs",
+	],
+	proofAfterRefresh: "consumerProofs",
+};
+
 export function parseHandoffArgs(argv = []) {
 	const options = {
 		selectionId: DEFAULT_SELECTION,
@@ -349,6 +361,7 @@ function buildConsumerInstall({ packages, handoffDir }) {
 		copyFiles: ["manifest.json", ...packages.map((entry) => entry.tarball)],
 		fileSpecs,
 		pnpmOverrides: { ...fileSpecs },
+		revendorPolicy: REVENDOR_POLICY,
 		proofChecklist: "consumerProofs",
 	};
 }
@@ -420,6 +433,7 @@ function buildDistributionEvidence({
 				"acceptance",
 				"packages[].sha256",
 				"consumerProofs",
+				"consumerInstall.revendorPolicy",
 				...(releaseBoundaryAudit ? ["releaseBoundaryAudit"] : []),
 			],
 		},
@@ -742,6 +756,7 @@ export function formatHandoffMarkdown(manifest) {
 			`- Vendor dir: \`${manifest.consumerInstall.vendorDir}\``,
 			`- Proof checklist: \`${manifest.consumerInstall.proofChecklist}\``,
 			"- Use `consumerInstall.fileSpecs` for direct dependencies and `consumerInstall.pnpmOverrides` for unpublished transitive `@refarm.dev/*` packages.",
+			"- If a copied tarball keeps the same package name/version but its `packages[].sha256` changes, follow `consumerInstall.revendorPolicy` before running consumer proofs.",
 		);
 	}
 
