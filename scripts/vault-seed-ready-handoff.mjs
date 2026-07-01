@@ -106,9 +106,9 @@ const VAULT_SEED_CONSUMER_PULLS = {
 	},
 	"@refarm.dev/credentials-contract-v1": {
 		proofId: "credentials-contract.issue-verify-present-wallet",
-		downstreamUse: "credentials:v1 contract for issue, verify, present, store, list, and remove seams before VC UX",
-		proofTarget: "vault-seed vendors credentials-contract-v1 early and proves a round-trip issuer/verifier/wallet seam before headspace UX",
-		ownershipBoundary: "Issuer authorities, credential schemas, revocation policy, trust UI, and domain vocabulary remain downstream",
+		downstreamUse: "credentials:v1 contract for issue, policy-driven verify, present, store, list, remove, and revoke seams before VC UX",
+		proofTarget: "vault-seed vendors credentials-contract-v1 early and proves issuer/verifier/wallet seams with trustedIssuers, trustSelf, holder-binding, and local signed status-list revocation checks before headspace UX",
+		ownershipBoundary: "Issuer authorities, credential schemas, trust registry sources, remote status-list distribution, trust UI, and domain vocabulary remain downstream",
 	},
 	"@refarm.dev/dispatch-surface": {
 		proofId: "dispatch-surface.dgk-descriptor",

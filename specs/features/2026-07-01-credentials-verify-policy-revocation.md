@@ -1,6 +1,6 @@
 # Spec: Credentials `verify(input, policy)` + revocation
 
-**Status:** Proposed — candidate, consumer-pressure gated
+**Status:** Implemented — candidate, consumer-pressure gated
 **Authors:** Arthur Silva, Claude
 **Date:** 2026-07-01
 **Related:** ADR-079 (Credentials Verification Policy — the decision this implements),
@@ -64,7 +64,7 @@ keep status **resolution-agnostic** so the same shape works offline and, later, 
   status lists (same standard shape).
 - When `policy.revocation === "required"`, `verify` **resolves** the referenced status list, checks the
   index, and fails `notRevoked` if revoked (or if a required status cannot be resolved).
-- A `revoke(credentialId, issuerIdentityId)` provider method flips the bit and re-signs the list.
+- A `revoke(credential, issuerIdentityId)` provider method flips the bit and re-signs the list.
 
 **Resolution is pluggable, not the mechanism.** v1 resolves the status-list credential **locally from
 `storage:v1`** — offline, signed, sovereign. A **remote reference** (fetch the signed status VC by URL) is
@@ -89,9 +89,9 @@ from*, not the trust model.
 ## Consumer pressure & gate
 
 Pressure: the vault-seed headspace verifier needs trust + revocation to answer "accept this?". This spec
-is **proposed**; it becomes implemented when the reference provider + conformance land and a consumer
-(vault-seed's round-trip, or refarm dogfood) proves it. Trust-policy was already named as the promotion
-gate in the `credentials:v1` feature — this closes that gate.
+is implemented in the reference provider and conformance suite. The remaining promotion pressure is the
+official downstream consumer proof in `vault-seed`. Trust-policy was already named as the promotion gate
+in the `credentials:v1` feature — this closes the Refarm-side contract gate.
 
 ## Out of scope
 
