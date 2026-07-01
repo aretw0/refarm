@@ -520,11 +520,11 @@ downstream assimilation checklist: each item has a stable `proofId`, names the
 `vault-seed` proof target, and records the product boundary that must remain
 local. `distributionEvidence` records the local handoff ref, verified-copy
 state, update source, rollback target, and the explicit boundary that this is
-not a public install contract or P2P substrate. After the T3 downstream proof, the
-active release plan reports `acceptance.status: "accepted"`, 13 packages, 4
-required gates, and 35 required checks; the next official handoff should be
-materialized from the generated manifest rather than copied from this historical
-table.
+not a public install contract or P2P substrate. After the T3 downstream proof
+and the T2 credentials pull, the active release plan reports
+`acceptance.status: "accepted"`, 18 packages, 4 required gates, and 49 required
+checks; the next official handoff should be materialized from the generated
+manifest rather than copied from this historical table.
 
 ### Additional Assimilation Matrix
 

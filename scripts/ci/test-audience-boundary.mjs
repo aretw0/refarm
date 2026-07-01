@@ -462,7 +462,7 @@ test("requirements supply packages are selected only after downstream proof", ()
 	);
 });
 
-test("t2 identity credentials stay reference-profiled without release selection", () => {
+test("t2 credentials seam is consumer-pulled with reference issuer and wallet proof", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const profiles = config.releasePolicy.packageProfiles;
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
@@ -473,17 +473,43 @@ test("t2 identity credentials stay reference-profiled without release selection"
 	);
 
 	for (const packageName of [
+		"@refarm.dev/storage-contract-v1",
+		"@refarm.dev/identity-contract-v1",
+		"@refarm.dev/identity-heartwood",
+		"@refarm.dev/credentials-contract-v1",
+		"@refarm.dev/storage-memory",
+	]) {
+		const profile = byId.get(packageName);
+		assert.ok(profile, `${packageName} must be release-profiled`);
+		for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+			assert.ok(
+				profile.tags.includes(tag),
+				`${packageName} must declare ${tag} after the selected credentials pull`,
+			);
+		}
+		assert.ok(
+			!profile.tags.includes("reference-hold"),
+			`${packageName} must not stay reference-held after the selected credentials pull`,
+		);
+		assert.ok(vaultSeedReady.has(packageName), `${packageName} must enter vault-seed-ready`);
+	}
+
+	for (const packageName of [
+		"@refarm.dev/identity-heartwood",
+		"@refarm.dev/credentials-contract-v1",
+		"@refarm.dev/storage-memory",
+	]) {
+		const profile = byId.get(packageName);
+		for (const tag of ["t2-reference", "reference-proven", "boundary-review"]) {
+			assert.ok(profile.tags.includes(tag), `${packageName} must declare ${tag}`);
+		}
+	}
+
+	for (const packageName of [
 		"@refarm.dev/identity-heartwood",
 		"@refarm.dev/credentials-contract-v1",
 	]) {
 		const profile = byId.get(packageName);
-		assert.ok(profile, `${packageName} must be release-profiled`);
-		for (const tag of ["t2-reference", "reference-proven", "boundary-review", "reference-hold"]) {
-			assert.ok(profile.tags.includes(tag), `${packageName} must declare ${tag}`);
-		}
-		for (const tag of ["candidate", "consumer-pulled", "vault-seed-ready"]) {
-			assert.ok(!profile.tags.includes(tag), `${packageName} must not declare ${tag}`);
-		}
 		for (const command of [
 			`pnpm --filter ${packageName} run lint`,
 			`pnpm --filter ${packageName} run type-check`,
@@ -492,9 +518,16 @@ test("t2 identity credentials stay reference-profiled without release selection"
 		]) {
 			assert.ok(profile.mustPassChecks.includes(command), `${packageName} must require ${command}`);
 		}
+	}
+
+	for (const command of [
+		"pnpm --filter @refarm.dev/storage-memory run lint",
+		"pnpm --filter @refarm.dev/storage-memory run test:conformance",
+		"pnpm --filter @refarm.dev/storage-memory run build",
+	]) {
 		assert.ok(
-			!vaultSeedReady.has(packageName),
-			`${packageName} must not enter vault-seed-ready without selected downstream proof`,
+			byId.get("@refarm.dev/storage-memory").mustPassChecks.includes(command),
+			`storage-memory must require ${command}`,
 		);
 	}
 
@@ -504,6 +537,13 @@ test("t2 identity credentials stay reference-profiled without release selection"
 			.mustPassChecks.includes("pnpm run sovereign-citizen:reference:test"),
 		"credentials-contract-v1 must keep the sovereign citizen reference proof in release policy",
 	);
+
+	const reference = read("validations/sovereign-citizen-reference/sovereign-citizen-reference.mjs");
+	assert.match(reference, /createHeartwoodIdentityProvider/);
+	assert.match(reference, /new MemoryStorage\(\)/);
+	assert.match(reference, /issue\(credentialForIssue\(holder\.id\), issuer\.id\)/);
+	assert.match(reference, /verify\(credential\)/);
+	assert.match(reference, /present\(\[credential\], holder\.id\)/);
 });
 
 test("release-engine docs keep host integration product-neutral", () => {

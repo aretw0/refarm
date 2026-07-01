@@ -225,7 +225,10 @@
           "contract",
           "kernel",
           "kernel-contract",
-          "candidate"
+          "candidate",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "consumer-proven"
         ]
       },
       {
@@ -251,7 +254,29 @@
           "contract",
           "kernel",
           "kernel-contract",
-          "candidate"
+          "candidate",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "consumer-proven"
+        ]
+      },
+      {
+        "id": "@refarm.dev/storage-memory",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/storage-memory run lint",
+          "pnpm --filter @refarm.dev/storage-memory run test:conformance",
+          "pnpm --filter @refarm.dev/storage-memory run build"
+        ],
+        "tags": [
+          "storage",
+          "reference-implementation",
+          "t2-reference",
+          "reference-proven",
+          "boundary-review",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "consumer-proven"
         ]
       },
       {
@@ -269,7 +294,9 @@
           "t2-reference",
           "reference-proven",
           "boundary-review",
-          "reference-hold"
+          "consumer-pulled",
+          "vault-seed-ready",
+          "consumer-proven"
         ]
       },
       {
@@ -288,7 +315,9 @@
           "t2-reference",
           "reference-proven",
           "boundary-review",
-          "reference-hold"
+          "consumer-pulled",
+          "vault-seed-ready",
+          "consumer-proven"
         ]
       },
       {

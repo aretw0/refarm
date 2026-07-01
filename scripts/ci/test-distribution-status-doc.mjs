@@ -134,16 +134,16 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 
 test("vault-seed handoff docs distinguish historical 10-package packets from current selection", () => {
 	const currentSelection = releaseSelectionNames("vault-seed-ready");
-	assert.equal(currentSelection.length, 13);
+	assert.equal(currentSelection.length, 18);
 
-	assert.match(releaseGateDoc, /current 13-package selection/);
+	assert.match(releaseGateDoc, /current 18-package selection/);
 	assert.match(releaseGateDoc, /materialized the then-current 10-package selection/);
 	assert.match(
 		releaseGateDoc,
 		/ADR-072 superseded that packet before\s+publication/,
 	);
 	assert.match(vaultSeedHandoffPlan, /historical 2026-06-26/);
-	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 13 packages and 35 required checks/);
+	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 18 packages and 49 required checks/);
 });
 
 test("factory readiness records the current local vault-seed handoff state", () => {
