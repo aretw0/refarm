@@ -122,9 +122,12 @@ packages; `@refarm.dev/identity-heartwood` provides the reference issuer/holder
 signature provider; and `@refarm.dev/storage-memory` provides the volatile
 wallet storage used by the smoke. `pnpm run sovereign-citizen:reference:test`
 now proves a sanitized round trip through Heartwood Ed25519 signatures and
-`storage-memory`: issue -> verify -> reject tampering -> present -> verify
-presentation -> store/list wallet. Issuer authorities, trust registries,
-credential schemas, revocation policy, production persistence/encryption, and
+`storage-memory`: issue -> policy-driven verify -> reject tampering -> present
+-> verify presentation -> holder-binding checks -> signed status-list revocation
+-> store/list wallet. Refarm owns the credentials:v1 policy surface for
+`trustedIssuers`, `trustSelf`, validity, claim checks, holder binding, and local
+signed status-list checks; issuer authorities, credential schemas, trust registry
+sources, remote status-list distribution, production persistence/encryption, and
 headspace wallet UX stay downstream-owned.
 
 `@refarm.dev/records-contract-v1/yaml` now exists as a proof-gated subpath

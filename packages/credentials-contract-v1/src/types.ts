@@ -11,8 +11,21 @@ export interface CredentialStatusRef {
   id: string;
   type?: string;
   statusListIndex?: string | number;
+  statusListCredential?: string;
   statusPurpose?: string;
   [extra: string]: unknown;
+}
+
+export interface CredentialStatusListSubject {
+  id: string;
+  type: "BitstringStatusList";
+  statusPurpose: string;
+  encodedList: string;
+  [extra: string]: unknown;
+}
+
+export interface CredentialStatusListCredential extends VerifiableCredential {
+  credentialSubject: CredentialStatusListSubject;
 }
 
 export interface VerifiableCredential {
@@ -111,6 +124,10 @@ export interface CredentialsProvider {
   store(credential: VerifiableCredential): Promise<{ id: string }>;
   list(filter?: CredentialsListFilter): Promise<VerifiableCredential[]>;
   remove(id: string): Promise<{ removed: boolean }>;
+  revoke(
+    credential: VerifiableCredential | string,
+    issuerIdentityId: string,
+  ): Promise<{ revoked: boolean; credentialId?: string; status?: CredentialStatusRef }>;
 }
 
 export interface CredentialsConformanceResult {

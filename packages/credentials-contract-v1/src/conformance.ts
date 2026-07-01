@@ -117,8 +117,16 @@ export async function runCredentialsV1Conformance(
 
     try {
       const result = await provider.verify(issued, { revocation: "required" });
-      if (result.valid || result.checks.notRevoked?.ok !== false) {
-        failures.push("revocation required policy must fail closed until a status resolver exists");
+      if (!result.valid || result.checks.notRevoked?.ok !== true) {
+        failures.push("revocation required policy must accept issued credentials with clear status lists");
+      }
+      const revoked = await provider.revoke(issued, identities.issuerIdentityId);
+      if (!revoked.revoked) {
+        failures.push("revoke() must report revoked=true for status-listed credentials");
+      }
+      const revokedResult = await provider.verify(issued, { revocation: "required" });
+      if (revokedResult.valid || revokedResult.checks.notRevoked?.code !== "credential_revoked") {
+        failures.push("revocation required policy must reject revoked credentials");
       }
     } catch (error) {
       failures.push(`revocation verify threw: ${String(error)}`);
@@ -157,7 +165,7 @@ export async function runCredentialsV1Conformance(
   const failed = failures.length;
   return {
     pass: failed === 0,
-    total: 13,
+    total: 14,
     failed,
     failures,
   };

@@ -84,6 +84,7 @@ export async function runSovereignCitizenReference() {
 		trustedIssuers: [issuer.id],
 		trustSelf: true,
 		validity: "required",
+		revocation: "required",
 		requiredClaims: [{ path: "entitlementClass", equals: "synthetic-benefit" }],
 	};
 	const presentationPolicy = {
@@ -101,15 +102,13 @@ export async function runSovereignCitizenReference() {
 		},
 	};
 	const tamperedVerification = await credentials.verify(tamperedCredential, credentialPolicy);
-	const revocationRequiredVerification = await credentials.verify(credential, {
-		...credentialPolicy,
-		revocation: "required",
-	});
 	const presentation = await credentials.present([credential], holder.id);
 	const presentationVerification = await credentials.verify(presentation, presentationPolicy);
 	const stored = await credentials.store(credential);
 	const listed = await credentials.list({ issuer: credential.issuer });
 	const listedCredential = listed[0] ?? null;
+	const revocation = await credentials.revoke(credential, issuer.id);
+	const revokedVerification = await credentials.verify(credential, credentialPolicy);
 
 	const unsignedCredentialDigest = sha256(canonicalJson(sanitizedCredentialTemplate()));
 	const redactedPresentationDigest = sha256(canonicalJson({
@@ -131,11 +130,12 @@ export async function runSovereignCitizenReference() {
 		flow: [
 			"create heartwood issuer and holder identities",
 			"issue credentials:v1 credential with heartwood issuer signature",
-			"verify issued credential against trusted issuer + trustSelf policy",
+			"verify issued credential against trusted issuer + trustSelf + status-list policy",
 			"reject tampered credential",
 			"present credential with heartwood holder signature",
 			"verify presentation with holder binding",
-			"fail closed when revocation is required without a status resolver",
+			"revoke the credential by flipping its signed status-list bit",
+			"reject the revoked credential under revocation-required policy",
 			"store and list credential through holder wallet storage",
 		],
 		evidence: {
@@ -151,8 +151,9 @@ export async function runSovereignCitizenReference() {
 			credentialFailures: credentialVerification.failures,
 			credentialPolicyChecks: credentialVerification.checks,
 			tamperedCredentialRejected: !tamperedVerification.valid,
-			revocationRequiredFailsClosed: !revocationRequiredVerification.valid,
-			revocationRequiredCheck: revocationRequiredVerification.checks.notRevoked,
+			revocationApplied: revocation.revoked,
+			revokedCredentialRejected: !revokedVerification.valid,
+			revokedCredentialCheck: revokedVerification.checks.notRevoked,
 			presentationSignatureValid: presentationVerification.valid,
 			presentationFailures: presentationVerification.failures,
 			presentationPolicyChecks: presentationVerification.checks,
@@ -167,11 +168,10 @@ export async function runSovereignCitizenReference() {
 			"uses synthetic holder, issuer, verifier, and attributes only",
 			"does not publish private keys, signatures, public keys, or DID values in the report",
 			"does not claim legal, institutional, W3C VC, OpenID4VP, or production wallet UX readiness",
-			"issuer trust registries, credential schemas, revocation resolver, and wallet UX remain host-owned",
+			"issuer trust registries, credential schemas, remote status-list distribution, and wallet UX remain host-owned",
 		],
 		nextActions: [
 			"wire issuer trust policy as a consumer-owned config or fixture before release promotion",
-			"add status-list resolver before claiming revocation enforcement beyond fail-closed policy",
 			"add downstream wallet UX proof before selecting credentials packages for vault-seed-ready",
 			"keep heartwood identity as a provider package rather than replacing identity:v1",
 		],

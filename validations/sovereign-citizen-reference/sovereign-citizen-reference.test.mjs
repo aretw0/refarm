@@ -24,13 +24,12 @@ describe("sovereign citizen reference", () => {
 		assert.deepEqual(result.checks.credentialPolicyChecks.issuerTrusted, { ok: true });
 		assert.deepEqual(result.checks.credentialPolicyChecks.withinValidity, { ok: true });
 		assert.deepEqual(result.checks.credentialPolicyChecks.claimsSatisfied, { ok: true });
+		assert.deepEqual(result.checks.credentialPolicyChecks.notRevoked, { ok: true });
 		assert.equal(result.checks.tamperedCredentialRejected, true);
-		assert.equal(result.checks.revocationRequiredFailsClosed, true);
-		assert.equal(result.checks.revocationRequiredCheck.ok, false);
-		assert.equal(
-			result.checks.revocationRequiredCheck.code,
-			"credential_status_unresolved",
-		);
+		assert.equal(result.checks.revocationApplied, true);
+		assert.equal(result.checks.revokedCredentialRejected, true);
+		assert.equal(result.checks.revokedCredentialCheck.ok, false);
+		assert.equal(result.checks.revokedCredentialCheck.code, "credential_revoked");
 		assert.equal(result.checks.presentationSignatureValid, true);
 		assert.deepEqual(result.checks.presentationFailures, []);
 		assert.deepEqual(result.checks.presentationPolicyChecks.signature, { ok: true });

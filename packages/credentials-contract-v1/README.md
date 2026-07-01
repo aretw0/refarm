@@ -8,8 +8,8 @@ The contract composes:
 - `identity:v1` for issuer and holder proofs;
 - `storage:v1` for wallet persistence.
 
-It does not implement crypto, storage engines, issuer trust registries, domain
-schemas, or wallet UX.
+It does not implement crypto, storage engines, hosted issuer trust registries,
+remote status-list distribution, domain schemas, or wallet UX.
 
 ```ts
 import { createInMemoryCredentialsProviderFixture } from "@refarm.dev/credentials-contract-v1";
@@ -35,6 +35,9 @@ if (!result.valid) {
 }
 ```
 
-`revocation: "required"` fails closed in the reference provider until a status
-resolver is configured. This keeps day-1 consumers honest without inventing a
-network fetch path.
+The reference provider issues credentials with a local signed status-list
+credential stored through `storage:v1`. `revocation: "required"` resolves that
+local list, checks `credentialStatus.statusListIndex`, and fails when
+`revoke(credential, issuerIdentityId)` flips the bit. Credentials without a
+resolvable status list still fail closed. Remote status-list fetching is not part
+of this package; hosts must add it behind their own egress and trust policy.
