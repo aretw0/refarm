@@ -23,6 +23,19 @@ export interface WebSourceRedactionReport {
 	fields: string[];
 }
 
+export interface WebSourceEgressPolicy {
+	allowedHosts: string[];
+	blockPrivateHosts: boolean;
+}
+
+export interface WebSourceEgressReport {
+	enforced: boolean;
+	allowed: boolean;
+	refKind: "fixture" | "http";
+	host: string | null;
+	policy: WebSourceEgressPolicy;
+}
+
 export interface WebSourceCacheProvenance {
 	identity: string;
 	ref: string;
@@ -47,6 +60,7 @@ export interface WebSourceProvenance {
 	pacing: WebSourcePacingPolicy;
 	cache: WebSourceCacheProvenance;
 	redaction: WebSourceRedactionReport;
+	egress: WebSourceEgressReport;
 }
 
 export interface WebSourceMaterializeResult extends MaterializeResult {

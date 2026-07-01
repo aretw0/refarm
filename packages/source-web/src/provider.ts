@@ -11,6 +11,8 @@ import os from "node:os";
 import path from "node:path";
 
 import type {
+	WebSourceEgressPolicy,
+	WebSourceEgressReport,
 	WebSourceMaterializeResult,
 	WebSourceProvenance,
 	WebSourceProvider,
@@ -18,11 +20,13 @@ import type {
 } from "./types.js";
 
 const DEFAULT_CAPTURED_AT = "2026-06-30T00:00:00.000Z";
+const DEFAULT_ALLOWED_HOSTS = ["example.invalid"];
 
 export interface WebSourceProviderOptions {
 	pluginId?: string;
 	cacheRoot?: string;
 	fixtures?: Record<string, WebSourceSnapshot>;
+	egress?: Partial<WebSourceEgressPolicy>;
 	now?: () => string;
 }
 
@@ -114,6 +118,68 @@ function parseWebRef(ref: string): { identity: string; sourceRef: string } {
 	throw new Error("UNSUPPORTED_KIND: source-web supports web: refs and http(s) fixture refs");
 }
 
+function normalizeEgressPolicy(policy: Partial<WebSourceEgressPolicy> | undefined): WebSourceEgressPolicy {
+	return {
+		allowedHosts: Array.isArray(policy?.allowedHosts)
+			? policy.allowedHosts.map((host) => host.trim().toLowerCase()).filter(Boolean)
+			: DEFAULT_ALLOWED_HOSTS,
+		blockPrivateHosts: policy?.blockPrivateHosts ?? true,
+	};
+}
+
+function egressForRef(sourceRef: string, policy: WebSourceEgressPolicy): WebSourceEgressReport {
+	if (!sourceRef.startsWith("http://") && !sourceRef.startsWith("https://")) {
+		return {
+			enforced: true,
+			allowed: true,
+			refKind: "fixture",
+			host: null,
+			policy,
+		};
+	}
+
+	const url = new URL(sourceRef);
+	const host = url.hostname.toLowerCase();
+	if (policy.blockPrivateHosts && isPrivateHost(host)) {
+		throw new Error(`EGRESS_DENIED: source-web blocks private host "${host}"`);
+	}
+	if (!hostAllowed(host, policy.allowedHosts)) {
+		throw new Error(`EGRESS_DENIED: source-web ref host "${host}" is not in the egress allowlist`);
+	}
+
+	return {
+		enforced: true,
+		allowed: true,
+		refKind: "http",
+		host,
+		policy,
+	};
+}
+
+function hostAllowed(host: string, allowedHosts: string[]): boolean {
+	return allowedHosts.some((allowed) => {
+		if (allowed === "*") return true;
+		if (allowed.startsWith("*.")) {
+			const suffix = allowed.slice(1);
+			return host.endsWith(suffix) && host !== suffix.slice(1);
+		}
+		return host === allowed;
+	});
+}
+
+function isPrivateHost(host: string): boolean {
+	return (
+		host === "localhost" ||
+		host === "0.0.0.0" ||
+		host === "::1" ||
+		host.startsWith("127.") ||
+		host.startsWith("10.") ||
+		host.startsWith("192.168.") ||
+		/^172\.(1[6-9]|2\d|3[0-1])\./.test(host) ||
+		host.endsWith(".local")
+	);
+}
+
 function fixtureFor(
 	identity: string,
 	sourceRef: string,
@@ -137,6 +203,7 @@ function provenanceFor(
 	snapshot: WebSourceSnapshot,
 	sourceRef: string,
 	offlineReplay: boolean,
+	egress: WebSourceEgressReport,
 ): WebSourceProvenance {
 	const cache = {
 		identity: snapshot.identity,
@@ -156,6 +223,7 @@ function provenanceFor(
 		pacing: snapshot.pacing,
 		cache,
 		redaction: snapshot.redaction,
+		egress,
 	};
 }
 
@@ -200,13 +268,20 @@ export function createWebSourceProvider(
 ): WebSourceProvider {
 	const cacheRoot = options.cacheRoot ?? defaultCacheRoot();
 	const fixtures = options.fixtures ?? { [DEFAULT_WEB_SOURCE_FIXTURE.identity]: DEFAULT_WEB_SOURCE_FIXTURE };
+	const egressPolicy = normalizeEgressPolicy(options.egress);
 	const now = options.now ?? (() => DEFAULT_CAPTURED_AT);
 
-	function locate(ref: string): { sourceRef: string; identity: string; location: SourceLocation } {
+	function locate(ref: string): {
+		sourceRef: string;
+		identity: string;
+		location: SourceLocation;
+		egress: WebSourceEgressReport;
+	} {
 		const parsed = parseWebRef(ref);
 		return {
 			...parsed,
 			location: locationFor(cacheRoot, parsed.identity),
+			egress: egressForRef(parsed.sourceRef, egressPolicy),
 		};
 	}
 
@@ -214,7 +289,7 @@ export function createWebSourceProvider(
 		ref: string,
 		opts?: MaterializeOptions,
 	): Promise<WebSourceMaterializeResult> {
-		const { sourceRef, identity, location } = locate(ref);
+		const { sourceRef, identity, location, egress } = locate(ref);
 		const existing = existsSync(path.join(location.path, "snapshot.json"));
 		if (existing && opts?.force !== true) {
 			const provenance = await readProvenance(location.path);
@@ -223,12 +298,14 @@ export function createWebSourceProvider(
 				action: opts?.offline === true ? "noop" : "reused",
 				head: provenance?.cache.hash,
 				stale: false,
-				web: provenance ?? provenanceFor(fixtureFor(identity, sourceRef, fixtures, now), sourceRef, true),
+				web: provenance
+					? { ...provenance, egress: provenance.egress ?? egress }
+					: provenanceFor(fixtureFor(identity, sourceRef, fixtures, now), sourceRef, true, egress),
 			};
 		}
 
 		const snapshot = fixtureFor(identity, sourceRef, fixtures, now);
-		const provenance = provenanceFor(snapshot, sourceRef, opts?.offline === true);
+		const provenance = provenanceFor(snapshot, sourceRef, opts?.offline === true, egress);
 		await writeSnapshot(location.path, snapshot, provenance);
 		return {
 			location,
