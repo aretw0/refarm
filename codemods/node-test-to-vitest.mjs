@@ -242,9 +242,32 @@ function assertionReplacement(method, args) {
 			return args.length >= 1 ? `${expectCall(actual, message)}.toThrow(${expected ?? ""})` : null;
 		case "rejects":
 			return args.length >= 1 ? `${expectCall(actual, message)}.rejects.toThrow(${expected ?? ""})` : null;
+		case "doesNotReject": {
+			if (args.length < 1) return null;
+			const { expected: rejectionMatcher, message: rejectionMessage } =
+				rejectionArgs(expected, message);
+			return `${expectCall(actual, rejectionMessage)}.resolves.not.toThrow(${rejectionMatcher ?? ""})`;
+		}
+		case "fail":
+			return args.length >= 1 ? `expect.fail(${actual})` : "expect.fail()";
 		default:
 			return null;
 	}
+}
+
+function rejectionArgs(expected, message) {
+	if (message !== undefined) {
+		return { expected, message };
+	}
+	if (isStringLiteral(expected)) {
+		return { expected: undefined, message: expected };
+	}
+	return { expected, message: undefined };
+}
+
+function isStringLiteral(value) {
+	if (value === undefined) return false;
+	return /^(['"`])[\s\S]*\1$/.test(value.trim());
 }
 
 function expectCall(actual, message) {

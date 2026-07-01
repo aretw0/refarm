@@ -88,7 +88,10 @@ node codemods/package-workspace-adoption.mjs --input vault-seed/package.template
   `before`/`after` calls to `beforeAll`/`afterAll` and `mock.*` namespace uses
   to `vi.*`;
 - rewrites common `node:assert/strict` calls (`equal`, `notEqual`,
-  `deepEqual`, `ok`, `match`, `doesNotMatch`, `throws`, `rejects`) to `expect`;
+  `deepEqual`, `ok`, `match`, `doesNotMatch`, `throws`, `rejects`,
+  `doesNotReject`, `fail`) to `expect`;
+- preserves assertion messages as Vitest expect messages for mapped assertions,
+  including multiline `assert.match(...)` calls;
 - leaves unsupported `assert.*` calls in place, keeps the assert import, and
   reports them in the JSON dry-run output for manual review;
 - does not add Vitest config, package dependencies, or CI wiring.

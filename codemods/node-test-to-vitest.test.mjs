@@ -29,7 +29,7 @@ test("node:test to vitest fixture matches expected output", () => {
 			code: undefined,
 			changed: true,
 			importsRewritten: 2,
-			assertionsRewritten: 7,
+			assertionsRewritten: 11,
 			unhandled: [],
 		},
 	);
