@@ -83,6 +83,13 @@ into a new control plane. "Dormant" means gated by evidence, not abandoned.
 | Distributed availability / Pears | Evidence-active, runtime-adoption-gated. ADR-075 is reference pressure for portable core and thin surfaces. | Turn the existing availability proof into install/update descriptor or blind-replica policy only when dogfood or a second consumer needs it. | Adopting Bare/Hypercore/Pears wholesale as Refarm storage/runtime before the boundary is proven. |
 | Remote workspace control | Horizon-active. The desired shape is capability-scoped control of local and remote machines through explicit handoffs. | Extend workspace descriptors, read-only probes, and environment ceilings when current workflows need cross-machine observation or dispatch. | Treating mounts, host paths, Telegram, Matrix, or Tailscale as the core abstraction. |
 
+Validation packages under `validations/` are evidence surfaces, not publication
+surfaces. They may use workspace package metadata so Turbo and the compatibility
+matrix can build them, but they must stay `private: true`, carry no
+`publishConfig`, and remain outside `releasePolicy`. Graduation means opening a
+new package under `packages/` with a neutral name, docs, contract, consumer
+proof, and explicit release-policy selection; do not publish a POC in place.
+
 The rest of the `vault-seed` roadmap is now classified the same way:
 
 - source IaC, extraction profiles, cache/staging, and data lifecycle attach to
