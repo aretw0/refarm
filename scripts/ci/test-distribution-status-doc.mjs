@@ -101,6 +101,14 @@ test("package registry does not promise publication ahead of release policy", ()
 			new RegExp(`\\[\\\`${escapeRegExp(packageName)}\\\``),
 		);
 	}
+
+	for (const packageName of releaseSelectionNames("vault-seed-ready")) {
+		assert.match(
+			packageRegistryDoc,
+			new RegExp(`\\[\\\`${escapeRegExp(packageName)}\\\``),
+			`${packageName} must be listed in packages/README.md for the consumer-pulled lane`,
+		);
+	}
 });
 
 test("vault seed convergence keeps current handoff hashes in the manifest", () => {
