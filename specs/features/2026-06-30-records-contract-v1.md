@@ -192,6 +192,14 @@ Flagged by the vault-seed consumer (2026-07-01): the base context is used downst
 the records context endpoint returns a parseable `application/ld+json` response with the manifest and
 record envelope terms used by distributed records manifests.
 
+**Candidate general type — `Source` (flagged by vault-seed, 2026-07-01).** vault-seed's distributed
+manifest models its feed subscriptions as `@type: ["KnowledgeRecord", "Source"]` carrying the `source:v1`
+vocabulary (`sourceKind`, `sourceLocation`) — records:v1 modeling non-note entities. `Source` is arguably
+as general as `Requirement` (every knowledge vault has external sources). If it earns a place in the
+neutral base context, downstream `Source` records resolve directly; otherwise it stays a downstream vocab
+via `config.context.vocab` (which records:v1 already endorses). Soft proposal — deferred to the
+neutral-context decision; either way vault-seed uses the term now (vocabulary-is-data).
+
 ## Non-Goals
 
 - No OKF mapping, editorial governance, or publication copy in the contract.
