@@ -43,6 +43,13 @@ is a **reference enrichment provider over deterministic local data** (e.g., adds
 from a bundled fixture map), exercised in conformance. A consumer vault and any private key-lookup
 provider come later.
 
+### Downstream consumer proof (vault-seed, 2026-07)
+
+An external consumer vault has landed the downstream proof beyond Refarm's own dogfooding: `vault-seed`
+vendors `enrichment:v1` with a consumer-contract test pinning the surface, and its reference vault
+composes `source-web → records:v1 → enrichment:v1` end-to-end with an empty gap ledger
+(`validations/records-reference/`).
+
 ---
 
 ## 1. Contract interface (`packages/enrichment-contract-v1/src/types.ts`)
