@@ -33,9 +33,9 @@ not merge: `credentials:v1` owns issuance/trust/proof; `records:v1` owns the kno
 ### Prerequisite: real `identity:v1` signing (heartwood-backed) — ship first
 
 A verifiable credential is only verifiable if its `proof` is a **real** signature. `credentials:v1`
-composes `identity:v1` for `sign`/`verify`, but `@refarm.dev/identity-nostr` currently returns
-**placeholder** keypair/signature values (pending `nostr-tools`). A VC demo on stubbed signatures
-verifies nothing — the differentiator dies.
+composes `identity:v1` for `sign`/`verify`; the T2 lane therefore must use a real-signing provider
+and cannot depend on any experimental identity adapter that still has mock/non-verifying signatures.
+A VC demo without real signature verification proves nothing — the differentiator dies.
 
 `@refarm.dev/heartwood` already performs **real Ed25519** `generateKeypair`/`sign` (it backs `silo`).
 The shortest path is to back an `identity:v1` provider with heartwood so signing is real now, instead
