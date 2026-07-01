@@ -41,6 +41,9 @@ verify(input, policy?: CredentialVerificationPolicy): Promise<CredentialVerifica
 signature-only behavior when no policy is passed — forward-safe):
 
 - `trustedIssuers?: string[]` — issuer DIDs the verifier accepts. The **trust list** lives here.
+- `trustSelf?: boolean` — when true, the verifier also accepts credentials whose issuer is the verifier's
+  **own owner DID, resolved dynamically** from the composed identity provider at verify time. Survives key
+  rotation and needs no hardcoded DID, so self-issued credentials verify without seeding a static entry.
 - `trustRegistry?: TrustRegistryRef` — a resolvable source of trusted issuers (future; superset of the
   static list).
 - `revocation?: "ignore" | "required"` — when `required`, the credential's status must resolve to
@@ -53,9 +56,14 @@ The result reports **per-check outcomes** (`signature`, `issuerTrusted`, `notRev
 `claimsSatisfied`, `holderBound`) so a failure is legible, not a boolean. This composes with ADR-064's
 error enrichment for the failing check.
 
+**Config is the argument.** `CredentialVerificationPolicy` is plain data with no behavior, so a
+consumer's declarative policy config (e.g. a vault's `vault.config.json`) is *structurally the policy* and
+is passed straight into `verify` with **no translation layer**. Consumers author trust as configuration;
+the contract evaluates it.
+
 **What this ADR does *not* decide**: the revocation/status *mechanism* (status list vs referenced
 endpoint) — that is the companion feature's decision. This ADR fixes the *shape*: verification is
-policy-driven, and trust/revocation/validity/claims are policy fields, not verify parameters.
+policy-driven, and trust/`trustSelf`/revocation/validity/claims are policy fields, not verify parameters.
 
 ## Consequences
 

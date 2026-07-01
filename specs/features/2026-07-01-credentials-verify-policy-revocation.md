@@ -29,8 +29,10 @@ verify(
 ): Promise<CredentialVerificationResult>
 ```
 
-`CredentialVerificationPolicy` — fields per ADR-079 (`trustedIssuers`, `revocation`, `validity`,
-`requiredClaims`, `holderBinding`, future `trustRegistry`). Absent policy ⇒ signature-only (unchanged).
+`CredentialVerificationPolicy` — fields per ADR-079 (`trustedIssuers`, `trustSelf`, `revocation`,
+`validity`, `requiredClaims`, `holderBinding`, future `trustRegistry`). Absent policy ⇒ signature-only
+(unchanged). `trustSelf: true` accepts credentials whose issuer is the verifier's own owner DID, resolved
+from the composed identity provider at verify time (no hardcoded DID; survives rotation).
 
 `CredentialVerificationResult` gains a structured `checks` map so failures are legible:
 
@@ -53,29 +55,36 @@ Only checks the policy requested appear (optional keys). `verified` is the AND o
 
 ## Revocation mechanism (the deferred decision)
 
-Adopt a **credential status list** as the v1 mechanism (simplest that composes with `storage:v1`, no new
-network dependency):
+Adopt a **signed status-list credential aligned with the W3C Bitstring Status List** as the mechanism, and
+keep status **resolution-agnostic** so the same shape works offline and, later, remotely:
 
-- A credential MAY carry a `credentialStatus` reference (id + a status-list coordinate).
-- The issuer maintains a **status list** — a compact, signed, append-only structure persisted via
-  `storage:v1` (a bitstring/status entry per issued credential).
-- When `policy.revocation === "required"`, `verify` resolves the referenced status and fails `notRevoked`
-  if revoked (or if a required status cannot be resolved).
-- A `revoke(credentialId, issuerIdentityId)` provider method flips the status entry and re-signs the list.
+- A credential MAY carry a `credentialStatus` reference (a status-list id + a bitstring index).
+- The issuer maintains a **status list credential** — a compressed bitstring (one bit per issued
+  credential), itself a signed VC so it is tamper-evident and interoperable with third-party issuers'
+  status lists (same standard shape).
+- When `policy.revocation === "required"`, `verify` **resolves** the referenced status list, checks the
+  index, and fails `notRevoked` if revoked (or if a required status cannot be resolved).
+- A `revoke(credentialId, issuerIdentityId)` provider method flips the bit and re-signs the list.
 
-A referenced remote status endpoint is a **future** extension (the status ref is designed to allow it);
-v1 keeps the list local + signed, resolvable offline — consistent with the sovereign posture.
+**Resolution is pluggable, not the mechanism.** v1 resolves the status-list credential **locally from
+`storage:v1`** — offline, signed, sovereign. A **remote reference** (fetch the signed status VC by URL) is
+a forward extension the `credentialStatus` ref already allows; when added it MUST go through an **egress
+allowlist** (control-plane policy, per the peerd egress-chokepoint lesson) — never an arbitrary fetch.
+Because the list is a signed credential either way, remote resolution changes only *where the bytes come
+from*, not the trust model.
 
 ## Conformance additions
 
 `runCredentialsV1Conformance` grows policy cases (still deterministic, in-memory identities + storage):
 
 1. **trust** — a VC from an issuer in `trustedIssuers` passes `issuerTrusted`; one outside fails it.
-2. **validity** — an expired VC fails `withinValidity` under `validity: "required"`, passes when ignored.
-3. **revocation** — issue → verify not-revoked → `revoke` → verify fails `notRevoked` under
+2. **trustSelf** — with `trustSelf: true` and empty `trustedIssuers`, a VC issued by the verifier's own
+   owner DID passes `issuerTrusted`; a VC from any other DID fails it.
+3. **validity** — an expired VC fails `withinValidity` under `validity: "required"`, passes when ignored.
+4. **revocation** — issue → verify not-revoked → `revoke` → verify fails `notRevoked` under
    `revocation: "required"`.
-4. **holder binding** — a presentation whose holder ≠ subject fails `holderBound` when required.
-5. **forward-safe** — no policy ⇒ signature-only result identical to today.
+5. **holder binding** — a presentation whose holder ≠ subject fails `holderBound` when required.
+6. **forward-safe** — no policy ⇒ signature-only result identical to today.
 
 ## Consumer pressure & gate
 
