@@ -105,3 +105,29 @@ architectural lessons were under-developed and deserve their own attention:
 
 Verdict: the immediate assimilation was excellent; these three are what we were under-learning. All are
 candidates (proof / second-consumer gated), not adoptions.
+
+## Implementation landed + consumer eval (2026-07-01)
+
+**`context:v1` (reversible context folding) — implemented** as `session-contract-v1`
+(`context-folding.ts`) + `context-provider-v1` (`session-context-fold` provider). Consumer eval vs the
+research intent: **faithful.** `SessionContextFold` carries a deterministic `digest` +
+`folded_entry_refs`, a `protected_tail_entry_ids` (the protected working tail), and `unfold` reports
+`digest_mismatches` — reversibility is *verified*, not assumed. The core (reversible folding over
+destructive compaction) is solid.
+
+Next layers, from the Accordion research, not yet present — the growth edges on this foundation:
+1. **context map / visibility** — the operator seeing and steering the folded memory (visibility is agency).
+2. **hierarchical state** — turns → groups → meta-groups, for unbounded sessions.
+3. **relevance conductor** — a small-model ranking of what to fold/unfold (aligns with `plugin-tem`).
+
+**Adjacent consumer signals from vault-seed (2026-07-01):**
+- **records `./yaml` codec — 2nd-consumer proof closed.** vault-seed round-trips its `records:v1`
+  projection through `recordToYamlLdObject`/`recordFromYamlLdObject` and the front-matter bridge
+  (record ↔ vault note). Observation: the codec **completes** a lean record on parse (stamps
+  `schemaVersion` + `contentHash`) — good behavior; worth a line in the codec README so consumers know
+  lean projections get stamped on the way in.
+- **Vendoring friction (ready-handoff process).** Re-vendoring a `file:` tarball with the **same
+  name+version** but changed content is not re-extracted by pnpm (the lockfile integrity pins the old
+  bytes) — it needed a manual integrity update + a clean `node_modules` reinstall. Suggest the
+  ready-handoff either bumps a prerelease/build tag on content change, or documents the re-vendor step,
+  so consumers pull updated blocks cleanly.
