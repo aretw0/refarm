@@ -45,6 +45,15 @@ const FORBIDDEN_COMPATIBILITY_SUBPATHS = [
 		requiredPackage: "@refarm.dev/homestead",
 	},
 ];
+const CONSUMER_PROVEN_SOURCE_PACKAGES = new Set([
+	"@refarm.dev/source-contract-v1",
+	"@refarm.dev/source-web",
+]);
+const CONSUMER_PROVEN_REQUIREMENTS_SUPPLY_PACKAGES = new Set([
+	"@refarm.dev/source-web",
+	"@refarm.dev/enrichment-contract-v1",
+	"@refarm.dev/records-contract-v1",
+]);
 
 function readText(root, relativePath) {
 	return readFileSync(path.join(root, relativePath), "utf8");
@@ -235,11 +244,11 @@ function auditSourceHolds(profiles, policyText, issues) {
 			issues.push(issue({
 				code: "SOURCE_PACKAGE_NOT_RELEASE_PROFILED",
 				packageName,
-				message: "Source/librarian packages must remain release-profiled while proof-gated.",
+				message: "Source/librarian packages must remain release-profiled.",
 			}));
 			continue;
 		}
-		for (const tag of ["librarian", "boundary-review", "candidate-hold"]) {
+		for (const tag of ["librarian", "boundary-review"]) {
 			if (!profile.tags.includes(tag)) {
 				issues.push(issue({
 					code: "SOURCE_PACKAGE_MISSING_HOLD_TAG",
@@ -247,6 +256,32 @@ function auditSourceHolds(profiles, policyText, issues) {
 					message: `${packageName} must declare ${tag}.`,
 				}));
 			}
+		}
+		if (CONSUMER_PROVEN_SOURCE_PACKAGES.has(packageName)) {
+			for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+				if (!profile.tags.includes(tag)) {
+					issues.push(issue({
+						code: "SOURCE_PACKAGE_MISSING_CONSUMER_PROOF_TAG",
+						packageName,
+						message: `${packageName} must declare ${tag} after selected downstream proof.`,
+					}));
+				}
+			}
+			if (!selected.has(packageName)) {
+				issues.push(issue({
+					code: "SOURCE_PACKAGE_PROVEN_BUT_NOT_SELECTED",
+					packageName,
+					message: `${packageName} has selected downstream proof and must stay in vault-seed-ready.`,
+				}));
+			}
+			continue;
+		}
+		if (!profile.tags.includes("candidate-hold")) {
+			issues.push(issue({
+				code: "SOURCE_PACKAGE_MISSING_HOLD_TAG",
+				packageName,
+				message: `${packageName} must declare candidate-hold until selected downstream proof.`,
+			}));
 		}
 		if (selected.has(packageName)) {
 			issues.push(issue({
@@ -282,11 +317,11 @@ function auditRequirementsSupplyHolds(profiles, issues) {
 			issues.push(issue({
 				code: "REQUIREMENTS_SUPPLY_PACKAGE_NOT_RELEASE_PROFILED",
 				packageName,
-				message: "Requirements supply packages must be release-profiled while proof-gated.",
+				message: "Requirements supply packages must be release-profiled.",
 			}));
 			continue;
 		}
-		for (const tag of ["requirements-supply", "boundary-review", "candidate-hold"]) {
+		for (const tag of ["requirements-supply", "boundary-review"]) {
 			if (!profile.tags.includes(tag)) {
 				issues.push(issue({
 					code: "REQUIREMENTS_SUPPLY_PACKAGE_MISSING_HOLD_TAG",
@@ -294,6 +329,32 @@ function auditRequirementsSupplyHolds(profiles, issues) {
 					message: `${packageName} must declare ${tag}.`,
 				}));
 			}
+		}
+		if (CONSUMER_PROVEN_REQUIREMENTS_SUPPLY_PACKAGES.has(packageName)) {
+			for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+				if (!profile.tags.includes(tag)) {
+					issues.push(issue({
+						code: "REQUIREMENTS_SUPPLY_PACKAGE_MISSING_CONSUMER_PROOF_TAG",
+						packageName,
+						message: `${packageName} must declare ${tag} after selected downstream proof.`,
+					}));
+				}
+			}
+			if (!selected.has(packageName)) {
+				issues.push(issue({
+					code: "REQUIREMENTS_SUPPLY_PACKAGE_PROVEN_BUT_NOT_SELECTED",
+					packageName,
+					message: `${packageName} has selected downstream proof and must stay in vault-seed-ready.`,
+				}));
+			}
+			continue;
+		}
+		if (!profile.tags.includes("candidate-hold")) {
+			issues.push(issue({
+				code: "REQUIREMENTS_SUPPLY_PACKAGE_MISSING_HOLD_TAG",
+				packageName,
+				message: `${packageName} must declare candidate-hold until selected downstream proof.`,
+			}));
 		}
 		if (selected.has(packageName)) {
 			issues.push(issue({

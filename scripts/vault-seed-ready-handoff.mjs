@@ -92,6 +92,30 @@ const VAULT_SEED_CONSUMER_PULLS = {
 		proofTarget: "vault-seed stores model/runtime/publishing credentials through silo namespaces",
 		ownershipBoundary: "Provider-specific publishing adapters and approval workflow remain downstream",
 	},
+	"@refarm.dev/source-contract-v1": {
+		proofId: "requirements-source-contract.transitive-source-web-support",
+		downstreamUse: "source:v1 contract support for the source-web vendor packet",
+		proofTarget: "vault-seed vendors source-contract-v1 as the source-web transitive override while proving source-web -> records:v1 -> enrichment:v1 composition",
+		ownershipBoundary: "Concrete login, selectors, and source profile vocabulary remain downstream",
+	},
+	"@refarm.dev/source-web": {
+		proofId: "requirements-source-web.authenticated-capture",
+		downstreamUse: "Authenticated source capture fixture feeding requirement-like records",
+		proofTarget: "vault-seed wraps source-web with real checkout-owned source behavior and proves redacted source:v1 snapshots compose into records:v1 and enrichment:v1",
+		ownershipBoundary: "Real credentials, discovery, selectors, pacing values, and source-specific ETL profiles remain downstream",
+	},
+	"@refarm.dev/enrichment-contract-v1": {
+		proofId: "requirements-enrichment.private-provider-wrapper",
+		downstreamUse: "Deterministic enrichment report contract for records and note projections",
+		proofTarget: "vault-seed emits enrichment:v1 reports from checkout-owned providers while the package supplies only the neutral contract and fixture provider",
+		ownershipBoundary: "Private registries, lookup adapters, tag vocabulary, and domain enrichment rules remain downstream",
+	},
+	"@refarm.dev/records-contract-v1": {
+		proofId: "requirements-records.knowledge-manifest",
+		downstreamUse: "Neutral records:v1 manifest for source-linked knowledge/content evidence",
+		proofTarget: "vault-seed validates requirement-like records and notes-to-records projections through records:v1 with a clean reference-vault composition proof",
+		ownershipBoundary: "PARA placement, editorial model, note rendering, and domain labels remain downstream",
+	},
 };
 
 export function parseHandoffArgs(argv = []) {

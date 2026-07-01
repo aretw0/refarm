@@ -46,19 +46,19 @@ materialization, or graph indexing.
 
 ## Boundary
 
-Refarm owns:
+This package owns:
 
 - versioned TypeScript types;
 - conformance checks;
 - deterministic reference fixture;
 - forward-safety rules for open vocabulary and unknown fields.
 
-Consumers own:
+Host consumers own:
 
 - domain vocabulary and record types;
 - storage/sync backends;
 - editorial workflow and rendered notes;
 - source and artifact dereferencing.
 
-`records:v1` is a contract package, not a release-policy candidate by default.
-Promotion requires package-local checks and a named downstream proof.
+`records:v1` is a contract package with package-local checks and a named
+downstream proof before handoff promotion.

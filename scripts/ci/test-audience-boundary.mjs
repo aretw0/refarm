@@ -328,7 +328,7 @@ test("process handoff stays the selected process leaf", () => {
 	assert.doesNotMatch(policyText, /@refarm\.dev\/launch-process/);
 });
 
-test("source librarian adapters stay profiled but proof-gated", () => {
+test("source librarian packages distinguish proven handoff leaves from held adapters", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const policyText = read("refarm.config.json");
 	const profiles = config.releasePolicy.packageProfiles;
@@ -355,6 +355,27 @@ test("source librarian adapters stay profiled but proof-gated", () => {
 			profile.tags.includes("boundary-review"),
 			`${packageName} must stay boundary-reviewed`,
 		);
+	}
+
+	for (const packageName of [
+		"@refarm.dev/source-contract-v1",
+		"@refarm.dev/source-web",
+	]) {
+		const profile = byId.get(packageName);
+		for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+			assert.ok(
+				profile.tags.includes(tag),
+				`${packageName} must declare ${tag} after selected downstream proof`,
+			);
+		}
+		assert.ok(
+			vaultSeedReady.has(packageName),
+			`${packageName} must enter vault-seed-ready after selected downstream proof`,
+		);
+	}
+
+	for (const packageName of ["@refarm.dev/source-git", "@refarm.dev/source-local"]) {
+		const profile = byId.get(packageName);
 		assert.ok(
 			profile.tags.includes("candidate-hold"),
 			`${packageName} must stay held until executable consumer proof`,
@@ -368,7 +389,7 @@ test("source librarian adapters stay profiled but proof-gated", () => {
 	assert.doesNotMatch(policyText, /@refarm\.dev\/source-dispatch/);
 });
 
-test("requirements supply packages stay profiled but proof-gated", () => {
+test("requirements supply packages are selected only after downstream proof", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const profiles = config.releasePolicy.packageProfiles;
 	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
@@ -393,17 +414,19 @@ test("requirements supply packages stay profiled but proof-gated", () => {
 			profile.tags.includes("boundary-review"),
 			`${packageName} must stay boundary-reviewed`,
 		);
-		assert.ok(
-			profile.tags.includes("candidate-hold"),
-			`${packageName} must stay held until selected downstream proof`,
-		);
+		for (const tag of ["consumer-pulled", "vault-seed-ready", "consumer-proven"]) {
+			assert.ok(
+				profile.tags.includes(tag),
+				`${packageName} must declare ${tag} after selected downstream proof`,
+			);
+		}
 		assert.ok(
 			Array.isArray(profile.mustPassChecks) && profile.mustPassChecks.length >= 2,
 			`${packageName} must declare package checks before handoff planning`,
 		);
 		assert.ok(
-			!vaultSeedReady.has(packageName),
-			`${packageName} must not enter vault-seed-ready without selected downstream proof`,
+			vaultSeedReady.has(packageName),
+			`${packageName} must enter vault-seed-ready after selected downstream proof`,
 		);
 	}
 });

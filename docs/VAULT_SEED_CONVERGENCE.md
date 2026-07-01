@@ -447,8 +447,9 @@ adapter should emit `refarm.channel-delivery-envelope.v1` while keeping provider
 calls and user-facing command semantics local.
 
 **2026-06-30 full `vault-seed-ready` handoff:** after ADR-072 the release-policy
-selection contains 9 packages. `@refarm.dev/homestead-ssr` was removed pre-publication;
-`@refarm.dev/ds/html` ships through the DS tarball.
+selection contained 9 packages. `@refarm.dev/homestead-ssr` was removed pre-publication;
+`@refarm.dev/ds/html` ships through the DS tarball. This packet is historical
+after the 2026-07-01 T3 consumer proof.
 
 | Package | Tarball |
 | --- | --- |
@@ -461,6 +462,21 @@ selection contains 9 packages. `@refarm.dev/homestead-ssr` was removed pre-publi
 | `@refarm.dev/heartwood` | `refarm.dev-heartwood-0.1.0.tgz` |
 | `@refarm.dev/silo` | `refarm.dev-silo-0.1.0.tgz` |
 | `@refarm.dev/dispatch-surface` | `refarm.dev-dispatch-surface-0.1.0.tgz` |
+
+**2026-07-01 T3 promotion:** the official `vault-seed` checkout assimilated
+`@refarm.dev/enrichment-contract-v1`, `@refarm.dev/records-contract-v1`, and
+`@refarm.dev/source-web`, with `@refarm.dev/source-contract-v1` vendored as the
+required `source-web` transitive override. The downstream consumer-contract
+suite is green (16/16), and the reference vault proves `source-web` fixture input
+composing through `records:v1` and `enrichment:v1` with an empty gap ledger. The
+active `vault-seed-ready` selection now adds:
+
+| Package | Tarball |
+| --- | --- |
+| `@refarm.dev/source-contract-v1` | `refarm.dev-source-contract-v1-0.1.0.tgz` |
+| `@refarm.dev/enrichment-contract-v1` | `refarm.dev-enrichment-contract-v1-0.1.0.tgz` |
+| `@refarm.dev/records-contract-v1` | `refarm.dev-records-contract-v1-0.1.0.tgz` |
+| `@refarm.dev/source-web` | `refarm.dev-source-web-0.1.0.tgz` |
 
 Pre-publication consumers should install these from the local handoff and
 override unpublished workspace dependencies to matching tarballs where needed;
@@ -475,7 +491,7 @@ files, writes `manifest.json` beside the tarballs, and emits the same package
 acceptance summary exposed by the release plan. The companion
 `pnpm --silent run release:vault-seed:handoff -- --out
 .refarm/handoff/vault-seed/2026-06-30/manifest.md` writes the operator-readable
-Markdown view of the same packet. The current packet reports
+Markdown view of the same packet. The 2026-06-30 packet reports
 `acceptance.status: "accepted"`, 9 packages, 4 required gates, 20 required
 checks, one publish provider, `manualApprovalRequired: true`, and no stale
 tarball or stale build-output issues. The Markdown form prints the same
@@ -499,7 +515,11 @@ downstream assimilation checklist: each item has a stable `proofId`, names the
 `vault-seed` proof target, and records the product boundary that must remain
 local. `distributionEvidence` records the local handoff ref, verified-copy
 state, update source, rollback target, and the explicit boundary that this is
-not a public install contract or P2P substrate.
+not a public install contract or P2P substrate. After the T3 downstream proof, the
+active release plan reports `acceptance.status: "accepted"`, 13 packages, 4
+required gates, and 34 required checks; the next official handoff should be
+materialized from the generated manifest rather than copied from this historical
+table.
 
 ### Additional Assimilation Matrix
 

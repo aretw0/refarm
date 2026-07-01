@@ -65,7 +65,7 @@ test("requirements supply composition proves cheap records plus enrichment prefl
 	assert.equal(result.artifacts.reviewReport.source.redacted, true);
 	assert.equal(result.artifacts.reviewReport.records.validation.ok, true);
 	assert.match(result.boundaries.join("\n"), /does not run browser automation/);
-	assert.match(result.boundaries.join("\n"), /does not select vault-seed-ready/);
-	assert.match(result.nextActions.join("\n"), /downstream local handoff evidence/);
+	assert.match(result.boundaries.join("\n"), /official publication handoff remains release:vault-seed:handoff/);
+	assert.match(result.nextActions.join("\n"), /downstream reference-vault proof/);
 	assert.deepEqual(result.issues, []);
 });

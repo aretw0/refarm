@@ -26,7 +26,7 @@ after(() => {
 	}
 });
 
-test("requirements supply handoff plans candidate packages without promotion", () => {
+test("requirements supply handoff reports consumer-proven packages after promotion", () => {
 	const handoffDir = path.join(makeTempRoot(), "empty-handoff");
 	const result = buildRequirementsSupplyHandoff({
 		generatedAt: "2026-06-30T00:00:00.000Z",
@@ -36,11 +36,11 @@ test("requirements supply handoff plans candidate packages without promotion", (
 	assert.equal(result.schema, "refarm.requirements-supply-handoff.v1");
 	assert.equal(result.source, "requirements-supply-handoff");
 	assert.equal(result.ok, true);
-	assert.equal(result.state, "candidate-hold");
+	assert.equal(result.state, "consumer-proven");
 	assert.equal(result.selection.id, "requirements-supply-candidates");
 	assert.equal(result.selection.profileTag, "requirements-supply");
 	assert.equal(result.selection.scope, "all");
-	assert.equal(result.selection.selectedForVaultSeedReady, false);
+	assert.equal(result.selection.selectedForVaultSeedReady, true);
 	assert.deepEqual(
 		result.packages.map((entry) => entry.packageName),
 		[
@@ -52,11 +52,13 @@ test("requirements supply handoff plans candidate packages without promotion", (
 
 	for (const entry of result.packages) {
 		assert.equal(entry.version, "0.1.0");
-		assert.equal(entry.state, "candidate-hold");
-		assert.equal(entry.selectedForVaultSeedReady, false);
+		assert.equal(entry.state, "consumer-proven");
+		assert.equal(entry.selectedForVaultSeedReady, true);
 		assert.ok(entry.tags.includes("requirements-supply"));
 		assert.ok(entry.tags.includes("boundary-review"));
-		assert.ok(entry.tags.includes("candidate-hold"));
+		assert.ok(entry.tags.includes("consumer-pulled"));
+		assert.ok(entry.tags.includes("vault-seed-ready"));
+		assert.ok(entry.tags.includes("consumer-proven"));
 		assert.ok(entry.mustPassChecks.length >= 4);
 		assert.ok(entry.consumerPull.proofId.startsWith("requirements-"));
 		assert.match(entry.consumerPull.fallback, /consumer/);
@@ -99,13 +101,13 @@ test("requirements supply handoff plans candidate packages without promotion", (
 		"refarm.dev-source-contract-v1-0.1.0.tgz",
 	]);
 	assert.equal(result.consumerProofs.length, result.packages.length);
-	assert.equal(result.distributionEvidence.state, "candidate-hold");
+	assert.equal(result.distributionEvidence.state, "consumer-proven");
 	assert.equal(result.distributionEvidence.verifiedLocalCopies, 0);
 	assert.equal(result.distributionEvidence.expectedLocalCopies, 4);
-	assert.match(result.distributionEvidence.promotionBoundary, /downstream proof/);
+	assert.match(result.distributionEvidence.promotionBoundary, /named downstream proof exists/);
 	assert.match(result.boundaries.join("\n"), /packs only when --pack is explicit/);
-	assert.match(result.boundaries.join("\n"), /not vault-seed-ready artifacts/);
-	assert.match(result.nextActions.join("\n"), /consumer checkout records a named proof/);
+	assert.match(result.boundaries.join("\n"), /official publication handoff is vault-seed-ready/);
+	assert.match(result.nextActions.join("\n"), /release:vault-seed:handoff/);
 	assert.deepEqual(result.missingTarballs, [
 		"refarm.dev-enrichment-contract-v1-0.1.0.tgz",
 		"refarm.dev-records-contract-v1-0.1.0.tgz",
@@ -124,7 +126,7 @@ test("requirements supply handoff can target clean packages first", () => {
 	});
 
 	assert.equal(result.ok, true);
-	assert.equal(result.state, "candidate-hold");
+	assert.equal(result.state, "consumer-proven");
 	assert.equal(result.selection.scope, "clean");
 	assert.deepEqual(
 		result.packages.map((entry) => entry.packageName),
@@ -159,7 +161,7 @@ test("requirements supply handoff can target source-web with source-contract sup
 	});
 
 	assert.equal(result.ok, true);
-	assert.equal(result.state, "candidate-hold");
+	assert.equal(result.state, "consumer-proven");
 	assert.equal(result.selection.scope, "source-web");
 	assert.deepEqual(
 		result.packages.map((entry) => entry.packageName),

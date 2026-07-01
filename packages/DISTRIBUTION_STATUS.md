@@ -45,12 +45,16 @@ channel, not a public npm publication promise.
 - `@refarm.dev/artifact-contract-v1`
 - `@refarm.dev/channel-policy-v1`
 - `@refarm.dev/effort-contract-v1`
+- `@refarm.dev/source-contract-v1`
+- `@refarm.dev/enrichment-contract-v1`
+- `@refarm.dev/records-contract-v1`
 - `@refarm.dev/process-handoff`
 - `@refarm.dev/release-engine`
 - `@refarm.dev/ds`
 - `@refarm.dev/heartwood`
 - `@refarm.dev/dispatch-surface`
 - `@refarm.dev/silo`
+- `@refarm.dev/source-web`
 
 Validation:
 
@@ -94,6 +98,17 @@ ownership boundary that must stay product-local. The same proof targets are
 flattened into `consumerProofs` so downstream checks can validate the adoption
 work without scraping the tarball table or matching prose.
 
+T3 requirements supply is now consumer-proven. The official `vault-seed`
+checkout assimilated `@refarm.dev/enrichment-contract-v1`,
+`@refarm.dev/records-contract-v1`, and `@refarm.dev/source-web`, with
+`@refarm.dev/source-contract-v1` vendored as the `source-web` transitive
+contract override. Its consumer-contract suite is green (16/16), and the
+sanitized reference vault proves `source-web` fixture input composing through
+`records:v1` and `enrichment:v1` with an empty gap ledger. That proof promotes
+the three T3 blocks, plus the required source contract support package, into
+`vault-seed-ready`; private login, selectors, ETL profiles, enrichment providers,
+and vocabulary remain downstream-owned.
+
 ---
 
 ## Historical Contract Inventory
@@ -120,16 +135,12 @@ packages are ready:
 | Surface | Current status | Reason |
 | --- | --- | --- |
 | `@refarm.dev/health` | release-profiled; not selected | generic diagnostics, `environment-pressure`, and work-ceiling SDK primitives are ready, but promotion waits for a consumer-pulled proof or default-candidate decision |
-| `@refarm.dev/source-contract-v1` | release-profiled; not selected | source capability contract is implemented and checked; publication waits for an executable dogfood, `vault-seed`, or `agents-lab` consumer proof rather than mere strategic intent |
 | `@refarm.dev/source-git` | release-profiled; not selected | clean cached checkout adapter is implemented and dogfooded; handoff promotion waits for a selected consumer path that needs package consumption |
 | `@refarm.dev/source-local` | release-profiled; not selected | live working-tree reads are useful for Refarm dogfood and expected downstream assimilation, but handoff promotion waits for a proof that dirty/untracked state is required |
-| `@refarm.dev/source-web` | release-profiled; not selected | authenticated web capture fixture adapter passes `source:v1` conformance as a redacted local snapshot with session/cache/pacing/offline replay provenance; promotion waits for downstream proof with real login/selectors kept outside Refarm |
 | `@refarm.dev/source-dispatch` | not created | dispatch adapter activates when Refarm, `vault-seed`, or `agents-lab` needs `source:v1` through `dispatch-surface` with an executable proof |
 | `@refarm.dev/identity-heartwood` | implemented; not selected | real Ed25519 `identity:v1` adapter backed by `@refarm.dev/heartwood`; publication waits for the T2 wallet/credential POC proof rather than replacing `identity-nostr` or changing the default kernel selection |
 | `@refarm.dev/credentials-contract-v1` | implemented; not selected | Verifiable Credentials and holder wallet contract composes `identity:v1` + `storage:v1`; promotion waits for Refarm dogfood and downstream proof, with issuer trust policy and credential schemas kept consumer-owned |
 | `@refarm.dev/skill-contract-v1` | implemented; not selected | native `skill:v1` manifest/plan/request/decision/receipt/surface/preflight helpers are checked, plugin-manifest validates `pi/skill` package surfaces, the plan-only Refarm git-workflow smoke records a host policy decision, the source-status smoke records one `source:v1` engine call through `@refarm.dev/source-local`, the `agents-lab` git-workflow wrapper smoke records external source evidence without installing upstream skill text, and the DGK `vault-search` wrapper smoke records external `vault-seed` source evidence plus a package-declared `pi/skill` surface and blocked activation preflight without executing `dgk` or Obsidian CLI; publication now waits for runtime-host and install-policy proof rather than a missing DGK wrapper fixture |
-| `@refarm.dev/enrichment-contract-v1` | release-profiled; not selected | deterministic record/note enrichment now has a neutral fixture provider and conformance suite; promotion waits for downstream proof with private providers kept outside Refarm |
-| `@refarm.dev/records-contract-v1` | release-profiled; not selected | requirement-like records now have a neutral manifest contract with reference validation, relation integrity, stable hashes, and forward-safe upcast; promotion waits for a downstream proof and composition evidence with source/artifact packages |
 | `@refarm.dev/homestead` | held out of `vault-seed-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies; DS-only HTML helpers ship through `@refarm.dev/ds/html` |
 | `@refarm.dev/homestead-ssr` | removed pre-publication | `@refarm.dev/ds/html` is the canonical DS-owned helper surface |
 | `@refarm.dev/cli` | held out of `vault-seed-ready` | `@refarm.dev/process-handoff` is the leaf package needed by consumers |
