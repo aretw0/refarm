@@ -35,6 +35,7 @@ each sub-project's own brainstorm.
 | 12 | **Vault-seed roadmap assimilation** — sources/ETL, multi-channel publishing, OKF, workspace publishing, Lab WASM helpers | classification + specs | 1, 5, 8, 9 | each future vault-seed slice either consumes a Refarm candidate block or stays explicitly product-local | ▶ classified; activate per lane |
 | 13 | **Remote workspace control plane** — coordinate personal/work/vault machines through policy-aware Refarm nodes | ADR + proof harness | 4, 7, 8, task/session/effort/process/stream contracts | one enrolled remote node answers status, runs a bounded read-only check, streams output, supports cancel, and emits audit/artifact evidence | ◑ first loopback proof implemented ([validation](../validations/remote-workspace-control-plane/README.md)); real remote transport held |
 | 14 | **Distributed availability evidence** — install/update/rollback/availability/trust over existing manifests | spec + proof harness | ADR-075, artifact contract, release-engine, 13 | Refarm can describe what is distributed, who keeps it available, how it updates, how it rolls back, and what trust evidence promoted it | ◑ first proof implemented ([spec](../specs/features/2026-06-30-distributed-availability-evidence-proof.md), [validation](../validations/distributed-availability-evidence/README.md)); public install/P2P substrate held |
+| 15 | **Verification-as-completion** — done means re-observed evidence, not runner claim | spec + proof harness | effort/artifact/process/context contracts, RTK/peerd/Terax research | completion decision links compact observation to recoverable raw evidence and source-truth verification | ◑ first proof implemented ([spec](../specs/features/2026-07-01-verification-as-completion-proof.md), [validation](../validations/verification-as-completion/README.md)); `tool-observation:v1` extraction held |
 
 ## Detail & rationale
 
@@ -235,6 +236,18 @@ seed/replica policy, update evidence, and rollback target evidence.
 This is deliberately not a public install/update contract and not a P2P runtime/storage adoption.
 It exists to keep future distribution work honest before Tractor, source adapters, remote workspace
 nodes, generated vaults, or plugins claim distributed availability.
+
+### 15. Verification-as-completion — first proof, not product-ready
+The peerd/RTK/Terax research converges on a runtime rule: compact observations
+help the model, but completion needs source-truth evidence. The first proof is
+specified in `specs/features/2026-07-01-verification-as-completion-proof.md`
+and implemented in `validations/verification-as-completion`: command observation
+with raw evidence recovery, source-hash re-observation, completion gating,
+tool-less/keyless delegation, and an existing `context:v1` context map.
+
+This does not extract `tool-observation:v1` yet and does not move behavior into
+`apps/refarm`. Extraction waits for dogfood or a second consumer that needs the
+same observation/completion contract.
 
 ## Sequence
 
