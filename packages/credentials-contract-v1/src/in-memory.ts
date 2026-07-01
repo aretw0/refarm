@@ -7,6 +7,7 @@ import {
 	type StorageProvider,
 } from "@refarm.dev/storage-contract-v1";
 
+import type { ReferenceCredentialsProviderOptions } from "./reference.js";
 import { ReferenceCredentialsProvider } from "./reference.js";
 
 export interface InMemoryCredentialsProviderFixture {
@@ -15,11 +16,13 @@ export interface InMemoryCredentialsProviderFixture {
   storage: StorageProvider;
 }
 
-export function createInMemoryCredentialsProviderFixture(): InMemoryCredentialsProviderFixture {
+export function createInMemoryCredentialsProviderFixture(
+	options: Pick<ReferenceCredentialsProviderOptions, "selfIdentityId"> = {},
+): InMemoryCredentialsProviderFixture {
   const identity = createInMemoryIdentityProvider();
   const storage = createInMemoryStorageProvider();
   return {
-    provider: new ReferenceCredentialsProvider({ identity, storage }),
+    provider: new ReferenceCredentialsProvider({ identity, storage, ...options }),
     identity,
     storage,
   };

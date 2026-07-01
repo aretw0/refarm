@@ -17,3 +17,24 @@ import { createInMemoryCredentialsProviderFixture } from "@refarm.dev/credential
 const { provider: credentials, identity } = createInMemoryCredentialsProviderFixture();
 const issuer = await identity.create("Issuer");
 ```
+
+Verification accepts plain policy data as the second argument. With no policy,
+verification remains signature-only; consumers opt into stricter checks.
+
+```ts
+const result = await credentials.verify(credential, {
+  trustedIssuers: [issuer.id],
+  trustSelf: true,
+  validity: "required",
+  requiredClaims: [{ path: "capability", equals: "credentials:v1" }],
+  revocation: "required",
+});
+
+if (!result.valid) {
+  console.log(result.checks);
+}
+```
+
+`revocation: "required"` fails closed in the reference provider until a status
+resolver is configured. This keeps day-1 consumers honest without inventing a
+network fetch path.
