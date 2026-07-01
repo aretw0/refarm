@@ -1,6 +1,7 @@
-# Spec: `node:test` → Vitest codemod (candidate)
+# Spec: `node:test` → Vitest codemod
 
-**Status:** CANDIDATE — proof-gated. Consumer pressure from a JS-first project on `node:test`.
+**Status:** READY — local fixtures/dry-run landed; consumer migration remains proof-gated.
+Consumer pressure from a JS-first project on `node:test`.
 **Authors:** Arthur Silva, Claude
 **Date:** 2026-06-30
 **Related:** `docs/ECOSYSTEM_SUPPLY_MAP.md` (generator/codemod registry lane), Refarm test stack
@@ -21,29 +22,30 @@ Aligning that consumer to Vitest is a **mechanical** rewrite, not a rethink: mea
 for its own migrations; a generic **`node:test` → Vitest codemod** is a reusable block: Refarm owns it,
 consumers (the vault, `agents-lab`, any node:test project) run it to reach the shared stack.
 
-## Decision (candidate, proof-gated)
+## Decision
 
 A codemod in Refarm's codemod registry that transforms a `node:test` suite to Vitest:
 
 - **imports:** `import test from "node:test"` / `node:test` named imports → `import { test, it, describe,
-  expect } from "vitest"`; drop `node:assert`/`assert/strict`.
+  expect } from "vitest"`; drop simple default `node:assert/strict` imports.
 - **assertions:** `assert.equal→toBe`, `assert.deepEqual→toEqual`, `assert.match→toMatch`,
   `assert.doesNotMatch→not.toMatch`, `assert.ok→toBeTruthy`, `assert.notEqual→not.toBe`,
-  `assert.throws→toThrow`, and async `assert.rejects/doesNotReject → await expect(...).rejects...`.
-  Preserve the optional message argument as the matcher message.
-- **mocks/lifecycle:** `describe`/`beforeEach` map straight; `mock.*` → `vi.*` where present (flagged,
-  not silently guessed).
+  `assert.throws→toThrow`, and async `assert.rejects → await expect(...).rejects...`.
+  Preserve the optional message argument as the `expect` message where Vitest supports it.
+- **mocks/lifecycle:** `describe`/`beforeEach` map straight; simple `before`/`after` calls map to
+  `beforeAll`/`afterAll`; `mock.*` namespace uses map to `vi.*`.
 - **safety:** anything the codemod does not recognize is **left intact and reported** for manual review
-  — the codemod never silently drops or mis-rewrites an assertion.
+  — the codemod never silently drops or mis-rewrites an assertion, and keeps the assert import when
+  an unhandled `assert.*` remains.
 
 It does **not** own: the consumer's Vitest config, coverage thresholds, or test conventions — those
 stay downstream.
 
 ## Consumer pressure & gate
 
-First pressure: the vault consumer (68 files, ~1817 asserts). Per the codemod-lane gate, this stays a
-**candidate** until Refarm dogfoods it or the consumer proves it. The first proof is that consumer's
-migration.
+First pressure: the vault consumer (68 files, ~1817 asserts). The local Refarm gate promotes the
+codemod to **ready** because fixtures, dry-run JSON, rollback notes, and registry coverage exist. It
+does not become **implemented** until Refarm dogfoods it or the consumer migration proves it.
 
 ## First proof shape
 
