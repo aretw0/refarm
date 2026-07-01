@@ -73,3 +73,35 @@ lacks this today. Boundary: the work *for `pi`* stays in `agents-lab`; Refarm ad
 |---|---|---|---|
 | peerd | sandbox isolation, silo passkey, ADR-075 P2P | **egress chokepoint** | Refarm-native (`source-web`, ADR-074) |
 | Accordion | small-model relevance ↔ `plugin-tem` | **reversible context folding** | pattern for `pi-agent`; the pi-facing work is `agents-lab` |
+
+## Deeper lessons (second pass — the first pass grabbed the easy ones)
+
+The egress chokepoint was the concrete, immediate lesson and it landed fast. Three deeper,
+architectural lessons were under-developed and deserve their own attention:
+
+1. **peerd — verification-as-completion (the source of truth is the arbiter).** peerd counts an action
+   *done* only after verifying it against the live page. Refarm's task/effort/artifact model has no
+   equivalent gate — an effort completes on the runner's word, not on verified reality. Candidate:
+   `effort-contract-v1` / `artifact-contract-v1` carry a **verification-evidence** step so completion is
+   gated on re-observing the result against its source (the `source:v1` snapshot, the produced
+   artifact). This turns "done" from a claim into evidence; strongest for `source-web` capture and any
+   mutation.
+
+2. **peerd — the tool-less orchestrator (keyless-actor delegation).** The orchestrator that holds keys
+   holds **no** environment tools; each environment spawns a keyless actor that exclusively owns that
+   env's tools and returns a fenced summary. Refarm grants capabilities to plugins, but the
+   `pi-agent` orchestrator itself is a tool-holder. Candidate refinement: `pi-agent`/`farmhand` as a
+   **tool-less conductor** delegating to per-environment keyless actors — so the orchestrator can't be
+   the single point of tool-compromise, and injection can't escalate. Pushes ADR-078's control/workload
+   split down into the runtime.
+
+3. **Accordion — context management is a missing primitive, not a footnote.** The first pass filed
+   reversible folding as "a pattern." It is larger: the runtime layer has **no context/memory capability
+   at all** — no fold/unfold, no visible context map, no hierarchical sessions, no relevance conductor.
+   This deserves a **contract** — a `context:v1` / session-memory shape (reversible fold as tool calls, a
+   protected working tail, a steerable map) beside `session-contract-v1`. The pi-facing implementation is
+   `agents-lab` (`pi.dev`); the contract is generic and Refarm-ownable, and `pi-agent` consumes it. This
+   is arguably the runtime's **largest** current gap.
+
+Verdict: the immediate assimilation was excellent; these three are what we were under-learning. All are
+candidates (proof / second-consumer gated), not adoptions.
