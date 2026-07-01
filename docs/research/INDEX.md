@@ -52,6 +52,16 @@ Concludes that Refarm should treat migration packs as a plugin package profile, 
 
 ---
 
+#### [RTK External Reference](./2026-07-01-external-reference-rtk.md)
+**Date**: 2026-07-01 | **Status**: Research
+
+Assessment of `rtk-ai/rtk` as a reference for command-output mediation between agents and developer tools.
+Concludes that Refarm should assimilate RTK as an observation-membrane pattern: compact command views, raw evidence recovery, exit-code preservation, verbosity tiers, and local/opt-in analytics, without adopting RTK as a dependency or requiring global shell rewriting.
+
+**ADR**: No ADR yet — feeds a future `tool-observation:v1` / `command-observation:v1` contract, finish-lane proof work, and reference-driver ergonomics.
+
+---
+
 ### Collaborative Editing & Concurrency
 
 #### [Lock Strategies Comparison](./LOCK_STRATEGIES_COMPARISON.md)
