@@ -16,6 +16,7 @@ import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { exec } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
+import { replaceTopLevelJsonStringProperty } from "./package-json-edit.mjs";
 import {
   loadConfig,
   packagePublishDryRunCommand,
@@ -94,7 +95,8 @@ async function main() {
   const packageJsonPath = join(packageDir, "package.json");
 
   // Read current version
-  const packageJson = JSON.parse(await readFile(packageJsonPath, "utf-8"));
+  const originalPackageJsonRaw = await readFile(packageJsonPath, "utf-8");
+  const packageJson = JSON.parse(originalPackageJsonRaw);
   const currentVersion = packageJson.version;
   const fullPackageName = packageJson.name;
 
@@ -112,7 +114,10 @@ async function main() {
   // Bump version
   const newVersion = bumpVersion(currentVersion, versionBump);
   packageJson.version = newVersion;
-  await writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n");
+  await writeFile(
+    packageJsonPath,
+    replaceTopLevelJsonStringProperty(originalPackageJsonRaw, "version", newVersion),
+  );
   console.log(["patch", "minor", "major"].includes(versionBump)
     ? `   Bumping: ${versionBump} -> ${newVersion}`
     : `   Setting version: ${newVersion}`);
@@ -143,7 +148,7 @@ async function main() {
     
     // Rollback version bump
     packageJson.version = currentVersion;
-    await writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + "\n");
+    await writeFile(packageJsonPath, originalPackageJsonRaw);
     console.log("\n⏪ Rolled back version change");
     
     process.exit(1);
