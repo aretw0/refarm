@@ -183,22 +183,24 @@ that URL from the public site as a JSON-LD context document at `/contexts/record
 
 The v1 context intentionally defines only the neutral records envelope terms (`schemaVersion`,
 `fields`, `sections`, `relations`, `attachments`, `sourceRefs`, `contentHash`, `review`) plus
-manifest-level terms (`manifestVersion`, `records`) and the reference fixture's generic
-`KnowledgeRecord`/`Requirement` type names. Domain vocabularies still belong downstream and may add
-their own JSON-LD contexts without changing `records:v1`.
+manifest-level terms (`manifestVersion`, `records`) and generic type names that the base graph can
+understand without importing a product vocabulary: `KnowledgeRecord`, `Requirement`, and `Source`.
+Domain vocabularies still belong downstream and may add their own JSON-LD contexts without changing
+`records:v1`.
 
 Flagged by the vault-seed consumer (2026-07-01): the base context is used downstream as
 `RECORDS_BASE_CONTEXT`. The release gate is now closed by the site route and a site test that asserts
 the records context endpoint returns a parseable `application/ld+json` response with the manifest and
 record envelope terms used by distributed records manifests.
 
-**Candidate general type — `Source` (flagged by vault-seed, 2026-07-01).** vault-seed's distributed
-manifest models its feed subscriptions as `@type: ["KnowledgeRecord", "Source"]` carrying the `source:v1`
-vocabulary (`sourceKind`, `sourceLocation`) — records:v1 modeling non-note entities. `Source` is arguably
-as general as `Requirement` (every knowledge vault has external sources). If it earns a place in the
-neutral base context, downstream `Source` records resolve directly; otherwise it stays a downstream vocab
-via `config.context.vocab` (which records:v1 already endorses). Soft proposal — deferred to the
-neutral-context decision; either way vault-seed uses the term now (vocabulary-is-data).
+**Neutral general type — `Source` (decided, 2026-07-01).** vault-seed's distributed manifest models
+feed subscriptions as `@type: ["KnowledgeRecord", "Source"]` carrying `source:v1`-aligned vocabulary
+(`sourceKind`, `sourceLocation`) so records can represent non-note entities. Refarm now includes
+`Source`, `sourceKind`, and `sourceLocation` in the neutral base context because a source is a general
+knowledge-graph entity, not vault-seed product vocabulary. This is a JSON-LD vocabulary commitment only:
+`records:v1` still treats these as data in `@type`/`fields`, does not import
+`@refarm.dev/source-contract-v1`, does not dereference sources, and does not close the TypeScript
+record shape. Downstream contexts may still refine source taxonomy or add product-specific predicates.
 
 ## Non-Goals
 
