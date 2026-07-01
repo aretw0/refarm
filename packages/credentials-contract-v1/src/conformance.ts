@@ -45,6 +45,9 @@ export async function runCredentialsV1Conformance(
     if (!issued.proof?.signature) failures.push("issue() must attach proof.signature");
     const verified = await provider.verify(issued);
     if (!verified.valid) failures.push(`verify(issue()) failed: ${verified.failures.join("; ")}`);
+    if (verified.checks.signature?.ok !== true) {
+      failures.push("verify(issue()) must report checks.signature.ok=true");
+    }
   } catch (error) {
     failures.push(`issue()/verify() threw: ${String(error)}`);
   }
@@ -69,10 +72,56 @@ export async function runCredentialsV1Conformance(
         baseCredential({ expirationDate: "2000-01-01T00:00:00.000Z" }),
         identities.issuerIdentityId,
       );
-      const result = await provider.verify(expired);
-      if (result.valid) failures.push("verify() must reject expired credentials");
+      const signatureOnly = await provider.verify(expired);
+      if (!signatureOnly.valid) {
+        failures.push("verify() without policy must remain signature-only for expired credentials");
+      }
+      const result = await provider.verify(expired, { validity: "required" });
+      if (result.valid) failures.push("verify() must reject expired credentials when validity is required");
+      if (result.checks.withinValidity?.ok !== false) {
+        failures.push("verify() must report checks.withinValidity.ok=false for expired credentials");
+      }
     } catch (error) {
       failures.push(`expired verify threw: ${String(error)}`);
+    }
+
+    try {
+      const trusted = await provider.verify(issued, { trustedIssuers: [issued.issuer] });
+      if (!trusted.valid || trusted.checks.issuerTrusted?.ok !== true) {
+        failures.push("trustedIssuers policy must accept the issued credential");
+      }
+      const untrusted = await provider.verify(issued, { trustedIssuers: ["did:example:other"] });
+      if (untrusted.valid || untrusted.checks.issuerTrusted?.ok !== false) {
+        failures.push("trustedIssuers policy must reject unknown issuers");
+      }
+    } catch (error) {
+      failures.push(`trusted issuer verify threw: ${String(error)}`);
+    }
+
+    try {
+      const result = await provider.verify(issued, {
+        requiredClaims: [{ path: "capability", equals: "credentials:v1" }],
+      });
+      if (!result.valid || result.checks.claimsSatisfied?.ok !== true) {
+        failures.push("requiredClaims policy must accept matching claims");
+      }
+      const mismatch = await provider.verify(issued, {
+        requiredClaims: [{ path: "capability", equals: "other" }],
+      });
+      if (mismatch.valid || mismatch.checks.claimsSatisfied?.ok !== false) {
+        failures.push("requiredClaims policy must reject mismatched claims");
+      }
+    } catch (error) {
+      failures.push(`requiredClaims verify threw: ${String(error)}`);
+    }
+
+    try {
+      const result = await provider.verify(issued, { revocation: "required" });
+      if (result.valid || result.checks.notRevoked?.ok !== false) {
+        failures.push("revocation required policy must fail closed until a status resolver exists");
+      }
+    } catch (error) {
+      failures.push(`revocation verify threw: ${String(error)}`);
     }
 
     try {
@@ -108,7 +157,7 @@ export async function runCredentialsV1Conformance(
   const failed = failures.length;
   return {
     pass: failed === 0,
-    total: 8,
+    total: 13,
     failed,
     failures,
   };

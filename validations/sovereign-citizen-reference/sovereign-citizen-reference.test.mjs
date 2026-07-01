@@ -20,9 +20,21 @@ describe("sovereign citizen reference", () => {
 		assert.equal(result.evidence.signatureAlgorithm, "ed25519-heartwood-v1");
 		assert.equal(result.checks.credentialSignatureValid, true);
 		assert.deepEqual(result.checks.credentialFailures, []);
+		assert.deepEqual(result.checks.credentialPolicyChecks.signature, { ok: true });
+		assert.deepEqual(result.checks.credentialPolicyChecks.issuerTrusted, { ok: true });
+		assert.deepEqual(result.checks.credentialPolicyChecks.withinValidity, { ok: true });
+		assert.deepEqual(result.checks.credentialPolicyChecks.claimsSatisfied, { ok: true });
 		assert.equal(result.checks.tamperedCredentialRejected, true);
+		assert.equal(result.checks.revocationRequiredFailsClosed, true);
+		assert.equal(result.checks.revocationRequiredCheck.ok, false);
+		assert.equal(
+			result.checks.revocationRequiredCheck.code,
+			"credential_status_unresolved",
+		);
 		assert.equal(result.checks.presentationSignatureValid, true);
 		assert.deepEqual(result.checks.presentationFailures, []);
+		assert.deepEqual(result.checks.presentationPolicyChecks.signature, { ok: true });
+		assert.deepEqual(result.checks.presentationPolicyChecks.holderBound, { ok: true });
 		assert.equal(result.checks.presentationHolderVerified, true);
 		assert.equal(result.checks.walletStoredCredential, true);
 		assert.equal(result.checks.walletListCount, 1);
@@ -42,6 +54,7 @@ describe("sovereign citizen reference", () => {
 		const serialized = JSON.stringify(first);
 		assert.doesNotMatch(serialized, /did:refarm:heartwood/);
 		assert.doesNotMatch(serialized, /secret/i);
+		assert.doesNotMatch(serialized, /identity-[0-9]/);
 		assert.match(first.boundaries.join("\n"), /synthetic holder/);
 		assert.match(first.boundaries.join("\n"), /does not claim legal/);
 	});

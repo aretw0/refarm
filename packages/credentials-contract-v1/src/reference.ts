@@ -5,6 +5,9 @@ import { canonicalJson } from "./canonical.js";
 import {
 	CREDENTIALS_CAPABILITY,
 	type CredentialProof,
+	type CredentialVerificationCheck,
+	type CredentialVerificationChecks,
+	type CredentialVerificationPolicy,
 	type CredentialVerificationResult,
 	type CredentialsListFilter,
 	type CredentialsProvider,
@@ -20,6 +23,7 @@ const VP_TYPE = "VerifiablePresentation";
 export interface ReferenceCredentialsProviderOptions {
   identity: IdentityProvider;
   storage: StorageProvider;
+  selfIdentityId?: string | (() => string | Promise<string>);
   pluginId?: string;
 }
 
@@ -66,7 +70,42 @@ function ensureCredentialShape(credential: VerifiableCredential, failures: strin
 }
 
 function isExpired(credential: VerifiableCredential): boolean {
-  return Boolean(credential.expirationDate && Date.parse(credential.expirationDate) < Date.now());
+  const expiresAt = credential.validUntil ?? credential.expirationDate;
+  return Boolean(expiresAt && Date.parse(expiresAt) < Date.now());
+}
+
+function isNotYetValid(credential: VerifiableCredential): boolean {
+  return Boolean(credential.validFrom && Date.parse(credential.validFrom) > Date.now());
+}
+
+function pass(): CredentialVerificationCheck {
+  return { ok: true };
+}
+
+function fail(code: string, message: string): CredentialVerificationCheck {
+  return { ok: false, code, message };
+}
+
+function failuresFromChecks(checks: CredentialVerificationChecks): string[] {
+  return Object.entries(checks)
+    .filter((entry): entry is [string, CredentialVerificationCheck] => entry[1]?.ok === false)
+    .map(([name, check]) => `${name}: ${check.message ?? check.code ?? "failed"}`);
+}
+
+function finalizeVerification(
+  checks: CredentialVerificationChecks,
+  extraFailures: string[] = [],
+): { valid: boolean; verified: boolean; failures: string[] } {
+  const failures = [...extraFailures, ...failuresFromChecks(checks)];
+  const verified = failures.length === 0;
+  return { valid: verified, verified, failures };
+}
+
+function getClaimValue(source: unknown, pathValue: string): unknown {
+  return pathValue.split(".").reduce<unknown>((value, segment) => {
+    if (!value || typeof value !== "object") return undefined;
+    return (value as Record<string, unknown>)[segment];
+  }, source);
 }
 
 export class ReferenceCredentialsProvider implements CredentialsProvider {
@@ -75,10 +114,12 @@ export class ReferenceCredentialsProvider implements CredentialsProvider {
 
   private readonly identity: IdentityProvider;
   private readonly storage: StorageProvider;
+  private readonly selfIdentityId?: string | (() => string | Promise<string>);
 
   constructor(options: ReferenceCredentialsProviderOptions) {
     this.identity = options.identity;
     this.storage = options.storage;
+    this.selfIdentityId = options.selfIdentityId;
     this.pluginId = options.pluginId ?? "@refarm.dev/credentials-reference";
   }
 
@@ -113,8 +154,11 @@ export class ReferenceCredentialsProvider implements CredentialsProvider {
 
   async verify(
     input: VerifiableCredential | VerifiablePresentation,
+    policy: CredentialVerificationPolicy = {},
   ): Promise<CredentialVerificationResult> {
-    return isPresentation(input) ? this.verifyPresentation(input) : this.verifyCredential(input);
+    return isPresentation(input)
+      ? this.verifyPresentation(input, policy)
+      : this.verifyCredential(input, policy);
   }
 
   async present(
@@ -182,35 +226,74 @@ export class ReferenceCredentialsProvider implements CredentialsProvider {
 
   private async verifyCredential(
     credential: VerifiableCredential,
+    policy: CredentialVerificationPolicy = {},
   ): Promise<CredentialVerificationResult> {
     const failures: string[] = [];
+    const checks: CredentialVerificationChecks = {};
     ensureCredentialShape(credential, failures);
-    if (!credential.proof) failures.push("credential proof is required");
-    if (isExpired(credential)) failures.push("credential is expired");
+    if (!credential.proof) {
+      checks.signature = fail("credential_proof_missing", "credential proof is required");
+    }
 
     if (credential.proof) {
       try {
         const result = await this.identity.verify(credential.proof.signature, credentialPayload(credential));
-        if (!result.valid) failures.push("credential signature is invalid");
+        checks.signature = result.valid
+          ? pass()
+          : fail("credential_signature_invalid", "credential signature is invalid");
         if (result.identity.id !== credential.issuer) {
-          failures.push("credential issuer does not match signature identity");
+          checks.signature = fail(
+            "credential_issuer_signature_mismatch",
+            "credential issuer does not match signature identity",
+          );
         }
       } catch (error) {
-        failures.push(`credential signature verification threw: ${String(error)}`);
+        checks.signature = fail(
+          "credential_signature_verify_threw",
+          `credential signature verification threw: ${String(error)}`,
+        );
       }
     }
 
+    if (policy.trustedIssuers || policy.trustSelf) {
+      checks.issuerTrusted = await this.verifyIssuerTrust(credential, policy);
+    }
+
+    if (policy.validity === "required") {
+      if (isNotYetValid(credential)) {
+        checks.withinValidity = fail("credential_not_yet_valid", "credential is not yet valid");
+      } else if (isExpired(credential)) {
+        checks.withinValidity = fail("credential_expired", "credential is expired");
+      } else {
+        checks.withinValidity = pass();
+      }
+    }
+
+    if (policy.requiredClaims?.length) {
+      checks.claimsSatisfied = this.verifyRequiredClaims(credential, policy);
+    }
+
+    if (policy.revocation === "required") {
+      checks.notRevoked = fail(
+        "credential_status_unresolved",
+        "credential revocation status is required but no status resolver is configured",
+      );
+    }
+
+    const final = finalizeVerification(checks, failures);
     return {
-      valid: failures.length === 0,
+      ...final,
       issuer: credential.issuer,
-      failures,
+      checks,
     };
   }
 
   private async verifyPresentation(
     presentation: VerifiablePresentation,
+    policy: CredentialVerificationPolicy = {},
   ): Promise<CredentialVerificationResult> {
     const failures: string[] = [];
+    const checks: CredentialVerificationChecks = {};
     if (!Array.isArray(presentation.type) || !hasType(presentation.type, VP_TYPE)) {
       failures.push("presentation type must include VerifiablePresentation");
     }
@@ -218,8 +301,12 @@ export class ReferenceCredentialsProvider implements CredentialsProvider {
     if (!presentation.proof) failures.push("presentation proof is required");
 
     for (const credential of presentation.verifiableCredential) {
-      const result = await this.verifyCredential(credential);
+      const result = await this.verifyCredential(credential, policy);
       failures.push(...result.failures.map((failure) => `credential: ${failure}`));
+    }
+
+    if (policy.holderBinding) {
+      checks.holderBound = this.verifyHolderBinding(presentation);
     }
 
     if (presentation.proof) {
@@ -228,20 +315,87 @@ export class ReferenceCredentialsProvider implements CredentialsProvider {
           presentation.proof.signature,
           presentationPayload(presentation),
         );
-        if (!result.valid) failures.push("presentation signature is invalid");
+        checks.signature = result.valid
+          ? pass()
+          : fail("presentation_signature_invalid", "presentation signature is invalid");
         if (result.identity.id !== presentation.holder) {
-          failures.push("presentation holder does not match signature identity");
+          checks.signature = fail(
+            "presentation_holder_signature_mismatch",
+            "presentation holder does not match signature identity",
+          );
         }
       } catch (error) {
-        failures.push(`presentation signature verification threw: ${String(error)}`);
+        checks.signature = fail(
+          "presentation_signature_verify_threw",
+          `presentation signature verification threw: ${String(error)}`,
+        );
       }
     }
 
+    const final = finalizeVerification(checks, failures);
     return {
-      valid: failures.length === 0,
+      ...final,
       holder: presentation.holder,
-      failures,
+      checks,
     };
+  }
+
+  private async verifyIssuerTrust(
+    credential: VerifiableCredential,
+    policy: CredentialVerificationPolicy,
+  ): Promise<CredentialVerificationCheck> {
+    if (policy.trustedIssuers?.includes(credential.issuer)) return pass();
+
+    if (policy.trustSelf) {
+      const selfIdentityId =
+        typeof this.selfIdentityId === "function"
+          ? await this.selfIdentityId()
+          : this.selfIdentityId;
+      if (!selfIdentityId) {
+        return fail(
+          "credential_self_identity_unconfigured",
+          "credential trustSelf requires a configured self identity",
+        );
+      }
+      const self = await this.identity.get(selfIdentityId);
+      if (self?.id === credential.issuer) return pass();
+    }
+
+    return fail("credential_issuer_untrusted", "credential issuer is not trusted by policy");
+  }
+
+  private verifyRequiredClaims(
+    credential: VerifiableCredential,
+    policy: CredentialVerificationPolicy,
+  ): CredentialVerificationCheck {
+    for (const constraint of policy.requiredClaims ?? []) {
+      const value = getClaimValue(credential.credentialSubject, constraint.path);
+      if ("equals" in constraint && value !== constraint.equals) {
+        return fail(
+          "credential_claim_mismatch",
+          `credential claim '${constraint.path}' does not match policy`,
+        );
+      }
+      if (!("equals" in constraint) && value === undefined) {
+        return fail("credential_claim_missing", `credential claim '${constraint.path}' is missing`);
+      }
+    }
+
+    return pass();
+  }
+
+  private verifyHolderBinding(presentation: VerifiablePresentation): CredentialVerificationCheck {
+    const unbound = presentation.verifiableCredential.find((credential) => {
+      const subjectId = credential.credentialSubject?.id;
+      return typeof subjectId === "string" && subjectId !== presentation.holder;
+    });
+    if (unbound) {
+      return fail(
+        "presentation_holder_unbound",
+        "presentation holder does not match credential subject",
+      );
+    }
+    return pass();
   }
 }
 
