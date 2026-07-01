@@ -25,21 +25,20 @@ publication remains held by the daily-driver gate or explicit human override.
 
 ## 📚 Librarian Source Primitives
 
-These packages provide the `source:v1` librarian boundary. They are
-release-profiled and checked, but not selected for `vault-seed-ready` until a
-consumer-pulled proof needs source materialization directly. The expected
-consumers are real: Refarm dogfood in its own apps/runtime, the official
-`vault-seed` checkout, and `agents-lab` as it moves toward Refarm as engine.
-The current hold means the proof is not yet a selected handoff/publication
-contract. `source-dispatch` is intentionally absent until one of those paths
-needs `source:v1` through `dispatch-surface` with an executable proof.
+These packages provide the `source:v1` librarian boundary. The base contract
+and authenticated-web fixture adapter are now selected for the consumer-pulled
+`vault-seed-ready` lane after the T3 proof. The other adapters remain
+release-profiled and checked, but held until Refarm dogfood, the official
+`vault-seed` checkout, or `agents-lab` needs that package leaf directly.
+`source-dispatch` is intentionally absent until one of those paths needs
+`source:v1` through `dispatch-surface` with an executable proof.
 
 | Package | Purpose | Publishing |
 |---|---|---|
-| [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` capability contract and conformance suite | release-profiled; held |
+| [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` capability contract and conformance suite | `vault-seed-ready`; held |
 | [`@refarm.dev/source-git`](./source-git) | Clean cached git checkout provider for remote repositories | release-profiled; held |
 | [`@refarm.dev/source-local`](./source-local) | Live local working-tree provider with dirty/untracked status | release-profiled; held |
-| [`@refarm.dev/source-web`](./source-web) | Authenticated web capture fixture adapter that materializes redacted, replayable local snapshots through `source:v1` | proof-gated; held |
+| [`@refarm.dev/source-web`](./source-web) | Authenticated web capture fixture adapter that materializes redacted, replayable local snapshots through `source:v1` | consumer-proven; `vault-seed-ready`; held |
 
 The T3 requirements-vault pressure activated `@refarm.dev/source-web` as a
 sanitized fixture adapter. It deliberately reports `source:v1` snapshots as
@@ -55,8 +54,8 @@ and downstream proofs exist.
 
 | Candidate | Purpose | Publishing |
 |---|---|---|
-| [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic record/note enrichment provider contract with dry-run/apply evidence, diagnostics, and provenance | implemented; proof-gated |
-| [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Graph/content envelope for records, sections, relations, attachments, source references, hashes, and review state | implemented; proof-gated |
+| [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic record/note enrichment provider contract with dry-run/apply evidence, diagnostics, and provenance | consumer-proven; `vault-seed-ready`; held |
+| [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Graph/content envelope for records, sections, relations, attachments, source references, hashes, and review state; YAML-LD codec lives at the package subpath | consumer-proven; `vault-seed-ready`; held |
 
 ## 🌿 Native Skill Surface Contract
 
@@ -96,12 +95,21 @@ CLI labels, copy, notebooks, routes, and UX.
 | [`@refarm.dev/artifact-contract-v1`](./artifact-contract-v1) | Artifact/provenance manifests for Lab datasets, outbox manifests, and notebook snapshots | `vault-seed-ready`; held |
 | [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | Channel delivery evidence, rate limits, dry-run reports, and review gates | `kernel-candidates` + `vault-seed-ready`; held |
 | [`@refarm.dev/effort-contract-v1`](./effort-contract-v1) | Effort/task contract dependency for dispatch evidence | `vault-seed-ready`; held |
+| [`@refarm.dev/storage-contract-v1`](./storage-contract-v1) | Versioned `storage:v1` contract used by wallet/storage seams | `kernel-candidates` + `vault-seed-ready`; held |
+| [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | Versioned `identity:v1` signing contract used by credentials seams | `kernel-candidates` + `vault-seed-ready`; held |
+| [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` support contract for `source-web` | `vault-seed-ready`; held |
+| [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic enrichment reports for source-linked records | consumer-proven; `vault-seed-ready`; held |
+| [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Neutral records envelope plus YAML-LD subpath for proof-gated front matter bridges | consumer-proven; `vault-seed-ready`; held |
 | [`@refarm.dev/process-handoff`](./process-handoff) | Build-free tokenized process specs and runner adapters | `vault-seed-ready`; held |
 | [`@refarm.dev/release-engine`](./release-engine) | Package acceptance and release-policy summaries | `vault-seed-ready`; held |
 | [`@refarm.dev/ds`](./ds) | Design tokens, theme CSS, and build-free HTML helpers consumed by vault admin/Lab UI | `vault-seed-ready`; held |
 | [`@refarm.dev/heartwood`](./heartwood) | Cryptographic core dependency for Silo | `vault-seed-ready`; held |
 | [`@refarm.dev/dispatch-surface`](./dispatch-surface) | Product-neutral dispatch surface contracts | `vault-seed-ready`; held |
 | [`@refarm.dev/silo`](./silo) | Namespaced secret collection and storage | `vault-seed-ready`; held |
+| [`@refarm.dev/storage-memory`](./storage-memory) | Volatile `storage:v1` reference provider for consumer proof and smoke wallets | `vault-seed-ready`; held |
+| [`@refarm.dev/credentials-contract-v1`](./credentials-contract-v1) | `credentials:v1` issue, verify, present, wallet, and local status-list revocation seams | consumer-pulled; `vault-seed-ready`; held |
+| [`@refarm.dev/identity-heartwood`](./identity-heartwood) | Heartwood-backed Ed25519 `identity:v1` reference provider | `vault-seed-ready`; held |
+| [`@refarm.dev/source-web`](./source-web) | Authenticated-web replay fixture adapter over `source:v1` | consumer-proven; `vault-seed-ready`; held |
 
 ## 🔖 Plugin Metadata
 This layer waits for the Pi and multi-layer plugin architecture proofs before entering the release lane.
