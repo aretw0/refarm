@@ -495,6 +495,15 @@ test("records yaml README documents lean parse completion", () => {
 	assert.match(readme, /fieldKeyMap/);
 });
 
+test("records yaml codec does not bloat base records install", () => {
+	const packageJson = JSON.parse(read("packages/records-contract-v1/package.json"));
+
+	assert.equal(packageJson.dependencies?.yaml, undefined);
+	assert.equal(packageJson.peerDependencies?.yaml, "^2.9.0");
+	assert.equal(packageJson.peerDependenciesMeta?.yaml?.optional, true);
+	assert.equal(packageJson.exports?.["./yaml"]?.import, "./dist/yaml.js");
+});
+
 test("t2 credentials seam is consumer-pulled with reference issuer and wallet proof", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const profiles = config.releasePolicy.packageProfiles;
@@ -575,7 +584,9 @@ test("t2 credentials seam is consumer-pulled with reference issuer and wallet pr
 	assert.match(reference, /createHeartwoodIdentityProvider/);
 	assert.match(reference, /new MemoryStorage\(\)/);
 	assert.match(reference, /issue\(credentialForIssue\(holder\.id\), issuer\.id\)/);
-	assert.match(reference, /verify\(credential\)/);
+	assert.match(reference, /revocation: "required"/);
+	assert.match(reference, /verify\(credential, credentialPolicy\)/);
+	assert.match(reference, /revoke\(credential, issuer\.id\)/);
 	assert.match(reference, /present\(\[credential\], holder\.id\)/);
 });
 
