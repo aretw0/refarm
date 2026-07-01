@@ -43,7 +43,8 @@ export function transformNodeTestToVitest(source) {
 }
 
 export function transformNodeTestToVitestWithReport(source) {
-	const imports = rewriteImports(source);
+	const normalizedSource = stripLeadingBom(source);
+	const imports = rewriteImports(normalizedSource);
 	const dirname = imports.renameToMjs
 		? rewriteCommonJsGlobals(imports.code)
 		: { code: imports.code, rewritten: 0 };
@@ -65,6 +66,10 @@ export function transformNodeTestToVitestWithReport(source) {
 		unsupported,
 		renameToMjs: imports.renameToMjs || dirname.rewritten > 0,
 	};
+}
+
+function stripLeadingBom(source) {
+	return source.charCodeAt(0) === 0xfeff ? source.slice(1) : source;
 }
 
 function rewriteNodeTestBindings(source) {
@@ -468,6 +473,9 @@ function assertionReplacement(method, args) {
 		case "rejects": {
 			if (args.length < 1) return null;
 			const { expected: thrownMatcher, message: thrownMessage } = throwableArgs(expected, message);
+			if (isFunctionExpression(thrownMatcher)) {
+				return rejectsPredicateReplacement(actual, thrownMatcher, thrownMessage);
+			}
 			return `${expectCall(actual, thrownMessage)}.rejects.toThrow(${thrownMatcher ?? ""})`;
 		}
 		case "doesNotReject": {
@@ -524,6 +532,12 @@ function throwsPredicateReplacement(actual, predicate, message) {
 	const thrown = "__refarmThrown";
 	const didThrow = "__refarmDidThrow";
 	return `(() => { let ${didThrow} = false; let ${thrown}; try { (${actual})(); } catch (error) { ${didThrow} = true; ${thrown} = error; } ${expectCall(didThrow, message)}.toBe(true); ${expectCall(`(${predicate})(${thrown})`, message)}.toBeTruthy(); })()`;
+}
+
+function rejectsPredicateReplacement(actual, predicate, message) {
+	const thrown = "__refarmThrown";
+	const didThrow = "__refarmDidThrow";
+	return `(async () => { let ${didThrow} = false; let ${thrown}; try { await ${promiseExpressionForAssert(actual)}; } catch (error) { ${didThrow} = true; ${thrown} = error; } ${expectCall(didThrow, message)}.toBe(true); ${expectCall(`(${predicate})(${thrown})`, message)}.toBeTruthy(); })()`;
 }
 
 function expectCall(actual, message) {

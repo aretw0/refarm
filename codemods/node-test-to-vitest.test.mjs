@@ -95,6 +95,17 @@ test("node:test to vitest maps simple CommonJS requires", () => {
 	);
 });
 
+test("node:test to vitest tolerates a leading utf8 bom before imports", () => {
+	const source = `\uFEFFimport assert from "node:assert/strict";\nimport test from "node:test";\n\ntest("bom", () => {\n\tassert.equal(1, 1);\n});\n`;
+	const output = transformNodeTestToVitest(source);
+
+	assert.equal(
+		output,
+		`import { test, expect } from "vitest";\n\ntest("bom", () => {\n\texpect(1).toBe(1);\n});\n`,
+	);
+	assert.equal(output.charCodeAt(0), "i".charCodeAt(0));
+});
+
 test("node:test to vitest rewrites CommonJS test files and reports mjs rename", () => {
 	const before = readFileSync(
 		new URL("./fixtures/node-test-to-vitest-cjs.before.js", import.meta.url),
@@ -129,12 +140,15 @@ test("node:test to vitest reports unsupported CommonJS require forms", () => {
 });
 
 test("node:test to vitest handles throws predicate and doesNotReject function semantics", () => {
-	const source = `import assert from "node:assert/strict";\nimport test from "node:test";\n\ntest("runtime semantics", async () => {\n\tassert.throws(() => {\n\t\tconst error = new Error("bad");\n\t\terror.code = "BAD";\n\t\tthrow error;\n\t}, (error) => error.code === "BAD", "code matches");\n\tawait assert.doesNotReject(() => Promise.resolve("ok"), "does not reject");\n});\n`;
+	const source = `import assert from "node:assert/strict";\nimport test from "node:test";\n\ntest("runtime semantics", async () => {\n\tassert.throws(() => {\n\t\tconst error = new Error("bad");\n\t\terror.code = "BAD";\n\t\tthrow error;\n\t}, (error) => error.code === "BAD", "code matches");\n\tawait assert.rejects(async () => {\n\t\tconst error = new Error("async bad");\n\t\terror.code = "ASYNC_BAD";\n\t\tthrow error;\n\t}, (error) => error.code === "ASYNC_BAD", "async code matches");\n\tawait assert.doesNotReject(() => Promise.resolve("ok"), "does not reject");\n});\n`;
 	const output = transformNodeTestToVitest(source);
 
 	assert.match(output, /__refarmDidThrow/);
 	assert.match(output, /expect\(__refarmDidThrow, "code matches"\)\.toBe\(true\)/);
 	assert.match(output, /expect\(\(\(error\) => error\.code === "BAD"\)\(__refarmThrown\), "code matches"\)\.toBeTruthy\(\)/);
+	assert.match(output, /await \(async \(\) => \{ let __refarmDidThrow = false; let __refarmThrown; try \{ await \(async \(\) => \{/);
+	assert.match(output, /expect\(__refarmDidThrow, "async code matches"\)\.toBe\(true\)/);
+	assert.match(output, /expect\(\(\(error\) => error\.code === "ASYNC_BAD"\)\(__refarmThrown\), "async code matches"\)\.toBeTruthy\(\)/);
 	assert.match(output, /expect\(\(\(\) => Promise\.resolve\("ok"\)\)\(\), "does not reject"\)\.resolves\.not\.toThrow\(\)/);
 });
 
