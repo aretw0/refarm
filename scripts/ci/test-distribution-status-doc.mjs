@@ -148,7 +148,7 @@ test("vault-seed handoff docs distinguish historical 10-package packets from cur
 
 test("factory readiness records the current local vault-seed handoff state", () => {
 	assert.match(factoryReadinessDoc, /local handoff ready/);
-	assert.match(factoryReadinessDoc, /\.refarm\/handoff\/vault-seed\/2026-06-30\/manifest\.json/);
+	assert.match(factoryReadinessDoc, /\.refarm\/handoff\/vault-seed\/2026-07-01\/manifest\.json/);
 	assert.match(factoryReadinessDoc, /distributionEvidence\.state: "local-handoff-ready"/);
-	assert.match(factoryReadinessDoc, /no stale tarball\/build-output issues/);
+	assert.match(factoryReadinessDoc, /18 tarballs/);
 });
