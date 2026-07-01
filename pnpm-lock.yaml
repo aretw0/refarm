@@ -380,6 +380,31 @@ importers:
         specifier: workspace:*
         version: link:../../packages/vtconfig
 
+  apps/site:
+    dependencies:
+      '@refarm.dev/ds':
+        specifier: workspace:*
+        version: link:../../packages/ds
+      astro:
+        specifier: ^6.4.8
+        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
+    devDependencies:
+      '@astrojs/check':
+        specifier: ^0.9.9
+        version: 0.9.9(prettier@3.8.3)(typescript@6.0.3)
+      '@refarm.dev/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
   packages/artifact-contract-v1:
     devDependencies:
       '@refarm.dev/eslint-config':

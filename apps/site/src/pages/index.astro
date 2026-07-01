@@ -1,0 +1,86 @@
+---
+import SiteLayout from "../layouts/SiteLayout.astro";
+import supplyStack from "../assets/supply-stack.png";
+import { governingDocs, vaultSeedPackages } from "../site-data";
+---
+
+<SiteLayout
+	title="Refarm - Supply Status"
+	description="Refarm supplies reusable software blocks, local handoffs, and release evidence for downstream workspaces."
+>
+	<section class="site-shell site-hero" aria-labelledby="hero-title">
+		<div class="site-hero__copy">
+			<p class="site-kicker">Supplier-first platform</p>
+			<h1 id="hero-title">Refarm supplies the blocks downstream projects should not rebuild.</h1>
+			<p class="site-lead">
+				The current public-site candidate tracks the reusable package lane: contracts, DS helpers,
+				source/records/enrichment, credentials, handoff manifests, and release evidence for consumers
+				such as vault-seed.
+			</p>
+			<div class="site-actions">
+				<a class="ds-btn ds-btn-primary ds-btn-pill" href="#handoff">View handoff state</a>
+				<a class="ds-btn ds-btn-pill" href="#docs">Open docs map</a>
+			</div>
+		</div>
+		<figure class="site-hero__media" aria-label="Layered Refarm supply stack">
+			<img src={supplyStack.src} width={supplyStack.width} height={supplyStack.height} alt="" />
+			<figcaption>Portable core, thin surfaces, explicit handoff evidence.</figcaption>
+		</figure>
+	</section>
+
+	<section id="supply" class="site-shell site-section" aria-labelledby="supply-title">
+		<div class="site-section__intro">
+			<p class="site-kicker">Current selection</p>
+			<h2 id="supply-title">vault-seed-ready contains 18 candidate packages</h2>
+			<p>
+				This lane is a local candidate channel, not a public npm promise. It exists so official
+				consumer checkouts can assimilate reusable Refarm blocks before release automation is enabled.
+			</p>
+		</div>
+		<ul class="site-package-grid" aria-label="vault-seed-ready packages">
+			{vaultSeedPackages.map((packageName) => <li>@refarm.dev/{packageName}</li>)}
+		</ul>
+	</section>
+
+	<section id="handoff" class="site-shell site-section site-status" aria-labelledby="handoff-title">
+		<div>
+			<p class="site-kicker">Publication posture</p>
+			<h2 id="handoff-title">Local handoff ready; npm publish waits for release approval</h2>
+			<p>
+				The active packet is materialized under <code>.refarm/handoff/vault-seed/2026-07-01/</code>
+				with tarballs, <code>manifest.json</code>, <code>manifest.md</code>, and distribution
+				evidence. Public publish still waits on develop stabilization, GitHub Actions confirmation,
+				release PR flow, and explicit operator approval.
+			</p>
+		</div>
+		<div class="site-status__facts" aria-label="Release facts">
+			<div>
+				<strong>18</strong>
+				<span>packages</span>
+			</div>
+			<div>
+				<strong>49</strong>
+				<span>required checks</span>
+			</div>
+			<div>
+				<strong>0</strong>
+				<span>public publishes</span>
+			</div>
+		</div>
+	</section>
+
+	<section id="docs" class="site-shell site-section" aria-labelledby="docs-title">
+		<div class="site-section__intro">
+			<p class="site-kicker">Operator map</p>
+			<h2 id="docs-title">Docs that currently govern publication</h2>
+		</div>
+		<div class="site-doc-grid">
+			{governingDocs.map((doc) => (
+				<a class="site-doc-card" href={doc.href}>
+					<span>{doc.title}</span>
+					<p>{doc.body}</p>
+				</a>
+			))}
+		</div>
+	</section>
+</SiteLayout>
