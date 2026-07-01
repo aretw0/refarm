@@ -429,6 +429,57 @@ test("requirements supply packages are selected only after downstream proof", ()
 			`${packageName} must enter vault-seed-ready after selected downstream proof`,
 		);
 	}
+
+	assert.ok(
+		byId
+			.get("@refarm.dev/records-contract-v1")
+			.mustPassChecks.includes("pnpm --filter @refarm.dev/records-contract-v1 run test:unit"),
+		"records-contract-v1 release checks must include the YAML subpath unit proof",
+	);
+});
+
+test("t2 identity credentials stay reference-profiled without release selection", () => {
+	const config = JSON.parse(read("refarm.config.json"));
+	const profiles = config.releasePolicy.packageProfiles;
+	const byId = new Map(profiles.map((profile) => [profile.id, profile]));
+	const vaultSeedReady = new Set(
+		profiles
+			.filter((profile) => profile.tags?.includes("vault-seed-ready"))
+			.map((profile) => profile.id),
+	);
+
+	for (const packageName of [
+		"@refarm.dev/identity-heartwood",
+		"@refarm.dev/credentials-contract-v1",
+	]) {
+		const profile = byId.get(packageName);
+		assert.ok(profile, `${packageName} must be release-profiled`);
+		for (const tag of ["t2-reference", "reference-proven", "boundary-review", "reference-hold"]) {
+			assert.ok(profile.tags.includes(tag), `${packageName} must declare ${tag}`);
+		}
+		for (const tag of ["candidate", "consumer-pulled", "vault-seed-ready"]) {
+			assert.ok(!profile.tags.includes(tag), `${packageName} must not declare ${tag}`);
+		}
+		for (const command of [
+			`pnpm --filter ${packageName} run lint`,
+			`pnpm --filter ${packageName} run type-check`,
+			`pnpm --filter ${packageName} run test:conformance`,
+			`pnpm --filter ${packageName} run build`,
+		]) {
+			assert.ok(profile.mustPassChecks.includes(command), `${packageName} must require ${command}`);
+		}
+		assert.ok(
+			!vaultSeedReady.has(packageName),
+			`${packageName} must not enter vault-seed-ready without selected downstream proof`,
+		);
+	}
+
+	assert.ok(
+		byId
+			.get("@refarm.dev/credentials-contract-v1")
+			.mustPassChecks.includes("pnpm run sovereign-citizen:reference:test"),
+		"credentials-contract-v1 must keep the sovereign citizen reference proof in release policy",
+	);
 });
 
 test("release-engine docs keep host integration product-neutral", () => {

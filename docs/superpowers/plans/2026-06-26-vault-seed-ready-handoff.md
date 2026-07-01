@@ -7,7 +7,8 @@
 > Current-state note (2026-07-01): this plan captured the historical 2026-06-26
 > packet, when `homestead-ssr` was still present. ADR-072 removed
 > `homestead-ssr` pre-publication, so the active `vault-seed-ready` selection is
-> now 13 packages and 34 required checks after the T3 consumer proof. Use the generated handoff manifest as
+> now 13 packages and 35 required checks after the T3 consumer proof and selected
+> `records-contract-v1` YAML unit gate. Use the generated handoff manifest as
 > the source of truth for current package lists.
 
 ## Task 1 - Selection Parity
