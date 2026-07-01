@@ -66,6 +66,9 @@ jobs:
       - name: Smoke release descriptor path (export + publish dry-run + resolver)
         run: pnpm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
 
+      - name: Guard first-publish versions
+        run: node scripts/ci/check-first-publish-changesets.mjs --selection vault-seed-ready
+
       - name: Create Release PR or Publish
         id: changesets
         uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1
