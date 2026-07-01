@@ -1,0 +1,23 @@
+{
+  "schema": "refarm.toolless-orchestrator.scorecard.v1",
+  "createdAt": "2026-07-01T00:00:00.000Z",
+  "gate": "pass",
+  "scores": {
+    "keySeparation": 5,
+    "capabilityBounds": 5,
+    "evidenceRecoverability": 5,
+    "claimBoundary": 5
+  },
+  "weights": {
+    "keySeparation": 0.35,
+    "capabilityBounds": 0.25,
+    "evidenceRecoverability": 0.25,
+    "claimBoundary": 0.15
+  },
+  "limits": [
+    "No runtime conductor mutation is claimed.",
+    "No package extraction is claimed.",
+    "No unattended production agent safety is claimed.",
+    "No remote machine transport is claimed."
+  ]
+}

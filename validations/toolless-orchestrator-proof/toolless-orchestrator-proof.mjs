@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
+import { TASK_ARTIFACT_MANIFEST_SCHEMA } from "../../packages/artifact-contract-v1/dist/index.js";
 
 export const ISSUED_AT = "2026-07-01T00:00:00.000Z";
+export const TASK_ID = "task-toolless-orchestrator-proof";
+export const EFFORT_ID = "effort-toolless-orchestrator-proof-001";
+export const RUN_ID = "toolless-orchestrator-proof-001";
 export const PROOF_SCHEMA = "refarm.toolless-orchestrator.proof.v1";
 
 export function buildSourceTruth() {
@@ -171,7 +175,7 @@ export function buildToollessOrchestratorProof(overrides = {}) {
 			request,
 			evidence,
 		});
-	return {
+	const report = {
 		schema: PROOF_SCHEMA,
 		createdAt: ISSUED_AT,
 		sourceTruth,
@@ -193,6 +197,10 @@ export function buildToollessOrchestratorProof(overrides = {}) {
 				"future worker/session contracts",
 			],
 		},
+	};
+	return {
+		...report,
+		artifactManifest: buildTaskArtifactManifest(report),
 	};
 }
 
@@ -225,7 +233,56 @@ export function validateToollessOrchestratorProof(proof) {
 	if (proof?.boundary?.appOwnedPolicy !== false) {
 		issues.push("first proof must not move policy into an app");
 	}
+	if (proof?.artifactManifest?.schema !== TASK_ARTIFACT_MANIFEST_SCHEMA) {
+		issues.push("proof must include task artifact evidence for consumers");
+	}
 	return { ok: issues.length === 0, issues };
+}
+
+export function buildTaskArtifactManifest(report) {
+	return {
+		schema: TASK_ARTIFACT_MANIFEST_SCHEMA,
+		taskId: TASK_ID,
+		effortId: EFFORT_ID,
+		createdAt: ISSUED_AT,
+		artifacts: [
+			{
+				id: "toolless-orchestrator-proof",
+				uri: "proof.json",
+				mediaType: "application/json",
+				role: "audit-trail",
+				hash: sha256Json(report),
+				reviewState: "accepted",
+				labels: [
+					"toolless-orchestrator",
+					"conductor",
+					"keyless-actor",
+					"claim-promotion",
+				],
+				provenance: {
+					runId: RUN_ID,
+					producer: "toolless-orchestrator:proof",
+					command: "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs",
+					process: {
+						command: "node",
+						args: ["validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"],
+						display: "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs",
+					},
+					source: "validations/toolless-orchestrator-proof",
+					sourceVersion: "synthetic-v1",
+					producedAt: ISSUED_AT,
+					inputHashes: [
+						report.sourceTruth.hash,
+						report.evidence.rawEvidence.hash,
+					],
+				},
+			},
+		],
+	};
+}
+
+function sha256Json(value) {
+	return sha256Text(`${JSON.stringify(value, null, 2)}\n`);
 }
 
 function sha256Text(value) {

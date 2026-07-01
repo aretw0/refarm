@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { validateTaskArtifactManifest } from "../../packages/artifact-contract-v1/dist/index.js";
 import {
 	buildActor,
 	buildConductor,
@@ -13,8 +14,10 @@ import {
 test("tool-less orchestrator completes with keyless bounded actor evidence", () => {
 	const proof = buildToollessOrchestratorProof();
 	const validation = validateToollessOrchestratorProof(proof);
+	const artifactValidation = validateTaskArtifactManifest(proof.artifactManifest);
 
 	assert.equal(validation.ok, true, validation.issues.join("\n"));
+	assert.deepEqual(artifactValidation, { ok: true, issues: [] });
 	assert.equal(proof.conductor.holdsOperatorKeys, true);
 	assert.deepEqual(proof.conductor.environmentToolCapabilities, []);
 	assert.equal(proof.actor.keyless, true);
@@ -24,6 +27,13 @@ test("tool-less orchestrator completes with keyless bounded actor evidence", () 
 	assert.equal(proof.evidence.compactView.compactViewIsTruth, false);
 	assert.equal(proof.evidence.compactView.rawEvidenceRecoverable, true);
 	assert.equal(proof.decision.state, "completed");
+	assert.equal(proof.artifactManifest.artifacts[0].id, "toolless-orchestrator-proof");
+	assert.deepEqual(proof.artifactManifest.artifacts[0].labels, [
+		"toolless-orchestrator",
+		"conductor",
+		"keyless-actor",
+		"claim-promotion",
+	]);
 });
 
 test("conductor blocks if it owns environment tools", () => {
