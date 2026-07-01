@@ -423,12 +423,12 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	});
 
 	assert.equal(manifest.selection.id, "vault-seed-ready");
-	assert.equal(manifest.packages.length, 13);
+	assert.equal(manifest.packages.length, 18);
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
 	assert.equal(manifest.distributionEvidence.state, "blocked");
 	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
-	assert.equal(manifest.distributionEvidence.subject.packageCount, 13);
-	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 13);
+	assert.equal(manifest.distributionEvidence.subject.packageCount, 18);
+	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 18);
 	assert.equal(manifest.releaseBoundaryAudit.ok, true);
 	assert.equal(manifest.releaseBoundaryAudit.command, "release-boundary-audit");
 	assert.equal(manifest.releaseBoundaryAudit.selectionId, "vault-seed-ready");
@@ -459,6 +459,19 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	assert.equal(
 		manifest.consumerInstall.pnpmOverrides["@refarm.dev/heartwood"],
 		"file:./vendor/refarm.dev-heartwood-0.1.0.tgz",
+	);
+	assert.equal(
+		manifest.consumerInstall.fileSpecs["@refarm.dev/credentials-contract-v1"],
+		"file:./vendor/refarm.dev-credentials-contract-v1-0.1.0.tgz",
+	);
+	assert.equal(
+		manifest.consumerInstall.pnpmOverrides["@refarm.dev/storage-memory"],
+		"file:./vendor/refarm.dev-storage-memory-0.1.0.tgz",
+	);
+	assert.ok(
+		manifest.consumerProofs.some((proof) =>
+			proof.proofId === "credentials-contract.issue-verify-present-wallet"),
+		"credentials consumer proof metadata must be present",
 	);
 	assert.equal(
 		new Set(manifest.consumerProofs.map((proof) => proof.proofId)).size,

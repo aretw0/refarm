@@ -15,7 +15,8 @@ describe("sovereign citizen reference", () => {
 		assert.equal(result.generatedAt, GENERATED_AT);
 		assert.equal(result.packages.identity, "@refarm.dev/identity-heartwood");
 		assert.equal(result.packages.credentials, "@refarm.dev/credentials-contract-v1");
-		assert.equal(result.packages.storage, "@refarm.dev/storage-contract-v1");
+		assert.equal(result.packages.storageContract, "@refarm.dev/storage-contract-v1");
+		assert.equal(result.packages.storage, "@refarm.dev/storage-memory");
 		assert.equal(result.evidence.signatureAlgorithm, "ed25519-heartwood-v1");
 		assert.equal(result.checks.credentialSignatureValid, true);
 		assert.deepEqual(result.checks.credentialFailures, []);

@@ -80,6 +80,36 @@ const VAULT_SEED_CONSUMER_PULLS = {
 		proofTarget: "vault-seed credential flow uses silo without local crypto stand-ins",
 		ownershipBoundary: "Credential policy choices and publishing identities remain downstream",
 	},
+	"@refarm.dev/identity-contract-v1": {
+		proofId: "credentials-identity-contract.transitive-signature-support",
+		downstreamUse: "identity:v1 contract support for credentials:v1 issuer and holder proofs",
+		proofTarget: "vault-seed vendors identity-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present",
+		ownershipBoundary: "Issuer trust, DID methods, account recovery, and identity UX remain downstream",
+	},
+	"@refarm.dev/storage-contract-v1": {
+		proofId: "credentials-storage-contract.transitive-wallet-support",
+		downstreamUse: "storage:v1 contract support for credentials:v1 wallet store/list/remove",
+		proofTarget: "vault-seed vendors storage-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present -> wallet",
+		ownershipBoundary: "Durable wallet persistence, retention, encryption policy, and wallet UX remain downstream",
+	},
+	"@refarm.dev/identity-heartwood": {
+		proofId: "credentials-identity-heartwood.reference-signature",
+		downstreamUse: "Heartwood-backed identity:v1 issuer and holder signatures for the credentials smoke",
+		proofTarget: "sovereign-citizen:reference:test proves real Ed25519 issue and present signatures through identity:v1",
+		ownershipBoundary: "Trust registry, default identity provider choice, secret persistence, and DID resolution remain downstream",
+	},
+	"@refarm.dev/storage-memory": {
+		proofId: "credentials-storage-memory.reference-wallet",
+		downstreamUse: "Volatile storage:v1 implementation for credentials smoke and consumer-contract wallet proofs",
+		proofTarget: "sovereign-citizen:reference:test stores and lists the issued credential through storage-memory",
+		ownershipBoundary: "Production durability, synchronization, encryption-at-rest, and wallet UX remain downstream",
+	},
+	"@refarm.dev/credentials-contract-v1": {
+		proofId: "credentials-contract.issue-verify-present-wallet",
+		downstreamUse: "credentials:v1 contract for issue, verify, present, store, list, and remove seams before VC UX",
+		proofTarget: "vault-seed vendors credentials-contract-v1 early and proves a round-trip issuer/verifier/wallet seam before headspace UX",
+		ownershipBoundary: "Issuer authorities, credential schemas, revocation policy, trust UI, and domain vocabulary remain downstream",
+	},
 	"@refarm.dev/dispatch-surface": {
 		proofId: "dispatch-surface.dgk-descriptor",
 		downstreamUse: "Multi-surface command/action descriptor substrate",

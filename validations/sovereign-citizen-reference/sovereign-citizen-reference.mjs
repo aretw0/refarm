@@ -5,7 +5,7 @@ import {
 	HEARTWOOD_IDENTITY_ALGORITHM,
 	createHeartwoodIdentityProvider,
 } from "../../packages/identity-heartwood/dist/index.js";
-import { createInMemoryStorageProvider } from "../../packages/storage-contract-v1/dist/index.js";
+import { MemoryStorage } from "../../packages/storage-memory/dist/index.js";
 
 export const SCHEMA = "refarm.sovereign-citizen-reference.v1";
 export const GENERATED_AT = "2026-07-01T00:00:00.000Z";
@@ -71,7 +71,7 @@ function credentialForIssue(holderId) {
 
 export async function runSovereignCitizenReference() {
 	const identity = createHeartwoodIdentityProvider();
-	const storage = createInMemoryStorageProvider();
+	const storage = new MemoryStorage();
 	const credentials = createReferenceCredentialsProvider({
 		identity,
 		storage,
@@ -110,7 +110,8 @@ export async function runSovereignCitizenReference() {
 		packages: {
 			identity: "@refarm.dev/identity-heartwood",
 			credentials: "@refarm.dev/credentials-contract-v1",
-			storage: "@refarm.dev/storage-contract-v1",
+			storageContract: "@refarm.dev/storage-contract-v1",
+			storage: "@refarm.dev/storage-memory",
 		},
 		flow: [
 			"create heartwood issuer and holder identities",
