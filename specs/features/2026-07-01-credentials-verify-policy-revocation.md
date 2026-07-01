@@ -89,9 +89,14 @@ from*, not the trust model.
 ## Consumer pressure & gate
 
 Pressure: the vault-seed headspace verifier needs trust + revocation to answer "accept this?". This spec
-is implemented in the reference provider and conformance suite. The remaining promotion pressure is the
-official downstream consumer proof in `vault-seed`. Trust-policy was already named as the promotion gate
-in the `credentials:v1` feature — this closes the Refarm-side contract gate.
+is implemented in the reference provider and conformance suite. Trust-policy was already named as the
+promotion gate in the `credentials:v1` feature — this closes the Refarm-side contract gate.
+
+**Downstream consumer proof landed (2026-07-01).** vault-seed re-vendored the updated
+`credentials-contract-v1` and exercises `verify(input, policy)` directly in
+`scripts/refarm_credentials_consumer_contract.test.mjs`: a trust list gates acceptance (trusted issuer
+passes, untrusted fails) and a status-list `revoke` flips `notRevoked`. The promotion gate is satisfied —
+`credentials:v1` verify-policy is proven end-to-end by an external consumer.
 
 ## Out of scope
 
