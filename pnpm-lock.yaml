@@ -485,6 +485,9 @@ importers:
       '@refarm.dev/config':
         specifier: workspace:*
         version: link:../config
+      '@refarm.dev/session-contract-v1':
+        specifier: workspace:*
+        version: link:../session-contract-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

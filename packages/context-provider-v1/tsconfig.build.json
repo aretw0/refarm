@@ -4,6 +4,11 @@
 		"@refarm.dev/tsconfig/build.json"
 	],
 	"compilerOptions": {
-		"rootDir": "src"
+		"rootDir": "src",
+		"paths": {
+			"@refarm.dev/session-contract-v1": [
+				"./packages/session-contract-v1/dist/index.d.ts"
+			]
+		}
 	}
 }

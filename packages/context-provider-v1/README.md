@@ -7,6 +7,7 @@ Versioned capability contract (`context:v1`) for assembling AI system prompts fr
 - You are building or extending pi-agent and need to inject structured context (files, git status, date, CWD) into an LLM system prompt.
 - You want to add project-specific context (e.g., Tractor state, team knowledge) to an agent without modifying core pi-agent code.
 - You need a parallel, error-isolated collection of context from multiple sources.
+- You need a pointer-first view of long session history that can be unfolded by a consumer-owned tool or store.
 
 ## Installation
 
@@ -22,6 +23,7 @@ ContextRegistry.collect(request)
   ├─ DateContextProvider      → label: "date"
   ├─ FilesContextProvider     → label: "files"
   ├─ GitStatusContextProvider → label: "git"
+  ├─ SessionContextFoldProvider → label: "session_context_fold"
   └─ [your custom provider]   → label: "..."
 
 buildSystemPrompt(entries) → XML-tagged system prompt string
@@ -70,6 +72,28 @@ export class TractorStateProvider implements ContextProvider {
 
 // Register alongside built-ins
 const registry = new ContextRegistry([..., new TractorStateProvider()]);
+```
+
+### Reversible session context
+
+`SessionContextFoldProvider` composes with
+`@refarm.dev/session-contract-v1` to expose a compact context map for long
+conversation histories. It emits fold ID, session ID, folded range, digest,
+protected tail entry IDs, and a preview of folded refs. It does not include raw
+folded content, delete history, or implement the unfold tool.
+
+```typescript
+import {
+  ContextRegistry,
+  SessionContextFoldProvider,
+} from "@refarm.dev/context-provider-v1";
+
+const registry = new ContextRegistry([
+  new SessionContextFoldProvider({
+    entries: async () => sessionStore.entries(sessionId),
+    protectedTailCount: 8,
+  }),
+]);
 ```
 
 ### System prompt output shape
