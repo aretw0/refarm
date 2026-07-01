@@ -405,3 +405,75 @@ impl std::fmt::Debug for PluginInstanceHandle {
             .finish()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasmtime::{Config, Engine, Instance, Module};
+    use wasmtime_wasi::WasiCtxBuilder;
+
+    fn p1_fixture_handle() -> PluginInstanceHandle {
+        let engine = Engine::new(&Config::new()).expect("engine");
+        let wasm = wat::parse_str(
+            r#"
+            (module
+              (memory (export "memory") 1)
+              (func (export "setup"))
+              (func (export "ingest") (result i32)
+                i32.const 7)
+              (func (export "teardown"))
+              (func (export "alloc") (param i32) (result i32)
+                i32.const 16)
+              (func (export "on_event") (param i32 i32)))
+            "#,
+        )
+        .expect("wat");
+        let module = Module::from_binary(&engine, &wasm).expect("module");
+        let mut store = Store::new(
+            &engine,
+            P1Store {
+                wasi: WasiCtxBuilder::new().build_p1(),
+            },
+        );
+        let instance = Instance::new(&mut store, &module, &[]).expect("instance");
+
+        PluginInstanceHandle::new_module(
+            "p1-fixture".to_string(),
+            instance,
+            store,
+            TelemetryBus::new(16),
+            vec!["agent:respond".to_string()],
+        )
+    }
+
+    #[tokio::test]
+    async fn p1_module_dispatcher_runs_lifecycle_metadata_and_events() {
+        let mut handle = p1_fixture_handle();
+
+        handle.call_setup().await.expect("setup");
+        assert_eq!(handle.state, PluginState::Idle);
+
+        let ingested = handle.call("ingest", None).await.expect("ingest");
+        assert_eq!(ingested, Some(serde_json::json!(7)));
+        assert_eq!(handle.state, PluginState::Idle);
+
+        let metadata = handle
+            .call("metadata", None)
+            .await
+            .expect("metadata")
+            .expect("metadata payload");
+        assert_eq!(metadata["name"], "p1-fixture");
+        assert_eq!(metadata["version"], "unknown");
+        assert_eq!(metadata["requiredCapabilities"], serde_json::json!([]));
+
+        handle
+            .call_on_event("agent:resume", Some(r#"{"ok":true}"#))
+            .await
+            .expect("on_event");
+        handle.call("teardown", None).await.expect("teardown");
+        assert_eq!(handle.state, PluginState::Idle);
+
+        let err = handle.call("missing", None).await.unwrap_err();
+        assert!(err.to_string().contains("unknown plugin function: missing"));
+    }
+}

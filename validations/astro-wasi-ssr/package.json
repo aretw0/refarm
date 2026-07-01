@@ -6,7 +6,7 @@
 	"scripts": {
 		"build": "astro build",
 		"componentize": "timeout 45s node scripts/componentize.mjs",
-		"test": "node --test test/*.test.mjs"
+		"test": "astro build && node --test test/*.test.mjs"
 	},
 	"dependencies": {
 		"@bytecodealliance/componentize-js": "0.19.3",

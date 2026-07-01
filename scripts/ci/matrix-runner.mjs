@@ -21,6 +21,7 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
 const PACKAGES_DIR = join(ROOT_DIR, "packages");
 const workspacePackages = readWorkspacePackages(ROOT_DIR);
+const workspaceCatalog = readWorkspaceCatalog(ROOT_DIR);
 
 function packageManager() {
 	return detectPackageManager({ cwd: ROOT_DIR });
@@ -149,6 +150,27 @@ function localWorkspaceDependencyNames(pkg) {
 	];
 }
 
+function readWorkspaceCatalog(rootDir) {
+	const workspacePath = join(rootDir, "pnpm-workspace.yaml");
+	const catalog = new Map();
+	let inCatalog = false;
+
+	for (const line of readFileSync(workspacePath, "utf8").split(/\r?\n/)) {
+		if (/^\S/.test(line)) {
+			inCatalog = line.trim() === "catalog:";
+			continue;
+		}
+		if (!inCatalog) continue;
+
+		const match = line.match(/^\s{2}("?[^":]+"?):\s*"?([^"]+)"?\s*$/);
+		if (!match) continue;
+		const name = match[1].replace(/^"|"$/g, "");
+		catalog.set(name, match[2]);
+	}
+
+	return catalog;
+}
+
 function rewriteWorkspaceDepsToLatest(packageJsonPath) {
 	const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8"));
 	for (const blockName of [
@@ -163,6 +185,36 @@ function rewriteWorkspaceDepsToLatest(packageJsonPath) {
 			if (workspacePackages.some((entry) => entry.name === depName)) {
 				block[depName] = "latest";
 			}
+		}
+	}
+	writeFileSync(packageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
+}
+
+function rewriteCatalogDepsToConcrete(packageJsonPath) {
+	const pkg = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+	for (const blockName of [
+		"dependencies",
+		"devDependencies",
+		"peerDependencies",
+		"optionalDependencies",
+	]) {
+		const block = pkg[blockName];
+		if (!block) continue;
+		for (const [depName, spec] of Object.entries(block)) {
+			if (typeof spec !== "string" || !spec.startsWith("catalog:")) continue;
+			const catalogName = spec.slice("catalog:".length);
+			if (catalogName) {
+				throw new Error(
+					`Forward compat does not support named catalog dependency ${depName}: ${spec}`,
+				);
+			}
+			const concrete = workspaceCatalog.get(depName);
+			if (!concrete) {
+				throw new Error(
+					`Forward compat cannot resolve catalog dependency ${depName} in ${packageJsonPath}`,
+				);
+			}
+			block[depName] = concrete;
 		}
 	}
 	writeFileSync(packageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
@@ -350,6 +402,7 @@ function runForward(pkgName) {
 		}
 		const isolatedPackageJson = join(testDir, "package.json");
 		rewriteWorkspaceDepsToLatest(isolatedPackageJson);
+		rewriteCatalogDepsToConcrete(isolatedPackageJson);
 		rewriteRepoScriptReferences(isolatedPackageJson);
 		execSync(installCommand(), {
 			cwd: testDir,
