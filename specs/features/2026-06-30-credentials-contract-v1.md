@@ -1,6 +1,6 @@
 # Spec: Credentials Contract v1 (`credentials:v1`) — Verifiable Credentials & Data Wallet
 
-**Status:** DRAFT — ready for implementation
+**Status:** IMPLEMENTED — first T2 package slice landed; promotion remains proof-gated
 **Authors:** Arthur Silva, Claude
 **Date:** 2026-06-30
 **Related:** `packages/identity-contract-v1` (`identity:v1` — keypair sign/verify, composed here),
@@ -40,8 +40,9 @@ verifies nothing — the differentiator dies.
 `@refarm.dev/heartwood` already performs **real Ed25519** `generateKeypair`/`sign` (it backs `silo`).
 The shortest path is to back an `identity:v1` provider with heartwood so signing is real now, instead
 of waiting on `nostr-tools`. **Batch order: (1) real `identity:v1` signing (heartwood-backed) →
-(2) `credentials:v1` on top.** Because `proof.type` is open, a later OPAQUE/Sentinel/hardware-backed
-signature replaces the scheme without an envelope break.
+(2) `credentials:v1` on top.** That slice now exists as `@refarm.dev/identity-heartwood` plus
+`@refarm.dev/credentials-contract-v1`. Because `proof.type` is open, a later
+OPAQUE/Sentinel/hardware-backed signature replaces the scheme without an envelope break.
 
 ### Confirmed decisions
 
@@ -124,8 +125,10 @@ over `storage:v1`. The contract owns the envelope + the roles, not the crypto or
 
 ## 2. Reference implementation + conformance
 
-- `packages/credentials-contract-v1/src/reference.ts`: a provider composing the in-memory
-  `identity:v1` and `storage:v1` providers.
+- `packages/credentials-contract-v1/src/reference.ts`: a provider composing
+  `identity:v1` and `storage:v1` providers; its conformance fixture uses the
+  in-memory providers, while the T2 real-signing proof uses
+  `@refarm.dev/identity-heartwood`.
 - `runCredentialsV1Conformance(provider)`: a self-issued credential verifies `valid:true`; a tampered
   credential verifies `valid:false`; a presentation with a holder proof verifies; expired credentials
   fail; the wallet round-trips store/list/remove; unknown fields survive a round-trip.

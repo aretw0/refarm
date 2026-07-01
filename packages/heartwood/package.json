@@ -27,6 +27,9 @@
 		"test:unit": "node ../../scripts/ci/cargo-run.mjs test -- --test-threads=1",
 		"test:integration": "echo 'No integration tests for this crate'"
 	},
+	"dependencies": {
+		"@bytecodealliance/preview2-shim": "^0.17.3"
+	},
 	"devDependencies": {
 		"@bytecodealliance/jco": "catalog:",
 		"@refarm.dev/deps": "workspace:*"

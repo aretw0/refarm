@@ -82,6 +82,7 @@ storage/runtime dependencies.
 | Reference agent driver | ad hoc agent loops, `dgk` orchestration ideas, worker delegation | `@refarm.dev/cli/capability-index` ✅ + `@refarm.dev/cli/interaction-driver` ✅ + `@refarm.dev/cli/worker-profile` ✅; `@refarm.dev/pi-agent` held | Supply the embeddable ask/worker/session/tool contracts first. Runtime execution stays private until policy, cancellation, observability, cost, and plugin artifact proofs are boring. Consumers keep their own command labels and product UX. |
 | "Gardening" skills | `dgk-skills` | Refarm gardening/"dgk" skill set (superset) | `dgk-skills` ⊂ Refarm skills; find the overlap. |
 | `dgk` operations | `dgk-cli` / `dgk-runner` | `@refarm.dev/process-handoff` ✅ (`@refarm.dev/cli/process-handoff` re-exports it for compatibility), artifact/channel/release/source primitives next | `dgk` is powered by Refarm where practical: imports Refarm SDK primitives internally while keeping its package, binary, command UX, audience, and product labels. |
+| Identity / credentials | placeholder identity signing, local wallet/VC glue | `@refarm.dev/identity-contract-v1` ✅ + `@refarm.dev/identity-heartwood` ✅ + `@refarm.dev/credentials-contract-v1` ✅ | T2 path activated: `identity-heartwood` supplies real Ed25519 `identity:v1` signing through Heartwood; `credentials:v1` composes identity + storage for VC issue/verify/present/store. Trust registries, issuer authorities, credential schemas, and wallet UX stay downstream/proof-owned. |
 | Secrets | `silo.js` | `@refarm.dev/silo` (early design) | `silo` owns model/runtime credentials + scoped publishing adapter. |
 | Channels / outbox evidence | `dgk-channels`, Telegram outbox/inbox | `@refarm.dev/channel-policy-v1` candidate, later `contacts` + `rate-limiter` split if needed | Candidate active: Telegram remains downstream adapter; Refarm owns destination/rate-limit/receipt/dry-run/review evidence. |
 | Source IaC / ETL profiles | `lab.sources.json`, `ExtractionProfile`, `.dgk/cache`, `.dgk/staging`, authenticated web capture pressure | `source:v1` adapters + `@refarm.dev/source-web` fixture adapter + source profile contract + artifact retention policy | Candidate: Python implementations, PARA target rules, accessible-system discovery, login strategy, and source-specific selectors stay downstream. `source-web` proves only the neutral redacted snapshot/replay envelope. |
@@ -128,6 +129,10 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    `dgk-runner`/`dgk-cli` internals; release/source/artifact primitives → `dgk` operations.
    Promote whenever the duplicated substrate can be consumer-neutral and the `dgk` public
    surface remains product-owned.
+   The T2 prerequisite is now package-shaped: `@refarm.dev/identity-heartwood`
+   gives `identity:v1` real Heartwood-backed Ed25519 signing without changing
+   `identity-nostr`, and `@refarm.dev/credentials-contract-v1` provides the
+   VC/wallet contract on top of `identity:v1` + `storage:v1`.
 9. Reference-driver contracts advance through the package layer before runtime
    fanout. `@refarm.dev/cli/capability-index` is the discovery surface,
    `@refarm.dev/cli/interaction-driver` is the ask-loop promotion contract, and
