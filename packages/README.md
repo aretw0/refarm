@@ -99,7 +99,7 @@ CLI labels, copy, notebooks, routes, and UX.
 | [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | Versioned `identity:v1` signing contract used by credentials seams | `kernel-candidates` + `vault-seed-ready`; held |
 | [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` support contract for `source-web` | `vault-seed-ready`; held |
 | [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic enrichment reports for source-linked records | consumer-proven; `vault-seed-ready`; held |
-| [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Neutral records envelope plus YAML-LD subpath for proof-gated front matter bridges | consumer-proven; `vault-seed-ready`; held |
+| [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Neutral records envelope plus YAML-LD subpath for proof-backed front matter bridges | consumer-proven; `vault-seed-ready`; held |
 | [`@refarm.dev/process-handoff`](./process-handoff) | Build-free tokenized process specs and runner adapters | `vault-seed-ready`; held |
 | [`@refarm.dev/release-engine`](./release-engine) | Package acceptance and release-policy summaries | `vault-seed-ready`; held |
 | [`@refarm.dev/ds`](./ds) | Design tokens, theme CSS, and build-free HTML helpers consumed by vault admin/Lab UI | `vault-seed-ready`; held |
@@ -107,7 +107,7 @@ CLI labels, copy, notebooks, routes, and UX.
 | [`@refarm.dev/dispatch-surface`](./dispatch-surface) | Product-neutral dispatch surface contracts | `vault-seed-ready`; held |
 | [`@refarm.dev/silo`](./silo) | Namespaced secret collection and storage | `vault-seed-ready`; held |
 | [`@refarm.dev/storage-memory`](./storage-memory) | Volatile `storage:v1` reference provider for consumer proof and smoke wallets | `vault-seed-ready`; held |
-| [`@refarm.dev/credentials-contract-v1`](./credentials-contract-v1) | `credentials:v1` issue, verify, present, wallet, and local status-list revocation seams | consumer-pulled; `vault-seed-ready`; held |
+| [`@refarm.dev/credentials-contract-v1`](./credentials-contract-v1) | `credentials:v1` issue, verify, present, wallet, and local status-list revocation seams | consumer-proven; `vault-seed-ready`; held |
 | [`@refarm.dev/identity-heartwood`](./identity-heartwood) | Heartwood-backed Ed25519 `identity:v1` reference provider | `vault-seed-ready`; held |
 | [`@refarm.dev/source-web`](./source-web) | Authenticated-web replay fixture adapter over `source:v1` | consumer-proven; `vault-seed-ready`; held |
 

@@ -1,6 +1,6 @@
 # Spec: Enrichment Contract v1 (`enrichment:v1`)
 
-**Status:** DRAFT — initial package slice implemented (activation order step 1)
+**Status:** IMPLEMENTED — package slice and downstream `vault-seed` consumer proof landed; selected for `vault-seed-ready` while public publish waits on the release lane
 **Authors:** Arthur Silva, Claude
 **Date:** 2026-06-30
 **Related:** [`specs/features/2026-06-30-work-3-requirements-supply-activation.md`](./2026-06-30-work-3-requirements-supply-activation.md),
@@ -139,8 +139,9 @@ shape.
 
 Current implementation note: `@refarm.dev/enrichment-contract-v1` now provides
 the versioned types, deterministic fixture provider, and conformance suite. It
-does not persist changes, perform network access, or enter release-policy
-selection before a named downstream proof exists.
+does not persist changes or perform network access. The downstream `vault-seed`
+proof now exists, so it is selected for `vault-seed-ready`; final public
+publication still runs through the release lane.
 
 ## 3. Boundary
 

@@ -114,14 +114,17 @@ the three T3 blocks, plus the required source contract support package, into
 `vault-seed-ready`; private login, selectors, ETL profiles, enrichment providers,
 and vocabulary remain downstream-owned.
 
-T2 credentials supply is also consumer-pulled into `vault-seed-ready`.
+T2 credentials supply is also consumer-proven and selected in `vault-seed-ready`.
 `@refarm.dev/credentials-contract-v1` exposes the `credentials:v1` issue,
 verify, present, store, list, and remove seams; `@refarm.dev/identity-contract-v1`
 and `@refarm.dev/storage-contract-v1` are the transitive contract support
 packages; `@refarm.dev/identity-heartwood` provides the reference issuer/holder
 signature provider; and `@refarm.dev/storage-memory` provides the volatile
-wallet storage used by the smoke. `pnpm run sovereign-citizen:reference:test`
-now proves a sanitized round trip through Heartwood Ed25519 signatures and
+wallet storage used by the smoke. The official `vault-seed` checkout vendors
+the contract plus `identity-heartwood` and `storage-memory`, and a
+Heartwood-signed provider passes the full credentials conformance. Locally,
+`pnpm run sovereign-citizen:reference:test` proves a sanitized round trip through
+Heartwood Ed25519 signatures and
 `storage-memory`: issue -> policy-driven verify -> reject tampering -> present
 -> verify presentation -> holder-binding checks -> signed status-list revocation
 -> store/list wallet. Refarm owns the credentials:v1 policy surface for
@@ -130,12 +133,12 @@ signed status-list checks; issuer authorities, credential schemas, trust registr
 sources, remote status-list distribution, production persistence/encryption, and
 headspace wallet UX stay downstream-owned.
 
-`@refarm.dev/records-contract-v1/yaml` now exists as a proof-gated subpath
-candidate for YAML-LD front matter and YAML documents. It is package-tested, but
-its release posture follows the codec spec: the base `records:v1` package remains
-`vault-seed-ready`, the selected package gate runs the YAML unit proof, and the
-YAML-LD codec waits for dogfood or a second YAML-native consumer before being
-treated as promoted release evidence.
+`@refarm.dev/records-contract-v1/yaml` now exists as a proof-backed subpath
+candidate for YAML-LD front matter and YAML documents. It is package-tested and
+now has a second YAML-native consumer signal from `vault-seed`, which round-trips
+its `records:v1` projection through the codec. The base `records:v1` package
+remains the selected `vault-seed-ready` publication unit, and the selected
+package gate runs the YAML unit proof.
 
 ---
 
