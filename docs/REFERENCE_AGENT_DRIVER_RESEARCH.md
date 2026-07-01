@@ -33,6 +33,9 @@ script.
 - RTK repository and architecture:
   - https://github.com/rtk-ai/rtk
   - https://github.com/rtk-ai/rtk/blob/develop/docs/contributing/ARCHITECTURE.md
+- Terax repository and architecture:
+  - https://github.com/crynta/terax-ai
+  - https://github.com/crynta/terax-ai/blob/main/TERAX.md
 
 ## Reference Patterns
 
@@ -231,6 +234,14 @@ Adoption rule: compact observations must carry enough evidence to recover the
 raw source, must preserve command status, and must remain inspectable through
 JSON handoffs. Agent-specific hooks are optional adapters; `apps/refarm`,
 `apps/dev`, and the public site should not inherit RTK-shaped product copy.
+
+Terax adds the terminal/workbench side of the same lesson. Its useful pressure
+is terminal-first product discipline, host-owned OS capabilities, explicit
+terminal command boundaries, agent status markers, BYOK/local provider posture,
+and bounded terminal output. Refarm should absorb this as terminal/process
+observation contracts and environment-node identity for the remote workspace
+roadmap, not as a desktop-app dependency or a reason to make every app a full
+IDE.
 
 ## Refarm Driver Nucleus
 

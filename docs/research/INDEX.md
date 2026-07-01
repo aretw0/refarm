@@ -62,6 +62,16 @@ Concludes that Refarm should assimilate RTK as an observation-membrane pattern: 
 
 ---
 
+#### [Terax External Reference](./2026-07-01-external-reference-terax.md)
+**Date**: 2026-07-01 | **Status**: Research
+
+Assessment of `crynta/terax-ai` as a reference for terminal-first agentic workspaces, host-owned OS capabilities, structured terminal/agent signals, BYOK/local provider posture, and explicit product boundaries.
+Concludes that Refarm should assimilate Terax as a terminal-observation and workbench-discipline reference, without copying the app or promoting desktop-first coupling.
+
+**ADR**: No ADR yet — feeds terminal/process observation contracts, ADR-074 remote workspace environment identity, ADR-078 resource ceilings, and reference-driver surface ergonomics.
+
+---
+
 ### Collaborative Editing & Concurrency
 
 #### [Lock Strategies Comparison](./LOCK_STRATEGIES_COMPARISON.md)
