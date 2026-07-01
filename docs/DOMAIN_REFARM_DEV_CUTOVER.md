@@ -13,8 +13,8 @@ workbench. The long-term split is:
 - `apps/dev`: Refarm Studio for runtime dogfood, Homestead diagnostics, plugin
   surfaces, streams, graph, and internal workbenches.
 
-Until the deploy workflow is deliberately retargeted, GitHub Pages may still
-publish `apps/dev`. Treat that as historical deployment wiring, not product IA.
+GitHub Pages now builds `apps/site`. `apps/dev` can later move to a separate
+Studio surface such as `studio.refarm.dev` or `dev.refarm.dev`.
 
 ## Preconditions
 - `Deploy to Refarm.dev` is green on `main`.
@@ -26,10 +26,9 @@ publish `apps/dev`. Treat that as historical deployment wiring, not product IA.
    - `REFARM_ASTRO_BASE=/`
    - `REFARM_ASTRO_SITE=https://refarm.dev/`
 2. Build and validate `apps/site` as the candidate public Pages artifact.
-3. Retarget the Pages workflow from `apps/dev` to `apps/site` in a focused PR.
-4. Add `apps/site/public/CNAME` with:
+3. Add `apps/site/public/CNAME` with:
    - `refarm.dev`
-5. Open PR and validate CI.
+4. Open PR and validate CI.
 
 ## Phase 2 — Cloudflare DNS
 1. Point apex `refarm.dev` to GitHub Pages endpoints (current GitHub recommended records).

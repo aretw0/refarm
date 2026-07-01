@@ -1,8 +1,8 @@
 # .github/workflows/deploy-dev.yml
 #
-# Refarm.dev Homestead Deployment — "Residency in Grand Style"
+# Refarm.dev Site Deployment
 #
-# This workflow automates the deployment of the Dev Homestead app to GitHub Pages and beyound.
+# This workflow automates the deployment of the public Refarm site to GitHub Pages.
 # It ensures the required security headers (COOP/COEP) are considered for the
 # static hosting environment (GitHub Pages handles these via headers if configured).
 
@@ -12,7 +12,7 @@ on:
   push:
     branches: [main, master]
     paths:
-      - "apps/dev/**"
+      - "apps/site/**"
       - "packages/**"
       - ".github/actions/deploy-pages/**"
       - ".github/actions/setup/**"
@@ -43,24 +43,21 @@ jobs:
       - name: Setup Refarm Environment
         run: node scripts/ci/setup-env.mjs
 
-      - name: Build Heartwood WASM Package
-        run: pnpm --filter "$REFARM_SCOPE_DEV/heartwood" run build
-
-      - name: Build Refarm.dev App
+      - name: Build Refarm.dev Site
         env:
           ASTRO_SITE: ${{ vars.REFARM_ASTRO_SITE || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
           ASTRO_BASE: ${{ vars.REFARM_ASTRO_BASE || format('/{0}/', github.event.repository.name) }}
-        run: pnpm --filter "$REFARM_SCOPE_DEV/app" run build
+        run: pnpm --filter "$REFARM_SCOPE_DEV/site" run build
 
       - name: Verify Astro base-path links
         env:
           ASTRO_BASE: ${{ vars.REFARM_ASTRO_BASE || format('/{0}/', github.event.repository.name) }}
-        run: node scripts/ci/check-astro-base-links.mjs apps/dev/dist "$ASTRO_BASE"
+        run: node scripts/ci/check-astro-base-links.mjs apps/site/dist "$ASTRO_BASE"
 
       - name: Upload artifact
         uses: ./.github/actions/upload-pages
         with:
-          path: apps/dev/dist
+          path: apps/site/dist
 
   deploy:
     environment:

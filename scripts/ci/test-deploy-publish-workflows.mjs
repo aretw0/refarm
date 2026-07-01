@@ -10,7 +10,7 @@ function readJson(path) {
 	return JSON.parse(read(path));
 }
 
-test("deploy-dev workflow keeps GitHub Pages deploy gated by build smoke", () => {
+test("deploy-dev workflow keeps GitHub Pages deploy gated by site build smoke", () => {
 	const workflow = read(".github/workflows/deploy-dev.yml");
 	const uploadAction = read(".github/actions/upload-pages/action.yml");
 	const deployAction = read(".github/actions/deploy-pages/action.yml");
@@ -20,12 +20,14 @@ test("deploy-dev workflow keeps GitHub Pages deploy gated by build smoke", () =>
 	assert.match(workflow, /workflow_dispatch:/);
 	assert.match(workflow, /permissions:\n\s+contents: read\n\s+pages: write\n\s+id-token: write/);
 	assert.match(workflow, /uses: \.\/\.github\/actions\/setup\n\s+with:\n\s+cache-mode: "off"/);
-	assert.match(workflow, /run: pnpm --filter "\$REFARM_SCOPE_DEV\/heartwood" run build/);
-	assert.match(workflow, /run: pnpm --filter "\$REFARM_SCOPE_DEV\/app" run build/);
+	assert.match(workflow, /apps\/site\/\*\*/);
+	assert.doesNotMatch(workflow, /apps\/dev\/\*\*/);
+	assert.doesNotMatch(workflow, /REFARM_SCOPE_DEV\/heartwood/);
+	assert.match(workflow, /run: pnpm --filter "\$REFARM_SCOPE_DEV\/site" run build/);
 	assert.match(workflow, /ASTRO_SITE: \$\{\{ vars\.REFARM_ASTRO_SITE \|\| format\('https:\/\/\{0\}\.github\.io\/\{1\}\/', github\.repository_owner, github\.event\.repository\.name\) \}\}/);
 	assert.match(workflow, /ASTRO_BASE: \$\{\{ vars\.REFARM_ASTRO_BASE \|\| format\('\/\{0\}\/', github\.event\.repository\.name\) \}\}/);
-	assert.match(workflow, /run: node scripts\/ci\/check-astro-base-links\.mjs apps\/dev\/dist "\$ASTRO_BASE"/);
-	assert.match(workflow, /uses: \.\/\.github\/actions\/upload-pages\n\s+with:\n\s+path: apps\/dev\/dist/);
+	assert.match(workflow, /run: node scripts\/ci\/check-astro-base-links\.mjs apps\/site\/dist "\$ASTRO_BASE"/);
+	assert.match(workflow, /uses: \.\/\.github\/actions\/upload-pages\n\s+with:\n\s+path: apps\/site\/dist/);
 	assert.match(workflow, /deploy:\n\s+environment:\n\s+name: github-pages\n\s+url: \$\{\{ steps\.deployment\.outputs\.page_url \}\}\n\s+needs: build/);
 	assert.match(workflow, /uses: \.\/\.github\/actions\/deploy-pages/);
 	assert.match(uploadAction, /uses: actions\/upload-pages-artifact@[0-9a-f]{40}/);
