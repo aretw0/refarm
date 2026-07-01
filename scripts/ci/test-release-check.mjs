@@ -95,6 +95,8 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 
 	assert.equal(check.ok, true);
 	assert.deepEqual(check.plan.orderedNames, [
+		"@refarm.dev/storage-contract-v1",
+		"@refarm.dev/identity-contract-v1",
 		"@refarm.dev/artifact-contract-v1",
 		"@refarm.dev/channel-policy-v1",
 		"@refarm.dev/effort-contract-v1",
@@ -106,8 +108,11 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/ds",
 		"@refarm.dev/heartwood",
 		"@refarm.dev/silo",
+		"@refarm.dev/storage-memory",
+		"@refarm.dev/credentials-contract-v1",
 		"@refarm.dev/dispatch-surface",
 		"@refarm.dev/source-web",
+		"@refarm.dev/identity-heartwood",
 	]);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/homestead-ssr"), false);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/homestead"), false);
@@ -155,7 +160,7 @@ test("release check plan json exposes acceptance summary", () => {
 	assert.equal(payload.ok, true);
 	assert.equal(payload.selection.id, "vault-seed-ready");
 	assert.equal(payload.acceptance.status, "accepted");
-	assert.equal(payload.acceptance.packageCount, 13);
+	assert.equal(payload.acceptance.packageCount, 18);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
 	assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);
