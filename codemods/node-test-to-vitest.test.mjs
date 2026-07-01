@@ -102,6 +102,16 @@ test("node:test to vitest handles throws predicate and doesNotReject function se
 	assert.match(output, /expect\(\(\(\) => Promise\.resolve\("ok"\)\)\(\), "does not reject"\)\.resolves\.not\.toThrow\(\)/);
 });
 
+test("node:test to vitest preserves regex literals with structural characters", () => {
+	const source = `import assert from "node:assert/strict";\nimport test from "node:test";\n\ntest("css", () => {\n\tassert.doesNotMatch(css, /\\s*:root\\[[^\\]]+\\],\\s*body\\)/, "selector should not leak");\n});\n`;
+	const output = transformNodeTestToVitest(source);
+
+	assert.equal(
+		output,
+		`import { test, expect } from "vitest";\n\ntest("css", () => {\n\texpect(css, "selector should not leak").not.toMatch(/\\s*:root\\[[^\\]]+\\],\\s*body\\)/);\n});\n`,
+	);
+});
+
 test("node:test to vitest cli can emit a dry-run json report", () => {
 	const root = mkdtempSync(path.join(os.tmpdir(), "refarm-node-test-codemod-"));
 	const input = path.join(root, "sample.test.mjs");

@@ -363,8 +363,26 @@ function findMatchingParen(source, open) {
 	let depth = 0;
 	let quote = null;
 	let escaped = false;
+	let regex = false;
+	let regexCharClass = false;
+	let lastSignificant = "";
 	for (let index = open; index < source.length; index += 1) {
 		const char = source[index];
+		if (regex) {
+			if (escaped) {
+				escaped = false;
+			} else if (char === "\\") {
+				escaped = true;
+			} else if (char === "[") {
+				regexCharClass = true;
+			} else if (char === "]") {
+				regexCharClass = false;
+			} else if (char === "/" && !regexCharClass) {
+				regex = false;
+				lastSignificant = "/";
+			}
+			continue;
+		}
 		if (quote) {
 			if (escaped) {
 				escaped = false;
@@ -379,11 +397,18 @@ function findMatchingParen(source, open) {
 			quote = char;
 			continue;
 		}
+		if (char === "/" && looksLikeRegexStart(lastSignificant)) {
+			regex = true;
+			regexCharClass = false;
+			escaped = false;
+			continue;
+		}
 		if (char === "(") depth += 1;
 		if (char === ")") {
 			depth -= 1;
 			if (depth === 0) return index;
 		}
+		if (!/\s/.test(char)) lastSignificant = char;
 	}
 	return -1;
 }
@@ -394,9 +419,27 @@ function splitTopLevelArgs(source) {
 	let depth = 0;
 	let quote = null;
 	let escaped = false;
+	let regex = false;
+	let regexCharClass = false;
+	let lastSignificant = "";
 
 	for (let index = 0; index < source.length; index += 1) {
 		const char = source[index];
+		if (regex) {
+			if (escaped) {
+				escaped = false;
+			} else if (char === "\\") {
+				escaped = true;
+			} else if (char === "[") {
+				regexCharClass = true;
+			} else if (char === "]") {
+				regexCharClass = false;
+			} else if (char === "/" && !regexCharClass) {
+				regex = false;
+				lastSignificant = "/";
+			}
+			continue;
+		}
 		if (quote) {
 			if (escaped) {
 				escaped = false;
@@ -411,17 +454,28 @@ function splitTopLevelArgs(source) {
 			quote = char;
 			continue;
 		}
+		if (char === "/" && looksLikeRegexStart(lastSignificant)) {
+			regex = true;
+			regexCharClass = false;
+			escaped = false;
+			continue;
+		}
 		if (char === "(" || char === "[" || char === "{") depth += 1;
 		if (char === ")" || char === "]" || char === "}") depth -= 1;
 		if (char === "," && depth === 0) {
 			args.push(source.slice(start, index).trim());
 			start = index + 1;
 		}
+		if (!/\s/.test(char)) lastSignificant = char;
 	}
 
 	const tail = source.slice(start).trim();
 	if (tail) args.push(tail);
 	return args;
+}
+
+function looksLikeRegexStart(previous) {
+	return previous === "" || "([{=,:;!&|?".includes(previous);
 }
 
 function collectUnhandled(source, assertName) {
