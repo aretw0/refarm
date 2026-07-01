@@ -37,9 +37,15 @@
   "devDependencies": {
     "@refarm.dev/eslint-config": "workspace:*",
     "@refarm.dev/tsconfig": "workspace:*",
-    "@refarm.dev/vtconfig": "workspace:*"
-  },
-  "dependencies": {
+    "@refarm.dev/vtconfig": "workspace:*",
     "yaml": "^2.9.0"
+  },
+  "peerDependencies": {
+    "yaml": "^2.9.0"
+  },
+  "peerDependenciesMeta": {
+    "yaml": {
+      "optional": true
+    }
   }
 }
