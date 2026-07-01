@@ -135,7 +135,9 @@ over `storage:v1`. The contract owns the envelope + the roles, not the crypto or
   `@refarm.dev/identity-heartwood`.
 - `runCredentialsV1Conformance(provider)`: a self-issued credential verifies `valid:true`; a tampered
   credential verifies `valid:false`; a presentation with a holder proof verifies; expired credentials
-  fail; the wallet round-trips store/list/remove; unknown fields survive a round-trip.
+  fail when policy requires validity; required issuer/claim/holder-binding checks are enforced;
+  local signed status-list revocation fails closed when required; the wallet round-trips
+  store/list/remove; unknown fields survive a round-trip.
 
 ## 3. Forward compatibility
 
@@ -162,11 +164,15 @@ registries (who is an accepted issuer). The contract never bakes in a trust list
 3. presentation verify (holder proof over bundled credentials);
 4. expiry test; wallet store/list/remove round-trip;
 5. forward-safety: unknown fields / extended `@context` verify without loss.
-6. sanitized T2 reference: `pnpm run sovereign-citizen:reference:test`.
+6. policy-driven verify: trusted issuer, `trustSelf`, required claims, holder binding, and
+   `revocation: "required"` over the local signed status list.
+7. sanitized T2 reference: `pnpm run sovereign-citizen:reference:test`.
 
 ## Non-Goals
 
 - No crypto implementation (composed from `identity:v1`); no storage backend (from `storage:v1`).
 - No issuer trust registry or authority list in the contract.
 - No domain credential schemas or vocabulary — those are downstream/private.
-- No revocation registry in v1 (additive later; the envelope leaves room via `@context`).
+- No remote/public revocation registry in v1. The package owns local signed status-list checks for
+  the reference seam; remote status-list discovery, distribution, caching, and trust policy stay
+  downstream/private.
