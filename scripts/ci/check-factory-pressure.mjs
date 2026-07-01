@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
+import { buildEnvironmentPressureReport } from "./lib/environment-pressure.mjs";
 
 function usage() {
 	console.error("Usage: node scripts/ci/check-factory-pressure.mjs [--json] [--strict]");

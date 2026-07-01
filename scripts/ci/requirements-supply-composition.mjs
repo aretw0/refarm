@@ -3,7 +3,7 @@ import {
 	TASK_ARTIFACT_MANIFEST_SCHEMA,
 	validateTaskArtifactManifest,
 } from "../../packages/artifact-contract-v1/dist/index.js";
-import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
+import { buildEnvironmentPressureReport } from "./lib/environment-pressure.mjs";
 import { createHash } from "node:crypto";
 import { mkdtemp } from "node:fs/promises";
 import os from "node:os";

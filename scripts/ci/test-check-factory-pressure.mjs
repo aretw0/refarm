@@ -9,7 +9,7 @@ import {
 	classifyMemoryPressure,
 	decideEnvironmentPressure,
 	DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
-} from "@refarm.dev/health/environment-pressure";
+} from "./lib/environment-pressure.mjs";
 
 const MB = 1024 * 1024;
 const GB = 1024 * MB;
