@@ -27,7 +27,7 @@ private proof keeps only its adapters and vocabulary.
 ## Agent-commons environment ceilings
 
 **Date**: 2026-06-30
-**Status**: Proposed
+**Status**: Boundary enforcement active after rebuild; sub-slices pending
 **ADR**: [ADR-078](../specs/ADRs/ADR-078-agent-commons-environment-ceilings.md)
 **References**: [ADR-074](../specs/ADRs/ADR-074-remote-workspace-control-plane.md),
 `docs/local-disk-hygiene.md`, `@refarm.dev/health` (`environment-pressure`),
@@ -48,6 +48,12 @@ agent could not react. The doctrine already existed as advisory signals + CI che
 (`environment-pressure`, `local-disk-hygiene`, `workspace:*:ownership`, `extension-sandbox-poc`) but
 nothing enforced it at runtime. Pointual fix shipped: `.npmrc manage-package-manager-versions=false`
 (`6189da20`). Surfaced by the vault-seed consumer working in the shared container.
+
+**2026-07-01 update**: `.devcontainer/devcontainer.json` now applies Docker cgroup boundary limits
+for the shared runtime after rebuild: 6 GiB memory, no swap above that cap, 4 CPUs, and 1024 PIDs.
+`refarm.config.json` marks the local devcontainer ceiling as `enforced` / `cgroup-v2`, with
+`control` and `workload` maxima calibrated to the 6 GiB boundary. Fine-grained control/workload
+sub-slices still require the root/entrypoint lane.
 
 ---
 
