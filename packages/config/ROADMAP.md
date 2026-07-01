@@ -31,6 +31,8 @@
 ## v0.2.0 - Configuration as a Node
 **Scope**: Distributing system settings via the Sovereign Graph.
 
+- [x] Redacted config-node envelope: `@refarm.dev/config/config-node` emits deterministic
+  `refarm.config.node.v1` nodes with revision digests and redaction evidence.
 - [ ] Implementation of **Graph-Level Overrides**: Allowing the user to change system settings by editing nodes in their graph.
 - [ ] **Reactive Config**: Notifying active plugins when their configuration nodes change.
 
