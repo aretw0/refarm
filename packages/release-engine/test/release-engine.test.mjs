@@ -347,6 +347,8 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
   });
   assert.deepEqual(payload.profileTags, ["vault-seed-ready"]);
   assert.deepEqual(payload.packages, [
+    "@refarm.dev/storage-contract-v1",
+    "@refarm.dev/identity-contract-v1",
     "@refarm.dev/artifact-contract-v1",
     "@refarm.dev/channel-policy-v1",
     "@refarm.dev/effort-contract-v1",
@@ -358,8 +360,11 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
     "@refarm.dev/ds",
     "@refarm.dev/heartwood",
     "@refarm.dev/silo",
+    "@refarm.dev/storage-memory",
+    "@refarm.dev/credentials-contract-v1",
     "@refarm.dev/dispatch-surface",
     "@refarm.dev/source-web",
+    "@refarm.dev/identity-heartwood",
   ]);
   assert.equal(
     payload.packageProfiles.every((profile) =>
@@ -370,7 +375,7 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
   assert.equal(payload.packages.includes("@refarm.dev/cli"), false);
   assert.equal(payload.packages.includes("@refarm.dev/homestead"), false);
   assert.equal(payload.acceptance.status, "accepted");
-  assert.equal(payload.acceptance.packageCount, 13);
+  assert.equal(payload.acceptance.packageCount, 18);
   assert.equal(payload.acceptance.blockerCount, 0);
   assert.equal(payload.acceptance.manualApprovalRequired, true);
   assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);
