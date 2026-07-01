@@ -6,7 +6,7 @@
       "status": "ready",
       "ownerSurface": "consumer repo",
       "tool": "codemod",
-      "inputs": ["ESM JavaScript/MJS tests importing node:test and simple node:assert/strict assertions; CommonJS require() files are reported unsupported"],
+      "inputs": ["JavaScript/MJS tests importing node:test or using simple CommonJS require(\"node:test\") plus simple node:assert/strict assertions; file renames/package type changes are out of scope"],
       "fixtures": [
         "codemods/fixtures/node-test-to-vitest.before.mjs",
         "codemods/fixtures/node-test-to-vitest.after.mjs"

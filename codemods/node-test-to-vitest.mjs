@@ -43,8 +43,8 @@ export function transformNodeTestToVitest(source) {
 }
 
 export function transformNodeTestToVitestWithReport(source) {
-	const unsupported = detectUnsupportedCommonJs(source);
 	const imports = rewriteImports(source);
+	const unsupported = detectUnsupportedCommonJs(imports.code);
 	const bindings = imports.importsRewritten > 0
 		? rewriteNodeTestBindings(imports.code)
 		: { code: imports.code };
@@ -129,9 +129,40 @@ function rewriteImports(source) {
 			continue;
 		}
 
+		const nodeTestRequire = /^(?:const|let|var)\s+(.+?)\s*=\s*require\s*\(\s*["']node:test["']\s*\);?\s*$/.exec(line);
+		if (nodeTestRequire) {
+			const names = parseNodeTestRequireClause(nodeTestRequire[1]);
+			if (names.length > 0) {
+				for (const name of names) {
+					vitestNames.add(NODE_TEST_NAME_MAP.get(name) ?? name);
+				}
+				if (firstImportIndex === null) firstImportIndex = kept.length;
+				importsRewritten += 1;
+				continue;
+			}
+		}
+
 		const nodeAssertDefault = /^import\s+([A-Za-z_$][\w$]*)\s+from\s+["']node:assert(?:\/strict)?["'];?\s*$/.exec(line);
 		if (nodeAssertDefault) {
 			assertName = nodeAssertDefault[1];
+			vitestNames.add("expect");
+			if (firstImportIndex === null) firstImportIndex = kept.length;
+			importsRewritten += 1;
+			continue;
+		}
+
+		const nodeAssertRequire = /^(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\s*\(\s*["']node:assert(?:\/strict)?["']\s*\);?\s*$/.exec(line);
+		if (nodeAssertRequire) {
+			assertName = nodeAssertRequire[1];
+			vitestNames.add("expect");
+			if (firstImportIndex === null) firstImportIndex = kept.length;
+			importsRewritten += 1;
+			continue;
+		}
+
+		const nodeAssertStrictRequire = /^(?:const|let|var)\s+\{\s*strict\s*:\s*([A-Za-z_$][\w$]*)\s*\}\s*=\s*require\s*\(\s*["']node:assert["']\s*\);?\s*$/.exec(line);
+		if (nodeAssertStrictRequire) {
+			assertName = nodeAssertStrictRequire[1];
 			vitestNames.add("expect");
 			if (firstImportIndex === null) firstImportIndex = kept.length;
 			importsRewritten += 1;
@@ -180,6 +211,17 @@ function rewriteImports(source) {
 	};
 }
 
+function parseNodeTestRequireClause(clause) {
+	const trimmed = clause.trim();
+	if (trimmed.startsWith("{")) {
+		return parseCommonJsNamedBindings(trimmed.slice(1, -1)).filter((name) =>
+			VITEST_IMPORT_ORDER.includes(name) || NODE_TEST_NAME_MAP.has(name)
+		);
+	}
+	if (VITEST_IMPORT_ORDER.includes(trimmed) || NODE_TEST_NAME_MAP.has(trimmed)) return [trimmed];
+	return [];
+}
+
 function parseImportClause(clause) {
 	const trimmed = clause.trim();
 	if (trimmed.startsWith("{")) {
@@ -203,6 +245,15 @@ function parseNamedImports(source) {
 			const [imported] = item.split(/\s+as\s+/);
 			return { imported: imported.trim() };
 		});
+}
+
+function parseCommonJsNamedBindings(source) {
+	if (source.split(",").some((item) => item.includes(":"))) return [];
+	return source
+		.split(",")
+		.map((item) => item.trim())
+		.filter(Boolean)
+		.map((item) => item.trim());
 }
 
 function rewriteAssertions(source, assertName) {
