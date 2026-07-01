@@ -138,8 +138,8 @@ packages are ready:
 | `@refarm.dev/source-git` | release-profiled; not selected | clean cached checkout adapter is implemented and dogfooded; handoff promotion waits for a selected consumer path that needs package consumption |
 | `@refarm.dev/source-local` | release-profiled; not selected | live working-tree reads are useful for Refarm dogfood and expected downstream assimilation, but handoff promotion waits for a proof that dirty/untracked state is required |
 | `@refarm.dev/source-dispatch` | not created | dispatch adapter activates when Refarm, `vault-seed`, or `agents-lab` needs `source:v1` through `dispatch-surface` with an executable proof |
-| `@refarm.dev/identity-heartwood` | implemented; not selected | real Ed25519 `identity:v1` adapter backed by `@refarm.dev/heartwood`; publication waits for the T2 wallet/credential POC proof rather than replacing `identity-nostr` or changing the default kernel selection |
-| `@refarm.dev/credentials-contract-v1` | implemented; not selected | Verifiable Credentials and holder wallet contract composes `identity:v1` + `storage:v1`; promotion waits for Refarm dogfood and downstream proof, with issuer trust policy and credential schemas kept consumer-owned |
+| `@refarm.dev/identity-heartwood` | reference-proven; not selected | real Ed25519 `identity:v1` adapter backed by `@refarm.dev/heartwood`; `sovereign-citizen:reference:test` proves issue/verify/present/wallet through Heartwood signatures, but release promotion still waits for trust-policy/downstream proof rather than replacing `identity-nostr` or changing the default kernel selection |
+| `@refarm.dev/credentials-contract-v1` | reference-proven; not selected | Verifiable Credentials and holder wallet contract composes `identity:v1` + `storage:v1`; `sovereign-citizen:reference:test` proves the sanitized T2 flow, while issuer trust policy, credential schemas, downstream wallet UX, and selected consumer proof remain consumer-owned |
 | `@refarm.dev/skill-contract-v1` | implemented; not selected | native `skill:v1` manifest/plan/request/decision/receipt/surface/preflight helpers are checked, plugin-manifest validates `pi/skill` package surfaces, the plan-only Refarm git-workflow smoke records a host policy decision, the source-status smoke records one `source:v1` engine call through `@refarm.dev/source-local`, the `agents-lab` git-workflow wrapper smoke records external source evidence without installing upstream skill text, and the DGK `vault-search` wrapper smoke records external `vault-seed` source evidence plus a package-declared `pi/skill` surface and blocked activation preflight without executing `dgk` or Obsidian CLI; publication now waits for runtime-host and install-policy proof rather than a missing DGK wrapper fixture |
 | `@refarm.dev/homestead` | held out of `vault-seed-ready` | full SDK closure still pulls Tractor/storage/sync/plugin dependencies; DS-only HTML helpers ship through `@refarm.dev/ds/html` |
 | `@refarm.dev/homestead-ssr` | removed pre-publication | `@refarm.dev/ds/html` is the canonical DS-owned helper surface |
@@ -183,6 +183,7 @@ pnpm run requirements:supply:handoff -- --pack --clean-only
 pnpm run requirements:supply:handoff -- --pack --source-web-only
 pnpm -C packages/identity-heartwood run test:conformance
 pnpm -C packages/credentials-contract-v1 run test:conformance
+pnpm run sovereign-citizen:reference:test
 pnpm run release:vault-seed:check
 pnpm --silent run release:vault-seed:handoff -- --pack --json
 pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json
