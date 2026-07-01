@@ -255,6 +255,43 @@
         ]
       },
       {
+        "id": "@refarm.dev/identity-heartwood",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/identity-heartwood run lint",
+          "pnpm --filter @refarm.dev/identity-heartwood run type-check",
+          "pnpm --filter @refarm.dev/identity-heartwood run test:conformance",
+          "pnpm --filter @refarm.dev/identity-heartwood run build"
+        ],
+        "tags": [
+          "identity",
+          "crypto",
+          "t2-reference",
+          "reference-proven",
+          "boundary-review",
+          "reference-hold"
+        ]
+      },
+      {
+        "id": "@refarm.dev/credentials-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/credentials-contract-v1 run lint",
+          "pnpm --filter @refarm.dev/credentials-contract-v1 run type-check",
+          "pnpm --filter @refarm.dev/credentials-contract-v1 run test:conformance",
+          "pnpm --filter @refarm.dev/credentials-contract-v1 run build",
+          "pnpm run sovereign-citizen:reference:test"
+        ],
+        "tags": [
+          "credentials",
+          "contract",
+          "t2-reference",
+          "reference-proven",
+          "boundary-review",
+          "reference-hold"
+        ]
+      },
+      {
         "id": "@refarm.dev/artifact-contract-v1",
         "risk": "core",
         "mustPassChecks": [
@@ -461,6 +498,7 @@
           "pnpm --filter @refarm.dev/records-contract-v1 run lint",
           "pnpm --filter @refarm.dev/records-contract-v1 run type-check",
           "pnpm --filter @refarm.dev/records-contract-v1 run test:conformance",
+          "pnpm --filter @refarm.dev/records-contract-v1 run test:unit",
           "pnpm --filter @refarm.dev/records-contract-v1 run build"
         ],
         "tags": [

@@ -143,7 +143,7 @@ test("vault-seed handoff docs distinguish historical 10-package packets from cur
 		/ADR-072 superseded that packet before\s+publication/,
 	);
 	assert.match(vaultSeedHandoffPlan, /historical 2026-06-26/);
-	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 13 packages and 34 required checks/);
+	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 13 packages and 35 required checks/);
 });
 
 test("factory readiness records the current local vault-seed handoff state", () => {

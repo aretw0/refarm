@@ -517,7 +517,7 @@ local. `distributionEvidence` records the local handoff ref, verified-copy
 state, update source, rollback target, and the explicit boundary that this is
 not a public install contract or P2P substrate. After the T3 downstream proof, the
 active release plan reports `acceptance.status: "accepted"`, 13 packages, 4
-required gates, and 34 required checks; the next official handoff should be
+required gates, and 35 required checks; the next official handoff should be
 materialized from the generated manifest rather than copied from this historical
 table.
 
