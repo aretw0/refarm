@@ -191,6 +191,8 @@ test("devcontainer marks and locks host-write-sensitive workspace checkouts", ()
 	assert.match(envSafety, /check_devcontainer_workspace_marker\(\)/);
 	assert.match(envSafety, /REFARM_ALLOW_HOST_DEVCONTAINER_WORKSPACE/);
 	assert.match(envSafety, /Checkout is marked devcontainer-owned/);
+	assert.match(envSafety, /is_pnpm_ignored_link\(\)/);
+	assert.match(envSafety, /\*\/node_modules\/\.ignored_\*/);
 });
 
 test("devcontainer environment ceilings are enforced at the container boundary", () => {

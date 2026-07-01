@@ -5,6 +5,10 @@ import test from "node:test";
 
 const ROOT = path.resolve(import.meta.dirname, "../../..");
 const SITE_DATA = path.join(ROOT, "apps/site/src/site-data.ts");
+const RECORDS_CONTEXT_ROUTE = path.join(
+	ROOT,
+	"apps/site/src/pages/contexts/records/v1.ts",
+);
 
 function read(relativePath) {
 	return readFileSync(path.join(ROOT, relativePath), "utf8");
@@ -87,4 +91,17 @@ test("public site vault-seed-ready list follows release policy and handoff facts
 	assert.equal(facts.publicPublishCount, 0);
 	assert.equal(handoff.status, "ready");
 	assert.equal(handoff.acceptance.status, "accepted");
+});
+
+test("public site serves the records:v1 JSON-LD context route", () => {
+	const source = readFileSync(RECORDS_CONTEXT_ROUTE, "utf8");
+
+	assert.match(source, /export const prerender = true/);
+	assert.match(source, /Content-Type": "application\/ld\+json; charset=utf-8"/);
+	assert.match(source, /records: "https:\/\/refarm\.dev\/contexts\/records\/v1#"/);
+	assert.match(source, /KnowledgeRecord: "records:KnowledgeRecord"/);
+	assert.match(source, /Requirement: "records:Requirement"/);
+	assert.match(source, /schemaVersion: "records:schemaVersion"/);
+	assert.match(source, /sourceRefs/);
+	assert.match(source, /"@type": "@id"/);
 });

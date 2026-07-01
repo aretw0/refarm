@@ -23,6 +23,10 @@ Esse script valida rapidamente:
 - symlinks quebrados em `node_modules`,
 - symlinks com alvo cruzando SO (`/mnt/host/*`, padrões Windows/drive).
 
+Links `.ignored_*` criados pelo pnpm dentro de `node_modules` são ignorados pela
+checagem de symlink quebrado. Eles representam dependências materializadas como
+ignoradas pelo gerenciador, não contaminação entre SOs.
+
 ### Como rodar
 
 ```bash

@@ -6,7 +6,7 @@ import { findDerivedArtifactOwnershipIssues } from "./check-derived-artifact-own
 import { findWorkspaceSourceOwnershipIssues } from "./check-workspace-source-ownership.mjs";
 import { checkNodeSubstrate } from "./check-node-substrate.mjs";
 import { checkRustSubstrate } from "./check-rust-substrate.mjs";
-import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
+import { buildEnvironmentPressureReport } from "./lib/environment-pressure.mjs";
 
 function usage() {
 	console.error("Usage: node scripts/ci/check-environment-substrate.mjs [--json]");

@@ -126,6 +126,14 @@ is_suspect_external() {
 	return 0
 }
 
+is_pnpm_ignored_link() {
+	local link="$1"
+	case "$link" in
+	*/node_modules/.ignored_*) return 0 ;;
+	*) return 1 ;;
+	esac
+}
+
 check_owner() {
 	local dir="$1"
 	local owner_uid
@@ -143,6 +151,10 @@ check_owner() {
 check_symlink_targets() {
 	local link="$1"
 	local resolved
+
+	if is_pnpm_ignored_link "$link"; then
+		return
+	fi
 
 	if [ ! -e "$link" ]; then
 		record_issue error "Broken symlink: $link"
