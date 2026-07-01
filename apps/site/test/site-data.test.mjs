@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import * as ts from "typescript";
 
 const ROOT = path.resolve(import.meta.dirname, "../../..");
 const SITE_DATA = path.join(ROOT, "apps/site/src/site-data.ts");
@@ -36,6 +37,25 @@ function quotedValues(block) {
 
 function siteDataSource() {
 	return readFileSync(SITE_DATA, "utf8");
+}
+
+async function loadRouteModule(relativePath) {
+	const sourcePath = path.join(ROOT, relativePath);
+	const { outputText } = ts.transpileModule(readFileSync(sourcePath, "utf8"), {
+		compilerOptions: {
+			module: ts.ModuleKind.ESNext,
+			target: ts.ScriptTarget.ES2022,
+		},
+		fileName: sourcePath,
+	});
+	return import(`data:text/javascript;charset=utf-8,${encodeURIComponent(outputText)}`);
+}
+
+async function routeJson(relativePath) {
+	const route = await loadRouteModule(relativePath);
+	const response = route.GET();
+	assert.equal(response.headers.get("Content-Type"), "application/ld+json; charset=utf-8");
+	return response.json();
 }
 
 function extractVaultSeedPackages(source) {
@@ -105,32 +125,55 @@ test("public site vault-seed-ready list follows release policy and handoff facts
 	assert.equal(handoff.acceptance.status, "accepted");
 });
 
-test("public site serves the records:v1 JSON-LD context route", () => {
+test("public site serves the records:v1 JSON-LD context route", async () => {
 	const source = readFileSync(RECORDS_CONTEXT_ROUTE, "utf8");
+	const document = await routeJson("apps/site/src/pages/contexts/records/v1.ts");
+	const context = document["@context"];
 
 	assert.match(source, /export const prerender = true/);
-	assert.match(source, /Content-Type": "application\/ld\+json; charset=utf-8"/);
-	assert.match(source, /records: "https:\/\/refarm\.dev\/contexts\/records\/v1#"/);
-	assert.match(source, /KnowledgeRecord: "records:KnowledgeRecord"/);
-	assert.match(source, /Requirement: "records:Requirement"/);
-	assert.match(source, /schemaVersion: "records:schemaVersion"/);
-	assert.match(source, /sourceRefs/);
-	assert.match(source, /"@type": "@id"/);
+	assert.equal(context["@version"], 1.1);
+	assert.equal(context["@vocab"], "https://refarm.dev/contexts/records/v1#");
+	assert.equal(context.KnowledgeRecord, "https://refarm.dev/contexts/records/v1#KnowledgeRecord");
+	assert.equal(context.Requirement, "https://refarm.dev/contexts/records/v1#Requirement");
+	assert.equal(context.manifestVersion, "https://refarm.dev/contexts/records/v1#manifestVersion");
+	assert.equal(context.records, "https://refarm.dev/contexts/records/v1#records");
+	assert.equal(context.schemaVersion, "https://refarm.dev/contexts/records/v1#schemaVersion");
+	assert.equal(context.fields, "https://refarm.dev/contexts/records/v1#fields");
+	assert.equal(context.contentHash, "https://refarm.dev/contexts/records/v1#contentHash");
+	assert.equal(context.hash, "https://refarm.dev/contexts/records/v1#hash");
+	assert.equal(context.at, "https://refarm.dev/contexts/records/v1#at");
+	assert.deepEqual(context.sourceRefs, {
+		"@container": "@set",
+		"@id": "https://refarm.dev/contexts/records/v1#sourceRefs",
+		"@type": "@id",
+	});
+	assert.deepEqual(context.target, {
+		"@id": "https://refarm.dev/contexts/records/v1#target",
+		"@type": "@id",
+	});
 });
 
-test("public site serves the credentials:v1 JSON-LD context route", () => {
+test("public site serves the credentials:v1 JSON-LD context route", async () => {
 	const source = readFileSync(CREDENTIALS_CONTEXT_ROUTE, "utf8");
+	const document = await routeJson("apps/site/src/pages/contexts/credentials/v1.ts");
+	const context = document["@context"];
 
 	assert.match(source, /export const prerender = true/);
-	assert.match(source, /Content-Type": "application\/ld\+json; charset=utf-8"/);
-	assert.match(source, /credentials: "https:\/\/refarm\.dev\/contexts\/credentials\/v1#"/);
-	assert.match(source, /CredentialProof: "credentials:CredentialProof"/);
-	assert.match(source, /CredentialVerificationPolicy: "credentials:CredentialVerificationPolicy"/);
-	assert.match(source, /CredentialVerificationResult: "credentials:CredentialVerificationResult"/);
-	assert.match(source, /RefarmConformanceCredential: "credentials:RefarmConformanceCredential"/);
-	assert.match(source, /trustedIssuers/);
-	assert.match(source, /verificationMethod/);
-	assert.match(source, /"@type": "@id"/);
+	assert.equal(context["@version"], 1.1);
+	assert.equal(context.credentials, "https://refarm.dev/contexts/credentials/v1#");
+	assert.equal(context.CredentialProof, "credentials:CredentialProof");
+	assert.equal(context.CredentialVerificationPolicy, "credentials:CredentialVerificationPolicy");
+	assert.equal(context.CredentialVerificationResult, "credentials:CredentialVerificationResult");
+	assert.equal(context.RefarmConformanceCredential, "credentials:RefarmConformanceCredential");
+	assert.deepEqual(context.trustedIssuers, {
+		"@container": "@set",
+		"@id": "credentials:trustedIssuers",
+		"@type": "@id",
+	});
+	assert.deepEqual(context.verificationMethod, {
+		"@id": "credentials:verificationMethod",
+		"@type": "@id",
+	});
 });
 
 test("public site serves release-engine JSON Schema routes from package sources", () => {

@@ -182,13 +182,15 @@ Records stamp `@context: "https://refarm.dev/contexts/records/v1"` (reference pr
 that URL from the public site as a JSON-LD context document at `/contexts/records/v1`.
 
 The v1 context intentionally defines only the neutral records envelope terms (`schemaVersion`,
-`fields`, `sections`, `relations`, `attachments`, `sourceRefs`, `contentHash`, `review`) plus the
-reference fixture's generic `KnowledgeRecord`/`Requirement` type names. Domain vocabularies still
-belong downstream and may add their own JSON-LD contexts without changing `records:v1`.
+`fields`, `sections`, `relations`, `attachments`, `sourceRefs`, `contentHash`, `review`) plus
+manifest-level terms (`manifestVersion`, `records`) and the reference fixture's generic
+`KnowledgeRecord`/`Requirement` type names. Domain vocabularies still belong downstream and may add
+their own JSON-LD contexts without changing `records:v1`.
 
 Flagged by the vault-seed consumer (2026-07-01): the base context is used downstream as
 `RECORDS_BASE_CONTEXT`. The release gate is now closed by the site route and a site test that asserts
-the records context endpoint exists with `application/ld+json` semantics.
+the records context endpoint returns a parseable `application/ld+json` response with the manifest and
+record envelope terms used by distributed records manifests.
 
 ## Non-Goals
 
