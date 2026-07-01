@@ -329,8 +329,10 @@
           "source",
           "contract",
           "sdk-primitive",
+          "consumer-pulled",
+          "vault-seed-ready",
           "boundary-review",
-          "candidate-hold"
+          "consumer-proven"
         ]
       },
       {
@@ -380,8 +382,10 @@
           "adapter",
           "sdk-primitive",
           "requirements-supply",
+          "consumer-pulled",
+          "vault-seed-ready",
           "boundary-review",
-          "candidate-hold"
+          "consumer-proven"
         ]
       },
       {
@@ -397,8 +401,10 @@
           "contract",
           "sdk-primitive",
           "requirements-supply",
+          "consumer-pulled",
+          "vault-seed-ready",
           "boundary-review",
-          "candidate-hold"
+          "consumer-proven"
         ]
       },
       {
@@ -414,8 +420,10 @@
           "contract",
           "sdk-primitive",
           "requirements-supply",
+          "consumer-pulled",
+          "vault-seed-ready",
           "boundary-review",
-          "candidate-hold"
+          "consumer-proven"
         ]
       },
       {

@@ -16,8 +16,9 @@
 
 Implemented as `@refarm.dev/enrichment-contract-v1` with types, a deterministic
 fixture provider, conformance tests, and package-local lint/type/build checks.
-It remains proof-gated and is not in release policy until a downstream proof
-uses the package without moving private providers into Refarm.
+The downstream `vault-seed` consumer proof now uses the package without moving
+private providers into Refarm, so it is promoted to `vault-seed-ready` as a
+consumer-proven T3 block.
 
 ## Task 2 - Authenticated Web Source Adapter Design
 
@@ -46,8 +47,9 @@ details live in package provenance and real login/selectors stay downstream.
 
 Implemented as `@refarm.dev/records-contract-v1` with a sanitized fixture
 manifest, referential-integrity validation, stable content hashes, open
-vocabulary, and forward-safe upcast. It remains proof-gated and out of
-release-policy until downstream proof and composition evidence exist.
+vocabulary, and forward-safe upcast. The downstream `vault-seed` reference-vault
+proof now supplies composition evidence, so it is promoted to `vault-seed-ready`
+as a consumer-proven T3 block.
 
 ## Task 4 - Diagnostics Gate
 
@@ -74,20 +76,24 @@ vocabulary.
 - [x] Record fallback paths so downstream POCs can keep moving if a Refarm leaf is
   not yet selected.
 
-Implemented as proof-gated release-policy profiles for `@refarm.dev/source-web`,
-`@refarm.dev/enrichment-contract-v1`, and `@refarm.dev/records-contract-v1`.
-They carry `requirements-supply`, `boundary-review`, and `candidate-hold` tags,
-package-local checks, and explicit audit coverage that blocks premature
-`vault-seed-ready` selection. The official `vault-seed-ready` tarball handoff
-remains unchanged until the downstream checkout consumes these leaves through a
-named proof; until then private login/selectors/enrichment providers stay
-downstream and can wrap the Refarm packages when available. `pnpm run
-requirements:supply:handoff` emits the machine-readable candidate handoff plan:
-candidate leaf packages, planned `file:./vendor/*.tgz` specs, local
-`pnpmOverrides` for unpublished Refarm dependencies, consumer proof metadata,
-and fallback behavior, but does not pack tarballs or write `.refarm/handoff`
-artifacts unless `--pack` is explicit. The first consumable packet is the clean
-contract slice:
+Implemented first as proof-gated release-policy profiles for
+`@refarm.dev/source-web`, `@refarm.dev/enrichment-contract-v1`, and
+`@refarm.dev/records-contract-v1`. The downstream `vault-seed` consumer proof is
+now complete: the checkout assimilated all three packages through `file:` vendor
+tarballs, used `@refarm.dev/source-contract-v1` as the `source-web` transitive
+override, passed 16/16 consumer-contract tests, and proved the reference vault
+composition `source-web` fixture -> `records:v1` -> `enrichment:v1` with an
+empty gap ledger. The three T3 packages now carry `requirements-supply`,
+`boundary-review`, `consumer-pulled`, `vault-seed-ready`, and `consumer-proven`
+tags; `source-contract-v1` is also selected as the required support package.
+Private login/selectors/enrichment providers stay downstream.
+
+`pnpm run requirements:supply:handoff` remains the machine-readable T3
+proof/reference handoff plan: candidate leaf packages, planned
+`file:./vendor/*.tgz` specs, local `pnpmOverrides` for unpublished Refarm
+dependencies, consumer proof metadata, and fallback behavior. The official
+publication handoff after the proof is `release:vault-seed:handoff`. The first
+clean contract slice remains:
 
 ```bash
 pnpm run requirements:supply:handoff -- --pack --clean-only

@@ -19,7 +19,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const SCHEMA = "refarm.requirements-supply-handoff.v1";
 const SOURCE = "requirements-supply-handoff";
 const REQUIREMENTS_SUPPLY_TAG = "requirements-supply";
-const HOLD_TAGS = [REQUIREMENTS_SUPPLY_TAG, "boundary-review", "candidate-hold"];
+const BASE_TAGS = [REQUIREMENTS_SUPPLY_TAG, "boundary-review"];
+const HOLD_TAGS = [...BASE_TAGS, "candidate-hold"];
+const PROVEN_TAGS = [...BASE_TAGS, "consumer-pulled", "vault-seed-ready", "consumer-proven"];
 const VAULT_SEED_READY = "vault-seed-ready";
 const DEFAULT_HANDOFF_DIR = `.refarm/handoff/requirements-supply/${new Date().toISOString().slice(0, 10)}`;
 
@@ -136,13 +138,11 @@ function packageEntry({ cwd, profile, selected }) {
 	if (packageInfo.issue) {
 		issues.push(packageInfo.issue);
 	}
-	for (const tag of HOLD_TAGS) {
+	const requiredTags = selected.has(profile.id) ? PROVEN_TAGS : HOLD_TAGS;
+	for (const tag of requiredTags) {
 		if (!profile.tags?.includes(tag)) {
 			issues.push(`${profile.id} missing ${tag} tag`);
 		}
-	}
-	if (selected.has(profile.id)) {
-		issues.push(`${profile.id} is prematurely selected for ${VAULT_SEED_READY}`);
 	}
 	if (!Array.isArray(profile.mustPassChecks) || profile.mustPassChecks.length === 0) {
 		issues.push(`${profile.id} does not declare release-policy checks`);
@@ -170,7 +170,9 @@ function packageEntry({ cwd, profile, selected }) {
 		version,
 		packageDir: packageInfo.packageDir,
 		tarball: version ? packageTarballName(profile.id, version) : null,
-		state: issues.length === 0 ? "candidate-hold" : "blocked",
+		state: issues.length === 0
+			? selected.has(profile.id) ? "consumer-proven" : "candidate-hold"
+			: "blocked",
 		selectedForVaultSeedReady: selected.has(profile.id),
 		tags: profile.tags ?? [],
 		mustPassChecks: profile.mustPassChecks ?? [],
@@ -395,7 +397,12 @@ export function buildRequirementsSupplyHandoff({
 	];
 	const ok = issues.length === 0;
 	const allExpectedTarballsExist = missingTarballs.length === 0;
-	const state = !ok ? "blocked" : allExpectedTarballsExist ? "local-handoff-ready" : "candidate-hold";
+	const allSelectedForVaultSeedReady = packages.every((entry) => entry.selectedForVaultSeedReady);
+	const state = !ok
+		? "blocked"
+		: allExpectedTarballsExist
+			? "local-handoff-ready"
+			: allSelectedForVaultSeedReady ? "consumer-proven" : "candidate-hold";
 	const manifestFile = manifestFileForScope(scope);
 
 	return {
@@ -410,7 +417,7 @@ export function buildRequirementsSupplyHandoff({
 			source: "releasePolicy.packageProfiles",
 			profileTag: REQUIREMENTS_SUPPLY_TAG,
 			scope,
-			selectedForVaultSeedReady: false,
+			selectedForVaultSeedReady: allSelectedForVaultSeedReady,
 		},
 		handoffDir: maybeRelative(cwd, path.resolve(cwd, handoffDir)),
 		manifestFile,
@@ -432,17 +439,23 @@ export function buildRequirementsSupplyHandoff({
 			expectedLocalCopies: materializedPackages.length + materializedSupportingPackages.length,
 			tarballFreshness: allExpectedTarballsExist ? "checked-present" : "not-checked-until-pack",
 			promotionBoundary:
-				"requires named downstream proof before vault-seed-ready selection or tarball handoff publication",
+				allSelectedForVaultSeedReady
+					? "named downstream proof exists; official publication handoff is vault-seed-ready"
+					: "requires named downstream proof before vault-seed-ready selection or tarball handoff publication",
 		},
 		boundaries: [
 			"packs only when --pack is explicit",
-			"writes only requirements-supply handoff artifacts, not vault-seed-ready artifacts",
-			"does not select requirements-supply packages for vault-seed-ready",
+			"requirements-supply handoff artifacts are proof/reference packets; official publication handoff is vault-seed-ready after consumer proof",
+			"selects only consumer-proven requirements-supply leaves for vault-seed-ready",
 			"does not move private login, selectors, enrichment providers, or vocabulary into Refarm",
 		],
 		nextActions: [
-			"consumer checkout records a named proof using consumerInstall.fileSpecs and pnpmOverrides",
-			"promote only the consumed leaves after downstream proof and release boundary audit pass",
+			allSelectedForVaultSeedReady
+				? "use release:vault-seed:handoff for the official consumer-ready packet"
+				: "consumer checkout records a named proof using consumerInstall.fileSpecs and pnpmOverrides",
+			allSelectedForVaultSeedReady
+				? "keep source-specific login, selectors, enrichment providers, and vocabulary downstream-owned"
+				: "promote only the consumed leaves after downstream proof and release boundary audit pass",
 			"keep supporting Refarm dependencies visible as local overrides while unpublished",
 		],
 		missingTarballs,

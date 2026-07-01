@@ -74,7 +74,7 @@ storage/runtime dependencies.
 
 | Layer | What downstream re-implements | Refarm supplier (exists?) | Verdict / gate |
 | --- | --- | --- | --- |
-| **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `@refarm.dev/source-contract-v1` ✅ + `@refarm.dev/source-git` ✅ + `@refarm.dev/source-local` ✅ + `@refarm.dev/source-web` ✅ | KEYSTONE implemented. `source-local` covers live dirty-tree reads; `source-web` covers sanitized authenticated-web replay as a local `source:v1` snapshot with session/cache/redaction provenance. Refarm dogfood, `vault-seed`, and `agents-lab` are expected consumers; `source-dispatch` remains proof-gated until one of those paths needs `source:v1` through `dispatch-surface`. |
+| **Librarian (checkout/cache)** | `agents-lab` `git-skills` | `@refarm.dev/source-contract-v1` ✅ + `@refarm.dev/source-git` ✅ + `@refarm.dev/source-local` ✅ + `@refarm.dev/source-web` ✅ | KEYSTONE implemented. `source-local` covers live dirty-tree reads; `source-web` covers sanitized authenticated-web replay as a local `source:v1` snapshot with session/cache/redaction provenance. T3 proved `source-web` + `source-contract-v1` in `vault-seed`; `source-git`/`source-local` remain profiled but not selected until a consumer needs those package leaves, and `source-dispatch` remains proof-gated until one path needs `source:v1` through `dispatch-surface`. |
 | UI blocks / style | `vault-seed` astro-plugins, lab UI | `@refarm.dev/ds` ✅ + `@refarm.dev/ds/html` ✅ | Wire `ds` as the token/style source and DS-owned build-free HTML helper surface. |
 | Admin/static document UI | `dgk serve` | `@refarm.dev/ds/html` ✅ | Admin UI composes from DS-owned static document helpers; Homestead SSR package/subpath surfaces were removed pre-publication. |
 | Multi-surface (cli/tui/web/rpc/http/a2a) | each ad hoc | `@refarm.dev/dispatch-surface` ✅ + `terminal-plugin` ✅ | One surface substrate. |
@@ -85,12 +85,12 @@ storage/runtime dependencies.
 | Identity / credentials | placeholder identity signing, local wallet/VC glue | `@refarm.dev/identity-contract-v1` ✅ + `@refarm.dev/identity-heartwood` ✅ + `@refarm.dev/credentials-contract-v1` ✅ | T2 path activated: `identity-heartwood` supplies real Ed25519 `identity:v1` signing through Heartwood; `credentials:v1` composes identity + storage for VC issue/verify/present/store. Trust registries, issuer authorities, credential schemas, and wallet UX stay downstream/proof-owned. |
 | Secrets | `silo.js` | `@refarm.dev/silo` (early design) | `silo` owns model/runtime credentials + scoped publishing adapter. |
 | Channels / outbox evidence | `dgk-channels`, Telegram outbox/inbox | `@refarm.dev/channel-policy-v1` candidate, later `contacts` + `rate-limiter` split if needed | Candidate active: Telegram remains downstream adapter; Refarm owns destination/rate-limit/receipt/dry-run/review evidence. |
-| Source IaC / ETL profiles | `lab.sources.json`, `ExtractionProfile`, `.dgk/cache`, `.dgk/staging`, authenticated web capture pressure | `source:v1` adapters + `@refarm.dev/source-web` fixture adapter + source profile contract + artifact retention policy | Candidate: Python implementations, PARA target rules, accessible-system discovery, login strategy, and source-specific selectors stay downstream. `source-web` proves only the neutral redacted snapshot/replay envelope. |
-| Record enrichment | downstream note/tag enrichment scripts and provider lookups | future `enrichment:v1` contract with dry-run/apply evidence, provider identity, deterministic summaries, diagnostics, and provenance | New T3 pressure: Refarm owns the neutral contract; private lookup providers and domain vocabulary stay downstream. |
+| Source IaC / ETL profiles | `lab.sources.json`, `ExtractionProfile`, `.dgk/cache`, `.dgk/staging`, authenticated web capture pressure | `source:v1` adapters + `@refarm.dev/source-web` fixture adapter + source profile contract + artifact retention policy | T3 consumer-proven in `vault-seed`: the reference vault composes `source-web` fixture output through `records:v1` and `enrichment:v1`. Python implementations, PARA target rules, accessible-system discovery, login strategy, and source-specific selectors stay downstream. |
+| Record enrichment | downstream note/tag enrichment scripts and provider lookups | `@refarm.dev/enrichment-contract-v1` ✅ | T3 consumer-proven in `vault-seed`: Refarm owns deterministic `enrichment:v1` reports and fixture conformance; private lookup providers and domain vocabulary stay downstream. |
 | Lab runtime data helpers | WASM HTTP helpers, feed/OpenGraph readers, refresh jobs | WASM substrate + source HTTP readers + artifact snapshots | Candidate after item 5 proof; Marimo UX stays downstream. |
 | Workspace publishing / generated distributions | `dgk publish workspace`, initialize reset, package provenance | generator/codemod registry + `release-engine` + package acceptance policy | Candidate active through item 9; distribution identity stays downstream. |
 | Distributed availability / install/update | ad hoc seeds, generated bundles, remote workspace reachability | future availability policy over release/artifact/source/remote-node manifests | Pears-inspired, proof-gated: `validations/distributed-availability-evidence` now proves identity + update + rollback + availability + trust evidence without package extraction or P2P substrate adoption. |
-| Knowledge/content export | OKF mapping, JSON-LD graph, semantic graph, changelog-as-content, requirement-like records | future knowledge/content manifest contract + release-note artifact envelope | T3 supplies the second-consumer pressure; activate through the requirements supply packet before package extraction. |
+| Knowledge/content export | OKF mapping, JSON-LD graph, semantic graph, changelog-as-content, requirement-like records | `@refarm.dev/records-contract-v1` ✅ + release/artifact envelopes | T3 consumer-proven in `vault-seed`: `records:v1` validates source-linked requirement-like records and notes-to-records projection with graceful degradation; OKF mapping, editorial governance, article conventions, and domain vocabulary stay downstream. |
 | Data lifecycle beyond git | SQLite, data repo, snapshot compaction | storage/materialization/retention policy attached to artifacts | Candidate: backend choice and migration timing stay vault-owned. |
 
 What stays at the consumer edge is **product/content/config** (PARA vocabulary, onboarding
@@ -116,12 +116,14 @@ copy, vault-specific dataset names, editorial workflow) — not the UI capabilit
    Requirements-vault pressure follows `specs/features/2026-06-30-work-3-requirements-supply-activation.md`:
    `enrichment:v1`, authenticated web source capture, knowledge/content manifest, and cheap
    diagnostics are Refarm supply candidates; accessible-system discovery and private adapters are not.
-   `pnpm run requirements:supply:handoff` exposes the held candidate packet, planned local
+   `pnpm run requirements:supply:handoff` exposed the initial candidate packet, planned local
    `file:./vendor/*.tgz` specs, unpublished Refarm dependency overrides, consumer proofs, and
-   fallback paths without promoting those leaves into `vault-seed-ready`. The clean first packet is
-   materialized with `pnpm run requirements:supply:handoff -- --pack --clean-only` for
-   `enrichment:v1` + `records:v1`; `pnpm run requirements:supply:handoff -- --pack
-   --source-web-only` materializes `source-web` with `source-contract-v1`.
+   fallback paths. The downstream `vault-seed` proof is now complete: 16/16 consumer-contract tests
+   are green and the reference vault composes `source-web` fixture input through `records:v1` and
+   `enrichment:v1` with an empty gap ledger. The official publication handoff is now
+   `vault-seed-ready`; the requirements-supply handoff remains proof/reference evidence for the
+   clean `enrichment:v1` + `records:v1` packet and the `source-web` + `source-contract-v1`
+   transitive packet.
 7. WASM substrate (Tractor, ADR-049 / ADR-044) as the common distribution layer for lab/site
    surfaces — learn from Marimo (Pyodide) and Astro 7 (Rust toolchain) without embedding
    either app.

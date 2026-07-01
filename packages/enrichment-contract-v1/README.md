@@ -50,18 +50,18 @@ network access and never writes notes.
 
 ## Boundary
 
-Refarm owns:
+This package owns:
 
 - versioned TypeScript types;
 - conformance checks;
 - deterministic fixture provider;
 - result diagnostics and provenance shape.
 
-Consumers own:
+Host consumers own:
 
 - persistence of returned changes;
 - provider-specific lookups and credentials;
 - domain fields, tags, review UX, and note placement.
 
-`enrichment:v1` is a contract package, not a release-policy candidate by
-default. Promotion requires package-local checks and a named downstream proof.
+`enrichment:v1` is a contract package with package-local checks and a named
+downstream proof before handoff promotion.
