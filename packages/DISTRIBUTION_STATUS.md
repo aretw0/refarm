@@ -109,6 +109,12 @@ the three T3 blocks, plus the required source contract support package, into
 `vault-seed-ready`; private login, selectors, ETL profiles, enrichment providers,
 and vocabulary remain downstream-owned.
 
+`@refarm.dev/records-contract-v1/yaml` now exists as a proof-gated subpath
+candidate for YAML-LD front matter and YAML documents. It is package-tested, but
+its release posture follows the codec spec: the base `records:v1` package remains
+`vault-seed-ready`, while the YAML-LD codec waits for dogfood or a second
+YAML-native consumer before being treated as promoted release evidence.
+
 ---
 
 ## Historical Contract Inventory

@@ -973,6 +973,10 @@ importers:
         version: 6.0.3
 
   packages/records-contract-v1:
+    dependencies:
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

@@ -10,6 +10,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./yaml": {
+      "import": "./dist/yaml.js",
+      "types": "./dist/yaml.d.ts"
     }
   },
   "scripts": {
@@ -19,7 +23,7 @@
     "type-check": "tsc --noEmit",
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run src/conformance.test.ts",
+    "test:unit": "vitest run src/conformance.test.ts src/yaml.test.ts",
     "test:conformance": "vitest run src/conformance.test.ts",
     "clean": "rm -rf dist"
   },
@@ -34,5 +38,8 @@
     "@refarm.dev/eslint-config": "workspace:*",
     "@refarm.dev/tsconfig": "workspace:*",
     "@refarm.dev/vtconfig": "workspace:*"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0"
   }
 }
