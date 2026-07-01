@@ -212,6 +212,30 @@ test("remote workspace control horizon stays transport and app neutral", () => {
 	assert.match(decisionLog, /Remote mutation and raw shell remain elevated/);
 });
 
+test("verification as completion stays proof-local until consumer pressure", () => {
+	const spec = read("specs/features/2026-07-01-verification-as-completion-proof.md");
+	const roadmap = read("docs/CONVERGENCE_ROADMAP.md");
+	const readiness = read("docs/CONVERGENCE_FACTORY_READINESS.md");
+
+	assert.match(spec, /Feature: Verification As Completion Proof/);
+	assert.match(spec, /proof-local validation/);
+	assert.match(spec, /compact view, raw evidence/);
+	assert.match(spec, /completion-decision\.proof\.v1/);
+	assert.match(spec, /toolless-delegation\.proof\.v1/);
+	assert.match(spec, /context-map\.proof\.v1/);
+	assert.match(spec, /@refarm\.dev\/context-provider-v1/);
+	assert.match(spec, /does not create a new public contract yet/);
+	assert.match(spec, /future `tool-observation:v1` only if dogfood or a\s+second consumer proves package pressure/);
+	assert.match(spec, /does not move logic into `apps\/refarm`/);
+	assert.match(roadmap, /Verification-as-completion/);
+	assert.match(roadmap, /done means re-observed evidence, not runner claim/);
+	assert.match(roadmap, /first proof implemented/);
+	assert.match(roadmap, /`tool-observation:v1` extraction held/);
+	assert.match(readiness, /verification-as-completion/);
+	assert.match(readiness, /proof-local schemas/);
+	assert.match(readiness, /runtime integration remain gated by dogfood or second-consumer pressure/);
+});
+
 test("superseded homestead ssr docs stay non-executable", () => {
 	const spec = read("specs/features/2026-06-25-homestead-ssr-tier.md");
 	const plan = read("docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md");
