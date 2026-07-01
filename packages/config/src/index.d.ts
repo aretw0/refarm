@@ -66,6 +66,26 @@ export function isRuntimeAgentPluginId(pluginId: string): boolean;
 export function isRuntimeAgentErrorContent(content: string): boolean;
 export function canonicalRuntimeAgentContent(content: string): string;
 export type {
+    DeclaredEnvironmentCeilingSlice,
+    DeclaredEnvironmentCeilingsConfig,
+    DeclaredEnvironmentHeavyLanePolicy,
+    EnvironmentCeilingEnforcementMode,
+    EnvironmentCeilingScope,
+    EnvironmentCeilingSliceKind,
+    EnvironmentCeilingStatus,
+} from "./environment-ceilings.js";
+export {
+    ENVIRONMENT_CEILING_ENFORCEMENT_MODES,
+    ENVIRONMENT_CEILING_SCOPES,
+    ENVIRONMENT_CEILING_SLICE_KINDS,
+    ENVIRONMENT_CEILING_STATUSES,
+    declaredEnvironmentCeilingsFromConfig,
+    parseEnvironmentCeilingEnforcementMode,
+    parseEnvironmentCeilingScope,
+    parseEnvironmentCeilingSliceKind,
+    parseEnvironmentCeilingStatus,
+} from "./environment-ceilings.js";
+export type {
     PackageAuditCommandOptions,
     PackageCommandString,
     PackageBinaryCommand,

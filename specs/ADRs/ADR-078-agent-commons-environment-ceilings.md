@@ -111,18 +111,23 @@ are hoping. Seven principles:
 
 1. **Tooling guard (done).** `.npmrc manage-package-manager-versions=false`; ensure the image
    provisions the pinned pnpm via Corepack.
-2. **Slice layout in `.devcontainer`.** Define cgroup v2 slices — `control` (agent + refarm
+2. **Config declaration (done).** `refarm.config.json` now owns the `environmentCeilings`
+   declaration and `@refarm.dev/config/environment-ceilings` normalizes it. This keeps the ceiling
+   policy product-neutral and lets `.devcontainer`, remote nodes, and future watchdogs consume the
+   same source of truth.
+3. **Slice layout in `.devcontainer`.** Define cgroup v2 slices — `control` (agent + refarm
    runtimes), `workload` (turbo/vitest/cargo/suite), and per-agent sub-slices — with `pids.max`,
    `memory.high`/`memory.max`, `cpu.weight`, `memory.min`, and `oom_score_adj` favoring killing
    workload over control. Delegate cgroup v2 at container start.
-3. **Entrypoint placement.** A boot hook puts each agent session and the refarm runtime into its
+4. **Entrypoint placement.** A boot hook puts each agent session and the refarm runtime into its
    slice; heavy lanes run in the workload slice.
-4. **Gate the heavy lanes.** Make `factory:pressure --strict` a precondition for heavy lanes, behind
+5. **Gate the heavy lanes.** Make `factory:pressure --strict` a precondition for heavy lanes, behind
    a `flock` serialized heavy-lane; set bounded default workers in `test-runner:contracts`.
-5. **Identity at boot.** Force user 1001 for agent entrypoints; promote `workspace:*:ownership` from
+6. **Identity at boot.** Force user 1001 for agent entrypoints; promote `workspace:*:ownership` from
    check to boot enforcement.
-6. **Commons watchdog (v2, optional).** A small supervisor (reusing `@refarm.dev/health`) that kills
+7. **Commons watchdog (v2, optional).** A small supervisor (reusing `@refarm.dev/health`) that kills
    the heaviest offending slice when global pressure is critical.
-7. **Regression-test the guarantee.** Extend `scripts/ci/test-devcontainer-contract.mjs` to assert
-   the slices, `pids.max`, and ceilings exist — turning the existing contract-test pattern toward
-   enforcement, so the guarantee cannot silently regress.
+8. **Regression-test the guarantee.** Extend `scripts/ci/test-devcontainer-contract.mjs` from the
+   current config-declaration assertion to active cgroup assertions once the rebuild lane lands —
+   turning the existing contract-test pattern toward enforcement, so the guarantee cannot silently
+   regress.
