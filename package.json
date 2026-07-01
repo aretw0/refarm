@@ -217,7 +217,7 @@
 		"changeset": "changeset",
 		"changeset:version": "changeset version",
 		"changeset:publish": "changeset publish",
-		"codemods:check": "node --test codemods/registry.test.mjs codemods/ds-token-adoption.test.mjs codemods/package-workspace-adoption.test.mjs",
+		"codemods:check": "node --test codemods/registry.test.mjs codemods/ds-token-adoption.test.mjs codemods/package-workspace-adoption.test.mjs codemods/node-test-to-vitest.test.mjs",
 		"agents-lab:assimilation:audit": "node scripts/ci/agents-lab-assimilation-audit.mjs --json",
 		"agents-lab:assimilation:audit:test": "node --test scripts/ci/test-agents-lab-assimilation-audit.mjs",
 		"agents-lab:skills:manifest": "node scripts/ci/agents-lab-skill-import-manifest.mjs --json",

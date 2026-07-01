@@ -82,6 +82,23 @@ Dry run:
 node codemods/package-workspace-adoption.mjs --input vault-seed/package.template.json --external @aretw0/dgk-astro-plugins=latest --json
 ```
 
+`node-test-to-vitest` covers opt-in JavaScript/MJS test runner migrations:
+
+- rewrites `node:test` imports to Vitest imports, mapping simple
+  `before`/`after` calls to `beforeAll`/`afterAll` and `mock.*` namespace uses
+  to `vi.*`;
+- rewrites common `node:assert/strict` calls (`equal`, `notEqual`,
+  `deepEqual`, `ok`, `match`, `doesNotMatch`, `throws`, `rejects`) to `expect`;
+- leaves unsupported `assert.*` calls in place, keeps the assert import, and
+  reports them in the JSON dry-run output for manual review;
+- does not add Vitest config, package dependencies, or CI wiring.
+
+Dry run:
+
+```bash
+node codemods/node-test-to-vitest.mjs --input path/to/test.mjs --json
+```
+
 ## Manual-Reviewed Line
 
 `npm-scope-doc-sweep` stays `manual-reviewed` unless it becomes a recurring

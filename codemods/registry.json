@@ -2,6 +2,20 @@
   "version": 1,
   "entries": [
     {
+      "id": "node-test-to-vitest",
+      "status": "ready",
+      "ownerSurface": "consumer repo",
+      "tool": "codemod",
+      "inputs": ["JavaScript/MJS tests importing node:test and simple node:assert/strict assertions"],
+      "fixtures": [
+        "codemods/fixtures/node-test-to-vitest.before.mjs",
+        "codemods/fixtures/node-test-to-vitest.after.mjs"
+      ],
+      "dryRunCommand": "node codemods/node-test-to-vitest.mjs --input path/to/test.mjs --json",
+      "verificationGate": "node --test codemods/registry.test.mjs codemods/node-test-to-vitest.test.mjs; migrated consumer test files run under vitest; unhandled assertions reviewed before --write",
+      "rollbackNote": "Runner/API migration only; rerun without --write for review, keep unhandled report, and revert the changed test files if Vitest parity regresses"
+    },
+    {
       "id": "npm-scope-doc-sweep",
       "status": "candidate",
       "ownerSurface": "docs",
