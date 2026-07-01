@@ -20,6 +20,79 @@ function exists(p) {
 	}
 }
 
+function withJsonExtension(file) {
+	if (path.extname(file)) return file;
+	return `${file}.json`;
+}
+
+function resolveExtendsEntry(entry, configDir) {
+	if (entry.startsWith("@refarm.dev/tsconfig/")) {
+		const rel = entry.slice("@refarm.dev/tsconfig/".length);
+		return path.join(repoRoot, "packages", "tsconfig", withJsonExtension(rel));
+	}
+
+	if (entry.startsWith(".") || path.isAbsolute(entry)) {
+		return withJsonExtension(path.resolve(configDir, entry));
+	}
+
+	return null;
+}
+
+function relFromProject(projectDir, target) {
+	const rel = path.relative(projectDir, target) || ".";
+	return rel.split(path.sep).join("/");
+}
+
+function normalizePathOptionsForProject(config, configDir, projectDir) {
+	const options = { ...(config.compilerOptions || {}) };
+	for (const key of ["baseUrl", "rootDir", "outDir"]) {
+		if (typeof options[key] !== "string") continue;
+		options[key] = relFromProject(projectDir, path.resolve(configDir, options[key]));
+	}
+
+	return {
+		...config,
+		compilerOptions: options,
+	};
+}
+
+function mergeTsconfig(base, override) {
+	return {
+		...base,
+		...override,
+		compilerOptions: {
+			...(base.compilerOptions || {}),
+			...(override.compilerOptions || {}),
+		},
+	};
+}
+
+function loadEffectiveTsconfig(tsconfigPath, projectDir = path.dirname(tsconfigPath), seen = new Set()) {
+	const abs = path.resolve(tsconfigPath);
+	if (seen.has(abs)) {
+		throw new Error(`circular tsconfig extends: ${path.relative(repoRoot, abs)}`);
+	}
+	seen.add(abs);
+
+	const configDir = path.dirname(abs);
+	const raw = readJson(abs);
+	let merged = {};
+
+	for (const entry of normalizeExtends(raw.extends)) {
+		const resolved = resolveExtendsEntry(entry, configDir);
+		if (!resolved || !exists(resolved)) continue;
+		merged = mergeTsconfig(
+			merged,
+			loadEffectiveTsconfig(resolved, projectDir, seen),
+		);
+	}
+
+	const current = normalizePathOptionsForProject(raw, configDir, projectDir);
+	delete current.extends;
+	seen.delete(abs);
+	return mergeTsconfig(merged, current);
+}
+
 function shouldGuardProject(dir) {
 	const pkgPath = path.join(dir, "package.json");
 	if (!exists(pkgPath)) return false;
@@ -121,6 +194,16 @@ function stripAnsi(text) {
 
 function runShowConfig(tsconfigPath) {
 	const rel = path.relative(repoRoot, tsconfigPath);
+	if (process.env.REFARM_TSCONFIG_GUARD_FORCE_FALLBACK === "1") {
+		return {
+			ok: false,
+			stdout: "",
+			stderr: "forced fallback",
+			timedOut: false,
+			fallbackable: true,
+		};
+	}
+
 	const tscCommand = packageBinaryCommand(
 		"tsc",
 		["--project", rel, "--showConfig", "--pretty", "false"],
@@ -142,11 +225,19 @@ function runShowConfig(tsconfigPath) {
 		timeout: 120000,
 	});
 
+	const stdout = stripAnsi(run.stdout);
+	const stderr = stripAnsi(run.stderr);
+	const hasJsonOutput = stdout.indexOf("{") >= 0;
+
 	return {
-		ok: run.status === 0,
-		stdout: stripAnsi(run.stdout),
-		stderr: stripAnsi(run.stderr),
+		ok: run.status === 0 && !run.error && hasJsonOutput,
+		stdout,
+		stderr,
 		timedOut: Boolean(run.error && run.error.code === "ETIMEDOUT"),
+		fallbackable:
+			Boolean(run.error) ||
+			(run.status === 0 && !hasJsonOutput) ||
+			/runShowConfig fallback/i.test(stderr),
 	};
 }
 
@@ -263,7 +354,36 @@ function main() {
 		const projectRel = path.relative(repoRoot, projectDir);
 
 		const show = runShowConfig(tsconfigPath);
-		if (!show.ok) {
+		let config;
+		if (show.ok) {
+			try {
+				config = parseShowConfig(show.stdout);
+			} catch (err) {
+				if (!show.fallbackable) {
+					problems.push({
+						project: projectRel,
+						kind: "showConfig",
+						detail: `could not parse --showConfig output (${String(err.message || err)})`,
+					});
+					continue;
+				}
+			}
+		}
+
+		if (!config && show.fallbackable) {
+			try {
+				config = loadEffectiveTsconfig(tsconfigPath);
+			} catch (err) {
+				problems.push({
+					project: projectRel,
+					kind: "showConfig",
+					detail: `fallback tsconfig read failed (${String(err.message || err)})`,
+				});
+				continue;
+			}
+		}
+
+		if (!config && !show.ok) {
 			const failureText = `${show.stderr || ""}\n${show.stdout || ""}`;
 			if (/TS18003|No inputs were found in config file/.test(failureText)) {
 				console.log(
@@ -278,18 +398,6 @@ function main() {
 						.trim()
 						.split("\n")[0];
 			problems.push({ project: projectRel, kind: "showConfig", detail });
-			continue;
-		}
-
-		let config;
-		try {
-			config = parseShowConfig(show.stdout);
-		} catch (err) {
-			problems.push({
-				project: projectRel,
-				kind: "showConfig",
-				detail: `could not parse --showConfig output (${String(err.message || err)})`,
-			});
 			continue;
 		}
 
