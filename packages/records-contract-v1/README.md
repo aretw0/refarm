@@ -51,6 +51,10 @@ YAML front matter and YAML documents that already carry the `records:v1` model.
 It parses YAML-LD into a `KnowledgeRecord`, writes records back to YAML-LD, and
 preserves unknown top-level keys for forward-safe consumers.
 
+The codec subpath uses `yaml` as an optional peer dependency so consumers of the
+base `records:v1` contract do not install YAML parsing code unless they opt into
+`@refarm.dev/records-contract-v1/yaml`.
+
 Consumer vocabularies stay outside the package. Hosts may pass `propertyKeyMap`
 or `fieldKeyMap` when a vault uses local front-matter names, but this package
 does not define those conventions.
