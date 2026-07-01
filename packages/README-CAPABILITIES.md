@@ -34,6 +34,22 @@ Sincronização distribuída (CRDT, OT, WebSocket, WebRTC, etc.)
 
 Gerenciamento de identidade (Nostr, DID, OAuth, passkeys, etc.)
 
+**Adapter real inicial**: `@refarm.dev/identity-heartwood` fornece um
+provider `identity:v1` com assinaturas Ed25519 reais via `@refarm.dev/heartwood`.
+`@refarm.dev/identity-nostr` continua sendo o adapter Nostr; ele não é usado
+como atalho para assinatura real enquanto sua criptografia Nostr estiver
+placeholder.
+
+### `credentials:v1`
+**Pacote**: `@refarm.dev/credentials-contract-v1`
+**Provider**: `CredentialsProvider`
+**Operações**: `issue`, `verify`, `present`, `store`, `list`, `remove`
+
+Contrato de Verifiable Credentials e wallet de dados. Ele compõe
+`identity:v1` para provas issuer/holder e `storage:v1` para persistência,
+sem implementar crypto, storage backend, trust registry, schema de domínio ou
+UX de wallet.
+
 ### `enrichment:v1`
 **Pacote**: `@refarm.dev/enrichment-contract-v1`
 **Provider**: `EnrichmentProvider`
@@ -109,6 +125,8 @@ Execute todos os testes de conformance:
 
 ```bash
 npm run test:capabilities
+pnpm -C packages/identity-heartwood run test:conformance
+pnpm -C packages/credentials-contract-v1 run test:conformance
 ```
 
 Pipelines CI bloqueiam providers incompatíveis automaticamente.

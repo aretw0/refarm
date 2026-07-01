@@ -496,6 +496,25 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/credentials-contract-v1:
+    dependencies:
+      '@refarm.dev/identity-contract-v1':
+        specifier: workspace:*
+        version: link:../identity-contract-v1
+      '@refarm.dev/storage-contract-v1':
+        specifier: workspace:*
+        version: link:../storage-contract-v1
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/deps:
     dependencies:
       '@bytecodealliance/jco':
@@ -569,7 +588,17 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
-  packages/enrichment-contract-v1: {}
+  packages/enrichment-contract-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/eslint-config:
     devDependencies:
@@ -643,6 +672,10 @@ importers:
         version: link:../vtconfig
 
   packages/heartwood:
+    dependencies:
+      '@bytecodealliance/preview2-shim':
+        specifier: ^0.17.3
+        version: 0.17.9
     devDependencies:
       '@bytecodealliance/jco':
         specifier: 'catalog:'
@@ -692,6 +725,25 @@ importers:
         version: link:../vtconfig
 
   packages/identity-contract-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
+  packages/identity-heartwood:
+    dependencies:
+      '@refarm.dev/heartwood':
+        specifier: workspace:*
+        version: link:../heartwood
+      '@refarm.dev/identity-contract-v1':
+        specifier: workspace:*
+        version: link:../identity-contract-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
@@ -920,7 +972,17 @@ importers:
         specifier: 'catalog:'
         version: 6.0.3
 
-  packages/records-contract-v1: {}
+  packages/records-contract-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/registry:
     dependencies:
@@ -1082,6 +1144,16 @@ importers:
       '@refarm.dev/source-contract-v1':
         specifier: workspace:*
         version: link:../source-contract-v1
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/sower:
     dependencies:

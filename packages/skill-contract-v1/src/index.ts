@@ -3,6 +3,7 @@ export {
 	VALID_SKILL_MARKDOWN_FIXTURE,
 	runSkillContractV1Conformance,
 } from "./conformance.js";
+export { createInMemorySkillContractV1Adapter } from "./in-memory.js";
 export {
 	buildSkillInvocationDecision,
 	buildSkillInvocationPlan,

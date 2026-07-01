@@ -26,6 +26,11 @@
 	"dependencies": {
 		"@refarm.dev/source-contract-v1": "workspace:*"
 	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	},
 	"files": [
 		"dist",
 		"README.md"

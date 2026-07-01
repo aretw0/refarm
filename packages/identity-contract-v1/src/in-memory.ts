@@ -5,6 +5,7 @@ export function createInMemoryIdentityProvider(): IdentityProvider {
   const identities = new Map<string, Identity>();
   const signatures = new Map<string, { identityId: string; data: string }>();
   let idCounter = 0;
+  let signatureCounter = 0;
 
   return {
     pluginId: "@refarm.dev/identity-memory-test",
@@ -23,7 +24,7 @@ export function createInMemoryIdentityProvider(): IdentityProvider {
     },
 
     async sign(identityId: string, data: string): Promise<SignatureResult> {
-      const signature = `sig-${Date.now()}-${identityId}`;
+      const signature = `sig-${++signatureCounter}-${identityId}`;
       signatures.set(signature, { identityId, data });
       return { signature, algorithm: "test-hmac" };
     },

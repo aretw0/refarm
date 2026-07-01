@@ -125,6 +125,8 @@ packages are ready:
 | `@refarm.dev/source-local` | release-profiled; not selected | live working-tree reads are useful for Refarm dogfood and expected downstream assimilation, but handoff promotion waits for a proof that dirty/untracked state is required |
 | `@refarm.dev/source-web` | release-profiled; not selected | authenticated web capture fixture adapter passes `source:v1` conformance as a redacted local snapshot with session/cache/pacing/offline replay provenance; promotion waits for downstream proof with real login/selectors kept outside Refarm |
 | `@refarm.dev/source-dispatch` | not created | dispatch adapter activates when Refarm, `vault-seed`, or `agents-lab` needs `source:v1` through `dispatch-surface` with an executable proof |
+| `@refarm.dev/identity-heartwood` | implemented; not selected | real Ed25519 `identity:v1` adapter backed by `@refarm.dev/heartwood`; publication waits for the T2 wallet/credential POC proof rather than replacing `identity-nostr` or changing the default kernel selection |
+| `@refarm.dev/credentials-contract-v1` | implemented; not selected | Verifiable Credentials and holder wallet contract composes `identity:v1` + `storage:v1`; promotion waits for Refarm dogfood and downstream proof, with issuer trust policy and credential schemas kept consumer-owned |
 | `@refarm.dev/skill-contract-v1` | implemented; not selected | native `skill:v1` manifest/plan/request/decision/receipt/surface/preflight helpers are checked, plugin-manifest validates `pi/skill` package surfaces, the plan-only Refarm git-workflow smoke records a host policy decision, the source-status smoke records one `source:v1` engine call through `@refarm.dev/source-local`, the `agents-lab` git-workflow wrapper smoke records external source evidence without installing upstream skill text, and the DGK `vault-search` wrapper smoke records external `vault-seed` source evidence plus a package-declared `pi/skill` surface and blocked activation preflight without executing `dgk` or Obsidian CLI; publication now waits for runtime-host and install-policy proof rather than a missing DGK wrapper fixture |
 | `@refarm.dev/enrichment-contract-v1` | release-profiled; not selected | deterministic record/note enrichment now has a neutral fixture provider and conformance suite; promotion waits for downstream proof with private providers kept outside Refarm |
 | `@refarm.dev/records-contract-v1` | release-profiled; not selected | requirement-like records now have a neutral manifest contract with reference validation, relation integrity, stable hashes, and forward-safe upcast; promotion waits for a downstream proof and composition evidence with source/artifact packages |
@@ -168,6 +170,8 @@ pnpm run release:boundary:audit
 pnpm run requirements:supply:handoff
 pnpm run requirements:supply:handoff -- --pack --clean-only
 pnpm run requirements:supply:handoff -- --pack --source-web-only
+pnpm -C packages/identity-heartwood run test:conformance
+pnpm -C packages/credentials-contract-v1 run test:conformance
 pnpm run release:vault-seed:check
 pnpm --silent run release:vault-seed:handoff -- --pack --json
 pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json
