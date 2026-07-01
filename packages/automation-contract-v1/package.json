@@ -23,7 +23,7 @@
     "test:conformance": "vitest run src/conformance.test.ts",
     "clean": "rm -rf dist"
   },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "!dist/**/*.tsbuildinfo", "README.md"],
   "publishConfig": { "access": "public" },
   "dependencies": {
     "@refarm.dev/artifact-contract-v1": "workspace:*",

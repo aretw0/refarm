@@ -62,7 +62,28 @@ test("rejects publish allowlist entries for local cache state", () => {
 		[
 			'files entry ".turbo/turbo-build.log" must not include local cache/runtime state',
 			'files entry "tsconfig.build.tsbuildinfo" must not include TypeScript incremental state',
+			'files includes "dist" and must exclude "dist/**/*.tsbuildinfo"',
 		],
+	);
+});
+
+test("requires public dist packages to exclude TypeScript incremental metadata", () => {
+	assert.deepEqual(
+		validatePublishSurface({
+			publishConfig: { access: "public" },
+			files: ["dist", "README.md"],
+		}),
+		['files includes "dist" and must exclude "dist/**/*.tsbuildinfo"'],
+	);
+});
+
+test("accepts public dist packages with an explicit tsbuildinfo exclusion", () => {
+	assert.deepEqual(
+		validatePublishSurface({
+			publishConfig: { access: "public" },
+			files: ["dist", "!dist/**/*.tsbuildinfo", "README.md"],
+		}),
+		[],
 	);
 });
 

@@ -24,7 +24,7 @@
 	"keywords": ["mock", "model", "openai", "test", "harness", "agent"],
 	"author": "Refarm Contributors",
 	"license": "MIT",
-	"files": ["dist", "README.md"],
+	"files": ["dist", "!dist/**/*.tsbuildinfo", "README.md"],
 	"publishConfig": { "access": "public" },
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",
