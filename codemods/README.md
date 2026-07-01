@@ -90,6 +90,8 @@ node codemods/package-workspace-adoption.mjs --input vault-seed/package.template
 - rewrites simple CommonJS `require("node:test")`,
   `require("node:assert/strict")`, literal module requires, local requires, and
   JSON requires to ESM imports, using JSON import attributes for `.json`;
+  destructured JSON requires import the JSON default first and preserve the
+  destructuring as a top-level `const`;
 - rewrites `__dirname` to `import.meta.dirname` when a CommonJS test file is
   converted;
 - reports `renameToMjs: true` in JSON output when the converted file should be
