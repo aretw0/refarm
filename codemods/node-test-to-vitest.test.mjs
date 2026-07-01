@@ -31,6 +31,7 @@ test("node:test to vitest fixture matches expected output", () => {
 			importsRewritten: 2,
 			assertionsRewritten: 11,
 			unhandled: [],
+			unsupported: [],
 		},
 	);
 });
@@ -51,6 +52,7 @@ test("node:test to vitest reports unsupported assertions without dropping them",
 	assert.equal(result.importsRewritten, 2);
 	assert.equal(result.assertionsRewritten, 0);
 	assert.deepEqual(result.unhandled, ["unhandled assertion: assert.ifError"]);
+	assert.deepEqual(result.unsupported, []);
 	assert.match(result.code, /assert\.ifError\(error\)/);
 });
 
@@ -73,6 +75,31 @@ test("node:test to vitest maps message args for common assert import forms", () 
 	for (const item of cases) {
 		assert.equal(transformNodeTestToVitest(item.source), item.expected);
 	}
+});
+
+test("node:test to vitest reports CommonJS requires as unsupported", () => {
+	const source = `const test = require("node:test");\nconst assert = require("node:assert/strict");\n\ntest("ok", () => {\n\tassert.equal(1, 1);\n});\n`;
+	const result = transformNodeTestToVitestWithReport(source);
+
+	assert.equal(result.changed, false);
+	assert.equal(result.importsRewritten, 0);
+	assert.equal(result.assertionsRewritten, 0);
+	assert.deepEqual(result.unhandled, []);
+	assert.deepEqual(result.unsupported, [
+		"unsupported CommonJS require: node:test; migrate the file to ESM before applying this codemod",
+		"unsupported CommonJS require: node:assert; migrate the file to ESM before applying this codemod",
+	]);
+	assert.match(result.code, /require\("node:test"\)/);
+});
+
+test("node:test to vitest handles throws predicate and doesNotReject function semantics", () => {
+	const source = `import assert from "node:assert/strict";\nimport test from "node:test";\n\ntest("runtime semantics", async () => {\n\tassert.throws(() => {\n\t\tconst error = new Error("bad");\n\t\terror.code = "BAD";\n\t\tthrow error;\n\t}, (error) => error.code === "BAD", "code matches");\n\tawait assert.doesNotReject(() => Promise.resolve("ok"), "does not reject");\n});\n`;
+	const output = transformNodeTestToVitest(source);
+
+	assert.match(output, /__refarmDidThrow/);
+	assert.match(output, /expect\(__refarmDidThrow, "code matches"\)\.toBe\(true\)/);
+	assert.match(output, /expect\(\(\(error\) => error\.code === "BAD"\)\(__refarmThrown\), "code matches"\)\.toBeTruthy\(\)/);
+	assert.match(output, /expect\(\(\(\) => Promise\.resolve\("ok"\)\)\(\), "does not reject"\)\.resolves\.not\.toThrow\(\)/);
 });
 
 test("node:test to vitest cli can emit a dry-run json report", () => {
@@ -101,6 +128,7 @@ test("node:test to vitest cli can emit a dry-run json report", () => {
 		importsRewritten: 2,
 		assertionsRewritten: 1,
 		unhandled: [],
+		unsupported: [],
 		written: false,
 	});
 	assert.match(readFileSync(input, "utf8"), /from "node:test"/);

@@ -43,8 +43,11 @@ export function transformNodeTestToVitest(source) {
 }
 
 export function transformNodeTestToVitestWithReport(source) {
+	const unsupported = detectUnsupportedCommonJs(source);
 	const imports = rewriteImports(source);
-	const bindings = rewriteNodeTestBindings(imports.code);
+	const bindings = imports.importsRewritten > 0
+		? rewriteNodeTestBindings(imports.code)
+		: { code: imports.code };
 	const assertions = rewriteAssertions(bindings.code, imports.assertName);
 	const unhandled = collectUnhandled(assertions.code, imports.assertName);
 	const code = unhandled.length > 0 && imports.assertName
@@ -56,6 +59,7 @@ export function transformNodeTestToVitestWithReport(source) {
 		importsRewritten: imports.importsRewritten,
 		assertionsRewritten: assertions.assertionsRewritten,
 		unhandled,
+		unsupported,
 	};
 }
 
@@ -66,6 +70,25 @@ function rewriteNodeTestBindings(source) {
 			.replace(/\bafter\s*\(/g, "afterAll(")
 			.replace(/\bmock\./g, "vi."),
 	};
+}
+
+function detectUnsupportedCommonJs(source) {
+	const unsupported = [];
+	const checks = [
+		{
+			re: /\brequire\s*\(\s*["']node:test["']\s*\)/,
+			message: "unsupported CommonJS require: node:test; migrate the file to ESM before applying this codemod",
+		},
+		{
+			re: /\brequire\s*\(\s*["']node:assert(?:\/strict)?["']\s*\)/,
+			message: "unsupported CommonJS require: node:assert; migrate the file to ESM before applying this codemod",
+		},
+	];
+
+	for (const check of checks) {
+		if (check.re.test(source)) unsupported.push(check.message);
+	}
+	return unsupported;
 }
 
 function ensureAssertImport(source, assertName) {
@@ -256,21 +279,40 @@ function assertionReplacement(method, args) {
 			return args.length >= 2 ? `${expectCall(actual, message)}.toMatch(${expected})` : null;
 		case "doesNotMatch":
 			return args.length >= 2 ? `${expectCall(actual, message)}.not.toMatch(${expected})` : null;
-		case "throws":
-			return args.length >= 1 ? `${expectCall(actual, message)}.toThrow(${expected ?? ""})` : null;
-		case "rejects":
-			return args.length >= 1 ? `${expectCall(actual, message)}.rejects.toThrow(${expected ?? ""})` : null;
+		case "throws": {
+			if (args.length < 1) return null;
+			const { expected: thrownMatcher, message: thrownMessage } = throwableArgs(expected, message);
+			if (isFunctionExpression(thrownMatcher)) {
+				return throwsPredicateReplacement(actual, thrownMatcher, thrownMessage);
+			}
+			return `${expectCall(actual, thrownMessage)}.toThrow(${thrownMatcher ?? ""})`;
+		}
+		case "rejects": {
+			if (args.length < 1) return null;
+			const { expected: thrownMatcher, message: thrownMessage } = throwableArgs(expected, message);
+			return `${expectCall(actual, thrownMessage)}.rejects.toThrow(${thrownMatcher ?? ""})`;
+		}
 		case "doesNotReject": {
 			if (args.length < 1) return null;
 			const { expected: rejectionMatcher, message: rejectionMessage } =
 				rejectionArgs(expected, message);
-			return `${expectCall(actual, rejectionMessage)}.resolves.not.toThrow(${rejectionMatcher ?? ""})`;
+			return `${expectCall(promiseExpressionForAssert(actual), rejectionMessage)}.resolves.not.toThrow(${rejectionMatcher ?? ""})`;
 		}
 		case "fail":
 			return args.length >= 1 ? `expect.fail(${actual})` : "expect.fail()";
 		default:
 			return null;
 	}
+}
+
+function throwableArgs(expected, message) {
+	if (message !== undefined) {
+		return { expected, message };
+	}
+	if (isStringLiteral(expected)) {
+		return { expected: undefined, message: expected };
+	}
+	return { expected, message: undefined };
 }
 
 function rejectionArgs(expected, message) {
@@ -286,6 +328,24 @@ function rejectionArgs(expected, message) {
 function isStringLiteral(value) {
 	if (value === undefined) return false;
 	return /^(['"`])[\s\S]*\1$/.test(value.trim());
+}
+
+function isFunctionExpression(value) {
+	if (value === undefined) return false;
+	const trimmed = value.trim();
+	return /^(?:async\s+)?function\b/.test(trimmed) ||
+		/^(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/s.test(trimmed);
+}
+
+function promiseExpressionForAssert(actual) {
+	if (isFunctionExpression(actual)) return `(${actual})()`;
+	return actual;
+}
+
+function throwsPredicateReplacement(actual, predicate, message) {
+	const thrown = "__refarmThrown";
+	const didThrow = "__refarmDidThrow";
+	return `(() => { let ${didThrow} = false; let ${thrown}; try { (${actual})(); } catch (error) { ${didThrow} = true; ${thrown} = error; } ${expectCall(didThrow, message)}.toBe(true); ${expectCall(`(${predicate})(${thrown})`, message)}.toBeTruthy(); })()`;
 }
 
 function expectCall(actual, message) {
@@ -395,6 +455,7 @@ export function runNodeTestToVitestCli(
 				importsRewritten: result.importsRewritten,
 				assertionsRewritten: result.assertionsRewritten,
 				unhandled: result.unhandled,
+				unsupported: result.unsupported,
 				written: Boolean(args.get("write")),
 			}, null, 2)}\n`,
 		);

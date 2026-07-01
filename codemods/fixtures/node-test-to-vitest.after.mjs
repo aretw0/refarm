@@ -20,9 +20,9 @@ describe("sample", () => {
 		await expect(async () => {
 			throw new Error("boom");
 		}).rejects.toThrow(/boom/);
-		await expect(async () => {
+		await expect((async () => {
 			return "ok";
-		}, "does not reject").resolves.not.toThrow();
+		})(), "does not reject").resolves.not.toThrow();
 		expect.fail("explicit failure");
 	});
 });
