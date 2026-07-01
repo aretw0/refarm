@@ -30,6 +30,9 @@ script.
   - https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/containerization.md
 - Internal Pi/Refarm interop map:
   - `docs/superpowers/specs/2026-05-14-pi-refarm-interop.md`
+- RTK repository and architecture:
+  - https://github.com/rtk-ai/rtk
+  - https://github.com/rtk-ai/rtk/blob/develop/docs/contributing/ARCHITECTURE.md
 
 ## Reference Patterns
 
@@ -214,6 +217,20 @@ internal, and held reference-driver targets plus next decisions without invoking
 the release planner or loading this research note. Exported SDK targets remain
 visible in the full supply map; the preflight deliberately focuses attention on
 what still must not be treated as public runtime engine supply.
+
+## Source Refresh 2026-07-01
+
+RTK adds a practical reference for the layer between agent and terminal. Its
+strong lesson is not global shell rewriting as a dependency; it is an
+observation membrane: command-specific compact views, exit-code preservation,
+raw-output recovery for failures, verbosity tiers, and local adoption metrics.
+For Refarm, this belongs in a product-neutral `tool-observation:v1` or
+`command-observation:v1` direction that finish lanes and runtime tools can emit.
+
+Adoption rule: compact observations must carry enough evidence to recover the
+raw source, must preserve command status, and must remain inspectable through
+JSON handoffs. Agent-specific hooks are optional adapters; `apps/refarm`,
+`apps/dev`, and the public site should not inherit RTK-shaped product copy.
 
 ## Refarm Driver Nucleus
 
