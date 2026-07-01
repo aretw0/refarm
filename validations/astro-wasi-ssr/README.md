@@ -3,6 +3,12 @@
 Validation for ADR-070 Part C. This is not a product adapter and does not move
 Astro site ownership into Refarm.
 
+Publication boundary: this workspace is intentionally private validation
+evidence. Do not publish `@refarm.dev/astro-wasi-ssr-poc`, do not add it to
+`releasePolicy`, and do not graduate it in place. If Part C becomes viable, open
+a new package under `packages/` with a product-neutral name, contract, docs,
+consumer proof, and explicit release-policy selection.
+
 Astro 7 is the target for this validation because it moves more of Astro's
 tooling surface toward native Rust/WASM-shaped infrastructure: Vite 8/Rolldown,
 the Rust `.astro` compiler with WASM fallback, Rust-backed Markdown/MDX, and the

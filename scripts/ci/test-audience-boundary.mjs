@@ -1,9 +1,34 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
 
 function read(path) {
 	return readFileSync(path, "utf8");
+}
+
+function validationPackageJsonPaths(root = "validations") {
+	const paths = [];
+	for (const entry of readdirSync(root)) {
+		const entryPath = `${root}/${entry}`;
+		if (!statSync(entryPath).isDirectory()) continue;
+		const packageJsonPath = `${entryPath}/package.json`;
+		try {
+			if (statSync(packageJsonPath).isFile()) paths.push(packageJsonPath);
+		} catch {
+			// Some validation directories are evidence-only and do not declare a workspace package.
+		}
+		for (const child of readdirSync(entryPath)) {
+			const childPath = `${entryPath}/${child}`;
+			if (!statSync(childPath).isDirectory()) continue;
+			const childPackageJsonPath = `${childPath}/package.json`;
+			try {
+				if (statSync(childPackageJsonPath).isFile()) paths.push(childPackageJsonPath);
+			} catch {
+				// Nested validation fixtures are optional.
+			}
+		}
+	}
+	return paths.sort();
 }
 
 test("README separates future users, developers, and release operators", () => {
@@ -357,6 +382,35 @@ test("vault-seed-ready packages declare consumer-pulled intent", () => {
 		assert.ok(
 			profile.tags.includes("consumer-pulled"),
 			`${profile.id} must declare consumer-pulled before entering vault-seed-ready`,
+		);
+	}
+});
+
+test("validation workspace packages stay private and outside release policy", () => {
+	const config = JSON.parse(read("refarm.config.json"));
+	const releaseProfileIds = new Set(
+		config.releasePolicy.packageProfiles.map((profile) => profile.id),
+	);
+	const validationPackages = validationPackageJsonPaths();
+
+	assert.ok(validationPackages.length > 0, "expected validation workspace packages");
+
+	for (const packageJsonPath of validationPackages) {
+		const packageJson = JSON.parse(read(packageJsonPath));
+		assert.equal(
+			packageJson.private,
+			true,
+			`${packageJsonPath} must remain private; graduate into packages/ before publication`,
+		);
+		assert.equal(
+			packageJson.publishConfig,
+			undefined,
+			`${packageJsonPath} must not declare publishConfig while it lives under validations/`,
+		);
+		assert.equal(
+			releaseProfileIds.has(packageJson.name),
+			false,
+			`${packageJson.name} must not enter releasePolicy while it lives under validations/`,
 		);
 	}
 });
