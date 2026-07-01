@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.js",
     "./astro": "./src/astro.js",
+    "./config-node": "./src/config-node.js",
     "./model-routing": "./src/model-routing.js",
     "./package-manager": "./src/package-manager.js",
     "./plugin-identity": "./src/plugin-identity.js",
@@ -23,6 +24,8 @@
     "README.md",
     "ROADMAP.md",
     "src/astro.js",
+    "src/config-node.d.ts",
+    "src/config-node.js",
     "src/index.d.ts",
     "src/index.js",
     "src/model-routing.d.ts",
