@@ -44,6 +44,17 @@ const result = await runRecordsV1Conformance(provider);
 The provider is in-memory and performs no storage, network access, source
 materialization, or graph indexing.
 
+## YAML-LD Codec Candidate
+
+`@refarm.dev/records-contract-v1/yaml` provides the proof-gated YAML-LD codec for
+YAML front matter and YAML documents that already carry the `records:v1` model.
+It parses YAML-LD into a `KnowledgeRecord`, writes records back to YAML-LD, and
+preserves unknown top-level keys for forward-safe consumers.
+
+Consumer vocabularies stay outside the package. Hosts may pass `propertyKeyMap`
+or `fieldKeyMap` when a vault uses local front-matter names, but this package
+does not define those conventions.
+
 ## Boundary
 
 This package owns:
@@ -52,6 +63,7 @@ This package owns:
 - conformance checks;
 - deterministic reference fixture;
 - forward-safety rules for open vocabulary and unknown fields.
+- the generic YAML-LD serialization mechanism for the `records:v1` envelope.
 
 Host consumers own:
 

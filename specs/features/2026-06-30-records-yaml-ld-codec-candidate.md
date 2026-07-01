@@ -1,6 +1,7 @@
 # Spec: records:v1 YAML-LD Codec (candidate)
 
-**Status:** CANDIDATE — proof-gated; not created. Consumer pressure from a YAML-frontmatter vault.
+**Status:** IMPLEMENTED CANDIDATE — `@refarm.dev/records-contract-v1/yaml`; promotion remains
+proof-gated by second-consumer/dogfood evidence. Consumer pressure from a YAML-frontmatter vault.
 **Authors:** Arthur Silva, Claude
 **Date:** 2026-06-30
 **Related:** `packages/records-contract-v1` (`records:v1`, JSON-LD model), `packages/surveyor`
@@ -25,8 +26,8 @@ are product/config and stay downstream.
 
 ## Decision (proposed, proof-gated)
 
-A **YAML-LD codec for `records:v1`** — most likely a subpath of the contract package
-(`@refarm.dev/records-contract-v1/yaml`) or a thin companion — that:
+A **YAML-LD codec for `records:v1`** — implemented as
+`@refarm.dev/records-contract-v1/yaml` — that:
 
 - **reads** YAML-LD front matter (or a YAML document) into a `records:v1` record (`@type`/`@context`
   aware; unknown keys preserved per ADR-077);
