@@ -52,6 +52,17 @@ export {
     normalizePluginId,
 } from "./plugin-identity.js";
 export {
+    ENVIRONMENT_CEILING_ENFORCEMENT_MODES,
+    ENVIRONMENT_CEILING_SCOPES,
+    ENVIRONMENT_CEILING_SLICE_KINDS,
+    ENVIRONMENT_CEILING_STATUSES,
+    declaredEnvironmentCeilingsFromConfig,
+    parseEnvironmentCeilingEnforcementMode,
+    parseEnvironmentCeilingScope,
+    parseEnvironmentCeilingSliceKind,
+    parseEnvironmentCeilingStatus,
+} from "./environment-ceilings.js";
+export {
     PACKAGE_MANAGER_OVERRIDE_ENV_VAR,
     PACKAGE_MANAGERS,
     createPackageScriptCommand,

@@ -174,6 +174,29 @@ test("devcontainer marks and locks host-write-sensitive workspace checkouts", ()
 	assert.match(envSafety, /Checkout is marked devcontainer-owned/);
 });
 
+test("devcontainer environment ceilings are declared in project config before cgroup enforcement", () => {
+	const refarmConfig = readJson("refarm.config.json");
+	const ceilings = refarmConfig.environmentCeilings;
+
+	assert.equal(ceilings.schemaVersion, 1);
+	assert.equal(ceilings.status, "declared-only");
+	assert.equal(ceilings.source, "ADR-078");
+	assert.equal(ceilings.scope, "local-devcontainer");
+	assert.equal(ceilings.enforcement, "planned-cgroup-v2");
+	assert.equal(ceilings.cgroupVersion, 2);
+	assert.equal(ceilings.slices.control.pidsMax, 256);
+	assert.equal(ceilings.slices.control.memoryMinMiB, 1024);
+	assert.equal(ceilings.slices.control.oomScoreAdj, -500);
+	assert.equal(ceilings.slices.workload.memoryMaxMiB, 5632);
+	assert.equal(ceilings.slices.workload.oomScoreAdj, 500);
+	assert.equal(ceilings.slices.agent.memoryMaxMiB, 2048);
+	assert.equal(ceilings.heavyLanes.strictPressureGate, true);
+	assert.equal(ceilings.heavyLanes.serializedLock, ".refarm/locks/heavy-lane.lock");
+	assert.equal(ceilings.heavyLanes.maxConcurrency, 1);
+	assert.ok(ceilings.heavyLanes.workClasses.includes("broad-check"));
+	assert.ok(ceilings.heavyLanes.workClasses.includes("worker-fanout"));
+});
+
 test("devcontainer provides the baseline sandbox tools expected by agents", () => {
 	const config = readJson(".devcontainer/devcontainer.json");
 	const dockerfile = readFileSync(".devcontainer/Dockerfile", "utf8");
