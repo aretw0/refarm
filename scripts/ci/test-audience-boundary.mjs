@@ -415,6 +415,16 @@ test("validation workspace packages stay private and outside release policy", ()
 	}
 });
 
+test("forward compat isolation preserves pnpm install policy", () => {
+	const runner = read("scripts/ci/matrix-runner.mjs");
+	const workspace = read("pnpm-workspace.yaml");
+
+	assert.match(workspace, /allowBuilds:[\s\S]*\besbuild:\s+true/);
+	assert.match(runner, /function copyPackageManagerInstallPolicy\(testDir\)/);
+	assert.match(runner, /pnpm-workspace\.yaml/);
+	assert.match(runner, /copyPackageManagerInstallPolicy\(testDir\);/);
+});
+
 test("process handoff stays the selected process leaf", () => {
 	const config = JSON.parse(read("refarm.config.json"));
 	const policyText = read("refarm.config.json");
