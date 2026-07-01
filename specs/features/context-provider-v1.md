@@ -31,6 +31,11 @@ naturally — without building the TUI itself.
 **So that** I can inject domain-specific context (e.g., Linear tickets, Notion pages) into
 pi-agent's system prompt without modifying `refarm ask`
 
+**As a** long-running agent driver
+**I want** a pointer-first session fold provider
+**So that** the prompt can show compact session memory refs while exact history remains
+available through consumer-owned unfold tooling
+
 ---
 
 ## Acceptance Criteria
@@ -59,6 +64,11 @@ pi-agent's system prompt without modifying `refarm ask`
    **When** `refarm ask` receives it  
    **Then** a summary line with `model`, `tokens_in`, `tokens_out`, and `estimated_usd` is printed
 
+7. **Given** session entries exceed a protected working tail
+   **When** `SessionContextFoldProvider` runs
+   **Then** it emits fold metadata, protected tail IDs, and folded refs without injecting
+   raw folded content
+
 ---
 
 ## Technical Approach
@@ -71,6 +81,7 @@ refarm ask "<query>" [--files f1,f2]
   ├─ ContextRegistry.collect({ cwd, query })
   │    ├─ CwdContextProvider       (priority 10)
   │    ├─ DateContextProvider      (priority 20)
+  │    ├─ SessionContextFoldProvider (priority 18, optional)
   │    ├─ GitStatusContextProvider (priority 30)
   │    └─ FilesContextProvider     (priority 50, if --files given)
   │
@@ -146,6 +157,7 @@ export function buildSystemPrompt(entries: ContextEntry[]): string;
 // Bundled providers
 export class CwdContextProvider implements ContextProvider { /* priority 10 */ }
 export class DateContextProvider implements ContextProvider { /* priority 20 */ }
+export class SessionContextFoldProvider implements ContextProvider { /* priority 18 */ }
 export class GitStatusContextProvider implements ContextProvider { /* priority 30 */ }
 export class FilesContextProvider implements ContextProvider { /* priority 50 */ }
 ```
@@ -166,6 +178,8 @@ refarm ask "<query>" [--files <file1,file2,...>]
 - [x] `ContextRegistry` isolates a throwing provider — others still contribute
 - [x] `GitStatusContextProvider` returns empty array when not in a git repo
 - [x] `FilesContextProvider` truncates files at 4 KB with label
+- [x] `SessionContextFoldProvider` emits pointer-first fold context without raw
+      folded content
 - [x] `ask` command assembles correct payload and submits to Farmhand HTTP adapter
 - [x] `ask` command prints chunks to stdout and usage footer on `is_final`
 
@@ -189,6 +203,7 @@ refarm ask "<query>" [--files <file1,file2,...>]
 - [x] `buildSystemPrompt` unit tests in `packages/context-provider-v1/`
 - [x] `ContextRegistry` isolation tests
 - [x] Provider unit tests (cwd, date, git-status, files)
+- [x] Session fold provider unit tests (protected tail, async loader, pointer-first refs)
 - [x] `ask` command unit tests in `apps/refarm/`
 - [x] Smoke gate scenario
 
@@ -197,6 +212,8 @@ refarm ask "<query>" [--files <file1,file2,...>]
 - [x] Scaffold `packages/context-provider-v1/` with all types and bundled providers
 - [x] Implement `ContextRegistry` with `Promise.allSettled` parallel collection
 - [x] Implement `buildSystemPrompt` with priority sorting and XML-style context wrapping
+- [x] Implement optional `SessionContextFoldProvider` backed by
+      `session-contract-v1` fold planning
 - [x] Add `ask.ts` command to `apps/refarm/src/commands/`
 - [x] Wire `refarm ask` in `apps/refarm/src/program.ts`
 - [x] Add `@refarm.dev/context-provider-v1` and `@refarm.dev/file-stream-transport`

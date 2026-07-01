@@ -43,7 +43,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@refarm.dev/config": "workspace:*"
+    "@refarm.dev/config": "workspace:*",
+    "@refarm.dev/session-contract-v1": "workspace:*"
   },
   "devDependencies": {
     "@refarm.dev/eslint-config": "workspace:*",

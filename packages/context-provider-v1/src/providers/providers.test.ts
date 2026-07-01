@@ -1,3 +1,4 @@
+import type { SessionEntry, SessionEntryKind } from "@refarm.dev/session-contract-v1";
 import * as child_process from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -10,6 +11,7 @@ import { FilesContextProvider } from "./files.js";
 import { GitStatusContextProvider } from "./git-status.js";
 import { OperatorStateProvider } from "./operator-state.js";
 import { PolicyFilesContextProvider } from "./policy-files.js";
+import { SessionContextFoldProvider } from "./session-context-fold.js";
 
 let tempDir = "";
 
@@ -233,6 +235,81 @@ describe("PolicyFilesContextProvider", () => {
 		expect(files[0]!.heading).toBeNull();
 		const entry = PolicyFilesContextProvider.buildEntry(files);
 		expect(entry.content).toContain("AGENTS.md");
+	});
+});
+
+function sessionEntry(
+	id: string,
+	index: number,
+	kind: SessionEntryKind = "user",
+): SessionEntry {
+	return {
+		"@type": "SessionEntry",
+		"@id": `urn:entry:${id}`,
+		session_id: "urn:session:context-provider",
+		parent_entry_id: index === 1 ? null : `urn:entry:${index - 1}`,
+		kind,
+		content: `content ${index}`,
+		timestamp_ns: index,
+	};
+}
+
+describe("SessionContextFoldProvider", () => {
+	it("returns empty when entries fit inside the protected tail", async () => {
+		const provider = new SessionContextFoldProvider({
+			entries: [sessionEntry("1", 1), sessionEntry("2", 2)],
+			protectedTailCount: 2,
+		});
+
+		await expect(provider.provide({ cwd: tempDir })).resolves.toEqual([]);
+	});
+
+	it("builds pointer-first fold context with protected tail ids", async () => {
+		const provider = new SessionContextFoldProvider({
+			entries: [
+				sessionEntry("1", 1),
+				sessionEntry("2", 2, "agent"),
+				sessionEntry("3", 3),
+				sessionEntry("4", 4, "agent"),
+			],
+			protectedTailCount: 2,
+			foldedRefPreviewCount: 1,
+			nowNs: () => 100,
+			summary: "first exchange",
+		});
+
+		const entries = await provider.provide({ cwd: tempDir });
+
+		expect(entries).toHaveLength(1);
+		expect(entries[0].label).toBe("session_context_fold");
+		expect(entries[0].priority).toBe(18);
+		expect(entries[0].content).toContain("# Session context fold");
+		expect(entries[0].content).toContain("session_id: urn:session:context-provider");
+		expect(entries[0].content).toContain("folded_range: urn:entry:1..urn:entry:2 (2 entries)");
+		expect(entries[0].content).toContain("summary: first exchange");
+		expect(entries[0].content).toContain("protected_tail_entry_ids:");
+		expect(entries[0].content).toContain("- urn:entry:3");
+		expect(entries[0].content).toContain("- urn:entry:4");
+		expect(entries[0].content).toContain("folded_entry_refs_preview:");
+		expect(entries[0].content).toContain("- urn:entry:1 kind=user ts=1 digest=");
+		expect(entries[0].content).toContain("- ... 1 more folded entries");
+		expect(entries[0].content).toContain("consumer-owned unfold tool");
+		expect(entries[0].content).not.toContain("content 1");
+	});
+
+	it("loads entries from a request-aware async loader", async () => {
+		const provider = new SessionContextFoldProvider({
+			entries: async (request) => [
+				{ ...sessionEntry("1", 1), content: request.cwd },
+				sessionEntry("2", 2),
+			],
+			protectedTailCount: 1,
+		});
+
+		const entries = await provider.provide({ cwd: tempDir });
+
+		expect(entries).toHaveLength(1);
+		expect(entries[0].content).toContain("folded_range: urn:entry:1..urn:entry:1 (1 entries)");
 	});
 });
 
