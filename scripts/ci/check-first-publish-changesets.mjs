@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readdirSync, readFileSync } from "node:fs";
+import { appendFileSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -66,7 +66,9 @@ function isMain() {
 }
 
 if (isMain()) {
-	const options = parseReleaseCheckArgs(process.argv.slice(2));
+	const rawArgs = process.argv.slice(2);
+	const soft = rawArgs.includes("--soft");
+	const options = parseReleaseCheckArgs(rawArgs.filter((arg) => arg !== "--soft"));
 	const risks = findFirstPublishChangesetRisks({
 		root: ROOT,
 		selectionId: options.selectionId,
@@ -74,14 +76,29 @@ if (isMain()) {
 	});
 
 	if (risks.length > 0) {
-		console.error("[first-publish:changesets] Refusing to run changeset version for first-publish packages.");
+		writeGithubOutput({
+			blocked: "true",
+			risk_count: String(risks.length),
+		});
+		console.error("[first-publish:changesets] Changesets versioning is blocked for first-publish packages.");
 		console.error("[first-publish:changesets] These packages already declare 0.1.0 and must be published as-is first:");
 		for (const risk of risks) {
 			console.error(`  - ${risk.packageName}@${risk.currentVersion}: ${risk.bump} in .changeset/${risk.file}`);
 		}
 		console.error("[first-publish:changesets] Use the explicit first-publish lane for 0.1.0, then resume changesets for later releases.");
-		process.exit(1);
+		process.exit(soft ? 0 : 1);
 	}
 
+	writeGithubOutput({
+		blocked: "false",
+		risk_count: "0",
+	});
 	console.log(`[first-publish:changesets] ok for selection ${options.selectionId}`);
+}
+
+function writeGithubOutput(values) {
+	const outputPath = process.env.GITHUB_OUTPUT;
+	if (!outputPath) return;
+	const lines = Object.entries(values).map(([key, value]) => `${key}=${value}`);
+	appendFileSync(outputPath, `${lines.join("\n")}\n`, "utf8");
 }

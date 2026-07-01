@@ -67,9 +67,17 @@ jobs:
         run: pnpm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
 
       - name: Guard first-publish versions
-        run: node scripts/ci/check-first-publish-changesets.mjs --selection vault-seed-ready
+        id: first-publish-guard
+        run: node scripts/ci/check-first-publish-changesets.mjs --selection vault-seed-ready --soft
+
+      - name: First-publish handoff pending
+        if: steps.first-publish-guard.outputs.blocked == 'true'
+        run: |
+          echo "Changesets release is intentionally skipped while first-publish packages are still at 0.1.0."
+          echo "Run the explicit first-publish lane for 0.1.0, then resume changesets for later releases."
 
       - name: Create Release PR or Publish
+        if: steps.first-publish-guard.outputs.blocked != 'true'
         id: changesets
         uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1
         with:

@@ -52,7 +52,10 @@ test("release workflow keeps package publishing opt-in and provenance-scoped", (
 	assert.match(workflow, /vars\.RELEASE_OWNER == '' \|\| github\.repository_owner == vars\.RELEASE_OWNER/);
 	assert.match(workflow, /uses: \.\/\.github\/actions\/setup\n\s+with:\n\s+cache-mode: "off"/);
 	assert.match(workflow, /pnpm run runtime-descriptor:release-smoke -- --sha "\$\{\{ github\.sha \}\}"/);
-	assert.match(workflow, /node scripts\/ci\/check-first-publish-changesets\.mjs --selection vault-seed-ready/);
+	assert.match(workflow, /id: first-publish-guard/);
+	assert.match(workflow, /node scripts\/ci\/check-first-publish-changesets\.mjs --selection vault-seed-ready --soft/);
+	assert.match(workflow, /if: steps\.first-publish-guard\.outputs\.blocked == 'true'/);
+	assert.match(workflow, /if: steps\.first-publish-guard\.outputs\.blocked != 'true'/);
 	assert.match(workflow, /uses: changesets\/action@[0-9a-f]{40}/);
 	assert.match(workflow, /publish: changeset publish/);
 	assert.match(workflow, /NPM_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/);
