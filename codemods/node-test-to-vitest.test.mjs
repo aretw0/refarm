@@ -32,6 +32,7 @@ test("node:test to vitest fixture matches expected output", () => {
 			assertionsRewritten: 11,
 			unhandled: [],
 			unsupported: [],
+			renameToMjs: false,
 		},
 	);
 });
@@ -53,6 +54,7 @@ test("node:test to vitest reports unsupported assertions without dropping them",
 	assert.equal(result.assertionsRewritten, 0);
 	assert.deepEqual(result.unhandled, ["unhandled assertion: assert.ifError"]);
 	assert.deepEqual(result.unsupported, []);
+	assert.equal(result.renameToMjs, false);
 	assert.match(result.code, /assert\.ifError\(error\)/);
 });
 
@@ -86,14 +88,35 @@ test("node:test to vitest maps simple CommonJS requires", () => {
 	assert.equal(result.assertionsRewritten, 1);
 	assert.deepEqual(result.unhandled, []);
 	assert.deepEqual(result.unsupported, []);
+	assert.equal(result.renameToMjs, true);
 	assert.equal(
 		result.code,
 		`import { test, expect } from "vitest";\n\ntest("ok", () => {\n\texpect(1).toBe(1);\n});\n`,
 	);
 });
 
+test("node:test to vitest rewrites CommonJS test files and reports mjs rename", () => {
+	const before = readFileSync(
+		new URL("./fixtures/node-test-to-vitest-cjs.before.js", import.meta.url),
+		"utf8",
+	);
+	const after = readFileSync(
+		new URL("./fixtures/node-test-to-vitest-cjs.after.mjs", import.meta.url),
+		"utf8",
+	);
+	const result = transformNodeTestToVitestWithReport(before);
+
+	assert.equal(result.code, after);
+	assert.equal(result.changed, true);
+	assert.equal(result.importsRewritten, 9);
+	assert.equal(result.assertionsRewritten, 3);
+	assert.deepEqual(result.unhandled, []);
+	assert.deepEqual(result.unsupported, []);
+	assert.equal(result.renameToMjs, true);
+});
+
 test("node:test to vitest reports unsupported CommonJS require forms", () => {
-	const source = `const nodeTest = require("node:test");\nconst { strict } = require("node:assert");\n`;
+	const source = `const nodeTest = require("node:test");\nconst { equal } = require("node:assert");\n`;
 	const result = transformNodeTestToVitestWithReport(source);
 
 	assert.equal(result.changed, false);
@@ -102,6 +125,7 @@ test("node:test to vitest reports unsupported CommonJS require forms", () => {
 		"unsupported CommonJS require: node:test; migrate the file to ESM before applying this codemod",
 		"unsupported CommonJS require: node:assert; migrate the file to ESM before applying this codemod",
 	]);
+	assert.equal(result.renameToMjs, false);
 });
 
 test("node:test to vitest handles throws predicate and doesNotReject function semantics", () => {
@@ -151,6 +175,7 @@ test("node:test to vitest cli can emit a dry-run json report", () => {
 		assertionsRewritten: 1,
 		unhandled: [],
 		unsupported: [],
+		renameToMjs: false,
 		written: false,
 	});
 	assert.match(readFileSync(input, "utf8"), /from "node:test"/);
