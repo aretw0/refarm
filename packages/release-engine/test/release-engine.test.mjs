@@ -108,11 +108,28 @@ const cliPath = path.resolve(new URL("../src/cli.mjs", import.meta.url).pathname
 const changesetsProviderExamplePath = path.resolve(
   new URL("../examples/release-provider-changesets/src/index.mjs", import.meta.url).pathname,
 );
-const repoRoot = path.resolve(new URL("../../..", import.meta.url).pathname);
+const packageRoot = path.dirname(packageManifestPath);
+const repoRoot = findRefarmRepoRoot(packageRoot);
+const cliExecutionCwd = repoRoot ?? packageRoot;
+
+function findRefarmRepoRoot(startDir) {
+  let current = startDir;
+  while (true) {
+    if (
+      fs.existsSync(path.join(current, "refarm.config.json")) &&
+      fs.existsSync(path.join(current, "packages"))
+    ) {
+      return current;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
 
 function runCliJson(args) {
   const output = execFileSync(process.execPath, [cliPath, ...args, "--json"], {
-    cwd: repoRoot,
+    cwd: cliExecutionCwd,
     encoding: "utf8",
   });
   return JSON.parse(output);
@@ -120,12 +137,18 @@ function runCliJson(args) {
 
 function runCliJsonFailure(args) {
   const result = spawnSync(process.execPath, [cliPath, ...args, "--json"], {
-    cwd: repoRoot,
+    cwd: cliExecutionCwd,
     encoding: "utf8",
   });
   assert.notEqual(result.status, 0);
   assert.equal(result.stderr, "");
   return JSON.parse(result.stdout);
+}
+
+function skipWithoutRefarmRepo(t) {
+  if (repoRoot) return false;
+  t.skip("requires the Refarm monorepo release policy and workspace package manifests");
+  return true;
 }
 
 function validPolicy(overrides = {}) {
@@ -305,7 +328,9 @@ test("exports the release output schema as a public package subpath", () => {
   );
 });
 
-test("cli plan json resolves the Refarm default release selection", () => {
+test("cli plan json resolves the Refarm default release selection", (t) => {
+  if (skipWithoutRefarmRepo(t)) return;
+
   const payload = runCliJson(["plan", "--cwd", repoRoot, "--selection", "default"]);
 
   assert.equal(payload.command, "plan");
@@ -332,7 +357,9 @@ test("cli plan json resolves the Refarm default release selection", () => {
   assert.equal(payload.publishIntents[0].plan.requiresManualApproval, true);
 });
 
-test("cli plan json resolves the Refarm vault-seed-ready release selection", () => {
+test("cli plan json resolves the Refarm vault-seed-ready release selection", (t) => {
+  if (skipWithoutRefarmRepo(t)) return;
+
   const payload = runCliJson(["plan", "--cwd", repoRoot, "--selection", "vault-seed-ready"]);
 
   assert.equal(payload.command, "plan");
@@ -390,7 +417,9 @@ test("cli plan json resolves the Refarm vault-seed-ready release selection", () 
   assert.equal(payload.acceptance.requiredChecks.length, payload.acceptance.requiredCheckCount);
 });
 
-test("cli check json uses the versioned machine-output contract", () => {
+test("cli check json uses the versioned machine-output contract", (t) => {
+  if (skipWithoutRefarmRepo(t)) return;
+
   const payload = runCliJson([
     "check",
     "--cwd",
@@ -416,7 +445,9 @@ test("cli check json uses the versioned machine-output contract", () => {
   );
 });
 
-test("cli plan json can include a deterministic audit record", () => {
+test("cli plan json can include a deterministic audit record", (t) => {
+  if (skipWithoutRefarmRepo(t)) return;
+
   const payload = runCliJson([
     "plan",
     "--cwd",
@@ -437,7 +468,9 @@ test("cli plan json can include a deterministic audit record", () => {
   assert.deepEqual(payload.auditRecord.payload.packages, payload.packages);
 });
 
-test("cli blocked plan json preserves the versioned output shape", () => {
+test("cli blocked plan json preserves the versioned output shape", (t) => {
+  if (skipWithoutRefarmRepo(t)) return;
+
   const payload = runCliJsonFailure([
     "plan",
     "--cwd",
@@ -460,7 +493,9 @@ test("cli blocked plan json preserves the versioned output shape", () => {
   assert.equal(payload.auditRecord, undefined);
 });
 
-test("cli blocked check json preserves the gate-result contract", () => {
+test("cli blocked check json preserves the gate-result contract", (t) => {
+  if (skipWithoutRefarmRepo(t)) return;
+
   const payload = runCliJsonFailure([
     "check",
     "--cwd",
