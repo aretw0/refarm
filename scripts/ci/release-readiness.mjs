@@ -83,6 +83,12 @@ const RELEASE_READINESS_STEPS = [
 			"Runtime-agent/reference-driver primitives must pass their lightweight no-provider smoke before publication packaging.",
 	},
 	{
+		id: "vault-seed-publish-plan",
+		script: "release:vault-seed:plan",
+		reason:
+			"Consumer-pulled vault-seed-ready packages must resolve to an accepted publish plan before release approval.",
+	},
+	{
 		id: "publish-dry-run",
 		script: "release:check",
 		reason: "Release-policy package manifests must survive a publish dry-run.",

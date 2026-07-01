@@ -71,6 +71,9 @@ Readiness de primeira release:
 - `pnpm run release:readiness:plan` → mostra a sequência de gates que responde "estamos prontos para publicar?" sem executar nada.
 - `pnpm run release:readiness` → executa o corte local de readiness para npm/crates/workflows usando gates existentes.
 - `pnpm run release:policy:check` → valida só a política declarada e os gates obrigatórios em dry-run.
+- `pnpm run release:vault-seed:plan` → resolve a seleção `vault-seed-ready`
+  para o plano de publicação aceito sem executar publicação ou dry-run dos 18
+  pacotes.
 - `pnpm run reference-driver:smoke` → prova leve, sem provider, do loop
   `ask`, dos SDKs `interaction-driver`/`worker-profile` e das primitivas
   `runtime-agent`/reference-driver que precisam continuar funcionando antes de
