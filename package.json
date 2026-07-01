@@ -68,6 +68,7 @@
 		"remote-workspace-control:poc:test": "node --test validations/remote-workspace-control-plane/remote-workspace-control-plane.test.mjs",
 		"distributed-availability:poc:test": "node --test validations/distributed-availability-evidence/distributed-availability-evidence.test.mjs",
 		"verification-completion:poc:test": "node --test validations/verification-as-completion/verification-as-completion.test.mjs",
+		"toolless-orchestrator:poc:test": "node --test validations/toolless-orchestrator-proof/toolless-orchestrator-proof.test.mjs",
 		"validation-pocs:index": "node scripts/ci/build-validation-poc-evidence-index.mjs",
 		"validation-pocs:index:test": "node --test scripts/ci/test-validation-poc-evidence-index.mjs",
 		"validation-pocs:consumer:test": "node scripts/ci/run-workspace-script.mjs packages/artifact-contract-v1 build && node scripts/ci/check-validation-poc-consumers.mjs",
