@@ -233,6 +233,11 @@ function rewriteRepoScriptReferences(packageJsonPath) {
 	writeFileSync(packageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
 }
 
+function copyPackageManagerInstallPolicy(testDir) {
+	if (packageManager() !== "pnpm") return;
+	cpSync(join(ROOT_DIR, "pnpm-workspace.yaml"), join(testDir, "pnpm-workspace.yaml"));
+}
+
 const ignoredReferenceDirs = new Set([
 	".git",
 	".turbo",
@@ -404,6 +409,7 @@ function runForward(pkgName) {
 		rewriteWorkspaceDepsToLatest(isolatedPackageJson);
 		rewriteCatalogDepsToConcrete(isolatedPackageJson);
 		rewriteRepoScriptReferences(isolatedPackageJson);
+		copyPackageManagerInstallPolicy(testDir);
 		execSync(installCommand(), {
 			cwd: testDir,
 			stdio: "inherit",
