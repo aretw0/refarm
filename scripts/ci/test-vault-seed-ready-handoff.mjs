@@ -168,6 +168,17 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 			"@refarm.dev/alpha": "file:./vendor/refarm.dev-alpha-0.1.0.tgz",
 			"@refarm.dev/beta": "file:./vendor/refarm.dev-beta-0.2.0.tgz",
 		},
+		revendorPolicy: {
+			sameNameVersionBehavior:
+				"file: tarballs can keep the same package name and version while their bytes change during pre-publication handoff.",
+			changedContentDetection: "compare packages[].sha256 against the consumer vendor tarball and lockfile integrity",
+			requiredWhenShaChanges: [
+				"replace the matching vendor/*.tgz file from the same handoff directory",
+				"refresh the package-manager lockfile entry for the changed file: tarball",
+				"if the package manager keeps the old bytes, reinstall from a clean node_modules before running consumer proofs",
+			],
+			proofAfterRefresh: "consumerProofs",
+		},
 		proofChecklist: "consumerProofs",
 	});
 	assert.equal(manifest.distributionEvidence.schema, "refarm.vault-seed-ready-distribution-evidence.v1");
@@ -192,6 +203,7 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 		"acceptance",
 		"packages[].sha256",
 		"consumerProofs",
+		"consumerInstall.revendorPolicy",
 	]);
 	assert.equal(manifest.packages[0].consumerPull, null);
 	assert.equal(manifest.packages[0].stale, false);
@@ -208,6 +220,7 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	assert.match(formatHandoffMarkdown(manifest), /none declared/);
 	assert.match(formatHandoffMarkdown(manifest), /Consumer install hints:/);
 	assert.match(formatHandoffMarkdown(manifest), /consumerInstall\.pnpmOverrides/);
+	assert.match(formatHandoffMarkdown(manifest), /consumerInstall\.revendorPolicy/);
 });
 
 test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
@@ -394,7 +407,7 @@ test("blocks manifest when release boundary audit fails", () => {
 	assert.equal(manifest.distributionEvidence.boundary.releaseBoundaryAudit.ok, false);
 	assert.deepEqual(
 		manifest.distributionEvidence.update.evidenceRefs,
-		["acceptance", "packages[].sha256", "consumerProofs", "releaseBoundaryAudit"],
+		["acceptance", "packages[].sha256", "consumerProofs", "consumerInstall.revendorPolicy", "releaseBoundaryAudit"],
 	);
 	assert.match(formatHandoffMarkdown(manifest), /Release boundary audit:/);
 	assert.match(formatHandoffMarkdown(manifest), /README_OPENING_PRODUCT_SPECIFIC/);
@@ -427,11 +440,18 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	);
 	assert.deepEqual(
 		manifest.distributionEvidence.update.evidenceRefs,
-		["acceptance", "packages[].sha256", "consumerProofs", "releaseBoundaryAudit"],
+		[
+			"acceptance",
+			"packages[].sha256",
+			"consumerProofs",
+			"consumerInstall.revendorPolicy",
+			"releaseBoundaryAudit",
+		],
 	);
 	assert.equal(Object.keys(manifest.consumerInstall.fileSpecs).length, manifest.packages.length);
 	assert.equal(Object.keys(manifest.consumerInstall.pnpmOverrides).length, manifest.packages.length);
 	assert.equal(manifest.consumerInstall.copyFiles.length, manifest.packages.length + 1);
+	assert.equal(manifest.consumerInstall.revendorPolicy.proofAfterRefresh, "consumerProofs");
 	assert.equal(
 		manifest.consumerInstall.fileSpecs["@refarm.dev/ds"],
 		"file:./vendor/refarm.dev-ds-0.1.0.tgz",

@@ -510,7 +510,12 @@ directory, then use `packages[].sha256` to verify the packet before pinning
 dependencies.
 `consumerInstall.fileSpecs` gives ready-to-copy `file:./vendor/<tarball>` specs
 for direct dependencies, and `consumerInstall.pnpmOverrides` gives the matching
-unpublished transitive overrides. The flattened `consumerProofs` list is the
+unpublished transitive overrides. `consumerInstall.revendorPolicy` records the
+pre-publication footgun observed by the official checkout: a `file:` tarball can
+keep the same package name/version while its bytes change, so consumers must
+compare `packages[].sha256`, replace the vendor tarball, refresh lockfile
+integrity or reinstall from clean `node_modules`, and only then run
+`consumerProofs`. The flattened `consumerProofs` list is the
 downstream assimilation checklist: each item has a stable `proofId`, names the
 `vault-seed` proof target, and records the product boundary that must remain
 local. `distributionEvidence` records the local handoff ref, verified-copy

@@ -51,6 +51,11 @@ YAML front matter and YAML documents that already carry the `records:v1` model.
 It parses YAML-LD into a `KnowledgeRecord`, writes records back to YAML-LD, and
 preserves unknown top-level keys for forward-safe consumers.
 
+When parsing a lean consumer projection, the codec completes the `records:v1`
+envelope by stamping the default `schemaVersion` and computing `contentHash`.
+That keeps YAML-frontmatter bridges small while still returning a valid record
+for conformance checks.
+
 The codec subpath uses `yaml` as an optional peer dependency so consumers of the
 base `records:v1` contract do not install YAML parsing code unless they opt into
 `@refarm.dev/records-contract-v1/yaml`.

@@ -1,7 +1,8 @@
 # Spec: records:v1 YAML-LD Codec (candidate)
 
-**Status:** IMPLEMENTED CANDIDATE — `@refarm.dev/records-contract-v1/yaml`; promotion remains
-proof-gated by second-consumer/dogfood evidence. Consumer pressure from a YAML-frontmatter vault.
+**Status:** IMPLEMENTED CANDIDATE — `@refarm.dev/records-contract-v1/yaml`; second-consumer proof
+closed in `vault-seed`, promotion remains tied to the release lane. Consumer pressure from
+YAML-frontmatter vault flows.
 **Authors:** Arthur Silva, Claude
 **Date:** 2026-06-30
 **Related:** `packages/records-contract-v1` (`records:v1`, JSON-LD model), `packages/surveyor`
@@ -46,11 +47,16 @@ the consumer, exactly like `source:v1` owns acquisition while the target selecto
 ## Consumer pressure & gate
 
 First pressure: a downstream YAML-frontmatter vault (Obsidian-native) that projects notes → `records:v1`
-and would otherwise re-implement the YAML-LD ↔ record normalization. Per the dogfood/second-consumer
-gate, this stays a **candidate** until either Refarm consumes it in its own surfaces or a **second**
-YAML-native consumer proves the same codec — at which point promote it beside `records:v1`. Until then
-the single consumer keeps a local normalizer; this spec records the boundary so that normalizer is a
-stand-in, not a divergent reimplementation.
+and would otherwise re-implement the YAML-LD ↔ record normalization.
+
+Second-consumer signal, 2026-07-01: `vault-seed` round-tripped its `records:v1` projection through
+`recordToYamlLdObject` / `recordFromYamlLdObject` and its front-matter bridge. That proof also
+confirmed the parse behavior for lean projections: the codec completes the record by stamping
+`schemaVersion` and computing `contentHash`.
+
+The codec remains a **candidate** until release-lane promotion, but the second-consumer gate is no
+longer the blocker. Product vocabulary, key conventions, note bodies, and editorial semantics still
+stay downstream.
 
 ## First proof shape
 
