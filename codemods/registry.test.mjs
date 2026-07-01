@@ -80,3 +80,22 @@ test("codemods check script runs every ready codemod test", () => {
 		);
 	}
 });
+
+test("release readiness runs every ready codemod test", () => {
+	const command = rootPackage.scripts?.["release:readiness:test"];
+	assert.ok(command, "root package.json missing release:readiness:test");
+
+	for (const entry of registry.entries.filter(
+		(candidate) => candidate.status === "ready" && candidate.tool === "codemod",
+	)) {
+		const testPath = `codemods/${entry.id}.test.mjs`;
+		assert.ok(existsSync(testPath), `${entry.id} test missing: ${testPath}`);
+		assert.match(
+			command,
+			new RegExp(
+				`(^|\\s)${testPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`,
+			),
+			`${entry.id} is ready but release:readiness:test does not run ${testPath}`,
+		);
+	}
+});
