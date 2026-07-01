@@ -65,6 +65,28 @@ test("release workflow keeps package publishing opt-in and provenance-scoped", (
 	assert.doesNotMatch(workflow, /npm\.pkg\.github\.com|packages:\s*write/);
 });
 
+test("first-publish workflow publishes 0.1.0 only through explicit manual confirmation", () => {
+	const workflow = read(".github/workflows/first-publish-vault-seed.yml");
+
+	assert.match(workflow, /name: First Publish Vault Seed Ready/);
+	assert.match(workflow, /workflow_dispatch:/);
+	assert.match(workflow, /dry_run:/);
+	assert.match(workflow, /default: "true"/);
+	assert.match(workflow, /confirm:/);
+	assert.match(workflow, /permissions:\n\s+contents: read\n\s+id-token: write/);
+	assert.match(workflow, /if: vars\.RELEASE_AUTOMATION == 'true'/);
+	assert.match(workflow, /vars\.RELEASE_OWNER == '' \|\| github\.repository_owner == vars\.RELEASE_OWNER/);
+	assert.match(workflow, /uses: actions\/checkout@[0-9a-f]{40}/);
+	assert.match(workflow, /pnpm --silent run release:vault-seed:check/);
+	assert.match(workflow, /if: inputs\.dry_run == 'true'\n\s+run: pnpm --silent run release:vault-seed:first-publish -- --plan --json/);
+	assert.match(workflow, /REFARM_FIRST_PUBLISH_CONFIRM: \$\{\{ inputs\.confirm \}\}/);
+	assert.match(workflow, /test "\$REFARM_FIRST_PUBLISH_CONFIRM" = "publish-vault-seed-ready-0\.1\.0"/);
+	assert.match(workflow, /if: inputs\.dry_run == 'false'\n\s+run: echo "\/\/registry\.npmjs\.org\/:_authToken=\$\{\{ secrets\.NPM_TOKEN \}\}" > ~\/\.npmrc/);
+	assert.match(workflow, /pnpm --silent run release:vault-seed:first-publish -- --publish --confirm "\$REFARM_FIRST_PUBLISH_CONFIRM"/);
+	assert.doesNotMatch(workflow, /pull_request_target:/);
+	assert.doesNotMatch(workflow, /packages:\s*write/);
+});
+
 test("develop sync workflow does not rewrite atomic history after squash releases", () => {
 	const workflow = read(".github/workflows/sync-develop.yml");
 
