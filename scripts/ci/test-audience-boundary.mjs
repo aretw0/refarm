@@ -236,6 +236,28 @@ test("verification as completion stays proof-local until consumer pressure", () 
 	assert.match(readiness, /runtime integration remain gated by dogfood or second-consumer pressure/);
 });
 
+test("tool-less orchestrator stays proof-local and keyless-actor bounded", () => {
+	const spec = read("specs/features/2026-07-01-toolless-orchestrator-proof.md");
+	const roadmap = read("docs/CONVERGENCE_ROADMAP.md");
+	const readiness = read("docs/CONVERGENCE_FACTORY_READINESS.md");
+	const validation = read("validations/toolless-orchestrator-proof/README.md");
+
+	assert.match(spec, /Feature: Tool-less Orchestrator Proof/);
+	assert.match(spec, /conductor has zero environment tool capabilities/);
+	assert.match(spec, /actor is keyless and holds no operator keys/);
+	assert.match(spec, /request does not carry secret material/);
+	assert.match(spec, /does not create a package/);
+	assert.match(spec, /move policy into `apps\/refarm`/);
+	assert.match(roadmap, /Tool-less orchestrator/);
+	assert.match(roadmap, /key-holding conductor delegates tools to keyless bounded actors/);
+	assert.match(roadmap, /runtime\/package extraction held/);
+	assert.match(readiness, /tool-less orchestrator/);
+	assert.match(readiness, /requests carry no secret material/);
+	assert.match(readiness, /remote-node adoption remain gated by dogfood or second-consumer pressure/);
+	assert.match(validation, /conductor may hold operator keys, but owns no environment tools/);
+	assert.match(validation, /actor owns bounded environment tools, but is keyless/);
+});
+
 test("superseded homestead ssr docs stay non-executable", () => {
 	const spec = read("specs/features/2026-06-25-homestead-ssr-tier.md");
 	const plan = read("docs/superpowers/plans/2026-06-25-homestead-ssr-tier.md");
