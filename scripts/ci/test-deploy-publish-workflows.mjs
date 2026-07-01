@@ -23,6 +23,7 @@ test("deploy-dev workflow keeps GitHub Pages deploy gated by site build smoke", 
 	assert.match(workflow, /apps\/site\/\*\*/);
 	assert.doesNotMatch(workflow, /apps\/dev\/\*\*/);
 	assert.doesNotMatch(workflow, /REFARM_SCOPE_DEV\/heartwood/);
+	assert.match(workflow, /run: pnpm --filter "\$REFARM_SCOPE_DEV\/site" run test/);
 	assert.match(workflow, /run: pnpm --filter "\$REFARM_SCOPE_DEV\/site" run build/);
 	assert.match(workflow, /ASTRO_SITE: \$\{\{ vars\.REFARM_ASTRO_SITE \|\| format\('https:\/\/\{0\}\.github\.io\/\{1\}\/', github\.repository_owner, github\.event\.repository\.name\) \}\}/);
 	assert.match(workflow, /ASTRO_BASE: \$\{\{ vars\.REFARM_ASTRO_BASE \|\| format\('\/\{0\}\/', github\.event\.repository\.name\) \}\}/);

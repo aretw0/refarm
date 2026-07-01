@@ -9,6 +9,7 @@
 		"preview": "astro preview",
 		"astro:check": "astro check",
 		"lint": "eslint src",
+		"test": "node --test test/site-data.test.mjs",
 		"type-check": "astro check && tsc --project tsconfig.json --noEmit",
 		"type-check:dist": "astro check && tsc --project tsconfig.build.json --noEmit"
 	},

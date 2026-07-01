@@ -43,6 +43,9 @@ jobs:
       - name: Setup Refarm Environment
         run: node scripts/ci/setup-env.mjs
 
+      - name: Test Refarm.dev Site Data
+        run: pnpm --filter "$REFARM_SCOPE_DEV/site" run test
+
       - name: Build Refarm.dev Site
         env:
           ASTRO_SITE: ${{ vars.REFARM_ASTRO_SITE || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}

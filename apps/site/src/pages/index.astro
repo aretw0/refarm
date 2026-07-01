@@ -1,7 +1,7 @@
 ---
 import SiteLayout from "../layouts/SiteLayout.astro";
 import supplyStack from "../assets/supply-stack.png";
-import { governingDocs, vaultSeedPackages } from "../site-data";
+import { governingDocs, siteFacts, vaultSeedPackages } from "../site-data";
 ---
 
 <SiteLayout
@@ -31,7 +31,7 @@ import { governingDocs, vaultSeedPackages } from "../site-data";
 	<section id="supply" class="site-shell site-section" aria-labelledby="supply-title">
 		<div class="site-section__intro">
 			<p class="site-kicker">Current selection</p>
-			<h2 id="supply-title">vault-seed-ready contains 18 candidate packages</h2>
+			<h2 id="supply-title">vault-seed-ready contains {siteFacts.packageCount} candidate packages</h2>
 			<p>
 				This lane is a local candidate channel, not a public npm promise. It exists so official
 				consumer checkouts can assimilate reusable Refarm blocks before release automation is enabled.
@@ -47,23 +47,23 @@ import { governingDocs, vaultSeedPackages } from "../site-data";
 			<p class="site-kicker">Publication posture</p>
 			<h2 id="handoff-title">Local handoff ready; npm publish waits for release approval</h2>
 			<p>
-				The active packet is materialized under <code>.refarm/handoff/vault-seed/2026-07-01/</code>
-				with tarballs, <code>manifest.json</code>, <code>manifest.md</code>, and distribution
-				evidence. Public publish still waits on develop stabilization, GitHub Actions confirmation,
-				release PR flow, and explicit operator approval.
+				The active {siteFacts.handoffDate} local handoff is materialized with tarballs,
+				manifest files, and distribution evidence for official consumer assimilation. Public
+				publish still waits on develop stabilization, GitHub Actions confirmation, release PR
+				flow, and explicit operator approval.
 			</p>
 		</div>
 		<div class="site-status__facts" aria-label="Release facts">
 			<div>
-				<strong>18</strong>
+				<strong>{siteFacts.packageCount}</strong>
 				<span>packages</span>
 			</div>
 			<div>
-				<strong>49</strong>
+				<strong>{siteFacts.requiredCheckCount}</strong>
 				<span>required checks</span>
 			</div>
 			<div>
-				<strong>0</strong>
+				<strong>{siteFacts.publicPublishCount}</strong>
 				<span>public publishes</span>
 			</div>
 		</div>

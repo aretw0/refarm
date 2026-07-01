@@ -26,7 +26,7 @@ Properties:
 - trigger: push to `main`/`master` for site/package/deploy files, plus manual dispatch;
 - permissions: `contents: read`, `pages: write`, `id-token: write`;
 - setup cache mode: `off`;
-- build gate: `apps/site` and Astro base-path check;
+- build gate: `apps/site` data alignment test, static build, and Astro base-path check;
 - artifact path: `apps/site/dist`;
 - no npm publish or release token usage.
 

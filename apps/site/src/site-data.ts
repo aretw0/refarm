@@ -19,6 +19,14 @@ export const vaultSeedPackages = [
 	"storage-memory",
 ] as const;
 
+export const siteFacts = {
+	handoffDate: "2026-07-01",
+	packageCount: 18,
+	requiredCheckCount: 49,
+	publicPublishCount: 0,
+	manualApprovalRequired: true,
+} as const;
+
 export const governingDocs = [
 	{
 		title: "Distribution inventory",
