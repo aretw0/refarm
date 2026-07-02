@@ -1,5 +1,6 @@
 export { runDsThemeConformance } from "./theme-conformance.js";
 export * from "./contract.js";
+export * from "./lint.js";
 
 /** @deprecated Use REQUIRED_TOKENS for the ds-tokens:v1 semantic contract. */
 export const THEME_TOKENS = [

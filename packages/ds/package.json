@@ -18,6 +18,10 @@
 		"dist/theme-conformance.js.map",
 		"dist/theme-conformance.d.ts",
 		"dist/theme-conformance.d.ts.map",
+		"dist/lint.js",
+		"dist/lint.js.map",
+		"dist/lint.d.ts",
+		"dist/lint.d.ts.map",
 		"dist/html.js",
 		"dist/html.js.map",
 		"dist/html.d.ts",
@@ -37,6 +41,10 @@
 		"./theme-conformance": {
 			"import": "./dist/theme-conformance.js",
 			"types": "./dist/theme-conformance.d.ts"
+		},
+		"./lint": {
+			"import": "./dist/lint.js",
+			"types": "./dist/lint.d.ts"
 		},
 		"./html": {
 			"import": "./dist/html.js",

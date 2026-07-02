@@ -82,6 +82,43 @@ const html = documentHtml({
 `documentHtml` links the DS CSS assets under `/_ds` by default. Set `assetBase` if
 the host serves `tokens.css`, theme CSS, and `components.css` from another path.
 
+## DS lint
+
+Use `@refarm.dev/ds/lint` to run the first `ds-lint:v1` rules over a rendered DOM
+snapshot. The package owns the rules; each consumer owns how it collects the
+snapshot from Playwright, a browser harness, or another renderer.
+
+```ts
+import { runDsLint } from "@refarm.dev/ds/lint";
+
+const report = runDsLint({
+	viewport: { width: 390, height: 844 },
+	elements: [
+		{
+			id: "hero-title",
+			tagName: "h1",
+			text: "Refarm supply stack",
+			styles: {
+				color: "#f0f6fc",
+				backgroundColor: "#0d1117",
+				fontSizePx: 34,
+				fontWeight: 800,
+				fontSizeExpression: "clamp(2rem, 7vw, 3.5rem)",
+			},
+			metrics: {
+				clientWidth: 342,
+				scrollWidth: 342,
+				boundingBox: { x: 24, y: 120, width: 342, height: 92 },
+			},
+		},
+	],
+});
+```
+
+The first rules are generic: contrast for every text/background pair, overflow
+against element and viewport bounds, `clamp()` for headings, and heading
+hierarchy. Effects are not banned by name; low-quality execution fails.
+
 ## Scroll region utilities
 
 Use explicit scroll regions instead of relying on document/page scroll when a host owns the viewport.

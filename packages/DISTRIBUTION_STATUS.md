@@ -140,6 +140,13 @@ its `records:v1` projection through the codec. The base `records:v1` package
 remains the selected `vault-seed-ready` publication unit, and the selected
 package gate runs the YAML unit proof.
 
+`@refarm.dev/ds/lint` now rides with the selected `@refarm.dev/ds` package as
+`ds-lint:v1`. It is a build-free rule runner over rendered DOM snapshots, with
+first rules for text/background contrast, overflow, heading `clamp()` usage, and
+heading hierarchy. Consumers still own how they collect snapshots from their
+rendering harness; Refarm owns the reusable rules that prevent repeated UI
+gaffes across `apps/site`, `vault-seed`, and agent-demo screens.
+
 ---
 
 ## Historical Contract Inventory
