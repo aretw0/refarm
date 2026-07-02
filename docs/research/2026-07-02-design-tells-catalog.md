@@ -96,5 +96,10 @@ the liquid-glass nuance in the guardrail research): these flag the *cheap defaul
   stays pure — see `plugin-security-model.md`, the minimal-capability checker).
 - `tell-pattern` matchers are the fuzziest; ship the high-frequency ones first (ai-purple, gradient-hero,
   emoji-icons) and grow the set as real gaffes surface — a regression net grounded in reality, not theory.
+- **`ds-lint:v1` is the shipped UI implementation** (`packages/ds/src/lint.ts`, `runDsLint` over a rendered
+  snapshot, `18fac992`). Its `ds-*` rules (`ds-contrast`, `ds-overflow`, `ds-viewport-overflow`, heading
+  clamp/hierarchy) are this catalog's Tier 1. **To keep one lint model, wrap it as a `quality:v1` ui
+  `QualityChecker`** (adapter `DsLintIssue`→`Finding`) rather than reimplementing — `ds-lint:v1` owns the
+  rules, `quality:v1` is the envelope it plugs into.
 - The companion **text-tells** catalog already exists downstream as `quality-rules.json` `riskPatterns`
   (regex rules); it conforms to the same `QualityRule` envelope with `check.type: "regex"`.

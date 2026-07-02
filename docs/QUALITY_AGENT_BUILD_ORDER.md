@@ -12,8 +12,8 @@ composes over it, so every demonstration is working software over distributed bl
 
 | # | Item | Spec / doc | Status | Next action |
 |---|------|-----------|--------|-------------|
-| 1 | `quality:v1` contract | `specs/features/2026-07-02-quality-contract-v1.md` | designed | implement `packages/quality-contract-v1` (types + `runQualityV1Conformance`) |
-| 2 | reference checker plugins (text-tells, design-tells) | quality-contract-v1 §2 | designed | build the two Rust→WASM checkers + distribute; the native text suite conforms as a downstream proof |
+| 1 | `quality:v1` contract | `specs/features/2026-07-02-quality-contract-v1.md` | ✅ **implemented** (`a3820bfe`, in publish lane) | done — consumers now conform against it |
+| 2 | `quality:v1` checkers (text + ui) | quality-contract-v1 §2 · `packages/ds/src/lint.ts` (`ds-lint:v1`) · design-tells catalog | ui lint **shipped standalone** (`ds-lint:v1`, `18fac992`) | **align, don't rebuild:** wrap the shipped `ds-lint:v1` as a `quality:v1` ui `QualityChecker` (adapter `DsLintIssue`→`Finding`) so the ecosystem has one lint model; the native text suite is the text checker |
 | 3 | agent engine (`pi-agent` / farmhand) | README boundary + `docs/DAILY_DRIVER_PARITY.md` | ✅ **unheld** (public) | close the parity gaps (live policy bundle: host shell policy, resumable sessions, durable memory) → `v0.1.0` |
 | 4 | agents-lab bridge | `docs/superpowers/specs/2026-05-14-agents-lab-portability.md` | contracts exist | implement the **farmhand skill engine-binding** (satisfy `SkillEngineBindingEnvelope` for `pi-agent` + wire ADR-022 policy). The contracts (`skill-contract-v1`, ADR-022 policy, `capability-index`) already exist — this is implementation, not design |
 | 5 | secure-extensibility demonstration | `specs/features/2026-07-02-secure-extensibility-demonstration.md` | designed | wire the smoke: install agent + 2 checker plugins + deterministic scaffold + `quality:v1` gate |

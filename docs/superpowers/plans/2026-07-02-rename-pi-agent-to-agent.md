@@ -25,6 +25,10 @@ This touches active code in `apps/refarm` and `apps/farmhand` (many tests). Run 
 
 ### Task 1: Responsibilities glossary (do this first — it fixes the vocabulary)
 
+> **Status (2026-07-02): already created** by `8eee780d` — `docs/NAMING_AND_RESPONSIBILITIES.md` exists and
+> matches this design, already reflecting the renamed `@refarm.dev/agent` / `packages/agent`. Task 1 is now
+> just **verify** it is present and names the target state; skip the create steps below (kept for reference).
+
 **Files:**
 - Create: `docs/NAMING_AND_RESPONSIBILITIES.md`
 
