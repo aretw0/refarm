@@ -634,7 +634,8 @@
           "pnpm --filter @refarm.dev/dispatch-surface run lint",
           "pnpm --filter @refarm.dev/dispatch-surface run type-check",
           "pnpm --filter @refarm.dev/dispatch-surface run test",
-          "pnpm --filter @refarm.dev/dispatch-surface run test:parity"
+          "pnpm --filter @refarm.dev/dispatch-surface run test:parity",
+          "pnpm run agent-demo:release-proof"
         ],
         "tags": [
           "dispatch",

@@ -83,6 +83,12 @@ const RELEASE_READINESS_STEPS = [
 			"Runtime-agent/reference-driver primitives must pass their lightweight no-provider smoke before publication packaging.",
 	},
 	{
+		id: "agent-demo-release-proof",
+		script: "agent-demo:release-proof",
+		reason:
+			"Agent-demo consumers must have public dispatch/control/evidence blocks without accidentally publishing held plugin runtime packages.",
+	},
+	{
 		id: "first-publish-selection-plan",
 		script: "release:first-publish:plan",
 		args: ["--", "--selection", "vault-seed-ready"],

@@ -174,6 +174,7 @@ packages are ready:
 | `@refarm.dev/homestead-ssr` | removed pre-publication | `@refarm.dev/ds/html` is the canonical DS-owned helper surface |
 | `@refarm.dev/cli` | held out of `vault-seed-ready` | `@refarm.dev/process-handoff` is the leaf package needed by consumers |
 | `@refarm.dev/plugin-manifest` | deferred | Pi/WASM/UI plugin boundary still needs reproducible multi-layer proof |
+| agent-demo public surface | release-proven through selected blocks | `pnpm run agent-demo:release-proof` confirms downstream agent demos can consume `dispatch-surface`, `effort-contract-v1`, `channel-policy-v1`, `artifact-contract-v1`, `process-handoff`, and `ds` while `plugin-manifest`, `terminal-plugin`, `toolbox`, `pi-agent`, and `refarm:agent-tools@0.1.0` remain held |
 | `refarm-plugin-wit` | internal canonical WIT crate | `publish = false`; the supply surface is `refarm:plugin@0.1.0` WIT, not crates.io/npm yet |
 | `refarm:agent-tools@0.1.0` | internal WIT component boundary | guarded by build-free `validate-packages` preflight before any component packaging promotion |
 | Tractor/runtime reference implementation | daily-driver hold | must be reliable for real operator work before public release positioning |
