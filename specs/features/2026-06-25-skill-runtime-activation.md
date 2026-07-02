@@ -16,6 +16,15 @@ Treat item 6 as an activation-gated runtime adapter, not a migration of `dgk-ski
 `vault-seed` remains canonical for the DGK skill package. Refarm owns the engine/runtime contract
 that can invoke one DGK skill as a consumer proof.
 
+### Authoring, not just invoking
+
+This activation surface covers *running* a curated skill. The complementary axis is *authoring* one: the
+agent (or a person) creates a new skill for a specific need and installs it, using the same
+`skill-contract-v1` manifest / capability / envelope. Invoking shows an ecosystem; authoring shows the
+platform is the user's to extend — the bidirectional extensibility the secure-extensibility demonstration
+(`2026-07-02-secure-extensibility-demonstration.md`) leans on. Authoring reuses this contract, needs no
+separate runtime, and only wants a scaffold for the skill's manifest + Markdown body.
+
 ## Activation triggers
 
 Start this item only when all are true:

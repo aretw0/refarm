@@ -107,6 +107,17 @@ Plugins **cannot import**:
 
 ## Capability System
 
+### Canonical minimal-capability plugin: a `quality:v1` checker
+
+The strongest point on the capability spectrum is a plugin that requests **nothing** — pure compute over an
+input the host hands it. A `quality:v1` checker (see `2026-07-02-quality-contract-v1.md`) is the reference
+example: its WIT world exports `check(subject, profile) -> findings` and imports no `wasi:filesystem`,
+`wasi:sockets`, or environment. The host does anything that needs capability (render a page, serialize a
+DOM, read text); the checker only analyzes and returns findings. So even an untrusted checker from a
+different author cannot exfiltrate or damage — `requiredCapabilities: []`. This is the model at its
+cleanest, and the demonstration (`2026-07-02-secure-extensibility-demonstration.md`) leans on it to run
+third-party checkers safely.
+
 ### Grant Model
 
 Plugins declare required capabilities in metadata:
