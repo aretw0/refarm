@@ -625,11 +625,17 @@ git push origin feature/minha-feature
 
 - **Em `develop`**: qualquer estratégia funciona (squash, rebase, ou merge commit) para integrar branches curtas.
 - **Em `main`**: usar a estratégia permitida pela proteção do repositório. Quando `develop → main` for squashado, `main` terá um commit novo com a mesma árvore de `develop`.
-- O workflow `sync-develop.yml` não rebaseia cegamente. Após qualquer push em `main`, ele:
+- O workflow `sync-develop.yml` não rebaseia nem reescreve `develop`
+  automaticamente. Após qualquer push em `main`, ele:
   1. não faz nada se `develop` já aponta para `main`;
   2. faz fast-forward se `develop` é ancestral de `main`;
-  3. faz reset auditado com `--force-with-lease` quando `develop` e `main` têm a mesma árvore, mas histórico diferente (caso típico de squash release);
+  3. abre issue quando `develop` e `main` têm a mesma árvore, mas histórico diferente (caso típico de squash/rebase release);
   4. abre issue e falha quando há divergência real de conteúdo.
+
+Quando a proteção do repositório exigir squash ou rebase no PR `develop → main`,
+trate o alinhamento posterior de `develop` como uma decisão manual. Isso preserva
+a história atômica de `develop` até alguém optar conscientemente por reset, rebase
+ou outro alinhamento com backup.
 
 ### Release via Changesets
 
