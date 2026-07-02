@@ -97,6 +97,36 @@ overflow) — a regression net grounded in reality, not theory. Studying the sta
 Lighthouse a11y, fluid-type systems, and emerging AI-UI linters) is an ongoing input as the rule set
 grows.
 
+## External references — de-AI "tells" (complements)
+
+Two references push the guardrail from "objective quality" toward also catching **the signatures of
+low-effort AI UI**, and confirm a unified ecosystem theme (text tells + design tells):
+
+- **`blader/humanizer`** — a portable skill detecting **33 AI-writing tells** (significance inflation,
+  copula avoidance "serves as", AI vocabulary "testament/landscape/additionally", em-dash overuse, emoji,
+  chatbot closers, signposting "let's dive in") via multi-pass heuristics. It is the *text* analog of what
+  we want for *UI*, and a downstream text-quality evaluator already draws on it. Model to borrow: a named
+  **taxonomy of tells** + multi-pass detection + distribution as a **portable skill** — the guardrail can
+  ship the same way.
+- **`JCarterJohnson/vibecoded-design-tells`** — mines 3.2M posts for the visual patterns that read as
+  AI/"vibe-coded": **shadcn/Tailwind defaults, "AI purple" gradients, gradient hero text, neon glow,
+  emoji-as-icons, centered-hero-plus-three-cards** — ranked by frequency (a prioritized checklist), with a
+  `devibe_scan.py` scanner. A ready **rule catalog** for a second tier. Honestly: Refarm's own `apps/site`
+  hero (a large heading, a hero-shape) sits near several of these, so a tell-scan grounded in this catalog
+  is a regression net that would flag *our own* surface first — exactly the point.
+
+This yields **two tiers**:
+
+1. **Objective quality (deterministic, pass/fail):** WCAG contrast over every rendered pair, overflow,
+   heading hierarchy, fluid type, token-only.
+2. **Tell detection (heuristic, prioritized warnings):** the vibecoded catalog, surfaced ranked by the
+   community-frequency data — the ecosystem's "does this look AI-made?" signal, not a hard failure.
+
+Extra (good to already have): **`humation-labs/humation`** — a *deterministic, offline, owned* kawaii
+avatar engine (seed → SVG, no AI/API, CSS-var recolor). Tangential to the lint, but its ethos (owned,
+deterministic, offline, no network risk) is the DS/homestead posture — a candidate owned-asset primitive
+so downstream never reaches for an AI avatar service.
+
 ## Boundary
 
 Refarm owns the DS + the guardrail (the quality primitive, distributed). Consumers (vault-seed, POCs)
