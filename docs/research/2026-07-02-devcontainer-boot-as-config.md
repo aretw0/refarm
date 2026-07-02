@@ -49,10 +49,34 @@ watchdogs — one source of truth. The boot lanes should follow the same shape.
   `environmentCeilings` does.
 - **It is refarm being its own interface** — the boot starts from refarm's config, not external to it.
 
+## Beyond boot — the full devcontainer workflow as a primitive
+
+The same convergence covers more than boot. The `farm` helper (`.devcontainer/farm`) — "enter as the dev
+user from a Docker Desktop root terminal" — is a **generic devcontainer-workflow need**: agents-lab has its
+own (`lab`). `farm` mixes generic mechanics (switch to the dev user, with a `node` fallback; assemble the
+shell env — HOME/USER/locale/PATH/package-manager homes; `cd` the workspace; run interactive or a command)
+with project specifics (the `REFARM_*` env, the name, the cargo/rust paths, the locale).
+
+The convergence mirrors the boot:
+
+- **A generic `enter` primitive** (refarm) — user switch + shell-env assembly + workspace `cd` + run. No
+  project strings baked in.
+- **The project env declared in `refarm.config.json`** (`devcontainer.env`) — the helper injects the
+  declared vars, so `REFARM_*` (or any project's vars) come from config, not a hand-written heredoc.
+- **The name via `toolbox`/rebrand** — `farm` / `lab` is a white-label alias of the generic `enter`. This is
+  exactly what refarm's white-label exists for; the per-project name is a rebrand, not a fork.
+
+So the "refarm devcontainer" primitive is a small family — **entrypoint · enter · boot · env** — each
+generic, each configured + named per project. Any consumer (refarm = `farm`, agents-lab = `lab`, a POC = its
+own name) gets the whole Docker-Desktop / any-bring-up workflow **for free**, declaring only its env, its
+lanes, and its name. Today's generic entrypoint + `on-start` split is the first member; `enter`/env are the
+next, and `toolbox` already supplies the naming.
+
 ## Boundary
 
-- The immediate `-x` patch stays (unblocks the current rebuild); this is the direction it converges to.
-- Product-neutral: the config declares lanes generically; no consumer specifics.
+- The immediate `-x` patch (and the generic entrypoint already landed) stay; this is the direction they
+  converge to.
+- Product-neutral: the config declares lanes/env generically; the name is a rebrand; no consumer specifics.
 
 ## Flagged by
 
