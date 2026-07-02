@@ -51,6 +51,8 @@ test("release workflow keeps package publishing opt-in and provenance-scoped", (
 	assert.match(workflow, /if: vars\.RELEASE_AUTOMATION == 'true'/);
 	assert.match(workflow, /vars\.RELEASE_OWNER == '' \|\| github\.repository_owner == vars\.RELEASE_OWNER/);
 	assert.match(workflow, /uses: \.\/\.github\/actions\/setup\n\s+with:\n\s+cache-mode: "off"/);
+	assert.match(workflow, /pnpm --silent run release:vault-seed:plan -- --json/);
+	assert.doesNotMatch(workflow, /scripts\/release-engine\.mjs/);
 	assert.match(workflow, /pnpm run runtime-descriptor:release-smoke -- --sha "\$\{\{ github\.sha \}\}"/);
 	assert.match(workflow, /id: first-publish-guard/);
 	assert.match(workflow, /node scripts\/ci\/check-first-publish-changesets\.mjs --selection vault-seed-ready --soft/);
