@@ -118,13 +118,13 @@ from the vibecoded catalog). One design principle carries over from `samasante/l
 low *effort*, not a banned effect** — tier 2 flags cheap default execution (unaccessible `backdrop-blur`),
 not the effect's name; the check is execution quality (accessibility, performance).
 
-**Adjacent, NOT part of this guardrail** (separate concerns — noted so the influence is placed, not so it
-bleeds into the UI-verification discourse):
+**Adjacent, NOT part of this guardrail** — each placed in its own home, not folded into this discourse:
 
-- `blader/humanizer` — **text** quality: a taxonomy of writing tells shipped as a portable skill. Its own
-  concern (a text evaluator), not a screen check.
-- `samasante/liquid-glass`, `humation-labs/humation` — **owned, deterministic, first-class primitives** (a
-  premium glass surface; an offline avatar engine). A DS/homestead *asset* concern, not verification.
+- `blader/humanizer` — **text** quality (a taxonomy of writing tells). A separate front, served in its own
+  domain, not a screen check.
+- `samasante/liquid-glass`, `humation-labs/humation` — **owned UI primitives** (a DS *asset* front,
+  long-term) →
+  [`2026-07-02-external-reference-owned-ui-primitives.md`](./2026-07-02-external-reference-owned-ui-primitives.md).
 
 ## Boundary
 
