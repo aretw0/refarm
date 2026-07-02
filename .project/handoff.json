@@ -1,32 +1,18 @@
 {
-  "context": "Checkpoint 2026-06-14 (sessão 3 — parte 3). ADR-065 aceita: farmhand transparent lifecycle com auto-start orientado por sessão. Esta rodada validou ambiente de execução no container e concluiu smoke full stack no host: foundation, contracts, runtime e refarm:host:smoke:ci passaram após ajuste semântico do teste de telemetry fail-closed.",
-  "timestamp": "2026-06-14T03:55:00.000Z",
-  "current_phase": 12,
+  "context": "Checkpoint 2026-06-28. Nested process restrictions are now surfaced as explicit direct-run guidance in command-plan results, so agent finish can tell agents to run the failing command directly when managed sandboxes reject nested spawnSync.",
+  "timestamp": "2026-06-28T04:41:57.396Z",
+  "current_phase": "12",
   "current_tasks": [
-    "refarm chat / refarm session / bare refarm → runSessionLaunchFlow() convergência implementada.",
-    "POST /plugins/reload no farmhand via addRouteHandler — tests passing.",
-    "Onboarding first-run + readiness check (providerConfigured, farmhandRunning) implementados.",
-    "init idempotente: guard existsSync(configPath || identityPath) + --force flag. Tests cobrindo re-run e --force.",
-    "Branding cleanup: 'sovereign' removido de logs/CLI, mantido em ADRs/docs com parcimônia.",
-    "ADR-064: TokenAuthError contract — erro de credencial deve carregar provider + reason + rotationUrl para qualquer superfície renderizar graciosamente.",
-    "packages/pi-agent (Rust): 16 ferramentas definidas (read_file, write_file, edit_file, bash, search_files, list_dir, read_structured, write_structured, LSP, sessões). packages/agent-tools: WASM component executando as ferramentas.",
-    "Validação de portas do host concluída no container: project:validate, gate:smoke:foundation, gate:smoke:contracts, gate:smoke:runtime e refarm:host:smoke:ci.",
-    "Smoke CLI ajustado de forma agnóstica: mensagem de telemetry fail-closed alinhada para diagnóstico (runtime-request-failed/telemetry endpoint not available)."
+    "Commit 0b0677b8 fix(cli): explain restricted nested spawns.",
+    "Validation passed: pnpm -C packages/cli run test -- command-plan; pnpm -C packages/cli run type-check; pnpm -C packages/cli run build; timeout 60s refarm agent finish --lane after-edit --run --json returned direct-run guidance; refarm check --next-action --json passed directly.",
+    "Observed sandbox behavior: Node child_process spawnSync may emit EPERM under nested execution even when direct shell commands work; finish now points to the direct command instead of encouraging repeated nested finish retries."
   ],
   "blockers": [],
   "next_actions": [
-    "[EM ANDAMENTO] autoStartFarmhand() em session-launch.ts: LaunchDeps interface, Y/n confirm, spawn detached, poll GET /efforts/summary cada 300ms max 10s. ADR-065 Phase 1.",
-    "[CONCLUÍDO] refarm:host:smoke:ci no container: todos blocos passing após ajuste semântico de texto de erro em telemetry.",
-    "[PRÓXIMO] Verificar farmhand→LLM end-to-end: refarm sow → API key configurada → refarm chat -> resposta LLM real.",
-    "Spinner durante geração no REPL — readline fica mudo enquanto LLM processa.",
-    "Histórico de input (↑) no readline — historySize não configurado.",
-    "TokenAuthError: implementar a classe no layer de credenciais (ADR-064 escrito, não codificado).",
-    "[Phase 2] /sow, /keys como REPL commands — readline pause/resume pattern."
+    "Continue naming audit/split before publish: avoid Refarm-branded terms in SDK surfaces that should be provider/product neutral.",
+    "Return to package readiness/publication lane for vault-seed-ready primitives, using .refarm/handoff for local tarball handoffs."
   ],
-  "open_questions": [
-    "refarm configure github: escopo redefinido — não é gh secret set automático, é diagnóstico de saúde de tokens (expiração Cloudflare via API, GitHub detectável só no 401). ADR-064 cobre o contrato.",
-    "Spinner UX: simples setInterval com chalk, ou integrar com o stream NDJSON para saber quando o LLM começou a responder?"
-  ],
+  "open_questions": [],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
     "DEC-032: produto CLI/host em apps/; packages/ guardam blocos reutilizáveis.",
@@ -36,9 +22,5 @@
     "ADR-064 [ACCEPTED]: TokenAuthError com provider + reason + rotationUrl — produzido na camada de credenciais, renderizado por qualquer superfície.",
     "ADR-065 [ACCEPTED]: Farmhand transparent lifecycle — refarm é o single entry point. Auto-start com Y/n confirm, detached spawn, 300ms poll. LaunchDeps interface para testabilidade."
   ],
-  "files_in_flux": [
-    ".project/handoff.json",
-    ".project/phases/P12-Daily-Driver-TUI.json",
-    ".project/phases/P2-Pipeline.json"
-  ]
+  "files_in_flux": []
 }

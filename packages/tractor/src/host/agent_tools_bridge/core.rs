@@ -518,10 +518,10 @@ fn host_page_json(val: &serde_json::Value, total_bytes: usize, fmt: &str, page_s
 }
 
 
-// ── code-ops (LSP stub — returns "not connected" until LSP bridge is wired) ──
+// ── code-ops (host primitive backed by the generic LSP bridge) ───────────────
 //
-// Stub satisfies the WIT import contract while the LSP subprocess manager is
-// being built (ROADMAP v0.3.0). pi-agent tools degrade gracefully on error.
+// Tractor owns the language-server subprocess lifecycle and exposes code
+// navigation/refactor operations through the plugin host code-ops contract.
 
 #[wasmtime::component::__internal::async_trait]
 impl CodeOpsHost for TractorNativeBindings {

@@ -173,6 +173,162 @@ describe("operator resume", () => {
 		});
 	});
 
+	it("carries repository project handoff context without changing command recovery", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const envelope = buildOperatorResumeEnvelope({
+			status: readyStatus,
+			project: {
+				path: ".project/handoff.json",
+				timestamp: "2026-06-27T05:00:00.000Z",
+				currentPhase: 12,
+				context: "Daily-driver resume checkpoint",
+				currentTasks: ["prove project handoff resume"],
+				blockers: [],
+				nextActions: ["wire project handoff into app resume"],
+				openQuestions: ["when does .project become source of truth?"],
+			},
+		});
+
+		expect(envelope).toMatchObject({
+			project: {
+				path: ".project/handoff.json",
+				currentPhase: 12,
+				currentTasks: ["prove project handoff resume"],
+				nextActions: ["wire project handoff into app resume"],
+			},
+			nextCommands: ["refarm task list --json"],
+		});
+		expect(
+			formatOperatorResumeSummary(
+				buildOperatorResumeSummary({
+					status: readyStatus,
+					project: envelope.project,
+				}),
+			),
+		).toContain("Project handoff: .project/handoff.json phase=12");
+	});
+
+	it("carries scheduled work visibility without turning it into recovery noise", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const scheduledWork = {
+			schemaVersion: 1,
+			owner: "refarm-main",
+			generatedAt: "2026-06-27T10:00:00.000Z",
+			summary: { total: 2, due: 1, scheduled: 1, unsupported: 0 },
+			jobs: [
+				{
+					id: "automation-1:0",
+					automationId: "automation-1",
+					name: "daily handoff",
+					owner: "refarm-main",
+					kind: "one-shot" as const,
+					status: "due" as const,
+					schedule: { type: "once", at: "2026-06-27T09:00:00.000Z" },
+					modelRoute: "none" as const,
+					tokenUse: "none" as const,
+					resume: {
+						visible: true,
+						summary: "daily handoff owned by refarm-main",
+					},
+				},
+				{
+					id: "automation-2:0",
+					automationId: "automation-2",
+					name: "hourly cache refresh",
+					owner: "refarm-main",
+					kind: "recurring" as const,
+					status: "scheduled" as const,
+					schedule: { type: "cron", schedule: "@hourly", timezone: "UTC" },
+					modelRoute: "none" as const,
+					tokenUse: "none" as const,
+				},
+			],
+		};
+		const envelope = buildOperatorResumeEnvelope({
+			status: readyStatus,
+			scheduledWork,
+		});
+
+		expect(envelope).toMatchObject({
+			scheduledWork: {
+				owner: "refarm-main",
+				summary: { total: 2, due: 1, scheduled: 1, unsupported: 0 },
+				jobs: expect.arrayContaining([
+					expect.objectContaining({
+						id: "automation-1:0",
+						status: "due",
+						modelRoute: "none",
+						tokenUse: "none",
+					}),
+				]),
+			},
+			nextCommands: ["refarm task list --json"],
+		});
+		const formatted = formatOperatorResumeSummary(
+			buildOperatorResumeSummary({ status: readyStatus, scheduledWork }),
+		);
+		expect(formatted).toContain(
+			"Scheduled work: 2 local jobs due=1 scheduled=1 unsupported=0",
+		);
+		expect(formatted).toContain(
+			"automation-1:0 due one-shot daily handoff at=2026-06-27T09:00:00.000Z",
+		);
+		expect(formatted).toContain(
+			"automation-2:0 scheduled recurring hourly cache refresh cron=@hourly timezone=UTC",
+		);
+	});
+
+	it("surfaces stop-level environment pressure before normal resume work", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const pressureCommand = "pnpm run clean:rust:check";
+		const environmentPressure = {
+			command: "environment-pressure",
+			operation: "check",
+			ok: false,
+			decision: "stop-and-investigate" as const,
+			nextCommands: [pressureCommand],
+			signals: [
+				{
+					id: "filesystem-free-space",
+					kind: "filesystem",
+					severity: "failure" as const,
+					ok: false,
+					summary: "Workspace filesystem is under disk pressure.",
+					action: "Recover disk headroom before broad builds.",
+					command: pressureCommand,
+				},
+			],
+		};
+		const summary = buildOperatorResumeSummary({
+			status: readyStatus,
+			environmentPressure,
+		});
+
+		expect(operatorResumeNextCommands(summary)).toEqual([]);
+		expect(formatOperatorResumeSummary(summary)).toContain(
+			"Environment pressure: stop-and-investigate (1 signals)",
+		);
+		expect(formatOperatorResumeSummary(summary)).toContain(
+			"command: pnpm run clean:rust:check",
+		);
+		expect(buildOperatorResumeEnvelope({
+			status: readyStatus,
+			environmentPressure,
+		})).toMatchObject({
+			environmentPressure: {
+				decision: "stop-and-investigate",
+				signals: [
+					expect.objectContaining({
+						id: "filesystem-free-space",
+						severity: "failure",
+					}),
+				],
+			},
+			nextCommand: null,
+			nextCommands: [],
+		});
+	});
+
 	it("uses task resume when a checkpoint has resumable work without an active effort", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
@@ -215,7 +371,7 @@ describe("operator resume", () => {
 		expect(operatorResumeNextCommands(summary)).toEqual([]);
 	});
 
-	it("falls back to the latest recent session when the active session is stale", () => {
+	it("keeps recent sessions contextual when the active session is stale", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
 			status: readyStatus,
@@ -232,9 +388,48 @@ describe("operator resume", () => {
 		expect(summary.session.status).toBe("stale");
 		expect(summary.session.showCommand).toBeUndefined();
 		expect(operatorResumeNextCommands(summary)).toEqual([
-			"refarm sessions show ef1234567890 --json",
+			"refarm sessions clear --json",
+			"refarm sessions list --json",
 			"refarm task list --json",
 		]);
+	});
+
+	it("does not suggest recent session handoffs when no session is active", () => {
+		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
+		const envelope = buildOperatorResumeEnvelope({
+			status: readyStatus,
+			recentSessions: [
+				{
+					sessionId: "urn:refarm:session:v1:abcdef1234567890",
+					shortId: "ef1234567890",
+					canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+					hasHistory: true,
+					showCommand: "refarm sessions show ef1234567890 --json",
+					useCommand: "refarm sessions use ef1234567890 --json",
+				},
+			],
+		});
+
+		expect(envelope).toMatchObject({
+			session: {
+				status: "none",
+				recentSessions: [
+					{
+						shortId: "ef1234567890",
+						showCommand: "refarm sessions show ef1234567890 --json",
+					},
+				],
+			},
+			nextCommand: "refarm task list --json",
+			nextCommands: ["refarm task list --json"],
+			nextProcesses: [
+				{
+					command: "refarm",
+					args: ["task", "list", "--json"],
+					display: "refarm task list --json",
+				},
+			],
+		});
 	});
 
 	it("does not invent a session show handoff when the active session is orphaned", () => {

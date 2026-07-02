@@ -34,6 +34,10 @@
 			"types": "./dist/command-result.d.ts",
 			"import": "./dist/command-result.js"
 		},
+		"./capability-index": {
+			"types": "./dist/capability-index.d.ts",
+			"import": "./dist/capability-index.js"
+		},
 		"./command-plan": {
 			"types": "./dist/command-plan.d.ts",
 			"import": "./dist/command-plan.js"
@@ -50,9 +54,17 @@
 			"types": "./dist/operator-resume.d.ts",
 			"import": "./dist/operator-resume.js"
 		},
-		"./launch-process": {
-			"types": "./dist/launch-process.d.ts",
-			"import": "./dist/launch-process.js"
+		"./project-handoff": {
+			"types": "./dist/project-handoff.d.ts",
+			"import": "./dist/project-handoff.js"
+		},
+		"./project-automations": {
+			"types": "./dist/project-automations.d.ts",
+			"import": "./dist/project-automations.js"
+		},
+		"./process-handoff": {
+			"types": "./dist/process-handoff.d.ts",
+			"import": "./dist/process-handoff.js"
 		},
 		"./launch-policy": {
 			"types": "./dist/launch-policy.d.ts",
@@ -74,9 +86,25 @@
 			"types": "./dist/workspace-execution.d.ts",
 			"import": "./dist/workspace-execution.js"
 		},
+		"./interaction-driver": {
+			"types": "./dist/interaction-driver.d.ts",
+			"import": "./dist/interaction-driver.js"
+		},
+		"./worker-profile": {
+			"types": "./dist/worker-profile.d.ts",
+			"import": "./dist/worker-profile.js"
+		},
 		"./workspace-sweep": {
 			"types": "./dist/workspace-sweep.d.ts",
 			"import": "./dist/workspace-sweep.js"
+		},
+		"./chat-repl": {
+			"types": "./dist/chat-repl.d.ts",
+			"import": "./dist/chat-repl.js"
+		},
+		"./chat-history": {
+			"types": "./dist/chat-history.d.ts",
+			"import": "./dist/chat-history.js"
 		}
 	},
 	"scripts": {
@@ -84,7 +112,9 @@
 		"dev": "tsc --project tsconfig.build.json --watch",
 		"lint": "eslint src",
 		"type-check": "tsc --noEmit",
-		"test": "vitest run"
+		"test": "vitest run",
+		"test:worker-profile": "vitest run src/worker-profile.test.ts src/index.test.ts",
+		"test:reference-driver-sdk": "vitest run src/interaction-driver.test.ts src/worker-profile.test.ts src/capability-index.test.ts src/index.test.ts"
 	},
 	"files": [
 		"README.md",
@@ -93,6 +123,8 @@
 		"dist/action-affordances.js",
 		"dist/browser-open.d.ts",
 		"dist/browser-open.js",
+		"dist/capability-index.d.ts",
+		"dist/capability-index.js",
 		"dist/command-handoff.d.ts",
 		"dist/command-handoff.js",
 		"dist/command-line.d.ts",
@@ -109,28 +141,42 @@
 		"dist/github-actions.js",
 		"dist/index.d.ts",
 		"dist/index.js",
+		"dist/interaction-driver.d.ts",
+		"dist/interaction-driver.js",
 		"dist/json-output.d.ts",
 		"dist/json-output.js",
 		"dist/launch-policy.d.ts",
 		"dist/launch-policy.js",
-		"dist/launch-process.d.ts",
-		"dist/launch-process.js",
+		"dist/process-handoff.d.ts",
+		"dist/process-handoff.js",
 		"dist/operator-resume.d.ts",
 		"dist/operator-resume.js",
+		"dist/project-handoff.d.ts",
+		"dist/project-handoff.js",
+		"dist/project-automations.d.ts",
+		"dist/project-automations.js",
 		"dist/rust-substrate.d.ts",
 		"dist/rust-substrate.js",
 		"dist/status.d.ts",
 		"dist/status.js",
 		"dist/workspace-execution.d.ts",
 		"dist/workspace-execution.js",
+		"dist/worker-profile.d.ts",
+		"dist/worker-profile.js",
 		"dist/workspace-sweep.d.ts",
-		"dist/workspace-sweep.js"
+		"dist/workspace-sweep.js",
+		"dist/chat-repl.d.ts",
+		"dist/chat-repl.js",
+		"dist/chat-history.d.ts",
+		"dist/chat-history.js"
 	],
 	"dependencies": {
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
+		"@refarm.dev/process-handoff": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
-		"@refarm.dev/trust": "workspace:*"
+		"@refarm.dev/trust": "workspace:*",
+		"@refarm.dev/windmill": "workspace:*"
 	},
 	"license": "AGPL-3.0-only",
 	"publishConfig": {

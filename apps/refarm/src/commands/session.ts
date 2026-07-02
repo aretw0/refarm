@@ -27,6 +27,7 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 function newSessionId(): string {
@@ -69,7 +70,7 @@ async function _resolveSessionIdPrefixFromSidecar(
 	prefix: string,
 ): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
-	const response = await fetch(sidecarUrl("/sessions"));
+	const response = await fetchSidecarWithTimeout(sidecarUrl("/sessions"));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
 	const body = (await response.json()) as {
 		sessions?: Array<{ "@id": string }>;
@@ -198,7 +199,7 @@ export function createSessionCommand(deps?: ChatDeps): Command {
 				"Notes:",
 				"  Bare refarm runs the same launch flow as refarm session.",
 				"  The launch flow configures credentials when missing and starts the selected runtime when allowed.",
-				"  Inside the REPL, use /help for runtime commands such as /model, /login, and /reload.",
+			"  Inside the REPL, use /help for runtime commands such as /model, /login, /reload, and /r.",
 			].join("\n"),
 		)
 		.argument("[message]", "Initial message to send immediately")

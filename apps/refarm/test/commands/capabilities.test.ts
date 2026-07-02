@@ -1,0 +1,343 @@
+import { describe, expect, it, vi } from "vitest";
+import { createCapabilitiesCommand } from "../../src/commands/capabilities.js";
+
+describe("capabilities command", () => {
+	it("prints the compact capability index as JSON", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync(["--json"], { from: "user" });
+
+		expect(JSON.parse(logs.join("\n"))).toMatchObject({
+			command: "capabilities",
+			operation: "index",
+			ok: true,
+			schemaVersion: 1,
+			count: 11,
+			filter: { tags: [], states: [] },
+			capabilities: expect.arrayContaining([
+				expect.objectContaining({
+					id: "project-handoff.governed",
+					activation: {
+						command: "refarm project handoff validate --json",
+						sdk: "@refarm.dev/cli/project-handoff",
+					},
+				}),
+			]),
+			nextCommands: [],
+		});
+		logSpy.mockRestore();
+	});
+
+	it("filters reference-driver runtime-agent capabilities", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--tag",
+			"reference-driver",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			capabilities: Array<{ id: string }>;
+			count: number;
+		};
+		expect(payload.count).toBe(5);
+		expect(payload.capabilities.map((capability) => capability.id)).toEqual([
+			"runtime-agent.ask",
+			"runtime-agent.worker-profiles",
+			"runtime-agent.session-tree",
+			"runtime-agent.structured-io",
+			"runtime-agent.code-ops",
+		]);
+		logSpy.mockRestore();
+	});
+
+	it("prints reference-driver supply posture for downstream consumers", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--tag",
+			"reference-driver",
+			"--supply",
+			"reference-driver",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			supply: {
+				surface: string;
+				map: {
+					discoverySdk: string;
+					entries: Array<{
+						capabilityId: string;
+						targets: Array<{ export?: string; name: string; status: string }>;
+					}>;
+				};
+			};
+		};
+		expect(payload.supply).toMatchObject({
+			surface: "reference-driver",
+			map: {
+				discoverySdk: "@refarm.dev/cli/capability-index",
+				entries: expect.arrayContaining([
+					expect.objectContaining({
+						capabilityId: "runtime-agent.ask",
+						targets: expect.arrayContaining([
+							expect.objectContaining({
+								export: "@refarm.dev/cli/interaction-driver",
+								name: "@refarm.dev/cli interaction driver",
+								status: "exported",
+							}),
+						]),
+					}),
+					expect.objectContaining({
+						capabilityId: "runtime-agent.worker-profiles",
+						targets: expect.arrayContaining([
+							expect.objectContaining({
+								export: "@refarm.dev/cli",
+								name: "@refarm.dev/cli",
+								status: "exported",
+							}),
+							expect.objectContaining({
+								export: "@refarm.dev/cli/worker-profile",
+								name: "@refarm.dev/cli worker profile SDK",
+								status: "exported",
+							}),
+							expect.objectContaining({
+								export: "@refarm.dev/cli/worker-profile",
+								name: "@refarm.dev/cli worker result envelope",
+								status: "exported",
+							}),
+							expect.objectContaining({
+								name: "worker tool promotion gate",
+								status: "candidate",
+							}),
+						]),
+					}),
+				]),
+			},
+		});
+		logSpy.mockRestore();
+	});
+
+	it("prints reference-driver supply preflight for downstream consumers", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--supply-preflight",
+			"reference-driver",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			supplyPreflight: {
+				surface: string;
+				preflight: {
+					mode: string;
+					publicationBoundary: {
+						discoveryPackage: string;
+						discoverySubpath: string;
+						publicationState: string;
+						consumerInstallPolicy: string;
+						runtimeExecutionState: string;
+					};
+					proofSummary: {
+						blockedTargetCount: number;
+						targetsWithPromotionProofTargets: number;
+						uniquePromotionProofTargetCount: number;
+						targetsWithBudgetContract: number;
+					};
+					promotionQueue: Array<{
+						rank: number;
+						capabilityId: string;
+						status: string;
+						channel: string;
+						name: string;
+						proofTargetCount: number;
+						hasBudgetContract: boolean;
+					}>;
+					summary: Array<{ status: string; count: number }>;
+					targets: Array<{ capabilityId: string; status: string }>;
+					nextDecisions: Array<{ capabilityId: string }>;
+				};
+			};
+		};
+		expect(payload.supplyPreflight).toMatchObject({
+			surface: "reference-driver",
+				preflight: {
+					mode: "plan-only",
+					publicationBoundary: {
+						discoveryPackage: "@refarm.dev/cli",
+						discoverySubpath: "@refarm.dev/cli/capability-index",
+						publicationState: "boundary-review",
+						consumerInstallPolicy: "not-vault-seed-ready",
+						runtimeExecutionState: "private",
+					},
+					summary: [
+						{ status: "candidate", count: 3 },
+					{ status: "internal", count: 3 },
+					{ status: "hold", count: 5 },
+				],
+				proofSummary: {
+					blockedTargetCount: 11,
+					targetsWithPromotionProofTargets: 4,
+					uniquePromotionProofTargetCount: 8,
+					targetsWithBudgetContract: 1,
+				},
+				promotionQueue: expect.arrayContaining([
+					expect.objectContaining({
+						rank: 1,
+						capabilityId: "runtime-agent.ask",
+						status: "candidate",
+						channel: "runtime",
+						name: "runtime-agent ask command",
+						proofTargetCount: 4,
+						hasBudgetContract: false,
+					}),
+					expect.objectContaining({
+						rank: 2,
+						capabilityId: "runtime-agent.worker-profiles",
+						status: "candidate",
+						channel: "runtime",
+						name: "worker tool promotion gate",
+						proofTargetCount: 4,
+						hasBudgetContract: true,
+					}),
+				]),
+			},
+		});
+		expect(
+			payload.supplyPreflight.preflight.targets.map((target) => target.status),
+		).not.toContain("exported");
+		expect(payload.supplyPreflight.preflight.promotionQueue).toHaveLength(11);
+		expect(payload.supplyPreflight.preflight.nextDecisions).toHaveLength(5);
+		logSpy.mockRestore();
+	});
+
+	it("prints a human reference-driver preflight proof summary", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--supply-preflight",
+			"reference-driver",
+		], { from: "user" });
+
+		const output = logs.join("\n");
+		expect(output).toContain("Supply preflight");
+		expect(output).toContain("mode: plan-only; candidate: 3, internal: 3, hold: 5");
+		expect(output).toContain(
+			"boundary: @refarm.dev/cli/capability-index; boundary-review; not-vault-seed-ready; runtime private",
+		);
+		expect(output).toContain(
+			"proofs: blocked targets 11; with proofs 4; unique proof targets 8; budget contracts 1",
+		);
+		expect(output).toContain(
+			"#1 candidate: runtime runtime-agent ask command; proofs 4; budget no",
+		);
+		expect(output).toContain(
+			"#2 candidate: runtime worker tool promotion gate; proofs 4; budget yes",
+		);
+		logSpy.mockRestore();
+	});
+
+	it("filters capabilities by tag", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--tag",
+			"daily-driver",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			capabilities: Array<{ id: string }>;
+			count: number;
+		};
+		expect(payload.count).toBe(2);
+		expect(payload.capabilities.map((capability) => capability.id)).toEqual([
+			"runtime-agent.ask",
+			"stream-observation.ui",
+		]);
+		logSpy.mockRestore();
+	});
+
+	it("filters capabilities by policy state", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--state",
+			"planned",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			capabilities: Array<{ id: string; policy: { state: string } }>;
+			count: number;
+			filter: { states: string[] };
+		};
+		expect(payload.count).toBe(0);
+		expect(payload.filter.states).toEqual(["planned"]);
+		expect(payload.capabilities).toEqual([]);
+		expect(
+			payload.capabilities.every(
+				(capability) => capability.policy.state === "planned",
+			),
+		).toBe(true);
+		logSpy.mockRestore();
+	});
+
+	it("surfaces governed driver primitives as embeddable SDK capabilities", async () => {
+		const logs: string[] = [];
+		const logSpy = vi.spyOn(console, "log").mockImplementation((value) => {
+			logs.push(String(value));
+		});
+
+		await createCapabilitiesCommand().parseAsync([
+			"--state",
+			"governed",
+			"--json",
+		], { from: "user" });
+
+		const payload = JSON.parse(logs.join("\n")) as {
+			capabilities: Array<{ id: string; activation: { sdk?: string } }>;
+		};
+		expect(payload.capabilities).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: "runtime-agent.worker-profiles",
+					activation: {
+						sdk: "@refarm.dev/cli",
+					},
+				}),
+				expect.objectContaining({
+					id: "scheduler.local-jobs",
+					activation: {
+						sdk: "@refarm.dev/windmill/local-scheduler",
+					},
+				}),
+			]),
+		);
+		logSpy.mockRestore();
+	});
+});

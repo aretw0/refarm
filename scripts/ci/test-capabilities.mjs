@@ -9,6 +9,7 @@ const plan = process.argv.includes("--plan");
 const STEPS = [
 	["packages/effort-contract-v1", "test:unit"],
 	["packages/artifact-contract-v1", "test:unit"],
+	["packages/channel-policy-v1", "test:unit"],
 	["packages/automation-contract-v1", "test:unit"],
 	["packages/storage-contract-v1", "test:unit"],
 	["packages/sync-contract-v1", "test:unit"],
@@ -22,6 +23,14 @@ const STEPS = [
 	["packages/sync-loro", "test:conformance"],
 	["packages/sync-crdt", "test:conformance"],
 	["packages/identity-nostr", "test:conformance"],
+	["packages/ds", "test"],
+	["packages/homestead", "test"],
+	["packages/silo", "test"],
+	["packages/dispatch-surface", "test"],
+	["packages/source-contract-v1", "test:unit"],
+	["packages/source-git", "test:conformance"],
+	["packages/source-local", "test:conformance"],
+	["packages/skill-contract-v1", "test:unit"],
 ];
 
 function commandForStep([workspaceDir, script]) {

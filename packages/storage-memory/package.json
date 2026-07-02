@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/storage-memory",
 	"version": "0.1.0",
-	"description": "Volatile in-memory storage primitive for Refarm — perfect for testing and ephemeral sessions",
+	"description": "Volatile in-memory storage:v1 implementation for testing and ephemeral sessions",
 	"type": "module",
 	"repository": {
 		"type": "git",

@@ -2,6 +2,234 @@
 
 Central register for high-impact technical decisions that are pending or recently accepted.
 
+## Work 3 requirements supply activation
+
+**Date**: 2026-06-30
+**Status**: Proposed
+**Spec**: [2026-06-30-work-3-requirements-supply-activation](../specs/features/2026-06-30-work-3-requirements-supply-activation.md)
+**References**: `source:v1`, `artifact-contract-v1`, `@refarm.dev/health/environment-pressure`,
+`docs/ECOSYSTEM_SUPPLY_MAP.md`
+
+**Decision**: requirements-vault POC pressure activates only the neutral Refarm surfaces:
+authenticated web source capture, `enrichment:v1`, a knowledge/content manifest, and cheap
+diagnostics. Accessible-system discovery, target login, selectors, private enrichment providers,
+and domain vocabulary stay downstream. Refarm should prepare package slices and local handoff
+metadata when checks and sanitized proofs exist, but this decision does not publish npm packages or
+promote the private reference-agent runtime.
+
+**Origin**: downstream POC planning needs Refarm and `vault-seed` to publish or hand off the blocks
+that are reusable before project-specific adapters are written. The pressure is valid, but the
+boundary is strict: reusable substrate moves to Refarm; product-vault UX moves to `vault-seed`; the
+private proof keeps only its adapters and vocabulary.
+
+---
+
+## Agent-commons environment ceilings
+
+**Date**: 2026-06-30
+**Status**: Boundary enforcement active after rebuild; sub-slices pending
+**ADR**: [ADR-078](../specs/ADRs/ADR-078-agent-commons-environment-ceilings.md)
+**References**: [ADR-074](../specs/ADRs/ADR-074-remote-workspace-control-plane.md),
+`docs/local-disk-hygiene.md`, `@refarm.dev/health` (`environment-pressure`),
+`validations/extension-sandbox-poc`, `.devcontainer/`
+
+**Decision**: the shared devcontainer enforces resource/identity/tooling ceilings at the runtime
+boundary; inhabitants (coding agents, refarm, its suite) do not self-police. Kernel-enforced cgroup
+v2 ceilings (`pids.max`, `memory.high`/`max`, `cpu.weight`, `memory.min`) are the non-bypassable
+backstop behind the advisory `factory:pressure` signal. The control plane (agent + refarm runtimes)
+runs in a slice separate from the workload plane (builds/tests/suite) so a runaway workload fails
+loudly without taking down its controller or the commons. No actor — including refarm's own suite —
+gets an exemption. This is the local realization of ADR-074's "environment ceilings are part of
+dispatch", ahead of the multi-machine control plane.
+
+**Origin**: 2026-06-30 incident — a pnpm self-managed-version install recursed into a `pnpm add
+pnpm@<v>` fork storm (~328 temp installs, ~4 GB) that stalled the shared devcontainer; the launching
+agent could not react. The doctrine already existed as advisory signals + CI checks
+(`environment-pressure`, `local-disk-hygiene`, `workspace:*:ownership`, `extension-sandbox-poc`) but
+nothing enforced it at runtime. Pointual fix shipped: `.npmrc manage-package-manager-versions=false`
+(`6189da20`). Surfaced by the vault-seed consumer working in the shared container.
+
+**2026-07-01 update**: `.devcontainer/devcontainer.json` now applies Docker cgroup boundary limits
+for the shared runtime after rebuild: 6 GiB memory, no swap above that cap, 4 CPUs, and 1024 PIDs.
+`refarm.config.json` marks the local devcontainer ceiling as `enforced` / `cgroup-v2`, with
+`control` and `workload` maxima calibrated to the 6 GiB boundary. Fine-grained control/workload
+sub-slices still require the root/entrypoint lane.
+
+---
+
+## Silo storage surface free of the identity closure
+
+**Date**: 2026-06-29
+**Status**: Proposed
+**ADR**: [ADR-076](../specs/ADRs/ADR-076-silo-storage-identity-closure-separation.md)
+**References**: [ADR-072](../specs/ADRs/ADR-072-consumer-leaf-distribution-policy.md),
+[`silo bridge spec`](../specs/features/2026-06-26-vault-seed-silo-bridge.md) (Consumer Findings),
+[`packages/silo/ROADMAP.md`](../packages/silo/ROADMAP.md) (pre-publication hardening)
+
+**Decision**: Silo's storage surface (`saveSecret`/`loadSecret`/`listSecrets`/`removeSecret`/tokens)
+must import without the identity/`heartwood` install closure. `heartwood` becomes optional and the
+`.` export stops statically importing `key-manager.js`; identity stays on the `./key-manager`
+subpath. Storage also hardens file permissions (`0600`/`0700`) now, ahead of the post-0.1 OPAQUE
+at-rest encryption. Applies ADR-072's "lightest correct domain" rule *inside* `silo`.
+
+**Origin**: vault-seed consumer proof (first `channel`/`publishing` consumer, item 8a, 2026-06-29).
+The same proof drove the `packages/silo/ROADMAP.md` revision that folds the consumer surface into a
+first-public **0.1.0** and **freezes the consumer API contract**, so OPAQUE and Sentinel evolve
+internals without consumer churn.
+
+---
+
+## Distributed availability evidence proof
+
+**Date**: 2026-06-30
+**Status**: Proof implemented
+**References**: [ADR-075](../specs/ADRs/ADR-075-pears-distributed-runtime-reference.md),
+[`spec`](../specs/features/2026-06-30-distributed-availability-evidence-proof.md),
+[`validations/distributed-availability-evidence`](../validations/distributed-availability-evidence/README.md)
+
+**Decision**: the first Pears-inspired distribution slice is a proof-local evidence harness over
+existing Refarm blocks, not a new runtime/storage dependency. The proof records stable identity,
+update source, rollback target, seed/replica availability policy, release-engine trust evidence,
+and an artifact manifest.
+
+**Boundary**: no public install/update contract, no package extraction, no `apps/refarm` ownership,
+and no Bare/Hypercore/Pears runtime adoption. Promotion requires dogfood or second-consumer
+pressure.
+
+---
+
+## Pears distributed runtime reference
+
+**Date**: 2026-06-30
+**Status**: Accepted
+**ADR**: [ADR-075](../specs/ADRs/ADR-075-pears-distributed-runtime-reference.md)
+**References**: Pears/Holepunch docs, ADR-046, ADR-049, ADR-070, ADR-074
+
+**Decision**: Refarm will use Pears/Holepunch as a distributed runtime reference model:
+portable core, thin platform-specific surfaces, explicit peer/distribution availability, and
+release/update trust evidence. This is an architectural influence, not a dependency decision.
+
+Refarm keeps Tractor, Loro/SQLite, WIT/component boundaries, `dispatch-surface`, and the existing
+package/contract strategy as its implementation path. Bare, Hypercore, Hyperdrive, Corestore,
+Hyperswarm, HyperDHT, and Pear runtime APIs are research references until a focused proof and
+consumer pressure justify more.
+
+**Near-term impact**: continue ADR-074 through the remote workspace proof, grow typed host/core
+seams through task/process/stream/artifact contracts, and add availability/distribution evidence
+before claiming P2P-style install/update reach.
+
+---
+
+## Remote workspace control plane
+
+**Date**: 2026-06-30
+**Status**: Accepted
+**ADR**: [ADR-074](../specs/ADRs/ADR-074-remote-workspace-control-plane.md)
+**References**: `dispatch-surface`, `task-contract-v1`, `session-contract-v1`,
+`process-handoff`, `channel-policy-v1`, `source:v1`, `silo`
+
+**Decision**: Refarm's multi-machine horizon is a remote workspace control plane, not an
+app-local feature and not a Telegram/Matrix/Tailscale-specific protocol. A remote workspace is an
+identity-bound Refarm node that can advertise readiness, accept bounded efforts, stream progress,
+emit artifacts/evidence, and enforce policy/environment ceilings.
+
+PWA, Android, Telegram, Matrix, CLI, and future surfaces are operator surfaces or adapters.
+Tailscale is an expected private-network fixture for personal use, but not the canonical protocol.
+`apps/refarm` may render and operate the topology; reusable control mechanics belong in packages or
+contracts.
+
+**First safe proof**: query a remote node's status, run a bounded read-only check, stream output,
+cancel if needed, and emit artifact/audit evidence. Remote mutation and raw shell remain elevated
+capabilities behind explicit enrollment, policy checks, and environment ceilings.
+
+---
+
+## Capability index incubation boundary
+
+**Date**: 2026-06-30
+**Status**: Accepted
+**ADR**: [ADR-073](../specs/ADRs/ADR-073-capability-index-incubation-boundary.md)
+**References**: `@refarm.dev/cli/capability-index`, [docs/ECOSYSTEM_SUPPLY_MAP.md](ECOSYSTEM_SUPPLY_MAP.md)
+
+**Decision**: the current reference-driver capability index is an incubating operator/discovery
+surface, not the final public owner for every capability concept. Refarm distinguishes:
+
+- **capability registry** — runtime/plugin truth owned by plugin manifests, Barn, Tractor, policy,
+  and future runtime registry work;
+- **supply/readiness index** — release/operator truth about which Refarm primitives are supplyable,
+  blocked, private, or proof-gated;
+- **assimilation map** — downstream planning for `vault-seed` and `agents-lab`, useful but not
+  necessarily a permanent public API.
+
+`@refarm.dev/cli/capability-index` may keep incubating the supply/readiness surface because CLI is
+the current operator entrypoint and dogfood consumer. That subpath remains `boundary-review`, not a
+`vault-seed-ready` leaf. `apps/refarm` may render the data, but must not own capability truth,
+promotion policy, or runtime dispatch.
+
+**Extraction trigger**: promote to a new package such as `@refarm.dev/capability-index` only when a
+second real non-CLI consumer, install-closure pressure, stable CI/release contract pressure, public
+tgz/npm handoff pressure, or reference-driver runtime API pressure proves that CLI is the wrong
+owner.
+
+---
+
+## Consumer leaf distribution policy
+
+**Date**: 2026-06-29
+**Status**: Accepted
+**ADR**: [ADR-072](../specs/ADRs/ADR-072-consumer-leaf-distribution-policy.md)
+**References**: `@refarm.dev/ds/html`, `@refarm.dev/process-handoff`, [docs/ECOSYSTEM_SUPPLY_MAP.md](ECOSYSTEM_SUPPLY_MAP.md), [docs/NAMING_REGISTRY.md](NAMING_REGISTRY.md)
+
+**Decision**: reusable consumer-pulled leaves stay under the lightest correct domain. A parent
+subpath is acceptable only when it does not pull unrelated install closure, license posture, runtime
+dependencies, or release cadence.
+
+**Homestead/DS outcome**: the build-free HTML helpers are DS-owned and canonical at
+`@refarm.dev/ds/html`. `@refarm.dev/homestead-ssr` and `@refarm.dev/homestead/ssr` were removed
+pre-publication so new consumers do not inherit compatibility vocabulary.
+
+**Process outcome**: `@refarm.dev/process-handoff` must not collapse into `@refarm.dev/cli`. The
+preferred breaking rename is `@refarm.dev/process-handoff`, because the package models tokenized
+process specs, runner adaptation, detached execution, and artifact/provenance handoffs.
+
+Note: tree-shaking alone does **not** prune installed dependencies. A single fat package with regular
+`dependencies` on the heavy tier still pulls the whole closure on install, and build-free consumers
+have no bundler pruning. The decoupling has to be package/subpath/peer-dep shaped.
+
+**Explicitly NOT candidates** (separation is justified — do not merge these into subpaths):
+- the `*-contract-v1` family (~17 pkgs) — independently versioned (`:v1` is the point; a single
+  package would force a shared version);
+- `storage-*` (`memory`/`rest`/`sqlite`), `sync-*` (`crdt`/`loro`), `*-stream-transport` — a
+  contract plus *swappable* implementations with heavy native/WASM deps; separate install is the
+  whole point.
+
+---
+
+## `ds/html` documentHtml naming (consumer signal — accepted)
+
+**Date**: 2026-06-29
+**Status**: Accepted (consumer signal — vault-seed, follow-up to ADR-072)
+**References**: [ADR-072](../specs/ADRs/ADR-072-consumer-leaf-distribution-policy.md), `@refarm.dev/ds/html`
+
+**Signal**: ADR-072 correctly moved the build-free DS HTML helpers to `@refarm.dev/ds/html`
+(cohesion — the emitters and the CSS that styles their `ds-*` classes are one contract; splitting
+them across packages is what risks drift). But `@refarm.dev/ds/html` exported `shellHtml`, and
+"shell" is the word ADR-072 reserves for Homestead (*"Homestead owns runtime/shell/studio
+integration"*). The object is right in DS — it is a pure, build-free static HTML document that only
+links the DS stylesheets and sets the theme — but the NAME overloads "shell" and can read as
+Homestead's live app shell.
+
+**Decision**: rename `ds/html`'s `shellHtml` → `documentHtml` — a static DS-wired HTML document —
+keeping "shell" for Homestead's runtime shell. Small and pre-publication; keeps the
+DS↔Homestead boundary crisp. Guardrail: keep `ds/html` strictly presentational (string emitters
+only); if framework renderers arrive later, mirror the subpath convention (`ds/react`, …) with
+`ds/html` as the build-free variant.
+
+No compatibility alias is kept because this surface is still pre-publication and the old name
+preserves the ambiguity ADR-072 is removing.
+
+---
+
 ## Documentation Canonical Layering
 
 **Date**: 2026-06-17
@@ -15,6 +243,26 @@ Central register for high-impact technical decisions that are pending or recentl
 - `docs/ARCHITECTURE.md` / `docs/WORKFLOW.md` (operational and subsystem context)
 
 `docs/superpowers/**` remains a planning/experimental space and should not be treated as the canonical source of long-lived decisions.
+
+---
+
+## Workspace Namespace Policy: Centralized Defaults with Declared Exceptions
+
+**Date**: 2026-06-28
+**Status**: Accepted
+**ADR**: [ADR-071](../specs/ADRs/ADR-071-workspace-namespace-policy.md)
+
+**Decision**: Refarm-owned local state defaults to `.refarm/`, reviewed project policy lives in
+`refarm.config.json`, and additional root-level namespaces such as `.project/`, `.pi-lens/`, or
+plugin-owned directories must be declared with owner, purpose, persistence, and access posture.
+
+**What this means now**:
+- `.project/` remains a compatibility namespace for Pi-style workflow handoffs, not the semantic
+  center of Refarm.
+- The Refarm coding agent should use `.refarm/agents/`, `.refarm/sessions/`, `.refarm/handoff/`,
+  and `.refarm/runtime/` rather than a new root directory.
+- Future `health/check` hardening should audit undeclared namespace drift before broad
+  publication.
 
 ---
 
@@ -163,6 +411,7 @@ provider ecosystem), Rust-core correctness.
 | Native browser permissions as proxy capabilities | ADR-029 | 2026-03-07 | Capabilities as superset of browser native permissions |
 | Astro type-checking in pre-push hooks | (inline) | 2026-03-09 | Added `astro check` to homestead lint/type-check; tsc does not verify `.astro` files |
 | Rust WASM plugin compilation in CI | (inline) | 2026-03-09 | Added Rust toolchain + WASM build steps to test.yml and granular-tests.yml; JCO integration tests require pre-compiled plugin binary |
+| Silo protected secret envelope | ADR-077 | 2026-06-30 | Silo stores namespaced secrets as versioned protection envelopes, reports `local-plaintext-v1` honestly, and leaves OPAQUE/hardware crypto behind the same consumer API |
 
 ---
 

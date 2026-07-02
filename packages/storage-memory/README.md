@@ -1,10 +1,10 @@
-# Refarm Memory Storage (@refarm.dev/storage-memory)
+# @refarm.dev/storage-memory
 
 This is a formal in-memory implementation of the `StorageProvider` (storage:v1) contract. It serves as both a reference implementation for plugin developers and a volatile storage primitive for testing and ephemeral sessions.
 
 ## Role
 
-It implements the `@refarm.dev/storage-contract-v1` and provides a zero-latency, transient storage engine for the microkernel.
+It implements `@refarm.dev/storage-contract-v1` and provides a zero-latency, transient storage engine for host tests, demos, and short-lived sessions.
 
 ## Features
 
@@ -45,7 +45,7 @@ import { MemoryStorage } from "@refarm.dev/storage-memory";
 
 const provider = new MemoryStorage();
 const result = await runStorageV1Conformance(provider);
-console.log(result.pass ? "Conforms! ✅" : "Failed ❌");
+console.log(result.pass ? "conforms" : "failed");
 ```
 
 ## License

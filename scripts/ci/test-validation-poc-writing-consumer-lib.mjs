@@ -91,7 +91,7 @@ describe("validation poc writing consumer", () => {
 		assert.equal(result.stderr, "");
 		assert.deepEqual(JSON.parse(result.stdout), {
 			ok: true,
-			pocCount: 3,
+			pocCount: 4,
 			indexPath: "validations/poc-evidence-index.json",
 			schema: "refarm.validation-poc-evidence-index.v1",
 		});

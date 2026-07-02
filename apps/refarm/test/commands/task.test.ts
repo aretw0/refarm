@@ -97,7 +97,7 @@ describe("refarm task run", () => {
 		taskCommand.outputHelp();
 
 		expect(help).toContain("Manage Refarm runtime task efforts");
-		expect(help).toContain("refarm task run runtime-agent respond");
+		expect(help).toContain("refarm task run agent respond");
 		expect(help).toContain('{"prompt":"hello"}');
 		expect(help).toContain("http transport submits directly");
 		expect(help).toContain("refarm runtime status");
@@ -120,7 +120,8 @@ describe("refarm task run", () => {
 
 		runCommand?.outputHelp();
 
-		expect(help).toContain("refarm task run runtime-agent respond");
+		expect(help).toContain("refarm task run agent respond");
+		expect(help).toContain("refarm task run agent respond --transport http");
 		expect(help).toContain('{"query":"hello"}');
 		expect(help).toContain("http transport submits directly");
 		expect(help).toContain("refarm runtime ensure --wait --next-command");
@@ -420,7 +421,35 @@ describe("refarm task status", () => {
 		statusCommand?.outputHelp();
 
 		expect(help).toContain("refarm task status <effort-id> --watch");
+		expect(help).toContain("--watch-limit");
 		expect(help).toContain("Use the same transport used by task run");
+	});
+
+	it("rejects invalid status watch-limit values before querying adapters", async () => {
+		const adapter = createMockAdapter();
+		const session = createMockSessionRecorder();
+		const resolver = vi.fn(
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
+		);
+		const taskCommand = createTaskCommand(
+			resolver,
+			session as unknown as TaskSessionRecorder,
+		);
+		const statusCommand = taskCommand.commands.find(
+			(command) => command.name() === "status",
+		)!;
+		statusCommand.exitOverride((error) => {
+			throw error;
+		});
+
+		await expect(
+			statusCommand.parseAsync(["effort-abc", "--watch", "--watch-limit", "0"], {
+				from: "user",
+			}),
+		).rejects.toThrow("--watch-limit must be a positive integer.");
+
+		expect(resolver).not.toHaveBeenCalled();
+		expect(adapter.query).not.toHaveBeenCalled();
 	});
 
 	it("prints status and task results when found", async () => {

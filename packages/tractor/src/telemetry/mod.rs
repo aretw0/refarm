@@ -51,7 +51,10 @@ fn mask_sensitive(mut value: serde_json::Value) -> serde_json::Value {
     if let Some(obj) = value.as_object_mut() {
         for key in SENSITIVE_KEYS {
             if obj.contains_key(*key) {
-                obj.insert(key.to_string(), serde_json::Value::String("[REDACTED]".into()));
+                obj.insert(
+                    key.to_string(),
+                    serde_json::Value::String("[REDACTED]".into()),
+                );
             }
         }
     }

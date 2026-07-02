@@ -57,6 +57,12 @@ export interface CronTrigger {
 	timezone?: string;
 }
 
+export interface OneShotTrigger {
+	type: "once";
+	/** ISO-8601 instant for one-shot local scheduling. */
+	at: string;
+}
+
 export interface EventTrigger {
 	type: "event";
 	/** e.g. "effort.completed", "node.created" */
@@ -65,7 +71,11 @@ export interface EventTrigger {
 	filter?: Record<string, unknown>;
 }
 
-export type AutomationTrigger = ManualTrigger | CronTrigger | EventTrigger;
+export type AutomationTrigger =
+	| ManualTrigger
+	| CronTrigger
+	| OneShotTrigger
+	| EventTrigger;
 
 // ── Core artifact type ────────────────────────────────────────────────────────
 

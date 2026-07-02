@@ -21,13 +21,98 @@ Refarm should unlock extension without locking the ecosystem into one runtime. T
 | `desktop`    | native/OS integration             | file watchers, tray/menu actions, platform affordances          | isolated permissions and rollback path exist             |
 | `asset`      | cache/CDN/OPFS                    | themes, templates, dictionaries, model files                    | integrity checked and garbage-collectable                |
 
+## Skills Are Surfaces, Not A Second Plugin System
+
+The distribution unit stays the package/plugin bundle. A package may carry code
+extensions, `SKILL.md` files, guides, references, themes, templates, and other
+assets under one identity. Refarm should not create a parallel skill installer,
+cache, trust registry, or lifecycle just because a skill can also be shipped in
+a package.
+
+The durable boundary is:
+
+- **Package/bundle**: distributes files and metadata (`npm`, crate, tarball,
+  git checkout, or future peer-distributed artifact).
+- **Plugin**: provides executable behavior and host-facing capabilities through
+  the existing manifest, integrity, trust, and lifecycle gates.
+- **Skill**: declares an agent-facing workflow/instruction surface. It is
+  parsed into a policy-checkable manifest, then invoked only by a host or plugin
+  that already has the declared capabilities.
+- **Asset**: carries non-executable payloads such as guides, references, themes,
+  fixtures, templates, or model files.
+
+For the current manifest vocabulary, a skill should be represented as a
+manifest-declared surface, not as an independently installed runtime:
+
+```json
+{
+  "id": "@example/refarm-ops-pack",
+  "entry": "./dist/plugin.mjs",
+  "extensions": {
+    "surfaces": [
+      {
+        "layer": "pi",
+        "kind": "skill",
+        "id": "git-workflow",
+        "assets": ["skills/git-workflow/SKILL.md"],
+        "capabilities": ["refarm.operator-loop", "refarm.git.write"]
+      },
+      { "layer": "asset", "kind": "guide-pack", "id": "git-guides" },
+      { "layer": "asset", "kind": "theme-pack", "id": "ops-themes" }
+    ]
+  }
+}
+```
+
+`@refarm.dev/skill-contract-v1` is therefore a schema/conformance helper for
+the skill surface, not a distribution or execution substrate. The plugin
+manifest/Barn/Scarecrow path still owns install, integrity, provenance,
+capability authorization, denial paths, and promotion. Runtime-agent or
+`pi-agent` may consume a skill surface, but they do not make `SKILL.md` an
+executable artifact by itself.
+
+## Authoring Spaces Before Packaging
+
+Published packages are not the only place where extension work lives. Users and
+projects must be able to keep private, unpublished skills, extensions, guides,
+themes, templates, fixtures, and experiments in an authoring space, then decide
+later whether any of that work should become a package, release, or replicated
+artifact.
+
+The lifecycle is intentionally staged:
+
+1. **User space** — personal drafts and operator-owned tools. These may live
+   under the user's Refarm home or another user-selected local store. They are
+   private by default, mutable, and not a publish contract.
+2. **Project space** — project-scoped skills/extensions/assets used by one
+   workspace. These may live in the project sidecar or checked-in policy area
+   when the project wants them to be part of its normal workflow.
+3. **Package/bundle** — an explicit packaging step turns selected local work
+   into a portable bundle with manifest metadata, hashes, and declared
+   capabilities.
+4. **Release/replication** — a release lane, tarball handoff, registry publish,
+   or peer-distributed availability layer makes the bundle shareable across
+   machines, collaborators, or devices.
+
+Local authoring does not bypass policy. A local skill still needs a
+`SkillManifestV1`-style parse, declared capabilities, source hash, and a host
+decision before invocation. A local executable extension still needs the same
+capability and trust posture as any other plugin candidate. The difference is
+provenance and audience: local source is editable operator/project material;
+packages and releases are shareable contracts.
+
+This keeps the Pears/Holepunch lesson in scope without forcing one transport:
+peer availability is a distribution proof for an already packaged or replicated
+bundle, not a reason to require npm/crates publication and not a reason to make
+draft skills executable by default.
+
 ## Manifest shape direction
 
 The manifest should remain a shared contract, not a runtime implementation. Additive metadata can describe extension surfaces without forcing every host to execute them:
 
 ```json
 {
-  "id": "@aretw0/theme-hub",
+  "id": "@refarm.dev/theme-hub",
   "entry": "./dist/index.mjs",
   "extensions": {
     "surfaces": [
@@ -160,7 +245,7 @@ or custom elements rather than a hand-rolled React substitute.
 ## Daily-driver order of attack
 
 1. **UI stream renderer** — first `homestead`/UI consumer of generic `StreamSession` and `StreamChunk` views. Initial statusbar, richer stream panel, slot-level capability gate, plugin-provided render hook, render-mode diagnostics, and a host-owned surface context/actions contract landed; next step is deeper runtime trust checks and real registered plugin flow.
-2. **Project memory surface** — durable `.project`/graph-backed work state usable across sessions.
+2. **Project memory surface** — declared project-memory namespace or graph-backed work state usable across sessions; `.project` remains the current compatibility surface per ADR-071.
 3. **Automation surface** — reminders/scheduled checks with explicit ownership and retry rules.
 4. **Plugin management surface** — install/list/remove plugins with SHA-256 validation and OPFS cache visibility.
 5. **Multi-surface examples** — at least one plugin that combines UI + automation + assets without violating schema-neutral sync.

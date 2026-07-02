@@ -1,0 +1,147 @@
+{
+  "schema": "refarm.toolless-orchestrator.proof.v1",
+  "createdAt": "2026-07-01T00:00:00.000Z",
+  "sourceTruth": {
+    "schema": "refarm.toolless-orchestrator.source-truth.v1",
+    "sourceRef": "source-fixture://toolless-orchestrator/workspace-status.json",
+    "mediaType": "application/json",
+    "body": "{\n  \"id\": \"source-fixture:bounded-workspace-status\",\n  \"status\": \"ready\",\n  \"message\": \"Bounded actor observed the source without operator keys.\"\n}",
+    "hash": {
+      "algorithm": "sha256",
+      "value": "30c452d05dab93e88bfcfb9469890a243dd9b7c904bc73d86ccea6d0e9bc10c4"
+    }
+  },
+  "conductor": {
+    "id": "farmhand-conductor-fixture",
+    "role": "plan-delegate-verify",
+    "holdsOperatorKeys": true,
+    "environmentToolCapabilities": [],
+    "allowedActions": [
+      "delegate",
+      "verify-evidence",
+      "decide"
+    ],
+    "forbiddenActions": [
+      "source-read",
+      "bounded-process",
+      "network-egress",
+      "filesystem-write"
+    ]
+  },
+  "actor": {
+    "id": "keyless-workspace-actor-fixture",
+    "role": "bounded-environment-worker",
+    "holdsOperatorKeys": false,
+    "keyless": true,
+    "environmentToolCapabilities": [
+      "source-read",
+      "bounded-process"
+    ],
+    "policy": {
+      "allowedSourceRefs": [
+        "source-fixture://toolless-orchestrator/workspace-status.json"
+      ],
+      "allowedCommands": [
+        "observe-source-hash"
+      ],
+      "egress": "none",
+      "maxElapsedMs": 1000
+    }
+  },
+  "request": {
+    "schema": "refarm.toolless-orchestrator.delegation-request.v1",
+    "id": "delegation:workspace-status:001",
+    "sourceRef": "source-fixture://toolless-orchestrator/workspace-status.json",
+    "command": "observe-source-hash",
+    "requestedCapabilities": [
+      "source-read"
+    ],
+    "secretMaterialProvided": false,
+    "evidenceContract": "fenced-observation-with-source-hash"
+  },
+  "evidence": {
+    "schema": "refarm.toolless-orchestrator.fenced-evidence.v1",
+    "producer": "keyless-workspace-actor-fixture",
+    "actorKeyless": true,
+    "includes": [
+      "tool-observation",
+      "source-hash-evidence"
+    ],
+    "excludes": [
+      "operator-keys",
+      "ambient-shell",
+      "unbounded-egress"
+    ],
+    "rawEvidence": {
+      "uri": "toolless-orchestrator.raw.ndjson",
+      "mediaType": "application/x-ndjson",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "2758f1458ba05ef86fe271061c805a7b48dfbb866a88d0d847f80219428170a6"
+      },
+      "retention": "local-proof-artifact"
+    },
+    "compactView": {
+      "summary": "Keyless actor observed bounded source evidence.",
+      "rawEvidenceRecoverable": true,
+      "compactViewIsTruth": false
+    },
+    "observed": {
+      "sourceRef": "source-fixture://toolless-orchestrator/workspace-status.json",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "30c452d05dab93e88bfcfb9469890a243dd9b7c904bc73d86ccea6d0e9bc10c4"
+      },
+      "command": "observe-source-hash",
+      "exitCode": 0
+    }
+  },
+  "decision": {
+    "schema": "refarm.toolless-orchestrator.conductor-decision.v1",
+    "state": "completed",
+    "claim": "delegated-work-verified",
+    "checks": [
+      {
+        "id": "conductor-has-no-environment-tools",
+        "ok": true
+      },
+      {
+        "id": "actor-is-keyless",
+        "ok": true
+      },
+      {
+        "id": "request-carries-no-secret-material",
+        "ok": true
+      },
+      {
+        "id": "requested-capabilities-are-actor-bounded",
+        "ok": true
+      },
+      {
+        "id": "fenced-evidence-excludes-keys-and-ambient-shell",
+        "ok": true
+      },
+      {
+        "id": "source-hash-reobserved",
+        "ok": true
+      },
+      {
+        "id": "compact-view-is-not-truth",
+        "ok": true
+      }
+    ]
+  },
+  "boundary": {
+    "packageExtraction": false,
+    "runtimeMutation": false,
+    "appOwnedPolicy": false,
+    "globalShellProxy": false,
+    "publicApi": false,
+    "candidateHomes": [
+      "pi-agent/farmhand runtime conductor",
+      "process-handoff",
+      "environment ceilings",
+      "future worker/session contracts"
+    ]
+  }
+}

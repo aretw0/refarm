@@ -108,9 +108,8 @@ commands an operator agent can execute directly:
 
 When adding or changing JSON output in `apps/refarm`, prefer the shared helpers
 in `apps/refarm/src/commands/json-output.ts` and command construction helpers in
-`apps/refarm/src/commands/command-handoff.ts`. Tests should assert both the
-human-facing intent and the executable command when a flow is meant to be
-agent-driven.
+`@refarm.dev/cli/command-handoff`. Tests should assert both the human-facing
+intent and the executable command when a flow is meant to be agent-driven.
 
 Run the contract test when touching public JSON handoffs:
 
@@ -128,9 +127,11 @@ plugin, provision, renderer, package manager, tree, check, doctor, guide,
 headless, health, init, resume, runtime, sessions, sow, task, telemetry, and
 tidy commands.
 
-Keep normalization centralized. `command-handoff.ts` owns trimming, empty-value
-filtering, and deduplication for handoff lists. JSON emitters and command-result
-readers should reuse that helper instead of open-coding their own list cleanup.
+Keep normalization centralized. `@refarm.dev/cli/command-handoff` owns trimming,
+empty-value filtering, and deduplication for handoff lists. JSON emitters and
+command-result readers should reuse that helper instead of open-coding their own
+list cleanup. `apps/refarm/src/commands/command-handoff.ts` remains only as a
+deprecated compatibility shim.
 
 Command runners that consume Refarm JSON should parse through
 `apps/refarm/src/commands/command-result.ts`. The parser accepts pure JSON first
@@ -186,7 +187,7 @@ agents do not need to infer the default finish path from the command catalog:
 - `afterCommit`: most-recent-commit validation after atomic commits;
 - `beforePush`: final branch-local validation against upstream;
 - `handoffs`: public JSON handoff contract validation;
-- `agentE2eMock`: no-token runtime-agent/ask e2e smoke;
+- `agentE2eMock`: no-token agent/ask e2e smoke;
 - `withPackageTests`: opt-in package tests when the slice requires them.
 
 The same names can be passed to `refarm agent finish --lane <name>` as stable
@@ -224,9 +225,10 @@ most recent commit (`HEAD~1..HEAD`) so docs-only and small commits stay cheap:
 refarm agent finish --lane after-commit --run --json
 ```
 
-For runtime, model routing, runtime-agent, or `ask` execution-plane changes, use the
-explicit no-token e2e lane when you need the proof outside of `affected`
-selection:
+For runtime, model routing, runtime agent, or `ask` execution-plane changes, use
+the explicit no-token e2e lane when you need the full execution-plane proof. This
+lane may rebuild WASM and start an isolated runtime, so it is intentionally not
+part of the default `after-commit` lane:
 
 ```bash
 refarm agent finish --lane agent-e2e-mock --run --json
@@ -244,7 +246,9 @@ refarm agent finish --lane before-push --run --json
 Keep package tests explicit. Add `--include-tests` when the slice needs package
 test scripts in addition to the default `type-check`, `lint`, and `build`
 scripts. This keeps the normal affected profile fast enough for frequent agent
-handoffs while preserving a deterministic test path.
+handoffs while preserving a deterministic test path. Heavy affected script
+checks, including `refarm:agent:e2e:mock`, are only inferred when tests are
+explicitly requested.
 
 Each plan step declares an `effect`:
 

@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockProvision, mockLoadTokens, mockWriteFileSync } = vi.hoisted(() => ({
   mockProvision: vi.fn().mockResolvedValue({
-    REFARM_GITHUB_TOKEN: "ghp_test",
-    REFARM_CLOUDFLARE_API_TOKEN: undefined,
+    GITHUB_TOKEN: "ghp_test",
+    CLOUDFLARE_API_TOKEN: undefined,
   }),
   mockLoadTokens: vi.fn().mockResolvedValue({
     modelProvider: "openai",

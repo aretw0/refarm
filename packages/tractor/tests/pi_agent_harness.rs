@@ -1,3 +1,5 @@
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
 /// Pi-agent integration harness — "let the plugin be the plugin."
 ///
 /// Runs the real pi_agent.wasm via PluginHost. Only the LLM HTTP boundary is
@@ -16,8 +18,6 @@
 ///   so tests acquire ENV_LOCK before mutating them to prevent cross-test leakage.
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
-use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
 use tractor::host::{PluginHost, PluginInstanceHandle};
 use tractor::trust::TrustManager;
 use tractor::{NativeStorage, NativeSync, TelemetryBus};
@@ -31,12 +31,10 @@ static WASM_PATH: OnceLock<PathBuf> = OnceLock::new();
 /// When CARGO_TARGET_DIR is set (e.g. devcontainer volume), all cargo outputs land
 /// there instead of each package's own target/ subdirectory.
 fn wasm_path() -> &'static Path {
-    WASM_PATH.get_or_init(|| {
-        match std::env::var("CARGO_TARGET_DIR") {
-            Ok(dir) => PathBuf::from(dir).join("wasm32-wasip1/release/pi_agent.wasm"),
-            Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("../pi-agent/target/wasm32-wasip1/release/pi_agent.wasm"),
-        }
+    WASM_PATH.get_or_init(|| match std::env::var("CARGO_TARGET_DIR") {
+        Ok(dir) => PathBuf::from(dir).join("wasm32-wasip1/release/pi_agent.wasm"),
+        Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../pi-agent/target/wasm32-wasip1/release/pi_agent.wasm"),
     })
 }
 
@@ -146,7 +144,11 @@ async fn mock_sse_llm_server_sequence_capturing(
     std::thread::spawn(move || {
         let mut idx = 0usize;
         while let Ok((mut stream, _)) = listener.accept() {
-            let body = bodies.get(idx).or_else(|| bodies.last()).copied().unwrap_or("");
+            let body = bodies
+                .get(idx)
+                .or_else(|| bodies.last())
+                .copied()
+                .unwrap_or("");
             idx = (idx + 1).min(bodies.len().saturating_sub(1) + 1);
             if let Ok(buf) = read_http_request(&mut stream) {
                 if let Some(sep) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
@@ -214,14 +216,30 @@ fn write_sse_http_response(stream: &mut TcpStream, body: &str) -> std::io::Resul
 
 /// Clear all env vars touched by the harness to prevent cross-test leakage.
 fn clean_llm_env() {
-    for var in ["LLM_PROVIDER","LLM_BASE_URL","LLM_MODEL","LLM_HISTORY_TURNS",
-                "MODEL_FS_ROOT","MODEL_SHELL_ALLOWLIST",
-                "LLM_MAX_CONTEXT_TOKENS","LLM_FALLBACK_PROVIDER",
-                "LLM_BUDGET_OLLAMA_USD","LLM_BUDGET_ANTHROPIC_USD","LLM_BUDGET_OPENAI_USD",
-                "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES","LLM_STREAM_RESPONSES","LLM_SYSTEM",
-                "LLM_AGENT_ID","LLM_SESSION_ID","LLM_TASK_MEMORY",
-                "REFACTOR_LSP_CMD","REFACTOR_LSP_RUST_ANALYZER_CMD",
-                "ANTHROPIC_API_KEY","OPENAI_API_KEY"] {
+    for var in [
+        "LLM_PROVIDER",
+        "LLM_BASE_URL",
+        "LLM_MODEL",
+        "LLM_HISTORY_TURNS",
+        "MODEL_FS_ROOT",
+        "MODEL_SHELL_ALLOWLIST",
+        "LLM_MAX_CONTEXT_TOKENS",
+        "LLM_FALLBACK_PROVIDER",
+        "LLM_BUDGET_OLLAMA_USD",
+        "LLM_BUDGET_ANTHROPIC_USD",
+        "LLM_BUDGET_OPENAI_USD",
+        "LLM_TOOL_CALL_MAX_ITER",
+        "LLM_TOOL_OUTPUT_MAX_LINES",
+        "LLM_STREAM_RESPONSES",
+        "LLM_SYSTEM",
+        "LLM_AGENT_ID",
+        "LLM_SESSION_ID",
+        "LLM_TASK_MEMORY",
+        "REFACTOR_LSP_CMD",
+        "REFACTOR_LSP_RUST_ANALYZER_CMD",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+    ] {
         std::env::remove_var(var);
     }
 }
@@ -321,7 +339,10 @@ while True:
 async fn harness_agent_response_stored_in_crdt() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found — run: cargo component build --release");
+    assert!(
+        path.exists(),
+        "pi_agent.wasm not found — run: cargo component build --release"
+    );
 
     clean_llm_env();
     let port = mock_llm_server(openai_response("Olá do harness!", 12, 6)).await;
@@ -334,14 +355,22 @@ async fn harness_agent_response_stored_in_crdt() {
 
     call_on_event_with_timeout(&mut handle, "oi", "agent response harness").await;
 
-    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
-    assert!(!nodes.is_empty(), "AgentResponse must be stored after on_event");
+    let nodes = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
+    assert!(
+        !nodes.is_empty(),
+        "AgentResponse must be stored after on_event"
+    );
 
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
     assert_eq!(v["@type"], "AgentResponse");
     assert_eq!(v["content"], "Olá do harness!");
     assert_eq!(v["is_final"], true);
-    assert!(v["timestamp_ns"].as_u64().unwrap_or(0) > 0, "timestamp_ns must be set");
+    assert!(
+        v["timestamp_ns"].as_u64().unwrap_or(0) > 0,
+        "timestamp_ns must be set"
+    );
 
     clean_llm_env();
 }
@@ -351,7 +380,10 @@ async fn harness_agent_response_stored_in_crdt() {
 async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found — run: cargo component build --release");
+    assert!(
+        path.exists(),
+        "pi_agent.wasm not found — run: cargo component build --release"
+    );
 
     clean_llm_env();
     let port = mock_llm_server(openai_response("task lifecycle ok", 14, 7)).await;
@@ -362,32 +394,59 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    call_on_event_with_timeout(&mut handle, "check task recording", "task lifecycle harness").await;
+    call_on_event_with_timeout(
+        &mut handle,
+        "check task recording",
+        "task lifecycle harness",
+    )
+    .await;
 
     // ── Task node ─────────────────────────────────────────────────────────────
     let task_nodes = sync.query_nodes("Task").expect("query Task");
-    assert_eq!(task_nodes.len(), 1, "exactly one Task node must be stored per prompt");
+    assert_eq!(
+        task_nodes.len(),
+        1,
+        "exactly one Task node must be stored per prompt"
+    );
 
     let task: serde_json::Value = serde_json::from_str(&task_nodes[0].payload).unwrap();
     assert_eq!(task["@type"], "Task", "@type must be Task");
     assert!(
-        task["@id"].as_str().unwrap_or("").starts_with("urn:refarm:task:v1:"),
+        task["@id"]
+            .as_str()
+            .unwrap_or("")
+            .starts_with("urn:refarm:task:v1:"),
         "@id must follow task URN scheme, got: {}",
         task["@id"]
     );
-    assert_eq!(task["status"], "done", "task must be closed as done after a normal LLM response");
-    assert_eq!(task["title"], "check task recording", "title must be first line of prompt");
+    assert_eq!(
+        task["status"], "done",
+        "task must be closed as done after a normal LLM response"
+    );
+    assert_eq!(
+        task["title"], "check task recording",
+        "title must be first line of prompt"
+    );
     assert!(
-        task["context_id"].as_str().unwrap_or("").starts_with("urn:refarm:session"),
+        task["context_id"]
+            .as_str()
+            .unwrap_or("")
+            .starts_with("urn:refarm:session"),
         "context_id must reference the session URN, got: {}",
         task["context_id"]
     );
-    assert_eq!(task["assigned_to"], "urn:refarm:agent:runtime-agent",
-        "assigned_to must default to runtime-agent actor URN when LLM_AGENT_ID is unset");
+    assert_eq!(
+        task["assigned_to"], "urn:refarm:agent:runtime-agent",
+        "assigned_to must default to runtime-agent actor URN when LLM_AGENT_ID is unset"
+    );
 
     // ── TaskEvent nodes ───────────────────────────────────────────────────────
     let event_nodes = sync.query_nodes("TaskEvent").expect("query TaskEvent");
-    assert_eq!(event_nodes.len(), 2, "exactly two TaskEvents expected: created + status_changed");
+    assert_eq!(
+        event_nodes.len(),
+        2,
+        "exactly two TaskEvents expected: created + status_changed"
+    );
 
     let events: Vec<serde_json::Value> = event_nodes
         .iter()
@@ -396,22 +455,40 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
 
     let task_id = task["@id"].as_str().unwrap();
 
-    let created = events.iter().find(|e| e["event"] == "created")
+    let created = events
+        .iter()
+        .find(|e| e["event"] == "created")
         .expect("TaskEvent with event=created not found");
     assert_eq!(created["@type"], "TaskEvent");
-    assert_eq!(created["task_id"], task_id, "created event must reference the Task");
+    assert_eq!(
+        created["task_id"], task_id,
+        "created event must reference the Task"
+    );
     assert_eq!(created["payload"]["source"], "pi-agent.respond");
 
-    let closed = events.iter().find(|e| e["event"] == "status_changed")
+    let closed = events
+        .iter()
+        .find(|e| e["event"] == "status_changed")
         .expect("TaskEvent with event=status_changed not found");
-    assert_eq!(closed["task_id"], task_id, "status_changed event must reference the Task");
+    assert_eq!(
+        closed["task_id"], task_id,
+        "status_changed event must reference the Task"
+    );
     assert_eq!(closed["payload"]["status"], "done");
-    assert_eq!(closed["payload"]["tokens_in"].as_u64().unwrap_or(0), 14,
-        "tokens_in must match mock LLM response");
-    assert_eq!(closed["payload"]["tokens_out"].as_u64().unwrap_or(0), 7,
-        "tokens_out must match mock LLM response");
-    assert!(!closed["payload"]["model"].as_str().unwrap_or("").is_empty(),
-        "model must be recorded in the closing event");
+    assert_eq!(
+        closed["payload"]["tokens_in"].as_u64().unwrap_or(0),
+        14,
+        "tokens_in must match mock LLM response"
+    );
+    assert_eq!(
+        closed["payload"]["tokens_out"].as_u64().unwrap_or(0),
+        7,
+        "tokens_out must match mock LLM response"
+    );
+    assert!(
+        !closed["payload"]["model"].as_str().unwrap_or("").is_empty(),
+        "model must be recorded in the closing event"
+    );
 
     clean_llm_env();
 }
@@ -421,7 +498,10 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
 async fn harness_task_memory_disabled_stores_no_task_nodes() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found — run: cargo component build --release");
+    assert!(
+        path.exists(),
+        "pi_agent.wasm not found — run: cargo component build --release"
+    );
 
     clean_llm_env();
     let port = mock_llm_server(openai_response("reply when task memory is off", 8, 4)).await;
@@ -433,17 +513,33 @@ async fn harness_task_memory_disabled_stores_no_task_nodes() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    call_on_event_with_timeout(&mut handle, "prompt with task memory off", "task memory disabled harness").await;
+    call_on_event_with_timeout(
+        &mut handle,
+        "prompt with task memory off",
+        "task memory disabled harness",
+    )
+    .await;
 
     // AgentResponse must still be stored — only the Task/TaskEvent layer is skipped.
-    let responses = sync.query_nodes("AgentResponse").expect("query AgentResponse");
-    assert!(!responses.is_empty(), "AgentResponse must still be stored regardless of LLM_TASK_MEMORY");
+    let responses = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
+    assert!(
+        !responses.is_empty(),
+        "AgentResponse must still be stored regardless of LLM_TASK_MEMORY"
+    );
 
     let tasks = sync.query_nodes("Task").expect("query Task");
-    assert!(tasks.is_empty(), "no Task nodes must be stored when LLM_TASK_MEMORY=0");
+    assert!(
+        tasks.is_empty(),
+        "no Task nodes must be stored when LLM_TASK_MEMORY=0"
+    );
 
     let events = sync.query_nodes("TaskEvent").expect("query TaskEvent");
-    assert!(events.is_empty(), "no TaskEvent nodes must be stored when LLM_TASK_MEMORY=0");
+    assert!(
+        events.is_empty(),
+        "no TaskEvent nodes must be stored when LLM_TASK_MEMORY=0"
+    );
 
     clean_llm_env();
 }
@@ -453,7 +549,10 @@ async fn harness_task_memory_disabled_stores_no_task_nodes() {
 async fn harness_streaming_opt_in_stores_partials_and_final_response() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found — run: cargo component build --release");
+    assert!(
+        path.exists(),
+        "pi_agent.wasm not found — run: cargo component build --release"
+    );
 
     clean_llm_env();
     let (port, mut requests) = mock_sse_llm_server_capturing(
@@ -507,7 +606,11 @@ data: [DONE]
         .map(|row| serde_json::from_str(&row.payload).unwrap())
         .collect();
     stream_chunks.sort_by_key(|payload| payload["sequence"].as_u64().unwrap_or(u64::MAX));
-    assert_eq!(stream_chunks.len(), 3, "two partial chunks plus final marker");
+    assert_eq!(
+        stream_chunks.len(),
+        3,
+        "two partial chunks plus final marker"
+    );
     assert_eq!(stream_chunks[0]["content"], "Olá ");
     assert_eq!(stream_chunks[0]["is_final"], false);
     assert_eq!(stream_chunks[1]["content"], "stream");
@@ -528,7 +631,11 @@ data: [DONE]
     assert_eq!(session["metadata"]["projection"], "AgentResponse");
 
     let usage_records = sync.query_nodes("UsageRecord").expect("query UsageRecord");
-    assert_eq!(usage_records.len(), 1, "streaming final body should preserve usage");
+    assert_eq!(
+        usage_records.len(),
+        1,
+        "streaming final body should preserve usage"
+    );
     let usage: serde_json::Value = serde_json::from_str(&usage_records[0].payload).unwrap();
     assert_eq!(usage["tokens_in"], 13);
     assert_eq!(usage["tokens_out"], 5);
@@ -541,7 +648,10 @@ data: [DONE]
 async fn harness_streaming_tool_call_round_trip_still_completes() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found — run: cargo component build --release");
+    assert!(
+        path.exists(),
+        "pi_agent.wasm not found — run: cargo component build --release"
+    );
 
     clean_llm_env();
     let (port, mut requests) = mock_sse_llm_server_sequence_capturing(vec![
@@ -569,12 +679,20 @@ data: [DONE]
 
     call_on_event_with_timeout(&mut handle, "run echo", "streaming tool harness").await;
 
-    let first_request = requests.recv().await.expect("captured first provider request");
-    let second_request = requests.recv().await.expect("captured second provider request");
+    let first_request = requests
+        .recv()
+        .await
+        .expect("captured first provider request");
+    let second_request = requests
+        .recv()
+        .await
+        .expect("captured second provider request");
     assert_eq!(first_request["stream"], true);
     assert_eq!(second_request["stream"], true);
 
-    let responses = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    let responses = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
     let final_response: serde_json::Value = responses
         .iter()
         .map(|row| serde_json::from_str(&row.payload).unwrap())
@@ -613,8 +731,11 @@ async fn harness_usage_record_stored_with_tokens() {
     assert_eq!(v["provider"], "ollama");
     assert_eq!(v["tokens_in"].as_u64().unwrap_or(0), 20);
     assert_eq!(v["tokens_out"].as_u64().unwrap_or(0), 10);
-    assert_eq!(v["estimated_usd"].as_f64().unwrap_or(1.0), 0.0,
-        "local/ollama models must have zero estimated cost");
+    assert_eq!(
+        v["estimated_usd"].as_f64().unwrap_or(1.0),
+        0.0,
+        "local/ollama models must have zero estimated cost"
+    );
 
     clean_llm_env();
 }
@@ -640,13 +761,20 @@ async fn harness_context_guard_blocks_oversized_prompt() {
     )
     .await;
 
-    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
-    assert!(!nodes.is_empty(), "blocked prompt must still produce AgentResponse");
+    let nodes = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
+    assert!(
+        !nodes.is_empty(),
+        "blocked prompt must still produce AgentResponse"
+    );
 
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
     let content = v["content"].as_str().unwrap_or("");
-    assert!(content.contains("LLM_MAX_CONTEXT_TOKENS"),
-        "blocked response must name the guard: {content}");
+    assert!(
+        content.contains("LLM_MAX_CONTEXT_TOKENS"),
+        "blocked response must name the guard: {content}"
+    );
 
     clean_llm_env();
 }
@@ -673,13 +801,20 @@ async fn harness_budget_block_falls_through_to_error_without_fallback() {
     )
     .await;
 
-    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
-    assert!(!nodes.is_empty(), "budget block must store AgentResponse with error");
+    let nodes = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
+    assert!(
+        !nodes.is_empty(),
+        "budget block must store AgentResponse with error"
+    );
 
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
     let content = v["content"].as_str().unwrap_or("");
-    assert!(content.contains("budget") || content.contains("erro"),
-        "budget block content must describe the block: {content}");
+    assert!(
+        content.contains("budget") || content.contains("erro"),
+        "budget block content must describe the block: {content}"
+    );
 
     clean_llm_env();
 }
@@ -730,16 +865,28 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
 
     call_on_event_with_timeout(&mut handle, "run echo", "tool-use harness").await;
 
-    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    let nodes = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
     assert!(!nodes.is_empty());
 
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
-    assert_eq!(v["content"], "tool executed",
-        "final LLM text must be stored after tool loop");
+    assert_eq!(
+        v["content"], "tool executed",
+        "final LLM text must be stored after tool loop"
+    );
 
-    let tool_calls = v["tool_calls"].as_array().expect("tool_calls must be array");
-    assert!(!tool_calls.is_empty(), "at least one tool call must be logged in AgentResponse");
-    assert_eq!(tool_calls[0]["name"], "bash", "tool name must match what LLM requested");
+    let tool_calls = v["tool_calls"]
+        .as_array()
+        .expect("tool_calls must be array");
+    assert!(
+        !tool_calls.is_empty(),
+        "at least one tool call must be logged in AgentResponse"
+    );
+    assert_eq!(
+        tool_calls[0]["name"], "bash",
+        "tool name must match what LLM requested"
+    );
 
     clean_llm_env();
 }
@@ -795,7 +942,10 @@ async fn harness_find_references_tool_reads_lsp_locations() {
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
     std::env::set_var("LLM_PROVIDER", "ollama");
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
-    std::env::set_var("REFACTOR_LSP_CMD", format!("python3 {}", fake_lsp.display()));
+    std::env::set_var(
+        "REFACTOR_LSP_CMD",
+        format!("python3 {}", fake_lsp.display()),
+    );
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
@@ -808,14 +958,25 @@ async fn harness_find_references_tool_reads_lsp_locations() {
     )
     .await;
 
-    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    let nodes = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
     assert!(!nodes.is_empty());
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
     assert_eq!(v["content"], "references found");
     let result = v["tool_calls"][0]["result"].as_str().unwrap_or("");
-    assert!(result.contains("\"kind\": \"reference\""), "missing reference kind: {result}");
-    assert!(result.contains("\"line\": 1"), "missing 1-based line: {result}");
-    assert!(result.contains("\"column\": 5"), "missing 1-based column: {result}");
+    assert!(
+        result.contains("\"kind\": \"reference\""),
+        "missing reference kind: {result}"
+    );
+    assert!(
+        result.contains("\"line\": 1"),
+        "missing 1-based line: {result}"
+    );
+    assert!(
+        result.contains("\"column\": 5"),
+        "missing 1-based column: {result}"
+    );
 
     clean_llm_env();
 }
@@ -844,7 +1005,8 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
         "line": 1,
         "column": 5,
         "new_name": "new_name"
-    }).to_string();
+    })
+    .to_string();
     let tool_call_resp = serde_json::json!({
         "id": "harness-rename",
         "object": "chat.completion",
@@ -871,7 +1033,10 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
     std::env::set_var("LLM_PROVIDER", "ollama");
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
-    std::env::set_var("REFACTOR_LSP_CMD", format!("python3 {}", fake_lsp.display()));
+    std::env::set_var(
+        "REFACTOR_LSP_CMD",
+        format!("python3 {}", fake_lsp.display()),
+    );
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
@@ -884,8 +1049,13 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
     )
     .await;
 
-    assert_eq!(std::fs::read_to_string(&source).unwrap(), "let new_name = new_name;\n");
-    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert_eq!(
+        std::fs::read_to_string(&source).unwrap(),
+        "let new_name = new_name;\n"
+    );
+    let nodes = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
     assert!(!nodes.is_empty());
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
     assert_eq!(v["content"], "rename applied");
@@ -920,12 +1090,17 @@ async fn harness_fallback_serves_response_on_primary_failure() {
 
     call_on_event_with_timeout(&mut handle, "test fallback", "fallback harness").await;
 
-    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    let nodes = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
     assert!(!nodes.is_empty());
 
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
-    assert_eq!(v["content"], "fallback respondeu",
-        "fallback must serve valid response when primary fails: {:?}", v["content"]);
+    assert_eq!(
+        v["content"], "fallback respondeu",
+        "fallback must serve valid response when primary fails: {:?}",
+        v["content"]
+    );
 
     clean_llm_env();
 }
@@ -942,7 +1117,8 @@ async fn harness_multi_turn_history_included_in_request() {
 
     // One mock server handles all three on_event calls and captures every request body.
     let resp = openai_response("ok", 5, 3);
-    let (port, mut captured) = mock_llm_server_capturing(vec![resp.clone(), resp.clone(), resp]).await;
+    let (port, mut captured) =
+        mock_llm_server_capturing(vec![resp.clone(), resp.clone(), resp]).await;
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
@@ -961,13 +1137,19 @@ async fn harness_multi_turn_history_included_in_request() {
     call_on_event_with_timeout(&mut handle, "third question", "history harness turn 3").await;
     let req3 = captured.recv().await.expect("mock must receive request 3");
 
-    let messages = req3["messages"].as_array().expect("request must have messages array");
+    let messages = req3["messages"]
+        .as_array()
+        .expect("request must have messages array");
     // With history: system + ≥1 prior turn + current = at least 3 messages.
-    assert!(messages.len() >= 3,
-        "LLM_HISTORY_TURNS=2 must inject prior turns into request, got {} messages", messages.len());
+    assert!(
+        messages.len() >= 3,
+        "LLM_HISTORY_TURNS=2 must inject prior turns into request, got {} messages",
+        messages.len()
+    );
 
     // Prior content from the CRDT must appear somewhere in the request.
-    let all_content: String = messages.iter()
+    let all_content: String = messages
+        .iter()
         .filter_map(|m| m["content"].as_str())
         .collect::<Vec<_>>()
         .join(" ");
@@ -1023,11 +1205,15 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
 
     call_on_event_with_timeout(&mut handle, "count to ten", "tool truncation harness").await;
 
-    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    let nodes = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
     assert!(!nodes.is_empty(), "AgentResponse must be stored");
 
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
-    let tool_calls = v["tool_calls"].as_array().expect("tool_calls must be array");
+    let tool_calls = v["tool_calls"]
+        .as_array()
+        .expect("tool_calls must be array");
     assert!(!tool_calls.is_empty(), "tool call must be logged");
 
     // The result stored in CRDT is what was fed back to the LLM — must be truncated.
@@ -1038,8 +1224,11 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
     );
     // Verify only 3 lines of actual content remain after the header.
     let content_lines: Vec<&str> = result.lines().skip(1).collect();
-    assert_eq!(content_lines.len(), 3,
-        "exactly 3 content lines must survive truncation, got: {content_lines:?}");
+    assert_eq!(
+        content_lines.len(),
+        3,
+        "exactly 3 content lines must survive truncation, got: {content_lines:?}"
+    );
 
     clean_llm_env();
 }
@@ -1060,7 +1249,8 @@ async fn harness_refarm_config_json_injects_provider() {
     std::fs::write(
         refarm_dir.join("config.json"),
         r#"{"provider":"ollama","model":"llama3.2"}"#,
-    ).unwrap();
+    )
+    .unwrap();
 
     // Set up mock before changing CWD (mock server uses process networking, not FS).
     let port = mock_llm_server(openai_response("config injetado", 8, 4)).await;
@@ -1074,18 +1264,30 @@ async fn harness_refarm_config_json_injects_provider() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    call_on_event_with_timeout(&mut handle, "test config injection", "config injection harness").await;
+    call_on_event_with_timeout(
+        &mut handle,
+        "test config injection",
+        "config injection harness",
+    )
+    .await;
 
     std::env::set_current_dir(original_dir).unwrap();
 
     // AgentResponse must exist — proves the plugin reached the mock LLM successfully,
     // which means config.json's provider="ollama" was injected into the WASM env.
-    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
-    assert!(!nodes.is_empty(), "AgentResponse must be stored — config.json provider must have been injected");
+    let nodes = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
+    assert!(
+        !nodes.is_empty(),
+        "AgentResponse must be stored — config.json provider must have been injected"
+    );
 
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
-    assert_eq!(v["content"], "config injetado",
-        "response content must match mock — plugin must have used ollama from config.json");
+    assert_eq!(
+        v["content"], "config injetado",
+        "response content must match mock — plugin must have used ollama from config.json"
+    );
 
     clean_llm_env();
 }
@@ -1116,11 +1318,19 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
 
     // All stored nodes whose @id is emitted by new_id() must carry the agent namespace.
     let session_nodes = sync.query_nodes("Session").expect("query Session");
-    let entry_nodes = sync.query_nodes("SessionEntry").expect("query SessionEntry");
+    let entry_nodes = sync
+        .query_nodes("SessionEntry")
+        .expect("query SessionEntry");
 
     // At least one Session and SessionEntry must exist after the prompt.
-    assert!(!session_nodes.is_empty(), "at least one Session must be stored");
-    assert!(!entry_nodes.is_empty(), "at least one SessionEntry must be stored");
+    assert!(
+        !session_nodes.is_empty(),
+        "at least one Session must be stored"
+    );
+    assert!(
+        !entry_nodes.is_empty(),
+        "at least one SessionEntry must be stored"
+    );
 
     for node in session_nodes.iter().chain(entry_nodes.iter()) {
         let v: serde_json::Value = serde_json::from_str(&node.payload).unwrap();
@@ -1133,7 +1343,9 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
 
     // AgentResponse itself is stored with a content hash as @id (not new_id), so we
     // only assert it exists to confirm the full pipeline ran.
-    let responses = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    let responses = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
     assert!(!responses.is_empty(), "AgentResponse must be stored");
 
     clean_llm_env();
@@ -1158,34 +1370,55 @@ async fn harness_session_entries_stored_for_each_turn() {
     // Send first prompt.
     call_on_event_with_timeout(&mut handle, "first message", "session harness turn 1").await;
 
-    let entries_after_1 = sync.query_nodes("SessionEntry").expect("query SessionEntry turn 1");
+    let entries_after_1 = sync
+        .query_nodes("SessionEntry")
+        .expect("query SessionEntry turn 1");
     let sessions_after_1 = sync.query_nodes("Session").expect("query Session turn 1");
 
-    assert!(!sessions_after_1.is_empty(), "Session must exist after first prompt");
+    assert!(
+        !sessions_after_1.is_empty(),
+        "Session must exist after first prompt"
+    );
     // Each prompt stores: user SessionEntry + agent SessionEntry (at minimum)
-    assert!(entries_after_1.len() >= 2, "at least 2 SessionEntry after first turn: {}", entries_after_1.len());
+    assert!(
+        entries_after_1.len() >= 2,
+        "at least 2 SessionEntry after first turn: {}",
+        entries_after_1.len()
+    );
 
     let leaf_after_1 = {
         let v: serde_json::Value = serde_json::from_str(&sessions_after_1[0].payload).unwrap();
         v["leaf_entry_id"].as_str().unwrap_or("").to_string()
     };
-    assert!(!leaf_after_1.is_empty(), "leaf_entry_id must be set after first turn");
+    assert!(
+        !leaf_after_1.is_empty(),
+        "leaf_entry_id must be set after first turn"
+    );
 
     // Send second prompt to same handle (same session).
     call_on_event_with_timeout(&mut handle, "second message", "session harness turn 2").await;
 
-    let entries_after_2 = sync.query_nodes("SessionEntry").expect("query SessionEntry turn 2");
+    let entries_after_2 = sync
+        .query_nodes("SessionEntry")
+        .expect("query SessionEntry turn 2");
     let sessions_after_2 = sync.query_nodes("Session").expect("query Session turn 2");
 
-    assert!(entries_after_2.len() > entries_after_1.len(),
-        "more SessionEntry nodes after second turn: {} > {}", entries_after_2.len(), entries_after_1.len());
+    assert!(
+        entries_after_2.len() > entries_after_1.len(),
+        "more SessionEntry nodes after second turn: {} > {}",
+        entries_after_2.len(),
+        entries_after_1.len()
+    );
 
     // leaf_entry_id must have advanced.
     let leaf_after_2 = {
         let v: serde_json::Value = serde_json::from_str(&sessions_after_2[0].payload).unwrap();
         v["leaf_entry_id"].as_str().unwrap_or("").to_string()
     };
-    assert_ne!(leaf_after_1, leaf_after_2, "leaf_entry_id must advance between turns");
+    assert_ne!(
+        leaf_after_1, leaf_after_2,
+        "leaf_entry_id must advance between turns"
+    );
 
     clean_llm_env();
 }
@@ -1247,10 +1480,13 @@ async fn harness_write_structured_tool_creates_file() {
     .await;
 
     // File must exist and contain valid JSON.
-    assert!(out_file.exists(), "write_structured must create the file at {out_path}");
+    assert!(
+        out_file.exists(),
+        "write_structured must create the file at {out_path}"
+    );
     let written = std::fs::read_to_string(&out_file).unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&written)
-        .expect("written content must be valid JSON");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&written).expect("written content must be valid JSON");
     assert_eq!(parsed["result"], "ok");
     assert_eq!(parsed["value"], 42);
 
@@ -1315,12 +1551,19 @@ async fn harness_read_structured_tool_returns_paginated_header() {
 
     // The tool result (fed back to LLM) must contain the pagination header.
     // It is stored in AgentResponse.tool_calls[0].result.
-    let responses = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    let responses = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
     assert!(!responses.is_empty(), "AgentResponse must exist");
 
     let v: serde_json::Value = serde_json::from_str(&responses[0].payload).unwrap();
-    let tool_calls = v["tool_calls"].as_array().expect("tool_calls must be array");
-    assert!(!tool_calls.is_empty(), "at least one tool call must be logged");
+    let tool_calls = v["tool_calls"]
+        .as_array()
+        .expect("tool_calls must be array");
+    assert!(
+        !tool_calls.is_empty(),
+        "at least one tool call must be logged"
+    );
 
     let result_str = tool_calls[0]["result"].as_str().unwrap_or("");
     assert!(
@@ -1349,9 +1592,9 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     // ── Agent A fires ──────────────────────────────────────────────────────────
     clean_llm_env();
     let port_a = mock_llm_server(openai_response("alpha response", 10, 5)).await;
-    std::env::set_var("LLM_PROVIDER",  "ollama");
-    std::env::set_var("LLM_BASE_URL",  format!("http://127.0.0.1:{port_a}"));
-    std::env::set_var("LLM_AGENT_ID",  "alpha");
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port_a}"));
+    std::env::set_var("LLM_AGENT_ID", "alpha");
 
     let shared_sync = make_sync();
 
@@ -1360,8 +1603,13 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     call_on_event_with_timeout(&mut handle_a, "agent A prompt", "swarm harness agent A").await;
 
     // Confirm A's node is namespaced with alpha prefix.
-    let nodes_after_a = shared_sync.query_nodes("AgentResponse").expect("query after A");
-    assert!(!nodes_after_a.is_empty(), "Agent A must store at least one AgentResponse");
+    let nodes_after_a = shared_sync
+        .query_nodes("AgentResponse")
+        .expect("query after A");
+    assert!(
+        !nodes_after_a.is_empty(),
+        "Agent A must store at least one AgentResponse"
+    );
     let a_payload: serde_json::Value = serde_json::from_str(&nodes_after_a[0].payload).unwrap();
     let a_id = a_payload["@id"].as_str().unwrap_or("");
     assert!(
@@ -1372,9 +1620,9 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     // ── Agent B fires ──────────────────────────────────────────────────────────
     clean_llm_env();
     let port_b = mock_llm_server(openai_response("beta response", 8, 4)).await;
-    std::env::set_var("LLM_PROVIDER",  "ollama");
-    std::env::set_var("LLM_BASE_URL",  format!("http://127.0.0.1:{port_b}"));
-    std::env::set_var("LLM_AGENT_ID",  "beta");
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port_b}"));
+    std::env::set_var("LLM_AGENT_ID", "beta");
 
     // Agent B uses the SAME shared_sync — same storage namespace.
     let host_b = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
@@ -1382,10 +1630,16 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     call_on_event_with_timeout(&mut handle_b, "agent B prompt", "swarm harness agent B").await;
 
     // ── Cross-agent read ──────────────────────────────────────────────────────
-    let all_nodes = shared_sync.query_nodes("AgentResponse").expect("query all AgentResponse");
-    assert!(all_nodes.len() >= 2, "both agent responses must be in shared CRDT");
+    let all_nodes = shared_sync
+        .query_nodes("AgentResponse")
+        .expect("query all AgentResponse");
+    assert!(
+        all_nodes.len() >= 2,
+        "both agent responses must be in shared CRDT"
+    );
 
-    let namespaced_count = all_nodes.iter()
+    let namespaced_count = all_nodes
+        .iter()
         .filter_map(|n| serde_json::from_str::<serde_json::Value>(&n.payload).ok())
         .filter_map(|v| v["@id"].as_str().map(|s| s.to_owned()))
         .filter(|id| id.contains("urn:farmhand:"))
@@ -1454,7 +1708,9 @@ async fn harness_pre_tool_budget_read_file_gets_default_limit() {
 
     call_on_event_with_timeout(&mut handle, "read the big file", "budget read harness").await;
 
-    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    let nodes = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
     assert!(!nodes.is_empty(), "AgentResponse must be stored");
 
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
@@ -1526,7 +1782,9 @@ async fn harness_pre_tool_budget_model_can_override_limit() {
 
     call_on_event_with_timeout(&mut handle, "read 10 lines only", "budget override harness").await;
 
-    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    let nodes = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse");
     assert!(!nodes.is_empty(), "AgentResponse must be stored");
 
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();

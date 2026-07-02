@@ -11,7 +11,7 @@ import {
 	type SurfaceActionAffordanceSelectionMetadata,
 	type SurfaceActionAffordanceSelectionReason,
 	type SurfaceActionReadinessDryRunEnvelope,
-} from "./action-affordances.js";
+} from "@refarm.dev/cli/action-affordances";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import {
 	resolveStatusPayload,

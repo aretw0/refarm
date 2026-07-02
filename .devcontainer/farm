@@ -33,6 +33,7 @@ export PNPM_HOME=/home/${TARGET_USER}/.local/share/pnpm
 export NPM_CONFIG_PREFIX=/home/${TARGET_USER}/.npm-global
 export NPM_CONFIG_CACHE=${PROJECT_DIR}/.cache/npm
 export REFARM_DEVCONTAINER=true
+export REFARM_WORKSPACE_HOST_WRITE_LOCK=1
 export REFARM_HOME=${PROJECT_DIR}/.refarm
 export XDG_DATA_HOME=${REFARM_HOME}/data
 export REFARM_STREAMS_DIR=${REFARM_HOME}/streams

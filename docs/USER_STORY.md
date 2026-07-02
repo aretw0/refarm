@@ -121,7 +121,7 @@ Devices
 - Write a small WASM plugin (Rust + `cargo-component`)
 - Load into `packages/plugins/personal/` for testing
 - Test in `apps/me` against production `.db` (no risk; fully recoverable)
-- Once stable, publish as `@aretw0/refarm-plugin-task-prioritizer` to npm + Nostr
+- Once stable, publish as `@refarm.dev/refarm-plugin-task-prioritizer` to npm + Nostr
 - Other users can install and validate it
 
 ---

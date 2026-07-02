@@ -1,12 +1,13 @@
+import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import chalk from "chalk";
 import type { CollectContext, CredentialProvider } from "./types.js";
-import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 
 const TOKEN_URL = "https://dash.cloudflare.com/profile/api-tokens";
 
 export const cloudflareCredentialProvider: CredentialProvider = {
 	id: "cloudflare",
 	label: "Cloudflare",
+	namespace: "runtime",
 
 	async collect(ctx: CollectContext): Promise<string> {
 		console.log(chalk.bold("\n  Cloudflare"));

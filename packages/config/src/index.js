@@ -52,6 +52,17 @@ export {
     normalizePluginId,
 } from "./plugin-identity.js";
 export {
+    ENVIRONMENT_CEILING_ENFORCEMENT_MODES,
+    ENVIRONMENT_CEILING_SCOPES,
+    ENVIRONMENT_CEILING_SLICE_KINDS,
+    ENVIRONMENT_CEILING_STATUSES,
+    declaredEnvironmentCeilingsFromConfig,
+    parseEnvironmentCeilingEnforcementMode,
+    parseEnvironmentCeilingScope,
+    parseEnvironmentCeilingSliceKind,
+    parseEnvironmentCeilingStatus,
+} from "./environment-ceilings.js";
+export {
     PACKAGE_MANAGER_OVERRIDE_ENV_VAR,
     PACKAGE_MANAGERS,
     createPackageScriptCommand,
@@ -78,6 +89,14 @@ export {
     parseWorkspaceKind,
     parseWorkspaceRemoteCacheProvider,
 } from "./workspaces-config.js";
+export {
+    WORKSPACE_NAMESPACE_ACCESS,
+    WORKSPACE_NAMESPACE_PERSISTENCE,
+    declaredWorkspaceNamespaceFromConfig,
+    declaredWorkspaceNamespacesFromConfig,
+    parseWorkspaceNamespaceAccess,
+    parseWorkspaceNamespacePersistence,
+} from "./workspace-namespaces-config.js";
 export {
     affectedWorkspacePackagesFromChangedPaths,
     affectedWorkspacePackagesFromGitStatus,
@@ -132,6 +151,8 @@ export function findRefarmRoot(startDir = process.cwd()) {
  */
 function deepMerge(target, source) {
     if (!source) return target;
+    if (Array.isArray(source)) return [...source];
+    if (Array.isArray(target)) return source;
     const output = { ...target };
 
     for (const key of Object.keys(source)) {
@@ -191,14 +212,16 @@ function resolveInterpolation(config, current = config) {
 const JsonSource = {
     name: "json",
     loadSync(root) {
-        const configPath = findRefarmConfigPath(root);
-        if (!configPath) return {};
-        try {
-            return JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        } catch (e) {
-            console.warn(`[refarm/config] Failed to parse JSON at ${configPath}`);
-            return {};
+        let config = {};
+        for (const configPath of [...refarmConfigPathCandidates(root)].reverse()) {
+            if (!fs.existsSync(configPath)) continue;
+            try {
+                config = deepMerge(config, JSON.parse(fs.readFileSync(configPath, "utf-8")));
+            } catch (e) {
+                console.warn(`[refarm/config] Failed to parse JSON at ${configPath}`);
+            }
         }
+        return config;
     }
 };
 
@@ -263,7 +286,10 @@ const RemoteSource = {
 
         try {
             console.log(`📡 [refarm/config] Fetching remote config from ${endpoint}...`);
-            const res = await fetch(endpoint, { headers });
+            const res = await fetch(endpoint, {
+                headers,
+                signal: AbortSignal.timeout(15_000),
+            });
 
             if (!res.ok) {
                 console.warn(`[refarm/config] Remote source failed: ${res.status} ${res.statusText}`);

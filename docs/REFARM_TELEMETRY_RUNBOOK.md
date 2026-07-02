@@ -16,7 +16,8 @@ so teams can act quickly without debating semantics during incidents.
   - First checks:
     1. `refarm telemetry --json`
     2. `curl -s http://127.0.0.1:42001/efforts/summary`
-    3. `npm run farm:status`
+    3. `curl -s http://127.0.0.1:42001/sessions`
+    4. `npm run farm:status`
   - First action:
     - Reduce incoming task burst or split workload; verify workers are alive.
 

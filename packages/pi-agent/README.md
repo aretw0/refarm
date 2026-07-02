@@ -12,6 +12,17 @@ is reusable across plugins, it belongs in shared host/tool primitives first, the
 
 > Future name: **farmhand** — the worker of the tractor, native to the Refarm ecosystem.
 
+## Package Boundary
+
+`@refarm.dev/pi-agent` is intentionally private while runtime-agent/plugin
+publication policy is still on hold. Its npm `files` allowlist is still
+explicit so the eventual package cannot silently publish source or cache state:
+`dist/pi_agent.wasm`, `dist/plugin.json`, and `dist/jco`.
+
+`node scripts/validate-packages.mjs` guards this boundary. If the package is
+ever made public, the same check requires `publishConfig.access="public"` and
+keeps `build:wasm`/`build:jco` tied to those concrete artifacts.
+
 ---
 
 ## What it does

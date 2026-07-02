@@ -18,6 +18,8 @@ const MANIFESTS = {
 		"validations/extension-sandbox-poc/fixtures/expected/task-artifacts.json",
 	notes:
 		"validations/governed-note-box-poc/fixtures/expected/task-artifacts.json",
+	toolless:
+		"validations/toolless-orchestrator-proof/fixtures/expected/task-artifacts.json",
 };
 
 function readManifest(relativePath) {
@@ -305,4 +307,55 @@ assert.deepEqual(
 );
 assert.equal(findTaskArtifactById(notes, "human-review")?.mediaType, "text/markdown");
 
-console.log("Validated validation POC consumer selections across 3 manifest(s).");
+const toolless = readManifest(MANIFESTS.toolless);
+assertProducerProcess(toolless, {
+	command: "node",
+	args: ["validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"],
+	display: "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs",
+});
+assert.deepEqual(
+	ids(selectTaskArtifacts(toolless, {
+		labels: ["toolless-orchestrator", "conductor"],
+		mediaTypes: ["application/json"],
+		reviewStates: ["accepted"],
+		roles: ["audit-trail"],
+		source: "validations/toolless-orchestrator-proof",
+	})),
+	["toolless-orchestrator-proof"],
+);
+assert.deepEqual(
+	ids(selectTaskArtifacts(toolless, {
+		labels: ["claim-boundary"],
+		roles: ["report"],
+	})),
+	["results-table", "limits"],
+);
+assert.deepEqual(
+	ids(selectTaskArtifacts(toolless, {
+		labels: ["scenario"],
+		roles: ["report"],
+	})),
+	["scenario"],
+);
+assert.deepEqual(
+	ids(selectTaskArtifacts(toolless, {
+		labels: ["scorecard"],
+		roles: ["report"],
+	})),
+	["scorecard"],
+);
+assert.deepEqual(
+	ids(selectTaskArtifacts(toolless, {
+		labels: ["limits", "adoption"],
+		roles: ["report"],
+	})),
+	["limits"],
+);
+assert.equal(
+	findTaskArtifactById(toolless, "toolless-orchestrator-proof")?.mediaType,
+	"application/json",
+);
+
+console.log(
+	`Validated validation POC consumer selections across ${Object.keys(MANIFESTS).length} manifest(s).`,
+);

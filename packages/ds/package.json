@@ -1,23 +1,56 @@
 {
 	"name": "@refarm.dev/ds",
 	"version": "0.1.0",
-	"description": "Refarm Design System — Shared Styles and Tokens",
+	"description": "Design system styles, tokens, and conformance helpers",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"files": [
-		"dist",
-		"src"
+		"dist/index.js",
+		"dist/index.js.map",
+		"dist/index.d.ts",
+		"dist/index.d.ts.map",
+		"dist/contract.js",
+		"dist/contract.js.map",
+		"dist/contract.d.ts",
+		"dist/contract.d.ts.map",
+		"dist/theme-conformance.js",
+		"dist/theme-conformance.js.map",
+		"dist/theme-conformance.d.ts",
+		"dist/theme-conformance.d.ts.map",
+		"dist/html.js",
+		"dist/html.js.map",
+		"dist/html.d.ts",
+		"dist/html.d.ts.map",
+		"src/*.css",
+		"src/themes/*.css"
 	],
 	"exports": {
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		},
+		"./contract": {
+			"import": "./dist/contract.js",
+			"types": "./dist/contract.d.ts"
+		},
+		"./theme-conformance": {
+			"import": "./dist/theme-conformance.js",
+			"types": "./dist/theme-conformance.d.ts"
+		},
+		"./html": {
+			"import": "./dist/html.js",
+			"types": "./dist/html.d.ts"
+		},
+		"./tokens.css": "./src/tokens.css",
+		"./components.css": "./src/components.css",
+		"./tailwind-bridge.css": "./src/tailwind-bridge.css",
+		"./themes/*": "./src/themes/*",
 		"./styles/*": "./src/*"
 	},
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
 		"test": "vitest run",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build",
@@ -33,5 +66,8 @@
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*"
 	},
-	"license": "MIT"
+	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	}
 }

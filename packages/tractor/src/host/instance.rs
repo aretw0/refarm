@@ -7,7 +7,7 @@
 use anyhow::Result;
 use wasmtime::Store;
 
-use crate::host::plugin_host::{RefarmPluginHost, TractorStore, P1Store};
+use crate::host::plugin_host::{P1Store, RefarmPluginHost, TractorStore};
 use crate::telemetry::TelemetryBus;
 
 /// The runtime state of a loaded plugin.
@@ -127,16 +127,18 @@ impl PluginInstanceHandle {
         self.emit_lifecycle_event("start", "setup", None);
         self.state = PluginState::Running;
         let result = match &mut self.inner {
-            PluginImpl::Component { plugin, store } => {
-                plugin.refarm_plugin_integration().call_setup(store).await
-                    .map(|r| r.map_err(|e| anyhow::anyhow!("setup() error: {:?}", e)))
-            }
+            PluginImpl::Component { plugin, store } => plugin
+                .refarm_plugin_integration()
+                .call_setup(store)
+                .await
+                .map(|r| r.map_err(|e| anyhow::anyhow!("setup() error: {:?}", e))),
             PluginImpl::Module { instance, store } => {
                 match instance.get_func(&mut *store, "setup") {
                     None => Ok(Ok(())),
                     Some(f) => {
                         let typed: wasmtime::TypedFunc<(), ()> = f.typed(&*store)?;
-                        typed.call(&mut *store, ())
+                        typed
+                            .call(&mut *store, ())
                             .map(Ok)
                             .map_err(|e| anyhow::anyhow!("setup() trap: {e}"))
                     }
@@ -153,13 +155,21 @@ impl PluginInstanceHandle {
             Ok(Err(e)) => {
                 self.state = PluginState::Error;
                 let message = e.to_string();
-                self.emit_lifecycle_event("error", "setup", Some(serde_json::json!({ "error": message.clone() })));
+                self.emit_lifecycle_event(
+                    "error",
+                    "setup",
+                    Some(serde_json::json!({ "error": message.clone() })),
+                );
                 anyhow::bail!(message)
             }
             Err(e) => {
                 self.state = PluginState::Error;
                 let message = format!("setup() trap: {e}");
-                self.emit_lifecycle_event("error", "setup", Some(serde_json::json!({ "error": message.clone() })));
+                self.emit_lifecycle_event(
+                    "error",
+                    "setup",
+                    Some(serde_json::json!({ "error": message.clone() })),
+                );
                 anyhow::bail!(message)
             }
         }
@@ -172,16 +182,18 @@ impl PluginInstanceHandle {
         self.emit_lifecycle_event("start", "ingest", None);
         self.state = PluginState::Running;
         let result = match &mut self.inner {
-            PluginImpl::Component { plugin, store } => {
-                plugin.refarm_plugin_integration().call_ingest(store).await
-                    .map(|r| r.map_err(|e| anyhow::anyhow!("ingest() error: {:?}", e)))
-            }
+            PluginImpl::Component { plugin, store } => plugin
+                .refarm_plugin_integration()
+                .call_ingest(store)
+                .await
+                .map(|r| r.map_err(|e| anyhow::anyhow!("ingest() error: {:?}", e))),
             PluginImpl::Module { instance, store } => {
                 match instance.get_func(&mut *store, "ingest") {
                     None => Ok(Ok(0)),
                     Some(f) => {
                         let typed: wasmtime::TypedFunc<(), i32> = f.typed(&*store)?;
-                        typed.call(&mut *store, ())
+                        typed
+                            .call(&mut *store, ())
                             .map(|n| Ok(n as u32))
                             .map_err(|e| anyhow::anyhow!("ingest() trap: {e}"))
                     }
@@ -192,19 +204,31 @@ impl PluginInstanceHandle {
         match result {
             Ok(Ok(count)) => {
                 self.state = PluginState::Idle;
-                self.emit_lifecycle_event("end", "ingest", Some(serde_json::json!({ "ingested": count })));
+                self.emit_lifecycle_event(
+                    "end",
+                    "ingest",
+                    Some(serde_json::json!({ "ingested": count })),
+                );
                 Ok(count)
             }
             Ok(Err(e)) => {
                 self.state = PluginState::Error;
                 let message = e.to_string();
-                self.emit_lifecycle_event("error", "ingest", Some(serde_json::json!({ "error": message.clone() })));
+                self.emit_lifecycle_event(
+                    "error",
+                    "ingest",
+                    Some(serde_json::json!({ "error": message.clone() })),
+                );
                 anyhow::bail!(message)
             }
             Err(e) => {
                 self.state = PluginState::Error;
                 let message = format!("ingest() trap: {e}");
-                self.emit_lifecycle_event("error", "ingest", Some(serde_json::json!({ "error": message.clone() })));
+                self.emit_lifecycle_event(
+                    "error",
+                    "ingest",
+                    Some(serde_json::json!({ "error": message.clone() })),
+                );
                 anyhow::bail!(message)
             }
         }
@@ -217,10 +241,11 @@ impl PluginInstanceHandle {
         self.emit_lifecycle_event("start", "teardown", None);
         self.state = PluginState::Running;
         let result: Result<()> = match &mut self.inner {
-            PluginImpl::Component { plugin, store } => {
-                plugin.refarm_plugin_integration().call_teardown(store).await
-                    .map_err(|e| anyhow::anyhow!("teardown() trap: {e}"))
-            }
+            PluginImpl::Component { plugin, store } => plugin
+                .refarm_plugin_integration()
+                .call_teardown(store)
+                .await
+                .map_err(|e| anyhow::anyhow!("teardown() trap: {e}")),
             PluginImpl::Module { instance, store } => {
                 match instance.get_func(&mut *store, "teardown") {
                     None => Ok(()),
@@ -233,7 +258,8 @@ impl PluginInstanceHandle {
                                 return;
                             }
                         };
-                        typed.call(&mut *store, ())
+                        typed
+                            .call(&mut *store, ())
                             .map_err(|e| anyhow::anyhow!("teardown() trap: {e}"))
                     }
                 }
@@ -248,7 +274,11 @@ impl PluginInstanceHandle {
             Err(e) => {
                 self.state = PluginState::Error;
                 let message = e.to_string();
-                self.emit_lifecycle_event("error", "teardown", Some(serde_json::json!({ "error": message.clone() })));
+                self.emit_lifecycle_event(
+                    "error",
+                    "teardown",
+                    Some(serde_json::json!({ "error": message.clone() })),
+                );
                 tracing::warn!(plugin_id = %self.id, "{message}");
             }
         }
@@ -260,7 +290,10 @@ impl PluginInstanceHandle {
     pub async fn call_metadata(&mut self) -> Result<serde_json::Value> {
         match &mut self.inner {
             PluginImpl::Component { plugin, store } => {
-                let meta = plugin.refarm_plugin_integration().call_metadata(store).await?;
+                let meta = plugin
+                    .refarm_plugin_integration()
+                    .call_metadata(store)
+                    .await?;
                 Ok(serde_json::json!({
                     "name": meta.name,
                     "version": meta.version,
@@ -269,15 +302,13 @@ impl PluginInstanceHandle {
                     "requiredCapabilities": meta.required_capabilities,
                 }))
             }
-            PluginImpl::Module { .. } => {
-                Ok(serde_json::json!({
-                    "name": self.id,
-                    "version": "unknown",
-                    "description": "P1 plain module (no WIT metadata)",
-                    "supportedTypes": [],
-                    "requiredCapabilities": [],
-                }))
-            }
+            PluginImpl::Module { .. } => Ok(serde_json::json!({
+                "name": self.id,
+                "version": "unknown",
+                "description": "P1 plain module (no WIT metadata)",
+                "supportedTypes": [],
+                "requiredCapabilities": [],
+            })),
         }
     }
 
@@ -289,7 +320,8 @@ impl PluginInstanceHandle {
     pub async fn call_on_event(&mut self, event: &str, payload: Option<&str>) -> Result<()> {
         match &mut self.inner {
             PluginImpl::Component { plugin, store } => {
-                plugin.refarm_plugin_integration()
+                plugin
+                    .refarm_plugin_integration()
                     .call_on_event(store, event, payload)
                     .await?;
                 Ok(())
@@ -298,26 +330,24 @@ impl PluginInstanceHandle {
                 let event_json = serde_json::json!({
                     "event": event,
                     "payload": payload,
-                }).to_string();
+                })
+                .to_string();
                 let len = event_json.len() as i32;
 
-                let alloc_fn = instance.get_func(&mut *store, "alloc")
-                    .ok_or_else(|| anyhow::anyhow!(
-                        "P1 module '{}' must export 'alloc(i32) -> i32'", self.id
-                    ))?;
+                let alloc_fn = instance.get_func(&mut *store, "alloc").ok_or_else(|| {
+                    anyhow::anyhow!("P1 module '{}' must export 'alloc(i32) -> i32'", self.id)
+                })?;
                 let alloc: wasmtime::TypedFunc<i32, i32> = alloc_fn.typed(&*store)?;
                 let ptr = alloc.call(&mut *store, len)?;
 
-                let memory = instance.get_memory(&mut *store, "memory")
-                    .ok_or_else(|| anyhow::anyhow!(
-                        "P1 module '{}' must export 'memory'", self.id
-                    ))?;
+                let memory = instance.get_memory(&mut *store, "memory").ok_or_else(|| {
+                    anyhow::anyhow!("P1 module '{}' must export 'memory'", self.id)
+                })?;
                 memory.write(&mut *store, ptr as usize, event_json.as_bytes())?;
 
-                let on_event_fn = instance.get_func(&mut *store, "on_event")
-                    .ok_or_else(|| anyhow::anyhow!(
-                        "P1 module '{}' must export 'on_event(i32, i32)'", self.id
-                    ))?;
+                let on_event_fn = instance.get_func(&mut *store, "on_event").ok_or_else(|| {
+                    anyhow::anyhow!("P1 module '{}' must export 'on_event(i32, i32)'", self.id)
+                })?;
                 let on_event: wasmtime::TypedFunc<(i32, i32), ()> = on_event_fn.typed(&*store)?;
                 on_event.call(&mut *store, (ptr, len))?;
                 Ok(())
@@ -328,13 +358,29 @@ impl PluginInstanceHandle {
     // ── Generic dispatcher (for TS-parity API) ────────────────────────────────
 
     /// Dispatch a named lifecycle call. Used by higher-level APIs.
-    pub async fn call(&mut self, fn_name: &str, _args: Option<serde_json::Value>) -> Result<Option<serde_json::Value>> {
+    pub async fn call(
+        &mut self,
+        fn_name: &str,
+        _args: Option<serde_json::Value>,
+    ) -> Result<Option<serde_json::Value>> {
         tracing::debug!(plugin_id = %self.id, fn_name, "Plugin call");
         match fn_name {
-            "setup"    => { self.call_setup().await?; Ok(None) }
-            "ingest"   => { let n = self.call_ingest().await?; Ok(Some(serde_json::json!(n))) }
-            "teardown" => { self.call_teardown().await; Ok(None) }
-            "metadata" => { let m = self.call_metadata().await?; Ok(Some(m)) }
+            "setup" => {
+                self.call_setup().await?;
+                Ok(None)
+            }
+            "ingest" => {
+                let n = self.call_ingest().await?;
+                Ok(Some(serde_json::json!(n)))
+            }
+            "teardown" => {
+                self.call_teardown().await;
+                Ok(None)
+            }
+            "metadata" => {
+                let m = self.call_metadata().await?;
+                Ok(Some(m))
+            }
             other => anyhow::bail!("unknown plugin function: {other}"),
         }
     }
@@ -357,5 +403,77 @@ impl std::fmt::Debug for PluginInstanceHandle {
             .field("state", &self.state)
             .field("variant", &variant)
             .finish()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasmtime::{Config, Engine, Instance, Module};
+    use wasmtime_wasi::WasiCtxBuilder;
+
+    fn p1_fixture_handle() -> PluginInstanceHandle {
+        let engine = Engine::new(&Config::new()).expect("engine");
+        let wasm = wat::parse_str(
+            r#"
+            (module
+              (memory (export "memory") 1)
+              (func (export "setup"))
+              (func (export "ingest") (result i32)
+                i32.const 7)
+              (func (export "teardown"))
+              (func (export "alloc") (param i32) (result i32)
+                i32.const 16)
+              (func (export "on_event") (param i32 i32)))
+            "#,
+        )
+        .expect("wat");
+        let module = Module::from_binary(&engine, &wasm).expect("module");
+        let mut store = Store::new(
+            &engine,
+            P1Store {
+                wasi: WasiCtxBuilder::new().build_p1(),
+            },
+        );
+        let instance = Instance::new(&mut store, &module, &[]).expect("instance");
+
+        PluginInstanceHandle::new_module(
+            "p1-fixture".to_string(),
+            instance,
+            store,
+            TelemetryBus::new(16),
+            vec!["agent:respond".to_string()],
+        )
+    }
+
+    #[tokio::test]
+    async fn p1_module_dispatcher_runs_lifecycle_metadata_and_events() {
+        let mut handle = p1_fixture_handle();
+
+        handle.call_setup().await.expect("setup");
+        assert_eq!(handle.state, PluginState::Idle);
+
+        let ingested = handle.call("ingest", None).await.expect("ingest");
+        assert_eq!(ingested, Some(serde_json::json!(7)));
+        assert_eq!(handle.state, PluginState::Idle);
+
+        let metadata = handle
+            .call("metadata", None)
+            .await
+            .expect("metadata")
+            .expect("metadata payload");
+        assert_eq!(metadata["name"], "p1-fixture");
+        assert_eq!(metadata["version"], "unknown");
+        assert_eq!(metadata["requiredCapabilities"], serde_json::json!([]));
+
+        handle
+            .call_on_event("agent:resume", Some(r#"{"ok":true}"#))
+            .await
+            .expect("on_event");
+        handle.call("teardown", None).await.expect("teardown");
+        assert_eq!(handle.state, PluginState::Idle);
+
+        let err = handle.call("missing", None).await.unwrap_err();
+        assert!(err.to_string().contains("unknown plugin function: missing"));
     }
 }

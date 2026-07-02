@@ -1,13 +1,10 @@
-import {
-	openHostBrowserUrl,
-	resolveBrowserOpenSpec,
-} from "@refarm.dev/cli/browser-open";
-import { launchProcess, type LaunchProcessSpec } from "@refarm.dev/cli/launch-process";
+import { formatSurfaceActionReadinessOutput } from "@refarm.dev/cli/action-affordances";
+import { openHostBrowserUrl, resolveBrowserOpenSpec, } from "@refarm.dev/cli/browser-open";
+import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import { executeProcessHandoff, type ProcessHandoffSpec } from "@refarm.dev/cli/process-handoff";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { formatSurfaceActionReadinessOutput } from "./action-affordances.js";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
 import {
 	launchAvailabilityMessage,
 	openDryRunMessage,
@@ -34,7 +31,7 @@ const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
 
 export type RefarmWebLauncherMode = (typeof WEB_LAUNCHER_MODES)[number];
 
-export type WebLaunchSpec = LaunchProcessSpec;
+export type WebLaunchSpec = ProcessHandoffSpec;
 
 export interface WebDeps {
 	resolveStatusPayload(options: {
@@ -67,7 +64,7 @@ export function resolveWebLaunchSpec(
 }
 
 export function launchWebProcess(spec: WebLaunchSpec): Promise<number> {
-	return launchProcess(spec);
+	return executeProcessHandoff(spec);
 }
 
 export { resolveBrowserOpenSpec };
@@ -271,7 +268,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				dryRunRuntimeLabel: "web runtime",
 				startRuntimeLabel: "web runtime",
 				resolveLaunchSpec: () => resolveWebLaunchSpec(launchMode),
-				launchProcess: resolvedDeps.launch,
+				executeProcessHandoff: resolvedDeps.launch,
 				dryRunJson: options.json,
 				dryRunJsonCommand: "web",
 				dryRunJsonNextCommand: webLaunchCommand({

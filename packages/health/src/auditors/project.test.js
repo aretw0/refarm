@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ProjectAuditor, RefarmProjectAuditor } from "./project.js";
 
@@ -135,6 +136,107 @@ describe("ProjectAuditor", () => {
             { package: "apps/local", mode: "LINKED (types)" },
         ]);
     });
+
+    it("validates optional project automation manifests", () => {
+        const auditor = new ProjectAuditor();
+        writeJson(path.join(rootDir, ".project", "automations.json"), {
+            automations: [
+                {
+                    id: "daily-handoff",
+                    name: "Daily handoff",
+                    status: "active",
+                    triggers: [
+                        { type: "once", at: "2026-06-27T09:00:00.000Z" },
+                        { type: "cron", schedule: "@daily" },
+                        { type: "manual" },
+                        { type: "event", eventType: "effort.completed" },
+                    ],
+                },
+            ],
+        });
+
+        expect(auditor.checkProjectAutomations(rootDir)).toEqual([]);
+    });
+
+    it("reports invalid project automation manifests", () => {
+        const auditor = new ProjectAuditor();
+        writeJson(path.join(rootDir, ".project", "automations.json"), {
+            automations: [
+                {
+                    id: "",
+                    name: "Broken automation",
+                    status: "paused",
+                    triggers: [
+                        { type: "once", at: "not-a-date" },
+                        { type: "cron", schedule: "" },
+                        { type: "event" },
+                        { type: "unknown" },
+                    ],
+                },
+            ],
+        });
+
+        expect(auditor.checkProjectAutomations(rootDir)).toEqual([
+            expect.objectContaining({
+                file: ".project/automations.json",
+                type: "invalid_project_automation_id",
+            }),
+            expect.objectContaining({
+                file: ".project/automations.json",
+                type: "invalid_project_automation_status",
+            }),
+            expect.objectContaining({
+                file: ".project/automations.json",
+                type: "invalid_project_automation_once_trigger",
+            }),
+            expect.objectContaining({
+                file: ".project/automations.json",
+                type: "invalid_project_automation_cron_trigger",
+            }),
+            expect.objectContaining({
+                file: ".project/automations.json",
+                type: "invalid_project_automation_event_trigger",
+            }),
+            expect.objectContaining({
+                file: ".project/automations.json",
+                type: "invalid_project_automation_trigger_type",
+            }),
+        ]);
+    });
+
+    it("warns when versioned root namespaces are not declared", () => {
+        const auditor = new ProjectAuditor();
+        initGitRoot(rootDir);
+        fs.writeFileSync(path.join(rootDir, ".gitignore"), ".cache/\n", "utf-8");
+        fs.mkdirSync(path.join(rootDir, ".project"), { recursive: true });
+        fs.writeFileSync(path.join(rootDir, ".project", "handoff.json"), "{}\n", "utf-8");
+        fs.mkdirSync(path.join(rootDir, ".github"), { recursive: true });
+        fs.writeFileSync(path.join(rootDir, ".github", "workflow.yml"), "{}\n", "utf-8");
+        execGit(rootDir, ["add", ".gitignore", ".project/handoff.json", ".github/workflow.yml"]);
+
+        expect(auditor.checkWorkspaceNamespaces(rootDir)).toEqual([
+            {
+                path: ".project",
+                type: "undeclared_workspace_namespace",
+                category: "workspace-namespace",
+                note: "Versioned root namespace must be declared in workspaceNamespaces.",
+            },
+        ]);
+    });
+
+    it("accepts declared versioned root namespaces", () => {
+        const auditor = new ProjectAuditor({
+            workspaceNamespaces: [
+                { path: ".project", owner: "pi-project-workflows" },
+            ],
+        });
+        initGitRoot(rootDir);
+        fs.mkdirSync(path.join(rootDir, ".project"), { recursive: true });
+        fs.writeFileSync(path.join(rootDir, ".project", "handoff.json"), "{}\n", "utf-8");
+        execGit(rootDir, ["add", ".project/handoff.json"]);
+
+        expect(auditor.checkWorkspaceNamespaces(rootDir)).toEqual([]);
+    });
 });
 
 describe("RefarmProjectAuditor", () => {
@@ -169,3 +271,11 @@ describe("RefarmProjectAuditor", () => {
         ]);
     });
 });
+
+function initGitRoot(cwd) {
+    execGit(cwd, ["init", "--quiet"]);
+}
+
+function execGit(cwd, args) {
+    execFileSync("git", args, { cwd, stdio: "ignore" });
+}

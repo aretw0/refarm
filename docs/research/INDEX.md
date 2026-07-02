@@ -52,6 +52,26 @@ Concludes that Refarm should treat migration packs as a plugin package profile, 
 
 ---
 
+#### [RTK External Reference](./2026-07-01-external-reference-rtk.md)
+**Date**: 2026-07-01 | **Status**: Research
+
+Assessment of `rtk-ai/rtk` as a reference for command-output mediation between agents and developer tools.
+Concludes that Refarm should assimilate RTK as an observation-membrane pattern: compact command views, raw evidence recovery, exit-code preservation, verbosity tiers, and local/opt-in analytics, without adopting RTK as a dependency or requiring global shell rewriting.
+
+**ADR**: No ADR yet — feeds a future `tool-observation:v1` / `command-observation:v1` contract, finish-lane proof work, and reference-driver ergonomics.
+
+---
+
+#### [Terax External Reference](./2026-07-01-external-reference-terax.md)
+**Date**: 2026-07-01 | **Status**: Research
+
+Assessment of `crynta/terax-ai` as a reference for terminal-first agentic workspaces, host-owned OS capabilities, structured terminal/agent signals, BYOK/local provider posture, and explicit product boundaries.
+Concludes that Refarm should assimilate Terax as a terminal-observation and workbench-discipline reference, without copying the app or promoting desktop-first coupling.
+
+**ADR**: No ADR yet — feeds terminal/process observation contracts, ADR-074 remote workspace environment identity, ADR-078 resource ceilings, and reference-driver surface ergonomics.
+
+---
+
 ### Collaborative Editing & Concurrency
 
 #### [Lock Strategies Comparison](./LOCK_STRATEGIES_COMPARISON.md)

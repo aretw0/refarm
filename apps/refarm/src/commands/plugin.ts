@@ -1,13 +1,17 @@
+import { resolvePluginPackage, type PluginPackageSource, } from "@refarm.dev/barn";
+import { quoteCommandArg, refarmCommand, refarmProcess, shellCommand } from "@refarm.dev/cli/command-handoff";
 import {
-	resolvePluginPackage,
-	type PluginPackageSource,
-} from "@refarm.dev/barn";
-import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "@refarm.dev/cli/json-output";
+import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
-	isRuntimeAgentPluginId,
-	normalizePluginId,
+	isRuntimeAgentPluginId, normalizePluginId,
 	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
-	RUNTIME_AGENT_PLUGIN_ID
+	RUNTIME_AGENT_NPM_PACKAGE,
+	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
+	RUNTIME_AGENT_PLUGIN_ID,
 } from "@refarm.dev/config/plugin-identity";
 import { Command } from "commander";
 import { createHash } from "node:crypto";
@@ -15,17 +19,6 @@ import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path, { basename, extname } from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
-import {
-	quoteCommandArg,
-	refarmCommand,
-	refarmProcess,
-	shellCommand,
-} from "./command-handoff.js";
-import {
-	buildJsonErrorEnvelope,
-	buildJsonSuccessEnvelope,
-	printJson,
-} from "./json-output.js";
 import {
 	createPackageBinaryCommand,
 	createPackageScriptCommand,
@@ -59,7 +52,7 @@ const PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSON_COMMA
 const PLUGIN_RELOAD_RESTART_RUNTIME_AGENT_JSON_COMMAND = refarmCommand([
 	"plugin",
 	"reload",
-	"runtime-agent",
+	"agent",
 	"--restart-if-needed",
 	"--wait",
 	"--json",
@@ -86,7 +79,7 @@ async function restartRuntimeForPluginReload(wait: boolean): Promise<{
 	failedCommand?: string;
 }> {
 	const restart = runtimeRestartProcess(wait);
-	const startResult = await runLaunchProcess(restart, { capture: false });
+	const startResult = await runProcessHandoff(restart, { capture: false });
 	return {
 		ok: startResult.exitCode === 0,
 		restartCommand: restart.display,
@@ -200,8 +193,9 @@ interface PluginInstallReport {
 }
 
 function localRuntimeAgentBuildCommand(): string {
+	const runtimeAgentWorkspaceDir = RUNTIME_AGENT_PLUGIN_DESCRIPTOR.workspaceDir;
 	return createPackageScriptCommand({
-		cwd: "packages/pi-agent",
+		cwd: runtimeAgentWorkspaceDir,
 		script: "build",
 	}).display;
 }
@@ -733,6 +727,9 @@ async function reloadRuntimePluginCommand(
 	if (options.json) {
 		if (result.skipped.length > 0) {
 			const restartCommand = pluginReloadRestartCommand(pluginIds, true);
+			const timedOutMessage = result.timedOut
+				? "timed out before completing (consider retry or increase timeout)"
+				: "require runtime restart to reload";
 			if (options.restartIfNeeded) {
 				const restart = await restartRuntimeForPluginReload(options.wait === true);
 				if (!restart.ok) {
@@ -741,7 +738,7 @@ async function reloadRuntimePluginCommand(
 							command: "plugin",
 							operation: "reload",
 							error: "runtime-plugin-restart-failed",
-							message: "Runtime restart failed after one or more plugins required restart to reload.",
+							message: `Runtime restart failed after one or more plugins ${result.timedOut ? "timed out" : "required restart"} before reload completion.`,
 							nextAction: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
 							nextCommand: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
 							nextCommands: [
@@ -755,6 +752,7 @@ async function reloadRuntimePluginCommand(
 								skipped: result.skipped,
 								restarted: false,
 								restart,
+								timedOut: result.timedOut,
 							},
 						}),
 					);
@@ -771,6 +769,7 @@ async function reloadRuntimePluginCommand(
 							requested: pluginIds,
 							reloaded: result.reloaded,
 							skipped: result.skipped,
+							timedOut: result.timedOut,
 							restarted: true,
 							restart,
 						},
@@ -783,7 +782,7 @@ async function reloadRuntimePluginCommand(
 					command: "plugin",
 					operation: "reload",
 					error: "runtime-plugin-reload-partial",
-					message: "One or more runtime plugins require a runtime restart to reload.",
+					message: `One or more runtime plugins ${timedOutMessage}.`,
 					nextAction: restartCommand,
 					nextCommand: restartCommand,
 					nextCommands: [
@@ -795,6 +794,7 @@ async function reloadRuntimePluginCommand(
 						requested: pluginIds,
 						reloaded: result.reloaded,
 						skipped: result.skipped,
+						timedOut: result.timedOut,
 					},
 				}),
 			);
@@ -811,6 +811,7 @@ async function reloadRuntimePluginCommand(
 					requested: pluginIds,
 					reloaded: result.reloaded,
 					skipped: result.skipped,
+					timedOut: result.timedOut,
 				},
 			}),
 		);
@@ -821,7 +822,10 @@ async function reloadRuntimePluginCommand(
 		console.log(`  ✓ ${pluginId} reloaded`);
 	}
 	for (const pluginId of result.skipped) {
-		console.error(`  ✗ ${pluginId} requires runtime restart to reload`);
+		const status = result.timedOut
+			? "timed out before reload completion"
+			: "requires runtime restart to reload";
+		console.error(`  ✗ ${pluginId} ${status}`);
 	}
 	if (result.skipped.length > 0) {
 		if (options.restartIfNeeded) {
@@ -852,7 +856,7 @@ export const pluginCommand = new Command("plugin").description(
 		"Examples:",
 		"  $ refarm plugin status",
 		"  $ refarm plugin status --json",
-		"  $ refarm plugin reload runtime-agent --json",
+		"  $ refarm plugin reload agent --json",
 		"  $ refarm plugin install",
 		"  $ refarm plugin list",
 		"  $ refarm plugin list --json",
@@ -865,7 +869,7 @@ export const pluginCommand = new Command("plugin").description(
 	`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 	`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
 	"  refarm ask preflights the runtime agent plugin and asks the runtime to reload it when installed but not loaded.",
-	"  In refarm chat, /reload runtime-agent is the interactive equivalent.",
+	"  In refarm chat, /reload agent or /r agent is the interactive equivalent.",
 	].join("\n"),
 );
 
@@ -882,9 +886,9 @@ pluginCommand
 			"  $ refarm plugin install --force",
 			"",
 			"Notes:",
-			"  If the bundled runtime agent WASM is missing, build @refarm.dev/pi-agent first with the command printed by the error.",
-			"  After install, start or restart the runtime, then run refarm plugin reload runtime-agent --json.",
-			"  In refarm chat, /reload runtime-agent is the interactive equivalent.",
+			`  If the bundled runtime agent WASM is missing, build ${RUNTIME_AGENT_NPM_PACKAGE} first with the command printed by the error.`,
+			"  After install, start or restart the runtime, then run refarm plugin reload agent --json.",
+		"  In refarm chat, /reload agent or /r agent is the interactive equivalent.",
 			"  Run refarm plugin status to confirm runtime load state.",
 		].join("\n"),
 	)
@@ -926,7 +930,7 @@ pluginCommand
 			"Examples:",
 			"  $ refarm plugin status",
 			"  $ refarm plugin status --json",
-			"  $ refarm plugin reload runtime-agent --json",
+			"  $ refarm plugin reload agent --json",
 			`  $ ${RUNTIME_STATUS_COMMAND}`,
 			"  $ refarm",
 			"",
@@ -936,7 +940,7 @@ pluginCommand
 			`  Ensure it with ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}.`,
 			`  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for the shortest recovery step.`,
 			`  Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.`,
-			"  In refarm chat, /reload runtime-agent is the interactive equivalent.",
+		"  In refarm chat, /reload agent or /r agent is the interactive equivalent.",
 		].join("\n"),
 	)
 	.option("--json", "Output machine-readable runtime plugin state")
@@ -951,13 +955,14 @@ pluginCommand
 			"",
 			"Examples:",
 			"  $ refarm plugin reload",
-			"  $ refarm plugin reload runtime-agent",
-			"  $ refarm plugin reload runtime-agent --json",
+			"  $ refarm plugin reload agent",
+			"  $ refarm plugin reload agent --json",
 			`  $ ${PLUGIN_RELOAD_RESTART_RUNTIME_AGENT_JSON_COMMAND}`,
 			"",
 			"Notes:",
-			"  This is the non-interactive equivalent of /reload in refarm chat.",
+		"  This is the non-interactive equivalent of /reload (or /r) in refarm chat.",
 			"  Hot reload is attempted first; runtime restart only happens with --restart-if-needed.",
+			"  Polling timeout is controlled by REFARM_PLUGIN_RELOAD_MAX_WAIT_MS (default 120000ms).",
 			`  Use ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND} if the runtime is not running.`,
 		].join("\n"),
 	)
@@ -1040,13 +1045,13 @@ pluginCommand
 			console.log(`Bundling plugin ${name} from ${input}...`);
 		}
 		let result:
-			| Awaited<ReturnType<typeof runLaunchProcess>>
+			| Awaited<ReturnType<typeof runProcessHandoff>>
 			| undefined;
 		try {
 			if (!options.json) {
 				console.log(`  → ${command.display}`);
 			}
-			result = await runLaunchProcess(
+			result = await runProcessHandoff(
 				{
 					...command,
 					display: command.display,

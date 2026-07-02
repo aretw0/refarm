@@ -6,6 +6,12 @@ import { resolveRefarmHome } from "../utils/refarm-home.js";
 
 const AGENT_FINISH_SESSION_VERSION = 1 as const;
 
+export function agentFinishSessionFilePath(
+	baseDir = resolveRefarmHome(),
+): string {
+	return path.join(baseDir, "sessions", "agent-finish-session.v1.json");
+}
+
 export interface AgentFinishSessionCheckpoint {
 	version: typeof AGENT_FINISH_SESSION_VERSION;
 	latest?: OperatorResumeFinishRecord;
@@ -49,10 +55,7 @@ export class FileAgentFinishSessionRecorder
 
 	constructor(baseDir = resolveRefarmHome()) {
 		this.sessionsDir = path.join(baseDir, "sessions");
-		this.sessionFilePath = path.join(
-			this.sessionsDir,
-			"agent-finish-session.v1.json",
-		);
+		this.sessionFilePath = agentFinishSessionFilePath(baseDir);
 	}
 
 	rememberRun(record: OperatorResumeFinishRecord): void {

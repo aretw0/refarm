@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	SESSION_LOCK_PATH,
@@ -7,6 +9,12 @@ import {
 	writeActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "../../src/commands/session-lock.js";
+
+const FALLBACK_SESSION_LOCK_PATH = path.join(
+	os.tmpdir(),
+	".refarm",
+	"session.lock",
+);
 
 describe("active session pointer helpers", () => {
 	afterEach(() => {
@@ -19,7 +27,10 @@ describe("active session pointer helpers", () => {
 		);
 
 		expect(readActiveSessionId()).toBe("urn:refarm:session:v1:abc123");
-		expect(fs.readFileSync).toHaveBeenCalledWith(SESSION_LOCK_PATH, "utf-8");
+		expect(fs.readFileSync).toHaveBeenCalledWith(
+			expect.stringContaining("/session.lock"),
+			"utf-8",
+		);
 	});
 
 	it("treats missing or empty active session locks as absent", () => {
@@ -47,7 +58,7 @@ describe("active session pointer helpers", () => {
 			recursive: true,
 		});
 		expect(writeSpy).toHaveBeenCalledWith(
-			SESSION_LOCK_PATH,
+			expect.stringContaining("/session.lock"),
 			"urn:refarm:session:v1:abc123",
 			"utf-8",
 		);
@@ -88,13 +99,107 @@ describe("active session pointer helpers", () => {
 
 	it("reports whether clearing the active session lock succeeded", () => {
 		const unlinkSpy = vi.spyOn(fs, "unlinkSync");
+		const readSpy = vi.spyOn(fs, "readFileSync");
 		unlinkSpy.mockImplementationOnce(() => undefined);
-		expect(clearActiveSessionId()).toBe(true);
-		expect(unlinkSpy).toHaveBeenCalledWith(SESSION_LOCK_PATH);
-
-		unlinkSpy.mockImplementationOnce(() => {
+		readSpy.mockImplementationOnce(() => {
 			throw new Error("missing");
 		});
+		expect(clearActiveSessionId()).toBe(true);
+		expect(unlinkSpy).toHaveBeenCalledWith(
+			expect.stringContaining("/session.lock"),
+		);
+
+		unlinkSpy.mockImplementationOnce(() => {
+			const error = new Error("missing") as NodeJS.ErrnoException;
+			error.code = "ENOENT";
+			throw error;
+		});
+		unlinkSpy.mockImplementationOnce(() => {
+			const error = new Error("missing") as NodeJS.ErrnoException;
+			error.code = "ENOENT";
+			throw error;
+		});
+		readSpy.mockReturnValueOnce("urn:refarm:session:v1:still-active");
+		expect(clearActiveSessionId()).toBe(false);
+	});
+
+	it("can clear using fallback lock path when the home lock path is read-only", () => {
+		const mkdirSpy = vi
+			.spyOn(fs, "mkdirSync")
+			.mockImplementation(() => undefined as string | undefined);
+		const writeSpy = vi
+			.spyOn(fs, "writeFileSync")
+			.mockImplementation((pathValue) => {
+				if (pathValue === SESSION_LOCK_PATH) {
+					const error = new Error("read only") as NodeJS.ErrnoException;
+					error.code = "EROFS";
+					throw error;
+				}
+				return undefined;
+			});
+
+		writeActiveSessionId("urn:refarm:session:v1:abc123");
+
+		expect(mkdirSpy).toHaveBeenCalledWith(
+			expect.stringContaining(".refarm"),
+			{ recursive: true },
+		);
+		expect(writeSpy).toHaveBeenCalledWith(
+			FALLBACK_SESSION_LOCK_PATH,
+			"urn:refarm:session:v1:abc123",
+			"utf-8",
+		);
+	});
+
+	it("clear can recover when lock is read-only by writing empty writable marker", () => {
+		const unlinkSpy = vi.spyOn(fs, "unlinkSync");
+		unlinkSpy
+			.mockImplementation((pathValue) => {
+				if (pathValue === SESSION_LOCK_PATH) {
+					const error = new Error("read only") as NodeJS.ErrnoException;
+					error.code = "EROFS";
+					throw error;
+				}
+				const error = new Error("missing") as NodeJS.ErrnoException;
+				error.code = "ENOENT";
+				throw error;
+			});
+		const writeSpy = vi
+			.spyOn(fs, "writeFileSync")
+			.mockImplementation((pathValue) => {
+				if (pathValue === SESSION_LOCK_PATH) {
+					const error = new Error("read only") as NodeJS.ErrnoException;
+					error.code = "EROFS";
+					throw error;
+				}
+				return undefined;
+			});
+		vi.spyOn(fs, "readFileSync").mockReturnValue("");
+
+		expect(clearActiveSessionId()).toBe(true);
+		expect(writeSpy).toHaveBeenCalledWith(
+			FALLBACK_SESSION_LOCK_PATH,
+			"",
+			"utf-8",
+		);
+	});
+
+	it("does not report clear success when the readable primary lock remains stale", () => {
+		vi.spyOn(fs, "existsSync").mockImplementation((pathValue) => {
+			return pathValue === SESSION_LOCK_PATH;
+		});
+		vi.spyOn(fs, "unlinkSync").mockImplementation((pathValue) => {
+			if (pathValue === SESSION_LOCK_PATH) {
+				const error = new Error("read only") as NodeJS.ErrnoException;
+				error.code = "EROFS";
+				throw error;
+			}
+		});
+		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+		vi.spyOn(fs, "readFileSync").mockReturnValue(
+			"urn:refarm:session:v1:still-active",
+		);
+
 		expect(clearActiveSessionId()).toBe(false);
 	});
 });

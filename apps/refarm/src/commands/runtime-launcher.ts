@@ -1,8 +1,8 @@
 import {
-	launchDetachedProcess,
-	type DetachedLaunchProcess,
-	type LaunchProcessSpec,
-} from "@refarm.dev/cli/launch-process";
+	startDetachedProcessHandoff,
+	type DetachedProcessHandoff,
+	type ProcessHandoffSpec,
+} from "@refarm.dev/cli/process-handoff";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -17,7 +17,7 @@ export interface RuntimeLaunchCommand {
 	logPath?: string;
 }
 
-export type RuntimeProcess = DetachedLaunchProcess;
+export type RuntimeProcess = DetachedProcessHandoff;
 
 const RUNTIME_STARTERS: Record<
 	LaunchRuntimeEngine,
@@ -72,12 +72,12 @@ export function resolveRuntimeLaunchCommand(
 }
 
 export function startRuntimeProcess(command: RuntimeLaunchCommand): RuntimeProcess {
-	const spec: LaunchProcessSpec = {
+	const spec: ProcessHandoffSpec = {
 		command: command.command,
 		args: command.args,
 		display: command.display,
 	};
-	return launchDetachedProcess(spec, { logPath: command.logPath });
+	return startDetachedProcessHandoff(spec, { logPath: command.logPath });
 }
 
 export function runtimeStartHelpLines(repoRoot: string): string[] {

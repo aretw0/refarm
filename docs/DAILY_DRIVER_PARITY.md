@@ -2,16 +2,24 @@
 
 Refarm reaches `v0.1.0` only when it can replace the creator's current external pi workflow for real work. This checklist translates that policy into observable capabilities.
 
+Reference driver research is tracked in
+[`docs/REFERENCE_AGENT_DRIVER_RESEARCH.md`](REFERENCE_AGENT_DRIVER_RESEARCH.md).
+Codex, Claude Code, Hermes Agent, and Pi converge on the same product pressure:
+hard lifecycle policy, progressive capabilities, durable memory, resumable
+sessions, bounded worker delegation, and scheduled/headless work. This checklist
+remains the gate: a reference pattern only matters after Refarm can prove it
+locally.
+
 ## Minimum daily loop
 
 | Capability                | Refarm surface                              | Local validation signal                                                                                                                         | Status |
 | ------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | Start a work session      | `tractor` daemon + `apps/me` shell          | daemon boots, `apps/me` connects to `ws://localhost:42000`                                                                                      | ⬜     |
-| Ask an agent to reason    | Runtime agent hosted by Tractor             | prompt returns an `AgentResponse` and generic `StreamSession`/`StreamChunk` observations when streaming is enabled                              | ⬜     |
-| See live output           | UI consumer of Tractor observations         | Stream chunks render incrementally without special-casing the sync transport; `streamObservationView(...)` helper exists, UI subscriber pending | ⬜     |
-| Use local tools           | Runtime-agent tool dispatch through host bridges | filesystem/code/search tools are host-authorized and auditable                                                                                  | ⬜     |
-| Preserve memory           | `.project/` blocks + Loro/SQLite graph      | decisions/tasks/handoffs survive restart and sync roundtrip                                                                                     | ⬜     |
-| Resume after interruption | handoff + project status                    | a new session can recover current tasks from repository/project state                                                                           | ⬜     |
+| Ask an agent to reason    | Runtime agent hosted by Tractor             | `refarm ask` assembles the runtime-agent effort, follows stream chunks locally, and is covered by the no-token runtime-agent smoke               | no-token live path proven / daily mileage pending |
+| See live output           | UI consumer of Tractor observations         | Homestead renders generic stream observations locally; runtime-agent smoke writes stream files; real Tractor/apps-me E2E pending                 | local stream proven / app E2E pending |
+| Use local tools           | Runtime-agent tool dispatch through host bridges | filesystem/code/search tools are exposed through WASM host capabilities; shell tool path is policy-gated, trusted-plugin gated, and audited      | live policy proven |
+| Preserve memory           | `.project/` blocks + Loro/SQLite graph      | Loro/SQLite graph stores, snapshots, syncs, reopens local nodes, and runtime-agent task/session handoffs survive a daemon restart                | restart proof proven |
+| Resume after interruption | handoff + project status                    | `refarm resume --json` recovers task checkpoints, reads `.project/handoff.json`; `refarm project handoff validate/write` governs handoff updates | checkpoint + project handoff command proven |
 | Work offline              | `apps/me` + OPFS + service worker           | edit while Tractor is offline, reconnect, and deliver delta                                                                                     | ⬜     |
 | Recover from failure      | SQLite/OPFS backup path                     | restore from backup without graph corruption or lost tasks                                                                                      | ⬜     |
 | Automate reminders        | Windmill/scheduler equivalent               | one-shot and recurring reminders run locally with clear ownership                                                                               | ⬜     |
@@ -30,6 +38,202 @@ A capability can move from `dev` to `me` only when:
 ## First consumer priority
 
 For streaming work, the first production consumer should be a UI subscriber that reads generic `StreamSession` and `StreamChunk` nodes through the Tractor observation stream. `BrowserSyncClient` must remain schema-neutral; stream labeling, reduction, and rendering belong in the UI/client-helper layer.
+
+## Environment Pressure Evidence
+
+Current evidence (2026-06-29): `@refarm.dev/health/environment-pressure` carries
+the operational pressure pattern that proved useful in `agents-lab`: cheap
+read-only signals first, explicit safe-mode decisions, and no automatic cleanup.
+The primitive already samples workspace disk, host memory, Git maintenance
+markers, and cache routing without scanning or deleting project state.
+
+The same primitive now accepts caller-provided `sessionFiles` and
+`sessionResumeIntent`. Large session files are advisory for a new session, while
+an explicit resume of an oversized session becomes `stop-and-investigate`. It
+also exposes `planEnvironmentWorkCeiling`, a pure package-level decision helper
+that maps a pressure report plus caller-owned work class to `allow`, `degrade`,
+`serialize`, or `refuse`. This keeps the factory from blindly loading expensive
+context or dispatching broad work while preserving the operator's ability to
+start fresh, checkpoint, archive, or explicitly override outside the primitive.
+The focused signal is:
+
+```bash
+pnpm -C packages/health run test
+```
+
+## Runtime Agent Ask Evidence
+
+Current evidence (2026-06-27): the CLI boundary for asking the runtime agent is
+already covered at source level. `apps/refarm/test/commands/ask.test.ts`
+asserts that `refarm ask` submits an effort with the runtime-agent `respond`
+task, then follows the resulting stream and writes streamed content. The broader
+mock-runtime acceptance script,
+`scripts/ci/smoke-refarm-agent-model-mock.mjs`, exercises plugin reload, `ask`,
+task run, task resume, session handoff, task handoff, and stream-file creation
+against a mock model provider.
+
+That proves the command and mock-runtime handoff shape. With
+`REFARM_AGENT_MOCK_POLICY_PROOF=1`, the same smoke also drives a live
+runtime-agent `bash` tool call through the mock provider and asserts the
+Scarecrow audit record for the resulting shell spawn.
+
+Validation economy note: app-level Vitest filters are currently easy to misuse
+and can fan out into unrelated `apps/refarm` suites. Prefer named scripts or
+explicit test files through `pnpm -C apps/refarm run test:file -- <file>`.
+When the container is under memory pressure, treat app-level Vitest as a
+package checkpoint rather than a micro-slice gate.
+Use the mock smoke only when explicitly validating the runtime-agent path; for
+documentation-only status reconciliation, use `git diff --check` plus
+`refarm check --next-action --json`.
+
+## Runtime Agent Tool Evidence
+
+Current evidence (2026-06-27): the runtime-agent has the local-tool shape needed
+for a reference daily driver, but the full daily-driver policy bundle still needs
+one live acceptance pass. `packages/pi-agent/src/tools.rs` exposes OpenAI and
+Anthropic tool schemas for filesystem, search, shell, structured data, task,
+session, and LSP code operations. `packages/pi-agent/src/tool_dispatch/mod.rs`
+routes those tool names to specialized dispatch modules instead of a generic
+remote shell path.
+
+The host boundary is capability-based. `packages/pi-agent/wit/refarm-plugin-host.wit`
+imports `agent-fs`, `agent-shell`, and `structured-io`; `agent-shell` uses
+structured argv rather than shell interpolation, and `structured-io` validates
+JSON/TOML/YAML before writes. The current Tractor hardening surface is documented
+in `packages/pi-agent/ROADMAP.md`: `MODEL_SHELL_ALLOWLIST`, `MODEL_FS_ROOT`, and
+`trusted_plugins` gate subprocesses, filesystem reach, and shell-capable plugin
+callers at the host boundary. Tool calls are stored in `AgentResponse.tool_calls`
+for CRDT audit, as documented in `packages/pi-agent/README.md`.
+
+That proves the local tool contract and audit path. The live daily-driver policy
+bundle is now covered by the opt-in mock smoke below: the runtime starts in an
+isolated temporary workspace containing `.refarm/config.json` with
+`trusted_plugins`, while `MODEL_FS_ROOT` points at the checkout and
+`MODEL_SHELL_ALLOWLIST` permits only the scripted command.
+
+Current evidence (2026-06-27): the `agent-tools` composition component now has a
+focused unit proof for its hard local `agent-shell` guard. `packages/agent-tools`
+rejects empty `argv`, rejects requested subprocess timeouts above its 120-second
+cap, and accepts requests exactly at the cap. The README now matches the source
+cap. The focused signal is:
+
+```bash
+cargo test --manifest-path packages/agent-tools/Cargo.toml --lib --quiet
+```
+
+That proves the component-local policy guard without starting Tractor or a model
+provider. It still does not prove the full live policy bundle: host shell
+allowlist, trusted plugin enforcement, checkout root, and audit records active in
+one runtime-agent acceptance pass.
+
+Current evidence (2026-06-27): Tractor's host-side policy guards also have
+focused local proofs for the daily-driver shell boundary. The host rejects a
+command outside `MODEL_SHELL_ALLOWLIST`, blocks shell `cwd` outside
+`MODEL_FS_ROOT`, blocks unlisted plugins when `trusted_plugins` is configured,
+and formats `agent-tool:shell:spawn` telemetry as an audit line. The focused
+signals are:
+
+```bash
+cargo test --manifest-path packages/tractor/Cargo.toml shell_allowlist_blocks_unknown_command --lib --quiet
+cargo test --manifest-path packages/tractor/Cargo.toml spawn_cwd_outside_fs_root_is_blocked --lib --quiet
+cargo test --manifest-path packages/tractor/Cargo.toml trusted_plugins_enforcement_blocks_unlisted_plugin --lib --quiet
+cargo test --manifest-path packages/tractor/Cargo.toml format_shell_spawn_event --lib --quiet
+```
+
+That proves each host-side policy primitive independently without starting a
+model provider. Once the e2e artifacts are already built, the integrated
+no-token proof is:
+
+```bash
+REFARM_AGENT_MOCK_POLICY_PROOF=1 node scripts/ci/smoke-refarm-agent-model-mock.mjs
+```
+
+When dependencies need refreshing first, run the existing build-backed gate with
+the same environment variable:
+
+```bash
+REFARM_AGENT_MOCK_POLICY_PROOF=1 pnpm run refarm:agent:e2e:mock
+```
+
+The proof scripts a model `bash` tool call, sets `MODEL_SHELL_ALLOWLIST=echo`
+and `MODEL_FS_ROOT` to the checkout, starts Tractor from an isolated temporary
+workspace with `trusted_plugins=["pi-agent"]`, then asserts an
+`agent-tool:shell:spawn` Scarecrow audit line for `pi-agent`.
+
+For the restart persistence proof, add `REFARM_AGENT_MOCK_RESTART_PROOF=1`.
+Both flags can be combined when validating the runtime-agent daily-driver path
+with existing artifacts:
+
+```bash
+REFARM_AGENT_MOCK_POLICY_PROOF=1 REFARM_AGENT_MOCK_RESTART_PROOF=1 node scripts/ci/smoke-refarm-agent-model-mock.mjs
+```
+
+## Memory Persistence Evidence
+
+Current evidence (2026-06-27): Refarm's CRDT memory engine is implemented across
+both the browser/TypeScript and native/Rust paths. `docs/SYNC_CHOREOGRAPHY.md`
+defines the intended write model: writes go through Loro, queries read from the
+SQLite materialized view, local writes do not depend on network, and reconnects
+exchange binary Loro updates.
+
+`packages/sync-loro/src/loro-crdt-storage.ts` implements the TypeScript bridge:
+`storeNode` writes into a Loro document, `Projector` updates the read model,
+`getUpdate`/`applyUpdate` move binary deltas, and snapshot helpers cover cold
+boot persistence. Its tests cover local projection, bidirectional sync,
+offline-peer merge, snapshot import/export, and the `sync:v1` conformance
+provider bridge.
+
+`packages/tractor/src/sync/loro.rs` and `packages/tractor/src/storage/sqlite.rs`
+implement the native side: `NativeSync` writes to Loro and eagerly mirrors to
+SQLite, exports/imports updates and snapshots, and `NativeStorage` opens either
+`:memory:` or a namespaced database under the Refarm data directory. The Rust
+sync tests cover update convergence, offline-first roundtrip, snapshot
+roundtrip, and idempotent update application. `NativeStorage` also has a focused
+file-backed restart proof: `file_storage_survives_reopen` writes a `Task` node to
+a real SQLite file, drops the first handle, reopens the database, and verifies
+the node, context, payload, and source plugin remain queryable.
+
+That proves the memory engine and the local storage restart boundary. The
+runtime-agent smoke now covers the daily-driver restart path too: it restarts
+Tractor against the same `REFARM_HOME`, namespace, SQLite store, and stream/task
+result directories, then asserts that session history, task status, and
+top-level resume handoffs still roundtrip through the intended CLI/runtime path.
+
+## Resume After Interruption Evidence
+
+Current evidence (2026-06-27): the operator resume loop can recover local task
+continuation state and expose durable project handoff context without relying on
+chat context. `apps/refarm` wires `refarm resume --json` through the task session
+checkpoint recorder, finish recorder, active session pointer, `.project/handoff.json`,
+recent sessions, recent prompts, runtime status, and model route summary. The
+focused source tests in `apps/refarm/test/commands/resume.test.ts` prove two
+interruption cases: a new command instance seeing a non-terminal task checkpoint
+with no active effort produces `refarm task resume --json`, and the repository
+handoff loader carries current tasks and next actions into the JSON resume
+envelope.
+
+That proves the local checkpoint handoff and the versioned project handoff read.
+ADR-071 classifies `.project/handoff.json` as a declared compatibility namespace:
+it is durable contextual recovery state for `resume`, not the semantic center of
+Refarm and not a hidden command queue. It becomes live current-work state only
+after an explicit source edit or `refarm project handoff write` updates it, and
+the next slice must still pass `resume`, `check`, and the relevant finish lane
+before agents treat it as fresh. `refarm project handoff validate --json` is the
+machine-readable freshness and shape check for automated consumers.
+
+Current evidence (2026-06-27): Homestead already owns the first UI subscriber
+slice. `StudioShell` registers `onNode("StreamSession")` and
+`onNode("StreamChunk")`, reduces them through the stream observation helpers, and
+renders both statusbar pills and a dedicated streams slot when the DOM exposes
+`refarm-slot-streams`. The focused local signal is:
+
+```bash
+pnpm -C packages/homestead run test -- Shell.test.ts stream-observer.test.ts
+```
+
+That proves the UI helper and subscriber boundary. It does not yet prove the
+full daily-driver path with a real Tractor daemon, `apps/me`, and a live
+runtime-agent stream.
 
 ## Release consequence
 

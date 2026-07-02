@@ -5,9 +5,12 @@ import {
 	createRefarmMeSurfaceContextProvider,
 	createRefarmMeSurfacePlugins,
 	invokeRefarmMePersonalSurfaceAction,
+	REFARM_ME_GRAPH_MODE,
+	REFARM_ME_IDENTITY_STATUS,
 	REFARM_ME_OPEN_VAULT_ACTION_ID,
 	REFARM_ME_PERSONAL_SURFACE_ID,
 	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
+	REFARM_ME_SYNC_STATUS,
 	renderRefarmMePersonalSurface,
 	resolveRefarmMePersonalSurfaceActionRequest,
 } from "./me-surfaces";
@@ -58,8 +61,15 @@ describe("refarm.me Homestead surface", () => {
 			hostId: "apps/me",
 			data: {
 				profileName: "My Sovereign Space",
+				identityStatus: REFARM_ME_IDENTITY_STATUS,
 				storageScope: "refarm-me-main",
 				syncScope: "citizen",
+				syncStatus: REFARM_ME_SYNC_STATUS,
+				graphMode: REFARM_ME_GRAPH_MODE,
+				pluginRegistryCount: 0,
+				discoveredContentPluginCount: 0,
+				referenceDriverCapabilityIds: [],
+				scheduledWorkSummary: null,
 			},
 			actions: [
 				expect.objectContaining({
@@ -73,6 +83,24 @@ describe("refarm.me Homestead surface", () => {
 				`data-refarm-surface-action-id="${REFARM_ME_OPEN_VAULT_ACTION_ID}"`,
 			),
 		});
+		expect((rendered as { html: string }).html).toContain(
+			`<dd>${REFARM_ME_IDENTITY_STATUS}</dd>`,
+		);
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-sync-status>${REFARM_ME_SYNC_STATUS}</dd>`,
+		);
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-graph-mode>${REFARM_ME_GRAPH_MODE}</dd>`,
+		);
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-discovered-content-plugin-count>0</dd>`,
+		);
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-reference-driver-count>0</dd>`,
+		);
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-scheduled-work>not provided</dd>`,
+		);
 		await expect(plugin?.call("other", {})).resolves.toBeNull();
 	});
 
@@ -90,7 +118,21 @@ describe("refarm.me Homestead surface", () => {
 			locale: "en",
 			host: {
 				hostId: '<apps/me & "citizen">',
-				data: { profileName: "Me <Root>" },
+				data: {
+					profileName: "Me <Root>",
+					identityStatus: "not <ready>",
+					syncStatus: "sync <ok>",
+					graphMode: "mode <ok>",
+					pluginRegistryCount: "<2>",
+					discoveredContentPluginCount: "<1>",
+					referenceDriverCapabilityIds: ["<runtime>"],
+					scheduledWorkSummary: {
+						total: 2,
+						due: 1,
+						scheduled: 1,
+						unsupported: 0,
+					},
+				},
 				actions: [
 					{
 						id: REFARM_ME_OPEN_VAULT_ACTION_ID,
@@ -104,6 +146,17 @@ describe("refarm.me Homestead surface", () => {
 			"&lt;apps/me &amp; &quot;citizen&quot;&gt;",
 		);
 		expect((rendered as { html: string }).html).toContain("Me &lt;Root&gt;");
+		expect((rendered as { html: string }).html).toContain("not &lt;ready&gt;");
+		expect((rendered as { html: string }).html).toContain("sync &lt;ok&gt;");
+		expect((rendered as { html: string }).html).toContain("mode &lt;ok&gt;");
+		expect((rendered as { html: string }).html).toContain("&lt;2&gt;");
+		expect((rendered as { html: string }).html).toContain("&lt;1&gt;");
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-reference-driver-count>1</dd>`,
+		);
+		expect((rendered as { html: string }).html).toContain(
+			`<dd data-refarm-me-scheduled-work>1 scheduled / 1 due</dd>`,
+		);
 		expect((rendered as { html: string }).html).toContain("Open &lt;vault&gt;");
 	});
 
@@ -119,6 +172,53 @@ describe("refarm.me Homestead surface", () => {
 				slot: "main",
 			},
 			locale: "en",
+		});
+	});
+
+	it("creates host context from configurable product state", async () => {
+		const provider = createRefarmMeSurfaceContextProvider({
+			profileName: "Local steward",
+			identityStatus: "authenticated",
+			storageScope: "local-main",
+			syncScope: "solo",
+			syncStatus: "snapshot-applied",
+			graphMode: "sovereign",
+			pluginRegistryCount: 1,
+			discoveredContentPluginCount: 2,
+			referenceDriverCapabilityIds: [
+				"runtime-agent.session-tree",
+				"runtime-agent.structured-io",
+			],
+			scheduledWorkSummary: {
+				total: 1,
+				due: 0,
+				scheduled: 1,
+				unsupported: 0,
+			},
+		});
+
+		expect(provider(createRefarmMePersonalSurfaceRenderRequest())).toMatchObject({
+			hostId: "apps/me",
+			data: {
+				profileName: "Local steward",
+				identityStatus: "authenticated",
+				storageScope: "local-main",
+				syncScope: "solo",
+				syncStatus: "snapshot-applied",
+				graphMode: "sovereign",
+				pluginRegistryCount: 1,
+				discoveredContentPluginCount: 2,
+				referenceDriverCapabilityIds: [
+					"runtime-agent.session-tree",
+					"runtime-agent.structured-io",
+				],
+				scheduledWorkSummary: {
+					total: 1,
+					due: 0,
+					scheduled: 1,
+					unsupported: 0,
+				},
+			},
 		});
 	});
 

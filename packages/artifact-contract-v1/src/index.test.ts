@@ -144,6 +144,98 @@ describe("TaskArtifactManifest", () => {
     }).map((item) => item.id)).toEqual(["wallet-dataset"]);
   });
 
+  it("validates vault-seed Lab/outbox/notebook evidence without owning notebook UX", () => {
+    const manifest: TaskArtifactManifest = {
+      schema: "refarm.task-artifacts.v1",
+      taskId: "vault-seed-lab-export",
+      effortId: "vault-seed-2026-06-26",
+      createdAt: "2026-06-26T22:20:00.000Z",
+      artifacts: [
+        {
+          id: "lab-datasets",
+          uri: ".dgk/lab/datasets.json",
+          mediaType: "application/json",
+          role: "dataset",
+          reviewState: "unreviewed",
+          hash: {
+            algorithm: "sha256",
+            value: "2".repeat(64),
+          },
+          provenance: {
+            runId: "dgk-etl-2026-06-26",
+            producer: "vault-seed:dgk-etl",
+            command: "node scripts/prepare_lab_datasets.mjs",
+            process: {
+              command: "node",
+              args: ["scripts/prepare_lab_datasets.mjs"],
+              display: "node scripts/prepare_lab_datasets.mjs",
+              cwd: "/workspaces/vault-seed",
+            },
+            source: "vault-seed",
+            sourceVersion: "local-checkout",
+            producedAt: "2026-06-26T22:20:01.000Z",
+          },
+          labels: ["lab", "dataset"],
+        },
+        {
+          id: "publication-outbox",
+          uri: ".dgk/outbox-publicacao.json",
+          mediaType: "application/json",
+          role: "manifest",
+          reviewState: "accepted",
+          hash: {
+            algorithm: "sha256",
+            value: "3".repeat(64),
+          },
+          provenance: {
+            runId: "dgk-outbox-2026-06-26",
+            producer: "vault-seed:dgk-outbox",
+            command: "node scripts/prepare_publication_outbox.mjs",
+            process: {
+              command: "node",
+              args: ["scripts/prepare_publication_outbox.mjs"],
+              display: "node scripts/prepare_publication_outbox.mjs",
+              cwd: "/workspaces/vault-seed",
+            },
+            source: "vault-seed",
+            sourceVersion: "local-checkout",
+            producedAt: "2026-06-26T22:20:02.000Z",
+          },
+          labels: ["publication", "outbox"],
+        },
+        {
+          id: "notebook-snapshot",
+          uri: "notebooks/lab/outbox.html",
+          mediaType: "text/html",
+          role: "report",
+          reviewState: "unreviewed",
+          hash: {
+            algorithm: "sha256",
+            value: "4".repeat(64),
+          },
+          provenance: {
+            runId: "dgk-lab-export-2026-06-26",
+            producer: "vault-seed:lab-runtime",
+            command: "marimo export html notebooks/outbox.py -o notebooks/lab/outbox.html",
+            source: "vault-seed",
+            sourceVersion: "local-checkout",
+            producedAt: "2026-06-26T22:20:03.000Z",
+          },
+          labels: ["lab", "notebook", "snapshot"],
+        },
+      ],
+    };
+
+    expect(validateTaskArtifactManifest(manifest)).toEqual({ ok: true, issues: [] });
+    expect(selectTaskArtifacts(manifest, { labels: ["lab"] }).map((item) => item.id)).toEqual([
+      "lab-datasets",
+      "notebook-snapshot",
+    ]);
+    expect(selectTaskArtifacts(manifest, { roles: ["manifest"], labels: ["outbox"] }).map((item) => item.id)).toEqual([
+      "publication-outbox",
+    ]);
+  });
+
   it("finds task artifacts by stable id", () => {
     const manifest = sampleManifest();
 

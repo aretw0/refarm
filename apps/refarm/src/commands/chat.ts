@@ -1,4 +1,15 @@
-import { launchProcess } from "@refarm.dev/cli/launch-process";
+import {
+	loadChatHistory,
+	MAX_CHAT_HISTORY_LINES,
+	rememberChatHistoryLine,
+	saveChatHistory,
+} from "@refarm.dev/cli/chat-history";
+import {
+	CHAT_HELP_TEXT,
+	CHAT_RUNTIME_COMMANDS_HELP,
+	parseChatLine,
+} from "@refarm.dev/cli/chat-repl";
+import { executeProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	buildSystemPrompt,
 	ContextRegistry,
@@ -14,16 +25,6 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import readline from "node:readline";
-import {
-	loadChatHistory,
-	rememberChatHistoryLine,
-	saveChatHistory,
-} from "./chat-history.js";
-import {
-	CHAT_HELP_TEXT,
-	CHAT_RUNTIME_COMMANDS_HELP,
-	parseChatLine,
-} from "./chat-repl.js";
 import { submitEffortWithRuntimeRecovery } from "./chat-runtime-recovery.js";
 import {
 	buildCurrentModelStatus,
@@ -66,13 +67,14 @@ import {
 	isSidecarUnavailable,
 	printSidecarUnavailable,
 } from "./sidecar-error.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 export {
 	loadChatHistory,
 	rememberChatHistoryLine,
 	resolveChatHistoryPath,
 	saveChatHistory,
-} from "./chat-history.js";
+} from "@refarm.dev/cli/chat-history";
 
 export {
 	followStreamFile,
@@ -131,7 +133,7 @@ export {
 	}
 
 	async function submitViaHttp(effort: Effort): Promise<string> {
-	const response = await fetch(sidecarUrl("/efforts"), {
+	const response = await fetchSidecarWithTimeout(sidecarUrl("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(effort),
@@ -147,7 +149,7 @@ export {
 	prefix: string,
 	): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
-	const response = await fetch(sidecarUrl("/sessions"));
+	const response = await fetchSidecarWithTimeout(sidecarUrl("/sessions"));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
 	const body = (await response.json()) as {
 		sessions?: Array<{ "@id": string }>;
@@ -201,7 +203,7 @@ export {
 			"Cannot locate the refarm CLI entrypoint for status check.",
 		);
 	}
-	const exitCode = await launchProcess({
+	const exitCode = await executeProcessHandoff({
 		command: node,
 		args: [entrypoint, "status", ...args],
 		display: ["refarm", "status", ...args].join(" "),
@@ -219,7 +221,7 @@ export {
 			"Cannot locate the refarm CLI entrypoint for credential setup.",
 		);
 	}
-	const exitCode = await launchProcess({
+	const exitCode = await executeProcessHandoff({
 		command: node,
 		args: [entrypoint, "sow", ...args],
 		display: ["refarm", "sow", ...args].join(" "),
@@ -357,14 +359,6 @@ export {
 		system,
 	});
 
-	const submittedAtMs = Date.now();
-	const effortId = await submitEffortWithRuntimeRecovery(effort, {
-		...deps,
-		onRecoveringRuntime: () => {
-			console.error(chalk.yellow("\nRefarm runtime stopped responding."));
-		},
-	});
-
 	const stopSpinner = startThinkingSpinner(deps.spinnerMessage?.bind(deps));
 	let spinnerCleared = false;
 	function clearSpinner() {
@@ -374,7 +368,15 @@ export {
 		}
 	}
 
+	const submittedAtMs = Date.now();
+	let effortId: string | null = null;
 	try {
+		effortId = await submitEffortWithRuntimeRecovery(effort, {
+			...deps,
+			onRecoveringRuntime: () => {
+				console.error(chalk.yellow("\nRefarm runtime stopped responding."));
+			},
+		});
 		await deps.followStream(
 			effortId,
 			(chunk) => {
@@ -393,12 +395,18 @@ export {
 			},
 			{
 				submittedAtMs,
-				readFallback: () =>
-					deps.readEffortResult?.(effortId) ?? Promise.resolve(null),
+				readFallback: () => {
+					if (!effortId || !deps.readEffortResult) {
+						return Promise.resolve(null);
+					}
+					return deps.readEffortResult(effortId);
+				},
 			},
 		);
 	} catch (streamError) {
-		clearSpinner();
+		if (!effortId) {
+			throw streamError;
+		}
 		const fallback = await readEffortAndSessionFallback(effortId, sessionId, {
 			readEffortResult: deps.readEffortResult,
 			readSessionFallback: deps.readSessionFallback,
@@ -416,6 +424,8 @@ export {
 		}
 
 		throw streamError;
+	} finally {
+		clearSpinner();
 	}
 	}
 
@@ -449,6 +459,8 @@ export {
 
 	return new Promise((resolve) => {
 		let chatHistory = loadChatHistory();
+		let commandHistory: string[] = [];
+		let hasHistoryChanges = false;
 		const rl = readline.createInterface({
 			input: process.stdin,
 			output: process.stdout,
@@ -467,6 +479,13 @@ export {
 		rl.on("line", (line) => {
 			const command = parseChatLine(line);
 
+			const trimmedLine = line.trim();
+			if (trimmedLine && command.kind !== "history") {
+				commandHistory = [trimmedLine, ...commandHistory].slice(
+					0,
+					MAX_CHAT_HISTORY_LINES,
+				);
+			}
 			switch (command.kind) {
 				case "exit":
 					console.log(chalk.dim("Goodbye."));
@@ -476,6 +495,32 @@ export {
 
 				case "help":
 					console.log(chalk.dim(CHAT_HELP_TEXT));
+					console.log();
+					rl.prompt();
+					break;
+
+				case "history":
+					if (command.action === "clear") {
+						const hadPersistableHistory = chatHistory.length > 0;
+						chatHistory = [];
+						commandHistory = [];
+						if (hadPersistableHistory) {
+							hasHistoryChanges = true;
+						}
+						console.log(chalk.dim("✓ Chat history cleared."));
+						} else {
+							const allHistory = [...commandHistory, ...chatHistory].slice(
+								0,
+								MAX_CHAT_HISTORY_LINES,
+							);
+							if (allHistory.length === 0) {
+								console.log(chalk.dim("No chat history yet."));
+							} else {
+							for (let index = 0; index < allHistory.length; index++) {
+								console.log(chalk.dim(`${index + 1}. ${allHistory[index]}`));
+							}
+						}
+					}
 					console.log();
 					rl.prompt();
 					break;
@@ -507,6 +552,14 @@ export {
 
 				case "session": {
 					const prefix = command.prefix;
+					if (!prefix) {
+						console.log(
+							chalk.dim(`✓ Active session: ${activeSessionId.slice(-8)}`),
+						);
+						console.log();
+						rl.prompt();
+						break;
+					}
 					rl.pause();
 					void (async () => {
 						try {
@@ -618,7 +671,11 @@ export {
 						rl.prompt();
 						break;
 					}
-					chatHistory = rememberChatHistoryLine(chatHistory, command.text);
+					const nextHistory = rememberChatHistoryLine(chatHistory, command.text);
+					if (nextHistory !== chatHistory) {
+						chatHistory = nextHistory;
+						hasHistoryChanges = true;
+					}
 					rl.pause();
 					void (async () => {
 						try {
@@ -645,7 +702,9 @@ export {
 		});
 
 		rl.on("close", () => {
-			saveChatHistory(chatHistory);
+			if (hasHistoryChanges) {
+				saveChatHistory(chatHistory);
+			}
 			console.log(chalk.dim("\nSession saved."));
 			if (!hasPrintedResumeHint) {
 				printResumeHints();

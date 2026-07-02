@@ -1,6 +1,8 @@
 # @refarm.dev/heartwood
 
-Heartwood is Refarm's sovereign cryptographic core, compiled to WebAssembly via the Component Model. It provides Ed25519 signing, SHA-256 hashing, and key derivation primitives — sandboxed, capability-gated, and language-agnostic.
+Heartwood is a portable cryptographic core compiled to WebAssembly via the
+Component Model. It provides Ed25519 signing, SHA-256 hashing, and key derivation
+primitives for sandboxed, capability-gated, language-agnostic consumers.
 
 ## Usage
 
@@ -48,7 +50,7 @@ When heartwood's Rust source changes and a rebuild is required, use the reusable
 ```yaml
 jobs:
   build-heartwood:
-    uses: refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main
+    uses: aretw0/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main
     with:
       component-name: heartwood
       workspace-path: packages/heartwood

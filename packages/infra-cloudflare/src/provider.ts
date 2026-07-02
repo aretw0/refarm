@@ -99,9 +99,13 @@ export class CloudflareProvider {
 }
 
 async function resolveAccountId(apiToken: string): Promise<string> {
+	const timeoutMs = 15_000;
 	const res = await fetch(
 		"https://api.cloudflare.com/client/v4/accounts?per_page=1",
-		{ headers: { Authorization: `Bearer ${apiToken}` } },
+		{
+			headers: { Authorization: `Bearer ${apiToken}` },
+			signal: AbortSignal.timeout(timeoutMs),
+		},
 	);
 	if (!res.ok) {
 		throw new Error(`Cloudflare API error ${res.status}: ${await res.text()}`);
@@ -119,9 +123,13 @@ export async function getWorkersSubdomain(
 	apiToken: string,
 	accountId: string,
 ): Promise<string | null> {
+	const timeoutMs = 15_000;
 	const res = await fetch(
 		`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/subdomain`,
-		{ headers: { Authorization: `Bearer ${apiToken}` } },
+		{
+			headers: { Authorization: `Bearer ${apiToken}` },
+			signal: AbortSignal.timeout(timeoutMs),
+		},
 	);
 	if (!res.ok) return null;
 	const body = (await res.json()) as { result: { subdomain?: string } };
@@ -138,6 +146,7 @@ export async function registerWorkersSubdomain(
 	accountId: string,
 	subdomain: string,
 ): Promise<string> {
+	const timeoutMs = 15_000;
 	const res = await fetch(
 		`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/subdomain`,
 		{
@@ -147,6 +156,7 @@ export async function registerWorkersSubdomain(
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({ subdomain }),
+			signal: AbortSignal.timeout(timeoutMs),
 		},
 	);
 	const body = (await res.json()) as {

@@ -10,7 +10,11 @@ export const HOMESTEAD_ENGINE_VERSION: string =
 
 export interface HeraldPluginOptions {
   l8n?: L8nHost;
+  identityStatus?: string;
 }
+
+export const HERALD_DEFAULT_IDENTITY_STATUS = "unauthenticated";
+export const HERALD_IDENTITY_STATUS_ID = "refarm-herald-identity-status";
 
 /**
  * Herald plugin.
@@ -20,10 +24,14 @@ export interface HeraldPluginOptions {
 export class HeraldPlugin {
   private _logs: string[] = [];
   private readonly l8n: L8nHost;
+  private readonly identityStatus: string;
 
   constructor(private tractor: StudioHost, options: HeraldPluginOptions = {}) {
     this.l8n = options.l8n ?? createHomesteadL8n();
+    this.identityStatus =
+      options.identityStatus ?? HERALD_DEFAULT_IDENTITY_STATUS;
     this.setupHerald();
+    this.renderIdentityStatus();
   }
 
   private setupHerald() {
@@ -35,6 +43,34 @@ export class HeraldPlugin {
         this._logs.push(info);
       }
     });
+  }
+
+  private renderIdentityStatus() {
+    if (typeof document === "undefined") return;
+
+    const text = `Identity: ${this.identityStatus}`;
+    const existing = document.getElementById(HERALD_IDENTITY_STATUS_ID);
+    if (existing) {
+      existing.textContent = text;
+      existing.dataset.refarmHeraldIdentityStatus = this.identityStatus;
+      return;
+    }
+
+    const health = document.getElementById("system-health");
+    if (health) {
+      health.textContent = text;
+      health.dataset.refarmHeraldIdentityStatus = this.identityStatus;
+      return;
+    }
+
+    const statusbar = document.getElementById("refarm-slot-statusbar");
+    if (!statusbar) return;
+
+    const element = document.createElement("span");
+    element.id = HERALD_IDENTITY_STATUS_ID;
+    element.dataset.refarmHeraldIdentityStatus = this.identityStatus;
+    element.textContent = text;
+    statusbar.appendChild(element);
   }
 
   public monitorLifecycle() {

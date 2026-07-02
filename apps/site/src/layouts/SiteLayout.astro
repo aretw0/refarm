@@ -1,0 +1,45 @@
+---
+import "@refarm.dev/ds/tokens.css";
+import "@refarm.dev/ds/themes/verde-jardim.css";
+import "@refarm.dev/ds/components.css";
+import "../styles/site.css";
+
+interface Props {
+	title?: string;
+	description?: string;
+}
+
+const {
+	title = "Refarm",
+	description = "Refarm supplies reusable blocks for sovereign software workspaces.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-ds-theme="verde-jardim" data-mode="light">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="description" content={description} />
+		<title>{title}</title>
+	</head>
+	<body>
+		<header class="site-shell site-header" aria-label="Primary">
+			<a class="site-brand" href={import.meta.env.BASE_URL} aria-label="Refarm home">
+				<span class="site-brand__mark" aria-hidden="true"></span>
+				<span>Refarm</span>
+			</a>
+			<nav class="site-nav" aria-label="Documentation">
+				<a href={`${import.meta.env.BASE_URL}#supply`}>Supply</a>
+				<a href={`${import.meta.env.BASE_URL}#handoff`}>Handoff</a>
+				<a href={`${import.meta.env.BASE_URL}#docs`}>Docs</a>
+			</nav>
+		</header>
+		<main>
+			<slot />
+		</main>
+		<footer class="site-shell site-footer">
+			<p>Public site candidate. Refarm Studio remains a separate internal workbench.</p>
+		</footer>
+	</body>
+</html>

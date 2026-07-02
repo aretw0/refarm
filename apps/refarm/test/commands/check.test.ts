@@ -4,6 +4,7 @@ import {
 	buildNodeSubstrateRecommendations,
 	buildRefarmCheckReport,
 	createCheckCommand,
+	type EnvironmentPressureCheck,
 	type NodeSubstrateCheck,
 	type RefarmCheckDeps,
 	type ReleasePolicyCheck,
@@ -173,6 +174,33 @@ function makeRustSubstrateCheck(
 	};
 }
 
+function makeEnvironmentPressureCheck(
+	overrides: Partial<EnvironmentPressureCheck> = {},
+): EnvironmentPressureCheck {
+	return {
+		command: "environment-pressure",
+		operation: "check",
+		ok: true,
+		decision: "continue",
+		signals: [
+			{
+				id: "filesystem-free-space",
+				kind: "filesystem",
+				severity: "info",
+				ok: true,
+				summary: "Workspace filesystem has enough free space for focused work.",
+				action: null,
+			},
+		],
+		recommendations: [],
+		nextAction: null,
+		nextActions: [],
+		nextCommand: null,
+		nextCommands: [],
+		...overrides,
+	};
+}
+
 function makeWorkspaceExecutionStatus(
 	overrides: Partial<WorkspaceExecutionStatus> = {},
 ): WorkspaceExecutionStatus {
@@ -251,7 +279,7 @@ function makeReleasePolicyCheck(
 		profileTags: ["kernel", "candidate"],
 		packageProfiles: [],
 		blockers: [],
-		recommendedCommand: "refarm release plan --selection default --json",
+		recommendedCommand: "refarm release preflight --selection default --json",
 		...overrides,
 	};
 }
@@ -262,6 +290,7 @@ function makeDeps(overrides: {
 	model?: Partial<ModelDoctorStatus>;
 	nodeSubstrate?: Partial<NodeSubstrateCheck>;
 	rustSubstrate?: Partial<RustSubstrateCheck>;
+	environmentPressure?: Partial<EnvironmentPressureCheck>;
 	workspaceExecution?: Partial<WorkspaceExecutionStatus>;
 	workspaceSweep?: Partial<WorkspaceSweepCheck>;
 	releasePolicy?: Partial<ReleasePolicyCheck>;
@@ -269,6 +298,7 @@ function makeDeps(overrides: {
 	return {
 		runNodeSubstrate: vi.fn().mockResolvedValue(makeNodeSubstrateCheck(overrides.nodeSubstrate)),
 		runRustSubstrate: vi.fn().mockResolvedValue(makeRustSubstrateCheck(overrides.rustSubstrate)),
+		runEnvironmentPressure: vi.fn().mockResolvedValue(makeEnvironmentPressureCheck(overrides.environmentPressure)),
 		runWorkspaceExecution: vi.fn().mockResolvedValue(makeWorkspaceExecutionStatus(overrides.workspaceExecution)),
 		runWorkspaceSweep: vi.fn().mockResolvedValue(makeWorkspaceSweepCheck(overrides.workspaceSweep)),
 		runReleasePolicy: vi.fn().mockResolvedValue(makeReleasePolicyCheck(overrides.releasePolicy)),
@@ -378,6 +408,43 @@ describe("buildRefarmCheckReport", () => {
 				action: "Mount the Windows checkout into this container.",
 			}),
 		);
+	});
+
+	it("blocks next action when factory pressure says to stop", () => {
+		const report = buildRefarmCheckReport({
+			nodeSubstrate: makeNodeSubstrateCheck(),
+			rustSubstrate: makeRustSubstrateCheck(),
+			environmentPressure: makeEnvironmentPressureCheck({
+				ok: false,
+				decision: "stop-and-investigate",
+				recommendations: [
+					{
+						diagnostic: "environment-pressure:filesystem-free-space",
+						severity: "failure",
+						summary: "Workspace filesystem is under disk pressure.",
+						action: "Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
+						command: "pnpm run clean:rust:check",
+					},
+				],
+				nextAction: "Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
+				nextActions: [
+					"Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
+				],
+				nextCommand: "pnpm run clean:rust:check",
+				nextCommands: ["pnpm run clean:rust:check"],
+			}),
+			workspaceExecution: makeWorkspaceExecutionStatus(),
+			workspaceSweep: makeWorkspaceSweepCheck(),
+			releasePolicy: makeReleasePolicyCheck(),
+			health: makeHealthReport(),
+			doctor: makeDoctorReport(),
+			model: makeModelDoctorStatus(),
+		});
+
+		expect(report.ok).toBe(false);
+		expect(report.failureCount).toBe(1);
+		expect(report.nextCommand).toBe("pnpm run clean:rust:check");
+		expect(report.nextAction).toContain("clean:rust:check");
 	});
 
 	it("warns without blocking when rustup version probing fails", () => {
@@ -799,6 +866,9 @@ describe("checkCommand", () => {
 		expect(help).toContain("refarm check --next-action --json");
 		expect(help).toContain("refarm check --next-command");
 		expect(help).toContain("combines refarm health and refarm doctor");
+		expect(help).toContain(
+			"--next-action and --next-command skip advisory model/workspace/release checks",
+		);
 		expect(help).toContain("quick local confidence signal");
 	});
 
@@ -810,6 +880,7 @@ describe("checkCommand", () => {
 
 		expect(deps.runNodeSubstrate).toHaveBeenCalledOnce();
 		expect(deps.runRustSubstrate).toHaveBeenCalledOnce();
+		expect(deps.runEnvironmentPressure).toHaveBeenCalledOnce();
 		expect(deps.runWorkspaceExecution).toHaveBeenCalledOnce();
 		expect(deps.runWorkspaceSweep).toHaveBeenCalledOnce();
 		expect(deps.runHealth).toHaveBeenCalledOnce();
@@ -822,6 +893,7 @@ describe("checkCommand", () => {
 		expect(output).toContain('"ok": true');
 		expect(output).toContain('"nodeSubstrate"');
 		expect(output).toContain('"rustSubstrate"');
+		expect(output).toContain('"environmentPressure"');
 		expect(output).toContain('"workspaceExecution"');
 		expect(output).toContain('"workspaceSweep"');
 		expect(output).toContain('"releasePolicy"');
@@ -832,6 +904,68 @@ describe("checkCommand", () => {
 		expect(output).toContain('"nextActions"');
 		expect(output).toContain('"nextCommand": null');
 		expect(output).toContain('"nextCommands"');
+	});
+
+	it("runs doctor before full check fan-out", async () => {
+		const deps = makeDeps();
+		const order: string[] = [];
+		deps.runDoctor = vi.fn(async () => {
+			order.push("doctor");
+			return makeDoctorReport();
+		});
+		deps.runHealth = vi.fn(async () => {
+			order.push("health");
+			return makeHealthReport();
+		});
+		deps.runNodeSubstrate = vi.fn(async () => {
+			order.push("node-substrate");
+			return makeNodeSubstrateCheck();
+		});
+		deps.runRustSubstrate = vi.fn(async () => {
+			order.push("rust-substrate");
+			return makeRustSubstrateCheck();
+		});
+		deps.runEnvironmentPressure = vi.fn(async () => {
+			order.push("environment-pressure");
+			return makeEnvironmentPressureCheck();
+		});
+		deps.runModelDoctor = vi.fn(async () => {
+			order.push("model");
+			return makeModelDoctorStatus();
+		});
+		deps.runWorkspaceExecution = vi.fn(async () => {
+			order.push("workspace-execution");
+			return makeWorkspaceExecutionStatus();
+		});
+		deps.runWorkspaceSweep = vi.fn(async () => {
+			order.push("workspace-sweep");
+			return makeWorkspaceSweepCheck();
+		});
+		deps.runReleasePolicy = vi.fn(async () => {
+			order.push("release-policy");
+			return makeReleasePolicyCheck();
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json"], { from: "user" });
+
+		expect(order[0]).toBe("doctor");
+		expect(order).toEqual(
+			expect.arrayContaining([
+				"doctor",
+				"health",
+				"node-substrate",
+				"rust-substrate",
+				"environment-pressure",
+				"model",
+				"workspace-execution",
+				"workspace-sweep",
+				"release-policy",
+			]),
+		);
+		expect(process.exitCode).toBeUndefined();
+
+		logSpy.mockRestore();
 	});
 
 	it("prints a failing summary and actionable recommendations", async () => {
@@ -868,6 +1002,7 @@ describe("checkCommand", () => {
 		expect(output).toContain("Check: FAIL");
 		expect(output).toContain("Node substrate: pass (0 missing, 0 foreign shims, 0 mount issues, 0 workspace links, 0 runtime deps, 0 source access issues)");
 		expect(output).toContain("Rust substrate: pass (0 missing)");
+		expect(output).toContain("Environment pressure: continue (1 signals)");
 		expect(output).toContain("Workspace execution: turbo (local cache available, remote cache configured)");
 		expect(output).toContain("Workspace sweep: 1/1 ready (0 missing paths, 0 remote cache pending)");
 		expect(output).toContain("Health: fail (1 issue)");
@@ -893,6 +1028,7 @@ describe("checkCommand", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Check: PASS");
 		expect(output).not.toContain("Rust substrate:");
+		expect(output).toContain("Environment pressure: continue (1 signals)");
 		expect(process.exitCode).toBeUndefined();
 	});
 
@@ -976,6 +1112,80 @@ describe("checkCommand", () => {
 			nextCommands: [],
 			recommendations: [],
 		});
+		expect(process.exitCode).toBeUndefined();
+
+		logSpy.mockRestore();
+	});
+
+	it("skips advisory checks for next-action JSON", async () => {
+		const deps = makeDeps();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+			from: "user",
+		});
+
+		expect(deps.runNodeSubstrate).toHaveBeenCalledOnce();
+		expect(deps.runRustSubstrate).toHaveBeenCalledOnce();
+		expect(deps.runEnvironmentPressure).toHaveBeenCalledOnce();
+		expect(deps.runHealth).toHaveBeenCalledOnce();
+		expect(deps.runDoctor).toHaveBeenCalledOnce();
+		expect(deps.runModelDoctor).not.toHaveBeenCalled();
+		expect(deps.runWorkspaceExecution).not.toHaveBeenCalled();
+		expect(deps.runWorkspaceSweep).not.toHaveBeenCalled();
+		expect(deps.runReleasePolicy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: true,
+			nextAction: null,
+			nextActions: [],
+			nextCommand: null,
+			nextCommands: [],
+			recommendations: [],
+		});
+		expect(process.exitCode).toBeUndefined();
+
+		logSpy.mockRestore();
+	});
+
+	it("runs doctor before fan-out checks for next-action JSON", async () => {
+		const deps = makeDeps();
+		const order: string[] = [];
+		deps.runDoctor = vi.fn(async () => {
+			order.push("doctor");
+			return makeDoctorReport();
+		});
+		deps.runHealth = vi.fn(async () => {
+			order.push("health");
+			return makeHealthReport();
+		});
+		deps.runNodeSubstrate = vi.fn(async () => {
+			order.push("node-substrate");
+			return makeNodeSubstrateCheck();
+		});
+		deps.runRustSubstrate = vi.fn(async () => {
+			order.push("rust-substrate");
+			return makeRustSubstrateCheck();
+		});
+		deps.runEnvironmentPressure = vi.fn(async () => {
+			order.push("environment-pressure");
+			return makeEnvironmentPressureCheck();
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+			from: "user",
+		});
+
+		expect(order[0]).toBe("doctor");
+		expect(order).toEqual(
+			expect.arrayContaining([
+				"doctor",
+				"health",
+				"node-substrate",
+				"rust-substrate",
+				"environment-pressure",
+			]),
+		);
 		expect(process.exitCode).toBeUndefined();
 
 		logSpy.mockRestore();

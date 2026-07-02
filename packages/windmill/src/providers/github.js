@@ -90,6 +90,7 @@ export class GitHubProvider {
      * List repositories in the organization
      */
     async listRepos() {
+        const timeoutMs = 30_000;
         if (!this.token) {
             console.warn(`[GitHub] No GITHUB_TOKEN available, cannot list repos for ${this.org}`);
             return [];
@@ -102,7 +103,8 @@ export class GitHubProvider {
                 headers: {
                     "Authorization": `token ${this.token}`,
                     "Accept": "application/vnd.github.v3+json"
-                }
+                },
+                signal: AbortSignal.timeout(timeoutMs),
             });
 
             if (!res.ok) {
@@ -111,7 +113,8 @@ export class GitHubProvider {
                     headers: {
                         "Authorization": `token ${this.token}`,
                         "Accept": "application/vnd.github.v3+json"
-                    }
+                    },
+                    signal: AbortSignal.timeout(timeoutMs),
                 });
                 
                 if (!userRes.ok) {
@@ -131,4 +134,3 @@ export class GitHubProvider {
         }
     }
 }
-

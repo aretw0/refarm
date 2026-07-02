@@ -23,6 +23,7 @@ describe("extension command", () => {
 		expect(help).toContain("refarm extension publish my-tool --json");
 		expect(help).toContain("refarm plugin reload @local/<name> --json");
 		expect(help).toContain("/reload @local/<name>");
+		expect(help).toContain("/r @local/<name>");
 	});
 
 	it("prints runtime activation guidance when scaffolding an extension", async () => {
@@ -91,7 +92,7 @@ describe("extension command", () => {
 				nextActions: [
 					"refarm plugin reload '@local/my-tool' --json",
 					"restart the Refarm runtime",
-					"inside refarm chat, run /reload @local/my-tool",
+					"inside refarm chat, run /reload @local/my-tool (or /r @local/my-tool)",
 				],
 				nextAction: "refarm plugin reload '@local/my-tool' --json",
 				nextCommand: "refarm plugin reload '@local/my-tool' --json",

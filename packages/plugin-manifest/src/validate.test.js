@@ -218,6 +218,67 @@ describe("extension surface validation", () => {
 			"extensions.surfaces must not contain duplicate layer/id pairs",
 		);
 	});
+
+	it("accepts pi skill surfaces with declared capabilities and a package SKILL.md asset", () => {
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [
+					{
+						layer: "pi",
+						kind: "skill",
+						id: "refarm-git-workflow",
+						assets: ["skills/refarm-git-workflow/SKILL.md"],
+						capabilities: ["refarm.operator-loop", "refarm.git.write"],
+					},
+				],
+			},
+		});
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+		expect(result.errors).toHaveLength(0);
+	});
+
+	it("rejects pi skill surfaces that are not package skill declarations", () => {
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [
+					{
+						layer: "pi",
+						kind: "skill",
+						id: "refarm-git-workflow",
+						slot: "main",
+						assets: ["file:skills/refarm-git-workflow/SKILL.md"],
+						capabilities: [],
+					},
+					{
+						layer: "pi",
+						kind: "skill",
+						id: "refarm-vault-daily",
+						assets: ["/tmp/SKILL.md", "skills/refarm-vault-daily/README.md"],
+					},
+				],
+			},
+		});
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].slot must not be provided for pi skill surfaces",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].capabilities must be a non-empty array for pi skill surfaces",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].assets must include a relative SKILL.md asset for pi skill surfaces",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[1].capabilities must be a non-empty array for pi skill surfaces",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[1].assets must include a relative SKILL.md asset for pi skill surfaces",
+		);
+	});
 });
 
 describe("contract baseline validation", () => {

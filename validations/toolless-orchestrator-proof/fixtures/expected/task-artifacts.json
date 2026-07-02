@@ -1,0 +1,204 @@
+{
+  "schema": "refarm.task-artifacts.v1",
+  "taskId": "task-toolless-orchestrator-proof",
+  "effortId": "effort-toolless-orchestrator-proof-001",
+  "createdAt": "2026-07-01T00:00:00.000Z",
+  "artifacts": [
+    {
+      "id": "scenario",
+      "uri": "scenario.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "890f7d629cca3300f957c1ebda3803b646a9690e2da708dd5fb4fa3e6fdf9a61"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "toolless-orchestrator-proof-001",
+        "producer": "toolless-orchestrator:proof",
+        "command": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+          ],
+          "display": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+        },
+        "source": "validations/toolless-orchestrator-proof",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-07-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scenario",
+        "reader-path",
+        "toolless-orchestrator"
+      ]
+    },
+    {
+      "id": "annex",
+      "uri": "annex.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "c5486e5cd127a4c306de8b263d548ef7caaa2c2ac4e94fe5f7bfffb5bf2a718f"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "toolless-orchestrator-proof-001",
+        "producer": "toolless-orchestrator:proof",
+        "command": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+          ],
+          "display": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+        },
+        "source": "validations/toolless-orchestrator-proof",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-07-01T00:00:00.000Z"
+      },
+      "labels": [
+        "annex",
+        "reader-path",
+        "toolless-orchestrator"
+      ]
+    },
+    {
+      "id": "toolless-orchestrator-proof",
+      "uri": "proof.json",
+      "mediaType": "application/json",
+      "role": "audit-trail",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "513959b43cc203e32352b5c031aa9aaad5c1e49f5257c1f14bf0aba4bb7a2fab"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "toolless-orchestrator-proof-001",
+        "producer": "toolless-orchestrator:proof",
+        "command": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+          ],
+          "display": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+        },
+        "source": "validations/toolless-orchestrator-proof",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-07-01T00:00:00.000Z",
+        "inputHashes": [
+          {
+            "algorithm": "sha256",
+            "value": "30c452d05dab93e88bfcfb9469890a243dd9b7c904bc73d86ccea6d0e9bc10c4"
+          },
+          {
+            "algorithm": "sha256",
+            "value": "2758f1458ba05ef86fe271061c805a7b48dfbb866a88d0d847f80219428170a6"
+          }
+        ]
+      },
+      "labels": [
+        "toolless-orchestrator",
+        "conductor",
+        "keyless-actor",
+        "claim-promotion"
+      ]
+    },
+    {
+      "id": "results-table",
+      "uri": "results-table.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "c49a8b07f12e88665a4f14b5a6f939e778e34c963a0b85080ad0affd248b98df"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "toolless-orchestrator-proof-001",
+        "producer": "toolless-orchestrator:proof",
+        "command": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+          ],
+          "display": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+        },
+        "source": "validations/toolless-orchestrator-proof",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-07-01T00:00:00.000Z"
+      },
+      "labels": [
+        "results-table",
+        "reader-path",
+        "claim-boundary"
+      ]
+    },
+    {
+      "id": "scorecard",
+      "uri": "scorecard.json",
+      "mediaType": "application/json",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "198bebbfe36a16625fe2a5a1af0b37b6c21ad1a59ebfa18704aaabbe88af91b3"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "toolless-orchestrator-proof-001",
+        "producer": "toolless-orchestrator:proof",
+        "command": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+          ],
+          "display": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+        },
+        "source": "validations/toolless-orchestrator-proof",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-07-01T00:00:00.000Z"
+      },
+      "labels": [
+        "scorecard",
+        "pilot"
+      ]
+    },
+    {
+      "id": "limits",
+      "uri": "limits.md",
+      "mediaType": "text/markdown",
+      "role": "report",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "59b1189ddcecbb9f4ebedb7723e88f9f59794fad201791dc6f579b7e53a9af67"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "toolless-orchestrator-proof-001",
+        "producer": "toolless-orchestrator:proof",
+        "command": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+          ],
+          "display": "node validations/toolless-orchestrator-proof/toolless-orchestrator-proof.mjs"
+        },
+        "source": "validations/toolless-orchestrator-proof",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-07-01T00:00:00.000Z"
+      },
+      "labels": [
+        "limits",
+        "adoption",
+        "claim-boundary"
+      ]
+    }
+  ]
+}

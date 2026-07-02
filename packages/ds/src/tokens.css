@@ -1,79 +1,52 @@
-/**
- * Refarm Design Tokens — "Grand Style" Essentials
- * 
- * These CSS variables define the visual identity of Refarm.
- * They are provided by the host and consumed by plugins to ensure cohesion.
- */
+/* Design-system token contract entry. Scoped, never bare :root.
+ * Import a theme file, such as themes/tractor-green.css, alongside this file. */
+@layer ds.tokens, ds.theme, refarm.tokens, refarm.theme;
 
-:root {
-  /* Neutral Palette (Dark Mode First) */
-  --refarm-bg-primary: #0d1117;
-  --refarm-bg-secondary: #161b22;
-  --refarm-bg-elevated: #21262d;
-
-  --refarm-border-default: #30363d;
-  --refarm-border-muted: #21262d;
-
-  --refarm-text-primary: #c9d1d9;
-  --refarm-text-secondary: #8b949e;
-  --refarm-text-muted: #484f58;
-
-  /* Accessibility: Focus & Contrast */
-  --refarm-focus-ring: 0 0 0 3px rgba(88, 166, 255, 0.5);
-  --refarm-high-contrast-border: #ffffff;
-
-  /* Accent: "Tractor Green" / "Solo Fértil" Emerald */
-  --refarm-accent-primary: #238636;
-  --refarm-accent-secondary: #2ea043;
-  --refarm-accent-muted: rgba(35, 134, 54, 0.4);
-
-  /* Feedback */
-  --refarm-error: #f85149;
-  --refarm-warning: #d29922;
-  --refarm-success: #3fb950;
-  --refarm-info: #58a6ff;
-
-  /* Typography */
-  --refarm-font-mono: 'Fira Code', 'Cascadia Code', 'Source Code Pro', monospace;
-  --refarm-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
-
-  /* Effects */
-  --refarm-radius-sm: 4px;
-  --refarm-radius-md: 8px;
-  --refarm-radius-lg: 12px;
-
-  --refarm-shadow-sm: 0 1px 0 rgba(1, 4, 9, 0.04);
-  --refarm-shadow-md: 0 4px 8px rgba(1, 4, 9, 0.3);
-  --refarm-shadow-lg: 0 24px 80px rgba(1, 4, 9, 0.28);
-
-  /* Glassmorphism primitives */
-  --refarm-glass-bg: rgba(22, 27, 34, 0.7);
-  --refarm-glass-blur: blur(12px);
-}
-
-/* Base Primitives (Headless Utility Classes) */
-.refarm-button {
-  background: var(--refarm-accent-primary);
-  color: white;
-  border: 1px solid var(--refarm-border-default);
-  border-radius: var(--refarm-radius-sm);
-  padding: 0.5rem 1rem;
-  font-family: var(--refarm-font-sans);
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.refarm-button:hover {
-  background: var(--refarm-accent-secondary);
-}
-
-.refarm-card {
-  background: var(--refarm-bg-secondary);
-  border: 1px solid var(--refarm-border-default);
-  border-radius: var(--refarm-radius-md);
-  padding: 1.5rem;
-}
-
-.refarm-mono {
-  font-family: var(--refarm-font-mono);
+@layer ds.tokens {
+	:where([data-ds-theme], [data-refarm-theme]) {
+		--ds-bg-primary: var(--background);
+		--ds-bg-secondary: var(--muted);
+		--ds-bg-elevated: var(--card);
+		--ds-border-default: var(--border);
+		--ds-border-muted: var(--border);
+		--ds-text-primary: var(--foreground);
+		--ds-text-secondary: var(--muted-foreground);
+		--ds-text-muted: var(--muted-foreground);
+		--ds-accent-primary: var(--primary);
+		--ds-accent-secondary: var(--accent);
+		--ds-accent-muted: color-mix(in srgb, var(--primary) 22%, transparent);
+		--ds-font-mono: var(--font-mono);
+		--ds-font-sans: var(--font-sans);
+		--ds-radius-sm: var(--radius-sm);
+		--ds-radius-md: var(--radius-md);
+		--ds-radius-lg: var(--radius-lg);
+		--ds-shadow-sm: var(--shadow-sm);
+		--ds-shadow-md: var(--shadow-md);
+		--ds-shadow-lg: var(--shadow-lg);
+		--ds-focus-ring: 0 0 0 2px var(--ring);
+		--ds-glass-bg: color-mix(in srgb, var(--card) 80%, transparent);
+		--ds-glass-blur: blur(16px);
+		--refarm-bg-primary: var(--ds-bg-primary);
+		--refarm-bg-secondary: var(--ds-bg-secondary);
+		--refarm-bg-elevated: var(--ds-bg-elevated);
+		--refarm-border-default: var(--ds-border-default);
+		--refarm-border-muted: var(--ds-border-muted);
+		--refarm-text-primary: var(--ds-text-primary);
+		--refarm-text-secondary: var(--ds-text-secondary);
+		--refarm-text-muted: var(--ds-text-muted);
+		--refarm-accent-primary: var(--ds-accent-primary);
+		--refarm-accent-secondary: var(--ds-accent-secondary);
+		--refarm-accent-muted: var(--ds-accent-muted);
+		--refarm-font-mono: var(--ds-font-mono);
+		--refarm-font-sans: var(--ds-font-sans);
+		--refarm-radius-sm: var(--ds-radius-sm);
+		--refarm-radius-md: var(--ds-radius-md);
+		--refarm-radius-lg: var(--ds-radius-lg);
+		--refarm-shadow-sm: var(--ds-shadow-sm);
+		--refarm-shadow-md: var(--ds-shadow-md);
+		--refarm-shadow-lg: var(--ds-shadow-lg);
+		--refarm-focus-ring: var(--ds-focus-ring);
+		--refarm-glass-bg: var(--ds-glass-bg);
+		--refarm-glass-blur: var(--ds-glass-blur);
+	}
 }

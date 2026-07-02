@@ -1,0 +1,491 @@
+# Convergence Factory Readiness
+
+> Status: readiness ledger (2026-06-25). This document answers the stop-the-line question: when an
+> implementer picks a convergence item, is there enough carpet laid down to execute without
+> redesigning the work mid-build?
+
+## Summary
+
+Not everything is planned to execution depth yet. The safe state is:
+
+| Item | Factory state | What is closed | What still stops execution |
+|---|---|---|---|
+| 1 librarian `source:v1` | **implemented** | `@refarm.dev/source-contract-v1`, `@refarm.dev/source-git`, `@refarm.dev/source-local`, conformance, build, `test:capabilities`, release-policy held profiles, and librarian smoke re-verified 2026-06-29 | `source-dispatch` remains item 7 and activates when Refarm dogfood, `vault-seed`, or `agents-lab` supplies an executable dispatch proof |
+| 4a `ds` tokens | **implemented** (Tasks 1–5 committed in `packages/ds/src`) | contract, scoped tokens, 4 themes, theme-conformance, component classes, CSS exports; focused package gate re-verified 2026-06-26 | broad steward/push gate and official `vault-seed` assimilation remain pending |
+| 4b `ds/html` | **implemented** | DS-owned helper API, build-free boundary, consumer proof, package files constraint | downstream adoption proof remains consumer-side |
+| 4c `silo` collect | **implemented** | contract boundary, namespaces, namespaced secret store, app re-export, acceptance wiring, first-public Silo bulk storage helpers, protection envelope, and light-by-default storage closure | official storage adoption by `vault-seed` remains item 8a |
+| 4d `dispatch-surface` external API | **implemented** | public API lock test, headless consumer proof, README contract, acceptance wiring | downstream bridge consumers remain item 7/8 work |
+| 5 WASM substrate | POC-ready, not product-ready | ADR-070 Parts A/B; Part C gate | POC evidence for Astro SSR on Tractor |
+| 6 native skills | activation-gated | taxonomy; native activation spec+plan; `@refarm.dev/skill-contract-v1` parses `SKILL.md` into `SkillManifestV1`, carries markdown I/O envelopes and declarative engine bindings, verifies loaded source integrity, builds package skill source integrity evidence, prepares host-policy-checkable invocation plans/requests, records pre-runtime host policy decisions, records execution receipts from engine-call evidence, builds plugin-manifest-compatible `pi/skill` surface declarations, and evaluates activation preflight from host install/runtime evidence; `@refarm.dev/plugin-manifest` validates `pi/skill` surfaces as package asset declarations; `native:skills:surface-smoke` proves the plan-only wrapper handoff without executing skills; `native:skills:source-engine-smoke` proves one `source:v1` engine call through `@refarm.dev/source-local`; `native:skills:agents-lab-git-workflow-smoke` proves one external `agents-lab` wrapper smoke without installing or executing upstream skill text; `native:skills:dgk-vault-search-smoke` proves one external `dgk-skills/vault-search` wrapper smoke plus package-declared `pi/skill` surface, source integrity evidence, and activation preflight blocked on install policy without executing `dgk` or Obsidian CLI | runtime-host execution, install policy, and direct DGK fixture comparison remain pending |
+| 7 librarian completion | partially consumer-proven | source:v1 base contract plus held source package profiles; `source-web` + `source-contract-v1` are proven by the T3 `vault-seed` reference-vault proof | waits for a dispatch proof; `source-git` and `source-local` still need selected dogfood/downstream proof before handoff promotion |
+| T2 identity/credentials | consumer-pulled into `vault-seed-ready` | `@refarm.dev/credentials-contract-v1` exposes issue/policy-driven verify/present/store/list/remove/revoke over `identity:v1` + `storage:v1`; `@refarm.dev/identity-contract-v1` and `@refarm.dev/storage-contract-v1` are selected as support contracts; `@refarm.dev/identity-heartwood` supplies real Heartwood-backed Ed25519 issuer/holder signatures; `@refarm.dev/storage-memory` supplies the volatile wallet implementation; `pnpm run sovereign-citizen:reference:test` proves the sanitized issue -> policy checks -> present -> wallet flow, including trusted issuer, `trustSelf`, holder-binding, and local signed status-list revocation evidence | issuer authorities, credential schemas, trust registry sources, downstream wallet UX, remote status-list distribution, production persistence/encryption, and official consumer-contract assimilation remain downstream |
+| 8 consumer bridges | partially activated | 8a Refarm-side package proof and handoff are complete, with Silo storage helpers, protection envelope, and storage/identity closure split folded back from the `vault-seed` proof; 8b has the `channel-policy-v1` spec/package slice; 8c has the `process-handoff` leaf -> artifact provenance proof | official `vault-seed` 8a adapter proof; official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof |
+| 9 executable specs | partially automated | package gate registration generator; vault-seed generator manifest/inventory; generator -> release-policy consumer proof; codemod registry; ready codemods (`ds-token-adoption`, `package-workspace-adoption`) | first official consumer runs of the ready codemods remain downstream |
+| 10 `io_uring` substrate | probe started, not product-ready | Linux async I/O hypothesis, workload candidates, fallback rule, devcontainer capability probe | baseline materialization fixture; `io_uring` comparison only on a host/container that reports `available` |
+| 11 XR/WebXR surface | POC started, not product-ready | WebXR/A-Frame/three.js posture, fallback rule, renderer-neutral fixture/probe | browser/device evidence from a contained static preview |
+| 13 remote workspace control plane | first proof implemented, not product-ready | `validations/remote-workspace-control-plane` models status + bounded read-only check + stream + cancel + audit/artifact evidence without package extraction | real machine-to-machine transport and package extraction remain gated by proof pressure |
+
+| Cross-cutting item | Factory state | What is closed | What still stops execution |
+|---|---|---|---|
+| npm scope docs sweep | done | ADR-069 accepted; Refarm publish-target docs now use `@refarm.dev` | none |
+| release readiness | validated | `pnpm run release:readiness` passed on 2026-06-27; the plan includes `test-runner:contracts`, `audience:boundary:test`, and the lightweight `reference-driver:smoke` gate before package dry-run, and publish dry-run is scoped to the release-policy default selection (`kernel-candidates`: `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `channel-policy-v1`) | actual publication remains gated by daily-driver policy and repository/npm operator setup |
+| `vault-seed` release lane | local handoff ready + T3/T2 consumer-proven | `vault-seed-ready` selection lives in versioned `refarm.config.json`; after the T2 credentials pull the lane reports `acceptance.status: "accepted"` with 18 packages and 49 required checks, including the selected `records-contract-v1` unit gate that covers the YAML subpath candidate and the `sovereign-citizen:reference:test` round-trip proof; the 2026-07-01 local handoff ready packet is materialized at `.refarm/handoff/vault-seed/2026-07-01/manifest.json` with `distributionEvidence.state: "local-handoff-ready"`, 18 tarballs, `manifest.md`, and no missing/extra tarball issues; `scripts/ci/test-vault-seed-release-consumer.mjs` proves generated-vault `@refarm.dev/*` dependencies are covered by `vault-seed-ready`; the lane selects light surfaces such as `@refarm.dev/ds/html` and `@refarm.dev/process-handoff` instead of full Homestead/CLI closures; `vault-seed` proves `source-web` fixture -> `records:v1` -> `enrichment:v1` composition with 16/16 consumer-contract tests, and the official credentials consumer-contract proof vendors credentials + identity-heartwood + storage-memory and passes the Heartwood-signed issue -> verify -> present -> wallet conformance | publication still waits on develop stabilization, GitHub Actions, release approval, and swapping local `file:vendor/*.tgz` handoff paths for npm versions |
+| environment citizenship | devcontainer boundary enforced after rebuild | `@refarm.dev/health/environment-pressure` exposes disk/memory/session pressure and `planEnvironmentWorkCeiling` maps work classes to allow/degrade/serialize/refuse; `refarm resume` and `refarm check --next-action` expose pressure before work starts; `@refarm.dev/cli/command-plan` accepts injected resource-ceiling decisions, fails closed before unsafe steps, and serializes recognized `--concurrency=N`/`--concurrency N` process steps when a ceiling lowers max concurrency; `refarm agent finish` classifies package-script/Turbo validation as `package-check`; Rust build parallelism is capped in repo config; `.devcontainer/devcontainer.json` now applies Docker cgroup limits after rebuild: 6 GiB memory, no swap above that cap, 4 CPUs, and 1024 PIDs; `scripts/ci/test-devcontainer-contract.mjs` locks the cgroup boundary against the `refarm.config.json` slice arithmetic | sub-slice delegation for control/workload/agent processes still needs the root/entrypoint lane; extend ceiling classification/enforcement beyond package finish lanes to broad app tests, runtime fanout, worker dispatch, mutation lanes, and richer fallback command rewriting so Refarm refuses, serializes, or degrades before agents can OOM or stall the host |
+| distributed availability evidence | first proof implemented | `specs/features/2026-06-30-distributed-availability-evidence-proof.md` and `validations/distributed-availability-evidence` compose `artifact-contract-v1`, `release-engine` audit digests, read-only remote-node evidence, seed/replica policy, update evidence, and rollback evidence under proof-local schemas; ADR-075 now records the Holepunch package taxonomy and blind-replica lesson | public install/update descriptor, availability/blind-replica policy package extraction, and any Bare/Hypercore/Pears runtime/storage adoption remain gated by dogfood or second-consumer pressure |
+| verification-as-completion | first proof implemented | `specs/features/2026-07-01-verification-as-completion-proof.md` and `validations/verification-as-completion` compose command observation, raw evidence recovery, source-hash re-observation, completion decision, tool-less/keyless delegation, and `context:v1` reversible context-map evidence under proof-local schemas | package extraction for `tool-observation:v1`, changes to `effort-contract-v1`, and runtime integration remain gated by dogfood or second-consumer pressure |
+| tool-less orchestrator | first proof implemented | `specs/features/2026-07-01-toolless-orchestrator-proof.md` and `validations/toolless-orchestrator-proof` split the peerd keyless-actor lesson into its own proof: a key-holding conductor has zero environment tools, a keyless actor owns bounded tools, requests carry no secret material, and completion depends on fenced source evidence | runtime integration in `pi-agent`/`farmhand`, package extraction, worker/session contract changes, and remote-node adoption remain gated by dogfood or second-consumer pressure |
+
+## Plan depth — read before "ready to implement"
+
+Two plan depths exist; do not confuse them:
+
+- **Bite-sized executable plans** (TDD steps + complete code, per `superpowers:writing-plans`):
+  the librarian (`docs/superpowers/plans/2026-06-24-source-contract-v1.md`) and the whole **item-4
+  family** — **4a `ds`**, **4b `ds/html`**, **4c `silo` collect**, **4d `dispatch-surface`
+  external API** (the `2026-06-25-*` plans). Open and execute step by step.
+- **Concrete first-artifact plans** (the contract/manifest is real; the runtime iterates or gates):
+  **9a** (manifest-first — the file classification is derived verbatim from
+  `vault-seed/.github/workflows/initialize.yml`) and **9b** (registry-first — two ready codemods;
+  entries that were cheaper as manual/generator work are retired).
+- **Task-level plans** (task decomposition + gates, paired with a **code-rich spec** that carries
+  the interfaces): the remaining gated/POC items (5, 6, 7, 8, 10, 11). These are *not* line-by-line
+  code — expand at pickup.
+
+Execution model for the task-level ones: **just-in-time expansion** — when you pick an item,
+invoke `superpowers:writing-plans` on its spec to generate the bite-sized plan, then execute. Do
+**not** pre-expand all items (specs may still shift; pre-expanding deferred work is waste). In the
+tables below, "ready to implement from plan" for a task-level item means "spec + task plan are
+solid enough that `writing-plans` yields a clean bite-sized plan", **not** "type code from the
+plan file". The two bite-sized items are the exception: no expansion step needed.
+
+## v0.1 Consumer-Pulled Acceleration Rule
+
+`vault-seed` is now an active consumer proof for v0.1.0 blocks. Do not interpret
+"daily driver first" as "downstream keeps rebuilding local copies until Refarm is
+publicly released." For any block already needed by `vault-seed`, the factory
+sequence is:
+
+1. implement and test the Refarm block;
+2. prove Refarm consumes it or record a narrow consumer-pulled exception;
+3. expose a candidate consumption path: packed package, manifest generator, or
+   codemod dry-run;
+4. prove `vault-seed` can consume it while keeping product behavior downstream;
+5. promote only after the proof records command, fallback, rollback, and missing
+   semantics.
+
+This rule activates work that prevents migration churn:
+
+| Lane | Active proof | Stops when |
+|---|---|---|
+| UI blocks | `ds` -> `ds/html` -> `vault-seed` Lab/admin adoption | token/HTML conformance or consumer proof fails |
+| Process/artifacts | `process-handoff` + `artifact-contract-v1` -> `dgk-runner`/Lab evidence | process vocabulary becomes DGK-specific |
+| Channels/outbox | `dgk-channels` + Telegram outbox/inbox -> channel policy evidence over Refarm channel-control surfaces | Telegram API, note UX, or DGK command names leak into Refarm |
+| Lab/artifacts | Lab dataset/outbox/notebook manifests -> artifact/provenance envelopes; Refarm-side fixture and tarball packet ready | notebook UX or vault schema moves upstream |
+| Template/generation | generated-vault smoke + initialize reset -> vault generator/codemod registry | generator cannot distinguish payload from template-dev-only files |
+| Release/package checks | package smoke, version, lockfile/integrity checks -> release-engine/package acceptance summary; release-engine tarball handoff ready | Refarm policy hardcodes DGK package names |
+| Health/substrate checks | action pins, substrate, generated-output, devcontainer contract checks -> health/environment substrate | project-local allowances become global rules |
+| Credentials | `silo` collect -> `vault-seed` `silo.js` bridge after 4c | namespaces collapse or app provider re-export is not stable |
+| Text quality | text scoring scripts -> text-quality contract/config | submission/vault rubric moves upstream |
+
+## Environment Ceiling / Citizenship Rule
+
+Refarm must be a good citizen in every environment where it can be used or
+developed. The desired invariant is stronger than "agents should be careful":
+expensive commands should have environment ceilings that are hard to cross. If
+disk, memory, CPU, sandbox, or session pressure makes a broad lane unsafe, the
+tool should refuse with the next safe command, serialize the work, or degrade to
+a smaller proof before the host reaches an OOM/stall condition.
+
+Observed footgun (2026-06-29): a single focused `apps/refarm` Vitest command was
+killed with exit 137 in this container after earlier concurrent app validation
+had already destabilized the session. Treat this as product pressure, not as an
+operator anecdote. The package-owned first step is now
+`planEnvironmentWorkCeiling`, which lets callers classify work as focused,
+package-scoped, broad, fanout, or mutation and receive an allow/degrade/
+serialize/refuse decision from the current pressure report. As of 2026-06-30,
+`@refarm.dev/cli/command-plan` can fail closed from an injected ceiling decision,
+rewrite recognized `--concurrency=N`/`--concurrency N` process steps when a
+`serialize` ceiling lowers max concurrency, and `refarm agent finish` dogfoods
+the primitive for package-scoped validation steps. Future validation tooling
+should extend the same command planning ceilings to broad app tests, runtime
+fanout, worker dispatch, mutation lanes, and richer fallback command rewriting.
+Until those surfaces are wired, prefer package-owned SDK tests,
+`git diff --check`, build of the directly affected package, and operator lanes
+that can emit direct next commands over repeating a command that has already
+been killed or timed out by the environment.
+
+Disposition rule: do not confuse abandoning a high-risk validation path with
+abandoning the product direction. In the 2026-06-29 reference-driver slice, the
+important contract was the `@refarm.dev/cli/capability-index` supply map gaining
+`adoptionCriteria`; that stayed in the package-owned SDK and docs. The
+app-local presentation/test path was dropped because it did not own the
+contract and its focused Vitest command was killed by the environment. The next
+implementation move is not to retry the same app command, but to consume the
+health-owned ceiling primitive from command planning so package-owned proofs or
+controlled operator lanes are selected before broad app validation is allowed.
+
+Remote workspace implication: ADR-074 makes environment ceilings part of the
+remote dispatch boundary. A remote Refarm node must be allowed to refuse,
+serialize, or degrade work before accepting broad validation, worker fanout, or
+mutation. This is a product rule, not just a local development courtesy.
+
+## Item 4 - UI and Surface Blocks
+
+Execution record:
+
+1. 4a `ds` token contract - implemented via
+   `docs/superpowers/plans/2026-06-25-ds-token-contract.md`.
+2. 4b `ds/html` - implemented as `@refarm.dev/ds/html`; public consumer lane uses
+   `@refarm.dev/ds` so `vault-seed` can adopt the build-free helpers without installing
+   the bundled Homestead SDK closure. The earlier Homestead SSR plan remains historical context.
+3. 4c `silo` collect - implemented via
+   `docs/superpowers/plans/2026-06-25-silo-collection-contract.md`.
+4. 4d `dispatch-surface` external-consumer API - implemented via
+   `docs/superpowers/plans/2026-06-25-dispatch-surface-external-api.md`.
+
+Remaining item-4 work is downstream adoption/proof, not block construction.
+
+## Item 5 - WASM Substrate
+
+ADR-070 is enough to avoid re-arguing direction, but not enough to build a product surface. The
+Astro 7 validation fixture is green for the normal server build boundary. The componentization
+attempt now resolves the local WIT world after vendoring the minimal official WASI v0.2.3 graph.
+The current blocker is generated Astro bundle evaluation under ComponentizeJS: the bounded
+componentization command fails on `node:module`, and static inspection shows the generated Astro
+bundle still carries `process`, `Buffer`, and `sharp`:
+
+- `docs/superpowers/plans/2026-06-25-astro-wasi-ssr-poc.md`.
+- `validations/astro-wasi-ssr/`.
+
+Decision:
+
+- Part C is red for now; no Astro-on-Tractor adapter spec is opened.
+- ADR-070 Parts A/B remain the accepted direction.
+- Do not block item 4, Marimo WASM distribution, or generator/codemod work on item 5.
+
+## Item 6 - Gardening Skills
+
+The taxonomy is enough for strategy, not implementation. The missing prerequisite is a native
+Refarm skill surface: contract package, capability envelope, plugin-manifest declaration, policy
+boundary, and invocation host. Until that exists, creating a `dgk-skills` or `agents-lab`
+adapter would be supply ahead of consumption.
+
+Do not model skills as a parallel plugin ecosystem. A package can distribute
+`SKILL.md`, guides, references, themes, and executable extensions together, but
+plugin-manifest/Barn/Scarecrow remain the install, integrity, trust, and
+capability gates. `skill-contract-v1` is only a schema/conformance helper for
+the manifest-declared skill surface.
+
+Do not require packaging before authoring. User and project spaces may contain
+private, unpublished skills, extensions, guides, themes, and experiments. Those
+local sources are valid inputs for review and dogfood as long as they still pass
+capability, source-hash, and host-policy gates before invocation. Packaging is a
+promotion step for sharing, release, tarball handoff, or peer/device
+replication; it is not the entry requirement for a user to use their own local
+skill or extension.
+
+Current contract closure:
+
+- `@refarm.dev/skill-contract-v1` owns the schema/conformance helper;
+- `parseSkillMarkdown` maps `SKILL.md` frontmatter and instructions into
+  `SkillManifestV1`;
+- manifests and invocation plans carry explicit markdown input/output envelopes
+  so hosts can validate payload shape before policy or engine dispatch;
+- manifests and invocation plans carry declarative engine bindings so hosts can
+  check required Refarm engine availability before runtime dispatch;
+- `verifySkillSource` checks loaded `SKILL.md` bytes/hash/URI against the source
+  reference carried by a manifest or invocation plan before a host trusts the
+  handoff;
+- `buildSkillInvocationPlan` turns a valid manifest into a
+  host-policy-checkable plan that preserves source hash, requested
+  capabilities, policy, and instructions while requiring host policy approval;
+- `buildSkillInvocationRequest` turns a valid plan and markdown input into a
+  host-policy-checkable request that still requires host approval before
+  dispatch;
+- `buildSkillInvocationDecision` records host approval or denial, preserves the
+  request engine bindings and per-capability decisions, and keeps
+  `executed: false` until a host-owned dispatcher records real engine-call
+  evidence;
+- `buildSkillInvocationReceipt` records host-owned execution evidence from an
+  approved decision, including engine calls, markdown output or failure error,
+  and completion timestamp;
+- `buildSkillSurfaceDeclaration` turns a valid manifest plus relative package
+  asset path into a `layer: "pi", kind: "skill"` declaration with declared
+  capabilities for future `extensions.surfaces[]` handoff;
+- `evaluateSkillActivationPreflight` records whether host install/runtime
+  evidence is complete before activation: package surface, approved
+  capabilities, available engine bindings, plugin-manifest validation,
+  integrity verification, and policy acceptance;
+- `buildSkillSourceIntegrityEvidence` turns a loaded `SKILL.md`, manifest
+  source reference, and package `pi/skill` surface asset into objective
+  integrity evidence for activation preflight;
+- `@refarm.dev/plugin-manifest` now validates the plugin-manifest skill surface
+  for `layer: "pi", kind: "skill"` as a package declaration: non-empty
+  capabilities, no UI slot, and at least one relative package `SKILL.md` asset;
+- `prepareSkillInvocationPlan` composes parse + plan as the adapter/host handoff
+  for one `SKILL.md` source, keeping source integrity and policy issues in the
+  contract result instead of in each consumer;
+- `native:skills:surface-smoke` composes the Refarm git-workflow wrapper through
+  parse -> plan -> source verification -> `pi/skill` surface -> plugin-manifest
+  validation -> invocation request -> host policy decision, with
+  `executesRuntime: false`;
+- `native:skills:source-engine-smoke` composes a Refarm source-status wrapper
+  through parse -> plan -> decision -> `source:v1` status call ->
+  invocation receipt, using `@refarm.dev/source-local` and
+  `executesRuntimeAgent: false`;
+- `native:skills:agents-lab-git-workflow-smoke` composes the reviewed
+  `agents-lab` git-workflow source as evidence through a Refarm wrapper,
+  decision, `source:v1` checkout status call, and receipt without installing,
+  copying, vendoring, or executing the external skill;
+- `native:skills:dgk-vault-search-smoke` composes the reviewed `vault-seed`
+  `dgk-skills/vault-search` source as evidence through a Refarm wrapper,
+  `pi/skill` package surface declaration, plugin-manifest validation, source
+  integrity evidence, decision, activation preflight, `source:v1` checkout
+  status call, and receipt without
+  installing, copying, vendoring, executing the external skill, or executing
+  `dgk`/Obsidian product commands; the preflight remains blocked until
+  install policy evidence exists;
+- the package still does not install, authorize, or execute skills.
+
+Activation trigger:
+
+- Refarm has a `skill-contract-v1`-style owner outside `apps/refarm`;
+- Refarm can load a local or external `SKILL.md` source fixture into a
+  policy-checkable manifest/invocation plan without treating unpublished source as installed;
+- the selected package/plugin manifest exposes that fixture as a skill surface,
+  for example `layer: "pi", kind: "skill"`, or the plan records the exact
+  promotion step from user/project space to bundle when sharing is required;
+- one existing `dgk-skills` or `agents-lab` skill is chosen as the dogfood consumer;
+- the adapter spec proves external skills remain canonical in their projects and only conform to
+  the Refarm runtime.
+
+First adapter spec sections when the trigger fires:
+
+1. `SKILL.md` metadata mapping to the Refarm manifest.
+2. Input/output envelope for read/search/create/admin skills.
+3. Engine calls (`source:v1`, `context-provider-v1`, `sower`, `thresher`, `homestead`).
+4. Manifest surface declaration for skill assets and capability requirements.
+5. Policy checks through plugin-manifest/Barn/Scarecrow before tool access.
+6. Compatibility test that runs one external skill through the Refarm surface.
+
+Activation packet:
+
+- `specs/features/2026-06-25-skill-runtime-activation.md`;
+- `docs/superpowers/plans/2026-06-25-skill-runtime-activation.md`.
+
+## Item 7 - Librarian Completion
+
+Keep deferred. It is not missing planning; it is missing consumption pressure.
+
+Activation triggers:
+
+- `source-dispatch`: an agent/kernel path needs to invoke `source:v1` through `dispatch-surface`;
+- `source-local`: implemented for consumers that need live local tree reads instead of clean git materialization;
+- `source-tarball`: cross-repo consumption needs reproducible archive input.
+
+When a trigger appears, write a feature spec and plan for exactly one adapter. Do not bundle all
+three adapters into one implementation branch.
+
+Activation packet:
+
+- `specs/features/2026-06-25-source-adapter-activation.md`;
+- `docs/superpowers/plans/2026-06-25-source-adapter-activation.md`.
+
+## Item 8 - Consumer Bridges
+
+Split the bridges so activation is evidence-based rather than a general cleanup bucket:
+
+| Bridge | Trigger | First spec should prove |
+|---|---|---|
+| 8a `vault-seed` `silo.js` -> `@refarm.dev/silo` | **Refarm handoff ready after 4c**: `apps/refarm` providers and `vault-seed` both need the same namespaced collect boundary; the follow-up consumer proof promoted `listSecrets`, `removeSecret`, storage hardening, and the storage/identity closure split into Silo | namespaces preserve model/runtime/channel/publishing separation |
+| 8b channel policy (`contacts` + `rate-limiter` + receipts) | **Refarm-side package slice active**: `@refarm.dev/channel-policy-v1` covers destinations, rate-limit policy/evidence, delivery state, receipts, dry-run, and review semantics | official `vault-seed` Telegram adapter proof must emit the neutral envelope while keeping API/UX downstream |
+| 8c `process-handoff` + artifact provenance | **Refarm-side proof active**: `@refarm.dev/process-handoff` process specs validate as `artifact-contract-v1` provenance; `@refarm.dev/cli/process-handoff` remains a compatibility re-export | official `dgk-runner`/`dgk-cli` proof must import the SDK internally, preserve `dgk` UX, and emit manifests without leaking `dgk` command names upstream |
+
+Spec rule: each bridge gets its own feature spec and its own consumer proof. A bridge does not
+start because it is convenient; it starts because the second consumer exists. `vault-seed` counts
+as that consumer only for the specific primitive it already duplicates.
+
+For 8b, the first package boundary is conservative: one `channel-policy-v1` evidence contract is
+preferable to prematurely splitting `contacts` and `rate-limiter`. Split only when conformance
+tests show the subdomains need independent versioning.
+
+8a focused activation packet:
+
+- `specs/features/2026-06-26-vault-seed-silo-bridge.md`;
+- `docs/superpowers/plans/2026-06-26-vault-seed-silo-bridge.md`.
+
+8b focused activation packet:
+
+- `specs/features/2026-06-26-channel-policy-bridge.md`;
+- `docs/superpowers/plans/2026-06-26-channel-policy-bridge.md`;
+- `.refarm/handoff/vault-seed/2026-06-26/refarm.dev-channel-policy-v1-0.1.0.tgz`
+  (`sha256 9daaa089560b558a145b0af78dc09a8b66cfd13decce362d205f7362d97f4ddf`).
+
+8c focused activation packet:
+
+- `specs/features/2026-06-26-process-handoff-provenance-bridge.md`;
+- `docs/superpowers/plans/2026-06-26-process-handoff-provenance-bridge.md`.
+
+## Additional Downstream Assimilation Backlog
+
+These are not new top-level roadmap items; they are pressure signals to attach
+to the existing lanes before `vault-seed` grows more local substrate:
+
+| Pressure | Attach to | Next planning move |
+|---|---|---|
+| Lab dataset/outbox/notebook manifests | `artifact-contract-v1`, WASM substrate | Official `vault-seed` proof emits `refarm.task-artifacts.v1` manifests from Lab/outbox/notebook producers. |
+| Generated-vault smoke/reset/template inventory | vault generator + codemod registry | Keep active; this is the boilerplate-killing lane. |
+| Release package smoke, lockfile template sync, version contracts | `release-engine`, package acceptance summary/checklist | Plan a release-policy consumer proof after generator inventory exists. |
+| Action pinning, substrate/devcontainer checks, generated-output hygiene | `health` / environment substrate | Extract only rules that can be expressed as consumer policy. |
+| Text scoring and prose quality reports | text-quality contract/config | Keep Refarm scoring generic; leave Portuguese/vault dashboards downstream. |
+| Astro wiki/callout/image transforms | future content-transform contract | Hold until a second non-vault consumer repeats the same transforms. |
+
+## Roadmap-Derived Assimilation Backlog
+
+The explicit `vault-seed` roadmap adds more supply pressure. These entries do
+not create new top-level items until a spec activates them, but they prevent the
+factory from stopping later to re-decide ownership.
+
+| Roadmap pressure | Attach to | Activation trigger |
+|---|---|---|
+| `lab.sources.json`, `ExtractionProfile`, cache/staging, data lifecycle | item 1/7 source adapters + artifact retention policy | second extractor or generated vault needs the same source/profile shape |
+| `target: "auto"` AI placement | model/task contract + artifact evidence | classifier decisions need replay, review, or provider swap |
+| Mastodon/Bluesky/Instagram/newsletter/Nostr parity | 8b channel policy + `silo` identity namespace | second provider proves the same destination/rate-limit/receipt/review envelope |
+| Nostr kind 30023 through Refarm identity | identity + channel-policy proof | signed delivery evidence can be expressed without vault article semantics |
+| `dgk publish workspace` and custom distributions | item 9 generator/codemod + release-engine | generated vault smoke needs package/workspace publication metadata |
+| OKF/JSON-LD/semantic graph export | future knowledge/content manifest contract | another consumer wants the same graph/content envelope |
+| changelog as publishable content | release-engine + channel policy | release notes can emit an outbox-ready artifact without editorial takeover |
+| Lab WASM HTTP/OpenGraph helpers and refresh workflows | item 5 WASM substrate + source HTTP readers + artifacts | Marimo/Astro need the same browser-safe data helper contract |
+| `vault-publish`, `vault-inbox`, `vault-changelog` skills | item 6 skill runtime activation | a skill can run through Refarm primitives without rewriting DGK SKILL.md |
+
+Keep the first implementation conservative: prefer one neutral envelope with conformance tests
+over splitting packages by wish list. Split only when the tests show independent versioning,
+runtime, or ownership.
+
+Activation packet:
+
+- `specs/features/2026-06-25-consumer-bridges-activation.md`;
+- `docs/superpowers/plans/2026-06-25-consumer-bridges-activation.md`.
+
+## Codemod Discipline
+
+Codemod or generator work is warranted only when the transform is repeatable or cross-file enough
+that manual editing is riskier:
+
+- already automated: package gate registration and changeset creation in `turbo gen package`;
+- retired before codemod promotion: `CredentialProvider` import re-homing landed as a smaller
+  manual 4c change; generated-vault manifest/inventory wiring landed as item 9a generator-first
+  work;
+- ready codemods: `ds-token-adoption` for consumer CSS token/theme adoption and
+  `package-workspace-adoption` for generated or external consumer manifests;
+- remaining candidates: ADR-069 publish-target scope sweep stays manual-reviewed unless it recurs;
+  repository/package metadata rewrites broader than initial generated-vault materialization should
+  become codemods only when a second generated vault or consumer checkout needs the same rule;
+- not codemods: ADR decisions, one-off prose, and speculative research notes.
+
+`ds-token-adoption` is a ready codemod entry. It has before/after
+fixtures, preserves nested CSS at-rules, is idempotent, and exposes a JSON
+dry-run report. A cache-only proof against
+`/home/vscode/.cache/checkouts/github.com/aretw0/vault-seed/.site/styles/marimo-vault.css`
+reported `changed: true`, `importsAdded: 3`, and
+`semanticDeclarationsRemoved: 205` with `written: false`; official downstream
+application/visual review remains on the `vault-seed` side.
+
+`package-workspace-adoption` is now the second ready codemod entry. It parses
+package manifests as JSON, can set a concrete generated package `name`, and
+rewrites only explicitly mapped `workspace:` dependency ranges. A cache-only
+proof against
+`/home/vscode/.cache/checkouts/github.com/aretw0/vault-seed/package.template.json`
+with `--external @aretw0/dgk-astro-plugins=latest` reported `changed: true`,
+`nameChanged: false`, `workspaceDependenciesRewritten: 1`, and
+`written: false`; official downstream application remains on the `vault-seed`
+side.
+
+Vault-seed generator classification:
+
+- generator actions: payload copy, template-dev file exclusion, deterministic rename, generated
+  `inventory.json`, welcome-note status publication, current `vault.config.json` kudos
+  removal/license-holder fill, `package.template.json` repository URL materialization from
+  the target repository, and generated-vault externalization of the excluded
+  `@aretw0/dgk-astro-plugins` workspace dependency. These are local, idempotent, and covered by
+  the generated-vault smoke boundary.
+- codemod candidates: repository/package metadata rewrites beyond the initial template
+  materialization, plus any future cross-file JSON/TS/CSS rewrite needed by more than one generated
+  vault or consumer checkout. Package-name adoption and targeted workspace dependency
+  externalization are already covered by `package-workspace-adoption`.
+- still not codemods: Markdown prose choices and ADR/spec content. Promote them only after a
+  repeatable structural rule exists.
+
+## Item 9a - Vault-Seed Generator
+
+The generator-first direction is implemented as a prototype:
+
+- `specs/features/2026-06-25-vault-seed-generator-contract.md`;
+- `docs/superpowers/plans/2026-06-25-vault-seed-generator-contract.md`.
+- `generators/vault-seed/manifest.json`;
+- `generators/vault-seed/generate.mjs`.
+
+The proof is manifest + inventory driven and passes the selected generated-vault smoke gate against
+the cached `vault-seed` checkout when available. The Refarm-side release consumer proof also
+generates a vault fixture, reads `inventory.json`, and verifies generated `@refarm.dev/*`
+dependencies are covered by the `vault-seed-ready` release policy. Official downstream adoption
+remains outside this checkout.
+
+## Item 9b - Codemod Registry
+
+The codemod-first direction has a registry contract and two ready entries before any new platform
+work:
+
+- `specs/features/2026-06-25-codemod-registry-contract.md`;
+- `docs/superpowers/plans/2026-06-25-codemod-registry-contract.md`.
+- `codemods/registry.json`;
+- `codemods/ds-token-adoption.mjs`;
+- `codemods/package-workspace-adoption.mjs`.
+
+Continue with metadata, fixtures, dry-run command, and rollback note. Do not create a hosted
+registry or MCP integration without a separate product reason.
+
+## Item 10 - Linux Async I/O (`io_uring`)
+
+`io_uring` is worth tracking because Refarm has native Rust hot paths and agent workloads that can
+be file/socket heavy. It is not a cross-platform default and must not leak into TS public APIs.
+
+Spec and plan:
+
+- `specs/features/2026-06-25-io-uring-substrate.md`;
+- `docs/superpowers/plans/2026-06-25-io-uring-substrate.md`.
+
+Started as `validations/io-uring-substrate/`:
+
+- selected workload: generated/source materialization with deterministic fixture tree copy and
+  byte-for-byte output hash;
+- `pnpm run io-uring:probe:test` compiles a tiny `rustc`-only syscall probe into `/tmp` and
+  classifies support without Cargo/crates;
+- current devcontainer evidence:
+  `validations/io-uring-substrate/evidence/probe-current.json` reports `status: "blocked"`,
+  `errno: 1`, kernel `5.15.153.1-microsoft-standard-WSL2`, and fallback `standard-file-io`.
+
+The first gate is not raw throughput; it is capability probe + fallback + a meaningful win on a
+Refarm-shaped workload. In this container, do not spend cycles on `tokio-uring` implementation
+until another host/container reports `available`.
+
+## Item 11 - XR/WebXR Surface
+
+XR is a frontier surface, not a core dependency:
+
+- `specs/features/2026-06-25-xr-surface-poc.md`;
+- `docs/superpowers/plans/2026-06-25-xr-surface-poc.md`.
+
+The first gate is equal data across 2D fallback and XR scene. A-Frame or three.js stays isolated to
+the POC until graduation evidence exists.
+
+Started as `validations/xr-surface-poc/`:
+
+- selected data envelope: renderer-neutral Refarm surface map (`ds`, `ds/html`,
+  `dispatch-surface`, `release-engine`);
+- `pnpm run xr-surface:poc:test` verifies fixture shape, WebXR capability classification, and equal
+  node/action IDs across deterministic 2D fallback and XR scene markup;
+- no production package imports A-Frame or three.js.
+
+The next useful step is a contained static preview under the validation directory. Do not introduce
+an XR package or production dependency before browser/device evidence exists.

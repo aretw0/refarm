@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { MODEL_MOCK_DEFAULT_MODEL, createModelMock, says } from "./index.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { MODEL_MOCK_DEFAULT_MODEL, createModelMock, rawJson, says, toolCall } from "./index.js";
 import type { ModelMockServer } from "./server.js";
 
 let mock: ModelMockServer;
@@ -25,6 +25,49 @@ describe("ModelMockServer — non-streaming", () => {
 		expect(res.status).toBe(200);
 		const body = await res.json() as { choices: Array<{ message: { content: string } }> };
 		expect(body.choices[0].message.content).toBe("Olá do mock!");
+	});
+
+	it("returns raw JSON responses unchanged", async () => {
+		mock.queue(rawJson({ ok: true, choices: [{ message: { content: "raw" } }] }));
+
+		const res = await fetch(`http://127.0.0.1:${mock.port}/v1/chat/completions`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", Authorization: "Bearer mock-key" },
+			body: JSON.stringify({ model: MODEL_MOCK_DEFAULT_MODEL, messages: [] }),
+		});
+
+		expect(res.status).toBe(200);
+		const body = await res.json() as { ok: boolean; choices: Array<{ message: { content: string } }> };
+		expect(body.ok).toBe(true);
+		expect(body.choices[0].message.content).toBe("raw");
+	});
+
+	it("scripts OpenAI tool-call responses", async () => {
+		mock.queue(toolCall("bash", { argv: ["echo", "ok"] }, { id: "call_echo" }));
+
+		const res = await fetch(`http://127.0.0.1:${mock.port}/v1/chat/completions`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", Authorization: "Bearer mock-key" },
+			body: JSON.stringify({ model: MODEL_MOCK_DEFAULT_MODEL, messages: [] }),
+		});
+
+		expect(res.status).toBe(200);
+		const body = await res.json() as {
+			choices: Array<{
+				message: {
+					tool_calls: Array<{
+						id: string;
+						function: { name: string; arguments: string };
+					}>;
+				};
+				finish_reason: string;
+			}>;
+		};
+		const call = body.choices[0].message.tool_calls[0];
+		expect(body.choices[0].finish_reason).toBe("tool_calls");
+		expect(call.id).toBe("call_echo");
+		expect(call.function.name).toBe("bash");
+		expect(JSON.parse(call.function.arguments)).toEqual({ argv: ["echo", "ok"] });
 	});
 
 	it("captures the request for assertion", async () => {

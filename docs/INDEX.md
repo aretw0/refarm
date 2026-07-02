@@ -39,6 +39,7 @@
 - **[Stratification Policy](STRATIFICATION.md)** — TS-Strict vs JS-Atomic package classification.
 - **[Scaffolding Development Policy](SCAFFOLDING.md)** — Island Isolation Policy for `sower` scaffolding.
 - **[Local Disk Hygiene](local-disk-hygiene.md)** — Resource-aware cleanup tiers for constrained workstations.
+- **[Network Hazard Control](NETWORK_HAZARD_CONTROL.md)** — Timeouts, bounded polling, and resource-safe network behavior for runtime/CI.
 - **[Module Resolution](DEVELOPMENT_RESOLUTION.md)** — src vs dist vs package root: when and why.
 - **[Security: CI Cache Hardening](security/ci-cache-hardening.md)** — Cache poisoning attack surface, PR vs main isolation, maintenance rules.
 

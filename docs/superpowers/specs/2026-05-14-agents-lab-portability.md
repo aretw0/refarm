@@ -15,8 +15,8 @@
 `aretw0/agents-lab` is a curated layer of extensions and skills for Pi (pi.dev).
 It is published as `pi-stack` packages and also works with any Claude Code-compatible
 environment (skills are pure Markdown). The lab curates for both Pi and refarm
-ecosystems without requiring porting — the Markdown-based skill format is the
-shared protocol.
+ecosystems without requiring porting for human-readable content. Refarm still
+needs its native skill contract before treating that Markdown as executable.
 
 Key components:
 - **Skills** — Markdown files that activate on user request; same format in Pi and refarm
@@ -25,10 +25,11 @@ Key components:
 
 ---
 
-## Category 1: Pure Markdown skills (immediately portable)
+## Category 1: Pure Markdown skills (content-portable, runtime-gated)
 
-These work identically in Pi and refarm. No porting, no evaluation needed —
-just install.
+These are portable as source content and review fixtures. Refarm should not
+install or execute them directly until a native skill contract, capability
+declaration, policy envelope, and invocation adapter exist.
 
 **git-skills**: Structured git workflows (commit conventions, branch naming,
 PR prep). Does refarm need this? Yes — the monorepo has specific commit conventions
@@ -44,8 +45,9 @@ refarm's actual conventions (check against `CLAUDE.md` and recent commits).
   model IDs. Refarm uses `MODEL_PROVIDER` env vars; this skill helps users
   configure correctly.
 
-**Action**: Install `git-skills` and `lab-skills` essentials directly. Verify
-against refarm's actual conventions before treating as authoritative.
+**Action**: Review `git-skills` and `lab-skills` essentials as source evidence.
+Use them to shape the native Refarm skill system and wrappers. Do not install
+them as runtime skills until Refarm owns the contract and policy boundary.
 
 ---
 
@@ -172,8 +174,8 @@ Pi and refarm. No action needed.
 
 | Component | Problem real in refarm? | Port directly? | Refarm answer | When |
 |---|---|---|---|---|
-| git-skills (Markdown) | Yes | Yes — verify conventions | Install as-is | Now |
-| lab-skills essentials | Yes | Yes | Install as-is | Now |
+| git-skills (Markdown) | Yes | Content only — verify conventions | Refarm wrapper over native skill contract | Now: review; later: adapter smoke |
+| lab-skills essentials | Yes | Content only | Refarm-edited wrappers or upstream fixes over native skill contract | Now: review; later: adapter smoke |
 | context-watchdog thresholds | Yes | No — Pi-specific numbers | Tunable compaction in pi-agent | After self-iteration works |
 | guardrails-core hooks | Yes | No — Pi extension API | Scarecrow WIT Steps 3+4 | Next barn step |
 | quota-visibility | Yes | No — read from CRDT instead | `/budget` REPL command | After daily driver |
@@ -187,4 +189,5 @@ Pi and refarm. No action needed.
 The safe import rule: a skill or concept from agents-lab is worth bringing into
 refarm when (1) the problem is real in refarm, (2) the solution is architecture-
 compatible, and (3) it doesn't introduce a Pi-specific dependency that creates
-coupling. Skills pass all three by design. Extensions fail #3 by design.
+coupling. Markdown skills pass as content, not as automatic runtime artifacts.
+Extensions fail #3 by design.

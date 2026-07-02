@@ -40,8 +40,18 @@ pub struct WsServer {
 }
 
 impl WsServer {
-    pub fn new(sync: Arc<NativeSync>, port: u16, telemetry: TelemetryBus, agent_channels: AgentChannels) -> Self {
-        Self { sync, port, telemetry, agent_channels }
+    pub fn new(
+        sync: Arc<NativeSync>,
+        port: u16,
+        telemetry: TelemetryBus,
+        agent_channels: AgentChannels,
+    ) -> Self {
+        Self {
+            sync,
+            port,
+            telemetry,
+            agent_channels,
+        }
     }
 
     /// Start the WebSocket server and block until Ctrl-C.
@@ -89,7 +99,9 @@ impl WsServer {
                         let clients = clients.clone();
                         let agent_channels = self.agent_channels.clone();
                         tokio::spawn(async move {
-                            if let Err(e) = handle_connection(tcp_stream, sync, clients, agent_channels).await {
+                            if let Err(e) =
+                                handle_connection(tcp_stream, sync, clients, agent_channels).await
+                            {
                                 tracing::warn!("connection error: {e}");
                             }
                         });
@@ -153,18 +165,34 @@ async fn handle_connection(
                             }
                         }
                     }
-                    Err(e) => tracing::warn!("apply_update failed (frame discarded, not relayed): {e}"),
+                    Err(e) => {
+                        tracing::warn!("apply_update failed (frame discarded, not relayed): {e}")
+                    }
                 }
             }
             Ok(Message::Text(json)) => {
                 if let Ok(msg) = serde_json::from_str::<serde_json::Value>(&json) {
                     if msg.get("type").and_then(|v| v.as_str()) == Some("user:prompt") {
-                        let agent = msg.get("agent").and_then(|v| v.as_str()).unwrap_or("").to_owned();
-                        let payload = msg.get("payload").and_then(|v| v.as_str()).map(str::to_owned);
+                        let agent = msg
+                            .get("agent")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_owned();
+                        let payload = msg
+                            .get("payload")
+                            .and_then(|v| v.as_str())
+                            .map(str::to_owned);
                         let guard = agent_channels.read().expect("agent_channels poisoned");
                         match guard.get(&agent) {
-                            Some(tx) => { let _ = tx.send(AgentMessage { event: "user:prompt".into(), payload }); }
-                            None => tracing::warn!(agent, "user:prompt: no plugin registered for agent"),
+                            Some(tx) => {
+                                let _ = tx.send(AgentMessage {
+                                    event: "user:prompt".into(),
+                                    payload,
+                                });
+                            }
+                            None => {
+                                tracing::warn!(agent, "user:prompt: no plugin registered for agent")
+                            }
                         }
                     }
                 }
@@ -209,7 +237,9 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         let server = WsServer::new(make_sync(), 0, TelemetryBus::new(10), channels);
-        tokio::spawn(async move { let _ = server.run(listener).await; });
+        tokio::spawn(async move {
+            let _ = server.run(listener).await;
+        });
         format!("ws://{addr}")
     }
 
@@ -247,7 +277,10 @@ mod tests {
         let (ws, _) = connect_async(&addr).await.unwrap();
         let (_sink, mut stream) = ws.split();
         let first = stream.next().await.unwrap().unwrap();
-        assert!(matches!(first, Message::Binary(_)), "expected Binary CRDT frame on connect");
+        assert!(
+            matches!(first, Message::Binary(_)),
+            "expected Binary CRDT frame on connect"
+        );
     }
 
     // ── resilience ───────────────────────────────────────────────────────────
@@ -281,7 +314,9 @@ mod tests {
         let (mut sink, mut stream) = ws.split();
         stream.next().await; // drain initial state
 
-        sink.send(Message::Text("not json !!!".to_string())).await.unwrap();
+        sink.send(Message::Text("not json !!!".to_string()))
+            .await
+            .unwrap();
         sink.send(Message::Text("{}".to_string())).await.unwrap();
         // no panic, no error — test passes by reaching this line
     }
@@ -305,6 +340,9 @@ mod tests {
         .unwrap();
 
         let result = timeout(Duration::from_millis(100), rx.recv()).await;
-        assert!(result.is_err(), "non-prompt type must not route to agent channel");
+        assert!(
+            result.is_err(),
+            "non-prompt type must not route to agent channel"
+        );
     }
 }

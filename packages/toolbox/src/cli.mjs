@@ -10,13 +10,21 @@ const command = process.argv[2];
 
 async function run() {
     try {
-        switch (command) {
+	switch (command) {
             case 'start':
                 await import('./start.mjs');
                 break;
             case 'verify':
                 await import('./verify.mjs');
                 break;
+            case 'safety':
+                {
+                    const { runSafetyGate } = await import('./safety-gate.mjs');
+                    const mode = process.argv[3] ?? "micro";
+                    const flags = process.argv.slice(3);
+                    await runSafetyGate(mode, flags);
+                    break;
+                }
             case 'finish':
                 await import('./finish.mjs');
                 break;
@@ -46,6 +54,7 @@ async function run() {
                 console.log("  start       - Begin a new feature or hotfix");
                 console.log("  verify      - Run the quality gates (lint, test, build)");
                 console.log("  finish      - Complete a task, verify, and open a PR");
+                console.log("  safety      - Run execution profiles (micro|normal|full or custom)");
                 console.log("  rebrand     - Emergency global refactoring protocol");
                 console.log("  sync-labels - Create/Update GitHub phase labels");
                 console.log("  reso        - Toggle between Local (src) and Published (dist) resolution");
