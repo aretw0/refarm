@@ -69,6 +69,34 @@ Start with the gaffes visible today, not a theory:
 2. **Contrast** → run the existing `contrast.test.ts` over `apps/site`'s rendered pages.
 3. Grow the rule set (hierarchy, measure, token-only) as more gaffes surface.
 
+## Generic, not case-by-case (the consumer's key ask)
+
+The guardrail must catch gaffes **generically** — every text/background pair's contrast (so strange
+button colors surface without naming buttons), every element's overflow, every heading's scale — not a
+list of specific assertions. Rules run over the **rendered DOM**, computed per element, so a new page or
+component is covered for free.
+
+## Inventory — vault-seed's current reality (the raw material)
+
+vault-seed already hand-rolled UI checks; categorizing them shows the pattern to generalize and the
+anti-pattern to retire:
+
+- **Generic seed (keep + generalize):** `smoke_responsive.mjs` renders with Playwright and measures
+  overflow / bounding boxes generically (`scrollWidth`, `boundingBox`, ~16 overflow checks) — exactly the
+  render-and-measure the guardrail needs. Extend it from overflow to all rules.
+- **Contrast seed (keep + generalize):** `check_theme.js` + `notebook_chart_contrast` compute WCAG
+  contrast — but over tokens / specific spots, not every rendered text/background pair. Generalize to the
+  whole DOM (this is what would catch the strange-colored buttons).
+- **Anti-pattern (converge away):** `site_ux_contract.test.mjs` holds **~243 source-inspecting
+  assertions** (read a file, assert it contains a literal pattern) — per-case, brittle (it broke on our
+  own refactors), the opposite of generic. These should collapse into a handful of DS-lint rules.
+
+The raw material exists downstream but partial + hand-rolled; the DS should own it, generalize it, and
+distribute it. The first rules are literally the gaffes we can already see (button contrast, hero
+overflow) — a regression net grounded in reality, not theory. Studying the state of the art (axe-core,
+Lighthouse a11y, fluid-type systems, and emerging AI-UI linters) is an ongoing input as the rule set
+grows.
+
 ## Boundary
 
 Refarm owns the DS + the guardrail (the quality primitive, distributed). Consumers (vault-seed, POCs)
