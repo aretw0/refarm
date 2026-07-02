@@ -1,8 +1,8 @@
 import chalk from "chalk";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
-import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import { formatExecutionPlanReadinessLine } from "@refarm.dev/cli/execution-plan";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
@@ -15,6 +15,9 @@ import {
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 import { reportSidecarError } from "./sidecar-error.js";
+import {
+	fetchSidecarWithTimeout,
+} from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 import { TREE_SESSION_LIST_JSON_COMMAND } from "./tree-handoffs.js";
 import {
@@ -27,6 +30,9 @@ import {
 	REFARM_TREE_SESSION_SCOPE,
 	type RefarmSessionTimelineNode,
 } from "./tree-model.js";
+
+const REFARM_TREE_SESSION_REQUEST_TIMEOUT_MS = "REFARM_TREE_SESSION_REQUEST_TIMEOUT_MS";
+const DEFAULT_TREE_SESSION_REQUEST_TIMEOUT_MS = 500;
 
 function treeShowCommand(id: string): string {
 	return refarmCommand(["tree", "show", id, "--json"]);
@@ -140,7 +146,14 @@ function buildSessionTimelineNodes(
 
 async function fetchSessions(limit?: number): Promise<SessionNode[]> {
 	const suffix = typeof limit === "number" ? `?limit=${limit}` : "";
-	const response = await fetch(sidecarUrl(`/sessions${suffix}`));
+	const response = await fetchSidecarWithTimeout(
+		sidecarUrl(`/sessions${suffix}`),
+		{},
+		{
+			timeoutEnvVar: REFARM_TREE_SESSION_REQUEST_TIMEOUT_MS,
+			defaultTimeoutMs: DEFAULT_TREE_SESSION_REQUEST_TIMEOUT_MS,
+		},
+	);
 	if (!response.ok) {
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
@@ -154,8 +167,13 @@ async function fetchSessionHistory(
 		operation: "show",
 	},
 ): Promise<SessionHistory | null> {
-	const response = await fetch(
+	const response = await fetchSidecarWithTimeout(
 		sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/history`),
+		{},
+		{
+			timeoutEnvVar: REFARM_TREE_SESSION_REQUEST_TIMEOUT_MS,
+			defaultTimeoutMs: DEFAULT_TREE_SESSION_REQUEST_TIMEOUT_MS,
+		},
 	);
 	const body = (await response.json()) as SessionHistory & {
 		error?: string;

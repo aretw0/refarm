@@ -6,6 +6,25 @@ function readJson(path) {
 	return JSON.parse(readFileSync(path, "utf8"));
 }
 
+function runArgValue(config, flag) {
+	const prefix = `${flag}=`;
+	const inline = config.runArgs.find((arg) => arg.startsWith(prefix));
+	if (inline) return inline.slice(prefix.length);
+	const index = config.runArgs.indexOf(flag);
+	return index >= 0 ? config.runArgs[index + 1] : undefined;
+}
+
+function memoryToMiB(value) {
+	const match = String(value ?? "").match(/^(\d+)(gb|g|mb|m|kb|k)?$/i);
+	assert.ok(match, `invalid memory value: ${value}`);
+	const amount = Number(match[1]);
+	const unit = (match[2] ?? "m").toLowerCase();
+	if (unit === "gb" || unit === "g") return amount * 1024;
+	if (unit === "mb" || unit === "m") return amount;
+	if (unit === "kb" || unit === "k") return Math.ceil(amount / 1024);
+	throw new Error(`unsupported memory unit: ${unit}`);
+}
+
 test("devcontainer publishes operator-facing local services", () => {
 	const config = readJson(".devcontainer/devcontainer.json");
 	const expectedPorts = [4321, 42000, 42001, 1455, 53692];
@@ -136,6 +155,90 @@ test("devcontainer exposes refarm through the intentional farm user shell", () =
 	assert.match(farm, /\/home\/\$\{TARGET_USER\}\/\.local\/bin/);
 	assert.match(farm, /\/home\/\$\{TARGET_USER\}\/\.npm-global\/bin/);
 	assert.match(farm, /exec su -s \/bin\/bash "\$TARGET_USER" -- -lc/);
+});
+
+test("devcontainer marks and locks host-write-sensitive workspace checkouts", () => {
+	const config = readJson(".devcontainer/devcontainer.json");
+	const refarmConfig = readJson("refarm.config.json");
+	const postCreate = readFileSync(".devcontainer/post-create.sh", "utf8");
+	const postStart = readFileSync(".devcontainer/post-start.sh", "utf8");
+	const farm = readFileSync(".devcontainer/farm", "utf8");
+	const envSafety = readFileSync("scripts/env-safety-check.sh", "utf8");
+	const workspaceProtect = readFileSync("scripts/workspace-protect.mjs", "utf8");
+
+	assert.equal(config.containerEnv.REFARM_WORKSPACE_HOST_WRITE_LOCK, "1");
+	assert.equal(refarmConfig.workspaceProtection.hostWriteLock, true);
+	assert.equal(refarmConfig.workspaceProtection.marker, ".refarm/devcontainer-workspace.env");
+	assert.ok(refarmConfig.workspaceProtection.roots.includes(".git"));
+	assert.ok(refarmConfig.workspaceProtection.roots.includes(".refarm"));
+	assert.ok(refarmConfig.workspaceProtection.roots.includes("packages"));
+	assert.ok(refarmConfig.workspaceProtection.pruneDirNames.includes("node_modules"));
+	assert.match(postCreate, /export REFARM_WORKSPACE_HOST_WRITE_LOCK="\$\{REFARM_WORKSPACE_HOST_WRITE_LOCK:-1\}"/);
+	assert.match(postStart, /export REFARM_WORKSPACE_HOST_WRITE_LOCK="\$\{REFARM_WORKSPACE_HOST_WRITE_LOCK:-1\}"/);
+	assert.match(farm, /export REFARM_WORKSPACE_HOST_WRITE_LOCK=1/);
+	assert.match(postCreate, /workspace_protect mark/);
+	assert.match(postStart, /workspace_protect mark/);
+	assert.match(postCreate, /workspace_protect apply/);
+	assert.match(postStart, /workspace_protect apply/);
+	assert.match(postCreate, /scripts\/workspace-protect\.mjs/);
+	assert.match(postStart, /scripts\/workspace-protect\.mjs/);
+	assert.doesNotMatch(postCreate, /local roots=\(/);
+	assert.doesNotMatch(postStart, /local roots=\(/);
+	assert.match(workspaceProtect, /loadWorkspaceProtection/);
+	assert.match(workspaceProtect, /workspaceProtection/);
+	assert.match(workspaceProtect, /REFARM_DEVCONTAINER_ACTIVE=true/);
+	assert.match(workspaceProtect, /chmod", "u\+rwx,go-w"/);
+	assert.match(envSafety, /check_devcontainer_workspace_marker\(\)/);
+	assert.match(envSafety, /REFARM_ALLOW_HOST_DEVCONTAINER_WORKSPACE/);
+	assert.match(envSafety, /Checkout is marked devcontainer-owned/);
+	assert.match(envSafety, /is_pnpm_ignored_link\(\)/);
+	assert.match(envSafety, /\*\/node_modules\/\.ignored_\*/);
+});
+
+test("devcontainer environment ceilings are enforced at the container boundary", () => {
+	const config = readJson(".devcontainer/devcontainer.json");
+	const refarmConfig = readJson("refarm.config.json");
+	const ceilings = refarmConfig.environmentCeilings;
+	const containerMemoryMiB = memoryToMiB(runArgValue(config, "--memory"));
+	const swapMemoryMiB = memoryToMiB(runArgValue(config, "--memory-swap"));
+	const pidsLimit = Number(runArgValue(config, "--pids-limit"));
+
+	assert.equal(ceilings.schemaVersion, 1);
+	assert.equal(ceilings.status, "enforced");
+	assert.equal(ceilings.source, "ADR-078");
+	assert.equal(ceilings.scope, "local-devcontainer");
+	assert.equal(ceilings.enforcement, "cgroup-v2");
+	assert.equal(ceilings.cgroupVersion, 2);
+	assert.equal(containerMemoryMiB, 6144);
+	assert.equal(swapMemoryMiB, containerMemoryMiB);
+	assert.equal(Number(runArgValue(config, "--cpus")), 4);
+	assert.equal(pidsLimit, 1024);
+	assert.equal(config.hostRequirements.cpus, 4);
+	assert.equal(memoryToMiB(config.hostRequirements.memory), 8192);
+	assert.equal(ceilings.slices.control.pidsMax, 256);
+	assert.equal(ceilings.slices.control.memoryMinMiB, 1024);
+	assert.equal(ceilings.slices.control.memoryMaxMiB, 2048);
+	assert.equal(ceilings.slices.control.oomScoreAdj, -500);
+	assert.equal(ceilings.slices.workload.memoryMaxMiB, 4096);
+	assert.equal(ceilings.slices.workload.oomScoreAdj, 500);
+	assert.equal(ceilings.slices.agent.memoryMaxMiB, 1536);
+	assert.equal(
+		ceilings.slices.control.memoryMaxMiB + ceilings.slices.workload.memoryMaxMiB,
+		containerMemoryMiB,
+	);
+	assert.ok(
+		ceilings.slices.agent.memoryMaxMiB <= ceilings.slices.control.memoryMaxMiB,
+		"agent sessions must fit under the control plane slice",
+	);
+	assert.ok(
+		ceilings.slices.control.pidsMax + ceilings.slices.workload.pidsMax <= pidsLimit,
+		"declared process ceilings must fit under the Docker pids cgroup",
+	);
+	assert.equal(ceilings.heavyLanes.strictPressureGate, true);
+	assert.equal(ceilings.heavyLanes.serializedLock, ".refarm/locks/heavy-lane.lock");
+	assert.equal(ceilings.heavyLanes.maxConcurrency, 1);
+	assert.ok(ceilings.heavyLanes.workClasses.includes("broad-check"));
+	assert.ok(ceilings.heavyLanes.workClasses.includes("worker-fanout"));
 });
 
 test("devcontainer provides the baseline sandbox tools expected by agents", () => {

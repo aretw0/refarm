@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import {
 	binaryCommand,
 	joinCommand,
@@ -7,7 +6,8 @@ import {
 	refarmCommand,
 	shellCommand,
 	workspaceCommand,
-} from "../../src/commands/command-handoff.js";
+} from "@refarm.dev/cli/command-handoff";
+import { describe, expect, it } from "vitest";
 
 describe("command handoff helpers", () => {
 	it("quotes command arguments with shell-safe JSON string syntax", () => {

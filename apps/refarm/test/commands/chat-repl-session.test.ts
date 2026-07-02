@@ -1,11 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CHAT_HELP_TEXT } from "@refarm.dev/cli/chat-repl";
 import { EventEmitter } from "node:events";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const MAX_CHAT_HISTORY_LINES = 500;
+
 import type { ChatDeps } from "../../src/commands/chat.js";
 import { runSessionRepl } from "../../src/commands/chat.js";
-import { CHAT_HELP_TEXT } from "../../src/commands/chat-repl.js";
 
 const mockedCreateInterface = vi.hoisted(() => vi.fn());
-const mockedLaunchProcess = vi.hoisted(() => vi.fn());
+const mockedProcessHandoff = vi.hoisted(() => vi.fn());
+const mockedLoadChatHistory = vi.hoisted(() => vi.fn().mockReturnValue([]));
+const mockedSaveChatHistory = vi.hoisted(() => vi.fn());
 
 vi.mock("node:readline", () => ({
 	default: {
@@ -14,19 +19,20 @@ vi.mock("node:readline", () => ({
 	createInterface: mockedCreateInterface,
 }));
 
-vi.mock("@refarm.dev/cli/launch-process", () => ({
-	launchProcess: mockedLaunchProcess,
+vi.mock("@refarm.dev/cli/process-handoff", () => ({
+	executeProcessHandoff: mockedProcessHandoff,
 }));
 
-vi.mock("../../src/commands/chat-history.js", () => ({
-	loadChatHistory: vi.fn().mockReturnValue([]),
+vi.mock("@refarm.dev/cli/chat-history", () => ({
+	MAX_CHAT_HISTORY_LINES: 500,
+	loadChatHistory: mockedLoadChatHistory,
 	rememberChatHistoryLine: vi
 		.fn()
 		.mockImplementation((history: string[], line: string) => [
 			...history,
 			line,
 		]),
-	saveChatHistory: vi.fn(),
+	saveChatHistory: mockedSaveChatHistory,
 	resolveChatHistoryPath: vi.fn(),
 }));
 
@@ -60,10 +66,27 @@ describe("runSessionRepl", () => {
 			lastInterface = createFakeReadline();
 			return lastInterface;
 		});
+		mockedLoadChatHistory.mockReturnValue([]);
 	});
 
 	afterEach(() => {
 		vi.clearAllMocks();
+	});
+
+	it("passes readline history size and terminal options", async () => {
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+
+		expect(mockedCreateInterface).toHaveBeenCalledTimes(1);
+		expect(mockedCreateInterface).toHaveBeenCalledWith(
+			expect.objectContaining({
+				historySize: 1000,
+				terminal: true,
+			}),
+		);
 	});
 
 	it("prints resume hints when the REPL closes without an explicit /exit", async () => {
@@ -138,7 +161,7 @@ describe("runSessionRepl", () => {
 				logs.push(String(args[0]));
 				return undefined;
 			});
-		mockedLaunchProcess.mockResolvedValue(0);
+		mockedProcessHandoff.mockResolvedValue(0);
 
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),
@@ -151,7 +174,7 @@ describe("runSessionRepl", () => {
 		await Promise.resolve();
 		await Promise.resolve();
 
-		expect(mockedLaunchProcess).toHaveBeenCalledWith({
+		expect(mockedProcessHandoff).toHaveBeenCalledWith({
 			command: process.argv[0],
 			args: [process.argv[1], "status"],
 			display: "refarm status",
@@ -160,6 +183,72 @@ describe("runSessionRepl", () => {
 		expect(logs.join("\n")).not.toContain("To continue this session");
 
 		consoleSpy.mockRestore();
+	});
+
+	it("executes /s as status shortcut", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+		mockedProcessHandoff.mockResolvedValue(0);
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/s");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(mockedProcessHandoff).toHaveBeenCalledWith({
+			command: process.argv[0],
+			args: [process.argv[1], "status"],
+			display: "refarm status",
+		});
+		expect(logs.join("\n")).not.toContain("Goodbye.");
+		expect(logs.join("\n")).not.toContain("To continue this session");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("executes /r as reload without plugin ids", async () => {
+		const reloadPlugins = vi
+			.fn()
+			.mockResolvedValue({ reloaded: [], skipped: [] });
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins,
+		});
+		lastInterface.emit("line", "/r");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(reloadPlugins).toHaveBeenCalledWith(undefined);
+	});
+
+	it("normalizes plugin aliases on /r", async () => {
+		const reloadPlugins = vi
+			.fn()
+			.mockResolvedValue({ reloaded: [], skipped: [] });
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins,
+		});
+		lastInterface.emit("line", "/r runtime-agent");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(reloadPlugins).toHaveBeenCalledWith(["@refarm/pi-agent"]);
 	});
 
 	it("prints status failure path and continues", async () => {
@@ -173,7 +262,7 @@ describe("runSessionRepl", () => {
 				logs.push(String(args[0]));
 				return undefined;
 			});
-		mockedLaunchProcess.mockResolvedValue(2);
+		mockedProcessHandoff.mockResolvedValue(2);
 
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),
@@ -197,6 +286,403 @@ describe("runSessionRepl", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("prints chat history on /history", async () => {
+		mockedLoadChatHistory.mockReturnValue(["one", "two"]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/history");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain("1. one");
+		expect(out).toContain("2. two");
+		expect(out).not.toContain("Goodbye.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("does not persist history when chat history does not change", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("close");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).not.toHaveBeenCalled();
+		expect(logs.join("\n")).toContain("Session saved.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("persists history when message input is added", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "first message");
+		await Promise.resolve();
+		lastInterface.emit("close");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).toHaveBeenCalledTimes(1);
+		expect(logs.join("\n")).toContain("Session saved.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("includes slash commands in /history output", async () => {
+		mockedLoadChatHistory.mockReturnValue(["one"]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/new");
+		await Promise.resolve();
+		lastInterface.emit("line", "message line");
+		await Promise.resolve();
+		lastInterface.emit("line", "/history");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain("1. message line");
+		expect(out).toContain("2. /new");
+		expect(out).toContain("3. one");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("caps in-session command history to MAX_CHAT_HISTORY_LINES", async () => {
+		mockedLoadChatHistory.mockReturnValue([]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		for (let index = 0; index < MAX_CHAT_HISTORY_LINES + 5; index++) {
+			lastInterface.emit("line", `message-${index}`);
+			await Promise.resolve();
+		}
+		lastInterface.emit("line", "/history");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain(`1. message-${MAX_CHAT_HISTORY_LINES + 4}`);
+		expect(out).toContain(
+			`${MAX_CHAT_HISTORY_LINES}. message-${MAX_CHAT_HISTORY_LINES + 5 - MAX_CHAT_HISTORY_LINES}`,
+		);
+		expect(out).not.toContain("message-0");
+		expect(out).not.toContain("message-4");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("caps combined history output to MAX_CHAT_HISTORY_LINES", async () => {
+		mockedLoadChatHistory.mockReturnValue(
+			Array.from({ length: MAX_CHAT_HISTORY_LINES }, (_, i) => `history-${i}`),
+		);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		for (let index = 0; index < 10; index++) {
+			lastInterface.emit("line", `message-${index}`);
+			await Promise.resolve();
+		}
+		lastInterface.emit("line", "/history");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		const lines = out
+			.split("\n")
+			.filter((line) => /^\d+\. /.test(line.trim()))
+			.length;
+		expect(lines).toBe(MAX_CHAT_HISTORY_LINES);
+		expect(out).not.toContain("history-499");
+		expect(out).toContain("1. message-9");
+		expect(out).toContain(`500. history-489`);
+
+		consoleSpy.mockRestore();
+	});
+
+	it("clears chat history on /history --clear", async () => {
+		mockedLoadChatHistory.mockReturnValue(["one", "two"]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/history --clear");
+		await Promise.resolve();
+		lastInterface.emit("close");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).toHaveBeenCalledWith([]);
+		expect(logs.join("\n")).toContain("Chat history cleared");
+		expect(logs.join("\n")).not.toContain("No chat history yet.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("clears chat history on /history clear", async () => {
+		mockedLoadChatHistory.mockReturnValue(["one", "two"]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/history clear");
+		await Promise.resolve();
+		lastInterface.emit("close");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).toHaveBeenCalledWith([]);
+		expect(logs.join("\n")).toContain("Chat history cleared");
+		expect(logs.join("\n")).not.toContain("No chat history yet.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("clears chat history on /clear", async () => {
+		mockedLoadChatHistory.mockReturnValue(["one", "two"]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/clear");
+		await Promise.resolve();
+		lastInterface.emit("close");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).toHaveBeenCalledWith([]);
+		expect(logs.join("\n")).toContain("Chat history cleared");
+		expect(logs.join("\n")).not.toContain("No chat history yet.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("clears chat history on /cls", async () => {
+		mockedLoadChatHistory.mockReturnValue(["one", "two"]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/cls");
+		await Promise.resolve();
+		lastInterface.emit("close");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).toHaveBeenCalledWith([]);
+		expect(logs.join("\n")).toContain("Chat history cleared");
+		expect(logs.join("\n")).not.toContain("No chat history yet.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("clears chat history on /hist --clear", async () => {
+		mockedLoadChatHistory.mockReturnValue(["one", "two"]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/hist --clear");
+		await Promise.resolve();
+		lastInterface.emit("close");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).toHaveBeenCalledWith([]);
+		expect(logs.join("\n")).toContain("Chat history cleared");
+		expect(logs.join("\n")).not.toContain("No chat history yet.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("does not persist history for /history --clear when already empty", async () => {
+		mockedLoadChatHistory.mockReturnValue([]);
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		runSessionRepl("urn:refarm:session:v1:test", {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/history --clear");
+		await Promise.resolve();
+		lastInterface.emit("close");
+		await Promise.resolve();
+
+		expect(mockedSaveChatHistory).not.toHaveBeenCalled();
+		expect(logs.join("\n")).toContain("✓ Chat history cleared.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("forwards /sow credentials command to configure hook", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+		const configureCredentials = vi.fn().mockResolvedValue(undefined);
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+			configureCredentials,
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/sow --provider openai");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(configureCredentials).toHaveBeenCalledWith(["--provider", "openai"]);
+		const out = logs.join("\n");
+		expect(out).toContain(
+			"Refarm runtime reloads saved credentials before each task.",
+		);
+
+		consoleSpy.mockRestore();
+	});
+
+	it("forwards /keys to configure hook with reconfigure flag", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+		const configureCredentials = vi.fn().mockResolvedValue(undefined);
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+			configureCredentials,
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/keys");
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(configureCredentials).toHaveBeenCalledWith(["--reconfigure"]);
+		const out = logs.join("\n");
+		expect(out).toContain(
+			"Refarm runtime reloads saved credentials before each task.",
+		);
+
+		consoleSpy.mockRestore();
+	});
+
 	it("prints status command exception and continues", async () => {
 		const logs: string[] = [];
 		const consoleSpy = vi
@@ -208,7 +694,7 @@ describe("runSessionRepl", () => {
 				logs.push(String(args[0]));
 				return undefined;
 			});
-		mockedLaunchProcess.mockRejectedValue(new Error("launch exploded"));
+		mockedProcessHandoff.mockRejectedValue(new Error("launch exploded"));
 
 		const deps: ChatDeps = {
 			submitEffort: vi.fn(),
@@ -249,6 +735,33 @@ describe("runSessionRepl", () => {
 
 		runSessionRepl("urn:refarm:session:v1:test", deps);
 		lastInterface.emit("line", "/help");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain(CHAT_HELP_TEXT);
+		expect(out).not.toContain("To continue this session");
+		expect(out).not.toContain("Goodbye.");
+
+		consoleSpy.mockRestore();
+	});
+
+	it("prints help text for /commands", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		const deps: ChatDeps = {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		};
+
+		runSessionRepl("urn:refarm:session:v1:test", deps);
+		lastInterface.emit("line", "/commands");
 		await Promise.resolve();
 
 		const out = logs.join("\n");
@@ -360,6 +873,30 @@ describe("runSessionRepl", () => {
 			`To continue this session, run: refarm session --session ${nextSessionId}`,
 		);
 		expect((out.match(/To continue this session/g) ?? []).length).toBe(1);
+
+		consoleSpy.mockRestore();
+	});
+
+	it("prints active session on /session without args", async () => {
+		const logs: string[] = [];
+		const consoleSpy = vi
+			.spyOn(console, "log")
+			.mockImplementation((...args) => {
+				logs.push(String(args[0]));
+				return undefined;
+			});
+
+		const sessionId = "urn:refarm:session:v1:test-session";
+		runSessionRepl(sessionId, {
+			submitEffort: vi.fn(),
+			followStream: vi.fn(),
+			reloadPlugins: vi.fn(),
+		});
+		lastInterface.emit("line", "/session");
+		await Promise.resolve();
+
+		const out = logs.join("\n");
+		expect(out).toContain(`✓ Active session: ${sessionId.slice(-8)}`);
 
 		consoleSpy.mockRestore();
 	});

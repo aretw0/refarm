@@ -7,6 +7,7 @@ export PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-$ROOT/.cache/npm}"
 export REFARM_DEVCONTAINER="${REFARM_DEVCONTAINER:-true}"
+export REFARM_WORKSPACE_HOST_WRITE_LOCK="${REFARM_WORKSPACE_HOST_WRITE_LOCK:-1}"
 export REFARM_HOME="${REFARM_HOME:-$ROOT/.refarm}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
 export REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
@@ -46,6 +47,15 @@ repair_owned_dir() {
   }
   if [ ! -w "$dir" ] && command -v sudo >/dev/null 2>&1; then
     sudo chown -R "$(id -u):$(id -g)" "$dir" || true
+  fi
+}
+
+workspace_protect() {
+  local operation="$1"
+  if [ -f "$ROOT/scripts/workspace-protect.mjs" ]; then
+    node "$ROOT/scripts/workspace-protect.mjs" "$operation" || warn "workspace-protect $operation failed"
+  else
+    warn "scripts/workspace-protect.mjs is missing"
   fi
 }
 
@@ -117,6 +127,7 @@ fi
 cd "$ROOT"
 
 log "Starting post-create setup..."
+workspace_protect mark
 log "Marking workspace as a safe Git directory for the devcontainer user..."
 git config --global --add safe.directory "$ROOT" || true
 
@@ -257,6 +268,7 @@ wait $PI_PID     || warn "Pi install failed. Run: pnpm add -g @earendil-works/pi
 # 5) Finalize
 log "Installing refarm CLI shim..."
 run_script_for_package_manager "$PACKAGE_MANAGER" cli:install || warn "Could not install refarm CLI shim. Retry: $(script_command_for_package_manager "$PACKAGE_MANAGER" cli:install)"
+workspace_protect apply
 
 log "Installing git hooks..."
 run_script_for_package_manager "$PACKAGE_MANAGER" hooks:install || warn "Could not install git hooks automatically"

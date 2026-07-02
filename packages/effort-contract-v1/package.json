@@ -43,6 +43,7 @@
 	"homepage": "https://refarm.dev.br",
 	"files": [
 		"dist",
+		"!dist/**/*.tsbuildinfo",
 		"README.md"
 	],
 	"publishConfig": {

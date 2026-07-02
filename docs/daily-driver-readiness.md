@@ -59,7 +59,7 @@ What is already solid:
 - Package-manager-sensitive commands are structured and spawn-safe.
 - `@refarm.dev/cli` owns status, browser-open, command-line parsing, handoff
   command helpers, JSON output envelopes, command result parsing, command plan
-  execution/envelopes, launch process specs, detached process launch, launch
+  execution/envelopes, process handoff specs, detached process handoff, launch
   readiness policy, Git command helpers, GitHub Actions CLI adapters, resume
   envelope, and execution-plan readiness/handoffs.
 - Host action affordance selection lives in `@refarm.dev/cli` with agnostic
@@ -70,8 +70,8 @@ What is already solid:
 - Public JSON contract tests cover all major commands including `ask` error
   paths, confirming `nextActions`, `nextCommands`, and template metadata.
 - `refarm:agent:e2e:mock` exercises runtime start, the runtime agent,
-  `plugin reload runtime-agent --json`,
-  `ask --json`, `task run runtime-agent respond --transport http --json`,
+  `plugin reload agent --json`,
+  `ask --json`, `task run agent respond --transport http --json`,
   `task resume --json`, top-level `resume --json`, stream-file creation,
   executable task status/log handoffs, and OpenAI-compatible request capture
   against `@refarm.dev/model-mock` without Ollama or paid model tokens.
@@ -97,10 +97,11 @@ What is already solid:
   The full native platform proof remains intentionally blocked until the Windows
   Rust/WASM substrate matches CI setup. No devcontainer rebuild is indicated by
   that failure.
-- Runtime/model bridge deltas in `ask`, the runtime agent, `model-mock`, and Tractor
-  WASI LLM routing are now routed to that no-token e2e smoke by
-  `refarm agent finish --profile affected` and the host smoke auto profile
-  `agent-e2e-mock`.
+- Runtime/model bridge deltas in `ask`, the runtime agent, `model-mock`, and
+  Tractor WASI LLM routing route to that no-token e2e smoke only when the
+  operator explicitly chooses `refarm agent finish --lane agent-e2e-mock` or an
+  affected finish with `--include-tests`. The default affected and after-commit
+  lanes stay cheap enough for frequent agent handoffs.
 - `refarm agent --json` exposes the no-token `agent-e2e-mock` lane directly in
   `nextActions` and `nextCommands`, so agents do not need to discover it only
   from nested lane metadata.
@@ -127,6 +128,11 @@ What is already solid:
   `docs/REFARM_OPERATOR_DAILY_DRIVER.md`.
 - The primitive contract map is maintained in
   `docs/OPERATOR_PRIMITIVES.md`.
+- Reference research against Codex, Claude Code, Hermes Agent, and Pi is
+  maintained in `docs/REFERENCE_AGENT_DRIVER_RESEARCH.md`. The adoption rule is
+  to keep the live daily-driver loop first, then close policy, governed handoff
+  writes, capability discovery, bounded worker profiles, and scheduler proof in
+  that order.
 
 What still blocks the 95/100 product target:
 
@@ -191,7 +197,9 @@ the primary daily driver:
    `nextCommands`. ✅ Priority-aware; failedCommand and remaining count visible.
 2. Finish gate: `refarm agent finish --lane after-edit --run --json` and
    `after-commit` pass reliably for small slices without manual command
-   selection. ✅ Lanes solid; affected profile includes script checks.
+   selection. ✅ Lanes solid; affected profile includes lightweight script checks
+   by default and requires explicit `--include-tests`/`agent-e2e-mock` for the
+   runtime e2e lane.
 3. Handoff gate: `refarm agent finish --lane handoffs --run --json` passes
    after public JSON output changes and catches placeholders, REPL-only
    commands, and missing template metadata. ✅ Contract tests cover all major
@@ -305,7 +313,7 @@ than the center of every future workflow.
 
 - `apps/refarm`: product commands, operator output, final CLI UX.
 - `packages/cli`: reusable CLI primitives, JSON envelopes, handoff commands,
-  command plans, execution plans, action affordances, launch process specs,
+  command plans, execution plans, action affordances, process handoff specs,
   detached process launch, launch readiness policy, Git command helpers, GitHub
   Actions CLI adapters, status schemas, resume envelope.
 - `packages/config`: defaults, provider/model/package-manager policy.

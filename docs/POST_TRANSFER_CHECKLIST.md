@@ -1,23 +1,27 @@
 # Post-Transfer Checklist
 
-Este documento contém as ações **obrigatórias** que devem ser executadas **imediatamente** após a transferência do repositório `aretw0/refarm` → `refarm-dev/refarm`.
+> **Status**: parked. The repository currently remains under `aretw0/refarm`. Use this checklist
+> only if an owner migration is resumed later.
+
+Este documento contém as ações **obrigatórias** que devem ser executadas **imediatamente** após uma
+transferência futura do repositório para outro owner/host.
 
 ---
 
 ## 🚨 Ações Imediatas (0-5 minutos)
 
-### 1. Criar organização npm @refarm
+### 1. Criar organização npm `@refarm.dev`
 
 ```bash
 # Via web: https://www.npmjs.com/org/create
-# Nome da organização: refarm
-# Scope será: @refarm
+# Nome da organização/scope: refarm.dev
+# Scope será: @refarm.dev
 ```
 
-**Por que @refarm e não @refarm-dev?**
+**Por que @refarm.dev e não @refarm-dev?**
 
 - GitHub org: `refarm-dev` (namespace técnico)
-- npm scope: `@refarm` (namespace de marca)
+- npm scope: `@refarm.dev` (namespace canônico de blocos Refarm)
 - Domain: `refarm.dev` (marketing/docs)
 
 ### 2. Gerar NPM_TOKEN com permissão de publicação
@@ -26,7 +30,7 @@ Este documento contém as ações **obrigatórias** que devem ser executadas **i
 # Via web: https://www.npmjs.com/settings/YOUR_USERNAME/tokens
 # Token type: Automation (para CI/CD)
 # Permissões: Read and Publish
-# Scope: @refarm (a organização criada)
+# Scope: @refarm.dev (a organização criada)
 ```
 
 **Anotar o token gerado** (só aparece uma vez!)
@@ -52,7 +56,7 @@ Este documento contém as ações **obrigatórias** que devem ser executadas **i
 
 # Opcional (lock de owner)
 # Nome: RELEASE_OWNER
-# Valor: refarm-dev
+# Valor: <target-owner>
 # Scope: Repository variables
 ```
 
@@ -70,7 +74,7 @@ Este documento contém as ações **obrigatórias** que devem ser executadas **i
 O transfer do repositório deve ter acionado o workflow de testes automaticamente. Verificar:
 
 ```bash
-# Via web: https://github.com/aretw0/refarm/actions
+# Via web: <new-repo-url>/actions
 # Workflow: CI / Test → deve estar verde ✅
 ```
 
@@ -112,20 +116,20 @@ git push origin main
 
 cd /workspaces/refarm
 
-# Storage contract (scope do profile ativo)
-git tag @aretw0/storage-contract-v1@0.1.0
-git push origin @aretw0/storage-contract-v1@0.1.0
+# Storage contract
+git tag @refarm.dev/storage-contract-v1@0.1.0
+git push origin @refarm.dev/storage-contract-v1@0.1.0
 
 # Sync contract
-git tag @aretw0/sync-contract-v1@0.1.0
-git push origin @aretw0/sync-contract-v1@0.1.0
+git tag @refarm.dev/sync-contract-v1@0.1.0
+git push origin @refarm.dev/sync-contract-v1@0.1.0
 
 # Identity contract
-git tag @aretw0/identity-contract-v1@0.1.0
-git push origin @aretw0/identity-contract-v1@0.1.0
+git tag @refarm.dev/identity-contract-v1@0.1.0
+git push origin @refarm.dev/identity-contract-v1@0.1.0
 ```
 
-> Em ambiente de organização, use as tags no scope da organização (ex.: `@refarm.dev/...`).
+> Não use tags `@aretw0/*` para blocos Refarm; `@aretw0` é reservado aos produtos DGK do `vault-seed`.
 
 **Desvantagem**: Menos elegante, requer criação manual de tags para cada pacote.
 
@@ -139,9 +143,9 @@ Após merge do PR (Estratégia A) ou push das tags (Estratégia B):
 
 ```bash
 # Verificar cada pacote foi publicado
-npm info @aretw0/storage-contract-v1
-npm info @aretw0/sync-contract-v1
-npm info @aretw0/identity-contract-v1
+npm info @refarm.dev/storage-contract-v1
+npm info @refarm.dev/sync-contract-v1
+npm info @refarm.dev/identity-contract-v1
 
 # Todos devem retornar versão 0.1.0
 ```
@@ -149,7 +153,7 @@ npm info @aretw0/identity-contract-v1
 ### 7. Verificar GitHub Releases
 
 ```bash
-# Via web: https://github.com/aretw0/refarm/releases
+# Via web: <new-repo-url>/releases
 # Devem existir 3 releases (um por pacote)
 ```
 
@@ -159,11 +163,11 @@ npm info @aretw0/identity-contract-v1
 # Em outro diretório (fora do monorepo)
 mkdir test-refarm-install && cd test-refarm-install
 npm init -y
-npm install @aretw0/storage-contract-v1 @aretw0/sync-contract-v1 @aretw0/identity-contract-v1
+npm install @refarm.dev/storage-contract-v1 @refarm.dev/sync-contract-v1 @refarm.dev/identity-contract-v1
 
 # Criar teste rápido
 cat > test.js << 'EOF'
-import { runStorageV1Conformance } from '@aretw0/storage-contract-v1';
+import { runStorageV1Conformance } from '@refarm.dev/storage-contract-v1';
 console.log('✅ Imports funcionando!');
 EOF
 
@@ -234,8 +238,8 @@ Marcar conforme completar:
 - [ ] Variable RELEASE_AUTOMATION=true configurada
 - [ ] Workflows de teste passando (CI verde)
 - [ ] Primeira release executada (Changesets PR merged OU tags pushed)
-- [ ] 4 pacotes publicados no npm (validado via `npm info`)
-- [ ] 4 GitHub Releases criadas
+- [ ] 3 contratos publicados no npm (validado via `npm info`)
+- [ ] 3 GitHub Releases criadas
 - [ ] Teste de instalação externa passou
 
 ### Nice-to-Have (Documentação)
@@ -243,7 +247,7 @@ Marcar conforme completar:
 - [ ] REPOSITORY_MIGRATION_GUIDE.md deletado
 - [ ] Research consolidado em INDEX.md (opcional)
 - [ ] ESTADO_ATUAL.md consolidado em decision-log.md (opcional)
-- [ ] Encontrados e atualizados todas referências `aretw0` → `refarm-dev`
+- [ ] Encontradas e atualizadas referências ao owner antigo conforme o destino escolhido
 
 ---
 
@@ -268,7 +272,7 @@ git push origin @refarm.dev/storage-contract-v1@0.1.1
 
 Verificar:
 
-1. `github.repository_owner` está correto? (deve ser `refarm-dev`)
+1. `github.repository_owner` está correto? (deve ser o owner configurado em `RELEASE_OWNER`)
 2. `vars.RELEASE_AUTOMATION` está configurado como `true`?
 3. Branch protection está bloqueando? (verificar Settings → Branches)
 
@@ -277,8 +281,8 @@ Verificar:
 Verificar:
 
 1. Token NPM_TOKEN tem permissões de Automation + Read/Publish?
-2. Token está associado à org `@refarm`?
-3. Sua conta npm tem permissões de admin na org `@refarm`?
+2. Token está associado à org `@refarm.dev`?
+3. Sua conta npm tem permissões de admin na org `@refarm.dev`?
 
 ---
 

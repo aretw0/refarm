@@ -16,6 +16,7 @@ describe("sidecar-error", () => {
 		expect(isSidecarUnavailable("connect ECONNREFUSED 127.0.0.1:42001")).toBe(true);
 		expect(isSidecarUnavailable("Runtime HTTP 503")).toBe(true);
 		expect(isSidecarUnavailable("Farmhand HTTP 503")).toBe(true);
+		expect(isSidecarUnavailable("fetch failed: EPERM: connect EPERM 127.0.0.1:42001")).toBe(true);
 	});
 
 	it("does not treat generic sidecar HTTP status as unavailable", () => {
@@ -54,6 +55,20 @@ describe("sidecar-error", () => {
 					diagnostic: "runtime:unavailable",
 					severity: "failure",
 					command: "refarm runtime ensure --wait --next-command",
+				}),
+			],
+		});
+	});
+
+	it("surfaces bind-permission context in runtime unavailable recommendations", () => {
+		expect(buildSidecarErrorPayload("fetch failed: EPERM: connect EPERM 127.0.0.1:42001")).toMatchObject({
+			ok: false,
+			error: "runtime-unavailable",
+			recommendations: [
+				expect.objectContaining({
+					diagnostic: "runtime:unavailable",
+					severity: "failure",
+					summary: expect.stringContaining("local HTTP socket"),
 				}),
 			],
 		});

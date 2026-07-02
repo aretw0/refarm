@@ -47,7 +47,12 @@ test("run-workspace-script plans dependency builds before the workspace command"
 	]);
 
 	assert(lines.includes("pnpm -C packages/health run build"));
+	assert(lines.includes("pnpm -C packages/process-handoff run build"));
 	assert(lines.includes("pnpm -C packages/cli run build"));
+	assert(
+		lines.indexOf("pnpm -C packages/process-handoff run build") <
+			lines.indexOf("pnpm -C packages/cli run build"),
+	);
 	assert.equal(lines.at(-1), "pnpm -C apps/refarm run test:handoffs");
 	assert(!lines.some((line) => line.includes("\\")));
 	assert(!lines.some((line) => line.includes("packages/pi-agent")));

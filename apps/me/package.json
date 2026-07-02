@@ -12,17 +12,27 @@
 		"type-check:dist": "astro check && tsc --project tsconfig.build.json --noEmit",
 		"test:unit": "vitest run",
 		"test": "vitest run",
+		"smoke:sync": "node scripts/smoke-browser-sync-status.mjs",
+		"smoke:scheduled-work": "node scripts/smoke-scheduled-work-bootstrap.mjs",
+		"smoke:plugin-cache": "node scripts/smoke-plugin-cache.mjs",
+		"smoke:content-plugin": "node scripts/smoke-content-plugin.mjs",
+		"smoke:pwa": "node scripts/smoke-pwa.mjs",
+		"smoke:offline-roundtrip": "node scripts/smoke-offline-roundtrip.mjs",
+		"smoke:real-daemon-roundtrip": "node scripts/smoke-real-daemon-roundtrip.mjs",
 		"lint": "eslint src"
 	},
 	"dependencies": {
+		"@refarm.dev/cli": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/storage-sqlite": "workspace:*",
 		"@refarm.dev/sync-loro": "workspace:*",
+		"@refarm.dev/tractor": "workspace:*",
 		"astro": "^6.4.8"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.9",
+		"@playwright/test": "^1.60.0",
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",

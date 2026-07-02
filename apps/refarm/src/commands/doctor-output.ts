@@ -1,7 +1,7 @@
 import { formatRefarmStatusJson } from "@refarm.dev/cli/status";
 import { buildDiagnosticNextActionPayload } from "./diagnostic-recommendations.js";
 import type { RefarmDoctorReport } from "./doctor.js";
-import { formatJson } from "./json-output.js";
+import { formatJson } from "@refarm.dev/cli/json-output";
 
 export type RefarmDoctorOutputMode =
 	| "json"

@@ -262,6 +262,180 @@ describe("command plan runner", () => {
 		});
 	});
 
+	it("stops before running a step when a resource ceiling blocks it", () => {
+		const runStep = vi.fn((step: CommandPlanStep) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+		}));
+
+		const result = runCommandPlan([processSteps[0]!], runStep, {
+			planResourceCeiling: () => ({
+				ok: true,
+				decision: "degrade",
+				workClass: "broad-check",
+				pressureDecision: "safe-mode",
+				reason: "Safe mode requires a smaller proof instead of broad work.",
+				nextActions: ["Run the bounded fallback package check."],
+				nextCommands: ["refarm agent finish --workspace packages/cli --json"],
+				maxConcurrency: null,
+				recommendations: [
+					{
+						diagnostic: "host-memory-available",
+						severity: "warning",
+					},
+				],
+			}),
+		});
+
+		expect(runStep).not.toHaveBeenCalled();
+		expect(result).toMatchObject({
+			ok: false,
+			status: "failed",
+			failedStepId: "type-check",
+			failedCommand: "refarm agent finish --workspace packages/cli --json",
+			nextActions: ["Run the bounded fallback package check."],
+			nextCommands: ["refarm agent finish --workspace packages/cli --json"],
+			nextProcesses: [],
+			recommendations: [
+				{
+					diagnostic: "host-memory-available",
+					severity: "warning",
+				},
+			],
+			steps: [
+				{
+					id: "type-check",
+					ok: false,
+					exitCode: 1,
+					payload: {
+						ok: false,
+						resourceCeiling: {
+							decision: "degrade",
+							workClass: "broad-check",
+							pressureDecision: "safe-mode",
+						},
+					},
+				},
+			],
+		});
+	});
+
+	it("serializes a runnable process step when the resource ceiling lowers concurrency", () => {
+		const fanoutStep: CommandPlanStep = {
+			id: "fanout",
+			command: "worker-runner run tests --concurrency=4 --scope apps/refarm",
+			args: [
+				"run",
+				"tests",
+				"--concurrency=4",
+				"--scope",
+				"apps/refarm",
+			],
+			description: "Run broad test fanout.",
+			effect: "verify",
+			process: {
+				command: "worker-runner",
+				args: [
+					"run",
+					"tests",
+					"--concurrency=4",
+					"--scope",
+					"apps/refarm",
+				],
+				cwd: "/workspaces/refarm",
+				display: "worker-runner run tests --concurrency=4 --scope apps/refarm",
+				packageManager: null,
+				resourcePolicy: {
+					concurrency: 4,
+					workClass: "worker-fanout",
+				},
+				tool: "turbo",
+			},
+		};
+		const runStep = vi.fn((step: CommandPlanStep) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+		}));
+
+		const result = runCommandPlan([fanoutStep], runStep, {
+			planResourceCeiling: () => ({
+				ok: true,
+				decision: "serialize",
+				workClass: "worker-fanout",
+				pressureDecision: "safe-mode",
+				reason: "Safe mode requires serialized work instead of fan-out.",
+				nextActions: ["Run `worker-runner run tests` with concurrency 1."],
+				nextCommands: ["worker-runner run tests --concurrency=1"],
+				maxConcurrency: 1,
+				recommendations: [],
+			}),
+		});
+
+		expect(result.ok).toBe(true);
+		expect(runStep).toHaveBeenCalledTimes(1);
+		expect(runStep.mock.calls[0]?.[0]).toMatchObject({
+			command: "worker-runner run tests --concurrency=1 --scope apps/refarm",
+			args: [
+				"worker-runner",
+				"run",
+				"tests",
+				"--concurrency=1",
+				"--scope",
+				"apps/refarm",
+			],
+			process: {
+				args: [
+					"run",
+					"tests",
+					"--concurrency=1",
+					"--scope",
+					"apps/refarm",
+				],
+				display: "worker-runner run tests --concurrency=1 --scope apps/refarm",
+				resourcePolicy: {
+					concurrency: 1,
+					workClass: "worker-fanout",
+				},
+			},
+		});
+		expect(result.steps[0]).toMatchObject({
+			id: "fanout",
+			ok: true,
+			command: "worker-runner run tests --concurrency=1 --scope apps/refarm",
+			process: {
+				resourcePolicy: {
+					concurrency: 1,
+					workClass: "worker-fanout",
+				},
+			},
+		});
+	});
+
+	it("turns nested spawn restrictions into direct-run guidance", () => {
+		const runStep = vi.fn((step: CommandPlanStep) => ({
+			...step,
+			ok: false,
+			exitCode: 1,
+			stdout: "",
+			stderr: "spawnSync /usr/local/bin/node EPERM",
+		}));
+
+		expect(runCommandPlan([steps[0]!], runStep)).toMatchObject({
+			ok: false,
+			failedStepId: "first",
+			nextActions: [
+				"Run `refarm first --json` directly; this environment restricts nested process spawning.",
+			],
+			nextCommands: ["refarm first --json"],
+		});
+	});
+
 	it("builds run JSON envelopes and strips raw streams from summaries", () => {
 		const result = runCommandPlan([steps[0]!], (step) => ({
 			...step,
@@ -325,6 +499,22 @@ describe("command plan runner", () => {
 				packageManager: "npm",
 			},
 		});
+	});
+
+	it("bounds CLI steps with the configured timeout", () => {
+		const result = runCommandPlanCliStep(["setTimeout(() => {}, 1000)"], {
+			executable: process.execPath,
+			entrypoint: "-e",
+			command: "node -e 'setTimeout(() => {}, 1000)'",
+			timeoutMs: 50,
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			exitCode: 1,
+			command: "node -e 'setTimeout(() => {}, 1000)'",
+		});
+		expect(result.stderr).toMatch(/ETIMEDOUT|timed out/);
 	});
 
 	it("keeps cache observations in command plan summaries and aggregate reports", () => {
@@ -417,6 +607,27 @@ describe("command plan runner", () => {
 			exitCode: 3,
 			stdout: "ok",
 			stderr: "",
+		});
+	});
+
+	it("honors process step timeouts", () => {
+		expect(
+			runCommandPlanProcessStep({
+				id: "process-timeout",
+				command: "node -e <script>",
+				args: [],
+				description: "Run process with timeout.",
+				process: {
+					command: process.execPath,
+					args: ["-e", "setTimeout(() => {}, 1000);"],
+					display: "node -e <script>",
+					timeoutMs: 20,
+				},
+			}),
+		).toMatchObject({
+			id: "process-timeout",
+			ok: false,
+			exitCode: 1,
 		});
 	});
 });

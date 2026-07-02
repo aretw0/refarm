@@ -1,0 +1,26 @@
+:root,
+[data-vault-marimo-theme="light"] {
+	--background: #f7f5f0;
+	--foreground: #1c261f;
+	--card: #fffaf0;
+	--card-foreground: #1c261f;
+	--primary: #1b5e3b;
+	--primary-foreground: #f7f5f0;
+	--border: #d6d0c3;
+	--gdg-grid-line: color-mix(in srgb, var(--border) 56%, transparent);
+}
+
+[data-vault-marimo-theme="dark"] {
+	--background: #111310;
+	--foreground: #f7f5f0;
+	--card: #1a1f18;
+	--primary: #95d5b2;
+	--primary-foreground: #111310;
+	--border: #2d332b;
+	--gdg-grid-line: color-mix(in srgb, var(--border) 64%, transparent);
+}
+
+.vault-lab-panel {
+	background: var(--card);
+	color: var(--card-foreground);
+}

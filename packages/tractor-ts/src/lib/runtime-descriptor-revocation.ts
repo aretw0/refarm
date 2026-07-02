@@ -12,6 +12,7 @@ export interface RuntimeDescriptorRevocationListReference {
 
 export interface FetchRuntimeDescriptorRevocationOptions {
 	fetchFn?: typeof fetch;
+	timeoutMs?: number;
 	cacheTtlMs?: number;
 	allowStaleOnError?: boolean;
 	onStaleFallback?: (info: {
@@ -124,9 +125,10 @@ export async function fetchRuntimeDescriptorRevocationList(
 		return cached.list;
 	}
 
+	const timeoutMs = options.timeoutMs ?? 30_000;
 	const fetchFn = options.fetchFn ?? globalThis.fetch.bind(globalThis);
 	try {
-		const response = await fetchFn(url);
+		const response = await fetchFn(url, { signal: AbortSignal.timeout(timeoutMs) });
 		if (!response.ok) {
 			throw new Error(`failed to fetch (${response.statusText})`);
 		}

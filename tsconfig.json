@@ -16,6 +16,7 @@
       ],
       "@refarm.dev/vtconfig": ["./packages/vtconfig"],
       "@refarm.dev/ds": ["./packages/ds/src/index"],
+      "@refarm.dev/ds/html": ["./packages/ds/src/html"],
       "@refarm.dev/file-stream-transport": [
         "./packages/file-stream-transport/src/index"
       ],
@@ -78,7 +79,10 @@
       "@refarm.dev/trust": ["./packages/trust/src/index"],
       "@refarm.dev/ws-stream-transport": [
         "./packages/ws-stream-transport/src/index"
-      ]
+      ],
+      "@refarm.dev/source-contract-v1": ["./packages/source-contract-v1/src"],
+      "@refarm.dev/source-git": ["./packages/source-git/src"],
+      "@refarm.dev/skill-contract-v1": ["./packages/skill-contract-v1/src"]
     }
   },
   "exclude": ["node_modules", "dist", "build", "pkg", "**/*.test.ts"]

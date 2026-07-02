@@ -1,6 +1,7 @@
 # @refarm.dev/artifact-contract-v1
 
-Shared lifecycle base types for managed artifacts in the Refarm platform.
+Shared lifecycle base types for managed artifacts across host and consumer
+projects.
 
 ## Types
 
@@ -84,6 +85,14 @@ const manifest: TaskArtifactManifest = {
 Consumers such as `vault-seed` can map these references to Lab datasets,
 publication reports, or audit notebooks while keeping vault-specific fields in
 their own manifests.
+
+For consumer-specific surfaces, keep the stable role generic and put local
+semantics in labels. For example, a Lab dataset can be `role: "dataset"` with
+`labels: ["lab"]`, a publication outbox can be `role: "manifest"` with
+`labels: ["publication", "outbox"]`, and a notebook export can be
+`role: "report"` with `labels: ["lab", "notebook", "snapshot"]`. This lets
+consuming hosts validate and query the evidence without owning notebook UX,
+channel provider behavior, or vault folder conventions.
 
 When the producer uses a tokenized runner, store the exact executable boundary
 in `provenance.process`. Keep `provenance.command` as a stable display string

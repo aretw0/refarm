@@ -1,0 +1,59 @@
+{
+	"name": "@refarm.dev/identity-heartwood",
+	"version": "0.1.0",
+	"description": "Heartwood-backed identity:v1 provider with real Ed25519 signatures",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"clean": "rm -rf dist",
+		"test:conformance": "vitest run src/identity-v1.conformance.test.ts"
+	},
+	"keywords": [
+		"identity",
+		"ed25519",
+		"heartwood",
+		"contract"
+	],
+	"author": "Refarm Contributors",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/identity-heartwood"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev.br",
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@refarm.dev/heartwood": "workspace:*",
+		"@refarm.dev/identity-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}

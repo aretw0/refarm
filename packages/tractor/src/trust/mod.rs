@@ -61,7 +61,10 @@ pub struct TrustManager {
 
 impl Default for TrustManager {
     fn default() -> Self {
-        Self { grants: HashMap::new(), security_mode: SecurityMode::None }
+        Self {
+            grants: HashMap::new(),
+            security_mode: SecurityMode::None,
+        }
     }
 }
 
@@ -75,7 +78,10 @@ impl TrustManager {
     /// `SecurityMode::Strict` requires an explicit trust grant before a plugin
     /// can be loaded by `PluginHost`.
     pub fn with_security_mode(mode: SecurityMode) -> Self {
-        Self { grants: HashMap::new(), security_mode: mode }
+        Self {
+            grants: HashMap::new(),
+            security_mode: mode,
+        }
     }
 
     /// Return the current security mode.
@@ -99,14 +105,12 @@ impl TrustManager {
         let now = Self::now_ms();
         if let Some(hash) = wasm_hash {
             let key = Self::grant_key(plugin_id, hash);
-            self.grants
-                .get(&key)
-                .is_some_and(|g| !g.is_expired(now))
+            self.grants.get(&key).is_some_and(|g| !g.is_expired(now))
         } else {
             // Any valid grant for this plugin
-            self.grants.values().any(|g| {
-                g.plugin_id == plugin_id && !g.is_expired(now)
-            })
+            self.grants
+                .values()
+                .any(|g| g.plugin_id == plugin_id && !g.is_expired(now))
         }
     }
 
@@ -122,7 +126,12 @@ impl TrustManager {
         let granted_at = Self::now_ms();
         let expires_at = lease_ms.map(|ms| granted_at + ms);
         let key = Self::grant_key(&plugin_id, &wasm_hash);
-        let grant = TrustGrant { plugin_id, wasm_hash, granted_at, expires_at };
+        let grant = TrustGrant {
+            plugin_id,
+            wasm_hash,
+            granted_at,
+            expires_at,
+        };
         self.grants.insert(key, grant.clone());
         grant
     }
@@ -145,8 +154,7 @@ impl TrustManager {
         wasm_hash: Option<&str>,
         requested: &ExecutionProfile,
     ) -> ExecutionProfile {
-        if *requested == ExecutionProfile::TrustedFast
-            && self.has_valid_grant(plugin_id, wasm_hash)
+        if *requested == ExecutionProfile::TrustedFast && self.has_valid_grant(plugin_id, wasm_hash)
         {
             ExecutionProfile::TrustedFast
         } else {

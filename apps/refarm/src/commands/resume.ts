@@ -1,21 +1,36 @@
+import { loadChatHistory } from "@refarm.dev/cli/chat-history";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,
 	formatOperatorResumeSummary,
+	type OperatorResumeEnvironmentPressure,
 	type OperatorResumeModelSummary,
+	type OperatorResumeProjectSummary,
+	type OperatorResumeScheduledWorkInspection,
 	type OperatorResumeSessionRecord,
 } from "@refarm.dev/cli/operator-resume";
-import { Command } from "commander";
+import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
 import {
+	loadProjectScheduledWork,
+	type ProjectScheduledWorkInspection
+} from "@refarm.dev/cli/project-automations";
+import {
+	parseProjectHandoffSummary,
+	PROJECT_HANDOFF_RELATIVE_PATH,
+} from "@refarm.dev/cli/project-handoff";
+import { Command } from "commander";
+import fs from "node:fs";
+import path from "node:path";
+import {
+	agentFinishSessionFilePath,
 	createAgentFinishSessionRecorder,
 	type AgentFinishSessionRecorder,
 } from "./agent-finish-session.js";
-import { loadChatHistory } from "./chat-history.js";
 import {
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_DOCTOR_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { printJson, buildJsonSuccessEnvelope } from "./json-output.js";
 import {
 	buildCurrentModelStatus,
 	defaultModelDeps,
@@ -29,6 +44,7 @@ import {
 } from "./status.js";
 import {
 	createTaskSessionRecorder,
+	taskSessionFilePath,
 	type TaskSessionCheckpoint,
 	type TaskSessionRecorder,
 } from "./task-session.js";
@@ -43,6 +59,14 @@ export interface ResumeDeps {
 	loadRecentSessions(): Promise<OperatorResumeSessionRecord[]>;
 	loadChatHistory(): string[];
 	loadModelTokens(): Promise<ModelTokens>;
+	loadProjectHandoff(): OperatorResumeProjectSummary | undefined;
+	loadScheduledWork(): Promise<ProjectScheduledWorkInspection | undefined>;
+	loadEnvironmentPressure(): OperatorResumeEnvironmentPressure | undefined;
+}
+
+interface LoadScheduledWorkOptions {
+	now?: string | Date;
+	owner?: string;
 }
 
 interface ResumeOptions {
@@ -61,6 +85,9 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 		loadRecentSessions: loadRecentRuntimeSessions,
 		loadChatHistory,
 		loadModelTokens: defaultModelDeps().loadTokens,
+		loadProjectHandoff,
+		loadScheduledWork,
+		loadEnvironmentPressure,
 		...deps,
 	};
 
@@ -105,6 +132,9 @@ async function emitResume(
 	const finish = deps.finishRecorder.getLatest();
 	const activeSessionId = deps.readActiveSessionId();
 	const recentPrompts = deps.loadChatHistory().slice(0, 5);
+	const project = deps.loadProjectHandoff();
+	const scheduledWork = await deps.loadScheduledWork();
+	const environmentPressure = deps.loadEnvironmentPressure();
 	const model = await loadModelResumeSummary(deps);
 	const recentSessions =
 		options.status === false ? [] : await deps.loadRecentSessions();
@@ -117,11 +147,14 @@ async function emitResume(
 		const envelope = buildOperatorResumeEnvelope({
 			status,
 			model,
+			project,
+			scheduledWork,
 			taskCheckpoint,
 			activeSessionId,
 			recentSessions,
 			recentPrompts,
 			finish,
+			environmentPressure,
 		});
 
 		const nextCommandMode = options.nextAction || options.nextCommand;
@@ -156,11 +189,14 @@ async function emitResume(
 		const summary = buildOperatorResumeSummary({
 			status,
 			model,
+			project,
+			scheduledWork,
 			taskCheckpoint,
 			activeSessionId,
 			recentSessions,
 			recentPrompts,
 			finish,
+			environmentPressure,
 		});
 		console.log(formatOperatorResumeSummary(summary));
 		const nextCommands = envelope.nextCommands;
@@ -174,6 +210,80 @@ async function emitResume(
 	} finally {
 		await statusResult?.shutdown?.();
 	}
+}
+
+export function loadEnvironmentPressure(): OperatorResumeEnvironmentPressure | undefined {
+	try {
+		const report = buildEnvironmentPressureReport({
+			command: "environment-pressure",
+			operation: "resume",
+			sessionFiles: loadKnownSessionPressureFiles(),
+			guidance: {
+				diskPressureAction:
+					"Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
+				diskPressureCommand: "pnpm run clean:rust:check",
+				diskProbeFailureAction: "Run `pnpm run disk:check` only if disk pressure is suspected.",
+				diskProbeFailureCommand: "pnpm run disk:check",
+				memoryPressureAction:
+					"Use explicit test files, bounded workers, and package-scoped checks until memory pressure drops.",
+				gitGcLogAction:
+					"Inspect `.git/gc.log`; do not run prune or destructive Git cleanup from an agent without explicit operator intent.",
+			},
+		});
+		return {
+			command: report.command,
+			operation: report.operation,
+			ok: report.ok,
+			decision: report.decision,
+			signals: report.signals,
+			nextCommands: report.nextCommands,
+		};
+	} catch {
+		return undefined;
+	}
+}
+
+export interface SessionPressureFile {
+	path: string;
+	bytes: number;
+}
+
+export function loadKnownSessionPressureFiles(
+	baseDir?: string,
+): SessionPressureFile[] {
+	return [
+		taskSessionFilePath(baseDir),
+		agentFinishSessionFilePath(baseDir),
+	].flatMap((sessionPath) => {
+		try {
+			const stat = fs.statSync(sessionPath);
+			if (!stat.isFile()) return [];
+			return [{ path: sessionPath, bytes: stat.size }];
+		} catch {
+			return [];
+		}
+	});
+}
+
+export function loadProjectHandoff(
+	cwd: string = process.cwd(),
+): OperatorResumeProjectSummary | undefined {
+	const handoffPath = path.join(cwd, PROJECT_HANDOFF_RELATIVE_PATH);
+	try {
+		return parseProjectHandoffSummary(
+			JSON.parse(fs.readFileSync(handoffPath, "utf-8")),
+			{ arrayLimit: 5 },
+		);
+	} catch {
+		return undefined;
+	}
+}
+
+export async function loadScheduledWork(
+	cwd: string = process.cwd(),
+	options: LoadScheduledWorkOptions = {},
+): Promise<OperatorResumeScheduledWorkInspection | undefined> {
+	return loadProjectScheduledWork({ cwd, ...options });
 }
 
 async function loadModelResumeSummary(

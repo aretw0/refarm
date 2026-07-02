@@ -15,7 +15,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -65,6 +65,9 @@ import {
 } from "./task-support.js";
 
 export { resolveAdapter } from "./task-support.js";
+const DEFAULT_TASK_STATUS_WATCH_LIMIT = 120;
+const REFARM_TASK_STATUS_WATCH_LIMIT_ENV_VAR = "REFARM_TASK_STATUS_WATCH_LIMIT";
+const TASK_STATUS_WATCH_INTERVAL_MS = 2_000;
 
 export function normalizeTaskArgs(
 	plugin: string,
@@ -103,8 +106,8 @@ export function createTaskCommand(
 		`
 
 Examples:
-  $ refarm task run runtime-agent respond --args '{"prompt":"hello"}'
-  $ refarm task run runtime-agent respond --transport http
+  $ refarm task run agent respond --args '{"prompt":"hello"}'
+  $ refarm task run agent respond --transport http
   $ refarm task status <effort-id>
   $ refarm task logs <effort-id>
   $ refarm task resume
@@ -139,9 +142,9 @@ Notes:
 			`
 
 Examples:
-  $ refarm task run runtime-agent respond --args '{"prompt":"hello"}'
-  $ refarm task run runtime-agent respond --args '{"query":"hello"}'
-  $ refarm task run runtime-agent respond --transport http
+  $ refarm task run agent respond --args '{"prompt":"hello"}'
+  $ refarm task run agent respond --args '{"query":"hello"}'
+  $ refarm task run agent respond --transport http
   $ refarm task run my-plugin process --direction "Review local change"
 
 Notes:
@@ -268,6 +271,11 @@ Notes:
 			"file",
 		)
 		.option("--watch", "Poll every 2s until final state")
+		.option(
+			"--watch-limit <count>",
+			`Maximum number of polls while watching before stopping (default from ${REFARM_TASK_STATUS_WATCH_LIMIT_ENV_VAR} or ${DEFAULT_TASK_STATUS_WATCH_LIMIT})`,
+			(value) => parsePositiveIntOption(value, "--watch-limit"),
+		)
 		.option("--json", "Print machine-readable status JSON")
 		.addHelpText(
 			"after",
@@ -276,6 +284,7 @@ Notes:
 Examples:
   $ refarm task status <effort-id>
   $ refarm task status <effort-id> --watch
+  $ refarm task status <effort-id> --watch --watch-limit 30
   $ refarm task status <effort-id> --transport http --json
 
 Notes:
@@ -286,12 +295,44 @@ Notes:
 		.action(
 			async (
 				effortId: string,
-				opts: { transport: TaskTransport; watch?: boolean; json?: boolean },
+				opts: {
+					transport: TaskTransport;
+					watch?: boolean;
+					watchLimit?: number;
+					json?: boolean;
+				},
 			) => {
 				const { transport, adapter } = resolveTaskAdapter(
 					opts.transport,
 					adapterResolver,
 				);
+				const effectiveWatchLimit = opts.watch
+					? opts.watchLimit ?? resolveTaskStatusWatchLimit(process.env)
+					: opts.watchLimit;
+				const buildWatchNextCommands = (isFinalEffort: boolean): string[] => {
+					return isFinalEffort
+						? [
+								buildTaskLogsCommand(effortId, transport, { json: true }),
+								RESUME_JSON_COMMAND,
+							]
+						: [
+								buildTaskStatusCommand(effortId, transport, {
+									json: true,
+									watch: true,
+									...(typeof effectiveWatchLimit === "number"
+										? { watchLimit: effectiveWatchLimit }
+										: {}),
+								}),
+								buildTaskLogsCommand(effortId, transport, { json: true }),
+							];
+				};
+				let lastResult: EffortResult | null = null;
+				let lastObservedStatus: EffortResult["status"] | "not-found" = "not-found";
+				let lastAttempts = 0;
+				let lastAgeSeconds = "-";
+				const deriveFinalized = (
+					status: EffortResult["status"] | "not-found",
+				) => status !== "not-found" && isFinalEffortStatus(status);
 
 				const printStatus = async (): Promise<boolean> => {
 					let result: EffortResult | null;
@@ -311,6 +352,10 @@ Notes:
 						});
 					});
 					if (!result) {
+						lastResult = null;
+						lastObservedStatus = "not-found";
+						lastAttempts = 0;
+						lastAgeSeconds = "-";
 						if (opts.json) {
 							const statusCommand = buildTaskStatusCommand(
 								effortId,
@@ -318,6 +363,9 @@ Notes:
 								{
 									json: true,
 									watch: true,
+									...(typeof effectiveWatchLimit === "number"
+										? { watchLimit: effectiveWatchLimit }
+										: {}),
 								},
 							);
 							printTaskJsonSuccess(
@@ -336,21 +384,16 @@ Notes:
 
 					const attempts = deriveAttemptCount(result);
 					const ageSeconds = formatAgeSeconds(result.submittedAt);
+					lastResult = result;
 					const observed = observedEffortFields(result);
 					const { observedStatus } = observed;
+					lastObservedStatus = observedStatus;
+					lastAttempts = attempts;
+					lastAgeSeconds = ageSeconds;
 					if (opts.json) {
-						const nextCommands = isFinalEffortStatus(observedStatus)
-							? [
-									buildTaskLogsCommand(effortId, transport, { json: true }),
-									RESUME_JSON_COMMAND,
-								]
-							: [
-									buildTaskStatusCommand(effortId, transport, {
-										json: true,
-										watch: true,
-									}),
-									buildTaskLogsCommand(effortId, transport, { json: true }),
-								];
+						const nextCommands = buildWatchNextCommands(
+							isFinalEffortStatus(observedStatus),
+						);
 						printTaskJsonSuccess(
 							"status",
 							{
@@ -408,10 +451,81 @@ Notes:
 					return;
 				}
 
-				for (;;) {
+				const watchLimit = effectiveWatchLimit ?? DEFAULT_TASK_STATUS_WATCH_LIMIT;
+				for (let poll = 0; poll < watchLimit; poll++) {
 					const finished = await printStatus();
 					if (finished) break;
-					await new Promise((resolve) => setTimeout(resolve, 2000));
+					if (poll + 1 >= watchLimit) break;
+					await new Promise((resolve) =>
+						setTimeout(resolve, TASK_STATUS_WATCH_INTERVAL_MS),
+					);
+				}
+
+				if (deriveFinalized(lastObservedStatus)) {
+					return;
+				}
+
+				const statusCommand = buildTaskStatusCommand(effortId, transport, {
+					json: true,
+				});
+				const watchCommand = buildTaskStatusCommand(effortId, transport, {
+					json: true,
+					watch: true,
+					...(typeof watchLimit === "number" ? { watchLimit } : {}),
+				});
+				if (opts.json) {
+					if (lastResult) {
+						const resolvedLastResult = lastResult as EffortResult;
+						const watched = {
+							...observedEffortFields(lastResult),
+							status: resolvedLastResult.status,
+						};
+						printTaskJsonSuccess(
+							"status",
+							{
+								effortId,
+								transport,
+								...watched,
+								attempts: lastAttempts,
+								ageSeconds: lastAgeSeconds,
+								watchLimitReached: true,
+								watchLimit,
+								result: lastResult,
+							},
+							[
+								watchCommand,
+								statusCommand,
+								buildTaskLogsCommand(effortId, transport, { json: true }),
+							],
+						);
+						return;
+					}
+
+					const watched = { status: "not-found", observedStatus: "not-found" as const };
+					printTaskJsonSuccess(
+						"status",
+						{
+							effortId,
+							transport,
+							...watched,
+							attempts: lastAttempts,
+							ageSeconds: lastAgeSeconds,
+							watchLimitReached: true,
+							watchLimit,
+							result: lastResult,
+						},
+						[
+							watchCommand,
+							statusCommand,
+							buildTaskLogsCommand(effortId, transport, { json: true }),
+						],
+					);
+				} else {
+					console.log(
+						chalk.yellow(
+							`Watch reached ${watchLimit} polls without terminal status. Resume with ${statusCommand} or ${watchCommand}.`,
+						),
+					);
 				}
 			},
 		);
@@ -904,6 +1018,15 @@ Notes:
 				console.log(chalk.yellow(`Cancel requested for effort ${effortId}`));
 			},
 		);
+
+function resolveTaskStatusWatchLimit(
+	env: NodeJS.ProcessEnv = process.env,
+): number {
+	const raw = env[REFARM_TASK_STATUS_WATCH_LIMIT_ENV_VAR];
+	const parsed = Number.parseInt(raw ?? "", 10);
+	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_TASK_STATUS_WATCH_LIMIT;
+	return parsed;
+}
 
 	return taskCommand;
 }

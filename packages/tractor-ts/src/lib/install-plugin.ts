@@ -655,7 +655,9 @@ async function resolveDescriptorInput(
 			trustMode,
 		);
 
-		const response = await fetch(descriptorUrl.toString());
+		const response = await fetch(descriptorUrl.toString(), {
+			signal: AbortSignal.timeout(30_000),
+		});
 		if (!response.ok) {
 			throw new Error(
 				`[install-plugin] Failed to fetch browser runtime descriptor ${descriptorUrl.toString()}: ${response.statusText}`,
@@ -714,7 +716,9 @@ async function fetchBrowserRuntimeModule(
 	toolchainMetadata?: BrowserRuntimeToolchainMetadata,
 	provenanceMetadata?: BrowserRuntimeProvenanceMetadata,
 ): Promise<ResolvedBrowserRuntimeModule> {
-	const response = await fetch(browserRuntimeModule.url);
+	const response = await fetch(browserRuntimeModule.url, {
+		signal: AbortSignal.timeout(30_000),
+	});
 	if (!response.ok) {
 		throw new Error(
 			`[install-plugin] Failed to fetch browser runtime module ${browserRuntimeModule.url}: ${response.statusText}`,

@@ -4,10 +4,14 @@ import path from "node:path";
 
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import { observedTaskResultError } from "./task-observation.js";
+import { resolveRequestTimeoutMs } from "./fetch-with-timeout.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 const REFARM_STREAMS_DIR_ENV_VAR = "REFARM_STREAMS_DIR";
 const REFARM_TASK_RESULTS_DIR_ENV_VAR = "REFARM_TASK_RESULTS_DIR";
+const REFARM_STREAM_FOLLOW_TIMEOUT_MS = "REFARM_STREAM_FOLLOW_TIMEOUT_MS";
+const DEFAULT_STREAM_FOLLOW_TIMEOUT_MS = 45_000;
 
 export interface RuntimeEffortPollFallback {
 	status: "ok" | "error";
@@ -91,9 +95,13 @@ export function followStreamFile(
 	options?: FollowStreamOptions,
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
-		const submittedAtMs = options?.submittedAtMs ?? Date.now();
-		const timeoutMs = options?.timeoutMs ?? 45_000;
-		const deadline = Date.now() + timeoutMs;
+	const submittedAtMs = options?.submittedAtMs ?? Date.now();
+	const timeoutMs = options?.timeoutMs ??
+			resolveRequestTimeoutMs(process.env, {
+				timeoutEnvVar: REFARM_STREAM_FOLLOW_TIMEOUT_MS,
+				defaultTimeoutMs: DEFAULT_STREAM_FOLLOW_TIMEOUT_MS,
+			});
+	const deadline = Date.now() + timeoutMs;
 
 		const resolveStreamFilePath = (): string | null => {
 			const exactPath = path.join(streamsDir, `${effortId}.ndjson`);
@@ -302,7 +310,7 @@ export async function readLatestAgentEntryFromSession(
 	metadata?: Record<string, unknown>;
 } | null> {
 	try {
-		const response = await fetch(
+		const response = await fetchSidecarWithTimeout(
 			sidecarUrl(`/sessions/${encodeURIComponent(sessionId)}/history`),
 		);
 		if (!response.ok) return null;

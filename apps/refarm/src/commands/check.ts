@@ -1,13 +1,4 @@
-import { runLaunchProcess } from "@refarm.dev/cli/launch-process";
-import {
-	runRustSubstrateCheck,
-	type RustSubstrateCheck,
-} from "@refarm.dev/cli/rust-substrate";
-import {
-	declaredWorkspacesFromConfig,
-	loadConfig,
-	packageFrozenInstallCommand,
-} from "@refarm.dev/config";
+import type { RustSubstrateCheck } from "@refarm.dev/cli/rust-substrate";
 import chalk from "chalk";
 import { Command } from "commander";
 import { constants as fsConstants } from "node:fs";
@@ -16,28 +7,18 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 
+import { printJson } from "@refarm.dev/cli/json-output";
 import {
 	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
 	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
-import { buildRefarmDoctorReport, type RefarmDoctorReport } from "./doctor.js";
-import { runHealthAudit, type HealthReport } from "./health.js";
-import { printJson } from "./json-output.js";
+import type { RefarmDoctorReport } from "./doctor.js";
+import type { HealthReport } from "./health.js";
+import type { ModelDoctorStatus } from "./model.js";
+import type { WorkspaceExecutionStatus } from "./workspace-execution.js";
 import {
-	buildModelDoctorStatus,
-	defaultModelDeps,
-	type ModelDoctorStatus,
-} from "./model.js";
-import { resolveStatusPayload } from "./status.js";
-import {
-	buildWorkspaceExecutionStatus,
-	type WorkspaceExecutionStatus,
-} from "./workspace-execution.js";
-import {
-	buildWorkspaceExecutionSweepPayload,
-	observeDeclaredWorkspacesExecution,
 	type WorkspaceExecutionObservation,
 	type WorkspaceExecutionRecommendation,
 	type WorkspaceExecutionSummary,
@@ -54,6 +35,7 @@ const NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND =
 	"Use an environment-owned checkout for this platform, or rebuild this checkout's node_modules from the environment that owns it.";
 const NODE_SUBSTRATE_SOURCE_OWNERSHIP_COMMAND =
 	"Use an environment-owned checkout or fix tracked source ownership for the current operator, then retry `refarm check --next-action --json`.";
+const FALLBACK_PACKAGE_INSTALL_COMMAND = "pnpm install --frozen-lockfile";
 
 export interface NodeSubstrateCheck {
 	command: "node-substrate";
@@ -118,6 +100,7 @@ export interface RefarmCheckReport {
 		model?: ModelDoctorStatus;
 		nodeSubstrate?: NodeSubstrateCheck;
 		rustSubstrate?: RustSubstrateCheck;
+		environmentPressure?: EnvironmentPressureCheck;
 		workspaceExecution?: WorkspaceExecutionStatus;
 		workspaceSweep?: WorkspaceSweepCheck;
 		releasePolicy?: ReleasePolicyCheck;
@@ -150,9 +133,43 @@ export interface RefarmCheckDeps {
 	runModelDoctor?(): Promise<ModelDoctorStatus>;
 	runNodeSubstrate?(): Promise<NodeSubstrateCheck>;
 	runRustSubstrate?(): Promise<RustSubstrateCheck>;
+	runEnvironmentPressure?(): Promise<EnvironmentPressureCheck>;
 	runWorkspaceExecution?(): Promise<WorkspaceExecutionStatus>;
 	runWorkspaceSweep?(): Promise<WorkspaceSweepCheck>;
 	runReleasePolicy?(): Promise<ReleasePolicyCheck>;
+}
+
+export type EnvironmentPressureDecision =
+	| "continue"
+	| "safe-mode"
+	| "stop-and-investigate";
+
+export interface EnvironmentPressureSignal {
+	id: string;
+	kind: "filesystem" | "memory" | "git" | "cache" | "session";
+	severity: "info" | "warning" | "failure";
+	ok: boolean;
+	summary: string;
+	action: string | null;
+	command?: string | null;
+	path?: string;
+	freeMiB?: number;
+	totalMiB?: number;
+	usedRatio?: number | null;
+	error?: string;
+}
+
+export interface EnvironmentPressureCheck {
+	command: string;
+	operation: string;
+	ok: boolean;
+	decision: EnvironmentPressureDecision;
+	signals: EnvironmentPressureSignal[];
+	recommendations: DiagnosticRecommendation[];
+	nextAction: string | null;
+	nextActions: string[];
+	nextCommand: string | null;
+	nextCommands: string[];
 }
 
 export interface WorkspaceSweepCheck {
@@ -184,6 +201,7 @@ export function buildRefarmCheckReport(checks: {
 	model?: ModelDoctorStatus;
 	nodeSubstrate?: NodeSubstrateCheck;
 	rustSubstrate?: RustSubstrateCheck;
+	environmentPressure?: EnvironmentPressureCheck;
 	workspaceExecution?: WorkspaceExecutionStatus;
 	workspaceSweep?: WorkspaceSweepCheck;
 	releasePolicy?: ReleasePolicyCheck;
@@ -191,6 +209,7 @@ export function buildRefarmCheckReport(checks: {
 	const recommendations: DiagnosticRecommendation[] = [
 		...(checks.nodeSubstrate?.recommendations ?? []),
 		...(checks.rustSubstrate?.recommendations ?? []),
+		...(checks.environmentPressure?.recommendations ?? []),
 		...workspaceExecutionCheckRecommendations(checks.workspaceExecution),
 		...workspaceSweepCheckRecommendations(checks.workspaceSweep),
 		...releasePolicyCheckRecommendations(checks.releasePolicy),
@@ -204,6 +223,7 @@ export function buildRefarmCheckReport(checks: {
 	const failureCount =
 		(checks.nodeSubstrate?.ok === false ? 1 : 0) +
 		(checks.rustSubstrate?.ok === false ? 1 : 0) +
+		(checks.environmentPressure?.ok === false ? 1 : 0) +
 		(checks.health.ok ? 0 : checks.health.issueCount) +
 		checks.doctor.failureCount;
 
@@ -215,6 +235,7 @@ export function buildRefarmCheckReport(checks: {
 		ok:
 			(checks.nodeSubstrate?.ok ?? true) &&
 			(checks.rustSubstrate?.ok ?? true) &&
+			(checks.environmentPressure?.ok ?? true) &&
 			checks.health.ok &&
 			checks.doctor.ok,
 		failureCount,
@@ -225,11 +246,17 @@ export function buildRefarmCheckReport(checks: {
 			(checks.rustSubstrate?.recommendations ?? []).filter(
 				(recommendation) => recommendation.severity === "warning",
 			).length +
+			(checks.environmentPressure?.recommendations ?? []).filter(
+				(recommendation) => recommendation.severity === "warning",
+			).length +
 			checks.doctor.warningCount +
 			workspaceExecutionCheckRecommendations(checks.workspaceExecution).filter(
 				(recommendation) => recommendation.severity === "warning",
 			).length +
 			workspaceSweepCheckRecommendations(checks.workspaceSweep).filter(
+				(recommendation) => recommendation.severity === "warning",
+			).length +
+			checks.health.recommendations.filter(
 				(recommendation) => recommendation.severity === "warning",
 			).length +
 			modelDoctorCheckRecommendations(checks.model).length,
@@ -252,10 +279,29 @@ function releasePolicyCheckRecommendations(
 			severity: "info",
 			summary: `Release policy currently selects ${releasePolicy.packageCount} kernel candidate package${releasePolicy.packageCount === 1 ? "" : "s"}.`,
 			action:
-				"Inspect the release plan before preparing npm or crates publication.",
+				"Inspect the release plan and supply posture before preparing npm or crates publication.",
 			command: releasePolicy.recommendedCommand,
 		},
 	];
+}
+
+async function runDefaultEnvironmentPressure(): Promise<EnvironmentPressureCheck> {
+	const { buildEnvironmentPressureReport } = await import(
+		"@refarm.dev/health/environment-pressure"
+	);
+	return buildEnvironmentPressureReport({
+		guidance: {
+			diskPressureAction:
+				"Run `pnpm run clean:rust:check`, then choose the smallest cleanup tier from docs/local-disk-hygiene.md before broad builds.",
+			diskPressureCommand: "pnpm run clean:rust:check",
+			diskProbeFailureAction: "Run `pnpm run disk:check` only if disk pressure is suspected.",
+			diskProbeFailureCommand: "pnpm run disk:check",
+			memoryPressureAction:
+				"Use explicit test files, bounded workers, and package-scoped checks until memory pressure drops.",
+			gitGcLogAction:
+				"Inspect `.git/gc.log`; do not run prune or destructive Git cleanup from an agent without explicit operator intent.",
+		},
+	});
 }
 
 function workspaceSweepCheckRecommendations(
@@ -350,6 +396,11 @@ function printRefarmCheckSummary(report: RefarmCheckReport): void {
 			`Rust substrate: ${report.checks.rustSubstrate.ok ? "pass" : "fail"} (${report.checks.rustSubstrate.missing.length} missing)`,
 		);
 	}
+	if (report.checks.environmentPressure) {
+		console.log(
+			`Environment pressure: ${report.checks.environmentPressure.decision} (${report.checks.environmentPressure.signals.length} signals)`,
+		);
+	}
 	if (report.checks.workspaceExecution) {
 		console.log(
 			`Workspace execution: ${report.checks.workspaceExecution.executor.selected} (local cache ${report.checks.workspaceExecution.cache.local.available ? "available" : "not found"}, remote cache ${report.checks.workspaceExecution.cache.remote.configured ? "configured" : "not configured"})`,
@@ -425,6 +476,10 @@ function compactActionableRecommendations(
 async function runDefaultDoctor(options: {
 	failOnWarnings?: boolean;
 }): Promise<RefarmDoctorReport> {
+	const [{ buildRefarmDoctorReport }, { resolveStatusPayload }] = await Promise.all([
+		import("./doctor.js"),
+		import("./status.js"),
+	]);
 	const statusPayload = await resolveStatusPayload({ renderer: "headless" });
 	try {
 		return buildRefarmDoctorReport(statusPayload.json, {
@@ -436,16 +491,28 @@ async function runDefaultDoctor(options: {
 }
 
 async function runDefaultModelDoctor(): Promise<ModelDoctorStatus> {
+	const { buildModelDoctorStatus, defaultModelDeps } = await import("./model.js");
 	const deps = defaultModelDeps();
 	const tokens = await deps.loadTokens();
 	return buildModelDoctorStatus(tokens);
 }
 
+async function runDefaultRustSubstrate(): Promise<RustSubstrateCheck> {
+	const { runRustSubstrateCheck } = await import("@refarm.dev/cli/rust-substrate");
+	return runRustSubstrateCheck();
+}
+
 async function runDefaultWorkspaceExecution(): Promise<WorkspaceExecutionStatus> {
+	const { buildWorkspaceExecutionStatus } = await import("./workspace-execution.js");
 	return buildWorkspaceExecutionStatus();
 }
 
 async function runDefaultWorkspaceSweep(): Promise<WorkspaceSweepCheck> {
+	const { declaredWorkspacesFromConfig, loadConfig } = await import("@refarm.dev/config");
+	const {
+		buildWorkspaceExecutionSweepPayload,
+		observeDeclaredWorkspacesExecution,
+	} = await import("./workspace.js");
 	const config = loadConfig(process.cwd());
 	const observations = observeDeclaredWorkspacesExecution(
 		declaredWorkspacesFromConfig(config, { baseDir: process.cwd() }),
@@ -460,7 +527,7 @@ async function runDefaultWorkspaceSweep(): Promise<WorkspaceSweepCheck> {
 }
 
 async function runDefaultReleasePolicy(): Promise<ReleasePolicyCheck> {
-	const recommendedCommand = "refarm release plan --selection default --json";
+	const recommendedCommand = "refarm release preflight --selection default --json";
 	const engine = (await import("@refarm.dev/release-engine")) as {
 		buildReleasePlan: (options: {
 			cwd?: string;
@@ -514,6 +581,7 @@ function foreignBinaryName(binary: string, platform: NodeJS.Platform): string {
 }
 
 async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
+	const { packageFrozenInstallCommand } = await import("@refarm.dev/config");
 	const root = process.cwd();
 	const platform = os.platform();
 	const missing: string[] = [];
@@ -604,7 +672,7 @@ export function buildNodeSubstrateRecommendations(input: {
 	installCommand?: string;
 }): DiagnosticRecommendation[] {
 	const installCommand =
-		input.installCommand ?? packageFrozenInstallCommand().display;
+		input.installCommand ?? FALLBACK_PACKAGE_INSTALL_COMMAND;
 	const sourceAccessIssues = input.sourceAccessIssues ?? [];
 	if (input.foreignPlatformShims.length > 0 || input.mountIssues.length > 0) {
 		return [
@@ -797,7 +865,8 @@ function isSourceOwnershipCandidate(relativePath: string): boolean {
 
 async function readGitTrackedFiles(root: string): Promise<string[]> {
 	try {
-		const { stdout } = await runLaunchProcess(
+		const { runProcessHandoff } = await import("@refarm.dev/cli/process-handoff");
+		const { stdout } = await runProcessHandoff(
 			{
 				command: "git",
 				args: ["ls-files", "-z"],
@@ -968,11 +1037,15 @@ function decodeMountInfoPath(value: string): string {
 
 export function createCheckCommand(
 	deps: RefarmCheckDeps = {
-		runHealth: runHealthAudit,
+		runHealth: async () => {
+			const { runHealthAudit } = await import("./health.js");
+			return runHealthAudit();
+		},
 		runDoctor: runDefaultDoctor,
 		runModelDoctor: runDefaultModelDoctor,
 		runNodeSubstrate: runDefaultNodeSubstrate,
-		runRustSubstrate: runRustSubstrateCheck,
+		runRustSubstrate: runDefaultRustSubstrate,
+		runEnvironmentPressure: runDefaultEnvironmentPressure,
 		runWorkspaceExecution: runDefaultWorkspaceExecution,
 		runWorkspaceSweep: runDefaultWorkspaceSweep,
 		runReleasePolicy: runDefaultReleasePolicy,
@@ -1004,23 +1077,38 @@ Examples:
 
 Notes:
   check combines refarm health and refarm doctor into one low-cost gate.
+  --next-action and --next-command skip advisory model/workspace/release checks.
   Use it before a commit or handoff when you need a quick local confidence signal.
 `,
 		)
 		.action(async (options: RefarmCheckOptions) => {
-			const nodeSubstrate = await deps.runNodeSubstrate?.();
-			const rustSubstrate = await deps.runRustSubstrate?.();
-			const health = await deps.runHealth();
+			const nextActionOnly = Boolean(options.nextAction || options.nextCommand);
 			const doctor = await deps.runDoctor({
 				failOnWarnings: options.failOnWarnings,
 			});
-			const model = await deps.runModelDoctor?.();
-			const workspaceExecution = await deps.runWorkspaceExecution?.();
-			const workspaceSweep = await deps.runWorkspaceSweep?.();
-			const releasePolicy = await deps.runReleasePolicy?.();
+			const [
+				nodeSubstrate,
+				rustSubstrate,
+				environmentPressure,
+				health,
+				model,
+				workspaceExecution,
+				workspaceSweep,
+				releasePolicy,
+			] = await Promise.all([
+				deps.runNodeSubstrate?.(),
+				deps.runRustSubstrate?.(),
+				deps.runEnvironmentPressure?.(),
+				deps.runHealth(),
+				nextActionOnly ? undefined : deps.runModelDoctor?.(),
+				nextActionOnly ? undefined : deps.runWorkspaceExecution?.(),
+				nextActionOnly ? undefined : deps.runWorkspaceSweep?.(),
+				nextActionOnly ? undefined : deps.runReleasePolicy?.(),
+			]);
 			const report = buildRefarmCheckReport({
 				nodeSubstrate,
 				rustSubstrate,
+				environmentPressure,
 				workspaceExecution,
 				workspaceSweep,
 				releasePolicy,

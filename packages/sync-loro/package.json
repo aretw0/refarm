@@ -23,6 +23,7 @@
 		"test": "vitest run",
 		"test:unit": "vitest run src/loro-crdt-storage.test.ts",
 		"test:conformance": "vitest run src/sync-v1.conformance.test.ts",
+		"smoke:runtime": "node scripts/smoke-browser-sync-runtime.mjs",
 		"clean": "rm -rf dist",
 		"lint": "eslint src"
 	},
@@ -32,10 +33,12 @@
 		"@refarm.dev/storage-contract-v1": "workspace:*"
 	},
 	"devDependencies": {
+		"@types/ws": "catalog:",
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/storage-memory": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
-		"@refarm.dev/vtconfig": "workspace:*"
+		"@refarm.dev/vtconfig": "workspace:*",
+		"ws": "catalog:"
 	},
 	"license": "AGPL-3.0-only",
 	"publishConfig": {
@@ -43,6 +46,7 @@
 	},
 	"files": [
 		"dist",
+		"!dist/**/*.tsbuildinfo",
 		"README.md"
 	]
 }

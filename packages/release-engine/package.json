@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/release-engine",
   "version": "0.1.0",
-  "description": "Deterministic release planning and publication policy engine for Refarm-powered projects.",
+  "description": "Deterministic release planning and publication policy engine for host and consumer projects.",
   "type": "module",
   "main": "./src/index.mjs",
   "types": "./types/index.d.ts",
@@ -10,6 +10,7 @@
       "types": "./types/index.d.ts",
       "import": "./src/index.mjs"
     },
+    "./release-output.schema.json": "./release-output.schema.json",
     "./release-policy.schema.json": "./release-policy.schema.json"
   },
   "scripts": {
@@ -18,9 +19,12 @@
   "files": [
     "src",
     "types",
+    "examples",
     "README.md",
     "ROADMAP.md",
     "CHANGELOG.md",
+    "CONTRACTS.md",
+    "release-output.schema.json",
     "release-policy.schema.json"
   ],
   "license": "MIT",

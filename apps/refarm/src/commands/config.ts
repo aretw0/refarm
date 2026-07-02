@@ -1,34 +1,15 @@
-import {
-	parseRuntimeAutostartMode,
-	RUNTIME_AUTOSTART_MODES,
-	RUNTIME_ENGINE_MODES,
-} from "@refarm.dev/runtime";
+import { parseRuntimeAutostartMode, RUNTIME_AUTOSTART_MODES, RUNTIME_ENGINE_MODES, } from "@refarm.dev/runtime";
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-	OPEN_EXTERNAL_LINKS_ENV_VAR,
-	parseOpenExternalLinksMode,
-	resolveCliOpenExternalLinksMode,
-	type OpenExternalLinksMode,
-} from "../utils/open-external-links.js";
+	OPEN_EXTERNAL_LINKS_ENV_VAR, parseOpenExternalLinksMode, resolveCliOpenExternalLinksMode, type OpenExternalLinksMode, } from "../utils/open-external-links.js";
 import {
-	LEGACY_FARMHAND_AUTOSTART_ENV_VAR,
-	parseRuntimeSidecarUrl,
-	parseTractorEngineMode,
-	resolveAutostartMode as resolveRuntimeAutostartMode,
-	resolveRuntimeSidecarUrl,
-	resolveTractorEngineMode as resolveRuntimeTractorEngineMode,
-	RUNTIME_AUTOSTART_ENV_VAR,
-	RUNTIME_SIDECAR_URL_ENV_VAR,
-	TRACTOR_ENGINE_ENV_VAR,
-	type AutostartMode,
-	type TractorEngineMode,
-} from "../utils/runtime-config.js";
-import { refarmCommand } from "./command-handoff.js";
-import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
+	LEGACY_FARMHAND_AUTOSTART_ENV_VAR, parseRuntimeSidecarUrl, parseTractorEngineMode, resolveAutostartMode as resolveRuntimeAutostartMode, resolveRuntimeSidecarUrl, resolveTractorEngineMode as resolveRuntimeTractorEngineMode, RUNTIME_AUTOSTART_ENV_VAR, RUNTIME_SIDECAR_URL_ENV_VAR, TRACTOR_ENGINE_ENV_VAR, type AutostartMode, type TractorEngineMode, } from "../utils/runtime-config.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_AUTOSTART_NEVER_COMMAND,
@@ -715,7 +696,7 @@ Examples:
   $ refarm config profile coding --local --json
 
 Profiles:
-  coding  Enables runtime-agent coding defaults for this scope:
+  coding  Enables agent coding defaults for this scope:
           MODEL_HISTORY_TURNS=20
           MODEL_TOOL_CALL_MAX_ITER=20
           MODEL_STREAM_RESPONSES=1

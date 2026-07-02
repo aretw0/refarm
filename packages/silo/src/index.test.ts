@@ -2,9 +2,15 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { resolveRefarmHome, SiloCore } from "./index.js";
+import { resolveSiloHome, SiloCore } from "./index.js";
+
+const heartwoodImport = vi.hoisted(() => ({ count: 0 }));
 
 vi.mock("@refarm.dev/heartwood", () => ({
+    ...(() => {
+        heartwoodImport.count += 1;
+        return {};
+    })(),
     default: {
         generateKeypair: async () => ({
             secretKey: new Uint8Array(32),
@@ -19,7 +25,7 @@ describe("@refarm.dev/silo Smoke Tests", () => {
             tokens: { githubToken: "test-token" }
         });
         const tokens = await silo.resolve();
-        expect(tokens.get("REFARM_GITHUB_TOKEN")).toBe("test-token");
+        expect(tokens.get("GITHUB_TOKEN")).toBe("test-token");
     });
 
     it("should provision tokens as object by default", async () => {
@@ -27,20 +33,44 @@ describe("@refarm.dev/silo Smoke Tests", () => {
             tokens: { githubToken: "test-token" }
         });
         const provisioned = await silo.provision();
-        expect(provisioned.REFARM_GITHUB_TOKEN).toBe("test-token");
+        expect(provisioned.GITHUB_TOKEN).toBe("test-token");
     });
 
-    it("respects REFARM_HOME for identity storage", async () => {
-        const tempDir = await mkdtemp(path.join(os.tmpdir(), "refarm-silo-home-"));
-        const originalRefarmHome = process.env.REFARM_HOME;
-        process.env.REFARM_HOME = tempDir;
+    it("respects SILO_HOME for identity storage", async () => {
+        const tempDir = await mkdtemp(path.join(os.tmpdir(), "silo-home-"));
+        const originalSiloHome = process.env.SILO_HOME;
+        process.env.SILO_HOME = tempDir;
 
         try {
             const silo = new SiloCore({});
 
-            expect(resolveRefarmHome()).toBe(tempDir);
+            expect(resolveSiloHome()).toBe(tempDir);
             expect(silo.storagePath).toBe(path.join(tempDir, "identity.json"));
         } finally {
+            if (originalSiloHome === undefined) {
+                delete process.env.SILO_HOME;
+            } else {
+                process.env.SILO_HOME = originalSiloHome;
+            }
+            await rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    it("falls back to REFARM_HOME for existing Refarm operators", async () => {
+        const tempDir = await mkdtemp(path.join(os.tmpdir(), "refarm-silo-home-"));
+        const originalSiloHome = process.env.SILO_HOME;
+        const originalRefarmHome = process.env.REFARM_HOME;
+        delete process.env.SILO_HOME;
+        process.env.REFARM_HOME = tempDir;
+
+        try {
+            expect(resolveSiloHome()).toBe(tempDir);
+        } finally {
+            if (originalSiloHome === undefined) {
+                delete process.env.SILO_HOME;
+            } else {
+                process.env.SILO_HOME = originalSiloHome;
+            }
             if (originalRefarmHome === undefined) {
                 delete process.env.REFARM_HOME;
             } else {
@@ -62,16 +92,40 @@ describe("@refarm.dev/silo Smoke Tests", () => {
             const resolved = await silo.resolve();
 
             expect(stored.githubToken).toBe(token);
-            expect(resolved.get("REFARM_GITHUB_TOKEN")).toBe(token);
+            expect(resolved.get("GITHUB_TOKEN")).toBe(token);
         } finally {
             await rm(tempDir, { recursive: true, force: true });
         }
     });
 
+    it("does not resolve heartwood for storage-only operations", async () => {
+        const tempDir = await mkdtemp(path.join(os.tmpdir(), "refarm-silo-storage-"));
+        const silo = new SiloCore({ storagePath: path.join(tempDir, "identity.json") });
+        heartwoodImport.count = 0;
+
+        try {
+            await silo.saveSecret("publishing", "TELEGRAM_BOT_TOKEN", "tok");
+            await expect(silo.loadSecret("publishing", "TELEGRAM_BOT_TOKEN")).resolves.toBe("tok");
+            expect(heartwoodImport.count).toBe(0);
+        } finally {
+            await rm(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    it("does not resolve heartwood when describing storage protection", () => {
+        const silo = new SiloCore({});
+        heartwoodImport.count = 0;
+
+        expect(silo.describeProtection().current.scheme).toBe("local-plaintext-v1");
+        expect(heartwoodImport.count).toBe(0);
+    });
+
     it("should bootstrap identity using KeyManager", async () => {
         const silo = new SiloCore({});
+        heartwoodImport.count = 0;
         const res = await silo.bootstrapIdentity();
         expect(res.status).toBe("ready");
         expect(res.publicKey).toBeDefined();
+        expect(heartwoodImport.count).toBe(1);
     });
 });

@@ -10,6 +10,7 @@ function writeOutput(key, value) {
 	if (!process.env.GITHUB_OUTPUT) return;
 	appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
 }
+const REQUEST_TIMEOUT_MS = 15_000;
 
 function createGitHubApiClient() {
 	const token = process.env.GITHUB_TOKEN;
@@ -20,7 +21,10 @@ function createGitHubApiClient() {
 	};
 
 	async function gh(path) {
-		const res = await fetch(`https://api.github.com${path}`, { headers });
+		const res = await fetch(`https://api.github.com${path}`, {
+			headers,
+			signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+		});
 		if (!res.ok) {
 			const body = await res.text();
 			throw new Error(`GitHub API ${res.status} on ${path}: ${body}`);

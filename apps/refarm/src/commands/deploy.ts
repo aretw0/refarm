@@ -4,12 +4,12 @@ import { Windmill } from "@refarm.dev/windmill";
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
-import { refarmCommand } from "./command-handoff.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 
 interface DeployResult {
 	status: string;

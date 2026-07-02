@@ -110,8 +110,10 @@ export class RestStorageAdapter implements StorageAdapter {
   // ── HTTP helpers ────────────────────────────────────────────────────────
 
   private async _get(path: string): Promise<unknown> {
+    const timeoutMs = 15_000;
     const res = await fetch(this.baseUrl + path, {
       headers: this.headers,
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) {
       throw new Error(`[storage-rest] GET ${path} → HTTP ${res.status}`);
@@ -120,10 +122,12 @@ export class RestStorageAdapter implements StorageAdapter {
   }
 
   private async _post(path: string, body: unknown): Promise<unknown> {
+    const timeoutMs = 15_000;
     const res = await fetch(this.baseUrl + path, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...this.headers },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) {
       throw new Error(`[storage-rest] POST ${path} → HTTP ${res.status}`);

@@ -27,7 +27,12 @@ describe("validation poc evidence index", () => {
 		assert.equal(index.schema, INDEX_SCHEMA);
 		assert.deepEqual(
 			index.pocs.map((poc) => poc.id),
-			["extension-sandbox", "citizen-data-wallet", "governed-note-box"],
+			[
+				"extension-sandbox",
+				"citizen-data-wallet",
+				"governed-note-box",
+				"toolless-orchestrator",
+			],
 		);
 		for (const poc of index.pocs) {
 			assert.equal(poc.evidence.readerStart?.id, poc.evidence.scenario?.id);

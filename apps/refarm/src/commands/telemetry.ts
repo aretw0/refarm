@@ -1,13 +1,9 @@
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
 import {
-	buildDiagnosticNextActionPayload,
-	diagnosticNextActions,
-	diagnosticNextCommands,
-	type DiagnosticRecommendation,
-} from "./diagnostic-recommendations.js";
-import { refarmCommand } from "./command-handoff.js";
-import { printJson } from "./json-output.js";
+	buildDiagnosticNextActionPayload, diagnosticNextActions, diagnosticNextCommands, type DiagnosticRecommendation, } from "./diagnostic-recommendations.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { printJson } from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -20,6 +16,7 @@ import {
 	printSidecarUnavailable,
 	reportSidecarError,
 } from "./sidecar-error.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 type ThresholdProfileName = "conservative" | "balanced" | "throughput";
@@ -140,7 +137,7 @@ function parseThresholdProfile(value: string): ThresholdProfileName {
 }
 
 async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
-	const response = await fetch(sidecarUrl("/telemetry"));
+	const response = await fetchSidecarWithTimeout(sidecarUrl("/telemetry"));
 	if (!response.ok) {
 		if (response.status === 404) {
 			throw new Error("telemetry endpoint not available");
@@ -153,7 +150,7 @@ async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
 async function fetchTelemetryWindowFromSidecar(
 	minutes: number,
 ): Promise<RuntimeTelemetryWindow | null> {
-	const response = await fetch(
+	const response = await fetchSidecarWithTimeout(
 		sidecarUrl(`/telemetry/window?minutes=${minutes}`),
 	);
 	if (!response.ok) {

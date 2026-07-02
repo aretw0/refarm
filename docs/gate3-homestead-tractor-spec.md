@@ -6,7 +6,7 @@
 > the primitives alone is not enough: the gate is complete only when `apps/me` boots as
 > a consolidated distro, exactly as it will behave in production.
 
-**Status**: 🚧 Pending
+**Status**: ✅ Gate 3b downstream evidence complete
 **Tracked by**: [`docs/v0.1.0-release-gate.md`](v0.1.0-release-gate.md)
 **Related ADRs**: [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md), [ADR-048](../specs/ADRs/ADR-048-tractor-graduation.md)
 
@@ -142,6 +142,32 @@ installPlugin("urn:plugin:test-echo") via apps/me UI
 → ASSERT: tractor's DB reflects the mutation
 ```
 
+### Current Evidence (2026-06-27)
+
+The `apps/me` downstream bootstrap proof now covers the user-facing distro
+surface:
+
+- `pnpm -C apps/me run smoke:sync` boots the real browser app and observes
+  `snapshot-applied` from a running Tractor daemon.
+- `pnpm -C apps/me run smoke:plugin-cache` proves OPFS plugin cache persistence.
+- `pnpm -C apps/me run smoke:content-plugin` proves a SHA-256 pinned content
+  plugin can be installed and rendered by the real app.
+- `pnpm -C apps/me run smoke:pwa` proves manifest + Service Worker offline shell
+  reload.
+- `pnpm -C apps/me run smoke:offline-roundtrip` proves the real app writes a
+  local Loro-backed node while disconnected and sends a larger sync payload on
+  reconnect.
+- `pnpm -C apps/me run smoke:real-daemon-roundtrip` proves the real app writes
+  a local Loro-backed node while disconnected from an isolated Tractor daemon,
+  reconnects to the same daemon namespace, and the Tractor read model contains
+  the exact node.
+- `cargo test --test ws_integration ws_server_applies_incoming_update` proves
+  the Rust WebSocket daemon applies incoming client updates to its read model.
+
+This closes the prior release-gate observation gap:
+`apps/me` offline mutation -> reconnect to a real Tractor daemon -> query the
+daemon/read model and assert the exact node is present.
+
 ---
 
 ## POC vs Consolidated (Definition)
@@ -193,9 +219,9 @@ The difference: POC tests pipes. Consolidated tests the user's experience of the
 | `tractor` binary (port 42000) | ✅ Graduated ADR-048 |
 | `BrowserSyncClient` (TS) | ✅ In `packages/sync-loro/src/browser-sync-client.ts` |
 | OPFS SQLite in Homestead | ✅ ADR-002/009 |
-| `installPlugin()` skeleton | ✅ In `packages/tractor-ts/src/lib/install-plugin.ts`; SHA-256 + OPFS cache 🚧 |
+| `installPlugin()` + cache contract | ✅ In `packages/tractor-ts/src/lib/install-plugin.ts`; focused tests cover fetch/cache, cache-hit, cache revalidation, SHA-256 accept/reject, missing integrity rejection, and hex/base64 sha256 forms |
 | `StudioShell` (Shell.ts) | ✅ In `packages/homestead/sdk/` |
 | `HeraldPlugin` (Herald.ts) | ✅ In `packages/homestead/sdk/` |
 | `FireflyPlugin` (Firefly.ts) | ✅ In `packages/homestead/sdk/` |
 | WIT `world refarm-identity-plugin` | ✅ commit `07f338b` |
-| `apps/me` as reference distro | 🚧 Bootstrap phase in progress |
+| `apps/me` as reference distro | ✅ Gate 3b downstream evidence complete |

@@ -112,23 +112,33 @@ export class FireflyPlugin {
       document.body.appendChild(toast);
     }
 
-    toast.innerHTML = `
-      <span style="font-size: 0.9rem; font-weight: 500;">${message}</span>
-      ${isActionable ? `
-        <button id="firefly-refresh" style="
-          background: var(--refarm-accent-primary);
-          color: white; border: none; padding: 0.5rem 1rem;
-          border-radius: 8px; cursor: pointer; font-weight: 600;
-          font-size: 0.8rem;
-        ">${this.l8n.t("refarm:core/refresh")}</button>
-      ` : `<div style="width:12px; height:12px; border:2px solid rgba(255,255,255,0.1); border-top-color:#fff; border-radius:50%; animation: spin 1s linear infinite;"></div>`}
-    `;
+    toast.replaceChildren();
+
+    const messageElement = document.createElement("span");
+    messageElement.style.fontSize = "0.9rem";
+    messageElement.style.fontWeight = "500";
+    messageElement.textContent = message;
+    toast.appendChild(messageElement);
 
     if (isActionable) {
-      toast.querySelector("#firefly-refresh")?.addEventListener("click", () => {
+      const action = document.createElement("button");
+      action.id = "firefly-refresh";
+      action.style.cssText = `
+        background: var(--refarm-accent-primary);
+        color: white; border: none; padding: 0.5rem 1rem;
+        border-radius: 8px; cursor: pointer; font-weight: 600;
+        font-size: 0.8rem;
+      `;
+      action.textContent = this.l8n.t("refarm:core/refresh");
+      action.addEventListener("click", () => {
         window.location.reload();
       });
+      toast.appendChild(action);
     } else {
+      const spinner = document.createElement("div");
+      spinner.style.cssText =
+        "width:12px; height:12px; border:2px solid rgba(255,255,255,0.1); border-top-color:#fff; border-radius:50%; animation: spin 1s linear infinite;";
+      toast.appendChild(spinner);
       setTimeout(() => {
         toast?.remove();
       }, 5000);

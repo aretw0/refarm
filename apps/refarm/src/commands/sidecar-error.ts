@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { buildJsonErrorEnvelope, printJson } from "./json-output.js";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_DOCTOR_COMMAND,
@@ -19,6 +19,10 @@ export function isSidecarUnavailable(message: string): boolean {
 		message.includes("Runtime HTTP") ||
 		message.includes("Farmhand HTTP")
 	);
+}
+
+function isSidecarPermissionError(message: string): boolean {
+	return message.includes("Operation not permitted") || message.includes("EPERM");
 }
 
 export function printSidecarUnavailable(): void {
@@ -73,7 +77,16 @@ export function buildSidecarErrorPayload(
 				RUNTIME_DOCTOR_NEXT_COMMAND,
 			],
 			extra: {
-				recommendations: [buildRuntimeUnavailableRecommendation()],
+				recommendations: [
+					buildRuntimeUnavailableRecommendation(
+						isSidecarPermissionError(message)
+							? {
+									summary:
+										"Runtime sidecar could not bind a local HTTP socket. Check local runtime/network permissions.",
+								}
+							: {},
+					),
+				],
 			},
 		});
 	}

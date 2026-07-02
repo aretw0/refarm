@@ -44,6 +44,14 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
         message: "Private?",
         default: false,
       },
+      {
+        type: "list",
+        name: "gate",
+        message: "Register in capability gates (test-capabilities + gate-smoke-contracts + changeset)?",
+        choices: ["none", "test:unit", "test:conformance"],
+        default: (answers: { type?: string }) =>
+          answers.type === "contract-v1" ? "test:unit" : "none",
+      },
     ],
     actions(data) {
       if (!data) return [];
@@ -98,6 +106,44 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
             const needsComma = !before.endsWith(",");
             return `${before}${needsComma ? "," : ""}\n${newLine}\n    ${after}`;
           },
+        });
+      }
+
+      // Register the package in the capability gates + a release changeset.
+      // Closes the "registered in only one list" gap (see docs/PACKAGE_ACCEPTANCE_CHECKLIST.md):
+      // a new gated package must appear in BOTH test-capabilities.mjs and gate-smoke-contracts.mjs.
+      const gate = typeof data.gate === "string" ? data.gate : "none";
+      if (gate !== "none") {
+        const key = `packages/${name}`;
+        const stepRun = `\t["${key}", "${gate}"],`;
+        const stepBuild = `\t["${key}", "build"],`;
+
+        const insertIntoSteps = (
+          file: string,
+          newLines: string,
+        ): PlopTypes.ActionType => ({
+          type: "modify",
+          path: `scripts/ci/${file}`,
+          transform(content: string) {
+            const start = content.indexOf("const STEPS = [");
+            if (start === -1) return content;
+            const close = content.indexOf("];", start);
+            if (close === -1) return content;
+            // Idempotent: skip if this package is already registered in the array.
+            if (content.slice(start, close).includes(`"${key}"`)) return content;
+            return `${content.slice(0, close)}${newLines}${content.slice(close)}`;
+          },
+        });
+
+        // test-capabilities.mjs runs the gate script only; gate-smoke-contracts.mjs builds first.
+        actions.push(insertIntoSteps("test-capabilities.mjs", `${stepRun}\n`));
+        actions.push(
+          insertIntoSteps("gate-smoke-contracts.mjs", `${stepBuild}\n${stepRun}\n`),
+        );
+        actions.push({
+          type: "add",
+          path: ".changeset/{{name}}.md",
+          template: '---\n"@refarm.dev/{{name}}": minor\n---\n\n{{description}}\n',
         });
       }
 

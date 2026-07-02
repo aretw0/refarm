@@ -1,9 +1,9 @@
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
 	printRefarmLaunchBanner,
 	type RefarmLaunchExperience,
 } from "./brand.js";
-import { buildJsonSuccessEnvelope, printJson } from "./json-output.js";
 import { launchDryRunMessage, launchStartMessage } from "./launch-feedback.js";
 import {
 	assertLaunchAllowed,
@@ -21,7 +21,7 @@ export interface ExecuteRendererLaunchFlowOptions<
 	dryRunRuntimeLabel: string;
 	startRuntimeLabel: string;
 	resolveLaunchSpec: () => TSpec;
-	launchProcess: (spec: TSpec) => Promise<number>;
+	executeProcessHandoff: (spec: TSpec) => Promise<number>;
 	onDryRun?: (spec: TSpec) => void | Promise<void>;
 	dryRunJson?: boolean;
 	dryRunJsonCommand?: string;
@@ -94,7 +94,7 @@ export async function executeRendererLaunchFlow<
 	}
 
 	log(launchStartMessage(options.startRuntimeLabel, spec.display));
-	const launchPromise = options.launchProcess(spec);
+	const launchPromise = options.executeProcessHandoff(spec);
 	await options.onLaunchStarted?.(spec);
 	const code = await launchPromise;
 

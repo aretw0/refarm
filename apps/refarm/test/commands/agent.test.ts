@@ -112,7 +112,7 @@ describe("agent command", () => {
 				packageManager: string;
 				workspaceExecution: string;
 				workspaceSweep: string;
-				releaseKernelCandidates: string;
+				releaseSupplyPreflight: string;
 				codingProfile: string;
 			};
 			runtime: {
@@ -198,7 +198,7 @@ describe("agent command", () => {
 				packageManager: "refarm package-manager --json",
 				workspaceExecution: "refarm workspace execution --json",
 				workspaceSweep: "refarm workspace execution --all --json",
-				releaseKernelCandidates: "refarm release plan --selection default --json",
+				releaseSupplyPreflight: "refarm release preflight --selection default --json",
 				codingProfile: "refarm config profile coding --local --json",
 			},
 			runtime: {
@@ -774,15 +774,15 @@ describe("agent command", () => {
 				useWhen: "Inspect every workspace declared in the current Refarm config, including bridge resolution and non-blocking recommendations.",
 			}),
 			expect.objectContaining({
-				id: "declared-release-kernel-candidates-json",
-				command: "refarm release plan --selection default --json",
+				id: "declared-release-supply-preflight-json",
+				command: "refarm release preflight --selection default --json",
 				process: {
 					command: "refarm",
-					args: ["release", "plan", "--selection", "default", "--json"],
-					display: "refarm release plan --selection default --json",
+					args: ["release", "preflight", "--selection", "default", "--json"],
+					display: "refarm release preflight --selection default --json",
 				},
 				parameters: [],
-				useWhen: "Inspect the current workspace default release-policy selection without executing gates or publishing.",
+				useWhen: "Inspect the current workspace release-policy selection and supply posture without executing gates, builds, or publishing.",
 			}),
 			expect.objectContaining({
 				id: "external-consumer-release-plan-json",
@@ -1222,7 +1222,12 @@ describe("agent command", () => {
 			steps: {
 				id: string;
 				command: string;
-				process?: { packageManager?: string | null; tool?: string };
+				process?: {
+					packageManager?: string | null;
+					resourcePolicy?: { concurrency?: number; timeoutMs?: number; workClass?: string };
+					timeoutMs?: number;
+					tool?: string;
+				};
 			}[];
 			nextCommands: string[];
 		};
@@ -1235,9 +1240,15 @@ describe("agent command", () => {
 			"package-validation",
 		]);
 		expect(payload.nextCommands).toContain(
-			"pnpm exec turbo run type-check lint build '--filter=./apps/refarm' '--output-logs=errors-only' '--ui=stream'",
+			"pnpm exec turbo run type-check lint build '--concurrency=2' '--filter=./apps/refarm' '--output-logs=errors-only' '--ui=stream'",
 		);
 		expect(payload.steps.at(-1)?.process?.packageManager).toBe("pnpm");
+		expect(payload.steps.at(-1)?.process?.resourcePolicy).toEqual({
+			concurrency: 2,
+			timeoutMs: 180000,
+			workClass: "package-check",
+		});
+		expect(payload.steps.at(-1)?.process?.timeoutMs).toBe(180000);
 		expect(payload.steps.at(-1)?.process?.tool).toBe("turbo");
 		logSpy.mockRestore();
 	});
@@ -1637,6 +1648,61 @@ describe("agent command", () => {
 			lane: null,
 			validationScope: "dirtyTree",
 			affectedWorkspaces: ["apps/refarm"],
+		});
+		expect(payload.steps.at(-1)?.process?.cwd).toBe(root);
+		logSpy.mockRestore();
+	});
+
+	it("uses package tests as an affected fallback for JS-only workspaces", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-js-only-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		const packageDir = path.join(root, "packages", "vtconfig");
+		mkdirSync(path.join(packageDir, "src"), { recursive: true });
+		writeFileSync(
+			path.join(packageDir, "package.json"),
+			JSON.stringify({
+				name: "vtconfig-test",
+				scripts: { test: "vitest run" },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		writeFileSync(path.join(packageDir, "src", "index.js"), "export {};\n", "utf8");
+		const originalCwd = process.cwd();
+		process.chdir(packageDir);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string; process?: { cwd?: string } }[];
+			nextCommands: string[];
+			selection: {
+				affectedWorkspaces?: string[];
+				validationScope: string;
+			};
+		};
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+			"package-packages-vtconfig-test",
+		]);
+		expect(payload.nextCommands).toContain("npm --prefix packages/vtconfig run test");
+		expect(payload.selection).toMatchObject({
+			validationScope: "dirtyTree",
+			affectedWorkspaces: ["packages/vtconfig"],
 		});
 		expect(payload.steps.at(-1)?.process?.cwd).toBe(root);
 		logSpy.mockRestore();
@@ -2213,8 +2279,8 @@ describe("agent command", () => {
 		logSpy.mockRestore();
 	});
 
-	it("adds no-token agent e2e smoke for affected runtime model paths", async () => {
-		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-agent-smoke-"));
+	it("keeps heavy agent e2e smoke out of default affected runtime paths", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-agent-smoke-default-"));
 		tempDirs.push(root);
 		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
 		writeFileSync(
@@ -2244,6 +2310,65 @@ describe("agent command", () => {
 				"finish",
 				"--profile",
 				"affected",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string; process?: { command?: string } }[];
+			selection: {
+				affectedScriptChecks?: string[];
+				affectedWorkspaces?: string[];
+			};
+		};
+		logSpy.mockRestore();
+
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"health",
+			"check",
+		]);
+		expect(payload.steps.map((step) => step.id)).not.toContain(
+			"script-refarm-agent-e2e-mock",
+		);
+		expect(payload.selection.affectedScriptChecks).toEqual([]);
+		expect(payload.selection.affectedWorkspaces).toEqual([]);
+	});
+
+	it("adds no-token agent e2e smoke for affected runtime model paths when tests are requested", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-agent-smoke-tests-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		writeFileSync(
+			path.join(root, "package.json"),
+			JSON.stringify({
+				name: "root",
+				scripts: { "refarm:agent:e2e:mock": "node scripts/ci/smoke-refarm-agent-model-mock.mjs" },
+				packageManager: "npm@10.0.0",
+			}),
+			"utf8",
+		);
+		mkdirSync(path.join(root, "packages", "tractor", "src", "host", "wasi_bridge"), {
+			recursive: true,
+		});
+		writeFileSync(
+			path.join(root, "packages", "tractor", "src", "host", "wasi_bridge", "core.rs"),
+			"pub fn changed() {}\n",
+			"utf8",
+		);
+		const originalCwd = process.cwd();
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--include-tests",
 				"--json",
 			], { from: "user" });
 		} finally {

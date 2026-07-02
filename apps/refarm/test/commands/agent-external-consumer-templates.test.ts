@@ -46,8 +46,8 @@ describe("agent external consumer templates", () => {
 		);
 		expect(templates).toContainEqual(
 			expect.objectContaining({
-				id: "declared-release-kernel-candidates-json",
-				command: "refarm release plan --selection default --json",
+				id: "declared-release-supply-preflight-json",
+				command: "refarm release preflight --selection default --json",
 				effects: ["observe"],
 				writes: false,
 				parameters: [],
@@ -64,6 +64,7 @@ describe("agent external consumer templates", () => {
 			"external-consumer-release-plan-json",
 			"external-consumer-health-policy-json",
 			"external-consumer-health-suggest-policy-json",
+			"external-consumer-project-handoff-validate-json",
 		]);
 
 		for (const template of externalTemplates) {
@@ -76,7 +77,7 @@ describe("agent external consumer templates", () => {
 			} else {
 				expect(template.cwdParameter).toBe("dir");
 			}
-			expect(template.command).toMatch(/^refarm (?:resume|check|workspace|release|health)\b/);
+			expect(template.command).toMatch(/^refarm (?:resume|check|workspace|release|health|project)\b/);
 			expect(template.command).toMatch(/\s--json$/);
 			expect(template.effects).toEqual(["observe"]);
 			expect(template.writes).toBe(false);
@@ -117,6 +118,16 @@ describe("agent external consumer templates", () => {
 			}
 			if (template.id === "external-consumer-health-suggest-policy-json") {
 				expect(template.useWhen).toMatch(/without writing \.refarm\/config\.json/);
+			}
+			if (template.id === "external-consumer-project-handoff-validate-json") {
+				expect(template.useWhen).toMatch(/without writing \.project\/handoff\.json/);
+				expect(template.command).toBe("refarm project handoff validate --json");
+				expect(template.process?.args).toEqual([
+					"project",
+					"handoff",
+					"validate",
+					"--json",
+				]);
 			}
 		}
 	});

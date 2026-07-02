@@ -63,6 +63,7 @@ describe("buildHealthReport", () => {
         git: [{ file: "src/ignored.ts", type: "ignored" }],
         builds: [{ package: "apps/missing-build", type: "missing_build_config" }],
         alignment: [{ package: "packages/local", entry: "src/", type: "local_alignment" }],
+        namespaceWarnings: [{ path: ".project", type: "undeclared_workspace_namespace" }],
         complexity: [{ file: "src/large.ts", type: "complexity_large_file", lines: 1200 }],
       },
       [{ package: "packages/local", mode: "LOCAL (src)" }],
@@ -71,16 +72,40 @@ describe("buildHealthReport", () => {
     expect(report.ok).toBe(false);
     expect(report.issueCount).toBe(4);
     expect(report.resolution).toEqual([{ package: "packages/local", mode: "LOCAL (src)" }]);
-    expect(report.recommendations).toHaveLength(4);
+    expect(report.recommendations).toHaveLength(5);
     expect(report.nextActions).toEqual([
       "Track the source file, or add an explicit health policy exclusion if it is generated.",
       "Add the package build configuration or mark the package exempt in the project health policy.",
       "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
+      "Declare the namespace owner, purpose, persistence, and access in refarm.config.json, or remove the drift.",
       "Split the file or add a documented health.complexity allowed pattern for generated/vendor content.",
     ]);
     expect(report.nextCommands).toEqual([
       "refarm health --suggest-policy --json",
       "node packages/toolbox/src/cli.mjs reso dist",
+      "refarm health --policy --json",
+    ]);
+  });
+
+  it("does not count workspace namespace warnings as health issues", () => {
+    const report = buildHealthReport(
+      {
+        git: [],
+        builds: [],
+        alignment: [],
+        namespaceWarnings: [{ path: ".project", type: "undeclared_workspace_namespace" }],
+      },
+      [],
+    );
+
+    expect(report.ok).toBe(true);
+    expect(report.issueCount).toBe(0);
+    expect(report.recommendations).toEqual([
+      expect.objectContaining({
+        issueType: "undeclared_workspace_namespace",
+        severity: "warning",
+        target: ".project",
+      }),
     ]);
   });
 });
@@ -92,6 +117,7 @@ describe("buildHealthRecommendations", () => {
         git: [{ file: "src/generated.ts", type: "git_ignored" }],
         builds: [{ package: "packages/missing-build", type: "missing_build_config" }],
         alignment: [{ package: "packages/local", entry: "src/", type: "local_alignment" }],
+        namespaceWarnings: [{ path: ".project", type: "undeclared_workspace_namespace" }],
         complexity: [{ file: "src/large.ts", type: "complexity_large_file", lines: 1200 }],
       }),
     ).toEqual([
@@ -118,6 +144,15 @@ describe("buildHealthRecommendations", () => {
         summary: "packages/local resolves to src/ instead of its build output.",
         action: "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
         command: "node packages/toolbox/src/cli.mjs reso dist",
+      },
+      {
+        issueType: "undeclared_workspace_namespace",
+        diagnostic: "undeclared_workspace_namespace",
+        severity: "warning",
+        target: ".project",
+        summary: ".project is present without a workspaceNamespaces declaration.",
+        action: "Declare the namespace owner, purpose, persistence, and access in refarm.config.json, or remove the drift.",
+        command: "refarm health --policy --json",
       },
       {
         issueType: "complexity_large_file",
@@ -346,8 +381,11 @@ describe("healthCommand", () => {
 
     await healthCommand.parseAsync(["--apply-suggested-policy", "--json"], { from: "user" });
 
-    expect(mockWriteFileSync).toHaveBeenCalledOnce();
-    const [configPath, content, encoding] = mockWriteFileSync.mock.calls[0]!;
+    const configWrite = mockWriteFileSync.mock.calls.find(([filePath]) =>
+      String(filePath).replaceAll("\\", "/").endsWith(".refarm/config.json")
+    );
+    expect(configWrite).toBeDefined();
+    const [configPath, content, encoding] = configWrite!;
     expect(String(configPath).replaceAll("\\", "/")).toContain(".refarm/config.json");
     expect(encoding).toBe("utf-8");
     expect(JSON.parse(String(content))).toEqual({
@@ -600,6 +638,14 @@ describe("resolveHealthPolicy", () => {
   it("reports configured health policy metadata", () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(JSON.stringify({
+      workspaceNamespaces: {
+        ".project": {
+          owner: "pi-project-workflows",
+          purpose: "Project workflow state.",
+          persistence: "versioned",
+          access: "readWrite",
+        },
+      },
       health: {
         preset: "workspace",
         workspaceRoots: ["modules"],
@@ -620,6 +666,17 @@ describe("resolveHealthPolicy", () => {
         workspaceRoots: ["modules"],
         exemptPackageIds: ["modules/meta"],
         ignoredGitVisibilityPatterns: [],
+        workspaceNamespaces: [
+          {
+            id: ".project",
+            path: ".project",
+            absolutePath: "/tmp/project/.project",
+            owner: "pi-project-workflows",
+            purpose: "Project workflow state.",
+            persistence: "versioned",
+            access: "readWrite",
+          },
+        ],
       },
       nextAction: null,
       nextActions: [],

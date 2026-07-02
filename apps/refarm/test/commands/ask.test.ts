@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import type { AskDeps } from "../../src/commands/ask.js";
 import {
 	createAskCommand,
@@ -703,6 +704,12 @@ describe("refarm ask", () => {
 		expect(errSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Reload runtime plugins"),
 		);
+		expect(errSpy).toHaveBeenCalledWith(
+			expect.stringContaining("/reload agent"),
+		);
+		expect(errSpy).toHaveBeenCalledWith(
+			expect.stringContaining("/r agent"),
+		);
 		expect(process.exitCode).toBe(1);
 
 		errSpy.mockRestore();
@@ -744,10 +751,10 @@ describe("refarm ask", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			error: "agent-not-loaded",
-			nextAction: "refarm plugin reload runtime-agent --json",
-			nextCommand: "refarm plugin reload runtime-agent --json",
+			nextAction: "refarm plugin reload agent --json",
+			nextCommand: "refarm plugin reload agent --json",
 		});
-		expect(payload.nextActions).toContain("refarm plugin reload runtime-agent --json");
+		expect(payload.nextActions).toContain("refarm plugin reload agent --json");
 		expect(payload.nextActions).not.toContain("/reload @refarm/pi-agent");
 		expect(payload.nextActions).toContain("refarm runtime start");
 		expect(payload.nextCommands).toContain("refarm runtime ensure --wait --next-command");
@@ -756,7 +763,7 @@ describe("refarm ask", () => {
 		expect(payload.recommendations).toEqual([
 			expect.objectContaining({
 				diagnostic: "agent-not-loaded",
-				command: "refarm plugin reload runtime-agent --json",
+				command: "refarm plugin reload agent --json",
 			}),
 		]);
 		expect(deps.submitEffort).not.toHaveBeenCalled();
@@ -913,6 +920,127 @@ describe("refarm ask", () => {
 		errSpy.mockRestore();
 	});
 
+it("classifies runtime submit errors for configured runtime agent id as agent-not-loaded", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps({
+			readPluginState: vi.fn().mockResolvedValue({
+				installed: [RUNTIME_AGENT_PLUGIN_ID],
+				loaded: [],
+				known: [RUNTIME_AGENT_PLUGIN_ID],
+			}),
+			submitEffort: vi.fn().mockRejectedValue(new Error(`${RUNTIME_AGENT_PLUGIN_ID} not loaded`)),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			error: "agent-not-loaded",
+			nextActions: expect.arrayContaining([
+				"refarm plugin reload agent --json",
+			]),
+		});
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
+	it("classifies runtime submit errors using short agent id as agent-not-loaded", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const runtimeAgentShortId = RUNTIME_AGENT_PLUGIN_ID.split("/").at(-1) ?? "";
+		const deps = makeDeps({
+			readPluginState: vi.fn().mockResolvedValue({
+				installed: [RUNTIME_AGENT_PLUGIN_ID],
+				loaded: [],
+				known: [RUNTIME_AGENT_PLUGIN_ID],
+			}),
+			submitEffort: vi
+				.fn()
+				.mockRejectedValue(new Error(`${runtimeAgentShortId} not loaded`)),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			error: "agent-not-loaded",
+			nextActions: expect.arrayContaining([
+				"refarm plugin reload agent --json",
+			]),
+		});
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
+	it("classifies sidecar-style agent-not-loaded payloads as agent-not-loaded", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		process.env.OPENAI_API_KEY = "sk-test";
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+		const deps = makeDeps({
+			readPluginState: vi.fn().mockResolvedValue({
+				installed: [RUNTIME_AGENT_PLUGIN_ID],
+				loaded: [],
+				known: [RUNTIME_AGENT_PLUGIN_ID],
+			}),
+			submitEffort: vi.fn().mockRejectedValue(
+				new Error(
+					`[agent not loaded (${RUNTIME_AGENT_PLUGIN_ID}) - run refarm plugin status, then refarm plugin install or reload]`,
+				),
+			),
+		});
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnRuntime: vi.fn(),
+			probeRuntimeUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["hello", "--json"], { from: "user" });
+
+		expect(errSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			ok: false,
+			error: "agent-not-loaded",
+			nextActions: expect.arrayContaining([
+				"refarm plugin reload agent --json",
+			]),
+		});
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+		errSpy.mockRestore();
+	});
+
 	it("reloads the installed runtime agent before submitting when it is not loaded", async () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.OPENAI_API_KEY = "sk-test";
@@ -996,17 +1124,17 @@ describe("refarm ask", () => {
 			reloaded: [],
 			deferred: [],
 			skipped: ["@refarm/pi-agent"],
-			nextAction: "refarm plugin reload runtime-agent --json",
-			nextCommand: "refarm plugin reload runtime-agent --json",
+			nextAction: "refarm plugin reload agent --json",
+			nextCommand: "refarm plugin reload agent --json",
 			nextCommands: [
-				"refarm plugin reload runtime-agent --json",
+				"refarm plugin reload agent --json",
 				"refarm runtime ensure --wait --next-command",
 				"refarm doctor --next-command",
 			],
 			recommendations: [
 				expect.objectContaining({
 					diagnostic: "agent-reload-failed",
-					command: "refarm plugin reload runtime-agent --json",
+					command: "refarm plugin reload agent --json",
 				}),
 			],
 		});

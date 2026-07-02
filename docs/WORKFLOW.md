@@ -625,11 +625,17 @@ git push origin feature/minha-feature
 
 - **Em `develop`**: qualquer estratégia funciona (squash, rebase, ou merge commit) para integrar branches curtas.
 - **Em `main`**: usar a estratégia permitida pela proteção do repositório. Quando `develop → main` for squashado, `main` terá um commit novo com a mesma árvore de `develop`.
-- O workflow `sync-develop.yml` não rebaseia cegamente. Após qualquer push em `main`, ele:
+- O workflow `sync-develop.yml` não rebaseia nem reescreve `develop`
+  automaticamente. Após qualquer push em `main`, ele:
   1. não faz nada se `develop` já aponta para `main`;
   2. faz fast-forward se `develop` é ancestral de `main`;
-  3. faz reset auditado com `--force-with-lease` quando `develop` e `main` têm a mesma árvore, mas histórico diferente (caso típico de squash release);
+  3. abre issue quando `develop` e `main` têm a mesma árvore, mas histórico diferente (caso típico de squash/rebase release);
   4. abre issue e falha quando há divergência real de conteúdo.
+
+Quando a proteção do repositório exigir squash ou rebase no PR `develop → main`,
+trate o alinhamento posterior de `develop` como uma decisão manual. Isso preserva
+a história atômica de `develop` até alguém optar conscientemente por reset, rebase
+ou outro alinhamento com backup.
 
 ### Release via Changesets
 
@@ -695,6 +701,23 @@ pnpm run test:smoke:ws
 
 - **GO**: todos os checks do preflight rápido verdes; se houver mudança de boundary runtime, preflight completo verde.
 - **NO-GO**: qualquer falha em toolchain/targets/permissão/reso status → corrigir ambiente antes de abrir lote.
+
+### Sinais objetivos para migrar para melhoria funcional de produto
+
+Use esta regra de passagem quando a equipe estiver em ciclo de ajustes de pipeline/processo:
+
+- **Condição de estabilidade** (últimos 3 lotes):  
+  - Nenhum timeout de pre-push local crítico em `lint`/`type-check`/`test` (warnings locais aceitáveis, desde que documentados);  
+  - Sem falha bloqueante repetida de `prepush` após ajuste de mesma categoria;  
+  - `refarm check --next-action --json` sem bloqueios funcionais;  
+  - `pre-push` passou sem novos arquivos/patches com impacto direto sobre o fluxo básico (testes de regressão, `preflight` e CI alinhados).
+
+- **Condição de transição de trabalho**:  
+  - Abra explicitamente um novo ticket/objetivo funcional;  
+  - Mantenha o estado atual de validação como baseline (`git log` + evidência de checks);  
+  - A próxima entrega começa com um requisito/escopo de produto por vez (1 feature, 1 PR).
+
+- **Regra de segurança**: se após 1 ciclo funcional surgir novamente pressão de recursos (zumbi, travamentos, timeouts), retorne para o bloco de estabilização com objetivo único e timeout de execução explícito.
 
 ### Autorização explícita para escrita em lote
 

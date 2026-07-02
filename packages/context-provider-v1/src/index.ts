@@ -6,6 +6,11 @@ export { OperatorStateProvider } from "./providers/operator-state.js";
 export type { ResumeJson } from "./providers/operator-state.js";
 export { PolicyFilesContextProvider } from "./providers/policy-files.js";
 export type { PolicyFile } from "./providers/policy-files.js";
+export { SessionContextFoldProvider } from "./providers/session-context-fold.js";
+export type {
+	SessionContextFoldEntryLoader,
+	SessionContextFoldProviderOptions,
+} from "./providers/session-context-fold.js";
 export { SessionDigestContextProvider } from "./providers/session-digest.js";
 export type { SessionDigestOptions } from "./providers/session-digest.js";
 export { buildSystemPrompt, ContextRegistry } from "./registry.js";

@@ -33,6 +33,11 @@ integrations that also consume sessions
 **I want** to read session entries to give agents context about past work  
 **So that** I don't have to depend on pi-agent's private CRDT namespace
 
+**As a** long-running agent driver
+**I want** a reversible context-folding plan for older session entries
+**So that** I can keep a small working tail in prompt while preserving explicit
+entry refs that can be unfolded on demand
+
 **As a** third-party plugin author  
 **I want** `session-contract-v1` to define a stable, adapter-based interface  
 **So that** I can build a session backend for any platform without modifying Refarm internals
@@ -67,6 +72,16 @@ integrations that also consume sessions
 6. **Given** a `SessionContractAdapter` with `entries` implemented  
    **When** `entries(sessionId, limit)` is called  
    **Then** entries are returned in chronological order and the `limit` is respected
+
+7. **Given** a long `SessionEntry[]` list and a protected tail count
+   **When** `planSessionContextFold(entries, options)` is called
+   **Then** older entries are represented by deterministic refs/digests while the
+   newest tail entry IDs remain unfolded
+
+8. **Given** a `SessionContextFold` and candidate entries
+   **When** `unfoldSessionContextFold(fold, entries)` is called
+   **Then** entries are returned in folded reference order and missing or mutated
+   entries are reported explicitly
 
 ---
 
@@ -114,6 +129,9 @@ consumers (implement the adapter):
   concurrent appends.
 - `participants[]` is a string array of URNs (agents, users, bots) — the contract
   is multi-party by default.
+- Reversible context folding is a pure planning primitive, not a retention policy:
+  the helper produces fold refs/digests and a protected tail, while storage,
+  deletion, prompt budgeting, and tool exposure remain consumer-owned.
 - The namespace migration is a one-time script, safe pre-v0.1.0 while the dataset
   is personal and small.
 - Publication deferred to v0.2.0: requires pi-agent migration + daily-driver
@@ -161,6 +179,16 @@ export interface SessionContractAdapter {
 export function runSessionV1Conformance(
   adapter: SessionContractAdapter
 ): Promise<SessionConformanceResult>;
+
+export function planSessionContextFold(
+  entries: SessionEntry[],
+  options?: PlanSessionContextFoldOptions
+): SessionContextFoldPlan | null;
+
+export function unfoldSessionContextFold(
+  fold: SessionContextFold,
+  entries: Iterable<SessionEntry>
+): SessionContextUnfoldResult;
 ```
 
 ---
@@ -184,6 +212,8 @@ export function runSessionV1Conformance(
 - [ ] Loro CRDT adapter: SessionEntry linked list survives snapshot/restore
 - [ ] Loro CRDT adapter: pi-agent extra fields (`leaf_entry_id`) round-trip without
       corrupting base fields read by a base-contract consumer
+- [ ] pi-agent/farmhand: context overflow creates a fold plan, exposes an unfold
+      tool, and keeps the protected working tail visible
 
 **Migration test:**
 
@@ -208,6 +238,8 @@ export function runSessionV1Conformance(
 
 - [x] Conformance runner in `packages/session-contract-v1/src/conformance.ts`
 - [x] In-memory adapter that passes all 5 conformance checks
+- [x] Reversible context-folding helper with deterministic refs/digests and
+      unfold diagnostics
 - [x] Namespace migration script unit test (rewrites URNs, preserves data)
 
 **DDD:**
@@ -218,6 +250,7 @@ export function runSessionV1Conformance(
 - [ ] Migrate pi-agent's CRDT reads/writes to use `session-contract-v1` adapter
 - [x] Implement `SessionContractAdapter` baseline in `storage-sqlite` (storage:v1-backed records)
 - [ ] Upgrade `storage-sqlite` Session adapter to direct Loro CRDT-backed nodes
+- [ ] Wire reversible context folding into pi-agent/farmhand overflow handling
 - [ ] Expose conversation history in Homestead via standard adapter
 - [ ] Smoke gate: pi-agent creates Session → node in CRDT graph → Homestead reads it
 

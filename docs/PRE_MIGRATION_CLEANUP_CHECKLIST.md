@@ -1,7 +1,10 @@
 # Pre-Migration Cleanup Checklist
 
+> **Status**: parked. The repository currently remains under `aretw0/refarm`; owner migration is
+> optional future work. Use this checklist only if migration is resumed.
+>
 > **Purpose**: Tudo que deve estar limpo e verificado **antes** de transferir o repositório
-> para a organização `refarm-dev`. Execute este checklist do topo para baixo; nenhuma seção
+> para outro owner/host. Execute este checklist do topo para baixo; nenhuma seção
 > depende de outra, mas todas devem estar verdes antes da transferência.
 >
 > **When to use**: Com v0.1.0 gates passados. Ver [docs/v0.1.0-release-gate.md](v0.1.0-release-gate.md).
@@ -35,25 +38,24 @@ Ver [packages/DISTRIBUTION_STATUS.md](../packages/DISTRIBUTION_STATUS.md) para s
 - [ ] Cada package publicável tem `README.md` com exemplos de uso
 - [ ] Cada package publicável tem `CHANGELOG.md` (gerado via Changesets)
 - [ ] `"publishConfig": { "access": "public" }` está no `package.json` de todos os packages publicáveis
-- [ ] Campo `"repository"` em cada `package.json` aponta para o owner atual (pós-transfer: `github.com/aretw0/refarm`)
+- [ ] Campo `"repository"` em cada `package.json` aponta para o owner atual (hoje: `github.com/aretw0/refarm`; pós-migração: destino escolhido)
 - [ ] Packages com `"private": true` estão corretos (apps/, tooling interno)
 - [ ] Rodar `node scripts/verify-packages.mjs` sem erros:
   ```bash
   node scripts/verify-packages.mjs
   ```
 
-### 4 Contract Packages — critérios mínimos
+### 3 Contract Packages — critérios mínimos
 - [ ] `@refarm.dev/storage-contract-v1` — conformance suite passa
 - [ ] `@refarm.dev/identity-contract-v1` — conformance suite passa
 - [ ] `@refarm.dev/sync-contract-v1` — conformance suite passa
-- [ ] `@refarm.dev/plugin-manifest` — schema validation passa
 
 ---
 
 ## 3. npm Scope
 
-> **Decisão alvo**: GitHub org = `refarm-dev`, npm scope = `@refarm.dev`. Ver [ADR-019](../specs/ADRs/ADR-019-npm-scope-and-namespace-strategy.md).
-> **Operação atual**: release pode ocorrer no scope/profile ativo (ex.: `@aretw0`) até a migração.
+> **Decisão alvo**: npm scope = `@refarm.dev`; Git owner migration fica estacionada até haver necessidade. Ver [ADR-019](../specs/ADRs/ADR-019-npm-scope-and-namespace-strategy.md).
+> **Operação atual**: blocos Refarm publicáveis usam o scope canônico `@refarm.dev`; `@aretw0` fica reservado aos produtos DGK do `vault-seed`.
 
 - [ ] Conta npm com acesso ao scope ativo está configurada
 - [ ] `NPM_TOKEN` do tipo "Automation" criado com permissão Read + Publish no scope ativo
@@ -64,7 +66,7 @@ Ver [packages/DISTRIBUTION_STATUS.md](../packages/DISTRIBUTION_STATUS.md) para s
 
 ## 4. GitHub Configuration
 
-A configurar **na nova organização** `refarm-dev` imediatamente após o transfer:
+A configurar no novo owner/host imediatamente após o transfer:
 
 - [ ] Branch protection em `main`: require PR reviews, require CI pass, no force push
 - [ ] Branch protection em `develop`: require CI pass
@@ -72,7 +74,7 @@ A configurar **na nova organização** `refarm-dev` imediatamente após o transf
 - [ ] Variables de release configuradas: `RELEASE_AUTOMATION=true` e opcional `RELEASE_OWNER=<owner>`
 - [ ] GitHub Pages configurado para `apps/dev` (se aplicável)
 - [ ] Repository visibility confirmada (public, para que CI/CD e publicação funcionem)
-- [ ] `.github/workflows/` revisados: nenhuma referência hardcoded ao repo antigo `refarm/refarm`
+- [ ] `.github/workflows/` revisados: nenhuma referência hardcoded ao owner antigo
   ```bash
   grep -r "refarm/refarm" .github/
   ```

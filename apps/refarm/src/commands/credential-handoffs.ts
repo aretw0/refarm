@@ -1,8 +1,5 @@
-import {
-	defaultProviderModelRef,
-	defaultScopedModelRef,
-} from "../model-routing.js";
-import { refarmCommand } from "./command-handoff.js";
+import { defaultProviderModelRef, defaultScopedModelRef, } from "../model-routing.js";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 
 export const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 export const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");

@@ -1,12 +1,13 @@
 import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
 import chalk from "chalk";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { Command, InvalidArgumentError } from "commander";
-import { quoteCommandArg, refarmCommand } from "./command-handoff.js";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "./json-output.js";
+} from "@refarm.dev/cli/json-output";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -15,6 +16,7 @@ import {
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import { reportSidecarError } from "./sidecar-error.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 function parsePositiveIntOption(value: string, label: string): number {
@@ -119,7 +121,7 @@ async function fetchTasks(
 	if (params.session_id) query.set("session_id", params.session_id);
 	if (params.limit) query.set("limit", String(params.limit));
 	const qs = query.toString() ? `?${query}` : "";
-	const response = await fetch(sidecarUrl(`/tasks${qs}`));
+	const response = await fetchSidecarWithTimeout(sidecarUrl(`/tasks${qs}`));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
 	const body = (await response.json()) as { tasks: Task[] };
 	return body.tasks ?? [];
@@ -199,7 +201,7 @@ async function listTasks(opts: {
 async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<void> {
 	let body: { task: Task; events: TaskEvent[] };
 	try {
-		const response = await fetch(
+		const response = await fetchSidecarWithTimeout(
 			sidecarUrl(`/tasks/${encodeURIComponent(prefix)}`),
 		);
 		const parsed = (await response.json()) as typeof body & {
