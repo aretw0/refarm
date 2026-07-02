@@ -43,6 +43,9 @@ test("release workflow keeps package publishing opt-in and provenance-scoped", (
 
 	assert.equal(packageJson.private, true);
 	assert.equal(packageJson.scripts["release:check"], "node scripts/release-check.mjs");
+	assert.equal(packageJson.scripts["release:first-publish:plan"], "node scripts/release-check.mjs --plan");
+	assert.equal(packageJson.scripts["release:first-publish:check"], "node scripts/release-check.mjs");
+	assert.equal(packageJson.scripts["release:first-publish"], "node scripts/first-publish-selection.mjs");
 	assert.equal(changesetConfig.access, "public");
 	assert.equal(changesetConfig.baseBranch, "main");
 	assert.match(workflow, /name: Release \(Changesets\)/);
@@ -51,11 +54,11 @@ test("release workflow keeps package publishing opt-in and provenance-scoped", (
 	assert.match(workflow, /if: vars\.RELEASE_AUTOMATION == 'true'/);
 	assert.match(workflow, /vars\.RELEASE_OWNER == '' \|\| github\.repository_owner == vars\.RELEASE_OWNER/);
 	assert.match(workflow, /uses: \.\/\.github\/actions\/setup\n\s+with:\n\s+cache-mode: "off"/);
-	assert.match(workflow, /pnpm --silent run release:vault-seed:plan -- --json/);
+	assert.match(workflow, /pnpm --silent run release:first-publish:plan -- --selection vault-seed-ready --json/);
 	assert.doesNotMatch(workflow, /scripts\/release-engine\.mjs/);
 	assert.match(workflow, /pnpm run runtime-descriptor:release-smoke -- --sha "\$\{\{ github\.sha \}\}"/);
 	assert.match(workflow, /id: first-publish-guard/);
-	assert.match(workflow, /node scripts\/ci\/check-first-publish-changesets\.mjs --selection vault-seed-ready --soft/);
+	assert.match(workflow, /pnpm --silent run release:first-publish:changesets-guard -- --selection vault-seed-ready --soft/);
 	assert.match(workflow, /if: steps\.first-publish-guard\.outputs\.blocked == 'true'/);
 	assert.match(workflow, /if: steps\.first-publish-guard\.outputs\.blocked != 'true'/);
 	assert.match(workflow, /uses: changesets\/action@[0-9a-f]{40}/);
@@ -68,23 +71,27 @@ test("release workflow keeps package publishing opt-in and provenance-scoped", (
 });
 
 test("first-publish workflow publishes 0.1.0 only through explicit manual confirmation", () => {
-	const workflow = read(".github/workflows/first-publish-vault-seed.yml");
+	const workflow = read(".github/workflows/first-publish-selection.yml");
 
-	assert.match(workflow, /name: First Publish Vault Seed Ready/);
+	assert.match(workflow, /name: First Publish Selection/);
 	assert.match(workflow, /workflow_dispatch:/);
+	assert.match(workflow, /selection:\n\s+description: "Release policy selection to publish at its declared 0\.1\.0 versions"\n\s+required: true\n\s+default: "vault-seed-ready"\n\s+type: string/);
 	assert.match(workflow, /dry_run:/);
 	assert.match(workflow, /default: "true"/);
 	assert.match(workflow, /confirm:/);
+	assert.match(workflow, /Required when dry_run=false: publish-<selection>-0\.1\.0/);
 	assert.match(workflow, /permissions:\n\s+contents: read\n\s+id-token: write/);
 	assert.match(workflow, /if: vars\.RELEASE_AUTOMATION == 'true'/);
 	assert.match(workflow, /vars\.RELEASE_OWNER == '' \|\| github\.repository_owner == vars\.RELEASE_OWNER/);
 	assert.match(workflow, /uses: actions\/checkout@[0-9a-f]{40}/);
-	assert.match(workflow, /pnpm --silent run release:vault-seed:check/);
-	assert.match(workflow, /if: inputs\.dry_run == 'true'\n\s+run: pnpm --silent run release:vault-seed:first-publish -- --plan --json/);
+	assert.match(workflow, /REFARM_FIRST_PUBLISH_SELECTION: \$\{\{ inputs\.selection \}\}/);
+	assert.match(workflow, /pnpm --silent run release:first-publish:plan -- --selection "\$REFARM_FIRST_PUBLISH_SELECTION" --json/);
+	assert.match(workflow, /pnpm --silent run release:first-publish:check -- --selection "\$REFARM_FIRST_PUBLISH_SELECTION"/);
+	assert.match(workflow, /if: inputs\.dry_run == 'true'\n\s+env:\n\s+REFARM_FIRST_PUBLISH_SELECTION: \$\{\{ inputs\.selection \}\}\n\s+run: pnpm --silent run release:first-publish -- --selection "\$REFARM_FIRST_PUBLISH_SELECTION" --plan --json/);
 	assert.match(workflow, /REFARM_FIRST_PUBLISH_CONFIRM: \$\{\{ inputs\.confirm \}\}/);
-	assert.match(workflow, /test "\$REFARM_FIRST_PUBLISH_CONFIRM" = "publish-vault-seed-ready-0\.1\.0"/);
+	assert.match(workflow, /test "\$REFARM_FIRST_PUBLISH_CONFIRM" = "publish-\$\{REFARM_FIRST_PUBLISH_SELECTION\}-0\.1\.0"/);
 	assert.match(workflow, /if: inputs\.dry_run == 'false'\n\s+run: echo "\/\/registry\.npmjs\.org\/:_authToken=\$\{\{ secrets\.NPM_TOKEN \}\}" > ~\/\.npmrc/);
-	assert.match(workflow, /pnpm --silent run release:vault-seed:first-publish -- --publish --confirm "\$REFARM_FIRST_PUBLISH_CONFIRM"/);
+	assert.match(workflow, /pnpm --silent run release:first-publish -- --selection "\$REFARM_FIRST_PUBLISH_SELECTION" --publish --confirm "\$REFARM_FIRST_PUBLISH_CONFIRM"/);
 	assert.doesNotMatch(workflow, /pull_request_target:/);
 	assert.doesNotMatch(workflow, /packages:\s*write/);
 });

@@ -19,7 +19,7 @@ selected `@refarm.dev/*` packages inside `vault-seed` before those packages are 
 1. In the Refarm working tree, materialize the current `vault-seed-ready`
    packet:
    ```bash
-   pnpm --silent run release:vault-seed:check -- --plan --json
+   pnpm --silent run release:first-publish:plan -- --selection vault-seed-ready --json
    pnpm --silent run release:vault-seed:handoff -- --pack --prune-extra --json --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.json
    pnpm --silent run release:vault-seed:handoff -- --out .refarm/handoff/vault-seed/<YYYY-MM-DD>/manifest.md
    ```

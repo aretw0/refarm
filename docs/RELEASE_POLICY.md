@@ -64,9 +64,12 @@ Before preparing a package-specific release, run `pnpm run release:readiness:pla
 to inspect the first-release gate sequence, then `pnpm run release:readiness`
 when the local environment should prove npm/crates/workflow readiness end to end.
 This gate composes existing checks instead of minting a second release policy.
-For the consumer-pulled vault-seed lane, run `pnpm run release:vault-seed:plan`
-to inspect the accepted 18-package publish plan without publishing or running
-the full package publish dry-run.
+For a first-publish lane, run
+`pnpm run release:first-publish:plan -- --selection vault-seed-ready` to inspect
+the selected 18-package publish plan without publishing or running the full
+package publish dry-run. The `release:vault-seed:*` aliases remain available
+for this consumer handoff, but the first-publish lane itself is keyed by release
+policy selection, not by the downstream product name.
 
 1. It blocks execution if the git working tree is dirty.
 2. It bumps the version locally.
