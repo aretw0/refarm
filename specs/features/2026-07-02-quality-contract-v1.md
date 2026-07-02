@@ -106,7 +106,8 @@ world quality-checker {
 The `world` imports nothing: a checker is **pure compute**. It sees only the `subject` the host hands it and
 returns findings — so even an untrusted checker from a different author cannot exfiltrate or damage. The host
 does anything that needs capability (render a page, serialize its DOM, read text); the plugin does only the
-analysis. This is the capability model at its cleanest — useful code, minimal trust.
+analysis. This is the capability model at its cleanest — useful code, minimal trust; the host enforces the
+boundary (see `plugin-security-model.md`), so this checker is a canonical minimal-capability plugin.
 
 ### 2.2 Reference checkers (data + implementations)
 
@@ -122,37 +123,13 @@ change.
 
 ---
 
-## 3. The extensibility demonstration (a white-label CLI over the primitive)
+> **The extensibility demonstration** — a white-label CLI that installs an agent, installs/authors sandboxed
+> plugins + skills, scaffolds deterministically, and runs a maker/checker quality gate — **composes**
+> `quality:v1` with the agent / plugin host (`plugin-lifecycle`, `plugin-security-model`) / skills
+> (`skill-runtime-activation`) / scaffold (`apps-refarm-scaffold`) blocks. It is composition, not this
+> contract, and is specified separately (secure-extensibility demonstration).
 
-`quality:v1` composes with the existing plugin/skill/agent blocks into a reproducible showcase of **secure
-extensibility** — a white-label CLI (refarm underneath, via `toolbox`) that installs an agent, installs (or
-authors) extensions, and does real work under a quality gate:
-
-```
-install    a white-label CLI (refarm underneath)
-agent      install a coding agent (lean, over the public agent contracts)
-extend     install sandboxed WASM plugins (e.g. the checker plugins) from different authors;
-           and install OR author a skill (skill-contract) for a specific need
-work       the CLI does a DETERMINISTIC scaffold (reproducible, no model tokens);
-           the agent spends real tokens only on genuine authoring work (e.g. a new plugin)
-gate       the checker plugins evaluate the output (maker/checker loop) until clean
-```
-
-Design principles this encodes:
-
-- **Determinism first, tokens where they earn it.** The reproducible base is scaffolded deterministically;
-  model tokens are reserved for genuine creative work (authoring a new capability). Efficient and auditable
-  AI use, not gratuitous — a defensible posture for regulated contexts.
-- **Extensibility on every axis.** Sandboxed plugins (consume *and* the agent authors one), skills (install
-  *and* create), a deterministic scaffold — not a fixed toolset.
-- **Maker/checker.** The agent makes; the checker plugins are the gate; the loop corrects until clean.
-
-The demonstration is generic (a template, a skill, a service); concrete downstream compositions and personas
-live in the downstream consumers, not here.
-
----
-
-## 4. Forward compatibility
+## 3. Forward compatibility
 
 - **Matcher-is-data.** `check`/`locus` are opaque; new domains ship as checker implementations + rule data,
   never as contract edits.
@@ -161,7 +138,7 @@ live in the downstream consumers, not here.
 - **Native ↔ WASM parity.** The same `QualityChecker` is satisfied in-process or sandboxed; migration is
   gradual, never forced.
 
-## 5. Boundaries, ownership, sequencing, testing
+## 4. Boundaries, ownership, sequencing, testing
 
 - **Ownership.** Refarm owns `quality:v1`, the plugin host, and the reference checker plugins (distributed).
   Downstream consumers own their **profiles** (their declared intentions) and run checkers against their own
