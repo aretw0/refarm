@@ -24,7 +24,7 @@ export function runRegexQualityRules(subject: string, profile: QualityProfile): 
 			continue;
 		}
 
-		const pattern = stringParam(rule, "pattern");
+		const pattern = stringParam(rule, "pattern") ?? stringParam(rule, "regex");
 		if (!pattern) {
 			findings.push({
 				severity: "fail",

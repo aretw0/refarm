@@ -4,6 +4,8 @@
 
 **Goal:** Implement `@refarm.dev/quality-contract-v1` — the `quality:v1` declared-lint contract (rule/finding/profile envelope + a pluggable `QualityChecker`), with a reference text checker and a conformance runner.
 
+**Implementation note (2026-07-02):** Completed in commit `a3820bfe` as one consolidated release-lane slice instead of five TDD commits. The package intentionally kept a richer report envelope (`capability`, `checkerId`, `domain`, `profileName`) for downstream handoff clarity and chose explicit public names (`QualityFinding`, `resolveQualityProfile`, `countFindings`, `createRegexQualityChecker`, `runQualityCheck`) over the draft helper names below. The draft was useful for sequencing, but its helper names are not compatibility commitments.
+
 **Architecture:** A pure TypeScript contract package mirroring `records-contract-v1`: `types.ts` (envelope), `reference.ts` (profile resolution + a regex-based reference checker + report assembly), `conformance.ts` (envelope conformance runner), `index.ts` (exports). The rule matcher (`check`) and finding `locus` are opaque data the checker interprets — new domains ship as checker implementations, never as contract edits.
 
 **Tech Stack:** TypeScript (ESM), vitest, `tsc --project tsconfig.build.json`, pnpm workspace.
@@ -23,7 +25,7 @@
 - `packages/quality-contract-v1/package.json` — package manifest (mirrors records-contract-v1).
 - `packages/quality-contract-v1/tsconfig.json`, `tsconfig.build.json`, `vitest.config.ts` — TS + test config.
 - `packages/quality-contract-v1/src/types.ts` — the contract envelope types.
-- `packages/quality-contract-v1/src/reference.ts` — `resolveProfile`, `severityCounts`, `createReferenceTextChecker`, `runQualityReport`.
+- `packages/quality-contract-v1/src/profile.ts`, `src/reference.ts`, `src/report.ts` — profile resolution, regex reference checking, and report assembly.
 - `packages/quality-contract-v1/src/conformance.ts` — `runQualityV1Conformance`.
 - `packages/quality-contract-v1/src/reference.test.ts`, `src/conformance.test.ts` — tests.
 - `packages/quality-contract-v1/src/index.ts` — public exports.
@@ -41,7 +43,7 @@
 - Create: `packages/quality-contract-v1/src/types.ts`
 
 **Interfaces:**
-- Produces: `QUALITY_CAPABILITY`, `QualityRule`, `QualityProfile`, `Finding`, `QualityReport`, `QualityChecker` (consumed by every later task).
+- Produces: `QUALITY_CAPABILITY`, `QualityRule`, `QualityProfile`, `QualityFinding`, `QualityReport`, `QualityChecker` (consumed by every later task).
 
 - [ ] **Step 1: Copy config from the sibling contract package**
 
@@ -520,4 +522,4 @@ git commit -m "feat(quality): public exports + readme; quality-contract-v1 build
 
 - **Spec coverage:** §1 types → Task 1; profile composition (`extends`) → Task 2; native reference checker + matcher-is-data → Task 3; conformance (ruleId/severity present, unknown severity no-throw) → Task 4; package surface → Task 5. The WASM checker surface (§2.1) and reference catalogs (text-tells/design-tells rule data) are downstream of this package (separate plans), not part of the contract package itself.
 - **Placeholder scan:** none — every step has full code or an exact command.
-- **Type consistency:** `resolveProfile` returns `QualityProfile` (Task 2) and is re-exported (Task 5); `createReferenceTextChecker`/`runQualityReport` (Task 3) and `runQualityV1Conformance`/`ConformanceResult`/`ConformanceSample` (Task 4) names match their exports in Task 5.
+- **Type consistency:** `resolveQualityProfile`/`countFindings`/`createRegexQualityChecker`/`runQualityCheck` are the public names. The older task text below is retained as planning history, not as an API contract; avoid adding aliases without a real consumer proof.

@@ -83,6 +83,24 @@ describe("quality:v1 conformance", () => {
 		expect(report.counts).toEqual({ notice: 2, warn: 1 });
 	});
 
+	it("accepts the spec's regex field name without adding a second public checker API", async () => {
+		const checker = createRegexQualityChecker();
+		const report = await runQualityCheck(checker, "generic", {
+			name: "writing",
+			rules: [
+				{
+					id: "generic",
+					severity: "warn",
+					description: "Avoid generic wording.",
+					check: { type: "regex", regex: "generic" },
+				},
+			],
+		});
+
+		expect(report.findings).toHaveLength(1);
+		expect(report.findings[0]?.ruleId).toBe("generic");
+	});
+
 	it("reports actionable failures for incompatible checkers", async () => {
 		const checker: QualityChecker<string> = {
 			checkerId: "",
