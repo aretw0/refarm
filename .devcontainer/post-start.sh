@@ -222,7 +222,9 @@ check_coding_agent_tools
 check_gh_auth_home
 check_agent_env
 
-if [ -x "$ROOT/scripts/env-safety-check.sh" ]; then
+# Guard on presence, not the executable bit: the script is invoked via `bash` (no +x needed), and Windows
+# bind mounts do not preserve the Unix execute bit — `-x` would falsely report "missing" and SKIP the check.
+if [ -f "$ROOT/scripts/env-safety-check.sh" ]; then
 	bash "$ROOT/scripts/env-safety-check.sh" --warn || true
 else
 	echo "[refarm-devcontainer][warn] scripts/env-safety-check.sh is missing"
