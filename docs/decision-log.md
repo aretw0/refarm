@@ -59,10 +59,11 @@ sub-slices still require the root/entrypoint lane.
 single `apps/refarm` Vitest file command (`test/commands/agent.test.ts`) again showed enough
 pressure that the operator stopped the lane before another container loss. Until the rebuild makes
 the cgroup boundary active, `apps/refarm` Vitest is treated as post-rebuild validation. Safe
-pre-rebuild handoff checks are limited to source/diff checks and directly affected package/tooling
-tests, plus the devcontainer contract test that proves the declared boundary before rebuild. The
-current durable checkpoints are `fbc44e54` (`pi-agent` -> `agent`) and `3b98a484` (`imports` owned
-by `@refarm.dev/toolbox`).
+pre-rebuild handoff checks are limited to the opt-in `factory:pre-rebuild` lane: source/diff checks,
+directly affected package/tooling tests, and the devcontainer contract test that proves the declared
+boundary before rebuild. This lane is not a release gate and must not make the main suite carry a
+temporary pre-rebuild workaround. The current durable checkpoints are `fbc44e54` (`pi-agent` ->
+`agent`) and `3b98a484` (`imports` owned by `@refarm.dev/toolbox`).
 
 ---
 

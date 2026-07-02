@@ -121,10 +121,11 @@ again showed pressure on a single `apps/refarm` Vitest file command:
 container rebuild that activates the `.devcontainer` cgroup ceilings, treat
 `apps/refarm` Vitest as a post-rebuild validation lane, not as a safe
 pre-rebuild micro-slice. The safe pre-rebuild checks used for this handoff were
-`git diff --check`, `refarm tidy imports --check --json`,
-`pnpm run imports:organize:test`,
-`node --test scripts/ci/test-devcontainer-contract.mjs`, and the
-already-completed `packages/toolbox` test slice.
+captured as the opt-in `pnpm run factory:pre-rebuild` lane: `git diff --check`,
+import organizer check/test, `packages/toolbox` test, and
+`node --test scripts/ci/test-devcontainer-contract.mjs`. This lane is not a
+release gate and must not pull `apps/refarm` Vitest into the pre-rebuild suite;
+app-level validation resumes after the rebuild activates the cgroup ceilings.
 
 Disposition rule: do not confuse abandoning a high-risk validation path with
 abandoning the product direction. In the 2026-06-29 reference-driver slice, the

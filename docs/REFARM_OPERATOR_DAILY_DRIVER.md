@@ -130,7 +130,9 @@ protective without stopping momentum:
     `pnpm -C apps/refarm run test:file -- test/commands/agent.test.ts`
     pressured the shared container after earlier heavy slices. Use docs,
     `git diff --check`, package-local tooling tests, and `refarm tidy imports`
-    to close handoff work, then rerun app-level checks after rebuild.
+    to close handoff work, or run the opt-in `pnpm run factory:pre-rebuild`
+    lane. Do not promote that temporary pre-rebuild lane into the release suite;
+    rerun app-level checks after rebuild.
 - **Protective lane trigger:**
   - command re-runs due to repeated `--filter ... test` slices,
   - observed flakiness/timeouts under load,
