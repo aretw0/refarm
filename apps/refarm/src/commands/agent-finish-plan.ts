@@ -404,6 +404,8 @@ function affectedScriptChecksFromChangedPaths(
 	const checks = new Set<string>();
 	for (const file of paths) {
 		if (
+			file === "packages/toolbox/src/imports-command.mjs" ||
+			file === "packages/toolbox/src/imports.mjs" ||
 			file === "scripts/organize-imports-lib.mjs" ||
 			file === "scripts/organize-imports.mjs" ||
 			file === "scripts/ci/test-organize-imports-lib.mjs"

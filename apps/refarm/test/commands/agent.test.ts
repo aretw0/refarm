@@ -2235,9 +2235,9 @@ describe("agent command", () => {
 		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-scripts-"));
 		tempDirs.push(root);
 		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
-		mkdirSync(path.join(root, "scripts"), { recursive: true });
+		mkdirSync(path.join(root, "packages", "toolbox", "src"), { recursive: true });
 		writeFileSync(
-			path.join(root, "scripts", "organize-imports-lib.mjs"),
+			path.join(root, "packages", "toolbox", "src", "imports.mjs"),
 			"export const changed = true;\n",
 			"utf8",
 		);
@@ -2924,9 +2924,9 @@ describe("agent command", () => {
 		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-scripts-operator-"));
 		tempDirs.push(root);
 		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
-		mkdirSync(path.join(root, "scripts"), { recursive: true });
+		mkdirSync(path.join(root, "packages", "toolbox", "src"), { recursive: true });
 		writeFileSync(
-			path.join(root, "scripts", "organize-imports-lib.mjs"),
+			path.join(root, "packages", "toolbox", "src", "imports.mjs"),
 			"export const changed = true;\n",
 			"utf8",
 		);

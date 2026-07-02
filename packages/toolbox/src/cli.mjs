@@ -28,6 +28,12 @@ async function run() {
             case 'finish':
                 await import('./finish.mjs');
                 break;
+            case 'imports':
+                {
+                    const { runImportsCommand } = await import('./imports-command.mjs');
+                    process.exitCode = runImportsCommand(process.argv.slice(2));
+                    break;
+                }
             case 'rebrand':
                 await import('./rebrand.mjs');
                 break;
@@ -54,6 +60,7 @@ async function run() {
                 console.log("  start       - Begin a new feature or hotfix");
                 console.log("  verify      - Run the quality gates (lint, test, build)");
                 console.log("  finish      - Complete a task, verify, and open a PR");
+                console.log("  imports     - Organize imports on changed source files or explicit paths");
                 console.log("  safety      - Run execution profiles (micro|normal|full or custom)");
                 console.log("  rebrand     - Emergency global refactoring protocol");
                 console.log("  sync-labels - Create/Update GitHub phase labels");

@@ -6,9 +6,11 @@ import { describe, it } from "node:test";
 
 import {
 	isOrganizableSourceFile,
+	organizeImports,
 	organizeImportText,
 	uniqueSourceFiles,
-} from "../organize-imports-lib.mjs";
+} from "../../packages/toolbox/src/imports.mjs";
+import { runImportsCommand } from "../../packages/toolbox/src/imports-command.mjs";
 
 describe("organize-imports-lib", () => {
 	it("selects source files and skips generated artifacts", () => {
@@ -87,6 +89,48 @@ describe("organize-imports-lib", () => {
 					"",
 				].join("\n"),
 			);
+		} finally {
+			rmSync(root, { recursive: true, force: true });
+		}
+	});
+
+	it("exposes the organizer through the toolbox command runner", () => {
+		const root = mkdtempSync(path.join(tmpdir(), "refarm-organize-imports-"));
+		const sourceDir = path.join(root, "src");
+		mkdirSync(sourceDir, { recursive: true });
+		writeFileSync(path.join(sourceDir, "a.ts"), "export const a = 1;\n");
+		writeFileSync(
+			path.join(sourceDir, "main.ts"),
+			[
+				'import { describe,it } from "node:test";',
+				'import { a } from "./a";',
+				"",
+				"console.log(a, describe, it);",
+				"",
+			].join("\n"),
+		);
+
+		try {
+			const stdout = {
+				text: "",
+				write(chunk) {
+					this.text += chunk;
+				},
+			};
+			const stderr = {
+				text: "",
+				write(chunk) {
+					this.text += chunk;
+				},
+			};
+
+			assert.equal(
+				runImportsCommand(["imports", "src/main.ts"], { cwd: root, stdout, stderr }),
+				0,
+			);
+			assert.deepEqual(organizeImports(["src/main.ts"], { root, check: true }), []);
+			assert.match(stdout.text, /Organized imports in 1 file/);
+			assert.equal(stderr.text, "");
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
