@@ -87,10 +87,10 @@ RUN mkdir -p /workspaces/refarm \
 COPY farm /usr/local/bin/farm
 RUN chmod +x /usr/local/bin/farm
 
-# ── refarm entrypoint: run must-run-on-every-start setup on ANY bring-up (docker start / Docker Desktop,
-#    not only VS Code attach), then keep the container alive (verbatim Dev Containers keep-alive). Setup is
-#    non-fatal + time-bounded, so it can never block the container from coming up. Requires
+# ── Generic devcontainer entrypoint (project-agnostic): runs the workspace's every-start boot hook
+#    (.devcontainer/on-start.sh) on ANY bring-up — docker start / Docker Desktop, not only VS Code attach —
+#    then keeps the container alive. Carries no project specifics; the lanes live in on-start.sh. Requires
 #    "overrideCommand": false in devcontainer.json so this ENTRYPOINT is not overridden. ──
-COPY entrypoint.sh /usr/local/bin/refarm-entrypoint.sh
-RUN chmod +x /usr/local/bin/refarm-entrypoint.sh
-ENTRYPOINT ["/usr/local/bin/refarm-entrypoint.sh"]
+COPY entrypoint.sh /usr/local/bin/devcontainer-entrypoint.sh
+RUN chmod +x /usr/local/bin/devcontainer-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/devcontainer-entrypoint.sh"]

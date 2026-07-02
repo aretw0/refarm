@@ -1,28 +1,24 @@
 #!/usr/bin/env bash
-# refarm devcontainer entrypoint.
+# Generic devcontainer entrypoint — project-agnostic.
 #
-# Runs must-run-on-EVERY-start setup, then keeps the container alive. Unlike `postStartCommand`
-# (post-start.sh) — which the Dev Containers tooling runs only on VS Code / devcontainer-CLI attach — this
-# runs on every container start, including a bare `docker start` / Docker Desktop bring-up.
+# Runs the workspace's every-start boot hook (`.devcontainer/on-start.sh`, non-fatal + time-bounded), then
+# keeps the container alive with the verbatim Dev Containers keep-alive. Unlike `postStartCommand`, which
+# the tooling runs only on VS Code / devcontainer-CLI attach, this runs on EVERY container start (a bare
+# `docker start` / Docker Desktop bring-up included).
 #
-# Two invariants keep it safe:
-#   1. setup is NON-FATAL and time-bounded — it can never block or prevent the container from coming up;
-#   2. the keep-alive is a verbatim copy of the Dev Containers override (from `docker inspect`), so attach
-#      behaviour is unchanged.
+# It carries NO project specifics: the workspace path is derived, and the lanes live in `on-start.sh`
+# (which converges to a config-driven `<project> devcontainer boot`). Two invariants keep it safe:
+#   1. the boot hook is non-fatal and bounded — it can never block the container from coming up;
+#   2. the keep-alive is verbatim from the Dev Containers override, so attach behaviour is unchanged.
 #
 # Revert (if a rebuild misbehaves): remove `"overrideCommand": false` from devcontainer.json and the
-# COPY/chmod/ENTRYPOINT lines from the Dockerfile, then rebuild — that restores the default override.
+# COPY/chmod/ENTRYPOINT lines from the Dockerfile, then rebuild.
 set +e
 
-ROOT="/workspaces/refarm"
-
-# --- must-run-on-every-start setup (non-fatal, bounded) ---
-if [ -f "$ROOT/scripts/env-safety-check.sh" ]; then
-	timeout 30 bash "$ROOT/scripts/env-safety-check.sh" --warn 2>&1 | sed 's/^/[entrypoint] /' || true
+export DEVCONTAINER_WORKSPACE="$(pwd)"
+if [ -f "$DEVCONTAINER_WORKSPACE/.devcontainer/on-start.sh" ]; then
+	timeout 60 bash "$DEVCONTAINER_WORKSPACE/.devcontainer/on-start.sh" 2>&1 | sed 's/^/[boot] /' || true
 fi
-# Future: the commons watchdog launches here (every start), per docs/superpowers/plans/2026-07-02-commons-watchdog.md.
-# Convergence target: replace this block with `refarm devcontainer boot` (config-driven), per
-# docs/research/2026-07-02-devcontainer-boot-as-config.md.
 
 # --- keep-alive: verbatim from the Dev Containers override (docker inspect) ---
 echo "Container started"
