@@ -100,6 +100,7 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/artifact-contract-v1",
 		"@refarm.dev/channel-policy-v1",
 		"@refarm.dev/effort-contract-v1",
+		"@refarm.dev/quality-contract-v1",
 		"@refarm.dev/source-contract-v1",
 		"@refarm.dev/enrichment-contract-v1",
 		"@refarm.dev/records-contract-v1",
@@ -160,7 +161,7 @@ test("release check plan json exposes acceptance summary", () => {
 	assert.equal(payload.ok, true);
 	assert.equal(payload.selection.id, "vault-seed-ready");
 	assert.equal(payload.acceptance.status, "accepted");
-	assert.equal(payload.acceptance.packageCount, 18);
+	assert.equal(payload.acceptance.packageCount, 19);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
 	assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);

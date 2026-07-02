@@ -520,11 +520,12 @@ downstream assimilation checklist: each item has a stable `proofId`, names the
 `vault-seed` proof target, and records the product boundary that must remain
 local. `distributionEvidence` records the local handoff ref, verified-copy
 state, update source, rollback target, and the explicit boundary that this is
-not a public install contract or P2P substrate. After the T3 downstream proof
-and the T2 credentials pull, the 2026-07-01 active packet was materialized from
-the generated manifest under `.refarm/handoff/vault-seed/2026-07-01/`: it
-reports `acceptance.status: "accepted"`, 18 packages, 4 required gates, 49
-required checks, 18 tarballs, `manifest.json`, and `manifest.md`. The official
+not a public install contract or P2P substrate. After the T3 downstream proof,
+the T2 credentials pull, the agent-demo public-surface proof, and the
+`quality:v1` pull, the 2026-07-02 active packet was materialized from the
+generated manifest under `.refarm/handoff/vault-seed/2026-07-02/`: it reports
+`acceptance.status: "accepted"`, 19 packages, 4 required gates, 54 required
+checks, 19 tarballs, `manifest.json`, and `manifest.md`. The official
 handoff should be copied from that generated packet rather than from this
 historical table.
 

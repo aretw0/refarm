@@ -56,6 +56,12 @@ const VAULT_SEED_CONSUMER_PULLS = {
 		proofTarget: "dgk process flows attach effort identifiers to emitted evidence",
 		ownershipBoundary: "dgk command vocabulary and operator UX remain downstream",
 	},
+	"@refarm.dev/quality-contract-v1": {
+		proofId: "quality-contract.declared-lint-envelope",
+		downstreamUse: "Declared quality/lint profiles and reports for text, UI, and checker plugin POCs",
+		proofTarget: "vault-seed and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+		ownershipBoundary: "Rule catalogs, severity policy, product copy, personas, and rendered-subject collection remain downstream",
+	},
 	"@refarm.dev/process-handoff": {
 		proofId: "process-handoff.dgk-runner-adapter",
 		downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",

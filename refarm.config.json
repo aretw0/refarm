@@ -379,6 +379,30 @@
         ]
       },
       {
+        "id": "@refarm.dev/quality-contract-v1",
+        "risk": "core",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/quality-contract-v1 run lint",
+          "pnpm --filter @refarm.dev/quality-contract-v1 run type-check",
+          "pnpm --filter @refarm.dev/quality-contract-v1 run test:conformance",
+          "pnpm --filter @refarm.dev/quality-contract-v1 run build"
+        ],
+        "tags": [
+          "quality",
+          "contract",
+          "sdk-primitive",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "boundary-review"
+        ],
+        "consumerPull": {
+          "proofId": "quality-contract.declared-lint-envelope",
+          "downstreamUse": "Declared quality/lint profiles and reports for text, UI, and checker plugin POCs",
+          "proofTarget": "vault-seed and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+          "ownershipBoundary": "Rule catalogs, severity policy, product copy, personas, and rendered-subject collection remain downstream"
+        }
+      },
+      {
         "id": "@refarm.dev/session-contract-v1",
         "risk": "core",
         "mustPassChecks": [

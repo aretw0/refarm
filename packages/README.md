@@ -95,6 +95,7 @@ CLI labels, copy, notebooks, routes, and UX.
 | [`@refarm.dev/artifact-contract-v1`](./artifact-contract-v1) | Artifact/provenance manifests for Lab datasets, outbox manifests, and notebook snapshots | `vault-seed-ready`; held |
 | [`@refarm.dev/channel-policy-v1`](./channel-policy-v1) | Channel delivery evidence, rate limits, dry-run reports, and review gates | `kernel-candidates` + `vault-seed-ready`; held |
 | [`@refarm.dev/effort-contract-v1`](./effort-contract-v1) | Effort/task contract dependency for dispatch evidence | `vault-seed-ready`; held |
+| [`@refarm.dev/quality-contract-v1`](./quality-contract-v1) | Declared quality/lint profiles, findings, reports, conformance, and checker contract | `vault-seed-ready`; held |
 | [`@refarm.dev/storage-contract-v1`](./storage-contract-v1) | Versioned `storage:v1` contract used by wallet/storage seams | `kernel-candidates` + `vault-seed-ready`; held |
 | [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | Versioned `identity:v1` signing contract used by credentials seams | `kernel-candidates` + `vault-seed-ready`; held |
 | [`@refarm.dev/source-contract-v1`](./source-contract-v1) | Versioned `source:v1` support contract for `source-web` | `vault-seed-ready`; held |

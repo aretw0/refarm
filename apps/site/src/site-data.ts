@@ -10,6 +10,7 @@ export const vaultSeedPackages = [
 	"identity-contract-v1",
 	"identity-heartwood",
 	"process-handoff",
+	"quality-contract-v1",
 	"records-contract-v1",
 	"release-engine",
 	"silo",
@@ -21,8 +22,8 @@ export const vaultSeedPackages = [
 
 export const siteFacts = {
 	handoffDate: "2026-07-01",
-	packageCount: 18,
-	requiredCheckCount: 50,
+	packageCount: 19,
+	requiredCheckCount: 54,
 	publicPublishCount: 0,
 	manualApprovalRequired: true,
 } as const;

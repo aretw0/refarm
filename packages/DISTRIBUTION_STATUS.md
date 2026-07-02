@@ -45,6 +45,7 @@ channel, not a public npm publication promise.
 - `@refarm.dev/artifact-contract-v1`
 - `@refarm.dev/channel-policy-v1`
 - `@refarm.dev/effort-contract-v1`
+- `@refarm.dev/quality-contract-v1`
 - `@refarm.dev/storage-contract-v1`
 - `@refarm.dev/identity-contract-v1`
 - `@refarm.dev/source-contract-v1`
@@ -146,6 +147,14 @@ first rules for text/background contrast, overflow, heading `clamp()` usage, and
 heading hierarchy. Consumers still own how they collect snapshots from their
 rendering harness; Refarm owns the reusable rules that prevent repeated UI
 gaffes across `apps/site`, `vault-seed`, and agent-demo screens.
+
+`@refarm.dev/quality-contract-v1` is selected as the neutral `quality:v1`
+envelope for declared quality/lint intentions. It ships types, profile
+composition, report counting, a conformance suite, and a small regex checker
+reference so downstream POCs can converge text quality, UI quality, and future
+sandboxed checker plugins without copying another bespoke finding format. Rule
+catalogs, severity policy, rendered-subject collection, and product-specific
+profiles remain downstream-owned.
 
 ---
 
