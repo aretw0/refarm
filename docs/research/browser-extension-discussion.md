@@ -659,3 +659,29 @@ Web Clipper do Refarm seria o produtor desse pipeline.
 **Fronteira de runtime:** o Hermes Agent (Nous Research) é um runtime **externo** — referência de
 arquitetura, não confundir com o runtime próprio do Refarm. Aproveita-se o *padrão* (bridge para runtime
 soberano), não o runtime específico.
+
+## Referência externa: browser-harness (2026-07-02)
+
+Sinalizado pelo consumidor vault-seed — o **polo oposto** do hermes, e útil ver os dois juntos:
+[`aretw0/browser-harness`](https://github.com/aretw0/browser-harness). Um harness **CDP** (Chrome DevTools
+Protocol) fino e editável (~1000 linhas, 4 arquivos) que conecta um LLM direto ao browser real via um
+WebSocket. Diferente de wrappers Playwright/Puppeteer, é **self-healing**: quando o agente encontra
+funcionalidade faltando, gera o helper + a skill de domínio em vez de falhar, e a skill vira contribuição
+permanente.
+
+**O espectro de integração com browser (os dois polos):**
+
+| | hermes | browser-harness |
+|---|---|---|
+| Controle | **read-only** (sem clicar/submeter) | **ativo** (clica, preenche, navega) |
+| Motor | captura + bridge pra runtime | LLM dirige via CDP, self-healing |
+| Risco / permissão | mínimo (fácil aprovar) | alto (browser-control total) |
+| Caso | web clipping → `source:v1` | automação autônoma de tarefas |
+
+Este doc recomenda o **Web Clipper** (polo hermes) para v0.7.0+ — menor risco, maior valor para o core. O
+`browser-harness` é o polo de automação ativa: mais poderoso, mas mais superfície de risco.
+
+**Fronteira:** o ângulo **LLM-driven / self-healing / skills acumuláveis** é território de *runtime de
+agente* (curado fora do core do Refarm). Para a área de **source** do Refarm, a lição transferível é o
+*substrato CDP fino e editável* e o espectro read-only↔ativo — não o motor agêntico. É um **fork**
+mantido pelo aretw0 (não autoria original), estudado como referência/influência — não uma dependência.
