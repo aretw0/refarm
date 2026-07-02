@@ -60,8 +60,9 @@ single `apps/refarm` Vitest file command (`test/commands/agent.test.ts`) again s
 pressure that the operator stopped the lane before another container loss. Until the rebuild makes
 the cgroup boundary active, `apps/refarm` Vitest is treated as post-rebuild validation. Safe
 pre-rebuild handoff checks are limited to source/diff checks and directly affected package/tooling
-tests; the current durable checkpoints are `fbc44e54` (`pi-agent` -> `agent`) and `3b98a484`
-(`imports` owned by `@refarm.dev/toolbox`).
+tests, plus the devcontainer contract test that proves the declared boundary before rebuild. The
+current durable checkpoints are `fbc44e54` (`pi-agent` -> `agent`) and `3b98a484` (`imports` owned
+by `@refarm.dev/toolbox`).
 
 ---
 
