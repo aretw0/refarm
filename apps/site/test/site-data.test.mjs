@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import * as ts from "typescript";
+import {
+	buildReleaseCheckPlan,
+	serializeReleaseCheck,
+} from "../../../scripts/release-check.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "../../..");
 const SITE_DATA = path.join(ROOT, "apps/site/src/site-data.ts");
@@ -107,22 +111,26 @@ test("public site vault-seed-ready list follows release policy and handoff facts
 	const source = siteDataSource();
 	const sitePackages = extractVaultSeedPackages(source);
 	const facts = extractSiteFacts(source);
-	const handoffRelativePath = `.refarm/handoff/vault-seed/${facts.handoffDate}/manifest.json`;
-	const handoff = readJson(handoffRelativePath);
-	const handoffPackages = handoff.packages
-		.map((entry) => entry.packageName.replace(/^@refarm\.dev\//u, ""))
+	const releaseCheck = buildReleaseCheckPlan({
+		cwd: ROOT,
+		selectionId: "vault-seed-ready",
+	});
+	const releaseSummary = serializeReleaseCheck(releaseCheck);
+	const releasePackages = releaseSummary.packages
+		.map((packageName) => packageName.replace(/^@refarm\.dev\//u, ""))
 		.sort();
 
+	assert.equal(releaseCheck.ok, true);
 	assert.deepEqual(sitePackages, vaultSeedReadyFromConfig());
-	assert.deepEqual(sitePackages, handoffPackages);
-	assert.equal(existsSync(path.join(ROOT, handoffRelativePath)), true);
+	assert.deepEqual(sitePackages, releasePackages);
+	assert.match(facts.handoffDate, /^\d{4}-\d{2}-\d{2}$/u);
 	assert.equal(facts.packageCount, sitePackages.length);
-	assert.equal(facts.packageCount, handoff.acceptance.packageCount);
-	assert.equal(facts.requiredCheckCount, handoff.acceptance.requiredCheckCount);
-	assert.equal(facts.manualApprovalRequired, handoff.acceptance.manualApprovalRequired);
+	assert.equal(facts.packageCount, releaseSummary.acceptance.packageCount);
+	assert.equal(facts.requiredCheckCount, releaseSummary.acceptance.requiredCheckCount);
+	assert.equal(facts.manualApprovalRequired, releaseSummary.acceptance.manualApprovalRequired);
 	assert.equal(facts.publicPublishCount, 0);
-	assert.equal(handoff.status, "ready");
-	assert.equal(handoff.acceptance.status, "accepted");
+	assert.equal(releaseSummary.status, "ready");
+	assert.equal(releaseSummary.acceptance.status, "accepted");
 });
 
 test("public site serves the records:v1 JSON-LD context route", async () => {

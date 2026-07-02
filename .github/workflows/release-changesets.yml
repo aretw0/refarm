@@ -35,7 +35,7 @@ jobs:
         run: node scripts/ci/setup-env.mjs
 
       - name: Release policy plan (preflight)
-        run: node scripts/release-engine.mjs plan --only-required --dry-run --json
+        run: pnpm --silent run release:vault-seed:plan -- --json
 
       - name: Strict dispatch-surface native artifact build (release mode)
         run: |
