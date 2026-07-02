@@ -855,7 +855,7 @@ const REFERENCE_DRIVER_ADOPTION_CRITERIA = [
 		requirement:
 			"Model route, provider token/cost use, retry count, max turns, max parallel workers, and stop condition are visible before fanout.",
 		proof:
-			"Worker runtime dispatch and pi-agent publication remain held until budget ledgers are boring.",
+			"pi-agent has a narrow release proof; worker fanout and plugin-runtime promotion remain held until budget ledgers are boring.",
 		consumerBoundary:
 			"Consumer dashboards may restyle the evidence, but cannot replace it with unstructured logs.",
 	},

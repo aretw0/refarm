@@ -41,10 +41,6 @@ export const HELD_AGENT_PLUGIN_SURFACES = [
 		reason: "operator tooling is not the white-label runtime surface for downstream agent demos",
 	},
 	{
-		id: "@refarm.dev/pi-agent",
-		reason: "reference runtime agent remains private until runtime-host proof and daily-driver stability are stronger",
-	},
-	{
 		id: "refarm:agent-tools@0.1.0",
 		reason: "WIT component boundary is internal; package/Cargo publication stays blocked by component packaging proof",
 	},
@@ -119,6 +115,8 @@ export function buildAgentDemoReleaseProof({
 		selectionId,
 		claim:
 			"An agent-demo can consume public dispatch/control/evidence blocks without publishing the held plugin runtime stack.",
+		engineProof:
+			"@refarm.dev/pi-agent is proven separately by pnpm run pi-agent:release-proof; this proof only gates the reusable agent-demo dispatch surface.",
 		publicSurface: REQUIRED_PUBLIC_PACKAGES.map((name) => ({
 			package: name,
 			selected: selected.has(name),

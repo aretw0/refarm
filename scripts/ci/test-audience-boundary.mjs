@@ -117,7 +117,8 @@ test("ecosystem supply map keeps reference driver package-first", () => {
 	assert.match(supplyMap, /@refarm\.dev\/cli\/capability-index/);
 	assert.match(supplyMap, /@refarm\.dev\/cli\/interaction-driver/);
 	assert.match(supplyMap, /@refarm\.dev\/cli\/worker-profile/);
-	assert.match(supplyMap, /@refarm\.dev\/pi-agent` held/);
+	assert.match(supplyMap, /@refarm\.dev\/pi-agent` unheld as a narrow engine package/);
+	assert.match(supplyMap, /pi-agent:release-proof/);
 	assert.match(supplyMap, /refarm capabilities --supply-preflight\s+reference-driver --json/);
 	assert.match(supplyMap, /adoptionCriteria/);
 	assert.match(supplyMap, /promotionProofTargets/);
