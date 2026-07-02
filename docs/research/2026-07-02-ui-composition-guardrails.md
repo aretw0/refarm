@@ -122,6 +122,17 @@ This yields **two tiers**:
 2. **Tell detection (heuristic, prioritized warnings):** the vibecoded catalog, surfaced ranked by the
    community-frequency data — the ecosystem's "does this look AI-made?" signal, not a hard failure.
 
+**Nuance — a tell is low *effort*, not a banned effect (`samasante/liquid-glass`).**
+vibecoded-design-tells even debunks glassmorphism as a keyword artifact, and `liquid-glass` shows why:
+Apple-style glass done first-class — SVG `feDisplacementMap` refraction of the *live* DOM (text stays
+selectable, links clickable — accessible by construction), 3-pass chromatic aberration, 60fps imperative
+motion, explicit Safari/Firefox handling, zero runtime deps, "own-them" copy-paste components. So tier 2
+must not ban trendy effects; it flags the *cheap default* execution (unaccessible `backdrop-blur`,
+snapshot hacks) and passes the premium one. The guardrail checks **execution quality** — accessibility
+preserved, performance — not the effect's name. It is also an owned-primitive candidate for the
+DS/homestead (a premium glass surface, the same own-it / zero-dep / accessible ethos as humation's
+avatars).
+
 Extra (good to already have): **`humation-labs/humation`** — a *deterministic, offline, owned* kawaii
 avatar engine (seed → SVG, no AI/API, CSS-var recolor). Tangential to the lint, but its ethos (owned,
 deterministic, offline, no network risk) is the DS/homestead posture — a candidate owned-asset primitive
