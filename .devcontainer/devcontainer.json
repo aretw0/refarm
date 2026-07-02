@@ -4,6 +4,7 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
+  "overrideCommand": false,
   "runArgs": [
     "--memory=6g",
     "--memory-swap=6g",

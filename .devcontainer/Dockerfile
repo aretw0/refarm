@@ -86,3 +86,11 @@ RUN mkdir -p /workspaces/refarm \
 # ── farm: enter as dev user from Docker Desktop root terminals ───────────────
 COPY farm /usr/local/bin/farm
 RUN chmod +x /usr/local/bin/farm
+
+# ── refarm entrypoint: run must-run-on-every-start setup on ANY bring-up (docker start / Docker Desktop,
+#    not only VS Code attach), then keep the container alive (verbatim Dev Containers keep-alive). Setup is
+#    non-fatal + time-bounded, so it can never block the container from coming up. Requires
+#    "overrideCommand": false in devcontainer.json so this ENTRYPOINT is not overridden. ──
+COPY entrypoint.sh /usr/local/bin/refarm-entrypoint.sh
+RUN chmod +x /usr/local/bin/refarm-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/refarm-entrypoint.sh"]
