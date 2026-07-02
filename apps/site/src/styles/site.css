@@ -94,9 +94,9 @@ a {
 
 .site-hero h1 {
 	margin: 0;
-	max-width: 11ch;
-	font-size: clamp(3.4rem, 8vw, 7.25rem);
-	line-height: 0.94;
+	max-width: 10ch;
+	font-size: clamp(2.8rem, 8vw, 5.4rem);
+	line-height: 0.98;
 	letter-spacing: 0;
 }
 
@@ -289,7 +289,7 @@ a {
 
 	.site-hero h1 {
 		max-width: 12ch;
-		font-size: clamp(3rem, 16vw, 5rem);
+		font-size: clamp(2.65rem, 13vw, 4.25rem);
 	}
 
 	.site-status__facts {

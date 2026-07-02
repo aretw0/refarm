@@ -22,7 +22,7 @@ export const vaultSeedPackages = [
 export const siteFacts = {
 	handoffDate: "2026-07-01",
 	packageCount: 18,
-	requiredCheckCount: 49,
+	requiredCheckCount: 50,
 	publicPublishCount: 0,
 	manualApprovalRequired: true,
 } as const;
