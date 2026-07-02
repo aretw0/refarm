@@ -1,8 +1,13 @@
-name: First Publish Vault Seed Ready
+name: First Publish Selection
 
 on:
   workflow_dispatch:
     inputs:
+      selection:
+        description: "Release policy selection to publish at its declared 0.1.0 versions"
+        required: true
+        default: "vault-seed-ready"
+        type: string
       dry_run:
         description: "Run publish dry-runs only"
         required: true
@@ -12,7 +17,7 @@ on:
           - "true"
           - "false"
       confirm:
-        description: "Required when dry_run=false: publish-vault-seed-ready-0.1.0"
+        description: "Required when dry_run=false: publish-<selection>-0.1.0"
         required: false
         default: ""
 
@@ -42,20 +47,27 @@ jobs:
         run: node scripts/ci/setup-env.mjs
 
       - name: Release policy plan
-        run: pnpm --silent run release:vault-seed:plan -- --json
+        env:
+          REFARM_FIRST_PUBLISH_SELECTION: ${{ inputs.selection }}
+        run: pnpm --silent run release:first-publish:plan -- --selection "$REFARM_FIRST_PUBLISH_SELECTION" --json
 
       - name: Publish dry-run gate
-        run: pnpm --silent run release:vault-seed:check
+        env:
+          REFARM_FIRST_PUBLISH_SELECTION: ${{ inputs.selection }}
+        run: pnpm --silent run release:first-publish:check -- --selection "$REFARM_FIRST_PUBLISH_SELECTION"
 
       - name: First-publish dry-run
         if: inputs.dry_run == 'true'
-        run: pnpm --silent run release:vault-seed:first-publish -- --plan --json
+        env:
+          REFARM_FIRST_PUBLISH_SELECTION: ${{ inputs.selection }}
+        run: pnpm --silent run release:first-publish -- --selection "$REFARM_FIRST_PUBLISH_SELECTION" --plan --json
 
       - name: Validate publish confirmation
         if: inputs.dry_run == 'false'
         env:
+          REFARM_FIRST_PUBLISH_SELECTION: ${{ inputs.selection }}
           REFARM_FIRST_PUBLISH_CONFIRM: ${{ inputs.confirm }}
-        run: test "$REFARM_FIRST_PUBLISH_CONFIRM" = "publish-vault-seed-ready-0.1.0"
+        run: test "$REFARM_FIRST_PUBLISH_CONFIRM" = "publish-${REFARM_FIRST_PUBLISH_SELECTION}-0.1.0"
 
       - name: Configure npm authentication
         if: inputs.dry_run == 'false'
@@ -64,5 +76,6 @@ jobs:
       - name: Publish 0.1.0 packages
         if: inputs.dry_run == 'false'
         env:
+          REFARM_FIRST_PUBLISH_SELECTION: ${{ inputs.selection }}
           REFARM_FIRST_PUBLISH_CONFIRM: ${{ inputs.confirm }}
-        run: pnpm --silent run release:vault-seed:first-publish -- --publish --confirm "$REFARM_FIRST_PUBLISH_CONFIRM"
+        run: pnpm --silent run release:first-publish -- --selection "$REFARM_FIRST_PUBLISH_SELECTION" --publish --confirm "$REFARM_FIRST_PUBLISH_CONFIRM"

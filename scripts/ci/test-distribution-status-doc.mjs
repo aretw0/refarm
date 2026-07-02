@@ -129,7 +129,7 @@ test("vault seed convergence keeps current handoff hashes in the manifest", () =
 
 test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 	assert.match(crossRepoConsumptionDoc, /vault-seed-ready/);
-	assert.match(crossRepoConsumptionDoc, /release:vault-seed:check -- --plan --json/);
+	assert.match(crossRepoConsumptionDoc, /release:first-publish:plan -- --selection vault-seed-ready --json/);
 	assert.match(crossRepoConsumptionDoc, /--out \.refarm\/handoff\/vault-seed\/<YYYY-MM-DD>\/manifest\.json/);
 	assert.match(crossRepoConsumptionDoc, /manifest\.json/);
 	assert.match(crossRepoConsumptionDoc, /manifest\.md/);

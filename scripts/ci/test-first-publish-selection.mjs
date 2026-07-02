@@ -50,6 +50,8 @@ test("plans vault-seed first-publish dry-run without version bumps", () => {
 });
 
 test("requires explicit confirmation before publish mode", () => {
+	assert.equal(firstPublishConfirmValue("ecosystem-ready"), "publish-ecosystem-ready-0.1.0");
+
 	assert.throws(
 		() =>
 			buildFirstPublishPlan({

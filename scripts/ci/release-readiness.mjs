@@ -83,10 +83,11 @@ const RELEASE_READINESS_STEPS = [
 			"Runtime-agent/reference-driver primitives must pass their lightweight no-provider smoke before publication packaging.",
 	},
 	{
-		id: "vault-seed-publish-plan",
-		script: "release:vault-seed:plan",
+		id: "first-publish-selection-plan",
+		script: "release:first-publish:plan",
+		args: ["--", "--selection", "vault-seed-ready"],
 		reason:
-			"Consumer-pulled vault-seed-ready packages must resolve to an accepted publish plan before release approval.",
+			"First-publish packages for the selected release-policy lane must resolve to an accepted publish plan before release approval.",
 	},
 	{
 		id: "publish-dry-run",
@@ -101,11 +102,12 @@ function usage() {
 	);
 }
 
-function packageScriptCommand(script) {
+function packageScriptCommand(script, args = []) {
 	const command = createPackageScriptCommand({
 		cwd: ROOT,
 		repoRoot: ROOT,
 		script,
+		args,
 	});
 	return {
 		command: command.command,
@@ -117,7 +119,7 @@ function packageScriptCommand(script) {
 export function buildPlan() {
 	return RELEASE_READINESS_STEPS.map((step) => ({
 		...step,
-		...packageScriptCommand(step.script),
+		...packageScriptCommand(step.script, step.args),
 	}));
 }
 
