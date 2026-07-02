@@ -1,8 +1,10 @@
 {
 	"name": "@refarm.dev/pi-agent",
 	"version": "0.1.0",
-	"private": true,
 	"type": "module",
+	"publishConfig": {
+		"access": "public"
+	},
 	"description": "pi-agent — WASM plugin compiled from Rust via cargo-component",
 	"scripts": {
 		"check:wit": "node ../../scripts/ci/check-pi-agent-wit-sync.mjs",

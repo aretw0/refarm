@@ -14,14 +14,29 @@ is reusable across plugins, it belongs in shared host/tool primitives first, the
 
 ## Package Boundary
 
-`@refarm.dev/pi-agent` is intentionally private while runtime-agent/plugin
-publication policy is still on hold. Its npm `files` allowlist is still
-explicit so the eventual package cannot silently publish source or cache state:
-`dist/pi_agent.wasm`, `dist/plugin.json`, and `dist/jco`.
+`@refarm.dev/pi-agent` is **public** (`publishConfig.access="public"`) — the runtime-agent publication
+policy is resolved, and it is routed to distribution for downstream consumers. Its npm `files` allowlist
+stays explicit so the package publishes only the built artifacts, never source or cache state:
+`dist/pi_agent.wasm`, `dist/plugin.json`, and `dist/jco`. `node scripts/validate-packages.mjs` guards
+this: it requires that allowlist plus `publishConfig.access="public"` and keeps `build:wasm`/`build:jco`
+tied to those concrete artifacts.
 
-`node scripts/validate-packages.mjs` guards this boundary. If the package is
-ever made public, the same check requires `publishConfig.access="public"` and
-keeps `build:wasm`/`build:jco` tied to those concrete artifacts.
+## Minimal core vs shared primitives
+
+Farmhand is meant to stay **minimal** — the agent loop, provider integration, and session/task handling —
+consuming shared platform primitives rather than owning reusable behavior. Anything other plugins could
+reuse belongs in shared host/tool primitives first, then farmhand consumes it (the guardrail below). This
+thinness is what lets farmhand be a portable engine that the agents-lab adapter drives the same way it
+drives Pi.
+
+Current **extraction candidates** — behavior accreted here that should migrate to primitives:
+
+- **tool dispatch** (`tool_dispatch/shell_tools`) → shared `agent-tools` / host bridges
+- **structured IO** (`structured_io`) → a shared primitive
+- **state / persistence** → the session / storage contracts
+
+These are flagged, not yet extracted; the extraction is follow-up refactor, tracked so the boundary is
+clear without blocking distribution now.
 
 ---
 

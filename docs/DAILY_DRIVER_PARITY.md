@@ -2,6 +2,8 @@
 
 Refarm reaches `v0.1.0` only when it can replace the creator's current external pi workflow for real work. This checklist translates that policy into observable capabilities.
 
+**pi-agent is unheld (2026-07-02).** The runtime-agent publication policy is resolved: `@refarm.dev/pi-agent` (→ farmhand) is now public (`publishConfig.access="public"`), so the engine can be distributed to downstream consumers. What remains to reach `v0.1.0` is closing this checklist — the live daily-driver policy bundle (host shell policy, resumable sessions, durable memory under real load). Unholding distributes the engine; this checklist proves it is a real daily driver. Keep farmhand minimal (see the pi-agent README boundary): reusable behavior migrates to shared primitives so the same primitives serve Pi and farmhand.
+
 Reference driver research is tracked in
 [`docs/REFERENCE_AGENT_DRIVER_RESEARCH.md`](REFERENCE_AGENT_DRIVER_RESEARCH.md).
 Codex, Claude Code, Hermes Agent, and Pi converge on the same product pressure:

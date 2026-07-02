@@ -31,6 +31,14 @@ These are portable as source content and review fixtures. Refarm should not
 install or execute them directly until a native skill contract, capability
 declaration, policy envelope, and invocation adapter exist.
 
+**Bridge status (2026-07-02).** Of those four, the **native skill contract** (`skill-contract-v1`) and the
+**capability declaration** (`capability-index`, ADR-073) exist. The remaining bridge to finish is the
+**policy envelope** and the **invocation adapter** — the surface that lets farmhand (the now-unheld refarm
+engine, `@refarm.dev/pi-agent`) execute these curated Markdown skills the way Pi does. Closing it is what
+makes the agents-lab Refarm adapter real; until then the skills are content-portable but not yet
+refarm-executable. This is the "bridge Pi↔farmhand" work — painful but the gate for the rich shared-primitive
+future (one curated skill set, two engines).
+
 **git-skills**: Structured git workflows (commit conventions, branch naming,
 PR prep). Does refarm need this? Yes — the monorepo has specific commit conventions
 and PR patterns. The only question is whether the skill's instructions match
