@@ -167,8 +167,16 @@ async function main() {
 if (process.argv[1]?.endsWith("commons-watchdog.mjs")) main();
 ```
 
-- [ ] **Step 2: `.devcontainer/post-start.sh`** — launch once, guarded by a lockfile:
+- [ ] **Step 2: Launch from the container ENTRYPOINT, not `postStartCommand`.** `postStartCommand`
+  (`post-start.sh`) only runs when the Dev Containers tooling (VS Code / devcontainer CLI) **attaches** — a
+  bare `docker start` (Docker Desktop) does **not** run it. A watchdog wired there would silently not
+  protect a container brought up outside VS Code. Add a wrapper the Dockerfile sets as `ENTRYPOINT` that
+  starts the watchdog (lockfile-guarded) then `exec "$@"` the original command:
   `nohup node "$ROOT/scripts/devcontainer/commons-watchdog.mjs" >/tmp/commons-watchdog.log 2>&1 &`
+  The same rule covers env/safety setup: **anything that must run on _every_ start belongs in the
+  entrypoint, not `postStartCommand`.** Do this restructuring deliberately and test in a throwaway — a
+  broken entrypoint breaks the rebuild. (Surfaced by the vault-seed consumer: VS Code runs the lifecycle
+  hooks on connect; a Docker Desktop bring-up skips them, so post-start-only setup is missed.)
 
 - [ ] **Step 3: Route `log`/`escalate` to the real `TelemetryBus`** (the same bus Scarecrow's `agent-tool:*` events use) so environment reclamation shares Scarecrow's observability trail.
 
