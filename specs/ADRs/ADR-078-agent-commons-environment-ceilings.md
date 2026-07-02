@@ -134,3 +134,39 @@ are hoping. Seven principles:
 9. **Regression-test the guarantee (started).** `scripts/ci/test-devcontainer-contract.mjs` now
    asserts the active Docker cgroup boundary and slice arithmetic. Extend it again when sub-slice
    delegation lands so the guarantee cannot silently regress.
+
+## Revision — 2026-07-02: watchdog-first, and the layered thesis
+
+A second incident (a large `pi-agent`→`agent` rename pass — codemod over 200+ files + `pnpm install` +
+cargo WASM build + tests) OOM-killed the running agent and thrashed the container (`docker exec` timed out).
+The `.npmrc` self-install fix (Phase 1) held; the cause was the **combined heaviness of the pass**, not the
+package manager. Confirmed on recovery: **uncommitted files survive an OOM** (the process dies, the working
+tree does not — 203 files intact). This sharpened the plan on three points.
+
+**1. Layered thesis — each layer covers what the others cannot see.**
+
+| Layer | Sees | Acts |
+|---|---|---|
+| **Scarecrow** (`agent_tools_bridge`, Step 3) | the tool-call *event* (`agent-shell:spawn`) via `TelemetryBus` | **observes only** today (policy = deferred Step 4) |
+| **cgroup boundary** (Phase 3) | the whole box | hard caps (6 GiB / 1024 PIDs / no-swap) — active on rebuild |
+| **Commons watchdog** (Phase 8, *promoted*) | the **native process** the spawn creates | reclaims the heaviest workload, spares control |
+| **cgroup sub-slices** (Phase 4-5, *demoted to conditional*) | process, via slice | exact OOM priority (`oom_score_adj`) |
+
+The OOM lives in the **native-process layer** — outside the WASM sandbox (Scarecrow observes intent, not
+the spawned process's growth) and not plane-separated (no sub-slices). Correcting an earlier overstatement:
+**Scarecrow does not enforce today**; it cannot deny or reclaim.
+
+**2. Watchdog-first (promote Phase 8; make Phase 4-5 conditional).** In-container cgroup v2 delegation
+(Phase 4-5) is frequently denied without `--privileged`, a poor trade. The **commons watchdog** achieves the
+same end — *kill the workload, not the controller* — in userspace, reusing `@refarm.dev/health`, testable,
+environment-agnostic. It becomes the **main plane-protection path**; the sub-slices are a precision
+**refinement conditioned on a delegation spike** (in a throwaway container, not the shared one). Plan:
+`docs/superpowers/plans/2026-07-02-commons-watchdog.md`. It emits to the same `TelemetryBus` as Scarecrow —
+**shared telemetry, not shared authority** (per this ADR's Boundary).
+
+**3. Recovery runbook (no rebuild required to survive).** When the box is already wedged: (a) files are
+safe on disk — commit is unnecessary for survival but cheap to lock progress; (b) reclaim memory by killing
+the runaway — **the container owner decides; killing another actor's process is not an agent's call in the
+commons**; (c) no restart needed. Operational discipline until ceilings enforce: **separate the heavy
+build/test/install from wide codemods and commit before** — so an OOM in the install does not take the
+codemod with it. (Belongs in `docs/DEVOPS.md`.)
