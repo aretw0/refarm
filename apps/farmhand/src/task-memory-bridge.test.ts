@@ -6,7 +6,7 @@ const ACTOR_URN = "urn:refarm:farmhand:test";
 function sampleEffortTask(id = "task-1") {
 	return {
 		id,
-		pluginId: "@refarm/pi-agent",
+		pluginId: "@refarm/agent",
 		fn: "respond",
 		args: { prompt: "hello" },
 	};
@@ -15,7 +15,7 @@ function sampleEffortTask(id = "task-1") {
 function aliasEffortTask(id = "task-alias") {
 	return {
 		...sampleEffortTask(id),
-		pluginId: "@refarm.dev/pi-agent",
+		pluginId: "@refarm.dev/agent",
 	};
 }
 
@@ -23,7 +23,7 @@ function makeTask(id: string, contextId: string) {
 	return {
 		"@type": "Task",
 		"@id": `urn:refarm:task:v1:${id}`,
-		title: "@refarm/pi-agent.respond",
+		title: "@refarm/agent.respond",
 		status: "active",
 		created_by: ACTOR_URN,
 		assigned_to: ACTOR_URN,
@@ -77,13 +77,13 @@ describe("TaskMemoryBridge", () => {
 
 		expect(create).toHaveBeenCalledWith(
 			expect.objectContaining({
-				title: "@refarm/pi-agent.respond",
+				title: "@refarm/agent.respond",
 			}),
 		);
 		expect(appendEvent).toHaveBeenCalledWith(
 			expect.objectContaining({
 				payload: expect.objectContaining({
-					pluginId: "@refarm/pi-agent",
+					pluginId: "@refarm/agent",
 				}),
 			}),
 		);

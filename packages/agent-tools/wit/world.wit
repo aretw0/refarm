@@ -1,6 +1,6 @@
 /// agent-tools-provider world
 ///
-/// This component EXPORTS agent-fs and agent-shell to be composed with pi-agent.
+/// This component EXPORTS agent-fs and agent-shell to be composed with agent.
 /// It IMPORTS host-spawn because WASM has no native process-spawn capability —
 /// the WASM sandbox enforces policy (argv validation, timeout cap) while the
 /// tractor host executes the actual OS fork/exec via this import.
@@ -8,7 +8,7 @@
 /// Composition target:
 ///   tractor host
 ///   ├── loads agent-tools.wasm   ← exports: agent-fs, agent-shell
-///   ├── loads pi-agent.wasm      ← imports: agent-fs, agent-shell
+///   ├── loads agent.wasm      ← imports: agent-fs, agent-shell
 ///   └── wires them via Component Model linker
 package refarm:agent-tools@0.1.0;
 

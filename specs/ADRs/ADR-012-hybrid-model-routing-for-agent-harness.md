@@ -1,8 +1,8 @@
-# ADR-012: Hybrid Model Routing Strategy for Pi Agent Harness
+# ADR-012: Hybrid Model Routing Strategy for Agent Harness
 
-**Status**: Proposed  
-**Date**: 2026-04-22  
-**Deciders**: Tractor/Pi-Agent maintainers  
+**Status**: Proposed
+**Date**: 2026-04-22
+**Deciders**: Tractor/Agent maintainers
 **Related**: [ADR-013](ADR-013-testing-strategy.md), [ADR-047](ADR-047-tractor-native-rust-host.md), [ADR-048](ADR-048-tractor-graduation.md), [ADR-049](ADR-049-post-graduation-horizon.md), ISS-012
 
 ---
@@ -28,7 +28,7 @@ Constraints:
 
 ## Decision
 
-**We will introduce a host-side deterministic `ModelRouter` for Pi Agent harness execution, with explicit capability mapping and policy profiles.**
+**We will introduce a host-side deterministic `ModelRouter` for agent harness execution, with explicit capability mapping and policy profiles.**
 
 The router contract will include:
 
@@ -111,7 +111,7 @@ Security remains unchanged in principle: model routing happens **after** environ
 **Affected components:**
 
 - `packages/tractor/src/host/*` (routing policy + integration hooks)
-- Pi Agent harness integration path (`packages/tractor/tests/pi_agent_harness.rs`)
+- Agent harness integration path (`packages/tractor/tests/agent_harness.rs`)
 - Session/runtime policy plumbing for route profiles and budget signals
 - Documentation (`specs/ADRs/README.md`, Tractor docs as needed)
 

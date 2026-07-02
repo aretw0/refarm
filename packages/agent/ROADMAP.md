@@ -1,4 +1,4 @@
-# pi-agent — Roadmap
+# agent — Roadmap
 
 **Current Version**: v0.1.0-dev  
 **Future name**: `farmhand` — thematic with tractor, barn, silo, creek, sower  
@@ -14,11 +14,11 @@
 **Critical guardrail**: avoid shipping behavior that is specific to a single coding-agent persona when it can be a host/tool primitive shared by any plugin.
 Farmhand should consume generic primitives; it should not become the place where generic platform logic gets trapped.
 
-pi-agent learns from [Pi](https://github.com/kaleidawave/pi) but is not Pi:
+agent learns from [Pi](https://github.com/kaleidawave/pi) but is not Pi:
 
-- Pi has ephemeral session state. pi-agent has **CRDT-backed state** — auditable, replicable, queryable.
-- Pi is a CLI tool. pi-agent is a **WASM plugin** — sandboxed, composable, deployable anywhere tractor runs.
-- Pi has hardcoded context strategies. pi-agent has **opt-in everything** — env vars drive all behavior.
+- Pi has ephemeral session state. agent has **CRDT-backed state** — auditable, replicable, queryable.
+- Pi is a CLI tool. agent is a **WASM plugin** — sandboxed, composable, deployable anywhere tractor runs.
+- Pi has hardcoded context strategies. agent has **opt-in everything** — env vars drive all behavior.
 
 Context engineering follows the pi-test-harness model:
 "let the plugin be the plugin" — test real WASM, mock only the LLM boundary.
@@ -29,7 +29,7 @@ Context engineering follows the pi-test-harness model:
 
 ### WASM scaffold + event pipeline
 
-- [x] `cargo component build` producing valid `pi_agent.wasm`
+- [x] `cargo component build` producing valid `agent.wasm`
 - [x] `on_event("user:prompt")` → `store AgentResponse` pipeline
 - [x] `UserPrompt` + `AgentResponse` nodes in CRDT with `timestamp_ns`
 
@@ -108,10 +108,10 @@ Context engineering follows the pi-test-harness model:
 - [x] `packages/tractor/src/host/lsp_bridge.rs` exists with lifecycle-safe subprocess manager (start/reuse/stop semantics documented in code).
 - [x] `find-references` wired end-to-end via generic LSP JSON-RPC path (rust-analyzer remains the default backend).
 - [x] `rename-symbol` wired end-to-end via generic LSP JSON-RPC path (WorkspaceEdit changes applied host-side).
-- [x] Integration test: rename a symbol via pi-agent/farmhand + generic fake LSP and assert workspace references update.
+- [x] Integration test: rename a symbol via agent/farmhand + generic fake LSP and assert workspace references update.
 - [x] No regression on baseline gates:
-  - `cargo check --target wasm32-wasip1` in `packages/pi-agent`
-  - `cargo test --lib` in `packages/pi-agent`
+  - `cargo check --target wasm32-wasip1` in `packages/agent`
+  - `cargo test --lib` in `packages/agent`
 
 #### Process rules (pragmatic + verifiable)
 
@@ -123,19 +123,19 @@ Context engineering follows the pi-test-harness model:
 
 #### Parked backlog for after 72% (explicitly deferred to avoid retrabalho)
 
-- [ ] Package rename graduation (`pi-agent` → `farmhand`) and cross-repo reference sweep.
+- [ ] Package rename graduation (`agent` → `farmhand`) and cross-repo reference sweep.
 - [ ] Streaming token output (`is_final=false/true`) and chunked delivery semantics.
 - [ ] Cross-plugin generalization pass (shared provider defaults/URN/tool API unification).
 - [ ] A2A protocol research + Zig host exploration.
 
-### WASM integration harness (`packages/tractor/tests/pi_agent_harness.rs`)
+### WASM integration harness (`packages/tractor/tests/agent_harness.rs`)
 
-- [x] Real `pi_agent.wasm` loaded via `PluginHost` (not a stub)
+- [x] Real `agent.wasm` loaded via `PluginHost` (not a stub)
 - [x] Mock LLM: blocking `TcpListener::bind(":0")` thread returns scripted OpenAI-compat JSON without deadlocking the single-thread Tokio test runtime
 - [x] Core scenarios: AgentResponse stored, UsageRecord tokens, context guard, budget block
-- [x] Tool-loop scenarios: `bash`, `find_references`, and `rename_symbol` round-trip through pi-agent tool dispatch into Tractor host imports
+- [x] Tool-loop scenarios: `bash`, `find_references`, and `rename_symbol` round-trip through agent tool dispatch into Tractor host imports
 - [x] `ENV_LOCK` Mutex prevents env var cross-contamination between parallel tests
-- [x] Harness remains `#[ignore]` because it depends on a prebuilt `pi_agent.wasm`; use `npm run agent:lsp:harness:build` for the explicit build+run gate, or `npm run agent:lsp:harness` when the wasm is already fresh
+- [x] Harness remains `#[ignore]` because it depends on a prebuilt `agent.wasm`; use `npm run agent:lsp:harness:build` for the explicit build+run gate, or `npm run agent:lsp:harness` when the wasm is already fresh
 
 ---
 
@@ -147,7 +147,7 @@ Context engineering follows the pi-test-harness model:
 
 ### Naming
 
-- [ ] Rename package `pi-agent` → `farmhand`
+- [ ] Rename package `agent` → `farmhand`
 - [ ] Update `Cargo.toml`, `wit/world.wit` world name, tractor fixture references
 - [ ] Update README, this ROADMAP, and any cross-package references
 
@@ -155,7 +155,7 @@ Context engineering follows the pi-test-harness model:
 
 > Inspired by Pi CLI and Claude Code: invoke the agent from a terminal without a WebSocket client.
 
-- [x] `tractor prompt --agent pi-agent "do something"` subcommand
+- [x] `tractor prompt --agent agent "do something"` subcommand
 - [x] `tractor watch` — polling loop for AgentResponse nodes
 - [x] `tractor watch --type StreamChunk|StreamSession --stream-ref <ref> --until-final` — poll generic stream observations
 - [x] `tractor query|watch --type StreamChunk|StreamSession --prompt-ref <prompt-ref>` — derive generic stream filters from AgentResponse prompt refs
@@ -196,7 +196,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Stream LLM tokens through host-persisted partial `AgentResponse` nodes as provider SSE frames arrive
 - [x] `is_final: false` intermediate nodes, `is_final: true` on completion
 - [x] Host-proxied streaming WIT contract exists as `llm-bridge::complete-http-stream`; Tractor reads provider SSE bodies through a streaming reader seam
-- [x] pi-agent has a host stream bridge wrapper seam for `complete-http-stream` metadata/result mapping
+- [x] agent has a host stream bridge wrapper seam for `complete-http-stream` metadata/result mapping
 - [x] Tractor has generic target-neutral SSE framing primitives plus LLM-specific delta parsing and sequence draft helpers for native host streaming internals
 - [x] Tractor can persist buffered SSE-derived text chunks as partial `AgentResponse` nodes and report stored chunk counts/last sequence
 - [x] Tractor `complete-http-stream` reads successful responses through the generic SSE reader seam and persists complete SSE frames as they arrive
@@ -259,13 +259,13 @@ Context engineering follows the pi-test-harness model:
 
 > REQ-AGENT-001 — T-NEXT-266/268/275/278/284
 
-- [x] `read_structured` pi-agent tool: JSON/TOML/YAML with `page_size`/`page_offset` (T-NEXT-268/275)
-- [x] `write_structured` pi-agent tool: validate-before-write for all three formats (T-NEXT-278)
+- [x] `read_structured` agent tool: JSON/TOML/YAML with `page_size`/`page_offset` (T-NEXT-268/275)
+- [x] `write_structured` agent tool: validate-before-write for all three formats (T-NEXT-278)
 - [x] `structured-io` WIT interface in `agent-tools/wit/world.wit` (T-NEXT-284)
   - `read-structured` and `write-structured` exported from `agent-tools-provider` world
   - Shared layer: any plugin or host-facing tool imports without duplicating parse logic
 - [x] 93 unit tests total across formats, pagination, and validation paths
-- [x] `structured-io` imported in pi-agent WIT world — wasm32 dispatch delegates to WIT import, no duplication (T-NEXT-287)
+- [x] `structured-io` imported in agent WIT world — wasm32 dispatch delegates to WIT import, no duplication (T-NEXT-287)
   - Host-side `StructuredIoHost` implemented natively in `TractorNativeBindings`
   - Pre-existing wasm32 compile errors in session management code fixed as part of same slice
 
@@ -325,12 +325,12 @@ interface code-ops {
 
 - [x] Add `code-ops` interface to `refarm-plugin-host.wit` (T-NEXT-289)
   - `symbol-location`, `code-reference`, `rename-result` records; `rename-symbol` and `find-references` funcs
-- [x] Add to pi-agent as tools: `rename_symbol(file, line, col, new_name)`, `find_references(file, line, col)` (T-NEXT-289)
+- [x] Add to agent as tools: `rename_symbol(file, line, col, new_name)`, `find_references(file, line, col)` (T-NEXT-289)
   - Dispatch arms call WIT import; 97 tests pass (4 new schema+required-fields tests)
 - [x] Stub host in `TractorNativeBindings`: returns "lsp not connected" until LSP bridge is built (T-NEXT-289)
 - [x] Implement tractor-side LSP subprocess manager (`packages/tractor/src/host/lsp_bridge.rs`)
 - [x] Expose `rename-symbol` and `find-references` via generic LSP command path (`REFACTOR_LSP_CMD`; rust-analyzer default)
-- [ ] Integration test: rename a Rust symbol via pi-agent, assert all references updated
+- [ ] Integration test: rename a Rust symbol via agent, assert all references updated
 
 ### refarm-stack (agents-lab)
 
@@ -341,10 +341,10 @@ interface code-ops {
 
 ### Generalization backlog (cross-plugin primitives first)
 
-> Rule: when logic can be expressed once in host/shared tools and reused by many plugins, prefer that over pi-agent-only implementation.
+> Rule: when logic can be expressed once in host/shared tools and reused by many plugins, prefer that over agent-only implementation.
 
 - [ ] Promote `provider_config` defaults mapping into a shared host/plugin utility surface (so non-coding agents reuse the same routing defaults)
-- [ ] Promote URN builder convention (`new_pi_urn`-style) into a cross-plugin ID primitive with configurable namespace prefix
+- [ ] Promote URN builder convention (`new_agent_urn`-style) into a cross-plugin ID primitive with configurable namespace prefix
 - [ ] Evaluate moving generic tool-dispatch families (`fs/shell/session/code-ops`) into reusable shared dispatch helpers in `agent-tools`
 - [ ] Evaluate unifying public tool API into mode-aware core calls (`read/write/edit` + `mode=plain|structured|ast`) while keeping compatibility aliases to reduce LLM tool/schema context
 - [ ] Extract response-node builders into generic CRDT schema helpers (typed builders for common node metadata/timestamps)
@@ -424,7 +424,7 @@ land (e.g., farmhand rename, streaming), update diagrams before closing the mile
 | `ANTHROPIC_API_KEY` in env | Host-only (plugin calls `llm-bridge`)     | Residual risk only in host process, not in plugin sandbox |
 | `agent_shell::spawn`       | allowlist-capable (`MODEL_SHELL_ALLOWLIST`) | Misconfig/empty policy can still block or allow too much  |
 | `agent_fs::read/write`     | root-capable (`MODEL_FS_ROOT`)              | Misconfigured root may still expose broad subtree         |
-| `wasi:http` egress         | removed from pi-agent LLM path            | Other plugins may still require separate egress policy    |
+| `wasi:http` egress         | removed from agent LLM path            | Other plugins may still require separate egress policy    |
 
 ### Mitigations to design (inspired by Gondolin)
 
@@ -433,7 +433,7 @@ land (e.g., farmhand rename, streaming), update diagrams before closing the mile
       Gondolin calls this "the guest only sees a placeholder token."
 
   - Implemented WIT import: `llm-bridge::complete-http(provider, base-url, path, headers, body)`
-  - `pi-agent` dropped direct `wasi:http` dependency for provider calls and now uses `llm-bridge`
+  - `agent` dropped direct `wasi:http` dependency for provider calls and now uses `llm-bridge`
   - Host injects provider auth headers (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) outside plugin sandbox
   - Follow-up: tighten provider/base-url policy centrally in tractor (allowlist/validator)
 

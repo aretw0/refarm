@@ -91,8 +91,8 @@ devcontainer.
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------------------------------- |
 | Pure Rust parser/helper edit               | `cargo test --lib <test_or_module> --quiet`                                                      | full `cargo test`                             |
 | Rust API shape changed                     | focused test + `cargo check --quiet` in that package                                             | rebuilding unrelated crates                   |
-| pi-agent source changed, no harness needed | `cargo check --target wasm32-wasip1 --quiet`                                                     | `cargo component build --release`             |
-| pi-agent/Tractor boundary changed          | filtered `pi_agent_harness` run, sequential                                                      | full harness suite repeatedly                 |
+| agent source changed, no harness needed | `cargo check --target wasm32-wasip1 --quiet`                                                     | `cargo component build --release`             |
+| agent/Tractor boundary changed          | filtered `agent_harness` run, sequential                                                      | full harness suite repeatedly                 |
 | TS package edit                            | `pnpm --filter <pkg> run type-check` or direct unit suite                                         | repo-wide `turbo build`                       |
 | Before push                                | reproduce likely failures locally with the closest scoped command, then CI as final confirmation | using GitHub Actions as the first test runner |
 
@@ -116,13 +116,13 @@ has passed. If a Refarm finish lane expands to a large app validation, let that
 be a checkpoint cost and avoid stacking another broad Vitest or Turbo command
 in the same slice.
 
-For the current pi-agent streaming lane, prefer the wrapper scripts:
+For the current agent streaming lane, prefer the wrapper scripts:
 
 ```bash
 # Cheap package-level streaming checks, no WASM rebuild.
 pnpm run agent:streaming:check
 
-# Harness only when pi_agent.wasm is already fresh.
+# Harness only when agent.wasm is already fresh.
 pnpm run agent:streaming:harness
 
 # Explicit heavy gate: rebuild WASM, then run streaming harness filters.
@@ -136,14 +136,14 @@ also removes incremental caches; use it at session/checkpoint boundaries or when
 ## CARGO_TARGET_DIR workspace cache (devcontainer)
 
 The devcontainer sets `CARGO_TARGET_DIR=/workspaces/refarm/.cache/cargo-target`.
-All cargo builds — including `cargo component build` for pi-agent and
+All cargo builds — including `cargo component build` for agent and
 `cargo build --release` for tractor — write to that workspace cache instead of
 each package's own `target/` subdirectory.
 
 Consequences:
 
 - **Binary paths**: `tractor` binary lives at `$CARGO_TARGET_DIR/release/tractor`;
-  `pi_agent.wasm` at `$CARGO_TARGET_DIR/wasm32-wasip1/release/pi_agent.wasm`.
+  `agent.wasm` at `$CARGO_TARGET_DIR/wasm32-wasip1/release/agent.wasm`.
   Scripts read `CARGO_TARGET_DIR` and fall back to the workspace paths when the var
   is unset (local dev without the devcontainer).
 - **Host disk**: workspace `target/` dirs are stale once the redirect is active. Run

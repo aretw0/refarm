@@ -45,10 +45,10 @@ Synthesizes what Refarm must do differently to prevent plugin-induced technical 
 #### [Codemod Strategic Assessment](./codemod-strategic-assessment.md)
 **Date**: 2026-05-17 | **Status**: Research
 
-Assessment of `codemod/codemod` as an inspiration for Refarm's internal migration tooling, Barn-managed migration packs, Farmhand effort templates, and `pi-agent` structural code-transformation tools.
+Assessment of `codemod/codemod` as an inspiration for Refarm's internal migration tooling, Barn-managed migration packs, Farmhand effort templates, and `agent` structural code-transformation tools.
 Concludes that Refarm should treat migration packs as a plugin package profile, adopting Codemod's deterministic-transform + workflow + agent-guidance loop without copying its hosted platform model.
 
-**ADR**: No ADR yet — feeds Barn migration-pack validation, Farmhand workflow templates, Scarecrow approval gates, and `pi-agent` AST tooling.
+**ADR**: No ADR yet — feeds Barn migration-pack validation, Farmhand workflow templates, Scarecrow approval gates, and `agent` AST tooling.
 
 ---
 

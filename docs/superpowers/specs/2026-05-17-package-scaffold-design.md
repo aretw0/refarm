@@ -17,7 +17,7 @@ Sete tipos cobrem todos os pacotes existentes e futuros do ecossistema:
 | `buildable` | `main`/`exports` aponta para `dist/`, build com `tsc` | `effort-contract-v1`, `prompt-contract-v1` |
 | `source-only` | `main` aponta para `src/*.ts` | `event-contract-v1`, `infra-contract-v1` |
 | `wasm-component` | `Cargo.toml` + scripts `build:wasm` e `build:transpile` | `heartwood` |
-| `rust-only` | `Cargo.toml` sem surface JS/TS | `pi-agent`, `tractor`, `agent-tools` |
+| `rust-only` | `Cargo.toml` sem surface JS/TS | `agent`, `tractor`, `agent-tools` |
 | `ui-library` | como `buildable` + exports `./styles/*` | `ds`, `homestead` |
 | `js-tool` | `main` aponta para `src/*.mjs` ou `src/*.js` sem compilação TS | `toolbox` |
 | `config-pkg` | sem `main`, sem build, só arquivos de configuração JSON/JS | `tsconfig`, `eslint-config` |

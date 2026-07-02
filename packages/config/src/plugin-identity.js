@@ -1,12 +1,12 @@
-export const PI_AGENT_PLUGIN_ID = "@refarm/pi-agent";
-export const PI_AGENT_NPM_PACKAGE = "@refarm.dev/pi-agent";
-export const RUNTIME_AGENT_PLUGIN_ID = PI_AGENT_PLUGIN_ID;
-export const RUNTIME_AGENT_NPM_PACKAGE = PI_AGENT_NPM_PACKAGE;
+export const AGENT_PLUGIN_ID = "@refarm/agent";
+export const AGENT_NPM_PACKAGE = "@refarm.dev/agent";
+export const RUNTIME_AGENT_PLUGIN_ID = AGENT_PLUGIN_ID;
+export const RUNTIME_AGENT_NPM_PACKAGE = AGENT_NPM_PACKAGE;
 export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR = {
 	id: RUNTIME_AGENT_PLUGIN_ID,
 	npmPackage: RUNTIME_AGENT_NPM_PACKAGE,
-	workspaceDir: "packages/pi-agent",
-	wasmFile: "dist/pi_agent.wasm",
+	workspaceDir: "packages/agent",
+	wasmFile: "dist/agent.wasm",
 	manifestFile: "dist/plugin.json",
 	requiredProvides: ["agent:respond"],
 };
@@ -22,23 +22,20 @@ export const RUNTIME_AGENT_ERROR_PREFIXES = [
 ];
 
 const PLUGIN_ID_ALIASES = {
-	"pi-agent": PI_AGENT_PLUGIN_ID,
-	"pi_agent": PI_AGENT_PLUGIN_ID,
-	"refarm/pi-agent": PI_AGENT_PLUGIN_ID,
-	"agent": RUNTIME_AGENT_PLUGIN_ID,
+	"agent": AGENT_PLUGIN_ID,
+	"refarm/agent": AGENT_PLUGIN_ID,
 	"runtime-agent": RUNTIME_AGENT_PLUGIN_ID,
 	"runtime_agent": RUNTIME_AGENT_PLUGIN_ID,
-	"refarm/agent": RUNTIME_AGENT_PLUGIN_ID,
 	"refarm/runtime-agent": RUNTIME_AGENT_PLUGIN_ID,
-	[PI_AGENT_NPM_PACKAGE]: PI_AGENT_PLUGIN_ID,
+	[AGENT_NPM_PACKAGE]: AGENT_PLUGIN_ID,
 };
 
 export function normalizePluginId(pluginId) {
 	return PLUGIN_ID_ALIASES[pluginId] ?? pluginId;
 }
 
-export function isPiAgentPluginId(pluginId) {
-	return normalizePluginId(pluginId) === PI_AGENT_PLUGIN_ID;
+export function isAgentPluginId(pluginId) {
+	return normalizePluginId(pluginId) === AGENT_PLUGIN_ID;
 }
 
 export function isRuntimeAgentPluginId(pluginId) {

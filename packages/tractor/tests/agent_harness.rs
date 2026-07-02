@@ -2,15 +2,15 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 /// Pi-agent integration harness — "let the plugin be the plugin."
 ///
-/// Runs the real pi_agent.wasm via PluginHost. Only the LLM HTTP boundary is
+/// Runs the real agent.wasm via PluginHost. Only the LLM HTTP boundary is
 /// mocked: a local TCP server returns pre-scripted OpenAI-compat JSON so tests
 /// are deterministic without real API keys.
 ///
 /// # Requires
-///   cargo component build --release   (in packages/pi-agent)
+///   cargo component build --release   (in packages/agent)
 ///
 /// # Run
-///   cargo test --test pi_agent_harness -- --ignored --test-threads=1
+///   cargo test --test agent_harness -- --ignored --test-threads=1
 ///
 /// # Design note
 ///   env vars set via std::env::set_var propagate to the WASM plugin because
@@ -27,14 +27,14 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 static WASM_PATH: OnceLock<PathBuf> = OnceLock::new();
 
-/// Resolve pi_agent.wasm location at runtime so CARGO_TARGET_DIR redirects work.
+/// Resolve agent.wasm location at runtime so CARGO_TARGET_DIR redirects work.
 /// When CARGO_TARGET_DIR is set (e.g. devcontainer volume), all cargo outputs land
 /// there instead of each package's own target/ subdirectory.
 fn wasm_path() -> &'static Path {
     WASM_PATH.get_or_init(|| match std::env::var("CARGO_TARGET_DIR") {
-        Ok(dir) => PathBuf::from(dir).join("wasm32-wasip1/release/pi_agent.wasm"),
+        Ok(dir) => PathBuf::from(dir).join("wasm32-wasip1/release/agent.wasm"),
         Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../pi-agent/target/wasm32-wasip1/release/pi_agent.wasm"),
+            .join("../agent/target/wasm32-wasip1/release/agent.wasm"),
     })
 }
 
@@ -335,13 +335,13 @@ while True:
 // ── Core harness tests ────────────────────────────────────────────────────────
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_agent_response_stored_in_crdt() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
     assert!(
         path.exists(),
-        "pi_agent.wasm not found — run: cargo component build --release"
+        "agent.wasm not found — run: cargo component build --release"
     );
 
     clean_llm_env();
@@ -351,7 +351,7 @@ async fn harness_agent_response_stored_in_crdt() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "oi", "agent response harness").await;
 
@@ -376,13 +376,13 @@ async fn harness_agent_response_stored_in_crdt() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
     assert!(
         path.exists(),
-        "pi_agent.wasm not found — run: cargo component build --release"
+        "agent.wasm not found — run: cargo component build --release"
     );
 
     clean_llm_env();
@@ -392,7 +392,7 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
         &mut handle,
@@ -464,7 +464,7 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
         created["task_id"], task_id,
         "created event must reference the Task"
     );
-    assert_eq!(created["payload"]["source"], "pi-agent.respond");
+    assert_eq!(created["payload"]["source"], "agent.respond");
 
     let closed = events
         .iter()
@@ -494,13 +494,13 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_task_memory_disabled_stores_no_task_nodes() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
     assert!(
         path.exists(),
-        "pi_agent.wasm not found — run: cargo component build --release"
+        "agent.wasm not found — run: cargo component build --release"
     );
 
     clean_llm_env();
@@ -511,7 +511,7 @@ async fn harness_task_memory_disabled_stores_no_task_nodes() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
         &mut handle,
@@ -545,13 +545,13 @@ async fn harness_task_memory_disabled_stores_no_task_nodes() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_streaming_opt_in_stores_partials_and_final_response() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
     assert!(
         path.exists(),
-        "pi_agent.wasm not found — run: cargo component build --release"
+        "agent.wasm not found — run: cargo component build --release"
     );
 
     clean_llm_env();
@@ -573,7 +573,7 @@ data: [DONE]
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "oi", "streaming harness").await;
 
@@ -644,13 +644,13 @@ data: [DONE]
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_streaming_tool_call_round_trip_still_completes() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
     assert!(
         path.exists(),
-        "pi_agent.wasm not found — run: cargo component build --release"
+        "agent.wasm not found — run: cargo component build --release"
     );
 
     clean_llm_env();
@@ -675,7 +675,7 @@ data: [DONE]
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "run echo", "streaming tool harness").await;
 
@@ -706,11 +706,11 @@ data: [DONE]
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_usage_record_stored_with_tokens() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
     let port = mock_llm_server(openai_response("resposta", 20, 10)).await;
@@ -719,7 +719,7 @@ async fn harness_usage_record_stored_with_tokens() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "teste de uso", "usage record harness").await;
 
@@ -741,18 +741,18 @@ async fn harness_usage_record_stored_with_tokens() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_context_guard_blocks_oversized_prompt() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
     std::env::set_var("LLM_MAX_CONTEXT_TOKENS", "1");
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
         &mut handle,
@@ -780,11 +780,11 @@ async fn harness_context_guard_blocks_oversized_prompt() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_budget_block_falls_through_to_error_without_fallback() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
     std::env::set_var("LLM_BUDGET_OLLAMA_USD", "0.0");
@@ -792,7 +792,7 @@ async fn harness_budget_block_falls_through_to_error_without_fallback() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
         &mut handle,
@@ -822,11 +822,11 @@ async fn harness_budget_block_falls_through_to_error_without_fallback() {
 // ── Harness expansion ─────────────────────────────────────────────────────────
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_tool_use_dispatched_and_result_fed_back() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
 
@@ -861,7 +861,7 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "run echo", "tool-use harness").await;
 
@@ -892,11 +892,11 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_find_references_tool_reads_lsp_locations() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
     if !python3_is_available_for_harness() {
         eprintln!("skipping references harness: python3 is not runnable");
         return;
@@ -949,7 +949,7 @@ async fn harness_find_references_tool_reads_lsp_locations() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
         &mut handle,
@@ -982,11 +982,11 @@ async fn harness_find_references_tool_reads_lsp_locations() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
     if !python3_is_available_for_harness() {
         eprintln!("skipping rename harness: python3 is not runnable");
         return;
@@ -1040,7 +1040,7 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
         &mut handle,
@@ -1069,11 +1069,11 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_fallback_serves_response_on_primary_failure() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
 
@@ -1086,7 +1086,7 @@ async fn harness_fallback_serves_response_on_primary_failure() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "test fallback", "fallback harness").await;
 
@@ -1106,11 +1106,11 @@ async fn harness_fallback_serves_response_on_primary_failure() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_multi_turn_history_included_in_request() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
     std::env::set_var("LLM_PROVIDER", "ollama");
@@ -1123,7 +1123,7 @@ async fn harness_multi_turn_history_included_in_request() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     // Turns 1 and 2: history disabled — build CRDT state only.
     call_on_event_with_timeout(&mut handle, "first question", "history harness turn 1").await;
@@ -1162,11 +1162,11 @@ async fn harness_multi_turn_history_included_in_request() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_tool_output_truncated_when_max_lines_set() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
 
@@ -1201,7 +1201,7 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "count to ten", "tool truncation harness").await;
 
@@ -1234,11 +1234,11 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_refarm_config_json_injects_provider() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
 
@@ -1262,7 +1262,7 @@ async fn harness_refarm_config_json_injects_provider() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
         &mut handle,
@@ -1293,11 +1293,11 @@ async fn harness_refarm_config_json_injects_provider() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_agent_id_namespaces_crdt_nodes() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
 
@@ -1307,7 +1307,7 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
         &mut handle,
@@ -1352,11 +1352,11 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_session_entries_stored_for_each_turn() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
 
@@ -1365,7 +1365,7 @@ async fn harness_session_entries_stored_for_each_turn() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     // Send first prompt.
     call_on_event_with_timeout(&mut handle, "first message", "session harness turn 1").await;
@@ -1424,11 +1424,11 @@ async fn harness_session_entries_stored_for_each_turn() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_write_structured_tool_creates_file() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
 
@@ -1470,7 +1470,7 @@ async fn harness_write_structured_tool_creates_file() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
         &mut handle,
@@ -1495,11 +1495,11 @@ async fn harness_write_structured_tool_creates_file() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_read_structured_tool_returns_paginated_header() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     clean_llm_env();
 
@@ -1545,7 +1545,7 @@ async fn harness_read_structured_tool_returns_paginated_header() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "read the json file", "read structured harness").await;
 
@@ -1578,7 +1578,7 @@ async fn harness_read_structured_tool_returns_paginated_header() {
 // ── Multi-agent swarm harness ─────────────────────────────────────────────────
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     // Verifies cross-agent CRDT coordination:
     //   Agent A (LLM_AGENT_ID=alpha) stores an AgentResponse.
@@ -1587,7 +1587,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     //   This is the fundamental multi-agent coordination primitive.
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
 
     // ── Agent A fires ──────────────────────────────────────────────────────────
     clean_llm_env();
@@ -1656,7 +1656,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
 // ── Pre-tool budget enforcement (ADR-058) ─────────────────────────────────────
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 /// Verifies that read_file gets limit=300 injected automatically and returns
 /// a truncation header when the file has more lines than the default budget.
 async fn harness_pre_tool_budget_read_file_gets_default_limit() {
@@ -1664,7 +1664,7 @@ async fn harness_pre_tool_budget_read_file_gets_default_limit() {
 
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
     clean_llm_env();
 
     // Create a temp file with 400 lines.
@@ -1704,7 +1704,7 @@ async fn harness_pre_tool_budget_read_file_gets_default_limit() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "read the big file", "budget read harness").await;
 
@@ -1731,14 +1731,14 @@ async fn harness_pre_tool_budget_read_file_gets_default_limit() {
 }
 
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+#[ignore = "requires: cargo component build --release in packages/agent"]
 /// Verifies that the model can override the default limit by passing a smaller limit.
 async fn harness_pre_tool_budget_model_can_override_limit() {
     use std::io::Write as _;
 
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
-    assert!(path.exists(), "pi_agent.wasm not found");
+    assert!(path.exists(), "agent.wasm not found");
     clean_llm_env();
 
     // Create a temp file with 50 lines (under the 300 default).
@@ -1778,7 +1778,7 @@ async fn harness_pre_tool_budget_model_can_override_limit() {
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+    let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "read 10 lines only", "budget override harness").await;
 

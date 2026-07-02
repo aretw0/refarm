@@ -8,7 +8,7 @@ flowchart TD
 
     subgraph Smoke["task smoke  (when run_task_smoke=true)"]
       S1["task:execution:smoke\nFarmhand CLI ↔ sidecar round-trip"]
-      S2["task:execution:smoke:pi-agent\neffort + pi-agent respond round-trip"]
+      S2["task:execution:smoke:agent\neffort + agent respond round-trip"]
       S1 --> S2
     end
 

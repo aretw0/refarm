@@ -11,7 +11,7 @@ test("prints an ordered reference-driver smoke plan", () => {
 		"reference-driver-sdk: pnpm -C packages/cli run test:reference-driver-sdk",
 		"structured-io: cargo test --manifest-path packages/agent-tools/Cargo.toml --lib structured_io --quiet",
 		"session-tree: pnpm -C apps/refarm run test:tree-reference-driver",
-		"code-ops-wit: pnpm -C packages/pi-agent run check:wit",
+		"code-ops-wit: pnpm -C packages/agent run check:wit",
 		"code-ops: cargo test --manifest-path packages/tractor/Cargo.toml --lib code_ops --quiet -- --test-threads=1",
 	]);
 });

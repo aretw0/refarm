@@ -132,13 +132,13 @@ describe("refarm task run", () => {
 			normalizeTaskArgs("runtime-agent", "respond", { query: "hello" }),
 		).toEqual({ query: "hello", prompt: "hello" });
 		expect(
-			normalizeTaskArgs("@refarm.dev/pi-agent", "respond", { query: "hello" }),
+			normalizeTaskArgs("@refarm.dev/agent", "respond", { query: "hello" }),
 		).toEqual({ query: "hello", prompt: "hello" });
 		expect(
-			normalizeTaskArgs("@refarm/pi-agent", "respond", { query: "hello" }),
+			normalizeTaskArgs("@refarm/agent", "respond", { query: "hello" }),
 		).toEqual({ query: "hello", prompt: "hello" });
 		expect(
-			normalizeTaskArgs("@refarm.dev/pi-agent", "respond", {
+			normalizeTaskArgs("@refarm.dev/agent", "respond", {
 				query: "legacy",
 				prompt: "canonical",
 			}),
@@ -280,7 +280,7 @@ describe("refarm task run", () => {
 			expect.objectContaining({
 				tasks: [
 					expect.objectContaining({
-						pluginId: "@refarm/pi-agent",
+						pluginId: "@refarm/agent",
 						args: { query: "hello", prompt: "hello" },
 					}),
 				],

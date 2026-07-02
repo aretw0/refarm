@@ -902,7 +902,7 @@ git commit -m "feat(refarm): extension new/list/save — local JS extensions, ze
 - ✅ Template exports `integration.respond(argsJson)` — immediately works with `refarm ask`
 - ✅ Tier 3 stub: `refarm extension publish <name>` prints guidance (no implementation per spec)
 - ✅ No WASM compilation required — tractor's existing JS branch in `plugin-host.ts:212`
-- ✅ Extensions loaded FIRST (Phase 0) so they can override bundled pi-agent
+- ✅ Extensions loaded FIRST (Phase 0) so they can override bundled agent
 
 **2. Placeholder scan:** None found.
 

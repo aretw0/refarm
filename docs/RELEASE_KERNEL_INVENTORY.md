@@ -30,8 +30,8 @@ contracts or product-neutral helpers:
 | `@refarm.dev/artifact-contract-v1` | Kernel contract | Candidate after review | Aligns with lab/vault artifacts; needs explicit release gate entry before publication. |
 | `@refarm.dev/automation-contract-v1` | Kernel contract | Candidate after review | Useful for agent/workflow convergence; verify external vocabulary is not Refarm-app-specific. |
 | `@refarm.dev/effort-contract-v1` | Kernel contract | Candidate after review | Useful for task/agent handoffs; publish only with examples and conformance clear. |
-| `@refarm.dev/session-contract-v1` | Kernel contract | Candidate after integration | Existing gate defers pending pi-agent namespace and storage adapter convergence. |
-| `@refarm.dev/task-contract-v1` | Kernel contract | Candidate after integration | Existing gate defers pending pi-agent/farmhand/storage-sqlite integration. |
+| `@refarm.dev/session-contract-v1` | Kernel contract | Candidate after integration | Existing gate defers pending agent namespace and storage adapter convergence. |
+| `@refarm.dev/task-contract-v1` | Kernel contract | Candidate after integration | Existing gate defers pending agent/farmhand/storage-sqlite integration. |
 | `@refarm.dev/stream-contract-v1` | Kernel contract | Candidate after review | Good boundary for transports; verify consumer examples. |
 | `@refarm.dev/context-provider-v1` | Kernel contract | Candidate after review | Useful for agents-lab style context injection if kept provider-neutral. |
 | `@refarm.dev/cli` | Kernel primitive | Hold for boundary review | Now owns reusable command, JSON, execution, workspace sweep, and handoff primitives; publish only if README and subpath exports are treated as API. |

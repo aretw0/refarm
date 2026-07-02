@@ -21,7 +21,7 @@ style from CLI polling to live browser UIs.
 
 **As a** Refarm developer  
 **I want** to subscribe to a `stream_ref` and receive model tokens as they arrive  
-**So that** I can see pi-agent's response in real time without waiting for completion
+**So that** I can see agent's response in real time without waiting for completion
 
 **As a** third-party plugin author  
 **I want** `stream-contract-v1` to define a stable, transport-neutral interface  
@@ -178,7 +178,7 @@ export class StreamRegistry {
 
 **Smoke gate:**
 
-- [x] pi-agent `respond` emits `StreamChunk` CRDT nodes → FileStreamTransport writes
+- [x] agent `respond` emits `StreamChunk` CRDT nodes → FileStreamTransport writes
   NDJSON → file contains all chunks in sequence order
 
 ---
@@ -215,7 +215,7 @@ export class StreamRegistry {
 - [x] Add `toStreamChunk` mapper for Tractor node shape in Farmhand
 - [x] Wire `tractor.onNode("StreamChunk")` → `streamRegistry.dispatch` in Farmhand `index.ts`
 - [x] Register all three transports in Farmhand `main()`
-- [x] Smoke gate: verify end-to-end with pi-agent respond
+- [x] Smoke gate: verify end-to-end with agent respond
 
 ---
 
@@ -225,4 +225,4 @@ export class StreamRegistry {
 - [ADR-053: Host-Proxied Model Streaming](../ADRs/ADR-053-host-proxied-model-streaming.md)
 - [ADR-018: Capability Contracts and Observability Gates](../ADRs/ADR-018-capability-contracts-and-observability-gates.md)
 - [Farmhand Task Execution spec](./farmhand-task-execution.md)
-- [Pi-Agent Effort Bridge spec](./pi-agent-effort-bridge.md)
+- [Pi-Agent Effort Bridge spec](./agent-effort-bridge.md)

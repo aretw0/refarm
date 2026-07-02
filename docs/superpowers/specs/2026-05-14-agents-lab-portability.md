@@ -48,7 +48,7 @@ gap is implementation, not contract design:
   `SkillInvocationEngineCallEvidence`.
 
 So the remaining work is a **concrete farmhand skill engine-binding** (implement `SkillEngineBindingEnvelope`
-for `@refarm.dev/pi-agent`, wire ADR-022 policy) — not new contracts. Closing it makes the agents-lab Refarm
+for `@refarm.dev/agent`, wire ADR-022 policy) — not new contracts. Closing it makes the agents-lab Refarm
 adapter real; until then the skills are content-portable but not yet refarm-executable. This is the
 "Pi↔farmhand" bridge — the gate for the rich shared-primitive future (one curated skill set, two engines),
 and it is an implementation task against surfaces that already exist.
@@ -96,7 +96,7 @@ with tunable thresholds, not hardcode Pi's numbers. The mechanism (checkpoint
 at threshold, summarize, resume) is sound and worth adopting.
 
 **Refarm answer**: Add a `compactionThreshold` config to `MODEL_HISTORY_TURNS`
-context; implement compaction as a pi-agent behavior (inside the WASM ReAct loop,
+context; implement compaction as a agent behavior (inside the WASM ReAct loop,
 not as an external watchdog). This keeps the policy in the guest, not the host.
 
 **When**: After self-iteration is working and context overflow becomes observable.
@@ -114,7 +114,7 @@ allowlists, argument validation. Implemented as Pi extension API hooks
 files need a safety boundary. Without it, a prompt-injected or hallucinating
 agent can delete files, exfiltrate secrets, or run arbitrary commands.
 
-**Does refarm face this problem?** Yes, and more acutely — pi-agent running
+**Does refarm face this problem?** Yes, and more acutely — agent running
 inside Tractor has access to `agent-shell.spawn` with a 30-second timeout cap.
 The cap prevents hanging but not malicious commands.
 
@@ -142,12 +142,12 @@ Shows current spend vs. `MODEL_BUDGET_<PROVIDER>_USD` cap.
 **Problem it solves**: Users don't know how much they're spending until their
 key stops working.
 
-**Does refarm face this problem?** Yes — pi-agent already reads `MODEL_BUDGET_*`
+**Does refarm face this problem?** Yes — agent already reads `MODEL_BUDGET_*`
 env vars and blocks requests that exceed the cap. The blocking logic exists;
 the visibility (showing spend in the REPL) does not.
 
 **Refarm answer**: Add `/budget` command to `refarm chat` that reads spend from
-the `UsageRecord` CRDT nodes that pi-agent already writes. This is a REPL command,
+the `UsageRecord` CRDT nodes that agent already writes. This is a REPL command,
 not an extension — the data is already there.
 
 **When**: After daily driver baseline works. This is a quality-of-life feature.
@@ -198,7 +198,7 @@ Pi and refarm. No action needed.
 |---|---|---|---|---|
 | git-skills (Markdown) | Yes | Content only — verify conventions | Refarm wrapper over native skill contract | Now: review; later: adapter smoke |
 | lab-skills essentials | Yes | Content only | Refarm-edited wrappers or upstream fixes over native skill contract | Now: review; later: adapter smoke |
-| context-watchdog thresholds | Yes | No — Pi-specific numbers | Tunable compaction in pi-agent | After self-iteration works |
+| context-watchdog thresholds | Yes | No — Pi-specific numbers | Tunable compaction in agent | After self-iteration works |
 | guardrails-core hooks | Yes | No — Pi extension API | Scarecrow WIT Steps 3+4 | Next barn step |
 | quota-visibility | Yes | No — read from CRDT instead | `/budget` REPL command | After daily driver |
 | colony-pilot | Eventually | No — different architecture | Multi-task effort model | After single-agent works |

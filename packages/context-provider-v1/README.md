@@ -1,11 +1,11 @@
 # @refarm.dev/context-provider-v1
 
-Versioned capability contract (`context:v1`) for assembling AI system prompts from modular context providers. Powers pi-agent's system prompt injection pipeline.
+Versioned capability contract (`context:v1`) for assembling AI system prompts from modular context providers. Powers agent's system prompt injection pipeline.
 
 ## When to use
 
-- You are building or extending pi-agent and need to inject structured context (files, git status, date, CWD) into an LLM system prompt.
-- You want to add project-specific context (e.g., Tractor state, team knowledge) to an agent without modifying core pi-agent code.
+- You are building or extending agent and need to inject structured context (files, git status, date, CWD) into an LLM system prompt.
+- You want to add project-specific context (e.g., Tractor state, team knowledge) to an agent without modifying core agent code.
 - You need a parallel, error-isolated collection of context from multiple sources.
 - You need a pointer-first view of long session history that can be unfolded by a consumer-owned tool or store.
 
@@ -133,7 +133,7 @@ Assembles collected entries into an XML-tagged system prompt string for injectio
 
 ## Related packages
 
-- [`@refarm.dev/pi-agent`](../pi-agent) — consumes this for system prompt assembly
+- [`@refarm.dev/agent`](../agent) — consumes this for system prompt assembly
 
 ## License
 

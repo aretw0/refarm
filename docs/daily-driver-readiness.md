@@ -77,11 +77,11 @@ What is already solid:
   against `@refarm.dev/model-mock` without Ollama or paid model tokens.
 - 2026-06-13 local devcontainer validation ran
   `refarm agent finish --lane agent-e2e-mock --run --json` end-to-end: it built
-  `@refarm.dev/model-mock`, rebuilt `@refarm.dev/pi-agent` WASM, built
+  `@refarm.dev/model-mock`, rebuilt `@refarm.dev/agent` WASM, built
   `apps/refarm`, started an isolated runtime, captured two model-mock requests,
   produced two stream files, and returned executable handoffs for plugin
   status, `ask`, task status/logs, task resume, and top-level resume.
-- The no-token e2e path now builds `@refarm.dev/pi-agent` on a Windows-mounted
+- The no-token e2e path now builds `@refarm.dev/agent` on a Windows-mounted
   checkout without relying on Git symlinks for WIT imports; `check:wit` guards
   the copied host WIT against drift from the canonical `refarm-plugin-wit`
   contract.
@@ -110,10 +110,10 @@ What is already solid:
   from the two main operator handoffs without making `resume` perform a live
   provider probe.
 - Runtime-agent prompt identity now uses the product concept
-  "Refarm runtime agent"; the physical `@refarm/pi-agent` package remains a
+  "Refarm runtime agent"; the physical `@refarm/agent` package remains a
   compatibility identity rather than the operator-facing semantic center.
 - Session participants now expose the same boundary: legacy
-  `urn:refarm:agent:pi-agent` data is preserved for history, while
+  `urn:refarm:agent:agent` data is preserved for history, while
   `canonicalParticipants` and `participantAliases` surface
   `urn:refarm:agent:runtime-agent` in both `sessions show --json` and
   `resume --json`.

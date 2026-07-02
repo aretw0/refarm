@@ -40,7 +40,7 @@ The invariant is:
 
 ## Boundary
 
-This does not create a package, mutate `pi-agent`/`farmhand`, add a global shell
+This does not create a package, mutate `agent`/`farmhand`, add a global shell
 proxy, publish npm packages, or move policy into `apps/refarm`.
 
 Candidate homes remain runtime conductor internals, `process-handoff`,

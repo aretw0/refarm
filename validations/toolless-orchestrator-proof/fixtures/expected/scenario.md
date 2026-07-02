@@ -13,5 +13,5 @@ The proof splits the actors:
 - the actor returns fenced evidence with a recoverable raw-evidence reference;
 - the conductor completes only after source hash and fence checks pass.
 
-This is a proof-local validation. It does not mutate `pi-agent`, `farmhand`, or
+This is a proof-local validation. It does not mutate `agent`, `farmhand`, or
 any app policy.

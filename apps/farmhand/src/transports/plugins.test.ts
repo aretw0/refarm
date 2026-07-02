@@ -1,12 +1,12 @@
 import crypto from "node:crypto";
-import http from "node:http";
 import { mkdtempSync, rmSync } from "node:fs";
+import http from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PluginUsageTracker } from "../plugin-usage-tracker.js";
 import { HttpSidecar } from "./http.js";
 import { createPluginsRouteHandler } from "./plugins.js";
-import { PluginUsageTracker } from "../plugin-usage-tracker.js";
 
 vi.mock("../installed-plugins.js", () => ({
 	loadInstalledPlugins: vi.fn().mockResolvedValue({ loaded: 1, skipped: 0 }),
@@ -36,8 +36,8 @@ vi.mock("@refarm.dev/plugin-manifest", async (importOriginal) => {
 	};
 });
 
-import { loadInstalledPlugins, listInstalledPluginIds } from "../installed-plugins.js";
-import { installWasmArtifact, createMockManifest } from "@refarm.dev/plugin-manifest";
+import { createMockManifest, installWasmArtifact } from "@refarm.dev/plugin-manifest";
+import { listInstalledPluginIds, loadInstalledPlugins } from "../installed-plugins.js";
 
 function makeAdapter() {
 	return {
@@ -211,14 +211,14 @@ describe("createPluginsRouteHandler", () => {
 			vi.mocked(loadInstalledPlugins).mockResolvedValueOnce({ loaded: 1, skipped: 0 });
 
 			const res = await request(port, "POST", "/plugins/reload", {
-				pluginIds: ["pi-agent"],
+				pluginIds: ["agent"],
 			});
 
 			expect(res.status).toBe(200);
 			expect(loadInstalledPlugins).toHaveBeenCalledWith(
 				target,
 				baseDir,
-				{ pluginFilter: ["@refarm/pi-agent"] },
+				{ pluginFilter: ["@refarm/agent"] },
 			);
 		});
 

@@ -8,7 +8,7 @@
 
 ## Context
 
-Slice 6.3 added `pi-agent respond` as an effort-queue callable function returning
+Slice 6.3 added `agent respond` as an effort-queue callable function returning
 `{ content, model, provider, usage }`. The respond payload already accepts an optional
 `system` field that overrides `LLM_SYSTEM` for that call alone.
 
@@ -18,7 +18,7 @@ consumers.
 What's missing is:
 1. A composable TypeScript contract for building context-aware system prompts.
 2. A `refarm ask` CLI command that ties it all together: gathers project context,
-   dispatches to pi-agent, and streams the response token by token to the terminal.
+   dispatches to agent, and streams the response token by token to the terminal.
 
 This slice builds those two pieces. It deliberately avoids building a TUI — instead it
 lays the primitives that make a TUI emerge naturally (streaming output, composable context,
@@ -63,7 +63,7 @@ export function buildSystemPrompt(entries: ContextEntry[]): string;
 
 Wrapped in a preamble:
 ```
-You are pi-agent, a sovereign AI assistant for a Refarm node.
+You are agent, a sovereign AI assistant for a Refarm node.
 The following project context has been collected automatically:
 <contexts>
 ...
@@ -118,7 +118,7 @@ refarm ask "<query>"
   1. ContextRegistry collects entries (cwd, date, git_status, [files])
   2. buildSystemPrompt(entries) → system string
   3. POST /tasks to Farmhand HTTP sidecar (port 42001):
-       { pluginId: "pi-agent", fn: "respond",
+       { pluginId: "agent", fn: "respond",
          args: { prompt: query, system },
          direction: "ask" }
      → effortId + stream_ref
@@ -130,7 +130,7 @@ refarm ask "<query>"
 ### Output format
 
 ```
-pi-agent ▸ o que é CRDT?
+agent ▸ o que é CRDT?
 
 Um CRDT (Conflict-free Replicated Data Type) é uma estrutura de dados...
 [tokens print as they arrive]
@@ -142,9 +142,9 @@ model: claude-sonnet-4-6  tokens: 120 in / 340 out  ~$0.0012
 No spinner, no progress bar — raw tokens to stdout. A future TUI can intercept and
 decorate this stream; the primitive works stand-alone.
 
-### Connection between pi-agent and stream_ref
+### Connection between agent and stream_ref
 
-`pi-agent respond` writes `StreamChunk` nodes to the CRDT keyed by a `stream_ref` derived
+`agent respond` writes `StreamChunk` nodes to the CRDT keyed by a `stream_ref` derived
 from the effort ID. Farmhand's `StreamRegistry` broadcasts those nodes to all registered
 transports including `FileStreamTransport`. `refarm ask` subscribes to the file transport
 for that `stream_ref` immediately after submitting the effort.
@@ -156,7 +156,7 @@ transport accumulates chunks, and the subscriber replays from offset 0 on first 
 
 ## Why Not Extend `refarm task run`?
 
-`refarm task run pi-agent respond --args '...'` already works. `refarm ask` is not a
+`refarm task run agent respond --args '...'` already works. `refarm ask` is not a
 replacement — it's a higher-level command that:
 
 1. Auto-injects context (no `--args` JSON to write)
@@ -180,12 +180,12 @@ refarm ask "o que é CRDT?"
   buildSystemPrompt(entries)
     → "<contexts>...</contexts>" enriched system string
 
-  POST /tasks { pluginId:"pi-agent", fn:"respond",
+  POST /tasks { pluginId:"agent", fn:"respond",
                 args:{ prompt:"o que é CRDT?", system }, direction:"ask" }
     → effortId + stream_ref
 
   FileStreamTransport.subscribe(stream_ref, onChunk)
-    → prints tokens as StreamChunk nodes arrive from pi-agent MODEL call
+    → prints tokens as StreamChunk nodes arrive from agent MODEL call
 
   is_final=true
     → prints usage footer

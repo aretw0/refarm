@@ -285,7 +285,7 @@ export async function buildNativeSkillAgentsLabGitWorkflowSmoke({
 			"This smoke reads agents-lab git-workflow as source evidence only.",
 			"This smoke does not install, copy, vendor, or execute the external skill.",
 			"This smoke executes only source:v1 status through @refarm.dev/source-local.",
-			"This smoke does not execute runtime-agent, pi-agent, shell tools, file mutations, or model calls.",
+			"This smoke does not execute runtime-agent, agent, shell tools, file mutations, or model calls.",
 		],
 		nextActions: issues.length === 0
 			? [

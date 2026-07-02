@@ -113,7 +113,7 @@ refarm/
 │   ├── plugin-manifest/              # Plugin manifest schema & validation
 │   ├── refarm-plugin-wit/            # WIT interface — plugin ↔ Tractor
 │   ├── barn/                         # Plugin lifecycle · OPFS cache · SHA-256
-│   ├── pi-agent/                     # Sovereign AI plugin (WASM)
+│   ├── agent/                     # Sovereign AI plugin (WASM)
 │   └── ...                           # heartwood, silo, fence, health, ds, …
 │
 ├── specs/                            # ADRs + feature specs + diagrams

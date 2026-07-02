@@ -10,7 +10,7 @@ The factory runs **one backend at a time** on port 42000. Two backends exist:
 
 | Backend  | Language | Ports                                         | Role                                            |
 | -------- | -------- | --------------------------------------------- | ----------------------------------------------- |
-| tractor  | Rust     | :42000 (WS)                                   | WASM plugin host, pi-agent, native CRDT sync    |
+| tractor  | Rust     | :42000 (WS)                                   | WASM plugin host, agent, native CRDT sync    |
 | farmhand | Node.js  | :42000 (WS CRDT sync) + :42001 (HTTP sidecar) | Task orchestration, file queue, effort dispatch |
 
 **They share port 42000 and must not run at the same time.**
@@ -36,7 +36,7 @@ pnpm run refarm:telemetry:gate:strict-all  # enforce all diagnostics (hard mode)
 # When checking remote CI results (after local validation):
 gh run list --workflow test.yml --limit 5
 gh run watch --exit-status
-refarm agent install       # manual: force-install pi-agent (normally auto-installed on runtime boot)
+refarm agent install       # manual: force-install agent (normally auto-installed on runtime boot)
 pnpm run agent:daemon       # low-level: start tractor in background
 pnpm run agent:stop         # low-level: stop tractor
 pnpm run farmhand:daemon    # low-level: start farmhand in background
@@ -191,7 +191,7 @@ pnpm run farm:status        # verify nothing is running on :42001
 # Tests start their own farmhand stub on :42001; a running farmhand will conflict.
 pnpm run task:execution:smoke
 # Or:
-pnpm run task:execution:smoke:pi-agent
+pnpm run task:execution:smoke:agent
 ```
 
 If farmhand is already running, stop it first:
@@ -227,7 +227,7 @@ refarm ask "o que é CRDT?"
 ```
 
 Notes:
-- Farmhand auto-installs pi-agent from the bundled npm package when it boots.
+- Farmhand auto-installs agent from the bundled npm package when it boots.
   To manually trigger: `refarm agent install`.
 - `refarm ask ...` works with the built-in resolver loader.
 - Use `refarm telemetry --profile balanced` (or conservative/throughput) to
@@ -299,16 +299,16 @@ refarm runtime stop         # stop tracked runtime backends
 refarm runtime ensure --wait
 ```
 
-### Scenario 5 — Run pi-agent harness tests
+### Scenario 5 — Run agent harness tests
 
 The harness starts its own mock MODEL on a random port — no service conflict possible.
 It does NOT require tractor or farmhand to be running.
 
 ```bash
 # Build WASM first (outputs to $CARGO_TARGET_DIR):
-cd packages/pi-agent && cargo component build --release
+cd packages/agent && cargo component build --release
 # Run harness (serialize with --test-threads=1):
-cd packages/tractor && cargo test --test pi_agent_harness -- --ignored --test-threads=1
+cd packages/tractor && cargo test --test agent_harness -- --ignored --test-threads=1
 ```
 
 If you want to also keep tractor running for interactive work:
@@ -321,8 +321,8 @@ After running `pnpm run clean:heavy` or when `CARGO_TARGET_DIR` volume is empty:
 ```bash
 # Rebuild tractor binary:
 cd packages/tractor && cargo build --release
-# Rebuild pi-agent WASM:
-cd packages/pi-agent && cargo component build --release
+# Rebuild agent WASM:
+cd packages/agent && cargo component build --release
 # Verify:
 pnpm run farm:status        # check ARTIFACTS section
 ```
@@ -356,9 +356,9 @@ pnpm run farm:status        # check ARTIFACTS section
   task-control/    # retry/cancel signals
   streams/         # stream chunk files
   plugins/         # installed plugin manifests + WASM blobs
-    pi-agent/
+    agent/
       plugin.json
-      pi-agent.wasm
+      agent.wasm
 ```
 
 All `.refarm/` contents are gitignored. Root-level integration namespaces such
@@ -378,8 +378,8 @@ When something is wrong, work top-down:
 4. **Binary missing?** — ARTIFACTS section in farm:status will tell you what to build.
 5. **No credentials?** — `refarm model doctor --json` or `refarm sow`.
 6. **Disk full?** — `pnpm run disk:check` → `pnpm run clean:light` or `pnpm run clean:heavy`.
-7. **WASM/harness fails?** — ensure `$CARGO_TARGET_DIR` is set and pi_agent.wasm is at
-   `$CARGO_TARGET_DIR/wasm32-wasip1/release/pi_agent.wasm`.
+7. **WASM/harness fails?** — ensure `$CARGO_TARGET_DIR` is set and agent.wasm is at
+   `$CARGO_TARGET_DIR/wasm32-wasip1/release/agent.wasm`.
 
 ---
 

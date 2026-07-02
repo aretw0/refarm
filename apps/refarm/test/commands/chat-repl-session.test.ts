@@ -248,7 +248,7 @@ describe("runSessionRepl", () => {
 		await Promise.resolve();
 		await Promise.resolve();
 
-		expect(reloadPlugins).toHaveBeenCalledWith(["@refarm/pi-agent"]);
+		expect(reloadPlugins).toHaveBeenCalledWith(["@refarm/agent"]);
 	});
 
 	it("prints status failure path and continues", async () => {

@@ -1,60 +1,60 @@
-# Feature: Pi-Agent ↔ Effort Queue Bridge
+# Feature: Agent ↔ Effort Queue Bridge
 
-**Status**: Done  
-**Version**: v0.1.0  
+**Status**: Done
+**Version**: v0.1.0
 **Owner**: Arthur Silva
 
 ---
 
 ## Summary
 
-Makes `pi-agent` (the sovereign AI plugin) callable via the effort queue. Adds a `respond`
+Makes `agent` (the sovereign AI plugin) callable via the effort queue. Adds a `respond`
 function to the WIT `integration` contract, enables Farmhand to auto-boot installed plugins,
 and consolidates the `refarm:plugin@0.1.0` WIT definition into a single canonical package
-(`packages/refarm-plugin-wit/`) to eliminate silent drift between tractor and pi-agent.
+(`packages/refarm-plugin-wit/`) to eliminate silent drift between tractor and agent.
 
 ---
 
 ## User Stories
 
-**As a** Refarm developer  
-**I want** to dispatch a prompt to pi-agent via `refarm task run pi-agent respond`  
+**As a** Refarm developer
+**I want** to dispatch a prompt to agent via `refarm task run agent respond`
 **So that** I can get an AI response from the terminal without opening Studio
 
-**As a** Refarm developer  
-**I want** `refarm task status <id>` to show the AI response content and token usage  
+**As a** Refarm developer
+**I want** `refarm task status <id>` to show the AI response content and token usage
 **So that** I can audit what the agent produced and what it cost
 
-**As a** third-party plugin author  
-**I want** `refarm:plugin@0.1.0` to have a single canonical WIT source  
+**As a** third-party plugin author
+**I want** `refarm:plugin@0.1.0` to have a single canonical WIT source
 **So that** I can depend on it without worrying about stale copies
 
 ---
 
 ## Acceptance Criteria
 
-1. **Given** pi-agent is installed in `~/.refarm/plugins/pi-agent/`  
-   **When** Farmhand boots  
-   **Then** pi-agent is loaded and available without any manual command
+1. **Given** agent is installed in `~/.refarm/plugins/agent/`
+   **When** Farmhand boots
+   **Then** agent is loaded and available without any manual command
 
-2. **Given** Farmhand is running with pi-agent loaded  
-   **When** `refarm task run pi-agent respond --args '{"prompt":"..."}' --direction "..."` is executed  
+2. **Given** Farmhand is running with agent loaded
+   **When** `refarm task run agent respond --args '{"prompt":"..."}' --direction "..."` is executed
    **Then** an `effortId` is printed and the effort file appears in `~/.refarm/tasks/`
 
-3. **Given** the effort is processed  
-   **When** `refarm task status <effortId>` is run  
+3. **Given** the effort is processed
+   **When** `refarm task status <effortId>` is run
    **Then** `TaskResult.result` contains `content`, `model`, `provider`, and `usage`
 
-4. **Given** the model call fails or budget is exceeded  
-   **When** `respond` is invoked  
+4. **Given** the model call fails or budget is exceeded
+   **When** `respond` is invoked
    **Then** `TaskResult` has `status: "error"` with a descriptive error message
 
-5. **Given** `packages/refarm-plugin-wit/wit/refarm-plugin-host.wit` is modified  
-   **When** pi-agent and tractor are built  
+5. **Given** `packages/refarm-plugin-wit/wit/refarm-plugin-host.wit` is modified
+   **When** agent and tractor are built
    **Then** both pick up the change automatically — no manual copy needed
 
-6. **Given** one installed plugin has an invalid manifest  
-   **When** Farmhand boots  
+6. **Given** one installed plugin has an invalid manifest
+   **When** Farmhand boots
    **Then** that plugin is skipped with a warning and all other plugins load normally
 
 ---
@@ -68,8 +68,8 @@ packages/refarm-plugin-wit/          ← new: canonical WIT source for refarm:pl
   Cargo.toml
   wit/refarm-plugin-host.wit         ← sole copy of integration, tractor-bridge, etc.
 
-packages/pi-agent/
-  wit/world.wit                      ← kept local (pi-agent world)
+packages/agent/
+  wit/world.wit                      ← kept local (agent world)
   wit/refarm-plugin-host.wit         ← REMOVED (now a WIT dependency)
   src/lib.rs                         ← fn respond(payload: String) -> Result<String, PluginError>
 
@@ -131,7 +131,7 @@ async function loadInstalledPlugins(tractor: Tractor, baseDir: string): Promise<
 
 **Smoke gate extension:**
 
-- [x] `pi-agent respond` effort round-trip with stub model — `TaskResult.result` has `content` + `usage`
+- [x] `agent respond` effort round-trip with stub model — `TaskResult.result` has `content` + `usage`
 
 ---
 
@@ -146,19 +146,19 @@ async function loadInstalledPlugins(tractor: Tractor, baseDir: string): Promise<
 
 **TDD:**
 
-- [x] Axiom A6-aligned contract test (`respond` structure) in `packages/pi-agent/src/tests/respond_contract_tests.rs`
+- [x] Axiom A6-aligned contract test (`respond` structure) in `packages/agent/src/tests/respond_contract_tests.rs`
 - [x] `respond` error path test (invalid payload without prompt)
 - [x] `loadInstalledPlugins` unit tests in farmhand
-- [x] Smoke gate pi-agent scenario
+- [x] Smoke gate agent scenario
 
 **DDD:**
 
 - [x] Scaffold `packages/refarm-plugin-wit/` with Cargo.toml
 - [x] Move `refarm-plugin-host.wit` to canonical location
-- [x] Update pi-agent WIT dependency in Cargo.toml
+- [x] Update agent WIT dependency in Cargo.toml
 - [x] Update tractor `bindgen!` path in `core.rs`
 - [x] Add `respond` to WIT interface
-- [x] Implement `fn respond` in `packages/pi-agent/src/lib.rs`
+- [x] Implement `fn respond` in `packages/agent/src/lib.rs`
 - [x] Implement `loadInstalledPlugins` in `apps/farmhand/src/index.ts`
 - [x] Wire `loadInstalledPlugins` in `main()`
 - [x] Smoke gate: verify end-to-end with stub model
@@ -168,4 +168,4 @@ async function loadInstalledPlugins(tractor: Tractor, baseDir: string): Promise<
 ## References
 
 - [Farmhand Task Execution spec](./farmhand-task-execution.md)
-- [Pi-agent ROADMAP](../../packages/pi-agent/ROADMAP.md)
+- [Pi-agent ROADMAP](../../packages/agent/ROADMAP.md)

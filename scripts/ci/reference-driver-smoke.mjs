@@ -45,7 +45,7 @@ const STEPS = [
 	{
 		id: "code-ops-wit",
 		packageScript: {
-			cwd: "packages/pi-agent",
+			cwd: "packages/agent",
 			script: "check:wit",
 		},
 	},

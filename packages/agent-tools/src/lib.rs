@@ -44,7 +44,7 @@ impl AgentFsGuest for AgentTools {
 // ── agent-shell ───────────────────────────────────────────────────────────────
 //
 // Policy layer: validates the request before calling the host's do-spawn import.
-// Swap this component to change spawn rules without recompiling tractor or pi-agent.
+// Swap this component to change spawn rules without recompiling tractor or agent.
 
 impl AgentShellGuest for AgentTools {
     fn spawn(req: SpawnRequest) -> Result<SpawnResult, String> {

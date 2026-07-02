@@ -117,8 +117,8 @@ test("ecosystem supply map keeps reference driver package-first", () => {
 	assert.match(supplyMap, /@refarm\.dev\/cli\/capability-index/);
 	assert.match(supplyMap, /@refarm\.dev\/cli\/interaction-driver/);
 	assert.match(supplyMap, /@refarm\.dev\/cli\/worker-profile/);
-	assert.match(supplyMap, /@refarm\.dev\/pi-agent` unheld as a narrow engine package/);
-	assert.match(supplyMap, /pi-agent:release-proof/);
+	assert.match(supplyMap, /@refarm\.dev\/agent` unheld as a narrow engine package/);
+	assert.match(supplyMap, /agent:release-proof/);
 	assert.match(supplyMap, /refarm capabilities --supply-preflight\s+reference-driver --json/);
 	assert.match(supplyMap, /adoptionCriteria/);
 	assert.match(supplyMap, /promotionProofTargets/);
@@ -152,7 +152,7 @@ test("ecosystem supply map keeps reference driver package-first", () => {
 	assert.match(decisionLog, /second real non-CLI consumer/);
 	assert.match(decisionLog, /`apps\/refarm` may render the data, but must not own capability truth/);
 	assert.match(supplyMap, /Consumers keep their own command labels and product UX/);
-	assert.match(supplyMap, /The\s+`runtime-agent`\/`pi-agent` execution package remains private/);
+	assert.match(supplyMap, /The\s+`runtime-agent`\/`agent` execution package remains private/);
 	assert.doesNotMatch(supplyMap, /reference-driver.*apps\/refarm/i);
 });
 

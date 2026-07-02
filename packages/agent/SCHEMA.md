@@ -1,8 +1,8 @@
-# pi-agent CRDT Node Schema
+# agent CRDT Node Schema
 
 CRDT nodes are schema-free JSON blobs — the tractor host accepts any `@type` without
 prior registration (Extensibility Axiom A5). This document is the authoritative contract
-for nodes owned by pi-agent.
+for nodes owned by agent.
 
 ---
 

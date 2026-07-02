@@ -1,9 +1,9 @@
+import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WasiImports } from "../src/lib/wasi-imports";
-import { createMockManifest } from "@refarm.dev/plugin-manifest";
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -265,19 +265,19 @@ describe("WasiImports — versioned WASI keys", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Drift prevention: every refarm:plugin/* import in the transpiled pi-agent
+// Drift prevention: every refarm:plugin/* import in the transpiled agent
 // artifact must have a matching key registered by WasiImports.generate().
-// Skips when pi-agent hasn't been built yet (fresh checkout, CI pre-build).
-// To build: run the package-manager build script for @refarm.dev/pi-agent.
+// Skips when agent hasn't been built yet (fresh checkout, CI pre-build).
+// To build: run the package-manager build script for @refarm.dev/agent.
 // ---------------------------------------------------------------------------
 describe("WasiImports — drift prevention: .jco-dist matches registered imports", () => {
-  it("every refarm:plugin/* import in _refarm_pi_agent.js has a host registration", () => {
+  it("every refarm:plugin/* import in _refarm_agent.js has a host registration", () => {
     const require = createRequire(import.meta.url);
-    const piAgentDir = dirname(require.resolve("@refarm.dev/pi-agent/package.json"));
-    const artifactPath = resolve(piAgentDir, "dist/jco/_refarm_pi_agent.js");
+    const agentDir = dirname(require.resolve("@refarm.dev/agent/package.json"));
+    const artifactPath = resolve(agentDir, "dist/jco/_refarm_agent.js");
 
     if (!existsSync(artifactPath)) {
-      console.warn("[drift-prevention] Skipping: pi-agent dist/jco not built. Run the package-manager build script for @refarm.dev/pi-agent.");
+      console.warn("[drift-prevention] Skipping: agent dist/jco not built. Run the package-manager build script for @refarm.dev/agent.");
       return;
     }
 

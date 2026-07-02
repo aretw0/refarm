@@ -173,7 +173,7 @@ function parseStreamChunkLines(content) {
 async function waitForFinalStreamChunks({
 	streamsDir,
 	timeoutMs = 20_000,
-	loggerPrefix = "[task-smoke:pi-agent]",
+	loggerPrefix = "[task-smoke:agent]",
 }) {
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
@@ -210,19 +210,19 @@ async function waitForFinalStreamChunks({
 	);
 }
 
-async function installPiAgentPlugin(tempHome, wasmSourcePath) {
-	const pluginDir = path.join(tempHome, ".refarm", "plugins", "pi-agent");
+async function installAgentPlugin(tempHome, wasmSourcePath) {
+	const pluginDir = path.join(tempHome, ".refarm", "plugins", "agent");
 	await mkdir(pluginDir, { recursive: true });
 
-	const wasmDestPath = path.join(pluginDir, "pi-agent.wasm");
+	const wasmDestPath = path.join(pluginDir, "agent.wasm");
 	await cp(wasmSourcePath, wasmDestPath);
 
 	const wasmBuffer = await readFile(wasmDestPath);
 	const integrity = `sha256-${createHash("sha256").update(wasmBuffer).digest("hex")}`;
 
 	const manifest = createMockManifest({
-		id: "@refarm/pi-agent",
-		name: "Pi Agent",
+		id: "@refarm/agent",
+		name: "Agent",
 		entry: pathToFileURL(wasmDestPath).href,
 		integrity,
 		targets: ["server"],
@@ -251,7 +251,7 @@ async function main() {
 		process.env.REFARM_TASK_SMOKE_KEEP_ARTIFACTS === "1" ||
 		process.env.REFARM_TASK_SMOKE_KEEP_ARTIFACTS === "true";
 
-	const tempHome = await mkdtemp(path.join(tmpdir(), "refarm-task-pi-agent-"));
+	const tempHome = await mkdtemp(path.join(tmpdir(), "refarm-task-agent-"));
 	let farmhand = null;
 	let farmhandLogs = "";
 
@@ -259,54 +259,54 @@ async function main() {
 		await assertFarmhandPortsAvailable();
 
 		const skipAppBuilds =
-			process.env.REFARM_TASK_SMOKE_PI_AGENT_SKIP_APP_BUILDS === "1";
+			process.env.REFARM_TASK_SMOKE_AGENT_SKIP_APP_BUILDS === "1";
 		const skipWasmBuild =
-			process.env.REFARM_TASK_SMOKE_PI_AGENT_SKIP_WASM_BUILD === "1";
+			process.env.REFARM_TASK_SMOKE_AGENT_SKIP_WASM_BUILD === "1";
 
 		if (!skipAppBuilds) {
-			await prepareTaskSmokeTypeBuilds(process.env, "[task-smoke:pi-agent]");
+			await prepareTaskSmokeTypeBuilds(process.env, "[task-smoke:agent]");
 		} else {
 			console.log(
-				"[task-smoke:pi-agent] skipping app builds (REFARM_TASK_SMOKE_PI_AGENT_SKIP_APP_BUILDS=1)",
+				"[task-smoke:agent] skipping app builds (REFARM_TASK_SMOKE_AGENT_SKIP_APP_BUILDS=1)",
 			);
 		}
 
 		const wasmPath = process.env.CARGO_TARGET_DIR
-			? path.join(process.env.CARGO_TARGET_DIR, "wasm32-wasip1/release/pi_agent.wasm")
-			: path.join(process.cwd(), "packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm");
+			? path.join(process.env.CARGO_TARGET_DIR, "wasm32-wasip1/release/agent.wasm")
+			: path.join(process.cwd(), "packages/agent/target/wasm32-wasip1/release/agent.wasm");
 		if (!skipWasmBuild && !existsSync(wasmPath)) {
-			console.log("[task-smoke:pi-agent] building pi-agent wasm component...");
+			console.log("[task-smoke:agent] building agent wasm component...");
 			await runSubprocess("cargo", ["component", "build", "--release"], {
-				cwd: "packages/pi-agent",
+				cwd: "packages/agent",
 			});
 		} else if (skipWasmBuild) {
 			console.log(
-				"[task-smoke:pi-agent] skipping wasm build (REFARM_TASK_SMOKE_PI_AGENT_SKIP_WASM_BUILD=1)",
+				"[task-smoke:agent] skipping wasm build (REFARM_TASK_SMOKE_AGENT_SKIP_WASM_BUILD=1)",
 			);
 		} else {
 			console.log(
-				"[task-smoke:pi-agent] reusing existing pi-agent wasm artifact",
+				"[task-smoke:agent] reusing existing agent wasm artifact",
 			);
 		}
-		await installPiAgentPlugin(tempHome, wasmPath);
+		await installAgentPlugin(tempHome, wasmPath);
 
 		const env = {
 			...process.env,
 			HOME: tempHome,
 			USERPROFILE: tempHome,
 			MODEL_PROVIDER: "ollama",
-			MODEL_ID: "smoke-pi-agent-model",
+			MODEL_ID: "smoke-agent-model",
 			MODEL_STREAM_RESPONSES: "1",
 			MODEL_HISTORY_TURNS: "0",
 			REFARM_MOCK_MODEL_BODY: JSON.stringify({
-				id: "smoke-pi-agent",
+				id: "smoke-agent",
 				object: "chat.completion",
 				choices: [
 					{
 						index: 0,
 						message: {
 							role: "assistant",
-							content: "smoke-pi-agent: resposta determinística do mock LLM",
+							content: "smoke-agent: resposta determinística do mock LLM",
 						},
 						finish_reason: "stop",
 					},
@@ -319,7 +319,7 @@ async function main() {
 			}),
 		};
 
-		console.log("[task-smoke:pi-agent] starting farmhand daemon...");
+		console.log("[task-smoke:agent] starting farmhand daemon...");
 		farmhand = spawn(
 			process.execPath,
 			[
@@ -343,19 +343,19 @@ async function main() {
 			"http://127.0.0.1:42001/efforts/summary",
 			farmhand,
 		);
-		console.log("[task-smoke:pi-agent] farmhand sidecar is ready");
+		console.log("[task-smoke:agent] farmhand sidecar is ready");
 
 		const runOutput = await runSubprocess(
 			process.execPath,
 			[
 				"scripts/ci/task-smoke-cli.mjs",
 				"run",
-				"@refarm/pi-agent",
+				"@refarm/agent",
 				"respond",
 				"--args",
 				'{"prompt":"Responda com uma frase curta para smoke e2e"}',
 				"--direction",
-				"CI smoke pi-agent respond",
+				"CI smoke agent respond",
 				"--transport",
 				"http",
 			],
@@ -365,12 +365,12 @@ async function main() {
 		const effortId = extractEffortId(
 			`${runOutput.stdout}\n${runOutput.stderr}`,
 		);
-		console.log(`[task-smoke:pi-agent] effort dispatched: ${effortId}`);
+		console.log(`[task-smoke:agent] effort dispatched: ${effortId}`);
 
 		const terminal = await waitForTerminalStatus({ env, effortId });
 		if (terminal.status !== "done") {
 			throw new Error(
-				`Expected done status for pi-agent smoke effort, got ${terminal.status}`,
+				`Expected done status for agent smoke effort, got ${terminal.status}`,
 			);
 		}
 
@@ -408,20 +408,20 @@ async function main() {
 		const content = respondResult.content ?? '';
 		if (!content || content.trim() === '') {
 			throw new Error(
-				`[task-smoke:pi-agent] FAIL: result has empty content — pi-agent componentInstance was likely null (JCO instantiation failed silently). Full result: ${JSON.stringify(respondResult, null, 2)}`,
+				`[task-smoke:agent] FAIL: result has empty content — agent componentInstance was likely null (JCO instantiation failed silently). Full result: ${JSON.stringify(respondResult, null, 2)}`,
 			);
 		}
 		console.log(
-			`[task-smoke:pi-agent] OK: got ${content.length} chars from model=${respondResult.model} provider=${respondResult.provider}`,
+			`[task-smoke:agent] OK: got ${content.length} chars from model=${respondResult.model} provider=${respondResult.provider}`,
 		);
 
 		const streamsDir = path.join(tempHome, ".refarm", "streams");
 		const streamSummary = await waitForFinalStreamChunks({
 			streamsDir,
-			loggerPrefix: "[task-smoke:pi-agent]",
+			loggerPrefix: "[task-smoke:agent]",
 		});
 		console.log(
-			`[task-smoke:pi-agent] stream smoke passed: file=${streamSummary.filePath} chunks=${streamSummary.chunks.length}`,
+			`[task-smoke:agent] stream smoke passed: file=${streamSummary.filePath} chunks=${streamSummary.chunks.length}`,
 		);
 
 		const askRun = await runSubprocess(
@@ -439,7 +439,7 @@ async function main() {
 		);
 		const askOutput = stripAnsi(`${askRun.stdout}\n${askRun.stderr}`);
 		if (
-			!askOutput.includes("smoke-pi-agent: resposta determinística do mock LLM")
+			!askOutput.includes("smoke-agent: resposta determinística do mock LLM")
 		) {
 			throw new Error(
 				`Expected ask output to include streamed response content. Output:\n${askOutput}`,
@@ -450,16 +450,16 @@ async function main() {
 				`Expected ask output usage footer (model/tokens). Output:\n${askOutput}`,
 			);
 		}
-		console.log("[task-smoke:pi-agent] ask smoke passed");
+		console.log("[task-smoke:agent] ask smoke passed");
 
 		console.log(
-			`[task-smoke:pi-agent] passed: effort=${effortId} provider=${respondResult.provider} model=${respondResult.model}`,
+			`[task-smoke:agent] passed: effort=${effortId} provider=${respondResult.provider} model=${respondResult.model}`,
 		);
 	} catch (error) {
 		const details = error instanceof Error ? error.message : String(error);
 		const tail = farmhandLogs.split("\n").filter(Boolean).slice(-60).join("\n");
 		throw new Error(
-			`[task-smoke:pi-agent] failed: ${details}${tail ? `\n--- farmhand logs (tail) ---\n${tail}` : ""}`,
+			`[task-smoke:agent] failed: ${details}${tail ? `\n--- farmhand logs (tail) ---\n${tail}` : ""}`,
 		);
 	} finally {
 		await stopProcess(farmhand);
@@ -467,7 +467,7 @@ async function main() {
 		if (!keepArtifacts) {
 			await rm(tempHome, { recursive: true, force: true });
 		} else {
-			console.log(`[task-smoke:pi-agent] kept HOME artifact at ${tempHome}`);
+			console.log(`[task-smoke:agent] kept HOME artifact at ${tempHome}`);
 		}
 	}
 }

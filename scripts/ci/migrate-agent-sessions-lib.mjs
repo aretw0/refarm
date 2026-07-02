@@ -3,7 +3,7 @@ const OLD_ENTRY_PREFIX = "urn:pi-agent:entry-";
 const NEW_SESSION_PREFIX = "urn:refarm:session:v1:";
 const NEW_ENTRY_PREFIX = "urn:refarm:session-entry:v1:";
 
-function rewritePiAgentUrn(value) {
+function rewriteAgentUrn(value) {
 	if (typeof value !== "string") {
 		return { value, changed: false };
 	}
@@ -64,10 +64,10 @@ function migrateByKey(value, keyHint) {
 		return { value, changed: false };
 	}
 
-	return rewritePiAgentUrn(value);
+	return rewriteAgentUrn(value);
 }
 
-export function migratePiAgentSessionNode(node) {
+export function migrateAgentSessionNode(node) {
 	if (!isPlainObject(node)) {
 		return {
 			node,
@@ -118,7 +118,7 @@ export function migratePiAgentSessionNode(node) {
 	};
 }
 
-export function migratePiAgentSessionNodes(nodes) {
+export function migrateAgentSessionNodes(nodes) {
 	const report = {
 		total: Array.isArray(nodes) ? nodes.length : 0,
 		migrated: 0,
@@ -131,7 +131,7 @@ export function migratePiAgentSessionNodes(nodes) {
 	}
 
 	const migratedNodes = nodes.map((node) => {
-		const migrated = migratePiAgentSessionNode(node);
+		const migrated = migrateAgentSessionNode(node);
 		if (migrated.changed) {
 			report.migrated += 1;
 			report.idRewrites += migrated.idRewrites;

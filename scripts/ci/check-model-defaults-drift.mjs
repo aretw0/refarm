@@ -5,10 +5,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(scriptDir, "../..");
 const configPath = resolve(rootDir, "packages/config/src/model-routing.js");
-const piAgentPath = resolve(rootDir, "packages/pi-agent/src/provider_config.rs");
+const agentPath = resolve(rootDir, "packages/agent/src/provider_config.rs");
 
 const config = await import(pathToFileURL(configPath));
-const rustSource = await readFile(piAgentPath, "utf-8");
+const rustSource = await readFile(agentPath, "utf-8");
 
 const commonCompatProviders = [
 	"openai",
@@ -62,7 +62,7 @@ for (const provider of commonCompatProviders) {
 		provider,
 		rustDefaults.get(provider),
 		config.defaultModelForProvider(provider),
-		"pi-agent openai_compat_defaults",
+		"agent openai_compat_defaults",
 	);
 }
 
@@ -70,7 +70,7 @@ expectModel(
 	"anthropic",
 	rustStringConst("ANTHROPIC_DEFAULT_MODEL"),
 	config.defaultModelForProvider("anthropic"),
-	"pi-agent ANTHROPIC_DEFAULT_MODEL",
+	"agent ANTHROPIC_DEFAULT_MODEL",
 );
 
 if (failures.length > 0) {
@@ -81,8 +81,8 @@ if (failures.length > 0) {
 	console.error("");
 	console.error(`Sources compared:`);
 	console.error(`  - ${relative(rootDir, configPath)}`);
-	console.error(`  - ${relative(rootDir, piAgentPath)}`);
+	console.error(`  - ${relative(rootDir, agentPath)}`);
 	process.exit(1);
 }
 
-console.log("Model defaults aligned between packages/config and pi-agent.");
+console.log("Model defaults aligned between packages/config and agent.");

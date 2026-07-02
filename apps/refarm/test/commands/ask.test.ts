@@ -1,9 +1,9 @@
+import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import type { AskDeps } from "../../src/commands/ask.js";
 import {
 	createAskCommand,
@@ -188,7 +188,7 @@ describe("refarm ask", () => {
 				source: "refarm-ask",
 				tasks: [
 					expect.objectContaining({
-						pluginId: "@refarm/pi-agent",
+						pluginId: "@refarm/agent",
 						fn: "respond",
 						args: expect.objectContaining({ prompt: "what is CRDT?" }),
 					}),
@@ -681,9 +681,9 @@ describe("refarm ask", () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
-				installed: ["@refarm/pi-agent"],
+				installed: ["@refarm/agent"],
 				loaded: [],
-				known: ["@refarm/pi-agent"],
+				known: ["@refarm/agent"],
 			}),
 		});
 		const launchDeps: LaunchDeps = {
@@ -721,9 +721,9 @@ describe("refarm ask", () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
-				installed: ["@refarm/pi-agent"],
+				installed: ["@refarm/agent"],
 				loaded: [],
-				known: ["@refarm/pi-agent"],
+				known: ["@refarm/agent"],
 			}),
 		});
 		const launchDeps: LaunchDeps = {
@@ -755,7 +755,7 @@ describe("refarm ask", () => {
 			nextCommand: "refarm plugin reload agent --json",
 		});
 		expect(payload.nextActions).toContain("refarm plugin reload agent --json");
-		expect(payload.nextActions).not.toContain("/reload @refarm/pi-agent");
+		expect(payload.nextActions).not.toContain("/reload @refarm/agent");
 		expect(payload.nextActions).toContain("refarm runtime start");
 		expect(payload.nextCommands).toContain("refarm runtime ensure --wait --next-command");
 		expect(payload.nextCommands).toContain("refarm runtime start --wait");
@@ -813,7 +813,7 @@ describe("refarm ask", () => {
 			nextCommand: "refarm plugin install --json",
 		});
 		expect(payload.nextActions).toContain("refarm plugin install");
-		expect(payload.nextActions).not.toContain("/reload @refarm/pi-agent");
+		expect(payload.nextActions).not.toContain("/reload @refarm/agent");
 		expect(payload.nextCommands).toContain("refarm plugin install --json");
 		expect(payload.nextCommands).not.toContain("refarm plugin install");
 		expect(payload.recommendations).toEqual([
@@ -1049,17 +1049,17 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 			readPluginState: vi
 				.fn()
 				.mockResolvedValueOnce({
-					installed: ["@refarm/pi-agent"],
+					installed: ["@refarm/agent"],
 					loaded: [],
-					known: ["@refarm/pi-agent"],
+					known: ["@refarm/agent"],
 				})
 				.mockResolvedValueOnce({
-					installed: ["@refarm/pi-agent"],
-					loaded: ["@refarm/pi-agent"],
-					known: ["@refarm/pi-agent"],
+					installed: ["@refarm/agent"],
+					loaded: ["@refarm/agent"],
+					known: ["@refarm/agent"],
 				}),
 			reloadPlugins: vi.fn().mockResolvedValue({
-				reloaded: ["@refarm/pi-agent"],
+				reloaded: ["@refarm/agent"],
 				deferred: [],
 				skipped: [],
 			}),
@@ -1078,7 +1078,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 
 		await command.parseAsync(["hello"], { from: "user" });
 
-		expect(deps.reloadPlugins).toHaveBeenCalledWith(["@refarm/pi-agent"]);
+		expect(deps.reloadPlugins).toHaveBeenCalledWith(["@refarm/agent"]);
 		expect(deps.submitEffort).toHaveBeenCalledOnce();
 
 		logSpy.mockRestore();
@@ -1091,14 +1091,14 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
 		const deps = makeDeps({
 			readPluginState: vi.fn().mockResolvedValue({
-				installed: ["@refarm/pi-agent"],
+				installed: ["@refarm/agent"],
 				loaded: [],
-				known: ["@refarm/pi-agent"],
+				known: ["@refarm/agent"],
 			}),
 			reloadPlugins: vi.fn().mockResolvedValue({
 				reloaded: [],
 				deferred: [],
-				skipped: ["@refarm/pi-agent"],
+				skipped: ["@refarm/agent"],
 			}),
 		});
 		const launchDeps: LaunchDeps = {
@@ -1123,7 +1123,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 			installed: true,
 			reloaded: [],
 			deferred: [],
-			skipped: ["@refarm/pi-agent"],
+			skipped: ["@refarm/agent"],
 			nextAction: "refarm plugin reload agent --json",
 			nextCommand: "refarm plugin reload agent --json",
 			nextCommands: [

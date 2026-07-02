@@ -483,7 +483,7 @@ pnpm run test:unit
 
 The CI lanes are intentionally split by responsibility:
 
-- **`Test & Quality`** owns monorepo health: project consistency, security, TS config preflight, Farmhand/refarm/pi-agent smokes, Tractor gates, Turbo verification, E2E, summary, and metrics.
+- **`Test & Quality`** owns monorepo health: project consistency, security, TS config preflight, Farmhand/refarm/agent smokes, Tractor gates, Turbo verification, E2E, summary, and metrics.
 - **`Granular Matrix Tests`** owns package compatibility across local/published edges. It is not the general monorepo health gate.
 - **`Phase Gates`** (`quality-gates.yml`) owns label-driven development intent (`phase:sdd`, `phase:bdd`, `phase:tdd`, `phase:ddd`). No phase label is a success-with-notice, not a failure.
 - **Docs validators** (`Validate Diagrams`, `Validate MDT Docs`, and reusable docs validation) own documentation renderability/drift with content-addressed cache.

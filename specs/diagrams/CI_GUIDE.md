@@ -48,7 +48,7 @@ Every run starts by computing exactly what changed and which jobs need to run.
 |---|---|---|
 | `code_changes` | `apps/ packages/ scripts/` | quality · build · audit |
 | `tractor_gates` | `tractor* barn storage-sqlite sync-loro` | tractor specialized gates |
-| `run_task_smoke` | `farmhand refarm effort pi-agent` | CLI ↔ sidecar smoke |
+| `run_task_smoke` | `farmhand refarm effort agent` | CLI ↔ sidecar smoke |
 | `run_e2e` | `apps/ validations/ tractor*` | Playwright E2E |
 | `run_deep` | weekly schedule or `ci:deep` PR label | full regression |
 

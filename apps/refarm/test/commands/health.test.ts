@@ -249,14 +249,14 @@ describe("healthCommand", () => {
     expect(mockFileSystemAuditor).toHaveBeenCalledWith({
       ignoredGitVisibilityPatterns: [
         "**/*.d.ts",
-        "packages/pi-agent/src/bindings.rs",
+        "packages/agent/src/bindings.rs",
       ],
     });
     expect(mockRefarmProjectAuditor).toHaveBeenCalledWith({
       preset: "refarm",
       ignoredGitVisibilityPatterns: [
         "**/*.d.ts",
-        "packages/pi-agent/src/bindings.rs",
+        "packages/agent/src/bindings.rs",
       ],
     });
     expect(mockProjectAuditor).not.toHaveBeenCalled();
@@ -630,7 +630,7 @@ describe("resolveHealthPolicy", () => {
       preset: "refarm",
       ignoredGitVisibilityPatterns: [
         "**/*.d.ts",
-        "packages/pi-agent/src/bindings.rs",
+        "packages/agent/src/bindings.rs",
       ],
     });
   });
@@ -763,7 +763,7 @@ describe("resolveHealthPolicy", () => {
       preset: "refarm",
       ignoredGitVisibilityPatterns: [
         "**/*.d.ts",
-        "packages/pi-agent/src/bindings.rs",
+        "packages/agent/src/bindings.rs",
       ],
     });
   });

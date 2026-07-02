@@ -321,10 +321,10 @@ existing migration script on each session file and then inspect by explicit sour
 during validation:
 
 ```bash
-pnpm run session:migrate:pi-agent -- --check --input /path/to/.pi/session.jsonl
-pnpm run session:migrate:pi-agent -- --in-place --input /path/to/.pi/session.jsonl
+pnpm run session:migrate:agent -- --check --input /path/to/.pi/session.jsonl
+pnpm run session:migrate:agent -- --in-place --input /path/to/.pi/session.jsonl
 # or emit a migrated copy:
-pnpm run session:migrate:pi-agent -- --input /path/to/.pi/session.jsonl --output /path/to/refarm/session.jsonl
+pnpm run session:migrate:agent -- --input /path/to/.pi/session.jsonl --output /path/to/refarm/session.jsonl
 pnpm run session:heavy:ci-watch -- --session-source refarm --recent 2 --count 20
 ```
 

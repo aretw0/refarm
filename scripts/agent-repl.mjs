@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * agent-repl — interactive multi-turn session with pi-agent
+ * agent-repl — interactive multi-turn session with agent
  *
  * Usage:
  *   Run the agent:repl package script with the configured package manager.
@@ -43,7 +43,7 @@ function getArg(name, def) {
 }
 const WS_PORT  = getArg('--ws-port', '42000');
 const NS       = getArg('--namespace', 'default');
-const AGENT    = getArg('--agent', 'pi_agent');
+const AGENT    = getArg('--agent', 'agent');
 const TIMEOUT  = getArg('--timeout-ms', '60000');
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -157,7 +157,7 @@ function sendPrompt(payload) {
     return { ok: false, output: `[error: ${err}]` };
   }
 
-  // stderr has status messages (e.g. "sending to pi_agent…" and token metadata)
+  // stderr has status messages (e.g. "sending to agent…" and token metadata)
   const meta = (r.stderr || '').trim();
   return { ok: true, output: (r.stdout || '').trimEnd(), meta };
 }
@@ -166,7 +166,7 @@ function sendPrompt(payload) {
 
 function printBanner(provider) {
   const prov = provider ? ` ${c.cyan}${provider}${c.reset}` : '';
-  console.log(`\n${c.bold}pi-agent REPL${c.reset}${prov}  ${c.dim}(Ctrl+C or /quit to exit • /help for commands)${c.reset}`);
+  console.log(`\n${c.bold}agent REPL${c.reset}${prov}  ${c.dim}(Ctrl+C or /quit to exit • /help for commands)${c.reset}`);
   console.log(`${c.dim}namespace=${NS}  port=${WS_PORT}  agent=${AGENT}${c.reset}\n`);
 }
 
@@ -326,7 +326,7 @@ function forkSession(name) {
     console.log(`\n${c.red}No active session found. Start a conversation first.${c.reset}\n`);
     return;
   }
-  const forkId = `urn:pi-agent:session-${newHexId()}`;
+  const forkId = `urn:agent:session-${newHexId()}`;
   const forkNode = {
     '@type': 'Session',
     '@id': forkId,
@@ -377,7 +377,7 @@ function handleSlashCommand(line) {
     console.log(`  ${c.cyan}/sessions${c.reset}           — list all sessions with id, name, and date`);
     console.log(`  ${c.cyan}/fork [name]${c.reset}        — fork current session at its current leaf`);
     console.log(`  ${c.cyan}/navigate <entry_id>${c.reset} — move session pointer to a specific entry`);
-    console.log(`\n${c.dim}Everything else is sent as a prompt to pi-agent.${c.reset}\n`);
+    console.log(`\n${c.dim}Everything else is sent as a prompt to agent.${c.reset}\n`);
     return true;
   }
   if (cmd === '/clear') {

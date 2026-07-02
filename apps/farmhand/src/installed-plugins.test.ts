@@ -1,7 +1,7 @@
+import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { listInstalledPluginIds, loadInstalledPlugins } from "./installed-plugins.js";
 
@@ -54,8 +54,8 @@ describe("loadInstalledPlugins", () => {
 		const validDir = path.join(pluginsDir, "valid-plugin");
 		fs.mkdirSync(validDir, { recursive: true });
 		const validManifest = createMockManifest({
-			id: "@refarm/pi-agent",
-			entry: "pi-agent.wasm",
+			id: "@refarm/agent",
+			entry: "agent.wasm",
 		});
 		fs.writeFileSync(
 			path.join(validDir, "plugin.json"),
@@ -80,15 +80,15 @@ describe("loadInstalledPlugins", () => {
 		expect(tractor.registry.register).toHaveBeenCalledTimes(1);
 		expect(tractor.registry.register).toHaveBeenCalledWith(
 			expect.objectContaining({
-				id: "@refarm/pi-agent",
-				entry: "pi-agent.wasm",
+				id: "@refarm/agent",
+				entry: "agent.wasm",
 			}),
 		);
-		expect(tractor.registry.trust).toHaveBeenCalledWith("@refarm/pi-agent");
+		expect(tractor.registry.trust).toHaveBeenCalledWith("@refarm/agent");
 		expect(tractor.plugins.load).toHaveBeenCalledWith(
 			expect.objectContaining({
-				id: "@refarm/pi-agent",
-				entry: "pi-agent.wasm",
+				id: "@refarm/agent",
+				entry: "agent.wasm",
 			}),
 		);
 		expect(logger.warn).toHaveBeenCalledTimes(1);
@@ -96,12 +96,12 @@ describe("loadInstalledPlugins", () => {
 
 	it("loads scoped plugins from nested @scope/<name> directories", async () => {
 		const baseDir = createTempDir();
-		const scopedDir = path.join(baseDir, "plugins", "@refarm", "pi-agent");
+		const scopedDir = path.join(baseDir, "plugins", "@refarm", "agent");
 		fs.mkdirSync(scopedDir, { recursive: true });
 
 		const manifest = createMockManifest({
-			id: "@refarm/pi-agent",
-			entry: "file:///tmp/pi_agent.wasm",
+			id: "@refarm/agent",
+			entry: "file:///tmp/agent.wasm",
 		});
 		fs.writeFileSync(
 			path.join(scopedDir, "plugin.json"),
@@ -116,11 +116,11 @@ describe("loadInstalledPlugins", () => {
 
 		expect(summary).toEqual({ loaded: 1, skipped: 0 });
 		expect(tractor.registry.register).toHaveBeenCalledWith(
-			expect.objectContaining({ id: "@refarm/pi-agent" }),
+			expect.objectContaining({ id: "@refarm/agent" }),
 		);
-		expect(tractor.registry.trust).toHaveBeenCalledWith("@refarm/pi-agent");
+		expect(tractor.registry.trust).toHaveBeenCalledWith("@refarm/agent");
 		expect(tractor.plugins.load).toHaveBeenCalledWith(
-			expect.objectContaining({ id: "@refarm/pi-agent" }),
+			expect.objectContaining({ id: "@refarm/agent" }),
 		);
 		expect(logger.warn).not.toHaveBeenCalled();
 	});

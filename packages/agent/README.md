@@ -1,4 +1,4 @@
-# pi-agent
+# agent
 
 Sovereign AI coding agent — WASM plugin for the Refarm Tractor.
 
@@ -14,10 +14,10 @@ is reusable across plugins, it belongs in shared host/tool primitives first, the
 
 ## Package Boundary
 
-`@refarm.dev/pi-agent` is **public** (`publishConfig.access="public"`) — the runtime-agent publication
+`@refarm.dev/agent` is **public** (`publishConfig.access="public"`) — the runtime-agent publication
 policy is resolved, and it is routed to distribution for downstream consumers. Its npm `files` allowlist
 stays explicit so the package publishes only the built artifacts, never source or cache state:
-`dist/pi_agent.wasm`, `dist/plugin.json`, and `dist/jco`. `node scripts/validate-packages.mjs` guards
+`dist/agent.wasm`, `dist/plugin.json`, and `dist/jco`. `node scripts/validate-packages.mjs` guards
 this: it requires that allowlist plus `publishConfig.access="public"` and keeps `build:wasm`/`build:jco`
 tied to those concrete artifacts.
 
@@ -74,7 +74,7 @@ at project root can set project defaults, while explicit process env still wins 
   "default_provider": "openai",
   "stream_responses": true,
   "budgets": { "anthropic": 5.0 },
-  "trusted_plugins": ["pi_agent"]
+  "trusted_plugins": ["agent"]
 }
 ```
 
@@ -137,7 +137,7 @@ Use `MODEL_PROVIDER=ollama` explicitly for a local no-key route.
 cargo component build --release
 
 # Output
-target/wasm32-wasip1/release/pi_agent.wasm
+target/wasm32-wasip1/release/agent.wasm
 ```
 
 Requires [`cargo-component`](https://github.com/bytecodealliance/cargo-component).
@@ -146,7 +146,7 @@ Requires [`cargo-component`](https://github.com/bytecodealliance/cargo-component
 
 ## Run
 
-After building, start the tractor daemon with pi-agent loaded:
+After building, start the tractor daemon with agent loaded:
 
 ```bash
 # From repo root — set your model provider via env vars (MODEL_* are forwarded to the plugin)
@@ -155,19 +155,19 @@ export MODEL_PROVIDER=anthropic               # or: ollama (no key needed, requi
 export MODEL_ID=claude-sonnet-4-6            # optional model override
 
 TRACTOR=packages/tractor/target/release/tractor
-WASM=packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm
+WASM=packages/agent/target/wasm32-wasip1/release/agent.wasm
 
 # Start daemon (Ctrl+C to stop)
 $TRACTOR --plugin "$WASM" --log-level info
 
 # In a second terminal — send a prompt and wait for response
-$TRACTOR prompt --agent pi_agent --payload "list the files in packages/pi-agent/"
+$TRACTOR prompt --agent agent --payload "list the files in packages/agent/"
 
 # Watch for new responses (polling mode)
 $TRACTOR watch
 ```
 
-**Important**: `--agent` must be `pi_agent` (underscore), matching the `.wasm` filename stem.
+**Important**: `--agent` must be `agent` (underscore), matching the `.wasm` filename stem.
 
 **Note on `.refarm/config.json`**: the Refarm runtime can load `provider`/`model` as
 defaults, but `MODEL_PROVIDER` and `MODEL_ID` remain the strongest per-run overrides. The
@@ -184,11 +184,11 @@ cargo test
 
 # WASM integration harness (real plugin, mock LLM server, real CRDT)
 # Run in packages/tractor:
-cargo component build --release -p pi-agent   # build WASM first
-cargo test --test pi_agent_harness -- --ignored --test-threads=1
+cargo component build --release -p agent   # build WASM first
+cargo test --test agent_harness -- --ignored --test-threads=1
 ```
 
-The harness loads the real `pi_agent.wasm` via `PluginHost`, mocks only the LLM HTTP boundary
+The harness loads the real `agent.wasm` via `PluginHost`, mocks only the LLM HTTP boundary
 with a pre-scripted TCP server, and asserts on what the plugin stores in the CRDT.
 This is the "let the plugin be the plugin" model from
 [pi-test-harness](https://github.com/marcfargas/pi-test-harness).
@@ -284,7 +284,7 @@ Four axioms are enforced as named tests in `extensibility_contract`:
 ## WIT interfaces
 
 ```wit
-world pi-agent {
+world agent {
     import tractor-bridge;   // store_node, query_nodes, get_node
     import agent-fs;         // read, write, edit
     import agent-shell;      // spawn (structured argv, no shell injection)

@@ -83,7 +83,7 @@ describe("executeTask", () => {
 		await executeTask(tractor as RuntimeTaskTarget, {
 			taskId: "t-error-content",
 			effortId: "e-error-content",
-			pluginId: "pi-agent",
+			pluginId: "agent",
 			fn: "respond",
 			args: "hello",
 		});
@@ -116,7 +116,7 @@ describe("executeTask", () => {
 		await executeTask(tractor as RuntimeTaskTarget, {
 			taskId: "t-error-tuple",
 			effortId: "e-error-tuple",
-			pluginId: "pi-agent",
+			pluginId: "agent",
 			fn: "respond",
 			args: "hello",
 		});
@@ -146,7 +146,7 @@ describe("executeTask", () => {
 		await executeTask(tractor as RuntimeTaskTarget, {
 			taskId: "t4",
 			effortId: "e4",
-			pluginId: "pi-agent",
+			pluginId: "agent",
 			fn: "respond",
 			args: { prompt: "hello" },
 		});
@@ -164,12 +164,12 @@ describe("executeTask", () => {
 		await executeTask(tractor as RuntimeTaskTarget, {
 			taskId: "t5",
 			effortId: "e5",
-			pluginId: "@refarm.dev/pi-agent",
+			pluginId: "@refarm.dev/agent",
 			fn: "respond",
 			args: { prompt: "hello" },
 		});
 
-		expect(tractor.plugins.get).toHaveBeenCalledWith("@refarm/pi-agent");
+		expect(tractor.plugins.get).toHaveBeenCalledWith("@refarm/agent");
 		expect(instance.call).toHaveBeenCalledWith(
 			"respond",
 			JSON.stringify({ prompt: "hello" }),

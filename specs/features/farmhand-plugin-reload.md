@@ -25,26 +25,26 @@ notification requires no changes to the endpoint contract.
 
 ### Story 1: Reload after plugin update
 
-**As a** plugin developer  
-**I want** to type `/reload` in my running `refarm` session  
+**As a** plugin developer
+**I want** to type `/reload` in my running `refarm` session
 **So that** Farmhand picks up my updated WASM binary without restarting the daemon or losing my session history
 
 ### Story 2: Safe reload during active tasks
 
-**As a** Refarm user  
-**I want** Farmhand to wait for in-flight tasks to finish before reloading the plugin they use  
+**As a** Refarm user
+**I want** Farmhand to wait for in-flight tasks to finish before reloading the plugin they use
 **So that** my running tasks complete normally and are not corrupted by a mid-execution plugin swap
 
 ### Story 3: Visibility into deferred reloads
 
-**As a** Refarm user  
-**I want** the CLI to show me which plugins are reloading immediately and which are deferred  
+**As a** Refarm user
+**I want** the CLI to show me which plugins are reloading immediately and which are deferred
 **So that** I know what is happening and when to expect the reload to be complete
 
 ### Story 4: Targeted reload
 
-**As a** plugin developer  
-**I want** to reload a specific plugin by ID (`/reload my-plugin`)  
+**As a** plugin developer
+**I want** to reload a specific plugin by ID (`/reload my-plugin`)
 **So that** I don't trigger unnecessary reloads of other plugins that haven't changed
 
 ---
@@ -53,46 +53,46 @@ notification requires no changes to the endpoint contract.
 
 ### AC1: Immediate reload (no active tasks)
 
-**Given** `pi-agent` is installed and Farmhand has no in-flight efforts using it  
-**When** the user types `/reload` in the `refarm` REPL  
-**Then** Farmhand reloads `pi-agent` from disk immediately  
-**And** the CLI prints `✓ pi-agent reloaded` and returns to the prompt
+**Given** `agent` is installed and Farmhand has no in-flight efforts using it
+**When** the user types `/reload` in the `refarm` REPL
+**Then** Farmhand reloads `agent` from disk immediately
+**And** the CLI prints `✓ agent reloaded` and returns to the prompt
 
 ### AC2: Deferred reload (tasks in flight)
 
-**Given** an effort using `pi-agent` is currently in-progress  
-**When** the user types `/reload`  
-**Then** Farmhand queues the reload and responds with `deferred: ["pi-agent"]`  
-**And** the CLI shows `⏳ pi-agent: waiting for active tasks…`  
-**And** once the in-flight effort completes, Farmhand reloads the plugin  
-**And** the CLI updates to `✓ pi-agent reloaded` and returns to the prompt
+**Given** an effort using `agent` is currently in-progress
+**When** the user types `/reload`
+**Then** Farmhand queues the reload and responds with `deferred: ["agent"]`
+**And** the CLI shows `⏳ agent: waiting for active tasks…`
+**And** once the in-flight effort completes, Farmhand reloads the plugin
+**And** the CLI updates to `✓ agent reloaded` and returns to the prompt
 
 ### AC3: Mixed reload (some idle, some busy)
 
-**Given** `pi-agent` has no active tasks and `my-plugin` has one active task  
-**When** the user types `/reload`  
-**Then** `pi-agent` is reloaded immediately and `my-plugin` is deferred  
+**Given** `agent` has no active tasks and `my-plugin` has one active task
+**When** the user types `/reload`
+**Then** `agent` is reloaded immediately and `my-plugin` is deferred
 **And** the CLI shows both statuses simultaneously, resolving each as it completes
 
 ### AC4: Targeted reload
 
-**Given** multiple plugins are installed  
-**When** the user types `/reload pi-agent`  
-**Then** only `pi-agent` is reloaded; other plugins are not affected
+**Given** multiple plugins are installed
+**When** the user types `/reload agent`
+**Then** only `agent` is reloaded; other plugins are not affected
 
 ### AC5: Failed reload does not crash Farmhand
 
-**Given** the WASM binary for `pi-agent` is corrupt or unreadable at reload time  
-**When** the reload is attempted  
-**Then** Farmhand logs the error and marks the plugin as `failed`  
-**And** the CLI prints `✗ pi-agent: failed to reload (see farmhand logs)`  
+**Given** the WASM binary for `agent` is corrupt or unreadable at reload time
+**When** the reload is attempted
+**Then** Farmhand logs the error and marks the plugin as `failed`
+**And** the CLI prints `✗ agent: failed to reload (see farmhand logs)`
 **And** the daemon continues running; previously loaded (working) instance remains
 
 ### AC6: Coalesced reloads
 
-**Given** `/reload` was called and `pi-agent` is deferred  
-**When** `/reload` is called again before the first deferred reload completes  
-**Then** a single physical reload occurs when the plugin becomes idle  
+**Given** `/reload` was called and `agent` is deferred
+**When** `/reload` is called again before the first deferred reload completes
+**Then** a single physical reload occurs when the plugin becomes idle
 **And** both callers see the plugin move to `completed`
 
 ---

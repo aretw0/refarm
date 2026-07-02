@@ -1,6 +1,6 @@
 # Agent → Tractor Integration Guide
 
-Este documento descreve o fluxo completo de como um agente (pi-agent ou qualquer plugin WASM) despacha trabalho, consome LLMs e persiste resultados via Tractor. É a referência canônica para agentes autônomos que precisam entender como o sistema funciona end-to-end.
+Este documento descreve o fluxo completo de como um agente (agent ou qualquer plugin WASM) despacha trabalho, consome LLMs e persiste resultados via Tractor. É a referência canônica para agentes autônomos que precisam entender como o sistema funciona end-to-end.
 
 **ADRs relacionados**: ADR-052, ADR-053, ADR-054, ADR-055
 
@@ -11,7 +11,7 @@ Este documento descreve o fluxo completo de como um agente (pi-agent ou qualquer
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  Browser / CLI                                               │
-│  refarm task run pi-agent respond --args '{"prompt":"..."}'  │
+│  refarm task run agent respond --args '{"prompt":"..."}'  │
 └────────────────────┬─────────────────────────────────────────┘
                      │ Effort file (.json)
                      ▼
@@ -22,7 +22,7 @@ Este documento descreve o fluxo completo de como um agente (pi-agent ou qualquer
                      │ WIT call: respond(payload: string)
                      ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  pi-agent WASM plugin                                        │
+│  agent WASM plugin                                        │
 │  parse_respond_payload → provider::complete → tool loop      │
 └────────┬───────────────────────────────────────┬─────────────┘
          │ MODEL request (host-proxied)            │ tractor_bridge
@@ -51,7 +51,7 @@ Effort (contexto + direção — o porquê)
 ```typescript
 interface Task {
   id: string;
-  pluginId: string;   // e.g. "pi-agent"
+  pluginId: string;   // e.g. "agent"
   fn: string;         // e.g. "respond"
   args?: unknown;     // JSON-serializable payload
 }
@@ -64,7 +64,7 @@ interface EffortResult {
 }
 ```
 
-### CRDT nodes que pi-agent persiste
+### CRDT nodes que agent persiste
 
 | Node type | Quando | Campos relevantes |
 |---|---|---|
@@ -82,7 +82,7 @@ Existem três caminhos para despachar tarefas ao Farmhand. Escolha com base no c
 ### 2a. File transport (desenvolvimento local, CLI)
 
 ```bash
-refarm task run pi-agent respond --args '{"prompt":"Olá"}'
+refarm task run agent respond --args '{"prompt":"Olá"}'
 ```
 
 - Escreve `~/.refarm/tasks/<effort-id>.json`
@@ -96,7 +96,7 @@ refarm task run pi-agent respond --args '{"prompt":"Olá"}'
 # Despachar
 curl -X POST http://localhost:42001/efforts \
   -H "Content-Type: application/json" \
-  -d '{"tasks": [{"id":"t1","pluginId":"pi-agent","fn":"respond","args":{"prompt":"Olá"}}]}'
+  -d '{"tasks": [{"id":"t1","pluginId":"agent","fn":"respond","args":{"prompt":"Olá"}}]}'
 
 # Consultar
 curl http://localhost:42001/efforts/<effort-id>
@@ -108,7 +108,7 @@ curl http://localhost:42001/efforts/<effort-id>
 
 ```typescript
 // Dentro de um plugin ou do próprio Tractor
-tractor.storeNode({ "@type": "FarmhandTask", pluginId: "pi-agent", fn: "respond", args: {...} });
+tractor.storeNode({ "@type": "FarmhandTask", pluginId: "agent", fn: "respond", args: {...} });
 tractor.onNode("FarmhandTaskResult", (result) => { ... });
 ```
 
@@ -122,7 +122,7 @@ tractor.onNode("FarmhandTaskResult", (result) => { ... });
 1. CLI / caller cria Effort com Task[]
 2. FileTransportAdapter escreve ~/.refarm/tasks/<effort-id>.json
 3. Farmhand detecta novo arquivo
-4. Farmhand carrega plugin pi-agent de ~/.refarm/plugins/
+4. Farmhand carrega plugin agent de ~/.refarm/plugins/
 5. Tractor invoca plugin.respond(payload: string)
 6. Plugin: parse_respond_payload(payload) → { prompt, system }
 7. Plugin verifica guards:
@@ -172,7 +172,7 @@ Ativo apenas quando `MODEL_STREAM_RESPONSES=1`:
 
 ---
 
-## 5. Configuração de pi-agent
+## 5. Configuração de agent
 
 Variáveis de ambiente relevantes (definidas no host Tractor):
 
@@ -225,15 +225,15 @@ Shape de resposta de `respond`:
 Farmhand carrega automaticamente plugins instalados em `~/.refarm/plugins/`. Para instalar:
 
 ```bash
-refarm plugin install ./packages/pi-agent/dist/pi-agent.wasm
+refarm plugin install ./packages/agent/dist/agent.wasm
 # ou via plugin courier (Nostr NIP-89 discovery):
-refarm plugin install nostr:pi-agent
+refarm plugin install nostr:agent
 ```
 
 Estrutura esperada em `~/.refarm/plugins/`:
 ```
 ~/.refarm/plugins/
-  pi-agent/
+  agent/
     plugin.wasm
     plugin.json    ← manifest (name, version, capabilities)
 ```
@@ -247,5 +247,5 @@ Estrutura esperada em `~/.refarm/plugins/`:
 - [ADR-054](../specs/ADRs/ADR-054-generic-stream-observations.md) — StreamChunk como substrato genérico
 - [ADR-055](../specs/ADRs/ADR-055-stream-contract-v1-transport-layer.md) — família de transportes
 - [specs/features/farmhand-task-execution.md](../specs/features/farmhand-task-execution.md)
-- [specs/features/pi-agent-effort-bridge.md](../specs/features/pi-agent-effort-bridge.md)
-- [packages/pi-agent/README.md](../packages/pi-agent/README.md)
+- [specs/features/agent-effort-bridge.md](../specs/features/agent-effort-bridge.md)
+- [packages/agent/README.md](../packages/agent/README.md)

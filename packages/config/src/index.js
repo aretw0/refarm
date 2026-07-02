@@ -38,8 +38,8 @@ export {
     parseModelRef,
 } from "./model-routing.js";
 export {
-    PI_AGENT_NPM_PACKAGE,
-    PI_AGENT_PLUGIN_ID,
+    AGENT_NPM_PACKAGE,
+    AGENT_PLUGIN_ID,
     REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
     RUNTIME_AGENT_ERROR_PREFIXES,
     RUNTIME_AGENT_NPM_PACKAGE,
@@ -47,7 +47,7 @@ export {
     RUNTIME_AGENT_PLUGIN_ID,
     canonicalRuntimeAgentContent,
     isRuntimeAgentErrorContent,
-    isPiAgentPluginId,
+    isAgentPluginId,
     isRuntimeAgentPluginId,
     normalizePluginId,
 } from "./plugin-identity.js";

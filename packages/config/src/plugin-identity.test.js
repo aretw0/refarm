@@ -1,41 +1,39 @@
 import { describe, expect, it } from "vitest";
 import {
-	PI_AGENT_NPM_PACKAGE,
-	PI_AGENT_PLUGIN_ID,
+	AGENT_NPM_PACKAGE,
+	AGENT_PLUGIN_ID,
 	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
 	RUNTIME_AGENT_NPM_PACKAGE,
 	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 	RUNTIME_AGENT_PLUGIN_ID,
 	canonicalRuntimeAgentContent,
 	isRuntimeAgentErrorContent,
-	isPiAgentPluginId,
+	isAgentPluginId,
 	isRuntimeAgentPluginId,
 	normalizePluginId,
 } from "./plugin-identity.js";
 
 describe("plugin identity", () => {
-	it("normalizes pi-agent aliases to the manifest plugin id", () => {
-		expect(normalizePluginId("pi-agent")).toBe(PI_AGENT_PLUGIN_ID);
-		expect(normalizePluginId("pi_agent")).toBe(PI_AGENT_PLUGIN_ID);
-		expect(normalizePluginId("refarm/pi-agent")).toBe(PI_AGENT_PLUGIN_ID);
-		expect(normalizePluginId(PI_AGENT_NPM_PACKAGE)).toBe(PI_AGENT_PLUGIN_ID);
-		expect(normalizePluginId(PI_AGENT_PLUGIN_ID)).toBe(PI_AGENT_PLUGIN_ID);
+	it("normalizes agent aliases to the manifest plugin id", () => {
+		expect(normalizePluginId("agent")).toBe(AGENT_PLUGIN_ID);
+		expect(normalizePluginId("refarm/agent")).toBe(AGENT_PLUGIN_ID);
+		expect(normalizePluginId(AGENT_NPM_PACKAGE)).toBe(AGENT_PLUGIN_ID);
+		expect(normalizePluginId(AGENT_PLUGIN_ID)).toBe(AGENT_PLUGIN_ID);
 	});
 
 	it("leaves other plugin ids unchanged", () => {
 		expect(normalizePluginId("@local/tool")).toBe("@local/tool");
 	});
 
-	it("detects pi-agent aliases", () => {
-		expect(isPiAgentPluginId("pi-agent")).toBe(true);
-		expect(isPiAgentPluginId("pi_agent")).toBe(true);
-		expect(isPiAgentPluginId(PI_AGENT_NPM_PACKAGE)).toBe(true);
-		expect(isPiAgentPluginId("@local/tool")).toBe(false);
+	it("detects agent aliases", () => {
+		expect(isAgentPluginId("agent")).toBe(true);
+		expect(isAgentPluginId(AGENT_NPM_PACKAGE)).toBe(true);
+		expect(isAgentPluginId("@local/tool")).toBe(false);
 	});
 
 	it("exposes runtime-agent aliases for new call sites", () => {
-		expect(RUNTIME_AGENT_PLUGIN_ID).toBe(PI_AGENT_PLUGIN_ID);
-		expect(RUNTIME_AGENT_NPM_PACKAGE).toBe(PI_AGENT_NPM_PACKAGE);
+		expect(RUNTIME_AGENT_PLUGIN_ID).toBe(AGENT_PLUGIN_ID);
+		expect(RUNTIME_AGENT_NPM_PACKAGE).toBe(AGENT_NPM_PACKAGE);
 		expect(normalizePluginId("agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
 		expect(normalizePluginId("refarm/agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
 		expect(normalizePluginId("runtime-agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
@@ -44,7 +42,6 @@ describe("plugin identity", () => {
 			RUNTIME_AGENT_PLUGIN_ID,
 		);
 		expect(isRuntimeAgentPluginId("agent")).toBe(true);
-		expect(isRuntimeAgentPluginId("pi-agent")).toBe(true);
 		expect(isRuntimeAgentPluginId("runtime-agent")).toBe(true);
 		expect(isRuntimeAgentPluginId("@local/tool")).toBe(false);
 	});
@@ -53,8 +50,8 @@ describe("plugin identity", () => {
 		expect(RUNTIME_AGENT_PLUGIN_DESCRIPTOR).toEqual({
 			id: RUNTIME_AGENT_PLUGIN_ID,
 			npmPackage: RUNTIME_AGENT_NPM_PACKAGE,
-			workspaceDir: "packages/pi-agent",
-			wasmFile: "dist/pi_agent.wasm",
+			workspaceDir: "packages/agent",
+			wasmFile: "dist/agent.wasm",
 			manifestFile: "dist/plugin.json",
 			requiredProvides: ["agent:respond"],
 		});

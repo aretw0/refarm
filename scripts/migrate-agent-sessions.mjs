@@ -2,10 +2,10 @@
 
 import { readFile, writeFile } from "node:fs/promises";
 
-import { migratePiAgentSessionNodes } from "./ci/migrate-pi-agent-sessions-lib.mjs";
+import { migrateAgentSessionNodes } from "./ci/migrate-agent-sessions-lib.mjs";
 
 function printHelp() {
-	console.log(`Usage: node scripts/migrate-pi-agent-sessions.mjs --input <path> [options]
+	console.log(`Usage: node scripts/migrate-agent-sessions.mjs --input <path> [options]
 
 Options:
   --input <path>     JSON/NDJSON file with session nodes (required)
@@ -97,7 +97,7 @@ async function run() {
 
 	const raw = await readFile(options.input, "utf-8");
 	const nodes = parseInput(raw);
-	const migrated = migratePiAgentSessionNodes(nodes);
+	const migrated = migrateAgentSessionNodes(nodes);
 
 	const report = {
 		...migrated.report,
@@ -114,20 +114,20 @@ async function run() {
 	const outputJson = `${JSON.stringify(migrated.nodes, null, 2)}\n`;
 	if (options.output) {
 		await writeFile(options.output, outputJson, "utf-8");
-		console.error(`[migrate-pi-agent-sessions] wrote ${options.output}`);
+		console.error(`[migrate-agent-sessions] wrote ${options.output}`);
 	} else if (options.inPlace) {
 		await writeFile(options.input, outputJson, "utf-8");
-		console.error(`[migrate-pi-agent-sessions] updated ${options.input}`);
+		console.error(`[migrate-agent-sessions] updated ${options.input}`);
 	} else {
 		process.stdout.write(outputJson);
 	}
 
 	console.error(
-		`[migrate-pi-agent-sessions] total=${report.total} migrated=${report.migrated} idRewrites=${report.idRewrites} referenceRewrites=${report.referenceRewrites}`,
+		`[migrate-agent-sessions] total=${report.total} migrated=${report.migrated} idRewrites=${report.idRewrites} referenceRewrites=${report.referenceRewrites}`,
 	);
 }
 
 run().catch((error) => {
-	console.error(`[migrate-pi-agent-sessions] ${error.message}`);
+	console.error(`[migrate-agent-sessions] ${error.message}`);
 	process.exitCode = 1;
 });

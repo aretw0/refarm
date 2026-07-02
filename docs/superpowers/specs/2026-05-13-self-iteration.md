@@ -28,11 +28,11 @@ existing stack work reliably, and what tuning does it need?
 
 ```
 refarm chat (apps/refarm/src/commands/chat.ts)
-  └─ submits Effort { tasks: [{ pluginId: "@refarm/pi-agent", fn: "respond" }] }
+  └─ submits Effort { tasks: [{ pluginId: "@refarm/agent", fn: "respond" }] }
        └─ POST http://127.0.0.1:42001/efforts  →  farmhand HTTP sidecar
             └─ FileTransportAdapter: writes task to ~/.refarm/tasks/<id>.json
-                 └─ farmhand task executor: calls tractor.plugins.load("@refarm/pi-agent").respond(payload)
-                      └─ pi-agent WASM (packages/pi-agent) executing inside wasmtime
+                 └─ farmhand task executor: calls tractor.plugins.load("@refarm/agent").respond(payload)
+                      └─ agent WASM (packages/agent) executing inside wasmtime
                            ├─ LLM call (MODEL_PROVIDER env — Anthropic/OpenAI/Groq/...)
                            ├─ agent-fs.read/write/edit  → TractorNativeBindings (host/agent_tools_bridge.rs)
                            ├─ agent-shell.spawn         → TractorNativeBindings (host/agent_tools_bridge.rs)
@@ -45,15 +45,15 @@ Key files:
 - `apps/refarm/src/commands/chat.ts` — CLI REPL, effort builder, stream follower
 - `apps/farmhand/src/transports/http.ts` — HTTP sidecar, effort ingestion
 - `packages/tractor/src/host/agent_tools_bridge/core.rs` — agent-fs/agent-shell host impl
-- `packages/pi-agent/src/lib.rs` — the agent itself (LLM routing, ReAct loop, tool dispatch)
-- `packages/pi-agent/wit/` — WIT world: exports `integration#respond`, imports `agent-fs`, `agent-shell`
-- `scripts/pi-agent-install.mjs` — copies compiled WASM → `~/.refarm/plugins/@refarm/pi-agent/`
+- `packages/agent/src/lib.rs` — the agent itself (LLM routing, ReAct loop, tool dispatch)
+- `packages/agent/wit/` — WIT world: exports `integration#respond`, imports `agent-fs`, `agent-shell`
+- `scripts/agent-install.mjs` — copies compiled WASM → `~/.refarm/plugins/@refarm/agent/`
 
 ---
 
-## What pi-agent does today
+## What agent does today
 
-Pi-agent (`packages/pi-agent`) is a Rust/WASM component that:
+Pi-agent (`packages/agent`) is a Rust/WASM component that:
 
 - Routes LLM calls across providers via env vars (`MODEL_PROVIDER`, `*_API_KEY`)
 - Runs a tool-use loop up to `MODEL_TOOL_CALL_MAX_ITER` iterations (default 5)
@@ -73,9 +73,9 @@ prompt, and session context assembled by the chat CLI.
 
 ### Gap 1 — Installation is a manual step (highest impact) — ADDRESSED
 
-Farmhand now auto-installs pi-agent on boot via `bundleInstallPlugin`, reading
-the WASM from the co-located npm package (`@refarm.dev/pi-agent` dist/jco/).
-A version file (`.version`) prevents unnecessary reinstalls. The `scripts/pi-agent-install.mjs`
+Farmhand now auto-installs agent on boot via `bundleInstallPlugin`, reading
+the WASM from the co-located npm package (`@refarm.dev/agent` dist/jco/).
+A version file (`.version`) prevents unnecessary reinstalls. The `scripts/agent-install.mjs`
 script remains for backward compatibility but is no longer the primary path.
 
 To manually trigger install: `refarm agent install`
@@ -99,7 +99,7 @@ refarm runtime ensure --wait --next-command
 ```
 
 This writes `MODEL_HISTORY_TURNS=20` to the selected `.refarm/config.json`.
-The chat CLI already carries session IDs; pi-agent reads history from the CRDT
+The chat CLI already carries session IDs; agent reads history from the CRDT
 if turns > 0.
 
 ### Gap 3 — Tool loop depth capped at 5 — OPERATOR PROFILE AVAILABLE
@@ -146,7 +146,7 @@ remains delegated to Refarm's resolver.
 
 ---
 
-## Architecture decision: why pi-agent, not a TypeScript agent?
+## Architecture decision: why agent, not a TypeScript agent?
 
 Why run the agent in WASM rather than as a plain TypeScript service?
 
@@ -155,7 +155,7 @@ Why run the agent in WASM rather than as a plain TypeScript service?
    of what the agent code tries to do. A TypeScript agent could accidentally
    bypass this.
 
-2. **Portability**: The same pi-agent.wasm runs on any host that provides the
+2. **Portability**: The same agent.wasm runs on any host that provides the
    WIT interfaces. Future farmhand targets (RPi, embedded, browser OPFS) don't
    require rewriting the agent.
 
@@ -166,7 +166,7 @@ Why run the agent in WASM rather than as a plain TypeScript service?
 
 4. **Scarecrow alignment**: Steps 3+4 of the Barn evolution add observation hooks
    and policy plugins. These apply uniformly to any WASM plugin, including
-   pi-agent, without changes to the agent itself.
+   agent, without changes to the agent itself.
 
 The trade-off: WASM requires a compile step and is harder to iterate on quickly.
 The install script bridges this — a hot-reload path (`POST /plugins/reload`) is
@@ -178,7 +178,7 @@ already implemented for rapid iteration once the binary exists.
 
 **Phase 1 — Make it work (today)**
 
-1. Farmhand auto-installs pi-agent on boot (no manual step needed)
+1. Farmhand auto-installs agent on boot (no manual step needed)
 2. Apply the repo-local coding profile:
    ```
    refarm config profile coding --local --json
@@ -189,10 +189,10 @@ already implemented for rapid iteration once the binary exists.
 
 **Phase 2 — Make it reliable**
 
-- Add preflight check in `refarm chat`: detect missing `@refarm/pi-agent` plugin
+- Add preflight check in `refarm chat`: detect missing `@refarm/agent` plugin
   and fail fast with instructions (e.g., "Run: `refarm agent install`")
 - ADR-065: farmhand auto-start so `refarm chat` works without a separate daemon
-- Monitor bundled install logs to ensure pi-agent consistently installs on farmhand boot
+- Monitor bundled install logs to ensure agent consistently installs on farmhand boot
 
 **Phase 3 — Make it self-aware (coding system prompt) — COMPLETE**
 
@@ -214,7 +214,7 @@ already implemented for rapid iteration once the binary exists.
   `with-package-tests`) while keeping the lower-level profile flags available.
 - `GitStatusContextProvider` now emits an `affected_workspaces` context block
   with workspace-relative package candidates and matching package validation
-  commands. This lets pi-agent choose the package finish profile from context
+  commands. This lets agent choose the package finish profile from context
   instead of guessing from raw `git status` output.
 - `OperatorStateProvider` (priority 15) calls `refarm resume --json` and injects
   the current gate status, pending `nextCommands`, and active session ID into
@@ -226,7 +226,7 @@ already implemented for rapid iteration once the binary exists.
   reads the full policy via `agent-fs.read` before making code changes.
   On the refarm repo this surfaces AGENTS.md — the same rules that govern Claude
   Code — closing the symmetry between external-agent and native-agent orientation.
-- `buildSystemPrompt` now instructs pi-agent to read policy files before editing
+- `buildSystemPrompt` now instructs agent to read policy files before editing
   and to call `refarm resume --json` at any point to refresh operator state.
 
 **Phase 4 — Scarecrow boundary (Barn Steps 3+4)**
@@ -242,8 +242,8 @@ already implemented for rapid iteration once the binary exists.
 ## Related specs and ADRs
 
 - `docs/superpowers/specs/2026-05-13-barn-scarecrow-evolution.md` — cache and policy architecture
-- `docs/superpowers/specs/2026-05-01-pi-agent-effort-bridge-design.md` — effort bridge
-- `specs/features/pi-agent-effort-bridge.md` — feature spec
+- `docs/superpowers/specs/2026-05-01-agent-effort-bridge-design.md` — effort bridge
+- `specs/features/agent-effort-bridge.md` — feature spec
 - `specs/ADRs/ADR-050-zig-wasm-agent-tool-host.md` — tool host strategy
 - `specs/ADRs/ADR-017-microkernel-boundary.md` — guest/host boundary
 
@@ -251,7 +251,7 @@ already implemented for rapid iteration once the binary exists.
 
 ## Open questions
 
-1. **Context window pressure**: Multi-file code edits can overflow pi-agent's
+1. **Context window pressure**: Multi-file code edits can overflow agent's
    context. Should the context provider compress/summarize before sending?
    The `SESSION_DIGEST` provider is a start; compaction thresholds from
    agents-lab's `context-watchdog` (50%/68%/72%) are worth evaluating — but
@@ -269,4 +269,4 @@ already implemented for rapid iteration once the binary exists.
    `~/.gitconfig` via the spawned `git commit` process — no special environment
    setup needed for interactive self-iteration. For unattended/CI use a separate
    `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` env pair should be injected into the
-   spawn env when pi-agent is operating headlessly. Tracked as Phase 4 work.
+   spawn env when agent is operating headlessly. Tracked as Phase 4 work.

@@ -17,7 +17,7 @@ Architecture Decision Records for Refarm.
 | [008](ADR-008-ecosystem-technology-boundary.md)                | Ecosystem Technology Boundary (Go vs TypeScript)                                  | Accepted   | 2026-03-05 |
 | [009](ADR-009-opfs-persistence-strategy.md)                    | OPFS Persistence Strategy                                                         | Accepted   | 2026-03-06 |
 | [010](ADR-010-schema-evolution.md)                             | JSON-LD Schema Evolution (Lenses & Upcasting)                                     | Accepted   | 2026-03-06 |
-| [012](ADR-012-hybrid-model-routing-for-pi-agent-harness.md)    | Hybrid Model Routing Strategy for Pi Agent Harness                                | Proposed   | 2026-04-22 |
+| [012](ADR-012-hybrid-model-routing-for-agent-harness.md)    | Hybrid Model Routing Strategy for Agent Harness                                   | Proposed   | 2026-04-22 |
 | [013](ADR-013-testing-strategy.md)                             | Testing Strategy (Vitest + Playwright)                                            | Accepted   | 2026-03-06 |
 | [015](ADR-015-sqlite-engine-decision.md)                       | SQLite Engine Decision                                                            | Accepted   | 2026-03-06 |
 | [016](ADR-016-headless-ui-contract.md)                         | Headless UI Contract and Token Strategy                                           | Proposed   | 2026-03-07 |

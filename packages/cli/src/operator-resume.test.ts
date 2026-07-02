@@ -51,7 +51,7 @@ describe("operator resume", () => {
 					canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
 					participantAliases: [
 						{
-							participantId: "urn:refarm:agent:pi-agent",
+							participantId: "urn:refarm:agent:agent",
 							canonicalParticipantId: "urn:refarm:agent:runtime-agent",
 						},
 					],
@@ -107,7 +107,7 @@ describe("operator resume", () => {
 				canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
 				participantAliases: [
 					{
-						participantId: "urn:refarm:agent:pi-agent",
+						participantId: "urn:refarm:agent:agent",
 						canonicalParticipantId: "urn:refarm:agent:runtime-agent",
 					},
 				],
@@ -120,7 +120,7 @@ describe("operator resume", () => {
 						canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
 						participantAliases: [
 							{
-								participantId: "urn:refarm:agent:pi-agent",
+								participantId: "urn:refarm:agent:agent",
 								canonicalParticipantId: "urn:refarm:agent:runtime-agent",
 							},
 						],
@@ -149,7 +149,7 @@ describe("operator resume", () => {
 		expect(formatted).toContain(
 			"participants: urn:refarm:agent:runtime-agent",
 		);
-		expect(formatted).not.toContain("urn:refarm:agent:pi-agent ->");
+		expect(formatted).not.toContain("urn:refarm:agent:agent ->");
 	});
 
 	it("builds a JSON handoff envelope with task list fallback", () => {

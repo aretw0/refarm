@@ -681,7 +681,7 @@ impl PluginHost {
     ///
     /// Uses a dedicated linker with WASI + host-spawn (no tractor-bridge).
     /// The returned `AgentToolsHandle` is stored by the caller (daemon/manager)
-    /// for future Fase 3 composition with pi-agent.wasm.
+    /// for future Fase 3 composition with agent.wasm.
     pub async fn load_agent_tools(&self, path: &Path, sync: &NativeSync) -> Result<AgentToolsHandle> {
         let plugin_id = "agent-tools".to_string();
 
@@ -776,7 +776,7 @@ mod capability_tests {
 
     #[test]
     fn manifest_runtime_plugin_id_uses_manifest_identity_suffix() {
-        assert_eq!(manifest_runtime_plugin_id("@refarm/pi-agent"), "pi-agent");
+        assert_eq!(manifest_runtime_plugin_id("@refarm/agent"), "agent");
     }
 
     #[test]

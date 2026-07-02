@@ -9,7 +9,7 @@ function parseArgs(argv) {
 			case "pi":
 			case "legacy-pi":
 			case "agent-pi":
-			case "pi-agent":
+			case "agent":
 				return "pi";
 			case "auto":
 				return "auto";

@@ -116,7 +116,7 @@ export function buildAgentDemoReleaseProof({
 		claim:
 			"An agent-demo can consume public dispatch/control/evidence blocks without publishing the held plugin runtime stack.",
 		engineProof:
-			"@refarm.dev/pi-agent is proven separately by pnpm run pi-agent:release-proof; this proof only gates the reusable agent-demo dispatch surface.",
+			"@refarm.dev/agent is proven separately by pnpm run agent:release-proof; this proof only gates the reusable agent-demo dispatch surface.",
 		publicSurface: REQUIRED_PUBLIC_PACKAGES.map((name) => ({
 			package: name,
 			selected: selected.has(name),

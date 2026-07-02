@@ -14,7 +14,7 @@ fn validate_structured_json_invalid_returns_error() {
 
 #[test]
 fn validate_structured_toml_valid() {
-    let toml = "[package]\nname = \"pi-agent\"\nversion = \"0.1.0\"\n";
+    let toml = "[package]\nname = \"agent\"\nversion = \"0.1.0\"\n";
     assert!(validate_structured(toml, "toml").is_ok());
 }
 
@@ -27,7 +27,7 @@ fn validate_structured_toml_invalid_returns_error() {
 
 #[test]
 fn validate_structured_yaml_valid() {
-    let yaml = "name: pi-agent\nversion: 0.1.0\n";
+    let yaml = "name: agent\nversion: 0.1.0\n";
     assert!(validate_structured(yaml, "yaml").is_ok());
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	createInMemoryQualityChecker,
 	createRegexQualityChecker,
 	resolveQualityProfile,
 	runQualityCheck,
@@ -10,6 +11,12 @@ import {
 } from "./index.js";
 
 describe("quality:v1 conformance", () => {
+	it("exposes the in-memory reference checker alias", async () => {
+		const result = await runQualityV1Conformance(createInMemoryQualityChecker());
+
+		expect(result.pass).toBe(true);
+	});
+
 	it("passes for the reference regex checker", async () => {
 		const result = await runQualityV1Conformance(createRegexQualityChecker());
 

@@ -8,7 +8,7 @@ Objetivo: manter Refarm como base de controle da tua vida e trabalho, no teu com
 
 1. **De cima para baixo** quando precisa de direção (arquitetura/contrato).
 2. **De baixo para cima** quando precisa de confiança (implementação/testes).
-3. **Se não tem dono claro, é infra neutra** (não acoplar à `farmhand` ou `pi-agent` quando não precisa).
+3. **Se não tem dono claro, é infra neutra** (não acoplar à `farmhand` ou `agent` quando não precisa).
 4. **Contract first** em `packages/*` e não em apps específicos.
 5. **Canônico = menos mutável**: contratos em `specs/features`/`specs/ADRs`.
 

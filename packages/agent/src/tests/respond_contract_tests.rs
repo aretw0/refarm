@@ -56,7 +56,7 @@ fn respond_accepts_session_id_and_history_turns() {
         "history_turns": 5,
     })
     .to_string();
-    let output = <PiAgent as IntegrationGuest>::respond(payload)
+    let output = <Agent as IntegrationGuest>::respond(payload)
         .expect("respond with session fields must succeed");
     let parsed: serde_json::Value = serde_json::from_str(&output).unwrap();
     assert!(parsed.get("content").and_then(|v| v.as_str()).is_some());
@@ -66,7 +66,7 @@ fn respond_accepts_session_id_and_history_turns() {
 fn respond_returns_complete_structure() {
     let payload = serde_json::json!({ "prompt": "what is active inference?" }).to_string();
     let output =
-        <PiAgent as IntegrationGuest>::respond(payload).expect("respond should return ok payload");
+        <Agent as IntegrationGuest>::respond(payload).expect("respond should return ok payload");
     let parsed: serde_json::Value =
         serde_json::from_str(&output).expect("respond output must be valid JSON");
 
@@ -126,7 +126,7 @@ fn respond_returns_complete_structure() {
 #[test]
 fn respond_rejects_payload_without_prompt() {
     let payload = serde_json::json!({ "system": "only-system" }).to_string();
-    let error = <PiAgent as IntegrationGuest>::respond(payload)
+    let error = <Agent as IntegrationGuest>::respond(payload)
         .expect_err("respond must reject payload without prompt");
 
     match error {

@@ -1,4 +1,4 @@
-//! Pi Agent — sovereign AI agent for edge nodes and Raspberry Pi.
+//! Refarm Agent — sovereign AI agent for edge nodes and local runtimes.
 //!
 //! # Provider selection (env vars)
 //!   MODEL_PROVIDER=anthropic|openai|openai-codex|github-copilot|groq|mistral|xai|deepseek|together|openrouter|gemini|ollama
@@ -38,7 +38,7 @@
 //!     → store AgentResponse + UsageRecord nodes (triggers reactive CRDT push)
 
 wit_bindgen::generate!({
-    world: "pi-agent",
+    world: "agent",
     path: "wit",
 });
 
@@ -85,7 +85,7 @@ pub(crate) use structured_io::{
 };
 #[allow(unused_imports)]
 pub(crate) use utils::{
-    estimate_billable_usd, estimate_usd, fnv1a_hash, new_id, new_pi_urn, now_ns,
+    estimate_billable_usd, estimate_usd, fnv1a_hash, new_id, new_agent_urn, now_ns,
     pricing_mode_for_provider,
 };
 
@@ -104,7 +104,7 @@ use exports::refarm::plugin::integration::{
 };
 use refarm::plugin::tractor_bridge;
 
-struct PiAgent;
+struct Agent;
 
 struct RespondPayload {
     prompt: String,
@@ -296,9 +296,9 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     ))
 }
 
-impl IntegrationGuest for PiAgent {
+impl IntegrationGuest for Agent {
     fn setup() -> Result<(), PluginError> {
-        tractor_bridge::emit_telemetry("pi-agent:ready", None);
+        tractor_bridge::emit_telemetry("agent:ready", None);
         Ok(())
     }
 
@@ -315,7 +315,7 @@ impl IntegrationGuest for PiAgent {
 
     fn metadata() -> PluginMetadata {
         PluginMetadata {
-            name: "pi-agent".to_string(),
+            name: "agent".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             description: "Sovereign AI agent — runs on edge nodes and Raspberry Pi".to_string(),
             supported_types: vec!["AgentResponse".to_string(), "UserPrompt".to_string()],
@@ -346,7 +346,7 @@ impl IntegrationGuest for PiAgent {
     }
 }
 
-export!(PiAgent);
+export!(Agent);
 
 // ─────────────────────────────────────────────────────────────────────────────
 

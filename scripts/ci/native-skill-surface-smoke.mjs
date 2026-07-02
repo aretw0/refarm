@@ -199,7 +199,7 @@ export function buildNativeSkillSurfaceSmoke({
 			}
 			: null,
 		boundaries: [
-			"This smoke does not execute runtime-agent, pi-agent, shell, git, or file tools.",
+			"This smoke does not execute runtime-agent, agent, shell, git, or file tools.",
 			"The skill remains a package-declared surface, not a standalone skill installation.",
 			"Host policy approval is recorded as a pre-runtime decision, not executed here.",
 			"Engine dogfood remains pending until a host records real engine calls.",

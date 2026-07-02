@@ -26,7 +26,7 @@ RUST_PACKAGES=(
 	"packages/tractor"
 	"packages/agent-tools"
 	"packages/heartwood"
-	"packages/pi-agent"
+	"packages/agent"
 	"packages/tractor/tests/fixtures/null-plugin"
 	"templates/rust-plugin"
 	"validations/simple-wasm-plugin"

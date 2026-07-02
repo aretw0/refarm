@@ -94,7 +94,7 @@ All plugins MUST implement these hooks:
 
 ### Optional Extension Surfaces
 
-Plugins may declare additive extension surfaces under `extensions.surfaces` so one package can expose UI, headless, automation, desktop, pi-agent, or asset affordances without forcing every host to execute them:
+Plugins may declare additive extension surfaces under `extensions.surfaces` so one package can expose UI, headless, automation, desktop, agent, or asset affordances without forcing every host to execute them:
 
 ```json
 {

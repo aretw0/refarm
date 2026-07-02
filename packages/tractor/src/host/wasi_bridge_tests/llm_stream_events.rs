@@ -162,7 +162,7 @@ fn store_stream_agent_response_chunks_from_sse_persists_partial_nodes() {
 
     let (last_sequence, stored_chunks) = super::store_stream_agent_response_chunks_from_sse(
         &sync,
-        "pi-agent",
+        "agent",
         &metadata,
         br#"data: {"choices":[{"delta":{"content":"a"}}]}
 
@@ -178,7 +178,7 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     assert_eq!(rows.len(), 2);
     assert!(rows
         .iter()
-        .all(|row| row.source_plugin.as_deref() == Some("pi-agent")));
+        .all(|row| row.source_plugin.as_deref() == Some("agent")));
     let payloads: Vec<serde_json::Value> = rows
         .iter()
         .map(|row| serde_json::from_str(&row.payload).unwrap())
@@ -192,7 +192,7 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     assert_eq!(stream_rows.len(), 2);
     assert!(stream_rows
         .iter()
-        .all(|row| row.source_plugin.as_deref() == Some("pi-agent")));
+        .all(|row| row.source_plugin.as_deref() == Some("agent")));
     let stream_payloads: Vec<serde_json::Value> = stream_rows
         .iter()
         .map(|row| serde_json::from_str(&row.payload).unwrap())
@@ -216,7 +216,7 @@ fn store_stream_agent_response_chunks_from_sse_preserves_sequence_when_no_chunks
 
     let (last_sequence, stored_chunks) = super::store_stream_agent_response_chunks_from_sse(
         &sync,
-        "pi-agent",
+        "agent",
         &metadata,
         br#"{"message":"not sse"}"#,
     )
@@ -237,7 +237,7 @@ fn store_stream_agent_response_chunks_from_reader_persists_incrementally() {
     let (final_body, last_sequence, stored_chunks) =
         super::store_stream_agent_response_chunks_from_reader(
             &sync,
-            "pi-agent",
+            "agent",
             &metadata,
             std::io::Cursor::new(
                 br#"data: {"choices":[{"delta":{"content":"a"}}]}
@@ -280,7 +280,7 @@ data: {"choices":[{"delta":{"content":"b"}}]}
 
     let session_rows = sync.query_nodes("StreamSession").unwrap();
     assert_eq!(session_rows.len(), 1);
-    assert_eq!(session_rows[0].source_plugin.as_deref(), Some("pi-agent"));
+    assert_eq!(session_rows[0].source_plugin.as_deref(), Some("agent"));
     let session: serde_json::Value = serde_json::from_str(&session_rows[0].payload).unwrap();
     assert_eq!(
         session["@id"],
@@ -306,7 +306,7 @@ fn store_stream_agent_response_chunks_from_reader_preserves_openai_usage() {
     let (final_body, last_sequence, stored_chunks) =
         super::store_stream_agent_response_chunks_from_reader(
             &sync,
-            "pi-agent",
+            "agent",
             &metadata,
             std::io::Cursor::new(
                 br#"data: {"choices":[{"delta":{"content":"a"}}]}
@@ -395,7 +395,7 @@ fn store_stream_agent_response_chunks_from_reader_synthesizes_openai_tool_calls(
     let (final_body, last_sequence, stored_chunks) =
         super::store_stream_agent_response_chunks_from_reader(
             &sync,
-            "pi-agent",
+            "agent",
             &metadata,
             std::io::Cursor::new(
                 br#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"read_structured","arguments":"{\"path\":"}}]}}]}
@@ -436,7 +436,7 @@ fn store_stream_agent_response_chunks_from_reader_synthesizes_anthropic_tool_use
     let (final_body, last_sequence, stored_chunks) =
         super::store_stream_agent_response_chunks_from_reader(
             &sync,
-            "pi-agent",
+            "agent",
             &metadata,
             std::io::Cursor::new(
                 br#"data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"read_structured","input":{}}}
@@ -470,7 +470,7 @@ fn store_stream_agent_response_chunks_from_reader_enforces_body_limit() {
 
     let err = super::store_stream_agent_response_chunks_from_reader(
         &sync,
-        "pi-agent",
+        "agent",
         &metadata,
         std::io::Cursor::new(br#"data: {"choices":[]}\n\n"#),
         4,

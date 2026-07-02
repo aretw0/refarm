@@ -43,7 +43,7 @@
     ],
     "ignoredGitVisibilityPatterns": [
       "**/*.d.ts",
-      "packages/pi-agent/src/bindings.rs"
+      "packages/agent/src/bindings.rs"
     ],
     "title": "Refarm Monorepo Health"
   },

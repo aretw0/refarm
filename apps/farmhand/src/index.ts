@@ -54,6 +54,7 @@ import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
 import { createTaskMemoryBridge } from "./task-memory-bridge.js";
 import { WebSocketSyncTransport } from "./transport.js";
+import { createControlSurfaceRouteHandler } from "./transports/channels.js";
 import {
 	FileTransportAdapter,
 	type TaskExecutorFn,
@@ -61,7 +62,6 @@ import {
 import { HttpSidecar } from "./transports/http.js";
 import { createPluginsRouteHandler } from "./transports/plugins.js";
 import { createSessionsRouteHandler } from "./transports/sessions.js";
-import { createControlSurfaceRouteHandler } from "./transports/channels.js";
 import { createTasksRouteHandler } from "./transports/tasks.js";
 
 const FARMHAND_PORT = 42000;
@@ -320,7 +320,7 @@ async function main() {
 		{
 			id: RUNTIME_AGENT_PLUGIN_ID,
 			package: RUNTIME_AGENT_NPM_PACKAGE,
-			wasmFile: "dist/pi_agent.wasm",
+			wasmFile: "dist/agent.wasm",
 			requiredProvides: ["agent:respond"],
 		},
 	];

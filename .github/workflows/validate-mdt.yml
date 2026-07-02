@@ -3,9 +3,9 @@ name: Validate MDT Docs
 on:
   pull_request:
     paths:
-      - "packages/pi-agent/.templates/**"
-      - "packages/pi-agent/README.md"
-      - "packages/pi-agent/mdt.toml"
+      - "packages/agent/.templates/**"
+      - "packages/agent/README.md"
+      - "packages/agent/mdt.toml"
       - "docs/diagrams/.templates/**"
       - "docs/diagrams/LAYERS.md"
       - "docs/diagrams/mdt.toml"
@@ -17,8 +17,8 @@ on:
     branches:
       - main
     paths:
-      - "packages/pi-agent/.templates/**"
-      - "packages/pi-agent/README.md"
+      - "packages/agent/.templates/**"
+      - "packages/agent/README.md"
       - "docs/diagrams/.templates/**"
       - "docs/diagrams/LAYERS.md"
       - "specs/diagrams/.templates/**"
@@ -43,7 +43,7 @@ jobs:
         uses: ./.github/actions/cache
         with:
           path: .artifacts/validation-cache/mdt
-          key: ${{ runner.os }}-validate-mdt-0.7.0-${{ hashFiles('packages/pi-agent/.templates/**', 'packages/pi-agent/README.md', 'packages/pi-agent/mdt.toml', 'docs/diagrams/.templates/**', 'docs/diagrams/LAYERS.md', 'docs/diagrams/mdt.toml', 'specs/diagrams/.templates/**', 'specs/diagrams/CI_GUIDE.md', 'specs/diagrams/mdt.toml', '.github/workflows/validate-mdt.yml') }}
+          key: ${{ runner.os }}-validate-mdt-0.7.0-${{ hashFiles('packages/agent/.templates/**', 'packages/agent/README.md', 'packages/agent/mdt.toml', 'docs/diagrams/.templates/**', 'docs/diagrams/LAYERS.md', 'docs/diagrams/mdt.toml', 'specs/diagrams/.templates/**', 'specs/diagrams/CI_GUIDE.md', 'specs/diagrams/mdt.toml', '.github/workflows/validate-mdt.yml') }}
 
       - name: Setup
         if: steps.validation-cache.outputs.cache-hit != 'true'
@@ -69,10 +69,10 @@ jobs:
         if: steps.validation-cache.outputs.cache-hit != 'true' && steps.cache-mdt.outputs.cache-hit != 'true'
         run: cargo install mdt_cli --locked
 
-      - name: Check MDT sync — pi-agent
-        id: validation-pi-agent
+      - name: Check MDT sync — agent
+        id: validation-agent
         if: steps.validation-cache.outputs.cache-hit != 'true'
-        run: cd packages/pi-agent && mdt check
+        run: cd packages/agent && mdt check
         continue-on-error: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
 
       - name: Check MDT sync — docs/diagrams
@@ -88,7 +88,7 @@ jobs:
         continue-on-error: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
 
       - name: Record MDT validation cache marker
-        if: steps.validation-cache.outputs.cache-hit != 'true' && steps.validation-pi-agent.outcome == 'success' && steps.validation-docs-diagrams.outcome == 'success' && steps.validation-specs-diagrams.outcome == 'success'
+        if: steps.validation-cache.outputs.cache-hit != 'true' && steps.validation-agent.outcome == 'success' && steps.validation-docs-diagrams.outcome == 'success' && steps.validation-specs-diagrams.outcome == 'success'
         run: |
           mkdir -p .artifacts/validation-cache/mdt
           printf '%s\n' "${{ github.sha }}" > .artifacts/validation-cache/mdt/last-successful-sha.txt
@@ -112,9 +112,9 @@ jobs:
             Run `mdt update` in the affected directory and commit the result:
 
             ```bash
-            # pi-agent
-            cd packages/pi-agent && mdt update
-            git add README.md ROADMAP.md && git commit -m "docs: sync mdt template blocks (pi-agent)"
+            # agent
+            cd packages/agent && mdt update
+            git add README.md ROADMAP.md && git commit -m "docs: sync mdt template blocks (agent)"
 
             # docs/diagrams
             cd docs/diagrams && mdt update
@@ -124,5 +124,5 @@ jobs:
             cd specs/diagrams && mdt update
             git add CI_GUIDE.md && git commit -m "docs: sync mdt template blocks (specs/diagrams)"
             ```
-          state: ${{ (steps.validation-pi-agent.outcome == 'success' && steps.validation-docs-diagrams.outcome == 'success' && steps.validation-specs-diagrams.outcome == 'success') && 'closed' || 'open' }}
+          state: ${{ (steps.validation-agent.outcome == 'success' && steps.validation-docs-diagrams.outcome == 'success' && steps.validation-specs-diagrams.outcome == 'success') && 'closed' || 'open' }}
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -2,7 +2,7 @@
 
 Refarm reaches `v0.1.0` only when it can replace the creator's current external pi workflow for real work. This checklist translates that policy into observable capabilities.
 
-**pi-agent is unheld (2026-07-02).** The runtime-agent publication policy is resolved: `@refarm.dev/pi-agent` (→ farmhand) is now public (`publishConfig.access="public"`), so the engine can be distributed to downstream consumers. What remains to reach `v0.1.0` is closing this checklist — the live daily-driver policy bundle (host shell policy, resumable sessions, durable memory under real load). Unholding distributes the engine; this checklist proves it is a real daily driver. Keep farmhand minimal (see the pi-agent README boundary): reusable behavior migrates to shared primitives so the same primitives serve Pi and farmhand.
+**agent is unheld (2026-07-02).** The runtime-agent publication policy is resolved: `@refarm.dev/agent` (→ farmhand) is now public (`publishConfig.access="public"`), so the engine can be distributed to downstream consumers. What remains to reach `v0.1.0` is closing this checklist — the live daily-driver policy bundle (host shell policy, resumable sessions, durable memory under real load). Unholding distributes the engine; this checklist proves it is a real daily driver. Keep farmhand minimal (see the agent README boundary): reusable behavior migrates to shared primitives so the same primitives serve Pi and farmhand.
 
 Reference driver research is tracked in
 [`docs/REFERENCE_AGENT_DRIVER_RESEARCH.md`](REFERENCE_AGENT_DRIVER_RESEARCH.md).
@@ -92,20 +92,20 @@ documentation-only status reconciliation, use `git diff --check` plus
 
 Current evidence (2026-06-27): the runtime-agent has the local-tool shape needed
 for a reference daily driver, but the full daily-driver policy bundle still needs
-one live acceptance pass. `packages/pi-agent/src/tools.rs` exposes OpenAI and
+one live acceptance pass. `packages/agent/src/tools.rs` exposes OpenAI and
 Anthropic tool schemas for filesystem, search, shell, structured data, task,
-session, and LSP code operations. `packages/pi-agent/src/tool_dispatch/mod.rs`
+session, and LSP code operations. `packages/agent/src/tool_dispatch/mod.rs`
 routes those tool names to specialized dispatch modules instead of a generic
 remote shell path.
 
-The host boundary is capability-based. `packages/pi-agent/wit/refarm-plugin-host.wit`
+The host boundary is capability-based. `packages/agent/wit/refarm-plugin-host.wit`
 imports `agent-fs`, `agent-shell`, and `structured-io`; `agent-shell` uses
 structured argv rather than shell interpolation, and `structured-io` validates
 JSON/TOML/YAML before writes. The current Tractor hardening surface is documented
-in `packages/pi-agent/ROADMAP.md`: `MODEL_SHELL_ALLOWLIST`, `MODEL_FS_ROOT`, and
+in `packages/agent/ROADMAP.md`: `MODEL_SHELL_ALLOWLIST`, `MODEL_FS_ROOT`, and
 `trusted_plugins` gate subprocesses, filesystem reach, and shell-capable plugin
 callers at the host boundary. Tool calls are stored in `AgentResponse.tool_calls`
-for CRDT audit, as documented in `packages/pi-agent/README.md`.
+for CRDT audit, as documented in `packages/agent/README.md`.
 
 That proves the local tool contract and audit path. The live daily-driver policy
 bundle is now covered by the opt-in mock smoke below: the runtime starts in an
@@ -159,8 +159,8 @@ REFARM_AGENT_MOCK_POLICY_PROOF=1 pnpm run refarm:agent:e2e:mock
 
 The proof scripts a model `bash` tool call, sets `MODEL_SHELL_ALLOWLIST=echo`
 and `MODEL_FS_ROOT` to the checkout, starts Tractor from an isolated temporary
-workspace with `trusted_plugins=["pi-agent"]`, then asserts an
-`agent-tool:shell:spawn` Scarecrow audit line for `pi-agent`.
+workspace with `trusted_plugins=["agent"]`, then asserts an
+`agent-tool:shell:spawn` Scarecrow audit line for `agent`.
 
 For the restart persistence proof, add `REFARM_AGENT_MOCK_RESTART_PROOF=1`.
 Both flags can be combined when validating the runtime-agent daily-driver path

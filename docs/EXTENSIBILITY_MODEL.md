@@ -68,7 +68,7 @@ manifest-declared surface, not as an independently installed runtime:
 the skill surface, not a distribution or execution substrate. The plugin
 manifest/Barn/Scarecrow path still owns install, integrity, provenance,
 capability authorization, denial paths, and promotion. Runtime-agent or
-`pi-agent` may consume a skill surface, but they do not make `SKILL.md` an
+`agent` may consume a skill surface, but they do not make `SKILL.md` an
 executable artifact by itself.
 
 ## Authoring Spaces Before Packaging

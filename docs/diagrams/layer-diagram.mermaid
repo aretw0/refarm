@@ -36,7 +36,7 @@ graph TD
     %% ── Plugin Sandbox ───────────────────────────────────────────────────
     subgraph Plugins ["Plugin Sandbox  (.wasm — P1 module or P2+ component)"]
         direction LR
-        PiAgent["pi-agent\n(sovereign AI)"]
+        Agent["agent\n(sovereign AI)"]
         ThirdParty["third-party plugins"]
     end
 
@@ -74,10 +74,10 @@ graph TD
     TractorTS ---|"same WIT"| WIT_Pkg
     TractorRS ---|"same WIT"| WIT_Pkg
 
-    WIT_Int -->|"implemented by"| PiAgent
+    WIT_Int -->|"implemented by"| Agent
     WIT_Int -->|"implemented by"| ThirdParty
-    WIT_LLM -.->|"imported by"| PiAgent
-    WIT_FS  -.->|"imported by"| PiAgent
+    WIT_LLM -.->|"imported by"| Agent
+    WIT_FS  -.->|"imported by"| Agent
 
     RS_Sidecar -->|"dispatches via"| EffortV1
     RS_Sidecar -->|"writes stream"| FileStream

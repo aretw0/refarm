@@ -10,7 +10,7 @@
 
 Introduces `task-contract-v1` as a formal capability contract for durable work items
 persisted in the CRDT graph. Tasks outlive individual agent sessions and are usable by
-both human users (Homestead) and agents (pi-agent, farmhand) from the same base schema.
+both human users (Homestead) and agents (agent, farmhand) from the same base schema.
 `task-contract-v1` is the **memory layer** — complementing `effort-contract-v1`'s
 **dispatch layer** — and the two packages never import each other; composition happens
 in consumers.
@@ -19,21 +19,21 @@ in consumers.
 
 ## User Stories
 
-**As a** pi-agent  
-**I want** to create a `Task` node when a user prompt implies persistent work  
+**As a** agent
+**I want** to create a `Task` node when a user prompt implies persistent work
 **So that** the task survives across sessions and I can resume it without re-reading
 the full conversation history
 
-**As a** Homestead user  
-**I want** to see my task list in the UI from a stable contract  
-**So that** the view does not break when pi-agent's internal schema evolves
+**As a** Homestead user
+**I want** to see my task list in the UI from a stable contract
+**So that** the view does not break when agent's internal schema evolves
 
-**As a** farmhand automation  
-**I want** to read and update `Task` nodes without depending on pi-agent internals  
+**As a** farmhand automation
+**I want** to read and update `Task` nodes without depending on agent internals
 **So that** I can coordinate work with agents via a shared memory contract
 
-**As a** third-party plugin author  
-**I want** `task-contract-v1` to define a stable, adapter-based interface  
+**As a** third-party plugin author
+**I want** `task-contract-v1` to define a stable, adapter-based interface
 **So that** I can build a task storage backend (SQLite, Loro CRDT, remote) without
 modifying core Refarm packages
 
@@ -41,29 +41,29 @@ modifying core Refarm packages
 
 ## Acceptance Criteria
 
-1. **Given** `task-contract-v1` is installed as a dependency  
-   **When** a third party implements `TaskContractAdapter`  
+1. **Given** `task-contract-v1` is installed as a dependency
+   **When** a third party implements `TaskContractAdapter`
    **Then** running `runTaskV1Conformance(adapter)` reports all 4 required tests passing
 
-2. **Given** pi-agent processes a user prompt that implies work  
-   **When** it calls `taskAdapter.create()`  
-   **Then** a `Task` node with `urn:refarm:task:v1:{id}` is written to the CRDT graph  
+2. **Given** agent processes a user prompt that implies work
+   **When** it calls `taskAdapter.create()`
+   **Then** a `Task` node with `urn:refarm:task:v1:{id}` is written to the CRDT graph
    and survives a session restart
 
-3. **Given** a Task exists with `status: "pending"`  
-   **When** pi-agent calls `taskAdapter.update(id, { status: "active" })`  
+3. **Given** a Task exists with `status: "pending"`
+   **When** agent calls `taskAdapter.update(id, { status: "active" })`
    **Then** `updated_at_ns` advances and the change is reflected in Homestead's task list
 
-4. **Given** a status change happens  
-   **When** pi-agent calls `taskAdapter.appendEvent()`  
+4. **Given** a status change happens
+   **When** agent calls `taskAdapter.appendEvent()`
    **Then** an immutable `TaskEvent` node is written and readable via `adapter.events(taskId)`
 
-5. **Given** a `TaskContractAdapter` with `query` implemented  
-   **When** `query({ parent_task_id: null })` is called  
+5. **Given** a `TaskContractAdapter` with `query` implemented
+   **When** `query({ parent_task_id: null })` is called
    **Then** only root tasks are returned (no subtasks in the result)
 
-6. **Given** farmhand wants to dispatch a Task for execution  
-   **When** it composes `task-contract-v1` with `effort-contract-v1`  
+6. **Given** farmhand wants to dispatch a Task for execution
+   **When** it composes `task-contract-v1` with `effort-contract-v1`
    **Then** a new Effort is submitted without either package importing the other
 
 ---
@@ -96,7 +96,7 @@ packages/
 
 consumers (implement the adapter):
   packages/storage-sqlite/ ← future: TaskContractAdapter backed by Loro CRDT + SQLite
-  apps/pi-agent/           ← uses taskAdapter to create/update Task nodes
+  apps/agent/           ← uses taskAdapter to create/update Task nodes
   apps/farmhand/           ← reads Task nodes for scheduling/dispatching
   apps/me/ (Homestead)     ← reads Task nodes for the task list UI
 ```
@@ -104,14 +104,14 @@ consumers (implement the adapter):
 **Key decisions:**
 
 - `task-contract-v1` is a separate package so any consumer can depend on it without
-  taking pi-agent as a transitive dependency — mirrors the `effort-contract-v1` model.
-- Human tasks (Homestead) and agent tasks (pi-agent) use the same `Task` node schema.
+  taking agent as a transitive dependency — mirrors the `effort-contract-v1` model.
+- Human tasks (Homestead) and agent tasks (agent) use the same `Task` node schema.
   Divergence into specialised types happens in consumers if evidence demands it.
 - `TaskEvent` is append-only for audit trail integrity — no update or delete method
   is exposed in the contract.
 - Optional methods (`query`, `events`, `summary`) allow lightweight adapters to pass
   conformance with just the 4 required methods.
-- Publication deferred to v0.2.0: needs daily-driver validation by pi-agent and
+- Publication deferred to v0.2.0: needs daily-driver validation by agent and
   farmhand before ecosystem exposure.
 
 ---
@@ -213,11 +213,11 @@ export function runTaskV1Conformance(
 
 - [x] Scaffold `packages/task-contract-v1/` with types, conformance runner, in-memory adapter
 - [x] Integrate `TaskContractAdapter` into farmhand execution loop (bridge effort tasks ↔ Task/TaskEvent status updates)
-- [ ] Integrate `TaskContractAdapter` into pi-agent (create/update/appendEvent on prompt)
+- [ ] Integrate `TaskContractAdapter` into agent (create/update/appendEvent on prompt)
 - [ ] Expose Task list in Homestead via standard adapter
 - [x] Implement `TaskContractAdapter` baseline in `storage-sqlite` (storage:v1-backed records)
 - [ ] Upgrade `storage-sqlite` Task adapter to direct Loro CRDT-backed nodes
-- [ ] Smoke gate: pi-agent creates Task → node in CRDT graph → Homestead reads it
+- [ ] Smoke gate: agent creates Task → node in CRDT graph → Homestead reads it
 
 ---
 

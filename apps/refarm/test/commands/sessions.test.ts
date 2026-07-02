@@ -761,7 +761,7 @@ describe("refarm sessions", () => {
 					session: {
 						"@id": "urn:refarm:session:v1:abc123def456",
 						"@type": "Session",
-						participants: ["urn:refarm:agent:pi-agent"],
+						participants: ["urn:refarm:agent:agent"],
 					},
 					entries: [],
 					total: 0,
@@ -779,12 +779,12 @@ describe("refarm sessions", () => {
 			command: "sessions",
 			operation: "show",
 			session: {
-				participants: ["urn:refarm:agent:pi-agent"],
+				participants: ["urn:refarm:agent:agent"],
 			},
 			canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
 			participantAliases: [
 				{
-					participantId: "urn:refarm:agent:pi-agent",
+					participantId: "urn:refarm:agent:agent",
 					canonicalParticipantId: "urn:refarm:agent:runtime-agent",
 				},
 			],

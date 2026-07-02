@@ -19,7 +19,7 @@ Browser (JS world)                    Tractor (Rust/WASM world)
 ────────────────────────────────────  ──────────────────────────────────────
 terminal-plugin.ts                    agent-tools.wasm
   • renders output in DOM               • spawns OS processes
-  • sends input via WebSocket           • exports agent-shell WIT to pi-agent
+  • sends input via WebSocket           • exports agent-shell WIT to agent
   • subscribes to CRDT ShellOutput      • logs ShellOutput nodes to CRDT
   • target: ["browser"]                 • zero DOM, zero JS
 ```
@@ -40,7 +40,7 @@ stdout ←─────────── ShellOutput CRDT node ←── WS �
 The same `agent-tools.wasm` execution path serves:
 
 - **terminal-plugin REPL** — user types, sees output in browser
-- **pi-agent bash tool** — agent calls `bash`, output logged to CRDT
+- **agent bash tool** — agent calls `bash`, output logged to CRDT
 - **CLI watch** — `tractor-native watch` reads stdin, same WS protocol
 
 Any agent — browser, edge node, Pi Zero, cloud — uses the same executor.
@@ -75,7 +75,7 @@ a passive log and becomes a live view of what tractor is doing.
   {
     "@type": "ShellOutput",
     "@id": "urn:tractor:shell-<seq>",
-    "agent_id": "terminal | pi-agent | ...",
+    "agent_id": "terminal | agent | ...",
     "stdout": "...",
     "stderr": "...",
     "exit_code": 0,
@@ -95,7 +95,7 @@ a passive log and becomes a live view of what tractor is doing.
 
 - [ ] `subscribe(handler: (node: ShellOutput) => void)` — other plugins can react to output
 - [ ] `send(command: string)` — other plugins can dispatch commands programmatically
-  - Used by pi-agent UI (future) to show what the agent is running in real time
+  - Used by agent UI (future) to show what the agent is running in real time
 
 ---
 
@@ -130,7 +130,7 @@ that subscribes to Tractor nodes.
     ✓ applied
   ```
 - [ ] Collapsible sections per tool call — verbose mode toggle
-- [ ] `agent_id` badge — distinguish terminal user vs pi-agent vs future agents
+- [ ] `agent_id` badge — distinguish terminal user vs agent vs future agents
 
 ### Multi-agent awareness
 
@@ -198,5 +198,5 @@ the WebSocket client. The tractor execution engine does not change.
 3. **CRDT as the source of truth** — terminal display is a projection of CRDT state,
    not an independent log. Refreshing the page must restore the full session from CRDT.
 
-4. **Agent-agnostic** — terminal-plugin renders output from any agent (pi-agent,
+4. **Agent-agnostic** — terminal-plugin renders output from any agent (agent,
    future agents, user input). It has no opinion about who generated the output.

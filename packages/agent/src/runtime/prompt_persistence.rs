@@ -106,7 +106,7 @@ pub(crate) fn open_prompt_task(session_id: &str, prompt_ref: &str, prompt: &str)
         "actor": task_actor_urn(),
         "payload": {
             "prompt_ref": prompt_ref,
-            "source": "pi-agent.respond",
+            "source": "agent.respond",
         },
         "timestamp_ns": crate::now_ns(),
     });
@@ -166,7 +166,7 @@ pub(crate) fn store_prompt_and_open_session(
     let prompt_ref = prompt_ref_override
         .filter(|value| !value.trim().is_empty())
         .map(ToOwned::to_owned)
-        .unwrap_or_else(|| crate::new_pi_urn("prompt"));
+        .unwrap_or_else(|| crate::new_agent_urn("prompt"));
     let prompt_node = user_prompt_node(&prompt_ref, prompt);
     if !store_node(&prompt_node) {
         return None;

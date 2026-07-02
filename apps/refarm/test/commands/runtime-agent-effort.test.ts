@@ -24,7 +24,7 @@ describe("createRuntimeAgentRespondEffort", () => {
 			tasks: [
 				{
 					id: "task-id",
-					pluginId: "@refarm/pi-agent",
+					pluginId: "@refarm/agent",
 					fn: "respond",
 					args: {
 						prompt: "Summarize the open work",

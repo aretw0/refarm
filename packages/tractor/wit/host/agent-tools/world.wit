@@ -61,7 +61,7 @@ world agent-tools-host {
     /// Tractor implements this; agent-tools.wasm calls it for OS process spawn.
     import host-spawn;
 
-    /// Tractor calls these on agent-tools.wasm to compose with pi-agent.
+    /// Tractor calls these on agent-tools.wasm to compose with agent.
     export agent-fs;
     export agent-shell;
     export structured-io;

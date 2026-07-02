@@ -1,6 +1,6 @@
 // Agent tool bridge — host implementations of `agent-fs`, `agent-shell`, and `host-spawn`.
 //
-// Pi Agent's 4 primitives exposed to WASM plugins:
+// Agent's 4 primitives exposed to WASM plugins:
 //   read, write, edit  → `agent-fs`
 //   spawn              → `agent-shell`
 //
@@ -358,9 +358,9 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
     crate::host::sensitive_aliases::is_spawn_sensitive_env_key(key)
 }
 
-// ── structured-io (host primitive for pi-agent WIT import) ───────────────────
+// ── structured-io (host primitive for agent WIT import) ───────────────────
 //
-// Tractor provides structured-io natively so pi-agent's WIT import is satisfied
+// Tractor provides structured-io natively so agent's WIT import is satisfied
 // without full Component Model composition. Once agent-tools.wasm is composed
 // (HANDOFF.md Tarefa 2B), tractor can delegate to its exported structured-io.
 

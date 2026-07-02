@@ -31,7 +31,7 @@ test("proves the agent-demo public surface without publishing held plugin runtim
 		REQUIRED_PUBLIC_PACKAGES,
 	);
 	assert.equal(proof.publicSurface.every((entry) => entry.selected), true);
-	assert.match(proof.engineProof, /pi-agent:release-proof/);
+	assert.match(proof.engineProof, /agent:release-proof/);
 	assert.deepEqual(
 		proof.heldSurfaces.map((entry) => entry.id),
 		HELD_AGENT_PLUGIN_SURFACES.map((entry) => entry.id),

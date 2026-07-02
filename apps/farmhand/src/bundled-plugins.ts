@@ -8,7 +8,7 @@ import path from "node:path";
 export interface BundledEntry {
 	id: string;
 	package: string;
-	wasmFile: string; // relative path within npm package, e.g. "dist/pi_agent.wasm"
+	wasmFile: string; // relative path within npm package, e.g. "dist/agent.wasm"
 	requiredProvides?: string[];
 }
 
@@ -94,12 +94,12 @@ async function installedBundleIsCurrent(
 	}
 }
 
-// Mirror the convention from scripts/pi-agent-install.mjs:
-// - install dir: <pluginsDir>/@refarm/pi-agent/ (scoped like npm)
+// Mirror the convention from scripts/agent-install.mjs:
+// - install dir: <pluginsDir>/@refarm/agent/ (scoped like npm)
 // - wasm filename: plugin.wasm
 // - integrity format: sha256-<hexdigest>
 function installDir(pluginsDir: string, pluginId: string): string {
-	// pluginId is like "@refarm/pi-agent" — preserve the scoped path
+	// pluginId is like "@refarm/agent" — preserve the scoped path
 	return path.join(pluginsDir, pluginId);
 }
 

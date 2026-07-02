@@ -85,8 +85,8 @@ pub(crate) fn now_ns() -> u64 {
         .unwrap_or(0)
 }
 
-/// Build a pi-agent URN id with canonical prefix and a fresh local id.
-/// Example: new_pi_urn("prompt") => "urn:pi-agent:prompt-<id>"
-pub(crate) fn new_pi_urn(kind: &str) -> String {
-    format!("urn:pi-agent:{kind}-{}", new_id())
+/// Build an agent URN id with canonical prefix and a fresh local id.
+/// Example: new_agent_urn("prompt") => "urn:agent:prompt-<id>"
+pub(crate) fn new_agent_urn(kind: &str) -> String {
+    format!("urn:agent:{kind}-{}", new_id())
 }

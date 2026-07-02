@@ -146,14 +146,14 @@ describe("plugin install", () => {
 		});
 		mockExistsSync.mockImplementation((input) => {
 			const value = String(input).replace(/\\/g, "/");
-			return value.endsWith("packages/pi-agent/package.json") ||
-				value.endsWith("packages/pi-agent/dist/pi_agent.wasm");
+			return value.endsWith("packages/agent/package.json") ||
+				value.endsWith("packages/agent/dist/agent.wasm");
 		});
 		mockReadFileSync
-			.mockReturnValueOnce(JSON.stringify({ name: "@refarm.dev/pi-agent", version: "0.4.1" }))
+			.mockReturnValueOnce(JSON.stringify({ name: "@refarm.dev/agent", version: "0.4.1" }))
 			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
 			.mockReturnValueOnce(Buffer.from("wasm-bytes"))
-			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/pi-agent", version: "0.4.1" }));
+			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/agent", version: "0.4.1" }));
 		mockReadFile.mockRejectedValue(new Error("ENOENT"));
 		mockDigest.mockReturnValue("deadbeef");
 
@@ -182,7 +182,7 @@ describe("plugin install", () => {
 	});
 
 	it("reports failure when WASM file is missing", async () => {
-		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/agent/package.json");
 		mockReadFileSync.mockReturnValue(JSON.stringify({ version: "0.4.1" }));
 		mockReadFile.mockRejectedValue(new Error("ENOENT")); // no sentinel → needs install
 		mockExistsSync.mockReturnValue(false); // WASM not built
@@ -198,7 +198,7 @@ describe("plugin install", () => {
 	});
 
 	it("skips install when already up-to-date (no --force)", async () => {
-		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/agent/package.json");
 		mockReadFileSync
 			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
 			.mockReturnValueOnce(Buffer.from("wasm-bytes"));
@@ -224,11 +224,11 @@ describe("plugin install", () => {
 	});
 
 	it("reinstalls when installed bundled manifest is missing required capabilities", async () => {
-		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/agent/package.json");
 		mockReadFileSync
 			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
 			.mockReturnValueOnce(Buffer.from("wasm-bytes"))
-			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/pi-agent", version: "0.4.1" }));
+			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/agent", version: "0.4.1" }));
 		mockReadFile
 			.mockResolvedValueOnce("0.4.1")
 			.mockResolvedValueOnce(
@@ -252,11 +252,11 @@ describe("plugin install", () => {
 	});
 
 	it("reinstalls when --force is passed even if up-to-date", async () => {
-		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/agent/package.json");
 		mockReadFileSync
 			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" })) // package.json version
 			.mockReturnValueOnce(Buffer.from("wasm-bytes")) // WASM file bytes
-			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/pi-agent", version: "0.4.1" })); // manifest
+			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/agent", version: "0.4.1" })); // manifest
 		mockReadFile.mockResolvedValue("0.4.1"); // sentinel = same version
 		mockExistsSync.mockReturnValue(true);
 		mockDigest.mockReturnValue("deadbeef");
@@ -270,11 +270,11 @@ describe("plugin install", () => {
 	});
 
 	it("prints install results as JSON without operator log lines", async () => {
-		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/agent/package.json");
 		mockReadFileSync
 			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
 			.mockReturnValueOnce(Buffer.from("wasm-bytes"))
-			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/pi-agent", version: "0.4.1" }));
+			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/agent", version: "0.4.1" }));
 		mockReadFile.mockRejectedValue(new Error("ENOENT"));
 		mockExistsSync.mockReturnValue(true);
 		mockDigest.mockReturnValue("deadbeef");
@@ -288,12 +288,12 @@ describe("plugin install", () => {
 			failed: 0,
 			plugins: [
 				{
-					id: "@refarm/pi-agent",
-					packageName: "@refarm.dev/pi-agent",
+					id: "@refarm/agent",
+					packageName: "@refarm.dev/agent",
 					status: "installed",
 					version: "0.4.1",
 					packageSource: "node_modules",
-					packageDir: "/fake/node_modules/@refarm.dev/pi-agent",
+					packageDir: "/fake/node_modules/@refarm.dev/agent",
 					bytes: 10,
 					integrity: "sha256-deadbeef",
 				},
@@ -322,19 +322,19 @@ describe("plugin install", () => {
 			failed: 1,
 			plugins: [
 				{
-					id: "@refarm/pi-agent",
-					packageName: "@refarm.dev/pi-agent",
+					id: "@refarm/agent",
+					packageName: "@refarm.dev/agent",
 					status: "failed",
 					version: null,
 					packageSource: "unresolved",
-					message: "package @refarm.dev/pi-agent not found in node_modules or workspace",
+					message: "package @refarm.dev/agent not found in node_modules or workspace",
 				},
 			],
 			command: "plugin",
 			operation: "install",
 			ok: false,
 			error: "plugin-install-failed",
-			message: "package @refarm.dev/pi-agent not found in node_modules or workspace",
+			message: "package @refarm.dev/agent not found in node_modules or workspace",
 			nextAction: "refarm plugin install",
 			nextActions: ["refarm plugin install"],
 			nextCommand: "refarm plugin install --json",
@@ -350,7 +350,7 @@ describe("plugin install", () => {
 	});
 
 	it("prints update results as JSON", async () => {
-		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/agent/package.json");
 		mockReadFileSync
 			.mockReturnValueOnce(JSON.stringify({ version: "0.4.1" }))
 			.mockReturnValueOnce(Buffer.from("wasm-bytes"));
@@ -373,12 +373,12 @@ describe("plugin install", () => {
 			failed: 0,
 			plugins: [
 				{
-					id: "@refarm/pi-agent",
-					packageName: "@refarm.dev/pi-agent",
+					id: "@refarm/agent",
+					packageName: "@refarm.dev/agent",
 					status: "cached",
 					version: "0.4.1",
 					packageSource: "node_modules",
-					packageDir: "/fake/node_modules/@refarm.dev/pi-agent",
+					packageDir: "/fake/node_modules/@refarm.dev/agent",
 					message: "already up-to-date",
 				},
 			],
@@ -407,7 +407,7 @@ describe("plugin list", () => {
 		await run("list");
 
 		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-		expect(output).toContain("@refarm/pi-agent");
+		expect(output).toContain("@refarm/agent");
 		expect(output).toContain("0.4.1");
 		consoleSpy.mockRestore();
 	});
@@ -426,7 +426,7 @@ describe("plugin list", () => {
 
 	it("prints plugin inventory as JSON", async () => {
 		mockReadFile.mockResolvedValue("0.4.1");
-		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/pi-agent/package.json");
+		mockRequireResolve.mockReturnValue("/fake/node_modules/@refarm.dev/agent/package.json");
 
 		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -445,11 +445,11 @@ describe("plugin list", () => {
 		};
 		expect(payload.plugins).toEqual([
 			{
-				id: "@refarm/pi-agent",
+				id: "@refarm/agent",
 				version: "0.4.1",
 				source: "bundled",
 				packageSource: "node_modules",
-				packageDir: "/fake/node_modules/@refarm.dev/pi-agent",
+				packageDir: "/fake/node_modules/@refarm.dev/agent",
 				installed: true,
 			},
 		]);
@@ -493,10 +493,10 @@ describe("plugin status", () => {
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm/pi-agent"],
-					loaded: ["@refarm/pi-agent"],
+					installed: ["@refarm/agent"],
+					loaded: ["@refarm/agent"],
 					local: [],
-					known: ["@refarm/pi-agent"],
+					known: ["@refarm/agent"],
 				}),
 			}),
 		);
@@ -505,7 +505,7 @@ describe("plugin status", () => {
 		await run("status");
 
 		const output = consoleSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-		expect(output).toContain("@refarm/pi-agent");
+		expect(output).toContain("@refarm/agent");
 		expect(output).toContain("yes");
 		expect(output).not.toContain("Runtime agent plugin is not loaded");
 		consoleSpy.mockRestore();
@@ -517,10 +517,10 @@ describe("plugin status", () => {
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm/pi-agent"],
+					installed: ["@refarm/agent"],
 					loaded: [],
 					local: [],
-					known: ["@refarm/pi-agent"],
+					known: ["@refarm/agent"],
 				}),
 			}),
 		);
@@ -542,10 +542,10 @@ describe("plugin status", () => {
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm/pi-agent"],
+					installed: ["@refarm/agent"],
 					loaded: [],
 					local: ["@local/tool"],
-					known: ["@refarm/pi-agent", "@local/tool"],
+					known: ["@refarm/agent", "@local/tool"],
 				}),
 			}),
 		);
@@ -575,7 +575,7 @@ describe("plugin status", () => {
 		expect(payload.available).toBe(true);
 		expect(payload.plugins).toEqual([
 			{
-				id: "@refarm/pi-agent",
+				id: "@refarm/agent",
 				installed: true,
 				loaded: false,
 				local: false,
@@ -608,7 +608,7 @@ describe("plugin status", () => {
 				ok: true,
 				json: vi.fn().mockResolvedValue({
 					reloadId: "reload-1",
-					reloaded: ["@refarm/pi-agent"],
+					reloaded: ["@refarm/agent"],
 					deferred: [],
 					skipped: [],
 				}),
@@ -617,7 +617,7 @@ describe("plugin status", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await run("reload", "pi-agent", "--json");
+		await run("reload", "agent", "--json");
 
 		expect(errorSpy).not.toHaveBeenCalled();
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
@@ -630,15 +630,15 @@ describe("plugin status", () => {
 			ok: true,
 			command: "plugin",
 			operation: "reload",
-			requested: ["pi-agent"],
-			reloaded: ["@refarm/pi-agent"],
+			requested: ["agent"],
+			reloaded: ["@refarm/agent"],
 			nextCommand: "refarm plugin status --json",
 		});
 		expect(fetch).toHaveBeenCalledWith(
 			expect.stringContaining("/plugins/reload"),
 			expect.objectContaining({
 				method: "POST",
-				body: JSON.stringify({ pluginIds: ["@refarm/pi-agent"] }),
+				body: JSON.stringify({ pluginIds: ["@refarm/agent"] }),
 			}),
 		);
 		logSpy.mockRestore();
@@ -650,7 +650,7 @@ describe("plugin status", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await run("reload", "pi-agent", "--json");
+		await run("reload", "agent", "--json");
 
 		expect(errorSpy).not.toHaveBeenCalled();
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
@@ -687,14 +687,14 @@ describe("plugin status", () => {
 					reloadId: "reload-1",
 					reloaded: ["@local/tool"],
 					deferred: [],
-					skipped: ["@refarm/pi-agent"],
+					skipped: ["@refarm/agent"],
 				}),
 			}),
 		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await run("reload", "pi-agent", "--json");
+		await run("reload", "agent", "--json");
 
 		expect(errorSpy).not.toHaveBeenCalled();
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
@@ -703,15 +703,15 @@ describe("plugin status", () => {
 			operation: "reload",
 			error: "runtime-plugin-reload-partial",
 			message: "One or more runtime plugins require runtime restart to reload.",
-			requested: ["pi-agent"],
+			requested: ["agent"],
 			reloaded: ["@local/tool"],
-			skipped: ["@refarm/pi-agent"],
+			skipped: ["@refarm/agent"],
 			nextAction:
-				"refarm plugin reload 'pi-agent' --restart-if-needed --wait --json",
+				"refarm plugin reload 'agent' --restart-if-needed --wait --json",
 			nextCommand:
-				"refarm plugin reload 'pi-agent' --restart-if-needed --wait --json",
+				"refarm plugin reload 'agent' --restart-if-needed --wait --json",
 			nextCommands: [
-				"refarm plugin reload 'pi-agent' --restart-if-needed --wait --json",
+				"refarm plugin reload 'agent' --restart-if-needed --wait --json",
 				"refarm plugin status --json",
 				"refarm doctor --next-command",
 			],
@@ -730,24 +730,24 @@ describe("plugin status", () => {
 					reloadId: "reload-1",
 					reloaded: ["@local/tool"],
 					deferred: [],
-					skipped: ["@refarm/pi-agent"],
+					skipped: ["@refarm/agent"],
 				}),
 			}),
 		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await run("reload", "pi-agent");
+		await run("reload", "agent");
 
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("@local/tool reloaded"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("@refarm/pi-agent requires runtime restart to reload"),
+			expect.stringContaining("@refarm/agent requires runtime restart to reload"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining(
-				"refarm plugin reload 'pi-agent' --restart-if-needed --wait",
+				"refarm plugin reload 'agent' --restart-if-needed --wait",
 			),
 		);
 		expect(process.exitCode).toBe(1);
@@ -764,7 +764,7 @@ describe("plugin status", () => {
 					reloadId: "reload-1",
 					reloaded: [],
 					deferred: [],
-					skipped: ["@refarm/pi-agent"],
+					skipped: ["@refarm/agent"],
 				}),
 			}),
 		);
@@ -790,7 +790,7 @@ describe("plugin status", () => {
 			operation: "reload",
 			requested: ["runtime-agent"],
 			reloaded: [],
-			skipped: ["@refarm/pi-agent"],
+			skipped: ["@refarm/agent"],
 			restarted: true,
 			nextCommand: "refarm plugin status --json",
 		});
@@ -821,7 +821,7 @@ describe("plugin status", () => {
 			operation: "reload",
 			requested: ["runtime-agent"],
 			reloaded: [],
-			skipped: ["@refarm/pi-agent"],
+			skipped: ["@refarm/agent"],
 			restarted: true,
 			nextCommand: "refarm plugin status --json",
 		});
@@ -847,7 +847,7 @@ describe("plugin status", () => {
 				error: "runtime-plugin-restart-failed",
 				requested: ["runtime-agent"],
 				reloaded: [],
-				skipped: ["@refarm/pi-agent"],
+				skipped: ["@refarm/agent"],
 				restarted: false,
 				nextCommand: "refarm runtime restart --wait",
 			});

@@ -180,8 +180,8 @@ async fn maybe_ingest_on_load(
 
 #[derive(Args, Debug)]
 struct PromptArgs {
-    /// Agent/plugin id registered in tractor daemon (e.g. pi-agent)
-    #[arg(long, default_value = "pi-agent")]
+    /// Agent/plugin id registered in tractor daemon (e.g. agent)
+    #[arg(long, default_value = "agent")]
     agent: String,
 
     /// Prompt payload sent to plugin `on_event("user:prompt", payload)`
@@ -220,8 +220,8 @@ struct WatchArgs {
     #[arg(long, default_value = "AgentResponse")]
     r#type: String,
 
-    /// Filter by source_plugin (e.g. pi-agent). Empty = all.
-    #[arg(long, default_value = "pi-agent")]
+    /// Filter by source_plugin (e.g. agent). Empty = all.
+    #[arg(long, default_value = "agent")]
     agent: String,
 
     /// Filter payloads by stream_ref (useful for StreamChunk/StreamSession).
@@ -1152,7 +1152,7 @@ mod tests {
     ) -> AgentResponseEvent {
         AgentResponseEvent {
             id: format!("event-{content}-{is_final}"),
-            source_plugin: Some("pi-agent".to_string()),
+            source_plugin: Some("agent".to_string()),
             updated_at: "2026-04-29T00:00:00Z".to_string(),
             sequence: 0,
             is_final,
@@ -1237,17 +1237,17 @@ mod tests {
                 "timestamp_ns": 10,
             })
             .to_string(),
-            source_plugin: Some("pi-agent".to_string()),
+            source_plugin: Some("agent".to_string()),
             updated_at: "2026-04-30T00:00:00Z".to_string(),
         };
 
-        assert!(row_matches_cli_filters(&row, "pi-agent", Some("stream-a")));
+        assert!(row_matches_cli_filters(&row, "agent", Some("stream-a")));
         assert!(!row_matches_cli_filters(
             &row,
             "other-agent",
             Some("stream-a")
         ));
-        assert!(!row_matches_cli_filters(&row, "pi-agent", Some("stream-b")));
+        assert!(!row_matches_cli_filters(&row, "agent", Some("stream-b")));
     }
 
     #[test]
@@ -1258,7 +1258,7 @@ mod tests {
                 type_: "StreamChunk".to_string(),
                 context: None,
                 payload: serde_json::json!({ "timestamp_ns": 10, "sequence": 2 }).to_string(),
-                source_plugin: Some("pi-agent".to_string()),
+                source_plugin: Some("agent".to_string()),
                 updated_at: "2026-04-30T00:00:00Z".to_string(),
             },
             tractor::storage::NodeRow {
@@ -1266,7 +1266,7 @@ mod tests {
                 type_: "StreamChunk".to_string(),
                 context: None,
                 payload: serde_json::json!({ "timestamp_ns": 10, "sequence": 1 }).to_string(),
-                source_plugin: Some("pi-agent".to_string()),
+                source_plugin: Some("agent".to_string()),
                 updated_at: "2026-04-30T00:00:00Z".to_string(),
             },
         ];
@@ -1381,7 +1381,7 @@ mod tests {
             type_: "StreamChunk".to_string(),
             context: None,
             payload: serde_json::json!({ "is_final": true }).to_string(),
-            source_plugin: Some("pi-agent".to_string()),
+            source_plugin: Some("agent".to_string()),
             updated_at: "2026-04-30T00:00:00Z".to_string(),
         };
         let final_marker = tractor::storage::NodeRow {
@@ -1391,7 +1391,7 @@ mod tests {
             payload:
                 serde_json::json!({ "payload_kind": STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL })
                     .to_string(),
-            source_plugin: Some("pi-agent".to_string()),
+            source_plugin: Some("agent".to_string()),
             updated_at: "2026-04-30T00:00:00Z".to_string(),
         };
         let failed_session = tractor::storage::NodeRow {
@@ -1399,7 +1399,7 @@ mod tests {
             type_: "StreamSession".to_string(),
             context: None,
             payload: serde_json::json!({ "status": STREAM_SESSION_STATUS_FAILED }).to_string(),
-            source_plugin: Some("pi-agent".to_string()),
+            source_plugin: Some("agent".to_string()),
             updated_at: "2026-04-30T00:00:00Z".to_string(),
         };
         let active_session = tractor::storage::NodeRow {
@@ -1407,7 +1407,7 @@ mod tests {
             type_: "StreamSession".to_string(),
             context: None,
             payload: serde_json::json!({ "status": "active" }).to_string(),
-            source_plugin: Some("pi-agent".to_string()),
+            source_plugin: Some("agent".to_string()),
             updated_at: "2026-04-30T00:00:00Z".to_string(),
         };
 
@@ -1438,7 +1438,7 @@ mod tests {
             "tractor",
             "--require-plugin-load",
             "--plugin",
-            "./plugins/pi-agent.wasm",
+            "./plugins/agent.wasm",
         ])
         .expect("cli parse");
 
@@ -1476,7 +1476,7 @@ mod tests {
             "tractor",
             "--require-plugin-ingest",
             "--plugin",
-            "./plugins/pi-agent.wasm",
+            "./plugins/agent.wasm",
         ])
         .expect("cli parse");
 

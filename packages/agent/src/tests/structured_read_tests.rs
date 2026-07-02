@@ -106,7 +106,7 @@ fn read_structured_json_no_truncation_when_small() {
 fn read_structured_toml_parses_cargo_toml() {
     let cargo = r#"
 [package]
-name = "pi-agent"
+name = "agent"
 version = "0.1.0"
 
 [dependencies]
@@ -115,18 +115,18 @@ serde_json = "1"
     let result = read_structured_parse(cargo.as_bytes(), "toml", 0, 0);
     assert!(result.contains("toml"), "header must say toml: {result}");
     assert!(
-        result.contains("pi-agent") || result.contains("package"),
+        result.contains("agent") || result.contains("package"),
         "content: {result}"
     );
 }
 
 #[test]
 fn read_structured_yaml_simple_mapping() {
-    let yaml = b"name: pi-agent\nversion: 0.1.0\nauthor: arthur\n";
+    let yaml = b"name: agent\nversion: 0.1.0\nauthor: arthur\n";
     let result = read_structured_parse(yaml, "yaml", 0, 0);
     assert!(result.contains("yaml"), "header must say yaml: {result}");
     assert!(
-        result.contains("pi-agent"),
+        result.contains("agent"),
         "content must include value: {result}"
     );
 }

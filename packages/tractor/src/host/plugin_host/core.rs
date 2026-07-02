@@ -80,7 +80,7 @@ pub(crate) struct P1Store {
 //
 // A loaded agent-tools.wasm instance. Holds the typed caller (AgentToolsHost)
 // and the store. Future Fase 3 composition will extract Func refs from here
-// to wire into pi-agent's linker — see HANDOFF.md Tarefa 2B / 2C.
+// to wire into agent's linker — see HANDOFF.md Tarefa 2B / 2C.
 
 pub struct AgentToolsHandle {
     pub id: String,

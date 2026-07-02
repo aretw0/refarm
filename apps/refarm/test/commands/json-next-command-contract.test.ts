@@ -720,10 +720,10 @@ function makeContractFetch() {
 				ok: true,
 				status: 200,
 				json: async () => ({
-					installed: ["@refarm/pi-agent"],
-					loaded: ["@refarm/pi-agent"],
+					installed: ["@refarm/agent"],
+					loaded: ["@refarm/agent"],
 					local: [],
-					known: ["@refarm/pi-agent"],
+					known: ["@refarm/agent"],
 				}),
 			};
 		}

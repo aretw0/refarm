@@ -143,7 +143,7 @@ models the local interaction loop as a JSON-event, resume/session/task handoff
 surface, and `assessInteractionDriverReadiness()` reports why gateway/RPC
 promotion is still blocked: lifecycle, steering, gateway parity, and budget
 visibility proofs. The reference-driver supply map now lists this SDK as an
-exported target for `runtime-agent.ask`, while `@refarm.dev/pi-agent` remains on
+exported target for `runtime-agent.ask`, while `@refarm.dev/agent` remains on
 hold for runtime execution.
 
 Current proof (2026-06-29): the reference-driver supply map now carries official
@@ -336,7 +336,7 @@ runtime fanout.
 
 Current proof (2026-06-28): the reference-driver supply map now includes
 `runtime-agent.ask` as the interaction nucleus. It records the local ask command
-as a runtime candidate, keeps `@refarm.dev/pi-agent` on hold, and lists the
+as a runtime candidate, keeps `@refarm.dev/agent` on hold, and lists the
 promotion proofs needed before gateway/RPC parity: prompt lifecycle, streaming,
 abort/steer/follow-up, resume, and budget visibility. This adopts Hermes's
 single gateway pressure and Pi's embeddable steering/session lesson without
@@ -356,14 +356,14 @@ worker SDK or rebuilding a checklist from prose.
 
 Current proof (2026-06-27): `@refarm.dev/cli/capability-index` now also exposes
 `buildReferenceDriverSupplyMap()`. The map makes publication posture
-machine-readable: discovery is an exported CLI SDK, `@refarm.dev/pi-agent` stays
+machine-readable: discovery is an exported CLI SDK, `@refarm.dev/agent` stays
 on hold while private, structured I/O remains a `refarm:agent-tools@0.1.0` WIT
 component boundary, and code-ops stays split between canonical plugin WIT and
 the held `refarm-tractor` host implementation.
 
 Current proof (2026-06-27): `scripts/validate-packages.mjs` now has a
-runtime-agent plugin package guard. `@refarm.dev/pi-agent` remains private, but
-its package allowlist must already name `dist/pi_agent.wasm`, `dist/plugin.json`,
+runtime-agent plugin package guard. `@refarm.dev/agent` remains private, but
+its package allowlist must already name `dist/agent.wasm`, `dist/plugin.json`,
 and `dist/jco`; if the package is ever made public, the same guard requires
 public publish config and keeps `build:wasm`/`build:jco` tied to those artifacts.
 
@@ -374,7 +374,7 @@ build-free WIT/component distribution preflight. It checks that
 `packages/refarm-plugin-wit` still maps the canonical host WIT to
 `refarm:plugin@0.1.0`/`refarm-plugin-host` with the expected imports and
 exports. This gives publication planning a cheap signal without compiling Rust,
-building `pi_agent.wasm`, or running JCO.
+building `agent.wasm`, or running JCO.
 
 Current proof (2026-06-27): the reference-driver supply map now records
 `refarm-plugin-wit` as an internal Cargo package, not a publication candidate.
@@ -401,7 +401,7 @@ Current proof (2026-06-28): the compact capability index now treats bounded
 worker profiles as part of the `reference-driver` supply map. The exported
 surface is the product-neutral `@refarm.dev/cli` SDK, with
 `@refarm.dev/cli/worker-profile` available as the focused subpath. The runtime
-promotion gate is only a plan-only candidate, and `@refarm.dev/pi-agent`
+promotion gate is only a plan-only candidate, and `@refarm.dev/agent`
 worker execution remains on hold until the local engine proves policy,
 cancellation, observability, and provider cost bounds.
 

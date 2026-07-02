@@ -210,7 +210,7 @@ const CAPABILITIES = [
 			"Submit a prompt to the runtime agent, follow stream output, and persist session/task handoffs.",
 		provider: {
 			kind: "runtime",
-			package: "@refarm.dev/pi-agent",
+			package: "@refarm.dev/agent",
 			surface: "apps/refarm ask",
 		},
 		requirements: [
@@ -401,7 +401,7 @@ const CAPABILITIES = [
 			"Describe bounded delegated workers as plan-only agent tools before runtime fanout is enabled.",
 		provider: {
 			kind: "runtime",
-			package: "@refarm.dev/pi-agent",
+			package: "@refarm.dev/agent",
 			surface: "runtime-agent worker tools",
 		},
 		requirements: [
@@ -436,7 +436,7 @@ const CAPABILITIES = [
 			"List, inspect, navigate, and fork CRDT-backed conversation sessions through runtime-agent tools.",
 		provider: {
 			kind: "runtime",
-			package: "@refarm.dev/pi-agent",
+			package: "@refarm.dev/agent",
 			surface: "session tools",
 		},
 		requirements: [
@@ -452,9 +452,9 @@ const CAPABILITIES = [
 				"fork keeps source session intact",
 			],
 			evidence: [
-				"packages/pi-agent/src/tool_dispatch/session_tools.rs",
-				"packages/pi-agent/src/tests/session_schema_tests.rs",
-				"packages/pi-agent/src/tests/history_tree_tests.rs",
+				"packages/agent/src/tool_dispatch/session_tools.rs",
+				"packages/agent/src/tests/session_schema_tests.rs",
+				"packages/agent/src/tests/history_tree_tests.rs",
 			],
 		},
 		activation: {
@@ -469,7 +469,7 @@ const CAPABILITIES = [
 			"Read and write JSON, TOML, and YAML through validated, paged runtime-agent tools.",
 		provider: {
 			kind: "runtime",
-			package: "@refarm.dev/pi-agent",
+			package: "@refarm.dev/agent",
 			surface: "structured tools",
 		},
 		requirements: [
@@ -485,9 +485,9 @@ const CAPABILITIES = [
 				"atomic write path",
 			],
 			evidence: [
-				"packages/pi-agent/src/tool_dispatch/structured_tools.rs",
-				"packages/pi-agent/src/tests/structured_read_tests.rs",
-				"packages/pi-agent/src/tests/structured_validate_tests.rs",
+				"packages/agent/src/tool_dispatch/structured_tools.rs",
+				"packages/agent/src/tests/structured_read_tests.rs",
+				"packages/agent/src/tests/structured_validate_tests.rs",
 			],
 		},
 		activation: {
@@ -502,7 +502,7 @@ const CAPABILITIES = [
 			"Expose LSP-shaped find-references and rename-symbol tools behind a host capability boundary.",
 		provider: {
 			kind: "runtime",
-			package: "@refarm.dev/pi-agent",
+			package: "@refarm.dev/agent",
 			surface: "code-ops tools",
 		},
 		requirements: [
@@ -518,9 +518,9 @@ const CAPABILITIES = [
 				"rename result contract",
 			],
 			evidence: [
-				"packages/pi-agent/src/tool_dispatch/code_ops_tools.rs",
+				"packages/agent/src/tool_dispatch/code_ops_tools.rs",
 				"packages/tractor/wit/host/agent-tools/world.wit",
-				"packages/pi-agent/src/tests/tools_schema_tests.rs",
+				"packages/agent/src/tests/tools_schema_tests.rs",
 			],
 		},
 		activation: {
@@ -590,8 +590,8 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 			},
 			{
 				channel: "npm",
-				name: "@refarm.dev/pi-agent",
-				path: "packages/pi-agent",
+				name: "@refarm.dev/agent",
+				path: "packages/agent",
 				status: "hold",
 				note:
 					"Runtime-agent package remains private until plugin artifact policy and daily-driver mileage justify publishing the interaction engine.",
@@ -651,8 +651,8 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 			},
 			{
 				channel: "npm",
-				name: "@refarm.dev/pi-agent",
-				path: "packages/pi-agent",
+				name: "@refarm.dev/agent",
+				path: "packages/agent",
 				status: "hold",
 				note:
 					"Runtime worker execution still belongs behind the private plugin boundary until dispatch policy is proven.",
@@ -674,8 +674,8 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 			},
 			{
 				channel: "npm",
-				name: "@refarm.dev/pi-agent",
-				path: "packages/pi-agent",
+				name: "@refarm.dev/agent",
+				path: "packages/agent",
 				status: "hold",
 				note:
 					"Runtime plugin package is still private; publish only after plugin artifact policy and daily-driver gate.",
@@ -704,8 +704,8 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 			},
 			{
 				channel: "npm",
-				name: "@refarm.dev/pi-agent",
-				path: "packages/pi-agent",
+				name: "@refarm.dev/agent",
+				path: "packages/agent",
 				status: "hold",
 				note:
 					"Runtime plugin consumes structured tools, but its npm package remains private until plugin distribution is ready.",
@@ -855,7 +855,7 @@ const REFERENCE_DRIVER_ADOPTION_CRITERIA = [
 		requirement:
 			"Model route, provider token/cost use, retry count, max turns, max parallel workers, and stop condition are visible before fanout.",
 		proof:
-			"pi-agent has a narrow release proof; worker fanout and plugin-runtime promotion remain held until budget ledgers are boring.",
+			"agent has a narrow release proof; worker fanout and plugin-runtime promotion remain held until budget ledgers are boring.",
 		consumerBoundary:
 			"Consumer dashboards may restyle the evidence, but cannot replace it with unstructured logs.",
 	},

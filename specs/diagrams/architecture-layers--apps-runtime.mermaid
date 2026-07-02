@@ -22,7 +22,7 @@ graph TD
 
     subgraph Plugins["Plugin Sandbox  (.wasm)"]
         direction LR
-        PiAgent["pi-agent\n(sovereign AI)"]
+        Agent["agent\n(sovereign AI)"]
         ThirdParty["third-party plugins"]
     end
 
@@ -36,10 +36,10 @@ graph TD
     TractorTS ---|"same WIT"| WITPkg
     TractorRS ---|"same WIT"| WITPkg
 
-    WITPkg -->|"implemented by"| PiAgent
+    WITPkg -->|"implemented by"| Agent
     WITPkg -->|"implemented by"| ThirdParty
-    LLMBridge -.->|"imported by"| PiAgent
-    AgentFS -.->|"imported by"| PiAgent
+    LLMBridge -.->|"imported by"| Agent
+    AgentFS -.->|"imported by"| Agent
 
     classDef app       fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
     classDef core      fill:#dcfce7,stroke:#166534,stroke-width:1px;
@@ -50,5 +50,5 @@ graph TD
     class Dev,Me,Farmhand,RefarmCLI app;
     class TractorTS,TractorRS core;
     class WITPkg,LLMBridge,AgentFS wit;
-    class PiAgent,ThirdParty plugin;
+    class Agent,ThirdParty plugin;
     class HttpAdapt transport;

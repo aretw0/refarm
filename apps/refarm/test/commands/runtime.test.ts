@@ -468,7 +468,7 @@ describe("runtime command", () => {
 			[
 				join(root, ".cache", "cargo-target", "release", "tractor"),
 				"--plugin",
-				join(root, ".refarm", "plugins", "@refarm", "pi-agent", "plugin.wasm"),
+				join(root, ".refarm", "plugins", "@refarm", "agent", "plugin.wasm"),
 				"--http-host",
 				"0.0.0.0",
 				"--refarm-dir",

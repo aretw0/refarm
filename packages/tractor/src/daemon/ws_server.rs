@@ -249,7 +249,7 @@ mod tests {
     async fn json_prompt_routes_to_registered_agent() {
         let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
         let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
-        channels.write().unwrap().insert("pi-agent".to_string(), tx);
+        channels.write().unwrap().insert("agent".to_string(), tx);
 
         let addr = spawn_server(channels).await;
         let (ws, _) = connect_async(&addr).await.unwrap();
@@ -257,7 +257,7 @@ mod tests {
         stream.next().await; // drain initial state
 
         sink.send(Message::Text(
-            r#"{"type":"user:prompt","agent":"pi-agent","payload":"olá pi"}"#.to_string(),
+            r#"{"type":"user:prompt","agent":"agent","payload":"olá pi"}"#.to_string(),
         ))
         .await
         .unwrap();
@@ -325,7 +325,7 @@ mod tests {
     async fn wrong_type_field_not_routed() {
         let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
         let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
-        channels.write().unwrap().insert("pi-agent".to_string(), tx);
+        channels.write().unwrap().insert("agent".to_string(), tx);
 
         let addr = spawn_server(channels).await;
         let (ws, _) = connect_async(&addr).await.unwrap();
@@ -334,7 +334,7 @@ mod tests {
 
         // Different "type" value — must NOT route to the agent.
         sink.send(Message::Text(
-            r#"{"type":"some:other","agent":"pi-agent","payload":"ignored"}"#.to_string(),
+            r#"{"type":"some:other","agent":"agent","payload":"ignored"}"#.to_string(),
         ))
         .await
         .unwrap();

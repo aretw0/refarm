@@ -172,6 +172,9 @@ importers:
 
   apps/farmhand:
     dependencies:
+      '@refarm.dev/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@refarm.dev/automation-contract-v1':
         specifier: workspace:*
         version: link:../../packages/automation-contract-v1
@@ -190,9 +193,6 @@ importers:
       '@refarm.dev/identity-contract-v1':
         specifier: workspace:*
         version: link:../../packages/identity-contract-v1
-      '@refarm.dev/pi-agent':
-        specifier: workspace:*
-        version: link:../../packages/pi-agent
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../../packages/plugin-manifest
@@ -404,6 +404,15 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+
+  packages/agent:
+    devDependencies:
+      '@bytecodealliance/jco':
+        specifier: 'catalog:'
+        version: 1.19.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
 
   packages/artifact-contract-v1:
     devDependencies:
@@ -904,15 +913,6 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
-
-  packages/pi-agent:
-    devDependencies:
-      '@bytecodealliance/jco':
-        specifier: 'catalog:'
-        version: 1.19.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
-      '@refarm.dev/deps':
-        specifier: workspace:*
-        version: link:../deps
 
   packages/plugin-courier:
     dependencies:
@@ -1467,6 +1467,9 @@ importers:
         specifier: workspace:*
         version: link:../sync-contract-v1
     devDependencies:
+      '@refarm.dev/agent':
+        specifier: workspace:*
+        version: link:../agent
       '@refarm.dev/deps':
         specifier: workspace:*
         version: link:../deps
@@ -1476,9 +1479,6 @@ importers:
       '@refarm.dev/hello-world-plugin':
         specifier: workspace:*
         version: link:../../validations/wasm-plugin/hello-world
-      '@refarm.dev/pi-agent':
-        specifier: workspace:*
-        version: link:../pi-agent
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -15023,7 +15023,7 @@ snapshots:
   unplugin@2.3.11:
     dependencies:
       '@jridgewell/remapping': 2.3.5
-      acorn: 8.16.0
+      acorn: 8.17.0
       picomatch: 4.0.4
       webpack-virtual-modules: 0.6.2
 

@@ -1,6 +1,6 @@
 /// Sidecar HTTP protocol tests — ADR-060
 ///
-/// All tests run without a real LLM, without WASM, and without pi-agent loaded.
+/// All tests run without a real LLM, without WASM, and without agent loaded.
 /// They validate the HTTP surface (status codes, JSON shapes, effort lifecycle)
 /// using an in-process sidecar bound on port 0 and an empty AgentChannels map.
 ///
@@ -63,7 +63,7 @@ fn test_effort(id: &str) -> serde_json::Value {
         "direction": "ask",
         "tasks": [{
             "id": uuid::Uuid::new_v4().to_string(),
-            "pluginId": "@refarm/pi-agent",
+            "pluginId": "@refarm/agent",
             "fn": "respond",
             "args": { "prompt": "ping", "system": null }
         }],
@@ -81,7 +81,7 @@ fn test_effort_with_plugin(id: &str, plugin_id: &str) -> serde_json::Value {
 fn test_task(args: serde_json::Value) -> EffortTask {
     EffortTask {
         id: uuid::Uuid::new_v4().to_string(),
-        plugin_id: "@refarm/pi-agent".to_string(),
+        plugin_id: "@refarm/agent".to_string(),
         fn_name: Some("respond".to_string()),
         args,
     }
@@ -196,7 +196,7 @@ async fn sidecar_get_plugins_reports_loaded_agent_channels() {
         .agent_channels
         .write()
         .unwrap()
-        .insert("@refarm/pi-agent".to_string(), tx);
+        .insert("@refarm/agent".to_string(), tx);
     let client = reqwest::Client::new();
 
     let res = client
@@ -209,11 +209,11 @@ async fn sidecar_get_plugins_reports_loaded_agent_channels() {
     let body: serde_json::Value = res.json().await.unwrap();
     assert_eq!(
         body["loaded"].as_array().unwrap(),
-        &vec![serde_json::json!("@refarm/pi-agent")]
+        &vec![serde_json::json!("@refarm/agent")]
     );
     assert_eq!(
         body["known"].as_array().unwrap(),
-        &vec![serde_json::json!("@refarm/pi-agent")]
+        &vec![serde_json::json!("@refarm/agent")]
     );
 }
 
@@ -225,13 +225,13 @@ async fn sidecar_post_plugins_reload_reports_loaded_and_skipped_plugins() {
         .agent_channels
         .write()
         .unwrap()
-        .insert("@refarm/pi-agent".to_string(), tx);
+        .insert("@refarm/agent".to_string(), tx);
     let client = reqwest::Client::new();
 
     let res = client
         .post(format!("{}/plugins/reload", base(port)))
         .json(&serde_json::json!({
-            "pluginIds": ["@refarm/pi-agent", "@refarm/missing"]
+            "pluginIds": ["@refarm/agent", "@refarm/missing"]
         }))
         .send()
         .await
@@ -241,7 +241,7 @@ async fn sidecar_post_plugins_reload_reports_loaded_and_skipped_plugins() {
     let body: serde_json::Value = res.json().await.unwrap();
     assert_eq!(
         body["reloaded"].as_array().unwrap(),
-        &vec![serde_json::json!("@refarm/pi-agent")]
+        &vec![serde_json::json!("@refarm/agent")]
     );
     assert_eq!(
         body["skipped"].as_array().unwrap(),
@@ -379,7 +379,7 @@ async fn sidecar_cancel_unknown_effort_returns_404() {
 
 #[tokio::test]
 async fn sidecar_no_plugin_writes_error_stream_chunk() {
-    // No agent channel registered → pi-agent not loaded.
+    // No agent channel registered → agent not loaded.
     // The sidecar must write an is_final=true error chunk so refarm ask doesn't timeout.
     let (_state, port, tmp) = start_test_sidecar().await;
     let client = reqwest::Client::new();
@@ -441,7 +441,7 @@ async fn sidecar_effort_status_is_failed_when_no_plugin() {
     assert_eq!(
         body["status"].as_str().unwrap(),
         "failed",
-        "effort must be failed when @refarm/pi-agent channel is not registered"
+        "effort must be failed when @refarm/agent channel is not registered"
     );
 }
 

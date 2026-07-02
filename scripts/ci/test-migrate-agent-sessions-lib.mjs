@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-	migratePiAgentSessionNode,
-	migratePiAgentSessionNodes,
-} from "./migrate-pi-agent-sessions-lib.mjs";
+	migrateAgentSessionNode,
+	migrateAgentSessionNodes,
+} from "./migrate-agent-sessions-lib.mjs";
 
-describe("migrate-pi-agent-sessions-lib", () => {
+describe("migrate-agent-sessions-lib", () => {
 	it("rewrites legacy @id and session references", () => {
 		const input = {
 			"@type": "SessionEntry",
@@ -18,7 +18,7 @@ describe("migrate-pi-agent-sessions-lib", () => {
 			timestamp_ns: 1,
 		};
 
-		const result = migratePiAgentSessionNode(input);
+		const result = migrateAgentSessionNode(input);
 		assert.equal(result.changed, true);
 		assert.equal(result.node["@id"], "urn:refarm:session-entry:v1:123");
 		assert.equal(result.node.session_id, "urn:refarm:session:v1:abc");
@@ -39,7 +39,7 @@ describe("migrate-pi-agent-sessions-lib", () => {
 			timestamp_ns: 1,
 		};
 
-		const result = migratePiAgentSessionNode(input);
+		const result = migrateAgentSessionNode(input);
 		assert.equal(result.changed, false);
 		assert.equal(
 			result.node.content,
@@ -48,7 +48,7 @@ describe("migrate-pi-agent-sessions-lib", () => {
 	});
 
 	it("reports migration totals across node lists", () => {
-		const { nodes, report } = migratePiAgentSessionNodes([
+		const { nodes, report } = migrateAgentSessionNodes([
 			{
 				"@type": "Session",
 				"@id": "urn:pi-agent:session-root",

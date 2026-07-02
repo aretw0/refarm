@@ -101,7 +101,7 @@ else
     has_match '^(apps/|packages/|validations/|templates/|scripts/|turbo\.json$|package\.json$|pnpm-lock\.yaml$|tsconfig\.json$)' && code_changes=true
 
     tractor_gates=false
-    has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|pnpm-lock\.yaml$)' && tractor_gates=true
+    has_match '^(packages/tractor/|packages/tractor-ts/|packages/agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|pnpm-lock\.yaml$)' && tractor_gates=true
 
     run_task_smoke=false  # always skip locally (needs farmhand sidecar)
     run_e2e=false         # always skip locally (needs Playwright browsers)
@@ -160,7 +160,7 @@ fi
 # ── 6. Task smoke tests ───────────────────────────────────────────────────────
 step "Task Smoke Tests"
 skip_step "task:execution:smoke" "requires farmhand sidecar (run manually if needed)"
-skip_step "task:execution:smoke:pi-agent" "requires farmhand sidecar"
+skip_step "task:execution:smoke:agent" "requires farmhand sidecar"
 skip_step "refarm:telemetry:gate:ci" "requires farmhand sidecar"
 
 # ── 7. Turbo: build lint type-check test ─────────────────────────────────────

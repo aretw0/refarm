@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * agent-status — health check for the pi-agent stack
+ * agent-status — health check for the agent stack
  *
  * Shows: daemon state, configured keys, WASM freshness, model config, MODEL_FS_ROOT safety.
  * Usage: run the agent:status package script with the configured package manager.
@@ -25,9 +25,9 @@ const _cargoTarget = process.env.CARGO_TARGET_DIR;
 const TRACTOR    = _cargoTarget
   ? join(_cargoTarget, 'release/tractor')
   : join(ROOT, 'packages/tractor/target/release/tractor');
-const PI_AGENT   = _cargoTarget
-  ? join(_cargoTarget, 'wasm32-wasip1/release/pi_agent.wasm')
-  : join(ROOT, 'packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm');
+const AGENT_WASM = _cargoTarget
+  ? join(_cargoTarget, 'wasm32-wasip1/release/agent.wasm')
+  : join(ROOT, 'packages/agent/target/wasm32-wasip1/release/agent.wasm');
 
 const c = {
   reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',
@@ -173,11 +173,11 @@ function checkKeys(envVars, config) {
 }
 
 function checkWasm() {
-  if (!existsSync(PI_AGENT)) {
-    fail('wasm', `pi_agent.wasm not found — build: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release`);
+  if (!existsSync(AGENT_WASM)) {
+    fail('wasm', `agent.wasm not found — build: cargo component build --manifest-path packages/agent/Cargo.toml --release`);
     return;
   }
-  ok('wasm', `${fileSize(PI_AGENT)}  ${c.dim}built ${fileAge(PI_AGENT)}${c.reset}`);
+  ok('wasm', `${fileSize(AGENT_WASM)}  ${c.dim}built ${fileAge(AGENT_WASM)}${c.reset}`);
 }
 
 function checkTractorBinary() {
@@ -239,7 +239,7 @@ function checkFsRoot(envVars, config) {
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
-console.log(`\n${c.bold}pi-agent status${c.reset}  ${c.dim}${new Date().toLocaleTimeString()}${c.reset}\n`);
+console.log(`\n${c.bold}agent status${c.reset}  ${c.dim}${new Date().toLocaleTimeString()}${c.reset}\n`);
 
 const envVars = readEnv();
 const config  = readConfig();

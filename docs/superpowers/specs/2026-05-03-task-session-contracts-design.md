@@ -20,7 +20,7 @@ Two memory primitives are missing:
 - **Conversation threads** — session context shared across MODEL agents, messaging integrations
   (Telegram, Signal), and future A2A coordination (ADR-052).
 
-`pi-agent` currently owns both (`Session`/`SessionEntry` CRDT nodes) under the `urn:pi-agent:*`
+`agent` currently owns both (`Session`/`SessionEntry` CRDT nodes) under the `urn:pi-agent:*`
 namespace. This couples platform-level primitives to a single plugin's namespace.
 
 This design graduates both into standalone capability contracts in `packages/`.
@@ -39,7 +39,7 @@ composition (in consumer, not in packages):
 ```
 
 The two packages never import each other. Composition happens in consumers
-(pi-agent, farmhand, windmill) by combining both adapters.
+(agent, farmhand, windmill) by combining both adapters.
 
 ---
 
@@ -293,11 +293,11 @@ Pi-agent extends `session-contract-v1` with MODEL-specific fields without coupli
 Session:      @id, participants, context_id, created_at_ns
 SessionEntry: @id, session_id, parent_entry_id, kind, content, timestamp_ns
 
-// pi-agent extension (plugin-local, extra CRDT fields)
+// agent extension (plugin-local, extra CRDT fields)
 Session + { name, leaf_entry_id, parent_session_id }
 ```
 
-Since CRDT nodes are schema-free (Extensibility Axiom A5), pi-agent stores extra fields
+Since CRDT nodes are schema-free (Extensibility Axiom A5), agent stores extra fields
 alongside the base fields. Consumers that only know `session-contract-v1` safely ignore them.
 
 **Namespace migration** (one-time script, pre-v0.1.0):
@@ -310,7 +310,7 @@ alongside the base fields. Consumers that only know `session-contract-v1` safely
 ## Composition example
 
 ```typescript
-// pi-agent creates a task when processing a user prompt that implies work
+// agent creates a task when processing a user prompt that implies work
 const task = await taskAdapter.create({
   "@type": "Task",
   title: "Implement dark mode toggle",
@@ -333,7 +333,7 @@ await taskAdapter.appendEvent({
 await effortAdapter.submit({
   id: newId(),
   direction: "execute-task",
-  tasks: [{ id: newId(), pluginId: "pi_agent", fn: "execute", args: task["@id"] }],
+  tasks: [{ id: newId(), pluginId: "agent", fn: "execute", args: task["@id"] }],
   submittedAt: new Date().toISOString(),
 });
 ```
@@ -344,8 +344,8 @@ await effortAdapter.submit({
 
 | Consumer | Benefit |
 |---|---|
-| `pi-agent` | Tasks persist across sessions; session schema is platform-standard |
-| `farmhand` | Reads/writes same Task nodes without knowing pi-agent internals |
+| `agent` | Tasks persist across sessions; session schema is platform-standard |
+| `farmhand` | Reads/writes same Task nodes without knowing agent internals |
 | `apps/me` (Homestead) | Shows task list and conversation history via standard adapters |
 | Messaging integrations | `session-contract-v1` adapter per platform (Telegram, Signal) |
 | `windmill` | Automation creates/updates tasks via standard contract |

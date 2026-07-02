@@ -25,7 +25,7 @@ flowchart TD
     Q1["npm audit --audit-level=high"]
     Q2["tsconfig:guard preflight"]
     Q3["task:execution:smoke\n(Farmhand CLI ↔ sidecar)"]
-    Q4["task:execution:smoke:pi-agent\n(effort round-trip)"]
+    Q4["task:execution:smoke:agent\n(effort round-trip)"]
     QCache --> Q0
     Q0 -->|cache hit| QHit
     Q0 -->|cache miss| Q1 --> Q2

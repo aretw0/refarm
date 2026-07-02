@@ -128,26 +128,26 @@ describe("session command", () => {
 		const readPluginState = vi
 			.fn()
 			.mockResolvedValueOnce({
-				installed: ["@refarm/pi-agent"],
+				installed: ["@refarm/agent"],
 				loaded: [],
 				local: [],
-				known: ["@refarm/pi-agent"],
+				known: ["@refarm/agent"],
 			})
 			.mockResolvedValueOnce({
-				installed: ["@refarm/pi-agent"],
-				loaded: ["@refarm/pi-agent"],
+				installed: ["@refarm/agent"],
+				loaded: ["@refarm/agent"],
 				local: [],
-				known: ["@refarm/pi-agent"],
+				known: ["@refarm/agent"],
 			});
 		const reloadPlugins = vi.fn().mockResolvedValue({
-			reloaded: ["@refarm/pi-agent"],
+			reloaded: ["@refarm/agent"],
 			skipped: [],
 		});
 		mockDefaultChatDeps.mockReturnValue({ readPluginState, reloadPlugins });
 
 		await expect(runSessionLaunchFlow()).resolves.toBeUndefined();
 
-		expect(reloadPlugins).toHaveBeenCalledWith(["@refarm/pi-agent"]);
+		expect(reloadPlugins).toHaveBeenCalledWith(["@refarm/agent"]);
 		expect(mockRunSessionRepl).toHaveBeenCalled();
 		expect(process.exitCode).toBeUndefined();
 	});

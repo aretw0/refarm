@@ -23,17 +23,17 @@ graph TD
 
     subgraph Plugins ["Plugin Sandbox  (.wasm — P1 module or P2+ component)"]
         direction LR
-        PiAgent["pi-agent\n(sovereign AI)"]
+        Agent["agent\n(sovereign AI)"]
         ThirdParty["third-party plugins"]
     end
 
     Edge ---|"same WIT"| WIT_Int
     Browser ---|"same WIT"| WIT_Int
 
-    WIT_Int -->|"implemented by"| PiAgent
+    WIT_Int -->|"implemented by"| Agent
     WIT_Int -->|"implemented by"| ThirdParty
-    WIT_LLM -.->|"imported by"| PiAgent
-    WIT_FS  -.->|"imported by"| PiAgent
+    WIT_LLM -.->|"imported by"| Agent
+    WIT_FS  -.->|"imported by"| Agent
 
     classDef rust    fill:#dcfce7,stroke:#166534,stroke-width:1px;
     classDef ts      fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
@@ -43,4 +43,4 @@ graph TD
     class RS_PluginHost,RS_CRDT,RS_Sidecar,RS_Sync rust;
     class TS_PluginHost,TS_CRDT,TS_Sync ts;
     class WIT_Int,WIT_LLM,WIT_FS wit;
-    class PiAgent,ThirdParty plugin;
+    class Agent,ThirdParty plugin;

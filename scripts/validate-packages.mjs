@@ -154,11 +154,11 @@ export function validatePublishSurface(pkg) {
 
 export function validateRuntimeAgentPluginPackage(pkg) {
   const violations = [];
-  if (pkg?.name !== "@refarm.dev/pi-agent") return violations;
+  if (pkg?.name !== "@refarm.dev/agent") return violations;
 
   const files = Array.isArray(pkg.files) ? pkg.files : [];
   const requiredFiles = [
-    "dist/pi_agent.wasm",
+    "dist/agent.wasm",
     "dist/plugin.json",
     "dist/jco",
   ];
@@ -176,16 +176,16 @@ export function validateRuntimeAgentPluginPackage(pkg) {
   if (!buildWasm.includes("check:wit")) {
     violations.push('runtime-agent plugin build:wasm must run "check:wit" before building artifacts');
   }
-  if (!buildWasm.includes("dist/pi_agent.wasm")) {
-    violations.push('runtime-agent plugin build:wasm must write "dist/pi_agent.wasm"');
+  if (!buildWasm.includes("dist/agent.wasm")) {
+    violations.push('runtime-agent plugin build:wasm must write "dist/agent.wasm"');
   }
   if (!buildWasm.includes("dist/plugin.json")) {
     violations.push('runtime-agent plugin build:wasm must write "dist/plugin.json"');
   }
 
   const buildJco = pkg.scripts?.["build:jco"] ?? "";
-  if (!buildJco.includes("dist/pi_agent.wasm")) {
-    violations.push('runtime-agent plugin build:jco must read "dist/pi_agent.wasm"');
+  if (!buildJco.includes("dist/agent.wasm")) {
+    violations.push('runtime-agent plugin build:jco must read "dist/agent.wasm"');
   }
   if (!buildJco.includes("dist/jco")) {
     violations.push('runtime-agent plugin build:jco must write "dist/jco"');

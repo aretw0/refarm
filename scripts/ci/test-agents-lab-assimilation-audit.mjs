@@ -49,7 +49,7 @@ test("agents-lab assimilation audit keeps imports, primitive cultivation, and ho
 	);
 	assert.match(
 		audit.boundaries.join("\n"),
-		/Runtime fanout and @refarm\.dev\/pi-agent publication stay blocked/,
+		/Runtime fanout and @refarm\.dev\/agent publication stay blocked/,
 	);
 	assert.match(
 		audit.nextSlices.join("\n"),

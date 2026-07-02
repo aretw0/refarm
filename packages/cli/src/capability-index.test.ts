@@ -185,7 +185,7 @@ describe("capability index", () => {
 						}),
 						expect.objectContaining({
 							channel: "npm",
-							name: "@refarm.dev/pi-agent",
+							name: "@refarm.dev/agent",
 							status: "hold",
 						}),
 					]),
@@ -252,7 +252,7 @@ describe("capability index", () => {
 						}),
 						expect.objectContaining({
 							channel: "npm",
-							name: "@refarm.dev/pi-agent",
+							name: "@refarm.dev/agent",
 							status: "hold",
 						}),
 					]),
@@ -268,7 +268,7 @@ describe("capability index", () => {
 						}),
 						expect.objectContaining({
 							channel: "npm",
-							name: "@refarm.dev/pi-agent",
+							name: "@refarm.dev/agent",
 							status: "hold",
 						}),
 					]),
@@ -433,7 +433,7 @@ describe("capability index", () => {
 				expect.objectContaining({
 					capabilityId: "runtime-agent.structured-io",
 					channel: "npm",
-					name: "@refarm.dev/pi-agent",
+					name: "@refarm.dev/agent",
 					status: "hold",
 				}),
 			]),

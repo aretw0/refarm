@@ -4,7 +4,7 @@
 **Authors:** Arthur Silva, Claude
 **Date:** 2026-07-02
 **Related:** [`2026-07-02-quality-contract-v1.md`](./2026-07-02-quality-contract-v1.md) (the gate),
-`packages/pi-agent` (the engine, now public), `plugin-lifecycle.md` + `plugin-security-model.md` (install +
+`packages/agent` (the engine, now public), `plugin-lifecycle.md` + `plugin-security-model.md` (install +
 sandbox), `2026-06-25-skill-runtime-activation.md` (skills), `apps-refarm-scaffold.md` (deterministic
 scaffold), `packages/toolbox` (white-label), [`../../docs/DAILY_DRIVER_PARITY.md`](../../docs/DAILY_DRIVER_PARITY.md)
 
@@ -25,7 +25,7 @@ extensibility ecosystem where third-party code runs safely?*
 
 ```
 install   a white-label CLI (refarm underneath, via toolbox)
-agent     install the agent — @refarm.dev/pi-agent (farmhand), the public refarm engine
+agent     install the agent — @refarm.dev/agent (farmhand), the public refarm engine
 extend    install sandboxed WASM plugins from different authors (e.g. quality:v1 checkers);
           install OR author a skill (skill-contract) for a specific need
 work      the CLI scaffolds a workspace DETERMINISTICALLY (reproducible, no model tokens);
@@ -42,7 +42,7 @@ gate      the quality:v1 checker plugins evaluate the output (maker/checker loop
 - **Extensibility on every axis.** Sandboxed plugins (install from different authors — the security claim of
   `plugin-security-model` — *and* the agent authors one), skills (install *and* create, via
   `skill-runtime-activation`), a deterministic scaffold. Not a fixed toolset.
-- **Agent-as-plugin.** The agent is itself a WASM plugin (`pi-agent`), sandboxed and capability-gated like
+- **Agent-as-plugin.** The agent is itself a WASM plugin (`agent`), sandboxed and capability-gated like
   any other — the platform has no privileged core the extensions cannot reach parity with.
 - **Maker/checker.** The agent makes; the `quality:v1` checker plugins are the gate; the loop corrects until
   clean. The gate is composed, not hard-coded — a consumer swaps in its own profile.

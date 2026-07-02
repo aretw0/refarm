@@ -1,7 +1,7 @@
 import fs from "node:fs";
+import fsPromises from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import fsPromises from "node:fs/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFilesystemCacheAdapter } from "./filesystem-cache-adapter.js";
 
@@ -43,11 +43,11 @@ describe("createFilesystemCacheAdapter", () => {
 			expect(Buffer.from(result!).toString("utf-8")).toBe("fake-wasm-content");
 		});
 
-		it("handles scoped plugin ids like @refarm/pi-agent", async () => {
+		it("handles scoped plugin ids like @refarm/agent", async () => {
 			const adapter = createFilesystemCacheAdapter(createTempDir());
 			const bytes = makeBytes("wasm-bytes");
-			await adapter.set("@refarm/pi-agent", bytes);
-			const result = await adapter.get("@refarm/pi-agent");
+			await adapter.set("@refarm/agent", bytes);
+			const result = await adapter.get("@refarm/agent");
 			expect(result).not.toBeNull();
 			expect(Buffer.from(result!).toString("utf-8")).toBe("wasm-bytes");
 		});

@@ -41,12 +41,12 @@ describe("plugin package resolution", () => {
 	it("resolves plugin packages from a declared workspace directory", async () => {
 		const root = await createTempRoot();
 		const nested = path.join(root, "apps", "refarm");
-		const pkgDir = path.join(root, "packages", "pi-agent");
+		const pkgDir = path.join(root, "packages", "agent");
 		await mkdir(nested, { recursive: true });
 		await writeJson(path.join(pkgDir, "package.json"), { name: "@example/agent-plugin" });
 
 		const resolution = resolveWorkspacePluginPackage(
-			{ npmPackage: "@example/agent-plugin", workspaceDir: "packages/pi-agent" },
+			{ npmPackage: "@example/agent-plugin", workspaceDir: "packages/agent" },
 			{ cwd: nested },
 		);
 
@@ -55,11 +55,11 @@ describe("plugin package resolution", () => {
 
 	it("does not resolve workspace directories with a mismatched package name", async () => {
 		const root = await createTempRoot();
-		const pkgDir = path.join(root, "packages", "pi-agent");
+		const pkgDir = path.join(root, "packages", "agent");
 		await writeJson(path.join(pkgDir, "package.json"), { name: "@example/other" });
 
 		const resolution = resolveWorkspacePluginPackage(
-			{ npmPackage: "@example/agent-plugin", workspaceDir: "packages/pi-agent" },
+			{ npmPackage: "@example/agent-plugin", workspaceDir: "packages/agent" },
 			{ cwd: root },
 		);
 
@@ -68,14 +68,14 @@ describe("plugin package resolution", () => {
 
 	it("prefers node_modules and falls back to workspace when node_modules is unavailable", async () => {
 		const root = await createTempRoot();
-		const workspacePkgDir = path.join(root, "packages", "pi-agent");
+		const workspacePkgDir = path.join(root, "packages", "agent");
 		await writeJson(path.join(workspacePkgDir, "package.json"), {
 			name: "@example/agent-plugin",
 		});
 
 		expect(
 			resolvePluginPackage(
-				{ npmPackage: "@example/agent-plugin", workspaceDir: "packages/pi-agent" },
+				{ npmPackage: "@example/agent-plugin", workspaceDir: "packages/agent" },
 				{ cwd: root, baseUrl: path.join(root, "app.mjs") },
 			),
 		).toEqual({ source: "workspace", pkgDir: workspacePkgDir });
@@ -87,7 +87,7 @@ describe("plugin package resolution", () => {
 
 		expect(
 			resolvePluginPackage(
-				{ npmPackage: "@example/agent-plugin", workspaceDir: "packages/pi-agent" },
+				{ npmPackage: "@example/agent-plugin", workspaceDir: "packages/agent" },
 				{ cwd: root, baseUrl: path.join(root, "app.mjs") },
 			),
 		).toEqual({ source: "node_modules", pkgDir: nodeModulesPkgDir });

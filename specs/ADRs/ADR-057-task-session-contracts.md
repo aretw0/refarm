@@ -25,14 +25,14 @@ Refarm has five capability contracts covering transport, persistence, sync, iden
 streaming. One layer is missing: **memory** — durable work items and conversation threads
 that persist in the CRDT graph across agent sessions.
 
-Currently, `pi-agent` owns `Session` and `SessionEntry` CRDT nodes under the
+Currently, `agent` owns `Session` and `SessionEntry` CRDT nodes under the
 `urn:pi-agent:*` namespace. This couples platform-level primitives to a single plugin.
 Any consumer (farmhand, messaging integrations, `apps/me`) that wants to read sessions
-must depend on pi-agent's private schema. This violates ADR-046's principle that blocks
+must depend on agent's private schema. This violates ADR-046's principle that blocks
 are philosophy-neutral and independently usable.
 
 `AgentTask` (proposed in ADR-052) has no contract yet. The design decision between
-"informal schema in pi-agent namespace", "shared schema in agent-tools", and "formal
+"informal schema in agent namespace", "shared schema in agent-tools", and "formal
 capability contract" was pending.
 
 ## Decision
@@ -42,7 +42,7 @@ Introduce two new capability contracts in `packages/`:
 ### `task-contract-v1` — Durable work items
 
 A capability contract for work items that persist in the CRDT graph. Designed for both
-human tasks (created in Homestead) and agent tasks (created by pi-agent, farmhand) using
+human tasks (created in Homestead) and agent tasks (created by agent, farmhand) using
 the same base schema. Divergence into specialised types happens in consumers when evidence
 demands it, not speculatively.
 
@@ -55,7 +55,7 @@ needed.
 ### `session-contract-v1` — Conversation threads
 
 A capability contract for conversation threads, graduating `Session`/`SessionEntry` out of
-pi-agent's namespace. The base contract is agnostic of model branching semantics — it covers
+agent's namespace. The base contract is agnostic of model branching semantics — it covers
 the minimum required by any thread consumer (model agents, messaging integrations, A2A).
 
 Pi-agent extends the base contract by storing extra CRDT fields (`leaf_entry_id`,
@@ -78,7 +78,7 @@ Full schemas and TypeScript interfaces are covered by the feature specs: [task-c
 
 ### Pi-agent namespace migration
 
-Existing pi-agent nodes use `urn:pi-agent:session-{id}` and `urn:pi-agent:entry-{id}`.
+Existing agent nodes use `urn:pi-agent:session-{id}` and `urn:pi-agent:entry-{id}`.
 A one-time migration script rewrites these to `urn:refarm:session:v1:*` before the
 daily-driver gate. Timing is safe: the dataset is personal and pre-v0.1.0.
 
@@ -86,7 +86,7 @@ daily-driver gate. Timing is safe: the dataset is personal and pre-v0.1.0.
 
 **Positive:**
 - Any consumer (farmhand, `apps/me`, messaging bots, windmill) reads/writes Tasks and
-  Sessions via standard adapters without depending on pi-agent internals.
+  Sessions via standard adapters without depending on agent internals.
 - `AgentTask` from ADR-052 is implemented as `Task` nodes — no separate design needed.
 - `session-contract-v1` is the foundation for A2A edge adapters (ADR-052 phase 2).
 - Follows the established pattern: immutable contract + conformance tests + pluggable adapters.
@@ -98,8 +98,8 @@ daily-driver gate. Timing is safe: the dataset is personal and pre-v0.1.0.
 
 ## Alternatives considered
 
-**A — Informal schema in pi-agent namespace**: zero infraestructure, but couples all
-consumers to pi-agent and prevents the session primitive from being reused by messaging
+**A — Informal schema in agent namespace**: zero infraestructure, but couples all
+consumers to agent and prevents the session primitive from being reused by messaging
 integrations or A2A without ad-hoc coupling.
 
 **B — Shared schema in `packages/agent-tools`**: avoids a formal contract, but creates

@@ -34,7 +34,7 @@ protocol to receive ordered chunks as they arrive. This slice fills that gap.
    the architecture works for every integration style.
 4. Conformance test harness with `InMemoryStreamTransport` so third-party adapters can
    validate before shipping.
-5. Maximum generality: any `stream_ref` producer (MODEL, build, test runner, pi-agent)
+5. Maximum generality: any `stream_ref` producer (MODEL, build, test runner, agent)
    feeds the same downstream consumers.
 
 ---
@@ -184,7 +184,7 @@ export function runConformanceTests(
 ### Farmhand Integration
 
 - `loadInstalledPlugins` existing tests remain green
-- Smoke: pi-agent `respond` emits `StreamChunk` nodes → FileStreamTransport writes
+- Smoke: agent `respond` emits `StreamChunk` nodes → FileStreamTransport writes
   NDJSON → `cat ~/.refarm/streams/<ref>.ndjson` shows all chunks in order
 
 ---
@@ -192,7 +192,7 @@ export function runConformanceTests(
 ## End-to-End Flow
 
 ```
-pi-agent respond (via effort queue)
+agent respond (via effort queue)
   → Tractor model bridge: stream:true
   → Tractor writes StreamChunk CRDT nodes (sequence 0..N, is_final on last)
 
@@ -203,7 +203,7 @@ Farmhand tractor.onNode("StreamChunk", node)
     → WsStreamTransport.write(chunk)     → WS /ws/stream subscribers
 
 CLI (future): refarm ask "o que é CRDT?"
-  → pi-agent respond --stream-ref <ref>
+  → agent respond --stream-ref <ref>
   → subscribes to FileStreamTransport
   → prints tokens as they arrive
 ```

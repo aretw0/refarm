@@ -40,7 +40,7 @@ Content-Type: application/json
   "tasks": [
     {
       "id": "<uuid>",
-      "pluginId": "@refarm/pi-agent",
+      "pluginId": "@refarm/agent",
       "fn": "respond",
       "args": { "prompt": "...", "system": "..." }
     }
@@ -112,7 +112,7 @@ With appropriate HTTP status (400 bad request, 404 not found, 409 conflict, 500 
 ## Conformance
 
 Any runtime claiming to implement this protocol must pass:
-- `scripts/ci/smoke-task-pi-agent-respond.mjs` (effort submission + stream read)
+- `scripts/ci/smoke-task-agent-respond.mjs` (effort submission + stream read)
 - `refarm ask "ping"` end-to-end with stream completion
 
 ## Related

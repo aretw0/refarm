@@ -8,7 +8,7 @@
 
 Refarm currently has two runtime implementations:
 
-- **tractor** (Rust binary) — original WASM host; loads pi-agent, drives CRDT storage, exposes WebSocket sync on `:42000`. Requires `cargo build --release`. No HTTP sidecar.
+- **tractor** (Rust binary) — original WASM host; loads agent, drives CRDT storage, exposes WebSocket sync on `:42000`. Requires `cargo build --release`. No HTTP sidecar.
 - **tractor-ts** (TypeScript) — reimplementation of the same interfaces, used inside **farmhand** (Node.js daemon). Exposes the HTTP sidecar on `:42001` that `refarm ask` relies on.
 
 They implement the same runtime contract independently. Without cross-conformance tests, they diverge silently. The farmhand flow (`refarm ask`) routes through tractor-ts, leaving the Rust binary out of the production cycle and at risk of becoming a neglected artifact.
@@ -149,7 +149,7 @@ Near-term shrink targets:
 
 2. **farmhand becomes a thin shell** — when a tractor binary is present, farmhand spawns it as a subprocess and proxies the HTTP sidecar. farmhand retains plugin discovery and task memory.
 
-3. **tractor-ts conformance tests** — the existing `pi_agent_harness.rs` tests become the canonical conformance suite. Equivalent tests are added to tractor-ts to ensure both implementations satisfy the same behavioral contracts.
+3. **tractor-ts conformance tests** — the existing `agent_harness.rs` tests become the canonical conformance suite. Equivalent tests are added to tractor-ts to ensure both implementations satisfy the same behavioral contracts.
 
 4. **`npm run agent:daemon` joins the canonical flow** — once tractor has the HTTP sidecar, `agent:daemon` becomes a valid alternative to `farmhand:daemon`. The long-term canonical flow becomes a single command that starts whichever runtime is available.
 

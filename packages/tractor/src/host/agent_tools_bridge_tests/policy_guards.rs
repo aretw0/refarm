@@ -682,7 +682,7 @@
         std::fs::create_dir_all(&refarm_dir).unwrap();
 
         let target = dir.path().join("real-config.json");
-        std::fs::write(&target, br#"{"trusted_plugins":["pi_agent"]}"#).unwrap();
+        std::fs::write(&target, br#"{"trusted_plugins":["agent"]}"#).unwrap();
 
         let link = refarm_dir.join("config.json");
         std::os::unix::fs::symlink(&target, &link).unwrap();
@@ -696,7 +696,7 @@
     fn trusted_plugins_config_path_guard_allows_matching_open_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
-        std::fs::write(&path, br#"{"trusted_plugins":["pi_agent"]}"#).unwrap();
+        std::fs::write(&path, br#"{"trusted_plugins":["agent"]}"#).unwrap();
 
         let file = std::fs::File::open(&path).unwrap();
         let result = ensure_trusted_plugins_config_path_matches_open_file(&path, &file);
@@ -736,7 +736,7 @@
 
     #[test]
     fn trusted_plugins_parse_blocks_invalid_type() {
-        let cfg = serde_json::json!({"trusted_plugins": "pi_agent"});
+        let cfg = serde_json::json!({"trusted_plugins": "agent"});
         let err = parse_trusted_plugins(&cfg).unwrap_err();
         assert!(err.contains("trusted_plugins must be an array"));
     }
@@ -753,9 +753,9 @@
 
     #[test]
     fn trusted_plugins_parse_allows_only_strings() {
-        let cfg = serde_json::json!({"trusted_plugins": ["pi_agent", "agent-tools", " "]});
+        let cfg = serde_json::json!({"trusted_plugins": ["agent", "agent-tools", " "]});
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
-        assert!(parsed.contains("pi_agent"));
+        assert!(parsed.contains("agent"));
         assert!(parsed.contains("agent-tools"));
         assert!(!parsed.contains(""));
     }
@@ -784,23 +784,23 @@
     #[test]
     fn trusted_plugins_parse_trims_and_deduplicates_values() {
         let cfg = serde_json::json!({
-            "trusted_plugins": [" pi_agent ", "PI_AGENT", "  ", "agent-tools"]
+            "trusted_plugins": [" agent ", "AGENT", "  ", "agent-tools"]
         });
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
-        assert!(parsed.contains("pi_agent"));
+        assert!(parsed.contains("agent"));
         assert!(parsed.contains("agent-tools"));
         assert_eq!(parsed.len(), 2);
     }
 
     #[test]
     fn trusted_plugins_enforcement_matches_plugin_id_case_insensitively() {
-        let cfg = serde_json::json!({"trusted_plugins": ["Pi_Agent"]});
+        let cfg = serde_json::json!({"trusted_plugins": ["Agent"]});
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
 
-        let ok_lower = enforce_trusted_plugin_for_shell_with("pi_agent", Some(&parsed));
+        let ok_lower = enforce_trusted_plugin_for_shell_with("agent", Some(&parsed));
         assert!(ok_lower.is_ok());
 
-        let ok_upper = enforce_trusted_plugin_for_shell_with("PI_AGENT", Some(&parsed));
+        let ok_upper = enforce_trusted_plugin_for_shell_with("AGENT", Some(&parsed));
         assert!(ok_upper.is_ok());
     }
 
@@ -817,7 +817,7 @@
 
     #[test]
     fn trusted_plugins_parse_blocks_mixed_wildcard_and_specific_ids() {
-        let cfg = serde_json::json!({"trusted_plugins": ["*", "pi_agent"]});
+        let cfg = serde_json::json!({"trusted_plugins": ["*", "agent"]});
         let err = parse_trusted_plugins(&cfg).unwrap_err();
         assert!(err.contains("wildcard must be the only entry"));
     }
@@ -828,7 +828,7 @@
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
         assert!(parsed.is_empty());
 
-        let err = enforce_trusted_plugin_for_shell_with("pi_agent", Some(&parsed)).unwrap_err();
+        let err = enforce_trusted_plugin_for_shell_with("agent", Some(&parsed)).unwrap_err();
         assert!(err.contains("not allowed to use agent-shell"));
     }
 
@@ -838,13 +838,13 @@
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
         assert!(parsed.is_empty());
 
-        let err = enforce_trusted_plugin_for_shell_with("pi_agent", Some(&parsed)).unwrap_err();
+        let err = enforce_trusted_plugin_for_shell_with("agent", Some(&parsed)).unwrap_err();
         assert!(err.contains("not allowed to use agent-shell"));
     }
 
     #[test]
     fn trusted_plugins_enforcement_blocks_unlisted_plugin() {
-        let allowed = std::collections::HashSet::from(["pi_agent".to_string()]);
+        let allowed = std::collections::HashSet::from(["agent".to_string()]);
         let err = enforce_trusted_plugin_for_shell_with("other_plugin", Some(&allowed)).unwrap_err();
         assert!(err.contains("not allowed to use agent-shell"));
     }
@@ -857,8 +857,8 @@
 
     #[test]
     fn trusted_plugins_allows_trimmed_plugin_id() {
-        let allowed = std::collections::HashSet::from(["pi_agent".to_string()]);
-        let ok = enforce_trusted_plugin_for_shell_with("  PI_AGENT  ", Some(&allowed));
+        let allowed = std::collections::HashSet::from(["agent".to_string()]);
+        let ok = enforce_trusted_plugin_for_shell_with("  AGENT  ", Some(&allowed));
         assert!(ok.is_ok());
     }
 

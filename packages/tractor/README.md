@@ -72,18 +72,18 @@ cargo test --all
 `tractor` now ships minimal operator commands for the `user:prompt` WS path plus storage-based watching:
 
 ```bash
-# Send prompt to a registered plugin (default agent: pi-agent)
+# Send prompt to a registered plugin (default agent: agent)
 ./target/release/tractor prompt \
   --ws-port 42000 \
   --namespace default \
-  --agent pi-agent \
+  --agent agent \
   --payload "resuma o status do nó"
 
 # Fire-and-forget (don't wait for final response)
 ./target/release/tractor prompt --payload "oi" --wait-timeout-ms 0
 
 # Watch new AgentResponse nodes from storage
-./target/release/tractor watch --namespace default --agent pi-agent --until-final
+./target/release/tractor watch --namespace default --agent agent --until-final
 
 # Inspect generic stream observations for one prompt stream
 ./target/release/tractor query \

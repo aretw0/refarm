@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tractor-start.sh — start the tractor daemon with pi-agent, auto-loading .refarm/.env
+# tractor-start.sh — start the tractor daemon with agent, auto-loading .refarm/.env
 #
 # Usage:
 #   ./scripts/tractor-start.sh                          # foreground (default)
@@ -40,12 +40,12 @@ resolve_cargo_target() {
 
 _CARGO_TARGET="$(resolve_cargo_target)"
 TRACTOR="$_CARGO_TARGET/release/tractor"
-AGENT_PLUGIN="$_CARGO_TARGET/wasm32-wasip1/release/pi_agent.wasm"
+AGENT_PLUGIN="$_CARGO_TARGET/wasm32-wasip1/release/agent.wasm"
 REFARM_CLI="$ROOT/apps/refarm/dist/index.js"
 REFARM_HOME="${REFARM_HOME:-$ROOT/.refarm}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
 REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
-INSTALLED_AGENT_PLUGIN="$REFARM_HOME/plugins/@refarm/pi-agent/plugin.wasm"
+INSTALLED_AGENT_PLUGIN="$REFARM_HOME/plugins/@refarm/agent/plugin.wasm"
 REFARM_HTTP_HOST="${REFARM_HTTP_HOST:-}"
 
 if [ -z "$REFARM_HTTP_HOST" ]; then
@@ -114,7 +114,7 @@ fi
 if [ ! -f "$AGENT_PLUGIN" ]; then
   echo "❌  agent plugin wasm not found at $AGENT_PLUGIN"
   echo "   Install it with: refarm plugin update"
-  echo "   Build it first: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release"
+  echo "   Build it first: cargo component build --manifest-path packages/agent/Cargo.toml --release"
   exit 1
 fi
 

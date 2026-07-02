@@ -30,7 +30,7 @@
 		"@refarm.dev/effort-contract-v1": "workspace:*",
 		"@refarm.dev/file-stream-transport": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
-		"@refarm.dev/pi-agent": "workspace:*",
+		"@refarm.dev/agent": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/silo": "workspace:*",

@@ -136,12 +136,12 @@ function startMockRuntime(env, options) {
 		".refarm",
 		"plugins",
 		"@refarm",
-		"pi-agent",
+		"agent",
 		"plugin.wasm",
 	);
 	const agentPluginWasm = existsSync(installedAgentPlugin)
 		? installedAgentPlugin
-		: runtimeArtifact(path.join("wasm32-wasip1", "release", "pi_agent.wasm"));
+		: runtimeArtifact(path.join("wasm32-wasip1", "release", "agent.wasm"));
 	assert(existsSync(tractor), `tractor binary missing: ${tractor}`);
 	assert(existsSync(agentPluginWasm), `runtime agent WASM missing: ${agentPluginWasm}`);
 
@@ -214,7 +214,7 @@ async function writePolicyWorkspace(runtimeWorkspaceDir) {
 	await mkdir(refarmConfigDir, { recursive: true });
 	await writeFile(
 		path.join(refarmConfigDir, "config.json"),
-		JSON.stringify({ trusted_plugins: ["pi-agent"] }, null, 2),
+		JSON.stringify({ trusted_plugins: ["agent"] }, null, 2),
 	);
 }
 
@@ -232,7 +232,7 @@ async function assertPolicyAudit(refarmDir) {
 	const shellSpawn = events.find(
 		(event) =>
 			event.event === "agent-tool:shell:spawn" &&
-			event.plugin_id === "pi-agent" &&
+			event.plugin_id === "agent" &&
 			Array.isArray(event.argv) &&
 			event.argv[0] === "echo" &&
 			event.argv.includes(EXPECTED_POLICY_TOOL_OUTPUT) &&
@@ -347,7 +347,7 @@ async function main() {
 				[
 					...(pluginReload.reloaded ?? []),
 					...(pluginReload.skipped ?? []),
-				].includes("@refarm/pi-agent"),
+				].includes("@refarm/agent"),
 			`runtime-agent plugin reload did not normalize alias to physical plugin id: ${JSON.stringify(pluginReload)}`,
 		);
 		assert(
@@ -358,7 +358,7 @@ async function main() {
 		assert(
 			pluginStatus.ok === true &&
 				pluginStatus.plugins?.some(
-					(plugin) => plugin.id === "@refarm/pi-agent" && plugin.loaded === true,
+					(plugin) => plugin.id === "@refarm/agent" && plugin.loaded === true,
 				),
 			`runtime-agent plugin status handoff did not report loaded plugin: ${JSON.stringify(pluginStatus)}`,
 		);
@@ -393,8 +393,8 @@ async function main() {
 			`runtime agent session participant missing: ${JSON.stringify(session)}`,
 		);
 		assert(
-			!session.session?.participants?.includes("urn:refarm:agent:pi-agent"),
-			`legacy pi-agent participant leaked into new session: ${JSON.stringify(session)}`,
+			!session.session?.participants?.includes("urn:refarm:agent:agent"),
+			`legacy agent participant leaked into new session: ${JSON.stringify(session)}`,
 		);
 
 		const taskRun = await runRefarm(
@@ -419,7 +419,7 @@ async function main() {
 			`task run did not preserve requested operator alias: ${JSON.stringify(taskRun)}`,
 		);
 		assert(
-			taskRun.effort?.tasks?.[0]?.pluginId === "@refarm/pi-agent",
+			taskRun.effort?.tasks?.[0]?.pluginId === "@refarm/agent",
 			`task run did not normalize runtime-agent to physical plugin id: ${JSON.stringify(taskRun)}`,
 		);
 		assert(

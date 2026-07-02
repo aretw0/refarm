@@ -198,8 +198,8 @@ fn err(status: StatusCode, msg: &str) -> impl IntoResponse {
 }
 
 fn prompt_ref_from_effort(effort_id: &str) -> String {
-    // Mirrors pi-agent's new_pi_urn("prompt") convention — stable for stream_ref derivation.
-    format!("urn:pi-agent:prompt-{}", effort_id.replace('-', ""))
+    // Mirrors agent's new_agent_urn("prompt") convention — stable for stream_ref derivation.
+    format!("urn:agent:prompt-{}", effort_id.replace('-', ""))
 }
 
 fn stream_ref_for_prompt(prompt_ref: &str) -> String {
@@ -308,7 +308,7 @@ fn extract_task_args(task: &EffortTask) -> Result<TaskArgs, String> {
         .or_else(|| args.get("query").and_then(|v| v.as_str()))
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| "sidecar: @refarm/pi-agent::respond requires args.prompt".to_string())?
+        .ok_or_else(|| "sidecar: @refarm/agent::respond requires args.prompt".to_string())?
         .to_string();
 
     Ok(TaskArgs {
@@ -419,8 +419,8 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
             "dispatching sidecar effort to active agent"
         );
 
-        // Build the structured payload for pi-agent's handle_prompt.
-        // Includes all session context so pi-agent maintains conversation history.
+        // Build the structured payload for agent's handle_prompt.
+        // Includes all session context so agent maintains conversation history.
         let mut payload_obj = serde_json::json!({
             "prompt": args.prompt,
             "prompt_ref": prompt_ref,

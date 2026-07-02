@@ -191,7 +191,7 @@ export function buildToollessOrchestratorProof(overrides = {}) {
 			globalShellProxy: false,
 			publicApi: false,
 			candidateHomes: [
-				"pi-agent/farmhand runtime conductor",
+				"agent/farmhand runtime conductor",
 				"process-handoff",
 				"environment ceilings",
 				"future worker/session contracts",

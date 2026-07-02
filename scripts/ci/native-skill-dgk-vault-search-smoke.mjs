@@ -67,7 +67,7 @@ output: Markdown source and boundary evidence for the wrapped DGK vault-search s
 
 Start with \`refarm resume --json\` and \`refarm check --next-action --json\`.
 Treat the upstream DGK skill as downstream-owned source evidence.
-Do not execute \`dgk\`, Obsidian CLI, shell tools, file mutations, runtime-agent, pi-agent, or model calls in this smoke.
+Do not execute \`dgk\`, Obsidian CLI, shell tools, file mutations, runtime-agent, agent, or model calls in this smoke.
 Use \`source:v1\` only to inspect the external checkout state and record evidence.
 
 The upstream vault-seed skill is source evidence, not installed runtime code:
@@ -490,7 +490,7 @@ export async function buildNativeSkillDgkVaultSearchSmoke({
 			"This smoke verifies wrapper SKILL.md source integrity before activation preflight.",
 			"This smoke records activation preflight as blocked until install policy evidence exists.",
 			"This smoke executes only source:v1 status through @refarm.dev/source-local.",
-			"This smoke does not execute dgk, Obsidian CLI, runtime-agent, pi-agent, shell tools, file mutations, or model calls.",
+			"This smoke does not execute dgk, Obsidian CLI, runtime-agent, agent, shell tools, file mutations, or model calls.",
 			"Dirty or untracked upstream checkout status is recorded as evidence, not hidden or normalized.",
 		],
 		nextActions: issues.length === 0

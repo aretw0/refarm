@@ -16,21 +16,21 @@ describe("runtime plugin client", () => {
 			vi.fn().mockResolvedValue({
 				ok: true,
 				json: vi.fn().mockResolvedValue({
-					installed: ["@refarm.dev/pi-agent", 1],
-					loaded: ["pi-agent"],
+					installed: ["@refarm.dev/agent", 1],
+					loaded: ["agent"],
 					local: [false, "@local/tool"],
-					known: ["@local/tool", "@refarm/pi-agent"],
-					activeAgent: "pi-agent",
+					known: ["@local/tool", "@refarm/agent"],
+					activeAgent: "agent",
 				}),
 			}),
 		);
 
 		await expect(readRuntimePluginState()).resolves.toEqual({
-			installed: ["@refarm/pi-agent"],
-			loaded: ["@refarm/pi-agent"],
+			installed: ["@refarm/agent"],
+			loaded: ["@refarm/agent"],
 			local: ["@local/tool"],
-			known: ["@local/tool", "@refarm/pi-agent"],
-			activeAgent: "@refarm/pi-agent",
+			known: ["@local/tool", "@refarm/agent"],
+			activeAgent: "@refarm/agent",
 		});
 	});
 
@@ -39,24 +39,24 @@ describe("runtime plugin client", () => {
 			ok: true,
 			json: vi.fn().mockResolvedValue({
 				reloadId: "reload-1",
-				reloaded: ["pi-agent"],
+				reloaded: ["agent"],
 				deferred: ["@local/tool", 0],
-				skipped: ["@refarm.dev/pi-agent", "@refarm/missing"],
+				skipped: ["@refarm.dev/agent", "@refarm/missing"],
 			}),
 		});
 		vi.stubGlobal("fetch", fetchSpy);
 
-		await expect(reloadRuntimePlugins(["@refarm/pi-agent"])).resolves.toEqual({
+		await expect(reloadRuntimePlugins(["@refarm/agent"])).resolves.toEqual({
 			reloadId: "reload-1",
-			reloaded: ["@refarm/pi-agent"],
+			reloaded: ["@refarm/agent"],
 			deferred: ["@local/tool"],
-			skipped: ["@refarm/pi-agent", "@refarm/missing"],
+			skipped: ["@refarm/agent", "@refarm/missing"],
 		});
 		expect(fetchSpy).toHaveBeenCalledWith(
 			expect.stringContaining("/plugins/reload"),
 			expect.objectContaining({
 				method: "POST",
-				body: JSON.stringify({ pluginIds: ["@refarm/pi-agent"] }),
+				body: JSON.stringify({ pluginIds: ["@refarm/agent"] }),
 			}),
 		);
 	});
@@ -65,20 +65,20 @@ describe("runtime plugin client", () => {
 		const fetchSpy = vi.fn().mockResolvedValue({
 			ok: true,
 			json: vi.fn().mockResolvedValue({
-				reloaded: ["@refarm/pi-agent"],
+				reloaded: ["@refarm/agent"],
 				deferred: [],
 				skipped: [],
 			}),
 		});
 		vi.stubGlobal("fetch", fetchSpy);
 
-		await reloadRuntimePlugins(["pi-agent", "@local/tool"]);
+		await reloadRuntimePlugins(["agent", "@local/tool"]);
 
 		expect(fetchSpy).toHaveBeenCalledWith(
 			expect.stringContaining("/plugins/reload"),
 			expect.objectContaining({
 				body: JSON.stringify({
-					pluginIds: ["@refarm/pi-agent", "@local/tool"],
+					pluginIds: ["@refarm/agent", "@local/tool"],
 				}),
 			}),
 		);
@@ -92,7 +92,7 @@ describe("runtime plugin client", () => {
 				json: vi.fn().mockResolvedValue({
 					reloadId: "reload-1",
 					reloaded: [],
-					deferred: ["pi-agent"],
+					deferred: ["agent"],
 					skipped: [],
 				}),
 			})
@@ -100,7 +100,7 @@ describe("runtime plugin client", () => {
 				ok: true,
 				json: vi.fn().mockResolvedValue({
 					pending: [],
-					completed: ["@refarm.dev/pi-agent"],
+					completed: ["@refarm.dev/agent"],
 					failed: [],
 				}),
 			});
@@ -108,16 +108,16 @@ describe("runtime plugin client", () => {
 		vi.stubGlobal("fetch", fetchSpy);
 
 		await expect(
-			reloadRuntimePluginsAndWait(["pi-agent"], {
+			reloadRuntimePluginsAndWait(["agent"], {
 				onDeferred,
 				pollIntervalMs: 1,
 			}),
 		).resolves.toEqual({
-			reloaded: ["@refarm/pi-agent"],
+			reloaded: ["@refarm/agent"],
 			skipped: [],
 			timedOut: false,
 		});
-		expect(onDeferred).toHaveBeenCalledWith("@refarm/pi-agent");
+		expect(onDeferred).toHaveBeenCalledWith("@refarm/agent");
 		expect(fetchSpy).toHaveBeenNthCalledWith(
 			2,
 			expect.stringContaining("/plugins/reload/status/reload-1"),
@@ -132,7 +132,7 @@ describe("runtime plugin client", () => {
 				json: vi.fn().mockResolvedValue({
 					reloadId: "reload-timeout",
 					reloaded: [],
-					deferred: ["pi-agent"],
+					deferred: ["agent"],
 					skipped: [],
 				}),
 			});
@@ -140,17 +140,17 @@ describe("runtime plugin client", () => {
 		vi.stubGlobal("fetch", fetchSpy);
 
 		await expect(
-			reloadRuntimePluginsAndWait(["pi-agent"], {
+			reloadRuntimePluginsAndWait(["agent"], {
 				onDeferred,
 				pollIntervalMs: 1,
 				maxWaitMs: 0,
 			}),
 		).resolves.toEqual({
 			reloaded: [],
-			skipped: ["@refarm/pi-agent"],
+			skipped: ["@refarm/agent"],
 			timedOut: true,
 		});
-		expect(onDeferred).toHaveBeenCalledWith("@refarm/pi-agent");
+		expect(onDeferred).toHaveBeenCalledWith("@refarm/agent");
 		expect(fetchSpy).toHaveBeenCalledTimes(1);
 		expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("/plugins/reload"));
 	});
@@ -159,7 +159,7 @@ describe("runtime plugin client", () => {
 		vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
 
 		await expect(readRuntimePluginState()).resolves.toBeNull();
-		await expect(reloadRuntimePlugins(["@refarm/pi-agent"])).resolves.toBeNull();
-		await expect(reloadRuntimePluginsAndWait(["@refarm/pi-agent"])).resolves.toBeNull();
+		await expect(reloadRuntimePlugins(["@refarm/agent"])).resolves.toBeNull();
+		await expect(reloadRuntimePluginsAndWait(["@refarm/agent"])).resolves.toBeNull();
 	});
 });

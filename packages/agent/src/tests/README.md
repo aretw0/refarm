@@ -1,4 +1,4 @@
-# pi-agent unit test map
+# agent unit test map
 
 `src/tests.rs` is intentionally thin and only wires domain modules.
 

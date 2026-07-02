@@ -128,8 +128,8 @@ function artifactPaths() {
       ? join(t, 'release/tractor')
       : join(ROOT, 'packages/tractor/target/release/tractor'),
     wasm: t
-      ? join(t, 'wasm32-wasip1/release/pi_agent.wasm')
-      : join(ROOT, 'packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm'),
+      ? join(t, 'wasm32-wasip1/release/agent.wasm')
+      : join(ROOT, 'packages/agent/target/wasm32-wasip1/release/agent.wasm'),
   };
 }
 
@@ -208,9 +208,9 @@ function checkArtifacts() {
   }
 
   if (existsSync(wasm)) {
-    ok('pi_agent.wasm', `${fileSize(wasm)}  built ${fileAge(wasm)}`);
+    ok('agent.wasm', `${fileSize(wasm)}  built ${fileAge(wasm)}`);
   } else {
-    fail('pi_agent.wasm', `not found — build: cargo component build --manifest-path packages/pi-agent/Cargo.toml --release`);
+    fail('agent.wasm', `not found — build: cargo component build --manifest-path packages/agent/Cargo.toml --release`);
   }
 
   const cargoTarget = process.env.CARGO_TARGET_DIR;

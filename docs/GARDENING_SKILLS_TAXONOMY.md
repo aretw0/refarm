@@ -74,7 +74,7 @@ a plan-only handoff through manifest, source verification, package surface,
 plugin-manifest validation, invocation request, and host policy decision. The
 `native:skills:source-engine-smoke` command proves one source-status skill can
 call `source:v1` through `@refarm.dev/source-local` and record a receipt without
-runtime-agent, pi-agent, shell tools, file mutations, or model calls. The
+runtime-agent, agent, shell tools, file mutations, or model calls. The
 `native:skills:agents-lab-git-workflow-smoke` command proves one external
 `agents-lab` source fixture can be wrapped as Refarm-owned skill evidence, call
 `source:v1` on the external checkout, and record a receipt without installing or

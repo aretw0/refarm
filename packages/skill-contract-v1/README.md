@@ -43,7 +43,7 @@ The distribution unit remains the package/plugin bundle. A package may ship
 activation must pass through the existing plugin manifest, Barn, Scarecrow, and
 host capability gates. The intended shape is a manifest-declared surface such as
 `layer: "pi", kind: "skill"` with `assets` pointing at the `SKILL.md`; hosts
-such as `runtime-agent`, `pi-agent`, or another Refarm plugin consume this
+such as `runtime-agent`, `agent`, or another Refarm plugin consume this
 contract only after that boundary accepts the surface.
 
 ## Example

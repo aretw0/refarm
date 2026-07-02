@@ -134,11 +134,11 @@ frames.
 
 ---
 
-## Gap 6 — `pi-agent` preflight check — ADDRESSED
+## Gap 6 — `agent` preflight check — ADDRESSED
 
-`refarm ask` checks runtime plugin state and can install/reload pi-agent with
+`refarm ask` checks runtime plugin state and can install/reload agent with
 machine-readable recovery commands. `refarm chat` now performs the same preflight
-before entering the REPL: if pi-agent is installed but not loaded, it attempts a
+before entering the REPL: if agent is installed but not loaded, it attempts a
 reload; if it remains unavailable, the REPL does not start and the user gets
 deterministic install/reload/runtime recovery commands.
 
@@ -167,7 +167,7 @@ deterministic install/reload/runtime recovery commands.
 
 A developer can:
 1. Start a fresh devcontainer (or fresh machine with refarm cloned and built)
-2. Type `refarm` and get a working REPL within 3s — farmhand auto-started if needed, pi-agent auto-installed on farmhand boot
+2. Type `refarm` and get a working REPL within 3s — farmhand auto-started if needed, agent auto-installed on farmhand boot
 3. Ask a multi-step coding question, see streaming output with tool calls
 4. Type ↑ to recall previous prompts
 5. Type `/reload` to hot-reload a plugin they just changed
@@ -179,6 +179,6 @@ A developer can:
 
 - `specs/ADRs/ADR-065-farmhand-transparent-lifecycle.md` — accepted decision
 - `specs/features/tui-daily-driver.md` — feature spec for chat REPL
-- `docs/superpowers/specs/2026-05-13-self-iteration.md` — pi-agent install dependency
+- `docs/superpowers/specs/2026-05-13-self-iteration.md` — agent install dependency
 - `apps/refarm/src/commands/session-launch.ts` — readiness check and LaunchDeps
 - `apps/refarm/src/commands/chat.ts` — REPL main loop

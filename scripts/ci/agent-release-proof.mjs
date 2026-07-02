@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 import { validateRuntimeAgentPluginPackage } from "../validate-packages.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const PACKAGE_DIR = "packages/pi-agent";
-const REQUIRED_FILES = ["dist/pi_agent.wasm", "dist/plugin.json", "dist/jco"];
+const PACKAGE_DIR = "packages/agent";
+const REQUIRED_FILES = ["dist/agent.wasm", "dist/plugin.json", "dist/jco"];
 const REQUIRED_SCRIPTS = ["check:wit", "build:wasm", "build:jco", "build", "test"];
 const REQUIRED_README_MARKERS = [
 	"## Package Boundary",
@@ -14,7 +14,7 @@ const REQUIRED_README_MARKERS = [
 	"Current **extraction candidates**",
 ];
 
-export function parsePiAgentReleaseProofArgs(argv = []) {
+export function parseAgentReleaseProofArgs(argv = []) {
 	const options = {
 		json: false,
 	};
@@ -27,7 +27,7 @@ export function parsePiAgentReleaseProofArgs(argv = []) {
 			options.json = true;
 			continue;
 		}
-		throw new Error(`Unknown pi-agent release proof argument: ${arg}`);
+		throw new Error(`Unknown agent release proof argument: ${arg}`);
 	}
 
 	return options;
@@ -51,8 +51,8 @@ function collectFailures({ packageJson, readme, pluginManifest }) {
 
 	failures.push(...validateRuntimeAgentPluginPackage(packageJson));
 
-	if (packageJson.name !== "@refarm.dev/pi-agent") {
-		failures.push('package name must be "@refarm.dev/pi-agent"');
+	if (packageJson.name !== "@refarm.dev/agent") {
+		failures.push('package name must be "@refarm.dev/agent"');
 	}
 	if (packageJson.version !== "0.1.0") {
 		failures.push('first release version must stay "0.1.0" before initial publish');
@@ -88,18 +88,18 @@ function collectFailures({ packageJson, readme, pluginManifest }) {
 			failures.push(`README must document "${marker}"`);
 		}
 	}
-	if (!readme.includes("public") || !readme.includes("dist/pi_agent.wasm")) {
+	if (!readme.includes("public") || !readme.includes("dist/agent.wasm")) {
 		failures.push("README must document public package boundary and WASM artifact allowlist");
 	}
 
-	if (pluginManifest.id !== "@refarm/pi-agent") {
-		failures.push('plugin manifest id must remain "@refarm/pi-agent" for host runtime compatibility');
+	if (pluginManifest.id !== "@refarm/agent") {
+		failures.push('plugin manifest id must remain "@refarm/agent" for host runtime compatibility');
 	}
 
 	return failures;
 }
 
-export function buildPiAgentReleaseProof({ cwd = ROOT } = {}) {
+export function buildAgentReleaseProof({ cwd = ROOT } = {}) {
 	const packageJson = readJson(cwd, `${PACKAGE_DIR}/package.json`);
 	const pluginManifest = readJson(cwd, `${PACKAGE_DIR}/plugin.json`);
 	const readme = readText(cwd, `${PACKAGE_DIR}/README.md`);
@@ -107,13 +107,13 @@ export function buildPiAgentReleaseProof({ cwd = ROOT } = {}) {
 
 	return {
 		schemaVersion: 1,
-		command: "pi-agent-release-proof",
+		command: "agent-release-proof",
 		ok: failures.length === 0,
 		packageName: packageJson.name,
 		version: packageJson.version,
 		packageDir: PACKAGE_DIR,
 		claim:
-			"@refarm.dev/pi-agent is a public runtime-engine package with an explicit built-artifact publish boundary; broader plugin runtime surfaces can remain held separately.",
+			"@refarm.dev/agent is a public runtime-engine package with an explicit built-artifact publish boundary; broader plugin runtime surfaces can remain held separately.",
 		publicationBoundary: {
 			access: packageJson.publishConfig?.access ?? null,
 			files: packageJson.files || [],
@@ -132,10 +132,10 @@ export function buildPiAgentReleaseProof({ cwd = ROOT } = {}) {
 }
 
 function printHuman(proof) {
-	console.log(`[pi-agent:release-proof] ${proof.claim}`);
-	console.log(`[pi-agent:release-proof] package=${proof.packageName}@${proof.version} ok=${proof.ok}`);
+	console.log(`[agent:release-proof] ${proof.claim}`);
+	console.log(`[agent:release-proof] package=${proof.packageName}@${proof.version} ok=${proof.ok}`);
 	for (const entry of proof.publicationBoundary.files) {
-		console.log(`[pi-agent:release-proof] file ${entry}`);
+		console.log(`[agent:release-proof] file ${entry}`);
 	}
 }
 
@@ -145,8 +145,8 @@ function isMain() {
 
 if (isMain()) {
 	try {
-		const options = parsePiAgentReleaseProofArgs(process.argv.slice(2));
-		const proof = buildPiAgentReleaseProof();
+		const options = parseAgentReleaseProofArgs(process.argv.slice(2));
+		const proof = buildAgentReleaseProof();
 		if (options.json) {
 			console.log(JSON.stringify(proof, null, 2));
 		} else {
@@ -156,7 +156,7 @@ if (isMain()) {
 			process.exit(1);
 		}
 	} catch (error) {
-		console.error(`[pi-agent:release-proof] ${error instanceof Error ? error.message : String(error)}`);
+		console.error(`[agent:release-proof] ${error instanceof Error ? error.message : String(error)}`);
 		process.exit(1);
 	}
 }

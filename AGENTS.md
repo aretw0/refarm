@@ -120,20 +120,20 @@ The host machine has **~8GB RAM and 16 cores**. Default Rust toolchain settings 
 ```bash
 # ✅ Single focused unit/integration filter — cheapest normal development signal
 cargo test --lib <test_or_module_name> --quiet
-cargo test --test pi_agent_harness <test_filter> -- --ignored --test-threads=1
+cargo test --test agent_harness <test_filter> -- --ignored --test-threads=1
 
 # ✅ Unit tests only — use when the affected crate/module is broader
 cargo test --lib
 
 # ✅ Single integration test suite — run sequentially, not in parallel
 cargo test --test ws_integration
-cargo test --test pi_agent_harness -- --ignored --test-threads=1
+cargo test --test agent_harness -- --ignored --test-threads=1
 
 # ⚠️  Full test suite — only when preparing a push
 cargo test --lib && cargo test --test ws_integration
 
 # ⚠️  WASM component build — necessary before running harness, not before every unit slice
-cargo component build --release -p pi-agent
+cargo component build --release -p agent
 
 # 🚫 Never run without `--lib`, a specific `--test`, or a specific filter in this environment
 cargo test   # compiles ALL test binaries simultaneously → OOM risk
@@ -143,8 +143,8 @@ cargo test   # compiles ALL test binaries simultaneously → OOM risk
 
 - **Micro-slice**: run only the directly affected test/filter plus `git diff --check`.
 - **Package checkpoint**: add `cargo check --quiet` for the touched Rust package or `pnpm -C <pkg> run type-check` for the touched TS package.
-- **WASM/plugin boundary**: rebuild `pi_agent.wasm` only when pi-agent/WIT changed and a harness test must execute; otherwise prefer `cargo check --target wasm32-wasip1 --quiet`.
-- **Harness**: prefer filtered harness runs (`cargo test --test pi_agent_harness harness_streaming -- --ignored --test-threads=1`) over repeated one-test invocations.
+- **WASM/plugin boundary**: rebuild `agent.wasm` only when agent/WIT changed and a harness test must execute; otherwise prefer `cargo check --target wasm32-wasip1 --quiet`.
+- **Harness**: prefer filtered harness runs (`cargo test --test agent_harness harness_streaming -- --ignored --test-threads=1`) over repeated one-test invocations.
 - **Push/CI gate**: run the broader scoped gate once, then push and watch CI with `gh run watch --exit-status` instead of repeatedly reproducing the same expensive local work.
 - **Cleanup**: `pnpm run clean:rust:check` to audit, then pick a tier from `docs/local-disk-hygiene.md`. Running `clean:light` after every slice removes incremental caches and makes the next Rust check more expensive.
 

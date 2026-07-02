@@ -8,7 +8,7 @@
 
 ## Summary
 
-Graduates `Session` and `SessionEntry` out of pi-agent's private namespace
+Graduates `Session` and `SessionEntry` out of agent's private namespace
 (`urn:pi-agent:*`) into a formal platform capability contract. `session-contract-v1`
 is the base contract for conversation threads — agnostic of model branching semantics —
 consumable by model agents, messaging integrations (Telegram, Signal), and A2A
@@ -20,57 +20,57 @@ base consumers safely ignore the extra fields.
 
 ## User Stories
 
-**As a** pi-agent  
-**I want** to read and write `Session`/`SessionEntry` nodes via a stable contract  
+**As a** agent
+**I want** to read and write `Session`/`SessionEntry` nodes via a stable contract
 **So that** my internal schema can evolve without breaking farmhand or messaging
 integrations that also consume sessions
 
-**As a** messaging integration (Telegram/Signal bot)  
-**I want** to create `Session` nodes that share the same schema as pi-agent sessions  
+**As a** messaging integration (Telegram/Signal bot)
+**I want** to create `Session` nodes that share the same schema as agent sessions
 **So that** Homestead can show a unified conversation history regardless of origin
 
-**As a** farmhand automation  
-**I want** to read session entries to give agents context about past work  
-**So that** I don't have to depend on pi-agent's private CRDT namespace
+**As a** farmhand automation
+**I want** to read session entries to give agents context about past work
+**So that** I don't have to depend on agent's private CRDT namespace
 
 **As a** long-running agent driver
 **I want** a reversible context-folding plan for older session entries
 **So that** I can keep a small working tail in prompt while preserving explicit
 entry refs that can be unfolded on demand
 
-**As a** third-party plugin author  
-**I want** `session-contract-v1` to define a stable, adapter-based interface  
+**As a** third-party plugin author
+**I want** `session-contract-v1` to define a stable, adapter-based interface
 **So that** I can build a session backend for any platform without modifying Refarm internals
 
 ---
 
 ## Acceptance Criteria
 
-1. **Given** `session-contract-v1` is installed as a dependency  
-   **When** a third party implements `SessionContractAdapter`  
+1. **Given** `session-contract-v1` is installed as a dependency
+   **When** a third party implements `SessionContractAdapter`
    **Then** running `runSessionV1Conformance(adapter)` reports all 3 required tests passing
 
-2. **Given** pi-agent starts a new conversation  
-   **When** it calls `sessionAdapter.create()`  
+2. **Given** agent starts a new conversation
+   **When** it calls `sessionAdapter.create()`
    **Then** a `Session` node with `urn:refarm:session:v1:{id}` is written to the CRDT graph
 
-3. **Given** a `Session` exists  
-   **When** pi-agent appends a user message via `sessionAdapter.appendEntry()`  
-   **Then** a `SessionEntry` node is written with the correct `parent_entry_id` chain  
+3. **Given** a `Session` exists
+   **When** agent appends a user message via `sessionAdapter.appendEntry()`
+   **Then** a `SessionEntry` node is written with the correct `parent_entry_id` chain
    and the entry survives a session restart
 
-4. **Given** pi-agent stores model-specific fields (`leaf_entry_id`, `name`) alongside
-   the base contract fields  
-   **When** a base-contract consumer reads the same `Session` node  
+4. **Given** agent stores model-specific fields (`leaf_entry_id`, `name`) alongside
+   the base contract fields
+   **When** a base-contract consumer reads the same `Session` node
    **Then** it receives only the base fields and does not error on the extra CRDT fields
 
-5. **Given** the namespace migration script runs  
-   **When** it processes an existing `urn:pi-agent:session-{id}` node  
+5. **Given** the namespace migration script runs
+   **When** it processes an existing `urn:pi-agent:session-{id}` node
    **Then** the node is rewritten to `urn:refarm:session:v1:{id}` and old references
    are updated
 
-6. **Given** a `SessionContractAdapter` with `entries` implemented  
-   **When** `entries(sessionId, limit)` is called  
+6. **Given** a `SessionContractAdapter` with `entries` implemented
+   **When** `entries(sessionId, limit)` is called
    **Then** entries are returned in chronological order and the `limit` is respected
 
 7. **Given** a long `SessionEntry[]` list and a protected tail count
@@ -90,7 +90,7 @@ entry refs that can be unfolded on demand
 **Namespace graduation:**
 
 ```
-Before (pi-agent private):
+Before (agent private):
   urn:pi-agent:session-{id}    →  After: urn:refarm:session:v1:{id}
   urn:pi-agent:entry-{id}      →  After: urn:refarm:session-entry:v1:{id}
 ```
@@ -102,7 +102,7 @@ Before (pi-agent private):
 Session:      @id, participants, context_id, created_at_ns
 SessionEntry: @id, session_id, parent_entry_id, kind, content, timestamp_ns
 
-// pi-agent extension (plugin-local, extra CRDT fields — ignored by base consumers)
+// agent extension (plugin-local, extra CRDT fields — ignored by base consumers)
 Session + { name, leaf_entry_id, parent_session_id }
 ```
 
@@ -113,7 +113,7 @@ packages/
   session-contract-v1/      ← contract types + conformance runner
 
 consumers (implement the adapter):
-  apps/pi-agent/            ← uses sessionAdapter + stores extra fields alongside
+  apps/agent/            ← uses sessionAdapter + stores extra fields alongside
   packages/storage-sqlite/  ← future: SessionContractAdapter backed by Loro CRDT
   apps/me/ (Homestead)      ← reads Session/SessionEntry for conversation history
   integrations/telegram/    ← messaging adapter that creates Session per chat
@@ -123,7 +123,7 @@ consumers (implement the adapter):
 
 - The base contract covers the minimum required by any thread consumer: create, get,
   update, appendEntry. Model-specific features (branching, leaf tracking, naming) are
-  pi-agent's concern, not the contract's.
+  agent's concern, not the contract's.
 - `SessionEntry` is append-only (no update/delete) and linked via `parent_entry_id`
   for branch-safe history walks — a linked list that works correctly under CRDT
   concurrent appends.
@@ -134,7 +134,7 @@ consumers (implement the adapter):
   deletion, prompt budgeting, and tool exposure remain consumer-owned.
 - The namespace migration is a one-time script, safe pre-v0.1.0 while the dataset
   is personal and small.
-- Publication deferred to v0.2.0: requires pi-agent migration + daily-driver
+- Publication deferred to v0.2.0: requires agent migration + daily-driver
   validation before ecosystem exposure.
 
 ---
@@ -210,9 +210,9 @@ export function unfoldSessionContextFold(
 **Integration tests (in adapters, not in this package):**
 
 - [ ] Loro CRDT adapter: SessionEntry linked list survives snapshot/restore
-- [ ] Loro CRDT adapter: pi-agent extra fields (`leaf_entry_id`) round-trip without
+- [ ] Loro CRDT adapter: agent extra fields (`leaf_entry_id`) round-trip without
       corrupting base fields read by a base-contract consumer
-- [ ] pi-agent/farmhand: context overflow creates a fold plan, exposes an unfold
+- [ ] agent/farmhand: context overflow creates a fold plan, exposes an unfold
       tool, and keeps the protected working tail visible
 
 **Migration test:**
@@ -228,7 +228,7 @@ export function unfoldSessionContextFold(
 
 - [x] Design `Session` / `SessionEntry` / `SessionContractAdapter` TypeScript interfaces
 - [x] Design `runSessionV1Conformance` test harness
-- [x] Design pi-agent extension model (extra CRDT fields, no coupling)
+- [x] Design agent extension model (extra CRDT fields, no coupling)
 - [x] Design namespace migration strategy
 - [x] Write design doc (this feature spec)
 - [x] Write ADR-057 (`specs/ADRs/ADR-057-task-session-contracts.md`)
@@ -246,13 +246,13 @@ export function unfoldSessionContextFold(
 
 - [x] Scaffold `packages/session-contract-v1/` with types, conformance runner,
       in-memory adapter
-- [x] Write namespace migration script (`scripts/migrate-pi-agent-sessions.mjs`)
-- [ ] Migrate pi-agent's CRDT reads/writes to use `session-contract-v1` adapter
+- [x] Write namespace migration script (`scripts/migrate-agent-sessions.mjs`)
+- [ ] Migrate agent's CRDT reads/writes to use `session-contract-v1` adapter
 - [x] Implement `SessionContractAdapter` baseline in `storage-sqlite` (storage:v1-backed records)
 - [ ] Upgrade `storage-sqlite` Session adapter to direct Loro CRDT-backed nodes
-- [ ] Wire reversible context folding into pi-agent/farmhand overflow handling
+- [ ] Wire reversible context folding into agent/farmhand overflow handling
 - [ ] Expose conversation history in Homestead via standard adapter
-- [ ] Smoke gate: pi-agent creates Session → node in CRDT graph → Homestead reads it
+- [ ] Smoke gate: agent creates Session → node in CRDT graph → Homestead reads it
 
 ---
 

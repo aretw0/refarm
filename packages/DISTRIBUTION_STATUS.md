@@ -190,7 +190,7 @@ packages are ready:
 | `@refarm.dev/homestead-ssr` | removed pre-publication | `@refarm.dev/ds/html` is the canonical DS-owned helper surface |
 | `@refarm.dev/cli` | held out of `vault-seed-ready` | `@refarm.dev/process-handoff` is the leaf package needed by consumers |
 | `@refarm.dev/plugin-manifest` | deferred | Pi/WASM/UI plugin boundary still needs reproducible multi-layer proof |
-| `@refarm.dev/pi-agent` | unheld engine package; not the plugin-runtime stack | `pnpm run pi-agent:release-proof` proves the narrow public built-artifact boundary (`dist/pi_agent.wasm`, `dist/plugin.json`, `dist/jco`) while plugin-manifest and WIT-component publication remain separate gates |
+| `@refarm.dev/agent` | unheld engine package; not the plugin-runtime stack | `pnpm run agent:release-proof` proves the narrow public built-artifact boundary (`dist/agent.wasm`, `dist/plugin.json`, `dist/jco`) while plugin-manifest and WIT-component publication remain separate gates |
 | agent-demo public surface | release-proven through selected blocks | `pnpm run agent-demo:release-proof` confirms downstream agent demos can consume `dispatch-surface`, `effort-contract-v1`, `channel-policy-v1`, `artifact-contract-v1`, `process-handoff`, and `ds` while `plugin-manifest`, `terminal-plugin`, `toolbox`, and `refarm:agent-tools@0.1.0` remain held |
 | `refarm-plugin-wit` | internal canonical WIT crate | `publish = false`; the supply surface is `refarm:plugin@0.1.0` WIT, not crates.io/npm yet |
 | `refarm:agent-tools@0.1.0` | internal WIT component boundary | guarded by build-free `validate-packages` preflight before any component packaging promotion |

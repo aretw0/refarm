@@ -224,7 +224,7 @@ export async function buildNativeSkillSourceEngineSmoke({
 		sourceStatus: statusCall?.ok ? statusCall.value : null,
 		boundaries: [
 			"This smoke calls source:v1 through @refarm.dev/source-local only.",
-			"This smoke does not execute runtime-agent, pi-agent, shell tools, file mutations, or model calls.",
+			"This smoke does not execute runtime-agent, agent, shell tools, file mutations, or model calls.",
 			"The receipt is execution evidence for the source engine call, not a general skill runtime.",
 		],
 		nextActions: issues.length === 0

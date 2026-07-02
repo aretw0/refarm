@@ -90,7 +90,7 @@ const HOLDS = [
 		id: "runtime-engine-publication",
 		sourceKind: "refarm-runtime",
 		action: "hold",
-		refarmTarget: "@refarm.dev/pi-agent publication",
+		refarmTarget: "@refarm.dev/agent publication",
 		boundary: "Runtime execution remains private until reference-driver promotion proofs pass.",
 	},
 ];
@@ -187,7 +187,7 @@ export function buildAgentsLabAssimilationAudit({ root = DEFAULT_ROOT } = {}) {
 			"Markdown skills may be adopted after convention review.",
 			"Pi TypeScript extension APIs and hooks do not become Refarm enforcement.",
 			"Reusable concepts graduate into Refarm packages, WIT contracts, policy gates, skills, or codemods.",
-			"Runtime fanout and @refarm.dev/pi-agent publication stay blocked until reference-driver proofs pass.",
+			"Runtime fanout and @refarm.dev/agent publication stay blocked until reference-driver proofs pass.",
 			"Agents-lab keeps its product packaging and Pi compatibility; Refarm supplies neutral primitives.",
 		],
 		nextSlices: [

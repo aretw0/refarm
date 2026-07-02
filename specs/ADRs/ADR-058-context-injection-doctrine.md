@@ -9,7 +9,7 @@
 
 ## Context
 
-As the Refarm agent system (pi-agent, context-provider-v1) matures into a daily-driver tool,
+As the Refarm agent system (agent, context-provider-v1) matures into a daily-driver tool,
 token footprint becomes a first-class concern. Each prompt execution has a direct cost in
 latency, money, and context budget. Without doctrine, context providers drift toward dumping
 full content into system prompts — making the agent slower, more expensive, and eventually
@@ -53,7 +53,7 @@ Title: Implement storage adapter
 Status: done
 Created: 2026-05-02T14:32:11Z
 Events:
-  - created by urn:refarm:agent:pi-agent at 14:32:11
+  - created by urn:refarm:agent:agent at 14:32:11
   - status_changed to done at 14:45:03
   ...
 ```
@@ -148,5 +148,5 @@ may be promoted or demoted without changing the agent's core behavior.
 - ADR-053: Host-proxied model streaming
 - ADR-057: Task/session contracts
 - ADR-044: WASM plugin loading (Barn)
-- `packages/pi-agent/src/compress.rs` — existing post-output compression (secondary safety net)
+- `packages/agent/src/compress.rs` — existing post-output compression (secondary safety net)
 - `packages/context-provider-v1/` — session-start providers

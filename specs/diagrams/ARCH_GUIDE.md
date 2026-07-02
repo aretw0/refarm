@@ -41,7 +41,7 @@ How distros connect to the dual-runtime Tractor core and reach the plugin sandbo
 | `apps/refarm` | CLI entry | Runtime bootstrap · `refarm` command |
 
 WIT exports: `setup · ingest · push · respond · on-event`
-WIT imports (pi-agent only): `model-bridge · agent-fs · agent-shell`
+WIT imports (agent only): `model-bridge · agent-fs · agent-shell`
 
 ---
 

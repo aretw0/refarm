@@ -10,7 +10,7 @@ publication: personal and work operations, local/remote Farmhand control,
 verified plugins, resumable efforts, and one shared control surface usable from
 TUI or PWA.
 
-**Thesis:** Farmhand is the control plane. TUI, PWA, `pi-agent`, and scripts are
+**Thesis:** Farmhand is the control plane. TUI, PWA, `agent`, and scripts are
 clients. Plugins are capability packages. Migration packs are a plugin/package
 profile for safe evolution. Publication waits until this loop survives real use.
 
@@ -128,12 +128,12 @@ with PWA following the same contracts rather than inventing separate behavior.
 
 ---
 
-## Work Lane E: pi-agent and Structural Tooling
+## Work Lane E: agent and Structural Tooling
 
 **Purpose:** Make agents safer and more reusable by giving them structural
 perception and migration disciplines.
 
-- [ ] Preserve `pi-agent` as a Farmhand/Tractor-executed capability, not a
+- [ ] Preserve `agent` as a Farmhand/Tractor-executed capability, not a
       privileged backdoor.
 - [ ] Add or plan AST/structured-data inspection tools before broad write tools.
 - [ ] Prefer deterministic transforms for repeated edits; reserve AI for
@@ -168,7 +168,7 @@ source-adjacent docs.
 | `docs/DAILY_DRIVER_PARITY.md` | Add remote Farmhand, plugin lifecycle, evidence, and TUI/PWA client parity rows. |
 | `docs/superpowers/specs/2026-05-14-farmhand-daily-driver.md` | Mark as tactical `refarm chat`/REPL slice under this broader plan. |
 | `docs/superpowers/specs/2026-05-13-barn-scarecrow-evolution.md` | Link plugin lifecycle work to the control-plane lane. |
-| `docs/superpowers/specs/2026-05-14-pi-refarm-interop.md` | Align `pi-agent` interoperability with Farmhand-as-control-plane. |
+| `docs/superpowers/specs/2026-05-14-pi-refarm-interop.md` | Align `agent` interoperability with Farmhand-as-control-plane. |
 | `docs/research/codemod-strategic-assessment.md` | Keep migration-pack language tied to plugin/package profiles. |
 | `docs/REFARM_HOST_RUNTIME_ACTION_ROUTING.md` | Ensure TUI/PWA/headless remain clients of shared action envelopes. |
 | `docs/REFARM_PERSONAL_DAILY_DRIVER.md` | Reconcile personal daily-driver narrative with remote control-plane criteria. |

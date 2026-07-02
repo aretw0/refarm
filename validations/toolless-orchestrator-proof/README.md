@@ -12,7 +12,7 @@ The model is intentionally small:
 - the conductor can complete only by verifying the fence and source evidence.
 
 Boundary: this is proof-local. It does not extract a package, mutate
-`pi-agent`/`farmhand`, add a global shell proxy, or move runtime policy into an
+`agent`/`farmhand`, add a global shell proxy, or move runtime policy into an
 app. Candidate homes remain the runtime conductor, process handoff,
 environment ceilings, and future worker/session contracts if dogfood or a
 second consumer proves the pressure.

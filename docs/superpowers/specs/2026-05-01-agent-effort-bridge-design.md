@@ -17,7 +17,7 @@ Pi-agent (the sovereign AI plugin) is not yet reachable via this pipeline becaus
 1. Its `integration` WIT interface has no callable function that returns the MODEL response.
    `on_event("user:prompt", prompt)` writes to CRDT and returns void — unusable as a task result.
 2. Farmhand only loads plugins via `PluginRoute` CRDT nodes — no auto-boot from installed plugins.
-3. `refarm-plugin-host.wit` exists as a manual copy in both `packages/pi-agent/wit/` and
+3. `refarm-plugin-host.wit` exists as a manual copy in both `packages/agent/wit/` and
    `packages/tractor/wit/host/`, creating silent drift risk.
 
 This slice closes all three gaps.
@@ -46,12 +46,12 @@ packages/refarm-plugin-wit/
 **Pi-agent** removes its local `wit/refarm-plugin-host.wit` and adds a WIT dependency:
 
 ```toml
-# packages/pi-agent/Cargo.toml
+# packages/agent/Cargo.toml
 [package.metadata.component.target.dependencies]
 "refarm:plugin" = { path = "../refarm-plugin-wit" }
 ```
 
-`packages/pi-agent/wit/world.wit` stays local (pi-agent-specific world) and imports from the
+`packages/agent/wit/world.wit` stays local (agent-specific world) and imports from the
 dependency package.
 
 **Tractor** changes its `bindgen!` path in `src/host/plugin_host/core.rs`:
@@ -132,9 +132,9 @@ MODEL failure or budget block → `Err(plugin-error::internal("..."))` → task 
 ```
 ~/.refarm/
   plugins/
-    pi-agent/
+    agent/
       plugin.json    ← PluginManifest
-      pi-agent.wasm  ← compiled binary
+      agent.wasm  ← compiled binary
 ```
 
 ### New function: `loadInstalledPlugins`
@@ -170,17 +170,17 @@ await loadInstalledPlugins(tractor, farmhandBaseDir);
 ## End-to-End Flow
 
 ```
-refarm task run pi-agent respond --args '{"prompt":"o que é CRDT?"}' --direction "pesquisa"
+refarm task run agent respond --args '{"prompt":"o que é CRDT?"}' --direction "pesquisa"
 
   FileTransportAdapter.submit()
     → writes ~/.refarm/tasks/<effortId>.json
 
   FileTransportAdapter.watch()
     → picks up file
-    → executeTask({ pluginId: "pi-agent", fn: "respond", args: { prompt: "..." } })
-      → tractor.plugins.get("pi-agent")          ← loaded at boot
+    → executeTask({ pluginId: "agent", fn: "respond", args: { prompt: "..." } })
+      → tractor.plugins.get("agent")          ← loaded at boot
       → instance.call("respond", '{"prompt":"..."}')
-        → pi-agent Rust: respond(payload)
+        → agent Rust: respond(payload)
           → runs MODEL pipeline
           → writes UserPrompt + AgentResponse to CRDT
           → returns { content, model, provider, usage }
@@ -196,7 +196,7 @@ refarm task status <effortId>
 
 ## Test Strategy
 
-### Rust — pi-agent (`extensibility_contract`)
+### Rust — agent (`extensibility_contract`)
 
 - New axiom **A6 — respond returns complete structure**: mock `model-bridge` returns fixed response;
   verify `respond` returns JSON with `content`, `model`, `provider`, `usage` present.
@@ -211,7 +211,7 @@ refarm task status <effortId>
 
 ### Smoke gate extension
 
-`scripts/ci/smoke-task-execution-loop.mjs` gains a `pi-agent respond` scenario using a
+`scripts/ci/smoke-task-execution-loop.mjs` gains a `agent respond` scenario using a
 stub MODEL (env `MODEL_PROVIDER=stub` or similar) that returns a fixed response without a real
 API call. Verifies `TaskResult.result` contains `content` + `usage`.
 
@@ -222,4 +222,4 @@ API call. Verifies `TaskResult.result` contains `content` + `usage`.
 - Streaming responses via effort queue (future — implement `subscribe` on transport)
 - Multi-turn conversations across efforts (Slice 6.2 scope)
 - Demand-load (C) implementation (building blocks ready; full impl is future)
-- Real MODEL call in smoke gate (covered by existing pi-agent Rust tests)
+- Real MODEL call in smoke gate (covered by existing agent Rust tests)

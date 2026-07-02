@@ -1,7 +1,7 @@
 {
-  "_note": "Template only \u2014 farmhand auto-installs pi-agent on boot via bundleInstallPlugin. For manual install: refarm agent install. Entry and integrity are injected at install time.",
-  "id": "@refarm/pi-agent",
-  "name": "Pi Agent",
+  "_note": "Template only \u2014 farmhand auto-installs agent on boot via bundleInstallPlugin. For manual install: refarm agent install. Entry and integrity are injected at install time.",
+  "id": "@refarm/agent",
+  "name": "Agent",
   "version": "0.1.0",
   "capabilities": {
     "provides": [

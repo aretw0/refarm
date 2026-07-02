@@ -2,7 +2,7 @@
     fn forwarded_model_env_vars_from_iter_filters_and_caps_entries() {
         let mut vars = vec![
             ("MODEL_PROVIDER".to_string(), "openai".to_string()),
-            ("MODEL_TRUSTED_PLUGINS".to_string(), "pi_agent".to_string()),
+            ("MODEL_TRUSTED_PLUGINS".to_string(), "agent".to_string()),
             ("MODEL_USER".to_string(), "alice".to_string()),
             ("MODEL_OPENAI_API_KEY".to_string(), "secret".to_string()),
             ("OTHER_VAR".to_string(), "x".to_string()),
@@ -674,13 +674,13 @@
         ];
         let cfg = serde_json::json!({"provider": "ollama", "model": "llama3.2"});
 
-        let payload = refarm_config_node_payload("pi_agent", dir.path(), &env_vars, Some(&cfg));
+        let payload = refarm_config_node_payload("agent", dir.path(), &env_vars, Some(&cfg));
 
         assert_eq!(payload["@type"], "RefarmConfig");
-        assert_eq!(payload["plugin_id"], "pi_agent");
+        assert_eq!(payload["plugin_id"], "agent");
         assert_eq!(payload["model_env"]["MODEL_PROVIDER"], "ollama");
         assert_eq!(payload["config_json"]["model"], "llama3.2");
-        assert!(payload["@id"].as_str().unwrap_or("").starts_with("urn:tractor:refarm-config:pi_agent:"));
+        assert!(payload["@id"].as_str().unwrap_or("").starts_with("urn:tractor:refarm-config:agent:"));
     }
 
     #[test]
@@ -694,7 +694,7 @@
         ];
         let cfg = serde_json::json!({"provider": "ollama", "model": "llama3.2"});
 
-        store_refarm_config_node(&sync, "pi_agent", dir.path(), &env_vars, Some(&cfg)).unwrap();
+        store_refarm_config_node(&sync, "agent", dir.path(), &env_vars, Some(&cfg)).unwrap();
 
         let rows = sync.query_nodes("RefarmConfig").unwrap();
         assert_eq!(rows.len(), 1);
@@ -704,7 +704,7 @@
 
         let payload: serde_json::Value = serde_json::from_str(&row.payload).unwrap();
         assert_eq!(payload["@type"], "RefarmConfig");
-        assert_eq!(payload["plugin_id"], "pi_agent");
+        assert_eq!(payload["plugin_id"], "agent");
         assert_eq!(payload["model_env"]["MODEL_PROVIDER"], "ollama");
     }
 
@@ -713,7 +713,7 @@
         let dir = tempfile::tempdir().unwrap();
         let env_vars = vec![("MODEL_PROVIDER".to_string(), "ollama".to_string())];
 
-        let payload = refarm_config_node_payload("pi_agent", dir.path(), &env_vars, None);
+        let payload = refarm_config_node_payload("agent", dir.path(), &env_vars, None);
 
         assert_eq!(payload["@type"], "RefarmConfig");
         assert!(payload["config_json"].is_null());

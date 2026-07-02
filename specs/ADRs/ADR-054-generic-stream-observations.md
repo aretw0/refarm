@@ -13,7 +13,7 @@ streaming without moving provider credentials into plugins.
 
 The current persistence shape is intentionally compatible, but it is still
 model-shaped: partial stream chunks are stored directly as `AgentResponse` nodes.
-That is useful for pi-agent clients, but it would make future live output paths
+That is useful for agent clients, but it would make future live output paths
 (build logs, test progress, tool progress, sync progress, plugin background jobs,
 and non-model streams) depend on an agent-specific schema.
 
@@ -55,7 +55,7 @@ Introduce generic stream observation nodes owned by the host:
 - Live output becomes reusable for model tokens, tool progress, test/build logs,
   background jobs, sync progress, and future plugins.
 - UI and WebSocket clients can consume a generic stream substrate while existing
-  pi-agent clients keep working through `AgentResponse`.
+  agent clients keep working through `AgentResponse`.
 - Host-owned credentials and route enforcement remain unchanged.
 - The architecture aligns with Refarm's source-of-truth model: generic
   observations first, domain projections second.
@@ -97,7 +97,7 @@ cleanup outside the stream write path rather than by implicit deletion.
 - **Keep only partial `AgentResponse` nodes.** Rejected because it makes
   non-agent streaming depend on a model-shaped schema.
 - **Replace `AgentResponse` partials immediately.** Rejected because existing
-  CLI, tests, and pi-agent consumers already rely on the compatibility shape.
+  CLI, tests, and agent consumers already rely on the compatibility shape.
 - **Store only raw provider SSE frames.** Rejected because raw frames are useful
   audit artifacts but too provider-specific for generic live UI/progress
   consumers.

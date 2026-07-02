@@ -4,7 +4,7 @@ import path from "node:path";
 
 const ROOT = process.cwd();
 const TRACTOR_DIR = path.join(ROOT, "packages", "tractor");
-const PI_AGENT_DIR = path.join(ROOT, "packages", "pi-agent");
+const AGENT_DIR = path.join(ROOT, "packages", "agent");
 const plan = process.argv.includes("--plan");
 const mode = process.argv.slice(2).find((arg) => !arg.startsWith("--"));
 
@@ -38,7 +38,7 @@ const LSP_HARNESS_STEPS = [
 		[
 			"test",
 			"--test",
-			"pi_agent_harness",
+			"agent_harness",
 			"harness_tool_use_dispatched_and_result_fed_back",
 			"--",
 			"--ignored",
@@ -52,7 +52,7 @@ const LSP_HARNESS_STEPS = [
 		[
 			"test",
 			"--test",
-			"pi_agent_harness",
+			"agent_harness",
 			"harness_find_references_tool_reads_lsp_locations",
 			"--",
 			"--ignored",
@@ -66,7 +66,7 @@ const LSP_HARNESS_STEPS = [
 		[
 			"test",
 			"--test",
-			"pi_agent_harness",
+			"agent_harness",
 			"harness_rename_symbol_tool_updates_workspace_file_via_lsp",
 			"--",
 			"--ignored",
@@ -81,7 +81,7 @@ const STREAMING_HARNESS_STEPS = [
 	cargo(TRACTOR_DIR, [
 		"test",
 		"--test",
-		"pi_agent_harness",
+		"agent_harness",
 		"harness_streaming",
 		"--",
 		"--ignored",
@@ -94,20 +94,20 @@ function stepsForMode(selectedMode) {
 		case "lsp:check":
 			return [
 				cargo(TRACTOR_DIR, ["test", "--lib", "lsp_bridge", "--quiet"]),
-				cargo(TRACTOR_DIR, ["test", "--test", "pi_agent_harness", "--no-run"]),
+				cargo(TRACTOR_DIR, ["test", "--test", "agent_harness", "--no-run"]),
 			];
 		case "lsp:harness":
 			return LSP_HARNESS_STEPS;
 		case "lsp:harness:build":
 			return [
-				cargoComponent(PI_AGENT_DIR, ["build", "--release"]),
+				cargoComponent(AGENT_DIR, ["build", "--release"]),
 				...LSP_HARNESS_STEPS,
 			];
 		case "streaming:check":
 			return [
-				cargo(PI_AGENT_DIR, ["check", "--target", "wasm32-wasip1", "--quiet"]),
-				cargo(PI_AGENT_DIR, ["test", "--lib", "streaming_config", "--quiet"]),
-				cargo(PI_AGENT_DIR, [
+				cargo(AGENT_DIR, ["check", "--target", "wasm32-wasip1", "--quiet"]),
+				cargo(AGENT_DIR, ["test", "--lib", "streaming_config", "--quiet"]),
+				cargo(AGENT_DIR, [
 					"test",
 					"--lib",
 					"provider_runtime_stream_body_gate",
@@ -137,7 +137,7 @@ function stepsForMode(selectedMode) {
 			return STREAMING_HARNESS_STEPS;
 		case "streaming:harness:build":
 			return [
-				cargoComponent(PI_AGENT_DIR, ["build", "--release", "-p", "pi-agent"]),
+				cargoComponent(AGENT_DIR, ["build", "--release", "-p", "agent"]),
 				...STREAMING_HARNESS_STEPS,
 			];
 		default:

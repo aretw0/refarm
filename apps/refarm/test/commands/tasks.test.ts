@@ -48,7 +48,7 @@ describe("refarm tasks", () => {
 					{
 						"@id": "urn:refarm:task:v1:abc123def456",
 						"@type": "Task",
-						title: "@refarm/pi-agent.respond",
+						title: "@refarm/agent.respond",
 						status: "done",
 						context_id: "urn:refarm:session:v1:s1",
 						created_at_ns: Date.now() * 1_000_000,
@@ -77,7 +77,7 @@ describe("refarm tasks", () => {
 		);
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Tasks");
-		expect(output).toContain("@refarm/pi-agent.respond");
+		expect(output).toContain("@refarm/agent.respond");
 		expect(output).toContain("abc123def456");
 	});
 
@@ -162,7 +162,7 @@ describe("refarm tasks", () => {
 						{
 							"@id": "urn:refarm:task:v1:abc123def456",
 							"@type": "Task",
-							title: "@refarm/pi-agent.respond",
+							title: "@refarm/agent.respond",
 							status: "done",
 						},
 					],
@@ -200,7 +200,7 @@ describe("refarm tasks", () => {
 				{
 					"@id": "urn:refarm:task:v1:abc123def456",
 					"@type": "Task",
-					title: "@refarm/pi-agent.respond",
+					title: "@refarm/agent.respond",
 					status: "done",
 				},
 			],
@@ -213,7 +213,7 @@ describe("refarm tasks", () => {
 				task: {
 					"@id": "urn:refarm:task:v1:abc123def456",
 					"@type": "Task",
-					title: "@refarm/pi-agent.respond",
+					title: "@refarm/agent.respond",
 					status: "failed",
 					context_id: "urn:refarm:session:v1:s1",
 					created_at_ns: Date.now() * 1_000_000,
@@ -248,7 +248,7 @@ describe("refarm tasks", () => {
 		);
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Task");
-		expect(output).toContain("@refarm/pi-agent.respond");
+		expect(output).toContain("@refarm/agent.respond");
 		expect(output).toContain("urn:refarm:session:v1:s1");
 		expect(output).toContain("status_changed");
 		expect(output).toContain("mock-model");
@@ -262,7 +262,7 @@ describe("refarm tasks", () => {
 					task: {
 						"@id": "urn:refarm:task:v1:abc123def456",
 						"@type": "Task",
-						title: "@refarm/pi-agent.respond",
+						title: "@refarm/agent.respond",
 						status: "active",
 					},
 					events: [
@@ -296,7 +296,7 @@ describe("refarm tasks", () => {
 			task: {
 				"@id": "urn:refarm:task:v1:abc123def456",
 				"@type": "Task",
-				title: "@refarm/pi-agent.respond",
+				title: "@refarm/agent.respond",
 				status: "active",
 			},
 			events: [

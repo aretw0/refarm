@@ -1,4 +1,4 @@
-# Pi Agent Tool Decomposition — Requisitos e Plano
+# Agent Tool Decomposition — Requisitos e Plano
 
 **Date**: 2026-04-17
 **Status**: Rascunho Ativo
@@ -7,9 +7,9 @@
 
 ---
 
-## O que é o Pi Agent neste contexto
+## O que é o Agent neste contexto
 
-Pi é o agente coding mínimo — terminal-first, zero overhead de UI. Expõe exatamente 4 ferramentas atômicas ao MODEL:
+Agent é o agente coding mínimo — terminal-first, zero overhead de UI. Expõe exatamente 4 ferramentas atômicas ao MODEL:
 
 | Tool | Semântica |
 |------|-----------|
@@ -24,7 +24,7 @@ Toda outra capacidade do agente é composta dessas 4 primitivas.
 
 ## Estado Atual do Refarm — O Que Já Existe
 
-O refarm **já possui a infra-estrutura correta**; o agente Pi é o cliente que a usa:
+O refarm **já possui a infra-estrutura correta**; o agent é o cliente que a usa:
 
 ```
 refarm-sdk.wit           → WIT estável (WASI Preview 2, Component Model)
@@ -36,10 +36,10 @@ packages/windmill        → Automação/Workflows
 wit/refarm-sdk.wit       → tractor-bridge (store/get/query/permission/telemetry)
 ```
 
-### O que FALTA para o Pi Agent funcionar
+### O que FALTA para o Agent funcionar
 
 1. **`agent-tool-contract-v1.wit`** — WIT com as 4 ferramentas
-2. **Plugin `pi-agent.wasm`** — implementa `world refarm-plugin`, importa o contrato de ferramentas
+2. **Plugin `agent.wasm`** — implementa `world refarm-plugin`, importa o contrato de ferramentas
 3. **Host capability para `bash`** — tractor expõe spawn sandboxado via argv (sem interpolação de shell)
 4. **TEM como orquestrador** — recebe contexto do agente e decide qual ferramenta acionar
 
@@ -48,7 +48,7 @@ wit/refarm-sdk.wit       → tractor-bridge (store/get/query/permission/telemetr
 ## Mapa Host vs. Guest para as 4 Ferramentas
 
 ```
-Host (tractor — Rust/wasmtime)        Guest (pi-agent.wasm)
+Host (tractor — Rust/wasmtime)        Guest (agent.wasm)
 ──────────────────────────────────     ──────────────────────────────────
 wasi:filesystem resolve e abre fd      read: lê bytes, interpreta encoding
 wasi:filesystem escreve atomicamente   write: gera conteúdo final
@@ -74,7 +74,7 @@ tractor-bridge: store/get nodes        qualquer tool: persiste resultado no graf
 - Se patch falhar (contexto não bate), retorna erro — guest decide retry
 
 ### RS-03 — Capability-gating
-- Plugin Pi declara no manifest: `read-fs`, `write-fs`, `spawn-shell`
+- Plugin agent declara no manifest: `read-fs`, `write-fs`, `spawn-shell`
 - TrustManager (já em `packages/tractor`) verifica antes de qualquer tool call
 - Usuário vê prompt de permissão na primeira execução (via `request-permission` do `tractor-bridge`)
 
@@ -96,7 +96,7 @@ tractor-bridge: store/get nodes        qualquer tool: persiste resultado no graf
 - [ ] Adicionar spawn sandboxado ao host Rust (tractor) como capability controlada pelo TrustManager
 
 ### Fase 2 — Plugin Pi Mínimo em Rust (Curto Prazo)
-- [ ] `packages/pi-agent/` — cargo-component implementando as 4 ferramentas
+- [ ] `packages/agent/` — cargo-component implementando as 4 ferramentas
 - [ ] Testes de conformidade: tool calls com/sem permissão, timeout de bash, edit com patch inválido
 - [ ] Integração com TEM: recebe prompt → sequência de tool calls
 

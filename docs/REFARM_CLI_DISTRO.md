@@ -216,7 +216,7 @@ npm run refarm:tree:verify
   `refarm:agent:e2e:mock`, the no-token agent/ask smoke against
   `@refarm.dev/model-mock`. Use it for agent runtime, model mock, or Tractor
   WASI LLM routing deltas before spending live provider tokens. The script
-  rebuilds `packages/pi-agent` WASM before installing the temporary bundled
+  rebuilds `packages/agent` WASM before installing the temporary bundled
   plugin, so the smoke validates the current runtime-agent source rather than a
   stale package artifact.
 - `cli:install:verify` runs installer dry-run regression tests, devcontainer

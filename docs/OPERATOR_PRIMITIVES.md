@@ -23,7 +23,7 @@ external consumer needs it:
 | `packages/config` | Stable IDs, aliases, defaults, provider and package-manager policy. | Operator presentation. |
 | `apps/farmhand` | Task execution, plugin lifecycle coordination, runtime-facing execution behavior. | CLI-only wording or Commander-specific parsing. |
 | `packages/tractor` | Runtime, plugin host, streams, sandbox boundary, runtime diagnostics. | Product command orchestration. |
-| `packages/pi-agent` | Runtime-agent behavior and WASM contract. | Product-wide "PiAgent" semantics. |
+| `packages/agent` | Runtime-agent behavior and WASM contract. | Product-wide "Agent" semantics. |
 
 ## Public Handoff Contract
 
@@ -120,7 +120,7 @@ Session Rules:
   only for migration or forensics.
 - New runtime-agent sessions should identify the participant as
   `urn:refarm:agent:runtime-agent`.
-- Historical `urn:refarm:agent:pi-agent` participants and `[pi-agent ...]`
+- Historical `urn:refarm:agent:agent` participants and `[agent ...]`
   entries are compatibility data, not the product-facing concept.
 
 ### Task And Effort
@@ -143,7 +143,7 @@ Task Rules:
 refarm task run agent respond --args '{"prompt":"hello"}' --json
 ```
 
-The physical plugin id may still be `@refarm/pi-agent` in stored task metadata.
+The physical plugin id may still be `@refarm/agent` in stored task metadata.
 The no-token `refarm:agent:e2e:mock` gate exercises this command shape through HTTP
 task dispatch against the model mock and follows the returned status/log
 handoffs. It also checks `task resume --json` before and after the effort
@@ -212,7 +212,7 @@ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
 refarm plugin reload agent --json
 ```
 
-- Plugin status may expose `@refarm/pi-agent` as installed/loaded identity
+- Plugin status may expose `@refarm/agent` as installed/loaded identity
   because that is the manifest id.
 - Reload outcomes must distinguish `reloaded`, `skipped`, and `deferred`.
 - Runtime deferred reload waits are bounded by `REFARM_PLUGIN_RELOAD_MAX_WAIT_MS`
@@ -222,7 +222,7 @@ refarm plugin reload agent --json
   `plugin reload agent --json` against the isolated runtime and follows
   the returned `plugin status --json` handoff. A loaded plugin may report
   `skipped`; the contract is that the public alias normalizes to
-  `@refarm/pi-agent` and status remains inspectable.
+  `@refarm/agent` and status remains inspectable.
 
 ### Health Policy
 
@@ -456,7 +456,7 @@ work in this order:
    shared packages only after repeated use proves the boundary.
 4. Exercise one non-Refarm task through the same primitives to prove Refarm is a
    daily-driver tool, not only a self-maintenance loop.
-5. Keep `runtime-agent` as the compatibility identity and `@refarm/pi-agent` as
+5. Keep `runtime-agent` as the compatibility identity and `@refarm/agent` as
    the canonical storage identity until a package rename is worth the migration
    cost.
 
@@ -482,7 +482,7 @@ tool instead of a system that only maintains itself.
 
 ## Non-Goals For The Bootstrap Phase
 
-- Renaming the physical `packages/pi-agent` package or WASM artifact.
+- Renaming the physical `packages/agent` package or WASM artifact.
 - Rewriting historical session/task data.
 - Moving every helper out of `apps/refarm` before there is a second consumer.
 - Treating live model calls as the first validation signal when mock coverage is

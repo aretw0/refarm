@@ -206,7 +206,7 @@ The term `model` (Large Language Model) is semantically incorrect for a provider
 - `import model-bridge` in world `refarm-plugin-host` → `import model-bridge`
 - Doc comment: "Host-proxied model completion bridge" → "Host-proxied model completion bridge"
 
-#### `packages/pi-agent`
+#### `packages/agent`
 
 `wit/world.wit`:
 - `import llm-bridge` → `import model-bridge`
@@ -289,7 +289,7 @@ The term `model` (Large Language Model) is semantically incorrect for a provider
 
 Files to update `llm` → `model` in content:
 - `specs/ADRs/ADR-053-host-proxied-llm-streaming.md` — filename + title: `llm-streaming` → `model-streaming`
-- `specs/ADRs/ADR-012-hybrid-model-routing-for-pi-agent-harness.md` — content references
+- `specs/ADRs/ADR-012-hybrid-model-routing-for-agent-harness.md` — content references
 - `specs/ADRs/ADR-054-generic-stream-observations.md` — content references
 - `specs/ADRs/ADR-031-pluggable-relational-storage.md` — content references
 - `specs/ADRs/ADR-057-task-session-contracts.md` — content references
@@ -308,7 +308,7 @@ Files to update `llm` → `model` in content:
 ### Rust rebuild note
 
 After renaming `llm-bridge` → `model-bridge` in the WIT file, regenerate bindings:
-- `pi-agent`: `cargo build` (bindgen picks up new WIT automatically)
+- `agent`: `cargo build` (bindgen picks up new WIT automatically)
 - `tractor-ts`: `npm run build` in that package (jco transpile reads the WIT)
 
 ---

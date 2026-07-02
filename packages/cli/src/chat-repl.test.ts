@@ -27,14 +27,14 @@ describe("parseChatLine", () => {
 	it("parses /reload with a single plugin id", () => {
 		expect(parseChatLine("/reload runtime-agent")).toEqual({
 			kind: "reload",
-			pluginIds: ["@refarm/pi-agent"],
+			pluginIds: ["@refarm/agent"],
 		});
 	});
 
 	it("accepts the short `agent` alias for /reload", () => {
 		expect(parseChatLine("/reload agent")).toEqual({
 			kind: "reload",
-			pluginIds: ["@refarm/pi-agent"],
+			pluginIds: ["@refarm/agent"],
 		});
 	});
 
@@ -45,28 +45,28 @@ describe("parseChatLine", () => {
 	it("accepts `/r` with plugin aliases", () => {
 		expect(parseChatLine("/r runtime-agent")).toEqual({
 			kind: "reload",
-			pluginIds: ["@refarm/pi-agent"],
+			pluginIds: ["@refarm/agent"],
 		});
 	});
 
 	it("parses /reload with multiple plugin ids", () => {
 		expect(parseChatLine("/reload runtime-agent other-plugin")).toEqual({
 			kind: "reload",
-			pluginIds: ["@refarm/pi-agent", "other-plugin"],
+			pluginIds: ["@refarm/agent", "other-plugin"],
 		});
 	});
 
-	it("normalizes legacy pi-agent aliases for /reload", () => {
-		expect(parseChatLine("/reload pi-agent")).toEqual({
+	it("normalizes legacy agent aliases for /reload", () => {
+		expect(parseChatLine("/reload agent")).toEqual({
 			kind: "reload",
-			pluginIds: ["@refarm/pi-agent"],
+			pluginIds: ["@refarm/agent"],
 		});
 	});
 
 	it("normalizes scoped package IDs for /reload", () => {
-		expect(parseChatLine("/reload @refarm.dev/pi-agent")).toEqual({
+		expect(parseChatLine("/reload @refarm.dev/agent")).toEqual({
 			kind: "reload",
-			pluginIds: ["@refarm/pi-agent"],
+			pluginIds: ["@refarm/agent"],
 		});
 	});
 

@@ -156,13 +156,13 @@ mod tests {
     fn format_fs_read_event() {
         let ev = make_event(
             "agent-tool:fs:read",
-            Some("pi-agent"),
+            Some("agent"),
             serde_json::json!({ "path": "/workspaces/refarm/README.md", "bytes": 1024 }),
         );
         let line = format_audit_line(&ev).expect("should format");
         let parsed: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
         assert_eq!(parsed["event"], "agent-tool:fs:read");
-        assert_eq!(parsed["plugin_id"], "pi-agent");
+        assert_eq!(parsed["plugin_id"], "agent");
         assert_eq!(parsed["path"], "/workspaces/refarm/README.md");
         assert_eq!(parsed["bytes"], 1024);
         assert!(parsed["ts"].is_number());
@@ -172,7 +172,7 @@ mod tests {
     fn format_shell_spawn_event() {
         let ev = make_event(
             "agent-tool:shell:spawn",
-            Some("pi-agent"),
+            Some("agent"),
             serde_json::json!({
                 "argv": ["refarm", "agent", "finish", "--lane", "after-edit", "--run", "--json"],
                 "exit_code": 0,
@@ -191,11 +191,11 @@ mod tests {
 
     #[test]
     fn event_without_payload_formats_cleanly() {
-        let ev = TelemetryEvent::new("agent-tool:fs:edit", Some("pi-agent".into()));
+        let ev = TelemetryEvent::new("agent-tool:fs:edit", Some("agent".into()));
         let line = format_audit_line(&ev).expect("should format");
         let parsed: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
         assert_eq!(parsed["event"], "agent-tool:fs:edit");
-        assert_eq!(parsed["plugin_id"], "pi-agent");
+        assert_eq!(parsed["plugin_id"], "agent");
     }
 
     #[test]
@@ -215,7 +215,7 @@ mod tests {
 
         let ev = make_event(
             "agent-tool:fs:write",
-            Some("pi-agent"),
+            Some("agent"),
             serde_json::json!({ "path": "/workspaces/refarm/src/main.ts", "bytes": 512 }),
         );
         let line = format_audit_line(&ev).unwrap();
@@ -236,7 +236,7 @@ mod tests {
         let observer_channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
         let ev = make_event(
             "agent-tool:fs:read",
-            Some("pi-agent"),
+            Some("agent"),
             serde_json::json!({}),
         );
         let line = format_audit_line(&ev).unwrap();

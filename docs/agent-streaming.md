@@ -13,7 +13,7 @@ For startup plugins loaded by the Tractor daemon, the equivalent governed CLI
 entrypoint is:
 
 ```bash
-tractor --model-stream-responses --plugin ./packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm
+tractor --model-stream-responses --plugin ./packages/agent/target/wasm32-wasip1/release/agent.wasm
 ```
 
 Project config can also govern startup plugin streaming. `.refarm/config.json`
@@ -192,13 +192,13 @@ Validate the Homestead + Studio (`apps/dev`) browser path with:
 npm run agent:streaming:studio
 ```
 
-Run the WASM harness only when the `pi_agent.wasm` artifact is fresh:
+Run the WASM harness only when the `agent.wasm` artifact is fresh:
 
 ```bash
 npm run agent:streaming:harness
 ```
 
-Rebuild the component only when pi-agent/WIT changed and the harness must run:
+Rebuild the component only when agent/WIT changed and the harness must run:
 
 ```bash
 npm run agent:streaming:harness:build

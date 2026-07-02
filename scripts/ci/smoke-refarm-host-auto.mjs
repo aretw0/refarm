@@ -250,7 +250,7 @@ export function isCliInstallSurfaceFile(file) {
 		file === ".devcontainer/post-create.sh" ||
 		file === ".devcontainer/post-start.sh" ||
 		file === "scripts/install-refarm-cli.mjs" ||
-		file === "scripts/pi-agent-install.mjs" ||
+		file === "scripts/agent-install.mjs" ||
 		file === "scripts/ci/check-node-substrate.mjs" ||
 		file === "scripts/ci/test-check-node-substrate.mjs" ||
 		file === "scripts/ci/test-devcontainer-contract.mjs" ||
@@ -328,10 +328,10 @@ export function isFarmhandSidecarFile(file) {
 export function isRefarmAgentRuntimeE2eFile(file) {
 	return (
 		file === "apps/refarm/src/commands/ask.ts" ||
-		file === "apps/refarm/src/commands/pi-agent-effort.ts" ||
+		file === "apps/refarm/src/commands/agent-effort.ts" ||
 		file === "apps/refarm/src/commands/runtime-plugins.ts" ||
 		file === "scripts/ci/smoke-refarm-agent-model-mock.mjs" ||
-		file.startsWith("packages/pi-agent/") ||
+		file.startsWith("packages/agent/") ||
 		file.startsWith("packages/model-mock/") ||
 		file.startsWith("packages/tractor/src/host/wasi_bridge/")
 	);

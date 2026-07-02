@@ -1,7 +1,7 @@
 # Feature: context-provider-v1 + `refarm ask`
 
-**Status**: Completed  
-**Version**: v0.1.0  
+**Status**: Completed
+**Version**: v0.1.0
 **Owner**: Arthur Silva
 
 ---
@@ -10,7 +10,7 @@
 
 Adds `context-provider-v1` as a composable capability contract for building context-aware
 system prompts, and `refarm ask` as a direct conversational CLI command that auto-injects
-project context (cwd, date, git status, files) and streams pi-agent's response token by
+project context (cwd, date, git status, files) and streams agent's response token by
 token to the terminal. Together these are the primitives that make a future TUI emerge
 naturally — without building the TUI itself.
 
@@ -18,18 +18,18 @@ naturally — without building the TUI itself.
 
 ## User Stories
 
-**As a** Refarm developer  
-**I want** to type `refarm ask "o que é CRDT?"` and see a streamed response  
+**As a** Refarm developer
+**I want** to type `refarm ask "o que é CRDT?"` and see a streamed response
 **So that** I can get an AI answer with automatic project context without writing JSON payloads
 
-**As a** Refarm developer  
-**I want** to pass `--files src/lib/foo.ts` and have pi-agent see the file content  
+**As a** Refarm developer
+**I want** to pass `--files src/lib/foo.ts` and have agent see the file content
 **So that** I can ask questions about specific parts of the codebase without copy-pasting
 
-**As a** third-party plugin author  
-**I want** `context-provider-v1` to define a composable `ContextProvider` interface  
+**As a** third-party plugin author
+**I want** `context-provider-v1` to define a composable `ContextProvider` interface
 **So that** I can inject domain-specific context (e.g., Linear tickets, Notion pages) into
-pi-agent's system prompt without modifying `refarm ask`
+agent's system prompt without modifying `refarm ask`
 
 **As a** long-running agent driver
 **I want** a pointer-first session fold provider
@@ -40,28 +40,28 @@ available through consumer-owned unfold tooling
 
 ## Acceptance Criteria
 
-1. **Given** a Farmhand daemon is running with pi-agent loaded  
-   **When** `refarm ask "o que é CRDT?"` is executed  
+1. **Given** a Farmhand daemon is running with agent loaded
+   **When** `refarm ask "o que é CRDT?"` is executed
    **Then** tokens print to stdout as they arrive and a usage footer appears at the end
 
-2. **Given** `--files CLAUDE.md,package.json` is passed  
-   **When** `refarm ask` runs  
+2. **Given** `--files CLAUDE.md,package.json` is passed
+   **When** `refarm ask` runs
    **Then** those file contents are included in the system prompt (truncated at 4 KB each)
 
-3. **Given** the current directory is not a git repo  
-   **When** `refarm ask` runs  
+3. **Given** the current directory is not a git repo
+   **When** `refarm ask` runs
    **Then** the git status provider is silently skipped and the command still succeeds
 
-4. **Given** a `ContextProvider` implementation is registered  
-   **When** one provider throws during `collect()`  
+4. **Given** a `ContextProvider` implementation is registered
+   **When** one provider throws during `collect()`
    **Then** the exception is swallowed and all other providers still contribute their entries
 
-5. **Given** pi-agent streams `StreamChunk` nodes via `stream-contract-v1`  
-   **When** `refarm ask` subscribes to the `FileStreamTransport`  
+5. **Given** agent streams `StreamChunk` nodes via `stream-contract-v1`
+   **When** `refarm ask` subscribes to the `FileStreamTransport`
    **Then** a late-starting subscriber still receives past chunks in order before live ones
 
-6. **Given** pi-agent returns `is_final: true`  
-   **When** `refarm ask` receives it  
+6. **Given** agent returns `is_final: true`
+   **When** `refarm ask` receives it
    **Then** a summary line with `model`, `tokens_in`, `tokens_out`, and `estimated_usd` is printed
 
 7. **Given** session entries exceed a protected working tail
@@ -88,7 +88,7 @@ refarm ask "<query>" [--files f1,f2]
   ├─ buildSystemPrompt(entries)  →  system: string
   │
   ├─ POST /tasks to Farmhand HTTP (port 42001)
-  │    { pluginId:"pi-agent", fn:"respond", args:{ prompt, system } }
+  │    { pluginId:"agent", fn:"respond", args:{ prompt, system } }
   │    → effortId + stream_ref
   │
   └─ FileStreamTransport.subscribe(stream_ref, onChunk)
@@ -112,11 +112,11 @@ apps/refarm/src/commands/ask.ts
 **Key decisions:**
 
 - Context is injected via the `system` field in the `respond` payload — no changes to
-  pi-agent or the effort executor needed.
+  agent or the effort executor needed.
 - `ContextRegistry` runs all providers in parallel (`Promise.allSettled`) for fast startup.
 - Streaming uses `FileStreamTransport` from `stream-contract-v1` — replay semantics handle
   the race between effort submission and subscription.
-- `refarm ask` is additive — `refarm task run pi-agent respond` remains the low-level escape
+- `refarm ask` is additive — `refarm task run agent respond` remains the low-level escape
   hatch; `ask` is the ergonomic shortcut.
 
 ---
@@ -225,6 +225,6 @@ refarm ask "<query>" [--files <file1,file2,...>]
 ## References
 
 - [stream-contract-v1 spec](./stream-contract-v1.md)
-- [Pi-Agent Effort Bridge spec](./pi-agent-effort-bridge.md)
+- [Pi-Agent Effort Bridge spec](./agent-effort-bridge.md)
 - [ADR-018: Capability Contracts and Observability Gates](../ADRs/ADR-018-capability-contracts-and-observability-gates.md)
 - [ADR-055: stream-contract-v1 as Separate Transport Package Family](../ADRs/ADR-055-stream-contract-v1-transport-layer.md)

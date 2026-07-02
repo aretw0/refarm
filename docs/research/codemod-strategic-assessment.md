@@ -2,7 +2,7 @@
 
 **Date**: 2026-05-17
 **Status**: Research
-**Subject**: What Refarm and `pi-agent` can learn from [codemod/codemod](https://github.com/codemod/codemod)
+**Subject**: What Refarm and `agent` can learn from [codemod/codemod](https://github.com/codemod/codemod)
 
 ---
 
@@ -16,9 +16,9 @@ Codemod is not just a codemod runner. Its current architecture combines:
 - First-class AST tooling through ast-grep/JSSG, plus direct support for AI-assisted transformation steps.
 - MCP and harness integration so coding agents can inspect ASTs, run codemod tests, validate packages, and install codemod guidance.
 
-Refarm should not copy Codemod wholesale. Codemod is optimized for large-scale source-code migration campaigns; Refarm is a sovereign plugin/runtime system with capability contracts, WIT boundaries, Farmhand efforts, Barn lifecycle management, Scarecrow policy, and `pi-agent` execution. The useful lesson is the operational shape: deterministic transforms, agent guidance, validation, resumable orchestration, and registry distribution should be one composable loop instead of separate tools.
+Refarm should not copy Codemod wholesale. Codemod is optimized for large-scale source-code migration campaigns; Refarm is a sovereign plugin/runtime system with capability contracts, WIT boundaries, Farmhand efforts, Barn lifecycle management, Scarecrow policy, and `agent` execution. The useful lesson is the operational shape: deterministic transforms, agent guidance, validation, resumable orchestration, and registry distribution should be one composable loop instead of separate tools.
 
-The strongest opportunity is to make Refarm's internal refactors and `pi-agent` tasks produce reusable "migration capsules": source-scoped plans that combine deterministic AST edits, shell/build checks, AI fixups, review gates, and evidence. In Refarm terms, this should extend the existing plugin/package distribution model rather than create a separate external system.
+The strongest opportunity is to make Refarm's internal refactors and `agent` tasks produce reusable "migration capsules": source-scoped plans that combine deterministic AST edits, shell/build checks, AI fixups, review gates, and evidence. In Refarm terms, this should extend the existing plugin/package distribution model rather than create a separate external system.
 
 ---
 
@@ -37,7 +37,7 @@ In Refarm terms:
 | Barn | integrity and lifecycle | validation of migration payloads and fixtures |
 | Farmhand effort | task execution and streaming results | resumable ordered migration workflow |
 | Scarecrow | observation and policy | approval gates for risky migration steps |
-| `pi-agent` | autonomous local work | structural tools and reusable migration authoring |
+| `agent` | autonomous local work | structural tools and reusable migration authoring |
 
 So a migration pack should not be a rival primitive to plugin packages. It should be a plugin package profile: a package whose purpose is to transform data, source, schema, CRDT records, lenses, manifests, or other plugin-owned state across versions.
 
@@ -116,7 +116,7 @@ This matters for Refarm because many "agent tasks" are actually workflows:
 5. re-run checks.
 6. produce evidence and review notes.
 
-`pi-agent` can already perform these manually. Codemod shows that the loop should be declared, resumed, validated, and reused.
+`agent` can already perform these manually. Codemod shows that the loop should be declared, resumed, validated, and reused.
 
 ### Transform Engines
 
@@ -138,9 +138,9 @@ These are expensive and risky when handled as one-off AI editing sessions. They 
 
 Codemod's CLI now includes an `ai` setup path that installs a master skill, configures Codemod MCP, and installs `/codemod` entrypoints for supported harnesses including Codex. Its MCP server exposes operational tools such as AST dumping, node-type discovery, JSSG test execution, and package validation, plus guidance resources for codemod authoring and troubleshooting.
 
-This is the clearest pi-agent lesson: do not only give agents a shell and filesystem. Give them purpose-built structural tools that reduce uncertainty before editing.
+This is the clearest agent lesson: do not only give agents a shell and filesystem. Give them purpose-built structural tools that reduce uncertainty before editing.
 
-For `pi-agent`, the equivalent is not necessarily MCP. Refarm already has WIT and Tractor. The equivalent should be a capability-gated structural-analysis surface:
+For `agent`, the equivalent is not necessarily MCP. Refarm already has WIT and Tractor. The equivalent should be a capability-gated structural-analysis surface:
 
 - `agent-code-graph.dump-ast`
 - `agent-code-graph.find-pattern`
@@ -173,7 +173,7 @@ refarm-migration-pack/
   docs/evidence-template.md
 ```
 
-Barn can validate and sign the pack. Farmhand can execute it. `pi-agent` can consume the skill and run residual steps.
+Barn can validate and sign the pack. Farmhand can execute it. `agent` can consume the skill and run residual steps.
 
 ---
 
@@ -208,9 +208,9 @@ Codemod workflows map naturally to Farmhand efforts:
 
 Refarm's advantage is capability enforcement. Codemod allows shell and AI steps as part of a workflow; Refarm can make those capability-scoped, auditable, and policy-gated.
 
-### pi-agent
+### agent
 
-`pi-agent` should learn three things:
+`agent` should learn three things:
 
 1. Prefer structural perception before editing. AST dumps, pattern matches, and fixture tests are higher-signal than raw text search when transforming code.
 2. Separate deterministic migration from AI residual work. Let AST tools handle broad mechanical changes; reserve LLM edits for semantic edge cases.
@@ -240,10 +240,10 @@ This aligns with Active Inference: AST tooling and fixture tests are perception 
 - Require SHA-256 integrity for transform files and authored skills.
 - Add Scarecrow policy for shell/AI/write capabilities inside migration packs.
 
-### Phase 4: pi-agent Authoring Loop
+### Phase 4: agent Authoring Loop
 
-- Teach `pi-agent` to propose migration packs when it detects repeated mechanical edits.
-- Let `pi-agent` run fixture tests and produce evidence before applying a pack across the repo.
+- Teach `agent` to propose migration packs when it detects repeated mechanical edits.
+- Let `agent` run fixture tests and produce evidence before applying a pack across the repo.
 - Add a "deterministic first, AI second" workflow template for internal refactors.
 
 ---
@@ -271,7 +271,7 @@ It should include:
 - scoped validation commands;
 - a short agent skill explaining when and how to use it.
 
-Success criteria: a human or `pi-agent` can run the pack, inspect the dry-run, apply the transform, run checks, and produce evidence without relying on undocumented chat context.
+Success criteria: a human or `agent` can run the pack, inspect the dry-run, apply the transform, run checks, and produce evidence without relying on undocumented chat context.
 
 ---
 

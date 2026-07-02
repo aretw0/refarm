@@ -6,11 +6,11 @@
 
 ## Context
 
-pi-agent/farmhand now has partial `AgentResponse` schema, SSE parsing, chunk persistence helpers, provider `stream: true` gates, and an active stream sink context (`prompt_ref`, `model`, `last_sequence`). Tractor now provides the host-proxied transport: bytes are read through a streaming SSE seam, partial chunks are stored by the host, and final provider-compatible JSON is synthesized for existing guest parsers.
+agent/farmhand now has partial `AgentResponse` schema, SSE parsing, chunk persistence helpers, provider `stream: true` gates, and an active stream sink context (`prompt_ref`, `model`, `last_sequence`). Tractor now provides the host-proxied transport: bytes are read through a streaming SSE seam, partial chunks are stored by the host, and final provider-compatible JSON is synthesized for existing guest parsers.
 
 The current model boundary is `model-bridge::complete-http(provider, base-url, path, headers, body) -> list<u8>`. Tractor owns provider credentials and performs the HTTP request on behalf of the WASM plugin. This is sovereign and safe, but buffered: the plugin receives bytes only after the host response completes.
 
-Direct `wasi::http` from the plugin could expose chunked reads to pi-agent, but would also require giving provider credentials and route policy to the sandboxed plugin. That weakens the existing host-owned credential boundary.
+Direct `wasi::http` from the plugin could expose chunked reads to agent, but would also require giving provider credentials and route policy to the sandboxed plugin. That weakens the existing host-owned credential boundary.
 
 ## Decision
 
@@ -28,7 +28,7 @@ The implemented WIT shape satisfies these constraints:
 - final response remains `is_final=true` and follows the last stored partial sequence;
 - `streaming_reader_available()` flips to true only with tests proving end-to-end partial persistence.
 
-The initial implementation includes an ignored pi-agent harness test that proves `MODEL_STREAM_RESPONSES=1` sends provider `stream:true`, stores partial `AgentResponse` chunks, and stores the final `AgentResponse` after the last partial sequence.
+The initial implementation includes an ignored agent harness test that proves `MODEL_STREAM_RESPONSES=1` sends provider `stream:true`, stores partial `AgentResponse` chunks, and stores the final `AgentResponse` after the last partial sequence.
 
 The first implementation should prefer an append-only host-owned stream record over a guest callback. Component-model callbacks during an imported host call are harder to reason about and may re-enter the same store. A host-owned stream record is simpler: the guest passes stream metadata, the host reads provider SSE incrementally, and the host writes chunk observations using the existing CRDT store.
 
@@ -78,4 +78,4 @@ This keeps `complete-http` as the default buffered primitive. `complete-http-str
 
 - **Direct plugin `wasi::http` streaming:** rejected for now because provider credentials and route enforcement would move into the plugin sandbox.
 - **Keep buffered `complete-http` and call the callback with final bytes:** already implemented as a seam, but it cannot deliver live token streaming.
-- **Host stores partial CRDT nodes directly:** viable if WIT callbacks are awkward, but risks duplicating provider-specific SSE parsing outside pi-agent unless shared carefully.
+- **Host stores partial CRDT nodes directly:** viable if WIT callbacks are awkward, but risks duplicating provider-specific SSE parsing outside agent unless shared carefully.

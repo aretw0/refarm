@@ -12,7 +12,7 @@ Refarm is pre-release. The priority is making the creator's own daily-driver flo
 
 - Current focus: sync, execution and plugin runtime stabilization.
 - Main app surface: `apps/dev`.
-- Engine/runtime work: `packages/tractor`, `packages/tractor-ts`, `packages/pi-agent`, storage and sync packages.
+- Engine/runtime work: `packages/tractor`, `packages/tractor-ts`, `packages/agent`, storage and sync packages.
 - Package release automation exists, but publish is explicitly gated.
 
 ## For Future Users

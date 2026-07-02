@@ -84,10 +84,10 @@ package names and versions match.
 
 **Current gap**: Pi uses `refarm:agent-tools@0.1.0` (same package); the exact
 interface signatures need a diff to confirm binary compatibility. If they match,
-pi-agent.wasm loads in Tractor without recompilation. If they diverge, there is
+agent.wasm loads in Tractor without recompilation. If they diverge, there is
 a compatibility shim to write.
 
-**Action**: Run `wasm-tools component wit packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm`
+**Action**: Run `wasm-tools component wit packages/agent/target/wasm32-wasip1/release/agent.wasm`
 and compare against `packages/agent-tools/wit/world.wit` to verify. This is a
 2-minute check that should be done before claiming WIT interoperability.
 
@@ -102,12 +102,12 @@ Both Pi and refarm configure LLM providers via env vars:
 | `MODEL_PROVIDER` | ✅ | ✅ |
 | `MODEL_ID` | ✅ | ✅ |
 | `ANTHROPIC_API_KEY` | ✅ | ✅ |
-| `MODEL_HISTORY_TURNS` | ✅ | ✅ (pi-agent) |
-| `MODEL_TOOL_CALL_MAX_ITER` | ✅ | ✅ (pi-agent) |
-| `MODEL_STREAM_RESPONSES` | ✅ | ✅ (pi-agent) |
-| `MODEL_BUDGET_<PROVIDER>_USD` | ✅ | ✅ (pi-agent) |
+| `MODEL_HISTORY_TURNS` | ✅ | ✅ (agent) |
+| `MODEL_TOOL_CALL_MAX_ITER` | ✅ | ✅ (agent) |
+| `MODEL_STREAM_RESPONSES` | ✅ | ✅ (agent) |
+| `MODEL_BUDGET_<PROVIDER>_USD` | ✅ | ✅ (agent) |
 
-A user who configures Pi's env vars gets the same behavior in refarm's pi-agent
+A user who configures Pi's env vars gets the same behavior in refarm's agent
 without reconfiguration. `farmhand-start.sh` reads the same `.env` fallback.
 
 **No action needed.**
@@ -167,7 +167,7 @@ High for extensions that depend on Pi-specific runtime guarantees (rare).
 
 Refarm plugins (WASM components targeting `refarm:agent-tools@0.1.0`) can be
 exposed to Pi if Pi supports loading WASM components. Today, Pi's coding agent
-is itself a WASM component (pi-agent); the question is whether Pi's runtime
+is itself a WASM component (agent); the question is whether Pi's runtime
 (Tractor or Pi-specific) can load arbitrary WASM plugins.
 
 **Current state**: Pi's runtime and refarm's Tractor share the same WIT contract.

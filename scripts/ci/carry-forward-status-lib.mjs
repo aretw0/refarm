@@ -43,11 +43,11 @@ export function buildSkippedGateDefinitions(env = process.env) {
 			stepNames: ["Farmhand task execution smoke (CLI ↔ sidecar)"],
 		},
 		{
-			key: "task_smoke_pi_agent",
+			key: "task_smoke_agent",
 			skip: codeChanges && !envFlag(env, "RUN_TASK_SMOKE"),
 			type: "step",
 			job: "quality",
-			stepNames: ["Farmhand pi-agent respond smoke (effort round-trip)"],
+			stepNames: ["Farmhand agent respond smoke (effort round-trip)"],
 		},
 		{
 			key: "tractor_health_probe",

@@ -26,7 +26,7 @@ flowchart TB
   end
 
   subgraph Plugins["Plugin Sandbox  (.wasm)"]
-    PiAgent["pi-agent\n(sovereign AI)"]
+    Agent["agent\n(sovereign AI)"]
     ThirdParty["third-party plugins"]
   end
 
@@ -56,10 +56,10 @@ flowchart TB
   TractorRS ---|same WIT| WITPkg
 
   %% WIT → Plugins
-  WITPkg -->|"implemented by"| PiAgent
+  WITPkg -->|"implemented by"| Agent
   WITPkg -->|"implemented by"| ThirdParty
-  LLMBridge -.->|"imported by"| PiAgent
-  AgentFS -.->|"imported by"| PiAgent
+  LLMBridge -.->|"imported by"| Agent
+  AgentFS -.->|"imported by"| Agent
 
   %% Core → Capability Contracts
   TractorTS -->|"persists via"| StorageV1
@@ -95,6 +95,6 @@ flowchart TB
   class TractorTS,TractorRS core;
   class WITPkg,LLMBridge,AgentFS wit;
   class StorageV1,SyncV1,IdentityV1,EffortV1,StreamV1 contract;
-  class PiAgent,ThirdParty plugin;
+  class Agent,ThirdParty plugin;
   class FileT,HttpT,FileStream,SSEStream,WSStream transport;
   class SQLite,StoreMem,SyncLoro,NostrId storage;
