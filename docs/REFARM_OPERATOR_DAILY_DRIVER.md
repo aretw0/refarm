@@ -125,6 +125,12 @@ protective without stopping momentum:
     Vitest filter can discover unrelated suites. Use an explicit test file path
     or a named package script. Under container pressure, treat app-level Vitest
     as a package checkpoint, not a micro-slice gate.
+  - before the devcontainer cgroup rebuild is active, do not use `apps/refarm`
+    Vitest as a pre-rebuild confidence gate. On 2026-07-02 even
+    `pnpm -C apps/refarm run test:file -- test/commands/agent.test.ts`
+    pressured the shared container after earlier heavy slices. Use docs,
+    `git diff --check`, package-local tooling tests, and `refarm tidy imports`
+    to close handoff work, then rerun app-level checks after rebuild.
 - **Protective lane trigger:**
   - command re-runs due to repeated `--filter ... test` slices,
   - observed flakiness/timeouts under load,

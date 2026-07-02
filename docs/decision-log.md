@@ -55,6 +55,14 @@ for the shared runtime after rebuild: 6 GiB memory, no swap above that cap, 4 CP
 `control` and `workload` maxima calibrated to the 6 GiB boundary. Fine-grained control/workload
 sub-slices still require the root/entrypoint lane.
 
+**2026-07-02 pre-rebuild update**: while closing the first-release rename/tooling handoff, a
+single `apps/refarm` Vitest file command (`test/commands/agent.test.ts`) again showed enough
+pressure that the operator stopped the lane before another container loss. Until the rebuild makes
+the cgroup boundary active, `apps/refarm` Vitest is treated as post-rebuild validation. Safe
+pre-rebuild handoff checks are limited to source/diff checks and directly affected package/tooling
+tests; the current durable checkpoints are `fbc44e54` (`pi-agent` -> `agent`) and `3b98a484`
+(`imports` owned by `@refarm.dev/toolbox`).
+
 ---
 
 ## Silo storage surface free of the identity closure
