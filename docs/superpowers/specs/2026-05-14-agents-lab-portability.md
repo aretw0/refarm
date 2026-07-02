@@ -31,13 +31,27 @@ These are portable as source content and review fixtures. Refarm should not
 install or execute them directly until a native skill contract, capability
 declaration, policy envelope, and invocation adapter exist.
 
-**Bridge status (2026-07-02).** Of those four, the **native skill contract** (`skill-contract-v1`) and the
-**capability declaration** (`capability-index`, ADR-073) exist. The remaining bridge to finish is the
-**policy envelope** and the **invocation adapter** — the surface that lets farmhand (the now-unheld refarm
-engine, `@refarm.dev/pi-agent`) execute these curated Markdown skills the way Pi does. Closing it is what
-makes the agents-lab Refarm adapter real; until then the skills are content-portable but not yet
-refarm-executable. This is the "bridge Pi↔farmhand" work — painful but the gate for the rich shared-primitive
-future (one curated skill set, two engines).
+**Bridge status (2026-07-02, revised).** More of the bridge exists than "four missing pieces" implied — the
+gap is implementation, not contract design:
+
+- **Native skill contract** — `skill-contract-v1` exists, and its surface is broad: `SkillManifest`,
+  `SkillCapabilityEnvelope`, `SkillInputEnvelope`/`SkillInvocationOutputPayload`, `SkillInvocationPlan`,
+  `SkillInvocationCapabilityDecision` (**the policy decision**), `SkillEngineBindingEnvelope` +
+  `SkillInvocationEngineCallEvidence` (**the engine-binding surface**), and `SkillActivationPreflight*`.
+- **Capability declaration** — `capability-index` (ADR-073) exists.
+- **Policy envelope** — the *contract* is `SkillCapabilityEnvelope` + `SkillInvocationCapabilityDecision`;
+  the *enforcement model* is ADR-022 (declarative `policies` in the manifest, kernel `policyManager`). Both
+  exist.
+- **Invocation adapter** — the *contract* is `SkillEngineBindingEnvelope`. What is missing is the
+  **farmhand-side implementation** of that binding: the code that takes a `SkillInvocationPlan` + a
+  capability decision and executes the curated Markdown skill on farmhand, emitting
+  `SkillInvocationEngineCallEvidence`.
+
+So the remaining work is a **concrete farmhand skill engine-binding** (implement `SkillEngineBindingEnvelope`
+for `@refarm.dev/pi-agent`, wire ADR-022 policy) — not new contracts. Closing it makes the agents-lab Refarm
+adapter real; until then the skills are content-portable but not yet refarm-executable. This is the
+"Pi↔farmhand" bridge — the gate for the rich shared-primitive future (one curated skill set, two engines),
+and it is an implementation task against surfaces that already exist.
 
 **git-skills**: Structured git workflows (commit conventions, branch naming,
 PR prep). Does refarm need this? Yes — the monorepo has specific commit conventions
