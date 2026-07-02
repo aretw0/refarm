@@ -629,3 +629,33 @@ Usuário pode configurar Refarm para watch uma pasta, qualquer arquivo adicionad
 - [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API)
 - [Obsidian Web Clipper](https://help.obsidian.md/Obsidian+Web+Clipper/Web+Clipper)
 - [Notion Web Clipper](https://www.notion.so/web-clipper)
+
+---
+
+## Referência externa: hermes-browser-extension (2026-07-02)
+
+Sinalizado pelo consumidor vault-seed — um exemplo concreto e atual que afia a decisão "se/quando
+construir uma extensão":
+[`abundantbeing/hermes-browser-extension`](https://github.com/abundantbeing/hermes-browser-extension).
+Um **side panel** Chrome/Edge que faz bridge do browser para o **Hermes Agent** (runtime open-source da
+Nous Research). Captura contexto **read-only** (aba ativa, seleção, metadata, headings, links) e envia
+para uma instância Hermes local/remota (gateway em `127.0.0.1:8642`).
+
+**Lições transferíveis para a extensão do Refarm (quando chegar a hora):**
+
+- **Side Panel API** como superfície (não só popup/content-script) — persistente ao navegar.
+- **"Untrusted context" wrapping** — o conteúdo web é envolvido como entrada não-confiável antes de sair.
+  É o padrão de segurança para captura → `source:v1` (todo conteúdo capturado é untrusted input).
+- **Read-only, sem browser-control** — deliberadamente sem clicar/submeter/baixar. Postura de permissão
+  mínima: mais segura, mais fácil de aprovar na store, alinhada ao Web Clipper que este doc recomenda.
+- **Extensão como *bridge*, não como cérebro** — a inteligência vive no runtime soberano local; a
+  extensão só captura + encaminha. Casa com a arquitetura PWA + runtime do Refarm.
+- **Local-first + API keys explícitas** — mesmo ethos soberano.
+
+**Conexão com `source:v1`/records:** o modelo de captura do hermes é exatamente `source-web` →
+`records:v1` (o conteúdo capturado vira um record `@type Source`, como o vault-seed já faz com feeds). Um
+Web Clipper do Refarm seria o produtor desse pipeline.
+
+**Fronteira de runtime:** o Hermes Agent (Nous Research) é um runtime **externo** — referência de
+arquitetura, não confundir com o runtime próprio do Refarm. Aproveita-se o *padrão* (bridge para runtime
+soberano), não o runtime específico.
