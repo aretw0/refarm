@@ -97,46 +97,34 @@ overflow) — a regression net grounded in reality, not theory. Studying the sta
 Lighthouse a11y, fluid-type systems, and emerging AI-UI linters) is an ongoing input as the rule set
 grows.
 
-## External references — de-AI "tells" (complements)
+## Adjacent influences — scoped, not folded into one narrative
 
-Two references push the guardrail from "objective quality" toward also catching **the signatures of
-low-effort AI UI**, and confirm a unified ecosystem theme (text tells + design tells):
+Several references arrived together from the vault-seed consumer. Only **one** directly feeds *this*
+guardrail; the others are influences for **different specific points**. They are placed here honestly so
+none is lost and none is over-attributed to "screen verification" — design verification is one concern
+among several, not the frame for all of them.
 
-- **`blader/humanizer`** — a portable skill detecting **33 AI-writing tells** (significance inflation,
-  copula avoidance "serves as", AI vocabulary "testament/landscape/additionally", em-dash overuse, emoji,
-  chatbot closers, signposting "let's dive in") via multi-pass heuristics. It is the *text* analog of what
-  we want for *UI*, and a downstream text-quality evaluator already draws on it. Model to borrow: a named
-  **taxonomy of tells** + multi-pass detection + distribution as a **portable skill** — the guardrail can
-  ship the same way.
-- **`JCarterJohnson/vibecoded-design-tells`** — mines 3.2M posts for the visual patterns that read as
-  AI/"vibe-coded": **shadcn/Tailwind defaults, "AI purple" gradients, gradient hero text, neon glow,
-  emoji-as-icons, centered-hero-plus-three-cards** — ranked by frequency (a prioritized checklist), with a
-  `devibe_scan.py` scanner. A ready **rule catalog** for a second tier. Honestly: Refarm's own `apps/site`
-  hero (a large heading, a hero-shape) sits near several of these, so a tell-scan grounded in this catalog
-  is a regression net that would flag *our own* surface first — exactly the point.
+**Directly feeds this guardrail:**
 
-This yields **two tiers**:
+- **`JCarterJohnson/vibecoded-design-tells`** — mines 3.2M posts for visual patterns that read as
+  AI/"vibe-coded": shadcn/Tailwind defaults, "AI purple" gradients, gradient hero text, neon glow,
+  emoji-as-icons, centered-hero-plus-three-cards — ranked by frequency, with a `devibe_scan.py` scanner.
+  A ready **rule catalog** for a second, heuristic tier, and honestly `apps/site`'s hero sits near
+  several, so it would flag *our own* surface first.
 
-1. **Objective quality (deterministic, pass/fail):** WCAG contrast over every rendered pair, overflow,
-   heading hierarchy, fluid type, token-only.
-2. **Tell detection (heuristic, prioritized warnings):** the vibecoded catalog, surfaced ranked by the
-   community-frequency data — the ecosystem's "does this look AI-made?" signal, not a hard failure.
+So the guardrail has **two tiers**: (1) objective quality (deterministic — contrast over every rendered
+pair, overflow, hierarchy, fluid type, token-only); (2) tell detection (heuristic, prioritized warnings
+from the vibecoded catalog). One design principle carries over from `samasante/liquid-glass`: **a tell is
+low *effort*, not a banned effect** — tier 2 flags cheap default execution (unaccessible `backdrop-blur`),
+not the effect's name; the check is execution quality (accessibility, performance).
 
-**Nuance — a tell is low *effort*, not a banned effect (`samasante/liquid-glass`).**
-vibecoded-design-tells even debunks glassmorphism as a keyword artifact, and `liquid-glass` shows why:
-Apple-style glass done first-class — SVG `feDisplacementMap` refraction of the *live* DOM (text stays
-selectable, links clickable — accessible by construction), 3-pass chromatic aberration, 60fps imperative
-motion, explicit Safari/Firefox handling, zero runtime deps, "own-them" copy-paste components. So tier 2
-must not ban trendy effects; it flags the *cheap default* execution (unaccessible `backdrop-blur`,
-snapshot hacks) and passes the premium one. The guardrail checks **execution quality** — accessibility
-preserved, performance — not the effect's name. It is also an owned-primitive candidate for the
-DS/homestead (a premium glass surface, the same own-it / zero-dep / accessible ethos as humation's
-avatars).
+**Adjacent, NOT part of this guardrail** (separate concerns — noted so the influence is placed, not so it
+bleeds into the UI-verification discourse):
 
-Extra (good to already have): **`humation-labs/humation`** — a *deterministic, offline, owned* kawaii
-avatar engine (seed → SVG, no AI/API, CSS-var recolor). Tangential to the lint, but its ethos (owned,
-deterministic, offline, no network risk) is the DS/homestead posture — a candidate owned-asset primitive
-so downstream never reaches for an AI avatar service.
+- `blader/humanizer` — **text** quality: a taxonomy of writing tells shipped as a portable skill. Its own
+  concern (a text evaluator), not a screen check.
+- `samasante/liquid-glass`, `humation-labs/humation` — **owned, deterministic, first-class primitives** (a
+  premium glass surface; an offline avatar engine). A DS/homestead *asset* concern, not verification.
 
 ## Boundary
 
