@@ -28,8 +28,9 @@
 ## Task 4 - Handoff
 
 - [x] Record the new 8b packet in readiness/release docs.
-- [x] Downstream proof remains pending until the official `vault-seed` checkout
-  emits this envelope from its Telegram adapter.
+- [x] Official downstream proof received (2026-07-03): `vault-seed` emits the
+  channel-delivery envelope from its publication outbox and the Telegram adapter
+  consumes deliveries/idempotency keys while provider UX stays downstream.
 
 2026-06-26 packet:
 - Candidate tarball:

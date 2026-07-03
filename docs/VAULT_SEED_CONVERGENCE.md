@@ -421,11 +421,10 @@ shell-splitting. The package is the build-free `vault-seed-ready` leaf;
 `vault-seed-ready` publish dry-run passes with this leaf included and the full
 CLI closure excluded. Candidate tarball:
 `.refarm/handoff/vault-seed/2026-06-30/refarm.dev-process-handoff-0.1.0.tgz`.
-The official `vault-seed` proof remains downstream: `@aretw0/dgk-runner` or
-`@aretw0/dgk-cli` should import
-`@refarm.dev/process-handoff` internally while keeping the exported
-`run(cmd, args, opts)` API and command UX local, then emit a task artifact
-manifest that references the tokenized process boundary.
+Official proof received (2026-07-03): `vault-seed` now has `@aretw0/dgk-runner`
+and `@aretw0/dgk-cli` importing `@refarm.dev/process-handoff` internally while
+keeping the exported `run(cmd, args, opts)` API and command UX local. The focused
+proof also keeps publish-hold active and the no-raw-`child_process` guard green.
 
 **2026-06-26 artifact/Lab evidence packet:** `@refarm.dev/artifact-contract-v1`
 now includes a Refarm-side fixture for `vault-seed` Lab datasets, publication
@@ -433,8 +432,10 @@ outbox manifests, and notebook snapshots using generic roles plus labels instead
 of upstreaming notebook UX or vault schema. Candidate tarball:
 `.refarm/handoff/vault-seed/2026-06-30/refarm.dev-artifact-contract-v1-0.1.0.tgz`.
 Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
-`LICENSE`. The official proof remains downstream: `vault-seed` should emit
-`refarm.task-artifacts.v1` manifests from its Lab/outbox/notebook producers.
+`LICENSE`. Official proof received (2026-07-03): `vault-seed` now emits a
+validated `refarm.task-artifacts.v1` manifest for Lab datasets, publication
+outbox evidence, and the served records manifest while keeping notebook UX and
+vault schema downstream.
 
 **2026-06-26 channel-policy packet:** `@refarm.dev/channel-policy-v1` now has a
 consumer-pulled handoff for Telegram/outbox evidence without moving provider API
@@ -442,9 +443,10 @@ behavior, Markdown formatting, or `dgk outbox/inbox` UX upstream. Candidate
 tarball:
 `.refarm/handoff/vault-seed/2026-06-30/refarm.dev-channel-policy-v1-0.1.0.tgz`.
 Tarball contents are limited to `dist/`, `package.json`, `README.md`, and
-`LICENSE`. The official proof remains downstream: the `vault-seed` Telegram
-adapter should emit `refarm.channel-delivery-envelope.v1` while keeping provider
-calls and user-facing command semantics local.
+`LICENSE`. Official proof received (2026-07-03): the `vault-seed` publication
+outbox emits `refarm.channel-delivery-envelope.v1` when the contract is present,
+and the Telegram adapter consumes `deliveries`/`idempotencyKey` while keeping
+provider calls and user-facing command semantics local.
 
 **2026-06-30 full `vault-seed-ready` handoff:** after ADR-072 the release-policy
 selection contained 9 packages. `@refarm.dev/homestead-ssr` was removed pre-publication;

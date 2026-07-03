@@ -55,6 +55,18 @@ const vaultSeedHandoffPlan = readFileSync(
 	path.join(ROOT, "docs/superpowers/plans/2026-06-26-vault-seed-ready-handoff.md"),
 	"utf8",
 );
+const dsTokenContractPlan = readFileSync(
+	path.join(ROOT, "docs/superpowers/plans/2026-06-25-ds-token-contract.md"),
+	"utf8",
+);
+const channelPolicyBridgePlan = readFileSync(
+	path.join(ROOT, "docs/superpowers/plans/2026-06-26-channel-policy-bridge.md"),
+	"utf8",
+);
+const artifactLabEvidencePlan = readFileSync(
+	path.join(ROOT, "docs/superpowers/plans/2026-06-26-artifact-lab-evidence.md"),
+	"utf8",
+);
 const vaultSeedHandoffAdr = readFileSync(
 	path.join(ROOT, "specs/ADRs/ADR-080-vault-seed-ready-handoff-pipeline.md"),
 	"utf8",
@@ -211,10 +223,30 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(factoryReadinessDoc, /4b `ds\/html` \| \*\*implemented \+ downstream-proven\*\*/);
 	assert.match(releaseGateDoc, /official downstream proof verified the 2026-07-03 handoff tarballs and quality\/content\/site flows/);
 	assert.match(releaseGateDoc, /consumer-proven in `vault-seed-ready`; public publish still waits on develop stabilization and release lane/);
+	assert.match(releaseGateDoc, /Official `vault-seed` proof confirms `@aretw0\/dgk-runner` and `dgk-cli` import the SDK internally/);
+	assert.match(releaseGateDoc, /Official `vault-seed` proof confirms the publication outbox emits `refarm\.channel-delivery-envelope\.v1`/);
+	assert.match(releaseGateDoc, /Official `vault-seed` proof emits a validated `refarm\.task-artifacts\.v1` manifest/);
+	assert.match(vaultSeedConvergenceDoc, /Official proof received \(2026-07-03\): `vault-seed` now has `@aretw0\/dgk-runner`/);
+	assert.match(vaultSeedConvergenceDoc, /Official proof received \(2026-07-03\): `vault-seed` now emits a\s+validated `refarm\.task-artifacts\.v1` manifest/);
+	assert.match(vaultSeedConvergenceDoc, /Official proof received \(2026-07-03\): the `vault-seed` publication\s+outbox emits `refarm\.channel-delivery-envelope\.v1`/);
+	assert.match(vaultSeedHandoffPlan, /Proof receipt \(2026-07-03\): the official `vault-seed` checkout later copied\s+> this packet, verified all 20 tarballs/);
+	assert.match(dsTokenContractPlan, /Superseded proof note \(2026-07-03\): the official `vault-seed` checkout later\s+  assimilated the manifest-bearing 20-tarball packet/);
+	assert.match(channelPolicyBridgePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits the\s+  channel-delivery envelope/);
+	assert.match(artifactLabEvidencePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits a\s+validated `refarm\.task-artifacts\.v1` manifest/);
 	assert.doesNotMatch(factoryReadinessDoc, /downstream adoption proof remains consumer-side/);
 	assert.doesNotMatch(factoryReadinessDoc, /official `vault-seed` assimilation remain pending/);
 	assert.doesNotMatch(releaseGateDoc, /official `vault-seed` assimilation pending/);
 	assert.doesNotMatch(releaseGateDoc, /once the outside `vault-seed` checkout assimilates the validated packet/);
+	assert.doesNotMatch(releaseGateDoc, /v0\.1 primitive once the outside `vault-seed` checkout emits the manifest proof/);
+	assert.doesNotMatch(releaseGateDoc, /v0\.1 candidate once the outside `vault-seed` checkout emits the neutral envelope/);
+	assert.doesNotMatch(releaseGateDoc, /artifact\/lab evidence.*v0\.1 candidate once the outside `vault-seed` checkout emits the manifest proof/);
+	assert.doesNotMatch(vaultSeedConvergenceDoc, /The official `vault-seed` proof remains downstream: `@aretw0\/dgk-runner`/);
+	assert.doesNotMatch(vaultSeedConvergenceDoc, /The official proof remains downstream: `vault-seed` should emit\s+`refarm\.task-artifacts\.v1` manifests/);
+	assert.doesNotMatch(vaultSeedConvergenceDoc, /The official proof remains downstream: the `vault-seed` Telegram\s+adapter should emit/);
+	assert.doesNotMatch(vaultSeedHandoffPlan, /downstream assimilation\s+> remains a handoff target, not a completed proof/);
+	assert.doesNotMatch(dsTokenContractPlan, /Official `vault-seed` assimilation remains pending/);
+	assert.doesNotMatch(channelPolicyBridgePlan, /Downstream proof remains pending until the official `vault-seed` checkout/);
+	assert.doesNotMatch(artifactLabEvidencePlan, /The official `vault-seed` checkout should emit `refarm\.task-artifacts\.v1`/);
 });
 
 test("focus maps do not regress implemented quality and projection blocks to planned", () => {

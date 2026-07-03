@@ -29,7 +29,7 @@
 
 ## Downstream Proof
 
-The official `vault-seed` checkout should emit `refarm.task-artifacts.v1`
-manifests from its Lab dataset, publication outbox, and notebook export
-producers. The proof should keep notebook routes, PARA folders, provider API
-calls, and `dgk` command UX downstream-owned.
+Official downstream proof received (2026-07-03): `vault-seed` emits a
+validated `refarm.task-artifacts.v1` manifest for Lab datasets, publication
+outbox evidence, and the served records manifest. Notebook routes, PARA folders,
+provider API calls, and `dgk` command UX remain downstream-owned.

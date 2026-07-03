@@ -21,8 +21,11 @@
 > 58 required checks, no missing/extra/issues, `distributionEvidence.state:
 > "local-handoff-ready"`, one verified local copy, 20 consumer proofs, and a
 > clean release-boundary audit. The official `vault-seed` checkout was not
-> visible from this devcontainer during the refresh, so downstream assimilation
-> remains a handoff target, not a completed proof.
+> visible from this devcontainer during the refresh.
+> Proof receipt (2026-07-03): the official `vault-seed` checkout later copied
+> this packet, verified all 20 tarballs against `manifest.json`, refreshed
+> lockfile integrity, ran focused consumer proofs, and recorded the evidence in
+> `vault-seed` at `docs/convergencia-refarm-proof-2026-07-03.md`.
 > Follow-up in the same date packet: `@refarm.dev/ds` now includes the
 > `@refarm.dev/ds/quality-checker` subpath, a thin `quality:v1` adapter over
 > `ds-lint:v1`. The handoff was rematerialized after the package change; the DS
