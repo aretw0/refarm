@@ -99,6 +99,12 @@ export interface CapabilityTuiRenderer {
 	section?: string;
 	/** Icon token, resolved by the TUI theme (parallels web.icon). */
 	icon?: string;
+	/**
+	 * Keybinding the TUI projector binds to this verb (standard format, e.g.
+	 * "ctrl+m"), for quick-switchers like model / thinking-level. CLI/API ignore
+	 * it. Parallels command-host's `shortcut`.
+	 */
+	shortcut?: string;
 }
 
 /**
@@ -109,6 +115,46 @@ export interface CapabilityRenderers {
 	web?: CapabilityWebRenderer;
 	tui?: CapabilityTuiRenderer;
 	[key: string]: unknown;
+}
+
+/**
+ * A verb-group: a rich command (`model`, `workspace`, `task`) whose behavior is
+ * a set of sub-action verbs. Each sub-action IS a full CapabilityDescriptor, so
+ * a group is just a neutral container — it has no run() of its own; it dispatches
+ * to a child. Every surface projects the group from this one declaration:
+ * CLI `<bin> model current`, REPL `/model current`, API `POST /model/current`,
+ * and a TUI section. See specs/features/2026-07-03-capability-groups-subactions.md.
+ */
+export interface CapabilityGroup {
+	/** Group verb, lowercase. e.g. "model". */
+	name: string;
+	/** One line for `--help` / `/help` and the group landing. */
+	summary: string;
+	/**
+	 * Sub-actions keyed by their sub-verb. Each value's `name` is the sub-verb
+	 * ("current", "doctor"). A child MAY declare its own transports/renderers;
+	 * unset falls back to the group's projection.
+	 */
+	actions: Record<string, CapabilityDescriptor>;
+	/**
+	 * Sub-action run when the group is invoked with no sub-verb (`model`,
+	 * `/model`). Must be a key of `actions`. Read-only by convention — a bare
+	 * group should never mutate. e.g. "current".
+	 */
+	defaultAction?: string;
+	/** Group-level surface hints; children inherit unless they override. */
+	transports?: CapabilityTransports;
+	renderers?: CapabilityRenderers;
+}
+
+/** A registry entry is either a flat verb or a verb-group. */
+export type CapabilityEntry = CapabilityDescriptor | CapabilityGroup;
+
+/** Narrow a registry entry to a group. */
+export function isCapabilityGroup(
+	entry: CapabilityEntry,
+): entry is CapabilityGroup {
+	return "actions" in entry && typeof entry.actions === "object";
 }
 
 export interface CapabilityArgSpec {

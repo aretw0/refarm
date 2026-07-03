@@ -1,4 +1,8 @@
-import { parseCapabilityArgv } from "@refarm.dev/cli/capabilities";
+import {
+	isCapabilityGroup,
+	parseCapabilityArgv,
+	resolveGroupAction,
+} from "@refarm.dev/cli/capabilities";
 import {
 	loadChatHistory,
 	MAX_CHAT_HISTORY_LINES,
@@ -676,17 +680,37 @@ export {
 					// Deterministic verb: run the declared capability and print its
 					// envelope. This never calls the model (that is only case
 					// "message" → runTurn); a `/slash` is a local action.
-					const descriptor = capabilityRegistry.get(command.name);
-					if (!descriptor) {
+					const entry = capabilityRegistry.get(command.name);
+					if (!entry) {
 						rl.prompt();
 						break;
 					}
 					rl.pause();
 					void (async () => {
 						try {
-							const input = parseCapabilityArgv(descriptor, command.argv);
+							// A group resolves `/verb <sub> …args` to a child + its input;
+							// a flat verb parses its own argv. Both end in child.run().
+							let descriptor;
+							let input;
+							let hookName = command.name;
+							if (isCapabilityGroup(entry)) {
+								const resolved = resolveGroupAction(entry, command.argv);
+								if (!resolved) {
+									console.log(`Usage: /${entry.name} <action>`);
+									console.log();
+									rl.resume();
+									rl.prompt();
+									return;
+								}
+								descriptor = resolved.action;
+								input = resolved.input;
+								hookName = `${entry.name} ${resolved.key}`;
+							} else {
+								descriptor = entry;
+								input = parseCapabilityArgv(entry, command.argv);
+							}
 							const envelope = await descriptor.run(input);
-							const hooks = capabilityHooksFor(command.name);
+							const hooks = capabilityHooksFor(hookName);
 							console.log(
 								hooks.renderText
 									? hooks.renderText(envelope)

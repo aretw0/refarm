@@ -1,6 +1,7 @@
 import {
 	type CapabilityDescriptor,
 	type CapabilityEnvelope,
+	type CapabilityGroup,
 	type CapabilityInput,
 } from "@refarm.dev/cli/capabilities";
 import { printJson } from "@refarm.dev/cli/json-output";
@@ -86,6 +87,70 @@ export function toCommanderCommand(
 		if (code !== 0) process.exitCode = code;
 		void command;
 	});
+
+	return command;
+}
+
+/**
+ * Build the commander Command for a verb-group: the parent command, each
+ * sub-action mounted as a subcommand via {@link toCommanderCommand}, and the
+ * group-default wired so a bare `<group>` (with or without args) runs the
+ * default action. This is the CLI projector for a CapabilityGroup — the SAME
+ * group declaration drives the REPL dispatcher and a future API/web projector.
+ *
+ * `hooksFor` supplies per-sub-action surface hooks (render/exit), so exit intent
+ * stays a surface concern per child, never inside run().
+ */
+export function toCommanderGroup(
+	group: CapabilityGroup,
+	hooksFor: (subVerb: string) => CapabilitySurfaceHooks = () => ({}),
+): Command {
+	const command = new Command(group.name).description(group.summary);
+
+	for (const [subVerb, child] of Object.entries(group.actions)) {
+		command.addCommand(toCommanderCommand(child, hooksFor(subVerb)));
+	}
+
+	// Group-default: `<group>` with no sub-verb runs the default action. Its own
+	// commander subcommand still handles the explicit `<group> <default>` form;
+	// this only covers the bare invocation.
+	if (group.defaultAction) {
+		const child = group.actions[group.defaultAction];
+		if (child) {
+			for (const arg of child.args ?? []) {
+				const token = arg.variadic
+					? `${arg.required ? "<" : "["}${arg.name}...${arg.required ? ">" : "]"}`
+					: `${arg.required ? "<" : "["}${arg.name}${arg.required ? ">" : "]"}`;
+				command.argument(token);
+			}
+			command.option("--json", "Output machine-readable result");
+			command.action(async (...actionArgs: unknown[]) => {
+				const cmd = actionArgs[actionArgs.length - 1] as Command;
+				const options = actionArgs[actionArgs.length - 2] as Record<
+					string,
+					unknown
+				>;
+				const positionals = actionArgs.slice(0, actionArgs.length - 2);
+				const input = buildCapabilityInput(child, positionals, options);
+				const envelope = await child.run(input);
+				const hooks = hooksFor(group.defaultAction!);
+				if (input.json) {
+					printJson(envelope);
+				} else if (hooks.renderText) {
+					console.log(hooks.renderText(envelope));
+				} else {
+					printJson(envelope);
+				}
+				const code = hooks.exitCode
+					? hooks.exitCode(envelope)
+					: envelope.ok === false
+						? 1
+						: 0;
+				if (code !== 0) process.exitCode = code;
+				void cmd;
+			});
+		}
+	}
 
 	return command;
 }
