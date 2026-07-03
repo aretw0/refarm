@@ -343,6 +343,11 @@ export type {
 	ProjectAutomationValidationIssue,
 } from "./project-automations.js";
 export {
+	DEFAULT_SCHEDULED_WORK_OWNER,
+	runDueScheduledWork,
+} from "./scheduled-work-runner.js";
+export type { RunDueScheduledWorkOptions } from "./scheduled-work-runner.js";
+export {
 	buildCapabilityIndex,
 	buildReferenceDriverSupplyPreflight,
 	buildReferenceDriverSupplyMap,
