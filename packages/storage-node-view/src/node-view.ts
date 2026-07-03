@@ -45,6 +45,11 @@ export class NodeView {
 		const records = await this.provider.query({ type });
 		return records.map(recordToNode);
 	}
+
+	/** Remove a node by its @id. */
+	async deleteNode(id: string): Promise<void> {
+		await this.provider.delete(id);
+	}
 }
 
 /** Wrap a StorageProvider in a node-graph face. */

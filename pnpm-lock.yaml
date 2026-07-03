@@ -457,6 +457,12 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/storage-fs':
+        specifier: workspace:*
+        version: link:../storage-fs
+      '@refarm.dev/storage-node-view':
+        specifier: workspace:*
+        version: link:../storage-node-view
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
