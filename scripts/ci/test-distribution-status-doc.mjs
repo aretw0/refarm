@@ -91,6 +91,14 @@ const vaultSeedSiloBridgeSpec = readFileSync(
 	path.join(ROOT, "specs/features/2026-06-26-vault-seed-silo-bridge.md"),
 	"utf8",
 );
+const localSurfaceSpec = readFileSync(
+	path.join(ROOT, "specs/features/2026-07-03-local-surface-v1.md"),
+	"utf8",
+);
+const packagesReadme = readFileSync(
+	path.join(ROOT, "packages/README.md"),
+	"utf8",
+);
 
 function escapeRegExp(value) {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -258,7 +266,11 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(channelPolicyBridgeSpec, /official 2026-07-03\s+  downstream proof confirms the neutral envelope is emitted/);
 	assert.match(factoryReadinessDoc, /8b channel policy .* \| \*\*downstream-proven package slice\*\*/);
 	assert.match(factoryReadinessDoc, /8c `process-handoff` \+ artifact provenance \| \*\*downstream-proven bridge slice\*\*/);
-	assert.match(vaultSeedSiloBridgeSpec, /consumer findings fed the API; product adapter implementation remains downstream/);
+	assert.match(releaseGateDoc, /Official `vault-seed` proof confirms `silo\.js` now delegates publishing credentials to `SiloCore\.saveSecret/);
+	assert.match(releaseGateDoc, /`@refarm\.dev\/local-surface` .* downstream-proven candidate; selection waits for the next `vault-seed-ready` release-lane refresh/);
+	assert.match(localSurfaceSpec, /Downstream proof received \(2026-07-03\): the official `vault-seed` checkout consumed a packed candidate tarball/);
+	assert.match(packagesReadme, /`@refarm\.dev\/local-surface`.*downstream-proven candidate; next selection refresh/);
+	assert.match(vaultSeedSiloBridgeSpec, /IMPLEMENTED - downstream adapter proof received; public publish waits on the release lane/);
 	assert.match(factoryReadinessDoc, /product adoption of the Silo-backed credential bridge remains downstream/);
 	assert.match(artifactLabEvidencePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits a\s+validated `refarm\.task-artifacts\.v1` manifest/);
 	assert.doesNotMatch(factoryReadinessDoc, /downstream adoption proof remains consumer-side/);

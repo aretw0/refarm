@@ -53,8 +53,7 @@ app shell.
 
 5. **Given** the `vault-seed-ready` handoff selection
    **When** release readiness is checked
-   **Then** `@refarm.dev/local-surface` is not selected until a downstream proof
-   asks for it.
+   **Then** `@refarm.dev/local-surface` stays out of the current selection until the downstream proof is folded into a release-lane refresh.
 
 ---
 
@@ -149,7 +148,9 @@ Primary helpers:
 - [x] Add ADR-081.
 - [x] Add this feature spec.
 - [x] Add docs test.
-- [ ] Add downstream proof before selecting in `vault-seed-ready`.
+- [x] Add downstream proof before selecting in `vault-seed-ready`.
+
+Downstream proof received (2026-07-03): the official `vault-seed` checkout consumed a packed candidate tarball, built a local-first operator manifest, rendered DS HTML, emitted a white-label `dgk` launch plan, and validated the `quality:v1` report while keeping routes, screenshots, provider adapters, and product vocabulary downstream. Selection still waits for the next `vault-seed-ready` release-lane refresh.
 
 ---
 

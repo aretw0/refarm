@@ -42,10 +42,11 @@ test("local-surface ADR and spec record the package boundary", () => {
 	assert.match(adr, /does not:\n\n- start an HTTP server/);
 	assert.match(adr, /replace Homestead/);
 	assert.match(adr, /extend `dispatch-surface` transport\/control semantics/);
-	assert.match(spec, /not in `vault-seed-ready`/);
+	assert.match(spec, /stays out of the current selection until the downstream proof is folded into a release-lane refresh/);
 	assert.match(packageReadme, /does not start a server/);
 	assert.match(capabilities, /não sobe servidor/);
-	assert.match(distribution, /not selected in `vault-seed-ready` yet/);
+	assert.match(distribution, /downstream `vault-seed` candidate proof/);
+	assert.match(distribution, /not\s+selected in `vault-seed-ready` until the release lane is refreshed/);
 });
 
 test("ADR index lists ADR-081 as proposed", () => {
@@ -61,8 +62,8 @@ test("convergence matrix uses local-surface language instead of local-web-shell"
 	assert.doesNotMatch(convergence, /local web shell/);
 });
 
-test("local-surface remains outside vault-seed-ready until downstream proof exists", () => {
+test("local-surface remains outside vault-seed-ready until the selection refresh", () => {
 	assert.equal(vaultSeedReadyPackages().includes("@refarm.dev/local-surface"), false);
 	assert.match(packageRegistry, /@refarm\.dev\/local-surface/);
-	assert.match(packageRegistry, /candidate; not selected/);
+	assert.match(packageRegistry, /downstream-proven candidate; next selection refresh/);
 });

@@ -74,17 +74,16 @@ acyclic `silo → prompt-contract-v1`; `pnpm -C packages/silo run lint && type-c
 These are not broad bridge projects. They exist to stop `vault-seed` from maintaining local
 versions of Refarm-shaped blocks.
 
-- **8a after item 4c:** write the focused bridge spec for `vault-seed` `silo.js` ->
-  `@refarm.dev/silo`; prove namespaces remain `model`, `runtime`, `channel`, and `publishing`.
+- **8a downstream-proven:** `vault-seed` `silo.js` now delegates publishing credentials to `@refarm.dev/silo`; namespaces remain `model`, `runtime`, `channel`, and `publishing`, with `dgk sow` UX and contacts topology downstream.
 - **8c active:** `@refarm.dev/process-handoff` now has a Refarm-side proof that runner
   process specs validate as `@refarm.dev/artifact-contract-v1` provenance. The
   `@refarm.dev/cli/process-handoff` subpath remains a compatibility re-export. The
-  official downstream proof still needs `@aretw0/dgk-runner` or `dgk-cli` to import the
-  SDK internally, preserve the exported runner/command UX, and emit manifests without
-  importing `dgk` vocabulary into Refarm.
+  official downstream proof now has `@aretw0/dgk-runner` and `dgk-cli` importing the
+  SDK internally while preserving the exported runner/command UX and avoiding `dgk`
+  vocabulary in Refarm.
 - **8b active:** use `@refarm.dev/channel-policy-v1` as the focused Refarm-side package slice.
   Its tests carry both the `vault-seed` Telegram fixture and Refarm channel-control fixture. The
-  official downstream proof still needs Telegram outbox/inbox to emit the neutral envelope while
+  official downstream proof now has Telegram outbox emitting the neutral envelope while
   keeping API calls, Markdown formatting, note filenames, and `dgk` UX downstream.
 
 **Gate:** each activated bridge has its own spec, package/API decision, consumer proof, fallback,

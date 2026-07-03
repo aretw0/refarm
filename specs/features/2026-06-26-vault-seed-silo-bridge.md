@@ -1,6 +1,6 @@
 # Spec: Vault-Seed Silo Bridge (Roadmap Item 8a)
 
-**Status:** DRAFT - Refarm-side package proof complete; `vault-seed` consumer findings fed the API; product adapter implementation remains downstream
+**Status:** IMPLEMENTED - downstream adapter proof received; public publish waits on the release lane
 **Authors:** Arthur Silva
 **Date:** 2026-06-26
 **Related:** `specs/features/2026-06-25-silo-collection-contract.md`,
