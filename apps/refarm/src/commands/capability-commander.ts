@@ -14,8 +14,12 @@ import { Command } from "commander";
  * the REPL's exit state.
  */
 export interface CapabilitySurfaceHooks {
-	/** Render a human line from the envelope for non-JSON CLI output. */
-	renderText?(envelope: CapabilityEnvelope): string;
+	/**
+	 * Render a human line from the envelope for non-JSON CLI output. Receives the
+	 * resolved {@link CapabilityInput} too, so a hook can branch on an input flag
+	 * that shapes presentation but not the envelope (e.g. `model env --shell`).
+	 */
+	renderText?(envelope: CapabilityEnvelope, input?: CapabilityInput): string;
 	/** Map an envelope to process.exitCode (default: 1 when ok === false). */
 	exitCode?(envelope: CapabilityEnvelope): number;
 }
@@ -59,13 +63,13 @@ export function toCommanderCommand(
 	command.option("--json", "Output machine-readable result");
 
 	command.action(async (...actionArgs: unknown[]) => {
-		// commander passes (arg1, arg2, ..., options, command). The options object
-		// is second-to-last; positionals precede it in declared order.
+		// commander passes (arg1, arg2, ..., options, command). The last arg is the
+		// invoked Command; positionals precede the options object. We read options
+		// via optsWithGlobals() so a flag like `--json` resolves whether commander
+		// bound it to this subcommand or to the parent group scope (as it does for
+		// `model providers --json`, where `--json` lands on the `model` group).
 		const command = actionArgs[actionArgs.length - 1] as Command;
-		const options = actionArgs[actionArgs.length - 2] as Record<
-			string,
-			unknown
-		>;
+		const options = command.optsWithGlobals();
 		const positionals = actionArgs.slice(0, actionArgs.length - 2);
 
 		const input = buildCapabilityInput(descriptor, positionals, options);
@@ -74,7 +78,7 @@ export function toCommanderCommand(
 		if (input.json) {
 			printJson(envelope);
 		} else if (hooks.renderText) {
-			console.log(hooks.renderText(envelope));
+			console.log(hooks.renderText(envelope, input));
 		} else {
 			printJson(envelope);
 		}
@@ -126,10 +130,7 @@ export function toCommanderGroup(
 			command.option("--json", "Output machine-readable result");
 			command.action(async (...actionArgs: unknown[]) => {
 				const cmd = actionArgs[actionArgs.length - 1] as Command;
-				const options = actionArgs[actionArgs.length - 2] as Record<
-					string,
-					unknown
-				>;
+				const options = cmd.optsWithGlobals();
 				const positionals = actionArgs.slice(0, actionArgs.length - 2);
 				const input = buildCapabilityInput(child, positionals, options);
 				const envelope = await child.run(input);
@@ -137,7 +138,7 @@ export function toCommanderGroup(
 				if (input.json) {
 					printJson(envelope);
 				} else if (hooks.renderText) {
-					console.log(hooks.renderText(envelope));
+					console.log(hooks.renderText(envelope, input));
 				} else {
 					printJson(envelope);
 				}

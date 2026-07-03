@@ -139,11 +139,23 @@ than inventing a second interaction model:
 returns an envelope) and does NOT change the group/child structure. It is a
 **projector capability**: interactive projectors (TUI/REPL) read the envelope's
 affordance rows + a child's optional `shortcut` and drive selection; non-
-interactive projectors (CLI/API) render the same rows flat. The affordance/
-selection/interaction-driver contracts already exist, so this is composition,
-not new machinery. A future `thinking`/`effort-level` group is the same pattern:
-a group whose `current`-style action returns level affordances a TUI renders as
-a keybound quick-switcher.
+interactive projectors (CLI/API) render the same rows flat.
+
+**Reuse the ONE menu mechanism the repo already has — do not build a second.**
+`refarm` already runs "declare once, project N surfaces" for menus, just scoped
+to host/status actions today: `createSurfaceActionAffordanceRows` +
+`SurfaceActionReadinessDryRunEnvelope` (which carries `actionRows` + `selection`
++ `renderer`) are projected by three live surface adapters —
+`apps/refarm/src/commands/{tui-actions,web-actions,headless-action}.ts`. A
+selectable sub-action returns an envelope carrying `actionRows:
+SurfaceActionAffordanceRow[]` (that same type, from `@refarm.dev/cli/action-
+affordances` — same package, no new dep), and the SAME projectors/selection
+resolver (`resolveSurfaceActionAffordanceSelection`, pick by id or index) render
+it: TUI = interactive select, CLI/API = flat list/JSON. One menu contract in
+refarm, not two. So a `/model` that offers a provider choice returns provider
+affordance rows; the TUI projector turns them into a keybound quick-switcher, the
+CLI prints them and the caller re-invokes `set <id>`. A future
+`thinking`/`effort-level` group is the identical pattern.
 
 ## Registry
 

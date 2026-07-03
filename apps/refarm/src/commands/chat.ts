@@ -713,7 +713,7 @@ export {
 							const hooks = capabilityHooksFor(hookName);
 							console.log(
 								hooks.renderText
-									? hooks.renderText(envelope)
+									? hooks.renderText(envelope, input)
 									: JSON.stringify(envelope, null, 2),
 							);
 						} catch (error) {

@@ -13,7 +13,11 @@ import { extensionCommand } from "./commands/extension.js";
 import { guideCommand } from "./commands/guide.js";
 import { headlessCommand } from "./commands/headless.js";
 import { healthCommand } from "./commands/health.js";
-import { modelCommand } from "./commands/model.js";
+import { toCommanderGroup } from "./commands/capability-commander.js";
+import {
+	createModelCapabilityGroup,
+	modelCapabilityHooks,
+} from "./commands/model-capability.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
 import { pluginCommand } from "./commands/plugin.js";
@@ -217,7 +221,9 @@ program.addCommand(configCommand);
 program.addCommand(configureCommand);
 program.addCommand(healthCommand);
 program.addCommand(releaseCommand);
-program.addCommand(modelCommand);
+program.addCommand(
+	toCommanderGroup(createModelCapabilityGroup(), modelCapabilityHooks),
+);
 program.addCommand(webCommand);
 program.addCommand(workspaceCommand);
 program.addCommand(tuiCommand);

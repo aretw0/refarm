@@ -1,10 +1,14 @@
+import type { CapabilityInput } from "@refarm.dev/cli/capabilities";
 import {
 	isCapabilityGroup,
 	resolveGroupAction,
 } from "@refarm.dev/cli/capabilities";
 import { describe, expect, it, vi } from "vitest";
 
-import { createModelCapabilityGroup } from "./model-capability.js";
+import {
+	createModelCapabilityGroup,
+	modelCapabilityHooks,
+} from "./model-capability.js";
 import type { ModelCommandDeps, ModelTokens } from "./model.js";
 
 function deps(tokens: Partial<ModelTokens> = {}): ModelCommandDeps & {
@@ -89,5 +93,28 @@ describe("model CapabilityGroup (read-only slice)", () => {
 		const envelope = await resolved!.action.run(resolved!.input);
 		expect(envelope.ok).toBe(true);
 		expect((envelope as { operation?: string }).operation).toBe("doctor");
+	});
+
+	// `model env` legacy: hint line unless --shell; the hook reconstructs the
+	// exact shell exports from the envelope's ordered managedKeys + env map.
+	it("`env` renders the hint line without --shell and shell exports with it", async () => {
+		const d = deps({ modelProvider: "ollama", modelId: "llama3.2" });
+		const group = createModelCapabilityGroup(d);
+		const resolved = resolveGroupAction(group, ["env"]);
+		const envelope = await resolved!.action.run(resolved!.input);
+		const hooks = modelCapabilityHooks("env");
+
+		const hint = hooks.renderText!(envelope, {
+			...resolved!.input,
+			options: {},
+		} as CapabilityInput);
+		expect(hint).toBe("Use --shell to print model runtime exports.");
+
+		const shell = hooks.renderText!(envelope, {
+			...resolved!.input,
+			options: { shell: true },
+		} as CapabilityInput);
+		expect(shell).toContain("export MODEL_PROVIDER='ollama'");
+		expect(shell).toContain("export REFARM_MANAGED_MODEL_ENV_KEYS=");
 	});
 });

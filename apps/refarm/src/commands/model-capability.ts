@@ -2,7 +2,9 @@ import type {
 	CapabilityDescriptor,
 	CapabilityGroup,
 } from "@refarm.dev/cli/capabilities";
+import chalk from "chalk";
 
+import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildCurrentModelEnvelope,
 	buildKnownModelProvidersEnvelope,
@@ -12,8 +14,14 @@ import {
 	buildSetFallbackEnvelope,
 	buildSetModelBaseUrlEnvelope,
 	buildSetModelEnvelope,
+	type CurrentModelStatus,
 	defaultModelDeps,
+	formatCurrentModelFromStatus,
+	formatKnownModelProviders,
+	formatModelDoctorFromStatus,
+	formatModelEnvFromEnvelope,
 	type ModelCommandDeps,
+	type ModelDoctorStatus,
 } from "./model.js";
 import { parseModelScope } from "../model-routing.js";
 
@@ -64,6 +72,11 @@ export function createModelCapabilityGroup(
 		name: "env",
 		summary: "Show the current model runtime environment exports",
 		options: [
+			{
+				name: "shell",
+				kind: "boolean",
+				summary: "Output POSIX shell export statements",
+			},
 			{
 				name: "include-secrets",
 				kind: "boolean",
@@ -152,4 +165,83 @@ export function createModelCapabilityGroup(
 		},
 		renderers: { tui: { section: "settings", shortcut: "ctrl+m" } },
 	};
+}
+
+/**
+ * CLI/REPL text rendering per sub-action, formatting the same human output the
+ * legacy modelCommand printed — from the envelope (which carries the status),
+ * reusing the format* functions. Exit intent stays here (surface concern), never
+ * in run(). An error envelope renders its message; the projector sets exitCode.
+ */
+export function modelCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
+	const renderError = (envelope: { message?: string; error?: string }): string =>
+		chalk.red(`✗  ${envelope.message ?? envelope.error ?? "model error"}`);
+
+	switch (subVerb) {
+		case "current":
+			return {
+				renderText: (envelope) =>
+					formatCurrentModelFromStatus(
+						envelope as unknown as CurrentModelStatus,
+					),
+			};
+		case "providers":
+			return { renderText: () => formatKnownModelProviders() };
+		case "env":
+			return {
+				renderText: (envelope, input) =>
+					formatModelEnvFromEnvelope(
+						envelope as unknown as {
+							env?: Record<string, string>;
+							managedKeys?: string[];
+						},
+						{ shell: Boolean(input?.options.shell) },
+					),
+			};
+		case "doctor":
+			return {
+				renderText: (envelope) =>
+					formatModelDoctorFromStatus(
+						envelope as unknown as ModelDoctorStatus,
+					),
+			};
+		case "set":
+		case "fallback":
+		case "reset":
+		case "base-url": {
+			return {
+				renderText: (envelope) => {
+					if (envelope.ok === false) return renderError(envelope);
+					const m = envelope as unknown as {
+						action: string;
+						ref?: string;
+						baseUrl?: string;
+						scope?: string;
+					};
+					switch (m.action) {
+						case "set-route":
+							return chalk.green(
+								`✓  ${m.scope === "default" ? "Default model" : `${m.scope} model`} set: ${m.ref}`,
+							);
+						case "set-fallback":
+							return chalk.green(`✓  Fallback model set: ${m.ref}`);
+						case "disable-fallback":
+							return chalk.green("✓  Fallback model disabled");
+						case "set-base-url":
+							return chalk.green(`✓  Model base URL set: ${m.baseUrl}`);
+						case "disable-base-url":
+							return chalk.green("✓  Model base URL disabled");
+						case "reset-route":
+							return chalk.green(
+								`✓  ${m.scope} model reset to built-in default`,
+							);
+						default:
+							return chalk.green("✓  model updated");
+					}
+				},
+			};
+		}
+		default:
+			return {};
+	}
 }

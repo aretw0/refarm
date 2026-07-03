@@ -343,19 +343,43 @@ export function buildModelEnvEnvelope(
 	});
 }
 
+/** Format the ordered env entries as POSIX shell exports (no I/O). The shell
+ * printer and the capability `env` renderText hook share this one formatter so
+ * `model env --shell` produces byte-identical output on every surface. */
+function formatModelEnvShell(entries: [string, string][]): string {
+	const lines = entries.map(([key, value]) => `export ${key}=${shellQuote(value)}`);
+	if (entries.length > 0) {
+		lines.push(
+			`export ${REFARM_MANAGED_MODEL_ENV_KEYS}=${shellQuote(entries.map(([key]) => key).join(","))}`,
+		);
+	}
+	return lines.join("\n");
+}
+
+/** Render the `model env` text surface from its envelope: the hint line unless
+ * `--shell`, else the shell exports reconstructed from the envelope's ordered
+ * `managedKeys` + `env` map. Matches the legacy `model env` behavior. */
+export function formatModelEnvFromEnvelope(
+	envelope: { env?: Record<string, string>; managedKeys?: string[] },
+	options: { shell?: boolean } = {},
+): string {
+	if (!options.shell) {
+		return "Use --shell to print model runtime exports.";
+	}
+	const env = envelope.env ?? {};
+	const entries: [string, string][] = (envelope.managedKeys ?? []).map((key) => [
+		key,
+		env[key] ?? "",
+	]);
+	return formatModelEnvShell(entries);
+}
+
 function printModelEnvShell(
 	tokens: ModelTokens,
 	options: { includeSecrets?: boolean } = {},
 ): void {
-	const entries = buildModelEnvEntries(tokens, options);
-	for (const [key, value] of entries) {
-		console.log(`export ${key}=${shellQuote(value)}`);
-	}
-	if (entries.length > 0) {
-		console.log(
-			`export ${REFARM_MANAGED_MODEL_ENV_KEYS}=${shellQuote(entries.map(([key]) => key).join(","))}`,
-		);
-	}
+	const text = formatModelEnvShell(buildModelEnvEntries(tokens, options));
+	if (text) console.log(text);
 }
 
 function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
@@ -555,7 +579,14 @@ export async function formatModelDoctor(
 	tokens: ModelTokens,
 	deps: Pick<ModelCommandDeps, "fetch">,
 ): Promise<string> {
-	const status = await buildModelDoctorStatus(tokens, deps);
+	return formatModelDoctorFromStatus(
+		await buildModelDoctorStatus(tokens, deps),
+	);
+}
+
+/** Format `model doctor` text from an already-computed status — so a CLI
+ * renderText hook formats straight from the envelope. */
+export function formatModelDoctorFromStatus(status: ModelDoctorStatus): string {
 	const lines: string[] = [];
 	lines.push(chalk.bold("Model doctor"));
 	lines.push(`  current: ${chalk.cyan(status.current.ref)}`);
@@ -588,7 +619,15 @@ async function printModelDoctor(
 /** Format the `model current` human text as a string (no I/O), so the CLI
  * renderText hook and printCurrentModel share one source of truth. */
 export function formatCurrentModel(tokens: ModelTokens): string {
-	const status = buildCurrentModelStatus(tokens);
+	return formatCurrentModelFromStatus(buildCurrentModelStatus(tokens));
+}
+
+/** Format `model current` text from an already-computed status — so a CLI
+ * renderText hook can format straight from the envelope (which carries the
+ * status) without re-loading tokens. */
+export function formatCurrentModelFromStatus(
+	status: CurrentModelStatus,
+): string {
 	const provider = status.current.provider;
 	const resolvedModel = status.current.modelId;
 	const lines: string[] = [];
