@@ -1,6 +1,10 @@
 # ADR-080: The `vault-seed-ready` Handoff Pipeline as Pre-Publication Release Vehicle
 
 **Status**: Proposed
+**Scope**: This is deliberately **temporary scaffolding** ("puxadinho"), not product surface. It
+exists only so the official `vault-seed` checkout can validate blocks while Refarm is not yet on
+npm/cargo. Investment in it is capped (see Sunset) — no growing test suite, no new packages, no
+long-lived conventions beyond what already shipped.
 **Date**: 2026-07-03
 **Authors**: Claude (from operator-directed audit), pending Arthur Silva review
 **Related**: ADR-069 (npm Scope Canonicalization), ADR-072 (Consumer Leaf Distribution Policy),
@@ -40,26 +44,26 @@ failure classes have already occurred or are structurally open:
 
 ## Decision
 
-**We will treat the handoff pipeline as the governed pre-publication release vehicle, with the
-generated `manifest.json` — never prose — as the packet's source of truth, and close the three
-failure classes:**
+**We will treat the handoff pipeline as interim pre-publication scaffolding, with the generated
+`manifest.json` — never prose — as the packet's source of truth, hardened only enough to not
+mislead its one consumer:**
 
-1. **Manifest is mandatory.** A packet directory without `manifest.json` is not a packet. The
-   handoff script must write the manifest by default (or refuse to pack without one) and stamp
-   `generatedAt` plus the source git SHA. A completeness guard (tarball set == selection set,
-   manifest present) runs in the release readiness lane so a half-packet fails loudly instead of
-   rotting silently.
-2. **Downstream proofs return receipts.** Each `consumerProofs[].proofId` is completed only by a
-   machine-readable receipt recorded by the official consumer checkout and copied back beside the
-   packet (`.refarm/handoff/vault-seed/<date>/receipts/<proofId>.json`), carrying at minimum:
-   `proofId`, consumer repo + commit, packet directory + manifest sha256, commands run, result,
-   and the product boundary confirmation. Docs may narrate; only receipts count as evidence.
-3. **`refarm.config.json` is the consumer-pull canon.** The script's hardcoded map is legacy; new
-   packages declare `consumerPull` in their package profile, and existing entries migrate
-   opportunistically. The script merges but the config wins on conflict.
-4. **Retention.** Manifest-bearing packet directories are the rollback chain and are kept.
-   Manifest-less directories are invalid artifacts: regenerate or delete them (with operator
-   confirmation); they must never be a handoff source.
+1. **Manifest is mandatory (shipped).** A packet directory without `manifest.json` is not a
+   packet. A `--pack`/`--prune-extra` run writes `manifest.json`/`manifest.md` beside the
+   tarballs and stamps `generatedAt` plus the source git SHA (landed 2026-07-03). No further CI
+   guard is added for this lane — the self-describing script is enough for scaffolding.
+2. **Downstream proofs return receipts — as plain files, not machinery.** If official proofs
+   happen while still pre-publication, the consumer checkout drops a plain JSON file per proof
+   beside the packet (`.refarm/handoff/vault-seed/<date>/receipts/<proofId>.json`) with
+   `proofId`, consumer commit, manifest sha256, commands run, and result. No schema package, no
+   validator, no CI — a receipt is memory, not product. If publication happens first, skip this
+   entirely and prove against registry versions.
+3. **Consumer-pull canon stays as-is.** `refarm.config.json` inline `consumerPull` is preferred
+   for *new* entries; the script's existing hardcoded map is not worth a migration effort for a
+   temporary lane.
+4. **Retention.** Manifest-bearing packet directories are the rollback chain and are kept until
+   sunset. Manifest-less directories are invalid artifacts: regenerate or delete them (with
+   operator confirmation); they must never be a handoff source.
 
 ---
 
@@ -112,29 +116,36 @@ optionality) and evidence closure (no receipts). Both are small, testable additi
 
 ---
 
+## Sunset (explicit end-of-life)
+
+The cheapest way to retire this scaffolding is the publish decision itself. On the first official
+npm/cargo publication of the `vault-seed-ready` selection:
+
+1. The handoff lane stops being the release vehicle — consumers pin registry versions and drop
+   `file:./vendor/*.tgz` specs and `pnpm.overrides`.
+2. No new packets are generated; existing manifest-bearing directories remain as frozen
+   historical evidence (they may be archived or deleted at the operator's discretion — they stop
+   being a rollback chain once the registry is the source of truth).
+3. `scripts/vault-seed-ready-handoff.mjs`, its test, and the `release:vault-seed:handoff` alias
+   are candidates for removal; anything still useful (acceptance summary, boundary audit) already
+   lives in release-engine/release-check, not in this script.
+4. This ADR flips to **Superseded** by whatever ADR records the public distribution contract —
+   done "the least improvised way possible", designed then, not inherited from this stopgap.
+
+Until then, the investment cap holds: bug fixes yes; new conventions, suites, or packages around
+the handoff lane, no.
+
 ## Implementation
 
-**Affected components:**
+**Already landed (2026-07-03):** manifest-by-default + `generatedAt`/git-SHA stamps with unit
+tests (`scripts/vault-seed-ready-handoff.mjs`); boundary audit in the first-publish workflow;
+held baselines decoupled from the lane's changesets.
 
-- `scripts/vault-seed-ready-handoff.mjs` — manifest-by-default, `generatedAt` + git SHA stamp,
-  receipt directory awareness.
-- `scripts/ci/` — packet completeness guard wired into `release:readiness:test` (or the
-  first-publish lane).
-- `refarm.config.json` — consumerPull canon migration.
-- `docs/VAULT_SEED_CONVERGENCE.md`, `docs/DEV_CROSS_REPO_CONSUMPTION.md` — point at receipts as
-  the assimilation checklist.
+**Remaining (conditional, capped):**
 
-**Migration path:**
-
-1. Accept this ADR (records the already-shipped pipeline as the release vehicle).
-2. Land the manifest-by-default + stamp change with its unit test.
-3. Land the completeness guard.
-4. Define the receipt JSON shape next to the manifest schema; first receipts come from the next
-   downstream tranche (quality:v1 pull, silo 8a bridge).
-5. Migrate `VAULT_SEED_CONSUMER_PULLS` entries into package profiles opportunistically.
-
-**Timeline**: guards before the next packet generation; receipts with the next official
-downstream proof.
+1. Accept this ADR (records the stopgap and its sunset).
+2. Receipts as plain JSON files only if downstream tranches run before publication.
+3. Everything else waits for the publish decision — the preferred resolution.
 
 ---
 
