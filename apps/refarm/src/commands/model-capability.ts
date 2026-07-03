@@ -1,9 +1,11 @@
 import type {
 	CapabilityDescriptor,
 	CapabilityGroup,
+	CapabilityGroupResolution,
 } from "@refarm.dev/cli/capabilities";
 import chalk from "chalk";
 
+import { parseModelScope } from "../model-routing.js";
 import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildCurrentModelEnvelope,
@@ -23,7 +25,70 @@ import {
 	type ModelCommandDeps,
 	type ModelDoctorStatus,
 } from "./model.js";
-import { parseModelScope } from "../model-routing.js";
+
+/**
+ * The rich `model` token grammar, as a pure token→resolution mapping the group's
+ * surface-neutral `resolve` exposes. It reproduces exactly what the legacy
+ * `parseModelCommand` accepted, so the slash form keeps its ergonomics after the
+ * group migration (and any future surface handing raw tokens gets it for free):
+ *   /model                     → current
+ *   /model providers           → providers
+ *   /model set [--scope s] ref → set
+ *   /model fallback ref        → fallback
+ *   /model reset [s]|--scope s → reset (default scope rejected → set fallthrough)
+ *   /model base-url url        → base-url
+ *   /model <scope> ref         → set --scope <scope> ref   (scope-first sugar)
+ *   /model <ref>               → set default <ref>          (bare-ref sugar)
+ * Returns null for the known sub-verbs the generic dispatcher already handles
+ * (env, doctor) and for the explicit-sub forms above once matched by key, so
+ * `resolveGroupAction` parses the child's own flags. Pure; unit-testable.
+ */
+export function resolveModelGrammar(
+	tokens: string[],
+): CapabilityGroupResolution | null {
+	const clean = tokens.filter(Boolean);
+	const [firstRaw, ...rest] = clean;
+	const first = firstRaw?.toLowerCase();
+
+	// Bare `/model` reads the current route.
+	if (!first) return { key: "current", tokens: [] };
+
+	// `reset` accepts a BARE positional scope (`/model reset worker`) as well as
+	// `--scope worker`; its descriptor only declares a `--scope` option, so a bare
+	// scope token would be dropped. Normalize a leading bare scope to `--scope`.
+	if (first === "reset") {
+		const [maybeScope, ...tail] = rest.filter(Boolean);
+		if (maybeScope && maybeScope !== "--scope" && parseModelScope(maybeScope)) {
+			return { key: "reset", tokens: ["--scope", maybeScope, ...tail] };
+		}
+		return { key: "reset", tokens: rest };
+	}
+
+	// Other explicit sub-verbs pass straight through with their remaining tokens,
+	// so the child's own arg/option specs parse them (e.g. `set --scope worker ref`).
+	if (
+		first === "current" ||
+		first === "providers" ||
+		first === "set" ||
+		first === "fallback" ||
+		first === "base-url" ||
+		first === "env" ||
+		first === "doctor"
+	) {
+		return { key: first, tokens: rest };
+	}
+
+	// Scope-first sugar: `/model worker <ref>` → `set --scope worker <ref>`.
+	const directScope = parseModelScope(first);
+	if (directScope) {
+		const ref = rest.join(" ").trim();
+		if (!ref) return null; // no ref → let the generic default show current
+		return { key: "set", tokens: ["--scope", directScope, ref] };
+	}
+
+	// Bare-ref sugar: `/model openai/gpt-5` → `set default openai/gpt-5`.
+	return { key: "set", tokens: [clean.join(" ").trim()] };
+}
 
 /**
  * The `model` command as a multi-surface CapabilityGroup. Declared ONCE; the CLI
@@ -158,6 +223,10 @@ export function createModelCapabilityGroup(
 		},
 		// Bare `model` / `/model` reads the current route (read-only default).
 		defaultAction: "current",
+		// The `model` grammar is richer than sub-verb dispatch (bare-ref and
+		// scope-first sugar). It lives on the group, not a transport, so every
+		// surface handing raw tokens (REPL now, CLI/HTTP/TUI later) resolves alike.
+		resolve: resolveModelGrammar,
 		transports: {
 			cli: {},
 			repl: { slashAliases: ["provider"] },

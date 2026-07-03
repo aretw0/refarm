@@ -12,6 +12,8 @@ export {
 	type CapabilityEntry,
 	type CapabilityEnvelope,
 	type CapabilityGroup,
+	type CapabilityGroupResolution,
+	type CapabilityGroupResolver,
 	type CapabilityHttpTransport,
 	type CapabilityInput,
 	type CapabilityOptionKind,

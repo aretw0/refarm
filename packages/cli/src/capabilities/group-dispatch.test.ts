@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildJsonSuccessEnvelope } from "../json-output.js";
 import type { SurfaceActionAffordanceRow } from "../action-affordances.js";
+import { buildJsonSuccessEnvelope } from "../json-output.js";
 import { resolveGroupAction } from "./group-dispatch.js";
 import { CapabilityRegistry } from "./registry.js";
-import { isCapabilityGroup } from "./types.js";
 import type { CapabilityDescriptor, CapabilityGroup } from "./types.js";
+import { isCapabilityGroup } from "./types.js";
 
 /**
  * A tiny 2-action fixture group proving the CapabilityGroup dispatch + that a
@@ -88,6 +88,59 @@ describe("CapabilityGroup dispatch", () => {
 			actionRows: SurfaceActionAffordanceRow[];
 		};
 		expect(envelope.actionRows.map((r) => r.id)).toEqual(["a", "b"]);
+	});
+});
+
+describe("CapabilityGroup custom token grammar (group.resolve)", () => {
+	// A group whose form is richer than sub-verb dispatch declares `resolve`. It's
+	// surface-neutral — the same grammar runs for a slash, an argv, or a path.
+	function withResolver(): CapabilityGroup {
+		const base = fixtureGroup();
+		return {
+			...base,
+			actions: {
+				...base.actions,
+				// A sub-action with a positional so the grammar can route a bare token.
+				pick: {
+					name: "pick",
+					summary: "pick one",
+					args: [{ name: "which", required: true }],
+					run: () =>
+						buildJsonSuccessEnvelope({ command: "demo", operation: "pick" }),
+				},
+			},
+			// Bare unknown token → the `pick` action (a shape the generic dispatcher
+			// can't express: its default-with-args only reaches `defaultAction`).
+			resolve: (tokens) => {
+				if (tokens.length === 1 && tokens[0] === "special") {
+					return { key: "pick", tokens: ["chosen"] };
+				}
+				return null; // defer to the generic rules
+			},
+		};
+	}
+
+	it("the resolver takes precedence and maps tokens → {key, tokens}", () => {
+		const resolved = resolveGroupAction(withResolver(), ["special"]);
+		expect(resolved?.key).toBe("pick");
+		expect(resolved?.input.args.which).toBe("chosen");
+	});
+
+	it("a null resolution falls back to the generic dispatch", () => {
+		// "list" is a real sub-verb; the resolver returns null for it, so the
+		// generic explicit-sub-action rule resolves it.
+		const resolved = resolveGroupAction(withResolver(), ["list"]);
+		expect(resolved?.key).toBe("list");
+	});
+
+	it("a resolution naming no real action is ignored (falls back)", () => {
+		const bad: CapabilityGroup = {
+			...fixtureGroup(),
+			resolve: () => ({ key: "does-not-exist", tokens: [] }),
+		};
+		// Falls through to the default action rather than dispatching nowhere.
+		const resolved = resolveGroupAction(bad, []);
+		expect(resolved?.key).toBe("current");
 	});
 });
 

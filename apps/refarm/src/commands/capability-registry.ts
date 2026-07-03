@@ -1,6 +1,7 @@
 import {
 	CapabilityRegistry,
 	type CapabilityDescriptor,
+	type CapabilityGroup,
 } from "@refarm.dev/cli/capabilities";
 import { RESERVED_SLASH_NAMES } from "@refarm.dev/cli/chat-repl";
 import type { CapabilitySurfaceHooks } from "./capability-commander.js";
@@ -8,6 +9,10 @@ import {
 	extensionReviewCapability,
 	extensionReviewHooks,
 } from "./extension-review-capability.js";
+import {
+	createModelCapabilityGroup,
+	modelCapabilityHooks,
+} from "./model-capability.js";
 
 /**
  * The one registry of tri-surface capabilities for this app. Every declared
@@ -32,7 +37,31 @@ function registerCapability(
 	}
 }
 
+/**
+ * Register a verb-group and its per-sub-action hooks. The REPL dispatcher keys a
+ * group's hooks by the composite `"<group> <sub>"` name (see chat.ts case
+ * "capability"), so we index every sub-action under that key for the group's own
+ * verb AND each slash alias. This lets `/model set …` and `/provider set …`
+ * resolve the same render/exit hooks the CLI group projector uses.
+ */
+function registerCapabilityGroup(
+	group: CapabilityGroup,
+	hooksFor: (subVerb: string) => CapabilitySurfaceHooks,
+): void {
+	capabilityRegistry.register(group);
+	const verbs = [
+		group.name,
+		...(group.transports?.repl?.slashAliases ?? []),
+	].map((name) => name.toLowerCase());
+	for (const verb of verbs) {
+		for (const subVerb of Object.keys(group.actions)) {
+			capabilityHooks.set(`${verb} ${subVerb.toLowerCase()}`, hooksFor(subVerb));
+		}
+	}
+}
+
 registerCapability(extensionReviewCapability, extensionReviewHooks);
+registerCapabilityGroup(createModelCapabilityGroup(), modelCapabilityHooks);
 
 export function capabilityHooksFor(name: string): CapabilitySurfaceHooks {
 	return capabilityHooks.get(name.toLowerCase()) ?? {};

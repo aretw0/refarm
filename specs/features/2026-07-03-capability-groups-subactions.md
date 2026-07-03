@@ -68,6 +68,20 @@ export interface CapabilityGroup {
    * convention (a bare group should never mutate). e.g. "current".
    */
   defaultAction?: string;
+  /**
+   * Optional custom token grammar, for a group whose form is richer than sub-
+   * verb dispatch. `(tokens) => {key, tokens} | null`. e.g. `model` maps
+   * `<ref>` → `set default <ref>` and `worker <ref>` → `set worker <ref>` —
+   * shapes the generic dispatcher cannot express (its default-with-args only
+   * reaches the default action's positionals). SURFACE-NEUTRAL: it lives on the
+   * group, not on a transport, so every surface that hands over a raw token list
+   * (a slash today; an argv, an HTTP path, a TUI command bar tomorrow) resolves
+   * it the same way. `resolveGroupAction` consults it first; a null return or a
+   * resolution naming no real action falls back to the generic rules. Reusable
+   * across rich verbs (a future `thinking`/`effort`/`session`) with no verb-
+   * specific branches in the dispatcher.
+   */
+  resolve?: CapabilityGroupResolver;
   /** Group-level surface hints; children inherit unless they override. */
   transports?: CapabilityTransports;
   renderers?: CapabilityRenderers;
@@ -86,11 +100,16 @@ without a flat verb accidentally growing children.
   for each `[key, child]` adds `toCommanderCommand(child)` under it, and wires the
   group-default (bare invocation → run `actions[defaultAction]`). This replaces
   the hand-rolled `createModelCommand` tree.
-- **REPL (/slash):** `/model <sub> …args` → look up `group.actions[sub]` (or
-  `defaultAction` when `<sub>` is absent), then the SAME `parseCapabilityArgv`
-  on the child + `child.run(input)`. This deletes the hardcoded
-  `{kind:"model",action:…}` union in chat-repl.ts (lines 18–35) and its
-  per-action `if` ladder — the divergence source.
+- **REPL (/slash):** `/model <tokens>` → `resolveGroupAction(group, tokens)` →
+  `child.run(input)`. Resolution consults the group's own `resolve` grammar
+  first (so `/model openai/gpt-5` → `set default …` and `/model worker <ref>` →
+  `set worker <ref>` keep working), then falls back to explicit-sub /
+  default-with-args. This **deleted** the hardcoded `{kind:"model",action:…}`
+  union in chat-repl.ts and the whole `parseModelCommand` if-ladder — the
+  divergence source. `parseChatLine` now only splits tokens and tags the verb;
+  `model`/`provider` route to `{kind:"capability"}` and the grammar lives once,
+  on the group. `/providers` and `/models` stay top-level shortcuts routing to
+  `model providers`.
 - **API (http, future):** `POST /model/<sub>` → `actions[sub].run(input)` → the
   JSON envelope IS the response. Nearly free, because run() already returns JSON.
 - **Web/TUI/VR (future):** the group is a menu section; each child a

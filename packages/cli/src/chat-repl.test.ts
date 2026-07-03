@@ -70,125 +70,81 @@ describe("parseChatLine", () => {
 		});
 	});
 
-	it("parses /model as current model", () => {
-		expect(parseChatLine("/model")).toEqual({
-			kind: "model",
-			action: "current",
-		});
-		expect(parseChatLine("/model current")).toEqual({
-			kind: "model",
-			action: "current",
-		});
-	});
+	// `/model` (and its `/provider` alias) now route to the model capability
+	// GROUP: parseChatLine only splits tokens and tags the verb; the rich model
+	// grammar (bare-ref → set, scope-first, --scope, reset, fallback, base-url)
+	// lives in the group's surface-neutral `resolve` and is tested against
+	// resolveModelGrammar in apps/refarm. Here we pin only the routing: the raw
+	// argv reaches the capability verbatim, in order, unparsed.
+	const CAPS = new Set(["model", "provider"]);
 
-	it("parses /model providers", () => {
-		expect(parseChatLine("/model providers")).toEqual({
-			kind: "model",
-			action: "providers",
+	it("routes /model to the model capability with raw argv", () => {
+		expect(parseChatLine("/model", CAPS)).toEqual({
+			kind: "capability",
+			name: "model",
+			argv: [],
 		});
-	});
-
-	it("parses /model provider/model as a default route change", () => {
-		expect(parseChatLine("/model openai/gpt-5.5")).toEqual({
-			kind: "model",
-			action: "set",
-			scope: "default",
-			ref: "openai/gpt-5.5",
+		expect(parseChatLine("/model current", CAPS)).toEqual({
+			kind: "capability",
+			name: "model",
+			argv: ["current"],
 		});
-	});
-
-	it("parses /provider as a model route alias", () => {
-		expect(parseChatLine("/provider")).toEqual({
-			kind: "model",
-			action: "current",
-		});
-		expect(parseChatLine("/provider providers")).toEqual({
-			kind: "model",
-			action: "providers",
-		});
-		expect(parseChatLine("/provider openai/gpt-5.5")).toEqual({
-			kind: "model",
-			action: "set",
-			scope: "default",
-			ref: "openai/gpt-5.5",
+		expect(parseChatLine("/model openai/gpt-5.5", CAPS)).toEqual({
+			kind: "capability",
+			name: "model",
+			argv: ["openai/gpt-5.5"],
 		});
 		expect(
-			parseChatLine("/provider worker openai/gpt-5.3-codex-spark"),
+			parseChatLine("/model worker openai/gpt-5.3-codex-spark", CAPS),
 		).toEqual({
-			kind: "model",
-			action: "set",
-			scope: "worker",
-			ref: "openai/gpt-5.3-codex-spark",
+			kind: "capability",
+			name: "model",
+			argv: ["worker", "openai/gpt-5.3-codex-spark"],
+		});
+		expect(
+			parseChatLine("/model set --scope monitor openai/gpt-5.5", CAPS),
+		).toEqual({
+			kind: "capability",
+			name: "model",
+			argv: ["set", "--scope", "monitor", "openai/gpt-5.5"],
 		});
 	});
 
-	it("parses scoped /model route changes", () => {
-		expect(parseChatLine("/model worker openai/gpt-5.3-codex-spark")).toEqual({
-			kind: "model",
-			action: "set",
-			scope: "worker",
-			ref: "openai/gpt-5.3-codex-spark",
+	it("routes the /provider alias to the model capability", () => {
+		expect(parseChatLine("/provider", CAPS)).toEqual({
+			kind: "capability",
+			name: "provider",
+			argv: [],
 		});
-		expect(parseChatLine("/model Worker openai/gpt-5.3-codex-spark")).toEqual({
-			kind: "model",
-			action: "set",
-			scope: "worker",
-			ref: "openai/gpt-5.3-codex-spark",
-		});
-		expect(parseChatLine("/model set --scope monitor openai/gpt-5.5")).toEqual({
-			kind: "model",
-			action: "set",
-			scope: "monitor",
-			ref: "openai/gpt-5.5",
-		});
-		expect(parseChatLine("/model set --scope Monitor openai/gpt-5.5")).toEqual({
-			kind: "model",
-			action: "set",
-			scope: "monitor",
-			ref: "openai/gpt-5.5",
+		expect(parseChatLine("/provider openai/gpt-5.5", CAPS)).toEqual({
+			kind: "capability",
+			name: "provider",
+			argv: ["openai/gpt-5.5"],
 		});
 	});
 
-	it("parses fallback /model route changes", () => {
-		expect(parseChatLine("/model fallback ollama/qwen2.5-coder")).toEqual({
-			kind: "model",
-			action: "fallback",
-			ref: "ollama/qwen2.5-coder",
+	// `/providers` and `/models` remain top-level shortcuts for the providers
+	// sub-action, resolved before the capability check (so they work with or
+	// without the capability set registered).
+	it("routes /providers and /models to model providers", () => {
+		expect(parseChatLine("/providers")).toEqual({
+			kind: "capability",
+			name: "model",
+			argv: ["providers"],
 		});
-		expect(parseChatLine("/model fallback off")).toEqual({
-			kind: "model",
-			action: "fallback",
-			ref: "off",
+		expect(parseChatLine("/models")).toEqual({
+			kind: "capability",
+			name: "model",
+			argv: ["providers"],
 		});
 	});
 
-	it("parses scoped /model route resets", () => {
-		expect(parseChatLine("/model reset worker")).toEqual({
-			kind: "model",
-			action: "reset",
-			scope: "worker",
-		});
-		expect(parseChatLine("/model reset --scope monitor")).toEqual({
-			kind: "model",
-			action: "reset",
-			scope: "monitor",
-		});
-		expect(parseChatLine("/model reset default")).toEqual({
+	it("falls through to a message when the capability is not registered", () => {
+		// Without the model capability in the set, an unknown /model is just text —
+		// the built-in model branch no longer intercepts it.
+		expect(parseChatLine("/model openai/gpt-5.5")).toEqual({
 			kind: "message",
-			text: "/model reset default",
-		});
-	});
-
-	it("parses base URL /model changes", () => {
-		expect(parseChatLine("/model base-url http://127.0.0.1:8000")).toEqual({
-			kind: "model",
-			action: "base-url",
-			url: "http://127.0.0.1:8000",
-		});
-		expect(parseChatLine("/model base-url off")).toEqual({
-			kind: "model",
-			action: "base-url",
-			url: "off",
+			text: "/model openai/gpt-5.5",
 		});
 	});
 
@@ -215,13 +171,17 @@ describe("parseChatLine", () => {
 			kind: "session",
 			prefix: "daily driver",
 		});
+		// The quote is stripped by the token splitter; the capability argv keeps the
+		// unquoted value as one token (the model group parses it downstream).
 		expect(
-			parseChatLine("/model set --scope worker 'openai/gpt-5.3-codex-spark'"),
+			parseChatLine(
+				"/model set --scope worker 'openai/gpt-5.3-codex-spark'",
+				new Set(["model"]),
+			),
 		).toEqual({
-			kind: "model",
-			action: "set",
-			scope: "worker",
-			ref: "openai/gpt-5.3-codex-spark",
+			kind: "capability",
+			name: "model",
+			argv: ["set", "--scope", "worker", "openai/gpt-5.3-codex-spark"],
 		});
 	});
 
@@ -311,20 +271,6 @@ describe("parseChatLine", () => {
 
 	it("parses /s as status", () => {
 		expect(parseChatLine("/s")).toEqual({ kind: "status" });
-	});
-
-	it("parses /providers as provider listing", () => {
-		expect(parseChatLine("/providers")).toEqual({
-			kind: "model",
-			action: "providers",
-		});
-	});
-
-	it("parses /models as provider listing", () => {
-		expect(parseChatLine("/models")).toEqual({
-			kind: "model",
-			action: "providers",
-		});
 	});
 
 	it("parses /session with prefix", () => {

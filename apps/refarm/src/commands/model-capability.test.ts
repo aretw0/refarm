@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	createModelCapabilityGroup,
 	modelCapabilityHooks,
+	resolveModelGrammar,
 } from "./model-capability.js";
 import type { ModelCommandDeps, ModelTokens } from "./model.js";
 
@@ -93,6 +94,107 @@ describe("model CapabilityGroup (read-only slice)", () => {
 		const envelope = await resolved!.action.run(resolved!.input);
 		expect(envelope.ok).toBe(true);
 		expect((envelope as { operation?: string }).operation).toBe("doctor");
+	});
+
+	// The rich model grammar moved from parseChatLine (packages/cli) to the
+	// group's surface-neutral `resolve` here. Pin the token→resolution mapping
+	// (what the legacy parseModelCommand accepted) so the slash form's ergonomics
+	// survive the migration on every surface that hands over raw tokens.
+	describe("resolveModelGrammar (the group's token grammar)", () => {
+		it("bare tokens read current", () => {
+			expect(resolveModelGrammar([])).toEqual({ key: "current", tokens: [] });
+			expect(resolveModelGrammar(["current"])).toEqual({
+				key: "current",
+				tokens: [],
+			});
+		});
+
+		it("providers passes through", () => {
+			expect(resolveModelGrammar(["providers"])).toEqual({
+				key: "providers",
+				tokens: [],
+			});
+		});
+
+		it("bare-ref sugar → set default <ref>", () => {
+			expect(resolveModelGrammar(["openai/gpt-5.5"])).toEqual({
+				key: "set",
+				tokens: ["openai/gpt-5.5"],
+			});
+		});
+
+		it("scope-first sugar → set --scope <scope> <ref>", () => {
+			expect(
+				resolveModelGrammar(["worker", "openai/gpt-5.3-codex-spark"]),
+			).toEqual({
+				key: "set",
+				tokens: ["--scope", "worker", "openai/gpt-5.3-codex-spark"],
+			});
+			// Case-insensitive scope, matching the legacy parser.
+			expect(resolveModelGrammar(["Worker", "x/y"])).toEqual({
+				key: "set",
+				tokens: ["--scope", "worker", "x/y"],
+			});
+		});
+
+		it("explicit set --scope passes through unchanged", () => {
+			expect(
+				resolveModelGrammar(["set", "--scope", "monitor", "openai/gpt-5.5"]),
+			).toEqual({
+				key: "set",
+				tokens: ["--scope", "monitor", "openai/gpt-5.5"],
+			});
+		});
+
+		it("reset accepts a bare scope positional (normalized to --scope)", () => {
+			expect(resolveModelGrammar(["reset", "worker"])).toEqual({
+				key: "reset",
+				tokens: ["--scope", "worker"],
+			});
+			expect(resolveModelGrammar(["reset", "--scope", "monitor"])).toEqual({
+				key: "reset",
+				tokens: ["--scope", "monitor"],
+			});
+		});
+
+		it("fallback and base-url pass through their value", () => {
+			expect(resolveModelGrammar(["fallback", "off"])).toEqual({
+				key: "fallback",
+				tokens: ["off"],
+			});
+			expect(
+				resolveModelGrammar(["base-url", "http://127.0.0.1:8000"]),
+			).toEqual({ key: "base-url", tokens: ["http://127.0.0.1:8000"] });
+		});
+
+		it("a lone scope with no ref defers to the generic default (null)", () => {
+			expect(resolveModelGrammar(["worker"])).toBeNull();
+		});
+	});
+
+	// End-to-end: the grammar wins inside resolveGroupAction, so `/model
+	// worker <ref>` resolves the `set` child with scope=worker parsed into input.
+	it("resolveGroupAction applies the grammar: `worker <ref>` → set scope=worker", async () => {
+		const d = deps({ modelProvider: "ollama" });
+		const group = createModelCapabilityGroup(d);
+		const resolved = resolveGroupAction(group, [
+			"worker",
+			"openai/gpt-5.3-codex-spark",
+		]);
+		expect(resolved?.key).toBe("set");
+		expect(resolved?.input.options.scope).toBe("worker");
+		expect(resolved?.input.args.ref).toBe("openai/gpt-5.3-codex-spark");
+		const envelope = await resolved!.action.run(resolved!.input);
+		expect(envelope.ok).toBe(true);
+		expect(d.saveTokens).toHaveBeenCalledTimes(1);
+	});
+
+	it("resolveGroupAction applies the grammar: bare ref → set scope=default", () => {
+		const group = createModelCapabilityGroup(deps({ modelProvider: "ollama" }));
+		const resolved = resolveGroupAction(group, ["openai/gpt-5.5"]);
+		expect(resolved?.key).toBe("set");
+		expect(resolved?.input.options.scope).toBe("default");
+		expect(resolved?.input.args.ref).toBe("openai/gpt-5.5");
 	});
 
 	// `model env` legacy: hint line unless --shell; the hook reconstructs the

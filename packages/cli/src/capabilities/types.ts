@@ -56,6 +56,32 @@ export interface CapabilityCliTransport {
 	directAlias?: boolean;
 }
 
+/**
+ * The outcome of a group's custom token grammar: which sub-action to run and the
+ * token slice to parse into its input. Pure — no parse machinery, so the grammar
+ * stays dependency-free and testable. `resolveGroupAction` turns `tokens` into a
+ * {@link CapabilityInput} via the child's own arg/option specs.
+ */
+export interface CapabilityGroupResolution {
+	/** A key of the group's `actions`. */
+	key: string;
+	/** Tokens to parse into the chosen sub-action's input (positionals + flags). */
+	tokens: string[];
+}
+
+/**
+ * A group's custom token grammar: `(tokens) → {key, tokens}` or null. Surface-
+ * neutral by design — it lives on the group, NOT on a transport, so EVERY
+ * surface that hands the group a raw token list (the REPL slash today; a CLI
+ * argv, an HTTP path segment, a TUI/VR command bar tomorrow) resolves it the
+ * same way. A surface uses it if it can; one that doesn't falls back to the
+ * generic sub-verb dispatch. Reusable across rich verbs (`model`, a future
+ * `thinking`/`effort`/`session`) with no verb-specific branches in the dispatcher.
+ */
+export type CapabilityGroupResolver = (
+	tokens: string[],
+) => CapabilityGroupResolution | null;
+
 /** REPL (/slash) transport hints. Read only by the REPL projector. */
 export interface CapabilityReplTransport {
 	/** Extra slash names; the canonical `name` is always registered. */
@@ -142,6 +168,17 @@ export interface CapabilityGroup {
 	 * group should never mutate. e.g. "current".
 	 */
 	defaultAction?: string;
+	/**
+	 * Optional custom token grammar, for a group whose form is richer than sub-
+	 * verb dispatch. e.g. `model` maps `<ref>` → `set default <ref>` and `worker
+	 * <ref>` → `set worker <ref>` — shapes the generic dispatcher cannot express
+	 * (its default-with-args only reaches the default action's positionals).
+	 * Surface-neutral: consulted first by `resolveGroupAction` regardless of which
+	 * surface handed over the tokens; a resolution whose key names no real action
+	 * (or a null return) falls back to the generic rules. See
+	 * {@link CapabilityGroupResolver}.
+	 */
+	resolve?: CapabilityGroupResolver;
 	/** Group-level surface hints; children inherit unless they override. */
 	transports?: CapabilityTransports;
 	renderers?: CapabilityRenderers;

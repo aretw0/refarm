@@ -39,13 +39,7 @@ import { submitEffortWithRuntimeRecovery } from "./chat-runtime-recovery.js";
 import {
 	buildCurrentModelStatus,
 	defaultModelDeps,
-	printCurrentModel,
-	printKnownModelProviders,
-	resetScopedModelRoute,
 	resolveRuntimeModelRoute,
-	setFallbackModelRoute,
-	setModelBaseUrl,
-	setModelRoute,
 	type ModelCommandDeps,
 } from "./model.js";
 import { createRuntimeAgentRespondEffort } from "./runtime-agent-effort.js";
@@ -610,35 +604,6 @@ export {
 							}
 							if (reloaded.length === 0 && skipped.length === 0) {
 								console.log(chalk.dim("No plugins to reload."));
-							}
-						} catch (error) {
-							const message =
-								error instanceof Error ? error.message : String(error);
-							console.error(chalk.red(`✗  ${message}`));
-						}
-						console.log();
-						rl.resume();
-						rl.prompt();
-					})();
-					break;
-
-				case "model":
-					rl.pause();
-					void (async () => {
-						try {
-							const modelDeps = deps.model ?? defaultModelDeps();
-							if (command.action === "current") {
-								printCurrentModel(await modelDeps.loadTokens());
-							} else if (command.action === "providers") {
-								printKnownModelProviders();
-							} else if (command.action === "fallback") {
-								await setFallbackModelRoute(command.ref, modelDeps);
-							} else if (command.action === "base-url") {
-								await setModelBaseUrl(command.url, modelDeps);
-							} else if (command.action === "reset") {
-								await resetScopedModelRoute(command.scope, modelDeps);
-							} else {
-								await setModelRoute(command.ref, command.scope, modelDeps);
 							}
 						} catch (error) {
 							const message =

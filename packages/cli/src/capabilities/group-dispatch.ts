@@ -12,6 +12,11 @@ import type {
  * current` slash form can never drift on how they pick and parse a sub-action.
  *
  * Rules (matching the existing UX, see the design spec):
+ * - A group's custom token grammar (`group.resolve`) wins first, if it returns a
+ *   resolution — for verbs whose form is richer than sub-verb dispatch (e.g.
+ *   `model <ref>` → `set default <ref>`). Surface-neutral: the same grammar
+ *   applies whether the tokens came from a slash, an argv, or a path. It maps
+ *   tokens → a `{key, tokens}`; we parse those into the chosen child's input.
  * - `[]` → the group's `defaultAction` (e.g. `model` / `/model` → `current`).
  * - `[<sub>, …rest]` where `<sub>` is a known action key → that child, parsed
  *   from `…rest`.
@@ -33,6 +38,15 @@ export function resolveGroupAction(
 	group: CapabilityGroup,
 	tokens: string[],
 ): ResolvedGroupAction | null {
+	// A group's own token grammar takes precedence — but only for a resolution
+	// whose key names a real action. An unknown key falls through to the generic
+	// rules rather than dispatching nowhere.
+	const custom = group.resolve?.(tokens);
+	if (custom && custom.key in group.actions) {
+		const action = group.actions[custom.key]!;
+		return { action, key: custom.key, input: parseCapabilityArgv(action, custom.tokens) };
+	}
+
 	const [first, ...rest] = tokens;
 
 	// Explicit known sub-action.
