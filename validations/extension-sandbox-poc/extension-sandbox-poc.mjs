@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
 	createMockManifest,
-	validatePluginManifest,
+	decidePluginPolicy,
 } from "../../packages/plugin-manifest/src/index.js";
 
 export const ISSUED_AT = "2026-01-01T00:00:00.000Z";
@@ -39,10 +39,6 @@ function manifestFor(id, overrides = {}) {
 	});
 }
 
-function missingCapabilities(manifest, grants = GRANTED_CAPABILITIES) {
-	return manifest.capabilities.requires.filter((capability) => !grants.includes(capability));
-}
-
 function lifecycleEvents(manifest, status = "ok") {
 	return LIFECYCLE_STEPS.map((step, index) => ({
 		index: index + 1,
@@ -54,31 +50,20 @@ function lifecycleEvents(manifest, status = "ok") {
 }
 
 function evaluatePlugin(manifest, policyMode) {
-	const validation = validatePluginManifest(manifest);
-	const missing = validation.valid ? missingCapabilities(manifest) : [];
+	// Capability-policy decision now comes from the shared plugin-manifest block.
+	// This validation adds the synthetic scaffolding around it: lifecycle events
+	// and the id-based failure-injection branch used to exercise the abort paths.
+	const decision = decidePluginPolicy(manifest, {
+		grantedCapabilities: GRANTED_CAPABILITIES,
+		policyMode,
+	});
 
-	if (!validation.valid) {
-		return {
-			pluginId: manifest.id,
-			status: "invalid-manifest",
-			policyMode,
-			manifestValid: false,
-			manifestErrors: validation.errors,
-			missingCapabilities: [],
-			events: [],
-		};
+	if (decision.status === "invalid-manifest") {
+		return { ...decision, events: [] };
 	}
 
-	if (missing.length > 0) {
-		return {
-			pluginId: manifest.id,
-			status: policyMode === "fail-fast" ? "blocked-fail-fast" : "blocked-warn-continue",
-			policyMode,
-			manifestValid: true,
-			manifestErrors: [],
-			missingCapabilities: missing,
-			events: [],
-		};
+	if (decision.missingCapabilities.length > 0) {
+		return { ...decision, events: [] };
 	}
 
 	if (manifest.id.includes("failing")) {

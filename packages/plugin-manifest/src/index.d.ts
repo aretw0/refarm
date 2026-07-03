@@ -136,6 +136,31 @@ export function createMockManifest(
 export function validatePluginManifest(manifest: any): ManifestValidationResult;
 export function assertValidPluginManifest(manifest: any): void;
 
+export type PluginPolicyMode = "warn+continue" | "fail-fast";
+export type PluginPolicyStatus =
+	| "completed"
+	| "blocked-warn-continue"
+	| "blocked-fail-fast"
+	| "invalid-manifest";
+
+export interface PluginPolicyDecision {
+	pluginId: string;
+	status: PluginPolicyStatus;
+	policyMode: PluginPolicyMode;
+	manifestValid: boolean;
+	manifestErrors: string[];
+	missingCapabilities: string[];
+}
+
+export function evaluateCapabilityGrant(
+	requires: string[],
+	grantedCapabilities: string[],
+): string[];
+export function decidePluginPolicy(
+	manifest: PluginManifest,
+	options: { grantedCapabilities: string[]; policyMode: PluginPolicyMode },
+): PluginPolicyDecision;
+
 export interface ParsedIntegrity {
 	algorithm: "sha256";
 	encoding: "hex" | "base64";
