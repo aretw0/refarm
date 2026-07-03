@@ -1369,6 +1369,31 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/storage-node-view:
+    dependencies:
+      '@refarm.dev/node-contract-v1':
+        specifier: workspace:*
+        version: link:../node-contract-v1
+      '@refarm.dev/storage-contract-v1':
+        specifier: workspace:*
+        version: link:../storage-contract-v1
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/storage-fs':
+        specifier: workspace:*
+        version: link:../storage-fs
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
   packages/storage-rest:
     dependencies:
       '@refarm.dev/storage-contract-v1':

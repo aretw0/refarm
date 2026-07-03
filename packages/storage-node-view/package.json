@@ -1,0 +1,34 @@
+{
+	"name": "@refarm.dev/storage-node-view",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Pure record⇄node adapter — lets any StorageProvider serve as a node graph. A ledger record IS a serialized node.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/node-contract-v1": "workspace:*",
+		"@refarm.dev/storage-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/storage-fs": "workspace:*",
+		"typescript": "catalog:",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*"
+	}
+}
