@@ -62,7 +62,6 @@ The Barn enforces a strict integrity check on every "implement" (plugin) before 
 - [ ] Integration: Uninstall a plugin and cleanup OPFS.
 - [ ] Integration: Enforce branch-level access control (e.g., block write to `main`).
 
-
 ### TDD (Test Driven) 🔄
 
 - [ ] Unit: SHA-256 hash calculation and comparison
