@@ -536,6 +536,30 @@ earlier `2026-07-02/` directory is a superseded partial packet
 official handoff should be copied from the manifest-bearing generated packet
 rather than from this historical table.
 
+**2026-07-03 MD/MDX + quality proofs received:** the official `vault-seed`
+checkout assimilated three new blocks from the `2026-07-03` packet and committed
+consumer-contract proofs for each:
+
+- `@refarm.dev/content-projection` (`content-projection.markdown-mdx-records`) —
+  vault notes project through `parseFrontmatter` / `extractWikilinks` /
+  `extractMarkdownLinks` / `projectContentToRecords` into valid `records:v1`, MD
+  and MDX on one path, external inline links preserved as metadata. PARA folder
+  mapping and note vocabulary stay downstream.
+- `@refarm.dev/quality-contract-v1` (`quality-contract.declared-lint-envelope`) —
+  the vault declares a downstream quality profile and emits a `quality:v1` report
+  through `createRegexQualityChecker` / `runQualityCheck`. Rule catalogs,
+  severity policy, and copy stay downstream.
+- `@refarm.dev/ds-astro` (`ds-astro.mdx-render-adapter`) — the sanctioned
+  `mdxComponents` map resolves to the shipped `.astro` components and
+  `dsAstroCssImports` stays over `@refarm.dev/ds`. Published MDX copy and route
+  semantics stay downstream.
+
+The downstream suite is green (521 tests, no regressions). One boundary defect
+was relayed: `@refarm.dev/ds-astro` peer-depends `astro: ^6.4.8`, but the latest
+available astro is `6.4.4`, so the peer floor is ahead of the ecosystem and every
+consumer install warns on an unmet peer. Lower the floor to `^6.4.4` or publish
+astro `6.4.8`.
+
 ### Additional Assimilation Matrix
 
 The downstream audit shows more Refarm-shaped work than the first block list. Use
