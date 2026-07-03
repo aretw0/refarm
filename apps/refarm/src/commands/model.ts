@@ -68,12 +68,6 @@ interface ModelResetMutationResult {
 	scope: ModelScope;
 }
 
-type ModelMutationResult =
-	| ModelRouteMutationResult
-	| ModelFallbackMutationResult
-	| ModelBaseUrlMutationResult
-	| ModelResetMutationResult;
-
 export interface ModelTokens {
 	modelProvider?: string;
 	modelId?: string;
@@ -275,10 +269,12 @@ function shellQuote(value: string): string {
 	return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-function printModelEnvShell(
+/** Compute the ordered model runtime env entries (no I/O). Shared by the shell
+ * printer and the `env` envelope so both surface the exact same variables. */
+function buildModelEnvEntries(
 	tokens: ModelTokens,
 	options: { includeSecrets?: boolean } = {},
-): void {
+): [string, string][] {
 	const status = buildCurrentModelStatus(tokens);
 	const entries: [string, string][] = [];
 	if (status.current.provider) {
@@ -318,7 +314,40 @@ function printModelEnvShell(
 			entries.push(["OPENAI_CODEX_ACCOUNT_ID", oauthCredential.accountId]);
 		}
 	}
+	return entries;
+}
 
+/** Build the `model env` envelope (no I/O): the resolved runtime env entries as
+ * a success envelope. `env` is read-only (no saveTokens), so this is a success
+ * projector — the CLI still prints shell exports via printModelEnvShell. */
+export function buildModelEnvEnvelope(
+	tokens: ModelTokens,
+	options: { includeSecrets?: boolean } = {},
+) {
+	const entries = buildModelEnvEntries(tokens, options);
+	const env: Record<string, string> = {};
+	for (const [key, value] of entries) {
+		env[key] = value;
+	}
+	const managedKeys = entries.map(([key]) => key);
+	return buildJsonSuccessEnvelope({
+		command: "model",
+		operation: "env",
+		extra: {
+			env,
+			managedKeys,
+			[REFARM_MANAGED_MODEL_ENV_KEYS]: managedKeys.join(","),
+		},
+		nextCommand: MODEL_CURRENT_JSON_COMMAND,
+		nextCommands: [MODEL_CURRENT_JSON_COMMAND],
+	});
+}
+
+function printModelEnvShell(
+	tokens: ModelTokens,
+	options: { includeSecrets?: boolean } = {},
+): void {
+	const entries = buildModelEnvEntries(tokens, options);
 	for (const [key, value] of entries) {
 		console.log(`export ${key}=${shellQuote(value)}`);
 	}
@@ -351,18 +380,6 @@ function hasJsonOption(
 		options.parent?.opts?.().json === true ||
 		command?.opts?.().json === true ||
 		command?.parent?.opts?.().json === true
-	);
-}
-
-function printModelMutationResult(result: ModelMutationResult): void {
-	printJson(
-		buildJsonSuccessEnvelope({
-			command: "model",
-			operation: "mutate",
-			extra: result,
-			nextCommand: MODEL_CURRENT_JSON_COMMAND,
-			nextCommands: [MODEL_CURRENT_JSON_COMMAND],
-		}),
 	);
 }
 
@@ -986,50 +1003,56 @@ export function printKnownModelProvidersJson(): void {
 	printJson(buildKnownModelProvidersEnvelope());
 }
 
-export async function setModelRoute(
+/** Build the model-mutation error envelope (no I/O) — the same shape
+ * printModelValidationErrorJson prints, so run() can RETURN it. */
+function buildModelValidationErrorEnvelope(input: {
+	error: string;
+	message: string;
+	nextCommand?: string;
+	extra?: Record<string, unknown>;
+}) {
+	const nextCommand = input.nextCommand ?? MODEL_CURRENT_JSON_COMMAND;
+	return buildJsonErrorEnvelope({
+		command: "model",
+		operation: "mutate",
+		error: input.error,
+		message: input.message,
+		nextAction: nextCommand,
+		nextCommand,
+		nextCommands: [
+			nextCommand,
+			MODEL_PROVIDERS_JSON_COMMAND,
+			LOCAL_MODEL_JSON_COMMAND,
+		],
+		extra: input.extra,
+	});
+}
+
+/** Build the `model set` envelope: validate, persist, and RETURN a success or
+ * error envelope — pure of console/exitCode. The CLI/REPL/API projectors render
+ * it; setModelRoute wraps this to keep the legacy CLI output. */
+export async function buildSetModelEnvelope(
 	ref: string,
 	scope: ModelScope,
 	deps: ModelCommandDeps,
-	options: { json?: boolean } = {},
-): Promise<ModelRouteMutationResult | null> {
+) {
 	const tokens = await deps.loadTokens();
 	const parsed = parseModelRef(ref, tokens.modelProvider);
 	if (!parsed) {
-		if (options.json) {
-			printModelValidationErrorJson({
-				error: "empty-model-ref",
-				message: "model ref cannot be empty.",
-				nextCommand: LOCAL_MODEL_JSON_COMMAND,
-				extra: { scope },
-			});
-			process.exitCode = 1;
-			return null;
-		}
-		console.error(chalk.red("✗  model ref cannot be empty."));
-		process.exitCode = 1;
-		return null;
+		return buildModelValidationErrorEnvelope({
+			error: "empty-model-ref",
+			message: "model ref cannot be empty.",
+			nextCommand: LOCAL_MODEL_JSON_COMMAND,
+			extra: { scope },
+		});
 	}
 	if (!parsed.provider) {
-		if (options.json) {
-			printModelValidationErrorJson({
-				error: "model-provider-required",
-				message: `Could not infer provider for model "${parsed.modelId}".`,
-				nextCommand: LOCAL_MODEL_JSON_COMMAND,
-				extra: { scope, modelId: parsed.modelId },
-			});
-			process.exitCode = 1;
-			return null;
-		}
-		console.error(
-			chalk.red(`✗  Could not infer provider for model "${parsed.modelId}".`),
-		);
-		console.error(
-			chalk.dim(
-				`   Use provider/model, for example: refarm model ${OLLAMA_DEFAULT_REF}`,
-			),
-		);
-		process.exitCode = 1;
-		return null;
+		return buildModelValidationErrorEnvelope({
+			error: "model-provider-required",
+			message: `Could not infer provider for model "${parsed.modelId}".`,
+			nextCommand: LOCAL_MODEL_JSON_COMMAND,
+			extra: { scope, modelId: parsed.modelId },
+		});
 	}
 
 	const modelRef = { provider: parsed.provider, modelId: parsed.modelId };
@@ -1041,20 +1064,59 @@ export async function setModelRoute(
 		modelId: parsed.modelId,
 		ref: formatModelRef(parsed.provider, parsed.modelId),
 	};
-	if (options.json) {
-		printModelMutationResult(result);
-	} else {
-		const label = scope === "default" ? "Default model" : `${scope} model`;
-		console.log(chalk.green(`✓  ${label} set: ${result.ref}`));
-	}
-	return result;
+	return buildJsonSuccessEnvelope({
+		command: "model",
+		operation: "mutate",
+		extra: result,
+		nextCommand: MODEL_CURRENT_JSON_COMMAND,
+		nextCommands: [MODEL_CURRENT_JSON_COMMAND],
+	});
 }
 
-export async function setFallbackModelRoute(
+export async function setModelRoute(
 	ref: string,
+	scope: ModelScope,
 	deps: ModelCommandDeps,
 	options: { json?: boolean } = {},
-): Promise<ModelFallbackMutationResult | null> {
+): Promise<ModelRouteMutationResult | null> {
+	const envelope = await buildSetModelEnvelope(ref, scope, deps);
+
+	if (envelope.ok === false) {
+		if (options.json) {
+			printJson(envelope);
+		} else if (envelope.error === "model-provider-required") {
+			console.error(chalk.red(`✗  ${envelope.message}`));
+			console.error(
+				chalk.dim(
+					`   Use provider/model, for example: refarm model ${OLLAMA_DEFAULT_REF}`,
+				),
+			);
+		} else {
+			console.error(chalk.red(`✗  ${envelope.message}`));
+		}
+		process.exitCode = 1;
+		return null;
+	}
+
+	// The success envelope spreads the ModelRouteMutationResult at top level
+	// (buildJsonSuccessEnvelope extra:). Recover it for the legacy return value.
+	const mutation = envelope as unknown as ModelRouteMutationResult;
+	if (options.json) {
+		printJson(envelope);
+	} else {
+		const label = scope === "default" ? "Default model" : `${scope} model`;
+		console.log(chalk.green(`✓  ${label} set: ${mutation.ref}`));
+	}
+	return mutation;
+}
+
+/** Build the `model fallback` envelope: validate, persist (including the
+ * off/disable path), and RETURN a success or error envelope — pure of
+ * console/exitCode. setFallbackModelRoute wraps this for the legacy CLI output. */
+export async function buildSetFallbackEnvelope(
+	ref: string,
+	deps: ModelCommandDeps,
+) {
 	const tokens = await deps.loadTokens();
 	if (ref.trim().toLowerCase() === "off") {
 		await deps.saveTokens({
@@ -1062,54 +1124,32 @@ export async function setFallbackModelRoute(
 			modelFallbackModelId: undefined,
 		});
 		const result: ModelFallbackMutationResult = { action: "disable-fallback" };
-		if (options.json) {
-			printModelMutationResult(result);
-		} else {
-			console.log(chalk.green("✓  Fallback model disabled"));
-		}
-		return result;
+		return buildJsonSuccessEnvelope({
+			command: "model",
+			operation: "mutate",
+			extra: result,
+			nextCommand: MODEL_CURRENT_JSON_COMMAND,
+			nextCommands: [MODEL_CURRENT_JSON_COMMAND],
+		});
 	}
 	const parsed = parseModelRef(
 		ref,
 		tokens.modelFallbackProvider ?? tokens.modelProvider,
 	);
 	if (!parsed) {
-		if (options.json) {
-			printModelValidationErrorJson({
-				error: "empty-fallback-model-ref",
-				message: "fallback model ref cannot be empty.",
-				nextCommand: LOCAL_MODEL_JSON_COMMAND,
-			});
-			process.exitCode = 1;
-			return null;
-		}
-		console.error(chalk.red("✗  fallback model ref cannot be empty."));
-		process.exitCode = 1;
-		return null;
+		return buildModelValidationErrorEnvelope({
+			error: "empty-fallback-model-ref",
+			message: "fallback model ref cannot be empty.",
+			nextCommand: LOCAL_MODEL_JSON_COMMAND,
+		});
 	}
 	if (!parsed.provider) {
-		if (options.json) {
-			printModelValidationErrorJson({
-				error: "fallback-model-provider-required",
-				message: `Could not infer provider for fallback model "${parsed.modelId}".`,
-				nextCommand: LOCAL_MODEL_JSON_COMMAND,
-				extra: { modelId: parsed.modelId },
-			});
-			process.exitCode = 1;
-			return null;
-		}
-		console.error(
-			chalk.red(
-				`✗  Could not infer provider for fallback model "${parsed.modelId}".`,
-			),
-		);
-		console.error(
-			chalk.dim(
-				`   Use provider/model, for example: refarm model fallback ${OLLAMA_DEFAULT_REF}`,
-			),
-		);
-		process.exitCode = 1;
-		return null;
+		return buildModelValidationErrorEnvelope({
+			error: "fallback-model-provider-required",
+			message: `Could not infer provider for fallback model "${parsed.modelId}".`,
+			nextCommand: LOCAL_MODEL_JSON_COMMAND,
+			extra: { modelId: parsed.modelId },
+		});
 	}
 
 	await deps.saveTokens({
@@ -1122,38 +1162,65 @@ export async function setFallbackModelRoute(
 		modelId: parsed.modelId,
 		ref: formatModelRef(parsed.provider, parsed.modelId),
 	};
-	if (options.json) {
-		printModelMutationResult(result);
-	} else {
-		console.log(chalk.green(`✓  Fallback model set: ${result.ref}`));
-	}
-	return result;
+	return buildJsonSuccessEnvelope({
+		command: "model",
+		operation: "mutate",
+		extra: result,
+		nextCommand: MODEL_CURRENT_JSON_COMMAND,
+		nextCommands: [MODEL_CURRENT_JSON_COMMAND],
+	});
 }
 
-export async function resetScopedModelRoute(
-	scope: ModelScope,
+export async function setFallbackModelRoute(
+	ref: string,
 	deps: ModelCommandDeps,
 	options: { json?: boolean } = {},
-): Promise<ModelResetMutationResult | null> {
-	if (scope === "default") {
+): Promise<ModelFallbackMutationResult | null> {
+	const envelope = await buildSetFallbackEnvelope(ref, deps);
+
+	if (envelope.ok === false) {
 		if (options.json) {
-			printModelValidationErrorJson({
-				error: "default-route-reset-not-supported",
-				message:
-					"Default route reset is explicit: set the desired provider/model.",
-				nextCommand: OPENAI_MODEL_JSON_COMMAND,
-			});
-			process.exitCode = 1;
-			return null;
+			printJson(envelope);
+		} else if (envelope.error === "fallback-model-provider-required") {
+			console.error(chalk.red(`✗  ${envelope.message}`));
+			console.error(
+				chalk.dim(
+					`   Use provider/model, for example: refarm model fallback ${OLLAMA_DEFAULT_REF}`,
+				),
+			);
+		} else {
+			console.error(chalk.red(`✗  ${envelope.message}`));
 		}
-		console.error(
-			chalk.red(
-				"✗  Default route reset is explicit: set the desired provider/model.",
-			),
-		);
-		console.error(chalk.dim(`   Example: refarm model ${OPENAI_DEFAULT_REF}`));
 		process.exitCode = 1;
 		return null;
+	}
+
+	// The success envelope spreads the ModelFallbackMutationResult at top level.
+	const mutation = envelope as unknown as ModelFallbackMutationResult;
+	if (options.json) {
+		printJson(envelope);
+	} else if (mutation.action === "disable-fallback") {
+		console.log(chalk.green("✓  Fallback model disabled"));
+	} else {
+		console.log(chalk.green(`✓  Fallback model set: ${mutation.ref}`));
+	}
+	return mutation;
+}
+
+/** Build the `model reset` envelope: reject the default scope, otherwise drop
+ * the persisted scoped route and RETURN a success or error envelope — pure of
+ * console/exitCode. resetScopedModelRoute wraps this for the legacy CLI output. */
+export async function buildResetScopedModelEnvelope(
+	scope: ModelScope,
+	deps: ModelCommandDeps,
+) {
+	if (scope === "default") {
+		return buildModelValidationErrorEnvelope({
+			error: "default-route-reset-not-supported",
+			message:
+				"Default route reset is explicit: set the desired provider/model.",
+			nextCommand: OPENAI_MODEL_JSON_COMMAND,
+		});
 	}
 
 	const tokens = await deps.loadTokens();
@@ -1166,12 +1233,87 @@ export async function resetScopedModelRoute(
 	delete routes[scope];
 	await deps.saveTokens({ modelRoutes: routes });
 	const result: ModelResetMutationResult = { action: "reset-route", scope };
-	if (options.json) {
-		printModelMutationResult(result);
-	} else {
-		console.log(chalk.green(`✓  ${scope} model reset to built-in default`));
+	return buildJsonSuccessEnvelope({
+		command: "model",
+		operation: "mutate",
+		extra: result,
+		nextCommand: MODEL_CURRENT_JSON_COMMAND,
+		nextCommands: [MODEL_CURRENT_JSON_COMMAND],
+	});
+}
+
+export async function resetScopedModelRoute(
+	scope: ModelScope,
+	deps: ModelCommandDeps,
+	options: { json?: boolean } = {},
+): Promise<ModelResetMutationResult | null> {
+	const envelope = await buildResetScopedModelEnvelope(scope, deps);
+
+	if (envelope.ok === false) {
+		if (options.json) {
+			printJson(envelope);
+		} else {
+			console.error(
+				chalk.red(
+					"✗  Default route reset is explicit: set the desired provider/model.",
+				),
+			);
+			console.error(chalk.dim(`   Example: refarm model ${OPENAI_DEFAULT_REF}`));
+		}
+		process.exitCode = 1;
+		return null;
 	}
-	return result;
+
+	// The success envelope spreads the ModelResetMutationResult at top level.
+	const mutation = envelope as unknown as ModelResetMutationResult;
+	if (options.json) {
+		printJson(envelope);
+	} else {
+		console.log(
+			chalk.green(`✓  ${mutation.scope} model reset to built-in default`),
+		);
+	}
+	return mutation;
+}
+
+/** Build the `model base-url` envelope: handle the off/disable path, reject an
+ * empty URL, otherwise persist it and RETURN a success or error envelope — pure
+ * of console/exitCode. setModelBaseUrl wraps this for the legacy CLI output. */
+export async function buildSetModelBaseUrlEnvelope(
+	value: string,
+	deps: ModelCommandDeps,
+) {
+	const trimmed = value.trim();
+	if (trimmed.toLowerCase() === "off") {
+		await deps.saveTokens({ modelBaseUrl: undefined });
+		const result: ModelBaseUrlMutationResult = { action: "disable-base-url" };
+		return buildJsonSuccessEnvelope({
+			command: "model",
+			operation: "mutate",
+			extra: result,
+			nextCommand: MODEL_CURRENT_JSON_COMMAND,
+			nextCommands: [MODEL_CURRENT_JSON_COMMAND],
+		});
+	}
+	if (!trimmed) {
+		return buildModelValidationErrorEnvelope({
+			error: "empty-model-base-url",
+			message: "base URL cannot be empty.",
+			nextCommand: MODEL_CURRENT_JSON_COMMAND,
+		});
+	}
+	await deps.saveTokens({ modelBaseUrl: trimmed });
+	const result: ModelBaseUrlMutationResult = {
+		action: "set-base-url",
+		baseUrl: trimmed,
+	};
+	return buildJsonSuccessEnvelope({
+		command: "model",
+		operation: "mutate",
+		extra: result,
+		nextCommand: MODEL_CURRENT_JSON_COMMAND,
+		nextCommands: [MODEL_CURRENT_JSON_COMMAND],
+	});
 }
 
 export async function setModelBaseUrl(
@@ -1179,42 +1321,28 @@ export async function setModelBaseUrl(
 	deps: ModelCommandDeps,
 	options: { json?: boolean } = {},
 ): Promise<ModelBaseUrlMutationResult | null> {
-	const trimmed = value.trim();
-	if (trimmed.toLowerCase() === "off") {
-		await deps.saveTokens({ modelBaseUrl: undefined });
-		const result: ModelBaseUrlMutationResult = { action: "disable-base-url" };
+	const envelope = await buildSetModelBaseUrlEnvelope(value, deps);
+
+	if (envelope.ok === false) {
 		if (options.json) {
-			printModelMutationResult(result);
+			printJson(envelope);
 		} else {
-			console.log(chalk.green("✓  Model base URL disabled"));
+			console.error(chalk.red("✗  base URL cannot be empty."));
 		}
-		return result;
-	}
-	if (!trimmed) {
-		if (options.json) {
-			printModelValidationErrorJson({
-				error: "empty-model-base-url",
-				message: "base URL cannot be empty.",
-				nextCommand: MODEL_CURRENT_JSON_COMMAND,
-			});
-			process.exitCode = 1;
-			return null;
-		}
-		console.error(chalk.red("✗  base URL cannot be empty."));
 		process.exitCode = 1;
 		return null;
 	}
-	await deps.saveTokens({ modelBaseUrl: trimmed });
-	const result: ModelBaseUrlMutationResult = {
-		action: "set-base-url",
-		baseUrl: trimmed,
-	};
+
+	// The success envelope spreads the ModelBaseUrlMutationResult at top level.
+	const mutation = envelope as unknown as ModelBaseUrlMutationResult;
 	if (options.json) {
-		printModelMutationResult(result);
+		printJson(envelope);
+	} else if (mutation.action === "disable-base-url") {
+		console.log(chalk.green("✓  Model base URL disabled"));
 	} else {
-		console.log(chalk.green(`✓  Model base URL set: ${trimmed}`));
+		console.log(chalk.green(`✓  Model base URL set: ${mutation.baseUrl}`));
 	}
-	return result;
+	return mutation;
 }
 
 export function createModelCommand(
