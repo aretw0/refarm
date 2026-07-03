@@ -5,6 +5,7 @@ export {
 } from "./conformance.js";
 export { createInMemorySkillContractV1Adapter } from "./in-memory.js";
 export {
+	buildSkillActivationInstallEvidence,
 	buildSkillInvocationDecision,
 	buildSkillInvocationPlan,
 	buildSkillInvocationReceipt,
@@ -27,6 +28,7 @@ export {
 export type {
 	SkillCapabilityEnvelope,
 	SkillActivationInstallEvidence,
+	SkillActivationInstallEvidenceOptions,
 	SkillActivationPreflightBuildResult,
 	SkillActivationPreflightOptions,
 	SkillActivationPreflightState,
@@ -57,6 +59,7 @@ export type {
 	SkillInvocationRequestV1,
 	SkillIoEnvelope,
 	SkillIoFormat,
+	SkillInstallPolicyDecisionEvidence,
 	SkillManifestIssue,
 	SkillManifestParseOptions,
 	SkillManifestParseResult,

@@ -190,6 +190,20 @@ export interface SkillActivationInstallEvidence {
 	readonly pluginManifestValid: boolean;
 	readonly integrityVerified: boolean;
 	readonly policyAccepted: boolean;
+	readonly policyDecision?: SkillInstallPolicyDecisionEvidence;
+}
+
+export interface SkillInstallPolicyDecisionEvidence {
+	readonly accepted: boolean;
+	readonly reason: string;
+	readonly decidedBy?: string;
+	readonly decidedAt?: string;
+}
+
+export interface SkillActivationInstallEvidenceOptions {
+	readonly pluginManifestValid: boolean;
+	readonly sourceIntegrity: SkillSourceIntegrityEvidenceV1 | { readonly verified: boolean };
+	readonly policyDecision: SkillInstallPolicyDecisionEvidence;
 }
 
 export interface SkillActivationPreflightOptions {

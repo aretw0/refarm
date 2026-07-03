@@ -26,6 +26,8 @@ content:
   requested capabilities while keeping the artifact pre-runtime and unexecuted;
 - build a host-owned execution receipt from an approved decision and explicit
   engine-call evidence;
+- build activation install evidence from plugin-manifest validation, source
+  integrity evidence, and a host install-policy decision;
 - build a plugin-manifest-compatible skill surface declaration
   (`layer: "pi", kind: "skill"`) from a validated manifest and package asset
   path;
@@ -50,6 +52,7 @@ contract only after that boundary accepts the surface.
 
 ```ts
 import {
+	buildSkillActivationInstallEvidence,
 	buildSkillInvocationDecision,
 	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
@@ -98,11 +101,14 @@ if (!integrity.ok) {
 const activation = evaluateSkillActivationPreflight(result.manifest, surface.surface, {
 	approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
 	availableEngineBindings: ["runtime-agent", "source:v1"],
-	install: {
+	install: buildSkillActivationInstallEvidence({
 		pluginManifestValid: true,
-		integrityVerified: integrity.evidence.verified,
-		policyAccepted: true,
-	},
+		sourceIntegrity: integrity.evidence,
+		policyDecision: {
+			accepted: true,
+			reason: "Host install policy accepted the package-declared skill surface.",
+		},
+	}),
 });
 if (!activation.ok) {
 	throw new Error(activation.issues.map((issue) => issue.message).join("; "));
@@ -155,6 +161,9 @@ or execute a skill.
 Source integrity evidence packages that same identity check with the declared
 package `SKILL.md` asset path so activation preflight can consume objective
 evidence instead of a hand-written boolean.
+Activation install evidence converts plugin-manifest validation, source
+integrity, and host install-policy acceptance into the booleans consumed by
+activation preflight. It is still evidence, not an installer.
 The I/O envelope is descriptive and policy-facing. Hosts still decide whether a
 particular invocation payload is allowed.
 Engine bindings are declarations only. This package does not select or call an

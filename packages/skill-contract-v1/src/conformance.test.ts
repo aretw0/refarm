@@ -6,6 +6,7 @@ import {
 	runSkillContractV1Conformance,
 } from "./conformance.js";
 import {
+	buildSkillActivationInstallEvidence,
 	buildSkillInvocationDecision,
 	buildSkillInvocationPlan,
 	buildSkillInvocationReceipt,
@@ -581,6 +582,72 @@ describe("skill-contract-v1", () => {
 				policyAccepted: true,
 			},
 		});
+	});
+
+	it("builds activation install evidence from source integrity and host policy", () => {
+		const parsed = parseSkillMarkdown(VALID_SKILL_MARKDOWN_FIXTURE);
+		const surface = buildSkillSurfaceDeclaration(parsed.manifest!, {
+			assetPath: "skills/refarm-git-workflow/SKILL.md",
+		});
+		const sourceIntegrity = buildSkillSourceIntegrityEvidence(
+			VALID_SKILL_MARKDOWN_FIXTURE,
+			parsed.manifest!,
+			surface.surface!,
+			{ sourceUri: parsed.manifest!.source.uri },
+		);
+
+		const install = buildSkillActivationInstallEvidence({
+			pluginManifestValid: true,
+			sourceIntegrity: sourceIntegrity.evidence,
+			policyDecision: {
+				accepted: true,
+				reason: "Host install policy accepted the package-declared skill surface.",
+				decidedBy: "test-host",
+				decidedAt: "2026-07-03T00:00:00.000Z",
+			},
+		});
+
+		expect(install).toMatchObject({
+			pluginManifestValid: true,
+			integrityVerified: true,
+			policyAccepted: true,
+			policyDecision: {
+				accepted: true,
+				reason: "Host install policy accepted the package-declared skill surface.",
+			},
+		});
+		expect(evaluateSkillActivationPreflight(parsed.manifest!, surface.surface!, {
+			approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+			availableEngineBindings: ["runtime-agent", "source:v1"],
+			install,
+		})).toMatchObject({
+			ok: true,
+			preflight: {
+				state: "ready",
+				readyForRuntimeDispatch: true,
+				install,
+			},
+		});
+
+		const rejectedInstall = buildSkillActivationInstallEvidence({
+			pluginManifestValid: true,
+			sourceIntegrity: sourceIntegrity.evidence,
+			policyDecision: {
+				accepted: false,
+				reason: "Host install policy needs an operator approval receipt.",
+			},
+		});
+
+		const blocked = evaluateSkillActivationPreflight(parsed.manifest!, surface.surface!, {
+			approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+			availableEngineBindings: ["runtime-agent", "source:v1"],
+			install: rejectedInstall,
+		});
+
+		expect(blocked.ok).toBe(false);
+		expect(blocked.issues).toEqual(expect.arrayContaining([
+			expect.objectContaining({ code: "ACTIVATION_POLICY_NOT_ACCEPTED" }),
+		]));
 	});
 
 	it("blocks activation preflight when host install or runtime evidence is missing", () => {

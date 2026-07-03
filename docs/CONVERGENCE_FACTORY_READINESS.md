@@ -232,6 +232,9 @@ Current contract closure:
 - `buildSkillSourceIntegrityEvidence` turns a loaded `SKILL.md`, manifest
   source reference, and package `pi/skill` surface asset into objective
   integrity evidence for activation preflight;
+- `buildSkillActivationInstallEvidence` turns plugin-manifest validation,
+  source integrity evidence, and a host install-policy decision into the install
+  evidence consumed by activation preflight;
 - `@refarm.dev/plugin-manifest` now validates the plugin-manifest skill surface
   for `layer: "pi", kind: "skill"` as a package declaration: non-empty
   capabilities, no UI slot, and at least one relative package `SKILL.md` asset;

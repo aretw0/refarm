@@ -11,6 +11,7 @@ import {
 
 import { createLocalSourceProvider } from "../../packages/source-local/dist/index.js";
 import {
+	buildSkillActivationInstallEvidence,
 	buildSkillInvocationDecision,
 	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
@@ -307,11 +308,14 @@ export async function buildNativeSkillDgkVaultSearchSmoke({
 		? evaluateSkillActivationPreflight(prepared.manifest, surfaceResult.surface, {
 			approvedCapabilities: prepared.manifest.capabilities.requires,
 			availableEngineBindings: ["source:v1"],
-			install: {
+			install: buildSkillActivationInstallEvidence({
 				pluginManifestValid: pluginManifestValidation.valid,
-				integrityVerified: sourceIntegrity?.evidence?.verified === true,
-				policyAccepted: false,
-			},
+				sourceIntegrity: sourceIntegrity?.evidence ?? { verified: false },
+				policyDecision: {
+					accepted: false,
+					reason: "Host install policy acceptance remains outside this source-evidence smoke.",
+				},
+			}),
 		})
 		: null;
 

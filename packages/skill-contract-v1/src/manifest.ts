@@ -8,6 +8,8 @@ import {
 	SKILL_INVOCATION_REQUEST_SCHEMA,
 	SKILL_MANIFEST_SCHEMA,
 	SKILL_SOURCE_INTEGRITY_SCHEMA,
+	type SkillActivationInstallEvidence,
+	type SkillActivationInstallEvidenceOptions,
 	type SkillActivationPreflightBuildResult,
 	type SkillActivationPreflightOptions,
 	type SkillContractV1Adapter,
@@ -203,6 +205,17 @@ export function buildSkillSourceIntegrityEvidence(
 			issues,
 		},
 		issues,
+	};
+}
+
+export function buildSkillActivationInstallEvidence(
+	options: SkillActivationInstallEvidenceOptions,
+): SkillActivationInstallEvidence {
+	return {
+		pluginManifestValid: options.pluginManifestValid === true,
+		integrityVerified: options.sourceIntegrity.verified === true,
+		policyAccepted: options.policyDecision.accepted === true,
+		policyDecision: options.policyDecision,
 	};
 }
 
