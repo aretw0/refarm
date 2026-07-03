@@ -43,6 +43,7 @@ The Barn enforces a strict integrity check on every "implement" (plugin) before 
 ### SDD (Spec Driven)
 
 - [x] ADR-044: WASM Plugin Loading (Browser Strategy)
+- [x] Implementation packet for Gate 2 hardening: `specs/features/2026-07-03-barn-gate2-plugin-ecosystem.md`
 - [x] Spec: Barn WIT interface definitions (`refarm-barn.wit`)
 - [x] Spec: JSON-LD Schema for `PluginCatalogEntry` (`docs/SCHEMA.md`)
 - [x] Spec: OPFS storage layout and naming convention (`docs/STORAGE_LAYOUT.md`)
