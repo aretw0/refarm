@@ -58,6 +58,40 @@ pure `composeEffectiveManifest(manifest, overrides[])`. The original manifest /
 [ADR-082](../specs/ADRs/ADR-082-storage-provider-bootstrap-boundary.md) and
 `packages/barn/docs/{STORAGE_LAYOUT,SCHEMA}.md`.
 
+## The graph node: open on the wire, typed on read
+
+Everything a plugin produces lands in the graph as a **node**. The node is the
+most-shared thing across the Rust×TS boundary, so how it is typed decides how
+extensible the whole system is.
+
+**The wire type is deliberately an open JSON-LD string.** The WIT boundary
+declares `type json-ld-node = string` — not a fixed record. That openness *is*
+the extensibility: any plugin (Rust, TS, worker, wasm) emits any `@type` with
+any fields and the host persists it, without anyone changing the contract or
+recompiling the host. Typing the node into a fixed WIT record would be a
+*regression* — every new node type would then require WIT surgery on both sides.
+Behaviour is extended per-plugin through each plugin's own WIT world
+(`tem.wit`, `heartwood.wit`, …); data is extended through the open node string.
+
+**The TS type is the optional, on-read view.** `@refarm.dev/node-contract-v1`
+is the single source of truth for the *typed* shape:
+- `GraphNode` — the domain shape typed contracts extend (`Task extends
+  GraphNode`), with `@type`/`@id` + semantic fields and `created_at_ns`.
+- `NormalisedNode` — the transport envelope *around* a `GraphNode`: adds
+  `@context`, an (optional, inert) signature envelope, and stays open via an
+  index signature. Pure `graphNodeToNormalised` / `normalisedToGraphNode`
+  adapters reconcile the two (e.g. `created_at_ns` ns ⇄ `refarm:createdAt` ISO).
+
+This is schema-on-read, not schema-on-wire: consumers that want types get them;
+plugins that just want to emit a node are not forced into a shape.
+
+**Rust owns the authoritative write; the convention is pinned, not rewritten.**
+Per ADR-059 the native write path (`packages/tractor/src/storage/sqlite.rs`,
+`packages/agent/src/session/pure.rs`) is Rust and emits the same field names by
+convention. `node-contract-v1`'s conformance test reads the Rust source and
+fails if those names drift — closing the cross-language gap without duplicating
+a type across the boundary. See ADR-059 and the Rust×TS boundary audit.
+
 ## Skills Are Surfaces, Not A Second Plugin System
 
 The distribution unit stays the package/plugin bundle. A package may carry code
