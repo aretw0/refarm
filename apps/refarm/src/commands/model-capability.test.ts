@@ -7,25 +7,52 @@ import { describe, expect, it, vi } from "vitest";
 import { createModelCapabilityGroup } from "./model-capability.js";
 import type { ModelCommandDeps, ModelTokens } from "./model.js";
 
-function deps(tokens: Partial<ModelTokens> = {}): ModelCommandDeps {
+function deps(tokens: Partial<ModelTokens> = {}): ModelCommandDeps & {
+	saveTokens: ReturnType<typeof vi.fn>;
+} {
 	return {
 		loadTokens: async () => tokens as ModelTokens,
-		saveTokens: async () => ({}),
+		saveTokens: vi.fn(async () => ({})),
 		fetch: vi.fn(async () => ({ ok: false }) as unknown as Response),
 		isContainer: () => false,
 	};
 }
 
 describe("model CapabilityGroup (read-only slice)", () => {
-	it("is a group with the read-only sub-actions and a read-only default", () => {
+	it("is a group with all 8 model actions and a read-only default", () => {
 		const group = createModelCapabilityGroup(deps());
 		expect(isCapabilityGroup(group)).toBe(true);
 		expect(Object.keys(group.actions).sort()).toEqual([
+			"base-url",
 			"current",
 			"doctor",
+			"env",
+			"fallback",
 			"providers",
+			"reset",
+			"set",
 		]);
 		expect(group.defaultAction).toBe("current");
+	});
+
+	it("dispatches a mutator (`set`) through the group to its builder", async () => {
+		const d = deps({ modelProvider: "ollama" });
+		const group = createModelCapabilityGroup(d);
+		const resolved = resolveGroupAction(group, ["set", "ollama/llama3.2"]);
+		expect(resolved?.key).toBe("set");
+		const envelope = await resolved!.action.run(resolved!.input);
+		expect(envelope.ok).toBe(true);
+		expect(d.saveTokens).toHaveBeenCalledTimes(1);
+	});
+
+	it("dispatches `reset --scope worker` through the group", async () => {
+		const d = deps({ modelRoutes: { worker: "ollama/llama3.2" } });
+		const group = createModelCapabilityGroup(d);
+		const resolved = resolveGroupAction(group, ["reset", "--scope", "worker"]);
+		expect(resolved?.key).toBe("reset");
+		const envelope = await resolved!.action.run(resolved!.input);
+		expect(envelope.ok).toBe(true);
+		expect(d.saveTokens).toHaveBeenCalledTimes(1);
 	});
 
 	it("carries multi-surface hints from one declaration (cli + http + tui)", () => {

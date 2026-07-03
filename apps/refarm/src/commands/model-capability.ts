@@ -7,9 +7,15 @@ import {
 	buildCurrentModelEnvelope,
 	buildKnownModelProvidersEnvelope,
 	buildModelDoctorEnvelope,
+	buildModelEnvEnvelope,
+	buildResetScopedModelEnvelope,
+	buildSetFallbackEnvelope,
+	buildSetModelBaseUrlEnvelope,
+	buildSetModelEnvelope,
 	defaultModelDeps,
 	type ModelCommandDeps,
 } from "./model.js";
+import { parseModelScope } from "../model-routing.js";
 
 /**
  * The `model` command as a multi-surface CapabilityGroup. Declared ONCE; the CLI
@@ -17,16 +23,11 @@ import {
  * all derive from this. Each sub-action's run() delegates to the existing pure
  * envelope builders — same behavior on every surface.
  *
- * SCOPE (this slice): the READ-ONLY actions only (current/providers/doctor),
- * whose logic already returns a pure status. The MUTATORS (set/reset/fallback/
- * base-url/env) are NOT here yet: each interleaves ~7-13 error/exit-code/print
- * points that must first be refactored to return an error envelope instead of
- * writing process.exitCode — a dedicated follow-up slice. Until all actions
- * exist, this group does NOT replace the legacy `modelCommand`; it proves the
- * read-only projection and is the seam the mutators plug into next.
- *
- * `deps` (loadTokens/fetch) are injected so run() never reads process.env or
- * globalThis.fetch directly.
+ * All 8 actions: read-only (current/providers/doctor/env) + mutators
+ * (set/reset/fallback/base-url). Every run() is pure (returns an envelope,
+ * success or error); exit intent lives in the surface hooks, never in run().
+ * `deps` (loadTokens/saveTokens/fetch) are injected so run() never reads
+ * process.env or globalThis.fetch directly.
  */
 export function createModelCapabilityGroup(
 	deps: ModelCommandDeps = defaultModelDeps(),
@@ -35,8 +36,7 @@ export function createModelCapabilityGroup(
 		name: "current",
 		summary: "Show the currently configured model route",
 		async run() {
-			const tokens = await deps.loadTokens();
-			return buildCurrentModelEnvelope(tokens);
+			return buildCurrentModelEnvelope(await deps.loadTokens());
 		},
 		renderers: { web: { route: "/settings/model" } },
 	};
@@ -53,25 +53,101 @@ export function createModelCapabilityGroup(
 		name: "doctor",
 		summary: "Probe the active local model provider endpoint",
 		async run() {
-			const tokens = await deps.loadTokens();
-			return buildModelDoctorEnvelope(tokens, {
+			return buildModelDoctorEnvelope(await deps.loadTokens(), {
 				fetch: deps.fetch,
 				isContainer: deps.isContainer,
 			});
 		},
 	};
 
+	const env: CapabilityDescriptor = {
+		name: "env",
+		summary: "Show the current model runtime environment exports",
+		options: [
+			{
+				name: "include-secrets",
+				kind: "boolean",
+				summary: "Include local runtime credential secrets",
+			},
+		],
+		async run(input) {
+			return buildModelEnvEnvelope(await deps.loadTokens(), {
+				includeSecrets: Boolean(input.options["include-secrets"]),
+			});
+		},
+	};
+
+	const set: CapabilityDescriptor = {
+		name: "set",
+		summary: "Set the model route (provider/model)",
+		args: [{ name: "ref", required: true }],
+		options: [
+			{
+				name: "scope",
+				kind: "string",
+				summary: "Route scope (default/worker/monitor)",
+				defaultValue: "default",
+			},
+		],
+		run(input) {
+			const scope = parseModelScope(input.options.scope as string) ?? "default";
+			return buildSetModelEnvelope(input.args.ref as string, scope, deps);
+		},
+	};
+
+	const fallback: CapabilityDescriptor = {
+		name: "fallback",
+		summary: "Set or disable the persisted fallback model route",
+		args: [{ name: "ref", required: true }],
+		run(input) {
+			return buildSetFallbackEnvelope(input.args.ref as string, deps);
+		},
+	};
+
+	const reset: CapabilityDescriptor = {
+		name: "reset",
+		summary: "Reset a scoped model route to its built-in default",
+		options: [
+			{
+				name: "scope",
+				kind: "string",
+				summary: "Route scope (default/worker/monitor)",
+				defaultValue: "default",
+			},
+		],
+		run(input) {
+			const scope = parseModelScope(input.options.scope as string) ?? "default";
+			return buildResetScopedModelEnvelope(scope, deps);
+		},
+	};
+
+	const baseUrl: CapabilityDescriptor = {
+		name: "base-url",
+		summary: "Set or disable the persisted OpenAI-compatible base URL",
+		args: [{ name: "url", required: true }],
+		run(input) {
+			return buildSetModelBaseUrlEnvelope(input.args.url as string, deps);
+		},
+	};
+
 	return {
 		name: "model",
 		summary: "Inspect and change the active model route",
-		actions: { current, providers, doctor },
+		actions: {
+			current,
+			providers,
+			doctor,
+			env,
+			set,
+			fallback,
+			reset,
+			"base-url": baseUrl,
+		},
 		// Bare `model` / `/model` reads the current route (read-only default).
 		defaultAction: "current",
-		// Surface hints populated as the design's evidence that one declaration
-		// carries CLI + REPL + API + TUI. The REPL/API projectors bind these once
-		// the full action set (with mutators) replaces the legacy modelCommand.
 		transports: {
 			cli: {},
+			repl: { slashAliases: ["provider"] },
 			http: { method: "POST", path: "/model" },
 		},
 		renderers: { tui: { section: "settings", shortcut: "ctrl+m" } },
