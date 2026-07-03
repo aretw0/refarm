@@ -1,5 +1,14 @@
 export const NODE_CAPABILITY = "node:v1" as const;
 
+export {
+	type NormalisedNode,
+	type Signature,
+	graphNodeToNormalised,
+	normalisedToGraphNode,
+	nanosToIso,
+	isoToNanos,
+} from "./normalised.js";
+
 /**
  * Base shape for all typed nodes in the Refarm sovereign data graph.
  *
