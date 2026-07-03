@@ -42,6 +42,7 @@ test("proves the agent-demo public surface without publishing held plugin runtim
 		REQUIRED_EVIDENCE_ARTIFACTS,
 	);
 	assert.equal(proof.evidence.every((entry) => entry.present), true);
+	assert.equal(proof.evidence.every((entry) => entry.reviewState === "accepted"), true);
 	assert.deepEqual(proof.failures, {
 		missingPublicPackages: [],
 		selectedHeldSurfaces: [],

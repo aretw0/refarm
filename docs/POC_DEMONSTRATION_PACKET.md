@@ -75,6 +75,8 @@ Extension evidence already present:
 - coding-agent evidence, proposal-only smoke, and temporary-workspace rehearsal
   artifacts for capability review, review packet, denied-capability receipt,
   protected-surface non-mutation, and isolated pre-promotion patch rehearsal.
+- an extension install review packet for a prepared-artifact white-label CLI
+  flow: doctor, review, rehearse, and handoff before install.
 
 Extension reader gap:
 
@@ -95,6 +97,7 @@ Extension metrics to expose:
 | linked runtime commands | `runtime-evidence.json` | show route to real execution validation |
 | proposal-only agent packet | `coding-agent-smoke.json` | show that coding-agent promotion depends on review evidence, not hidden writes |
 | temp-workspace rehearsal | `coding-agent-temp-workspace.json` | show the patch can be rehearsed outside the repository before promotion |
+| prepared extension review | `extension-install-review-packet.json` | show a prepared artifact can be reviewed and handed off before install |
 
 Extension claim boundary:
 
@@ -103,6 +106,7 @@ Extension claim boundary:
 - real WASM execution inside the synthetic sandbox report;
 - real model-driven coding-agent patch generation;
 - complete repository sandboxing;
+- held plugin runtime publication or real extension installation;
 - certification or compliance.
 
 ## Theme 2: Citizen Data Wallet

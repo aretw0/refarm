@@ -202,6 +202,13 @@ assert.deepEqual(
 );
 assert.deepEqual(
 	ids(selectTaskArtifacts(extension, {
+		labels: ["extension-install", "white-label-cli", "review-packet"],
+		roles: ["receipt"],
+	})),
+	["extension-install-review-packet-json"],
+);
+assert.deepEqual(
+	ids(selectTaskArtifacts(extension, {
 		labels: ["coding-agent", "denied-capability"],
 		mediaTypes: ["application/json"],
 		reviewStates: ["accepted"],

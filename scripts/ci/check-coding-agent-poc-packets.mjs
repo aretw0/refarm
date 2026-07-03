@@ -25,6 +25,7 @@ function readJson(fileName) {
 const smoke = readJson("coding-agent-smoke.json");
 const evidence = readJson("coding-agent-evidence.json");
 const rehearsal = readJson("coding-agent-temp-workspace.json");
+const installReviewPacket = readJson("extension-install-review-packet.json");
 const manifest = readJson("task-artifacts.json");
 
 assert.equal(isTaskArtifactManifest(manifest), true);
@@ -132,6 +133,44 @@ assert.equal(rehearsal.checks.deniedCapabilityReceiptPreserved, true);
 assert.equal(rehearsal.checks.protectedSurfacesUntouched, true);
 assert.equal(rehearsal.checks.fileHashChangedOnlyInsideTempWorkspace, true);
 assert.match(rehearsal.promotionBoundary.cannotSay, /real model-driven coding agent/);
+
+const installReviewArtifact = findTaskArtifactById(
+	manifest,
+	"extension-install-review-packet-json",
+);
+assert.ok(installReviewArtifact, "extension-install-review-packet-json must be published");
+assert.equal(installReviewArtifact.role, "receipt");
+assert.equal(installReviewArtifact.reviewState, "accepted");
+assert.equal(installReviewArtifact.mediaType, "application/json");
+assert.ok(installReviewArtifact.labels.includes("extension-install"));
+assert.ok(installReviewArtifact.labels.includes("review-packet"));
+assert.ok(installReviewArtifact.labels.includes("denied-capability"));
+assert.ok(installReviewArtifact.labels.includes("white-label-cli"));
+assert.ok(installReviewArtifact.labels.includes("claim-promotion"));
+assert.ok(installReviewArtifact.labels.includes("theme-1"));
+
+assert.equal(installReviewPacket.schema, "refarm.extension-install-review-packet.v1");
+assert.equal(installReviewPacket.preparedArtifact.mustExistBeforeDemo, true);
+assert.equal(installReviewPacket.installPlan.mode, "review-first");
+assert.equal(installReviewPacket.installPlan.readyToInstall, false);
+assert.deepEqual(
+	installReviewPacket.whiteLabelCommandEnvelope.map((entry) => entry.step),
+	["doctor", "review", "rehearse", "handoff"],
+);
+assert.ok(
+	installReviewPacket.receipts.some(
+		(receipt) =>
+			receipt.pluginId === "@example/denied-extension" &&
+			receipt.capabilities?.includes("network:v1") &&
+			receipt.status === "denied",
+	),
+);
+assert.equal(installReviewPacket.checks.preparedArtifactExistsBeforeDemo, true);
+assert.equal(installReviewPacket.checks.deniedCapabilityReceiptsRecorded, true);
+assert.equal(installReviewPacket.checks.tempWorkspaceRehearsalRecorded, true);
+assert.equal(installReviewPacket.checks.repositoryMutationBlocked, true);
+assert.match(installReviewPacket.boundaries.join("\n"), /does not live-code/);
+assert.match(installReviewPacket.boundaries.join("\n"), /held plugin runtime stack/);
 
 const tempRoot = mkdtempSync(path.join(os.tmpdir(), "refarm-coding-agent-rehearsal-"));
 try {

@@ -33,6 +33,8 @@ read secrets.
   a denied `network:v1` receipt without mutating protected files.
 - A coding-agent temporary-workspace artifact rehearses the proposed patch
   against a workspace copy while keeping repository promotion blocked on review.
+- An extension install review packet records a prepared-artifact workflow for
+  white-label CLI demos: doctor, review, rehearse, and handoff before install.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON and Markdown reports are generated deterministically.
 - A `refarm.task-artifacts.v1` manifest lists generated outputs with media
@@ -88,6 +90,7 @@ Expected artifacts live in `fixtures/expected/`:
 - `coding-agent-evidence.json`
 - `coding-agent-smoke.json`
 - `coding-agent-temp-workspace.json`
+- `extension-install-review-packet.json`
 - `sandbox-report.md`
 - `scenario.md`
 - `annex.md`

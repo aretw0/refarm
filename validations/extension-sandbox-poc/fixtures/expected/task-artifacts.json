@@ -249,6 +249,40 @@
       ]
     },
     {
+      "id": "extension-install-review-packet-json",
+      "uri": "extension-install-review-packet.json",
+      "mediaType": "application/json",
+      "role": "receipt",
+      "hash": {
+        "algorithm": "sha256",
+        "value": "66ab2902409b0837477ee8fbea8250ed1db6e3db039819766a665dda54b20297"
+      },
+      "reviewState": "accepted",
+      "provenance": {
+        "runId": "extension-sandbox-poc-001",
+        "producer": "extension-sandbox:poc",
+        "command": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs",
+        "process": {
+          "command": "node",
+          "args": [
+            "validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+          ],
+          "display": "node validations/extension-sandbox-poc/extension-sandbox-poc.mjs"
+        },
+        "source": "validations/extension-sandbox-poc",
+        "sourceVersion": "synthetic-v1",
+        "producedAt": "2026-01-01T00:00:00.000Z"
+      },
+      "labels": [
+        "extension-install",
+        "review-packet",
+        "denied-capability",
+        "white-label-cli",
+        "claim-promotion",
+        "theme-1"
+      ]
+    },
+    {
       "id": "scenario-md",
       "uri": "scenario.md",
       "mediaType": "text/markdown",
@@ -285,7 +319,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "0e04b18082e96dd50f549da29193f44ea38cce0b3f3ad8ff27793ecbe9fde801"
+        "value": "c9bf85dccbd948277a1c90330c817c18b890d97b02b0eb7abd3f29e338227c72"
       },
       "reviewState": "accepted",
       "provenance": {
@@ -346,7 +380,7 @@
       "role": "report",
       "hash": {
         "algorithm": "sha256",
-        "value": "80fc95a20f2b4fda54aaeffe64c74d1fddb11b4a8176dbbcb704b10ea851d773"
+        "value": "22116bf8a5de25dbaa37cfe4c1753d77f943904ba805f5ace480e96898f69f1e"
       },
       "reviewState": "accepted",
       "provenance": {

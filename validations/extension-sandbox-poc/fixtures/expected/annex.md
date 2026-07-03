@@ -18,6 +18,7 @@
 | Denied capabilities remain reviewable | `policy-decision.json` denied plugin list |
 | Failure mode changes are explicit | `sandbox-report.md` policy table |
 | Pilot decision is measurable | `scorecard.json` |
+| Prepared install review is explicit | `extension-install-review-packet.json` |
 
 ## Scorecard Criteria
 

@@ -142,6 +142,7 @@ prefer machine-readable evidence navigation.
 | Extension sandbox | Failure policy can be modeled as an operational choice, not hidden behavior. | `sandbox-report.md`, `scorecard.json`, `limits.md` | Real host performance or complete isolation is proven. |
 | Extension sandbox | Synthetic policy evidence is connected to a real WASM validation path. | `runtime-evidence.json`, `task-artifacts.json` | The synthetic report itself executed real WASM plugins. |
 | Extension sandbox | A coding-agent workflow can be framed with explicit capability review, provenance, and human promotion gates. | `coding-agent-evidence.json`, `coding-agent-smoke.json`, `coding-agent-temp-workspace.json`, `policy-decision.json`, `limits.md` | A production autonomous coding agent or safe unattended repository mutation is proven. |
+| Extension sandbox | A prepared extension artifact can be reviewed, rehearsed, and handed off before installation. | `extension-install-review-packet.json`, `coding-agent-temp-workspace.json`, `policy-decision.json`, `task-artifacts.json` | A held plugin runtime stack was published or a real extension was installed. |
 | Citizen data wallet | Purpose, scope, expiration, and selective disclosure can be represented as reviewable artifacts. | `service-request.json`, `authorization-receipt.json`, `selective-presentation.json` | Formal wallet interoperability is proven. |
 | Citizen data wallet | Tamper detection and revocation can be made visible to the operator and holder journey. | `audit-trail.md`, `revocation-event.json`, `consent-decision.json` | Legal compliance or production UX is ready. |
 | Citizen data wallet | The flow can be evaluated with pilot criteria before institutional adoption. | `scorecard.json`, `risk-and-standards-matrix.json`, `limits.md` | LGPD, W3C VC, OpenID4VP, or EUDI conformance is certified. |
@@ -179,6 +180,7 @@ Extension files:
 | `coding-agent-evidence.json` | Support Theme 1 coding-agent framing. | Capability review, provenance, and human promotion gates can be described without claiming autonomous coding readiness. |
 | `coding-agent-smoke.json` | Support Theme 1 demonstration mechanics. | A proposed patch, review packet, denied-capability receipt, and untouched protected surfaces are recorded without claiming model-driven patch generation. |
 | `coding-agent-temp-workspace.json` | Support Theme 1 promotion mechanics. | The proposed patch can be rehearsed in a temporary workspace copy while repository promotion remains review-gated, without claiming complete sandboxing or unattended writes. |
+| `extension-install-review-packet.json` | Support Theme 1 white-label install flow. | A prepared artifact can move through doctor, review, rehearsal, and handoff evidence before install without publishing held plugin runtime surfaces. |
 | `limits.md` | Support adoption restraint and non-claims. | Non-claims, adoption risks, and promotion criteria are explicit. |
 | `task-artifacts.json` | Support provenance claims. | artifacts have hashes, media types, producer command, and review state. |
 

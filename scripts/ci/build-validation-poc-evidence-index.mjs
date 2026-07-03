@@ -48,6 +48,19 @@ export const POCS = [
 				doNotSayYet:
 					"A production autonomous coding agent or safe unattended repository mutation is proven.",
 			},
+			{
+				id: "prepared-extension-review-before-install",
+				carefulClaim:
+					"A prepared extension artifact can be reviewed, rehearsed, and handed off before installation.",
+				evidenceIds: [
+					"extension-install-review-packet-json",
+					"coding-agent-temp-workspace-json",
+					"policy-decision-json",
+					"task-artifacts",
+				],
+				doNotSayYet:
+					"A held plugin runtime stack was published or a real extension was installed.",
+			},
 		],
 	},
 	{

@@ -1,0 +1,138 @@
+{
+  "schema": "refarm.extension-install-review-packet.v1",
+  "id": "extension-install-review-packet-001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "claim": "A prepared extension artifact can be planned, reviewed, rehearsed, and handed off without installing unreviewed capabilities.",
+  "claimStatus": "deterministic-review-packet",
+  "preparedArtifact": {
+    "id": "@example/benign-extension",
+    "kind": "plugin",
+    "source": "synthetic-manifest",
+    "manifestValid": true,
+    "requiredCapabilities": [
+      "storage:v1"
+    ],
+    "grantedCapabilities": [
+      "storage:v1"
+    ],
+    "mustExistBeforeDemo": true
+  },
+  "whiteLabelCommandEnvelope": [
+    {
+      "step": "doctor",
+      "command": "<white-label-cli> doctor --json",
+      "purpose": "confirm runtime, policy, and local evidence paths before install"
+    },
+    {
+      "step": "review",
+      "command": "<white-label-cli> extension review ./prepared-extension --json",
+      "purpose": "emit policy decision, denied-capability receipts, and review requirements"
+    },
+    {
+      "step": "rehearse",
+      "command": "<white-label-cli> extension rehearse ./prepared-extension --temp-workspace --json",
+      "purpose": "exercise the proposed change in a temporary workspace copy"
+    },
+    {
+      "step": "handoff",
+      "command": "<white-label-cli> extension handoff --artifacts task-artifacts.json --json",
+      "purpose": "collect the review packet and evidence index for downstream presentation"
+    }
+  ],
+  "installPlan": {
+    "mode": "review-first",
+    "readyToInstall": false,
+    "requiredBeforeInstall": [
+      "operator approves requested capabilities",
+      "real runtime validation evidence is attached when claiming execution",
+      "temporary-workspace rehearsal is reviewed before repository promotion"
+    ],
+    "policyDecision": "policy-decision.json",
+    "reviewPacket": {
+      "id": "review-packet-001",
+      "status": "requires-operator-review",
+      "requiredBeforePromotion": [
+        "workspace:write",
+        "process:run"
+      ],
+      "primaryEvidence": [
+        "coding-agent-evidence.json",
+        "policy-decision.json",
+        "limits.md"
+      ]
+    },
+    "rehearsalPacket": "coding-agent-temp-workspace.json"
+  },
+  "receipts": [
+    {
+      "id": "denied-capability-1",
+      "pluginId": "@example/denied-extension",
+      "capabilities": [
+        "network:v1"
+      ],
+      "policyMode": "warn+continue",
+      "status": "denied",
+      "outcome": "blocked-warn-continue",
+      "evidence": [
+        "policy-decision.json",
+        "sandbox-report.json"
+      ]
+    },
+    {
+      "id": "denied-capability-2",
+      "pluginId": "@example/denied-extension",
+      "capabilities": [
+        "network:v1"
+      ],
+      "policyMode": "fail-fast",
+      "status": "denied",
+      "outcome": "blocked-fail-fast",
+      "evidence": [
+        "policy-decision.json",
+        "sandbox-report.json"
+      ]
+    },
+    {
+      "id": "denied-capability-network-v1-001",
+      "capability": "network:v1",
+      "status": "denied",
+      "reason": "network access is not part of the default grant",
+      "evidence": [
+        "policy-decision.json",
+        "sandbox-report.json"
+      ]
+    },
+    {
+      "id": "repository-mutation-denied-001",
+      "capability": "repository:write",
+      "status": "denied",
+      "reason": "the rehearsal may write only to a temporary workspace copy until an operator promotes the reviewed patch",
+      "evidence": [
+        "coding-agent-smoke.json",
+        "limits.md"
+      ]
+    }
+  ],
+  "checks": {
+    "preparedArtifactExistsBeforeDemo": true,
+    "manifestPolicyReviewed": true,
+    "deniedCapabilityReceiptsRecorded": true,
+    "tempWorkspaceRehearsalRecorded": true,
+    "repositoryMutationBlocked": true,
+    "protectedSurfacesUntouched": true
+  },
+  "evidence": [
+    "policy-decision.json",
+    "coding-agent-smoke.json",
+    "coding-agent-temp-workspace.json",
+    "task-artifacts.json",
+    "limits.md"
+  ],
+  "boundaries": [
+    "The packet describes a prepared artifact workflow; it does not live-code the artifact during the demo.",
+    "The packet does not install, vendor, or publish the held plugin runtime stack.",
+    "The packet does not claim production sandboxing or real WASM execution.",
+    "Consumer-facing command labels can be replaced by a white-label CLI without changing the evidence shape."
+  ],
+  "nextPromotion": "Replace the synthetic manifest with a prepared package artifact and require the same packet shape before install or repository promotion."
+}

@@ -158,6 +158,21 @@
               "claim-promotion",
               "theme-1"
             ]
+          },
+          {
+            "id": "extension-install-review-packet-json",
+            "uri": "validations/extension-sandbox-poc/fixtures/expected/extension-install-review-packet.json",
+            "role": "receipt",
+            "mediaType": "application/json",
+            "reviewState": "accepted",
+            "labels": [
+              "extension-install",
+              "review-packet",
+              "denied-capability",
+              "white-label-cli",
+              "claim-promotion",
+              "theme-1"
+            ]
           }
         ],
         "readerStart": {
@@ -344,6 +359,62 @@
             }
           ],
           "doNotSayYet": "A production autonomous coding agent or safe unattended repository mutation is proven."
+        },
+        {
+          "id": "prepared-extension-review-before-install",
+          "carefulClaim": "A prepared extension artifact can be reviewed, rehearsed, and handed off before installation.",
+          "primaryEvidence": [
+            {
+              "id": "extension-install-review-packet-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/extension-install-review-packet.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "extension-install",
+                "review-packet",
+                "denied-capability",
+                "white-label-cli",
+                "claim-promotion",
+                "theme-1"
+              ]
+            },
+            {
+              "id": "coding-agent-temp-workspace-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/coding-agent-temp-workspace.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "coding-agent",
+                "temporary-workspace",
+                "review-packet",
+                "denied-capability",
+                "claim-promotion",
+                "theme-1"
+              ]
+            },
+            {
+              "id": "policy-decision-json",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/policy-decision.json",
+              "role": "receipt",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": []
+            },
+            {
+              "id": "task-artifacts",
+              "uri": "validations/extension-sandbox-poc/fixtures/expected/task-artifacts.json",
+              "role": "manifest",
+              "mediaType": "application/json",
+              "reviewState": "accepted",
+              "labels": [
+                "provenance",
+                "manifest"
+              ]
+            }
+          ],
+          "doNotSayYet": "A held plugin runtime stack was published or a real extension was installed."
         }
       ],
       "consumerHints": {
@@ -356,6 +427,7 @@
           "coding-agent",
           "denied-capability",
           "evidence-map",
+          "extension-install",
           "limits",
           "pilot",
           "reader-path",
@@ -369,15 +441,16 @@
           "standards",
           "temporary-workspace",
           "theme-1",
-          "wasm"
+          "wasm",
+          "white-label-cli"
         ],
         "countByRole": {
           "dataset": 1,
-          "receipt": 3,
+          "receipt": 4,
           "report": 9
         },
         "countByReviewState": {
-          "accepted": 13
+          "accepted": 14
         }
       }
     },

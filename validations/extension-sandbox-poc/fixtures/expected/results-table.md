@@ -12,6 +12,7 @@ Scope: synthetic local validation only. No real plugins, services, institutional
 | Coding-agent authority stays bounded | unreviewed network remains denied and promotion requires review | pass | `coding-agent-evidence.json`, `policy-decision.json` |
 | Coding-agent smoke remains proposal-only | protected surfaces are untouched and patch is review-only | pass | `coding-agent-smoke.json` |
 | Coding-agent temp rehearsal stays isolated | the patch is rehearsed only against a temporary workspace copy | pass | `coding-agent-temp-workspace.json` |
+| Prepared extension install stays review-first | doctor, review, rehearse, and handoff are recorded before install | pass | `extension-install-review-packet.json` |
 
 ## Claim Boundary
 

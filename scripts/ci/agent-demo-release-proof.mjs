@@ -25,6 +25,7 @@ export const REQUIRED_EVIDENCE_ARTIFACTS = [
 	"coding-agent-evidence-json",
 	"coding-agent-smoke-json",
 	"coding-agent-temp-workspace-json",
+	"extension-install-review-packet-json",
 ];
 
 export const HELD_AGENT_PLUGIN_SURFACES = [
@@ -132,7 +133,7 @@ export function buildAgentDemoReleaseProof({
 				present: Boolean(artifact),
 				mediaType: artifact?.mediaType || null,
 				role: artifact?.role || null,
-				reviewState: artifact?.review?.state || null,
+				reviewState: artifact?.reviewState || artifact?.review?.state || null,
 			};
 		}),
 		failures: {

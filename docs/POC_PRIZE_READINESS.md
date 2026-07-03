@@ -68,7 +68,7 @@ command, or a public reference owned outside this repository.
 
 | Theme | Problem | Architectural decision | POC evidence | Observable metric | Current limit |
 | --- | --- | --- | --- | --- | --- |
-| Extension sandbox | Extension and coding-agent ecosystems need reviewable capability boundaries before promotion. | Manifest + policy decision + lifecycle evidence + human promotion gate before install, tool use, or stronger autonomy. | `policy-decision.json`, `sandbox-report.json`, `runtime-evidence.json`, `coding-agent-evidence.json`, `coding-agent-smoke.json`, `coding-agent-temp-workspace.json`, `task-artifacts.json`. | denied capabilities counted; isolated failures counted; policy mode recorded; coding-agent capability boundary recorded; proposal-only smoke recorded; temporary-workspace rehearsal recorded; artifact hashes present. | Synthetic policy POC; real WASM/runtime and real model-driven coding-agent execution paths remain separate evidence. |
+| Extension sandbox | Extension and coding-agent ecosystems need reviewable capability boundaries before promotion. | Manifest + policy decision + lifecycle evidence + human promotion gate before install, tool use, or stronger autonomy. | `policy-decision.json`, `sandbox-report.json`, `runtime-evidence.json`, `coding-agent-evidence.json`, `coding-agent-smoke.json`, `coding-agent-temp-workspace.json`, `extension-install-review-packet.json`, `task-artifacts.json`. | denied capabilities counted; isolated failures counted; policy mode recorded; coding-agent capability boundary recorded; proposal-only smoke recorded; temporary-workspace rehearsal recorded; prepared-artifact review packet recorded; artifact hashes present. | Synthetic policy POC; real WASM/runtime and real model-driven coding-agent execution paths remain separate evidence. |
 | Citizen data wallet | Personal data sharing needs purpose, scope, expiration, revocation, and auditability. | Authorization receipt + selective presentation + revocation event + consent decision. | `service-request.json`, `authorization-receipt.json`, `selective-presentation.json`, `revocation-event.json`, `consent-decision.json`. | requested vs disclosed attributes; receipt integrity check; revocation status; review state. | No formal wallet, legal, UX, or standards conformance claim. |
 | Governed note box | Knowledge workflows need provenance from intake through lab/publication without publishing drafts by accident. | Metadata index + lab snapshot + publication snapshot + human-review preflight. | `metadata-index.json`, `lab-snapshot.json`, `publication-snapshot.json`, `publication-preflight.json`, `consumer-evidence.json`. | source count; publishable vs draft count; review gate status; manifest selector coverage. | Synthetic workflow; vault UX and publication remain consumer-owned, especially in `vault-seed`. |
 
@@ -110,6 +110,9 @@ metric would gate a pilot, and which boundary prevents overclaiming.
 - `coding-agent-temp-workspace.json` for the extension sandbox, exposed through
   labels `coding-agent`, `temporary-workspace`, `review-packet`,
   `denied-capability`, `claim-promotion`, and `theme-1`.
+- `extension-install-review-packet.json` for the extension sandbox, exposed
+  through labels `extension-install`, `review-packet`, `denied-capability`,
+  `white-label-cli`, `claim-promotion`, and `theme-1`.
 - `consumer-evidence.json` for the governed note box, exposed through labels
   `consumer`, `vault`, and `claim-promotion`.
 - `limits.md` reports for each POC, exposed through labels `limits`,
@@ -190,20 +193,27 @@ Each POC should grow one lightweight "demonstration packet":
    - Keeps the proposal claim precise: isolated rehearsal, not complete
      repository sandboxing or unattended promotion.
 
-9. `consumer-evidence.json`
+9. `extension-install-review-packet.json`
+   - Implemented for the extension sandbox.
+   - Records a prepared extension artifact workflow for white-label CLI demos:
+     doctor, review, rehearse, and handoff before install.
+   - Keeps the proposal claim precise: prepared-artifact governance, not
+     published plugin runtime or real extension installation.
+
+10. `consumer-evidence.json`
    - Implemented for the governed note box.
    - Documents downstream selector queries for lab datasets, publication
      datasets, publication preflight, and consumer readiness.
    - Keeps the proposal claim precise: manifest-consumer-ready, not real vault
      integration.
 
-10. `limits.md`
+11. `limits.md`
    - Implemented for all three POCs.
    - Non-goals, adoption risks, and when the model should not be used.
    - This is important because the external drafts are strongest when they show
      skepticism and operational restraint.
 
-11. `poc-evidence-index.json`
+12. `poc-evidence-index.json`
    - Implemented at `validations/poc-evidence-index.json`.
    - Provides the suite-level reading order and claim-promotion pointers.
    - Carries `writingClaims` so downstream tools can navigate from careful

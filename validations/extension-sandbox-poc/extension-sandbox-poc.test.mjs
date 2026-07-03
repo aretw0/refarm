@@ -6,6 +6,7 @@ import {
 	buildCodingAgentEvidence,
 	buildCodingAgentSmoke,
 	buildCodingAgentTempWorkspaceRehearsal,
+	buildExtensionInstallReviewPacket,
 	buildLimitsMarkdown,
 	buildPilotScorecard,
 	buildPolicyDecision,
@@ -188,6 +189,30 @@ describe("extension sandbox poc", () => {
 		assert.match(rehearsal.promotionBoundary.cannotSay, /real model-driven coding agent/);
 	});
 
+	it("publishes an extension install review packet for white-label CLI demos", () => {
+		const report = runExtensionSandboxPoc();
+		const evidence = buildCodingAgentEvidence(report);
+		const smoke = buildCodingAgentSmoke(report, evidence);
+		const rehearsal = buildCodingAgentTempWorkspaceRehearsal(report, evidence, smoke);
+		const packet = buildExtensionInstallReviewPacket(report, evidence, smoke, rehearsal);
+
+		assert.deepEqual(readFixture("extension-install-review-packet.json"), packet);
+		assert.equal(packet.schema, "refarm.extension-install-review-packet.v1");
+		assert.equal(packet.claimStatus, "deterministic-review-packet");
+		assert.equal(packet.preparedArtifact.mustExistBeforeDemo, true);
+		assert.equal(packet.installPlan.mode, "review-first");
+		assert.equal(packet.installPlan.readyToInstall, false);
+		assert.deepEqual(
+			packet.whiteLabelCommandEnvelope.map((entry) => entry.step),
+			["doctor", "review", "rehearse", "handoff"],
+		);
+		assert.equal(packet.checks.deniedCapabilityReceiptsRecorded, true);
+		assert.equal(packet.checks.tempWorkspaceRehearsalRecorded, true);
+		assert.equal(packet.checks.repositoryMutationBlocked, true);
+		assert.match(packet.boundaries.join("\n"), /does not live-code/);
+		assert.match(packet.boundaries.join("\n"), /white-label CLI/);
+	});
+
 	it("keeps runtime evidence commands and linked files resolvable", () => {
 		const report = runExtensionSandboxPoc();
 		const evidence = buildRuntimeEvidence(report);
@@ -273,6 +298,7 @@ describe("extension sandbox poc", () => {
 				"coding-agent-evidence.json",
 				"coding-agent-smoke.json",
 				"coding-agent-temp-workspace.json",
+				"extension-install-review-packet.json",
 				"scenario.md",
 				"annex.md",
 				"limits.md",

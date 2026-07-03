@@ -597,6 +597,102 @@ export function buildCodingAgentTempWorkspaceRehearsal(
 	};
 }
 
+export function buildExtensionInstallReviewPacket(
+	report,
+	evidence = buildCodingAgentEvidence(report),
+	smoke = buildCodingAgentSmoke(report, evidence),
+	rehearsal = buildCodingAgentTempWorkspaceRehearsal(report, evidence, smoke),
+) {
+	const deniedCapabilityReceipts = report.policyDecision.deniedPlugins.map((plugin, index) => ({
+		id: `denied-capability-${index + 1}`,
+		pluginId: plugin.pluginId,
+		capabilities: plugin.missingCapabilities,
+		policyMode: plugin.policyMode,
+		status: "denied",
+		outcome: plugin.outcome,
+		evidence: ["policy-decision.json", "sandbox-report.json"],
+	}));
+
+	return {
+		schema: "refarm.extension-install-review-packet.v1",
+		id: "extension-install-review-packet-001",
+		createdAt: ISSUED_AT,
+		claim:
+			"A prepared extension artifact can be planned, reviewed, rehearsed, and handed off without installing unreviewed capabilities.",
+		claimStatus: "deterministic-review-packet",
+		preparedArtifact: {
+			id: "@example/benign-extension",
+			kind: "plugin",
+			source: "synthetic-manifest",
+			manifestValid: true,
+			requiredCapabilities: ["storage:v1"],
+			grantedCapabilities: GRANTED_CAPABILITIES,
+			mustExistBeforeDemo: true,
+		},
+		whiteLabelCommandEnvelope: [
+			{
+				step: "doctor",
+				command: "<white-label-cli> doctor --json",
+				purpose: "confirm runtime, policy, and local evidence paths before install",
+			},
+			{
+				step: "review",
+				command: "<white-label-cli> extension review ./prepared-extension --json",
+				purpose: "emit policy decision, denied-capability receipts, and review requirements",
+			},
+			{
+				step: "rehearse",
+				command: "<white-label-cli> extension rehearse ./prepared-extension --temp-workspace --json",
+				purpose: "exercise the proposed change in a temporary workspace copy",
+			},
+			{
+				step: "handoff",
+				command: "<white-label-cli> extension handoff --artifacts task-artifacts.json --json",
+				purpose: "collect the review packet and evidence index for downstream presentation",
+			},
+		],
+		installPlan: {
+			mode: "review-first",
+			readyToInstall: false,
+			requiredBeforeInstall: [
+				"operator approves requested capabilities",
+				"real runtime validation evidence is attached when claiming execution",
+				"temporary-workspace rehearsal is reviewed before repository promotion",
+			],
+			policyDecision: "policy-decision.json",
+			reviewPacket: smoke.outputs.reviewPacket,
+			rehearsalPacket: "coding-agent-temp-workspace.json",
+		},
+		receipts: [
+			...deniedCapabilityReceipts,
+			...rehearsal.receipts,
+		],
+		checks: {
+			preparedArtifactExistsBeforeDemo: true,
+			manifestPolicyReviewed: report.checks.deniedBlocked,
+			deniedCapabilityReceiptsRecorded: deniedCapabilityReceipts.length > 0,
+			tempWorkspaceRehearsalRecorded: rehearsal.checks.tempWorkspaceUsed,
+			repositoryMutationBlocked: rehearsal.checks.repositoryMutationBlocked,
+			protectedSurfacesUntouched: rehearsal.checks.protectedSurfacesUntouched,
+		},
+		evidence: [
+			"policy-decision.json",
+			"coding-agent-smoke.json",
+			"coding-agent-temp-workspace.json",
+			"task-artifacts.json",
+			"limits.md",
+		],
+		boundaries: [
+			"The packet describes a prepared artifact workflow; it does not live-code the artifact during the demo.",
+			"The packet does not install, vendor, or publish the held plugin runtime stack.",
+			"The packet does not claim production sandboxing or real WASM execution.",
+			"Consumer-facing command labels can be replaced by a white-label CLI without changing the evidence shape.",
+		],
+		nextPromotion:
+			"Replace the synthetic manifest with a prepared package artifact and require the same packet shape before install or repository promotion.",
+	};
+}
+
 export function buildSandboxReportMarkdown(report) {
 	const rows = report.policies
 		.flatMap((policy) =>
@@ -694,6 +790,7 @@ ${flowRows}
 | Denied capabilities remain reviewable | \`policy-decision.json\` denied plugin list |
 | Failure mode changes are explicit | \`sandbox-report.md\` policy table |
 | Pilot decision is measurable | \`scorecard.json\` |
+| Prepared install review is explicit | \`extension-install-review-packet.json\` |
 
 ## Scorecard Criteria
 
@@ -756,6 +853,7 @@ Scope: synthetic local validation only. No real plugins, services, institutional
 | Coding-agent authority stays bounded | unreviewed network remains denied and promotion requires review | pass | \`coding-agent-evidence.json\`, \`policy-decision.json\` |
 | Coding-agent smoke remains proposal-only | protected surfaces are untouched and patch is review-only | pass | \`coding-agent-smoke.json\` |
 | Coding-agent temp rehearsal stays isolated | the patch is rehearsed only against a temporary workspace copy | pass | \`coding-agent-temp-workspace.json\` |
+| Prepared extension install stays review-first | doctor, review, rehearse, and handoff are recorded before install | pass | \`extension-install-review-packet.json\` |
 
 ## Claim Boundary
 
@@ -793,6 +891,7 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 		"coding-agent-evidence.json": "report",
 		"coding-agent-smoke.json": "receipt",
 		"coding-agent-temp-workspace.json": "receipt",
+		"extension-install-review-packet.json": "receipt",
 		"scenario.md": "report",
 		"annex.md": "report",
 		"limits.md": "report",
@@ -822,6 +921,14 @@ export function buildTaskArtifactManifest(writtenArtifacts) {
 			"temporary-workspace",
 			"review-packet",
 			"denied-capability",
+			"claim-promotion",
+			"theme-1",
+		],
+		"extension-install-review-packet.json": [
+			"extension-install",
+			"review-packet",
+			"denied-capability",
+			"white-label-cli",
 			"claim-promotion",
 			"theme-1",
 		],
@@ -872,6 +979,12 @@ export function writeArtifacts(outDir) {
 		codingAgentEvidence,
 		codingAgentSmoke,
 	);
+	const extensionInstallReviewPacket = buildExtensionInstallReviewPacket(
+		report,
+		codingAgentEvidence,
+		codingAgentSmoke,
+		codingAgentTempWorkspace,
+	);
 	const writtenArtifacts = {
 		"sandbox-report.json": jsonText(report),
 		"policy-decision.json": jsonText(report.policyDecision),
@@ -881,6 +994,7 @@ export function writeArtifacts(outDir) {
 		"coding-agent-evidence.json": jsonText(codingAgentEvidence),
 		"coding-agent-smoke.json": jsonText(codingAgentSmoke),
 		"coding-agent-temp-workspace.json": jsonText(codingAgentTempWorkspace),
+		"extension-install-review-packet.json": jsonText(extensionInstallReviewPacket),
 		"scenario.md": buildScenarioMarkdown(report),
 		"annex.md": buildAnnexMarkdown(report, scorecard),
 		"limits.md": buildLimitsMarkdown(),
