@@ -233,6 +233,7 @@ test("focus maps do not regress implemented quality and projection blocks to pla
 	assert.doesNotMatch(qualityAgentBuildOrderDoc, /adapter \*\*planned\*\*/);
 
 	assert.match(decisionLogDoc, /Content-projection MD\/MDX blocks/);
-	assert.match(decisionLogDoc, /Phase 1 implemented and selected; `ds-astro` remains render-pressure-gated/);
+	assert.match(decisionLogDoc, /Phase 1 implemented, selected, and downstream-proven; `ds-astro` remains render-pressure-gated/);
+	assert.doesNotMatch(decisionLogDoc, /Phase 1 implemented and selected; `ds-astro` remains render-pressure-gated/);
 	assert.doesNotMatch(decisionLogDoc, /Content-projection MD\/MDX blocks.*implementation in flight/);
 });
