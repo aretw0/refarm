@@ -563,6 +563,7 @@ local stand-ins:
 | Lab WASM helpers, feed/OpenGraph readers, refresh workflows | WASM substrate, HTTP/source readers, artifact snapshot contract | Marimo notebooks, dataset examples, visual exploration |
 | `dgk publish workspace` and custom distributions | generator/codemod registry, release-engine, package acceptance policy | distribution identity, Obsidian/Foam defaults, user-facing template docs |
 | OKF/JSON-LD/semantic graph export and requirement-like records | knowledge/content manifest contract and graph artifact envelope | OKF-specific mapping, domain vocabulary, editorial governance, publication copy |
+| MD/MDX note authoring → `records:v1` (frontmatter, wikilinks, projection) | `content-projection` block (over `records-contract-v1`, composes with `source-local`) + `ds-astro` sanctioned MDX embed set ([design](./superpowers/specs/2026-07-02-content-projection-md-mdx-design.md)) | PARA folder→type projection config, note/link vocabulary, Obsidian/Foam authoring conventions |
 | DGK changelog as publishable content | release-engine emits release-note artifact; channel policy handles delivery evidence | final prose, frontmatter defaults, channel selection |
 | local data lifecycle beyond git: SQLite, data repo, snapshot compaction | storage/materialization/retention policy attached to artifact contracts | backend choice for each vault and migration timing |
 | `vault-publish`, `vault-inbox`, `vault-changelog` skills | Refarm skill runtime activation over source/channel/release primitives | SKILL.md copy, DGK-specific skill packaging |
