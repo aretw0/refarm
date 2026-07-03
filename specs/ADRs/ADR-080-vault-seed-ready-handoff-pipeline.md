@@ -18,7 +18,7 @@ ADR-075 (distribution evidence boundary), `docs/VAULT_SEED_CONVERGENCE.md`,
 
 While public npm publication is held behind the daily-driver gate, the **actual release vehicle**
 of Refarm is the local tarball handoff packet: `pnpm run release:vault-seed:handoff` materializes
-the `vault-seed-ready` release-policy selection (currently 21 packages tagged in
+the `vault-seed-ready` release-policy selection (currently 22 packages tagged in
 `refarm.config.json`) as tarballs plus a versioned `manifest.json`/`manifest.md` under a dated
 `.refarm/handoff/vault-seed/<date>/` directory. The manifest carries `packages[].sha256`,
 `consumerInstall` (file specs, pnpm overrides, revendor policy), `consumerProofs` (stable
@@ -154,7 +154,7 @@ held baselines decoupled from the lane's changesets.
 
 ## References
 
-- `.refarm/handoff/vault-seed/2026-07-03/manifest.json` (current accepted packet: 21 packages, 63 required checks, `acceptance.status: "accepted"`)
+- `.refarm/handoff/vault-seed/2026-07-03/manifest.json` (current accepted packet: 22 packages, 69 required checks, `acceptance.status: "accepted"`)
 - 2026-07-02 half-packet incident: 18 tarballs, no manifest, 16/18 sha256 drift vs 2026-07-01
   (verified 2026-07-03)
 - `docs/superpowers/plans/2026-07-03-refarm-vault-seed-release-convergence.md` (walking order)

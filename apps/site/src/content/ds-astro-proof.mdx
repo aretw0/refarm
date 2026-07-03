@@ -1,0 +1,19 @@
+---
+title: DS Astro proof
+status: active
+---
+
+import Card from "@refarm.dev/ds-astro/Card.astro";
+import MetricStrip from "@refarm.dev/ds-astro/MetricStrip.astro";
+import CalloutSection from "@refarm.dev/ds-astro/CalloutSection.astro";
+import ContentList from "@refarm.dev/ds-astro/ContentList.astro";
+
+# DS Astro proof
+
+<MetricStrip metrics={[{ label: "components", value: 4 }]} />
+
+<Card title="MDX embed">Sanctioned DS component in MDX.</Card>
+
+<CalloutSection title="Boundary" kind="info" message="Product-specific blocks stay downstream." />
+
+<ContentList items={[{ title: "Consumer proof", description: "Projection remains records:v1." }]} />

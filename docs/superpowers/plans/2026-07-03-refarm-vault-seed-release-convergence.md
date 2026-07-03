@@ -29,13 +29,13 @@ pnpm --silent run release:vault-seed:handoff -- --out .refarm/handoff/vault-seed
 Generated packet:
 
 - directory: `.refarm/handoff/vault-seed/2026-07-03/`
-- files: 20 package tarballs, `manifest.json`, and `manifest.md`
+- files: 22 package tarballs, `manifest.json`, and `manifest.md`
 - acceptance: accepted
-- checks: 4 required gates, 63 required checks
+- checks: 4 required gates, 69 required checks
 - integrity: no missing tarballs, no extra tarballs, no manifest issues
 - distribution evidence: `local-handoff-ready`
-- boundary audit: ok, 20 audited packages, zero issues
-- consumer proofs: 20 downstream proof targets recorded in the manifest
+- boundary audit: ok, 22 audited packages, zero issues
+- consumer proofs: 22 downstream proof targets recorded in the manifest
 
 The external source caches were also materialized on 2026-07-03 with:
 

@@ -1,6 +1,8 @@
 # `@refarm.dev/ds-astro` MDX render adapter — Plan
 
-> Status: activated by official `vault-seed` render pressure on 2026-07-03.
+> Status: implemented locally and promoted to the active `vault-seed-ready`
+> handoff candidate on 2026-07-03; downstream `vault-seed` validation remains
+> the consumer-proven gate.
 
 ## Goal
 
@@ -65,6 +67,16 @@ After the Refarm proof is green:
 2. Add `consumerPull` metadata pointing at the official `vault-seed` proof plan.
 3. Let `vault-seed` vendor the tarball and add `scripts/refarm_ds_astro_consumer_contract.test.mjs`.
 4. Treat downstream success as the gate for marking the package consumer-proven.
+
+Local proof recorded on 2026-07-03:
+
+- `@refarm.dev/ds-astro` exports `Card`, `MetricStrip`, `CalloutSection`,
+  `ContentList`, `dsAstroCssImports`, and `mdxComponents`.
+- `apps/site/src/pages/ds-astro-proof.astro` renders the first component set.
+- `apps/site/src/content/ds-astro-proof.mdx` exercises the MDX import surface
+  and projects through `@refarm.dev/content-projection` as valid `records:v1`.
+- Release policy now includes `@refarm.dev/ds-astro` in `vault-seed-ready` with
+  `consumerPull.proofId = "ds-astro.mdx-render-adapter"`.
 
 ## Non-goals
 

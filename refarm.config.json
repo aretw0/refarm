@@ -687,6 +687,32 @@
         }
       },
       {
+        "id": "@refarm.dev/ds-astro",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/ds-astro run lint",
+          "pnpm --filter @refarm.dev/ds-astro run type-check",
+          "pnpm --filter @refarm.dev/ds-astro run test",
+          "pnpm --filter @refarm.dev/ds-astro run build",
+          "node scripts/ci/test-ds-astro-mdx-proof.mjs",
+          "pnpm -C apps/site run build"
+        ],
+        "tags": [
+          "ui",
+          "render-adapter",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "boundary-review",
+          "candidate"
+        ],
+        "consumerPull": {
+          "proofId": "ds-astro.mdx-render-adapter",
+          "downstreamUse": "Sanctioned Astro/MDX component embed set over Refarm DS classes and CSS",
+          "proofTarget": "vault-seed can replace local dgk/vault/astro block packages with @refarm.dev/ds-astro imports while keeping product-specific MDX copy and route semantics downstream",
+          "ownershipBoundary": "PARA labels, notebook/editorial vocabulary, custom routes, and product-specific blocks remain downstream"
+        }
+      },
+      {
         "id": "@refarm.dev/cli",
         "risk": "shared",
         "mustPassChecks": [

@@ -15,6 +15,7 @@
 	},
 	"dependencies": {
 		"@refarm.dev/ds": "workspace:*",
+		"@refarm.dev/ds-astro": "workspace:*",
 		"astro": "^6.4.8"
 	},
 	"devDependencies": {

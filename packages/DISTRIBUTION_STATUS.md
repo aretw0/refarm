@@ -63,6 +63,7 @@ channel, not a public npm publication promise.
 - `@refarm.dev/identity-heartwood`
 - `@refarm.dev/source-web`
 - `@refarm.dev/local-surface`
+- `@refarm.dev/ds-astro`
 
 Validation:
 
@@ -122,6 +123,12 @@ leaf for T3 and vault-site convergence. It parses frontmatter, extracts and
 resolves wikilinks and local inline Markdown links, preserves external inline
 Markdown links as projected metadata, emits valid `records:v1` records, and
 leaves folder mapping, note vocabulary, rendering, and vault UX downstream-owned.
+
+`@refarm.dev/ds-astro` now supplies the sanctioned Astro/MDX render adapter
+over `@refarm.dev/ds` CSS/classes. It exports the first product-neutral embed
+set and component map so consumers can author MDX without local block packages;
+PARA labels, notebooks, routes, copy, and product-specific blocks stay
+downstream-owned.
 
 `@refarm.dev/local-surface` is implemented as the T2 local-first surface
 consumer-proven candidate and is now selected in `vault-seed-ready` after the downstream proof. It owns a

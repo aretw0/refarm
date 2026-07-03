@@ -1,0 +1,32 @@
+---
+import "@refarm.dev/ds/tokens.css";
+import "@refarm.dev/ds/themes/tractor-green.css";
+import "@refarm.dev/ds/components.css";
+
+export interface MetricItem {
+	label: string;
+	value: string | number;
+	detail?: string;
+}
+
+export interface Props {
+	title?: string;
+	metrics?: MetricItem[];
+}
+
+const { title, metrics = [] } = Astro.props;
+---
+
+<section class="ds-section ds-metric-strip">
+	{title ? <h2>{title}</h2> : null}
+	<div class="ds-grid">
+		{metrics.map((metric) => (
+			<div class="ds-card ds-metric-strip__item">
+				<div class="ds-card__title">{metric.label}</div>
+				<strong>{metric.value}</strong>
+				{metric.detail ? <p>{metric.detail}</p> : null}
+			</div>
+		))}
+	</div>
+	<slot />
+</section>

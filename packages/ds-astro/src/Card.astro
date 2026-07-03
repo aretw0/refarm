@@ -1,0 +1,22 @@
+---
+import "@refarm.dev/ds/tokens.css";
+import "@refarm.dev/ds/themes/tractor-green.css";
+import "@refarm.dev/ds/components.css";
+
+export interface Props {
+	title: string;
+	rows?: string[];
+	active?: boolean;
+	actionsHtml?: string;
+}
+
+const { title, rows = [], active = false, actionsHtml } = Astro.props;
+---
+
+<div class="ds-card" data-active={active ? "1" : undefined}>
+	<div class="ds-card__title">{title}</div>
+	{rows.map((row) => <div class="ds-card__row" set:html={row} />)}
+	<slot />
+	{actionsHtml ? <div class="ds-card__actions" set:html={actionsHtml} /> : null}
+	<slot name="actions" />
+</div>

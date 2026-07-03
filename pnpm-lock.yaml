@@ -385,6 +385,9 @@ importers:
       '@refarm.dev/ds':
         specifier: workspace:*
         version: link:../../packages/ds
+      '@refarm.dev/ds-astro':
+        specifier: workspace:*
+        version: link:../../packages/ds-astro
       astro:
         specifier: ^6.4.8
         version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
@@ -635,6 +638,25 @@ importers:
       storybook:
         specifier: ^10.3.5
         version: 10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+
+  packages/ds-astro:
+    dependencies:
+      '@refarm.dev/ds':
+        specifier: workspace:*
+        version: link:../ds
+      astro:
+        specifier: ^6.4.8
+        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/effort-contract-v1:
     devDependencies:

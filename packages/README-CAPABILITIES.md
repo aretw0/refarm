@@ -78,6 +78,11 @@ frontmatter, wikilinks, links Markdown inline e validação do envelope
 relações `records:v1` apontam para records do mesmo manifesto. Ele não lê
 arquivos, não renderiza MDX e não define vocabulário editorial.
 
+**Render adapter**: `@refarm.dev/ds-astro` fornece componentes Astro/MDX
+sanctionados sobre `@refarm.dev/ds` para consumidores renderizarem conteúdo
+MDX sem criar bibliotecas locais de blocos. O pacote não define PARA,
+notebooks, rotas, copy editorial ou blocos específicos de produto.
+
 ## Local Surface
 
 ### `local-surface:v1`

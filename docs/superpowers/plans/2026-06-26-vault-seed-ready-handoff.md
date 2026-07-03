@@ -7,14 +7,15 @@
 > Current-state note (2026-07-02): this plan captured the historical 2026-06-26
 > packet, when `homestead-ssr` was still present. ADR-072 removed
 > `homestead-ssr` pre-publication, so the active `vault-seed-ready` selection is
-> now 21 packages and 63 required checks after the T3 consumer proof, selected
+> now 22 packages and 69 required checks after the T3 consumer proof, selected
 > `records-contract-v1` YAML unit gate, T2 credentials pull (`credentials:v1` +
 > identity/storage contracts + Heartwood/storage-memory reference providers),
-> agent-demo public-surface proof, `quality:v1` pull, and generic
-> `content-projection` pull for Markdown/MDX note projection. Use the generated
-> handoff manifest as the source of truth for current package lists.
+> agent-demo public-surface proof, `quality:v1` pull, generic
+> `content-projection` pull for Markdown/MDX note projection, and the
+> `@refarm.dev/ds-astro` render-adapter pull. Use the generated handoff
+> manifest as the source of truth for current package lists.
 
-> Refresh (2026-07-03): the current packet was materialized under
+> Previous refresh (2026-07-03): the packet was materialized under
 > `.refarm/handoff/vault-seed/2026-07-03/` with 21 tarballs plus
 > `manifest.json` and `manifest.md`. The generated manifest reports
 > `ok: true`, `acceptance.status: "accepted"`, 21 packages, 4 required gates,
@@ -23,9 +24,10 @@
 > clean release-boundary audit. The official `vault-seed` checkout was not
 > visible from this devcontainer during the refresh.
 > Proof receipt (2026-07-03): the official `vault-seed` checkout later copied
-> this packet, verified all 21 tarballs against `manifest.json`, refreshed
-> lockfile integrity, ran focused consumer proofs, and recorded the evidence in
-> `vault-seed` at `docs/convergencia-refarm-proof-2026-07-03.md`.
+> this previous 21-tarball packet, verified all 21 tarballs against
+> `manifest.json`, refreshed lockfile integrity, ran focused consumer proofs,
+> and recorded the evidence in `vault-seed` at
+> `docs/convergencia-refarm-proof-2026-07-03.md`.
 > Follow-up in the same date packet: `@refarm.dev/ds` now includes the
 > `@refarm.dev/ds/quality-checker` subpath, a thin `quality:v1` adapter over
 > `ds-lint:v1`. The handoff was rematerialized after the package change; the DS
@@ -35,6 +37,12 @@
 > includes Markdown inline-link support. Local links can resolve to records;
 > external links are preserved as projected metadata so the output remains valid
 > under `records:v1`.
+> Follow-up in the same date packet: `@refarm.dev/ds-astro` now supplies the
+> product-neutral Astro/MDX render adapter requested by the official
+> `vault-seed` proof plan. The handoff was rematerialized with 22 tarballs,
+> including `refarm.dev-ds-astro-0.1.0.tgz` at SHA-256
+> `52302ede2b42c590020e21136ecd0bac1dc9f87745da7c3a58e65a51e4dd3799`, plus
+> `ds-astro.mdx-render-adapter` consumer proof metadata.
 
 ## Task 1 - Selection Parity
 

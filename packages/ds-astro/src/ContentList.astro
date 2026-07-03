@@ -1,0 +1,33 @@
+---
+import "@refarm.dev/ds/tokens.css";
+import "@refarm.dev/ds/themes/tractor-green.css";
+import "@refarm.dev/ds/components.css";
+
+export interface ContentListItem {
+	title: string;
+	description?: string;
+	href?: string;
+}
+
+export interface Props {
+	title?: string;
+	items?: ContentListItem[];
+}
+
+const { title, items = [] } = Astro.props;
+---
+
+<section class="ds-section ds-content-list">
+	{title ? <h2>{title}</h2> : null}
+	<div class="ds-grid">
+		{items.map((item) => (
+			<article class="ds-card">
+				<div class="ds-card__title">
+					{item.href ? <a href={item.href}>{item.title}</a> : item.title}
+				</div>
+				{item.description ? <p>{item.description}</p> : null}
+			</article>
+		))}
+	</div>
+	<slot />
+</section>

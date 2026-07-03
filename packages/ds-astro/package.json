@@ -1,0 +1,50 @@
+{
+	"name": "@refarm.dev/ds-astro",
+	"version": "0.1.0",
+	"private": false,
+	"description": "Astro/MDX component bindings for the Refarm design system.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./Card.astro": "./src/Card.astro",
+		"./MetricStrip.astro": "./src/MetricStrip.astro",
+		"./CalloutSection.astro": "./src/CalloutSection.astro",
+		"./ContentList.astro": "./src/ContentList.astro"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run src/index.test.ts",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@refarm.dev/ds": "workspace:*"
+	},
+	"peerDependencies": {
+		"astro": "^6.4.8"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"src/*.astro",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"license": "MIT"
+}

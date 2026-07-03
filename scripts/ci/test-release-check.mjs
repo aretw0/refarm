@@ -10,6 +10,7 @@ import {
 } from "../release-check.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const PRE_PUBLICATION_HANDOFF_ONLY_PACKAGES = new Set(["@refarm.dev/ds-astro"]);
 
 function changesetPackageNames(root = ROOT) {
 	const changesetDir = path.join(root, ".changeset");
@@ -33,6 +34,24 @@ function changesetPackageNames(root = ROOT) {
 	}
 
 	return names;
+}
+
+function packageVersion(packageName, root = ROOT) {
+	const check = buildReleaseCheckPlan({
+		cwd: root,
+		env: {
+			REFARM_PACKAGE_MANAGER: "pnpm",
+		},
+		selectionId: "vault-seed-ready",
+	});
+	const command = check.commands.find((entry) => entry.packageName === packageName);
+	if (!command) {
+		throw new Error(`Unknown release package: ${packageName}`);
+	}
+	const packageJson = JSON.parse(
+		readFileSync(path.join(root, command.packageDir, "package.json"), "utf8"),
+	);
+	return packageJson.version;
 }
 
 test("plans publish dry-runs only for default release policy packages", () => {
@@ -116,6 +135,7 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/content-projection",
 		"@refarm.dev/identity-heartwood",
 		"@refarm.dev/local-surface",
+		"@refarm.dev/ds-astro",
 	]);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/homestead-ssr"), false);
 	assert.equal(check.plan.orderedNames.includes("@refarm.dev/homestead"), false);
@@ -139,13 +159,20 @@ test("vault-seed-ready selection is covered by changesets provider inputs", () =
 		selectionId: "vault-seed-ready",
 	});
 	const changesetPackages = changesetPackageNames();
-	const missing = check.plan.orderedNames.filter((name) => !changesetPackages.has(name));
+	const missing = check.plan.orderedNames.filter(
+		(name) =>
+			!changesetPackages.has(name) &&
+			!(
+				PRE_PUBLICATION_HANDOFF_ONLY_PACKAGES.has(name) &&
+				packageVersion(name) === "0.1.0"
+			),
+	);
 
 	assert.equal(check.ok, true);
 	assert.deepEqual(
 		missing,
 		[],
-		"`vault-seed-ready` uses the changesets provider, so every selected package must have a changeset before publication handoff.",
+		"`vault-seed-ready` uses the changesets provider, so selected packages must have a changeset unless they are explicitly held as pre-publication 0.1.0 handoff-only packages.",
 	);
 });
 
@@ -163,7 +190,7 @@ test("release check plan json exposes acceptance summary", () => {
 	assert.equal(payload.ok, true);
 	assert.equal(payload.selection.id, "vault-seed-ready");
 	assert.equal(payload.acceptance.status, "accepted");
-	assert.equal(payload.acceptance.packageCount, 21);
+	assert.equal(payload.acceptance.packageCount, 22);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
 	assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);

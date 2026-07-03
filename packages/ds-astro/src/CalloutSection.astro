@@ -1,0 +1,19 @@
+---
+import "@refarm.dev/ds/tokens.css";
+import "@refarm.dev/ds/themes/tractor-green.css";
+import "@refarm.dev/ds/components.css";
+
+export interface Props {
+	title: string;
+	kind?: "error" | "warning" | "success" | "info";
+	message?: string;
+}
+
+const { title, kind = "info", message } = Astro.props;
+---
+
+<section class="ds-section ds-callout-section">
+	<h2>{title}</h2>
+	{message ? <div class="ds-feedback" data-kind={kind} role="status">{message}</div> : null}
+	<slot />
+</section>

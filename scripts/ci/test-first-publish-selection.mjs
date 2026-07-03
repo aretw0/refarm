@@ -43,7 +43,7 @@ test("plans vault-seed first-publish dry-run without version bumps", () => {
 	});
 
 	assert.equal(plan.mode, "dry-run");
-	assert.equal(plan.packageCount, 21);
+	assert.equal(plan.packageCount, 22);
 	assert.equal(plan.requiredConfirmation, "publish-vault-seed-ready-0.1.0");
 	assert.equal(plan.packages.every((pkg) => pkg.version === "0.1.0"), true);
 	assert.equal(plan.commands.every((command) => command.display === "pnpm publish --dry-run --no-git-checks"), true);

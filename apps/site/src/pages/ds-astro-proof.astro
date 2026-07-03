@@ -1,0 +1,45 @@
+---
+import CalloutSection from "@refarm.dev/ds-astro/CalloutSection.astro";
+import Card from "@refarm.dev/ds-astro/Card.astro";
+import ContentList from "@refarm.dev/ds-astro/ContentList.astro";
+import MetricStrip from "@refarm.dev/ds-astro/MetricStrip.astro";
+import SiteLayout from "../layouts/SiteLayout.astro";
+---
+
+<SiteLayout
+	title="Refarm - DS Astro Proof"
+	description="A small render proof for product-neutral DS Astro components."
+>
+	<section class="site-shell site-section" aria-labelledby="ds-astro-proof-title">
+		<div class="site-section__intro">
+			<p class="site-kicker">Render adapter</p>
+			<h1 id="ds-astro-proof-title">DS Astro MDX blocks</h1>
+			<p>
+				This fixture proves the package exports Astro components that can be imported by a
+				consumer surface without local block libraries.
+			</p>
+		</div>
+		<MetricStrip
+			title="Proof surface"
+			metrics={[
+				{ label: "components", value: 4, detail: "first embed set" },
+				{ label: "boundary", value: "DS", detail: "product-neutral" },
+			]}
+		/>
+		<Card title="Component import" rows={["<p>Rendered through @refarm.dev/ds-astro.</p>"]} />
+		<CalloutSection
+			title="Consumer rule"
+			kind="success"
+			message="MDX consumers import sanctioned DS components instead of local block packages."
+		/>
+		<ContentList
+			title="Candidate blocks"
+			items={[
+				{ title: "Card", description: "General framed content." },
+				{ title: "MetricStrip", description: "Compact proof counters." },
+				{ title: "CalloutSection", description: "Status and decision notes." },
+				{ title: "ContentList", description: "Linked records and references." },
+			]}
+		/>
+	</section>
+</SiteLayout>

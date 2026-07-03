@@ -210,19 +210,19 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 
 test("vault-seed handoff docs distinguish historical 10-package packets from current selection", () => {
 	const currentSelection = releaseSelectionNames("vault-seed-ready");
-	assert.equal(currentSelection.length, 21);
+	assert.equal(currentSelection.length, 22);
 
-	assert.match(releaseGateDoc, /current\s+21-package\s+selection/);
+	assert.match(releaseGateDoc, /current\s+22-package\s+selection/);
 	assert.match(releaseGateDoc, /materialized the then-current 10-package selection/);
 	assert.match(
 		releaseGateDoc,
 		/ADR-072 superseded that packet before\s+publication/,
 	);
 	assert.match(vaultSeedHandoffPlan, /historical 2026-06-26/);
-	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 21 packages and 63 required checks/);
-	assert.match(vaultSeedHandoffAdr, /currently 21 packages tagged/);
-	assert.match(vaultSeedHandoffAdr, /current accepted packet: 21 packages,\s+63 required checks/);
-	assert.match(releasePolicyDoc, /selected 21-package publish plan/);
+	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 22 packages and 69 required checks/);
+	assert.match(vaultSeedHandoffAdr, /currently 22 packages tagged/);
+	assert.match(vaultSeedHandoffAdr, /current accepted packet: 22 packages,\s+69 required checks/);
+	assert.match(releasePolicyDoc, /selected 22-package publish plan/);
 	assert.doesNotMatch(vaultSeedHandoffAdr, /currently 20 packages tagged/);
 	assert.doesNotMatch(releasePolicyDoc, /selected 20-package publish plan/);
 });
@@ -231,7 +231,7 @@ test("factory readiness records the current local vault-seed handoff state", () 
 	assert.match(factoryReadinessDoc, /official downstream proof received/);
 	assert.match(factoryReadinessDoc, /\.refarm\/handoff\/vault-seed\/2026-07-03\/manifest\.json/);
 	assert.match(factoryReadinessDoc, /distributionEvidence\.state: "local-handoff-ready"/);
-	assert.match(factoryReadinessDoc, /21 tarballs/);
+	assert.match(factoryReadinessDoc, /22 tarballs/);
 });
 
 test("release convergence records the official downstream vault-seed proof receipt", () => {
@@ -246,7 +246,7 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(releaseConvergencePlan, /private POC specifics remain downstream/);
 
 	assert.match(decisionLogDoc, /Official downstream proof received; publication gates still held/);
-	assert.match(factoryReadinessDoc, /official downstream checkout reported successful vendor SHA-256 verification for all 21 tarballs/);
+	assert.match(factoryReadinessDoc, /official downstream checkout reported successful vendor SHA-256 verification for the previous 21-tarball packet/);
 	assert.match(factoryReadinessDoc, /4a `ds` tokens \| \*\*implemented \+ downstream-proven\*\*/);
 	assert.match(factoryReadinessDoc, /4b `ds\/html` \| \*\*implemented \+ downstream-proven\*\*/);
 	assert.match(dsTokenContractSpec, /official downstream `vault-seed` consumer proof received on 2026-07-03/);
@@ -263,7 +263,7 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(vaultSeedConvergenceDoc, /Official proof received \(2026-07-03\): `vault-seed` now has `@aretw0\/dgk-runner`/);
 	assert.match(vaultSeedConvergenceDoc, /Official proof received \(2026-07-03\): `vault-seed` now emits a\s+validated `refarm\.task-artifacts\.v1` manifest/);
 	assert.match(vaultSeedConvergenceDoc, /Official proof received \(2026-07-03\): the `vault-seed` publication\s+outbox emits `refarm\.channel-delivery-envelope\.v1`/);
-	assert.match(vaultSeedHandoffPlan, /Proof receipt \(2026-07-03\): the official `vault-seed` checkout later copied\s+> this packet, verified all 21 tarballs/);
+	assert.match(vaultSeedHandoffPlan, /Proof receipt \(2026-07-03\): the official `vault-seed` checkout later copied\s+> this previous 21-tarball packet, verified all 21 tarballs/);
 	assert.match(dsTokenContractPlan, /Superseded proof note \(2026-07-03\): the official `vault-seed` checkout later\s+  assimilated the manifest-bearing 21-tarball packet/);
 	assert.match(channelPolicyBridgePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits the\s+  channel-delivery envelope/);
 	assert.match(channelPolicyBridgeSpec, /IMPLEMENTED - downstream proof received; public publish waits on the release lane/);

@@ -485,12 +485,12 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	});
 
 	assert.equal(manifest.selection.id, "vault-seed-ready");
-	assert.equal(manifest.packages.length, 21);
+	assert.equal(manifest.packages.length, 22);
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
 	assert.equal(manifest.distributionEvidence.state, "blocked");
 	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
-	assert.equal(manifest.distributionEvidence.subject.packageCount, 21);
-	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 21);
+	assert.equal(manifest.distributionEvidence.subject.packageCount, 22);
+	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 22);
 	assert.equal(manifest.releaseBoundaryAudit.ok, true);
 	assert.equal(manifest.releaseBoundaryAudit.command, "release-boundary-audit");
 	assert.equal(manifest.releaseBoundaryAudit.selectionId, "vault-seed-ready");
@@ -519,6 +519,10 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 		"file:./vendor/refarm.dev-ds-0.1.0.tgz",
 	);
 	assert.equal(
+		manifest.consumerInstall.fileSpecs["@refarm.dev/ds-astro"],
+		"file:./vendor/refarm.dev-ds-astro-0.1.0.tgz",
+	);
+	assert.equal(
 		manifest.consumerInstall.pnpmOverrides["@refarm.dev/heartwood"],
 		"file:./vendor/refarm.dev-heartwood-0.1.0.tgz",
 	);
@@ -534,6 +538,12 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 		manifest.consumerProofs.some((proof) =>
 			proof.proofId === "credentials-contract.issue-verify-present-wallet"),
 		"credentials consumer proof metadata must be present",
+	);
+	assert.ok(
+		manifest.consumerProofs.some(
+			(proof) => proof.proofId === "ds-astro.mdx-render-adapter",
+		),
+		"ds-astro consumer proof metadata must be present",
 	);
 	assert.equal(
 		new Set(manifest.consumerProofs.map((proof) => proof.proofId)).size,

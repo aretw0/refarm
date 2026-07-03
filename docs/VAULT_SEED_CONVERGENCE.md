@@ -524,12 +524,14 @@ downstream assimilation checklist: each item has a stable `proofId`, names the
 local. `distributionEvidence` records the local handoff ref, verified-copy
 state, update source, rollback target, and the explicit boundary that this is
 not a public install contract or P2P substrate. After the T3 downstream proof,
-the T2 credentials pull, the agent-demo public-surface proof, and the
-`quality:v1` pull, the active packet was rematerialized under
-`.refarm/handoff/vault-seed/2026-07-03/`: it reports
-`acceptance.status: "accepted"`, 21 packages, 4 required gates, 63 required
-checks, 21 tarballs, `manifest.json`, and `manifest.md` (verified on disk
-2026-07-03). The earlier `2026-07-02/` directory is a superseded partial packet
+the T2 credentials pull, the agent-demo public-surface proof, the
+`quality:v1` pull, and the `ds-astro` render-adapter pull, the active packet is
+rematerialized under `.refarm/handoff/vault-seed/2026-07-03/`: it reports
+`acceptance.status: "accepted"`, 22 packages, 4 required gates, 69 required
+checks, 22 tarballs including `refarm.dev-ds-astro-0.1.0.tgz`,
+`manifest.json`, and `manifest.md` (verified on disk 2026-07-03). The previous
+21-tarball packet was also verified on disk before the `ds-astro` pull. The
+earlier `2026-07-02/` directory is a superseded partial packet
 — tarballs only, no manifest — and must not be used as a handoff source. The
 official handoff should be copied from the manifest-bearing generated packet
 rather than from this historical table.
