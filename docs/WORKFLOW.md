@@ -396,6 +396,47 @@ export async function insert(
 
 ## Workflow in Practice
 
+### Fast Operator Loop (Canonical)
+
+Use this loop at the start and end of each slice to keep execution aligned with
+current runtime state.
+
+```bash
+# start of slice
+refarm resume --json
+refarm check --next-action --json
+
+# after source edits
+refarm agent finish --lane after-edit --run --json
+
+# after commit
+refarm agent finish --lane after-commit --run --json
+```
+
+Actionability rule: every feature/ADR should provide at least one explicit
+BDD red command, one TDD red command, and one full green verification command.
+
+Optional drift check for active docs/specs in your current diff:
+
+```bash
+pnpm run docs:actionability:check
+```
+
+This command is advisory by default (does not fail your lane).
+
+Full repository scan (heavier, use before large docs sweeps):
+
+```bash
+pnpm run docs:actionability:check:all
+```
+
+If you want a blocking gate, use strict mode explicitly:
+
+```bash
+pnpm run docs:actionability:check:strict
+pnpm run docs:actionability:check:all:strict
+```
+
 ### Starting a New Milestone
 
 ```bash
