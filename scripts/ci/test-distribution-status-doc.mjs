@@ -208,17 +208,21 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(decisionLogDoc, /Official downstream proof received; publication gates still held/);
 	assert.match(factoryReadinessDoc, /official downstream checkout reported successful vendor SHA-256 verification for all 20 tarballs/);
 	assert.match(factoryReadinessDoc, /4a `ds` tokens \| \*\*implemented \+ downstream-proven\*\*/);
+	assert.match(factoryReadinessDoc, /4b `ds\/html` \| \*\*implemented \+ downstream-proven\*\*/);
 	assert.match(releaseGateDoc, /official downstream proof verified the 2026-07-03 handoff tarballs and quality\/content\/site flows/);
 	assert.match(releaseGateDoc, /consumer-proven in `vault-seed-ready`; public publish still waits on develop stabilization and release lane/);
+	assert.doesNotMatch(factoryReadinessDoc, /downstream adoption proof remains consumer-side/);
 	assert.doesNotMatch(factoryReadinessDoc, /official `vault-seed` assimilation remain pending/);
 	assert.doesNotMatch(releaseGateDoc, /official `vault-seed` assimilation pending/);
 	assert.doesNotMatch(releaseGateDoc, /once the outside `vault-seed` checkout assimilates the validated packet/);
 });
 
 test("focus maps do not regress implemented quality and projection blocks to planned", () => {
-	assert.match(refarmWorkFocusDoc, /Phase 1 implemented and selected/);
+	assert.match(refarmWorkFocusDoc, /Phase 1 implemented, selected, and downstream-proven/);
 	assert.match(refarmWorkFocusDoc, /inline Markdown links into valid `records:v1`/);
+	assert.match(refarmWorkFocusDoc, /Use concrete gaps from the official proof/);
 	assert.doesNotMatch(refarmWorkFocusDoc, /Content projection \/ MD-MDX authoring \| Designed, build-pending/);
+	assert.doesNotMatch(refarmWorkFocusDoc, /Let the official consumer prove the handoff/);
 
 	assert.match(convergenceRoadmapDoc, /phase 1 implemented: `@refarm\.dev\/content-projection`/);
 	assert.match(convergenceRoadmapDoc, /future `ds-astro` work waits for render pressure/);
