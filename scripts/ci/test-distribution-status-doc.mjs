@@ -47,6 +47,10 @@ const qualityAgentBuildOrderDoc = readFileSync(
 	path.join(ROOT, "docs/QUALITY_AGENT_BUILD_ORDER.md"),
 	"utf8",
 );
+const decisionLogDoc = readFileSync(
+	path.join(ROOT, "docs/decision-log.md"),
+	"utf8",
+);
 const vaultSeedHandoffPlan = readFileSync(
 	path.join(ROOT, "docs/superpowers/plans/2026-06-26-vault-seed-ready-handoff.md"),
 	"utf8",
@@ -198,4 +202,8 @@ test("focus maps do not regress implemented quality and projection blocks to pla
 	assert.match(qualityAgentBuildOrderDoc, /ui adapter \*\*implemented\*\*: `@refarm\.dev\/ds\/quality-checker`/);
 	assert.match(qualityAgentBuildOrderDoc, /wraps `ds-lint:v1` as a `quality:v1` `QualityChecker`/);
 	assert.doesNotMatch(qualityAgentBuildOrderDoc, /adapter \*\*planned\*\*/);
+
+	assert.match(decisionLogDoc, /Content-projection MD\/MDX blocks/);
+	assert.match(decisionLogDoc, /Phase 1 implemented and selected; `ds-astro` remains render-pressure-gated/);
+	assert.doesNotMatch(decisionLogDoc, /Content-projection MD\/MDX blocks.*implementation in flight/);
 });
