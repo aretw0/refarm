@@ -27,12 +27,20 @@ const releaseGateDoc = readFileSync(
 	path.join(ROOT, "docs/v0.1.0-release-gate.md"),
 	"utf8",
 );
+const releasePolicyDoc = readFileSync(
+	path.join(ROOT, "docs/RELEASE_POLICY.md"),
+	"utf8",
+);
 const factoryReadinessDoc = readFileSync(
 	path.join(ROOT, "docs/CONVERGENCE_FACTORY_READINESS.md"),
 	"utf8",
 );
 const vaultSeedHandoffPlan = readFileSync(
 	path.join(ROOT, "docs/superpowers/plans/2026-06-26-vault-seed-ready-handoff.md"),
+	"utf8",
+);
+const vaultSeedHandoffAdr = readFileSync(
+	path.join(ROOT, "specs/ADRs/ADR-080-vault-seed-ready-handoff-pipeline.md"),
 	"utf8",
 );
 
@@ -152,6 +160,11 @@ test("vault-seed handoff docs distinguish historical 10-package packets from cur
 	);
 	assert.match(vaultSeedHandoffPlan, /historical 2026-06-26/);
 	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 20 packages and 58 required checks/);
+	assert.match(vaultSeedHandoffAdr, /currently 20 packages tagged/);
+	assert.match(vaultSeedHandoffAdr, /current accepted packet: 20 packages,\s+58 required checks/);
+	assert.match(releasePolicyDoc, /selected 20-package publish plan/);
+	assert.doesNotMatch(vaultSeedHandoffAdr, /currently 19 packages tagged/);
+	assert.doesNotMatch(releasePolicyDoc, /selected 19-package publish plan/);
 });
 
 test("factory readiness records the current local vault-seed handoff state", () => {
