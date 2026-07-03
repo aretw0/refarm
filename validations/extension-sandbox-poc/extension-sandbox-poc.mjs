@@ -618,7 +618,7 @@ export function buildExtensionInstallReviewPacket(
 		id: "extension-install-review-packet-001",
 		createdAt: ISSUED_AT,
 		claim:
-			"A prepared extension artifact can be planned, reviewed, rehearsed, and handed off without installing unreviewed capabilities.",
+			"A prepared extension artifact can move through install plan, doctor, quality check, review, rehearsal, dry-run, and handoff evidence without installing unreviewed capabilities.",
 		claimStatus: "deterministic-review-packet",
 		preparedArtifact: {
 			id: "@example/benign-extension",
@@ -631,9 +631,19 @@ export function buildExtensionInstallReviewPacket(
 		},
 		whiteLabelCommandEnvelope: [
 			{
+				step: "install",
+				command: "<white-label-cli> extension install ./prepared-extension --plan --json",
+				purpose: "prepare the install plan without granting unreviewed capabilities",
+			},
+			{
 				step: "doctor",
 				command: "<white-label-cli> doctor --json",
 				purpose: "confirm runtime, policy, and local evidence paths before install",
+			},
+			{
+				step: "check",
+				command: "<white-label-cli> extension check ./prepared-extension --quality quality:v1 --json",
+				purpose: "run the checker gate before rehearsal or handoff",
 			},
 			{
 				step: "review",
@@ -644,6 +654,11 @@ export function buildExtensionInstallReviewPacket(
 				step: "rehearse",
 				command: "<white-label-cli> extension rehearse ./prepared-extension --temp-workspace --json",
 				purpose: "exercise the proposed change in a temporary workspace copy",
+			},
+			{
+				step: "run",
+				command: "<white-label-cli> extension run ./prepared-extension --dry-run --json",
+				purpose: "show the executable command shape while staying inside reviewed dry-run evidence",
 			},
 			{
 				step: "handoff",
@@ -853,7 +868,7 @@ Scope: synthetic local validation only. No real plugins, services, institutional
 | Coding-agent authority stays bounded | unreviewed network remains denied and promotion requires review | pass | \`coding-agent-evidence.json\`, \`policy-decision.json\` |
 | Coding-agent smoke remains proposal-only | protected surfaces are untouched and patch is review-only | pass | \`coding-agent-smoke.json\` |
 | Coding-agent temp rehearsal stays isolated | the patch is rehearsed only against a temporary workspace copy | pass | \`coding-agent-temp-workspace.json\` |
-| Prepared extension install stays review-first | doctor, review, rehearse, and handoff are recorded before install | pass | \`extension-install-review-packet.json\` |
+| Prepared extension install stays review-first | install, doctor, check, review, rehearse, run, and handoff are recorded before promotion | pass | \`extension-install-review-packet.json\` |
 
 ## Claim Boundary
 

@@ -204,7 +204,7 @@ describe("extension sandbox poc", () => {
 		assert.equal(packet.installPlan.readyToInstall, false);
 		assert.deepEqual(
 			packet.whiteLabelCommandEnvelope.map((entry) => entry.step),
-			["doctor", "review", "rehearse", "handoff"],
+			["install", "doctor", "check", "review", "rehearse", "run", "handoff"],
 		);
 		assert.equal(packet.checks.deniedCapabilityReceiptsRecorded, true);
 		assert.equal(packet.checks.tempWorkspaceRehearsalRecorded, true);

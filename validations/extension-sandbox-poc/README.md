@@ -34,7 +34,8 @@ read secrets.
 - A coding-agent temporary-workspace artifact rehearses the proposed patch
   against a workspace copy while keeping repository promotion blocked on review.
 - An extension install review packet records a prepared-artifact workflow for
-  white-label CLI demos: doctor, review, rehearse, and handoff before install.
+  white-label CLI demos: install plan, doctor, quality check, review,
+  rehearsal, dry-run, and handoff before promotion.
 - A limits report records non-claims, adoption risks, and promotion criteria.
 - JSON and Markdown reports are generated deterministically.
 - A `refarm.task-artifacts.v1` manifest lists generated outputs with media

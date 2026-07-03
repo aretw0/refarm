@@ -196,7 +196,8 @@ Each POC should grow one lightweight "demonstration packet":
 9. `extension-install-review-packet.json`
    - Implemented for the extension sandbox.
    - Records a prepared extension artifact workflow for white-label CLI demos:
-     doctor, review, rehearse, and handoff before install.
+     install plan, doctor, quality check, review, rehearsal, dry-run, and
+     handoff before promotion.
    - Keeps the proposal claim precise: prepared-artifact governance, not
      published plugin runtime or real extension installation.
 

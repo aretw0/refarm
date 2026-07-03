@@ -77,6 +77,7 @@ Existing pressure:
 
 - `validations/extension-sandbox-poc`;
 - `agent-demo:release-proof`;
+- `secure-extensibility:proof`;
 - `agent:release-proof`;
 - native skill smokes from `agents-lab` and `vault-seed`;
 - runtime descriptor release smoke.

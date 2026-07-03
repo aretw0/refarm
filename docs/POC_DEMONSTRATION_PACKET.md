@@ -76,7 +76,12 @@ Extension evidence already present:
   artifacts for capability review, review packet, denied-capability receipt,
   protected-surface non-mutation, and isolated pre-promotion patch rehearsal.
 - an extension install review packet for a prepared-artifact white-label CLI
-  flow: doctor, review, rehearse, and handoff before install.
+  flow: install plan, doctor, quality check, review, rehearse, dry-run, and
+  handoff before promotion.
+- a secure-extensibility composition proof that connects the public agent
+  engine, selected dispatch/evidence blocks, review packet, denied-capability
+  receipts, and quality gate while leaving real WASM execution and
+  model-authored plugin claims bounded.
 
 Extension reader gap:
 
@@ -97,7 +102,8 @@ Extension metrics to expose:
 | linked runtime commands | `runtime-evidence.json` | show route to real execution validation |
 | proposal-only agent packet | `coding-agent-smoke.json` | show that coding-agent promotion depends on review evidence, not hidden writes |
 | temp-workspace rehearsal | `coding-agent-temp-workspace.json` | show the patch can be rehearsed outside the repository before promotion |
-| prepared extension review | `extension-install-review-packet.json` | show a prepared artifact can be reviewed and handed off before install |
+| prepared extension review | `extension-install-review-packet.json` | show a prepared artifact can move through the full review-first envelope before promotion |
+| secure extensibility proof | `pnpm run secure-extensibility:proof` | show T1 can consume the prepared packet without widening runtime claims |
 
 Extension claim boundary:
 

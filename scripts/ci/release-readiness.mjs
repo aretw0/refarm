@@ -89,6 +89,12 @@ const RELEASE_READINESS_STEPS = [
 			"Agent-demo consumers must have public dispatch/control/evidence blocks without accidentally publishing held plugin runtime packages.",
 	},
 	{
+		id: "secure-extensibility-proof",
+		script: "secure-extensibility:proof",
+		reason:
+			"T1 white-label secure-extensibility demos must compose the public agent engine, review-first install packet, denied-capability receipts, and quality gate without widening runtime claims.",
+	},
+	{
 		id: "first-publish-selection-plan",
 		script: "release:first-publish:plan",
 		args: ["--", "--selection", "vault-seed-ready"],

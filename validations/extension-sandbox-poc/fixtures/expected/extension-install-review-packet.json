@@ -2,7 +2,7 @@
   "schema": "refarm.extension-install-review-packet.v1",
   "id": "extension-install-review-packet-001",
   "createdAt": "2026-01-01T00:00:00.000Z",
-  "claim": "A prepared extension artifact can be planned, reviewed, rehearsed, and handed off without installing unreviewed capabilities.",
+  "claim": "A prepared extension artifact can move through install plan, doctor, quality check, review, rehearsal, dry-run, and handoff evidence without installing unreviewed capabilities.",
   "claimStatus": "deterministic-review-packet",
   "preparedArtifact": {
     "id": "@example/benign-extension",
@@ -19,9 +19,19 @@
   },
   "whiteLabelCommandEnvelope": [
     {
+      "step": "install",
+      "command": "<white-label-cli> extension install ./prepared-extension --plan --json",
+      "purpose": "prepare the install plan without granting unreviewed capabilities"
+    },
+    {
       "step": "doctor",
       "command": "<white-label-cli> doctor --json",
       "purpose": "confirm runtime, policy, and local evidence paths before install"
+    },
+    {
+      "step": "check",
+      "command": "<white-label-cli> extension check ./prepared-extension --quality quality:v1 --json",
+      "purpose": "run the checker gate before rehearsal or handoff"
     },
     {
       "step": "review",
@@ -32,6 +42,11 @@
       "step": "rehearse",
       "command": "<white-label-cli> extension rehearse ./prepared-extension --temp-workspace --json",
       "purpose": "exercise the proposed change in a temporary workspace copy"
+    },
+    {
+      "step": "run",
+      "command": "<white-label-cli> extension run ./prepared-extension --dry-run --json",
+      "purpose": "show the executable command shape while staying inside reviewed dry-run evidence"
     },
     {
       "step": "handoff",

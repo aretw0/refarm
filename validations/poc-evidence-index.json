@@ -362,7 +362,7 @@
         },
         {
           "id": "prepared-extension-review-before-install",
-          "carefulClaim": "A prepared extension artifact can be reviewed, rehearsed, and handed off before installation.",
+          "carefulClaim": "A prepared extension artifact can move through install plan, doctor, quality check, review, rehearsal, dry-run, and handoff evidence before promotion.",
           "primaryEvidence": [
             {
               "id": "extension-install-review-packet-json",

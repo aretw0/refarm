@@ -155,7 +155,7 @@ assert.equal(installReviewPacket.installPlan.mode, "review-first");
 assert.equal(installReviewPacket.installPlan.readyToInstall, false);
 assert.deepEqual(
 	installReviewPacket.whiteLabelCommandEnvelope.map((entry) => entry.step),
-	["doctor", "review", "rehearse", "handoff"],
+	["install", "doctor", "check", "review", "rehearse", "run", "handoff"],
 );
 assert.ok(
 	installReviewPacket.receipts.some(

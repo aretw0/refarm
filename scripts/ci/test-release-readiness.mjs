@@ -26,6 +26,7 @@ test("prints an ordered release readiness plan", () => {
 	assert.match(output, /release-boundary-audit: .*release:boundary:audit/);
 	assert.match(output, /reference-driver: .*reference-driver:smoke/);
 	assert.match(output, /agent-demo-release-proof: .*agent-demo:release-proof/);
+	assert.match(output, /secure-extensibility-proof: .*secure-extensibility:proof/);
 	assert.match(output, /first-publish-selection-plan: .*release:first-publish:plan -- --selection vault-seed-ready/);
 	assert.match(output, /publish-dry-run: .*release:check/);
 });
@@ -60,6 +61,7 @@ test("prints structured release readiness metadata", () => {
 			"release-boundary-audit",
 			"reference-driver",
 			"agent-demo-release-proof",
+			"secure-extensibility-proof",
 			"first-publish-selection-plan",
 			"publish-dry-run",
 		],
@@ -79,7 +81,8 @@ test("accepts package-manager argument separators before json flags", () => {
 	assert.equal(parsed.json, true);
 	assert.equal(payload.steps.at(-1).id, "publish-dry-run");
 	assert.equal(payload.steps.at(-2).id, "first-publish-selection-plan");
-	assert.equal(payload.steps.at(-3).id, "agent-demo-release-proof");
-	assert.equal(payload.steps.at(-4).id, "reference-driver");
-	assert.equal(payload.steps.at(-5).id, "release-boundary-audit");
+	assert.equal(payload.steps.at(-3).id, "secure-extensibility-proof");
+	assert.equal(payload.steps.at(-4).id, "agent-demo-release-proof");
+	assert.equal(payload.steps.at(-5).id, "reference-driver");
+	assert.equal(payload.steps.at(-6).id, "release-boundary-audit");
 });

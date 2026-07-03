@@ -51,7 +51,7 @@ export const POCS = [
 			{
 				id: "prepared-extension-review-before-install",
 				carefulClaim:
-					"A prepared extension artifact can be reviewed, rehearsed, and handed off before installation.",
+					"A prepared extension artifact can move through install plan, doctor, quality check, review, rehearsal, dry-run, and handoff evidence before promotion.",
 				evidenceIds: [
 					"extension-install-review-packet-json",
 					"coding-agent-temp-workspace-json",
