@@ -324,13 +324,25 @@ test("superseded homestead ssr docs stay non-executable", () => {
 });
 
 test("ds html active handoff docs use static document naming", () => {
+	// Prose docs that describe the ds/html helper: their source text IS the
+	// contract, so grepping the file is the right check.
+	//
+	// scripts/vault-seed-ready-handoff.mjs is intentionally NOT here. It does not
+	// document the helper — it emits the ds consumer-proof vocabulary at runtime
+	// from refarm.config.json (releasePolicy.packageProfiles → consumerPull), so
+	// its source references `entry.consumerPull.*` rather than a literal. The
+	// emitted vocabulary is guarded where it belongs — against the produced
+	// manifest — in test-vault-seed-ready-handoff.mjs: `documentHtml` /
+	// `document helpers` required (assert.match) and the Homestead shell terms
+	// forbidden (assert.doesNotMatch). Grepping the .mjs source here only tested
+	// the implementation shape and broke on a behavior-preserving literal→data
+	// refactor.
 	const activeDocs = [
 		"packages/ds/README.md",
 		"docs/DEV_CROSS_REPO_CONSUMPTION.md",
 		"docs/VAULT_SEED_CONVERGENCE.md",
 		"docs/v0.1.0-release-gate.md",
 		"docs/ECOSYSTEM_SUPPLY_MAP.md",
-		"scripts/vault-seed-ready-handoff.mjs",
 	];
 	const forbidden = [
 		/\bshellHtml\b/,
