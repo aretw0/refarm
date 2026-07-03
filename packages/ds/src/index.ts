@@ -6,6 +6,17 @@ export {
 	type ThemePackAsset,
 	type ThemeRegistrationResult,
 } from "./theme-registry.js";
+export {
+	parseColorToRgb,
+	projectThemeToTui,
+	rgbToAnsi16,
+	rgbToAnsi256,
+	TUI_COLOR_TOKENS,
+	type Rgb,
+	type TuiColor,
+	type TuiColorToken,
+	type TuiTheme,
+} from "./theme-tui.js";
 export * from "./contract.js";
 export * from "./lint.js";
 export * from "./quality-checker.js";

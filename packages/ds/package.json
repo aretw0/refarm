@@ -22,6 +22,10 @@
 		"dist/theme-registry.js.map",
 		"dist/theme-registry.d.ts",
 		"dist/theme-registry.d.ts.map",
+		"dist/theme-tui.js",
+		"dist/theme-tui.js.map",
+		"dist/theme-tui.d.ts",
+		"dist/theme-tui.d.ts.map",
 		"dist/lint.js",
 		"dist/lint.js.map",
 		"dist/lint.d.ts",
@@ -70,7 +74,11 @@
 		"./components.css": "./src/components.css",
 		"./tailwind-bridge.css": "./src/tailwind-bridge.css",
 		"./themes/*": "./src/themes/*",
-		"./styles/*": "./src/*"
+		"./styles/*": "./src/*",
+		"./theme-tui": {
+			"import": "./dist/theme-tui.js",
+			"types": "./dist/theme-tui.d.ts"
+		}
 	},
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
