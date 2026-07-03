@@ -9,6 +9,7 @@ import { parseModelScope } from "../model-routing.js";
 import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildCurrentModelEnvelope,
+	buildInvalidScopeEnvelope,
 	buildKnownModelProvidersEnvelope,
 	buildModelDoctorEnvelope,
 	buildModelEnvEnvelope,
@@ -168,7 +169,10 @@ export function createModelCapabilityGroup(
 			},
 		],
 		run(input) {
-			const scope = parseModelScope(input.options.scope as string) ?? "default";
+			const raw = input.options.scope as string | undefined;
+			const invalid = buildInvalidScopeEnvelope(raw);
+			if (invalid) return invalid;
+			const scope = parseModelScope(raw) ?? "default";
 			return buildSetModelEnvelope(input.args.ref as string, scope, deps);
 		},
 	};
@@ -194,7 +198,10 @@ export function createModelCapabilityGroup(
 			},
 		],
 		run(input) {
-			const scope = parseModelScope(input.options.scope as string) ?? "default";
+			const raw = input.options.scope as string | undefined;
+			const invalid = buildInvalidScopeEnvelope(raw);
+			if (invalid) return invalid;
+			const scope = parseModelScope(raw) ?? "default";
 			return buildResetScopedModelEnvelope(scope, deps);
 		},
 	};

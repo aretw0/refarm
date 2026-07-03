@@ -1,33 +1,24 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { printCurrentModel, printCurrentModelJson } from "./model.js";
+import { afterEach, describe, expect, it } from "vitest";
+import { buildCurrentModelEnvelope, formatCurrentModel } from "./model.js";
+import type { ModelTokens } from "./model.js";
 
-function captureCurrentModel(tokens = {}): string {
-	const lines: string[] = [];
-	const log = vi.spyOn(console, "log").mockImplementation((line = "") => {
-		lines.push(String(line));
-	});
-	try {
-		printCurrentModel(tokens);
-		return lines.join("\n");
-	} finally {
-		log.mockRestore();
-	}
+// The legacy print wrappers were deleted after the model group migration; the
+// live formatter (text) and envelope builder (JSON) are the source of truth the
+// group renders through, so this coverage now targets them directly.
+function captureCurrentModel(tokens: Partial<ModelTokens> = {}): string {
+	return formatCurrentModel(tokens as ModelTokens);
 }
 
-function captureCurrentModelJson(tokens = {}): Record<string, unknown> {
-	const lines: string[] = [];
-	const log = vi.spyOn(console, "log").mockImplementation((line = "") => {
-		lines.push(String(line));
-	});
-	try {
-		printCurrentModelJson(tokens);
-		return JSON.parse(lines.join("\n")) as Record<string, unknown>;
-	} finally {
-		log.mockRestore();
-	}
+function captureCurrentModelJson(
+	tokens: Partial<ModelTokens> = {},
+): Record<string, unknown> {
+	return buildCurrentModelEnvelope(tokens as ModelTokens) as unknown as Record<
+		string,
+		unknown
+	>;
 }
 
-describe("printCurrentModel", () => {
+describe("model current output", () => {
 	afterEach(() => {
 		delete process.env.MODEL_PROVIDER;
 		delete process.env.MODEL_DEFAULT_PROVIDER;

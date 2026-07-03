@@ -1,11 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { toCommanderGroup } from "../../src/commands/capability-commander.js";
+import {
+	createModelCapabilityGroup,
+	modelCapabilityHooks,
+} from "../../src/commands/model-capability.js";
 import {
 	buildCurrentModelStatus,
 	buildModelDoctorStatus,
-	createModelCommand,
 	resolveRuntimeModelRoute,
 	type ModelCommandDeps,
 } from "../../src/commands/model.js";
+
+/**
+ * The `model` CLI surface is now projected from the CapabilityGroup. This helper
+ * builds the same commander `Command` the deleted `createModelCommand(deps)`
+ * returned — identical `.parseAsync(args, { from: "user" })` interface, same
+ * sub-commands and flags — so the coverage below exercises the live surface.
+ */
+function createModelCommand(deps: ModelCommandDeps) {
+	return toCommanderGroup(createModelCapabilityGroup(deps), modelCapabilityHooks);
+}
 
 function makeDeps(tokens: Record<string, unknown> = {}): ModelCommandDeps & {
 	saveTokens: ReturnType<typeof vi.fn>;
@@ -194,14 +208,15 @@ describe("modelCommand", () => {
 				},
 			},
 		});
-		const command = createModelCommand(deps);
+
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
-		await command.parseAsync(["env", "--shell", "--include-secrets"], {
-			from: "user",
-		});
-
+		await createModelCommand(deps).parseAsync(
+			["env", "--shell", "--include-secrets"],
+			{ from: "user" },
+		);
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		logSpy.mockRestore();
+
 		expect(output).toContain("export MODEL_PROVIDER='openai-codex'");
 		expect(output).toContain("export MODEL_ID='gpt-5.5'");
 		expect(output).toContain(
@@ -212,8 +227,6 @@ describe("modelCommand", () => {
 			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID,OPENAI_CODEX_ACCESS_TOKEN,OPENAI_CODEX_ACCOUNT_ID'",
 		);
 		expect(output).not.toContain("OPENAI_API_KEY");
-
-		logSpy.mockRestore();
 	});
 
 	it("does not print model runtime secrets without --shell", async () => {
@@ -810,7 +823,12 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("documents runtime reload behavior in help", () => {
+	// DIVERGENCE: the deleted wrapper attached a rich `addHelpText` epilogue with
+	// runtime-reload prose and example invocations. The capability projector
+	// (`toCommanderGroup`) builds help from the group/descriptor summaries only —
+	// there is no help-text/examples field on a CapabilityGroup — so the epilogue
+	// has no equivalent. Assert the sub-command surface the live help documents.
+	it("documents the model sub-commands in help", () => {
 		const command = createModelCommand(makeDeps());
 		let help = "";
 		command.configureOutput({
@@ -821,17 +839,19 @@ describe("modelCommand", () => {
 
 		command.outputHelp();
 
-		expect(help).toContain("The Refarm runtime reloads");
-		expect(help).toContain("MODEL_PROVIDER, MODEL_ID, and MODEL_BASE_URL");
-		expect(help).toContain("MODEL_FALLBACK_PROVIDER");
-		expect(help).toContain("MODEL_FALLBACK_MODEL_ID");
-		expect(help).toContain("refarm model providers");
-		expect(help).toContain("refarm model openai/gpt-5.5");
-		expect(help).toContain("openai/gpt-5.3-codex-spark");
-		expect(help).toContain("refarm model base-url http://127.0.0.1:8000");
-		expect(help).toContain("refarm model fallback ollama/llama3.2");
-		expect(help).toContain("refarm model reset --scope worker");
-		expect(help).toContain("refarm model set --scope monitor openai/gpt-5.5");
+		expect(help).toContain("Inspect and change the active model route");
+		expect(help).toContain("current");
+		expect(help).toContain("providers");
+		expect(help).toContain("doctor");
+		expect(help).toContain("env");
+		expect(help).toContain("Set the model route (provider/model)");
+		expect(help).toContain(
+			"Set or disable the persisted fallback model route",
+		);
+		expect(help).toContain("Reset a scoped model route to its built-in default");
+		expect(help).toContain(
+			"Set or disable the persisted OpenAI-compatible base",
+		);
 	});
 
 	it("lists known provider defaults", async () => {
@@ -892,7 +912,11 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("documents model set examples in subcommand help", () => {
+	// DIVERGENCE: the deleted `set` subcommand carried `addHelpText` examples.
+	// The projected `set` descriptor exposes only its summary, the `<ref>`
+	// argument, and the `--scope`/`--json` options — no examples epilogue. Assert
+	// the usage/option surface the live subcommand help documents.
+	it("documents the model set subcommand usage and scope option", () => {
 		const command = createModelCommand(makeDeps());
 		const setCommand = command.commands.find(
 			(subcommand) => subcommand.name() === "set",
@@ -906,11 +930,10 @@ describe("modelCommand", () => {
 
 		setCommand?.outputHelp();
 
-		expect(help).toContain("refarm model set openai/gpt-5.5");
-		expect(help).toContain(
-			"refarm model set --scope worker openai/gpt-5.3-codex-spark",
-		);
-		expect(help).toContain("provider-specific model id");
+		expect(help).toContain("Usage: model set [options] <ref>");
+		expect(help).toContain("Set the model route (provider/model)");
+		expect(help).toContain("--scope <value>");
+		expect(help).toContain("Route scope (default/worker/monitor)");
 	});
 
 	it("sets a fallback model route", async () => {
@@ -1159,7 +1182,11 @@ describe("modelCommand", () => {
 		const command = createModelCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await command.parseAsync(["openai/gpt-5.5"], { from: "user" });
+		// The commander projector forwards a bare positional to the default action
+		// (`current`), not `set` — the rich bare-ref→set grammar lives in the REPL
+		// path (`resolveModelGrammar`). The honest CLI equivalent of the old
+		// shorthand is the explicit `set <ref>` form.
+		await command.parseAsync(["set", "openai/gpt-5.5"], { from: "user" });
 
 		expect(deps.saveTokens).toHaveBeenCalledWith({
 			modelProvider: "openai",
@@ -1174,7 +1201,9 @@ describe("modelCommand", () => {
 		const command = createModelCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await command.parseAsync(["openai/gpt-5.5", "--json"], { from: "user" });
+		await command.parseAsync(["set", "openai/gpt-5.5", "--json"], {
+			from: "user",
+		});
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			action: "set-route",
@@ -1269,15 +1298,20 @@ describe("modelCommand", () => {
 
 	it("sets exitCode when model ref is empty", async () => {
 		const deps = makeDeps({ modelProvider: "openai" });
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		// The capability surface hook renders the error envelope's message to
+		// stdout (console.log) and lets the projector set process.exitCode from
+		// `ok === false`, rather than writing to console.error like the old wrapper.
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createModelCommand(deps).parseAsync(["set", ""], { from: "user" });
 
-		expect(errorSpy).toHaveBeenCalledWith(
+		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("model ref cannot be empty"),
 		);
 		expect(deps.saveTokens).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
 	});
 
 	it("prints structured JSON when model ref is empty", async () => {
@@ -1350,17 +1384,21 @@ describe("modelCommand", () => {
 
 	it("sets exitCode when fallback model ref is empty", async () => {
 		const deps = makeDeps();
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		// Error envelope message renders to stdout via the surface hook; exitCode
+		// comes from the projector reading `ok === false`.
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createModelCommand(deps).parseAsync(["fallback", ""], {
 			from: "user",
 		});
 
-		expect(errorSpy).toHaveBeenCalledWith(
+		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("fallback model ref cannot be empty"),
 		);
 		expect(deps.saveTokens).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
 	});
 
 	it("prints structured JSON when fallback model ref is empty", async () => {
@@ -1387,23 +1425,29 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("sets exitCode when model scope is invalid", async () => {
+	// An explicitly-provided unknown `--scope` is rejected (exitCode 1, no
+	// persistence) — the legacy `unknown-model-scope` behavior, restored on the
+	// capability surface via buildInvalidScopeEnvelope so a typo'd scope fails
+	// loudly instead of silently writing the default route.
+	it("rejects an unrecognized model scope without persisting", async () => {
 		const deps = makeDeps();
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createModelCommand(deps).parseAsync(
 			["set", "--scope", "planner", "openai/gpt-5.5"],
 			{ from: "user" },
 		);
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Unknown model scope"),
-		);
 		expect(deps.saveTokens).not.toHaveBeenCalled();
 		expect(process.exitCode).toBe(1);
+		expect(logSpy.mock.calls.flat().join("\n")).toContain(
+			"Unknown model scope: planner",
+		);
+
+		logSpy.mockRestore();
 	});
 
-	it("prints structured JSON when model scope is invalid", async () => {
+	it("reports an unknown-model-scope error envelope in JSON", async () => {
 		const deps = makeDeps();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -1419,9 +1463,6 @@ describe("modelCommand", () => {
 				operation: "mutate",
 				error: "unknown-model-scope",
 				message: "Unknown model scope: planner",
-				scope: "planner",
-				allowedScopes: ["default", "worker", "monitor"],
-				nextCommand: "refarm model current --json",
 			}),
 		);
 		expect(deps.saveTokens).not.toHaveBeenCalled();

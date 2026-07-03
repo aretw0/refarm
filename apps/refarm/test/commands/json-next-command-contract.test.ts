@@ -28,7 +28,11 @@ import { headlessCommand } from "../../src/commands/headless.js";
 import { healthCommand } from "../../src/commands/health.js";
 import { createInitCommand } from "../../src/commands/init.js";
 import { migrateCommand } from "../../src/commands/migrate.js";
-import { createModelCommand } from "../../src/commands/model.js";
+import { toCommanderGroup } from "../../src/commands/capability-commander.js";
+import {
+	createModelCapabilityGroup,
+	modelCapabilityHooks,
+} from "../../src/commands/model-capability.js";
 import { createOpenUrlCommand } from "../../src/commands/open-url.js";
 import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
 import { pluginCommand } from "../../src/commands/plugin.js";
@@ -864,14 +868,20 @@ function createContractModelCommand() {
 			worker: { provider: "openai", modelId: "gpt-5.3-codex-spark" },
 		},
 	};
-	return createModelCommand({
-		loadTokens: async () => tokens,
-		saveTokens: vi
-			.fn()
-			.mockImplementation(async (update: Record<string, unknown>) => {
-				Object.assign(tokens, update);
-			}),
-	});
+	// The `model` CLI surface is now projected from the CapabilityGroup; this
+	// builds the same commander Command the deleted `createModelCommand(deps)`
+	// returned (identical parseAsync + sub-commands + JSON envelopes).
+	return toCommanderGroup(
+		createModelCapabilityGroup({
+			loadTokens: async () => tokens,
+			saveTokens: vi
+				.fn()
+				.mockImplementation(async (update: Record<string, unknown>) => {
+					Object.assign(tokens, update);
+				}),
+		}),
+		modelCapabilityHooks,
+	);
 }
 
 function createContractSessionsCommand() {

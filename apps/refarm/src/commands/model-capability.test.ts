@@ -50,6 +50,32 @@ describe("model CapabilityGroup (read-only slice)", () => {
 		expect(d.saveTokens).toHaveBeenCalledTimes(1);
 	});
 
+	it("rejects an unknown --scope without persisting (set + reset)", async () => {
+		const setDeps = deps({ modelProvider: "ollama" });
+		const setGroup = createModelCapabilityGroup(setDeps);
+		const setResolved = resolveGroupAction(setGroup, [
+			"set",
+			"--scope",
+			"planner",
+			"ollama/llama3.2",
+		]);
+		const setEnv = await setResolved!.action.run(setResolved!.input);
+		expect(setEnv.ok).toBe(false);
+		expect((setEnv as { error?: string }).error).toBe("unknown-model-scope");
+		expect(setDeps.saveTokens).not.toHaveBeenCalled();
+
+		const resetDeps = deps({ modelRoutes: { worker: "ollama/llama3.2" } });
+		const resetGroup = createModelCapabilityGroup(resetDeps);
+		const resetResolved = resolveGroupAction(resetGroup, [
+			"reset",
+			"--scope",
+			"planner",
+		]);
+		const resetEnv = await resetResolved!.action.run(resetResolved!.input);
+		expect(resetEnv.ok).toBe(false);
+		expect(resetDeps.saveTokens).not.toHaveBeenCalled();
+	});
+
 	it("dispatches `reset --scope worker` through the group", async () => {
 		const d = deps({ modelRoutes: { worker: "ollama/llama3.2" } });
 		const group = createModelCapabilityGroup(d);

@@ -3,7 +3,6 @@ import { modelCredentialEnvKey, modelCredentialStatus as resolveModelCredentialS
 import { isContainer as detectContainerRuntime } from "@refarm.dev/root";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
-import { Command } from "commander";
 import {
 	DEFAULT_MODEL_PROVIDER, defaultModelForProvider, defaultModelForScope, defaultProviderModelRef, defaultScopedModelRef, effectiveModelRouteForScope, formatModelRef, isRuntimeSubscriptionModelProvider, isSubscriptionModelProvider, MODEL_BASE_URL_ENV_VAR, MODEL_DEFAULT_PROVIDER_ENV_VAR, MODEL_FALLBACK_MODEL_ID_ENV_VAR, MODEL_FALLBACK_PROVIDER_ENV_VAR, MODEL_ID_ENV_VAR, MODEL_PROVIDER_ENV_VAR, MODEL_PROVIDERS, MODEL_RUNTIME_ENV_VARS, MODEL_SCOPES, modelRouteTokenUpdate, parseModelRef, parseModelScope, type ModelScope, } from "../model-routing.js";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
@@ -20,28 +19,17 @@ import {
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
-	printJson,
 } from "@refarm.dev/cli/json-output";
 import { fetchWithTimeout } from "./fetch-with-timeout.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 const OPENAI_WORKER_REF = defaultScopedModelRef("worker", "openai");
 const OPENAI_MONITOR_REF = defaultScopedModelRef("monitor", "openai");
-const ANTHROPIC_DEFAULT_REF = defaultProviderModelRef("anthropic");
 const OLLAMA_DEFAULT_REF = defaultProviderModelRef("ollama");
-const MODEL_SCOPE_HELP = MODEL_SCOPES.join(", ");
 const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434";
 const OLLAMA_DOCKER_BASE_URL = "http://host.docker.internal:11434";
 const MODEL_PROVIDER_PROBE_TIMEOUT_MS = 2_000;
 const REFARM_MANAGED_MODEL_ENV_KEYS = "REFARM_MANAGED_MODEL_ENV_KEYS";
-
-interface JsonOptionCarrier {
-	json?: boolean;
-	opts?: () => { json?: boolean };
-	parent?: {
-		opts?: () => { json?: boolean };
-	};
-}
 
 interface ModelRouteMutationResult {
 	action: "set-route";
@@ -318,8 +306,8 @@ function buildModelEnvEntries(
 }
 
 /** Build the `model env` envelope (no I/O): the resolved runtime env entries as
- * a success envelope. `env` is read-only (no saveTokens), so this is a success
- * projector — the CLI still prints shell exports via printModelEnvShell. */
+ * a success envelope. `env` is read-only (no saveTokens); the shell-export text
+ * surface is rendered by the env renderText hook via formatModelEnvFromEnvelope. */
 export function buildModelEnvEnvelope(
 	tokens: ModelTokens,
 	options: { includeSecrets?: boolean } = {},
@@ -374,14 +362,6 @@ export function formatModelEnvFromEnvelope(
 	return formatModelEnvShell(entries);
 }
 
-function printModelEnvShell(
-	tokens: ModelTokens,
-	options: { includeSecrets?: boolean } = {},
-): void {
-	const text = formatModelEnvShell(buildModelEnvEntries(tokens, options));
-	if (text) console.log(text);
-}
-
 function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
 	return Boolean(
 		tokens.modelRoutes &&
@@ -392,19 +372,6 @@ function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
 
 function activeModelEnvOverrides(): string[] {
 	return MODEL_RUNTIME_ENV_VARS.filter((name) => Boolean(process.env[name]));
-}
-
-function hasJsonOption(
-	options: JsonOptionCarrier,
-	command?: JsonOptionCarrier,
-): boolean {
-	return (
-		options.json === true ||
-		options.opts?.().json === true ||
-		options.parent?.opts?.().json === true ||
-		command?.opts?.().json === true ||
-		command?.parent?.opts?.().json === true
-	);
 }
 
 function trimTrailingSlash(value: string): string {
@@ -566,15 +533,8 @@ export async function buildModelDoctorEnvelope(
 	});
 }
 
-async function printModelDoctorJson(
-	tokens: ModelTokens,
-	deps: Pick<ModelCommandDeps, "fetch">,
-): Promise<void> {
-	printJson(await buildModelDoctorEnvelope(tokens, deps));
-}
-
 /** Format the `model doctor` human text as a string (no I/O), so the CLI
- * renderText hook and printModelDoctor share one source of truth. */
+ * renderText hook formats from this single source of truth. */
 export async function formatModelDoctor(
 	tokens: ModelTokens,
 	deps: Pick<ModelCommandDeps, "fetch">,
@@ -609,15 +569,8 @@ export function formatModelDoctorFromStatus(status: ModelDoctorStatus): string {
 	return lines.join("\n");
 }
 
-async function printModelDoctor(
-	tokens: ModelTokens,
-	deps: Pick<ModelCommandDeps, "fetch">,
-): Promise<void> {
-	console.log(await formatModelDoctor(tokens, deps));
-}
-
 /** Format the `model current` human text as a string (no I/O), so the CLI
- * renderText hook and printCurrentModel share one source of truth. */
+ * renderText hook formats from this single source of truth. */
 export function formatCurrentModel(tokens: ModelTokens): string {
 	return formatCurrentModelFromStatus(buildCurrentModelStatus(tokens));
 }
@@ -676,10 +629,6 @@ export function formatCurrentModelFromStatus(
 	return lines.join("\n");
 }
 
-export function printCurrentModel(tokens: ModelTokens): void {
-	console.log(formatCurrentModel(tokens));
-}
-
 /** Build the `model current` JSON envelope (no I/O) so every surface — CLI, the
  * REPL /model capability, an API — returns the identical result. */
 export function buildCurrentModelEnvelope(tokens: ModelTokens) {
@@ -691,10 +640,6 @@ export function buildCurrentModelEnvelope(tokens: ModelTokens) {
 		nextActions: currentModelNextActions(status),
 		nextCommands: currentModelNextCommands(status),
 	});
-}
-
-export function printCurrentModelJson(tokens: ModelTokens): void {
-	printJson(buildCurrentModelEnvelope(tokens));
 }
 
 function currentModelNextActions(status: CurrentModelStatus): string[] {
@@ -990,33 +935,8 @@ export function buildKnownModelProviders(): KnownModelProvider[] {
 	}));
 }
 
-function printModelValidationErrorJson(input: {
-	error: string;
-	message: string;
-	nextCommand?: string;
-	extra?: Record<string, unknown>;
-}): void {
-	const nextCommand = input.nextCommand ?? MODEL_CURRENT_JSON_COMMAND;
-	printJson(
-		buildJsonErrorEnvelope({
-			command: "model",
-			operation: "mutate",
-			error: input.error,
-			message: input.message,
-			nextAction: nextCommand,
-			nextCommand,
-			nextCommands: [
-				nextCommand,
-				MODEL_PROVIDERS_JSON_COMMAND,
-				LOCAL_MODEL_JSON_COMMAND,
-			],
-			extra: input.extra,
-		}),
-	);
-}
-
 /** Format the `model providers` human text as a string (no I/O), so the CLI
- * renderText hook and printKnownModelProviders share one source of truth. */
+ * renderText hook formats from this single source of truth. */
 export function formatKnownModelProviders(): string {
 	const lines: string[] = [];
 	lines.push(chalk.bold("Known model providers"));
@@ -1044,10 +964,6 @@ export function formatKnownModelProviders(): string {
 	return lines.join("\n");
 }
 
-export function printKnownModelProviders(): void {
-	console.log(formatKnownModelProviders());
-}
-
 /** Build the `model providers` JSON envelope (no I/O), shared by every surface. */
 export function buildKnownModelProvidersEnvelope() {
 	return buildJsonSuccessEnvelope({
@@ -1059,12 +975,8 @@ export function buildKnownModelProvidersEnvelope() {
 	});
 }
 
-export function printKnownModelProvidersJson(): void {
-	printJson(buildKnownModelProvidersEnvelope());
-}
-
-/** Build the model-mutation error envelope (no I/O) — the same shape
- * printModelValidationErrorJson prints, so run() can RETURN it. */
+/** Build the model-mutation error envelope (no I/O) — a projector-friendly
+ * error shape so run() can RETURN it. */
 function buildModelValidationErrorEnvelope(input: {
 	error: string;
 	message: string;
@@ -1088,9 +1000,28 @@ function buildModelValidationErrorEnvelope(input: {
 	});
 }
 
+/**
+ * Validate an explicitly-provided route scope. Returns an error envelope (to
+ * RETURN from a mutator action, matching the legacy `unknown-model-scope`
+ * rejection) when `raw` is a non-empty string that is not a known scope, else
+ * null. Uses `parseModelScope` so recognition stays case-insensitive (`Worker`
+ * → `worker`), exactly like the legacy CLI. A group's `set`/`reset` action calls
+ * this BEFORE coercing, so a typo'd `--scope planner` fails loudly instead of
+ * silently writing the default route.
+ */
+export function buildInvalidScopeEnvelope(raw: string | undefined) {
+	if (raw === undefined || parseModelScope(raw) != null) {
+		return null;
+	}
+	return buildModelValidationErrorEnvelope({
+		error: "unknown-model-scope",
+		message: `Unknown model scope: ${raw}`,
+	});
+}
+
 /** Build the `model set` envelope: validate, persist, and RETURN a success or
  * error envelope — pure of console/exitCode. The CLI/REPL/API projectors render
- * it; setModelRoute wraps this to keep the legacy CLI output. */
+ * it. */
 export async function buildSetModelEnvelope(
 	ref: string,
 	scope: ModelScope,
@@ -1133,46 +1064,9 @@ export async function buildSetModelEnvelope(
 	});
 }
 
-export async function setModelRoute(
-	ref: string,
-	scope: ModelScope,
-	deps: ModelCommandDeps,
-	options: { json?: boolean } = {},
-): Promise<ModelRouteMutationResult | null> {
-	const envelope = await buildSetModelEnvelope(ref, scope, deps);
-
-	if (envelope.ok === false) {
-		if (options.json) {
-			printJson(envelope);
-		} else if (envelope.error === "model-provider-required") {
-			console.error(chalk.red(`✗  ${envelope.message}`));
-			console.error(
-				chalk.dim(
-					`   Use provider/model, for example: refarm model ${OLLAMA_DEFAULT_REF}`,
-				),
-			);
-		} else {
-			console.error(chalk.red(`✗  ${envelope.message}`));
-		}
-		process.exitCode = 1;
-		return null;
-	}
-
-	// The success envelope spreads the ModelRouteMutationResult at top level
-	// (buildJsonSuccessEnvelope extra:). Recover it for the legacy return value.
-	const mutation = envelope as unknown as ModelRouteMutationResult;
-	if (options.json) {
-		printJson(envelope);
-	} else {
-		const label = scope === "default" ? "Default model" : `${scope} model`;
-		console.log(chalk.green(`✓  ${label} set: ${mutation.ref}`));
-	}
-	return mutation;
-}
-
 /** Build the `model fallback` envelope: validate, persist (including the
  * off/disable path), and RETURN a success or error envelope — pure of
- * console/exitCode. setFallbackModelRoute wraps this for the legacy CLI output. */
+ * console/exitCode. */
 export async function buildSetFallbackEnvelope(
 	ref: string,
 	deps: ModelCommandDeps,
@@ -1231,45 +1125,9 @@ export async function buildSetFallbackEnvelope(
 	});
 }
 
-export async function setFallbackModelRoute(
-	ref: string,
-	deps: ModelCommandDeps,
-	options: { json?: boolean } = {},
-): Promise<ModelFallbackMutationResult | null> {
-	const envelope = await buildSetFallbackEnvelope(ref, deps);
-
-	if (envelope.ok === false) {
-		if (options.json) {
-			printJson(envelope);
-		} else if (envelope.error === "fallback-model-provider-required") {
-			console.error(chalk.red(`✗  ${envelope.message}`));
-			console.error(
-				chalk.dim(
-					`   Use provider/model, for example: refarm model fallback ${OLLAMA_DEFAULT_REF}`,
-				),
-			);
-		} else {
-			console.error(chalk.red(`✗  ${envelope.message}`));
-		}
-		process.exitCode = 1;
-		return null;
-	}
-
-	// The success envelope spreads the ModelFallbackMutationResult at top level.
-	const mutation = envelope as unknown as ModelFallbackMutationResult;
-	if (options.json) {
-		printJson(envelope);
-	} else if (mutation.action === "disable-fallback") {
-		console.log(chalk.green("✓  Fallback model disabled"));
-	} else {
-		console.log(chalk.green(`✓  Fallback model set: ${mutation.ref}`));
-	}
-	return mutation;
-}
-
 /** Build the `model reset` envelope: reject the default scope, otherwise drop
  * the persisted scoped route and RETURN a success or error envelope — pure of
- * console/exitCode. resetScopedModelRoute wraps this for the legacy CLI output. */
+ * console/exitCode. */
 export async function buildResetScopedModelEnvelope(
 	scope: ModelScope,
 	deps: ModelCommandDeps,
@@ -1302,43 +1160,9 @@ export async function buildResetScopedModelEnvelope(
 	});
 }
 
-export async function resetScopedModelRoute(
-	scope: ModelScope,
-	deps: ModelCommandDeps,
-	options: { json?: boolean } = {},
-): Promise<ModelResetMutationResult | null> {
-	const envelope = await buildResetScopedModelEnvelope(scope, deps);
-
-	if (envelope.ok === false) {
-		if (options.json) {
-			printJson(envelope);
-		} else {
-			console.error(
-				chalk.red(
-					"✗  Default route reset is explicit: set the desired provider/model.",
-				),
-			);
-			console.error(chalk.dim(`   Example: refarm model ${OPENAI_DEFAULT_REF}`));
-		}
-		process.exitCode = 1;
-		return null;
-	}
-
-	// The success envelope spreads the ModelResetMutationResult at top level.
-	const mutation = envelope as unknown as ModelResetMutationResult;
-	if (options.json) {
-		printJson(envelope);
-	} else {
-		console.log(
-			chalk.green(`✓  ${mutation.scope} model reset to built-in default`),
-		);
-	}
-	return mutation;
-}
-
 /** Build the `model base-url` envelope: handle the off/disable path, reject an
  * empty URL, otherwise persist it and RETURN a success or error envelope — pure
- * of console/exitCode. setModelBaseUrl wraps this for the legacy CLI output. */
+ * of console/exitCode. */
 export async function buildSetModelBaseUrlEnvelope(
 	value: string,
 	deps: ModelCommandDeps,
@@ -1375,381 +1199,3 @@ export async function buildSetModelBaseUrlEnvelope(
 		nextCommands: [MODEL_CURRENT_JSON_COMMAND],
 	});
 }
-
-export async function setModelBaseUrl(
-	value: string,
-	deps: ModelCommandDeps,
-	options: { json?: boolean } = {},
-): Promise<ModelBaseUrlMutationResult | null> {
-	const envelope = await buildSetModelBaseUrlEnvelope(value, deps);
-
-	if (envelope.ok === false) {
-		if (options.json) {
-			printJson(envelope);
-		} else {
-			console.error(chalk.red("✗  base URL cannot be empty."));
-		}
-		process.exitCode = 1;
-		return null;
-	}
-
-	// The success envelope spreads the ModelBaseUrlMutationResult at top level.
-	const mutation = envelope as unknown as ModelBaseUrlMutationResult;
-	if (options.json) {
-		printJson(envelope);
-	} else if (mutation.action === "disable-base-url") {
-		console.log(chalk.green("✓  Model base URL disabled"));
-	} else {
-		console.log(chalk.green(`✓  Model base URL set: ${mutation.baseUrl}`));
-	}
-	return mutation;
-}
-
-export function createModelCommand(
-	deps: ModelCommandDeps = defaultModelDeps(),
-): Command {
-	const command = new Command("model")
-		.description("Inspect and change the active model route")
-		.argument("[ref]", "provider/model, or model for the current provider")
-		.option(
-			"--json",
-			"Output machine-readable current route or mutation result",
-		)
-		.addHelpText(
-			"after",
-			`
-
-Examples:
-  $ refarm model current
-  $ refarm model current --json
-  $ refarm model doctor --json
-  $ refarm model ${OPENAI_DEFAULT_REF} --json
-  $ refarm model providers
-  $ refarm model providers --json
-  $ refarm model ${OPENAI_DEFAULT_REF}
-  $ refarm model set ${OPENAI_DEFAULT_REF}
-  $ refarm model set ${OPENAI_DEFAULT_REF} --json
-  $ refarm model set --scope worker ${OPENAI_WORKER_REF}
-  $ refarm model set --scope monitor ${OPENAI_MONITOR_REF}
-  $ refarm model reset --scope worker
-  $ refarm model base-url http://127.0.0.1:8000
-  $ refarm model fallback ${OLLAMA_DEFAULT_REF}
-  $ refarm model set ${ANTHROPIC_DEFAULT_REF}
-  $ refarm model set ${OLLAMA_DEFAULT_REF}
-
-Notes:
-  Model routes are saved in ~/.refarm/identity.json. The Refarm runtime reloads
-  them before each task, so the next ask/chat turn or worker task uses the new route.
-  ${MODEL_PROVIDER_ENV_VAR}, ${MODEL_ID_ENV_VAR}, and ${MODEL_BASE_URL_ENV_VAR} can override the primary route
-  for one command without changing persisted config.
-  ${MODEL_FALLBACK_PROVIDER_ENV_VAR} can retry a different provider when the primary fails.
-  ${MODEL_FALLBACK_MODEL_ID_ENV_VAR} can override that fallback provider's default model.
-  For OpenAI workers, the default scoped route is ${OPENAI_WORKER_REF}.
-  For OpenAI monitors, the default scoped route is ${OPENAI_MONITOR_REF}.
-`,
-		)
-		.action(
-			async (
-				ref: string | undefined,
-				opts: JsonOptionCarrier,
-				command: JsonOptionCarrier,
-			) => {
-				if (!ref) {
-					const tokens = await deps.loadTokens();
-					if (hasJsonOption(opts, command)) {
-						printCurrentModelJson(tokens);
-						return;
-					}
-					printCurrentModel(tokens);
-					return;
-				}
-				await setModelRoute(ref, "default", deps, {
-					json: hasJsonOption(opts, command),
-				});
-			},
-		);
-
-	command
-		.command("current")
-		.description("Show the currently configured provider/model")
-		.option("--json", "Output machine-readable route metadata")
-		.action(async (opts: JsonOptionCarrier, command: JsonOptionCarrier) => {
-			const tokens = await deps.loadTokens();
-			if (hasJsonOption(opts, command)) {
-				printCurrentModelJson(tokens);
-				return;
-			}
-			printCurrentModel(tokens);
-		});
-
-	command
-		.command("doctor")
-		.description("Probe the active local model provider endpoint")
-		.option("--json", "Output machine-readable provider readiness")
-		.addHelpText(
-			"after",
-			`
-
-Examples:
-  $ refarm model doctor
-  $ refarm model doctor --json
-
-Notes:
-  The doctor only performs a live endpoint probe for local providers such as
-  Ollama. Remote provider credentials remain covered by refarm model current.
-`,
-		)
-		.action(async (opts: JsonOptionCarrier, command: JsonOptionCarrier) => {
-			const tokens = await deps.loadTokens();
-			if (hasJsonOption(opts, command)) {
-				await printModelDoctorJson(tokens, deps);
-				return;
-			}
-			await printModelDoctor(tokens, deps);
-		});
-
-	command
-		.command("providers")
-		.description(
-			"List known provider defaults and credential environment variables",
-		)
-		.option("--json", "Output machine-readable provider defaults")
-		.addHelpText(
-			"after",
-			`
-
-Examples:
-  $ refarm model providers
-  $ refarm model providers --json
-  $ refarm sow --model ${OPENAI_DEFAULT_REF}
-  $ refarm model set --scope worker ${OPENAI_WORKER_REF}
-
-Notes:
-  This lists built-in defaults only. You can still use custom providers by
-  passing provider/model and setting refarm model base-url for OpenAI-compatible APIs.
-`,
-		)
-		.action((opts: JsonOptionCarrier, command: JsonOptionCarrier) => {
-			if (hasJsonOption(opts, command)) {
-				printKnownModelProvidersJson();
-				return;
-			}
-			printKnownModelProviders();
-		});
-
-	command
-		.command("env")
-		.description("Print shell exports for the current model runtime")
-		.option("--shell", "Output POSIX shell export statements")
-		.option("--include-secrets", "Include local runtime credential secrets")
-		.addHelpText(
-			"after",
-			`
-
-Examples:
-  $ refarm model env --shell
-  $ eval "$(refarm model env --shell)"
-
-Notes:
-  This command is intended for runtime launch scripts. It prints only model
-  routing variables and the current provider credential when available from
-  Silo. It does not call the model provider.
-`,
-		)
-		.action(async (opts: { shell?: boolean; includeSecrets?: boolean }) => {
-			const tokens = await deps.loadTokens();
-			if (!opts.shell) {
-				console.log("Use --shell to print model runtime exports.");
-				return;
-			}
-			printModelEnvShell(tokens, { includeSecrets: opts.includeSecrets });
-		});
-
-	command
-		.command("fallback")
-		.description("Set or disable the persisted fallback model route")
-		.argument(
-			"<ref>",
-			"provider/model, model for current fallback provider, or off",
-		)
-		.option("--json", "Output machine-readable fallback update")
-		.addHelpText(
-			"after",
-			`
-
-Examples:
-  $ refarm model fallback ${OLLAMA_DEFAULT_REF}
-  $ refarm model fallback ollama/qwen2.5-coder
-  $ refarm model fallback off
-
-Notes:
-  The fallback route is saved in ~/.refarm/identity.json and injected by
-  farmhand as ${MODEL_FALLBACK_PROVIDER_ENV_VAR} and ${MODEL_FALLBACK_MODEL_ID_ENV_VAR}. Environment
-  variables still take precedence for one-off operator overrides.
-`,
-		)
-		.action(
-			async (
-				ref: string,
-				opts: JsonOptionCarrier,
-				command: JsonOptionCarrier,
-			) => {
-				await setFallbackModelRoute(ref, deps, {
-					json: hasJsonOption(opts, command),
-				});
-			},
-		);
-
-	command
-		.command("reset")
-		.description("Reset a scoped model route to its built-in default")
-		.option(
-			"--scope <scope>",
-			`Scoped route to reset: worker, monitor`,
-			"worker",
-		)
-		.option("--json", "Output machine-readable reset result")
-		.addHelpText(
-			"after",
-			`
-
-Examples:
-  $ refarm model reset --scope worker
-  $ refarm model reset --scope monitor
-
-Notes:
-  This removes the persisted scoped route from ~/.refarm/identity.json. The next
-  ask/chat turn or worker task falls back to the provider's built-in scoped
-  default. To change the default route, run refarm model <provider/model>.
-`,
-		)
-		.action(
-			async (
-				opts: { scope?: string } & JsonOptionCarrier,
-				command: JsonOptionCarrier,
-			) => {
-				const scope = parseModelScope(opts.scope);
-				if (!scope) {
-					if (hasJsonOption(opts, command)) {
-						printModelValidationErrorJson({
-							error: "unknown-model-scope",
-							message: `Unknown model scope: ${opts.scope ?? ""}`,
-							nextCommand: MODEL_CURRENT_JSON_COMMAND,
-							extra: {
-								scope: opts.scope ?? "",
-								allowedScopes: MODEL_SCOPES,
-							},
-						});
-						process.exitCode = 1;
-						return;
-					}
-					console.error(
-						chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`),
-					);
-					console.error(chalk.dim("   Use: worker, monitor"));
-					process.exitCode = 1;
-					return;
-				}
-				await resetScopedModelRoute(scope, deps, {
-					json: hasJsonOption(opts, command),
-				});
-			},
-		);
-
-	command
-		.command("base-url")
-		.description("Set or disable the persisted OpenAI-compatible base URL")
-		.argument(
-			"<url>",
-			"Base URL for custom/self-hosted model providers, or off",
-		)
-		.option("--json", "Output machine-readable base URL update")
-		.addHelpText(
-			"after",
-			`
-
-Examples:
-  $ refarm model base-url http://127.0.0.1:8000
-  $ refarm model base-url https://models.example.com
-  $ refarm model base-url off
-
-Notes:
-  The base URL is saved in ~/.refarm/identity.json and injected by farmhand as
-  MODEL_BASE_URL. Environment variables still take precedence for one-off
-  operator overrides.
-`,
-		)
-		.action(
-			async (
-				url: string,
-				opts: JsonOptionCarrier,
-				command: JsonOptionCarrier,
-			) => {
-				await setModelBaseUrl(url, deps, {
-					json: hasJsonOption(opts, command),
-				});
-			},
-		);
-
-	command
-		.command("set")
-		.description("Set the default model route")
-		.argument("<ref>", "provider/model, or model for the current provider")
-		.option("--scope <scope>", `Route scope: ${MODEL_SCOPE_HELP}`, "default")
-		.option("--json", "Output machine-readable route update")
-		.addHelpText(
-			"after",
-			`
-
-Examples:
-  $ refarm model set ${OPENAI_DEFAULT_REF}
-  $ refarm model set --scope worker ${OPENAI_WORKER_REF}
-  $ refarm model set --scope monitor ${OPENAI_MONITOR_REF}
-  $ refarm model set ${ANTHROPIC_DEFAULT_REF}
-  $ refarm model set ${OLLAMA_DEFAULT_REF}
-
-Notes:
-  Use provider/model for portable routes, including self-hosted or compat
-  providers. If a default provider is already saved, you may pass only the
-  provider-specific model id when it has no slash. Slash-bearing model ids
-  should include their provider prefix, for example together/meta-llama/...
-`,
-		)
-		.action(
-			async (
-				ref: string,
-				opts: { scope?: string } & JsonOptionCarrier,
-				command: JsonOptionCarrier,
-			) => {
-				const scope = parseModelScope(opts.scope);
-				if (!scope) {
-					if (hasJsonOption(opts, command)) {
-						printModelValidationErrorJson({
-							error: "unknown-model-scope",
-							message: `Unknown model scope: ${opts.scope ?? ""}`,
-							nextCommand: MODEL_CURRENT_JSON_COMMAND,
-							extra: {
-								scope: opts.scope ?? "",
-								allowedScopes: MODEL_SCOPES,
-							},
-						});
-						process.exitCode = 1;
-						return;
-					}
-					console.error(
-						chalk.red(`✗  Unknown model scope: ${opts.scope ?? ""}`),
-					);
-					console.error(chalk.dim(`   Use: ${MODEL_SCOPE_HELP}`));
-					process.exitCode = 1;
-					return;
-				}
-				await setModelRoute(ref, scope, deps, {
-					json: hasJsonOption(opts, command),
-				});
-			},
-		);
-
-	return command;
-}
-
-export const modelCommand = createModelCommand();

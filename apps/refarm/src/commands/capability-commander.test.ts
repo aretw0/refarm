@@ -65,6 +65,34 @@ describe("toCommanderCommand", () => {
 		});
 	});
 
+	it("resolves a hyphenated boolean flag commander camelCases (--include-secrets)", async () => {
+		// commander stores `--include-secrets` under `includeSecrets`; the adapter
+		// must map it back to the descriptor's raw `include-secrets` name so a
+		// multi-word option actually reaches run().
+		const withMultiWord: CapabilityDescriptor = {
+			name: "echo",
+			summary: "x",
+			options: [
+				{ name: "include-secrets", kind: "boolean", summary: "secrets" },
+			],
+			run: (input: CapabilityInput) =>
+				buildJsonSuccessEnvelope({
+					command: "echo",
+					operation: "run",
+					extra: { received: input },
+				}),
+		};
+		const envelope = await runCommand(withMultiWord, [
+			"--include-secrets",
+			"--json",
+		]);
+		expect(
+			(envelope as { received: CapabilityInput }).received.options[
+				"include-secrets"
+			],
+		).toBe(true);
+	});
+
 	it("maps ok:false to process.exitCode=1 by default", async () => {
 		const failing: CapabilityDescriptor = {
 			name: "fail",

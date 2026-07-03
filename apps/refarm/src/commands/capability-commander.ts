@@ -170,11 +170,23 @@ function buildCapabilityInput(
 
 	const options: Record<string, string | string[] | boolean> = {};
 	for (const option of descriptor.options ?? []) {
-		const value = commanderOptions[option.name];
+		// commander stores a hyphenated flag (`--include-secrets`) under its
+		// camelCased key (`includeSecrets`), but the descriptor addresses it by the
+		// raw name. Look up both so a multi-word option actually reaches run().
+		const value =
+			commanderOptions[option.name] ??
+			commanderOptions[camelCaseFlag(option.name)];
 		if (value !== undefined) {
 			options[option.name] = value as string | string[] | boolean;
 		}
 	}
 
 	return { args, options, json: Boolean(commanderOptions.json) };
+}
+
+/** Mirror commander's flag→key transform: `include-secrets` → `includeSecrets`. */
+function camelCaseFlag(name: string): string {
+	return name.replace(/-([a-z])/g, (_all, letter: string) =>
+		letter.toUpperCase(),
+	);
 }
