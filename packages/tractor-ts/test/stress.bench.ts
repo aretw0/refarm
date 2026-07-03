@@ -8,7 +8,7 @@
  */
 
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { SovereignRegistry } from "@refarm.dev/registry";
+import { Registry } from "@refarm.dev/registry";
 import { bench, describe, vi } from "vitest";
 import { PluginHost, Tractor, normaliseToSovereignGraph } from "../src/index";
 import { createMockConfig } from "./helpers/mock-adapters";
@@ -83,14 +83,14 @@ describe("Plugin Loading", () => {
   stubFetchGlobal();
 
   bench("Load 1 plugin", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(() => {}, registry, silentLogger);
     await host.load(createBenchManifest("p1"), "hash");
     host.terminateAll();
   });
 
   bench("Load 10 plugins sequentially", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(() => {}, registry, silentLogger);
     for (let i = 0; i < 10; i++) {
       await host.load(createBenchManifest(`p${i}`), `h${i}`);
@@ -99,7 +99,7 @@ describe("Plugin Loading", () => {
   });
 
   bench("Load 50 plugins concurrently", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(() => {}, registry, silentLogger);
     await Promise.all(
       Array.from({ length: 50 }, (_, i) =>
@@ -110,7 +110,7 @@ describe("Plugin Loading", () => {
   });
 
   bench("Load 100 plugins concurrently", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(() => {}, registry, silentLogger);
     await Promise.all(
       Array.from({ length: 100 }, (_, i) =>

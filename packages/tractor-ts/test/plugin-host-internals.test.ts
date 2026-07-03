@@ -6,7 +6,7 @@ vi.mock("@refarm.dev/heartwood", () => ({
 }));
 
 import { PluginHost } from "../src/lib/plugin-host";
-import { SovereignRegistry } from "@refarm.dev/registry";
+import { Registry } from "@refarm.dev/registry";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { cachePlugin, evictPlugin } from "../src/lib/opfs-plugin-cache";
 import type { PluginInstance } from "../src/lib/instance-handle";
@@ -34,13 +34,13 @@ function makeLogger() {
 
 function makeHost(overrides?: { securityMode?: "strict" | "permissive"; logger?: TractorLogger }) {
   const emit = vi.fn();
-  const registry = new SovereignRegistry();
+  const registry = new Registry();
   const logger = overrides?.logger ?? makeLogger();
   const host = new PluginHost(emit, registry, logger, overrides?.securityMode ?? "strict");
   return { host, emit, registry, logger };
 }
 
-function validatedManifest(registry: SovereignRegistry, id = "test-plugin") {
+function validatedManifest(registry: Registry, id = "test-plugin") {
   const manifest = createMockManifest({ id, entry: "https://example.test/plugin.wasm" });
   registry.register(manifest);
   const entry = registry.getPlugin(id);

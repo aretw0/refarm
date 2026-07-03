@@ -11,7 +11,7 @@
 **Depends on**: `tractor` (Plugin loading), `heartwood` (Signatures)
 
 ### SDD (Spec Driven) ✅
-- [x] Spec: `SovereignRegistry` core interface.
+- [x] Spec: `Registry` core interface.
 - [x] Spec: Plugin manifest resolution (HTTP/JSON).
 - [x] Spec: Hardened validation via Ed25519 (Heartwood).
 
@@ -26,7 +26,7 @@
 - [x] Coverage: >85%
 
 ### DDD (Domain Implementation) ✅
-- [x] Domain: Core `SovereignRegistry` logic.
+- [x] Domain: Core `Registry` logic.
 - [x] Infra: Heartwood signature verification bridge.
 
 ---

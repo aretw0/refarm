@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
-import { SovereignRegistry } from "@refarm.dev/registry";
+import { Registry } from "@refarm.dev/registry";
 import { normaliseToSovereignGraph, PluginHost } from "../src/index";
 
 // No global vi.mock here to avoid polluting other test suites like packages/registry
@@ -34,7 +34,7 @@ describe("@refarm.dev/tractor smoke", () => {
       sign: vi.fn().mockReturnValue(new Uint8Array(64)),
     }));
 
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry);
 
     vi.stubGlobal(
@@ -82,7 +82,7 @@ describe("@refarm.dev/tractor smoke", () => {
        sign: vi.fn().mockReturnValue(new Uint8Array(64)),
      }));
 
-     const registry = new SovereignRegistry();
+     const registry = new Registry();
      const host = new PluginHost(vi.fn(), registry);
 
      vi.stubGlobal(

@@ -8,7 +8,7 @@
  */
 
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { SovereignRegistry } from "@refarm.dev/registry";
+import { Registry } from "@refarm.dev/registry";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PluginHost, SILENT_LOGGER, Tractor, normaliseToSovereignGraph } from "../src/index";
 import {
@@ -138,7 +138,7 @@ describe("Plugin Flood", () => {
     );
   }
 
-  async function registerAndValidate(registry: SovereignRegistry, manifest: PluginManifest) {
+  async function registerAndValidate(registry: Registry, manifest: PluginManifest) {
     await registry.register(manifest);
     const entry = registry.getPlugin(manifest.id);
     if (entry) entry.status = "validated";
@@ -146,7 +146,7 @@ describe("Plugin Flood", () => {
 
   it("loads 100 plugins sequentially", async () => {
     stubFetch();
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     for (let i = 0; i < 100; i++) {
@@ -164,7 +164,7 @@ describe("Plugin Flood", () => {
 
   it("loads 100 plugins concurrently", async () => {
     stubFetch();
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     const manifests = Array.from({ length: 100 }, (_, i) => createMockManifest(`plugin-${i}`));
@@ -180,7 +180,7 @@ describe("Plugin Flood", () => {
 
   it("loads 500 plugins concurrently within 2 seconds", async () => {
     stubFetch();
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     const manifests = Array.from({ length: 500 }, (_, i) => createMockManifest(`plugin-${i}`));
@@ -206,7 +206,7 @@ describe("Plugin Flood", () => {
       })
     );
 
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     const manifest = createMockManifest("broken-plugin");
@@ -219,7 +219,7 @@ describe("Plugin Flood", () => {
 
   it("plugin IDs are unique — no collisions under flood", async () => {
     stubFetch();
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     const ids = Array.from({ length: 200 }, (_, i) => `plugin-${i}`);

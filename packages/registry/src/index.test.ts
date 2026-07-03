@@ -1,6 +1,6 @@
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { SovereignRegistry } from "./index.js";
+import { Registry } from "./index.js";
 import { KeyManager } from "../../silo/src/key-manager.js";
 
 // Explicit mock for heartwood in this test suite to avoid environment issues
@@ -19,11 +19,11 @@ vi.mock("@refarm.dev/heartwood", () => {
   };
 });
 
-describe("SovereignRegistry", () => {
-    let registry: SovereignRegistry;
+describe("Registry", () => {
+    let registry: Registry;
 
     beforeEach(() => {
-        registry = new SovereignRegistry();
+        registry = new Registry();
     });
 
     it("should register a plugin manifest", async () => {

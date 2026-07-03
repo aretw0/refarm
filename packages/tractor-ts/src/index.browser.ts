@@ -18,7 +18,7 @@ import {
 	type PluginManifest,
 	verifyBufferIntegrity,
 } from "@refarm.dev/plugin-manifest";
-import { SovereignRegistry } from "@refarm.dev/registry";
+import { Registry } from "@refarm.dev/registry";
 import { CommandHost } from "./lib/command-host.js";
 import type { SovereignNode } from "./lib/graph-normalizer.js";
 import type { PluginInstance, PluginState } from "./lib/instance-handle.js";
@@ -708,7 +708,7 @@ export class Tractor {
 	readonly namespace: string;
 	readonly identity: TractorConfig["identity"];
 	readonly sync?: TractorConfig["sync"];
-	readonly registry: SovereignRegistry;
+	readonly registry: Registry;
 	readonly plugins: PluginHost;
 	readonly envMetadata: Record<string, string>;
 	readonly defaultSecurityMode: SecurityMode;
@@ -726,7 +726,7 @@ export class Tractor {
 		this.envMetadata = config.envMetadata ?? {};
 		this.defaultSecurityMode = config.securityMode ?? "strict";
 		this.logLevel = config.logLevel ?? "info";
-		this.registry = new SovereignRegistry();
+		this.registry = new Registry();
 		this.telemetry = new TelemetryHost({ capacity: 1000 });
 		this.plugins = new PluginHost(
 			(event) => this.emitTelemetry(event),

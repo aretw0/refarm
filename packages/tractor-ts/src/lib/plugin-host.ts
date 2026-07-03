@@ -5,7 +5,7 @@ import {
   detectEntryFormat,
   type PluginManifest,
 } from "@refarm.dev/plugin-manifest";
-import { SovereignRegistry } from "@refarm.dev/registry";
+import { Registry } from "@refarm.dev/registry";
 import { TelemetryEvent } from "./telemetry.js";
 import { TractorLogger, SecurityMode } from "./types.js";
 import { SovereignNode } from "./graph-normalizer.js";
@@ -43,7 +43,7 @@ export class PluginHost {
 
   constructor(
     private emit: (data: TelemetryEvent) => void,
-    private registry: SovereignRegistry,
+    private registry: Registry,
     private logger: TractorLogger = console,
     private securityMode: SecurityMode = "strict",
     private distBase: string = DEFAULT_DIST_BASE,

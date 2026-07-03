@@ -13,9 +13,9 @@
 ## Usage
 
 ```typescript
-import { SovereignRegistry } from "@refarm.dev/registry";
+import { Registry } from "@refarm.dev/registry";
 
-const registry = new SovereignRegistry();
+const registry = new Registry();
 
 // Resolve from remote
 await registry.resolveRemote("my-plugin", "https://cdn.example.com/plugin.json");

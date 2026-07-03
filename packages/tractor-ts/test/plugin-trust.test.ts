@@ -1,5 +1,5 @@
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { SovereignRegistry } from "@refarm.dev/registry";
+import { Registry } from "@refarm.dev/registry";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PluginHost } from "../src/index";
 
@@ -39,7 +39,7 @@ describe("PluginHost registry validation gate", () => {
   });
 
   it("throws in strict mode (default) if plugin is not in registry", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry);
     const manifest = createStrictManifest();
     // intentionally NOT registering in registry
@@ -48,7 +48,7 @@ describe("PluginHost registry validation gate", () => {
   });
 
   it("throws in strict mode if plugin status is 'registered' (not yet validated)", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry);
     const manifest = createStrictManifest();
     registry.register(manifest);
@@ -58,7 +58,7 @@ describe("PluginHost registry validation gate", () => {
   });
 
   it("warns (does not throw) in permissive mode for unregistered plugin", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const warnSpy = vi.fn();
     const logger = { info: vi.fn(), warn: warnSpy, debug: vi.fn(), error: vi.fn() };
     const host = new PluginHost(vi.fn(), registry, logger, "permissive");
@@ -70,7 +70,7 @@ describe("PluginHost registry validation gate", () => {
   });
 
   it("allows loading of a validated plugin in strict mode", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry);
     const manifest = createStrictManifest();
     registry.register(manifest);
@@ -125,7 +125,7 @@ describe("PluginHost trust grants", () => {
   });
 
   it("blocks trusted-fast profile without an explicit grant", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry);
     const manifest = createManifest("trusted-fast");
     registry.register(manifest);
@@ -138,7 +138,7 @@ describe("PluginHost trust grants", () => {
   });
 
   it("blocks trusted-fast profile when wasm hash is missing", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry);
     const manifest = createManifest("trusted-fast");
     registry.register(manifest);
@@ -151,7 +151,7 @@ describe("PluginHost trust grants", () => {
   });
 
   it("allows trusted-fast profile after granting trust for that hash", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry);
     const manifest = createManifest("trusted-fast");
     registry.register(manifest);
@@ -166,7 +166,7 @@ describe("PluginHost trust grants", () => {
   });
 
   it("supports trust-once grant derived from manifest lease", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry);
     const manifest = createManifest("trusted-fast");
     manifest.trust = { profile: "trusted-fast", leaseHours: 1 };
@@ -182,7 +182,7 @@ describe("PluginHost trust grants", () => {
   });
 
   it("revokes trusted-fast grant when wasm hash changes", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry);
     const manifest = createManifest("trusted-fast");
     registry.register(manifest);
@@ -201,7 +201,7 @@ describe("PluginHost trust grants", () => {
   });
 
   it("rejects trusted-fast profile for non-wasm entry formats", async () => {
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const host = new PluginHost(vi.fn(), registry);
     const manifest = createManifest("trusted-fast");
     manifest.entry = "https://example.test/high-perf.mjs";

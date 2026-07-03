@@ -8,7 +8,7 @@
 import * as ed from "@noble/ed25519";
 import { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { SovereignRegistry } from "@refarm.dev/registry";
+import { Registry } from "@refarm.dev/registry";
 import { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { SyncAdapter } from "@refarm.dev/sync-contract-v1";
 import { CommandHost } from "./lib/command-host.js";
@@ -68,7 +68,7 @@ export class Tractor {
   readonly namespace: string;
   identity: IdentityAdapter;
   readonly sync?: SyncAdapter;
-  readonly registry: SovereignRegistry;
+  readonly registry: Registry;
   readonly plugins: PluginHost;
   readonly envMetadata: Record<string, string>;
   readonly commands: CommandHost;
@@ -82,7 +82,7 @@ export class Tractor {
   private constructor(
     storage: StorageAdapter,
     identity: IdentityAdapter,
-    registry: SovereignRegistry,
+    registry: Registry,
     config: TractorConfig,
   ) {
     this.storage = storage;
@@ -247,7 +247,7 @@ export class Tractor {
     }
     await config.storage.ensureSchema();
     if (config.sync) await config.sync.start();
-    const registry = new SovereignRegistry();
+    const registry = new Registry();
     const tractor = new Tractor(config.storage, config.identity, registry, config);
     return tractor;
   }

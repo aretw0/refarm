@@ -16,10 +16,10 @@ export interface RegistryEntry {
 }
 
 /**
- * SovereignRegistry: Manages plugin discovery, validation, and activation.
+ * Registry: Manages plugin discovery, validation, and activation.
  * Hardened via Heartwood (WASM).
  */
-export class SovereignRegistry {
+export class Registry {
     private plugins: Map<string, RegistryEntry>;
     private config: Record<string, unknown>;
     private _persistPath?: string;
@@ -34,8 +34,8 @@ export class SovereignRegistry {
      * Factory: creates a registry and loads persisted state from `persistencePath`.
      * Falls back to an empty registry if the file doesn't exist yet.
      */
-    static async createWithPersistence(persistencePath: string): Promise<SovereignRegistry> {
-        const registry = new SovereignRegistry({}, { path: persistencePath });
+    static async createWithPersistence(persistencePath: string): Promise<Registry> {
+        const registry = new Registry({}, { path: persistencePath });
         await registry._loadState();
         return registry;
     }
