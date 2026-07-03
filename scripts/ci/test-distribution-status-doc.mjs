@@ -83,6 +83,14 @@ const processHandoffBridgeSpec = readFileSync(
 	path.join(ROOT, "specs/features/2026-06-26-process-handoff-provenance-bridge.md"),
 	"utf8",
 );
+const dsTokenContractSpec = readFileSync(
+	path.join(ROOT, "specs/features/2026-06-25-ds-token-contract.md"),
+	"utf8",
+);
+const vaultSeedSiloBridgeSpec = readFileSync(
+	path.join(ROOT, "specs/features/2026-06-26-vault-seed-silo-bridge.md"),
+	"utf8",
+);
 
 function escapeRegExp(value) {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -229,6 +237,10 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(factoryReadinessDoc, /official downstream checkout reported successful vendor SHA-256 verification for all 20 tarballs/);
 	assert.match(factoryReadinessDoc, /4a `ds` tokens \| \*\*implemented \+ downstream-proven\*\*/);
 	assert.match(factoryReadinessDoc, /4b `ds\/html` \| \*\*implemented \+ downstream-proven\*\*/);
+	assert.match(dsTokenContractSpec, /official downstream `vault-seed` consumer proof received on 2026-07-03/);
+	assert.match(vaultSeedConvergenceDoc, /official consumer checkout assimilated the manifest-bearing 20-tarball packet on 2026-07-03/);
+	assert.match(releaseGateDoc, /the official downstream proof was received on 2026-07-03: the `vault-seed` Telegram adapter emits/);
+	assert.match(releaseGateDoc, /the official downstream proof was received on 2026-07-03: `vault-seed` emits task artifact/);
 	assert.match(releaseGateDoc, /official downstream proof verified the 2026-07-03 handoff tarballs and quality\/content\/site flows/);
 	assert.match(releaseGateDoc, /consumer-proven in `vault-seed-ready`; public publish still waits on develop stabilization and release lane/);
 	assert.match(releaseGateDoc, /Official `vault-seed` proof confirms `@aretw0\/dgk-runner` and `dgk-cli` import the SDK internally/);
@@ -244,10 +256,17 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(channelPolicyBridgePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits the\s+  channel-delivery envelope/);
 	assert.match(channelPolicyBridgeSpec, /IMPLEMENTED - downstream proof received; public publish waits on the release lane/);
 	assert.match(channelPolicyBridgeSpec, /official 2026-07-03\s+  downstream proof confirms the neutral envelope is emitted/);
+	assert.match(vaultSeedSiloBridgeSpec, /consumer findings fed the API; product adapter implementation remains downstream/);
+	assert.match(factoryReadinessDoc, /product adoption of the Silo-backed credential bridge remains downstream/);
 	assert.match(artifactLabEvidencePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits a\s+validated `refarm\.task-artifacts\.v1` manifest/);
 	assert.doesNotMatch(factoryReadinessDoc, /downstream adoption proof remains consumer-side/);
 	assert.doesNotMatch(factoryReadinessDoc, /official `vault-seed` assimilation remain pending/);
+	assert.doesNotMatch(factoryReadinessDoc, /official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof/);
+	assert.doesNotMatch(dsTokenContractSpec, /consumer proof in `vault-seed` remains external/);
+	assert.doesNotMatch(vaultSeedConvergenceDoc, /official consumer checkout still needs to assimilate\/review that packet/);
 	assert.doesNotMatch(releaseGateDoc, /official `vault-seed` assimilation pending/);
+	assert.doesNotMatch(releaseGateDoc, /the official downstream proof remains the `vault-seed` Telegram adapter emitting/);
+	assert.doesNotMatch(releaseGateDoc, /the official downstream proof remains `vault-seed` emitting task artifact/);
 	assert.doesNotMatch(releaseGateDoc, /once the outside `vault-seed` checkout assimilates the validated packet/);
 	assert.doesNotMatch(releaseGateDoc, /v0\.1 primitive once the outside `vault-seed` checkout emits the manifest proof/);
 	assert.doesNotMatch(releaseGateDoc, /v0\.1 candidate once the outside `vault-seed` checkout emits the neutral envelope/);
@@ -261,6 +280,7 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.doesNotMatch(dsTokenContractPlan, /Official `vault-seed` assimilation remains pending/);
 	assert.doesNotMatch(channelPolicyBridgePlan, /Downstream proof remains pending until the official `vault-seed` checkout/);
 	assert.doesNotMatch(channelPolicyBridgeSpec, /publication still waits on the first downstream proof/);
+	assert.doesNotMatch(vaultSeedSiloBridgeSpec, /`vault-seed` adapter implementation pending/);
 	assert.doesNotMatch(artifactLabEvidencePlan, /The official `vault-seed` checkout should emit `refarm\.task-artifacts\.v1`/);
 });
 
