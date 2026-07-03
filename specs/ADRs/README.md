@@ -76,6 +76,7 @@ Architecture Decision Records for Refarm.
 | [078](ADR-078-agent-commons-environment-ceilings.md)           | Agent-Commons Environment Ceilings                                                | Accepted   | 2026-06-30 |
 | [079](ADR-079-credentials-verification-policy.md)              | Credentials Verification Policy                                                   | Proposed   | 2026-07-01 |
 | [080](ADR-080-vault-seed-ready-handoff-pipeline.md)            | The `vault-seed-ready` Handoff Pipeline as Pre-Publication Release Vehicle        | Proposed   | 2026-07-03 |
+| [081](ADR-081-local-surface-boundary.md)                       | Local Surface Boundary                                                            | Proposed   | 2026-07-03 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 

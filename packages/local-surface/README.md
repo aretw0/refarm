@@ -3,6 +3,8 @@
 Provider-neutral local surface helpers for POCs and downstream products that
 need a simple browser surface without adopting Homestead.
 
+Capability: `local-surface:v1`.
+
 The package owns:
 
 - a versioned `refarm.local-surface.v1` manifest;
