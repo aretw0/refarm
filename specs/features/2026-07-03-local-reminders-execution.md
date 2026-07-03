@@ -1,6 +1,6 @@
 # Spec: Local Reminders Execution (Daily-Driver Parity — "Automate reminders")
 
-**Status:** IMPLEMENTED CANDIDATE - tick helper + engine-level fire-once ledger shipped (commit `187c3a29`); `.refarm/`-backed ledger store, project `trigger()` adapter, and farmhand wiring pending
+**Status:** IMPLEMENTED CANDIDATE - tick helper, engine-level fire-once ledger, and `.refarm/`-backed ledger store shipped; project `trigger()` adapter and farmhand wiring pending
 **Authors:** Claude (draft from 2026-07-03 audit), pending Arthur Silva review
 **Date:** 2026-07-03
 **Related:** `docs/DAILY_DRIVER_PARITY.md` (Minimum Daily Loop row "Automate reminders"),
@@ -25,13 +25,14 @@ start a lane:
 | Automation store (declared intent, shared with `pi`) | shipped | `.project/automations.json` |
 | Execution: something that fires due triggers | shipped as package helper | `packages/windmill/src/local-scheduler.js` exports `executeDueLocalScheduledWork()` |
 | Fire-once idempotency (engine) | shipped | `executeDueLocalScheduledWork` takes an optional `hasFired`/`recordFired` ledger; per-job/per-window fire key; commit `187c3a29` |
+| `.refarm/` fired ledger store | shipped | `@refarm.dev/windmill/local-scheduler-ledger` defaults to `.refarm/scheduler/ledger.json` |
 
 The first two missing pieces are now closed at package level: a host can call
 `executeDueLocalScheduledWork()` to decide due-ness, call `AutomationAdapter.trigger()`, submit the
 returned Effort, and — with an injected fired-ledger — fire each one-shot once and each cron window
-once (repeated ticks are idempotent). The remaining daily-driver gap is (a) a concrete
-`.refarm/`-backed ledger store bound to the engine, (b) an `AutomationAdapter.trigger()` over the
-project store, and (c) farmhand daemon wiring that ticks the engine.
+once (repeated ticks are idempotent). The `.refarm/` runtime ledger store is now a package block,
+so the remaining daily-driver gap is (a) an `AutomationAdapter.trigger()` over the project store
+and (b) farmhand daemon wiring that ticks the engine.
 
 ## Decisions
 
@@ -49,9 +50,8 @@ project store, and (c) farmhand daemon wiring that ticks the engine.
    also written by the `pi` agent's `pi-project-workflows`**. Keeping the ledger out of the
    automation artifact avoids polluting the interoperable project contract with refarm-only
    runtime state and avoids write contention with pi. The ledger survives daemon restarts because
-   `.refarm/` is durable local state. (The package engine takes the ledger as an injected
-   `hasFired`/`recordFired` adapter — shipped in `@refarm.dev/windmill`
-   `executeDueLocalScheduledWork` — so the caller binds it to the `.refarm/` store.)
+   `.refarm/` is durable local state. `@refarm.dev/windmill/local-scheduler-ledger` supplies the
+   `.refarm/scheduler/ledger.json` adapter for hosts that want the default local runtime store.
 3. **Missed-window policy.** One-shot: fire late, once (a reminder is still owed). Cron: skip
    missed windows, fire at the next due window (no catch-up storms). Both policies are recorded
    on the effort evidence so late fires are distinguishable.
@@ -71,6 +71,7 @@ Package signal:
 
 ```bash
 pnpm -C packages/windmill run test -- local-scheduler
+pnpm -C packages/windmill run test -- local-scheduler-ledger
 ```
 
 Daily-driver row still closes only when this runs locally, end to end:
@@ -98,3 +99,12 @@ Daily-driver row still closes only when this runs locally, end to end:
   `pi-project-workflows`, so a reminder writer must respect the serialized-handoff discipline
   (CLAUDE.md §8) to avoid contending with pi. This is a further reason the runtime fired-ledger
   lives in `.refarm/` (refarm-sovereign, unshared) rather than in the `.project/` artifact.
+- **Ledger retention.** `.refarm/scheduler/ledger.json` grows one entry per fired key and is not
+  yet pruned; a `*/5 * * * *` cron adds ~288 entries/day (one per window). Options: prune cron
+  windows older than N days on write, cap entries, or archive one-shots once their automation is
+  `archived`. Deferred until the farmhand tick wiring lands (the write site that would prune) — the
+  in-memory bound is not a daily-driver blocker but should not grow forever.
+- **Ledger concurrency.** `recordFired` is read-modify-write over the whole file (atomic rename, so
+  never corrupt, but last-write-wins across concurrent writers). Fine for the single local daemon
+  that ticks sequentially; a multi-writer setup (daemon + a concurrent CLI tick) would drop one of
+  two simultaneous records. Revisit only if a second concurrent ticker is introduced.

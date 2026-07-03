@@ -298,13 +298,14 @@ surface is `@refarm.dev/cli`, with the subpath kept for focused imports. This
 does not dispatch workers. It only gives downstream code and future runtime work
 a small, validated shape to target before Refarm enables delegated execution.
 
-Current proof (2026-06-27): `@refarm.dev/windmill/local-scheduler` defines the
+Current proof (2026-07-03): `@refarm.dev/windmill/local-scheduler` defines the
 first local scheduled-work SDK boundary. It reads active `automation:v1`
 artifacts with `once` or `cron` triggers, requires an explicit owner, marks due
-jobs without starting timers, and returns no-token job handoffs with resume
-visibility. This does not dispatch work. It gives Refarm and downstream
-consumers a small governed surface before any daemon, fanout, or background
-execution is introduced.
+jobs, can trigger and submit due efforts through host adapters, and persists
+fire-once receipts through `@refarm.dev/windmill/local-scheduler-ledger` under
+`.refarm/scheduler/ledger.json`. This still does not own timers or daemon
+processes; it gives Refarm and downstream consumers a governed execution block
+before farmhand, fanout, or background delivery is wired in.
 
 Current proof (2026-06-27): `refarm resume --json` has an operator-level slot
 for scheduled-work inspection payloads. The CLI can now carry due/scheduled

@@ -15,6 +15,11 @@
 		"./local-scheduler": {
 			"import": "./dist/local-scheduler.js",
 			"types": "./dist/local-scheduler.d.ts"
+		},
+		"./local-scheduler-ledger": {
+			"node": "./dist/local-scheduler-ledger.js",
+			"import": "./dist/local-scheduler-ledger.js",
+			"types": "./dist/local-scheduler-ledger.d.ts"
 		}
 	},
 	"scripts": {
@@ -37,6 +42,8 @@
 		"dist/index.d.ts",
 		"dist/local-scheduler.js",
 		"dist/local-scheduler.d.ts",
+		"dist/local-scheduler-ledger.js",
+		"dist/local-scheduler-ledger.d.ts",
 		"dist/index.browser.js",
 		"dist/index.browser.d.ts"
 	],

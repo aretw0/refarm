@@ -8,6 +8,13 @@ export {
     inspectLocalScheduledWork,
     listLocalScheduledJobs,
 } from "./local-scheduler.js";
+export {
+    DEFAULT_LOCAL_SCHEDULER_LEDGER_PATH,
+    LOCAL_SCHEDULER_LEDGER_SCHEMA,
+    createLocalSchedulerLedger,
+    readLocalSchedulerLedger,
+    resolveLocalSchedulerLedgerPath,
+} from "./local-scheduler-ledger.js";
 
 /**
  * Windmill: Infrastructure Provider Bridges.
