@@ -563,7 +563,7 @@ describe("refarm sessions", () => {
 		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await createSessionsCommand()
+		await createSessionsCommand({ readActiveSessionId: () => null })
 			.commands
 			.find((c) => c.name() === "show")!
 			.parseAsync(["abc123", "--json"], { from: "user" });

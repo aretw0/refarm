@@ -173,9 +173,9 @@ describe("release command", () => {
 				mode: "plan-only",
 				source: "@refarm.dev/cli/capability-index",
 				summary: [
-					{ status: "candidate", count: 2 },
+					{ status: "candidate", count: 3 },
 					{ status: "internal", count: 3 },
-					{ status: "hold", count: 4 },
+					{ status: "hold", count: 5 },
 				],
 				targets: expect.arrayContaining([
 					expect.objectContaining({

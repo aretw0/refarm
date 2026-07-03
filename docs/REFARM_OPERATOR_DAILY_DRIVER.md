@@ -100,10 +100,11 @@ protective without stopping momentum:
   - keep commands focused and single-purpose.
   - proceed normally while commands stay under ~60–90s and no visible contention.
 - quick safe slices for chat work:
-  - `pnpm run refarm:safety:test:chat-session`
-  - `pnpm run refarm:safety:test:chat-batch`
-  - `pnpm -C apps/refarm run test:chat-session`
-  - `pnpm -C apps/refarm run test:chat-batch`
+  - `pnpm -C apps/refarm run test:file -- test/commands/chat-repl-session.test.ts`
+    uses the focused Vitest wrapper with a hard timeout and closes every fake
+    REPL promise in the harness.
+  - prefer smaller pure chat parser/history tests when changing only parser or
+    history behavior.
   - `pnpm run session:heavy -- --count 40` (trace the most recent agent session before changing scope)
   - `pnpm run session:heavy:repeat` (detect repeated heavy command patterns and fail on excess reruns)
   - `pnpm run session:heavy:repeat:chat-session` (focus signal on chat session tests)
@@ -142,11 +143,12 @@ protective without stopping momentum:
   - keep budget checks enabled via `refarm:safety` profiles,
   - reopen at normal lane only after 3 stable slices.
 
-For test-lane triage, `test/commands/chat-repl-session.test.ts` is a fast, unit-style file (mock-heavy, no network/file side effects). If it still appears as a repeated heavy command, treat it as a signaling symptom:
+For test-lane triage, `test/commands/chat-repl-session.test.ts` should remain a
+fast unit-style file. If it appears in repeated commands or exceeds the focused
+Vitest timeout, treat it as a signaling symptom and stop before retrying:
 
-- run isolated:
-  - `pnpm -C apps/refarm run test:chat-session`
-  - `pnpm -C apps/refarm run test:chat-session -- --clearCache`
+- run isolated through the focused wrapper:
+  - `pnpm -C apps/refarm run test:file -- test/commands/chat-repl-session.test.ts`
 - inspect loop origin with:
   - `pnpm run session:heavy:repeat -- --filter \"pnpm -C apps/refarm run test:chat-session\" --repeat-max-count 3`
   - `pnpm run session:heavy:repeat:chat-session`

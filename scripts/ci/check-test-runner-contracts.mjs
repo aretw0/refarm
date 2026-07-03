@@ -77,6 +77,15 @@ export function checkReleaseReadinessTestScript(packageJson, { root = ROOT } = {
 
 export function checkAppsRefarmScripts(packageJson) {
 	const violations = [];
+	const testFileCommand = packageJson.scripts?.["test:file"];
+	if (testFileCommand !== "node scripts/run-focused-vitest.mjs") {
+		violations.push({
+			script: "test:file",
+			target: "apps/refarm/package.json",
+			message:
+				"apps/refarm test:file must use scripts/run-focused-vitest.mjs so focused tests cannot fan out into the full app suite.",
+		});
+	}
 	const focusedCommand = packageJson.scripts?.["test:focused"];
 	if (typeof focusedCommand === "string") {
 		violations.push({
@@ -85,6 +94,20 @@ export function checkAppsRefarmScripts(packageJson) {
 			message:
 				"apps/refarm must not expose test:focused; use test:file or named scripts so agents do not treat app Vitest as a cheap generic gate.",
 		});
+	}
+	for (const [scriptName, command] of Object.entries(packageJson.scripts ?? {})) {
+		if (
+			typeof command === "string" &&
+			command.includes("chat-repl-session.test.ts") &&
+			!command.includes("scripts/run-focused-vitest.mjs")
+		) {
+			violations.push({
+				script: scriptName,
+				target: "apps/refarm/package.json",
+				message:
+					"apps/refarm chat REPL scripts must use scripts/run-focused-vitest.mjs so readline-heavy tests keep a hard timeout.",
+			});
+		}
 	}
 	return violations;
 }

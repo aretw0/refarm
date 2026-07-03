@@ -41,6 +41,7 @@ type FakeReadlineInterface = EventEmitter & {
 	pause: () => void;
 	resume: () => void;
 	close: () => void;
+	closed: boolean;
 	history: string[];
 	line: string;
 };
@@ -51,8 +52,11 @@ function createFakeReadline(): FakeReadlineInterface {
 	rl.pause = vi.fn() as () => void;
 	rl.resume = vi.fn() as () => void;
 	rl.close = vi.fn(() => {
+		if (rl.closed) return;
+		rl.closed = true;
 		rl.emit("close");
 	}) as () => void;
+	rl.closed = false;
 	rl.history = [];
 	rl.line = "";
 	return rl;
@@ -60,13 +64,39 @@ function createFakeReadline(): FakeReadlineInterface {
 
 describe("runSessionRepl", () => {
 	let lastInterface: FakeReadlineInterface;
+	let interfaces: FakeReadlineInterface[];
+	let openRepls: Promise<void>[];
+
+	function startSessionRepl(
+		sessionId: string,
+		deps: ChatDeps,
+		label?: string,
+		initialMessage?: string,
+	): Promise<void> {
+		const repl = runSessionRepl(sessionId, deps, label, initialMessage);
+		openRepls.push(repl);
+		return repl;
+	}
 
 	beforeEach(() => {
+		vi.clearAllMocks();
+		interfaces = [];
+		openRepls = [];
 		mockedCreateInterface.mockImplementation(() => {
 			lastInterface = createFakeReadline();
+			interfaces.push(lastInterface);
 			return lastInterface;
 		});
 		mockedLoadChatHistory.mockReturnValue([]);
+	});
+
+	afterEach(() => {
+		for (const rl of interfaces) {
+			if (!rl.closed) {
+				rl.close();
+			}
+		}
+		return Promise.allSettled(openRepls).then(() => undefined);
 	});
 
 	afterEach(() => {
@@ -74,7 +104,7 @@ describe("runSessionRepl", () => {
 	});
 
 	it("passes readline history size and terminal options", async () => {
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -105,7 +135,7 @@ describe("runSessionRepl", () => {
 		};
 
 		const sessionId = "urn:refarm:session:v1:test";
-		runSessionRepl(sessionId, deps);
+		startSessionRepl(sessionId, deps);
 		lastInterface.emit("close");
 		await Promise.resolve();
 
@@ -137,7 +167,7 @@ describe("runSessionRepl", () => {
 		};
 
 		const sessionId = "urn:refarm:session:v1:test";
-		runSessionRepl(sessionId, deps);
+		startSessionRepl(sessionId, deps);
 		lastInterface.emit("SIGINT");
 		await Promise.resolve();
 
@@ -169,7 +199,7 @@ describe("runSessionRepl", () => {
 			reloadPlugins: vi.fn(),
 		};
 
-		runSessionRepl("urn:refarm:session:v1:test", deps);
+		startSessionRepl("urn:refarm:session:v1:test", deps);
 		lastInterface.emit("line", "/status");
 		await Promise.resolve();
 		await Promise.resolve();
@@ -201,7 +231,7 @@ describe("runSessionRepl", () => {
 			reloadPlugins: vi.fn(),
 		};
 
-		runSessionRepl("urn:refarm:session:v1:test", deps);
+		startSessionRepl("urn:refarm:session:v1:test", deps);
 		lastInterface.emit("line", "/s");
 		await Promise.resolve();
 		await Promise.resolve();
@@ -222,7 +252,7 @@ describe("runSessionRepl", () => {
 			.fn()
 			.mockResolvedValue({ reloaded: [], skipped: [] });
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins,
@@ -239,7 +269,7 @@ describe("runSessionRepl", () => {
 			.fn()
 			.mockResolvedValue({ reloaded: [], skipped: [] });
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins,
@@ -270,7 +300,7 @@ describe("runSessionRepl", () => {
 			reloadPlugins: vi.fn(),
 		};
 
-		runSessionRepl("urn:refarm:session:v1:test", deps);
+		startSessionRepl("urn:refarm:session:v1:test", deps);
 		lastInterface.emit("line", "/status");
 		await Promise.resolve();
 		await Promise.resolve();
@@ -296,7 +326,7 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -321,7 +351,7 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -344,7 +374,7 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -370,7 +400,7 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -400,25 +430,27 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
+			clearActiveSessionId: vi.fn(),
+			persistActiveSessionId: vi.fn(),
 		});
 		for (let index = 0; index < MAX_CHAT_HISTORY_LINES + 5; index++) {
-			lastInterface.emit("line", `message-${index}`);
+			lastInterface.emit("line", `/new message-${index}`);
 			await Promise.resolve();
 		}
 		lastInterface.emit("line", "/history");
 		await Promise.resolve();
 
 		const out = logs.join("\n");
-		expect(out).toContain(`1. message-${MAX_CHAT_HISTORY_LINES + 4}`);
+		expect(out).toContain(`1. /new message-${MAX_CHAT_HISTORY_LINES + 4}`);
 		expect(out).toContain(
-			`${MAX_CHAT_HISTORY_LINES}. message-${MAX_CHAT_HISTORY_LINES + 5 - MAX_CHAT_HISTORY_LINES}`,
+			`${MAX_CHAT_HISTORY_LINES}. /new message-${MAX_CHAT_HISTORY_LINES + 5 - MAX_CHAT_HISTORY_LINES}`,
 		);
-		expect(out).not.toContain("message-0");
-		expect(out).not.toContain("message-4");
+		expect(out).not.toMatch(/(?:^|\n)\d+\. \/new message-0(?:\n|$)/);
+		expect(out).not.toMatch(/(?:^|\n)\d+\. \/new message-4(?:\n|$)/);
 
 		consoleSpy.mockRestore();
 	});
@@ -435,7 +467,7 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -470,7 +502,7 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -497,7 +529,7 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -524,7 +556,7 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -551,7 +583,7 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -578,7 +610,7 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -605,7 +637,7 @@ describe("runSessionRepl", () => {
 				return undefined;
 			});
 
-		runSessionRepl("urn:refarm:session:v1:test", {
+		startSessionRepl("urn:refarm:session:v1:test", {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -638,7 +670,7 @@ describe("runSessionRepl", () => {
 			configureCredentials,
 		};
 
-		runSessionRepl("urn:refarm:session:v1:test", deps);
+		startSessionRepl("urn:refarm:session:v1:test", deps);
 		lastInterface.emit("line", "/sow --provider openai");
 		await Promise.resolve();
 		await Promise.resolve();
@@ -669,7 +701,7 @@ describe("runSessionRepl", () => {
 			configureCredentials,
 		};
 
-		runSessionRepl("urn:refarm:session:v1:test", deps);
+		startSessionRepl("urn:refarm:session:v1:test", deps);
 		lastInterface.emit("line", "/keys");
 		await Promise.resolve();
 		await Promise.resolve();
@@ -702,7 +734,7 @@ describe("runSessionRepl", () => {
 			reloadPlugins: vi.fn(),
 		};
 
-		runSessionRepl("urn:refarm:session:v1:test", deps);
+		startSessionRepl("urn:refarm:session:v1:test", deps);
 		lastInterface.emit("line", "/status");
 		await Promise.resolve();
 		await Promise.resolve();
@@ -733,7 +765,7 @@ describe("runSessionRepl", () => {
 			reloadPlugins: vi.fn(),
 		};
 
-		runSessionRepl("urn:refarm:session:v1:test", deps);
+		startSessionRepl("urn:refarm:session:v1:test", deps);
 		lastInterface.emit("line", "/help");
 		await Promise.resolve();
 
@@ -760,7 +792,7 @@ describe("runSessionRepl", () => {
 			reloadPlugins: vi.fn(),
 		};
 
-		runSessionRepl("urn:refarm:session:v1:test", deps);
+		startSessionRepl("urn:refarm:session:v1:test", deps);
 		lastInterface.emit("line", "/commands");
 		await Promise.resolve();
 
@@ -788,7 +820,7 @@ describe("runSessionRepl", () => {
 		};
 
 		const sessionId = "urn:refarm:session:v1:test";
-		runSessionRepl(sessionId, deps);
+		startSessionRepl(sessionId, deps);
 		lastInterface.emit("line", "/exit");
 		await Promise.resolve();
 
@@ -822,7 +854,7 @@ describe("runSessionRepl", () => {
 		};
 
 		const sessionId = "urn:refarm:session:v1:test";
-		runSessionRepl(sessionId, deps);
+		startSessionRepl(sessionId, deps);
 		lastInterface.emit("line", "/quit");
 		await Promise.resolve();
 
@@ -859,7 +891,7 @@ describe("runSessionRepl", () => {
 			persistActiveSessionId,
 		};
 
-		runSessionRepl("urn:refarm:session:v1:test", deps);
+		startSessionRepl("urn:refarm:session:v1:test", deps);
 		lastInterface.emit("line", "/session switched");
 		await Promise.resolve();
 		await Promise.resolve();
@@ -887,7 +919,7 @@ describe("runSessionRepl", () => {
 			});
 
 		const sessionId = "urn:refarm:session:v1:test-session";
-		runSessionRepl(sessionId, {
+		startSessionRepl(sessionId, {
 			submitEffort: vi.fn(),
 			followStream: vi.fn(),
 			reloadPlugins: vi.fn(),
@@ -923,7 +955,7 @@ describe("runSessionRepl", () => {
 			persistActiveSessionId,
 		};
 
-		runSessionRepl(oldSessionId, deps);
+		startSessionRepl(oldSessionId, deps);
 		lastInterface.emit("line", "/session missing");
 		await Promise.resolve();
 		await Promise.resolve();
@@ -969,7 +1001,7 @@ describe("runSessionRepl", () => {
 			persistActiveSessionId,
 		};
 
-		runSessionRepl("urn:refarm:session:v1:test", deps);
+		startSessionRepl("urn:refarm:session:v1:test", deps);
 		lastInterface.emit("line", "/new");
 		await Promise.resolve();
 		await Promise.resolve();

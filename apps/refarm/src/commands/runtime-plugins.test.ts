@@ -121,6 +121,9 @@ describe("runtime plugin client", () => {
 		expect(fetchSpy).toHaveBeenNthCalledWith(
 			2,
 			expect.stringContaining("/plugins/reload/status/reload-1"),
+			expect.objectContaining({
+				signal: expect.any(Object),
+			}),
 		);
 	});
 
@@ -152,7 +155,13 @@ describe("runtime plugin client", () => {
 		});
 		expect(onDeferred).toHaveBeenCalledWith("@refarm/agent");
 		expect(fetchSpy).toHaveBeenCalledTimes(1);
-		expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("/plugins/reload"));
+		expect(fetchSpy).toHaveBeenCalledWith(
+			expect.stringContaining("/plugins/reload"),
+			expect.objectContaining({
+				method: "POST",
+				signal: expect.any(Object),
+			}),
+		);
 	});
 
 	it("returns null when the runtime endpoint is unavailable", async () => {

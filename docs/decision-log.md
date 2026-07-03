@@ -65,6 +65,19 @@ boundary before rebuild. This lane is not a release gate and must not make the m
 temporary pre-rebuild workaround. The current durable checkpoints are `fbc44e54` (`pi-agent` ->
 `agent`) and `3b98a484` (`imports` owned by `@refarm.dev/toolbox`).
 
+**2026-07-03 boot-footgun update**: after the cgroup rebuild, Docker Desktop surfaced
+`fork: Resource temporarily unavailable` while the devcontainer boot lane was still running.
+Process inspection showed `workspace-protect apply` from the devcontainer lifecycle dispatching a
+wide `sudo find ... -exec chown ...` over configured workspace roots. That repair path is valid as
+an explicit operator action, but it is too broad for automatic boot. Devcontainer hooks now only
+`mark` and `check` workspace protection; broad ownership repair stays manual and requires
+`--confirm-wide-repair` so the factory can become responsive before any expensive remediation runs.
+The same incident exposed a second footgun in the focused app-test lane:
+`test:commands/chat-repl-session.test.ts` left REPL promises open and one cap test accidentally
+dispatched hundreds of message turns. The harness now closes and awaits every fake REPL, clears
+mocks per case, and the cap test uses a synchronous command path; the focused Vitest wrapper refuses
+empty runs and enforces a timeout.
+
 ---
 
 ## Silo storage surface free of the identity closure

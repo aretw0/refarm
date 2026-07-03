@@ -1,4 +1,5 @@
 import { readGitCommand } from "@refarm.dev/cli/git-command";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import {
 	declaredWorkspaceNamespacesFromConfig,
@@ -165,6 +166,7 @@ const REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS = [
 const HEALTH_HELP_COMMAND = "refarm health --help";
 const HEALTH_SUGGEST_POLICY_COMMAND = "refarm health --suggest-policy --json";
 const HEALTH_NEXT_ACTION_COMMAND = "refarm health --next-action --json";
+const HEALTH_POLICY_JSON_COMMAND = refarmCommand(["health", "--policy", "--json"]);
 const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
 const HEALTH_POLICY_MODE_CONFLICT_MESSAGE = "Choose only one health policy mode: --policy, --suggest-policy, or --apply-suggested-policy.";
 const HEALTH_AUDIT_CACHE_VERSION = 1;
@@ -304,7 +306,7 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
       target: issue.path,
       summary: `${issue.path ?? "A workspace namespace"} is present without a workspaceNamespaces declaration.`,
       action: "Declare the namespace owner, purpose, persistence, and access in refarm.config.json, or remove the drift.",
-      command: "refarm health --policy --json",
+      command: HEALTH_POLICY_JSON_COMMAND,
     })),
     ...(results.complexity ?? []).map((issue) => ({
       issueType: issue.type,

@@ -94,6 +94,7 @@ test("rejects apps/refarm test:focused because it looks cheaper than it is", () 
 		checkAppsRefarmScripts({
 			scripts: {
 				"test:focused": "vitest run --maxWorkers=1",
+				"test:file": "node scripts/run-focused-vitest.mjs",
 			},
 		}),
 		[
@@ -108,10 +109,33 @@ test("rejects apps/refarm test:focused because it looks cheaper than it is", () 
 	assert.deepEqual(
 		checkAppsRefarmScripts({
 			scripts: {
-				"test:file": "vitest run --maxWorkers=1",
+				"test:file": "node scripts/run-focused-vitest.mjs",
+				"test:chat-session": "node scripts/run-focused-vitest.mjs test/commands/chat-repl-session.test.ts",
 			},
 		}),
 		[],
+	);
+	assert.deepEqual(
+		checkAppsRefarmScripts({
+			scripts: {
+				"test:file": "vitest run --maxWorkers=1",
+				"test:chat-session": "vitest run --maxWorkers=1 test/commands/chat-repl-session.test.ts",
+			},
+		}),
+		[
+			{
+				script: "test:file",
+				target: "apps/refarm/package.json",
+				message:
+					"apps/refarm test:file must use scripts/run-focused-vitest.mjs so focused tests cannot fan out into the full app suite.",
+			},
+			{
+				script: "test:chat-session",
+				target: "apps/refarm/package.json",
+				message:
+					"apps/refarm chat REPL scripts must use scripts/run-focused-vitest.mjs so readline-heavy tests keep a hard timeout.",
+			},
+		],
 	);
 });
 

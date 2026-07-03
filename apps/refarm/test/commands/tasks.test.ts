@@ -74,6 +74,9 @@ describe("refarm tasks", () => {
 
 		expect(fetchMock).toHaveBeenCalledWith(
 			"http://127.0.0.1:42001/tasks?status=done&session_id=urn%3Arefarm%3Asession%3Av1%3As1&limit=2",
+			expect.objectContaining({
+				signal: expect.any(Object),
+			}),
 		);
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Tasks");
@@ -245,6 +248,9 @@ describe("refarm tasks", () => {
 
 		expect(fetchMock).toHaveBeenCalledWith(
 			"http://127.0.0.1:42001/tasks/abc123",
+			expect.objectContaining({
+				signal: expect.any(Object),
+			}),
 		);
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Task");

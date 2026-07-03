@@ -156,6 +156,9 @@ describe("refarm tree list", () => {
 
 		expect(fetchMock).toHaveBeenCalledWith(
 			"http://127.0.0.1:42001/sessions?limit=1",
+			expect.objectContaining({
+				signal: expect.any(Object),
+			}),
 		);
 		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.nodes).toHaveLength(1);
@@ -330,6 +333,9 @@ describe("refarm tree list", () => {
 
 		expect(fetchMock).toHaveBeenCalledWith(
 			"http://127.0.0.1:42001/sessions?limit=1",
+			expect.objectContaining({
+				signal: expect.any(Object),
+			}),
 		);
 		expect(spawnSyncMock).toHaveBeenCalledWith(
 			"git",
