@@ -563,6 +563,31 @@ earlier note in this entry: the `@refarm.dev/ds-astro` peer `astro: ^6.4.8` was
 is narrower: `^6.4.8` (`< 7`) excludes astro 7, so widen the peer to
 `^6.4.8 || ^7` (or `>=6.4.8`) before a consumer moves to astro 7.
 
+**2026-07-03 next-handoff request (dgk CLI hollowing):** after the MD/MDX,
+quality, and ds-astro pulls, the official checkout mapped the remaining `dgk`
+substrate against the real `@refarm.dev/health` and `@refarm.dev/cli` surfaces.
+None is a 1:1 ready adoption, so the downstream request for the next packet is,
+in readiness order:
+
+1. **Toolchain/environment auditor** in `@refarm.dev/health` — `HealthCore` is
+   already an auditor registry (`register`/`audit`) but has no toolchain auditor;
+   `dgk doctor` still runs a local `check-substrate.mjs` that probes
+   `node`/`pnpm`/`uv`/`python` presence, `node_modules`, and the devcontainer
+   mount with a structured `{id,label,ok,required,version}` + `--json` report.
+   That script is the reference impl to upstream. Most-ready, fully unblocked.
+2. **`HealthCore` as the `dgk check` orchestrator** — a stable, documented auditor
+   interface so `dgk` registers its onboarding/IA/text auditors instead of
+   hand-rolling run→collect→`--json`; auditor bodies stay downstream.
+3. **`quality:v1` for the Python scorers** — wrap `avaliar_textos.py` /
+   `avaliar_apresentacoes.py` as `quality:v1` checkers; rubrics/weights stay local.
+4. **generator/codemod** for template `setup`/scaffold and `publish`.
+
+`@refarm.dev/cli` is mostly refarm-runtime product (status/trust/plugins,
+workspace-execution); the generic slice for `dgk` is narrow (`json-output` /
+`command-result`). `dispatch-surface` and `effort-contract` stay out of scope
+(runtime control-plane). Full downstream detail lives in the `vault-seed`
+`convergencia-refarm-feedback.md` ledger.
+
 ### Additional Assimilation Matrix
 
 The downstream audit shows more Refarm-shaped work than the first block list. Use
