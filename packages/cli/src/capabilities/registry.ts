@@ -53,7 +53,8 @@ export class CapabilityRegistry {
 	}
 
 	#namesOf(descriptor: CapabilityDescriptor): string[] {
-		return [descriptor.name, ...(descriptor.slashAliases ?? [])].map((name) =>
+		const slashAliases = descriptor.transports?.repl?.slashAliases ?? [];
+		return [descriptor.name, ...slashAliases].map((name) =>
 			name.toLowerCase(),
 		);
 	}

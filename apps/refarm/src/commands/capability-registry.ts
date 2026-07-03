@@ -27,7 +27,7 @@ function registerCapability(
 ): void {
 	capabilityRegistry.register(descriptor);
 	capabilityHooks.set(descriptor.name.toLowerCase(), hooks);
-	for (const alias of descriptor.slashAliases ?? []) {
+	for (const alias of descriptor.transports?.repl?.slashAliases ?? []) {
 		capabilityHooks.set(alias.toLowerCase(), hooks);
 	}
 }
@@ -43,7 +43,9 @@ export function capabilitySlashNames(): ReadonlySet<string> {
 	return new Set(
 		capabilityRegistry.list().flatMap((descriptor) => [
 			descriptor.name.toLowerCase(),
-			...(descriptor.slashAliases ?? []).map((alias) => alias.toLowerCase()),
+			...(descriptor.transports?.repl?.slashAliases ?? []).map((alias) =>
+				alias.toLowerCase(),
+			),
 		]),
 	);
 }

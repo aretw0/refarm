@@ -113,7 +113,7 @@ function parsePolicyMode(value: unknown): "fail-fast" | "warn+continue" {
  */
 export const extensionReviewCapability: CapabilityDescriptor = {
 	name: "review",
-	group: "extension",
+	transports: { cli: { group: "extension" } },
 	summary:
 		"Review a prepared extension against a capability grant (review-first; installs nothing)",
 	args: [{ name: "path", required: true }],

@@ -28,7 +28,9 @@ describe("CapabilityRegistry", () => {
 
 	it("registers and resolves slash aliases to one descriptor", () => {
 		const registry = new CapabilityRegistry();
-		const check = descriptor("check", { slashAliases: ["c"] });
+		const check = descriptor("check", {
+			transports: { repl: { slashAliases: ["c"] } },
+		});
 		registry.register(check);
 		expect(registry.get("c")).toBe(check);
 		expect(registry.list()).toHaveLength(1);
@@ -52,7 +54,11 @@ describe("CapabilityRegistry", () => {
 	it("refuses when a slash alias collides with a reserved built-in", () => {
 		const registry = new CapabilityRegistry(["r"]);
 		expect(() =>
-			registry.register(descriptor("review", { slashAliases: ["r"] })),
+			registry.register(
+				descriptor("review", {
+					transports: { repl: { slashAliases: ["r"] } },
+				}),
+			),
 		).toThrow("collides with a built-in");
 	});
 });
