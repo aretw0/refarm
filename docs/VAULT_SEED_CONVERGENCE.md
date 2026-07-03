@@ -525,10 +525,11 @@ local. `distributionEvidence` records the local handoff ref, verified-copy
 state, update source, rollback target, and the explicit boundary that this is
 not a public install contract or P2P substrate. After the T3 downstream proof,
 the T2 credentials pull, the agent-demo public-surface proof, the
-`quality:v1` pull, and the `ds-astro` render-adapter pull, the active packet is
+`quality:v1` pull, the `ds-astro` render-adapter pull, and the toolchain health
+auditor pull, the active packet is
 rematerialized under `.refarm/handoff/vault-seed/2026-07-03/`: it reports
-`acceptance.status: "accepted"`, 22 packages, 4 required gates, 69 required
-checks, 22 tarballs including `refarm.dev-ds-astro-0.1.0.tgz`,
+`acceptance.status: "accepted"`, 23 packages, 4 required gates, 72 required
+checks, 23 tarballs including `refarm.dev-health-0.1.0.tgz`,
 `manifest.json`, and `manifest.md` (verified on disk 2026-07-03). The previous
 21-tarball packet was also verified on disk before the `ds-astro` pull. The
 earlier `2026-07-02/` directory is a superseded partial packet
@@ -597,6 +598,15 @@ workspace-execution); the generic slice for `dgk` is narrow (`json-output` /
 `command-result`). `dispatch-surface` and `effort-contract` stay out of scope
 (runtime control-plane). Full downstream detail lives in the `vault-seed`
 `convergencia-refarm-feedback.md` ledger.
+
+**2026-07-03 toolchain auditor handoff:** item 1 is now implemented in
+`@refarm.dev/health` as `ToolchainAuditor`, a configurable health primitive for
+caller-declared command checks, path checks, any-command fallbacks, and the
+devcontainer `node_modules` volume mount check. Its JSON-ready report returns
+`ok`, `checks`, `missing`, and `mountIssues`; downstream CLIs keep product
+commands, recovery text, required file lists, and any combined health+quality
+summary. `@refarm.dev/health` is promoted to `vault-seed-ready` only for
+`health.toolchain-environment-auditor`.
 
 ### Additional Assimilation Matrix
 

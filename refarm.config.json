@@ -772,8 +772,16 @@
           "health",
           "kernel-primitive",
           "sdk-primitive",
+          "consumer-pulled",
+          "vault-seed-ready",
           "boundary-review"
-        ]
+        ],
+        "consumerPull": {
+          "proofId": "health.toolchain-environment-auditor",
+          "downstreamUse": "Generic doctor/substrate checks for node, pnpm, uv, Python, node_modules, executable shims, and devcontainer mounts",
+          "proofTarget": "vault-seed can replace dgk check-substrate internals with ToolchainAuditor while keeping dgk doctor UX and recovery copy downstream",
+          "ownershipBoundary": "Project-specific command names, setup recommendations, required file policy, and health+quality composition remain downstream"
+        }
       },
       {
         "id": "@refarm.dev/release-engine",

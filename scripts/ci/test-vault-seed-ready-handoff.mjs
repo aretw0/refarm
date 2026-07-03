@@ -485,12 +485,14 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	});
 
 	assert.equal(manifest.selection.id, "vault-seed-ready");
-	assert.equal(manifest.packages.length, 22);
+	assert.equal(manifest.packages.length, 23);
+	assert.ok(manifest.packages.some((pkg) => pkg.packageName === "@refarm.dev/health"));
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
+	assert.ok(manifest.consumerProofs.some((proof) => proof.proofId === "health.toolchain-environment-auditor"));
 	assert.equal(manifest.distributionEvidence.state, "blocked");
 	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
-	assert.equal(manifest.distributionEvidence.subject.packageCount, 22);
-	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 22);
+	assert.equal(manifest.distributionEvidence.subject.packageCount, 23);
+	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 23);
 	assert.equal(manifest.releaseBoundaryAudit.ok, true);
 	assert.equal(manifest.releaseBoundaryAudit.command, "release-boundary-audit");
 	assert.equal(manifest.releaseBoundaryAudit.selectionId, "vault-seed-ready");

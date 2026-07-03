@@ -14,6 +14,7 @@ artifacts, but those exceptions should not be baked into the generic auditors.
 - **Build Verification**: Ensuring required source/build contracts are present and valid.
 - **Configurable Project Policy**: `ProjectAuditor` is generic by default; `RefarmProjectAuditor` is only a convenience preset with Refarm roots and exemptions.
 - **Opt-in Complexity Pressure**: `ComplexityAuditor` reports large hand-written files when a workspace enables `health.complexity`.
+- **Toolchain Environment Checks**: `ToolchainAuditor` probes caller-declared commands, files, executable shims, and devcontainer mounts without owning product-specific recovery copy.
 - **Environment Pressure**: `buildEnvironmentPressureReport` samples disk, memory, and maintenance markers without scanning or deleting workspace state.
 - **Environment Work Ceilings**: `planEnvironmentWorkCeiling` maps a pressure report plus a caller-owned work class to `allow`, `degrade`, `serialize`, or `refuse`.
 - **Session Pressure**: callers may pass known session files so resume paths can warn or block before loading oversized context.
@@ -43,6 +44,57 @@ Consumers provide their own commands and wording; the primitive owns only the
 measurement and classification policy. Session files are never discovered,
 opened, archived, deleted, or compacted by this primitive; a caller must provide
 the bounded file list it already decided is relevant.
+
+## Programmatic Toolchain Auditor
+
+Use `ToolchainAuditor` when a downstream CLI needs a `doctor`-style substrate
+report before running setup, notebooks, site builds, or local ETL:
+
+```js
+import { ToolchainAuditor } from "@refarm.dev/health";
+
+const auditor = new ToolchainAuditor({
+  pathChecks: [
+    { id: "node_modules", label: "workspace dependencies", path: "node_modules" },
+    { id: "node_modules_bin", label: "workspace executable shims", path: "node_modules/.bin" },
+    { id: "requirements", label: "Python requirements", path: "requirements.txt" },
+  ],
+  commandChecks: [
+    { id: "node", command: "node", args: ["--version"] },
+    { id: "pnpm", command: "pnpm", args: ["--version"] },
+    { id: "uv", command: "uv", args: ["--version"] },
+  ],
+  anyCommandChecks: [
+    {
+      id: "python",
+      label: "Python runtime",
+      candidates: [
+        { command: "python3", args: ["--version"] },
+        { command: "python", args: ["--version"] },
+        { command: "py", args: ["-3", "--version"] },
+      ],
+    },
+  ],
+  devcontainerNodeModulesMount: true,
+});
+
+const report = await auditor.audit({ rootDir: process.cwd() });
+```
+
+The report shape is stable for JSON CLI wrappers:
+
+```json
+{
+  "ok": false,
+  "checks": [{ "id": "node", "label": "node --version", "ok": true, "required": true, "version": "v24.0.0" }],
+  "missing": ["uv"],
+  "mountIssues": []
+}
+```
+
+Consumer CLIs keep their own command names, recommendations, project labels, and
+composition with content quality checks. `health` only measures environment and
+project structure.
 
 When a caller already knows the class of work it wants to run, ask for a ceiling
 decision before dispatch:

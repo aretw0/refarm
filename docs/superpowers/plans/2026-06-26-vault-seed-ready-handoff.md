@@ -7,13 +7,14 @@
 > Current-state note (2026-07-02): this plan captured the historical 2026-06-26
 > packet, when `homestead-ssr` was still present. ADR-072 removed
 > `homestead-ssr` pre-publication, so the active `vault-seed-ready` selection is
-> now 22 packages and 69 required checks after the T3 consumer proof, selected
+> now 23 packages and 72 required checks after the T3 consumer proof, selected
 > `records-contract-v1` YAML unit gate, T2 credentials pull (`credentials:v1` +
 > identity/storage contracts + Heartwood/storage-memory reference providers),
 > agent-demo public-surface proof, `quality:v1` pull, generic
 > `content-projection` pull for Markdown/MDX note projection, and the
-> `@refarm.dev/ds-astro` render-adapter pull. Use the generated handoff
-> manifest as the source of truth for current package lists.
+> `@refarm.dev/ds-astro` render-adapter pull, and `@refarm.dev/health`
+> toolchain-auditor pull. Use the generated handoff manifest as the source of
+> truth for current package lists.
 
 > Previous refresh (2026-07-03): the packet was materialized under
 > `.refarm/handoff/vault-seed/2026-07-03/` with 21 tarballs plus
@@ -43,6 +44,11 @@
 > including `refarm.dev-ds-astro-0.1.0.tgz` at SHA-256
 > `52302ede2b42c590020e21136ecd0bac1dc9f87745da7c3a58e65a51e4dd3799`, plus
 > `ds-astro.mdx-render-adapter` consumer proof metadata.
+> Follow-up in the same date packet: `@refarm.dev/health` now supplies
+> `ToolchainAuditor` for `dgk doctor` hollowing. The handoff was rematerialized
+> with 23 tarballs, including `refarm.dev-health-0.1.0.tgz` at SHA-256
+> `9d1cb9cd2a7b17285d484706216fbaf50dcb09d36098010366171b203aca65f9`, plus
+> `health.toolchain-environment-auditor` consumer proof metadata.
 
 ## Task 1 - Selection Parity
 

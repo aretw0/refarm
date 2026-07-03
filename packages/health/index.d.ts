@@ -82,6 +82,76 @@ export interface ComplexityAuditResult {
     }>;
 }
 
+export interface ToolchainCheck {
+    id: string;
+    label: string;
+    ok: boolean;
+    required: boolean;
+    path?: string;
+    target?: string;
+    command?: string;
+    version?: string;
+    stderr?: string;
+}
+
+export interface ToolchainPathCheckOptions {
+    id: string;
+    label?: string;
+    path: string;
+    executable?: boolean;
+    required?: boolean;
+}
+
+export interface ToolchainCommandCheckOptions {
+    id: string;
+    label?: string;
+    command: string;
+    args?: string[];
+    required?: boolean;
+    shell?: boolean;
+}
+
+export interface ToolchainAnyCommandCheckOptions {
+    id: string;
+    label?: string;
+    required?: boolean;
+    candidates: Array<{
+        command: string;
+        args?: string[];
+        shell?: boolean;
+    }>;
+}
+
+export interface ToolchainDevcontainerMountOptions {
+    id?: string;
+    label?: string;
+    nodeModulesPath?: string;
+    devcontainerPath?: string;
+    required?: boolean;
+}
+
+export interface ToolchainAuditorOptions {
+    title?: string;
+    pathChecks?: ToolchainPathCheckOptions[];
+    commandChecks?: ToolchainCommandCheckOptions[];
+    anyCommandChecks?: ToolchainAnyCommandCheckOptions[];
+    devcontainerNodeModulesMount?: boolean | ToolchainDevcontainerMountOptions;
+    platform?: NodeJS.Platform;
+    spawnSync?: (...args: unknown[]) => { status: number | null; stdout?: string; stderr?: string };
+    mountInfoReader?: () => Promise<string>;
+}
+
+export interface ToolchainAuditResult {
+    ok: boolean;
+    checks: ToolchainCheck[];
+    missing: string[];
+    mountIssues: Array<{
+        id: string;
+        path?: string;
+        target?: string;
+    }>;
+}
+
 export class HealthCore {
     constructor(graphContext?: unknown);
     register(auditor: { id: string; audit(context?: unknown): Promise<unknown> }): void;
@@ -109,6 +179,13 @@ export class ComplexityAuditor {
     readonly title: string;
     audit(context?: { rootDir?: string }): Promise<ComplexityAuditResult>;
     scan(rootDir: string): HealthIssue[];
+}
+
+export class ToolchainAuditor {
+    constructor(options?: ToolchainAuditorOptions);
+    readonly id: "toolchain";
+    readonly title: string;
+    audit(context?: { rootDir?: string; mountInfo?: string }): Promise<ToolchainAuditResult>;
 }
 
 export class ProjectAuditor {

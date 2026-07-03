@@ -10,7 +10,10 @@ import {
 } from "../release-check.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const PRE_PUBLICATION_HANDOFF_ONLY_PACKAGES = new Set(["@refarm.dev/ds-astro"]);
+const PRE_PUBLICATION_HANDOFF_ONLY_PACKAGES = new Set([
+	"@refarm.dev/ds-astro",
+	"@refarm.dev/health",
+]);
 
 function changesetPackageNames(root = ROOT) {
 	const changesetDir = path.join(root, ".changeset");
@@ -124,6 +127,7 @@ test("plans vault-seed consumer-pulled publish dry-runs", () => {
 		"@refarm.dev/enrichment-contract-v1",
 		"@refarm.dev/records-contract-v1",
 		"@refarm.dev/process-handoff",
+		"@refarm.dev/health",
 		"@refarm.dev/release-engine",
 		"@refarm.dev/heartwood",
 		"@refarm.dev/silo",
@@ -190,7 +194,7 @@ test("release check plan json exposes acceptance summary", () => {
 	assert.equal(payload.ok, true);
 	assert.equal(payload.selection.id, "vault-seed-ready");
 	assert.equal(payload.acceptance.status, "accepted");
-	assert.equal(payload.acceptance.packageCount, 22);
+	assert.equal(payload.acceptance.packageCount, 23);
 	assert.equal(payload.acceptance.blockerCount, 0);
 	assert.equal(payload.acceptance.manualApprovalRequired, true);
 	assert.deepEqual(payload.acceptance.profileTags, ["vault-seed-ready"]);

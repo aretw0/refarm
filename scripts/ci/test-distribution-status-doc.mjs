@@ -210,19 +210,19 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 
 test("vault-seed handoff docs distinguish historical 10-package packets from current selection", () => {
 	const currentSelection = releaseSelectionNames("vault-seed-ready");
-	assert.equal(currentSelection.length, 22);
+	assert.equal(currentSelection.length, 23);
 
-	assert.match(releaseGateDoc, /current\s+22-package\s+selection/);
+	assert.match(releaseGateDoc, /current\s+23-package\s+selection/);
 	assert.match(releaseGateDoc, /materialized the then-current 10-package selection/);
 	assert.match(
 		releaseGateDoc,
 		/ADR-072 superseded that packet before\s+publication/,
 	);
 	assert.match(vaultSeedHandoffPlan, /historical 2026-06-26/);
-	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 22 packages and 69 required checks/);
-	assert.match(vaultSeedHandoffAdr, /currently 22 packages tagged/);
-	assert.match(vaultSeedHandoffAdr, /current accepted packet: 22 packages,\s+69 required checks/);
-	assert.match(releasePolicyDoc, /selected 22-package publish plan/);
+	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 23 packages and 72 required checks/);
+	assert.match(vaultSeedHandoffAdr, /currently 23 packages tagged/);
+	assert.match(vaultSeedHandoffAdr, /current accepted packet: 23 packages,\s+72 required checks/);
+	assert.match(releasePolicyDoc, /selected 23-package publish plan/);
 	assert.doesNotMatch(vaultSeedHandoffAdr, /currently 20 packages tagged/);
 	assert.doesNotMatch(releasePolicyDoc, /selected 20-package publish plan/);
 });
@@ -231,7 +231,7 @@ test("factory readiness records the current local vault-seed handoff state", () 
 	assert.match(factoryReadinessDoc, /official downstream proof received/);
 	assert.match(factoryReadinessDoc, /\.refarm\/handoff\/vault-seed\/2026-07-03\/manifest\.json/);
 	assert.match(factoryReadinessDoc, /distributionEvidence\.state: "local-handoff-ready"/);
-	assert.match(factoryReadinessDoc, /22 tarballs/);
+	assert.match(factoryReadinessDoc, /23 tarballs/);
 });
 
 test("release convergence records the official downstream vault-seed proof receipt", () => {
