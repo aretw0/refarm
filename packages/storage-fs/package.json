@@ -1,0 +1,53 @@
+{
+	"name": "@refarm.dev/storage-fs",
+	"version": "0.1.0",
+	"description": "Filesystem StorageProvider — atomic Node-side persistence primitive, usable independently of Refarm",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/storage-fs"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev.br",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./node": {
+			"import": "./dist/node.js",
+			"types": "./dist/node.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:conformance": "vitest run src/storage-v1.conformance.test.ts",
+		"clean": "rm -rf dist"
+	},
+	"keywords": [
+		"filesystem",
+		"storage",
+		"atomic",
+		"local-first",
+		"ledger",
+		"node"
+	],
+	"dependencies": {
+		"@refarm.dev/storage-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}
