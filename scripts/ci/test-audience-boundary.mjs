@@ -107,6 +107,16 @@ test("convergence docs keep apps as thin block consumers", () => {
 	assert.match(convergence, /reusable capability\s+belongs outside the app boundary/i);
 });
 
+test("daily-driver recovery kit stays an operator command, not a distributed primitive", () => {
+	const parity = read("docs/DAILY_DRIVER_PARITY.md");
+	const spec = read("specs/features/2026-07-03-recovery-kit.md");
+
+	assert.match(parity, /Operator recovery kit - spec drafted: `specs\/features\/2026-07-03-recovery-kit\.md`/);
+	assert.match(spec, /operator command, not a distributed primitive/);
+	assert.match(spec, /not a new package, schema contract, or\s+`vault-seed-ready` distribution surface/);
+	assert.match(spec, /first release should stay small\s+and live in the operator CLI/);
+});
+
 test("ecosystem supply map keeps reference driver package-first", () => {
 	const supplyMap = read("docs/ECOSYSTEM_SUPPLY_MAP.md");
 	const adr = read("specs/ADRs/ADR-073-capability-index-incubation-boundary.md");
