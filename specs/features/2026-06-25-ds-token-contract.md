@@ -1,6 +1,6 @@
 # Spec: Refarm DS Token Contract (Roadmap Item 4a)
 
-**Status:** IMPLEMENTED in Refarm — consumer proof in `vault-seed` remains external
+**Status:** IMPLEMENTED in Refarm — official downstream `vault-seed` consumer proof received on 2026-07-03
 **Authors:** Arthur Silva
 **Date:** 2026-06-25
 **Related:** `docs/CONVERGENCE_ROADMAP.md` (item 4), `docs/APPS_REFARM_PROMOTION_LEDGER.md`, `docs/ECOSYSTEM_SUPPLY_MAP.md`, `ADR-069` (npm scope)

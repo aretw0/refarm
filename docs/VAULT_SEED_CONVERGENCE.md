@@ -410,7 +410,7 @@ A scratch consumer proof validated the intended adoption shape without
 committing into `vault-seed`: install the DS tarball, import `@refarm.dev/ds/html`,
 and render a `verde-jardim` static document through `documentHtml`. The proof confirms DS classes and theme CSS
 references while keeping `@refarm.dev/homestead` absent from `node_modules`. The
-official consumer checkout still needs to assimilate/review that packet.
+official consumer checkout assimilated the manifest-bearing 20-tarball packet on 2026-07-03 and verified DS/quality/content/site flows.
 Consumer-local semantic tokens remain fallback-only for raw Marimo sessions.
 
 **2026-06-26 process provenance packet:** `@refarm.dev/process-handoff` now proves
