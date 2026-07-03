@@ -20,8 +20,10 @@ if [ -f "$DEVCONTAINER_WORKSPACE/.devcontainer/on-start.sh" ]; then
 	timeout 60 bash "$DEVCONTAINER_WORKSPACE/.devcontainer/on-start.sh" 2>&1 | sed 's/^/[boot] /' || true
 fi
 
-# --- keep-alive: verbatim from the Dev Containers override (docker inspect) ---
-echo "Container started"
+# --- keep-alive ---
+# The Dev Containers tooling wraps this ENTRYPOINT in its own keep-alive shell
+# (`/bin/sh -c 'echo Container started; exec "$@"' - <this>`), so it already emits "Container started" and
+# execs us. We do NOT repeat that echo (it would double the log line); we only keep the container open.
 trap "exit 0" 15
 exec "$@"
 while sleep 1 & wait $!; do :; done
