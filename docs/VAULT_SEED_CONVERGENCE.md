@@ -522,12 +522,14 @@ local. `distributionEvidence` records the local handoff ref, verified-copy
 state, update source, rollback target, and the explicit boundary that this is
 not a public install contract or P2P substrate. After the T3 downstream proof,
 the T2 credentials pull, the agent-demo public-surface proof, and the
-`quality:v1` pull, the 2026-07-02 active packet was materialized from the
-generated manifest under `.refarm/handoff/vault-seed/2026-07-02/`: it reports
+`quality:v1` pull, the active packet was rematerialized under
+`.refarm/handoff/vault-seed/2026-07-03/`: it reports
 `acceptance.status: "accepted"`, 19 packages, 4 required gates, 54 required
-checks, 19 tarballs, `manifest.json`, and `manifest.md`. The official
-handoff should be copied from that generated packet rather than from this
-historical table.
+checks, 19 tarballs, `manifest.json`, and `manifest.md` (verified on disk
+2026-07-03). The earlier `2026-07-02/` directory is a superseded partial packet
+— tarballs only, no manifest — and must not be used as a handoff source. The
+official handoff should be copied from the manifest-bearing generated packet
+rather than from this historical table.
 
 ### Additional Assimilation Matrix
 

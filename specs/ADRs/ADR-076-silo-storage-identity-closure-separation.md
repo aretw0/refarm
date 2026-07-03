@@ -1,6 +1,9 @@
 # ADR-076: Silo Storage Surface Free of the Identity Closure
 
-**Status**: Proposed
+**Status**: Accepted (2026-07-03 — all four implementation items verified in source: dynamic
+`key-manager` import at `packages/silo/src/index.js:318`, `@refarm.dev/heartwood` in
+`optionalDependencies`, `0600`/`0700` hardening with mode assertions in `secrets.test.ts`, and the
+heartwood import-count closure test in `index.test.ts`)
 **Date**: 2026-06-29
 **Authors**: Arthur Silva, Claude
 **Related**: ADR-072 (Consumer Leaf Distribution Policy), ADR-064 (Credential Error Enrichment),

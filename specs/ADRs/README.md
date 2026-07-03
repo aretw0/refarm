@@ -53,6 +53,16 @@ Architecture Decision Records for Refarm.
 | [055](ADR-055-stream-contract-v1-transport-layer.md)           | stream-contract-v1 as Separate Transport Package Family                           | Accepted   | 2026-05-02 |
 | [056](ADR-056-unified-refarm-host-boundary.md)                 | Unified `refarm` Host Boundary (Distro-Owned Host, Block-Owned Primitives)        | Accepted   | 2026-05-02 |
 | [057](ADR-057-task-session-contracts.md)                        | `task-contract-v1` + `session-contract-v1` as Memory Layer Contracts               | Accepted   | 2026-05-03 |
+| [058](ADR-058-context-injection-doctrine.md)                   | Context Injection Doctrine for Refarm Agents                                      | Accepted   | 2026-05-03 |
+| [059](ADR-059-tractor-rust-authoritative-runtime.md)           | Tractor Rust as Authoritative Runtime                                             | Accepted   | 2026-05-04 |
+| [060](ADR-060-tractor-http-sidecar-protocol.md)                | Tractor HTTP Sidecar Protocol                                                     | Accepted   | 2026-05-04 |
+| [061](ADR-061-wasi-multi-version-plugin-host.md)               | WASI Multi-Version Plugin Host                                                    | Accepted   | 2026-05-04 |
+| [062](ADR-062-cloudflare-provider-package.md)                  | Cloudflare Provider Package (`packages/infra-cloudflare`)                         | Proposed   | 2026-05-08 |
+| [063](ADR-063-cli-oauth-strategy.md)                           | Estratégia de autenticação OAuth para a CLI                                       | Accepted   | 2026-05-11 |
+| [064](ADR-064-credential-error-enrichment-contract.md)         | Credential Error Enrichment Contract                                              | Accepted   | 2026-05-12 |
+| [065](ADR-065-farmhand-transparent-lifecycle.md)               | Farmhand Transparent Lifecycle & Single Entry Point                               | Accepted   | 2026-05-12 |
+| [066](ADR-066-typescript-turbo-build-boundary.md)              | TypeScript/Turbo Build Boundary and Package Scaffold Invariants                   | Accepted   | 2026-05-17 |
+| [067](ADR-067-capability-driven-plugin-observer-routing.md)    | Capability-Driven Plugin Observer Routing                                         | Accepted   | 2026-06-01 |
 | [068](ADR-068-artifact-contract-naming.md)                     | Artifact Contract Naming                                                          | Accepted   | 2026-06-12 |
 | [069](ADR-069-npm-scope-canonicalization.md)                   | npm Scope Canonicalization                                                        | Accepted   | 2026-06-25 |
 | [070](ADR-070-wasm-surface-substrate.md)                       | WASM Surface Substrate, Ecosystem Dependency Depth, and Tractor Distribution       | Proposed   | 2026-06-25 |
@@ -61,6 +71,11 @@ Architecture Decision Records for Refarm.
 | [073](ADR-073-capability-index-incubation-boundary.md)         | Capability Index Incubation Boundary                                              | Accepted   | 2026-06-30 |
 | [074](ADR-074-remote-workspace-control-plane.md)               | Remote Workspace Control Plane                                                    | Accepted   | 2026-06-30 |
 | [075](ADR-075-pears-distributed-runtime-reference.md)          | Pears as Distributed Runtime Reference                                             | Accepted   | 2026-06-30 |
+| [076](ADR-076-silo-storage-identity-closure-separation.md)     | Silo Storage Surface Free of the Identity Closure                                 | Accepted   | 2026-06-29 |
+| [077](ADR-077-silo-protected-secret-envelope.md)               | Silo Protected Secret Envelope                                                    | Accepted   | 2026-06-30 |
+| [078](ADR-078-agent-commons-environment-ceilings.md)           | Agent-Commons Environment Ceilings                                                | Accepted   | 2026-06-30 |
+| [079](ADR-079-credentials-verification-policy.md)              | Credentials Verification Policy                                                   | Proposed   | 2026-07-01 |
+| [080](ADR-080-vault-seed-ready-handoff-pipeline.md)            | The `vault-seed-ready` Handoff Pipeline as Pre-Publication Release Vehicle        | Proposed   | 2026-07-03 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 

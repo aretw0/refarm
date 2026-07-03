@@ -361,7 +361,10 @@ provider ecosystem), Rust-core correctness.
 
 ---
 
-## Sprint 1 Readiness Status
+## Sprint 1 Readiness Status (historical snapshot — 2026-03)
+
+> Kept as history. The "current state" sections of this log are `In Progress` and
+> `Recently Accepted` below. `docs/pre-sprint-checklist.md` referenced here no longer exists.
 
 **Date**: 2026-03-07  
 **Phase**: Semana 0 → Sprint 1 SDD  
@@ -414,9 +417,16 @@ provider ecosystem), Rust-core correctness.
 
 ## In Progress
 
+_Refreshed 2026-07-03; the previous single row (WASM + WIT capability enforcement, due
+2026-03-08) had been stale since March — its outcome is absorbed by ADR-044/047/061._
+
 | Topic | ADR | Owner | Status | Due | Evidence |
 |---|---|---|---|---|---|
-| WASM + WIT capability enforcement | Validation 3 | Core | In progress | 2026-03-08 | docs/research/wasm-validation.md |
+| vault-seed-ready handoff: official downstream assimilation of the 2026-07-03 packet | — (ADR-080 proposed for the pipeline) | Operator + vault-seed checkout | Packet accepted upstream; downstream proofs pending | consumer-pulled | `.refarm/handoff/vault-seed/2026-07-03/manifest.json` (`consumerProofs`) |
+| Agent-commons ceilings: commons watchdog (phases 4-9, watchdog-first) | ADR-078 | Core | Phases 1-3 shipped; watchdog planned | conditional | `docs/superpowers/plans/2026-07-02-commons-watchdog.md`, `scripts/ci/test-devcontainer-contract.mjs` |
+| Credentials verification policy | ADR-079 | Core | Proposed | — | `specs/ADRs/ADR-079-credentials-verification-policy.md` |
+| Content-projection MD/MDX blocks (records:v1 + ds-astro embed set) | — | Core | Design anchored, implementation in flight | consumer-pulled | `docs/superpowers/specs/2026-07-02-content-projection-md-mdx-design.md` |
+| v0.1.0 publish decision: daily-driver parity rows vs documented human override | — | Operator | Blocked on operator decision | — | `docs/v0.1.0-release-gate.md`, `docs/DAILY_DRIVER_PARITY.md` |
 
 ---
 
@@ -435,6 +445,15 @@ provider ecosystem), Rust-core correctness.
 | Astro type-checking in pre-push hooks | (inline) | 2026-03-09 | Added `astro check` to homestead lint/type-check; tsc does not verify `.astro` files |
 | Rust WASM plugin compilation in CI | (inline) | 2026-03-09 | Added Rust toolchain + WASM build steps to test.yml and granular-tests.yml; JCO integration tests require pre-compiled plugin binary |
 | Silo protected secret envelope | ADR-077 | 2026-06-30 | Silo stores namespaced secrets as versioned protection envelopes, reports `local-plaintext-v1` honestly, and leaves OPAQUE/hardware crypto behind the same consumer API |
+| Artifact contract naming | ADR-068 | 2026-06-12 | `@refarm.dev/artifact-contract-v1` as the shared task-artifact/provenance home |
+| npm scope canonicalization | ADR-069 | 2026-06-25 | All Refarm publish targets use `@refarm.dev`; `@aretw0` stays product-scope |
+| Workspace namespace policy | ADR-071 | 2026-06-28 | Centralized defaults with declared exceptions |
+| Consumer leaf distribution policy | ADR-072 | 2026-06-29 | Light surfaces ship as leaf packages; removed `homestead-ssr` pre-publication; `@refarm.dev/ds/html` is the build-free consumer surface |
+| Capability index incubation boundary | ADR-073 | 2026-06-30 | Incubation stays out of the published capability index |
+| Remote workspace control plane | ADR-074 | 2026-06-30 | Environment ceilings named as part of dispatch |
+| Pears as distributed runtime reference | ADR-075 | 2026-06-30 | Holepunch taxonomy + blind-replica lesson recorded; adoption gated |
+| Silo storage surface free of the identity closure | ADR-076 | 2026-07-03 | Accepted after source verification: dynamic key-manager import, heartwood as `optionalDependencies`, 0600/0700 hardening, closure test |
+| Agent-commons environment ceilings | ADR-078 | 2026-07-03 | Accepted with phased implementation: cgroup boundary + contract test shipped; watchdog-first per the 2026-07-02 revision |
 
 ---
 

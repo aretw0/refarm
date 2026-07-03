@@ -54,8 +54,12 @@ References:
   for `openai-codex`; it is not exported as `OPENAI_API_KEY`.
 - `GITHUB_COPILOT_ACCESS_TOKEN` satisfies only the subscription credential check
   for `github-copilot`.
-- `refarm ask` blocks subscription-backed routes until Refarm has an adapter
-  that knows how to call the corresponding subscription endpoint.
+- `refarm ask` blocks subscription-backed routes only while no runtime adapter
+  exists for the provider. `openai-codex` now has a runtime subscription adapter
+  (Tractor `wasi_bridge` routes `/backend-api/codex/responses` with
+  `OPENAI_CODEX_ACCESS_TOKEN`; it is listed in
+  `RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS`, so `ask` exempts it from the block).
+  `github-copilot` remains blocked until its adapter exists.
 
 This keeps quota failures legible. A 429 from `api.openai.com` means API billing
 quota, not ChatGPT/Codex subscription quota. A subscription route must use the
