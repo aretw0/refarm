@@ -1,4 +1,11 @@
 export { runDsThemeConformance } from "./theme-conformance.js";
+export {
+	registerThemePacks,
+	ThemeRegistry,
+	type RegisteredTheme,
+	type ThemePackAsset,
+	type ThemeRegistrationResult,
+} from "./theme-registry.js";
 export * from "./contract.js";
 export * from "./lint.js";
 export * from "./quality-checker.js";
