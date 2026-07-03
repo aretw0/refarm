@@ -23,7 +23,12 @@ run_lane() {
 }
 
 if [ -f "$WS/scripts/env-safety-check.sh" ]; then
-	run_lane bash scripts/env-safety-check.sh --warn
+	# Quiet on success, loud on failure: a healthy boot leaves no log noise; only a real problem surfaces.
+	env_out="$(run_lane bash scripts/env-safety-check.sh --warn 2>&1)"
+	case "$env_out" in
+		*"status: OK"*) : ;;
+		*) printf '%s\n' "$env_out" ;;
+	esac
 fi
 
 # Future lane: the commons watchdog launches here (every start), per
