@@ -200,9 +200,10 @@ if (plugin.memoryUsage > plugin.quota) {
 
 - `@refarm.dev/tractor` exports a `browser` condition (`index.browser.js`) that replaces `PluginHost` with a stub. Vite resolves this automatically — no bundler configuration needed.
 - Calling `load()` throws a descriptive error pointing to [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md).
-- Future: `installPlugin(manifest, wasmUrl)` will cache the JCO-transpiled module to OPFS so subsequent `load()` calls work offline in the browser.
+- `installPlugin(manifest, wasmUrl)` in `packages/tractor-ts/src/lib/install-plugin.ts` now caches to OPFS, revalidates cached bytes, and rejects tampered artifacts before execution.
+- Remaining hardening moved to Barn Gate 2: multi-plugin hot-swap mileage, persistent inventory semantics, and lifecycle ownership convergence (see `specs/features/2026-07-03-barn-gate2-plugin-ecosystem.md`).
 
-**Status**: ✅ Build-time mitigation (export condition) implemented. `installPlugin()` pending (ADR-044 step 3).
+**Status**: ✅ Browser mitigation + `installPlugin()` OPFS integrity path implemented; ecosystem hardening still pending in Barn Gate 2.
 
 ---
 

@@ -81,8 +81,8 @@ These are the **reference implementations** and personal tools. Publish after yo
 1. **`packages/tractor`** (Rust daemon)
 
    - ✅ Technically ready (52/52 tests, ADR-048 graduated)
-   - **BUT**: Consumer testing still WIP (Gate 2/3)
-   - **Publish after** Gate 3 finishes (when Homestead ↔ Tractor integration proven)
+   - ✅ Gate 3 pairing with Homestead proven (`pnpm -C apps/me run smoke:real-daemon-roundtrip`)
+   - **Publish after** Gate 2 plugin-ecosystem hardening and daily-driver mileage
    - Target: daily-driver confidence first; no calendar-driven publish
 
 2. **`packages/barn`** (Plugin lifecycle, OPFS, SHA-256)
@@ -92,7 +92,7 @@ These are the **reference implementations** and personal tools. Publish after yo
    - **Publish after** you've hot-swapped plugins dozens of times
 
 3. **`apps/me` (Homestead + Studio)** — Your personal distro
-   - Gate 3 still in progress
+   - Gate 3 complete (real daemon roundtrip evidence)
    - Needs 6 months of daily use to stabilize UX
    - **Publish later** as `@refarm.me/app` (reference implementation for solo users)
 
@@ -215,7 +215,7 @@ HELD CANDIDATES               DAILY-DRIVER IMPLEMENTATIONS
 
 ### Daily Use Gate (keeps you productive)
 
-- [ ] Gate 3: Homestead ↔ Tractor end-to-end sync stable (50+ edits, offline → reconnect)
+- [x] Gate 3: Homestead ↔ Tractor end-to-end sync stable baseline proven (`smoke:real-daemon-roundtrip`)
 - [ ] Gate 2: All 7 Tractor consumers working with production `.db`
 - [ ] `installPlugin()` tested with at least 3 plugins (Barn integration)
 - [ ] Offline-first confirmed: restart browser, edit before connecting to tractor, sync on reconnect

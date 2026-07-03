@@ -63,13 +63,13 @@ Operational governance baseline (factory/cross-agent):
   - Decoupled sovereign philosophy from underlying universal blocks.
 - 🚧 **ADR-044: WASM Plugin Loading (Browser Strategy)**
   - ✅ Support for pre-transpiled JS bundles (`refarm plugin bundle` -> JCO).
-  - 🚧 (WIP) `installPlugin()` OPFS cache and SHA-256 validation.
+  - ✅ `installPlugin()` OPFS cache and SHA-256 validation in `packages/tractor-ts/src/lib/install-plugin.ts` (cache hit/revalidation + tamper rejection covered in `packages/tractor-ts/test/install-plugin.test.ts`).
   - 🔄 (Future) Strategy A: Pure Web Worker JCO transpilation prototype.
 - ✅ **Tractor Daemon (graduated ADR-048, 2026-03-19 — replaces `apps/farmhand`)**
   - ✅ Boots headless, connects via WebSocket (`ws://localhost:42000`).
   - ✅ Loro binary transport (JS↔Rust interop confirmed by `loro_binary_js_interop`).
-  - 🚧 (WIP) Consumer testing end-to-end with production `.db` (7 consumers validated in isolation; full pairing with Homestead pending — Gate 2/3).
-  - 🚧 (WIP) `installPlugin()` OPFS cache and SHA-256 validation (ADR-044) — delegated to **Barn** (`packages/barn`).
+  - ✅ Consumer pairing with `apps/me` proven end-to-end in Gate 3b (`pnpm -C apps/me run smoke:real-daemon-roundtrip`; see `docs/gate3-homestead-tractor-spec.md` and `docs/v0.1.0-release-gate.md`).
+  - 🚧 (WIP) Barn Gate 2 hardening: ecosystem hot-swap, inventory persistence, and install lifecycle ownership (`packages/barn`; implementation packet in `specs/features/2026-07-03-barn-gate2-plugin-ecosystem.md`).
   - 🔄 (Future) OS daemon installation via `refarm provision` and LAN mDNS discovery.
 
 ### Decision Gate for v0.1.0 Release
