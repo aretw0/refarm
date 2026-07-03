@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import {
 	findFirstPublishChangesetRisks,
+	findOutOfSelectionBaselineRisks,
 	parseChangesets,
 } from "./check-first-publish-changesets.mjs";
 
@@ -85,6 +86,93 @@ test("ignores changeset bumps after a package is beyond first publish", () => {
 	);
 });
 
+test("flags out-of-selection packages still awaiting first publish", () => {
+	const root = makeFixtureRoot({
+		changesets: {
+			"alpha.md": `---
+"@refarm.dev/alpha": minor
+---
+`,
+			"omega.md": `---
+"@refarm.dev/omega": minor
+---
+`,
+		},
+		packages: {
+			alpha: {
+				name: "@refarm.dev/alpha",
+				version: "0.1.0",
+			},
+			omega: {
+				name: "@refarm.dev/omega",
+				version: "0.1.0",
+				tags: ["held-lane"],
+			},
+		},
+	});
+
+	assert.deepEqual(
+		findOutOfSelectionBaselineRisks({
+			root,
+			selectionId: "vault-seed-ready",
+		}),
+		[
+			{
+				file: "omega.md",
+				packageName: "@refarm.dev/omega",
+				bump: "minor",
+				currentVersion: "0.1.0",
+			},
+		],
+	);
+
+	// The selection-scoped check must not absorb the out-of-selection baseline.
+	assert.deepEqual(
+		findFirstPublishChangesetRisks({
+			root,
+			selectionId: "vault-seed-ready",
+		}),
+		[
+			{
+				file: "alpha.md",
+				packageName: "@refarm.dev/alpha",
+				bump: "minor",
+				currentVersion: "0.1.0",
+			},
+		],
+	);
+});
+
+test("ignores out-of-selection packages already beyond first publish", () => {
+	const root = makeFixtureRoot({
+		changesets: {
+			"omega.md": `---
+"@refarm.dev/omega": patch
+---
+`,
+		},
+		packages: {
+			alpha: {
+				name: "@refarm.dev/alpha",
+				version: "0.1.0",
+			},
+			omega: {
+				name: "@refarm.dev/omega",
+				version: "0.1.1",
+				tags: ["held-lane"],
+			},
+		},
+	});
+
+	assert.deepEqual(
+		findOutOfSelectionBaselineRisks({
+			root,
+			selectionId: "vault-seed-ready",
+		}),
+		[],
+	);
+});
+
 function makeFixtureRoot({ changesets = {}, packages = {} } = {}) {
 	const root = path.join(os.tmpdir(), `refarm-first-publish-${process.pid}-${Math.random().toString(36).slice(2)}`);
 	mkdirSync(path.join(root, ".changeset"), { recursive: true });
@@ -116,7 +204,7 @@ function makeFixtureRoot({ changesets = {}, packages = {} } = {}) {
 				packageProfiles: Object.values(packages).map((pkg) => ({
 					id: pkg.name,
 					risk: "core",
-					tags: ["vault-seed-ready"],
+					tags: pkg.tags ?? ["vault-seed-ready"],
 				})),
 				phases: [
 					{
