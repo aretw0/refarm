@@ -75,6 +75,10 @@ const releaseConvergencePlan = readFileSync(
 	path.join(ROOT, "docs/superpowers/plans/2026-07-03-refarm-vault-seed-release-convergence.md"),
 	"utf8",
 );
+const channelPolicyBridgeSpec = readFileSync(
+	path.join(ROOT, "specs/features/2026-06-26-channel-policy-bridge.md"),
+	"utf8",
+);
 
 function escapeRegExp(value) {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -232,6 +236,8 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(vaultSeedHandoffPlan, /Proof receipt \(2026-07-03\): the official `vault-seed` checkout later copied\s+> this packet, verified all 20 tarballs/);
 	assert.match(dsTokenContractPlan, /Superseded proof note \(2026-07-03\): the official `vault-seed` checkout later\s+  assimilated the manifest-bearing 20-tarball packet/);
 	assert.match(channelPolicyBridgePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits the\s+  channel-delivery envelope/);
+	assert.match(channelPolicyBridgeSpec, /IMPLEMENTED - downstream proof received; public publish waits on the release lane/);
+	assert.match(channelPolicyBridgeSpec, /official 2026-07-03\s+  downstream proof confirms the neutral envelope is emitted/);
 	assert.match(artifactLabEvidencePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits a\s+validated `refarm\.task-artifacts\.v1` manifest/);
 	assert.doesNotMatch(factoryReadinessDoc, /downstream adoption proof remains consumer-side/);
 	assert.doesNotMatch(factoryReadinessDoc, /official `vault-seed` assimilation remain pending/);
@@ -246,6 +252,7 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.doesNotMatch(vaultSeedHandoffPlan, /downstream assimilation\s+> remains a handoff target, not a completed proof/);
 	assert.doesNotMatch(dsTokenContractPlan, /Official `vault-seed` assimilation remains pending/);
 	assert.doesNotMatch(channelPolicyBridgePlan, /Downstream proof remains pending until the official `vault-seed` checkout/);
+	assert.doesNotMatch(channelPolicyBridgeSpec, /publication still waits on the first downstream proof/);
 	assert.doesNotMatch(artifactLabEvidencePlan, /The official `vault-seed` checkout should emit `refarm\.task-artifacts\.v1`/);
 });
 

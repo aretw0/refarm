@@ -1,6 +1,6 @@
 # Spec: Channel Policy Bridge (Roadmap Item 8b)
 
-**Status:** ACTIVE - first Refarm-side package slice
+**Status:** IMPLEMENTED - downstream proof received; public publish waits on the release lane
 **Date:** 2026-06-26
 **Related:** `docs/VAULT_SEED_CONVERGENCE.md`,
 `specs/features/2026-06-25-consumer-bridges-activation.md`
@@ -60,8 +60,9 @@ provider and destination identities but never stores tokens.
 - package unit tests cover the `vault-seed` Telegram fixture;
 - invalid/dangling receipts are rejected;
 - `validate-packages` sees the package as a normal public buildable package;
-- release policy can select it as a `vault-seed-ready` candidate while actual
-  publication still waits on the first downstream proof.
+- release policy selects it as `vault-seed-ready`; the official 2026-07-03
+  downstream proof confirms the neutral envelope is emitted while public
+  publication still waits on the release lane.
 
 ## Rollback
 
