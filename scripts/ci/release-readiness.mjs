@@ -95,6 +95,12 @@ const RELEASE_READINESS_STEPS = [
 			"T1 white-label secure-extensibility demos must compose the public agent engine, review-first install packet, denied-capability receipts, and quality gate without widening runtime claims.",
 	},
 	{
+		id: "local-first-platform-proof",
+		script: "local-first:proof",
+		reason:
+			"T2 local-first platform demos must compose wallet evidence, selected credential/storage/identity contracts, a local-surface launch plan, and DS quality without binding provider UX.",
+	},
+	{
 		id: "first-publish-selection-plan",
 		script: "release:first-publish:plan",
 		args: ["--", "--selection", "vault-seed-ready"],

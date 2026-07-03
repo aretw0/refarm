@@ -137,8 +137,13 @@ and `@refarm.dev/storage-contract-v1` are the transitive contract support
 packages; `@refarm.dev/identity-heartwood` provides the reference issuer/holder
 signature provider; and `@refarm.dev/storage-memory` provides the volatile
 wallet storage used by the smoke. The official `vault-seed` checkout vendors
-the contract plus `identity-heartwood` and `storage-memory`, and a
-Heartwood-signed provider passes the full credentials conformance. Locally,
+the contract plus `identity-heartwood` and `storage-memory`, and its
+Heartwood-signed provider passes the full credentials conformance. The
+`local-first:proof` composition now confirms those selected contract seams,
+synthetic wallet evidence, and `@refarm.dev/local-surface` produce a
+provider-neutral local-first POC packet with a passing DS quality report while
+provider setup, real credentials, screenshots, and product UX remain
+downstream-owned. Locally,
 `pnpm run sovereign-citizen:reference:test` proves a sanitized round trip through
 Heartwood Ed25519 signatures and
 `storage-memory`: issue -> policy-driven verify -> reject tampering -> present

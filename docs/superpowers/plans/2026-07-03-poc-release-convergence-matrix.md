@@ -95,6 +95,7 @@ Release-critical generic blocks:
 Existing pressure:
 
 - `validations/citizen-data-wallet-poc`;
+- `local-first:proof`;
 - `@refarm.dev/ds/quality-checker`;
 - `@refarm.dev/silo`, `credentials:v1`, `identity:v1`, `storage:v1`;
 - vault-seed `sow`, `serve`, and channel setup patterns.

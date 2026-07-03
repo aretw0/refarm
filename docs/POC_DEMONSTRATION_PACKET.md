@@ -128,6 +128,9 @@ Wallet evidence already present:
 - human-reviewable `consent-decision.json`.
 - reusable local surface package candidate: `@refarm.dev/local-surface` for a
   local-first manifest, static DS-backed HTML, launch plan, and quality report.
+- a local-first composition proof that connects selected credential, identity,
+  storage, wallet evidence, and local-surface blocks without binding a provider
+  or claiming formal wallet interoperability.
 
 Wallet reader gap:
 
@@ -144,6 +147,7 @@ Wallet metrics to expose:
 | presented attributes | `selective-presentation.json` | show only authorized fields are shared |
 | authorization validity state | `authorization-receipt.json` and `revocation-event.json` | show revocation changes usability |
 | tamper check outcome | POC test output and audit trail | show integrity boundary |
+| local-first platform proof | `pnpm run local-first:proof` | show T2 can launch from a provider-neutral local-surface packet |
 
 Wallet claim boundary:
 
