@@ -6,7 +6,7 @@
 
 wit_bindgen::generate!({
     world: "refarm-plugin",
-    path: "wit",
+    path: "../../../../refarm-plugin-wit/wit",
 });
 
 use exports::refarm::plugin::integration::{Guest, PluginError, PluginMetadata};

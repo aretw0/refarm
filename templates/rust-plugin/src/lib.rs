@@ -1,24 +1,24 @@
 wit_bindgen::generate!({
     world: "refarm-plugin",
-    path: "wit",
+    path: "../../packages/refarm-plugin-wit/wit",
 });
 
-use crate::exports::refarm::plugin::plugin::{self, PluginMetadata};
+use crate::exports::refarm::plugin::integration::{self, PluginError, PluginMetadata};
 
 struct MyPlugin;
 
-impl plugin::Guest for MyPlugin {
-    fn setup() -> Result<(), String> {
+impl integration::Guest for MyPlugin {
+    fn setup() -> Result<(), PluginError> {
         // Plugin setup logic
         Ok(())
     }
 
-    fn ingest() -> Result<u32, String> {
+    fn ingest() -> Result<u32, PluginError> {
         // Ingestion logic
         Ok(0)
     }
 
-    fn push(_payload: String) -> Result<(), String> {
+    fn push(_payload: String) -> Result<(), PluginError> {
         // Push logic
         Ok(())
     }
@@ -27,7 +27,7 @@ impl plugin::Guest for MyPlugin {
         // Cleanup logic
     }
 
-    fn get_help_nodes() -> Result<Vec<String>, String> {
+    fn get_help_nodes() -> Result<Vec<String>, PluginError> {
         Ok(vec![])
     }
 
@@ -43,6 +43,14 @@ impl plugin::Guest for MyPlugin {
 
     fn on_event(_event: String, _payload: Option<String>) {
         // Event handler
+    }
+
+    // This plugin does not respond to agent-style requests. The interface is
+    // shared by every plugin; a plugin that does not respond returns a stub.
+    fn respond(_payload: String) -> Result<String, PluginError> {
+        Err(PluginError::NotPermitted(
+            "this plugin does not respond".to_string(),
+        ))
     }
 }
 

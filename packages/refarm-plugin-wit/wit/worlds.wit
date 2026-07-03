@@ -1,0 +1,57 @@
+package refarm:plugin@0.1.0;
+
+// The worlds of the canonical refarm:plugin@0.1.0 package.
+//
+// Every world exports the SAME `integration` interface (one interface for all
+// plugins — see integration.wit). Worlds differ only in which host
+// capabilities the plugin imports and which optional interfaces it also
+// exports. A plugin picks the smallest world that covers what it needs.
+
+// ─── Plugin-side worlds (a plugin builds against one of these) ───────────────
+
+/// Base plugin: exports integration, imports only the data bridge.
+/// Simple plugins (templates, bridges) target this. They still implement all
+/// of `integration`; unused funcs (e.g. respond) return a trivial stub.
+world refarm-plugin {
+    import tractor-bridge;
+    export integration;
+}
+
+/// The agent guest: base + full agent host capabilities. Still exports the same
+/// `integration` (agent implements respond for real; others stub it).
+world agent {
+    import tractor-bridge;
+    import model-bridge;
+    import agent-fs;
+    import agent-shell;
+    import structured-io;
+    import code-ops;
+    export integration;
+}
+
+/// A plugin that also serves as an identity provider.
+world refarm-identity-plugin {
+    include refarm-plugin;
+    export identity-provider;
+}
+
+/// A plugin that also serves HTTP requests.
+world refarm-http-plugin {
+    include refarm-plugin;
+    export http-handler;
+}
+
+// ─── Host-side world (tractor-native bindgen! targets this) ──────────────────
+
+/// The world the tractor host generates bindings for. Imports every host
+/// capability (so the host can implement them for plugins) and exports
+/// `integration` (so the host can call into any loaded plugin).
+world refarm-plugin-host {
+    import tractor-bridge;
+    import model-bridge;
+    import agent-fs;
+    import agent-shell;
+    import structured-io;
+    import code-ops;
+    export integration;
+}

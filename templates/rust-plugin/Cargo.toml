@@ -18,5 +18,5 @@ wit-bindgen-rt = "0.41.0"
 package = "refarm:plugin"
 
 [package.metadata.component.target]
-path = "wit"
+path = "../../packages/refarm-plugin-wit/wit"
 world = "refarm-plugin"

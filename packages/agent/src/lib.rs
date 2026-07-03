@@ -39,7 +39,7 @@
 
 wit_bindgen::generate!({
     world: "agent",
-    path: "wit",
+    path: "../refarm-plugin-wit/wit",
 });
 
 mod compress;

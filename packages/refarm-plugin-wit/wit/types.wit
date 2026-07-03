@@ -1,0 +1,34 @@
+/// Canonical shared types for the refarm:plugin@0.1.0 contract.
+///
+/// This is the SINGLE source of truth for the plugin WIT package. Every
+/// consumer (agent guest, tractor host, templates, fixtures) references this
+/// directory — no consumer copies it. See ADR-083 and
+/// scripts/ci/check-wit-canonical.mjs (the anti-drift guard).
+
+package refarm:plugin@0.1.0;
+
+interface types {
+    type json-ld-node = string;
+    type node-id = string;
+
+    variant plugin-error {
+        not-permitted(string),
+        not-found(node-id),
+        invalid-schema(string),
+        internal(string),
+    }
+
+    record identity-info {
+        identity-type: string,
+        storage-tier: string,
+        identifier: string,
+    }
+
+    record plugin-metadata {
+        name: string,
+        version: string,
+        description: string,
+        supported-types: list<string>,
+        required-capabilities: list<string>,
+    }
+}

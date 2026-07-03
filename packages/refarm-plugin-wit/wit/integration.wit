@@ -1,0 +1,42 @@
+package refarm:plugin@0.1.0;
+
+// The single plugin lifecycle interface every refarm plugin exports.
+//
+// ONE interface, not a base + optional split. A plugin implements every
+// function; the ones it does not use return a trivial stub (e.g. respond ->
+// Err(not-permitted("this plugin does not respond"))). The interface is the
+// same for every plugin — a plugin is what it is because of what it implements
+// here, not because a capability is reserved to it. The agent implements
+// respond for real; a bridge/integration plugin stubs it.
+//
+// Part of the canonical refarm:plugin@0.1.0 package.
+
+interface integration {
+    use types.{json-ld-node, plugin-error, plugin-metadata};
+
+    /// One-time setup after instantiation (e.g. OAuth handshake).
+    setup:          func() -> result<_, plugin-error>;
+
+    /// Pull fresh data from the source. Returns number of nodes ingested.
+    ingest:         func() -> result<u32, plugin-error>;
+
+    /// Handle a user-triggered outbound action. `payload` is a JSON-LD node.
+    push:           func(payload: json-ld-node) -> result<_, plugin-error>;
+
+    /// Clean up resources before the plugin is unloaded.
+    teardown:       func();
+
+    /// Return semantic help nodes for the global System Help explorer.
+    get-help-nodes: func() -> result<list<json-ld-node>, plugin-error>;
+
+    /// Human-readable name/version and declared types/capabilities for Studio.
+    metadata:       func() -> plugin-metadata;
+
+    /// React to a system event (e.g. "system:switch-tier", "user:prompt").
+    on-event:       func(event: string, payload: option<string>);
+
+    /// Respond to a payload (agent-style request/response). A plugin that does
+    /// not respond returns Err(not-permitted(...)) — the interface is shared,
+    /// the behaviour is the plugin's.
+    respond:        func(payload: string) -> result<string, plugin-error>;
+}

@@ -1,0 +1,60 @@
+package refarm:plugin@0.1.0;
+
+// Optional additive interfaces a plugin MAY export beyond `integration`.
+//
+// These are opt-in via a composed world (see worlds.wit). No live Rust/WASM
+// consumer generates bindings for them today (they were aspirational in the
+// old refarm-sdk.wit); they are preserved here so nothing is lost and future
+// plugins can adopt them. Part of the canonical refarm:plugin@0.1.0 package.
+
+/// Interface for plugins that serve HTTP requests (like an Antenna plugin).
+/// The tractor routes requests matching specific nodes or paths to this handler.
+interface http-handler {
+    use types.{plugin-error};
+
+    record http-request {
+        method: string,
+        path: string,
+        query: string,
+        headers: list<tuple<string, string>>,
+        body: option<list<u8>>,
+    }
+
+    record http-response {
+        status: u16,
+        headers: list<tuple<string, string>>,
+        body: option<list<u8>>,
+    }
+
+    /// Handle an incoming HTTP request routed to this plugin.
+    handle-request: func(req: http-request) -> result<http-response, plugin-error>;
+}
+
+/// Interface for plugins that serve as identity providers
+/// (e.g. identity-nostr, identity-opaque-v1).
+interface identity-provider {
+    use types.{plugin-error};
+
+    /// An opaque numeric handle to a live, in-memory identity.
+    /// The private key never leaves the WASM sandbox.
+    type identity-handle = u64;
+
+    /// Sign an arbitrary payload using the managed identity.
+    sign: func(payload: list<u8>) -> result<list<u8>, plugin-error>;
+
+    /// Verify a signature against a public key.
+    verify: func(payload: list<u8>, sig: list<u8>, pubkey: list<u8>) -> result<bool, plugin-error>;
+
+    /// Return the current public key managed by this provider.
+    public-key: func() -> result<list<u8>, plugin-error>;
+
+    /// Derive (or unlock) an identity using an externally produced session key.
+    ///
+    /// OPAQUE use: after the host completes an OPAQUE AKE handshake, it passes
+    /// the session-key here. The plugin decrypts its envelope and unlocks skU
+    /// inside the WASM sandbox. The host receives only an opaque handle — it
+    /// can call sign() and verify() but cannot extract the private key.
+    ///
+    /// Also usable for non-OPAQUE providers (WebAuthn assertion token, etc.).
+    derive-from-session: func(session-key: list<u8>) -> result<identity-handle, plugin-error>;
+}

@@ -22,5 +22,5 @@ strip = true
 package = "refarm:plugin"
 
 [package.metadata.component.target]
-path = "wit"
+path = "../refarm-plugin-wit/wit"
 world = "agent"
