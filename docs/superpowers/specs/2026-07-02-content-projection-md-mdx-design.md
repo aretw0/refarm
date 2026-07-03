@@ -103,7 +103,10 @@ refarm proves it on its own consumer, minimally:
    projects through `content-projection` to a valid `records:v1` record. This is the gate — **not** a full
    site migration. (The 579-line `index.astro` is the standing signal that content belongs in MD/MDX, but
    migrating it is downstream adoption, not this plan.)
-2. **Downstream proof (follow-on, not blocking):** vault-seed converges its
+2. **Downstream render pressure (received 2026-07-03):** the official `vault-seed` checkout now carries
+   `docs/superpowers/plans/2026-07-03-ds-astro-mdx-consumer-proof.md`, naming `ds-astro` as the required
+   upstream block and forbidding a local generic block package.
+3. **Downstream proof (follow-on, not blocking):** vault-seed converges its
    `generate_vault_data`/`noteToRecord`/`resolveLinks` onto `content-projection` — the second-consumer proof
    that retires the downstream reimplementation.
 
@@ -132,6 +135,7 @@ convergence in `docs/VAULT_SEED_CONVERGENCE.md`, so the graduation is tracked, n
 
 1. **`@refarm.dev/content-projection`** — the projection block (foundation; buildable/testable alone).
 2. **`@refarm.dev/ds-astro`** — the sanctioned MDX embed set.
+   Activated plan: `docs/superpowers/plans/2026-07-03-ds-astro-mdx-render-adapter.md`.
 3. **MDX wiring + acceptance** — the `@astrojs/mdx` integration + `mdx-components` mapping, the `apps/site`
    `.mdx` proof page, and the anchoring edits.
 

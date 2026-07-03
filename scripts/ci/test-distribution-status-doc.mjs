@@ -307,12 +307,12 @@ test("release convergence records the official downstream vault-seed proof recei
 test("focus maps do not regress implemented quality and projection blocks to planned", () => {
 	assert.match(refarmWorkFocusDoc, /Phase 1 implemented, selected, and downstream-proven/);
 	assert.match(refarmWorkFocusDoc, /inline Markdown links into valid `records:v1`/);
-	assert.match(refarmWorkFocusDoc, /Use concrete gaps from the official proof/);
+	assert.match(refarmWorkFocusDoc, /Build the separate .*ds-astro.*render adapter over .*ds\/html/);
 	assert.doesNotMatch(refarmWorkFocusDoc, /Content projection \/ MD-MDX authoring \| Designed, build-pending/);
 	assert.doesNotMatch(refarmWorkFocusDoc, /Let the official consumer prove the handoff/);
 
 	assert.match(convergenceRoadmapDoc, /phase 1 implemented: `@refarm\.dev\/content-projection`/);
-	assert.match(convergenceRoadmapDoc, /future `ds-astro` work waits for render pressure/);
+	assert.match(convergenceRoadmapDoc, /official `vault-seed` render pressure received on 2026-07-03/);
 	assert.doesNotMatch(convergenceRoadmapDoc, /plan \+ build pending/);
 
 	assert.match(qualityAgentBuildOrderDoc, /ui adapter \*\*implemented\*\*: `@refarm\.dev\/ds\/quality-checker`/);
@@ -320,7 +320,9 @@ test("focus maps do not regress implemented quality and projection blocks to pla
 	assert.doesNotMatch(qualityAgentBuildOrderDoc, /adapter \*\*planned\*\*/);
 
 	assert.match(decisionLogDoc, /Content-projection MD\/MDX blocks/);
-	assert.match(decisionLogDoc, /Phase 1 implemented, selected, and downstream-proven; `ds-astro` remains render-pressure-gated/);
+	assert.match(decisionLogDoc, /`ds-astro` render pressure received from `vault-seed`, package plan next/);
 	assert.doesNotMatch(decisionLogDoc, /Phase 1 implemented and selected; `ds-astro` remains render-pressure-gated/);
+	assert.doesNotMatch(decisionLogDoc, /`ds-astro` remains render-pressure-gated/);
+	assert.match(refarmWorkFocusDoc, /official `vault-seed` MDX inventory now supplies render pressure for `ds-astro`/);
 	assert.doesNotMatch(decisionLogDoc, /Content-projection MD\/MDX blocks.*implementation in flight/);
 });
