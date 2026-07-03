@@ -554,11 +554,14 @@ consumer-contract proofs for each:
   `dsAstroCssImports` stays over `@refarm.dev/ds`. Published MDX copy and route
   semantics stay downstream.
 
-The downstream suite is green (521 tests, no regressions). One boundary defect
-was relayed: `@refarm.dev/ds-astro` peer-depends `astro: ^6.4.8`, but the latest
-available astro is `6.4.4`, so the peer floor is ahead of the ecosystem and every
-consumer install warns on an unmet peer. Lower the floor to `^6.4.4` or publish
-astro `6.4.8`.
+The downstream suite is green (521 tests, no regressions). Correction to an
+earlier note in this entry: the `@refarm.dev/ds-astro` peer `astro: ^6.4.8` was
+**not** a peer-floor-ahead-of-ecosystem defect. Astro `6.4.8` already exists (the
+6.x line reaches 6.4.8; astro latest is `7.0.6`); the unmet peer was only
+`vault-seed`'s stale lockfile pinned at `6.4.4`, fixed downstream by bumping to
+`^6.4.8` (`pnpm peers check` clean, `site:build` green). The genuine forward note
+is narrower: `^6.4.8` (`< 7`) excludes astro 7, so widen the peer to
+`^6.4.8 || ^7` (or `>=6.4.8`) before a consumer moves to astro 7.
 
 ### Additional Assimilation Matrix
 
