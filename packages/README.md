@@ -57,7 +57,7 @@ and downstream proofs exist.
 | [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic record/note enrichment provider contract with dry-run/apply evidence, diagnostics, and provenance | consumer-proven; `vault-seed-ready`; held |
 | [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Graph/content envelope for records, sections, relations, attachments, source references, hashes, and review state; YAML-LD codec lives at the package subpath | consumer-proven; `vault-seed-ready`; held |
 | [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX frontmatter, wikilink, and inline-link projection into `records:v1` records without owning acquisition or rendering | candidate; `vault-seed-ready`; held |
-| [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers without owning provider adapters or Homestead runtime | downstream-proven candidate; next selection refresh |
+| [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers without owning provider adapters or Homestead runtime | consumer-proven; `vault-seed-ready`; held |
 
 ## 🌿 Native Skill Surface Contract
 
@@ -114,6 +114,7 @@ CLI labels, copy, notebooks, routes, and UX.
 | [`@refarm.dev/identity-heartwood`](./identity-heartwood) | Heartwood-backed Ed25519 `identity:v1` reference provider | `vault-seed-ready`; held |
 | [`@refarm.dev/source-web`](./source-web) | Authenticated-web replay fixture adapter over `source:v1` | consumer-proven; `vault-seed-ready`; held |
 | [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX projection helpers for frontmatter, wikilinks, inline links, and valid `records:v1` output | candidate; `vault-seed-ready`; held |
+| [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers | consumer-proven; `vault-seed-ready`; held |
 
 ## 🔖 Plugin Metadata
 This layer waits for the Pi and multi-layer plugin architecture proofs before entering the release lane.

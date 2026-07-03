@@ -53,7 +53,7 @@ app shell.
 
 5. **Given** the `vault-seed-ready` handoff selection
    **When** release readiness is checked
-   **Then** `@refarm.dev/local-surface` stays out of the current selection until the downstream proof is folded into a release-lane refresh.
+   **Then** `@refarm.dev/local-surface` selected in `vault-seed-ready` after downstream proof.
 
 ---
 

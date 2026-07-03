@@ -62,6 +62,7 @@ channel, not a public npm publication promise.
 - `@refarm.dev/credentials-contract-v1`
 - `@refarm.dev/identity-heartwood`
 - `@refarm.dev/source-web`
+- `@refarm.dev/local-surface`
 
 Validation:
 
@@ -123,8 +124,7 @@ Markdown links as projected metadata, emits valid `records:v1` records, and
 leaves folder mapping, note vocabulary, rendering, and vault UX downstream-owned.
 
 `@refarm.dev/local-surface` is implemented as the T2 local-first surface
-candidate and now has a downstream `vault-seed` candidate proof, but is not
-selected in `vault-seed-ready` until the release lane is refreshed. It owns a
+consumer-proven candidate and is now selected in `vault-seed-ready` after the downstream proof. It owns a
 provider-neutral `local-surface:v1` manifest, DS-backed static HTML rendering,
 white-label launch plan, and `quality:v1` report helper. Server binding, route
 branding, storage adapters, provider setup, screenshots, and product UX remain

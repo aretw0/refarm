@@ -474,12 +474,12 @@ test("keeps current vault-seed-ready selection tied to consumer-pull metadata", 
 	});
 
 	assert.equal(manifest.selection.id, "vault-seed-ready");
-	assert.equal(manifest.packages.length, 19);
+	assert.equal(manifest.packages.length, 21);
 	assert.equal(manifest.consumerProofs.length, manifest.packages.length);
 	assert.equal(manifest.distributionEvidence.state, "blocked");
 	assert.equal(manifest.distributionEvidence.availability.currentVerifiedCopies, 0);
-	assert.equal(manifest.distributionEvidence.subject.packageCount, 19);
-	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 19);
+	assert.equal(manifest.distributionEvidence.subject.packageCount, 21);
+	assert.equal(manifest.distributionEvidence.integrity.tarballs.length, 21);
 	assert.equal(manifest.releaseBoundaryAudit.ok, true);
 	assert.equal(manifest.releaseBoundaryAudit.command, "release-boundary-audit");
 	assert.equal(manifest.releaseBoundaryAudit.selectionId, "vault-seed-ready");

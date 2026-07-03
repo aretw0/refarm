@@ -158,6 +158,12 @@ const VAULT_SEED_CONSUMER_PULLS = {
 		proofTarget: "vault-seed can replace local note-to-record, wikilink, and inline-link projection helpers with the generic projection block while retaining its product configuration",
 		ownershipBoundary: "PARA folder mapping, note vocabulary, Obsidian/Foam conventions, and rendering remain downstream",
 	},
+	"@refarm.dev/local-surface": {
+		proofId: "local-surface.white-label-operator-proof",
+		downstreamUse: "Local-first white-label operator surface for vault tasks and agent handoffs",
+		proofTarget: "vault-seed can build a local-surface:v1 manifest, DS-backed HTML, white-label launch plan, and quality:v1 report while keeping routes, screenshots, provider adapters, and product vocabulary downstream-owned",
+		ownershipBoundary: "Server binding, route branding, storage adapters, provider setup, screenshots, and product UX remain downstream",
+	},
 };
 
 const REVENDOR_POLICY = {

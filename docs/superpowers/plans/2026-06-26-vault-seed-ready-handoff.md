@@ -7,7 +7,7 @@
 > Current-state note (2026-07-02): this plan captured the historical 2026-06-26
 > packet, when `homestead-ssr` was still present. ADR-072 removed
 > `homestead-ssr` pre-publication, so the active `vault-seed-ready` selection is
-> now 20 packages and 58 required checks after the T3 consumer proof, selected
+> now 21 packages and 63 required checks after the T3 consumer proof, selected
 > `records-contract-v1` YAML unit gate, T2 credentials pull (`credentials:v1` +
 > identity/storage contracts + Heartwood/storage-memory reference providers),
 > agent-demo public-surface proof, `quality:v1` pull, and generic
@@ -15,15 +15,15 @@
 > handoff manifest as the source of truth for current package lists.
 
 > Refresh (2026-07-03): the current packet was materialized under
-> `.refarm/handoff/vault-seed/2026-07-03/` with 20 tarballs plus
+> `.refarm/handoff/vault-seed/2026-07-03/` with 21 tarballs plus
 > `manifest.json` and `manifest.md`. The generated manifest reports
-> `ok: true`, `acceptance.status: "accepted"`, 20 packages, 4 required gates,
-> 58 required checks, no missing/extra/issues, `distributionEvidence.state:
-> "local-handoff-ready"`, one verified local copy, 20 consumer proofs, and a
+> `ok: true`, `acceptance.status: "accepted"`, 21 packages, 4 required gates,
+> 63 required checks, no missing/extra/issues, `distributionEvidence.state:
+> "local-handoff-ready"`, one verified local copy, 21 consumer proofs, and a
 > clean release-boundary audit. The official `vault-seed` checkout was not
 > visible from this devcontainer during the refresh.
 > Proof receipt (2026-07-03): the official `vault-seed` checkout later copied
-> this packet, verified all 20 tarballs against `manifest.json`, refreshed
+> this packet, verified all 21 tarballs against `manifest.json`, refreshed
 > lockfile integrity, ran focused consumer proofs, and recorded the evidence in
 > `vault-seed` at `docs/convergencia-refarm-proof-2026-07-03.md`.
 > Follow-up in the same date packet: `@refarm.dev/ds` now includes the

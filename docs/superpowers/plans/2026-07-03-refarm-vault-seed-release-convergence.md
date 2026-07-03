@@ -31,7 +31,7 @@ Generated packet:
 - directory: `.refarm/handoff/vault-seed/2026-07-03/`
 - files: 20 package tarballs, `manifest.json`, and `manifest.md`
 - acceptance: accepted
-- checks: 4 required gates, 58 required checks
+- checks: 4 required gates, 63 required checks
 - integrity: no missing tarballs, no extra tarballs, no manifest issues
 - distribution evidence: `local-handoff-ready`
 - boundary audit: ok, 20 audited packages, zero issues
@@ -129,8 +129,8 @@ Official proof summary:
 
 - consumed handoff: `.refarm/handoff/vault-seed/2026-07-03/`
 - source Git SHA: `6a6d31fa2cf5d64fd6abc555448541388beb8077`
-- packet: 20 tarballs, `manifest.json`, `manifest.md`
-- SHA-256 verification: all 20 `vendor/*.tgz` files matched
+- packet: 21 tarballs, `manifest.json`, `manifest.md`
+- SHA-256 verification: all 21 `vendor/*.tgz` files matched
   `vendor/manifest.json`
 - install shape: direct `file:vendor/*.tgz` dependencies plus workspace-level
   pnpm overrides aligned with `consumerInstall.pnpmOverrides`

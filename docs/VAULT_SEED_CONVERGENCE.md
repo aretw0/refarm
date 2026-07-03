@@ -410,7 +410,7 @@ A scratch consumer proof validated the intended adoption shape without
 committing into `vault-seed`: install the DS tarball, import `@refarm.dev/ds/html`,
 and render a `verde-jardim` static document through `documentHtml`. The proof confirms DS classes and theme CSS
 references while keeping `@refarm.dev/homestead` absent from `node_modules`. The
-official consumer checkout assimilated the manifest-bearing 20-tarball packet on 2026-07-03 and verified DS/quality/content/site flows.
+official consumer checkout assimilated the manifest-bearing 21-tarball packet on 2026-07-03 and verified DS/quality/content/site flows.
 Consumer-local semantic tokens remain fallback-only for raw Marimo sessions.
 
 **2026-06-26 process provenance packet:** `@refarm.dev/process-handoff` now proves
@@ -527,8 +527,8 @@ not a public install contract or P2P substrate. After the T3 downstream proof,
 the T2 credentials pull, the agent-demo public-surface proof, and the
 `quality:v1` pull, the active packet was rematerialized under
 `.refarm/handoff/vault-seed/2026-07-03/`: it reports
-`acceptance.status: "accepted"`, 20 packages, 4 required gates, 58 required
-checks, 20 tarballs, `manifest.json`, and `manifest.md` (verified on disk
+`acceptance.status: "accepted"`, 21 packages, 4 required gates, 63 required
+checks, 21 tarballs, `manifest.json`, and `manifest.md` (verified on disk
 2026-07-03). The earlier `2026-07-02/` directory is a superseded partial packet
 — tarballs only, no manifest — and must not be used as a handoff source. The
 official handoff should be copied from the manifest-bearing generated packet

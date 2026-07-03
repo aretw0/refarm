@@ -9,7 +9,7 @@ test("release boundary audit passes for current vault-seed-ready lane", () => {
 	assert.equal(audit.command, "release-boundary-audit");
 	assert.equal(audit.ok, true);
 	assert.equal(audit.selectionId, "vault-seed-ready");
-	assert.equal(audit.auditedPackageCount, 19);
+	assert.equal(audit.auditedPackageCount, 21);
 	assert.deepEqual(audit.issues, []);
 	assert.deepEqual(new Set(audit.auditedPackages), new Set([
 		"@refarm.dev/storage-contract-v1",
@@ -29,6 +29,8 @@ test("release boundary audit passes for current vault-seed-ready lane", () => {
 		"@refarm.dev/identity-heartwood",
 		"@refarm.dev/source-contract-v1",
 		"@refarm.dev/source-web",
+		"@refarm.dev/content-projection",
+		"@refarm.dev/local-surface",
 		"@refarm.dev/enrichment-contract-v1",
 		"@refarm.dev/records-contract-v1",
 	]));

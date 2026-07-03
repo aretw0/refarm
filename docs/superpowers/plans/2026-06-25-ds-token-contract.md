@@ -493,7 +493,7 @@ Per `docs/DEV_CROSS_REPO_CONSUMPTION.md`: `pnpm -C packages/ds pack` → install
   `pnpm run validate:theme`, `node --check scripts/export_notebooks.mjs`,
   `node --test scripts/site_ux_contract.test.js`, and `git diff --check`.
 - Superseded proof note (2026-07-03): the official `vault-seed` checkout later
-  assimilated the manifest-bearing 20-tarball packet, including DS and
+  assimilated the manifest-bearing 21-tarball packet, including DS and
   `@refarm.dev/ds/quality-checker`; see
   `vault-seed/docs/convergencia-refarm-proof-2026-07-03.md`.
 
