@@ -509,20 +509,27 @@ export async function buildModelDoctorStatus(
 	};
 }
 
+/** Build the `model doctor` JSON envelope (probes via injected fetch), shared by
+ * every surface. */
+export async function buildModelDoctorEnvelope(
+	tokens: ModelTokens,
+	deps: Pick<ModelCommandDeps, "fetch" | "isContainer"> = {},
+) {
+	const status = await buildModelDoctorStatus(tokens, deps);
+	return buildJsonSuccessEnvelope({
+		command: "model",
+		operation: "doctor",
+		extra: status,
+		nextActions: modelDoctorRecoveryCommands(status),
+		nextCommands: modelDoctorRecoveryCommands(status),
+	});
+}
+
 async function printModelDoctorJson(
 	tokens: ModelTokens,
 	deps: Pick<ModelCommandDeps, "fetch">,
 ): Promise<void> {
-	const status = await buildModelDoctorStatus(tokens, deps);
-	printJson(
-		buildJsonSuccessEnvelope({
-			command: "model",
-			operation: "doctor",
-			extra: status,
-			nextActions: modelDoctorRecoveryCommands(status),
-			nextCommands: modelDoctorRecoveryCommands(status),
-		}),
-	);
+	printJson(await buildModelDoctorEnvelope(tokens, deps));
 }
 
 async function printModelDoctor(
@@ -604,17 +611,21 @@ export function printCurrentModel(tokens: ModelTokens): void {
 	}
 }
 
-export function printCurrentModelJson(tokens: ModelTokens): void {
+/** Build the `model current` JSON envelope (no I/O) so every surface — CLI, the
+ * REPL /model capability, an API — returns the identical result. */
+export function buildCurrentModelEnvelope(tokens: ModelTokens) {
 	const status = buildCurrentModelStatus(tokens);
-	printJson(
-		buildJsonSuccessEnvelope({
-			command: "model",
-			operation: "current",
-			extra: status,
-			nextActions: currentModelNextActions(status),
-			nextCommands: currentModelNextCommands(status),
-		}),
-	);
+	return buildJsonSuccessEnvelope({
+		command: "model",
+		operation: "current",
+		extra: status,
+		nextActions: currentModelNextActions(status),
+		nextCommands: currentModelNextCommands(status),
+	});
+}
+
+export function printCurrentModelJson(tokens: ModelTokens): void {
+	printJson(buildCurrentModelEnvelope(tokens));
 }
 
 function currentModelNextActions(status: CurrentModelStatus): string[] {
@@ -960,16 +971,19 @@ export function printKnownModelProviders(): void {
 	);
 }
 
+/** Build the `model providers` JSON envelope (no I/O), shared by every surface. */
+export function buildKnownModelProvidersEnvelope() {
+	return buildJsonSuccessEnvelope({
+		command: "model",
+		operation: "providers",
+		extra: { providers: buildKnownModelProviders() },
+		nextCommand: MODEL_CURRENT_JSON_COMMAND,
+		nextCommands: [MODEL_CURRENT_JSON_COMMAND],
+	});
+}
+
 export function printKnownModelProvidersJson(): void {
-	printJson(
-		buildJsonSuccessEnvelope({
-			command: "model",
-			operation: "providers",
-			extra: { providers: buildKnownModelProviders() },
-			nextCommand: MODEL_CURRENT_JSON_COMMAND,
-			nextCommands: [MODEL_CURRENT_JSON_COMMAND],
-		}),
-	);
+	printJson(buildKnownModelProvidersEnvelope());
 }
 
 export async function setModelRoute(
