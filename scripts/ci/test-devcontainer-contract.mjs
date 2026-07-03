@@ -113,6 +113,31 @@ test("devcontainer keeps runtime mutable state inside the workspace", () => {
 	assert.match(tractorStart, /export XDG_DATA_HOME/);
 });
 
+test("devcontainer persists consumer source checkouts in an intentional named volume", () => {
+	const config = readJson(".devcontainer/devcontainer.json");
+	const sourceCacheConfig = readJson("refarm.consumer-source-caches.json");
+	const postCreate = readFileSync(".devcontainer/post-create.sh", "utf8");
+	const postStart = readFileSync(".devcontainer/post-start.sh", "utf8");
+	const farm = readFileSync(".devcontainer/farm", "utf8");
+
+	assert.equal(sourceCacheConfig.schemaVersion, 1);
+	assert.equal(sourceCacheConfig.cacheRoot, "/home/vscode/.cache/checkouts");
+	assert.equal(sourceCacheConfig.devcontainerVolume, "refarm-source-checkouts");
+	const targetIds = sourceCacheConfig.targets.map((target) => target.id);
+	assert.ok(targetIds.includes("agents-lab"));
+	assert.ok(targetIds.includes("vault-seed"));
+	assert.equal(config.containerEnv.REFARM_SOURCE_CACHE_ROOT, sourceCacheConfig.cacheRoot);
+	assert.ok(
+		config.mounts.includes("source=refarm-source-checkouts,target=/home/vscode/.cache/checkouts,type=volume"),
+		"source checkouts must survive devcontainer rebuilds in a named volume",
+	);
+	assert.match(postCreate, /export REFARM_SOURCE_CACHE_ROOT="\$\{REFARM_SOURCE_CACHE_ROOT:-\/home\/vscode\/\.cache\/checkouts\}"/);
+	assert.match(postCreate, /"\$REFARM_SOURCE_CACHE_ROOT"/);
+	assert.match(postStart, /export REFARM_SOURCE_CACHE_ROOT="\$\{REFARM_SOURCE_CACHE_ROOT:-\/home\/vscode\/\.cache\/checkouts\}"/);
+	assert.match(postStart, /repair_owned_dir "\$REFARM_SOURCE_CACHE_ROOT"/);
+	assert.match(farm, /export REFARM_SOURCE_CACHE_ROOT=\/home\/\$\{TARGET_USER\}\/\.cache\/checkouts/);
+});
+
 test("devcontainer keeps Rust target artifacts inside the workspace cache", () => {
 	const config = readJson(".devcontainer/devcontainer.json");
 	const cargoConfig = readFileSync(".cargo/config.toml", "utf8");

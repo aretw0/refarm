@@ -34,6 +34,8 @@
 		"test:capabilities": "node scripts/ci/test-capabilities.mjs",
 		"source:librarian:smoke": "node scripts/ci/smoke-source-git-librarian.mjs",
 		"source:librarian:local-smoke": "node scripts/ci/smoke-source-local-librarian.mjs",
+		"consumer:sources:cache": "pnpm -C packages/source-git run build && node scripts/ci/ensure-consumer-source-caches.mjs",
+		"consumer:sources:cache:test": "pnpm -C packages/source-git run build && node --test scripts/ci/test-ensure-consumer-source-caches.mjs",
 		"test-runner:contracts": "node scripts/ci/check-test-runner-contracts.mjs",
 		"test-runner:contracts:test": "node --test scripts/ci/test-check-test-runner-contracts.mjs",
 		"gate:smoke:foundation": "node scripts/ci/gate-smoke-foundation.mjs",

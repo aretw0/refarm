@@ -12,11 +12,10 @@ import {
 	verifySkillSource,
 } from "../../packages/skill-contract-v1/dist/index.js";
 import { buildAgentsLabSkillConventionReview } from "./agents-lab-skill-convention-review.mjs";
+import { aretw0CheckoutPath } from "./consumer-source-cache-paths.mjs";
 
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const DEFAULT_SOURCE_DIR =
-	process.env.AGENTS_LAB_SOURCE_DIR ??
-	"/home/vscode/.cache/checkouts/github.com/aretw0/agents-lab";
+const DEFAULT_SOURCE_DIR = process.env.AGENTS_LAB_SOURCE_DIR ?? aretw0CheckoutPath("agents-lab");
 const DEFAULT_SOURCE_URI = "fixture:agents-lab/git-workflow-refarm-wrapper/SKILL.md";
 const SCHEMA_VERSION = 1;
 

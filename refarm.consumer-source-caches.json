@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "cacheRoot": "/home/vscode/.cache/checkouts",
+  "devcontainerVolume": "refarm-source-checkouts",
+  "targets": [
+    {
+      "id": "agents-lab",
+      "ref": "aretw0/agents-lab",
+      "purpose": "external skill and agent-lab primitive source evidence"
+    },
+    {
+      "id": "vault-seed",
+      "ref": "aretw0/vault-seed",
+      "purpose": "official downstream consumer source evidence for Refarm handoffs"
+    }
+  ]
+}

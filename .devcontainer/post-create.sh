@@ -11,6 +11,7 @@ export REFARM_WORKSPACE_HOST_WRITE_LOCK="${REFARM_WORKSPACE_HOST_WRITE_LOCK:-1}"
 export REFARM_HOME="${REFARM_HOME:-$ROOT/.refarm}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
 export REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
+export REFARM_SOURCE_CACHE_ROOT="${REFARM_SOURCE_CACHE_ROOT:-/home/vscode/.cache/checkouts}"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/.cache/cargo-target}"
 PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
 
@@ -179,6 +180,7 @@ for dir in \
   /home/vscode/.codex \
   /home/vscode/.turbo \
   /home/vscode/.cache \
+  "$REFARM_SOURCE_CACHE_ROOT" \
   /home/vscode/.cache/ms-playwright \
   /home/vscode/.cache/puppeteer \
   "$CARGO_TARGET_DIR"

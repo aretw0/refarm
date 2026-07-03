@@ -3,11 +3,10 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildAgentsLabSkillSourceReview } from "./agents-lab-skill-source-review.mjs";
+import { aretw0CheckoutPath } from "./consumer-source-cache-paths.mjs";
 
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const DEFAULT_SOURCE_DIR =
-	process.env.AGENTS_LAB_SOURCE_DIR ??
-	"/home/vscode/.cache/checkouts/github.com/aretw0/agents-lab";
+const DEFAULT_SOURCE_DIR = process.env.AGENTS_LAB_SOURCE_DIR ?? aretw0CheckoutPath("agents-lab");
 const SCHEMA_VERSION = 1;
 const GIT_WORKFLOW_SKILL_ID = "git-skills";
 

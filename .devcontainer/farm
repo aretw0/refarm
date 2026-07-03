@@ -37,6 +37,7 @@ export REFARM_WORKSPACE_HOST_WRITE_LOCK=1
 export REFARM_HOME=${PROJECT_DIR}/.refarm
 export XDG_DATA_HOME=${REFARM_HOME}/data
 export REFARM_STREAMS_DIR=${REFARM_HOME}/streams
+export REFARM_SOURCE_CACHE_ROOT=/home/${TARGET_USER}/.cache/checkouts
 export CARGO_HOME=/usr/local/cargo
 export RUSTUP_HOME=/usr/local/rustup
 export CARGO_TARGET_DIR=${PROJECT_DIR}/.cache/cargo-target

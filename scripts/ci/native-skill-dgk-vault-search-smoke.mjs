@@ -20,11 +20,10 @@ import {
 	prepareSkillInvocationPlan,
 	verifySkillSource,
 } from "../../packages/skill-contract-v1/dist/index.js";
+import { aretw0CheckoutPath } from "./consumer-source-cache-paths.mjs";
 
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const DEFAULT_SOURCE_DIR =
-	process.env.VAULT_SEED_SOURCE_DIR ??
-	"/home/vscode/.cache/checkouts/github.com/aretw0/vault-seed";
+const DEFAULT_SOURCE_DIR = process.env.VAULT_SEED_SOURCE_DIR ?? aretw0CheckoutPath("vault-seed");
 const DEFAULT_SKILL_NAME = "vault-search";
 const DEFAULT_SOURCE_URI = "fixture:vault-seed/dgk-vault-search-refarm-wrapper/SKILL.md";
 const DEFAULT_ASSET_PATH = "skills/dgk-vault-search-refarm-wrapper/SKILL.md";

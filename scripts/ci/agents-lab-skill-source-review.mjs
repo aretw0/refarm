@@ -5,11 +5,10 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { buildAgentsLabSkillImportManifest } from "./agents-lab-skill-import-manifest.mjs";
+import { aretw0CheckoutPath } from "./consumer-source-cache-paths.mjs";
 
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const DEFAULT_SOURCE_DIR =
-	process.env.AGENTS_LAB_SOURCE_DIR ??
-	"/home/vscode/.cache/checkouts/github.com/aretw0/agents-lab";
+const DEFAULT_SOURCE_DIR = process.env.AGENTS_LAB_SOURCE_DIR ?? aretw0CheckoutPath("agents-lab");
 const SCHEMA_VERSION = 1;
 
 const REVIEW_TARGETS = {
