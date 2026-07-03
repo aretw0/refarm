@@ -79,6 +79,10 @@ const channelPolicyBridgeSpec = readFileSync(
 	path.join(ROOT, "specs/features/2026-06-26-channel-policy-bridge.md"),
 	"utf8",
 );
+const processHandoffBridgeSpec = readFileSync(
+	path.join(ROOT, "specs/features/2026-06-26-process-handoff-provenance-bridge.md"),
+	"utf8",
+);
 
 function escapeRegExp(value) {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -228,6 +232,8 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(releaseGateDoc, /official downstream proof verified the 2026-07-03 handoff tarballs and quality\/content\/site flows/);
 	assert.match(releaseGateDoc, /consumer-proven in `vault-seed-ready`; public publish still waits on develop stabilization and release lane/);
 	assert.match(releaseGateDoc, /Official `vault-seed` proof confirms `@aretw0\/dgk-runner` and `dgk-cli` import the SDK internally/);
+	assert.match(processHandoffBridgeSpec, /IMPLEMENTED - downstream proof received; public publish waits on the release lane/);
+	assert.match(processHandoffBridgeSpec, /official 2026-07-03 downstream proof confirms the runner and\s+CLI import the SDK internally/);
 	assert.match(releaseGateDoc, /Official `vault-seed` proof confirms the publication outbox emits `refarm\.channel-delivery-envelope\.v1`/);
 	assert.match(releaseGateDoc, /Official `vault-seed` proof emits a validated `refarm\.task-artifacts\.v1` manifest/);
 	assert.match(vaultSeedConvergenceDoc, /Official proof received \(2026-07-03\): `vault-seed` now has `@aretw0\/dgk-runner`/);
@@ -246,6 +252,8 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.doesNotMatch(releaseGateDoc, /v0\.1 primitive once the outside `vault-seed` checkout emits the manifest proof/);
 	assert.doesNotMatch(releaseGateDoc, /v0\.1 candidate once the outside `vault-seed` checkout emits the neutral envelope/);
 	assert.doesNotMatch(releaseGateDoc, /artifact\/lab evidence.*v0\.1 candidate once the outside `vault-seed` checkout emits the manifest proof/);
+	assert.doesNotMatch(processHandoffBridgeSpec, /ACTIVE - Refarm-side proof/);
+	assert.doesNotMatch(processHandoffBridgeSpec, /until the downstream runner elects to import the SDK/);
 	assert.doesNotMatch(vaultSeedConvergenceDoc, /The official `vault-seed` proof remains downstream: `@aretw0\/dgk-runner`/);
 	assert.doesNotMatch(vaultSeedConvergenceDoc, /The official proof remains downstream: `vault-seed` should emit\s+`refarm\.task-artifacts\.v1` manifests/);
 	assert.doesNotMatch(vaultSeedConvergenceDoc, /The official proof remains downstream: the `vault-seed` Telegram\s+adapter should emit/);

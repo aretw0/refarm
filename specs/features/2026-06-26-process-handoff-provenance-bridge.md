@@ -1,6 +1,6 @@
 # Spec: Launch Process Provenance Bridge (Roadmap Item 8c)
 
-**Status:** ACTIVE - Refarm-side proof
+**Status:** IMPLEMENTED - downstream proof received; public publish waits on the release lane
 **Date:** 2026-06-26
 **Related:** `docs/VAULT_SEED_CONVERGENCE.md`,
 `specs/features/2026-06-25-consumer-bridges-activation.md`
@@ -33,7 +33,9 @@ compatibility between:
 
 The first Refarm-side proof is a leaf package test that builds a runner process
 spec and validates a `TaskArtifactManifest` carrying that exact process object
-as provenance.
+as provenance. The official 2026-07-03 downstream proof confirms the runner and
+CLI import the SDK internally while preserving the existing `run(cmd, args, opts)`
+API and command UX.
 
 ## Boundary
 
@@ -56,11 +58,15 @@ Downstream owns:
   validates as artifact provenance without shell-splitting.
 - `@refarm.dev/process-handoff` is the process adapter package selected by
   `vault-seed-ready`.
+- The official 2026-07-03 downstream proof confirms the runner and CLI import
+  the SDK internally while keeping publish-hold and no-raw-`child_process`
+  guardrails green.
 - `@refarm.dev/cli/process-handoff` stays as a CLI re-export.
 - `@refarm.dev/artifact-contract-v1` remains independent of the process package.
 
 ## Rollback
 
 Downstream CLIs can continue using their injected runner unchanged. The Refarm
-bridge is additive until the downstream runner elects to import the SDK
-internally and emit artifact manifests.
+bridge is additive; if the downstream import is removed, consumers keep their
+existing runner API and local command UX while the release lane drops the
+consumer-proven claim.
