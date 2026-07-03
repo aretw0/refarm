@@ -31,3 +31,38 @@ Diretório raiz no OPFS: `/refarm/barn/`
 5. **Persist**: `cache.set(pluginId, bytes, metadata)`
 
 Esse contrato é compartilhado por Barn e Tractor, eliminando duplicação de lógica de integridade e instalação.
+
+## Análogo Node: ledger `.refarm/` (host bootstrap)
+
+No browser, o layout acima vive em OPFS. No Node, o análogo durável é um ledger
+`.refarm/` persistido pelo `@refarm.dev/storage-fs` — o **backend de bootstrap**
+que o host garante (não é plugin; ver [ADR-082](../../../specs/ADRs/ADR-082-storage-provider-bootstrap-boundary.md)).
+Dois eixos independentes, escritos atomicamente (tmp+rename, dir `0700` / arquivo
+`0600`):
+
+```text
+<scope>/.refarm/
+├── barn/
+│   ├── implements/          # bytes WASM verificados (análogo Node do OPFS)
+│   ├── metadata/            # metadados do artefato
+│   └── ledger.json          # install records (StorageRecord type=install-record)
+└── config/
+    └── overrides.json       # config-override do usuário/workspace (type=config-override)
+```
+
+- **`<scope>`**: `~/.refarm` (usuário, vale em todos os projetos) ou `./.refarm`
+  (workspace, checkável). A precedência é **workspace vence sobre usuário**, e
+  ambos sobrepõem o manifesto original (nunca o editam). A ordem de aplicação é
+  resolvida por `orderedScopeStorePaths` em `storage-fs/scope.ts`.
+- **Records vs bytes são irmãos** (ADR-082): `ledger.json`/`overrides.json` são
+  `StorageRecord`s JSON via `StorageProvider`; os bytes WASM em `implements/`
+  seguem pelo `PluginBinaryCacheAdapter` (`ArrayBuffer`) — mesmo eixo de backend,
+  contratos de dado diferentes.
+- **install record ≠ config-override**: o install record é uma *observação*
+  (§0 — nunca editar) espelhando o manifesto; o override é o *modelo do usuário*.
+  Proveniências diferentes → arquivos/`type`s diferentes.
+
+> A auditoria `INSTALL_FLOW_AUDIT_20260423.md` (T-PLUGIN-01) apontou que a
+> persistência Node do Barn era process-local (in-memory, sem catálogo durável).
+> O `storage-fs` fecha esse gap; falta o Barn **injetar** o provider (pendência
+> registrada no ADR-082).

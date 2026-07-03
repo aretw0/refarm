@@ -49,6 +49,49 @@ Representa uma entrada no catálogo de plugins do Barn. É um tipo de `Sovereign
 *   `refarm:accessControl`: **Controle Fino de Grafo**. Define em quais branches do Sovereign Graph o plugin pode ler/escrever. O padrão para novos plugins deve ser restrito (ex: apenas branch `experimental`).
 *   `refarm:manifest`: Objeto contendo o `PluginManifest` completo.
 
+## `refarm:ConfigOverride` (irmão do `PluginCatalogEntry`)
+
+Enquanto o `PluginCatalogEntry` é a **observação** do que foi instalado (espelho
+read-only do manifesto — §0, nunca editar), o `ConfigOverride` é o **modelo do
+usuário**: a config que a pessoa completou/ajustou *depois*, persistida à parte
+para **nunca tocar o manifesto/`SKILL.md` original** (que pode nem ser nosso).
+Proveniências diferentes → registros/arquivos diferentes. Persistido via
+`@refarm.dev/storage-fs` em `<scope>/.refarm/config/overrides.json` como um
+`StorageRecord` de `type: "config-override"`.
+
+```json
+{
+  "@context": "https://schema.org/",
+  "@type": "refarm:ConfigOverride",
+  "@id": "urn:refarm:config-override:<plugin-id>",
+  "refarm:targetPlugin": "urn:refarm:plugin:<plugin-id>",
+  "refarm:scope": "workspace", // ou "user"
+  "refarm:capabilities": ["network:fetch"], // additivo sobre o manifesto
+  "refarm:disabled": false,                  // desliga a extensão sem desinstalar
+  "refarm:exclude": ["surface-id-a"],        // surfaces do plugin a ignorar
+  "refarm:updatedAt": "2026-07-03T12:00:00Z"
+}
+```
+
+### Propriedades
+
+*   `refarm:targetPlugin`: `@id` do `PluginCatalogEntry` que este override ajusta
+    (cross-reference por `pluginId`; **não** duplica os campos do install record).
+*   `refarm:scope`: `user` (`~/.refarm`) ou `workspace` (`./.refarm`). A
+    precedência é **workspace vence**, e ambos sobrepõem o manifesto (ver
+    [ADR-082](../../../specs/ADRs/ADR-082-storage-provider-bootstrap-boundary.md)
+    e `STORAGE_LAYOUT.md`).
+*   `refarm:capabilities`: capabilities que o usuário declarou para amadurecer uma
+    extensão *permissiva* → *complete*, **additivas** ao manifesto.
+*   `refarm:disabled` / `refarm:exclude`: resolução explícita de conflito entre
+    extensões (dois plugins declarando o mesmo `layer:kind:id`) — o host explica o
+    conflito (estilo pi.dev) e a resolução é por precedência → disable explícito,
+    **nunca** auto-rename (ids são identidade de capability grants).
+
+O fold `manifesto ⊕ override(user) ⊕ override(workspace)` é feito por um helper
+puro `composeEffectiveManifest(manifest, overrides[])` (em `plugin-manifest`,
+sem fs); o Barn fornece a lista ordenada de overrides lida do ledger.
+
 ## Relação com o `refarm:plugin/types.wit`
 
 O `plugin-entry` definido no `refarm-barn.wit` será uma representação mais concisa e tipada dos dados essenciais do `refarm:PluginCatalogEntry` para uso interno do Tractor e dos plugins. O `refarm:PluginCatalogEntry` em JSON-LD é a representação canônica no Sovereign Graph.

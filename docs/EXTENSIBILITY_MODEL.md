@@ -21,6 +21,43 @@ Refarm should unlock extension without locking the ecosystem into one runtime. T
 | `desktop`    | native/OS integration             | file watchers, tray/menu actions, platform affordances          | isolated permissions and rollback path exist             |
 | `asset`      | cache/CDN/OPFS                    | themes, templates, dictionaries, model files                    | integrity checked and garbage-collectable                |
 
+## Persistence & the bootstrap boundary
+
+Every surface above eventually needs to persist something — an install record, a
+config override, a scheduler entry, cached bytes. The rule for *who owns the
+mechanism* is the same rule that separates the host from a plugin everywhere
+else: **does some plugin need this to be loaded at all?**
+
+- **Yes → the host guarantees it (bootstrap).** Loading any plugin is already an
+  act of persistence: `Barn.installPlugin` writes the plugin's bytes *before*
+  the plugin runs. So a persistence backend cannot itself be a plugin — that
+  would be circular. The host guarantees the **contract**
+  (`@refarm.dev/storage-contract-v1`'s `StorageProvider`) and **a bootstrap
+  backend** (`@refarm.dev/storage-fs` on Node, OPFS in the browser).
+- **No → a plugin may assume it.** Additional backends (`sqlite`, `rest`,
+  future `p2p`/`s3`) can be plugins, because by the time they load the contract
+  and a bootstrap backend already exist. A backend plugin just implements the
+  seven `StorageProvider` methods and the host registers it as one more choice.
+
+**A plugin (or block) only *intends* persistence — `put`/`get` — and never
+implements the mechanism; the backend is injected by the host.** This is the
+persistence face of "one manifest, many surfaces": the same intent runs over
+fs, OPFS, sqlite, rest, or p2p without the intender knowing which.
+
+Two sibling data contracts share this backend axis but are **not** fused:
+`StorageProvider<record: JSON>` (ledgers, config, state) and
+`PluginBinaryCacheAdapter<bytes: ArrayBuffer>` (WASM). Forcing bytes into a
+JSON string payload would tax the plugin-load hot path, so they stay siblings.
+
+**Config overrides never edit the source.** When a user matures a *permissive*
+extension into *complete* (e.g. declares a skill's capabilities), that config
+is written to a `.refarm/` ledger — `user` (`~/.refarm`) or `workspace`
+(`./.refarm`), workspace winning on conflict — and folded over the manifest by a
+pure `composeEffectiveManifest(manifest, overrides[])`. The original manifest /
+`SKILL.md` (which may not even be ours) is never touched. See
+[ADR-082](../specs/ADRs/ADR-082-storage-provider-bootstrap-boundary.md) and
+`packages/barn/docs/{STORAGE_LAYOUT,SCHEMA}.md`.
+
 ## Skills Are Surfaces, Not A Second Plugin System
 
 The distribution unit stays the package/plugin bundle. A package may carry code
