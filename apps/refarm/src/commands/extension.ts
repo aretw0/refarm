@@ -15,6 +15,11 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { toCommanderCommand } from "./capability-commander.js";
+import {
+	extensionReviewCapability,
+	extensionReviewHooks,
+} from "./extension-review-capability.js";
 import { PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 
 const EXTENSION_LIST_JSON_COMMAND = refarmCommand([
@@ -477,16 +482,6 @@ export function buildExtensionReviewReport(
   });
 }
 
-function parsePolicyMode(value: string | undefined): PluginPolicyMode {
-  if (value === undefined || value === "fail-fast") return "fail-fast";
-  if (value === "warn+continue") return "warn+continue";
-  throw new Error("--policy must be fail-fast or warn+continue");
-}
-
-function collectGrant(value: string, previous: string[] = []): string[] {
-  return [...previous, value];
-}
-
 export const extensionCommand = new Command("extension").description(
   "Manage local JS extensions (no WASM compilation needed)",
 );
@@ -522,77 +517,12 @@ extensionCommand
     await newExtension(name, options.global, { json: options.json });
   });
 
-extensionCommand
-  .command("review <path>")
-  .description(
-    "Review a prepared extension against a capability grant (review-first; installs nothing)",
-  )
-  .option(
-    "--grant <capability>",
-    "Grant a capability for this review (repeatable); default grants none",
-    collectGrant,
-    [],
-  )
-  .option("--policy <mode>", "Policy mode: fail-fast or warn+continue", "fail-fast")
-  .option("--json", "Output machine-readable review report")
-  .action(
-    (
-      targetPath: string,
-      options: { grant?: string[]; policy?: string; json?: boolean },
-    ) => {
-      let report: ExtensionReviewReport;
-      try {
-        report = buildExtensionReviewReport({
-          targetPath,
-          grantedCapabilities: options.grant ?? [],
-          policyMode: parsePolicyMode(options.policy),
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (options.json) {
-          printJson(
-            buildJsonErrorEnvelope({
-              command: "extension",
-              operation: "review",
-              error: "extension_review_failed",
-              message,
-              nextAction:
-                "Run `refarm extension review --help`; point at a prepared extension directory or manifest.",
-            }),
-          );
-        } else {
-          console.error(`Extension review failed: ${message}`);
-        }
-        process.exitCode = 1;
-        return;
-      }
-
-      if (options.json) {
-        printJson(report);
-        if (!report.readyToInstall) process.exitCode = 1;
-        return;
-      }
-
-      const { decision, deniedCapabilities, readyToInstall } = report;
-      console.log(
-        `Extension review: ${decision.pluginId ?? "unknown"} — ${decision.status} (policy: ${decision.policyMode})`,
-      );
-      if (!decision.manifestValid) {
-        for (const err of decision.manifestErrors) {
-          console.log(`  manifest error: ${err}`);
-        }
-      }
-      if (deniedCapabilities.length > 0) {
-        console.log(
-          `  denied capabilities (not granted): ${deniedCapabilities.join(", ")}`,
-        );
-      }
-      console.log(
-        `  ready to install: ${readyToInstall ? "yes" : "no — review required"}`,
-      );
-      if (!readyToInstall) process.exitCode = 1;
-    },
-  );
+// `extension review` is now declared once as a capability descriptor and
+// mounted through the shared commander adapter, so the same declaration drives
+// the CLI subcommand and the REPL `/review` slash.
+extensionCommand.addCommand(
+  toCommanderCommand(extensionReviewCapability, extensionReviewHooks),
+);
 
 extensionCommand
   .command("list")
