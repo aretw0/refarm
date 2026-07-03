@@ -384,6 +384,15 @@ function validateBuildable(pkgDir, pkg) {
     if (!ext.some((e) => e?.includes("buildable.json"))) {
       violations.push("tsconfig.json does not extend @refarm.dev/tsconfig/buildable.json");
     }
+    // ADR-066: whenever outDir is set, rootDir must be explicit (else TS5011 in
+    // TS6+, and a silent IDE error). "src" for a normal package, ".." for one
+    // importing a root-tsconfig-pathed workspace package. This guard used to
+    // only cover hybrid-bindings packages, letting several contract-v1 packages
+    // drift without rootDir — closing that gap here for every buildable package.
+    const rootDir = tsconfig.compilerOptions?.rootDir;
+    if (tsconfig.compilerOptions?.outDir && rootDir !== "src" && rootDir !== "..") {
+      violations.push('tsconfig.json compilerOptions.rootDir must be "src" (or ".." if it imports a root-tsconfig-pathed workspace package)');
+    }
   }
 
   const tsconfigBuild = readJson(join(pkgDir, "tsconfig.build.json"));

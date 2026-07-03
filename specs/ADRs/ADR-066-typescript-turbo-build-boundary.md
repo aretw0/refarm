@@ -140,3 +140,20 @@ Without this, turbo emits `WARNING: no output files found for task X#build`. WAS
 - When adding a new package to root `tsconfig.json` `paths`, audit all its consumers — they may need `rootDir: ".."` in their dev tsconfig
 - When changing a package from source-only (exports `src/*.ts`) to buildable, rebuild all consumers with `--force` to verify no hidden TS6059 errors
 - After any tsconfig preset change, run `pnpm turbo run build --force` to verify no cached failures
+
+---
+
+## Update (2026-07-03): enforcement gap for `rootDir` closed
+
+The invariant "every buildable dev `tsconfig.json` with an `outDir` must set
+`rootDir` explicitly" was real but **only enforced for hybrid-bindings packages**
+(`validateHybridBindingsPackage`). Several `*-contract-v1` packages
+(skill/enrichment/quality/records/source) drifted without `rootDir` in their dev
+tsconfig — their build still passed (the `tsconfig.build.json` carried
+`rootDir: "src"`), but TS 6+ raised a silent IDE-only TS5011 in the dev config.
+
+Fixed: the `rootDir` check moved into the shared `validateBuildable` so it now
+covers **every** buildable package (contract-v1, structural, buildable),
+accepting `"src"` (normal) or `".."` (imports a root-pathed workspace package).
+The doctrine in this ADR is unchanged and still correct — only its enforcement
+coverage was widened to match the scaffold it already prescribed.

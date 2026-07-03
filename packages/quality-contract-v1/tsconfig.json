@@ -1,8 +1,14 @@
 {
-	"extends": ["../../tsconfig.json", "../tsconfig/buildable.json"],
+	"extends": [
+		"../../tsconfig.json",
+		"../tsconfig/buildable.json"
+	],
 	"compilerOptions": {
 		"outDir": "dist",
+		"rootDir": "src",
 		"baseUrl": "../.."
 	},
-	"include": ["src/**/*"]
+	"include": [
+		"src/**/*"
+	]
 }
