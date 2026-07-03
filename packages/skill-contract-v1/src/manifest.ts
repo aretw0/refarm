@@ -854,7 +854,12 @@ function validateCapabilities(value: unknown, path: string, issues: SkillManifes
 		issues.push(issue("CAPABILITIES_NOT_OBJECT", path, "Expected capabilities object."));
 		return;
 	}
-	validateCapabilityArray(value.requires, `${path}.requires`, issues, { requireNonEmpty: true });
+	// `requires` may be empty: a permissive/adhoc skill (name + description +
+	// body, e.g. a pi/claude-code SKILL.md) is a valid manifest. Declaring
+	// capabilities graduates it to `complete` maturity and enables the capability
+	// gate; the activation preflight simply skips an empty requires list. Shape is
+	// still validated (must be an array of valid capability ids).
+	validateCapabilityArray(value.requires, `${path}.requires`, issues);
 	if (value.optional !== undefined) {
 		validateCapabilityArray(value.optional, `${path}.optional`, issues);
 	}

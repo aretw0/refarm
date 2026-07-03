@@ -313,30 +313,38 @@ export async function runSkillContractV1Conformance(
 
 	total++;
 	try {
+		// A capability-less SKILL.md is a valid `permissive` manifest (name +
+		// description + body), not a failure — the contract validates shape, not
+		// completeness. Capabilities graduate it to `complete` maturity.
 		const result = await adapter.parseMarkdown(MISSING_CAPABILITIES_SKILL_MARKDOWN_FIXTURE);
-		if (result.ok || result.manifest) {
-			failures.push("SKILL.md without required capabilities must fail closed");
+		if (!result.ok || !result.manifest) {
+			failures.push("permissive SKILL.md without capabilities must parse");
 		}
-		if (!result.issues.some((item) => item.code === "CAPABILITY_LIST_EMPTY")) {
-			failures.push("missing capabilities failure must report CAPABILITY_LIST_EMPTY");
+		if (result.manifest && result.manifest.capabilities.requires.length !== 0) {
+			failures.push("permissive SKILL.md must have an empty required-capabilities list");
+		}
+		if (result.issues.some((item) => item.code === "CAPABILITY_LIST_EMPTY")) {
+			failures.push("permissive SKILL.md must not report CAPABILITY_LIST_EMPTY");
 		}
 	} catch (error) {
-		failures.push(`parseMarkdown(missing capabilities) threw: ${String(error)}`);
+		failures.push(`parseMarkdown(permissive) threw: ${String(error)}`);
 	}
 
 	total++;
 	if (manifest) {
-		const invalid: SkillManifestV1 = {
+		// A manifest with empty required capabilities is valid (permissive
+		// maturity) — the contract validates shape, not completeness.
+		const permissive: SkillManifestV1 = {
 			...manifest,
 			capabilities: { requires: [] },
 		};
 		try {
-			const result = await adapter.validateManifest(invalid);
-			if (result.ok) {
-				failures.push("validateManifest must reject empty required capabilities");
+			const result = await adapter.validateManifest(permissive);
+			if (!result.ok) {
+				failures.push("validateManifest must accept empty required capabilities (permissive)");
 			}
 		} catch (error) {
-			failures.push(`validateManifest(invalid) threw: ${String(error)}`);
+			failures.push(`validateManifest(permissive) threw: ${String(error)}`);
 		}
 	}
 

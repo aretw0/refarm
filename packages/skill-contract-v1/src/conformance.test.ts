@@ -69,16 +69,18 @@ describe("skill-contract-v1", () => {
 		expect(result.manifest?.id).toMatch(/^urn:refarm:skill:v1:refarm-git-workflow:/);
 	});
 
-	it("fails closed when SKILL.md has no required capabilities", () => {
+	it("accepts a permissive SKILL.md with no required capabilities", () => {
+		// A capability-less skill (name + description + body, like a pi/claude-code
+		// SKILL.md) is a valid manifest at `permissive` maturity — the contract
+		// validates shape, not completeness. Declaring capabilities graduates it.
 		const result = parseSkillMarkdown(MISSING_CAPABILITIES_SKILL_MARKDOWN_FIXTURE);
 
-		expect(result.ok).toBe(false);
-		expect(result.manifest).toBeNull();
-		expect(result.issues).toContainEqual({
-			code: "CAPABILITY_LIST_EMPTY",
-			path: "$.capabilities.requires",
-			message: "Expected at least one required capability.",
-		});
+		expect(result.ok).toBe(true);
+		expect(result.manifest).not.toBeNull();
+		expect(result.manifest?.capabilities.requires).toEqual([]);
+		expect(result.issues).not.toContainEqual(
+			expect.objectContaining({ code: "CAPABILITY_LIST_EMPTY" }),
+		);
 	});
 
 	it("validates manifest source, instructions, and capability envelope", () => {
@@ -111,7 +113,6 @@ describe("skill-contract-v1", () => {
 			ok: false,
 			issues: expect.arrayContaining([
 				expect.objectContaining({ code: "SOURCE_SHA256_INVALID" }),
-				expect.objectContaining({ code: "CAPABILITY_LIST_EMPTY" }),
 				expect.objectContaining({ code: "ENGINE_BINDING_ID_INVALID" }),
 				expect.objectContaining({ code: "VALUE_INVALID", path: "$.io.input.format" }),
 				expect.objectContaining({ code: "INPUT_REQUIRED_INVALID" }),
@@ -697,17 +698,22 @@ describe("skill-contract-v1", () => {
 		expect(result.plan?.requiresHostPolicyApproval).toBe(true);
 	});
 
-	it("fails closed while preparing a SKILL.md without capabilities", () => {
+	it("parses a permissive SKILL.md but does not build a gated invocation plan without capabilities", () => {
+		// A capability-less (permissive) skill is a VALID, addressable manifest —
+		// the parse succeeds. But a *gated invocation plan* (the serious,
+		// policy-approved path) needs at least one capability request to gate, so
+		// preparing that plan for a permissive skill still fails closed. The skill
+		// graduates to a gated plan once it declares capabilities.
 		const result = prepareSkillInvocationPlan(MISSING_CAPABILITIES_SKILL_MARKDOWN_FIXTURE);
 
+		// The manifest parsed (permissive), so the failure is at plan-build, not parse.
+		expect(result.manifest).not.toBeNull();
+		expect(result.manifest?.capabilities.requires).toEqual([]);
 		expect(result.ok).toBe(false);
-		expect(result.manifest).toBeNull();
 		expect(result.plan).toBeNull();
-		expect(result.issues).toContainEqual({
-			code: "CAPABILITY_LIST_EMPTY",
-			path: "$.capabilities.requires",
-			message: "Expected at least one required capability.",
-		});
+		expect(result.issues).toContainEqual(
+			expect.objectContaining({ code: "INVOCATION_CAPABILITY_LIST_EMPTY" }),
+		);
 	});
 
 	it("passes the conformance suite with the reference adapter", async () => {
