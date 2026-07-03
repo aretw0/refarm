@@ -13,8 +13,8 @@ import { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { SyncAdapter } from "@refarm.dev/sync-contract-v1";
 import { CommandHost } from "./lib/command-host.js";
 import {
-  SovereignNode,
-  SovereignSignature
+  NormalisedNode,
+  Signature
 } from "./lib/graph-normalizer.js";
 import {
   PluginHost, PluginState,
@@ -224,7 +224,7 @@ export class Tractor {
     return new Uint8Array(matches.map((byte) => parseInt(byte, 16)));
   }
 
-  async verifyNode(node: SovereignNode): Promise<boolean> {
+  async verifyNode(node: NormalisedNode): Promise<boolean> {
     const signature = node["refarm:signature"];
     if (!signature) return false;
     if (signature.alg === "external" && signature.sig === "delegated") return true;
@@ -271,10 +271,10 @@ export class Tractor {
    * This provides a declarative way to respond to graph changes without
    * manual filtering of the telemetry bus.
    */
-  onNode(type: string, handler: (node: SovereignNode) => Promise<void>) {
+  onNode(type: string, handler: (node: NormalisedNode) => Promise<void>) {
     return this.observe(async (event) => {
       if (event.event !== "storage:node:written") return;
-      const node = event.payload as SovereignNode | undefined;
+      const node = event.payload as NormalisedNode | undefined;
       if (node && node["@type"] === type) {
         await handler(node);
       }
@@ -302,7 +302,7 @@ export class Tractor {
     const previousGuestKey = this._ephemeralKeypair;
     const permanentPubKey = adapter.publicKey;
     if (previousGuestKey && permanentPubKey) {
-      const conversionNode: SovereignNode = {
+      const conversionNode: NormalisedNode = {
         "@context": "https://refarm.dev/schemas/v1",
         "@type": "IdentityConversion",
         "@id": `urn:refarm:identity:conversion:${this.uint8ToHex(previousGuestKey.publicKey)}`,
@@ -328,7 +328,7 @@ export class Tractor {
     this.events.emit({ event: "identity:connected", payload: { publicKey: adapter.publicKey } });
   }
 
-  private async signNodeWithKeypair(node: SovereignNode, keypair: { publicKey: Uint8Array; secretKey: Uint8Array }): Promise<SovereignNode> {
+  private async signNodeWithKeypair(node: NormalisedNode, keypair: { publicKey: Uint8Array; secretKey: Uint8Array }): Promise<NormalisedNode> {
     const data = new TextEncoder().encode(JSON.stringify(node));
     const signature = await ed.signAsync(data, keypair.secretKey);
     return {
@@ -345,12 +345,12 @@ export class Tractor {
     this.events.emit({ event: "system:switch-tier", payload: { tier } });
   }
 
-  async getHelpNodes(): Promise<SovereignNode[]> {
+  async getHelpNodes(): Promise<NormalisedNode[]> {
     const pluginHelp = await this.plugins.getHelpNodes();
     return [this.getSeedNode(), ...pluginHelp];
   }
 
-  getSeedNode(): SovereignNode {
+  getSeedNode(): NormalisedNode {
     return {
       "@context": "https://schema.org/",
       "@type": "HelpPage",
@@ -363,12 +363,12 @@ export class Tractor {
     };
   }
 
-  async storeNode(node: SovereignNode, mode?: SecurityMode): Promise<void> {
+  async storeNode(node: NormalisedNode, mode?: SecurityMode): Promise<void> {
     const startTime = performance.now();
     const securityMode = mode ?? this.defaultSecurityMode;
     let signedNode = node;
     if (securityMode !== "none") {
-      const timestamp = (node as SovereignNode & { timestamp?: string }).timestamp;
+      const timestamp = (node as NormalisedNode & { timestamp?: string }).timestamp;
       if (timestamp) {
         const CLOCK_SKEW_GRACE_MS = 10_000;
         if (new Date(timestamp).getTime() > Date.now() + CLOCK_SKEW_GRACE_MS) {
@@ -411,19 +411,19 @@ export class Tractor {
     });
   }
 
-  async queryNodes<T extends SovereignNode = SovereignNode>(type: string): Promise<T[]> {
+  async queryNodes<T extends NormalisedNode = NormalisedNode>(type: string): Promise<T[]> {
     const rows = await this.storage.queryNodes(type);
     this.events.emit({ event: "storage:io", payload: { type, action: "query" } });
     return rows.map((r) => JSON.parse((r as { payload: string }).payload) as T);
   }
 
-  async signNode(node: SovereignNode): Promise<SovereignNode> {
+  async signNode(node: NormalisedNode): Promise<NormalisedNode> {
     const pubKey = this._ephemeralKeypair ? this.uint8ToHex(this._ephemeralKeypair.publicKey) : this.identity.publicKey;
     if (!pubKey) throw new Error("[tractor] Action blocked: You must be in Guest or Permanent mode to sign and store data.");
     const { "refarm:signature": _s, "refarm:signatures": _ss, ...pureNode } = node;
     const nodeData = JSON.stringify(pureNode);
     const dataEncoded = new TextEncoder().encode(nodeData);
-    let signature: SovereignSignature;
+    let signature: Signature;
     if (this._ephemeralKeypair) {
       const sigData = await ed.signAsync(dataEncoded, this._ephemeralKeypair.secretKey);
       signature = { pubkey: pubKey, sig: this.uint8ToHex(sigData), alg: "ed25519" };
@@ -435,7 +435,7 @@ export class Tractor {
     }
     const newNode = { ...node };
     if (newNode["refarm:signature"]) {
-      const existingSigs = newNode["refarm:signatures"] || [newNode["refarm:signature"] as SovereignSignature];
+      const existingSigs = newNode["refarm:signatures"] || [newNode["refarm:signature"] as Signature];
       newNode["refarm:signatures"] = [...existingSigs, signature];
       newNode["refarm:signature"] = signature;
     } else {

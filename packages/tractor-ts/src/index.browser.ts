@@ -20,7 +20,7 @@ import {
 } from "@refarm.dev/plugin-manifest";
 import { Registry } from "@refarm.dev/registry";
 import { CommandHost } from "./lib/command-host.js";
-import type { SovereignNode } from "./lib/graph-normalizer.js";
+import type { NormalisedNode } from "./lib/graph-normalizer.js";
 import type { PluginInstance, PluginState } from "./lib/instance-handle.js";
 import {
 	getCachedPlugin,
@@ -629,8 +629,8 @@ export class PluginHost {
 		}
 	}
 
-	async getHelpNodes(): Promise<SovereignNode[]> {
-		const nodes: SovereignNode[] = [];
+	async getHelpNodes(): Promise<NormalisedNode[]> {
+		const nodes: NormalisedNode[] = [];
 		for (const plugin of this.instances.values()) {
 			try {
 				const pluginNodes = (await plugin.call("get-help-nodes")) as unknown[];
@@ -692,7 +692,7 @@ export {
 export const TRACTOR_VERSION: string =
 	(import.meta as ViteImportMeta).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
 
-type BrowserNodeHandler = (node: SovereignNode) => void | Promise<void>;
+type BrowserNodeHandler = (node: NormalisedNode) => void | Promise<void>;
 type BrowserTelemetryHandler = (event: TelemetryEvent) => void | Promise<void>;
 
 /**
@@ -760,7 +760,7 @@ export class Tractor {
 		this.nodeHandlers.set(type, handlers);
 	}
 
-	async storeNode(node: SovereignNode): Promise<void> {
+	async storeNode(node: NormalisedNode): Promise<void> {
 		const nodeType = String(node["@type"] ?? node.type ?? "");
 		if (!nodeType) return;
 		for (const handler of this.nodeHandlers.get(nodeType) ?? []) {
@@ -768,7 +768,7 @@ export class Tractor {
 		}
 	}
 
-	async getHelpNodes(): Promise<SovereignNode[]> {
+	async getHelpNodes(): Promise<NormalisedNode[]> {
 		return this.plugins.getHelpNodes();
 	}
 

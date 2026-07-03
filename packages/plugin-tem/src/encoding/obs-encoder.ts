@@ -1,7 +1,7 @@
 /**
  * Struct-aware observation encoder for TEM.
  *
- * Converts a SovereignNode + TelemetryEvent into a 64-dimensional Float32Array
+ * Converts a NormalisedNode + TelemetryEvent into a 64-dimensional Float32Array
  * using stable dimensional slots derived from the JSON-LD ontology.
  *
  * The encoder is designed to be injectable (see ObsEncoder interface) so that
@@ -20,7 +20,7 @@ import {
 } from "./schema-slots";
 
 /** Any JSON-LD-like node shape accepted by the encoder. */
-export interface SovereignNodeLike {
+export interface NormalisedNodeLike {
   "@type"?: string | string[];
   "@id"?: string;
   "@context"?: unknown;
@@ -54,7 +54,7 @@ export interface TelemetryEventLike {
  * v2 implementation: TransformersJsEncoder (semantic embedding via findByApi).
  */
 export interface ObsEncoder {
-  encode(node: SovereignNodeLike | null, event: TelemetryEventLike): Float32Array;
+  encode(node: NormalisedNodeLike | null, event: TelemetryEventLike): Float32Array;
 }
 
 /**
@@ -63,7 +63,7 @@ export interface ObsEncoder {
  */
 export class StructAwareEncoder implements ObsEncoder {
   encode(
-    node: SovereignNodeLike | null,
+    node: NormalisedNodeLike | null,
     event: TelemetryEventLike,
   ): Float32Array {
     const vec = new Float32Array(N_X);
@@ -101,7 +101,7 @@ export class StructAwareEncoder implements ObsEncoder {
 
   private encodeIdentity(
     vec: Float32Array,
-    node: SovereignNodeLike | null | undefined,
+    node: NormalisedNodeLike | null | undefined,
     pluginId?: string,
   ): void {
     const { offset, width } = SLOTS.identity;
@@ -115,7 +115,7 @@ export class StructAwareEncoder implements ObsEncoder {
 
   private encodeRelational(
     vec: Float32Array,
-    node: SovereignNodeLike | null | undefined,
+    node: NormalisedNodeLike | null | undefined,
   ): void {
     const { offset, width } = SLOTS.relational;
     if (!node) return;
@@ -131,7 +131,7 @@ export class StructAwareEncoder implements ObsEncoder {
 
   private encodeTemporal(
     vec: Float32Array,
-    node: SovereignNodeLike | null | undefined,
+    node: NormalisedNodeLike | null | undefined,
     durationMs?: number,
   ): void {
     const { offset, width } = SLOTS.temporal;
@@ -155,7 +155,7 @@ export class StructAwareEncoder implements ObsEncoder {
 
   private encodePayload(
     vec: Float32Array,
-    node: SovereignNodeLike | null | undefined,
+    node: NormalisedNodeLike | null | undefined,
     event: TelemetryEventLike,
   ): void {
     const { offset, width } = SLOTS.payload;

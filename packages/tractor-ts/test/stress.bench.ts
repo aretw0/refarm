@@ -10,7 +10,7 @@
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { Registry } from "@refarm.dev/registry";
 import { bench, describe, vi } from "vitest";
-import { PluginHost, Tractor, normaliseToSovereignGraph } from "../src/index";
+import { PluginHost, Tractor, normaliseToGraph } from "../src/index";
 import { createMockConfig } from "./helpers/mock-adapters";
 
 vi.mock("@refarm.dev/heartwood", () => ({
@@ -127,7 +127,7 @@ describe("Storage Throughput", () => {
   bench("storeNode() x1", async () => {
     const config = createSilentBenchConfig();
     const tractor = await Tractor.boot(config);
-    const node = normaliseToSovereignGraph(
+    const node = normaliseToGraph(
       { "@id": "urn:bench:1", name: "Bench" },
       "bench-plugin",
       "BenchNode"
@@ -140,7 +140,7 @@ describe("Storage Throughput", () => {
     const config = createSilentBenchConfig();
     const tractor = await Tractor.boot(config);
     for (let i = 0; i < 100; i++) {
-      const node = normaliseToSovereignGraph(
+      const node = normaliseToGraph(
         { "@id": `urn:bench:${i}`, name: `N${i}` },
         "bench-plugin",
         "BenchNode"
@@ -155,7 +155,7 @@ describe("Storage Throughput", () => {
     const tractor = await Tractor.boot(config);
     await Promise.all(
       Array.from({ length: 100 }, (_, i) => {
-        const node = normaliseToSovereignGraph(
+        const node = normaliseToGraph(
           { "@id": `urn:bench:${i}`, name: `N${i}` },
           "bench-plugin",
           "BenchNode"
@@ -170,13 +170,13 @@ describe("Storage Throughput", () => {
 // ─── Normaliser ──────────────────────────────────────────────────────────────
 
 describe("Normaliser", () => {
-  bench("normaliseToSovereignGraph() x1", () => {
-    normaliseToSovereignGraph({ name: "test" }, "p1", "T1");
+  bench("normaliseToGraph() x1", () => {
+    normaliseToGraph({ name: "test" }, "p1", "T1");
   });
 
-  bench("normaliseToSovereignGraph() x1000", () => {
+  bench("normaliseToGraph() x1000", () => {
     for (let i = 0; i < 1000; i++) {
-      normaliseToSovereignGraph({ name: `item-${i}` }, "p1", "T1");
+      normaliseToGraph({ name: `item-${i}` }, "p1", "T1");
     }
   });
 });
@@ -197,7 +197,7 @@ describe("Full Lifecycle", () => {
 
     // Store nodes
     for (let i = 0; i < 50; i++) {
-      const node = normaliseToSovereignGraph(
+      const node = normaliseToGraph(
         { "@id": `urn:lc:${i}`, name: `LC ${i}` },
         "lifecycle-plugin",
         "LifecycleNode"

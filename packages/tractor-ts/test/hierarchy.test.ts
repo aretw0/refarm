@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Tractor, normaliseToSovereignGraph } from "../src/index";
+import { Tractor, normaliseToGraph } from "../src/index";
 import { createMockConfig } from "./helpers/mock-adapters";
 
 describe("Hierarchical Boot & Isolation", () => {
@@ -12,7 +12,7 @@ describe("Hierarchical Boot & Isolation", () => {
     const child = await parent.spawnChild("ephemeral-task");
 
     // 3. Store node in Parent
-    const parentNode = normaliseToSovereignGraph(
+    const parentNode = normaliseToGraph(
       { name: "Secret Config" },
       "system",
       "Config"
@@ -24,7 +24,7 @@ describe("Hierarchical Boot & Isolation", () => {
     expect(childResults).toHaveLength(0);
 
     // 5. Store node in Child
-    const childNode = normaliseToSovereignGraph(
+    const childNode = normaliseToGraph(
       { name: "Ephemeral Task Data" },
       "plugin-x",
       "Task"

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { Registry } from "@refarm.dev/registry";
-import { normaliseToSovereignGraph, PluginHost } from "../src/index";
+import { normaliseToGraph, PluginHost } from "../src/index";
 
 // No global vi.mock here to avoid polluting other test suites like packages/registry
 // We will use dynamic imports or scoped mocks if needed.
@@ -14,7 +14,7 @@ describe("@refarm.dev/tractor smoke", () => {
   });
 
   it("normalises plugin payload into sovereign node", () => {
-    const node = normaliseToSovereignGraph(
+    const node = normaliseToGraph(
       { "@id": "urn:test:1", name: "hello" },
       "plugin-smoke",
       "Note",

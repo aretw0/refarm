@@ -7,26 +7,26 @@
  * See /schemas/sovereign-graph.jsonld for the full schema example.
  */
 
-export interface SovereignNode {
+export interface NormalisedNode {
   "@context": string | Record<string, string>;
   "@type": string;
   "@id": string;
-  "refarm:signature"?: SovereignSignature;
-  "refarm:signatures"?: SovereignSignature[];
+  "refarm:signature"?: Signature;
+  "refarm:signatures"?: Signature[];
   [key: string]: unknown;
 }
 
-export interface SovereignSignature {
+export interface Signature {
   pubkey: string;
   sig: string;
   alg: string;
 }
 
-export function normaliseToSovereignGraph(
+export function normaliseToGraph(
   raw: Record<string, unknown>,
   pluginId: string,
   type: string,
-): SovereignNode {
+): NormalisedNode {
   const id =
     (raw["@id"] as string | undefined) ??
     `urn:refarm:${pluginId}:${crypto.randomUUID()}`;

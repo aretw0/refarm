@@ -56,9 +56,9 @@ The G-stream tracks the agent's position in the **capability topology** of the S
 
 The X-stream receives the current observation: what the agent perceives at the current node.
 
-- A 64-dimensional struct-aware embedding of the `SovereignNode` and `TelemetryEvent`
+- A 64-dimensional struct-aware embedding of the `NormalisedNode` and `TelemetryEvent`
 - Dimensionally stable: each slot maps to a specific semantic category in the JSON-LD schema (see D5 — Struct-Aware Encoding below)
-- **Sovereign Graph analogue**: `SovereignNode` metadata + `TelemetryEvent` payload encoded into a fixed-size float vector
+- **Sovereign Graph analogue**: `NormalisedNode` metadata + `TelemetryEvent` payload encoded into a fixed-size float vector
 
 ### P-stream — Grounded Location (Place Cells / Hippocampus)
 
@@ -102,14 +102,14 @@ This allows TEM to complete the pattern: "given this sequence of actions, I expe
 
 ---
 
-## Data Flow: SovereignNode → TEM → Novelty Score
+## Data Flow: NormalisedNode → TEM → Novelty Score
 
 ```
 TelemetryEvent
   │
   ├─ event string ──→ ActionEncoder ──→ action_id: u32  (1-hot index, 0–15)
   │
-  └─ SovereignNode ─→ ObsEncoder   ──→ obs_vec: float32[64]  (struct-aware slots)
+  └─ NormalisedNode ─→ ObsEncoder   ──→ obs_vec: float32[64]  (struct-aware slots)
                                                 │
                                                 ▼
                                         TEM Inference (one step)

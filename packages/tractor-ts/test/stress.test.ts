@@ -10,7 +10,7 @@
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { Registry } from "@refarm.dev/registry";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PluginHost, SILENT_LOGGER, Tractor, normaliseToSovereignGraph } from "../src/index";
+import { PluginHost, SILENT_LOGGER, Tractor, normaliseToGraph } from "../src/index";
 import {
   MockIdentityAdapter,
   MockStorageAdapter,
@@ -246,7 +246,7 @@ describe("Storage Throughput", () => {
     const tractor = await Tractor.boot(config);
 
     for (let i = 0; i < 1000; i++) {
-      const node = normaliseToSovereignGraph(
+      const node = normaliseToGraph(
         { "@id": `urn:test:node-${i}`, name: `Node ${i}` },
         "stress-plugin",
         "TestNode"
@@ -265,7 +265,7 @@ describe("Storage Throughput", () => {
     const tractor = await Tractor.boot(config);
 
     const writes = Array.from({ length: 1000 }, (_, i) => {
-      const node = normaliseToSovereignGraph(
+      const node = normaliseToGraph(
         { "@id": `urn:test:node-${i}`, name: `Node ${i}` },
         "stress-plugin",
         "TestNode"
@@ -290,7 +290,7 @@ describe("Storage Throughput", () => {
         // Every 5th operation is a read
         ops.push(tractor.queryNodes("TestNode"));
       } else {
-        const node = normaliseToSovereignGraph(
+        const node = normaliseToGraph(
           { "@id": `urn:test:node-${i}`, name: `Node ${i}` },
           "stress-plugin",
           "TestNode"
@@ -315,7 +315,7 @@ describe("Normaliser Throughput", () => {
     const ids = new Set<string>();
 
     for (let i = 0; i < 10_000; i++) {
-      const node = normaliseToSovereignGraph(
+      const node = normaliseToGraph(
         { name: `Item ${i}` }, // no @id → forces UUID generation
         "bench-plugin",
         "BenchNode"
@@ -328,7 +328,7 @@ describe("Normaliser Throughput", () => {
   });
 
   it("preserves @id when supplied", () => {
-    const node = normaliseToSovereignGraph(
+    const node = normaliseToGraph(
       { "@id": "urn:explicit:1", name: "test" },
       "p1",
       "T1"

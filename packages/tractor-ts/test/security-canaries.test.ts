@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SovereignNode, Tractor } from "../src/index";
+import { NormalisedNode, Tractor } from "../src/index";
 import { MockIdentityAdapter, MockStorageAdapter } from "./test-utils";
 
 describe("Security Canaries (Tripwires)", () => {
@@ -16,7 +16,7 @@ describe("Security Canaries (Tripwires)", () => {
 
   it("should block storage if verifyNode fails (Tampering Canary)", async () => {
     // 1. Create a seemingly valid node
-    const node: SovereignNode = {
+    const node: NormalisedNode = {
       "@context": "https://refarm.dev/schemas/v1",
       "@type": "Note",
       "@id": "urn:refarm:note:1",
@@ -40,7 +40,7 @@ describe("Security Canaries (Tripwires)", () => {
   });
 
   it("should block nodes from the distant future (Clock Skew Canary)", async () => {
-    const futureNode: SovereignNode = {
+    const futureNode: NormalisedNode = {
       "@context": "https://refarm.dev/schemas/v1",
       "@type": "Note",
       "@id": "urn:refarm:note:future",
@@ -59,7 +59,7 @@ describe("Security Canaries (Tripwires)", () => {
   });
 
   it("should allow tampered nodes with warning in Permissive Mode", async () => {
-    const node: SovereignNode = {
+    const node: NormalisedNode = {
       "@context": "https://refarm.dev/schemas/v1",
       "@type": "Note",
       "@id": "urn:refarm:note:permissive",
@@ -79,7 +79,7 @@ describe("Security Canaries (Tripwires)", () => {
   });
 
   it("should skip all checks in None Mode (Fast Path)", async () => {
-    const node: SovereignNode = {
+    const node: NormalisedNode = {
       "@context": "https://refarm.dev/schemas/v1",
       "@type": "Note",
       "@id": "urn:refarm:note:none",
@@ -102,7 +102,7 @@ describe("Security Canaries (Tripwires)", () => {
   });
 
   it("should allow nodes within the 10s grace period", async () => {
-    const nearFutureNode: SovereignNode = {
+    const nearFutureNode: NormalisedNode = {
       "@context": "https://refarm.dev/schemas/v1",
       "@type": "Note",
       "@id": "urn:refarm:note:near-future",

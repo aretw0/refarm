@@ -8,11 +8,11 @@ const REPORT_PATH = path.resolve('benchmarks/report.md');
 function marginForBenchmark(name) {
     // Option 3 (hybrid): strict margin for deterministic core transforms,
     // wider margin for integration-heavy flows where security hooks add overhead.
-    if (name === "normaliseToSovereignGraph() x1") {
+    if (name === "normaliseToGraph() x1") {
         return 0.10;
     }
 
-    if (name === "normaliseToSovereignGraph() x1000") {
+    if (name === "normaliseToGraph() x1000") {
         return 0.25;
     }
 

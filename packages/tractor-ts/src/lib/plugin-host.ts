@@ -8,7 +8,7 @@ import {
 import { Registry } from "@refarm.dev/registry";
 import { TelemetryEvent } from "./telemetry.js";
 import { TractorLogger, SecurityMode } from "./types.js";
-import { SovereignNode } from "./graph-normalizer.js";
+import { NormalisedNode } from "./graph-normalizer.js";
 import { TrustManager, ExecutionProfile } from "./trust-manager.js";
 import type { PluginTrustGrant } from "./trust-manager.js";
 import { WasiImports } from "./wasi-imports.js";
@@ -316,8 +316,8 @@ export class PluginHost {
     }
   }
 
-  async getHelpNodes(): Promise<SovereignNode[]> {
-    const allHelp: SovereignNode[] = [];
+  async getHelpNodes(): Promise<NormalisedNode[]> {
+    const allHelp: NormalisedNode[] = [];
     for (const plugin of this._instances.values()) {
       try {
         const nodes = (await plugin.call("get-help-nodes")) as unknown[];
