@@ -178,8 +178,10 @@ test("devcontainer marks and locks host-write-sensitive workspace checkouts", ()
 	assert.match(farm, /export REFARM_WORKSPACE_HOST_WRITE_LOCK=1/);
 	assert.match(postCreate, /workspace_protect mark/);
 	assert.match(postStart, /workspace_protect mark/);
-	assert.match(postCreate, /workspace_protect apply/);
-	assert.match(postStart, /workspace_protect apply/);
+	assert.match(postCreate, /workspace_protect check/);
+	assert.match(postStart, /workspace_protect check/);
+	assert.doesNotMatch(postCreate, /workspace_protect apply/);
+	assert.doesNotMatch(postStart, /workspace_protect apply/);
 	assert.match(postCreate, /scripts\/workspace-protect\.mjs/);
 	assert.match(postStart, /scripts\/workspace-protect\.mjs/);
 	assert.doesNotMatch(postCreate, /local roots=\(/);
@@ -187,6 +189,7 @@ test("devcontainer marks and locks host-write-sensitive workspace checkouts", ()
 	assert.match(workspaceProtect, /loadWorkspaceProtection/);
 	assert.match(workspaceProtect, /workspaceProtection/);
 	assert.match(workspaceProtect, /REFARM_DEVCONTAINER_ACTIVE=true/);
+	assert.match(workspaceProtect, /--confirm-wide-repair/);
 	assert.match(workspaceProtect, /chmod", "u\+rwx,go-w"/);
 	assert.match(envSafety, /check_devcontainer_workspace_marker\(\)/);
 	assert.match(envSafety, /REFARM_ALLOW_HOST_DEVCONTAINER_WORKSPACE/);

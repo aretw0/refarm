@@ -229,6 +229,6 @@ if [ -f "$ROOT/scripts/env-safety-check.sh" ]; then
 else
 	echo "[refarm-devcontainer][warn] scripts/env-safety-check.sh is missing"
 fi
-workspace_protect apply
+workspace_protect check
 
 echo "[refarm-devcontainer] Post-start sanity check complete."

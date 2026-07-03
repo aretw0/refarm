@@ -53,3 +53,23 @@ test("workspace protection check emits a JSON handoff", () => {
 	assert.ok(Array.isArray(output.roots));
 	assert.ok(output.roots.includes(".git"));
 });
+
+test("workspace protection apply requires explicit wide-repair confirmation", () => {
+	const result = spawnSync(process.execPath, ["scripts/workspace-protect.mjs", "apply", "--json"], {
+		cwd: process.cwd(),
+		encoding: "utf8",
+		stdio: ["ignore", "pipe", "pipe"],
+		env: {
+			...process.env,
+			REFARM_WORKSPACE_HOST_WRITE_LOCK: "1",
+		},
+	});
+
+	assert.equal(result.status, 1);
+	assert.equal(result.stderr, "");
+	const output = JSON.parse(result.stdout);
+	assert.equal(output.ok, false);
+	assert.equal(output.command, "workspace-protect");
+	assert.equal(output.operation, "apply");
+	assert.equal(output.error, "wide-repair-confirmation-required");
+});

@@ -268,7 +268,7 @@ wait $PI_PID     || warn "Pi install failed. Run: pnpm add -g @earendil-works/pi
 # 5) Finalize
 log "Installing refarm CLI shim..."
 run_script_for_package_manager "$PACKAGE_MANAGER" cli:install || warn "Could not install refarm CLI shim. Retry: $(script_command_for_package_manager "$PACKAGE_MANAGER" cli:install)"
-workspace_protect apply
+workspace_protect check
 
 log "Installing git hooks..."
 run_script_for_package_manager "$PACKAGE_MANAGER" hooks:install || warn "Could not install git hooks automatically"

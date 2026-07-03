@@ -19,9 +19,11 @@ const DEFAULT_PRUNE_DIR_NAMES = [
 
 function usage() {
 	return [
-		"Usage: node scripts/workspace-protect.mjs <mark|apply|check> [--json]",
+		"Usage: node scripts/workspace-protect.mjs <mark|apply|check> [--json] [--confirm-wide-repair]",
 		"",
 		"Applies project-configured workspace protection for devcontainer-owned checkouts.",
+		"",
+		"`apply` performs broad ownership/permission repair and requires --confirm-wide-repair.",
 	].join("\n");
 }
 
@@ -166,6 +168,13 @@ function apply(options) {
 		ok({ operation: "apply", skipped: true, message: `skipped outside /workspaces: ${ROOT}` }, options);
 		return;
 	}
+	if (!options.confirmWideRepair) {
+		fail("workspace-protect apply requires --confirm-wide-repair because it can chown/chmod many files.", {
+			...options,
+			operation: "apply",
+			error: "wide-repair-confirmation-required",
+		});
+	}
 	const roots = resolveExistingRoots(ROOT, policy.roots);
 	if (roots.length === 0) {
 		fail("workspaceProtection.roots is empty or all roots are missing.", {
@@ -210,7 +219,10 @@ function check(options) {
 function main() {
 	const args = process.argv.slice(2);
 	const json = args.includes("--json");
-	const operation = args.find((arg) => arg !== "--json");
+	const confirmWideRepair =
+		args.includes("--confirm-wide-repair") ||
+		process.env.REFARM_WORKSPACE_PROTECT_CONFIRM_WIDE_REPAIR === "1";
+	const operation = args.find((arg) => !arg.startsWith("--"));
 
 	if (!operation || operation === "--help" || operation === "-h") {
 		console.log(usage());
@@ -219,13 +231,13 @@ function main() {
 
 	switch (operation) {
 		case "mark":
-			mark({ json, operation });
+			mark({ json, operation, confirmWideRepair });
 			break;
 		case "apply":
-			apply({ json, operation });
+			apply({ json, operation, confirmWideRepair });
 			break;
 		case "check":
-			check({ json, operation });
+			check({ json, operation, confirmWideRepair });
 			break;
 		default:
 			fail(`Unknown operation: ${operation}\n${usage()}`, {
