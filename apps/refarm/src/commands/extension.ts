@@ -1,16 +1,20 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { Command } from "commander";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { mkdir, rename, writeFile } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
+import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 	type JsonSuccessEnvelope,
 } from "@refarm.dev/cli/json-output";
+import {
+	decidePluginPolicy,
+	type PluginPolicyDecision,
+	type PluginPolicyMode,
+} from "@refarm.dev/plugin-manifest";
+import { Command } from "commander";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { mkdir, rename, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 
 const EXTENSION_LIST_JSON_COMMAND = refarmCommand([
@@ -391,6 +395,98 @@ function listHandler(options: { json?: boolean } = {}): void {
   }
 }
 
+const REVIEW_MANIFEST_FILENAMES = ["plugin.json", "ext.json"] as const;
+
+/**
+ * Resolve a reviewable plugin manifest from a path. Accepts a manifest file
+ * directly, or a directory containing plugin.json / ext.json (a prepared
+ * extension the persona points at). Returns the parsed manifest and the file it
+ * came from. Throws with an operator-facing message when nothing is found.
+ */
+export function loadReviewableManifest(
+  targetPath: string,
+): { manifest: unknown; manifestPath: string } {
+  if (!existsSync(targetPath)) {
+    throw new Error(`No such path: ${targetPath}`);
+  }
+  const candidates = targetPath.endsWith(".json")
+    ? [targetPath]
+    : REVIEW_MANIFEST_FILENAMES.map((name) => path.join(targetPath, name));
+  const manifestPath = candidates.find((candidate) => existsSync(candidate));
+  if (!manifestPath) {
+    throw new Error(
+      `No plugin.json or ext.json found at ${targetPath}. Point --at a prepared extension directory or manifest file.`,
+    );
+  }
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Could not parse ${manifestPath}: ${message}`);
+  }
+  return { manifest, manifestPath };
+}
+
+export interface ExtensionReviewInput {
+  targetPath: string;
+  grantedCapabilities: string[];
+  policyMode: PluginPolicyMode;
+}
+
+export type ExtensionReviewReport = JsonSuccessEnvelope<{
+  manifestPath: string;
+  grantedCapabilities: string[];
+  policyMode: PluginPolicyMode;
+  decision: PluginPolicyDecision;
+  readyToInstall: boolean;
+  deniedCapabilities: string[];
+}>;
+
+/**
+ * Review a prepared extension against a capability grant. This is the review
+ * step of the install envelope: it runs the shared, host-agnostic
+ * decidePluginPolicy over the manifest and reports whether the extension is
+ * ready to install (no denied capabilities and a valid manifest). Grants are
+ * operator-supplied; nothing is installed and no capability is granted here.
+ */
+export function buildExtensionReviewReport(
+  input: ExtensionReviewInput,
+): ExtensionReviewReport {
+  const { manifest, manifestPath } = loadReviewableManifest(input.targetPath);
+  const decision = decidePluginPolicy(manifest as never, {
+    grantedCapabilities: input.grantedCapabilities,
+    policyMode: input.policyMode,
+  });
+  const readyToInstall =
+    decision.status === "completed" && decision.manifestValid;
+  return buildJsonSuccessEnvelope({
+    command: "extension",
+    operation: "review",
+    nextCommands: readyToInstall
+      ? ["refarm plugin install", "refarm resume --json"]
+      : [],
+    extra: {
+      manifestPath,
+      grantedCapabilities: input.grantedCapabilities,
+      policyMode: input.policyMode,
+      decision,
+      readyToInstall,
+      deniedCapabilities: decision.missingCapabilities,
+    },
+  });
+}
+
+function parsePolicyMode(value: string | undefined): PluginPolicyMode {
+  if (value === undefined || value === "fail-fast") return "fail-fast";
+  if (value === "warn+continue") return "warn+continue";
+  throw new Error("--policy must be fail-fast or warn+continue");
+}
+
+function collectGrant(value: string, previous: string[] = []): string[] {
+  return [...previous, value];
+}
+
 export const extensionCommand = new Command("extension").description(
   "Manage local JS extensions (no WASM compilation needed)",
 );
@@ -402,6 +498,8 @@ extensionCommand.addHelpText(
 Examples:
   $ refarm extension new my-tool
   $ refarm extension new my-tool --json
+  $ refarm extension review ./prepared-extension
+  $ refarm extension review ./prepared-extension --grant storage:v1 --json
   $ refarm extension list
   $ refarm extension list --json
   $ refarm extension save my-tool --global
@@ -423,6 +521,78 @@ extensionCommand
   .action(async (name: string, options: { global: boolean; json?: boolean }) => {
     await newExtension(name, options.global, { json: options.json });
   });
+
+extensionCommand
+  .command("review <path>")
+  .description(
+    "Review a prepared extension against a capability grant (review-first; installs nothing)",
+  )
+  .option(
+    "--grant <capability>",
+    "Grant a capability for this review (repeatable); default grants none",
+    collectGrant,
+    [],
+  )
+  .option("--policy <mode>", "Policy mode: fail-fast or warn+continue", "fail-fast")
+  .option("--json", "Output machine-readable review report")
+  .action(
+    (
+      targetPath: string,
+      options: { grant?: string[]; policy?: string; json?: boolean },
+    ) => {
+      let report: ExtensionReviewReport;
+      try {
+        report = buildExtensionReviewReport({
+          targetPath,
+          grantedCapabilities: options.grant ?? [],
+          policyMode: parsePolicyMode(options.policy),
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (options.json) {
+          printJson(
+            buildJsonErrorEnvelope({
+              command: "extension",
+              operation: "review",
+              error: "extension_review_failed",
+              message,
+              nextAction:
+                "Run `refarm extension review --help`; point at a prepared extension directory or manifest.",
+            }),
+          );
+        } else {
+          console.error(`Extension review failed: ${message}`);
+        }
+        process.exitCode = 1;
+        return;
+      }
+
+      if (options.json) {
+        printJson(report);
+        if (!report.readyToInstall) process.exitCode = 1;
+        return;
+      }
+
+      const { decision, deniedCapabilities, readyToInstall } = report;
+      console.log(
+        `Extension review: ${decision.pluginId ?? "unknown"} — ${decision.status} (policy: ${decision.policyMode})`,
+      );
+      if (!decision.manifestValid) {
+        for (const err of decision.manifestErrors) {
+          console.log(`  manifest error: ${err}`);
+        }
+      }
+      if (deniedCapabilities.length > 0) {
+        console.log(
+          `  denied capabilities (not granted): ${deniedCapabilities.join(", ")}`,
+        );
+      }
+      console.log(
+        `  ready to install: ${readyToInstall ? "yes" : "no — review required"}`,
+      );
+      if (!readyToInstall) process.exitCode = 1;
+    },
+  );
 
 extensionCommand
   .command("list")
