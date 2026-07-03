@@ -15,6 +15,7 @@ import {
 	packageTarballName,
 	parseHandoffArgs,
 	pruneExtraHandoffTarballs,
+	writePacketManifests,
 } from "../vault-seed-ready-handoff.mjs";
 
 function makeFixture() {
@@ -221,6 +222,56 @@ test("builds an ok manifest when every selected package has a tarball", () => {
 	assert.match(formatHandoffMarkdown(manifest), /Consumer install hints:/);
 	assert.match(formatHandoffMarkdown(manifest), /consumerInstall\.pnpmOverrides/);
 	assert.match(formatHandoffMarkdown(manifest), /consumerInstall\.revendorPolicy/);
+});
+
+test("stamps manifest provenance: generatedAt ISO timestamp and git SHA (null outside a git repo)", () => {
+	const { root, handoffDir } = makeFixture();
+	writeFileSync(path.join(handoffDir, "refarm.dev-alpha-0.1.0.tgz"), "alpha");
+	writeFileSync(path.join(handoffDir, "refarm.dev-beta-0.2.0.tgz"), "beta");
+
+	const manifest = buildHandoffManifest({
+		cwd: root,
+		handoffDir,
+		releaseCheck: releaseCheck(),
+	});
+
+	assert.ok(
+		/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(manifest.generatedAt),
+		`generatedAt should be an ISO timestamp, got: ${manifest.generatedAt}`,
+	);
+	// The fixture root is a temp dir, not a git checkout.
+	assert.equal(manifest.sourceGitSha, null);
+});
+
+test("writes manifest.json and manifest.md beside the packet tarballs", () => {
+	const { root, handoffDir } = makeFixture();
+	writeFileSync(path.join(handoffDir, "refarm.dev-alpha-0.1.0.tgz"), "alpha");
+	writeFileSync(path.join(handoffDir, "refarm.dev-beta-0.2.0.tgz"), "beta");
+
+	const manifest = buildHandoffManifest({
+		cwd: root,
+		handoffDir,
+		releaseCheck: releaseCheck(),
+	});
+	const { jsonPath, markdownPath } = writePacketManifests({
+		cwd: root,
+		handoffDir,
+		manifest,
+	});
+
+	assert.equal(jsonPath, path.join(handoffDir, "manifest.json"));
+	assert.equal(markdownPath, path.join(handoffDir, "manifest.md"));
+	assert.ok(existsSync(jsonPath));
+	assert.ok(existsSync(markdownPath));
+
+	// The written packet manifest must not invalidate its own directory:
+	// a rebuild over the same dir still reports ok (only .tgz files are audited).
+	const rebuilt = buildHandoffManifest({
+		cwd: root,
+		handoffDir,
+		releaseCheck: releaseCheck(),
+	});
+	assert.equal(rebuilt.ok, true);
 });
 
 test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {

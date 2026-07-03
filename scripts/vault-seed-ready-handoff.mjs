@@ -727,6 +727,8 @@ export function buildHandoffManifest({
 	return {
 		schemaVersion: HANDOFF_MANIFEST_SCHEMA_VERSION,
 		source: HANDOFF_MANIFEST_SOURCE,
+		generatedAt: new Date().toISOString(),
+		sourceGitSha: readSourceGitSha(cwd),
 		ok: issues.length === 0,
 		status: check.plan.status,
 		selection: check.plan.selection,
@@ -847,6 +849,29 @@ function writeOutput(outPath, content) {
 	writeFileSync(outPath, content, "utf8");
 }
 
+function readSourceGitSha(cwd = process.cwd()) {
+	const result = spawnSync("git", ["rev-parse", "HEAD"], {
+		cwd,
+		encoding: "utf8",
+	});
+	if (result.status !== 0) return null;
+	const sha = (result.stdout ?? "").trim();
+	return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+}
+
+export function writePacketManifests({
+	cwd = process.cwd(),
+	handoffDir = DEFAULT_HANDOFF_DIR,
+	manifest,
+}) {
+	const absoluteHandoffDir = path.resolve(cwd, handoffDir);
+	const jsonPath = path.join(absoluteHandoffDir, "manifest.json");
+	const markdownPath = path.join(absoluteHandoffDir, "manifest.md");
+	writeOutput(jsonPath, `${JSON.stringify(manifest, null, 2)}\n`);
+	writeOutput(markdownPath, formatHandoffMarkdown(manifest));
+	return { jsonPath, markdownPath };
+}
+
 function isMain() {
 	return process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 }
@@ -878,6 +903,15 @@ if (isMain()) {
 		const output = options.json
 			? `${JSON.stringify(manifest, null, 2)}\n`
 			: formatHandoffMarkdown(manifest);
+
+		// A run that mutates the packet directory must leave it self-describing:
+		// tarballs without a manifest are unverifiable downstream (ADR-080).
+		if (options.pack || options.pruneExtra) {
+			writePacketManifests({
+				handoffDir: options.handoffDir,
+				manifest,
+			});
+		}
 
 		if (options.out) {
 			writeOutput(options.out, output);
