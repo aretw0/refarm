@@ -35,6 +35,18 @@ const factoryReadinessDoc = readFileSync(
 	path.join(ROOT, "docs/CONVERGENCE_FACTORY_READINESS.md"),
 	"utf8",
 );
+const refarmWorkFocusDoc = readFileSync(
+	path.join(ROOT, "docs/REFARM_WORK_FOCUS.md"),
+	"utf8",
+);
+const convergenceRoadmapDoc = readFileSync(
+	path.join(ROOT, "docs/CONVERGENCE_ROADMAP.md"),
+	"utf8",
+);
+const qualityAgentBuildOrderDoc = readFileSync(
+	path.join(ROOT, "docs/QUALITY_AGENT_BUILD_ORDER.md"),
+	"utf8",
+);
 const vaultSeedHandoffPlan = readFileSync(
 	path.join(ROOT, "docs/superpowers/plans/2026-06-26-vault-seed-ready-handoff.md"),
 	"utf8",
@@ -172,4 +184,18 @@ test("factory readiness records the current local vault-seed handoff state", () 
 	assert.match(factoryReadinessDoc, /\.refarm\/handoff\/vault-seed\/2026-07-03\/manifest\.json/);
 	assert.match(factoryReadinessDoc, /distributionEvidence\.state: "local-handoff-ready"/);
 	assert.match(factoryReadinessDoc, /20 tarballs/);
+});
+
+test("focus maps do not regress implemented quality and projection blocks to planned", () => {
+	assert.match(refarmWorkFocusDoc, /Phase 1 implemented and selected/);
+	assert.match(refarmWorkFocusDoc, /inline Markdown links into valid `records:v1`/);
+	assert.doesNotMatch(refarmWorkFocusDoc, /Content projection \/ MD-MDX authoring \| Designed, build-pending/);
+
+	assert.match(convergenceRoadmapDoc, /phase 1 implemented: `@refarm\.dev\/content-projection`/);
+	assert.match(convergenceRoadmapDoc, /future `ds-astro` work waits for render pressure/);
+	assert.doesNotMatch(convergenceRoadmapDoc, /plan \+ build pending/);
+
+	assert.match(qualityAgentBuildOrderDoc, /ui adapter \*\*implemented\*\*: `@refarm\.dev\/ds\/quality-checker`/);
+	assert.match(qualityAgentBuildOrderDoc, /wraps `ds-lint:v1` as a `quality:v1` `QualityChecker`/);
+	assert.doesNotMatch(qualityAgentBuildOrderDoc, /adapter \*\*planned\*\*/);
 });
