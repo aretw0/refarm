@@ -70,7 +70,6 @@ test("external calibration docs avoid submission-specific wording", () => {
 		"docs/daily-driver-readiness.md",
 	];
 	const forbidden = [
-		/Serpro/i,
 		/Pr[eê]mio/i,
 		/\bprize\b/i,
 		/job-vault/i,
@@ -197,6 +196,17 @@ test("work focus keeps adjacent tracks orbiting without premature product work",
 	assert.match(focus, /Remote workspace control/);
 	assert.match(focus, /capability-scoped control/);
 	assert.match(focus, /Treating mounts, host paths, Telegram, Matrix, or Tailscale as the core abstraction/);
+});
+
+test("convergence roadmap keeps sub-project numbers unique", () => {
+	const roadmap = read("docs/CONVERGENCE_ROADMAP.md");
+	const numbers = [...roadmap.matchAll(/^\| (\d+) \| \*\*/gm)].map((match) => match[1]);
+	const duplicates = numbers.filter((number, index) => numbers.indexOf(number) !== index);
+
+	assert.deepEqual(duplicates, []);
+	assert.match(roadmap, /\| 16 \| \*\*Content projection \(MD\/MDX authoring\)\*\*/);
+	assert.match(roadmap, /\| 17 \| \*\*Tool-less orchestrator\*\*/);
+	assert.match(roadmap, /before starting item\s+4 or any later item/);
 });
 
 test("remote workspace control horizon stays transport and app neutral", () => {

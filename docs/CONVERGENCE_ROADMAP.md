@@ -37,7 +37,7 @@ each sub-project's own brainstorm.
 | 14 | **Distributed availability evidence** — install/update/rollback/availability/trust over existing manifests | spec + proof harness | ADR-075, artifact contract, release-engine, 13 | Refarm can describe what is distributed, who keeps it available, how it updates, how it rolls back, and what trust evidence promoted it | ◑ first proof implemented ([spec](../specs/features/2026-06-30-distributed-availability-evidence-proof.md), [validation](../validations/distributed-availability-evidence/README.md)); public install/P2P substrate held |
 | 15 | **Verification-as-completion** — done means re-observed evidence, not runner claim | spec + proof harness | effort/artifact/process/context contracts, RTK/peerd/Terax research | completion decision links compact observation to recoverable raw evidence and source-truth verification | ◑ first proof implemented ([spec](../specs/features/2026-07-01-verification-as-completion-proof.md), [validation](../validations/verification-as-completion/README.md)); `tool-observation:v1` extraction held |
 | 16 | **Content projection (MD/MDX authoring)** — `content-projection` block + future `ds-astro` embed set | implemented package + render-adapter hold | 1 (`source-local`), 4 (`ds`), `records-contract-v1` | `apps/site` authors ≥1 `.mdx` composing a `ds-astro` component, projecting to a valid `records:v1`; `vault-seed` MD machinery converges onto `content-projection` | ◑ phase 1 implemented: `@refarm.dev/content-projection` handles frontmatter, wikilinks, inline Markdown links, and valid `records:v1` output; future `ds-astro` work waits for render pressure ([spec](./superpowers/specs/2026-07-02-content-projection-md-mdx-design.md), [research](./research/2026-07-02-content-projection-blocks-md-mdx.md)) |
-| 16 | **Tool-less orchestrator** — key-holding conductor delegates tools to keyless bounded actors | spec + proof harness | peerd research, process handoff, environment ceilings, runtime conductor | conductor has zero environment tools, actor is keyless, requests carry no secrets, and completion depends on fenced evidence | ◑ first proof implemented ([spec](../specs/features/2026-07-01-toolless-orchestrator-proof.md), [validation](../validations/toolless-orchestrator-proof/README.md)); runtime/package extraction held |
+| 17 | **Tool-less orchestrator** — key-holding conductor delegates tools to keyless bounded actors | spec + proof harness | peerd research, process handoff, environment ceilings, runtime conductor | conductor has zero environment tools, actor is keyless, requests carry no secrets, and completion depends on fenced evidence | ◑ first proof implemented ([spec](../specs/features/2026-07-01-toolless-orchestrator-proof.md), [validation](../validations/toolless-orchestrator-proof/README.md)); runtime/package extraction held |
 
 ## Detail & rationale
 
@@ -305,7 +305,7 @@ generated `package.json` and `inventory.json`, and verifies every `@refarm.dev/*
 by the fixture is covered by the `vault-seed-ready` release selection and package checks.
 
 Read [`CONVERGENCE_FACTORY_READINESS.md`](./CONVERGENCE_FACTORY_READINESS.md) before starting item
-4, 5, 6, 7, 8, 9, 10, 11, or 13. It records which items are execution-ready, which are deliberately gated, and
+4 or any later item. It records which items are execution-ready, which are deliberately gated, and
 which exact spec/plan must be written next.
 
 **To start executing:** follow [`CONVERGENCE_EXECUTION_RUNBOOK.md`](./CONVERGENCE_EXECUTION_RUNBOOK.md)

@@ -67,7 +67,7 @@ products and must stay. Files to review:
   leaves `aretw0/refarm` for `refarm-dev`, Codeberg, or a self-hosted Git node, update
   `repository.url`/`homepage` fields at that time. It does not block any convergence item.
 - **Timing:** because `@refarm.dev` is already the code state, there is no rename and no conflict
-  with the Prêmio Serpro window (no `vault-seed` rename is involved here).
+  with downstream submission windows (no `vault-seed` rename is involved here).
 
 ### Publishing
 When the first `@refarm.dev` contracts publish: `publishConfig.access: "public"` is already set in
