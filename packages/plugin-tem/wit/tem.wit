@@ -2,6 +2,12 @@
 ///
 /// WIT interface for the TEM Sovereign Graph reasoning engine plugin.
 ///
+/// DESIGN-AHEAD CONTRACT — not compiled yet. packages/plugin-tem is TS-Strict
+/// (no crate); the TS twin in src/plugin.ts implements this surface by hand.
+/// docs/ARCHITECTURE.md marks it "Blueprint (WASM migration not yet done)".
+/// It declares intent ahead of the WASM engine — NOT drift, NOT an orphan to
+/// delete. Do not treat as a live binding until the Rust/WASM engine lands.
+///
 /// The TEM plugin observes the Tractor's telemetry stream and maintains
 /// a Hebbian associative memory over the Sovereign Graph topology.
 /// It exposes prediction, pattern-completion and novelty-scoring APIs.

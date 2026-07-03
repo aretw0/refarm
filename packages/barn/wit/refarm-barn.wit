@@ -1,5 +1,11 @@
 package refarm:barn@0.1.0;
 
+// DESIGN-AHEAD CONTRACT — not compiled yet (packages/barn is TS-Strict, no
+// crate). This WIT is the intended spec for the Barn manager surface
+// (ROADMAP.md: "[x] Spec: Barn WIT interface definitions"; the WIT bridge is a
+// deferred "[ ]"). It is NOT drift and NOT an orphan to delete — it declares
+// intent ahead of the crate. Do not wire a consumer until the Barn crate lands.
+
 interface types {
     use refarm:plugin/types.{json-ld-node, node-id, plugin-error, plugin-metadata};
 

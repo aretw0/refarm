@@ -37,7 +37,11 @@ out/
 target/
 pkg/
 wasm-pack.log
-Cargo.lock          # Only for libraries (apps should keep their own)
+# NOTE: Cargo.lock IS committed for every refarm crate — cargo-component
+# packages (agent, agent-tools, dispatch-surface-rs, heartwood,
+# refarm-plugin-wit, …) and binaries (tractor) alike — so the toolchain that
+# resolves the WIT/component build is reproducible. Do not add a blanket
+# Cargo.lock ignore here.
 
 # dispatch-surface-rs generated build artifacts
 /packages/dispatch-surface-rs/dist/

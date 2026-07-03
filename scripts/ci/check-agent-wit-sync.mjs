@@ -12,8 +12,8 @@
 // their [package.metadata.component.target] path; they never copy it.
 
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..", "..");
 const canonicalDir = resolve(root, "packages/refarm-plugin-wit/wit");
@@ -32,32 +32,24 @@ try {
 }
 
 // 2. No `package refarm:plugin@` declaration outside the canonical dir.
-const SKIP_DIRS = new Set(["node_modules", "target", ".cache", "dist", ".git"]);
+// Use `git ls-files` so we only consider tracked .wit files — this ignores
+// build caches (.cache/cargo-target is ~11GB) instantly and never walks them.
 const offenders = [];
+const tracked = execFileSync("git", ["ls-files", "*.wit"], {
+	cwd: root,
+	encoding: "utf8",
+})
+	.split("\n")
+	.filter(Boolean);
 
-function scan(dir) {
-	for (const entry of readdirSync(dir)) {
-		if (SKIP_DIRS.has(entry)) continue;
-		const full = join(dir, entry);
-		let st;
-		try {
-			st = statSync(full);
-		} catch {
-			continue;
-		}
-		if (st.isDirectory()) {
-			scan(full);
-		} else if (entry.endsWith(".wit")) {
-			if (full.startsWith(canonicalDir)) continue;
-			const text = readFileSync(full, "utf8");
-			if (/\bpackage\s+refarm:plugin@/.test(text)) {
-				offenders.push(relative(root, full));
-			}
-		}
+for (const rel of tracked) {
+	const full = resolve(root, rel);
+	if (full.startsWith(canonicalDir)) continue;
+	const text = readFileSync(full, "utf8");
+	if (/\bpackage\s+refarm:plugin@/.test(text)) {
+		offenders.push(rel);
 	}
 }
-
-scan(root);
 
 if (offenders.length > 0) {
 	console.error(
