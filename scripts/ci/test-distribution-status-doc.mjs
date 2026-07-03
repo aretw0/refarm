@@ -256,12 +256,16 @@ test("release convergence records the official downstream vault-seed proof recei
 	assert.match(channelPolicyBridgePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits the\s+  channel-delivery envelope/);
 	assert.match(channelPolicyBridgeSpec, /IMPLEMENTED - downstream proof received; public publish waits on the release lane/);
 	assert.match(channelPolicyBridgeSpec, /official 2026-07-03\s+  downstream proof confirms the neutral envelope is emitted/);
+	assert.match(factoryReadinessDoc, /8b channel policy .* \| \*\*downstream-proven package slice\*\*/);
+	assert.match(factoryReadinessDoc, /8c `process-handoff` \+ artifact provenance \| \*\*downstream-proven bridge slice\*\*/);
 	assert.match(vaultSeedSiloBridgeSpec, /consumer findings fed the API; product adapter implementation remains downstream/);
 	assert.match(factoryReadinessDoc, /product adoption of the Silo-backed credential bridge remains downstream/);
 	assert.match(artifactLabEvidencePlan, /Official downstream proof received \(2026-07-03\): `vault-seed` emits a\s+validated `refarm\.task-artifacts\.v1` manifest/);
 	assert.doesNotMatch(factoryReadinessDoc, /downstream adoption proof remains consumer-side/);
 	assert.doesNotMatch(factoryReadinessDoc, /official `vault-seed` assimilation remain pending/);
 	assert.doesNotMatch(factoryReadinessDoc, /official 8b downstream envelope proof; official 8c `dgk-runner` manifest proof/);
+	assert.doesNotMatch(factoryReadinessDoc, /Refarm-side package slice active/);
+	assert.doesNotMatch(factoryReadinessDoc, /Refarm-side proof active/);
 	assert.doesNotMatch(dsTokenContractSpec, /consumer proof in `vault-seed` remains external/);
 	assert.doesNotMatch(vaultSeedConvergenceDoc, /official consumer checkout still needs to assimilate\/review that packet/);
 	assert.doesNotMatch(releaseGateDoc, /official `vault-seed` assimilation pending/);
