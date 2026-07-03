@@ -51,6 +51,9 @@ jobs:
           REFARM_FIRST_PUBLISH_SELECTION: ${{ inputs.selection }}
         run: pnpm --silent run release:first-publish:plan -- --selection "$REFARM_FIRST_PUBLISH_SELECTION" --json
 
+      - name: Release boundary audit
+        run: pnpm --silent run release:boundary:audit
+
       - name: Publish dry-run gate
         env:
           REFARM_FIRST_PUBLISH_SELECTION: ${{ inputs.selection }}
