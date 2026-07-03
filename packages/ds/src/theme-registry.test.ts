@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { REQUIRED_TOKENS, type DsTheme } from "./contract.js";
 import {
 	registerThemePacks,
+	resolveThemePacksFromSurfaces,
 	ThemeRegistry,
 	type ThemePackAsset,
+	type ThemePackSurface,
 } from "./theme-registry.js";
 
 /** A complete, conformant theme: every required token set to a placeholder. */
@@ -69,5 +71,62 @@ describe("ThemeRegistry", () => {
 		expect(results[0]).toMatchObject({ ok: true, id: "good" });
 		expect(results[1]?.ok).toBe(false);
 		expect(registry.ids()).toEqual(["good"]);
+	});
+});
+
+describe("resolveThemePacksFromSurfaces", () => {
+	const surfaces: ThemePackSurface[] = [
+		{ kind: "theme-pack", id: "midnight", assets: ["./themes/midnight.json"] },
+		{ kind: "panel", id: "not-a-theme", assets: ["./x.json"] }, // ignored
+	];
+
+	it("loads theme-pack assets and ignores other surface kinds", () => {
+		const packs = resolveThemePacksFromSurfaces(surfaces, () => ({
+			theme: completeTheme(),
+		}));
+		expect(packs).toHaveLength(1);
+		expect(packs[0]?.id).toBe("midnight");
+		expect(packs[0]?.theme.primary).toBe("value-primary");
+	});
+
+	it("prefers an asset's own id over the surface id", () => {
+		const packs = resolveThemePacksFromSurfaces(surfaces, () => ({
+			id: "asset-chosen",
+			theme: completeTheme(),
+		}));
+		expect(packs[0]?.id).toBe("asset-chosen");
+	});
+
+	it("accepts `tokens` as an alias for `theme`", () => {
+		const packs = resolveThemePacksFromSurfaces(surfaces, () => ({
+			tokens: completeTheme(),
+		}));
+		expect(packs).toHaveLength(1);
+	});
+
+	it("skips an asset that fails to load without crashing", () => {
+		const packs = resolveThemePacksFromSurfaces(surfaces, () => {
+			throw new Error("ENOENT");
+		});
+		expect(packs).toEqual([]);
+	});
+
+	it("skips a payload with no token map", () => {
+		const packs = resolveThemePacksFromSurfaces(surfaces, () => ({ notTheme: 1 }));
+		expect(packs).toEqual([]);
+	});
+
+	it("end to end: resolve → register gates by conformance", () => {
+		const registry = new ThemeRegistry();
+		const packs = resolveThemePacksFromSurfaces(
+			[
+				{ kind: "theme-pack", id: "ok", assets: ["a.json"] },
+				{ kind: "theme-pack", id: "bad", assets: ["b.json"] },
+			],
+			(p) => (p === "a.json" ? { theme: completeTheme() } : { theme: { primary: "x" } }),
+		);
+		const results = registerThemePacks(registry, packs);
+		expect(results.map((r) => r.ok)).toEqual([true, false]);
+		expect(registry.ids()).toEqual(["ok"]);
 	});
 });

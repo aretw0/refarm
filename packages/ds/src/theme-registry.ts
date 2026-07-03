@@ -97,3 +97,50 @@ export function registerThemePacks(
 ): ThemeRegistrationResult[] {
 	return packs.map((pack) => registry.register(pack.id, pack.theme, "plugin"));
 }
+
+/** The minimal shape of a plugin extension surface this resolver reads. */
+export interface ThemePackSurface {
+	kind: string;
+	id: string;
+	assets?: readonly string[];
+}
+
+/**
+ * Turn a plugin's `{kind:"theme-pack"}` extension surfaces into loadable theme
+ * packs. `surfaces` are the already-enumerated surfaces (the caller runs
+ * getExtensionSurfaces(manifest, "asset") and passes them here — so ds stays
+ * manifest-agnostic), and `loadAsset(path)` reads+parses one asset (injected, so
+ * this is pure and testable without I/O). Each theme-pack asset must be a token
+ * JSON `{ id?, theme|tokens: {...} }`; a surface's own `id` is the fallback theme
+ * id. An asset that fails to load or has no token map is skipped, never crashing
+ * the caller — a bad theme pack must not take down plugin loading.
+ */
+export function resolveThemePacksFromSurfaces(
+	surfaces: readonly ThemePackSurface[],
+	loadAsset: (assetPath: string) => unknown,
+): ThemePackAsset[] {
+	const packs: ThemePackAsset[] = [];
+	for (const surface of surfaces) {
+		if (surface.kind !== "theme-pack") continue;
+		for (const assetPath of surface.assets ?? []) {
+			let payload: unknown;
+			try {
+				payload = loadAsset(assetPath);
+			} catch {
+				continue;
+			}
+			if (!payload || typeof payload !== "object") continue;
+			const record = payload as Record<string, unknown>;
+			const theme = (record.theme ?? record.tokens) as
+				| Partial<DsTheme>
+				| undefined;
+			if (!theme || typeof theme !== "object") continue;
+			const id =
+				typeof record.id === "string" && record.id.trim().length > 0
+					? record.id
+					: surface.id;
+			packs.push({ id, theme });
+		}
+	}
+	return packs;
+}

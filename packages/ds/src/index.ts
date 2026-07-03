@@ -1,9 +1,11 @@
 export { runDsThemeConformance } from "./theme-conformance.js";
 export {
 	registerThemePacks,
+	resolveThemePacksFromSurfaces,
 	ThemeRegistry,
 	type RegisteredTheme,
 	type ThemePackAsset,
+	type ThemePackSurface,
 	type ThemeRegistrationResult,
 } from "./theme-registry.js";
 export {
