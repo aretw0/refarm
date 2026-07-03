@@ -1011,6 +1011,9 @@ importers:
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../plugin-manifest
+      '@refarm.dev/skill-contract-v1':
+        specifier: workspace:*
+        version: link:../skill-contract-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

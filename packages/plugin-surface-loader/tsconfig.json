@@ -6,7 +6,8 @@
 		"rootDir": "..",
 		"paths": {
 			"@refarm.dev/ds": ["packages/ds/dist/index.d.ts"],
-			"@refarm.dev/plugin-manifest": ["packages/plugin-manifest/src/index.d.ts"]
+			"@refarm.dev/plugin-manifest": ["packages/plugin-manifest/src/index.d.ts"],
+			"@refarm.dev/skill-contract-v1": ["packages/skill-contract-v1/src/index.ts"]
 		}
 	},
 	"include": ["src/**/*"],
