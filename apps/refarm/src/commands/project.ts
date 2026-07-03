@@ -21,14 +21,28 @@ import {
 	type ProjectHandoffUpdate,
 	type ProjectHandoffValidationResult,
 } from "@refarm.dev/cli/project-handoff";
+import { runDueScheduledWork } from "@refarm.dev/cli/scheduled-work-runner";
+import { createLocalSchedulerLedger } from "@refarm.dev/windmill/local-scheduler-ledger";
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import { resolveAdapter } from "./task-support.js";
+
+/** Minimal effort submit adapter — the shape `runDueScheduledWork` needs. */
+interface EffortSubmitAdapter {
+	submit(effort: unknown): Promise<string>;
+}
 
 interface ProjectDeps {
 	cwd(): string;
 	now(): Date;
+	/**
+	 * Resolves the effort submit adapter used by `automations tick --submit`.
+	 * Defaults to the real file transport (queues under `~/.refarm`); tests
+	 * inject a collecting fake.
+	 */
+	effortSubmitAdapter(): EffortSubmitAdapter;
 }
 
 interface HandoffValidateOptions {
@@ -75,10 +89,17 @@ interface AutomationsStatusOptions extends AutomationsValidateOptions {
 	dryRun?: boolean;
 }
 
+interface AutomationsTickOptions extends AutomationsValidateOptions {
+	submit?: boolean;
+	owner?: string;
+	now?: string;
+}
+
 function defaultDeps(): ProjectDeps {
 	return {
 		cwd: () => process.cwd(),
 		now: () => new Date(),
+		effortSubmitAdapter: () => resolveAdapter("file"),
 	};
 }
 
@@ -92,6 +113,48 @@ function handoffPath(cwd: string): string {
 
 function automationsPath(cwd: string): string {
 	return path.join(cwd, PROJECT_AUTOMATIONS_RELATIVE_PATH);
+}
+
+/**
+ * A ledger for `tick` dry-run: it reads the real `.refarm` fired state (so the
+ * report reflects what a real `--submit` would fire), but `recordFired` is a
+ * no-op — a dry-run must never mutate the ledger.
+ */
+function dryRunLedger(cwd: string) {
+	const real = createLocalSchedulerLedger({ cwd });
+	return {
+		hasFired: (key: string) => real.hasFired(key),
+		recordFired: async () => {},
+	};
+}
+
+function formatTickReportPlain(
+	report: {
+		summary: {
+			due: number;
+			submitted: number;
+			alreadyFired: number;
+			skipped: number;
+			failed: number;
+		};
+		results: Array<{ status: string; job: { name: string } }>;
+	},
+	submit: boolean,
+): string {
+	const mode = submit ? "submit" : "dry-run";
+	const s = report.summary;
+	const lines = [
+		`Scheduled work tick (${mode}): due=${s.due} ${submit ? "submitted" : "would-submit"}=${s.submitted} already-fired=${s.alreadyFired} skipped=${s.skipped} failed=${s.failed}`,
+	];
+	for (const result of report.results) {
+		lines.push(`  ${result.status}: ${result.job.name}`);
+	}
+	if (!submit && s.submitted > 0) {
+		lines.push(
+			chalk.dim("  (dry-run — no efforts dispatched, ledger untouched)"),
+		);
+	}
+	return lines.join("\n");
 }
 
 function parseMaxAgeMs(value: string | undefined): number | undefined {
@@ -647,6 +710,69 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 					);
 				} else {
 					console.error(chalk.red(`Project automation status update failed: ${message}`));
+				}
+				process.exitCode = 1;
+			}
+		});
+
+	command
+		.command("tick")
+		.description(
+			"Fire due local scheduled work once. Dry-run by default; use --submit to dispatch efforts and record the .refarm ledger.",
+		)
+		.option("--submit", "Dispatch due efforts and record the fired ledger")
+		.option("--owner <owner>", "Ledger owner recorded on each job")
+		.option("--now <iso>", "Clock override (ISO-8601) for due-ness")
+		.option("--json", "Output machine-readable tick report")
+		.action(async (options: AutomationsTickOptions) => {
+			const cwd = deps.cwd();
+			const submit = Boolean(options.submit);
+			try {
+				const report = await runDueScheduledWork({
+					cwd,
+					owner: options.owner,
+					now: options.now,
+					// Dry-run: collect efforts without submitting; --submit: real transport.
+					effortAdapter: submit
+						? deps.effortSubmitAdapter()
+						: { submit: async () => "dry-run" },
+					// Dry-run consults the real .refarm ledger for hasFired (so it reports
+					// what would actually fire) but never records — no side effect.
+					ledger: submit ? createLocalSchedulerLedger({ cwd }) : dryRunLedger(cwd),
+				});
+				const nextCommands = submit
+					? ["refarm resume --json", "refarm check --next-action --json"]
+					: ["refarm project automations tick --submit --json"];
+				if (options.json) {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "project",
+							operation: "automations.tick",
+							nextCommands,
+							extra: { submitted: submit, report },
+						}),
+					);
+					return;
+				}
+				console.log(formatTickReportPlain(report, submit));
+				for (const next of nextCommands) {
+					console.log(chalk.dim(`  next: ${next}`));
+				}
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				if (options.json) {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "project",
+							operation: "automations.tick",
+							error: "project_automation_tick_failed",
+							message,
+							nextAction:
+								"Run `refarm project automations tick --help`; check .project/automations.json and .refarm write access.",
+						}),
+					);
+				} else {
+					console.error(chalk.red(`Project automation tick failed: ${message}`));
 				}
 				process.exitCode = 1;
 			}

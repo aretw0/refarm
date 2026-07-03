@@ -62,6 +62,10 @@
 			"types": "./dist/project-automations.d.ts",
 			"import": "./dist/project-automations.js"
 		},
+		"./scheduled-work-runner": {
+			"types": "./dist/scheduled-work-runner.d.ts",
+			"import": "./dist/scheduled-work-runner.js"
+		},
 		"./process-handoff": {
 			"types": "./dist/process-handoff.d.ts",
 			"import": "./dist/process-handoff.js"
@@ -155,6 +159,8 @@
 		"dist/project-handoff.js",
 		"dist/project-automations.d.ts",
 		"dist/project-automations.js",
+		"dist/scheduled-work-runner.d.ts",
+		"dist/scheduled-work-runner.js",
 		"dist/rust-substrate.d.ts",
 		"dist/rust-substrate.js",
 		"dist/status.d.ts",
