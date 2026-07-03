@@ -3,7 +3,10 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { validateHandoffManifest } from "./vault-seed-handoff-consumer-install.mjs";
+import {
+	latestAcceptedHandoffReport,
+	validateHandoffManifest,
+} from "./vault-seed-handoff-consumer-install.mjs";
 
 function fixture() {
 	const root = mkdtempSync(path.join(os.tmpdir(), "refarm-consumer-install-"));
@@ -130,4 +133,31 @@ test("validates a downstream vendor copy when supplied", () => {
 		report.issues.map((item) => item.code).sort(),
 		["consumer-pnpm-override", "consumer-vendor-sha256"],
 	);
+});
+
+test("latest-accepted mode skips a newer blocked candidate", () => {
+	const accepted = fixture();
+	const blockedDir = path.join(accepted.root, ".refarm/handoff/vault-seed/zz-blocked");
+	mkdirSync(blockedDir, { recursive: true });
+	writeFileSync(path.join(blockedDir, "manifest.json"), JSON.stringify({
+		source: "vault-seed-ready-handoff",
+		sourceGitSha: "blocked",
+		ok: false,
+		status: "ready",
+		selection: { id: "vault-seed-ready" },
+		acceptance: { status: "accepted", packageCount: 0 },
+		packages: [],
+		consumerInstall: { copyFiles: ["manifest.json"], fileSpecs: {}, pnpmOverrides: {} },
+		distributionEvidence: { integrity: { tarballs: [] } },
+		issues: ["stale build output: @refarm.dev/example"],
+	}, null, 2));
+
+	const report = latestAcceptedHandoffReport({ root: accepted.root });
+
+	assert.equal(report.ok, true);
+	assert.equal(report.mode, "latest-accepted");
+	assert.equal(report.handoffDir, accepted.handoffDir);
+	assert.equal(report.latestCandidate.ok, false);
+	assert.equal(report.latestCandidate.sourceGitSha, "blocked");
+	assert.equal(report.latestCandidate.issueCount, 2);
 });

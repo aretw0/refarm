@@ -27,6 +27,7 @@ function parseArgs(argv = []) {
 		root: ROOT,
 		handoffDir: null,
 		consumerRoot: null,
+		latestAccepted: false,
 		json: false,
 	};
 
@@ -51,6 +52,10 @@ function parseArgs(argv = []) {
 			options.json = true;
 			continue;
 		}
+		if (arg === "--latest-accepted") {
+			options.latestAccepted = true;
+			continue;
+		}
 		throw new Error(`Unknown argument: ${arg}`);
 	}
 
@@ -66,15 +71,19 @@ function requireValue(argv, index, flag) {
 }
 
 function latestHandoffDir(root) {
+	const dirs = handoffDirs(root);
+	return dirs.at(-1) ?? null;
+}
+
+function handoffDirs(root) {
 	const base = path.join(root, DEFAULT_HANDOFF_DIR);
 	if (!existsSync(base)) {
-		return null;
+		return [];
 	}
-	const dirs = readdirSync(base, { withFileTypes: true })
+	return readdirSync(base, { withFileTypes: true })
 		.filter((entry) => entry.isDirectory())
 		.map((entry) => path.join(base, entry.name))
 		.sort();
-	return dirs.at(-1) ?? null;
 }
 
 function resolveHandoffDir(root, handoffDir) {
@@ -221,6 +230,57 @@ function validateHandoffManifest({ root = ROOT, handoffDir = null, consumerRoot 
 	return result({ root, handoffDir: resolvedHandoffDir, consumerRoot, manifest, issues });
 }
 
+function latestAcceptedHandoffReport({ root = ROOT, consumerRoot = null } = {}) {
+	const dirs = handoffDirs(root).reverse();
+	let latestCandidate = null;
+
+	for (const dir of dirs) {
+		const report = validateHandoffManifest({ root, handoffDir: dir, consumerRoot });
+		latestCandidate ??= report;
+		if (report.ok) {
+			return {
+				...report,
+				mode: "latest-accepted",
+				latestCandidate:
+					latestCandidate.handoffDir === report.handoffDir
+						? null
+						: summarizeCandidate(latestCandidate),
+			};
+		}
+	}
+
+	if (latestCandidate) {
+		return {
+			...latestCandidate,
+			mode: "latest-accepted",
+			issues: [
+				{
+					code: "accepted-handoff-missing",
+					message: "No accepted vault-seed handoff was found.",
+				},
+				...latestCandidate.issues,
+			],
+			issueCount: latestCandidate.issues.length + 1,
+		};
+	}
+
+	return validateHandoffManifest({ root, consumerRoot });
+}
+
+function summarizeCandidate(report) {
+	return {
+		ok: report.ok,
+		handoffDir: report.handoffDir,
+		sourceGitSha: report.sourceGitSha,
+		packageCount: report.packageCount,
+		issueCount: report.issueCount,
+		firstIssues: report.issues.slice(0, 3).map((item) => ({
+			code: item.code,
+			message: item.message,
+		})),
+	};
+}
+
 function validateConsumerCopy({ consumerRoot, packages, packageNames, issues }) {
 	const vendorDir = path.join(consumerRoot, "vendor");
 	const pkgPath = path.join(consumerRoot, "package.json");
@@ -293,6 +353,7 @@ function result({ root, handoffDir, consumerRoot, manifest, issues }) {
 	return {
 		ok: issues.length === 0,
 		command: "vault-seed-handoff-consumer-install",
+		mode: "exact-or-latest",
 		root,
 		handoffDir,
 		consumerRoot,
@@ -306,7 +367,11 @@ function result({ root, handoffDir, consumerRoot, manifest, issues }) {
 function formatReport(report) {
 	const lines = [];
 	lines.push(`vault-seed handoff consumer-install: ${report.ok ? "OK" : "FAIL"}`);
+	lines.push(`mode: ${report.mode ?? "exact-or-latest"}`);
 	lines.push(`handoffDir: ${report.handoffDir ?? "(missing)"}`);
+	if (report.latestCandidate) {
+		lines.push(`latestCandidate: ${report.latestCandidate.handoffDir} (${report.latestCandidate.ok ? "OK" : "blocked"})`);
+	}
 	if (report.consumerRoot) {
 		lines.push(`consumerRoot: ${report.consumerRoot}`);
 	}
@@ -326,7 +391,9 @@ function formatReport(report) {
 
 async function main() {
 	const args = parseArgs(process.argv.slice(2));
-	const report = validateHandoffManifest(args);
+	const report = args.latestAccepted
+		? latestAcceptedHandoffReport(args)
+		: validateHandoffManifest(args);
 	if (args.json) {
 		process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 	} else {
@@ -335,7 +402,7 @@ async function main() {
 	process.exitCode = report.ok ? 0 : 1;
 }
 
-export { formatReport, parseArgs, validateHandoffManifest };
+export { formatReport, latestAcceptedHandoffReport, parseArgs, validateHandoffManifest };
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	main().catch((error) => {
