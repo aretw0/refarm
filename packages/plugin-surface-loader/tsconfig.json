@@ -1,0 +1,14 @@
+{
+	"extends": ["../../tsconfig.json", "@refarm.dev/tsconfig/buildable.json"],
+	"compilerOptions": {
+		"outDir": "dist",
+		"baseUrl": "../..",
+		"rootDir": "..",
+		"paths": {
+			"@refarm.dev/ds": ["packages/ds/dist/index.d.ts"],
+			"@refarm.dev/plugin-manifest": ["packages/plugin-manifest/src/index.d.ts"]
+		}
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist", "**/*.test.ts"]
+}
