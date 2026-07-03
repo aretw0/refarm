@@ -10,10 +10,15 @@ const SUPPORTED_SCHEDULE_TRIGGERS = new Set(["once", "cron"]);
  * @typedef {{ type: "once", at: string } | { type: "cron", schedule: string, timezone?: string }} LocalScheduledTrigger
  * @typedef {{ id: string, name: string, description?: string, triggers: LocalScheduledTrigger[] }} LocalScheduledAutomation
  * @typedef {{ query(filter?: { status?: string }): Promise<LocalScheduledAutomation[]> }} LocalAutomationQueryAdapter
+ * @typedef {LocalAutomationQueryAdapter & { trigger(id: string, input?: unknown): Promise<unknown | null> }} LocalAutomationExecutionAdapter
+ * @typedef {{ submit(effort: unknown): Promise<string> }} LocalEffortSubmitAdapter
  * @typedef {{ owner: string, now?: string | Date }} LocalScheduledWorkOptions
  * @typedef {{ total: number, due: number, scheduled: number, unsupported: number }} LocalScheduledWorkSummary
  * @typedef {{ schemaVersion: 1, id: string, automationId: string, name: string, description?: string, owner: string, kind: LocalScheduledJobKind, status: LocalScheduledJobStatus, schedule: LocalScheduledJobSchedule, unsupportedReason?: string, modelRoute: "none", tokenUse: "none", resume: LocalScheduledJobResume }} LocalScheduledJob
  * @typedef {{ schemaVersion: 1, owner: string, generatedAt: string, summary: LocalScheduledWorkSummary, jobs: LocalScheduledJob[] }} LocalScheduledWorkInspection
+ * @typedef {"submitted" | "skipped" | "failed"} LocalScheduledWorkExecutionStatus
+ * @typedef {{ schemaVersion: 1, job: LocalScheduledJob, status: LocalScheduledWorkExecutionStatus, effortId?: string, error?: string }} LocalScheduledWorkExecutionResult
+ * @typedef {{ schemaVersion: 1, owner: string, generatedAt: string, summary: { due: number, submitted: number, skipped: number, failed: number }, results: LocalScheduledWorkExecutionResult[] }} LocalScheduledWorkExecutionReport
  * @typedef {{ schemaVersion: 1, list(options?: Partial<LocalScheduledWorkOptions>): Promise<LocalScheduledJob[]>, inspect(options?: Partial<LocalScheduledWorkOptions>): Promise<LocalScheduledWorkInspection>, due(options?: Partial<LocalScheduledWorkOptions>): Promise<LocalScheduledJob[]> }} LocalScheduledWork
  */
 
@@ -21,6 +26,23 @@ function assertAdapter(adapter) {
 	if (!adapter || typeof adapter.query !== "function") {
 		throw new Error(
 			"Local scheduled work requires an AutomationAdapter with query() support",
+		);
+	}
+}
+
+function assertExecutionAdapter(adapter) {
+	assertAdapter(adapter);
+	if (typeof adapter.trigger !== "function") {
+		throw new Error(
+			"Local scheduled work execution requires an AutomationAdapter with trigger() support",
+		);
+	}
+}
+
+function assertEffortSubmitAdapter(adapter) {
+	if (!adapter || typeof adapter.submit !== "function") {
+		throw new Error(
+			"Local scheduled work execution requires an Effort adapter with submit() support",
 		);
 	}
 }
@@ -207,6 +229,79 @@ export async function inspectLocalScheduledWork(adapter, options = {}) {
 		generatedAt: resolveNow(options.now).toISOString(),
 		summary,
 		jobs,
+	};
+}
+
+/**
+ * Trigger and submit currently due local scheduled work.
+ *
+ * This is a host-owned tick helper: it decides due-ness, asks the automation
+ * adapter to build an Effort, and submits that Effort through the provided
+ * effort adapter. It does not own daemon timing or one-shot fired ledgers.
+ *
+ * @param {LocalAutomationExecutionAdapter} automationAdapter
+ * @param {LocalEffortSubmitAdapter} effortAdapter
+ * @param {Partial<LocalScheduledWorkOptions>} [options]
+ * @returns {Promise<LocalScheduledWorkExecutionReport>}
+ */
+export async function executeDueLocalScheduledWork(
+	automationAdapter,
+	effortAdapter,
+	options = {},
+) {
+	assertExecutionAdapter(automationAdapter);
+	assertEffortSubmitAdapter(effortAdapter);
+	const owner = assertOwner(options.owner);
+	const now = resolveNow(options.now);
+	const jobs = await listLocalScheduledJobs(automationAdapter, { owner, now });
+	const dueJobs = jobs.filter((job) => job.status === "due");
+	const results = [];
+
+	for (const job of dueJobs) {
+		try {
+			const effort = await automationAdapter.trigger(job.automationId, {
+				scheduledJob: job,
+				firedAt: now.toISOString(),
+				owner,
+			});
+			if (!effort) {
+				results.push({
+					schemaVersion: LOCAL_SCHEDULED_WORK_SCHEMA_VERSION,
+					job,
+					status: "skipped",
+					error: "automation returned no effort",
+				});
+				continue;
+			}
+
+			const effortId = await effortAdapter.submit(effort);
+			results.push({
+				schemaVersion: LOCAL_SCHEDULED_WORK_SCHEMA_VERSION,
+				job,
+				status: "submitted",
+				effortId,
+			});
+		} catch (error) {
+			results.push({
+				schemaVersion: LOCAL_SCHEDULED_WORK_SCHEMA_VERSION,
+				job,
+				status: "failed",
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
+
+	return {
+		schemaVersion: LOCAL_SCHEDULED_WORK_SCHEMA_VERSION,
+		owner,
+		generatedAt: now.toISOString(),
+		summary: {
+			due: dueJobs.length,
+			submitted: results.filter((result) => result.status === "submitted").length,
+			skipped: results.filter((result) => result.status === "skipped").length,
+			failed: results.filter((result) => result.status === "failed").length,
+		},
+		results,
 	};
 }
 

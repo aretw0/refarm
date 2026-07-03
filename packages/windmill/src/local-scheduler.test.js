@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	createLocalScheduledWork,
+	executeDueLocalScheduledWork,
 	inspectLocalScheduledWork,
 	listLocalScheduledJobs,
 } from "./local-scheduler.js";
@@ -41,6 +42,18 @@ function createAutomationAdapter() {
 			const automations = [...store.values()];
 			if (!filter.status) return automations;
 			return automations.filter((automation) => automation.status === filter.status);
+		},
+		async trigger(id, input) {
+			const automation = store.get(id);
+			if (!automation || automation.status !== "active") return null;
+			if (automation.body.type === "static") {
+				return {
+					id: `${automation.id}:effort`,
+					submittedAt: input?.firedAt ?? "2026-06-27T00:00:00.000Z",
+					...automation.body.effort,
+				};
+			}
+			return null;
 		},
 	};
 }
@@ -143,5 +156,104 @@ describe("local scheduled work", () => {
 				now: "not-a-date",
 			}),
 		).rejects.toThrow("valid date");
+	});
+
+	it("triggers and submits due scheduled work without owning daemon timing", async () => {
+		const automationAdapter = createAutomationAdapter();
+		const submitted = [];
+		const effortAdapter = {
+			async submit(effort) {
+				submitted.push(effort);
+				return effort.id;
+			},
+		};
+		await createActiveAutomation(automationAdapter, {
+			name: "one-shot proof",
+			triggers: [{ type: "once", at: "2026-06-27T08:00:00.000Z" }],
+		});
+		await createActiveAutomation(automationAdapter, {
+			name: "future proof",
+			triggers: [{ type: "once", at: "2026-06-28T08:00:00.000Z" }],
+		});
+
+		await expect(
+			executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+				owner: "refarm-main",
+				now: "2026-06-27T09:00:00.000Z",
+			}),
+		).resolves.toMatchObject({
+			owner: "refarm-main",
+			summary: { due: 1, submitted: 1, skipped: 0, failed: 0 },
+			results: [
+				{
+					status: "submitted",
+					job: expect.objectContaining({ name: "one-shot proof" }),
+				},
+			],
+		});
+		expect(submitted).toHaveLength(1);
+		expect(submitted[0]).toEqual(
+			expect.objectContaining({ direction: "scheduled local work" }),
+		);
+	});
+
+	it("reports skipped and failed due work without aborting the tick", async () => {
+		const automationAdapter = createAutomationAdapter();
+		const failing = await createActiveAutomation(automationAdapter, {
+			name: "failing proof",
+			triggers: [{ type: "once", at: "2026-06-27T08:00:00.000Z" }],
+		});
+		const skipped = await createActiveAutomation(automationAdapter, {
+			name: "skipped proof",
+			triggers: [{ type: "once", at: "2026-06-27T08:00:00.000Z" }],
+		});
+		const originalTrigger = automationAdapter.trigger;
+		automationAdapter.trigger = async (id, input) => {
+			if (id === skipped.id) return null;
+			return originalTrigger(id, input);
+		};
+		const effortAdapter = {
+			async submit(effort) {
+				if (effort.id === `${failing.id}:effort`) {
+					throw new Error("transport unavailable");
+				}
+				return effort.id;
+			},
+		};
+
+		await expect(
+			executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+				owner: "refarm-main",
+				now: "2026-06-27T09:00:00.000Z",
+			}),
+		).resolves.toMatchObject({
+			summary: { due: 2, submitted: 0, skipped: 1, failed: 1 },
+			results: expect.arrayContaining([
+				expect.objectContaining({
+					status: "failed",
+					error: "transport unavailable",
+				}),
+				expect.objectContaining({
+					status: "skipped",
+					error: "automation returned no effort",
+				}),
+			]),
+		});
+	});
+
+	it("requires trigger and submit support before executing due work", async () => {
+		const adapter = createAutomationAdapter();
+
+		await expect(
+			executeDueLocalScheduledWork(
+				{ query: adapter.query },
+				{ submit: async () => "effort-1" },
+				{ owner: "refarm-main" },
+			),
+		).rejects.toThrow("trigger() support");
+
+		await expect(
+			executeDueLocalScheduledWork(adapter, {}, { owner: "refarm-main" }),
+		).rejects.toThrow("submit() support");
 	});
 });

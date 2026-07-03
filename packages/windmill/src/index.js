@@ -4,6 +4,7 @@ import path from "node:path";
 export {
     LOCAL_SCHEDULED_WORK_SCHEMA_VERSION,
     createLocalScheduledWork,
+    executeDueLocalScheduledWork,
     inspectLocalScheduledWork,
     listLocalScheduledJobs,
 } from "./local-scheduler.js";
