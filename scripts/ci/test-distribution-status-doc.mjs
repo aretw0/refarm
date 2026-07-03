@@ -59,6 +59,10 @@ const vaultSeedHandoffAdr = readFileSync(
 	path.join(ROOT, "specs/ADRs/ADR-080-vault-seed-ready-handoff-pipeline.md"),
 	"utf8",
 );
+const releaseConvergencePlan = readFileSync(
+	path.join(ROOT, "docs/superpowers/plans/2026-07-03-refarm-vault-seed-release-convergence.md"),
+	"utf8",
+);
 
 function escapeRegExp(value) {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -184,10 +188,25 @@ test("vault-seed handoff docs distinguish historical 10-package packets from cur
 });
 
 test("factory readiness records the current local vault-seed handoff state", () => {
-	assert.match(factoryReadinessDoc, /local handoff ready/);
+	assert.match(factoryReadinessDoc, /official downstream proof received/);
 	assert.match(factoryReadinessDoc, /\.refarm\/handoff\/vault-seed\/2026-07-03\/manifest\.json/);
 	assert.match(factoryReadinessDoc, /distributionEvidence\.state: "local-handoff-ready"/);
 	assert.match(factoryReadinessDoc, /20 tarballs/);
+});
+
+test("release convergence records the official downstream vault-seed proof receipt", () => {
+	assert.match(releaseConvergencePlan, /Official `vault-seed` proof received/);
+	assert.match(releaseConvergencePlan, /received from the official downstream checkout on 2026-07-03/);
+	assert.match(releaseConvergencePlan, /packet: 20 tarballs, `manifest\.json`, `manifest\.md`/);
+	assert.match(releaseConvergencePlan, /SHA-256 verification: all 20 `vendor\/\*\.tgz` files matched/);
+	assert.match(releaseConvergencePlan, /focused consumer proof: 9 Vitest files \/ 33 tests passed/);
+	assert.match(releaseConvergencePlan, /records:manifest` produced 93 valid records/);
+	assert.match(releaseConvergencePlan, /Astro build passed with 86 pages/);
+	assert.match(releaseConvergencePlan, /release:package:smoke:json` passed with `ok=true`/);
+	assert.match(releaseConvergencePlan, /private POC specifics remain downstream/);
+
+	assert.match(decisionLogDoc, /Official downstream proof received; publication gates still held/);
+	assert.match(factoryReadinessDoc, /official downstream checkout reported successful vendor SHA-256 verification for all 20 tarballs/);
 });
 
 test("focus maps do not regress implemented quality and projection blocks to planned", () => {

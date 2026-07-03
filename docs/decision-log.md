@@ -422,7 +422,7 @@ _Refreshed 2026-07-03; the previous single row (WASM + WIT capability enforcemen
 
 | Topic | ADR | Owner | Status | Due | Evidence |
 |---|---|---|---|---|---|
-| vault-seed-ready handoff: official downstream assimilation of the 2026-07-03 packet | — (ADR-080 proposed for the pipeline) | Operator + vault-seed checkout | Packet accepted upstream; downstream proofs pending | consumer-pulled | `.refarm/handoff/vault-seed/2026-07-03/manifest.json` (`consumerProofs`) |
+| vault-seed-ready handoff: official downstream assimilation of the 2026-07-03 packet | — (ADR-080 proposed for the pipeline) | Operator + vault-seed checkout | Official downstream proof received; publication gates still held | consumer-pulled | `docs/superpowers/plans/2026-07-03-refarm-vault-seed-release-convergence.md`, `.refarm/handoff/vault-seed/2026-07-03/manifest.json` (`consumerProofs`) |
 | Agent-commons ceilings: commons watchdog (phases 4-9, watchdog-first) | ADR-078 | Core | Phases 1-3 shipped; watchdog planned | conditional | `docs/superpowers/plans/2026-07-02-commons-watchdog.md`, `scripts/ci/test-devcontainer-contract.mjs` |
 | Credentials verification policy | ADR-079 | Core | Proposed | — | `specs/ADRs/ADR-079-credentials-verification-policy.md` |
 | Content-projection MD/MDX blocks (records:v1 + ds-astro embed set) | — | Core | Phase 1 implemented and selected; `ds-astro` remains render-pressure-gated | consumer-pulled | `packages/content-projection`, `docs/superpowers/specs/2026-07-02-content-projection-md-mdx-design.md` |

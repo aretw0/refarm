@@ -119,6 +119,36 @@ The official `vault-seed` proof should record:
 - product boundary confirmation: `dgk` command labels, vault UX, PARA language,
   provider adapters, notebooks, and publication copy stay downstream.
 
+## Official `vault-seed` proof received
+
+Status: received from the official downstream checkout on 2026-07-03. Evidence
+is recorded in `vault-seed` at
+`docs/convergencia-refarm-proof-2026-07-03.md`.
+
+Official proof summary:
+
+- consumed handoff: `.refarm/handoff/vault-seed/2026-07-03/`
+- source Git SHA: `6a6d31fa2cf5d64fd6abc555448541388beb8077`
+- packet: 20 tarballs, `manifest.json`, `manifest.md`
+- SHA-256 verification: all 20 `vendor/*.tgz` files matched
+  `vendor/manifest.json`
+- install shape: direct `file:vendor/*.tgz` dependencies plus workspace-level
+  pnpm overrides aligned with `consumerInstall.pnpmOverrides`
+- lockfile handling: changed same-name/same-version `file:` tarballs were
+  refreshed with explicit lockfile update and reinstall before proof commands
+- focused consumer proof: 9 Vitest files / 33 tests passed, including
+  `quality-contract.declared-lint-envelope`,
+  `content-projection.markdown-mdx-records`, source-web, records, enrichment,
+  records ETL, manifest generation, and records table surface
+- artifact proof: `records:manifest` produced 93 valid records with
+  `ok=true, failures=0`
+- site proof: Astro build passed with 86 pages and `/records-manifest.json`
+- package smoke: `release:package:smoke:json` passed with `ok=true`, no
+  blockers, and no warnings after rerunning outside the local `uv` cache
+  permission sandbox
+- boundary confirmed: `dgk` labels, vault UX, PARA language, provider adapters,
+  notebooks, publication copy, and private POC specifics remain downstream
+
 ## Walking order
 
 1. Keep the operator loop green before each slice:
