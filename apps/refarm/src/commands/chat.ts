@@ -1,3 +1,4 @@
+import { parseCapabilityArgv } from "@refarm.dev/cli/capabilities";
 import {
 	loadChatHistory,
 	MAX_CHAT_HISTORY_LINES,
@@ -25,6 +26,11 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import readline from "node:readline";
+import {
+	capabilityHooksFor,
+	capabilityRegistry,
+	capabilitySlashNames,
+} from "./capability-registry.js";
 import { submitEffortWithRuntimeRecovery } from "./chat-runtime-recovery.js";
 import {
 	buildCurrentModelStatus,
@@ -477,7 +483,7 @@ export {
 		}
 
 		rl.on("line", (line) => {
-			const command = parseChatLine(line);
+			const command = parseChatLine(line, capabilitySlashNames());
 
 			const trimmedLine = line.trim();
 			if (trimmedLine && command.kind !== "history") {
@@ -653,6 +659,38 @@ export {
 								chalk.dim(
 									"Refarm runtime reloads saved credentials before each task.",
 								),
+							);
+						} catch (error) {
+							const message =
+								error instanceof Error ? error.message : String(error);
+							console.error(chalk.red(`✗  ${message}`));
+						}
+						console.log();
+						rl.resume();
+						rl.prompt();
+					})();
+					break;
+				}
+
+				case "capability": {
+					// Deterministic verb: run the declared capability and print its
+					// envelope. This never calls the model (that is only case
+					// "message" → runTurn); a `/slash` is a local action.
+					const descriptor = capabilityRegistry.get(command.name);
+					if (!descriptor) {
+						rl.prompt();
+						break;
+					}
+					rl.pause();
+					void (async () => {
+						try {
+							const input = parseCapabilityArgv(descriptor, command.argv);
+							const envelope = await descriptor.run(input);
+							const hooks = capabilityHooksFor(command.name);
+							console.log(
+								hooks.renderText
+									? hooks.renderText(envelope)
+									: JSON.stringify(envelope, null, 2),
 							);
 						} catch (error) {
 							const message =

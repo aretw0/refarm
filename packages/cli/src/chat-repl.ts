@@ -31,7 +31,8 @@ export type ChatCommand =
 	| { kind: "help" }
 	| { kind: "status" }
 	| { kind: "history"; action: "show" }
-	| { kind: "history"; action: "clear" };
+	| { kind: "history"; action: "clear" }
+	| { kind: "capability"; name: string; argv: string[] };
 
 const SLASH_COMMANDS: Record<string, ChatCommand> = {
 	new: { kind: "new" },
@@ -46,7 +47,44 @@ const SLASH_COMMANDS: Record<string, ChatCommand> = {
 	status: { kind: "status" },
 };
 
-export function parseChatLine(line: string): ChatCommand {
+/**
+ * Every built-in slash name a capability must not shadow: the argless
+ * SLASH_COMMANDS above plus the arg-bearing names handled by the if-ladder in
+ * parseChatLine. A CapabilityRegistry is seeded with this set so registering a
+ * colliding name fails loudly instead of the capability being silently
+ * unreachable (the built-in is matched first).
+ */
+export const RESERVED_SLASH_NAMES: ReadonlySet<string> = new Set([
+	...Object.keys(SLASH_COMMANDS),
+	"session",
+	"reload",
+	"r",
+	"model",
+	"provider",
+	"providers",
+	"models",
+	"login",
+	"sow",
+	"keys",
+	"history",
+	"hist",
+	"clear",
+	"cls",
+]);
+
+/**
+ * Parse a chat line into a ChatCommand. Pure and dependency-free.
+ *
+ * `capabilityNames` is an optional set of registered capability slash names
+ * (lowercased). A `/name ...` that matches — and is not a built-in above — parses
+ * to `{ kind: "capability" }` for deterministic dispatch, instead of falling
+ * through to a model message. Built-in names are matched first, so a capability
+ * can never shadow `/model`, `/reload`, etc.
+ */
+export function parseChatLine(
+	line: string,
+	capabilityNames?: ReadonlySet<string>,
+): ChatCommand {
 	const trimmed = line.trim();
 
 	if (!trimmed.startsWith("/")) {
@@ -112,7 +150,12 @@ export function parseChatLine(line: string): ChatCommand {
 		return { kind: "model", action: "providers" };
 	}
 
-	return SLASH_COMMANDS[commandName] ?? { kind: "message", text: trimmed };
+	const builtIn = SLASH_COMMANDS[commandName];
+	if (builtIn) return builtIn;
+	if (capabilityNames?.has(commandName)) {
+		return { kind: "capability", name: commandName, argv: rest };
+	}
+	return { kind: "message", text: trimmed };
 }
 
 function parseHistoryCommand(args: string[], fallbackText: string): ChatCommand {

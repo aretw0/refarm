@@ -5,11 +5,6 @@ import {
 	printJson,
 	type JsonSuccessEnvelope,
 } from "@refarm.dev/cli/json-output";
-import {
-	decidePluginPolicy,
-	type PluginPolicyDecision,
-	type PluginPolicyMode,
-} from "@refarm.dev/plugin-manifest";
 import { Command } from "commander";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
@@ -400,87 +395,6 @@ function listHandler(options: { json?: boolean } = {}): void {
   }
 }
 
-const REVIEW_MANIFEST_FILENAMES = ["plugin.json", "ext.json"] as const;
-
-/**
- * Resolve a reviewable plugin manifest from a path. Accepts a manifest file
- * directly, or a directory containing plugin.json / ext.json (a prepared
- * extension the persona points at). Returns the parsed manifest and the file it
- * came from. Throws with an operator-facing message when nothing is found.
- */
-export function loadReviewableManifest(
-  targetPath: string,
-): { manifest: unknown; manifestPath: string } {
-  if (!existsSync(targetPath)) {
-    throw new Error(`No such path: ${targetPath}`);
-  }
-  const candidates = targetPath.endsWith(".json")
-    ? [targetPath]
-    : REVIEW_MANIFEST_FILENAMES.map((name) => path.join(targetPath, name));
-  const manifestPath = candidates.find((candidate) => existsSync(candidate));
-  if (!manifestPath) {
-    throw new Error(
-      `No plugin.json or ext.json found at ${targetPath}. Point --at a prepared extension directory or manifest file.`,
-    );
-  }
-  let manifest: unknown;
-  try {
-    manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Could not parse ${manifestPath}: ${message}`);
-  }
-  return { manifest, manifestPath };
-}
-
-export interface ExtensionReviewInput {
-  targetPath: string;
-  grantedCapabilities: string[];
-  policyMode: PluginPolicyMode;
-}
-
-export type ExtensionReviewReport = JsonSuccessEnvelope<{
-  manifestPath: string;
-  grantedCapabilities: string[];
-  policyMode: PluginPolicyMode;
-  decision: PluginPolicyDecision;
-  readyToInstall: boolean;
-  deniedCapabilities: string[];
-}>;
-
-/**
- * Review a prepared extension against a capability grant. This is the review
- * step of the install envelope: it runs the shared, host-agnostic
- * decidePluginPolicy over the manifest and reports whether the extension is
- * ready to install (no denied capabilities and a valid manifest). Grants are
- * operator-supplied; nothing is installed and no capability is granted here.
- */
-export function buildExtensionReviewReport(
-  input: ExtensionReviewInput,
-): ExtensionReviewReport {
-  const { manifest, manifestPath } = loadReviewableManifest(input.targetPath);
-  const decision = decidePluginPolicy(manifest as never, {
-    grantedCapabilities: input.grantedCapabilities,
-    policyMode: input.policyMode,
-  });
-  const readyToInstall =
-    decision.status === "completed" && decision.manifestValid;
-  return buildJsonSuccessEnvelope({
-    command: "extension",
-    operation: "review",
-    nextCommands: readyToInstall
-      ? ["refarm plugin install", "refarm resume --json"]
-      : [],
-    extra: {
-      manifestPath,
-      grantedCapabilities: input.grantedCapabilities,
-      policyMode: input.policyMode,
-      decision,
-      readyToInstall,
-      deniedCapabilities: decision.missingCapabilities,
-    },
-  });
-}
 
 export const extensionCommand = new Command("extension").description(
   "Manage local JS extensions (no WASM compilation needed)",

@@ -390,3 +390,43 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/?");
 	});
 });
+
+describe("parseChatLine capability routing", () => {
+	const names = new Set(["review"]);
+
+	it("routes a registered capability slash with its argv", () => {
+		expect(parseChatLine("/review ./ext --grant storage:v1", names)).toEqual({
+			kind: "capability",
+			name: "review",
+			argv: ["./ext", "--grant", "storage:v1"],
+		});
+	});
+
+	it("is case-insensitive on the capability name", () => {
+		expect(parseChatLine("/Review ./ext", names)).toMatchObject({
+			kind: "capability",
+			name: "review",
+		});
+	});
+
+	it("lets a built-in win over a same-named capability (never shadowed)", () => {
+		// A built-in like /status is dispatched by the table before the registry.
+		expect(parseChatLine("/status", new Set(["status"]))).toEqual({
+			kind: "status",
+		});
+	});
+
+	it("degrades an unregistered slash to a model message", () => {
+		expect(parseChatLine("/frobnicate x", names)).toEqual({
+			kind: "message",
+			text: "/frobnicate x",
+		});
+	});
+
+	it("without a capability set, an unknown slash is still a message", () => {
+		expect(parseChatLine("/review ./ext")).toEqual({
+			kind: "message",
+			text: "/review ./ext",
+		});
+	});
+});
