@@ -549,83 +549,96 @@ async function printModelDoctorJson(
 	printJson(await buildModelDoctorEnvelope(tokens, deps));
 }
 
+/** Format the `model doctor` human text as a string (no I/O), so the CLI
+ * renderText hook and printModelDoctor share one source of truth. */
+export async function formatModelDoctor(
+	tokens: ModelTokens,
+	deps: Pick<ModelCommandDeps, "fetch">,
+): Promise<string> {
+	const status = await buildModelDoctorStatus(tokens, deps);
+	const lines: string[] = [];
+	lines.push(chalk.bold("Model doctor"));
+	lines.push(`  current: ${chalk.cyan(status.current.ref)}`);
+	if (status.providerProbe.skipped) {
+		lines.push("  provider probe: skipped");
+		lines.push(chalk.dim("  use --json for machine-readable handoffs"));
+		return lines.join("\n");
+	}
+	lines.push(`  probe:   ${status.providerProbe.url}`);
+	if (status.providerProbe.ready) {
+		lines.push(chalk.green(`  status:  ready (${status.providerProbe.status})`));
+		return lines.join("\n");
+	}
+	lines.push(chalk.red("  status:  unreachable"));
+	if (status.providerProbe.error)
+		lines.push(`  error:   ${status.providerProbe.error}`);
+	for (const command of modelDoctorRecoveryCommands(status)) {
+		lines.push(chalk.dim(`  fix:     ${command}`));
+	}
+	return lines.join("\n");
+}
+
 async function printModelDoctor(
 	tokens: ModelTokens,
 	deps: Pick<ModelCommandDeps, "fetch">,
 ): Promise<void> {
-	const status = await buildModelDoctorStatus(tokens, deps);
-	console.log(chalk.bold("Model doctor"));
-	console.log(`  current: ${chalk.cyan(status.current.ref)}`);
-	if (status.providerProbe.skipped) {
-		console.log("  provider probe: skipped");
-		console.log(chalk.dim("  use --json for machine-readable handoffs"));
-		return;
-	}
-	console.log(`  probe:   ${status.providerProbe.url}`);
-	if (status.providerProbe.ready) {
-		console.log(
-			chalk.green(`  status:  ready (${status.providerProbe.status})`),
-		);
-		return;
-	}
-	console.log(chalk.red("  status:  unreachable"));
-	if (status.providerProbe.error)
-		console.log(`  error:   ${status.providerProbe.error}`);
-	for (const command of modelDoctorRecoveryCommands(status)) {
-		console.log(chalk.dim(`  fix:     ${command}`));
-	}
+	console.log(await formatModelDoctor(tokens, deps));
 }
 
-export function printCurrentModel(tokens: ModelTokens): void {
+/** Format the `model current` human text as a string (no I/O), so the CLI
+ * renderText hook and printCurrentModel share one source of truth. */
+export function formatCurrentModel(tokens: ModelTokens): string {
 	const status = buildCurrentModelStatus(tokens);
 	const provider = status.current.provider;
 	const resolvedModel = status.current.modelId;
+	const lines: string[] = [];
 
-	console.log(chalk.bold("Model routing"));
-	console.log(`  current: ${chalk.cyan(status.current.ref)}`);
-	if (provider) console.log(`  provider: ${provider}`);
-	if (resolvedModel) console.log(`  model:    ${resolvedModel}`);
+	lines.push(chalk.bold("Model routing"));
+	lines.push(`  current: ${chalk.cyan(status.current.ref)}`);
+	if (provider) lines.push(`  provider: ${provider}`);
+	if (resolvedModel) lines.push(`  model:    ${resolvedModel}`);
 	if (status.credential.envKey)
-		console.log(`  key env:  ${status.credential.envKey}`);
+		lines.push(`  key env:  ${status.credential.envKey}`);
 	if (status.credential.status)
-		console.log(`  key:      ${status.credential.status}`);
-	if (status.baseUrl) console.log(`  base url: ${status.baseUrl}`);
-	if (status.fallback) console.log(`  fallback: ${status.fallback}`);
+		lines.push(`  key:      ${status.credential.status}`);
+	if (status.baseUrl) lines.push(`  base url: ${status.baseUrl}`);
+	if (status.fallback) lines.push(`  fallback: ${status.fallback}`);
 	if (provider === "ollama")
-		console.log(chalk.dim(`  doctor:   ${MODEL_DOCTOR_JSON_COMMAND}`));
-	if (status.routes.worker) console.log(`  worker:   ${status.routes.worker}`);
+		lines.push(chalk.dim(`  doctor:   ${MODEL_DOCTOR_JSON_COMMAND}`));
+	if (status.routes.worker) lines.push(`  worker:   ${status.routes.worker}`);
 	if (status.routes.monitor)
-		console.log(`  monitor:  ${status.routes.monitor}`);
+		lines.push(`  monitor:  ${status.routes.monitor}`);
 	for (const recommendation of status.recommendations ?? []) {
-		console.log(chalk.yellow(`  warning: ${recommendation.summary}`));
+		lines.push(chalk.yellow(`  warning: ${recommendation.summary}`));
 		if (recommendation.command) {
-			console.log(chalk.dim(`  fix:     ${recommendation.command}`));
+			lines.push(chalk.dim(`  fix:     ${recommendation.command}`));
 		}
 	}
 	if (status.source.kind === "environment") {
-		console.log(chalk.dim("  source:   environment overrides are active"));
-		console.log(
-			chalk.dim(`  env:      ${status.source.envOverrides.join(", ")}`),
-		);
+		lines.push(chalk.dim("  source:   environment overrides are active"));
+		lines.push(chalk.dim(`  env:      ${status.source.envOverrides.join(", ")}`));
 	} else if (status.source.kind === "identity") {
-		console.log(chalk.dim("  source:   ~/.refarm/identity.json"));
+		lines.push(chalk.dim("  source:   ~/.refarm/identity.json"));
 	} else {
-		console.log(chalk.dim("  source:   built-in defaults"));
-		console.log(chalk.dim(`  openai default: ${OPENAI_DEFAULT_REF}`));
-		console.log(chalk.dim(`  openai worker:  ${OPENAI_WORKER_REF}`));
-		console.log(chalk.dim(`  openai monitor: ${OPENAI_MONITOR_REF}`));
-		console.log(
-			chalk.dim(`  set one:        refarm model ${OPENAI_DEFAULT_REF}`),
-		);
-		console.log(chalk.dim("  login:          refarm sow"));
+		lines.push(chalk.dim("  source:   built-in defaults"));
+		lines.push(chalk.dim(`  openai default: ${OPENAI_DEFAULT_REF}`));
+		lines.push(chalk.dim(`  openai worker:  ${OPENAI_WORKER_REF}`));
+		lines.push(chalk.dim(`  openai monitor: ${OPENAI_MONITOR_REF}`));
+		lines.push(chalk.dim(`  set one:        refarm model ${OPENAI_DEFAULT_REF}`));
+		lines.push(chalk.dim("  login:          refarm sow"));
 	}
 	if (provider && !status.credential.envKey && provider !== "ollama") {
-		console.log(
+		lines.push(
 			chalk.dim(
 				"  custom provider: set endpoint with refarm model base-url <url>",
 			),
 		);
 	}
+	return lines.join("\n");
+}
+
+export function printCurrentModel(tokens: ModelTokens): void {
+	console.log(formatCurrentModel(tokens));
 }
 
 /** Build the `model current` JSON envelope (no I/O) so every surface — CLI, the
@@ -963,29 +976,37 @@ function printModelValidationErrorJson(input: {
 	);
 }
 
-export function printKnownModelProviders(): void {
-	console.log(chalk.bold("Known model providers"));
+/** Format the `model providers` human text as a string (no I/O), so the CLI
+ * renderText hook and printKnownModelProviders share one source of truth. */
+export function formatKnownModelProviders(): string {
+	const lines: string[] = [];
+	lines.push(chalk.bold("Known model providers"));
 	for (const provider of buildKnownModelProviders()) {
 		const { defaultModel, workerModel, monitorModel, credentialEnv } = provider;
-		console.log(`  ${chalk.cyan(provider.provider)}`);
-		if (defaultModel) console.log(`    default: ${defaultModel}`);
+		lines.push(`  ${chalk.cyan(provider.provider)}`);
+		if (defaultModel) lines.push(`    default: ${defaultModel}`);
 		if (workerModel && workerModel !== defaultModel)
-			console.log(`    worker:  ${workerModel}`);
+			lines.push(`    worker:  ${workerModel}`);
 		if (monitorModel && monitorModel !== defaultModel)
-			console.log(`    monitor: ${monitorModel}`);
-		if (credentialEnv) console.log(`    key env: ${credentialEnv}`);
+			lines.push(`    monitor: ${monitorModel}`);
+		if (credentialEnv) lines.push(`    key env: ${credentialEnv}`);
 	}
-	console.log(chalk.dim(""));
-	console.log(
+	lines.push(chalk.dim(""));
+	lines.push(
 		chalk.dim(
 			"Custom/self-hosted providers are allowed with provider/model refs.",
 		),
 	);
-	console.log(
+	lines.push(
 		chalk.dim(
 			"Use refarm model base-url <url> when the provider does not have a built-in endpoint.",
 		),
 	);
+	return lines.join("\n");
+}
+
+export function printKnownModelProviders(): void {
+	console.log(formatKnownModelProviders());
 }
 
 /** Build the `model providers` JSON envelope (no I/O), shared by every surface. */
