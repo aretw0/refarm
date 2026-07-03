@@ -1,3 +1,4 @@
+import { executeDueLocalScheduledWork } from "@refarm.dev/windmill/local-scheduler";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -5,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	addProjectAutomationRecord,
 	buildProjectAutomationRecord,
+	createProjectAutomationAdapter,
 	findProjectAutomationsPath,
 	loadProjectScheduledWork,
 	updateProjectAutomationStatus,
@@ -194,5 +196,191 @@ describe("project automations", () => {
 				},
 			],
 		});
+	});
+
+	it("creates a project automation adapter that triggers default local efforts", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-project-"));
+		tempRoots.push(root);
+		fs.mkdirSync(path.join(root, ".project"), { recursive: true });
+		fs.writeFileSync(
+			path.join(root, ".project", "automations.json"),
+			JSON.stringify({
+				automations: [
+					{
+						id: "daily-handoff",
+						name: "Daily handoff",
+						status: "active",
+						triggers: [{ type: "once", at: "2026-06-27T09:00:00.000Z" }],
+					},
+				],
+			}),
+		);
+
+		const adapter = createProjectAutomationAdapter({
+			cwd: root,
+			now: () => new Date("2026-06-27T10:00:00.000Z"),
+		});
+
+		await expect(adapter.query({ status: "active" })).resolves.toMatchObject([
+			{ id: "daily-handoff", name: "Daily handoff" },
+		]);
+		await expect(
+			adapter.trigger("daily-handoff", {
+				firedAt: "2026-06-27T09:30:00.000Z",
+				owner: "refarm-main",
+			}),
+		).resolves.toMatchObject({
+			direction: "project automation: Daily handoff",
+			source: "project-automations",
+			submittedAt: "2026-06-27T09:30:00.000Z",
+			tasks: [],
+			tags: ["project-automation", "daily-handoff"],
+			context: {
+				projectAutomation: {
+					id: "daily-handoff",
+					path: ".project/automations.json",
+				},
+				trigger: {
+					owner: "refarm-main",
+				},
+			},
+		});
+	});
+
+	it("supports static and template bodies from project automations", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-project-"));
+		tempRoots.push(root);
+		fs.mkdirSync(path.join(root, ".project"), { recursive: true });
+		fs.writeFileSync(
+			path.join(root, ".project", "automations.json"),
+			JSON.stringify({
+				automations: [
+					{
+						id: "static-proof",
+						name: "Static proof",
+						status: "active",
+						triggers: [{ type: "manual" }],
+						body: {
+							type: "static",
+							effort: {
+								direction: "static direction",
+								tasks: [
+									{ id: "notify", pluginId: "@refarm/pi-agent", fn: "notify" },
+								],
+								context: { channel: "local" },
+							},
+						},
+					},
+					{
+						id: "template-proof",
+						name: "Template proof",
+						status: "active",
+						triggers: [{ type: "manual" }],
+						body: {
+							type: "template",
+							effort: {
+								direction: "hello {{owner}}",
+								tasks: [],
+							},
+						},
+					},
+				],
+			}),
+		);
+		const adapter = createProjectAutomationAdapter({ cwd: root });
+
+		await expect(adapter.trigger("static-proof")).resolves.toMatchObject({
+			direction: "static direction",
+			tasks: [{ id: "notify", pluginId: "@refarm/pi-agent", fn: "notify" }],
+			context: {
+				templateContext: { channel: "local" },
+			},
+		});
+		await expect(
+			adapter.trigger("template-proof", { owner: "refarm-main" }),
+		).resolves.toMatchObject({
+			direction: "hello refarm-main",
+		});
+	});
+
+	it("executes due project automations through the windmill scheduler helper", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-project-"));
+		tempRoots.push(root);
+		fs.mkdirSync(path.join(root, ".project"), { recursive: true });
+		fs.writeFileSync(
+			path.join(root, ".project", "automations.json"),
+			JSON.stringify({
+				automations: [
+					{
+						id: "one-shot-proof",
+						name: "One shot proof",
+						status: "active",
+						triggers: [{ type: "once", at: "2026-06-27T09:00:00.000Z" }],
+						body: {
+							type: "template",
+							effort: {
+								direction: "remind {{owner}}",
+								tasks: [],
+							},
+						},
+					},
+				],
+			}),
+		);
+		const submitted: unknown[] = [];
+		const effortAdapter = {
+			async submit(effort: unknown) {
+				submitted.push(effort);
+				return "effort-1";
+			},
+		};
+
+		await expect(
+			executeDueLocalScheduledWork(
+				createProjectAutomationAdapter({ cwd: root }),
+				effortAdapter,
+				{
+					owner: "refarm-main",
+					now: "2026-06-27T10:00:00.000Z",
+				},
+			),
+		).resolves.toMatchObject({
+			summary: { due: 1, submitted: 1 },
+			results: [{ status: "submitted", effortId: "effort-1" }],
+		});
+		expect(submitted).toEqual([
+			expect.objectContaining({
+				direction: "remind refarm-main",
+				submittedAt: "2026-06-27T10:00:00.000Z",
+			}),
+		]);
+	});
+
+	it("fails explicitly for plugin bodies until a host plugin adapter is wired", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-project-"));
+		tempRoots.push(root);
+		fs.mkdirSync(path.join(root, ".project"), { recursive: true });
+		fs.writeFileSync(
+			path.join(root, ".project", "automations.json"),
+			JSON.stringify({
+				automations: [
+					{
+						id: "plugin-proof",
+						name: "Plugin proof",
+						status: "active",
+						triggers: [{ type: "manual" }],
+						body: {
+							type: "plugin",
+							pluginId: "@refarm/plugin",
+							fn: "buildEffort",
+						},
+					},
+				],
+			}),
+		);
+
+		await expect(
+			createProjectAutomationAdapter({ cwd: root }).trigger("plugin-proof"),
+		).rejects.toThrow("host plugin adapter");
 	});
 });

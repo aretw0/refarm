@@ -46,7 +46,58 @@ export interface ProjectAutomationRecord {
 	description?: string;
 	status: ProjectAutomationStatus;
 	triggers: ProjectAutomationTrigger[];
+	body?: ProjectAutomationBody;
 	[key: string]: unknown;
+}
+
+export interface ProjectAutomationTask {
+	id: string;
+	pluginId: string;
+	fn: string;
+	args?: unknown;
+}
+
+export interface ProjectAutomationEffortTemplate {
+	direction: string;
+	tasks: ProjectAutomationTask[];
+	source?: string;
+	context?: unknown;
+	priority?: number;
+	tags?: string[];
+}
+
+export interface ProjectAutomationStaticBody {
+	type: "static";
+	effort: ProjectAutomationEffortTemplate;
+}
+
+export interface ProjectAutomationTemplateBody {
+	type: "template";
+	effort: ProjectAutomationEffortTemplate;
+	inputSchema?: Record<string, unknown>;
+}
+
+export interface ProjectAutomationPluginBody {
+	type: "plugin";
+	pluginId: string;
+	fn: string;
+	inputSchema?: Record<string, unknown>;
+}
+
+export type ProjectAutomationBody =
+	| ProjectAutomationStaticBody
+	| ProjectAutomationTemplateBody
+	| ProjectAutomationPluginBody;
+
+export interface ProjectAutomationEffort {
+	id: string;
+	direction: string;
+	tasks: ProjectAutomationTask[];
+	source?: string;
+	context?: unknown;
+	submittedAt: string;
+	priority?: number;
+	tags?: string[];
 }
 
 export interface ProjectAutomationsDocument {
@@ -93,6 +144,11 @@ export type ProjectScheduledWorkSummary = OperatorResumeScheduledWorkSummary;
 
 export type ProjectScheduledWorkInspection =
 	OperatorResumeScheduledWorkInspection;
+
+export interface ProjectAutomationAdapterOptions {
+	cwd?: string;
+	now?: () => Date;
+}
 
 const PROJECT_AUTOMATION_STATUSES = new Set([
 	"draft",
@@ -437,15 +493,90 @@ export async function loadProjectScheduledWork(
 	) as Promise<ProjectScheduledWorkInspection>;
 }
 
-function normalizeProjectAutomationForScheduler(record: unknown):
-	| {
-			id: string;
-			name: string;
-			description?: string;
-			status: string;
-			triggers: LocalScheduledTrigger[];
-	  }
-	| undefined {
+export function createProjectAutomationAdapter(
+	options: ProjectAutomationAdapterOptions = {},
+) {
+	const cwd = options.cwd ?? process.cwd();
+	const now = options.now ?? (() => new Date());
+
+	function loadAutomations(): NormalizedProjectAutomation[] {
+		const document = readProjectAutomationsDocument(cwd);
+		if (!document) return [];
+		return document.automations.flatMap((record) => {
+			const automation = normalizeProjectAutomationForScheduler(record);
+			return automation ? [automation] : [];
+		});
+	}
+
+	return {
+		async query(filter?: { status?: string }) {
+			const automations = loadAutomations();
+			if (!filter?.status) return automations;
+			return automations.filter(
+				(automation) => automation.status === filter.status,
+			);
+		},
+		async trigger(
+			id: string,
+			input?: unknown,
+		): Promise<ProjectAutomationEffort | null> {
+			const automation = readProjectAutomationsDocument(cwd)?.automations
+				.flatMap((record) => {
+					const normalized = normalizeProjectAutomationForTrigger(record);
+					return normalized ? [normalized] : [];
+				})
+				.find((item) => item.id === id);
+			if (!automation || automation.status !== "active") return null;
+			const body = automation.body ?? buildDefaultProjectAutomationBody(automation);
+			if (body.type === "plugin") {
+				throw new Error(
+					"Project automation plugin bodies require a host plugin adapter before local scheduled execution.",
+				);
+			}
+			return bakeProjectAutomationEffort({
+				automation,
+				body,
+				input,
+				now,
+				interpolate: body.type === "template",
+			});
+		},
+	};
+}
+
+function readProjectAutomationsDocument(
+	cwd: string,
+): ProjectAutomationsDocument | undefined {
+	const automationsPath = findProjectAutomationsPath(cwd);
+	if (!automationsPath) return undefined;
+	try {
+		return normalizeProjectAutomationsDocument(
+			JSON.parse(fs.readFileSync(automationsPath, "utf-8")) as unknown,
+		);
+	} catch {
+		return undefined;
+	}
+}
+
+interface NormalizedProjectAutomation {
+	id: string;
+	name: string;
+	description?: string;
+	status: string;
+	triggers: LocalScheduledTrigger[];
+	body?: ProjectAutomationBody;
+}
+
+interface TriggerableProjectAutomation {
+	id: string;
+	name: string;
+	status: string;
+	body?: ProjectAutomationBody;
+}
+
+function normalizeProjectAutomationForScheduler(
+	record: unknown,
+): NormalizedProjectAutomation | undefined {
 	if (!isRecord(record)) return undefined;
 	const id = cleanString(record.id);
 	const name = cleanString(record.name);
@@ -463,7 +594,147 @@ function normalizeProjectAutomationForScheduler(record: unknown):
 		description: cleanString(record.description),
 		status: cleanString(record.status) ?? "draft",
 		triggers,
+		body: normalizeProjectAutomationBody(record.body),
 	};
+}
+
+function normalizeProjectAutomationForTrigger(
+	record: unknown,
+): TriggerableProjectAutomation | undefined {
+	if (!isRecord(record)) return undefined;
+	const id = cleanString(record.id);
+	const name = cleanString(record.name);
+	if (!id || !name) return undefined;
+	return {
+		id,
+		name,
+		status: cleanString(record.status) ?? "draft",
+		body: normalizeProjectAutomationBody(record.body),
+	};
+}
+
+function buildDefaultProjectAutomationBody(
+	automation: Pick<TriggerableProjectAutomation, "id" | "name">,
+): ProjectAutomationStaticBody {
+	return {
+		type: "static",
+		effort: {
+			direction: `project automation: ${automation.name}`,
+			tasks: [],
+			source: "project-automations",
+			tags: ["project-automation", automation.id],
+		},
+	};
+}
+
+function normalizeProjectAutomationBody(
+	body: unknown,
+): ProjectAutomationBody | undefined {
+	if (!isRecord(body) || typeof body.type !== "string") return undefined;
+	if (body.type === "plugin") {
+		const pluginId = cleanString(body.pluginId);
+		const fn = cleanString(body.fn);
+		if (!pluginId || !fn) return undefined;
+		return {
+			type: "plugin",
+			pluginId,
+			fn,
+			inputSchema: isRecord(body.inputSchema) ? body.inputSchema : undefined,
+		};
+	}
+	if ((body.type === "static" || body.type === "template") && isRecord(body.effort)) {
+		const effort = normalizeProjectAutomationEffortTemplate(body.effort);
+		if (!effort) return undefined;
+		if (body.type === "static") return { type: "static", effort };
+		return {
+			type: "template",
+			effort,
+			inputSchema: isRecord(body.inputSchema) ? body.inputSchema : undefined,
+		};
+	}
+	return undefined;
+}
+
+function normalizeProjectAutomationEffortTemplate(
+	value: Record<string, unknown>,
+): ProjectAutomationEffortTemplate | undefined {
+	const direction = cleanString(value.direction);
+	if (!direction || !Array.isArray(value.tasks)) return undefined;
+	return {
+		direction,
+		tasks: value.tasks.flatMap((task) => {
+			const normalized = normalizeProjectAutomationTask(task);
+			return normalized ? [normalized] : [];
+		}),
+		source: cleanString(value.source),
+		context: value.context,
+		priority: typeof value.priority === "number" ? value.priority : undefined,
+		tags: Array.isArray(value.tags)
+			? value.tags.flatMap((tag) => {
+					const cleaned = cleanString(tag);
+					return cleaned ? [cleaned] : [];
+				})
+			: undefined,
+	};
+}
+
+function normalizeProjectAutomationTask(
+	value: unknown,
+): ProjectAutomationTask | undefined {
+	if (!isRecord(value)) return undefined;
+	const id = cleanString(value.id);
+	const pluginId = cleanString(value.pluginId);
+	const fn = cleanString(value.fn);
+	if (!id || !pluginId || !fn) return undefined;
+	return {
+		id,
+		pluginId,
+		fn,
+		args: value.args,
+	};
+}
+
+function bakeProjectAutomationEffort(options: {
+	automation: TriggerableProjectAutomation;
+	body: ProjectAutomationStaticBody | ProjectAutomationTemplateBody;
+	input: unknown;
+	now: () => Date;
+	interpolate: boolean;
+}): ProjectAutomationEffort {
+	const inputRecord = isRecord(options.input) ? options.input : {};
+	const firedAt = cleanString(inputRecord.firedAt) ?? options.now().toISOString();
+	const template = options.body.effort;
+	return {
+		id: crypto.randomUUID(),
+		submittedAt: firedAt,
+		direction: options.interpolate
+			? interpolateProjectAutomationString(template.direction, inputRecord)
+			: template.direction,
+		tasks: template.tasks,
+		source: template.source ?? "project-automations",
+		context: {
+			projectAutomation: {
+				id: options.automation.id,
+				name: options.automation.name,
+				path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
+			},
+			trigger: options.input,
+			...(template.context === undefined
+				? {}
+				: { templateContext: template.context }),
+		},
+		priority: template.priority,
+		tags: template.tags ?? ["project-automation", options.automation.id],
+	};
+}
+
+function interpolateProjectAutomationString(
+	template: string,
+	input: Record<string, unknown>,
+): string {
+	return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) =>
+		String(input[key] ?? ""),
+	);
 }
 
 function normalizeScheduledTrigger(

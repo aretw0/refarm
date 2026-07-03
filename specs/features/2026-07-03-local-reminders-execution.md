@@ -1,6 +1,6 @@
 # Spec: Local Reminders Execution (Daily-Driver Parity — "Automate reminders")
 
-**Status:** IMPLEMENTED CANDIDATE - tick helper, engine-level fire-once ledger, and `.refarm/`-backed ledger store shipped; project `trigger()` adapter and farmhand wiring pending
+**Status:** IMPLEMENTED CANDIDATE - tick helper, engine-level fire-once ledger, `.refarm/`-backed ledger store, and project `trigger()` adapter shipped; farmhand wiring pending
 **Authors:** Claude (draft from 2026-07-03 audit), pending Arthur Silva review
 **Date:** 2026-07-03
 **Related:** `docs/DAILY_DRIVER_PARITY.md` (Minimum Daily Loop row "Automate reminders"),
@@ -26,13 +26,14 @@ start a lane:
 | Execution: something that fires due triggers | shipped as package helper | `packages/windmill/src/local-scheduler.js` exports `executeDueLocalScheduledWork()` |
 | Fire-once idempotency (engine) | shipped | `executeDueLocalScheduledWork` takes an optional `hasFired`/`recordFired` ledger; per-job/per-window fire key; commit `187c3a29` |
 | `.refarm/` fired ledger store | shipped | `@refarm.dev/windmill/local-scheduler-ledger` defaults to `.refarm/scheduler/ledger.json` |
+| Project `AutomationAdapter.trigger()` | shipped | `@refarm.dev/cli/project-automations` exports `createProjectAutomationAdapter()` over `.project/automations.json` |
 
 The first two missing pieces are now closed at package level: a host can call
 `executeDueLocalScheduledWork()` to decide due-ness, call `AutomationAdapter.trigger()`, submit the
 returned Effort, and — with an injected fired-ledger — fire each one-shot once and each cron window
-once (repeated ticks are idempotent). The `.refarm/` runtime ledger store is now a package block,
-so the remaining daily-driver gap is (a) an `AutomationAdapter.trigger()` over the project store
-and (b) farmhand daemon wiring that ticks the engine.
+once (repeated ticks are idempotent). The `.refarm/` runtime ledger store and project automation
+adapter are now package blocks, so the remaining daily-driver gap is farmhand daemon wiring that
+ticks the engine.
 
 ## Decisions
 
@@ -52,14 +53,19 @@ and (b) farmhand daemon wiring that ticks the engine.
    runtime state and avoids write contention with pi. The ledger survives daemon restarts because
    `.refarm/` is durable local state. `@refarm.dev/windmill/local-scheduler-ledger` supplies the
    `.refarm/scheduler/ledger.json` adapter for hosts that want the default local runtime store.
-3. **Missed-window policy.** One-shot: fire late, once (a reminder is still owed). Cron: skip
+3. **Project store trigger adapter.** `@refarm.dev/cli/project-automations` supplies
+   `createProjectAutomationAdapter()` for hosts that need to bridge `.project/automations.json` to
+   the Windmill scheduler. It can query active scheduled automations and trigger active records
+   into ready-to-submit Efforts. Static, template, and default bodies are executable now; plugin
+   bodies fail explicitly until a host plugin adapter is wired.
+4. **Missed-window policy.** One-shot: fire late, once (a reminder is still owed). Cron: skip
    missed windows, fire at the next due window (no catch-up storms). Both policies are recorded
    on the effort evidence so late fires are distinguishable.
-4. **Reminder delivery is an Effort, not a channel call.** The fired Effort lands in the operator
+5. **Reminder delivery is an Effort, not a channel call.** The fired Effort lands in the operator
    loop: `refarm resume --json` / `refarm check --next-action --json` surface it (surface already
    proven). Channel delivery (Telegram etc.) stays out of scope; when wanted later it composes
    with `channel-policy-v1` evidence, keeping provider APIs downstream.
-5. **Operator sugar, thin.** `refarm remind "<text>" --at <iso>` / `--cron "<expr>"` creates an
+6. **Operator sugar, thin.** `refarm remind "<text>" --at <iso>` / `--cron "<expr>"` creates an
    `active` Automation with the matching trigger. It is a convenience writer over the existing
    project-automations surface — no new semantics.
 
@@ -72,6 +78,7 @@ Package signal:
 ```bash
 pnpm -C packages/windmill run test -- local-scheduler
 pnpm -C packages/windmill run test -- local-scheduler-ledger
+pnpm -C packages/cli run test -- project-automations
 ```
 
 Daily-driver row still closes only when this runs locally, end to end:

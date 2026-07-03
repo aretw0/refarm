@@ -307,6 +307,7 @@ export type {
 export {
 	addProjectAutomationRecord,
 	buildProjectAutomationRecord,
+	createProjectAutomationAdapter,
 	findProjectAutomationsPath,
 	loadProjectScheduledWork,
 	normalizeProjectAutomationsDocument,
@@ -317,12 +318,20 @@ export {
 } from "./project-automations.js";
 export type {
 	ProjectAutomationAddInput,
+	ProjectAutomationAdapterOptions,
+	ProjectAutomationBody,
 	ProjectAutomationCronTrigger,
+	ProjectAutomationEffort,
+	ProjectAutomationEffortTemplate,
 	ProjectAutomationEventTrigger,
 	ProjectAutomationIssueSeverity,
 	ProjectAutomationManualTrigger,
 	ProjectAutomationOnceTrigger,
+	ProjectAutomationPluginBody,
 	ProjectAutomationRecord,
+	ProjectAutomationStaticBody,
+	ProjectAutomationTask,
+	ProjectAutomationTemplateBody,
 	ProjectAutomationsDocument,
 	ProjectAutomationsValidationResult,
 	ProjectScheduledWorkInspection,

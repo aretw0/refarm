@@ -310,9 +310,10 @@ before farmhand, fanout, or background delivery is wired in.
 Current proof (2026-06-27): `refarm resume --json` has an operator-level slot
 for scheduled-work inspection payloads. The CLI can now carry due/scheduled
 local jobs in the same daily-driver handoff shape as runtime, model, project,
-session, finish, and task state. Refarm still does not invent a scheduler store
-or daemon in this layer; the next implementation can connect a real
-`automation:v1` adapter without changing the resume contract.
+session, finish, and task state. Refarm still does not invent a daemon in this
+layer; `@refarm.dev/cli/project-automations` now supplies the project-store
+trigger adapter that hosts can pass to the Windmill execution helper without
+changing the resume contract.
 
 Current proof (2026-06-27): the compact capability index now exposes the
 runtime-agent primitives that matter for reference-driver parity instead of

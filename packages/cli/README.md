@@ -69,6 +69,26 @@ aggregate `cache.steps[]` data.
 
 See [ROADMAP.md](./ROADMAP.md) for the strategic evolution of the CLI.
 
+## Project Automations
+
+`@refarm.dev/cli/project-automations` provides the `.project/automations.json`
+reader, validator, lifecycle helpers, and a scheduler adapter:
+
+```ts
+import { createProjectAutomationAdapter } from "@refarm.dev/cli/project-automations";
+import { executeDueLocalScheduledWork } from "@refarm.dev/windmill/local-scheduler";
+
+await executeDueLocalScheduledWork(
+	createProjectAutomationAdapter({ cwd: projectRoot }),
+	effortAdapter,
+	{ owner: "refarm-main" },
+);
+```
+
+The adapter turns active project automations into ready-to-submit efforts.
+Static, template, and default bodies execute locally; plugin bodies fail
+explicitly until the host supplies a plugin adapter.
+
 ## Capability Discovery
 
 Consumers can inspect Refarm's compact capability surface without scraping docs
