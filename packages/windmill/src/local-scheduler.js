@@ -12,13 +12,24 @@ const SUPPORTED_SCHEDULE_TRIGGERS = new Set(["once", "cron"]);
  * @typedef {{ query(filter?: { status?: string }): Promise<LocalScheduledAutomation[]> }} LocalAutomationQueryAdapter
  * @typedef {LocalAutomationQueryAdapter & { trigger(id: string, input?: unknown): Promise<unknown | null> }} LocalAutomationExecutionAdapter
  * @typedef {{ submit(effort: unknown): Promise<string> }} LocalEffortSubmitAdapter
+ *
+ * Fire-once ledger. The engine consults `hasFired` before firing a due job and
+ * calls `recordFired` after a successful submit. Keyed by a stable per-window
+ * fire key (see {@link fireKeyForJob}), so a one-shot job fires at most once
+ * ever and a recurring cron job fires at most once per due window. The ledger
+ * is host-owned durable state - the caller (farmhand, CLI) binds it to a store
+ * such as `.project/automations.json`. Omitting it preserves the pre-ledger
+ * behavior: every due job fires on every tick.
+ * @typedef {{ hasFired(key: string): boolean | Promise<boolean>, recordFired(key: string, receipt: { job: LocalScheduledJob, firedAt: string, effortId?: string }): void | Promise<void> }} LocalScheduledWorkFiredLedger
+ *
  * @typedef {{ owner: string, now?: string | Date }} LocalScheduledWorkOptions
+ * @typedef {{ owner: string, now?: string | Date, ledger?: LocalScheduledWorkFiredLedger }} LocalScheduledWorkExecutionOptions
  * @typedef {{ total: number, due: number, scheduled: number, unsupported: number }} LocalScheduledWorkSummary
- * @typedef {{ schemaVersion: 1, id: string, automationId: string, name: string, description?: string, owner: string, kind: LocalScheduledJobKind, status: LocalScheduledJobStatus, schedule: LocalScheduledJobSchedule, unsupportedReason?: string, modelRoute: "none", tokenUse: "none", resume: LocalScheduledJobResume }} LocalScheduledJob
+ * @typedef {{ schemaVersion: 1, id: string, automationId: string, name: string, description?: string, owner: string, kind: LocalScheduledJobKind, status: LocalScheduledJobStatus, schedule: LocalScheduledJobSchedule, fireKey: string, unsupportedReason?: string, modelRoute: "none", tokenUse: "none", resume: LocalScheduledJobResume }} LocalScheduledJob
  * @typedef {{ schemaVersion: 1, owner: string, generatedAt: string, summary: LocalScheduledWorkSummary, jobs: LocalScheduledJob[] }} LocalScheduledWorkInspection
- * @typedef {"submitted" | "skipped" | "failed"} LocalScheduledWorkExecutionStatus
- * @typedef {{ schemaVersion: 1, job: LocalScheduledJob, status: LocalScheduledWorkExecutionStatus, effortId?: string, error?: string }} LocalScheduledWorkExecutionResult
- * @typedef {{ schemaVersion: 1, owner: string, generatedAt: string, summary: { due: number, submitted: number, skipped: number, failed: number }, results: LocalScheduledWorkExecutionResult[] }} LocalScheduledWorkExecutionReport
+ * @typedef {"submitted" | "skipped" | "already-fired" | "failed"} LocalScheduledWorkExecutionStatus
+ * @typedef {{ schemaVersion: 1, job: LocalScheduledJob, status: LocalScheduledWorkExecutionStatus, effortId?: string, firedAt?: string, error?: string }} LocalScheduledWorkExecutionResult
+ * @typedef {{ schemaVersion: 1, owner: string, generatedAt: string, summary: { due: number, submitted: number, skipped: number, alreadyFired: number, failed: number }, results: LocalScheduledWorkExecutionResult[] }} LocalScheduledWorkExecutionReport
  * @typedef {{ schemaVersion: 1, list(options?: Partial<LocalScheduledWorkOptions>): Promise<LocalScheduledJob[]>, inspect(options?: Partial<LocalScheduledWorkOptions>): Promise<LocalScheduledWorkInspection>, due(options?: Partial<LocalScheduledWorkOptions>): Promise<LocalScheduledJob[]> }} LocalScheduledWork
  */
 
@@ -162,6 +173,41 @@ function describeTrigger(trigger, now) {
 	};
 }
 
+/**
+ * The UTC minute a tick falls in, as an ISO string truncated to the minute.
+ * The scheduler decides due-ness at minute resolution, so this is the natural
+ * fire window for recurring jobs.
+ *
+ * @param {Date} now
+ * @returns {string}
+ */
+function fireWindowMinute(now) {
+	return now.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
+}
+
+/**
+ * A stable, per-job/per-window fire key.
+ *
+ * - one-shot: `automation:<id>:trigger:<index>:once:<at>` - fixed forever,
+ *   so that job fires at most once.
+ * - cron: `automation:<id>:trigger:<index>:cron:<schedule>:<window>` - one
+ *   key per minute-window, so a recurring job fires at most once per window it
+ *   is due in, and a skipped window is simply never keyed (no catch-up replay).
+ *
+ * @param {LocalScheduledAutomation} automation
+ * @param {LocalScheduledTrigger} trigger
+ * @param {number} triggerIndex
+ * @param {Date} now
+ * @returns {string}
+ */
+function fireKeyForJob(automation, trigger, triggerIndex, now) {
+	const prefix = `automation:${automation.id}:trigger:${triggerIndex}`;
+	if (trigger.type === "once") {
+		return `${prefix}:once:${trigger.at}`;
+	}
+	return `${prefix}:cron:${trigger.schedule}:${fireWindowMinute(now)}`;
+}
+
 function toLocalScheduledJob(automation, trigger, triggerIndex, owner, now) {
 	const detail = describeTrigger(trigger, now);
 	return {
@@ -174,6 +220,7 @@ function toLocalScheduledJob(automation, trigger, triggerIndex, owner, now) {
 		kind: detail.kind,
 		status: detail.unsupportedReason ? "unsupported" : detail.status,
 		schedule: detail.schedule,
+		fireKey: fireKeyForJob(automation, trigger, triggerIndex, now),
 		unsupportedReason: detail.unsupportedReason,
 		modelRoute: "none",
 		tokenUse: "none",
@@ -232,16 +279,38 @@ export async function inspectLocalScheduledWork(adapter, options = {}) {
 	};
 }
 
+function assertLedger(ledger) {
+	if (ledger === undefined) return undefined;
+	if (
+		!ledger ||
+		typeof ledger.hasFired !== "function" ||
+		typeof ledger.recordFired !== "function"
+	) {
+		throw new Error(
+			"Local scheduled work ledger requires hasFired() and recordFired() support",
+		);
+	}
+	return ledger;
+}
+
 /**
  * Trigger and submit currently due local scheduled work.
  *
  * This is a host-owned tick helper: it decides due-ness, asks the automation
  * adapter to build an Effort, and submits that Effort through the provided
- * effort adapter. It does not own daemon timing or one-shot fired ledgers.
+ * effort adapter. It does not own daemon timing.
+ *
+ * When an optional fire-once ledger is supplied via `options.ledger`, a job
+ * whose fire key is already recorded is reported as `already-fired` and is
+ * neither triggered nor submitted; a job that submits successfully is recorded
+ * before the next tick can see it. This makes repeated ticks idempotent: a
+ * one-shot fires at most once ever, and a recurring cron job fires at most once
+ * per due window. Without a ledger the helper preserves its original behavior
+ * and fires every due job on every tick - safe only for a single tick.
  *
  * @param {LocalAutomationExecutionAdapter} automationAdapter
  * @param {LocalEffortSubmitAdapter} effortAdapter
- * @param {Partial<LocalScheduledWorkOptions>} [options]
+ * @param {Partial<LocalScheduledWorkExecutionOptions>} [options]
  * @returns {Promise<LocalScheduledWorkExecutionReport>}
  */
 export async function executeDueLocalScheduledWork(
@@ -251,17 +320,28 @@ export async function executeDueLocalScheduledWork(
 ) {
 	assertExecutionAdapter(automationAdapter);
 	assertEffortSubmitAdapter(effortAdapter);
+	const ledger = assertLedger(options.ledger);
 	const owner = assertOwner(options.owner);
 	const now = resolveNow(options.now);
+	const firedAt = now.toISOString();
 	const jobs = await listLocalScheduledJobs(automationAdapter, { owner, now });
 	const dueJobs = jobs.filter((job) => job.status === "due");
 	const results = [];
 
 	for (const job of dueJobs) {
 		try {
+			if (ledger && (await ledger.hasFired(job.fireKey))) {
+				results.push({
+					schemaVersion: LOCAL_SCHEDULED_WORK_SCHEMA_VERSION,
+					job,
+					status: "already-fired",
+				});
+				continue;
+			}
+
 			const effort = await automationAdapter.trigger(job.automationId, {
 				scheduledJob: job,
-				firedAt: now.toISOString(),
+				firedAt,
 				owner,
 			});
 			if (!effort) {
@@ -275,11 +355,27 @@ export async function executeDueLocalScheduledWork(
 			}
 
 			const effortId = await effortAdapter.submit(effort);
+			// The effort has already been submitted. A ledger write failure here
+			// must NOT re-classify the job as failed (that would double-fire next
+			// tick); surface it as a submitted job carrying a ledger-write error so
+			// the caller can reconcile the stale ledger without re-submitting.
+			let ledgerError;
+			if (ledger) {
+				try {
+					await ledger.recordFired(job.fireKey, { job, firedAt, effortId });
+				} catch (error) {
+					ledgerError = `fired but ledger write failed: ${
+						error instanceof Error ? error.message : String(error)
+					}`;
+				}
+			}
 			results.push({
 				schemaVersion: LOCAL_SCHEDULED_WORK_SCHEMA_VERSION,
 				job,
 				status: "submitted",
 				effortId,
+				firedAt,
+				...(ledgerError ? { error: ledgerError } : {}),
 			});
 		} catch (error) {
 			results.push({
@@ -294,11 +390,13 @@ export async function executeDueLocalScheduledWork(
 	return {
 		schemaVersion: LOCAL_SCHEDULED_WORK_SCHEMA_VERSION,
 		owner,
-		generatedAt: now.toISOString(),
+		generatedAt: firedAt,
 		summary: {
 			due: dueJobs.length,
 			submitted: results.filter((result) => result.status === "submitted").length,
 			skipped: results.filter((result) => result.status === "skipped").length,
+			alreadyFired: results.filter((result) => result.status === "already-fired")
+				.length,
 			failed: results.filter((result) => result.status === "failed").length,
 		},
 		results,

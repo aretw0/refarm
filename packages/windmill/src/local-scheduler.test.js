@@ -58,6 +58,21 @@ function createAutomationAdapter() {
 	};
 }
 
+function createFiredLedger() {
+	const fired = new Map();
+	return {
+		async hasFired(key) {
+			return fired.has(key);
+		},
+		async recordFired(key, receipt) {
+			fired.set(key, receipt);
+		},
+		size() {
+			return fired.size;
+		},
+	};
+}
+
 async function createActiveAutomation(adapter, input) {
 	const automation = await adapter.create({
 		name: input.name,
@@ -255,5 +270,224 @@ describe("local scheduled work", () => {
 		await expect(
 			executeDueLocalScheduledWork(adapter, {}, { owner: "refarm-main" }),
 		).rejects.toThrow("submit() support");
+	});
+
+	it("fires a due one-shot only once across repeated ticks when given a ledger", async () => {
+		const automationAdapter = createAutomationAdapter();
+		const submitted = [];
+		const effortAdapter = {
+			async submit(effort) {
+				submitted.push(effort);
+				return `${submitted.length}:${effort.id}`;
+			},
+		};
+		const ledger = createFiredLedger();
+		await createActiveAutomation(automationAdapter, {
+			name: "one-shot proof",
+			triggers: [{ type: "once", at: "2026-06-27T08:00:00.000Z" }],
+		});
+
+		const first = await executeDueLocalScheduledWork(
+			automationAdapter,
+			effortAdapter,
+			{ owner: "refarm-main", now: "2026-06-27T09:00:00.000Z", ledger },
+		);
+		expect(first.summary).toMatchObject({ due: 1, submitted: 1, alreadyFired: 0 });
+		expect(first.results[0]).toMatchObject({
+			status: "submitted",
+			firedAt: "2026-06-27T09:00:00.000Z",
+		});
+
+		// A later tick still sees the one-shot as due (at <= now), but the ledger
+		// suppresses the re-fire.
+		const second = await executeDueLocalScheduledWork(
+			automationAdapter,
+			effortAdapter,
+			{ owner: "refarm-main", now: "2026-06-27T09:05:00.000Z", ledger },
+		);
+		expect(second.summary).toMatchObject({ due: 1, submitted: 0, alreadyFired: 1 });
+		expect(second.results[0]).toMatchObject({ status: "already-fired" });
+		expect(submitted).toHaveLength(1);
+	});
+
+	it("re-fires every due tick when no ledger is supplied (legacy behavior)", async () => {
+		const automationAdapter = createAutomationAdapter();
+		const submitted = [];
+		const effortAdapter = {
+			async submit(effort) {
+				submitted.push(effort);
+				return effort.id;
+			},
+		};
+		await createActiveAutomation(automationAdapter, {
+			name: "one-shot proof",
+			triggers: [{ type: "once", at: "2026-06-27T08:00:00.000Z" }],
+		});
+
+		await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:00:00.000Z",
+		});
+		await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:05:00.000Z",
+		});
+		expect(submitted).toHaveLength(2);
+	});
+
+	it("fires a recurring cron job once per window but again in a new window", async () => {
+		const automationAdapter = createAutomationAdapter();
+		const submitted = [];
+		const effortAdapter = {
+			async submit(effort) {
+				submitted.push(effort);
+				return `${submitted.length}:${effort.id}`;
+			},
+		};
+		const ledger = createFiredLedger();
+		await createActiveAutomation(automationAdapter, {
+			name: "every-five",
+			triggers: [{ type: "cron", schedule: "*/5 * * * *" }],
+		});
+
+		// Two ticks inside the same due minute-window: one fire.
+		await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:05:00.000Z",
+			ledger,
+		});
+		const sameWindow = await executeDueLocalScheduledWork(
+			automationAdapter,
+			effortAdapter,
+			{ owner: "refarm-main", now: "2026-06-27T09:05:30.000Z", ledger },
+		);
+		expect(sameWindow.summary).toMatchObject({ submitted: 0, alreadyFired: 1 });
+		expect(submitted).toHaveLength(1);
+
+		// A later due window is a fresh fire key: fires again.
+		const nextWindow = await executeDueLocalScheduledWork(
+			automationAdapter,
+			effortAdapter,
+			{ owner: "refarm-main", now: "2026-06-27T09:10:00.000Z", ledger },
+		);
+		expect(nextWindow.summary).toMatchObject({ submitted: 1, alreadyFired: 0 });
+		expect(submitted).toHaveLength(2);
+	});
+
+	it("does not collapse distinct automations that share the same due window", async () => {
+		const automationAdapter = createAutomationAdapter();
+		const submitted = [];
+		const effortAdapter = {
+			async submit(effort) {
+				submitted.push(effort);
+				return `${submitted.length}:${effort.id}`;
+			},
+		};
+		const ledger = createFiredLedger();
+		await createActiveAutomation(automationAdapter, {
+			name: "first every-five",
+			triggers: [{ type: "cron", schedule: "*/5 * * * *" }],
+		});
+		await createActiveAutomation(automationAdapter, {
+			name: "second every-five",
+			triggers: [{ type: "cron", schedule: "*/5 * * * *" }],
+		});
+
+		const firstTick = await executeDueLocalScheduledWork(
+			automationAdapter,
+			effortAdapter,
+			{ owner: "refarm-main", now: "2026-06-27T09:05:00.000Z", ledger },
+		);
+		expect(firstTick.summary).toMatchObject({ due: 2, submitted: 2, alreadyFired: 0 });
+		expect(submitted).toHaveLength(2);
+
+		const secondTick = await executeDueLocalScheduledWork(
+			automationAdapter,
+			effortAdapter,
+			{ owner: "refarm-main", now: "2026-06-27T09:05:30.000Z", ledger },
+		);
+		expect(secondTick.summary).toMatchObject({ due: 2, submitted: 0, alreadyFired: 2 });
+		expect(new Set(secondTick.results.map((result) => result.job.fireKey)).size).toBe(2);
+		expect(submitted).toHaveLength(2);
+	});
+
+	it("does not record a failed submit, so it retries on the next tick", async () => {
+		const automationAdapter = createAutomationAdapter();
+		let attempts = 0;
+		const effortAdapter = {
+			async submit(effort) {
+				attempts += 1;
+				if (attempts === 1) throw new Error("transport unavailable");
+				return effort.id;
+			},
+		};
+		const ledger = createFiredLedger();
+		await createActiveAutomation(automationAdapter, {
+			name: "flaky one-shot",
+			triggers: [{ type: "once", at: "2026-06-27T08:00:00.000Z" }],
+		});
+
+		const first = await executeDueLocalScheduledWork(
+			automationAdapter,
+			effortAdapter,
+			{ owner: "refarm-main", now: "2026-06-27T09:00:00.000Z", ledger },
+		);
+		expect(first.summary).toMatchObject({ failed: 1, submitted: 0 });
+		expect(ledger.size()).toBe(0);
+
+		const second = await executeDueLocalScheduledWork(
+			automationAdapter,
+			effortAdapter,
+			{ owner: "refarm-main", now: "2026-06-27T09:05:00.000Z", ledger },
+		);
+		expect(second.summary).toMatchObject({ submitted: 1, alreadyFired: 0 });
+		expect(attempts).toBe(2);
+	});
+
+	it("reports submitted with a ledger-write error without re-classifying as failed", async () => {
+		const automationAdapter = createAutomationAdapter();
+		const submitted = [];
+		const effortAdapter = {
+			async submit(effort) {
+				submitted.push(effort);
+				return effort.id;
+			},
+		};
+		const ledger = {
+			async hasFired() {
+				return false;
+			},
+			async recordFired() {
+				throw new Error("disk full");
+			},
+		};
+		await createActiveAutomation(automationAdapter, {
+			name: "one-shot proof",
+			triggers: [{ type: "once", at: "2026-06-27T08:00:00.000Z" }],
+		});
+
+		const report = await executeDueLocalScheduledWork(
+			automationAdapter,
+			effortAdapter,
+			{ owner: "refarm-main", now: "2026-06-27T09:00:00.000Z", ledger },
+		);
+		expect(report.summary).toMatchObject({ submitted: 1, failed: 0 });
+		expect(report.results[0]).toMatchObject({
+			status: "submitted",
+			error: expect.stringContaining("ledger write failed"),
+		});
+		expect(submitted).toHaveLength(1);
+	});
+
+	it("rejects a malformed ledger before executing due work", async () => {
+		const adapter = createAutomationAdapter();
+
+		await expect(
+			executeDueLocalScheduledWork(
+				adapter,
+				{ submit: async () => "effort-1" },
+				{ owner: "refarm-main", ledger: { hasFired: () => false } },
+			),
+		).rejects.toThrow("hasFired() and recordFired()");
 	});
 });
