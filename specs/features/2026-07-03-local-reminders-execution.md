@@ -1,6 +1,6 @@
 # Spec: Local Reminders Execution (Daily-Driver Parity — "Automate reminders")
 
-**Status:** IMPLEMENTED CANDIDATE - tick helper, engine-level fire-once ledger, `.refarm/`-backed ledger store, project `trigger()` adapter, and composable tick (`@refarm.dev/cli` `runDueScheduledWork`) shipped; operator command + farmhand daemon wiring pending
+**Status:** IMPLEMENTED CANDIDATE - tick helper, engine-level fire-once ledger, `.refarm/`-backed ledger store, project `trigger()` adapter, composable tick (`@refarm.dev/cli` `runDueScheduledWork`), and operator command (`refarm project automations tick` dry-run/`--submit`) shipped; farmhand daemon wiring pending
 **Authors:** Claude (draft from 2026-07-03 audit), pending Arthur Silva review
 **Date:** 2026-07-03
 **Related:** `docs/DAILY_DRIVER_PARITY.md` (Minimum Daily Loop row "Automate reminders"),
@@ -28,15 +28,17 @@ start a lane:
 | `.refarm/` fired ledger store | shipped | `@refarm.dev/windmill/local-scheduler-ledger` defaults to `.refarm/scheduler/ledger.json` |
 | Project `AutomationAdapter.trigger()` | shipped | `@refarm.dev/cli/project-automations` exports `createProjectAutomationAdapter()` over `.project/automations.json` |
 | Composable tick (project adapter + `.refarm/` ledger + injected effort adapter) | shipped | `@refarm.dev/cli` exports `runDueScheduledWork()`; commit `a23695fc` |
+| Operator command (manual tick, dry-run + `--submit`) | shipped | `refarm project automations tick`; commit `20fed8c9` |
 
-Everything up to the tick is now a package block: `runDueScheduledWork()` composes the project
-automation adapter (query + trigger over `.project/`), the `.refarm/` fired ledger, and an injected
-effort submit adapter, driven by `executeDueLocalScheduledWork()`. It is proven end to end against a
-temp `.project/` + `.refarm/` — a due one-shot fires once, persists to the ledger, and a fresh call
-(only the persisted ledger connecting them, like a daemon restart) does not re-fire. The remaining
-daily-driver gap is (a) an operator command that calls `runDueScheduledWork()` (dogfood/manual tick)
-and (b) farmhand daemon wiring that calls the same helper from its lifecycle loop with the real
-transport as the effort adapter.
+Everything up to and including a manual tick is now shipped: `runDueScheduledWork()` composes the
+project automation adapter (query + trigger over `.project/`), the `.refarm/` fired ledger, and an
+injected effort submit adapter, driven by `executeDueLocalScheduledWork()`; `refarm project
+automations tick` drives it from the operator CLI (dry-run reports what would fire without effect,
+`--submit` dispatches through the real transport and records the ledger). It is proven end to end
+against a temp `.project/` + `.refarm/` — a due one-shot fires once, persists to the ledger, and a
+fresh call (only the persisted ledger connecting them, like a daemon restart) does not re-fire. The
+only remaining daily-driver gap is farmhand daemon wiring: calling the same `runDueScheduledWork()`
+helper from its lifecycle loop with the real transport as the effort adapter, on an interval.
 
 ## Decisions
 
@@ -103,8 +105,11 @@ Daily-driver row still closes only when this runs locally, end to end:
 
 ## Open questions for review
 
-- Tick interval default (60s?) and whether the tick runs only while farmhand runs (accepted
-  limitation of a local-first daily driver) or also on `refarm resume` as a catch-up sweep.
+- Tick interval default (60s?) for the farmhand loop, and whether the tick runs only while farmhand
+  runs (accepted limitation of a local-first daily driver) or also on `refarm resume` as a catch-up
+  sweep. A manual catch-up already exists — `refarm project automations tick --submit` — so an
+  operator can fire missed windows by hand; the open part is only whether the daemon auto-sweeps on
+  resume.
 - Whether `refarm remind` writes require the same serialized handoff policy as other
   `.project/**` writers. Leaning **yes**: `.project/` is a surface the `pi` agent also writes via
   `pi-project-workflows`, so a reminder writer must respect the serialized-handoff discipline
