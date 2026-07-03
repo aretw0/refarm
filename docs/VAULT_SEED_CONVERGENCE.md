@@ -566,21 +566,31 @@ is narrower: `^6.4.8` (`< 7`) excludes astro 7, so widen the peer to
 **2026-07-03 next-handoff request (dgk CLI hollowing):** after the MD/MDX,
 quality, and ds-astro pulls, the official checkout mapped the remaining `dgk`
 substrate against the real `@refarm.dev/health` and `@refarm.dev/cli` surfaces.
-None is a 1:1 ready adoption, so the downstream request for the next packet is,
-in readiness order:
+None is a 1:1 ready adoption. Keep `health` and `quality` strictly separate:
+`health` is environment + project structure (toolchain presence, mounts, required
+files, IA coherence); `quality` is content/prose (text/accent/presentation
+scoring, md-lint). Never fold text scoring into `health`. The request, in
+readiness order:
 
-1. **Toolchain/environment auditor** in `@refarm.dev/health` — `HealthCore` is
-   already an auditor registry (`register`/`audit`) but has no toolchain auditor;
-   `dgk doctor` still runs a local `check-substrate.mjs` that probes
-   `node`/`pnpm`/`uv`/`python` presence, `node_modules`, and the devcontainer
-   mount with a structured `{id,label,ok,required,version}` + `--json` report.
-   That script is the reference impl to upstream. Most-ready, fully unblocked.
-2. **`HealthCore` as the `dgk check` orchestrator** — a stable, documented auditor
-   interface so `dgk` registers its onboarding/IA/text auditors instead of
-   hand-rolling run→collect→`--json`; auditor bodies stay downstream.
-3. **`quality:v1` for the Python scorers** — wrap `avaliar_textos.py` /
-   `avaliar_apresentacoes.py` as `quality:v1` checkers; rubrics/weights stay local.
+1. **Toolchain/environment auditor** in `@refarm.dev/health` (health) —
+   `HealthCore` is already an auditor registry (`register`/`audit`) but has no
+   toolchain auditor; `dgk doctor` still runs a local `check-substrate.mjs` that
+   probes `node`/`pnpm`/`uv`/`python` presence, `node_modules`, and the
+   devcontainer mount with a structured `{id,label,ok,required,version}` +
+   `--json` report. That script is the reference impl to upstream. Most-ready,
+   fully unblocked.
+2. **Structure/onboarding auditor** in `@refarm.dev/health` (health) — required
+   files present (README/AGENTS/onboarding) + IA coherence, as `FileSystemAuditor`-
+   style auditors; which files/sections are required stays downstream.
+3. **`quality:v1` for prose/presentation** (quality, not health) — wrap
+   `check_pt_text` (accent drift) and `avaliar_textos.py` /
+   `avaliar_apresentacoes.py` as `quality:v1` checkers; rubrics/weights/copy stay
+   local.
 4. **generator/codemod** for template `setup`/scaffold and `publish`.
+
+`dgk check` stays a downstream product command that composes a health pass (1+2)
+and a quality pass (3) and prints the combined summary; the composition/UX is
+downstream, each capability converges on its own contract.
 
 `@refarm.dev/cli` is mostly refarm-runtime product (status/trust/plugins,
 workspace-execution); the generic slice for `dgk` is narrow (`json-output` /
