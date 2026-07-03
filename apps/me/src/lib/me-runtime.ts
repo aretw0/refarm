@@ -1,4 +1,4 @@
-import { buildRefarmCapabilityIndex } from "@refarm.dev/cli/capability-index";
+import { buildCapabilityIndex } from "@refarm.dev/cli/capability-index";
 import type { HomesteadHostRendererDescriptor } from "@refarm.dev/homestead/sdk/host-renderer";
 import {
 	bootStudioRuntime,
@@ -213,7 +213,7 @@ function readRefarmMeBootstrapDriverStatus(): RefarmMeDriverStatus {
 		};
 	};
 	return {
-		referenceDriverCapabilityIds: buildRefarmCapabilityIndex()
+		referenceDriverCapabilityIds: buildCapabilityIndex()
 			.capabilities.filter((capability) =>
 				capability.tags.includes("reference-driver"),
 			)

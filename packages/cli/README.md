@@ -106,10 +106,12 @@ const referenceDriverSupply = buildReferenceDriverSupplyMap();
 const referenceDriverPreflight = buildReferenceDriverSupplyPreflight();
 ```
 
-`buildRefarmCapabilityIndex()` and `getRefarmCapabilityDescriptors()` remain as
-compatibility aliases for callers that already adopted the original names. New
-consumer code should prefer `buildCapabilityIndex()` and
-`getCapabilityDescriptors()`.
+`buildCapabilityIndex()` and `getCapabilityDescriptors()` are the canonical
+names. The capability types are product-neutral (`CapabilityDescriptor`,
+`CapabilityProvider`, `CapabilityPolicy`, …) so a white-label consumer can build
+on the same blocks without a Refarm-branded API surface. The
+`REFARM_CAPABILITY_INDEX_SCHEMA_VERSION` schema constant keeps its namespace —
+schema/env identity is intentionally branded per host.
 
 The CLI exposes the same static posture for agents and downstream scripts that
 cannot import the package yet:

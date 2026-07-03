@@ -2,12 +2,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
 	buildCapabilityIndex,
-	buildRefarmCapabilityIndex,
 	buildReferenceDriverSupplyMap,
 	buildReferenceDriverSupplyPreflight,
 	CAPABILITY_INDEX_SCHEMA_VERSION,
 	getCapabilityDescriptors,
-	getRefarmCapabilityDescriptors,
 	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 } from "./capability-index.js";
 
@@ -42,8 +40,8 @@ describe("capability index", () => {
 		]);
 		expect(new Set(ids).size).toBe(ids.length);
 		expect(index.capabilities).toEqual(getCapabilityDescriptors());
-		expect(buildRefarmCapabilityIndex).toBe(buildCapabilityIndex);
-		expect(getRefarmCapabilityDescriptors).toBe(getCapabilityDescriptors);
+		expect(buildCapabilityIndex).toBe(buildCapabilityIndex);
+		expect(getCapabilityDescriptors).toBe(getCapabilityDescriptors);
 		expect(REFARM_CAPABILITY_INDEX_SCHEMA_VERSION).toBe(
 			CAPABILITY_INDEX_SCHEMA_VERSION,
 		);

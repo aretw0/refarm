@@ -351,9 +351,7 @@ export {
 	buildCapabilityIndex,
 	buildReferenceDriverSupplyPreflight,
 	buildReferenceDriverSupplyMap,
-	buildRefarmCapabilityIndex,
 	getCapabilityDescriptors,
-	getRefarmCapabilityDescriptors,
 	CAPABILITY_INDEX_SCHEMA_VERSION,
 	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 } from "./capability-index.js";
@@ -377,16 +375,6 @@ export type {
 	ReferenceDriverSupplyPreflightProofSummary,
 	ReferenceDriverSupplyPreflightSummary,
 	ReferenceDriverSupplyPreflightTarget,
-	RefarmCapabilityActivation,
-	RefarmCapabilityDescriptor,
-	RefarmCapabilityIndex,
-	RefarmCapabilityPolicy,
-	RefarmCapabilityPolicyState,
-	RefarmCapabilityProvider,
-	RefarmCapabilityProviderKind,
-	RefarmCapabilitySupplyChannel,
-	RefarmCapabilitySupplyStatus,
-	RefarmCapabilitySupplyTarget,
 } from "./capability-index.js";
 export {
 	createProcessHandoffRunner,

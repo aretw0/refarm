@@ -15,7 +15,7 @@ The admission decision — *what is allowed to enter the farm* (block excess
 permission, review-first install, denied-capability receipt) — is **not** owned
 here. That pure decision lives in `@refarm.dev/plugin-manifest`
 (`decidePluginPolicy`); the governance/record surface is
-`@refarm.dev/cli` (`RefarmCapabilityPolicy`); runtime isolation is `Fence`.
+`@refarm.dev/cli` (`CapabilityPolicy`); runtime isolation is `Fence`.
 Scarecrow's future role in that chain is to emit the **audit receipt** for a
 denial once the decision is made upstream.
 

@@ -1,9 +1,9 @@
 import {
-	buildRefarmCapabilityIndex,
+	buildCapabilityIndex,
 	buildReferenceDriverSupplyMap,
 	buildReferenceDriverSupplyPreflight,
-	type RefarmCapabilityDescriptor,
-	type RefarmCapabilityPolicyState,
+	type CapabilityDescriptor,
+	type CapabilityPolicyState,
 	type ReferenceDriverSupplyMap,
 	type ReferenceDriverSupplyPreflight,
 } from "@refarm.dev/cli/capability-index";
@@ -14,7 +14,7 @@ import { Command } from "commander";
 interface CapabilitiesOptions {
 	json?: boolean;
 	tag?: string[];
-	state?: RefarmCapabilityPolicyState[];
+	state?: CapabilityPolicyState[];
 	supply?: string;
 	supplyPreflight?: string;
 }
@@ -24,7 +24,7 @@ function collectOption(value: string, previous: string[] = []): string[] {
 }
 
 function matchesTags(
-	capability: RefarmCapabilityDescriptor,
+	capability: CapabilityDescriptor,
 	tags: readonly string[],
 ): boolean {
 	if (tags.length === 0) return true;
@@ -33,15 +33,15 @@ function matchesTags(
 }
 
 function matchesStates(
-	capability: RefarmCapabilityDescriptor,
-	states: readonly RefarmCapabilityPolicyState[],
+	capability: CapabilityDescriptor,
+	states: readonly CapabilityPolicyState[],
 ): boolean {
 	if (states.length === 0) return true;
 	return states.includes(capability.policy.state);
 }
 
 function formatCapabilityRows(
-	capabilities: readonly RefarmCapabilityDescriptor[],
+	capabilities: readonly CapabilityDescriptor[],
 ): string {
 	const lines = [chalk.bold("Refarm capabilities")];
 	for (const capability of capabilities) {
@@ -176,7 +176,7 @@ export function createCapabilitiesCommand(): Command {
 			].join("\n"),
 		)
 		.action((options: CapabilitiesOptions) => {
-			const index = buildRefarmCapabilityIndex();
+			const index = buildCapabilityIndex();
 			const tags = options.tag ?? [];
 			const states = options.state ?? [];
 			const capabilities = index.capabilities.filter((capability) =>

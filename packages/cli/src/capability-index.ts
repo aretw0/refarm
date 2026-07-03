@@ -16,73 +16,65 @@ export const REFARM_CAPABILITY_INDEX_SCHEMA_VERSION = 1 as const;
 export const CAPABILITY_INDEX_SCHEMA_VERSION =
 	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
 
-export type RefarmCapabilityProviderKind =
+export type CapabilityProviderKind =
 	| "cli"
 	| "sdk"
 	| "runtime"
 	| "policy"
 	| "ui";
 
-export type RefarmCapabilityPolicyState =
+export type CapabilityPolicyState =
 	| "planned"
 	| "governed"
 	| "proven";
 
-export interface RefarmCapabilityProvider {
-	kind: RefarmCapabilityProviderKind;
+export interface CapabilityProvider {
+	kind: CapabilityProviderKind;
 	package?: string;
 	surface?: string;
 }
 
-export interface RefarmCapabilityActivation {
+export interface CapabilityActivation {
 	command?: string;
 	sdk?: string;
 }
 
-export interface RefarmCapabilityPolicy {
-	state: RefarmCapabilityPolicyState;
+export interface CapabilityPolicy {
+	state: CapabilityPolicyState;
 	enforcement: readonly string[];
 	evidence: readonly string[];
 }
 
-export interface RefarmCapabilityDescriptor {
+export interface CapabilityDescriptor {
 	id: string;
 	title: string;
 	description: string;
-	provider: RefarmCapabilityProvider;
+	provider: CapabilityProvider;
 	requirements: readonly string[];
-	policy: RefarmCapabilityPolicy;
-	activation: RefarmCapabilityActivation;
+	policy: CapabilityPolicy;
+	activation: CapabilityActivation;
 	tags: readonly string[];
 }
 
-export interface RefarmCapabilityIndex {
+export interface CapabilityIndex {
 	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
-	capabilities: readonly RefarmCapabilityDescriptor[];
+	capabilities: readonly CapabilityDescriptor[];
 }
 
-export type CapabilityProviderKind = RefarmCapabilityProviderKind;
-export type CapabilityPolicyState = RefarmCapabilityPolicyState;
-export type CapabilityProvider = RefarmCapabilityProvider;
-export type CapabilityActivation = RefarmCapabilityActivation;
-export type CapabilityPolicy = RefarmCapabilityPolicy;
-export type CapabilityDescriptor = RefarmCapabilityDescriptor;
-export type CapabilityIndex = RefarmCapabilityIndex;
-
-export type RefarmCapabilitySupplyChannel =
+export type CapabilitySupplyChannel =
 	| "npm"
 	| "crate"
 	| "wit"
 	| "runtime";
 
-export type RefarmCapabilitySupplyStatus =
+export type CapabilitySupplyStatus =
 	| "exported"
 	| "candidate"
 	| "internal"
 	| "hold";
 
-export interface RefarmCapabilitySupplyTarget {
-	channel: RefarmCapabilitySupplyChannel;
+export interface CapabilitySupplyTarget {
+	channel: CapabilitySupplyChannel;
 	name: string;
 	export?: string;
 	path?: string;
@@ -97,13 +89,9 @@ export interface RefarmCapabilitySupplyTarget {
 		maxParallel: typeof WORKER_PROFILE_MAX_PARALLEL;
 		stopConditionRequired: true;
 	};
-	status: RefarmCapabilitySupplyStatus;
+	status: CapabilitySupplyStatus;
 	note: string;
 }
-
-export type CapabilitySupplyChannel = RefarmCapabilitySupplyChannel;
-export type CapabilitySupplyStatus = RefarmCapabilitySupplyStatus;
-export type CapabilitySupplyTarget = RefarmCapabilitySupplyTarget;
 
 export interface ReferenceDriverSourceReference {
 	name: string;
@@ -129,13 +117,13 @@ export interface ReferenceDriverPublicationBoundary {
 
 export interface ReferenceDriverSupplyEntry {
 	capabilityId: string;
-	provider: RefarmCapabilityProvider;
-	policyState: RefarmCapabilityPolicyState;
-	activation: RefarmCapabilityActivation;
+	provider: CapabilityProvider;
+	policyState: CapabilityPolicyState;
+	activation: CapabilityActivation;
 	referenceSources: readonly ReferenceDriverSourceReference[];
 	referenceLessons: readonly string[];
 	promotionProofTargets: readonly string[];
-	targets: readonly RefarmCapabilitySupplyTarget[];
+	targets: readonly CapabilitySupplyTarget[];
 	nextDecision: string;
 }
 
@@ -148,13 +136,13 @@ export interface ReferenceDriverSupplyMap {
 	entries: readonly ReferenceDriverSupplyEntry[];
 }
 
-export interface ReferenceDriverSupplyPreflightTarget extends RefarmCapabilitySupplyTarget {
+export interface ReferenceDriverSupplyPreflightTarget extends CapabilitySupplyTarget {
 	capabilityId: string;
 	promotionProofTargets: readonly string[];
 }
 
 export interface ReferenceDriverSupplyPreflightSummary {
-	status: Exclude<RefarmCapabilitySupplyStatus, "exported">;
+	status: Exclude<CapabilitySupplyStatus, "exported">;
 	count: number;
 }
 
@@ -168,8 +156,8 @@ export interface ReferenceDriverSupplyPreflightProofSummary {
 export interface ReferenceDriverSupplyPromotionQueueItem {
 	rank: number;
 	capabilityId: string;
-	status: Exclude<RefarmCapabilitySupplyStatus, "exported">;
-	channel: RefarmCapabilitySupplyChannel;
+	status: Exclude<CapabilitySupplyStatus, "exported">;
+	channel: CapabilitySupplyChannel;
 	name: string;
 	proofTargetCount: number;
 	hasBudgetContract: boolean;
@@ -562,7 +550,7 @@ const CAPABILITIES = [
 		},
 		tags: ["automation", "scheduler", "planning"],
 	},
-] as const satisfies readonly RefarmCapabilityDescriptor[];
+] as const satisfies readonly CapabilityDescriptor[];
 
 const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 	"runtime-agent.ask": {
@@ -748,7 +736,7 @@ const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 } as const satisfies Record<
 	string,
 	{
-		targets: readonly RefarmCapabilitySupplyTarget[];
+		targets: readonly CapabilitySupplyTarget[];
 		nextDecision: string;
 	}
 >;
@@ -972,11 +960,8 @@ export function getCapabilityDescriptors(): readonly CapabilityDescriptor[] {
 	return CAPABILITIES;
 }
 
-export const buildRefarmCapabilityIndex = buildCapabilityIndex;
-export const getRefarmCapabilityDescriptors = getCapabilityDescriptors;
-
 export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
-	const descriptors = CAPABILITIES as readonly RefarmCapabilityDescriptor[];
+	const descriptors = CAPABILITIES as readonly CapabilityDescriptor[];
 	return {
 		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 		discoverySdk: "@refarm.dev/cli/capability-index",
@@ -1006,7 +991,7 @@ export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
 
 export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPreflight {
 	const includedStatuses = ["candidate", "internal", "hold"] as const;
-	const includedStatusSet = new Set<RefarmCapabilitySupplyStatus>(includedStatuses);
+	const includedStatusSet = new Set<CapabilitySupplyStatus>(includedStatuses);
 	const supplyMap = buildReferenceDriverSupplyMap();
 	const targets = supplyMap.entries.flatMap((entry) =>
 		entry.targets
@@ -1023,14 +1008,14 @@ export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPref
 	const nextDecisionByCapabilityId = new Map(
 		supplyMap.entries.map((entry) => [entry.capabilityId, entry.nextDecision]),
 	);
-	const statusRank: Record<Exclude<RefarmCapabilitySupplyStatus, "exported">, number> = {
+	const statusRank: Record<Exclude<CapabilitySupplyStatus, "exported">, number> = {
 		candidate: 0,
 		internal: 1,
 		hold: 2,
 	};
 	const statusForQueue = (
-		status: RefarmCapabilitySupplyStatus,
-	): Exclude<RefarmCapabilitySupplyStatus, "exported"> => {
+		status: CapabilitySupplyStatus,
+	): Exclude<CapabilitySupplyStatus, "exported"> => {
 		if (status === "exported") {
 			throw new Error("Reference-driver preflight queue cannot include exported targets");
 		}
