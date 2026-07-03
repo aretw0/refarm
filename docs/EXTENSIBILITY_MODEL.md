@@ -94,12 +94,18 @@ The lifecycle is intentionally staged:
    or peer-distributed availability layer makes the bundle shareable across
    machines, collaborators, or devices.
 
-Local authoring does not bypass policy. A local skill still needs a
-`SkillManifestV1`-style parse, declared capabilities, source hash, and a host
-decision before invocation. A local executable extension still needs the same
-capability and trust posture as any other plugin candidate. The difference is
-provenance and audience: local source is editable operator/project material;
-packages and releases are shareable contracts.
+Local authoring does not bypass policy, but it is **permissive** rather than
+strict. A surface loads at whatever completeness it has (see
+`specs/features/2026-07-03-extension-maturity-levels.md`): a local skill needs a
+`SkillManifestV1`-style parse and — before any host-mediated effect — a host
+activation decision, but declared capabilities and source hash are **not
+required at the local/adhoc stage**. A capability-less local skill loads at
+`permissive` maturity with warnings; declaring capabilities graduates it to
+`complete`. The strictness (declared capabilities, integrity) becomes mandatory
+at the **Package/Release** stage, not the write-a-draft stage — that is where a
+shareable contract is formed. The difference across stages is provenance and
+audience: local source is editable operator/project material; packages and
+releases are shareable contracts that must be `complete`.
 
 This keeps the Pears/Holepunch lesson in scope without forcing one transport:
 peer availability is a distribution proof for an already packaged or replicated
