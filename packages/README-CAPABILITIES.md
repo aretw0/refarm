@@ -78,6 +78,18 @@ frontmatter, wikilinks, links Markdown inline e validação do envelope
 relações `records:v1` apontam para records do mesmo manifesto. Ele não lê
 arquivos, não renderiza MDX e não define vocabulário editorial.
 
+## Local Surface
+
+### `local-surface:v1`
+**Pacote**: `@refarm.dev/local-surface`
+**Operações**: `manifest`, `render`, `launch-plan`, `quality`
+
+Manifesto neutro para superfícies local-first que precisam de uma tela web
+simples sem adotar Homestead. O pacote gera HTML estático sobre
+`@refarm.dev/ds/html`, plano de lançamento white-label e relatório `quality:v1`
+via `@refarm.dev/ds/quality-checker`. Ele não sobe servidor, não persiste dados,
+não escolhe provider e não define a marca ou UX final.
+
 ## Source Adapters
 
 ### `source:v1`

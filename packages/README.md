@@ -57,6 +57,7 @@ and downstream proofs exist.
 | [`@refarm.dev/enrichment-contract-v1`](./enrichment-contract-v1) | Deterministic record/note enrichment provider contract with dry-run/apply evidence, diagnostics, and provenance | consumer-proven; `vault-seed-ready`; held |
 | [`@refarm.dev/records-contract-v1`](./records-contract-v1) | Graph/content envelope for records, sections, relations, attachments, source references, hashes, and review state; YAML-LD codec lives at the package subpath | consumer-proven; `vault-seed-ready`; held |
 | [`@refarm.dev/content-projection`](./content-projection) | Markdown/MDX frontmatter, wikilink, and inline-link projection into `records:v1` records without owning acquisition or rendering | candidate; `vault-seed-ready`; held |
+| [`@refarm.dev/local-surface`](./local-surface) | Local-first surface manifest, DS-backed HTML rendering, white-label launch plan, and quality report helpers without owning provider adapters or Homestead runtime | candidate; not selected |
 
 ## 🌿 Native Skill Surface Contract
 

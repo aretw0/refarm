@@ -1,0 +1,16 @@
+{
+	"extends": ["../../tsconfig.json", "../tsconfig/buildable.json"],
+	"compilerOptions": {
+		"outDir": "dist",
+		"baseUrl": "../..",
+		"rootDir": "..",
+		"paths": {
+			"@refarm.dev/ds/html": ["packages/ds/dist/html.d.ts"],
+			"@refarm.dev/ds/lint": ["packages/ds/dist/lint.d.ts"],
+			"@refarm.dev/ds/quality-checker": ["packages/ds/dist/quality-checker.d.ts"],
+			"@refarm.dev/quality-contract-v1": ["packages/quality-contract-v1/dist/index.d.ts"]
+		}
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist", "**/*.test.ts"]
+}

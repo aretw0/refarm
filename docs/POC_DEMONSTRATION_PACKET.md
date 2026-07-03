@@ -120,6 +120,8 @@ Wallet evidence already present:
 - tamper detection;
 - revocation event;
 - human-reviewable `consent-decision.json`.
+- reusable local surface package candidate: `@refarm.dev/local-surface` for a
+  local-first manifest, static DS-backed HTML, launch plan, and quality report.
 
 Wallet reader gap:
 

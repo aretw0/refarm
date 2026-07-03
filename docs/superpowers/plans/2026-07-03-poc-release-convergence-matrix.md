@@ -42,7 +42,7 @@ Private PoCs own the last-mile specificity:
 | Track | Demonstration scene | Refarm should provide | vault-seed may wrap | Consumer-owned remainder |
 | --- | --- | --- | --- | --- |
 | T1 | Persona installs a white-label CLI powered by Refarm, installs an agent/skill/plugin, and develops or rehearses a small plugin, skill, or app. | Plugin manifest, capability policy, install/review packet, runtime descriptor evidence, source evidence, task artifacts, isolated rehearsal, coding-agent handoff, CLI/TUI shell. | Product CLI command names, vault-friendly install/help text, skill packaging surface, guided local workflow. | The actual branded demo plugin/app, final screenshots, narrative, and any private distribution framing. |
-| T2 | Persona runs a local-first web platform with a simple command and manages a personal/provider integration, credential, document, or authorization flow. | Identity, credentials, storage, consent/authorization receipts, revocation/audit trail, local web shell, DS quality checks, provider-neutral connectors. | Local vault onboarding, `sow`/credential wizard semantics, local admin panel, channel/provider vocabulary. | Specific provider choice, UI screenshots, personal-document example, writing frame, and usability polish beyond generic contracts. |
+| T2 | Persona runs a local-first web platform with a simple command and manages a personal/provider integration, credential, document, or authorization flow. | Identity, credentials, storage, consent/authorization receipts, revocation/audit trail, local surface manifest, DS quality checks, provider-neutral connectors. | Local vault onboarding, `sow`/credential wizard semantics, local admin panel, channel/provider vocabulary. | Specific provider choice, UI screenshots, personal-document example, writing frame, and usability polish beyond generic contracts. |
 | T3 | Persona uses a white-label CLI/vault flow to assemble a governed note/requirements box from discovered external work items and enriched records. | Source ingestion, records, enrichment, content projection, artifact manifests, publication preflight, selector queries, quality checks, local evidence index. | Vault commands, note schemas, Lab export, Obsidian/Astro presentation, publication outbox. | Specific login/scraper adapter, domain taxonomy, external system details, real-work screenshots, final proof packaging. |
 
 ## Non-Negotiable Demo Rule
@@ -85,7 +85,7 @@ Existing pressure:
 
 Release-critical generic blocks:
 
-- local-first web shell launched by CLI;
+- local-first local surface launched by CLI;
 - credentials/secret store vocabulary that can be white-labeled;
 - provider-neutral setup wizard shape;
 - authorization receipt, selective disclosure, revocation, and audit evidence;
@@ -124,8 +124,8 @@ Existing pressure:
    vault-seed.
 4. Harden the agent/plugin review packet for T1, using existing validation
    evidence before expanding runtime scope.
-5. Add a minimal local web shell proof only after the CLI/contract evidence is
-   stable enough that the web layer is just another surface.
+5. Add a minimal local surface proof only after the CLI/contract evidence is
+   stable enough that web rendering is just one adapter.
 6. Let `vault-seed` consume the handoff and prove which `dgk-*` pieces can be
    thinned because Refarm now owns the generic primitive.
 

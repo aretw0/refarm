@@ -122,6 +122,13 @@ resolves wikilinks and local inline Markdown links, preserves external inline
 Markdown links as projected metadata, emits valid `records:v1` records, and
 leaves folder mapping, note vocabulary, rendering, and vault UX downstream-owned.
 
+`@refarm.dev/local-surface` is implemented as the T2 local-first surface
+candidate, but is not selected in `vault-seed-ready` yet. It owns a
+provider-neutral `local-surface:v1` manifest, DS-backed static HTML rendering,
+white-label launch plan, and `quality:v1` report helper. Server binding, route
+branding, storage adapters, provider setup, screenshots, and product UX remain
+downstream-owned.
+
 T2 credentials supply is also consumer-proven and selected in `vault-seed-ready`.
 `@refarm.dev/credentials-contract-v1` exposes the `credentials:v1` issue,
 verify, present, store, list, and remove seams; `@refarm.dev/identity-contract-v1`
