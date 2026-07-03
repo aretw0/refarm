@@ -1,6 +1,6 @@
 # Spec: Local Reminders Execution (Daily-Driver Parity — "Automate reminders")
 
-**Status:** IMPLEMENTED CANDIDATE - tick helper, engine-level fire-once ledger, `.refarm/`-backed ledger store, and project `trigger()` adapter shipped; farmhand wiring pending
+**Status:** IMPLEMENTED CANDIDATE - tick helper, engine-level fire-once ledger, `.refarm/`-backed ledger store, project `trigger()` adapter, and composable tick (`@refarm.dev/cli` `runDueScheduledWork`) shipped; operator command + farmhand daemon wiring pending
 **Authors:** Claude (draft from 2026-07-03 audit), pending Arthur Silva review
 **Date:** 2026-07-03
 **Related:** `docs/DAILY_DRIVER_PARITY.md` (Minimum Daily Loop row "Automate reminders"),
@@ -27,21 +27,25 @@ start a lane:
 | Fire-once idempotency (engine) | shipped | `executeDueLocalScheduledWork` takes an optional `hasFired`/`recordFired` ledger; per-job/per-window fire key; commit `187c3a29` |
 | `.refarm/` fired ledger store | shipped | `@refarm.dev/windmill/local-scheduler-ledger` defaults to `.refarm/scheduler/ledger.json` |
 | Project `AutomationAdapter.trigger()` | shipped | `@refarm.dev/cli/project-automations` exports `createProjectAutomationAdapter()` over `.project/automations.json` |
+| Composable tick (project adapter + `.refarm/` ledger + injected effort adapter) | shipped | `@refarm.dev/cli` exports `runDueScheduledWork()`; commit `a23695fc` |
 
-The first two missing pieces are now closed at package level: a host can call
-`executeDueLocalScheduledWork()` to decide due-ness, call `AutomationAdapter.trigger()`, submit the
-returned Effort, and — with an injected fired-ledger — fire each one-shot once and each cron window
-once (repeated ticks are idempotent). The `.refarm/` runtime ledger store and project automation
-adapter are now package blocks, so the remaining daily-driver gap is farmhand daemon wiring that
-ticks the engine.
+Everything up to the tick is now a package block: `runDueScheduledWork()` composes the project
+automation adapter (query + trigger over `.project/`), the `.refarm/` fired ledger, and an injected
+effort submit adapter, driven by `executeDueLocalScheduledWork()`. It is proven end to end against a
+temp `.project/` + `.refarm/` — a due one-shot fires once, persists to the ledger, and a fresh call
+(only the persisted ledger connecting them, like a daemon restart) does not re-fire. The remaining
+daily-driver gap is (a) an operator command that calls `runDueScheduledWork()` (dogfood/manual tick)
+and (b) farmhand daemon wiring that calls the same helper from its lifecycle loop with the real
+transport as the effort adapter.
 
 ## Decisions
 
 1. **Farmhand owns the tick.** The automation design doc already names the caller: *"The caller
    (farmhand, runtime, CLI) submits the returned Effort to the effort adapter — the two contracts
-   are independent and connected only by the caller."* `windmill/local-scheduler` now exposes the
-   host-owned tick helper; farmhand still needs to call it from its lifecycle loop. No new
-   authority, no new daemon, no new package — composition of shipped blocks.
+   are independent and connected only by the caller."* The composition is now a single call —
+   `@refarm.dev/cli` `runDueScheduledWork()` — that farmhand invokes from its lifecycle loop with
+   the real transport as the effort adapter. No new authority, no new daemon, no new package —
+   composition of shipped blocks.
 2. **Fire-once ledger for one-shot triggers.** A fired one-shot records `firedAt` (and the
    producing effort id) in a **runtime ledger under `.refarm/`** (e.g.
    `.refarm/scheduler/ledger.json`), keyed by a stable per-job/per-window fire key; an
