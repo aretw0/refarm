@@ -425,10 +425,15 @@ fn validate_manifest_runtime_alignment(
     }
 
     let manifest_plugin_id = manifest_runtime_plugin_id(&manifest.id);
-    if manifest_plugin_id != plugin_id {
+    // The runtime plugin_id is what the WASM component actually exports as its
+    // metadata.name — NOT `plugin_id`, which was derived from the manifest and
+    // would make this a tautological self-comparison. Compare the manifest's
+    // declared id against the runtime's true identity.
+    let runtime_plugin_id = metadata.name.trim();
+    if !runtime_plugin_id.is_empty() && manifest_plugin_id != runtime_plugin_id {
         issues.push(format!(
             "plugin_id mismatch: runtime='{}' manifest='{}' (manifest.id='{}')",
-            plugin_id, manifest_plugin_id, manifest.id
+            runtime_plugin_id, manifest_plugin_id, manifest.id
         ));
     }
 
