@@ -1,5 +1,10 @@
 # Feature Specification: {{TITLE}}
 
+> Canonical source: `specs/features/template.md`
+>
+> Use this file as a quick entrypoint only. If this file diverges from
+> `specs/features/template.md`, the canonical template wins.
+
 ## 1. Problem Statement
 <!-- 
 Describe the "Why". What problem are we solving? 
@@ -31,3 +36,9 @@ These should directly translate into your Integration/E2E test suite.
 <!-- Run `npm test:repro` before merging! -->
 - Are there new NPM packages required?
 - Does this depend on another feature or ADR?
+
+## 5. Execution Checklist (Actionability)
+- [ ] Traceability matrix filled (SDD -> BDD -> TDD -> DDD)
+- [ ] BDD red command captured
+- [ ] TDD red command captured
+- [ ] Green verification command captured

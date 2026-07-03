@@ -109,6 +109,35 @@ needed in a release handoff.
 adapter. The package can stay small, testable, and product-neutral while
 Homestead, DS, and dispatch-surface keep their existing responsibilities.
 
+## Operationalization (How this becomes actionable)
+
+**Entry criteria to start implementation:**
+
+- [ ] `local-surface:v1` manifest shape is fixed in feature spec
+- [ ] DS/Homestead/dispatch boundaries are explicit in tests and docs
+- [ ] Candidate-only release posture is explicit (no early `vault-seed-ready` tag)
+
+**BDD first slice (behavior, red):**
+
+- Scenario file(s): `specs/features/2026-07-03-local-surface-v1.md` acceptance scenarios and package integration tests
+- Expected first failing assertion: local surface renders DS-backed static document and launch plan without requiring runtime host/provider selection
+
+**TDD contract slice (unit, red):**
+
+- Contract file(s): `packages/local-surface` unit tests for manifest validation, launch plan derivation, and quality report projection
+- Critical edge cases: malformed manifest, missing DS dependency contract fields, unsupported adapter hints, deterministic output ordering
+
+**DDD implementation slice (green):**
+
+- First production modules to implement: manifest parser/validator, DS HTML renderer bridge, quality report helper adapters
+- Done when: tests prove boundary enforcement (no server/storage/provider ownership) and white-label wrappers can consume outputs deterministically
+
+**Verification commands:**
+
+- Red (BDD): `pnpm --filter @refarm.dev/local-surface run test`
+- Red (TDD): `pnpm --filter @refarm.dev/local-surface run test`
+- Green (full): `pnpm --filter @refarm.dev/local-surface run type-check && pnpm --filter @refarm.dev/local-surface run lint && pnpm --filter @refarm.dev/local-surface run test && pnpm --filter @refarm.dev/local-surface run build`
+
 ## Consequences
 
 **Positive:**

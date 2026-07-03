@@ -113,7 +113,7 @@ packages/
   session-contract-v1/      ← contract types + conformance runner
 
 consumers (implement the adapter):
-  apps/agent/            ← uses sessionAdapter + stores extra fields alongside
+  packages/agent/        ← uses sessionAdapter + stores extra fields alongside
   packages/storage-sqlite/  ← future: SessionContractAdapter backed by Loro CRDT
   apps/me/ (Homestead)      ← reads Session/SessionEntry for conversation history
   integrations/telegram/    ← messaging adapter that creates Session per chat
@@ -256,11 +256,29 @@ export function unfoldSessionContextFold(
 
 ---
 
+## Reality Snapshot (2026-07-03)
+
+Verified in workspace scripts/package wiring:
+
+- `@refarm.dev/session-contract-v1` already exposes `test:conformance` and `test`.
+- `@refarm.dev/storage-sqlite` already runs `src/session-v1.conformance.test.ts` as part of
+  `test:conformance`.
+- Session namespace migration helper/test already exists in root scripts.
+- `@refarm.dev/agent` exists in `packages/agent` (not `apps/agent`).
+
+Real blockers still open (non-template, implementation-critical):
+
+- Agent CRDT read/write path still needs full adapter migration to `session-contract-v1`.
+- Context-fold planning is implemented, but overflow orchestration still needs end-to-end wiring in agent/farmhand.
+- Homestead (`apps/me`) still needs the unified read-path for conversation history.
+
+---
+
 ## References
 
 - [ADR-057: task-contract-v1 + session-contract-v1](../ADRs/ADR-057-task-session-contracts.md)
 - [ADR-052: CRDT-native agent rendezvous](../ADRs/ADR-052-crdt-native-agent-rendezvous.md)
 - [ADR-045: Loro CRDT adoption](../ADRs/ADR-045-loro-crdt-adoption.md)
-- [ADR-046: Composition model](../ADRs/ADR-046-composition-model.md)
+- [ADR-046: Composition model](../ADRs/ADR-046-refarm-composition-model.md)
 - [task-contract-v1 spec](./task-contract-v1.md)
 - [Session management spec](./session-management.md)

@@ -65,6 +65,35 @@ the contract evaluates it.
 endpoint) — that is the companion feature's decision. This ADR fixes the *shape*: verification is
 policy-driven, and trust/`trustSelf`/revocation/validity/claims are policy fields, not verify parameters.
 
+## Operationalization (How this becomes actionable)
+
+**Entry criteria to start implementation:**
+
+- [ ] `CredentialVerificationPolicy` shape agreed in `credentials-contract-v1`
+- [ ] Backward-compatibility rule agreed (no policy = signature-only)
+- [ ] Companion revocation behavior is referenced by policy mode, not hardcoded in the contract
+
+**BDD first slice (behavior, red):**
+
+- Scenario file(s): `specs/features/2026-07-01-credentials-verify-policy-revocation.md` (acceptance), plus integration scenarios in consumer lane
+- Expected first failing assertion: `verify(input, { trustedIssuers: ["did:key:..."] })` rejects issuer outside trust set while current behavior still accepts by signature-only
+
+**TDD contract slice (unit, red):**
+
+- Contract file(s): `packages/credentials-contract-v1` conformance/unit tests for policy fields and result checks
+- Critical edge cases: empty policy, `trustSelf` with rotated owner DID, mixed `trustedIssuers + trustSelf`, validity window boundaries, holder binding mismatch
+
+**DDD implementation slice (green):**
+
+- First production modules to implement: policy evaluator and additive result-check projection in credentials verification provider
+- Done when: policy-aware checks are deterministic, signature-only fallback is preserved, and failing checks are legible in result payload
+
+**Verification commands:**
+
+- Red (BDD): `pnpm --filter @refarm.dev/credentials-contract-v1 run test`
+- Red (TDD): `pnpm --filter @refarm.dev/credentials-contract-v1 run test`
+- Green (full): `pnpm --filter @refarm.dev/credentials-contract-v1 run type-check && pnpm --filter @refarm.dev/credentials-contract-v1 run test && pnpm --filter @refarm.dev/credentials-contract-v1 run build`
+
 ## Consequences
 
 - **Forward-safe adoption.** No policy → signature-only (today's behavior). Consumers opt into strictness

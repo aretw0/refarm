@@ -73,6 +73,37 @@ Clear statement of the decision made.
 
 ---
 
+## Operationalization (How this becomes actionable)
+
+**Entry criteria to start implementation:**
+
+- [ ] Affected boundaries/components are explicit
+- [ ] Compatibility/migration expectation is explicit
+- [ ] Observability/verification expectation is explicit
+
+**BDD first slice (behavior, red):**
+
+- Scenario file(s): `...`
+- Expected first failing assertion: `...`
+
+**TDD contract slice (unit, red):**
+
+- Contract file(s): `...`
+- Critical edge cases: `...`
+
+**DDD implementation slice (green):**
+
+- First production modules to implement: `...`
+- Done when: `...`
+
+**Verification commands:**
+
+- Red (BDD): `pnpm ...`
+- Red (TDD): `pnpm ...`
+- Green (full): `pnpm ...`
+
+---
+
 ## Implementation
 
 **Affected components:**

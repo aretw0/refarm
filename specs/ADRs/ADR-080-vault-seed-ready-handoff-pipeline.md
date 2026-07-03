@@ -91,6 +91,35 @@ not exist on disk.
 **Rationale**: the machinery already exists and is proven; what failed is enforcement (manifest
 optionality) and evidence closure (no receipts). Both are small, testable additions.
 
+## Operationalization (How this becomes actionable)
+
+**Entry criteria to start implementation:**
+
+- [ ] `vault-seed-ready` package selection is accepted in release policy
+- [ ] Packet directory naming/date convention is stable for current lane
+- [ ] Ownership boundary is explicit (Refarm emits packet; official consumer returns receipts)
+
+**BDD first slice (behavior, red):**
+
+- Scenario file(s): handoff script tests and release-lane acceptance scenarios for packet completeness
+- Expected first failing assertion: pack/prune run without explicit output still yields a manifest-bearing packet; manifest-less packet is considered invalid
+
+**TDD contract slice (unit, red):**
+
+- Contract file(s): `scripts/vault-seed-ready-handoff.mjs` tests covering manifest fields, sha256 integrity map, and `consumerProofs` derivation from release policy
+- Critical edge cases: partial tarball set, stale manifest hash, missing `consumerPull` metadata, duplicate proof ids
+
+**DDD implementation slice (green):**
+
+- First production modules to implement: packet completeness guard and plain JSON receipt read/write helpers
+- Done when: latest packet is self-describing, proofs can be traced to concrete receipts, and docs no longer claim completion without disk evidence
+
+**Verification commands:**
+
+- Red (BDD): `pnpm run release:vault-seed:handoff`
+- Red (TDD): `pnpm run test:unit -- scripts/vault-seed-ready-handoff`
+- Green (full): `pnpm run release:vault-seed:handoff && pnpm run refarm:check:verify`
+
 ---
 
 ## Consequences

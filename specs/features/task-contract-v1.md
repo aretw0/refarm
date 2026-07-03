@@ -96,7 +96,7 @@ packages/
 
 consumers (implement the adapter):
   packages/storage-sqlite/ ← future: TaskContractAdapter backed by Loro CRDT + SQLite
-  apps/agent/           ← uses taskAdapter to create/update Task nodes
+  packages/agent/       ← uses taskAdapter to create/update Task nodes
   apps/farmhand/           ← reads Task nodes for scheduling/dispatching
   apps/me/ (Homestead)     ← reads Task nodes for the task list UI
 ```
@@ -221,10 +221,27 @@ export function runTaskV1Conformance(
 
 ---
 
+## Reality Snapshot (2026-07-03)
+
+Verified in workspace scripts/package wiring:
+
+- `@refarm.dev/task-contract-v1` already exposes `test:conformance` and `test`.
+- `@refarm.dev/storage-sqlite` already runs `src/task-v1.conformance.test.ts` as part of
+  `test:conformance`.
+- `@refarm.dev/agent` exists in `packages/agent` (not `apps/agent`).
+
+Real blockers still open (non-template, implementation-critical):
+
+- Agent write-path must use `TaskContractAdapter` for durable create/update/event lifecycle.
+- Homestead (`apps/me`) still needs the read-path wired to show tasks from the same adapter contract.
+- `storage-sqlite` adapter still needs direct Loro node path (current baseline is storage:v1-backed records).
+
+---
+
 ## References
 
 - [ADR-057: task-contract-v1 + session-contract-v1](../ADRs/ADR-057-task-session-contracts.md)
 - [ADR-052: CRDT-native agent rendezvous](../ADRs/ADR-052-crdt-native-agent-rendezvous.md)
-- [ADR-046: Composition model](../ADRs/ADR-046-composition-model.md)
+- [ADR-046: Composition model](../ADRs/ADR-046-refarm-composition-model.md)
 - [session-contract-v1 spec](./session-contract-v1.md)
 - [Farmhand Task Execution spec](./farmhand-task-execution.md)
