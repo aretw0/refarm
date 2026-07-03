@@ -126,8 +126,10 @@ test("distribution status reflects release-policy selections", () => {
 	assert.match(doc, /vault-seed-ready/);
 	assert.match(doc, /schemaVersion: 1/);
 	assert.match(doc, /consumerPull/);
+	assert.match(doc, /Each selected package entry carries `consumerPull` metadata in\s+`refarm\.config\.json`/);
 	assert.match(doc, /consumerInstall/);
 	assert.match(doc, /consumerProofs/);
+	assert.match(doc, /handoff script flattens the policy metadata\s+into `consumerProofs`/);
 	assert.match(doc, /distributionEvidence/);
 	assert.match(doc, /prunedExtra/);
 	assert.match(doc, /proofId/);
@@ -138,6 +140,8 @@ test("distribution status reflects release-policy selections", () => {
 	assert.match(doc, /official consumer checkout should collect the `\.tgz` files/);
 	assert.match(doc, /tarball freshness/);
 	assert.match(doc, /publishable build-output\s+freshness/);
+	assert.match(vaultSeedHandoffAdr, /Consumer-pull canon is the release policy/);
+	assert.match(vaultSeedHandoffAdr, /must not keep a parallel\s+package-name map/);
 	assert.doesNotMatch(
 		doc,
 		/currently lives under\s+`\.refarm\/handoff\/vault-seed\/\d{4}-\d{2}-\d{2}\//,

@@ -18,6 +18,20 @@ import {
 	writePacketManifests,
 } from "../vault-seed-ready-handoff.mjs";
 
+const PROCESS_HANDOFF_CONSUMER_PULL = {
+	proofId: "process-handoff.dgk-runner-adapter",
+	downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
+	proofTarget: "dgk-runner keeps run(cmd, args, opts) while using process-handoff internally",
+	ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
+};
+
+const DS_CONSUMER_PULL = {
+	proofId: "ds.lab-admin-static-document",
+	downstreamUse: "Lab/admin tokens, verde-jardim theme source, and build-free DS HTML document helpers",
+	proofTarget: "vault-seed Lab/admin UI imports ds tokens and renders documentHtml through @refarm.dev/ds/html without pulling Homestead",
+	ownershipBoundary: "PARA vocabulary, editorial copy, and content semantics remain downstream",
+};
+
 function makeFixture() {
 	const root = mkdtempSync(path.join(os.tmpdir(), "refarm-handoff-"));
 	const handoffDir = path.join(root, ".refarm/handoff/vault-seed/fixture");
@@ -301,13 +315,14 @@ test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 				orderedPackages: [
 					{
 						name: "@refarm.dev/process-handoff",
-						profile: {
-							risk: "shared",
-							tags: ["vault-seed-ready"],
-							mustPassChecks: ["pnpm --filter @refarm.dev/process-handoff run test"],
+							profile: {
+								risk: "shared",
+								tags: ["vault-seed-ready"],
+								mustPassChecks: ["pnpm --filter @refarm.dev/process-handoff run test"],
+								consumerPull: PROCESS_HANDOFF_CONSUMER_PULL,
+							},
 						},
-					},
-				],
+					],
 				gates: [{ id: "preflight", required: true }],
 				profileTags: ["vault-seed-ready"],
 				publishIntents: [],
@@ -322,12 +337,7 @@ test("adds consumer-pull proof metadata for vault-seed-ready packages", () => {
 	});
 
 	assert.equal(manifest.ok, true);
-	assert.deepEqual(manifest.packages[0].consumerPull, {
-		proofId: "process-handoff.dgk-runner-adapter",
-		downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
-		proofTarget: "dgk-runner keeps run(cmd, args, opts) while using process-handoff internally",
-		ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
-	});
+	assert.deepEqual(manifest.packages[0].consumerPull, PROCESS_HANDOFF_CONSUMER_PULL);
 	assert.deepEqual(manifest.consumerProofs, [
 		{
 			proofId: "process-handoff.dgk-runner-adapter",
@@ -369,13 +379,14 @@ test("uses document wording for ds/html consumer-pull metadata", () => {
 				orderedPackages: [
 					{
 						name: "@refarm.dev/ds",
-						profile: {
-							risk: "shared",
-							tags: ["vault-seed-ready"],
-							mustPassChecks: ["pnpm --filter @refarm.dev/ds run test"],
+							profile: {
+								risk: "shared",
+								tags: ["vault-seed-ready"],
+								mustPassChecks: ["pnpm --filter @refarm.dev/ds run test"],
+								consumerPull: DS_CONSUMER_PULL,
+							},
 						},
-					},
-				],
+					],
 				gates: [{ id: "preflight", required: true }],
 				profileTags: ["vault-seed-ready"],
 				publishIntents: [],

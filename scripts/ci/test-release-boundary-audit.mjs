@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { buildReleaseBoundaryAudit } from "./release-boundary-audit.mjs";
 
 test("release boundary audit passes for current vault-seed-ready lane", () => {
 	const audit = buildReleaseBoundaryAudit();
+	const config = JSON.parse(readFileSync(new URL("../../refarm.config.json", import.meta.url), "utf8"));
+	const profiles = config.releasePolicy.packageProfiles.filter((profile) =>
+		profile.tags?.includes("vault-seed-ready"),
+	);
 
 	assert.equal(audit.schemaVersion, 1);
 	assert.equal(audit.command, "release-boundary-audit");
@@ -34,4 +39,14 @@ test("release boundary audit passes for current vault-seed-ready lane", () => {
 		"@refarm.dev/enrichment-contract-v1",
 		"@refarm.dev/records-contract-v1",
 	]));
+	assert.deepEqual(
+		profiles
+			.filter((profile) =>
+				["proofId", "downstreamUse", "proofTarget", "ownershipBoundary"].some(
+					(field) => typeof profile.consumerPull?.[field] !== "string" || profile.consumerPull[field].trim() === "",
+				),
+			)
+			.map((profile) => profile.id),
+		[],
+	);
 });

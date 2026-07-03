@@ -37,134 +37,6 @@ const PACKAGE_SOURCE_INPUTS = [
 ];
 const BUILD_SOURCE_INPUTS = ["src", "wit", "Cargo.toml", "Cargo.lock"];
 const BUILD_OUTPUT_INPUTS = ["dist", "pkg"];
-const VAULT_SEED_CONSUMER_PULLS = {
-	"@refarm.dev/artifact-contract-v1": {
-		proofId: "artifact-contract.lab-outbox-evidence",
-		downstreamUse: "Lab datasets, publication outbox, and notebook snapshot evidence",
-		proofTarget: "vault-seed emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
-		ownershipBoundary: "Vault schemas, notebook UX, and frontmatter remain downstream",
-	},
-	"@refarm.dev/channel-policy-v1": {
-		proofId: "channel-policy.telegram-delivery-envelope",
-		downstreamUse: "Channel destinations, rate limits, receipts, dry-run, and review gates",
-		proofTarget: "vault-seed Telegram adapter emits refarm.channel-delivery-envelope.v1",
-		ownershipBoundary: "Provider API calls, copy formatting, and inbox/outbox UX remain downstream",
-	},
-	"@refarm.dev/effort-contract-v1": {
-		proofId: "effort-contract.dgk-effort-evidence",
-		downstreamUse: "Reusable task/effort evidence for dgk operations and handoffs",
-		proofTarget: "dgk process flows attach effort identifiers to emitted evidence",
-		ownershipBoundary: "dgk command vocabulary and operator UX remain downstream",
-	},
-	"@refarm.dev/quality-contract-v1": {
-		proofId: "quality-contract.declared-lint-envelope",
-		downstreamUse: "Declared quality/lint profiles and reports for text, UI, and checker plugin POCs",
-		proofTarget: "vault-seed and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
-		ownershipBoundary: "Rule catalogs, severity policy, product copy, personas, and rendered-subject collection remain downstream",
-	},
-	"@refarm.dev/process-handoff": {
-		proofId: "process-handoff.dgk-runner-adapter",
-		downstreamUse: "Structured process runner primitive for dgk-runner and dgk-cli internals",
-		proofTarget: "dgk-runner keeps run(cmd, args, opts) while using process-handoff internally",
-		ownershipBoundary: "dgk package names, binary, commands, and product labels remain downstream",
-	},
-	"@refarm.dev/release-engine": {
-		proofId: "release-engine.package-acceptance",
-		downstreamUse: "Package acceptance, release planning, and publish dry-run policy",
-		proofTarget: "vault-seed release/package smoke consumes release-engine acceptance output",
-		ownershipBoundary: "Distribution identity, prose, and changelog content remain downstream",
-	},
-	"@refarm.dev/ds": {
-		proofId: "ds.lab-admin-static-document",
-		downstreamUse: "Lab/admin tokens, verde-jardim theme source, and build-free DS HTML document helpers",
-		proofTarget: "vault-seed Lab/admin UI imports ds tokens and renders documentHtml through @refarm.dev/ds/html without pulling Homestead",
-		ownershipBoundary: "PARA vocabulary, editorial copy, and content semantics remain downstream",
-	},
-	"@refarm.dev/heartwood": {
-		proofId: "heartwood.silo-crypto-substrate",
-		downstreamUse: "Shared crypto substrate needed by silo-backed credentials",
-		proofTarget: "vault-seed credential flow uses silo without local crypto stand-ins",
-		ownershipBoundary: "Credential policy choices and publishing identities remain downstream",
-	},
-	"@refarm.dev/identity-contract-v1": {
-		proofId: "credentials-identity-contract.transitive-signature-support",
-		downstreamUse: "identity:v1 contract support for credentials:v1 issuer and holder proofs",
-		proofTarget: "vault-seed vendors identity-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present",
-		ownershipBoundary: "Issuer trust, DID methods, account recovery, and identity UX remain downstream",
-	},
-	"@refarm.dev/storage-contract-v1": {
-		proofId: "credentials-storage-contract.transitive-wallet-support",
-		downstreamUse: "storage:v1 contract support for credentials:v1 wallet store/list/remove",
-		proofTarget: "vault-seed vendors storage-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present -> wallet",
-		ownershipBoundary: "Durable wallet persistence, retention, encryption policy, and wallet UX remain downstream",
-	},
-	"@refarm.dev/identity-heartwood": {
-		proofId: "credentials-identity-heartwood.reference-signature",
-		downstreamUse: "Heartwood-backed identity:v1 issuer and holder signatures for the credentials smoke",
-		proofTarget: "sovereign-citizen:reference:test proves real Ed25519 issue and present signatures through identity:v1",
-		ownershipBoundary: "Trust registry, default identity provider choice, secret persistence, and DID resolution remain downstream",
-	},
-	"@refarm.dev/storage-memory": {
-		proofId: "credentials-storage-memory.reference-wallet",
-		downstreamUse: "Volatile storage:v1 implementation for credentials smoke and consumer-contract wallet proofs",
-		proofTarget: "sovereign-citizen:reference:test stores and lists the issued credential through storage-memory",
-		ownershipBoundary: "Production durability, synchronization, encryption-at-rest, and wallet UX remain downstream",
-	},
-	"@refarm.dev/credentials-contract-v1": {
-		proofId: "credentials-contract.issue-verify-present-wallet",
-		downstreamUse: "credentials:v1 contract for issue, policy-driven verify, present, store, list, remove, and revoke seams before VC UX",
-		proofTarget: "vault-seed vendors credentials-contract-v1 early and proves issuer/verifier/wallet seams with trustedIssuers, trustSelf, holder-binding, and local signed status-list revocation checks before headspace UX",
-		ownershipBoundary: "Issuer authorities, credential schemas, trust registry sources, remote status-list distribution, trust UI, and domain vocabulary remain downstream",
-	},
-	"@refarm.dev/dispatch-surface": {
-		proofId: "dispatch-surface.dgk-descriptor",
-		downstreamUse: "Multi-surface command/action descriptor substrate",
-		proofTarget: "dgk exposes product commands through dispatch-surface-compatible descriptors",
-		ownershipBoundary: "Surface labels, routes, and product-specific actions remain downstream",
-	},
-	"@refarm.dev/silo": {
-		proofId: "silo.credential-namespaces",
-		downstreamUse: "Scoped credential collection and secret namespace separation",
-		proofTarget: "vault-seed stores model/runtime/publishing credentials through silo namespaces",
-		ownershipBoundary: "Provider-specific publishing adapters and approval workflow remain downstream",
-	},
-	"@refarm.dev/source-contract-v1": {
-		proofId: "requirements-source-contract.transitive-source-web-support",
-		downstreamUse: "source:v1 contract support for the source-web vendor packet",
-		proofTarget: "vault-seed vendors source-contract-v1 as the source-web transitive override while proving source-web -> records:v1 -> enrichment:v1 composition",
-		ownershipBoundary: "Concrete login, selectors, and source profile vocabulary remain downstream",
-	},
-	"@refarm.dev/source-web": {
-		proofId: "requirements-source-web.authenticated-capture",
-		downstreamUse: "Authenticated source capture fixture feeding requirement-like records",
-		proofTarget: "vault-seed wraps source-web with real checkout-owned source behavior and proves redacted source:v1 snapshots compose into records:v1 and enrichment:v1",
-		ownershipBoundary: "Real credentials, discovery, selectors, pacing values, and source-specific ETL profiles remain downstream",
-	},
-	"@refarm.dev/enrichment-contract-v1": {
-		proofId: "requirements-enrichment.private-provider-wrapper",
-		downstreamUse: "Deterministic enrichment report contract for records and note projections",
-		proofTarget: "vault-seed emits enrichment:v1 reports from checkout-owned providers while the package supplies only the neutral contract and fixture provider",
-		ownershipBoundary: "Private registries, lookup adapters, tag vocabulary, and domain enrichment rules remain downstream",
-	},
-	"@refarm.dev/records-contract-v1": {
-		proofId: "requirements-records.knowledge-manifest",
-		downstreamUse: "Neutral records:v1 manifest for source-linked knowledge/content evidence",
-		proofTarget: "vault-seed validates requirement-like records and notes-to-records projections through records:v1 with a clean reference-vault composition proof",
-		ownershipBoundary: "PARA placement, editorial model, note rendering, and domain labels remain downstream",
-	},
-	"@refarm.dev/content-projection": {
-		proofId: "content-projection.markdown-mdx-records",
-		downstreamUse: "Markdown/MDX frontmatter, wikilink, and inline-link projection into records:v1",
-		proofTarget: "vault-seed can replace local note-to-record, wikilink, and inline-link projection helpers with the generic projection block while retaining its product configuration",
-		ownershipBoundary: "PARA folder mapping, note vocabulary, Obsidian/Foam conventions, and rendering remain downstream",
-	},
-	"@refarm.dev/local-surface": {
-		proofId: "local-surface.white-label-operator-proof",
-		downstreamUse: "Local-first white-label operator surface for vault tasks and agent handoffs",
-		proofTarget: "vault-seed can build a local-surface:v1 manifest, DS-backed HTML, white-label launch plan, and quality:v1 report while keeping routes, screenshots, provider adapters, and product vocabulary downstream-owned",
-		ownershipBoundary: "Server binding, route branding, storage adapters, provider setup, screenshots, and product UX remain downstream",
-	},
-};
 
 const REVENDOR_POLICY = {
 	sameNameVersionBehavior:
@@ -360,6 +232,15 @@ function buildConsumerProofs(packages) {
 			proofTarget: entry.consumerPull.proofTarget,
 			ownershipBoundary: entry.consumerPull.ownershipBoundary,
 		}));
+}
+
+function buildConsumerPullMap(plan) {
+	return new Map(
+		(plan?.orderedPackages ?? []).map((entry) => [
+			entry.name,
+			entry.profile?.consumerPull ?? null,
+		]),
+	);
 }
 
 function buildHandoffBoundaryAudit({ cwd, releaseBoundaryAudit }) {
@@ -672,6 +553,7 @@ export function buildHandoffManifest({
 		? readdirSync(absoluteHandoffDir).filter((file) => file.endsWith(".tgz")).sort()
 		: [];
 	const handoffFileSet = new Set(handoffFiles);
+	const consumerPullByPackage = buildConsumerPullMap(check.plan);
 
 	const packages = check.commands.map((command) => {
 		const { packageJson } = readPackageJson(cwd, command.packageDir);
@@ -708,7 +590,7 @@ export function buildHandoffManifest({
 			buildInput,
 			buildOutput,
 			buildOutputStale,
-			consumerPull: VAULT_SEED_CONSUMER_PULLS[command.packageName] ?? null,
+			consumerPull: consumerPullByPackage.get(command.packageName) ?? null,
 		};
 	});
 

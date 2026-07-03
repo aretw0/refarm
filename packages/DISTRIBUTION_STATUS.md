@@ -99,12 +99,12 @@ The `vault-seed-ready` release-policy selection also carries an
 `audienceBoundary` contract: consumer `vault-seed`, naming
 `product-neutral-sdk`, and vault-specific CLI labels, copy, notebooks, routes,
 and UX remaining downstream-owned.
-Each package entry also carries `consumerPull` metadata when the selected package
-has a known `vault-seed` adoption target. That metadata names the downstream
-use, a stable `proofId`, the expected `vault-seed` proof target, and the
-ownership boundary that must stay product-local. The same proof targets are
-flattened into `consumerProofs` so downstream checks can validate the adoption
-work without scraping the tarball table or matching prose.
+Each selected package entry carries `consumerPull` metadata in
+`refarm.config.json`. That metadata names the downstream use, a stable
+`proofId`, the expected `vault-seed` proof target, and the ownership boundary
+that must stay product-local. The handoff script flattens the policy metadata
+into `consumerProofs` so downstream checks can validate the adoption work
+without scraping the tarball table or matching prose.
 
 T3 requirements supply is now consumer-proven. The official `vault-seed`
 checkout assimilated `@refarm.dev/enrichment-contract-v1`,

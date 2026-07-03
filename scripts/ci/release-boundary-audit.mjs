@@ -140,6 +140,25 @@ function auditConsumerPulledProfiles(profiles, issues) {
 	}
 }
 
+function auditConsumerPullMetadata(profiles, issues) {
+	const requiredFields = ["proofId", "downstreamUse", "proofTarget", "ownershipBoundary"];
+	for (const profile of profiles.filter((item) => item.tags?.includes(VAULT_SEED_READY))) {
+		const missingFields = requiredFields.filter(
+			(field) =>
+				typeof profile.consumerPull?.[field] !== "string" ||
+				profile.consumerPull[field].trim() === "",
+		);
+		if (missingFields.length > 0) {
+			issues.push(issue({
+				code: "VAULT_SEED_READY_WITHOUT_CONSUMER_PULL_METADATA",
+				packageName: profile.id,
+				message: "`vault-seed-ready` packages must declare complete consumerPull metadata in release policy.",
+				evidence: missingFields,
+			}));
+		}
+	}
+}
+
 function auditSelectedPackageNaming(root, profiles, issues) {
 	const selected = profiles.filter((item) => item.tags?.includes(VAULT_SEED_READY));
 	const selectedNames = new Set(selected.map((item) => item.id));
@@ -380,6 +399,7 @@ export function buildReleaseBoundaryAudit({ root = DEFAULT_ROOT } = {}) {
 	auditAudienceBoundary(policy, issues);
 	auditSdkPrimitiveHolds(profiles, issues);
 	auditConsumerPulledProfiles(profiles, issues);
+	auditConsumerPullMetadata(profiles, issues);
 	auditSelectedPackageNaming(root, profiles, issues);
 	auditSelectedLeaves(profiles, configText, issues);
 	auditSourceHolds(profiles, configText, issues);

@@ -36,9 +36,11 @@ failure classes have already occurred or are structurally open:
 2. **Unverifiable downstream "done" (open).** `consumerProofs` names what the official `vault-seed`
    checkout must prove, but no receipt ever returns. Completed proofs (T2/T3) exist only as prose in
    `docs/VAULT_SEED_CONVERGENCE.md` — prose that has already drifted from disk once.
-3. **Split canon (open).** Consumer-pull metadata lives both in the script's hardcoded
-   `VAULT_SEED_CONSUMER_PULLS` map and inline in `refarm.config.json` package profiles (only
-   `@refarm.dev/quality-contract-v1` uses the config form). No rule says which is canonical.
+3. **Split canon (closed, 2026-07-03).** Consumer-pull metadata originally lived both in the
+   script's hardcoded map and inline in `refarm.config.json` package profiles. The release policy is
+   now canonical: every selected `vault-seed-ready` profile carries complete `consumerPull`
+   metadata, the handoff script derives `consumerProofs` from that policy, and
+   `release-boundary-audit` blocks selected packages without the required fields.
 
 ---
 
@@ -58,9 +60,10 @@ mislead its one consumer:**
    `proofId`, consumer commit, manifest sha256, commands run, and result. No schema package, no
    validator, no CI — a receipt is memory, not product. If publication happens first, skip this
    entirely and prove against registry versions.
-3. **Consumer-pull canon stays as-is.** `refarm.config.json` inline `consumerPull` is preferred
-   for *new* entries; the script's existing hardcoded map is not worth a migration effort for a
-   temporary lane.
+3. **Consumer-pull canon is the release policy.** `refarm.config.json` inline `consumerPull` is the
+   only source for selected package proof metadata. The handoff script must not keep a parallel
+   package-name map; it reads `releaseCheck.plan.orderedPackages[].profile.consumerPull` and flattens
+   those entries into `consumerProofs`.
 4. **Retention.** Manifest-bearing packet directories are the rollback chain and are kept until
    sunset. Manifest-less directories are invalid artifacts: regenerate or delete them (with
    operator confirmation); they must never be a handoff source.
