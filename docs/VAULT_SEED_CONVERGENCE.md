@@ -477,6 +477,7 @@ active `vault-seed-ready` selection now adds:
 | `@refarm.dev/enrichment-contract-v1` | `refarm.dev-enrichment-contract-v1-0.1.0.tgz` |
 | `@refarm.dev/records-contract-v1` | `refarm.dev-records-contract-v1-0.1.0.tgz` |
 | `@refarm.dev/source-web` | `refarm.dev-source-web-0.1.0.tgz` |
+| `@refarm.dev/content-projection` | `refarm.dev-content-projection-0.1.0.tgz` |
 
 Pre-publication consumers should install these from the local handoff and
 override unpublished workspace dependencies to matching tarballs where needed;
@@ -524,8 +525,8 @@ not a public install contract or P2P substrate. After the T3 downstream proof,
 the T2 credentials pull, the agent-demo public-surface proof, and the
 `quality:v1` pull, the active packet was rematerialized under
 `.refarm/handoff/vault-seed/2026-07-03/`: it reports
-`acceptance.status: "accepted"`, 19 packages, 4 required gates, 54 required
-checks, 19 tarballs, `manifest.json`, and `manifest.md` (verified on disk
+`acceptance.status: "accepted"`, 20 packages, 4 required gates, 58 required
+checks, 20 tarballs, `manifest.json`, and `manifest.md` (verified on disk
 2026-07-03). The earlier `2026-07-02/` directory is a superseded partial packet
 — tarballs only, no manifest — and must not be used as a handoff source. The
 official handoff should be copied from the manifest-bearing generated packet
@@ -565,7 +566,7 @@ local stand-ins:
 | Lab WASM helpers, feed/OpenGraph readers, refresh workflows | WASM substrate, HTTP/source readers, artifact snapshot contract | Marimo notebooks, dataset examples, visual exploration |
 | `dgk publish workspace` and custom distributions | generator/codemod registry, release-engine, package acceptance policy | distribution identity, Obsidian/Foam defaults, user-facing template docs |
 | OKF/JSON-LD/semantic graph export and requirement-like records | knowledge/content manifest contract and graph artifact envelope | OKF-specific mapping, domain vocabulary, editorial governance, publication copy |
-| MD/MDX note authoring → `records:v1` (frontmatter, wikilinks, projection) | `content-projection` block (over `records-contract-v1`, composes with `source-local`) + `ds-astro` sanctioned MDX embed set ([design](./superpowers/specs/2026-07-02-content-projection-md-mdx-design.md)) | PARA folder→type projection config, note/link vocabulary, Obsidian/Foam authoring conventions |
+| MD/MDX note authoring → `records:v1` (frontmatter, wikilinks, inline Markdown links, projection) | `@refarm.dev/content-projection` block (over `records-contract-v1`, composes with any acquisition source) + future `ds-astro` sanctioned MDX embed set ([design](./superpowers/specs/2026-07-02-content-projection-md-mdx-design.md)) | PARA folder→type projection config, note/link vocabulary, Obsidian/Foam authoring conventions |
 | DGK changelog as publishable content | release-engine emits release-note artifact; channel policy handles delivery evidence | final prose, frontmatter defaults, channel selection |
 | local data lifecycle beyond git: SQLite, data repo, snapshot compaction | storage/materialization/retention policy attached to artifact contracts | backend choice for each vault and migration timing |
 | `vault-publish`, `vault-inbox`, `vault-changelog` skills | Refarm skill runtime activation over source/channel/release primitives | SKILL.md copy, DGK-specific skill packaging |

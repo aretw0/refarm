@@ -142,21 +142,21 @@ test("cross-repo consumption uses the current vault-seed-ready packet", () => {
 
 test("vault-seed handoff docs distinguish historical 10-package packets from current selection", () => {
 	const currentSelection = releaseSelectionNames("vault-seed-ready");
-	assert.equal(currentSelection.length, 19);
+	assert.equal(currentSelection.length, 20);
 
-	assert.match(releaseGateDoc, /current\s+19-package selection/);
+	assert.match(releaseGateDoc, /current\s+20-package\s+selection/);
 	assert.match(releaseGateDoc, /materialized the then-current 10-package selection/);
 	assert.match(
 		releaseGateDoc,
 		/ADR-072 superseded that packet before\s+publication/,
 	);
 	assert.match(vaultSeedHandoffPlan, /historical 2026-06-26/);
-	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 19 packages and 54 required checks/);
+	assert.match(vaultSeedHandoffPlan, /active `vault-seed-ready` selection is\s+> now 20 packages and 58 required checks/);
 });
 
 test("factory readiness records the current local vault-seed handoff state", () => {
 	assert.match(factoryReadinessDoc, /local handoff ready/);
-	assert.match(factoryReadinessDoc, /\.refarm\/handoff\/vault-seed\/2026-07-02\/manifest\.json/);
+	assert.match(factoryReadinessDoc, /\.refarm\/handoff\/vault-seed\/2026-07-03\/manifest\.json/);
 	assert.match(factoryReadinessDoc, /distributionEvidence\.state: "local-handoff-ready"/);
-	assert.match(factoryReadinessDoc, /19 tarballs/);
+	assert.match(factoryReadinessDoc, /20 tarballs/);
 });

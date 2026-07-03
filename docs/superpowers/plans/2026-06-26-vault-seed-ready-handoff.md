@@ -7,11 +7,31 @@
 > Current-state note (2026-07-02): this plan captured the historical 2026-06-26
 > packet, when `homestead-ssr` was still present. ADR-072 removed
 > `homestead-ssr` pre-publication, so the active `vault-seed-ready` selection is
-> now 19 packages and 54 required checks after the T3 consumer proof, selected
+> now 20 packages and 58 required checks after the T3 consumer proof, selected
 > `records-contract-v1` YAML unit gate, T2 credentials pull (`credentials:v1` +
 > identity/storage contracts + Heartwood/storage-memory reference providers),
-> agent-demo public-surface proof, and `quality:v1` pull. Use the generated
+> agent-demo public-surface proof, `quality:v1` pull, and generic
+> `content-projection` pull for Markdown/MDX note projection. Use the generated
 > handoff manifest as the source of truth for current package lists.
+
+> Refresh (2026-07-03): the current packet was materialized under
+> `.refarm/handoff/vault-seed/2026-07-03/` with 20 tarballs plus
+> `manifest.json` and `manifest.md`. The generated manifest reports
+> `ok: true`, `acceptance.status: "accepted"`, 20 packages, 4 required gates,
+> 58 required checks, no missing/extra/issues, `distributionEvidence.state:
+> "local-handoff-ready"`, one verified local copy, 20 consumer proofs, and a
+> clean release-boundary audit. The official `vault-seed` checkout was not
+> visible from this devcontainer during the refresh, so downstream assimilation
+> remains a handoff target, not a completed proof.
+> Follow-up in the same date packet: `@refarm.dev/ds` now includes the
+> `@refarm.dev/ds/quality-checker` subpath, a thin `quality:v1` adapter over
+> `ds-lint:v1`. The handoff was rematerialized after the package change; the DS
+> tarball SHA-256 is
+> `9504c4682971338fc4d7c70e288c03c0be7a8619b415b7a45348a7a5dbe4c48b`.
+> Follow-up in the same date packet: `@refarm.dev/content-projection` now
+> includes Markdown inline-link support. Local links can resolve to records;
+> external links are preserved as projected metadata so the output remains valid
+> under `records:v1`.
 
 ## Task 1 - Selection Parity
 

@@ -71,6 +71,13 @@ anexos, source refs, hash e estado de revisão. Vocabulário fica em dados
 JSON-LD/open strings; storage, sync, renderer e workflow editorial ficam fora
 do contrato.
 
+**Projection helper**: `@refarm.dev/content-projection` converte itens
+Markdown/MDX já adquiridos por qualquer fonte em `KnowledgeRecord[]`, tratando
+frontmatter, wikilinks, links Markdown inline e validação do envelope
+`records:v1`. Links externos são preservados como metadado projetado porque
+relações `records:v1` apontam para records do mesmo manifesto. Ele não lê
+arquivos, não renderiza MDX e não define vocabulário editorial.
+
 ## Source Adapters
 
 ### `source:v1`

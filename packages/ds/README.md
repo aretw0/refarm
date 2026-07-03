@@ -119,6 +119,30 @@ The first rules are generic: contrast for every text/background pair, overflow
 against element and viewport bounds, `clamp()` for headings, and heading
 hierarchy. Effects are not banned by name; low-quality execution fails.
 
+### quality:v1 adapter
+
+Use `@refarm.dev/ds/quality-checker` when a host wants the same `ds-lint:v1`
+engine to participate in a `quality:v1` maker/checker loop. `ds-lint` remains
+the owner of UI rules; the adapter maps a `QualityProfile` to `DsLintOptions`
+and maps `DsLintIssue` objects to `QualityFinding` objects.
+
+```ts
+import { createDsQualityChecker } from "@refarm.dev/ds/quality-checker";
+
+const checker = createDsQualityChecker();
+const findings = await checker.check(snapshot, {
+	name: "ui-default",
+	rules: [
+		{
+			id: "ds-contrast",
+			severity: "fail",
+			description: "Text contrast should meet WCAG AA.",
+			check: { type: "contrast" },
+		},
+	],
+});
+```
+
 ## Scroll region utilities
 
 Use explicit scroll regions instead of relying on document/page scroll when a host owns the viewport.

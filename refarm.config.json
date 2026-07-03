@@ -565,6 +565,25 @@
         ]
       },
       {
+        "id": "@refarm.dev/content-projection",
+        "risk": "shared",
+        "mustPassChecks": [
+          "pnpm --filter @refarm.dev/content-projection run lint",
+          "pnpm --filter @refarm.dev/content-projection run type-check",
+          "pnpm --filter @refarm.dev/content-projection run test:conformance",
+          "pnpm --filter @refarm.dev/content-projection run build"
+        ],
+        "tags": [
+          "projection",
+          "sdk-primitive",
+          "requirements-supply",
+          "consumer-pulled",
+          "vault-seed-ready",
+          "boundary-review",
+          "candidate"
+        ]
+      },
+      {
         "id": "@refarm.dev/cli",
         "risk": "shared",
         "mustPassChecks": [

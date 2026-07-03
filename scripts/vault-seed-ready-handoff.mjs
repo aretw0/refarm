@@ -152,6 +152,12 @@ const VAULT_SEED_CONSUMER_PULLS = {
 		proofTarget: "vault-seed validates requirement-like records and notes-to-records projections through records:v1 with a clean reference-vault composition proof",
 		ownershipBoundary: "PARA placement, editorial model, note rendering, and domain labels remain downstream",
 	},
+	"@refarm.dev/content-projection": {
+		proofId: "content-projection.markdown-mdx-records",
+		downstreamUse: "Markdown/MDX frontmatter, wikilink, and inline-link projection into records:v1",
+		proofTarget: "vault-seed can replace local note-to-record, wikilink, and inline-link projection helpers with the generic projection block while retaining its product configuration",
+		ownershipBoundary: "PARA folder mapping, note vocabulary, Obsidian/Foam conventions, and rendering remain downstream",
+	},
 };
 
 const REVENDOR_POLICY = {

@@ -51,6 +51,7 @@ channel, not a public npm publication promise.
 - `@refarm.dev/source-contract-v1`
 - `@refarm.dev/enrichment-contract-v1`
 - `@refarm.dev/records-contract-v1`
+- `@refarm.dev/content-projection`
 - `@refarm.dev/process-handoff`
 - `@refarm.dev/release-engine`
 - `@refarm.dev/ds`
@@ -114,6 +115,12 @@ sanitized reference vault proves `source-web` fixture input composing through
 the three T3 blocks, plus the required source contract support package, into
 `vault-seed-ready`; private login, selectors, ETL profiles, enrichment providers,
 and vocabulary remain downstream-owned.
+
+`@refarm.dev/content-projection` now adds the generic Markdown/MDX projection
+leaf for T3 and vault-site convergence. It parses frontmatter, extracts and
+resolves wikilinks and local inline Markdown links, preserves external inline
+Markdown links as projected metadata, emits valid `records:v1` records, and
+leaves folder mapping, note vocabulary, rendering, and vault UX downstream-owned.
 
 T2 credentials supply is also consumer-proven and selected in `vault-seed-ready`.
 `@refarm.dev/credentials-contract-v1` exposes the `credentials:v1` issue,

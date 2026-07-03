@@ -22,6 +22,10 @@
 		"dist/lint.js.map",
 		"dist/lint.d.ts",
 		"dist/lint.d.ts.map",
+		"dist/quality-checker.js",
+		"dist/quality-checker.js.map",
+		"dist/quality-checker.d.ts",
+		"dist/quality-checker.d.ts.map",
 		"dist/html.js",
 		"dist/html.js.map",
 		"dist/html.d.ts",
@@ -46,6 +50,10 @@
 			"import": "./dist/lint.js",
 			"types": "./dist/lint.d.ts"
 		},
+		"./quality-checker": {
+			"import": "./dist/quality-checker.js",
+			"types": "./dist/quality-checker.d.ts"
+		},
 		"./html": {
 			"import": "./dist/html.js",
 			"types": "./dist/html.d.ts"
@@ -63,6 +71,9 @@
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build",
 		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/quality-contract-v1": "workspace:*"
 	},
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",
