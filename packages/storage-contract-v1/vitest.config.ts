@@ -1,13 +1,9 @@
 import { mergeConfig, defineConfig } from "vitest/config";
-import { baseConfig, getAliases } from "@refarm.dev/vtconfig";
-import path from "node:path";
+import { baseConfig } from "@refarm.dev/vtconfig";
 
 export default mergeConfig(
   baseConfig,
   defineConfig({
-    resolve: {
-      alias: getAliases(path.resolve(__dirname, "../../"))
-    },
     test: {
       environment: "node",
       include: ["src/**/*.test.ts"],

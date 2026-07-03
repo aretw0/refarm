@@ -1,6 +1,26 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { mergeConfig } from 'vite';
+
+/**
+ * Resolve the monorepo root from this file's own location, independent of
+ * process.cwd(). This file lives at packages/vtconfig/src/index.js, so the
+ * root is three directories up.
+ *
+ * WHY: baseConfig computes resolve aliases at import time. If it used
+ * process.cwd(), aliases would be correct when tests run from the repo root
+ * but WRONG under `pnpm --filter <pkg> test` (pnpm runs the script with cwd =
+ * the package dir), forcing every per-package vitest.config to re-declare
+ * `getAliases(path.resolve(__dirname, "../../"))` just to override a broken
+ * fallback. Deriving the root from import.meta.url makes the shared aliases
+ * correct by construction under any cwd — including the `--filter` runs that
+ * CLAUDE.md §3 prescribes.
+ */
+export function resolveMonorepoRoot() {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(here, '..', '..', '..');
+}
 
 export const wasmBrowserHeaders = {
   'Cross-Origin-Opener-Policy': 'same-origin',
@@ -132,7 +152,10 @@ export const baseConfig = {
     ...getCiVitestReporterOptions(),
   },
   resolve: {
-    alias: getAliases(process.cwd()) // Fallback for direct use
+    // Root derived from this file's location (see resolveMonorepoRoot), NOT
+    // process.cwd(), so the shared aliases are correct under `pnpm --filter`
+    // too — no per-package re-declaration required.
+    alias: getAliases(resolveMonorepoRoot())
   }
 };
 

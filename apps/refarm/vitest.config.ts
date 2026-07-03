@@ -1,6 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { baseConfig, getAliases } from "@refarm.dev/vtconfig";
+import { baseConfig } from "@refarm.dev/vtconfig";
 import { defineConfig, mergeConfig } from "vitest/config";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,7 +11,6 @@ export default mergeConfig(
 	defineConfig({
 		resolve: {
 			alias: {
-				...getAliases(path.resolve(__dirname, "../../")),
 				"@refarm.dev/context-provider-v1": path.resolve(
 					__dirname,
 					"../../packages/context-provider-v1/src/index.ts",

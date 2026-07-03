@@ -1,16 +1,6 @@
-import path from "node:path";
-
-import { baseConfig, getAliases } from "@refarm.dev/vtconfig";
+import { baseConfig } from "@refarm.dev/vtconfig";
 import { defineConfig, mergeConfig } from "vitest/config";
 
-export default mergeConfig(
-	baseConfig,
-	defineConfig({
-		resolve: {
-			alias: getAliases(path.resolve(__dirname, "../../")),
-		},
-		test: {
-			environment: "node",
-		},
-	}),
-);
+// baseConfig now resolves aliases from its own location (not process.cwd()),
+// so it works under `pnpm --filter` without re-declaring getAliases here.
+export default mergeConfig(baseConfig, defineConfig({}));

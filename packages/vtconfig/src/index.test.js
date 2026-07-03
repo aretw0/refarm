@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getAliases, baseConfig, withWasmBrowserConfig } from "./index.js";
+import { getAliases, baseConfig, resolveMonorepoRoot, withWasmBrowserConfig } from "./index.js";
 import path from "node:path";
 import fs from "node:fs";
 
@@ -57,6 +57,19 @@ describe("@refarm.dev/vtconfig Deterministic Verifications", () => {
 
     it("should default to node environment for performance", () => {
         expect(baseConfig.test.environment).toBe("node");
+    });
+
+    it("should resolve the monorepo root from its own location, not process.cwd()", () => {
+        // Regression guard: baseConfig must NOT compute aliases from
+        // process.cwd(), or it breaks under `pnpm --filter <pkg>` (cwd = pkg
+        // dir). The root is derived from this file's location instead.
+        const root = resolveMonorepoRoot();
+        // vtconfig lives at packages/vtconfig/src, so the root ends at the repo.
+        expect(fs.existsSync).toBeDefined();
+        expect(root.endsWith(path.join("packages", "vtconfig", "src"))).toBe(false);
+        // baseConfig's aliases must point under <root>/packages, regardless of cwd.
+        const alias = baseConfig.resolve.alias["@refarm.dev/storage-contract-v1"];
+        expect(alias.startsWith(path.join(root, "packages"))).toBe(true);
     });
 
     it("should merge shared browser wasm vite defaults", () => {
