@@ -20,14 +20,17 @@ function node(id: string, extra: Record<string, unknown> = {}): NormalisedNode {
 describe("openScopedLedger (host bootstrap for durable node-ledgers)", () => {
 	let userHome: string;
 	let workspaceRoot: string;
+	let orgRoot: string;
 
 	beforeEach(() => {
 		userHome = mkdtempSync(join(tmpdir(), "snv-user-"));
 		workspaceRoot = mkdtempSync(join(tmpdir(), "snv-ws-"));
+		orgRoot = mkdtempSync(join(tmpdir(), "snv-org-"));
 	});
 	afterEach(() => {
 		rmSync(userHome, { recursive: true, force: true });
 		rmSync(workspaceRoot, { recursive: true, force: true });
+		rmSync(orgRoot, { recursive: true, force: true });
 	});
 
 	it("resolves the scoped store path under <scope>/.refarm/<name>/ledger.json", () => {
@@ -69,32 +72,68 @@ describe("openScopedLedger (host bootstrap for durable node-ledgers)", () => {
 		expect(await records.get("fire:x")).not.toBeNull();
 	});
 
-	it("layers open user then workspace in apply order (lowest precedence first)", () => {
+	it("layers open workspace then user in apply order (lowest precedence first)", () => {
 		const layers = openScopedLedgerLayers("config", { userHome, workspaceRoot });
-		expect(layers.map((l) => l.scope)).toEqual(["user", "workspace"]);
+		expect(layers.map((l) => l.scope)).toEqual(["workspace", "user"]);
 		expect(layers[0]!.path).toBe(
-			join(userHome, ".refarm", "config", "ledger.json"),
+			join(workspaceRoot, ".refarm", "config", "ledger.json"),
 		);
 		expect(layers[1]!.path).toBe(
-			join(workspaceRoot, ".refarm", "config", "ledger.json"),
+			join(userHome, ".refarm", "config", "ledger.json"),
 		);
 	});
 
-	it("readLayeredNode: workspace overrides user for the same id; base shows through", async () => {
+	it("layers include org as the shared base only when orgRoot is injected", () => {
+		const layers = openScopedLedgerLayers("config", {
+			orgRoot,
+			userHome,
+			workspaceRoot,
+		});
+		expect(layers.map((l) => l.scope)).toEqual(["org", "workspace", "user"]);
+		expect(layers[0]!.path).toBe(
+			join(orgRoot, ".refarm", "config", "ledger.json"),
+		);
+		expect(layers[2]!.path).toBe(
+			join(userHome, ".refarm", "config", "ledger.json"),
+		);
+	});
+
+	it("readLayeredNode: user overrides workspace for the same id; base shows through", async () => {
 		const layers = openScopedLedgerLayers("config", { userHome, workspaceRoot });
-		const [user, workspace] = layers;
+		const [workspace, user] = layers;
 
-		await user!.ledger.storeNode(node("model", { ref: "user-default" }));
-		await user!.ledger.storeNode(node("theme", { ref: "user-theme" }));
-		await workspace!.ledger.storeNode(node("model", { ref: "workspace-override" }));
+		await workspace!.ledger.storeNode(node("model", { ref: "workspace-default" }));
+		await workspace!.ledger.storeNode(node("theme", { ref: "workspace-theme" }));
+		await user!.ledger.storeNode(node("model", { ref: "user-override" }));
 
-		// Overridden id resolves to the workspace layer...
+		// Overridden id resolves to the user layer...
 		const model = await readLayeredNode(layers, "model");
-		expect((model as Record<string, unknown>).ref).toBe("workspace-override");
-		// ...while an id only the user layer set still shows through.
+		expect((model as Record<string, unknown>).ref).toBe("user-override");
+		// ...while an id only the workspace layer set still shows through.
 		const theme = await readLayeredNode(layers, "theme");
-		expect((theme as Record<string, unknown>).ref).toBe("user-theme");
+		expect((theme as Record<string, unknown>).ref).toBe("workspace-theme");
 		// An unknown id is null across all layers.
 		expect(await readLayeredNode(layers, "absent")).toBeNull();
+	});
+
+	it("readLayeredNode: org base shows through workspace and user overrides", async () => {
+		const layers = openScopedLedgerLayers("config", {
+			orgRoot,
+			userHome,
+			workspaceRoot,
+		});
+		const [org, workspace, user] = layers;
+
+		await org!.ledger.storeNode(node("model", { ref: "org-default" }));
+		await org!.ledger.storeNode(node("theme", { ref: "org-theme" }));
+		await workspace!.ledger.storeNode(
+			node("model", { ref: "workspace-override" }),
+		);
+		await user!.ledger.storeNode(node("model", { ref: "user-override" }));
+
+		const model = await readLayeredNode(layers, "model");
+		expect((model as Record<string, unknown>).ref).toBe("user-override");
+		const theme = await readLayeredNode(layers, "theme");
+		expect((theme as Record<string, unknown>).ref).toBe("org-theme");
 	});
 });

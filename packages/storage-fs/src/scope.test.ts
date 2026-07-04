@@ -9,6 +9,10 @@ const OPTS = {
 	userHome: "/home/tester",
 	workspaceRoot: "/work/project",
 };
+const ORG_OPTS = {
+	...OPTS,
+	orgRoot: "/mnt/refarm-org/acme",
+};
 
 describe("@refarm.dev/storage-fs scope resolution", () => {
 	it("resolves user scope under <home>/.refarm", () => {
@@ -20,6 +24,18 @@ describe("@refarm.dev/storage-fs scope resolution", () => {
 	it("resolves workspace scope under <workspaceRoot>/.refarm", () => {
 		expect(resolveScopedStorePath("workspace", "barn/ledger.json", OPTS)).toBe(
 			"/work/project/.refarm/barn/ledger.json",
+		);
+	});
+
+	it("resolves org scope under an injected orgRoot", () => {
+		expect(resolveScopedStorePath("org", "barn/ledger.json", ORG_OPTS)).toBe(
+			"/mnt/refarm-org/acme/.refarm/barn/ledger.json",
+		);
+	});
+
+	it("requires orgRoot when resolving org scope directly", () => {
+		expect(() => resolveScopedStorePath("org", "barn/ledger.json", OPTS)).toThrow(
+			"`org` ledger scope has no filesystem default",
 		);
 	});
 
@@ -38,12 +54,25 @@ describe("@refarm.dev/storage-fs scope resolution", () => {
 		).toBe("/work/project/.project/x.json");
 	});
 
-	it("orders scopes user-first (apply order: workspace wins on fold)", () => {
+	it("orders active local scopes in apply order (workspace base, user override)", () => {
 		const ordered = orderedScopeStorePaths("config/overrides.json", OPTS);
-		expect(ordered.map((s) => s.scope)).toEqual(["user", "workspace"]);
+		expect(ordered.map((s) => s.scope)).toEqual(["workspace", "user"]);
 		expect(ordered.map((s) => s.path)).toEqual([
-			"/home/tester/.refarm/config/overrides.json",
 			"/work/project/.refarm/config/overrides.json",
+			"/home/tester/.refarm/config/overrides.json",
+		]);
+	});
+
+	it("includes org as the lowest-precedence layer only when orgRoot is supplied", () => {
+		const ordered = orderedScopeStorePaths(
+			"config/overrides.json",
+			ORG_OPTS,
+		);
+		expect(ordered.map((s) => s.scope)).toEqual(["org", "workspace", "user"]);
+		expect(ordered.map((s) => s.path)).toEqual([
+			"/mnt/refarm-org/acme/.refarm/config/overrides.json",
+			"/work/project/.refarm/config/overrides.json",
+			"/home/tester/.refarm/config/overrides.json",
 		]);
 	});
 });

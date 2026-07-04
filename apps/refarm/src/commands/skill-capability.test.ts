@@ -3,10 +3,15 @@ import {
 	resolveGroupAction,
 } from "@refarm.dev/cli/capabilities";
 import type { DiscoveredSkill } from "@refarm.dev/plugin-surface-loader/node";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
 	createSkillCapabilityGroup,
+	loadPersistedImportedSkills,
+	persistImportedSkillsToLedger,
 	skillCapabilityHooks,
 	type SkillCommandDeps,
 } from "./skill-capability.js";
@@ -28,6 +33,9 @@ function skill(overrides: Partial<DiscoveredSkill> = {}): DiscoveredSkill {
 type Rejected = ReturnType<SkillCommandDeps["discover"]>["rejected"];
 type Checker = Awaited<ReturnType<SkillCommandDeps["loadCheckers"]>>[number];
 type ImportResult = ReturnType<SkillCommandDeps["importSkills"]>;
+type PersistedResult = Awaited<
+	ReturnType<SkillCommandDeps["loadPersistedSkills"]>
+>;
 
 function deps(
 	skills: DiscoveredSkill[] = [],
@@ -35,9 +43,11 @@ function deps(
 	checkers: Checker[] = [],
 	imported: ImportResult = { skills: [], rejected: [] },
 	persisted: string[] = [],
+	persistedSkills: PersistedResult = { skills: [], rejected: [] },
 ): SkillCommandDeps {
 	return {
 		discover: () => ({ skills, rejected }),
+		loadPersistedSkills: async () => persistedSkills,
 		loadCheckers: async () => checkers,
 		importSkills: () => imported,
 		persistSkills: async () => persisted,
@@ -59,23 +69,48 @@ describe("skill CapabilityGroup", () => {
 		expect(group.transports?.http).toEqual({ method: "GET", path: "/skills" });
 	});
 
-	it("`list` projects discovered skills with a maturity hint", async () => {
+	it("`list` projects plugin and imported ledger skills with maturity hints", async () => {
 		const group = createSkillCapabilityGroup(
-			deps([skill(), skill({ id: "urn:skill:note", name: "note", requiredCapabilities: [] })]),
+			deps(
+				[skill()],
+				[],
+				[],
+				{ skills: [], rejected: [] },
+				[],
+				{
+					skills: [
+						{
+							surfaceId: "note",
+							id: "urn:skill:note",
+							name: "note",
+							requiredCapabilities: [],
+							instructions: "Take a note.",
+							ledgerScope: "user",
+						},
+					],
+					rejected: [],
+				},
+			),
 		);
 		const resolved = resolveGroupAction(group, []);
 		expect(resolved?.key).toBe("list");
 		const envelope = (await resolved!.action.run(resolved!.input)) as unknown as {
 			count: number;
-			skills: { name: string; maturity: string }[];
+			skills: { name: string; maturity: string; source: string; sourceLabel: string }[];
 		};
 		expect(envelope.count).toBe(2);
 		expect(envelope.skills.find((s) => s.name === "greet-operator")?.maturity).toBe(
 			"complete",
 		);
+		expect(envelope.skills.find((s) => s.name === "greet-operator")?.source).toBe(
+			"plugin",
+		);
 		// A skill with no capabilities is surfaced as permissive (hint, not gate).
 		expect(envelope.skills.find((s) => s.name === "note")?.maturity).toBe(
 			"permissive",
+		);
+		expect(envelope.skills.find((s) => s.name === "note")?.sourceLabel).toBe(
+			"imported ledger (user)",
 		);
 	});
 
@@ -230,6 +265,53 @@ describe("skill CapabilityGroup", () => {
 		// The persisted id is the CONTENT-ADDRESSED id (sha256 in the urn) — the
 		// same seam a p2p/OPFS resolver would key on.
 		expect(envelope.written).toEqual(["urn:refarm:skill:v1:commit:abc123"]);
+	});
+
+	it("persists imported skills to the user ledger and loads them back for list", async () => {
+		const homeParent = mkdtempSync(join(tmpdir(), "refarm-skill-home-"));
+		const refarmHome = join(homeParent, ".refarm");
+		try {
+			const imported: ImportResult["skills"] = [
+				{
+					surfaceId: "commit",
+					id: "urn:refarm:skill:v1:commit:abc123",
+					name: "commit",
+					description: "Read before committing",
+					requiredCapabilities: [],
+					instructions: "Make a commit.",
+					skillDir: "/ext/skills/commit",
+					translated: { nameInjected: false, newlinesNormalized: false },
+				},
+			];
+			await expect(
+				persistImportedSkillsToLedger(imported, refarmHome),
+			).resolves.toEqual(["urn:refarm:skill:v1:commit:abc123"]);
+
+			const loaded = await loadPersistedImportedSkills(refarmHome);
+			expect(loaded.rejected).toEqual([]);
+			expect(loaded.skills).toHaveLength(1);
+			expect(loaded.skills[0]).toMatchObject({
+				id: "urn:refarm:skill:v1:commit:abc123",
+				name: "commit",
+				ledgerScope: "user",
+			});
+
+			const group = createSkillCapabilityGroup(
+				deps([], [], [], { skills: [], rejected: [] }, [], loaded),
+			);
+			const resolved = resolveGroupAction(group, ["list"]);
+			const envelope = (await resolved!.action.run(resolved!.input)) as unknown as {
+				count: number;
+				skills: { name: string; sourceLabel: string }[];
+			};
+			expect(envelope.count).toBe(1);
+			expect(envelope.skills[0]).toMatchObject({
+				name: "commit",
+				sourceLabel: "imported ledger (user)",
+			});
+		} finally {
+			rmSync(homeParent, { recursive: true, force: true });
+		}
 	});
 
 	it("hooks render the import listing (with translation tags) and a not-found error", () => {

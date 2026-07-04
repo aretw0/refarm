@@ -11,7 +11,7 @@ import { NodeView } from "./node-view.js";
 
 /**
  * The one host bootstrap for durable node-ledgers. Compose the three primitives
- * that already exist — scope resolution (`user < workspace`), the atomic fs
+ * that already exist — scope resolution (`org < workspace < user`), the atomic fs
  * StorageProvider, and the NodeView record⇄node bridge — into a single call so
  * NO caller has to know WHERE bytes land or wire the provider by hand.
  *
@@ -69,10 +69,10 @@ export interface ScopedLedgerLayer {
 
 /**
  * Open the SAME named ledger at every scope, in apply order (lowest precedence
- * first: `user`, then `workspace`). A composer folds these left-to-right so a
- * workspace layer overrides a user layer for the same node id — the override
- * doctrine (a workspace layer wins; both layer over the base, never editing it).
- * Reading the effective value of a node id means asking each layer in reverse.
+ * first: optional `org`, then `workspace`, then `user`). A composer folds these
+ * left-to-right so user overrides workspace and workspace overrides org — the
+ * override doctrine (higher layers win; lower layers are never edited). Reading
+ * the effective value of a node id means asking each layer in reverse.
  */
 export function openScopedLedgerLayers(
 	name: string,

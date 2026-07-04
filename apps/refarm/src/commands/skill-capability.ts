@@ -64,7 +64,8 @@ const SKILL_TELLS_PROFILE = {
  * finally wires the (previously orphaned) plugin surface loader: `skill list`
  * enumerates installed plugins and loads every pi/skill surface, making skills
  * addressable on the CLI, the REPL `/skill`, and to the agent from ONE
- * declaration. It does NOT invoke a skill (that stays behind the runtime
+ * declaration. `skill import --write` adds content-addressed skill nodes to the
+ * same visible catalog. It does NOT invoke a skill (that stays behind the runtime
  * activation preflight — a later slice); it makes them visible.
  *
  * `deps.discover` is injected (defaults to reading `<refarm-home>/plugins`) so
@@ -73,6 +74,8 @@ const SKILL_TELLS_PROFILE = {
 export interface SkillCommandDeps {
 	/** Discover installed skills. Defaults to scanning the refarm plugins dir. */
 	discover: () => { skills: DiscoveredSkill[]; rejected: { pluginId: string | null; pluginDir: string; issues: string[] }[] };
+	/** Load skills previously persisted by `skill import --write`. */
+	loadPersistedSkills: () => Promise<PersistedSkillLoadResult>;
 	/**
 	 * Load the quality checkers to run: the bundled reference checker plus any a
 	 * plugin contributes via a {kind:"quality-checker"} surface. Each is loaded
@@ -102,9 +105,172 @@ export interface SkillCommandDeps {
 /** JSON-LD type of a persisted, imported skill node. */
 const IMPORTED_SKILL_NODE_TYPE = "refarm:imported-skill";
 
+/** A skill imported earlier and loaded back from the user-scope skills ledger. */
+export interface PersistedSkill {
+	surfaceId: string;
+	id: string;
+	name: string;
+	description?: string;
+	requiredCapabilities: readonly string[];
+	instructions: string;
+	ledgerScope: "user";
+}
+
+export interface PersistedSkillLoadResult {
+	skills: PersistedSkill[];
+	rejected: {
+		ledgerScope: "user";
+		nodeId: string;
+		issues: string[];
+	}[];
+}
+
+interface CatalogSkill {
+	surfaceId: string;
+	id: string;
+	name: string;
+	description?: string;
+	requiredCapabilities: readonly string[];
+	instructions: string;
+	source: "plugin" | "imported";
+	pluginId?: string;
+	pluginDir?: string;
+	ledgerScope?: "user";
+}
+
+type SkillCatalogRejected =
+	| ReturnType<SkillCommandDeps["discover"]>["rejected"][number]
+	| PersistedSkillLoadResult["rejected"][number];
+
+function openImportedSkillLedger(refarmHome = resolveRefarmHome()) {
+	// openScopedLedger's user scope appends `.refarm` itself, so hand it the
+	// PARENT of the resolved refarm home (which is `<parent>/.refarm`).
+	return openScopedLedger("skills", "user", {
+		userHome: dirname(refarmHome),
+	});
+}
+
+function importedSkillNode(skill: ImportedAgentSkill) {
+	return {
+		"@id": skill.id,
+		"@type": IMPORTED_SKILL_NODE_TYPE,
+		surfaceId: skill.surfaceId,
+		name: skill.name,
+		...(skill.description ? { description: skill.description } : {}),
+		requiredCapabilities: [...skill.requiredCapabilities],
+		instructions: skill.instructions,
+	};
+}
+
+export async function persistImportedSkillsToLedger(
+	skills: ImportedAgentSkill[],
+	refarmHome = resolveRefarmHome(),
+): Promise<string[]> {
+	const ledger = openImportedSkillLedger(refarmHome);
+	const written: string[] = [];
+	for (const skill of skills) {
+		await ledger.storeNode(importedSkillNode(skill) as never);
+		written.push(skill.id);
+	}
+	return written;
+}
+
+function stringArray(value: unknown): string[] {
+	return Array.isArray(value)
+		? value.filter((entry): entry is string => typeof entry === "string")
+		: [];
+}
+
+function persistedSkillFromNode(
+	node: Record<string, unknown>,
+): { skill?: PersistedSkill; issues: string[] } {
+	const issues: string[] = [];
+	const id =
+		typeof node["@id"] === "string" && node["@id"].trim()
+			? node["@id"]
+			: undefined;
+	const name =
+		typeof node.name === "string" && node.name.trim() ? node.name : undefined;
+	const instructions =
+		typeof node.instructions === "string" && node.instructions.trim()
+			? node.instructions
+			: undefined;
+	if (!id) issues.push("Expected persisted skill node to carry a string @id.");
+	if (!name) issues.push("Expected persisted skill node to carry a name.");
+	if (!instructions) {
+		issues.push("Expected persisted skill node to carry instructions.");
+	}
+	if (issues.length > 0 || !id || !name || !instructions) return { issues };
+	const surfaceId =
+		typeof node.surfaceId === "string" && node.surfaceId.trim()
+			? node.surfaceId
+			: name;
+	return {
+		issues: [],
+		skill: {
+			surfaceId,
+			id,
+			name,
+			...(typeof node.description === "string" && node.description.trim()
+				? { description: node.description }
+				: {}),
+			requiredCapabilities: stringArray(node.requiredCapabilities),
+			instructions,
+			ledgerScope: "user",
+		},
+	};
+}
+
+export async function loadPersistedImportedSkills(
+	refarmHome = resolveRefarmHome(),
+): Promise<PersistedSkillLoadResult> {
+	const ledger = openImportedSkillLedger(refarmHome);
+	const nodes = await ledger.queryNodes(IMPORTED_SKILL_NODE_TYPE);
+	const skills: PersistedSkill[] = [];
+	const rejected: PersistedSkillLoadResult["rejected"] = [];
+	for (const node of nodes) {
+		const result = persistedSkillFromNode(node as Record<string, unknown>);
+		if (result.skill) {
+			skills.push(result.skill);
+			continue;
+		}
+		rejected.push({
+			ledgerScope: "user",
+			nodeId:
+				typeof node["@id"] === "string" && node["@id"].trim()
+					? node["@id"]
+					: "(unknown)",
+			issues: result.issues,
+		});
+	}
+	return { skills, rejected };
+}
+
+async function loadSkillCatalog(deps: SkillCommandDeps): Promise<{
+	skills: CatalogSkill[];
+	rejected: SkillCatalogRejected[];
+}> {
+	const discovered = deps.discover();
+	const persisted = await deps.loadPersistedSkills();
+	return {
+		skills: [
+			...discovered.skills.map((skill) => ({
+				...skill,
+				source: "plugin" as const,
+			})),
+			...persisted.skills.map((skill) => ({
+				...skill,
+				source: "imported" as const,
+			})),
+		],
+		rejected: [...discovered.rejected, ...persisted.rejected],
+	};
+}
+
 export function defaultSkillDeps(): SkillCommandDeps {
 	return {
 		discover: () => loadSkillsFromPluginsDir(pluginsBaseDir()),
+		loadPersistedSkills: () => loadPersistedImportedSkills(),
 		loadCheckers: async () => {
 			// Always include the bundled reference checker; add every
 			// plugin-contributed one, each sandboxed by the same host loader.
@@ -124,29 +290,7 @@ export function defaultSkillDeps(): SkillCommandDeps {
 			return checkers;
 		},
 		importSkills: (dir) => loadAgentSkillsFromDir(dir),
-		persistSkills: async (skills) => {
-			// A user-scope node-ledger under <refarm-home>/skills. openScopedLedger's
-			// user scope appends `.refarm` itself, so hand it the PARENT of the
-			// resolved refarm home (which is `<parent>/.refarm`). The skill id
-			// (content-addressed by sha256) is the node @id, so re-importing the
-			// same content is idempotent — the seam a p2p/OPFS resolver reuses.
-			const ledger = openScopedLedger("skills", "user", {
-				userHome: dirname(resolveRefarmHome()),
-			});
-			const written: string[] = [];
-			for (const s of skills) {
-				await ledger.storeNode({
-					"@id": s.id,
-					"@type": IMPORTED_SKILL_NODE_TYPE,
-					name: s.name,
-					...(s.description ? { description: s.description } : {}),
-					requiredCapabilities: [...s.requiredCapabilities],
-					instructions: s.instructions,
-				} as never);
-				written.push(s.id);
-			}
-			return written;
-		},
+		persistSkills: (skills) => persistImportedSkillsToLedger(skills),
 	};
 }
 
@@ -166,14 +310,20 @@ function findingToRecommendation(
 }
 
 /** A skill projected for output — the addressable summary a surface renders. */
-function projectSkill(skill: DiscoveredSkill) {
+function projectSkill(skill: CatalogSkill) {
 	return {
 		id: skill.id,
 		name: skill.name,
 		...(skill.description ? { description: skill.description } : {}),
 		requiredCapabilities: skill.requiredCapabilities,
-		pluginId: skill.pluginId,
 		surfaceId: skill.surfaceId,
+		source: skill.source,
+		sourceLabel:
+			skill.source === "plugin"
+				? (skill.pluginId ?? "unknown plugin")
+				: `imported ledger (${skill.ledgerScope ?? "user"})`,
+		...(skill.pluginId ? { pluginId: skill.pluginId } : {}),
+		...(skill.ledgerScope ? { ledgerScope: skill.ledgerScope } : {}),
 		// Permissive skills declare no capabilities — surfaced as a hint, never a
 		// gate (completeness is a policy evaluator's concern, not this listing's).
 		maturity: skill.requiredCapabilities.length > 0 ? "complete" : "permissive",
@@ -185,9 +335,9 @@ export function createSkillCapabilityGroup(
 ): CapabilityGroup {
 	const list: CapabilityDescriptor = {
 		name: "list",
-		summary: "List skills discovered from installed plugins",
-		run() {
-			const { skills, rejected } = deps.discover();
+		summary: "List plugin-declared and imported skills",
+		async run() {
+			const { skills, rejected } = await loadSkillCatalog(deps);
 			return buildJsonSuccessEnvelope({
 				command: "skill",
 				operation: "list",
@@ -204,18 +354,18 @@ export function createSkillCapabilityGroup(
 		name: "show",
 		summary: "Show one discovered skill by id",
 		args: [{ name: "id", required: true }],
-		run(input) {
+		async run(input) {
 			const id = input.args.id as string;
-			const { skills } = deps.discover();
+			const { skills } = await loadSkillCatalog(deps);
 			const skill = skills.find((s) => s.id === id || s.name === id);
 			if (!skill) {
 				return buildJsonErrorEnvelope({
 					command: "skill",
 					operation: "show",
 					error: "skill-not-found",
-					message: `No installed skill matches "${id}".`,
+					message: `No skill matches "${id}".`,
 					nextAction:
-						"Run `skill list` to see the skills installed plugins declare.",
+						"Run `skill list` to see plugin-declared and imported skills.",
 				});
 			}
 			return buildJsonSuccessEnvelope({
@@ -232,16 +382,16 @@ export function createSkillCapabilityGroup(
 		args: [{ name: "id", required: true }],
 		async run(input) {
 			const id = input.args.id as string;
-			const { skills } = deps.discover();
+			const { skills } = await loadSkillCatalog(deps);
 			const skill = skills.find((s) => s.id === id || s.name === id);
 			if (!skill) {
 				return buildJsonErrorEnvelope({
 					command: "skill",
 					operation: "check",
 					error: "skill-not-found",
-					message: `No installed skill matches "${id}".`,
+					message: `No skill matches "${id}".`,
 					nextAction:
-						"Run `skill list` to see the skills installed plugins declare.",
+						"Run `skill list` to see plugin-declared and imported skills.",
 				});
 			}
 
@@ -357,11 +507,19 @@ function formatSkillLine(skill: SkillProjection): string {
 			: chalk.dim("(none declared)");
 	return [
 		`  ${chalk.bold(skill.name)}  ${chalk.dim(skill.id)}`,
-		`    from:         ${skill.pluginId}`,
+		`    from:         ${skill.sourceLabel}`,
 		`    maturity:     ${formatMaturity(skill.maturity)}`,
 		`    capabilities: ${caps}`,
 		...(skill.description ? [`    ${skill.description}`] : []),
 	].join("\n");
+}
+
+function formatRejectedSource(rejection: SkillCatalogRejected): string {
+	if ("pluginDir" in rejection) return rejection.pluginDir;
+	if ("nodeId" in rejection) {
+		return `imported ledger (${rejection.ledgerScope}) ${rejection.nodeId}`;
+	}
+	return "unknown skill source";
 }
 
 /**
@@ -378,12 +536,12 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 				renderText: (envelope) => {
 					const e = envelope as unknown as {
 						skills: SkillProjection[];
-						rejected: { pluginDir: string; issues: string[] }[];
+						rejected: SkillCatalogRejected[];
 						count: number;
 					};
 					if (e.count === 0) {
 						return chalk.dim(
-							"No skills found. Install a plugin that declares a pi/skill surface.",
+							"No skills found. Install a plugin that declares a pi/skill surface or run `skill import <dir> --write`.",
 						);
 					}
 					const lines = [
@@ -393,10 +551,11 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 					if (e.rejected.length > 0) {
 						lines.push(
 							chalk.yellow(
-								`\n${e.rejected.length} plugin surface(s) could not load:`,
+								`\n${e.rejected.length} skill source(s) could not load:`,
 							),
 							...e.rejected.map(
-								(r) => `  ${chalk.dim(r.pluginDir)}: ${r.issues.join("; ")}`,
+								(r) =>
+									`  ${chalk.dim(formatRejectedSource(r))}: ${r.issues.join("; ")}`,
 							),
 						);
 					}
