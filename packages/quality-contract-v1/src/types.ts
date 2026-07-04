@@ -1,3 +1,11 @@
+// This is the NATIVE (in-process) face of quality:v1. Its sovereign, sandboxed
+// sibling is the WASM component contract in `wit/quality.wit` (package
+// `refarm:quality@0.1.0`, world `quality-checker`). The two are the same
+// contract two ways — a checker is satisfied in-process here OR as a pure-compute
+// WASM component; the host aggregates either's findings into one QualityReport
+// ("native ↔ WASM parity", spec §3). Keep the shapes below in step with the WIT
+// records (QualityRule↔rule, QualityFinding↔finding, …) so the boundary can't
+// drift; the WIT uses kebab-case (rule-id) for the same fields.
 export const QUALITY_CAPABILITY = "quality:v1" as const;
 
 export interface QualityRule {

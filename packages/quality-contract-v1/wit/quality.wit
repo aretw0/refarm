@@ -1,0 +1,81 @@
+package refarm:quality@0.1.0;
+
+// DESIGN-AHEAD CONTRACT — the sandboxed-WASM face of quality:v1.
+//
+// This WIT is the sovereign, minimal-capability sibling of the in-process TS
+// contract in src/types.ts. The SAME QualityChecker is satisfied two ways: a
+// native (in-process) checker instantiated by host code, OR a sandboxed WASM
+// checker built against this world. Both conform; the host aggregates their
+// findings into one QualityReport ("native ↔ WASM parity", spec §3).
+//
+// Not compiled by a crate yet: the host dispatch that loads a `quality-checker`
+// component and calls `check` is a downstream slice (the plan separates the WASM
+// checker surface from the contract package — see docs/superpowers/plans/
+// 2026-07-02-quality-contract-v1.md §Self-Review). This declares the intended
+// component boundary so that dispatch, when built, targets a fixed contract.
+//
+// It is an independent package (`refarm:quality@`), NOT part of the canonical
+// `refarm:plugin@` package, so it is outside the single-source-of-truth guard
+// for that package; `check:wit` parses it as its own package.
+
+/// The one interface a quality checker exports. It mirrors src/types.ts:
+///   subject  ≈ the `Subject` a checker.check receives (domain-specific)
+///   rule     ≈ QualityRule  (check = opaque JSON string; matcher-is-data)
+///   profile  ≈ QualityProfile (a named, composed rule set)
+///   finding  ≈ QualityFinding (rule-id/severity/message + optional locus)
+/// Field names use WIT's kebab-case; the TS side reads them camelCased
+/// (rule-id → ruleId), the normal WIT⇄TS convention.
+interface checker {
+    /// What the checker inspects. The HOST produces the subject (renders a page
+    /// and serializes its DOM for `dom`, reads text for `text`) — a checker
+    /// never does capability-bearing work, only analysis. A closed variant keeps
+    /// the boundary typed; new domains extend it in a later contract version.
+    variant subject {
+        text(string),
+        dom(string),
+    }
+
+    /// A rule. `check` is an OPAQUE JSON string the checker interprets (a regex
+    /// for text, a selector+assertion for DOM, …) — matcher-is-data, so a new
+    /// matcher ships as checker code + rule data, never a contract edit. This is
+    /// the same json-as-string bridge the rest of the plugin boundary uses.
+    record rule {
+        id: string,
+        severity: string,
+        description: string,
+        category: option<string>,
+        check: string,
+    }
+
+    /// A named rule set. Composition (`extends` on the TS side) is resolved by
+    /// the host BEFORE calling `check`, so a checker always receives a flat,
+    /// effective profile.
+    record profile {
+        name: string,
+        rules: list<rule>,
+    }
+
+    /// One finding. `severity` is an open string (new severities never break a
+    /// reader); `locus` is an opaque JSON string (line/snippet for text,
+    /// selector/element for UI) the host renders.
+    record finding {
+        severity: string,
+        rule-id: string,
+        message: string,
+        locus: option<string>,
+    }
+
+    /// Inspect `subject` against `profile`, return findings. Pure compute: no
+    /// I/O, deterministic for a deterministic subject (the conformance harness
+    /// asserts this on the native side).
+    check: func(subject: subject, profile: profile) -> list<finding>;
+}
+
+/// A quality checker component: exports `checker` and imports NOTHING. No
+/// wasi:filesystem, wasi:sockets, or env — pure compute. That absence IS the
+/// sandbox: even an untrusted checker from another author cannot exfiltrate or
+/// damage, because it can only see the `subject` the host hands it and return
+/// findings. The canonical minimal-capability plugin.
+world quality-checker {
+    export checker;
+}

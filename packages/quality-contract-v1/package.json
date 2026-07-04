@@ -26,7 +26,8 @@
   "files": [
     "dist",
     "!dist/**/*.tsbuildinfo",
-    "README.md"
+    "README.md",
+    "wit"
   ],
   "publishConfig": {
     "access": "public"

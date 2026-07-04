@@ -18,17 +18,24 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..", "..");
 const canonicalDir = resolve(root, "packages/refarm-plugin-wit/wit");
 
-// 1. Canonical package must parse.
-try {
-	execFileSync("wasm-tools", ["component", "wit", canonicalDir], {
-		stdio: "pipe",
-	});
-} catch (error) {
-	console.error(
-		"[check:wit] canonical WIT package failed to parse:\n" +
-			(error.stderr?.toString() ?? error.message),
-	);
-	process.exit(1);
+// Independent WIT packages (their own `package X@`, not `refarm:plugin@`) that
+// must also parse. Each is a self-contained contract dir; add a package here
+// when it declares a component boundary CI should keep valid.
+const independentWitDirs = [
+	resolve(root, "packages/quality-contract-v1/wit"),
+];
+
+// 1. Canonical package + independent WIT packages must parse.
+for (const dir of [canonicalDir, ...independentWitDirs]) {
+	try {
+		execFileSync("wasm-tools", ["component", "wit", dir], { stdio: "pipe" });
+	} catch (error) {
+		console.error(
+			`[check:wit] WIT package failed to parse (${dir}):\n` +
+				(error.stderr?.toString() ?? error.message),
+		);
+		process.exit(1);
+	}
 }
 
 // 2. No `package refarm:plugin@` declaration outside the canonical dir.
@@ -61,4 +68,6 @@ if (offenders.length > 0) {
 	process.exit(1);
 }
 
-console.log("[check:wit] OK — canonical WIT parses, no divergent copies");
+console.log(
+	"[check:wit] OK — canonical + independent WIT packages parse, no divergent copies",
+);
