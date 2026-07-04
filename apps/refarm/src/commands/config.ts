@@ -1,15 +1,18 @@
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import { parseRuntimeAutostartMode, RUNTIME_AUTOSTART_MODES, RUNTIME_ENGINE_MODES, } from "@refarm.dev/runtime";
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { PackageSource } from "../utils/composition.js";
 import {
-	OPEN_EXTERNAL_LINKS_ENV_VAR, parseOpenExternalLinksMode, resolveCliOpenExternalLinksMode, type OpenExternalLinksMode, } from "../utils/open-external-links.js";
+	OPEN_EXTERNAL_LINKS_ENV_VAR, parseOpenExternalLinksMode, resolveCliOpenExternalLinksMode, type OpenExternalLinksMode,
+} from "../utils/open-external-links.js";
 import {
-	LEGACY_FARMHAND_AUTOSTART_ENV_VAR, parseRuntimeSidecarUrl, parseTractorEngineMode, resolveAutostartMode as resolveRuntimeAutostartMode, resolveRuntimeSidecarUrl, resolveTractorEngineMode as resolveRuntimeTractorEngineMode, RUNTIME_AUTOSTART_ENV_VAR, RUNTIME_SIDECAR_URL_ENV_VAR, TRACTOR_ENGINE_ENV_VAR, type AutostartMode, type TractorEngineMode, } from "../utils/runtime-config.js";
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
+	LEGACY_FARMHAND_AUTOSTART_ENV_VAR, parseRuntimeSidecarUrl, parseTractorEngineMode, resolveAutostartMode as resolveRuntimeAutostartMode, resolveRuntimeSidecarUrl, resolveTractorEngineMode as resolveRuntimeTractorEngineMode, RUNTIME_AUTOSTART_ENV_VAR, RUNTIME_SIDECAR_URL_ENV_VAR, TRACTOR_ENGINE_ENV_VAR, type AutostartMode, type TractorEngineMode,
+} from "../utils/runtime-config.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_AUTOSTART_NEVER_COMMAND,
@@ -39,6 +42,14 @@ interface RefarmCliConfig {
 	tractor?: {
 		engine?: string;
 	};
+	/**
+	 * The COMPOSITION layer: which packages this scope activates, with pi-style
+	 * `!`-surface suppression. Additive and deliberately NOT a `ConfigKey` — it is
+	 * a LIST, not a scalar, so it stays out of the `config get/set/unset` grammar
+	 * and is authored via the `config plugins` subcommands. The scalar RMW path
+	 * reads+writes the whole object, so it co-habits this file untouched.
+	 */
+	plugins?: PackageSource[];
 }
 
 interface ConfigDeps {
