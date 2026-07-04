@@ -10,11 +10,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { toCommanderCommand } from "./capability-commander.js";
-import {
-	extensionReviewCapability,
-	extensionReviewHooks,
-} from "./extension-review-capability.js";
+import { capabilityCliCommandsForGroup } from "./capability-registry.js";
 import { PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 
 const EXTENSION_LIST_JSON_COMMAND = refarmCommand([
@@ -431,12 +427,13 @@ extensionCommand
     await newExtension(name, options.global, { json: options.json });
   });
 
-// `extension review` is now declared once as a capability descriptor and
-// mounted through the shared commander adapter, so the same declaration drives
-// the CLI subcommand and the REPL `/review` slash.
-extensionCommand.addCommand(
-  toCommanderCommand(extensionReviewCapability, extensionReviewHooks),
-);
+// `extension review` is declared once as a capability descriptor with
+// `transports.cli.group: "extension"`; the parent self-populates from the ONE
+// registry (via the group projector), so the same declaration drives the CLI
+// subcommand and the REPL `/review` slash with no hand-mount here.
+for (const command of capabilityCliCommandsForGroup("extension")) {
+  extensionCommand.addCommand(command);
+}
 
 extensionCommand
   .command("list")

@@ -110,13 +110,36 @@ function toCliCommand(
  * half of the declare-once projection (the REPL already derives its slashes from
  * the same registry). `program.ts` mounts these instead of hand-calling each
  * capability factory a second time, so registering a verb ONCE lights it up on
- * both the CLI and the REPL. Entries that declare `transports.cli.group` are
- * skipped here — they mount UNDER a parent group and are placed by that group's
- * wiring (until the projector honors `cli.group` directly).
+ * both the CLI and the REPL.
+ *
+ * Two `transports.cli` hints are honored here:
+ *   - an entry WITHOUT `cli.group` is a top-level verb (model, skill).
+ *   - an entry WITH `cli.group` mounts UNDER that parent (see
+ *     {@link capabilityCliCommandsForGroup}) and is NOT top-level — UNLESS it
+ *     also sets `cli.directAlias`, in which case a top-level forwarder is minted
+ *     too (the verb reachable as both `<bin> <group> <verb>` and `<bin> <verb>`).
  */
 export function capabilityCliCommands(): Command[] {
 	return capabilityRegistry
 		.list()
-		.filter((entry) => entry.transports?.cli?.group === undefined)
+		.filter(
+			(entry) =>
+				entry.transports?.cli?.group === undefined ||
+				entry.transports?.cli?.directAlias === true,
+		)
+		.map(toCliCommand);
+}
+
+/**
+ * The CLI commands that declare `transports.cli.group === groupName` — the verbs
+ * a parent command (e.g. `extension`) mounts as its own sub-commands. The parent
+ * calls this to self-populate from the registry instead of hand-mounting each
+ * capability, so a grouped verb (and later a plugin-contributed one) appears
+ * under its parent from ONE declaration.
+ */
+export function capabilityCliCommandsForGroup(groupName: string): Command[] {
+	return capabilityRegistry
+		.list()
+		.filter((entry) => entry.transports?.cli?.group === groupName)
 		.map(toCliCommand);
 }
