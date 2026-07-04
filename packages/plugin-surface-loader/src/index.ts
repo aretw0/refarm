@@ -200,4 +200,64 @@ export function loadCheckersFromManifest(
 	return { loaded, rejected };
 }
 
+/** The outcome of translating an Agent Skill SKILL.md into a refarm-acceptable one. */
+export interface AgentSkillTranslation {
+	/** SKILL.md text that parseSkillMarkdown accepts (LF frontmatter, a `name`). */
+	source: string;
+	/** True if the translator injected a `name` the skill omitted. */
+	nameInjected: boolean;
+	/** True if newlines were normalized (CRLF/leading-space → LF `---\n`). */
+	newlinesNormalized: boolean;
+}
+
+const FRONTMATTER_NAME_LINE = /^name\s*:/m;
+
+/**
+ * Translate an **Agent Skill** (`SKILL.md`, the portable agentskills.io format —
+ * pi, Claude, and other agents all produce it; it is an ecosystem standard, not
+ * one vendor's) into a form refarm's `parseSkillMarkdown` accepts. A thin,
+ * DATA-only bridge, no new contract. An Agent Skill is portable prose ({name,
+ * description} + body); the two real divergences from refarm's parser are:
+ *   1. refarm hard-requires the source to start with `---\n` (LF). A CRLF- or
+ *      leading-whitespace-authored SKILL.md fails FRONTMATTER_MISSING while a
+ *      real YAML frontmatter reader accepts it — so normalize newlines + strip
+ *      leading blanks.
+ *   2. the spec permits a nameless skill (the dir name is the fallback); refarm
+ *      requires `name`. Inject `name: <dirName>` when absent.
+ * The body is preserved verbatim, so the translated text is exactly what refarm
+ * pins by sha256 — the translation IS the skill refarm stores. Capabilities are
+ * left undeclared (real corpora rarely declare any); a permissive skill is a
+ * valid FORM, and any completeness nudge is a policy evaluator's job, not this
+ * translator's.
+ */
+export function translateAgentSkill(
+	source: string,
+	dirName: string,
+): AgentSkillTranslation {
+	// 1. Normalize newlines: CRLF → LF, and strip leading blank lines/whitespace
+	// so the frontmatter fence lands at position 0 as `---\n`.
+	const lf = source.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+	const trimmedLeading = lf.replace(/^\s*\n/, "").replace(/^[ \t]+(?=---)/, "");
+	const newlinesNormalized = trimmedLeading !== source;
+
+	let text = trimmedLeading;
+
+	// 2. Inject a name from the dir if the frontmatter declares none. Only touch
+	// a well-formed `---\n…\n---` block; a malformed one is left for the parser
+	// to reject with its own diagnostics.
+	let nameInjected = false;
+	if (text.startsWith("---\n")) {
+		const end = text.indexOf("\n---", 4);
+		if (end !== -1) {
+			const frontmatter = text.slice(4, end);
+			if (!FRONTMATTER_NAME_LINE.test(frontmatter)) {
+				text = `---\nname: ${dirName}\n${text.slice(4)}`;
+				nameInjected = true;
+			}
+		}
+	}
+
+	return { source: text, nameInjected, newlinesNormalized };
+}
+
 export { ThemeRegistry };

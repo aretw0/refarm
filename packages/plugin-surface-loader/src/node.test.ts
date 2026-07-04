@@ -5,8 +5,10 @@ import { join } from "node:path";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { translateAgentSkill } from "./index.js";
 import {
 	findPluginDirs,
+	loadAgentSkillsFromDir,
 	loadCheckersFromPluginsDir,
 	loadSkillsFromPluginsDir,
 	readPluginManifest,
@@ -208,5 +210,90 @@ describe("plugin-surface-loader/node — fs enumeration", () => {
 			pkgDir: join(pluginDir, "checker-pkg"),
 			entry: "linter.js",
 		});
+	});
+});
+
+describe("translateAgentSkill (Agent Skill → refarm-acceptable)", () => {
+	it("leaves a well-formed LF+named skill untouched", () => {
+		const clean =
+			"---\nname: commit\ndescription: Read this before committing\n---\n\nBody.\n";
+		const t = translateAgentSkill(clean, "commit");
+		expect(t.source).toBe(clean);
+		expect(t.nameInjected).toBe(false);
+		expect(t.newlinesNormalized).toBe(false);
+	});
+
+	it("normalizes CRLF so the frontmatter fence matches refarm's `---\\n`", () => {
+		const crlf = "---\r\nname: x\r\ndescription: y\r\n---\r\n\r\nBody.\r\n";
+		const t = translateAgentSkill(crlf, "x");
+		expect(t.newlinesNormalized).toBe(true);
+		expect(t.source.startsWith("---\n")).toBe(true);
+		expect(t.source).not.toContain("\r");
+	});
+
+	it("strips leading blank lines before the fence", () => {
+		const leading = "\n\n---\nname: z\ndescription: w\n---\n\nBody.\n";
+		const t = translateAgentSkill(leading, "z");
+		expect(t.newlinesNormalized).toBe(true);
+		expect(t.source.startsWith("---\n")).toBe(true);
+	});
+
+	it("injects name=<dir> when the skill omits it (the spec allows nameless)", () => {
+		const nameless = "---\ndescription: only a description\n---\n\nBody.\n";
+		const t = translateAgentSkill(nameless, "greet-op");
+		expect(t.nameInjected).toBe(true);
+		expect(t.source).toContain("name: greet-op");
+	});
+});
+
+describe("loadAgentSkillsFromDir (import Agent Skills — convergence front-half)", () => {
+	let root: string;
+	beforeEach(() => {
+		root = mkdtempSync(join(tmpdir(), "psl-pi-"));
+	});
+	afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+	function writePiSkill(dir: string, md: string): void {
+		mkdirSync(dir, { recursive: true });
+		writeFileSync(join(dir, "SKILL.md"), md, "utf-8");
+	}
+
+	it("imports an Agent Skill (name/description/instructions) via parseSkillMarkdown", () => {
+		writePiSkill(
+			join(root, "commit"),
+			"---\nname: commit\ndescription: Read this before committing\n---\n\nMake a conventional commit.\n",
+		);
+		const { skills, rejected } = loadAgentSkillsFromDir(root);
+		expect(rejected).toEqual([]);
+		expect(skills).toHaveLength(1);
+		expect(skills[0]).toMatchObject({
+			name: "commit",
+			description: expect.stringContaining("committing"),
+		});
+		expect(skills[0]!.instructions).toContain("conventional commit");
+		expect(skills[0]!.requiredCapabilities).toEqual([]); // permissive, 0 declared
+	});
+
+	it("imports a nameless CRLF Agent Skill by translating it first", () => {
+		writePiSkill(
+			join(root, "windows-skill"),
+			"---\r\ndescription: authored on windows\r\n---\r\n\r\nBody.\r\n",
+		);
+		const { skills, rejected } = loadAgentSkillsFromDir(root);
+		expect(rejected).toEqual([]);
+		expect(skills).toHaveLength(1);
+		expect(skills[0]!.name).toBe("windows-skill"); // injected from dir
+		expect(skills[0]!.translated).toEqual({
+			nameInjected: true,
+			newlinesNormalized: true,
+		});
+	});
+
+	it("rejects a genuinely malformed skill without throwing", () => {
+		writePiSkill(join(root, "broken"), "no frontmatter at all\n");
+		const { skills, rejected } = loadAgentSkillsFromDir(root);
+		expect(skills).toEqual([]);
+		expect(rejected).toHaveLength(1);
+		expect(rejected[0]!.issues.join()).toContain("FRONTMATTER_MISSING");
 	});
 });

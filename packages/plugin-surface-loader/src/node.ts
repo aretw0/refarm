@@ -2,16 +2,17 @@ import {
 	assertValidPluginManifest,
 	type PluginManifest,
 } from "@refarm.dev/plugin-manifest";
+import { parseSkillMarkdown } from "@refarm.dev/skill-contract-v1";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 import {
 	loadCheckersFromManifest,
 	loadSkillsFromManifest,
+	translateAgentSkill,
 	type LoadedSkill,
 	type LoadSkillsResult,
 } from "./index.js";
-import { dirname, basename } from "node:path";
 
 /**
  * The Node/fs host side of the surface loader. `index.ts` stays pure (asset I/O
@@ -199,4 +200,98 @@ export function loadCheckersFromPluginsDir(
 	}
 
 	return { checkers, rejected };
+}
+
+/** An Agent Skill imported into refarm's model, tagged with where it came from. */
+export interface ImportedAgentSkill extends LoadedSkill {
+	/** The skill directory it was read from. */
+	skillDir: string;
+	/** True if the translator injected a name / normalized newlines. */
+	translated: { nameInjected: boolean; newlinesNormalized: boolean };
+}
+
+export interface ImportAgentSkillsResult {
+	skills: ImportedAgentSkill[];
+	rejected: { skillDir: string; issues: string[] }[];
+}
+
+/** Discover `SKILL.md` files under a skills root (a dir with `<name>/SKILL.md`
+ * children, or SKILL.md nested deeper). Mirrors the Agent Skills discovery rule. */
+function findSkillMarkdownDirs(root: string): string[] {
+	if (!existsSync(root)) return [];
+	const found: string[] = [];
+	const queue: string[] = [root];
+	while (queue.length > 0) {
+		const dir = queue.shift();
+		if (!dir) break;
+		if (existsSync(join(dir, "SKILL.md"))) {
+			found.push(dir);
+			continue; // a skill dir owns its subtree; don't descend into it
+		}
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			if (entry.isDirectory()) queue.push(join(dir, entry.name));
+		}
+	}
+	return found;
+}
+
+/**
+ * Import **Agent Skills** (the portable agentskills.io format — produced by pi,
+ * Claude, and any spec-conformant agent) under `skillsRoot` into refarm's skill
+ * model. Each `SKILL.md` is translated (newline-normalized, name injected from
+ * its dir when absent) and parsed by `parseSkillMarkdown` — the SAME contract
+ * refarm's own skills use. This is the convergence FRONT-half proven on real
+ * corpus: an external skill becomes a refarm LoadedSkill
+ * (name/description/instructions) with no new contract and no §8 surface touched.
+ * It reaches the agent as instructions (data flowing through the
+ * consumer-agnostic loader), NOT as a linked component — so it passes the
+ * plugin-extends-plugin recursion without the (unbuilt) live link. A malformed
+ * skill is rejected, never thrown.
+ */
+export function loadAgentSkillsFromDir(
+	skillsRoot: string,
+): ImportAgentSkillsResult {
+	const skills: ImportedAgentSkill[] = [];
+	const rejected: { skillDir: string; issues: string[] }[] = [];
+
+	for (const skillDir of findSkillMarkdownDirs(skillsRoot)) {
+		let raw: string;
+		try {
+			raw = readFileSync(join(skillDir, "SKILL.md"), "utf-8");
+		} catch (error) {
+			rejected.push({
+				skillDir,
+				issues: [
+					`could not read SKILL.md: ${error instanceof Error ? error.message : String(error)}`,
+				],
+			});
+			continue;
+		}
+
+		const translation = translateAgentSkill(raw, basename(skillDir));
+		const parsed = parseSkillMarkdown(translation.source);
+		if (!parsed.ok || !parsed.manifest) {
+			rejected.push({
+				skillDir,
+				issues: parsed.issues.map((i) => `${i.code}: ${i.message}`),
+			});
+			continue;
+		}
+		const m = parsed.manifest;
+		skills.push({
+			surfaceId: basename(skillDir),
+			id: m.id,
+			name: m.name,
+			...(m.description ? { description: m.description } : {}),
+			requiredCapabilities: m.capabilities.requires,
+			instructions: m.instructions,
+			skillDir,
+			translated: {
+				nameInjected: translation.nameInjected,
+				newlinesNormalized: translation.newlinesNormalized,
+			},
+		});
+	}
+
+	return { skills, rejected };
 }
