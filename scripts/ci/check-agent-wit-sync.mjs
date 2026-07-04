@@ -23,6 +23,7 @@ const canonicalDir = resolve(root, "packages/refarm-plugin-wit/wit");
 // when it declares a component boundary CI should keep valid.
 const independentWitDirs = [
 	resolve(root, "packages/quality-contract-v1/wit"),
+	resolve(root, "packages/vault-contract-v1/wit"),
 ];
 
 // 1. Canonical package + independent WIT packages must parse.

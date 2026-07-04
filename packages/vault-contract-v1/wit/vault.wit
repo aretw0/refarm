@@ -1,0 +1,134 @@
+package refarm:vault@0.1.0;
+
+// DESIGN-AHEAD CONTRACT — the sandboxed-WASM face of vault:v1.
+//
+// This WIT is the sovereign, minimal-capability sibling of the in-process TS
+// contract in src/types.ts. The SAME vault surface is satisfied two ways: a
+// native (in-process) surface instantiated by host code, OR a sandboxed WASM
+// surface built against this world. Both conform; the host aggregates their
+// output the same way ("native ↔ WASM parity", mirroring quality:v1 spec §3).
+//
+// WHY vault:v1: two independent PARA knowledge-vault POCs both need the SAME
+// four generic verbs over a vault — search / extract / organize / profile — and
+// refarm's SourceProvider deliberately stops at resolve/materialize/status/
+// refresh (NO read, NO search, NO extract). This is that missing block, declared
+// once so a sandboxed component can supply it to any surface. The vault-specific
+// rules (a domain's parse logic, a PARA routing map) never enter this contract;
+// they ride in as matcher-is-data profiles the host hands the surface.
+//
+// Not compiled by a crate yet: the host dispatch that loads a `vault-surface`
+// component and calls `run` is a downstream slice. This declares the intended
+// component boundary so that dispatch, when built (via componentize-js from the
+// TS reference surface), targets a fixed contract.
+//
+// It is an independent package (`refarm:vault@`), NOT part of the canonical
+// `refarm:plugin@` package, so it is outside that package's single-source-of-
+// truth guard; `check:wit` parses it as its own package.
+
+/// The one interface a vault surface exports. It mirrors src/types.ts:
+///   note     ≈ VaultNote  (path + text; the HOST reads the file)
+///   verb     ≈ VaultVerb  (search / extract / organize / profile)
+///   rule     ≈ VaultRule  (match = opaque JSON string; matcher-is-data)
+///   profile  ≈ VaultProfile (a named, composed rule set for one verb)
+///   result   ≈ VaultResult (exactly one output list populated per verb)
+/// Field names use WIT's kebab-case; the TS side reads them camelCased
+/// (rule-id -> ruleId), the normal WIT<->TS convention.
+interface surface {
+    /// The four generic verbs. A surface that doesn't implement a verb returns an
+    /// empty result — forward-safe, never an error.
+    enum verb {
+        search,
+        extract,
+        organize,
+        profile,
+    }
+
+    /// One note the HOST has already read. The host does the capability-bearing
+    /// work (reads the file, lists the tree); the surface only analyses the text
+    /// + path, so it stays pure compute.
+    record note {
+        path: string,
+        text: string,
+    }
+
+    /// A rule. `match` is an OPAQUE JSON string the surface interprets (a query
+    /// for search, an extractor for extract, a routing predicate for organize, a
+    /// hygiene assertion for profile) — matcher-is-data, so a new matcher ships
+    /// as surface code + rule data, never a contract edit. `verb` scopes the rule
+    /// to one verb; the host passes only the rules for the dispatched verb.
+    record rule {
+        id: string,
+        verb: verb,
+        %match: string,
+        severity: option<string>,
+        description: option<string>,
+    }
+
+    /// A named rule set. Composition (`extends` on the TS side) is resolved by the
+    /// host BEFORE calling `run`, so a surface always receives a flat, effective
+    /// profile narrowed to the dispatched verb.
+    record profile {
+        name: string,
+        rules: list<rule>,
+    }
+
+    /// A `search` hit: a matched note with an opaque locus and optional score.
+    record search-hit {
+        path: string,
+        rule-id: string,
+        locus: option<string>,
+        score: option<f64>,
+    }
+
+    /// An `extract` output: a knowledge record as a JSON-LD string. The record
+    /// shape is records-contract-v1 KnowledgeRecord (id/@type/@context/fields/
+    /// sections/relations/contentHash), carried over the WIT boundary as a JSON
+    /// string — the same json-as-string bridge the graph uses, so the host can
+    /// feed it straight into node-contract-v1 without a typed wire schema.
+    record record-json {
+        rule-id: string,
+        json: string,
+    }
+
+    /// An `organize` decision: where a note should live and its canonical name.
+    record organize-plan {
+        path: string,
+        rule-id: string,
+        destination: string,
+        file-name: string,
+    }
+
+    /// A `profile` finding: a quality/hygiene verdict over a note.
+    record finding {
+        severity: string,
+        rule-id: string,
+        message: string,
+        locus: option<string>,
+    }
+
+    /// The output of dispatching one verb against one note. Exactly one list is
+    /// populated per verb (extract -> records, search -> hits, organize -> plans,
+    /// profile -> findings); the others are empty. (`result` is a WIT keyword, so
+    /// the record is named `run-result`; the TS side is `VaultResult`.)
+    record run-result {
+        verb: verb,
+        records: list<record-json>,
+        hits: list<search-hit>,
+        plans: list<organize-plan>,
+        findings: list<finding>,
+    }
+
+    /// Dispatch one `verb` against one `note` under `profile`, return the result.
+    /// Pure compute: no I/O, deterministic for a deterministic (verb, note,
+    /// profile). The conformance harness asserts this on the native side.
+    run: func(verb: verb, note: note, profile: profile) -> run-result;
+}
+
+/// A vault surface component: exports `surface` and imports NOTHING. No
+/// wasi:filesystem, wasi:sockets, or env — pure compute. That absence IS the
+/// sandbox: even an untrusted surface from another author cannot exfiltrate or
+/// damage, because it can only see the `note` the host hands it and return a
+/// result. The canonical minimal-capability read/extract plugin.
+world vault-surface {
+    export surface;
+}

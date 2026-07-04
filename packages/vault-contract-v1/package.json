@@ -1,0 +1,44 @@
+{
+	"name": "@refarm.dev/vault-contract-v1",
+	"version": "0.1.0",
+	"private": false,
+	"description": "Versioned vault capability contract (vault:v1) — the four generic verbs (search/extract/organize/profile) over a PARA knowledge vault, and its conformance suite",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run src/conformance.test.ts",
+		"test:conformance": "vitest run src/conformance.test.ts",
+		"clean": "rm -rf dist"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"README.md",
+		"wit"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@refarm.dev/records-contract-v1": "workspace:*",
+		"@refarm.dev/node-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}
