@@ -22,11 +22,11 @@
 	},
 	"dependencies": {
 		"@refarm.dev/node-contract-v1": "workspace:*",
-		"@refarm.dev/storage-contract-v1": "workspace:*"
+		"@refarm.dev/storage-contract-v1": "workspace:*",
+		"@refarm.dev/storage-fs": "workspace:*"
 	},
 	"devDependencies": {
 		"@refarm.dev/tsconfig": "workspace:*",
-		"@refarm.dev/storage-fs": "workspace:*",
 		"typescript": "catalog:",
 		"@refarm.dev/vtconfig": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*"
