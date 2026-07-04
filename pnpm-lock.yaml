@@ -1695,6 +1695,9 @@ importers:
       '@refarm.dev/node-contract-v1':
         specifier: workspace:*
         version: link:../node-contract-v1
+      '@refarm.dev/plugin-manifest':
+        specifier: workspace:*
+        version: link:../plugin-manifest
       '@refarm.dev/records-contract-v1':
         specifier: workspace:*
         version: link:../records-contract-v1

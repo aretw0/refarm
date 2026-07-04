@@ -15,6 +15,12 @@ export {
 	createInMemoryVaultSurface,
 	type InMemoryVaultSurfaceOptions,
 } from "./in-memory.js";
+export {
+	buildVaultPluginManifest,
+	VAULT_ENTRY_PLACEHOLDER,
+	vaultProvides,
+	type VaultManifestOptions,
+} from "./manifest.js";
 export { profileForVerb, resolveVaultProfile } from "./profile.js";
 export {
 	createReferenceVaultSurface,
