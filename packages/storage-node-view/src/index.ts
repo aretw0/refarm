@@ -9,4 +9,8 @@ export {
 	scopedAssetsDir,
 	scopedLedgerPath,
 } from "./scoped-ledger.js";
-export type { LedgerScope } from "@refarm.dev/storage-fs";
+export {
+	type LedgerScope,
+	type ScopeResolutionOptions,
+	orderedScopeStorePaths,
+} from "@refarm.dev/storage-fs";
