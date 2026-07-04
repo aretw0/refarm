@@ -64,6 +64,8 @@ type PersistedResult = Awaited<
 	ReturnType<SkillCommandDeps["loadPersistedSkills"]>
 >;
 
+type Profiles = ReturnType<SkillCommandDeps["loadProfiles"]>;
+
 function deps(
 	skills: DiscoveredSkill[] = [],
 	rejected: Rejected = [],
@@ -71,11 +73,13 @@ function deps(
 	imported: ImportResult = { skills: [], rejected: [] },
 	persisted: string[] = [],
 	persistedSkills: PersistedResult = { skills: [], rejected: [] },
+	profiles: Profiles = [],
 ): SkillCommandDeps {
 	return {
 		discover: () => ({ skills, rejected }),
 		loadPersistedSkills: async () => persistedSkills,
 		loadCheckers: async () => checkers,
+		loadProfiles: () => profiles,
 		importSkills: () => imported,
 		persistSkills: async () => persisted,
 	};
@@ -204,6 +208,52 @@ describe("skill CapabilityGroup", () => {
 		expect(envelope.findingCount).toBe(1);
 		expect(envelope.recommendations[0]!.diagnostic).toBe("ai-self-reference");
 		expect(envelope.nextActions.length).toBeGreaterThan(0);
+	});
+
+	it("`check` runs each checker over the built-in AND plugin-contributed profiles", async () => {
+		// A checker that fires ONE finding per profile whose name it was handed —
+		// so the count proves both the built-in and the plugin profile reached it.
+		const perProfileChecker: Checker = {
+			check: (_subject, profile) => [
+				{
+					severity: "warn",
+					ruleId: `saw-${profile.name}`,
+					message: `ran profile ${profile.name}`,
+				},
+			],
+		};
+		const pluginProfile = {
+			name: "custom-tells",
+			rules: [
+				{
+					id: "no-forbidden",
+					severity: "warn",
+					description: "forbidden word",
+					check: JSON.stringify({ type: "contains", value: "forbidden" }),
+				},
+			],
+		};
+		const group = createSkillCapabilityGroup(
+			deps(
+				[skill()],
+				[],
+				[perProfileChecker],
+				{ skills: [], rejected: [] },
+				[],
+				{ skills: [], rejected: [] },
+				[pluginProfile],
+			),
+		);
+		const resolved = resolveGroupAction(group, ["check", "greet-operator"]);
+		const env = (await resolved!.action.run(resolved!.input)) as unknown as {
+			findingCount: number;
+			recommendations: { diagnostic: string }[];
+		};
+		// One finding for the built-in skill-tells profile + one for the plugin's.
+		expect(env.findingCount).toBe(2);
+		const seen = env.recommendations.map((r) => r.diagnostic);
+		expect(seen).toContain("saw-skill-tells");
+		expect(seen).toContain("saw-custom-tells");
 	});
 
 	it("`check` with no findings reports ok and zero pending-actions", async () => {

@@ -212,6 +212,108 @@ export function loadCheckersFromManifest(
 	return { loaded, rejected };
 }
 
+/** The surface kind a plugin declares to contribute a quality PROFILE — a
+ * rules-as-data ruleset (matcher-is-data), the safe evaluator-front counterpart
+ * to a checker: a profile carries NO behavior, only declarative rules a
+ * sandboxed checker interprets. */
+export const QUALITY_PROFILE_SURFACE_KIND = "quality-profile" as const;
+
+/** A quality profile loaded from a plugin: a name + declarative rules. The shape
+ * is intentionally minimal + structural (not a quality-contract import), so this
+ * loader stays lean — a rule's `check` is opaque data the host's checker reads. */
+export interface LoadedProfile {
+	/** The surface id that declared the profile. */
+	surfaceId: string;
+	/** The profile name (its addressable id in a checker run). */
+	name: string;
+	/** The declarative rules — each with an opaque `check` the checker interprets. */
+	rules: readonly {
+		id: string;
+		severity: string;
+		description: string;
+		category?: string;
+		check: unknown;
+	}[];
+}
+
+export interface LoadProfilesResult {
+	loaded: LoadedProfile[];
+	rejected: { surfaceId: string; issues: string[] }[];
+}
+
+/** True when a value is a structurally-valid quality profile ({name, rules[]}). */
+function isLoadableProfile(
+	value: unknown,
+): value is { name: string; rules: LoadedProfile["rules"] } {
+	if (!value || typeof value !== "object") return false;
+	const v = value as { name?: unknown; rules?: unknown };
+	if (typeof v.name !== "string" || v.name.trim().length === 0) return false;
+	if (!Array.isArray(v.rules)) return false;
+	return v.rules.every(
+		(r) =>
+			r &&
+			typeof r === "object" &&
+			typeof (r as { id?: unknown }).id === "string" &&
+			typeof (r as { severity?: unknown }).severity === "string" &&
+			"check" in (r as object),
+	);
+}
+
+/**
+ * Read a plugin manifest's `{kind:"quality-profile"}` surfaces and load each
+ * declared profile asset (a rules-as-data JSON). A profile is inert DATA — no
+ * behavior — so unlike a checker it is loaded + validated here (a bad/malformed
+ * profile is rejected, never thrown). `loadAsset` returns the parsed JSON for an
+ * asset path; the host feeds a discovered profile to its (sandboxed) checkers as
+ * an additional ruleset. `kind` and `assets` are already open in the schema, so a
+ * profile surface needs no schema change.
+ */
+export function loadProfilesFromManifest(
+	manifest: PluginManifest,
+	loadAsset: (assetPath: string) => unknown,
+): LoadProfilesResult {
+	const loaded: LoadedProfile[] = [];
+	const rejected: { surfaceId: string; issues: string[] }[] = [];
+
+	for (const surface of getExtensionSurfaces(manifest)) {
+		if (surface.kind !== QUALITY_PROFILE_SURFACE_KIND) continue;
+		const assetPath = surface.assets?.[0];
+		if (!assetPath) {
+			rejected.push({
+				surfaceId: surface.id,
+				issues: ["quality-profile surface declares no profile asset"],
+			});
+			continue;
+		}
+		let payload: unknown;
+		try {
+			payload = loadAsset(assetPath);
+		} catch (error) {
+			rejected.push({
+				surfaceId: surface.id,
+				issues: [
+					`could not load ${assetPath}: ${error instanceof Error ? error.message : String(error)}`,
+				],
+			});
+			continue;
+		}
+		if (!isLoadableProfile(payload)) {
+			rejected.push({
+				surfaceId: surface.id,
+				issues: ["profile asset is not a valid { name, rules[] } ruleset"],
+			});
+			continue;
+		}
+		loaded.push({
+			surfaceId: surface.id,
+			name: payload.name,
+			rules: payload.rules,
+		});
+	}
+
+	return { loaded, rejected };
+}
+
 /** The outcome of translating an Agent Skill SKILL.md into a refarm-acceptable one. */
 export interface AgentSkillTranslation {
 	/** SKILL.md text that parseSkillMarkdown accepts (LF frontmatter, a `name`). */

@@ -14,6 +14,7 @@ import {
 import {
 	loadAgentSkillsFromDir,
 	loadCheckersFromPluginsDir,
+	loadProfilesFromPluginsDir,
 	loadSkillsFromPluginsDir,
 	type DiscoveredSkill,
 	type ImportedAgentSkill,
@@ -22,6 +23,7 @@ import {
 	createReferenceChecker,
 	loadCheckerComponent,
 	type CheckerFinding,
+	type CheckerProfile,
 	type ReferenceChecker,
 } from "@refarm.dev/quality-checker-ref";
 import {
@@ -101,6 +103,14 @@ export interface SkillCommandDeps {
 	 * subject, never fs/network. Injected so `check` run() stays testable.
 	 */
 	loadCheckers: () => Promise<ReferenceChecker[]>;
+	/**
+	 * Load quality PROFILES contributed by installed plugins — rules-as-data
+	 * rulesets (matcher-is-data) the checkers run in ADDITION to the built-in
+	 * skill-tells profile. A profile is inert data (no behavior), so a plugin can
+	 * safely extend what `check` flags without shipping code. Defaults to scanning
+	 * the plugins dir; injected so `check` run() stays testable.
+	 */
+	loadProfiles: () => CheckerProfile[];
 	/**
 	 * Import Agent Skills (the portable agentskills.io SKILL.md format) from a
 	 * directory into refarm's skill model — the convergence front-half. Injected
@@ -503,6 +513,23 @@ export function defaultSkillDeps(): SkillCommandDeps {
 			}
 			return checkers;
 		},
+		loadProfiles: () => {
+			const { profiles } = loadProfilesFromPluginsDir(pluginsBaseDir());
+			// Normalize each rule's `check` to the checker's string contract: a
+			// plugin may author it as a JSON object (natural in a profile asset) or
+			// already as a string; both become the opaque JSON string the checker
+			// interprets (matcher-is-data).
+			return profiles.map((p) => ({
+				name: p.name,
+				rules: p.rules.map((r) => ({
+					id: r.id,
+					severity: r.severity,
+					description: r.description,
+					...(r.category ? { category: r.category } : {}),
+					check: typeof r.check === "string" ? r.check : JSON.stringify(r.check),
+				})),
+			}));
+		},
 		importSkills: (dir) => loadAgentSkillsFromDir(dir),
 		persistSkills: (skills, scope) =>
 			persistImportedSkillsToLedger(skills, scope),
@@ -615,12 +642,17 @@ export function createSkillCapabilityGroup(
 			}
 
 			// Every checker inspects the SAME subject (the skill's instructions);
-			// findings aggregate across the bundled + plugin-contributed checkers.
+			// findings aggregate across the bundled + plugin-contributed checkers,
+			// each run over the built-in skill-tells profile AND every plugin-
+			// contributed rules-as-data profile (matcher-is-data, no plugin code).
 			const checkers = await deps.loadCheckers();
+			const profiles = [SKILL_TELLS_PROFILE, ...deps.loadProfiles()];
 			const subject = { tag: "text" as const, val: skill.instructions };
 			const findings: CheckerFinding[] = [];
 			for (const checker of checkers) {
-				findings.push(...checker.check(subject, SKILL_TELLS_PROFILE));
+				for (const profile of profiles) {
+					findings.push(...checker.check(subject, profile));
+				}
 			}
 
 			const recommendations = findings.map((f) =>

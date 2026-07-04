@@ -8,10 +8,12 @@ import { basename, dirname, join } from "node:path";
 
 import {
 	loadCheckersFromManifest,
+	loadProfilesFromManifest,
 	loadSkillsFromManifest,
 	loadThemesFromManifest,
 	ThemeRegistry,
 	translateAgentSkill,
+	type LoadedProfile,
 	type LoadedSkill,
 	type LoadSkillsResult,
 } from "./index.js";
@@ -376,4 +378,73 @@ export function loadThemesFromPluginsDir(
 	}
 
 	return { themes, registry, rejected };
+}
+
+/** A quality profile discovered from an installed plugin, tagged with origin. */
+export interface DiscoveredProfile extends LoadedProfile {
+	/** Plugin manifest id the profile surface belongs to. */
+	pluginId: string;
+	/** Absolute plugin directory the profile asset was read from. */
+	pluginDir: string;
+}
+
+export interface DiscoverProfilesResult {
+	/** Profiles that loaded + validated across every installed plugin. */
+	profiles: DiscoveredProfile[];
+	/** Per-plugin/per-profile load failures (bad manifest, malformed ruleset). */
+	rejected: {
+		pluginId: string | null;
+		pluginDir: string;
+		issues: string[];
+	}[];
+}
+
+/**
+ * Enumerate installed plugins under `pluginsDir` and load every quality-profile
+ * surface each declares — the fs-backed composition of {@link findPluginDirs} +
+ * {@link loadProfilesFromManifest}, the profile twin of
+ * {@link loadThemesFromPluginsDir}. A host (the `skill check` verb) calls this to
+ * feed plugin-contributed rulesets to its sandboxed checkers alongside the
+ * built-in profile. A profile is inert rules-as-data (no behavior), so this is a
+ * safe plugin-contribution front; a malformed profile is recorded in `rejected`,
+ * never thrown.
+ */
+export function loadProfilesFromPluginsDir(
+	pluginsDir: string,
+): DiscoverProfilesResult {
+	const profiles: DiscoveredProfile[] = [];
+	const rejected: DiscoverProfilesResult["rejected"] = [];
+
+	for (const pluginDir of findPluginDirs(pluginsDir)) {
+		let manifest: PluginManifest;
+		try {
+			manifest = readPluginManifest(pluginDir);
+		} catch (error) {
+			rejected.push({
+				pluginId: null,
+				pluginDir,
+				issues: [
+					`could not read plugin manifest: ${error instanceof Error ? error.message : String(error)}`,
+				],
+			});
+			continue;
+		}
+
+		const loadAsset = (assetPath: string): unknown =>
+			JSON.parse(readFileSync(join(pluginDir, assetPath), "utf-8"));
+		const result = loadProfilesFromManifest(manifest, loadAsset);
+
+		for (const profile of result.loaded) {
+			profiles.push({ ...profile, pluginId: manifest.id, pluginDir });
+		}
+		for (const reject of result.rejected) {
+			rejected.push({
+				pluginId: manifest.id,
+				pluginDir,
+				issues: reject.issues,
+			});
+		}
+	}
+
+	return { profiles, rejected };
 }

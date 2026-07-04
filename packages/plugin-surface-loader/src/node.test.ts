@@ -12,6 +12,7 @@ import {
 	findPluginDirs,
 	loadAgentSkillsFromDir,
 	loadCheckersFromPluginsDir,
+	loadProfilesFromPluginsDir,
 	loadSkillsFromPluginsDir,
 	loadThemesFromPluginsDir,
 	readPluginManifest,
@@ -375,5 +376,79 @@ describe("loadThemesFromPluginsDir — plugin theme discovery", () => {
 		expect(result.rejected).toHaveLength(1);
 		expect(result.rejected[0]?.id).toBe("broken");
 		expect(result.rejected[0]?.issues.join()).toContain("missing tokens");
+	});
+});
+
+/** Write a plugin dir declaring one quality-profile surface + its ruleset asset. */
+function writeProfilePlugin(
+	pluginsDir: string,
+	pluginId: string,
+	profile: { id: string; asset: string; ruleset: unknown },
+): void {
+	const pluginDir = join(pluginsDir, pluginId);
+	mkdirSync(pluginDir, { recursive: true });
+	writeFileSync(join(pluginDir, profile.asset), JSON.stringify(profile.ruleset), "utf-8");
+	const manifest = createMockManifest({
+		id: `@refarm.dev/${pluginId}`,
+		extensions: {
+			surfaces: [
+				{ layer: "asset", kind: "quality-profile", id: profile.id, assets: [profile.asset] },
+			],
+		},
+	});
+	writeFileSync(join(pluginDir, "plugin.json"), JSON.stringify(manifest, null, 2), "utf-8");
+}
+
+describe("loadProfilesFromPluginsDir — plugin quality-profile discovery", () => {
+	let root: string;
+	let pluginsDir: string;
+	beforeEach(() => {
+		root = mkdtempSync(join(tmpdir(), "psl-profile-"));
+		pluginsDir = join(root, "plugins");
+	});
+	afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+	it("returns an empty set when the plugins dir does not exist", () => {
+		expect(loadProfilesFromPluginsDir(join(root, "nope"))).toEqual({
+			profiles: [],
+			rejected: [],
+		});
+	});
+
+	it("discovers a valid rules-as-data profile, tagged with its plugin", () => {
+		writeProfilePlugin(pluginsDir, "profile-plugin", {
+			id: "custom-tells",
+			asset: "custom.profile.json",
+			ruleset: {
+				name: "custom-tells",
+				rules: [
+					{
+						id: "no-forbidden",
+						severity: "warn",
+						description: "mentions a forbidden word",
+						check: { type: "contains", value: "forbidden" },
+					},
+				],
+			},
+		});
+		const result = loadProfilesFromPluginsDir(pluginsDir);
+		expect(result.profiles).toHaveLength(1);
+		expect(result.profiles[0]).toMatchObject({
+			name: "custom-tells",
+			pluginId: "@refarm.dev/profile-plugin",
+		});
+		expect(result.profiles[0]!.rules[0]!.id).toBe("no-forbidden");
+	});
+
+	it("rejects a malformed profile (not { name, rules[] }) without crashing", () => {
+		writeProfilePlugin(pluginsDir, "bad-plugin", {
+			id: "broken",
+			asset: "broken.profile.json",
+			ruleset: { name: "broken" }, // no rules array
+		});
+		const result = loadProfilesFromPluginsDir(pluginsDir);
+		expect(result.profiles).toEqual([]);
+		expect(result.rejected).toHaveLength(1);
+		expect(result.rejected[0]?.issues.join()).toContain("not a valid");
 	});
 });
