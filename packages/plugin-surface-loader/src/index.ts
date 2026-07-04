@@ -8,7 +8,10 @@ import {
 	getExtensionSurfaces,
 	type PluginManifest,
 } from "@refarm.dev/plugin-manifest";
-import { parseSkillMarkdown } from "@refarm.dev/skill-contract-v1";
+import {
+	parseSkillMarkdown,
+	type SkillSourceRef,
+} from "@refarm.dev/skill-contract-v1";
 
 export const PLUGIN_SURFACE_LOADER_CAPABILITY =
 	"plugin-surface-loader:v1" as const;
@@ -76,6 +79,14 @@ export interface LoadedSkill {
 	 * evaluator layer (a checker sees the instructions, not just the summary).
 	 */
 	instructions: string;
+	/**
+	 * The content-addressed source reference: the FULL 64-hex sha256 of the
+	 * SKILL.md bytes (plus byte length and format). This is the honest
+	 * content-address — the id embeds only a 48-bit prefix, so a host that wants
+	 * to store or verify the bytes must use `source.sha256`, not the id. It is the
+	 * key a content-addressed store / p2p resolver keys on.
+	 */
+	source: SkillSourceRef;
 }
 
 export interface LoadSkillsResult {
@@ -141,6 +152,7 @@ export function loadSkillsFromManifest(
 			...(m.description ? { description: m.description } : {}),
 			requiredCapabilities: m.capabilities.requires,
 			instructions: m.instructions,
+			source: m.source,
 		});
 	}
 

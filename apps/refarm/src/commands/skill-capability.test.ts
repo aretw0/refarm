@@ -16,6 +16,11 @@ import {
 	type SkillCommandDeps,
 } from "./skill-capability.js";
 
+/** A content-addressed source ref fixture (full 64-hex, as the loaders produce). */
+function sourceRef(hash = "a".repeat(64), bytes = 10) {
+	return { format: "SKILL.md" as const, uri: "fixture:SKILL.md", sha256: hash, bytes };
+}
+
 function skill(overrides: Partial<DiscoveredSkill> = {}): DiscoveredSkill {
 	return {
 		surfaceId: "greet",
@@ -24,6 +29,7 @@ function skill(overrides: Partial<DiscoveredSkill> = {}): DiscoveredSkill {
 		description: "Greet the operator.",
 		requiredCapabilities: ["refarm.operator-loop"],
 		instructions: "# Greet\n\nGreet the operator and summarize the day.",
+		source: sourceRef(),
 		pluginId: "@demo/plugin",
 		pluginDir: "/plugins/demo",
 		...overrides,
@@ -196,6 +202,7 @@ describe("skill CapabilityGroup", () => {
 						instructions: "Make a commit.",
 						skillDir: "/ext/skills/commit",
 						translated: { nameInjected: false, newlinesNormalized: false },
+						source: sourceRef(),
 					},
 					{
 						surfaceId: "win",
@@ -205,6 +212,7 @@ describe("skill CapabilityGroup", () => {
 						instructions: "Body.",
 						skillDir: "/ext/skills/win",
 						translated: { nameInjected: true, newlinesNormalized: true },
+						source: sourceRef(),
 					},
 				],
 				rejected: [{ skillDir: "/ext/skills/bad", issues: ["FRONTMATTER_MISSING: x"] }],
@@ -243,6 +251,7 @@ describe("skill CapabilityGroup", () => {
 					instructions: "Make a commit.",
 					skillDir: "/ext/skills/commit",
 					translated: { nameInjected: false, newlinesNormalized: false },
+					source: sourceRef(),
 				},
 			],
 			rejected: [],
@@ -282,6 +291,7 @@ describe("skill CapabilityGroup", () => {
 					instructions: "Make a commit.",
 					skillDir: "/ext/skills/commit",
 					translated: { nameInjected: false, newlinesNormalized: false },
+					source: sourceRef(),
 				},
 			];
 			await expect(
@@ -333,6 +343,7 @@ describe("skill CapabilityGroup", () => {
 				instructions,
 				skillDir: "/x/shared",
 				translated: { nameInjected: false, newlinesNormalized: false },
+				source: sourceRef(),
 			});
 			const orgOnly: ImportResult["skills"][number] = {
 				surfaceId: "org-base",
@@ -342,6 +353,7 @@ describe("skill CapabilityGroup", () => {
 				instructions: "org-only skill",
 				skillDir: "/x/org-base",
 				translated: { nameInjected: false, newlinesNormalized: false },
+				source: sourceRef(),
 			};
 			await persistImportedSkillsToLedger([shared("ORG"), orgOnly], "org", roots);
 			await persistImportedSkillsToLedger([shared("WORKSPACE")], "workspace", roots);
@@ -379,6 +391,7 @@ describe("skill CapabilityGroup", () => {
 						instructions: "body",
 						skillDir: "/x/s",
 						translated: { nameInjected: false, newlinesNormalized: false },
+						source: sourceRef(),
 					},
 				],
 				rejected: [],
@@ -414,6 +427,7 @@ describe("skill CapabilityGroup", () => {
 					name: "win",
 					id: "urn:skill:win",
 					translated: { nameInjected: true, newlinesNormalized: true },
+					source: sourceRef(),
 				},
 			],
 			rejected: [],

@@ -438,6 +438,18 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/asset-resolver-contract-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/automation-contract-v1:
     dependencies:
       '@refarm.dev/artifact-contract-v1':

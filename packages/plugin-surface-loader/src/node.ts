@@ -285,6 +285,7 @@ export function loadAgentSkillsFromDir(
 			...(m.description ? { description: m.description } : {}),
 			requiredCapabilities: m.capabilities.requires,
 			instructions: m.instructions,
+			source: m.source,
 			skillDir,
 			translated: {
 				nameInjected: translation.nameInjected,

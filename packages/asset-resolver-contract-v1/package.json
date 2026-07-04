@@ -1,0 +1,47 @@
+{
+	"name": "@refarm.dev/asset-resolver-contract-v1",
+	"version": "0.1.0",
+	"description": "Content-addressed asset resolution (asset-resolver:v1) — resolve bytes by hash, verify before trust. fs today, p2p/OPFS later.",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/asset-resolver-contract-v1"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev.br",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./node": {
+			"import": "./dist/node.js",
+			"types": "./dist/node.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist"
+	},
+	"keywords": [
+		"content-addressed",
+		"resolver",
+		"sha256",
+		"local-first",
+		"p2p"
+	],
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}
