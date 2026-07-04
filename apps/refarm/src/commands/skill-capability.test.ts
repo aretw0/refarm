@@ -27,23 +27,26 @@ function skill(overrides: Partial<DiscoveredSkill> = {}): DiscoveredSkill {
 
 type Rejected = ReturnType<SkillCommandDeps["discover"]>["rejected"];
 type Checker = Awaited<ReturnType<SkillCommandDeps["loadCheckers"]>>[number];
+type ImportResult = ReturnType<SkillCommandDeps["importSkills"]>;
 
 function deps(
 	skills: DiscoveredSkill[] = [],
 	rejected: Rejected = [],
 	checkers: Checker[] = [],
+	imported: ImportResult = { skills: [], rejected: [] },
 ): SkillCommandDeps {
 	return {
 		discover: () => ({ skills, rejected }),
 		loadCheckers: async () => checkers,
+		importSkills: () => imported,
 	};
 }
 
 describe("skill CapabilityGroup", () => {
-	it("is a group with list + show + check and a read-only list default", () => {
+	it("is a group with list + show + check + import and a read-only list default", () => {
 		const group = createSkillCapabilityGroup(deps());
 		expect(isCapabilityGroup(group)).toBe(true);
-		expect(Object.keys(group.actions).sort()).toEqual(["check", "list", "show"]);
+		expect(Object.keys(group.actions).sort()).toEqual(["check", "import", "list", "show"]);
 		expect(group.defaultAction).toBe("list");
 	});
 
@@ -141,6 +144,68 @@ describe("skill CapabilityGroup", () => {
 		expect(envelope.ok).toBe(true);
 		expect(envelope.findingCount).toBe(0);
 		expect(envelope.nextActions).toEqual([]);
+	});
+
+	it("`import <dir>` reports translated Agent Skills from a directory", async () => {
+		const group = createSkillCapabilityGroup(
+			deps([], [], [], {
+				skills: [
+					{
+						surfaceId: "commit",
+						id: "urn:skill:commit",
+						name: "commit",
+						description: "Read before committing",
+						requiredCapabilities: [],
+						instructions: "Make a commit.",
+						skillDir: "/ext/skills/commit",
+						translated: { nameInjected: false, newlinesNormalized: false },
+					},
+					{
+						surfaceId: "win",
+						id: "urn:skill:win",
+						name: "win",
+						requiredCapabilities: [],
+						instructions: "Body.",
+						skillDir: "/ext/skills/win",
+						translated: { nameInjected: true, newlinesNormalized: true },
+					},
+				],
+				rejected: [{ skillDir: "/ext/skills/bad", issues: ["FRONTMATTER_MISSING: x"] }],
+			}),
+		);
+		const resolved = resolveGroupAction(group, ["import", "/ext/skills"]);
+		expect(resolved?.key).toBe("import");
+		const envelope = (await resolved!.action.run(resolved!.input)) as unknown as {
+			ok: boolean;
+			source: string;
+			count: number;
+			imported: { name: string; translated: { nameInjected: boolean } }[];
+			rejected: { skillDir: string }[];
+		};
+		expect(envelope.ok).toBe(true);
+		expect(envelope.source).toBe("/ext/skills");
+		expect(envelope.count).toBe(2);
+		expect(envelope.imported.map((s) => s.name).sort()).toEqual(["commit", "win"]);
+		expect(envelope.imported.find((s) => s.name === "win")?.translated.nameInjected).toBe(true);
+		expect(envelope.rejected).toHaveLength(1);
+	});
+
+	it("hooks render the import listing (with translation tags) and a not-found error", () => {
+		const listing = skillCapabilityHooks("import").renderText!({
+			ok: true,
+			source: "/ext/skills",
+			count: 1,
+			imported: [
+				{
+					name: "win",
+					id: "urn:skill:win",
+					translated: { nameInjected: true, newlinesNormalized: true },
+				},
+			],
+			rejected: [],
+		} as never);
+		expect(listing).toContain("win");
+		expect(listing).toContain("name-injected");
 	});
 
 	it("hooks render the empty-state hint and a not-found error", () => {

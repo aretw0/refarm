@@ -7,9 +7,11 @@ import {
 	buildJsonSuccessEnvelope,
 } from "@refarm.dev/cli/json-output";
 import {
-	type DiscoveredSkill,
+	loadAgentSkillsFromDir,
 	loadCheckersFromPluginsDir,
 	loadSkillsFromPluginsDir,
+	type DiscoveredSkill,
+	type ImportedAgentSkill,
 } from "@refarm.dev/plugin-surface-loader/node";
 import {
 	createReferenceChecker,
@@ -76,6 +78,15 @@ export interface SkillCommandDeps {
 	 * subject, never fs/network. Injected so `check` run() stays testable.
 	 */
 	loadCheckers: () => Promise<ReferenceChecker[]>;
+	/**
+	 * Import Agent Skills (the portable agentskills.io SKILL.md format) from a
+	 * directory into refarm's skill model — the convergence front-half. Injected
+	 * so `import` run() stays testable; defaults to loadAgentSkillsFromDir.
+	 */
+	importSkills: (dir: string) => {
+		skills: ImportedAgentSkill[];
+		rejected: { skillDir: string; issues: string[] }[];
+	};
 }
 
 export function defaultSkillDeps(): SkillCommandDeps {
@@ -99,6 +110,7 @@ export function defaultSkillDeps(): SkillCommandDeps {
 			}
 			return checkers;
 		},
+		importSkills: (dir) => loadAgentSkillsFromDir(dir),
 	};
 }
 
@@ -226,10 +238,43 @@ export function createSkillCapabilityGroup(
 		},
 	};
 
+	const importAction: CapabilityDescriptor = {
+		name: "import",
+		summary:
+			"Import Agent Skills (agentskills.io SKILL.md) from a directory into refarm's model",
+		args: [{ name: "dir", required: true }],
+		run(input) {
+			const dir = input.args.dir as string;
+			const { skills, rejected } = deps.importSkills(dir);
+			// Report-only: this surfaces WHAT would import (translated + rejected) on
+			// every surface (CLI/REPL/agent/HTTP) from one declaration. Persisting
+			// imported skills into refarm's store is a deliberate follow-on (where
+			// they live is a node/ledger decision), flagged as a next-action.
+			const imported = skills.map((s) => ({
+				name: s.name,
+				id: s.id,
+				...(s.description ? { description: s.description } : {}),
+				requiredCapabilities: s.requiredCapabilities,
+				skillDir: s.skillDir,
+				translated: s.translated,
+			}));
+			return buildJsonSuccessEnvelope({
+				command: "skill",
+				operation: "import",
+				extra: {
+					source: dir,
+					imported,
+					rejected,
+					count: imported.length,
+				},
+			});
+		},
+	};
+
 	return {
 		name: "skill",
 		summary: "Inspect skills declared by installed plugins",
-		actions: { list, show, check },
+		actions: { list, show, check, import: importAction },
 		// Bare `skill` / `/skill` lists what's available (read-only default).
 		defaultAction: "list",
 		transports: {
@@ -336,6 +381,51 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 						chalk.dim(`\n  ${e.nextActions.length} pending action(s):`),
 						...e.nextActions.map((a) => `    → ${a}`),
 					];
+					return lines.join("\n");
+				},
+			};
+		case "import":
+			return {
+				renderText: (envelope) => {
+					if (envelope.ok === false) return renderError(envelope);
+					const e = envelope as unknown as {
+						source: string;
+						imported: {
+							name: string;
+							id: string;
+							translated: {
+								nameInjected: boolean;
+								newlinesNormalized: boolean;
+							};
+						}[];
+						rejected: { skillDir: string; issues: string[] }[];
+						count: number;
+					};
+					if (e.count === 0 && e.rejected.length === 0) {
+						return chalk.dim(`No Agent Skills found under ${e.source}.`);
+					}
+					const lines = [
+						`Importable Agent Skills from ${chalk.dim(e.source)} (${e.count})`,
+						...e.imported.map((s) => {
+							const tags: string[] = [];
+							if (s.translated.nameInjected) tags.push("name-injected");
+							if (s.translated.newlinesNormalized) {
+								tags.push("newline-normalized");
+							}
+							const suffix = tags.length
+								? `  ${chalk.dim(`(${tags.join(", ")})`)}`
+								: "";
+							return `  ${chalk.bold(s.name)}  ${chalk.dim(s.id)}${suffix}`;
+						}),
+					];
+					if (e.rejected.length > 0) {
+						lines.push(
+							chalk.yellow(`\n${e.rejected.length} could not import:`),
+							...e.rejected.map(
+								(r) => `  ${chalk.dim(r.skillDir)}: ${r.issues.join("; ")}`,
+							),
+						);
+					}
 					return lines.join("\n");
 				},
 			};
