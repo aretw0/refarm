@@ -1,6 +1,6 @@
 # `vault:v1` — the first real (non-agent) WASM plugin candidate
 
-**Status:** TS-only foundation landed (contract + reference surface + conformance + WIT). Grounded by recon workflow `wf_510a0ee6` (4 agents, source-verified). The WASM component + host dispatch are a downstream `§8` slice.
+**Status:** **TS-only foundation COMPLETE** — 4 atomic slices (`3cc68301` contract+reference+conformance+WIT, `949d5ed8` emit, `48662456` dispatch, `ae2a4276` manifest); 28 tests; lint/type-check/build/check:wit/validate-packages clean. Grounded by recon workflow `wf_510a0ee6` (4 agents, source-verified). Only the WASM component + host dispatch remain — a downstream `§8` slice, now reduced to a rehearsed, minimal handoff.
 
 ## Why this exists — the cross-POC pattern
 
@@ -39,11 +39,12 @@ The reference surface (`src/reference.ts`) ships one honest matcher per verb (`c
 - Component language: **TS via `componentize-js`** (`@bytecodealliance/componentize-js@0.20.0` is already installed) — the first non-agent plugin in TS.
 - **TS-only foundation first**, `§8` window kept short and well-rehearsed.
 
-## Remaining foundation (TS-only, before `§8`)
+## Foundation (TS-only) — DONE
 
-- **Emit** — assert `KnowledgeRecord → graphNodeToNormalised` equals the rcdc5 `createJsonLdFileSink` node shape.
-- **Effort task** — assert `{pluginId, fn, args}` (`effort-contract-v1` `Task`) round-trips to the Rust sidecar `EffortTask {plugin_id, fn_name, args}`; extend the DGK smoke front-half to carry the `fn`.
-- **Manifest** — a validated `plugin-manifest` object (`provides: ['vault:extract', …]`, `entry` → the future `.wasm`).
+- **Contract** (`3cc68301`) — `src/types.ts` (`VaultNote`, `VaultProfile` matcher-is-data, 4 verbs, `VaultResult`), `src/reference.ts` (one honest matcher per verb), `src/conformance.ts` (boundary pinned), `wit/vault.wit` (`refarm:vault@0.1.0`, world imports nothing), `src/in-memory.ts`.
+- **Emit** (`949d5ed8`) — `vaultRecordToNode`: `KnowledgeRecord → GraphNode → NormalisedNode`, lands on the canonical `@context/@type/@id/refarm:sourcePlugin/refarm:capability` node. Host stamps `createdAtNs` (the surface has no clock — a test pins this). `KnowledgeRecord → graphNodeToNormalised` asserted against refarm's OWN node-contract-v1, since rcdc5's `createJsonLdFileSink` turned out to be documented intent, not present source.
+- **Dispatch** (`48662456`) — `vaultDispatchTask`: a vault verb → an `effort-contract-v1` `Task`, wire-parity-proven against the Rust sidecar `EffortTask` (`id`, `pluginId`, `fn`, `args`), with a drift-guard. `fn` = the verb (a non-lifecycle name the sidecar doesn't route yet — the `§8` gap).
+- **Manifest** (`ae2a4276`) — `buildVaultPluginManifest`: verbs as `provides` + `.wasm` entry. DELIBERATELY invalid until `integrity` is stamped (a real build requirement, proven by running `validatePluginManifest`); the `§8` install is just that one swap.
 
 ## `§8` (serialized handoff, later)
 
