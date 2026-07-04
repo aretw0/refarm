@@ -1,9 +1,18 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { buildCompositionListEnvelope } from "./config.js";
+import {
+	buildCompositionListEnvelope,
+	buildCompositionMutationEnvelope,
+} from "./config.js";
 
 /** Seed `<base>/.refarm/config.json`. */
 function seed(base: string, config: unknown): void {
@@ -102,5 +111,137 @@ describe("config plugins list envelope", () => {
 		}) as { ok: boolean; error?: string };
 		expect(env.ok).toBe(false);
 		expect(env.error).toBe("unknown-scope");
+	});
+});
+
+describe("config plugins add / remove (RMW)", () => {
+	let home: string;
+	let cwd: string;
+	let org: string;
+	function deps() {
+		return { cwd: () => cwd, home: () => home };
+	}
+	function readHomeConfig(): Record<string, unknown> {
+		return JSON.parse(
+			readFileSync(join(home, ".refarm", "config.json"), "utf-8"),
+		);
+	}
+	beforeEach(() => {
+		home = mkdtempSync(join(tmpdir(), "cpm-home-"));
+		cwd = mkdtempSync(join(tmpdir(), "cpm-cwd-"));
+		org = mkdtempSync(join(tmpdir(), "cpm-org-"));
+	});
+	afterEach(() => {
+		for (const d of [home, cwd, org]) rmSync(d, { recursive: true, force: true });
+	});
+
+	it("add appends a bare-string entry and is idempotent by source", () => {
+		const first = buildCompositionMutationEnvelope(deps(), "add", "@refarm/agent", {
+			scope: "user",
+			env: {},
+		}) as { ok: boolean; changed: boolean };
+		expect(first).toMatchObject({ ok: true, changed: true });
+		expect(readHomeConfig().plugins).toEqual(["@refarm/agent"]);
+
+		const second = buildCompositionMutationEnvelope(deps(), "add", "@refarm/agent", {
+			scope: "user",
+			env: {},
+		}) as { changed: boolean };
+		expect(second.changed).toBe(false); // idempotent — no duplicate
+		expect(readHomeConfig().plugins).toEqual(["@refarm/agent"]);
+	});
+
+	it("add NEVER downgrades an existing object entry to a bare string", () => {
+		seed(home, {
+			plugins: [{ source: "npm:@acme/x", skills: ["!skills/legacy"] }],
+		});
+		const env = buildCompositionMutationEnvelope(deps(), "add", "npm:@acme/x", {
+			scope: "user",
+			env: {},
+		}) as { changed: boolean };
+		expect(env.changed).toBe(false);
+		// The object entry (with its suppression) is preserved verbatim.
+		expect(readHomeConfig().plugins).toEqual([
+			{ source: "npm:@acme/x", skills: ["!skills/legacy"] },
+		]);
+	});
+
+	it("remove de-declares and reports it is not a physical uninstall", () => {
+		seed(home, { plugins: ["@refarm/agent", "keep-me"] });
+		const env = buildCompositionMutationEnvelope(deps(), "remove", "@refarm/agent", {
+			scope: "user",
+			env: {},
+		}) as { ok: boolean; changed: boolean; note?: string };
+		expect(env).toMatchObject({ ok: true, changed: true });
+		expect(env.note).toContain("not a physical uninstall");
+		expect(readHomeConfig().plugins).toEqual(["keep-me"]);
+	});
+
+	it("remove of an absent source is a no-op", () => {
+		seed(home, { plugins: ["keep-me"] });
+		const env = buildCompositionMutationEnvelope(deps(), "remove", "ghost", {
+			scope: "user",
+			env: {},
+		}) as { changed: boolean };
+		expect(env.changed).toBe(false);
+		expect(readHomeConfig().plugins).toEqual(["keep-me"]);
+	});
+
+	it("preserves scalar siblings across the RMW (co-habitation)", () => {
+		seed(home, {
+			autostart: "always",
+			runtime: { sidecarUrl: "http://127.0.0.1:42001" },
+		});
+		buildCompositionMutationEnvelope(deps(), "add", "@refarm/agent", {
+			scope: "user",
+			env: {},
+		});
+		const after = readHomeConfig();
+		expect(after.autostart).toBe("always");
+		expect(after.runtime).toEqual({ sidecarUrl: "http://127.0.0.1:42001" });
+		expect(after.plugins).toEqual(["@refarm/agent"]);
+	});
+
+	it("writes to the workspace scope's config.json when --scope workspace", () => {
+		buildCompositionMutationEnvelope(deps(), "add", "../local", {
+			scope: "workspace",
+			env: {},
+		});
+		const wsConfig = JSON.parse(
+			readFileSync(join(cwd, ".refarm", "config.json"), "utf-8"),
+		);
+		expect(wsConfig.plugins).toEqual(["../local"]);
+	});
+
+	it("--scope org writes only when REFARM_ORG_HOME is set", () => {
+		const denied = buildCompositionMutationEnvelope(deps(), "add", "x", {
+			scope: "org",
+			env: {},
+		}) as { ok: boolean; error?: string };
+		expect(denied).toMatchObject({ ok: false, error: "org-scope-unavailable" });
+
+		const allowed = buildCompositionMutationEnvelope(deps(), "add", "npm:@org/base", {
+			scope: "org",
+			env: { REFARM_ORG_HOME: org },
+		}) as { ok: boolean; changed: boolean };
+		expect(allowed).toMatchObject({ ok: true, changed: true });
+		const orgConfig = JSON.parse(
+			readFileSync(join(org, ".refarm", "config.json"), "utf-8"),
+		);
+		expect(orgConfig.plugins).toEqual(["npm:@org/base"]);
+	});
+
+	it("rejects an empty source and an unknown scope", () => {
+		expect(
+			(buildCompositionMutationEnvelope(deps(), "add", "   ", { env: {} }) as {
+				error?: string;
+			}).error,
+		).toBe("empty-source");
+		expect(
+			(buildCompositionMutationEnvelope(deps(), "add", "x", {
+				scope: "nope",
+				env: {},
+			}) as { error?: string }).error,
+		).toBe("unknown-scope");
 	});
 });

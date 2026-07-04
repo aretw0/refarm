@@ -113,3 +113,24 @@ export function userScopeConfigPath(home = os.homedir()): string {
 		(p) => p.scope === "user",
 	)!.path;
 }
+
+/**
+ * The `config.json` path for ONE composition scope — the write target for
+ * `config plugins add/remove/suppress`. Uses the SAME convention the fold reads
+ * (`<scope>/.refarm/config.json`, user root = os.homedir()), so a write lands on
+ * exactly the file `list` will read back. `org` requires REFARM_ORG_HOME; the
+ * caller must have already gated on its availability (returns null when unset).
+ */
+export function compositionScopePath(
+	scope: LedgerScope,
+	deps: { cwd?: string; home?: string; env?: Record<string, string | undefined> } = {},
+): string | null {
+	const orgRoot = resolveOrgRoot(deps.env ?? process.env);
+	if (scope === "org" && !orgRoot) return null;
+	const path = orderedScopeStorePaths("config.json", {
+		workspaceRoot: deps.cwd ?? process.cwd(),
+		...(deps.home !== undefined ? { userHome: deps.home } : {}),
+		...(orgRoot ? { orgRoot } : {}),
+	}).find((p) => p.scope === scope);
+	return path?.path ?? null;
+}

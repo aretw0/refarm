@@ -12,10 +12,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+	compositionScopePath,
 	resolveComposition,
 	type ResolvedPackageSource,
 } from "../utils/composition-resolver.js";
-import type { PackageSource, SurfaceKey } from "../utils/composition.js";
+import {
+	getSource,
+	type PackageSource,
+	type SurfaceKey,
+} from "../utils/composition.js";
 import {
 	OPEN_EXTERNAL_LINKS_ENV_VAR, parseOpenExternalLinksMode, resolveCliOpenExternalLinksMode, type OpenExternalLinksMode,
 } from "../utils/open-external-links.js";
@@ -791,6 +796,135 @@ function printCompositionList(
 }
 
 /**
+ * Add or remove a bare-string composition entry at ONE scope, via read-modify-
+ * write on that scope's config.json (reusing the scalar path's readConfig/
+ * writeConfig, so scalar siblings are preserved). `add` is idempotent by source
+ * (Set-union: re-adding an existing source is a no-op, and NEVER downgrades an
+ * existing object entry to a bare string). `remove` DE-DECLARES — it drops the
+ * entry from this scope's list; it is NOT a physical uninstall (that is
+ * `refarm plugin` / barn). Returns a handoff envelope.
+ */
+export function buildCompositionMutationEnvelope(
+	deps: ConfigDeps,
+	op: "add" | "remove",
+	source: string,
+	opts: {
+		scope?: string;
+		env?: Record<string, string | undefined>;
+	} = {},
+) {
+	const scope = parseCompositionScope(opts.scope);
+	if (opts.scope !== undefined && !scope) {
+		return buildJsonErrorEnvelope({
+			command: "config",
+			operation: `plugins.${op}`,
+			error: "unknown-scope",
+			message: `Unknown scope "${opts.scope}". Use org | workspace | user.`,
+			nextAction: "Re-run with --scope org, workspace, or user.",
+			nextCommand: CONFIG_PLUGINS_LIST_JSON_COMMAND,
+		});
+	}
+	const trimmed = source.trim();
+	if (!trimmed) {
+		return buildJsonErrorEnvelope({
+			command: "config",
+			operation: `plugins.${op}`,
+			error: "empty-source",
+			message: "A package source must be a non-empty string.",
+			nextAction: "Pass a source, e.g. `config plugins add @refarm/agent`.",
+			nextCommand: CONFIG_PLUGINS_LIST_JSON_COMMAND,
+		});
+	}
+	const filePath = compositionScopePath(scope ?? "user", {
+		cwd: deps.cwd(),
+		home: deps.home(),
+		...(opts.env ? { env: opts.env } : {}),
+	});
+	if (!filePath) {
+		return buildJsonErrorEnvelope({
+			command: "config",
+			operation: `plugins.${op}`,
+			error: "org-scope-unavailable",
+			message:
+				"The org scope is not active. Set REFARM_ORG_HOME to a shared org base to write there.",
+			nextAction:
+				"Set REFARM_ORG_HOME to a shared org base, or omit --scope org.",
+			nextCommand: CONFIG_PLUGINS_LIST_JSON_COMMAND,
+		});
+	}
+
+	const config = readConfig(filePath);
+	const before = config.plugins ?? [];
+	const existingIndex = before.findIndex((entry) => getSource(entry) === trimmed);
+	let changed = false;
+	let plugins = before;
+	if (op === "add") {
+		if (existingIndex === -1) {
+			// Idempotent Set-union: only append when the source is not already
+			// present. An existing object entry is left intact (never downgraded).
+			plugins = [...before, trimmed];
+			changed = true;
+		}
+	} else {
+		if (existingIndex !== -1) {
+			plugins = before.filter((entry) => getSource(entry) !== trimmed);
+			changed = true;
+		}
+	}
+	if (changed) {
+		writeConfig(filePath, { ...config, plugins });
+	}
+
+	return buildJsonSuccessEnvelope({
+		command: "config",
+		operation: `plugins.${op}`,
+		extra: {
+			source: trimmed,
+			scope: scope ?? "user",
+			path: filePath,
+			changed,
+			// The de-declare vs uninstall distinction, surfaced on the contract.
+			...(op === "remove"
+				? { note: "de-declared from composition (not a physical uninstall)" }
+				: {}),
+		},
+		nextCommand: CONFIG_PLUGINS_LIST_JSON_COMMAND,
+	});
+}
+
+function printCompositionMutation(
+	deps: ConfigDeps,
+	op: "add" | "remove",
+	source: string,
+	opts: { scope?: string },
+): void {
+	const envelope = buildCompositionMutationEnvelope(deps, op, source, opts) as {
+		ok: boolean;
+		error?: string;
+		message?: string;
+		source?: string;
+		scope?: string;
+		path?: string;
+		changed?: boolean;
+	};
+	if (!envelope.ok) {
+		console.error(chalk.red(`✗  ${envelope.message ?? envelope.error}`));
+		return;
+	}
+	const verb = op === "add" ? "added" : "removed";
+	if (!envelope.changed) {
+		const already = op === "add" ? "already present" : "not present";
+		console.log(chalk.dim(`•  ${envelope.source} ${already} in [${envelope.scope}] — no change`));
+		return;
+	}
+	console.log(chalk.green(`✓  ${verb} ${envelope.source}  [${envelope.scope}]`));
+	console.log(chalk.dim(`   ${envelope.path}`));
+	if (op === "remove") {
+		console.log(chalk.dim("   de-declared from composition (not a physical uninstall)"));
+	}
+}
+
+/**
  * The `config plugins` subgroup — the COMPOSITION authoring surface. It is under
  * `config` (beside `profile`), NOT under the top-level `plugin` command: `plugin`
  * manages the PHYSICAL runtime plugin lifecycle (barn/npm/WASM install/reload),
@@ -838,6 +972,53 @@ Notes:
 							return;
 						}
 						printCompositionList(deps, opts);
+					},
+				),
+		)
+		.addCommand(
+			new Command("add")
+				.description("Activate a package in a scope's composition (idempotent)")
+				.argument("<source>", "Package source: npm:@scope/pkg | ../path | id")
+				.option("--scope <scope>", "org | workspace | user (default user)")
+				.option("--json", "Output machine-readable result")
+				.action(
+					(
+						source: string,
+						opts: { scope?: string } & JsonOptionCarrier,
+						command: JsonOptionCarrier,
+					) => {
+						if (hasJsonOption(opts, command)) {
+							printJson(
+								buildCompositionMutationEnvelope(deps, "add", source, opts),
+							);
+							return;
+						}
+						printCompositionMutation(deps, "add", source, opts);
+					},
+				),
+		)
+		.addCommand(
+			new Command("remove")
+				.alias("rm")
+				.description(
+					"De-declare a package from a scope's composition (NOT a physical uninstall)",
+				)
+				.argument("<source>", "Package source to drop from this scope")
+				.option("--scope <scope>", "org | workspace | user (default user)")
+				.option("--json", "Output machine-readable result")
+				.action(
+					(
+						source: string,
+						opts: { scope?: string } & JsonOptionCarrier,
+						command: JsonOptionCarrier,
+					) => {
+						if (hasJsonOption(opts, command)) {
+							printJson(
+								buildCompositionMutationEnvelope(deps, "remove", source, opts),
+							);
+							return;
+						}
+						printCompositionMutation(deps, "remove", source, opts);
 					},
 				),
 		);
