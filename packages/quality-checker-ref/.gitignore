@@ -1,0 +1,4 @@
+# Generated component + transpile + TS build artifacts (rebuilt by `build`).
+dist/
+pkg/
+target/

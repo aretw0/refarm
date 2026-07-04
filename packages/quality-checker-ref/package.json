@@ -1,0 +1,36 @@
+{
+	"name": "@refarm.dev/quality-checker-ref",
+	"version": "0.1.0",
+	"description": "Reference quality:v1 checker — a pure-compute WASM component (world quality-checker) proving the sovereign checker boundary end-to-end.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build:wasm": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_quality_checker_ref.wasm dist/refarm_quality_checker_ref.wasm component build --target wasm32-wasip1 --release",
+		"build:transpile": "jco transpile dist/refarm_quality_checker_ref.wasm -o pkg --name quality_checker_ref --no-wasi-shim --instantiation async",
+		"build:component": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_quality_checker_ref.wasm dist/refarm_quality_checker_ref.wasm component build --target wasm32-wasip1 --release && jco transpile dist/refarm_quality_checker_ref.wasm -o pkg --name quality_checker_ref --no-wasi-shim --instantiation async",
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"files": [
+		"pkg",
+		"dist",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@bytecodealliance/jco": "catalog:",
+		"@refarm.dev/deps": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "catalog:"
+	}
+}
