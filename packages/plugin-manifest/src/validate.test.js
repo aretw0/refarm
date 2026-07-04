@@ -263,21 +263,48 @@ describe("extension surface validation", () => {
 
 		const result = validatePluginManifest(manifest);
 		expect(result.valid).toBe(false);
+		// Still rejected for the genuinely skill-shaped violations: a `slot` on a
+		// pi skill surface and a non-package SKILL.md asset.
 		expect(result.errors).toContain(
 			"extensions.surfaces[0].slot must not be provided for pi skill surfaces",
-		);
-		expect(result.errors).toContain(
-			"extensions.surfaces[0].capabilities must be a non-empty array for pi skill surfaces",
 		);
 		expect(result.errors).toContain(
 			"extensions.surfaces[0].assets must include a relative SKILL.md asset for pi skill surfaces",
 		);
 		expect(result.errors).toContain(
-			"extensions.surfaces[1].capabilities must be a non-empty array for pi skill surfaces",
-		);
-		expect(result.errors).toContain(
 			"extensions.surfaces[1].assets must include a relative SKILL.md asset for pi skill surfaces",
 		);
+		// NOT rejected for empty/missing capabilities — permissive maturity is a
+		// generic, surface-agnostic concern, not a pi-skill gate.
+		expect(result.errors).not.toContain(
+			"extensions.surfaces[0].capabilities must be a non-empty array for pi skill surfaces",
+		);
+		expect(result.errors).not.toContain(
+			"extensions.surfaces[1].capabilities must be a non-empty array for pi skill surfaces",
+		);
+	});
+
+	it("accepts a permissive pi skill surface with no declared capabilities", () => {
+		// A skill with only name/description (its capabilities live in the SKILL.md
+		// body at authoring time) is a valid *permissive* surface — the same rule
+		// every other surface follows. It must not be rejected upstream of the
+		// skill contract, which already accepts zero capabilities.
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [
+					{
+						layer: "pi",
+						kind: "skill",
+						id: "refarm-vault-daily",
+						assets: ["skills/refarm-vault-daily/SKILL.md"],
+					},
+				],
+			},
+		});
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+		expect(result.errors).toEqual([]);
 	});
 });
 

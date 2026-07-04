@@ -64,15 +64,15 @@ function validatePiSkillSurface(surface, index, errors) {
 		);
 	}
 
-	if (
-		!Array.isArray(surface.capabilities) ||
-		surface.capabilities.length === 0 ||
-		!surface.capabilities.every(isNonEmptyString)
-	) {
-		errors.push(
-			`extensions.surfaces[${index}].capabilities must be a non-empty array for pi skill surfaces`,
-		);
-	}
+	// Capabilities are OPTIONAL here, on purpose. Permissive-vs-complete maturity
+	// is a generic, surface-agnostic concern (a skill with only name+description is
+	// a valid *permissive* surface — see specs/features/2026-07-03-extension-
+	// maturity-levels.md and skill-contract-v1, which already accept zero
+	// capabilities). The generic surface loop already checks "capabilities, when
+	// provided, must be non-empty strings"; requiring them HERE would re-couple the
+	// permissive rule to the `pi` layer and reject a valid permissive skill upstream
+	// of the contract that accepts it. The SKILL.md asset below stays required —
+	// that is genuinely skill-shaped, not a maturity gate.
 
 	if (!Array.isArray(surface.assets) || surface.assets.length === 0) {
 		errors.push(

@@ -539,19 +539,35 @@ describe("skill-contract-v1", () => {
 			]),
 		});
 
-		expect(validateSkillSurfaceDeclaration({
+		// A bad asset path is still a FORM error, but empty capabilities is NOT —
+		// a surface with zero capabilities is a valid *permissive* declaration.
+		const badAsset = validateSkillSurfaceDeclaration({
 			layer: "pi",
 			kind: "skill",
 			id: "refarm-git-workflow",
 			assets: ["/tmp/SKILL.md"],
 			capabilities: [],
-		})).toMatchObject({
-			ok: false,
-			issues: expect.arrayContaining([
-				expect.objectContaining({ code: "SURFACE_ASSET_PATH_INVALID", path: "$.assets.0" }),
-				expect.objectContaining({ code: "CAPABILITY_LIST_EMPTY", path: "$.capabilities" }),
-			]),
 		});
+		expect(badAsset.ok).toBe(false);
+		expect(badAsset.issues).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ code: "SURFACE_ASSET_PATH_INVALID", path: "$.assets.0" }),
+			]),
+		);
+		expect(badAsset.issues).not.toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ code: "CAPABILITY_LIST_EMPTY" }),
+			]),
+		);
+
+		// A well-formed surface with NO declared capabilities is now accepted:
+		// permissive is the default; requiring capabilities is a policy concern.
+		expect(validateSkillSurfaceDeclaration({
+			layer: "pi",
+			kind: "skill",
+			id: "refarm-git-workflow",
+			assets: ["skills/refarm-git-workflow/SKILL.md"],
+		})).toMatchObject({ ok: true, issues: [] });
 	});
 
 	it("evaluates activation preflight before a package skill surface can dispatch", () => {

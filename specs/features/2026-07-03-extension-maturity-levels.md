@@ -1,11 +1,36 @@
 # Spec: Extension Maturity Levels (permissive authoring → publish-ready)
 
-**Status:** DRAFT — design for review by Arthur Silva
-**Date:** 2026-07-03
+**Status:** DRAFT — Decision #1 landed end-to-end (form is permissive by default);
+Decisions #2–#5 pending. Reviewed by Arthur Silva.
+**Date:** 2026-07-03 (updated 2026-07-04)
 **Related:** `docs/EXTENSIBILITY_MODEL.md` (Authoring Spaces Before Packaging),
 `packages/skill-contract-v1`, `packages/plugin-surface-loader`,
 `packages/plugin-manifest` (ExtensionSurfaceDeclaration),
 [[modelo-pontos-extensao]], [[tracks-t1-t2-t3-convergencia]]
+
+## Update 2026-07-04 — form vs. policy; the evaluator is plural
+
+Decision #1 ("contracts validate shape, not completeness") is now consistent
+end-to-end. The permissive rule was enforced inconsistently across three points —
+`parseSkillMarkdown` accepted zero capabilities, but `validateSkillSurfaceDeclaration`
+(`skill-contract-v1/manifest.ts`) and `validatePiSkillSurface`
+(`plugin-manifest/validate.js`) still **rejected** them, so a permissive skill
+parsed yet could not become a surface. Both are now loosened: capabilities are
+validated for FORM only (valid ids when present; omission/empty is fine).
+
+The sharper framing (Arthur): **validation validates FORM — "is this a well-formed
+skill that can happen?" — and defaults to permissive so things happen.** Whether a
+skill *should* declare capabilities (or meets a quality/integrity bar) is a
+**POLICY** judgement, and policy is a **plural, extensible evaluator layer**, not a
+single auditor. `health`, `quality`, `design-tells`, `text-tells` (and future,
+including plugin-contributed) each evaluate the same artifact and raise
+warnings/findings — some are encouragement ("declare capabilities"), some flag real
+problems. Each finding is a **pending-action resolvable on the tri-interface**
+(CLI + REPL `/slash` + conversational agent), exactly like Decision #3. This
+generalizes Decision #2's `classifyExtensionMaturity` into one instance of a neutral
+`PolicyEvaluator: (artifact) => { findings }` contract (a dedicated future slice —
+do NOT couple it to `health`). Requiring completeness inside a form check both
+blocks the flow and mis-layers the concern.
 
 ---
 

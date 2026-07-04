@@ -44,8 +44,14 @@ test("native skill surface smoke builds a policy-checkable package skill handoff
 	assert.deepEqual(result.issues, []);
 });
 
-test("native skill surface smoke fails closed when capabilities are missing", () => {
-	const missingCapabilities = REFARM_GIT_WORKFLOW_SKILL.replace(
+test("native skill surface smoke flows a permissive skill with no required capabilities", () => {
+	// Permissive is the default: a skill declaring only name/description/body (no
+	// requiredCapabilities) is a valid FORM and flows all the way to a policy
+	// decision. Requiring capabilities is a POLICY concern handled by a separate
+	// evaluator layer (health/quality/design-tells/text-tells) that raises a
+	// warning + a resolvable pending-action — not a contract gate that blocks the
+	// skill from existing. It still never executes runtime or installs the skill.
+	const permissiveSkill = REFARM_GIT_WORKFLOW_SKILL.replace(
 		`requiredCapabilities:
   - refarm.operator-loop
   - refarm.git.write
@@ -53,15 +59,16 @@ test("native skill surface smoke fails closed when capabilities are missing", ()
 		"",
 	);
 
-	const result = buildNativeSkillSurfaceSmoke({ skillMarkdown: missingCapabilities });
+	const result = buildNativeSkillSurfaceSmoke({ skillMarkdown: permissiveSkill });
 
-	assert.equal(result.ok, false);
+	assert.equal(result.ok, true);
+	assert.deepEqual(result.issues, []);
 	assert.equal(result.executesRuntime, false);
 	assert.equal(result.installsSkill, false);
-	assert.equal(result.issueCount > 0, true);
-	assert.equal(
-		result.issues.some((item) => item.code === "SKILL_PLAN_NOT_READY"),
-		true,
-	);
-	assert.match(JSON.stringify(result.issues), /CAPABILITY_LIST_EMPTY/);
+	// The surface builds with zero required capabilities (permissive), and the
+	// pre-runtime host decision is still recorded (approved), not executed.
+	assert.equal(result.pluginManifest.valid, true);
+	assert.deepEqual(result.surface.capabilities, []);
+	assert.equal(result.decision.decision, "approved");
+	assert.equal(result.decision.executed, false);
 });

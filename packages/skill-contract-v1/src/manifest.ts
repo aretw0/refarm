@@ -757,7 +757,17 @@ export function validateSkillSurfaceDeclaration(value: unknown): SkillManifestVa
 	requireExact(value.kind, "skill", "$.kind", issues);
 	validateSurfaceId(value.id, "$.id", issues);
 	validateSurfaceAssets(value.assets, "$.assets", issues);
-	validateCapabilityArray(value.capabilities, "$.capabilities", issues, { requireNonEmpty: true });
+	// Capabilities are validated for FORM only, and only when present: a surface
+	// may declare them (each id must then be valid) or omit them entirely. A
+	// surface with zero — or no — capabilities is a valid *permissive* declaration,
+	// the same rule parseSkillMarkdown already follows. Requiring them here is a
+	// POLICY concern (completeness/maturity) that belongs to a plural evaluator
+	// layer (health/quality/design-tells/text-tells) which raises a warning + a
+	// resolvable pending-action, NOT to this form check that gates whether a skill
+	// can exist at all.
+	if (value.capabilities !== undefined) {
+		validateCapabilityArray(value.capabilities, "$.capabilities", issues);
+	}
 	return { ok: issues.length === 0, issues };
 }
 
