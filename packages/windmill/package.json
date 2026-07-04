@@ -31,6 +31,7 @@
 	"dependencies": {
 		"@noble/ed25519": "catalog:",
 		"@refarm.dev/config": "workspace:*",
+		"@refarm.dev/storage-node-view": "workspace:*",
 		"http-node": "^1.2.0",
 		"isomorphic-git": "catalog:"
 	},

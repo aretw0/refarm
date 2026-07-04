@@ -1665,6 +1665,9 @@ importers:
       '@refarm.dev/config':
         specifier: workspace:*
         version: link:../config
+      '@refarm.dev/storage-node-view':
+        specifier: workspace:*
+        version: link:../storage-node-view
       http-node:
         specifier: ^1.2.0
         version: 1.2.0

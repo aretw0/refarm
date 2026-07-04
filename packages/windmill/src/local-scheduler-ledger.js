@@ -1,16 +1,18 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { openScopedLedger, scopedLedgerPath } from "@refarm.dev/storage-node-view";
 
 export const LOCAL_SCHEDULER_LEDGER_SCHEMA =
 	"refarm.local-scheduler-ledger.v1";
 export const DEFAULT_LOCAL_SCHEDULER_LEDGER_PATH =
 	".refarm/scheduler/ledger.json";
 
-// The ledger lives under .refarm/ (operator-local runtime state). Match the
-// silo's restrictive modes for that tree (packages/silo/src/index.js): the
-// ledger is not secret, but keeping .refarm/ owner-only is the house rule.
-const LEDGER_DIRECTORY_MODE = 0o700;
-const LEDGER_FILE_MODE = 0o600;
+// The ledger is a durable node-ledger opened via the host bootstrap
+// (openScopedLedger): each fired-schedule key is a node, so hasFired/recordFired
+// are getNode/storeNode over the shared fs StorageProvider — the same atomic
+// temp+rename write and owner-only .refarm/ modes, now inherited instead of
+// hand-rolled. `read()` reassembles the aggregate {entries} view from the nodes.
+const LEDGER_NAME = "scheduler";
+const LEDGER_SCOPE = "workspace";
+const FIRED_NODE_TYPE = "refarm:scheduler-fired";
 
 function assertNonEmptyString(value, name) {
 	if (typeof value !== "string" || value.trim().length === 0) {
@@ -19,104 +21,103 @@ function assertNonEmptyString(value, name) {
 	return value;
 }
 
-function resolveLedgerPath(options = {}) {
+/** Map a `{ cwd, filePath? }` options object to openScopedLedger options. */
+function ledgerOptions(options = {}) {
 	const cwd = options.cwd ?? process.cwd();
 	assertNonEmptyString(cwd, "cwd");
-	const filePath = options.filePath ?? DEFAULT_LOCAL_SCHEDULER_LEDGER_PATH;
-	assertNonEmptyString(filePath, "filePath");
-	return isAbsolute(filePath) ? filePath : resolve(cwd, filePath);
+	// An explicit absolute filePath opts out of scope resolution (the fs provider
+	// returns an absolute path as-is); otherwise the workspace scope resolves it
+	// under `<cwd>/.refarm/scheduler/ledger.json`.
+	if (options.filePath !== undefined) {
+		assertNonEmptyString(options.filePath, "filePath");
+		return { workspaceRoot: cwd, storeFile: options.filePath };
+	}
+	return { workspaceRoot: cwd };
 }
 
-function emptyLedger() {
-	return {
-		schema: LOCAL_SCHEDULER_LEDGER_SCHEMA,
-		schemaVersion: 1,
-		updatedAt: null,
-		entries: {},
-	};
-}
-
-function assertLedgerShape(value, filePath) {
-	if (!value || typeof value !== "object" || Array.isArray(value)) {
-		throw new Error(`Invalid local scheduler ledger at ${filePath}: expected object`);
-	}
-	if (value.schema && value.schema !== LOCAL_SCHEDULER_LEDGER_SCHEMA) {
-		throw new Error(
-			`Invalid local scheduler ledger at ${filePath}: unsupported schema ${value.schema}`,
-		);
-	}
-	if (!value.entries || typeof value.entries !== "object" || Array.isArray(value.entries)) {
-		throw new Error(
-			`Invalid local scheduler ledger at ${filePath}: expected entries object`,
-		);
-	}
-	return {
-		...value,
-		schema: LOCAL_SCHEDULER_LEDGER_SCHEMA,
-		schemaVersion: 1,
-		entries: { ...value.entries },
-	};
-}
-
-async function readLedgerFile(filePath) {
+/** Wrap the node store so a malformed backing file rejects with the domain
+ * message the callers expect — rejecting is the whole point (never silently
+ * re-fire the world), so a corrupt file must throw, not read as empty. */
+async function guardMalformed(filePath, read) {
 	try {
-		const content = await readFile(filePath, "utf8");
-		return assertLedgerShape(JSON.parse(content), filePath);
+		return await read();
 	} catch (error) {
-		if (error && error.code === "ENOENT") return emptyLedger();
 		if (error instanceof SyntaxError) {
-			throw new Error(`Invalid local scheduler ledger at ${filePath}: ${error.message}`);
+			throw new Error(
+				`Invalid local scheduler ledger at ${filePath}: ${error.message}`,
+			);
 		}
 		throw error;
 	}
 }
 
-async function writeLedgerFile(filePath, ledger) {
-	// Atomic replace: write a sibling temp file, then rename over the target so a
-	// crash mid-write can never leave a half-written (and thus "re-fire the
-	// world") ledger. NOTE: recordFired is read-modify-write on the whole file,
-	// so concurrent writers race last-write-wins on the file. That is acceptable
-	// for the single local daemon that ticks jobs sequentially; a multi-writer
-	// setup would need file locking.
-	await mkdir(dirname(filePath), { recursive: true, mode: LEDGER_DIRECTORY_MODE });
-	const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-	await writeFile(`${tempPath}`, `${JSON.stringify(ledger, null, "\t")}\n`, {
-		encoding: "utf8",
-		mode: LEDGER_FILE_MODE,
-	});
-	await rename(tempPath, filePath);
+/** Project a fired-key node back into the receipt shape callers stored. Strip
+ * the whole node envelope (@id/@type/@context + the record⇄node timestamps the
+ * bridge adds) so an entry carries only `recordedAt` + the caller's receipt —
+ * the same shape the pre-migration ledger exposed. */
+function nodeToEntry(node) {
+	const {
+		"@id": _id,
+		"@type": _type,
+		"@context": _context,
+		"refarm:createdAt": _createdAt,
+		"refarm:updatedAt": _updatedAt,
+		...entry
+	} = node;
+	return entry;
 }
 
 export function resolveLocalSchedulerLedgerPath(options = {}) {
-	return resolveLedgerPath(options);
+	return scopedLedgerPath(LEDGER_NAME, LEDGER_SCOPE, ledgerOptions(options));
 }
 
 export async function readLocalSchedulerLedger(options = {}) {
-	return readLedgerFile(resolveLedgerPath(options));
+	return createLocalSchedulerLedger(options).read();
 }
 
 export function createLocalSchedulerLedger(options = {}) {
-	const filePath = resolveLedgerPath(options);
+	const opts = ledgerOptions(options);
+	const filePath = scopedLedgerPath(LEDGER_NAME, LEDGER_SCOPE, opts);
+	const store = openScopedLedger(LEDGER_NAME, LEDGER_SCOPE, opts);
 	return {
 		filePath,
 		async hasFired(key) {
 			assertNonEmptyString(key, "key");
-			const ledger = await readLedgerFile(filePath);
-			return Object.hasOwn(ledger.entries, key);
+			const node = await guardMalformed(filePath, () => store.getNode(key));
+			return node !== null;
 		},
 		async recordFired(key, receipt) {
 			assertNonEmptyString(key, "key");
 			const now = new Date().toISOString();
-			const ledger = await readLedgerFile(filePath);
-			ledger.entries[key] = {
+			await store.storeNode({
+				"@id": key,
+				"@type": FIRED_NODE_TYPE,
 				recordedAt: now,
 				...receipt,
-			};
-			ledger.updatedAt = now;
-			await writeLedgerFile(filePath, ledger);
+			});
 		},
 		async read() {
-			return readLedgerFile(filePath);
+			const nodes = await guardMalformed(filePath, () =>
+				store.queryNodes(FIRED_NODE_TYPE),
+			);
+			const entries = {};
+			let updatedAt = null;
+			for (const node of nodes) {
+				const entry = nodeToEntry(node);
+				entries[node["@id"]] = entry;
+				if (
+					entry.recordedAt &&
+					(updatedAt === null || entry.recordedAt > updatedAt)
+				) {
+					updatedAt = entry.recordedAt;
+				}
+			}
+			return {
+				schema: LOCAL_SCHEDULER_LEDGER_SCHEMA,
+				schemaVersion: 1,
+				updatedAt,
+				entries,
+			};
 		},
 	};
 }

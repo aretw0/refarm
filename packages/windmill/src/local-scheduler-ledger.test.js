@@ -80,7 +80,10 @@ describe("local scheduler ledger", () => {
 
 		const nextLedger = createLocalSchedulerLedger({ cwd });
 		await expect(nextLedger.hasFired("job:1")).resolves.toBe(true);
-		await expect(readLocalSchedulerLedger({ cwd })).resolves.toMatchObject({
+
+		const snapshot = await readLocalSchedulerLedger({ cwd });
+		expect(snapshot).toMatchObject({
+			schema: "refarm.local-scheduler-ledger.v1",
 			schemaVersion: 1,
 			entries: {
 				"job:1": {
@@ -89,6 +92,14 @@ describe("local scheduler ledger", () => {
 				},
 			},
 		});
+		// The entry carries only recordedAt + the caller's receipt — the node
+		// envelope (@id/@type/@context, refarm:createdAt/updatedAt) must not leak.
+		const entry = snapshot.entries["job:1"];
+		expect(Object.keys(entry).sort()).toEqual([
+			"effortId",
+			"firedAt",
+			"recordedAt",
+		]);
 	});
 
 	it.skipIf(platform() === "win32")(
@@ -121,12 +132,12 @@ describe("local scheduler ledger", () => {
 
 	it("rejects malformed ledger files instead of silently re-firing", async () => {
 		const cwd = await createTempDir();
+		// Seed a valid ledger (creates the .refarm/scheduler dir), then corrupt the
+		// backing store file so a re-read must throw rather than read as empty.
+		const seed = createLocalSchedulerLedger({ cwd });
+		await seed.recordFired("bootstrap", { effortId: "bootstrap" });
 		const filePath = resolveLocalSchedulerLedgerPath({ cwd });
-		await writeFile(filePath, "{\"entries\":", "utf8").catch(async () => {
-			const ledger = createLocalSchedulerLedger({ cwd });
-			await ledger.recordFired("bootstrap", { effortId: "bootstrap" });
-			await writeFile(filePath, "{\"entries\":", "utf8");
-		});
+		await writeFile(filePath, "{\"records\":", "utf8");
 
 		const ledger = createLocalSchedulerLedger({ cwd });
 		await expect(ledger.hasFired("job:1")).rejects.toThrow(

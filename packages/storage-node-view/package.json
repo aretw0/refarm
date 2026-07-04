@@ -1,9 +1,17 @@
 {
 	"name": "@refarm.dev/storage-node-view",
 	"version": "0.1.0",
-	"private": true,
-	"description": "Pure record⇄node adapter — lets any StorageProvider serve as a node graph. A ledger record IS a serialized node.",
+	"description": "Record⇄node adapter — lets any StorageProvider serve as a node graph. A ledger record IS a serialized node. Ships openScopedLedger, the host bootstrap for durable node-ledgers.",
 	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/storage-node-view"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev.br",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
@@ -12,6 +20,13 @@
 			"types": "./dist/index.d.ts"
 		}
 	},
+	"keywords": [
+		"storage",
+		"node",
+		"ledger",
+		"json-ld",
+		"local-first"
+	],
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
 		"dev": "tsc --project tsconfig.build.json --watch",
