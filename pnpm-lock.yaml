@@ -339,6 +339,9 @@ importers:
       '@refarm.dev/prompt-contract-v1':
         specifier: workspace:*
         version: link:../../packages/prompt-contract-v1
+      '@refarm.dev/quality-checker-ref':
+        specifier: workspace:*
+        version: link:../../packages/quality-checker-ref
       '@refarm.dev/registry':
         specifier: workspace:*
         version: link:../../packages/registry

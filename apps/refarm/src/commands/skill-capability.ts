@@ -8,12 +8,52 @@ import {
 } from "@refarm.dev/cli/json-output";
 import {
 	type DiscoveredSkill,
+	loadCheckersFromPluginsDir,
 	loadSkillsFromPluginsDir,
 } from "@refarm.dev/plugin-surface-loader/node";
+import {
+	createReferenceChecker,
+	loadCheckerComponent,
+	type CheckerFinding,
+	type ReferenceChecker,
+} from "@refarm.dev/quality-checker-ref";
 import chalk from "chalk";
 
 import { pluginsBaseDir } from "../utils/refarm-home.js";
 import type { CapabilitySurfaceHooks } from "./capability-commander.js";
+import {
+	buildDiagnosticNextActionPayload,
+	diagnosticNextActions,
+	diagnosticNextCommands,
+	type DiagnosticRecommendation,
+} from "./diagnostic-recommendations.js";
+
+/**
+ * A tiny built-in profile of "skill tells" — writing patterns worth flagging in a
+ * skill's instructions. Matcher-is-data (the reference checker interprets
+ * `contains`). This is a starter catalog; a plugin-contributed checker + profile
+ * can replace or extend it (that is the whole point of the sovereign boundary).
+ */
+const SKILL_TELLS_PROFILE = {
+	name: "skill-tells",
+	rules: [
+		{
+			id: "ai-self-reference",
+			severity: "warn",
+			description:
+				"Instructions mention being an AI/language model — a chatbot tell, not operator-directed prose.",
+			category: "ai-tell",
+			check: JSON.stringify({ type: "contains", value: "language model" }),
+		},
+		{
+			id: "todo-placeholder",
+			severity: "warn",
+			description: "Instructions still contain a TODO placeholder.",
+			category: "completeness",
+			check: JSON.stringify({ type: "contains", value: "TODO" }),
+		},
+	],
+};
 
 /**
  * The `skill` command as a multi-surface CapabilityGroup — the DESTINATION that
@@ -29,11 +69,51 @@ import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 export interface SkillCommandDeps {
 	/** Discover installed skills. Defaults to scanning the refarm plugins dir. */
 	discover: () => { skills: DiscoveredSkill[]; rejected: { pluginId: string | null; pluginDir: string; issues: string[] }[] };
+	/**
+	 * Load the quality checkers to run: the bundled reference checker plus any a
+	 * plugin contributes via a {kind:"quality-checker"} surface. Each is loaded
+	 * under the deny-all sandbox by the host loader — a checker sees only the
+	 * subject, never fs/network. Injected so `check` run() stays testable.
+	 */
+	loadCheckers: () => Promise<ReferenceChecker[]>;
 }
 
 export function defaultSkillDeps(): SkillCommandDeps {
 	return {
 		discover: () => loadSkillsFromPluginsDir(pluginsBaseDir()),
+		loadCheckers: async () => {
+			// Always include the bundled reference checker; add every
+			// plugin-contributed one, each sandboxed by the same host loader.
+			const checkers: ReferenceChecker[] = [await createReferenceChecker()];
+			const { checkers: discovered } = loadCheckersFromPluginsDir(
+				pluginsBaseDir(),
+			);
+			for (const c of discovered) {
+				try {
+					checkers.push(
+						await loadCheckerComponent({ pkgDir: c.pkgDir, entry: c.entry }),
+					);
+				} catch {
+					// A broken checker component must not block the others.
+				}
+			}
+			return checkers;
+		},
+	};
+}
+
+/** Map a checker finding to a resolvable pending-action recommendation. */
+function findingToRecommendation(
+	skillId: string,
+	finding: CheckerFinding,
+): DiagnosticRecommendation {
+	return {
+		diagnostic: finding.ruleId,
+		summary: finding.message,
+		severity: finding.severity === "info" ? "info" : "warning",
+		action: `Revise the skill's instructions to resolve "${finding.ruleId}".`,
+		command: `skill show ${skillId}`,
+		target: skillId,
 	};
 }
 
@@ -98,10 +178,58 @@ export function createSkillCapabilityGroup(
 		},
 	};
 
+	const check: CapabilityDescriptor = {
+		name: "check",
+		summary: "Run quality checkers over a skill's instructions",
+		args: [{ name: "id", required: true }],
+		async run(input) {
+			const id = input.args.id as string;
+			const { skills } = deps.discover();
+			const skill = skills.find((s) => s.id === id || s.name === id);
+			if (!skill) {
+				return buildJsonErrorEnvelope({
+					command: "skill",
+					operation: "check",
+					error: "skill-not-found",
+					message: `No installed skill matches "${id}".`,
+					nextAction:
+						"Run `skill list` to see the skills installed plugins declare.",
+				});
+			}
+
+			// Every checker inspects the SAME subject (the skill's instructions);
+			// findings aggregate across the bundled + plugin-contributed checkers.
+			const checkers = await deps.loadCheckers();
+			const subject = { tag: "text" as const, val: skill.instructions };
+			const findings: CheckerFinding[] = [];
+			for (const checker of checkers) {
+				findings.push(...checker.check(subject, SKILL_TELLS_PROFILE));
+			}
+
+			const recommendations = findings.map((f) =>
+				findingToRecommendation(skill.id, f),
+			);
+			// Findings are POLICY, not a gate: check reports them as resolvable
+			// pending-actions on the tri-interface (CLI/REPL/agent) and stays ok —
+			// a permissive skill with tells still exists; the operator is nudged.
+			return buildDiagnosticNextActionPayload({
+				ok: true,
+				command: "skill",
+				operation: "check",
+				skill: projectSkill(skill),
+				findingCount: findings.length,
+				checkersRun: checkers.length,
+				recommendations,
+				nextActions: diagnosticNextActions(recommendations),
+				nextCommands: diagnosticNextCommands(recommendations),
+			});
+		},
+	};
+
 	return {
 		name: "skill",
 		summary: "Inspect skills declared by installed plugins",
-		actions: { list, show },
+		actions: { list, show, check },
 		// Bare `skill` / `/skill` lists what's available (read-only default).
 		defaultAction: "list",
 		transports: {
@@ -180,6 +308,35 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 					if (envelope.ok === false) return renderError(envelope);
 					const { skill } = envelope as unknown as { skill: SkillProjection };
 					return formatSkillLine(skill);
+				},
+			};
+		case "check":
+			return {
+				renderText: (envelope) => {
+					if (envelope.ok === false) return renderError(envelope);
+					const e = envelope as unknown as {
+						skill: SkillProjection;
+						findingCount: number;
+						checkersRun: number;
+						recommendations: DiagnosticRecommendation[];
+						nextActions: string[];
+					};
+					const header = `Quality check: ${chalk.bold(e.skill.name)}  ${chalk.dim(
+						`(${e.checkersRun} checker${e.checkersRun === 1 ? "" : "s"})`,
+					)}`;
+					if (e.findingCount === 0) {
+						return `${header}\n  ${chalk.green("✓ no findings")}`;
+					}
+					const lines = [
+						header,
+						...e.recommendations.map(
+							(r) =>
+								`  ${chalk.yellow("⚠")} ${chalk.dim(r.diagnostic)}  ${r.summary}`,
+						),
+						chalk.dim(`\n  ${e.nextActions.length} pending action(s):`),
+						...e.nextActions.map((a) => `    → ${a}`),
+					];
+					return lines.join("\n");
 				},
 			};
 		default:

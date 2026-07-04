@@ -26,19 +26,24 @@ function skill(overrides: Partial<DiscoveredSkill> = {}): DiscoveredSkill {
 }
 
 type Rejected = ReturnType<SkillCommandDeps["discover"]>["rejected"];
+type Checker = Awaited<ReturnType<SkillCommandDeps["loadCheckers"]>>[number];
 
 function deps(
 	skills: DiscoveredSkill[] = [],
 	rejected: Rejected = [],
+	checkers: Checker[] = [],
 ): SkillCommandDeps {
-	return { discover: () => ({ skills, rejected }) };
+	return {
+		discover: () => ({ skills, rejected }),
+		loadCheckers: async () => checkers,
+	};
 }
 
 describe("skill CapabilityGroup", () => {
-	it("is a group with list + show and a read-only list default", () => {
+	it("is a group with list + show + check and a read-only list default", () => {
 		const group = createSkillCapabilityGroup(deps());
 		expect(isCapabilityGroup(group)).toBe(true);
-		expect(Object.keys(group.actions).sort()).toEqual(["list", "show"]);
+		expect(Object.keys(group.actions).sort()).toEqual(["check", "list", "show"]);
 		expect(group.defaultAction).toBe("list");
 	});
 
@@ -86,6 +91,58 @@ describe("skill CapabilityGroup", () => {
 		expect((err as { error?: string }).error).toBe("skill-not-found");
 	});
 
+	it("`check <id>` runs checkers over the skill text → findings as pending-actions", async () => {
+		// A fake checker standing in for the sandboxed WASM one: it fires on the
+		// skill's instructions and returns a finding.
+		const fakeChecker: Checker = {
+			check: () => [
+				{
+					severity: "warn",
+					ruleId: "ai-self-reference",
+					message: "AI tell in instructions",
+				},
+			],
+		};
+		const group = createSkillCapabilityGroup(
+			deps(
+				[skill({ instructions: "As an AI language model, I help." })],
+				[],
+				[fakeChecker],
+			),
+		);
+		const resolved = resolveGroupAction(group, ["check", "greet-operator"]);
+		const envelope = (await resolved!.action.run(resolved!.input)) as unknown as {
+			ok: boolean;
+			findingCount: number;
+			checkersRun: number;
+			recommendations: { diagnostic: string }[];
+			nextActions: string[];
+		};
+		// Findings are POLICY: ok stays true (a skill with tells still exists), but
+		// a pending-action is surfaced on the tri-interface.
+		expect(envelope.ok).toBe(true);
+		expect(envelope.checkersRun).toBe(1);
+		expect(envelope.findingCount).toBe(1);
+		expect(envelope.recommendations[0]!.diagnostic).toBe("ai-self-reference");
+		expect(envelope.nextActions.length).toBeGreaterThan(0);
+	});
+
+	it("`check` with no findings reports ok and zero pending-actions", async () => {
+		const cleanChecker: Checker = { check: () => [] };
+		const group = createSkillCapabilityGroup(
+			deps([skill()], [], [cleanChecker]),
+		);
+		const resolved = resolveGroupAction(group, ["check", "greet-operator"]);
+		const envelope = (await resolved!.action.run(resolved!.input)) as unknown as {
+			ok: boolean;
+			findingCount: number;
+			nextActions: string[];
+		};
+		expect(envelope.ok).toBe(true);
+		expect(envelope.findingCount).toBe(0);
+		expect(envelope.nextActions).toEqual([]);
+	});
+
 	it("hooks render the empty-state hint and a not-found error", () => {
 		const emptyList = skillCapabilityHooks("list").renderText!(
 			{ count: 0, skills: [], rejected: [] } as never,
@@ -97,5 +154,30 @@ describe("skill CapabilityGroup", () => {
 			message: 'No installed skill matches "nope".',
 		} as never);
 		expect(notFound).toContain("nope");
+	});
+
+	it("hooks render check findings + a no-findings pass", () => {
+		const withFindings = skillCapabilityHooks("check").renderText!({
+			ok: true,
+			skill: { name: "greet-operator" },
+			findingCount: 1,
+			checkersRun: 2,
+			recommendations: [
+				{ diagnostic: "ai-self-reference", summary: "AI tell" },
+			],
+			nextActions: ["Revise the skill's instructions."],
+		} as never);
+		expect(withFindings).toContain("ai-self-reference");
+		expect(withFindings).toContain("pending action");
+
+		const clean = skillCapabilityHooks("check").renderText!({
+			ok: true,
+			skill: { name: "greet-operator" },
+			findingCount: 0,
+			checkersRun: 1,
+			recommendations: [],
+			nextActions: [],
+		} as never);
+		expect(clean).toContain("no findings");
 	});
 });
