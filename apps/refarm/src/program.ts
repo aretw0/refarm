@@ -3,7 +3,7 @@ import { actionsCommand } from "./commands/actions.js";
 import { agentCommand } from "./commands/agent.js";
 import { askCommand } from "./commands/ask.js";
 import { capabilitiesCommand } from "./commands/capabilities.js";
-import { toCommanderGroup } from "./commands/capability-commander.js";
+import { capabilityCliCommands } from "./commands/capability-registry.js";
 import { chatCommand } from "./commands/chat.js";
 import { checkCommand } from "./commands/check.js";
 import { configCommand } from "./commands/config.js";
@@ -14,10 +14,6 @@ import { extensionCommand } from "./commands/extension.js";
 import { guideCommand } from "./commands/guide.js";
 import { headlessCommand } from "./commands/headless.js";
 import { healthCommand } from "./commands/health.js";
-import {
-	createModelCapabilityGroup,
-	modelCapabilityHooks,
-} from "./commands/model-capability.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
 import { pluginCommand } from "./commands/plugin.js";
@@ -33,10 +29,6 @@ import {
 import { runtimeCommand } from "./commands/runtime.js";
 import { runSessionLaunchFlow, sessionCommand } from "./commands/session.js";
 import { sessionsCommand } from "./commands/sessions.js";
-import {
-	createSkillCapabilityGroup,
-	skillCapabilityHooks,
-} from "./commands/skill-capability.js";
 import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,
@@ -225,12 +217,13 @@ program.addCommand(configCommand);
 program.addCommand(configureCommand);
 program.addCommand(healthCommand);
 program.addCommand(releaseCommand);
-program.addCommand(
-	toCommanderGroup(createModelCapabilityGroup(), modelCapabilityHooks),
-);
-program.addCommand(
-	toCommanderGroup(createSkillCapabilityGroup(), skillCapabilityHooks),
-);
+// Capability verbs (model, skill, …) are derived from the ONE capability
+// registry — the same registry the REPL slashes derive from — so a verb declared
+// (and, later, plugin-contributed) once lights up on the CLI and the REPL without
+// a second hand-mount here.
+for (const command of capabilityCliCommands()) {
+	program.addCommand(command);
+}
 program.addCommand(webCommand);
 program.addCommand(workspaceCommand);
 program.addCommand(tuiCommand);

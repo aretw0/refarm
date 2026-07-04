@@ -1,10 +1,17 @@
 import {
 	CapabilityRegistry,
+	isCapabilityGroup,
 	type CapabilityDescriptor,
 	type CapabilityGroup,
 } from "@refarm.dev/cli/capabilities";
 import { RESERVED_SLASH_NAMES } from "@refarm.dev/cli/chat-repl";
-import type { CapabilitySurfaceHooks } from "./capability-commander.js";
+import type { Command } from "commander";
+
+import {
+	toCommanderCommand,
+	toCommanderGroup,
+	type CapabilitySurfaceHooks,
+} from "./capability-commander.js";
 import {
 	extensionReviewCapability,
 	extensionReviewHooks,
@@ -82,4 +89,34 @@ export function capabilitySlashNames(): ReadonlySet<string> {
 			),
 		]),
 	);
+}
+
+/** Project ONE registered capability entry into a commander Command, wiring the
+ * same surface hooks the REPL uses. A group binds each sub-action's hooks by the
+ * composite `"<group> <sub>"` key; a flat descriptor binds by its own name. */
+function toCliCommand(
+	entry: CapabilityDescriptor | CapabilityGroup,
+): Command {
+	if (isCapabilityGroup(entry)) {
+		return toCommanderGroup(entry, (subVerb) =>
+			capabilityHooksFor(`${entry.name} ${subVerb}`),
+		);
+	}
+	return toCommanderCommand(entry, capabilityHooksFor(entry.name));
+}
+
+/**
+ * The TOP-LEVEL CLI commands derived from the capability registry — the CLI's
+ * half of the declare-once projection (the REPL already derives its slashes from
+ * the same registry). `program.ts` mounts these instead of hand-calling each
+ * capability factory a second time, so registering a verb ONCE lights it up on
+ * both the CLI and the REPL. Entries that declare `transports.cli.group` are
+ * skipped here — they mount UNDER a parent group and are placed by that group's
+ * wiring (until the projector honors `cli.group` directly).
+ */
+export function capabilityCliCommands(): Command[] {
+	return capabilityRegistry
+		.list()
+		.filter((entry) => entry.transports?.cli?.group === undefined)
+		.map(toCliCommand);
 }
