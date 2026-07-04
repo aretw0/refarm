@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	buildCompositionListEnvelope,
 	buildCompositionMutationEnvelope,
+	buildCompositionSuppressEnvelope,
 } from "./config.js";
 
 /** Seed `<base>/.refarm/config.json`. */
@@ -243,5 +244,121 @@ describe("config plugins add / remove (RMW)", () => {
 				env: {},
 			}) as { error?: string }).error,
 		).toBe("unknown-scope");
+	});
+});
+
+describe("config plugins suppress / unsuppress (the !-grammar)", () => {
+	let home: string;
+	let cwd: string;
+	function deps() {
+		return { cwd: () => cwd, home: () => home };
+	}
+	function homePlugins(): unknown[] {
+		return JSON.parse(
+			readFileSync(join(home, ".refarm", "config.json"), "utf-8"),
+		).plugins;
+	}
+	beforeEach(() => {
+		home = mkdtempSync(join(tmpdir(), "cps-home-"));
+		cwd = mkdtempSync(join(tmpdir(), "cps-cwd-"));
+	});
+	afterEach(() => {
+		for (const d of [home, cwd]) rmSync(d, { recursive: true, force: true });
+	});
+
+	it("suppress promotes a bare entry to object form and writes a !pattern", () => {
+		seed(home, { plugins: ["npm:@acme/x"] });
+		const env = buildCompositionSuppressEnvelope(
+			deps(),
+			"suppress",
+			"npm:@acme/x",
+			"skills",
+			"skills/legacy",
+			{ scope: "user", env: {} },
+		) as { ok: boolean; changed: boolean; entry: unknown };
+		expect(env).toMatchObject({ ok: true, changed: true });
+		expect(env.entry).toEqual({ source: "npm:@acme/x", skills: ["!skills/legacy"] });
+		expect(homePlugins()).toEqual([
+			{ source: "npm:@acme/x", skills: ["!skills/legacy"] },
+		]);
+	});
+
+	it("suppress is Set-union (a repeated pattern is a no-op)", () => {
+		seed(home, { plugins: [{ source: "x", skills: ["!skills/a"] }] });
+		const env = buildCompositionSuppressEnvelope(
+			deps(),
+			"suppress",
+			"x",
+			"skills",
+			"skills/a",
+			{ env: {} },
+		) as { changed: boolean };
+		expect(env.changed).toBe(false);
+		expect(homePlugins()).toEqual([{ source: "x", skills: ["!skills/a"] }]);
+	});
+
+	it("unsuppress drops the key when the surface empties (restores all-active)", () => {
+		seed(home, { plugins: [{ source: "x", skills: ["!skills/a"] }] });
+		const env = buildCompositionSuppressEnvelope(
+			deps(),
+			"unsuppress",
+			"x",
+			"skills",
+			"skills/a",
+			{ env: {} },
+		) as { changed: boolean; entry: unknown };
+		expect(env.changed).toBe(true);
+		// The surface key is gone AND the entry collapsed back to a bare string.
+		expect(env.entry).toBe("x");
+		expect(homePlugins()).toEqual(["x"]);
+	});
+
+	it("unsuppress keeps other patterns and stays an object", () => {
+		seed(home, { plugins: [{ source: "x", skills: ["!skills/a", "!skills/b"] }] });
+		buildCompositionSuppressEnvelope(deps(), "unsuppress", "x", "skills", "skills/a", {
+			env: {},
+		});
+		expect(homePlugins()).toEqual([{ source: "x", skills: ["!skills/b"] }]);
+	});
+
+	it("rejects a mode-flip (bare include + new !exclude) unless allowed", () => {
+		// An allowlist entry (bare include, no !) — adding an exclude flips meaning.
+		seed(home, { plugins: [{ source: "x", skills: ["skills/keep"] }] });
+		const denied = buildCompositionSuppressEnvelope(
+			deps(),
+			"suppress",
+			"x",
+			"skills",
+			"skills/other",
+			{ env: {} },
+		) as { ok: boolean; error?: string };
+		expect(denied).toMatchObject({ ok: false, error: "mode-flip" });
+
+		const allowed = buildCompositionSuppressEnvelope(
+			deps(),
+			"suppress",
+			"x",
+			"skills",
+			"skills/other",
+			{ allowModeFlip: true, env: {} },
+		) as { ok: boolean; changed: boolean };
+		expect(allowed).toMatchObject({ ok: true, changed: true });
+		expect(homePlugins()).toEqual([
+			{ source: "x", skills: ["skills/keep", "!skills/other"] },
+		]);
+	});
+
+	it("rejects an unknown surface and an undeclared source", () => {
+		seed(home, { plugins: ["x"] });
+		expect(
+			(buildCompositionSuppressEnvelope(deps(), "suppress", "x", "bogus", "y", {
+				env: {},
+			}) as { error?: string }).error,
+		).toBe("unknown-surface");
+		expect(
+			(buildCompositionSuppressEnvelope(deps(), "suppress", "ghost", "skills", "y", {
+				env: {},
+			}) as { error?: string }).error,
+		).toBe("source-not-declared");
 	});
 });

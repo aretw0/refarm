@@ -19,6 +19,7 @@ import {
 import {
 	getSource,
 	type PackageSource,
+	type PackageSourceObject,
 	type SurfaceKey,
 } from "../utils/composition.js";
 import {
@@ -924,6 +925,202 @@ function printCompositionMutation(
 	}
 }
 
+function isSurfaceKey(value: string): value is SurfaceKey {
+	return (SURFACE_KEYS as readonly string[]).includes(value);
+}
+
+/** Split a surface pattern array into its bare includes and `!`-prefixed excludes. */
+function partitionPatterns(patterns: string[]): {
+	includes: string[];
+	excludes: string[];
+} {
+	const includes: string[] = [];
+	const excludes: string[] = [];
+	for (const p of patterns) {
+		if (p.startsWith("!")) excludes.push(p.slice(1));
+		else includes.push(p);
+	}
+	return { includes, excludes };
+}
+
+/**
+ * Add or remove a `!pattern` suppression on ONE surface of ONE entry — the only
+ * authoring path for the `!`-grammar, so `!` never leaks into the scalar
+ * commands. `suppress` promotes a bare-string entry to object form on first use
+ * and Set-union-adds `!<pattern>`; `unsuppress` removes it and DROPS the surface
+ * key when it empties (restoring absent = all-active) and collapses an entry back
+ * to a bare string when it has no surfaces left. Mixing a bare include with a
+ * `!`exclude in one surface flips it to an allowlist — rejected unless
+ * `allowModeFlip`, since that silently changes the meaning of the other patterns.
+ */
+export function buildCompositionSuppressEnvelope(
+	deps: ConfigDeps,
+	op: "suppress" | "unsuppress",
+	source: string,
+	surface: string,
+	pattern: string,
+	opts: {
+		scope?: string;
+		allowModeFlip?: boolean;
+		env?: Record<string, string | undefined>;
+	} = {},
+) {
+	const fail = (error: string, message: string, nextAction: string) =>
+		buildJsonErrorEnvelope({
+			command: "config",
+			operation: `plugins.${op}`,
+			error,
+			message,
+			nextAction,
+			nextCommand: CONFIG_PLUGINS_LIST_JSON_COMMAND,
+		});
+
+	const scope = parseCompositionScope(opts.scope);
+	if (opts.scope !== undefined && !scope) {
+		return fail(
+			"unknown-scope",
+			`Unknown scope "${opts.scope}". Use org | workspace | user.`,
+			"Re-run with --scope org, workspace, or user.",
+		);
+	}
+	if (!isSurfaceKey(surface)) {
+		return fail(
+			"unknown-surface",
+			`Unknown surface "${surface}". Use ${SURFACE_KEYS.join(" | ")}.`,
+			`Pass one of: ${SURFACE_KEYS.join(", ")}.`,
+		);
+	}
+	const cleanPattern = pattern.trim().replace(/^!/, "");
+	if (!source.trim() || !cleanPattern) {
+		return fail(
+			"empty-argument",
+			"suppress needs a non-empty source and pattern.",
+			"e.g. `config plugins suppress npm:@acme/x skills skills/legacy`.",
+		);
+	}
+
+	const filePath = compositionScopePath(scope ?? "user", {
+		cwd: deps.cwd(),
+		home: deps.home(),
+		...(opts.env ? { env: opts.env } : {}),
+	});
+	if (!filePath) {
+		return fail(
+			"org-scope-unavailable",
+			"The org scope is not active. Set REFARM_ORG_HOME to a shared org base to write there.",
+			"Set REFARM_ORG_HOME to a shared org base, or omit --scope org.",
+		);
+	}
+
+	const config = readConfig(filePath);
+	const plugins = [...(config.plugins ?? [])];
+	const index = plugins.findIndex((e) => getSource(e) === source.trim());
+	if (index === -1) {
+		return fail(
+			"source-not-declared",
+			`"${source.trim()}" is not declared in [${scope ?? "user"}]. Add it first.`,
+			`Run \`config plugins add ${source.trim()}\` first.`,
+		);
+	}
+
+	const current = plugins[index]!;
+	const obj: PackageSourceObject =
+		typeof current === "string" ? { source: current } : { ...current };
+	const surfacePatterns = [...(obj[surface] ?? [])];
+	const denyToken = `!${cleanPattern}`;
+	let changed = false;
+
+	if (op === "suppress") {
+		const { includes } = partitionPatterns(surfacePatterns);
+		// Adding a `!exclude` to a surface that already has bare includes flips its
+		// meaning (an allowlist ignores excludes for non-listed ids). Guard it.
+		if (includes.length > 0 && !opts.allowModeFlip) {
+			return fail(
+				"mode-flip",
+				`Surface "${surface}" already uses an allowlist (${includes.join(", ")}); adding an exclude changes its meaning.`,
+				"Re-run with --allow-mode-flip to intentionally mix include + exclude.",
+			);
+		}
+		if (!surfacePatterns.includes(denyToken)) {
+			surfacePatterns.push(denyToken);
+			changed = true;
+		}
+		obj[surface] = surfacePatterns;
+	} else {
+		const next = surfacePatterns.filter((p) => p !== denyToken);
+		if (next.length !== surfacePatterns.length) changed = true;
+		if (next.length === 0) {
+			// Empty array would mean suppress-ALL; unsuppressing the last pattern
+			// means "all active", which is the ABSENT state, so drop the key.
+			delete obj[surface];
+		} else {
+			obj[surface] = next;
+		}
+	}
+
+	// Collapse back to a bare string when no surfaces remain (all-active again).
+	const hasSurfaces = SURFACE_KEYS.some((k) => obj[k] !== undefined);
+	plugins[index] = hasSurfaces ? obj : obj.source;
+
+	if (changed) writeConfig(filePath, { ...config, plugins });
+
+	return buildJsonSuccessEnvelope({
+		command: "config",
+		operation: `plugins.${op}`,
+		extra: {
+			source: source.trim(),
+			surface,
+			pattern: cleanPattern,
+			scope: scope ?? "user",
+			path: filePath,
+			changed,
+			entry: plugins[index],
+		},
+		nextCommand: CONFIG_PLUGINS_LIST_JSON_COMMAND,
+	});
+}
+
+function printCompositionSuppress(
+	deps: ConfigDeps,
+	op: "suppress" | "unsuppress",
+	source: string,
+	surface: string,
+	pattern: string,
+	opts: { scope?: string; allowModeFlip?: boolean },
+): void {
+	const envelope = buildCompositionSuppressEnvelope(
+		deps,
+		op,
+		source,
+		surface,
+		pattern,
+		opts,
+	) as {
+		ok: boolean;
+		error?: string;
+		message?: string;
+		source?: string;
+		surface?: string;
+		pattern?: string;
+		scope?: string;
+		changed?: boolean;
+	};
+	if (!envelope.ok) {
+		console.error(chalk.red(`✗  ${envelope.message ?? envelope.error}`));
+		return;
+	}
+	if (!envelope.changed) {
+		console.log(chalk.dim(`•  no change (${op} ${envelope.pattern} on ${envelope.surface})`));
+		return;
+	}
+	const verb = op === "suppress" ? "suppressed" : "unsuppressed";
+	console.log(
+		chalk.green(
+			`✓  ${verb} ${envelope.surface}/${envelope.pattern} on ${envelope.source}  [${envelope.scope}]`,
+		),
+	);
+}
+
 /**
  * The `config plugins` subgroup — the COMPOSITION authoring surface. It is under
  * `config` (beside `profile`), NOT under the top-level `plugin` command: `plugin`
@@ -1019,6 +1216,79 @@ Notes:
 							return;
 						}
 						printCompositionMutation(deps, "remove", source, opts);
+					},
+				),
+		)
+		.addCommand(
+			new Command("suppress")
+				.description("Suppress one surface of a package (writes a !pattern)")
+				.argument("<source>", "A declared package source")
+				.argument("<surface>", `Surface: ${SURFACE_KEYS.join(" | ")}`)
+				.argument("<pattern>", "Surface id to suppress, e.g. skills/legacy")
+				.option("--scope <scope>", "org | workspace | user (default user)")
+				.option(
+					"--allow-mode-flip",
+					"Permit mixing an allowlist include with a !exclude in one surface",
+				)
+				.option("--json", "Output machine-readable result")
+				.action(
+					(
+						source: string,
+						surface: string,
+						pattern: string,
+						opts: {
+							scope?: string;
+							allowModeFlip?: boolean;
+						} & JsonOptionCarrier,
+						command: JsonOptionCarrier,
+					) => {
+						if (hasJsonOption(opts, command)) {
+							printJson(
+								buildCompositionSuppressEnvelope(
+									deps,
+									"suppress",
+									source,
+									surface,
+									pattern,
+									opts,
+								),
+							);
+							return;
+						}
+						printCompositionSuppress(deps, "suppress", source, surface, pattern, opts);
+					},
+				),
+		)
+		.addCommand(
+			new Command("unsuppress")
+				.description("Remove a surface suppression (drops the !pattern)")
+				.argument("<source>", "A declared package source")
+				.argument("<surface>", `Surface: ${SURFACE_KEYS.join(" | ")}`)
+				.argument("<pattern>", "Surface id to un-suppress")
+				.option("--scope <scope>", "org | workspace | user (default user)")
+				.option("--json", "Output machine-readable result")
+				.action(
+					(
+						source: string,
+						surface: string,
+						pattern: string,
+						opts: { scope?: string } & JsonOptionCarrier,
+						command: JsonOptionCarrier,
+					) => {
+						if (hasJsonOption(opts, command)) {
+							printJson(
+								buildCompositionSuppressEnvelope(
+									deps,
+									"unsuppress",
+									source,
+									surface,
+									pattern,
+									opts,
+								),
+							);
+							return;
+						}
+						printCompositionSuppress(deps, "unsuppress", source, surface, pattern, opts);
 					},
 				),
 		);
