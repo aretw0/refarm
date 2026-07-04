@@ -1,9 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { startCallbackServer } from "./callback-server.js";
 
 describe("startCallbackServer", () => {
 	it("resolves with a server object containing waitForCode and cancelWait", async () => {
 		const server = await startCallbackServer({ port: 59001, path: "/cb", expectedState: "s1" });
+		expect(server.listening).toBe(true);
+		expect(server.url).toBe("http://127.0.0.1:59001/cb");
 		expect(typeof server.waitForCode).toBe("function");
 		expect(typeof server.cancelWait).toBe("function");
 		expect(typeof server.close).toBe("function");

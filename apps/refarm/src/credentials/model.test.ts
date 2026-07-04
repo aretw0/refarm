@@ -214,6 +214,7 @@ describe("modelCredentialProvider — OAuth container environment", () => {
 			expect(callbacks.skipCallbackServer).toBeUndefined();
 			expect(callbacks.onManualCodeInput).toBeUndefined();
 			expect(callbacks.callbackTimeoutMs).toBeGreaterThan(0);
+			expect(callbacks.onCallbackWait).toBeDefined();
 			return { access: "tok", refresh: "ref", expires: Date.now() + 3600_000 };
 		});
 		await modelCredentialProvider.collectModel(ctx);
@@ -251,5 +252,42 @@ describe("modelCredentialProvider — OAuth container environment", () => {
 
 		expect(startProgressIndicatorMock).toHaveBeenCalledWith("Exchanging code for tokens...");
 		expect(lastProgress()?.stop).toHaveBeenCalledOnce();
+	});
+
+	it("prints callback wait status so devcontainer login is not silent", async () => {
+		mockIsContainer.mockReturnValue(true);
+		process.env["VSCODE_REMOTE_CONTAINERS_SESSION"] = "test-session";
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		mockOAuthLogin.mockImplementation(async (callbacks) => {
+			callbacks.onCallbackWait?.({
+				phase: "callback-waiting",
+				message: "Waiting for browser callback for up to 120s.",
+				timeoutMs: 120_000,
+				callbackUrl: "http://127.0.0.1:1455/auth/callback",
+			});
+			callbacks.onCallbackWait?.({
+				phase: "callback-heartbeat",
+				message: "Still waiting for browser callback (15s elapsed of 120s).",
+				elapsedMs: 15_000,
+				timeoutMs: 120_000,
+			});
+			callbacks.onCallbackWait?.({
+				phase: "callback-timeout",
+				message:
+					"No browser callback received after 120s; switching to pasted redirect URL.",
+				elapsedMs: 120_000,
+				timeoutMs: 120_000,
+			});
+			return { access: "tok", refresh: "ref", expires: Date.now() + 3600_000 };
+		});
+
+		await modelCredentialProvider.collectModel(ctx);
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Waiting for browser callback");
+		expect(output).toContain("callback: http://127.0.0.1:1455/auth/callback");
+		expect(output).toContain("VS Code/Codespaces must forward");
+		expect(output).toContain("15s elapsed");
+		expect(output).toContain("switching to pasted redirect URL");
 	});
 });

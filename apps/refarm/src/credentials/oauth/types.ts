@@ -11,6 +11,22 @@ export interface OAuthPrompt {
 	placeholder?: string;
 }
 
+export type OAuthCallbackWaitPhase =
+	| "callback-waiting"
+	| "callback-heartbeat"
+	| "callback-received"
+	| "callback-timeout"
+	| "callback-cancelled"
+	| "callback-unavailable";
+
+export interface OAuthCallbackWaitStatus {
+	phase: OAuthCallbackWaitPhase;
+	message: string;
+	elapsedMs?: number;
+	timeoutMs?: number;
+	callbackUrl?: string;
+}
+
 export interface OAuthLoginCallbacks {
 	/** Called with the browser URL to open and optional instructions. */
 	onAuth: (info: { url: string; instructions?: string }) => void;
@@ -18,6 +34,8 @@ export interface OAuthLoginCallbacks {
 	onPrompt: (prompt: OAuthPrompt) => Promise<string>;
 	/** Optional progress messages during token exchange. */
 	onProgress?: (message: string) => void;
+	/** Optional status events while waiting for the browser callback. */
+	onCallbackWait?: (status: OAuthCallbackWaitStatus) => void;
 	/**
 	 * Optional: resolves with user-pasted code/URL while the browser
 	 * callback server runs concurrently. Whichever arrives first wins.

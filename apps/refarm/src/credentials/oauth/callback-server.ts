@@ -1,7 +1,10 @@
 import http from "node:http";
-import { oauthSuccessHtml, oauthErrorHtml } from "./oauth-page.js";
+import { oauthErrorHtml, oauthSuccessHtml } from "./oauth-page.js";
 
 export interface CallbackServer {
+	listening: boolean;
+	url?: string;
+	unavailableReason?: string;
 	waitForCode(): Promise<{ code: string; state: string } | null>;
 	cancelWait(): void;
 	close(): void;
@@ -63,14 +66,28 @@ export async function startCallbackServer(options: {
 			if (err.code === "EADDRINUSE") {
 				// Port occupied (leftover from a previous crashed session).
 				// Return a null server so callers fall through to manual code input.
-				resolve({ waitForCode: () => Promise.resolve(null), cancelWait: () => {}, close: () => {} });
+				resolve({
+					listening: false,
+					unavailableReason: `port ${port} is already in use`,
+					waitForCode: () => Promise.resolve(null),
+					cancelWait: () => {},
+					close: () => {},
+				});
 			} else {
 				// Unexpected error — surface it via waitForCode so callers can handle it.
-				resolve({ waitForCode: () => Promise.reject(err), cancelWait: () => {}, close: () => {} });
+				resolve({
+					listening: false,
+					unavailableReason: err.message,
+					waitForCode: () => Promise.reject(err),
+					cancelWait: () => {},
+					close: () => {},
+				});
 			}
 		});
 		server.listen(port, "127.0.0.1", () => {
 			resolve({
+				listening: true,
+				url: `http://127.0.0.1:${port}${callbackPath}`,
 				waitForCode: () => codePromise,
 				cancelWait: () => settle?.(null),
 				close: () => server.close(),

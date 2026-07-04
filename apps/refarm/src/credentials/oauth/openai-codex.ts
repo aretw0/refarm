@@ -1,5 +1,6 @@
-import { generatePKCE } from "./pkce.js";
 import { startCallbackServer } from "./callback-server.js";
+import { waitForOAuthCallback } from "./callback-wait.js";
+import { generatePKCE } from "./pkce.js";
 import type { OAuthCredentials, OAuthLoginCallbacks, OAuthProviderInterface } from "./types.js";
 
 const CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann";
@@ -11,28 +12,6 @@ const REDIRECT_URI = `http://localhost:${CALLBACK_PORT}${CALLBACK_PATH}`;
 const SCOPE = "openid profile email offline_access";
 const JWT_CLAIM = "https://api.openai.com/auth";
 const OAUTH_HTTP_TIMEOUT_MS = 30_000;
-
-async function waitForCallback(
-	server: { waitForCode(): Promise<{ code: string; state: string } | null>; cancelWait(): void },
-	timeoutMs?: number,
-): Promise<{ code: string; state: string } | null> {
-	if (!timeoutMs || timeoutMs <= 0) return server.waitForCode();
-
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	try {
-		return await Promise.race([
-			server.waitForCode(),
-			new Promise<null>((resolve) => {
-				timer = setTimeout(() => {
-					server.cancelWait();
-					resolve(null);
-				}, timeoutMs);
-			}),
-		]);
-	} finally {
-		if (timer) clearTimeout(timer);
-	}
-}
 
 function parseCodeFromInput(input: string): { code?: string; state?: string } {
 	const v = input.trim();
@@ -87,7 +66,7 @@ export async function loginOpenAICodex(callbacks: OAuthLoginCallbacks): Promise<
 	const state = Array.from(crypto.getRandomValues(new Uint8Array(16))).map((b) => b.toString(16).padStart(2, "0")).join("");
 
 	const server = callbacks.skipCallbackServer
-		? { waitForCode: () => Promise.resolve(null), cancelWait: () => {}, close: () => {} }
+		? { listening: false, unavailableReason: "callback server disabled", waitForCode: () => Promise.resolve(null), cancelWait: () => {}, close: () => {} }
 		: await startCallbackServer({ port: CALLBACK_PORT, path: CALLBACK_PATH, expectedState: state });
 
 	const url = new URL(AUTHORIZE_URL);
@@ -113,7 +92,10 @@ export async function loginOpenAICodex(callbacks: OAuthLoginCallbacks): Promise<
 				server.cancelWait();
 			}).catch((err: unknown) => { server.cancelWait(); throw err; });
 
-			const result = await waitForCallback(server, callbacks.callbackTimeoutMs);
+			const result = await waitForOAuthCallback(server, {
+				timeoutMs: callbacks.callbackTimeoutMs,
+				callbacks,
+			});
 			if (result?.code) {
 				code = result.code;
 			} else if (manualInput) {
@@ -121,7 +103,10 @@ export async function loginOpenAICodex(callbacks: OAuthLoginCallbacks): Promise<
 			}
 			if (!code) { await manualPromise; if (manualInput) code = parseCodeFromInput(manualInput).code; }
 		} else {
-			const result = await waitForCallback(server, callbacks.callbackTimeoutMs);
+			const result = await waitForOAuthCallback(server, {
+				timeoutMs: callbacks.callbackTimeoutMs,
+				callbacks,
+			});
 			if (result?.code) code = result.code;
 		}
 

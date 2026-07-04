@@ -3,7 +3,12 @@ import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { isContainer } from "@refarm.dev/root";
 import chalk from "chalk";
 import { startProgressIndicator, type ProgressIndicator } from "../utils/spinner.js";
-import type { OAuthCredentials, OAuthLoginCallbacks, OAuthProviderInterface } from "./oauth/index.js";
+import type {
+	OAuthCallbackWaitStatus,
+	OAuthCredentials,
+	OAuthLoginCallbacks,
+	OAuthProviderInterface,
+} from "./oauth/index.js";
 import { anthropicOAuthProvider, openaiCodexOAuthProvider } from "./oauth/index.js";
 import type { CollectContext, CredentialProvider } from "./types.js";
 
@@ -81,6 +86,55 @@ async function promptCode(ctx: CollectContext, message: string): Promise<string>
 	return operator(ctx).ask({ type: "text", question: message });
 }
 
+function formatSeconds(ms: number): string {
+	return `${Math.ceil(ms / 1000)}s`;
+}
+
+function renderCallbackWaitStatus(
+	status: OAuthCallbackWaitStatus,
+	options: { containerEnv: boolean; hasPortForwarding: boolean },
+): void {
+	const callbackHint = status.callbackUrl
+		? ` ${chalk.dim(`callback: ${status.callbackUrl}`)}`
+		: "";
+	if (status.phase === "callback-waiting") {
+		console.log(chalk.dim(`  ${status.message}${callbackHint}`));
+		if (options.containerEnv && options.hasPortForwarding) {
+			console.log(
+				chalk.dim(
+					"     VS Code/Codespaces must forward that callback port to this container.",
+				),
+			);
+		}
+		if (status.timeoutMs) {
+			console.log(
+				chalk.dim(
+					`     If the browser redirects but this terminal does not continue, copy the full redirect URL. Manual fallback starts after ${formatSeconds(status.timeoutMs)}.`,
+				),
+			);
+		}
+		return;
+	}
+	if (status.phase === "callback-heartbeat") {
+		console.log(chalk.dim(`  ${status.message}`));
+		return;
+	}
+	if (status.phase === "callback-received") {
+		console.log(chalk.green(`  ✓ ${status.message}`));
+		return;
+	}
+	if (
+		status.phase === "callback-timeout" ||
+		status.phase === "callback-unavailable"
+	) {
+		console.log(chalk.yellow(`  ⚠  ${status.message}`));
+		return;
+	}
+	if (status.phase === "callback-cancelled") {
+		console.log(chalk.dim(`  ${status.message}`));
+	}
+}
+
 async function runOAuthFlow(
 	ctx: CollectContext,
 	provider: OAuthProviderInterface,
@@ -106,11 +160,17 @@ async function runOAuthFlow(
 					console.log(chalk.dim("     After logging in, copy the full redirect URL or authorization code and paste it below.\n"));
 				} else if (containerEnv && provider.usesCallbackServer) {
 					console.log(chalk.dim("     Devcontainer detected — VS Code should forward the callback port automatically."));
-					console.log(chalk.dim("     If the browser does not return here, you will be prompted to paste the redirect URL.\n"));
+					console.log(chalk.dim("     If the browser does not return here, you will be prompted to paste the redirect URL."));
+					console.log(chalk.dim("     You can paste the full redirect URL into this terminal early; it will be consumed when the fallback prompt appears.\n"));
 				}
 				ctx.tryOpenUrl(url);
 			},
 			onPrompt: async ({ message }) => promptCode(ctx, message),
+			onCallbackWait: (status) =>
+				renderCallbackWaitStatus(status, {
+					containerEnv,
+					hasPortForwarding,
+				}),
 			onProgress: (msg) => {
 				if (progress) {
 					progress.update(msg);

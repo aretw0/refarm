@@ -1,5 +1,6 @@
-import { generatePKCE } from "./pkce.js";
 import { startCallbackServer } from "./callback-server.js";
+import { waitForOAuthCallback } from "./callback-wait.js";
+import { generatePKCE } from "./pkce.js";
 import type { OAuthCredentials, OAuthLoginCallbacks, OAuthProviderInterface } from "./types.js";
 
 // Authorization Code + PKCE for Claude Pro/Max subscribers.
@@ -11,28 +12,6 @@ const CALLBACK_PORT = 53692;
 const CALLBACK_PATH = "/callback";
 const REDIRECT_URI = `http://localhost:${CALLBACK_PORT}${CALLBACK_PATH}`;
 const SCOPES = "org:create_api_key user:profile user:inference user:sessions:claude_code";
-
-async function waitForCallback(
-	server: { waitForCode(): Promise<{ code: string; state: string } | null>; cancelWait(): void },
-	timeoutMs?: number,
-): Promise<{ code: string; state: string } | null> {
-	if (!timeoutMs || timeoutMs <= 0) return server.waitForCode();
-
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	try {
-		return await Promise.race([
-			server.waitForCode(),
-			new Promise<null>((resolve) => {
-				timer = setTimeout(() => {
-					server.cancelWait();
-					resolve(null);
-				}, timeoutMs);
-			}),
-		]);
-	} finally {
-		if (timer) clearTimeout(timer);
-	}
-}
 
 function parseCodeFromInput(input: string): { code?: string; state?: string } {
 	const v = input.trim();
@@ -79,7 +58,7 @@ async function exchangeCode(
 export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OAuthCredentials> {
 	const { verifier, challenge } = await generatePKCE();
 	const server = callbacks.skipCallbackServer
-		? { waitForCode: () => Promise.resolve(null), cancelWait: () => {}, close: () => {} }
+		? { listening: false, unavailableReason: "callback server disabled", waitForCode: () => Promise.resolve(null), cancelWait: () => {}, close: () => {} }
 		: await startCallbackServer({ port: CALLBACK_PORT, path: CALLBACK_PATH, expectedState: verifier });
 
 	const authParams = new URLSearchParams({
@@ -109,7 +88,10 @@ export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OA
 				server.cancelWait();
 			}).catch((err: unknown) => { server.cancelWait(); throw err; });
 
-			const result = await waitForCallback(server, callbacks.callbackTimeoutMs);
+			const result = await waitForOAuthCallback(server, {
+				timeoutMs: callbacks.callbackTimeoutMs,
+				callbacks,
+			});
 			if (result?.code) {
 				code = result.code;
 			} else if (manualInput) {
@@ -125,7 +107,10 @@ export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OA
 				}
 			}
 		} else {
-			const result = await waitForCallback(server, callbacks.callbackTimeoutMs);
+			const result = await waitForOAuthCallback(server, {
+				timeoutMs: callbacks.callbackTimeoutMs,
+				callbacks,
+			});
 			if (result?.code) code = result.code;
 		}
 
