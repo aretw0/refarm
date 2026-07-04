@@ -13,6 +13,10 @@ import {
 	createModelCapabilityGroup,
 	modelCapabilityHooks,
 } from "./model-capability.js";
+import {
+	createSkillCapabilityGroup,
+	skillCapabilityHooks,
+} from "./skill-capability.js";
 
 /**
  * The one registry of tri-surface capabilities for this app. Every declared
@@ -62,6 +66,7 @@ function registerCapabilityGroup(
 
 registerCapability(extensionReviewCapability, extensionReviewHooks);
 registerCapabilityGroup(createModelCapabilityGroup(), modelCapabilityHooks);
+registerCapabilityGroup(createSkillCapabilityGroup(), skillCapabilityHooks);
 
 export function capabilityHooksFor(name: string): CapabilitySurfaceHooks {
 	return capabilityHooks.get(name.toLowerCase()) ?? {};

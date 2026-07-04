@@ -3,6 +3,7 @@ import { actionsCommand } from "./commands/actions.js";
 import { agentCommand } from "./commands/agent.js";
 import { askCommand } from "./commands/ask.js";
 import { capabilitiesCommand } from "./commands/capabilities.js";
+import { toCommanderGroup } from "./commands/capability-commander.js";
 import { chatCommand } from "./commands/chat.js";
 import { checkCommand } from "./commands/check.js";
 import { configCommand } from "./commands/config.js";
@@ -13,7 +14,6 @@ import { extensionCommand } from "./commands/extension.js";
 import { guideCommand } from "./commands/guide.js";
 import { headlessCommand } from "./commands/headless.js";
 import { healthCommand } from "./commands/health.js";
-import { toCommanderGroup } from "./commands/capability-commander.js";
 import {
 	createModelCapabilityGroup,
 	modelCapabilityHooks,
@@ -33,6 +33,10 @@ import {
 import { runtimeCommand } from "./commands/runtime.js";
 import { runSessionLaunchFlow, sessionCommand } from "./commands/session.js";
 import { sessionsCommand } from "./commands/sessions.js";
+import {
+	createSkillCapabilityGroup,
+	skillCapabilityHooks,
+} from "./commands/skill-capability.js";
 import {
 	SOW_COMMAND_DESCRIPTION,
 	SOW_HELP_TEXT,
@@ -223,6 +227,9 @@ program.addCommand(healthCommand);
 program.addCommand(releaseCommand);
 program.addCommand(
 	toCommanderGroup(createModelCapabilityGroup(), modelCapabilityHooks),
+);
+program.addCommand(
+	toCommanderGroup(createSkillCapabilityGroup(), skillCapabilityHooks),
 );
 program.addCommand(webCommand);
 program.addCommand(workspaceCommand);

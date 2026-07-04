@@ -40,6 +40,8 @@
     "@refarm.dev/homestead": "workspace:*",
     "@refarm.dev/infra-cloudflare": "workspace:*",
     "@refarm.dev/infra-turbo-cache": "workspace:*",
+    "@refarm.dev/plugin-manifest": "workspace:*",
+    "@refarm.dev/plugin-surface-loader": "workspace:*",
     "@refarm.dev/registry": "workspace:*",
     "@refarm.dev/release-engine": "workspace:*",
     "@refarm.dev/root": "workspace:*",
@@ -54,7 +56,6 @@
   },
   "devDependencies": {
     "@refarm.dev/eslint-config": "workspace:*",
-    "@refarm.dev/plugin-manifest": "workspace:*",
     "@refarm.dev/tsconfig": "workspace:*",
     "@refarm.dev/vtconfig": "workspace:*"
   },

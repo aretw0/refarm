@@ -330,6 +330,12 @@ importers:
       '@refarm.dev/infra-turbo-cache':
         specifier: workspace:*
         version: link:../../packages/infra-turbo-cache
+      '@refarm.dev/plugin-manifest':
+        specifier: workspace:*
+        version: link:../../packages/plugin-manifest
+      '@refarm.dev/plugin-surface-loader':
+        specifier: workspace:*
+        version: link:../../packages/plugin-surface-loader
       '@refarm.dev/prompt-contract-v1':
         specifier: workspace:*
         version: link:../../packages/prompt-contract-v1
@@ -370,9 +376,6 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
-      '@refarm.dev/plugin-manifest':
-        specifier: workspace:*
-        version: link:../../packages/plugin-manifest
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
