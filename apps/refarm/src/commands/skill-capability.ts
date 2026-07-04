@@ -19,9 +19,11 @@ import {
 	type CheckerFinding,
 	type ReferenceChecker,
 } from "@refarm.dev/quality-checker-ref";
+import { openScopedLedger } from "@refarm.dev/storage-node-view";
 import chalk from "chalk";
+import { dirname } from "node:path";
 
-import { pluginsBaseDir } from "../utils/refarm-home.js";
+import { pluginsBaseDir, resolveRefarmHome } from "../utils/refarm-home.js";
 import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildDiagnosticNextActionPayload,
@@ -87,7 +89,18 @@ export interface SkillCommandDeps {
 		skills: ImportedAgentSkill[];
 		rejected: { skillDir: string; issues: string[] }[];
 	};
+	/**
+	 * Persist imported skills into refarm's store as CONTENT-ADDRESSED nodes: the
+	 * skill's `@id` is `urn:refarm:skill:v1:<name>:<sha256>` — the sha256 of the
+	 * SKILL.md IS the identity, so the same content maps to the same node whether
+	 * it came from fs today or p2p/OPFS tomorrow. Returns the ids written. This is
+	 * the seam a future content-addressed/p2p resolver plugs into unchanged.
+	 */
+	persistSkills: (skills: ImportedAgentSkill[]) => Promise<string[]>;
 }
+
+/** JSON-LD type of a persisted, imported skill node. */
+const IMPORTED_SKILL_NODE_TYPE = "refarm:imported-skill";
 
 export function defaultSkillDeps(): SkillCommandDeps {
 	return {
@@ -111,6 +124,29 @@ export function defaultSkillDeps(): SkillCommandDeps {
 			return checkers;
 		},
 		importSkills: (dir) => loadAgentSkillsFromDir(dir),
+		persistSkills: async (skills) => {
+			// A user-scope node-ledger under <refarm-home>/skills. openScopedLedger's
+			// user scope appends `.refarm` itself, so hand it the PARENT of the
+			// resolved refarm home (which is `<parent>/.refarm`). The skill id
+			// (content-addressed by sha256) is the node @id, so re-importing the
+			// same content is idempotent — the seam a p2p/OPFS resolver reuses.
+			const ledger = openScopedLedger("skills", "user", {
+				userHome: dirname(resolveRefarmHome()),
+			});
+			const written: string[] = [];
+			for (const s of skills) {
+				await ledger.storeNode({
+					"@id": s.id,
+					"@type": IMPORTED_SKILL_NODE_TYPE,
+					name: s.name,
+					...(s.description ? { description: s.description } : {}),
+					requiredCapabilities: [...s.requiredCapabilities],
+					instructions: s.instructions,
+				} as never);
+				written.push(s.id);
+			}
+			return written;
+		},
 	};
 }
 
@@ -243,13 +279,23 @@ export function createSkillCapabilityGroup(
 		summary:
 			"Import Agent Skills (agentskills.io SKILL.md) from a directory into refarm's model",
 		args: [{ name: "dir", required: true }],
-		run(input) {
+		options: [
+			{
+				name: "write",
+				kind: "boolean",
+				summary:
+					"Persist the imported skills into refarm's store (content-addressed nodes)",
+			},
+		],
+		async run(input) {
 			const dir = input.args.dir as string;
+			const write = Boolean(input.options.write);
 			const { skills, rejected } = deps.importSkills(dir);
-			// Report-only: this surfaces WHAT would import (translated + rejected) on
-			// every surface (CLI/REPL/agent/HTTP) from one declaration. Persisting
-			// imported skills into refarm's store is a deliberate follow-on (where
-			// they live is a node/ledger decision), flagged as a next-action.
+			// Default is REPORT-ONLY: surface WHAT would import on every surface.
+			// With --write, persist each skill as a content-addressed node (its
+			// sha256-derived id is the @id — idempotent, and the seam a future
+			// p2p/OPFS resolver reuses without touching this code).
+			const persisted = write ? await deps.persistSkills(skills) : [];
 			const imported = skills.map((s) => ({
 				name: s.name,
 				id: s.id,
@@ -266,7 +312,17 @@ export function createSkillCapabilityGroup(
 					imported,
 					rejected,
 					count: imported.length,
+					written: persisted,
+					persisted: write,
 				},
+				...(write
+					? {}
+					: {
+							nextCommand:
+								imported.length > 0
+									? `skill import ${dir} --write`
+									: undefined,
+						}),
 			});
 		},
 	};
@@ -400,12 +456,15 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 						}[];
 						rejected: { skillDir: string; issues: string[] }[];
 						count: number;
+						persisted: boolean;
+						written: string[];
 					};
 					if (e.count === 0 && e.rejected.length === 0) {
 						return chalk.dim(`No Agent Skills found under ${e.source}.`);
 					}
+					const verb = e.persisted ? "Imported" : "Importable";
 					const lines = [
-						`Importable Agent Skills from ${chalk.dim(e.source)} (${e.count})`,
+						`${verb} Agent Skills from ${chalk.dim(e.source)} (${e.count})`,
 						...e.imported.map((s) => {
 							const tags: string[] = [];
 							if (s.translated.nameInjected) tags.push("name-injected");
@@ -424,6 +483,17 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 							...e.rejected.map(
 								(r) => `  ${chalk.dim(r.skillDir)}: ${r.issues.join("; ")}`,
 							),
+						);
+					}
+					if (e.persisted) {
+						lines.push(
+							chalk.green(
+								`\n✓ persisted ${e.written.length} skill(s) as content-addressed nodes`,
+							),
+						);
+					} else if (e.count > 0) {
+						lines.push(
+							chalk.dim("\nRe-run with --write to persist these into refarm."),
 						);
 					}
 					return lines.join("\n");

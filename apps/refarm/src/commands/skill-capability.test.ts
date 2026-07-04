@@ -34,11 +34,13 @@ function deps(
 	rejected: Rejected = [],
 	checkers: Checker[] = [],
 	imported: ImportResult = { skills: [], rejected: [] },
+	persisted: string[] = [],
 ): SkillCommandDeps {
 	return {
 		discover: () => ({ skills, rejected }),
 		loadCheckers: async () => checkers,
 		importSkills: () => imported,
+		persistSkills: async () => persisted,
 	};
 }
 
@@ -188,6 +190,46 @@ describe("skill CapabilityGroup", () => {
 		expect(envelope.imported.map((s) => s.name).sort()).toEqual(["commit", "win"]);
 		expect(envelope.imported.find((s) => s.name === "win")?.translated.nameInjected).toBe(true);
 		expect(envelope.rejected).toHaveLength(1);
+		// Report-only by default: nothing persisted, and a --write next-command.
+		expect((envelope as unknown as { persisted: boolean }).persisted).toBe(false);
+		expect((envelope as unknown as { nextCommand?: string }).nextCommand).toContain(
+			"--write",
+		);
+	});
+
+	it("`import <dir> --write` persists the imported skills (content-addressed)", async () => {
+		const importResult: ImportResult = {
+			skills: [
+				{
+					surfaceId: "commit",
+					id: "urn:refarm:skill:v1:commit:abc123",
+					name: "commit",
+					requiredCapabilities: [],
+					instructions: "Make a commit.",
+					skillDir: "/ext/skills/commit",
+					translated: { nameInjected: false, newlinesNormalized: false },
+				},
+			],
+			rejected: [],
+		};
+		const group = createSkillCapabilityGroup(
+			deps([], [], [], importResult, ["urn:refarm:skill:v1:commit:abc123"]),
+		);
+		const resolved = resolveGroupAction(group, [
+			"import",
+			"/ext/skills",
+			"--write",
+		]);
+		const envelope = (await resolved!.action.run(resolved!.input)) as unknown as {
+			ok: boolean;
+			persisted: boolean;
+			written: string[];
+		};
+		expect(envelope.ok).toBe(true);
+		expect(envelope.persisted).toBe(true);
+		// The persisted id is the CONTENT-ADDRESSED id (sha256 in the urn) — the
+		// same seam a p2p/OPFS resolver would key on.
+		expect(envelope.written).toEqual(["urn:refarm:skill:v1:commit:abc123"]);
 	});
 
 	it("hooks render the import listing (with translation tags) and a not-found error", () => {

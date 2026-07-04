@@ -360,6 +360,9 @@ importers:
       '@refarm.dev/sower':
         specifier: workspace:*
         version: link:../../packages/sower
+      '@refarm.dev/storage-node-view':
+        specifier: workspace:*
+        version: link:../../packages/storage-node-view
       '@refarm.dev/stream-contract-v1':
         specifier: workspace:*
         version: link:../../packages/stream-contract-v1
