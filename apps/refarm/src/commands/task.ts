@@ -1,3 +1,8 @@
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "@refarm.dev/cli/json-output";
 import { normalizePluginId } from "@refarm.dev/config";
 import type {
 	Effort,
@@ -12,11 +17,6 @@ import {
 	RESUME_JSON_COMMAND,
 } from "./credential-handoffs.js";
 import {
-	buildJsonErrorEnvelope,
-	buildJsonSuccessEnvelope,
-	printJson,
-} from "@refarm.dev/cli/json-output";
-import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
@@ -28,6 +28,11 @@ import {
 	observedTaskResultError,
 	observedTaskResultStatus,
 } from "./task-observation.js";
+import {
+	checkTaskProvides,
+	discoverInstalledProvides,
+	type ProvidesDiscovery,
+} from "./task-preflight.js";
 import {
 	buildTaskEffortCommands,
 	buildTaskLogsCommand,
@@ -96,6 +101,7 @@ export function createTaskCommand(
 		transport: string,
 	) => TaskOperationsAdapter = resolveAdapter,
 	sessionRecorder: TaskSessionRecorder = createTaskSessionRecorder(),
+	discoverProvides: ProvidesDiscovery = discoverInstalledProvides,
 ): Command {
 	const taskCommand = new Command("task").description(
 		"Manage Refarm runtime task efforts",
@@ -199,6 +205,18 @@ Notes:
 				}
 				const pluginId = normalizePluginId(plugin);
 				parsedArgs = normalizeTaskArgs(pluginId, fn, parsedArgs);
+				// Advisory preflight: warn (never block) when no installed plugin
+				// advertises <plugin>:<fn> in its provides — so a mismatch surfaces at
+				// submit time instead of only at runtime. Permissive by FORM: an
+				// operator may pre-submit against a plugin they are about to install.
+				const preflight = checkTaskProvides(plugin, fn, discoverProvides);
+				if (!preflight.provided && !opts.json) {
+					console.error(
+						chalk.yellow(
+							`⚠  No installed plugin advertises "${preflight.target}" in its provides — the runtime may reject this until the plugin is loaded.`,
+						),
+					);
+				}
 				const { transport, adapter } = resolveTaskAdapter(
 					opts.transport,
 					adapterResolver,
@@ -251,6 +269,12 @@ Notes:
 							fn,
 							direction: effort.direction,
 							effort,
+							// Advisory: surfaced on the contract so a machine consumer sees
+							// the provides mismatch without parsing a stderr warning.
+							provides: {
+								target: preflight.target,
+								provided: preflight.provided,
+							},
 						},
 						[watchCommand, statusJsonCommand, logsCommand],
 					);
