@@ -3,7 +3,9 @@ import {
 	resolveGroupAction,
 } from "@refarm.dev/cli/capabilities";
 import type { DiscoveredSkill } from "@refarm.dev/plugin-surface-loader/node";
-import { mkdtempSync, rmSync } from "node:fs";
+import { openScopedLedger } from "@refarm.dev/storage-node-view";
+import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -16,9 +18,22 @@ import {
 	type SkillCommandDeps,
 } from "./skill-capability.js";
 
-/** A content-addressed source ref fixture (full 64-hex, as the loaders produce). */
-function sourceRef(hash = "a".repeat(64), bytes = 10) {
-	return { format: "SKILL.md" as const, uri: "fixture:SKILL.md", sha256: hash, bytes };
+/**
+ * An HONEST content-addressed source ref — the sha256 of the instruction bytes it
+ * points at (the loaders produce exactly this). It must be the real hash: the
+ * persistence path stores the bytes under this address and the resolver verifies
+ * them on read, so a made-up hash would `hash-mismatch`. Pass the instructions the
+ * fixture actually carries; defaults to a stable stand-in.
+ */
+function sourceRef(instructions = "fixture-body") {
+	const bytes = new TextEncoder().encode(instructions);
+	const sha256 = createHash("sha256").update(bytes).digest("hex");
+	return {
+		format: "SKILL.md" as const,
+		uri: "fixture:SKILL.md",
+		sha256,
+		bytes: bytes.byteLength,
+	};
 }
 
 function skill(overrides: Partial<DiscoveredSkill> = {}): DiscoveredSkill {
@@ -126,7 +141,13 @@ describe("skill CapabilityGroup", () => {
 		const byName = resolveGroupAction(group, ["show", "greet-operator"]);
 		const ok = await byName!.action.run(byName!.input);
 		expect(ok.ok).toBe(true);
-		expect((ok as { skill?: { name: string } }).skill?.name).toBe("greet-operator");
+		const shown = (ok as { skill?: { name: string; instructions?: string } }).skill;
+		expect(shown?.name).toBe("greet-operator");
+		// `show` is the read view of one skill: it carries the instruction body
+		// (for an imported skill, the bytes resolved + verified from the store).
+		expect(shown?.instructions).toBe(
+			"# Greet\n\nGreet the operator and summarize the day.",
+		);
 
 		const byId = resolveGroupAction(group, ["show", "urn:skill:greet"]);
 		expect((await byId!.action.run(byId!.input)).ok).toBe(true);
@@ -291,7 +312,7 @@ describe("skill CapabilityGroup", () => {
 					instructions: "Make a commit.",
 					skillDir: "/ext/skills/commit",
 					translated: { nameInjected: false, newlinesNormalized: false },
-					source: sourceRef(),
+					source: sourceRef("Make a commit."),
 				},
 			];
 			await expect(
@@ -343,7 +364,7 @@ describe("skill CapabilityGroup", () => {
 				instructions,
 				skillDir: "/x/shared",
 				translated: { nameInjected: false, newlinesNormalized: false },
-				source: sourceRef(),
+				source: sourceRef(instructions),
 			});
 			const orgOnly: ImportResult["skills"][number] = {
 				surfaceId: "org-base",
@@ -353,7 +374,7 @@ describe("skill CapabilityGroup", () => {
 				instructions: "org-only skill",
 				skillDir: "/x/org-base",
 				translated: { nameInjected: false, newlinesNormalized: false },
-				source: sourceRef(),
+				source: sourceRef("org-only skill"),
 			};
 			await persistImportedSkillsToLedger([shared("ORG"), orgOnly], "org", roots);
 			await persistImportedSkillsToLedger([shared("WORKSPACE")], "workspace", roots);
@@ -375,6 +396,91 @@ describe("skill CapabilityGroup", () => {
 			rmSync(homeParent, { recursive: true, force: true });
 			rmSync(workspaceRoot, { recursive: true, force: true });
 			rmSync(orgRoot, { recursive: true, force: true });
+		}
+	});
+
+	it("stores instructions in the content-store by sha256, NOT inline in the node", async () => {
+		const homeParent = mkdtempSync(join(tmpdir(), "refarm-skill-home-"));
+		const workspaceRoot = mkdtempSync(join(tmpdir(), "refarm-skill-ws-"));
+		const roots = { userHome: homeParent, workspaceRoot };
+		try {
+			const instructions = "Read the diff before you commit.";
+			await persistImportedSkillsToLedger(
+				[
+					{
+						surfaceId: "commit",
+						id: "urn:refarm:skill:v1:commit:abc123",
+						name: "commit",
+						requiredCapabilities: [],
+						instructions,
+						skillDir: "/x/commit",
+						translated: { nameInjected: false, newlinesNormalized: false },
+						source: sourceRef(instructions),
+					},
+				],
+				"user",
+				roots,
+			);
+
+			// The bytes live at <user>/.refarm/assets/<sha256>, verbatim.
+			const hash = createHash("sha256").update(instructions).digest("hex");
+			const assetPath = join(homeParent, ".refarm", "assets", hash);
+			expect(existsSync(assetPath)).toBe(true);
+			expect(readFileSync(assetPath, "utf8")).toBe(instructions);
+
+			// The ledger node is a POINTER — it carries the hash, not the bytes.
+			const ledgerPath = join(homeParent, ".refarm", "skills", "ledger.json");
+			const ledgerRaw = readFileSync(ledgerPath, "utf8");
+			expect(ledgerRaw).toContain(hash);
+			expect(ledgerRaw).not.toContain("Read the diff before you commit.");
+
+			// And it still round-trips: the pointer resolves the bytes back...
+			const loaded = await loadPersistedImportedSkills(roots);
+			expect(loaded.skills[0]?.instructions).toBe(instructions);
+
+			// ...all the way to `show`, which carries the resolved body.
+			const group = createSkillCapabilityGroup(
+				deps([], [], [], { skills: [], rejected: [] }, [], loaded),
+			);
+			const shown = resolveGroupAction(group, ["show", "commit"]);
+			const env = (await shown!.action.run(shown!.input)) as unknown as {
+				skill: { instructions?: string };
+			};
+			expect(env.skill.instructions).toBe(instructions);
+		} finally {
+			rmSync(homeParent, { recursive: true, force: true });
+			rmSync(workspaceRoot, { recursive: true, force: true });
+		}
+	});
+
+	it("still lists a LEGACY inline node (no sha256) — migration is non-destructive", async () => {
+		const homeParent = mkdtempSync(join(tmpdir(), "refarm-skill-home-"));
+		const workspaceRoot = mkdtempSync(join(tmpdir(), "refarm-skill-ws-"));
+		const roots = { userHome: homeParent, workspaceRoot };
+		try {
+			// Persist a pre-content-store node through the real ledger API: it inlines
+			// instructions with no sha256 pointer — the exact shape 8bb00fa9 wrote.
+			const ledger = openScopedLedger("skills", "user", roots);
+			await ledger.storeNode({
+				"@id": "urn:refarm:skill:v1:legacy:deadbeef",
+				"@type": "refarm:imported-skill",
+				surfaceId: "legacy",
+				name: "legacy",
+				requiredCapabilities: [],
+				instructions: "old inline body",
+			} as never);
+
+			const loaded = await loadPersistedImportedSkills(roots);
+			expect(loaded.rejected).toEqual([]);
+			expect(loaded.skills).toHaveLength(1);
+			expect(loaded.skills[0]).toMatchObject({
+				id: "urn:refarm:skill:v1:legacy:deadbeef",
+				instructions: "old inline body",
+				ledgerScope: "user",
+			});
+		} finally {
+			rmSync(homeParent, { recursive: true, force: true });
+			rmSync(workspaceRoot, { recursive: true, force: true });
 		}
 	});
 

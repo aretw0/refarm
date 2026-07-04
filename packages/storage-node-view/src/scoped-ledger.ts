@@ -44,6 +44,24 @@ export function scopedLedgerPath(
 	return resolveScopedStorePath(scope, `${name}/${storeFile}`, options);
 }
 
+/** Directory name of the content-addressed asset store under each scope. */
+const ASSETS_DIR = "assets";
+
+/**
+ * Absolute path of the content-addressed asset store at a scope — a SIBLING of
+ * the ledgers (`<scope>/.refarm/assets/`), where a `createFsAssetResolver` reads
+ * `<...>/<sha256>`. Kept beside {@link scopedLedgerPath} so the whole
+ * `<scope>/.refarm/…` layout is expressed through the one scope-resolution
+ * authority: a node-ledger holds the LIST (pointers), this store holds the BYTES
+ * keyed by hash. Uses the same org < workspace < user roots.
+ */
+export function scopedAssetsDir(
+	scope: LedgerScope,
+	options: ScopeResolutionOptions = {},
+): string {
+	return resolveScopedStorePath(scope, ASSETS_DIR, options);
+}
+
 /**
  * Open a durable node-ledger for `name` at the intended `scope`. Returns a
  * NodeView over an fs-backed store at `<scope>/.refarm/<name>/ledger.json`. The

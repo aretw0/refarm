@@ -1,3 +1,8 @@
+import {
+	createFsAssetResolver,
+	createFsAssetStore,
+	layeredAssetResolver,
+} from "@refarm.dev/asset-resolver-contract-v1/node";
 import type {
 	CapabilityDescriptor,
 	CapabilityGroup,
@@ -19,7 +24,10 @@ import {
 	type CheckerFinding,
 	type ReferenceChecker,
 } from "@refarm.dev/quality-checker-ref";
-import { openScopedLedger } from "@refarm.dev/storage-node-view";
+import {
+	openScopedLedger,
+	scopedAssetsDir,
+} from "@refarm.dev/storage-node-view";
 import chalk from "chalk";
 import { dirname } from "node:path";
 
@@ -196,7 +204,23 @@ function openSkillLedgerAt(scope: SkillLedgerScope, roots: SkillLedgerRoots) {
 	return openScopedLedger("skills", scope, roots);
 }
 
-function importedSkillNode(skill: ImportedAgentSkill) {
+/**
+ * The imported-skill LEDGER node is a POINTER, not a container: it carries the
+ * skill's identity + metadata and the content-address of its instructions, but
+ * NOT the instruction bytes themselves. Those live once in the scope's
+ * content-store (`<scope>/.refarm/assets/<sha256>`), keyed by hash.
+ *
+ * `sha256` is the address of the STORED bytes (the instructions, exactly what the
+ * loader resolves + verifies) — it MUST equal `createFsAssetStore.store()`'s
+ * result, or the round-trip mismatches. `sourceSha256` is separate provenance:
+ * the hash of the whole SKILL.md source file (`skill.source.sha256`), which the
+ * parser reports and which differs from the instructions body it extracts. Keep
+ * both — one addresses what we store, the other records what we imported from.
+ */
+function importedSkillNode(
+	skill: ImportedAgentSkill,
+	stored: { hash: string; bytes: number },
+) {
 	return {
 		"@id": skill.id,
 		"@type": IMPORTED_SKILL_NODE_TYPE,
@@ -204,7 +228,9 @@ function importedSkillNode(skill: ImportedAgentSkill) {
 		name: skill.name,
 		...(skill.description ? { description: skill.description } : {}),
 		requiredCapabilities: [...skill.requiredCapabilities],
-		instructions: skill.instructions,
+		sha256: stored.hash,
+		bytes: stored.bytes,
+		sourceSha256: skill.source.sha256,
 	};
 }
 
@@ -214,9 +240,16 @@ export async function persistImportedSkillsToLedger(
 	roots: SkillLedgerRoots = defaultSkillLedgerRoots(),
 ): Promise<string[]> {
 	const ledger = openSkillLedgerAt(scope, roots);
+	const store = createFsAssetStore(scopedAssetsDir(scope, roots));
 	const written: string[] = [];
 	for (const skill of skills) {
-		await ledger.storeNode(importedSkillNode(skill) as never);
+		// Move the bytes into the content-store FIRST (idempotent — same content →
+		// same address), then persist a pointer keyed on the STORED address, so the
+		// node references bytes that are already present and verify on read.
+		const stored = await store.store(
+			new TextEncoder().encode(skill.instructions),
+		);
+		await ledger.storeNode(importedSkillNode(skill, stored) as never);
 		written.push(skill.id);
 	}
 	return written;
@@ -228,10 +261,29 @@ function stringArray(value: unknown): string[] {
 		: [];
 }
 
-function persistedSkillFromNode(
+/** A validated skill POINTER — everything but the instruction bytes, plus the
+ * `sha256` content-address the loader resolves those bytes from. */
+interface SkillPointer {
+	surfaceId: string;
+	id: string;
+	name: string;
+	description?: string;
+	requiredCapabilities: readonly string[];
+	sha256: string;
+	ledgerScope: SkillLedgerScope;
+}
+
+/**
+ * Validate a persisted node into a POINTER (no bytes). The node must carry the
+ * `sha256` content-address of its instructions; the bytes are resolved separately
+ * from the content-store. A legacy node that still inlines `instructions` without
+ * a `sha256` is rejected here — the loader falls back to the inline bytes so the
+ * migration is non-destructive (see {@link loadPersistedImportedSkills}).
+ */
+function skillPointerFromNode(
 	node: Record<string, unknown>,
 	scope: SkillLedgerScope,
-): { skill?: PersistedSkill; issues: string[] } {
+): { pointer?: SkillPointer; issues: string[] } {
 	const issues: string[] = [];
 	const id =
 		typeof node["@id"] === "string" && node["@id"].trim()
@@ -239,23 +291,23 @@ function persistedSkillFromNode(
 			: undefined;
 	const name =
 		typeof node.name === "string" && node.name.trim() ? node.name : undefined;
-	const instructions =
-		typeof node.instructions === "string" && node.instructions.trim()
-			? node.instructions
+	const sha256 =
+		typeof node.sha256 === "string" && node.sha256.trim()
+			? node.sha256
 			: undefined;
 	if (!id) issues.push("Expected persisted skill node to carry a string @id.");
 	if (!name) issues.push("Expected persisted skill node to carry a name.");
-	if (!instructions) {
-		issues.push("Expected persisted skill node to carry instructions.");
+	if (!sha256) {
+		issues.push("Expected persisted skill node to carry a sha256 content-address.");
 	}
-	if (issues.length > 0 || !id || !name || !instructions) return { issues };
+	if (issues.length > 0 || !id || !name || !sha256) return { issues };
 	const surfaceId =
 		typeof node.surfaceId === "string" && node.surfaceId.trim()
 			? node.surfaceId
 			: name;
 	return {
 		issues: [],
-		skill: {
+		pointer: {
 			surfaceId,
 			id,
 			name,
@@ -263,9 +315,38 @@ function persistedSkillFromNode(
 				? { description: node.description }
 				: {}),
 			requiredCapabilities: stringArray(node.requiredCapabilities),
-			instructions,
+			sha256,
 			ledgerScope: scope,
 		},
+	};
+}
+
+/** Legacy fallback: a node that still inlines `instructions` (pre-content-store)
+ * with no `sha256`. Read verbatim so old ledgers keep listing while unmigrated. */
+function legacyInlineSkill(
+	node: Record<string, unknown>,
+	scope: SkillLedgerScope,
+): PersistedSkill | null {
+	if (typeof node.sha256 === "string" && node.sha256.trim()) return null;
+	const id = typeof node["@id"] === "string" ? node["@id"].trim() : "";
+	const name = typeof node.name === "string" ? node.name.trim() : "";
+	const instructions =
+		typeof node.instructions === "string" ? node.instructions : "";
+	if (!id || !name || !instructions.trim()) return null;
+	const surfaceId =
+		typeof node.surfaceId === "string" && node.surfaceId.trim()
+			? node.surfaceId
+			: name;
+	return {
+		surfaceId,
+		id,
+		name,
+		...(typeof node.description === "string" && node.description.trim()
+			? { description: node.description }
+			: {}),
+		requiredCapabilities: stringArray(node.requiredCapabilities),
+		instructions,
+		ledgerScope: scope,
 	};
 }
 
@@ -285,19 +366,33 @@ export async function loadPersistedImportedSkills(
 		"workspace",
 		"user",
 	];
-	const effective = new Map<string, PersistedSkill>();
+	// A byte resolver layered across every active scope's content-store. Bytes are
+	// resolved by hash and VERIFIED before use — a pointer node can only yield
+	// instructions whose sha256 matches, and a copy in any layer satisfies it (a
+	// skill imported at org resolves even when listed from user).
+	const resolver = layeredAssetResolver(
+		scopes.map((scope) => createFsAssetResolver(scopedAssetsDir(scope, roots))),
+	);
+
+	const effectivePointers = new Map<string, SkillPointer>();
+	const effectiveLegacy = new Map<string, PersistedSkill>();
 	const rejected: PersistedSkillLoadResult["rejected"] = [];
 	for (const scope of scopes) {
 		const ledger = openSkillLedgerAt(scope, roots);
 		const nodes = await ledger.queryNodes(IMPORTED_SKILL_NODE_TYPE);
 		for (const node of nodes) {
-			const result = persistedSkillFromNode(
-				node as Record<string, unknown>,
-				scope,
-			);
-			if (result.skill) {
+			const record = node as Record<string, unknown>;
+			const result = skillPointerFromNode(record, scope);
+			if (result.pointer) {
 				// Later scopes (higher precedence) overwrite the same id.
-				effective.set(result.skill.id, result.skill);
+				effectivePointers.set(result.pointer.id, result.pointer);
+				effectiveLegacy.delete(result.pointer.id);
+				continue;
+			}
+			// Non-destructive migration: a legacy inline node still lists.
+			const legacy = legacyInlineSkill(record, scope);
+			if (legacy && !effectivePointers.has(legacy.id)) {
+				effectiveLegacy.set(legacy.id, legacy);
 				continue;
 			}
 			rejected.push({
@@ -310,7 +405,28 @@ export async function loadPersistedImportedSkills(
 			});
 		}
 	}
-	return { skills: [...effective.values()], rejected };
+
+	// Resolve each pointer's instruction bytes from the content-store.
+	const skills: PersistedSkill[] = [...effectiveLegacy.values()];
+	for (const pointer of effectivePointers.values()) {
+		const resolution = await resolver.resolve({ hash: pointer.sha256 });
+		if (!resolution.ok) {
+			rejected.push({
+				ledgerScope: pointer.ledgerScope,
+				nodeId: pointer.id,
+				issues: [
+					`could not resolve instruction bytes for sha256 ${pointer.sha256}: ${resolution.reason}`,
+				],
+			});
+			continue;
+		}
+		const { sha256: _sha256, ...rest } = pointer;
+		skills.push({
+			...rest,
+			instructions: new TextDecoder().decode(resolution.bytes),
+		});
+	}
+	return { skills, rejected };
 }
 
 async function loadSkillCatalog(deps: SkillCommandDeps): Promise<{
@@ -439,7 +555,11 @@ export function createSkillCapabilityGroup(
 			return buildJsonSuccessEnvelope({
 				command: "skill",
 				operation: "show",
-				extra: { skill: projectSkill(skill) },
+				// `show` is the read view of ONE skill, so it carries the resolved
+				// instruction body (list stays lean — a summary per skill). For an
+				// imported skill these bytes were just resolved + verified from the
+				// content-store, so this is the honest, hash-checked text.
+				extra: { skill: { ...projectSkill(skill), instructions: skill.instructions } },
 			});
 		},
 	};

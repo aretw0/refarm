@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
 	createFsAssetResolver,
+	createFsAssetStore,
 	layeredAssetResolver,
 	nodeSha256Hex,
 } from "./node.js";
@@ -49,6 +50,44 @@ describe("createFsAssetResolver (content-store, verify before trust)", () => {
 
 		const result = await createFsAssetResolver(root).resolve({ hash });
 		expect(result).toEqual({ ok: false, reason: "hash-mismatch" });
+	});
+});
+
+describe("createFsAssetStore (write side — round-trips through the resolver)", () => {
+	let root: string;
+	beforeEach(() => {
+		root = mkdtempSync(join(tmpdir(), "asset-store-write-"));
+	});
+	afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+	it("stores bytes at their hash and resolves them back verified", async () => {
+		const store = createFsAssetStore(root);
+		const bytes = new TextEncoder().encode("# Skill\n\nbody");
+		const { hash, bytes: length } = await store.store(bytes);
+
+		expect(hash).toBe(nodeSha256Hex(bytes));
+		expect(length).toBe(bytes.byteLength);
+		const result = await store.resolver.resolve({ hash });
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(new TextDecoder().decode(result.bytes)).toBe("# Skill\n\nbody");
+		}
+	});
+
+	it("is idempotent — re-storing identical bytes lands at the same address", async () => {
+		const store = createFsAssetStore(root);
+		const bytes = new TextEncoder().encode("same");
+		const first = await store.store(bytes);
+		const second = await store.store(bytes);
+		expect(second.hash).toBe(first.hash);
+		expect((await store.resolver.resolve({ hash: first.hash })).ok).toBe(true);
+	});
+
+	it("creates the store root on first write (no pre-mkdir needed)", async () => {
+		const nested = join(root, "deep", "assets");
+		const store = createFsAssetStore(nested);
+		const { hash } = await store.store(new TextEncoder().encode("x"));
+		expect((await store.resolver.resolve({ hash })).ok).toBe(true);
 	});
 });
 

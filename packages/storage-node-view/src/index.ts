@@ -6,6 +6,7 @@ export {
 	openScopedLedger,
 	openScopedLedgerLayers,
 	readLayeredNode,
+	scopedAssetsDir,
 	scopedLedgerPath,
 } from "./scoped-ledger.js";
 export type { LedgerScope } from "@refarm.dev/storage-fs";
