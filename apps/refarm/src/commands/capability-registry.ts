@@ -143,3 +143,50 @@ export function capabilityCliCommandsForGroup(groupName: string): Command[] {
 		.filter((entry) => entry.transports?.cli?.group === groupName)
 		.map(toCliCommand);
 }
+
+/** One capability verb projected onto a TUI menu — the `renderers.tui` hint plus
+ * the neutral name/summary a TUI shell paints into a palette section. */
+export interface CapabilityTuiEntry {
+	name: string;
+	summary: string;
+	shortcut?: string;
+	icon?: string;
+}
+
+/** A TUI menu section (from `renderers.tui.section`) with its capability verbs. */
+export interface CapabilityTuiSection {
+	section: string;
+	entries: CapabilityTuiEntry[];
+}
+
+/**
+ * The TUI menu derived from the capability registry — the third surface reader,
+ * beside {@link capabilitySlashNames} (REPL) and {@link capabilityCliCommands}
+ * (CLI). A BLIND reader over `registry.list()` of ONLY the `renderers.tui` bucket:
+ * each verb that declares `renderers.tui` is grouped under its `section`, so a
+ * verb registered ONCE lights up in the TUI palette with zero tui.ts edits (and,
+ * later, so does a plugin-contributed verb). Verbs with no `renderers.tui` are
+ * simply absent — projecting a hint is inert data, never a run(). Sections and
+ * entries are name-sorted for a stable menu.
+ */
+export function capabilityTuiSections(): CapabilityTuiSection[] {
+	const bySection = new Map<string, CapabilityTuiEntry[]>();
+	for (const entry of capabilityRegistry.list()) {
+		const tui = entry.renderers?.tui;
+		if (!tui?.section) continue;
+		const list = bySection.get(tui.section) ?? [];
+		list.push({
+			name: entry.name,
+			summary: entry.summary,
+			...(tui.shortcut ? { shortcut: tui.shortcut } : {}),
+			...(tui.icon ? { icon: tui.icon } : {}),
+		});
+		bySection.set(tui.section, list);
+	}
+	return [...bySection.entries()]
+		.map(([section, entries]) => ({
+			section,
+			entries: entries.sort((a, b) => a.name.localeCompare(b.name)),
+		}))
+		.sort((a, b) => a.section.localeCompare(b.section));
+}

@@ -1,9 +1,14 @@
 import { formatSurfaceActionReadinessOutput } from "@refarm.dev/cli/action-affordances";
 import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "@refarm.dev/cli/json-output";
 import { createProcessHandoffSpec, executeProcessHandoff, type ProcessHandoffSpec, } from "@refarm.dev/cli/process-handoff";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { capabilityTuiSections } from "./capability-registry.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions, resolveLaunchGuardError } from "./launch-guards.js";
@@ -35,6 +40,7 @@ interface TuiOptions {
 	launch?: boolean;
 	dryRun?: boolean;
 	actions?: boolean;
+	sections?: boolean;
 	select?: string;
 	launcher?: RefarmTuiLauncherMode;
 }
@@ -163,6 +169,10 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 		.option("--dry-run", "Print launch readiness without executing it")
 		.option("--actions", "Output selectable TUI surface action rows")
 		.option(
+			"--sections",
+			"List the capability verbs projected onto the TUI menu, grouped by section",
+		)
+		.option(
 			"--select <id-or-index>",
 			"Select an available TUI action ID or row index when used with --actions",
 		)
@@ -194,6 +204,11 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 					return;
 				}
 				throw new Error("--select requires --actions.");
+			}
+
+			if (options.sections) {
+				emitTuiCapabilitySections(options);
+				return;
 			}
 
 			if (options.actions) {
@@ -275,6 +290,45 @@ async function emitTuiActionRows(
 			);
 		},
 	});
+}
+
+/**
+ * Project the capability registry onto the TUI menu — the tui.ts side of break
+ * #3's declare-once effect. Reads {@link capabilityTuiSections} (a blind loop
+ * over the registry's `renderers.tui` bucket) and prints the palette sections, or
+ * a JSON envelope. A verb that declares `renderers.tui` appears here from ONE
+ * registration, with no edit to this command — the same way `--sections` will
+ * surface a plugin-contributed verb once plugins register into the registry.
+ */
+function emitTuiCapabilitySections(options: TuiOptions): void {
+	const sections = capabilityTuiSections();
+	if (options.json) {
+		printJson(
+			buildJsonSuccessEnvelope({
+				command: "tui",
+				operation: "sections",
+				extra: {
+					sections,
+					sectionCount: sections.length,
+					entryCount: sections.reduce((n, s) => n + s.entries.length, 0),
+				},
+			}),
+		);
+		return;
+	}
+	if (sections.length === 0) {
+		console.log("No capability verbs declare a TUI section yet.");
+		return;
+	}
+	const lines: string[] = ["TUI menu (from the capability registry):"];
+	for (const { section, entries } of sections) {
+		lines.push(`\n${section}`);
+		for (const entry of entries) {
+			const shortcut = entry.shortcut ? `  [${entry.shortcut}]` : "";
+			lines.push(`  ${entry.name}${shortcut} — ${entry.summary}`);
+		}
+	}
+	console.log(lines.join("\n"));
 }
 
 function assertTuiActionsOutputOptions(options: TuiOptions): void {

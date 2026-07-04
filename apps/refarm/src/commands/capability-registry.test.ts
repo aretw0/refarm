@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	capabilityCliCommands,
 	capabilityCliCommandsForGroup,
+	capabilityTuiSections,
 } from "./capability-registry.js";
 
 /**
@@ -37,5 +38,35 @@ describe("capability CLI projection (cli.group routing)", () => {
 		const subs = model!.commands.map((c) => c.name());
 		// The group projector mounted the model sub-actions from one declaration.
 		expect(subs).toEqual(expect.arrayContaining(["current", "set", "providers"]));
+	});
+});
+
+describe("capability TUI projection (renderers.tui bucket)", () => {
+	it("groups the verbs that declare renderers.tui by their section", () => {
+		const sections = capabilityTuiSections();
+		const bySection = new Map(sections.map((s) => [s.section, s]));
+		// model → section "settings" with its ctrl+m shortcut; skill → "extensions".
+		const settings = bySection.get("settings");
+		expect(settings?.entries.map((e) => e.name)).toContain("model");
+		expect(settings?.entries.find((e) => e.name === "model")?.shortcut).toBe(
+			"ctrl+m",
+		);
+		expect(bySection.get("extensions")?.entries.map((e) => e.name)).toContain(
+			"skill",
+		);
+	});
+
+	it("omits verbs that declare no renderers.tui (a hint is inert data)", () => {
+		// review declares no renderers.tui → it appears on no TUI section.
+		const named = capabilityTuiSections().flatMap((s) =>
+			s.entries.map((e) => e.name),
+		);
+		expect(named).not.toContain("review");
+	});
+
+	it("sorts sections and entries for a stable menu", () => {
+		const sections = capabilityTuiSections();
+		const sectionNames = sections.map((s) => s.section);
+		expect(sectionNames).toEqual([...sectionNames].sort());
 	});
 });
