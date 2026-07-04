@@ -1,12 +1,21 @@
 import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "@refarm.dev/cli/json-output";
 import { parseRuntimeAutostartMode, RUNTIME_AUTOSTART_MODES, RUNTIME_ENGINE_MODES, } from "@refarm.dev/runtime";
+import type { LedgerScope } from "@refarm.dev/storage-node-view";
 import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { PackageSource } from "../utils/composition.js";
+import {
+	resolveComposition,
+	type ResolvedPackageSource,
+} from "../utils/composition-resolver.js";
+import type { PackageSource, SurfaceKey } from "../utils/composition.js";
 import {
 	OPEN_EXTERNAL_LINKS_ENV_VAR, parseOpenExternalLinksMode, resolveCliOpenExternalLinksMode, type OpenExternalLinksMode,
 } from "../utils/open-external-links.js";
@@ -94,9 +103,9 @@ interface AppliedConfigProfile {
 interface JsonOptionCarrier {
 	json?: boolean;
 	opts?: () => { json?: boolean };
-	parent?: {
-		opts?: () => { json?: boolean };
-	};
+	/** The parent command in the chain — recursive so `hasJsonOption` can walk to
+	 * an ancestor that owns a `--json` declared higher up (e.g. `config --json`). */
+	parent?: JsonOptionCarrier;
 }
 
 const CONFIG_KEYS: readonly ConfigKey[] = [
@@ -406,12 +415,16 @@ function printConfigSummaryJson(deps: ConfigDeps): void {
 }
 
 function hasJsonOption(opts: JsonOptionCarrier, command?: JsonOptionCarrier): boolean {
-	return (
-		opts.json === true ||
-		opts.opts?.().json === true ||
-		command?.opts?.().json === true ||
-		command?.parent?.opts?.().json === true
-	);
+	if (opts.json === true || opts.opts?.().json === true) return true;
+	// Walk the full ancestor chain: commander attaches a `--json` declared on an
+	// ancestor (e.g. the top-level `config --json`) to THAT command, so a nested
+	// grandchild (`config plugins list`) must look past its immediate parent.
+	let node: JsonOptionCarrier | undefined = command;
+	while (node) {
+		if (node.opts?.().json === true) return true;
+		node = node.parent;
+	}
+	return false;
 }
 
 function configScope(opts: { local?: boolean }): "home" | "local" {
@@ -640,6 +653,196 @@ function unsetConfigValue(
 	};
 }
 
+// ── Composition layer (`config plugins`) ───────────────────────────────────
+// The plugins[] LIST is a different concern from the scalar config keys: it is
+// the COMPOSITION declaration (which packages a scope activates + pi-style
+// suppression), authored via this subgroup rather than `config set`. It lives in
+// the SAME config.json but never enters the ConfigKey grammar.
+
+const CONFIG_PLUGINS_LIST_JSON_COMMAND = refarmCommand([
+	"config",
+	"plugins",
+	"list",
+	"--json",
+]);
+
+const SURFACE_KEYS: readonly SurfaceKey[] = [
+	"skills",
+	"tools",
+	"themes",
+	"commands",
+];
+
+/** Parse a --scope value for a composition write; null when unrecognized. */
+function parseCompositionScope(
+	value: string | undefined,
+): LedgerScope | null {
+	if (value === undefined) return "user";
+	return value === "org" || value === "workspace" || value === "user"
+		? value
+		: null;
+}
+
+/** Project a resolved composition entry for output, expanding its suppression
+ * into a per-surface effective view when `effective` is requested. */
+function projectCompositionEntry(
+	resolved: ResolvedPackageSource,
+	effective: boolean,
+) {
+	const { entry, source, scope } = resolved;
+	const base = { source, scope, form: typeof entry === "string" ? "bare" : "object" };
+	if (!effective || typeof entry === "string") return base;
+	// For an object entry, surface the declared patterns and whether the surface
+	// is fully active, fully suppressed, or filtered — the "what's actually on".
+	const surfaces: Record<string, { patterns: string[]; allActive: boolean }> = {};
+	for (const key of SURFACE_KEYS) {
+		const patterns = entry[key];
+		if (patterns === undefined) continue; // absent = all active, nothing to show
+		surfaces[key] = {
+			patterns: [...patterns],
+			// All-active only when the surface key is absent; a present array filters.
+			allActive: false,
+		};
+	}
+	return { ...base, surfaces };
+}
+
+export function buildCompositionListEnvelope(
+	deps: ConfigDeps,
+	opts: {
+		scope?: string;
+		effective?: boolean;
+		env?: Record<string, string | undefined>;
+	},
+) {
+	const scope = parseCompositionScope(opts.scope);
+	if (opts.scope !== undefined && !scope) {
+		return buildJsonErrorEnvelope({
+			command: "config",
+			operation: "plugins.list",
+			error: "unknown-scope",
+			message: `Unknown scope "${opts.scope}". Use org | workspace | user.`,
+			nextAction: "Re-run with --scope org, workspace, or user.",
+			nextCommand: CONFIG_PLUGINS_LIST_JSON_COMMAND,
+		});
+	}
+	// The resolver folds all active tiers; --scope only filters the VIEW (it does
+	// not change what is read, so an org entry inherited into effect still shows).
+	const resolution = resolveComposition({
+		cwd: deps.cwd(),
+		home: deps.home(),
+		...(opts.env ? { env: opts.env } : {}),
+	});
+	const activeScopes = resolution.consulted.map((c) => c.scope);
+	// Guard --scope org when the org tier is not active (no REFARM_ORG_HOME).
+	if (scope === "org" && !activeScopes.includes("org")) {
+		return buildJsonErrorEnvelope({
+			command: "config",
+			operation: "plugins.list",
+			error: "org-scope-unavailable",
+			message:
+				"The org scope is not active. Set REFARM_ORG_HOME to a shared org base to use --scope org.",
+			nextAction:
+				"Set REFARM_ORG_HOME to a shared org base, or omit --scope org.",
+			nextCommand: CONFIG_PLUGINS_LIST_JSON_COMMAND,
+		});
+	}
+	const entries = resolution.plugins
+		.filter((p) => (opts.scope === undefined ? true : p.scope === scope))
+		.map((p) => projectCompositionEntry(p, opts.effective === true));
+	return buildJsonSuccessEnvelope({
+		command: "config",
+		operation: "plugins.list",
+		extra: {
+			plugins: entries,
+			count: entries.length,
+			scopesConsulted: activeScopes,
+			effective: opts.effective === true,
+		},
+	});
+}
+
+function printCompositionList(
+	deps: ConfigDeps,
+	opts: { scope?: string; effective?: boolean },
+): void {
+	const envelope = buildCompositionListEnvelope(deps, opts) as {
+		ok: boolean;
+		error?: string;
+		message?: string;
+		plugins?: { source: string; scope: string; form: string }[];
+		count?: number;
+	};
+	if (!envelope.ok) {
+		console.error(chalk.red(`✗  ${envelope.message ?? envelope.error}`));
+		return;
+	}
+	if ((envelope.count ?? 0) === 0) {
+		console.log(chalk.dim("No composed packages. Add one with:"));
+		console.log("  refarm config plugins add <source>");
+		return;
+	}
+	console.log(chalk.bold(`Composed packages (${envelope.count}):`));
+	for (const p of envelope.plugins ?? []) {
+		console.log(
+			`  ${chalk.cyan(p.source)}  ${chalk.dim(`[${p.scope}]`)}  ${chalk.dim(p.form)}`,
+		);
+	}
+}
+
+/**
+ * The `config plugins` subgroup — the COMPOSITION authoring surface. It is under
+ * `config` (beside `profile`), NOT under the top-level `plugin` command: `plugin`
+ * manages the PHYSICAL runtime plugin lifecycle (barn/npm/WASM install/reload),
+ * while this declares which packages a scope ACTIVATES. Two different meanings of
+ * "plugin"; keeping composition under `config` avoids the semantic collision.
+ */
+function createConfigPluginsCommand(deps: ConfigDeps): Command {
+	return new Command("plugins")
+		.description("Inspect the composed packages a scope activates")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm config plugins list
+  $ refarm config plugins list --json
+  $ refarm config plugins list --effective
+  $ refarm config plugins list --scope workspace
+
+Notes:
+  Composition (which packages are activated + surface suppression) is distinct
+  from \`refarm plugin\` (which physically installs/reloads runtime plugins).
+  Entries fold org < workspace < user; the user copy of a source wins.
+`,
+		)
+		.addCommand(
+			new Command("list")
+				.description("List the effective composed packages, folded across scopes")
+				.option("--scope <scope>", "Filter the view to org | workspace | user")
+				.option(
+					"--effective",
+					"Expand each entry's surface suppression (what is actually on)",
+				)
+				.option("--json", "Output machine-readable composition list")
+				.action(
+					(
+						opts: {
+							scope?: string;
+							effective?: boolean;
+						} & JsonOptionCarrier,
+						command: JsonOptionCarrier,
+					) => {
+						if (hasJsonOption(opts, command)) {
+							printJson(buildCompositionListEnvelope(deps, opts));
+							return;
+						}
+						printCompositionList(deps, opts);
+					},
+				),
+		);
+}
+
 export function createConfigCommand(deps: ConfigDeps = defaultDeps()): Command {
 	return new Command("config")
 		.description("Inspect and change refarm CLI preferences")
@@ -734,6 +937,7 @@ Notes:
 					},
 				),
 		)
+		.addCommand(createConfigPluginsCommand(deps))
 		.addCommand(
 			new Command("get")
 				.description("Show an effective config value")
