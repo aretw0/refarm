@@ -1,14 +1,6 @@
-import { readGitCommand } from "@refarm.dev/cli/git-command";
 import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
-import {
-	declaredWorkspaceNamespacesFromConfig,
-	defaultRefarmConfigPath,
-	findRefarmConfigPath,
-	loadConfig,
-	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
-	type DeclaredWorkspaceNamespaceConfig,
-} from "@refarm.dev/config";
+import { defaultRefarmConfigPath, findRefarmConfigPath } from "@refarm.dev/config";
 import {
 	ComplexityAuditor,
 	FileSystemAuditor,
@@ -16,9 +8,7 @@ import {
 	ProjectAuditor,
 	RefarmProjectAuditor,
 } from "@refarm.dev/health";
-import chalk from "chalk";
 import { Command } from "commander";
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -27,8 +17,28 @@ import {
 	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
+import {
+	buildHealthAuditFingerprint,
+	readHealthAuditCache,
+	writeHealthAuditCache,
+} from "./health-audit-cache.js";
+import {
+	emitHealthPolicyApplicationSummary,
+	emitHealthPolicySuggestionSummary,
+	emitHealthPolicySummary,
+	emitHealthSummary,
+} from "./health-output.js";
+import {
+	resolveHealthPolicy,
+	resolveHealthPolicyReport,
+	type HealthPolicy,
+	type RefarmConfig,
+} from "./health-policy.js";
 import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 import { RUNTIME_DOCTOR_NEXT_ACTION_COMMAND } from "./runtime-recovery.js";
+
+export { buildHealthAuditFingerprint } from "./health-audit-cache.js";
+export { resolveHealthPolicy, resolveHealthPolicyReport } from "./health-policy.js";
 
 export interface HealthIssue {
   file?: string;
@@ -76,21 +86,6 @@ export interface HealthReport {
   nextCommands: string[];
 }
 
-export interface HealthPolicyReport {
-  command: "health";
-  operation: "policy";
-  ok: true;
-  rootDir: string;
-  configPath: string;
-  configFound: boolean;
-  source: "config" | "refarm-default" | "workspace-default";
-  policy: HealthPolicy;
-  nextAction: null;
-  nextActions: [];
-  nextCommand: null;
-  nextCommands: [];
-}
-
 export interface HealthPolicySuggestionReport {
   command: "health";
   operation: "policy-suggestion";
@@ -129,114 +124,12 @@ interface HealthOptions {
   applySuggestedPolicy?: boolean;
 }
 
-interface HealthPolicy {
-  preset: "refarm" | "workspace";
-  workspaceRoots?: string[];
-  exemptPackageIds?: string[];
-  ignoredGitVisibilityPatterns: string[];
-  workspaceNamespaces?: DeclaredWorkspaceNamespaceConfig[];
-  complexity?: HealthComplexityPolicy;
-  title?: string;
-}
-
-interface HealthComplexityPolicy {
-  enabled: boolean;
-  maxLines: number;
-  paths?: string[];
-  allowedPatterns: string[];
-  reportLimit: number;
-}
-
-interface RefarmConfig {
-  workspaceNamespaces?: unknown;
-  health?: {
-    preset?: "refarm" | "workspace";
-    workspaceRoots?: unknown;
-    exemptPackageIds?: unknown;
-    ignoredGitVisibilityPatterns?: unknown;
-    complexity?: unknown;
-    title?: unknown;
-  };
-}
-
-const REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS = [
-  "**/*.d.ts",
-  `${RUNTIME_AGENT_PLUGIN_DESCRIPTOR.workspaceDir}/src/bindings.rs`,
-];
 const HEALTH_HELP_COMMAND = "refarm health --help";
 const HEALTH_SUGGEST_POLICY_COMMAND = "refarm health --suggest-policy --json";
 const HEALTH_NEXT_ACTION_COMMAND = "refarm health --next-action --json";
 const HEALTH_POLICY_JSON_COMMAND = refarmCommand(["health", "--policy", "--json"]);
 const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
 const HEALTH_POLICY_MODE_CONFLICT_MESSAGE = "Choose only one health policy mode: --policy, --suggest-policy, or --apply-suggested-policy.";
-const HEALTH_AUDIT_CACHE_VERSION = 1;
-const HEALTH_AUDIT_CACHE_FILE = "health-audit.json";
-const HEALTH_AUDIT_CACHE_MAX_AGE_MS = 30_000;
-const HEALTH_PROJECT_STATE_FINGERPRINT_FILES = [
-  ".project/automations.json",
-];
-const HEALTH_FINGERPRINT_EXTENSIONS = new Set([
-  ".cjs",
-  ".js",
-  ".jsx",
-  ".json",
-  ".md",
-  ".mjs",
-  ".rs",
-  ".toml",
-  ".ts",
-  ".tsx",
-  ".yaml",
-  ".yml",
-]);
-const HEALTH_FINGERPRINT_SKIP_DIRS = new Set([
-  ".git",
-  ".refarm",
-  ".turbo",
-  "benchmarks",
-  "build",
-  "coverage",
-  "dist",
-  "generated",
-  "node_modules",
-  "pkg",
-  "target",
-  "test-results",
-  "tmp",
-]);
-
-interface HealthAuditCacheEntry {
-  version: number;
-  fingerprint: string;
-  createdAt: string;
-  report: HealthReport;
-}
-
-function looksLikeRefarmMonorepo(rootDir: string): boolean {
-  const manifestPath = path.join(rootDir, "apps", "refarm", "package.json");
-  if (!fs.existsSync(manifestPath)) return false;
-
-  try {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as { name?: unknown };
-    return manifest.name === "@refarm.dev/refarm";
-  } catch {
-    return false;
-  }
-}
-
-function defaultHealthPolicy(rootDir: string): HealthPolicy {
-  if (looksLikeRefarmMonorepo(rootDir)) {
-    return {
-      preset: "refarm",
-      ignoredGitVisibilityPatterns: REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS,
-    };
-  }
-
-  return {
-    preset: "workspace",
-    ignoredGitVisibilityPatterns: [],
-  };
-}
 
 export function buildHealthReport(
   results: HealthResults,
@@ -319,126 +212,6 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
   ];
 }
 
-export function resolveHealthPolicy(rootDir = process.cwd()): HealthPolicy {
-  return resolveHealthPolicyReport(rootDir).policy;
-}
-
-export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicyReport {
-  const configPath = findRefarmConfigPath(rootDir) ?? defaultRefarmConfigPath(rootDir);
-  const fallback = defaultHealthPolicy(rootDir);
-  const fallbackSource = fallback.preset === "refarm" ? "refarm-default" : "workspace-default";
-
-  if (!fs.existsSync(configPath)) {
-    return buildHealthPolicyReport({
-      rootDir,
-      configPath,
-      configFound: false,
-      source: fallbackSource,
-      policy: fallback,
-    });
-  }
-
-  const config = loadConfig(rootDir) as RefarmConfig;
-
-  if (!config.health) {
-    return buildHealthPolicyReport({
-      rootDir,
-      configPath,
-      configFound: true,
-      source: fallbackSource,
-      policy: fallback,
-    });
-  }
-
-  const health = config.health;
-  const preset = health.preset === "refarm" ? "refarm" : "workspace";
-  const ignoredGitVisibilityPatterns = asStringArray(health.ignoredGitVisibilityPatterns);
-  const policy: HealthPolicy = {
-    preset,
-    ignoredGitVisibilityPatterns: ignoredGitVisibilityPatterns.length > 0
-      ? ignoredGitVisibilityPatterns
-      : preset === "refarm"
-        ? REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS
-        : [],
-  };
-
-  const workspaceRoots = asStringArray(health.workspaceRoots);
-  if (workspaceRoots.length > 0) policy.workspaceRoots = workspaceRoots;
-
-  const exemptPackageIds = asStringArray(health.exemptPackageIds);
-  if (exemptPackageIds.length > 0) policy.exemptPackageIds = exemptPackageIds;
-
-  if (typeof health.title === "string" && health.title.trim()) {
-    policy.title = health.title;
-  }
-
-  const complexity = normalizeComplexityPolicy(health.complexity);
-  if (complexity) policy.complexity = complexity;
-
-  const workspaceNamespaces = declaredWorkspaceNamespacesFromConfig(config, { baseDir: rootDir });
-  if (workspaceNamespaces.length > 0) policy.workspaceNamespaces = workspaceNamespaces;
-
-  return buildHealthPolicyReport({
-    rootDir,
-    configPath,
-    configFound: true,
-    source: "config",
-    policy,
-  });
-}
-
-function asStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
-}
-
-function asPositiveInteger(value: unknown, fallback: number): number {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return fallback;
-  return Math.floor(value);
-}
-
-function normalizeComplexityPolicy(value: unknown): HealthComplexityPolicy | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const input = value as {
-    enabled?: unknown;
-    maxLines?: unknown;
-    paths?: unknown;
-    allowedPatterns?: unknown;
-    reportLimit?: unknown;
-  };
-  if (input.enabled !== true) return undefined;
-  return {
-    enabled: true,
-    maxLines: asPositiveInteger(input.maxLines, 1000),
-    paths: asStringArray(input.paths),
-    allowedPatterns: asStringArray(input.allowedPatterns),
-    reportLimit: asPositiveInteger(input.reportLimit, 10),
-  };
-}
-
-function buildHealthPolicyReport(options: {
-  rootDir: string;
-  configPath: string;
-  configFound: boolean;
-  source: HealthPolicyReport["source"];
-  policy: HealthPolicy;
-}): HealthPolicyReport {
-  return {
-    command: "health",
-    operation: "policy",
-    ok: true,
-    rootDir: options.rootDir,
-    configPath: options.configPath,
-    configFound: options.configFound,
-    source: options.source,
-    policy: options.policy,
-    nextAction: null,
-    nextActions: [],
-    nextCommand: null,
-    nextCommands: [],
-  };
-}
-
 function emitHealthJson(report: HealthReport): void {
   printJson(report);
 }
@@ -449,132 +222,6 @@ function emitHealthNextActionJson(report: HealthReport): void {
     nextActions: report.nextActions,
     nextCommands: report.nextCommands,
   }));
-}
-
-function emitHealthSummary(report: HealthReport): void {
-  console.log(chalk.blue("🔍 Running health audit...\n"));
-
-  // 0. Resolution status
-  console.log(chalk.bold("Package Resolution"));
-  report.resolution.forEach(item => {
-    const modeColor = item.mode.includes("LOCAL (src)") ? chalk.yellow : chalk.green;
-    console.log(`   - ${chalk.bold(item.package.padEnd(25))} : ${modeColor(item.mode)}`);
-  });
-  console.log("");
-
-  // 1. Git visibility
-  console.log(chalk.bold("1. Git Source Visibility"));
-  if (report.results.git.length === 0) {
-    console.log(chalk.green("   ✅ All source files are tracked by Git."));
-  } else {
-    report.results.git.forEach((issue: HealthIssue) => {
-      console.log(chalk.yellow(`   ⚠️  ${issue.file} is a source file but is git-ignored.`));
-    });
-  }
-
-  // 2. Build config
-  console.log(chalk.bold("\n2. Build Pipeline"));
-  if (report.results.builds.length === 0) {
-    console.log(chalk.green("   ✅ All TypeScript packages have tsconfig.build.json."));
-  } else {
-    report.results.builds.forEach((issue: HealthIssue) => {
-      console.log(chalk.yellow(`   ⚠️  ${issue.package} is missing tsconfig.build.json.`));
-    });
-  }
-
-  // 3. Entrypoints
-  console.log(chalk.bold("\n3. Package Entrypoints"));
-  if (report.results.alignment.length === 0) {
-    console.log(chalk.green("   ✅ All TypeScript package entrypoints point to dist/."));
-  } else {
-    report.results.alignment.forEach((issue: HealthIssue) => {
-      console.log(chalk.yellow(`   ⚠️  ${issue.package} main points to ${issue.entry} instead of dist/.`));
-    });
-  }
-
-  console.log(chalk.bold("\n4. Project Automations"));
-  if (!report.results.automations || report.results.automations.length === 0) {
-    console.log(chalk.green("   ✅ Project automation manifest is valid or absent."));
-  } else {
-    report.results.automations.forEach((issue: HealthIssue) => {
-      console.log(chalk.yellow(`   ⚠️  ${issue.file} ${issue.note ?? "has an invalid automation entry."}`));
-    });
-  }
-
-  console.log(chalk.bold("\n5. Complexity Pressure"));
-  if (!report.results.complexity) {
-    console.log(chalk.gray("   Not enabled in health policy."));
-  } else if (report.results.complexity.length === 0) {
-    console.log(chalk.green("   ✅ No blocking large files found."));
-  } else {
-    report.results.complexity.forEach((issue: HealthIssue) => {
-      console.log(chalk.yellow(`   ⚠️  ${issue.file} has ${issue.lines} lines.`));
-    });
-  }
-
-  console.log(chalk.bold("\n6. Workspace Namespaces"));
-  if (!report.results.namespaceWarnings || report.results.namespaceWarnings.length === 0) {
-    console.log(chalk.green("   ✅ Versioned root namespaces are declared or conventional infrastructure."));
-  } else {
-    report.results.namespaceWarnings.forEach((issue: HealthIssue) => {
-      console.log(chalk.yellow(`   ⚠️  ${issue.path} ${issue.note ?? "is undeclared."}`));
-    });
-  }
-
-  if (report.ok) {
-    console.log(chalk.bold.green("\n✨ All checks passed."));
-  } else {
-    console.log(chalk.bold.yellow(`\n⚠️  ${report.issueCount} issue${report.issueCount === 1 ? "" : "s"} found. Review and reconcile.`));
-    console.log(chalk.bold("\nRecommendations"));
-    report.recommendations.forEach((recommendation) => {
-      const target = recommendation.target ? ` (${recommendation.target})` : "";
-      console.log(chalk.gray(`   - ${recommendation.summary}${target}`));
-      console.log(chalk.gray(`     ${recommendation.action}`));
-      if (recommendation.command) {
-        console.log(chalk.gray(`     ${recommendation.command}`));
-      }
-    });
-  }
-}
-
-function emitHealthPolicySummary(report: HealthPolicyReport): void {
-  console.log(chalk.bold("Health Policy"));
-  console.log(`   Source: ${report.source}`);
-  console.log(`   Config: ${report.configFound ? report.configPath : "not found"}`);
-  console.log(`   Preset: ${report.policy.preset}`);
-  if (report.policy.workspaceRoots?.length) {
-    console.log(`   Workspace roots: ${report.policy.workspaceRoots.join(", ")}`);
-  }
-  if (report.policy.exemptPackageIds?.length) {
-    console.log(`   Exempt packages: ${report.policy.exemptPackageIds.join(", ")}`);
-  }
-  if (report.policy.ignoredGitVisibilityPatterns.length) {
-    console.log(`   Ignored git visibility patterns: ${report.policy.ignoredGitVisibilityPatterns.join(", ")}`);
-  }
-  if (report.policy.workspaceNamespaces?.length) {
-    console.log(`   Workspace namespaces: ${report.policy.workspaceNamespaces.map((namespace) => namespace.path).join(", ")}`);
-  }
-  if (report.policy.complexity?.enabled) {
-    console.log(`   Complexity max lines: ${report.policy.complexity.maxLines}`);
-    if (report.policy.complexity.paths?.length) {
-      console.log(`   Complexity paths: ${report.policy.complexity.paths.join(", ")}`);
-    }
-    if (report.policy.complexity.allowedPatterns.length) {
-      console.log(`   Complexity allowed patterns: ${report.policy.complexity.allowedPatterns.join(", ")}`);
-    }
-  }
-}
-
-function emitHealthPolicySuggestionSummary(report: HealthPolicySuggestionReport): void {
-  console.log(chalk.bold("Health Policy Suggestion"));
-  console.log(`   Source issues: ${report.sourceIssueCount}`);
-  console.log(JSON.stringify({ health: report.suggestedHealth }, null, 2));
-}
-
-function emitHealthPolicyApplicationSummary(report: HealthPolicyApplicationReport): void {
-  console.log(chalk.green("Health policy applied"));
-  console.log(chalk.dim(`   ${report.configPath}`));
-  console.log(JSON.stringify({ health: report.appliedHealth }, null, 2));
 }
 
 function healthPolicyModeConflictMessage(options: HealthOptions): string | null {
@@ -642,249 +289,6 @@ export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthRep
   const report = buildHealthReport(results, resolution);
   writeHealthAuditCache(rootDir, fingerprint, report);
   return report;
-}
-
-export function buildHealthAuditFingerprint(
-  rootDir: string,
-  policyReport = resolveHealthPolicyReport(rootDir),
-): string {
-  const gitFingerprint = buildGitHealthAuditFingerprint(rootDir, policyReport);
-  if (gitFingerprint) return gitFingerprint;
-
-  const root = path.resolve(rootDir);
-  const hash = createHealthFingerprintHash(root, policyReport);
-
-  for (const relativePath of healthFingerprintFiles(root)) {
-    appendHealthFingerprintFile(hash, root, relativePath);
-  }
-
-  return hash.digest("hex");
-}
-
-function buildGitHealthAuditFingerprint(
-  rootDir: string,
-  policyReport: HealthPolicyReport,
-): string | null {
-  if (policyReport.policy.complexity?.enabled) return null;
-  const root = path.resolve(rootDir);
-  try {
-    const gitRoot = path.resolve(readGitCommand(["rev-parse", "--show-toplevel"], { cwd: root }));
-    if (gitRoot !== root) return null;
-    const hash = createHealthFingerprintHash(root, policyReport);
-    appendHealthFingerprintValue(hash, "git:head", readGitCommand(["rev-parse", "HEAD"], { cwd: root }));
-    appendHealthFingerprintValue(
-      hash,
-      "git:status",
-      readGitCommand(["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root }),
-    );
-    appendHealthFingerprintValue(
-      hash,
-      "git:diff",
-      readGitCommand(["diff", "--no-ext-diff", "--binary", "--"], { cwd: root }),
-    );
-    appendHealthFingerprintValue(
-      hash,
-      "git:diff-cached",
-      readGitCommand(["diff", "--cached", "--no-ext-diff", "--binary", "--"], { cwd: root }),
-    );
-    appendGitPathMetadata(
-      hash,
-      root,
-      readGitCommand(["ls-files", "--others", "--exclude-standard", "-z"], { cwd: root }),
-    );
-    return hash.digest("hex");
-  } catch {
-    return null;
-  }
-}
-
-function createHealthFingerprintHash(
-  rootDir: string,
-  policyReport: HealthPolicyReport,
-): ReturnType<typeof createHash> {
-  const hash = createHash("sha256");
-  hash.update(JSON.stringify({
-    version: HEALTH_AUDIT_CACHE_VERSION,
-    configPath: path.relative(rootDir, policyReport.configPath),
-    configFound: policyReport.configFound,
-    source: policyReport.source,
-    policy: policyReport.policy,
-  }));
-  hash.update("\0");
-  return hash;
-}
-
-function appendHealthFingerprintValue(
-  hash: ReturnType<typeof createHash>,
-  label: string,
-  value: string,
-): void {
-  hash.update(label);
-  hash.update("\0");
-  hash.update(value);
-  hash.update("\0");
-}
-
-function appendGitPathMetadata(
-  hash: ReturnType<typeof createHash>,
-  rootDir: string,
-  rawPaths: string,
-): void {
-  for (const relativePath of rawPaths.split("\0").filter(Boolean).sort()) {
-    if (!isHealthFingerprintFile(relativePath)) continue;
-    appendHealthFingerprintFile(hash, rootDir, relativePath);
-  }
-}
-
-function healthAuditCachePath(rootDir: string): string {
-  return path.join(rootDir, ".refarm", "cache", HEALTH_AUDIT_CACHE_FILE);
-}
-
-function readHealthAuditCache(
-  rootDir: string,
-  fingerprint: string,
-): HealthReport | null {
-  try {
-    const raw = fs.readFileSync(healthAuditCachePath(rootDir), "utf-8");
-    const parsed = JSON.parse(raw) as HealthAuditCacheEntry;
-    if (parsed.version !== HEALTH_AUDIT_CACHE_VERSION) return null;
-    if (parsed.fingerprint !== fingerprint) return null;
-    if (!isFreshHealthAuditCacheEntry(parsed)) return null;
-    if (!isHealthReport(parsed.report)) return null;
-    if (!parsed.report.ok || parsed.report.issueCount !== 0) return null;
-    return parsed.report;
-  } catch {
-    return null;
-  }
-}
-
-function isFreshHealthAuditCacheEntry(entry: HealthAuditCacheEntry): boolean {
-  const createdAtMs = Date.parse(entry.createdAt);
-  return (
-    Number.isFinite(createdAtMs) &&
-    Date.now() - createdAtMs >= 0 &&
-    Date.now() - createdAtMs <= HEALTH_AUDIT_CACHE_MAX_AGE_MS
-  );
-}
-
-function writeHealthAuditCache(
-  rootDir: string,
-  fingerprint: string,
-  report: HealthReport,
-): void {
-  if (!report.ok || report.issueCount !== 0) return;
-  const cachePath = healthAuditCachePath(rootDir);
-  try {
-    fs.mkdirSync(path.dirname(cachePath), { recursive: true });
-    const tempPath = `${cachePath}.${process.pid}.tmp`;
-    const entry: HealthAuditCacheEntry = {
-      version: HEALTH_AUDIT_CACHE_VERSION,
-      fingerprint,
-      createdAt: new Date().toISOString(),
-      report,
-    };
-    fs.writeFileSync(tempPath, `${JSON.stringify(entry, null, 2)}\n`, "utf-8");
-    fs.renameSync(tempPath, cachePath);
-  } catch {
-    // Health cache is an optimization only; diagnostics must still work without it.
-  }
-}
-
-function isHealthReport(value: unknown): value is HealthReport {
-  return Boolean(
-    value &&
-      typeof value === "object" &&
-      (value as HealthReport).command === "health" &&
-      (value as HealthReport).operation === "audit" &&
-      typeof (value as HealthReport).ok === "boolean" &&
-      typeof (value as HealthReport).issueCount === "number",
-  );
-}
-
-function healthFingerprintFiles(rootDir: string): string[] {
-  const files: string[] = [];
-  collectHealthFingerprintFiles(rootDir, rootDir, files);
-  for (const relativePath of HEALTH_PROJECT_STATE_FINGERPRINT_FILES) {
-    if (fs.existsSync(path.join(rootDir, relativePath))) {
-      files.push(relativePath);
-    }
-  }
-  return files.sort();
-}
-
-function collectHealthFingerprintFiles(
-  rootDir: string,
-  currentPath: string,
-  files: string[],
-): void {
-  let stats: fs.Stats;
-  try {
-    stats = fs.lstatSync(currentPath);
-  } catch {
-    return;
-  }
-
-  const relativePath = normalizeHealthFingerprintPath(
-    path.relative(rootDir, currentPath),
-  );
-  if (stats.isDirectory()) {
-    const directoryName = path.basename(currentPath);
-    if (
-      relativePath &&
-      (directoryName.startsWith(".") ||
-        HEALTH_FINGERPRINT_SKIP_DIRS.has(directoryName))
-    ) {
-      return;
-    }
-    let entries: string[];
-    try {
-      entries = fs.readdirSync(currentPath);
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      collectHealthFingerprintFiles(rootDir, path.join(currentPath, entry), files);
-    }
-    return;
-  }
-
-  if (!relativePath) return;
-  if (isHealthFingerprintFile(relativePath)) files.push(relativePath);
-}
-
-function isHealthFingerprintFile(relativePath: string): boolean {
-  return (
-    path.basename(relativePath) === ".gitignore" ||
-    HEALTH_FINGERPRINT_EXTENSIONS.has(path.extname(relativePath))
-  );
-}
-
-function appendHealthFingerprintFile(
-  hash: ReturnType<typeof createHash>,
-  rootDir: string,
-  relativePath: string,
-): void {
-  const absolutePath = path.join(rootDir, relativePath);
-  try {
-    const stats = fs.lstatSync(absolutePath);
-    hash.update(JSON.stringify({
-      path: relativePath,
-      type: stats.isSymbolicLink() ? "symlink" : stats.isDirectory() ? "dir" : "file",
-      size: stats.size,
-      mode: stats.mode,
-      mtimeMs: stats.mtimeMs,
-      ctimeMs: stats.ctimeMs,
-      link: stats.isSymbolicLink() ? fs.readlinkSync(absolutePath) : null,
-    }));
-    hash.update("\0");
-  } catch {
-    hash.update(JSON.stringify({ path: relativePath, missing: true }));
-    hash.update("\0");
-  }
-}
-
-function normalizeHealthFingerprintPath(value: string): string {
-  return value.split(path.sep).join("/");
 }
 
 export async function runHealthPolicySuggestion(rootDir = process.cwd()): Promise<HealthPolicySuggestionReport> {

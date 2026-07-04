@@ -1,0 +1,206 @@
+import {
+	declaredWorkspaceNamespacesFromConfig,
+	defaultRefarmConfigPath,
+	findRefarmConfigPath,
+	loadConfig,
+	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
+	type DeclaredWorkspaceNamespaceConfig,
+} from "@refarm.dev/config";
+import fs from "node:fs";
+import path from "node:path";
+
+export interface HealthPolicy {
+  preset: "refarm" | "workspace";
+  workspaceRoots?: string[];
+  exemptPackageIds?: string[];
+  ignoredGitVisibilityPatterns: string[];
+  workspaceNamespaces?: DeclaredWorkspaceNamespaceConfig[];
+  complexity?: HealthComplexityPolicy;
+  title?: string;
+}
+
+export interface HealthComplexityPolicy {
+  enabled: boolean;
+  maxLines: number;
+  paths?: string[];
+  allowedPatterns: string[];
+  reportLimit: number;
+}
+
+export interface RefarmConfig {
+  workspaceNamespaces?: unknown;
+  health?: {
+    preset?: "refarm" | "workspace";
+    workspaceRoots?: unknown;
+    exemptPackageIds?: unknown;
+    ignoredGitVisibilityPatterns?: unknown;
+    complexity?: unknown;
+    title?: unknown;
+  };
+}
+
+export interface HealthPolicyReport {
+  command: "health";
+  operation: "policy";
+  ok: true;
+  rootDir: string;
+  configPath: string;
+  configFound: boolean;
+  source: "config" | "refarm-default" | "workspace-default";
+  policy: HealthPolicy;
+  nextAction: null;
+  nextActions: [];
+  nextCommand: null;
+  nextCommands: [];
+}
+
+export const REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS = [
+  "**/*.d.ts",
+  `${RUNTIME_AGENT_PLUGIN_DESCRIPTOR.workspaceDir}/src/bindings.rs`,
+];
+
+function looksLikeRefarmMonorepo(rootDir: string): boolean {
+  const manifestPath = path.join(rootDir, "apps", "refarm", "package.json");
+  if (!fs.existsSync(manifestPath)) return false;
+
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as { name?: unknown };
+    return manifest.name === "@refarm.dev/refarm";
+  } catch {
+    return false;
+  }
+}
+
+function defaultHealthPolicy(rootDir: string): HealthPolicy {
+  if (looksLikeRefarmMonorepo(rootDir)) {
+    return {
+      preset: "refarm",
+      ignoredGitVisibilityPatterns: REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS,
+    };
+  }
+
+  return {
+    preset: "workspace",
+    ignoredGitVisibilityPatterns: [],
+  };
+}
+
+export function resolveHealthPolicy(rootDir = process.cwd()): HealthPolicy {
+  return resolveHealthPolicyReport(rootDir).policy;
+}
+
+export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicyReport {
+  const configPath = findRefarmConfigPath(rootDir) ?? defaultRefarmConfigPath(rootDir);
+  const fallback = defaultHealthPolicy(rootDir);
+  const fallbackSource = fallback.preset === "refarm" ? "refarm-default" : "workspace-default";
+
+  if (!fs.existsSync(configPath)) {
+    return buildHealthPolicyReport({
+      rootDir,
+      configPath,
+      configFound: false,
+      source: fallbackSource,
+      policy: fallback,
+    });
+  }
+
+  const config = loadConfig(rootDir) as RefarmConfig;
+
+  if (!config.health) {
+    return buildHealthPolicyReport({
+      rootDir,
+      configPath,
+      configFound: true,
+      source: fallbackSource,
+      policy: fallback,
+    });
+  }
+
+  const health = config.health;
+  const preset = health.preset === "refarm" ? "refarm" : "workspace";
+  const ignoredGitVisibilityPatterns = asStringArray(health.ignoredGitVisibilityPatterns);
+  const policy: HealthPolicy = {
+    preset,
+    ignoredGitVisibilityPatterns: ignoredGitVisibilityPatterns.length > 0
+      ? ignoredGitVisibilityPatterns
+      : preset === "refarm"
+        ? REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS
+        : [],
+  };
+
+  const workspaceRoots = asStringArray(health.workspaceRoots);
+  if (workspaceRoots.length > 0) policy.workspaceRoots = workspaceRoots;
+
+  const exemptPackageIds = asStringArray(health.exemptPackageIds);
+  if (exemptPackageIds.length > 0) policy.exemptPackageIds = exemptPackageIds;
+
+  if (typeof health.title === "string" && health.title.trim()) {
+    policy.title = health.title;
+  }
+
+  const complexity = normalizeComplexityPolicy(health.complexity);
+  if (complexity) policy.complexity = complexity;
+
+  const workspaceNamespaces = declaredWorkspaceNamespacesFromConfig(config, { baseDir: rootDir });
+  if (workspaceNamespaces.length > 0) policy.workspaceNamespaces = workspaceNamespaces;
+
+  return buildHealthPolicyReport({
+    rootDir,
+    configPath,
+    configFound: true,
+    source: "config",
+    policy,
+  });
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function asPositiveInteger(value: unknown, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return fallback;
+  return Math.floor(value);
+}
+
+function normalizeComplexityPolicy(value: unknown): HealthComplexityPolicy | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const input = value as {
+    enabled?: unknown;
+    maxLines?: unknown;
+    paths?: unknown;
+    allowedPatterns?: unknown;
+    reportLimit?: unknown;
+  };
+  if (input.enabled !== true) return undefined;
+  return {
+    enabled: true,
+    maxLines: asPositiveInteger(input.maxLines, 1000),
+    paths: asStringArray(input.paths),
+    allowedPatterns: asStringArray(input.allowedPatterns),
+    reportLimit: asPositiveInteger(input.reportLimit, 10),
+  };
+}
+
+function buildHealthPolicyReport(options: {
+  rootDir: string;
+  configPath: string;
+  configFound: boolean;
+  source: HealthPolicyReport["source"];
+  policy: HealthPolicy;
+}): HealthPolicyReport {
+  return {
+    command: "health",
+    operation: "policy",
+    ok: true,
+    rootDir: options.rootDir,
+    configPath: options.configPath,
+    configFound: options.configFound,
+    source: options.source,
+    policy: options.policy,
+    nextAction: null,
+    nextActions: [],
+    nextCommand: null,
+    nextCommands: [],
+  };
+}
