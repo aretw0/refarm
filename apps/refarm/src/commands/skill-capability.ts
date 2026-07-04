@@ -23,7 +23,11 @@ import { openScopedLedger } from "@refarm.dev/storage-node-view";
 import chalk from "chalk";
 import { dirname } from "node:path";
 
-import { pluginsBaseDir, resolveRefarmHome } from "../utils/refarm-home.js";
+import {
+	pluginsBaseDir,
+	resolveOrgRoot,
+	resolveRefarmHome,
+} from "../utils/refarm-home.js";
 import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildDiagnosticNextActionPayload,
@@ -99,13 +103,38 @@ export interface SkillCommandDeps {
 	 * it came from fs today or p2p/OPFS tomorrow. Returns the ids written. This is
 	 * the seam a future content-addressed/p2p resolver plugs into unchanged.
 	 */
-	persistSkills: (skills: ImportedAgentSkill[]) => Promise<string[]>;
+	persistSkills: (
+		skills: ImportedAgentSkill[],
+		scope: SkillLedgerScope,
+	) => Promise<string[]>;
 }
 
 /** JSON-LD type of a persisted, imported skill node. */
 const IMPORTED_SKILL_NODE_TYPE = "refarm:imported-skill";
 
-/** A skill imported earlier and loaded back from the user-scope skills ledger. */
+/**
+ * The scope a persisted skill lives at, most-specific first: `user` (personal) >
+ * `workspace` (this project) > `org` (a shared base an organization distributes).
+ * `import --scope` chooses where a skill is written; listing folds all three, and
+ * the highest-precedence copy of a content-addressed id wins.
+ */
+export type SkillLedgerScope = "org" | "workspace" | "user";
+
+const SKILL_LEDGER_SCOPES: readonly SkillLedgerScope[] = [
+	"org",
+	"workspace",
+	"user",
+];
+
+/** Parse a scope string; null when unrecognized (the caller errors loudly). */
+function parseSkillLedgerScope(value: string | undefined): SkillLedgerScope | null {
+	if (value === undefined) return "user";
+	return (SKILL_LEDGER_SCOPES as readonly string[]).includes(value)
+		? (value as SkillLedgerScope)
+		: null;
+}
+
+/** A skill imported earlier and loaded back from a scoped skills ledger. */
 export interface PersistedSkill {
 	surfaceId: string;
 	id: string;
@@ -113,13 +142,13 @@ export interface PersistedSkill {
 	description?: string;
 	requiredCapabilities: readonly string[];
 	instructions: string;
-	ledgerScope: "user";
+	ledgerScope: SkillLedgerScope;
 }
 
 export interface PersistedSkillLoadResult {
 	skills: PersistedSkill[];
 	rejected: {
-		ledgerScope: "user";
+		ledgerScope: SkillLedgerScope;
 		nodeId: string;
 		issues: string[];
 	}[];
@@ -135,19 +164,36 @@ interface CatalogSkill {
 	source: "plugin" | "imported";
 	pluginId?: string;
 	pluginDir?: string;
-	ledgerScope?: "user";
+	ledgerScope?: SkillLedgerScope;
 }
 
 type SkillCatalogRejected =
 	| ReturnType<SkillCommandDeps["discover"]>["rejected"][number]
 	| PersistedSkillLoadResult["rejected"][number];
 
-function openImportedSkillLedger(refarmHome = resolveRefarmHome()) {
-	// openScopedLedger's user scope appends `.refarm` itself, so hand it the
-	// PARENT of the resolved refarm home (which is `<parent>/.refarm`).
-	return openScopedLedger("skills", "user", {
-		userHome: dirname(refarmHome),
-	});
+/**
+ * The scope roots for the skills ledger: the user home, the workspace root, and
+ * (opt-in) the org root. Resolved from env/cwd by default; injected for tests.
+ * openScopedLedger's user scope appends `.refarm` itself, so the user root is the
+ * PARENT of the resolved refarm home. Org is absent unless REFARM_ORG_HOME is set.
+ */
+export interface SkillLedgerRoots {
+	userHome: string;
+	workspaceRoot: string;
+	orgRoot?: string;
+}
+
+function defaultSkillLedgerRoots(env = process.env): SkillLedgerRoots {
+	return {
+		userHome: dirname(resolveRefarmHome(env)),
+		workspaceRoot: process.cwd(),
+		...(resolveOrgRoot(env) ? { orgRoot: resolveOrgRoot(env) } : {}),
+	};
+}
+
+/** Open the skills ledger at ONE scope (for a scoped write). */
+function openSkillLedgerAt(scope: SkillLedgerScope, roots: SkillLedgerRoots) {
+	return openScopedLedger("skills", scope, roots);
 }
 
 function importedSkillNode(skill: ImportedAgentSkill) {
@@ -164,9 +210,10 @@ function importedSkillNode(skill: ImportedAgentSkill) {
 
 export async function persistImportedSkillsToLedger(
 	skills: ImportedAgentSkill[],
-	refarmHome = resolveRefarmHome(),
+	scope: SkillLedgerScope = "user",
+	roots: SkillLedgerRoots = defaultSkillLedgerRoots(),
 ): Promise<string[]> {
-	const ledger = openImportedSkillLedger(refarmHome);
+	const ledger = openSkillLedgerAt(scope, roots);
 	const written: string[] = [];
 	for (const skill of skills) {
 		await ledger.storeNode(importedSkillNode(skill) as never);
@@ -183,6 +230,7 @@ function stringArray(value: unknown): string[] {
 
 function persistedSkillFromNode(
 	node: Record<string, unknown>,
+	scope: SkillLedgerScope,
 ): { skill?: PersistedSkill; issues: string[] } {
 	const issues: string[] = [];
 	const id =
@@ -216,34 +264,53 @@ function persistedSkillFromNode(
 				: {}),
 			requiredCapabilities: stringArray(node.requiredCapabilities),
 			instructions,
-			ledgerScope: "user",
+			ledgerScope: scope,
 		},
 	};
 }
 
+/**
+ * Load imported skills across ALL active ledger scopes and FOLD them with the
+ * override doctrine: layers are read org → workspace → user, and for a given
+ * content-addressed id the highest-precedence copy wins (user overrides
+ * workspace overrides org). The org layer only participates when an org root is
+ * present. Each returned skill is tagged with the scope it effectively came from.
+ */
 export async function loadPersistedImportedSkills(
-	refarmHome = resolveRefarmHome(),
+	roots: SkillLedgerRoots = defaultSkillLedgerRoots(),
 ): Promise<PersistedSkillLoadResult> {
-	const ledger = openImportedSkillLedger(refarmHome);
-	const nodes = await ledger.queryNodes(IMPORTED_SKILL_NODE_TYPE);
-	const skills: PersistedSkill[] = [];
+	// Apply order (lowest precedence first): org, workspace, user.
+	const scopes: SkillLedgerScope[] = [
+		...(roots.orgRoot ? (["org"] as const) : []),
+		"workspace",
+		"user",
+	];
+	const effective = new Map<string, PersistedSkill>();
 	const rejected: PersistedSkillLoadResult["rejected"] = [];
-	for (const node of nodes) {
-		const result = persistedSkillFromNode(node as Record<string, unknown>);
-		if (result.skill) {
-			skills.push(result.skill);
-			continue;
+	for (const scope of scopes) {
+		const ledger = openSkillLedgerAt(scope, roots);
+		const nodes = await ledger.queryNodes(IMPORTED_SKILL_NODE_TYPE);
+		for (const node of nodes) {
+			const result = persistedSkillFromNode(
+				node as Record<string, unknown>,
+				scope,
+			);
+			if (result.skill) {
+				// Later scopes (higher precedence) overwrite the same id.
+				effective.set(result.skill.id, result.skill);
+				continue;
+			}
+			rejected.push({
+				ledgerScope: scope,
+				nodeId:
+					typeof node["@id"] === "string" && node["@id"].trim()
+						? node["@id"]
+						: "(unknown)",
+				issues: result.issues,
+			});
 		}
-		rejected.push({
-			ledgerScope: "user",
-			nodeId:
-				typeof node["@id"] === "string" && node["@id"].trim()
-					? node["@id"]
-					: "(unknown)",
-			issues: result.issues,
-		});
 	}
-	return { skills, rejected };
+	return { skills: [...effective.values()], rejected };
 }
 
 async function loadSkillCatalog(deps: SkillCommandDeps): Promise<{
@@ -290,7 +357,8 @@ export function defaultSkillDeps(): SkillCommandDeps {
 			return checkers;
 		},
 		importSkills: (dir) => loadAgentSkillsFromDir(dir),
-		persistSkills: (skills) => persistImportedSkillsToLedger(skills),
+		persistSkills: (skills, scope) =>
+			persistImportedSkillsToLedger(skills, scope),
 	};
 }
 
@@ -436,16 +504,33 @@ export function createSkillCapabilityGroup(
 				summary:
 					"Persist the imported skills into refarm's store (content-addressed nodes)",
 			},
+			{
+				name: "scope",
+				kind: "string",
+				summary:
+					"Ledger scope to persist into: user (default) | workspace | org",
+				defaultValue: "user",
+			},
 		],
 		async run(input) {
 			const dir = input.args.dir as string;
 			const write = Boolean(input.options.write);
+			const scope = parseSkillLedgerScope(input.options.scope as string);
+			if (scope === null) {
+				return buildJsonErrorEnvelope({
+					command: "skill",
+					operation: "import",
+					error: "unknown-ledger-scope",
+					message: `Unknown ledger scope: ${input.options.scope}. Use user, workspace, or org.`,
+					nextAction: "Retry with --scope user|workspace|org.",
+				});
+			}
 			const { skills, rejected } = deps.importSkills(dir);
 			// Default is REPORT-ONLY: surface WHAT would import on every surface.
-			// With --write, persist each skill as a content-addressed node (its
-			// sha256-derived id is the @id — idempotent, and the seam a future
-			// p2p/OPFS resolver reuses without touching this code).
-			const persisted = write ? await deps.persistSkills(skills) : [];
+			// With --write, persist each skill as a content-addressed node into the
+			// chosen scope (user/workspace/org). The sha256-derived id is the @id —
+			// idempotent, and the seam a future p2p/OPFS resolver reuses unchanged.
+			const persisted = write ? await deps.persistSkills(skills, scope) : [];
 			const imported = skills.map((s) => ({
 				name: s.name,
 				id: s.id,
@@ -464,6 +549,7 @@ export function createSkillCapabilityGroup(
 					count: imported.length,
 					written: persisted,
 					persisted: write,
+					scope,
 				},
 				...(write
 					? {}

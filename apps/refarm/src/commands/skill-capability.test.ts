@@ -269,7 +269,8 @@ describe("skill CapabilityGroup", () => {
 
 	it("persists imported skills to the user ledger and loads them back for list", async () => {
 		const homeParent = mkdtempSync(join(tmpdir(), "refarm-skill-home-"));
-		const refarmHome = join(homeParent, ".refarm");
+		const workspaceRoot = mkdtempSync(join(tmpdir(), "refarm-skill-ws-"));
+		const roots = { userHome: homeParent, workspaceRoot };
 		try {
 			const imported: ImportResult["skills"] = [
 				{
@@ -284,10 +285,10 @@ describe("skill CapabilityGroup", () => {
 				},
 			];
 			await expect(
-				persistImportedSkillsToLedger(imported, refarmHome),
+				persistImportedSkillsToLedger(imported, "user", roots),
 			).resolves.toEqual(["urn:refarm:skill:v1:commit:abc123"]);
 
-			const loaded = await loadPersistedImportedSkills(refarmHome);
+			const loaded = await loadPersistedImportedSkills(roots);
 			expect(loaded.rejected).toEqual([]);
 			expect(loaded.skills).toHaveLength(1);
 			expect(loaded.skills[0]).toMatchObject({
@@ -311,7 +312,96 @@ describe("skill CapabilityGroup", () => {
 			});
 		} finally {
 			rmSync(homeParent, { recursive: true, force: true });
+			rmSync(workspaceRoot, { recursive: true, force: true });
 		}
+	});
+
+	it("folds org → workspace → user; user override wins, org base shows through", async () => {
+		const homeParent = mkdtempSync(join(tmpdir(), "refarm-skill-home-"));
+		const workspaceRoot = mkdtempSync(join(tmpdir(), "refarm-skill-ws-"));
+		const orgRoot = mkdtempSync(join(tmpdir(), "refarm-skill-org-"));
+		const roots = { userHome: homeParent, workspaceRoot, orgRoot };
+		try {
+			// Org distributes a base skill; a workspace re-imports it (same content =
+			// same content-addressed id = override, not a duplicate); the user tier
+			// only carries its own personal skill.
+			const shared = (instructions: string): ImportResult["skills"][number] => ({
+				surfaceId: "shared",
+				id: "urn:refarm:skill:v1:shared:aaaa1111",
+				name: "shared",
+				requiredCapabilities: [],
+				instructions,
+				skillDir: "/x/shared",
+				translated: { nameInjected: false, newlinesNormalized: false },
+			});
+			const orgOnly: ImportResult["skills"][number] = {
+				surfaceId: "org-base",
+				id: "urn:refarm:skill:v1:org-base:bbbb2222",
+				name: "org-base",
+				requiredCapabilities: [],
+				instructions: "org-only skill",
+				skillDir: "/x/org-base",
+				translated: { nameInjected: false, newlinesNormalized: false },
+			};
+			await persistImportedSkillsToLedger([shared("ORG"), orgOnly], "org", roots);
+			await persistImportedSkillsToLedger([shared("WORKSPACE")], "workspace", roots);
+
+			const loaded = await loadPersistedImportedSkills(roots);
+			const byId = new Map(loaded.skills.map((s) => [s.id, s]));
+			// Same content-addressed id: workspace overrides org (higher precedence),
+			// and there is ONE effective skill, not two.
+			expect(loaded.skills.filter((s) => s.name === "shared")).toHaveLength(1);
+			expect(byId.get("urn:refarm:skill:v1:shared:aaaa1111")).toMatchObject({
+				instructions: "WORKSPACE",
+				ledgerScope: "workspace",
+			});
+			// The org-only skill still shows through (base inherited).
+			expect(byId.get("urn:refarm:skill:v1:org-base:bbbb2222")).toMatchObject({
+				ledgerScope: "org",
+			});
+		} finally {
+			rmSync(homeParent, { recursive: true, force: true });
+			rmSync(workspaceRoot, { recursive: true, force: true });
+			rmSync(orgRoot, { recursive: true, force: true });
+		}
+	});
+
+	it("`import --scope org` persists to the org tier; unknown scope errors", async () => {
+		let capturedScope: string | undefined;
+		const group = createSkillCapabilityGroup({
+			...deps([], [], [], {
+				skills: [
+					{
+						surfaceId: "s",
+						id: "urn:refarm:skill:v1:s:cccc3333",
+						name: "s",
+						requiredCapabilities: [],
+						instructions: "body",
+						skillDir: "/x/s",
+						translated: { nameInjected: false, newlinesNormalized: false },
+					},
+				],
+				rejected: [],
+			}),
+			persistSkills: async (_skills, scope) => {
+				capturedScope = scope;
+				return ["urn:refarm:skill:v1:s:cccc3333"];
+			},
+		});
+
+		const ok = resolveGroupAction(group, ["import", "/x", "--write", "--scope", "org"]);
+		const env = (await ok!.action.run(ok!.input)) as unknown as {
+			ok: boolean;
+			scope: string;
+		};
+		expect(env.ok).toBe(true);
+		expect(env.scope).toBe("org");
+		expect(capturedScope).toBe("org");
+
+		const bad = resolveGroupAction(group, ["import", "/x", "--write", "--scope", "nope"]);
+		const badEnv = await bad!.action.run(bad!.input);
+		expect(badEnv.ok).toBe(false);
+		expect((badEnv as { error?: string }).error).toBe("unknown-ledger-scope");
 	});
 
 	it("hooks render the import listing (with translation tags) and a not-found error", () => {
