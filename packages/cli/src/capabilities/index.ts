@@ -1,4 +1,8 @@
 export { CapabilityRegistry, createCapabilityRegistry } from "./registry.js";
+export {
+	buildCapabilityRoutes,
+	createCapabilityRouteHandler,
+} from "./http-projector.js";
 export { parseCapabilityArgv } from "./parse-argv.js";
 export {
 	resolveGroupAction,
