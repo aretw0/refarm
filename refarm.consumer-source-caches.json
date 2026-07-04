@@ -9,6 +9,11 @@
       "purpose": "external skill and agent-lab primitive source evidence"
     },
     {
+      "id": "pi",
+      "ref": "earendil-works/pi",
+      "purpose": "upstream pi.dev agent framework — extension/skill contract for ecosystem convergence"
+    },
+    {
       "id": "vault-seed",
       "ref": "aretw0/vault-seed",
       "purpose": "official downstream consumer source evidence for Refarm handoffs"
