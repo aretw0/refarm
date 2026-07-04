@@ -4,27 +4,30 @@ export {
 	runSkillContractV1Conformance,
 } from "./conformance.js";
 export { createInMemorySkillContractV1Adapter } from "./in-memory.js";
+export { createSkillContractV1Adapter } from "./manifest.js";
+export { createSkillSourceRef } from "./manifest-shared.js";
+export { parseSkillMarkdown, validateSkillManifest } from "./manifest-parse.js";
 export {
 	buildSkillActivationInstallEvidence,
+	buildSkillSourceIntegrityEvidence,
+	verifySkillSource,
+} from "./skill-source-integrity.js";
+export {
 	buildSkillInvocationDecision,
 	buildSkillInvocationPlan,
 	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
-	buildSkillSourceIntegrityEvidence,
-	buildSkillSurfaceDeclaration,
-	createSkillContractV1Adapter,
-	createSkillSourceRef,
-	evaluateSkillActivationPreflight,
-	parseSkillMarkdown,
 	prepareSkillInvocationPlan,
 	validateSkillInvocationDecision,
 	validateSkillInvocationPlan,
 	validateSkillInvocationReceipt,
 	validateSkillInvocationRequest,
-	validateSkillManifest,
+} from "./skill-invocation.js";
+export {
+	buildSkillSurfaceDeclaration,
+	evaluateSkillActivationPreflight,
 	validateSkillSurfaceDeclaration,
-	verifySkillSource,
-} from "./manifest.js";
+} from "./skill-activation.js";
 export type {
 	SkillCapabilityEnvelope,
 	SkillActivationInstallEvidence,

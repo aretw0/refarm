@@ -5,27 +5,30 @@ import {
 	VALID_SKILL_MARKDOWN_FIXTURE,
 	runSkillContractV1Conformance,
 } from "./conformance.js";
+import { parseSkillMarkdown, validateSkillManifest } from "./manifest-parse.js";
+import { createSkillSourceRef } from "./manifest-shared.js";
+import { createSkillContractV1Adapter } from "./manifest.js";
 import {
-	buildSkillActivationInstallEvidence,
+	buildSkillSurfaceDeclaration,
+	evaluateSkillActivationPreflight,
+	validateSkillSurfaceDeclaration,
+} from "./skill-activation.js";
+import {
 	buildSkillInvocationDecision,
 	buildSkillInvocationPlan,
 	buildSkillInvocationReceipt,
 	buildSkillInvocationRequest,
-	buildSkillSourceIntegrityEvidence,
-	buildSkillSurfaceDeclaration,
-	createSkillContractV1Adapter,
-	createSkillSourceRef,
-	evaluateSkillActivationPreflight,
-	parseSkillMarkdown,
 	prepareSkillInvocationPlan,
 	validateSkillInvocationDecision,
 	validateSkillInvocationPlan,
 	validateSkillInvocationReceipt,
 	validateSkillInvocationRequest,
-	validateSkillManifest,
-	validateSkillSurfaceDeclaration,
+} from "./skill-invocation.js";
+import {
+	buildSkillActivationInstallEvidence,
+	buildSkillSourceIntegrityEvidence,
 	verifySkillSource,
-} from "./manifest.js";
+} from "./skill-source-integrity.js";
 
 describe("skill-contract-v1", () => {
 	it("parses SKILL.md into a policy-checkable manifest", () => {
