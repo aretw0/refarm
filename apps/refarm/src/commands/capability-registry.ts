@@ -1,7 +1,8 @@
 import {
-	CapabilityRegistry,
+	createCapabilityRegistry,
 	isCapabilityGroup,
 	type CapabilityDescriptor,
+	type CapabilityEntry,
 	type CapabilityGroup,
 } from "@refarm.dev/cli/capabilities";
 import { RESERVED_SLASH_NAMES } from "@refarm.dev/cli/chat-repl";
@@ -26,54 +27,64 @@ import {
 } from "./skill-capability.js";
 
 /**
- * The one registry of tri-surface capabilities for this app. Every declared
- * verb is registered here once; the CLI, the REPL slash, and any direct alias
- * are derived from it. New verbs (and, later, plugin-contributed ones) register
- * here and light up on all surfaces without touching the commander wiring or the
- * chat switch again.
+ * A capability plus its surface hooks (text render + exit intent). A descriptor
+ * carries ONE hook set; a group carries a per-sub-action `hooksFor`. Bundling the
+ * entry with its hooks keeps the built-in set a single declarative list — the ONE
+ * registration site the whole app (and every surface projector) derives from.
  */
-export const capabilityRegistry = new CapabilityRegistry(RESERVED_SLASH_NAMES);
+type BuiltinCapability =
+	| { entry: CapabilityDescriptor; hooks: CapabilitySurfaceHooks }
+	| {
+			entry: CapabilityGroup;
+			hooksFor: (subVerb: string) => CapabilitySurfaceHooks;
+	  };
 
-/** Surface hooks (text render + exit intent) keyed by capability name. */
-const capabilityHooks = new Map<string, CapabilitySurfaceHooks>();
-
-function registerCapability(
-	descriptor: CapabilityDescriptor,
-	hooks: CapabilitySurfaceHooks = {},
-): void {
-	capabilityRegistry.register(descriptor);
-	capabilityHooks.set(descriptor.name.toLowerCase(), hooks);
-	for (const alias of descriptor.transports?.repl?.slashAliases ?? []) {
-		capabilityHooks.set(alias.toLowerCase(), hooks);
-	}
-}
+/** The app's built-in capabilities, declared ONCE. New verbs are added here and
+ * light up on every surface (CLI, REPL, TUI, and later HTTP/web) with no
+ * per-surface wiring. */
+const BUILTIN_CAPABILITIES: BuiltinCapability[] = [
+	{ entry: extensionReviewCapability, hooks: extensionReviewHooks },
+	{ entry: createModelCapabilityGroup(), hooksFor: modelCapabilityHooks },
+	{ entry: createSkillCapabilityGroup(), hooksFor: skillCapabilityHooks },
+];
 
 /**
- * Register a verb-group and its per-sub-action hooks. The REPL dispatcher keys a
- * group's hooks by the composite `"<group> <sub>"` name (see chat.ts case
- * "capability"), so we index every sub-action under that key for the group's own
- * verb AND each slash alias. This lets `/model set …` and `/provider set …`
- * resolve the same render/exit hooks the CLI group projector uses.
+ * The one registry of tri-surface capabilities for this app, built from
+ * {@link BUILTIN_CAPABILITIES} via the shared `createCapabilityRegistry` factory
+ * (the SDK seam — the same call farmhand / apps/me / a third party uses to obtain
+ * a live registry). Every declared verb is registered here once; the CLI, the
+ * REPL slash, the TUI menu, and any direct alias are derived from it.
  */
-function registerCapabilityGroup(
-	group: CapabilityGroup,
-	hooksFor: (subVerb: string) => CapabilitySurfaceHooks,
-): void {
-	capabilityRegistry.register(group);
+export const capabilityRegistry = createCapabilityRegistry(
+	BUILTIN_CAPABILITIES.map((c) => c.entry as CapabilityEntry),
+	RESERVED_SLASH_NAMES,
+);
+
+/** Surface hooks (text render + exit intent) keyed by capability name. The REPL
+ * dispatcher keys a group's hooks by the composite `"<group> <sub>"` name (see
+ * chat.ts case "capability"), so each sub-action is indexed under that key for the
+ * group's own verb AND each slash alias, matching the CLI group projector. */
+const capabilityHooks = new Map<string, CapabilitySurfaceHooks>();
+for (const builtin of BUILTIN_CAPABILITIES) {
+	if ("hooks" in builtin) {
+		const { entry, hooks } = builtin;
+		capabilityHooks.set(entry.name.toLowerCase(), hooks);
+		for (const alias of entry.transports?.repl?.slashAliases ?? []) {
+			capabilityHooks.set(alias.toLowerCase(), hooks);
+		}
+		continue;
+	}
+	const { entry, hooksFor } = builtin;
 	const verbs = [
-		group.name,
-		...(group.transports?.repl?.slashAliases ?? []),
+		entry.name,
+		...(entry.transports?.repl?.slashAliases ?? []),
 	].map((name) => name.toLowerCase());
 	for (const verb of verbs) {
-		for (const subVerb of Object.keys(group.actions)) {
+		for (const subVerb of Object.keys(entry.actions)) {
 			capabilityHooks.set(`${verb} ${subVerb.toLowerCase()}`, hooksFor(subVerb));
 		}
 	}
 }
-
-registerCapability(extensionReviewCapability, extensionReviewHooks);
-registerCapabilityGroup(createModelCapabilityGroup(), modelCapabilityHooks);
-registerCapabilityGroup(createSkillCapabilityGroup(), skillCapabilityHooks);
 
 export function capabilityHooksFor(name: string): CapabilitySurfaceHooks {
 	return capabilityHooks.get(name.toLowerCase()) ?? {};

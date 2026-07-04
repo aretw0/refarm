@@ -1,4 +1,4 @@
-export { CapabilityRegistry } from "./registry.js";
+export { CapabilityRegistry, createCapabilityRegistry } from "./registry.js";
 export { parseCapabilityArgv } from "./parse-argv.js";
 export {
 	resolveGroupAction,

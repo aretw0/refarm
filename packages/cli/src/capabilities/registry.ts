@@ -71,5 +71,26 @@ export class CapabilityRegistry {
 	}
 }
 
+/**
+ * Build a populated CapabilityRegistry from a set of entries — the SDK seam a
+ * host uses to obtain a live, projectable registry in ONE call instead of
+ * constructing and registering by hand. Every surface projector (CLI, REPL, TUI,
+ * HTTP, web) reads the returned registry the same way, so a host that composes
+ * its entries here (refarm's built-ins, a third party's own descriptors, or a
+ * mix) lights them up across every surface it runs. Entries register in order and
+ * collide loudly (a duplicate or reserved name throws), keeping registration a
+ * single, validated act rather than per-surface wiring.
+ */
+export function createCapabilityRegistry(
+	entries: Iterable<CapabilityEntry> = [],
+	reservedNames: Iterable<string> = [],
+): CapabilityRegistry {
+	const registry = new CapabilityRegistry(reservedNames);
+	for (const entry of entries) {
+		registry.register(entry);
+	}
+	return registry;
+}
+
 /** Re-export for consumers that only need the flat descriptor type. */
 export type { CapabilityDescriptor };

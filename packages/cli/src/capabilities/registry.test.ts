@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildJsonSuccessEnvelope } from "../json-output.js";
-import { CapabilityRegistry } from "./registry.js";
+import { CapabilityRegistry, createCapabilityRegistry } from "./registry.js";
 import type { CapabilityDescriptor } from "./types.js";
 
 function descriptor(
@@ -60,5 +60,30 @@ describe("CapabilityRegistry", () => {
 				}),
 			),
 		).toThrow("collides with a built-in");
+	});
+});
+
+describe("createCapabilityRegistry (the SDK factory)", () => {
+	it("returns a registry populated from the given entries", () => {
+		const registry = createCapabilityRegistry([
+			descriptor("review"),
+			descriptor("model", { transports: { repl: { slashAliases: ["provider"] } } }),
+		]);
+		expect(registry.list().map((e) => e.name).sort()).toEqual(["model", "review"]);
+		// Aliases resolve to the same entry, exactly as register() does.
+		expect(registry.get("provider")?.name).toBe("model");
+	});
+
+	it("honors reserved names (a colliding entry throws)", () => {
+		expect(() =>
+			createCapabilityRegistry([descriptor("help")], ["help"]),
+		).toThrow("collides with a built-in");
+	});
+
+	it("an empty factory is a usable, empty registry", () => {
+		const registry = createCapabilityRegistry();
+		expect(registry.list()).toEqual([]);
+		registry.register(descriptor("late"));
+		expect(registry.has("late")).toBe(true);
 	});
 });
