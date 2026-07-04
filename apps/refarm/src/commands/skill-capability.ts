@@ -29,7 +29,8 @@ import {
 	scopedAssetsDir,
 } from "@refarm.dev/storage-node-view";
 import chalk from "chalk";
-import { dirname } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 import {
 	pluginsBaseDir,
@@ -43,6 +44,11 @@ import {
 	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
+import {
+	runSkillInvocation,
+	type SkillInvocationDecisionV1,
+	type SkillInvocationSource,
+} from "./skill-invoke.js";
 
 /**
  * A tiny built-in profile of "skill tells" — writing patterns worth flagging in a
@@ -119,6 +125,31 @@ export interface SkillCommandDeps {
 
 /** JSON-LD type of a persisted, imported skill node. */
 const IMPORTED_SKILL_NODE_TYPE = "refarm:imported-skill";
+
+/** JSON-LD type of a persisted skill invocation decision (the approval record). */
+const SKILL_INVOCATION_DECISION_NODE_TYPE = "refarm:skill-invocation-decision";
+
+/**
+ * The ledger node for a recorded invocation decision — the approval gate's
+ * durable output. It carries the skill identity, the decision + reason, and the
+ * per-capability grants; the full decision (plan/request included) lives in
+ * `decision`. It is NOT a receipt: the contract stays plan-only, so `executed` is
+ * never set here — this records that the host approved/denied, not that anything
+ * ran.
+ */
+function skillInvocationDecisionNode(decision: SkillInvocationDecisionV1) {
+	return {
+		"@id": `urn:refarm:skill-invocation-decision:${decision.request.skill.id}:${decision.decision}`,
+		"@type": SKILL_INVOCATION_DECISION_NODE_TYPE,
+		skillId: decision.request.skill.id,
+		skillName: decision.request.skill.name,
+		decision: decision.decision,
+		reason: decision.reason,
+		capabilityDecisions: decision.capabilityDecisions,
+		requiresRuntimeDispatch: decision.requiresRuntimeDispatch,
+		fullDecision: decision,
+	};
+}
 
 /**
  * The scope a persisted skill lives at, most-specific first: `user` (personal) >
@@ -683,10 +714,151 @@ export function createSkillCapabilityGroup(
 		},
 	};
 
+	const invokeAction: CapabilityDescriptor = {
+		name: "invoke",
+		summary:
+			"Plan a skill invocation from a SKILL.md directory and record an approval decision (plan-only; never executes)",
+		args: [{ name: "dir", required: true }],
+		options: [
+			{
+				name: "input",
+				kind: "string",
+				summary: "The input body handed to the skill invocation request",
+				defaultValue: "",
+			},
+			{
+				name: "approve",
+				kind: "string[]",
+				summary:
+					"Approve the invocation, granting these capability ids (repeatable)",
+			},
+			{ name: "deny", kind: "boolean", summary: "Deny the invocation" },
+			{
+				name: "reason",
+				kind: "string",
+				summary: "Reason recorded on the approval/denial decision",
+			},
+			{
+				name: "scope",
+				kind: "string",
+				summary: "Ledger scope for a persisted decision: user | workspace | org",
+				defaultValue: "user",
+			},
+		],
+		async run(input) {
+			const dir = input.args.dir as string;
+			const manifestPath = join(dir, "SKILL.md");
+			if (!existsSync(manifestPath)) {
+				return buildJsonErrorEnvelope({
+					command: "skill",
+					operation: "invoke",
+					error: "skill-md-not-found",
+					message: `No SKILL.md found in "${dir}".`,
+					nextAction: "Point invoke at a directory containing a SKILL.md.",
+				});
+			}
+			const scope = parseSkillLedgerScope(input.options.scope as string);
+			if (scope === null) {
+				return buildJsonErrorEnvelope({
+					command: "skill",
+					operation: "invoke",
+					error: "unknown-ledger-scope",
+					message: `Unknown ledger scope: ${input.options.scope}. Use user, workspace, or org.`,
+					nextAction: "Retry with --scope user|workspace|org.",
+				});
+			}
+
+			// `--approve` is a repeatable string[] with a [] default, so an empty list
+			// means the flag was NOT passed (not "approve zero capabilities"). An
+			// approval intent therefore exists only when --deny is set OR --approve
+			// granted at least one capability; otherwise this is a plan-only dry run.
+			const approveList = (input.options.approve as string[] | undefined) ?? [];
+			const deny = Boolean(input.options.deny);
+			const hasApproval = deny || approveList.length > 0;
+			const reason =
+				(input.options.reason as string | undefined)?.trim() ||
+				(deny ? "Denied by operator." : "Approved by operator.");
+			const invokeInput = (input.options.input as string) ?? "";
+			// An approval decision is about a concrete invocation, so it needs the
+			// input the request binds. Guard it before the loop for a clear message.
+			if (hasApproval && !invokeInput.trim()) {
+				return buildJsonErrorEnvelope({
+					command: "skill",
+					operation: "invoke",
+					error: "input-required-for-decision",
+					message:
+						"Recording an approval/denial needs --input (the invocation body the decision is about).",
+					nextAction: `Retry with --input "<body>".`,
+				});
+			}
+			const approval = hasApproval
+				? {
+						decision: deny ? ("denied" as const) : ("approved" as const),
+						reason,
+						...(deny ? {} : { approvedCapabilities: approveList }),
+					}
+				: undefined;
+
+			const source: SkillInvocationSource = {
+				label: manifestPath,
+				read: () => readFileSync(manifestPath, "utf-8"),
+			};
+			// The decision sink is the SAME scoped node-ledger the imports use — a
+			// neutral persistence seam, not a skill-specific store.
+			const persistDecision = approval
+				? async (decision: SkillInvocationDecisionV1) => {
+						const ledger = openSkillLedgerAt(scope, defaultSkillLedgerRoots());
+						await ledger.storeNode(
+							skillInvocationDecisionNode(decision) as never,
+						);
+					}
+				: undefined;
+
+			const result = await runSkillInvocation(
+				source,
+				invokeInput,
+				{ ...(persistDecision ? { persistDecision } : {}) },
+				approval,
+			);
+			if (!result.ok) {
+				return buildJsonErrorEnvelope({
+					command: "skill",
+					operation: "invoke",
+					error: "invocation-failed",
+					message: result.issues[0]?.message ?? "Could not plan the invocation.",
+					nextAction: "Fix the reported issues in the SKILL.md and retry.",
+					extra: { issues: result.issues, source: dir },
+				});
+			}
+			return buildJsonSuccessEnvelope({
+				command: "skill",
+				operation: "invoke",
+				extra: {
+					source: dir,
+					plan: result.plan,
+					request: result.request,
+					decision: result.decision,
+					persisted: result.persisted,
+					...(result.decision ? { scope } : {}),
+				},
+				...(result.decision
+					? {}
+					: {
+							// Plan-only: nudge the approval gate. This is an instruction
+							// (nextAction), not an executable handoff — the capability ids
+							// to grant come from the plan above, so a literal command would
+							// carry a placeholder, which executable handoffs must not.
+							nextAction:
+								"Record a decision with `skill invoke <dir> --input <body> --approve <cap>` (grant the plan's required capabilities) or `--deny`.",
+						}),
+			});
+		},
+	};
+
 	return {
 		name: "skill",
 		summary: "Inspect skills declared by installed plugins",
-		actions: { list, show, check, import: importAction },
+		actions: { list, show, check, import: importAction, invoke: invokeAction },
 		// Bare `skill` / `/skill` lists what's available (read-only default).
 		defaultAction: "list",
 		transports: {

@@ -5,7 +5,13 @@ import {
 import type { DiscoveredSkill } from "@refarm.dev/plugin-surface-loader/node";
 import { openScopedLedger } from "@refarm.dev/storage-node-view";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -76,10 +82,16 @@ function deps(
 }
 
 describe("skill CapabilityGroup", () => {
-	it("is a group with list + show + check + import and a read-only list default", () => {
+	it("is a group with list + show + check + import + invoke and a read-only list default", () => {
 		const group = createSkillCapabilityGroup(deps());
 		expect(isCapabilityGroup(group)).toBe(true);
-		expect(Object.keys(group.actions).sort()).toEqual(["check", "import", "list", "show"]);
+		expect(Object.keys(group.actions).sort()).toEqual([
+			"check",
+			"import",
+			"invoke",
+			"list",
+			"show",
+		]);
 		expect(group.defaultAction).toBe("list");
 	});
 
@@ -578,5 +590,101 @@ describe("skill CapabilityGroup", () => {
 			nextActions: [],
 		} as never);
 		expect(clean).toContain("no findings");
+	});
+});
+
+describe("skill invoke action (plan-only, approval-gated)", () => {
+	const SKILL_MD = `---
+name: git-flow
+description: A git workflow.
+requiredCapabilities:
+  - refarm.operator-loop
+engineBindings:
+  - runtime-agent
+input: Task context.
+inputRequired: true
+output: A plan.
+---
+
+# Git Flow
+
+Run the loop.
+`;
+
+	function skillDir(): string {
+		const dir = mkdtempSync(join(tmpdir(), "invoke-skill-"));
+		writeFileSync(join(dir, "SKILL.md"), SKILL_MD);
+		return dir;
+	}
+
+	it("is exposed as a `skill invoke` sub-action", () => {
+		const group = createSkillCapabilityGroup(deps());
+		expect(Object.keys(group.actions)).toContain("invoke");
+	});
+
+	it("plans a SKILL.md directory read-only (no input, no decision)", async () => {
+		const dir = skillDir();
+		try {
+			const group = createSkillCapabilityGroup(deps());
+			const resolved = resolveGroupAction(group, ["invoke", dir]);
+			const env = (await resolved!.action.run(resolved!.input)) as unknown as {
+				ok: boolean;
+				plan?: { skill?: { name: string } };
+				decision: unknown;
+				persisted: boolean;
+			};
+			expect(env.ok).toBe(true);
+			expect(env.plan?.skill?.name).toBe("git-flow");
+			expect(env.decision).toBeNull();
+			expect(env.persisted).toBe(false);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("errors when the directory has no SKILL.md", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "invoke-empty-"));
+		try {
+			const group = createSkillCapabilityGroup(deps());
+			const resolved = resolveGroupAction(group, ["invoke", dir]);
+			const env = await resolved!.action.run(resolved!.input);
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("skill-md-not-found");
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("requires --input before recording an approval/denial decision", async () => {
+		const dir = skillDir();
+		try {
+			const group = createSkillCapabilityGroup(deps());
+			const resolved = resolveGroupAction(group, ["invoke", dir, "--deny"]);
+			const env = await resolved!.action.run(resolved!.input);
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe(
+				"input-required-for-decision",
+			);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects an unknown --scope", async () => {
+		const dir = skillDir();
+		try {
+			const group = createSkillCapabilityGroup(deps());
+			const resolved = resolveGroupAction(group, [
+				"invoke",
+				dir,
+				"--scope",
+				"nope",
+			]);
+			const env = await resolved!.action.run(resolved!.input);
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("unknown-ledger-scope");
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });
