@@ -1689,6 +1689,9 @@ importers:
 
   packages/vault-contract-v1:
     dependencies:
+      '@refarm.dev/effort-contract-v1':
+        specifier: workspace:*
+        version: link:../effort-contract-v1
       '@refarm.dev/node-contract-v1':
         specifier: workspace:*
         version: link:../node-contract-v1

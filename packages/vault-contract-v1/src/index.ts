@@ -1,5 +1,11 @@
 export { runVaultV1Conformance } from "./conformance.js";
 export {
+	EFFORT_TASK_WIRE_KEYS,
+	vaultDispatchTask,
+	vaultProvidesTarget,
+	type VaultTaskArgs,
+} from "./dispatch.js";
+export {
 	DEFAULT_VAULT_RECORD_TYPE,
 	vaultRecordToGraphNode,
 	vaultRecordToNode,
