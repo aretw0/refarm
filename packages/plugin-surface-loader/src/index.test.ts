@@ -120,6 +120,11 @@ describe("loadSkillsFromManifest", () => {
 			requiredCapabilities: ["filesystem:v1"],
 		});
 		expect(result.loaded[0]?.id).toContain("source-research");
+		// The SKILL.md body is retained (not just the description) so a checker can
+		// analyze the skill's real text.
+		expect(result.loaded[0]?.instructions).toContain(
+			"Answer questions about open-source libraries",
+		);
 	});
 
 	it("rejects a malformed SKILL.md with its parse issues", () => {

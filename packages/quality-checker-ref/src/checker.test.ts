@@ -180,4 +180,20 @@ describe.skipIf(!componentBuilt)("quality-checker reference component (real WASM
 		expect(findings).toHaveLength(1);
 		expect(findings[0].ruleId).toBe("t");
 	});
+
+	it("loadCheckerComponent(pkgDir) loads a checker from an EXPLICIT dir (plugin path)", async () => {
+		// The generic loader isn't hard-wired to the bundled pkg — a plugin's
+		// transpiled component would be loaded the same way, under the same deny-all.
+		const { loadCheckerComponent } = (await import("./index.js")) as Any;
+		const explicitPkgDir = fileURLToPath(new URL("../pkg/", import.meta.url));
+		const checker = await loadCheckerComponent({
+			pkgDir: explicitPkgDir,
+			entry: "quality_checker_ref.js",
+		});
+		const findings = checker.check(
+			{ tag: "text", val: "explicit-dir tell here" },
+			{ name: "p", rules: [containsRule("t", "tell")] },
+		);
+		expect(findings).toHaveLength(1);
+	});
 });

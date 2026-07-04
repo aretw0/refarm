@@ -69,6 +69,13 @@ export interface LoadedSkill {
 	description?: string;
 	/** Capabilities the skill requires — the activation gate checks these. */
 	requiredCapabilities: readonly string[];
+	/**
+	 * The SKILL.md body (its parsed `instructions`). Retained so a host can pass
+	 * the skill's real text as a subject to a quality checker — a richer subject
+	 * than the one-line description. It is the analysis surface for the plural
+	 * evaluator layer (a checker sees the instructions, not just the summary).
+	 */
+	instructions: string;
 }
 
 export interface LoadSkillsResult {
@@ -133,7 +140,61 @@ export function loadSkillsFromManifest(
 			name: m.name,
 			...(m.description ? { description: m.description } : {}),
 			requiredCapabilities: m.capabilities.requires,
+			instructions: m.instructions,
 		});
+	}
+
+	return { loaded, rejected };
+}
+
+/** The surface kind a plugin declares to contribute a quality checker. */
+export const QUALITY_CHECKER_SURFACE_KIND = "quality-checker" as const;
+
+/** A quality-checker surface a plugin declares — WHERE its component lives, not
+ * the loaded checker (loading + sandboxing is the host's job). */
+export interface DiscoveredChecker {
+	/** The surface id that declared the checker. */
+	surfaceId: string;
+	/** The relative asset path to the transpiled component entry (the `.js`
+	 * glue jco emits). Resolved against the plugin dir by the fs host. */
+	entryAsset: string;
+}
+
+export interface LoadCheckersResult {
+	/** Checker surfaces that declared a component entry asset. */
+	loaded: DiscoveredChecker[];
+	/** Surfaces rejected (no entry asset, etc.), with why. */
+	rejected: { surfaceId: string; issues: string[] }[];
+}
+
+/**
+ * Read a plugin manifest's quality-checker surfaces (`{kind:"quality-checker"}`,
+ * any layer). Unlike skills, a checker surface points at a WASM component the
+ * host will load + sandbox — so this only surfaces WHERE the component is
+ * (`entryAsset`); it does NOT load or run it (that stays with the host loader,
+ * behind the deny-all boundary). A surface with no asset is rejected, never
+ * throwing. `kind` and `assets` are already open in the plugin-manifest schema,
+ * so a checker surface needs no schema change.
+ */
+export function loadCheckersFromManifest(
+	manifest: PluginManifest,
+): LoadCheckersResult {
+	const loaded: DiscoveredChecker[] = [];
+	const rejected: { surfaceId: string; issues: string[] }[] = [];
+
+	for (const surface of getExtensionSurfaces(manifest)) {
+		if (surface.kind !== QUALITY_CHECKER_SURFACE_KIND) continue;
+		const entryAsset = surface.assets?.[0];
+		if (!entryAsset) {
+			rejected.push({
+				surfaceId: surface.id,
+				issues: [
+					"quality-checker surface declares no component entry asset",
+				],
+			});
+			continue;
+		}
+		loaded.push({ surfaceId: surface.id, entryAsset });
 	}
 
 	return { loaded, rejected };

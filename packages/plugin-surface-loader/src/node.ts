@@ -6,10 +6,12 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+	loadCheckersFromManifest,
 	loadSkillsFromManifest,
 	type LoadedSkill,
 	type LoadSkillsResult,
 } from "./index.js";
+import { dirname, basename } from "node:path";
 
 /**
  * The Node/fs host side of the surface loader. `index.ts` stays pure (asset I/O
@@ -128,4 +130,73 @@ export function loadSkillsFromPluginsDir(
 	}
 
 	return { skills, rejected };
+}
+
+/** A checker component located on disk, ready for the host to load + sandbox. */
+export interface DiscoveredCheckerComponent {
+	pluginId: string;
+	surfaceId: string;
+	/** Absolute directory holding the transpiled component (its jco pkg dir). */
+	pkgDir: string;
+	/** The entry `.js` glue file name inside `pkgDir`. */
+	entry: string;
+}
+
+export interface DiscoverCheckersResult {
+	checkers: DiscoveredCheckerComponent[];
+	rejected: {
+		pluginId: string | null;
+		pluginDir: string;
+		issues: string[];
+	}[];
+}
+
+/**
+ * Enumerate installed plugins under `pluginsDir` and locate every
+ * quality-checker surface each declares, resolving its component entry asset to
+ * an absolute `{pkgDir, entry}` the host loader consumes. Like the skill scan,
+ * this only LOCATES the component; loading + sandboxing (deny-all) is the host's
+ * job, so a checker plugin cannot run anything just by being discovered.
+ */
+export function loadCheckersFromPluginsDir(
+	pluginsDir: string,
+): DiscoverCheckersResult {
+	const checkers: DiscoveredCheckerComponent[] = [];
+	const rejected: DiscoverCheckersResult["rejected"] = [];
+
+	for (const pluginDir of findPluginDirs(pluginsDir)) {
+		let manifest: PluginManifest;
+		try {
+			manifest = readPluginManifest(pluginDir);
+		} catch (error) {
+			rejected.push({
+				pluginId: null,
+				pluginDir,
+				issues: [
+					`could not read plugin manifest: ${error instanceof Error ? error.message : String(error)}`,
+				],
+			});
+			continue;
+		}
+
+		const result = loadCheckersFromManifest(manifest);
+		for (const checker of result.loaded) {
+			const entryPath = join(pluginDir, checker.entryAsset);
+			checkers.push({
+				pluginId: manifest.id,
+				surfaceId: checker.surfaceId,
+				pkgDir: dirname(entryPath),
+				entry: basename(entryPath),
+			});
+		}
+		for (const reject of result.rejected) {
+			rejected.push({
+				pluginId: manifest.id,
+				pluginDir,
+				issues: reject.issues,
+			});
+		}
+	}
+
+	return { checkers, rejected };
 }

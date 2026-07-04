@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
 	findPluginDirs,
+	loadCheckersFromPluginsDir,
 	loadSkillsFromPluginsDir,
 	readPluginManifest,
 } from "./node.js";
@@ -167,5 +168,45 @@ describe("plugin-surface-loader/node — fs enumeration", () => {
 		});
 		const manifest = readPluginManifest(join(pluginsDir, "alpha"));
 		expect(manifest.id).toBe("@refarm.dev/alpha");
+	});
+
+	it("locates a plugin's quality-checker surface as {pkgDir, entry}", () => {
+		// A plugin that ships a transpiled checker component (its pkg dir) and
+		// declares a {kind:quality-checker} surface pointing at the entry glue.
+		const pluginDir = join(pluginsDir, "linter");
+		mkdirSync(join(pluginDir, "checker-pkg"), { recursive: true });
+		writeFileSync(
+			join(pluginDir, "checker-pkg", "linter.js"),
+			"// transpiled component entry\n",
+			"utf-8",
+		);
+		const manifest = createMockManifest({
+			id: "@refarm.dev/linter",
+			extensions: {
+				surfaces: [
+					{
+						layer: "pi",
+						kind: "quality-checker",
+						id: "text-linter",
+						assets: ["checker-pkg/linter.js"],
+					},
+				],
+			},
+		});
+		writeFileSync(
+			join(pluginDir, "plugin.json"),
+			JSON.stringify(manifest, null, 2),
+			"utf-8",
+		);
+
+		const { checkers, rejected } = loadCheckersFromPluginsDir(pluginsDir);
+		expect(rejected).toEqual([]);
+		expect(checkers).toHaveLength(1);
+		expect(checkers[0]).toMatchObject({
+			pluginId: "@refarm.dev/linter",
+			surfaceId: "text-linter",
+			pkgDir: join(pluginDir, "checker-pkg"),
+			entry: "linter.js",
+		});
 	});
 });

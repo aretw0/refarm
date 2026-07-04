@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 // The checker's I/O shapes mirror @refarm.dev/quality-contract-v1 exactly
 // (QualityFinding/QualityProfile) and the WIT records in
@@ -42,11 +42,7 @@ export interface CheckerProfile {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
 
-const pkgDir = fileURLToPath(new URL("../pkg/", import.meta.url));
-
-function getCoreModule(path: string): WebAssembly.Module {
-	return new WebAssembly.Module(readFileSync(join(pkgDir, path)));
-}
+const bundledPkgDir = fileURLToPath(new URL("../pkg/", import.meta.url));
 
 /** wasi imports that grant NOTHING: no env, no args, no preopened dirs, and
  * every filesystem/io op throws. The sandbox is the absence of capability. */
@@ -101,12 +97,22 @@ export interface ReferenceChecker {
 }
 
 /**
- * Instantiate the sandboxed reference checker component and return a `check`
- * function. The component is granted zero host capability; a checker that tried
- * to reach fs/network would trap. Async because component instantiation is.
+ * Load and instantiate ANY sandboxed `quality-checker` component from a transpiled
+ * pkg dir (jco `--no-wasi-shim --instantiation` output: an entry `.js` glue + core
+ * `.wasm` modules), returning its `check` under the DENY-ALL capability table. The
+ * same sovereign boundary for the bundled reference checker AND any
+ * plugin-contributed one — the host grants nothing but the subject.
  */
-export async function createReferenceChecker(): Promise<ReferenceChecker> {
-	const mod = (await import("../pkg/quality_checker_ref.js")) as Any;
+export async function loadCheckerComponent(options: {
+	/** The transpiled component directory (the plugin's or the bundled pkg/). */
+	pkgDir: string;
+	/** The entry module file name inside pkgDir (jco names it `<name>.js`). */
+	entry: string;
+}): Promise<ReferenceChecker> {
+	const { pkgDir, entry } = options;
+	const getCoreModule = (path: string): WebAssembly.Module =>
+		new WebAssembly.Module(readFileSync(join(pkgDir, path)));
+	const mod = (await import(pathToFileURL(join(pkgDir, entry)).href)) as Any;
 	const root = await mod.instantiate(getCoreModule, denyAllWasiImports());
 	const checker = root.checker as {
 		check(subject: CheckerSubject, profile: CheckerProfile): CheckerFinding[];
@@ -114,4 +120,15 @@ export async function createReferenceChecker(): Promise<ReferenceChecker> {
 	return {
 		check: (subject, profile) => checker.check(subject, profile),
 	};
+}
+
+/**
+ * Instantiate the BUNDLED reference checker (this package's own component) under
+ * the deny-all boundary. A thin wrapper over {@link loadCheckerComponent}.
+ */
+export function createReferenceChecker(): Promise<ReferenceChecker> {
+	return loadCheckerComponent({
+		pkgDir: bundledPkgDir,
+		entry: "quality_checker_ref.js",
+	});
 }

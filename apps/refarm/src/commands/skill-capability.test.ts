@@ -18,6 +18,7 @@ function skill(overrides: Partial<DiscoveredSkill> = {}): DiscoveredSkill {
 		name: "greet-operator",
 		description: "Greet the operator.",
 		requiredCapabilities: ["refarm.operator-loop"],
+		instructions: "# Greet\n\nGreet the operator and summarize the day.",
 		pluginId: "@demo/plugin",
 		pluginDir: "/plugins/demo",
 		...overrides,
