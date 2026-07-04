@@ -9,6 +9,8 @@ import { basename, dirname, join } from "node:path";
 import {
 	loadCheckersFromManifest,
 	loadSkillsFromManifest,
+	loadThemesFromManifest,
+	ThemeRegistry,
 	translateAgentSkill,
 	type LoadedSkill,
 	type LoadSkillsResult,
@@ -295,4 +297,83 @@ export function loadAgentSkillsFromDir(
 	}
 
 	return { skills, rejected };
+}
+
+/** A theme pack discovered from an installed plugin, tagged with its origin. */
+export interface DiscoveredTheme {
+	/** The registered theme id (as declared by the plugin's asset surface). */
+	id: string;
+	/** Plugin manifest id the theme surface belongs to. */
+	pluginId: string;
+	/** Absolute plugin directory the theme asset was read from. */
+	pluginDir: string;
+}
+
+export interface DiscoverThemesResult {
+	/** Themes that resolved + registered across every installed plugin. */
+	themes: DiscoveredTheme[];
+	/** The registry the themes registered into (resolvable by id for a projector). */
+	registry: ThemeRegistry;
+	/** Per-plugin/per-theme load failures (bad manifest, missing tokens). */
+	rejected: {
+		pluginId: string | null;
+		pluginDir: string;
+		id?: string;
+		issues: string[];
+	}[];
+}
+
+/**
+ * Enumerate installed plugins under `pluginsDir` and register every asset-layer
+ * theme-pack surface each declares — the fs-backed composition of
+ * {@link findPluginDirs} + {@link loadThemesFromManifest}, the theme twin of
+ * {@link loadSkillsFromPluginsDir}. A host (the `theme` verb) calls this to answer
+ * "what themes exist?" and to get a populated {@link ThemeRegistry} a renderer can
+ * resolve by id. A theme is inert token DATA (no behavior), so this is a safe
+ * plugin-contribution front: a broken/non-conformant pack is recorded in
+ * `rejected`, never thrown, so one bad plugin cannot hide the others' themes.
+ */
+export function loadThemesFromPluginsDir(
+	pluginsDir: string,
+	registry: ThemeRegistry = new ThemeRegistry(),
+): DiscoverThemesResult {
+	const themes: DiscoveredTheme[] = [];
+	const rejected: DiscoverThemesResult["rejected"] = [];
+
+	for (const pluginDir of findPluginDirs(pluginsDir)) {
+		let manifest: PluginManifest;
+		try {
+			manifest = readPluginManifest(pluginDir);
+		} catch (error) {
+			rejected.push({
+				pluginId: null,
+				pluginDir,
+				issues: [
+					`could not read plugin manifest: ${error instanceof Error ? error.message : String(error)}`,
+				],
+			});
+			continue;
+		}
+
+		const loadAsset = (assetPath: string): unknown =>
+			JSON.parse(readFileSync(join(pluginDir, assetPath), "utf-8"));
+		const result = loadThemesFromManifest(manifest, loadAsset, registry);
+
+		for (const id of result.registered) {
+			themes.push({ id, pluginId: manifest.id, pluginDir });
+		}
+		for (const reject of result.rejected) {
+			rejected.push({
+				pluginId: manifest.id,
+				pluginDir,
+				id: reject.id,
+				issues:
+					reject.missing.length > 0
+						? [`theme "${reject.id}" is missing tokens: ${reject.missing.join(", ")}`]
+						: [`theme "${reject.id}" was rejected`],
+			});
+		}
+	}
+
+	return { themes, registry, rejected };
 }

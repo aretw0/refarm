@@ -315,6 +315,9 @@ importers:
       '@refarm.dev/dispatch-surface':
         specifier: workspace:*
         version: link:../../packages/dispatch-surface
+      '@refarm.dev/ds':
+        specifier: workspace:*
+        version: link:../../packages/ds
       '@refarm.dev/effort-contract-v1':
         specifier: workspace:*
         version: link:../../packages/effort-contract-v1

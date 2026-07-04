@@ -25,6 +25,7 @@ import {
 	createSkillCapabilityGroup,
 	skillCapabilityHooks,
 } from "./skill-capability.js";
+import { createThemeCapabilityGroup } from "./theme-capability.js";
 
 /**
  * A capability plus its surface hooks (text render + exit intent). A descriptor
@@ -46,6 +47,7 @@ const BUILTIN_CAPABILITIES: BuiltinCapability[] = [
 	{ entry: extensionReviewCapability, hooks: extensionReviewHooks },
 	{ entry: createModelCapabilityGroup(), hooksFor: modelCapabilityHooks },
 	{ entry: createSkillCapabilityGroup(), hooksFor: skillCapabilityHooks },
+	{ entry: createThemeCapabilityGroup(), hooksFor: () => ({}) },
 ];
 
 /**

@@ -5,12 +5,15 @@ import { join } from "node:path";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { REQUIRED_TOKENS } from "@refarm.dev/ds";
+
 import { translateAgentSkill } from "./index.js";
 import {
 	findPluginDirs,
 	loadAgentSkillsFromDir,
 	loadCheckersFromPluginsDir,
 	loadSkillsFromPluginsDir,
+	loadThemesFromPluginsDir,
 	readPluginManifest,
 } from "./node.js";
 
@@ -295,5 +298,82 @@ describe("loadAgentSkillsFromDir (import Agent Skills — convergence front-half
 		expect(skills).toEqual([]);
 		expect(rejected).toHaveLength(1);
 		expect(rejected[0]!.issues.join()).toContain("FRONTMATTER_MISSING");
+	});
+});
+
+/** Write a plugin dir with a plugin.json declaring one theme-pack + its asset. */
+function writeThemePlugin(
+	pluginsDir: string,
+	pluginId: string,
+	theme: { id: string; asset: string; tokens: Record<string, string> },
+): void {
+	const pluginDir = join(pluginsDir, pluginId);
+	mkdirSync(pluginDir, { recursive: true });
+	writeFileSync(
+		join(pluginDir, theme.asset),
+		JSON.stringify({ id: theme.id, theme: theme.tokens }),
+		"utf-8",
+	);
+	const manifest = createMockManifest({
+		id: `@refarm.dev/${pluginId}`,
+		extensions: {
+			surfaces: [
+				{ layer: "asset", kind: "theme-pack", id: theme.id, assets: [theme.asset] },
+			],
+		},
+	});
+	writeFileSync(
+		join(pluginDir, "plugin.json"),
+		JSON.stringify(manifest, null, 2),
+		"utf-8",
+	);
+}
+
+function completeTokens(): Record<string, string> {
+	return Object.fromEntries(REQUIRED_TOKENS.map((t) => [t, "#101010"]));
+}
+
+describe("loadThemesFromPluginsDir — plugin theme discovery", () => {
+	let root: string;
+	let pluginsDir: string;
+	beforeEach(() => {
+		root = mkdtempSync(join(tmpdir(), "psl-theme-"));
+		pluginsDir = join(root, "plugins");
+	});
+	afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+	it("returns an empty set when the plugins dir does not exist", () => {
+		const result = loadThemesFromPluginsDir(join(root, "nope"));
+		expect(result.themes).toEqual([]);
+		expect(result.rejected).toEqual([]);
+	});
+
+	it("discovers + registers a conformant plugin theme, tagged with its plugin", () => {
+		writeThemePlugin(pluginsDir, "theme-plugin", {
+			id: "midnight",
+			asset: "midnight.theme.json",
+			tokens: completeTokens(),
+		});
+		const result = loadThemesFromPluginsDir(pluginsDir);
+		expect(result.themes).toHaveLength(1);
+		expect(result.themes[0]).toMatchObject({
+			id: "midnight",
+			pluginId: "@refarm.dev/theme-plugin",
+		});
+		// The theme resolves out of the returned registry (id → tokens).
+		expect(result.registry.get("midnight")?.source).toBe("plugin");
+	});
+
+	it("rejects a non-conformant theme (missing tokens) without crashing the scan", () => {
+		writeThemePlugin(pluginsDir, "bad-plugin", {
+			id: "broken",
+			asset: "broken.theme.json",
+			tokens: { background: "#000" }, // missing 28 required tokens
+		});
+		const result = loadThemesFromPluginsDir(pluginsDir);
+		expect(result.themes).toEqual([]);
+		expect(result.rejected).toHaveLength(1);
+		expect(result.rejected[0]?.id).toBe("broken");
+		expect(result.rejected[0]?.issues.join()).toContain("missing tokens");
 	});
 });
