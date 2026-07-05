@@ -5,7 +5,7 @@
             ("SAFE_KEY".to_string(), "one".to_string()),
             ("SAFE_KEY".to_string(), "two".to_string()),
         ];
-        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        let err = spawn_process(&argv, &env, None, 1000, None, &HostEffectPolicy::default()).await.unwrap_err();
         assert!(err.contains("duplicate env key"));
     }
 
@@ -16,7 +16,7 @@
             ("SAFE_KEY".to_string(), "one".to_string()),
             ("safe_key".to_string(), "two".to_string()),
         ];
-        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        let err = spawn_process(&argv, &env, None, 1000, None, &HostEffectPolicy::default()).await.unwrap_err();
         assert!(err.contains("duplicate env key"));
     }
 
@@ -26,7 +26,7 @@
         let env: Vec<(String, String)> = (0..129)
             .map(|i| (format!("K{i}"), "x".to_string()))
             .collect();
-        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        let err = spawn_process(&argv, &env, None, 1000, None, &HostEffectPolicy::default()).await.unwrap_err();
         assert!(err.contains("too many env vars"));
     }
 
@@ -36,7 +36,7 @@
         let env: Vec<(String, String)> = (0..44)
             .map(|i| (format!("K{i}"), "x".repeat(3000)))
             .collect();
-        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        let err = spawn_process(&argv, &env, None, 1000, None, &HostEffectPolicy::default()).await.unwrap_err();
         assert!(err.contains("env payload exceeds max total bytes"));
     }
 
@@ -76,7 +76,7 @@
     #[tokio::test]
     async fn spawn_rejects_cwd_with_control_chars() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
-        let err = spawn_process(&argv, &[], Some("/tmp\nboom"), 1000, None)
+        let err = spawn_process(&argv, &[], Some("/tmp\nboom"), 1000, None, &HostEffectPolicy::default())
             .await
             .unwrap_err();
         assert!(err.contains("cwd contains control characters"));
@@ -85,7 +85,7 @@
     #[tokio::test]
     async fn spawn_rejects_cwd_with_non_ascii() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
-        let err = spawn_process(&argv, &[], Some("/tmp/olá"), 1000, None)
+        let err = spawn_process(&argv, &[], Some("/tmp/olá"), 1000, None, &HostEffectPolicy::default())
             .await
             .unwrap_err();
         assert!(err.contains("cwd must be ascii"));
@@ -94,7 +94,7 @@
     #[tokio::test]
     async fn spawn_rejects_cwd_with_internal_whitespace() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
-        let err = spawn_process(&argv, &[], Some("/tmp/white space"), 1000, None)
+        let err = spawn_process(&argv, &[], Some("/tmp/white space"), 1000, None, &HostEffectPolicy::default())
             .await
             .unwrap_err();
         assert!(err.contains("cwd must not contain whitespace"));
@@ -104,7 +104,7 @@
     async fn spawn_rejects_missing_cwd_directory() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let missing = format!("/tmp/refarm-missing-cwd-{}", std::process::id());
-        let err = spawn_process(&argv, &[], Some(&missing), 1000, None)
+        let err = spawn_process(&argv, &[], Some(&missing), 1000, None, &HostEffectPolicy::default())
             .await
             .unwrap_err();
         assert!(err.contains("cwd must be an existing directory"));
@@ -117,7 +117,7 @@
         let file = dir.path().join("cwd.txt");
         std::fs::write(&file, b"not-a-dir").unwrap();
 
-        let err = spawn_process(&argv, &[], Some(file.to_string_lossy().as_ref()), 1000, None)
+        let err = spawn_process(&argv, &[], Some(file.to_string_lossy().as_ref()), 1000, None, &HostEffectPolicy::default())
             .await
             .unwrap_err();
         assert!(err.contains("cwd must be a directory"));
@@ -210,36 +210,20 @@
     }
 
     #[test]
-    fn shell_allowlist_env_unset_wrapper_still_enforces_argv_count_cap() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("MODEL_SHELL_ALLOWLIST").ok();
-        std::env::remove_var("MODEL_SHELL_ALLOWLIST");
-
+    fn shell_allowlist_permissive_policy_still_enforces_argv_count_cap() {
+        // Permissive policy (no allowlist) must STILL apply the structural argv
+        // guards. Injected directly — no process env, no ENV_LOCK, no leak.
         let mut argv = vec!["echo".to_string()];
         argv.extend((0..128).map(|i| i.to_string()));
 
-        let err = enforce_shell_allowlist(&argv).unwrap_err();
+        let err = enforce_shell_allowlist(&argv, &HostEffectPolicy::default()).unwrap_err();
         assert!(err.contains("too many argv entries"));
-
-        if let Some(prev) = prev {
-            std::env::set_var("MODEL_SHELL_ALLOWLIST", prev);
-        }
     }
 
     #[test]
-    fn shell_allowlist_from_env_parses_configured_value() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("MODEL_SHELL_ALLOWLIST").ok();
-        std::env::set_var("MODEL_SHELL_ALLOWLIST", "echo");
-
-        let allowlist = shell_allowlist_from_env().unwrap();
-
-        if let Some(prev) = prev {
-            std::env::set_var("MODEL_SHELL_ALLOWLIST", prev);
-        } else {
-            std::env::remove_var("MODEL_SHELL_ALLOWLIST");
-        }
-
+    fn shell_allowlist_parser_parses_configured_value() {
+        // Test the PURE parser directly — no MODEL_SHELL_ALLOWLIST env mutation.
+        let allowlist = parse_shell_allowlist("echo");
         assert!(allowlist.contains("echo"));
     }
 
@@ -464,9 +448,10 @@
     }
 
     #[test]
-    fn configured_fs_root_reads_valid_environment_root() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("MODEL_FS_ROOT").ok();
+    fn configured_fs_root_parses_valid_root() {
+        // Test the PURE parser (configured_fs_root_from_raw) directly — no
+        // MODEL_FS_ROOT env mutation, no ENV_LOCK, no cross-thread leak. The env
+        // read now happens ONCE at boot inside HostEffectPolicy::from_env.
         let root = std::env::current_dir()
             .unwrap()
             .ancestors()
@@ -474,14 +459,9 @@
             .unwrap()
             .to_path_buf();
 
-        std::env::set_var("MODEL_FS_ROOT", root.to_string_lossy().as_ref());
-        let configured = configured_fs_root().unwrap().unwrap();
-
-        if let Some(prev) = prev {
-            std::env::set_var("MODEL_FS_ROOT", prev);
-        } else {
-            std::env::remove_var("MODEL_FS_ROOT");
-        }
+        let configured = configured_fs_root_from_raw(root.to_string_lossy().as_ref())
+            .unwrap()
+            .unwrap();
 
         assert_eq!(configured, std::fs::canonicalize(root).unwrap());
     }

@@ -498,7 +498,8 @@ impl TractorNative {
         // Reclaim the unbounded streaming graph nodes (one row per streamed chunk)
         // in the background, deleting from both sqlite and the Loro doc so a
         // re-projection can't resurrect them. Self-terminates when `sync` drops.
-        node_reap::spawn_node_reaper(&sync);
+        // Reaper knobs resolved from env ONCE here at boot.
+        node_reap::spawn_node_reaper(&sync, node_reap::NodeReaperConfig::from_env());
 
         Ok(Self {
             storage,

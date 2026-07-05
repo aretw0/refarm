@@ -39,8 +39,8 @@ fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
     Ok(())
 }
 
-fn enforce_spawn_cwd(cwd: &str) -> Result<(), String> {
-    let fs_root = configured_fs_root()?;
+fn enforce_spawn_cwd(cwd: &str, policy: &HostEffectPolicy) -> Result<(), String> {
+    let fs_root = policy.fs_root()?;
     enforce_spawn_cwd_with(cwd, fs_root.as_deref())
 }
 
@@ -221,6 +221,74 @@ fn parse_trusted_plugins(
     Ok(Some(out))
 }
 
+/// Effect-dispatch policy resolved ONCE at PluginHost boot, then read from &self
+/// on the per-call hot path. Replaces the per-call std::env::var reads of
+/// MODEL_SHELL_ALLOWLIST / MODEL_FS_ROOT (which mutate process-global env in
+/// tests and leaked across threads under --test-threads>1, flaking the
+/// effect-policy tests).
+#[derive(Clone, Debug)]
+pub(crate) struct HostEffectPolicy {
+    /// Parsed MODEL_SHELL_ALLOWLIST. `None` = permissive (env unset) — the
+    /// backward-compatible default; structural argv guards still apply.
+    shell_allowlist: Option<std::collections::HashSet<String>>,
+    /// Resolved MODEL_FS_ROOT, stored as the SAME Result configured_fs_root()
+    /// returned so a bad value keeps failing at first-USE (cloned per call),
+    /// never at construction. `Ok(None)` = env unset = no fs jail.
+    fs_root: Result<Option<PathBuf>, String>,
+    /// The LSP server command (REFACTOR_LSP_CMD / legacy fallback), resolved once
+    /// at boot. Read per code-op (rename/find-references) instead of rebuilding
+    /// LspBridge::from_env each time.
+    lsp_cmd: String,
+}
+
+impl HostEffectPolicy {
+    /// Boot-time resolver — the ONLY place MODEL_SHELL_ALLOWLIST / MODEL_FS_ROOT
+    /// / REFACTOR_LSP_CMD are read from env.
+    pub(crate) fn from_env() -> Self {
+        Self {
+            shell_allowlist: shell_allowlist_from_env(),
+            fs_root: configured_fs_root(),
+            lsp_cmd: crate::host::lsp_bridge::configured_lsp_command(),
+        }
+    }
+
+    /// Explicit constructor (tests) — no env access.
+    #[cfg(test)]
+    pub(crate) fn new(
+        shell_allowlist: Option<std::collections::HashSet<String>>,
+        fs_root: Result<Option<PathBuf>, String>,
+        lsp_cmd: String,
+    ) -> Self {
+        Self { shell_allowlist, fs_root, lsp_cmd }
+    }
+
+    fn shell_allowlist(&self) -> Option<&std::collections::HashSet<String>> {
+        self.shell_allowlist.as_ref()
+    }
+
+    /// Clone the boot Result so a bad MODEL_FS_ROOT surfaces its error on THIS
+    /// call — byte-identical to the old `configured_fs_root()?`.
+    fn fs_root(&self) -> Result<Option<PathBuf>, String> {
+        self.fs_root.clone()
+    }
+
+    pub(crate) fn lsp_cmd(&self) -> &str {
+        &self.lsp_cmd
+    }
+}
+
+impl Default for HostEffectPolicy {
+    /// Permissive default (env-unset equivalent): no allowlist, no fs jail, and
+    /// the default LSP command.
+    fn default() -> Self {
+        Self {
+            shell_allowlist: None,
+            fs_root: Ok(None),
+            lsp_cmd: crate::host::lsp_bridge::DEFAULT_RUST_LSP_CMD.to_string(),
+        }
+    }
+}
+
 fn shell_allowlist_from_env() -> Option<std::collections::HashSet<String>> {
     let raw = std::env::var("MODEL_SHELL_ALLOWLIST").ok()?;
     Some(parse_shell_allowlist(&raw))
@@ -368,8 +436,8 @@ fn configured_fs_root_from_raw(raw: &str) -> Result<Option<PathBuf>, String> {
     Ok(Some(root))
 }
 
-fn enforce_fs_root(path: &str) -> Result<(), String> {
-    let fs_root = configured_fs_root()?;
+fn enforce_fs_root(path: &str, policy: &HostEffectPolicy) -> Result<(), String> {
+    let fs_root = policy.fs_root()?;
     enforce_fs_root_with(path, fs_root.as_deref())
 }
 

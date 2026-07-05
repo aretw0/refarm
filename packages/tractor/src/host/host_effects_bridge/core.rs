@@ -28,7 +28,7 @@ use crate::host::wasi_bridge::TractorNativeBindings;
 #[wasmtime::component::__internal::async_trait]
 impl HostFsHost for TractorNativeBindings {
     async fn read(&mut self, path: String) -> Result<Vec<u8>, String> {
-        enforce_fs_root(&path)?;
+        enforce_fs_root(&path, &self.effect_policy)?;
         let bytes = tokio::fs::read(&path)
             .await
             .map_err(|e| format!("read({path}): {e}"))?;
@@ -42,7 +42,7 @@ impl HostFsHost for TractorNativeBindings {
     }
 
     async fn write(&mut self, path: String, content: Vec<u8>) -> Result<(), String> {
-        enforce_fs_root(&path)?;
+        enforce_fs_root(&path, &self.effect_policy)?;
         let bytes = content.len();
         atomic_write(&path, &content)
             .await
@@ -57,7 +57,7 @@ impl HostFsHost for TractorNativeBindings {
     }
 
     async fn edit(&mut self, path: String, diff: String) -> Result<(), String> {
-        enforce_fs_root(&path)?;
+        enforce_fs_root(&path, &self.effect_policy)?;
 
         let original = tokio::fs::read_to_string(&path)
             .await
@@ -96,8 +96,15 @@ impl HostShellHost for TractorNativeBindings {
             return Err("spawn: argv must be non-empty".into());
         }
         let t0 = tokio::time::Instant::now();
-        let (stdout, stderr, exit_code, timed_out) =
-            spawn_process(&req.argv, &req.env, req.cwd.as_deref(), req.timeout_ms, req.stdin.as_deref()).await?;
+        let (stdout, stderr, exit_code, timed_out) = spawn_process(
+            &req.argv,
+            &req.env,
+            req.cwd.as_deref(),
+            req.timeout_ms,
+            req.stdin.as_deref(),
+            &self.effect_policy,
+        )
+        .await?;
         let duration_ms = t0.elapsed().as_millis() as u64;
         let cmd = req.argv.first().map(|s| s.as_str()).unwrap_or("<empty>");
         tracing::info!(
@@ -138,7 +145,15 @@ impl HostSpawnHost for TractorNativeBindings {
         timeout_ms: u32,
         stdin: Option<Vec<u8>>,
     ) -> Result<(Vec<u8>, Vec<u8>, i32, bool), String> {
-        spawn_process(&argv, &env, cwd.as_deref(), timeout_ms, stdin.as_deref()).await
+        spawn_process(
+            &argv,
+            &env,
+            cwd.as_deref(),
+            timeout_ms,
+            stdin.as_deref(),
+            &self.effect_policy,
+        )
+        .await
     }
 }
 
@@ -153,14 +168,15 @@ pub(crate) async fn spawn_process(
     cwd: Option<&str>,
     timeout_ms: u32,
     stdin: Option<&[u8]>,
+    policy: &HostEffectPolicy,
 ) -> Result<(Vec<u8>, Vec<u8>, i32, bool), String> {
     debug_assert!(!argv.is_empty(), "spawn_process: argv must be non-empty");
 
-    enforce_shell_allowlist(argv)?;
+    enforce_shell_allowlist(argv, policy)?;
     enforce_spawn_env(env)?;
 
     if let Some(dir) = cwd {
-        enforce_spawn_cwd(dir)?;
+        enforce_spawn_cwd(dir, policy)?;
     }
     if let Some(stdin_bytes) = stdin {
         if stdin_bytes.len() > MAX_SPAWN_STDIN_LEN {
@@ -242,11 +258,10 @@ async fn atomic_write(path: &str, content: &[u8]) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn enforce_shell_allowlist(argv: &[String]) -> Result<(), String> {
-    let allowlist = shell_allowlist_from_env();
+fn enforce_shell_allowlist(argv: &[String], policy: &HostEffectPolicy) -> Result<(), String> {
     // Backward-compatible default remains permissive for command selection when
-    // env var is not set, but structural argv guards must still apply.
-    enforce_shell_allowlist_with(argv, allowlist.as_ref())
+    // the allowlist is unset, but structural argv guards must still apply.
+    enforce_shell_allowlist_with(argv, policy.shell_allowlist())
 }
 
 fn enforce_trusted_plugin_for_shell(plugin_id: &str) -> Result<(), String> {
@@ -373,7 +388,7 @@ impl StructuredIoHost for TractorNativeBindings {
         page_size: u32,
         page_offset: u32,
     ) -> Result<String, String> {
-        enforce_fs_root(&path)?;
+        enforce_fs_root(&path, &self.effect_policy)?;
         let bytes = tokio::fs::read(&path)
             .await
             .map_err(|e| format!("read({path}): {e}"))?;
@@ -392,7 +407,7 @@ impl StructuredIoHost for TractorNativeBindings {
         content: String,
         format: Option<FileFormat>,
     ) -> Result<(), String> {
-        enforce_fs_root(&path)?;
+        enforce_fs_root(&path, &self.effect_policy)?;
         let fmt = match format {
             Some(FileFormat::Json) => "json",
             Some(FileFormat::Toml) => "toml",
@@ -530,13 +545,15 @@ impl CodeOpsHost for TractorNativeBindings {
         loc: SymbolLocation,
         new_name: String,
     ) -> Result<RenameResult, String> {
-        crate::host::lsp_bridge::LspBridge::from_env().rename_symbol(&loc, &new_name)
+        crate::host::lsp_bridge::LspBridge::with_cmd(self.effect_policy.lsp_cmd())
+            .rename_symbol(&loc, &new_name)
     }
 
     async fn find_references(
         &mut self,
         loc: SymbolLocation,
     ) -> Result<Vec<CodeReference>, String> {
-        crate::host::lsp_bridge::LspBridge::from_env().find_references(&loc)
+        crate::host::lsp_bridge::LspBridge::with_cmd(self.effect_policy.lsp_cmd())
+            .find_references(&loc)
     }
 }

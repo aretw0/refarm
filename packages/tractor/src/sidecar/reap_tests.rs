@@ -233,22 +233,24 @@ async fn reaper_does_not_keep_the_sidecar_alive() {
     // drop the store's strong count to zero — proving the task can't leak the
     // sidecar across a teardown (its next upgrade() returns None and it exits).
     // Tiny initial delay so the task reaches its loop; long interval so it's
-    // parked on upgrade, not mid-sweep.
-    std::env::set_var("REFARM_REAP_INITIAL_DELAY_MS", "5");
-    std::env::set_var("REFARM_REAP_INTERVAL_MS", "3600000");
+    // parked on upgrade, not mid-sweep. Injected directly (no process env → no
+    // cross-thread leak into a concurrent node-reaper test sharing these vars).
+    let cfg = ReaperConfig {
+        initial_delay_ms: 5,
+        interval_ms: 3_600_000,
+        ..ReaperConfig::default()
+    };
     let (state, tmp) = test_state();
     let weak = std::sync::Arc::downgrade(&state.efforts);
     assert_eq!(std::sync::Arc::strong_count(&state.efforts), 1);
 
-    spawn_reaper(&state);
+    spawn_reaper(&state, cfg);
     // Let the task pass its initial delay and reach the upgrade/park point.
     tokio::time::sleep(std::time::Duration::from_millis(40)).await;
 
     // Drop the ONLY strong owner (the sidecar). If the reaper held a strong ref
     // between ticks, this Weak would still upgrade — it must not.
     drop(state);
-    std::env::remove_var("REFARM_REAP_INITIAL_DELAY_MS");
-    std::env::remove_var("REFARM_REAP_INTERVAL_MS");
 
     // Give the runtime a moment for any transient strong ref inside a tick to be
     // released back to the parked (Weak-only) state.

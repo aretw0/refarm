@@ -9,7 +9,7 @@ use crate::host::plugin_host::refarm::plugin::code_ops::{
     CodeReference, RenameResult, SymbolLocation,
 };
 
-const DEFAULT_RUST_LSP_CMD: &str = "rust-analyzer";
+pub(crate) const DEFAULT_RUST_LSP_CMD: &str = "rust-analyzer";
 const LSP_CMD_ENV: &str = "REFACTOR_LSP_CMD";
 const LEGACY_LSP_CMD_ENV: &str = "REFACTOR_LSP_RUST_ANALYZER_CMD";
 const LSP_REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
@@ -146,10 +146,21 @@ impl Drop for LspServerProcess {
 }
 
 impl LspBridge {
+    /// Build a bridge reading the LSP command from env. Now test-only: production
+    /// resolves the command ONCE at boot into HostEffectPolicy and constructs via
+    /// `with_cmd`. Retained so the lsp_bridge unit tests can still exercise the
+    /// env-parsing path directly.
+    #[cfg(test)]
     pub(crate) fn from_env() -> Self {
         let lsp_cmd = configured_lsp_command();
 
         Self { lsp_cmd }
+    }
+
+    /// Build a bridge from an already-resolved LSP command (from HostEffectPolicy,
+    /// resolved once at boot) so a code-op reads config, not process env.
+    pub(crate) fn with_cmd(lsp_cmd: impl Into<String>) -> Self {
+        Self { lsp_cmd: lsp_cmd.into() }
     }
 
     pub(crate) fn rename_symbol(
@@ -605,7 +616,10 @@ fn split_lsp_command(command: &str) -> Result<(String, Vec<String>), String> {
     Ok((program, args))
 }
 
-fn configured_lsp_command() -> String {
+/// Resolve the LSP command from env (REFACTOR_LSP_CMD, legacy fallback). Called
+/// ONCE at boot via `HostEffectPolicy::from_env`; the resolved value then rides on
+/// the policy and is read per code-op via `LspBridge::with_cmd`, not from env.
+pub(crate) fn configured_lsp_command() -> String {
     std::env::var(LSP_CMD_ENV)
         .or_else(|_| std::env::var(LEGACY_LSP_CMD_ENV))
         .ok()

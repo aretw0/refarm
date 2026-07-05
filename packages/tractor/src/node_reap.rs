@@ -63,7 +63,7 @@ pub(crate) struct NodeTtls {
 }
 
 impl NodeTtls {
-    fn from_env() -> Self {
+    pub(crate) fn from_env() -> Self {
         Self {
             agent_response_ms: env_ms("REFARM_NODE_AGENT_RESPONSE_TTL_MS", DEFAULT_NODE_TTL_MS),
             stream_chunk_ms: env_ms("REFARM_NODE_STREAM_CHUNK_TTL_MS", DEFAULT_NODE_TTL_MS),
@@ -77,6 +77,27 @@ impl NodeTtls {
             "StreamChunk" => Some(self.stream_chunk_ms),
             "StreamSession" => Some(self.stream_session_ms),
             _ => None, // not reapable
+        }
+    }
+}
+
+/// Cadence + TTL knobs for the streaming-node reaper. Resolved from env ONCE at
+/// boot (`NodeReaperConfig::from_env`) and passed into `spawn_node_reaper`, so the
+/// reaper reads a value, not process env — and tests construct it directly.
+#[derive(Debug, Clone, Copy)]
+pub struct NodeReaperConfig {
+    pub(crate) ttls: NodeTtls,
+    pub(crate) interval_ms: u64,
+    pub(crate) initial_delay_ms: u64,
+}
+
+impl NodeReaperConfig {
+    /// Resolve the node-reaper knobs from the process env. Called ONCE at boot.
+    pub fn from_env() -> Self {
+        Self {
+            ttls: NodeTtls::from_env(),
+            interval_ms: env_ms("REFARM_REAP_INTERVAL_MS", DEFAULT_INTERVAL_MS),
+            initial_delay_ms: env_ms("REFARM_REAP_INITIAL_DELAY_MS", DEFAULT_INITIAL_DELAY_MS),
         }
     }
 }
@@ -149,10 +170,12 @@ pub(crate) fn run_node_reap(sync: &NativeSync, now_secs: u64, ttls: &NodeTtls) -
 /// Spawn the self-terminating streaming-node reaper. Holds a Weak to the Loro
 /// doc so it exits once the NativeSync is dropped (mirrors the epoch ticker /
 /// fs reaper teardown contract — no leaked task).
-pub fn spawn_node_reaper(sync: &NativeSync) {
-    let ttls = NodeTtls::from_env();
-    let interval_ms = env_ms("REFARM_REAP_INTERVAL_MS", DEFAULT_INTERVAL_MS);
-    let initial_delay_ms = env_ms("REFARM_REAP_INITIAL_DELAY_MS", DEFAULT_INITIAL_DELAY_MS);
+pub fn spawn_node_reaper(sync: &NativeSync, cfg: NodeReaperConfig) {
+    let NodeReaperConfig {
+        ttls,
+        interval_ms,
+        initial_delay_ms,
+    } = cfg;
 
     let weak: Weak<_> = sync.weak_doc();
     let sync = sync.clone();

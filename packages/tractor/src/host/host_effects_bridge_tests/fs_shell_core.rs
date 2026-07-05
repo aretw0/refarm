@@ -7,10 +7,17 @@
     };
 
     fn make_bindings() -> TractorNativeBindings {
+        make_bindings_with_policy(HostEffectPolicy::default())
+    }
+
+    /// Bindings with an explicit effect policy injected — for tests that need a
+    /// specific shell allowlist / fs root / LSP command WITHOUT mutating process
+    /// env (which leaks across threads).
+    fn make_bindings_with_policy(policy: HostEffectPolicy) -> TractorNativeBindings {
         let storage = NativeStorage::open(":memory:").unwrap();
         let sync = NativeSync::new(storage, ":memory:").unwrap();
         let telemetry = TelemetryBus::new(10);
-        TractorNativeBindings::new("test-agent", sync, telemetry)
+        TractorNativeBindings::new("test-agent", sync, telemetry, policy)
     }
 
     static ENV_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
@@ -207,7 +214,7 @@
     async fn spawn_rejects_overlong_stdin() {
         let argv = vec!["cat".to_string()];
         let stdin = vec![b'a'; 1024 * 1024 + 1];
-        let err = spawn_process(&argv, &[], None, 1000, Some(&stdin))
+        let err = spawn_process(&argv, &[], None, 1000, Some(&stdin), &HostEffectPolicy::default())
             .await
             .unwrap_err();
         assert!(err.contains("stdin exceeds max length"));
@@ -222,7 +229,7 @@
             format!("head -c {bytes} /dev/zero"),
         ];
 
-        let (stdout, stderr, exit_code, timed_out) = spawn_process(&argv, &[], None, 5_000, None)
+        let (stdout, stderr, exit_code, timed_out) = spawn_process(&argv, &[], None, 5_000, None, &HostEffectPolicy::default())
             .await
             .unwrap();
 
@@ -249,7 +256,7 @@
     async fn spawn_rejects_invalid_env_key() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let env = vec![("BAD=KEY".to_string(), "x".to_string())];
-        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        let err = spawn_process(&argv, &env, None, 1000, None, &HostEffectPolicy::default()).await.unwrap_err();
         assert!(err.contains("invalid env key"));
     }
 
@@ -257,7 +264,7 @@
     async fn spawn_rejects_env_value_with_control_chars() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let env = vec![("SAFE_KEY".to_string(), "bad\nvalue".to_string())];
-        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        let err = spawn_process(&argv, &env, None, 1000, None, &HostEffectPolicy::default()).await.unwrap_err();
         assert!(err.contains("env value contains control characters"));
     }
 
@@ -265,7 +272,7 @@
     async fn spawn_rejects_env_value_with_non_ascii() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let env = vec![("SAFE_KEY".to_string(), "olá".to_string())];
-        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        let err = spawn_process(&argv, &env, None, 1000, None, &HostEffectPolicy::default()).await.unwrap_err();
         assert!(err.contains("env value must be ascii"));
     }
 
@@ -273,7 +280,7 @@
     async fn spawn_rejects_env_value_with_surrounding_whitespace() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let env = vec![("SAFE_KEY".to_string(), " value ".to_string())];
-        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        let err = spawn_process(&argv, &env, None, 1000, None, &HostEffectPolicy::default()).await.unwrap_err();
         assert!(err.contains("env value contains surrounding whitespace"));
     }
 
@@ -281,7 +288,7 @@
     async fn spawn_rejects_env_value_with_internal_whitespace() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let env = vec![("SAFE_KEY".to_string(), "safe value".to_string())];
-        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        let err = spawn_process(&argv, &env, None, 1000, None, &HostEffectPolicy::default()).await.unwrap_err();
         assert!(err.contains("env value must not contain whitespace"));
     }
 
@@ -311,6 +318,7 @@
                 None,
                 1000,
                 None,
+                &HostEffectPolicy::default(),
             )
             .await;
             let err = match result {
@@ -332,7 +340,7 @@
     async fn spawn_rejects_path_env_override() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let env = vec![("PATH".to_string(), "/tmp/evil-bin".to_string())];
-        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        let err = spawn_process(&argv, &env, None, 1000, None, &HostEffectPolicy::default()).await.unwrap_err();
         assert!(err.contains("blocked env key"));
     }
 
@@ -349,6 +357,7 @@
                 None,
                 1000,
                 None,
+                &HostEffectPolicy::default(),
             )
             .await;
             let err = match result {
@@ -1178,6 +1187,7 @@
                 None,
                 1000,
                 None,
+                &HostEffectPolicy::default(),
             )
             .await;
             let err = match result {
@@ -1208,9 +1218,15 @@
         let temp = tempfile::tempdir().unwrap();
         let script = temp.path().join("fake_lsp.py");
         std::fs::write(&script, FAKE_CODE_OPS_LSP_SERVER).unwrap();
-        std::env::set_var("REFACTOR_LSP_CMD", format!("python3 {}", script.display()));
 
-        let mut b = make_bindings();
+        // Inject the fake LSP command via the effect policy — no REFACTOR_LSP_CMD
+        // env mutation. (ENV_LOCK still serialises the shared global LSP session.)
+        let policy = HostEffectPolicy::new(
+            None,
+            Ok(None),
+            format!("python3 {}", script.display()),
+        );
+        let mut b = make_bindings_with_policy(policy);
         let refs = CodeOpsHost::find_references(
             &mut b,
             SymbolLocation {
@@ -1222,7 +1238,6 @@
         .await
         .unwrap();
 
-        std::env::remove_var("REFACTOR_LSP_CMD");
         crate::host::lsp_bridge::LspBridge::stop_lsp_session().unwrap();
         assert_eq!(refs.len(), 1);
         assert_eq!(refs[0].file, "/workspace/code-ops/src/lib.rs");
@@ -1243,9 +1258,16 @@
         let source = temp.path().join("lib.rs");
         std::fs::write(&script, FAKE_CODE_OPS_LSP_SERVER).unwrap();
         std::fs::write(&source, "let old = old;\n").unwrap();
-        std::env::set_var("REFACTOR_LSP_CMD", format!("python3 {}", script.display()));
 
-        let mut b = make_bindings();
+        // Inject the fake LSP command via the effect policy — no REFACTOR_LSP_CMD
+        // env mutation, so nothing leaks into a concurrent code-op test. (ENV_LOCK
+        // still serialises access to the shared global LSP session below.)
+        let policy = HostEffectPolicy::new(
+            None,
+            Ok(None),
+            format!("python3 {}", script.display()),
+        );
+        let mut b = make_bindings_with_policy(policy);
         let result = CodeOpsHost::rename_symbol(
             &mut b,
             SymbolLocation {
@@ -1258,7 +1280,6 @@
         .await
         .unwrap();
 
-        std::env::remove_var("REFACTOR_LSP_CMD");
         crate::host::lsp_bridge::LspBridge::stop_lsp_session().unwrap();
         assert_eq!(result.files_changed, 1);
         assert_eq!(result.edits_applied, 2);

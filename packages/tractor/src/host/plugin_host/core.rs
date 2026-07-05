@@ -201,6 +201,10 @@ pub struct PluginHost {
     /// ONCE at boot). Stamped onto every `PluginInstanceHandle` at load so the
     /// per-event hot path reads a field, never `std::env::var`.
     on_event_budget_ms: u64,
+    /// Effect-dispatch policy (shell allowlist + fs root) resolved from env ONCE
+    /// at construction and cloned into every `TractorNativeBindings` at load, so
+    /// the per-call effect path reads `&self`, never `std::env::var`.
+    effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
 }
 
 /// Forward only MODEL_* vars into plugin WASI env.

@@ -51,6 +51,44 @@ fn env_ms(var: &str, default: u64) -> u64 {
         .unwrap_or(default)
 }
 
+/// Retention/cadence knobs for the fs artifact reaper. Resolved from env ONCE at
+/// boot (`ReaperConfig::from_env`) and passed into `spawn_reaper`, so the reaper
+/// reads a value, not process env — and tests construct it directly instead of
+/// mutating the shared env (which leaks across threads under `--test-threads>1`;
+/// the interval/delay vars are also read by the node reaper, so a set_var here
+/// could bleed into a concurrent node-reaper test).
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ReaperConfig {
+    pub effort_ttl_ms: u64,
+    pub stream_ttl_ms: u64,
+    pub interval_ms: u64,
+    pub initial_delay_ms: u64,
+}
+
+impl Default for ReaperConfig {
+    fn default() -> Self {
+        Self {
+            effort_ttl_ms: DEFAULT_EFFORT_TTL_MS,
+            stream_ttl_ms: DEFAULT_STREAM_TTL_MS,
+            interval_ms: DEFAULT_INTERVAL_MS,
+            initial_delay_ms: DEFAULT_INITIAL_DELAY_MS,
+        }
+    }
+}
+
+impl ReaperConfig {
+    /// Resolve the reaper knobs from the process env. Called ONCE at boot; the
+    /// resolved config then rides into `spawn_reaper`.
+    pub(crate) fn from_env() -> Self {
+        Self {
+            effort_ttl_ms: env_ms("REFARM_EFFORT_TTL_MS", DEFAULT_EFFORT_TTL_MS),
+            stream_ttl_ms: env_ms("REFARM_STREAM_TTL_MS", DEFAULT_STREAM_TTL_MS),
+            interval_ms: env_ms("REFARM_REAP_INTERVAL_MS", DEFAULT_INTERVAL_MS),
+            initial_delay_ms: env_ms("REFARM_REAP_INITIAL_DELAY_MS", DEFAULT_INITIAL_DELAY_MS),
+        }
+    }
+}
+
 /// What a single sweep decided to delete. Both lists are effort/stream files
 /// that are provably terminal-and-old; nothing else is ever included.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -159,12 +197,13 @@ fn remove_file_quiet(path: &std::path::Path) {
 /// store so the task exits once the SidecarState is dropped (mirrors the epoch
 /// ticker's teardown contract — a strong Arc would keep the sidecar alive
 /// forever and leak the task across restarts).
-pub(crate) fn spawn_reaper(state: &SidecarState) {
-    let effort_ttl_ms = env_ms("REFARM_EFFORT_TTL_MS", DEFAULT_EFFORT_TTL_MS);
-    let stream_ttl_ms = env_ms("REFARM_STREAM_TTL_MS", DEFAULT_STREAM_TTL_MS);
-    let interval_ms = env_ms("REFARM_REAP_INTERVAL_MS", DEFAULT_INTERVAL_MS);
-
-    let initial_delay_ms = env_ms("REFARM_REAP_INITIAL_DELAY_MS", DEFAULT_INITIAL_DELAY_MS);
+pub(crate) fn spawn_reaper(state: &SidecarState, cfg: ReaperConfig) {
+    let ReaperConfig {
+        effort_ttl_ms,
+        stream_ttl_ms,
+        interval_ms,
+        initial_delay_ms,
+    } = cfg;
 
     // The task holds ONLY a Weak to the effort store plus the (cheap, non-Arc)
     // dir paths — never a strong ref to the store between ticks. Each tick it

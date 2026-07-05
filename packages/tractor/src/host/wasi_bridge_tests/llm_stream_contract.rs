@@ -74,7 +74,7 @@ data: [DONE]
     let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
     let sync = crate::sync::NativeSync::new(storage, "complete-http-stream-test").unwrap();
     let telemetry = crate::telemetry::TelemetryBus::new(16);
-    let mut bindings = super::TractorNativeBindings::new("agent", sync.clone(), telemetry);
+    let mut bindings = super::TractorNativeBindings::new("agent", sync.clone(), telemetry, crate::host::host_effects_bridge::HostEffectPolicy::default());
 
     let result = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -136,7 +136,7 @@ data: [DONE]
     let client_base_url = base_url.clone();
     let client = std::thread::spawn(move || {
         let telemetry = crate::telemetry::TelemetryBus::new(16);
-        let mut bindings = super::TractorNativeBindings::new("agent", sync_for_call, telemetry);
+        let mut bindings = super::TractorNativeBindings::new("agent", sync_for_call, telemetry, crate::host::host_effects_bridge::HostEffectPolicy::default());
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -180,7 +180,7 @@ fn complete_http_stream_preserves_route_enforcement() {
     let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
     let sync = crate::sync::NativeSync::new(storage, "complete-http-stream-route-test").unwrap();
     let telemetry = crate::telemetry::TelemetryBus::new(16);
-    let mut bindings = super::TractorNativeBindings::new("agent", sync, telemetry);
+    let mut bindings = super::TractorNativeBindings::new("agent", sync, telemetry, crate::host::host_effects_bridge::HostEffectPolicy::default());
 
     let err = tokio::runtime::Builder::new_current_thread()
         .enable_all()

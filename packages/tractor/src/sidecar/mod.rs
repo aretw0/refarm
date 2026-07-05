@@ -987,7 +987,8 @@ async fn get_task(
 pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Result<()> {
     // Reclaim terminal-and-old task-results/streams artifacts in the background,
     // bounding the daemon's on-disk growth. Self-terminates when state drops.
-    reap::spawn_reaper(&state);
+    // Reaper knobs resolved from env ONCE here at daemon start.
+    reap::spawn_reaper(&state, reap::ReaperConfig::from_env());
 
     let router = Router::new()
         .route("/efforts", post(post_efforts).get(get_efforts))

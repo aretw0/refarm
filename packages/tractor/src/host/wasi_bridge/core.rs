@@ -33,14 +33,24 @@ pub struct TractorNativeBindings {
     pub plugin_id: String,
     pub sync: NativeSync,
     pub telemetry: TelemetryBus,
+    /// Effect-dispatch policy (shell allowlist + fs root) resolved from env ONCE
+    /// at PluginHost boot and cloned in here at load, so the per-call effect path
+    /// reads &self, never std::env::var.
+    pub(crate) effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
 }
 
 impl TractorNativeBindings {
-    pub fn new(plugin_id: impl Into<String>, sync: NativeSync, telemetry: TelemetryBus) -> Self {
+    pub fn new(
+        plugin_id: impl Into<String>,
+        sync: NativeSync,
+        telemetry: TelemetryBus,
+        effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
+    ) -> Self {
         Self {
             plugin_id: plugin_id.into(),
             sync,
             telemetry,
+            effect_policy,
         }
     }
 }
