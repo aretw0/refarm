@@ -176,10 +176,9 @@ pub(crate) fn spawn_reaper(state: &SidecarState) {
 
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_millis(initial_delay_ms)).await;
-        loop {
-            let Some(efforts) = weak.upgrade() else {
-                break; // sidecar dropped — self-terminate.
-            };
+        // upgrade() failing means the sidecar was dropped — the `while let` then
+        // exits and the reaper self-terminates.
+        while let Some(efforts) = weak.upgrade() {
             let now_secs = now_unix_secs();
             let plan = {
                 let map = efforts.read().expect("effort store poisoned");
@@ -245,9 +244,7 @@ fn parts_to_epoch_secs(year: u64, month: u64, day: u64, hour: u64, min: u64, sec
         days += if is_leap_year(y) { 366 } else { 365 };
     }
     let month_days = month_lengths(is_leap_year(year));
-    for m in 0..(month.saturating_sub(1) as usize) {
-        days += month_days[m];
-    }
+    days += month_days.iter().take(month.saturating_sub(1) as usize).sum::<u64>();
     days += day.saturating_sub(1);
     days * 86_400 + hour * 3_600 + min * 60 + sec
 }

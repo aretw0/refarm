@@ -38,7 +38,7 @@ pub mod trust;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use tokio::sync::mpsc;
 
@@ -419,7 +419,13 @@ pub struct TractorNative {
     /// Extra store instances staged for a plugin's pool, keyed by plugin_id. The
     /// caller loads N-1 additional stores (async) via `stage_pool_stores`;
     /// register_for_events drains them into the pool. Empty for the default path.
-    pool_stores: Arc<RwLock<HashMap<String, Vec<host::PluginInstanceHandle>>>>,
+    ///
+    /// A `Mutex`, not `RwLock`: a `PluginInstanceHandle` owns a `wasmtime::Store`
+    /// which is `Send` but `!Sync`, so `RwLock<Vec<Handle>>` would be `!Sync` and
+    /// its `Arc` would provide no cross-thread capability. `Mutex<T>: Sync` needs
+    /// only `T: Send`, which holds — and staging/draining are exclusive writes
+    /// anyway, so the read-parallelism of an RwLock buys nothing here.
+    pool_stores: Arc<Mutex<HashMap<String, Vec<host::PluginInstanceHandle>>>>,
     /// The on-disk path each loaded plugin came from, keyed by plugin_id. Retained
     /// by load_plugin so reload_plugin can re-read the (possibly rebuilt) bytes.
     plugin_paths: Arc<RwLock<HashMap<String, std::path::PathBuf>>>,
@@ -461,7 +467,7 @@ impl TractorNative {
             active_agent_id: Arc::new(RwLock::new(None)),
             event_router: EventRouter::default(),
             plugin_runner_handles: Arc::new(RwLock::new(HashMap::new())),
-            pool_stores: Arc::new(RwLock::new(HashMap::new())),
+            pool_stores: Arc::new(Mutex::new(HashMap::new())),
             plugin_paths: Arc::new(RwLock::new(HashMap::new())),
             config,
         })
@@ -532,7 +538,7 @@ impl TractorNative {
         }
         if let Some(plugin_id) = plugin_id {
             self.pool_stores
-                .write()
+                .lock()
                 .expect("pool_stores poisoned")
                 .entry(plugin_id)
                 .or_default()
@@ -545,7 +551,7 @@ impl TractorNative {
     /// staging map). Returns empty if none were staged.
     fn take_pool_stores(&self, plugin_id: &str) -> Vec<host::PluginInstanceHandle> {
         self.pool_stores
-            .write()
+            .lock()
             .expect("pool_stores poisoned")
             .remove(plugin_id)
             .unwrap_or_default()
@@ -722,7 +728,7 @@ impl TractorNative {
             .expect("cancel_flags poisoned")
             .remove(plugin_id);
         self.pool_stores
-            .write()
+            .lock()
             .expect("pool_stores poisoned")
             .remove(plugin_id);
         self.plugin_paths
