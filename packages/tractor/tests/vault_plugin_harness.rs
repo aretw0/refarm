@@ -284,6 +284,64 @@ async fn router_delivers_a_non_agent_event_to_its_subscribed_plugin() {
     tractor.shutdown().await.expect("shutdown must succeed");
 }
 
+/// THE SENSOR FIX PROOF: the runner emits `plugin:on_event` carrying the REAL
+/// per-event execution cost (exec_us) and the head-of-line queue depth — the cost
+/// `router:deliver` (enqueue-only) was blind to. Fire several events and confirm
+/// the drain telemetry actually fires from the runner thread with those fields.
+#[tokio::test]
+#[ignore = "requires vault-surface-ref build:plugin; run with --ignored"]
+async fn runner_emits_real_drain_cost_and_queue_depth() {
+    let path = wasm_path();
+    if !path.exists() {
+        eprintln!("SKIP: vault_plugin.wasm not found — run build:plugin");
+        return;
+    }
+
+    let tractor = TractorNative::boot(memory_config_none())
+        .await
+        .expect("boot must succeed");
+    // Subscribe telemetry BEFORE registering so we catch the runner's emissions.
+    let mut telemetry = tractor.telemetry.subscribe();
+
+    let handle = tractor.load_plugin(path).await.expect("vault plugin loads");
+    tractor.register_for_events(handle);
+
+    // Fire a few dispatches; each is drained serially by the runner thread.
+    for _ in 0..3 {
+        tractor.deliver("vault:dispatch", Some("vault"), Some(dispatch_payload()));
+    }
+
+    // Collect telemetry until we see a plugin:on_event (the real drain signal).
+    let mut saw_drain = false;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while std::time::Instant::now() < deadline {
+        match tokio::time::timeout(std::time::Duration::from_millis(200), telemetry.recv()).await {
+            Ok(Ok(event)) if event.event == "plugin:on_event" => {
+                let payload = event.payload.expect("plugin:on_event payload");
+                assert!(
+                    payload["exec_us"].as_u64().is_some(),
+                    "the runner must report the real per-event execution time"
+                );
+                assert!(
+                    payload["queue_depth"].as_u64().is_some(),
+                    "the runner must report the head-of-line queue depth"
+                );
+                assert_eq!(payload["event"], "vault:dispatch");
+                saw_drain = true;
+                break;
+            }
+            Ok(Ok(_)) => continue, // some other telemetry event
+            _ => continue,
+        }
+    }
+    assert!(
+        saw_drain,
+        "the runner must emit plugin:on_event so the real drain cost is no longer a blind spot"
+    );
+
+    tractor.shutdown().await.expect("shutdown");
+}
+
 /// THE LIVE E2E — the whole operator loop through a RUNNING sidecar, HTTP to
 /// graph, in one test. This is the "easy place to test anything, however complex":
 /// boot the runtime, load the vault plugin, register it, stand the real HTTP

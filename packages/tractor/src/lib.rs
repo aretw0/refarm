@@ -157,7 +157,12 @@ pub fn deliver_via_router(
         }
     }
 
-    let latency_us = started.elapsed().as_micros() as u64;
+    // This is the ENQUEUE time only — the message is now buffered on the target's
+    // channel, NOT executed. The real per-event execution cost + the head-of-line
+    // queue depth are emitted as `plugin:on_event` from the runner thread, where
+    // the work actually runs. Named `enqueue_us` so no reader mistakes it for the
+    // end-to-end latency (the old `latency_us` name did exactly that).
+    let enqueue_us = started.elapsed().as_micros() as u64;
     // `undeliverable` is the degradation signal: events with no subscriber, or
     // subscribers whose sender was gone. Watch this in telemetry.
     let undeliverable = wanted.saturating_sub(sent);
@@ -170,7 +175,7 @@ pub fn deliver_via_router(
             "wanted": wanted,
             "sent": sent,
             "undeliverable": undeliverable,
-            "latency_us": latency_us,
+            "enqueue_us": enqueue_us,
         })),
     );
     if undeliverable > 0 {
@@ -289,6 +294,10 @@ impl TractorNative {
         let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
 
         let id_for_thread = plugin_id.clone();
+        // The runner owns a telemetry handle so it can emit the REAL drain cost —
+        // `router:deliver` only ever sees the enqueue (near-zero); the head-of-line
+        // stall is invisible until we measure it HERE, where the work actually runs.
+        let telemetry = self.telemetry.clone();
         let join = std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -305,9 +314,28 @@ impl TractorNative {
                         break;
                     }
 
-                    if let Err(e) = h.call_on_event(&msg.event, msg.payload.as_deref()).await {
+                    // Backlog waiting BEHIND this message on the single runner
+                    // thread — the head-of-line depth the enqueue sensor cannot see.
+                    let queue_depth = rx.len();
+                    let started = std::time::Instant::now();
+                    let outcome = h.call_on_event(&msg.event, msg.payload.as_deref()).await;
+                    let exec_us = started.elapsed().as_micros() as u64;
+                    if let Err(e) = &outcome {
                         tracing::warn!(plugin_id = %id_for_thread, "on_event error: {e}");
                     }
+                    // Emit the REAL per-event drain cost + the queue depth behind it.
+                    // A rising queue_depth or exec_us here IS the head-of-line pain,
+                    // now visible where router:deliver was blind.
+                    telemetry.emit_named(
+                        "plugin:on_event",
+                        Some(id_for_thread.clone()),
+                        Some(serde_json::json!({
+                            "event": msg.event,
+                            "exec_us": exec_us,
+                            "queue_depth": queue_depth,
+                            "ok": outcome.is_ok(),
+                        })),
+                    );
                 }
 
                 if !teardown_done {
@@ -372,10 +400,11 @@ impl TractorNative {
     /// agent-shaped `agent_channels.get(active_agent)` lookup.
     ///
     /// Every delivery emits a `router:deliver` telemetry event carrying the event
-    /// name, how many plugins were wanted vs actually sent, and the microsecond
-    /// latency — so the router is never a blind spot: a dropped event (zero
-    /// subscribers, or a dead sender) shows up as `sent < wanted`, and a slow
-    /// delivery shows up in `latency_us`, without needing the scarecrow.
+    /// name, how many plugins were wanted vs actually sent, and the ENQUEUE time —
+    /// so a dropped event (zero subscribers, or a dead sender) shows up as
+    /// `sent < wanted`. The real per-event EXECUTION cost + the head-of-line queue
+    /// depth are a separate `plugin:on_event` event emitted from the runner thread
+    /// where the work runs (`enqueue_us` alone would hide a serial drain stall).
     pub fn deliver(&self, event: &str, target: Option<&str>, payload: Option<String>) -> usize {
         deliver_via_router(
             &self.event_router,
@@ -519,14 +548,15 @@ mod deliver_observability_tests {
             .try_recv()
             .expect("a router:deliver telemetry event must be emitted");
         assert_eq!(event.event, "router:deliver");
+        // enqueue_us is the enqueue time (the real drain is in plugin:on_event).
         let payload = event.payload.expect("payload present");
         assert_eq!(payload["event"], "vault:dispatch");
         assert_eq!(payload["wanted"], 1);
         assert_eq!(payload["sent"], 0);
         assert_eq!(payload["undeliverable"], 1);
         assert!(
-            payload["latency_us"].as_u64().is_some(),
-            "latency_us must be recorded so a slow delivery is visible"
+            payload["enqueue_us"].as_u64().is_some(),
+            "enqueue_us must be recorded (the real drain cost is in plugin:on_event)"
         );
 
         tractor.shutdown().await.expect("shutdown must succeed");
