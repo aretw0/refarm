@@ -304,28 +304,61 @@ impl TractorNative {
     /// This is the one path every event producer routes through, so a loaded
     /// plugin receives its own declared event by subscription rather than by the
     /// agent-shaped `agent_channels.get(active_agent)` lookup.
+    ///
+    /// Every delivery emits a `router:deliver` telemetry event carrying the event
+    /// name, how many plugins were wanted vs actually sent, and the microsecond
+    /// latency — so the router is never a blind spot: a dropped event (zero
+    /// subscribers, or a dead sender) shows up as `sent < wanted`, and a slow
+    /// delivery shows up in `latency_us`, without needing the scarecrow.
     pub fn deliver(&self, event: &str, target: Option<&str>, payload: Option<String>) -> usize {
+        let started = std::time::Instant::now();
         let recipients: Vec<String> = match target {
             Some(plugin_id) => vec![plugin_id.to_string()],
             None => self.event_router.subscribers(event),
         };
-        if recipients.is_empty() {
-            return 0;
-        }
-        let channels = self.agent_channels.read().expect("agent_channels poisoned");
+        let wanted = recipients.len();
         let mut sent = 0;
-        for plugin_id in &recipients {
-            if let Some(tx) = channels.get(plugin_id) {
-                if tx
-                    .send(AgentMessage {
-                        event: event.to_string(),
-                        payload: payload.clone(),
-                    })
-                    .is_ok()
-                {
-                    sent += 1;
+        if wanted > 0 {
+            let channels = self.agent_channels.read().expect("agent_channels poisoned");
+            for plugin_id in &recipients {
+                if let Some(tx) = channels.get(plugin_id) {
+                    if tx
+                        .send(AgentMessage {
+                            event: event.to_string(),
+                            payload: payload.clone(),
+                        })
+                        .is_ok()
+                    {
+                        sent += 1;
+                    }
                 }
             }
+        }
+
+        let latency_us = started.elapsed().as_micros() as u64;
+        // `undeliverable` is the degradation signal: events that had no subscriber,
+        // or subscribers whose sender was gone. Watch this in telemetry.
+        let undeliverable = wanted.saturating_sub(sent);
+        self.telemetry.emit_named(
+            "router:deliver",
+            None,
+            Some(serde_json::json!({
+                "event": event,
+                "target": target,
+                "wanted": wanted,
+                "sent": sent,
+                "undeliverable": undeliverable,
+                "latency_us": latency_us,
+            })),
+        );
+        if undeliverable > 0 {
+            tracing::warn!(
+                event = %event,
+                wanted,
+                sent,
+                undeliverable,
+                "router: some recipients were undeliverable"
+            );
         }
         sent
     }
@@ -424,5 +457,74 @@ mod event_router_tests {
         assert!(router.subscribers("vault:dispatch").is_empty());
         // The other plugin's subscription survives.
         assert_eq!(router.subscribers("quality:check"), vec!["@demo/quality"]);
+    }
+}
+
+#[cfg(test)]
+mod deliver_observability_tests {
+    use super::{TractorNative, TractorNativeConfig};
+    use crate::SecurityMode;
+
+    fn memory_config() -> TractorNativeConfig {
+        TractorNativeConfig {
+            namespace: ":memory:".to_string(),
+            port: 0,
+            security_mode: SecurityMode::None,
+            ..TractorNativeConfig::default()
+        }
+    }
+
+    /// deliver() must NEVER be a blind spot: an event with no reachable recipient
+    /// emits a `router:deliver` telemetry event whose `undeliverable` is the
+    /// degradation signal. This is the observability that keeps us from flying
+    /// blind when we stretch the rope (accept new events) without the scarecrow.
+    #[tokio::test]
+    async fn deliver_emits_telemetry_with_the_undeliverable_signal() {
+        let tractor = TractorNative::boot(memory_config())
+            .await
+            .expect("boot must succeed");
+        let mut telemetry = tractor.telemetry.subscribe();
+
+        // Target a plugin that is not registered: nothing to send to, so the
+        // event is undeliverable — exactly the case we must be able to SEE.
+        let sent = tractor.deliver("vault:dispatch", Some("@ghost/plugin"), None);
+        assert_eq!(sent, 0, "an unregistered target receives nothing");
+
+        // The telemetry event fired and carries the degradation signal.
+        let event = telemetry
+            .try_recv()
+            .expect("a router:deliver telemetry event must be emitted");
+        assert_eq!(event.event, "router:deliver");
+        let payload = event.payload.expect("payload present");
+        assert_eq!(payload["event"], "vault:dispatch");
+        assert_eq!(payload["wanted"], 1);
+        assert_eq!(payload["sent"], 0);
+        assert_eq!(payload["undeliverable"], 1);
+        assert!(
+            payload["latency_us"].as_u64().is_some(),
+            "latency_us must be recorded so a slow delivery is visible"
+        );
+
+        tractor.shutdown().await.expect("shutdown must succeed");
+    }
+
+    /// A broadcast with zero subscribers is also visible (wanted 0, sent 0) — a
+    /// silently-dropped event can never masquerade as success.
+    #[tokio::test]
+    async fn deliver_with_no_subscribers_is_still_observable() {
+        let tractor = TractorNative::boot(memory_config())
+            .await
+            .expect("boot must succeed");
+        let mut telemetry = tractor.telemetry.subscribe();
+
+        let sent = tractor.deliver("nobody:listens", None, None);
+        assert_eq!(sent, 0);
+
+        let event = telemetry.try_recv().expect("telemetry emitted");
+        let payload = event.payload.expect("payload present");
+        assert_eq!(payload["wanted"], 0);
+        assert_eq!(payload["sent"], 0);
+
+        tractor.shutdown().await.expect("shutdown must succeed");
     }
 }
