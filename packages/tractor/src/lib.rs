@@ -270,6 +270,33 @@ fn on_event_budget_ms_from_env() -> u64 {
 /// runs the guest — so N guests execute concurrently while only the brief
 /// dequeue is serialized. A `None` recv (senders dropped at shutdown) or a
 /// SHUTDOWN_EVENT tears this runner down.
+/// Project a TERMINAL ERROR result node for a respond whose guest errored, so the
+/// terminal-result watcher finalises the effort `failed` immediately (with the
+/// real error) instead of polling to a 45s false `timed-out`. Uses the SAME
+/// generic shape the watcher matches (AgentResponse / prompt_ref / is_final) plus
+/// `is_error: true` and the error text as `content`. Best-effort: a store failure
+/// is logged, not fatal (the watcher then falls back to its timeout, no worse
+/// than before this fix).
+fn write_terminal_error_result(sync: &NativeSync, plugin_id: &str, prompt_ref: &str, error: &str) {
+    let id = format!("urn:result:error:{prompt_ref}");
+    let payload = serde_json::json!({
+        "@type": "AgentResponse",
+        "@id": id,
+        "prompt_ref": prompt_ref,
+        "content": error,
+        "is_final": true,
+        "is_error": true,
+    })
+    .to_string();
+    if let Err(e) = sync.store_node(&id, "AgentResponse", None, &payload, Some(plugin_id)) {
+        tracing::warn!(
+            plugin_id = %plugin_id,
+            prompt_ref = %prompt_ref,
+            "failed to project terminal error result (watcher will fall back to timeout): {e}"
+        );
+    }
+}
+
 fn spawn_plugin_store_runner(
     handle: host::PluginInstanceHandle,
     shared_rx: Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<EventEnvelope>>>,
@@ -277,6 +304,7 @@ fn spawn_plugin_store_runner(
     plugin_id: String,
     store_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     in_flight: InFlightCancels,
+    sync: NativeSync,
 ) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -343,6 +371,16 @@ fn spawn_plugin_store_runner(
                         );
                     } else {
                         tracing::warn!(plugin_id = %plugin_id, "on_event error: {e}");
+                        // For a respond (prompt_ref present) that errored — not an
+                        // epoch timeout — the guest wrote no terminal result, so the
+                        // terminal-result watcher would otherwise poll to its 45s
+                        // deadline and report a FALSE `timed-out`. Project a terminal
+                        // ERROR result node (the generic shape the watcher matches:
+                        // AgentResponse / prompt_ref / is_final, + is_error) so the
+                        // effort finalises `failed` immediately with the real error.
+                        if let Some(pr) = &prompt_ref {
+                            write_terminal_error_result(&sync, &plugin_id, pr, &e.to_string());
+                        }
                     }
                 }
                 // Emit the REAL per-event drain cost + the queue depth behind it.
@@ -666,6 +704,7 @@ impl TractorNative {
             plugin_id.clone(),
             primary_cancel,
             in_flight.clone(),
+            self.sync.clone(),
         ));
         for extra in extra_stores.drain(..) {
             let extra_cancel = extra.cancel_flag();
@@ -676,6 +715,7 @@ impl TractorNative {
                 plugin_id.clone(),
                 extra_cancel,
                 in_flight.clone(),
+                self.sync.clone(),
             ));
         }
         if pool_size > 1 {
@@ -1056,5 +1096,35 @@ mod deliver_observability_tests {
         assert_eq!(payload["sent"], 0);
 
         tractor.shutdown().await.expect("shutdown must succeed");
+    }
+}
+
+#[cfg(test)]
+mod respond_error_result_tests {
+    use super::{write_terminal_error_result, NativeStorage, NativeSync};
+    use crate::sidecar::{find_terminal_result, TerminalResultSpec};
+
+    // #4: a respond whose guest errors must surface as a terminal ERROR result the
+    // watcher finalises `failed` on — not a 45s false `timed-out`. Prove the
+    // bridge: write_terminal_error_result projects a node that the generalized
+    // watcher's find_terminal_result matches via the agent default spec, carrying
+    // is_error = true and the real error text.
+    #[test]
+    fn runner_projects_terminal_error_result_that_the_watcher_finds() {
+        let ns = format!("/tmp/tractor-respond-err-{}.db", std::process::id());
+        let _ = std::fs::remove_file(&ns);
+        let storage = NativeStorage::open(&ns).unwrap();
+        let sync = NativeSync::new(storage, &ns).unwrap();
+
+        let prompt_ref = "urn:agent:prompt-abc";
+        write_terminal_error_result(&sync, "@refarm/agent", prompt_ref, "guest blew up: boom");
+
+        // The generalized watcher (agent default spec) finds it as a terminal error.
+        let found = find_terminal_result(&ns, &TerminalResultSpec::agent_response(prompt_ref))
+            .expect("watcher must find the projected terminal error result");
+        assert!(found.is_error, "the projected result must be a terminal error");
+        assert_eq!(found.content, "guest blew up: boom");
+
+        let _ = std::fs::remove_file(&ns);
     }
 }
