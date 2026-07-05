@@ -11,14 +11,21 @@ use crate::host::plugin_host::{P1Store, RefarmPluginHost, TractorStore};
 use crate::telemetry::TelemetryBus;
 
 /// Epoch-deadline budget (in ticks) for a single on_event call. With the 1ms
-/// global epoch tick, the default 5000 ticks ≈ 5s of wall-clock guest time
+/// global epoch tick, the default 2000 ticks ≈ 2s of wall-clock guest time
 /// before a wedged handler traps. Overridable via REFARM_ON_EVENT_TIMEOUT_MS.
+///
+/// This is the sole interrupt path for a wedged handler today: a cancel marks
+/// the effort store but does not force-interrupt a thread already spinning
+/// inside the guest — the timeout below reclaims it. A lower budget = faster
+/// reclamation. Sub-timeout force-interrupt (wiring cancel to the epoch) is
+/// deferred until an epoch-semantics proof suite establishes how to advance the
+/// global epoch without spuriously trapping neighbouring plugins.
 fn on_event_epoch_deadline_ticks() -> u64 {
     std::env::var("REFARM_ON_EVENT_TIMEOUT_MS")
         .ok()
         .and_then(|raw| raw.parse::<u64>().ok())
         .filter(|ms| *ms > 0)
-        .unwrap_or(5_000)
+        .unwrap_or(2_000)
 }
 
 /// Baseline epoch deadline (ticks) armed on every store at construction. Because
