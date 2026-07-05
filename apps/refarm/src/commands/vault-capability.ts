@@ -8,27 +8,11 @@ import {
 } from "@refarm.dev/cli/json-output";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 
-import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
-import { sidecarUrl } from "./sidecar-url.js";
+import { submitEffortViaSidecar } from "./dispatch-submit.js";
 import {
 	discoverVaultProviders,
 	type VaultDiscoveryResult,
 } from "./vault-discovery.js";
-
-/** Submit an effort to the runtime sidecar's `POST /efforts`, returning its id.
- * The default `dispatch` sink — injectable so run() stays testable. */
-async function submitEffortViaSidecar(effort: Effort): Promise<string> {
-	const response = await fetchSidecarWithTimeout(sidecarUrl("/efforts"), {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify(effort),
-	});
-	if (!response.ok) {
-		throw new Error(`runtime HTTP ${response.status}`);
-	}
-	const payload = (await response.json()) as { effortId: string };
-	return payload.effortId;
-}
 
 /**
  * The `vault` command as a multi-surface CapabilityGroup — the host seam that

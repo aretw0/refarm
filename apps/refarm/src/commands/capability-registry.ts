@@ -13,6 +13,7 @@ import {
 	toCommanderGroup,
 	type CapabilitySurfaceHooks,
 } from "./capability-commander.js";
+import { createDispatchCapability } from "./dispatch-capability.js";
 import {
 	extensionReviewCapability,
 	extensionReviewHooks,
@@ -45,6 +46,7 @@ type BuiltinCapability =
  * light up on every surface (CLI, REPL, TUI, and later HTTP/web) with no
  * per-surface wiring. */
 const BUILTIN_CAPABILITIES: BuiltinCapability[] = [
+	{ entry: createDispatchCapability(), hooks: {} },
 	{ entry: extensionReviewCapability, hooks: extensionReviewHooks },
 	{ entry: createModelCapabilityGroup(), hooksFor: modelCapabilityHooks },
 	{ entry: createSkillCapabilityGroup(), hooksFor: skillCapabilityHooks },
