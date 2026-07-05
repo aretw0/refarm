@@ -247,12 +247,18 @@ fn plugin_pool_size_from_env() -> usize {
 /// via [`TractorNativeConfig::from_env`]; the resolved value rides on the config
 /// into every `PluginInstanceHandle`, so the per-event hot path reads a field,
 /// not env.
+/// Max event budget (ms). Clamped so a huge `REFARM_ON_EVENT_TIMEOUT_MS` can't
+/// overflow `Instant + Duration` on the hot path (which would panic inside the
+/// wall_deadline lock and poison the guard). 24h is far beyond any real budget.
+const MAX_ON_EVENT_BUDGET_MS: u64 = 24 * 60 * 60 * 1_000;
+
 fn on_event_budget_ms_from_env() -> u64 {
     std::env::var("REFARM_ON_EVENT_TIMEOUT_MS")
         .ok()
         .and_then(|raw| raw.parse::<u64>().ok())
         .filter(|ms| *ms > 0)
         .unwrap_or(2_000)
+        .min(MAX_ON_EVENT_BUDGET_MS)
 }
 
 /// Spawn one runner thread that owns `handle`'s !Send store and drains the
@@ -953,6 +959,33 @@ mod pool_tests {
         assert_eq!(with_pool_env(Some("4"), plugin_pool_size_from_env), 4);
         // Capped at 16 to stay under the 8GB host ceiling.
         assert_eq!(with_pool_env(Some("999"), plugin_pool_size_from_env), 16);
+    }
+
+    fn with_budget_env<T>(value: Option<&str>, f: impl FnOnce() -> T) -> T {
+        match value {
+            Some(v) => std::env::set_var("REFARM_ON_EVENT_TIMEOUT_MS", v),
+            None => std::env::remove_var("REFARM_ON_EVENT_TIMEOUT_MS"),
+        }
+        let out = f();
+        std::env::remove_var("REFARM_ON_EVENT_TIMEOUT_MS");
+        out
+    }
+
+    #[test]
+    fn event_budget_clamps_pathological_value_so_instant_add_cannot_overflow() {
+        use super::{on_event_budget_ms_from_env, MAX_ON_EVENT_BUDGET_MS};
+        // A huge budget must clamp, not pass through — otherwise
+        // Instant::now() + Duration::from_millis(budget) panics (overflow) on the
+        // hot path, inside the wall_deadline lock, poisoning the guard.
+        let clamped = with_budget_env(Some(&u64::MAX.to_string()), on_event_budget_ms_from_env);
+        assert_eq!(clamped, MAX_ON_EVENT_BUDGET_MS);
+        // And the clamped value must not overflow the real Instant add.
+        assert!(std::time::Instant::now()
+            .checked_add(std::time::Duration::from_millis(clamped))
+            .is_some());
+        // Normal + default still resolve untouched.
+        assert_eq!(with_budget_env(Some("50"), on_event_budget_ms_from_env), 50);
+        assert_eq!(with_budget_env(None, on_event_budget_ms_from_env), 2_000);
     }
 }
 

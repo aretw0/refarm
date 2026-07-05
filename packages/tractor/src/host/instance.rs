@@ -460,7 +460,14 @@ impl PluginInstanceHandle {
         // The budget rides on the handle (stamped from config at load), so this
         // hot path reads a field — never `std::env::var`.
         let budget_ms = self.on_event_budget_ms;
-        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(budget_ms);
+        // checked_add so a pathological budget can't overflow Instant + Duration
+        // and panic INSIDE the wall_deadline lock (which would poison the guard).
+        // On overflow, fall back to a far-future deadline (effectively no wall
+        // timeout — the cancel flag still interrupts).
+        let now = std::time::Instant::now();
+        let deadline = now
+            .checked_add(std::time::Duration::from_millis(budget_ms))
+            .unwrap_or_else(|| now + std::time::Duration::from_secs(3600));
         *self.epoch_guard.wall_deadline.lock().expect("wall_deadline poisoned") = Some(deadline);
 
         let result = match &mut self.inner {
