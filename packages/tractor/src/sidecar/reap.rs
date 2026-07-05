@@ -25,7 +25,7 @@ use std::time::Duration;
 
 use super::{
     is_terminal_effort_status, prompt_ref_from_effort, stream_ref_for_prompt, EffortResult,
-    EffortStore, SidecarState,
+    EffortInputStore, EffortStore, SidecarState,
 };
 
 /// Default retention for a terminal effort's artifacts (24h). A terminal effort
@@ -158,6 +158,7 @@ pub(crate) fn plan_reap(
 /// store, and so tests drive it without a full state.
 pub(crate) fn execute_reap(
     efforts: &EffortStore,
+    efforts_input: &EffortInputStore,
     results_dir: &std::path::Path,
     streams_dir: &std::path::Path,
     plan: &ReapPlan,
@@ -171,9 +172,18 @@ pub(crate) fn execute_reap(
         remove_file_quiet(&path);
     }
     if !plan.effort_ids.is_empty() {
-        let mut store = efforts.write().expect("effort store poisoned");
+        {
+            let mut store = efforts.write().expect("effort store poisoned");
+            for effort_id in &plan.effort_ids {
+                store.remove(effort_id);
+            }
+        }
+        // Evict the retained Effort INPUT too (the heavier tasks+args struct,
+        // keyed by the same effort_id). Missed before → efforts_input grew one
+        // full input per dispatch forever while its results twin was reaped.
+        let mut input = efforts_input.write().expect("effort input store poisoned");
         for effort_id in &plan.effort_ids {
-            store.remove(effort_id);
+            input.remove(effort_id);
         }
     }
     if !plan.is_empty() {
@@ -210,6 +220,9 @@ pub(crate) fn spawn_reaper(state: &SidecarState, cfg: ReaperConfig) {
     // upgrades the Weak; `None` => the sidecar was dropped => self-terminate
     // (mirrors the epoch ticker's teardown contract, no leaked task).
     let weak: Weak<_> = std::sync::Arc::downgrade(&state.efforts);
+    // Weak to the input store too, so the reaper can evict it alongside results
+    // without keeping the sidecar alive between ticks (same teardown contract).
+    let weak_input: Weak<_> = std::sync::Arc::downgrade(&state.efforts_input);
     let results_dir = state.results_dir.clone();
     let streams_dir = state.streams_dir.clone();
 
@@ -224,7 +237,12 @@ pub(crate) fn spawn_reaper(state: &SidecarState, cfg: ReaperConfig) {
                 plan_reap(&map, now_secs, effort_ttl_ms, stream_ttl_ms)
             };
             if !plan.is_empty() {
-                execute_reap(&efforts, &results_dir, &streams_dir, &plan);
+                // If the input store is already gone (sidecar mid-teardown), fall
+                // back to an empty one — execute_reap still reaps results + fs.
+                if let Some(input) = weak_input.upgrade() {
+                    execute_reap(&efforts, &input, &results_dir, &streams_dir, &plan);
+                    drop(input);
+                }
             }
             // Drop the strong ref before sleeping so we never keep the sidecar
             // alive across the (long) interval.

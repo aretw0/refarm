@@ -122,6 +122,7 @@ pub struct Effort {
 }
 
 type EffortStore = Arc<RwLock<HashMap<String, EffortResult>>>;
+type EffortInputStore = Arc<RwLock<HashMap<String, Effort>>>;
 
 // ── sidecar state ─────────────────────────────────────────────────────────────
 
@@ -133,7 +134,8 @@ pub struct SidecarState {
     /// has no tasks. In-process only: this map starts empty on boot and is not
     /// persisted — retry re-runs an effort submitted during THIS sidecar
     /// lifetime; after a restart the input is gone and retry reports so.
-    pub efforts_input: Arc<RwLock<HashMap<String, Effort>>>,
+    /// Reaped alongside `efforts` (same effort_id) so it can't grow unbounded.
+    pub efforts_input: EffortInputStore,
     pub plugin_channels: PluginChannels,
     /// Per-plugin cancel flags shared with each plugin store's epoch callback.
     /// Setting one force-interrupts that plugin's in-flight guest call — how
