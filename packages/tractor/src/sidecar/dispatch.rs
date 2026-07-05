@@ -21,6 +21,49 @@ pub(crate) struct TaskArgs {
     pub(crate) model: Option<String>,
 }
 
+/// Describes the terminal RESULT node a dispatch awaits, so the watcher is
+/// generic ("await a terminal correlated result") rather than agent-specific.
+/// The LLM agent uses the default (an `AgentResponse` keyed by `prompt_ref`,
+/// terminal when `is_final` is true), but ANY plugin that writes a node of its
+/// own `node_type` carrying the same shape can be awaited the same way — the same
+/// move EventRouter made for events. Nothing here is LLM-intrinsic; the write
+/// path (store_node bridge, loro→sqlite projection, query_nodes) is already
+/// type-agnostic.
+#[derive(Debug, Clone)]
+pub(crate) struct TerminalResultSpec {
+    /// JSON-LD `@type` of the result node to query for.
+    pub(crate) node_type: String,
+    /// Field name carrying the correlation id (e.g. `prompt_ref`).
+    pub(crate) correlation_key: String,
+    /// The correlation value to match forward.
+    pub(crate) correlation_value: String,
+    /// Bool field that marks a node terminal (e.g. `is_final`).
+    pub(crate) terminal_flag_field: String,
+}
+
+impl TerminalResultSpec {
+    /// The agent respond default: an `AgentResponse` correlated by `prompt_ref`,
+    /// terminal when `is_final` — so the LLM path is byte-for-byte unchanged.
+    pub(crate) fn agent_response(prompt_ref: impl Into<String>) -> Self {
+        Self {
+            node_type: "AgentResponse".to_string(),
+            correlation_key: "prompt_ref".to_string(),
+            correlation_value: prompt_ref.into(),
+            terminal_flag_field: "is_final".to_string(),
+        }
+    }
+}
+
+/// The terminal result a watcher found: its `content`, and whether the node
+/// declared itself an error (`is_error: true`) so the watcher finalises `failed`
+/// instead of `done`. A plugin (or the host, on a guest failure — finding #4)
+/// can write a terminal ERROR node the same generic way it writes a success node.
+#[derive(Debug)]
+pub(crate) struct TerminalResult {
+    pub(crate) content: String,
+    pub(crate) is_error: bool,
+}
+
 pub(crate) fn extract_task_args(task: &EffortTask) -> Result<TaskArgs, String> {
     let args = &task.args;
     let prompt = args
@@ -326,7 +369,14 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
                     effort_id = %effort_id,
                     "respond prompt handed to runner; watching for terminal AgentResponse"
                 );
-                spawn_respond_watcher(state.clone(), effort_id.clone(), prompt_ref.clone());
+                // The agent's respond awaits the default terminal-result spec
+                // (AgentResponse / prompt_ref / is_final) — the LLM path is
+                // unchanged; the watcher itself is now generic.
+                spawn_terminal_result_watcher(
+                    state.clone(),
+                    effort_id.clone(),
+                    TerminalResultSpec::agent_response(prompt_ref.clone()),
+                );
             }
         }
     });
@@ -414,41 +464,60 @@ pub(crate) fn respond_watch_interval_ms_from_env() -> u64 {
 /// `prompt_ref`, and returns the content of the first `is_final` one. Mirrors the
 /// correlation the whole stack agrees on: the agent stamps `prompt_ref` onto
 /// every AgentResponse node (model_stream_events.rs), derived from this effort_id.
-fn find_terminal_agent_response(
+/// Find the terminal correlated result node described by `spec`, if present.
+/// Reads the CRDT read model for nodes of `spec.node_type`, keeps only rows
+/// whose `spec.correlation_key` equals `spec.correlation_value`, and returns the
+/// first one whose `spec.terminal_flag_field` is true. Generic: the agent's
+/// `AgentResponse`/`prompt_ref`/`is_final` is just the default spec — any plugin
+/// writing a same-shaped node is found identically. An `is_error: true` field on
+/// the node marks a terminal ERROR result (so a guest failure surfaces as
+/// `failed`, not a 45s `timed-out`).
+pub(crate) fn find_terminal_result(
     namespace: &str,
-    prompt_ref: &str,
-) -> Option<String> {
+    spec: &TerminalResultSpec,
+) -> Option<TerminalResult> {
     let storage = crate::storage::NativeStorage::open(namespace).ok()?;
-    let rows = storage.query_nodes("AgentResponse").ok()?;
+    let rows = storage.query_nodes(&spec.node_type).ok()?;
     for row in rows {
         let Ok(value) = serde_json::from_str::<serde_json::Value>(&row.payload) else {
             continue;
         };
-        // Only rows for THIS prompt (do not reverse prompt_ref -> effort_id; the
-        // derivation is lossy — match forward on the stamped prompt_ref).
-        if value.get("prompt_ref").and_then(|v| v.as_str()) != Some(prompt_ref) {
+        // Only rows for THIS correlation (match forward — the derivation from
+        // effort_id is lossy, so never reverse it).
+        if value.get(&spec.correlation_key).and_then(|v| v.as_str())
+            != Some(spec.correlation_value.as_str())
+        {
             continue;
         }
-        if value.get("is_final").and_then(|v| v.as_bool()) == Some(true) {
+        if value.get(&spec.terminal_flag_field).and_then(|v| v.as_bool()) == Some(true) {
             let content = value
                 .get("content")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            return Some(content);
+            let is_error = value.get("is_error").and_then(|v| v.as_bool()) == Some(true);
+            return Some(TerminalResult { content, is_error });
         }
     }
     None
 }
 
-/// Watch for the terminal AgentResponse of a respond effort and finalise the
-/// effort accordingly. Runs until the terminal node lands (-> `done`) or the
-/// deadline elapses (-> `timed-out`). Uses finalise_effort_if_active so a
-/// concurrent cancel/error that already made the effort terminal wins — the
-/// watcher never walks the machine backward out of a terminal state. Bounded by
-/// a deadline so a silent agent never leaks the task (retires the watcher-leak
-/// slice of the async debts).
-fn spawn_respond_watcher(state: SidecarState, effort_id: String, prompt_ref: String) {
+/// Watch for the terminal RESULT node an effort awaits (described by `spec`) and
+/// finalise the effort accordingly. A terminal success node finalises `done`; a
+/// terminal `is_error` node finalises `failed` (a guest error surfaces here
+/// instead of a 45s false `timed-out`); no terminal node by the deadline
+/// finalises `timed-out`.
+///
+/// Generic over the result node — the agent's AgentResponse is just the default
+/// spec. Uses `finalise_effort_if_active` so a concurrent cancel/error that
+/// already made the effort terminal wins (the watcher never walks the machine
+/// backward out of a terminal state). Bounded by a deadline so a silent producer
+/// never leaks the task.
+fn spawn_terminal_result_watcher(
+    state: SidecarState,
+    effort_id: String,
+    spec: TerminalResultSpec,
+) {
     tokio::spawn(async move {
         let timeout = std::time::Duration::from_millis(state.respond_watch.timeout_ms);
         let interval = std::time::Duration::from_millis(state.respond_watch.interval_ms);
@@ -466,17 +535,30 @@ fn spawn_respond_watcher(state: SidecarState, effort_id: String, prompt_ref: Str
                 }
             }
 
-            if let Some(content) = find_terminal_agent_response(&state.namespace, &prompt_ref) {
-                finalise_effort_if_active(
-                    &state,
-                    &effort_id,
-                    super::EFFORT_DONE,
-                    vec![TaskResult {
-                        status: "ok".to_string(),
-                        result: Some(serde_json::json!({ "content": content })),
-                        error: None,
-                    }],
-                );
+            if let Some(result) = find_terminal_result(&state.namespace, &spec) {
+                if result.is_error {
+                    finalise_effort_if_active(
+                        &state,
+                        &effort_id,
+                        super::EFFORT_FAILED,
+                        vec![TaskResult {
+                            status: "error".to_string(),
+                            result: None,
+                            error: Some(result.content),
+                        }],
+                    );
+                } else {
+                    finalise_effort_if_active(
+                        &state,
+                        &effort_id,
+                        super::EFFORT_DONE,
+                        vec![TaskResult {
+                            status: "ok".to_string(),
+                            result: Some(serde_json::json!({ "content": result.content })),
+                            error: None,
+                        }],
+                    );
+                }
                 return;
             }
 
@@ -489,15 +571,16 @@ fn spawn_respond_watcher(state: SidecarState, effort_id: String, prompt_ref: Str
                         status: "timeout".to_string(),
                         result: None,
                         error: Some(format!(
-                            "no terminal AgentResponse within {}ms",
-                            state.respond_watch.timeout_ms
+                            "no terminal {} within {}ms",
+                            spec.node_type, state.respond_watch.timeout_ms
                         )),
                     }],
                 );
                 if finalised {
                     tracing::warn!(
                         effort_id = %effort_id,
-                        "respond effort timed out waiting for terminal AgentResponse"
+                        node_type = %spec.node_type,
+                        "effort timed out waiting for a terminal result node"
                     );
                 }
                 return;

@@ -886,3 +886,74 @@ async fn sidecar_cancel_targets_only_the_in_flight_store() {
         "cancel must NOT flip a neighbour store running a different prompt"
     );
 }
+
+// ── generalized terminal-result watcher (de-agent-ified) ──────────────────────
+
+#[test]
+fn find_terminal_result_matches_by_descriptor_and_surfaces_is_error() {
+    use crate::sidecar::dispatch::{find_terminal_result, TerminalResultSpec};
+
+    let ns = format!("/tmp/tractor-find-terminal-{}.db", uuid::Uuid::new_v4());
+    let storage = crate::storage::NativeStorage::open(&ns).unwrap();
+    let store = |id: &str, type_: &str, payload: serde_json::Value| {
+        storage
+            .store_node(id, type_, None, &payload.to_string(), None)
+            .unwrap();
+    };
+
+    // A GENERIC (non-agent) terminal result node — any plugin could write this.
+    store(
+        "n1",
+        "VaultResult",
+        serde_json::json!({ "corr": "job-1", "done": true, "content": "ok-body" }),
+    );
+    // A terminal ERROR node for a different correlation.
+    store(
+        "n2",
+        "VaultResult",
+        serde_json::json!({ "corr": "job-2", "done": true, "is_error": true, "content": "boom" }),
+    );
+    // A non-terminal node — must be ignored.
+    store(
+        "n3",
+        "VaultResult",
+        serde_json::json!({ "corr": "job-3", "done": false, "content": "partial" }),
+    );
+
+    let spec = |corr: &str| TerminalResultSpec {
+        node_type: "VaultResult".to_string(),
+        correlation_key: "corr".to_string(),
+        correlation_value: corr.to_string(),
+        terminal_flag_field: "done".to_string(),
+    };
+
+    // Success terminal node → found, not an error.
+    let ok = find_terminal_result(&ns, &spec("job-1")).expect("job-1 terminal found");
+    assert_eq!(ok.content, "ok-body");
+    assert!(!ok.is_error);
+
+    // Error terminal node → found, is_error surfaced (this is how a guest failure
+    // finalises `failed` instead of a 45s false `timed-out`).
+    let err = find_terminal_result(&ns, &spec("job-2")).expect("job-2 terminal found");
+    assert_eq!(err.content, "boom");
+    assert!(err.is_error, "an is_error node must surface as a terminal error");
+
+    // Non-terminal node → not found.
+    assert!(
+        find_terminal_result(&ns, &spec("job-3")).is_none(),
+        "a non-terminal node must not be treated as a terminal result"
+    );
+
+    // The agent default spec still resolves the AgentResponse shape.
+    store(
+        "n4",
+        "AgentResponse",
+        serde_json::json!({ "prompt_ref": "urn:p:1", "is_final": true, "content": "answer" }),
+    );
+    let agent = find_terminal_result(&ns, &TerminalResultSpec::agent_response("urn:p:1"))
+        .expect("agent default spec finds AgentResponse");
+    assert_eq!(agent.content, "answer");
+    assert!(!agent.is_error);
+
+    let _ = std::fs::remove_file(&ns);
+}
