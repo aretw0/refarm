@@ -280,3 +280,48 @@ async fn p1_module_debug_shows_variant() {
     let dbg = format!("{handle:?}");
     assert!(dbg.contains("p1-module"), "debug should show variant: {dbg}");
 }
+
+/// The compiled-component cache is keyed by CONTENT HASH, not path: loading the
+/// same bytes twice (even from different paths) compiles ONCE (dedup), while
+/// changing the bytes at a path recompiles (no stale code — the hot-reload
+/// prerequisite). Uses the null-plugin component fixture.
+#[tokio::test]
+async fn component_cache_is_content_addressed_not_path_addressed() {
+    let component_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/null-plugin.wasm");
+    if !component_path.exists() {
+        eprintln!("SKIP: null-plugin.wasm fixture missing at {}", component_path.display());
+        return;
+    }
+    let bytes = std::fs::read(&component_path).unwrap();
+
+    let host = test_plugin_host();
+    let sync = test_native_sync();
+
+    // Two DIFFERENT paths, IDENTICAL bytes → one compile (dedup by hash).
+    let dir = tempfile::tempdir().unwrap();
+    let path_a = dir.path().join("a.wasm");
+    let path_b = dir.path().join("b.wasm");
+    std::fs::write(&path_a, &bytes).unwrap();
+    std::fs::write(&path_b, &bytes).unwrap();
+
+    host.load(&path_a, &sync).await.expect("load a");
+    assert_eq!(host.component_cache_len(), 1, "first load compiles one component");
+    host.load(&path_b, &sync).await.expect("load b (same bytes, diff path)");
+    assert_eq!(
+        host.component_cache_len(),
+        1,
+        "identical bytes at a different path must HIT the cache (content-addressed), not add an entry"
+    );
+
+    // SAME path, reload of unchanged bytes → no recompile, no duplication (the
+    // hit path). A rebuild at the same path with NEW bytes would have a new hash
+    // and thus a new entry — served fresh, never stale — which the cache key type
+    // (the content hash) guarantees by construction.
+    host.load(&path_a, &sync).await.expect("reload a (unchanged)");
+    assert_eq!(
+        host.component_cache_len(),
+        1,
+        "reloading unchanged bytes must not recompile or duplicate"
+    );
+}

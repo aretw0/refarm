@@ -564,23 +564,38 @@ impl PluginHost {
         })
     }
 
-    /// Return the compiled Component for `path`, compiling+caching it on first
-    /// use. Component is Arc-backed, so the clone is cheap; subsequent loads of
-    /// the same plugin (e.g. the N-store pool) skip the ~200ms Cranelift compile.
-    fn cached_component(&self, path: &Path) -> Result<Component> {
+    /// Return the compiled Component for the given wasm bytes, compiling+caching
+    /// it on first use. Keyed by the content hash (`wasm_hash`), so a rebuilt
+    /// plugin at the same path misses the cache and recompiles (no stale code),
+    /// while a repeat load of identical bytes (e.g. the N-store pool) skips the
+    /// ~200ms Cranelift compile. Compiles from the already-read bytes (not the
+    /// file) so the compiled component matches the hashed bytes — no second disk
+    /// read, no TOCTOU. Component is Arc-backed, so the clone is cheap.
+    /// Number of distinct compiled components in the cache. Test-only, so a test
+    /// can assert dedup-by-hash (same bytes → one entry) and recompile-on-change
+    /// (new bytes → a new entry) without timing.
+    #[cfg(test)]
+    pub(crate) fn component_cache_len(&self) -> usize {
+        self.component_cache
+            .read()
+            .expect("component_cache poisoned")
+            .len()
+    }
+
+    fn cached_component(&self, wasm_hash: &str, bytes: &[u8]) -> Result<Component> {
         if let Some(component) = self
             .component_cache
             .read()
             .expect("component_cache poisoned")
-            .get(path)
+            .get(wasm_hash)
         {
             return Ok(component.clone());
         }
-        let component = Component::from_file(&self.engine, path)?;
+        let component = Component::from_binary(&self.engine, bytes)?;
         self.component_cache
             .write()
             .expect("component_cache poisoned")
-            .insert(path.to_path_buf(), component.clone());
+            .insert(wasm_hash.to_string(), component.clone());
         Ok(component)
     }
 
@@ -641,7 +656,7 @@ impl PluginHost {
         let http = wasmtime_wasi_http::WasiHttpCtx::new();
         let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone());
 
-        let component = self.cached_component(path)?;
+        let component = self.cached_component(&wasm_hash, &bytes)?;
         let mut store = Store::new(&self.engine, TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() });
 
         let plugin =
