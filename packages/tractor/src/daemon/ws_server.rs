@@ -7,7 +7,7 @@
 //!   On connect:  server sends sync.get_update() (full state)
 //!                client sends its own getUpdate() immediately after
 //!   On recv binary: sync.apply_update(bytes) + broadcast to OTHER clients
-//!   On recv text:   route to plugin runner thread via AgentChannels mpsc
+//!   On recv text:   route to plugin runner thread via PluginChannels mpsc
 //!   On local:    sync.set_broadcast_callback fires → broadcast to ALL clients
 //!
 //! Binary path is unchanged and BrowserSyncClient requires ZERO changes.
@@ -24,7 +24,7 @@ use tokio_tungstenite::{accept_async, tungstenite::Message};
 
 use crate::sync::NativeSync;
 use crate::telemetry::TelemetryBus;
-use crate::AgentChannels;
+use crate::PluginChannels;
 
 type ClientId = usize;
 type ClientMap = Arc<Mutex<HashMap<ClientId, mpsc::UnboundedSender<Vec<u8>>>>>;
@@ -36,7 +36,7 @@ pub struct WsServer {
     sync: Arc<NativeSync>,
     port: u16,
     telemetry: TelemetryBus,
-    agent_channels: AgentChannels,
+    plugin_channels: PluginChannels,
     event_router: crate::EventRouter,
 }
 
@@ -45,14 +45,14 @@ impl WsServer {
         sync: Arc<NativeSync>,
         port: u16,
         telemetry: TelemetryBus,
-        agent_channels: AgentChannels,
+        plugin_channels: PluginChannels,
         event_router: crate::EventRouter,
     ) -> Self {
         Self {
             sync,
             port,
             telemetry,
-            agent_channels,
+            plugin_channels,
             event_router,
         }
     }
@@ -100,7 +100,7 @@ impl WsServer {
                         tracing::debug!(%addr, "new connection");
                         let sync = self.sync.clone();
                         let clients = clients.clone();
-                        let agent_channels = self.agent_channels.clone();
+                        let plugin_channels = self.plugin_channels.clone();
                         let event_router = self.event_router.clone();
                         let telemetry = self.telemetry.clone();
                         tokio::spawn(async move {
@@ -108,7 +108,7 @@ impl WsServer {
                                 tcp_stream,
                                 sync,
                                 clients,
-                                agent_channels,
+                                plugin_channels,
                                 event_router,
                                 telemetry,
                             )
@@ -137,7 +137,7 @@ async fn handle_connection(
     tcp_stream: tokio::net::TcpStream,
     sync: Arc<NativeSync>,
     clients: ClientMap,
-    agent_channels: AgentChannels,
+    plugin_channels: PluginChannels,
     event_router: crate::EventRouter,
     telemetry: TelemetryBus,
 ) -> Result<()> {
@@ -202,7 +202,7 @@ async fn handle_connection(
                         // an agent-shaped producer bypassing the router.
                         let sent = crate::deliver_via_router(
                             &event_router,
-                            &agent_channels,
+                            &plugin_channels,
                             &telemetry,
                             "user:prompt",
                             Some(&agent),
@@ -241,7 +241,7 @@ mod tests {
     use tokio::time::timeout;
     use tokio_tungstenite::{connect_async, tungstenite::Message};
 
-    use crate::{AgentMessage, NativeStorage, NativeSync, TelemetryBus};
+    use crate::{EventEnvelope, NativeStorage, NativeSync, TelemetryBus};
 
     fn make_sync() -> Arc<NativeSync> {
         let storage = NativeStorage::open(":memory:").unwrap();
@@ -250,12 +250,12 @@ mod tests {
 
     /// Bind on an ephemeral port, start the server in a background task.
     /// Returns the `ws://` address so tests can connect immediately.
-    async fn spawn_server(channels: AgentChannels) -> String {
+    async fn spawn_server(channels: PluginChannels) -> String {
         spawn_server_with_router(channels, crate::EventRouter::default()).await
     }
 
     async fn spawn_server_with_router(
-        channels: AgentChannels,
+        channels: PluginChannels,
         event_router: crate::EventRouter,
     ) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -271,8 +271,8 @@ mod tests {
 
     #[tokio::test]
     async fn json_prompt_routes_to_registered_agent() {
-        let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-        let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
+        let channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
+        let (tx, mut rx) = mpsc::unbounded_channel::<EventEnvelope>();
         channels.write().unwrap().insert("agent".to_string(), tx);
 
         let addr = spawn_server(channels).await;
@@ -347,8 +347,8 @@ mod tests {
 
     #[tokio::test]
     async fn wrong_type_field_not_routed() {
-        let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-        let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
+        let channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
+        let (tx, mut rx) = mpsc::unbounded_channel::<EventEnvelope>();
         channels.write().unwrap().insert("agent".to_string(), tx);
 
         let addr = spawn_server(channels).await;

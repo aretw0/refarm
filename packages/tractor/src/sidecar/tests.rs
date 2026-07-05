@@ -2,7 +2,7 @@
 ///
 /// All tests run without a real LLM, without WASM, and without agent loaded.
 /// They validate the HTTP surface (status codes, JSON shapes, effort lifecycle)
-/// using an in-process sidecar bound on port 0 and an empty AgentChannels map.
+/// using an in-process sidecar bound on port 0 and an empty PluginChannels map.
 ///
 /// Run: cargo test --lib sidecar_
 use std::{
@@ -20,7 +20,7 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
     let tmp = std::env::temp_dir().join(format!("tractor-sidecar-test-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&tmp).unwrap();
 
-    let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
+    let channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
     let state = SidecarState::new(
         channels,
         Arc::new(RwLock::new(HashMap::new())), // cancel_flags
@@ -74,7 +74,7 @@ async fn start_effort_sidecar_ns() -> (SidecarState, u16, PathBuf, String) {
         .unwrap()
         .to_owned();
 
-    let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
+    let channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
     let state = SidecarState::new(
         channels,
         Arc::new(RwLock::new(HashMap::new())), // cancel_flags

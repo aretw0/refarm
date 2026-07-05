@@ -25,7 +25,7 @@ async fn shutdown_drains_plugin_channels_after_registration() {
     tractor.register_for_events(handle);
     assert_eq!(
         tractor
-            .agent_channels
+            .plugin_channels
             .read()
             .expect("channels poisoned")
             .len(),
@@ -37,7 +37,7 @@ async fn shutdown_drains_plugin_channels_after_registration() {
 
     assert!(
         tractor
-            .agent_channels
+            .plugin_channels
             .read()
             .expect("channels poisoned")
             .is_empty(),
@@ -59,7 +59,7 @@ async fn unregister_tears_down_one_plugin_leaving_the_host_clean() {
     tractor.register_for_events(handle);
 
     // Registered: channel present, cancel flag present.
-    assert_eq!(tractor.agent_channels.read().unwrap().len(), 1);
+    assert_eq!(tractor.plugin_channels.read().unwrap().len(), 1);
     assert!(tractor.cancel_flags.read().unwrap().contains_key(&plugin_id));
 
     // Unregister the one plugin — the inverse of register_for_events.
@@ -70,7 +70,7 @@ async fn unregister_tears_down_one_plugin_leaving_the_host_clean() {
     // (plugin_runner_handles no longer holds it — proven by a following shutdown
     // that finds nothing to drain).
     assert!(
-        tractor.agent_channels.read().unwrap().is_empty(),
+        tractor.plugin_channels.read().unwrap().is_empty(),
         "unregister must remove the plugin's channel"
     );
     assert!(
@@ -100,7 +100,7 @@ async fn reload_plugin_replaces_the_running_instance() {
         .expect("plugin fixture must load");
     let plugin_id = handle.id.clone();
     tractor.register_for_events(handle);
-    assert_eq!(tractor.agent_channels.read().unwrap().len(), 1);
+    assert_eq!(tractor.plugin_channels.read().unwrap().len(), 1);
 
     // Hot-reload: unregister + reload bytes + re-register. The plugin ends up
     // loaded again (one channel), from the same path.
@@ -110,7 +110,7 @@ async fn reload_plugin_replaces_the_running_instance() {
         .expect("reload must not error");
     assert!(reloaded, "reload must report the plugin was reloaded");
     assert_eq!(
-        tractor.agent_channels.read().unwrap().len(),
+        tractor.plugin_channels.read().unwrap().len(),
         1,
         "after reload the plugin is loaded again (exactly one channel)"
     );

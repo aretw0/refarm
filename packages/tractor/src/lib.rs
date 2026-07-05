@@ -47,9 +47,13 @@ pub use sync::NativeSync;
 pub use telemetry::TelemetryBus;
 pub use trust::{ExecutionProfile, SecurityMode, TrustManager};
 
-/// A message routed from the WebSocket daemon to a loaded agent plugin.
+/// A neutral event envelope routed to a loaded plugin's runner. `event` is the
+/// event name (e.g. `user:prompt`, `vault:dispatch`); `payload` is an opaque
+/// JSON string. Nothing here is agent-specific — the agent is just one plugin
+/// whose events happen to be `user:prompt`. (Formerly `AgentMessage`; the neutral
+/// name reflects that any plugin, not only the agent, is driven through this.)
 #[derive(Debug)]
-pub struct AgentMessage {
+pub struct EventEnvelope {
     pub event: String,
     pub payload: Option<String>,
 }
@@ -62,13 +66,13 @@ const SHUTDOWN_EVENT: &str = "__tractor:shutdown";
 const USER_PROMPT_EVENT: &str = "user:prompt";
 
 /// Keyed by plugin_id — each sender reaches the plugin's dedicated runner thread.
-pub type AgentChannels = Arc<RwLock<HashMap<String, mpsc::UnboundedSender<AgentMessage>>>>;
+pub type PluginChannels = Arc<RwLock<HashMap<String, mpsc::UnboundedSender<EventEnvelope>>>>;
 
 /// Keyed by plugin_id — the cancel flag shared with each plugin store's epoch
 /// callback. Setting a flag force-interrupts that plugin's in-flight guest call
 /// at the next epoch tick (the global ticker wakes the callback within ~1ms).
 /// This is how effort-cancel reaches a thread already spinning inside a guest,
-/// which the mpsc AgentChannels above cannot (the wedged thread never polls it).
+/// which the mpsc PluginChannels above cannot (the wedged thread never polls it).
 pub type CancelFlags =
     Arc<RwLock<HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>>;
 
@@ -85,7 +89,7 @@ pub type InFlightCancels =
 
 /// The neutral event router: maps an event name to the set of plugin_ids
 /// subscribed to it, layered OVER the plugin-id lifecycle registry
-/// (`agent_channels`) rather than replacing it — the registry still owns the
+/// (`plugin_channels`) rather than replacing it — the registry still owns the
 /// senders and shutdown drain. This is what makes any loaded plugin able to
 /// receive its OWN declared event, not just the elected agent's `user:prompt`.
 ///
@@ -147,7 +151,7 @@ impl EventRouter {
 /// actually sent.
 pub fn deliver_via_router(
     router: &EventRouter,
-    channels: &AgentChannels,
+    channels: &PluginChannels,
     telemetry: &TelemetryBus,
     event: &str,
     target: Option<&str>,
@@ -161,11 +165,11 @@ pub fn deliver_via_router(
     let wanted = recipients.len();
     let mut sent = 0;
     if wanted > 0 {
-        let guard = channels.read().expect("agent_channels poisoned");
+        let guard = channels.read().expect("plugin_channels poisoned");
         for plugin_id in &recipients {
             if let Some(tx) = guard.get(plugin_id) {
                 if tx
-                    .send(AgentMessage {
+                    .send(EventEnvelope {
                         event: event.to_string(),
                         payload: payload.clone(),
                     })
@@ -247,7 +251,7 @@ fn plugin_pool_size() -> usize {
 /// SHUTDOWN_EVENT tears this runner down.
 fn spawn_plugin_store_runner(
     handle: host::PluginInstanceHandle,
-    shared_rx: Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<AgentMessage>>>,
+    shared_rx: Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<EventEnvelope>>>,
     telemetry: TelemetryBus,
     plugin_id: String,
     store_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -387,11 +391,11 @@ pub struct TractorNative {
     pub telemetry: TelemetryBus,
     /// mpsc senders to plugin runner threads, keyed by plugin_id.
     /// Populated by `register_for_events`; read by WsServer for prompt routing.
-    pub agent_channels: AgentChannels,
-    /// Subset of `agent_channels` containing only plugins that declared
+    pub plugin_channels: PluginChannels,
+    /// Subset of `plugin_channels` containing only plugins that declared
     /// the `"observe-agent-tools"` capability in their manifest.
     /// Read by the Scarecrow audit subscriber to route agent-tool events.
-    pub observer_channels: AgentChannels,
+    pub observer_channels: PluginChannels,
     /// Cancel flags keyed by plugin_id, shared with each plugin store's epoch
     /// callback. Populated by `register_for_events`; read by the sidecar's
     /// effort-cancel to force-interrupt a wedged guest.
@@ -404,7 +408,7 @@ pub struct TractorNative {
     /// CLI can select the active agent without hardcoding any plugin name.
     pub active_agent_id: Arc<RwLock<Option<String>>>,
     /// The neutral event router: event name -> subscribed plugin_ids. Layered over
-    /// `agent_channels`; lets any loaded plugin receive its own declared event, not
+    /// `plugin_channels`; lets any loaded plugin receive its own declared event, not
     /// just the elected agent's `user:prompt`. Populated by `register_for_events`.
     pub event_router: EventRouter,
     /// Join handles for plugin runner threads, keyed by plugin_id.
@@ -450,7 +454,7 @@ impl TractorNative {
             plugins,
             trust,
             telemetry,
-            agent_channels: Arc::new(RwLock::new(HashMap::new())),
+            plugin_channels: Arc::new(RwLock::new(HashMap::new())),
             observer_channels: Arc::new(RwLock::new(HashMap::new())),
             cancel_flags: Arc::new(RwLock::new(HashMap::new())),
             in_flight_cancels: Arc::new(RwLock::new(HashMap::new())),
@@ -548,7 +552,7 @@ impl TractorNative {
     }
 
     /// Move a loaded plugin handle into a dedicated runner thread and register
-    /// its mpsc sender in `agent_channels` for WebSocket prompt routing.
+    /// its mpsc sender in `plugin_channels` for WebSocket prompt routing.
     ///
     /// `PluginInstanceHandle` is `!Send` (wasmtime Store). Each plugin gets its
     /// own thread + single-threaded tokio runtime so the `!Send` constraint is
@@ -565,7 +569,7 @@ impl TractorNative {
             .write()
             .expect("cancel_flags poisoned")
             .insert(plugin_id.clone(), handle.cancel_flag());
-        let (tx, rx) = mpsc::unbounded_channel::<AgentMessage>();
+        let (tx, rx) = mpsc::unbounded_channel::<EventEnvelope>();
         // The receiver is shared behind an async Mutex so that, for a
         // concurrent-safe plugin, a POOL of runner threads (each with its own
         // !Send store) can drain the same queue in parallel — collapsing the
@@ -619,9 +623,9 @@ impl TractorNative {
             tracing::info!(plugin_id = %plugin_id, pool_size, "plugin running with a concurrent store pool");
         }
 
-        self.agent_channels
+        self.plugin_channels
             .write()
-            .expect("agent_channels poisoned")
+            .expect("plugin_channels poisoned")
             .insert(plugin_id.clone(), tx.clone());
 
         // Populate the neutral event router. A plugin's explicitly declared
@@ -670,7 +674,7 @@ impl TractorNative {
     ///
     /// This is the one path every event producer routes through, so a loaded
     /// plugin receives its own declared event by subscription rather than by the
-    /// agent-shaped `agent_channels.get(active_agent)` lookup.
+    /// agent-shaped `plugin_channels.get(active_agent)` lookup.
     ///
     /// Every delivery emits a `router:deliver` telemetry event carrying the event
     /// name, how many plugins were wanted vs actually sent, and the ENQUEUE time —
@@ -681,7 +685,7 @@ impl TractorNative {
     pub fn deliver(&self, event: &str, target: Option<&str>, payload: Option<String>) -> usize {
         deliver_via_router(
             &self.event_router,
-            &self.agent_channels,
+            &self.plugin_channels,
             &self.telemetry,
             event,
             target,
@@ -690,7 +694,7 @@ impl TractorNative {
     }
 
     /// Tear down ONE plugin: the honest inverse of register_for_events. Removes
-    /// the plugin's sender from agent_channels/observer_channels (dropping it
+    /// the plugin's sender from plugin_channels/observer_channels (dropping it
     /// closes the queue so every runner in the pool sees recv()→None and runs its
     /// own teardown+terminate), unsubscribes it from the event router, clears its
     /// cancel flag and any staged pool stores, deselects it if it was the active
@@ -701,9 +705,9 @@ impl TractorNative {
         // Drop the senders first so the runner drain loops observe a closed queue
         // and self-terminate (teardown + terminate) as they finish in-flight work.
         let had_channel = self
-            .agent_channels
+            .plugin_channels
             .write()
-            .expect("agent_channels poisoned")
+            .expect("plugin_channels poisoned")
             .remove(plugin_id)
             .is_some();
         self.observer_channels
@@ -765,14 +769,14 @@ impl TractorNative {
 
         let senders = {
             let mut guard = self
-                .agent_channels
+                .plugin_channels
                 .write()
-                .expect("agent_channels poisoned");
+                .expect("plugin_channels poisoned");
             guard.drain().map(|(_, tx)| tx).collect::<Vec<_>>()
         };
 
         for tx in &senders {
-            let _ = tx.send(AgentMessage {
+            let _ = tx.send(EventEnvelope {
                 event: SHUTDOWN_EVENT.to_string(),
                 payload: None,
             });

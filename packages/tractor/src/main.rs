@@ -426,7 +426,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     if args.http_port > 0 {
         let base_dir = args.refarm_dir.clone().unwrap_or_else(dirs_refarm_base);
         match tractor::sidecar::SidecarState::new(
-            tractor.agent_channels.clone(),
+            tractor.plugin_channels.clone(),
             tractor.cancel_flags.clone(),
             tractor.in_flight_cancels.clone(),
             tractor.active_agent_id.clone(),
@@ -471,7 +471,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         std::sync::Arc::new(tractor.sync.clone()),
         config.port,
         tractor.telemetry.clone(),
-        tractor.agent_channels.clone(),
+        tractor.plugin_channels.clone(),
         tractor.event_router.clone(),
     )
     .start()

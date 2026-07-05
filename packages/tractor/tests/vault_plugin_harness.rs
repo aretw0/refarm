@@ -212,7 +212,7 @@ fn memory_config_none() -> TractorNativeConfig {
 /// THE DECOUPLE PROOF (step 6 of the runtime-router lane): a NON-agent plugin,
 /// registered at startup, receives its OWN declared event through the neutral
 /// router — not the agent's user:prompt. Before the router, a vault plugin
-/// registered into agent_channels would sit there and never receive
+/// registered into plugin_channels would sit there and never receive
 /// vault:dispatch; now the router delivers it by the plugin's
 /// capabilities.subscribes declaration.
 #[tokio::test]
@@ -399,7 +399,7 @@ async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
             .as_nanos()
     ));
     let state = tractor::sidecar::SidecarState::new(
-        tractor.agent_channels.clone(),
+        tractor.plugin_channels.clone(),
         tractor.cancel_flags.clone(),
         tractor.in_flight_cancels.clone(),
         tractor.active_agent_id.clone(),

@@ -16,7 +16,7 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt as _;
 
 use crate::telemetry::{TelemetryBus, TelemetryEvent};
-use crate::{AgentChannels, AgentMessage};
+use crate::{PluginChannels, EventEnvelope};
 
 pub use crate::capabilities::CAP_OBSERVE_AGENT_TOOLS;
 
@@ -57,7 +57,7 @@ fn audit_max_segments() -> usize {
 pub fn spawn_audit_subscriber(
     telemetry: TelemetryBus,
     base_dir: PathBuf,
-    observer_channels: AgentChannels,
+    observer_channels: PluginChannels,
 ) {
     tokio::spawn(audit_subscriber_task(
         telemetry,
@@ -69,7 +69,7 @@ pub fn spawn_audit_subscriber(
 async fn audit_subscriber_task(
     telemetry: TelemetryBus,
     base_dir: PathBuf,
-    observer_channels: AgentChannels,
+    observer_channels: PluginChannels,
 ) {
     let audit_path = base_dir.join(AUDIT_FILE);
     let mut rx = telemetry.subscribe();
@@ -102,13 +102,13 @@ async fn audit_subscriber_task(
 fn forward_to_observers(
     event: &TelemetryEvent,
     json_payload: &str,
-    observer_channels: &AgentChannels,
+    observer_channels: &PluginChannels,
 ) {
     let Ok(guard) = observer_channels.read() else {
         return;
     };
     for tx in guard.values() {
-        let _ = tx.send(AgentMessage {
+        let _ = tx.send(EventEnvelope {
             event: event.event.clone(),
             payload: Some(json_payload.to_owned()),
         });
@@ -309,9 +309,9 @@ mod tests {
         use std::sync::{Arc, RwLock};
         use tokio::sync::mpsc;
 
-        let (tx1, mut rx1) = mpsc::unbounded_channel::<AgentMessage>();
-        let (tx2, mut rx2) = mpsc::unbounded_channel::<AgentMessage>();
-        let observer_channels: AgentChannels = Arc::new(RwLock::new({
+        let (tx1, mut rx1) = mpsc::unbounded_channel::<EventEnvelope>();
+        let (tx2, mut rx2) = mpsc::unbounded_channel::<EventEnvelope>();
+        let observer_channels: PluginChannels = Arc::new(RwLock::new({
             let mut m = HashMap::new();
             m.insert("@refarm/scarecrow".to_string(), tx1);
             m.insert("@refarm/scarecrow-strict".to_string(), tx2);
@@ -338,7 +338,7 @@ mod tests {
         use std::collections::HashMap;
         use std::sync::{Arc, RwLock};
 
-        let observer_channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
+        let observer_channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
         let ev = make_event(
             "agent-tool:fs:read",
             Some("agent"),

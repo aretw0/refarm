@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use tractor::{
-    deliver_via_router, host::PluginHost, trust::TrustManager, AgentChannels, AgentMessage,
+    deliver_via_router, host::PluginHost, trust::TrustManager, PluginChannels, EventEnvelope,
     EventRouter, NativeStorage, NativeSync, TelemetryBus,
 };
 
@@ -228,7 +228,7 @@ fn metric(name: &str, value: u128, unit: &str) -> BenchMetric {
 
 /// The dispatch-stress suite. Replicates the runtime's single-thread-per-plugin
 /// drain (the source of head-of-line blocking) with a mock plugin: one channel
-/// registered in agent_channels + subscribed in the router, drained SERIALLY by
+/// registered in plugin_channels + subscribed in the router, drained SERIALLY by
 /// one task that pays PER_EVENT_WORK_US per message — exactly like the real
 /// !Send wasmtime runner thread. Then it fires DISPATCH_COUNT deliveries and
 /// measures enqueue vs drain vs peak queue depth.
@@ -301,10 +301,10 @@ fn run_dispatch_drain(worker_count: usize) -> Result<DrainRun> {
 
     rt.block_on(async move {
         let router = EventRouter::default();
-        let channels: AgentChannels = Arc::new(RwLock::new(std::collections::HashMap::new()));
+        let channels: PluginChannels = Arc::new(RwLock::new(std::collections::HashMap::new()));
         let telemetry = TelemetryBus::new(DISPATCH_COUNT + 16);
 
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<AgentMessage>();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<EventEnvelope>();
         channels
             .write()
             .expect("channels")

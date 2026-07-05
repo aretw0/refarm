@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tractor::daemon::WsServer;
-use tractor::{AgentChannels, NativeStorage, NativeSync, TelemetryBus};
+use tractor::{PluginChannels, NativeStorage, NativeSync, TelemetryBus};
 
 /// Start a WsServer on a random OS-assigned port, passing the pre-bound listener
 /// directly to server.run() to avoid TOCTOU race conditions.
@@ -12,13 +12,13 @@ async fn start_server(sync: Arc<NativeSync>) -> u16 {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let telemetry = TelemetryBus::new(100);
-    let agent_channels: AgentChannels =
+    let plugin_channels: PluginChannels =
         Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
     let server = WsServer::new(
         sync,
         port,
         telemetry,
-        agent_channels,
+        plugin_channels,
         tractor::EventRouter::default(),
     );
     tokio::spawn(async move { server.run(listener).await.unwrap() });

@@ -5,7 +5,7 @@
     use std::sync::Arc;
 
     use tokio::net::TcpListener;
-    use tractor::{AgentChannels, NativeStorage, NativeSync, TelemetryBus};
+    use tractor::{PluginChannels, NativeStorage, NativeSync, TelemetryBus};
 
     fn test_response_event(
         content: &str,
@@ -400,7 +400,7 @@
         let storage = NativeStorage::open(":memory:").expect("open storage");
         let sync = Arc::new(NativeSync::new(storage, "health-probe").expect("new sync"));
         let telemetry = TelemetryBus::new(10);
-        let channels: AgentChannels =
+        let channels: PluginChannels =
             Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
         let server =
             daemon::WsServer::new(sync, port, telemetry, channels, tractor::EventRouter::default());

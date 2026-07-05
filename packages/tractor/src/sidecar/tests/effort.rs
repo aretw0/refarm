@@ -336,11 +336,11 @@ async fn sidecar_non_respond_effort_dispatches_via_router() {
     let (state, port, _tmp) = start_test_sidecar().await;
     let client = reqwest::Client::new();
 
-    // Stand a mock "vault" plugin: a channel registered in agent_channels and
+    // Stand a mock "vault" plugin: a channel registered in plugin_channels and
     // subscribed to vault:dispatch in the router (what register_for_events does).
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
     state
-        .agent_channels
+        .plugin_channels
         .write()
         .unwrap()
         .insert("vault".to_string(), tx);
@@ -462,9 +462,9 @@ async fn sidecar_respond_effort_stays_in_progress_until_result_lands() {
 
     // A loaded agent channel: the send will succeed, but nothing in the test
     // writes the streamed result back, so the effort must remain in-progress.
-    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
     state
-        .agent_channels
+        .plugin_channels
         .write()
         .unwrap()
         .insert("@refarm/agent".to_string(), tx);
@@ -508,9 +508,9 @@ async fn sidecar_cancel_marks_effort_cancelled() {
     let client = reqwest::Client::new();
 
     // Load an agent channel so the respond effort stays in-progress (cancellable).
-    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
     state
-        .agent_channels
+        .plugin_channels
         .write()
         .unwrap()
         .insert("@refarm/agent".to_string(), tx);
@@ -568,9 +568,9 @@ async fn sidecar_respond_effort_finalises_done_when_terminal_response_lands() {
     let client = reqwest::Client::new();
 
     // Loaded agent channel so the prompt send succeeds and the watcher starts.
-    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
     state
-        .agent_channels
+        .plugin_channels
         .write()
         .unwrap()
         .insert("@refarm/agent".to_string(), tx);
@@ -635,9 +635,9 @@ async fn sidecar_respond_effort_times_out_when_agent_silent() {
     let (state, port, _tmp, _ns) = start_effort_sidecar_ns().await;
     let client = reqwest::Client::new();
 
-    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
     state
-        .agent_channels
+        .plugin_channels
         .write()
         .unwrap()
         .insert("@refarm/agent".to_string(), tx);
@@ -745,9 +745,9 @@ async fn sidecar_retry_guards_unknown_and_non_terminal() {
     assert_eq!(unknown.status(), 404);
 
     // A live agent channel keeps a respond effort in-progress (non-terminal).
-    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
     state
-        .agent_channels
+        .plugin_channels
         .write()
         .unwrap()
         .insert("@refarm/agent".to_string(), tx);
@@ -782,9 +782,9 @@ async fn sidecar_cancel_sets_plugin_cancel_flag() {
 
     // A loaded agent channel keeps the respond effort in-progress (cancellable),
     // and it is the active agent (the effort's dispatch target).
-    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
     state
-        .agent_channels
+        .plugin_channels
         .write()
         .unwrap()
         .insert("@refarm/agent".to_string(), tx);
@@ -835,9 +835,9 @@ async fn sidecar_cancel_targets_only_the_in_flight_store() {
     let (state, port, _tmp) = start_test_sidecar().await;
     let client = reqwest::Client::new();
 
-    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
     state
-        .agent_channels
+        .plugin_channels
         .write()
         .unwrap()
         .insert("@refarm/agent".to_string(), tx);

@@ -44,7 +44,7 @@ async fn start_tasks_sidecar(namespace: &str) -> (SidecarState, u16) {
     let tmp = std::env::temp_dir().join(format!("tractor-tasks-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&tmp).unwrap();
 
-    let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
+    let channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
     let state = SidecarState::new(
         channels,
         Arc::new(RwLock::new(HashMap::new())), // cancel_flags

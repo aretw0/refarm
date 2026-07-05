@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::net::TcpListener;
 
-use crate::AgentChannels;
+use crate::PluginChannels;
 
 // ── effort store ─────────────────────────────────────────────────────────────
 
@@ -134,11 +134,11 @@ pub struct SidecarState {
     /// persisted — retry re-runs an effort submitted during THIS sidecar
     /// lifetime; after a restart the input is gone and retry reports so.
     pub efforts_input: Arc<RwLock<HashMap<String, Effort>>>,
-    pub agent_channels: AgentChannels,
+    pub plugin_channels: PluginChannels,
     /// Per-plugin cancel flags shared with each plugin store's epoch callback.
     /// Setting one force-interrupts that plugin's in-flight guest call — how
     /// effort-cancel reaches a thread already spinning inside a guest (the mpsc
-    /// agent_channels cannot: a wedged thread never polls its receiver).
+    /// plugin_channels cannot: a wedged thread never polls its receiver).
     pub cancel_flags: crate::CancelFlags,
     /// Per-prompt_ref cancel flags — the SPECIFIC store running each prompt. Lets
     /// effort-cancel force-interrupt exactly the store executing the target
@@ -161,7 +161,7 @@ pub struct SidecarState {
 impl SidecarState {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        agent_channels: AgentChannels,
+        plugin_channels: PluginChannels,
         cancel_flags: crate::CancelFlags,
         in_flight_cancels: crate::InFlightCancels,
         active_agent_id: Arc<RwLock<Option<String>>>,
@@ -178,7 +178,7 @@ impl SidecarState {
         Ok(Self {
             efforts: Arc::new(RwLock::new(efforts)),
             efforts_input: Arc::new(RwLock::new(HashMap::new())),
-            agent_channels,
+            plugin_channels,
             cancel_flags,
             in_flight_cancels,
             active_agent_id,
@@ -306,7 +306,7 @@ fn write_stream_chunk(
 
 async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
     let loaded: Vec<String> = {
-        let channels = state.agent_channels.read().expect("channels poisoned");
+        let channels = state.plugin_channels.read().expect("channels poisoned");
         let mut ids: Vec<String> = channels.keys().cloned().collect();
         ids.sort();
         ids
@@ -343,7 +343,7 @@ async fn post_plugins_reload(
     Json(request): Json<PluginReloadRequest>,
 ) -> impl IntoResponse {
     let loaded: Vec<String> = {
-        let channels = state.agent_channels.read().expect("channels poisoned");
+        let channels = state.plugin_channels.read().expect("channels poisoned");
         let mut ids: Vec<String> = channels.keys().cloned().collect();
         ids.sort();
         ids

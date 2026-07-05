@@ -18,7 +18,7 @@ async fn sidecar_get_plugins_reports_loaded_agent_channels() {
     let (state, port, _tmp) = start_test_sidecar().await;
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
     state
-        .agent_channels
+        .plugin_channels
         .write()
         .unwrap()
         .insert("@refarm/agent".to_string(), tx);
@@ -47,7 +47,7 @@ async fn sidecar_post_plugins_reload_reports_loaded_and_skipped_plugins() {
     let (state, port, _tmp) = start_test_sidecar().await;
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
     state
-        .agent_channels
+        .plugin_channels
         .write()
         .unwrap()
         .insert("@refarm/agent".to_string(), tx);
