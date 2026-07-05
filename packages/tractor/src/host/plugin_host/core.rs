@@ -8,8 +8,9 @@
 //   - ComponentLoader  → wasmtime::component::Component, WIT bindgen!, P2+
 //   - ModuleLoader     → wasmtime::Module, WASI preview1 ABI, P1 plain modules
 
-use std::path::Path;
-use std::sync::{Arc, Weak};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock, Weak};
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
@@ -167,6 +168,11 @@ pub struct PluginHost {
     module_engine: Arc<Engine>,
     /// Linker for P1 plain modules (wasmtime::Module + WASI preview1 ABI, ADR-061).
     module_linker: Arc<wasmtime::Linker<P1Store>>,
+    /// Compiled-component cache, keyed by path. Compiling a component with
+    /// Cranelift dominates load() (~200ms/instance measured), so we compile once
+    /// per path and clone the cached Component (an Arc-backed handle) for every
+    /// subsequent load — turning the N-store pool's boot from N compiles into one.
+    component_cache: Arc<RwLock<HashMap<PathBuf, Component>>>,
 }
 
 /// Forward only MODEL_* vars into plugin WASI env.

@@ -560,7 +560,28 @@ impl PluginHost {
             agent_tools_linker: Arc::new(agent_tools_linker),
             module_engine,
             module_linker: Arc::new(module_linker),
+            component_cache: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
         })
+    }
+
+    /// Return the compiled Component for `path`, compiling+caching it on first
+    /// use. Component is Arc-backed, so the clone is cheap; subsequent loads of
+    /// the same plugin (e.g. the N-store pool) skip the ~200ms Cranelift compile.
+    fn cached_component(&self, path: &Path) -> Result<Component> {
+        if let Some(component) = self
+            .component_cache
+            .read()
+            .expect("component_cache poisoned")
+            .get(path)
+        {
+            return Ok(component.clone());
+        }
+        let component = Component::from_file(&self.engine, path)?;
+        self.component_cache
+            .write()
+            .expect("component_cache poisoned")
+            .insert(path.to_path_buf(), component.clone());
+        Ok(component)
     }
 
     /// Load a regular integration plugin (`.wasm` Component).
@@ -620,7 +641,7 @@ impl PluginHost {
         let http = wasmtime_wasi_http::WasiHttpCtx::new();
         let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone());
 
-        let component = Component::from_file(&self.engine, path)?;
+        let component = self.cached_component(path)?;
         let mut store = Store::new(&self.engine, TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() });
 
         let plugin =
