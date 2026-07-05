@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"check:wit": "node ../../scripts/ci/check-tractor-wit-sync.mjs",
+		"check:wit": "node ../../scripts/ci/check-agent-wit-sync.mjs",
 		"build": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs build --release",
 		"test": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --lib && node ../../scripts/ci/cargo-run.mjs test --test ws_integration",
 		"lint": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs clippy -- -D warnings",
