@@ -215,7 +215,7 @@ describe("PolicyFilesContextProvider", () => {
 		expect(entry.priority).toBe(12);
 		expect(entry.content).toContain("Rules of Engagement");
 		expect(entry.content).toContain(agentsMd);
-		expect(entry.content).toContain("agent-fs.read");
+		expect(entry.content).toContain("host-fs.read");
 	});
 
 	it("detects multiple policy files and lists all", () => {

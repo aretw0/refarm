@@ -231,7 +231,7 @@ async function assertPolicyAudit(refarmDir) {
 	const events = await readAuditEvents(refarmDir);
 	const shellSpawn = events.find(
 		(event) =>
-			event.event === "agent-tool:shell:spawn" &&
+			event.event === "host-effect:shell:spawn" &&
 			event.plugin_id === "agent" &&
 			Array.isArray(event.argv) &&
 			event.argv[0] === "echo" &&

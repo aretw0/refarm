@@ -32,13 +32,13 @@ function refarmPluginModuleSource(specifier) {
 	const lines = [];
 
 	switch (specifier) {
-		case "refarm:plugin/agent-fs":
+		case "refarm:plugin/host-fs":
 			lines.push(
 				"export const read = (...args) => call('read', args);",
 				"export const write = (...args) => call('write', args);",
 			);
 			break;
-		case "refarm:plugin/agent-shell":
+		case "refarm:plugin/host-shell":
 			lines.push("export const spawn = (...args) => call('spawn', args);");
 			break;
 		case "refarm:plugin/code-ops":

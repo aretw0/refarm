@@ -451,12 +451,12 @@ export class WasiImports {
 					};
 				},
 			},
-			"refarm:plugin/agent-fs": {
+			"refarm:plugin/host-fs": {
 				read: (_path: string) => new Uint8Array(),
 				write: (_path: string, _content: Uint8Array) => undefined,
 				edit: (_path: string, _diff: string) => undefined,
 			},
-			"refarm:plugin/agent-shell": {
+			"refarm:plugin/host-shell": {
 				spawn: (_req: unknown) => ({
 					exitCode: 0,
 					stdout: new Uint8Array(),

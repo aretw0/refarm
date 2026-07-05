@@ -254,31 +254,31 @@ test("accepts mapped WIT component distribution target", () => {
 	assert.deepEqual(
 		validateWitComponentDistributionTarget(
 			{
-				id: "agent-tools",
-				cargoPackage: "refarm:agent-tools",
+				id: "host-effects",
+				cargoPackage: "refarm:host-effects",
 				targetPath: "wit",
-				targetWorld: "agent-tools-provider",
-				witPackage: "refarm:agent-tools@0.1.0",
-				world: "agent-tools-provider",
+				targetWorld: "host-effects-provider",
+				witPackage: "refarm:host-effects@0.1.0",
+				world: "host-effects-provider",
 				imports: ["host-spawn"],
-				exports: ["agent-fs", "agent-shell", "structured-io"],
+				exports: ["host-fs", "host-shell", "structured-io"],
 			},
 			{
 				cargoToml: `
 [package.metadata.component]
-package = "refarm:agent-tools"
+package = "refarm:host-effects"
 
 [package.metadata.component.target]
 path = "wit"
-world = "agent-tools-provider"
+world = "host-effects-provider"
 `,
 				wit: `
-package refarm:agent-tools@0.1.0;
+package refarm:host-effects@0.1.0;
 
-world agent-tools-provider {
+world host-effects-provider {
     import host-spawn;
-    export agent-fs;
-    export agent-shell;
+    export host-fs;
+    export host-shell;
     export structured-io;
 }
 `,

@@ -186,7 +186,7 @@ export const CAPABILITIES = [
 				"host shell allowlist",
 				"filesystem root guard",
 				"trusted plugin guard",
-				"agent-tool:shell:spawn audit event",
+				"host-effect:shell:spawn audit event",
 			],
 			evidence: [
 				"packages/tractor shell policy unit tests",
@@ -308,7 +308,7 @@ export const CAPABILITIES = [
 			surface: "structured tools",
 		},
 		requirements: [
-			"agent-tools structured-io",
+			"host-effects structured-io",
 			"filesystem capability",
 			"format parser",
 		],
@@ -354,7 +354,7 @@ export const CAPABILITIES = [
 			],
 			evidence: [
 				"packages/agent/src/tool_dispatch/code_ops_tools.rs",
-				"packages/tractor/wit/host/agent-tools/world.wit",
+				"packages/tractor/wit/host/host-effects/world.wit",
 				"packages/agent/src/tests/tools_schema_tests.rs",
 			],
 		},
@@ -531,7 +531,7 @@ export const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 		targets: [
 			{
 				channel: "wit",
-				name: "refarm:agent-tools@0.1.0",
+				name: "refarm:host-effects@0.1.0",
 				path: "packages/agent-tools/wit/world.wit",
 				status: "internal",
 				note:

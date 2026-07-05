@@ -277,16 +277,16 @@ export function validateDsPublicApi(pkg) {
 
 const WIT_COMPONENT_DISTRIBUTION_TARGETS = [
   {
-    id: "agent-tools",
+    id: "host-effects",
     packageDir: "packages/agent-tools",
-    cargoPackage: "refarm:agent-tools",
+    cargoPackage: "refarm:host-effects",
     targetPath: "wit",
-    targetWorld: "agent-tools-provider",
+    targetWorld: "host-effects-provider",
     witPath: "wit/world.wit",
-    witPackage: "refarm:agent-tools@0.1.0",
-    world: "agent-tools-provider",
+    witPackage: "refarm:host-effects@0.1.0",
+    world: "host-effects-provider",
     imports: ["host-spawn"],
-    exports: ["agent-fs", "agent-shell", "structured-io"],
+    exports: ["host-fs", "host-shell", "structured-io"],
   },
   {
     id: "refarm-plugin",
@@ -298,7 +298,7 @@ const WIT_COMPONENT_DISTRIBUTION_TARGETS = [
     witPath: "wit/worlds.wit",
     witPackage: "refarm:plugin@0.1.0",
     world: "refarm-plugin-host",
-    imports: ["tractor-bridge", "model-bridge", "agent-fs", "agent-shell", "structured-io", "code-ops"],
+    imports: ["tractor-bridge", "model-bridge", "host-fs", "host-shell", "structured-io", "code-ops"],
     exports: ["integration"],
   },
 ];

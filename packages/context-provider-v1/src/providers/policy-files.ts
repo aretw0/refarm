@@ -61,7 +61,7 @@ export class PolicyFilesContextProvider implements ContextProvider {
 
 	static buildEntry(files: PolicyFile[]): ContextEntry {
 		const lines = [
-			"Policy files in this workspace (read with agent-fs.read before making code changes):",
+			"Policy files in this workspace (read with host-fs.read before making code changes):",
 			...files.map((f) => {
 				const desc = f.heading ? `"${f.heading}"` : f.relativePath;
 				return `- ${f.absolutePath}  (${f.lines} lines, ~${f.sizeKb}KB) — ${desc}`;
