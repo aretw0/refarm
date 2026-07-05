@@ -59,6 +59,69 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
     (state, port, tmp)
 }
 
+/// Like start_test_sidecar but backed by a real SQLite FILE namespace, so nodes
+/// written by test setup are visible to the respond watcher's own NativeStorage
+/// connection (a :memory: db is isolated per connection). Returns the state and
+/// the file namespace path.
+async fn start_effort_sidecar_ns() -> (SidecarState, u16, PathBuf, String) {
+    let tmp = std::env::temp_dir().join(format!("tractor-effort-test-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp).unwrap();
+    let namespace = std::env::temp_dir()
+        .join(format!("tractor-effort-ns-{}.db", uuid::Uuid::new_v4()))
+        .to_str()
+        .unwrap()
+        .to_owned();
+
+    let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
+    let state = SidecarState::new(
+        channels,
+        Arc::new(RwLock::new(None)),
+        crate::EventRouter::default(),
+        crate::TelemetryBus::new(100),
+        &tmp,
+        namespace.clone(),
+    )
+    .unwrap();
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+
+    let router = axum::Router::new()
+        .route("/efforts", axum::routing::post(post_efforts).get(get_efforts))
+        .route("/efforts/summary", axum::routing::get(get_efforts_summary))
+        .route("/efforts/:id", axum::routing::get(get_effort))
+        .route(
+            "/efforts/:id/cancel",
+            axum::routing::post(post_effort_cancel),
+        )
+        .with_state(state.clone());
+
+    tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+
+    (state, port, tmp, namespace)
+}
+
+/// Write a terminal (is_final) AgentResponse node carrying `prompt_ref`, as the
+/// agent's wasi_bridge does when a respond answer completes.
+fn write_agent_response(ns: &str, id: &str, prompt_ref: &str, content: &str, is_final: bool) {
+    let storage = crate::storage::NativeStorage::open(ns).unwrap();
+    let payload = serde_json::json!({
+        "@type": "AgentResponse",
+        "@id": id,
+        "prompt_ref": prompt_ref,
+        "content": content,
+        "is_final": is_final,
+        "sequence": 0,
+        "timestamp_ns": 1_000_000_u64,
+    })
+    .to_string();
+    storage
+        .store_node(id, "AgentResponse", None, &payload, None)
+        .unwrap();
+}
+
 fn test_effort(id: &str) -> serde_json::Value {
     serde_json::json!({
         "id": id,
@@ -1249,4 +1312,119 @@ async fn sidecar_cancel_marks_effort_cancelled() {
         .await
         .unwrap();
     assert_eq!(again.status(), 409, "cancel of an already-terminal effort is a conflict");
+}
+
+/// Closing the state machine: a respond effort transitions in-progress -> done
+/// when the agent's terminal AgentResponse node lands, carrying the real answer.
+/// The watcher correlates by prompt_ref (derived from effort_id) and finalises
+/// on the first is_final node — NOT a fake done on send.
+#[tokio::test]
+async fn sidecar_respond_effort_finalises_done_when_terminal_response_lands() {
+    let (state, port, _tmp, ns) = start_effort_sidecar_ns().await;
+    let client = reqwest::Client::new();
+
+    // Loaded agent channel so the prompt send succeeds and the watcher starts.
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("@refarm/agent".to_string(), tx);
+
+    let id = uuid::Uuid::new_v4().to_string();
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&id))
+        .send()
+        .await
+        .unwrap();
+
+    // The effort is in-progress until the answer lands.
+    tokio::time::sleep(tokio::time::Duration::from_millis(80)).await;
+    let mid: serde_json::Value = client
+        .get(format!("{}/efforts/{id}", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(mid["status"], "in-progress", "still in-progress before the answer lands");
+
+    // The agent writes its terminal AgentResponse (what wasi_bridge does).
+    let prompt_ref = prompt_ref_from_effort(&id);
+    write_agent_response(&ns, "urn:node:resp-1", &prompt_ref, "the answer", true);
+
+    // The watcher polls (100ms) and finalises to done with the real content.
+    let mut done = false;
+    for _ in 0..40 {
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        let body: serde_json::Value = client
+            .get(format!("{}/efforts/{id}", base(port)))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        if body["status"] == "done" {
+            assert!(body["completedAt"].is_string(), "done effort carries completedAt");
+            assert_eq!(
+                body["results"][0]["result"]["content"], "the answer",
+                "the finalised effort carries the real agent answer, not a fake"
+            );
+            done = true;
+            break;
+        }
+    }
+    assert!(done, "respond effort must finalise to done once the terminal AgentResponse lands");
+}
+
+/// A respond effort whose agent never produces a terminal node finalises to the
+/// terminal `timed-out` state after the (env-overridable) deadline — the watcher
+/// never leaks and the effort never sits in-progress forever.
+#[tokio::test]
+async fn sidecar_respond_effort_times_out_when_agent_silent() {
+    // Shrink the watch timeout so the test is fast. env is process-local; this
+    // test's namespace is unique so no other effort reads it.
+    std::env::set_var("REFARM_RESPOND_WATCH_TIMEOUT_MS", "150");
+    let (state, port, _tmp, _ns) = start_effort_sidecar_ns().await;
+    let client = reqwest::Client::new();
+
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("@refarm/agent".to_string(), tx);
+
+    let id = uuid::Uuid::new_v4().to_string();
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&id))
+        .send()
+        .await
+        .unwrap();
+
+    // No AgentResponse node is ever written. After the deadline the watcher must
+    // finalise to timed-out.
+    let mut timed_out = false;
+    for _ in 0..40 {
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        let body: serde_json::Value = client
+            .get(format!("{}/efforts/{id}", base(port)))
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        if body["status"] == "timed-out" {
+            assert!(body["completedAt"].is_string(), "timed-out effort carries completedAt");
+            timed_out = true;
+            break;
+        }
+    }
+    std::env::remove_var("REFARM_RESPOND_WATCH_TIMEOUT_MS");
+    assert!(timed_out, "a silent respond effort must finalise to timed-out, not sit in-progress forever");
 }

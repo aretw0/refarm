@@ -304,21 +304,20 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
                 );
             }
             Some(Ok(())) => {
-                // The prompt was handed to the plugin runner thread, which will
-                // write stream chunks as it produces the answer. The effort is NOT
-                // done yet — its result has not landed. It stays `in-progress`
-                // (recorded at dispatch start); a watch loop keeps polling until
-                // the real result arrives via the stream/CRDT.
-                //
-                // Previously this optimistically marked `done` the instant the send
-                // succeeded — a lie: the effort asserted a completed result it did
-                // not yet carry. Leaving it in-progress is the honest state; the
-                // remaining debt is a poller that finalises `done` when the CRDT
-                // result actually lands (tracked with the async dispatch debts).
+                // The prompt was handed to the plugin runner thread, which produces
+                // the answer asynchronously as `AgentResponse` CRDT nodes stamped
+                // with this prompt_ref. The effort is NOT done on send — it stays
+                // `in-progress` (recorded at dispatch start). Spawn a bounded watcher
+                // that finalises the effort to `done` when the terminal (is_final)
+                // AgentResponse node lands, or to `timed-out` if the agent stays
+                // silent past the deadline. This closes the honest state machine:
+                // the effort transitions in-progress -> done on the REAL result, not
+                // a fake done on send.
                 tracing::debug!(
                     effort_id = %effort_id,
-                    "respond prompt handed to runner; effort stays in-progress until result lands"
+                    "respond prompt handed to runner; watching for terminal AgentResponse"
                 );
+                spawn_respond_watcher(state.clone(), effort_id.clone(), prompt_ref.clone());
             }
         }
     });
@@ -351,6 +350,150 @@ pub(crate) fn finalise_effort(state: &SidecarState, effort_id: &str, status: &st
             );
         }
     }
+}
+
+/// Finalise an effort ONLY if it has not already reached a terminal state.
+/// Returns true if it transitioned. Used by the respond watcher so a late result
+/// landing never overwrites a terminal state a concurrent path already set (e.g.
+/// a cancel that marked `cancelled`, or an error path that marked `failed`).
+/// Terminal states are final — the machine does not walk backward out of them.
+pub(crate) fn finalise_effort_if_active(
+    state: &SidecarState,
+    effort_id: &str,
+    status: &str,
+    results: Vec<TaskResult>,
+) -> bool {
+    {
+        let s = state.efforts.read().expect("effort store poisoned");
+        match s.get(effort_id) {
+            Some(entry) if super::is_terminal_effort_status(&entry.status) => return false,
+            None => return false,
+            _ => {}
+        }
+    }
+    finalise_effort(state, effort_id, status, results);
+    true
+}
+
+/// How long the respond watcher waits for the agent's terminal AgentResponse
+/// node before finalising the effort as `timed-out`. Overridable for tests /
+/// tuning via REFARM_RESPOND_WATCH_TIMEOUT_MS; defaults to 45s to mirror the TS
+/// stream-follow timeout (REFARM_STREAM_FOLLOW_TIMEOUT_MS).
+pub(crate) fn respond_watch_timeout_ms() -> u64 {
+    std::env::var("REFARM_RESPOND_WATCH_TIMEOUT_MS")
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .filter(|ms| *ms > 0)
+        .unwrap_or(45_000)
+}
+
+/// Poll interval for the respond watcher's storage reads. Matches the TS stream
+/// follow cadence (100ms). Overridable via REFARM_RESPOND_WATCH_INTERVAL_MS.
+fn respond_watch_interval_ms() -> u64 {
+    std::env::var("REFARM_RESPOND_WATCH_INTERVAL_MS")
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .filter(|ms| *ms > 0)
+        .unwrap_or(100)
+}
+
+/// The terminal AgentResponse node for a respond effort, if present. Reads the
+/// CRDT `AgentResponse` nodes for `namespace`, keeps only rows carrying our
+/// `prompt_ref`, and returns the content of the first `is_final` one. Mirrors the
+/// correlation the whole stack agrees on: the agent stamps `prompt_ref` onto
+/// every AgentResponse node (llm_stream_events.rs), derived from this effort_id.
+fn find_terminal_agent_response(
+    namespace: &str,
+    prompt_ref: &str,
+) -> Option<String> {
+    let storage = crate::storage::NativeStorage::open(namespace).ok()?;
+    let rows = storage.query_nodes("AgentResponse").ok()?;
+    for row in rows {
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&row.payload) else {
+            continue;
+        };
+        // Only rows for THIS prompt (do not reverse prompt_ref -> effort_id; the
+        // derivation is lossy — match forward on the stamped prompt_ref).
+        if value.get("prompt_ref").and_then(|v| v.as_str()) != Some(prompt_ref) {
+            continue;
+        }
+        if value.get("is_final").and_then(|v| v.as_bool()) == Some(true) {
+            let content = value
+                .get("content")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            return Some(content);
+        }
+    }
+    None
+}
+
+/// Watch for the terminal AgentResponse of a respond effort and finalise the
+/// effort accordingly. Runs until the terminal node lands (-> `done`) or the
+/// deadline elapses (-> `timed-out`). Uses finalise_effort_if_active so a
+/// concurrent cancel/error that already made the effort terminal wins — the
+/// watcher never walks the machine backward out of a terminal state. Bounded by
+/// a deadline so a silent agent never leaks the task (retires the watcher-leak
+/// slice of the async debts).
+fn spawn_respond_watcher(state: SidecarState, effort_id: String, prompt_ref: String) {
+    tokio::spawn(async move {
+        let timeout = std::time::Duration::from_millis(respond_watch_timeout_ms());
+        let interval = std::time::Duration::from_millis(respond_watch_interval_ms());
+        let deadline = std::time::Instant::now() + timeout;
+
+        loop {
+            // Stop early if a concurrent path already finalised the effort
+            // (e.g. a cancel). No point polling a terminal effort.
+            {
+                let s = state.efforts.read().expect("effort store poisoned");
+                match s.get(&effort_id) {
+                    Some(entry) if super::is_terminal_effort_status(&entry.status) => return,
+                    None => return,
+                    _ => {}
+                }
+            }
+
+            if let Some(content) = find_terminal_agent_response(&state.namespace, &prompt_ref) {
+                finalise_effort_if_active(
+                    &state,
+                    &effort_id,
+                    super::EFFORT_DONE,
+                    vec![TaskResult {
+                        status: "ok".to_string(),
+                        result: Some(serde_json::json!({ "content": content })),
+                        error: None,
+                    }],
+                );
+                return;
+            }
+
+            if std::time::Instant::now() >= deadline {
+                let finalised = finalise_effort_if_active(
+                    &state,
+                    &effort_id,
+                    "timed-out",
+                    vec![TaskResult {
+                        status: "timeout".to_string(),
+                        result: None,
+                        error: Some(format!(
+                            "no terminal AgentResponse within {}ms",
+                            respond_watch_timeout_ms()
+                        )),
+                    }],
+                );
+                if finalised {
+                    tracing::warn!(
+                        effort_id = %effort_id,
+                        "respond effort timed out waiting for terminal AgentResponse"
+                    );
+                }
+                return;
+            }
+
+            tokio::time::sleep(interval).await;
+        }
+    });
 }
 
 pub(crate) fn chrono_now_iso() -> String {
