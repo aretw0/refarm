@@ -54,11 +54,20 @@ The reference surface (`src/reference.ts`) ships one honest matcher per verb (`c
 - **The sandbox is the ABSENCE of imports.** `--disable all` makes the transpiled `ImportObject` `{}` — the component imports nothing. The loader (`src/index.ts`) instantiates with an EMPTY capability table and `run()` still returns — stronger than the deny-all stubs `quality-checker-ref` needed, because there is no import through which to reach fs/network.
 - **Dispatch proven for real** (`src/surface.test.ts`, 7 tests, `skipIf !pkg`): all four verbs dispatch through the real component; the empty-import sandbox is asserted; and the `§8` install swap is proven end-to-end — `computeSha256Digest` of the built `.wasm` → `sha256-<hex>` → `buildVaultPluginManifest` validates.
 
+### The loop — vault runs on the real runtime as an integration plugin (`5234ea82`)
+
+The first design instinct — teach the tractor host the standalone `vault-surface` world — was **wrong**, and a recon (`wf_06d238ea`) corrected it: the extension architecture is already universal. **Every** refarm plugin exports the SAME canonical `integration` interface (`refarm:plugin@0.1.0`: `setup`/`ingest`/`push`/`teardown`/`get-help-nodes`/`metadata`/`on-event`/`respond`); the agent is only special because it implements `respond` for real. The host loads and calls ANY `integration` plugin the same way. So vault should SPEAK `integration`, not a world the host has no bindings for.
+
+- **`src/plugin.js`** (in `vault-surface-ref`) exports `integration` (world `refarm-plugin`, importing `tractor-bridge`) — the first refarm integration plugin built from TS. The runtime only calls `setup`/`ingest`/`teardown`/`metadata`/`on-event` (respond/push/get-help-nodes are dead channels), so vault dispatch rides the one live entrypoint: `on-event('vault:dispatch', {verb,note,profile,replyRef?})` runs the vault core and, since `on-event` returns nothing, emits results OUT through the imported `tractor-bridge store-node` — the exact side channel the agent uses.
+- **Build chain** (the TS→WASM-with-shared-core pattern): `run-core.js` holds the dispatch logic, shared by BOTH entries (`surface.js` = sandbox-by-absence world; `plugin.js` = integration world). Each entry is `esbuild --bundle --external:refarm:*` (inlines the core, keeps `refarm:*` imports external — componentize does NOT resolve relative imports) then `jco componentize`.
+- **Proven** (`plugin.test.ts`): `on-event('vault:dispatch', extract)` runs through the REAL component and stores a KnowledgeRecord via a functional test `tractor-bridge`. `loadVaultPluginComponent` ships the reusable loader. ZERO tractor edits.
+
 ### Follow-on (optional, not done)
 
-- Extend tractor `instance.call` beyond the four lifecycle verbs, OR add a component-dispatch path so the sidecar `EffortTask` (`fn` = the verb, today only `respond`) routes to the component.
-- A real `plugin-manifest` install via barn, swapping the inert `entry` for the hashed `.wasm`.
-- Teach `validate-packages` a `wasm-jco-component` TS kind: today it classifies wasm components off `hasCargo && build:wasm` (Rust only), so a TS→WASM package falls to `buildable`. Not `§8`.
+- Load the plugin through the REAL `load_plugin` with the real host bridge (not a test double); extend to all four verbs.
+- Decide the dispatch model: keep the async on-event → store-node side channel (matching the agent) as permanent, OR invest `§8` to make `respond` a live host-called request→response channel (a `call_respond` binding) so search/profile can return synchronously.
+- A real `plugin-manifest` install via barn, swapping the inert `entry` for the hashed `.wasm`; eventually route non-`respond` verbs through the sidecar `EffortTask` so vault dispatch becomes a first-class Effort.
+- (Done: `validate-packages` learned the `wasm-jco-component-ts` kind, `5a82ef5e`.)
 
 ## Open questions
 
