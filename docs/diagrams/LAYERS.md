@@ -61,7 +61,7 @@ The execution engine. Same WIT contract runs on both runtimes.
 | `tractor` (Rust) | wasmtime | IoT, Raspberry Pi, ~27MB footprint |
 
 WIT exports: `setup · ingest · push · respond · on-event`
-WIT imports (for agent): `model-bridge · agent-fs · agent-shell`
+WIT imports (for agent): `model-bridge · host-fs · host-shell`
 
 ---
 

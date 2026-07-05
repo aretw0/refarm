@@ -133,8 +133,8 @@ tractor.onNode("FarmhandTaskResult", (result) => { ... });
    → Se MODEL_STREAM_RESPONSES=1: usa complete-http-stream WIT (host-proxied)
    → Senão: chamada síncrona única
 9. Tool loop (se o MODEL retornar tool_calls):
-   - agent-fs: read_file, write_file, edit_file, list_dir, search_files
-   - agent-shell: bash (com timeout 30s, argv obrigatório)
+   - host-fs: read_file, write_file, edit_file, list_dir, search_files
+   - host-shell: bash (com timeout 30s, argv obrigatório)
    - CRDT tools: list_sessions, current_session, navigate, fork
 10. Plugin armazena via tractor_bridge.store_node():
     - UserPrompt node
@@ -198,8 +198,8 @@ O contrato WIT está em `packages/refarm-plugin-wit/`. A função de entry point
 ```wit
 world plugin {
   import tractor-bridge;   // store_node, query_nodes, log
-  import agent-fs;         // read, write, edit (WASI-mapped)
-  import agent-shell;      // spawn (policy-gated, timeout 30s)
+  import host-fs;         // read, write, edit (WASI-mapped)
+  import host-shell;      // spawn (policy-gated, timeout 30s)
   export respond: func(payload: string) -> result<string, plugin-error>;
 }
 ```

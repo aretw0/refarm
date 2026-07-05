@@ -82,8 +82,8 @@ Declare no `plugin.json` e no `metadata()` — sem declaração explícita, agen
 
 - [ ] **Nenhuma credencial no WASM** — keys, tokens e API keys vivem no Tractor. Use WIT para solicitar operações autenticadas ao host.
 - [ ] **Sem network calls diretas** — toda rede passa por `bridge.fetch()` (capability-gated). WASM sandboxado não tem acesso direto à rede.
-- [ ] **Filesystem via agent-fs** — não use `std::fs` diretamente; use o WIT `agent-fs` (WASI-mapped, policy-gated).
-- [ ] **Subprocess via agent-shell** — timeout 30s aplicado automaticamente pelo host; argv não pode ser vazio.
+- [ ] **Filesystem via host-fs** — não use `std::fs` diretamente; use o WIT `host-fs` (WASI-mapped, policy-gated).
+- [ ] **Subprocess via host-shell** — timeout 30s aplicado automaticamente pelo host; argv não pode ser vazio.
 - [ ] **Writes estruturados validam antes de gravar** — use `structured-io` para JSON/TOML/YAML; falha de parse não modifica o arquivo.
 - [ ] **Integridade WASM declarada** — ao publicar via Nostr (NIP-94), inclua o SHA-256 do `.wasm` no evento.
 

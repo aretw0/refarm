@@ -127,7 +127,7 @@ The supply map is intentionally conservative. Today it marks
 `@refarm.dev/cli` plus `@refarm.dev/cli/worker-profile` as the plan-only
 worker descriptor/readiness/result SDK,
 keeps `@refarm.dev/agent` publication on hold while the plugin package is
-private, and records `agent-tools`, plugin WIT, and Tractor code-ops as
+private, and records `host-effects`, plugin WIT, and Tractor code-ops as
 WIT/runtime/crate boundaries rather than pretending they are ready npm APIs.
 Each entry also carries compact `referenceLessons` and `referenceSources`, so a
 consumer can inspect why a primitive exists and which primary references shaped

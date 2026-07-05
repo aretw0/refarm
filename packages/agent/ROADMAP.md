@@ -262,7 +262,7 @@ Context engineering follows the pi-test-harness model:
 - [x] `read_structured` agent tool: JSON/TOML/YAML with `page_size`/`page_offset` (T-NEXT-268/275)
 - [x] `write_structured` agent tool: validate-before-write for all three formats (T-NEXT-278)
 - [x] `structured-io` WIT interface in `host-effects/wit/world.wit` (T-NEXT-284)
-  - `read-structured` and `write-structured` exported from `agent-tools-provider` world
+  - `read-structured` and `write-structured` exported from `host-effects-provider` world
   - Shared layer: any plugin or host-facing tool imports without duplicating parse logic
 - [x] 93 unit tests total across formats, pagination, and validation paths
 - [x] `structured-io` imported in agent WIT world — wasm32 dispatch delegates to WIT import, no duplication (T-NEXT-287)
@@ -321,7 +321,7 @@ interface code-ops {
 - `move-symbol` is not standard LSP — needs `workspace/applyEdit` workaround per server.
 - Should operations be atomic (backup + rollback on partial failure)?
 
-**Dependency**: agent-tools package (T-NEXT-268) should exist before this is wired.
+**Dependency**: host-effects package (T-NEXT-268) should exist before this is wired.
 
 - [x] Add `code-ops` interface to `refarm-plugin-host.wit` (T-NEXT-289)
   - `symbol-location`, `code-reference`, `rename-result` records; `rename-symbol` and `find-references` funcs
@@ -345,7 +345,7 @@ interface code-ops {
 
 - [ ] Promote `provider_config` defaults mapping into a shared host/plugin utility surface (so non-coding agents reuse the same routing defaults)
 - [ ] Promote URN builder convention (`new_agent_urn`-style) into a cross-plugin ID primitive with configurable namespace prefix
-- [ ] Evaluate moving generic tool-dispatch families (`fs/shell/session/code-ops`) into reusable shared dispatch helpers in `agent-tools`
+- [ ] Evaluate moving generic tool-dispatch families (`fs/shell/session/code-ops`) into reusable shared dispatch helpers in `host-effects`
 - [ ] Evaluate unifying public tool API into mode-aware core calls (`read/write/edit` + `mode=plain|structured|ast`) while keeping compatibility aliases to reduce LLM tool/schema context
 - [ ] Extract response-node builders into generic CRDT schema helpers (typed builders for common node metadata/timestamps)
 - [ ] Add an architectural check in reviews: "is this logic farmhand-specific or platform-primitive?" and reject plugin-local platform logic
@@ -370,7 +370,7 @@ interface code-ops {
 
 - [ ] Minimal Zig host that loads `farmhand.wasm` — no Rust runtime
 - [ ] Targets RPi Zero / microcontrollers
-- [ ] WIT subset: `tractor-bridge` (store/query), `agent-fs` — no `agent-shell`
+- [ ] WIT subset: `tractor-bridge` (store/query), `host-fs` — no `host-shell`
 - [ ] Storage: SQLite via Zig `sqlite` bindings (same schema as tractor's `NativeStorage`)
 - [ ] First milestone: `on_event("user:prompt", "hello")` stores `AgentResponse` — no LLM call needed
 
@@ -440,22 +440,22 @@ land (e.g., farmhand rename, streaming), update diagrams before closing the mile
 - [x] **`MODEL_SHELL_ALLOWLIST`** — comma-separated list of allowed binaries for `agent_shell::spawn`
 
   - e.g. `MODEL_SHELL_ALLOWLIST=ls,grep,cat,git` — host blocks commands outside allowlist
-  - Implemented in `packages/tractor/src/host/agent_tools_bridge.rs`: checks `argv[0]` (basename-aware) before spawn and returns `[blocked: <cmd> not in allowlist]`
+  - Implemented in `packages/tractor/src/host/host_effects_bridge.rs`: checks `argv[0]` (basename-aware) before spawn and returns `[blocked: <cmd> not in allowlist]`
   - Semantics: env var **unset** = permissive (backward compatible); env var set empty/whitespace = block all
   - Gondolin equivalent: `allowedHosts` for network; same pattern for commands
 
 - [x] **`MODEL_FS_ROOT`** — restrict `agent_fs::read/write` to a subtree
 
   - e.g. `MODEL_FS_ROOT=/workspaces/myproject` — all paths outside rejected at host boundary
-  - Implemented in `packages/tractor/src/host/agent_tools_bridge.rs`: enforces guard on `read`, `write`, and `edit`
+  - Implemented in `packages/tractor/src/host/host_effects_bridge.rs`: enforces guard on `read`, `write`, and `edit`
   - Path policy resolves absolute path against nearest existing ancestor before prefix check; rejects outside paths with `[blocked: path outside MODEL_FS_ROOT]`
   - Semantics: env var **unset** = permissive (backward compatible)
   - Gondolin equivalent: VFS mounts with readonly/cow modes
 
-- [x] **`trusted_plugins`** in `.refarm/config.json` — allowlist of plugin IDs that may use agent-shell
-  - Implemented in `packages/tractor/src/host/agent_tools_bridge.rs`: `agent-shell::spawn` checks caller `plugin_id` against `trusted_plugins`
+- [x] **`trusted_plugins`** in `.refarm/config.json` — allowlist of plugin IDs that may use host-shell
+  - Implemented in `packages/tractor/src/host/host_effects_bridge.rs`: `host-shell::spawn` checks caller `plugin_id` against `trusted_plugins`
   - Semantics: field unset = permissive (backward compatible); set array enforces allowlist; supports `"*"` wildcard
-  - Block message: `[blocked: plugin '<id>' not allowed to use agent-shell]`
+  - Block message: `[blocked: plugin '<id>' not allowed to use host-shell]`
 
 ### WASM vs micro-VM tradeoffs
 

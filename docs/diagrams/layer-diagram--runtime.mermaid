@@ -18,7 +18,7 @@ graph TD
         direction LR
         WIT_Int["integration\n(setup · ingest · push · respond · on_event)"]
         WIT_LLM["llm-bridge"]
-        WIT_FS["agent-fs / agent-shell"]
+        WIT_FS["host-fs / host-shell"]
     end
 
     subgraph Plugins ["Plugin Sandbox  (.wasm — P1 module or P2+ component)"]

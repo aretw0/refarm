@@ -31,7 +31,7 @@ drives Pi.
 
 Current **extraction candidates** — behavior accreted here that should migrate to primitives:
 
-- **tool dispatch** (`tool_dispatch/shell_tools`) → shared `agent-tools` / host bridges
+- **tool dispatch** (`tool_dispatch/shell_tools`) → shared `host-effects` / host bridges
 - **structured IO** (`structured_io`) → a shared primitive
 - **state / persistence** → the session / storage contracts
 
@@ -51,9 +51,9 @@ on-event("user:prompt", prompt)
   → history: MODEL_HISTORY_TURNS           — opt-in conversational memory from CRDT
   → provider::complete()                   — Anthropic or OpenAI-compat wire format
     → agentic tool loop (up to MODEL_TOOL_CALL_MAX_ITER)
-      → read_file / write_file / edit_file (agent-fs)
-      → list_dir (agent-shell: ls -1)
-      → bash (agent-shell, structured argv — no shell injection)
+      → read_file / write_file / edit_file (host-fs)
+      → list_dir (host-shell: ls -1)
+      → bash (host-shell, structured argv — no shell injection)
       → compress_tool_output() (opt-in via MODEL_TOOL_OUTPUT_MAX_LINES)
   → on error / budget block: MODEL_FALLBACK_PROVIDER
   → store AgentResponse node  (content, tool_calls, timestamp_ns)
@@ -88,7 +88,7 @@ The file is optional — missing file is silently ignored.
 | `default_provider` | `MODEL_DEFAULT_PROVIDER` | Sovereign default when provider unset |
 | `stream_responses` | `MODEL_STREAM_RESPONSES` | Explicit provider streaming opt-in/out (`true` → `1`, `false` → `0`) |
 | `budgets.<provider>` | `MODEL_BUDGET_<PROVIDER>_USD` | Rolling 30-day spend cap in USD |
-| `trusted_plugins[]` | (host policy) | Optional allowlist for plugins allowed to use `agent-shell` |
+| `trusted_plugins[]` | (host policy) | Optional allowlist for plugins allowed to use `host-shell` |
 <!-- {/config_fields} -->
 
 <!-- {=env_vars} -->
@@ -172,7 +172,7 @@ $TRACTOR watch
 **Note on `.refarm/config.json`**: the Refarm runtime can load `provider`/`model` as
 defaults, but `MODEL_PROVIDER` and `MODEL_ID` remain the strongest per-run overrides. The
 `MODEL_FS_ROOT` and `MODEL_SHELL_ALLOWLIST` fields are loaded from config.json by the
-`agent-tools` policy layer.
+`host-effects` policy layer.
 
 ---
 
@@ -253,14 +253,14 @@ Every action writes to the CRDT via `tractor_bridge::store_node`. Nothing is eph
 <!-- {=tools} -->
 | Tool | Source | Description |
 |---|---|---|
-| `read_file` | agent-fs | Read file contents at absolute path |
-| `write_file` | agent-fs | Write UTF-8 content to file atomically |
-| `edit_file` | agent-fs read+write | Multi-edit: `{path, edits:[{old_str,new_str}]}` — exact match required, ambiguous matches rejected |
-| `list_dir` | agent-shell (ls) | List files and directories at a path |
-| `search_files` | agent-shell (grep) | Search for regex pattern in files; optional `glob` filter; returns `file:line` matches |
-| `bash` | agent-shell | Run command via structured argv — no shell injection |
-| `read_structured` | agent-fs | Parse JSON/TOML/YAML with pagination: `{path, format?, page_size?, page_offset?}` |
-| `write_structured` | agent-fs | Validate then write JSON/TOML/YAML atomically — rejects invalid syntax before touching the file |
+| `read_file` | host-fs | Read file contents at absolute path |
+| `write_file` | host-fs | Write UTF-8 content to file atomically |
+| `edit_file` | host-fs read+write | Multi-edit: `{path, edits:[{old_str,new_str}]}` — exact match required, ambiguous matches rejected |
+| `list_dir` | host-shell (ls) | List files and directories at a path |
+| `search_files` | host-shell (grep) | Search for regex pattern in files; optional `glob` filter; returns `file:line` matches |
+| `bash` | host-shell | Run command via structured argv — no shell injection |
+| `read_structured` | host-fs | Parse JSON/TOML/YAML with pagination: `{path, format?, page_size?, page_offset?}` |
+| `write_structured` | host-fs | Validate then write JSON/TOML/YAML atomically — rejects invalid syntax before touching the file |
 | `list_sessions` | CRDT | List all conversation sessions with id, name, leaf, and which is active |
 | `current_session` | CRDT | Return metadata of the currently active session (id, leaf_entry_id) |
 | `navigate` | CRDT | Move session pointer to a specific entry: `{session_id, entry_id}` |
@@ -286,8 +286,8 @@ Four axioms are enforced as named tests in `extensibility_contract`:
 ```wit
 world agent {
     import tractor-bridge;   // store_node, query_nodes, get_node
-    import agent-fs;         // read, write, edit
-    import agent-shell;      // spawn (structured argv, no shell injection)
+    import host-fs;         // read, write, edit
+    import host-shell;      // spawn (structured argv, no shell injection)
     export integration;      // setup, on_event, metadata, …
 }
 ```

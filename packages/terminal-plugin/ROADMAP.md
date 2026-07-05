@@ -11,15 +11,15 @@
 The terminal-plugin is the **display** half of the Refarm command surface.
 It lives in the browser (JS/TS, DOM) and never executes OS processes.
 
-The **execution** half lives in `agent-tools.wasm` (Rust/WASM, tractor):
-it spawns OS processes via `host-spawn` and exports `agent-shell` to other plugins.
+The **execution** half lives in `host-effects.wasm` (Rust/WASM, tractor):
+it spawns OS processes via `host-spawn` and exports `host-shell` to other plugins.
 
 ```
 Browser (JS world)                    Tractor (Rust/WASM world)
 ────────────────────────────────────  ──────────────────────────────────────
-terminal-plugin.ts                    agent-tools.wasm
+terminal-plugin.ts                    host-effects.wasm
   • renders output in DOM               • spawns OS processes
-  • sends input via WebSocket           • exports agent-shell WIT to agent
+  • sends input via WebSocket           • exports host-shell WIT to agent
   • subscribes to CRDT ShellOutput      • logs ShellOutput nodes to CRDT
   • target: ["browser"]                 • zero DOM, zero JS
 ```
@@ -33,11 +33,11 @@ component should not touch the DOM.
 ## How the full REPL loop works (target)
 
 ```
-user types → terminal-plugin → WS → tractor → agent-tools.wasm → OS
+user types → terminal-plugin → WS → tractor → host-effects.wasm → OS
 stdout ←─────────── ShellOutput CRDT node ←── WS ←── tractor ←───┘
 ```
 
-The same `agent-tools.wasm` execution path serves:
+The same `host-effects.wasm` execution path serves:
 
 - **terminal-plugin REPL** — user types, sees output in browser
 - **agent bash tool** — agent calls `bash`, output logged to CRDT
@@ -88,7 +88,7 @@ a passive log and becomes a live view of what tractor is doing.
 
 - [ ] Add `<input>` element below the output div
 - [ ] On Enter: send `{"type":"user:shell","agent":"terminal","payload":"<cmd>"}` via WS
-- [ ] Tractor routes `user:shell` → agent-tools.wasm → OS → ShellOutput CRDT node
+- [ ] Tractor routes `user:shell` → host-effects.wasm → OS → ShellOutput CRDT node
 - [ ] Clear input on send; focus returns to input after response
 
 ### OutputApi extension
@@ -190,7 +190,7 @@ the WebSocket client. The tractor execution engine does not change.
 ## Architecture invariants (never violate)
 
 1. **No process execution in browser** — terminal-plugin never spawns OS processes.
-   All execution goes through tractor → agent-tools.wasm → host-spawn.
+   All execution goes through tractor → host-effects.wasm → host-spawn.
 
 2. **No credentials in DOM** — API keys, tokens, secrets must never reach the
    browser plugin. Tractor scrubs them from ShellOutput nodes before broadcast.
