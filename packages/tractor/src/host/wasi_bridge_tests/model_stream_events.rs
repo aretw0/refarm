@@ -427,6 +427,30 @@ data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"
 }
 
 #[test]
+fn openai_tool_call_delta_with_pathological_index_does_not_grow_vec() {
+    // The index is model-controlled (upstream SSE). A gigantic index must NOT
+    // grow the dense Vec toward index+1 (remote OOM) — deltas beyond the cap are
+    // dropped, and a normal index still lands.
+    let mut assembly = super::ModelStreamFinalAssembly::default();
+
+    let evil = serde_json::json!({
+        "choices": [{ "delta": { "tool_calls": [{ "index": 4_000_000_000u64, "id": "x" }] } }]
+    });
+    super::apply_openai_tool_call_deltas(&evil, &mut assembly);
+    assert!(
+        assembly.openai_tool_calls.len() <= 1025,
+        "pathological index must not grow the Vec, got len {}",
+        assembly.openai_tool_calls.len()
+    );
+
+    let ok = serde_json::json!({
+        "choices": [{ "delta": { "tool_calls": [{ "index": 0, "id": "call_1" }] } }]
+    });
+    super::apply_openai_tool_call_deltas(&ok, &mut assembly);
+    assert_eq!(assembly.openai_tool_calls[0].id, "call_1");
+}
+
+#[test]
 fn store_stream_agent_response_chunks_from_reader_synthesizes_anthropic_tool_uses() {
     let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
     let sync = crate::sync::NativeSync::new(storage, "stream-reader-anthropic-tools-test").unwrap();

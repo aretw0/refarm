@@ -336,6 +336,14 @@ fn usage_u32(value: &serde_json::Value, key: &str) -> Option<u32> {
         .and_then(|v| u32::try_from(v).ok())
 }
 
+/// Upper bound on the OpenAI streaming tool-call index. `index` comes from the
+/// UPSTREAM model SSE stream (untrusted); the dense Vec grows to `index+1`, so
+/// without a cap a chunk with `index: 4_000_000_000` would push ~4B defaults and
+/// OOM the daemon. Real streams emit a handful of parallel tool calls; 1024 is
+/// far beyond any legitimate count. (The Anthropic sibling is safe already — it
+/// uses a sparse BTreeMap keyed by index.)
+const MAX_OPENAI_TOOL_CALL_INDEX: usize = 1024;
+
 fn apply_openai_tool_call_deltas(value: &serde_json::Value, assembly: &mut ModelStreamFinalAssembly) {
     let Some(tool_calls) = value
         .get("choices")
@@ -352,6 +360,11 @@ fn apply_openai_tool_call_deltas(value: &serde_json::Value, assembly: &mut Model
             .get("index")
             .and_then(serde_json::Value::as_u64)
             .unwrap_or(assembly.openai_tool_calls.len() as u64) as usize;
+        // Cap the model-controlled index so a pathological value can't grow the
+        // dense Vec without bound (remote OOM). Beyond the cap, drop the delta.
+        if index > MAX_OPENAI_TOOL_CALL_INDEX {
+            continue;
+        }
         while assembly.openai_tool_calls.len() <= index {
             assembly
                 .openai_tool_calls
