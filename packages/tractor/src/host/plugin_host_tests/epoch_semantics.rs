@@ -17,6 +17,10 @@
 // sibling files include!()d into the same test module.
 
 mod epoch_semantics {
+// These proofs construct raw Store::new(&engine, ()) on purpose: they test the
+// epoch primitive itself against a bare `()` data type that cannot even carry a
+// HasEpochGuard, so the new_armed_store factory does not apply here.
+#![allow(clippy::disallowed_methods)]
 use wasmtime::{Config, Engine, Instance, Module, Store, Trap, TypedFunc, UpdateDeadline};
 
 /// A module whose `spin` export busy-loops forever (no yield point). Only the

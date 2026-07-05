@@ -1,0 +1,17 @@
+# Guard the epoch-interruption footgun at the compiler level.
+#
+# epoch_interruption(true) makes a fresh Store's default deadline 0, so any
+# guest code (including a component's own instantiate/start) traps with
+# `wasm trap: interrupt` unless the store was armed with an epoch_deadline_
+# callback + a live deadline FIRST. Every PRODUCTION store must therefore go
+# through host::instance::new_armed_store, which creates AND arms in one step.
+#
+# Raw wasmtime::Store::new is disallowed so that a future author cannot
+# reintroduce an un-armed store on an epoch-enabled engine. The three
+# legitimate raw sites carry an explicit #[allow(clippy::disallowed_methods)]:
+#   - new_armed_store itself (the ONE blessed constructor)
+#   - the unit-test P1 fixture (engine has no epoch_interruption)
+#   - the epoch_semantics proofs (deliberately test the raw primitive)
+disallowed-methods = [
+  { path = "wasmtime::Store::new", reason = "use host::instance::new_armed_store so the epoch deadline is always armed (see clippy.toml)" },
+]

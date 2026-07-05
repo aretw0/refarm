@@ -46,6 +46,9 @@ pub(crate) fn new_armed_store<T: HasEpochGuard + 'static>(
     engine: &wasmtime::Engine,
     data: T,
 ) -> Store<T> {
+    // The ONE blessed raw Store::new — everything after it is exactly the arming
+    // that makes the store safe, so this is the site the clippy lint protects.
+    #[allow(clippy::disallowed_methods)]
     let mut store = Store::new(engine, data);
     store.epoch_deadline_callback(|ctx| epoch_decision(ctx.data().epoch_guard()));
     store.set_epoch_deadline(1);
@@ -578,6 +581,7 @@ mod tests {
         // Deliberately raw Store::new, NOT new_armed_store: this fixture's engine has
         // no epoch_interruption, so there is no default-0 deadline to defuse and no
         // footgun to arm against. Routing it through the factory would be a lie.
+        #[allow(clippy::disallowed_methods)]
         let mut store = Store::new(
             &engine,
             P1Store {
