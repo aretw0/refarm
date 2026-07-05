@@ -69,6 +69,22 @@ const FULL_LIFECYCLE_P1_WAT: &str = r#"
 )
 "#;
 
+/// P1 module whose on_event busy-loops forever (a wedge with no yield point).
+/// Only the epoch deadline can break this — a tokio timeout never would.
+const WEDGED_ON_EVENT_P1_WAT: &str = r#"
+(module
+  (memory 1)
+  (export "memory" (memory 0))
+
+  (func $alloc (export "alloc") (param i32) (result i32)
+    i32.const 1024)
+
+  ;; on_event: spin forever
+  (func $on_event (export "on_event") (param i32) (param i32)
+    (loop $spin (br $spin)))
+)
+"#;
+
 /// P1 module that exports ingest returning a count of 7.
 const INGEST_P1_WAT: &str = r#"
 (module
@@ -128,6 +144,45 @@ async fn p1_module_call_on_event_with_none_payload_succeeds() {
     let mut handle = host.load(file.path(), &sync).await.unwrap();
     let result = handle.call_on_event("system:tick", None).await;
     assert!(result.is_ok(), "on_event with None payload failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn p1_module_on_event_wedge_traps_on_epoch_deadline() {
+    // A guest busy-loop with no yield point can ONLY be broken by epoch
+    // interruption. Set a short budget so the test is fast, load the wedged
+    // module, and assert on_event returns an epoch trap (not a hang).
+    std::env::set_var("REFARM_ON_EVENT_TIMEOUT_MS", "50");
+
+    let host = test_plugin_host();
+    let sync = test_native_sync();
+    let file = wat_to_wasm_file(WEDGED_ON_EVENT_P1_WAT);
+    let mut handle = host.load(file.path(), &sync).await.unwrap();
+
+    let started = std::time::Instant::now();
+    // Bound the whole call so a broken epoch (test failure) doesn't hang CI:
+    // with the ticker + 50ms budget it must return well within a couple seconds.
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        handle.call_on_event("user:prompt", Some("spin")),
+    )
+    .await
+    .expect("call_on_event must return via epoch trap, not hang");
+    let elapsed = started.elapsed();
+
+    std::env::remove_var("REFARM_ON_EVENT_TIMEOUT_MS");
+
+    assert!(result.is_err(), "a wedged on_event must fail, not succeed");
+    let err = result.unwrap_err();
+    assert_eq!(
+        err.downcast_ref::<wasmtime::Trap>(),
+        Some(&wasmtime::Trap::Interrupt),
+        "the wedge must be broken by an epoch interrupt trap, got: {err}"
+    );
+    // Budget is 50ms @ 1ms/tick; allow generous slack for CI scheduling.
+    assert!(
+        elapsed < std::time::Duration::from_secs(5),
+        "epoch trap must fire near the budget, took {elapsed:?}"
+    );
 }
 
 #[tokio::test]

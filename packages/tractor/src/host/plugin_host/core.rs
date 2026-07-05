@@ -9,7 +9,7 @@
 //   - ModuleLoader     → wasmtime::Module, WASI preview1 ABI, P1 plain modules
 
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};

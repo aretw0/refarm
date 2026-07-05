@@ -10,6 +10,31 @@ use wasmtime::Store;
 use crate::host::plugin_host::{P1Store, RefarmPluginHost, TractorStore};
 use crate::telemetry::TelemetryBus;
 
+/// Epoch-deadline budget (in ticks) for a single on_event call. With the 1ms
+/// global epoch tick, the default 5000 ticks ≈ 5s of wall-clock guest time
+/// before a wedged handler traps. Overridable via REFARM_ON_EVENT_TIMEOUT_MS.
+fn on_event_epoch_deadline_ticks() -> u64 {
+    std::env::var("REFARM_ON_EVENT_TIMEOUT_MS")
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .filter(|ms| *ms > 0)
+        .unwrap_or(5_000)
+}
+
+/// Baseline epoch deadline (ticks) armed on every store at construction. Because
+/// `epoch_interruption(true)` makes the default deadline 0 — trapping ANY guest
+/// call immediately — every store must carry a live deadline. Lifecycle calls
+/// (setup/ingest/teardown/metadata) run under this generous baseline; on_event
+/// re-arms with the tighter, tunable budget above before each dispatch. 60s @
+/// 1ms/tick. Overridable via REFARM_LIFECYCLE_TIMEOUT_MS.
+fn lifecycle_epoch_deadline_ticks() -> u64 {
+    std::env::var("REFARM_LIFECYCLE_TIMEOUT_MS")
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .filter(|ms| *ms > 0)
+        .unwrap_or(60_000)
+}
+
 /// The runtime state of a loaded plugin.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PluginState {
@@ -56,10 +81,13 @@ impl PluginInstanceHandle {
     pub(crate) fn new_component(
         id: String,
         plugin: RefarmPluginHost,
-        store: Store<TractorStore>,
+        mut store: Store<TractorStore>,
         telemetry: TelemetryBus,
         provides: Vec<String>,
     ) -> Self {
+        // epoch_interruption(true) means the default deadline is 0 (traps
+        // immediately) — arm a generous baseline so lifecycle calls have budget.
+        store.set_epoch_deadline(lifecycle_epoch_deadline_ticks());
         Self {
             id,
             state: PluginState::Idle,
@@ -73,10 +101,13 @@ impl PluginInstanceHandle {
     pub(crate) fn new_module(
         id: String,
         instance: wasmtime::Instance,
-        store: Store<P1Store>,
+        mut store: Store<P1Store>,
         telemetry: TelemetryBus,
         provides: Vec<String>,
     ) -> Self {
+        // See new_component: arm a generous baseline deadline so lifecycle calls
+        // don't trap against the epoch_interruption default of 0.
+        store.set_epoch_deadline(lifecycle_epoch_deadline_ticks());
         Self {
             id,
             state: PluginState::Idle,
@@ -332,8 +363,13 @@ impl PluginInstanceHandle {
     /// module's linear memory via the `alloc(len) -> ptr` export, then calls
     /// `on_event(ptr, len)`.
     pub async fn call_on_event(&mut self, event: &str, payload: Option<&str>) -> Result<()> {
+        let deadline = on_event_epoch_deadline_ticks();
         match &mut self.inner {
             PluginImpl::Component { plugin, store } => {
+                // Arm the epoch deadline before entering the guest so a wedged
+                // on_event traps (Trap::Interrupt) instead of hanging the runner
+                // thread forever. The global epoch ticker advances the clock.
+                store.set_epoch_deadline(deadline);
                 plugin
                     .refarm_plugin_integration()
                     .call_on_event(store, event, payload)
@@ -341,6 +377,7 @@ impl PluginInstanceHandle {
                 Ok(())
             }
             PluginImpl::Module { instance, store } => {
+                store.set_epoch_deadline(deadline);
                 let event_json = serde_json::json!({
                     "event": event,
                     "payload": payload,

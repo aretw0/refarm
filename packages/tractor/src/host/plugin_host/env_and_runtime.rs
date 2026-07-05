@@ -465,11 +465,45 @@ fn validate_manifest_runtime_alignment(
     }
 }
 
+/// The epoch tick period. increment_epoch() is called once per tick, so the
+/// wall-clock budget a store gets is `deadline_ticks * EPOCH_TICK`.
+pub(crate) const EPOCH_TICK: std::time::Duration = std::time::Duration::from_millis(1);
+
+/// Spawn the single global epoch ticker for both engines. Holds Weak refs so it
+/// stops once both engines are dropped (host teardown), never leaking the thread.
+fn spawn_epoch_ticker(engine: &Arc<Engine>, module_engine: &Arc<Engine>) {
+    let weak = Arc::downgrade(engine);
+    let weak_module = Arc::downgrade(module_engine);
+    std::thread::Builder::new()
+        .name("epoch-ticker".to_string())
+        .spawn(move || loop {
+            std::thread::sleep(EPOCH_TICK);
+            match (Weak::upgrade(&weak), Weak::upgrade(&weak_module)) {
+                (None, None) => break, // host dropped — self-terminate
+                (a, m) => {
+                    if let Some(e) = a {
+                        e.increment_epoch();
+                    }
+                    if let Some(e) = m {
+                        e.increment_epoch();
+                    }
+                }
+            }
+        })
+        .expect("spawn epoch-ticker thread");
+}
+
 impl PluginHost {
     pub fn new(trust: TrustManager, telemetry: TelemetryBus) -> Result<Self> {
         let mut config = Config::new();
         config.async_support(true);
         config.wasm_component_model(true);
+        // Epoch interruption is the ONLY mechanism that can break a guest that
+        // busy-loops with no await points (a tokio timeout never fires because the
+        // wedged guest future never yields). The per-store deadline is set before
+        // each guest call (see PluginInstanceHandle::call_on_event); a global
+        // ticker below advances the shared epoch clock.
+        config.epoch_interruption(true);
         let engine = Arc::new(Engine::new(&config)?);
 
         // ── Regular plugin linker ──────────────────────────────────────────
@@ -492,9 +526,22 @@ impl PluginHost {
         // P1 modules use blocking WASI calls — they cannot share the async engine.
         // A dedicated sync engine (async_support=false, component_model=false) is
         // used so that Linker::instantiate and TypedFunc::call both run synchronously.
-        let module_engine = Arc::new(Engine::new(&Config::new())?);
+        // Epoch interruption is enabled here too so a wedged P1 module on_event
+        // (a sync TypedFunc::call) traps on deadline just like a component does.
+        let mut module_config = Config::new();
+        module_config.epoch_interruption(true);
+        let module_engine = Arc::new(Engine::new(&module_config)?);
         let mut module_linker: wasmtime::Linker<P1Store> = wasmtime::Linker::new(&module_engine);
         wasmtime_wasi::preview1::add_to_linker_sync(&mut module_linker, |s: &mut P1Store| &mut s.wasi)?;
+
+        // Global epoch ticker: one background thread advances the shared epoch
+        // clock ~every 1ms for BOTH engines. increment_epoch() is &self + Send +
+        // Sync (a cheap atomic add), so a single ticker serves all plugins across
+        // all their runner threads — the epoch is a shared logical clock, not
+        // per-store. Held via Weak so the thread self-terminates once the host is
+        // dropped (both engines gone) rather than leaking. A std::thread (not
+        // tokio::spawn) keeps this independent of any runtime context at new().
+        spawn_epoch_ticker(&engine, &module_engine);
 
         Ok(Self {
             trust,

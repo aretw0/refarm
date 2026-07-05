@@ -320,8 +320,22 @@ impl TractorNative {
                     let started = std::time::Instant::now();
                     let outcome = h.call_on_event(&msg.event, msg.payload.as_deref()).await;
                     let exec_us = started.elapsed().as_micros() as u64;
+                    // An epoch trap (deadline exceeded) surfaces as Trap::Interrupt
+                    // inside the anyhow error. Classify it so a wedged/interrupted
+                    // handler is observable as a timeout, not a generic error.
+                    let timed_out = outcome.as_ref().err().is_some_and(|e| {
+                        e.downcast_ref::<wasmtime::Trap>() == Some(&wasmtime::Trap::Interrupt)
+                    });
                     if let Err(e) = &outcome {
-                        tracing::warn!(plugin_id = %id_for_thread, "on_event error: {e}");
+                        if timed_out {
+                            tracing::warn!(
+                                plugin_id = %id_for_thread,
+                                event = %msg.event,
+                                "on_event timed out (epoch interrupt) — tearing down runner"
+                            );
+                        } else {
+                            tracing::warn!(plugin_id = %id_for_thread, "on_event error: {e}");
+                        }
                     }
                     // Emit the REAL per-event drain cost + the queue depth behind it.
                     // A rising queue_depth or exec_us here IS the head-of-line pain,
@@ -334,8 +348,18 @@ impl TractorNative {
                             "exec_us": exec_us,
                             "queue_depth": queue_depth,
                             "ok": outcome.is_ok(),
+                            // `timeout` when the epoch deadline tripped, else null.
+                            "reason": if timed_out { Some("timeout") } else { None::<&str> },
                         })),
                     );
+
+                    // After an epoch trap the store was unwound mid-execution and
+                    // is not safe to reuse for the next message. Tear the runner
+                    // down (teardown + terminate below) rather than serve more
+                    // events on a possibly-corrupt store.
+                    if timed_out {
+                        break;
+                    }
                 }
 
                 if !teardown_done {
