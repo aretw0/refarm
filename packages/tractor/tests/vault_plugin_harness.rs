@@ -88,7 +88,7 @@ async fn vault_plugin_dispatch_stores_result_node_via_real_bridge() {
 
     // The REAL host bridge: store-node writes into this sync's SQLite/CRDT graph.
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100))
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
         .expect("PluginHost::new");
     let mut handle = host
         .load(path, &sync)
@@ -164,7 +164,7 @@ async fn quality_plugin_dispatch_stores_result_node_via_real_bridge() {
     }
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100))
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
         .expect("PluginHost::new");
     let mut handle = host
         .load(path, &sync)

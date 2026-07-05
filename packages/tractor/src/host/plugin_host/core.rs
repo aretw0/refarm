@@ -196,6 +196,11 @@ pub struct PluginHost {
     /// cache and recompiles automatically (no stale code), and identical bytes at
     /// different paths dedupe to one compile.
     component_cache: Arc<RwLock<HashMap<String, Component>>>,
+    /// Wall-clock budget (ms) for a single plugin `on_event` call, resolved from
+    /// config at construction (env override `REFARM_ON_EVENT_TIMEOUT_MS` is read
+    /// ONCE at boot). Stamped onto every `PluginInstanceHandle` at load so the
+    /// per-event hot path reads a field, never `std::env::var`.
+    on_event_budget_ms: u64,
 }
 
 /// Forward only MODEL_* vars into plugin WASI env.

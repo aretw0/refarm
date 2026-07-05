@@ -48,7 +48,7 @@ fn temp_fixture_with_manifest(
 
 fn make_host(telemetry: TelemetryBus) -> PluginHost {
     let trust = TrustManager::new();
-    PluginHost::new(trust, telemetry).expect("PluginHost::new")
+    PluginHost::new(trust, telemetry, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).expect("PluginHost::new")
 }
 
 fn make_sync() -> NativeSync {

@@ -84,7 +84,7 @@ fn schema_compat_ts_db_readable() {
 async fn security_mode_strict_rejects_untrusted_plugin() {
     let bus = TelemetryBus::new(100);
     let trust = TrustManager::with_security_mode(SecurityMode::Strict);
-    let host = PluginHost::new(trust, bus).unwrap();
+    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let sync = make_sync();
 
     let result = host.load(fixture_path(), &sync).await;
@@ -111,7 +111,7 @@ async fn security_mode_strict_allows_after_grant() {
     let mut trust = TrustManager::with_security_mode(SecurityMode::Strict);
     trust.grant("null-plugin", &hash, None);
 
-    let host = PluginHost::new(trust, bus).unwrap();
+    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let sync = make_sync();
 
     let handle = host.load(fixture_path(), &sync).await;
@@ -135,7 +135,7 @@ async fn security_mode_strict_allows_after_grant() {
 async fn plugin_lifecycle_setup_teardown() {
     let bus = TelemetryBus::new(100);
     let trust = TrustManager::with_security_mode(SecurityMode::None);
-    let host = PluginHost::new(trust, bus).unwrap();
+    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let sync = make_sync();
 
     // load() calls setup() internally — must not error
@@ -195,7 +195,7 @@ fn loro_binary_js_interop() {
 async fn plugin_ingest_roundtrip() {
     let bus = TelemetryBus::new(100);
     let trust = TrustManager::with_security_mode(SecurityMode::None);
-    let host = PluginHost::new(trust, bus).unwrap();
+    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let sync = make_sync();
 
     let mut handle = host

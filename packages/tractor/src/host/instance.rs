@@ -10,18 +10,6 @@ use wasmtime::Store;
 use crate::host::plugin_host::{EpochGuard, HasEpochGuard, P1Store, RefarmPluginHost, TractorStore};
 use crate::telemetry::TelemetryBus;
 
-/// Wall-clock budget (ms) for a single on_event call. The per-store epoch
-/// callback traps the guest once this elapses (a wedged handler is reclaimed) or
-/// the cancel flag is set (force interrupt). Default 2s, overridable via
-/// REFARM_ON_EVENT_TIMEOUT_MS.
-fn on_event_budget_ms() -> u64 {
-    std::env::var("REFARM_ON_EVENT_TIMEOUT_MS")
-        .ok()
-        .and_then(|raw| raw.parse::<u64>().ok())
-        .filter(|ms| *ms > 0)
-        .unwrap_or(2_000)
-}
-
 /// How many ticks the callback re-arms by when it decides to keep waiting. Small
 /// so the next epoch checkpoint comes soon (re-check cancel/deadline promptly).
 const EPOCH_REARM_TICKS: u64 = 1;
@@ -132,7 +120,20 @@ pub struct PluginInstanceHandle {
     /// wall-clock deadline (armed before on_event). Cloned from the store's
     /// EpochGuard at construction.
     epoch_guard: EpochGuard,
+    /// Wall-clock budget (ms) for a single on_event call, stamped from the host
+    /// config at load (env `REFARM_ON_EVENT_TIMEOUT_MS` is read ONCE at boot).
+    /// Read on the per-event hot path instead of `std::env::var`. Defaults to the
+    /// same 2s the env parser does, so test-constructed handles behave identically
+    /// without setting process env.
+    on_event_budget_ms: u64,
 }
+
+/// The default single-event wall-clock budget (ms), matching the
+/// `REFARM_ON_EVENT_TIMEOUT_MS` env parser's fallback. Handles constructed
+/// without an explicit budget (tests, non-boot paths) use this. `pub` so
+/// integration tests and benches can pass an explicit, named default to
+/// `PluginHost::new` instead of a bare literal.
+pub const DEFAULT_ON_EVENT_BUDGET_MS: u64 = 2_000;
 
 impl PluginInstanceHandle {
     pub(crate) fn new_component(
@@ -156,6 +157,7 @@ impl PluginInstanceHandle {
             inner: PluginImpl::Component { plugin, store },
             telemetry,
             epoch_guard,
+            on_event_budget_ms: DEFAULT_ON_EVENT_BUDGET_MS,
         }
     }
 
@@ -178,6 +180,7 @@ impl PluginInstanceHandle {
             inner: PluginImpl::Module { instance, store },
             telemetry,
             epoch_guard,
+            on_event_budget_ms: DEFAULT_ON_EVENT_BUDGET_MS,
         }
     }
 
@@ -199,6 +202,11 @@ impl PluginInstanceHandle {
     /// Attach the manifest's `capabilities.concurrentSafe` flag. Builder-style,
     /// mirroring with_subscribes. Records the plugin's opt-in to concurrent
     /// (pooled) dispatch; the runner reads it to choose the drain strategy.
+    pub(crate) fn with_on_event_budget_ms(mut self, budget_ms: u64) -> Self {
+        self.on_event_budget_ms = budget_ms;
+        self
+    }
+
     pub(crate) fn with_concurrent_safe(mut self, concurrent_safe: bool) -> Self {
         self.concurrent_safe = concurrent_safe;
         self
@@ -449,7 +457,9 @@ impl PluginInstanceHandle {
         // Arm the in-flight wall-clock deadline; the per-store epoch callback
         // traps once it elapses (timeout) or the cancel flag is set (force
         // interrupt). Cleared after the call so lifecycle calls don't inherit it.
-        let budget_ms = on_event_budget_ms();
+        // The budget rides on the handle (stamped from config at load), so this
+        // hot path reads a field — never `std::env::var`.
+        let budget_ms = self.on_event_budget_ms;
         let deadline = std::time::Instant::now() + std::time::Duration::from_millis(budget_ms);
         *self.epoch_guard.wall_deadline.lock().expect("wall_deadline poisoned") = Some(deadline);
 

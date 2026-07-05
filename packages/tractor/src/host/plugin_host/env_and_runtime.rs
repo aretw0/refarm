@@ -503,7 +503,11 @@ fn spawn_epoch_ticker(engine: &Arc<Engine>, module_engine: &Arc<Engine>) {
 }
 
 impl PluginHost {
-    pub fn new(trust: TrustManager, telemetry: TelemetryBus) -> Result<Self> {
+    pub fn new(
+        trust: TrustManager,
+        telemetry: TelemetryBus,
+        on_event_budget_ms: u64,
+    ) -> Result<Self> {
         let mut config = Config::new();
         config.async_support(true);
         config.wasm_component_model(true);
@@ -561,6 +565,7 @@ impl PluginHost {
             module_engine,
             module_linker: Arc::new(module_linker),
             component_cache: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
+            on_event_budget_ms,
         })
     }
 
@@ -693,7 +698,8 @@ impl PluginHost {
             provides,
         )
         .with_subscribes(subscribes)
-        .with_concurrent_safe(concurrent_safe);
+        .with_concurrent_safe(concurrent_safe)
+        .with_on_event_budget_ms(self.on_event_budget_ms);
         handle.call_setup().await?;
 
         if let Err(e) = store_refarm_config_node(sync, &plugin_id, &base, &env_vars, config_json.as_ref()) {
@@ -776,7 +782,8 @@ impl PluginHost {
             store,
             self.telemetry.clone(),
             provides,
-        );
+        )
+        .with_on_event_budget_ms(self.on_event_budget_ms);
         handle.call_setup().await?;
 
         if let Err(e) = store_refarm_config_node(sync, plugin_id, &base, &env_vars, config_json.as_ref()) {

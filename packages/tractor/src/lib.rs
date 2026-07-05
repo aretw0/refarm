@@ -231,13 +231,28 @@ fn prompt_ref_from_payload(payload: Option<&str>) -> Option<String> {
 /// 1 (default / unset / invalid) keeps the single-store runner. Capped at 16 to
 /// stay well under the 8GB host ceiling even before the bounded pooling
 /// allocator lands.
-fn plugin_pool_size() -> usize {
+/// Parse `REFARM_PLUGIN_POOL` from the process env. Called ONCE at boot via
+/// [`TractorNativeConfig::from_env`]; the resolved value then rides on the config
+/// and is read from there (never from env on any hot path).
+fn plugin_pool_size_from_env() -> usize {
     std::env::var("REFARM_PLUGIN_POOL")
         .ok()
         .and_then(|raw| raw.parse::<usize>().ok())
         .filter(|n| *n >= 1)
         .unwrap_or(1)
         .min(16)
+}
+
+/// Parse `REFARM_ON_EVENT_TIMEOUT_MS` from the process env. Called ONCE at boot
+/// via [`TractorNativeConfig::from_env`]; the resolved value rides on the config
+/// into every `PluginInstanceHandle`, so the per-event hot path reads a field,
+/// not env.
+fn on_event_budget_ms_from_env() -> u64 {
+    std::env::var("REFARM_ON_EVENT_TIMEOUT_MS")
+        .ok()
+        .and_then(|raw| raw.parse::<u64>().ok())
+        .filter(|ms| *ms > 0)
+        .unwrap_or(2_000)
 }
 
 /// Spawn one runner thread that owns `handle`'s !Send store and drains the
@@ -356,6 +371,13 @@ fn spawn_plugin_store_runner(
 }
 
 /// Top-level configuration for booting a TractorNative instance.
+///
+/// Runtime knobs (pool size, event budget, …) live here as plain fields so the
+/// host reads them from config, NOT from process-global `std::env::var` on hot
+/// paths. `Default` is pure (deterministic literals) so tests construct a config
+/// directly and never mutate process env — which leaks across threads under
+/// `--test-threads>1`. Production seeds the env-overridable knobs once at boot
+/// via [`TractorNativeConfig::from_env`].
 #[derive(Debug, Clone)]
 pub struct TractorNativeConfig {
     /// Storage namespace — maps to `~/.local/share/refarm/{namespace}.db`
@@ -367,6 +389,13 @@ pub struct TractorNativeConfig {
     pub security_mode: SecurityMode,
     /// Telemetry ring buffer capacity (default: 1000)
     pub telemetry_capacity: usize,
+    /// Store-pool size for concurrent-safe plugins (default 1, capped 16).
+    /// Env override at boot: `REFARM_PLUGIN_POOL`.
+    pub plugin_pool_size: usize,
+    /// Wall-clock budget (ms) for a single plugin `on_event` call; the per-store
+    /// epoch callback traps a wedged guest once it elapses (default 2000).
+    /// Env override at boot: `REFARM_ON_EVENT_TIMEOUT_MS`.
+    pub on_event_budget_ms: u64,
 }
 
 impl Default for TractorNativeConfig {
@@ -376,6 +405,22 @@ impl Default for TractorNativeConfig {
             port: 42000,
             security_mode: SecurityMode::Strict,
             telemetry_capacity: 1000,
+            plugin_pool_size: 1,
+            on_event_budget_ms: 2_000,
+        }
+    }
+}
+
+impl TractorNativeConfig {
+    /// A default config with the env-overridable runtime knobs seeded from the
+    /// process environment. Called ONCE at boot; everything downstream reads the
+    /// resolved values from the config, never from env. Non-env fields keep their
+    /// `Default` values (callers override namespace/port/etc. as usual).
+    pub fn from_env() -> Self {
+        Self {
+            plugin_pool_size: plugin_pool_size_from_env(),
+            on_event_budget_ms: on_event_budget_ms_from_env(),
+            ..Self::default()
         }
     }
 }
@@ -447,7 +492,8 @@ impl TractorNative {
         let storage = NativeStorage::open(&config.namespace)?;
         let sync = NativeSync::new(storage.clone(), &config.namespace)?;
         let trust = TrustManager::new();
-        let plugins = host::PluginHost::new(trust.clone(), telemetry.clone())?;
+        let plugins =
+            host::PluginHost::new(trust.clone(), telemetry.clone(), config.on_event_budget_ms)?;
 
         // Reclaim the unbounded streaming graph nodes (one row per streamed chunk)
         // in the background, deleting from both sqlite and the Loro doc so a
@@ -521,7 +567,7 @@ impl TractorNative {
     /// then drains them into the pool. A no-op if the plugin isn't concurrent-safe
     /// or the pool size is 1.
     pub async fn stage_pool_stores(&self, path: &Path, concurrent_safe: bool) -> Result<()> {
-        let pool_size = plugin_pool_size();
+        let pool_size = self.config.plugin_pool_size;
         if !concurrent_safe || pool_size <= 1 {
             return Ok(());
         }
@@ -872,8 +918,15 @@ mod event_router_tests {
 
 #[cfg(test)]
 mod pool_tests {
-    use super::plugin_pool_size;
+    use super::plugin_pool_size_from_env;
 
+    // This module tests the env PARSER (plugin_pool_size_from_env) — the one place
+    // REFARM_PLUGIN_POOL is read, and only ONCE at boot in production
+    // (TractorNativeConfig::from_env). No production hot path or other test reads
+    // this var, so mutating it here is not a cross-thread hazard for any other
+    // test; the two cases here are serialized within one #[test] each. The
+    // migrated read site (stage_pool_stores) now reads self.config.plugin_pool_size,
+    // never env.
     fn with_pool_env<T>(value: Option<&str>, f: impl FnOnce() -> T) -> T {
         match value {
             Some(v) => std::env::set_var("REFARM_PLUGIN_POOL", v),
@@ -887,18 +940,18 @@ mod pool_tests {
     #[test]
     fn pool_size_defaults_to_one() {
         // Unset, empty, and invalid all keep the single-store runner (opt-in).
-        assert_eq!(with_pool_env(None, plugin_pool_size), 1);
-        assert_eq!(with_pool_env(Some(""), plugin_pool_size), 1);
-        assert_eq!(with_pool_env(Some("nan"), plugin_pool_size), 1);
-        assert_eq!(with_pool_env(Some("0"), plugin_pool_size), 1);
+        assert_eq!(with_pool_env(None, plugin_pool_size_from_env), 1);
+        assert_eq!(with_pool_env(Some(""), plugin_pool_size_from_env), 1);
+        assert_eq!(with_pool_env(Some("nan"), plugin_pool_size_from_env), 1);
+        assert_eq!(with_pool_env(Some("0"), plugin_pool_size_from_env), 1);
     }
 
     #[test]
     fn pool_size_parses_and_caps() {
-        assert_eq!(with_pool_env(Some("1"), plugin_pool_size), 1);
-        assert_eq!(with_pool_env(Some("4"), plugin_pool_size), 4);
+        assert_eq!(with_pool_env(Some("1"), plugin_pool_size_from_env), 1);
+        assert_eq!(with_pool_env(Some("4"), plugin_pool_size_from_env), 4);
         // Capped at 16 to stay under the 8GB host ceiling.
-        assert_eq!(with_pool_env(Some("999"), plugin_pool_size), 16);
+        assert_eq!(with_pool_env(Some("999"), plugin_pool_size_from_env), 16);
     }
 }
 

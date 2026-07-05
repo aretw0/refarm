@@ -20,7 +20,14 @@ use tempfile::NamedTempFile;
 fn test_plugin_host() -> PluginHost {
     let trust = TrustManager::with_security_mode(SecurityMode::Permissive);
     let telemetry = TelemetryBus::new(64);
-    PluginHost::new(trust, telemetry).unwrap()
+    // Host-level budget is a fallback; tests that care inject a specific budget on
+    // the handle via with_on_event_budget_ms (no process env → no thread leak).
+    PluginHost::new(
+        trust,
+        telemetry,
+        crate::host::instance::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .unwrap()
 }
 
 fn test_native_sync() -> NativeSync {
@@ -149,14 +156,17 @@ async fn p1_module_call_on_event_with_none_payload_succeeds() {
 #[tokio::test]
 async fn p1_module_on_event_wedge_traps_on_epoch_deadline() {
     // A guest busy-loop with no yield point can ONLY be broken by epoch
-    // interruption. Set a short budget so the test is fast, load the wedged
+    // interruption. Inject a short budget directly onto the handle (no process
+    // env — that leaks across threads under --test-threads>1), load the wedged
     // module, and assert on_event returns an epoch trap (not a hang).
-    std::env::set_var("REFARM_ON_EVENT_TIMEOUT_MS", "50");
-
     let host = test_plugin_host();
     let sync = test_native_sync();
     let file = wat_to_wasm_file(WEDGED_ON_EVENT_P1_WAT);
-    let mut handle = host.load(file.path(), &sync).await.unwrap();
+    let mut handle = host
+        .load(file.path(), &sync)
+        .await
+        .unwrap()
+        .with_on_event_budget_ms(50);
 
     let started = std::time::Instant::now();
     // Bound the whole call so a broken epoch (test failure) doesn't hang CI:
@@ -168,8 +178,6 @@ async fn p1_module_on_event_wedge_traps_on_epoch_deadline() {
     .await
     .expect("call_on_event must return via epoch trap, not hang");
     let elapsed = started.elapsed();
-
-    std::env::remove_var("REFARM_ON_EVENT_TIMEOUT_MS");
 
     assert!(result.is_err(), "a wedged on_event must fail, not succeed");
     let err = result.unwrap_err();
@@ -190,12 +198,15 @@ async fn p1_module_on_event_cancel_flag_force_interrupts_before_timeout() {
     // A LONG timeout budget so the wedge would NOT trip on its own within the
     // test window — the ONLY thing that can interrupt it is the cancel flag.
     // This proves the force-interrupt path, distinct from the timeout path.
-    std::env::set_var("REFARM_ON_EVENT_TIMEOUT_MS", "60000");
-
+    // Budget injected on the handle (no process env → no cross-thread leak).
     let host = test_plugin_host();
     let sync = test_native_sync();
     let file = wat_to_wasm_file(WEDGED_ON_EVENT_P1_WAT);
-    let mut handle = host.load(file.path(), &sync).await.unwrap();
+    let mut handle = host
+        .load(file.path(), &sync)
+        .await
+        .unwrap()
+        .with_on_event_budget_ms(60_000);
 
     // Flip the cancel flag from another thread shortly after the guest starts.
     let cancel = handle.cancel_flag();
@@ -212,8 +223,6 @@ async fn p1_module_on_event_cancel_flag_force_interrupts_before_timeout() {
     .await
     .expect("cancel must interrupt the wedged guest, not hang");
     let elapsed = started.elapsed();
-
-    std::env::remove_var("REFARM_ON_EVENT_TIMEOUT_MS");
 
     assert!(
         result.unwrap_err().downcast_ref::<wasmtime::Trap>() == Some(&wasmtime::Trap::Interrupt),

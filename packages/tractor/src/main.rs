@@ -384,7 +384,10 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         namespace: args.namespace.clone(),
         port: args.port,
         security_mode,
-        ..Default::default()
+        // from_env (not default) seeds the runtime knobs (pool size, event
+        // budget) from the process env ONCE here at daemon boot; downstream reads
+        // them from the config, never from env.
+        ..TractorNativeConfig::from_env()
     };
 
     tracing::info!(namespace = %args.namespace, port = args.port, "Starting tractor daemon");
@@ -617,7 +620,7 @@ async fn probe_runtime_boot(namespace: &str) -> Result<()> {
         namespace: namespace.to_string(),
         port: 0,
         security_mode: SecurityMode::Strict,
-        ..Default::default()
+        ..TractorNativeConfig::from_env()
     };
 
     let tractor = TractorNative::boot(config)

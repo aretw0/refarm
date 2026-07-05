@@ -350,7 +350,7 @@ async fn harness_agent_response_stored_in_crdt() {
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "oi", "agent response harness").await;
@@ -391,7 +391,7 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
@@ -510,7 +510,7 @@ async fn harness_task_memory_disabled_stores_no_task_nodes() {
     std::env::set_var("LLM_TASK_MEMORY", "0");
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
@@ -572,7 +572,7 @@ data: [DONE]
     std::env::set_var("LLM_STREAM_RESPONSES", "1");
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "oi", "streaming harness").await;
@@ -674,7 +674,7 @@ data: [DONE]
     std::env::set_var("LLM_STREAM_RESPONSES", "1");
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "run echo", "streaming tool harness").await;
@@ -718,7 +718,7 @@ async fn harness_usage_record_stored_with_tokens() {
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "teste de uso", "usage record harness").await;
@@ -751,7 +751,7 @@ async fn harness_context_guard_blocks_oversized_prompt() {
     std::env::set_var("LLM_MAX_CONTEXT_TOKENS", "1");
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
@@ -791,7 +791,7 @@ async fn harness_budget_block_falls_through_to_error_without_fallback() {
     std::env::set_var("LLM_PROVIDER", "ollama");
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
@@ -860,7 +860,7 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "run echo", "tool-use harness").await;
@@ -948,7 +948,7 @@ async fn harness_find_references_tool_reads_lsp_locations() {
     );
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
@@ -1039,7 +1039,7 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
     );
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
@@ -1085,7 +1085,7 @@ async fn harness_fallback_serves_response_on_primary_failure() {
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "test fallback", "fallback harness").await;
@@ -1122,7 +1122,7 @@ async fn harness_multi_turn_history_included_in_request() {
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     // Turns 1 and 2: history disabled — build CRDT state only.
@@ -1200,7 +1200,7 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
     std::env::set_var("LLM_TOOL_OUTPUT_MAX_LINES", "3");
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "count to ten", "tool truncation harness").await;
@@ -1261,7 +1261,7 @@ async fn harness_refarm_config_json_injects_provider() {
     std::env::set_current_dir(dir.path()).unwrap();
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
@@ -1306,7 +1306,7 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
     std::env::set_var("LLM_AGENT_ID", "test-agent-alpha");
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
@@ -1364,7 +1364,7 @@ async fn harness_session_entries_stored_for_each_turn() {
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     // Send first prompt.
@@ -1469,7 +1469,7 @@ async fn harness_write_structured_tool_creates_file() {
     std::env::set_var("MODEL_FS_ROOT", dir.path().to_str().unwrap());
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(
@@ -1544,7 +1544,7 @@ async fn harness_read_structured_tool_returns_paginated_header() {
     std::env::set_var("MODEL_FS_ROOT", dir.path().to_str().unwrap());
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "read the json file", "read structured harness").await;
@@ -1598,7 +1598,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
 
     let shared_sync = make_sync();
 
-    let host_a = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host_a = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle_a = host_a.load(path, &shared_sync).await.expect("load agent A");
     call_on_event_with_timeout(&mut handle_a, "agent A prompt", "swarm harness agent A").await;
 
@@ -1625,7 +1625,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     std::env::set_var("LLM_AGENT_ID", "beta");
 
     // Agent B uses the SAME shared_sync — same storage namespace.
-    let host_b = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host_b = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle_b = host_b.load(path, &shared_sync).await.expect("load agent B");
     call_on_event_with_timeout(&mut handle_b, "agent B prompt", "swarm harness agent B").await;
 
@@ -1703,7 +1703,7 @@ async fn harness_pre_tool_budget_read_file_gets_default_limit() {
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "read the big file", "budget read harness").await;
@@ -1777,7 +1777,7 @@ async fn harness_pre_tool_budget_model_can_override_limit() {
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load agent");
 
     call_on_event_with_timeout(&mut handle, "read 10 lines only", "budget override harness").await;

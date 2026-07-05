@@ -437,7 +437,7 @@ fn run_instantiation_benchmark() -> Result<BenchReport> {
             ));
         }
         let sync = make_sync(":memory:")?;
-        let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(64))
+        let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(64), 2_000)
             .context("PluginHost::new")?;
 
         // Warm one load so page-cache / JIT-compile costs don't skew the first.
