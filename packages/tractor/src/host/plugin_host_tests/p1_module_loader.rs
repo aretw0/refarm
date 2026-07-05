@@ -186,6 +186,47 @@ async fn p1_module_on_event_wedge_traps_on_epoch_deadline() {
 }
 
 #[tokio::test]
+async fn p1_module_on_event_cancel_flag_force_interrupts_before_timeout() {
+    // A LONG timeout budget so the wedge would NOT trip on its own within the
+    // test window — the ONLY thing that can interrupt it is the cancel flag.
+    // This proves the force-interrupt path, distinct from the timeout path.
+    std::env::set_var("REFARM_ON_EVENT_TIMEOUT_MS", "60000");
+
+    let host = test_plugin_host();
+    let sync = test_native_sync();
+    let file = wat_to_wasm_file(WEDGED_ON_EVENT_P1_WAT);
+    let mut handle = host.load(file.path(), &sync).await.unwrap();
+
+    // Flip the cancel flag from another thread shortly after the guest starts.
+    let cancel = handle.cancel_flag();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+    });
+
+    let started = std::time::Instant::now();
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        handle.call_on_event("user:prompt", Some("spin")),
+    )
+    .await
+    .expect("cancel must interrupt the wedged guest, not hang");
+    let elapsed = started.elapsed();
+
+    std::env::remove_var("REFARM_ON_EVENT_TIMEOUT_MS");
+
+    assert!(
+        result.unwrap_err().downcast_ref::<wasmtime::Trap>() == Some(&wasmtime::Trap::Interrupt),
+        "cancel force-interrupt must surface as an epoch trap"
+    );
+    // Cancel fires at ~100ms — must interrupt FAR before the 60s timeout budget.
+    assert!(
+        elapsed < std::time::Duration::from_secs(3),
+        "cancel must interrupt promptly (well before the 60s timeout), took {elapsed:?}"
+    );
+}
+
+#[tokio::test]
 async fn p1_module_ingest_returns_count() {
     let host = test_plugin_host();
     let sync = test_native_sync();

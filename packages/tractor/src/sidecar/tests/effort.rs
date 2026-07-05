@@ -265,6 +265,7 @@ async fn sidecar_effort_result_survives_state_reopen() {
 
     let rehydrated = SidecarState::new(
         Arc::new(RwLock::new(HashMap::new())),
+        Arc::new(RwLock::new(HashMap::new())), // cancel_flags
         Arc::new(RwLock::new(None)),
         crate::EventRouter::default(),
         crate::TelemetryBus::new(100),
@@ -764,4 +765,58 @@ async fn sidecar_retry_guards_unknown_and_non_terminal() {
         .await
         .unwrap();
     assert_eq!(non_terminal.status(), 409, "retry of an in-progress effort is a conflict");
+}
+
+/// Cancel force-interrupt wiring: cancelling an effort flips the target plugin's
+/// cancel flag (which its store epoch callback observes to trap a wedged guest).
+/// This is the sidecar half of SLICE 2 — the host half (a set flag actually
+/// interrupting a spinning guest) is proven in the P1 loader tests.
+#[tokio::test]
+async fn sidecar_cancel_sets_plugin_cancel_flag() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+
+    // A loaded agent channel keeps the respond effort in-progress (cancellable),
+    // and it is the active agent (the effort's dispatch target).
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("@refarm/agent".to_string(), tx);
+    *state.active_agent_id.write().unwrap() = Some("@refarm/agent".to_string());
+
+    // Register the plugin's cancel flag (as register_for_events would).
+    let flag = Arc::new(AtomicBool::new(false));
+    state
+        .cancel_flags
+        .write()
+        .unwrap()
+        .insert("@refarm/agent".to_string(), flag.clone());
+
+    let id = uuid::Uuid::new_v4().to_string();
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&id))
+        .send()
+        .await
+        .unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_millis(80)).await;
+
+    assert!(!flag.load(Ordering::SeqCst), "flag starts unset");
+
+    let cancel = client
+        .post(format!("{}/efforts/{id}/cancel", base(port)))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(cancel.status(), 202);
+
+    assert!(
+        flag.load(Ordering::SeqCst),
+        "cancel must set the target plugin's cancel flag to force-interrupt a wedged guest"
+    );
 }

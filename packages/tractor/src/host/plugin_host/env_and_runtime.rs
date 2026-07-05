@@ -612,7 +612,7 @@ impl PluginHost {
         let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone());
 
         let component = Component::from_file(&self.engine, path)?;
-        let mut store = Store::new(&self.engine, TractorStore { wasi, http, bindings, table });
+        let mut store = Store::new(&self.engine, TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() });
 
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
@@ -704,7 +704,7 @@ impl PluginHost {
         };
 
         let module = Module::from_binary(&self.module_engine, bytes)?;
-        let mut store = Store::new(&self.module_engine, P1Store { wasi: wasi_p1 });
+        let mut store = Store::new(&self.module_engine, P1Store { wasi: wasi_p1, epoch_guard: EpochGuard::new() });
         let instance = self.module_linker.instantiate(&mut store, &module)?;
 
         let provides = read_runtime_plugin_manifest(path)?
@@ -758,7 +758,7 @@ impl PluginHost {
         let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone());
 
         let component = Component::from_file(&self.engine, path)?;
-        let mut store = Store::new(&self.engine, TractorStore { wasi, http, bindings, table });
+        let mut store = Store::new(&self.engine, TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() });
 
         let agent_tools = atb::AgentToolsHost::instantiate_async(
             &mut store,

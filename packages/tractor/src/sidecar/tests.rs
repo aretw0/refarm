@@ -23,6 +23,7 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
     let state = SidecarState::new(
         channels,
+        Arc::new(RwLock::new(HashMap::new())), // cancel_flags
         Arc::new(RwLock::new(None)),
         crate::EventRouter::default(),
         crate::TelemetryBus::new(100),
@@ -75,6 +76,7 @@ async fn start_effort_sidecar_ns() -> (SidecarState, u16, PathBuf, String) {
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
     let state = SidecarState::new(
         channels,
+        Arc::new(RwLock::new(HashMap::new())), // cancel_flags
         Arc::new(RwLock::new(None)),
         crate::EventRouter::default(),
         crate::TelemetryBus::new(100),

@@ -135,6 +135,11 @@ pub struct SidecarState {
     /// lifetime; after a restart the input is gone and retry reports so.
     pub efforts_input: Arc<RwLock<HashMap<String, Effort>>>,
     pub agent_channels: AgentChannels,
+    /// Per-plugin cancel flags shared with each plugin store's epoch callback.
+    /// Setting one force-interrupts that plugin's in-flight guest call — how
+    /// effort-cancel reaches a thread already spinning inside a guest (the mpsc
+    /// agent_channels cannot: a wedged thread never polls its receiver).
+    pub cancel_flags: crate::CancelFlags,
     /// ID of the loaded plugin with `"agent:respond"` capability, if any.
     /// Populated by TractorNative.register_for_events; used for effort routing.
     pub active_agent_id: Arc<RwLock<Option<String>>>,
@@ -152,6 +157,7 @@ impl SidecarState {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         agent_channels: AgentChannels,
+        cancel_flags: crate::CancelFlags,
         active_agent_id: Arc<RwLock<Option<String>>>,
         event_router: crate::EventRouter,
         telemetry: crate::TelemetryBus,
@@ -167,6 +173,7 @@ impl SidecarState {
             efforts: Arc::new(RwLock::new(efforts)),
             efforts_input: Arc::new(RwLock::new(HashMap::new())),
             agent_channels,
+            cancel_flags,
             active_agent_id,
             event_router,
             telemetry,
@@ -449,6 +456,46 @@ async fn post_effort_retry(
     }
 }
 
+/// Force-interrupt the plugin(s) that may be executing this effort by flipping
+/// their cancel flags. Resolves the target the same way dispatch does: the
+/// retained effort's task plugin_id (dispatch efforts) and the active agent
+/// (respond efforts). Flipping a flag is harmless if that plugin isn't actually
+/// mid-call — its store callback simply traps a call that isn't running, or the
+/// flag is observed only when a call is in flight. Runs before the store is
+/// marked cancelled so the trap and the status agree.
+fn interrupt_effort_plugin(state: &SidecarState, effort_id: &str) {
+    let mut targets: Vec<String> = Vec::new();
+    if let Some(effort) = state
+        .efforts_input
+        .read()
+        .expect("efforts_input poisoned")
+        .get(effort_id)
+    {
+        if let Some(task) = effort.tasks.first() {
+            // Match dispatch's plugin_key derivation (rsplit '/').
+            let key = task.plugin_id.rsplit('/').next().unwrap_or(&task.plugin_id);
+            targets.push(key.to_string());
+            targets.push(task.plugin_id.clone());
+        }
+    }
+    if let Some(agent) = state
+        .active_agent_id
+        .read()
+        .expect("active_agent_id poisoned")
+        .clone()
+    {
+        targets.push(agent);
+    }
+
+    let flags = state.cancel_flags.read().expect("cancel_flags poisoned");
+    for target in targets {
+        if let Some(flag) = flags.get(&target) {
+            flag.store(true, std::sync::atomic::Ordering::SeqCst);
+            tracing::info!(effort_id, plugin_id = %target, "cancel force-interrupt: flag set");
+        }
+    }
+}
+
 async fn post_effort_cancel(
     State(state): State<SidecarState>,
     AxumPath(id): AxumPath<String>,
@@ -467,12 +514,15 @@ async fn post_effort_cancel(
         )
         .into_response(),
         Some(_) => {
-            // Real cancel at the store level: transition to the terminal
-            // `cancelled` state so consumers and watch loops observe it. NOTE: this
-            // does not yet interrupt a runner thread already wedged inside a
-            // plugin's handler — that needs wasmtime epoch_interruption (the
-            // timeout slice). A dispatch effort that has already been delivered is
-            // terminal and is refused above.
+            // Force-interrupt a guest that may be spinning inside this effort's
+            // handler: flip the target plugin's cancel flag. Its store epoch
+            // callback traps at the next tick (~1ms via the global ticker),
+            // unwinding the wedged call — this is what the store-level cancel
+            // alone could not do (a wedged thread never polls its mpsc channel).
+            interrupt_effort_plugin(&state, &id);
+
+            // Transition to the terminal `cancelled` state so consumers and watch
+            // loops observe it.
             dispatch::finalise_effort(
                 &state,
                 &id,

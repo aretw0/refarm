@@ -422,6 +422,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         let base_dir = args.refarm_dir.clone().unwrap_or_else(dirs_refarm_base);
         match tractor::sidecar::SidecarState::new(
             tractor.agent_channels.clone(),
+            tractor.cancel_flags.clone(),
             tractor.active_agent_id.clone(),
             tractor.event_router.clone(),
             tractor.telemetry.clone(),

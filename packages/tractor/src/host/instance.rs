@@ -7,20 +7,14 @@
 use anyhow::Result;
 use wasmtime::Store;
 
-use crate::host::plugin_host::{P1Store, RefarmPluginHost, TractorStore};
+use crate::host::plugin_host::{EpochGuard, P1Store, RefarmPluginHost, TractorStore};
 use crate::telemetry::TelemetryBus;
 
-/// Epoch-deadline budget (in ticks) for a single on_event call. With the 1ms
-/// global epoch tick, the default 2000 ticks ≈ 2s of wall-clock guest time
-/// before a wedged handler traps. Overridable via REFARM_ON_EVENT_TIMEOUT_MS.
-///
-/// This is the sole interrupt path for a wedged handler today: a cancel marks
-/// the effort store but does not force-interrupt a thread already spinning
-/// inside the guest — the timeout below reclaims it. A lower budget = faster
-/// reclamation. Sub-timeout force-interrupt (wiring cancel to the epoch) is
-/// deferred until an epoch-semantics proof suite establishes how to advance the
-/// global epoch without spuriously trapping neighbouring plugins.
-fn on_event_epoch_deadline_ticks() -> u64 {
+/// Wall-clock budget (ms) for a single on_event call. The per-store epoch
+/// callback traps the guest once this elapses (a wedged handler is reclaimed) or
+/// the cancel flag is set (force interrupt). Default 2s, overridable via
+/// REFARM_ON_EVENT_TIMEOUT_MS.
+fn on_event_budget_ms() -> u64 {
     std::env::var("REFARM_ON_EVENT_TIMEOUT_MS")
         .ok()
         .and_then(|raw| raw.parse::<u64>().ok())
@@ -28,18 +22,34 @@ fn on_event_epoch_deadline_ticks() -> u64 {
         .unwrap_or(2_000)
 }
 
-/// Baseline epoch deadline (ticks) armed on every store at construction. Because
-/// `epoch_interruption(true)` makes the default deadline 0 — trapping ANY guest
-/// call immediately — every store must carry a live deadline. Lifecycle calls
-/// (setup/ingest/teardown/metadata) run under this generous baseline; on_event
-/// re-arms with the tighter, tunable budget above before each dispatch. 60s @
-/// 1ms/tick. Overridable via REFARM_LIFECYCLE_TIMEOUT_MS.
-fn lifecycle_epoch_deadline_ticks() -> u64 {
-    std::env::var("REFARM_LIFECYCLE_TIMEOUT_MS")
-        .ok()
-        .and_then(|raw| raw.parse::<u64>().ok())
-        .filter(|ms| *ms > 0)
-        .unwrap_or(60_000)
+/// How many ticks the callback re-arms by when it decides to keep waiting. Small
+/// so the next epoch checkpoint comes soon (re-check cancel/deadline promptly).
+const EPOCH_REARM_TICKS: u64 = 1;
+
+/// The unified per-store epoch decision, run by every store's
+/// epoch_deadline_callback when the shared epoch reaches its deadline. This is
+/// the single mechanism covering BOTH timeout and cancel, and the escape from
+/// the global-epoch footgun (proven in plugin_host_tests/epoch_semantics.rs):
+/// - cancel flag set               -> Err(trap): force-interrupt now.
+/// - wall-clock deadline elapsed   -> Err(trap): the on_event timeout.
+/// - otherwise (woken early by a neighbour's crank, or no bounded call in
+///   flight) -> Continue: re-arm and keep running. A neighbour never traps on
+///   someone else's cancel because it judges by its OWN wall clock.
+fn epoch_decision(guard: &EpochGuard) -> wasmtime::Result<wasmtime::UpdateDeadline> {
+    use std::sync::atomic::Ordering;
+    if guard.cancel.load(Ordering::SeqCst) {
+        return Err(wasmtime::Trap::Interrupt.into());
+    }
+    let elapsed = guard
+        .wall_deadline
+        .lock()
+        .expect("epoch wall_deadline poisoned")
+        .map(|deadline| std::time::Instant::now() >= deadline)
+        .unwrap_or(false);
+    if elapsed {
+        return Err(wasmtime::Trap::Interrupt.into());
+    }
+    Ok(wasmtime::UpdateDeadline::Continue(EPOCH_REARM_TICKS))
 }
 
 /// The runtime state of a loaded plugin.
@@ -82,6 +92,11 @@ pub struct PluginInstanceHandle {
     pub subscribes: Vec<String>,
     inner: PluginImpl,
     telemetry: TelemetryBus,
+    /// Shared with the store's epoch_deadline_callback. Exposes the cancel flag
+    /// (so a force-interrupt can flip it from another thread) and the in-flight
+    /// wall-clock deadline (armed before on_event). Cloned from the store's
+    /// EpochGuard at construction.
+    epoch_guard: EpochGuard,
 }
 
 impl PluginInstanceHandle {
@@ -92,9 +107,16 @@ impl PluginInstanceHandle {
         telemetry: TelemetryBus,
         provides: Vec<String>,
     ) -> Self {
-        // epoch_interruption(true) means the default deadline is 0 (traps
-        // immediately) — arm a generous baseline so lifecycle calls have budget.
-        store.set_epoch_deadline(lifecycle_epoch_deadline_ticks());
+        let epoch_guard = store.data().epoch_guard.clone();
+        // Install the per-store epoch callback (the safe primitive proven in the
+        // epoch-semantics suite): when the shared epoch reaches this store's
+        // deadline, self-judge — trap only on our own cancel/elapsed-deadline,
+        // else re-arm so a neighbour woken by someone else's crank survives.
+        store.epoch_deadline_callback(|ctx| epoch_decision(&ctx.data().epoch_guard));
+        // epoch_interruption(true) makes the default deadline 0 (traps
+        // immediately); arm a live baseline so the FIRST tick doesn't trap before
+        // a call arms its own deadline. The callback re-arms thereafter.
+        store.set_epoch_deadline(1);
         Self {
             id,
             state: PluginState::Idle,
@@ -102,6 +124,7 @@ impl PluginInstanceHandle {
             subscribes: Vec::new(),
             inner: PluginImpl::Component { plugin, store },
             telemetry,
+            epoch_guard,
         }
     }
 
@@ -112,9 +135,9 @@ impl PluginInstanceHandle {
         telemetry: TelemetryBus,
         provides: Vec<String>,
     ) -> Self {
-        // See new_component: arm a generous baseline deadline so lifecycle calls
-        // don't trap against the epoch_interruption default of 0.
-        store.set_epoch_deadline(lifecycle_epoch_deadline_ticks());
+        let epoch_guard = store.data().epoch_guard.clone();
+        store.epoch_deadline_callback(|ctx| epoch_decision(&ctx.data().epoch_guard));
+        store.set_epoch_deadline(1);
         Self {
             id,
             state: PluginState::Idle,
@@ -122,7 +145,15 @@ impl PluginInstanceHandle {
             subscribes: Vec::new(),
             inner: PluginImpl::Module { instance, store },
             telemetry,
+            epoch_guard,
         }
+    }
+
+    /// The cancel flag shared with this plugin's store epoch callback. Flipping
+    /// it (then advancing the engine epoch one tick) force-interrupts an
+    /// in-flight guest call at its next epoch checkpoint.
+    pub(crate) fn cancel_flag(&self) -> std::sync::Arc<std::sync::atomic::AtomicBool> {
+        self.epoch_guard.cancel.clone()
     }
 
     /// Attach the manifest's `capabilities.subscribes` event names to this handle.
@@ -370,47 +401,67 @@ impl PluginInstanceHandle {
     /// module's linear memory via the `alloc(len) -> ptr` export, then calls
     /// `on_event(ptr, len)`.
     pub async fn call_on_event(&mut self, event: &str, payload: Option<&str>) -> Result<()> {
-        let deadline = on_event_epoch_deadline_ticks();
-        match &mut self.inner {
-            PluginImpl::Component { plugin, store } => {
-                // Arm the epoch deadline before entering the guest so a wedged
-                // on_event traps (Trap::Interrupt) instead of hanging the runner
-                // thread forever. The global epoch ticker advances the clock.
-                store.set_epoch_deadline(deadline);
-                plugin
-                    .refarm_plugin_integration()
-                    .call_on_event(store, event, payload)
-                    .await?;
-                Ok(())
-            }
+        // Clear a stale cancel flag from a prior (already-resolved) call so it
+        // can't spuriously trap THIS call; a cancel targets the in-flight call.
+        self.epoch_guard
+            .cancel
+            .store(false, std::sync::atomic::Ordering::SeqCst);
+        // Arm the in-flight wall-clock deadline; the per-store epoch callback
+        // traps once it elapses (timeout) or the cancel flag is set (force
+        // interrupt). Cleared after the call so lifecycle calls don't inherit it.
+        let budget_ms = on_event_budget_ms();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(budget_ms);
+        *self.epoch_guard.wall_deadline.lock().expect("wall_deadline poisoned") = Some(deadline);
+
+        let result = match &mut self.inner {
+            PluginImpl::Component { plugin, store } => plugin
+                .refarm_plugin_integration()
+                .call_on_event(store, event, payload)
+                .await
+                .map(|_| ()),
             PluginImpl::Module { instance, store } => {
-                store.set_epoch_deadline(deadline);
-                let event_json = serde_json::json!({
-                    "event": event,
-                    "payload": payload,
-                })
-                .to_string();
-                let len = event_json.len() as i32;
-
-                let alloc_fn = instance.get_func(&mut *store, "alloc").ok_or_else(|| {
-                    anyhow::anyhow!("P1 module '{}' must export 'alloc(i32) -> i32'", self.id)
-                })?;
-                let alloc: wasmtime::TypedFunc<i32, i32> = alloc_fn.typed(&*store)?;
-                let ptr = alloc.call(&mut *store, len)?;
-
-                let memory = instance.get_memory(&mut *store, "memory").ok_or_else(|| {
-                    anyhow::anyhow!("P1 module '{}' must export 'memory'", self.id)
-                })?;
-                memory.write(&mut *store, ptr as usize, event_json.as_bytes())?;
-
-                let on_event_fn = instance.get_func(&mut *store, "on_event").ok_or_else(|| {
-                    anyhow::anyhow!("P1 module '{}' must export 'on_event(i32, i32)'", self.id)
-                })?;
-                let on_event: wasmtime::TypedFunc<(i32, i32), ()> = on_event_fn.typed(&*store)?;
-                on_event.call(&mut *store, (ptr, len))?;
-                Ok(())
+                Self::call_module_on_event(&self.id, instance, store, event, payload)
             }
-        }
+        };
+
+        // Disarm the deadline regardless of outcome.
+        *self.epoch_guard.wall_deadline.lock().expect("wall_deadline poisoned") = None;
+        result
+    }
+
+    /// The P1-module on_event body, factored out so call_on_event can arm/disarm
+    /// the wall-clock deadline uniformly around both variants.
+    fn call_module_on_event(
+        id: &str,
+        instance: &wasmtime::Instance,
+        store: &mut Store<P1Store>,
+        event: &str,
+        payload: Option<&str>,
+    ) -> Result<()> {
+        let event_json = serde_json::json!({
+            "event": event,
+            "payload": payload,
+        })
+        .to_string();
+        let len = event_json.len() as i32;
+
+        let alloc_fn = instance.get_func(&mut *store, "alloc").ok_or_else(|| {
+            anyhow::anyhow!("P1 module '{}' must export 'alloc(i32) -> i32'", id)
+        })?;
+        let alloc: wasmtime::TypedFunc<i32, i32> = alloc_fn.typed(&*store)?;
+        let ptr = alloc.call(&mut *store, len)?;
+
+        let memory = instance.get_memory(&mut *store, "memory").ok_or_else(|| {
+            anyhow::anyhow!("P1 module '{}' must export 'memory'", id)
+        })?;
+        memory.write(&mut *store, ptr as usize, event_json.as_bytes())?;
+
+        let on_event_fn = instance.get_func(&mut *store, "on_event").ok_or_else(|| {
+            anyhow::anyhow!("P1 module '{}' must export 'on_event(i32, i32)'", id)
+        })?;
+        let on_event: wasmtime::TypedFunc<(i32, i32), ()> = on_event_fn.typed(&*store)?;
+        on_event.call(&mut *store, (ptr, len))?;
+        Ok(())
     }
 
     // ── Generic dispatcher (for TS-parity API) ────────────────────────────────
@@ -491,6 +542,7 @@ mod tests {
             &engine,
             P1Store {
                 wasi: WasiCtxBuilder::new().build_p1(),
+                epoch_guard: EpochGuard::new(),
             },
         );
         let instance = Instance::new(&mut store, &module, &[]).expect("instance");

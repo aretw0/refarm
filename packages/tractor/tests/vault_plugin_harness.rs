@@ -400,6 +400,7 @@ async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
     ));
     let state = tractor::sidecar::SidecarState::new(
         tractor.agent_channels.clone(),
+        tractor.cancel_flags.clone(),
         tractor.active_agent_id.clone(),
         tractor.event_router.clone(),
         tractor.telemetry.clone(),

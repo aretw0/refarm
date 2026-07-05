@@ -47,6 +47,7 @@ async fn start_tasks_sidecar(namespace: &str) -> (SidecarState, u16) {
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
     let state = SidecarState::new(
         channels,
+        Arc::new(RwLock::new(HashMap::new())), // cancel_flags
         Arc::new(RwLock::new(None)),
         crate::EventRouter::default(),
         crate::TelemetryBus::new(100),

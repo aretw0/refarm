@@ -63,6 +63,14 @@ const USER_PROMPT_EVENT: &str = "user:prompt";
 /// Keyed by plugin_id — each sender reaches the plugin's dedicated runner thread.
 pub type AgentChannels = Arc<RwLock<HashMap<String, mpsc::UnboundedSender<AgentMessage>>>>;
 
+/// Keyed by plugin_id — the cancel flag shared with each plugin store's epoch
+/// callback. Setting a flag force-interrupts that plugin's in-flight guest call
+/// at the next epoch tick (the global ticker wakes the callback within ~1ms).
+/// This is how effort-cancel reaches a thread already spinning inside a guest,
+/// which the mpsc AgentChannels above cannot (the wedged thread never polls it).
+pub type CancelFlags =
+    Arc<RwLock<HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>>;
+
 /// The neutral event router: maps an event name to the set of plugin_ids
 /// subscribed to it, layered OVER the plugin-id lifecycle registry
 /// (`agent_channels`) rather than replacing it — the registry still owns the
@@ -231,6 +239,10 @@ pub struct TractorNative {
     /// the `"observe-agent-tools"` capability in their manifest.
     /// Read by the Scarecrow audit subscriber to route agent-tool events.
     pub observer_channels: AgentChannels,
+    /// Cancel flags keyed by plugin_id, shared with each plugin store's epoch
+    /// callback. Populated by `register_for_events`; read by the sidecar's
+    /// effort-cancel to force-interrupt a wedged guest.
+    pub cancel_flags: CancelFlags,
     /// ID of the first loaded plugin that declared `"agent:respond"` capability.
     /// The sidecar exposes this as `activeAgent` in the /plugins response so the
     /// CLI can select the active agent without hardcoding any plugin name.
@@ -269,6 +281,7 @@ impl TractorNative {
             telemetry,
             agent_channels: Arc::new(RwLock::new(HashMap::new())),
             observer_channels: Arc::new(RwLock::new(HashMap::new())),
+            cancel_flags: Arc::new(RwLock::new(HashMap::new())),
             active_agent_id: Arc::new(RwLock::new(None)),
             event_router: EventRouter::default(),
             plugin_runner_handles: Arc::new(RwLock::new(HashMap::new())),
@@ -291,6 +304,13 @@ impl TractorNative {
         let plugin_id = handle.id.clone();
         let provides = handle.provides.clone();
         let subscribes = handle.subscribes.clone();
+        // Register the plugin's cancel flag (shared with its store epoch callback)
+        // BEFORE the handle moves into the runner thread, so effort-cancel can
+        // force-interrupt a wedged guest that never polls its mpsc channel.
+        self.cancel_flags
+            .write()
+            .expect("cancel_flags poisoned")
+            .insert(plugin_id.clone(), handle.cancel_flag());
         let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
 
         let id_for_thread = plugin_id.clone();

@@ -39,6 +39,40 @@ wasmtime::component::bindgen!({
 // a `refarm` root and would collide if in the same file/scope).
 use crate::host::agent_tools_bindings as atb;
 
+// ── EpochGuard ────────────────────────────────────────────────────────────────
+//
+// Per-store state read by the epoch_deadline_callback to decide, when the shared
+// epoch clock reaches this store's deadline, whether to interrupt the guest.
+// This is the escape from the global-epoch footgun proven in the epoch-semantics
+// suite: cranking the global epoch wakes EVERY store's callback, so each store
+// must self-judge. A store traps only when its OWN cancel flag is set or its OWN
+// wall-clock deadline has genuinely elapsed; otherwise it re-arms (a neighbour
+// woken early by someone else's crank survives).
+#[derive(Clone)]
+pub(crate) struct EpochGuard {
+    /// Set by a cancel to force-interrupt this store's guest on the next tick.
+    pub(crate) cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// Wall-clock deadline for the in-flight guest call (armed before on_event).
+    /// `None` outside a bounded call. A genuinely-elapsed deadline traps; a
+    /// callback firing before it re-arms.
+    pub(crate) wall_deadline: std::sync::Arc<std::sync::Mutex<Option<std::time::Instant>>>,
+}
+
+impl EpochGuard {
+    pub(crate) fn new() -> Self {
+        Self {
+            cancel: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            wall_deadline: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        }
+    }
+}
+
+impl Default for EpochGuard {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // ── TractorStore ──────────────────────────────────────────────────────────────
 
 pub(crate) struct TractorStore {
@@ -46,6 +80,7 @@ pub(crate) struct TractorStore {
     pub http: wasmtime_wasi_http::WasiHttpCtx,
     pub bindings: TractorNativeBindings,
     pub table: ResourceTable,
+    pub epoch_guard: EpochGuard,
 }
 
 impl WasiView for TractorStore {
@@ -74,6 +109,7 @@ impl wasmtime_wasi_http::WasiHttpView for TractorStore {
 
 pub(crate) struct P1Store {
     pub wasi: wasmtime_wasi::preview1::WasiP1Ctx,
+    pub epoch_guard: EpochGuard,
 }
 
 // ── AgentToolsHandle ──────────────────────────────────────────────────────────
