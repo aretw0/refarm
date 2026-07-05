@@ -40,7 +40,7 @@ function cargo(args) {
 const STEPS = [
 	rootScript("gate:smoke:runtime-host-contracts"),
 	cargo(["check", "--quiet"]),
-	cargo(["test", "--lib", "agent_tools_bridge", "--quiet"]),
+	cargo(["test", "--lib", "host_effects_bridge", "--quiet"]),
 	cargo(["test", "--lib", "plugin_host", "--quiet"]),
 	cargo(["test", "--lib", "wasi_bridge", "--quiet"]),
 	workspaceScript("packages/tractor", "test:smoke:ws"),
