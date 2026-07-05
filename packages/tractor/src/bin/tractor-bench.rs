@@ -33,6 +33,11 @@ const DISPATCH_COUNT: usize = 1000;
 /// Simulated per-event plugin work (microseconds). The single runner thread pays
 /// this SERIALLY per message — the head-of-line cost the suite proves.
 const PER_EVENT_WORK_US: u64 = 50;
+/// Worker count for the pooled-drain variant. Models the opt-in per-plugin pool
+/// (N stores, one per worker thread) that parallelizes the drain. Kept at 4 to
+/// match the repo's §7 build.jobs=4 / 8GB posture — the pool size a bounded
+/// wasmtime pooling allocator would use on this host.
+const DISPATCH_POOL_WORKERS: usize = 4;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BenchReport {
@@ -218,19 +223,78 @@ fn metric(name: &str, value: u128, unit: &str) -> BenchMetric {
 /// !Send wasmtime runner thread. Then it fires DISPATCH_COUNT deliveries and
 /// measures enqueue vs drain vs peak queue depth.
 fn run_dispatch_benchmark() -> Result<BenchReport> {
+    // worker_count = 1 is the serial baseline (one !Send runner thread — the real
+    // pain). worker_count = N models the opt-in pool: N workers drain the same
+    // queue concurrently, so drain time collapses toward SUM/N and the blindness
+    // ratio drops. Both run so the report can prove the win in one shot.
+    let serial = run_dispatch_drain(1)?;
+    let pooled = run_dispatch_drain(DISPATCH_POOL_WORKERS)?;
+
+    // Speedup = serial drain / pooled drain. With N workers over CPU-bound-ish
+    // sleeps it should approach N (bounded by the runtime's worker threads).
+    let speedup_x100 = if pooled.drain_ns > 0 {
+        (serial.drain_ns * 100 / pooled.drain_ns) as u128
+    } else {
+        0
+    };
+
+    Ok(BenchReport {
+        version: 1,
+        suite: "tractor-dispatch-stress".to_string(),
+        node_count: DISPATCH_COUNT,
+        threshold_pct: REGRESSION_THRESHOLD_PCT,
+        metrics: vec![
+            // `total` stays the SERIAL drain so the existing baseline/guard tracks
+            // the same number as before this parallel variant landed.
+            metric("total", serial.drain_ns, "ns"),
+            metric("enqueue_all", serial.enqueue_ns, "ns"),
+            metric("drain_all", serial.drain_ns, "ns"),
+            metric("peak_queue_depth", serial.peak as u128, "count"),
+            metric(
+                "blindness_ratio_drain_over_enqueue",
+                serial.blindness_ratio,
+                "count",
+            ),
+            metric("dispatched", DISPATCH_COUNT as u128, "count"),
+            // The parallel-drain proof: pooled drain time, its blindness ratio,
+            // and the speedup over serial. The pooled numbers should be far lower.
+            metric("pooled_workers", DISPATCH_POOL_WORKERS as u128, "count"),
+            metric("pooled_drain_all", pooled.drain_ns, "ns"),
+            metric(
+                "pooled_blindness_ratio",
+                pooled.blindness_ratio,
+                "count",
+            ),
+            metric("pooled_speedup_x100", speedup_x100, "count"),
+        ],
+    })
+}
+
+/// The outcome of one drain run at a given worker count.
+struct DrainRun {
+    enqueue_ns: u128,
+    drain_ns: u128,
+    peak: usize,
+    blindness_ratio: u128,
+}
+
+/// Fire DISPATCH_COUNT deliveries through the real router path, drained by
+/// `worker_count` concurrent workers over a shared queue, each paying
+/// PER_EVENT_WORK_US per message. worker_count=1 reproduces the serial !Send
+/// runner; worker_count=N models the opt-in pool.
+fn run_dispatch_drain(worker_count: usize) -> Result<DrainRun> {
     let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(worker_count.max(1) + 1)
         .enable_all()
         .build()
         .context("build bench tokio runtime")?;
 
-    rt.block_on(async {
+    rt.block_on(async move {
         let router = EventRouter::default();
         let channels: AgentChannels = Arc::new(RwLock::new(std::collections::HashMap::new()));
         let telemetry = TelemetryBus::new(DISPATCH_COUNT + 16);
 
-        // Stand a mock plugin: a channel drained serially by one task, like the
-        // real single !Send runner thread. `processed` counts completed work.
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<AgentMessage>();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<AgentMessage>();
         channels
             .write()
             .expect("channels")
@@ -241,27 +305,46 @@ fn run_dispatch_benchmark() -> Result<BenchReport> {
         let peak_depth = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let drain_started = Arc::new(RwLock::new(None::<Instant>));
 
-        let processed_c = processed.clone();
-        let peak_c = peak_depth.clone();
-        let drain_started_c = drain_started.clone();
-        let drainer = tokio::spawn(async move {
-            let mut first = true;
-            while let Some(_msg) = rx.recv().await {
-                if first {
-                    *drain_started_c.write().expect("drain start") = Some(Instant::now());
-                    first = false;
+        // N workers share the one receiver via a Mutex: each takes a message and
+        // runs its per-event work concurrently with the others (models N stores,
+        // one per worker thread, draining the same plugin queue).
+        let shared_rx = Arc::new(tokio::sync::Mutex::new(rx));
+        let mut workers = Vec::with_capacity(worker_count);
+        for _ in 0..worker_count.max(1) {
+            let shared_rx = shared_rx.clone();
+            let processed_c = processed.clone();
+            let peak_c = peak_depth.clone();
+            let drain_started_c = drain_started.clone();
+            workers.push(tokio::spawn(async move {
+                loop {
+                    let msg = {
+                        let mut rx = shared_rx.lock().await;
+                        // Peak depth = messages buffered behind the one we take.
+                        let depth = rx.len();
+                        let prev = peak_c.load(std::sync::atomic::Ordering::Relaxed);
+                        if depth > prev {
+                            peak_c.store(depth, std::sync::atomic::Ordering::Relaxed);
+                        }
+                        rx.recv().await
+                    };
+                    let Some(_msg) = msg else { break };
+                    {
+                        let mut start = drain_started_c.write().expect("drain start");
+                        if start.is_none() {
+                            *start = Some(Instant::now());
+                        }
+                    }
+                    tokio::time::sleep(std::time::Duration::from_micros(PER_EVENT_WORK_US)).await;
+                    processed_c.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 }
-                // Peak queue depth = messages still buffered behind this one.
-                let depth = rx.len();
-                let prev = peak_c.load(std::sync::atomic::Ordering::Relaxed);
-                if depth > prev {
-                    peak_c.store(depth, std::sync::atomic::Ordering::Relaxed);
-                }
-                // Simulated serial per-event work — the head-of-line cost.
-                tokio::time::sleep(std::time::Duration::from_micros(PER_EVENT_WORK_US)).await;
-                processed_c.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }));
+        }
+        let drainer = async move {
+            for w in workers {
+                let _ = w.await;
             }
-        });
+        };
+        let drainer = tokio::spawn(drainer);
 
         // ENQUEUE: fire all dispatches through the real router path. This is what
         // router:deliver latency measures today — it returns the instant the
@@ -297,7 +380,7 @@ fn run_dispatch_benchmark() -> Result<BenchReport> {
             .map(|t| t.elapsed().as_nanos())
             .unwrap_or(0);
 
-        drop(channels); // closes the sender so the drainer task exits
+        drop(channels); // closes the sender so the worker tasks exit
         let _ = drainer.await;
 
         let peak = peak_depth.load(std::sync::atomic::Ordering::Relaxed);
@@ -309,20 +392,11 @@ fn run_dispatch_benchmark() -> Result<BenchReport> {
             0
         };
 
-        Ok(BenchReport {
-            version: 1,
-            suite: "tractor-dispatch-stress".to_string(),
-            node_count: DISPATCH_COUNT,
-            threshold_pct: REGRESSION_THRESHOLD_PCT,
-            metrics: vec![
-                // `total` is the drain time (the real cost) so the guard tracks it.
-                metric("total", drain_ns, "ns"),
-                metric("enqueue_all", enqueue_ns, "ns"),
-                metric("drain_all", drain_ns, "ns"),
-                metric("peak_queue_depth", peak as u128, "count"),
-                metric("blindness_ratio_drain_over_enqueue", blindness_ratio, "count"),
-                metric("dispatched", DISPATCH_COUNT as u128, "count"),
-            ],
+        Ok(DrainRun {
+            enqueue_ns,
+            drain_ns,
+            peak,
+            blindness_ratio,
         })
     })
 }

@@ -6,35 +6,35 @@
   "metrics": [
     {
       "name": "total",
-      "value": 1197905547,
+      "value": 1233808440,
       "unit": "ns",
       "lower_is_better": true,
       "threshold_pct": 20.0
     },
     {
       "name": "enqueue_all",
-      "value": 1758732,
+      "value": 20593925,
       "unit": "ns",
       "lower_is_better": true,
       "threshold_pct": 20.0
     },
     {
       "name": "drain_all",
-      "value": 1197905547,
+      "value": 1233808440,
       "unit": "ns",
       "lower_is_better": true,
       "threshold_pct": 20.0
     },
     {
       "name": "peak_queue_depth",
-      "value": 997,
+      "value": 996,
       "unit": "count",
       "lower_is_better": false,
       "threshold_pct": 20.0
     },
     {
       "name": "blindness_ratio_drain_over_enqueue",
-      "value": 681,
+      "value": 59,
       "unit": "count",
       "lower_is_better": false,
       "threshold_pct": 20.0
@@ -42,6 +42,34 @@
     {
       "name": "dispatched",
       "value": 1000,
+      "unit": "count",
+      "lower_is_better": false,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "pooled_workers",
+      "value": 4,
+      "unit": "count",
+      "lower_is_better": false,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "pooled_drain_all",
+      "value": 301089188,
+      "unit": "ns",
+      "lower_is_better": true,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "pooled_blindness_ratio",
+      "value": 106,
+      "unit": "count",
+      "lower_is_better": false,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "pooled_speedup_x100",
+      "value": 409,
       "unit": "count",
       "lower_is_better": false,
       "threshold_pct": 20.0
