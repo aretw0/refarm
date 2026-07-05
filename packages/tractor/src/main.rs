@@ -403,6 +403,11 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
             Ok(mut handle) => {
                 tracing::info!(path = %path.display(), plugin_id = %handle.id, "plugin loaded");
                 maybe_ingest_on_load(&mut handle, path, ingest_policy).await?;
+                // Stage the pool's extra stores (opt-in: concurrentSafe +
+                // REFARM_PLUGIN_POOL=N>1); a no-op otherwise.
+                if let Err(e) = tractor.stage_pool_stores(path, handle.concurrent_safe).await {
+                    tracing::warn!(path = %path.display(), "failed to stage plugin pool stores: {e}");
+                }
                 tractor.register_for_events(handle);
             }
             Err(e) => {

@@ -199,6 +199,112 @@ pub fn deliver_via_router(
     sent
 }
 
+/// The opt-in pool size for a concurrent-safe plugin, from REFARM_PLUGIN_POOL.
+/// 1 (default / unset / invalid) keeps the single-store runner. Capped at 16 to
+/// stay well under the 8GB host ceiling even before the bounded pooling
+/// allocator lands.
+fn plugin_pool_size() -> usize {
+    std::env::var("REFARM_PLUGIN_POOL")
+        .ok()
+        .and_then(|raw| raw.parse::<usize>().ok())
+        .filter(|n| *n >= 1)
+        .unwrap_or(1)
+        .min(16)
+}
+
+/// Spawn one runner thread that owns `handle`'s !Send store and drains the
+/// shared receiver. For the default single-store path there is exactly one of
+/// these; for a concurrent-safe pooled plugin there are N, all draining the same
+/// queue in parallel (each pinned to its own thread, satisfying !Send).
+///
+/// Each thread takes a message under the shared-rx lock, releases the lock, then
+/// runs the guest — so N guests execute concurrently while only the brief
+/// dequeue is serialized. A `None` recv (senders dropped at shutdown) or a
+/// SHUTDOWN_EVENT tears this runner down.
+fn spawn_plugin_store_runner(
+    handle: host::PluginInstanceHandle,
+    shared_rx: Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<AgentMessage>>>,
+    telemetry: TelemetryBus,
+    plugin_id: String,
+) -> std::thread::JoinHandle<()> {
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("plugin runner rt");
+        let local = tokio::task::LocalSet::new();
+        local.block_on(&rt, async move {
+            let mut h = handle;
+            let mut teardown_done = false;
+            loop {
+                // Take one message (and read the backlog behind it) under the
+                // lock, then release so other pool workers can dequeue while this
+                // one runs its guest.
+                let (msg, queue_depth) = {
+                    let mut rx = shared_rx.lock().await;
+                    let depth = rx.len();
+                    match rx.recv().await {
+                        Some(msg) => (msg, depth),
+                        None => break, // senders dropped — shutdown.
+                    }
+                };
+                if msg.event == SHUTDOWN_EVENT {
+                    h.call_teardown().await;
+                    teardown_done = true;
+                    break;
+                }
+
+                let started = std::time::Instant::now();
+                let outcome = h.call_on_event(&msg.event, msg.payload.as_deref()).await;
+                let exec_us = started.elapsed().as_micros() as u64;
+                // An epoch trap (deadline exceeded) surfaces as Trap::Interrupt
+                // inside the anyhow error. Classify it so a wedged/interrupted
+                // handler is observable as a timeout, not a generic error.
+                let timed_out = outcome.as_ref().err().is_some_and(|e| {
+                    e.downcast_ref::<wasmtime::Trap>() == Some(&wasmtime::Trap::Interrupt)
+                });
+                if let Err(e) = &outcome {
+                    if timed_out {
+                        tracing::warn!(
+                            plugin_id = %plugin_id,
+                            event = %msg.event,
+                            "on_event timed out (epoch interrupt) — tearing down runner"
+                        );
+                    } else {
+                        tracing::warn!(plugin_id = %plugin_id, "on_event error: {e}");
+                    }
+                }
+                // Emit the REAL per-event drain cost + the queue depth behind it.
+                telemetry.emit_named(
+                    "plugin:on_event",
+                    Some(plugin_id.clone()),
+                    Some(serde_json::json!({
+                        "event": msg.event,
+                        "exec_us": exec_us,
+                        "queue_depth": queue_depth,
+                        "ok": outcome.is_ok(),
+                        // `timeout` when the epoch deadline tripped, else null.
+                        "reason": if timed_out { Some("timeout") } else { None::<&str> },
+                    })),
+                );
+
+                // After an epoch trap the store was unwound mid-execution and is
+                // not safe to reuse — tear THIS runner down. Other pool workers
+                // keep serving on their own (intact) stores.
+                if timed_out {
+                    break;
+                }
+            }
+
+            if !teardown_done {
+                h.call_teardown().await;
+            }
+            h.terminate();
+            tracing::debug!(plugin_id = %plugin_id, "plugin runner exiting");
+        });
+    })
+}
+
 /// Top-level configuration for booting a TractorNative instance.
 #[derive(Debug, Clone)]
 pub struct TractorNativeConfig {
@@ -253,7 +359,14 @@ pub struct TractorNative {
     /// just the elected agent's `user:prompt`. Populated by `register_for_events`.
     pub event_router: EventRouter,
     /// Join handles for plugin runner threads, keyed by plugin_id.
-    plugin_runner_handles: Arc<RwLock<HashMap<String, std::thread::JoinHandle<()>>>>,
+    /// Runner threads per plugin. A default plugin has one; a concurrent-safe
+    /// plugin running with a store pool has N (one per store). All are joined on
+    /// shutdown.
+    plugin_runner_handles: Arc<RwLock<HashMap<String, Vec<std::thread::JoinHandle<()>>>>>,
+    /// Extra store instances staged for a plugin's pool, keyed by plugin_id. The
+    /// caller loads N-1 additional stores (async) via `stage_pool_stores`;
+    /// register_for_events drains them into the pool. Empty for the default path.
+    pool_stores: Arc<RwLock<HashMap<String, Vec<host::PluginInstanceHandle>>>>,
     #[allow(dead_code)]
     config: TractorNativeConfig,
 }
@@ -291,6 +404,7 @@ impl TractorNative {
             active_agent_id: Arc::new(RwLock::new(None)),
             event_router: EventRouter::default(),
             plugin_runner_handles: Arc::new(RwLock::new(HashMap::new())),
+            pool_stores: Arc::new(RwLock::new(HashMap::new())),
             config,
         })
     }
@@ -300,12 +414,56 @@ impl TractorNative {
         self.plugins.load(path, &self.sync).await
     }
 
+    /// Load and stage the extra store instances for a concurrent-safe plugin's
+    /// pool. Call this (with the plugin's path) BEFORE register_for_events when
+    /// the plugin declared concurrentSafe and REFARM_PLUGIN_POOL=N>1; it loads the
+    /// N-1 additional stores and stages them under the plugin_id. register_for_events
+    /// then drains them into the pool. A no-op if the plugin isn't concurrent-safe
+    /// or the pool size is 1.
+    pub async fn stage_pool_stores(&self, path: &Path, concurrent_safe: bool) -> Result<()> {
+        let pool_size = plugin_pool_size();
+        if !concurrent_safe || pool_size <= 1 {
+            return Ok(());
+        }
+        // Load N-1 extra stores (the primary store is the handle passed to
+        // register_for_events). Each is an independent instance of the same
+        // plugin; safe only because concurrent-safe plugins keep no cross-event
+        // state in the store.
+        let mut extras = Vec::with_capacity(pool_size - 1);
+        let mut plugin_id: Option<String> = None;
+        for _ in 1..pool_size {
+            let handle = self.plugins.load(path, &self.sync).await?;
+            plugin_id = Some(handle.id.clone());
+            extras.push(handle);
+        }
+        if let Some(plugin_id) = plugin_id {
+            self.pool_stores
+                .write()
+                .expect("pool_stores poisoned")
+                .entry(plugin_id)
+                .or_default()
+                .extend(extras);
+        }
+        Ok(())
+    }
+
+    /// Take any staged extra pool stores for a plugin (drains them from the
+    /// staging map). Returns empty if none were staged.
+    fn take_pool_stores(&self, plugin_id: &str) -> Vec<host::PluginInstanceHandle> {
+        self.pool_stores
+            .write()
+            .expect("pool_stores poisoned")
+            .remove(plugin_id)
+            .unwrap_or_default()
+    }
+
     /// Move a loaded plugin handle into a dedicated runner thread and register
     /// its mpsc sender in `agent_channels` for WebSocket prompt routing.
     ///
     /// `PluginInstanceHandle` is `!Send` (wasmtime Store). Each plugin gets its
     /// own thread + single-threaded tokio runtime so the `!Send` constraint is
-    /// satisfied without unsafe code.
+    /// satisfied without unsafe code. A concurrent-safe plugin with staged pool
+    /// stores (see stage_pool_stores) gets N threads sharing one queue.
     pub fn register_for_events(&self, handle: host::PluginInstanceHandle) {
         let plugin_id = handle.id.clone();
         let provides = handle.provides.clone();
@@ -317,84 +475,50 @@ impl TractorNative {
             .write()
             .expect("cancel_flags poisoned")
             .insert(plugin_id.clone(), handle.cancel_flag());
-        let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
+        let (tx, rx) = mpsc::unbounded_channel::<AgentMessage>();
+        // The receiver is shared behind an async Mutex so that, for a
+        // concurrent-safe plugin, a POOL of runner threads (each with its own
+        // !Send store) can drain the same queue in parallel — collapsing the
+        // head-of-line stall. For the default single-store path there is exactly
+        // one runner and the Mutex is uncontended.
+        let shared_rx = Arc::new(tokio::sync::Mutex::new(rx));
 
-        let id_for_thread = plugin_id.clone();
-        // The runner owns a telemetry handle so it can emit the REAL drain cost —
-        // `router:deliver` only ever sees the enqueue (near-zero); the head-of-line
-        // stall is invisible until we measure it HERE, where the work actually runs.
+        // Pool size: 1 (default) keeps the exact single-store runner. Opt-in to N
+        // ONLY when the plugin declared concurrentSafe AND REFARM_PLUGIN_POOL=N>1.
+        // A stateful plugin (concurrent_safe=false) is never pooled — N stores
+        // would diverge. Extra stores beyond the first are loaded by the caller
+        // (async) and handed in via with_pool_stores; here we spawn one runner
+        // per store, all sharing shared_rx.
+        let mut extra_stores = self.take_pool_stores(&plugin_id);
+        let pool_size = if handle.concurrent_safe {
+            1 + extra_stores.len()
+        } else {
+            extra_stores.clear();
+            1
+        };
         let telemetry = self.telemetry.clone();
-        let join = std::thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("plugin runner rt");
-            let local = tokio::task::LocalSet::new();
-            local.block_on(&rt, async move {
-                let mut h = handle;
-                let mut teardown_done = false;
-                while let Some(msg) = rx.recv().await {
-                    if msg.event == SHUTDOWN_EVENT {
-                        h.call_teardown().await;
-                        teardown_done = true;
-                        break;
-                    }
 
-                    // Backlog waiting BEHIND this message on the single runner
-                    // thread — the head-of-line depth the enqueue sensor cannot see.
-                    let queue_depth = rx.len();
-                    let started = std::time::Instant::now();
-                    let outcome = h.call_on_event(&msg.event, msg.payload.as_deref()).await;
-                    let exec_us = started.elapsed().as_micros() as u64;
-                    // An epoch trap (deadline exceeded) surfaces as Trap::Interrupt
-                    // inside the anyhow error. Classify it so a wedged/interrupted
-                    // handler is observable as a timeout, not a generic error.
-                    let timed_out = outcome.as_ref().err().is_some_and(|e| {
-                        e.downcast_ref::<wasmtime::Trap>() == Some(&wasmtime::Trap::Interrupt)
-                    });
-                    if let Err(e) = &outcome {
-                        if timed_out {
-                            tracing::warn!(
-                                plugin_id = %id_for_thread,
-                                event = %msg.event,
-                                "on_event timed out (epoch interrupt) — tearing down runner"
-                            );
-                        } else {
-                            tracing::warn!(plugin_id = %id_for_thread, "on_event error: {e}");
-                        }
-                    }
-                    // Emit the REAL per-event drain cost + the queue depth behind it.
-                    // A rising queue_depth or exec_us here IS the head-of-line pain,
-                    // now visible where router:deliver was blind.
-                    telemetry.emit_named(
-                        "plugin:on_event",
-                        Some(id_for_thread.clone()),
-                        Some(serde_json::json!({
-                            "event": msg.event,
-                            "exec_us": exec_us,
-                            "queue_depth": queue_depth,
-                            "ok": outcome.is_ok(),
-                            // `timeout` when the epoch deadline tripped, else null.
-                            "reason": if timed_out { Some("timeout") } else { None::<&str> },
-                        })),
-                    );
-
-                    // After an epoch trap the store was unwound mid-execution and
-                    // is not safe to reuse for the next message. Tear the runner
-                    // down (teardown + terminate below) rather than serve more
-                    // events on a possibly-corrupt store.
-                    if timed_out {
-                        break;
-                    }
-                }
-
-                if !teardown_done {
-                    h.call_teardown().await;
-                }
-                h.terminate();
-                tracing::debug!(plugin_id = %id_for_thread, "plugin runner exiting");
-            });
-        });
+        // Spawn the primary runner (owns the handle we were given) plus one per
+        // extra store. All drain shared_rx; the OS balances them across the
+        // messages. Each JoinHandle is retained for shutdown.
+        let mut joins = Vec::with_capacity(pool_size);
+        joins.push(spawn_plugin_store_runner(
+            handle,
+            shared_rx.clone(),
+            telemetry.clone(),
+            plugin_id.clone(),
+        ));
+        for extra in extra_stores.drain(..) {
+            joins.push(spawn_plugin_store_runner(
+                extra,
+                shared_rx.clone(),
+                telemetry.clone(),
+                plugin_id.clone(),
+            ));
+        }
+        if pool_size > 1 {
+            tracing::info!(plugin_id = %plugin_id, pool_size, "plugin running with a concurrent store pool");
+        }
 
         self.agent_channels
             .write()
@@ -436,7 +560,7 @@ impl TractorNative {
         self.plugin_runner_handles
             .write()
             .expect("plugin_runner_handles poisoned")
-            .insert(plugin_id, join);
+            .insert(plugin_id, joins);
     }
 
     /// Deliver an event to plugins via the neutral router. When `target` is
@@ -491,7 +615,11 @@ impl TractorNative {
                 .plugin_runner_handles
                 .write()
                 .expect("plugin_runner_handles poisoned");
-            guard.drain().map(|(_, join)| join).collect::<Vec<_>>()
+            // Flatten every plugin's runner threads (1, or N for a pooled plugin).
+            guard
+                .drain()
+                .flat_map(|(_, runners)| runners)
+                .collect::<Vec<_>>()
         };
 
         for join in joins {
@@ -560,6 +688,38 @@ mod event_router_tests {
         assert!(router.subscribers("vault:dispatch").is_empty());
         // The other plugin's subscription survives.
         assert_eq!(router.subscribers("quality:check"), vec!["@demo/quality"]);
+    }
+}
+
+#[cfg(test)]
+mod pool_tests {
+    use super::plugin_pool_size;
+
+    fn with_pool_env<T>(value: Option<&str>, f: impl FnOnce() -> T) -> T {
+        match value {
+            Some(v) => std::env::set_var("REFARM_PLUGIN_POOL", v),
+            None => std::env::remove_var("REFARM_PLUGIN_POOL"),
+        }
+        let out = f();
+        std::env::remove_var("REFARM_PLUGIN_POOL");
+        out
+    }
+
+    #[test]
+    fn pool_size_defaults_to_one() {
+        // Unset, empty, and invalid all keep the single-store runner (opt-in).
+        assert_eq!(with_pool_env(None, plugin_pool_size), 1);
+        assert_eq!(with_pool_env(Some(""), plugin_pool_size), 1);
+        assert_eq!(with_pool_env(Some("nan"), plugin_pool_size), 1);
+        assert_eq!(with_pool_env(Some("0"), plugin_pool_size), 1);
+    }
+
+    #[test]
+    fn pool_size_parses_and_caps() {
+        assert_eq!(with_pool_env(Some("1"), plugin_pool_size), 1);
+        assert_eq!(with_pool_env(Some("4"), plugin_pool_size), 4);
+        // Capped at 16 to stay under the 8GB host ceiling.
+        assert_eq!(with_pool_env(Some("999"), plugin_pool_size), 16);
     }
 }
 
