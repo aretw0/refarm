@@ -13,7 +13,7 @@
 	},
 	"scripts": {
 		"bundle:plugin": "esbuild src/plugin.js --bundle --format=esm --platform=neutral --external:refarm:* --outfile=dist/plugin.bundled.js",
-		"build:plugin": "pnpm run bundle:plugin && jco componentize dist/plugin.bundled.js --wit ../refarm-plugin-wit/wit --world-name refarm-plugin --disable all -o dist/quality_plugin.wasm && jco transpile dist/quality_plugin.wasm -o pkg-plugin --name quality_plugin --no-wasi-shim --instantiation async",
+		"build:plugin": "pnpm run bundle:plugin && jco componentize dist/plugin.bundled.js --wit ../refarm-plugin-wit/wit --world-name refarm-plugin --disable all -o dist/quality_plugin.wasm && jco transpile dist/quality_plugin.wasm -o pkg-plugin --name quality_plugin --no-wasi-shim --instantiation async && node scripts/write-plugin-manifest.mjs",
 		"build": "tsc --project tsconfig.build.json",
 		"lint": "eslint src",
 		"type-check": "tsc --noEmit",
@@ -37,6 +37,7 @@
 		"@bytecodealliance/jco": "catalog:",
 		"@refarm.dev/deps": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
 		"esbuild": "catalog:"
