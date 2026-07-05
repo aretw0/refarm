@@ -37,6 +37,7 @@ pub struct WsServer {
     port: u16,
     telemetry: TelemetryBus,
     agent_channels: AgentChannels,
+    event_router: crate::EventRouter,
 }
 
 impl WsServer {
@@ -45,12 +46,14 @@ impl WsServer {
         port: u16,
         telemetry: TelemetryBus,
         agent_channels: AgentChannels,
+        event_router: crate::EventRouter,
     ) -> Self {
         Self {
             sync,
             port,
             telemetry,
             agent_channels,
+            event_router,
         }
     }
 
@@ -98,9 +101,18 @@ impl WsServer {
                         let sync = self.sync.clone();
                         let clients = clients.clone();
                         let agent_channels = self.agent_channels.clone();
+                        let event_router = self.event_router.clone();
+                        let telemetry = self.telemetry.clone();
                         tokio::spawn(async move {
-                            if let Err(e) =
-                                handle_connection(tcp_stream, sync, clients, agent_channels).await
+                            if let Err(e) = handle_connection(
+                                tcp_stream,
+                                sync,
+                                clients,
+                                agent_channels,
+                                event_router,
+                                telemetry,
+                            )
+                            .await
                             {
                                 tracing::warn!("connection error: {e}");
                             }
@@ -126,6 +138,8 @@ async fn handle_connection(
     sync: Arc<NativeSync>,
     clients: ClientMap,
     agent_channels: AgentChannels,
+    event_router: crate::EventRouter,
+    telemetry: TelemetryBus,
 ) -> Result<()> {
     let ws = accept_async(tcp_stream).await?;
     let (mut sink, mut stream) = ws.split();
@@ -182,17 +196,20 @@ async fn handle_connection(
                             .get("payload")
                             .and_then(|v| v.as_str())
                             .map(str::to_owned);
-                        let guard = agent_channels.read().expect("agent_channels poisoned");
-                        match guard.get(&agent) {
-                            Some(tx) => {
-                                let _ = tx.send(AgentMessage {
-                                    event: "user:prompt".into(),
-                                    payload,
-                                });
-                            }
-                            None => {
-                                tracing::warn!(agent, "user:prompt: no plugin registered for agent")
-                            }
+                        // Route through the neutral, observable router. `user:prompt`
+                        // is a single-target delivery to the named agent — the same
+                        // path every other event now takes, so ws_server is no longer
+                        // an agent-shaped producer bypassing the router.
+                        let sent = crate::deliver_via_router(
+                            &event_router,
+                            &agent_channels,
+                            &telemetry,
+                            "user:prompt",
+                            Some(&agent),
+                            payload,
+                        );
+                        if sent == 0 {
+                            tracing::warn!(agent, "user:prompt: no plugin registered for agent");
                         }
                     }
                 }
@@ -234,9 +251,16 @@ mod tests {
     /// Bind on an ephemeral port, start the server in a background task.
     /// Returns the `ws://` address so tests can connect immediately.
     async fn spawn_server(channels: AgentChannels) -> String {
+        spawn_server_with_router(channels, crate::EventRouter::default()).await
+    }
+
+    async fn spawn_server_with_router(
+        channels: AgentChannels,
+        event_router: crate::EventRouter,
+    ) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
-        let server = WsServer::new(make_sync(), 0, TelemetryBus::new(10), channels);
+        let server = WsServer::new(make_sync(), 0, TelemetryBus::new(10), channels, event_router);
         tokio::spawn(async move {
             let _ = server.run(listener).await;
         });

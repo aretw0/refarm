@@ -14,7 +14,13 @@ async fn start_server(sync: Arc<NativeSync>) -> u16 {
     let telemetry = TelemetryBus::new(100);
     let agent_channels: AgentChannels =
         Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
-    let server = WsServer::new(sync, port, telemetry, agent_channels);
+    let server = WsServer::new(
+        sync,
+        port,
+        telemetry,
+        agent_channels,
+        tractor::EventRouter::default(),
+    );
     tokio::spawn(async move { server.run(listener).await.unwrap() });
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     port

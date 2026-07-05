@@ -471,6 +471,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         config.port,
         tractor.telemetry.clone(),
         tractor.agent_channels.clone(),
+        tractor.event_router.clone(),
     )
     .start()
     .await?;
@@ -1542,7 +1543,8 @@ mod tests {
         let telemetry = TelemetryBus::new(10);
         let channels: AgentChannels =
             Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
-        let server = daemon::WsServer::new(sync, port, telemetry, channels);
+        let server =
+            daemon::WsServer::new(sync, port, telemetry, channels, tractor::EventRouter::default());
 
         tokio::spawn(async move {
             let _ = server.run(listener).await;
