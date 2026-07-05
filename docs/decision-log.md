@@ -454,6 +454,7 @@ _Refreshed 2026-07-03; the previous single row (WASM + WIT capability enforcemen
 | Pears as distributed runtime reference | ADR-075 | 2026-06-30 | Holepunch taxonomy + blind-replica lesson recorded; adoption gated |
 | Silo storage surface free of the identity closure | ADR-076 | 2026-07-03 | Accepted after source verification: dynamic key-manager import, heartwood as `optionalDependencies`, 0600/0700 hardening, closure test |
 | Agent-commons environment ceilings | ADR-078 | 2026-07-03 | Accepted with phased implementation: cgroup boundary + contract test shipped; watchdog-first per the 2026-07-02 revision |
+| Plugin dispatch model | ADR-084 | 2026-07-05 | Accepted after adversarial source recon: async-default (the agent's proven model) + sync-negotiated by a metadata capability flag (never a free choice); "both, let them choose" refuted as fragmenting |
 
 ---
 
