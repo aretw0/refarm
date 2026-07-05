@@ -127,14 +127,19 @@ impl NativeSync {
     /// Rebuild SQLite read model from current LoroDoc state.
     /// Called after apply_update() or import_snapshot() to sync the read model.
     /// Mirrors Projector.rebuildAll() from packages/sync-loro/src/projector.ts.
-    /// Never panics — logs errors and continues (CRDT must not crash).
-    pub(crate) fn project_all(&self) -> Result<()> {
+    /// Never panics — logs errors and continues (CRDT must not crash) — but
+    /// returns the count of nodes that FAILED to project so the caller can
+    /// surface read/write-model divergence instead of reporting a silent `Ok`.
+    /// A node in the authoritative CRDT that never lands in SQLite is invisible
+    /// to every read-model consumer (dispatch watcher, node reaper, refarm watch).
+    pub(crate) fn project_all(&self) -> Result<usize> {
         let nodes_map = self.doc.get_map("nodes");
 
         // Collect keys first to avoid borrow checker issues with simultaneous
         // keys() iterator and get() calls on the same LoroMap.
         let keys: Vec<String> = nodes_map.keys().map(|k| k.as_str().to_owned()).collect();
 
+        let mut failed = 0usize;
         for key in keys {
             let raw_json = match nodes_map.get(&key) {
                 Some(ValueOrContainer::Value(LoroValue::String(s))) => s.to_string(),
@@ -159,19 +164,34 @@ impl NativeSync {
             let payload = node["payload"].as_str().unwrap_or("{}");
             let source = node["sourcePlugin"].as_str();
 
-            // Must never crash the CRDT engine — mirror TypeScript's try/catch
+            // Must never crash the CRDT engine — mirror TypeScript's try/catch —
+            // but count the drop so it isn't silently swallowed.
             if let Err(e) = self.storage.store_node(id, type_, context, payload, source) {
                 tracing::error!("project_all: failed to project node {key}: {e}");
+                failed += 1;
             }
         }
-        Ok(())
+        Ok(failed)
     }
 
     pub fn apply_update(&self, bytes: &[u8]) -> Result<()> {
         self.doc
             .import(bytes)
             .map_err(|e| anyhow!("loro import: {e:?}"))?;
-        self.project_all()
+        let failed = self.project_all()?;
+        if failed > 0 {
+            // The CRDT imported fine, but N nodes never reached the SQLite read
+            // model — a read/write-model divergence. Don't crash (the CRDT is
+            // authoritative and a later re-projection may recover), but surface it
+            // loudly (an aggregate line above the per-node errors) instead of
+            // returning a silent Ok.
+            tracing::warn!(
+                failed_nodes = failed,
+                "apply_update: read model diverged — {failed} node(s) in the CRDT \
+                 failed to project into SQLite; read-model consumers will not see them"
+            );
+        }
+        Ok(())
     }
 
     pub fn get_update(&self) -> Result<Vec<u8>> {
@@ -227,7 +247,15 @@ impl NativeSync {
         self.doc
             .import(bytes)
             .map_err(|e| anyhow!("snapshot import: {e:?}"))?;
-        self.project_all()
+        let failed = self.project_all()?;
+        if failed > 0 {
+            tracing::warn!(
+                failed_nodes = failed,
+                "import_snapshot: read model diverged — {failed} node(s) in the CRDT \
+                 failed to project into SQLite; read-model consumers will not see them"
+            );
+        }
+        Ok(())
     }
 }
 
@@ -323,6 +351,24 @@ mod tests {
         let rows = sync_b.query_nodes("Task").unwrap();
         assert_eq!(rows.len(), 1, "queryNodes should return 1 Task");
         assert_eq!(rows[0].id, "urn:test:conv-1");
+    }
+
+    #[test]
+    fn project_all_reports_zero_failures_on_clean_projection() {
+        // project_all now returns the count of nodes that failed to reach SQLite,
+        // so read/write-model divergence can be surfaced instead of a silent Ok.
+        // A clean projection must report 0.
+        let sync = {
+            let st = NativeStorage::open(":memory:").unwrap();
+            NativeSync::new(st, "proj-count").unwrap()
+        };
+        sync.store_node("urn:test:pc-1", "Note", None, "{}", None)
+            .unwrap();
+        sync.store_node("urn:test:pc-2", "Note", None, r#"{"a":1}"#, None)
+            .unwrap();
+
+        let failed = sync.project_all().unwrap();
+        assert_eq!(failed, 0, "a clean projection must report zero failures");
     }
 
     #[test]
