@@ -26,6 +26,28 @@ fn on_event_budget_ms() -> u64 {
 /// so the next epoch checkpoint comes soon (re-check cancel/deadline promptly).
 const EPOCH_REARM_TICKS: u64 = 1;
 
+/// Install the per-store epoch callback + a live baseline deadline. MUST be
+/// called on a fresh store BEFORE any guest code runs — including the
+/// component's own instantiate/start, which executes real guest code (heavy for
+/// a jco/StarlingMonkey component). Because epoch_interruption(true) makes the
+/// default deadline 0, an un-armed store traps (`wasm trap: interrupt`) the
+/// instant guest code runs; arming the callback + a baseline here prevents that
+/// and lets the callback (epoch_decision) govern timeout/cancel thereafter.
+///
+/// Generic over the store data via an epoch_guard accessor so the same wiring
+/// serves both the component (TractorStore) and P1 module (P1Store) stores.
+pub(crate) fn arm_lifecycle_deadline(store: &mut Store<TractorStore>) {
+    store.epoch_deadline_callback(|ctx| epoch_decision(&ctx.data().epoch_guard));
+    store.set_epoch_deadline(1);
+}
+
+/// P1-module variant of arm_lifecycle_deadline (see it). Same wiring for the
+/// sync module store, armed before the module's guest code runs.
+pub(crate) fn arm_lifecycle_deadline_module(store: &mut Store<P1Store>) {
+    store.epoch_deadline_callback(|ctx| epoch_decision(&ctx.data().epoch_guard));
+    store.set_epoch_deadline(1);
+}
+
 /// The unified per-store epoch decision, run by every store's
 /// epoch_deadline_callback when the shared epoch reaches its deadline. This is
 /// the single mechanism covering BOTH timeout and cancel, and the escape from
@@ -92,9 +114,9 @@ pub struct PluginInstanceHandle {
     pub subscribes: Vec<String>,
     /// Whether the plugin declared `capabilities.concurrentSafe` — i.e. its
     /// on_event is stateless and may be driven by a pool of N stores in parallel.
-    /// Defaults false; set from the manifest via `with_concurrent_safe`. The
-    /// runner reads this to decide between the single-store and (opt-in) pooled
-    /// drain. Today it only records the intent — the pooled runner is a follow-on.
+    /// Defaults false; set from the manifest via `with_concurrent_safe`.
+    /// register_for_events reads it (with REFARM_PLUGIN_POOL) to choose between
+    /// the single-store runner and the opt-in pooled runner.
     pub concurrent_safe: bool,
     inner: PluginImpl,
     telemetry: TelemetryBus,
@@ -109,20 +131,15 @@ impl PluginInstanceHandle {
     pub(crate) fn new_component(
         id: String,
         plugin: RefarmPluginHost,
-        mut store: Store<TractorStore>,
+        store: Store<TractorStore>,
         telemetry: TelemetryBus,
         provides: Vec<String>,
     ) -> Self {
+        // The epoch callback + baseline deadline were armed on this store BEFORE
+        // instantiation (arm_lifecycle_deadline in load()), because the
+        // component's own instantiate/start runs guest code that would otherwise
+        // trap on the default-0 deadline. Here we only capture the guard handle.
         let epoch_guard = store.data().epoch_guard.clone();
-        // Install the per-store epoch callback (the safe primitive proven in the
-        // epoch-semantics suite): when the shared epoch reaches this store's
-        // deadline, self-judge — trap only on our own cancel/elapsed-deadline,
-        // else re-arm so a neighbour woken by someone else's crank survives.
-        store.epoch_deadline_callback(|ctx| epoch_decision(&ctx.data().epoch_guard));
-        // epoch_interruption(true) makes the default deadline 0 (traps
-        // immediately); arm a live baseline so the FIRST tick doesn't trap before
-        // a call arms its own deadline. The callback re-arms thereafter.
-        store.set_epoch_deadline(1);
         Self {
             id,
             state: PluginState::Idle,
@@ -138,13 +155,13 @@ impl PluginInstanceHandle {
     pub(crate) fn new_module(
         id: String,
         instance: wasmtime::Instance,
-        mut store: Store<P1Store>,
+        store: Store<P1Store>,
         telemetry: TelemetryBus,
         provides: Vec<String>,
     ) -> Self {
+        // Epoch callback + baseline armed before module instantiation (see
+        // new_component); just capture the guard here.
         let epoch_guard = store.data().epoch_guard.clone();
-        store.epoch_deadline_callback(|ctx| epoch_decision(&ctx.data().epoch_guard));
-        store.set_epoch_deadline(1);
         Self {
             id,
             state: PluginState::Idle,

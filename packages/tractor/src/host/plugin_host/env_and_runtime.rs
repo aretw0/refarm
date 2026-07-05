@@ -658,6 +658,14 @@ impl PluginHost {
 
         let component = self.cached_component(&wasm_hash, &bytes)?;
         let mut store = Store::new(&self.engine, TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() });
+        // epoch_interruption(true) makes the default deadline 0, so ANY guest
+        // code — including the component's own instantiate/start — traps
+        // immediately unless a deadline is armed FIRST. A heavy jco/StarlingMonkey
+        // component runs real guest init inside instantiate_async, so arm the
+        // generous lifecycle baseline here, before instantiation, not only in the
+        // handle constructor (which runs after). Without this, loading any
+        // non-trivial component traps with `wasm trap: interrupt`.
+        crate::host::instance::arm_lifecycle_deadline(&mut store);
 
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
@@ -752,6 +760,10 @@ impl PluginHost {
 
         let module = Module::from_binary(&self.module_engine, bytes)?;
         let mut store = Store::new(&self.module_engine, P1Store { wasi: wasi_p1, epoch_guard: EpochGuard::new() });
+        // Arm the epoch callback + baseline before instantiate — module init runs
+        // guest code that would trap on the default-0 deadline (see the component
+        // path). Cheap for a plain module, but correct and consistent.
+        crate::host::instance::arm_lifecycle_deadline_module(&mut store);
         let instance = self.module_linker.instantiate(&mut store, &module)?;
 
         let provides = read_runtime_plugin_manifest(path)?
@@ -806,6 +818,9 @@ impl PluginHost {
 
         let component = Component::from_file(&self.engine, path)?;
         let mut store = Store::new(&self.engine, TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() });
+        // Arm before instantiation — agent-tools is a component whose start runs
+        // guest code that would trap on the default-0 deadline (see load()).
+        crate::host::instance::arm_lifecycle_deadline(&mut store);
 
         let agent_tools = atb::AgentToolsHost::instantiate_async(
             &mut store,
