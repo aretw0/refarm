@@ -56,9 +56,6 @@ fn validate_stream_response_metadata_rejects_unsafe_provider_family() {
 
 #[test]
 fn complete_http_stream_persists_sse_chunks_from_host_response() {
-    let _guard = ENV_LOCK.lock().unwrap();
-    reset_llm_env();
-    std::env::set_var("LLM_PROVIDER", "ollama");
     let port = mock_sse_server(
         r#"data: {"choices":[{"delta":{"content":"hel"}}]}
 
@@ -69,12 +66,19 @@ data: [DONE]
 "#,
     );
     let base_url = format!("http://127.0.0.1:{port}");
-    std::env::set_var("LLM_BASE_URL", &base_url);
 
     let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
     let sync = crate::sync::NativeSync::new(storage, "complete-http-stream-test").unwrap();
     let telemetry = crate::telemetry::TelemetryBus::new(16);
-    let mut bindings = super::TractorNativeBindings::new("agent", sync.clone(), telemetry, crate::host::host_effects_bridge::HostEffectPolicy::default());
+    // Route injected directly (matches the mock) — no LLM_* env, so no ENV_LOCK
+    // and no cross-thread leak.
+    let mut bindings = super::TractorNativeBindings::new(
+        "agent",
+        sync.clone(),
+        telemetry,
+        crate::host::host_effects_bridge::HostEffectPolicy::default(),
+        crate::host::wasi_bridge::ModelRoute::for_test("ollama", &base_url, "/v1/chat/completions"),
+    );
 
     let result = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -108,15 +112,10 @@ data: [DONE]
     assert_eq!(payloads[0]["is_final"], false);
     assert_eq!(payloads[1]["content"], "lo");
     assert_eq!(payloads[1]["sequence"], 1);
-
-    reset_llm_env();
 }
 
 #[test]
 fn complete_http_stream_stores_first_chunk_before_response_closes() {
-    let _guard = ENV_LOCK.lock().unwrap();
-    reset_llm_env();
-    std::env::set_var("LLM_PROVIDER", "ollama");
     let (port, first_sent, release_tail) = mock_drip_sse_server(
         r#"data: {"choices":[{"delta":{"content":"early"}}]}
 
@@ -128,15 +127,15 @@ data: [DONE]
 "#,
     );
     let base_url = format!("http://127.0.0.1:{port}");
-    std::env::set_var("LLM_BASE_URL", &base_url);
 
     let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
     let sync = crate::sync::NativeSync::new(storage, "complete-http-stream-drip-test").unwrap();
     let sync_for_call = sync.clone();
     let client_base_url = base_url.clone();
+    let route = crate::host::wasi_bridge::ModelRoute::for_test("ollama", &base_url, "/v1/chat/completions");
     let client = std::thread::spawn(move || {
         let telemetry = crate::telemetry::TelemetryBus::new(16);
-        let mut bindings = super::TractorNativeBindings::new("agent", sync_for_call, telemetry, crate::host::host_effects_bridge::HostEffectPolicy::default());
+        let mut bindings = super::TractorNativeBindings::new("agent", sync_for_call, telemetry, crate::host::host_effects_bridge::HostEffectPolicy::default(), route);
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -166,21 +165,26 @@ data: [DONE]
     assert_eq!(result.last_sequence, Some(1));
     let final_json: serde_json::Value = serde_json::from_slice(&result.final_body).unwrap();
     assert_eq!(final_json["choices"][0]["message"]["content"], "early-tail");
-
-    reset_llm_env();
 }
 
 #[test]
 fn complete_http_stream_preserves_route_enforcement() {
-    let _guard = ENV_LOCK.lock().unwrap();
-    reset_llm_env();
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", "http://127.0.0.1:9");
-
     let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
     let sync = crate::sync::NativeSync::new(storage, "complete-http-stream-route-test").unwrap();
     let telemetry = crate::telemetry::TelemetryBus::new(16);
-    let mut bindings = super::TractorNativeBindings::new("agent", sync, telemetry, crate::host::host_effects_bridge::HostEffectPolicy::default());
+    // Expected route injected as :9; the request below uses :10 — the mismatch
+    // must be rejected. No LLM_* env (so no ENV_LOCK / cross-thread leak).
+    let mut bindings = super::TractorNativeBindings::new(
+        "agent",
+        sync,
+        telemetry,
+        crate::host::host_effects_bridge::HostEffectPolicy::default(),
+        crate::host::wasi_bridge::ModelRoute::for_test(
+            "ollama",
+            "http://127.0.0.1:9",
+            "/v1/chat/completions",
+        ),
+    );
 
     let err = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -198,7 +202,6 @@ fn complete_http_stream_preserves_route_enforcement() {
         .unwrap_err();
 
     assert!(err.contains("base_url not allowed"));
-    reset_llm_env();
 }
 
 fn stream_contract_metadata(last_sequence: Option<u32>) -> super::StreamResponseMetadata {

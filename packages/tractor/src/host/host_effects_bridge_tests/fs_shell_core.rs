@@ -17,7 +17,13 @@
         let storage = NativeStorage::open(":memory:").unwrap();
         let sync = NativeSync::new(storage, ":memory:").unwrap();
         let telemetry = TelemetryBus::new(10);
-        TractorNativeBindings::new("test-agent", sync, telemetry, policy)
+        TractorNativeBindings::new(
+            "test-agent",
+            sync,
+            telemetry,
+            policy,
+            crate::host::wasi_bridge::ModelRoute::default(),
+        )
     }
 
     static ENV_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =

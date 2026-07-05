@@ -19,7 +19,7 @@ use crate::telemetry::TelemetryBus;
 use std::io::Read as _;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct LlmRoute {
+pub(crate) struct ModelRoute {
     provider: String,
     base_url: String,
     path: String,
@@ -37,6 +37,13 @@ pub struct TractorNativeBindings {
     /// at PluginHost boot and cloned in here at load, so the per-call effect path
     /// reads &self, never std::env::var.
     pub(crate) effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
+    /// The expected model ROUTE (provider + base-url + path) guardrail, resolved
+    /// from the routing env vars (MODEL_PROVIDER / MODEL_BASE_URL / LLM_* aliases)
+    /// ONCE at boot. Read per model POST to validate the guest's requested route —
+    /// no per-request env read. NOTE: only routing config lives here; the
+    /// per-request API-key SECRETS stay in env (12-factor), read at send time
+    /// keyed off the provider.
+    pub(crate) model_route: ModelRoute,
 }
 
 impl TractorNativeBindings {
@@ -45,12 +52,14 @@ impl TractorNativeBindings {
         sync: NativeSync,
         telemetry: TelemetryBus,
         effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
+        model_route: ModelRoute,
     ) -> Self {
         Self {
             plugin_id: plugin_id.into(),
             sync,
             telemetry,
             effect_policy,
+            model_route,
         }
     }
 }
@@ -167,7 +176,7 @@ impl LlmBridgeHost for TractorNativeBindings {
         headers: Vec<(String, String)>,
         body: Vec<u8>,
     ) -> Result<Vec<u8>, String> {
-        llm_complete_http(&provider, &base_url, &path, &headers, &body)
+        llm_complete_http(&provider, &base_url, &path, &headers, &body, &self.model_route)
     }
 
     /// Streaming contract compatibility path.
@@ -185,7 +194,7 @@ impl LlmBridgeHost for TractorNativeBindings {
         stream_metadata: StreamResponseMetadata,
     ) -> Result<StreamResponseResult, String> {
         validate_stream_response_metadata(&stream_metadata)?;
-        let resp = send_llm_http_post(&provider, &base_url, &path, &headers, &body)?;
+        let resp = send_llm_http_post(&provider, &base_url, &path, &headers, &body, &self.model_route)?;
         let (final_body, last_sequence, stored_chunks) = store_stream_agent_response_chunks_from_reader(
             &self.sync,
             &self.plugin_id,
@@ -239,8 +248,9 @@ fn llm_complete_http(
     path: &str,
     headers: &[(String, String)],
     body: &[u8],
+    expected: &ModelRoute,
 ) -> Result<Vec<u8>, String> {
-    let resp = send_llm_http_post(provider, base_url, path, headers, body)?;
+    let resp = send_llm_http_post(provider, base_url, path, headers, body, expected)?;
     read_response_bytes(resp)
 }
 
@@ -250,9 +260,9 @@ fn send_llm_http_post(
     path: &str,
     headers: &[(String, String)],
     body: &[u8],
+    expected: &ModelRoute,
 ) -> Result<ureq::Response, String> {
-    let expected = expected_llm_route_from_env();
-    enforce_llm_route(provider, base_url, path, &expected)?;
+    enforce_llm_route(provider, base_url, path, expected)?;
     enforce_llm_request_body(body)?;
     let provider = normalize_provider_name(provider);
 
@@ -490,31 +500,65 @@ fn is_safe_provider_token(value: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
 }
 
-fn expected_llm_route_from_env() -> LlmRoute {
-    let provider = provider_name_from_env();
-    if provider == "anthropic" {
-        return LlmRoute {
-            provider,
-            base_url: "https://api.anthropic.com".to_string(),
-            path: "/v1/messages".to_string(),
-        };
-    }
-
-    let path = known_provider_api_path(&provider).to_string();
-    let base_url = llm_base_url_from_env().unwrap_or_else(|| {
-        if let Some(url) = known_provider_base_url(&provider) {
-            url.to_string()
-        } else if is_openai_provider_family(&provider) {
-            "https://api.openai.com".to_string()
-        } else {
-            "http://localhost:11434".to_string()
+impl ModelRoute {
+    /// Resolve the expected model route (provider + base-url + path) from the
+    /// routing env vars ONCE at boot. This is the ONLY place the routing vars
+    /// (MODEL_PROVIDER / LLM_* aliases, MODEL_BASE_URL / LLM_BASE_URL) are read;
+    /// the resolved route then rides on TractorNativeBindings and the per-request
+    /// path validates against it without touching env. Secrets (API keys) are NOT
+    /// part of this — they stay in env, read at send time keyed off the provider.
+    pub(crate) fn from_env() -> Self {
+        let provider = provider_name_from_env();
+        if provider == "anthropic" {
+            return ModelRoute {
+                provider,
+                base_url: "https://api.anthropic.com".to_string(),
+                path: "/v1/messages".to_string(),
+            };
         }
-    });
 
-    LlmRoute { provider, base_url, path }
+        let path = known_provider_api_path(&provider).to_string();
+        let base_url = model_base_url_from_env().unwrap_or_else(|| {
+            if let Some(url) = known_provider_base_url(&provider) {
+                url.to_string()
+            } else if is_openai_provider_family(&provider) {
+                "https://api.openai.com".to_string()
+            } else {
+                "http://localhost:11434".to_string()
+            }
+        });
+
+        ModelRoute { provider, base_url, path }
+    }
 }
 
-fn llm_base_url_from_env() -> Option<String> {
+impl Default for ModelRoute {
+    /// The env-unset default route (ollama on localhost) — what from_env resolves
+    /// to with no routing vars set. Used by test-constructed bindings.
+    fn default() -> Self {
+        let provider = "ollama".to_string();
+        ModelRoute {
+            path: known_provider_api_path(&provider).to_string(),
+            base_url: "http://localhost:11434".to_string(),
+            provider,
+        }
+    }
+}
+
+#[cfg(test)]
+impl ModelRoute {
+    /// Explicit route (tests) — inject provider/base-url/path directly instead of
+    /// steering the resolution via process env.
+    pub(crate) fn for_test(provider: &str, base_url: &str, path: &str) -> Self {
+        ModelRoute {
+            provider: provider.to_string(),
+            base_url: base_url.to_string(),
+            path: path.to_string(),
+        }
+    }
+}
+
+fn model_base_url_from_env() -> Option<String> {
     for key in ["LLM_BASE_URL", "MODEL_BASE_URL"] {
         if let Ok(value) = std::env::var(key) {
             let trimmed = value.trim();
@@ -530,7 +574,7 @@ fn enforce_llm_route(
     provider: &str,
     base_url: &str,
     path: &str,
-    expected: &LlmRoute,
+    expected: &ModelRoute,
 ) -> Result<(), String> {
     const MAX_BASE_URL_LEN: usize = 2048;
     const MAX_PATH_LEN: usize = 2048;

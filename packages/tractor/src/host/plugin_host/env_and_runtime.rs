@@ -566,9 +566,10 @@ impl PluginHost {
             module_linker: Arc::new(module_linker),
             component_cache: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
             on_event_budget_ms,
-            // Resolve the effect policy from env ONCE here at boot; every
-            // TractorNativeBindings gets a clone at load.
+            // Resolve the effect policy + model route from env ONCE here at boot;
+            // every TractorNativeBindings gets a clone at load.
             effect_policy: crate::host::host_effects_bridge::HostEffectPolicy::from_env(),
+            model_route: crate::host::wasi_bridge::ModelRoute::from_env(),
         })
     }
 
@@ -662,7 +663,7 @@ impl PluginHost {
         let wasi = wasi_builder.build();
         let table = ResourceTable::new();
         let http = wasmtime_wasi_http::WasiHttpCtx::new();
-        let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone(), self.effect_policy.clone());
+        let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone(), self.effect_policy.clone(), self.model_route.clone());
 
         let component = self.cached_component(&wasm_hash, &bytes)?;
         // Armed-at-creation: epoch_interruption(true) makes an un-armed store trap
@@ -824,7 +825,7 @@ impl PluginHost {
         let wasi = WasiCtxBuilder::new().inherit_stderr().build();
         let table = ResourceTable::new();
         let http = wasmtime_wasi_http::WasiHttpCtx::new();
-        let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone(), self.effect_policy.clone());
+        let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone(), self.effect_policy.clone(), self.model_route.clone());
 
         let component = Component::from_file(&self.engine, path)?;
         // Armed-at-creation (see new_armed_store): host-effects is a component whose

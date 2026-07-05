@@ -205,6 +205,11 @@ pub struct PluginHost {
     /// at construction and cloned into every `TractorNativeBindings` at load, so
     /// the per-call effect path reads `&self`, never `std::env::var`.
     effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
+    /// The expected model route (provider + base-url + path) guardrail, resolved
+    /// from the routing env vars ONCE at construction and cloned into every
+    /// `TractorNativeBindings` at load. Only ROUTING config — API-key secrets stay
+    /// in env, read per-request at send time.
+    model_route: crate::host::wasi_bridge::ModelRoute,
 }
 
 /// Forward only MODEL_* vars into plugin WASI env.

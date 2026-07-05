@@ -22,10 +22,10 @@
     fn expected_route_defaults_to_ollama() {
         let _guard = ENV_LOCK.lock().unwrap();
         reset_llm_env();
-        let route = expected_llm_route_from_env();
+        let route = ModelRoute::from_env();
         assert_eq!(
             route,
-            LlmRoute {
+            ModelRoute {
                 provider: "ollama".to_string(),
                 base_url: "http://localhost:11434".to_string(),
                 path: "/v1/chat/completions".to_string(),
@@ -39,7 +39,7 @@
         reset_llm_env();
         std::env::set_var("LLM_PROVIDER", "  openai  ");
 
-        let route = expected_llm_route_from_env();
+        let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai");
         assert_eq!(route.base_url, "https://api.openai.com");
         assert_eq!(route.path, "/v1/chat/completions");
@@ -53,7 +53,7 @@
         reset_llm_env();
         std::env::set_var("LLM_PROVIDER", "OpenAI");
 
-        let route = expected_llm_route_from_env();
+        let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai");
         assert_eq!(route.base_url, "https://api.openai.com");
 
@@ -67,7 +67,7 @@
         std::env::set_var("LLM_PROVIDER", "   ");
         std::env::set_var("LLM_DEFAULT_PROVIDER", " openai ");
 
-        let route = expected_llm_route_from_env();
+        let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai");
         assert_eq!(route.base_url, "https://api.openai.com");
 
@@ -81,7 +81,7 @@
         std::env::set_var("LLM_PROVIDER", "   ");
         std::env::set_var("LLM_DEFAULT_PROVIDER", " openai-codex ");
 
-        let route = expected_llm_route_from_env();
+        let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai-codex");
         assert_eq!(route.base_url, "https://chatgpt.com");
         assert_eq!(route.path, "/backend-api/codex/responses");
@@ -96,7 +96,7 @@
         std::env::set_var("LLM_PROVIDER", "open ai");
         std::env::set_var("LLM_DEFAULT_PROVIDER", "openai");
 
-        let route = expected_llm_route_from_env();
+        let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai");
         assert_eq!(route.base_url, "https://api.openai.com");
 
@@ -110,7 +110,7 @@
         std::env::set_var("LLM_PROVIDER", "open ai");
         std::env::set_var("LLM_DEFAULT_PROVIDER", "opénaí");
 
-        let route = expected_llm_route_from_env();
+        let route = ModelRoute::from_env();
         assert_eq!(route.provider, "ollama");
         assert_eq!(route.base_url, "http://localhost:11434");
 
@@ -123,7 +123,7 @@
         reset_llm_env();
         std::env::set_var("LLM_PROVIDER", "openai-codex");
 
-        let route = expected_llm_route_from_env();
+        let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai-codex");
         assert_eq!(route.base_url, "https://chatgpt.com");
         assert_eq!(route.path, "/backend-api/codex/responses");
@@ -146,7 +146,7 @@
         for (provider, expected_base, expected_path) in cases {
             reset_llm_env();
             std::env::set_var("LLM_PROVIDER", provider);
-            let route = expected_llm_route_from_env();
+            let route = ModelRoute::from_env();
             assert_eq!(route.provider, provider, "provider mismatch for {provider}");
             assert_eq!(route.base_url, expected_base, "base_url mismatch for {provider}");
             assert_eq!(route.path, expected_path, "path mismatch for {provider}");
@@ -161,7 +161,7 @@
         std::env::set_var("LLM_PROVIDER", "groq");
         std::env::set_var("LLM_BASE_URL", "https://my-proxy.example.com");
 
-        let route = expected_llm_route_from_env();
+        let route = ModelRoute::from_env();
         assert_eq!(route.base_url, "https://my-proxy.example.com");
         assert_eq!(route.path, "/openai/v1/chat/completions");
 
@@ -175,7 +175,7 @@
         std::env::set_var("MODEL_PROVIDER", "openai");
         std::env::set_var("MODEL_BASE_URL", "http://127.0.0.1:43210");
 
-        let route = expected_llm_route_from_env();
+        let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai");
         assert_eq!(route.base_url, "http://127.0.0.1:43210");
         assert_eq!(route.path, "/v1/chat/completions");
@@ -192,7 +192,7 @@
         std::env::set_var("MODEL_PROVIDER", "openai");
         std::env::set_var("MODEL_BASE_URL", "http://127.0.0.1:43210");
 
-        let route = expected_llm_route_from_env();
+        let route = ModelRoute::from_env();
         assert_eq!(route.provider, "groq");
         assert_eq!(route.base_url, "https://llm-proxy.example.com");
         assert_eq!(route.path, "/openai/v1/chat/completions");
@@ -202,7 +202,7 @@
 
     #[test]
     fn enforce_route_blocks_provider_mismatch() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -219,7 +219,7 @@
 
     #[test]
     fn enforce_route_blocks_provider_with_control_chars() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -236,7 +236,7 @@
 
     #[test]
     fn enforce_route_blocks_provider_with_invalid_chars() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -253,7 +253,7 @@
 
     #[test]
     fn enforce_route_blocks_expected_provider_with_invalid_chars() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "open ai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -270,7 +270,7 @@
 
     #[test]
     fn enforce_route_blocks_overlong_provider_token() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -287,7 +287,7 @@
 
     #[test]
     fn enforce_route_blocks_base_url_with_control_chars() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -304,7 +304,7 @@
 
     #[test]
     fn enforce_route_blocks_path_with_control_chars() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -321,7 +321,7 @@
 
     #[test]
     fn enforce_route_blocks_non_ascii_path() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -333,7 +333,7 @@
 
     #[test]
     fn enforce_route_blocks_non_ascii_expected_path() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chát".to_string(),
@@ -350,7 +350,7 @@
 
     #[test]
     fn enforce_route_blocks_empty_path() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -362,7 +362,7 @@
 
     #[test]
     fn enforce_route_blocks_empty_expected_path() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: " ".to_string(),
@@ -379,7 +379,7 @@
 
     #[test]
     fn enforce_route_blocks_path_with_query_or_fragment() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -406,7 +406,7 @@
 
     #[test]
     fn enforce_route_blocks_path_with_invalid_separator() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -424,7 +424,7 @@
 
     #[test]
     fn enforce_route_blocks_overlong_base_url() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -437,7 +437,7 @@
 
     #[test]
     fn enforce_route_blocks_overlong_path() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -450,7 +450,7 @@
 
     #[test]
     fn enforce_route_blocks_base_url_mismatch() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -467,7 +467,7 @@
 
     #[test]
     fn enforce_route_blocks_path_mismatch() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -484,7 +484,7 @@
 
     #[test]
     fn enforce_route_blocks_non_http_base_url() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -501,7 +501,7 @@
 
     #[test]
     fn enforce_route_blocks_invalid_base_url_forms() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -608,7 +608,7 @@
 
     #[test]
     fn enforce_route_blocks_expected_base_url_with_path_segments() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com/v1".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -626,7 +626,7 @@
 
     #[test]
     fn enforce_route_accepts_path_without_leading_slash() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -642,7 +642,7 @@
 
     #[test]
     fn enforce_route_accepts_base_url_with_trailing_slash() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -658,7 +658,7 @@
 
     #[test]
     fn enforce_route_accepts_base_url_with_mixed_case_host() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -674,7 +674,7 @@
 
     #[test]
     fn enforce_route_accepts_base_url_with_uppercase_scheme() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -690,7 +690,7 @@
 
     #[test]
     fn enforce_route_accepts_path_with_trailing_slash() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -706,7 +706,7 @@
 
     #[test]
     fn enforce_route_accepts_trimmed_provider_and_base_url() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -722,7 +722,7 @@
 
     #[test]
     fn enforce_route_blocks_path_with_surrounding_whitespace() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -739,7 +739,7 @@
 
     #[test]
     fn enforce_route_blocks_path_with_internal_whitespace() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
@@ -756,7 +756,7 @@
 
     #[test]
     fn enforce_route_blocks_expected_path_with_internal_whitespace() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/comp letions".to_string(),
@@ -773,7 +773,7 @@
 
     #[test]
     fn enforce_route_accepts_mixed_case_provider_name() {
-        let expected = LlmRoute {
+        let expected = ModelRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
