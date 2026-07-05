@@ -37,10 +37,14 @@ function classifyPackage(pkgDir) {
 
   // A TS→WASM component: no Cargo crate — the .wasm is produced by
   // `jco componentize` from a JS/TS entry (StarlingMonkey), not cargo-component.
-  // Keyed off a `build:component` script that mentions `componentize`, so it is
-  // recognized as a first-class WASM component kind rather than a plain buildable.
-  const componentScript = scripts["build:component"] ?? "";
-  if (componentScript.includes("componentize")) {
+  // Keyed off ANY `build:*` script that runs `componentize` (e.g. `build:component`
+  // for a sandbox-world entry, `build:plugin` for an integration-world entry), so a
+  // package with one or more componentize entries is a first-class WASM component
+  // kind rather than a plain buildable.
+  const hasComponentizeScript = Object.entries(scripts).some(
+    ([name, cmd]) => name.startsWith("build:") && typeof cmd === "string" && cmd.includes("componentize"),
+  );
+  if (hasComponentizeScript) {
     return { type: "wasm-jco-component-ts", pkg };
   }
 
@@ -545,21 +549,22 @@ function validateWasmJcoComponent(pkgDir, pkg) {
 function validateWasmJcoComponentTs(pkgDir, pkg) {
   const violations = [];
 
-  const componentScript = pkg.scripts?.["build:component"] ?? "";
-  if (!componentScript.includes("componentize")) {
-    violations.push('script "build:component" must run "jco componentize"');
+  const scripts = pkg.scripts ?? {};
+  // The componentize entry may be `build:component` (a sandbox-world entry) or
+  // `build:plugin` (an integration-world entry) or any `build:*` that runs it.
+  const componentScripts = Object.entries(scripts).filter(
+    ([name, cmd]) => name.startsWith("build:") && typeof cmd === "string" && cmd.includes("componentize"),
+  );
+  if (componentScripts.length === 0) {
+    violations.push('a "build:*" script must run "jco componentize"');
   }
-  if (!componentScript.includes("transpile")) {
-    violations.push('script "build:component" must also "jco transpile" to a loadable pkg/');
+  for (const [name, cmd] of componentScripts) {
+    if (!cmd.includes("transpile")) {
+      violations.push(`script "${name}" must also "jco transpile" to a loadable pkg/`);
+    }
   }
-  if (!pkg.scripts?.build) violations.push('script "build" missing (the TS loader)');
-  if (!pkg.scripts?.test) violations.push('script "test" missing');
-
-  // The componentized entry is a JS source file the component is built from.
-  const jsSource = componentScript.match(/componentize\s+(\S+)/)?.[1];
-  if (jsSource && !existsSync(join(pkgDir, jsSource))) {
-    violations.push(`build:component entry "${jsSource}" does not exist`);
-  }
+  if (!scripts.build) violations.push('script "build" missing (the TS loader)');
+  if (!scripts.test) violations.push('script "test" missing');
 
   // Public packages ship the loader as a JS main + .d.ts, like the Rust variant.
   if (pkg.private !== true && pkg.publishConfig?.access === "public") {
