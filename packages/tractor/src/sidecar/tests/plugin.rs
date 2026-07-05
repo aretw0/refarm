@@ -43,7 +43,7 @@ async fn sidecar_get_plugins_reports_loaded_agent_channels() {
 }
 
 #[tokio::test]
-async fn sidecar_post_plugins_reload_reports_loaded_and_skipped_plugins() {
+async fn sidecar_plugins_reload_is_an_honest_readiness_probe_not_a_reload() {
     let (state, port, _tmp) = start_test_sidecar().await;
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
     state
@@ -64,14 +64,16 @@ async fn sidecar_post_plugins_reload_reports_loaded_and_skipped_plugins() {
 
     assert_eq!(res.status(), 200);
     let body: serde_json::Value = res.json().await.unwrap();
+    // Honest readiness contract: alreadyLoaded (not "reloaded" — no code swapped),
+    // and an explicit reloaded:false so a client can't mistake this for a reload.
     assert_eq!(
-        body["reloaded"].as_array().unwrap(),
+        body["alreadyLoaded"].as_array().unwrap(),
         &vec![serde_json::json!("@refarm/agent")]
     );
     assert_eq!(
         body["skipped"].as_array().unwrap(),
         &vec![serde_json::json!("@refarm/missing")]
     );
-    assert_eq!(body["deferred"].as_array().unwrap().len(), 0);
-    assert!(body["reloadId"].as_str().is_some());
+    assert_eq!(body["reloaded"], serde_json::json!(false));
+    assert!(body["probeId"].as_str().is_some());
 }

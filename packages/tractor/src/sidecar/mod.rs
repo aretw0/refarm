@@ -367,12 +367,16 @@ struct PluginReloadRequest {
     plugin_ids: Option<Vec<String>>,
 }
 
-/// Reports which requested plugins are currently loaded (reload readiness). This
-/// endpoint does NOT itself swap plugin code — the sidecar holds only the shared
+/// Reload READINESS probe — reports which requested plugins are currently loaded.
+/// This endpoint does NOT swap plugin code: the sidecar holds only the shared
 /// channel/router Arcs, not the plugin host. Real hot-reload is
 /// TractorNative::reload_plugin (unregister + load fresh bytes + register), which
-/// lives on the host that owns load/unregister; wiring this endpoint to call it
-/// is a follow-on that must reach the host without re-coupling the sidecar.
+/// lives on the host that owns load/unregister; wiring this endpoint to call it is
+/// a follow-on that must reach the host without re-coupling the sidecar.
+///
+/// The response is deliberately honest: `alreadyLoaded` (not `reloaded`) and
+/// `probeId` (not `reloadId`), so a client can never mistake a readiness report
+/// for an actual code swap.
 async fn post_plugins_reload(
     State(state): State<SidecarState>,
     Json(request): Json<PluginReloadRequest>,
@@ -384,22 +388,24 @@ async fn post_plugins_reload(
         ids
     };
     let requested = request.plugin_ids.unwrap_or_else(|| loaded.clone());
-    let mut reloaded = Vec::new();
+    let mut already_loaded = Vec::new();
     let mut skipped = Vec::new();
 
     for plugin_id in requested {
         if loaded.contains(&plugin_id) {
-            reloaded.push(plugin_id);
+            already_loaded.push(plugin_id);
         } else {
             skipped.push(plugin_id);
         }
     }
 
     Json(serde_json::json!({
-        "reloadId": uuid::Uuid::new_v4().to_string(),
-        "reloaded": reloaded,
-        "deferred": [],
+        "probeId": uuid::Uuid::new_v4().to_string(),
+        "alreadyLoaded": already_loaded,
         "skipped": skipped,
+        // No code was swapped — this is a readiness probe, not a reload. See the
+        // handler doc for the real hot-reload path (TractorNative::reload_plugin).
+        "reloaded": false,
     }))
 }
 
