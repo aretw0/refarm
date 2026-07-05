@@ -291,24 +291,50 @@ async fn router_delivers_a_non_agent_event_to_its_subscribed_plugin() {
 /// `refarm vault dispatch` does — and assert the vault plugin's node lands in the
 /// graph. Every link in production form: HTTP -> sidecar dispatch_effort branch ->
 /// router deliver by subscription -> plugin on-event -> store-node.
-#[tokio::test]
-#[ignore = "requires vault-surface-ref build:plugin; run with --ignored"]
-async fn operator_loop_http_to_graph_through_the_live_sidecar() {
-    let path = wasm_path();
-    if !path.exists() {
-        eprintln!("SKIP: vault_plugin.wasm not found — run: pnpm --filter @refarm.dev/vault-surface-ref run build:plugin");
+// ── The generic operator-loop e2e harness ────────────────────────────────────
+//
+// One place to test the WHOLE loop (HTTP -> live sidecar -> router -> plugin ->
+// graph) for ANY dispatch-result:v1 plugin. A caller declares ONLY what differs
+// between plugins — the wasm, the plugin key, the verb, and the effort args — and
+// the harness owns everything common (boot, load, register, the running sidecar,
+// the POST, and the poll for a `refarm:DispatchResult` node correlated by
+// replyRef). Adding an e2e for a new plugin is now four fields, not a copy.
+
+/// The minimal declaration a plugin gives the harness to be tested end-to-end.
+struct OperatorLoopSpec {
+    /// The built component `.wasm` (its plugin.json declares subscribes + provides).
+    wasm: &'static Path,
+    /// The effort's target plugin id (also the `<pluginKey>` the sidecar routes
+    /// `<pluginKey>:dispatch` to — e.g. "vault" or "quality").
+    plugin_id: &'static str,
+    /// The verb (the effort's fn) the plugin's on-event handler runs.
+    verb: &'static str,
+    /// The dispatch args the verb needs (note+profile, subject+profile, …). The
+    /// harness injects `replyRef` — the caller declares only the domain input.
+    args: serde_json::Value,
+    /// A human note shown when the wasm is missing.
+    build_hint: &'static str,
+}
+
+/// Run the full operator loop for one plugin spec. Returns early (skips) if the
+/// plugin wasm is not built. Asserts a correlated `refarm:DispatchResult` node
+/// lands in the graph.
+async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
+    if !spec.wasm.exists() {
+        eprintln!("SKIP: {} not found — {}", spec.wasm.display(), spec.build_hint);
         return;
     }
 
     let tractor = TractorNative::boot(memory_config_none())
         .await
         .expect("boot must succeed");
-    let handle = tractor.load_plugin(path).await.expect("vault plugin loads");
+    let handle = tractor.load_plugin(spec.wasm).await.expect("plugin loads");
     tractor.register_for_events(handle);
 
     // Stand the REAL HTTP sidecar over this runtime's channels + router.
     let base_dir = std::env::temp_dir().join(format!(
-        "tractor-e2e-{}",
+        "tractor-e2e-{}-{}",
+        spec.plugin_id,
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -324,7 +350,6 @@ async fn operator_loop_http_to_graph_through_the_live_sidecar() {
     )
     .expect("sidecar state");
 
-    // Pick a free port, then hand it to the sidecar.
     let port = {
         let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let p = l.local_addr().unwrap().port();
@@ -334,7 +359,6 @@ async fn operator_loop_http_to_graph_through_the_live_sidecar() {
     tokio::spawn(async move {
         let _ = tractor::sidecar::start(state, "127.0.0.1".to_string(), port).await;
     });
-    // Wait for the listener to come up.
     for _ in 0..50 {
         if std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
             break;
@@ -342,31 +366,21 @@ async fn operator_loop_http_to_graph_through_the_live_sidecar() {
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
 
-    // POST the effort exactly as `refarm vault dispatch extract <note>` builds it.
+    // Build the effort exactly as `refarm <plugin> dispatch <verb>` does: the
+    // caller's args plus the harness-injected replyRef (== effort id).
+    let reply_ref = format!("e2e-{}-1", spec.plugin_id);
+    let mut args = spec.args.clone();
+    args["replyRef"] = serde_json::Value::String(reply_ref.clone());
     let effort = serde_json::json!({
-        "id": "e2e-effort-1",
+        "id": reply_ref,
         "direction": "dispatch",
         "tasks": [{
-            "id": "e2e-task-1",
-            "pluginId": "vault",
-            "fn": "extract",
-            "args": {
-                "note": {
-                    "path": "20-Projects/demanda-42.md",
-                    "text": "---\ntitle: Demanda 42\nstate: doing\n---\n\nbody #project\n"
-                },
-                "profile": {
-                    "name": "p",
-                    "rules": [{
-                        "id": "extract-frontmatter",
-                        "verb": "extract",
-                        "match": "{\"type\":\"frontmatter\",\"recordType\":\"refarm:VaultRecord\"}"
-                    }]
-                },
-                "replyRef": "e2e-effort-1"
-            }
+            "id": format!("task-{}", spec.plugin_id),
+            "pluginId": spec.plugin_id,
+            "fn": spec.verb,
+            "args": args,
         }],
-        "source": "refarm-vault-dispatch",
+        "source": "operator-loop-e2e",
         "submittedAt": "2026-01-01T00:00:00Z"
     });
     let client = reqwest::Client::new();
@@ -378,29 +392,82 @@ async fn operator_loop_http_to_graph_through_the_live_sidecar() {
         .expect("POST /efforts");
     assert_eq!(res.status(), 200, "the sidecar accepts the dispatch effort");
 
-    // The vault plugin ran on its thread; poll the SAME graph the plugin wrote to
-    // (the plugin's store-node goes to tractor.sync, which we query directly).
+    // Poll the graph for the correlated dispatch-result node — the SAME assertion
+    // for every plugin, because dispatch-result:v1 is the neutral contract.
     let mut results = Vec::new();
     for _ in 0..100 {
         results = tractor
             .sync
             .query_nodes("refarm:DispatchResult")
             .expect("query refarm:DispatchResult");
-        if !results.is_empty() {
+        if results.iter().any(|r| r.payload.contains(&reply_ref)) {
             break;
         }
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     }
-    assert!(
-        !results.is_empty(),
-        "the whole loop must land a dispatch-result node in the graph: HTTP -> sidecar -> router -> plugin -> store-node"
-    );
-    let node: serde_json::Value =
-        serde_json::from_str(&results[0].payload).expect("result node JSON");
-    assert_eq!(
-        node["refarm:replyRef"], "e2e-effort-1",
-        "the node correlates back to the effort by replyRef"
-    );
+    let node = results
+        .iter()
+        .map(|r| serde_json::from_str::<serde_json::Value>(&r.payload).unwrap())
+        .find(|n| n["refarm:replyRef"] == reply_ref)
+        .unwrap_or_else(|| {
+            panic!(
+                "the whole loop must land a dispatch-result node for '{}': HTTP -> sidecar -> router -> plugin -> store-node",
+                spec.plugin_id
+            )
+        });
+    assert_eq!(node["refarm:verb"], spec.verb, "the result carries the dispatched verb");
 
     tractor.shutdown().await.expect("shutdown");
+}
+
+/// vault, declared minimally against the shared harness.
+#[tokio::test]
+#[ignore = "requires vault-surface-ref build:plugin; run with --ignored"]
+async fn operator_loop_e2e_vault() {
+    run_operator_loop_e2e(OperatorLoopSpec {
+        wasm: wasm_path(),
+        plugin_id: "vault",
+        verb: "extract",
+        args: serde_json::json!({
+            "note": {
+                "path": "20-Projects/demanda-42.md",
+                "text": "---\ntitle: Demanda 42\nstate: doing\n---\n\nbody #project\n"
+            },
+            "profile": {
+                "name": "p",
+                "rules": [{
+                    "id": "extract-frontmatter",
+                    "verb": "extract",
+                    "match": "{\"type\":\"frontmatter\",\"recordType\":\"refarm:VaultRecord\"}"
+                }]
+            }
+        }),
+        build_hint: "run: pnpm --filter @refarm.dev/vault-surface-ref run build:plugin",
+    })
+    .await;
+}
+
+/// quality, the SECOND consumer — same harness, only its four fields differ.
+#[tokio::test]
+#[ignore = "requires quality-checker-plugin build:plugin; run with --ignored"]
+async fn operator_loop_e2e_quality() {
+    run_operator_loop_e2e(OperatorLoopSpec {
+        wasm: quality_wasm_path(),
+        plugin_id: "quality",
+        verb: "check",
+        args: serde_json::json!({
+            "subject": "As an AI language model, I cannot browse.",
+            "profile": {
+                "name": "text-tells",
+                "rules": [{
+                    "id": "ai-tell",
+                    "severity": "warn",
+                    "description": "flags an AI self-reference tell",
+                    "check": { "type": "regex", "pattern": "AI language model" }
+                }]
+            }
+        }),
+        build_hint: "run: pnpm --filter @refarm.dev/quality-checker-plugin run build:plugin",
+    })
+    .await;
 }
