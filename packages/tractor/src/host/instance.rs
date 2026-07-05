@@ -90,6 +90,12 @@ pub struct PluginInstanceHandle {
     /// the neutral event router delivers to it. Defaults empty; set from the
     /// manifest via `with_subscribes` right after construction.
     pub subscribes: Vec<String>,
+    /// Whether the plugin declared `capabilities.concurrentSafe` — i.e. its
+    /// on_event is stateless and may be driven by a pool of N stores in parallel.
+    /// Defaults false; set from the manifest via `with_concurrent_safe`. The
+    /// runner reads this to decide between the single-store and (opt-in) pooled
+    /// drain. Today it only records the intent — the pooled runner is a follow-on.
+    pub concurrent_safe: bool,
     inner: PluginImpl,
     telemetry: TelemetryBus,
     /// Shared with the store's epoch_deadline_callback. Exposes the cancel flag
@@ -122,6 +128,7 @@ impl PluginInstanceHandle {
             state: PluginState::Idle,
             provides,
             subscribes: Vec::new(),
+            concurrent_safe: false,
             inner: PluginImpl::Component { plugin, store },
             telemetry,
             epoch_guard,
@@ -143,6 +150,7 @@ impl PluginInstanceHandle {
             state: PluginState::Idle,
             provides,
             subscribes: Vec::new(),
+            concurrent_safe: false,
             inner: PluginImpl::Module { instance, store },
             telemetry,
             epoch_guard,
@@ -161,6 +169,14 @@ impl PluginInstanceHandle {
     /// unchanged (the smallest-ripple way to flow subscriptions to the router).
     pub(crate) fn with_subscribes(mut self, subscribes: Vec<String>) -> Self {
         self.subscribes = subscribes;
+        self
+    }
+
+    /// Attach the manifest's `capabilities.concurrentSafe` flag. Builder-style,
+    /// mirroring with_subscribes. Records the plugin's opt-in to concurrent
+    /// (pooled) dispatch; the runner reads it to choose the drain strategy.
+    pub(crate) fn with_concurrent_safe(mut self, concurrent_safe: bool) -> Self {
+        self.concurrent_safe = concurrent_safe;
         self
     }
 

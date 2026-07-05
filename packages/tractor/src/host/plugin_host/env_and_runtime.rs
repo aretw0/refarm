@@ -358,6 +358,15 @@ struct RuntimePluginCapabilities {
     /// driven only by lifecycle calls (and, for the agent, by agent:respond sugar).
     #[serde(default)]
     subscribes: Vec<String>,
+    /// Whether the plugin is safe to drive concurrently — i.e. its on_event is
+    /// STATELESS across events (all state lives in the shared graph, nothing is
+    /// retained in the guest's own linear memory between calls). Only such a
+    /// plugin may be run by a pool of N stores in parallel; a plugin that hoards
+    /// mutable state in its Store would diverge across N copies. Defaults false:
+    /// concurrency is strictly opt-in, so the safe single-store runner stays the
+    /// default and a future stateful plugin is never silently parallelised.
+    #[serde(default, rename = "concurrentSafe")]
+    concurrent_safe: bool,
 }
 
 const REQUIRED_RUNTIME_HOOKS: &[&str] = &[
@@ -617,12 +626,13 @@ impl PluginHost {
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
 
-        let (provides, subscribes) = if let Some(manifest) = manifest.as_ref() {
+        let (provides, subscribes, concurrent_safe) = if let Some(manifest) = manifest.as_ref() {
             let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
             validate_manifest_runtime_alignment(&plugin_id, &metadata, manifest)?;
             (
                 manifest.capabilities.provides.clone(),
                 manifest.capabilities.subscribes.clone(),
+                manifest.capabilities.concurrent_safe,
             )
         } else {
             tracing::warn!(
@@ -630,7 +640,7 @@ impl PluginHost {
                 path = %path.display(),
                 "plugin manifest not found near wasm; skipping manifest/runtime alignment checks"
             );
-            (vec![], vec![])
+            (vec![], vec![], false)
         };
 
         let mut handle = PluginInstanceHandle::new_component(
@@ -640,7 +650,8 @@ impl PluginHost {
             self.telemetry.clone(),
             provides,
         )
-        .with_subscribes(subscribes);
+        .with_subscribes(subscribes)
+        .with_concurrent_safe(concurrent_safe);
         handle.call_setup().await?;
 
         if let Err(e) = store_refarm_config_node(sync, &plugin_id, &base, &env_vars, config_json.as_ref()) {
@@ -813,6 +824,21 @@ mod capability_tests {
         let m = minimal_manifest(r#""capabilities":{"provides":["observe-agent-tools","audit-log"]}"#);
         assert_eq!(m.capabilities.provides.len(), 2);
         assert!(m.capabilities.provides.contains(&"observe-agent-tools".to_string()));
+    }
+
+    #[test]
+    fn manifest_concurrent_safe_defaults_false_and_parses() {
+        // Absent => false (concurrency is strictly opt-in; the safe single-store
+        // runner stays the default).
+        assert!(!minimal_manifest("").capabilities.concurrent_safe);
+        assert!(
+            !minimal_manifest(r#""capabilities":{"provides":["x"]}"#)
+                .capabilities
+                .concurrent_safe
+        );
+        // Present and true => the plugin opts into pooled concurrent dispatch.
+        let m = minimal_manifest(r#""capabilities":{"concurrentSafe":true}"#);
+        assert!(m.capabilities.concurrent_safe);
     }
 
     #[test]
