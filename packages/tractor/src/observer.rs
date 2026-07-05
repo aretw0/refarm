@@ -177,11 +177,18 @@ async fn append_line(path: &Path, line: &str, config: AuditConfig) {
         .await
     {
         Ok(mut file) => {
-            let _ = file.write_all(line.as_bytes()).await;
-            let _ = file.write_all(b"\n").await;
+            // The audit log is tamper-evidence (CLAUDE.md §3). A dropped write
+            // leaves a hole in the security trail, so surface it (warn) instead of
+            // swallowing — a host-effect that executed but whose audit record was
+            // lost is exactly what an operator must be able to see.
+            if let Err(e) = file.write_all(line.as_bytes()).await {
+                tracing::warn!(path = %path.display(), error = %e, "scarecrow: audit line write failed — security trail has a gap");
+            } else if let Err(e) = file.write_all(b"\n").await {
+                tracing::warn!(path = %path.display(), error = %e, "scarecrow: audit newline write failed — security trail line is unterminated");
+            }
         }
         Err(e) => {
-            tracing::debug!(path = %path.display(), error = %e, "scarecrow: cannot open audit file");
+            tracing::warn!(path = %path.display(), error = %e, "scarecrow: cannot open audit file — host-effect went unaudited");
         }
     }
 }
