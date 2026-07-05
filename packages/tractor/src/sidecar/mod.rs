@@ -59,6 +59,47 @@ pub struct EffortResult {
     pub completed_at: Option<String>,
 }
 
+// ── effort status vocabulary ──────────────────────────────────────────────────
+//
+// Mirrors `EffortStatus` in @refarm.dev/effort-contract-v1. The sidecar stores
+// status as a bare String (wire-facing JSON), so these constants are the single
+// Rust source of truth — do not write status literals inline.
+//
+//   pending     — recorded, not yet started
+//   in-progress — the sidecar's own work is running (a dispatch task is live)
+//   done        — the effort OWNS a completed task result (respond, once landed)
+//   delivered   — a dispatch event was accepted by a subscriber; the effort's
+//                 whole job (delivery) is complete, the verb RESULT lives out of
+//                 band as a dispatch-result:v1 node read back by replyRef
+//   failed      — no subscriber / send error / no tasks
+//   cancelled   — cancelled before reaching another terminal state
+//
+// `active` is NOT a contract status — it was legacy sidecar vocabulary that lied
+// (it read as in-progress but consumers had no such state). Replaced by
+// EFFORT_IN_PROGRESS.
+pub(crate) const EFFORT_PENDING: &str = "pending";
+pub(crate) const EFFORT_IN_PROGRESS: &str = "in-progress";
+pub(crate) const EFFORT_DONE: &str = "done";
+pub(crate) const EFFORT_DELIVERED: &str = "delivered";
+pub(crate) const EFFORT_FAILED: &str = "failed";
+pub(crate) const EFFORT_CANCELLED: &str = "cancelled";
+
+/// Terminal statuses — no further transitions except via retry(). Mirrors
+/// EFFORT_TERMINAL_STATES in the TS contract. `delivered` is terminal and honest:
+/// unlike `done` it carries only a delivery receipt (the verb result is an
+/// out-of-band node), so the effort has nothing left to do and watch loops stop.
+pub(crate) fn is_terminal_effort_status(status: &str) -> bool {
+    matches!(
+        status,
+        EFFORT_DONE
+            | EFFORT_DELIVERED
+            | "partial"
+            | EFFORT_FAILED
+            | "timed-out"
+            | EFFORT_CANCELLED
+    )
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct EffortTask {
     pub id: String,
@@ -323,16 +364,15 @@ async fn get_efforts(State(state): State<SidecarState>) -> impl IntoResponse {
 async fn get_efforts_summary(State(state): State<SidecarState>) -> impl IntoResponse {
     let store = state.efforts.read().expect("effort store poisoned");
     let total = store.len();
-    let done = store.values().filter(|e| e.status == "done").count();
-    let failed = store.values().filter(|e| e.status == "failed").count();
-    let active = store.values().filter(|e| e.status == "active").count();
-    let pending = store.values().filter(|e| e.status == "pending").count();
+    let count = |status: &str| store.values().filter(|e| e.status == status).count();
     Json(serde_json::json!({
         "total": total,
-        "done": done,
-        "failed": failed,
-        "active": active,
-        "pending": pending,
+        "pending": count(EFFORT_PENDING),
+        "inProgress": count(EFFORT_IN_PROGRESS),
+        "done": count(EFFORT_DONE),
+        "delivered": count(EFFORT_DELIVERED),
+        "failed": count(EFFORT_FAILED),
+        "cancelled": count(EFFORT_CANCELLED),
     }))
 }
 
@@ -364,16 +404,20 @@ async fn post_effort_retry(
     let store = state.efforts.read().expect("effort store poisoned");
     match store.get(&id) {
         None => err(StatusCode::NOT_FOUND, "not found").into_response(),
-        Some(e) if e.status == "active" || e.status == "pending" => err(
+        Some(e) if !is_terminal_effort_status(&e.status) => err(
             StatusCode::CONFLICT,
-            "retry not allowed: effort in progress",
+            "retry not allowed: effort not yet terminal",
         )
         .into_response(),
-        Some(_) => (
-            StatusCode::ACCEPTED,
-            Json(serde_json::json!({ "accepted": true })),
+        // Re-dispatch requires retaining the original Effort (tasks/args), which
+        // the store does not yet hold — it keeps only EffortResult. Rather than
+        // return a fake `accepted:true` that never re-runs, report honestly that
+        // re-enqueue is not wired. (Tracked as the retry-retention slice.)
+        Some(_) => err(
+            StatusCode::NOT_IMPLEMENTED,
+            "retry not implemented: sidecar does not retain the original effort to re-dispatch",
         )
-            .into_response(),
+        .into_response(),
     }
 }
 
@@ -381,19 +425,42 @@ async fn post_effort_cancel(
     State(state): State<SidecarState>,
     AxumPath(id): AxumPath<String>,
 ) -> impl IntoResponse {
-    let store = state.efforts.read().expect("effort store poisoned");
-    match store.get(&id) {
+    // Read the current status under a short-lived lock, then release it before
+    // finalising (finalise_effort takes its own write lock).
+    let current = {
+        let store = state.efforts.read().expect("effort store poisoned");
+        store.get(&id).map(|e| e.status.clone())
+    };
+    match current {
         None => err(StatusCode::NOT_FOUND, "not found").into_response(),
-        Some(e) if e.status == "done" || e.status == "failed" => err(
+        Some(status) if is_terminal_effort_status(&status) => err(
             StatusCode::CONFLICT,
             "cancel not allowed: effort already terminal",
         )
         .into_response(),
-        Some(_) => (
-            StatusCode::ACCEPTED,
-            Json(serde_json::json!({ "accepted": true })),
-        )
-            .into_response(),
+        Some(_) => {
+            // Real cancel at the store level: transition to the terminal
+            // `cancelled` state so consumers and watch loops observe it. NOTE: this
+            // does not yet interrupt a runner thread already wedged inside a
+            // plugin's handler — that needs wasmtime epoch_interruption (the
+            // timeout slice). A dispatch effort that has already been delivered is
+            // terminal and is refused above.
+            dispatch::finalise_effort(
+                &state,
+                &id,
+                EFFORT_CANCELLED,
+                vec![TaskResult {
+                    status: "cancelled".to_string(),
+                    result: None,
+                    error: None,
+                }],
+            );
+            (
+                StatusCode::ACCEPTED,
+                Json(serde_json::json!({ "accepted": true, "status": EFFORT_CANCELLED })),
+            )
+                .into_response()
+        }
     }
 }
 

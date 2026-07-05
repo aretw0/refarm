@@ -1070,6 +1070,33 @@ async fn sidecar_non_respond_effort_dispatches_via_router() {
         serde_json::from_str(msg.payload.as_deref().unwrap()).unwrap();
     assert_eq!(payload["verb"], "extract", "the payload carries the effort's fn as the verb");
     assert_eq!(payload["note"]["path"], "n.md", "the args ride along in the payload");
+
+    // Once the event is accepted by a subscriber, the effort's whole job is done:
+    // it is `delivered` (terminal, honest), NOT `done`. `done` would lie — the
+    // verb result lives out of band as a dispatch-result:v1 node read by replyRef,
+    // it is not carried by the effort.
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    let effort_id = effort["id"].as_str().unwrap();
+    let body: serde_json::Value = client
+        .get(format!("{}/efforts/{effort_id}", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(
+        body["status"], "delivered",
+        "a dispatched event effort is `delivered` (terminal), not `done`"
+    );
+    assert!(
+        body["completedAt"].is_string(),
+        "a terminal (delivered) effort carries a completion timestamp"
+    );
+    assert_eq!(
+        body["results"][0]["status"], "ok",
+        "the delivery receipt records the dispatch as ok"
+    );
 }
 
 /// A non-respond effort for a plugin that subscribes to NOTHING fails honestly —
@@ -1114,4 +1141,112 @@ async fn sidecar_non_respond_effort_with_no_subscriber_fails_honestly() {
         err.contains("ghost:dispatch") || err.contains("subscribed"),
         "the error must name the missing subscription, got: {err}"
     );
+}
+
+/// A respond effort whose prompt is accepted by a loaded agent channel does NOT
+/// jump to `done`. The answer has not landed yet — the runner will stream it —
+/// so the effort stays `in-progress` (non-terminal, no completion timestamp).
+/// Previously this optimistically marked `done` the instant the send succeeded,
+/// a lie: the effort asserted a result it did not yet carry.
+#[tokio::test]
+async fn sidecar_respond_effort_stays_in_progress_until_result_lands() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+
+    // A loaded agent channel: the send will succeed, but nothing in the test
+    // writes the streamed result back, so the effort must remain in-progress.
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("@refarm/agent".to_string(), tx);
+
+    let id = uuid::Uuid::new_v4().to_string();
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&id))
+        .send()
+        .await
+        .unwrap();
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    let body: serde_json::Value = client
+        .get(format!("{}/efforts/{id}", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    assert_eq!(
+        body["status"], "in-progress",
+        "a respond effort whose result has not landed is in-progress, not done"
+    );
+    assert!(
+        body["completedAt"].is_null(),
+        "a non-terminal (in-progress) effort must not carry a completion timestamp"
+    );
+}
+
+/// Cancel is real at the store level: a non-terminal effort transitions to the
+/// terminal `cancelled` state and reports it, instead of returning a fake
+/// `accepted:true` that changes nothing. (Interrupting a wedged runner thread is
+/// a separate concern — the wasmtime timeout slice.)
+#[tokio::test]
+async fn sidecar_cancel_marks_effort_cancelled() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+
+    // Load an agent channel so the respond effort stays in-progress (cancellable).
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("@refarm/agent".to_string(), tx);
+
+    let id = uuid::Uuid::new_v4().to_string();
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&id))
+        .send()
+        .await
+        .unwrap();
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    let cancel = client
+        .post(format!("{}/efforts/{id}/cancel", base(port)))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(cancel.status(), 202, "cancel of an in-progress effort is accepted");
+
+    let body: serde_json::Value = client
+        .get(format!("{}/efforts/{id}", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(
+        body["status"], "cancelled",
+        "cancel actually transitions the effort to the terminal cancelled state"
+    );
+    assert!(
+        body["completedAt"].is_string(),
+        "a cancelled (terminal) effort carries a completion timestamp"
+    );
+
+    // A second cancel is refused: the effort is already terminal.
+    let again = client
+        .post(format!("{}/efforts/{id}/cancel", base(port)))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(again.status(), 409, "cancel of an already-terminal effort is a conflict");
 }

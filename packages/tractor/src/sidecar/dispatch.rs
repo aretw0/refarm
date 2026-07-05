@@ -3,8 +3,6 @@
 //! plus finalisation and time helpers. Extracted verbatim from mod.rs; the
 //! model, persistence, and stream helpers stay in the parent and are imported.
 
-use axum::response::IntoResponse;
-use axum::http::StatusCode;
 use serde_json::Value;
 
 use super::{
@@ -111,15 +109,17 @@ pub(crate) fn dispatch_event_effort(
 
     if sent > 0 {
         tracing::info!(effort_id = %effort_id, %event, plugin_id = %task.plugin_id, "dispatched event effort via router");
+        // `delivered`, not `done`: delivery is the effort's whole job here. The
+        // verb result lands asynchronously as a dispatch-result:v1 node the caller
+        // reads back by replyRef; the effort records that the event was delivered,
+        // not the node (which the graph owns). Marking `done` would lie — `done`
+        // asserts the effort itself carries a completed task result.
         finalise_effort(
             state,
             effort_id,
-            "done",
+            super::EFFORT_DELIVERED,
             vec![TaskResult {
                 status: "ok".to_string(),
-                // The verb result lands asynchronously as a dispatch-result:v1 node
-                // the caller reads back by replyRef; the effort records that the
-                // event was delivered, not the node (which the graph owns).
                 result: Some(serde_json::json!({ "dispatched": event, "sent": sent })),
                 error: None,
             }],
@@ -146,12 +146,14 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         let effort_id = effort.id.clone();
         let submitted_at = effort.submitted_at.clone();
 
-        // Mark active
+        // Mark in-progress — our own dispatch work is now running. (Was the
+        // non-contract literal "active"; see EFFORT_IN_PROGRESS.) Non-terminal,
+        // so completed_at stays None.
         record_effort_result(
             &state,
             EffortResult {
                 effort_id: effort_id.clone(),
-                status: "active".to_string(),
+                status: super::EFFORT_IN_PROGRESS.to_string(),
                 results: vec![],
                 submitted_at: submitted_at.clone(),
                 completed_at: None,
@@ -302,17 +304,20 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
                 );
             }
             Some(Ok(())) => {
-                // Success — the plugin runner thread will write stream chunks.
-                // Mark done optimistically; a future improvement polls the CRDT for the real result.
-                finalise_effort(
-                    &state,
-                    &effort_id,
-                    "done",
-                    vec![TaskResult {
-                        status: "ok".to_string(),
-                        result: None,
-                        error: None,
-                    }],
+                // The prompt was handed to the plugin runner thread, which will
+                // write stream chunks as it produces the answer. The effort is NOT
+                // done yet — its result has not landed. It stays `in-progress`
+                // (recorded at dispatch start); a watch loop keeps polling until
+                // the real result arrives via the stream/CRDT.
+                //
+                // Previously this optimistically marked `done` the instant the send
+                // succeeded — a lie: the effort asserted a completed result it did
+                // not yet carry. Leaving it in-progress is the honest state; the
+                // remaining debt is a poller that finalises `done` when the CRDT
+                // result actually lands (tracked with the async dispatch debts).
+                tracing::debug!(
+                    effort_id = %effort_id,
+                    "respond prompt handed to runner; effort stays in-progress until result lands"
                 );
             }
         }
@@ -325,7 +330,15 @@ pub(crate) fn finalise_effort(state: &SidecarState, effort_id: &str, status: &st
         s.get_mut(effort_id).map(|entry| {
             entry.status = status.to_string();
             entry.results = results;
-            entry.completed_at = Some(chrono_now_iso());
+            // completed_at is stamped exactly once, here, when and only when the
+            // status is terminal. A non-terminal transition (e.g. in-progress)
+            // must never carry a completion timestamp — a stamped completed_at is
+            // the signal a watch loop trusts to stop.
+            entry.completed_at = if super::is_terminal_effort_status(status) {
+                Some(chrono_now_iso())
+            } else {
+                None
+            };
             entry.clone()
         })
     };
