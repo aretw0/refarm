@@ -493,6 +493,9 @@ jobs:
             cp "$BENCH_BASELINE_COPY" benchmarks/baseline.json
           fi
           pnpm run bench:check
+          # dispatch-stress suite: uses its own committed baseline (baseline-dispatch.json)
+          # to guard the async-dispatch drain cost against regression.
+          pnpm run bench:check:dispatch
 
           # Export payload to GHA env vars if the script exited cleanly
           if [ -f "benchmarks/gha-payload.json" ]; then

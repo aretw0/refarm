@@ -139,6 +139,8 @@ deps-report.md
 # Keep baseline.json versioned, ignore temporary outputs
 **/benchmarks/gha-payload.json
 **/benchmarks/current.json
+**/benchmarks/gha-payload-dispatch.json
+**/benchmarks/current-dispatch.json
 **/benchmarks/report.md
 
 # ─── Generated Github Tag Artifacts ───────────────────────────────────────────────

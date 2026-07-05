@@ -6,11 +6,9 @@
 use axum::response::IntoResponse;
 use axum::http::StatusCode;
 use serde_json::Value;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::{deliver_via_router, AgentMessage};
 use super::{
-    err, persist_effort_result, prompt_ref_from_effort, record_effort_result,
+    persist_effort_result, prompt_ref_from_effort, record_effort_result,
     stream_ref_for_prompt, write_stream_chunk, Effort, EffortResult, EffortTask,
     SidecarState, TaskResult,
 };

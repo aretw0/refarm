@@ -16,6 +16,8 @@
 		"test:integration": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --test ws_integration ws_server_accepts_connection -- --exact --nocapture",
 		"bench:save": "node ../../scripts/ci/cargo-run.mjs run --release --bin tractor-bench -- save",
 		"bench:check": "node ../../scripts/ci/cargo-run.mjs run --release --bin tractor-bench -- check",
+		"bench:save:dispatch": "node ../../scripts/ci/cargo-run.mjs run --release --bin tractor-bench -- save-dispatch",
+		"bench:check:dispatch": "node ../../scripts/ci/cargo-run.mjs run --release --bin tractor-bench -- check-dispatch",
 		"coverage:save": "node scripts/coverage.mjs save",
 		"coverage:check": "node scripts/coverage.mjs check"
 	}
