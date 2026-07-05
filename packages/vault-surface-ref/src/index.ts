@@ -121,3 +121,76 @@ export function createReferenceVaultSurfaceComponent(): Promise<ReferenceVaultSu
 		entry: "vault_surface.js",
 	});
 }
+
+// ── The integration plugin: vault on the REAL runtime contract ───────────────
+
+/** The host capability the vault integration plugin imports (`tractor-bridge`).
+ * A host implements this to give the plugin its ONLY data channel — the plugin
+ * emits results through `storeNode` and a host reads them back with `queryNodes`.
+ * Mirrors packages/refarm-plugin-wit/wit/host.wit; the real host implements it in
+ * packages/tractor/src/host/wasi_bridge/core.rs. */
+export interface TractorBridge {
+	storeNode(node: string): unknown;
+	getNode(id: string): unknown;
+	queryNodes(nodeType: string, limit: number): string[];
+	requestPermission(capability: string, reason: string): boolean;
+	getIdentity(): unknown;
+	getPluginApi(apiName: string): unknown;
+	emitTelemetry(event: string, payload?: string): void;
+}
+
+/** The canonical `integration` interface every refarm plugin exports — the shape
+ * the tractor host calls (setup/ingest/teardown/metadata/on-event live; the rest
+ * declared). */
+export interface IntegrationPlugin {
+	setup(): unknown;
+	ingest(): unknown;
+	push(payload: string): unknown;
+	teardown(): void;
+	getHelpNodes(): unknown;
+	metadata(): {
+		name: string;
+		version: string;
+		description: string;
+		supportedTypes: string[];
+		requiredCapabilities: string[];
+	};
+	onEvent(event: string, payload: string | undefined): void;
+	respond(payload: string): unknown;
+}
+
+const bundledPluginPkgDir = fileURLToPath(new URL("../pkg-plugin/", import.meta.url));
+
+/**
+ * Load the vault:v1 component AS AN `integration` plugin — the same contract the
+ * tractor host loads and calls. Unlike the sandbox-proof surface (imports
+ * nothing), this component IMPORTS `tractor-bridge`, so the caller supplies a host
+ * implementation (the real host, or a test double). The returned `integration` is
+ * driven by `onEvent("vault:dispatch", payload)`; results are emitted through the
+ * supplied bridge's `storeNode`. This is how vault runs on the real runtime.
+ */
+export async function loadVaultPluginComponent(options: {
+	pkgDir: string;
+	entry: string;
+	bridge: TractorBridge;
+}): Promise<IntegrationPlugin> {
+	const { pkgDir, entry, bridge } = options;
+	const getCoreModule = (path: string): WebAssembly.Module =>
+		new WebAssembly.Module(readFileSync(join(pkgDir, path)));
+	const mod = (await import(pathToFileURL(join(pkgDir, entry)).href)) as Any;
+	const root = await mod.instantiate(getCoreModule, {
+		"refarm:plugin/tractor-bridge": bridge,
+	});
+	return root.integration as IntegrationPlugin;
+}
+
+/** Instantiate the BUNDLED vault integration plugin with a host bridge. */
+export function createVaultPluginComponent(
+	bridge: TractorBridge,
+): Promise<IntegrationPlugin> {
+	return loadVaultPluginComponent({
+		pkgDir: bundledPluginPkgDir,
+		entry: "vault_plugin.js",
+		bridge,
+	});
+}

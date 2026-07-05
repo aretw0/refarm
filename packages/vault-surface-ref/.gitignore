@@ -1,4 +1,5 @@
-# Generated component + transpile + TS build artifacts (rebuilt by `build:component`).
+# Generated component + transpile + TS build artifacts (rebuilt by build:component / build:plugin).
 dist/
 pkg/
+pkg-plugin/
 target/

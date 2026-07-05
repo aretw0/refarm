@@ -36,9 +36,34 @@ foundation manifest (`buildVaultPluginManifest`) is deliberately invalid until a
 built `.wasm` and asserting `validatePluginManifest` then passes. That is exactly
 what a real install performs.
 
+## Two components, one core
+
+The dispatch logic lives once in `src/run-core.js` and is shared by TWO
+componentize entries (each bundled by esbuild — which inlines `run-core.js` and
+keeps `refarm:*` imports external — then compiled by `jco componentize`):
+
+| entry | world | imports | proves |
+| --- | --- | --- | --- |
+| `src/surface.js` | `vault-surface` | **nothing** | the sandbox-by-absence boundary (`pnpm build:component` → `pkg/`) |
+| `src/plugin.js` | `refarm-plugin` | `tractor-bridge` | vault running on the REAL runtime (`pnpm build:plugin` → `pkg-plugin/`) |
+
+### The integration plugin — vault on the real runtime
+
+`src/plugin.js` exports the canonical `integration` interface every refarm plugin
+exports, so the tractor host loads and calls it exactly like the agent. The
+runtime only calls `setup`/`ingest`/`teardown`/`metadata`/`on-event` (respond/
+push/get-help-nodes are dead channels today), so the one live entrypoint is
+`on-event`: a caller sends `vault:dispatch` with a JSON payload
+`{ verb, note, profile, replyRef? }`; the plugin runs the vault core and, because
+`on-event` returns nothing, emits results OUT through the host's `tractor-bridge
+store-node` — the exact side channel the agent uses. `loadVaultPluginComponent`
+supplies the bridge (a host implementation or a test double).
+
 ## Testing
 
-`src/surface.test.ts` drives the REAL transpiled component (all four verbs +
-the empty-import sandbox proof + the manifest-integrity swap). It **skips** when
-`pkg/` is absent — run `pnpm build:component` first (the output is gitignored and
-rebuilt). CI builds the component before the test.
+`src/surface.test.ts` drives the sandbox-proof surface (all four verbs + the
+empty-import sandbox + the manifest-integrity swap). `src/plugin.test.ts` drives
+the integration plugin: `on-event('vault:dispatch', extract)` runs through the
+component and stores a KnowledgeRecord via a functional test `tractor-bridge` —
+one vault verb through the real runtime contract, no tractor edits. Both **skip**
+when their pkg is absent (gitignored, rebuilt by `build:component`/`build:plugin`).
