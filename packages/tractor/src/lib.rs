@@ -55,8 +55,69 @@ pub struct AgentMessage {
 
 const SHUTDOWN_EVENT: &str = "__tractor:shutdown";
 
+/// The event a plugin declaring `agent:respond` is implicitly subscribed to (the
+/// agent's prompt channel). `agent:respond` is sugar that expands to this
+/// subscription plus election as the default `user:prompt` target.
+const USER_PROMPT_EVENT: &str = "user:prompt";
+
 /// Keyed by plugin_id — each sender reaches the plugin's dedicated runner thread.
 pub type AgentChannels = Arc<RwLock<HashMap<String, mpsc::UnboundedSender<AgentMessage>>>>;
+
+/// The neutral event router: maps an event name to the set of plugin_ids
+/// subscribed to it, layered OVER the plugin-id lifecycle registry
+/// (`agent_channels`) rather than replacing it — the registry still owns the
+/// senders and shutdown drain. This is what makes any loaded plugin able to
+/// receive its OWN declared event, not just the elected agent's `user:prompt`.
+///
+/// A plugin declares its events via `capabilities.subscribes` in its manifest;
+/// the legacy `agent:respond` and `observe-agent-tools` capability strings are
+/// treated as sugar that expand into subscriptions (see `register_for_events`),
+/// so no existing manifest has to change.
+#[derive(Clone, Default)]
+pub struct EventRouter {
+    /// event name -> set of subscribed plugin_ids.
+    index: Arc<RwLock<HashMap<String, std::collections::BTreeSet<String>>>>,
+}
+
+impl EventRouter {
+    /// Subscribe a plugin to an event name (idempotent).
+    pub fn subscribe(&self, event: &str, plugin_id: &str) {
+        self.index
+            .write()
+            .expect("event router poisoned")
+            .entry(event.to_string())
+            .or_default()
+            .insert(plugin_id.to_string());
+    }
+
+    /// Remove a plugin from every event's subscriber set (on teardown/unload).
+    pub fn unsubscribe_all(&self, plugin_id: &str) {
+        let mut index = self.index.write().expect("event router poisoned");
+        for subscribers in index.values_mut() {
+            subscribers.remove(plugin_id);
+        }
+        index.retain(|_, subscribers| !subscribers.is_empty());
+    }
+
+    /// The plugin_ids subscribed to `event`, in stable order.
+    pub fn subscribers(&self, event: &str) -> Vec<String> {
+        self.index
+            .read()
+            .expect("event router poisoned")
+            .get(event)
+            .map(|s| s.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    /// True when at least one plugin is subscribed to `event`.
+    pub fn has_subscribers(&self, event: &str) -> bool {
+        self.index
+            .read()
+            .expect("event router poisoned")
+            .get(event)
+            .is_some_and(|s| !s.is_empty())
+    }
+}
 
 /// Top-level configuration for booting a TractorNative instance.
 #[derive(Debug, Clone)]
@@ -103,6 +164,10 @@ pub struct TractorNative {
     /// The sidecar exposes this as `activeAgent` in the /plugins response so the
     /// CLI can select the active agent without hardcoding any plugin name.
     pub active_agent_id: Arc<RwLock<Option<String>>>,
+    /// The neutral event router: event name -> subscribed plugin_ids. Layered over
+    /// `agent_channels`; lets any loaded plugin receive its own declared event, not
+    /// just the elected agent's `user:prompt`. Populated by `register_for_events`.
+    pub event_router: EventRouter,
     /// Join handles for plugin runner threads, keyed by plugin_id.
     plugin_runner_handles: Arc<RwLock<HashMap<String, std::thread::JoinHandle<()>>>>,
     #[allow(dead_code)]
@@ -134,6 +199,7 @@ impl TractorNative {
             agent_channels: Arc::new(RwLock::new(HashMap::new())),
             observer_channels: Arc::new(RwLock::new(HashMap::new())),
             active_agent_id: Arc::new(RwLock::new(None)),
+            event_router: EventRouter::default(),
             plugin_runner_handles: Arc::new(RwLock::new(HashMap::new())),
             config,
         })
@@ -153,6 +219,7 @@ impl TractorNative {
     pub fn register_for_events(&self, handle: host::PluginInstanceHandle) {
         let plugin_id = handle.id.clone();
         let provides = handle.provides.clone();
+        let subscribes = handle.subscribes.clone();
         let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
 
         let id_for_thread = plugin_id.clone();
@@ -190,7 +257,20 @@ impl TractorNative {
             .expect("agent_channels poisoned")
             .insert(plugin_id.clone(), tx.clone());
 
+        // Populate the neutral event router. A plugin's explicitly declared
+        // `capabilities.subscribes` events are subscribed directly...
+        for event in &subscribes {
+            self.event_router.subscribe(event, &plugin_id);
+        }
+
+        // ...and the legacy capability strings are treated as SUGAR that expand
+        // into subscriptions, so no existing manifest has to change:
+        //   agent:respond        -> subscribes to user:prompt (+ election below)
+        //   observe-agent-tools  -> subscribes to the agent-tool event family
         if provides.contains(&crate::capabilities::CAP_AGENT_RESPOND.to_string()) {
+            self.event_router.subscribe(USER_PROMPT_EVENT, &plugin_id);
+            // Election survives as a POLICY over the general router: the first
+            // respond-capable plugin becomes the default `user:prompt` target.
             let mut guard = self
                 .active_agent_id
                 .write()
@@ -213,6 +293,41 @@ impl TractorNative {
             .write()
             .expect("plugin_runner_handles poisoned")
             .insert(plugin_id, join);
+    }
+
+    /// Deliver an event to plugins via the neutral router. When `target` is
+    /// `Some(plugin_id)` the event is delivered to exactly that plugin (the
+    /// single-target case, e.g. `user:prompt` to the elected or named agent);
+    /// when `None` it is broadcast to every plugin subscribed to `event`.
+    /// Returns the number of plugins the event was sent to.
+    ///
+    /// This is the one path every event producer routes through, so a loaded
+    /// plugin receives its own declared event by subscription rather than by the
+    /// agent-shaped `agent_channels.get(active_agent)` lookup.
+    pub fn deliver(&self, event: &str, target: Option<&str>, payload: Option<String>) -> usize {
+        let recipients: Vec<String> = match target {
+            Some(plugin_id) => vec![plugin_id.to_string()],
+            None => self.event_router.subscribers(event),
+        };
+        if recipients.is_empty() {
+            return 0;
+        }
+        let channels = self.agent_channels.read().expect("agent_channels poisoned");
+        let mut sent = 0;
+        for plugin_id in &recipients {
+            if let Some(tx) = channels.get(plugin_id) {
+                if tx
+                    .send(AgentMessage {
+                        event: event.to_string(),
+                        payload: payload.clone(),
+                    })
+                    .is_ok()
+                {
+                    sent += 1;
+                }
+            }
+        }
+        sent
     }
 
     /// Shut down all plugins and close storage.
