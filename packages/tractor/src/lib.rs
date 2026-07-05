@@ -416,6 +416,9 @@ pub struct TractorNative {
     /// caller loads N-1 additional stores (async) via `stage_pool_stores`;
     /// register_for_events drains them into the pool. Empty for the default path.
     pool_stores: Arc<RwLock<HashMap<String, Vec<host::PluginInstanceHandle>>>>,
+    /// The on-disk path each loaded plugin came from, keyed by plugin_id. Retained
+    /// by load_plugin so reload_plugin can re-read the (possibly rebuilt) bytes.
+    plugin_paths: Arc<RwLock<HashMap<String, std::path::PathBuf>>>,
     #[allow(dead_code)]
     config: TractorNativeConfig,
 }
@@ -455,13 +458,50 @@ impl TractorNative {
             event_router: EventRouter::default(),
             plugin_runner_handles: Arc::new(RwLock::new(HashMap::new())),
             pool_stores: Arc::new(RwLock::new(HashMap::new())),
+            plugin_paths: Arc::new(RwLock::new(HashMap::new())),
             config,
         })
     }
 
     /// Load and instantiate a WASM plugin from a file path.
     pub async fn load_plugin(&self, path: &Path) -> Result<host::PluginInstanceHandle> {
-        self.plugins.load(path, &self.sync).await
+        let handle = self.plugins.load(path, &self.sync).await?;
+        // Remember where this plugin came from so reload_plugin can re-read it.
+        self.plugin_paths
+            .write()
+            .expect("plugin_paths poisoned")
+            .insert(handle.id.clone(), path.to_path_buf());
+        Ok(handle)
+    }
+
+    /// Hot-reload a loaded plugin from its original path: unregister the running
+    /// instance(s), load the (possibly rebuilt) bytes fresh — the content-
+    /// addressed cache recompiles automatically if the bytes changed — and
+    /// register the new instance. Returns Ok(false) if the plugin isn't loaded or
+    /// its path wasn't retained (e.g. loaded before this ran). The plugin is
+    /// briefly absent between unregister and register; events dispatched in that
+    /// window are dropped by the router (no subscriber), same as before load.
+    pub async fn reload_plugin(&self, plugin_id: &str) -> Result<bool> {
+        let path = self
+            .plugin_paths
+            .read()
+            .expect("plugin_paths poisoned")
+            .get(plugin_id)
+            .cloned();
+        let Some(path) = path else {
+            return Ok(false);
+        };
+        if !self.unregister(plugin_id).await {
+            return Ok(false);
+        }
+        let handle = self.load_plugin(&path).await?;
+        // Re-stage the pool if the plugin opted in (mirrors the boot path). The
+        // fresh handle already carries subscriptions/provides from the manifest;
+        // register wires them back into the router.
+        self.stage_pool_stores(&path, handle.concurrent_safe).await?;
+        self.register_for_events(handle);
+        tracing::info!(plugin_id, path = %path.display(), "plugin hot-reloaded");
+        Ok(true)
     }
 
     /// Load and stage the extra store instances for a concurrent-safe plugin's
@@ -680,6 +720,10 @@ impl TractorNative {
         self.pool_stores
             .write()
             .expect("pool_stores poisoned")
+            .remove(plugin_id);
+        self.plugin_paths
+            .write()
+            .expect("plugin_paths poisoned")
             .remove(plugin_id);
         {
             let mut active = self

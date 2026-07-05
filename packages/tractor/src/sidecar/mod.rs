@@ -332,6 +332,12 @@ struct PluginReloadRequest {
     plugin_ids: Option<Vec<String>>,
 }
 
+/// Reports which requested plugins are currently loaded (reload readiness). This
+/// endpoint does NOT itself swap plugin code — the sidecar holds only the shared
+/// channel/router Arcs, not the plugin host. Real hot-reload is
+/// TractorNative::reload_plugin (unregister + load fresh bytes + register), which
+/// lives on the host that owns load/unregister; wiring this endpoint to call it
+/// is a follow-on that must reach the host without re-coupling the sidecar.
 async fn post_plugins_reload(
     State(state): State<SidecarState>,
     Json(request): Json<PluginReloadRequest>,

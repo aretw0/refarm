@@ -87,3 +87,46 @@ async fn unregister_tears_down_one_plugin_leaving_the_host_clean() {
     // Shutdown after unregister still succeeds and finds nothing to drain.
     tractor.shutdown().await.expect("shutdown after unregister must succeed");
 }
+
+#[tokio::test]
+async fn reload_plugin_replaces_the_running_instance() {
+    let tractor = TractorNative::boot(memory_config_with_plugins())
+        .await
+        .expect("boot must succeed");
+
+    let handle = tractor
+        .load_plugin(Path::new("tests/fixtures/null-plugin.wasm"))
+        .await
+        .expect("plugin fixture must load");
+    let plugin_id = handle.id.clone();
+    tractor.register_for_events(handle);
+    assert_eq!(tractor.agent_channels.read().unwrap().len(), 1);
+
+    // Hot-reload: unregister + reload bytes + re-register. The plugin ends up
+    // loaded again (one channel), from the same path.
+    let reloaded = tractor
+        .reload_plugin(&plugin_id)
+        .await
+        .expect("reload must not error");
+    assert!(reloaded, "reload must report the plugin was reloaded");
+    assert_eq!(
+        tractor.agent_channels.read().unwrap().len(),
+        1,
+        "after reload the plugin is loaded again (exactly one channel)"
+    );
+    assert!(
+        tractor.cancel_flags.read().unwrap().contains_key(&plugin_id),
+        "reload re-registers the plugin's cancel flag"
+    );
+
+    // Reloading an unknown plugin is a no-op (Ok(false)).
+    assert!(
+        !tractor
+            .reload_plugin("@nope/missing")
+            .await
+            .expect("reload of unknown must not error"),
+        "reloading an unloaded plugin returns false"
+    );
+
+    tractor.shutdown().await.expect("shutdown must succeed");
+}
