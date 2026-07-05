@@ -6,11 +6,29 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 } from "@refarm.dev/cli/json-output";
+import type { Effort } from "@refarm.dev/effort-contract-v1";
 
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
+import { sidecarUrl } from "./sidecar-url.js";
 import {
 	discoverVaultProviders,
 	type VaultDiscoveryResult,
 } from "./vault-discovery.js";
+
+/** Submit an effort to the runtime sidecar's `POST /efforts`, returning its id.
+ * The default `dispatch` sink — injectable so run() stays testable. */
+async function submitEffortViaSidecar(effort: Effort): Promise<string> {
+	const response = await fetchSidecarWithTimeout(sidecarUrl("/efforts"), {
+		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify(effort),
+	});
+	if (!response.ok) {
+		throw new Error(`runtime HTTP ${response.status}`);
+	}
+	const payload = (await response.json()) as { effortId: string };
+	return payload.effortId;
+}
 
 /**
  * The `vault` command as a multi-surface CapabilityGroup — the host seam that
@@ -30,11 +48,18 @@ import {
 export interface VaultCommandDeps {
 	/** Discover installed vault providers. Defaults to the refarm plugins dir. */
 	discover: () => VaultDiscoveryResult;
+	/** Submit a dispatch effort to the runtime. Defaults to the sidecar HTTP sink;
+	 * injectable so `dispatch`'s run() is testable without a running daemon. */
+	submitEffort: (effort: Effort) => Promise<string>;
+	/** A UUID source for effort/task ids — injectable for deterministic tests. */
+	newId: () => string;
 }
 
 export function defaultVaultDeps(): VaultCommandDeps {
 	return {
 		discover: () => discoverVaultProviders(),
+		submitEffort: submitEffortViaSidecar,
+		newId: () => crypto.randomUUID(),
 	};
 }
 
@@ -94,10 +119,71 @@ export function createVaultCapabilityGroup(
 		},
 	};
 
+	const dispatch: CapabilityDescriptor = {
+		name: "dispatch",
+		summary: "Dispatch a vault verb to a loaded vault plugin via the runtime",
+		args: [
+			{ name: "verb", required: true },
+			{ name: "note", required: true },
+			{ name: "plugin", required: false },
+		],
+		async run(input) {
+			const verb = input.args.verb as string;
+			const notePath = input.args.note as string;
+			// Default target is `vault`; an operator can point at another provider.
+			const pluginId = (input.args.plugin as string | undefined) ?? "vault";
+
+			// The effort's fn is the verb; the sidecar routes it as `<plugin>:dispatch`
+			// carrying {verb, ...args} to the subscribed plugin. Correlate the async
+			// result by the effort id (the replyRef the plugin stamps on its node).
+			const effortId = deps.newId();
+			const effort: Effort = {
+				id: effortId,
+				direction: "dispatch",
+				tasks: [
+					{
+						id: deps.newId(),
+						pluginId,
+						fn: verb,
+						args: { note: { path: notePath }, replyRef: effortId },
+					},
+				],
+				source: "refarm-vault-dispatch",
+				submittedAt: new Date().toISOString(),
+			};
+
+			try {
+				const returnedId = await deps.submitEffort(effort);
+				return buildJsonSuccessEnvelope({
+					command: "vault",
+					operation: "dispatch",
+					extra: {
+						effortId: returnedId,
+						pluginId,
+						verb,
+						// The result lands asynchronously as a refarm:DispatchResult node
+						// keyed by this replyRef — the caller reads it back by effortId.
+						replyRef: effortId,
+					},
+					nextAction: `The vault result will be stored as a dispatch-result node keyed by replyRef "${effortId}".`,
+				});
+			} catch (error) {
+				return buildJsonErrorEnvelope({
+					command: "vault",
+					operation: "dispatch",
+					error: "vault-dispatch-failed",
+					message: `Could not submit the vault dispatch: ${String(error)}`,
+					nextAction:
+						"Is the runtime daemon up? Run `refarm runtime status`. Is a vault plugin loaded? Run `vault list`.",
+				});
+			}
+		},
+	};
+
 	return {
 		name: "vault",
-		summary: "Inspect vault:v1 providers contributed by installed plugins",
-		actions: { list, show },
+		summary: "Inspect and dispatch vault:v1 verbs to loaded vault plugins",
+		actions: { list, show, dispatch },
 		defaultAction: "list",
 		transports: {
 			cli: {},
