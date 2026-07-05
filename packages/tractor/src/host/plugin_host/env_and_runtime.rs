@@ -342,6 +342,12 @@ struct RuntimePluginManifest {
     observability: RuntimePluginObservability,
     #[serde(default)]
     capabilities: RuntimePluginCapabilities,
+    /// Host-effect permissions the plugin DECLARES it needs (e.g. `fs:read`,
+    /// `shell:spawn`, `network:outbound`). Previously discarded at parse; now read
+    /// so the `request-permission` host export can answer honestly ("did this
+    /// plugin declare this capability?") instead of always granting.
+    #[serde(default)]
+    permissions: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -663,7 +669,24 @@ impl PluginHost {
         let wasi = wasi_builder.build();
         let table = ResourceTable::new();
         let http = wasmtime_wasi_http::WasiHttpCtx::new();
-        let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone(), self.effect_policy.clone(), self.model_route.clone());
+        // The plugin's declared permissions (from its manifest) + the host
+        // security mode form its capability grant for request_permission.
+        let declared_permissions: std::collections::HashSet<String> = manifest
+            .as_ref()
+            .map(|m| m.permissions.iter().cloned().collect())
+            .unwrap_or_default();
+        let permission_grant = crate::host::wasi_bridge::PermissionGrant::new(
+            declared_permissions,
+            self.trust.security_mode().clone(),
+        );
+        let bindings = TractorNativeBindings::new(
+            &plugin_id,
+            sync.clone(),
+            self.telemetry.clone(),
+            self.effect_policy.clone(),
+            self.model_route.clone(),
+            permission_grant,
+        );
 
         let component = self.cached_component(&wasm_hash, &bytes)?;
         // Armed-at-creation: epoch_interruption(true) makes an un-armed store trap
@@ -825,7 +848,16 @@ impl PluginHost {
         let wasi = WasiCtxBuilder::new().inherit_stderr().build();
         let table = ResourceTable::new();
         let http = wasmtime_wasi_http::WasiHttpCtx::new();
-        let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone(), self.effect_policy.clone(), self.model_route.clone());
+        let bindings = TractorNativeBindings::new(
+            &plugin_id,
+            sync.clone(),
+            self.telemetry.clone(),
+            self.effect_policy.clone(),
+            self.model_route.clone(),
+            // host-effects.wasm is a host-provided composition component, not a
+            // manifest-declared plugin — permissive grant.
+            crate::host::wasi_bridge::PermissionGrant::permissive(),
+        );
 
         let component = Component::from_file(&self.engine, path)?;
         // Armed-at-creation (see new_armed_store): host-effects is a component whose

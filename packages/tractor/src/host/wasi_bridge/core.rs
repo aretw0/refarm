@@ -44,6 +44,90 @@ pub struct TractorNativeBindings {
     /// per-request API-key SECRETS stay in env (12-factor), read at send time
     /// keyed off the provider.
     pub(crate) model_route: ModelRoute,
+    /// The plugin's capability grant: the permissions it DECLARED in its manifest
+    /// plus the host security mode. `request_permission` consults this to answer
+    /// honestly ("did this plugin declare this capability?") instead of always
+    /// granting. Resolved at load from the manifest.
+    pub(crate) permission_grant: PermissionGrant,
+}
+
+/// A plugin's capability grant for the `request-permission` host export.
+///
+/// This is the honest minimal grant the architecture already implies: the
+/// manifest DECLARES the permissions a plugin needs, so a request for a declared
+/// permission is granted and an undeclared one is denied. Gated by `SecurityMode`:
+/// in `None`/`Permissive` (dev) it grants regardless (mirroring the effect
+/// bridge's permissive-when-unconfigured default); in `Strict` it enforces the
+/// manifest declaration. NOTE: the WIT calls this a "user-facing permission
+/// prompt", but the host has no prompt UI — the honest behavior is a static
+/// manifest-declared allow/deny, which this documents.
+#[derive(Debug, Clone)]
+pub(crate) struct PermissionGrant {
+    declared: std::collections::HashSet<String>,
+    security_mode: crate::trust::SecurityMode,
+}
+
+impl PermissionGrant {
+    pub(crate) fn new(
+        declared: std::collections::HashSet<String>,
+        security_mode: crate::trust::SecurityMode,
+    ) -> Self {
+        Self { declared, security_mode }
+    }
+
+    /// Permissive default (no declared permissions, dev security mode) — grants
+    /// everything, matching the pre-wiring behavior. Used by test-constructed
+    /// bindings and the host-effects load path.
+    pub(crate) fn permissive() -> Self {
+        Self {
+            declared: std::collections::HashSet::new(),
+            security_mode: crate::trust::SecurityMode::None,
+        }
+    }
+
+    /// Decide whether `capability` is granted. Only `Strict` enforces the
+    /// manifest declaration; dev modes grant regardless.
+    fn grants(&self, capability: &str) -> bool {
+        match self.security_mode {
+            crate::trust::SecurityMode::Strict => self.declared.contains(capability),
+            crate::trust::SecurityMode::Permissive | crate::trust::SecurityMode::None => true,
+        }
+    }
+
+    /// Test constructor: a Strict grant declaring exactly `caps`.
+    #[cfg(test)]
+    pub(crate) fn strict_declaring(caps: &[&str]) -> Self {
+        Self {
+            declared: caps.iter().map(|c| c.to_string()).collect(),
+            security_mode: crate::trust::SecurityMode::Strict,
+        }
+    }
+}
+
+#[cfg(test)]
+mod permission_grant_tests {
+    use super::PermissionGrant;
+
+    #[test]
+    fn strict_grants_only_declared_capabilities() {
+        let grant = PermissionGrant::strict_declaring(&["fs:read", "shell:spawn"]);
+        assert!(grant.grants("fs:read"), "declared capability is granted");
+        assert!(grant.grants("shell:spawn"), "declared capability is granted");
+        assert!(
+            !grant.grants("network:outbound"),
+            "an UNdeclared capability must be denied in Strict mode"
+        );
+        assert!(!grant.grants("fs:write"), "undeclared capability denied");
+    }
+
+    #[test]
+    fn dev_modes_grant_regardless_of_declaration() {
+        // Permissive default (no declarations, dev mode) grants everything —
+        // matching the pre-wiring behavior so dev/test isn't broken.
+        let grant = PermissionGrant::permissive();
+        assert!(grant.grants("anything"));
+        assert!(grant.grants("network:outbound"));
+    }
 }
 
 impl TractorNativeBindings {
@@ -53,6 +137,7 @@ impl TractorNativeBindings {
         telemetry: TelemetryBus,
         effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
         model_route: ModelRoute,
+        permission_grant: PermissionGrant,
     ) -> Self {
         Self {
             plugin_id: plugin_id.into(),
@@ -60,6 +145,7 @@ impl TractorNativeBindings {
             telemetry,
             effect_policy,
             model_route,
+            permission_grant,
         }
     }
 }
@@ -135,12 +221,30 @@ impl TractorBridgeHost for TractorNativeBindings {
             })
     }
 
-    /// Request a user-facing permission prompt. Always grants in Phase 4 (stub).
-    async fn request_permission(&mut self, _capability: String, _reason: String) -> bool {
-        true
+    /// Decide whether the plugin may use `capability`. The WIT names this a
+    /// "user-facing permission prompt", but the host has no prompt UI — the honest
+    /// behavior is a static grant from the plugin's manifest-declared permissions
+    /// (see PermissionGrant): in Strict mode a declared capability is granted and
+    /// an undeclared one denied; dev modes grant regardless. A denial is emitted
+    /// as telemetry (a security-relevant event) rather than silently returned.
+    async fn request_permission(&mut self, capability: String, reason: String) -> bool {
+        let granted = self.permission_grant.grants(&capability);
+        if !granted {
+            self.telemetry.emit_named(
+                "permission:denied",
+                Some(self.plugin_id.clone()),
+                Some(serde_json::json!({ "capability": capability, "reason": reason })),
+            );
+        }
+        granted
     }
 
     /// Return the current user's identity information.
+    ///
+    /// STUB: the tractor host has no identity/user/session source yet, so this
+    /// always reports an anonymous ephemeral guest. A guest that branches on
+    /// `storage_tier` is told a fixed value — do not treat it as authoritative
+    /// until a real identity source is wired.
     async fn get_identity(&mut self) -> Result<IdentityInfo, PluginError> {
         Ok(IdentityInfo {
             identity_type: "guest".to_string(),
@@ -150,6 +254,11 @@ impl TractorBridgeHost for TractorNativeBindings {
     }
 
     /// Discover a plugin that provides a named API (SPI pattern).
+    ///
+    /// STUB: always `NotFound`. Plugin-to-plugin API discovery needs a shared
+    /// registry (an api-name → plugin-id map populated at load, keyed on the
+    /// manifest's `capabilities.providesApi`) which is not built yet; this never
+    /// resolves an API today.
     async fn get_plugin_api(&mut self, api_name: String) -> Result<String, PluginError> {
         Err(PluginError::NotFound(format!(
             "no plugin provides api: {api_name}"

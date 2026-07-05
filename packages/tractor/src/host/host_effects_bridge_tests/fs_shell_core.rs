@@ -23,6 +23,7 @@
             telemetry,
             policy,
             crate::host::wasi_bridge::ModelRoute::default(),
+            crate::host::wasi_bridge::PermissionGrant::permissive(),
         )
     }
 
