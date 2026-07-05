@@ -35,6 +35,15 @@ function classifyPackage(pkgDir) {
   if (hasCargo && scripts["build:wasm"]) return { type: "wasm-component", pkg };
   if (hasCargo) return { type: "rust-only" };
 
+  // A TS→WASM component: no Cargo crate — the .wasm is produced by
+  // `jco componentize` from a JS/TS entry (StarlingMonkey), not cargo-component.
+  // Keyed off a `build:component` script that mentions `componentize`, so it is
+  // recognized as a first-class WASM component kind rather than a plain buildable.
+  const componentScript = scripts["build:component"] ?? "";
+  if (componentScript.includes("componentize")) {
+    return { type: "wasm-jco-component-ts", pkg };
+  }
+
   const buildScript = scripts.build ?? "";
 
   // Behavioral contracts own a conformance suite definition (src/conformance.ts).
@@ -526,6 +535,56 @@ function validateWasmJcoComponent(pkgDir, pkg) {
   return violations;
 }
 
+/**
+ * A TS→WASM component (no Cargo): the .wasm is produced by `jco componentize`
+ * from a JS/TS entry, then transpiled to a loadable pkg/. It ships a TS loader
+ * (built by `build`) alongside the componentized artifact. Validates the build
+ * chain + the same public-entry contract as the Rust WASM component, but keyed
+ * off `build:component` (componentize) and WITHOUT requiring a crate.
+ */
+function validateWasmJcoComponentTs(pkgDir, pkg) {
+  const violations = [];
+
+  const componentScript = pkg.scripts?.["build:component"] ?? "";
+  if (!componentScript.includes("componentize")) {
+    violations.push('script "build:component" must run "jco componentize"');
+  }
+  if (!componentScript.includes("transpile")) {
+    violations.push('script "build:component" must also "jco transpile" to a loadable pkg/');
+  }
+  if (!pkg.scripts?.build) violations.push('script "build" missing (the TS loader)');
+  if (!pkg.scripts?.test) violations.push('script "test" missing');
+
+  // The componentized entry is a JS source file the component is built from.
+  const jsSource = componentScript.match(/componentize\s+(\S+)/)?.[1];
+  if (jsSource && !existsSync(join(pkgDir, jsSource))) {
+    violations.push(`build:component entry "${jsSource}" does not exist`);
+  }
+
+  // Public packages ship the loader as a JS main + .d.ts, like the Rust variant.
+  if (pkg.private !== true && pkg.publishConfig?.access === "public") {
+    if (typeof pkg.main !== "string" || !pkg.main.endsWith(".js")) {
+      violations.push("public WASM component packages must declare a JavaScript main entry");
+    }
+    if (typeof pkg.types !== "string" || !pkg.types.endsWith(".d.ts")) {
+      violations.push("public WASM component packages must declare a .d.ts types entry");
+    }
+    const dot = pkg.exports?.["."];
+    if (!dot || typeof dot !== "object") {
+      violations.push('public WASM component packages must declare exports["."] with "import" and "types" fields');
+    } else {
+      if (dot.import !== pkg.main) {
+        violations.push('public WASM component exports["."].import must match package main');
+      }
+      if (dot.types !== pkg.types) {
+        violations.push('public WASM component exports["."].types must match package types');
+      }
+    }
+  }
+
+  return violations;
+}
+
 function validateHybridBindingsPackage(pkgDir, pkg) {
   const violations = [];
   const tsconfig = readJson(join(pkgDir, "tsconfig.json"));
@@ -706,6 +765,7 @@ function main() {
     else if (type === "source-only") pkgViolations = validateSourceOnly(pkgDir, pkg);
     else if (type === "wasm-component") pkgViolations = validateWasmComponent(pkgDir, pkg);
     else if (type === "wasm-jco-component") pkgViolations = validateWasmJcoComponent(pkgDir, pkg);
+    else if (type === "wasm-jco-component-ts") pkgViolations = validateWasmJcoComponentTs(pkgDir, pkg);
     else if (type === "hybrid-bindings-package") pkgViolations = validateHybridBindingsPackage(pkgDir, pkg);
     else if (type === "js-tool") pkgViolations = validateJsTool(pkgDir, pkg);
     else if (type === "config-pkg") pkgViolations = validateConfigPkg(pkgDir, pkg);
