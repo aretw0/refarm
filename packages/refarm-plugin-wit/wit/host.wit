@@ -57,11 +57,15 @@ interface model-bridge {
     ) -> result<stream-response-result, string>;
 }
 
-// ─── Agent Tool Interfaces (host provides, plugin imports) ───────────────────
+// ─── Host Effect Interfaces (host provides, plugin imports) ──────────────────
+//
+// These are generic host-effect capabilities — filesystem and shell syscalls
+// gated per plugin by identity/config/path. Any empowered plugin (not only the
+// LLM agent) uses them; the name reflects the effect boundary, not a consumer.
 
-/// Filesystem primitives for agent tools: read, write, edit.
+/// Filesystem effect primitives: read, write, edit.
 /// All paths are absolute. Capability gating via TrustManager before dispatch.
-interface agent-fs {
+interface host-fs {
     /// Read file contents from an absolute path.
     read: func(path: string) -> result<list<u8>, string>;
 
@@ -73,9 +77,9 @@ interface agent-fs {
     edit: func(path: string, diff: string) -> result<_, string>;
 }
 
-/// Shell primitive for agent bash tool.
+/// Shell effect primitive: spawn a subprocess.
 /// The host never interpolates through a shell — structured argv only.
-interface agent-shell {
+interface host-shell {
     record spawn-request {
         /// Structured argv. argv[0] is the binary name (no shell expansion).
         argv: list<string>,
@@ -103,9 +107,9 @@ interface agent-shell {
 
 /// Structured I/O — parse and write JSON/TOML/YAML files with validation and pagination.
 ///
-/// Defined here (refarm:plugin package) so agent can import it as a host capability.
-/// The agent-tools.wasm component exports the same interface under refarm:agent-tools;
-/// tractor satisfies agent's import natively until full Component Model composition
+/// Defined here (refarm:plugin package) so any plugin can import it as a host capability.
+/// The host-effects.wasm component exports the same interface under refarm:host-effects;
+/// tractor satisfies the import natively until full Component Model composition
 /// is wired (HANDOFF.md Tarefa 2B follow-up).
 interface structured-io {
     enum file-format { json, toml, yaml }

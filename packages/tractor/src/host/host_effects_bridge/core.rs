@@ -1,10 +1,10 @@
-// Agent tool bridge — host implementations of `agent-fs`, `agent-shell`, and `host-spawn`.
+// Host-effect bridge — host implementations of `host-fs`, `host-shell`, and `host-spawn`.
 //
-// Agent's 4 primitives exposed to WASM plugins:
-//   read, write, edit  → `agent-fs`
-//   spawn              → `agent-shell`
+// The 4 effect primitives exposed to WASM plugins:
+//   read, write, edit  → `host-fs`
+//   spawn              → `host-shell`
 //
-// `host-spawn` is the mechanism import for agent-tools.wasm:
+// `host-spawn` is the mechanism import for host-effects.wasm:
 //   the WASM component enforces policy; `spawn_process` does the actual OS fork/exec.
 
 use std::io::Write as _;
@@ -14,27 +14,27 @@ use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::process::Command;
 use tokio::time::{timeout, Duration};
 
-use crate::host::agent_tools_bindings::refarm::agent_tools::host_spawn::Host as HostSpawnHost;
+use crate::host::host_effects_bindings::refarm::host_effects::host_spawn::Host as HostSpawnHost;
 use crate::host::plugin_host::refarm::plugin::{
-    agent_fs::Host as AgentFsHost,
-    agent_shell::{Host as AgentShellHost, SpawnRequest, SpawnResult},
     code_ops::{CodeReference, Host as CodeOpsHost, RenameResult, SymbolLocation},
+    host_fs::Host as HostFsHost,
+    host_shell::{Host as HostShellHost, SpawnRequest, SpawnResult},
     structured_io::{FileFormat, Host as StructuredIoHost},
 };
 use crate::host::wasi_bridge::TractorNativeBindings;
 
-// ── agent-fs ──────────────────────────────────────────────────────────────────
+// ── host-fs ─────────────────────────────────────────────────────────────────
 
 #[wasmtime::component::__internal::async_trait]
-impl AgentFsHost for TractorNativeBindings {
+impl HostFsHost for TractorNativeBindings {
     async fn read(&mut self, path: String) -> Result<Vec<u8>, String> {
         enforce_fs_root(&path)?;
         let bytes = tokio::fs::read(&path)
             .await
             .map_err(|e| format!("read({path}): {e}"))?;
-        tracing::info!(plugin_id = %self.plugin_id, op = "agent-fs.read", path = %path, bytes = bytes.len());
+        tracing::info!(plugin_id = %self.plugin_id, op = "host-fs.read", path = %path, bytes = bytes.len());
         self.telemetry.emit_named(
-            "agent-tool:fs:read",
+            "host-effect:fs:read",
             Some(self.plugin_id.clone()),
             Some(serde_json::json!({ "path": path, "bytes": bytes.len() })),
         );
@@ -47,9 +47,9 @@ impl AgentFsHost for TractorNativeBindings {
         atomic_write(&path, &content)
             .await
             .map_err(|e| format!("write({path}): {e}"))?;
-        tracing::info!(plugin_id = %self.plugin_id, op = "agent-fs.write", path = %path, bytes = bytes);
+        tracing::info!(plugin_id = %self.plugin_id, op = "host-fs.write", path = %path, bytes = bytes);
         self.telemetry.emit_named(
-            "agent-tool:fs:write",
+            "host-effect:fs:write",
             Some(self.plugin_id.clone()),
             Some(serde_json::json!({ "path": path, "bytes": bytes })),
         );
@@ -72,9 +72,9 @@ impl AgentFsHost for TractorNativeBindings {
         atomic_write(&path, patched.as_bytes())
             .await
             .map_err(|e| format!("edit/write({path}): {e}"))?;
-        tracing::info!(plugin_id = %self.plugin_id, op = "agent-fs.edit", path = %path, diff_bytes = diff.len());
+        tracing::info!(plugin_id = %self.plugin_id, op = "host-fs.edit", path = %path, diff_bytes = diff.len());
         self.telemetry.emit_named(
-            "agent-tool:fs:edit",
+            "host-effect:fs:edit",
             Some(self.plugin_id.clone()),
             Some(serde_json::json!({ "path": path, "diff_bytes": diff.len() })),
         );
@@ -82,14 +82,14 @@ impl AgentFsHost for TractorNativeBindings {
     }
 }
 
-// ── agent-shell (host primitive — Fase 1 fallback) ────────────────────────────
+// ── host-shell (host primitive — Fase 1 fallback) ─────────────────────────────
 //
-// When agent-tools.wasm is NOT loaded, TractorNativeBindings satisfies this
-// import directly. When agent-tools.wasm IS loaded, its exports replace this
+// When host-effects.wasm is NOT loaded, TractorNativeBindings satisfies this
+// import directly. When host-effects.wasm IS loaded, its exports replace this
 // via Component Model composition (Fase 3 — see HANDOFF.md Tarefa 2B).
 
 #[wasmtime::component::__internal::async_trait]
-impl AgentShellHost for TractorNativeBindings {
+impl HostShellHost for TractorNativeBindings {
     async fn spawn(&mut self, req: SpawnRequest) -> Result<SpawnResult, String> {
         enforce_trusted_plugin_for_shell(&self.plugin_id)?;
         if req.argv.is_empty() {
@@ -102,14 +102,14 @@ impl AgentShellHost for TractorNativeBindings {
         let cmd = req.argv.first().map(|s| s.as_str()).unwrap_or("<empty>");
         tracing::info!(
             plugin_id = %self.plugin_id,
-            op = "agent-shell.spawn",
+            op = "host-shell.spawn",
             cmd = %cmd,
             exit_code = exit_code,
             duration_ms = duration_ms,
             timed_out = timed_out,
         );
         self.telemetry.emit_named(
-            "agent-tool:shell:spawn",
+            "host-effect:shell:spawn",
             Some(self.plugin_id.clone()),
             Some(serde_json::json!({
                 "argv": req.argv,
@@ -123,9 +123,9 @@ impl AgentShellHost for TractorNativeBindings {
     }
 }
 
-// ── host-spawn (mechanism import for agent-tools.wasm) ───────────────────────
+// ── host-spawn (mechanism import for host-effects.wasm) ──────────────────────
 //
-// agent-tools.wasm enforces policy (argv non-empty, timeout cap) then calls
+// host-effects.wasm enforces policy (argv non-empty, timeout cap) then calls
 // this import. The host does the actual OS fork/exec — no second check needed.
 
 #[wasmtime::component::__internal::async_trait]
@@ -144,8 +144,8 @@ impl HostSpawnHost for TractorNativeBindings {
 
 // ── Core spawn logic ──────────────────────────────────────────────────────────
 //
-// Shared by AgentShellHost::spawn (direct host primitive) and HostSpawnHost::do_spawn
-// (mechanism import for agent-tools.wasm). Callers must pre-validate argv.
+// Shared by HostShellHost::spawn (direct host primitive) and HostSpawnHost::do_spawn
+// (mechanism import for host-effects.wasm). Callers must pre-validate argv.
 
 pub(crate) async fn spawn_process(
     argv: &[String],
@@ -278,7 +278,7 @@ fn enforce_trusted_plugin_for_shell_with(
     if allowed.contains("*") || allowed.contains(&normalized_plugin_id) {
         Ok(())
     } else {
-        Err(format!("[blocked: plugin '{plugin_id}' not allowed to use agent-shell]"))
+        Err(format!("[blocked: plugin '{plugin_id}' not allowed to use host-shell]"))
     }
 }
 
@@ -358,10 +358,10 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
     crate::host::sensitive_aliases::is_spawn_sensitive_env_key(key)
 }
 
-// ── structured-io (host primitive for agent WIT import) ───────────────────
+// ── structured-io (host primitive for the effect-capable WIT import) ─────────
 //
-// Tractor provides structured-io natively so agent's WIT import is satisfied
-// without full Component Model composition. Once agent-tools.wasm is composed
+// Tractor provides structured-io natively so the guest's WIT import is satisfied
+// without full Component Model composition. Once host-effects.wasm is composed
 // (HANDOFF.md Tarefa 2B), tractor can delegate to its exported structured-io.
 
 #[wasmtime::component::__internal::async_trait]

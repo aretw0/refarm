@@ -17,13 +17,16 @@ world refarm-plugin {
     export integration;
 }
 
-/// The agent guest: base + full agent host capabilities. Still exports the same
-/// `integration` (agent implements respond for real; others stub it).
-world agent {
+/// The effect-capable world: base + full host-effect capabilities (fs, shell,
+/// structured-io, code-ops) plus the model bridge. The LLM agent guest targets
+/// this world today; any empowered plugin needing host effects can too. Still
+/// exports the same `integration` (the agent implements respond for real;
+/// others stub it).
+world effect-capable {
     import tractor-bridge;
     import model-bridge;
-    import agent-fs;
-    import agent-shell;
+    import host-fs;
+    import host-shell;
     import structured-io;
     import code-ops;
     export integration;
@@ -49,8 +52,8 @@ world refarm-http-plugin {
 world refarm-plugin-host {
     import tractor-bridge;
     import model-bridge;
-    import agent-fs;
-    import agent-shell;
+    import host-fs;
+    import host-shell;
     import structured-io;
     import code-ops;
     export integration;

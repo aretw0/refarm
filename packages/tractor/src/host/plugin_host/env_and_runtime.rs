@@ -521,13 +521,13 @@ impl PluginHost {
         wasmtime_wasi_http::add_only_http_to_linker_async(&mut linker)?;
         RefarmPluginHost::add_to_linker(&mut linker, |s| &mut s.bindings)?;
 
-        // ── agent-tools.wasm linker ────────────────────────────────────────
-        // Does NOT include tractor-bridge (agent-tools is not an integration plugin).
+        // ── host-effects.wasm linker ────────────────────────────────────────
+        // Does NOT include tractor-bridge (host-effects is not an integration plugin).
         // Includes WASI (for std::fs → wasi:filesystem) + host-spawn (for OS fork/exec).
-        let mut agent_tools_linker: Linker<TractorStore> = Linker::new(&engine);
-        wasmtime_wasi::add_to_linker_async(&mut agent_tools_linker)?;
-        atb::AgentToolsHost::add_to_linker(
-            &mut agent_tools_linker,
+        let mut host_effects_linker: Linker<TractorStore> = Linker::new(&engine);
+        wasmtime_wasi::add_to_linker_async(&mut host_effects_linker)?;
+        atb::HostEffectsHost::add_to_linker(
+            &mut host_effects_linker,
             |s| &mut s.bindings,
         )?;
 
@@ -557,7 +557,7 @@ impl PluginHost {
             telemetry,
             engine,
             linker: Arc::new(linker),
-            agent_tools_linker: Arc::new(agent_tools_linker),
+            host_effects_linker: Arc::new(host_effects_linker),
             module_engine,
             module_linker: Arc::new(module_linker),
             component_cache: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
@@ -601,8 +601,8 @@ impl PluginHost {
 
     /// Load a regular integration plugin (`.wasm` Component).
     ///
-    /// Uses the regular linker: tractor-bridge + agent-fs/shell host primitives.
-    /// Fase 3 TODO: if `agent_tools` is loaded, compose agent-fs/shell from it
+    /// Uses the regular linker: tractor-bridge + host-fs/shell host primitives.
+    /// Fase 3 TODO: if `host_effects` is loaded, compose host-fs/shell from it
     /// instead of the host primitive — see HANDOFF.md Tarefa 2B.
     pub async fn load(&self, path: &Path, sync: &NativeSync) -> Result<PluginInstanceHandle> {
         let manifest = read_runtime_plugin_manifest(path)?;
@@ -797,16 +797,16 @@ impl PluginHost {
         Ok(handle)
     }
 
-    /// Load agent-tools.wasm — the composition component that exports agent-fs + agent-shell.
+    /// Load host-effects.wasm — the composition component that exports host-fs + host-shell.
     ///
     /// Uses a dedicated linker with WASI + host-spawn (no tractor-bridge).
-    /// The returned `AgentToolsHandle` is stored by the caller (daemon/manager)
+    /// The returned `HostEffectsHandle` is stored by the caller (daemon/manager)
     /// for future Fase 3 composition with agent.wasm.
-    pub async fn load_agent_tools(&self, path: &Path, sync: &NativeSync) -> Result<AgentToolsHandle> {
-        let plugin_id = "agent-tools".to_string();
+    pub async fn load_host_effects(&self, path: &Path, sync: &NativeSync) -> Result<HostEffectsHandle> {
+        let plugin_id = "host-effects".to_string();
 
-        tracing::info!(path = %path.display(), "Loading agent-tools.wasm");
-        anyhow::ensure!(path.exists(), "agent-tools.wasm not found: {}", path.display());
+        tracing::info!(path = %path.display(), "Loading host-effects.wasm");
+        anyhow::ensure!(path.exists(), "host-effects.wasm not found: {}", path.display());
 
         let bytes = tokio::fs::read(path).await?;
         let wasm_hash = hex::encode(Sha256::digest(&bytes));
@@ -817,28 +817,28 @@ impl PluginHost {
         let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone());
 
         let component = Component::from_file(&self.engine, path)?;
-        // Armed-at-creation (see new_armed_store): agent-tools is a component whose
+        // Armed-at-creation (see new_armed_store): host-effects is a component whose
         // start runs guest code that would trap on the default-0 deadline.
         let mut store = crate::host::instance::new_armed_store(
             &self.engine,
             TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() },
         );
 
-        let agent_tools = atb::AgentToolsHost::instantiate_async(
+        let host_effects = atb::HostEffectsHost::instantiate_async(
             &mut store,
             &component,
-            &self.agent_tools_linker,
+            &self.host_effects_linker,
         )
         .await?;
 
         self.telemetry.emit_named(
-            "agent-tools:loaded",
+            "host-effects:loaded",
             Some(plugin_id.clone()),
             Some(serde_json::json!({ "wasm_hash": wasm_hash })),
         );
 
-        tracing::info!(wasm_hash = %wasm_hash, "agent-tools.wasm loaded");
-        Ok(AgentToolsHandle::new(plugin_id, agent_tools, store))
+        tracing::info!(wasm_hash = %wasm_hash, "host-effects.wasm loaded");
+        Ok(HostEffectsHandle::new(plugin_id, host_effects, store))
     }
 }
 
@@ -867,16 +867,16 @@ mod capability_tests {
     }
 
     #[test]
-    fn manifest_with_observe_agent_tools_capability() {
-        let m = minimal_manifest(r#""capabilities":{"provides":["observe-agent-tools"]}"#);
-        assert!(m.capabilities.provides.contains(&"observe-agent-tools".to_string()));
+    fn manifest_with_observe_host_effects_capability() {
+        let m = minimal_manifest(r#""capabilities":{"provides":["observe-host-effects"]}"#);
+        assert!(m.capabilities.provides.contains(&"observe-host-effects".to_string()));
     }
 
     #[test]
     fn manifest_with_multiple_capabilities() {
-        let m = minimal_manifest(r#""capabilities":{"provides":["observe-agent-tools","audit-log"]}"#);
+        let m = minimal_manifest(r#""capabilities":{"provides":["observe-host-effects","audit-log"]}"#);
         assert_eq!(m.capabilities.provides.len(), 2);
-        assert!(m.capabilities.provides.contains(&"observe-agent-tools".to_string()));
+        assert!(m.capabilities.provides.contains(&"observe-host-effects".to_string()));
     }
 
     #[test]
@@ -921,8 +921,8 @@ mod capability_tests {
 
     #[test]
     fn capability_constant_is_stable() {
-        // Guard: if CAP_OBSERVE_AGENT_TOOLS ever changes, existing plugin.json files
+        // Guard: if CAP_OBSERVE_HOST_EFFECTS ever changes, existing plugin.json files
         // would silently stop being routed as observers.
-        assert_eq!(crate::observer::CAP_OBSERVE_AGENT_TOOLS, "observe-agent-tools");
+        assert_eq!(crate::observer::CAP_OBSERVE_HOST_EFFECTS, "observe-host-effects");
     }
 }

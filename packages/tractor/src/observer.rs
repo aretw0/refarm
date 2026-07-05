@@ -1,15 +1,15 @@
 // Agent-tool observer — audit sink and capability-based event routing.
 //
-// Step 3 (core.rs): every agent-fs/agent-shell call emits a TelemetryBus event.
+// Step 3 (core.rs): every host-fs/host-shell call emits a TelemetryBus event.
 // Step 4 (this file): the audit subscriber writes those events to NDJSON and
-//   routes them to any plugin that declared CAP_OBSERVE_AGENT_TOOLS in its
+//   routes them to any plugin that declared CAP_OBSERVE_HOST_EFFECTS in its
 //   manifest.capabilities.provides. That plugin receives standard
 //   `integration.on-event` calls — no new WIT interface needed.
 //
 // Routing is purely capability-driven. The tractor does not know the name or
 // purpose of any observer plugin; it only checks the declared capability.
 // The reference implementation lives in packages/scarecrow — but any plugin
-// that declares "observe-agent-tools" is eligible.
+// that declares "observe-host-effects" is eligible.
 
 use std::path::{Path, PathBuf};
 use tokio::fs::OpenOptions;
@@ -18,10 +18,10 @@ use tokio::io::AsyncWriteExt as _;
 use crate::telemetry::{TelemetryBus, TelemetryEvent};
 use crate::{PluginChannels, EventEnvelope};
 
-pub use crate::capabilities::CAP_OBSERVE_AGENT_TOOLS;
+pub use crate::capabilities::CAP_OBSERVE_HOST_EFFECTS;
 
 pub const AUDIT_FILE: &str = "scarecrow-audit.ndjson";
-const AGENT_TOOL_PREFIX: &str = "agent-tool:";
+const HOST_EFFECT_PREFIX: &str = "host-effect:";
 
 /// Rotate the live audit file once it exceeds this many bytes. The audit log is
 /// tamper-evidence, so rotation RENAMES the full file to a sealed timestamped
@@ -48,10 +48,10 @@ fn audit_max_segments() -> usize {
 
 /// Spawn the Scarecrow background task.
 ///
-/// Subscribes to `agent-tool:*` TelemetryBus events and for each one:
+/// Subscribes to `host-effect:*` TelemetryBus events and for each one:
 ///   1. Appends a NDJSON audit line to `{base_dir}/scarecrow-audit.ndjson`.
 ///   2. Forwards the event to every plugin registered in `observer_channels` —
-///      i.e. every plugin that declared `"observe-agent-tools"` in its manifest.
+///      i.e. every plugin that declared `"observe-host-effects"` in its manifest.
 ///
 /// The task runs until the TelemetryBus sender is dropped (daemon shutdown).
 pub fn spawn_audit_subscriber(
@@ -76,7 +76,7 @@ async fn audit_subscriber_task(
     loop {
         match rx.recv().await {
             Ok(event) => {
-                if !event.event.starts_with(AGENT_TOOL_PREFIX) {
+                if !event.event.starts_with(HOST_EFFECT_PREFIX) {
                     continue;
                 }
                 if let Some(line) = format_audit_line(&event) {
@@ -95,7 +95,7 @@ async fn audit_subscriber_task(
     }
 }
 
-/// Forward an agent-tool event to every channel in `observer_channels`.
+/// Forward a host-effect event to every channel in `observer_channels`.
 ///
 /// All plugins in this map have already been vetted by capability declaration —
 /// no further filtering is needed here.
@@ -260,13 +260,13 @@ mod tests {
     #[test]
     fn format_fs_read_event() {
         let ev = make_event(
-            "agent-tool:fs:read",
+            "host-effect:fs:read",
             Some("agent"),
             serde_json::json!({ "path": "/workspaces/refarm/README.md", "bytes": 1024 }),
         );
         let line = format_audit_line(&ev).expect("should format");
         let parsed: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
-        assert_eq!(parsed["event"], "agent-tool:fs:read");
+        assert_eq!(parsed["event"], "host-effect:fs:read");
         assert_eq!(parsed["plugin_id"], "agent");
         assert_eq!(parsed["path"], "/workspaces/refarm/README.md");
         assert_eq!(parsed["bytes"], 1024);
@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn format_shell_spawn_event() {
         let ev = make_event(
-            "agent-tool:shell:spawn",
+            "host-effect:shell:spawn",
             Some("agent"),
             serde_json::json!({
                 "argv": ["refarm", "agent", "finish", "--lane", "after-edit", "--run", "--json"],
@@ -287,7 +287,7 @@ mod tests {
         );
         let line = format_audit_line(&ev).expect("should format");
         let parsed: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
-        assert_eq!(parsed["event"], "agent-tool:shell:spawn");
+        assert_eq!(parsed["event"], "host-effect:shell:spawn");
         assert_eq!(parsed["exit_code"], 0);
         assert_eq!(parsed["duration_ms"], 12340);
         assert_eq!(parsed["timed_out"], false);
@@ -296,10 +296,10 @@ mod tests {
 
     #[test]
     fn event_without_payload_formats_cleanly() {
-        let ev = TelemetryEvent::new("agent-tool:fs:edit", Some("agent".into()));
+        let ev = TelemetryEvent::new("host-effect:fs:edit", Some("agent".into()));
         let line = format_audit_line(&ev).expect("should format");
         let parsed: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
-        assert_eq!(parsed["event"], "agent-tool:fs:edit");
+        assert_eq!(parsed["event"], "host-effect:fs:edit");
         assert_eq!(parsed["plugin_id"], "agent");
     }
 
@@ -319,7 +319,7 @@ mod tests {
         }));
 
         let ev = make_event(
-            "agent-tool:fs:write",
+            "host-effect:fs:write",
             Some("agent"),
             serde_json::json!({ "path": "/workspaces/refarm/src/main.ts", "bytes": 512 }),
         );
@@ -328,8 +328,8 @@ mod tests {
 
         let msg1 = rx1.try_recv().expect("observer 1 should receive");
         let msg2 = rx2.try_recv().expect("observer 2 should receive");
-        assert_eq!(msg1.event, "agent-tool:fs:write");
-        assert_eq!(msg2.event, "agent-tool:fs:write");
+        assert_eq!(msg1.event, "host-effect:fs:write");
+        assert_eq!(msg2.event, "host-effect:fs:write");
         assert!(msg1.payload.unwrap().contains("512"));
     }
 
@@ -340,7 +340,7 @@ mod tests {
 
         let observer_channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
         let ev = make_event(
-            "agent-tool:fs:read",
+            "host-effect:fs:read",
             Some("agent"),
             serde_json::json!({}),
         );

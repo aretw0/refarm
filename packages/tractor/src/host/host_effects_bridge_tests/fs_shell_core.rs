@@ -1,9 +1,9 @@
     use super::*;
     use crate::{NativeStorage, NativeSync, TelemetryBus};
     use crate::host::plugin_host::refarm::plugin::{
-        agent_fs::Host as AgentFsHost,
-        agent_shell::{Host as AgentShellHost, SpawnRequest},
         code_ops::{Host as CodeOpsHost, SymbolLocation},
+        host_fs::Host as HostFsHost,
+        host_shell::{Host as HostShellHost, SpawnRequest},
     };
 
     fn make_bindings() -> TractorNativeBindings {
@@ -58,7 +58,7 @@
         }
     }
 
-    // ── agent-fs ──────────────────────────────────────────────────────────────
+    // ── host-fs ──────────────────────────────────────────────────────────────
 
     #[tokio::test]
     async fn read_existing_file() {
@@ -67,14 +67,14 @@
         std::fs::write(&path, b"sovereign").unwrap();
 
         let mut b = make_bindings();
-        let result = AgentFsHost::read(&mut b, path.to_string_lossy().into_owned()).await;
+        let result = HostFsHost::read(&mut b, path.to_string_lossy().into_owned()).await;
         assert_eq!(result.unwrap(), b"sovereign");
     }
 
     #[tokio::test]
     async fn read_missing_file_returns_error() {
         let mut b = make_bindings();
-        let result = AgentFsHost::read(&mut b, "/nonexistent/path/file.txt".into()).await;
+        let result = HostFsHost::read(&mut b, "/nonexistent/path/file.txt".into()).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("read("));
     }
@@ -85,7 +85,7 @@
         let path = dir.path().join("output.txt");
 
         let mut b = make_bindings();
-        AgentFsHost::write(&mut b, path.to_string_lossy().into_owned(), b"hello farm".to_vec())
+        HostFsHost::write(&mut b, path.to_string_lossy().into_owned(), b"hello farm".to_vec())
             .await
             .unwrap();
 
@@ -99,7 +99,7 @@
         std::fs::write(&path, b"old content").unwrap();
 
         let mut b = make_bindings();
-        AgentFsHost::write(&mut b, path.to_string_lossy().into_owned(), b"new content".to_vec())
+        HostFsHost::write(&mut b, path.to_string_lossy().into_owned(), b"new content".to_vec())
             .await
             .unwrap();
 
@@ -115,7 +115,7 @@
         let diff = "--- src.txt\n+++ src.txt\n@@ -1,3 +1,3 @@\n line one\n-line two\n+line TWO\n line three\n";
 
         let mut b = make_bindings();
-        AgentFsHost::edit(&mut b, path.to_string_lossy().into_owned(), diff.into())
+        HostFsHost::edit(&mut b, path.to_string_lossy().into_owned(), diff.into())
             .await
             .unwrap();
 
@@ -133,24 +133,24 @@
         let diff = "--- src.txt\n+++ src.txt\n@@ -1,3 +1,3 @@\n line one\n-line two\n+line TWO\n line three\n";
 
         let mut b = make_bindings();
-        let result = AgentFsHost::edit(&mut b, path.to_string_lossy().into_owned(), diff.into()).await;
+        let result = HostFsHost::edit(&mut b, path.to_string_lossy().into_owned(), diff.into()).await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn edit_fails_on_missing_file() {
         let mut b = make_bindings();
-        let result = AgentFsHost::edit(&mut b, "/no/such/file.txt".into(), "--- a\n+++ b\n".into()).await;
+        let result = HostFsHost::edit(&mut b, "/no/such/file.txt".into(), "--- a\n+++ b\n".into()).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("edit/read("));
     }
 
-    // ── agent-shell ───────────────────────────────────────────────────────────
+    // ── host-shell ───────────────────────────────────────────────────────────
 
     #[tokio::test]
     async fn spawn_echo_captures_stdout() {
         let mut b = make_bindings();
-        let result = AgentShellHost::spawn(&mut b, spawn_req(&["echo", "sovereign farm"])).await.unwrap();
+        let result = HostShellHost::spawn(&mut b, spawn_req(&["echo", "sovereign farm"])).await.unwrap();
         assert_eq!(result.exit_code, 0);
         assert!(!result.timed_out);
         assert!(String::from_utf8_lossy(&result.stdout).contains("sovereign farm"));
@@ -159,7 +159,7 @@
     #[tokio::test]
     async fn spawn_exit_code_propagated() {
         let mut b = make_bindings();
-        let result = AgentShellHost::spawn(&mut b, spawn_req(&["false"])).await.unwrap();
+        let result = HostShellHost::spawn(&mut b, spawn_req(&["false"])).await.unwrap();
         assert_ne!(result.exit_code, 0);
         assert!(!result.timed_out);
     }
@@ -168,7 +168,7 @@
     async fn spawn_empty_argv_returns_error() {
         let mut b = make_bindings();
         let req = SpawnRequest { argv: vec![], env: vec![], cwd: None, timeout_ms: 1000, stdin: None };
-        let result = AgentShellHost::spawn(&mut b, req).await;
+        let result = HostShellHost::spawn(&mut b, req).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("argv must be non-empty"));
     }
@@ -183,7 +183,7 @@
             timeout_ms: 100,
             stdin: None,
         };
-        let result = AgentShellHost::spawn(&mut b, req).await.unwrap();
+        let result = HostShellHost::spawn(&mut b, req).await.unwrap();
         assert!(result.timed_out);
         assert_eq!(result.exit_code, -1);
     }
@@ -198,7 +198,7 @@
             timeout_ms: 5000,
             stdin: Some(b"refarm".to_vec()),
         };
-        let result = AgentShellHost::spawn(&mut b, req).await.unwrap();
+        let result = HostShellHost::spawn(&mut b, req).await.unwrap();
         assert_eq!(result.exit_code, 0);
         assert_eq!(&result.stdout, b"refarm");
     }
@@ -235,7 +235,7 @@
     #[tokio::test]
     async fn spawn_env_clear_no_ambient_env() {
         let mut b = make_bindings();
-        let result = AgentShellHost::spawn(
+        let result = HostShellHost::spawn(
             &mut b,
             spawn_req(&["sh", "-c", "echo ${HOME:-ABSENT}"]),
         )

@@ -1,15 +1,15 @@
-/// Host-side WIT for loading agent-tools.wasm.
+/// Host-side WIT for loading host-effects.wasm.
 ///
-/// tractor (host)           agent-tools.wasm (component)
+/// tractor (host)           host-effects.wasm (component)
 ///   provides host-spawn  →  component imports host-spawn (to exec processes)
-///   calls agent-fs       ←  component exports agent-fs
-///   calls agent-shell    ←  component exports agent-shell
+///   calls host-fs        ←  component exports host-fs
+///   calls host-shell     ←  component exports host-shell
 ///
-/// The `agent-tools-host` world is the mirror of `agent-tools-provider`
+/// The `host-effects-host` world is the mirror of `host-effects-provider`
 /// (in packages/agent-tools/wit/world.wit) from the tractor's perspective.
-/// wasmtime::component::bindgen! generates AgentToolsHost from this world.
+/// wasmtime::component::bindgen! generates HostEffectsHost from this world.
 
-package refarm:agent-tools@0.1.0;
+package refarm:host-effects@0.1.0;
 
 // ─── Interfaces (mirrored from packages/agent-tools/wit/world.wit) ───────────
 
@@ -19,13 +19,13 @@ interface structured-io {
     write-structured: func(path: string, content: string, format: option<file-format>) -> result<_, string>;
 }
 
-interface agent-fs {
+interface host-fs {
     read:  func(path: string)                    -> result<list<u8>, string>;
     write: func(path: string, content: list<u8>) -> result<_, string>;
     edit:  func(path: string, diff: string)      -> result<_, string>;
 }
 
-interface agent-shell {
+interface host-shell {
     record spawn-request {
         argv:       list<string>,
         env:        list<tuple<string, string>>,
@@ -43,7 +43,7 @@ interface agent-shell {
 }
 
 /// Host-provided process spawn primitive.
-/// WASM cannot fork/exec natively; agent-tools.wasm calls this to delegate
+/// WASM cannot fork/exec natively; host-effects.wasm calls this to delegate
 /// the actual OS syscall to the tractor host.
 interface host-spawn {
     do-spawn: func(
@@ -57,12 +57,12 @@ interface host-spawn {
 
 // ─── Host-side world ─────────────────────────────────────────────────────────
 
-world agent-tools-host {
-    /// Tractor implements this; agent-tools.wasm calls it for OS process spawn.
+world host-effects-host {
+    /// Tractor implements this; host-effects.wasm calls it for OS process spawn.
     import host-spawn;
 
-    /// Tractor calls these on agent-tools.wasm to compose with agent.
-    export agent-fs;
-    export agent-shell;
+    /// Tractor calls these on host-effects.wasm to compose with a guest.
+    export host-fs;
+    export host-shell;
     export structured-io;
 }

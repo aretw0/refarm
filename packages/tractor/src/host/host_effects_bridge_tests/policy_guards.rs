@@ -753,10 +753,10 @@
 
     #[test]
     fn trusted_plugins_parse_allows_only_strings() {
-        let cfg = serde_json::json!({"trusted_plugins": ["agent", "agent-tools", " "]});
+        let cfg = serde_json::json!({"trusted_plugins": ["agent", "host-effects", " "]});
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
         assert!(parsed.contains("agent"));
-        assert!(parsed.contains("agent-tools"));
+        assert!(parsed.contains("host-effects"));
         assert!(!parsed.contains(""));
     }
 
@@ -784,11 +784,11 @@
     #[test]
     fn trusted_plugins_parse_trims_and_deduplicates_values() {
         let cfg = serde_json::json!({
-            "trusted_plugins": [" agent ", "AGENT", "  ", "agent-tools"]
+            "trusted_plugins": [" agent ", "AGENT", "  ", "host-effects"]
         });
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
         assert!(parsed.contains("agent"));
-        assert!(parsed.contains("agent-tools"));
+        assert!(parsed.contains("host-effects"));
         assert_eq!(parsed.len(), 2);
     }
 
@@ -829,7 +829,7 @@
         assert!(parsed.is_empty());
 
         let err = enforce_trusted_plugin_for_shell_with("agent", Some(&parsed)).unwrap_err();
-        assert!(err.contains("not allowed to use agent-shell"));
+        assert!(err.contains("not allowed to use host-shell"));
     }
 
     #[test]
@@ -839,14 +839,14 @@
         assert!(parsed.is_empty());
 
         let err = enforce_trusted_plugin_for_shell_with("agent", Some(&parsed)).unwrap_err();
-        assert!(err.contains("not allowed to use agent-shell"));
+        assert!(err.contains("not allowed to use host-shell"));
     }
 
     #[test]
     fn trusted_plugins_enforcement_blocks_unlisted_plugin() {
         let allowed = std::collections::HashSet::from(["agent".to_string()]);
         let err = enforce_trusted_plugin_for_shell_with("other_plugin", Some(&allowed)).unwrap_err();
-        assert!(err.contains("not allowed to use agent-shell"));
+        assert!(err.contains("not allowed to use host-shell"));
     }
 
     #[test]

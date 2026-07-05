@@ -94,7 +94,7 @@ pub type InFlightCancels =
 /// receive its OWN declared event, not just the elected agent's `user:prompt`.
 ///
 /// A plugin declares its events via `capabilities.subscribes` in its manifest;
-/// the legacy `agent:respond` and `observe-agent-tools` capability strings are
+/// the legacy `agent:respond` and `observe-host-effects` capability strings are
 /// treated as sugar that expand into subscriptions (see `register_for_events`),
 /// so no existing manifest has to change.
 #[derive(Clone, Default)]
@@ -393,8 +393,8 @@ pub struct TractorNative {
     /// Populated by `register_for_events`; read by WsServer for prompt routing.
     pub plugin_channels: PluginChannels,
     /// Subset of `plugin_channels` containing only plugins that declared
-    /// the `"observe-agent-tools"` capability in their manifest.
-    /// Read by the Scarecrow audit subscriber to route agent-tool events.
+    /// the `"observe-host-effects"` capability in their manifest.
+    /// Read by the Scarecrow audit subscriber to route host-effect events.
     pub observer_channels: PluginChannels,
     /// Cancel flags keyed by plugin_id, shared with each plugin store's epoch
     /// callback. Populated by `register_for_events`; read by the sidecar's
@@ -643,7 +643,7 @@ impl TractorNative {
         // ...and the legacy capability strings are treated as SUGAR that expand
         // into subscriptions, so no existing manifest has to change:
         //   agent:respond        -> subscribes to user:prompt (+ election below)
-        //   observe-agent-tools  -> subscribes to the agent-tool event family
+        //   observe-host-effects  -> subscribes to the host-effect event family
         if provides.contains(&crate::capabilities::CAP_AGENT_RESPOND.to_string()) {
             self.event_router.subscribe(USER_PROMPT_EVENT, &plugin_id);
             // Election survives as a POLICY over the general router: the first
@@ -658,12 +658,12 @@ impl TractorNative {
             }
         }
 
-        if provides.contains(&crate::observer::CAP_OBSERVE_AGENT_TOOLS.to_string()) {
+        if provides.contains(&crate::observer::CAP_OBSERVE_HOST_EFFECTS.to_string()) {
             self.observer_channels
                 .write()
                 .expect("observer_channels poisoned")
                 .insert(plugin_id.clone(), tx);
-            tracing::info!(plugin_id = %plugin_id, "registered as agent-tool observer");
+            tracing::info!(plugin_id = %plugin_id, "registered as host-effect observer");
         }
 
         self.plugin_runner_handles

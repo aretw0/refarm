@@ -1,20 +1,21 @@
-/// agent-tools-provider world
+/// host-effects-provider world
 ///
-/// This component EXPORTS agent-fs and agent-shell to be composed with agent.
-/// It IMPORTS host-spawn because WASM has no native process-spawn capability —
-/// the WASM sandbox enforces policy (argv validation, timeout cap) while the
-/// tractor host executes the actual OS fork/exec via this import.
+/// This component EXPORTS host-fs and host-shell to be composed with an
+/// effect-capable guest. It IMPORTS host-spawn because WASM has no native
+/// process-spawn capability — the WASM sandbox enforces policy (argv
+/// validation, timeout cap) while the tractor host executes the actual OS
+/// fork/exec via this import.
 ///
 /// Composition target:
 ///   tractor host
-///   ├── loads agent-tools.wasm   ← exports: agent-fs, agent-shell
-///   ├── loads agent.wasm      ← imports: agent-fs, agent-shell
+///   ├── loads host-effects.wasm  ← exports: host-fs, host-shell
+///   ├── loads a guest.wasm       ← imports: host-fs, host-shell
 ///   └── wires them via Component Model linker
-package refarm:agent-tools@0.1.0;
+package refarm:host-effects@0.1.0;
 
-// ─── Filesystem Tools ─────────────────────────────────────────────────────────
+// ─── Filesystem Effects ───────────────────────────────────────────────────────
 
-interface agent-fs {
+interface host-fs {
     /// Read file contents from an absolute path.
     read: func(path: string) -> result<list<u8>, string>;
 
@@ -26,9 +27,9 @@ interface agent-fs {
     edit: func(path: string, diff: string) -> result<_, string>;
 }
 
-// ─── Shell Tool ───────────────────────────────────────────────────────────────
+// ─── Shell Effect ─────────────────────────────────────────────────────────────
 
-interface agent-shell {
+interface host-shell {
     record spawn-request {
         /// Structured argv — never interpolated through a shell.
         argv: list<string>,
@@ -63,7 +64,7 @@ interface agent-shell {
 
 interface host-spawn {
     /// Flat-args version avoids cross-interface type sharing complexity in WIT.
-    /// agent-shell::spawn validates policy then forwards here.
+    /// host-shell::spawn validates policy then forwards here.
     do-spawn: func(
         argv: list<string>,
         env: list<tuple<string, string>>,
@@ -76,8 +77,8 @@ interface host-spawn {
 // ─── Structured I/O ──────────────────────────────────────────────────────────
 //
 // Parse and write structured files (JSON, TOML, YAML) with validation and
-// pagination. This service sits in agent-tools so both human-facing tools
-// (CLIs, UIs) and agent plugins share the same implementation without
+// pagination. This service sits in host-effects so both human-facing tools
+// (CLIs, UIs) and effect-capable plugins share the same implementation without
 // duplicating the parsing logic per consumer.
 
 interface structured-io {
@@ -108,12 +109,12 @@ interface structured-io {
 
 // ─── World ────────────────────────────────────────────────────────────────────
 
-world agent-tools-provider {
+world host-effects-provider {
     /// Host provides the actual OS process spawn mechanism.
     import host-spawn;
 
-    /// This component provides filesystem and shell tools to agent plugins.
-    export agent-fs;
-    export agent-shell;
+    /// This component provides filesystem and shell effects to guest plugins.
+    export host-fs;
+    export host-shell;
     export structured-io;
 }

@@ -4,9 +4,9 @@
 //! The tractor uses them to route events and select the active agent without
 //! coupling to specific plugin names.
 
-/// Plugin can receive agent-tool (agent-fs/agent-shell) observation events
+/// Plugin can receive host-effect (host-fs/host-shell) observation events
 /// via `integration.on-event`. Used by observer routing in `observer.rs`.
-pub const CAP_OBSERVE_AGENT_TOOLS: &str = "observe-agent-tools";
+pub const CAP_OBSERVE_HOST_EFFECTS: &str = "observe-host-effects";
 
 /// Plugin implements the `integration.respond` export and can handle
 /// user prompts. The tractor uses this to identify the active agent and

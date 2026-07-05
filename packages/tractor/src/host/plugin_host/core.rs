@@ -1,8 +1,8 @@
 // PluginHost — wasmtime Component loader + Linker + lifecycle orchestration.
 //
 // Two bindgen worlds:
-//   - `refarm-plugin-host`  → regular integration plugins (tractor-bridge, agent-fs/shell)
-//   - `agent-tools-host`    → the agent-tools.wasm composition component (host-spawn)
+//   - `refarm-plugin-host`  → regular integration plugins (tractor-bridge, host-fs/shell)
+//   - `host-effects-host`   → the host-effects.wasm composition component (host-spawn)
 //
 // Two loader paths (ADR-061):
 //   - ComponentLoader  → wasmtime::component::Component, WIT bindgen!, P2+
@@ -27,7 +27,7 @@ use crate::trust::{SecurityMode, TrustManager};
 // ── WIT Bindings: regular integration plugins ─────────────────────────────────
 //
 // Reads `../refarm-plugin-wit/wit/refarm-plugin-host.wit`.
-// Generates RefarmPluginHost + host traits for tractor-bridge, agent-fs, agent-shell.
+// Generates RefarmPluginHost + host traits for tractor-bridge, host-fs, host-shell.
 
 wasmtime::component::bindgen!({
     world: "refarm-plugin-host",
@@ -35,10 +35,10 @@ wasmtime::component::bindgen!({
     async: true,
 });
 
-// agent_tools_bindings is defined in agent_tools_bindings.rs — kept separate
+// host_effects_bindings is defined in host_effects_bindings.rs — kept separate
 // so the two bindgen! expansions live in different Rust modules (both generate
 // a `refarm` root and would collide if in the same file/scope).
-use crate::host::agent_tools_bindings as atb;
+use crate::host::host_effects_bindings as atb;
 
 // ── EpochGuard ────────────────────────────────────────────────────────────────
 //
@@ -132,26 +132,26 @@ impl HasEpochGuard for P1Store {
     }
 }
 
-// ── AgentToolsHandle ──────────────────────────────────────────────────────────
+// ── HostEffectsHandle ──────────────────────────────────────────────────────────
 //
-// A loaded agent-tools.wasm instance. Holds the typed caller (AgentToolsHost)
+// A loaded host-effects.wasm instance. Holds the typed caller (HostEffectsHost)
 // and the store. Future Fase 3 composition will extract Func refs from here
 // to wire into agent's linker — see HANDOFF.md Tarefa 2B / 2C.
 
-pub struct AgentToolsHandle {
+pub struct HostEffectsHandle {
     pub id: String,
-    /// Typed caller for agent-fs + agent-shell exports on the component.
+    /// Typed caller for host-fs + host-shell exports on the component.
     #[allow(dead_code)]
-    pub(crate) component: atb::AgentToolsHost,
-    /// Isolated store for agent-tools.wasm (each plugin owns its store).
+    pub(crate) component: atb::HostEffectsHost,
+    /// Isolated store for host-effects.wasm (each plugin owns its store).
     #[allow(dead_code)]
     pub(crate) store: Store<TractorStore>,
 }
 
-impl AgentToolsHandle {
+impl HostEffectsHandle {
     pub(crate) fn new(
         id: String,
-        component: atb::AgentToolsHost,
+        component: atb::HostEffectsHost,
         store: Store<TractorStore>,
     ) -> Self {
         Self {
@@ -162,9 +162,9 @@ impl AgentToolsHandle {
     }
 }
 
-impl std::fmt::Debug for AgentToolsHandle {
+impl std::fmt::Debug for HostEffectsHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AgentToolsHandle")
+        f.debug_struct("HostEffectsHandle")
             .field("id", &self.id)
             .finish()
     }
@@ -177,10 +177,10 @@ pub struct PluginHost {
     trust: TrustManager,
     telemetry: TelemetryBus,
     engine: Arc<Engine>,
-    /// Linker for regular integration plugins (tractor-bridge, agent-fs, agent-shell host primitives).
+    /// Linker for regular integration plugins (tractor-bridge, host-fs, host-shell host primitives).
     linker: Arc<Linker<TractorStore>>,
-    /// Linker for agent-tools.wasm (WASI + host-spawn; no tractor-bridge).
-    agent_tools_linker: Arc<Linker<TractorStore>>,
+    /// Linker for host-effects.wasm (WASI + host-spawn; no tractor-bridge).
+    host_effects_linker: Arc<Linker<TractorStore>>,
     /// Sync engine for P1 plain modules — no async support, no component model.
     /// P1 modules use blocking WASI calls; they run on their own OS thread via
     /// `register_for_events`, so blocking the async executor is never a concern.
