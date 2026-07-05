@@ -522,26 +522,25 @@ pub(crate) fn epoch_to_parts(secs: u64) -> (u64, u64, u64, u64, u64, u64) {
     let mi = mins % 60;
     let hours = mins / 60;
     let h = hours % 24;
-    let days = hours / 24;
-    // Approximate Gregorian — good enough for ISO timestamps in logs
-    let y400 = days / 146097;
-    let rem = days % 146097;
-    let y100 = (rem / 36524).min(3);
-    let rem = rem - y100 * 36524;
-    let y4 = rem / 1461;
-    let rem = rem % 1461;
-    let y1 = (rem / 365).min(3);
-    let rem = rem - y1 * 365;
-    let year = y400 * 400 + y100 * 100 + y4 * 4 + y1 + 1970;
-    let leap = (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400);
-    let month_days: &[u64] = if leap {
-        &[31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    } else {
-        &[31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    };
-    let mut day = rem;
+    let mut days = hours / 24; // days since 1970-01-01
+    // Walk years linearly. The previous block-of-400/100/4 approximation had a
+    // real calendar bug (it mis-counted leap days within a 4-year block, drifting
+    // the day-of-month by up to a day); a linear walk is exact and mutually
+    // invertible with reap::parse_iso_to_epoch_secs. Timestamps are cheap and
+    // rare (one per effort finalise), so the linear scan cost is irrelevant.
+    let mut year = 1970u64;
+    loop {
+        let year_days = if is_leap_year(year) { 366 } else { 365 };
+        if days < year_days {
+            break;
+        }
+        days -= year_days;
+        year += 1;
+    }
+    let month_days = month_lengths(is_leap_year(year));
+    let mut day = days;
     let mut month = 1u64;
-    for &md in month_days {
+    for &md in month_days.iter() {
         if day < md {
             break;
         }
@@ -549,6 +548,18 @@ pub(crate) fn epoch_to_parts(secs: u64) -> (u64, u64, u64, u64, u64, u64) {
         month += 1;
     }
     (year, month, day + 1, h, mi, s)
+}
+
+pub(crate) fn is_leap_year(year: u64) -> bool {
+    (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400)
+}
+
+pub(crate) fn month_lengths(leap: bool) -> [u64; 12] {
+    if leap {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    }
 }
 
 // ── route handlers ────────────────────────────────────────────────────────────
