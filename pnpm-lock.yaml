@@ -378,6 +378,9 @@ importers:
       '@refarm.dev/task-contract-v1':
         specifier: workspace:*
         version: link:../../packages/task-contract-v1
+      '@refarm.dev/vault-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/vault-contract-v1
       '@refarm.dev/windmill':
         specifier: workspace:*
         version: link:../../packages/windmill

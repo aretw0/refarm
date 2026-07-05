@@ -51,6 +51,7 @@
     "@refarm.dev/silo": "workspace:*",
     "@refarm.dev/skill-contract-v1": "workspace:*",
     "@refarm.dev/sower": "workspace:*",
+    "@refarm.dev/vault-contract-v1": "workspace:*",
     "@refarm.dev/stream-contract-v1": "workspace:*",
     "@refarm.dev/task-contract-v1": "workspace:*",
     "@refarm.dev/windmill": "workspace:*",
