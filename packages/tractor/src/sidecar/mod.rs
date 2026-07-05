@@ -91,15 +91,23 @@ pub struct SidecarState {
     /// ID of the loaded plugin with `"agent:respond"` capability, if any.
     /// Populated by TractorNative.register_for_events; used for effort routing.
     pub active_agent_id: Arc<RwLock<Option<String>>>,
+    /// The neutral event router — lets a non-`respond` effort dispatch to any
+    /// subscribed plugin by event, not just the elected agent's `user:prompt`.
+    pub event_router: crate::EventRouter,
+    /// Telemetry bus, so the effort dispatcher's router deliveries are observable.
+    pub telemetry: crate::TelemetryBus,
     pub streams_dir: PathBuf,
     pub results_dir: PathBuf,
     pub namespace: String,
 }
 
 impl SidecarState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         agent_channels: AgentChannels,
         active_agent_id: Arc<RwLock<Option<String>>>,
+        event_router: crate::EventRouter,
+        telemetry: crate::TelemetryBus,
         base_dir: &Path,
         namespace: String,
     ) -> std::io::Result<Self> {
@@ -112,6 +120,8 @@ impl SidecarState {
             efforts: Arc::new(RwLock::new(efforts)),
             agent_channels,
             active_agent_id,
+            event_router,
+            telemetry,
             streams_dir,
             results_dir,
             namespace,
@@ -340,6 +350,84 @@ fn extract_task_args(task: &EffortTask) -> Result<TaskArgs, String> {
 
 // ── effort dispatch ──────────────────────────────────────────────────────────
 
+/// Dispatch a non-`respond` effort as a generic ROUTER event. The task names a
+/// `plugin_id` and a `fn` (the verb); the plugin receives the event
+/// `<pluginKey>:dispatch` carrying `{verb, ...args}`, by its
+/// `capabilities.subscribes` declaration, and returns its result asynchronously
+/// through store-node (dispatch-result:v1). The effort is finalised the moment the
+/// event is delivered (or fails to deliver) — HONESTLY: `done` only when a
+/// subscriber actually received it, `failed` when it was undeliverable, never the
+/// optimistic `done result:None` for an unrouted event.
+fn dispatch_event_effort(
+    state: &SidecarState,
+    effort_id: &str,
+    task: &crate::sidecar::EffortTask,
+    fn_name: &str,
+) {
+    // The event name a plugin subscribes to: `<pluginKey>:dispatch`. `plugin_id`
+    // is the task's target (e.g. `vault`), so `vault` -> `vault:dispatch`.
+    let plugin_key = task
+        .plugin_id
+        .rsplit('/')
+        .next()
+        .unwrap_or(&task.plugin_id);
+    let event = format!("{plugin_key}:dispatch");
+
+    // The payload carries the verb (the effort's fn) plus the task args, so the
+    // plugin's on-event handler knows which verb to run.
+    let mut payload_obj = serde_json::json!({ "verb": fn_name });
+    if !task.args.is_null() {
+        if let Some(map) = task.args.as_object() {
+            for (k, v) in map {
+                payload_obj[k] = v.clone();
+            }
+        } else {
+            payload_obj["args"] = task.args.clone();
+        }
+    }
+    let payload = payload_obj.to_string();
+
+    let sent = crate::deliver_via_router(
+        &state.event_router,
+        &state.agent_channels,
+        &state.telemetry,
+        &event,
+        Some(&task.plugin_id),
+        Some(payload),
+    );
+
+    if sent > 0 {
+        tracing::info!(effort_id = %effort_id, %event, plugin_id = %task.plugin_id, "dispatched event effort via router");
+        finalise_effort(
+            state,
+            effort_id,
+            "done",
+            vec![TaskResult {
+                status: "ok".to_string(),
+                // The verb result lands asynchronously as a dispatch-result:v1 node
+                // the caller reads back by replyRef; the effort records that the
+                // event was delivered, not the node (which the graph owns).
+                result: Some(serde_json::json!({ "dispatched": event, "sent": sent })),
+                error: None,
+            }],
+        );
+    } else {
+        finalise_effort(
+            state,
+            effort_id,
+            "failed",
+            vec![TaskResult {
+                status: "error".to_string(),
+                result: None,
+                error: Some(format!(
+                    "no plugin subscribed to '{event}' (is '{}' loaded and does its manifest declare subscribes:[{event}]?)",
+                    task.plugin_id
+                )),
+            }],
+        );
+    }
+}
+
 fn dispatch_effort(state: SidecarState, effort: Effort) {
     tokio::spawn(async move {
         let effort_id = effort.id.clone();
@@ -374,22 +462,17 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
             }
         };
 
-        let fn_name = task.fn_name.as_deref().unwrap_or("respond");
+        let fn_name = task.fn_name.as_deref().unwrap_or("respond").to_string();
 
-        // Only `respond` function is supported. The plugin must be the active agent.
+        // Two entries, one dispatcher. `respond` is the agent's prompt flow (below,
+        // streamed to the client). Any OTHER fn is a generic EVENT dispatch: the
+        // task's `<pluginId>:dispatch` event is routed to that plugin via the
+        // neutral router (it must subscribe to the event), and the plugin returns
+        // its result asynchronously through store-node (the dispatch-result:v1
+        // contract), not the prompt stream. This is what lets an operator dispatch
+        // a non-agent plugin's verb (e.g. `vault extract`) from outside.
         if fn_name != "respond" {
-            finalise_effort(
-                &state,
-                &effort_id,
-                "failed",
-                vec![TaskResult {
-                    status: "error".to_string(),
-                    result: None,
-                    error: Some(format!(
-                        "sidecar: unsupported function {fn_name} (only 'respond' is supported)"
-                    )),
-                }],
-            );
+            dispatch_event_effort(&state, &effort_id, &task, &fn_name);
             return;
         }
 

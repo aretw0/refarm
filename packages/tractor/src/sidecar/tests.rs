@@ -24,6 +24,8 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
     let state = SidecarState::new(
         channels,
         Arc::new(RwLock::new(None)),
+        crate::EventRouter::default(),
+        crate::TelemetryBus::new(100),
         &tmp,
         ":memory:".to_string(),
     )
@@ -463,6 +465,8 @@ async fn sidecar_effort_result_survives_state_reopen() {
     let rehydrated = SidecarState::new(
         Arc::new(RwLock::new(HashMap::new())),
         Arc::new(RwLock::new(None)),
+        crate::EventRouter::default(),
+        crate::TelemetryBus::new(100),
         &tmp,
         ":memory:".to_string(),
     )
@@ -537,6 +541,8 @@ async fn start_history_sidecar(namespace: &str) -> (SidecarState, u16) {
     let state = SidecarState::new(
         channels,
         Arc::new(RwLock::new(None)),
+        crate::EventRouter::default(),
+        crate::TelemetryBus::new(100),
         &tmp,
         namespace.to_string(),
     )
@@ -855,6 +861,8 @@ async fn start_tasks_sidecar(namespace: &str) -> (SidecarState, u16) {
     let state = SidecarState::new(
         channels,
         Arc::new(RwLock::new(None)),
+        crate::EventRouter::default(),
+        crate::TelemetryBus::new(100),
         &tmp,
         namespace.to_string(),
     )
@@ -1011,4 +1019,99 @@ async fn sidecar_get_task_returns_task_with_events() {
         .collect();
     assert!(event_names.contains(&"created"));
     assert!(event_names.contains(&"status_changed"));
+}
+
+/// The operator loop: an effort with fn != respond routes to a non-agent plugin
+/// via the neutral router (as <pluginKey>:dispatch), NOT the agent. This is what
+/// lets `refarm vault dispatch extract ...` reach the vault plugin from outside.
+#[tokio::test]
+async fn sidecar_non_respond_effort_dispatches_via_router() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+
+    // Stand a mock "vault" plugin: a channel registered in agent_channels and
+    // subscribed to vault:dispatch in the router (what register_for_events does).
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("vault".to_string(), tx);
+    state.event_router.subscribe("vault:dispatch", "vault");
+
+    // Submit an effort whose fn is a verb (extract), not respond.
+    let effort = serde_json::json!({
+        "id": uuid::Uuid::new_v4().to_string(),
+        "direction": "dispatch",
+        "tasks": [{
+            "id": uuid::Uuid::new_v4().to_string(),
+            "pluginId": "vault",
+            "fn": "extract",
+            "args": { "note": { "path": "n.md", "text": "x" } }
+        }],
+        "source": "operator",
+        "submittedAt": "2026-01-01T00:00:00Z"
+    });
+    let res = client
+        .post(format!("{}/efforts", base(port)))
+        .json(&effort)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+
+    // The mock plugin received the vault:dispatch event carrying the verb.
+    let msg = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
+        .await
+        .expect("router must deliver the event within 2s")
+        .expect("the mock vault plugin must receive a message");
+    assert_eq!(msg.event, "vault:dispatch");
+    let payload: serde_json::Value =
+        serde_json::from_str(msg.payload.as_deref().unwrap()).unwrap();
+    assert_eq!(payload["verb"], "extract", "the payload carries the effort's fn as the verb");
+    assert_eq!(payload["note"]["path"], "n.md", "the args ride along in the payload");
+}
+
+/// A non-respond effort for a plugin that subscribes to NOTHING fails honestly —
+/// no optimistic done-with-empty-result, an actual error naming the missing
+/// subscription.
+#[tokio::test]
+async fn sidecar_non_respond_effort_with_no_subscriber_fails_honestly() {
+    let (_state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+
+    let effort_id = uuid::Uuid::new_v4().to_string();
+    let effort = serde_json::json!({
+        "id": effort_id,
+        "direction": "dispatch",
+        "tasks": [{
+            "id": uuid::Uuid::new_v4().to_string(),
+            "pluginId": "ghost",
+            "fn": "extract",
+            "args": {}
+        }],
+        "source": "operator",
+        "submittedAt": "2026-01-01T00:00:00Z"
+    });
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&effort)
+        .send()
+        .await
+        .unwrap();
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    let res = client
+        .get(format!("{}/efforts/{effort_id}", base(port)))
+        .send()
+        .await
+        .unwrap();
+    let body: serde_json::Value = res.json().await.unwrap();
+    assert_eq!(body["status"], "failed", "an unrouted event must fail, not fake success");
+    let err = body["results"][0]["error"].as_str().unwrap_or("");
+    assert!(
+        err.contains("ghost:dispatch") || err.contains("subscribed"),
+        "the error must name the missing subscription, got: {err}"
+    );
 }

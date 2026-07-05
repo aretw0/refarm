@@ -119,6 +119,72 @@ impl EventRouter {
     }
 }
 
+/// Deliver an event to plugin runner channels via the router, emitting the
+/// `router:deliver` observability event. The one shared implementation both
+/// `TractorNative::deliver` and the sidecar effort dispatcher call, so routing +
+/// its telemetry live in ONE place. `Some(target)` delivers to exactly that
+/// plugin; `None` broadcasts to every subscriber of `event`. Returns the count
+/// actually sent.
+pub fn deliver_via_router(
+    router: &EventRouter,
+    channels: &AgentChannels,
+    telemetry: &TelemetryBus,
+    event: &str,
+    target: Option<&str>,
+    payload: Option<String>,
+) -> usize {
+    let started = std::time::Instant::now();
+    let recipients: Vec<String> = match target {
+        Some(plugin_id) => vec![plugin_id.to_string()],
+        None => router.subscribers(event),
+    };
+    let wanted = recipients.len();
+    let mut sent = 0;
+    if wanted > 0 {
+        let guard = channels.read().expect("agent_channels poisoned");
+        for plugin_id in &recipients {
+            if let Some(tx) = guard.get(plugin_id) {
+                if tx
+                    .send(AgentMessage {
+                        event: event.to_string(),
+                        payload: payload.clone(),
+                    })
+                    .is_ok()
+                {
+                    sent += 1;
+                }
+            }
+        }
+    }
+
+    let latency_us = started.elapsed().as_micros() as u64;
+    // `undeliverable` is the degradation signal: events with no subscriber, or
+    // subscribers whose sender was gone. Watch this in telemetry.
+    let undeliverable = wanted.saturating_sub(sent);
+    telemetry.emit_named(
+        "router:deliver",
+        None,
+        Some(serde_json::json!({
+            "event": event,
+            "target": target,
+            "wanted": wanted,
+            "sent": sent,
+            "undeliverable": undeliverable,
+            "latency_us": latency_us,
+        })),
+    );
+    if undeliverable > 0 {
+        tracing::warn!(
+            event = %event,
+            wanted,
+            sent,
+            undeliverable,
+            "router: some recipients were undeliverable"
+        );
+    }
+    sent
+}
+
 /// Top-level configuration for booting a TractorNative instance.
 #[derive(Debug, Clone)]
 pub struct TractorNativeConfig {
@@ -311,56 +377,14 @@ impl TractorNative {
     /// subscribers, or a dead sender) shows up as `sent < wanted`, and a slow
     /// delivery shows up in `latency_us`, without needing the scarecrow.
     pub fn deliver(&self, event: &str, target: Option<&str>, payload: Option<String>) -> usize {
-        let started = std::time::Instant::now();
-        let recipients: Vec<String> = match target {
-            Some(plugin_id) => vec![plugin_id.to_string()],
-            None => self.event_router.subscribers(event),
-        };
-        let wanted = recipients.len();
-        let mut sent = 0;
-        if wanted > 0 {
-            let channels = self.agent_channels.read().expect("agent_channels poisoned");
-            for plugin_id in &recipients {
-                if let Some(tx) = channels.get(plugin_id) {
-                    if tx
-                        .send(AgentMessage {
-                            event: event.to_string(),
-                            payload: payload.clone(),
-                        })
-                        .is_ok()
-                    {
-                        sent += 1;
-                    }
-                }
-            }
-        }
-
-        let latency_us = started.elapsed().as_micros() as u64;
-        // `undeliverable` is the degradation signal: events that had no subscriber,
-        // or subscribers whose sender was gone. Watch this in telemetry.
-        let undeliverable = wanted.saturating_sub(sent);
-        self.telemetry.emit_named(
-            "router:deliver",
-            None,
-            Some(serde_json::json!({
-                "event": event,
-                "target": target,
-                "wanted": wanted,
-                "sent": sent,
-                "undeliverable": undeliverable,
-                "latency_us": latency_us,
-            })),
-        );
-        if undeliverable > 0 {
-            tracing::warn!(
-                event = %event,
-                wanted,
-                sent,
-                undeliverable,
-                "router: some recipients were undeliverable"
-            );
-        }
-        sent
+        deliver_via_router(
+            &self.event_router,
+            &self.agent_channels,
+            &self.telemetry,
+            event,
+            target,
+            payload,
+        )
     }
 
     /// Shut down all plugins and close storage.
