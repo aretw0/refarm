@@ -46,11 +46,19 @@ The reference surface (`src/reference.ts`) ships one honest matcher per verb (`c
 - **Dispatch** (`48662456`) — `vaultDispatchTask`: a vault verb → an `effort-contract-v1` `Task`, wire-parity-proven against the Rust sidecar `EffortTask` (`id`, `pluginId`, `fn`, `args`), with a drift-guard. `fn` = the verb (a non-lifecycle name the sidecar doesn't route yet — the `§8` gap).
 - **Manifest** (`ae2a4276`) — `buildVaultPluginManifest`: verbs as `provides` + `.wasm` entry. DELIBERATELY invalid until `integrity` is stamped (a real build requirement, proven by running `validatePluginManifest`); the `§8` install is just that one swap.
 
-## `§8` (serialized handoff, later)
+## `§8` — DONE (`91e66fc8`): the first non-agent WASM plugin
 
-- Build `vault-*-ref` via `componentize-js` → a hashed `.wasm` (mind the `§7` RAM budget — serialized builds).
-- Prove dispatch the same deny-all way `quality-checker-ref` is proven (host instantiates + asserts `run()` returns records while touching no fs).
-- Real `plugin-manifest` install with SHA-256 integrity (barn), swapping the inert `entry` for the hashed `.wasm`. Follow-on: extend tractor `instance.call` beyond the four lifecycle verbs, OR add a component-dispatch path so the sidecar `EffortTask` routes to the component.
+`@refarm.dev/vault-surface-ref` — a NEW package (sibling of `quality-checker-ref`, but TS not Rust), created with Arthur's explicit `§8` confirmation. It does NOT edit `packages/tractor/**` or `packages/plugin-manifest/**` (consumed read-only) and adds no verb to `instance.call`.
+
+- **The first TS→WASM component in the repo.** `src/surface.js` (pure compute, dependency-free — runs in StarlingMonkey) → `jco componentize --disable all` → `dist/vault_surface.wasm` (~12MB) → `jco transpile` → `pkg/`. `componentize-js` was installed but never exercised until now; it worked first try, no `§7` OOM (it's StarlingMonkey, not cargo/LLVM).
+- **The sandbox is the ABSENCE of imports.** `--disable all` makes the transpiled `ImportObject` `{}` — the component imports nothing. The loader (`src/index.ts`) instantiates with an EMPTY capability table and `run()` still returns — stronger than the deny-all stubs `quality-checker-ref` needed, because there is no import through which to reach fs/network.
+- **Dispatch proven for real** (`src/surface.test.ts`, 7 tests, `skipIf !pkg`): all four verbs dispatch through the real component; the empty-import sandbox is asserted; and the `§8` install swap is proven end-to-end — `computeSha256Digest` of the built `.wasm` → `sha256-<hex>` → `buildVaultPluginManifest` validates.
+
+### Follow-on (optional, not done)
+
+- Extend tractor `instance.call` beyond the four lifecycle verbs, OR add a component-dispatch path so the sidecar `EffortTask` (`fn` = the verb, today only `respond`) routes to the component.
+- A real `plugin-manifest` install via barn, swapping the inert `entry` for the hashed `.wasm`.
+- Teach `validate-packages` a `wasm-jco-component` TS kind: today it classifies wasm components off `hasCargo && build:wasm` (Rust only), so a TS→WASM package falls to `buildable`. Not `§8`.
 
 ## Open questions
 
