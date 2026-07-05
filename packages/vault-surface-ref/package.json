@@ -1,0 +1,42 @@
+{
+	"name": "@refarm.dev/vault-surface-ref",
+	"version": "0.1.0",
+	"description": "Reference vault:v1 surface — a pure-compute WASM component (world vault-surface) built from TS via componentize-js, proving the sovereign vault plugin boundary end-to-end.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build:component": "jco componentize src/surface.js --wit ../vault-contract-v1/wit/vault.wit --world-name vault-surface --disable all -o dist/vault_surface.wasm && jco transpile dist/vault_surface.wasm -o pkg --name vault_surface --no-wasi-shim --instantiation async",
+		"build": "tsc --project tsconfig.build.json",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"files": [
+		"pkg",
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"src/surface.js",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@refarm.dev/vault-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@bytecodealliance/jco": "catalog:",
+		"@refarm.dev/deps": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"typescript": "catalog:"
+	}
+}
