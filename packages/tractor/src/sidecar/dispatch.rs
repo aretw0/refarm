@@ -413,7 +413,7 @@ pub(crate) fn respond_watch_interval_ms_from_env() -> u64 {
 /// CRDT `AgentResponse` nodes for `namespace`, keeps only rows carrying our
 /// `prompt_ref`, and returns the content of the first `is_final` one. Mirrors the
 /// correlation the whole stack agrees on: the agent stamps `prompt_ref` onto
-/// every AgentResponse node (llm_stream_events.rs), derived from this effort_id.
+/// every AgentResponse node (model_stream_events.rs), derived from this effort_id.
 fn find_terminal_agent_response(
     namespace: &str,
     prompt_ref: &str,

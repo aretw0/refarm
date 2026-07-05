@@ -207,7 +207,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "ollama",
             "https://api.openai.com",
             "/v1/chat/completions",
@@ -224,7 +224,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "open\nai",
             "https://api.openai.com",
             "/v1/chat/completions",
@@ -241,7 +241,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai!",
             "https://api.openai.com",
             "/v1/chat/completions",
@@ -258,7 +258,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "/v1/chat/completions",
@@ -275,7 +275,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             &"a".repeat(65),
             "https://api.openai.com",
             "/v1/chat/completions",
@@ -292,7 +292,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://api.openai.com\n",
             "/v1/chat/completions",
@@ -309,7 +309,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "/v1/chat/completions\n",
@@ -326,7 +326,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route("openai", "https://api.openai.com", "/v1/chát", &expected)
+        let err = enforce_model_route("openai", "https://api.openai.com", "/v1/chát", &expected)
             .unwrap_err();
         assert!(err.contains("path must be ascii"));
     }
@@ -338,7 +338,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chát".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "/v1/chat/completions",
@@ -355,7 +355,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route("openai", "https://api.openai.com", "   ", &expected)
+        let err = enforce_model_route("openai", "https://api.openai.com", "   ", &expected)
             .unwrap_err();
         assert!(err.contains("path must be non-empty"));
     }
@@ -367,7 +367,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: " ".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "/v1/chat/completions",
@@ -385,7 +385,7 @@
             path: "/v1/chat/completions".to_string(),
         };
 
-        let err_query = enforce_llm_route(
+        let err_query = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "/v1/chat/completions?stream=true",
@@ -394,7 +394,7 @@
         .unwrap_err();
         assert!(err_query.contains("path must not include query or fragment"));
 
-        let err_fragment = enforce_llm_route(
+        let err_fragment = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "/v1/chat/completions#frag",
@@ -412,7 +412,7 @@
             path: "/v1/chat/completions".to_string(),
         };
 
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "\\v1\\chat\\completions",
@@ -430,7 +430,7 @@
             path: "/v1/chat/completions".to_string(),
         };
         let overlong = format!("https://{}", "a".repeat(2100));
-        let err = enforce_llm_route("openai", &overlong, "/v1/chat/completions", &expected)
+        let err = enforce_model_route("openai", &overlong, "/v1/chat/completions", &expected)
             .unwrap_err();
         assert!(err.contains("base_url too long"));
     }
@@ -443,7 +443,7 @@
             path: "/v1/chat/completions".to_string(),
         };
         let overlong = format!("/{}", "a".repeat(2100));
-        let err = enforce_llm_route("openai", "https://api.openai.com", &overlong, &expected)
+        let err = enforce_model_route("openai", "https://api.openai.com", &overlong, &expected)
             .unwrap_err();
         assert!(err.contains("path too long"));
     }
@@ -455,7 +455,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://attacker.example",
             "/v1/chat/completions",
@@ -472,7 +472,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "/v1/responses",
@@ -489,7 +489,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "file:///tmp/evil",
             "/v1/chat/completions",
@@ -592,7 +592,7 @@
         ];
 
         for (case, requested_base_url, expected_msg) in cases {
-            let err = enforce_llm_route(
+            let err = enforce_model_route(
                 "openai",
                 requested_base_url,
                 "/v1/chat/completions",
@@ -614,7 +614,7 @@
             path: "/v1/chat/completions".to_string(),
         };
 
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "/v1/chat/completions",
@@ -631,7 +631,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let result = enforce_llm_route(
+        let result = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "v1/chat/completions",
@@ -647,7 +647,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let result = enforce_llm_route(
+        let result = enforce_model_route(
             "openai",
             "https://api.openai.com/",
             "/v1/chat/completions",
@@ -663,7 +663,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let result = enforce_llm_route(
+        let result = enforce_model_route(
             "openai",
             "https://API.OpenAI.com",
             "/v1/chat/completions",
@@ -679,7 +679,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let result = enforce_llm_route(
+        let result = enforce_model_route(
             "openai",
             "HTTPS://api.openai.com",
             "/v1/chat/completions",
@@ -695,7 +695,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let result = enforce_llm_route(
+        let result = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "/v1/chat/completions/",
@@ -711,7 +711,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let result = enforce_llm_route(
+        let result = enforce_model_route(
             " openai ",
             " https://api.openai.com/ ",
             "v1/chat/completions",
@@ -727,7 +727,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "  v1/chat/completions  ",
@@ -744,7 +744,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "/v1/chat/comp letions",
@@ -761,7 +761,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/comp letions".to_string(),
         };
-        let err = enforce_llm_route(
+        let err = enforce_model_route(
             "openai",
             "https://api.openai.com",
             "/v1/chat/completions",
@@ -778,7 +778,7 @@
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let result = enforce_llm_route(
+        let result = enforce_model_route(
             "OpenAI",
             "https://api.openai.com",
             "/v1/chat/completions",
@@ -790,13 +790,13 @@
     #[test]
     fn llm_request_body_allows_size_within_limit() {
         let body = vec![b'a'; 1024 * 1024];
-        assert!(enforce_llm_request_body(&body).is_ok());
+        assert!(enforce_model_request_body(&body).is_ok());
     }
 
     #[test]
     fn llm_request_body_blocks_oversized_payload() {
         let body = vec![b'a'; 1024 * 1024 + 1];
-        let err = enforce_llm_request_body(&body).unwrap_err();
+        let err = enforce_model_request_body(&body).unwrap_err();
         assert!(err.contains("body too large"));
     }
 
@@ -815,16 +815,16 @@
     }
 
     #[test]
-    fn llm_error_body_preview_keeps_small_body() {
+    fn model_error_body_preview_keeps_small_body() {
         let body = b"small error".to_vec();
-        let preview = llm_error_body_preview(&body);
+        let preview = model_error_body_preview(&body);
         assert_eq!(preview, "small error");
     }
 
     #[test]
-    fn llm_error_body_preview_truncates_large_body() {
+    fn model_error_body_preview_truncates_large_body() {
         let body = vec![b'a'; 8 * 1024 + 128];
-        let preview = llm_error_body_preview(&body);
+        let preview = model_error_body_preview(&body);
         assert!(preview.starts_with(&"a".repeat(32)));
         assert!(preview.contains("[truncated: llm-bridge error body exceeded 8192 bytes]"));
     }

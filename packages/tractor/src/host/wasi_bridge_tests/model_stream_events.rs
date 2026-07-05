@@ -49,11 +49,11 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     assert_eq!(
         chunks,
         vec![
-            super::LlmStreamTextChunkDraft {
+            super::ModelStreamTextChunkDraft {
                 sequence: 10,
                 content_delta: "a".to_string(),
             },
-            super::LlmStreamTextChunkDraft {
+            super::ModelStreamTextChunkDraft {
                 sequence: 11,
                 content_delta: "b".to_string(),
             },
@@ -78,7 +78,7 @@ fn stream_text_chunk_drafts_from_sse_starts_at_zero_without_last_sequence() {
 #[test]
 fn stream_chunk_observation_draft_matches_generic_projection_schema() {
     let metadata = stream_metadata(Some(4));
-    let chunk = super::LlmStreamTextChunkDraft {
+    let chunk = super::ModelStreamTextChunkDraft {
         sequence: 5,
         content_delta: "hello".to_string(),
     };
@@ -133,7 +133,7 @@ fn stream_session_observation_draft_matches_generic_session_schema() {
 #[test]
 fn stream_agent_response_chunk_node_matches_partial_response_schema() {
     let metadata = stream_metadata(Some(4));
-    let chunk = super::LlmStreamTextChunkDraft {
+    let chunk = super::ModelStreamTextChunkDraft {
         sequence: 5,
         content_delta: "hello".to_string(),
     };
@@ -338,16 +338,16 @@ fn final_stream_sequence_follows_partial_or_initial_sequence() {
 
 #[test]
 fn final_stream_payload_kind_describes_terminal_observation() {
-    let text = super::LlmStreamFinalAssembly {
+    let text = super::ModelStreamFinalAssembly {
         content: "hello".to_string(),
         ..Default::default()
     };
-    let tool_call = super::LlmStreamFinalAssembly {
+    let tool_call = super::ModelStreamFinalAssembly {
         openai_tool_calls: vec![super::OpenAiStreamToolCall::default()],
         ..Default::default()
     };
-    let usage_only = super::LlmStreamFinalAssembly {
-        usage: super::LlmStreamUsage {
+    let usage_only = super::ModelStreamFinalAssembly {
+        usage: super::ModelStreamUsage {
             total_tokens: Some(1),
             ..Default::default()
         },
@@ -367,9 +367,9 @@ fn synthesize_stream_final_response_body_emits_anthropic_shape() {
     let mut metadata = stream_metadata(None);
     metadata.provider_family = "anthropic".to_string();
 
-    let assembly = super::LlmStreamFinalAssembly {
+    let assembly = super::ModelStreamFinalAssembly {
         content: "hello".to_string(),
-        usage: super::LlmStreamUsage {
+        usage: super::ModelStreamUsage {
             input_tokens: Some(11),
             output_tokens: Some(5),
             ..Default::default()

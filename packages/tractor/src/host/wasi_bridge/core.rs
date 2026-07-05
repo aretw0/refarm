@@ -10,7 +10,7 @@
 // Return types use the WIT `result<T, plugin-error>` directly — no outer wasmtime::Result.
 
 use crate::host::plugin_host::refarm::plugin::{
-    model_bridge::{Host as LlmBridgeHost, StreamResponseMetadata, StreamResponseResult},
+    model_bridge::{Host as ModelBridgeHost, StreamResponseMetadata, StreamResponseResult},
     tractor_bridge::Host as TractorBridgeHost,
     types::{Host as TypesHost, IdentityInfo, PluginError},
 };
@@ -167,7 +167,7 @@ impl TractorBridgeHost for TractorNativeBindings {
 // ── model_bridge::Host ───────────────────────────────────────────────────────
 
 #[wasmtime::component::__internal::async_trait]
-impl LlmBridgeHost for TractorNativeBindings {
+impl ModelBridgeHost for TractorNativeBindings {
     async fn complete_http(
         &mut self,
         provider: String,
@@ -176,7 +176,7 @@ impl LlmBridgeHost for TractorNativeBindings {
         headers: Vec<(String, String)>,
         body: Vec<u8>,
     ) -> Result<Vec<u8>, String> {
-        llm_complete_http(&provider, &base_url, &path, &headers, &body, &self.model_route)
+        model_complete_http(&provider, &base_url, &path, &headers, &body, &self.model_route)
     }
 
     /// Streaming contract compatibility path.
@@ -194,7 +194,7 @@ impl LlmBridgeHost for TractorNativeBindings {
         stream_metadata: StreamResponseMetadata,
     ) -> Result<StreamResponseResult, String> {
         validate_stream_response_metadata(&stream_metadata)?;
-        let resp = send_llm_http_post(&provider, &base_url, &path, &headers, &body, &self.model_route)?;
+        let resp = send_model_http_post(&provider, &base_url, &path, &headers, &body, &self.model_route)?;
         let (final_body, last_sequence, stored_chunks) = store_stream_agent_response_chunks_from_reader(
             &self.sync,
             &self.plugin_id,
@@ -242,7 +242,7 @@ fn validate_stream_text_field(label: &str, value: &str, max_len: usize) -> Resul
     Ok(())
 }
 
-fn llm_complete_http(
+fn model_complete_http(
     provider: &str,
     base_url: &str,
     path: &str,
@@ -250,11 +250,11 @@ fn llm_complete_http(
     body: &[u8],
     expected: &ModelRoute,
 ) -> Result<Vec<u8>, String> {
-    let resp = send_llm_http_post(provider, base_url, path, headers, body, expected)?;
+    let resp = send_model_http_post(provider, base_url, path, headers, body, expected)?;
     read_response_bytes(resp)
 }
 
-fn send_llm_http_post(
+fn send_model_http_post(
     provider: &str,
     base_url: &str,
     path: &str,
@@ -262,8 +262,8 @@ fn send_llm_http_post(
     body: &[u8],
     expected: &ModelRoute,
 ) -> Result<ureq::Response, String> {
-    enforce_llm_route(provider, base_url, path, expected)?;
-    enforce_llm_request_body(body)?;
+    enforce_model_route(provider, base_url, path, expected)?;
+    enforce_model_request_body(body)?;
     let provider = normalize_provider_name(provider);
 
     let url = join_base_url_and_path(base_url, path);
@@ -294,13 +294,13 @@ fn send_llm_http_post(
         Ok(resp) => Ok(resp),
         Err(ureq::Error::Status(code, resp)) => {
             let bytes = read_response_bytes(resp)?;
-            Err(format!("HTTP {code}: {}", llm_error_body_preview(&bytes)))
+            Err(format!("HTTP {code}: {}", model_error_body_preview(&bytes)))
         }
         Err(e) => Err(format!("http error: {e}")),
     }
 }
 
-fn llm_error_body_preview(bytes: &[u8]) -> String {
+fn model_error_body_preview(bytes: &[u8]) -> String {
     const MAX_LLM_ERROR_PREVIEW_LEN: usize = 8 * 1024;
 
     if bytes.len() <= MAX_LLM_ERROR_PREVIEW_LEN {
@@ -431,7 +431,7 @@ fn decode_base64url(value: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
-fn enforce_llm_request_body(body: &[u8]) -> Result<(), String> {
+fn enforce_model_request_body(body: &[u8]) -> Result<(), String> {
     const MAX_LLM_REQUEST_BODY_LEN: usize = 1024 * 1024;
     if body.len() > MAX_LLM_REQUEST_BODY_LEN {
         return Err("[blocked: llm-bridge body too large]".to_string());
@@ -570,7 +570,7 @@ fn model_base_url_from_env() -> Option<String> {
     None
 }
 
-fn enforce_llm_route(
+fn enforce_model_route(
     provider: &str,
     base_url: &str,
     path: &str,

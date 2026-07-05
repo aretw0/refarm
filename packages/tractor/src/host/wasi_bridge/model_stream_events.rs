@@ -6,20 +6,20 @@ use crate::streaming::{
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct LlmStreamTextChunkDraft {
+struct ModelStreamTextChunkDraft {
     sequence: u32,
     content_delta: String,
 }
 
 #[derive(Debug, Default)]
-struct LlmStreamFinalAssembly {
+struct ModelStreamFinalAssembly {
     content: String,
     openai_tool_calls: Vec<OpenAiStreamToolCall>,
     anthropic_tool_uses: BTreeMap<u64, AnthropicStreamToolUse>,
-    usage: LlmStreamUsage,
+    usage: ModelStreamUsage,
 }
 
-impl LlmStreamFinalAssembly {
+impl ModelStreamFinalAssembly {
     fn has_observations(&self) -> bool {
         !self.content.is_empty()
             || !self.openai_tool_calls.is_empty()
@@ -29,7 +29,7 @@ impl LlmStreamFinalAssembly {
 }
 
 #[derive(Debug, Default)]
-struct LlmStreamUsage {
+struct ModelStreamUsage {
     prompt_tokens: Option<u32>,
     completion_tokens: Option<u32>,
     total_tokens: Option<u32>,
@@ -37,7 +37,7 @@ struct LlmStreamUsage {
     output_tokens: Option<u32>,
 }
 
-impl LlmStreamUsage {
+impl ModelStreamUsage {
     fn has_observations(&self) -> bool {
         self.prompt_tokens.is_some()
             || self.completion_tokens.is_some()
@@ -81,14 +81,14 @@ fn parse_stream_text_deltas(payloads: &[String]) -> Vec<String> {
 fn stream_text_chunk_drafts_from_sse(
     bytes: &[u8],
     last_sequence: Option<u32>,
-) -> Vec<LlmStreamTextChunkDraft> {
+) -> Vec<ModelStreamTextChunkDraft> {
     let mut next_sequence = last_sequence
         .map(|sequence| sequence.saturating_add(1))
         .unwrap_or(0);
     parse_stream_text_deltas_from_sse(bytes)
         .into_iter()
         .map(|content_delta| {
-            let chunk = LlmStreamTextChunkDraft {
+            let chunk = ModelStreamTextChunkDraft {
                 sequence: next_sequence,
                 content_delta,
             };
@@ -99,7 +99,7 @@ fn stream_text_chunk_drafts_from_sse(
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
-fn last_stream_text_chunk_sequence(chunks: &[LlmStreamTextChunkDraft]) -> Option<u32> {
+fn last_stream_text_chunk_sequence(chunks: &[ModelStreamTextChunkDraft]) -> Option<u32> {
     chunks.last().map(|chunk| chunk.sequence)
 }
 
@@ -143,13 +143,13 @@ fn store_stream_agent_response_chunks_from_reader(
         .unwrap_or(0);
     let mut last_stored_sequence = metadata.last_sequence;
     let mut stored_chunks = 0u32;
-    let mut assembly = LlmStreamFinalAssembly::default();
+    let mut assembly = ModelStreamFinalAssembly::default();
 
     let raw_body = match read_sse_data_events_limited(reader, max_len, |payload| {
         let chunks = stream_text_deltas_and_update_final_assembly(payload, &mut assembly)
             .into_iter()
             .map(|content_delta| {
-                let chunk = LlmStreamTextChunkDraft {
+                let chunk = ModelStreamTextChunkDraft {
                     sequence: next_sequence,
                     content_delta,
                 };
@@ -221,7 +221,7 @@ fn store_stream_agent_response_chunks_from_reader(
 
 fn synthesize_stream_final_response_body(
     metadata: &StreamResponseMetadata,
-    assembly: &LlmStreamFinalAssembly,
+    assembly: &ModelStreamFinalAssembly,
 ) -> Result<Vec<u8>, String> {
     let provider_family = metadata.provider_family.trim().to_ascii_lowercase();
     let value = if provider_family == "anthropic" {
@@ -284,7 +284,7 @@ fn synthesize_stream_final_response_body(
 
 fn stream_text_deltas_and_update_final_assembly(
     payload: &str,
-    assembly: &mut LlmStreamFinalAssembly,
+    assembly: &mut ModelStreamFinalAssembly,
 ) -> Vec<String> {
     let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) else {
         return Vec::new();
@@ -299,7 +299,7 @@ fn stream_text_deltas_and_update_final_assembly(
     deltas
 }
 
-fn apply_stream_usage(value: &serde_json::Value, assembly: &mut LlmStreamFinalAssembly) {
+fn apply_stream_usage(value: &serde_json::Value, assembly: &mut ModelStreamFinalAssembly) {
     if let Some(usage) = value.get("usage") {
         apply_usage_object(usage, &mut assembly.usage);
     }
@@ -311,7 +311,7 @@ fn apply_stream_usage(value: &serde_json::Value, assembly: &mut LlmStreamFinalAs
     }
 }
 
-fn apply_usage_object(value: &serde_json::Value, usage: &mut LlmStreamUsage) {
+fn apply_usage_object(value: &serde_json::Value, usage: &mut ModelStreamUsage) {
     if let Some(prompt_tokens) = usage_u32(value, "prompt_tokens") {
         usage.prompt_tokens = Some(prompt_tokens);
     }
@@ -336,7 +336,7 @@ fn usage_u32(value: &serde_json::Value, key: &str) -> Option<u32> {
         .and_then(|v| u32::try_from(v).ok())
 }
 
-fn apply_openai_tool_call_deltas(value: &serde_json::Value, assembly: &mut LlmStreamFinalAssembly) {
+fn apply_openai_tool_call_deltas(value: &serde_json::Value, assembly: &mut ModelStreamFinalAssembly) {
     let Some(tool_calls) = value
         .get("choices")
         .and_then(serde_json::Value::as_array)
@@ -380,7 +380,7 @@ fn apply_openai_tool_call_deltas(value: &serde_json::Value, assembly: &mut LlmSt
 
 fn apply_anthropic_tool_use_delta(
     value: &serde_json::Value,
-    assembly: &mut LlmStreamFinalAssembly,
+    assembly: &mut ModelStreamFinalAssembly,
 ) {
     let index = value
         .get("index")
@@ -433,7 +433,7 @@ fn store_stream_agent_response_chunks(
     sync: &NativeSync,
     source_plugin: &str,
     metadata: &StreamResponseMetadata,
-    chunks: Vec<LlmStreamTextChunkDraft>,
+    chunks: Vec<ModelStreamTextChunkDraft>,
 ) -> Result<(Option<u32>, u32), String> {
     let mut last_stored_sequence = metadata.last_sequence;
     let mut stored_chunks = 0u32;
@@ -451,7 +451,7 @@ fn store_stream_chunk_projection(
     sync: &NativeSync,
     source_plugin: &str,
     metadata: &StreamResponseMetadata,
-    chunk: &LlmStreamTextChunkDraft,
+    chunk: &ModelStreamTextChunkDraft,
 ) -> Result<(), String> {
     let timestamp_ns = now_ns();
     store_stream_chunk_observation(sync, source_plugin, metadata, chunk, timestamp_ns)?;
@@ -462,7 +462,7 @@ fn store_stream_chunk_observation(
     sync: &NativeSync,
     source_plugin: &str,
     metadata: &StreamResponseMetadata,
-    chunk: &LlmStreamTextChunkDraft,
+    chunk: &ModelStreamTextChunkDraft,
     timestamp_ns: u64,
 ) -> Result<(), String> {
     let node_id = stream_chunk_observation_id();
@@ -527,7 +527,7 @@ fn store_stream_agent_response_chunk(
     sync: &NativeSync,
     source_plugin: &str,
     metadata: &StreamResponseMetadata,
-    chunk: &LlmStreamTextChunkDraft,
+    chunk: &ModelStreamTextChunkDraft,
     timestamp_ns: u64,
 ) -> Result<(), String> {
     let node_id = stream_agent_response_chunk_id();
@@ -555,7 +555,7 @@ fn now_ns() -> u64 {
 
 fn stream_chunk_observation_draft(
     metadata: &StreamResponseMetadata,
-    chunk: &LlmStreamTextChunkDraft,
+    chunk: &ModelStreamTextChunkDraft,
     timestamp_ns: u64,
 ) -> StreamChunkObservationDraft {
     stream_observation_draft(
@@ -585,7 +585,7 @@ fn stream_final_chunk_observation_draft(
     )
 }
 
-fn final_stream_payload_kind(assembly: &LlmStreamFinalAssembly) -> &'static str {
+fn final_stream_payload_kind(assembly: &ModelStreamFinalAssembly) -> &'static str {
     if !assembly.content.is_empty() {
         crate::streaming::STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT
     } else if !assembly.openai_tool_calls.is_empty() || !assembly.anthropic_tool_uses.is_empty() {
@@ -674,7 +674,7 @@ fn stream_agent_response_chunk_node(
     node_id: &str,
     timestamp_ns: u64,
     metadata: &StreamResponseMetadata,
-    chunk: &LlmStreamTextChunkDraft,
+    chunk: &ModelStreamTextChunkDraft,
 ) -> serde_json::Value {
     serde_json::json!({
         "@type":        "AgentResponse",

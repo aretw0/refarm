@@ -84,7 +84,7 @@ data: [DONE]
         .enable_all()
         .build()
         .unwrap()
-        .block_on(super::LlmBridgeHost::complete_http_stream(
+        .block_on(super::ModelBridgeHost::complete_http_stream(
             &mut bindings,
             "ollama".to_string(),
             base_url,
@@ -140,7 +140,7 @@ data: [DONE]
             .enable_all()
             .build()
             .unwrap()
-            .block_on(super::LlmBridgeHost::complete_http_stream(
+            .block_on(super::ModelBridgeHost::complete_http_stream(
                 &mut bindings,
                 "ollama".to_string(),
                 client_base_url,
@@ -190,7 +190,7 @@ fn complete_http_stream_preserves_route_enforcement() {
         .enable_all()
         .build()
         .unwrap()
-        .block_on(super::LlmBridgeHost::complete_http_stream(
+        .block_on(super::ModelBridgeHost::complete_http_stream(
             &mut bindings,
             "ollama".to_string(),
             "http://127.0.0.1:10".to_string(),
