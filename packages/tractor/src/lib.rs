@@ -26,6 +26,7 @@
 pub mod capabilities;
 pub mod daemon;
 pub mod host;
+pub mod node_reap;
 pub mod observer;
 pub mod sidecar;
 pub mod storage;
@@ -272,6 +273,11 @@ impl TractorNative {
         let sync = NativeSync::new(storage.clone(), &config.namespace)?;
         let trust = TrustManager::new();
         let plugins = host::PluginHost::new(trust.clone(), telemetry.clone())?;
+
+        // Reclaim the unbounded streaming graph nodes (one row per streamed chunk)
+        // in the background, deleting from both sqlite and the Loro doc so a
+        // re-projection can't resurrect them. Self-terminates when `sync` drops.
+        node_reap::spawn_node_reaper(&sync);
 
         Ok(Self {
             storage,

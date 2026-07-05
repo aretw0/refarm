@@ -87,6 +87,35 @@ impl NativeSync {
         Ok(())
     }
 
+    /// Delete the given node ids from BOTH models (CQRS-symmetric to store_node).
+    /// Deleting from sqlite alone is not durable: the node still lives in the
+    /// Loro doc map, and the next apply_update/import_snapshot would re-project it
+    /// (project_all treats a present key as store_node), resurrecting the reaped
+    /// row. So we tombstone the Loro key too — project_all skips a deleted key,
+    /// and the CRDT delete op propagates the reap to peers. This is the durable
+    /// entry point the graph-node reaper must call (not NativeStorage directly).
+    pub fn delete_nodes_by_ids(&self, ids: &[String]) -> Result<usize> {
+        if ids.is_empty() {
+            return Ok(0);
+        }
+        let nodes_map = self.doc.get_map("nodes");
+        for id in ids {
+            nodes_map
+                .delete(id)
+                .map_err(|e| anyhow!("loro map delete: {e:?}"))?;
+        }
+        self.doc.commit();
+        // Eager projection to read model (CQRS) — mirror store_node's ordering.
+        self.storage.delete_nodes_by_ids(ids)
+    }
+
+    /// A Weak handle to the shared Loro doc, so a background task (the node
+    /// reaper) can detect teardown and self-terminate without keeping this
+    /// NativeSync alive.
+    pub fn weak_doc(&self) -> std::sync::Weak<LoroDoc> {
+        Arc::downgrade(&self.doc)
+    }
+
     pub fn get_node(&self, id: &str) -> Result<Option<String>> {
         self.storage.get_node(id)
     }
@@ -99,7 +128,7 @@ impl NativeSync {
     /// Called after apply_update() or import_snapshot() to sync the read model.
     /// Mirrors Projector.rebuildAll() from packages/sync-loro/src/projector.ts.
     /// Never panics — logs errors and continues (CRDT must not crash).
-    fn project_all(&self) -> Result<()> {
+    pub(crate) fn project_all(&self) -> Result<()> {
         let nodes_map = self.doc.get_map("nodes");
 
         // Collect keys first to avoid borrow checker issues with simultaneous

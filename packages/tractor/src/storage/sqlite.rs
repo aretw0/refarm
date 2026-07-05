@@ -183,6 +183,26 @@ impl NativeStorage {
         Ok(rows)
     }
 
+    /// Delete the given node ids, returning the number of rows removed. Used by
+    /// the graph-node reaper, which decides WHICH ids to reap in a pure planner
+    /// (allowlisted streaming types + age + terminal-session gate) and deletes
+    /// them by exact id here — the same key the Loro tombstone uses, so sqlite
+    /// and the CRDT doc stay in step. No-op for an empty slice.
+    pub fn delete_nodes_by_ids(&self, ids: &[String]) -> Result<usize> {
+        if ids.is_empty() {
+            return Ok(0);
+        }
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("DELETE FROM nodes WHERE id = ?1")
+            .context("prepare delete_nodes_by_ids")?;
+        let mut deleted = 0usize;
+        for id in ids {
+            deleted += stmt.execute(params![id]).context("delete_nodes_by_ids")?;
+        }
+        Ok(deleted)
+    }
+
     /// Execute a raw SQL statement (no result rows).
     pub fn execute(&self, sql: &str, params: &[&dyn rusqlite::ToSql]) -> Result<()> {
         let conn = self.conn.lock().unwrap();
