@@ -23,27 +23,48 @@ pub use crate::capabilities::CAP_OBSERVE_HOST_EFFECTS;
 pub const AUDIT_FILE: &str = "scarecrow-audit.ndjson";
 const HOST_EFFECT_PREFIX: &str = "host-effect:";
 
-/// Rotate the live audit file once it exceeds this many bytes. The audit log is
-/// tamper-evidence, so rotation RENAMES the full file to a sealed timestamped
-/// segment (never truncates or deletes recent lines) and starts a fresh live
-/// file. Overridable via REFARM_AUDIT_ROTATE_BYTES; default 8 MiB.
-fn audit_rotate_bytes() -> u64 {
-    std::env::var("REFARM_AUDIT_ROTATE_BYTES")
-        .ok()
-        .and_then(|raw| raw.parse::<u64>().ok())
-        .filter(|n| *n > 0)
-        .unwrap_or(8 * 1024 * 1024)
+/// Audit rotation knobs, resolved from env ONCE at boot (`AuditConfig::from_env`)
+/// and threaded through the audit-subscriber write path, so rotation reads a
+/// value, not process env (which leaks across threads under --test-threads>1).
+///
+/// - `rotate_bytes`: rotate the live audit file once it exceeds this many bytes.
+///   The audit log is tamper-evidence, so rotation RENAMES the full file to a
+///   sealed timestamped segment (never truncates/deletes recent lines) and starts
+///   a fresh live file. Env override REFARM_AUDIT_ROTATE_BYTES; default 8 MiB.
+/// - `max_segments`: keep at most this many sealed segments; older ones pruned.
+///   Retention only — never touches the live file. Env REFARM_AUDIT_MAX_SEGMENTS;
+///   default 16.
+#[derive(Debug, Clone, Copy)]
+pub struct AuditConfig {
+    pub rotate_bytes: u64,
+    pub max_segments: usize,
 }
 
-/// Keep at most this many sealed segments; older ones are pruned. Retention, not
-/// deletion of live data — only fully-sealed old segments are removed, and only
-/// beyond the window. Overridable via REFARM_AUDIT_MAX_SEGMENTS; default 16.
-fn audit_max_segments() -> usize {
-    std::env::var("REFARM_AUDIT_MAX_SEGMENTS")
-        .ok()
-        .and_then(|raw| raw.parse::<usize>().ok())
-        .filter(|n| *n > 0)
-        .unwrap_or(16)
+impl Default for AuditConfig {
+    fn default() -> Self {
+        Self {
+            rotate_bytes: 8 * 1024 * 1024,
+            max_segments: 16,
+        }
+    }
+}
+
+impl AuditConfig {
+    /// Resolve the audit knobs from env. Called ONCE at spawn_audit_subscriber.
+    pub fn from_env() -> Self {
+        Self {
+            rotate_bytes: std::env::var("REFARM_AUDIT_ROTATE_BYTES")
+                .ok()
+                .and_then(|raw| raw.parse::<u64>().ok())
+                .filter(|n| *n > 0)
+                .unwrap_or(8 * 1024 * 1024),
+            max_segments: std::env::var("REFARM_AUDIT_MAX_SEGMENTS")
+                .ok()
+                .and_then(|raw| raw.parse::<usize>().ok())
+                .filter(|n| *n > 0)
+                .unwrap_or(16),
+        }
+    }
 }
 
 /// Spawn the Scarecrow background task.
@@ -59,10 +80,12 @@ pub fn spawn_audit_subscriber(
     base_dir: PathBuf,
     observer_channels: PluginChannels,
 ) {
+    // Audit rotation knobs resolved from env ONCE here at spawn.
     tokio::spawn(audit_subscriber_task(
         telemetry,
         base_dir,
         observer_channels,
+        AuditConfig::from_env(),
     ));
 }
 
@@ -70,6 +93,7 @@ async fn audit_subscriber_task(
     telemetry: TelemetryBus,
     base_dir: PathBuf,
     observer_channels: PluginChannels,
+    config: AuditConfig,
 ) {
     let audit_path = base_dir.join(AUDIT_FILE);
     let mut rx = telemetry.subscribe();
@@ -80,7 +104,7 @@ async fn audit_subscriber_task(
                     continue;
                 }
                 if let Some(line) = format_audit_line(&event) {
-                    append_line(&audit_path, &line).await;
+                    append_line(&audit_path, &line, config).await;
                     forward_to_observers(&event, &line, &observer_channels);
                 }
             }
@@ -143,9 +167,9 @@ pub(crate) fn format_audit_line(event: &TelemetryEvent) -> Option<String> {
     serde_json::to_string(&serde_json::Value::Object(obj)).ok()
 }
 
-async fn append_line(path: &Path, line: &str) {
+async fn append_line(path: &Path, line: &str, config: AuditConfig) {
     // Rotate BEFORE appending so a sealed segment never grows past the threshold.
-    rotate_if_needed(path).await;
+    rotate_if_needed(path, config).await;
     match OpenOptions::new()
         .create(true)
         .append(true)
@@ -167,11 +191,11 @@ async fn append_line(path: &Path, line: &str) {
 /// evidence is never truncated) and let the next append create a fresh file.
 /// Then prune sealed segments beyond the retention window. All best-effort: any
 /// fs error leaves the log intact and just skips rotation this round.
-async fn rotate_if_needed(path: &Path) {
+async fn rotate_if_needed(path: &Path, config: AuditConfig) {
     let Ok(meta) = tokio::fs::metadata(path).await else {
         return; // no file yet — nothing to rotate.
     };
-    if meta.len() < audit_rotate_bytes() {
+    if meta.len() < config.rotate_bytes {
         return;
     }
     let secs = std::time::SystemTime::now()
@@ -185,7 +209,7 @@ async fn rotate_if_needed(path: &Path) {
         return;
     }
     tracing::info!(sealed = %sealed.display(), "scarecrow: audit log rotated");
-    prune_old_segments(path).await;
+    prune_old_segments(path, config).await;
 }
 
 /// Build the sealed segment path for the live audit file at `secs`.
@@ -196,9 +220,9 @@ fn sealed_segment_path(live: &Path, secs: u64) -> PathBuf {
 }
 
 /// Remove sealed segments beyond the retention window (oldest first), keeping the
-/// newest `audit_max_segments()`. Never touches the live file. Sealed segments
+/// newest `config.max_segments`. Never touches the live file. Sealed segments
 /// are recognised by the `scarecrow-audit.<digits>.ndjson` name pattern.
-async fn prune_old_segments(live: &Path) {
+async fn prune_old_segments(live: &Path, config: AuditConfig) {
     let dir = live.parent().unwrap_or_else(|| Path::new("."));
     let Ok(mut entries) = tokio::fs::read_dir(dir).await else {
         return;
@@ -211,7 +235,7 @@ async fn prune_old_segments(live: &Path) {
             segments.push((secs, p));
         }
     }
-    let max = audit_max_segments();
+    let max = config.max_segments;
     if segments.len() <= max {
         return;
     }
@@ -371,19 +395,18 @@ mod tests {
         tokio::fs::create_dir_all(&dir).await.unwrap();
         let live = dir.join(AUDIT_FILE);
 
-        // Tiny threshold so a couple of lines trip rotation.
-        std::env::set_var("REFARM_AUDIT_ROTATE_BYTES", "20");
+        // Tiny threshold so a couple of lines trip rotation — injected via config,
+        // no process env (which leaks across threads under --test-threads>1).
+        let config = AuditConfig { rotate_bytes: 20, ..AuditConfig::default() };
 
         // Write enough to exceed 20 bytes, then one more append triggers rotation.
-        append_line(&live, "first-audit-line-well-over-twenty-bytes").await;
+        append_line(&live, "first-audit-line-well-over-twenty-bytes", config).await;
         let before: Vec<_> = std::fs::read_dir(&dir)
             .unwrap()
             .filter_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().into_owned()))
             .collect();
         // Next append sees the oversized live file and seals it first.
-        append_line(&live, "second-line").await;
-
-        std::env::remove_var("REFARM_AUDIT_ROTATE_BYTES");
+        append_line(&live, "second-line", config).await;
 
         let names: Vec<String> = std::fs::read_dir(&dir)
             .unwrap()
@@ -410,7 +433,8 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("audit-prune-{}", uuid::Uuid::new_v4()));
         tokio::fs::create_dir_all(&dir).await.unwrap();
         let live = dir.join(AUDIT_FILE);
-        std::env::set_var("REFARM_AUDIT_MAX_SEGMENTS", "2");
+        // Small retention window — injected via config, no process env.
+        let config = AuditConfig { max_segments: 2, ..AuditConfig::default() };
 
         // Seal three segments with increasing stamps + keep the live file present.
         for secs in [100u64, 200, 300] {
@@ -420,8 +444,7 @@ mod tests {
         }
         tokio::fs::write(&live, "live").await.unwrap();
 
-        prune_old_segments(&live).await;
-        std::env::remove_var("REFARM_AUDIT_MAX_SEGMENTS");
+        prune_old_segments(&live, config).await;
 
         // The oldest (100) is pruned; the 2 newest (200, 300) and the live file stay.
         assert!(!dir.join("scarecrow-audit.100.ndjson").exists(), "oldest pruned");

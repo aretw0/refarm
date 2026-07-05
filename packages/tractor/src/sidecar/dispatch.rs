@@ -388,7 +388,10 @@ pub(crate) fn finalise_effort_if_active(
 /// node before finalising the effort as `timed-out`. Overridable for tests /
 /// tuning via REFARM_RESPOND_WATCH_TIMEOUT_MS; defaults to 45s to mirror the TS
 /// stream-follow timeout (REFARM_STREAM_FOLLOW_TIMEOUT_MS).
-pub(crate) fn respond_watch_timeout_ms() -> u64 {
+/// Parse REFARM_RESPOND_WATCH_TIMEOUT_MS from env. Called ONCE at boot via
+/// RespondWatchConfig::from_env; the watcher reads the resolved value off the
+/// SidecarState, not env.
+pub(crate) fn respond_watch_timeout_ms_from_env() -> u64 {
     std::env::var("REFARM_RESPOND_WATCH_TIMEOUT_MS")
         .ok()
         .and_then(|raw| raw.parse::<u64>().ok())
@@ -397,8 +400,8 @@ pub(crate) fn respond_watch_timeout_ms() -> u64 {
 }
 
 /// Poll interval for the respond watcher's storage reads. Matches the TS stream
-/// follow cadence (100ms). Overridable via REFARM_RESPOND_WATCH_INTERVAL_MS.
-fn respond_watch_interval_ms() -> u64 {
+/// follow cadence (100ms). Parsed ONCE at boot via RespondWatchConfig::from_env.
+pub(crate) fn respond_watch_interval_ms_from_env() -> u64 {
     std::env::var("REFARM_RESPOND_WATCH_INTERVAL_MS")
         .ok()
         .and_then(|raw| raw.parse::<u64>().ok())
@@ -447,8 +450,8 @@ fn find_terminal_agent_response(
 /// slice of the async debts).
 fn spawn_respond_watcher(state: SidecarState, effort_id: String, prompt_ref: String) {
     tokio::spawn(async move {
-        let timeout = std::time::Duration::from_millis(respond_watch_timeout_ms());
-        let interval = std::time::Duration::from_millis(respond_watch_interval_ms());
+        let timeout = std::time::Duration::from_millis(state.respond_watch.timeout_ms);
+        let interval = std::time::Duration::from_millis(state.respond_watch.interval_ms);
         let deadline = std::time::Instant::now() + timeout;
 
         loop {
@@ -487,7 +490,7 @@ fn spawn_respond_watcher(state: SidecarState, effort_id: String, prompt_ref: Str
                         result: None,
                         error: Some(format!(
                             "no terminal AgentResponse within {}ms",
-                            respond_watch_timeout_ms()
+                            state.respond_watch.timeout_ms
                         )),
                     }],
                 );

@@ -156,6 +156,38 @@ pub struct SidecarState {
     pub streams_dir: PathBuf,
     pub results_dir: PathBuf,
     pub namespace: String,
+    /// Respond-watcher timeout + poll cadence, resolved from env ONCE at boot
+    /// (see RespondWatchConfig). The watcher reads these off the state, not env —
+    /// so tests set a short timeout by overriding the field, never set_var.
+    pub respond_watch: RespondWatchConfig,
+}
+
+/// Timeout + poll cadence (ms) for the respond watcher. Resolved from env ONCE
+/// at SidecarState construction; carried on the state so the watcher reads a
+/// value, not process env (which leaks across threads under --test-threads>1).
+#[derive(Debug, Clone, Copy)]
+pub struct RespondWatchConfig {
+    pub timeout_ms: u64,
+    pub interval_ms: u64,
+}
+
+impl Default for RespondWatchConfig {
+    fn default() -> Self {
+        Self {
+            timeout_ms: 45_000,
+            interval_ms: 100,
+        }
+    }
+}
+
+impl RespondWatchConfig {
+    /// Resolve the respond-watch knobs from env. Called ONCE at SidecarState::new.
+    pub fn from_env() -> Self {
+        Self {
+            timeout_ms: dispatch::respond_watch_timeout_ms_from_env(),
+            interval_ms: dispatch::respond_watch_interval_ms_from_env(),
+        }
+    }
 }
 
 impl SidecarState {
@@ -187,6 +219,7 @@ impl SidecarState {
             streams_dir,
             results_dir,
             namespace,
+            respond_watch: RespondWatchConfig::from_env(),
         })
     }
 }

@@ -629,10 +629,12 @@ async fn sidecar_respond_effort_finalises_done_when_terminal_response_lands() {
 /// never leaks and the effort never sits in-progress forever.
 #[tokio::test]
 async fn sidecar_respond_effort_times_out_when_agent_silent() {
-    // Shrink the watch timeout so the test is fast. env is process-local; this
-    // test's namespace is unique so no other effort reads it.
-    std::env::set_var("REFARM_RESPOND_WATCH_TIMEOUT_MS", "150");
-    let (state, port, _tmp, _ns) = start_effort_sidecar_ns().await;
+    // Shrink the watch timeout so the test is fast — injected via config, not
+    // process env (which leaks across threads under --test-threads>1).
+    let (state, port, _tmp, _ns) = start_effort_sidecar_ns_with_watch(
+        crate::sidecar::RespondWatchConfig { timeout_ms: 150, interval_ms: 100 },
+    )
+    .await;
     let client = reqwest::Client::new();
 
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
@@ -669,7 +671,6 @@ async fn sidecar_respond_effort_times_out_when_agent_silent() {
             break;
         }
     }
-    std::env::remove_var("REFARM_RESPOND_WATCH_TIMEOUT_MS");
     assert!(timed_out, "a silent respond effort must finalise to timed-out, not sit in-progress forever");
 }
 

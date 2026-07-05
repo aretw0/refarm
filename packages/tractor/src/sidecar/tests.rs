@@ -66,6 +66,15 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
 /// connection (a :memory: db is isolated per connection). Returns the state and
 /// the file namespace path.
 async fn start_effort_sidecar_ns() -> (SidecarState, u16, PathBuf, String) {
+    start_effort_sidecar_ns_with_watch(super::RespondWatchConfig::default()).await
+}
+
+/// Like `start_effort_sidecar_ns` but with an explicit respond-watch config so a
+/// test can use a short timeout WITHOUT mutating REFARM_RESPOND_WATCH_TIMEOUT_MS
+/// (process env leaks across threads under --test-threads>1).
+async fn start_effort_sidecar_ns_with_watch(
+    respond_watch: super::RespondWatchConfig,
+) -> (SidecarState, u16, PathBuf, String) {
     let tmp = std::env::temp_dir().join(format!("tractor-effort-test-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&tmp).unwrap();
     let namespace = std::env::temp_dir()
@@ -75,7 +84,7 @@ async fn start_effort_sidecar_ns() -> (SidecarState, u16, PathBuf, String) {
         .to_owned();
 
     let channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(
+    let mut state = SidecarState::new(
         channels,
         Arc::new(RwLock::new(HashMap::new())), // cancel_flags
         Arc::new(RwLock::new(HashMap::new())), // in_flight_cancels
@@ -86,6 +95,7 @@ async fn start_effort_sidecar_ns() -> (SidecarState, u16, PathBuf, String) {
         namespace.clone(),
     )
     .unwrap();
+    state.respond_watch = respond_watch;
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
