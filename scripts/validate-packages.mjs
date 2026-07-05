@@ -278,7 +278,7 @@ export function validateDsPublicApi(pkg) {
 const WIT_COMPONENT_DISTRIBUTION_TARGETS = [
   {
     id: "host-effects",
-    packageDir: "packages/agent-tools",
+    packageDir: "packages/host-effects",
     cargoPackage: "refarm:host-effects",
     targetPath: "wit",
     targetWorld: "host-effects-provider",

@@ -261,7 +261,7 @@ Context engineering follows the pi-test-harness model:
 
 - [x] `read_structured` agent tool: JSON/TOML/YAML with `page_size`/`page_offset` (T-NEXT-268/275)
 - [x] `write_structured` agent tool: validate-before-write for all three formats (T-NEXT-278)
-- [x] `structured-io` WIT interface in `agent-tools/wit/world.wit` (T-NEXT-284)
+- [x] `structured-io` WIT interface in `host-effects/wit/world.wit` (T-NEXT-284)
   - `read-structured` and `write-structured` exported from `agent-tools-provider` world
   - Shared layer: any plugin or host-facing tool imports without duplicating parse logic
 - [x] 93 unit tests total across formats, pagination, and validation paths

@@ -75,7 +75,7 @@ the same WIT interfaces natively in Rust:
 - `StructuredIoHost` — JSON/TOML/YAML parse + validate
 
 The WIT package is `refarm:agent-tools@0.1.0` (defined in
-`packages/agent-tools/wit/world.wit`). This is the same contract both sides
+`packages/host-effects/wit/world.wit`). This is the same contract both sides
 target.
 
 **Consequence**: A WASM plugin built to use `agent-fs` and `agent-shell` (Pi
@@ -88,7 +88,7 @@ agent.wasm loads in Tractor without recompilation. If they diverge, there is
 a compatibility shim to write.
 
 **Action**: Run `wasm-tools component wit packages/agent/target/wasm32-wasip1/release/agent.wasm`
-and compare against `packages/agent-tools/wit/world.wit` to verify. This is a
+and compare against `packages/host-effects/wit/world.wit` to verify. This is a
 2-minute check that should be done before claiming WIT interoperability.
 
 ---

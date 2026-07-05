@@ -371,7 +371,7 @@ public publish config and keeps `build:wasm`/`build:jco` tied to those artifacts
 
 Current proof (2026-06-27): `scripts/validate-packages.mjs` now also runs a
 build-free WIT/component distribution preflight. It checks that
-`packages/agent-tools` still maps Cargo component metadata to
+`packages/host-effects` still maps Cargo component metadata to
 `refarm:agent-tools@0.1.0`/`agent-tools-provider`, and that
 `packages/refarm-plugin-wit` still maps the canonical host WIT to
 `refarm:plugin@0.1.0`/`refarm-plugin-host` with the expected imports and

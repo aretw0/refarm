@@ -102,7 +102,7 @@ daily-driver gate. Timing is safe: the dataset is personal and pre-v0.1.0.
 consumers to agent and prevents the session primitive from being reused by messaging
 integrations or A2A without ad-hoc coupling.
 
-**B — Shared schema in `packages/agent-tools`**: avoids a formal contract, but creates
+**B — Shared schema in `packages/host-effects`**: avoids a formal contract, but creates
 an informal dependency without conformance guarantees. The existing pattern (effort, storage,
 sync, identity, stream) is always a formal contract — there is no precedent for an informal
 shared schema package.

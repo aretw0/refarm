@@ -24,12 +24,12 @@ const STEPS = [
 	{
 		id: "structured-io",
 		display:
-			"cargo test --manifest-path packages/agent-tools/Cargo.toml --lib structured_io --quiet",
+			"cargo test --manifest-path packages/host-effects/Cargo.toml --lib structured_io --quiet",
 		command: "cargo",
 		args: [
 			"test",
 			"--manifest-path",
-			"packages/agent-tools/Cargo.toml",
+			"packages/host-effects/Cargo.toml",
 			"--lib",
 			"structured_io",
 			"--quiet",

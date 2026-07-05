@@ -1,20 +1,22 @@
-# @refarm.dev/agent-tools
+# host-effects (refarm:host-effects)
 
-Rust/WASM component providing sandboxed filesystem, subprocess, and structured I/O capabilities for AI agents running inside WASM guest environments. Exposes three WIT interfaces: `agent-fs`, `agent-shell`, and `structured-io`.
+Rust/WASM component providing sandboxed filesystem, subprocess, and structured I/O effects for plugins running inside WASM guest environments. Exposes three WIT interfaces: `host-fs`, `host-shell`, and `structured-io`.
+
+These are generic host-effect/privilege primitives — any empowered plugin uses them, not only the LLM agent. The name reflects the effect boundary (host syscalls, gated per plugin by identity/config/path), not a specific consumer.
 
 ## When to use
 
-- You are building a WASM agent plugin that needs to read/write files, run subprocesses, or parse structured data (JSON/TOML/YAML) with validation.
-- You need a policy-enforceable boundary between an AI agent and the host OS (timeout caps, path restrictions, argv enforcement).
+- You are building a WASM plugin that needs to read/write files, run subprocesses, or parse structured data (JSON/TOML/YAML) with validation.
+- You need a policy-enforceable boundary between a plugin and the host OS (timeout caps, path restrictions, argv enforcement).
 - You are targeting both browser OPFS and Node.js WASI runtimes — all I/O is WASI-mapped.
 
 ## Architecture
 
 ```
-Agent (WASM guest)
-  └─ agent-tools component
-       ├─ agent-fs       ← atomic read/write/edit via WASI filesystem
-       ├─ agent-shell    ← policy-gated subprocess via host_spawn
+Guest (WASM plugin)
+  └─ host-effects component
+       ├─ host-fs        ← atomic read/write/edit via WASI filesystem
+       ├─ host-shell     ← policy-gated subprocess via host_spawn
        └─ structured-io  ← JSON/TOML/YAML parse + validate before write
 ```
 
@@ -22,7 +24,7 @@ All filesystem operations use WASI (`wasi:filesystem`), making them transparent 
 
 ## WIT interfaces
 
-### `agent-fs`
+### `host-fs`
 
 ```wit
 read(path: string) -> result<list<u8>, string>
@@ -30,7 +32,7 @@ write(path: string, content: list<u8>)         // atomic: tmp + rename
 edit(path: string, diff: string)               // apply unified diff (diffy)
 ```
 
-### `agent-shell`
+### `host-shell`
 
 ```wit
 spawn(req: spawn-request) -> result<spawn-result, string>
@@ -54,7 +56,7 @@ Supported formats: `json`, `toml`, `yaml` (auto-detected from extension if forma
 ```bash
 cargo build --target wasm32-wasi --release
 # or via workspace:
-pnpm --filter @refarm.dev/agent-tools build
+pnpm --filter host-effects build
 ```
 
 ## Policy enforcement
@@ -66,7 +68,7 @@ pnpm --filter @refarm.dev/agent-tools build
 
 ## Related ADRs
 
-- [ADR-050](../../specs/ADRs/ADR-050-zig-wasm-agent-tool-host.md) — WASM agent tool host strategy
+- [ADR-050](../../specs/ADRs/ADR-050-zig-wasm-agent-tool-host.md) — WASM host-effect strategy
 - [ADR-017](../../specs/ADRs/ADR-017-microkernel-boundary.md) — microkernel guest/host boundary
 
 ## License

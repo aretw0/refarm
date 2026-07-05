@@ -114,13 +114,13 @@ isolated temporary workspace containing `.refarm/config.json` with
 `MODEL_SHELL_ALLOWLIST` permits only the scripted command.
 
 Current evidence (2026-06-27): the `agent-tools` composition component now has a
-focused unit proof for its hard local `agent-shell` guard. `packages/agent-tools`
+focused unit proof for its hard local `agent-shell` guard. `packages/host-effects`
 rejects empty `argv`, rejects requested subprocess timeouts above its 120-second
 cap, and accepts requests exactly at the cap. The README now matches the source
 cap. The focused signal is:
 
 ```bash
-cargo test --manifest-path packages/agent-tools/Cargo.toml --lib --quiet
+cargo test --manifest-path packages/host-effects/Cargo.toml --lib --quiet
 ```
 
 That proves the component-local policy guard without starting Tractor or a model

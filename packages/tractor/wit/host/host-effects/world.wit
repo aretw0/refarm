@@ -6,12 +6,12 @@
 ///   calls host-shell     ←  component exports host-shell
 ///
 /// The `host-effects-host` world is the mirror of `host-effects-provider`
-/// (in packages/agent-tools/wit/world.wit) from the tractor's perspective.
+/// (in packages/host-effects/wit/world.wit) from the tractor's perspective.
 /// wasmtime::component::bindgen! generates HostEffectsHost from this world.
 
 package refarm:host-effects@0.1.0;
 
-// ─── Interfaces (mirrored from packages/agent-tools/wit/world.wit) ───────────
+// ─── Interfaces (mirrored from packages/host-effects/wit/world.wit) ───────────
 
 interface structured-io {
     enum file-format { json, toml, yaml }
