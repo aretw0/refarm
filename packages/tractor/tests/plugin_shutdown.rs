@@ -44,3 +44,46 @@ async fn shutdown_drains_plugin_channels_after_registration() {
         "shutdown must drain plugin channels"
     );
 }
+
+#[tokio::test]
+async fn unregister_tears_down_one_plugin_leaving_the_host_clean() {
+    let tractor = TractorNative::boot(memory_config_with_plugins())
+        .await
+        .expect("boot must succeed");
+
+    let handle = tractor
+        .load_plugin(Path::new("tests/fixtures/null-plugin.wasm"))
+        .await
+        .expect("plugin fixture must load");
+    let plugin_id = handle.id.clone();
+    tractor.register_for_events(handle);
+
+    // Registered: channel present, cancel flag present.
+    assert_eq!(tractor.agent_channels.read().unwrap().len(), 1);
+    assert!(tractor.cancel_flags.read().unwrap().contains_key(&plugin_id));
+
+    // Unregister the one plugin — the inverse of register_for_events.
+    let was_loaded = tractor.unregister(&plugin_id).await;
+    assert!(was_loaded, "unregister must report the plugin was loaded");
+
+    // The host is clean: channel gone, cancel flag gone, runner thread joined
+    // (plugin_runner_handles no longer holds it — proven by a following shutdown
+    // that finds nothing to drain).
+    assert!(
+        tractor.agent_channels.read().unwrap().is_empty(),
+        "unregister must remove the plugin's channel"
+    );
+    assert!(
+        !tractor.cancel_flags.read().unwrap().contains_key(&plugin_id),
+        "unregister must clear the plugin's cancel flag"
+    );
+
+    // A second unregister is a no-op (plugin already gone).
+    assert!(
+        !tractor.unregister(&plugin_id).await,
+        "unregistering an absent plugin returns false"
+    );
+
+    // Shutdown after unregister still succeeds and finds nothing to drain.
+    tractor.shutdown().await.expect("shutdown after unregister must succeed");
+}

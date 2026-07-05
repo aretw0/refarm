@@ -649,6 +649,72 @@ impl TractorNative {
         )
     }
 
+    /// Tear down ONE plugin: the honest inverse of register_for_events. Removes
+    /// the plugin's sender from agent_channels/observer_channels (dropping it
+    /// closes the queue so every runner in the pool sees recv()→None and runs its
+    /// own teardown+terminate), unsubscribes it from the event router, clears its
+    /// cancel flag and any staged pool stores, deselects it if it was the active
+    /// agent, and joins its runner thread(s). Returns true if the plugin was
+    /// loaded. This is the per-plugin capability a real hot-reload needs (reload =
+    /// unregister + load fresh bytes + register_for_events).
+    pub async fn unregister(&self, plugin_id: &str) -> bool {
+        // Drop the senders first so the runner drain loops observe a closed queue
+        // and self-terminate (teardown + terminate) as they finish in-flight work.
+        let had_channel = self
+            .agent_channels
+            .write()
+            .expect("agent_channels poisoned")
+            .remove(plugin_id)
+            .is_some();
+        self.observer_channels
+            .write()
+            .expect("observer_channels poisoned")
+            .remove(plugin_id);
+
+        // Neutral router + agent policy + interrupt/staging state.
+        self.event_router.unsubscribe_all(plugin_id);
+        self.cancel_flags
+            .write()
+            .expect("cancel_flags poisoned")
+            .remove(plugin_id);
+        self.pool_stores
+            .write()
+            .expect("pool_stores poisoned")
+            .remove(plugin_id);
+        {
+            let mut active = self
+                .active_agent_id
+                .write()
+                .expect("active_agent_id poisoned");
+            if active.as_deref() == Some(plugin_id) {
+                *active = None;
+            }
+        }
+
+        // Join the runner thread(s) — now that the queue is closed they exit
+        // promptly. Off the async executor since JoinHandle::join blocks.
+        let joins = self
+            .plugin_runner_handles
+            .write()
+            .expect("plugin_runner_handles poisoned")
+            .remove(plugin_id);
+        if let Some(joins) = joins {
+            let _ = tokio::task::spawn_blocking(move || {
+                for join in joins {
+                    if let Err(panic) = join.join() {
+                        tracing::warn!("plugin runner thread panic during unregister: {panic:?}");
+                    }
+                }
+            })
+            .await;
+        }
+
+        if had_channel {
+            tracing::info!(plugin_id, "plugin unregistered");
+        }
+        had_channel
+    }
+
     /// Shut down all plugins and close storage.
     pub async fn shutdown(&self) -> Result<()> {
         tracing::info!("TractorNative shutting down");
