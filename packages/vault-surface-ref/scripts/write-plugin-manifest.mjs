@@ -31,7 +31,10 @@ const digest = await computeSha256Digest(
 );
 
 const manifest = buildVaultPluginManifest({
-	id: "@refarm.dev/vault-surface-ref",
+	// The manifest id's suffix (after the last `/`) must equal the plugin's
+	// metadata().name — the tractor host aligns manifest.id to runtime name. The
+	// plugin's on-event metadata reports "vault", so the id suffix is "vault".
+	id: "@refarm.dev/vault",
 	name: "vault",
 	// The entry sits next to plugin.json in dist/, so the path is relative to it.
 	entry: "./vault_plugin.wasm",

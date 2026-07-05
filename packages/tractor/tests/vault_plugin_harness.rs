@@ -22,8 +22,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use tractor::host::PluginHost;
-use tractor::trust::TrustManager;
-use tractor::{NativeStorage, NativeSync, TelemetryBus};
+use tractor::trust::{SecurityMode, TrustManager};
+use tractor::{NativeStorage, NativeSync, TelemetryBus, TractorNative, TractorNativeConfig};
 
 static WASM_PATH: OnceLock<PathBuf> = OnceLock::new();
 static QUALITY_WASM_PATH: OnceLock<PathBuf> = OnceLock::new();
@@ -198,4 +198,88 @@ async fn quality_plugin_dispatch_stores_result_node_via_real_bridge() {
         "the quality result must carry at least one finding (the AI-tell match)"
     );
     assert_eq!(findings[0]["ruleId"], "ai-tell");
+}
+
+fn memory_config_none() -> TractorNativeConfig {
+    TractorNativeConfig {
+        namespace: ":memory:".to_string(),
+        port: 0,
+        security_mode: SecurityMode::None,
+        ..TractorNativeConfig::default()
+    }
+}
+
+/// THE DECOUPLE PROOF (step 6 of the runtime-router lane): a NON-agent plugin,
+/// registered at startup, receives its OWN declared event through the neutral
+/// router — not the agent's user:prompt. Before the router, a vault plugin
+/// registered into agent_channels would sit there and never receive
+/// vault:dispatch; now the router delivers it by the plugin's
+/// capabilities.subscribes declaration.
+#[tokio::test]
+#[ignore = "requires vault-surface-ref build:plugin; run with --ignored"]
+async fn router_delivers_a_non_agent_event_to_its_subscribed_plugin() {
+    let path = wasm_path();
+    if !path.exists() {
+        eprintln!(
+            "SKIP: vault_plugin.wasm not found at {} — run: pnpm --filter @refarm.dev/vault-surface-ref run build:plugin",
+            path.display()
+        );
+        return;
+    }
+
+    // Boot the full TractorNative (the router lives here, not on PluginHost).
+    let tractor = TractorNative::boot(memory_config_none())
+        .await
+        .expect("boot must succeed");
+
+    // Load the vault plugin: its plugin.json declares subscribes:[vault:dispatch].
+    let handle = tractor
+        .load_plugin(path)
+        .await
+        .expect("vault plugin must load");
+    assert!(
+        handle.subscribes.iter().any(|e| e == "vault:dispatch"),
+        "the plugin manifest must declare subscribes:[vault:dispatch]"
+    );
+
+    // Register it — this populates the event router from the manifest, and does
+    // NOT elect it as active agent (it declares no agent:respond).
+    tractor.register_for_events(handle);
+    assert!(
+        tractor.event_router.has_subscribers("vault:dispatch"),
+        "the router must have the vault plugin subscribed to vault:dispatch"
+    );
+    assert!(
+        tractor
+            .active_agent_id
+            .read()
+            .expect("active_agent_id poisoned")
+            .is_none(),
+        "a non-agent plugin must NOT be elected active agent"
+    );
+
+    // Deliver the event through the router (no explicit target -> route by
+    // subscription). This is the path a caller/effort-router uses; the vault
+    // plugin receives vault:dispatch even though it is not the agent.
+    let sent = tractor.deliver("vault:dispatch", None, Some(dispatch_payload()));
+    assert_eq!(sent, 1, "the router must deliver vault:dispatch to 1 subscriber");
+
+    // The plugin ran on its own thread; poll the graph until its result lands.
+    let mut records = Vec::new();
+    for _ in 0..50 {
+        records = tractor
+            .sync
+            .query_nodes("refarm:VaultRecord")
+            .expect("query refarm:VaultRecord");
+        if !records.is_empty() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(
+        !records.is_empty(),
+        "the vault plugin must receive its OWN event via the router and store a node"
+    );
+
+    tractor.shutdown().await.expect("shutdown must succeed");
 }

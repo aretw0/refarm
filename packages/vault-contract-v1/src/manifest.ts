@@ -18,6 +18,11 @@ import { VAULT_VERBS, type VaultVerb } from "./types.js";
  * incomplete-until-build); §8 stamps the real digest and it becomes valid.
  */
 
+/** The runtime event a vault plugin subscribes to — the on-event name a caller
+ * (or the effort router) sends to dispatch a verb. The plugin's on-event handler
+ * answers exactly this event. */
+export const VAULT_DISPATCH_EVENT = "vault:dispatch" as const;
+
 /** The provides target for one verb: `<pluginKey>:<verb>` (e.g. `vault:extract`),
  * the same string the task-run preflight and vaultProvidesTarget use. */
 export function vaultProvides(pluginKey: string): string[] {
@@ -66,6 +71,10 @@ export function buildVaultPluginManifest(
 		capabilities: {
 			provides: vaultProvides(pluginKey),
 			requires: [],
+			// The runtime event the plugin's on-event handler answers — what the
+			// neutral event router delivers so a loaded vault plugin receives its
+			// OWN dispatch (not just the elected agent's user:prompt).
+			subscribes: [VAULT_DISPATCH_EVENT],
 		},
 		permissions: [],
 		observability: {

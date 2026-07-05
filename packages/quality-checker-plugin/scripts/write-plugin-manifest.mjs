@@ -24,13 +24,16 @@ const digest = await computeSha256Digest(
 );
 
 const manifest = {
-	id: "@refarm.dev/quality-checker-plugin",
+	// The id suffix (after the last `/`) must equal the plugin's metadata().name
+	// ("quality") — the tractor host aligns manifest.id to runtime name.
+	id: "@refarm.dev/quality",
 	name: "quality",
 	version: "0.1.0",
 	entry: "./quality_plugin.wasm",
 	capabilities: {
 		provides: ["quality:check"],
 		requires: [],
+		subscribes: ["quality:dispatch"],
 	},
 	permissions: [],
 	observability: {
