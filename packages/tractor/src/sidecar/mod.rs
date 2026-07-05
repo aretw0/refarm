@@ -128,6 +128,12 @@ type EffortStore = Arc<RwLock<HashMap<String, EffortResult>>>;
 #[derive(Clone)]
 pub struct SidecarState {
     pub efforts: EffortStore,
+    /// The original submitted Effort (tasks/args), retained so retry can
+    /// re-dispatch it. The `efforts` store above keeps only EffortResult, which
+    /// has no tasks. In-process only: this map starts empty on boot and is not
+    /// persisted — retry re-runs an effort submitted during THIS sidecar
+    /// lifetime; after a restart the input is gone and retry reports so.
+    pub efforts_input: Arc<RwLock<HashMap<String, Effort>>>,
     pub agent_channels: AgentChannels,
     /// ID of the loaded plugin with `"agent:respond"` capability, if any.
     /// Populated by TractorNative.register_for_events; used for effort routing.
@@ -159,6 +165,7 @@ impl SidecarState {
         let efforts = load_persisted_efforts(&results_dir);
         Ok(Self {
             efforts: Arc::new(RwLock::new(efforts)),
+            efforts_input: Arc::new(RwLock::new(HashMap::new())),
             agent_channels,
             active_agent_id,
             event_router,
@@ -401,23 +408,44 @@ async fn post_effort_retry(
     State(state): State<SidecarState>,
     AxumPath(id): AxumPath<String>,
 ) -> impl IntoResponse {
-    let store = state.efforts.read().expect("effort store poisoned");
-    match store.get(&id) {
+    // Read the current status under a short-lived lock, then release it before
+    // dispatching (dispatch_effort takes its own write locks).
+    let status = {
+        let store = state.efforts.read().expect("effort store poisoned");
+        store.get(&id).map(|e| e.status.clone())
+    };
+    match status {
         None => err(StatusCode::NOT_FOUND, "not found").into_response(),
-        Some(e) if !is_terminal_effort_status(&e.status) => err(
+        Some(status) if !is_terminal_effort_status(&status) => err(
             StatusCode::CONFLICT,
             "retry not allowed: effort not yet terminal",
         )
         .into_response(),
-        // Re-dispatch requires retaining the original Effort (tasks/args), which
-        // the store does not yet hold — it keeps only EffortResult. Rather than
-        // return a fake `accepted:true` that never re-runs, report honestly that
-        // re-enqueue is not wired. (Tracked as the retry-retention slice.)
-        Some(_) => err(
-            StatusCode::NOT_IMPLEMENTED,
-            "retry not implemented: sidecar does not retain the original effort to re-dispatch",
-        )
-        .into_response(),
+        Some(_) => {
+            // Re-dispatch the retained original Effort. The input map holds it only
+            // for efforts submitted during this sidecar lifetime; after a restart
+            // it is gone (results are durable, inputs are not) — report that
+            // honestly with 409 rather than a fake accepted:true that never runs.
+            let effort = {
+                let inputs = state.efforts_input.read().expect("efforts_input poisoned");
+                inputs.get(&id).cloned()
+            };
+            match effort {
+                Some(effort) => {
+                    dispatch_effort(state.clone(), effort);
+                    (
+                        StatusCode::ACCEPTED,
+                        Json(serde_json::json!({ "accepted": true, "effortId": id })),
+                    )
+                        .into_response()
+                }
+                None => err(
+                    StatusCode::CONFLICT,
+                    "retry not possible: original effort was not retained (submitted before restart)",
+                )
+                .into_response(),
+            }
+        }
     }
 }
 

@@ -142,6 +142,15 @@ pub(crate) fn dispatch_event_effort(
 }
 
 pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
+    // Retain the original Effort (tasks/args) so retry can re-dispatch it — the
+    // efforts result store keeps only EffortResult, which has no tasks. In-process
+    // only; not persisted.
+    state
+        .efforts_input
+        .write()
+        .expect("efforts_input poisoned")
+        .insert(effort.id.clone(), effort.clone());
+
     tokio::spawn(async move {
         let effort_id = effort.id.clone();
         let submitted_at = effort.submitted_at.clone();

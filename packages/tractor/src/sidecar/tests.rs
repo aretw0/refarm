@@ -1428,3 +1428,98 @@ async fn sidecar_respond_effort_times_out_when_agent_silent() {
     std::env::remove_var("REFARM_RESPOND_WATCH_TIMEOUT_MS");
     assert!(timed_out, "a silent respond effort must finalise to timed-out, not sit in-progress forever");
 }
+
+/// DEBT B: retry of a terminal effort re-dispatches the RETAINED original effort
+/// (tasks/args), instead of the old fake accepted:true (or the 501 that replaced
+/// it). The effort here fails fast (no plugin) → terminal `failed` → retry is
+/// accepted and re-runs it (failing again, but really re-dispatched).
+#[tokio::test]
+async fn sidecar_retry_redispatches_retained_effort() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+
+    let id = uuid::Uuid::new_v4().to_string();
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&id))
+        .send()
+        .await
+        .unwrap();
+
+    // No agent loaded → the effort finalises to `failed` (terminal).
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    let before: serde_json::Value = client
+        .get(format!("{}/efforts/{id}", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(before["status"], "failed", "unrouted respond effort is terminal failed");
+
+    // The original Effort was retained, so retry re-dispatches it (202 accepted).
+    let retry = client
+        .post(format!("{}/efforts/{id}/retry", base(port)))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(retry.status(), 202, "retry of a retained terminal effort is accepted");
+    let retry_body: serde_json::Value = retry.json().await.unwrap();
+    assert_eq!(retry_body["accepted"], true);
+
+    // Proof it actually re-ran: the input map still holds it and it is terminal
+    // again after the re-dispatch cycle.
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    let after: serde_json::Value = client
+        .get(format!("{}/efforts/{id}", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(after["status"], "failed", "re-dispatched effort ran again and re-reached terminal");
+    assert!(
+        state.efforts_input.read().unwrap().contains_key(&id),
+        "the retained effort input survives a retry cycle"
+    );
+}
+
+/// Retry of an unknown effort is 404; retry of a non-terminal effort is 409.
+#[tokio::test]
+async fn sidecar_retry_guards_unknown_and_non_terminal() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+
+    // Unknown → 404.
+    let unknown = client
+        .post(format!("{}/efforts/does-not-exist/retry", base(port)))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(unknown.status(), 404);
+
+    // A live agent channel keeps a respond effort in-progress (non-terminal).
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("@refarm/agent".to_string(), tx);
+    let id = uuid::Uuid::new_v4().to_string();
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&id))
+        .send()
+        .await
+        .unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_millis(80)).await;
+
+    let non_terminal = client
+        .post(format!("{}/efforts/{id}/retry", base(port)))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(non_terminal.status(), 409, "retry of an in-progress effort is a conflict");
+}
