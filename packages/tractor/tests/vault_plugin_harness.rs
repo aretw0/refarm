@@ -26,6 +26,7 @@ use tractor::trust::TrustManager;
 use tractor::{NativeStorage, NativeSync, TelemetryBus};
 
 static WASM_PATH: OnceLock<PathBuf> = OnceLock::new();
+static QUALITY_WASM_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 /// Resolve the vault plugin component built by `@refarm.dev/vault-surface-ref`.
 /// It lives in that package's `dist/` (gitignored, rebuilt by `build:plugin`),
@@ -34,6 +35,15 @@ fn wasm_path() -> &'static Path {
     WASM_PATH.get_or_init(|| {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../vault-surface-ref/dist/vault_plugin.wasm")
+    })
+}
+
+/// Resolve the quality checker plugin — the SECOND family of consumer of
+/// dispatch-result:v1, built by `@refarm.dev/quality-checker-plugin`.
+fn quality_wasm_path() -> &'static Path {
+    QUALITY_WASM_PATH.get_or_init(|| {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../quality-checker-plugin/dist/quality_plugin.wasm")
     })
 }
 
@@ -121,4 +131,71 @@ async fn vault_plugin_dispatch_stores_result_node_via_real_bridge() {
         result["refarm:replyRef"], "harness-req-1",
         "the dispatch-result node carries the replyRef for content-based correlation"
     );
+}
+
+/// The quality:v1 dispatch payload: run a regex check over a text subject.
+fn quality_payload() -> String {
+    serde_json::json!({
+        "subject": "As an AI language model, I cannot browse.",
+        "profile": {
+            "name": "text-tells",
+            "rules": [{
+                "id": "ai-tell",
+                "severity": "warn",
+                "description": "flags an AI self-reference tell",
+                "check": { "type": "regex", "pattern": "AI language model" }
+            }]
+        },
+        "replyRef": "quality-req-1"
+    })
+    .to_string()
+}
+
+#[tokio::test]
+#[ignore = "requires quality-checker-plugin build:plugin; run with --ignored"]
+async fn quality_plugin_dispatch_stores_result_node_via_real_bridge() {
+    let path = quality_wasm_path();
+    if !path.exists() {
+        eprintln!(
+            "SKIP: quality_plugin.wasm not found at {} — run: pnpm --filter @refarm.dev/quality-checker-plugin run build:plugin",
+            path.display()
+        );
+        return;
+    }
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100))
+        .expect("PluginHost::new");
+    let mut handle = host
+        .load(path, &sync)
+        .await
+        .expect("quality plugin component must load");
+
+    tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        handle.call_on_event("quality:dispatch", Some(&quality_payload())),
+    )
+    .await
+    .expect("call_on_event timed out")
+    .expect("on_event failed");
+
+    // The SECOND family (quality, not vault) emits its findings through the SAME
+    // dispatch-result:v1 contract — one correlation shape, two plugin families.
+    let results = sync
+        .query_nodes("refarm:DispatchResult")
+        .expect("query refarm:DispatchResult");
+    assert!(
+        !results.is_empty(),
+        "quality dispatch must store a refarm:DispatchResult node"
+    );
+    let result: serde_json::Value =
+        serde_json::from_str(&results[0].payload).expect("result node is JSON");
+    assert_eq!(result["refarm:replyRef"], "quality-req-1");
+    // The quality result payload carries the findings the checker produced.
+    let findings = &result["refarm:result"]["findings"];
+    assert!(
+        findings.is_array() && !findings.as_array().unwrap().is_empty(),
+        "the quality result must carry at least one finding (the AI-tell match)"
+    );
+    assert_eq!(findings[0]["ruleId"], "ai-tell");
 }
