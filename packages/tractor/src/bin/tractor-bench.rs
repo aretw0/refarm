@@ -5,8 +5,8 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use tractor::{
-    deliver_via_router, AgentChannels, AgentMessage, EventRouter, NativeStorage, NativeSync,
-    TelemetryBus,
+    deliver_via_router, host::PluginHost, trust::TrustManager, AgentChannels, AgentMessage,
+    EventRouter, NativeStorage, NativeSync, TelemetryBus,
 };
 
 const BASELINE_PATH: &str = "benchmarks/baseline.json";
@@ -151,8 +151,18 @@ fn main() -> Result<()> {
                 Ok(())
             }
         }
+        "instantiation" => {
+            let report = run_instantiation_benchmark()?;
+            let total = total_ns(&report)?;
+            let per = metric_value(&report, "per_instance")?;
+            println!(
+                "[tractor-bench] instantiation: {} instances loaded in {}ns total, {}ns/instance",
+                INSTANTIATION_COUNT, total, per
+            );
+            Ok(())
+        }
         _ => Err(anyhow!(
-            "usage: tractor-bench <save|check|save-dispatch|check-dispatch>"
+            "usage: tractor-bench <save|check|save-dispatch|check-dispatch|instantiation>"
         )),
     }
 }
@@ -397,6 +407,61 @@ fn run_dispatch_drain(worker_count: usize) -> Result<DrainRun> {
             drain_ns,
             peak,
             blindness_ratio,
+        })
+    })
+}
+
+/// How many instances to load when measuring the store-pool instantiation cost.
+/// Matches the pool-size cap so the number reflects a realistic per-plugin pool.
+const INSTANTIATION_COUNT: usize = 8;
+
+/// Measure the cost of instantiating N stores of the same plugin — the price the
+/// pooled runner pays ONCE at boot to stand up its N-store pool. This is the
+/// suite that lets us feel the real pain before deciding whether the wasmtime
+/// pooling allocator (which trades a fresh mmap per load for a cheap madvise
+/// reset) is worth its bound-the-memory risk on the 8GB host. If per-instance
+/// load is already cheap, the on-demand allocator is fine and the pool's win
+/// (proven separately in dispatch-stress) needs no allocator change.
+fn run_instantiation_benchmark() -> Result<BenchReport> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .context("build bench tokio runtime")?;
+
+    rt.block_on(async {
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/null-plugin.wasm");
+        if !fixture.exists() {
+            return Err(anyhow!(
+                "instantiation bench needs tests/fixtures/null-plugin.wasm at {}",
+                fixture.display()
+            ));
+        }
+        let sync = make_sync(":memory:")?;
+        let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(64))
+            .context("PluginHost::new")?;
+
+        // Warm one load so page-cache / JIT-compile costs don't skew the first.
+        let _warm = host.load(&fixture, &sync).await.context("warm load")?;
+
+        let start = Instant::now();
+        let mut handles = Vec::with_capacity(INSTANTIATION_COUNT);
+        for _ in 0..INSTANTIATION_COUNT {
+            handles.push(host.load(&fixture, &sync).await.context("pool load")?);
+        }
+        let total_ns = start.elapsed().as_nanos();
+        let per_instance_ns = total_ns / INSTANTIATION_COUNT as u128;
+        drop(handles);
+
+        Ok(BenchReport {
+            version: 1,
+            suite: "tractor-instantiation".to_string(),
+            node_count: INSTANTIATION_COUNT,
+            threshold_pct: REGRESSION_THRESHOLD_PCT,
+            metrics: vec![
+                metric("total", total_ns, "ns"),
+                metric("instances", INSTANTIATION_COUNT as u128, "count"),
+                metric("per_instance", per_instance_ns, "ns"),
+            ],
         })
     })
 }
