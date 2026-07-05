@@ -1,21 +1,21 @@
-use crate::refarm::plugin::agent_shell;
+use crate::refarm::plugin::host_shell;
 
 fn spawn(
     argv: Vec<String>,
     cwd: Option<String>,
     timeout_ms: u32,
-) -> Result<agent_shell::SpawnResult, String> {
-    let req = agent_shell::SpawnRequest {
+) -> Result<host_shell::SpawnResult, String> {
+    let req = host_shell::SpawnRequest {
         argv,
         env: vec![],
         cwd,
         timeout_ms,
         stdin: None,
     };
-    agent_shell::spawn(&req).map_err(|e| e.to_string())
+    host_shell::spawn(&req).map_err(|e| e.to_string())
 }
 
-fn render_shell_result(r: &agent_shell::SpawnResult, timeout_ms: u32) -> String {
+fn render_shell_result(r: &host_shell::SpawnResult, timeout_ms: u32) -> String {
     let out = String::from_utf8_lossy(&r.stdout);
     let err = String::from_utf8_lossy(&r.stderr);
     let raw = if r.timed_out {

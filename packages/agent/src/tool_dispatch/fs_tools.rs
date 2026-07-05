@@ -1,11 +1,11 @@
-use crate::refarm::plugin::agent_fs;
+use crate::refarm::plugin::host_fs;
 
 pub(crate) fn read_file(input: &serde_json::Value) -> String {
     let path = input["path"].as_str().unwrap_or("");
     let limit = input["limit"].as_u64().map(|v| v as usize);
     let offset = input["offset"].as_u64().unwrap_or(0) as usize;
 
-    let bytes = match agent_fs::read(path) {
+    let bytes = match host_fs::read(path) {
         Ok(b) => b,
         Err(e) => return format!("[error reading {path}] {e}"),
     };
@@ -39,7 +39,7 @@ pub(crate) fn read_file(input: &serde_json::Value) -> String {
 pub(crate) fn write_file(input: &serde_json::Value) -> String {
     let path = input["path"].as_str().unwrap_or("");
     let content = input["content"].as_str().unwrap_or("");
-    match agent_fs::write(path, content.as_bytes()) {
+    match host_fs::write(path, content.as_bytes()) {
         Ok(()) => format!("wrote {} bytes to {path}", content.len()),
         Err(e) => format!("[error writing {path}] {e}"),
     }
@@ -51,7 +51,7 @@ pub(crate) fn edit_file(input: &serde_json::Value) -> String {
         Some(a) => a,
         None => return "[error] edit_file requires edits array".into(),
     };
-    let bytes = match agent_fs::read(path) {
+    let bytes = match host_fs::read(path) {
         Ok(b) => b,
         Err(e) => return format!("[error reading {path}] {e}"),
     };
@@ -69,7 +69,7 @@ pub(crate) fn edit_file(input: &serde_json::Value) -> String {
         Ok(s) => s,
         Err(e) => return format!("[error] {e} in {path}"),
     };
-    match agent_fs::write(path, updated.as_bytes()) {
+    match host_fs::write(path, updated.as_bytes()) {
         Ok(()) => format!("applied {} edit(s) to {path}", edits.len()),
         Err(e) => format!("[error writing {path}] {e}"),
     }

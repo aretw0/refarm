@@ -23,4 +23,4 @@ package = "refarm:plugin"
 
 [package.metadata.component.target]
 path = "../refarm-plugin-wit/wit"
-world = "agent"
+world = "effect-capable"

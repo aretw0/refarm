@@ -1,24 +1,24 @@
 wit_bindgen::generate!({
-    world: "agent-tools-provider",
+    world: "host-effects-provider",
     path: "wit",
 });
 
-use exports::refarm::agent_tools::agent_fs::Guest as AgentFsGuest;
-use exports::refarm::agent_tools::agent_shell::{Guest as AgentShellGuest, SpawnRequest, SpawnResult};
-use exports::refarm::agent_tools::structured_io::{
+use exports::refarm::host_effects::host_fs::Guest as HostFsGuest;
+use exports::refarm::host_effects::host_shell::{Guest as HostShellGuest, SpawnRequest, SpawnResult};
+use exports::refarm::host_effects::structured_io::{
     Guest as StructuredIoGuest, FileFormat,
 };
-use refarm::agent_tools::host_spawn;
+use refarm::host_effects::host_spawn;
 
-struct AgentTools;
+struct HostEffects;
 
-// ── agent-fs ──────────────────────────────────────────────────────────────────
+// ── host-fs ──────────────────────────────────────────────────────────────────
 //
 // std::fs calls in WASM map to wasi:filesystem automatically.
 // Atomic write uses write-to-tmp + rename (same filesystem → atomic on WASI).
 // diffy is pure Rust — no OS calls, works unchanged inside the WASM sandbox.
 
-impl AgentFsGuest for AgentTools {
+impl HostFsGuest for HostEffects {
     fn read(path: String) -> Result<Vec<u8>, String> {
         std::fs::read(&path).map_err(|e| format!("read({path}): {e}"))
     }
@@ -41,12 +41,12 @@ impl AgentFsGuest for AgentTools {
     }
 }
 
-// ── agent-shell ───────────────────────────────────────────────────────────────
+// ── host-shell ───────────────────────────────────────────────────────────────
 //
 // Policy layer: validates the request before calling the host's do-spawn import.
 // Swap this component to change spawn rules without recompiling tractor or agent.
 
-impl AgentShellGuest for AgentTools {
+impl HostShellGuest for HostEffects {
     fn spawn(req: SpawnRequest) -> Result<SpawnResult, String> {
         enforce_spawn_policy(&req)?;
 
@@ -70,7 +70,7 @@ impl AgentShellGuest for AgentTools {
 // Hard cap: prevents a rogue agent from holding the host thread indefinitely.
 // 120 s covers build/test/validation commands (type-check, lint, refarm agent finish).
 // Per-capability limits (letting trusted plugins request up to 300 s) are Phase 4 /
-// Scarecrow work — until then this flat cap applies to all agent-tools consumers.
+// Scarecrow work — until then this flat cap applies to all host-effects consumers.
 const MAX_TIMEOUT_MS: u32 = 120_000;
 
 fn enforce_spawn_policy(req: &SpawnRequest) -> Result<(), String> {
@@ -92,7 +92,7 @@ fn enforce_spawn_policy(req: &SpawnRequest) -> Result<(), String> {
 // serde_json/toml/serde_yaml logic. The implementation delegates filesystem I/O
 // through std::fs (WASI-mapped) and validates before writing.
 
-impl StructuredIoGuest for AgentTools {
+impl StructuredIoGuest for HostEffects {
     fn read_structured(
         path: String,
         format: Option<FileFormat>,
@@ -296,7 +296,7 @@ mod tests {
         let path = unique_temp_path("structured-io-write.json");
         std::fs::write(&path, r#"{"ok":true}"#).expect("seed temp file");
 
-        let err = <AgentTools as StructuredIoGuest>::write_structured(
+        let err = <HostEffects as StructuredIoGuest>::write_structured(
             path.to_string_lossy().into_owned(),
             "{broken".into(),
             Some(FileFormat::Json),
@@ -309,7 +309,7 @@ mod tests {
             r#"{"ok":true}"#,
         );
 
-        <AgentTools as StructuredIoGuest>::write_structured(
+        <HostEffects as StructuredIoGuest>::write_structured(
             path.to_string_lossy().into_owned(),
             r#"{"ok":false}"#.into(),
             Some(FileFormat::Json),
@@ -325,10 +325,10 @@ mod tests {
 
     fn unique_temp_path(name: &str) -> std::path::PathBuf {
         std::env::temp_dir().join(format!(
-            "refarm-agent-tools-{}-{name}",
+            "refarm-host-effects-{}-{name}",
             std::process::id(),
         ))
     }
 }
 
-export!(AgentTools);
+export!(HostEffects);

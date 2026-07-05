@@ -1,5 +1,5 @@
 [package]
-name = "agent-tools"
+name = "host-effects"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -20,8 +20,8 @@ lto = true
 strip = true
 
 [package.metadata.component]
-package = "refarm:agent-tools"
+package = "refarm:host-effects"
 
 [package.metadata.component.target]
 path = "wit"
-world = "agent-tools-provider"
+world = "host-effects-provider"

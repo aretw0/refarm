@@ -38,7 +38,7 @@
 //!     → store AgentResponse + UsageRecord nodes (triggers reactive CRDT push)
 
 wit_bindgen::generate!({
-    world: "agent",
+    world: "effect-capable",
     path: "../refarm-plugin-wit/wit",
 });
 
@@ -320,8 +320,8 @@ impl IntegrationGuest for Agent {
             description: "Sovereign AI agent — runs on edge nodes and Raspberry Pi".to_string(),
             supported_types: vec!["AgentResponse".to_string(), "UserPrompt".to_string()],
             required_capabilities: vec![
-                "agent-fs".to_string(),
-                "agent-shell".to_string(),
+                "host-fs".to_string(),
+                "host-shell".to_string(),
                 "model-bridge".to_string(),
             ],
         }
