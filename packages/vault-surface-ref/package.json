@@ -35,6 +35,7 @@
 		"access": "public"
 	},
 	"dependencies": {
+		"@refarm.dev/dispatch-result-contract-v1": "workspace:*",
 		"@refarm.dev/vault-contract-v1": "workspace:*"
 	},
 	"devDependencies": {

@@ -12,15 +12,16 @@
 // `tractor-bridge store-node` as a JSON-LD node — the exact side channel the agent
 // uses. Input travels in via the payload; output travels out as persisted nodes.
 
+import {
+	DISPATCH_RESULT_TYPE,
+	serializeDispatchResult,
+} from "@refarm.dev/dispatch-result-contract-v1";
 import { storeNode } from "refarm:plugin/tractor-bridge@0.1.0";
 
 import { runVault } from "./run-core.js";
 
 /** The event a caller sends to dispatch a vault verb. */
 const DISPATCH_EVENT = "vault:dispatch";
-
-/** The @type stamped on emitted result nodes so a caller can query them back. */
-const RESULT_TYPE = "refarm:VaultDispatchResult";
 
 /** Parse the on-event payload into a dispatch request, or undefined if malformed. */
 function parseDispatch(payload) {
@@ -52,19 +53,17 @@ function emitResult(request, result) {
 			// A store failure on one record must not abort the rest (advisory).
 		}
 	}
-	// search/organize/profile (and a summary of extract): one result node carrying
-	// the whole VaultResult, tagged so the caller can find it by replyRef.
-	const resultNode = {
-		"@type": RESULT_TYPE,
-		"@id": request.replyRef
-			? `${RESULT_TYPE}:${request.replyRef}`
-			: `${RESULT_TYPE}:${request.verb}:${request.note.path}`,
-		"refarm:verb": request.verb,
-		"refarm:replyRef": request.replyRef ?? null,
-		"refarm:result": result,
-	};
+	// search/organize/profile (and a summary of extract): one correlated result
+	// node via the shared dispatch-result:v1 contract, so a caller recovers it by
+	// replyRef the same way for EVERY async plugin (no per-plugin @type to learn).
 	try {
-		storeNode(JSON.stringify(resultNode));
+		storeNode(
+			serializeDispatchResult({
+				replyRef: request.replyRef ?? `${request.verb}:${request.note.path}`,
+				verb: request.verb,
+				result,
+			}),
+		);
 	} catch {
 		// advisory: the per-record nodes may still have landed.
 	}
@@ -91,7 +90,7 @@ export const integration = {
 			name: "vault",
 			version: "0.1.0",
 			description: "vault:v1 surface — search/extract/organize/profile over a note",
-			supportedTypes: [RESULT_TYPE, "refarm:VaultRecord"],
+			supportedTypes: [DISPATCH_RESULT_TYPE, "refarm:VaultRecord"],
 			requiredCapabilities: ["tractor-bridge"],
 		};
 	},

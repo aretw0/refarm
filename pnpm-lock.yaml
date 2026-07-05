@@ -631,6 +631,18 @@ importers:
         specifier: 8.21.0
         version: 8.21.0
 
+  packages/dispatch-result-contract-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/dispatch-surface:
     dependencies:
       '@refarm.dev/effort-contract-v1':
@@ -1717,6 +1729,9 @@ importers:
 
   packages/vault-surface-ref:
     dependencies:
+      '@refarm.dev/dispatch-result-contract-v1':
+        specifier: workspace:*
+        version: link:../dispatch-result-contract-v1
       '@refarm.dev/vault-contract-v1':
         specifier: workspace:*
         version: link:../vault-contract-v1

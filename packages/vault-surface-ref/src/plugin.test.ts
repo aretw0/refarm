@@ -1,3 +1,4 @@
+import { matchDispatchResults } from "@refarm.dev/dispatch-result-contract-v1";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -120,7 +121,7 @@ describe.skipIf(!componentBuilt)(
 			expect(records[0]?.fields).toEqual({ title: "Demanda 42", state: "doing" });
 		});
 
-		it("also emits a VaultDispatchResult node the caller can query back", async () => {
+		it("emits a dispatch-result:v1 node a caller correlates by replyRef", async () => {
 			const { bridge, stored } = makeTractorBridge();
 			const { integration } = await loadPlugin(bridge);
 			integration.onEvent(
@@ -132,11 +133,13 @@ describe.skipIf(!componentBuilt)(
 					replyRef: "req-1",
 				}),
 			);
-			const resultNode = stored
-				.map((n) => JSON.parse(n) as { "@type"?: string; "refarm:replyRef"?: string })
-				.find((n) => n["@type"] === "refarm:VaultDispatchResult");
-			expect(resultNode).toBeDefined();
-			expect(resultNode?.["refarm:replyRef"]).toBe("req-1");
+			// The vault is a CONSUMER of the shared dispatch-result:v1 contract — a
+			// caller recovers its result by content correlation (replyRef), the same
+			// way for ANY async plugin, not a vault-specific @type or a formula.
+			const mine = matchDispatchResults(stored, "req-1", "extract");
+			expect(mine).toHaveLength(1);
+			expect(mine[0]?.["refarm:replyRef"]).toBe("req-1");
+			expect(mine[0]?.["refarm:result"]).toBeDefined();
 		});
 
 		it("ignores an event that is not vault:dispatch (no nodes stored)", async () => {
