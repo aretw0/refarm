@@ -144,6 +144,7 @@ fn test_state() -> (SidecarState, std::path::PathBuf) {
     let state = SidecarState::new(
         std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())),
         std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())), // cancel_flags
+        std::sync::Arc::new(std::sync::RwLock::new(HashMap::new())), // in_flight_cancels
         std::sync::Arc::new(std::sync::RwLock::new(None)),
         crate::EventRouter::default(),
         crate::TelemetryBus::new(16),

@@ -12,6 +12,7 @@ async fn start_history_sidecar(namespace: &str) -> (SidecarState, u16) {
     let state = SidecarState::new(
         channels,
         Arc::new(RwLock::new(HashMap::new())), // cancel_flags
+        Arc::new(RwLock::new(HashMap::new())), // in_flight_cancels
         Arc::new(RwLock::new(None)),
         crate::EventRouter::default(),
         crate::TelemetryBus::new(100),

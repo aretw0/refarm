@@ -266,6 +266,7 @@ async fn sidecar_effort_result_survives_state_reopen() {
     let rehydrated = SidecarState::new(
         Arc::new(RwLock::new(HashMap::new())),
         Arc::new(RwLock::new(HashMap::new())), // cancel_flags
+        Arc::new(RwLock::new(HashMap::new())), // in_flight_cancels
         Arc::new(RwLock::new(None)),
         crate::EventRouter::default(),
         crate::TelemetryBus::new(100),
@@ -818,5 +819,69 @@ async fn sidecar_cancel_sets_plugin_cancel_flag() {
     assert!(
         flag.load(Ordering::SeqCst),
         "cancel must set the target plugin's cancel flag to force-interrupt a wedged guest"
+    );
+}
+
+/// Precise effort→store cancel (the pool case): a runner registers its store's
+/// cancel flag under the prompt_ref it is running. Cancelling ONE effort must
+/// flip ONLY that store's flag — not a neighbour store running a different
+/// prompt (which, under a pool, drains the same queue). This proves the cancel
+/// targets the exact in-flight store, with or without a pool.
+#[tokio::test]
+async fn sidecar_cancel_targets_only_the_in_flight_store() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::AgentMessage>();
+    state
+        .agent_channels
+        .write()
+        .unwrap()
+        .insert("@refarm/agent".to_string(), tx);
+
+    // Two efforts, each "running" on its own store — register each store's flag
+    // under its own prompt_ref, as a pooled runner would.
+    let target_id = uuid::Uuid::new_v4().to_string();
+    let neighbour_id = uuid::Uuid::new_v4().to_string();
+    let target_flag = Arc::new(AtomicBool::new(false));
+    let neighbour_flag = Arc::new(AtomicBool::new(false));
+    {
+        let mut inflight = state.in_flight_cancels.write().unwrap();
+        inflight.insert(
+            super::super::prompt_ref_from_effort(&target_id),
+            target_flag.clone(),
+        );
+        inflight.insert(
+            super::super::prompt_ref_from_effort(&neighbour_id),
+            neighbour_flag.clone(),
+        );
+    }
+
+    // Submit the target effort so it's a known, non-terminal effort to cancel.
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&target_id))
+        .send()
+        .await
+        .unwrap();
+    tokio::time::sleep(tokio::time::Duration::from_millis(80)).await;
+
+    let cancel = client
+        .post(format!("{}/efforts/{target_id}/cancel", base(port)))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(cancel.status(), 202);
+
+    assert!(
+        target_flag.load(Ordering::SeqCst),
+        "cancel must flip the flag of the store running the target effort"
+    );
+    assert!(
+        !neighbour_flag.load(Ordering::SeqCst),
+        "cancel must NOT flip a neighbour store running a different prompt"
     );
 }

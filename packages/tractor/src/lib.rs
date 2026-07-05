@@ -72,6 +72,17 @@ pub type AgentChannels = Arc<RwLock<HashMap<String, mpsc::UnboundedSender<AgentM
 pub type CancelFlags =
     Arc<RwLock<HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>>;
 
+/// Keyed by prompt_ref — the cancel flag of the SPECIFIC store currently running
+/// that prompt. A runner registers this the instant it dequeues a prompt (before
+/// entering the guest) and clears it when the call returns. Effort-cancel derives
+/// the prompt_ref from the effort_id and flips exactly this flag, so with a store
+/// POOL (N stores draining one queue) a cancel interrupts only the store running
+/// the target effort — not the N-1 neighbours running unrelated events. Only the
+/// respond family carries a prompt_ref and can sit in-progress awaiting cancel;
+/// event dispatch is terminal-on-delivery and never needs this.
+pub type InFlightCancels =
+    Arc<RwLock<HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>>;
+
 /// The neutral event router: maps an event name to the set of plugin_ids
 /// subscribed to it, layered OVER the plugin-id lifecycle registry
 /// (`agent_channels`) rather than replacing it — the registry still owns the
@@ -199,6 +210,19 @@ pub fn deliver_via_router(
     sent
 }
 
+/// Extract the `prompt_ref` from a runner message's JSON payload, if present.
+/// Only respond (`user:prompt`) payloads carry it (dispatch.rs stamps it,
+/// derived from the effort_id). Used to key the in-flight cancel map so a cancel
+/// targets the exact store running that prompt.
+fn prompt_ref_from_payload(payload: Option<&str>) -> Option<String> {
+    let raw = payload?;
+    let value: serde_json::Value = serde_json::from_str(raw).ok()?;
+    value
+        .get("prompt_ref")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+}
+
 /// The opt-in pool size for a concurrent-safe plugin, from REFARM_PLUGIN_POOL.
 /// 1 (default / unset / invalid) keeps the single-store runner. Capped at 16 to
 /// stay well under the 8GB host ceiling even before the bounded pooling
@@ -226,6 +250,8 @@ fn spawn_plugin_store_runner(
     shared_rx: Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<AgentMessage>>>,
     telemetry: TelemetryBus,
     plugin_id: String,
+    store_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    in_flight: InFlightCancels,
 ) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -254,9 +280,29 @@ fn spawn_plugin_store_runner(
                     break;
                 }
 
+                // Precise cancel: register THIS store's cancel flag under the
+                // prompt_ref it is about to run, so effort-cancel interrupts only
+                // this store (not the pool's other workers). Cleared after the
+                // call. Only respond payloads carry prompt_ref; others skip it.
+                let prompt_ref = prompt_ref_from_payload(msg.payload.as_deref());
+                if let Some(pr) = &prompt_ref {
+                    in_flight
+                        .write()
+                        .expect("in_flight_cancels poisoned")
+                        .insert(pr.clone(), store_cancel.clone());
+                }
+
                 let started = std::time::Instant::now();
                 let outcome = h.call_on_event(&msg.event, msg.payload.as_deref()).await;
                 let exec_us = started.elapsed().as_micros() as u64;
+
+                // Deregister the prompt_ref — the call is done (or trapped).
+                if let Some(pr) = &prompt_ref {
+                    in_flight
+                        .write()
+                        .expect("in_flight_cancels poisoned")
+                        .remove(pr);
+                }
                 // An epoch trap (deadline exceeded) surfaces as Trap::Interrupt
                 // inside the anyhow error. Classify it so a wedged/interrupted
                 // handler is observable as a timeout, not a generic error.
@@ -350,6 +396,9 @@ pub struct TractorNative {
     /// callback. Populated by `register_for_events`; read by the sidecar's
     /// effort-cancel to force-interrupt a wedged guest.
     pub cancel_flags: CancelFlags,
+    /// Per-prompt_ref cancel flags for precise effort→store targeting (see
+    /// InFlightCancels). Populated by the runner threads as they run each prompt.
+    pub in_flight_cancels: InFlightCancels,
     /// ID of the first loaded plugin that declared `"agent:respond"` capability.
     /// The sidecar exposes this as `activeAgent` in the /plugins response so the
     /// CLI can select the active agent without hardcoding any plugin name.
@@ -401,6 +450,7 @@ impl TractorNative {
             agent_channels: Arc::new(RwLock::new(HashMap::new())),
             observer_channels: Arc::new(RwLock::new(HashMap::new())),
             cancel_flags: Arc::new(RwLock::new(HashMap::new())),
+            in_flight_cancels: Arc::new(RwLock::new(HashMap::new())),
             active_agent_id: Arc::new(RwLock::new(None)),
             event_router: EventRouter::default(),
             plugin_runner_handles: Arc::new(RwLock::new(HashMap::new())),
@@ -500,20 +550,29 @@ impl TractorNative {
 
         // Spawn the primary runner (owns the handle we were given) plus one per
         // extra store. All drain shared_rx; the OS balances them across the
-        // messages. Each JoinHandle is retained for shutdown.
+        // messages. Each JoinHandle is retained for shutdown. Each runner gets its
+        // OWN store cancel flag + the shared in_flight map, so it can register the
+        // prompt it is running for precise effort→store cancellation.
+        let in_flight = self.in_flight_cancels.clone();
         let mut joins = Vec::with_capacity(pool_size);
+        let primary_cancel = handle.cancel_flag();
         joins.push(spawn_plugin_store_runner(
             handle,
             shared_rx.clone(),
             telemetry.clone(),
             plugin_id.clone(),
+            primary_cancel,
+            in_flight.clone(),
         ));
         for extra in extra_stores.drain(..) {
+            let extra_cancel = extra.cancel_flag();
             joins.push(spawn_plugin_store_runner(
                 extra,
                 shared_rx.clone(),
                 telemetry.clone(),
                 plugin_id.clone(),
+                extra_cancel,
+                in_flight.clone(),
             ));
         }
         if pool_size > 1 {

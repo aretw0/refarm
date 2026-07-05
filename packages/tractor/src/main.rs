@@ -428,6 +428,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         match tractor::sidecar::SidecarState::new(
             tractor.agent_channels.clone(),
             tractor.cancel_flags.clone(),
+            tractor.in_flight_cancels.clone(),
             tractor.active_agent_id.clone(),
             tractor.event_router.clone(),
             tractor.telemetry.clone(),

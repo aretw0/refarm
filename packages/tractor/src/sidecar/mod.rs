@@ -140,6 +140,11 @@ pub struct SidecarState {
     /// effort-cancel reaches a thread already spinning inside a guest (the mpsc
     /// agent_channels cannot: a wedged thread never polls its receiver).
     pub cancel_flags: crate::CancelFlags,
+    /// Per-prompt_ref cancel flags — the SPECIFIC store running each prompt. Lets
+    /// effort-cancel force-interrupt exactly the store executing the target
+    /// effort, even under a store pool (N stores draining one queue). Populated by
+    /// the runner threads (crate::InFlightCancels).
+    pub in_flight_cancels: crate::InFlightCancels,
     /// ID of the loaded plugin with `"agent:respond"` capability, if any.
     /// Populated by TractorNative.register_for_events; used for effort routing.
     pub active_agent_id: Arc<RwLock<Option<String>>>,
@@ -158,6 +163,7 @@ impl SidecarState {
     pub fn new(
         agent_channels: AgentChannels,
         cancel_flags: crate::CancelFlags,
+        in_flight_cancels: crate::InFlightCancels,
         active_agent_id: Arc<RwLock<Option<String>>>,
         event_router: crate::EventRouter,
         telemetry: crate::TelemetryBus,
@@ -174,6 +180,7 @@ impl SidecarState {
             efforts_input: Arc::new(RwLock::new(HashMap::new())),
             agent_channels,
             cancel_flags,
+            in_flight_cancels,
             active_agent_id,
             event_router,
             telemetry,
@@ -457,14 +464,31 @@ async fn post_effort_retry(
     }
 }
 
-/// Force-interrupt the plugin(s) that may be executing this effort by flipping
-/// their cancel flags. Resolves the target the same way dispatch does: the
-/// retained effort's task plugin_id (dispatch efforts) and the active agent
-/// (respond efforts). Flipping a flag is harmless if that plugin isn't actually
-/// mid-call — its store callback simply traps a call that isn't running, or the
-/// flag is observed only when a call is in flight. Runs before the store is
-/// marked cancelled so the trap and the status agree.
+/// Force-interrupt the store currently executing this effort by flipping its
+/// cancel flag. Precise: derives the effort's prompt_ref (the same key a runner
+/// registers when it starts running that prompt) and flips ONLY that store's
+/// flag — so under a store pool the cancel interrupts the one worker running the
+/// target effort, not its neighbours running unrelated events. Only the respond
+/// family carries a prompt_ref and can sit in-progress awaiting cancel; a
+/// terminal-on-delivery event dispatch never reaches this (the guard refuses a
+/// terminal effort). Falls back to the per-plugin flag for any legacy path.
 fn interrupt_effort_plugin(state: &SidecarState, effort_id: &str) {
+    // Precise effort→store: the runner registered its store's cancel flag under
+    // this effort's prompt_ref while running it.
+    let prompt_ref = prompt_ref_from_effort(effort_id);
+    if let Some(flag) = state
+        .in_flight_cancels
+        .read()
+        .expect("in_flight_cancels poisoned")
+        .get(&prompt_ref)
+    {
+        flag.store(true, std::sync::atomic::Ordering::SeqCst);
+        tracing::info!(effort_id, %prompt_ref, "cancel force-interrupt: in-flight store flag set");
+        return;
+    }
+
+    // Fallback: no in-flight prompt registered (e.g. the effort isn't mid-call).
+    // Flip the plugin-level flag(s) as a best-effort, harmless if idle.
     let mut targets: Vec<String> = Vec::new();
     if let Some(effort) = state
         .efforts_input
@@ -473,7 +497,6 @@ fn interrupt_effort_plugin(state: &SidecarState, effort_id: &str) {
         .get(effort_id)
     {
         if let Some(task) = effort.tasks.first() {
-            // Match dispatch's plugin_key derivation (rsplit '/').
             let key = task.plugin_id.rsplit('/').next().unwrap_or(&task.plugin_id);
             targets.push(key.to_string());
             targets.push(task.plugin_id.clone());
@@ -487,12 +510,11 @@ fn interrupt_effort_plugin(state: &SidecarState, effort_id: &str) {
     {
         targets.push(agent);
     }
-
     let flags = state.cancel_flags.read().expect("cancel_flags poisoned");
     for target in targets {
         if let Some(flag) = flags.get(&target) {
             flag.store(true, std::sync::atomic::Ordering::SeqCst);
-            tracing::info!(effort_id, plugin_id = %target, "cancel force-interrupt: flag set");
+            tracing::info!(effort_id, plugin_id = %target, "cancel force-interrupt: plugin flag set (fallback)");
         }
     }
 }
