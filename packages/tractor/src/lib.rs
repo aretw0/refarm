@@ -371,3 +371,58 @@ impl TractorNative {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod event_router_tests {
+    use super::EventRouter;
+
+    #[test]
+    fn subscribe_then_query_returns_the_plugin() {
+        let router = EventRouter::default();
+        router.subscribe("vault:dispatch", "@demo/vault");
+        assert_eq!(router.subscribers("vault:dispatch"), vec!["@demo/vault"]);
+        assert!(router.has_subscribers("vault:dispatch"));
+    }
+
+    #[test]
+    fn an_unsubscribed_event_has_no_subscribers() {
+        let router = EventRouter::default();
+        router.subscribe("vault:dispatch", "@demo/vault");
+        assert!(router.subscribers("quality:check").is_empty());
+        assert!(!router.has_subscribers("quality:check"));
+    }
+
+    #[test]
+    fn many_plugins_subscribe_to_the_same_event_deduped_and_ordered() {
+        let router = EventRouter::default();
+        router.subscribe("shared:event", "@b/plugin");
+        router.subscribe("shared:event", "@a/plugin");
+        router.subscribe("shared:event", "@b/plugin"); // idempotent
+        // BTreeSet keeps them sorted and deduped.
+        assert_eq!(
+            router.subscribers("shared:event"),
+            vec!["@a/plugin", "@b/plugin"]
+        );
+    }
+
+    #[test]
+    fn one_plugin_subscribes_to_many_events() {
+        let router = EventRouter::default();
+        router.subscribe("vault:dispatch", "@demo/vault");
+        router.subscribe("vault:reindex", "@demo/vault");
+        assert_eq!(router.subscribers("vault:dispatch"), vec!["@demo/vault"]);
+        assert_eq!(router.subscribers("vault:reindex"), vec!["@demo/vault"]);
+    }
+
+    #[test]
+    fn unsubscribe_all_removes_the_plugin_from_every_event() {
+        let router = EventRouter::default();
+        router.subscribe("vault:dispatch", "@demo/vault");
+        router.subscribe("quality:check", "@demo/vault");
+        router.subscribe("quality:check", "@demo/quality");
+        router.unsubscribe_all("@demo/vault");
+        assert!(router.subscribers("vault:dispatch").is_empty());
+        // The other plugin's subscription survives.
+        assert_eq!(router.subscribers("quality:check"), vec!["@demo/quality"]);
+    }
+}
