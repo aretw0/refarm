@@ -74,6 +74,13 @@ impl Default for EpochGuard {
     }
 }
 
+/// Store data that carries an EpochGuard. Implemented by every store type, so a
+/// single generic factory (`new_armed_store`) can create+arm ANY store the same
+/// way — making an un-armed store on an epoch-enabled engine unrepresentable.
+pub(crate) trait HasEpochGuard {
+    fn epoch_guard(&self) -> &EpochGuard;
+}
+
 // ── TractorStore ──────────────────────────────────────────────────────────────
 
 pub(crate) struct TractorStore {
@@ -90,6 +97,12 @@ impl WasiView for TractorStore {
     }
     fn table(&mut self) -> &mut ResourceTable {
         &mut self.table
+    }
+}
+
+impl HasEpochGuard for TractorStore {
+    fn epoch_guard(&self) -> &EpochGuard {
+        &self.epoch_guard
     }
 }
 
@@ -111,6 +124,12 @@ impl wasmtime_wasi_http::WasiHttpView for TractorStore {
 pub(crate) struct P1Store {
     pub wasi: wasmtime_wasi::preview1::WasiP1Ctx,
     pub epoch_guard: EpochGuard,
+}
+
+impl HasEpochGuard for P1Store {
+    fn epoch_guard(&self) -> &EpochGuard {
+        &self.epoch_guard
+    }
 }
 
 // ── AgentToolsHandle ──────────────────────────────────────────────────────────

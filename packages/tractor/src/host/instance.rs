@@ -7,7 +7,7 @@
 use anyhow::Result;
 use wasmtime::Store;
 
-use crate::host::plugin_host::{EpochGuard, P1Store, RefarmPluginHost, TractorStore};
+use crate::host::plugin_host::{EpochGuard, HasEpochGuard, P1Store, RefarmPluginHost, TractorStore};
 use crate::telemetry::TelemetryBus;
 
 /// Wall-clock budget (ms) for a single on_event call. The per-store epoch
@@ -26,26 +26,30 @@ fn on_event_budget_ms() -> u64 {
 /// so the next epoch checkpoint comes soon (re-check cancel/deadline promptly).
 const EPOCH_REARM_TICKS: u64 = 1;
 
-/// Install the per-store epoch callback + a live baseline deadline. MUST be
-/// called on a fresh store BEFORE any guest code runs — including the
-/// component's own instantiate/start, which executes real guest code (heavy for
-/// a jco/StarlingMonkey component). Because epoch_interruption(true) makes the
-/// default deadline 0, an un-armed store traps (`wasm trap: interrupt`) the
-/// instant guest code runs; arming the callback + a baseline here prevents that
-/// and lets the callback (epoch_decision) govern timeout/cancel thereafter.
+/// Create a store that is ALREADY armed against the epoch-interruption footgun.
 ///
-/// Generic over the store data via an epoch_guard accessor so the same wiring
-/// serves both the component (TractorStore) and P1 module (P1Store) stores.
-pub(crate) fn arm_lifecycle_deadline(store: &mut Store<TractorStore>) {
-    store.epoch_deadline_callback(|ctx| epoch_decision(&ctx.data().epoch_guard));
+/// epoch_interruption(true) makes a fresh store's default deadline 0, so ANY
+/// guest code — including the component's own instantiate/start (heavy for a
+/// jco/StarlingMonkey component) — traps with `wasm trap: interrupt` the instant
+/// it runs unless the store carries an epoch_deadline_callback + a live deadline.
+/// This factory creates the store AND arms it in one step, so an un-armed store
+/// on an epoch-enabled engine is UNREPRESENTABLE: every production store goes
+/// through here, and arming isn't a separate call anyone can forget. The callback
+/// (epoch_decision) governs timeout/cancel thereafter, keyed off the store's own
+/// EpochGuard via the HasEpochGuard accessor — so the same wiring serves both the
+/// component (TractorStore) and P1 module (P1Store) stores.
+///
+/// The ONLY stores that must NOT go through this are on engines WITHOUT
+/// epoch_interruption (the unit-test P1 fixture) or that deliberately test
+/// unarmed behaviour (the epoch_semantics proofs).
+pub(crate) fn new_armed_store<T: HasEpochGuard + 'static>(
+    engine: &wasmtime::Engine,
+    data: T,
+) -> Store<T> {
+    let mut store = Store::new(engine, data);
+    store.epoch_deadline_callback(|ctx| epoch_decision(ctx.data().epoch_guard()));
     store.set_epoch_deadline(1);
-}
-
-/// P1-module variant of arm_lifecycle_deadline (see it). Same wiring for the
-/// sync module store, armed before the module's guest code runs.
-pub(crate) fn arm_lifecycle_deadline_module(store: &mut Store<P1Store>) {
-    store.epoch_deadline_callback(|ctx| epoch_decision(&ctx.data().epoch_guard));
-    store.set_epoch_deadline(1);
+    store
 }
 
 /// The unified per-store epoch decision, run by every store's
@@ -135,10 +139,10 @@ impl PluginInstanceHandle {
         telemetry: TelemetryBus,
         provides: Vec<String>,
     ) -> Self {
-        // The epoch callback + baseline deadline were armed on this store BEFORE
-        // instantiation (arm_lifecycle_deadline in load()), because the
-        // component's own instantiate/start runs guest code that would otherwise
-        // trap on the default-0 deadline. Here we only capture the guard handle.
+        // The epoch callback + baseline deadline were armed on this store at
+        // creation (new_armed_store in load()), because the component's own
+        // instantiate/start runs guest code that would otherwise trap on the
+        // default-0 deadline. Here we only capture the guard handle.
         let epoch_guard = store.data().epoch_guard.clone();
         Self {
             id,
@@ -571,6 +575,9 @@ mod tests {
         )
         .expect("wat");
         let module = Module::from_binary(&engine, &wasm).expect("module");
+        // Deliberately raw Store::new, NOT new_armed_store: this fixture's engine has
+        // no epoch_interruption, so there is no default-0 deadline to defuse and no
+        // footgun to arm against. Routing it through the factory would be a lie.
         let mut store = Store::new(
             &engine,
             P1Store {

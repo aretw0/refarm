@@ -657,15 +657,13 @@ impl PluginHost {
         let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone());
 
         let component = self.cached_component(&wasm_hash, &bytes)?;
-        let mut store = Store::new(&self.engine, TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() });
-        // epoch_interruption(true) makes the default deadline 0, so ANY guest
-        // code — including the component's own instantiate/start — traps
-        // immediately unless a deadline is armed FIRST. A heavy jco/StarlingMonkey
-        // component runs real guest init inside instantiate_async, so arm the
-        // generous lifecycle baseline here, before instantiation, not only in the
-        // handle constructor (which runs after). Without this, loading any
-        // non-trivial component traps with `wasm trap: interrupt`.
-        crate::host::instance::arm_lifecycle_deadline(&mut store);
+        // Armed-at-creation: epoch_interruption(true) makes an un-armed store trap
+        // during the component's own instantiate/start (heavy guest init for jco).
+        // new_armed_store makes forgetting to arm unrepresentable.
+        let mut store = crate::host::instance::new_armed_store(
+            &self.engine,
+            TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() },
+        );
 
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
@@ -759,11 +757,13 @@ impl PluginHost {
         };
 
         let module = Module::from_binary(&self.module_engine, bytes)?;
-        let mut store = Store::new(&self.module_engine, P1Store { wasi: wasi_p1, epoch_guard: EpochGuard::new() });
-        // Arm the epoch callback + baseline before instantiate — module init runs
-        // guest code that would trap on the default-0 deadline (see the component
-        // path). Cheap for a plain module, but correct and consistent.
-        crate::host::instance::arm_lifecycle_deadline_module(&mut store);
+        // Armed-at-creation (see new_armed_store): module init runs guest code that
+        // would trap on the default-0 deadline. Cheap for a plain module, but the
+        // same factory keeps arming impossible to forget.
+        let mut store = crate::host::instance::new_armed_store(
+            &self.module_engine,
+            P1Store { wasi: wasi_p1, epoch_guard: EpochGuard::new() },
+        );
         let instance = self.module_linker.instantiate(&mut store, &module)?;
 
         let provides = read_runtime_plugin_manifest(path)?
@@ -817,10 +817,12 @@ impl PluginHost {
         let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone());
 
         let component = Component::from_file(&self.engine, path)?;
-        let mut store = Store::new(&self.engine, TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() });
-        // Arm before instantiation — agent-tools is a component whose start runs
-        // guest code that would trap on the default-0 deadline (see load()).
-        crate::host::instance::arm_lifecycle_deadline(&mut store);
+        // Armed-at-creation (see new_armed_store): agent-tools is a component whose
+        // start runs guest code that would trap on the default-0 deadline.
+        let mut store = crate::host::instance::new_armed_store(
+            &self.engine,
+            TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() },
+        );
 
         let agent_tools = atb::AgentToolsHost::instantiate_async(
             &mut store,
