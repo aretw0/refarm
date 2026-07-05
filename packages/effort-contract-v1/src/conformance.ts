@@ -139,6 +139,7 @@ export async function runEffortV1Conformance(
 				typeof summary.pending === "number" &&
 				typeof summary.inProgress === "number" &&
 				typeof summary.done === "number" &&
+				typeof summary.delivered === "number" &&
 				typeof summary.partial === "number" &&
 				typeof summary.failed === "number" &&
 				typeof summary.timedOut === "number" &&

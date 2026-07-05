@@ -211,6 +211,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 			pending: 0,
 			inProgress: 0,
 			done: 0,
+			delivered: 0,
 			partial: 0,
 			failed: 0,
 			timedOut: 0,
@@ -222,6 +223,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 				case "pending":       summary.pending += 1;    break;
 				case "in-progress":   summary.inProgress += 1; break;
 				case "done":          summary.done += 1;       break;
+				case "delivered":     summary.delivered += 1;  break;
 				case "partial":       summary.partial += 1;    break;
 				case "failed":        summary.failed += 1;     break;
 				case "timed-out":     summary.timedOut += 1;   break;
@@ -252,6 +254,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 			pending: 0,
 			inProgress: 0,
 			done: 0,
+			delivered: 0,
 			partial: 0,
 			failed: 0,
 			timedOut: 0,
@@ -269,6 +272,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 				case "pending":       windowSummary.pending += 1;    break;
 				case "in-progress":   windowSummary.inProgress += 1; break;
 				case "done":          windowSummary.done += 1;       break;
+				case "delivered":     windowSummary.delivered += 1;  break;
 				case "partial":       windowSummary.partial += 1;    break;
 				case "failed":        windowSummary.failed += 1;     break;
 				case "timed-out":     windowSummary.timedOut += 1;   break;
@@ -277,8 +281,8 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 		}
 
 		const terminal =
-			windowSummary.done + windowSummary.partial + windowSummary.failed +
-			windowSummary.timedOut + windowSummary.cancelled;
+			windowSummary.done + windowSummary.delivered + windowSummary.partial +
+			windowSummary.failed + windowSummary.timedOut + windowSummary.cancelled;
 		const failureRatePct =
 			terminal > 0
 				? Number(((windowSummary.failed / terminal) * 100).toFixed(2))

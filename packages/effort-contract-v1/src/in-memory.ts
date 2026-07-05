@@ -192,6 +192,7 @@ export function createInMemoryEffortAdapter(
 				pending: all.filter((r) => r.status === "pending").length,
 				inProgress: all.filter((r) => r.status === "in-progress").length,
 				done: all.filter((r) => r.status === "done").length,
+				delivered: all.filter((r) => r.status === "delivered").length,
 				partial: all.filter((r) => r.status === "partial").length,
 				failed: all.filter((r) => r.status === "failed").length,
 				timedOut: all.filter((r) => r.status === "timed-out").length,

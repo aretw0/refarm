@@ -10,15 +10,24 @@ export interface Task {
 export type EffortStatus =
 	| "pending"
 	| "in-progress"
-	| "done"       // all tasks ok
+	| "done"       // all tasks ok — the effort OWNS and carries the result
+	| "delivered"  // a dispatch event was accepted by a subscriber; the effort's
+	               // whole job (delivery) is complete and its verb RESULT lives
+	               // out of band as a dispatch-result:v1 node read back by replyRef
 	| "partial"    // some tasks ok, some error/timeout
 	| "failed"     // all tasks failed, or effort failed before any task ran
 	| "timed-out"  // effort expired during execution
 	| "cancelled";
 
-/** Terminal states — no further transitions except via retry(). */
+/** Terminal states — no further transitions except via retry().
+ *
+ * `delivered` is terminal and honest: unlike `done` (which asserts the effort
+ * carries a completed task result), a delivered dispatch effort carries only a
+ * delivery receipt — the verb result is owned by an out-of-band graph node, so
+ * the effort has nothing left to do and watch loops must stop on it. */
 export const EFFORT_TERMINAL_STATES: ReadonlySet<EffortStatus> = new Set([
 	"done",
+	"delivered",
 	"partial",
 	"failed",
 	"timed-out",
@@ -94,6 +103,7 @@ export interface EffortSummary {
 	pending: number;
 	inProgress: number;
 	done: number;
+	delivered: number;
 	partial: number;
 	failed: number;
 	timedOut: number;

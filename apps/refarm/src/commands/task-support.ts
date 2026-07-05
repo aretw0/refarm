@@ -84,6 +84,7 @@ function emptyEffortSummary(): EffortSummary {
 		pending: 0,
 		inProgress: 0,
 		done: 0,
+		delivered: 0,
 		partial: 0,
 		failed: 0,
 		timedOut: 0,
@@ -105,6 +106,9 @@ function incrementEffortSummary(
 			break;
 		case "done":
 			summary.done += 1;
+			break;
+		case "delivered":
+			summary.delivered += 1;
 			break;
 		case "partial":
 			summary.partial += 1;
@@ -188,6 +192,7 @@ function baseSummary(): EffortSummary {
 		pending: 0,
 		inProgress: 0,
 		done: 0,
+		delivered: 0,
 		partial: 0,
 		failed: 0,
 		timedOut: 0,
