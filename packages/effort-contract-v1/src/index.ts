@@ -13,4 +13,4 @@ export type {
 	Task,
 	TaskResult,
 } from "./types.js";
-export { EFFORT_CAPABILITY } from "./types.js";
+export { EFFORT_CAPABILITY, EFFORT_TERMINAL_STATES } from "./types.js";

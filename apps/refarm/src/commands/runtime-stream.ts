@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
+import { EFFORT_TERMINAL_STATES } from "@refarm.dev/effort-contract-v1";
 import { observedTaskResultError } from "./task-observation.js";
 import { resolveRequestTimeoutMs } from "./fetch-with-timeout.js";
 import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
@@ -219,9 +220,24 @@ function parseEffortResultPayload(result: unknown): RuntimeEffortResult | null {
 		status?: string;
 		results?: Array<{ status?: string; result?: unknown; error?: unknown }>;
 	};
-	if (effort.status !== "done" && effort.status !== "failed") return null;
+	// Only a terminal effort has a result to read back. A non-terminal status
+	// (pending, in-progress) means "keep polling", so return null. `delivered`
+	// (async dispatch) is terminal and honest — its task result is the delivery
+	// receipt, surfaced as ok content below alongside `done`.
+	if (
+		typeof effort.status !== "string" ||
+		!EFFORT_TERMINAL_STATES.has(effort.status as never)
+	) {
+		return null;
+	}
 	const task = Array.isArray(effort.results) ? effort.results[0] : undefined;
-	if (!task || typeof task !== "object") return null;
+	if (!task || typeof task !== "object") {
+		// A terminal-but-detail-less non-ok effort (e.g. cancelled/timed-out with
+		// no task rows) still resolves — as an error naming the terminal status —
+		// rather than polling forever.
+		if (effort.status === "done" || effort.status === "delivered") return null;
+		return { status: "error", error: `Effort ${effort.status}` };
+	}
 	if (task.status === "error") {
 		return {
 			status: "error",
@@ -229,6 +245,18 @@ function parseEffortResultPayload(result: unknown): RuntimeEffortResult | null {
 				typeof task.error === "string"
 					? task.error
 					: "Effort finished with task error",
+		};
+	}
+	// A terminal effort whose task did not succeed (cancelled/timeout/skipped)
+	// resolves as an error naming the outcome — never null (which reads as
+	// "not done yet").
+	if (task.status && task.status !== "ok") {
+		return {
+			status: "error",
+			error:
+				typeof task.error === "string"
+					? task.error
+					: `Effort ${effort.status} (task ${task.status})`,
 		};
 	}
 

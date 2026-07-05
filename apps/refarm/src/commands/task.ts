@@ -433,7 +433,7 @@ Notes:
 						);
 					} else {
 						const color =
-							observedStatus === "done"
+							observedStatus === "done" || observedStatus === "delivered"
 								? chalk.green
 								: observedStatus === "failed" || observedStatus === "cancelled"
 									? chalk.red
