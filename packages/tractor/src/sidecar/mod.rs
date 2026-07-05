@@ -357,6 +357,7 @@ async fn post_plugins_reload(
 
 mod dispatch;
 pub(crate) use dispatch::*;
+mod reap;
 async fn post_efforts(
     State(state): State<SidecarState>,
     Json(effort): Json<Effort>,
@@ -956,6 +957,10 @@ async fn get_task(
 // ── public API ────────────────────────────────────────────────────────────────
 
 pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Result<()> {
+    // Reclaim terminal-and-old task-results/streams artifacts in the background,
+    // bounding the daemon's on-disk growth. Self-terminates when state drops.
+    reap::spawn_reaper(&state);
+
     let router = Router::new()
         .route("/efforts", post(post_efforts).get(get_efforts))
         .route("/efforts/summary", get(get_efforts_summary))
