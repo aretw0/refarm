@@ -393,8 +393,15 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     tracing::info!(namespace = %args.namespace, port = args.port, "Starting tractor daemon");
 
     if args.model_stream_responses {
+        // Deliberate env-as-transport, NOT the config-read pattern the seam
+        // killed: MODEL_* vars are FORWARDED into each guest's WASI sandbox env
+        // (forwarded_model_env_vars reads std::env::vars at load), so setting the
+        // process env here is how this CLI flag reaches the guest. Single-threaded
+        // at daemon boot before any plugin loads — no concurrent reader, so not
+        // the cross-thread leak class. (A guest reads MODEL_STREAM_RESPONSES from
+        // its own env; the host does not read it to steer its own behaviour.)
         std::env::set_var("MODEL_STREAM_RESPONSES", "1");
-        tracing::info!("MODEL_STREAM_RESPONSES=1 enabled for startup plugins");
+        tracing::info!("MODEL_STREAM_RESPONSES=1 forwarded to startup plugins");
     }
 
     let tractor = TractorNative::boot(config.clone()).await?;

@@ -607,10 +607,23 @@ impl PluginHost {
             return Ok(component.clone());
         }
         let component = Component::from_binary(&self.engine, bytes)?;
-        self.component_cache
-            .write()
-            .expect("component_cache poisoned")
-            .insert(wasm_hash.to_string(), component.clone());
+        {
+            let mut cache = self.component_cache.write().expect("component_cache poisoned");
+            // Bound the cache so a hot-reload loop (each rebuild = new bytes = new
+            // hash) can't accumulate compiled components without limit (§7: 8GB
+            // ceiling). Keyed by content hash, so distinct blobs are what grow it.
+            // When full, drop one existing entry before inserting — the miss just
+            // recompiles next time, which is correct, not a leak. Cap is generous
+            // (far more than any real plugin set) so steady-state never evicts.
+            const MAX_CACHED_COMPONENTS: usize = 64;
+            if cache.len() >= MAX_CACHED_COMPONENTS && !cache.contains_key(wasm_hash) {
+                if let Some(evict) = cache.keys().next().cloned() {
+                    cache.remove(&evict);
+                    tracing::debug!(evicted = %evict, "component cache full — evicted one entry");
+                }
+            }
+            cache.insert(wasm_hash.to_string(), component.clone());
+        }
         Ok(component)
     }
 

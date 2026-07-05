@@ -462,7 +462,10 @@ async fn get_effort_logs(
     State(_state): State<SidecarState>,
     AxumPath(_id): AxumPath<String>,
 ) -> impl IntoResponse {
-    // Phase 1: log entries not yet persisted — return empty array
+    // STUB: per-effort log entries are not persisted yet, so this always returns
+    // an empty array and does NOT validate the id (a bad id gets `[]`, not 404) —
+    // a client can't yet distinguish "no logs" from "unknown effort". Kept as a
+    // documented placeholder until effort logs are stored.
     (StatusCode::OK, Json(Value::Array(vec![])))
 }
 

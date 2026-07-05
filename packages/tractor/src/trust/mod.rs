@@ -148,6 +148,14 @@ impl TrustManager {
 
     /// Resolve execution profile for a plugin.
     /// If manifest requests TrustedFast but no valid grant exists → downgrade to Strict.
+    ///
+    /// NOT YET WIRED: no production path consults this today (the sandbox always
+    /// runs the Strict posture). It is the documented foundation (see docs/
+    /// ARCHITECTURE, ROADMAP) for honouring the manifest's `trust.profile` — the
+    /// orphaned loop to connect when TrustedFast (relaxed HTTP-origin sandbox) is
+    /// enabled. Fail-safe: absent a wire, everything stays Strict. Kept (not
+    /// deleted) as intentional foundation.
+    #[allow(dead_code)]
     pub fn resolve_profile(
         &self,
         plugin_id: &str,
