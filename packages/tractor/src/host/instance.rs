@@ -44,6 +44,10 @@ pub struct PluginInstanceHandle {
     pub state: PluginState,
     /// Capabilities declared in the plugin's `capabilities.provides` manifest field.
     pub provides: Vec<String>,
+    /// Runtime event names the plugin declared in `capabilities.subscribes` — what
+    /// the neutral event router delivers to it. Defaults empty; set from the
+    /// manifest via `with_subscribes` right after construction.
+    pub subscribes: Vec<String>,
     inner: PluginImpl,
     telemetry: TelemetryBus,
 }
@@ -60,6 +64,7 @@ impl PluginInstanceHandle {
             id,
             state: PluginState::Idle,
             provides,
+            subscribes: Vec::new(),
             inner: PluginImpl::Component { plugin, store },
             telemetry,
         }
@@ -76,9 +81,18 @@ impl PluginInstanceHandle {
             id,
             state: PluginState::Idle,
             provides,
+            subscribes: Vec::new(),
             inner: PluginImpl::Module { instance, store },
             telemetry,
         }
+    }
+
+    /// Attach the manifest's `capabilities.subscribes` event names to this handle.
+    /// A builder-style setter so the existing constructors and their callers stay
+    /// unchanged (the smallest-ripple way to flow subscriptions to the router).
+    pub(crate) fn with_subscribes(mut self, subscribes: Vec<String>) -> Self {
+        self.subscribes = subscribes;
+        self
     }
 
     fn emit_lifecycle_event(

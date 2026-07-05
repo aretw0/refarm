@@ -242,6 +242,19 @@ export function validatePluginManifest(manifest) {
 		errors.push("capabilities.requiresApi must not contain duplicates");
 	}
 
+	// `subscribes` is permissive by FORM: optional (a plugin may be lifecycle-only),
+	// but when present it must be a non-empty string array of event names, and must
+	// not contain duplicates. The neutral event router reads it to deliver events.
+	if (manifest.capabilities.subscribes !== undefined) {
+		if (!isNonEmptyStringArray(manifest.capabilities.subscribes)) {
+			errors.push(
+				"capabilities.subscribes must be an array of non-empty event-name strings when provided",
+			);
+		} else if (hasDuplicates(manifest.capabilities.subscribes)) {
+			errors.push("capabilities.subscribes must not contain duplicates");
+		}
+	}
+
 	if (hasDuplicates(manifest.permissions)) {
 		errors.push("permissions must not contain duplicates");
 	}

@@ -353,6 +353,11 @@ struct RuntimePluginObservability {
 struct RuntimePluginCapabilities {
     #[serde(default)]
     provides: Vec<String>,
+    /// The runtime event names this plugin subscribes to — what the neutral event
+    /// router delivers to it. Optional; absent means the plugin is loadable but
+    /// driven only by lifecycle calls (and, for the agent, by agent:respond sugar).
+    #[serde(default)]
+    subscribes: Vec<String>,
 }
 
 const REQUIRED_RUNTIME_HOOKS: &[&str] = &[
@@ -565,17 +570,20 @@ impl PluginHost {
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
 
-        let provides = if let Some(manifest) = manifest.as_ref() {
+        let (provides, subscribes) = if let Some(manifest) = manifest.as_ref() {
             let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
             validate_manifest_runtime_alignment(&plugin_id, &metadata, manifest)?;
-            manifest.capabilities.provides.clone()
+            (
+                manifest.capabilities.provides.clone(),
+                manifest.capabilities.subscribes.clone(),
+            )
         } else {
             tracing::warn!(
                 plugin_id = %plugin_id,
                 path = %path.display(),
                 "plugin manifest not found near wasm; skipping manifest/runtime alignment checks"
             );
-            vec![]
+            (vec![], vec![])
         };
 
         let mut handle = PluginInstanceHandle::new_component(
@@ -584,7 +592,8 @@ impl PluginHost {
             store,
             self.telemetry.clone(),
             provides,
-        );
+        )
+        .with_subscribes(subscribes);
         handle.call_setup().await?;
 
         if let Err(e) = store_refarm_config_node(sync, &plugin_id, &base, &env_vars, config_json.as_ref()) {

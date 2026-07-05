@@ -55,6 +55,11 @@ export interface PluginExtensions {
 export interface PluginCapabilities {
 	provides: string[];
 	requires: string[];
+	/** The runtime event names this plugin subscribes to — what the neutral event
+	 * router delivers to it. A plugin declaring `vault:dispatch` here receives that
+	 * event; `user:prompt` is the agent's subscription. Optional and permissive:
+	 * absent means the plugin is loadable but driven only by lifecycle calls. */
+	subscribes?: string[];
 	providesApi?: string[];
 	requiresApi?: string[];
 	allowedOrigins?: string[];
