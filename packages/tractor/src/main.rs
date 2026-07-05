@@ -6,12 +6,12 @@
 //!   - `watch`:  poll storage and print new AgentResponse records
 //!   - `health`: probe runtime boot + daemon WS readiness
 
-use std::{collections::HashSet, io::Write};
+use std::collections::HashSet;
 
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 use futures_util::{SinkExt, StreamExt};
-use tokio::time::{sleep, Duration, Instant};
+use tokio::time::Duration;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tractor::{trust::SecurityMode, NativeStorage, TractorNative, TractorNativeConfig};
 

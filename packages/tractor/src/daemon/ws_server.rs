@@ -24,7 +24,7 @@ use tokio_tungstenite::{accept_async, tungstenite::Message};
 
 use crate::sync::NativeSync;
 use crate::telemetry::TelemetryBus;
-use crate::{AgentChannels, AgentMessage};
+use crate::AgentChannels;
 
 type ClientId = usize;
 type ClientMap = Arc<Mutex<HashMap<ClientId, mpsc::UnboundedSender<Vec<u8>>>>>;
