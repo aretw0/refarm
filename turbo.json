@@ -18,7 +18,17 @@
       "persistent": true
     },
     "lint": {
-      "dependsOn": ["build"]
+      "dependsOn": ["build"],
+      "inputs": [
+        "src/**",
+        "test/**",
+        "tests/**",
+        "*.config.*",
+        "**/*.rs",
+        "Cargo.toml",
+        "Cargo.lock",
+        "clippy.toml"
+      ]
     },
     "lint:prepush": {
       "inputs": [
@@ -28,7 +38,8 @@
         "*.config.*",
         "**/*.rs",
         "Cargo.toml",
-        "Cargo.lock"
+        "Cargo.lock",
+        "clippy.toml"
       ]
     },
     "test": {
