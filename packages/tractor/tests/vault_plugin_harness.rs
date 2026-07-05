@@ -283,3 +283,124 @@ async fn router_delivers_a_non_agent_event_to_its_subscribed_plugin() {
 
     tractor.shutdown().await.expect("shutdown must succeed");
 }
+
+/// THE LIVE E2E — the whole operator loop through a RUNNING sidecar, HTTP to
+/// graph, in one test. This is the "easy place to test anything, however complex":
+/// boot the runtime, load the vault plugin, register it, stand the real HTTP
+/// sidecar, then POST an effort (fn=extract) to /efforts exactly as
+/// `refarm vault dispatch` does — and assert the vault plugin's node lands in the
+/// graph. Every link in production form: HTTP -> sidecar dispatch_effort branch ->
+/// router deliver by subscription -> plugin on-event -> store-node.
+#[tokio::test]
+#[ignore = "requires vault-surface-ref build:plugin; run with --ignored"]
+async fn operator_loop_http_to_graph_through_the_live_sidecar() {
+    let path = wasm_path();
+    if !path.exists() {
+        eprintln!("SKIP: vault_plugin.wasm not found — run: pnpm --filter @refarm.dev/vault-surface-ref run build:plugin");
+        return;
+    }
+
+    let tractor = TractorNative::boot(memory_config_none())
+        .await
+        .expect("boot must succeed");
+    let handle = tractor.load_plugin(path).await.expect("vault plugin loads");
+    tractor.register_for_events(handle);
+
+    // Stand the REAL HTTP sidecar over this runtime's channels + router.
+    let base_dir = std::env::temp_dir().join(format!(
+        "tractor-e2e-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let state = tractor::sidecar::SidecarState::new(
+        tractor.agent_channels.clone(),
+        tractor.active_agent_id.clone(),
+        tractor.event_router.clone(),
+        tractor.telemetry.clone(),
+        &base_dir,
+        ":memory:".to_string(),
+    )
+    .expect("sidecar state");
+
+    // Pick a free port, then hand it to the sidecar.
+    let port = {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let p = l.local_addr().unwrap().port();
+        drop(l);
+        p
+    };
+    tokio::spawn(async move {
+        let _ = tractor::sidecar::start(state, "127.0.0.1".to_string(), port).await;
+    });
+    // Wait for the listener to come up.
+    for _ in 0..50 {
+        if std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+
+    // POST the effort exactly as `refarm vault dispatch extract <note>` builds it.
+    let effort = serde_json::json!({
+        "id": "e2e-effort-1",
+        "direction": "dispatch",
+        "tasks": [{
+            "id": "e2e-task-1",
+            "pluginId": "vault",
+            "fn": "extract",
+            "args": {
+                "note": {
+                    "path": "20-Projects/demanda-42.md",
+                    "text": "---\ntitle: Demanda 42\nstate: doing\n---\n\nbody #project\n"
+                },
+                "profile": {
+                    "name": "p",
+                    "rules": [{
+                        "id": "extract-frontmatter",
+                        "verb": "extract",
+                        "match": "{\"type\":\"frontmatter\",\"recordType\":\"refarm:VaultRecord\"}"
+                    }]
+                },
+                "replyRef": "e2e-effort-1"
+            }
+        }],
+        "source": "refarm-vault-dispatch",
+        "submittedAt": "2026-01-01T00:00:00Z"
+    });
+    let client = reqwest::Client::new();
+    let res = client
+        .post(format!("http://127.0.0.1:{port}/efforts"))
+        .json(&effort)
+        .send()
+        .await
+        .expect("POST /efforts");
+    assert_eq!(res.status(), 200, "the sidecar accepts the dispatch effort");
+
+    // The vault plugin ran on its thread; poll the SAME graph the plugin wrote to
+    // (the plugin's store-node goes to tractor.sync, which we query directly).
+    let mut results = Vec::new();
+    for _ in 0..100 {
+        results = tractor
+            .sync
+            .query_nodes("refarm:DispatchResult")
+            .expect("query refarm:DispatchResult");
+        if !results.is_empty() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(
+        !results.is_empty(),
+        "the whole loop must land a dispatch-result node in the graph: HTTP -> sidecar -> router -> plugin -> store-node"
+    );
+    let node: serde_json::Value =
+        serde_json::from_str(&results[0].payload).expect("result node JSON");
+    assert_eq!(
+        node["refarm:replyRef"], "e2e-effort-1",
+        "the node correlates back to the effort by replyRef"
+    );
+
+    tractor.shutdown().await.expect("shutdown");
+}
