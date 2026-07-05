@@ -38,7 +38,7 @@ pub struct TractorNativeBindings {
     /// reads &self, never std::env::var.
     pub(crate) effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
     /// The expected model ROUTE (provider + base-url + path) guardrail, resolved
-    /// from the routing env vars (MODEL_PROVIDER / MODEL_BASE_URL / LLM_* aliases)
+    /// from the routing env vars (MODEL_PROVIDER / MODEL_BASE_URL)
     /// ONCE at boot. Read per model POST to validate the guest's requested route —
     /// no per-request env read. NOTE: only routing config lives here; the
     /// per-request API-key SECRETS stay in env (12-factor), read at send time
@@ -200,7 +200,7 @@ impl ModelBridgeHost for TractorNativeBindings {
             &self.plugin_id,
             &stream_metadata,
             resp.into_reader(),
-            MAX_LLM_RESPONSE_BODY_LEN,
+            MAX_MODEL_RESPONSE_BODY_LEN,
         )?;
         Ok(buffered_stream_response_result(
             final_body,
@@ -301,15 +301,15 @@ fn send_model_http_post(
 }
 
 fn model_error_body_preview(bytes: &[u8]) -> String {
-    const MAX_LLM_ERROR_PREVIEW_LEN: usize = 8 * 1024;
+    const MAX_MODEL_ERROR_PREVIEW_LEN: usize = 8 * 1024;
 
-    if bytes.len() <= MAX_LLM_ERROR_PREVIEW_LEN {
+    if bytes.len() <= MAX_MODEL_ERROR_PREVIEW_LEN {
         return String::from_utf8_lossy(bytes).to_string();
     }
 
-    let prefix = String::from_utf8_lossy(&bytes[..MAX_LLM_ERROR_PREVIEW_LEN]);
+    let prefix = String::from_utf8_lossy(&bytes[..MAX_MODEL_ERROR_PREVIEW_LEN]);
     format!(
-        "{prefix}\n[truncated: llm-bridge error body exceeded {MAX_LLM_ERROR_PREVIEW_LEN} bytes]"
+        "{prefix}\n[truncated: model-bridge error body exceeded {MAX_MODEL_ERROR_PREVIEW_LEN} bytes]"
     )
 }
 
@@ -321,7 +321,7 @@ fn use_openai_codex_auth(provider: &str) -> bool {
     provider.trim().eq_ignore_ascii_case("openai-codex")
 }
 
-// Registry of known providers that need no LLM_BASE_URL to work.
+// Registry of known providers that need no MODEL_BASE_URL to work.
 fn known_provider_base_url(provider: &str) -> Option<&'static str> {
     match provider.trim().to_ascii_lowercase().as_str() {
         "openai-codex" => Some("https://chatgpt.com"),
@@ -432,9 +432,9 @@ fn decode_base64url(value: &str) -> Option<Vec<u8>> {
 }
 
 fn enforce_model_request_body(body: &[u8]) -> Result<(), String> {
-    const MAX_LLM_REQUEST_BODY_LEN: usize = 1024 * 1024;
-    if body.len() > MAX_LLM_REQUEST_BODY_LEN {
-        return Err("[blocked: llm-bridge body too large]".to_string());
+    const MAX_MODEL_REQUEST_BODY_LEN: usize = 1024 * 1024;
+    if body.len() > MAX_MODEL_REQUEST_BODY_LEN {
+        return Err("[blocked: model-bridge body too large]".to_string());
     }
     Ok(())
 }
@@ -467,12 +467,7 @@ fn anthropic_api_key_from_env() -> Result<String, String> {
 }
 
 fn provider_name_from_env() -> String {
-    for key in [
-        "LLM_PROVIDER",
-        "LLM_DEFAULT_PROVIDER",
-        "MODEL_PROVIDER",
-        "MODEL_DEFAULT_PROVIDER",
-    ] {
+    for key in ["MODEL_PROVIDER", "MODEL_DEFAULT_PROVIDER"] {
         if let Some(provider) = normalized_provider_from_env(key) {
             return provider;
         }
@@ -503,7 +498,7 @@ fn is_safe_provider_token(value: &str) -> bool {
 impl ModelRoute {
     /// Resolve the expected model route (provider + base-url + path) from the
     /// routing env vars ONCE at boot. This is the ONLY place the routing vars
-    /// (MODEL_PROVIDER / LLM_* aliases, MODEL_BASE_URL / LLM_BASE_URL) are read;
+    /// (MODEL_PROVIDER / MODEL_DEFAULT_PROVIDER, MODEL_BASE_URL) are read;
     /// the resolved route then rides on TractorNativeBindings and the per-request
     /// path validates against it without touching env. Secrets (API keys) are NOT
     /// part of this — they stay in env, read at send time keyed off the provider.
@@ -559,15 +554,13 @@ impl ModelRoute {
 }
 
 fn model_base_url_from_env() -> Option<String> {
-    for key in ["LLM_BASE_URL", "MODEL_BASE_URL"] {
-        if let Ok(value) = std::env::var(key) {
-            let trimmed = value.trim();
-            if !trimmed.is_empty() {
-                return Some(trimmed.to_string());
-            }
-        }
+    let value = std::env::var("MODEL_BASE_URL").ok()?;
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
     }
-    None
 }
 
 fn enforce_model_route(
@@ -580,51 +573,51 @@ fn enforce_model_route(
     const MAX_PATH_LEN: usize = 2048;
 
     if provider.chars().any(|c| c.is_control()) || expected.provider.chars().any(|c| c.is_control()) {
-        return Err("[blocked: llm-bridge provider contains control characters]".to_string());
+        return Err("[blocked: model-bridge provider contains control characters]".to_string());
     }
     if base_url.chars().any(|c| c.is_control()) || expected.base_url.chars().any(|c| c.is_control()) {
-        return Err("[blocked: llm-bridge base_url contains control characters]".to_string());
+        return Err("[blocked: model-bridge base_url contains control characters]".to_string());
     }
     if path.chars().any(|c| c.is_control()) || expected.path.chars().any(|c| c.is_control()) {
-        return Err("[blocked: llm-bridge path contains control characters]".to_string());
+        return Err("[blocked: model-bridge path contains control characters]".to_string());
     }
     if !path.is_ascii() || !expected.path.is_ascii() {
-        return Err("[blocked: llm-bridge path must be ascii]".to_string());
+        return Err("[blocked: model-bridge path must be ascii]".to_string());
     }
     if path.trim().is_empty() || expected.path.trim().is_empty() {
-        return Err("[blocked: llm-bridge path must be non-empty]".to_string());
+        return Err("[blocked: model-bridge path must be non-empty]".to_string());
     }
     if path.trim() != path || expected.path.trim() != expected.path {
-        return Err("[blocked: llm-bridge path contains surrounding whitespace]".to_string());
+        return Err("[blocked: model-bridge path contains surrounding whitespace]".to_string());
     }
     if path.chars().any(|c| c.is_whitespace()) || expected.path.chars().any(|c| c.is_whitespace()) {
-        return Err("[blocked: llm-bridge path must not contain whitespace]".to_string());
+        return Err("[blocked: model-bridge path must not contain whitespace]".to_string());
     }
     if base_url.len() > MAX_BASE_URL_LEN || expected.base_url.len() > MAX_BASE_URL_LEN {
-        return Err("[blocked: llm-bridge base_url too long]".to_string());
+        return Err("[blocked: model-bridge base_url too long]".to_string());
     }
     if path.len() > MAX_PATH_LEN || expected.path.len() > MAX_PATH_LEN {
-        return Err("[blocked: llm-bridge path too long]".to_string());
+        return Err("[blocked: model-bridge path too long]".to_string());
     }
     if path.contains('?')
         || path.contains('#')
         || expected.path.contains('?')
         || expected.path.contains('#')
     {
-        return Err("[blocked: llm-bridge path must not include query or fragment]".to_string());
+        return Err("[blocked: model-bridge path must not include query or fragment]".to_string());
     }
     if path.contains('\\') || expected.path.contains('\\') {
-        return Err("[blocked: llm-bridge path contains invalid separator]".to_string());
+        return Err("[blocked: model-bridge path contains invalid separator]".to_string());
     }
 
     let requested_provider = normalize_provider_name(provider);
     let expected_provider = normalize_provider_name(&expected.provider);
     if !is_safe_provider_token(&requested_provider) || !is_safe_provider_token(&expected_provider) {
-        return Err("[blocked: llm-bridge provider has invalid characters]".to_string());
+        return Err("[blocked: model-bridge provider has invalid characters]".to_string());
     }
     if requested_provider != expected_provider {
         return Err(format!(
-            "[blocked: llm-bridge provider mismatch: requested '{requested_provider}', expected '{}']",
+            "[blocked: model-bridge provider mismatch: requested '{requested_provider}', expected '{}']",
             expected_provider
         ));
     }
@@ -632,13 +625,13 @@ fn enforce_model_route(
     let requested_base = normalize_base_url(base_url)?;
     let expected_base = normalize_base_url(&expected.base_url)?;
     if requested_base != expected_base {
-        return Err("[blocked: llm-bridge base_url not allowed]".to_string());
+        return Err("[blocked: model-bridge base_url not allowed]".to_string());
     }
 
     let requested_path = normalize_path(path);
     let expected_path = normalize_path(&expected.path);
     if requested_path != expected_path {
-        return Err("[blocked: llm-bridge path not allowed]".to_string());
+        return Err("[blocked: model-bridge path not allowed]".to_string());
     }
 
     Ok(())
@@ -647,12 +640,12 @@ fn enforce_model_route(
 fn normalize_base_url(base_url: &str) -> Result<String, String> {
     let raw = base_url.trim();
     if !raw.is_ascii() {
-        return Err("[blocked: llm-bridge base_url must be ascii]".to_string());
+        return Err("[blocked: model-bridge base_url must be ascii]".to_string());
     }
     let lower_raw = raw.to_ascii_lowercase();
 
     if lower_raw.contains('?') || lower_raw.contains('#') {
-        return Err("[blocked: llm-bridge base_url must not include query or fragment]".to_string());
+        return Err("[blocked: model-bridge base_url must not include query or fragment]".to_string());
     }
 
     let rest = if let Some(v) = lower_raw.strip_prefix("http://") {
@@ -660,7 +653,7 @@ fn normalize_base_url(base_url: &str) -> Result<String, String> {
     } else if let Some(v) = lower_raw.strip_prefix("https://") {
         v
     } else {
-        return Err("[blocked: llm-bridge base_url must use http(s)]".to_string());
+        return Err("[blocked: model-bridge base_url must use http(s)]".to_string());
     };
 
     let (authority, suffix) = rest
@@ -668,16 +661,16 @@ fn normalize_base_url(base_url: &str) -> Result<String, String> {
         .map(|(a, b)| (a, Some(b)))
         .unwrap_or((rest, None));
     if authority.is_empty() {
-        return Err("[blocked: llm-bridge base_url must include host]".to_string());
+        return Err("[blocked: model-bridge base_url must include host]".to_string());
     }
     if suffix.is_some_and(|s| !s.is_empty() && s.chars().any(|c| c != '/')) {
-        return Err("[blocked: llm-bridge base_url must not include path]".to_string());
+        return Err("[blocked: model-bridge base_url must not include path]".to_string());
     }
     if authority.contains('@') {
-        return Err("[blocked: llm-bridge base_url must not include credentials]".to_string());
+        return Err("[blocked: model-bridge base_url must not include credentials]".to_string());
     }
     if !is_safe_base_url_authority(authority) {
-        return Err("[blocked: llm-bridge base_url contains invalid authority characters]".to_string());
+        return Err("[blocked: model-bridge base_url contains invalid authority characters]".to_string());
     }
 
     Ok(lower_raw.trim_end_matches('/').to_string())

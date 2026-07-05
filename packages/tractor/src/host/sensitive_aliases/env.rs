@@ -333,7 +333,7 @@ pub(crate) fn is_compact_sensitive_env_alias_suffix(upper_env_key: &str) -> bool
 }
 
 /// Matches compact env aliases as suffix or middle segment
-/// (e.g. `LLM_FOO_GITHUBTOKEN_BAR`).
+/// (e.g. `MODEL_FOO_GITHUBTOKEN_BAR`).
 pub(crate) fn is_compact_sensitive_env_alias_suffix_or_segment(upper_env_key: &str) -> bool {
     COMPACT_ENV_ALIAS_TOKENS.iter().copied().any(|token| {
         env_suffix_matches_token(upper_env_key, token)
@@ -351,7 +351,7 @@ pub(crate) fn is_generic_sensitive_env_token_suffix(upper_env_key: &str) -> bool
 }
 
 /// Matches generic sensitive env tokens as suffix or middle segment
-/// (e.g. `LLM_FOO_TOKEN_BAR`).
+/// (e.g. `MODEL_FOO_TOKEN_BAR`).
 pub(crate) fn is_generic_sensitive_env_token_suffix_or_segment(upper_env_key: &str) -> bool {
     // `WEBHOOK_TOKEN` is treated as a dedicated alias family (not a generic
     // token hit) to avoid broad false positives in generic-token matching.
@@ -378,7 +378,7 @@ pub(crate) fn is_shared_sensitive_env_canonical_suffix(upper_env_key: &str) -> b
 }
 
 /// Matches shared canonical sensitive env names as trailing suffix or middle
-/// segment (e.g. `SERVICE_WEBHOOK_SECRET` or `LLM_FOO_WEBHOOK_SECRET_BAR`).
+/// segment (e.g. `SERVICE_WEBHOOK_SECRET` or `MODEL_FOO_WEBHOOK_SECRET_BAR`).
 pub(crate) fn is_shared_sensitive_env_canonical_suffix_or_segment(upper_env_key: &str) -> bool {
     is_shared_sensitive_env_canonical_suffix(upper_env_key)
         || SHARED_CANONICAL_ENV_SUFFIX_NAMES
@@ -533,7 +533,7 @@ pub(crate) fn is_shared_sensitive_env_namespace_prefix(upper_env_key: &str) -> b
 }
 
 /// Matches shared sensitive env namespaces as middle segment (e.g.
-/// `LLM_FOO_AWS_BAR`).
+/// `MODEL_FOO_AWS_BAR`).
 pub(crate) fn is_shared_sensitive_env_namespace_segment(upper_env_key: &str) -> bool {
     SHARED_SENSITIVE_ENV_NAMESPACES
         .iter()

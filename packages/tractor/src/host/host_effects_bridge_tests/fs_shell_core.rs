@@ -55,7 +55,7 @@
     fn spawn_block_policy_delegates_to_shared_helper() {
         let keys = [
             "AWS_SECRET_ACCESS_KEY",
-            "LLM_PROVIDER",
+            "MODEL_PROVIDER",
             "service_githubtoken",
             "DYLD_INSERT_LIBRARIES",
             "RUST_LOG",

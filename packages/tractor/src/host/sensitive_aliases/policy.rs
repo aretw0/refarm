@@ -188,10 +188,10 @@ pub(crate) fn is_forwardable_model_env_key(key: &str) -> bool {
 
 /// Shared plugin-forwarding policy for `MODEL_*` env values.
 pub(crate) fn is_forwardable_model_env_value(value: &str) -> bool {
-    const MAX_LLM_ENV_VALUE_LEN: usize = 4096;
+    const MAX_MODEL_ENV_VALUE_LEN: usize = 4096;
     !value.trim().is_empty()
         && value.trim() == value
-        && value.len() <= MAX_LLM_ENV_VALUE_LEN
+        && value.len() <= MAX_MODEL_ENV_VALUE_LEN
         && value.is_ascii()
         && !value.chars().any(|c| c.is_whitespace())
         && !value.chars().any(|c| c.is_control())

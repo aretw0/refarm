@@ -3,11 +3,8 @@
     static ENV_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
         std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
 
-    fn reset_llm_env() {
+    fn reset_model_env() {
         for k in [
-            "LLM_PROVIDER",
-            "LLM_DEFAULT_PROVIDER",
-            "LLM_BASE_URL",
             "MODEL_PROVIDER",
             "MODEL_DEFAULT_PROVIDER",
             "MODEL_BASE_URL",
@@ -21,7 +18,7 @@
     #[test]
     fn expected_route_defaults_to_ollama() {
         let _guard = ENV_LOCK.lock().unwrap();
-        reset_llm_env();
+        reset_model_env();
         let route = ModelRoute::from_env();
         assert_eq!(
             route,
@@ -36,103 +33,103 @@
     #[test]
     fn expected_route_trims_provider_from_env() {
         let _guard = ENV_LOCK.lock().unwrap();
-        reset_llm_env();
-        std::env::set_var("LLM_PROVIDER", "  openai  ");
+        reset_model_env();
+        std::env::set_var("MODEL_PROVIDER", "  openai  ");
 
         let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai");
         assert_eq!(route.base_url, "https://api.openai.com");
         assert_eq!(route.path, "/v1/chat/completions");
 
-        reset_llm_env();
+        reset_model_env();
     }
 
     #[test]
     fn expected_route_normalizes_provider_case_from_env() {
         let _guard = ENV_LOCK.lock().unwrap();
-        reset_llm_env();
-        std::env::set_var("LLM_PROVIDER", "OpenAI");
+        reset_model_env();
+        std::env::set_var("MODEL_PROVIDER", "OpenAI");
 
         let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai");
         assert_eq!(route.base_url, "https://api.openai.com");
 
-        reset_llm_env();
+        reset_model_env();
     }
 
     #[test]
     fn expected_route_uses_default_provider_when_primary_is_blank() {
         let _guard = ENV_LOCK.lock().unwrap();
-        reset_llm_env();
-        std::env::set_var("LLM_PROVIDER", "   ");
-        std::env::set_var("LLM_DEFAULT_PROVIDER", " openai ");
+        reset_model_env();
+        std::env::set_var("MODEL_PROVIDER", "   ");
+        std::env::set_var("MODEL_DEFAULT_PROVIDER", " openai ");
 
         let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai");
         assert_eq!(route.base_url, "https://api.openai.com");
 
-        reset_llm_env();
+        reset_model_env();
     }
 
     #[test]
     fn expected_route_uses_openai_codex_default_provider_when_primary_is_blank() {
         let _guard = ENV_LOCK.lock().unwrap();
-        reset_llm_env();
-        std::env::set_var("LLM_PROVIDER", "   ");
-        std::env::set_var("LLM_DEFAULT_PROVIDER", " openai-codex ");
+        reset_model_env();
+        std::env::set_var("MODEL_PROVIDER", "   ");
+        std::env::set_var("MODEL_DEFAULT_PROVIDER", " openai-codex ");
 
         let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai-codex");
         assert_eq!(route.base_url, "https://chatgpt.com");
         assert_eq!(route.path, "/backend-api/codex/responses");
 
-        reset_llm_env();
+        reset_model_env();
     }
 
     #[test]
     fn expected_route_ignores_invalid_primary_provider_and_uses_valid_default() {
         let _guard = ENV_LOCK.lock().unwrap();
-        reset_llm_env();
-        std::env::set_var("LLM_PROVIDER", "open ai");
-        std::env::set_var("LLM_DEFAULT_PROVIDER", "openai");
+        reset_model_env();
+        std::env::set_var("MODEL_PROVIDER", "open ai");
+        std::env::set_var("MODEL_DEFAULT_PROVIDER", "openai");
 
         let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai");
         assert_eq!(route.base_url, "https://api.openai.com");
 
-        reset_llm_env();
+        reset_model_env();
     }
 
     #[test]
     fn expected_route_falls_back_to_ollama_when_provider_env_tokens_are_invalid() {
         let _guard = ENV_LOCK.lock().unwrap();
-        reset_llm_env();
-        std::env::set_var("LLM_PROVIDER", "open ai");
-        std::env::set_var("LLM_DEFAULT_PROVIDER", "opénaí");
+        reset_model_env();
+        std::env::set_var("MODEL_PROVIDER", "open ai");
+        std::env::set_var("MODEL_DEFAULT_PROVIDER", "opénaí");
 
         let route = ModelRoute::from_env();
         assert_eq!(route.provider, "ollama");
         assert_eq!(route.base_url, "http://localhost:11434");
 
-        reset_llm_env();
+        reset_model_env();
     }
 
     #[test]
     fn expected_route_defaults_openai_codex_to_chatgpt_backend() {
         let _guard = ENV_LOCK.lock().unwrap();
-        reset_llm_env();
-        std::env::set_var("LLM_PROVIDER", "openai-codex");
+        reset_model_env();
+        std::env::set_var("MODEL_PROVIDER", "openai-codex");
 
         let route = ModelRoute::from_env();
         assert_eq!(route.provider, "openai-codex");
         assert_eq!(route.base_url, "https://chatgpt.com");
         assert_eq!(route.path, "/backend-api/codex/responses");
 
-        reset_llm_env();
+        reset_model_env();
     }
 
     #[test]
-    fn expected_route_known_providers_get_base_url_without_llm_base_url() {
+    fn expected_route_known_providers_get_base_url_without_model_base_url() {
         let _guard = ENV_LOCK.lock().unwrap();
         let cases = [
             ("groq",       "https://api.groq.com",                          "/openai/v1/chat/completions"),
@@ -144,34 +141,34 @@
             ("gemini",     "https://generativelanguage.googleapis.com",     "/v1beta/openai/chat/completions"),
         ];
         for (provider, expected_base, expected_path) in cases {
-            reset_llm_env();
-            std::env::set_var("LLM_PROVIDER", provider);
+            reset_model_env();
+            std::env::set_var("MODEL_PROVIDER", provider);
             let route = ModelRoute::from_env();
             assert_eq!(route.provider, provider, "provider mismatch for {provider}");
             assert_eq!(route.base_url, expected_base, "base_url mismatch for {provider}");
             assert_eq!(route.path, expected_path, "path mismatch for {provider}");
         }
-        reset_llm_env();
+        reset_model_env();
     }
 
     #[test]
-    fn expected_route_llm_base_url_overrides_known_provider_default() {
+    fn expected_route_model_base_url_overrides_known_provider_default() {
         let _guard = ENV_LOCK.lock().unwrap();
-        reset_llm_env();
-        std::env::set_var("LLM_PROVIDER", "groq");
-        std::env::set_var("LLM_BASE_URL", "https://my-proxy.example.com");
+        reset_model_env();
+        std::env::set_var("MODEL_PROVIDER", "groq");
+        std::env::set_var("MODEL_BASE_URL", "https://my-proxy.example.com");
 
         let route = ModelRoute::from_env();
         assert_eq!(route.base_url, "https://my-proxy.example.com");
         assert_eq!(route.path, "/openai/v1/chat/completions");
 
-        reset_llm_env();
+        reset_model_env();
     }
 
     #[test]
-    fn expected_route_falls_back_to_model_provider_when_llm_provider_is_absent() {
+    fn expected_route_reads_model_provider_and_base_url_from_env() {
         let _guard = ENV_LOCK.lock().unwrap();
-        reset_llm_env();
+        reset_model_env();
         std::env::set_var("MODEL_PROVIDER", "openai");
         std::env::set_var("MODEL_BASE_URL", "http://127.0.0.1:43210");
 
@@ -180,24 +177,21 @@
         assert_eq!(route.base_url, "http://127.0.0.1:43210");
         assert_eq!(route.path, "/v1/chat/completions");
 
-        reset_llm_env();
+        reset_model_env();
     }
 
     #[test]
-    fn expected_route_prefers_llm_provider_over_model_provider() {
+    fn expected_route_uses_model_default_provider_when_primary_absent() {
         let _guard = ENV_LOCK.lock().unwrap();
-        reset_llm_env();
-        std::env::set_var("LLM_PROVIDER", "groq");
-        std::env::set_var("LLM_BASE_URL", "https://llm-proxy.example.com");
-        std::env::set_var("MODEL_PROVIDER", "openai");
-        std::env::set_var("MODEL_BASE_URL", "http://127.0.0.1:43210");
+        reset_model_env();
+        // MODEL_PROVIDER unset; MODEL_DEFAULT_PROVIDER is the fallback source.
+        std::env::set_var("MODEL_DEFAULT_PROVIDER", "openai");
 
         let route = ModelRoute::from_env();
-        assert_eq!(route.provider, "groq");
-        assert_eq!(route.base_url, "https://llm-proxy.example.com");
-        assert_eq!(route.path, "/openai/v1/chat/completions");
+        assert_eq!(route.provider, "openai");
+        assert_eq!(route.base_url, "https://api.openai.com");
 
-        reset_llm_env();
+        reset_model_env();
     }
 
     #[test]
@@ -826,5 +820,5 @@
         let body = vec![b'a'; 8 * 1024 + 128];
         let preview = model_error_body_preview(&body);
         assert!(preview.starts_with(&"a".repeat(32)));
-        assert!(preview.contains("[truncated: llm-bridge error body exceeded 8192 bytes]"));
+        assert!(preview.contains("[truncated: model-bridge error body exceeded 8192 bytes]"));
     }

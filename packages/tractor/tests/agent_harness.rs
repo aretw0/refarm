@@ -215,26 +215,28 @@ fn write_sse_http_response(stream: &mut TcpStream, body: &str) -> std::io::Resul
 }
 
 /// Clear all env vars touched by the harness to prevent cross-test leakage.
-fn clean_llm_env() {
+/// The agent guest reads the MODEL_* vocabulary (the LLM_* aliases were dropped
+/// as pre-release dead compat); these are the names the agent actually consumes.
+fn clean_model_env() {
     for var in [
-        "LLM_PROVIDER",
-        "LLM_BASE_URL",
-        "LLM_MODEL",
-        "LLM_HISTORY_TURNS",
+        "MODEL_PROVIDER",
+        "MODEL_BASE_URL",
+        "MODEL_ID",
+        "MODEL_HISTORY_TURNS",
         "MODEL_FS_ROOT",
         "MODEL_SHELL_ALLOWLIST",
-        "LLM_MAX_CONTEXT_TOKENS",
-        "LLM_FALLBACK_PROVIDER",
-        "LLM_BUDGET_OLLAMA_USD",
-        "LLM_BUDGET_ANTHROPIC_USD",
-        "LLM_BUDGET_OPENAI_USD",
-        "LLM_TOOL_CALL_MAX_ITER",
-        "LLM_TOOL_OUTPUT_MAX_LINES",
-        "LLM_STREAM_RESPONSES",
-        "LLM_SYSTEM",
-        "LLM_AGENT_ID",
-        "LLM_SESSION_ID",
-        "LLM_TASK_MEMORY",
+        "MODEL_MAX_CONTEXT_TOKENS",
+        "MODEL_FALLBACK_PROVIDER",
+        "MODEL_BUDGET_OLLAMA_USD",
+        "MODEL_BUDGET_ANTHROPIC_USD",
+        "MODEL_BUDGET_OPENAI_USD",
+        "MODEL_TOOL_CALL_MAX_ITER",
+        "MODEL_TOOL_OUTPUT_MAX_LINES",
+        "MODEL_STREAM_RESPONSES",
+        "MODEL_SYSTEM",
+        "MODEL_AGENT_ID",
+        "MODEL_SESSION_ID",
+        "MODEL_TASK_MEMORY",
         "REFACTOR_LSP_CMD",
         "REFACTOR_LSP_RUST_ANALYZER_CMD",
         "ANTHROPIC_API_KEY",
@@ -344,10 +346,10 @@ async fn harness_agent_response_stored_in_crdt() {
         "agent.wasm not found — run: cargo component build --release"
     );
 
-    clean_llm_env();
+    clean_model_env();
     let port = mock_llm_server(openai_response("Olá do harness!", 12, 6)).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -372,7 +374,7 @@ async fn harness_agent_response_stored_in_crdt() {
         "timestamp_ns must be set"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -385,10 +387,10 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
         "agent.wasm not found — run: cargo component build --release"
     );
 
-    clean_llm_env();
+    clean_model_env();
     let port = mock_llm_server(openai_response("task lifecycle ok", 14, 7)).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -437,7 +439,7 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
     );
     assert_eq!(
         task["assigned_to"], "urn:refarm:agent:runtime-agent",
-        "assigned_to must default to runtime-agent actor URN when LLM_AGENT_ID is unset"
+        "assigned_to must default to runtime-agent actor URN when MODEL_AGENT_ID is unset"
     );
 
     // ── TaskEvent nodes ───────────────────────────────────────────────────────
@@ -490,7 +492,7 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
         "model must be recorded in the closing event"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -503,11 +505,11 @@ async fn harness_task_memory_disabled_stores_no_task_nodes() {
         "agent.wasm not found — run: cargo component build --release"
     );
 
-    clean_llm_env();
+    clean_model_env();
     let port = mock_llm_server(openai_response("reply when task memory is off", 8, 4)).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
-    std::env::set_var("LLM_TASK_MEMORY", "0");
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_TASK_MEMORY", "0");
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -526,22 +528,22 @@ async fn harness_task_memory_disabled_stores_no_task_nodes() {
         .expect("query AgentResponse");
     assert!(
         !responses.is_empty(),
-        "AgentResponse must still be stored regardless of LLM_TASK_MEMORY"
+        "AgentResponse must still be stored regardless of MODEL_TASK_MEMORY"
     );
 
     let tasks = sync.query_nodes("Task").expect("query Task");
     assert!(
         tasks.is_empty(),
-        "no Task nodes must be stored when LLM_TASK_MEMORY=0"
+        "no Task nodes must be stored when MODEL_TASK_MEMORY=0"
     );
 
     let events = sync.query_nodes("TaskEvent").expect("query TaskEvent");
     assert!(
         events.is_empty(),
-        "no TaskEvent nodes must be stored when LLM_TASK_MEMORY=0"
+        "no TaskEvent nodes must be stored when MODEL_TASK_MEMORY=0"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -554,7 +556,7 @@ async fn harness_streaming_opt_in_stores_partials_and_final_response() {
         "agent.wasm not found — run: cargo component build --release"
     );
 
-    clean_llm_env();
+    clean_model_env();
     let (port, mut requests) = mock_sse_llm_server_capturing(
         r#"data: {"choices":[{"delta":{"content":"Olá "}}]}
 
@@ -567,9 +569,9 @@ data: [DONE]
 "#,
     )
     .await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
-    std::env::set_var("LLM_STREAM_RESPONSES", "1");
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_STREAM_RESPONSES", "1");
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -640,7 +642,7 @@ data: [DONE]
     assert_eq!(usage["tokens_in"], 13);
     assert_eq!(usage["tokens_out"], 5);
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -653,7 +655,7 @@ async fn harness_streaming_tool_call_round_trip_still_completes() {
         "agent.wasm not found — run: cargo component build --release"
     );
 
-    clean_llm_env();
+    clean_model_env();
     let (port, mut requests) = mock_sse_llm_server_sequence_capturing(vec![
         r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_echo","type":"function","function":{"name":"bash","arguments":"{\"argv\":[\"echo\","}}]}}]}
 
@@ -669,9 +671,9 @@ data: [DONE]
 "#,
     ])
     .await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
-    std::env::set_var("LLM_STREAM_RESPONSES", "1");
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_STREAM_RESPONSES", "1");
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -702,7 +704,7 @@ data: [DONE]
     assert_eq!(final_response["sequence"], 1);
     assert_eq!(final_response["tool_calls"][0]["name"], "bash");
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -712,10 +714,10 @@ async fn harness_usage_record_stored_with_tokens() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
+    clean_model_env();
     let port = mock_llm_server(openai_response("resposta", 20, 10)).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -737,7 +739,7 @@ async fn harness_usage_record_stored_with_tokens() {
         "local/ollama models must have zero estimated cost"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -747,8 +749,8 @@ async fn harness_context_guard_blocks_oversized_prompt() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
-    std::env::set_var("LLM_MAX_CONTEXT_TOKENS", "1");
+    clean_model_env();
+    std::env::set_var("MODEL_MAX_CONTEXT_TOKENS", "1");
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -772,11 +774,11 @@ async fn harness_context_guard_blocks_oversized_prompt() {
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
     let content = v["content"].as_str().unwrap_or("");
     assert!(
-        content.contains("LLM_MAX_CONTEXT_TOKENS"),
+        content.contains("MODEL_MAX_CONTEXT_TOKENS"),
         "blocked response must name the guard: {content}"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -786,9 +788,9 @@ async fn harness_budget_block_falls_through_to_error_without_fallback() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
-    std::env::set_var("LLM_BUDGET_OLLAMA_USD", "0.0");
-    std::env::set_var("LLM_PROVIDER", "ollama");
+    clean_model_env();
+    std::env::set_var("MODEL_BUDGET_OLLAMA_USD", "0.0");
+    std::env::set_var("MODEL_PROVIDER", "ollama");
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -816,7 +818,7 @@ async fn harness_budget_block_falls_through_to_error_without_fallback() {
         "budget block content must describe the block: {content}"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 // ── Harness expansion ─────────────────────────────────────────────────────────
@@ -828,7 +830,7 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
+    clean_model_env();
 
     // First LLM response: request a bash tool call (echo).
     // Second LLM response: final text after tool result is fed back.
@@ -856,8 +858,8 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
     let final_resp = openai_response("tool executed", 20, 6);
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -888,7 +890,7 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
         "tool name must match what LLM requested"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -902,7 +904,7 @@ async fn harness_find_references_tool_reads_lsp_locations() {
         return;
     }
 
-    clean_llm_env();
+    clean_model_env();
 
     let dir = tempfile::tempdir().unwrap();
     let source = dir.path().join("lib.rs");
@@ -940,8 +942,8 @@ async fn harness_find_references_tool_reads_lsp_locations() {
     let final_resp = openai_response("references found", 20, 6);
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
     std::env::set_var(
         "REFACTOR_LSP_CMD",
         format!("python3 {}", fake_lsp.display()),
@@ -978,7 +980,7 @@ async fn harness_find_references_tool_reads_lsp_locations() {
         "missing 1-based column: {result}"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -992,7 +994,7 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
         return;
     }
 
-    clean_llm_env();
+    clean_model_env();
 
     let dir = tempfile::tempdir().unwrap();
     let source = dir.path().join("lib.rs");
@@ -1031,8 +1033,8 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
     let final_resp = openai_response("rename applied", 20, 6);
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
     std::env::set_var(
         "REFACTOR_LSP_CMD",
         format!("python3 {}", fake_lsp.display()),
@@ -1065,7 +1067,7 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
         "rename tool result must report applied edits: {result}"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -1075,14 +1077,14 @@ async fn harness_fallback_serves_response_on_primary_failure() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
+    clean_model_env();
 
     // Primary: anthropic with no API key — fails before any HTTP call.
     // Fallback: ollama pointing to working mock.
     let port = mock_llm_server(openai_response("fallback respondeu", 10, 4)).await;
-    std::env::set_var("LLM_PROVIDER", "anthropic");
-    std::env::set_var("LLM_FALLBACK_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_PROVIDER", "anthropic");
+    std::env::set_var("MODEL_FALLBACK_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -1102,7 +1104,7 @@ async fn harness_fallback_serves_response_on_primary_failure() {
         v["content"]
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -1112,14 +1114,14 @@ async fn harness_multi_turn_history_included_in_request() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
-    std::env::set_var("LLM_PROVIDER", "ollama");
+    clean_model_env();
+    std::env::set_var("MODEL_PROVIDER", "ollama");
 
     // One mock server handles all three on_event calls and captures every request body.
     let resp = openai_response("ok", 5, 3);
     let (port, mut captured) =
         mock_llm_server_capturing(vec![resp.clone(), resp.clone(), resp]).await;
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -1133,7 +1135,7 @@ async fn harness_multi_turn_history_included_in_request() {
     let _req2 = captured.recv().await.expect("mock must receive request 2");
 
     // Turn 3: opt-in history — prior turns must appear in the outgoing request.
-    std::env::set_var("LLM_HISTORY_TURNS", "2");
+    std::env::set_var("MODEL_HISTORY_TURNS", "2");
     call_on_event_with_timeout(&mut handle, "third question", "history harness turn 3").await;
     let req3 = captured.recv().await.expect("mock must receive request 3");
 
@@ -1143,7 +1145,7 @@ async fn harness_multi_turn_history_included_in_request() {
     // With history: system + ≥1 prior turn + current = at least 3 messages.
     assert!(
         messages.len() >= 3,
-        "LLM_HISTORY_TURNS=2 must inject prior turns into request, got {} messages",
+        "MODEL_HISTORY_TURNS=2 must inject prior turns into request, got {} messages",
         messages.len()
     );
 
@@ -1158,7 +1160,7 @@ async fn harness_multi_turn_history_included_in_request() {
         "prior turn content must appear in request body: {all_content}"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -1168,7 +1170,7 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
+    clean_model_env();
 
     // Mock: LLM requests `seq 1 10` → produces 10 lines → truncated to 3.
     let tool_call_resp = serde_json::json!({
@@ -1195,9 +1197,9 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
     let final_resp = openai_response("truncation applied", 20, 6);
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
-    std::env::set_var("LLM_TOOL_OUTPUT_MAX_LINES", "3");
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_TOOL_OUTPUT_MAX_LINES", "3");
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -1220,7 +1222,7 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
     let result = tool_calls[0]["result"].as_str().unwrap_or("");
     assert!(
         result.contains("[truncated:"),
-        "tool output must contain truncation header when LLM_TOOL_OUTPUT_MAX_LINES=3, got: {result}"
+        "tool output must contain truncation header when MODEL_TOOL_OUTPUT_MAX_LINES=3, got: {result}"
     );
     // Verify only 3 lines of actual content remain after the header.
     let content_lines: Vec<&str> = result.lines().skip(1).collect();
@@ -1230,7 +1232,7 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
         "exactly 3 content lines must survive truncation, got: {content_lines:?}"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -1240,7 +1242,7 @@ async fn harness_refarm_config_json_injects_provider() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
+    clean_model_env();
 
     // Write .refarm/config.json in a temp dir; CWD change makes tractor pick it up.
     let dir = tempfile::tempdir().unwrap();
@@ -1254,8 +1256,8 @@ async fn harness_refarm_config_json_injects_provider() {
 
     // Set up mock before changing CWD (mock server uses process networking, not FS).
     let port = mock_llm_server(openai_response("config injetado", 8, 4)).await;
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
-    // Intentionally do NOT set LLM_PROVIDER — it must come from config.json.
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+    // Intentionally do NOT set MODEL_PROVIDER — it must come from config.json.
 
     let original_dir = std::env::current_dir().unwrap();
     std::env::set_current_dir(dir.path()).unwrap();
@@ -1289,7 +1291,7 @@ async fn harness_refarm_config_json_injects_provider() {
         "response content must match mock — plugin must have used ollama from config.json"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -1299,11 +1301,11 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
+    clean_model_env();
 
     let port = mock_llm_server(openai_response("namespaced response", 5, 3)).await;
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
-    std::env::set_var("LLM_AGENT_ID", "test-agent-alpha");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_AGENT_ID", "test-agent-alpha");
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -1348,7 +1350,7 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
         .expect("query AgentResponse");
     assert!(!responses.is_empty(), "AgentResponse must be stored");
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -1358,10 +1360,10 @@ async fn harness_session_entries_stored_for_each_turn() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
+    clean_model_env();
 
     let port = mock_llm_server(openai_response("turn response", 5, 3)).await;
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -1420,7 +1422,7 @@ async fn harness_session_entries_stored_for_each_turn() {
         "leaf_entry_id must advance between turns"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -1430,7 +1432,7 @@ async fn harness_write_structured_tool_creates_file() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
+    clean_model_env();
 
     let dir = tempfile::tempdir().unwrap();
     let out_file = dir.path().join("output.json");
@@ -1465,7 +1467,7 @@ async fn harness_write_structured_tool_creates_file() {
     let final_resp = openai_response("file written", 15, 5);
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
     std::env::set_var("MODEL_FS_ROOT", dir.path().to_str().unwrap());
 
     let sync = make_sync();
@@ -1490,7 +1492,7 @@ async fn harness_write_structured_tool_creates_file() {
     assert_eq!(parsed["result"], "ok");
     assert_eq!(parsed["value"], 42);
 
-    clean_llm_env();
+    clean_model_env();
     std::env::remove_var("MODEL_FS_ROOT");
 }
 
@@ -1501,7 +1503,7 @@ async fn harness_read_structured_tool_returns_paginated_header() {
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
-    clean_llm_env();
+    clean_model_env();
 
     let dir = tempfile::tempdir().unwrap();
     let json_file = dir.path().join("data.json");
@@ -1540,7 +1542,7 @@ async fn harness_read_structured_tool_returns_paginated_header() {
     let final_resp = openai_response("read structured done", 15, 5);
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
     std::env::set_var("MODEL_FS_ROOT", dir.path().to_str().unwrap());
 
     let sync = make_sync();
@@ -1571,7 +1573,7 @@ async fn harness_read_structured_tool_returns_paginated_header() {
         "tool result must contain structured-io header: {result_str}"
     );
 
-    clean_llm_env();
+    clean_model_env();
     std::env::remove_var("MODEL_FS_ROOT");
 }
 
@@ -1581,8 +1583,8 @@ async fn harness_read_structured_tool_returns_paginated_header() {
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     // Verifies cross-agent CRDT coordination:
-    //   Agent A (LLM_AGENT_ID=alpha) stores an AgentResponse.
-    //   Agent B (LLM_AGENT_ID=beta)  is then loaded with the SAME NativeSync
+    //   Agent A (MODEL_AGENT_ID=alpha) stores an AgentResponse.
+    //   Agent B (MODEL_AGENT_ID=beta)  is then loaded with the SAME NativeSync
     //   (same storage namespace). query_nodes("AgentResponse") must return A's node.
     //   This is the fundamental multi-agent coordination primitive.
     let _env = ENV_LOCK.lock().unwrap();
@@ -1590,11 +1592,11 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     assert!(path.exists(), "agent.wasm not found");
 
     // ── Agent A fires ──────────────────────────────────────────────────────────
-    clean_llm_env();
+    clean_model_env();
     let port_a = mock_llm_server(openai_response("alpha response", 10, 5)).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port_a}"));
-    std::env::set_var("LLM_AGENT_ID", "alpha");
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port_a}"));
+    std::env::set_var("MODEL_AGENT_ID", "alpha");
 
     let shared_sync = make_sync();
 
@@ -1618,11 +1620,11 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     );
 
     // ── Agent B fires ──────────────────────────────────────────────────────────
-    clean_llm_env();
+    clean_model_env();
     let port_b = mock_llm_server(openai_response("beta response", 8, 4)).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port_b}"));
-    std::env::set_var("LLM_AGENT_ID", "beta");
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port_b}"));
+    std::env::set_var("MODEL_AGENT_ID", "beta");
 
     // Agent B uses the SAME shared_sync — same storage namespace.
     let host_b = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -1650,7 +1652,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
         "both alpha and beta namespace nodes must be present: found {namespaced_count}"
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 // ── Pre-tool budget enforcement (ADR-058) ─────────────────────────────────────
@@ -1665,7 +1667,7 @@ async fn harness_pre_tool_budget_read_file_gets_default_limit() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
-    clean_llm_env();
+    clean_model_env();
 
     // Create a temp file with 400 lines.
     let mut tmp = tempfile::NamedTempFile::new().expect("tempfile");
@@ -1699,8 +1701,8 @@ async fn harness_pre_tool_budget_read_file_gets_default_limit() {
     let final_resp = openai_response("read budget enforced", 30, 7);
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -1727,7 +1729,7 @@ async fn harness_pre_tool_budget_read_file_gets_default_limit() {
         "truncation header must include the continuation offset, got: {result}",
     );
 
-    clean_llm_env();
+    clean_model_env();
 }
 
 #[tokio::test]
@@ -1739,7 +1741,7 @@ async fn harness_pre_tool_budget_model_can_override_limit() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
-    clean_llm_env();
+    clean_model_env();
 
     // Create a temp file with 50 lines (under the 300 default).
     let mut tmp = tempfile::NamedTempFile::new().expect("tempfile");
@@ -1773,8 +1775,8 @@ async fn harness_pre_tool_budget_model_can_override_limit() {
     let final_resp = openai_response("read with explicit limit", 30, 7);
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
-    std::env::set_var("LLM_PROVIDER", "ollama");
-    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -1797,5 +1799,5 @@ async fn harness_pre_tool_budget_model_can_override_limit() {
         "model-specified limit=10 must cap the result at 10 lines, got: {result}",
     );
 
-    clean_llm_env();
+    clean_model_env();
 }

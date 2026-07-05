@@ -1,4 +1,4 @@
-const MAX_LLM_RESPONSE_BODY_LEN: usize = 2 * 1024 * 1024;
+const MAX_MODEL_RESPONSE_BODY_LEN: usize = 2 * 1024 * 1024;
 
 fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
     const MAX_FORWARDED_HEADER_COUNT: usize = 64;
@@ -82,8 +82,8 @@ fn read_response_bytes(resp: ureq::Response) -> Result<Vec<u8>, String> {
     let reader = resp.into_reader();
     read_limited_bytes(
         reader,
-        MAX_LLM_RESPONSE_BODY_LEN,
-        "llm-bridge response body",
+        MAX_MODEL_RESPONSE_BODY_LEN,
+        "model-bridge response body",
     )
 }
 
