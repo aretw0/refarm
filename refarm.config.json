@@ -43,7 +43,11 @@
     ],
     "ignoredGitVisibilityPatterns": [
       "**/*.d.ts",
-      "packages/agent/src/bindings.rs"
+      "packages/agent/src/bindings.rs",
+      "packages/quality-checker-plugin/pkg-plugin/**",
+      "packages/vault-surface-ref/pkg-plugin/**",
+      "validations/sqlite-benchmark/browser/public/sqlite3-opfs-async-proxy.js",
+      "validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs"
     ],
     "title": "Refarm Monorepo Health"
   },
