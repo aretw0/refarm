@@ -407,7 +407,10 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         tracing::info!("MODEL_STREAM_RESPONSES=1 forwarded to startup plugins");
     }
 
-    let tractor = TractorNative::boot(config.clone()).await?;
+    // Arc so the HTTP sidecar can hold a handle for /plugins/reload while the
+    // daemon keeps using it (shutdown, plugin load, telemetry). Every existing
+    // `tractor.method()` still works through the Arc deref.
+    let tractor = std::sync::Arc::new(TractorNative::boot(config.clone()).await?);
 
     let load_policy = plugin_load_policy(&args);
     let ingest_policy = plugin_ingest_policy(&args);
@@ -449,6 +452,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
             args.namespace.clone(),
         ) {
             Ok(state) => {
+                let state = state.with_reload(tractor.clone());
                 let http_host = args.http_host.clone();
                 let http_port = args.http_port;
                 tokio::spawn(async move {

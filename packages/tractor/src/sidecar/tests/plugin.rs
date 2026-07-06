@@ -64,8 +64,12 @@ async fn sidecar_plugins_reload_is_an_honest_readiness_probe_not_a_reload() {
 
     assert_eq!(res.status(), 200);
     let body: serde_json::Value = res.json().await.unwrap();
-    // Honest readiness contract: alreadyLoaded (not "reloaded" — no code swapped),
-    // and an explicit reloaded:false so a client can't mistake this for a reload.
+    // Without a reload host wired (this sidecar was built for a test, no
+    // with_reload), the endpoint DEGRADES to an honest readiness probe:
+    // alreadyLoaded (not "reloaded" — no code swapped) and an explicit
+    // reloaded:false, so a client can't mistake "host not wired" for a real reload.
+    // The real path (host.reload_plugin) is covered end-to-end in
+    // tests/plugin_shutdown.rs::reload_plugin_replaces_the_running_instance.
     assert_eq!(
         body["alreadyLoaded"].as_array().unwrap(),
         &vec![serde_json::json!("@refarm/agent")]

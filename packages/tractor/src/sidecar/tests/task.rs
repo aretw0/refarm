@@ -44,18 +44,7 @@ async fn start_tasks_sidecar(namespace: &str) -> (SidecarState, u16) {
     let tmp = std::env::temp_dir().join(format!("tractor-tasks-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&tmp).unwrap();
 
-    let channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(
-        channels,
-        Arc::new(RwLock::new(HashMap::new())), // cancel_flags
-        Arc::new(RwLock::new(HashMap::new())), // in_flight_cancels
-        Arc::new(RwLock::new(None)),
-        crate::EventRouter::default(),
-        crate::TelemetryBus::new(100),
-        &tmp,
-        namespace.to_string(),
-    )
-    .unwrap();
+    let state = SidecarState::for_test(&tmp, namespace).unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();

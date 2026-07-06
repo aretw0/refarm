@@ -20,18 +20,7 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
     let tmp = std::env::temp_dir().join(format!("tractor-sidecar-test-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&tmp).unwrap();
 
-    let channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(
-        channels,
-        Arc::new(RwLock::new(HashMap::new())), // cancel_flags
-        Arc::new(RwLock::new(HashMap::new())), // in_flight_cancels
-        Arc::new(RwLock::new(None)),
-        crate::EventRouter::default(),
-        crate::TelemetryBus::new(100),
-        &tmp,
-        ":memory:".to_string(),
-    )
-    .unwrap();
+    let state = SidecarState::for_test(&tmp, ":memory:").unwrap();
 
     // bind on :0 — OS assigns a free port
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -83,18 +72,7 @@ async fn start_effort_sidecar_ns_with_watch(
         .unwrap()
         .to_owned();
 
-    let channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
-    let mut state = SidecarState::new(
-        channels,
-        Arc::new(RwLock::new(HashMap::new())), // cancel_flags
-        Arc::new(RwLock::new(HashMap::new())), // in_flight_cancels
-        Arc::new(RwLock::new(None)),
-        crate::EventRouter::default(),
-        crate::TelemetryBus::new(100),
-        &tmp,
-        namespace.clone(),
-    )
-    .unwrap();
+    let mut state = SidecarState::for_test(&tmp, &namespace).unwrap();
     state.respond_watch = respond_watch;
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

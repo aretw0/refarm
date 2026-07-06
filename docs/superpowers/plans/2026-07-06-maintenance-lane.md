@@ -61,6 +61,17 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
   fixing; noted so we stop re-flagging.
 - P2: `apps/refarm/dist` is a gitignored TS-Strict artifact — rebuild after src
   edits (§2) before anything imports from `dist`; nothing to commit.
+- P3: **`SidecarState` construction is decentralized** — 7 test call sites remount
+  the same 8 fields by hand (`SidecarState::new(Arc::new(...), …, namespace)`), so
+  every new field hurts in 7 places (the smell that surfaced when wiring reload).
+  Fix: a centralized `SidecarState::for_test(base_dir, namespace)` (or a builder)
+  that assembles the defaults once; migrate the call sites. Do it BYTE-NEUTRAL —
+  the helper must produce the exact same state the manual construction did.
+- P4: **Sidecar suite needs hardening against regression** (Arthur) — the sidecar
+  is the critical path (efforts, sessions, plugin reload, dispatch). Before/while
+  centralizing test construction (P3) and wiring real hot-reload, tighten coverage
+  so a refactor there can't silently mask a regression. Track which endpoints have
+  behavioral (not just status-code) assertions; fill the gaps.
 
 ## How to use this lane
 

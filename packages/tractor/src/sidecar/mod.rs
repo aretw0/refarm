@@ -162,6 +162,10 @@ pub struct SidecarState {
     /// (see RespondWatchConfig). The watcher reads these off the state, not env —
     /// so tests set a short timeout by overriding the field, never set_var.
     pub respond_watch: RespondWatchConfig,
+    /// The live host, for `/plugins/reload` to invoke `reload_plugin`. Injected by
+    /// the daemon via `with_reload`; None in tests that construct the sidecar
+    /// without a running host (the reload endpoint then reports it's unavailable).
+    pub reload: Option<Arc<crate::TractorNative>>,
 }
 
 /// Timeout + poll cadence (ms) for the respond watcher. Resolved from env ONCE
@@ -222,7 +226,35 @@ impl SidecarState {
             results_dir,
             namespace,
             respond_watch: RespondWatchConfig::from_env(),
+            reload: None,
         })
+    }
+
+    /// Inject the live host so `/plugins/reload` can actually reload. The daemon
+    /// calls this after boot; tests that don't need reload omit it (the endpoint
+    /// then reports reload is unavailable rather than pretending it worked).
+    pub fn with_reload(mut self, host: Arc<crate::TractorNative>) -> Self {
+        self.reload = Some(host);
+        self
+    }
+
+    /// Construct a sidecar state with empty default host-shared maps — the ONE
+    /// place tests build a `SidecarState`, so a new field is added here once
+    /// instead of in every test helper. Byte-neutral with the manual construction
+    /// it replaces: the same empty channels/cancel maps, a default router and a
+    /// 100-slot telemetry bus. No reload host (tests opt in via `with_reload`).
+    #[cfg(test)]
+    pub(crate) fn for_test(base_dir: &Path, namespace: &str) -> std::io::Result<Self> {
+        Self::new(
+            Arc::new(RwLock::new(HashMap::new())),
+            Arc::new(RwLock::new(HashMap::new())),
+            Arc::new(RwLock::new(HashMap::new())),
+            Arc::new(RwLock::new(None)),
+            crate::EventRouter::default(),
+            crate::TelemetryBus::new(100),
+            base_dir,
+            namespace.to_string(),
+        )
     }
 }
 
@@ -363,21 +395,23 @@ async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct PluginReloadRequest {
-    plugin_ids: Option<Vec<String>>,
+pub struct PluginReloadRequest {
+    pub plugin_ids: Option<Vec<String>>,
 }
 
-/// Reload READINESS probe — reports which requested plugins are currently loaded.
-/// This endpoint does NOT swap plugin code: the sidecar holds only the shared
-/// channel/router Arcs, not the plugin host. Real hot-reload is
-/// TractorNative::reload_plugin (unregister + load fresh bytes + register), which
-/// lives on the host that owns load/unregister; wiring this endpoint to call it is
-/// a follow-on that must reach the host without re-coupling the sidecar.
+/// Hot-reload the requested plugins (all loaded ones if none specified).
 ///
-/// The response is deliberately honest: `alreadyLoaded` (not `reloaded`) and
-/// `probeId` (not `reloadId`), so a client can never mistake a readiness report
-/// for an actual code swap.
-async fn post_plugins_reload(
+/// When the daemon injected a reload host (`with_reload`), each requested plugin
+/// is reloaded for real via `TractorNative::reload_plugin` — unregister the
+/// running instance(s), re-read its (possibly rebuilt) bytes (the content-
+/// addressed cache recompiles only if they changed), and re-register. A plugin
+/// that isn't loaded, or whose source path wasn't retained, lands in `skipped`.
+///
+/// Without a reload host (a sidecar constructed in a test without the live host),
+/// the endpoint degrades to an HONEST readiness probe: it reports which requested
+/// plugins are currently loaded and `reloaded: false`, so a client can never
+/// mistake "the host wasn't wired" for an actual code swap.
+pub async fn post_plugins_reload(
     State(state): State<SidecarState>,
     Json(request): Json<PluginReloadRequest>,
 ) -> impl IntoResponse {
@@ -388,25 +422,47 @@ async fn post_plugins_reload(
         ids
     };
     let requested = request.plugin_ids.unwrap_or_else(|| loaded.clone());
-    let mut already_loaded = Vec::new();
-    let mut skipped = Vec::new();
 
+    let Some(host) = state.reload.as_ref() else {
+        // No live host wired — degrade to a readiness probe (see the doc above).
+        let mut already_loaded = Vec::new();
+        let mut skipped = Vec::new();
+        for plugin_id in requested {
+            if loaded.contains(&plugin_id) {
+                already_loaded.push(plugin_id);
+            } else {
+                skipped.push(plugin_id);
+            }
+        }
+        return Json(serde_json::json!({
+            "probeId": uuid::Uuid::new_v4().to_string(),
+            "alreadyLoaded": already_loaded,
+            "skipped": skipped,
+            "reloaded": false,
+        }))
+        .into_response();
+    };
+
+    // Real hot-reload: reload_plugin returns Ok(true) when it swapped code,
+    // Ok(false) when the plugin wasn't loaded / had no retained path.
+    let mut reloaded = Vec::new();
+    let mut skipped = Vec::new();
+    let mut errors = Vec::new();
     for plugin_id in requested {
-        if loaded.contains(&plugin_id) {
-            already_loaded.push(plugin_id);
-        } else {
-            skipped.push(plugin_id);
+        match host.reload_plugin(&plugin_id).await {
+            Ok(true) => reloaded.push(plugin_id),
+            Ok(false) => skipped.push(plugin_id),
+            Err(e) => errors.push(serde_json::json!({ "pluginId": plugin_id, "error": e.to_string() })),
         }
     }
 
     Json(serde_json::json!({
-        "probeId": uuid::Uuid::new_v4().to_string(),
-        "alreadyLoaded": already_loaded,
+        "reloadId": uuid::Uuid::new_v4().to_string(),
+        "reloaded": reloaded,
         "skipped": skipped,
-        // No code was swapped — this is a readiness probe, not a reload. See the
-        // handler doc for the real hot-reload path (TractorNative::reload_plugin).
-        "reloaded": false,
+        "errors": errors,
     }))
+    .into_response()
 }
 
 mod dispatch;

@@ -263,17 +263,7 @@ async fn sidecar_effort_result_survives_state_reopen() {
 
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-    let rehydrated = SidecarState::new(
-        Arc::new(RwLock::new(HashMap::new())),
-        Arc::new(RwLock::new(HashMap::new())), // cancel_flags
-        Arc::new(RwLock::new(HashMap::new())), // in_flight_cancels
-        Arc::new(RwLock::new(None)),
-        crate::EventRouter::default(),
-        crate::TelemetryBus::new(100),
-        &tmp,
-        ":memory:".to_string(),
-    )
-    .unwrap();
+    let rehydrated = SidecarState::for_test(&tmp, ":memory:").unwrap();
     let store = rehydrated.efforts.read().expect("effort store poisoned");
     let result = store.get(&id).expect("persisted effort must be rehydrated");
 
