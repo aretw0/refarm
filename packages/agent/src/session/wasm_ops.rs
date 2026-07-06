@@ -3,8 +3,6 @@ use crate::refarm::plugin::tractor_bridge;
 
 use super::{history_from_nodes, session_entry_node, session_node, sum_provider_spend_usd};
 
-const LEGACY_SESSION_PREFIX: &str = "urn:pi-agent:session-";
-const LEGACY_ENTRY_PREFIX: &str = "urn:pi-agent:entry-";
 const SESSION_PREFIX_V1: &str = "urn:refarm:session:v1:";
 const ENTRY_PREFIX_V1: &str = "urn:refarm:session-entry:v1:";
 
@@ -12,19 +10,11 @@ fn new_session_id() -> String {
     format!("{SESSION_PREFIX_V1}{}", crate::new_id())
 }
 
-fn new_entry_id_for_session(session_id: &str) -> String {
-    // Transitional compatibility: if caller explicitly points to a legacy session,
-    // keep entry IDs in the same namespace to avoid mixed chains.
-    if session_id.starts_with(LEGACY_SESSION_PREFIX) {
-        return format!("{LEGACY_ENTRY_PREFIX}{}", crate::new_id());
-    }
+fn new_entry_id_for_session(_session_id: &str) -> String {
     format!("{ENTRY_PREFIX_V1}{}", crate::new_id())
 }
 
-fn new_fork_session_id(parent_session_id: &str) -> String {
-    if parent_session_id.starts_with(LEGACY_SESSION_PREFIX) {
-        return format!("{LEGACY_SESSION_PREFIX}{}", crate::new_id());
-    }
+fn new_fork_session_id(_parent_session_id: &str) -> String {
     new_session_id()
 }
 

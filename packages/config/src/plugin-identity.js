@@ -16,8 +16,6 @@ export const REFARM_BUNDLED_PLUGIN_DESCRIPTORS = [
 export const RUNTIME_AGENT_ERROR_PREFIXES = [
 	"[runtime-agent error]",
 	"[runtime-agent stub]",
-	"[pi-agent erro]",
-	"[pi-agent stub]",
 	"[budget]",
 ];
 
@@ -48,12 +46,11 @@ export function isRuntimeAgentErrorContent(content) {
 	);
 }
 
+// Content already uses the canonical `[runtime-agent …]` labels; the legacy
+// `[pi-agent …]` translation was dropped with the pi-agent generation (fresh
+// store, no pre-rename sessions to normalize). Kept as an identity passthrough so
+// callers (sessions.ts) need no change, and as the seam if a future canonicaliser
+// is needed.
 export function canonicalRuntimeAgentContent(content) {
-	if (content.startsWith("[pi-agent erro]")) {
-		return `[runtime-agent error]${content.slice("[pi-agent erro]".length)}`;
-	}
-	if (content.startsWith("[pi-agent stub]")) {
-		return `[runtime-agent stub]${content.slice("[pi-agent stub]".length)}`;
-	}
 	return content;
 }

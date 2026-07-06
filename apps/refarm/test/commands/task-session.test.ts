@@ -237,7 +237,7 @@ describe("FileTaskSessionRecorder", () => {
 					effortId: "effort-legacy",
 					status: "ok",
 					result: JSON.stringify({
-						content: "[pi-agent erro] quota exceeded",
+						content: "[runtime-agent error] quota exceeded",
 					}),
 					completedAt: new Date().toISOString(),
 				},

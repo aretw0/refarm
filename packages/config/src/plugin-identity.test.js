@@ -60,21 +60,16 @@ describe("plugin identity", () => {
 		]);
 	});
 
-	it("detects runtime agent error-like content, including legacy prefixes", () => {
+	it("detects runtime agent error-like content", () => {
 		expect(isRuntimeAgentErrorContent("[runtime-agent error] quota")).toBe(true);
 		expect(isRuntimeAgentErrorContent("[runtime-agent stub] no model")).toBe(true);
 		expect(isRuntimeAgentErrorContent("[budget] limit reached")).toBe(true);
-		expect(isRuntimeAgentErrorContent("[pi-agent erro] quota")).toBe(true);
 		expect(isRuntimeAgentErrorContent("normal response")).toBe(false);
 	});
 
-	it("canonicalizes legacy runtime agent content prefixes for display", () => {
-		expect(canonicalRuntimeAgentContent("[pi-agent erro] quota")).toBe(
-			"[runtime-agent error] quota",
-		);
-		expect(canonicalRuntimeAgentContent("[pi-agent stub] no model")).toBe(
-			"[runtime-agent stub] no model",
-		);
+	it("passes runtime-agent content through unchanged (legacy pi-agent translation dropped)", () => {
+		// The pi-agent generation is gone (fresh store), so there is no legacy label
+		// to canonicalize — content already uses the runtime-agent labels.
 		expect(canonicalRuntimeAgentContent("[runtime-agent error] quota")).toBe(
 			"[runtime-agent error] quota",
 		);

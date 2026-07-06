@@ -20,8 +20,6 @@ pub(super) fn status_from_content(content: &str) -> &'static str {
         "blocked"
     } else if content.starts_with("[runtime-agent error]")
         || content.starts_with("[runtime-agent stub]")
-        || content.starts_with("[pi-agent erro]")
-        || content.starts_with("[pi-agent stub]")
     {
         "failed"
     } else {
@@ -103,18 +101,8 @@ mod tests {
     }
 
     #[test]
-    fn status_legacy_error_prefix_is_failed() {
-        assert_eq!(status_from_content("[pi-agent erro] something"), "failed");
-    }
-
-    #[test]
     fn status_runtime_agent_stub_prefix_is_failed() {
         assert_eq!(status_from_content("[runtime-agent stub] noop"), "failed");
-    }
-
-    #[test]
-    fn status_legacy_stub_prefix_is_failed() {
-        assert_eq!(status_from_content("[pi-agent stub] noop"), "failed");
     }
 
     #[test]
