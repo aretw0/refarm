@@ -659,6 +659,24 @@ struct ProviderLivenessQuery {
 /// check should be quick; a slow endpoint is treated as unreachable.
 const PROVIDER_LIVENESS_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(2000);
 
+// ── provider reachability reason vocabulary ───────────────────────────────────
+//
+// Mirrors `ProviderProbeReason` in apps/refarm's model-provider-doctor.ts. The
+// TS consumer deserializes these strings verbatim, so these constants are the
+// single Rust source of truth — do not write reason literals inline (same rule as
+// EFFORT_* above).
+//
+//   reachable    — the endpoint answered (any HTTP status that is not a transport
+//                  error proves the route is up)
+//   auth-failed  — endpoint up but rejected the unauthenticated GET (401/403)
+//   unreachable  — transport error (DNS/connect/timeout): the route did not answer
+//
+// `no-endpoint-source` (the fourth ProviderProbeReason member) is resolved
+// TS-side and never emitted here — this handler only runs once a base URL exists.
+const PROBE_REACHABLE: &str = "reachable";
+const PROBE_AUTH_FAILED: &str = "auth-failed";
+const PROBE_UNREACHABLE: &str = "unreachable";
+
 /// Read-only provider reachability probe. TS calls this for providers whose base
 /// URL only the Rust host knows (the canonical provider→URL map lives here, not
 /// in TS). UNAUTHENTICATED by design ("só rotas não segredos"): it checks the
@@ -686,15 +704,15 @@ async fn get_provider_liveness(
             .call()
         {
             // Any 2xx/3xx/other non-error status: the endpoint answered → up.
-            Ok(resp) => (true, Some(resp.status()), "reachable"),
+            Ok(resp) => (true, Some(resp.status()), PROBE_REACHABLE),
             // 401/403: endpoint is up, it just rejected the unauthenticated GET.
             Err(ureq::Error::Status(401 | 403, resp)) => {
-                (true, Some(resp.status()), "auth-failed")
+                (true, Some(resp.status()), PROBE_AUTH_FAILED)
             }
             // Any other HTTP status still proves the endpoint answered → reachable.
-            Err(ureq::Error::Status(code, _)) => (true, Some(code), "reachable"),
+            Err(ureq::Error::Status(code, _)) => (true, Some(code), PROBE_REACHABLE),
             // Transport error (DNS, connect, timeout) → the route did not answer.
-            Err(ureq::Error::Transport(_)) => (false, None, "unreachable"),
+            Err(ureq::Error::Transport(_)) => (false, None, PROBE_UNREACHABLE),
         }
     })
     .await;
@@ -703,7 +721,7 @@ async fn get_provider_liveness(
         Ok(o) => o,
         // The blocking task itself failed (panic/cancel) — report unreachable
         // rather than inventing a verdict.
-        Err(_) => (false, None, "unreachable"),
+        Err(_) => (false, None, PROBE_UNREACHABLE),
     };
 
     Json(serde_json::json!({
