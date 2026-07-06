@@ -262,7 +262,7 @@ export {
 	if (!state) return true;
 
 	// Primary check: sidecar exposes the active agent by capability.
-	if (typeof state.activeAgent === "string" && state.activeAgent.length > 0)
+	if (typeof state.defaultResponder === "string" && state.defaultResponder.length > 0)
 		return true;
 
 	// Recovery: if a known agent plugin is installed, attempt reload.
@@ -274,8 +274,8 @@ export {
 		if (reload?.reloaded.length) return true;
 		const refreshed = await readPluginState();
 		if (
-			typeof refreshed?.activeAgent === "string" &&
-			refreshed.activeAgent.length > 0
+			typeof refreshed?.defaultResponder === "string" &&
+			refreshed.defaultResponder.length > 0
 		)
 			return true;
 		if (json && reload?.skipped.length) {

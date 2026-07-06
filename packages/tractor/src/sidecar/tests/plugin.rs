@@ -6,11 +6,11 @@ use super::*;
 
 #[test]
 fn sidecar_plugins_response_includes_active_agent_field() {
-    // The /plugins response must include activeAgent so the CLI can detect
+    // The /plugins response must include defaultResponder so the CLI can detect
     // the active agent by capability rather than by name.
     // Verified end-to-end in sidecar_active_agent_is_exposed_in_plugins_response.
-    let json = serde_json::json!({ "activeAgent": serde_json::Value::Null });
-    assert!(json.get("activeAgent").is_some());
+    let json = serde_json::json!({ "defaultResponder": serde_json::Value::Null });
+    assert!(json.get("defaultResponder").is_some());
 }
 
 #[tokio::test]

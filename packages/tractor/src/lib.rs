@@ -493,7 +493,7 @@ pub struct TractorNative {
     /// InFlightCancels). Populated by the runner threads as they run each prompt.
     pub in_flight_cancels: InFlightCancels,
     /// ID of the first loaded plugin that declared `"agent:respond"` capability.
-    /// The sidecar exposes this as `activeAgent` in the /plugins response so the
+    /// The sidecar exposes this as `defaultResponder` in the /plugins response so the
     /// CLI can select the active agent without hardcoding any plugin name.
     pub default_responder_id: Arc<RwLock<Option<String>>>,
     /// The neutral event router: event name -> subscribed plugin_ids. Layered over

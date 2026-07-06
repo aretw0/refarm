@@ -20,7 +20,7 @@ describe("runtime plugin client", () => {
 					loaded: ["agent"],
 					local: [false, "@local/tool"],
 					known: ["@local/tool", "@refarm/agent"],
-					activeAgent: "agent",
+					defaultResponder: "agent",
 				}),
 			}),
 		);
@@ -30,7 +30,7 @@ describe("runtime plugin client", () => {
 			loaded: ["@refarm/agent"],
 			local: ["@local/tool"],
 			known: ["@local/tool", "@refarm/agent"],
-			activeAgent: "@refarm/agent",
+			defaultResponder: "@refarm/agent",
 		});
 	});
 

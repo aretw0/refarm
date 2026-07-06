@@ -357,7 +357,7 @@ async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
         "loaded": loaded,
         "local": [],
         "known": loaded,
-        "activeAgent": default_responder,
+        "defaultResponder": default_responder,
     }))
 }
 

@@ -167,7 +167,7 @@ function buildRuntimePluginStatusReport(
 		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
 	const runtimeAgentInstalled = state.installed.some(isRuntimeAgentPluginId);
 	const runtimeAgentLoaded =
-		typeof state.activeAgent === "string" && state.activeAgent.length > 0;
+		typeof state.defaultResponder === "string" && state.defaultResponder.length > 0;
 	const nextCommands = runtimeAgentLoaded
 		? []
 		: [
