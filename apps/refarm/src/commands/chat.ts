@@ -72,7 +72,7 @@ import {
 	printSidecarUnavailable,
 } from "./sidecar-error.js";
 import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
-import { sidecarUrl } from "./sidecar-url.js";
+import { resolveSidecarUrl, sidecarUrl } from "./sidecar-url.js";
 export {
 	loadChatHistory,
 	rememberChatHistoryLine,
@@ -347,7 +347,9 @@ export {
 	deps: ChatDeps,
 	): Promise<void> {
 	const providers = [
-		new SessionDigestContextProvider(),
+		// Resolved sidecar URL (env → .refarm config → default), not the provider's
+		// hardcoded 42001 which ignored REFARM_SIDECAR_URL and the config file.
+		new SessionDigestContextProvider({ sidecarUrl: resolveSidecarUrl() }),
 		new CwdContextProvider(),
 		new PolicyFilesContextProvider(),
 		new OperatorStateProvider(),

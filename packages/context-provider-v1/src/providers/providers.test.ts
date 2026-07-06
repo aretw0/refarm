@@ -12,6 +12,7 @@ import { GitStatusContextProvider } from "./git-status.js";
 import { OperatorStateProvider } from "./operator-state.js";
 import { PolicyFilesContextProvider } from "./policy-files.js";
 import { SessionContextFoldProvider } from "./session-context-fold.js";
+import { SessionDigestContextProvider } from "./session-digest.js";
 
 let tempDir = "";
 
@@ -343,5 +344,29 @@ describe("FilesContextProvider", () => {
 		const provider = new FilesContextProvider(["missing.txt"]);
 		const entries = await provider.provide({ cwd: tempDir });
 		expect(entries).toEqual([]);
+	});
+});
+
+describe("SessionDigestContextProvider", () => {
+	const originalFetch = globalThis.fetch;
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	it("fetches efforts from the injected sidecar URL, not the hardcoded default", async () => {
+		// The app injects the resolved sidecar URL (env → config → default). The
+		// provider must honor it instead of falling back to 127.0.0.1:42001.
+		let requestedUrl = "";
+		globalThis.fetch = (async (input: RequestInfo | URL) => {
+			requestedUrl = String(input);
+			return new Response(JSON.stringify([]), { status: 200 });
+		}) as typeof fetch;
+
+		const provider = new SessionDigestContextProvider({
+			sidecarUrl: "http://127.0.0.1:59999",
+		});
+		await provider.provide({ cwd: tempDir });
+
+		expect(requestedUrl).toBe("http://127.0.0.1:59999/efforts");
 	});
 });

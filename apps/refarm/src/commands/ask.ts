@@ -71,7 +71,7 @@ import {
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
-import { sidecarUrl } from "./sidecar-url.js";
+import { resolveSidecarUrl, sidecarUrl } from "./sidecar-url.js";
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand([
 	"sessions",
@@ -167,7 +167,10 @@ export {
 	files: string[];
 	}): Promise<string> {
 	const providers: ContextProvider[] = [
-		new SessionDigestContextProvider(),
+		// Feed the resolved sidecar URL (env REFARM_SIDECAR_URL → .refarm config →
+		// default) instead of letting the provider fall to its hardcoded 42001,
+		// which ignored the env override and the config file entirely.
+		new SessionDigestContextProvider({ sidecarUrl: resolveSidecarUrl() }),
 		new CwdContextProvider(),
 		new PolicyFilesContextProvider(),
 		new OperatorStateProvider(),
