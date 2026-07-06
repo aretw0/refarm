@@ -25,6 +25,15 @@ use tractor::{NativeStorage, NativeSync, TelemetryBus};
 /// Serializes env var mutations across all harness tests.
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
+/// Acquire the env serializer, ignoring poison. The lock guards a `()` — it
+/// orders env-var access, it does not protect an invariant, so a prior test that
+/// panicked while holding it left NOTHING inconsistent. Recovering the guard
+/// (instead of `.unwrap()`) stops one genuine failure from cascading into a wall
+/// of false `PoisonError`s across every later test, which masks the real cause.
+fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+    ENV_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 static WASM_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 /// Resolve agent.wasm location at runtime so CARGO_TARGET_DIR redirects work.
@@ -339,7 +348,7 @@ while True:
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_agent_response_stored_in_crdt() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(
         path.exists(),
@@ -380,7 +389,7 @@ async fn harness_agent_response_stored_in_crdt() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(
         path.exists(),
@@ -498,7 +507,7 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_task_memory_disabled_stores_no_task_nodes() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(
         path.exists(),
@@ -549,7 +558,7 @@ async fn harness_task_memory_disabled_stores_no_task_nodes() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_streaming_opt_in_stores_partials_and_final_response() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(
         path.exists(),
@@ -648,7 +657,7 @@ data: [DONE]
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_streaming_tool_call_round_trip_still_completes() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(
         path.exists(),
@@ -710,7 +719,7 @@ data: [DONE]
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_usage_record_stored_with_tokens() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -745,7 +754,7 @@ async fn harness_usage_record_stored_with_tokens() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_context_guard_blocks_oversized_prompt() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -784,7 +793,7 @@ async fn harness_context_guard_blocks_oversized_prompt() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_budget_block_falls_through_to_error_without_fallback() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -826,7 +835,7 @@ async fn harness_budget_block_falls_through_to_error_without_fallback() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_tool_use_dispatched_and_result_fed_back() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -896,7 +905,7 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_find_references_tool_reads_lsp_locations() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
     if !python3_is_available_for_harness() {
@@ -986,7 +995,7 @@ async fn harness_find_references_tool_reads_lsp_locations() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
     if !python3_is_available_for_harness() {
@@ -1073,7 +1082,7 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_fallback_serves_response_on_primary_failure() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -1110,7 +1119,7 @@ async fn harness_fallback_serves_response_on_primary_failure() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_multi_turn_history_included_in_request() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -1166,7 +1175,7 @@ async fn harness_multi_turn_history_included_in_request() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_tool_output_truncated_when_max_lines_set() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -1238,7 +1247,7 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_refarm_config_json_injects_provider() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -1297,7 +1306,7 @@ async fn harness_refarm_config_json_injects_provider() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_agent_id_namespaces_crdt_nodes() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -1360,7 +1369,7 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_session_entries_stored_for_each_turn() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -1432,7 +1441,7 @@ async fn harness_session_entries_stored_for_each_turn() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_write_structured_tool_creates_file() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -1503,7 +1512,7 @@ async fn harness_write_structured_tool_creates_file() {
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_read_structured_tool_returns_paginated_header() {
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -1591,7 +1600,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     //   Agent B (MODEL_AGENT_ID=beta)  is then loaded with the SAME NativeSync
     //   (same storage namespace). query_nodes("AgentResponse") must return A's node.
     //   This is the fundamental multi-agent coordination primitive.
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
 
@@ -1668,7 +1677,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
 async fn harness_pre_tool_budget_read_file_gets_default_limit() {
     use std::io::Write as _;
 
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
     clean_model_env();
@@ -1742,7 +1751,7 @@ async fn harness_pre_tool_budget_read_file_gets_default_limit() {
 async fn harness_pre_tool_budget_model_can_override_limit() {
     use std::io::Write as _;
 
-    let _env = ENV_LOCK.lock().unwrap();
+    let _env = env_lock();
     let path = wasm_path();
     assert!(path.exists(), "agent.wasm not found");
     clean_model_env();
