@@ -178,7 +178,12 @@ pub struct PluginHost {
     telemetry: TelemetryBus,
     engine: Arc<Engine>,
     /// Linker for regular integration plugins (tractor-bridge, host-fs, host-shell host primitives).
+    /// Includes wasi:http — used for a plugin that was GRANTED network:outbound.
     linker: Arc<Linker<TractorStore>>,
+    /// Same as `linker` but WITHOUT wasi:http. A plugin that did not declare
+    /// network:outbound (under Strict) is instantiated against this, so importing
+    /// wasi:http fails to link — the first real per-plugin WASI enforcement.
+    linker_no_http: Arc<Linker<TractorStore>>,
     /// Linker for host-effects.wasm (WASI + host-spawn; no tractor-bridge).
     host_effects_linker: Arc<Linker<TractorStore>>,
     /// Sync engine for P1 plain modules — no async support, no component model.

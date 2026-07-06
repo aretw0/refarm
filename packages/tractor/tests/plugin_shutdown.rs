@@ -12,6 +12,35 @@ fn memory_config_with_plugins() -> TractorNativeConfig {
 }
 
 #[tokio::test]
+async fn strict_load_without_network_grant_uses_the_http_less_linker_and_still_loads() {
+    // A plugin that did NOT declare network:outbound, loaded under Strict, is
+    // instantiated against linker_no_http (wasi:http omitted). A plugin that does
+    // not IMPORT wasi:http (null-plugin) must still load fine there — proving the
+    // per-plugin http gating does not regress the common case. (End-to-end
+    // enforcement — a plugin that imports wasi:http failing to link without the
+    // grant — needs a wasi:http-importing fixture; tracked as a follow-on.)
+    let tractor = TractorNative::boot(TractorNativeConfig {
+        security_mode: SecurityMode::Strict,
+        ..memory_config_with_plugins()
+    })
+    .await
+    .expect("boot must succeed");
+
+    let handle = tractor
+        .load_plugin(Path::new("tests/fixtures/null-plugin.wasm"))
+        .await
+        .expect("a non-http plugin must load against the http-less linker under Strict");
+    tractor.register_for_events(handle);
+    assert_eq!(
+        tractor.plugin_channels.read().unwrap().len(),
+        1,
+        "the plugin loaded and registered under Strict without a network grant"
+    );
+
+    tractor.shutdown().await.expect("shutdown must succeed");
+}
+
+#[tokio::test]
 async fn shutdown_drains_plugin_channels_after_registration() {
     let tractor = TractorNative::boot(memory_config_with_plugins())
         .await

@@ -102,8 +102,11 @@ impl PermissionGrant {
     }
 
     /// Decide whether `capability` is granted. Only `Strict` enforces the
-    /// manifest declaration; dev modes grant regardless.
-    fn grants(&self, capability: &str) -> bool {
+    /// manifest declaration; dev modes grant regardless. Consulted both by
+    /// request_permission (guest-cooperative advisory) and, for interfaces the
+    /// host can gate at the Linker, by the load path to pick a capability-scoped
+    /// linker — turning the advisory into a real enforcement boundary.
+    pub(crate) fn grants(&self, capability: &str) -> bool {
         match self.security_mode {
             crate::trust::SecurityMode::Strict => self.declared.contains(capability),
             crate::trust::SecurityMode::Permissive | crate::trust::SecurityMode::None => true,

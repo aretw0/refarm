@@ -552,6 +552,15 @@ impl PluginHost {
         let engine = Arc::new(Engine::new(&config)?);
 
         // ── Regular plugin linker ──────────────────────────────────────────
+        // Two variants, differing ONLY in wasi:http: a plugin GRANTED
+        // network:outbound instantiates against `linker` (http linked); one that
+        // did not declare it (under Strict) instantiates against `linker_no_http`,
+        // so a wasi:http import fails to resolve at instantiate time — the grant
+        // becomes a real WASI enforcement boundary, not just an advisory bool.
+        let mut linker_no_http: Linker<TractorStore> = Linker::new(&engine);
+        wasmtime_wasi::add_to_linker_async(&mut linker_no_http)?;
+        RefarmPluginHost::add_to_linker(&mut linker_no_http, |s| &mut s.bindings)?;
+
         let mut linker: Linker<TractorStore> = Linker::new(&engine);
         wasmtime_wasi::add_to_linker_async(&mut linker)?;
         wasmtime_wasi_http::add_only_http_to_linker_async(&mut linker)?;
@@ -593,6 +602,7 @@ impl PluginHost {
             telemetry,
             engine,
             linker: Arc::new(linker),
+            linker_no_http: Arc::new(linker_no_http),
             host_effects_linker: Arc::new(host_effects_linker),
             module_engine,
             module_linker: Arc::new(module_linker),
@@ -720,6 +730,10 @@ impl PluginHost {
             declared_permissions,
             self.trust.security_mode().clone(),
         );
+        // Pick the linker BEFORE the grant moves into bindings: a plugin granted
+        // network:outbound gets wasi:http; one that wasn't (Strict + undeclared)
+        // gets the http-less linker, so a wasi:http import fails to resolve.
+        let grant_network = permission_grant.grants("network:outbound");
         let bindings = TractorNativeBindings::new(
             &plugin_id,
             sync.clone(),
@@ -739,8 +753,13 @@ impl PluginHost {
             TractorStore { wasi, http, bindings, table, epoch_guard: EpochGuard::new() },
         );
 
+        let linker = if grant_network {
+            &self.linker
+        } else {
+            &self.linker_no_http
+        };
         let plugin =
-            RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
+            RefarmPluginHost::instantiate_async(&mut store, &component, linker).await?;
 
         let (provides, subscribes, concurrent_safe) = if let Some(manifest) = manifest.as_ref() {
             let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
