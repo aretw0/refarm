@@ -10,3 +10,7 @@ pub mod wasi_variant;
 pub use instance::{PluginInstanceHandle, DEFAULT_ON_EVENT_BUDGET_MS};
 pub use plugin_host::{HostEffectsHandle, PluginHost};
 pub use wasi_variant::{probe_file, WasiVariant};
+
+// The single seam onto the canonical provider→base-URL resolution, for the
+// sidecar's read-only provider-liveness probe. Keeps the raw resolver private.
+pub(crate) use wasi_bridge::provider_base_url_for_liveness;

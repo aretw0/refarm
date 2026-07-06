@@ -25,6 +25,16 @@ pub(crate) struct ModelRoute {
     path: String,
 }
 
+/// Resolve the base URL a liveness probe should ping for `provider`, reusing the
+/// SAME canonical resolution the completion path uses (`ModelRoute::for_provider`
+/// — known-provider map, anthropic/openai families, MODEL_BASE_URL override, and
+/// the localhost floor). This is the sidecar's single seam onto the provider→URL
+/// map; the raw `known_provider_base_url` stays private so there is one source of
+/// truth for "where is my provider" across completion and liveness.
+pub(crate) fn provider_base_url_for_liveness(provider: &str) -> String {
+    ModelRoute::for_provider(provider.trim().to_ascii_lowercase()).base_url
+}
+
 /// Host-side implementation of the `tractor-bridge` WIT interface.
 ///
 /// Holds references to NativeSync (storage) and TelemetryBus so plugin

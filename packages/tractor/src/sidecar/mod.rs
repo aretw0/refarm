@@ -648,6 +648,74 @@ async fn get_sessions(State(state): State<SidecarState>) -> impl IntoResponse {
     Json(serde_json::json!({ "sessions": sessions })).into_response()
 }
 
+// ── provider liveness handler ─────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct ProviderLivenessQuery {
+    provider: Option<String>,
+}
+
+/// How long to wait for a provider to answer a reachability probe. A liveness
+/// check should be quick; a slow endpoint is treated as unreachable.
+const PROVIDER_LIVENESS_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(2000);
+
+/// Read-only provider reachability probe. TS calls this for providers whose base
+/// URL only the Rust host knows (the canonical provider→URL map lives here, not
+/// in TS). UNAUTHENTICATED by design ("só rotas não segredos"): it checks the
+/// route, never sends a key. A 401/403 still proves the endpoint is up, so it maps
+/// to `auth-failed` rather than `unreachable`. The `reason` vocabulary matches the
+/// TS providerProbe (reachable | unreachable | auth-failed | no-endpoint-source).
+async fn get_provider_liveness(
+    Query(q): Query<ProviderLivenessQuery>,
+) -> impl IntoResponse {
+    let Some(provider) = q.provider.map(|p| p.trim().to_string()).filter(|p| !p.is_empty())
+    else {
+        return err(StatusCode::BAD_REQUEST, "provider query parameter is required").into_response();
+    };
+
+    let base_url = crate::host::provider_base_url_for_liveness(&provider);
+
+    // The probe is a blocking ureq GET; run it off the async runtime so the
+    // sidecar stays responsive. ureq is already the host's HTTP client (the model
+    // completion path uses it), so no new dependency weight — reqwest stays
+    // test-only per the §7 RAM budget.
+    let probe_url = base_url.clone();
+    let outcome = tokio::task::spawn_blocking(move || {
+        match ureq::get(&probe_url)
+            .timeout(PROVIDER_LIVENESS_TIMEOUT)
+            .call()
+        {
+            // Any 2xx/3xx/other non-error status: the endpoint answered → up.
+            Ok(resp) => (true, Some(resp.status()), "reachable"),
+            // 401/403: endpoint is up, it just rejected the unauthenticated GET.
+            Err(ureq::Error::Status(401 | 403, resp)) => {
+                (true, Some(resp.status()), "auth-failed")
+            }
+            // Any other HTTP status still proves the endpoint answered → reachable.
+            Err(ureq::Error::Status(code, _)) => (true, Some(code), "reachable"),
+            // Transport error (DNS, connect, timeout) → the route did not answer.
+            Err(ureq::Error::Transport(_)) => (false, None, "unreachable"),
+        }
+    })
+    .await;
+
+    let (reachable, status, reason) = match outcome {
+        Ok(o) => o,
+        // The blocking task itself failed (panic/cancel) — report unreachable
+        // rather than inventing a verdict.
+        Err(_) => (false, None, "unreachable"),
+    };
+
+    Json(serde_json::json!({
+        "provider": provider,
+        "baseUrl": base_url,
+        "reachable": reachable,
+        "status": status,
+        "reason": reason,
+    }))
+    .into_response()
+}
+
 // ── session create handler ────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
@@ -1048,6 +1116,7 @@ pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Resu
         .route("/tasks/:id", get(get_task))
         .route("/plugins", get(get_plugins))
         .route("/plugins/reload", post(post_plugins_reload))
+        .route("/providers/liveness", get(get_provider_liveness))
         .with_state(state);
 
     let bind_addr = format!("{host}:{port}");

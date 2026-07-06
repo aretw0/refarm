@@ -556,8 +556,10 @@ describe("modelCommand", () => {
 		}
 	});
 
-	it("reports no-endpoint-source for a keyed provider with a key but no TS-resolvable base URL", async () => {
-		const fetchMock = vi.fn();
+	it("keeps no-endpoint-source when the runtime sidecar is unreachable", async () => {
+		// keyed provider, key present, no TS base URL → ask the runtime; if the
+		// sidecar is down (fetch throws) TS must NOT invent reachability.
+		const fetchMock = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
 		const previousKey = process.env.OPENAI_API_KEY;
 		process.env.OPENAI_API_KEY = "sk-test-key";
 		try {
@@ -566,15 +568,51 @@ describe("modelCommand", () => {
 				{ fetch: fetchMock as unknown as typeof fetch, isContainer: () => false },
 			);
 
-			// TS has no base URL for openai (the Rust runtime owns that map) → honest
-			// no-endpoint-source, and it must NOT ping a URL it cannot resolve.
 			expect(status.providerProbe).toMatchObject({
 				provider: "openai",
 				ready: null,
 				reason: "no-endpoint-source",
 				skipped: true,
 			});
-			expect(fetchMock).not.toHaveBeenCalled();
+			// It DID try the runtime (the sidecar owns openai's base URL).
+			expect(fetchMock).toHaveBeenCalledOnce();
+		} finally {
+			if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+			else process.env.OPENAI_API_KEY = previousKey;
+		}
+	});
+
+	it("adopts the runtime's reachability verdict for a provider whose URL only Rust knows", async () => {
+		// The sidecar resolves openai's base URL and reports it reachable; that
+		// verdict flows into providerProbe with the same reason vocabulary.
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					provider: "openai",
+					baseUrl: "https://api.openai.com",
+					reachable: true,
+					status: 200,
+					reason: "reachable",
+				}),
+				{ status: 200 },
+			),
+		);
+		const previousKey = process.env.OPENAI_API_KEY;
+		process.env.OPENAI_API_KEY = "sk-test-key";
+		try {
+			const status = await buildModelDoctorStatus(
+				{ modelProvider: "openai", modelId: "gpt-5.5" },
+				{ fetch: fetchMock as unknown as typeof fetch, isContainer: () => false },
+			);
+
+			expect(status.providerProbe).toMatchObject({
+				provider: "openai",
+				baseUrl: "https://api.openai.com",
+				ready: true,
+				reason: "reachable",
+				status: 200,
+			});
+			expect(fetchMock).toHaveBeenCalledOnce();
 		} finally {
 			if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
 			else process.env.OPENAI_API_KEY = previousKey;

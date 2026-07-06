@@ -189,3 +189,5 @@ mod session;
 mod task;
 #[path = "tests/plugin.rs"]
 mod plugin;
+#[path = "tests/provider_liveness.rs"]
+mod provider_liveness;

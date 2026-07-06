@@ -73,8 +73,10 @@ dirs      = "5"
 uuid      = { version = "1", features = ["v4"] }
 ureq      = "2"
 
-# CLI argument parsing (daemon)
-clap = { version = "4", features = ["derive"] }
+# CLI argument parsing (daemon). `env` powers `#[arg(env = "REFARM_NAMESPACE")]`
+# on the namespace flags (added when config became a graph node); without it the
+# daemon binary does not compile.
+clap = { version = "4", features = ["derive", "env"] }
 hex  = "0.4"
 
 # ─── Dev dependencies ─────────────────────────────────────────────────────────

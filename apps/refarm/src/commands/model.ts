@@ -22,6 +22,8 @@ import {
 	type ProviderProbeReason,
 	providerDoctorProfile,
 } from "./model-provider-doctor.js";
+import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
+import { sidecarUrl } from "./sidecar-url.js";
 export {
 	buildInvalidScopeEnvelope,
 	buildResetScopedModelEnvelope,
@@ -490,6 +492,57 @@ async function probeOllamaProvider(
 }
 
 /**
+ * Ask the tractor runtime to probe a provider whose base URL only IT knows (the
+ * canonical provider→URL map lives in the Rust host, not TS). The runtime returns
+ * the SAME reason vocabulary this file uses, so its verdict maps 1:1 into the
+ * providerProbe shape. If the sidecar itself is unreachable, keep
+ * `no-endpoint-source` — never invent a reachability answer TS cannot back.
+ */
+async function probeProviderViaRuntime(
+	provider: string | undefined,
+	deps: Pick<ModelCommandDeps, "fetch">,
+): Promise<ModelDoctorStatus["providerProbe"]> {
+	const noEndpointSource: ModelDoctorStatus["providerProbe"] = {
+		provider,
+		baseUrl: undefined,
+		url: undefined,
+		ready: null,
+		reason: "no-endpoint-source",
+		skipped: true,
+	};
+	if (!provider) return noEndpointSource;
+	const url = sidecarUrl(
+		`/providers/liveness?provider=${encodeURIComponent(provider)}`,
+	);
+	try {
+		const response = await fetchSidecarWithTimeout(
+			url,
+			{},
+			{ timeoutMs: MODEL_PROVIDER_PROBE_TIMEOUT_MS, fetch: deps.fetch },
+		);
+		if (!response.ok) return noEndpointSource;
+		const verdict = (await response.json()) as {
+			provider?: string;
+			baseUrl?: string;
+			reachable?: boolean | null;
+			status?: number;
+			reason?: ProviderProbeReason;
+		};
+		return {
+			provider: verdict.provider ?? provider,
+			baseUrl: verdict.baseUrl,
+			url,
+			ready: verdict.reachable ?? null,
+			reason: verdict.reason ?? "no-endpoint-source",
+			...(typeof verdict.status === "number" ? { status: verdict.status } : {}),
+		};
+	} catch {
+		// Sidecar down/unreachable → TS still cannot resolve the endpoint itself.
+		return noEndpointSource;
+	}
+}
+
+/**
  * Resolve the reachability probe for the configured provider, credential-aware.
  * The four honest cases (see {@link ProviderProbeReason}):
  *  1. ollama (keyless floor) — always pinged at its own /api/tags.
@@ -533,15 +586,9 @@ async function resolveProviderProbe(
 		);
 	}
 
-	// 4. non-ollama, no TS-known endpoint → honest; the runtime probe fills this.
-	return {
-		provider: current.current.provider,
-		baseUrl: current.baseUrl,
-		url: undefined,
-		ready: null,
-		reason: "no-endpoint-source",
-		skipped: true,
-	};
+	// 4. non-ollama, no TS-known endpoint → ask the runtime, which owns the
+	// provider→URL map. Falls back to no-endpoint-source if the sidecar is down.
+	return probeProviderViaRuntime(current.current.provider, deps);
 }
 
 export async function buildModelDoctorStatus(
