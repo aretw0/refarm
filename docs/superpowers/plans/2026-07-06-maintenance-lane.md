@@ -101,12 +101,16 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
   SECOND effect-consumer or a real WASM-path sovereignty-parity requirement. When
   it comes, reach for `wasm-tools compose` (already installed) before adopting
   `wac`-the-CLI as a new dep.
-- **grants wasi:http enforcement — end-to-end test gap.** da81c53f made the
-  network:outbound grant a real Linker boundary (http-less linker for un-granted
-  plugins under Strict). The DECISION is unit-covered and the non-http common case
-  is integration-covered, but proving a plugin that IMPORTS wasi:http fails to link
-  without the grant needs a wasi:http-importing WASM fixture. Small follow-on;
-  toolchain (cargo-component, wasm32-wasip1) is present.
+- **grants wasi:http enforcement — end-to-end test gap — DONE (e568eafc).** Built
+  the `http-plugin` fixture (exports integration + imports wasi:http/outgoing-handler,
+  DCE-pinned) + `tests/http_grant.rs` (3-row matrix). The negative row asserts the
+  failure is AT THE LINKER (`wasi:http/` + "was not found in the linker"), not the
+  trust bail nor manifest validation — cannot pass for the wrong reason. Two
+  toolchain gotchas documented in the fixture README: wasmtime does semver-compat
+  import matching (@0.2.3 plugin ↔ @0.2.1 host linker resolves), and cargo-component
+  0.21.x needs `wit-bindgen-rt` (not the umbrella `wit-bindgen`). The fixture
+  references the CANONICAL refarm:plugin WIT directly (a vendored copy would trip
+  `check:wit`/ADR-083 the moment it's tracked — caught before commit).
 - **grants next interfaces.** The per-plugin-linker pattern generalizes: filesystem
   and sockets are the next WASI interfaces to gate per declared-grant, reusing the
   same seam (a linker variant chosen at load by `PermissionGrant::grants`).
