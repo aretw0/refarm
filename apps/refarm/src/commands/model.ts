@@ -17,6 +17,10 @@ import {
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
 import { fetchWithTimeout } from "./fetch-with-timeout.js";
+import {
+	type ProviderDoctorProfile,
+	providerDoctorProfile,
+} from "./model-provider-doctor.js";
 export {
 	buildInvalidScopeEnvelope,
 	buildResetScopedModelEnvelope,
@@ -362,10 +366,15 @@ function localhostTargetsRuntime(baseUrl: string | undefined): boolean {
 	return normalized.includes("localhost") || normalized.includes("127.0.0.1");
 }
 
-function modelDoctorHandoffs(): ModelDoctorStatus["handoffs"] {
+function modelDoctorHandoffs(
+	profile: ProviderDoctorProfile = providerDoctorProfile("ollama"),
+): ModelDoctorStatus["handoffs"] {
 	return {
 		inspectCurrent: MODEL_CURRENT_JSON_COMMAND,
-		startOllama: "ollama serve",
+		// The local-runtime start command comes from the central per-provider
+		// table; the field name stays `startOllama` (the wire) until the shape is
+		// generalized. For ollama this is "ollama serve", byte-identical to before.
+		startOllama: profile.startCommand ?? "ollama serve",
 		setDockerOllamaBaseUrl: refarmCommand([
 			"model",
 			"base-url",
@@ -399,14 +408,14 @@ function modelDoctorRecommendations(
 	status: ModelDoctorStatus,
 ): ModelDoctorStatus["recommendations"] | undefined {
 	if (status.providerProbe.ready !== false) return undefined;
+	const profile = providerDoctorProfile(status.providerProbe.provider);
 	return [
 		{
 			diagnostic: "model-provider-unreachable",
 			severity: "failure",
 			summary:
 				"The current local model provider endpoint is not reachable from the runtime process.",
-			action:
-				"Start Ollama where Refarm can reach it, or set a base URL that matches the runtime network.",
+			action: profile.recoveryAction,
 			command: MODEL_DOCTOR_JSON_COMMAND,
 		},
 	];
@@ -458,7 +467,8 @@ export async function buildModelDoctorStatus(
 	deps: Pick<ModelCommandDeps, "fetch" | "isContainer"> = {},
 ): Promise<ModelDoctorStatus> {
 	const current = buildCurrentModelStatus(tokens);
-	const handoffs = modelDoctorHandoffs();
+	const profile = providerDoctorProfile(current.current.provider);
+	const handoffs = modelDoctorHandoffs(profile);
 	const container = deps.isContainer?.() ?? detectContainerRuntime();
 	const probeEnvironment = {
 		container,
