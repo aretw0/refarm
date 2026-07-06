@@ -21,13 +21,44 @@ use crate::host::plugin_host::refarm::plugin::{
     host_shell::{Host as HostShellHost, SpawnRequest, SpawnResult},
     structured_io::{FileFormat, Host as StructuredIoHost},
 };
+use crate::host::permission::Permission;
 use crate::host::wasi_bridge::TractorNativeBindings;
+
+impl TractorNativeBindings {
+    /// Gate a host-effect on the plugin's DECLARED capability (the capability
+    /// axis). This is orthogonal to and sits BESIDE the existing path/identity
+    /// checks (`enforce_fs_root`, `enforce_trusted_plugin_for_shell` — the
+    /// path-safety axis): a plugin must BOTH declare the permission AND pass the
+    /// path/identity policy. Under dev security modes `grants` is permissive, so
+    /// this is a no-op there; under Strict it denies an undeclared capability
+    /// before the effect runs. A denial is emitted as telemetry (a
+    /// security-relevant event), mirroring `request_permission`.
+    fn enforce_permission(&self, permission: Permission) -> Result<(), String> {
+        if self.permission_grant.grants_permission(permission) {
+            return Ok(());
+        }
+        self.telemetry.emit_named(
+            "permission:denied",
+            Some(self.plugin_id.clone()),
+            Some(serde_json::json!({
+                "capability": permission.as_str(),
+                "reason": "host-effect gated on declared permission",
+            })),
+        );
+        Err(format!(
+            "permission denied: plugin '{}' did not declare '{}'",
+            self.plugin_id,
+            permission.as_str()
+        ))
+    }
+}
 
 // ── host-fs ─────────────────────────────────────────────────────────────────
 
 #[wasmtime::component::__internal::async_trait]
 impl HostFsHost for TractorNativeBindings {
     async fn read(&mut self, path: String) -> Result<Vec<u8>, String> {
+        self.enforce_permission(Permission::FsRead)?;
         enforce_fs_root(&path, &self.effect_policy)?;
         let bytes = tokio::fs::read(&path)
             .await
@@ -42,6 +73,7 @@ impl HostFsHost for TractorNativeBindings {
     }
 
     async fn write(&mut self, path: String, content: Vec<u8>) -> Result<(), String> {
+        self.enforce_permission(Permission::FsWrite)?;
         enforce_fs_root(&path, &self.effect_policy)?;
         let bytes = content.len();
         atomic_write(&path, &content)
@@ -57,6 +89,7 @@ impl HostFsHost for TractorNativeBindings {
     }
 
     async fn edit(&mut self, path: String, diff: String) -> Result<(), String> {
+        self.enforce_permission(Permission::FsWrite)?;
         enforce_fs_root(&path, &self.effect_policy)?;
 
         let original = tokio::fs::read_to_string(&path)
@@ -91,6 +124,7 @@ impl HostFsHost for TractorNativeBindings {
 #[wasmtime::component::__internal::async_trait]
 impl HostShellHost for TractorNativeBindings {
     async fn spawn(&mut self, req: SpawnRequest) -> Result<SpawnResult, String> {
+        self.enforce_permission(Permission::ShellSpawn)?;
         enforce_trusted_plugin_for_shell(&self.plugin_id)?;
         if req.argv.is_empty() {
             return Err("spawn: argv must be non-empty".into());
@@ -134,6 +168,15 @@ impl HostShellHost for TractorNativeBindings {
 //
 // host-effects.wasm enforces policy (argv non-empty, timeout cap) then calls
 // this import. The host does the actual OS fork/exec — no second check needed.
+//
+// NOTE (Gate C scope): unlike `HostShellHost::spawn` (the integration-plugin
+// surface, now gated on the declared `shell:spawn` capability), `do_spawn` is the
+// mechanism import that ONLY `host-effects.wasm` imports — a trusted-computing-base
+// component, not a sandboxed plugin. It is intentionally NOT capability-gated
+// here: host-effects.wasm is the trusted effect-provider, and gating its
+// mechanism on a plugin-style permission would conflate the TCB with the plugin
+// sandbox. If host-effects.wasm ever becomes untrusted/replaceable, this becomes
+// a gate site — tracked with the Gate C work, not a silent bypass.
 
 #[wasmtime::component::__internal::async_trait]
 impl HostSpawnHost for TractorNativeBindings {
