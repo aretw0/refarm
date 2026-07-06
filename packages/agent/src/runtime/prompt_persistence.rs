@@ -166,7 +166,7 @@ pub(crate) fn store_prompt_and_open_session(
     let prompt_ref = prompt_ref_override
         .filter(|value| !value.trim().is_empty())
         .map(ToOwned::to_owned)
-        .unwrap_or_else(|| crate::new_agent_urn("prompt"));
+        .unwrap_or_else(|| crate::mint_urn("prompt"));
     let prompt_node = user_prompt_node(&prompt_ref, prompt);
     if !store_node(&prompt_node) {
         return None;

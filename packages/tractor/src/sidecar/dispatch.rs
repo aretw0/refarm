@@ -297,9 +297,9 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         // Fall back to the task's plugin_id for backward compatibility
         // (e.g. when loaded without a manifest in dev mode).
         let agent_id = state
-            .active_agent_id
+            .default_responder_id
             .read()
-            .expect("active_agent_id poisoned")
+            .expect("default_responder_id poisoned")
             .clone()
             .unwrap_or_else(|| task.plugin_id.clone());
 

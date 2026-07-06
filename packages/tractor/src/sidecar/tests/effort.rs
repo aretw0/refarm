@@ -789,7 +789,7 @@ async fn sidecar_cancel_sets_plugin_cancel_flag() {
         .write()
         .unwrap()
         .insert("@refarm/agent".to_string(), tx);
-    *state.active_agent_id.write().unwrap() = Some("@refarm/agent".to_string());
+    *state.default_responder_id.write().unwrap() = Some("@refarm/agent".to_string());
 
     // Register the plugin's cancel flag (as register_for_events would).
     let flag = Arc::new(AtomicBool::new(false));

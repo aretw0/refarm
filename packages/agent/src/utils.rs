@@ -86,7 +86,7 @@ pub(crate) fn now_ns() -> u64 {
 }
 
 /// Build an agent URN id with canonical prefix and a fresh local id.
-/// Example: new_agent_urn("prompt") => "urn:agent:prompt-<id>"
-pub(crate) fn new_agent_urn(kind: &str) -> String {
+/// Example: mint_urn("prompt") => "urn:agent:prompt-<id>"
+pub(crate) fn mint_urn(kind: &str) -> String {
     format!("urn:agent:{kind}-{}", new_id())
 }

@@ -149,7 +149,7 @@ pub struct SidecarState {
     pub in_flight_cancels: crate::InFlightCancels,
     /// ID of the loaded plugin with `"agent:respond"` capability, if any.
     /// Populated by TractorNative.register_for_events; used for effort routing.
-    pub active_agent_id: Arc<RwLock<Option<String>>>,
+    pub default_responder_id: Arc<RwLock<Option<String>>>,
     /// The neutral event router — lets a non-`respond` effort dispatch to any
     /// subscribed plugin by event, not just the elected agent's `user:prompt`.
     pub event_router: crate::EventRouter,
@@ -198,7 +198,7 @@ impl SidecarState {
         plugin_channels: PluginChannels,
         cancel_flags: crate::CancelFlags,
         in_flight_cancels: crate::InFlightCancels,
-        active_agent_id: Arc<RwLock<Option<String>>>,
+        default_responder_id: Arc<RwLock<Option<String>>>,
         event_router: crate::EventRouter,
         telemetry: crate::TelemetryBus,
         base_dir: &Path,
@@ -215,7 +215,7 @@ impl SidecarState {
             plugin_channels,
             cancel_flags,
             in_flight_cancels,
-            active_agent_id,
+            default_responder_id,
             event_router,
             telemetry,
             streams_dir,
@@ -346,10 +346,10 @@ async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
         ids.sort();
         ids
     };
-    let active_agent = state
-        .active_agent_id
+    let default_responder = state
+        .default_responder_id
         .read()
-        .expect("active_agent_id poisoned")
+        .expect("default_responder_id poisoned")
         .clone();
 
     Json(serde_json::json!({
@@ -357,7 +357,7 @@ async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
         "loaded": loaded,
         "local": [],
         "known": loaded,
-        "activeAgent": active_agent,
+        "activeAgent": default_responder,
     }))
 }
 
@@ -553,9 +553,9 @@ fn interrupt_effort_plugin(state: &SidecarState, effort_id: &str) {
         }
     }
     if let Some(agent) = state
-        .active_agent_id
+        .default_responder_id
         .read()
-        .expect("active_agent_id poisoned")
+        .expect("default_responder_id poisoned")
         .clone()
     {
         targets.push(agent);

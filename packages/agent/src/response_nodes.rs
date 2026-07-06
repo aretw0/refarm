@@ -34,7 +34,7 @@ pub(crate) fn user_prompt_node(prompt_ref: &str, prompt: &str) -> serde_json::Va
 pub(crate) fn agent_response_node(payload: AgentResponsePayload<'_>) -> serde_json::Value {
     serde_json::json!({
         "@type":        "AgentResponse",
-        "@id":          crate::new_agent_urn("resp"),
+        "@id":          crate::mint_urn("resp"),
         "prompt_ref":   payload.prompt_ref,
         "content":      payload.content,
         "sequence":     payload.sequence,
@@ -53,7 +53,7 @@ pub(crate) fn agent_response_node(payload: AgentResponsePayload<'_>) -> serde_js
 pub(crate) fn usage_record_node(payload: UsageRecordPayload<'_>) -> serde_json::Value {
     serde_json::json!({
         "@type":         "UsageRecord",
-        "@id":           crate::new_agent_urn("usage"),
+        "@id":           crate::mint_urn("usage"),
         "prompt_ref":    payload.prompt_ref,
         "provider":      payload.provider,
         "model":         payload.model,

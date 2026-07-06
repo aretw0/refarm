@@ -495,7 +495,7 @@ pub struct TractorNative {
     /// ID of the first loaded plugin that declared `"agent:respond"` capability.
     /// The sidecar exposes this as `activeAgent` in the /plugins response so the
     /// CLI can select the active agent without hardcoding any plugin name.
-    pub active_agent_id: Arc<RwLock<Option<String>>>,
+    pub default_responder_id: Arc<RwLock<Option<String>>>,
     /// The neutral event router: event name -> subscribed plugin_ids. Layered over
     /// `plugin_channels`; lets any loaded plugin receive its own declared event, not
     /// just the elected agent's `user:prompt`. Populated by `register_for_events`.
@@ -555,7 +555,7 @@ impl TractorNative {
             observer_channels: Arc::new(RwLock::new(HashMap::new())),
             cancel_flags: Arc::new(RwLock::new(HashMap::new())),
             in_flight_cancels: Arc::new(RwLock::new(HashMap::new())),
-            active_agent_id: Arc::new(RwLock::new(None)),
+            default_responder_id: Arc::new(RwLock::new(None)),
             event_router: EventRouter::default(),
             plugin_runner_handles: Arc::new(RwLock::new(HashMap::new())),
             pool_stores: Arc::new(Mutex::new(HashMap::new())),
@@ -737,14 +737,14 @@ impl TractorNative {
         // into subscriptions, so no existing manifest has to change:
         //   agent:respond        -> subscribes to user:prompt (+ election below)
         //   observe-host-effects  -> subscribes to the host-effect event family
-        if provides.contains(&crate::capabilities::CAP_AGENT_RESPOND.to_string()) {
+        if provides.contains(&crate::capabilities::CAP_INTEGRATION_RESPOND.to_string()) {
             self.event_router.subscribe(USER_PROMPT_EVENT, &plugin_id);
             // Election survives as a POLICY over the general router: the first
             // respond-capable plugin becomes the default `user:prompt` target.
             let mut guard = self
-                .active_agent_id
+                .default_responder_id
                 .write()
-                .expect("active_agent_id poisoned");
+                .expect("default_responder_id poisoned");
             if guard.is_none() {
                 *guard = Some(plugin_id.clone());
                 tracing::info!(plugin_id = %plugin_id, "registered as active agent");
@@ -830,9 +830,9 @@ impl TractorNative {
             .remove(plugin_id);
         {
             let mut active = self
-                .active_agent_id
+                .default_responder_id
                 .write()
-                .expect("active_agent_id poisoned");
+                .expect("default_responder_id poisoned");
             if active.as_deref() == Some(plugin_id) {
                 *active = None;
             }
