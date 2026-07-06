@@ -1337,8 +1337,12 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
     for node in session_nodes.iter().chain(entry_nodes.iter()) {
         let v: serde_json::Value = serde_json::from_str(&node.payload).unwrap();
         let id = v["@id"].as_str().unwrap_or("");
+        // The namespace must be CARRIED, not necessarily lead: Session/SessionEntry
+        // ids now get a typed `urn:refarm:session:v1:` scheme prefix, so the agent
+        // namespace is an embedded segment (e.g. urn:refarm:session:v1:urn:farmhand:
+        // test-agent-alpha:…) rather than the leading one.
         assert!(
-            id.starts_with("urn:farmhand:test-agent-alpha:"),
+            id.contains("urn:farmhand:test-agent-alpha:"),
             "node @id must carry agent namespace: {id}"
         );
     }
