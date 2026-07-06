@@ -73,6 +73,26 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
   so a refactor there can't silently mask a regression. Track which endpoints have
   behavioral (not just status-code) assertions; fill the gaps.
 
+## Abstract follow-ons
+
+- **wac composition — HELD (not premature-forever, premature-now).** The one real
+  composition pair (`host-effects.wasm ⊕ agent.wasm`) already works via native
+  bindings; the "fake" is the correct working state, `load_host_effects` is dead
+  code, nothing is blocked. Runtime plugin→plugin linking is an industry limit
+  (memory `bytecodealliance-canon-vs-refarm`), not our bug. Revisit trigger: a
+  SECOND effect-consumer or a real WASM-path sovereignty-parity requirement. When
+  it comes, reach for `wasm-tools compose` (already installed) before adopting
+  `wac`-the-CLI as a new dep.
+- **grants wasi:http enforcement — end-to-end test gap.** da81c53f made the
+  network:outbound grant a real Linker boundary (http-less linker for un-granted
+  plugins under Strict). The DECISION is unit-covered and the non-http common case
+  is integration-covered, but proving a plugin that IMPORTS wasi:http fails to link
+  without the grant needs a wasi:http-importing WASM fixture. Small follow-on;
+  toolchain (cargo-component, wasm32-wasip1) is present.
+- **grants next interfaces.** The per-plugin-linker pattern generalizes: filesystem
+  and sockets are the next WASI interfaces to gate per declared-grant, reusing the
+  same seam (a linker variant chosen at load by `PermissionGrant::grants`).
+
 ## How to use this lane
 
 - New coupling/oversized finding → add a row here (don't fix inline unless policy
