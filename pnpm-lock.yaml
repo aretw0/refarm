@@ -360,6 +360,9 @@ importers:
       '@refarm.dev/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      '@refarm.dev/sidecar-client':
+        specifier: workspace:*
+        version: link:../../packages/sidecar-client
       '@refarm.dev/silo':
         specifier: workspace:*
         version: link:../../packages/silo
@@ -586,6 +589,9 @@ importers:
       '@refarm.dev/session-contract-v1':
         specifier: workspace:*
         version: link:../session-contract-v1
+      '@refarm.dev/sidecar-client':
+        specifier: workspace:*
+        version: link:../sidecar-client
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
@@ -1279,6 +1285,22 @@ importers:
         version: link:../vtconfig
 
   packages/session-contract-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
+  packages/sidecar-client:
+    dependencies:
+      '@refarm.dev/root':
+        specifier: workspace:*
+        version: link:../root
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
