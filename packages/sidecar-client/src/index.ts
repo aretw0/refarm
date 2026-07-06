@@ -1,4 +1,4 @@
-import { fetchWithTimeout, resolveRequestTimeoutMs } from "./fetch-with-timeout.js";
+import { fetchWithTimeout, resolveRequestTimeoutMs } from "@refarm.dev/root";
 
 const SIDECAR_REQUEST_TIMEOUT_ENV_VAR = "REFARM_SIDE_REQUEST_TIMEOUT_MS";
 const DEFAULT_SIDE_REQUEST_TIMEOUT_MS = 500;
@@ -20,6 +20,14 @@ function resolveSidecarRequestTimeoutMs(
 
 export { SIDECAR_REQUEST_TIMEOUT_ENV_VAR, resolveSidecarRequestTimeoutMs };
 
+/**
+ * `fetch` against the Refarm tractor daemon's HTTP sidecar with the sidecar's own
+ * timeout defaults (env `REFARM_SIDE_REQUEST_TIMEOUT_MS`). A thin, domain-owned
+ * wrapper over the generic {@link fetchWithTimeout} primitive — this is the ONE
+ * client for talking to the daemon, consumed by the CLI, context providers, and
+ * anything else that reaches the sidecar, so none of them reimplements the call
+ * with a hardcoded port.
+ */
 export async function fetchSidecarWithTimeout(
 	url: string | URL,
 	init: RequestInit = {},
@@ -39,4 +47,3 @@ export async function fetchSidecarWithTimeout(
 		fetch: options.fetch,
 	});
 }
-

@@ -1,5 +1,11 @@
 import { existsSync } from "node:fs";
 
+export {
+	fetchWithTimeout,
+	resolveRequestTimeoutMs,
+	type FetchTimeoutOptions,
+} from "./fetch-with-timeout.js";
+
 /** True when running inside a Docker container or devcontainer.
  *  Localhost ports may not be reachable from the host browser. */
 export function isContainer(): boolean {

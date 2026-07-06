@@ -5,8 +5,8 @@ import path from "node:path";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import { EFFORT_TERMINAL_STATES } from "@refarm.dev/effort-contract-v1";
 import { observedTaskResultError } from "./task-observation.js";
-import { resolveRequestTimeoutMs } from "./fetch-with-timeout.js";
-import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
+import { resolveRequestTimeoutMs } from "@refarm.dev/root";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 
 const REFARM_STREAMS_DIR_ENV_VAR = "REFARM_STREAMS_DIR";

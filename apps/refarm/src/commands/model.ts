@@ -16,13 +16,13 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { fetchWithTimeout } from "./fetch-with-timeout.js";
+import { fetchWithTimeout } from "@refarm.dev/root";
 import {
 	type ProviderDoctorProfile,
 	type ProviderProbeReason,
 	providerDoctorProfile,
 } from "./model-provider-doctor.js";
-import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 export {
 	buildInvalidScopeEnvelope,

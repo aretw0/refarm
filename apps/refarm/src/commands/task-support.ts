@@ -10,7 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
-import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,

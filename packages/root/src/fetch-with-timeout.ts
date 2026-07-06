@@ -42,6 +42,12 @@ export function resolveRequestTimeoutMs(
 	return parsed;
 }
 
+/**
+ * `fetch` with a deadline: aborts the request after `timeoutMs` (resolved from an
+ * explicit value, an env var, or a default), and chains any caller-supplied
+ * `init.signal`. A generic HTTP primitive — no CLI or sidecar domain — so it
+ * lives in the zero-dependency root utils, consumable by any package.
+ */
 export async function fetchWithTimeout(
 	url: string | URL,
 	init: RequestInit = {},
@@ -77,4 +83,3 @@ export async function fetchWithTimeout(
 		if (cleanup) cleanup();
 	}
 }
-

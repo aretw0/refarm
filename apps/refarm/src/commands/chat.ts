@@ -71,7 +71,7 @@ import {
 	isSidecarUnavailable,
 	printSidecarUnavailable,
 } from "./sidecar-error.js";
-import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { resolveSidecarUrlAsync, sidecarUrlAsync } from "./sidecar-url.js";
 export {
 	loadChatHistory,

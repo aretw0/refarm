@@ -1,5 +1,5 @@
 import { normalizePluginId } from "@refarm.dev/config";
-import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 
 export interface RuntimePluginState {

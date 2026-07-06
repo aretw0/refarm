@@ -17,7 +17,7 @@ import {
 import { reportSidecarError } from "./sidecar-error.js";
 import {
 	fetchSidecarWithTimeout,
-} from "./sidecar-fetch.js";
+} from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 import { TREE_SESSION_LIST_JSON_COMMAND } from "./tree-handoffs.js";
 import {

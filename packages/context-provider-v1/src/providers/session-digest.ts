@@ -7,6 +7,7 @@
  * Worst-case token contribution: ~15 tokens (3 effort lines + header).
  * Silently returns empty if farmhand sidecar is unavailable.
  */
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { CONTEXT_CAPABILITY } from "../types.js";
 import type { ContextEntry, ContextProvider, ContextRequest } from "../types.js";
 
@@ -65,8 +66,13 @@ export class SessionDigestContextProvider implements ContextProvider {
 	}
 
 	private async fetchRecentEfforts(): Promise<EffortResult[]> {
-		const signal = AbortSignal.timeout(this.timeoutMs);
-		const res = await fetch(`${this.sidecarUrl}/efforts`, { signal });
+		// The shared sidecar client — not a raw fetch reimplementation — so this
+		// provider honors the same timeout semantics as every other daemon caller.
+		const res = await fetchSidecarWithTimeout(
+			`${this.sidecarUrl}/efforts`,
+			{},
+			{ timeoutMs: this.timeoutMs },
+		);
 		if (!res.ok) return [];
 		const all = (await res.json()) as EffortResult[];
 		return all.slice(-this.recentCount).reverse();

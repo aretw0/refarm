@@ -16,7 +16,7 @@ import {
 	printSidecarUnavailable,
 	reportSidecarError,
 } from "./sidecar-error.js";
-import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 
 type ThresholdProfileName = "conservative" | "balanced" | "throughput";
