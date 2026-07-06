@@ -6,12 +6,12 @@ import {
 	parseRefarmStatusJson,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
-import { findRefarmConfigPath } from "@refarm.dev/config";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmRenderer } from "../renderers.js";
+import { resolveTractorNamespace } from "../utils/tractor-store.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { probeRuntimeLiveness } from "./runtime-readiness.js";
 import {
@@ -39,17 +39,6 @@ export interface ResolveStatusPayloadOptions {
 export interface ResolveStatusPayloadResult {
 	json: RefarmStatusJson;
 	shutdown?: () => Promise<void>;
-}
-
-function readNamespaceFromConfig(): string | undefined {
-	const configPath = findRefarmConfigPath(process.cwd());
-	if (!configPath) return undefined;
-	try {
-		const raw = fs.readFileSync(configPath, "utf-8");
-		return (JSON.parse(raw) as { brand?: { slug?: string } }).brand?.slug;
-	} catch {
-		return undefined;
-	}
 }
 
 async function createStatusRuntimeSummary(
@@ -200,7 +189,10 @@ export async function resolveStatusPayload(
 		);
 	}
 	const renderer = resolveRefarmRenderer(requestedRenderer);
-	const namespace = readNamespaceFromConfig() ?? "refarm-main";
+	// One source of truth (shared with health): the namespace the daemon actually
+	// opens — REFARM_NAMESPACE ?? "default" — not the old brand.slug ?? "refarm-main"
+	// guess, which named a db nothing ever created.
+	const namespace = resolveTractorNamespace();
 	const runtime = await createStatusRuntimeSummary(namespace);
 	const trust = createStatusTrustSummary();
 	const hostIdentity = resolveRefarmHostIdentity();

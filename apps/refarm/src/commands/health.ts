@@ -9,12 +9,10 @@ import {
 	ProjectAuditor,
 	RefarmProjectAuditor,
 } from "@refarm.dev/health";
-import { createNodeView } from "@refarm.dev/storage-node-view";
-import { TractorNodesReadProvider } from "@refarm.dev/storage-sqlite/node";
 import { Command } from "commander";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { openTractorGraph } from "../utils/tractor-store.js";
 import {
 	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
@@ -278,35 +276,6 @@ function reportHealthOptionError(message: string, options: HealthOptions): void 
   process.exitCode = 1;
 }
 
-/**
- * Resolve the tractor storage db path, mirroring the Rust host's db_dir()
- * (storage/sqlite.rs): XDG_DATA_HOME || ~/.local/share, then /refarm/{namespace}.db.
- * The namespace is the SHARED source of truth REFARM_NAMESPACE (the daemon reads
- * the same env), defaulting to "default".
- */
-function resolveTractorDbPath(): string {
-	const namespace = process.env.REFARM_NAMESPACE?.trim() || "default";
-	const dataDir =
-		process.env.XDG_DATA_HOME?.trim() ||
-		path.join(os.homedir(), ".local", "share");
-	return path.join(dataDir, "refarm", `${namespace}.db`);
-}
-
-/**
- * A read-only graph context over the tractor sqlite `nodes` table (no sidecar) —
- * or null when the store db does not exist (the runtime never ran). Read-only, so
- * it can never create or mutate the host db.
- */
-function resolveTractorGraphContext(): ReturnType<typeof createNodeView> | null {
-	const dbPath = resolveTractorDbPath();
-	if (!fs.existsSync(dbPath)) return null;
-	try {
-		return createNodeView(new TractorNodesReadProvider(dbPath));
-	} catch {
-		// A locked/unreadable db must not break the fs-only audit.
-		return null;
-	}
-}
 
 export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthReport> {
   const policyReport = resolveHealthPolicyReport(rootDir);
@@ -315,7 +284,7 @@ export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthRep
   const cached = readHealthAuditCache(rootDir, fingerprint);
   if (cached) return cached;
 
-  const graphContext = resolveTractorGraphContext();
+  const graphContext = openTractorGraph();
   const health = new HealthCore(graphContext);
   health.register(new FileSystemAuditor({
     ignoredGitVisibilityPatterns: policy.ignoredGitVisibilityPatterns,

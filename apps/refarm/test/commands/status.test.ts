@@ -146,8 +146,8 @@ describe("statusCommand", () => {
 			expect.objectContaining({
 				runtime: {
 					ready: true,
-					namespace: "refarm-main",
-					databaseName: "refarm-main",
+					namespace: "default",
+					databaseName: "default",
 					engine: {
 						configuredEngine: "auto",
 						activeEngine: "ts",
