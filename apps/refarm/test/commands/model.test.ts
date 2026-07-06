@@ -296,7 +296,10 @@ describe("modelCommand", () => {
 		});
 	});
 
-	it("prints the default route when only the default provider key env is set", async () => {
+	it("prints the keyless ollama floor when a key is present but no provider is chosen", async () => {
+		// Having OPENAI_API_KEY in env does NOT auto-select openai: the provider is
+		// still the ollama floor until MODEL_PROVIDER is set. The default route is
+		// the shared keyless floor; the openai key is only used once openai is chosen.
 		process.env.OPENAI_API_KEY = "sk-env-test";
 		const command = createModelCommand(makeDeps());
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -304,8 +307,8 @@ describe("modelCommand", () => {
 		await command.parseAsync(["current"], { from: "user" });
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("current: openai/gpt-5.5");
-		expect(output).toContain("key:      OPENAI_API_KEY env");
+		expect(output).toContain("current: ollama/llama3.2");
+		expect(output).toContain("provider: ollama");
 		expect(output).toContain("source:   built-in defaults");
 
 		logSpy.mockRestore();
@@ -608,7 +611,10 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("prints built-in OpenAI defaults when no route is configured", async () => {
+	it("prints the keyless ollama floor when no route is configured", async () => {
+		// Zero-config resolves the keyless ollama floor across every scope. ollama
+		// needs no key (no "missing" nag), and the built-in defaults still surface
+		// the openai reference line for when the user opts into openai.
 		const deps = makeDeps();
 		const command = createModelCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -616,12 +622,11 @@ describe("modelCommand", () => {
 		await command.parseAsync(["current"], { from: "user" });
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("current: openai/gpt-5.5");
-		expect(output).toContain("key:      missing (run refarm sow)");
+		expect(output).toContain("current: ollama/llama3.2");
+		expect(output).toContain("provider: ollama");
+		expect(output).toContain("worker:   ollama/llama3.2");
+		expect(output).toContain("monitor:  ollama/llama3.2");
 		expect(output).toContain("openai default: openai/gpt-5.5");
-		expect(output).toContain("openai worker:  openai/gpt-5.3-codex-spark");
-		expect(output).toContain("openai monitor: openai/gpt-5.5");
-		expect(output).toContain("login:          refarm sow");
 
 		logSpy.mockRestore();
 	});

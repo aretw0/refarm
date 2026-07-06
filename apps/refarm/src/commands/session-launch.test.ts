@@ -278,7 +278,11 @@ describe("checkSessionReadiness", () => {
 		}
 	});
 
-	it("does not treat an unrelated credential-only .env as configured", async () => {
+	it("does not treat an unrelated credential-only .env as a chosen provider, but stays ready via the ollama floor", async () => {
+		// A stray GEMINI_API_KEY with no MODEL_PROVIDER does NOT make gemini the
+		// chosen provider (evidence "none", not "declared-missing"). Since nothing
+		// was chosen anywhere, the keyless ollama floor makes the session ready —
+		// the negative (gemini is not activated) still holds.
 		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");
 		mkdirSync(refarmDir, { recursive: true });
@@ -288,7 +292,7 @@ describe("checkSessionReadiness", () => {
 
 		try {
 			await expect(checkSessionReadiness()).resolves.toMatchObject({
-				providerConfigured: false,
+				providerConfigured: true,
 				runtimeRunning: false,
 				farmhandRunning: false,
 			});

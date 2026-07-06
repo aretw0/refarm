@@ -1,5 +1,11 @@
 export const MODEL_SCOPES = ["default", "worker", "monitor"];
-export const DEFAULT_MODEL_PROVIDER = "openai";
+// The keyless local floor: ollama needs no API key (localhost:11434), so a
+// zero-config caller with no credentials can actually reach it. This is the
+// single TS source of truth for the last-resort default and now agrees with the
+// guest (agent/session/pure.rs) and host (tractor wasi_bridge) defaults — a
+// zero-config run resolves the same provider on every layer instead of the old
+// "openai" that had no key and silently mismatched / failed credential detection.
+export const DEFAULT_MODEL_PROVIDER = "ollama";
 export const MODEL_PROVIDER_ENV_VAR = "MODEL_PROVIDER";
 export const MODEL_DEFAULT_PROVIDER_ENV_VAR = "MODEL_DEFAULT_PROVIDER";
 export const MODEL_ID_ENV_VAR = "MODEL_ID";

@@ -7,6 +7,7 @@ import { executeProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	hasUsableModelCredential,
 	hasUsableModelCredentialSource,
+	modelCredentialSource,
 } from "@refarm.dev/config";
 import {
 	createStdioOperatorChannel,
@@ -112,23 +113,52 @@ export function refarmSearchDirs(): string[] {
 	);
 }
 
+/**
+ * What a credential source contributes to readiness:
+ *   "usable"           — a chosen provider WITH a working credential → ready.
+ *   "declared-missing" — a provider was chosen but its credential is absent →
+ *                        NOT ready; the miss must surface (ask/model point at
+ *                        recovery). The keyless floor must NOT paper this over.
+ *   "none"             — this source chose no provider at all.
+ */
+type ProviderEvidence = "usable" | "declared-missing" | "none";
+
 function detectProvider(): boolean {
+	// Readiness is a 3-state precedence, honoring one rule: a provider CHOSEN
+	// anywhere (env, .env, Silo identity, or config) is authoritative — its own
+	// credential decides, and a missing one must SURFACE rather than be silently
+	// rescued. Aggregate every source's evidence:
+	//   • any "usable"           → ready now.
+	//   • else any "declared-missing" → a choice failed → NOT ready (warn).
+	//   • else all "none"        → nothing was chosen → the keyless ollama floor
+	//                              makes the truly zero-config case ready.
+	// (Liveness — whether the resolved provider actually responds — is a separate
+	// runtime concern, deliberately not folded into this static readiness check.)
+	let sawDeclaredMissing = false;
+
+	for (const evidence of collectProviderEvidence()) {
+		if (evidence === "usable") return true;
+		if (evidence === "declared-missing") sawDeclaredMissing = true;
+	}
+
+	if (sawDeclaredMissing) return false;
+	return hasProviderCredential(DEFAULT_MODEL_PROVIDER, {});
+}
+
+/** Every credential source's evidence, in precedence order (env first). */
+function* collectProviderEvidence(): Generator<ProviderEvidence> {
 	const envProvider =
 		stringValue(process.env[MODEL_PROVIDER_ENV_VAR]) ??
 		stringValue(process.env[MODEL_DEFAULT_PROVIDER_ENV_VAR]);
-	if (envProvider && hasProviderCredential(envProvider, {})) return true;
-	if (hasProviderCredential(DEFAULT_MODEL_PROVIDER, {})) return true;
-
-	for (const base of refarmSearchDirs()) {
-		const envFile = path.join(base, ".env");
-		if (hasEnvProvider(envFile)) return true;
-		if (hasIdentityProvider(path.join(base, "identity.json"))) return true;
-
-		const configFile = path.join(base, "config.json");
-		if (hasConfigProvider(configFile)) return true;
+	if (envProvider) {
+		yield hasProviderCredential(envProvider, {}) ? "usable" : "declared-missing";
 	}
 
-	return false;
+	for (const base of refarmSearchDirs()) {
+		yield envFileEvidence(path.join(base, ".env"));
+		yield identityEvidence(path.join(base, "identity.json"));
+		yield configEvidence(path.join(base, "config.json"));
+	}
 }
 
 function stringValue(value: unknown): string | undefined {
@@ -173,39 +203,45 @@ function parseEnvFile(filePath: string): Record<string, string> {
 	return env;
 }
 
-function hasEnvProvider(filePath: string): boolean {
+function envFileEvidence(filePath: string): ProviderEvidence {
+	// A .env counts only when it DECLARES a provider: a missing file, or one with
+	// a stray key but no chosen provider, chose nothing ("none"). A declared
+	// provider then resolves to "usable" or "declared-missing" by its credential.
+	if (!fs.existsSync(filePath)) return "none";
 	const env = parseEnvFile(filePath);
 	const provider =
 		stringValue(env[MODEL_PROVIDER_ENV_VAR]) ??
 		stringValue(env[MODEL_DEFAULT_PROVIDER_ENV_VAR]);
+	if (!provider) return "none";
 	const mergedEnv = { ...process.env, ...env };
-	if (provider) return hasProviderCredential(provider, {}, mergedEnv);
-	return hasProviderCredential(DEFAULT_MODEL_PROVIDER, {}, mergedEnv);
+	return hasProviderCredential(provider, {}, mergedEnv)
+		? "usable"
+		: "declared-missing";
 }
 
-function hasConfigProvider(filePath: string): boolean {
-	if (!fs.existsSync(filePath)) return false;
+function configEvidence(filePath: string): ProviderEvidence {
+	return sourceFileEvidence(filePath);
+}
+
+function identityEvidence(filePath: string): ProviderEvidence {
+	return sourceFileEvidence(filePath);
+}
+
+/** Shared evidence for a JSON credential source (config.json / identity.json). */
+function sourceFileEvidence(filePath: string): ProviderEvidence {
+	if (!fs.existsSync(filePath)) return "none";
 	try {
-		const config = JSON.parse(fs.readFileSync(filePath, "utf-8")) as Record<
+		const source = JSON.parse(fs.readFileSync(filePath, "utf-8")) as Record<
 			string,
 			unknown
 		>;
-		return hasUsableModelCredentialSource(config, process.env);
+		// No provider chosen in this file → it contributes nothing.
+		if (!modelCredentialSource(source).provider) return "none";
+		return hasUsableModelCredentialSource(source, process.env)
+			? "usable"
+			: "declared-missing";
 	} catch {
-		return false;
-	}
-}
-
-function hasIdentityProvider(filePath: string): boolean {
-	if (!fs.existsSync(filePath)) return false;
-	try {
-		const identity = JSON.parse(fs.readFileSync(filePath, "utf-8")) as Record<
-			string,
-			unknown
-		>;
-		return hasUsableModelCredentialSource(identity, process.env);
-	} catch {
-		return false;
+		return "none";
 	}
 }
 

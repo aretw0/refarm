@@ -33,8 +33,8 @@ import {
 } from "./model-routing.js";
 
 describe("model routing config", () => {
-    it("exposes the shared default provider", () => {
-        expect(DEFAULT_MODEL_PROVIDER).toBe("openai");
+    it("exposes the shared default provider (the keyless ollama floor)", () => {
+        expect(DEFAULT_MODEL_PROVIDER).toBe("ollama");
     });
 
     it("exposes model route env var contracts", () => {
@@ -81,13 +81,18 @@ describe("model routing config", () => {
     });
 
     it("resolves effective model routes by scope", () => {
+        // Zero-config (empty env, no stored provider) resolves the keyless ollama
+        // floor — the same default the guest and host now use — so every layer
+        // agrees for a caller with no credentials.
         expect(effectiveModelRouteForScope({}, "default", { env: {} })).toEqual({
-            provider: "openai",
-            modelId: "gpt-5.5",
+            provider: "ollama",
+            modelId: "llama3.2",
         });
+        // The worker codex-spark special-case only applies to openai/openai-codex,
+        // so the zero-config ollama floor keeps its own default here too.
         expect(effectiveModelRouteForScope({}, "worker", { env: {} })).toEqual({
-            provider: "openai",
-            modelId: "gpt-5.3-codex-spark",
+            provider: "ollama",
+            modelId: "llama3.2",
         });
         expect(effectiveModelRouteForScope({ modelProvider: "openai" }, "default", { env: {} })).toEqual({
             provider: "openai",

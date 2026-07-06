@@ -31,31 +31,32 @@ describe("model current output", () => {
 		delete process.env.GITHUB_COPILOT_ACCESS_TOKEN;
 	});
 
-	it("shows the effective default route even when credentials are missing", () => {
+	it("shows the effective default route as the keyless ollama floor", () => {
+		// Zero-config resolves the keyless ollama floor (the shared default across
+		// guest/host/CLI). ollama needs no API key, so there is no "key: missing"
+		// nag; the built-in defaults still surface the openai reference line.
 		const output = captureCurrentModel();
 
-		expect(output).toContain("current: openai/gpt-5.5");
-		expect(output).toContain("provider: openai");
-		expect(output).toContain("key env:  OPENAI_API_KEY");
-		expect(output).toContain("key:      missing (run refarm sow)");
+		expect(output).toContain("current: ollama/llama3.2");
+		expect(output).toContain("provider: ollama");
+		expect(output).toContain("model:    llama3.2");
 		expect(output).toContain("source:   built-in defaults");
-		expect(output).toContain("login:          refarm sow");
+		expect(output).toContain("openai default: openai/gpt-5.5");
 	});
 
-	it("prints credential recovery actions in JSON when credentials are missing", () => {
+	it("needs no credential recovery in JSON for the keyless ollama floor", () => {
+		// The floor is keyless, so there is nothing to recover: nextAction is null.
 		const payload = captureCurrentModelJson() as {
 			ok: boolean;
-			nextAction: string;
+			nextAction: string | null;
 			nextActions: string[];
-			nextCommand: string;
+			nextCommand: string | null;
 			nextCommands: string[];
 		};
 
 		expect(payload.ok).toBe(true);
-		expect(payload.nextAction).toBe("refarm sow --json");
-		expect(payload.nextActions).toContain("refarm model providers --json");
-		expect(payload.nextCommand).toBe("refarm sow --json");
-		expect(payload.nextCommands).toContain("refarm model providers --json");
+		expect(payload.nextAction).toBeNull();
+		expect(payload.nextCommand).toBeNull();
 	});
 
 	it("shows supported subscription OAuth without runtime unsupported warning", () => {
