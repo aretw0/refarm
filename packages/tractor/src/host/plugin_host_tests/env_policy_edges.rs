@@ -84,7 +84,7 @@
             refarm_dir.join("config.json"),
             r#"{"provider":"anthropic","model":"claude-opus-4-7","default_provider":"ollama","budgets":{"anthropic":5.0,"openai":2.5}}"#,
         ).unwrap();
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
         assert_eq!(map["MODEL_PROVIDER"], "anthropic");
         assert_eq!(map["MODEL_ID"], "claude-opus-4-7");
@@ -101,7 +101,7 @@
         std::fs::write(refarm_dir.join("config.json"), r#"{"stream_responses":true}"#)
             .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_STREAM_RESPONSES"], "1");
@@ -115,7 +115,7 @@
         std::fs::write(refarm_dir.join("config.json"), r#"{"stream_responses":false}"#)
             .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_STREAM_RESPONSES"], "0");
@@ -129,7 +129,7 @@
         std::fs::write(refarm_dir.join("config.json"), r#"{"stream_responses":"true"}"#)
             .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert!(!map.contains_key("MODEL_STREAM_RESPONSES"));
@@ -146,7 +146,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert!(!map.contains_key("MODEL_BUDGET_ANTHROPIC_USD"));
@@ -165,7 +165,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_PROVIDER"], "openai");
@@ -184,7 +184,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_PROVIDER"], "openai");
@@ -203,7 +203,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert!(!map.contains_key("MODEL_PROVIDER"));
@@ -222,7 +222,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_PROVIDER"], "openai");
@@ -244,7 +244,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert!(!map.contains_key("MODEL_PROVIDER"));
@@ -263,7 +263,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_PROVIDER"], "openai");
@@ -281,7 +281,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert!(!map.contains_key("MODEL_PROVIDER"));
@@ -300,7 +300,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_BUDGET_OPENAI_USD"], "2.5");
@@ -318,7 +318,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_BUDGET_OPENAI_USD"], "1");
@@ -336,7 +336,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_BUDGET_OPENAI_USD"], "1");
@@ -356,7 +356,7 @@
         let cfg = serde_json::json!({"budgets": budgets});
         std::fs::write(refarm_dir.join("config.json"), cfg.to_string()).unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let budget_count = vars
             .iter()
             .filter(|(k, _)| k.starts_with("MODEL_BUDGET_"))
@@ -376,7 +376,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_BUDGET_OPENAI_CODEX_V1_USD"], "2.5");
@@ -395,7 +395,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_BUDGET_OPENAI_USD"], "1");
@@ -413,7 +413,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_BUDGET_OPENAI_USD"], "1");
@@ -431,7 +431,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["MODEL_PROVIDER"], "openai");
@@ -449,7 +449,7 @@
         )
         .unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert!(!map.contains_key("MODEL_BUDGET_OPENAI_USD"));
@@ -462,14 +462,14 @@
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(refarm_dir.join("config.json"), b"not json").unwrap();
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         assert!(vars.is_empty());
     }
 
     #[test]
     fn refarm_config_env_vars_empty_when_no_file() {
         let dir = tempfile::tempdir().unwrap();
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         assert!(vars.is_empty());
     }
 
@@ -480,7 +480,7 @@
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(refarm_dir.join("config.json"), vec![b'a'; 256 * 1024 + 1]).unwrap();
 
-        let vars = refarm_config_env_vars_from(dir.path());
+        let vars = refarm_config_env_vars_from(dir.path(), None);
         assert!(vars.is_empty());
     }
 
@@ -719,6 +719,58 @@
         let sync = NativeSync::new(storage, "test-refarm-config-none").unwrap();
         store_refarm_config_node(&sync, None).unwrap();
         assert_eq!(sync.query_nodes("RefarmConfig").unwrap().len(), 0);
+    }
+
+    #[test]
+    fn config_resolves_from_the_graph_node_when_there_is_no_local_fs_file() {
+        // The read-back that makes "config is a graph node" TRUE: a device with NO
+        // local .refarm/config.json but a config node replicated from a peer reads
+        // its MODEL_* config from the graph node's data.
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-config-readback").unwrap();
+        // Publish a config node (as a peer's sync would have delivered it).
+        let cfg = serde_json::json!({
+            "provider": "anthropic",
+            "model": "claude-opus-4-8",
+            "budgets": { "anthropic": 5 },
+        });
+        store_refarm_config_node(&sync, Some(&cfg)).unwrap();
+
+        // An EMPTY dir — no .refarm/config.json on this device.
+        let empty = tempfile::tempdir().unwrap();
+        let vars = refarm_config_env_vars_from(empty.path(), Some(&sync));
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        // Resolved from the graph node, not the (absent) fs file.
+        assert_eq!(map["MODEL_PROVIDER"], "anthropic");
+        assert_eq!(map["MODEL_ID"], "claude-opus-4-8");
+        assert_eq!(map["MODEL_BUDGET_ANTHROPIC_USD"], "5");
+    }
+
+    #[test]
+    fn local_fs_config_wins_over_the_graph_node() {
+        // Precedence: the operator of THIS device (local fs) is authoritative; the
+        // graph node is only the fallback. A local file must win over a differing
+        // node so a synced config never silently overrides the local operator.
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-config-precedence").unwrap();
+        store_refarm_config_node(
+            &sync,
+            Some(&serde_json::json!({ "provider": "from-graph-node" })),
+        )
+        .unwrap();
+
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(refarm_dir.join("config.json"), r#"{"provider":"from-local-fs"}"#).unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path(), Some(&sync));
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+        assert_eq!(
+            map["MODEL_PROVIDER"], "from-local-fs",
+            "the local fs file must win over the graph node"
+        );
     }
 
     // MANDATORY conformance: the Rust canonical digest MUST byte-match the TS

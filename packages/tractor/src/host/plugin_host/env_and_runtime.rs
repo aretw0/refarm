@@ -4,10 +4,10 @@ fn is_forwardable_model_env_value(value: &str) -> bool {
 
 /// Build plugin env vars with project config override semantics:
 /// process MODEL_* vars first, then `.refarm/config.json` overwrites them.
-fn plugin_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> {
+fn plugin_env_vars_from(base: &std::path::Path, sync: Option<&NativeSync>) -> Vec<(String, String)> {
     let mut vars = forwarded_model_env_vars();
     vars.extend(plugin_runtime_env_vars());
-    merge_plugin_env_vars(vars, refarm_config_env_vars_from(base))
+    merge_plugin_env_vars(vars, refarm_config_env_vars_from(base, sync))
 }
 
 fn plugin_runtime_env_vars() -> Vec<(String, String)> {
@@ -52,15 +52,43 @@ fn merge_plugin_env_vars(
     out
 }
 
-fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> {
+/// Resolve the sovereign config as a JSON value: prefer the local fs
+/// `.refarm/config.json` when present (the operator of THIS device is
+/// authoritative for their own file), else fall back to the replicated
+/// `RefarmConfig` graph node's `data` (the config as it arrived from a peer over
+/// CRDT sync). This is what makes "config is a graph node" TRUE for a device that
+/// has no local config file but received one from another device — while every
+/// device that already has a local file behaves exactly as before.
+///
+/// Redaction note: the graph node redacts secret-named keys, but the fields this
+/// reader consumes (provider/model/default_provider/stream_responses/budgets) are
+/// never secrets, so the redacted node is a faithful source for them.
+fn resolve_sovereign_config(base: &std::path::Path, sync: Option<&NativeSync>) -> Option<serde_json::Value> {
+    let path = base.join(".refarm/config.json");
+    if let Some(bytes) = read_refarm_config_bytes(&path) {
+        match serde_json::from_slice::<serde_json::Value>(&bytes) {
+            Ok(cfg) => return Some(cfg),
+            Err(_) => tracing::warn!(".refarm/config.json is not valid JSON — ignoring"),
+        }
+    }
+    // No usable local file — try the replicated config node.
+    let sync = sync?;
+    let payload = sync
+        .get_node(crate::host::plugin_host::config_node::CONFIG_NODE_DEFAULT_ID)
+        .ok()??;
+    let node: serde_json::Value = serde_json::from_str(&payload).ok()?;
+    let data = node.get("data")?;
+    if data.is_null() {
+        return None;
+    }
+    tracing::debug!("sovereign config resolved from the replicated graph node (no local fs file)");
+    Some(data.clone())
+}
+
+fn refarm_config_env_vars_from(base: &std::path::Path, sync: Option<&NativeSync>) -> Vec<(String, String)> {
     const MAX_CONFIG_BUDGET_VARS: usize = 64;
 
-    let path = base.join(".refarm/config.json");
-    let Some(bytes) = read_refarm_config_bytes(&path) else {
-        return vec![];
-    };
-    let Ok(cfg) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
-        tracing::warn!(".refarm/config.json is not valid JSON — ignoring");
+    let Some(cfg) = resolve_sovereign_config(base, sync) else {
         return vec![];
     };
     let mut vars: Vec<(String, String)> = Vec::new();
@@ -669,7 +697,7 @@ impl PluginHost {
         }
 
         let base = std::env::current_dir().unwrap_or_default();
-        let env_vars = plugin_env_vars_from(&base);
+        let env_vars = plugin_env_vars_from(&base, Some(sync));
         let config_json = refarm_config_json_from(&base);
         let mut wasi_builder = WasiCtxBuilder::new();
         wasi_builder.inherit_stderr();
@@ -787,7 +815,7 @@ impl PluginHost {
         }
 
         let base = std::env::current_dir().unwrap_or_default();
-        let env_vars = plugin_env_vars_from(&base);
+        let env_vars = plugin_env_vars_from(&base, Some(sync));
         let config_json = refarm_config_json_from(&base);
 
         let wasi_p1 = {

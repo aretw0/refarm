@@ -5,7 +5,7 @@
     fn refarm_config_env_vars_returns_empty_when_no_file() {
         // CWD in test environment has no .refarm/config.json — must not panic.
         let base = std::env::current_dir().unwrap_or_default();
-        let vars = refarm_config_env_vars_from(&base);
+        let vars = refarm_config_env_vars_from(&base, None);
         // Can't assert empty (dev machine might have a config), but must not error.
         let _ = vars;
     }
