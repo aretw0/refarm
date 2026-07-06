@@ -210,6 +210,11 @@ pub struct PluginHost {
     /// `TractorNativeBindings` at load. Only ROUTING config — API-key secrets stay
     /// in env, read per-request at send time.
     model_route: crate::host::wasi_bridge::ModelRoute,
+    /// The OPTIONAL fallback route, resolved from MODEL_FALLBACK_PROVIDER once at
+    /// construction (None when unset) and cloned into every `TractorNativeBindings`
+    /// at load. When set, the model-POST guardrail accepts the primary OR this
+    /// route — the host half of the guest's MODEL_FALLBACK_PROVIDER retry.
+    fallback_route: Option<crate::host::wasi_bridge::ModelRoute>,
 }
 
 /// Forward only MODEL_* vars into plugin WASI env.

@@ -822,3 +822,119 @@
         assert!(preview.starts_with(&"a".repeat(32)));
         assert!(preview.contains("[truncated: model-bridge error body exceeded 8192 bytes]"));
     }
+
+    // ── fallback route (MODEL_FALLBACK_PROVIDER) ──────────────────────────────
+
+    #[test]
+    fn enforce_route_any_accepts_primary_or_fallback_and_rejects_others() {
+        // The host half of the guest's documented cross-provider fallback: with a
+        // fallback route set, a request matching EITHER route is accepted, and a
+        // third arbitrary provider is still rejected (allow-list stays closed).
+        let primary =
+            ModelRoute::for_test("anthropic", "https://api.anthropic.com", "/v1/messages");
+        let fallback =
+            ModelRoute::for_test("ollama", "http://127.0.0.1:11434", "/v1/chat/completions");
+
+        // Primary request: accepted.
+        assert!(enforce_model_route_any(
+            "anthropic",
+            "https://api.anthropic.com",
+            "/v1/messages",
+            &primary,
+            Some(&fallback),
+        )
+        .is_ok());
+
+        // Fallback request: accepted (this is exactly what was blocked before).
+        assert!(enforce_model_route_any(
+            "ollama",
+            "http://127.0.0.1:11434",
+            "/v1/chat/completions",
+            &primary,
+            Some(&fallback),
+        )
+        .is_ok());
+
+        // A third provider neither route allows: still rejected.
+        assert!(enforce_model_route_any(
+            "openai",
+            "https://api.openai.com",
+            "/v1/chat/completions",
+            &primary,
+            Some(&fallback),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn enforce_route_any_without_fallback_returns_the_primary_error_unchanged() {
+        // No fallback (the common case) must behave byte-identically to the
+        // single-route matcher: the same request that enforce_model_route rejects
+        // yields the SAME error string through enforce_model_route_any.
+        let primary =
+            ModelRoute::for_test("anthropic", "https://api.anthropic.com", "/v1/messages");
+
+        let single = enforce_model_route(
+            "ollama",
+            "http://127.0.0.1:11434",
+            "/v1/chat/completions",
+            &primary,
+        );
+        let any = enforce_model_route_any(
+            "ollama",
+            "http://127.0.0.1:11434",
+            "/v1/chat/completions",
+            &primary,
+            None,
+        );
+        assert!(single.is_err());
+        assert_eq!(single, any, "unset fallback must not change the error path");
+    }
+
+    #[test]
+    fn fallback_from_env_is_none_when_unset_and_route_when_set() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        reset_model_env();
+        std::env::remove_var("MODEL_FALLBACK_PROVIDER");
+        assert!(
+            ModelRoute::fallback_from_env().is_none(),
+            "unset MODEL_FALLBACK_PROVIDER must yield no fallback route (identical to today)"
+        );
+
+        std::env::set_var("MODEL_FALLBACK_PROVIDER", "ollama");
+        let route = ModelRoute::fallback_from_env().expect("set fallback resolves a route");
+        assert_eq!(route.provider, "ollama");
+        assert_eq!(route.base_url, "http://localhost:11434");
+        assert_eq!(route.path, "/v1/chat/completions");
+
+        // A non-lowercase (malformed) token is rejected — fails closed, not routed.
+        std::env::set_var("MODEL_FALLBACK_PROVIDER", "OLLAMA");
+        assert!(ModelRoute::fallback_from_env().is_none());
+
+        reset_model_env();
+    }
+
+    #[test]
+    fn zero_config_host_route_agrees_with_the_guest_ollama_floor() {
+        // Change B counterpart on the host side: with NO routing env set, the host
+        // resolves the ollama floor — the same provider the guest now defaults to —
+        // so a zero-config request is accepted instead of provider-mismatch-blocked.
+        let _guard = ENV_LOCK.lock().unwrap();
+        reset_model_env();
+        std::env::remove_var("MODEL_FALLBACK_PROVIDER");
+
+        let expected = ModelRoute::from_env();
+        assert_eq!(expected.provider, "ollama");
+        assert_eq!(expected.base_url, "http://localhost:11434");
+        assert_eq!(expected.path, "/v1/chat/completions");
+
+        assert!(enforce_model_route(
+            "ollama",
+            "http://localhost:11434",
+            "/v1/chat/completions",
+            &expected,
+        )
+        .is_ok());
+
+        reset_model_env();
+    }

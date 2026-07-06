@@ -78,6 +78,7 @@ data: [DONE]
         telemetry,
         crate::host::host_effects_bridge::HostEffectPolicy::default(),
         crate::host::wasi_bridge::ModelRoute::for_test("ollama", &base_url, "/v1/chat/completions"),
+        None,
         crate::host::wasi_bridge::PermissionGrant::permissive(),
     );
 
@@ -136,7 +137,7 @@ data: [DONE]
     let route = crate::host::wasi_bridge::ModelRoute::for_test("ollama", &base_url, "/v1/chat/completions");
     let client = std::thread::spawn(move || {
         let telemetry = crate::telemetry::TelemetryBus::new(16);
-        let mut bindings = super::TractorNativeBindings::new("agent", sync_for_call, telemetry, crate::host::host_effects_bridge::HostEffectPolicy::default(), route, crate::host::wasi_bridge::PermissionGrant::permissive());
+        let mut bindings = super::TractorNativeBindings::new("agent", sync_for_call, telemetry, crate::host::host_effects_bridge::HostEffectPolicy::default(), route, None, crate::host::wasi_bridge::PermissionGrant::permissive());
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -185,6 +186,7 @@ fn complete_http_stream_preserves_route_enforcement() {
             "http://127.0.0.1:9",
             "/v1/chat/completions",
         ),
+        None,
         crate::host::wasi_bridge::PermissionGrant::permissive(),
     );
 

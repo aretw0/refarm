@@ -44,6 +44,12 @@ pub struct TractorNativeBindings {
     /// per-request API-key SECRETS stay in env (12-factor), read at send time
     /// keyed off the provider.
     pub(crate) model_route: ModelRoute,
+    /// The OPTIONAL fallback route, resolved from MODEL_FALLBACK_PROVIDER once at
+    /// boot (None when unset). When set, the model-POST guardrail accepts a request
+    /// matching EITHER the primary route or this one — the host-side half of the
+    /// guest's documented MODEL_FALLBACK_PROVIDER retry. None → single-route
+    /// behavior, byte-identical to before this field existed.
+    pub(crate) fallback_route: Option<ModelRoute>,
     /// The plugin's capability grant: the permissions it DECLARED in its manifest
     /// plus the host security mode. `request_permission` consults this to answer
     /// honestly ("did this plugin declare this capability?") instead of always
@@ -137,6 +143,7 @@ impl TractorNativeBindings {
         telemetry: TelemetryBus,
         effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
         model_route: ModelRoute,
+        fallback_route: Option<ModelRoute>,
         permission_grant: PermissionGrant,
     ) -> Self {
         Self {
@@ -145,6 +152,7 @@ impl TractorNativeBindings {
             telemetry,
             effect_policy,
             model_route,
+            fallback_route,
             permission_grant,
         }
     }
@@ -285,7 +293,15 @@ impl ModelBridgeHost for TractorNativeBindings {
         headers: Vec<(String, String)>,
         body: Vec<u8>,
     ) -> Result<Vec<u8>, String> {
-        model_complete_http(&provider, &base_url, &path, &headers, &body, &self.model_route)
+        model_complete_http(
+            &provider,
+            &base_url,
+            &path,
+            &headers,
+            &body,
+            &self.model_route,
+            self.fallback_route.as_ref(),
+        )
     }
 
     /// Streaming contract compatibility path.
@@ -303,7 +319,15 @@ impl ModelBridgeHost for TractorNativeBindings {
         stream_metadata: StreamResponseMetadata,
     ) -> Result<StreamResponseResult, String> {
         validate_stream_response_metadata(&stream_metadata)?;
-        let resp = send_model_http_post(&provider, &base_url, &path, &headers, &body, &self.model_route)?;
+        let resp = send_model_http_post(
+            &provider,
+            &base_url,
+            &path,
+            &headers,
+            &body,
+            &self.model_route,
+            self.fallback_route.as_ref(),
+        )?;
         let (final_body, last_sequence, stored_chunks) = store_stream_agent_response_chunks_from_reader(
             &self.sync,
             &self.plugin_id,
@@ -358,9 +382,32 @@ fn model_complete_http(
     headers: &[(String, String)],
     body: &[u8],
     expected: &ModelRoute,
+    fallback: Option<&ModelRoute>,
 ) -> Result<Vec<u8>, String> {
-    let resp = send_model_http_post(provider, base_url, path, headers, body, expected)?;
+    let resp = send_model_http_post(provider, base_url, path, headers, body, expected, fallback)?;
     read_response_bytes(resp)
+}
+
+/// Accept a request that matches the primary route OR the optional fallback route.
+/// Reuses the single-route `enforce_model_route` verbatim for each — every existing
+/// validation branch is untouched. When there is no fallback (the common case), the
+/// primary error is returned unchanged, so an unset MODEL_FALLBACK_PROVIDER behaves
+/// byte-identically to a single-route host. On a fallback mismatch the primary
+/// error surfaces (chosen to keep the no-fallback path's error string identical).
+fn enforce_model_route_any(
+    provider: &str,
+    base_url: &str,
+    path: &str,
+    primary: &ModelRoute,
+    fallback: Option<&ModelRoute>,
+) -> Result<(), String> {
+    match enforce_model_route(provider, base_url, path, primary) {
+        Ok(()) => Ok(()),
+        Err(primary_err) => match fallback {
+            Some(fb) => enforce_model_route(provider, base_url, path, fb),
+            None => Err(primary_err),
+        },
+    }
 }
 
 fn send_model_http_post(
@@ -370,8 +417,9 @@ fn send_model_http_post(
     headers: &[(String, String)],
     body: &[u8],
     expected: &ModelRoute,
+    fallback: Option<&ModelRoute>,
 ) -> Result<ureq::Response, String> {
-    enforce_model_route(provider, base_url, path, expected)?;
+    enforce_model_route_any(provider, base_url, path, expected, fallback)?;
     enforce_model_request_body(body)?;
     let provider = normalize_provider_name(provider);
 
@@ -612,7 +660,16 @@ impl ModelRoute {
     /// path validates against it without touching env. Secrets (API keys) are NOT
     /// part of this — they stay in env, read at send time keyed off the provider.
     pub(crate) fn from_env() -> Self {
-        let provider = provider_name_from_env();
+        Self::for_provider(provider_name_from_env())
+    }
+
+    /// Build the route for a specific provider name, using the same per-provider
+    /// resolution as `from_env` (anthropic hardcode, else known base/path or the
+    /// openai-family / localhost floor, honoring MODEL_BASE_URL first). Shared by
+    /// `from_env` and `fallback_from_env` so the primary and fallback routes are
+    /// resolved by identical logic — the accepted fallback route equals exactly
+    /// what the guest requests for that provider, nothing more.
+    fn for_provider(provider: String) -> Self {
         if provider == "anthropic" {
             return ModelRoute {
                 provider,
@@ -633,6 +690,30 @@ impl ModelRoute {
         });
 
         ModelRoute { provider, base_url, path }
+    }
+
+    /// Resolve the OPTIONAL fallback route from MODEL_FALLBACK_PROVIDER, once at
+    /// boot alongside `from_env`. Returns None when unset/empty/unsafe — and when
+    /// None, the guardrail behaves byte-identically to a single-route host.
+    ///
+    /// The token is gated by `is_safe_provider_token`, which only admits
+    /// `[a-z0-9_-]`. This keeps host and guest in lockstep for the routing that
+    /// matters: the guest reads MODEL_FALLBACK_PROVIDER raw (runtime/wasm_flow.rs)
+    /// and its openai-compat base_url/path arms (provider_config.rs, request_path.rs)
+    /// are lowercase-only, so `for_provider` here selects the SAME branch off the
+    /// SAME lowercase string. A non-lowercase spelling (e.g. "GROQ") is admitted by
+    /// neither side's known-provider arms — the guest would fall through to the
+    /// localhost default while the host returns None (no fallback route). That
+    /// divergence fails CLOSED (the fallback simply does not activate) and only for
+    /// a malformed provider token, so it is rejected here rather than routed.
+    /// MODEL_FALLBACK_MODEL_ID is not read: model id does not change path/base_url.
+    pub(crate) fn fallback_from_env() -> Option<ModelRoute> {
+        let provider = std::env::var("MODEL_FALLBACK_PROVIDER").ok()?;
+        let provider = provider.trim();
+        if provider.is_empty() || !is_safe_provider_token(provider) {
+            return None;
+        }
+        Some(Self::for_provider(provider.to_string()))
     }
 }
 

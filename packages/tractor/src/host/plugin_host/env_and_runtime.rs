@@ -598,10 +598,12 @@ impl PluginHost {
             module_linker: Arc::new(module_linker),
             component_cache: Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
             on_event_budget_ms,
-            // Resolve the effect policy + model route from env ONCE here at boot;
-            // every TractorNativeBindings gets a clone at load.
+            // Resolve the effect policy + model route (+ optional fallback route)
+            // from env ONCE here at boot; every TractorNativeBindings gets a clone
+            // at load. No hot-path env read.
             effect_policy: crate::host::host_effects_bridge::HostEffectPolicy::from_env(),
             model_route: crate::host::wasi_bridge::ModelRoute::from_env(),
+            fallback_route: crate::host::wasi_bridge::ModelRoute::fallback_from_env(),
         })
     }
 
@@ -724,6 +726,7 @@ impl PluginHost {
             self.telemetry.clone(),
             self.effect_policy.clone(),
             self.model_route.clone(),
+            self.fallback_route.clone(),
             permission_grant,
         );
 
@@ -893,6 +896,7 @@ impl PluginHost {
             self.telemetry.clone(),
             self.effect_policy.clone(),
             self.model_route.clone(),
+            self.fallback_route.clone(),
             // host-effects.wasm is a host-provided composition component, not a
             // manifest-declared plugin — permissive grant.
             crate::host::wasi_bridge::PermissionGrant::permissive(),
