@@ -555,11 +555,14 @@ impl TractorNative {
         let telemetry = TelemetryBus::new(config.telemetry_capacity);
         let storage = NativeStorage::open(&config.namespace)?;
         let sync = NativeSync::new(storage.clone(), &config.namespace)?;
-        // NOTE: config.security_mode is intentionally NOT read here yet. Honoring
-        // Strict would deny every plugin because production has no trust-grant path
-        // (no store, no auto-grant). Fixing boot needs the trust MODEL settled
-        // first — under investigation. See lane. TrustManager::new() = None.
-        let trust = TrustManager::new();
+        // Honor the configured security posture (main.rs resolves Strict by
+        // default). This was hardcoded to TrustManager::new() (= None), silently
+        // discarding config.security_mode — so a Strict daemon ran with NO trust
+        // enforcement. Now safe to honor: under Strict, the load gate admits a
+        // plugin that is trust-granted OR listed in the sovereign trusted_plugins
+        // allowlist (`*` = all), and stays permissive when the allowlist is absent
+        // — so enabling Strict does not deny an operator who hasn't configured one.
+        let trust = TrustManager::with_security_mode(config.security_mode.clone());
         let plugins =
             host::PluginHost::new(trust.clone(), telemetry.clone(), config.on_event_budget_ms)?;
 

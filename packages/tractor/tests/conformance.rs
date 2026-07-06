@@ -77,14 +77,20 @@ fn schema_compat_ts_db_readable() {
 
 // ── SecurityMode::Strict — rejects untrusted plugin ──────────────────────────
 //
-// Verifies that PluginHost::load() returns Err when SecurityMode is Strict
-// and no trust grant has been issued for the plugin being loaded.
+// Verifies that PluginHost::load() returns Err when SecurityMode is Strict, the
+// plugin has no trust grant, AND a configured (non-permissive) trusted_plugins
+// allowlist does not list it. An EMPTY allowlist (deny-all) is injected so the
+// test doesn't depend on the process cwd's .refarm/config.json — and to assert
+// the honest deny path: a configured allowlist that omits the plugin rejects it.
 
 #[tokio::test]
 async fn security_mode_strict_rejects_untrusted_plugin() {
     let bus = TelemetryBus::new(100);
     let trust = TrustManager::with_security_mode(SecurityMode::Strict);
-    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
+    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
+        .unwrap()
+        // Deny-all allowlist (configured but empty) — no grant, not listed → reject.
+        .with_trusted_plugins(Some(std::collections::HashSet::new()));
     let sync = make_sync();
 
     let result = host.load(fixture_path(), &sync).await;
@@ -121,6 +127,61 @@ async fn security_mode_strict_allows_after_grant() {
         handle.err()
     );
     assert_eq!(handle.unwrap().id, "null-plugin");
+}
+
+// ── SecurityMode::Strict — the sovereign trusted_plugins allowlist seeds trust ─
+//
+// The operator's .refarm/config.json trusted_plugins list admits a plugin to load
+// under Strict WITHOUT a per-hash grant (the operator is authoritative over their
+// own local plugins). These cover the four allowlist states via with_trusted_plugins.
+
+async fn strict_load_with_allowlist(
+    allow: Option<std::collections::HashSet<String>>,
+) -> Result<(), String> {
+    let bus = TelemetryBus::new(100);
+    let trust = TrustManager::with_security_mode(SecurityMode::Strict);
+    let host = PluginHost::new(trust, bus, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
+        .unwrap()
+        .with_trusted_plugins(allow);
+    host.load(fixture_path(), &make_sync())
+        .await
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[tokio::test]
+async fn strict_allowlist_lists_the_plugin_allows_load() {
+    let allow = ["null-plugin".to_string()].into_iter().collect();
+    assert!(
+        strict_load_with_allowlist(Some(allow)).await.is_ok(),
+        "a listed plugin loads under Strict without a per-hash grant"
+    );
+}
+
+#[tokio::test]
+async fn strict_allowlist_wildcard_allows_load() {
+    let allow = ["*".to_string()].into_iter().collect();
+    assert!(
+        strict_load_with_allowlist(Some(allow)).await.is_ok(),
+        "the '*' wildcard trusts every plugin"
+    );
+}
+
+#[tokio::test]
+async fn strict_allowlist_absent_is_permissive() {
+    assert!(
+        strict_load_with_allowlist(None).await.is_ok(),
+        "no allowlist configured → permissive (backward-compatible), plugin loads"
+    );
+}
+
+#[tokio::test]
+async fn strict_allowlist_configured_without_the_plugin_denies() {
+    let allow = ["some-other-plugin".to_string()].into_iter().collect();
+    assert!(
+        strict_load_with_allowlist(Some(allow)).await.is_err(),
+        "a configured allowlist that omits the plugin denies it (deny-by-omission)"
+    );
 }
 
 // ── Criterion #3: Plugin lifecycle — setup / ingest / teardown ───────────────

@@ -612,9 +612,32 @@ impl PluginHost {
             // from env ONCE here at boot; every TractorNativeBindings gets a clone
             // at load. No hot-path env read.
             effect_policy: crate::host::host_effects_bridge::HostEffectPolicy::from_env(),
+            // Resolve the sovereign trusted-plugins allowlist ONCE at boot (same
+            // fs-first read the shell gate uses). A malformed config denies rather
+            // than opening up: treat a read error as an empty allowlist (deny-all
+            // under Strict) — never silently trust everything on a bad file.
+            trusted_plugins_at_boot: crate::host::host_effects_bridge::trusted_plugins_from_refarm_config()
+                .unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, "trusted_plugins config unreadable — treating as deny-all");
+                    Some(std::collections::HashSet::new())
+                }),
             model_route: crate::host::wasi_bridge::ModelRoute::from_env(),
             fallback_route: crate::host::wasi_bridge::ModelRoute::fallback_from_env(),
         })
+    }
+
+    /// Override the sovereign trusted-plugins allowlist that seeds the Strict load
+    /// gate. The default (`new`) reads it fs-first from `.refarm/config.json`; this
+    /// injects it explicitly — for a host that resolves trust another way, and for
+    /// tests that must exercise the gate deterministically without a config file in
+    /// the process cwd. `None` = not-configured (permissive), `Some(set)` = enforce
+    /// exactly that set (`*` = all, empty = deny-all).
+    pub fn with_trusted_plugins(
+        mut self,
+        trusted: Option<std::collections::HashSet<String>>,
+    ) -> Self {
+        self.trusted_plugins_at_boot = trusted;
+        self
     }
 
     /// Return the compiled Component for the given wasm bytes, compiling+caching
@@ -670,6 +693,24 @@ impl PluginHost {
     /// Uses the regular linker: tractor-bridge + host-fs/shell host primitives.
     /// Fase 3 TODO: if `host_effects` is loaded, compose host-fs/shell from it
     /// instead of the host primitive — see HANDOFF.md Tarefa 2B.
+    /// Whether the sovereign trusted_plugins allowlist admits this plugin to load
+    /// under Strict, WITHOUT a per-hash trust grant. Semantics mirror the shell
+    /// gate:
+    ///   - None (not configured) → permissive: everything loads (backward-compat).
+    ///   - contains `*`          → trust every plugin.
+    ///   - contains the id       → trust this plugin.
+    ///   - otherwise (incl. `[]`)→ deny (the id is not listed).
+    /// The operator of THIS device is authoritative over their own local plugins,
+    /// so a config-declared trust is a standing "yes" — no separate grant needed.
+    fn trusted_to_load(&self, plugin_id: &str) -> bool {
+        match &self.trusted_plugins_at_boot {
+            None => true,
+            Some(allow) => {
+                allow.contains("*") || allow.contains(&plugin_id.to_ascii_lowercase())
+            }
+        }
+    }
+
     pub async fn load(&self, path: &Path, sync: &NativeSync) -> Result<PluginInstanceHandle> {
         let manifest = read_runtime_plugin_manifest(path)?;
         let plugin_id = manifest
@@ -700,9 +741,11 @@ impl PluginHost {
 
         if self.trust.security_mode() == &SecurityMode::Strict
             && !self.trust.has_valid_grant(&plugin_id, Some(&wasm_hash))
+            && !self.trusted_to_load(&plugin_id)
         {
             anyhow::bail!(
-                "SecurityMode::Strict: no valid trust grant for plugin '{}' (hash: {})",
+                "SecurityMode::Strict: plugin '{}' (hash: {}) is neither trust-granted \
+                 nor in the sovereign trusted_plugins allowlist",
                 plugin_id,
                 wasm_hash
             );
@@ -828,9 +871,11 @@ impl PluginHost {
 
         if self.trust.security_mode() == &SecurityMode::Strict
             && !self.trust.has_valid_grant(plugin_id, Some(wasm_hash))
+            && !self.trusted_to_load(plugin_id)
         {
             anyhow::bail!(
-                "SecurityMode::Strict: no valid trust grant for P1 module '{}' (hash: {})",
+                "SecurityMode::Strict: P1 module '{}' (hash: {}) is neither trust-granted \
+                 nor in the sovereign trusted_plugins allowlist",
                 plugin_id,
                 wasm_hash
             );

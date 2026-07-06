@@ -210,6 +210,14 @@ pub struct PluginHost {
     /// at construction and cloned into every `TractorNativeBindings` at load, so
     /// the per-call effect path reads `&self`, never `std::env::var`.
     effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
+    /// The operator's sovereign trusted-plugins allowlist from `.refarm/config.json`,
+    /// resolved ONCE at construction (the same fs-first read the shell-effect gate
+    /// uses). Seeds the Strict LOAD gate: a plugin whose id is listed (or `*`) is
+    /// trusted to load without a per-hash grant — the operator of THIS device is
+    /// authoritative over their own local plugins, mirroring config sovereignty.
+    /// None = not configured → the load gate stays permissive (backward-compatible,
+    /// same as the shell gate); an empty set = deny-all; `*` = trust every plugin.
+    trusted_plugins_at_boot: Option<std::collections::HashSet<String>>,
     /// The expected model route (provider + base-url + path) guardrail, resolved
     /// from the routing env vars ONCE at construction and cloned into every
     /// `TractorNativeBindings` at load. Only ROUTING config — API-key secrets stay

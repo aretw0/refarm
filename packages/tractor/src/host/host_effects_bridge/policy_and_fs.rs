@@ -85,7 +85,8 @@ fn is_safe_plugin_id_token(value: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b == b'.')
 }
 
-fn trusted_plugins_from_refarm_config() -> Result<Option<std::collections::HashSet<String>>, String> {
+pub(crate) fn trusted_plugins_from_refarm_config(
+) -> Result<Option<std::collections::HashSet<String>>, String> {
     let base = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
     let path = base.join(".refarm/config.json");
     let bytes = read_trusted_plugins_config_bytes(&path)?;
