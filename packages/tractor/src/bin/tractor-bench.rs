@@ -6,7 +6,8 @@ use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use tractor::{
     deliver_via_router, host::PluginHost, trust::TrustManager, PluginChannels, EventEnvelope,
-    EventRouter, NativeStorage, NativeSync, TelemetryBus,
+    EventRouter, NativeStorage, NativeSync, SecurityMode, TelemetryBus, TractorNative,
+    TractorNativeConfig,
 };
 
 const BASELINE_PATH: &str = "benchmarks/baseline.json";
@@ -161,8 +162,48 @@ fn main() -> Result<()> {
             );
             Ok(())
         }
+        "save-reload" => {
+            let report = run_reload_benchmark()?;
+            write_report(RELOAD_BASELINE_PATH, &report)?;
+            write_payload_to(
+                RELOAD_GHA_PAYLOAD_PATH,
+                &payload_for_missing_comparison(&report),
+            )?;
+            println!(
+                "[tractor-bench] reload baseline saved: {} total={}ns per_reload={}ns",
+                RELOAD_BASELINE_PATH,
+                total_ns(&report)?,
+                metric_value(&report, "per_reload")?
+            );
+            Ok(())
+        }
+        "check-reload" => {
+            let baseline = read_report(RELOAD_BASELINE_PATH)?;
+            let current = run_reload_benchmark()?;
+            write_report(RELOAD_CURRENT_PATH, &current)?;
+            let payload = compare(&baseline, &current)?;
+            write_payload_to(RELOAD_GHA_PAYLOAD_PATH, &payload)?;
+            if payload.regressed {
+                Err(anyhow!(
+                    "tractor reload benchmark regressed by {:.2}% (threshold {:.2}%). baseline={}ns current={}ns",
+                    payload.diff.abs(),
+                    payload.threshold,
+                    payload.baseline_total_ns,
+                    payload.current_total_ns
+                ))
+            } else {
+                println!(
+                    "[tractor-bench] reload OK diff={:.2}% threshold={:.2}% baseline={}ns current={}ns",
+                    payload.diff,
+                    payload.threshold,
+                    payload.baseline_total_ns,
+                    payload.current_total_ns
+                );
+                Ok(())
+            }
+        }
         _ => Err(anyhow!(
-            "usage: tractor-bench <save|check|save-dispatch|check-dispatch|instantiation>"
+            "usage: tractor-bench <save|check|save-dispatch|check-dispatch|instantiation|save-reload|check-reload>"
         )),
     }
 }
@@ -415,6 +456,19 @@ fn run_dispatch_drain(worker_count: usize) -> Result<DrainRun> {
 /// Matches the pool-size cap so the number reflects a realistic per-plugin pool.
 const INSTANTIATION_COUNT: usize = 8;
 
+// ── reload suite ──────────────────────────────────────────────────────────────
+//
+// The hot-reload wire (unregister + re-read bytes + register) is a critical path:
+// code swapped on a live host. This suite measures the full cycle cost so a
+// regression (e.g. losing the content-addressed cache HIT, or a teardown that
+// stops draining before join) shows up as a latency jump. Same bytes each round →
+// the recompile is a cache HIT, so the number reflects unregister + register +
+// cache lookup, not compilation.
+const RELOAD_BASELINE_PATH: &str = "benchmarks/baseline-reload.json";
+const RELOAD_CURRENT_PATH: &str = "benchmarks/current-reload.json";
+const RELOAD_GHA_PAYLOAD_PATH: &str = "benchmarks/gha-payload-reload.json";
+const RELOAD_COUNT: usize = 16;
+
 /// Measure the cost of instantiating N stores of the same plugin — the price the
 /// pooled runner pays ONCE at boot to stand up its N-store pool. This is the
 /// suite that lets us feel the real pain before deciding whether the wasmtime
@@ -461,6 +515,64 @@ fn run_instantiation_benchmark() -> Result<BenchReport> {
                 metric("total", total_ns, "ns"),
                 metric("instances", INSTANTIATION_COUNT as u128, "count"),
                 metric("per_instance", per_instance_ns, "ns"),
+            ],
+        })
+    })
+}
+
+/// Measure the full hot-reload cycle (unregister + reload bytes + register) on a
+/// live host, same bytes each round so the cache HIT path is what's timed.
+fn run_reload_benchmark() -> Result<BenchReport> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("build bench tokio runtime")?;
+
+    rt.block_on(async {
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/null-plugin.wasm");
+        if !fixture.exists() {
+            return Err(anyhow!(
+                "reload bench needs tests/fixtures/null-plugin.wasm at {}",
+                fixture.display()
+            ));
+        }
+        let tractor = TractorNative::boot(TractorNativeConfig {
+            namespace: ":memory:".to_string(),
+            port: 0,
+            security_mode: SecurityMode::None,
+            ..TractorNativeConfig::default()
+        })
+        .await
+        .context("boot host for reload bench")?;
+
+        let handle = tractor.load_plugin(&fixture).await.context("initial load")?;
+        let plugin_id = handle.id.clone();
+        tractor.register_for_events(handle);
+
+        // Warm one reload so first-time costs (page cache, cache insert) don't skew.
+        tractor.reload_plugin(&plugin_id).await.context("warm reload")?;
+
+        let start = Instant::now();
+        for _ in 0..RELOAD_COUNT {
+            let ok = tractor.reload_plugin(&plugin_id).await.context("reload")?;
+            if !ok {
+                return Err(anyhow!("reload bench: plugin vanished mid-run"));
+            }
+        }
+        let total_ns = start.elapsed().as_nanos();
+        let per_reload_ns = total_ns / RELOAD_COUNT as u128;
+
+        tractor.shutdown().await.context("shutdown after reload bench")?;
+
+        Ok(BenchReport {
+            version: 1,
+            suite: "tractor-reload".to_string(),
+            node_count: RELOAD_COUNT,
+            threshold_pct: REGRESSION_THRESHOLD_PCT,
+            metrics: vec![
+                metric("total", total_ns, "ns"),
+                metric("reloads", RELOAD_COUNT as u128, "count"),
+                metric("per_reload", per_reload_ns, "ns"),
             ],
         })
     })

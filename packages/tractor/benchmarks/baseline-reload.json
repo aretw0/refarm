@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "suite": "tractor-reload",
+  "node_count": 16,
+  "threshold_pct": 20.0,
+  "metrics": [
+    {
+      "name": "total",
+      "value": 130149810,
+      "unit": "ns",
+      "lower_is_better": true,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "reloads",
+      "value": 16,
+      "unit": "count",
+      "lower_is_better": false,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "per_reload",
+      "value": 8134363,
+      "unit": "ns",
+      "lower_is_better": true,
+      "threshold_pct": 20.0
+    }
+  ]
+}

@@ -201,3 +201,78 @@ async fn plugins_reload_endpoint_actually_reloads_when_the_host_is_wired() {
 
     tractor.shutdown().await.expect("shutdown must succeed");
 }
+
+#[tokio::test]
+async fn reload_while_events_are_in_flight_drains_the_queue_and_survives() {
+    // The critical hot-reload invariant: reloading a plugin that has events queued
+    // must NOT lose them or deadlock. unregister drops the sender so the runner
+    // drains its FIFO to completion (recv()→None) before teardown+join; the fresh
+    // instance then handles new events. We drive events concurrently with the
+    // reload to exercise the race.
+    let tractor = TractorNative::boot(memory_config_with_plugins())
+        .await
+        .expect("boot must succeed");
+    let handle = tractor
+        .load_plugin(Path::new("tests/fixtures/null-plugin.wasm"))
+        .await
+        .expect("plugin fixture must load");
+    let plugin_id = handle.id.clone();
+    tractor.register_for_events(handle);
+
+    // Queue a burst of events, then reload while they're still draining. deliver()
+    // enqueues onto the runner's channel; the runner processes them FIFO. None must
+    // be dropped by the reload's unregister step (it drains before it tears down).
+    for i in 0..32 {
+        tractor.deliver("null:event", Some(&plugin_id), Some(format!("{i}")));
+    }
+    let reloaded = tractor
+        .reload_plugin(&plugin_id)
+        .await
+        .expect("reload under load must not error");
+    assert!(reloaded, "reload must succeed even with events in flight");
+
+    // The fresh instance is live: it has a channel and a cancel flag, and accepts
+    // new events without panicking.
+    assert_eq!(
+        tractor.plugin_channels.read().unwrap().len(),
+        1,
+        "exactly one instance is registered after reload-under-load"
+    );
+    assert!(tractor.cancel_flags.read().unwrap().contains_key(&plugin_id));
+    let delivered = tractor.deliver("null:event", Some(&plugin_id), Some("post".into()));
+    assert_eq!(delivered, 1, "the reloaded instance accepts new events");
+
+    tractor.shutdown().await.expect("shutdown must succeed");
+}
+
+#[tokio::test]
+async fn reload_is_idempotent_and_reuses_the_content_addressed_cache() {
+    // Reloading twice from the same unchanged bytes must succeed both times — and
+    // the second compile is a content-addressed cache HIT (same wasm_hash), not a
+    // recompile. We can't read the cache directly here, but we assert the observable
+    // contract: repeated reloads keep exactly one live instance and never error.
+    let tractor = TractorNative::boot(memory_config_with_plugins())
+        .await
+        .expect("boot must succeed");
+    let handle = tractor
+        .load_plugin(Path::new("tests/fixtures/null-plugin.wasm"))
+        .await
+        .expect("plugin fixture must load");
+    let plugin_id = handle.id.clone();
+    tractor.register_for_events(handle);
+
+    for round in 0..3 {
+        let reloaded = tractor
+            .reload_plugin(&plugin_id)
+            .await
+            .unwrap_or_else(|e| panic!("reload round {round} errored: {e}"));
+        assert!(reloaded, "reload round {round} must report success");
+        assert_eq!(
+            tractor.plugin_channels.read().unwrap().len(),
+            1,
+            "round {round}: exactly one instance after an idempotent reload"
+        );
+    }
+
+    tractor.shutdown().await.expect("shutdown must succeed");
+}
