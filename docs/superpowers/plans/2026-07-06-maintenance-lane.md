@@ -56,6 +56,31 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
 
 ## Security debt
 
+- **Grant-enforcement foundation (the road to S2-strong).** Arthur's doctrine:
+  support every possible grant, don't waste the effort, arrive at S2 strong, and
+  eventually deliver the persona install-and-approve UX — "security down at the
+  host so the multi-surface does it beautifully." A source-verified map
+  (workflow wf_60a6603e) established the **gate trichotomy**, all fed by the single
+  `PermissionGrant::grants(cap)` decision point:
+  - **Gate A — linker-omit** (`network:outbound`/wasi:http): DONE (e568eafc,
+    proved e2e). Does NOT generalize — base WASI `add_to_linker_async` is
+    monolithic (no `add_only_*` for fs/sockets).
+  - **Gate B — context-scope** (`wasi:filesystem` preopens, `wasi:sockets`
+    `socket_addr_check`, env): the import links, the capability is empty without
+    the grant. Today ungated (streams preopen is all-or-nothing; sockets deny-all
+    by accident). A later slice.
+  - **Gate C — host-bridge per-call** (`host-fs`/`host-shell`): where integration
+    plugins actually reach fs/shell. **The ACTIVE hole** — `fs:read`/`fs:write`/
+    `shell:spawn` are declared but the grant is never checked (host_effects_bridge
+    read/write/edit only run `enforce_fs_root`; spawn only the trust/identity
+    check). Next slice.
+  - **Vocabulary (FATIA 1) — DONE (6bf43502).** Was free strings, no validation,
+    two unrelated axes (effect `permissions[]` vs requires `capabilities.requires`).
+    Now a closed Rust `enum Permission` (source of truth, +label/risk for the
+    approval UX), a mirrored TS union, reject-unknown validation on both sides, and
+    a drift guard (`check-permission-vocab.mjs`, wired into `gate:full:colony`,
+    verified it has teeth). This is the single source every later grant + the S2
+    approval ceremony builds on.
 - **S1: `boot` silently discarded `config.security_mode` — DONE (eb9d2277).** boot
   now honors the configured posture; the Strict LOAD gate is seeded from the
   sovereign `trusted_plugins` allowlist (absent→permissive, `*`→all, listed→trust,
