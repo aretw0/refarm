@@ -126,3 +126,52 @@ export function resolveRuntimeSidecarUrl(
 	}
 	return { value: resolved?.value ?? DEFAULT_RUNTIME_SIDECAR_URL, source: resolved?.source ?? "default" };
 }
+
+/**
+ * Node-aware variant of {@link resolveRuntimeSidecarUrl}, symmetric to the Rust
+ * host: env → the sovereign config seam (cwd `.refarm/config.json` fs-first, then
+ * the cwd-scoped replicated graph node) → home `.refarm/config.json` (fs) →
+ * default.
+ *
+ * The seam is consulted BEFORE the home file on purpose: the sync resolver loops
+ * `[home, cwd]` last-wins, so a cwd value beats a home value. The seam covers the
+ * cwd layer (and its node fallback), so it must win over home to preserve that
+ * precedence. The home file — which the workspace-scoped node cannot represent —
+ * is the lower-precedence fs fallback consulted only when the cwd/node layer had
+ * no URL.
+ *
+ * `resolveConfig` is INJECTED (not imported) so this module keeps its lean,
+ * storage-free dependency profile — the app passes `() => resolveSovereignConfig(env)`,
+ * which owns the tractor-db read. The sync {@link resolveRuntimeSidecarUrl} stays
+ * fs-only and untouched for callers that report "which file" or are not yet async.
+ */
+export async function resolveRuntimeSidecarUrlAsync(
+	resolveConfig: () => Promise<Record<string, unknown> | null>,
+	deps: RuntimeConfigDeps = {},
+	options: { local?: boolean } = {},
+): Promise<{ value: string; source: string }> {
+	const env = deps.env ?? process.env;
+	const envUrl = parseRuntimeSidecarUrl(env[RUNTIME_SIDECAR_URL_ENV_VAR]);
+	if (envUrl) return { value: envUrl, source: `env:${RUNTIME_SIDECAR_URL_ENV_VAR}` };
+
+	// PRECEDENCE PARITY with the sync resolver: its loop over [home, cwd] is
+	// "last wins", so the CWD file beats the home file. The seam is cwd-scoped
+	// (cwd fs-first, then the cwd-scoped graph node), so consult it FIRST — a cwd
+	// value must win over home, exactly as the sync path resolves it.
+	const cfg = await resolveConfig();
+	const runtime = (cfg?.runtime ?? undefined) as { sidecarUrl?: unknown } | undefined;
+	const cwdUrl = parseRuntimeSidecarUrl(runtime?.sidecarUrl);
+	if (cwdUrl) return { value: cwdUrl, source: "sovereign-config" };
+
+	// Home fs layer as the lower-precedence fallback (the node cannot represent
+	// it, so it stays a pure fs read — and only when the cwd/node layer had none).
+	if (!options.local) {
+		const home = deps.home ?? os.homedir();
+		const homeUrl = parseRuntimeSidecarUrl(
+			readConfig(path.join(home, ".refarm", "config.json")).runtime?.sidecarUrl,
+		);
+		if (homeUrl) return { value: homeUrl, source: "home" };
+	}
+
+	return { value: DEFAULT_RUNTIME_SIDECAR_URL, source: "default" };
+}
