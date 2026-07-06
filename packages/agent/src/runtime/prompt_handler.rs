@@ -7,9 +7,11 @@ use super::{prompt_persistence, react_loop::react_with_prompt_ref_and_route, str
 /// No-op if the directory cannot be created or the file cannot be written.
 /// Only active in the WASM build — native builds (unit tests) are a no-op.
 #[cfg(not(target_arch = "wasm32"))]
-fn write_final_stream_chunk(_: &str, _: &str, _: &str, _: &str, _: u32, _: u32, _: u32) {}
+#[allow(clippy::too_many_arguments)]
+fn write_final_stream_chunk(_: &str, _: &str, _: &str, _: &str, _: u32, _: u32, _: u32, _: bool, _: u32) {}
 
 #[cfg(target_arch = "wasm32")]
+#[allow(clippy::too_many_arguments)]
 fn write_final_stream_chunk(
     prompt_ref: &str,
     content: &str,
@@ -18,7 +20,18 @@ fn write_final_stream_chunk(
     tokens_in: u32,
     tokens_out: u32,
     tokens_cached: u32,
+    partials_present: bool,
+    sequence: u32,
 ) {
+    // SINGLE OWNER of the ndjson file. When the host proxied SSE it produced the
+    // partials (partials_present) AND owns the final line — the host is the sole
+    // writer, so the guest must NOT also write (two appenders on one file
+    // interleave and corrupt it). The guest only writes the final line on the
+    // single-shot / non-SSE path (no host partials), where it is the sole producer.
+    if partials_present {
+        return;
+    }
+
     let streams_dir = match std::env::var("REFARM_STREAMS_DIR") {
         Ok(v) if !v.is_empty() => v,
         _ => {
@@ -43,6 +56,8 @@ fn write_final_stream_chunk(
             tokens_in,
             tokens_out,
             tokens_cached,
+            partials_present,
+            sequence,
         },
     );
 
@@ -168,6 +183,8 @@ pub(crate) fn execute_prompt_with_route(
         tokens_in,
         tokens_out,
         tokens_cached,
+        last_partial_sequence.is_some(),
+        response_sequence,
     );
 
     Some(PromptExecutionOutcome {

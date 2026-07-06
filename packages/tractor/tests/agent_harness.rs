@@ -578,9 +578,11 @@ data: [DONE]
 "#,
     )
     .await;
+    let streams_dir = tempfile::tempdir().unwrap();
     std::env::set_var("MODEL_PROVIDER", "ollama");
     std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
     std::env::set_var("MODEL_STREAM_RESPONSES", "1");
+    std::env::set_var("REFARM_STREAMS_DIR", streams_dir.path());
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).unwrap();
@@ -651,7 +653,55 @@ data: [DONE]
     assert_eq!(usage["tokens_in"], 13);
     assert_eq!(usage["tokens_out"], 5);
 
+    // The ndjson spine the CLI actually tails: the HOST wrote each delta as an
+    // is_final:false partial line (Slice B), and the GUEST wrote the single final
+    // line as an empty end-marker because partials preceded it (Slice A). So the
+    // CLI's `content += chunk.content` over the file reconstructs the whole answer
+    // EXACTLY ONCE, with exactly one is_final line.
+    // Resolve the single ndjson file in the isolated streams dir (its name carries
+    // the derived prompt_ref, not the raw prompt, so discover it by extension).
+    let ndjson_path = std::fs::read_dir(streams_dir.path())
+        .unwrap()
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .find(|p| p.extension().map(|x| x == "ndjson").unwrap_or(false))
+        .expect("host+guest must write an agent-response ndjson stream");
+    assert!(
+        ndjson_path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with("urn:tractor:stream:agent-response:"),
+        "stream file is named by the agent-response stream_ref"
+    );
+    let ndjson = std::fs::read_to_string(&ndjson_path).unwrap();
+    let lines: Vec<serde_json::Value> = ndjson
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+
+    let final_count = lines.iter().filter(|l| l["is_final"] == true).count();
+    assert_eq!(final_count, 1, "exactly one is_final line");
+    assert!(lines.len() > 1, "incremental: more than just the final line");
+
+    let final_line = lines.iter().find(|l| l["is_final"] == true).unwrap();
+    assert_eq!(
+        final_line["content"], "",
+        "final is an empty end-marker when partials preceded it"
+    );
+
+    let reconstructed: String = lines
+        .iter()
+        .filter_map(|l| l["content"].as_str())
+        .collect();
+    assert_eq!(
+        reconstructed, "Olá stream",
+        "content += over the ndjson file yields the whole answer exactly once"
+    );
+
     clean_model_env();
+    std::env::remove_var("REFARM_STREAMS_DIR");
 }
 
 #[tokio::test]

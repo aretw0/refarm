@@ -330,6 +330,49 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("reconstructs the whole answer from deltas with an empty final marker", async () => {
+		// The guest's streaming contract: partial lines carry the deltas, and the
+		// FINAL line is an empty end-marker (content:"") so `content += chunk.content`
+		// reconstructs the whole answer exactly once — no doubling.
+		const deps = makeDeps({
+			followStream: vi
+				.fn()
+				.mockImplementation(
+					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+						onChunk(makeChunk("Hel", 0, false));
+						onChunk(makeChunk("lo, ", 1, false));
+						onChunk(makeChunk("world", 2, false));
+						onChunk(
+							makeChunk("", 3, true, {
+								model: "gpt-5.5",
+								tokens_in: 10,
+								tokens_out: 5,
+							}),
+						);
+					},
+				),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const written: string[] = [];
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation((s: string | Uint8Array) => {
+				written.push(String(s));
+				return true;
+			});
+
+		await command.parseAsync(["hello"], { from: "user" });
+
+		// Each delta was streamed to stdout as it arrived, and joining them yields
+		// the whole answer exactly once (the empty final adds nothing).
+		expect(written.join("")).toContain("Hello, world");
+		expect(written.join("")).not.toContain("Hello, worldHello, world");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
 	it("prints subscription pricing mode instead of api cost for subscription providers", async () => {
 		const deps = makeDeps({
 			followStream: vi

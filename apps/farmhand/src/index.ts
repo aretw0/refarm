@@ -49,7 +49,10 @@ import {
 	createSiloModelEnvInjector,
 	type OAuthCreds,
 } from "./silo-model-env.js";
-import { toStreamChunk } from "./stream-chunk-mapper.js";
+import {
+	shouldProjectStreamChunk,
+	toStreamChunk,
+} from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
 import { createTaskMemoryBridge } from "./task-memory-bridge.js";
@@ -482,7 +485,13 @@ async function main() {
 	streamRegistry.register(sseStreamTransport);
 	streamRegistry.register(wsStreamTransport);
 	runtime.onNode("StreamChunk", async (node) => {
-		streamRegistry.dispatch(toStreamChunk(node as Record<string, unknown>));
+		const chunk = toStreamChunk(node as Record<string, unknown>);
+		// Project the host's partials only; the guest owns the final ndjson line.
+		// (See shouldProjectStreamChunk — this drops the host's whole-answer final
+		// for agent-response streams to avoid double-counting the response.)
+		if (shouldProjectStreamChunk(chunk)) {
+			streamRegistry.dispatch(chunk);
+		}
 	});
 	console.log(
 		"[farmhand] Stream transports registered (File, SSE, WebSocket).",

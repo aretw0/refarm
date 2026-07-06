@@ -196,6 +196,12 @@ fn store_stream_agent_response_chunks_from_reader(
             final_stream_payload_kind(&assembly),
             &assembly.content,
         )?;
+        // Host is the SOLE owner of the ndjson file on the streaming path: having
+        // written every partial delta (append_partial_stream_ndjson), it also
+        // writes the single final line — a content:"" end-marker, since the deltas
+        // already carried the whole answer. The guest skips its own final write
+        // when partials were produced, so exactly one writer touches the file.
+        append_final_stream_ndjson(metadata, sequence);
         body
     } else {
         raw_body
@@ -468,7 +474,77 @@ fn store_stream_chunk_projection(
 ) -> Result<(), String> {
     let timestamp_ns = now_ns();
     store_stream_chunk_observation(sync, source_plugin, metadata, chunk, timestamp_ns)?;
+    // The tractor host is the delta producer under host-proxied streaming, so it
+    // also owns the partial ndjson spine the CLI tails: mirror each parsed delta
+    // as an is_final:false line into {stream_ref}.ndjson. Best-effort — a stream
+    // file that can't be written must not fail the model call; the CRDT projection
+    // remains the source of truth. Only PARTIALS are written here; the guest owns
+    // the single final line (an empty end-marker when partials preceded it).
+    append_partial_stream_ndjson(metadata, chunk);
     store_stream_agent_response_chunk(sync, source_plugin, metadata, chunk, timestamp_ns)
+}
+
+/// Append one partial delta line to `{REFARM_STREAMS_DIR}/{stream_ref}.ndjson`.
+/// No-op when REFARM_STREAMS_DIR is unset/empty or on any IO error — the ndjson
+/// spine is a delivery convenience, never a correctness dependency.
+fn append_partial_stream_ndjson(
+    metadata: &StreamResponseMetadata,
+    chunk: &ModelStreamTextChunkDraft,
+) {
+    let streams_dir = match std::env::var("REFARM_STREAMS_DIR") {
+        Ok(v) if !v.trim().is_empty() => v,
+        _ => return,
+    };
+    let stream_ref = agent_response_stream_ref(&metadata.prompt_ref);
+    let file_path = format!("{streams_dir}/{stream_ref}.ndjson");
+    if std::fs::create_dir_all(&streams_dir).is_err() {
+        return;
+    }
+    let line = serde_json::json!({
+        "stream_ref": stream_ref,
+        "sequence": chunk.sequence,
+        "content": chunk.content_delta,
+        "is_final": false,
+        "payload_kind": "text_delta",
+    });
+    append_stream_ndjson_line(&file_path, &line);
+}
+
+/// Append the single final end-marker line to `{stream_ref}.ndjson`. content:""
+/// because the partials already carried the whole answer (so a CLI accumulating
+/// `content += chunk.content` reconstructs it exactly once). Same best-effort
+/// no-op semantics as the partial writer.
+fn append_final_stream_ndjson(metadata: &StreamResponseMetadata, sequence: u32) {
+    let streams_dir = match std::env::var("REFARM_STREAMS_DIR") {
+        Ok(v) if !v.trim().is_empty() => v,
+        _ => return,
+    };
+    let stream_ref = agent_response_stream_ref(&metadata.prompt_ref);
+    let file_path = format!("{streams_dir}/{stream_ref}.ndjson");
+    if std::fs::create_dir_all(&streams_dir).is_err() {
+        return;
+    }
+    let line = serde_json::json!({
+        "stream_ref": stream_ref,
+        "sequence": sequence,
+        "content": "",
+        "is_final": true,
+        "payload_kind": "final_marker",
+    });
+    append_stream_ndjson_line(&file_path, &line);
+}
+
+/// Append one JSON line to an ndjson stream file. Best-effort: a stream file that
+/// can't be written must never fail the model call.
+fn append_stream_ndjson_line(file_path: &str, line: &serde_json::Value) {
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(file_path)
+        .and_then(|mut f| {
+            use std::io::Write;
+            writeln!(f, "{line}")
+        });
 }
 
 fn store_stream_chunk_observation(
@@ -731,5 +807,113 @@ fn anthropic_text_delta(value: &serde_json::Value) -> Option<&str> {
     match value.get("type").and_then(serde_json::Value::as_str) {
         Some("content_block_delta") => delta.get("text")?.as_str(),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod partial_ndjson_tests {
+    use super::*;
+    use crate::host::plugin_host::refarm::plugin::model_bridge::StreamResponseMetadata;
+
+    // Serialize env mutation + cwd-independent tmp path; env is process-global.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn meta(prompt_ref: &str) -> StreamResponseMetadata {
+        StreamResponseMetadata {
+            prompt_ref: prompt_ref.to_string(),
+            model: "gpt-5.5".to_string(),
+            provider_family: "openai".to_string(),
+            last_sequence: None,
+        }
+    }
+
+    #[test]
+    fn partial_projection_appends_delta_lines_to_ndjson() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("REFARM_STREAMS_DIR", dir.path());
+
+        let m = meta("p-abc");
+        for (seq, delta) in [(0u32, "Hel"), (1, "lo, "), (2, "world")] {
+            append_partial_stream_ndjson(
+                &m,
+                &ModelStreamTextChunkDraft { sequence: seq, content_delta: delta.to_string() },
+            );
+        }
+        std::env::remove_var("REFARM_STREAMS_DIR");
+
+        let path = dir
+            .path()
+            .join("urn:tractor:stream:agent-response:p-abc.ndjson");
+        let body = std::fs::read_to_string(&path).unwrap();
+        let lines: Vec<&str> = body.lines().collect();
+        assert_eq!(lines.len(), 3, "one ndjson line per delta");
+
+        // Every line is a non-final partial carrying its own delta; joining the
+        // deltas reconstructs the whole answer (the CLI's `content +=` model).
+        let mut joined = String::new();
+        for (i, line) in lines.iter().enumerate() {
+            let v: serde_json::Value = serde_json::from_str(line).unwrap();
+            assert_eq!(v["is_final"], false, "host writes only partials");
+            assert_eq!(v["sequence"], i as u64);
+            assert_eq!(v["payload_kind"], "text_delta");
+            joined.push_str(v["content"].as_str().unwrap());
+        }
+        assert_eq!(joined, "Hello, world");
+    }
+
+    #[test]
+    fn partial_projection_is_a_noop_without_streams_dir() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("REFARM_STREAMS_DIR");
+        // Must not panic and must write nothing when the dir is unset.
+        append_partial_stream_ndjson(
+            &meta("p-none"),
+            &ModelStreamTextChunkDraft { sequence: 0, content_delta: "x".to_string() },
+        );
+    }
+
+    #[test]
+    fn host_is_sole_owner_partials_plus_empty_final_reconstruct_the_answer() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("REFARM_STREAMS_DIR", dir.path());
+
+        let m = meta("p-xyz");
+        for (seq, delta) in [(0u32, "Olá "), (1, "stream")] {
+            append_partial_stream_ndjson(
+                &m,
+                &ModelStreamTextChunkDraft { sequence: seq, content_delta: delta.to_string() },
+            );
+        }
+        // The host writes the single final end-marker (guest skips its write when
+        // partials were produced), sequence after the last partial.
+        append_final_stream_ndjson(&m, 2);
+        std::env::remove_var("REFARM_STREAMS_DIR");
+
+        let path = dir
+            .path()
+            .join("urn:tractor:stream:agent-response:p-xyz.ndjson");
+        let body = std::fs::read_to_string(&path).unwrap();
+        let lines: Vec<serde_json::Value> = body
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect();
+
+        assert_eq!(lines.len(), 3, "two partials + one final");
+        assert_eq!(
+            lines.iter().filter(|l| l["is_final"] == true).count(),
+            1,
+            "exactly one final line"
+        );
+        let final_line = lines.iter().find(|l| l["is_final"] == true).unwrap();
+        assert_eq!(final_line["content"], "", "final is an empty end-marker");
+        assert_eq!(final_line["sequence"], 2);
+
+        let reconstructed: String = lines
+            .iter()
+            .filter_map(|l| l["content"].as_str())
+            .collect();
+        assert_eq!(reconstructed, "Olá stream", "content += yields the answer once");
     }
 }
