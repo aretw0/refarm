@@ -1,13 +1,16 @@
 use super::*;
 
 #[test]
-fn default_provider_is_openai_when_nothing_set() {
+fn default_provider_is_ollama_floor_when_nothing_set() {
     std::env::remove_var("MODEL_PROVIDER");
     std::env::remove_var("MODEL_DEFAULT_PROVIDER");
+    // Also clear MODEL_BASE_URL — env vars leak across threads in this repo, and a
+    // stray value from another test could mask a regression here.
+    std::env::remove_var("MODEL_BASE_URL");
     assert_eq!(
         provider_name_from_env(),
-        "openai",
-        "last-resort default must follow Refarm's shared model routing default"
+        "ollama",
+        "zero-config last-resort must be the keyless ollama floor that agrees with the host"
     );
 }
 

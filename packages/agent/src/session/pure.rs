@@ -1,11 +1,16 @@
 /// Resolves the active provider name with full user control:
 ///   MODEL_PROVIDER          — explicit choice for this run
 ///   MODEL_DEFAULT_PROVIDER  — user's personal sovereign default (fallback when MODEL_PROVIDER unset)
-///   hardcoded "openai"      — last resort aligned with Refarm's shared model defaults
+///   hardcoded "ollama"      — the keyless local floor; matches the host ModelRoute
+///                             env-unset default (wasi_bridge/core.rs). base_url still
+///                             honors MODEL_BASE_URL first (provider.rs), falling through
+///                             to http://localhost:11434 only when unset — exactly as the
+///                             host resolves it — so a zero-config run agrees end-to-end
+///                             instead of tagging the request a provider the host rejects.
 pub(crate) fn provider_name_from_env() -> String {
     std::env::var("MODEL_PROVIDER")
         .or_else(|_| std::env::var("MODEL_DEFAULT_PROVIDER"))
-        .unwrap_or_else(|_| "openai".into())
+        .unwrap_or_else(|_| "ollama".into())
 }
 
 /// Sum `estimated_usd` from UsageRecord JSON payloads for `provider`
