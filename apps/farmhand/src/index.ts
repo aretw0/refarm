@@ -324,7 +324,7 @@ async function main() {
 			id: RUNTIME_AGENT_PLUGIN_ID,
 			package: RUNTIME_AGENT_NPM_PACKAGE,
 			wasmFile: "dist/agent.wasm",
-			requiredProvides: ["agent:respond"],
+			requiredProvides: ["integration:respond"],
 		},
 	];
 	const configBundled: BundledEntry[] = Array.isArray(config?.plugins?.bundled)

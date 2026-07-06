@@ -387,7 +387,7 @@ struct RuntimePluginCapabilities {
     provides: Vec<String>,
     /// The runtime event names this plugin subscribes to — what the neutral event
     /// router delivers to it. Optional; absent means the plugin is loadable but
-    /// driven only by lifecycle calls (and, for the agent, by agent:respond sugar).
+    /// driven only by lifecycle calls (and, for the agent, by integration:respond sugar).
     #[serde(default)]
     subscribes: Vec<String>,
     /// Whether the plugin is safe to drive concurrently — i.e. its on_event is
@@ -989,7 +989,7 @@ mod capability_tests {
             dir.path().join("plugin.json"),
             r#"{"id":"@test/plugin","version":"0.1.0","entry":"plugin.wasm",
                 "observability":{"hooks":["onLoad","onInit","onRequest","onError","onTeardown"]},
-                "capabilities":{"provides":["agent:respond"]}}"#,
+                "capabilities":{"provides":["integration:respond"]}}"#,
         )
         .expect("write plugin manifest");
 
@@ -997,7 +997,7 @@ mod capability_tests {
             .expect("read manifest")
             .expect("manifest found");
 
-        assert!(manifest.capabilities.provides.contains(&"agent:respond".to_string()));
+        assert!(manifest.capabilities.provides.contains(&"integration:respond".to_string()));
     }
 
     #[test]

@@ -613,7 +613,7 @@ mod tests {
             instance,
             store,
             TelemetryBus::new(16),
-            vec!["agent:respond".to_string()],
+            vec!["integration:respond".to_string()],
         )
     }
 

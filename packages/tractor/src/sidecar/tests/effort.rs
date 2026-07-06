@@ -291,7 +291,7 @@ async fn sidecar_effort_result_survives_state_reopen() {
 
 #[tokio::test]
 async fn sidecar_effort_fails_when_no_active_agent_loaded() {
-    // When no plugin has declared "agent:respond" capability and no channel
+    // When no plugin has declared "integration:respond" capability and no channel
     // matches the task's plugin_id, the effort must fail with a clear error.
     let (_state, port, _tmp) = start_test_sidecar().await;
     let client = reqwest::Client::new();

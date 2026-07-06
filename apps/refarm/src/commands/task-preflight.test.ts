@@ -18,7 +18,7 @@ describe("checkTaskProvides (advisory provides preflight)", () => {
 	});
 
 	it("reports NOT provided for an unadvertised target (warn, not block)", () => {
-		const discover = () => new Set(["agent:respond"]);
+		const discover = () => new Set(["integration:respond"]);
 		expect(checkTaskProvides("ghost", "process", discover)).toEqual({
 			target: "ghost:process",
 			provided: false,
@@ -42,7 +42,7 @@ describe("discoverInstalledProvides (reads provides, not the full manifest)", ()
 	it("collects provides across installed plugins", () => {
 		writePlugin("@refarm/agent", {
 			id: "@refarm/agent",
-			capabilities: { provides: ["agent:respond", "agent:plan"] },
+			capabilities: { provides: ["integration:respond", "agent:plan"] },
 		});
 		writePlugin("@demo/other", {
 			id: "@demo/other",
@@ -51,7 +51,7 @@ describe("discoverInstalledProvides (reads provides, not the full manifest)", ()
 		const provides = discoverInstalledProvides(pluginsDir);
 		expect([...provides].sort()).toEqual([
 			"agent:plan",
-			"agent:respond",
+			"integration:respond",
 			"other:run",
 		]);
 	});
@@ -62,9 +62,9 @@ describe("discoverInstalledProvides (reads provides, not the full manifest)", ()
 		writePlugin("@refarm/agent", {
 			id: "@refarm/agent",
 			_note: "Entry injected at install time",
-			capabilities: { provides: ["agent:respond"] },
+			capabilities: { provides: ["integration:respond"] },
 		});
-		expect([...discoverInstalledProvides(pluginsDir)]).toEqual(["agent:respond"]);
+		expect([...discoverInstalledProvides(pluginsDir)]).toEqual(["integration:respond"]);
 	});
 
 	it("skips a malformed plugin.json without throwing (advisory)", () => {

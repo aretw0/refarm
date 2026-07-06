@@ -243,7 +243,7 @@ async fn router_delivers_a_non_agent_event_to_its_subscribed_plugin() {
     );
 
     // Register it — this populates the event router from the manifest, and does
-    // NOT elect it as active agent (it declares no agent:respond).
+    // NOT elect it as active agent (it declares no integration:respond).
     tractor.register_for_events(handle);
     assert!(
         tractor.event_router.has_subscribers("vault:dispatch"),
@@ -251,9 +251,9 @@ async fn router_delivers_a_non_agent_event_to_its_subscribed_plugin() {
     );
     assert!(
         tractor
-            .active_agent_id
+            .default_responder_id
             .read()
-            .expect("active_agent_id poisoned")
+            .expect("default_responder_id poisoned")
             .is_none(),
         "a non-agent plugin must NOT be elected active agent"
     );
@@ -402,7 +402,7 @@ async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
         tractor.plugin_channels.clone(),
         tractor.cancel_flags.clone(),
         tractor.in_flight_cancels.clone(),
-        tractor.active_agent_id.clone(),
+        tractor.default_responder_id.clone(),
         tractor.event_router.clone(),
         tractor.telemetry.clone(),
         &base_dir,

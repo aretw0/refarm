@@ -147,7 +147,7 @@ pub struct SidecarState {
     /// effort, even under a store pool (N stores draining one queue). Populated by
     /// the runner threads (crate::InFlightCancels).
     pub in_flight_cancels: crate::InFlightCancels,
-    /// ID of the loaded plugin with `"agent:respond"` capability, if any.
+    /// ID of the loaded plugin with `"integration:respond"` capability, if any.
     /// Populated by TractorNative.register_for_events; used for effort routing.
     pub default_responder_id: Arc<RwLock<Option<String>>>,
     /// The neutral event router — lets a non-`respond` effort dispatch to any

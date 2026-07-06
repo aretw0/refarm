@@ -12,4 +12,4 @@ pub const CAP_OBSERVE_HOST_EFFECTS: &str = "observe-host-effects";
 /// user prompts. The tractor uses this to identify the active agent and
 /// route efforts to it. Multiple plugins may declare this capability;
 /// the first loaded takes precedence.
-pub const CAP_INTEGRATION_RESPOND: &str = "agent:respond";
+pub const CAP_INTEGRATION_RESPOND: &str = "integration:respond";

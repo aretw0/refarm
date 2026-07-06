@@ -7,7 +7,7 @@ export interface RuntimePluginState {
 	loaded: string[];
 	local: string[];
 	known: string[];
-	/** ID of the loaded plugin with "agent:respond" capability, if any. */
+	/** ID of the loaded plugin with "integration:respond" capability, if any. */
 	defaultResponder: string | null;
 }
 

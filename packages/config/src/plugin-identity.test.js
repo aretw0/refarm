@@ -53,7 +53,7 @@ describe("plugin identity", () => {
 			workspaceDir: "packages/agent",
 			wasmFile: "dist/agent.wasm",
 			manifestFile: "dist/plugin.json",
-			requiredProvides: ["agent:respond"],
+			requiredProvides: ["integration:respond"],
 		});
 		expect(REFARM_BUNDLED_PLUGIN_DESCRIPTORS).toEqual([
 			RUNTIME_AGENT_PLUGIN_DESCRIPTOR,

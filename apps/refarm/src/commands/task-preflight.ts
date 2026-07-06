@@ -8,7 +8,7 @@ import { pluginsBaseDir } from "../utils/refarm-home.js";
  * The CLI-side `provides` preflight for `task run`: before an Effort is submitted
  * to the runtime, check whether the requested `<plugin> <fn>` target is actually
  * advertised by an installed plugin manifest's `capabilities.provides` (the
- * `<pluginKey>:<fn>` list, e.g. `agent:respond`). Today an unadvertised target is
+ * `<pluginKey>:<fn>` list, e.g. `integration:respond`). Today an unadvertised target is
  * accepted silently and only fails at runtime ("Plugin not loaded"); this surfaces
  * the mismatch at submit time.
  *

@@ -293,7 +293,7 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         let payload = payload_obj.to_string();
 
         // Dispatch to the active agent channel.
-        // Prefer the plugin registered via the "agent:respond" capability.
+        // Prefer the plugin registered via the "integration:respond" capability.
         // Fall back to the task's plugin_id for backward compatibility
         // (e.g. when loaded without a manifest in dev mode).
         let agent_id = state

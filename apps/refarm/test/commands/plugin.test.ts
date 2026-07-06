@@ -207,7 +207,7 @@ describe("plugin install", () => {
 			.mockResolvedValueOnce(
 				JSON.stringify({
 					integrity: "sha256-abc123",
-					capabilities: { provides: ["agent:respond"] },
+					capabilities: { provides: ["integration:respond"] },
 				}),
 			);
 		mockExistsSync.mockReturnValue(true);
@@ -359,7 +359,7 @@ describe("plugin install", () => {
 			.mockResolvedValueOnce(
 				JSON.stringify({
 					integrity: "sha256-deadbeef",
-					capabilities: { provides: ["agent:respond"] },
+					capabilities: { provides: ["integration:respond"] },
 				}),
 			);
 		mockDigest.mockReturnValue("deadbeef");

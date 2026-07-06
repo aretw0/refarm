@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "capabilities": {
     "provides": [
-      "agent:respond",
+      "integration:respond",
       "integration:v1"
     ],
     "requires": [],

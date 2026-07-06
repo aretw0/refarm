@@ -8,7 +8,7 @@ export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR = {
 	workspaceDir: "packages/agent",
 	wasmFile: "dist/agent.wasm",
 	manifestFile: "dist/plugin.json",
-	requiredProvides: ["agent:respond"],
+	requiredProvides: ["integration:respond"],
 };
 export const REFARM_BUNDLED_PLUGIN_DESCRIPTORS = [
 	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,

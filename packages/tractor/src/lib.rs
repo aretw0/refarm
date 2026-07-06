@@ -60,8 +60,8 @@ pub struct EventEnvelope {
 
 const SHUTDOWN_EVENT: &str = "__tractor:shutdown";
 
-/// The event a plugin declaring `agent:respond` is implicitly subscribed to (the
-/// agent's prompt channel). `agent:respond` is sugar that expands to this
+/// The event a plugin declaring `integration:respond` is implicitly subscribed to (the
+/// agent's prompt channel). `integration:respond` is sugar that expands to this
 /// subscription plus election as the default `user:prompt` target.
 const USER_PROMPT_EVENT: &str = "user:prompt";
 
@@ -94,7 +94,7 @@ pub type InFlightCancels =
 /// receive its OWN declared event, not just the elected agent's `user:prompt`.
 ///
 /// A plugin declares its events via `capabilities.subscribes` in its manifest;
-/// the legacy `agent:respond` and `observe-host-effects` capability strings are
+/// the legacy `integration:respond` and `observe-host-effects` capability strings are
 /// treated as sugar that expand into subscriptions (see `register_for_events`),
 /// so no existing manifest has to change.
 #[derive(Clone, Default)]
@@ -492,7 +492,7 @@ pub struct TractorNative {
     /// Per-prompt_ref cancel flags for precise effort→store targeting (see
     /// InFlightCancels). Populated by the runner threads as they run each prompt.
     pub in_flight_cancels: InFlightCancels,
-    /// ID of the first loaded plugin that declared `"agent:respond"` capability.
+    /// ID of the first loaded plugin that declared `"integration:respond"` capability.
     /// The sidecar exposes this as `defaultResponder` in the /plugins response so the
     /// CLI can select the active agent without hardcoding any plugin name.
     pub default_responder_id: Arc<RwLock<Option<String>>>,
@@ -735,7 +735,7 @@ impl TractorNative {
 
         // ...and the legacy capability strings are treated as SUGAR that expand
         // into subscriptions, so no existing manifest has to change:
-        //   agent:respond        -> subscribes to user:prompt (+ election below)
+        //   integration:respond        -> subscribes to user:prompt (+ election below)
         //   observe-host-effects  -> subscribes to the host-effect event family
         if provides.contains(&crate::capabilities::CAP_INTEGRATION_RESPOND.to_string()) {
             self.event_router.subscribe(USER_PROMPT_EVENT, &plugin_id);

@@ -48,7 +48,7 @@ describe("discoverVaultProviders", () => {
 	it("ignores non-vault provides (a quality checker is not a vault provider)", () => {
 		writePlugin("@demo/quality", {
 			id: "@demo/quality",
-			capabilities: { provides: ["quality:v1", "agent:respond"] },
+			capabilities: { provides: ["quality:v1", "integration:respond"] },
 		});
 		expect(discoverVaultProviders(pluginsDir).providers).toEqual([]);
 	});

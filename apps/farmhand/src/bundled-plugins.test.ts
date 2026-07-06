@@ -89,7 +89,7 @@ describe("bundleInstallPlugin", () => {
 				id: "@refarm/agent",
 				package: "@refarm.dev/agent",
 				wasmFile: "dist/agent.wasm",
-				requiredProvides: ["agent:respond"],
+				requiredProvides: ["integration:respond"],
 			},
 			"/fake/plugins",
 		);
