@@ -31,12 +31,12 @@ pile up._
 Verified findings. Status: OPEN unless marked. "2nd consumer" column is context,
 not a gate (see policy #1).
 
-| # | Item | Where | 2nd consumer? | Note |
+| # | Item | Where | Status | Note |
 |---|---|---|---|---|
-| C1 | `fetchWithTimeout` mis-homed | `apps/refarm/src/commands/fetch-with-timeout.ts` | no (yet) | Pure primitive; relocate to `@refarm.dev/cli` + add a shared `probeHttpEndpoint` classifier (dedupes the ~15-line catch→{ready,error,timedOut} between `model.ts` and `runtime-readiness.ts`). |
-| C2 | sidecar HTTP client stuck in app | `sidecar-fetch.ts` / `sidecar-url.ts` | **YES** — `context-provider-v1` reimplemented `GET /efforts` with hardcoded `42001` | Move `fetch-with-timeout`+`sidecar-fetch`→`@refarm.dev/cli`; the sidecar-URL resolver→`@refarm.dev/runtime`. NOTE: the 42001 *bug* is already fixed (f1e2a106 + f5b39c8c); this is the remaining *relocation* so the client isn't refarm-privileged. |
-| C3 | `ProviderProbeReason` contract dup | `model-provider-doctor.ts` (TS) ≡ `sidecar/mod.rs` (Rust) | one each side | Cheap now (no package): hoist the Rust probe reason literals into `PROBE_*` consts mirroring the `EFFORT_*` pattern (`sidecar/mod.rs:62`). A `model-liveness-contract-v1` package only when a 2nd app speaks `/providers/liveness`. |
-| C4 | config-node read-back: only sidecar-URL migrated | `runtime-config.ts` resolvers | — | `resolveAutostartMode` / `resolveTractorEngineMode` still fs-only. Propagate the `resolveSovereignConfig` seam to them (the pattern + `makeProcessCache` are ready). |
+| C1 | `fetchWithTimeout` mis-homed | was `apps/refarm/src/commands/fetch-with-timeout.ts` | **DONE** (fa43c50c) | Subsumed by C2's repartition: the primitive moved to `@refarm.dev/root` (zero-dep, generic HTTP). The `probeHttpEndpoint` classifier dedup (model.ts ≡ runtime-readiness.ts) is a smaller residual follow-on. |
+| C2 | sidecar HTTP client stuck in app | `sidecar-fetch.ts` | **DONE** (fa43c50c) | Split by DOMAIN, not into cli (Arthur: a CLI package is the wrong home for a network client). `fetch-with-timeout`→`@refarm.dev/root`; `sidecar-fetch`→NEW `@refarm.dev/sidecar-client`. context-provider-v1 migrated off its raw fetch. The 42001 bug was already fixed (f1e2a106 + f5b39c8c); this closed the relocation + the raw-fetch reimplementation. |
+| C3 | `ProviderProbeReason` contract dup | `sidecar/mod.rs` (Rust) | **DONE** (a9825b78) | Rust probe reason literals hoisted into `PROBE_*` consts mirroring `EFFORT_*`. A `model-liveness-contract-v1` package still waits for a 2nd app speaking `/providers/liveness`. |
+| C4 | config-node read-back: only sidecar-URL migrated | `runtime-config.ts` resolvers | **DONE** (1a1a08f1) | Propagated to autostart + engine via a centralized `resolveConfigValueAsync<T>`. Residual: the two other async resolvers could migrate their hot callers, but none is hot today. |
 
 ## Cognitive-load debt (oversized files)
 
