@@ -145,6 +145,25 @@ export function toCommanderGroup(
 					: `${arg.required ? "<" : "["}${arg.name}${arg.required ? ">" : "]"}`;
 				command.argument(token);
 			}
+			// Project the default child's OWN options onto the parent too, so the
+			// bare `<group>` form accepts them (e.g. `health --next-action`), not only
+			// the explicit `<group> <default> --flag` subcommand. Mirrors the
+			// toCommanderCommand loop. A child option named `json` would collide with
+			// the reserved `--json` below — that name is the projector's, not a
+			// descriptor's to take.
+			for (const option of child.options ?? []) {
+				const flag =
+					option.kind === "boolean"
+						? `--${option.name}`
+						: `--${option.name} <value>`;
+				if (option.kind === "string[]") {
+					command.option(flag, option.summary, collectRepeatable, []);
+				} else if (option.defaultValue !== undefined) {
+					command.option(flag, option.summary, option.defaultValue as string);
+				} else {
+					command.option(flag, option.summary);
+				}
+			}
 			command.option("--json", "Output machine-readable result");
 			command.action(async (...actionArgs: unknown[]) => {
 				const cmd = actionArgs[actionArgs.length - 1] as Command;

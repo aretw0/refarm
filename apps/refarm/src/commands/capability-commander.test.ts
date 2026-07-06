@@ -195,4 +195,14 @@ describe("toCommanderGroup", () => {
 		}));
 		expect(seen).toEqual([true]);
 	});
+
+	// Regression: the BARE `<group>` form must accept the default action's OWN
+	// options, not only the explicit `<group> <default> --flag` subcommand. Before
+	// the group-default branch iterated child.options, commander rejected `--shell`
+	// on the bare invocation ("unknown option") even though `show --shell` worked.
+	it("accepts the default action's options on the bare group form", async () => {
+		const out = JSON.parse((await runGroup(["--shell", "--json"])).join("\n"));
+		expect(out.ok).toBe(true);
+		expect(out.inputShell).toBe(true);
+	});
 });
