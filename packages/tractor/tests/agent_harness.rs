@@ -1480,6 +1480,11 @@ async fn harness_write_structured_tool_creates_file() {
     let final_resp = openai_response("file written", 15, 5);
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
+    // Pin the provider to match the host's route (host defaults to ollama, the
+    // guest to openai — without this pin the model-route guardrail blocks the
+    // request before any tool dispatch). Every other tool-call harness test
+    // sets this; the two _structured_ tests were the only ones missing it.
+    std::env::set_var("MODEL_PROVIDER", "ollama");
     std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
     std::env::set_var("MODEL_FS_ROOT", dir.path().to_str().unwrap());
 
@@ -1555,6 +1560,11 @@ async fn harness_read_structured_tool_returns_paginated_header() {
     let final_resp = openai_response("read structured done", 15, 5);
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
+    // Pin the provider to match the host's route (host defaults to ollama, the
+    // guest to openai — without this pin the model-route guardrail blocks the
+    // request before any tool dispatch). Every other tool-call harness test
+    // sets this; the two _structured_ tests were the only ones missing it.
+    std::env::set_var("MODEL_PROVIDER", "ollama");
     std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
     std::env::set_var("MODEL_FS_ROOT", dir.path().to_str().unwrap());
 
