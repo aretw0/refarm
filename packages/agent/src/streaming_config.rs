@@ -3,16 +3,21 @@
 /// Environment variable that opts into streaming partial AgentResponse nodes.
 pub(crate) const MODEL_STREAM_RESPONSES_ENV: &str = "MODEL_STREAM_RESPONSES";
 
-/// Streaming is explicitly opt-in. Missing, empty, or unrecognized values are false.
+/// Streaming is ON by default. Missing, empty, or unrecognized values enable it;
+/// only an explicit negative (`0`/`false`/`no`/`off`) opts OUT.
 pub(crate) fn stream_responses_enabled_from_env() -> bool {
     let value = std::env::var(MODEL_STREAM_RESPONSES_ENV).ok();
     parse_stream_responses_flag(value.as_deref())
 }
 
+/// Default-on with an explicit opt-out set. The rule is stated as the negative
+/// (return false only for the recognized opt-out values, trimmed+lowercased) so an
+/// unrecognized spelling defaults to enabled rather than silently disabling
+/// streaming — the safe direction now that incremental delivery is the norm.
 pub(crate) fn parse_stream_responses_flag(value: Option<&str>) -> bool {
-    matches!(
+    !matches!(
         value.map(|v| v.trim().to_ascii_lowercase()),
-        Some(v) if matches!(v.as_str(), "1" | "true" | "yes" | "on")
+        Some(v) if matches!(v.as_str(), "0" | "false" | "no" | "off")
     )
 }
 

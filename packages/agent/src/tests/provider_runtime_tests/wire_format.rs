@@ -466,8 +466,10 @@ fn provider_runtime_emit_stream_response_chunk_drafts_from_sse() {
 }
 
 #[test]
-fn provider_runtime_stream_body_gate_stays_off_without_opt_in() {
+fn provider_runtime_stream_body_gate_is_on_by_default() {
     let _guard = super::ENV_LOCK.lock().expect("env lock");
+    // Default-on: with no MODEL_STREAM_RESPONSES set, the provider body requests
+    // streaming (stream:true), so the host proxies the SSE deltas.
     std::env::remove_var(crate::streaming_config::MODEL_STREAM_RESPONSES_ENV);
 
     let openai_body = crate::provider_runtime::build_openai_body_with_streaming(
@@ -483,6 +485,34 @@ fn provider_runtime_stream_body_gate_stays_off_without_opt_in() {
         serde_json::json!([]),
         crate::streaming_config::provider_stream_request_enabled_from_env(),
     );
+
+    let openai: serde_json::Value = serde_json::from_str(&openai_body).unwrap();
+    let anthropic: serde_json::Value = serde_json::from_str(&anthropic_body).unwrap();
+    assert_eq!(openai["stream"], true);
+    assert_eq!(anthropic["stream"], true);
+}
+
+#[test]
+fn provider_runtime_stream_body_gate_honors_explicit_opt_out() {
+    let _guard = super::ENV_LOCK.lock().expect("env lock");
+    // Explicit opt-out removes `stream` from the provider body (single-shot).
+    std::env::set_var(crate::streaming_config::MODEL_STREAM_RESPONSES_ENV, "0");
+
+    let openai_body = crate::provider_runtime::build_openai_body_with_streaming(
+        "m",
+        &[serde_json::json!({"role":"user","content":"hi"})],
+        serde_json::json!([]),
+        crate::streaming_config::provider_stream_request_enabled_from_env(),
+    );
+    let anthropic_body = crate::provider_runtime::build_anthropic_body_with_streaming(
+        "m2",
+        "sys",
+        &[serde_json::json!({"role":"user","content":"hi"})],
+        serde_json::json!([]),
+        crate::streaming_config::provider_stream_request_enabled_from_env(),
+    );
+
+    std::env::remove_var(crate::streaming_config::MODEL_STREAM_RESPONSES_ENV);
 
     let openai: serde_json::Value = serde_json::from_str(&openai_body).unwrap();
     let anthropic: serde_json::Value = serde_json::from_str(&anthropic_body).unwrap();

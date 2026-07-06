@@ -23,7 +23,7 @@
 //!   MODEL_HISTORY_TURNS=<usize>              (conversational memory depth, default 0 = disabled)
 //!   MODEL_TOOL_CALL_MAX_ITER=<u32>           (max agentic tool loop iterations, default 5)
 //!   MODEL_TOOL_OUTPUT_MAX_LINES=<usize>      (truncate tool output fed back to LLM, default unlimited)
-//!   MODEL_STREAM_RESPONSES=1|true|yes|on     (opt into partial AgentResponse streaming chunks)
+//!   MODEL_STREAM_RESPONSES=0|false|no|off    (opt OUT of streaming; on by default — incremental partials)
 //!   MODEL_SYSTEM=<string>                    (system prompt override; distros inject persona/role here)
 //!                                             pipeline: strip ANSI → dedup repeated lines → truncate
 //!
