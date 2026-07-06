@@ -67,8 +67,13 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
     monolithic (no `add_only_*` for fs/sockets).
   - **Gate B — context-scope** (`wasi:filesystem` preopens, `wasi:sockets`
     `socket_addr_check`, env): the import links, the capability is empty without
-    the grant. Today ungated (streams preopen is all-or-nothing; sockets deny-all
-    by accident). A later slice.
+    the grant. **Filesystem DONE (7d3f9f55)** — the runtime-dir preopen is derived
+    from the fs grant (`fs_preopen_perms`: none/read-only/read-write) instead of
+    unconditional `all()`; built once in `load()` and threaded into both the
+    component and P1 paths. Closes a LATENT hole (a future
+    `wasi:filesystem`-importing plugin is scoped from day one; today's fs surface
+    is host-fs at Gate C). Sockets (`net:socket` via `socket_addr_check`) rides the
+    identical movement — add when a plugin needs it, not speculatively.
   - **Gate C — host-bridge per-call** (`host-fs`/`host-shell`): where integration
     plugins actually reach fs/shell. Was **the ACTIVE hole** — DONE (01146221).
     read/write/edit and spawn now gate on the declared capability via a centralized
