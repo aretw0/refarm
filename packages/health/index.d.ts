@@ -181,6 +181,23 @@ export class ComplexityAuditor {
     scan(rootDir: string): HealthIssue[];
 }
 
+export interface ConfigNodeAuditorOptions {
+    /** A getNode/queryNodes face over the tractor graph; null → the auditor no-ops. */
+    graphContext?: { getNode(id: string): Promise<unknown> } | null;
+}
+
+export interface ConfigNodeAuditResult {
+    issues: HealthIssue[];
+    note?: string;
+}
+
+export class ConfigNodeAuditor {
+    constructor(options?: ConfigNodeAuditorOptions);
+    readonly id: "config-node";
+    readonly title: string;
+    audit(context?: { rootDir?: string }): Promise<ConfigNodeAuditResult>;
+}
+
 export class ToolchainAuditor {
     constructor(options?: ToolchainAuditorOptions);
     readonly id: "toolchain";

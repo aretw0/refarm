@@ -388,3 +388,20 @@ export default {
     loadConfig,
     loadConfigAsync,
 };
+
+// Re-export the config-node contract from the package root so consumers (and
+// test runners that don't honor the "./config-node" subpath export) can import
+// createConfigNode/configFromNode/loadRawSovereignConfig/CONFIG_NODE_DEFAULT_ID
+// from "@refarm.dev/config" directly. The cycle (config-node imports loadConfig
+// from here) is safe: config-node only calls loadConfig inside functions, never
+// at module init.
+export {
+    CONFIG_NODE_SCHEMA,
+    CONFIG_NODE_KIND,
+    CONFIG_NODE_DEFAULT_ID,
+    createConfigNode,
+    configFromNode,
+    loadRawSovereignConfig,
+    loadConfigNode,
+    loadConfigNodeAsync,
+} from "./config-node.js";

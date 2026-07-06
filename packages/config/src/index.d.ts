@@ -177,3 +177,21 @@ declare const _default: {
     loadConfigAsync: typeof loadConfigAsync;
 };
 export default _default;
+
+// Config-node contract re-exported from the package root (see index.js).
+export type {
+    ConfigNodeV1,
+    ConfigNodeOptions,
+    ConfigNodeEvidence,
+    RedactedConfigResult,
+} from "./config-node.js";
+export {
+    createConfigNode,
+    configFromNode,
+    loadRawSovereignConfig,
+    loadConfigNode,
+    loadConfigNodeAsync,
+    CONFIG_NODE_SCHEMA,
+    CONFIG_NODE_KIND,
+    CONFIG_NODE_DEFAULT_ID,
+} from "./config-node.js";

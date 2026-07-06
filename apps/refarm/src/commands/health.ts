@@ -3,13 +3,17 @@ import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import { defaultRefarmConfigPath, findRefarmConfigPath } from "@refarm.dev/config";
 import {
 	ComplexityAuditor,
+	ConfigNodeAuditor,
 	FileSystemAuditor,
 	HealthCore,
 	ProjectAuditor,
 	RefarmProjectAuditor,
 } from "@refarm.dev/health";
+import { createNodeView } from "@refarm.dev/storage-node-view";
+import { TractorNodesReadProvider } from "@refarm.dev/storage-sqlite/node";
 import { Command } from "commander";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
 	buildDiagnosticNextActionPayload,
@@ -65,6 +69,9 @@ export interface HealthResults {
   namespaceWarnings?: HealthIssue[];
   complexity?: HealthIssue[];
   complexitySummary?: unknown;
+  configNode?: HealthIssue[];
+  /** The orchestrator's per-auditor results (config-node lives here). */
+  _orchestrator?: Record<string, { issues?: HealthIssue[]; note?: string }>;
 }
 
 export interface ResolutionStatus {
@@ -139,7 +146,8 @@ export function buildHealthReport(
     + results.builds.length
     + results.alignment.length
     + (results.automations?.length ?? 0)
-    + (results.complexity?.length ?? 0);
+    + (results.complexity?.length ?? 0)
+    + (results.configNode?.length ?? 0);
   const recommendations = buildHealthRecommendations(results);
   const nextActions = diagnosticNextActions(recommendations);
   const nextCommands = diagnosticNextCommands(recommendations);
@@ -209,6 +217,17 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
       action: "Split the file or add a documented health.complexity allowed pattern for generated/vendor content.",
       command: HEALTH_SUGGEST_POLICY_COMMAND,
     })),
+    ...(results.configNode ?? []).map((issue) => ({
+      issueType: issue.type,
+      diagnostic: issue.type,
+      target: issue.path,
+      summary:
+        issue.type === "config_node_drift"
+          ? "The replicated config graph node differs from the local .refarm/config.json."
+          : "The stored config graph node is malformed.",
+      action:
+        "Reconcile the config: another device changed it, or the local file drifted. Re-run the runtime to re-sync the RefarmConfig node.",
+    })),
   ];
 }
 
@@ -259,6 +278,36 @@ function reportHealthOptionError(message: string, options: HealthOptions): void 
   process.exitCode = 1;
 }
 
+/**
+ * Resolve the tractor storage db path, mirroring the Rust host's db_dir()
+ * (storage/sqlite.rs): XDG_DATA_HOME || ~/.local/share, then /refarm/{namespace}.db.
+ * The namespace is the SHARED source of truth REFARM_NAMESPACE (the daemon reads
+ * the same env), defaulting to "default".
+ */
+function resolveTractorDbPath(): string {
+	const namespace = process.env.REFARM_NAMESPACE?.trim() || "default";
+	const dataDir =
+		process.env.XDG_DATA_HOME?.trim() ||
+		path.join(os.homedir(), ".local", "share");
+	return path.join(dataDir, "refarm", `${namespace}.db`);
+}
+
+/**
+ * A read-only graph context over the tractor sqlite `nodes` table (no sidecar) —
+ * or null when the store db does not exist (the runtime never ran). Read-only, so
+ * it can never create or mutate the host db.
+ */
+function resolveTractorGraphContext(): ReturnType<typeof createNodeView> | null {
+	const dbPath = resolveTractorDbPath();
+	if (!fs.existsSync(dbPath)) return null;
+	try {
+		return createNodeView(new TractorNodesReadProvider(dbPath));
+	} catch {
+		// A locked/unreadable db must not break the fs-only audit.
+		return null;
+	}
+}
+
 export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthReport> {
   const policyReport = resolveHealthPolicyReport(rootDir);
   const policy = policyReport.policy;
@@ -266,7 +315,8 @@ export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthRep
   const cached = readHealthAuditCache(rootDir, fingerprint);
   if (cached) return cached;
 
-  const health = new HealthCore();
+  const graphContext = resolveTractorGraphContext();
+  const health = new HealthCore(graphContext);
   health.register(new FileSystemAuditor({
     ignoredGitVisibilityPatterns: policy.ignoredGitVisibilityPatterns,
   }));
@@ -283,8 +333,14 @@ export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthRep
       reportLimit: policy.complexity.reportLimit,
     }));
   }
+  // Cross-device: audit the RefarmConfig graph node against the local config.
+  // No-ops informatively when the graph store is absent (graphContext null).
+  health.register(new ConfigNodeAuditor({ graphContext }));
 
   const results = await health.audit(null, null, { rootDir }) as HealthResults;
+  // Lift the config-node auditor's issues out of the orchestrator bag so the
+  // report surfaces cross-device config drift alongside the fs/build findings.
+  results.configNode = results._orchestrator?.["config-node"]?.issues ?? [];
   const resolution = await health.checkResolutionStatus(rootDir) as ResolutionStatus[];
   const report = buildHealthReport(results, resolution);
   writeHealthAuditCache(rootDir, fingerprint, report);

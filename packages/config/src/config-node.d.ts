@@ -43,5 +43,7 @@ export function createConfigNode<TData = unknown>(
 ): ConfigNodeV1<TData>;
 
 export function configFromNode<TData = unknown>(node: ConfigNodeV1<TData>): TData;
+/** Raw `.refarm/config.json` only (mirrors the Rust host's refarm_config_json_from); null if absent/invalid. */
+export function loadRawSovereignConfig(root?: string): Record<string, unknown> | null;
 export function loadConfigNode(root?: string, options?: ConfigNodeOptions): ConfigNodeV1;
 export function loadConfigNodeAsync(root?: string, options?: ConfigNodeOptions): Promise<ConfigNodeV1>;

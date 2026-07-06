@@ -42,8 +42,11 @@ enum Command {
 
 #[derive(Args, Debug, Clone)]
 struct DaemonArgs {
-    /// Storage namespace (maps to ~/.local/share/refarm/{namespace}.db)
-    #[arg(long, default_value = "default")]
+    /// Storage namespace (maps to ~/.local/share/refarm/{namespace}.db).
+    /// Resolution order: --namespace flag > REFARM_NAMESPACE env > "default".
+    /// The env is the shared source of truth so out-of-process readers (e.g.
+    /// `refarm health` auditing the config node) resolve the SAME db file.
+    #[arg(long, env = "REFARM_NAMESPACE", default_value = "default")]
     namespace: String,
 
     /// WebSocket daemon port
@@ -187,7 +190,7 @@ struct PromptArgs {
     ws_port: u16,
 
     /// Namespace used by storage polling while waiting for AgentResponse
-    #[arg(long, default_value = "default")]
+    #[arg(long, env = "REFARM_NAMESPACE", default_value = "default")]
     namespace: String,
 
     /// Wait for final response up to this timeout (0 = fire-and-forget)
@@ -206,7 +209,7 @@ struct PromptArgs {
 #[derive(Args, Debug)]
 struct WatchArgs {
     /// Namespace to read (`~/.local/share/refarm/{namespace}.db`)
-    #[arg(long, default_value = "default")]
+    #[arg(long, env = "REFARM_NAMESPACE", default_value = "default")]
     namespace: String,
 
     /// Node type to watch. AgentResponse keeps the compatibility plain renderer;
@@ -289,7 +292,7 @@ struct QueryArgs {
     limit: usize,
 
     /// Storage namespace.
-    #[arg(long, default_value = "default")]
+    #[arg(long, env = "REFARM_NAMESPACE", default_value = "default")]
     namespace: String,
 
     /// Output format: json (array of payloads) or plain (one payload per line).
@@ -304,7 +307,7 @@ struct StoreNodeArgs {
     payload: String,
 
     /// Storage namespace.
-    #[arg(long, default_value = "default")]
+    #[arg(long, env = "REFARM_NAMESPACE", default_value = "default")]
     namespace: String,
 }
 

@@ -4,6 +4,7 @@ const {
   mockAudit,
   mockCheckResolutionStatus,
   mockComplexityAuditor,
+  mockConfigNodeAuditor,
   mockFileSystemAuditor,
   mockProjectAuditor,
   mockRefarmProjectAuditor,
@@ -14,6 +15,7 @@ const {
   mockAudit: vi.fn().mockResolvedValue({ git: [], builds: [], alignment: [] }),
   mockCheckResolutionStatus: vi.fn().mockResolvedValue([]),
   mockComplexityAuditor: vi.fn(),
+  mockConfigNodeAuditor: vi.fn(),
   mockFileSystemAuditor: vi.fn(),
   mockProjectAuditor: vi.fn(),
   mockRefarmProjectAuditor: vi.fn(),
@@ -27,6 +29,7 @@ vi.mock("@refarm.dev/health", () => ({
     return { register: vi.fn(), audit: mockAudit, checkResolutionStatus: mockCheckResolutionStatus };
   }),
   ComplexityAuditor: mockComplexityAuditor,
+  ConfigNodeAuditor: mockConfigNodeAuditor,
   FileSystemAuditor: mockFileSystemAuditor,
   ProjectAuditor: mockProjectAuditor,
   RefarmProjectAuditor: mockRefarmProjectAuditor,

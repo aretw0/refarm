@@ -5,8 +5,14 @@
  */
 export class HealthCore {
     #auditors = new Map();
+    /** @type {{ getNode?: (id: string) => Promise<unknown>, queryNode?: (id: string) => Promise<unknown> } | null} */
     #graphContext = null;
 
+    /**
+     * @param {{ getNode?: (id: string) => Promise<unknown>, queryNode?: (id: string) => Promise<unknown> } | null} [graphContext]
+     *   A read face over the graph (getNode/queryNodes). Null → graph-dependent
+     *   auditors no-op.
+     */
     constructor(graphContext = null) {
         this.#graphContext = graphContext;
     }
@@ -93,6 +99,7 @@ import { FileSystemAuditor } from "./auditors/generic.js";
 import { ProjectAuditor, RefarmProjectAuditor } from "./auditors/project.js";
 import { ComplexityAuditor } from "./auditors/complexity.js";
 import { ToolchainAuditor } from "./auditors/toolchain.js";
+import { ConfigNodeAuditor } from "./auditors/config-node.js";
 export {
     buildSessionPressureBudget,
     buildEnvironmentPressureReport,
@@ -104,4 +111,4 @@ export {
     DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
 } from "./environment-pressure.js";
 
-export { ComplexityAuditor, FileSystemAuditor, ProjectAuditor, RefarmProjectAuditor, ToolchainAuditor };
+export { ComplexityAuditor, ConfigNodeAuditor, FileSystemAuditor, ProjectAuditor, RefarmProjectAuditor, ToolchainAuditor };

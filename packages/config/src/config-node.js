@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 import { loadConfig, loadConfigAsync } from "./index.js";
 
@@ -121,6 +123,32 @@ export function configFromNode(node) {
         throw new TypeError("Expected a refarm.config.node.v1 config node");
     }
     return node.data;
+}
+
+/**
+ * Read the RAW sovereign config from `.refarm/config.json` only — no env
+ * interpolation, no `${...}` substitution, no merge of the legacy
+ * `refarm.config.json`. This MUST mirror the Rust host's `refarm_config_json_from`
+ * (tractor env_and_runtime.rs), which parses that single file's bytes and feeds
+ * them straight to `build_config_node_payload`. The config node's `revision` is a
+ * digest of THIS object (redacted); recomputing the digest from anything else
+ * (e.g. `loadConfig`, which merges + interpolates) yields a different digest and
+ * false drift. Returns null when the file is absent or invalid JSON (mirrors the
+ * host's early-return). CONFORMANCE: keep in lockstep with refarm_config_json_from.
+ */
+export function loadRawSovereignConfig(root = process.cwd()) {
+    const filePath = path.join(root, ".refarm", "config.json");
+    let raw;
+    try {
+        raw = fs.readFileSync(filePath, "utf-8");
+    } catch {
+        return null;
+    }
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
 }
 
 export function loadConfigNode(root, options = {}) {
