@@ -56,6 +56,6 @@ describe("health complexity integration", () => {
 				expect.objectContaining({ file: "src/large.ts" }),
 			],
 		});
-		expect(report.nextCommands).toEqual(["refarm health --suggest-policy --json"]);
+		expect(report.nextCommands).toEqual(["refarm health suggest-policy --json"]);
 	});
 });

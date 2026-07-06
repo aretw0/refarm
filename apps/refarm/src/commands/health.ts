@@ -1,5 +1,3 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import { defaultRefarmConfigPath, findRefarmConfigPath } from "@refarm.dev/config";
 import {
 	ComplexityAuditor,
@@ -9,34 +7,36 @@ import {
 	ProjectAuditor,
 	RefarmProjectAuditor,
 } from "@refarm.dev/health";
-import { Command } from "commander";
+import type { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { openTractorGraph } from "../utils/tractor-store.js";
+import { toCommanderGroup } from "./capability-commander.js";
 import {
-	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
 	diagnosticNextCommands,
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
+import {
+	createHealthCapabilityGroup,
+	healthCapabilityHooks,
+} from "./health-capability.js";
 import {
 	buildHealthAuditFingerprint,
 	readHealthAuditCache,
 	writeHealthAuditCache,
 } from "./health-audit-cache.js";
 import {
-	emitHealthPolicyApplicationSummary,
-	emitHealthPolicySuggestionSummary,
-	emitHealthPolicySummary,
-	emitHealthSummary,
-} from "./health-output.js";
+	HEALTH_NEXT_ACTION_COMMAND,
+	HEALTH_POLICY_JSON_COMMAND,
+	HEALTH_SUGGEST_POLICY_COMMAND,
+} from "./health-commands.js";
 import {
 	resolveHealthPolicy,
 	resolveHealthPolicyReport,
 	type HealthPolicy,
 	type RefarmConfig,
 } from "./health-policy.js";
-import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 import { RUNTIME_DOCTOR_NEXT_ACTION_COMMAND } from "./runtime-recovery.js";
 
 export { buildHealthAuditFingerprint } from "./health-audit-cache.js";
@@ -119,22 +119,8 @@ export interface HealthPolicyApplicationReport {
   nextCommands: string[];
 }
 
-interface HealthOptions {
-  json?: boolean;
-  nextAction?: boolean;
-  nextCommand?: boolean;
-  failOnIssues?: boolean;
-  policy?: boolean;
-  suggestPolicy?: boolean;
-  applySuggestedPolicy?: boolean;
-}
 
-const HEALTH_HELP_COMMAND = "refarm health --help";
-const HEALTH_SUGGEST_POLICY_COMMAND = "refarm health --suggest-policy --json";
-const HEALTH_NEXT_ACTION_COMMAND = "refarm health --next-action --json";
-const HEALTH_POLICY_JSON_COMMAND = refarmCommand(["health", "--policy", "--json"]);
 const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
-const HEALTH_POLICY_MODE_CONFLICT_MESSAGE = "Choose only one health policy mode: --policy, --suggest-policy, or --apply-suggested-policy.";
 
 export function buildHealthReport(
   results: HealthResults,
@@ -228,54 +214,6 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
     })),
   ];
 }
-
-function emitHealthJson(report: HealthReport): void {
-  printJson(report);
-}
-
-function emitHealthNextActionJson(report: HealthReport): void {
-  printJson(buildDiagnosticNextActionPayload({
-    ok: report.ok,
-    nextActions: report.nextActions,
-    nextCommands: report.nextCommands,
-  }));
-}
-
-function healthPolicyModeConflictMessage(options: HealthOptions): string | null {
-  try {
-    assertAtMostOneFlagEnabled(
-      [
-        { flag: "--policy", enabled: options.policy },
-        { flag: "--suggest-policy", enabled: options.suggestPolicy },
-        { flag: "--apply-suggested-policy", enabled: options.applySuggestedPolicy },
-      ],
-      HEALTH_POLICY_MODE_CONFLICT_MESSAGE,
-    );
-    return null;
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-}
-
-function reportHealthOptionError(message: string, options: HealthOptions): void {
-  const nextAction = "Run `refarm health --help` and choose one health policy mode.";
-  if (options.json) {
-    printJson(buildJsonErrorEnvelope({
-      command: "health",
-      operation: "policy-mode",
-      error: "invalid-health-policy-mode",
-      message,
-      nextAction,
-      nextActions: [nextAction],
-      nextCommand: HEALTH_HELP_COMMAND,
-      nextCommands: [HEALTH_HELP_COMMAND],
-    }));
-  } else {
-    console.error(message);
-  }
-  process.exitCode = 1;
-}
-
 
 export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthReport> {
   const policyReport = resolveHealthPolicyReport(rootDir);
@@ -416,93 +354,28 @@ function uniqueStrings(values: string[]): string[] {
   return [...new Set(values)].filter((value) => value.length > 0).sort();
 }
 
-export const healthCommand = new Command("health")
-  .description("Run deterministic diagnostics on the project")
-  .addHelpText(
-    "after",
-    [
-      "",
-      "Examples:",
-      "  $ refarm health",
-      "  $ refarm health --json",
-      "  $ refarm health --policy --json",
-      "  $ refarm health --suggest-policy --json",
-      "  $ refarm health --apply-suggested-policy --json",
-      "  $ refarm health --next-action",
-      "  $ refarm health --next-action --json",
-      "  $ refarm health --next-command",
-      "  $ refarm health --fail-on-issues",
-      "",
-      "Notes:",
-      "  Health audits filesystem source visibility, build configuration, and package entrypoint alignment.",
-      "  It does not require the Refarm runtime sidecar.",
-      `  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for host/runtime recovery steps.`,
-      "  Project-specific policy can live under health in .refarm/config.json.",
-    ].join("\n"),
-  )
-  .option("--json", "Output machine-readable health report")
-  .option("--policy", "Print the resolved health policy and exit")
-  .option("--suggest-policy", "Suggest a reviewed health policy from current diagnostics")
-  .option("--apply-suggested-policy", "Apply the suggested health policy to .refarm/config.json")
-  .option("--next-action", "Print only the first blocking recovery action")
-  .option("--next-command", "Print only the first executable recovery command")
-  .option("--fail-on-issues", "Exit non-zero when health issues are found")
-  .action(async (options: HealthOptions) => {
-    const policyModeConflict = healthPolicyModeConflictMessage(options);
-    if (policyModeConflict) {
-      reportHealthOptionError(policyModeConflict, options);
-      return;
-    }
-
-    if (options.policy) {
-      const report = resolveHealthPolicyReport();
-      if (options.json) {
-        printJson(report);
-      } else {
-        emitHealthPolicySummary(report);
-      }
-      return;
-    }
-
-    if (options.applySuggestedPolicy) {
-      const report = await applySuggestedHealthPolicy();
-      if (options.json) {
-        printJson(report);
-      } else {
-        emitHealthPolicyApplicationSummary(report);
-      }
-      return;
-    }
-
-    if (options.suggestPolicy) {
-      const report = await runHealthPolicySuggestion();
-      if (options.json) {
-        printJson(report);
-      } else {
-        emitHealthPolicySuggestionSummary(report);
-      }
-      return;
-    }
-
-    const report = await runHealthAudit();
-
-    if (options.nextCommand && options.json) {
-      emitHealthNextActionJson(report);
-    } else if (options.nextCommand) {
-      const [command] = report.nextCommands;
-      if (command) console.log(command);
-    } else if (options.nextAction && options.json) {
-      emitHealthNextActionJson(report);
-    } else if (options.nextAction) {
-      const [action] = report.nextActions;
-      if (action) console.log(action);
-    } else if (options.json) {
-      emitHealthJson(report);
-    } else {
-      emitHealthSummary(report);
-    }
-
-    if (options.failOnIssues && !report.ok) {
-      process.exitCode = 1;
-    }
-  });
+/**
+ * `health` projected onto commander from its CapabilityGroup, for the CLI-
+ * contract tests that parse it directly. The CLI mount, the `/health` REPL slash,
+ * the HTTP surface, and the TUI section all derive from the ONE registry entry
+ * (see capability-registry.ts) — this export mirrors that projection so the
+ * pinned tests exercise the same command the registry mounts. The sub-verb help
+ * (`health policy`, `health suggest-policy`, `health apply-policy`) and the audit
+ * modifier options are generated from the group, so no hand-written help block or
+ * flag list lives here anymore.
+ */
+export const healthCommand: Command = toCommanderGroup(
+  createHealthCapabilityGroup(),
+  healthCapabilityHooks,
+).addHelpText(
+  "after",
+  [
+    "",
+    "Notes:",
+    "  Health audits filesystem source visibility, build configuration, and package entrypoint alignment.",
+    "  It does not require the Refarm runtime sidecar.",
+    "  A non-zero exit signals issues were found — health is a diagnostic gate.",
+    `  Use ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND} for host/runtime recovery steps.`,
+    "  Project-specific policy can live under health in .refarm/config.json.",
+  ].join("\n"),
+);

@@ -84,9 +84,9 @@ describe("buildHealthReport", () => {
       "Split the file or add a documented health.complexity allowed pattern for generated/vendor content.",
     ]);
     expect(report.nextCommands).toEqual([
-      "refarm health --suggest-policy --json",
+      "refarm health suggest-policy --json",
       "node packages/toolbox/src/cli.mjs reso dist",
-      "refarm health --policy --json",
+      "refarm health policy --json",
     ]);
   });
 
@@ -130,7 +130,7 @@ describe("buildHealthRecommendations", () => {
         target: "src/generated.ts",
         summary: "src/generated.ts is ignored by Git.",
         action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
-        command: "refarm health --suggest-policy --json",
+        command: "refarm health suggest-policy --json",
       },
       {
         issueType: "missing_build_config",
@@ -138,7 +138,7 @@ describe("buildHealthRecommendations", () => {
         target: "packages/missing-build",
         summary: "packages/missing-build is missing a build config.",
         action: "Add the package build configuration or mark the package exempt in the project health policy.",
-        command: "refarm health --suggest-policy --json",
+        command: "refarm health suggest-policy --json",
       },
       {
         issueType: "local_alignment",
@@ -155,7 +155,7 @@ describe("buildHealthRecommendations", () => {
         target: ".project",
         summary: ".project is present without a workspaceNamespaces declaration.",
         action: "Declare the namespace owner, purpose, persistence, and access in refarm.config.json, or remove the drift.",
-        command: "refarm health --policy --json",
+        command: "refarm health policy --json",
       },
       {
         issueType: "complexity_large_file",
@@ -163,7 +163,7 @@ describe("buildHealthRecommendations", () => {
         target: "src/large.ts",
         summary: "src/large.ts has 1200 lines.",
         action: "Split the file or add a documented health.complexity allowed pattern for generated/vendor content.",
-        command: "refarm health --suggest-policy --json",
+        command: "refarm health suggest-policy --json",
       },
     ]);
   });
@@ -220,7 +220,7 @@ describe("healthCommand", () => {
     expect(mockCheckResolutionStatus).toHaveBeenCalled();
   });
 
-  it("documents health policy and doctor handoff in help", () => {
+  it("documents the health sub-verbs and doctor handoff in help", () => {
     let help = "";
     healthCommand.configureOutput({
       writeOut: (value) => {
@@ -229,14 +229,15 @@ describe("healthCommand", () => {
     });
     healthCommand.outputHelp();
 
-    expect(help).toContain("refarm health --fail-on-issues");
-    expect(help).toContain("refarm health --policy --json");
-    expect(help).toContain("refarm health --suggest-policy --json");
-    expect(help).toContain("refarm health --apply-suggested-policy --json");
-    expect(help).toContain("refarm health --next-action");
-    expect(help).toContain("refarm health --next-action --json");
-    expect(help).toContain("refarm health --next-command");
+    // The group projector lists each sub-verb as a subcommand; the flag-mode
+    // form is gone (policy modes are sub-verbs now, not a 3-way flag switch).
+    expect(help).toContain("audit");
+    expect(help).toContain("policy");
+    expect(help).toContain("suggest-policy");
+    expect(help).toContain("apply-policy");
+    // The preserved Notes block.
     expect(help).toContain("It does not require the Refarm runtime sidecar");
+    expect(help).toContain("A non-zero exit signals issues were found");
     expect(help).toContain("refarm doctor --next-action");
     expect(help).toContain(".refarm/config.json");
   });
@@ -382,7 +383,7 @@ describe("healthCommand", () => {
     });
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await healthCommand.parseAsync(["--apply-suggested-policy", "--json"], { from: "user" });
+    await healthCommand.parseAsync(["apply-policy", "--json"], { from: "user" });
 
     const configWrite = mockWriteFileSync.mock.calls.find(([filePath]) =>
       String(filePath).replaceAll("\\", "/").endsWith(".refarm/config.json")
@@ -429,7 +430,7 @@ describe("healthCommand", () => {
   it("emits the resolved health policy without running auditors", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await healthCommand.parseAsync(["--policy", "--json"], { from: "user" });
+    await healthCommand.parseAsync(["policy", "--json"], { from: "user" });
 
     expect(mockAudit).not.toHaveBeenCalled();
     expect(mockCheckResolutionStatus).not.toHaveBeenCalled();
@@ -464,7 +465,7 @@ describe("healthCommand", () => {
     });
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await healthCommand.parseAsync(["--suggest-policy", "--json"], { from: "user" });
+    await healthCommand.parseAsync(["suggest-policy", "--json"], { from: "user" });
 
     expect(mockAudit).toHaveBeenCalledOnce();
     expect(mockCheckResolutionStatus).toHaveBeenCalledOnce();
@@ -527,8 +528,8 @@ describe("healthCommand", () => {
         "Track the source file, or add an explicit health policy exclusion if it is generated.",
         "Add the package build configuration or mark the package exempt in the project health policy.",
       ],
-      nextCommand: "refarm health --suggest-policy --json",
-      nextCommands: ["refarm health --suggest-policy --json"],
+      nextCommand: "refarm health suggest-policy --json",
+      nextCommands: ["refarm health suggest-policy --json"],
     });
     logSpy.mockRestore();
   });
@@ -570,7 +571,7 @@ describe("healthCommand", () => {
     logSpy.mockRestore();
   });
 
-  it("sets exit code with --fail-on-issues when issues are found", async () => {
+  it("exits non-zero when issues are found (health is a diagnostic gate)", async () => {
     mockAudit.mockResolvedValue({
       git: [],
       builds: [{ package: "apps/missing-build", type: "missing_build_config" }],
@@ -578,7 +579,10 @@ describe("healthCommand", () => {
     });
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await healthCommand.parseAsync(["--fail-on-issues"], { from: "user" });
+    // No flag: the envelope's own ok:false (issues found) drives the exit code
+    // via the group projector's default (ok===false → 1). --fail-on-issues is
+    // gone; the honest exit IS the default, the way test/lint/tsc behave.
+    await healthCommand.parseAsync([], { from: "user" });
 
     expect(process.exitCode).toBe(1);
     expect(logSpy.mock.calls.some(([message]) =>

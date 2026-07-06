@@ -341,14 +341,14 @@ describe("agent command", () => {
 					}),
 					expect.objectContaining({
 						id: "external-consumer-health-policy-json",
-						command: "refarm health --policy --json",
+						command: "refarm health policy --json",
 						parameters: ["dir"],
 						cwdParameter: "dir",
 						useWhen: "Inspect resolved health policy in a non-Refarm consumer workspace without running auditors or writing config.",
 					}),
 						expect.objectContaining({
 							id: "external-consumer-health-suggest-policy-json",
-							command: "refarm health --suggest-policy --json",
+							command: "refarm health suggest-policy --json",
 							parameters: ["dir"],
 							cwdParameter: "dir",
 							useWhen: "Generate a reviewed health policy candidate in a non-Refarm consumer workspace without writing .refarm/config.json.",
@@ -797,11 +797,11 @@ describe("agent command", () => {
 			}),
 			expect.objectContaining({
 				id: "external-consumer-health-policy-json",
-				command: "refarm health --policy --json",
+				command: "refarm health policy --json",
 				process: {
 					command: "refarm",
-					args: ["health", "--policy", "--json"],
-					display: "refarm health --policy --json",
+					args: ["health", "policy", "--json"],
+					display: "refarm health policy --json",
 				},
 				parameters: ["dir"],
 				cwdParameter: "dir",
@@ -809,11 +809,11 @@ describe("agent command", () => {
 			}),
 			expect.objectContaining({
 				id: "external-consumer-health-suggest-policy-json",
-				command: "refarm health --suggest-policy --json",
+				command: "refarm health suggest-policy --json",
 				process: {
 					command: "refarm",
-					args: ["health", "--suggest-policy", "--json"],
-					display: "refarm health --suggest-policy --json",
+					args: ["health", "suggest-policy", "--json"],
+					display: "refarm health suggest-policy --json",
 				},
 				parameters: ["dir"],
 				cwdParameter: "dir",
@@ -940,7 +940,7 @@ describe("agent command", () => {
 			"  Use when: Refresh operator state from a non-Refarm consumer workspace before dispatching work.",
 		);
 		expect(logSpy).toHaveBeenCalledWith(
-			"external-consumer-health-policy-json: refarm health --policy --json",
+			"external-consumer-health-policy-json: refarm health policy --json",
 		);
 		expect(logSpy).toHaveBeenCalledWith(
 			"external-consumer-workspace-execution-json: refarm workspace execution --cwd <dir> --json",
@@ -958,7 +958,7 @@ describe("agent command", () => {
 			"  Use when: Inspect resolved health policy in a non-Refarm consumer workspace without running auditors or writing config.",
 		);
 		expect(logSpy).toHaveBeenCalledWith(
-			"external-consumer-health-suggest-policy-json: refarm health --suggest-policy --json",
+			"external-consumer-health-suggest-policy-json: refarm health suggest-policy --json",
 		);
 		expect(logSpy).toHaveBeenCalledWith(
 			"  Use when: Generate a reviewed health policy candidate in a non-Refarm consumer workspace without writing .refarm/config.json.",

@@ -1,4 +1,11 @@
 import { quoteCommandArg, refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
+import {
+	HEALTH_NEXT_ACTION_COMMAND,
+	HEALTH_POLICY_JSON_COMMAND,
+	HEALTH_SUGGEST_POLICY_COMMAND,
+	healthPolicyProcess,
+	healthSuggestPolicyProcess,
+} from "./health-commands.js";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
@@ -165,8 +172,8 @@ function agentFinishTemplates() {
 		},
 		{
 			id: "external-consumer-health-policy-json",
-			command: refarmCommand(["health", "--policy", "--json"]),
-			process: refarmProcess(["health", "--policy", "--json"]),
+			command: HEALTH_POLICY_JSON_COMMAND,
+			process: healthPolicyProcess(),
 			effects: ["observe"],
 			writes: false,
 			parameters: ["dir"],
@@ -175,8 +182,8 @@ function agentFinishTemplates() {
 		},
 		{
 			id: "external-consumer-health-suggest-policy-json",
-			command: refarmCommand(["health", "--suggest-policy", "--json"]),
-			process: refarmProcess(["health", "--suggest-policy", "--json"]),
+			command: HEALTH_SUGGEST_POLICY_COMMAND,
+			process: healthSuggestPolicyProcess(),
 			effects: ["observe"],
 			writes: false,
 			parameters: ["dir"],
@@ -416,7 +423,7 @@ export const agentRuntimePlan = {
 	verification: {
 		quick: AGENT_NEXT_ACTION_COMMAND,
 		quickCommand: AGENT_NEXT_COMMAND,
-		health: refarmCommand(["health", "--next-action", "--json"]),
+		health: HEALTH_NEXT_ACTION_COMMAND,
 		doctor: refarmCommand(["doctor", "--next-action", "--json"]),
 		doctorCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
 		tidyCheck: refarmCommand(["tidy", "imports", "--check", "--json"]),

@@ -13,7 +13,6 @@ import { doctorCommand } from "./commands/doctor.js";
 import { extensionCommand } from "./commands/extension.js";
 import { guideCommand } from "./commands/guide.js";
 import { headlessCommand } from "./commands/headless.js";
-import { healthCommand } from "./commands/health.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
 import { pluginCommand } from "./commands/plugin.js";
@@ -215,9 +214,8 @@ program.addCommand(guideCommand);
 program.addCommand(checkCommand);
 program.addCommand(configCommand);
 program.addCommand(configureCommand);
-program.addCommand(healthCommand);
 program.addCommand(releaseCommand);
-// Capability verbs (model, skill, …) are derived from the ONE capability
+// Capability verbs (health, model, skill, …) are derived from the ONE capability
 // registry — the same registry the REPL slashes derive from — so a verb declared
 // (and, later, plugin-contributed) once lights up on the CLI and the REPL without
 // a second hand-mount here.

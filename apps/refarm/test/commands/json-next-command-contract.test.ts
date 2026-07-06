@@ -1360,12 +1360,12 @@ describe("JSON next command contract", () => {
 				{
 					id: "health-policy",
 					command: healthCommand,
-					args: ["--policy", "--json"],
+					args: ["policy", "--json"],
 				},
 				{
 					id: "health-suggest-policy",
 					command: healthCommand,
-					args: ["--suggest-policy", "--json"],
+					args: ["suggest-policy", "--json"],
 				},
 				{
 					id: "init",
