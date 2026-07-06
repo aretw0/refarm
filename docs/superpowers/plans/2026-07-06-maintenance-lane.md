@@ -56,18 +56,21 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
 
 ## Security debt
 
-- **S1: `boot` silently discards `config.security_mode` (a real prod security
-  hole).** `TractorNative::boot` (lib.rs:558) hardcodes `TrustManager::new()`
-  (= SecurityMode::None) and never reads `config.security_mode`, so a daemon that
-  main.rs resolves to Strict-by-default (main.rs:383) actually runs with NO trust
-  enforcement. `TrustManager::with_security_mode` already exists (trust/mod.rs:80)
-  — it's a one-line fix, BUT fixing it alone makes Strict deny EVERY plugin because
-  there is **no trust-grant path in production** (main.rs never calls `.grant()`,
-  no persisted trust store, no auto-grant at load; `grant()` has zero non-test
-  callers). The bug was masking an incomplete trust model. Reverted with a NOTE
-  (lib.rs:558) pending the trust-model investigation. Arthur: "por que permissive?
-  procuro o canônico" — production IS canonically Strict-by-default; the gap is
-  issuance. Blocks the grants-suite Population B (5 boot-based tests).
+- **S1: `boot` silently discarded `config.security_mode` — DONE (eb9d2277).** boot
+  now honors the configured posture; the Strict LOAD gate is seeded from the
+  sovereign `trusted_plugins` allowlist (absent→permissive, `*`→all, listed→trust,
+  configured-omits→deny). Production actually enforces Strict now. The trust model
+  was unfinished at issuance; reconciled the sovereign way.
+- **S2: Rust↔TS trust mirror drift (ADR-worthy, not yet done).** TS gates plugin
+  LOAD on registry status (validated/active) and uses the trust-grant only for the
+  trusted-fast execution-profile upgrade; Rust repurposed the grant as the load
+  gate itself and has no registry-status concept. The S1 reconciliation kept Rust's
+  load-gate semantics (+ the sovereign allowlist). Deciding whether Rust should
+  mirror TS (registry-gated load) or TS should mirror Rust is a larger design call
+  — wants an ADR. Also unbuilt: the promised `trust_grants` SQLite table
+  (schema-migration-strategy.md:30) + a `refarm plugin trust` CLI for explicit,
+  persisted, acknowledge-risk grants (the TS `system:security:trust-plugin-once`
+  ceremony has no Rust equivalent).
 
 ## Process debt
 
