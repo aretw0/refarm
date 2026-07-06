@@ -1144,8 +1144,13 @@ async fn harness_multi_turn_history_included_in_request() {
     let _req2 = captured.recv().await.expect("mock must receive request 2");
 
     // Turn 3: opt-in history — prior turns must appear in the outgoing request.
-    std::env::set_var("MODEL_HISTORY_TURNS", "2");
-    call_on_event_with_timeout(&mut handle, "third question", "history harness turn 3").await;
+    // History is opted in per-call via the `history_turns` payload FIELD, exactly
+    // as production delivers it (sidecar/dispatch.rs bakes history_turns into the
+    // structured on_event payload; the guest EnvGuard-sets MODEL_HISTORY_TURNS for
+    // that call in prompt_handler.rs). A host-side set_var AFTER load would not
+    // reach the guest — the WASI env is frozen once at load time.
+    let turn3 = serde_json::json!({ "prompt": "third question", "history_turns": 2 });
+    call_on_event_with_timeout(&mut handle, &turn3.to_string(), "history harness turn 3").await;
     let req3 = captured.recv().await.expect("mock must receive request 3");
 
     let messages = req3["messages"]
