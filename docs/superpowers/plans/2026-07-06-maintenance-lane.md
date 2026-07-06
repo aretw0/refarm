@@ -54,6 +54,21 @@ liveness-ping; a prime split candidate — doctor/probe vs routing vs mutators),
 holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on its
 "restam >1000" list.)
 
+## Security debt
+
+- **S1: `boot` silently discards `config.security_mode` (a real prod security
+  hole).** `TractorNative::boot` (lib.rs:558) hardcodes `TrustManager::new()`
+  (= SecurityMode::None) and never reads `config.security_mode`, so a daemon that
+  main.rs resolves to Strict-by-default (main.rs:383) actually runs with NO trust
+  enforcement. `TrustManager::with_security_mode` already exists (trust/mod.rs:80)
+  — it's a one-line fix, BUT fixing it alone makes Strict deny EVERY plugin because
+  there is **no trust-grant path in production** (main.rs never calls `.grant()`,
+  no persisted trust store, no auto-grant at load; `grant()` has zero non-test
+  callers). The bug was masking an incomplete trust model. Reverted with a NOTE
+  (lib.rs:558) pending the trust-model investigation. Arthur: "por que permissive?
+  procuro o canônico" — production IS canonically Strict-by-default; the gap is
+  issuance. Blocks the grants-suite Population B (5 boot-based tests).
+
 ## Process debt
 
 - P1: markdown-lint warnings on memory files (MD032/MD033/MD041) are cosmetic

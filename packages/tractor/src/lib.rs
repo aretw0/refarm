@@ -555,6 +555,10 @@ impl TractorNative {
         let telemetry = TelemetryBus::new(config.telemetry_capacity);
         let storage = NativeStorage::open(&config.namespace)?;
         let sync = NativeSync::new(storage.clone(), &config.namespace)?;
+        // NOTE: config.security_mode is intentionally NOT read here yet. Honoring
+        // Strict would deny every plugin because production has no trust-grant path
+        // (no store, no auto-grant). Fixing boot needs the trust MODEL settled
+        // first — under investigation. See lane. TrustManager::new() = None.
         let trust = TrustManager::new();
         let plugins =
             host::PluginHost::new(trust.clone(), telemetry.clone(), config.on_event_budget_ms)?;
