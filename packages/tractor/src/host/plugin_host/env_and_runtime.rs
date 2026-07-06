@@ -287,50 +287,48 @@ fn preopen_plugin_runtime_dirs(wasi_builder: &mut WasiCtxBuilder) -> Result<()> 
     Ok(())
 }
 
-fn now_ns() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
-        .unwrap_or(0)
-}
-
-fn refarm_config_node_payload(
-    plugin_id: &str,
-    base: &std::path::Path,
-    env_vars: &[(String, String)],
-    config_json: Option<&serde_json::Value>,
-) -> serde_json::Value {
-    let env_map: serde_json::Map<String, serde_json::Value> = env_vars
-        .iter()
-        .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
-        .collect();
-
-    let timestamp_ns = now_ns();
-    serde_json::json!({
-        "@type": "RefarmConfig",
-        "@id": format!("urn:tractor:refarm-config:{plugin_id}:{timestamp_ns}"),
-        "plugin_id": plugin_id,
-        "workspace": base.to_string_lossy(),
-        "config_path": base.join(".refarm/config.json").to_string_lossy(),
-        "timestamp_ns": timestamp_ns,
-        "model_env": serde_json::Value::Object(env_map),
-        "config_json": config_json.cloned().unwrap_or(serde_json::Value::Null),
-    })
-}
-
+/// Publish the ONE canonical workspace config node (upsert), the unified
+/// `refarm.config.node.v1` contract shared with the TS encoder. Replaces the old
+/// per-load timestamped audit writer: the node is workspace-scoped, NOT
+/// per-plugin, so every load upserts the SAME node (stable @id) — N loads => 1
+/// node, revised in place (was: N accumulating rows). Secrets are redacted before
+/// the config enters the node (the old writer replicated a raw MODEL_* env map
+/// across devices). Read-before-write: skip the store when the on-graph revision
+/// already matches, so a byte-identical re-publish on every plugin load causes no
+/// CRDT commit/broadcast churn.
 fn store_refarm_config_node(
     sync: &NativeSync,
-    plugin_id: &str,
-    base: &std::path::Path,
-    env_vars: &[(String, String)],
     config_json: Option<&serde_json::Value>,
 ) -> anyhow::Result<()> {
-    let payload = refarm_config_node_payload(plugin_id, base, env_vars, config_json).to_string();
-    let node: serde_json::Value = serde_json::from_str(&payload)?;
-    let id = node["@id"]
-        .as_str()
-        .ok_or_else(|| anyhow::anyhow!("RefarmConfig node missing @id"))?;
-    sync.store_node(id, "RefarmConfig", None, &payload, Some("tractor-host"))?;
+    use crate::host::plugin_host::config_node;
+    // No sovereign config on disk => nothing to publish.
+    let Some(config) = config_json else {
+        return Ok(());
+    };
+
+    let payload_value = config_node::build_config_node_payload(config, "tractor-host");
+    let new_revision = payload_value
+        .get("revision")
+        .and_then(|v| v.as_str())
+        .map(str::to_owned);
+
+    // Read-before-write: if the graph already holds this exact revision, don't
+    // re-commit (no broadcast storm on repeated loads of an unchanged config).
+    if let (Ok(Some(existing)), Some(new_rev)) =
+        (sync.get_node(config_node::CONFIG_NODE_DEFAULT_ID), &new_revision)
+    {
+        if config_node::payload_revision(&existing).as_ref() == Some(new_rev) {
+            return Ok(());
+        }
+    }
+
+    sync.store_node(
+        config_node::CONFIG_NODE_DEFAULT_ID,
+        config_node::CONFIG_NODE_GRAPH_TYPE,
+        None,
+        &payload_value.to_string(),
+        Some("tractor-host"),
+    )?;
     Ok(())
 }
 
@@ -742,7 +740,7 @@ impl PluginHost {
         .with_on_event_budget_ms(self.on_event_budget_ms);
         handle.call_setup().await?;
 
-        if let Err(e) = store_refarm_config_node(sync, &plugin_id, &base, &env_vars, config_json.as_ref()) {
+        if let Err(e) = store_refarm_config_node(sync, config_json.as_ref()) {
             tracing::warn!(plugin_id = %plugin_id, error = %e, "failed to store RefarmConfig node");
         }
 
@@ -826,7 +824,7 @@ impl PluginHost {
         .with_on_event_budget_ms(self.on_event_budget_ms);
         handle.call_setup().await?;
 
-        if let Err(e) = store_refarm_config_node(sync, plugin_id, &base, &env_vars, config_json.as_ref()) {
+        if let Err(e) = store_refarm_config_node(sync, config_json.as_ref()) {
             tracing::warn!(plugin_id, error = %e, "failed to store RefarmConfig node");
         }
 

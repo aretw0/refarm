@@ -666,55 +666,101 @@
     }
 
     #[test]
-    fn refarm_config_node_payload_contains_expected_fields() {
-        let dir = tempfile::tempdir().unwrap();
-        let env_vars = vec![
-            ("MODEL_PROVIDER".to_string(), "ollama".to_string()),
-            ("MODEL_ID".to_string(), "llama3.2".to_string()),
-        ];
-        let cfg = serde_json::json!({"provider": "ollama", "model": "llama3.2"});
+    fn config_node_payload_is_the_unified_contract_and_redacts_secrets() {
+        use crate::host::plugin_host::config_node::build_config_node_payload;
+        let cfg = serde_json::json!({
+            "provider": "ollama",
+            "model": "llama3.2",
+            "apiKey": "sk-super-secret",
+            "budgets": { "openai": 10 },
+        });
 
-        let payload = refarm_config_node_payload("agent", dir.path(), &env_vars, Some(&cfg));
+        let payload = build_config_node_payload(&cfg, "tractor-host");
 
+        // The TS contract fields (config-node.js) — so the TS configFromNode accepts it.
+        assert_eq!(payload["schema"], "refarm.config.node.v1");
+        assert_eq!(payload["kind"], "refarm/config");
+        assert_eq!(payload["id"], "urn:refarm:config:workspace");
+        // The graph JSON-LD mirror — so query/reaper (type_) + payload readers work.
         assert_eq!(payload["@type"], "RefarmConfig");
-        assert_eq!(payload["plugin_id"], "agent");
-        assert_eq!(payload["model_env"]["MODEL_PROVIDER"], "ollama");
-        assert_eq!(payload["config_json"]["model"], "llama3.2");
-        assert!(payload["@id"].as_str().unwrap_or("").starts_with("urn:tractor:refarm-config:agent:"));
+        assert_eq!(payload["@id"], "urn:refarm:config:workspace");
+        // data is the REDACTED sovereign config — the secret is gone, not the leak
+        // (raw model_env) the old node replicated across devices.
+        assert_eq!(payload["data"]["provider"], "ollama");
+        assert_eq!(payload["data"]["apiKey"], "<redacted>");
+        assert_eq!(payload["data"]["budgets"]["openai"], 10);
+        assert_eq!(payload["evidence"]["redactedPaths"][0], "apiKey");
+        assert!(payload["revision"].as_str().unwrap().starts_with("sha256:"));
     }
 
     #[test]
-    fn store_refarm_config_node_persists_queryable_audit_record() {
+    fn store_config_node_upserts_one_node_not_an_accumulating_audit_log() {
         let storage = NativeStorage::open(":memory:").unwrap();
         let sync = NativeSync::new(storage, "test-refarm-config").unwrap();
-        let dir = tempfile::tempdir().unwrap();
-        let env_vars = vec![
-            ("MODEL_PROVIDER".to_string(), "ollama".to_string()),
-            ("MODEL_ID".to_string(), "llama3.2".to_string()),
-        ];
         let cfg = serde_json::json!({"provider": "ollama", "model": "llama3.2"});
 
-        store_refarm_config_node(&sync, "agent", dir.path(), &env_vars, Some(&cfg)).unwrap();
+        // Two loads of the SAME config → one node (stable @id upsert), not two rows.
+        store_refarm_config_node(&sync, Some(&cfg)).unwrap();
+        store_refarm_config_node(&sync, Some(&cfg)).unwrap();
 
         let rows = sync.query_nodes("RefarmConfig").unwrap();
-        assert_eq!(rows.len(), 1);
+        assert_eq!(rows.len(), 1, "stable id must upsert, not accumulate");
         let row = &rows[0];
         assert_eq!(row.type_, "RefarmConfig");
         assert_eq!(row.source_plugin.as_deref(), Some("tractor-host"));
-
         let payload: serde_json::Value = serde_json::from_str(&row.payload).unwrap();
-        assert_eq!(payload["@type"], "RefarmConfig");
-        assert_eq!(payload["plugin_id"], "agent");
-        assert_eq!(payload["model_env"]["MODEL_PROVIDER"], "ollama");
+        assert_eq!(payload["schema"], "refarm.config.node.v1");
+        assert_eq!(payload["data"]["provider"], "ollama");
     }
 
     #[test]
-    fn refarm_config_node_payload_uses_null_config_when_missing() {
-        let dir = tempfile::tempdir().unwrap();
-        let env_vars = vec![("MODEL_PROVIDER".to_string(), "ollama".to_string())];
+    fn store_config_node_is_a_noop_when_no_sovereign_config() {
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-refarm-config-none").unwrap();
+        store_refarm_config_node(&sync, None).unwrap();
+        assert_eq!(sync.query_nodes("RefarmConfig").unwrap().len(), 0);
+    }
 
-        let payload = refarm_config_node_payload("agent", dir.path(), &env_vars, None);
+    // MANDATORY conformance: the Rust canonical digest MUST byte-match the TS
+    // canonicalJson()+sha256 for the same config, or a node written by the tractor
+    // and one written by the TS side would compute DIFFERENT revisions and defeat
+    // the unification. The expected revisions below were produced by the TS encoder
+    // (packages/config/src/config-node.js createConfigNode(...).revision) for these
+    // exact inputs — INCLUDING the integer-valued float `budgets.openai:10`, which
+    // JS emits as `10` (one number type) and naive serde would emit as `10.0`.
+    #[test]
+    fn config_node_revision_matches_the_ts_canonical_digest() {
+        use crate::host::plugin_host::config_node::build_config_node_payload;
+        let cases: &[(serde_json::Value, &str)] = &[
+            (
+                serde_json::json!({ "provider": "ollama" }),
+                "sha256:a0a1c09f1df2debd141a0dfb9d78905c1a573a7b401b76fba76650eaff4a5f5a",
+            ),
+            (
+                serde_json::json!({
+                    "provider": "ollama",
+                    "model": "llama3.2",
+                    "apiKey": "sk-secret",
+                    "budgets": { "openai": 10 }
+                }),
+                "sha256:f18c3af84c62eda4771cabb72074e4f09b4a882e11d43ef5f29f2a9a82439006",
+            ),
+        ];
+        for (config, expected_revision) in cases {
+            let payload = build_config_node_payload(config, "tractor-host");
+            assert_eq!(
+                payload["revision"].as_str(),
+                Some(*expected_revision),
+                "Rust digest must byte-match the TS revision for {config}"
+            );
+        }
 
-        assert_eq!(payload["@type"], "RefarmConfig");
-        assert!(payload["config_json"].is_null());
+        // The load-bearing number case: 10 and 10.0 must canonicalize identically
+        // (JS has one number type), and key order must not change the digest.
+        let intkey = build_config_node_payload(&serde_json::json!({"budgets": {"openai": 10}}), "t");
+        let flat = build_config_node_payload(&serde_json::json!({"budgets": {"openai": 10.0}}), "t");
+        assert_eq!(intkey["revision"], flat["revision"], "10 vs 10.0 must canonicalize the same");
+        let a = build_config_node_payload(&serde_json::json!({"a": 1, "b": 2}), "t");
+        let b = build_config_node_payload(&serde_json::json!({"b": 2, "a": 1}), "t");
+        assert_eq!(a["revision"], b["revision"], "key order must not change the digest");
     }
