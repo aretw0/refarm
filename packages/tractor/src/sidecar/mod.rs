@@ -306,7 +306,7 @@ fn err(status: StatusCode, msg: &str) -> impl IntoResponse {
 
 fn prompt_ref_from_effort(effort_id: &str) -> String {
     // Mirrors agent's new_agent_urn("prompt") convention — stable for stream_ref derivation.
-    format!("urn:agent:prompt-{}", effort_id.replace('-', ""))
+    format!("urn:refarm:prompt-{}", effort_id.replace('-', ""))
 }
 
 fn stream_ref_for_prompt(prompt_ref: &str) -> String {

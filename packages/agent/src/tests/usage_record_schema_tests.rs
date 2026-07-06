@@ -6,8 +6,8 @@ fn usage_record_schema_has_required_fields() {
         react("hello");
     let node = serde_json::json!({
         "@type":            "UsageRecord",
-        "@id":              "urn:agent:usage-test",
-        "prompt_ref":       "urn:agent:prompt-test",
+        "@id":              "urn:refarm:usage-test",
+        "prompt_ref":       "urn:refarm:prompt-test",
         "provider":         "stub",
         "model":            model,
         "tokens_in":        tokens_in,
