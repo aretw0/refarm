@@ -318,7 +318,7 @@ impl IntegrationGuest for Agent {
             name: "agent".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             description: "Sovereign AI agent — runs on edge nodes and Raspberry Pi".to_string(),
-            supported_types: vec!["AgentResponse".to_string(), "UserPrompt".to_string()],
+            supported_types: vec!["Response".to_string(), "UserPrompt".to_string()],
             required_capabilities: vec![
                 "host-fs".to_string(),
                 "host-shell".to_string(),

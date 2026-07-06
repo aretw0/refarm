@@ -22,7 +22,7 @@ fn response_nodes_agent_response_builder_shape() {
         sequence: 0,
         is_final: true,
     });
-    assert_eq!(node["@type"], "AgentResponse");
+    assert_eq!(node["@type"], "Response");
     assert_eq!(node["prompt_ref"], "urn:agent:prompt-test");
     assert_eq!(node["content"], "done");
     assert_eq!(node["inference"]["model"], "stub");
@@ -46,7 +46,7 @@ fn response_nodes_agent_response_builder_can_mark_partial() {
         sequence: 7,
         is_final: false,
     });
-    assert_eq!(node["@type"], "AgentResponse");
+    assert_eq!(node["@type"], "Response");
     assert_eq!(node["content"], "partial");
     assert_eq!(node["sequence"], 7);
     assert_eq!(node["is_final"], false);

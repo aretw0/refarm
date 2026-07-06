@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
 	agentResponseStreamRef,
-	applyAgentResponseStreamEvent,
-	emptyAgentResponseStreamState,
+	applyResponseStreamEvent,
+	emptyResponseStreamState,
 	isAgentResponseStreamRef,
-	isTerminalAgentResponseStreamEvent,
-	isTerminalAgentResponseStreamState,
-	orderAgentResponseStreamEvents,
+	isTerminalResponseStreamEvent,
+	isTerminalResponseStreamState,
+	orderResponseStreamEvents,
 	promptRefFromAgentResponseStreamRef,
-	reduceAgentResponseStreamEvents,
-	reduceAgentResponseStreamEventsByPrompt,
+	reduceResponseStreamEvents,
+	reduceResponseStreamEventsByPrompt,
 	UNKNOWN_AGENT_RESPONSE_PROMPT_REF,
 } from "../src/lib/agent-response-stream";
 
@@ -31,7 +31,7 @@ describe("AgentResponse streaming accumulator", () => {
 	});
 
 	it("appends partial deltas and replaces content with the final full response", () => {
-		const state = reduceAgentResponseStreamEvents([
+		const state = reduceResponseStreamEvents([
 			{ prompt_ref: "prompt-1", content: "Olá ", sequence: 0, is_final: false },
 			{
 				prompt_ref: "prompt-1",
@@ -56,11 +56,11 @@ describe("AgentResponse streaming accumulator", () => {
 	});
 
 	it("detects terminal AgentResponse stream events and state", () => {
-		expect(isTerminalAgentResponseStreamEvent({ is_final: true })).toBe(true);
-		expect(isTerminalAgentResponseStreamEvent({ is_final: false })).toBe(false);
+		expect(isTerminalResponseStreamEvent({ is_final: true })).toBe(true);
+		expect(isTerminalResponseStreamEvent({ is_final: false })).toBe(false);
 		expect(
-			isTerminalAgentResponseStreamState({
-				...emptyAgentResponseStreamState("prompt-terminal"),
+			isTerminalResponseStreamState({
+				...emptyResponseStreamState("prompt-terminal"),
 				isFinal: true,
 			}),
 		).toBe(true);
@@ -73,7 +73,7 @@ describe("AgentResponse streaming accumulator", () => {
 			{ content: "unknown", is_final: false },
 		];
 
-		const ordered = orderAgentResponseStreamEvents(events);
+		const ordered = orderResponseStreamEvents(events);
 
 		expect(ordered.map((event) => event.content)).toEqual([
 			"a",
@@ -84,7 +84,7 @@ describe("AgentResponse streaming accumulator", () => {
 	});
 
 	it("groups interleaved events by prompt_ref for structured clients", () => {
-		const states = reduceAgentResponseStreamEventsByPrompt([
+		const states = reduceResponseStreamEventsByPrompt([
 			{ prompt_ref: "prompt-a", content: "hel", sequence: 0, is_final: false },
 			{ prompt_ref: "prompt-b", content: "other", sequence: 0, is_final: true },
 			{ prompt_ref: "prompt-a", content: "hello", sequence: 1, is_final: true },
@@ -112,8 +112,8 @@ describe("AgentResponse streaming accumulator", () => {
 	});
 
 	it("keeps accumulated partial content when no final event has arrived", () => {
-		const state = applyAgentResponseStreamEvent(
-			emptyAgentResponseStreamState("prompt-2"),
+		const state = applyResponseStreamEvent(
+			emptyResponseStreamState("prompt-2"),
 			{ content: "delta", sequence: 4, is_final: false },
 		);
 

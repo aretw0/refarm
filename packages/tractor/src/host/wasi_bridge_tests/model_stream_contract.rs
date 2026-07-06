@@ -103,7 +103,7 @@ data: [DONE]
     assert_eq!(final_json["choices"][0]["message"]["content"], "hello");
 
     let mut payloads: Vec<serde_json::Value> = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .unwrap()
         .iter()
         .map(|row| serde_json::from_str(&row.payload).unwrap())
@@ -222,7 +222,7 @@ fn wait_for_agent_response_payloads(
     expected_len: usize,
 ) -> Vec<serde_json::Value> {
     for _ in 0..100 {
-        let rows = sync.query_nodes("AgentResponse").unwrap();
+        let rows = sync.query_nodes("Response").unwrap();
         if rows.len() >= expected_len {
             let mut payloads = rows
                 .iter()

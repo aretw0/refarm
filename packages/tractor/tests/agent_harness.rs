@@ -367,7 +367,7 @@ async fn harness_agent_response_stored_in_crdt() {
     call_on_event_with_timeout(&mut handle, "oi", "agent response harness").await;
 
     let nodes = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(
         !nodes.is_empty(),
@@ -375,7 +375,7 @@ async fn harness_agent_response_stored_in_crdt() {
     );
 
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
-    assert_eq!(v["@type"], "AgentResponse");
+    assert_eq!(v["@type"], "Response");
     assert_eq!(v["content"], "Olá do harness!");
     assert_eq!(v["is_final"], true);
     assert!(
@@ -533,7 +533,7 @@ async fn harness_task_memory_disabled_stores_no_task_nodes() {
 
     // AgentResponse must still be stored — only the Task/TaskEvent layer is skipped.
     let responses = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(
         !responses.is_empty(),
@@ -594,7 +594,7 @@ data: [DONE]
     assert_eq!(request["stream"], true);
 
     let mut payloads: Vec<serde_json::Value> = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse")
         .iter()
         .map(|row| serde_json::from_str(&row.payload).unwrap())
@@ -641,7 +641,7 @@ data: [DONE]
     assert_eq!(session["status"], "completed");
     assert_eq!(session["last_sequence"], 2);
     assert_eq!(session["chunk_count"], 3);
-    assert_eq!(session["metadata"]["projection"], "AgentResponse");
+    assert_eq!(session["metadata"]["projection"], "Response");
 
     let usage_records = sync.query_nodes("UsageRecord").expect("query UsageRecord");
     assert_eq!(
@@ -752,7 +752,7 @@ data: [DONE]
     assert_eq!(second_request["stream"], true);
 
     let responses = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     let final_response: serde_json::Value = responses
         .iter()
@@ -823,7 +823,7 @@ async fn harness_context_guard_blocks_oversized_prompt() {
     .await;
 
     let nodes = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(
         !nodes.is_empty(),
@@ -863,7 +863,7 @@ async fn harness_budget_block_falls_through_to_error_without_fallback() {
     .await;
 
     let nodes = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(
         !nodes.is_empty(),
@@ -927,7 +927,7 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
     call_on_event_with_timeout(&mut handle, "run echo", "tool-use harness").await;
 
     let nodes = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(!nodes.is_empty());
 
@@ -1020,7 +1020,7 @@ async fn harness_find_references_tool_reads_lsp_locations() {
     .await;
 
     let nodes = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(!nodes.is_empty());
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
@@ -1115,7 +1115,7 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
         "let new_name = new_name;\n"
     );
     let nodes = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(!nodes.is_empty());
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
@@ -1152,7 +1152,7 @@ async fn harness_fallback_serves_response_on_primary_failure() {
     call_on_event_with_timeout(&mut handle, "test fallback", "fallback harness").await;
 
     let nodes = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(!nodes.is_empty());
 
@@ -1272,7 +1272,7 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
     call_on_event_with_timeout(&mut handle, "count to ten", "tool truncation harness").await;
 
     let nodes = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(!nodes.is_empty(), "AgentResponse must be stored");
 
@@ -1342,7 +1342,7 @@ async fn harness_refarm_config_json_injects_provider() {
     // AgentResponse must exist — proves the plugin reached the mock LLM successfully,
     // which means config.json's provider="ollama" was injected into the WASM env.
     let nodes = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(
         !nodes.is_empty(),
@@ -1414,7 +1414,7 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
     // AgentResponse itself is stored with a content hash as @id (not new_id), so we
     // only assert it exists to confirm the full pipeline ran.
     let responses = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(!responses.is_empty(), "AgentResponse must be stored");
 
@@ -1632,7 +1632,7 @@ async fn harness_read_structured_tool_returns_paginated_header() {
     // The tool result (fed back to LLM) must contain the pagination header.
     // It is stored in AgentResponse.tool_calls[0].result.
     let responses = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(!responses.is_empty(), "AgentResponse must exist");
 
@@ -1663,7 +1663,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     // Verifies cross-agent CRDT coordination:
     //   Agent A (MODEL_AGENT_ID=alpha) stores an AgentResponse.
     //   Agent B (MODEL_AGENT_ID=beta)  is then loaded with the SAME NativeSync
-    //   (same storage namespace). query_nodes("AgentResponse") must return A's node.
+    //   (same storage namespace). query_nodes("Response") must return A's node.
     //   This is the fundamental multi-agent coordination primitive.
     let _env = env_lock();
     let path = wasm_path();
@@ -1684,7 +1684,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
 
     // Confirm A's node is namespaced with alpha prefix.
     let nodes_after_a = shared_sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query after A");
     assert!(
         !nodes_after_a.is_empty(),
@@ -1711,7 +1711,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
 
     // ── Cross-agent read ──────────────────────────────────────────────────────
     let all_nodes = shared_sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query all AgentResponse");
     assert!(
         all_nodes.len() >= 2,
@@ -1789,7 +1789,7 @@ async fn harness_pre_tool_budget_read_file_gets_default_limit() {
     call_on_event_with_timeout(&mut handle, "read the big file", "budget read harness").await;
 
     let nodes = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(!nodes.is_empty(), "AgentResponse must be stored");
 
@@ -1863,7 +1863,7 @@ async fn harness_pre_tool_budget_model_can_override_limit() {
     call_on_event_with_timeout(&mut handle, "read 10 lines only", "budget override harness").await;
 
     let nodes = sync
-        .query_nodes("AgentResponse")
+        .query_nodes("Response")
         .expect("query AgentResponse");
     assert!(!nodes.is_empty(), "AgentResponse must be stored");
 

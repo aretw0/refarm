@@ -19,7 +19,7 @@ pub(crate) struct AgentTurnRecord {
     pub sequence: u32,
 }
 
-pub(crate) struct AgentResponseChunkRecord {
+pub(crate) struct ResponseChunkRecord {
     pub content: String,
     pub tool_calls: serde_json::Value,
     pub model: String,
@@ -43,7 +43,7 @@ pub(crate) struct UsageRecordInput {
 
 /// Metadata defaults applied to partial response chunk drafts before storage.
 #[allow(dead_code)]
-pub(crate) struct AgentResponseChunkDefaults {
+pub(crate) struct ResponseChunkDefaults {
     pub model: String,
     pub tokens_in: u32,
     pub tokens_out: u32,
@@ -182,7 +182,7 @@ pub(crate) fn store_prompt_and_open_session(
 
 pub(crate) fn store_agent_response_chunk(
     prompt_ref: &str,
-    record: AgentResponseChunkRecord,
+    record: ResponseChunkRecord,
 ) -> bool {
     let response = agent_response_node(AgentResponsePayload {
         prompt_ref,
@@ -203,7 +203,7 @@ pub(crate) fn store_agent_response_chunk(
 pub(crate) fn store_agent_response_chunk_drafts(
     prompt_ref: &str,
     drafts: &[crate::streaming_chunks::ResponseChunkDraft],
-    defaults: AgentResponseChunkDefaults,
+    defaults: ResponseChunkDefaults,
 ) -> usize {
     drafts
         .iter()
@@ -214,11 +214,11 @@ pub(crate) fn store_agent_response_chunk_drafts(
 fn store_agent_response_chunk_draft(
     prompt_ref: &str,
     draft: &crate::streaming_chunks::ResponseChunkDraft,
-    defaults: &AgentResponseChunkDefaults,
+    defaults: &ResponseChunkDefaults,
 ) -> bool {
     store_agent_response_chunk(
         prompt_ref,
-        AgentResponseChunkRecord {
+        ResponseChunkRecord {
             content: draft.content.clone(),
             tool_calls: serde_json::Value::Null,
             model: defaults.model.clone(),
@@ -237,7 +237,7 @@ pub(crate) fn store_agent_response_chunks_from_sse(
     prompt_ref: &str,
     bytes: &[u8],
     last_sequence: Option<u32>,
-    defaults: AgentResponseChunkDefaults,
+    defaults: ResponseChunkDefaults,
 ) -> (Option<u32>, usize) {
     let mut stored = 0usize;
     let mut last_stored_sequence = None;
@@ -258,7 +258,7 @@ pub(crate) fn store_agent_turn(prompt_ref: &str, session_id: &str, record: Agent
     let content = record.content.clone();
     let _ = store_agent_response_chunk(
         prompt_ref,
-        AgentResponseChunkRecord {
+        ResponseChunkRecord {
             content: record.content,
             tool_calls: record.tool_calls,
             model: record.model,

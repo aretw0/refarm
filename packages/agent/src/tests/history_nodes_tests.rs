@@ -4,7 +4,7 @@ use super::*;
 fn history_from_nodes_sorts_by_timestamp_and_caps_turns() {
     let now = now_ns();
     let nodes = vec![
-        serde_json::json!({"@type":"AgentResponse","content":"resp1","timestamp_ns":now+200})
+        serde_json::json!({"@type":"Response","content":"resp1","timestamp_ns":now+200})
             .to_string(),
         serde_json::json!({"@type":"UserPrompt",   "content":"q2",   "timestamp_ns":now+100})
             .to_string(),

@@ -1,7 +1,7 @@
 //! The CLI watch/read engines for the tractor binary: the generic node-row
 //! reader and the AgentResponse event reader, plus their stream-kind consts.
 //! Extracted verbatim from main.rs to shrink the binary entry (behavior
-//! unchanged). Shared types (OutputFormat, AgentResponseEvent,
+//! unchanged). Shared types (OutputFormat, ResponseEvent,
 //! PlainResponseOutput) stay in main.rs and are imported here.
 
 use std::collections::HashSet;
@@ -11,7 +11,7 @@ use anyhow::{Context, Result};
 use tokio::time::{sleep, Duration, Instant};
 use tractor::NativeStorage;
 
-use super::{AgentResponseEvent, OutputFormat, PlainResponseOutput, PlainResponseOutputState};
+use super::{ResponseEvent, OutputFormat, PlainResponseOutput, PlainResponseOutputState};
 
 // Stream-kind consts used only by node_row_is_terminal below.
 pub(crate) const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT: &str = "final_text";
@@ -184,7 +184,7 @@ pub(crate) fn snapshot_seen_response_ids(namespace: &str, agent_filter: &str) ->
     let storage = NativeStorage::open(namespace)
         .with_context(|| format!("open storage namespace '{namespace}'"))?;
 
-    let rows = storage.query_nodes("AgentResponse")?;
+    let rows = storage.query_nodes("Response")?;
     let seen = rows
         .into_iter()
         .filter(|row| agent_filter.is_empty() || row.source_plugin.as_deref() == Some(agent_filter))
@@ -198,12 +198,12 @@ pub(crate) fn collect_new_response_events(
     namespace: &str,
     agent_filter: &str,
     seen: &HashSet<String>,
-) -> Result<Vec<AgentResponseEvent>> {
+) -> Result<Vec<ResponseEvent>> {
     let storage = NativeStorage::open(namespace)
         .with_context(|| format!("open storage namespace '{namespace}'"))?;
 
     let mut out = Vec::new();
-    for row in storage.query_nodes("AgentResponse")? {
+    for row in storage.query_nodes("Response")? {
         if seen.contains(&row.id) {
             continue;
         }
@@ -246,7 +246,7 @@ pub(crate) fn collect_new_response_events(
             .and_then(|x| x.as_u64())
             .unwrap_or(0);
 
-        out.push(AgentResponseEvent {
+        out.push(ResponseEvent {
             id: row.id,
             source_plugin: row.source_plugin,
             updated_at: row.updated_at,
@@ -273,7 +273,7 @@ pub(crate) fn collect_new_response_events(
 }
 
 pub(crate) fn render_plain_response_event(
-    event: &AgentResponseEvent,
+    event: &ResponseEvent,
     state: &mut PlainResponseOutputState,
 ) -> PlainResponseOutput {
     let prompt_key = event
@@ -298,7 +298,7 @@ pub(crate) fn render_plain_response_event(
     output
 }
 
-pub(crate) fn plain_response_metadata(event: &AgentResponseEvent) -> String {
+pub(crate) fn plain_response_metadata(event: &ResponseEvent) -> String {
     if event.llm_tokens_in == 0 && event.llm_tokens_out == 0 {
         return String::new();
     }
@@ -309,7 +309,7 @@ pub(crate) fn plain_response_metadata(event: &AgentResponseEvent) -> String {
     )
 }
 
-pub(crate) struct PollAgentResponsesOptions {
+pub(crate) struct PollResponsesOptions {
     pub(crate) poll_interval: Duration,
     pub(crate) timeout: Option<Duration>,
     pub(crate) stop_after_first: bool,
@@ -317,11 +317,11 @@ pub(crate) struct PollAgentResponsesOptions {
     pub(crate) format: OutputFormat,
 }
 
-pub(crate) async fn poll_agent_responses(
+pub(crate) async fn poll_responses(
     namespace: &str,
     agent_filter: &str,
     seen: &mut HashSet<String>,
-    options: PollAgentResponsesOptions,
+    options: PollResponsesOptions,
 ) -> Result<bool> {
     let deadline = options.timeout.map(|d| Instant::now() + d);
     let mut plain_output_state = PlainResponseOutputState::default();

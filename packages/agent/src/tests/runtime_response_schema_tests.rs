@@ -36,7 +36,7 @@ fn agent_response_schema_has_required_fields() {
         _usage_raw,
     ) = react("hello");
     let node = serde_json::json!({
-        "@type":      "AgentResponse",
+        "@type":      "Response",
         "@id":        "urn:agent:resp-test",
         "prompt_ref": "urn:agent:prompt-test",
         "content":    content,
@@ -61,7 +61,7 @@ fn agent_response_schema_has_required_fields() {
             "AgentResponse missing field: {field}"
         );
     }
-    assert_eq!(node["@type"], "AgentResponse");
+    assert_eq!(node["@type"], "Response");
     assert_eq!(node["is_final"], true);
     assert_eq!(node["sequence"], 0);
     for sub in ["model", "tokens_in", "tokens_out", "duration_ms"] {

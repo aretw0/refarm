@@ -92,7 +92,7 @@ mod tests {
             is_final: false,
             timestamp_ns: 123,
             metadata: serde_json::json!({
-                "projection": "AgentResponse",
+                "projection": "Response",
                 "prompt_ref": "prompt-abc",
             }),
         };
@@ -107,7 +107,7 @@ mod tests {
         assert_eq!(node["content"], "hello");
         assert_eq!(node["is_final"], false);
         assert_eq!(node["timestamp_ns"], 123);
-        assert_eq!(node["metadata"]["projection"], "AgentResponse");
+        assert_eq!(node["metadata"]["projection"], "Response");
         assert_eq!(node["metadata"]["prompt_ref"], "prompt-abc");
     }
 
@@ -123,7 +123,7 @@ mod tests {
             last_sequence: Some(3),
             chunk_count: 4,
             metadata: serde_json::json!({
-                "projection": "AgentResponse",
+                "projection": "Response",
                 "prompt_ref": "prompt-abc",
             }),
         };
@@ -141,6 +141,6 @@ mod tests {
         assert_eq!(node["completed_at_ns"], 200);
         assert_eq!(node["last_sequence"], 3);
         assert_eq!(node["chunk_count"], 4);
-        assert_eq!(node["metadata"]["projection"], "AgentResponse");
+        assert_eq!(node["metadata"]["projection"], "Response");
     }
 }

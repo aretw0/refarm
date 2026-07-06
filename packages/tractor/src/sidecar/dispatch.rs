@@ -46,7 +46,7 @@ impl TerminalResultSpec {
     /// terminal when `is_final` — so the LLM path is byte-for-byte unchanged.
     pub(crate) fn agent_response(prompt_ref: impl Into<String>) -> Self {
         Self {
-            node_type: "AgentResponse".to_string(),
+            node_type: "Response".to_string(),
             correlation_key: "prompt_ref".to_string(),
             correlation_value: prompt_ref.into(),
             terminal_flag_field: "is_final".to_string(),

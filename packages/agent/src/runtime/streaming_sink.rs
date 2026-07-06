@@ -102,7 +102,7 @@ pub(crate) fn record_stream_bytes_for_active_sink(bytes: &[u8]) {
             return;
         };
 
-        let defaults = super::prompt_persistence::AgentResponseChunkDefaults {
+        let defaults = super::prompt_persistence::ResponseChunkDefaults {
             model: active.model.clone(),
             tokens_in: 0,
             tokens_out: 0,

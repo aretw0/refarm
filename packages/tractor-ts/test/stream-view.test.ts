@@ -17,7 +17,7 @@ describe("stream observation view", () => {
 				chunkCount: 3,
 				metadata: {
 					prompt_ref: "prompt-a",
-					projection: "AgentResponse",
+					projection: "Response",
 					provider_family: "anthropic",
 					model: "claude-test",
 				},
@@ -39,7 +39,7 @@ describe("stream observation view", () => {
 			isTerminal: false,
 			lastSequence: 2,
 			chunkCount: 3,
-			projection: "AgentResponse",
+			projection: "Response",
 			promptRef: "prompt-a",
 			providerFamily: "anthropic",
 			model: "claude-test",

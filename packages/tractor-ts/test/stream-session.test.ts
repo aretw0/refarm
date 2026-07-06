@@ -35,7 +35,7 @@ describe("StreamSession accumulator", () => {
 				last_sequence: null,
 				chunk_count: 0,
 				metadata: {
-					projection: "AgentResponse",
+					projection: "Response",
 					prompt_ref: "prompt-a",
 					provider_family: "openai",
 					model: "gpt-test",
@@ -61,7 +61,7 @@ describe("StreamSession accumulator", () => {
 			lastSequence: 2,
 			chunkCount: 3,
 			metadata: {
-				projection: "AgentResponse",
+				projection: "Response",
 				prompt_ref: "prompt-a",
 				provider_family: "openai",
 				model: "gpt-test",
@@ -69,7 +69,7 @@ describe("StreamSession accumulator", () => {
 		});
 		expect(isStreamSessionKind(state.streamKind)).toBe(true);
 		expect(isResponseStreamSession(state)).toBe(true);
-		expect(streamSessionProjection(state)).toBe("AgentResponse");
+		expect(streamSessionProjection(state)).toBe("Response");
 		expect(streamSessionPromptRef(state)).toBe("prompt-a");
 		expect(streamSessionProviderFamily(state)).toBe("openai");
 		expect(streamSessionModel(state)).toBe("gpt-test");

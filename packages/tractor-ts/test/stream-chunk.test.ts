@@ -133,7 +133,7 @@ describe("StreamChunk accumulator", () => {
 				sequence: 0,
 				metadata: {
 					prompt_ref: "prompt-a",
-					projection: "AgentResponse",
+					projection: "Response",
 					provider_family: "openai",
 					model: "gpt-test",
 				},
@@ -148,12 +148,12 @@ describe("StreamChunk accumulator", () => {
 
 		expect(state.metadata).toEqual({
 			prompt_ref: "prompt-a",
-			projection: "AgentResponse",
+			projection: "Response",
 			provider_family: "openai",
 			model: "gpt-test",
 		});
 		expect(streamChunkPromptRef(state)).toBe("prompt-a");
-		expect(streamChunkProjection(state)).toBe("AgentResponse");
+		expect(streamChunkProjection(state)).toBe("Response");
 		expect(streamChunkProviderFamily(state)).toBe("openai");
 		expect(streamChunkModel(state)).toBe("gpt-test");
 	});

@@ -623,7 +623,7 @@ fn store_stream_agent_response_chunk(
     let node = stream_agent_response_chunk_node(&node_id, timestamp_ns, metadata, chunk);
     sync.store_node(
         &node_id,
-        "AgentResponse",
+        "Response",
         None,
         &node.to_string(),
         Some(source_plugin),
@@ -703,7 +703,7 @@ fn stream_session_observation_draft(
         last_sequence,
         chunk_count,
         metadata: serde_json::json!({
-            "projection": "AgentResponse",
+            "projection": "Response",
             "prompt_ref": metadata.prompt_ref,
             "provider_family": metadata.provider_family,
             "model": metadata.model,
@@ -740,7 +740,7 @@ fn stream_observation_draft(
         is_final,
         timestamp_ns,
         metadata: serde_json::json!({
-            "projection": "AgentResponse",
+            "projection": "Response",
             "prompt_ref": metadata.prompt_ref,
             "provider_family": metadata.provider_family,
             "model": metadata.model,
@@ -766,7 +766,7 @@ fn stream_agent_response_chunk_node(
     chunk: &ModelStreamTextChunkDraft,
 ) -> serde_json::Value {
     serde_json::json!({
-        "@type":        "AgentResponse",
+        "@type":        "Response",
         "@id":          node_id,
         "prompt_ref":   metadata.prompt_ref,
         "content":      chunk.content_delta,

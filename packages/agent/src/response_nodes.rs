@@ -33,7 +33,7 @@ pub(crate) fn user_prompt_node(prompt_ref: &str, prompt: &str) -> serde_json::Va
 
 pub(crate) fn agent_response_node(payload: AgentResponsePayload<'_>) -> serde_json::Value {
     serde_json::json!({
-        "@type":        "AgentResponse",
+        "@type":        "Response",
         "@id":          crate::mint_urn("resp"),
         "prompt_ref":   payload.prompt_ref,
         "content":      payload.content,

@@ -280,7 +280,7 @@ fn on_event_budget_ms_from_env() -> u64 {
 fn write_terminal_error_result(sync: &NativeSync, plugin_id: &str, prompt_ref: &str, error: &str) {
     let id = format!("urn:result:error:{prompt_ref}");
     let payload = serde_json::json!({
-        "@type": "AgentResponse",
+        "@type": "Response",
         "@id": id,
         "prompt_ref": prompt_ref,
         "content": error,
@@ -288,7 +288,7 @@ fn write_terminal_error_result(sync: &NativeSync, plugin_id: &str, prompt_ref: &
         "is_error": true,
     })
     .to_string();
-    if let Err(e) = sync.store_node(&id, "AgentResponse", None, &payload, Some(plugin_id)) {
+    if let Err(e) = sync.store_node(&id, "Response", None, &payload, Some(plugin_id)) {
         tracing::warn!(
             plugin_id = %plugin_id,
             prompt_ref = %prompt_ref,

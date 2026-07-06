@@ -313,7 +313,7 @@ export class WasiImports {
 				is_final: true,
 				timestamp_ns: Date.now(),
 				metadata: {
-					projection: "AgentResponse",
+					projection: "Response",
 					prompt_ref: promptRef,
 					provider_family: providerFamily,
 					model,

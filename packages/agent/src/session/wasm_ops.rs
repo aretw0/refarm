@@ -230,7 +230,7 @@ pub(crate) fn query_history() -> Vec<(String, String)> {
     // Legacy fallback: timestamp-sort for pre-session UserPrompt/AgentResponse nodes.
     let limit = (max_turns * 2) as u32;
     let mut nodes = tractor_bridge::query_nodes("UserPrompt", limit).unwrap_or_default();
-    nodes.extend(tractor_bridge::query_nodes("AgentResponse", limit).unwrap_or_default());
+    nodes.extend(tractor_bridge::query_nodes("Response", limit).unwrap_or_default());
     history_from_nodes(&nodes, max_turns)
 }
 

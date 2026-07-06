@@ -947,7 +947,7 @@ fn find_terminal_result_matches_by_descriptor_and_surfaces_is_error() {
     // The agent default spec still resolves the AgentResponse shape.
     store(
         "n4",
-        "AgentResponse",
+        "Response",
         serde_json::json!({ "prompt_ref": "urn:p:1", "is_final": true, "content": "answer" }),
     );
     let agent = find_terminal_result(&ns, &TerminalResultSpec::agent_response("urn:p:1"))

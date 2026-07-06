@@ -48,7 +48,7 @@ pub(crate) fn history_from_nodes(nodes: &[String], max_turns: usize) -> Vec<(Str
             let ts = v["timestamp_ns"].as_u64().unwrap_or(0);
             let role = match v["@type"].as_str()? {
                 "UserPrompt" => "user",
-                "AgentResponse" => "assistant",
+                "Response" => "assistant",
                 _ => return None,
             };
             let content = v["content"].as_str()?.to_owned();

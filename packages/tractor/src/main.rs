@@ -211,7 +211,7 @@ struct WatchArgs {
 
     /// Node type to watch. AgentResponse keeps the compatibility plain renderer;
     /// StreamChunk/StreamSession use generic node rendering.
-    #[arg(long, default_value = "AgentResponse")]
+    #[arg(long, default_value = "Response")]
     r#type: String,
 
     /// Filter by source_plugin (e.g. agent). Empty = all.
@@ -326,7 +326,7 @@ impl OutputFormat {
 }
 
 #[derive(Debug)]
-struct AgentResponseEvent {
+struct ResponseEvent {
     id: String,
     source_plugin: Option<String>,
     updated_at: String,
@@ -523,11 +523,11 @@ async fn run_prompt(args: PromptArgs) -> Result<()> {
         return Ok(());
     }
 
-    let got_final = poll_agent_responses(
+    let got_final = poll_responses(
         &args.namespace,
         &args.agent,
         &mut seen,
-        PollAgentResponsesOptions {
+        PollResponsesOptions {
             poll_interval: Duration::from_millis(args.poll_interval_ms.max(50)),
             timeout: Some(Duration::from_millis(args.wait_timeout_ms)),
             stop_after_first: false,
@@ -557,7 +557,7 @@ async fn run_watch(args: WatchArgs) -> Result<()> {
     let stream_ref_filter =
         resolve_stream_ref_filter(args.stream_ref.as_deref(), args.prompt_ref.as_deref())?;
 
-    if args.r#type != "AgentResponse" || stream_ref_filter.is_some() {
+    if args.r#type != "Response" || stream_ref_filter.is_some() {
         let mut seen = snapshot_seen_node_fingerprints(
             &args.namespace,
             &args.r#type,
@@ -586,11 +586,11 @@ async fn run_watch(args: WatchArgs) -> Result<()> {
 
     let mut seen = snapshot_seen_response_ids(&args.namespace, &args.agent)?;
 
-    let _ = poll_agent_responses(
+    let _ = poll_responses(
         &args.namespace,
         &args.agent,
         &mut seen,
-        PollAgentResponsesOptions {
+        PollResponsesOptions {
             poll_interval: Duration::from_millis(args.poll_interval_ms.max(50)),
             timeout,
             stop_after_first: args.once,

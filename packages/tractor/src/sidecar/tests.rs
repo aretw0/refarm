@@ -122,7 +122,7 @@ async fn start_effort_sidecar_ns_with_watch(
 fn write_agent_response(ns: &str, id: &str, prompt_ref: &str, content: &str, is_final: bool) {
     let storage = crate::storage::NativeStorage::open(ns).unwrap();
     let payload = serde_json::json!({
-        "@type": "AgentResponse",
+        "@type": "Response",
         "@id": id,
         "prompt_ref": prompt_ref,
         "content": content,
@@ -132,7 +132,7 @@ fn write_agent_response(ns: &str, id: &str, prompt_ref: &str, content: &str, is_
     })
     .to_string();
     storage
-        .store_node(id, "AgentResponse", None, &payload, None)
+        .store_node(id, "Response", None, &payload, None)
         .unwrap();
 }
 

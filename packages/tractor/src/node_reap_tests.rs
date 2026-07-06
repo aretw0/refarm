@@ -105,7 +105,7 @@ fn dispatch_result_excluded_even_when_old() {
 #[test]
 fn reaps_old_streaming_nodes() {
     let rows = vec![
-        row("a", "AgentResponse", 12 * 3600, "{}"), // 12h old
+        row("a", "Response", 12 * 3600, "{}"), // 12h old
         row("c", "StreamChunk", 12 * 3600, "{}"),
     ];
     // TTL 6h => both are old enough.
@@ -118,14 +118,14 @@ fn reaps_old_streaming_nodes() {
 /// never reaped — only rows older than the full TTL are.
 #[test]
 fn fresh_streaming_node_within_watch_window_survives() {
-    let rows = vec![row("a", "AgentResponse", 45, "{}")]; // 45s old (the watch window)
+    let rows = vec![row("a", "Response", 45, "{}")]; // 45s old (the watch window)
     let plan = plan_node_reap(&rows, NOW, &ttls(6 * HOUR_MS));
     assert!(plan.is_empty(), "a just-written AgentResponse must survive");
 }
 
 #[test]
 fn unparseable_updated_at_kept() {
-    let mut r = row("a", "AgentResponse", 12 * 3600, "{}");
+    let mut r = row("a", "Response", 12 * 3600, "{}");
     r.updated_at = "garbage".to_string();
     assert!(plan_node_reap(&[r], NOW, &ttls(0)).is_empty(), "bad timestamp => keep");
 }
@@ -153,7 +153,7 @@ fn terminal_stream_session_reaped_when_old() {
 #[test]
 fn per_type_ttls_are_independent() {
     let rows = vec![
-        row("a", "AgentResponse", 3 * 3600, "{}"), // 3h old
+        row("a", "Response", 3 * 3600, "{}"), // 3h old
         row("c", "StreamChunk", 3 * 3600, "{}"),
     ];
     // AgentResponse TTL 6h (keep), StreamChunk TTL 1h (reap).

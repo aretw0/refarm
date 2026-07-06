@@ -96,7 +96,7 @@ fn stream_chunk_observation_draft_matches_generic_projection_schema() {
     assert_eq!(node["content"], "hello");
     assert_eq!(node["is_final"], false);
     assert_eq!(node["timestamp_ns"], 123);
-    assert_eq!(node["metadata"]["projection"], "AgentResponse");
+    assert_eq!(node["metadata"]["projection"], "Response");
     assert_eq!(node["metadata"]["provider_family"], "openai");
     assert_eq!(node["metadata"]["model"], "gpt-4.1-mini");
 }
@@ -126,7 +126,7 @@ fn stream_session_observation_draft_matches_generic_session_schema() {
     assert_eq!(node["completed_at_ns"], 200);
     assert_eq!(node["last_sequence"], 6);
     assert_eq!(node["chunk_count"], 3);
-    assert_eq!(node["metadata"]["projection"], "AgentResponse");
+    assert_eq!(node["metadata"]["projection"], "Response");
     assert_eq!(node["metadata"]["prompt_ref"], "prompt-abc");
 }
 
@@ -140,7 +140,7 @@ fn stream_agent_response_chunk_node_matches_partial_response_schema() {
 
     let node = super::stream_agent_response_chunk_node("urn:test:resp:1", 123, &metadata, &chunk);
 
-    assert_eq!(node["@type"], "AgentResponse");
+    assert_eq!(node["@type"], "Response");
     assert_eq!(node["@id"], "urn:test:resp:1");
     assert_eq!(node["prompt_ref"], "prompt-abc");
     assert_eq!(node["content"], "hello");
@@ -174,7 +174,7 @@ data: {"choices":[{"delta":{"content":"b"}}]}
 
     assert_eq!(last_sequence, Some(1));
     assert_eq!(stored_chunks, 2);
-    let rows = sync.query_nodes("AgentResponse").unwrap();
+    let rows = sync.query_nodes("Response").unwrap();
     assert_eq!(rows.len(), 2);
     assert!(rows
         .iter()
@@ -224,7 +224,7 @@ fn store_stream_agent_response_chunks_from_sse_preserves_sequence_when_no_chunks
 
     assert_eq!(last_sequence, Some(7));
     assert_eq!(stored_chunks, 0);
-    assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
+    assert!(sync.query_nodes("Response").unwrap().is_empty());
     assert!(sync.query_nodes("StreamChunk").unwrap().is_empty());
 }
 
@@ -255,7 +255,7 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     assert_eq!(final_json["usage"]["total_tokens"], 0);
     assert_eq!(last_sequence, Some(5));
     assert_eq!(stored_chunks, 2);
-    let rows = sync.query_nodes("AgentResponse").unwrap();
+    let rows = sync.query_nodes("Response").unwrap();
     let payloads: Vec<serde_json::Value> = rows
         .iter()
         .map(|row| serde_json::from_str(&row.payload).unwrap())
@@ -294,7 +294,7 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     assert_eq!(session["status"], "completed");
     assert_eq!(session["last_sequence"], 6);
     assert_eq!(session["chunk_count"], 3);
-    assert_eq!(session["metadata"]["projection"], "AgentResponse");
+    assert_eq!(session["metadata"]["projection"], "Response");
 }
 
 #[test]
@@ -410,7 +410,7 @@ data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"
 
     assert_eq!(stored_chunks, 0);
     assert_eq!(last_sequence, None);
-    assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
+    assert!(sync.query_nodes("Response").unwrap().is_empty());
     let stream_rows = sync.query_nodes("StreamChunk").unwrap();
     assert_eq!(stream_rows.len(), 1);
     let stream_chunk: serde_json::Value = serde_json::from_str(&stream_rows[0].payload).unwrap();
@@ -477,7 +477,7 @@ data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta"
 
     assert_eq!(stored_chunks, 0);
     assert_eq!(last_sequence, None);
-    assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
+    assert!(sync.query_nodes("Response").unwrap().is_empty());
     let json: serde_json::Value = serde_json::from_slice(&final_body).unwrap();
     let tool_use = &json["content"][0];
     assert_eq!(tool_use["type"], "tool_use");
@@ -502,7 +502,7 @@ fn store_stream_agent_response_chunks_from_reader_enforces_body_limit() {
     .unwrap_err();
 
     assert!(err.contains("too large"));
-    assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
+    assert!(sync.query_nodes("Response").unwrap().is_empty());
 
     let session_rows = sync.query_nodes("StreamSession").unwrap();
     assert_eq!(session_rows.len(), 1);

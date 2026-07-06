@@ -11,8 +11,8 @@
         content: &str,
         is_final: bool,
         prompt_ref: Option<&str>,
-    ) -> AgentResponseEvent {
-        AgentResponseEvent {
+    ) -> ResponseEvent {
+        ResponseEvent {
             id: format!("event-{content}-{is_final}"),
             source_plugin: Some("agent".to_string()),
             updated_at: "2026-04-29T00:00:00Z".to_string(),

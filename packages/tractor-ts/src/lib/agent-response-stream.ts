@@ -1,4 +1,4 @@
-export interface AgentResponseStreamEvent {
+export interface ResponseStreamEvent {
 	prompt_ref?: string | null;
 	content?: string | null;
 	sequence?: number | null;
@@ -6,16 +6,16 @@ export interface AgentResponseStreamEvent {
 	[key: string]: unknown;
 }
 
-export interface AgentResponseStreamState {
+export interface ResponseStreamState {
 	promptRef: string | null;
 	content: string;
 	lastSequence: number | null;
 	isFinal: boolean;
 }
 
-export type AgentResponseStreamStateMap = Record<
+export type ResponseStreamStateMap = Record<
 	string,
-	AgentResponseStreamState
+	ResponseStreamState
 >;
 
 export const UNKNOWN_AGENT_RESPONSE_PROMPT_REF = "__tractor:no-prompt-ref__";
@@ -38,9 +38,9 @@ export function promptRefFromAgentResponseStreamRef(
 		: null;
 }
 
-export function emptyAgentResponseStreamState(
+export function emptyResponseStreamState(
 	promptRef: string | null = null,
-): AgentResponseStreamState {
+): ResponseStreamState {
 	return {
 		promptRef,
 		content: "",
@@ -49,10 +49,10 @@ export function emptyAgentResponseStreamState(
 	};
 }
 
-export function applyAgentResponseStreamEvent(
-	state: AgentResponseStreamState,
-	event: AgentResponseStreamEvent,
-): AgentResponseStreamState {
+export function applyResponseStreamEvent(
+	state: ResponseStreamState,
+	event: ResponseStreamEvent,
+): ResponseStreamState {
 	const eventContent = typeof event.content === "string" ? event.content : "";
 	const eventSequence =
 		typeof event.sequence === "number" && Number.isFinite(event.sequence)
@@ -78,65 +78,65 @@ export function applyAgentResponseStreamEvent(
 	};
 }
 
-export function reduceAgentResponseStreamEvents(
-	events: readonly AgentResponseStreamEvent[],
-	initialState: AgentResponseStreamState = emptyAgentResponseStreamState(),
-): AgentResponseStreamState {
-	return events.reduce(applyAgentResponseStreamEvent, initialState);
+export function reduceResponseStreamEvents(
+	events: readonly ResponseStreamEvent[],
+	initialState: ResponseStreamState = emptyResponseStreamState(),
+): ResponseStreamState {
+	return events.reduce(applyResponseStreamEvent, initialState);
 }
 
-export function orderAgentResponseStreamEvents<
-	T extends AgentResponseStreamEvent,
+export function orderResponseStreamEvents<
+	T extends ResponseStreamEvent,
 >(events: readonly T[]): T[] {
 	return [...events].sort((a, b) => streamSequence(a) - streamSequence(b));
 }
 
-function streamSequence(event: AgentResponseStreamEvent): number {
+function streamSequence(event: ResponseStreamEvent): number {
 	return typeof event.sequence === "number" && Number.isFinite(event.sequence)
 		? event.sequence
 		: Number.MAX_SAFE_INTEGER;
 }
 
 export function agentResponseStreamKey(
-	event: AgentResponseStreamEvent,
+	event: ResponseStreamEvent,
 ): string {
 	return typeof event.prompt_ref === "string"
 		? event.prompt_ref
 		: UNKNOWN_AGENT_RESPONSE_PROMPT_REF;
 }
 
-export function applyAgentResponseStreamEventToMap(
-	stateMap: AgentResponseStreamStateMap,
-	event: AgentResponseStreamEvent,
-): AgentResponseStreamStateMap {
+export function applyResponseStreamEventToMap(
+	stateMap: ResponseStreamStateMap,
+	event: ResponseStreamEvent,
+): ResponseStreamStateMap {
 	const key = agentResponseStreamKey(event);
 	const previous =
 		stateMap[key] ??
-		emptyAgentResponseStreamState(
+		emptyResponseStreamState(
 			key === UNKNOWN_AGENT_RESPONSE_PROMPT_REF ? null : key,
 		);
 
 	return {
 		...stateMap,
-		[key]: applyAgentResponseStreamEvent(previous, event),
+		[key]: applyResponseStreamEvent(previous, event),
 	};
 }
 
-export function reduceAgentResponseStreamEventsByPrompt(
-	events: readonly AgentResponseStreamEvent[],
-	initialStateMap: AgentResponseStreamStateMap = {},
-): AgentResponseStreamStateMap {
-	return events.reduce(applyAgentResponseStreamEventToMap, initialStateMap);
+export function reduceResponseStreamEventsByPrompt(
+	events: readonly ResponseStreamEvent[],
+	initialStateMap: ResponseStreamStateMap = {},
+): ResponseStreamStateMap {
+	return events.reduce(applyResponseStreamEventToMap, initialStateMap);
 }
 
-export function isTerminalAgentResponseStreamEvent(
-	event: AgentResponseStreamEvent,
+export function isTerminalResponseStreamEvent(
+	event: ResponseStreamEvent,
 ): boolean {
 	return event.is_final === true;
 }
 
-export function isTerminalAgentResponseStreamState(
-	state: AgentResponseStreamState,
+export function isTerminalResponseStreamState(
+	state: ResponseStreamState,
 ): boolean {
 	return state.isFinal === true;
 }
