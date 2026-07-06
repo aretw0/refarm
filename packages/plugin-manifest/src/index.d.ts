@@ -5,6 +5,27 @@ export type TelemetryHook =
 	| "onError"
 	| "onTeardown";
 export type PluginExecutionProfile = "strict" | "trusted-fast";
+
+/**
+ * The closed permission vocabulary (effect axis) — mirror of the Rust
+ * `Permission` enum. The CI guard fails if these drift.
+ */
+export type Permission =
+	| "fs:read"
+	| "fs:write"
+	| "shell:spawn"
+	| "network:outbound";
+export type PermissionRisk = "low" | "medium" | "high";
+export interface PermissionSpec {
+	id: Permission;
+	label: string;
+	risk: PermissionRisk;
+}
+export const PERMISSIONS: readonly PermissionSpec[];
+export const KNOWN_PERMISSIONS: ReadonlySet<string>;
+export function isKnownPermission(id: string): boolean;
+export function unknownPermissions(declared: readonly string[]): string[];
+export function describePermission(id: string): PermissionSpec | undefined;
 export type ExecutionContextType =
 	| "main-thread"
 	| "worker"
@@ -71,7 +92,13 @@ export interface PluginManifest {
 	version: string;
 	entry: string;
 	capabilities: PluginCapabilities;
-	permissions: string[];
+	/**
+	 * The effect-axis capabilities the plugin declares it needs. A CLOSED
+	 * vocabulary mirrored from the Rust source of truth (see permission-vocab).
+	 * Unknown strings are typed as `string` to keep manifests parseable, but
+	 * validation rejects any value outside `Permission`.
+	 */
+	permissions: (Permission | string)[];
 	observability: {
 		hooks: TelemetryHook[];
 	};

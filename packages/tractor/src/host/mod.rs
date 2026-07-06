@@ -2,6 +2,7 @@ pub(crate) mod host_effects_bindings;
 mod host_effects_bridge;
 mod instance;
 mod lsp_bridge;
+pub(crate) mod permission;
 mod plugin_host;
 mod sensitive_aliases;
 mod wasi_bridge;

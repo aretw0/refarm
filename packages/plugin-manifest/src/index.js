@@ -25,6 +25,13 @@ export {
 	SHA256_HEX_VALUE_RE,
 	verifyBufferIntegrity,
 } from "./integrity.js";
+export {
+	PERMISSIONS,
+	KNOWN_PERMISSIONS,
+	isKnownPermission,
+	unknownPermissions,
+	describePermission,
+} from "./permission-vocab.js";
 export { decidePluginPolicy, evaluateCapabilityGrant } from "./policy.js";
 export { REQUIRED_TELEMETRY_HOOKS } from "./types.js";
 export {

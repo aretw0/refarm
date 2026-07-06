@@ -470,6 +470,25 @@ fn validate_manifest_runtime_alignment(
         ));
     }
 
+    // Reject permissions outside the closed vocabulary (the effect axis) — a typo
+    // like `fs:reed` would otherwise become an inert dead grant that silently
+    // never enforces. Matches the reject-unknown posture of `targets` /
+    // `trust.profile`. The canonical set lives in `host::permission`.
+    let unknown_permissions = crate::host::permission::unknown_permissions(
+        manifest.permissions.iter().map(String::as_str),
+    );
+    if !unknown_permissions.is_empty() {
+        issues.push(format!(
+            "permissions contains unknown capabilities: {} (known: {})",
+            unknown_permissions.join(", "),
+            crate::host::permission::Permission::ALL
+                .iter()
+                .map(|p| p.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+
     let manifest_plugin_id = manifest_runtime_plugin_id(&manifest.id);
     // The runtime plugin_id is what the WASM component actually exports as its
     // metadata.name — NOT `plugin_id`, which was derived from the manifest and
@@ -700,6 +719,7 @@ impl PluginHost {
     ///   - contains `*`          → trust every plugin.
     ///   - contains the id       → trust this plugin.
     ///   - otherwise (incl. `[]`)→ deny (the id is not listed).
+    ///
     /// The operator of THIS device is authoritative over their own local plugins,
     /// so a config-declared trust is a standing "yes" — no separate grant needed.
     fn trusted_to_load(&self, plugin_id: &str) -> bool {
@@ -776,7 +796,9 @@ impl PluginHost {
         // Pick the linker BEFORE the grant moves into bindings: a plugin granted
         // network:outbound gets wasi:http; one that wasn't (Strict + undeclared)
         // gets the http-less linker, so a wasi:http import fails to resolve.
-        let grant_network = permission_grant.grants("network:outbound");
+        // Typed against the canonical vocabulary — the capability can't be a typo.
+        let grant_network =
+            permission_grant.grants_permission(crate::host::permission::Permission::NetworkOutbound);
         let bindings = TractorNativeBindings::new(
             &plugin_id,
             sync.clone(),

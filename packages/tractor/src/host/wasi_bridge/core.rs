@@ -113,6 +113,14 @@ impl PermissionGrant {
         }
     }
 
+    /// Typed grant check over the canonical vocabulary. Callers that know the
+    /// capability at compile time (the host-fs/host-shell/linker gates) use this
+    /// so the permission string can never be a typo — the enum is the single
+    /// source of truth. Delegates to `grants` on the wire string.
+    pub(crate) fn grants_permission(&self, permission: crate::host::permission::Permission) -> bool {
+        self.grants(permission.as_str())
+    }
+
     /// Test constructor: a Strict grant declaring exactly `caps`.
     #[cfg(test)]
     pub(crate) fn strict_declaring(caps: &[&str]) -> Self {

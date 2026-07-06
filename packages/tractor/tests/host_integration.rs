@@ -263,3 +263,63 @@ async fn load_fails_when_manifest_is_missing_required_hooks() {
         "expected missing hooks detail, got: {message}"
     );
 }
+
+// ── Permission vocabulary — reject unknown capabilities ──────────────────────
+//
+// The permissions[] field is a CLOSED vocabulary (the effect axis). A permission
+// outside the known set — e.g. a typo `fs:reed` — must fail the load, not become
+// an inert dead grant that silently never enforces (matching the reject-unknown
+// posture of `targets` / `trust.profile`). The manifest is otherwise fully valid
+// (id resolves to the fixture's metadata name `null-plugin`, version 0.1.0, all
+// five hooks) so the ONLY reason to reject is the unknown permission.
+
+/// Stage the null-plugin fixture with a manifest declaring exactly `permissions`.
+/// The manifest aligns with the fixture metadata so any load failure is
+/// attributable to the permissions, not another validation issue.
+fn temp_fixture_with_permissions(permissions: &[&str]) -> (tempfile::TempDir, PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let wasm_path = dir.path().join("null-plugin.wasm");
+    std::fs::copy(fixture_path(), &wasm_path).expect("copy wasm fixture");
+    let payload = serde_json::json!({
+        "id": "@refarm.dev/null-plugin",
+        "name": "Null Plugin",
+        "version": "0.1.0",
+        "entry": "./null-plugin.wasm",
+        "observability": { "hooks": ["onLoad", "onInit", "onRequest", "onError", "onTeardown"] },
+        "permissions": permissions,
+    });
+    std::fs::write(
+        dir.path().join("plugin-manifest.json"),
+        serde_json::to_vec(&payload).expect("manifest serialize"),
+    )
+    .expect("manifest write");
+    (dir, wasm_path)
+}
+
+#[tokio::test]
+async fn load_fails_when_a_permission_is_outside_the_vocabulary() {
+    let (_dir, wasm_path) = temp_fixture_with_permissions(&["fs:read", "fs:reed"]);
+
+    let err = make_host(TelemetryBus::new(100))
+        .load(&wasm_path, &make_sync())
+        .await
+        .expect_err("load must fail on a permission outside the closed vocabulary");
+    let message = err.to_string();
+    assert!(
+        message.contains("permissions contains unknown capabilities") && message.contains("fs:reed"),
+        "expected the unknown-permission detail naming fs:reed, got: {message}"
+    );
+}
+
+#[tokio::test]
+async fn load_succeeds_when_all_permissions_are_in_the_vocabulary() {
+    // The full known vocabulary — every one must be accepted (no false reject).
+    let (_dir, wasm_path) =
+        temp_fixture_with_permissions(&["fs:read", "fs:write", "shell:spawn", "network:outbound"]);
+
+    let handle = make_host(TelemetryBus::new(100))
+        .load(&wasm_path, &make_sync())
+        .await
+        .expect("a manifest declaring only known permissions must load");
+    assert_eq!(handle.id, "null-plugin");
+}

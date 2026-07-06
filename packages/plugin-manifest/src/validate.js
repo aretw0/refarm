@@ -1,5 +1,6 @@
 import { detectEntryFormat } from "./entry-support.js";
 import { EXTENSION_SURFACE_LAYERS } from "./extension-surfaces.js";
+import { PERMISSIONS, unknownPermissions } from "./permission-vocab.js";
 import { REQUIRED_TELEMETRY_HOOKS } from "./types.js";
 
 const SEMVER_RE =
@@ -257,6 +258,18 @@ export function validatePluginManifest(manifest) {
 
 	if (hasDuplicates(manifest.permissions)) {
 		errors.push("permissions must not contain duplicates");
+	}
+	// Reject permissions outside the closed vocabulary (mirrors the Rust host).
+	// A typo like `fs:reed` must fail validation rather than become an inert
+	// dead grant — same reject-unknown posture as targets / trust.profile.
+	if (Array.isArray(manifest.permissions)) {
+		const unknown = unknownPermissions(manifest.permissions);
+		if (unknown.length > 0) {
+			errors.push(
+				`permissions contains unknown capabilities: ${unknown.join(", ")} ` +
+					`(known: ${PERMISSIONS.map((p) => p.id).join(", ")})`,
+			);
+		}
 	}
 
 	// Execution Targets Validation

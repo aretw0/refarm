@@ -27,6 +27,41 @@ describe("plugin-manifest validation", () => {
 	});
 });
 
+describe("permission vocabulary (effect axis)", () => {
+	it("accepts a manifest declaring only known permissions", () => {
+		const manifest = createMockManifest({
+			permissions: ["fs:read", "fs:write", "shell:spawn", "network:outbound"],
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+		expect(result.errors).toHaveLength(0);
+	});
+
+	it("rejects a permission outside the closed vocabulary", () => {
+		const manifest = createMockManifest({
+			permissions: ["fs:read", "fs:reed"],
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(
+			result.errors.some(
+				(e) =>
+					e.includes("unknown capabilities") && e.includes("fs:reed"),
+			),
+		).toBe(true);
+	});
+
+	it("does not confuse the requires-axis (storage:v1) for a permission", () => {
+		// storage:v1 is a capabilities.requires value, NOT an effect permission.
+		const manifest = createMockManifest({ permissions: ["storage:v1"] });
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(
+			result.errors.some((e) => e.includes("storage:v1")),
+		).toBe(true);
+	});
+});
+
 describe("composition validation", () => {
 	it("accepts a manifest with valid API definitions", () => {
 		const manifest = createMockManifest({
