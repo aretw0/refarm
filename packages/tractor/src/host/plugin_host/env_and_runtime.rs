@@ -297,7 +297,57 @@ fn refarm_config_json_from(base: &std::path::Path) -> Option<serde_json::Value> 
     serde_json::from_slice::<serde_json::Value>(&bytes).ok()
 }
 
-fn preopen_plugin_runtime_dirs(wasi_builder: &mut WasiCtxBuilder) -> Result<()> {
+/// Preopen the plugin's runtime dirs into its WASI filesystem, SCOPED to the
+/// plugin's declared fs grant (Gate B — the context-scope gate of the trichotomy).
+///
+/// The `wasi:filesystem` import resolves for any plugin (base WASI is in every
+/// linker), so the enforcement point for direct filesystem access is not the
+/// linker but the WasiCtx: a dir the plugin never gets a preopen for is a dir it
+/// cannot open, and a preopen granted read-only cannot be written. We derive the
+/// preopen's DirPerms/FilePerms from `fs:read`/`fs:write`:
+///   - neither declared → NO preopen (the plugin gets no wasi:filesystem root);
+///   - fs:read only      → read-only preopen (mutation denied at the WASI layer);
+///   - fs:write (+ read) → read-write preopen.
+///
+/// Under dev/Permissive `grants` is true for both, so this is byte-identical to
+/// the previous unconditional `all()` preopen — dev is unaffected.
+///
+/// Note: today no in-tree plugin imports `wasi:filesystem` (the agent reaches fs
+/// via the host-fs bridge, gated separately at Gate C), so this closes a LATENT
+/// hole — a future filesystem-importing plugin is scoped from day one rather than
+/// handed an ungated root. The streams dir itself is written HOST-side
+/// (model_stream_events), so scoping the guest's preopen does not affect streaming.
+/// Derive the WASI preopen permissions for the plugin's runtime dirs from its fs
+/// grant — the pure decision at the heart of Gate B, unit-testable without a
+/// `wasi:filesystem`-importing guest:
+///   - neither fs:read nor fs:write → `None` (no preopen at all);
+///   - fs:read only  → read-only (`DirPerms::READ`, `FilePerms::READ`);
+///   - fs:write      → read-write (`all()` — writing implies traversal).
+///
+/// Dev/Permissive grants both → `all()`, byte-identical to the previous behavior.
+fn fs_preopen_perms(
+    permission_grant: &crate::host::wasi_bridge::PermissionGrant,
+) -> Option<(DirPerms, FilePerms)> {
+    use crate::host::permission::Permission;
+
+    let can_read = permission_grant.grants_permission(Permission::FsRead);
+    let can_write = permission_grant.grants_permission(Permission::FsWrite);
+    match (can_read, can_write) {
+        (false, false) => None,
+        (_, true) => Some((DirPerms::all(), FilePerms::all())),
+        (true, false) => Some((DirPerms::READ, FilePerms::READ)),
+    }
+}
+
+fn preopen_plugin_runtime_dirs(
+    wasi_builder: &mut WasiCtxBuilder,
+    permission_grant: &crate::host::wasi_bridge::PermissionGrant,
+) -> Result<()> {
+    // No fs grant at all → no filesystem root for this plugin.
+    let Some((dir_perms, file_perms)) = fs_preopen_perms(permission_grant) else {
+        return Ok(());
+    };
+
     let Ok(streams_dir) = std::env::var("REFARM_STREAMS_DIR") else {
         return Ok(());
     };
@@ -306,12 +356,7 @@ fn preopen_plugin_runtime_dirs(wasi_builder: &mut WasiCtxBuilder) -> Result<()> 
     }
 
     std::fs::create_dir_all(&streams_dir)?;
-    wasi_builder.preopened_dir(
-        &streams_dir,
-        streams_dir.as_str(),
-        DirPerms::all(),
-        FilePerms::all(),
-    )?;
+    wasi_builder.preopened_dir(&streams_dir, streams_dir.as_str(), dir_perms, file_perms)?;
     Ok(())
 }
 
@@ -750,13 +795,28 @@ impl PluginHost {
         let wasm_hash = hex::encode(Sha256::digest(&bytes));
         tracing::debug!(plugin_id = %plugin_id, wasm_hash = %wasm_hash, "Plugin hash computed");
 
+        // The plugin's declared permissions (from its manifest) + the host
+        // security mode form its capability grant. Built once here so BOTH load
+        // paths (component + P1 module) scope their filesystem preopen to the fs
+        // grant (Gate B) and share one construction.
+        let declared_permissions: std::collections::HashSet<String> = manifest
+            .as_ref()
+            .map(|m| m.permissions.iter().cloned().collect())
+            .unwrap_or_default();
+        let permission_grant = crate::host::wasi_bridge::PermissionGrant::new(
+            declared_permissions,
+            self.trust.security_mode().clone(),
+        );
+
         // ── WASI variant probe (ADR-061) ──────────────────────────────────────
         let variant = crate::host::wasi_variant::probe_bytes(&bytes)
             .ok_or_else(|| anyhow::anyhow!("{} is not a valid WASM module or component", path.display()))?;
         tracing::info!(plugin_id = %plugin_id, variant = %variant, "WASI variant detected");
 
         if variant == crate::host::wasi_variant::WasiVariant::Module {
-            return self.load_module(path, &bytes, &plugin_id, &wasm_hash, sync).await;
+            return self
+                .load_module(path, &bytes, &plugin_id, &wasm_hash, &permission_grant, sync)
+                .await;
         }
 
         if self.trust.security_mode() == &SecurityMode::Strict
@@ -779,20 +839,12 @@ impl PluginHost {
         for (k, v) in &env_vars {
             wasi_builder.env(k, v);
         }
-        preopen_plugin_runtime_dirs(&mut wasi_builder)?;
+        // Scope the filesystem preopen to the fs grant (Gate B); the grant was
+        // built once in `load()` above.
+        preopen_plugin_runtime_dirs(&mut wasi_builder, &permission_grant)?;
         let wasi = wasi_builder.build();
         let table = ResourceTable::new();
         let http = wasmtime_wasi_http::WasiHttpCtx::new();
-        // The plugin's declared permissions (from its manifest) + the host
-        // security mode form its capability grant for request_permission.
-        let declared_permissions: std::collections::HashSet<String> = manifest
-            .as_ref()
-            .map(|m| m.permissions.iter().cloned().collect())
-            .unwrap_or_default();
-        let permission_grant = crate::host::wasi_bridge::PermissionGrant::new(
-            declared_permissions,
-            self.trust.security_mode().clone(),
-        );
         // Pick the linker BEFORE the grant moves into bindings: a plugin granted
         // network:outbound gets wasi:http; one that wasn't (Strict + undeclared)
         // gets the http-less linker, so a wasi:http import fails to resolve.
@@ -887,6 +939,7 @@ impl PluginHost {
         bytes: &[u8],
         plugin_id: &str,
         wasm_hash: &str,
+        permission_grant: &crate::host::wasi_bridge::PermissionGrant,
         sync: &NativeSync,
     ) -> Result<PluginInstanceHandle> {
         tracing::info!(plugin_id, "Loading P1 plain module (WASI preview1 ABI)");
@@ -913,7 +966,7 @@ impl PluginHost {
             for (k, v) in &env_vars {
                 builder.env(k, v);
             }
-            preopen_plugin_runtime_dirs(&mut builder)?;
+            preopen_plugin_runtime_dirs(&mut builder, permission_grant)?;
             builder.build_p1()
         };
 
@@ -1096,5 +1149,54 @@ mod capability_tests {
         // Guard: if CAP_OBSERVE_HOST_EFFECTS ever changes, existing plugin.json files
         // would silently stop being routed as observers.
         assert_eq!(crate::observer::CAP_OBSERVE_HOST_EFFECTS, "observe-host-effects");
+    }
+
+    // ── Gate B: the filesystem preopen is scoped to the fs grant ─────────────
+    //
+    // fs_preopen_perms is the pure decision behind preopen_plugin_runtime_dirs.
+    // Testing it directly proves the context-scope gate without needing a
+    // wasi:filesystem-importing guest (none exists in-tree yet).
+
+    use crate::host::wasi_bridge::PermissionGrant;
+
+    #[test]
+    fn strict_without_any_fs_grant_gets_no_preopen() {
+        let grant = PermissionGrant::strict_declaring(&["network:outbound"]);
+        assert_eq!(
+            fs_preopen_perms(&grant),
+            None,
+            "a plugin declaring no fs capability gets no filesystem root at all"
+        );
+    }
+
+    #[test]
+    fn strict_with_fs_read_only_gets_a_read_only_preopen() {
+        let grant = PermissionGrant::strict_declaring(&["fs:read"]);
+        assert_eq!(
+            fs_preopen_perms(&grant),
+            Some((DirPerms::READ, FilePerms::READ)),
+            "fs:read alone must not confer write at the WASI layer"
+        );
+    }
+
+    #[test]
+    fn strict_with_fs_write_gets_a_read_write_preopen() {
+        // write implies traversal, so both perms are full.
+        let grant = PermissionGrant::strict_declaring(&["fs:write"]);
+        assert_eq!(
+            fs_preopen_perms(&grant),
+            Some((DirPerms::all(), FilePerms::all()))
+        );
+    }
+
+    #[test]
+    fn dev_permissive_grant_is_byte_identical_to_the_old_unconditional_preopen() {
+        // Permissive grants everything → all()/all(), exactly what the preopen did
+        // before Gate B — so dev/test is unaffected by the scoping.
+        let grant = PermissionGrant::permissive();
+        assert_eq!(
+            fs_preopen_perms(&grant),
+            Some((DirPerms::all(), FilePerms::all()))
+        );
     }
 }

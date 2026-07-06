@@ -89,6 +89,10 @@ impl HostFsHost for TractorNativeBindings {
     }
 
     async fn edit(&mut self, path: String, diff: String) -> Result<(), String> {
+        // edit is read-modify-write, but the net effect is a MUTATION and the file
+        // content is never returned to the plugin (edit yields `Result<(), _>`), so
+        // it is gated on fs:write alone — like an editor requesting "write" not
+        // "read+write". The internal read is mechanical, not a content channel.
         self.enforce_permission(Permission::FsWrite)?;
         enforce_fs_root(&path, &self.effect_policy)?;
 
