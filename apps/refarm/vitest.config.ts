@@ -21,6 +21,11 @@ export default mergeConfig(
 				),
 			},
 		},
-		test: { environment: "node", include: ["test/**/*.test.ts"] },
+		test: {
+			environment: "node",
+			include: ["test/**/*.test.ts", "src/**/*.test.ts"],
+			// Clears every process-lifetime cache (makeProcessCache) before each test.
+			setupFiles: ["./vitest.setup.ts"],
+		},
 	}),
 );

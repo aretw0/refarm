@@ -71,7 +71,7 @@ import {
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 import { fetchSidecarWithTimeout } from "./sidecar-fetch.js";
-import { resolveSidecarUrlAsync, sidecarUrl } from "./sidecar-url.js";
+import { resolveSidecarUrlAsync, sidecarUrlAsync } from "./sidecar-url.js";
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand([
 	"sessions",
@@ -132,7 +132,7 @@ export {
 	}
 
 	async function submitViaHttp(effort: Effort): Promise<string> {
-	const response = await fetchSidecarWithTimeout(sidecarUrl("/efforts"), {
+	const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(effort),
@@ -196,7 +196,7 @@ export {
 	): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 
-	const response = await fetchSidecarWithTimeout(sidecarUrl("/sessions"));
+	const response = await fetchSidecarWithTimeout(await sidecarUrlAsync("/sessions"));
 	if (!response.ok) {
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}

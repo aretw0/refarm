@@ -1,5 +1,6 @@
 import { detectPackageManager, type PackageManagerName } from "@refarm.dev/config";
 import { readFileSync } from "node:fs";
+import { makeProcessCache } from "../utils/process-cache.js";
 
 const UNKNOWN_VERSION = "unknown";
 const DEFAULT_PACKAGE_JSON_PATH = new URL(
@@ -7,7 +8,7 @@ const DEFAULT_PACKAGE_JSON_PATH = new URL(
 	import.meta.url,
 );
 
-let cachedVersion: string | undefined;
+const versionCache = makeProcessCache<string>();
 
 interface ResolveVersionOptions {
 	cwd?: string;
@@ -59,8 +60,9 @@ function resolveVersion(options?: ResolveVersionOptions): string {
 		return npmVersion;
 	}
 
-	if (cachedVersion) {
-		return cachedVersion;
+	const cached = versionCache.get();
+	if (cached) {
+		return cached;
 	}
 
 	const readPackageJson =
@@ -76,8 +78,7 @@ function resolveVersion(options?: ResolveVersionOptions): string {
 		if (!version) {
 			return UNKNOWN_VERSION;
 		}
-		cachedVersion = version;
-		return version;
+		return versionCache.set(version);
 	} catch {
 		return UNKNOWN_VERSION;
 	}
@@ -102,5 +103,5 @@ export function resolveRefarmVersion(options?: ResolveVersionOptions): string {
 }
 
 export function __resetRefarmRuntimeMetadataCacheForTests(): void {
-	cachedVersion = undefined;
+	versionCache.clear();
 }

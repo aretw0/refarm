@@ -7,9 +7,12 @@ import {
 	SIDECAR_URL_ENV_VAR,
 	normalizeSidecarUrl,
 	resolveSidecarUrl,
+	resolveSidecarUrlAsync,
 	sidecarUrl,
+	sidecarUrlAsync,
 } from "../../src/commands/sidecar-url.js";
 import { resolveRuntimeSidecarUrl } from "../../src/utils/runtime-config.js";
+import { resetAllProcessCaches } from "../../src/utils/process-cache.js";
 
 describe("sidecar URL resolution", () => {
 	it("uses the local sidecar URL by default", () => {
@@ -61,5 +64,35 @@ describe("sidecar URL resolution", () => {
 			fs.rmSync(cwd, { recursive: true, force: true });
 			fs.rmSync(home, { recursive: true, force: true });
 		}
+	});
+});
+
+describe("resolveSidecarUrlAsync (node-aware, memoized)", () => {
+	// The global setup (vitest.setup.ts) already clears every process cache before
+	// each test, so no per-test reset is needed for isolation between tests.
+
+	it("resolves the env URL and joins a path via sidecarUrlAsync", async () => {
+		const env = { [SIDECAR_URL_ENV_VAR]: "http://127.0.0.1:52001" };
+		expect(await resolveSidecarUrlAsync(env)).toBe("http://127.0.0.1:52001");
+		expect(await sidecarUrlAsync("/efforts", env)).toBe(
+			"http://127.0.0.1:52001/efforts",
+		);
+	});
+
+	it("memoizes: the first resolution is reused, later env changes are ignored until reset", async () => {
+		const first = await resolveSidecarUrlAsync({
+			[SIDECAR_URL_ENV_VAR]: "http://first:1",
+		});
+		expect(first).toBe("http://first:1");
+		// A different env after the cache is warm returns the cached value — the
+		// sidecar URL is stable for the process lifetime.
+		expect(
+			await resolveSidecarUrlAsync({ [SIDECAR_URL_ENV_VAR]: "http://second:2" }),
+		).toBe("http://first:1");
+		// The canonical reset (also run by the global beforeEach) forces re-resolution.
+		resetAllProcessCaches();
+		expect(
+			await resolveSidecarUrlAsync({ [SIDECAR_URL_ENV_VAR]: "http://second:2" }),
+		).toBe("http://second:2");
 	});
 });
