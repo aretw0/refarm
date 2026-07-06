@@ -637,7 +637,7 @@ data: [DONE]
         .expect("query StreamSession");
     assert_eq!(stream_sessions.len(), 1);
     let session: serde_json::Value = serde_json::from_str(&stream_sessions[0].payload).unwrap();
-    assert_eq!(session["stream_kind"], "agent-response");
+    assert_eq!(session["stream_kind"], "response");
     assert_eq!(session["status"], "completed");
     assert_eq!(session["last_sequence"], 2);
     assert_eq!(session["chunk_count"], 3);
@@ -671,7 +671,7 @@ data: [DONE]
             .file_name()
             .unwrap()
             .to_string_lossy()
-            .starts_with("urn:tractor:stream:agent-response:"),
+            .starts_with("urn:tractor:stream:response:"),
         "stream file is named by the agent-response stream_ref"
     );
     let ndjson = std::fs::read_to_string(&ndjson_path).unwrap();

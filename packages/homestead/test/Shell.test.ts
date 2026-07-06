@@ -550,9 +550,9 @@ describe("StudioShell Orchestrator", () => {
 
         await nodeHandlers.StreamSession({
             "@type": "StreamSession",
-            "@id": "urn:tractor:stream:agent-response:prompt-b",
-            stream_ref: "urn:tractor:stream:agent-response:prompt-b",
-            stream_kind: "agent-response",
+            "@id": "urn:tractor:stream:response:prompt-b",
+            stream_ref: "urn:tractor:stream:response:prompt-b",
+            stream_kind: "response",
             status: "active",
             metadata: { prompt_ref: "prompt-b" },
         });
@@ -579,9 +579,9 @@ describe("StudioShell Orchestrator", () => {
 
         await nodeHandlers.StreamSession({
             "@type": "StreamSession",
-            "@id": "urn:tractor:stream:agent-response:prompt-a",
-            stream_ref: "urn:tractor:stream:agent-response:prompt-a",
-            stream_kind: "agent-response",
+            "@id": "urn:tractor:stream:response:prompt-a",
+            stream_ref: "urn:tractor:stream:response:prompt-a",
+            stream_kind: "response",
             status: "active",
             metadata: {
                 prompt_ref: "prompt-a",
@@ -592,7 +592,7 @@ describe("StudioShell Orchestrator", () => {
         await nodeHandlers.StreamChunk({
             "@type": "StreamChunk",
             "@id": "urn:tractor:stream-chunk:1",
-            stream_ref: "urn:tractor:stream:agent-response:prompt-a",
+            stream_ref: "urn:tractor:stream:response:prompt-a",
             sequence: 1,
             payload_kind: "text_delta",
             content: "hello from the stream",

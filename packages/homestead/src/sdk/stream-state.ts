@@ -26,12 +26,12 @@ export interface StreamSessionState {
 export type StreamSessionStateMap = Record<string, StreamSessionState>;
 
 export const UNKNOWN_STREAM_SESSION_REF = "__homestead:no-stream-session-ref__";
-export const STREAM_SESSION_KIND_AGENT_RESPONSE = "agent-response";
+export const STREAM_SESSION_KIND_RESPONSE = "response";
 export const STREAM_SESSION_STATUS_ACTIVE = "active";
 export const STREAM_SESSION_STATUS_COMPLETED = "completed";
 export const STREAM_SESSION_STATUS_FAILED = "failed";
 
-export type StreamSessionKind = typeof STREAM_SESSION_KIND_AGENT_RESPONSE;
+export type StreamSessionKind = typeof STREAM_SESSION_KIND_RESPONSE;
 
 export type StreamSessionStatus =
 	| typeof STREAM_SESSION_STATUS_ACTIVE

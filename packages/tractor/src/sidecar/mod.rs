@@ -310,7 +310,7 @@ fn prompt_ref_from_effort(effort_id: &str) -> String {
 }
 
 fn stream_ref_for_prompt(prompt_ref: &str) -> String {
-    format!("urn:tractor:stream:agent-response:{prompt_ref}")
+    format!("urn:tractor:stream:response:{prompt_ref}")
 }
 
 fn write_stream_chunk(

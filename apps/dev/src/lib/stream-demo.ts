@@ -13,7 +13,7 @@ import {
 	type HomesteadSurfaceRenderResult,
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 
-const DEMO_STREAM_REF = "urn:tractor:stream:agent-response:studio-demo";
+const DEMO_STREAM_REF = "urn:tractor:stream:response:studio-demo";
 export const STUDIO_STREAM_DEMO_STORAGE_KEY = "refarm:studio:stream-demo";
 export const STUDIO_STREAM_SURFACE_PLUGIN_ID = "studio-stream-surface-demo";
 
@@ -52,7 +52,7 @@ export function studioStreamDemoNodes(
 			"@type": "StreamSession",
 			"@id": DEMO_STREAM_REF,
 			stream_ref: DEMO_STREAM_REF,
-			stream_kind: "agent-response",
+			stream_kind: "response",
 			status: "active",
 			started_at: startedAtIso,
 			metadata: {

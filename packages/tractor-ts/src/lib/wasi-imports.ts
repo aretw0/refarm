@@ -302,7 +302,7 @@ export class WasiImports {
 					? metadata.providerFamily
 					: provider;
 
-			const streamRef = `urn:tractor:stream:agent-response:${promptRef}`;
+			const streamRef = `urn:tractor:stream:response:${promptRef}`;
 			const payload = JSON.stringify({
 				"@type": "StreamChunk",
 				"@id": `urn:tractor:stream-chunk:${crypto.randomUUID()}`,

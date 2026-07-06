@@ -3,7 +3,7 @@ import {
 	applyStreamSessionEvent,
 	emptyStreamSessionState,
 	isActiveStreamSession,
-	isAgentResponseStreamSession,
+	isResponseStreamSession,
 	isCompletedStreamSession,
 	isFailedStreamSession,
 	isStreamSessionKind,
@@ -28,7 +28,7 @@ describe("StreamSession accumulator", () => {
 		const state = reduceStreamSessionEvents([
 			{
 				stream_ref: "stream-a",
-				stream_kind: "agent-response",
+				stream_kind: "response",
 				status: "active",
 				started_at_ns: 100,
 				updated_at_ns: 100,
@@ -53,7 +53,7 @@ describe("StreamSession accumulator", () => {
 
 		expect(state).toEqual({
 			streamRef: "stream-a",
-			streamKind: "agent-response",
+			streamKind: "response",
 			status: "completed",
 			startedAtNs: 100,
 			updatedAtNs: 200,
@@ -68,7 +68,7 @@ describe("StreamSession accumulator", () => {
 			},
 		});
 		expect(isStreamSessionKind(state.streamKind)).toBe(true);
-		expect(isAgentResponseStreamSession(state)).toBe(true);
+		expect(isResponseStreamSession(state)).toBe(true);
 		expect(streamSessionProjection(state)).toBe("AgentResponse");
 		expect(streamSessionPromptRef(state)).toBe("prompt-a");
 		expect(streamSessionProviderFamily(state)).toBe("openai");

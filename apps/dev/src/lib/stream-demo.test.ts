@@ -30,7 +30,7 @@ describe("Studio stream demo seeding", () => {
 			"StreamChunk",
 		]);
 		expect(nodes[0]).toMatchObject({
-			stream_ref: "urn:tractor:stream:agent-response:studio-demo",
+			stream_ref: "urn:tractor:stream:response:studio-demo",
 			status: "active",
 			metadata: { prompt_ref: "studio-demo", model: "apps-dev" },
 		});
@@ -117,7 +117,7 @@ describe("Studio stream demo seeding", () => {
 		expect(host).toMatchObject({
 			hostId: "apps/dev",
 			data: {
-				streamRef: "urn:tractor:stream:agent-response:studio-demo",
+				streamRef: "urn:tractor:stream:response:studio-demo",
 			},
 			actions: [
 				expect.objectContaining({

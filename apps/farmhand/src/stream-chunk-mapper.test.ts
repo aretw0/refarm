@@ -4,7 +4,7 @@ import { shouldProjectStreamChunk, toStreamChunk } from "./stream-chunk-mapper.j
 
 function chunk(overrides: Partial<StreamChunk> = {}): StreamChunk {
 	return {
-		stream_ref: "urn:tractor:stream:agent-response:p1",
+		stream_ref: "urn:tractor:stream:response:p1",
 		content: "x",
 		sequence: 0,
 		is_final: false,
@@ -41,14 +41,14 @@ describe("shouldProjectStreamChunk (farmhand dedup)", () => {
 describe("toStreamChunk", () => {
 	it("maps node fields with defaults", () => {
 		const mapped = toStreamChunk({
-			stream_ref: "urn:tractor:stream:agent-response:p1",
+			stream_ref: "urn:tractor:stream:response:p1",
 			content: "hi",
 			sequence: 2,
 			is_final: true,
 			payload_kind: "text_delta",
 		});
 		expect(mapped).toMatchObject({
-			stream_ref: "urn:tractor:stream:agent-response:p1",
+			stream_ref: "urn:tractor:stream:response:p1",
 			content: "hi",
 			sequence: 2,
 			is_final: true,

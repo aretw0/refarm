@@ -89,7 +89,7 @@ fn stream_chunk_observation_draft_matches_generic_projection_schema() {
     assert_eq!(node["@type"], "StreamChunk");
     assert_eq!(
         node["stream_ref"],
-        "urn:tractor:stream:agent-response:prompt-abc"
+        "urn:tractor:stream:response:prompt-abc"
     );
     assert_eq!(node["sequence"], 5);
     assert_eq!(node["payload_kind"], "text_delta");
@@ -118,8 +118,8 @@ fn stream_session_observation_draft_matches_generic_session_schema() {
     let node = crate::streaming::stream_session_observation_node(&node_id, &draft);
 
     assert_eq!(node["@type"], "StreamSession");
-    assert_eq!(node["@id"], "urn:tractor:stream:agent-response:prompt-abc");
-    assert_eq!(node["stream_kind"], "agent-response");
+    assert_eq!(node["@id"], "urn:tractor:stream:response:prompt-abc");
+    assert_eq!(node["stream_kind"], "response");
     assert_eq!(node["status"], "completed");
     assert_eq!(node["started_at_ns"], 100);
     assert_eq!(node["updated_at_ns"], 200);
@@ -199,7 +199,7 @@ data: {"choices":[{"delta":{"content":"b"}}]}
         .collect();
     assert_eq!(
         stream_payloads[0]["stream_ref"],
-        "urn:tractor:stream:agent-response:prompt-abc"
+        "urn:tractor:stream:response:prompt-abc"
     );
     assert_eq!(stream_payloads[0]["sequence"], 0);
     assert_eq!(stream_payloads[0]["payload_kind"], "text_delta");
@@ -284,13 +284,13 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     let session: serde_json::Value = serde_json::from_str(&session_rows[0].payload).unwrap();
     assert_eq!(
         session["@id"],
-        "urn:tractor:stream:agent-response:prompt-abc"
+        "urn:tractor:stream:response:prompt-abc"
     );
     assert_eq!(
         session["stream_ref"],
-        "urn:tractor:stream:agent-response:prompt-abc"
+        "urn:tractor:stream:response:prompt-abc"
     );
-    assert_eq!(session["stream_kind"], "agent-response");
+    assert_eq!(session["stream_kind"], "response");
     assert_eq!(session["status"], "completed");
     assert_eq!(session["last_sequence"], 6);
     assert_eq!(session["chunk_count"], 3);

@@ -12,7 +12,7 @@ describe("stream observation view", () => {
 			session: {
 				...emptyStreamSessionState("stream-a"),
 				status: "active",
-				streamKind: "agent-response",
+				streamKind: "response",
 				lastSequence: 2,
 				chunkCount: 3,
 				metadata: {

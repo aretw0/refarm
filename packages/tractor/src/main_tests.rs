@@ -154,7 +154,7 @@
             "--type",
             "StreamChunk",
             "--stream-ref",
-            "urn:tractor:stream:agent-response:prompt-1",
+            "urn:tractor:stream:response:prompt-1",
             "--until-final",
         ])
         .expect("cli parse");
@@ -165,7 +165,7 @@
         assert_eq!(args.r#type, "StreamChunk");
         assert_eq!(
             args.stream_ref.as_deref(),
-            Some("urn:tractor:stream:agent-response:prompt-1")
+            Some("urn:tractor:stream:response:prompt-1")
         );
         assert!(args.until_final);
     }
@@ -192,7 +192,7 @@
         assert_eq!(
             resolve_stream_ref_filter(args.stream_ref.as_deref(), args.prompt_ref.as_deref())
                 .expect("stream ref filter"),
-            Some("urn:tractor:stream:agent-response:prompt-1".to_string())
+            Some("urn:tractor:stream:response:prompt-1".to_string())
         );
     }
 
@@ -216,7 +216,7 @@
         assert_eq!(
             resolve_stream_ref_filter(args.stream_ref.as_deref(), args.prompt_ref.as_deref())
                 .expect("stream ref filter"),
-            Some("urn:tractor:stream:agent-response:prompt-1".to_string())
+            Some("urn:tractor:stream:response:prompt-1".to_string())
         );
     }
 

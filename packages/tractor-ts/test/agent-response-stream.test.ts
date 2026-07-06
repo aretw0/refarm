@@ -16,15 +16,15 @@ import {
 describe("AgentResponse streaming accumulator", () => {
 	it("builds generic stream refs from prompt refs", () => {
 		expect(agentResponseStreamRef("prompt-1")).toBe(
-			"urn:tractor:stream:agent-response:prompt-1",
+			"urn:tractor:stream:response:prompt-1",
 		);
 		expect(
-			isAgentResponseStreamRef("urn:tractor:stream:agent-response:prompt-1"),
+			isAgentResponseStreamRef("urn:tractor:stream:response:prompt-1"),
 		).toBe(true);
 		expect(isAgentResponseStreamRef("stream-other")).toBe(false);
 		expect(
 			promptRefFromAgentResponseStreamRef(
-				"urn:tractor:stream:agent-response:prompt-1",
+				"urn:tractor:stream:response:prompt-1",
 			),
 		).toBe("prompt-1");
 		expect(promptRefFromAgentResponseStreamRef("stream-other")).toBe(null);

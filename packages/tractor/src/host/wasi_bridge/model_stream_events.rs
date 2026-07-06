@@ -695,7 +695,7 @@ fn stream_session_observation_draft(
 ) -> StreamSessionObservationDraft {
     StreamSessionObservationDraft {
         stream_ref: agent_response_stream_ref(&metadata.prompt_ref),
-        stream_kind: crate::streaming::STREAM_KIND_AGENT_RESPONSE.to_string(),
+        stream_kind: crate::streaming::STREAM_KIND_RESPONSE.to_string(),
         status: status.to_string(),
         started_at_ns,
         updated_at_ns,
@@ -844,7 +844,7 @@ mod partial_ndjson_tests {
 
         let path = dir
             .path()
-            .join("urn:tractor:stream:agent-response:p-abc.ndjson");
+            .join("urn:tractor:stream:response:p-abc.ndjson");
         let body = std::fs::read_to_string(&path).unwrap();
         let lines: Vec<&str> = body.lines().collect();
         assert_eq!(lines.len(), 3, "one ndjson line per delta");
@@ -893,7 +893,7 @@ mod partial_ndjson_tests {
 
         let path = dir
             .path()
-            .join("urn:tractor:stream:agent-response:p-xyz.ndjson");
+            .join("urn:tractor:stream:response:p-xyz.ndjson");
         let body = std::fs::read_to_string(&path).unwrap();
         let lines: Vec<serde_json::Value> = body
             .lines()

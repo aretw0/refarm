@@ -3,7 +3,7 @@ use crate::runtime::streaming_metadata::{final_stream_chunk_ndjson, FinalStreamC
 #[test]
 fn final_stream_chunk_metadata_marks_subscription_as_not_billable_api() {
     let line = final_stream_chunk_ndjson(FinalStreamChunkInput {
-        stream_ref: "urn:tractor:stream:agent-response:test",
+        stream_ref: "urn:tractor:stream:response:test",
         content: "ok",
         model: "gpt-5.5",
         provider: "openai-codex",
@@ -23,7 +23,7 @@ fn final_stream_chunk_metadata_marks_subscription_as_not_billable_api() {
 #[test]
 fn final_stream_chunk_metadata_keeps_api_billable_estimate() {
     let line = final_stream_chunk_ndjson(FinalStreamChunkInput {
-        stream_ref: "urn:tractor:stream:agent-response:test",
+        stream_ref: "urn:tractor:stream:response:test",
         content: "ok",
         model: "gpt-5.5",
         provider: "openai",
@@ -52,7 +52,7 @@ fn final_marker_is_empty_when_partials_present() {
     // content:"" so the CLI's `content += chunk.content` does not double-count the
     // answer the deltas already carried; the sequence follows the last partial.
     let line = final_stream_chunk_ndjson(FinalStreamChunkInput {
-        stream_ref: "urn:tractor:stream:agent-response:test",
+        stream_ref: "urn:tractor:stream:response:test",
         content: "the whole answer",
         model: "gpt-5.5",
         provider: "openai",
@@ -75,7 +75,7 @@ fn final_carries_whole_answer_when_no_partials() {
     // Single-shot / non-SSE: no partials, so the final IS the only line and must
     // carry the whole answer at sequence 0 (today's exact behavior, unchanged).
     let line = final_stream_chunk_ndjson(FinalStreamChunkInput {
-        stream_ref: "urn:tractor:stream:agent-response:test",
+        stream_ref: "urn:tractor:stream:response:test",
         content: "the whole answer",
         model: "gpt-5.5",
         provider: "openai",

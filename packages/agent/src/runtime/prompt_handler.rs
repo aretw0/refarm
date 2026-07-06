@@ -40,7 +40,7 @@ fn write_final_stream_chunk(
         }
     };
 
-    let stream_ref = format!("urn:tractor:stream:agent-response:{prompt_ref}");
+    let stream_ref = format!("urn:tractor:stream:response:{prompt_ref}");
     let file_path = format!("{streams_dir}/{stream_ref}.ndjson");
 
     if let Err(_e) = std::fs::create_dir_all(&streams_dir) {

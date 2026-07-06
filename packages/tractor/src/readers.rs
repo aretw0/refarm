@@ -18,7 +18,7 @@ pub(crate) const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT: &str = "final_text";
 pub(crate) const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL: &str = "final_tool_call";
 pub(crate) const STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY: &str = "final_empty";
 pub(crate) const STREAM_SESSION_STATUS_COMPLETED: &str = "completed";
-pub(crate) const AGENT_RESPONSE_STREAM_REF_PREFIX: &str = "urn:tractor:stream:agent-response:";
+pub(crate) const AGENT_RESPONSE_STREAM_REF_PREFIX: &str = "urn:tractor:stream:response:";
 pub(crate) const STREAM_SESSION_STATUS_FAILED: &str = "failed";
 
 pub(crate) fn resolve_stream_ref_filter(

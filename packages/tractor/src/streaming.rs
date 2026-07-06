@@ -1,7 +1,7 @@
 mod observations;
 mod sse_events;
 
-pub(crate) const STREAM_KIND_AGENT_RESPONSE: &str = "agent-response";
+pub(crate) const STREAM_KIND_RESPONSE: &str = "response";
 pub(crate) const STREAM_SESSION_STATUS_ACTIVE: &str = "active";
 pub(crate) const STREAM_SESSION_STATUS_COMPLETED: &str = "completed";
 pub(crate) const STREAM_SESSION_STATUS_FAILED: &str = "failed";
@@ -23,7 +23,7 @@ mod tests {
 
     #[test]
     fn stream_observation_labels_are_stable() {
-        assert_eq!(STREAM_KIND_AGENT_RESPONSE, "agent-response");
+        assert_eq!(STREAM_KIND_RESPONSE, "response");
         assert_eq!(STREAM_SESSION_STATUS_ACTIVE, "active");
         assert_eq!(STREAM_SESSION_STATUS_COMPLETED, "completed");
         assert_eq!(STREAM_SESSION_STATUS_FAILED, "failed");

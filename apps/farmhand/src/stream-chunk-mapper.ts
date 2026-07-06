@@ -1,6 +1,6 @@
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 
-const AGENT_RESPONSE_STREAM_PREFIX = "urn:tractor:stream:agent-response:";
+const AGENT_RESPONSE_STREAM_PREFIX = "urn:tractor:stream:response:";
 
 /**
  * Whether a host StreamChunk CRDT node should be projected to the ndjson/SSE/WS

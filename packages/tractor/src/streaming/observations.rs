@@ -31,7 +31,7 @@ pub(crate) fn stream_session_observation_id(stream_ref: &str) -> String {
 }
 
 pub(crate) fn agent_response_stream_ref(prompt_ref: &str) -> String {
-    format!("urn:tractor:stream:agent-response:{prompt_ref}")
+    format!("urn:tractor:stream:response:{prompt_ref}")
 }
 
 pub(crate) fn stream_chunk_observation_node(
@@ -78,7 +78,7 @@ mod tests {
     fn agent_response_stream_ref_is_prompt_scoped() {
         assert_eq!(
             agent_response_stream_ref("prompt-abc"),
-            "urn:tractor:stream:agent-response:prompt-abc",
+            "urn:tractor:stream:response:prompt-abc",
         );
     }
 
@@ -115,7 +115,7 @@ mod tests {
     fn stream_session_observation_node_matches_generic_schema() {
         let draft = StreamSessionObservationDraft {
             stream_ref: "urn:tractor:stream:test".to_string(),
-            stream_kind: "agent-response".to_string(),
+            stream_kind: "response".to_string(),
             status: "completed".to_string(),
             started_at_ns: 100,
             updated_at_ns: 200,
@@ -134,7 +134,7 @@ mod tests {
         assert_eq!(node["@type"], "StreamSession");
         assert_eq!(node["@id"], "urn:tractor:stream:test");
         assert_eq!(node["stream_ref"], "urn:tractor:stream:test");
-        assert_eq!(node["stream_kind"], "agent-response");
+        assert_eq!(node["stream_kind"], "response");
         assert_eq!(node["status"], "completed");
         assert_eq!(node["started_at_ns"], 100);
         assert_eq!(node["updated_at_ns"], 200);

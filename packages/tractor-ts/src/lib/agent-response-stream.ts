@@ -20,7 +20,7 @@ export type AgentResponseStreamStateMap = Record<
 
 export const UNKNOWN_AGENT_RESPONSE_PROMPT_REF = "__tractor:no-prompt-ref__";
 export const AGENT_RESPONSE_STREAM_REF_PREFIX =
-	"urn:tractor:stream:agent-response:";
+	"urn:tractor:stream:response:";
 
 export function agentResponseStreamRef(promptRef: string): string {
 	return `${AGENT_RESPONSE_STREAM_REF_PREFIX}${promptRef}`;
