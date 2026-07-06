@@ -70,10 +70,13 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
     the grant. Today ungated (streams preopen is all-or-nothing; sockets deny-all
     by accident). A later slice.
   - **Gate C — host-bridge per-call** (`host-fs`/`host-shell`): where integration
-    plugins actually reach fs/shell. **The ACTIVE hole** — `fs:read`/`fs:write`/
-    `shell:spawn` are declared but the grant is never checked (host_effects_bridge
-    read/write/edit only run `enforce_fs_root`; spawn only the trust/identity
-    check). Next slice.
+    plugins actually reach fs/shell. Was **the ACTIVE hole** — DONE (01146221).
+    read/write/edit and spawn now gate on the declared capability via a centralized
+    `enforce_permission(Permission)`, BESIDE (not replacing) the path/identity
+    checks. Dev-permissive is a no-op; the agent declares all four so it's
+    unaffected. Tests assert denial fails AT THE CAPABILITY GATE (right-reason).
+    `HostSpawnHost::do_spawn` (host-effects.wasm's TCB mechanism import) is
+    intentionally not gated — documented, not a silent bypass.
   - **Vocabulary (FATIA 1) — DONE (6bf43502).** Was free strings, no validation,
     two unrelated axes (effect `permissions[]` vs requires `capabilities.requires`).
     Now a closed Rust `enum Permission` (source of truth, +label/risk for the
