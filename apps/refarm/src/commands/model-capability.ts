@@ -6,7 +6,10 @@ import type {
 import chalk from "chalk";
 
 import { parseModelScope } from "../model-routing.js";
-import type { CapabilitySurfaceHooks } from "./capability-commander.js";
+import {
+	type CapabilitySurfaceHooks,
+	renderCapabilityError,
+} from "./capability-commander.js";
 import {
 	buildCurrentModelEnvelope,
 	buildInvalidScopeEnvelope,
@@ -250,9 +253,6 @@ export function createModelCapabilityGroup(
  * in run(). An error envelope renders its message; the projector sets exitCode.
  */
 export function modelCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
-	const renderError = (envelope: { message?: string; error?: string }): string =>
-		chalk.red(`✗  ${envelope.message ?? envelope.error ?? "model error"}`);
-
 	switch (subVerb) {
 		case "current":
 			return {
@@ -287,7 +287,8 @@ export function modelCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 		case "base-url": {
 			return {
 				renderText: (envelope) => {
-					if (envelope.ok === false) return renderError(envelope);
+					if (envelope.ok === false)
+						return renderCapabilityError(envelope, "model error");
 					const m = envelope as unknown as {
 						action: string;
 						ref?: string;

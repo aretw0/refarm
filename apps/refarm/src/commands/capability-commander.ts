@@ -5,7 +5,25 @@ import {
 	type CapabilityInput,
 } from "@refarm.dev/cli/capabilities";
 import { printJson } from "@refarm.dev/cli/json-output";
+import chalk from "chalk";
 import { Command } from "commander";
+
+/**
+ * Render the standard red error line from an error envelope, for a hook's
+ * renderText. The commander already derives process.exitCode from `ok === false`
+ * (see toCommanderCommand / toCommanderGroup), so this NEVER touches exit
+ * intent — it only formats the human line. `label` is the domain fallback
+ * ("model error", "skill error") used when the envelope carries neither
+ * `message` nor `error`. Call it after the case's own `if (ok === false)` guard
+ * so the happy path keeps its narrowing.
+ */
+export function renderCapabilityError(
+	envelope: CapabilityEnvelope,
+	label: string,
+): string {
+	const e = envelope as { message?: string; error?: string };
+	return chalk.red(`✗  ${e.message ?? e.error ?? label}`);
+}
 
 /**
  * Optional per-descriptor hooks the commander adapter uses to render text and

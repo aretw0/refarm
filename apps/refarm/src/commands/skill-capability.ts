@@ -39,7 +39,10 @@ import {
 	resolveOrgRoot,
 	resolveRefarmHome,
 } from "../utils/refarm-home.js";
-import type { CapabilitySurfaceHooks } from "./capability-commander.js";
+import {
+	type CapabilitySurfaceHooks,
+	renderCapabilityError,
+} from "./capability-commander.js";
 import {
 	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
@@ -937,9 +940,6 @@ function formatRejectedSource(rejection: SkillCatalogRejected): string {
  * capability groups. Exit intent stays here (a surface concern), never in run().
  */
 export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
-	const renderError = (envelope: { message?: string; error?: string }): string =>
-		chalk.red(`✗  ${envelope.message ?? envelope.error ?? "skill error"}`);
-
 	switch (subVerb) {
 		case "list":
 			return {
@@ -975,7 +975,8 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 		case "show":
 			return {
 				renderText: (envelope) => {
-					if (envelope.ok === false) return renderError(envelope);
+					if (envelope.ok === false)
+						return renderCapabilityError(envelope, "skill error");
 					const { skill } = envelope as unknown as { skill: SkillProjection };
 					return formatSkillLine(skill);
 				},
@@ -983,7 +984,8 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 		case "check":
 			return {
 				renderText: (envelope) => {
-					if (envelope.ok === false) return renderError(envelope);
+					if (envelope.ok === false)
+						return renderCapabilityError(envelope, "skill error");
 					const e = envelope as unknown as {
 						skill: SkillProjection;
 						findingCount: number;
@@ -1012,7 +1014,8 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 		case "import":
 			return {
 				renderText: (envelope) => {
-					if (envelope.ok === false) return renderError(envelope);
+					if (envelope.ok === false)
+						return renderCapabilityError(envelope, "skill error");
 					const e = envelope as unknown as {
 						source: string;
 						imported: {
