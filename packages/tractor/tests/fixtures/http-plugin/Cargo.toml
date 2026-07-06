@@ -1,0 +1,34 @@
+[package]
+name = "http-plugin"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# cargo-component 0.21.x generates bindings that call `wit_bindgen_rt::` — the
+# runtime crate must be a direct dep (not the umbrella `wit-bindgen`).
+wit-bindgen-rt = { version = "0.36", features = ["bitflags"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+
+[package.metadata.component]
+package = "refarm:http-plugin-fixture"
+
+[package.metadata.component.target]
+path = "wit"
+world = "http-plugin"
+
+[package.metadata.component.target.dependencies]
+"wasi:http" = { path = "wit/deps/http" }
+"wasi:io" = { path = "wit/deps/io" }
+"wasi:clocks" = { path = "wit/deps/clocks" }
+# Reference the CANONICAL refarm:plugin WIT directly (ADR-083: a single source
+# of truth; no vendored copy — a tracked copy declaring `package refarm:plugin@`
+# outside the canonical dir would fail the `check:wit` guard).
+"refarm:plugin" = { path = "../../../../refarm-plugin-wit/wit" }

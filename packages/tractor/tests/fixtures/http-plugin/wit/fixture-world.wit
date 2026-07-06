@@ -1,0 +1,17 @@
+package refarm:http-plugin-fixture@0.1.0;
+
+// Test fixture world: a refarm plugin that ALSO imports wasi:http's
+// outgoing-handler (an outbound HTTP client). This is the interface the
+// `network:outbound` grant gates. The host builds two linkers — one WITH
+// add_only_http_to_linker_async (granted), one WITHOUT (linker_no_http). A
+// plugin that imports outgoing-handler links only against the http-capable
+// linker; under Strict without the grant, this import fails to resolve and the
+// load errors. That is what this fixture proves end-to-end.
+//
+// It still exports the canonical `integration` interface (like every plugin),
+// so the host's load path is unchanged — only the extra wasi:http import
+// distinguishes it from null-plugin.
+world http-plugin {
+    include refarm:plugin/refarm-plugin@0.1.0;
+    import wasi:http/outgoing-handler@0.2.3;
+}
