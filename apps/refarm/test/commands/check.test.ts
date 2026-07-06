@@ -114,6 +114,7 @@ function makeModelDoctorStatus(
 			baseUrl: undefined,
 			url: undefined,
 			ready: null,
+			reason: "no-endpoint-source",
 			skipped: true,
 		},
 		probeEnvironment: {
@@ -1045,6 +1046,7 @@ describe("checkCommand", () => {
 					baseUrl: "http://localhost:11434",
 					url: "http://localhost:11434/api/tags",
 					ready: false,
+					reason: "unreachable",
 					error: "fetch failed: ECONNREFUSED",
 				},
 				recommendations: [

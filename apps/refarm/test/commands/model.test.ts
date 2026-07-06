@@ -420,13 +420,14 @@ describe("modelCommand", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
 			command: string;
 			operation: string;
-			providerProbe: { ready: boolean; status: number; url: string };
+			providerProbe: { ready: boolean; reason: string; status: number; url: string };
 			nextCommands: string[];
 		};
 		expect(payload.command).toBe("model");
 		expect(payload.operation).toBe("doctor");
 		expect(payload.providerProbe).toMatchObject({
 			ready: true,
+			reason: "reachable",
 			status: 200,
 			url: "http://127.0.0.1:11434/api/tags",
 		});
@@ -453,7 +454,7 @@ describe("modelCommand", () => {
 		await command.parseAsync(["doctor", "--json"], { from: "user" });
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
-			providerProbe: { ready: boolean; error: string };
+			providerProbe: { ready: boolean; reason: string; error: string };
 			probeEnvironment: {
 				container: boolean;
 				localhostTargetsRuntime: boolean;
@@ -467,6 +468,7 @@ describe("modelCommand", () => {
 			};
 		};
 		expect(payload.providerProbe.ready).toBe(false);
+		expect(payload.providerProbe.reason).toBe("unreachable");
 		expect(payload.providerProbe.error).toContain("ECONNREFUSED");
 		expect(payload.probeEnvironment).toMatchObject({
 			container: false,
@@ -530,19 +532,112 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("skips live provider probes for remote model providers", async () => {
+	it("does not ping a keyed provider whose credential is missing (credential-missing, not 'down')", async () => {
 		const fetchMock = vi.fn();
-		const status = await buildModelDoctorStatus(
-			{ modelProvider: "openai", modelId: "gpt-5.5" },
-			{ fetch: fetchMock as unknown as typeof fetch, isContainer: () => false },
-		);
+		const previousKey = process.env.OPENAI_API_KEY;
+		delete process.env.OPENAI_API_KEY;
+		try {
+			const status = await buildModelDoctorStatus(
+				{ modelProvider: "openai", modelId: "gpt-5.5" },
+				{ fetch: fetchMock as unknown as typeof fetch, isContainer: () => false },
+			);
 
-		expect(status.providerProbe).toMatchObject({
-			provider: "openai",
-			ready: null,
-			skipped: true,
-		});
-		expect(fetchMock).not.toHaveBeenCalled();
+			// A missing key is NOT a "down" endpoint — warn about the key, don't ping.
+			expect(status.providerProbe).toMatchObject({
+				provider: "openai",
+				ready: null,
+				reason: "credential-missing",
+				skipped: true,
+			});
+			expect(fetchMock).not.toHaveBeenCalled();
+		} finally {
+			if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+			else process.env.OPENAI_API_KEY = previousKey;
+		}
+	});
+
+	it("reports no-endpoint-source for a keyed provider with a key but no TS-resolvable base URL", async () => {
+		const fetchMock = vi.fn();
+		const previousKey = process.env.OPENAI_API_KEY;
+		process.env.OPENAI_API_KEY = "sk-test-key";
+		try {
+			const status = await buildModelDoctorStatus(
+				{ modelProvider: "openai", modelId: "gpt-5.5" },
+				{ fetch: fetchMock as unknown as typeof fetch, isContainer: () => false },
+			);
+
+			// TS has no base URL for openai (the Rust runtime owns that map) → honest
+			// no-endpoint-source, and it must NOT ping a URL it cannot resolve.
+			expect(status.providerProbe).toMatchObject({
+				provider: "openai",
+				ready: null,
+				reason: "no-endpoint-source",
+				skipped: true,
+			});
+			expect(fetchMock).not.toHaveBeenCalled();
+		} finally {
+			if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+			else process.env.OPENAI_API_KEY = previousKey;
+		}
+	});
+
+	it("pings a keyed provider when a MODEL_BASE_URL override gives TS an endpoint", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(null, { status: 200 }),
+		);
+		const previousKey = process.env.OPENAI_API_KEY;
+		const previousBaseUrl = process.env.MODEL_BASE_URL;
+		process.env.OPENAI_API_KEY = "sk-test-key";
+		process.env.MODEL_BASE_URL = "https://proxy.example.test";
+		try {
+			const status = await buildModelDoctorStatus(
+				{ modelProvider: "openai", modelId: "gpt-5.5" },
+				{ fetch: fetchMock as unknown as typeof fetch, isContainer: () => false },
+			);
+
+			expect(status.providerProbe).toMatchObject({
+				provider: "openai",
+				ready: true,
+				reason: "reachable",
+				status: 200,
+			});
+			expect(fetchMock).toHaveBeenCalledOnce();
+		} finally {
+			if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+			else process.env.OPENAI_API_KEY = previousKey;
+			if (previousBaseUrl === undefined) delete process.env.MODEL_BASE_URL;
+			else process.env.MODEL_BASE_URL = previousBaseUrl;
+		}
+	});
+
+	it("maps a 401 from an overridden endpoint to auth-failed (endpoint up, key rejected)", async () => {
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(null, { status: 401 }),
+		);
+		const previousKey = process.env.OPENAI_API_KEY;
+		const previousBaseUrl = process.env.MODEL_BASE_URL;
+		process.env.OPENAI_API_KEY = "sk-test-key";
+		process.env.MODEL_BASE_URL = "https://proxy.example.test";
+		try {
+			const status = await buildModelDoctorStatus(
+				{ modelProvider: "openai", modelId: "gpt-5.5" },
+				{ fetch: fetchMock as unknown as typeof fetch, isContainer: () => false },
+			);
+
+			// 401 proves the endpoint is UP — reachable at the network layer, auth
+			// is the issue. A milder, more accurate verdict than "unreachable".
+			expect(status.providerProbe).toMatchObject({
+				provider: "openai",
+				ready: true,
+				reason: "auth-failed",
+				status: 401,
+			});
+		} finally {
+			if (previousKey === undefined) delete process.env.OPENAI_API_KEY;
+			else process.env.OPENAI_API_KEY = previousKey;
+			if (previousBaseUrl === undefined) delete process.env.MODEL_BASE_URL;
+			else process.env.MODEL_BASE_URL = previousBaseUrl;
+		}
 	});
 
 	it("reports missing scoped route credentials even when the default route needs no key", () => {

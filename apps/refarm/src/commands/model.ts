@@ -19,6 +19,7 @@ import {
 import { fetchWithTimeout } from "./fetch-with-timeout.js";
 import {
 	type ProviderDoctorProfile,
+	type ProviderProbeReason,
 	providerDoctorProfile,
 } from "./model-provider-doctor.js";
 export {
@@ -115,6 +116,9 @@ export interface ModelDoctorStatus {
 		baseUrl: string | undefined;
 		url: string | undefined;
 		ready: boolean | null;
+		/** The honest outcome discriminator (see {@link ProviderProbeReason}).
+		 * `skipped` is derived from it, kept as a boolean for existing readers. */
+		reason: ProviderProbeReason;
 		status?: number;
 		error?: string;
 		timedOut?: boolean;
@@ -421,12 +425,21 @@ function modelDoctorRecommendations(
 	];
 }
 
-async function probeOllamaProvider(
+/**
+ * Ping a resolved provider endpoint over HTTP and classify the outcome honestly.
+ * UNAUTHENTICATED by design: a liveness probe checks the route, not the
+ * credential ("só rotas não segredos"). A 401/403 still proves the endpoint is
+ * UP, so it maps to `auth-failed` (a milder, more accurate verdict than "down")
+ * without the host ever sending a key. Any other response → `reachable`; a
+ * network error/timeout → `unreachable`.
+ */
+async function probeProviderEndpoint(
+	provider: string | undefined,
 	baseUrl: string,
+	url: string,
 	deps: Pick<ModelCommandDeps, "fetch">,
 ): Promise<ModelDoctorStatus["providerProbe"]> {
 	const fetchImpl = deps.fetch ?? globalThis.fetch;
-	const url = `${trimTrailingSlash(baseUrl)}/api/tags`;
 	try {
 		const response = await fetchWithTimeout(url, {
 			method: "GET",
@@ -434,11 +447,15 @@ async function probeOllamaProvider(
 			timeoutMs: MODEL_PROVIDER_PROBE_TIMEOUT_MS,
 			fetch: fetchImpl,
 		});
+		const authFailed = response.status === 401 || response.status === 403;
 		return {
-			provider: "ollama",
+			provider,
 			baseUrl,
 			url,
-			ready: response.ok,
+			// auth-failed means the endpoint answered — it is reachable at the
+			// network layer, so `ready` is true; the reason carries the nuance.
+			ready: authFailed ? true : response.ok,
+			reason: authFailed ? "auth-failed" : response.ok ? "reachable" : "unreachable",
 			status: response.status,
 		};
 	} catch (error) {
@@ -452,14 +469,79 @@ async function probeOllamaProvider(
 			typeof causeRecord?.code === "string" ? causeRecord.code : undefined;
 		const message = error instanceof Error ? error.message : String(error);
 		return {
-			provider: "ollama",
+			provider,
 			baseUrl,
 			url,
 			ready: false,
+			reason: "unreachable",
 			error: causeCode ? `${message}: ${causeCode}` : message,
 			timedOut: name === "AbortError",
 		};
 	}
+}
+
+/** Ollama's reachability probe — hits its own `/api/tags`, keyless. */
+async function probeOllamaProvider(
+	baseUrl: string,
+	deps: Pick<ModelCommandDeps, "fetch">,
+): Promise<ModelDoctorStatus["providerProbe"]> {
+	const url = `${trimTrailingSlash(baseUrl)}/api/tags`;
+	return probeProviderEndpoint("ollama", baseUrl, url, deps);
+}
+
+/**
+ * Resolve the reachability probe for the configured provider, credential-aware.
+ * The four honest cases (see {@link ProviderProbeReason}):
+ *  1. ollama (keyless floor) — always pinged at its own /api/tags.
+ *  2. keyed provider with a MISSING credential — NOT pinged; warn the key is
+ *     missing rather than falsely reporting the endpoint "down".
+ *  3. any provider whose base URL TS can resolve (only via the MODEL_BASE_URL
+ *     override / persisted token) — pinged unauthenticated.
+ *  4. non-ollama with no TS-resolvable endpoint — no-endpoint-source; the Rust
+ *     runtime, which owns the provider→baseURL map, fills this in a later fatia.
+ */
+async function resolveProviderProbe(
+	provider: string | undefined,
+	current: CurrentModelStatus,
+	tokens: ModelTokens,
+	deps: Pick<ModelCommandDeps, "fetch">,
+): Promise<ModelDoctorStatus["providerProbe"]> {
+	// 1. ollama — the keyless local floor.
+	if (provider === "ollama") {
+		return probeOllamaProvider(current.baseUrl ?? OLLAMA_DEFAULT_BASE_URL, deps);
+	}
+
+	// 2. keyed provider, credential absent → do not ping (avoid a false "down").
+	if (modelCredentialState(provider, tokens) === "missing") {
+		return {
+			provider: current.current.provider,
+			baseUrl: current.baseUrl,
+			url: undefined,
+			ready: null,
+			reason: "credential-missing",
+			skipped: true,
+		};
+	}
+
+	// 3. TS resolved a base URL (MODEL_BASE_URL override / persisted token) → ping.
+	if (current.baseUrl) {
+		return probeProviderEndpoint(
+			current.current.provider,
+			current.baseUrl,
+			trimTrailingSlash(current.baseUrl),
+			deps,
+		);
+	}
+
+	// 4. non-ollama, no TS-known endpoint → honest; the runtime probe fills this.
+	return {
+		provider: current.current.provider,
+		baseUrl: current.baseUrl,
+		url: undefined,
+		ready: null,
+		reason: "no-endpoint-source",
+		skipped: true,
+	};
 }
 
 export async function buildModelDoctorStatus(
@@ -476,23 +558,7 @@ export async function buildModelDoctorStatus(
 		dockerHostBaseUrl: OLLAMA_DOCKER_BASE_URL,
 	};
 	const provider = current.current.provider?.trim().toLowerCase();
-	if (provider !== "ollama") {
-		return {
-			current: current.current,
-			providerProbe: {
-				provider: current.current.provider,
-				baseUrl: current.baseUrl,
-				url: undefined,
-				ready: null,
-				skipped: true,
-			},
-			probeEnvironment,
-			handoffs,
-		};
-	}
-
-	const baseUrl = current.baseUrl ?? OLLAMA_DEFAULT_BASE_URL;
-	const probe = await probeOllamaProvider(baseUrl, deps);
+	const probe = await resolveProviderProbe(provider, current, tokens, deps);
 	const status: ModelDoctorStatus = {
 		current: current.current,
 		providerProbe: probe,
