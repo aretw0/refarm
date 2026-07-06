@@ -94,8 +94,8 @@ function runtimeSidecarProbeSummary(
 export async function runtimeStatusPayload(
 	deps: RuntimeCommandDeps,
 ): Promise<RuntimeStatusPayload> {
-	const configuredEngine = deps.readEngine();
-	const autostart = deps.readAutostart();
+	const configuredEngine = await deps.readEngine();
+	const autostart = await deps.readAutostart();
 	const sidecar = deps.readSidecarUrl?.() ?? resolveRuntimeSidecarUrl();
 	const repoRoot = deps.repoRoot();
 	const readinessProbe = deps.probeReadiness ? await deps.probeReadiness() : undefined;

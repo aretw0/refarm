@@ -2,7 +2,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveRuntimeSidecarUrlAsync } from "./runtime-config.js";
+import {
+	resolveAutostartModeAsync,
+	resolveRuntimeSidecarUrlAsync,
+	resolveTractorEngineModeAsync,
+} from "./runtime-config.js";
 
 describe("resolveRuntimeSidecarUrlAsync", () => {
 	let home: string;
@@ -72,5 +76,104 @@ describe("resolveRuntimeSidecarUrlAsync", () => {
 		const seam = async () => ({ runtime: { sidecarUrl: "not-a-url" } });
 		const out = await resolveRuntimeSidecarUrlAsync(seam, { env: {}, home, cwd });
 		expect(out.source).toBe("default");
+	});
+});
+
+describe("resolveAutostartModeAsync", () => {
+	let home: string;
+	let cwd: string;
+	beforeEach(() => {
+		home = mkdtempSync(path.join(tmpdir(), "auto-home-"));
+		cwd = mkdtempSync(path.join(tmpdir(), "auto-cwd-"));
+	});
+	afterEach(() => {
+		rmSync(home, { recursive: true, force: true });
+		rmSync(cwd, { recursive: true, force: true });
+	});
+
+	it("prefers the primary env var over the legacy FARMHAND var", async () => {
+		const seam = async () => null;
+		const out = await resolveAutostartModeAsync(seam, {
+			env: {
+				REFARM_RUNTIME_AUTOSTART: "always",
+				REFARM_FARMHAND_AUTOSTART: "never",
+			},
+			home,
+			cwd,
+		});
+		expect(out).toEqual({
+			value: "always",
+			source: "env:REFARM_RUNTIME_AUTOSTART",
+		});
+	});
+
+	it("falls back to the legacy FARMHAND env var when the primary is unset", async () => {
+		const out = await resolveAutostartModeAsync(async () => null, {
+			env: { REFARM_FARMHAND_AUTOSTART: "never" },
+			home,
+			cwd,
+		});
+		expect(out).toEqual({
+			value: "never",
+			source: "env:REFARM_FARMHAND_AUTOSTART",
+		});
+	});
+
+	it("reads autostart (top-level key) from the seam, cwd winning over home", async () => {
+		mkdirSync(path.join(home, ".refarm"), { recursive: true });
+		writeFileSync(
+			path.join(home, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "ask" }),
+		);
+		const seam = async () => ({ autostart: "always" });
+		const out = await resolveAutostartModeAsync(seam, { env: {}, home, cwd });
+		expect(out).toEqual({ value: "always", source: "sovereign-config" });
+	});
+
+	it("defaults to 'ask' when nothing resolves", async () => {
+		const out = await resolveAutostartModeAsync(async () => null, {
+			env: {},
+			home,
+			cwd,
+		});
+		expect(out).toEqual({ value: "ask", source: "default" });
+	});
+});
+
+describe("resolveTractorEngineModeAsync", () => {
+	let home: string;
+	let cwd: string;
+	beforeEach(() => {
+		home = mkdtempSync(path.join(tmpdir(), "eng-home-"));
+		cwd = mkdtempSync(path.join(tmpdir(), "eng-cwd-"));
+	});
+	afterEach(() => {
+		rmSync(home, { recursive: true, force: true });
+		rmSync(cwd, { recursive: true, force: true });
+	});
+
+	it("reads the NESTED tractor.engine key from the seam", async () => {
+		const seam = async () => ({ tractor: { engine: "rust" } });
+		const out = await resolveTractorEngineModeAsync(seam, { env: {}, home, cwd });
+		expect(out).toEqual({ value: "rust", source: "sovereign-config" });
+	});
+
+	it("prefers the env var over the seam", async () => {
+		const seam = async () => ({ tractor: { engine: "rust" } });
+		const out = await resolveTractorEngineModeAsync(seam, {
+			env: { REFARM_TRACTOR_ENGINE: "auto" },
+			home,
+			cwd,
+		});
+		expect(out).toEqual({ value: "auto", source: "env:REFARM_TRACTOR_ENGINE" });
+	});
+
+	it("defaults to 'auto' when nothing resolves", async () => {
+		const out = await resolveTractorEngineModeAsync(async () => null, {
+			env: {},
+			home,
+			cwd,
+		});
+		expect(out).toEqual({ value: "auto", source: "default" });
 	});
 });

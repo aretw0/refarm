@@ -25,10 +25,13 @@ import {
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
 	resolveAutostartMode,
+	resolveAutostartModeAsync,
 	resolveTractorEngineMode,
+	resolveTractorEngineModeAsync,
 	type AutostartMode,
 	type TractorEngineMode,
 } from "../utils/runtime-config.js";
+import { resolveSovereignConfig } from "../utils/sovereign-config.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import {
 	resolveRuntimeLaunchCommand,
@@ -254,6 +257,21 @@ export function readTractorEngineMode(): TractorEngineMode {
 	return resolveTractorEngineMode().value;
 }
 
+/**
+ * Node-aware readers: env → cwd config (fs-first / graph node) → home fs →
+ * default. Use these where a replicated (fs-less) device should still honor its
+ * config node; the sync readers above stay for the config command's which-file
+ * reporting. Not memoized — these fire at boot/status, not per request; add a
+ * dedicated per-scalar cache only if a hot async caller ever emerges.
+ */
+export async function readAutostartModeAsync(): Promise<AutostartMode> {
+	return (await resolveAutostartModeAsync(() => resolveSovereignConfig())).value;
+}
+
+export async function readTractorEngineModeAsync(): Promise<TractorEngineMode> {
+	return (await resolveTractorEngineModeAsync(() => resolveSovereignConfig())).value;
+}
+
 function tractorBinaryPath(repoRoot: string): string {
 	const targetDir = process.env.CARGO_TARGET_DIR
 		? path.resolve(process.env.CARGO_TARGET_DIR)
@@ -319,7 +337,9 @@ export function findRepoRoot(): string {
 
 export function defaultLaunchDeps(): LaunchDeps {
 	const deps: LaunchDeps = {
-		autostartMode: readAutostartMode(),
+		// autostartMode is intentionally left unset — autoStartRuntime resolves it
+		// node-aware at its async decision point (defaultLaunchDeps stays sync, so
+		// its callers ask.ts/chat.ts/session.ts do not need to await it).
 		operator: createStdioOperatorChannel(),
 
 		spawnRuntime(repoRoot) {
@@ -413,7 +433,10 @@ export async function autoStartRuntime(
 	repoRoot: string,
 	deps: LaunchDeps,
 ): Promise<boolean> {
-	const mode = deps.autostartMode ?? "ask";
+	// Resolve the autostart mode node-aware here (an async point) when the caller
+	// did not inject one — instead of eagerly + synchronously in defaultLaunchDeps,
+	// which could not see the config graph node.
+	const mode = deps.autostartMode ?? (await readAutostartModeAsync());
 
 	if (mode === "never") {
 		process.stderr.write(chalk.red("✗  Refarm runtime is not running.\n"));

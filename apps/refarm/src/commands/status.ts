@@ -22,7 +22,7 @@ import {
 } from "./runtime-recovery.js";
 import {
 	findRepoRoot,
-	readTractorEngineMode,
+	readTractorEngineModeAsync,
 	resolveLaunchRuntime,
 } from "./session-launch.js";
 import { invokeRefarmStatusSurfaceActionSelection } from "./status-actions.js";
@@ -44,7 +44,7 @@ export interface ResolveStatusPayloadResult {
 async function createStatusRuntimeSummary(
 	namespace: string,
 ): Promise<RefarmStatusJson["runtime"]> {
-	const configuredEngine = readTractorEngineMode();
+	const configuredEngine = await readTractorEngineModeAsync();
 	const activeEngine = (() => {
 		try {
 			return resolveLaunchRuntime(findRepoRoot(), configuredEngine).activeEngine;

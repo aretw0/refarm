@@ -51,8 +51,8 @@ function readConfig(filePath: string): RefarmRuntimeConfig {
 	}
 }
 
-export function parseAutostartMode(value: string | undefined): AutostartMode | null {
-	return parseRuntimeAutostartMode(value);
+export function parseAutostartMode(value: unknown): AutostartMode | null {
+	return parseRuntimeAutostartMode(value as string | undefined);
 }
 
 export function parseTractorEngineMode(value: unknown): TractorEngineMode | null {
@@ -128,50 +128,156 @@ export function resolveRuntimeSidecarUrl(
 }
 
 /**
+ * Ordered env probe: a var name plus the parser that validates its value. Probes
+ * fire in array order; the first that parses to non-null wins. Autostart uses TWO
+ * probes (primary + legacy FARMHAND); sidecar/engine use one.
+ */
+interface EnvProbe<T> {
+	name: string;
+	parse: (value: string | undefined) => T | null;
+}
+
+interface ConfigValueSpec<T> {
+	/** Ordered env probes; first non-null wins, source becomes `env:<name>`. */
+	envProbes: ReadonlyArray<EnvProbe<T>>;
+	/**
+	 * Pull the raw candidate out of a sovereign config object — the exact key path
+	 * per scalar: cfg.autostart (top-level) / cfg.tractor.engine /
+	 * cfg.runtime.sidecarUrl (nested). A function so the key path is data, not
+	 * branching.
+	 */
+	extract: (cfg: Record<string, unknown> | null | undefined) => unknown;
+	/** Validate/normalize the extracted or env candidate to T (or null). */
+	parse: (value: unknown) => T | null;
+	/** Terminal fallback when no layer yields a value. */
+	default: T;
+}
+
+/**
+ * Node-aware resolution shared by every sovereign-scalar async resolver.
+ *
+ * PRECEDENCE (identical to the sidecar reference, byte-for-byte behavior):
+ *   1. env probes, in order            → source `env:<name>`
+ *   2. seam: resolveConfig() (cwd fs-first, then the cwd-scoped graph node)
+ *                                       → source `sovereign-config`
+ *   3. home `~/.refarm/config.json` fs  → source `home`   (skipped when local)
+ *   4. spec.default                     → source `default`
+ *
+ * The seam is consulted BEFORE the home fs fallback on purpose. The sync
+ * resolvers loop `[home, cwd]` last-wins, so cwd beats home; the seam is the cwd
+ * layer (fs-first, node-fallback), so it must win over home to preserve that
+ * precedence. This is the exact inversion the adversarial caught on the sidecar
+ * draft — encoded here ONCE so no per-scalar twin can regress it.
+ *
+ * `resolveConfig` is INJECTED, keeping runtime-config.ts storage-free; the app
+ * passes `() => resolveSovereignConfig(env)` (which owns the tractor-db read). The
+ * home read reuses the same `readConfig` + `.refarm/config.json` join the sync
+ * path uses — one fs semantics, no second reader.
+ */
+export async function resolveConfigValueAsync<T>(
+	resolveConfig: () => Promise<Record<string, unknown> | null>,
+	spec: ConfigValueSpec<T>,
+	deps: RuntimeConfigDeps = {},
+	options: { local?: boolean } = {},
+): Promise<{ value: T; source: string }> {
+	// 1. env probes, in declared order — first non-null wins.
+	const env = deps.env ?? process.env;
+	for (const probe of spec.envProbes) {
+		const parsed = probe.parse(env[probe.name]);
+		if (parsed != null) return { value: parsed, source: `env:${probe.name}` };
+	}
+
+	// 2. seam (cwd fs-first / cwd-scoped node) — MUST precede the home fallback.
+	const cfg = await resolveConfig();
+	const cwdValue = spec.parse(spec.extract(cfg));
+	if (cwdValue != null) return { value: cwdValue, source: "sovereign-config" };
+
+	// 3. home fs fallback — the node cannot represent the home layer, so it is a
+	//    pure fs read, consulted only when the cwd/node layer had nothing, and only
+	//    when not scoped to a local (cwd-only) lookup.
+	if (!options.local) {
+		const home = deps.home ?? os.homedir();
+		const homeCfg = readConfig(
+			path.join(home, ".refarm", "config.json"),
+		) as Record<string, unknown>;
+		const homeValue = spec.parse(spec.extract(homeCfg));
+		if (homeValue != null) return { value: homeValue, source: "home" };
+	}
+
+	// 4. terminal default.
+	return { value: spec.default, source: "default" };
+}
+
+/**
  * Node-aware variant of {@link resolveRuntimeSidecarUrl}, symmetric to the Rust
- * host: env → the sovereign config seam (cwd `.refarm/config.json` fs-first, then
- * the cwd-scoped replicated graph node) → home `.refarm/config.json` (fs) →
- * default.
- *
- * The seam is consulted BEFORE the home file on purpose: the sync resolver loops
- * `[home, cwd]` last-wins, so a cwd value beats a home value. The seam covers the
- * cwd layer (and its node fallback), so it must win over home to preserve that
- * precedence. The home file — which the workspace-scoped node cannot represent —
- * is the lower-precedence fs fallback consulted only when the cwd/node layer had
- * no URL.
- *
- * `resolveConfig` is INJECTED (not imported) so this module keeps its lean,
- * storage-free dependency profile — the app passes `() => resolveSovereignConfig(env)`,
- * which owns the tractor-db read. The sync {@link resolveRuntimeSidecarUrl} stays
- * fs-only and untouched for callers that report "which file" or are not yet async.
+ * host — refactored onto the shared {@link resolveConfigValueAsync} (behavior
+ * identical to the prior inline impl). The sync resolver stays fs-only and
+ * untouched for callers that report "which file".
  */
 export async function resolveRuntimeSidecarUrlAsync(
 	resolveConfig: () => Promise<Record<string, unknown> | null>,
 	deps: RuntimeConfigDeps = {},
 	options: { local?: boolean } = {},
 ): Promise<{ value: string; source: string }> {
-	const env = deps.env ?? process.env;
-	const envUrl = parseRuntimeSidecarUrl(env[RUNTIME_SIDECAR_URL_ENV_VAR]);
-	if (envUrl) return { value: envUrl, source: `env:${RUNTIME_SIDECAR_URL_ENV_VAR}` };
+	return resolveConfigValueAsync<string>(
+		resolveConfig,
+		{
+			envProbes: [
+				{ name: RUNTIME_SIDECAR_URL_ENV_VAR, parse: parseRuntimeSidecarUrl },
+			],
+			extract: (cfg) =>
+				(cfg?.runtime as { sidecarUrl?: unknown } | undefined)?.sidecarUrl,
+			parse: parseRuntimeSidecarUrl,
+			default: DEFAULT_RUNTIME_SIDECAR_URL,
+		},
+		deps,
+		options,
+	);
+}
 
-	// PRECEDENCE PARITY with the sync resolver: its loop over [home, cwd] is
-	// "last wins", so the CWD file beats the home file. The seam is cwd-scoped
-	// (cwd fs-first, then the cwd-scoped graph node), so consult it FIRST — a cwd
-	// value must win over home, exactly as the sync path resolves it.
-	const cfg = await resolveConfig();
-	const runtime = (cfg?.runtime ?? undefined) as { sidecarUrl?: unknown } | undefined;
-	const cwdUrl = parseRuntimeSidecarUrl(runtime?.sidecarUrl);
-	if (cwdUrl) return { value: cwdUrl, source: "sovereign-config" };
+/**
+ * Node-aware variant of {@link resolveAutostartMode}. Two env probes (primary
+ * then legacy FARMHAND), matching the sync resolver's ordered env checks.
+ */
+export async function resolveAutostartModeAsync(
+	resolveConfig: () => Promise<Record<string, unknown> | null>,
+	deps: RuntimeConfigDeps = {},
+	options: { local?: boolean } = {},
+): Promise<{ value: AutostartMode; source: string }> {
+	return resolveConfigValueAsync<AutostartMode>(
+		resolveConfig,
+		{
+			envProbes: [
+				{ name: RUNTIME_AUTOSTART_ENV_VAR, parse: parseAutostartMode },
+				{ name: LEGACY_FARMHAND_AUTOSTART_ENV_VAR, parse: parseAutostartMode },
+			],
+			extract: (cfg) => cfg?.autostart,
+			parse: parseAutostartMode,
+			default: "ask",
+		},
+		deps,
+		options,
+	);
+}
 
-	// Home fs layer as the lower-precedence fallback (the node cannot represent
-	// it, so it stays a pure fs read — and only when the cwd/node layer had none).
-	if (!options.local) {
-		const home = deps.home ?? os.homedir();
-		const homeUrl = parseRuntimeSidecarUrl(
-			readConfig(path.join(home, ".refarm", "config.json")).runtime?.sidecarUrl,
-		);
-		if (homeUrl) return { value: homeUrl, source: "home" };
-	}
-
-	return { value: DEFAULT_RUNTIME_SIDECAR_URL, source: "default" };
+/** Node-aware variant of {@link resolveTractorEngineMode} (nested `tractor.engine`). */
+export async function resolveTractorEngineModeAsync(
+	resolveConfig: () => Promise<Record<string, unknown> | null>,
+	deps: RuntimeConfigDeps = {},
+	options: { local?: boolean } = {},
+): Promise<{ value: TractorEngineMode; source: string }> {
+	return resolveConfigValueAsync<TractorEngineMode>(
+		resolveConfig,
+		{
+			envProbes: [
+				{ name: TRACTOR_ENGINE_ENV_VAR, parse: parseTractorEngineMode },
+			],
+			extract: (cfg) =>
+				(cfg?.tractor as { engine?: unknown } | undefined)?.engine,
+			parse: parseTractorEngineMode,
+			default: "auto",
+		},
+		deps,
+		options,
+	);
 }

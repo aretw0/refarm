@@ -42,8 +42,8 @@ import {
 } from "./runtime-stop.js";
 import {
 	findRepoRoot,
-	readAutostartMode,
-	readTractorEngineMode,
+	readAutostartModeAsync,
+	readTractorEngineModeAsync,
 	resolveLaunchRuntime,
 	type AutostartMode,
 	type LaunchRuntimeSelection,
@@ -52,8 +52,10 @@ import {
 
 export interface RuntimeCommandDeps {
 	repoRoot(): string;
-	readEngine(): TractorEngineMode;
-	readAutostart(): AutostartMode;
+	// Widened to allow the node-aware async readers; the sole consumers await them
+	// (runtime-status.ts), so a Promise return ripples nowhere else.
+	readEngine(): TractorEngineMode | Promise<TractorEngineMode>;
+	readAutostart(): AutostartMode | Promise<AutostartMode>;
 	readSidecarUrl?(): { value: string; source: string };
 	resolveRuntime(
 		repoRoot: string,
@@ -71,8 +73,8 @@ const RUNTIME_ENGINE_ENV_HELP = RUNTIME_ENGINE_MODES.join(", ");
 function defaultDeps(): RuntimeCommandDeps {
 	return {
 		repoRoot: findRepoRoot,
-		readEngine: readTractorEngineMode,
-		readAutostart: readAutostartMode,
+		readEngine: readTractorEngineModeAsync,
+		readAutostart: readAutostartModeAsync,
 		readSidecarUrl: resolveRuntimeSidecarUrl,
 		resolveRuntime: resolveLaunchRuntime,
 		probeReadiness: () => probeRuntimeLiveness(),
