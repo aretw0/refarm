@@ -35,6 +35,26 @@ pub mod sync;
 pub mod telemetry;
 pub mod trust;
 
+/// Shared test-only helpers for the whole crate. Kept behind `#[cfg(test)]` so it
+/// never ships in the daemon binary.
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::sync::{Mutex, MutexGuard, OnceLock};
+
+    /// Serialize any test that mutates process env. `std::env::set_var` is
+    /// process-global and leaks across threads under `--test-threads>1`, so every
+    /// env-touching test in the crate takes THIS one lock (a single lane) instead
+    /// of a per-module copy. Recovers from a poisoned lock (a panicking test holding
+    /// the guard) rather than cascade-panicking every subsequent env test — the
+    /// half-fix that used to live in only two of the five copies.
+    pub(crate) fn env_lock() -> MutexGuard<'static, ()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+}
+
 use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;

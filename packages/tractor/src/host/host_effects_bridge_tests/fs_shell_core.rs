@@ -1,4 +1,5 @@
     use super::*;
+    use crate::test_support::env_lock;
     use crate::{NativeStorage, NativeSync, TelemetryBus};
     use crate::host::plugin_host::refarm::plugin::{
         code_ops::{Host as CodeOpsHost, SymbolLocation},
@@ -27,9 +28,6 @@
             crate::host::wasi_bridge::PermissionGrant::permissive(),
         )
     }
-
-    static ENV_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
-        std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
 
     fn spawn_req(argv: &[&str]) -> SpawnRequest {
         SpawnRequest {
@@ -1217,7 +1215,7 @@
 
     #[tokio::test]
     async fn code_ops_find_references_uses_lsp_bridge_without_provider() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         if !python3_is_available_for_code_ops_test() {
             eprintln!("skipping code-ops bridge test: python3 is not runnable");
             return;
@@ -1228,7 +1226,7 @@
         std::fs::write(&script, FAKE_CODE_OPS_LSP_SERVER).unwrap();
 
         // Inject the fake LSP command via the effect policy — no REFACTOR_LSP_CMD
-        // env mutation. (ENV_LOCK still serialises the shared global LSP session.)
+        // env mutation. (env_lock() still serialises the shared global LSP session.)
         let policy = HostEffectPolicy::new(
             None,
             Ok(None),
@@ -1255,7 +1253,7 @@
 
     #[tokio::test]
     async fn code_ops_rename_symbol_applies_lsp_workspace_edit_without_provider() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         if !python3_is_available_for_code_ops_test() {
             eprintln!("skipping code-ops bridge rename test: python3 is not runnable");
             return;
@@ -1268,7 +1266,7 @@
         std::fs::write(&source, "let old = old;\n").unwrap();
 
         // Inject the fake LSP command via the effect policy — no REFACTOR_LSP_CMD
-        // env mutation, so nothing leaks into a concurrent code-op test. (ENV_LOCK
+        // env mutation, so nothing leaks into a concurrent code-op test. (env_lock()
         // still serialises access to the shared global LSP session below.)
         let policy = HostEffectPolicy::new(
             None,

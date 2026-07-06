@@ -550,7 +550,7 @@
 
     #[test]
     fn bearer_key_for_openai_provider_reads_env_key() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         let prev = std::env::var("OPENAI_API_KEY").ok();
 
         std::env::remove_var("OPENAI_API_KEY");
@@ -575,7 +575,7 @@
 
     #[test]
     fn bearer_key_for_openai_codex_reads_subscription_token_without_api_key_fallback() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         let prev_codex = std::env::var("OPENAI_CODEX_ACCESS_TOKEN").ok();
         let prev_openai = std::env::var("OPENAI_API_KEY").ok();
 
@@ -599,7 +599,7 @@
 
     #[test]
     fn openai_codex_account_id_comes_from_env_or_jwt_claim() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         let prev_token = std::env::var("OPENAI_CODEX_ACCESS_TOKEN").ok();
         let prev_account = std::env::var("OPENAI_CODEX_ACCOUNT_ID").ok();
 
@@ -623,7 +623,7 @@
 
     #[test]
     fn bearer_key_for_groq_uses_groq_key_then_falls_back_to_openai() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         let prev_groq = std::env::var("GROQ_API_KEY").ok();
         let prev_openai = std::env::var("OPENAI_API_KEY").ok();
 
@@ -651,7 +651,7 @@
 
     #[test]
     fn bearer_key_for_ollama_returns_none_without_any_key() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         let prev_ollama = std::env::var("OLLAMA_API_KEY").ok();
         let prev_openai = std::env::var("OPENAI_API_KEY").ok();
 
@@ -666,7 +666,7 @@
 
     #[test]
     fn anthropic_api_key_from_env_requires_valid_token() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         let prev = std::env::var("ANTHROPIC_API_KEY").ok();
 
         std::env::remove_var("ANTHROPIC_API_KEY");

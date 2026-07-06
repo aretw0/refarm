@@ -814,9 +814,7 @@ fn anthropic_text_delta(value: &serde_json::Value) -> Option<&str> {
 mod partial_ndjson_tests {
     use super::*;
     use crate::host::plugin_host::refarm::plugin::model_bridge::StreamResponseMetadata;
-
-    // Serialize env mutation + cwd-independent tmp path; env is process-global.
-    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    use crate::test_support::env_lock;
 
     fn meta(prompt_ref: &str) -> StreamResponseMetadata {
         StreamResponseMetadata {
@@ -829,7 +827,7 @@ mod partial_ndjson_tests {
 
     #[test]
     fn partial_projection_appends_delta_lines_to_ndjson() {
-        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = env_lock();
         let dir = tempfile::tempdir().unwrap();
         std::env::set_var("REFARM_STREAMS_DIR", dir.path());
 
@@ -864,7 +862,7 @@ mod partial_ndjson_tests {
 
     #[test]
     fn partial_projection_is_a_noop_without_streams_dir() {
-        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = env_lock();
         std::env::remove_var("REFARM_STREAMS_DIR");
         // Must not panic and must write nothing when the dir is unset.
         append_partial_stream_ndjson(
@@ -875,7 +873,7 @@ mod partial_ndjson_tests {
 
     #[test]
     fn host_is_sole_owner_partials_plus_empty_final_reconstruct_the_answer() {
-        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = env_lock();
         let dir = tempfile::tempdir().unwrap();
         std::env::set_var("REFARM_STREAMS_DIR", dir.path());
 

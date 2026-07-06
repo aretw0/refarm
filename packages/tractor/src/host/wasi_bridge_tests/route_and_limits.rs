@@ -1,7 +1,5 @@
     use super::*;
-
-    static ENV_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
-        std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
+    use crate::test_support::env_lock;
 
     fn reset_model_env() {
         for k in [
@@ -17,7 +15,7 @@
 
     #[test]
     fn expected_route_defaults_to_ollama() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         let route = ModelRoute::from_env();
         assert_eq!(
@@ -32,7 +30,7 @@
 
     #[test]
     fn expected_route_trims_provider_from_env() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         std::env::set_var("MODEL_PROVIDER", "  openai  ");
 
@@ -46,7 +44,7 @@
 
     #[test]
     fn expected_route_normalizes_provider_case_from_env() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         std::env::set_var("MODEL_PROVIDER", "OpenAI");
 
@@ -59,7 +57,7 @@
 
     #[test]
     fn expected_route_uses_default_provider_when_primary_is_blank() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         std::env::set_var("MODEL_PROVIDER", "   ");
         std::env::set_var("MODEL_DEFAULT_PROVIDER", " openai ");
@@ -73,7 +71,7 @@
 
     #[test]
     fn expected_route_uses_openai_codex_default_provider_when_primary_is_blank() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         std::env::set_var("MODEL_PROVIDER", "   ");
         std::env::set_var("MODEL_DEFAULT_PROVIDER", " openai-codex ");
@@ -88,7 +86,7 @@
 
     #[test]
     fn expected_route_ignores_invalid_primary_provider_and_uses_valid_default() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         std::env::set_var("MODEL_PROVIDER", "open ai");
         std::env::set_var("MODEL_DEFAULT_PROVIDER", "openai");
@@ -102,7 +100,7 @@
 
     #[test]
     fn expected_route_falls_back_to_ollama_when_provider_env_tokens_are_invalid() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         std::env::set_var("MODEL_PROVIDER", "open ai");
         std::env::set_var("MODEL_DEFAULT_PROVIDER", "opénaí");
@@ -116,7 +114,7 @@
 
     #[test]
     fn expected_route_defaults_openai_codex_to_chatgpt_backend() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         std::env::set_var("MODEL_PROVIDER", "openai-codex");
 
@@ -130,7 +128,7 @@
 
     #[test]
     fn expected_route_known_providers_get_base_url_without_model_base_url() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         let cases = [
             ("groq",       "https://api.groq.com",                          "/openai/v1/chat/completions"),
             ("mistral",    "https://api.mistral.ai",                        "/v1/chat/completions"),
@@ -153,7 +151,7 @@
 
     #[test]
     fn expected_route_model_base_url_overrides_known_provider_default() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         std::env::set_var("MODEL_PROVIDER", "groq");
         std::env::set_var("MODEL_BASE_URL", "https://my-proxy.example.com");
@@ -167,7 +165,7 @@
 
     #[test]
     fn expected_route_reads_model_provider_and_base_url_from_env() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         std::env::set_var("MODEL_PROVIDER", "openai");
         std::env::set_var("MODEL_BASE_URL", "http://127.0.0.1:43210");
@@ -182,7 +180,7 @@
 
     #[test]
     fn expected_route_uses_model_default_provider_when_primary_absent() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         // MODEL_PROVIDER unset; MODEL_DEFAULT_PROVIDER is the fallback source.
         std::env::set_var("MODEL_DEFAULT_PROVIDER", "openai");
@@ -893,7 +891,7 @@
 
     #[test]
     fn fallback_from_env_is_none_when_unset_and_route_when_set() {
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         std::env::remove_var("MODEL_FALLBACK_PROVIDER");
         assert!(
@@ -919,7 +917,7 @@
         // Change B counterpart on the host side: with NO routing env set, the host
         // resolves the ollama floor — the same provider the guest now defaults to —
         // so a zero-config request is accepted instead of provider-mismatch-blocked.
-        let _guard = ENV_LOCK.lock().unwrap();
+        let _guard = env_lock();
         reset_model_env();
         std::env::remove_var("MODEL_FALLBACK_PROVIDER");
 

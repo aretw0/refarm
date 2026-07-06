@@ -4,15 +4,7 @@
 //! probe's verdict mapping is deterministic and offline.
 
 use super::*;
-
-/// Serialize the tests that mutate MODEL_BASE_URL — process env leaks across
-/// threads, so two of these running at once would read each other's override.
-fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-    static LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
-    LOCK.get_or_init(|| std::sync::Mutex::new(()))
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-}
+use crate::test_support::env_lock;
 
 /// Mount just the liveness route on a fresh port — the handler needs no state.
 async fn start_liveness_sidecar() -> u16 {
