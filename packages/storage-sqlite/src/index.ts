@@ -1,9 +1,9 @@
 import {
-  STORAGE_CAPABILITY,
-  type StorageAdapter,
-  type StorageProvider,
-  type StorageQuery,
-  type StorageRecord
+	STORAGE_CAPABILITY,
+	type StorageAdapter,
+	type StorageProvider,
+	type StorageQuery,
+	type StorageRecord
 } from "@refarm.dev/storage-contract-v1";
 
 /**
@@ -235,8 +235,8 @@ export function createStorageV1Provider(): StorageProvider {
   return new StorageSqliteV1Provider();
 }
 
-export { createTaskV1StorageAdapter } from "./task-v1.adapter";
-export { createSessionV1StorageAdapter } from "./session-v1.adapter";
+export { createTaskV1StorageAdapter } from "./task-v1.adapter.js";
+export { createSessionV1StorageAdapter } from "./session-v1.adapter.js";
 // Node.js-specific exports live in @refarm.dev/storage-sqlite/node so browser
 // bundles never pull node:sqlite into their dependency graph.
 
