@@ -41,3 +41,33 @@ pnpm --filter devbench-t1 build
 pnpm --filter devbench-t1 devbench ext-inspect
 pnpm --filter devbench-t1 devbench --help    # code / review surfaced alongside the neutral verbs
 ```
+
+## Focus — what T1 makes shine (survives our design conversation)
+
+**Persona & mode.** The developer; **process mode** — show the MACHINE being extended,
+not a finished product. T1 is technical and general: "declare once → it appears
+everywhere."
+
+**The scenario to record.** Show the developer:
+1. **Installing the coding-agent locally** — the coding-agent is a plugin that already
+   exists (`packages/agent`); T1 demonstrates installing it, not building it.
+2. **Developing a NEW extension** live — declaring it, watching it surface across CLI /
+   TUI / web from one declaration (the extension effect, `ext-inspect` makes it visible).
+   The verb comes in via a plugin manifest, dispatched over the WASM boundary — no
+   hand-written run().
+
+**The easter egg (hidden continuity T1 → T3).** The extension developed here is —
+without saying so — the one **T3 uses**. Pick something T3 consumes (e.g. a requirements
+renderer / an enrichment provider). Copy/paste between examples is fine. Nobody states
+the link; someone viewing all three side by side notices T1 created what T3 consumes. T3
+uses it as if it already existed.
+
+**What to build for a rich demo.**
+- The coding-agent installed + driven (a real dev task, even scoped).
+- The new extension built via the refarm extension path (manifest → multi-surface),
+  ideally the very source/enrichment/renderer WASM provider T3 then loads.
+- The surfaces (CLI + TUI + web) showing the same verb, proving "declare once".
+
+**What stays generic (refarm) vs specific (here).** refarm ships the neutral chain +
+the extension path + the CLI/TUI/web surfaces. This app supplies the dev scenario and
+the easter-egg extension. Swap the scenario, keep the machine.

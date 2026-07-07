@@ -39,3 +39,34 @@ pnpm --filter wallet-t2 wallet wallet-show
 pnpm --filter wallet-t2 wallet serve --port 4322
 # → GET http://127.0.0.1:4322/capabilities/wallet
 ```
+
+## Focus — what T2 makes shine (survives our design conversation)
+
+**Persona & mode.** The sovereign citizen; **result mode** — present the PRODUCT /
+benefit, not the machine. The citizen sees their data as a wallet and enjoys it. The
+focus is the advance the work brings, not the technique.
+
+**The scenario to record.** A citizen running something **local-first** for their own
+benefit: their digital wallet over their own data, with an **extended web dashboard**
+(the risk the SERPRO note warns about: without a real screen, T2 falls into "just
+another generic solution"). CLI barely matters here — at most mention how a citizen
+installs the POC (a powershell / linux line).
+
+**The reference to draw on: `apps/me`.** apps/me is the "Sovereign Citizen Hub" (Astro,
+its own runtime/surfaces/PWA). T2 is the same idea — the citizen's daily portal. The
+wallet dashboard extends the neutral web surface (`serveWebUi` from
+`@refarm.dev/capabilities-v1`) and/or mirrors apps/me's shape. Local-first, sovereign
+over the data.
+
+**What to build for a rich demo.**
+- The wallet as an EXTENSION (a work verb, or a plugin the citizen installs) — NOT baked
+  into refarm. refarm ships the surface machine; the wallet is the citizen's app on top.
+- A real WEB dashboard the citizen operates (the screens matter most here) — extend
+  `serveWebUi` with the wallet's own cards + a citizen-facing look, and/or the apps/me
+  runtime.
+- The results the work wants to show: the citizen curating, verifying, holding their own
+  records with sovereignty.
+
+**What stays generic (refarm) vs specific (here).** refarm ships the neutral chain + the
+CLI/TUI/web surface machine (verbs + REPL). This app supplies the citizen persona, the
+wallet vocabulary, and the extended dashboard. Swap the persona, keep the machine.
