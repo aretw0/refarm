@@ -773,6 +773,107 @@
         );
     }
 
+    // ── B: grant read-back — the SECURITY axis, deny-dominates ─────────────────
+
+    #[test]
+    fn grants_resolve_from_the_node_when_there_is_no_local_fs_file() {
+        // The leak B closes: a device with NO local .refarm/config.json but a config
+        // node replicated from a peer reads its GRANTS from the node — not None
+        // (permissive). The model reader already did this; the grant readers didn't.
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-grant-readback").unwrap();
+        store_refarm_config_node(
+            &sync,
+            Some(&serde_json::json!({
+                "trusted_plugins": ["vault"],
+                "approvedPermissions": { "vault": ["fs:read"] },
+            })),
+        )
+        .unwrap();
+
+        let empty = tempfile::tempdir().unwrap(); // no local file on this device
+        let trusted =
+            crate::host::host_effects_bridge::resolve_trusted_plugins(empty.path(), Some(&sync))
+                .unwrap()
+                .expect("trusted resolved from node, not None");
+        assert!(trusted.contains("vault"), "node allowlist must be honored cross-device");
+
+        let approved =
+            crate::host::host_effects_bridge::resolve_approved_permissions(empty.path(), Some(&sync))
+                .unwrap()
+                .expect("approved resolved from node, not None");
+        assert_eq!(
+            approved.get("vault"),
+            Some(&std::collections::HashSet::from(["fs:read".to_string()]))
+        );
+    }
+
+    #[test]
+    fn grants_intersect_fs_and_node_deny_dominates() {
+        // fs grants a WIDER set; the node (converged from a device that revoked) grants a
+        // NARROWER set. The merge is the intersection — the revocation binds even though
+        // the stale local file still lists the wider capability. Approving fewer restricts,
+        // and the restriction converges across devices.
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-grant-intersect").unwrap();
+        store_refarm_config_node(
+            &sync,
+            Some(&serde_json::json!({
+                "trusted_plugins": ["vault"], // node dropped "quality"
+                "approvedPermissions": { "vault": ["fs:read"] }, // node revoked network
+            })),
+        )
+        .unwrap();
+
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join(".refarm")).unwrap();
+        std::fs::write(
+            dir.path().join(".refarm/config.json"),
+            r#"{"trusted_plugins":["vault","quality"],"approvedPermissions":{"vault":["fs:read","network:outbound"]}}"#,
+        )
+        .unwrap();
+
+        let trusted =
+            crate::host::host_effects_bridge::resolve_trusted_plugins(dir.path(), Some(&sync))
+                .unwrap()
+                .unwrap();
+        // "quality" on fs but not node → dropped (deny dominates).
+        assert!(trusted.contains("vault"));
+        assert!(!trusted.contains("quality"), "revoked-on-node must not load from stale fs");
+
+        let approved =
+            crate::host::host_effects_bridge::resolve_approved_permissions(dir.path(), Some(&sync))
+                .unwrap()
+                .unwrap();
+        // network:outbound on fs but revoked on node → dropped.
+        assert_eq!(
+            approved.get("vault"),
+            Some(&std::collections::HashSet::from(["fs:read".to_string()]))
+        );
+    }
+
+    #[test]
+    fn grants_use_fs_when_there_is_no_node() {
+        // A device with a local file but no config node yet → fs is the only signal
+        // (row 2 of the merge table), unchanged from pre-B behavior.
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-grant-fs-only").unwrap(); // no node stored
+
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join(".refarm")).unwrap();
+        std::fs::write(
+            dir.path().join(".refarm/config.json"),
+            r#"{"trusted_plugins":["vault"]}"#,
+        )
+        .unwrap();
+
+        let trusted =
+            crate::host::host_effects_bridge::resolve_trusted_plugins(dir.path(), Some(&sync))
+                .unwrap()
+                .unwrap();
+        assert!(trusted.contains("vault"));
+    }
+
     // MANDATORY conformance: the Rust canonical digest MUST byte-match the TS
     // canonicalJson()+sha256 for the same config, or a node written by the tractor
     // and one written by the TS side would compute DIFFERENT revisions and defeat

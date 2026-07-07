@@ -172,6 +172,18 @@ impl std::fmt::Debug for HostEffectsHandle {
 
 // ── PluginHost ────────────────────────────────────────────────────────────────
 
+/// How a grant set is sourced at load. `PluginHost::new` cannot resolve the config
+/// node (it has no `sync` — the replication handle only arrives at `load()`), so boot
+/// records the INTENT and load performs the resolution.
+///
+/// - `ResolveFromConfig` → resolve per-load from fs ∩ node (deny-dominates — B).
+/// - `Injected(v)` → an explicit test/alt-host override; `v` (Some OR None) wins verbatim,
+///   no fs/sync read, keeping the deterministic test path.
+pub(crate) enum GrantSource<T> {
+    ResolveFromConfig,
+    Injected(T),
+}
+
 /// Orchestrates WASM plugin loading and lifecycle via wasmtime.
 pub struct PluginHost {
     trust: TrustManager,
@@ -210,24 +222,23 @@ pub struct PluginHost {
     /// at construction and cloned into every `TractorNativeBindings` at load, so
     /// the per-call effect path reads `&self`, never `std::env::var`.
     effect_policy: crate::host::host_effects_bridge::HostEffectPolicy,
-    /// The operator's sovereign trusted-plugins allowlist from `.refarm/config.json`,
-    /// resolved ONCE at construction (the same fs-first read the shell-effect gate
-    /// uses). Seeds the Strict LOAD gate: a plugin whose id is listed (or `*`) is
-    /// trusted to load without a per-hash grant — the operator of THIS device is
-    /// authoritative over their own local plugins, mirroring config sovereignty.
-    /// None = not configured → the load gate stays permissive (backward-compatible,
-    /// same as the shell gate); an empty set = deny-all; `*` = trust every plugin.
-    trusted_plugins_at_boot: Option<std::collections::HashSet<String>>,
-    /// The operator-APPROVED capability set per plugin id, resolved from the
-    /// sovereign `.refarm/config.json` `approvedPermissions` map ONCE at boot
-    /// (written by `plugin approve`). At load the declared permissions are
-    /// intersected with a plugin's approved set, so approving fewer capabilities
-    /// actually restricts. None = no approvals configured → permissive (declared
-    /// stands as-is, backward-compatible); a plugin absent from the map = no
-    /// approval → its declared set is used unchanged (approval is additive scoping,
-    /// not a second gate that denies un-approved-but-declared plugins).
-    approved_permissions_at_boot:
+    /// The operator's sovereign trusted-plugins allowlist. Seeds the Strict LOAD gate:
+    /// a plugin whose id is listed (or `*`) is trusted to load without a per-hash grant.
+    /// `ResolveFromConfig` (the `new` default) resolves it PER-LOAD from fs ∩ node
+    /// (deny-dominates — B), so a device that received its config purely over CRDT still
+    /// enforces the replicated allowlist. `Injected(v)` (a test/alt-host override) wins
+    /// verbatim. Resolved value semantics: None = not configured → permissive
+    /// (backward-compatible); empty = deny-all; `*` = trust every plugin.
+    trusted_plugins_source: GrantSource<Option<std::collections::HashSet<String>>>,
+    /// The operator-APPROVED capability set per plugin id (written by `plugin approve`).
+    /// At load the declared permissions are intersected with a plugin's approved set, so
+    /// approving fewer capabilities actually restricts. `ResolveFromConfig` resolves it
+    /// PER-LOAD from fs ∩ node (deny-dominates); `Injected(v)` wins verbatim. Resolved
+    /// value: None = no approvals → declared stands; a plugin absent from the map = no
+    /// approval → declared unchanged (additive scoping, not a second deny gate).
+    approved_permissions_source: GrantSource<
         Option<std::collections::HashMap<String, std::collections::HashSet<String>>>,
+    >,
     /// The expected model route (provider + base-url + path) guardrail, resolved
     /// from the routing env vars ONCE at construction and cloned into every
     /// `TractorNativeBindings` at load. Only ROUTING config — API-key secrets stay

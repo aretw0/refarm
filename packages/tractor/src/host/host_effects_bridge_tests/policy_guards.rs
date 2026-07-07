@@ -937,3 +937,106 @@
         let err = parse_approved_permissions(&cfg).unwrap_err();
         assert!(err.contains("control characters"));
     }
+
+    // ── deny-dominates merge (B: fs ∩ node, more-restrictive-of-{fs, node}) ─────
+
+    fn trusted_set(items: &[&str]) -> std::collections::HashSet<String> {
+        items.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn merge_trusted_none_none_is_permissive() {
+        // No policy anywhere → None (permissive, backward-compat).
+        assert!(merge_trusted_deny_dominates(None, None).is_none());
+    }
+
+    #[test]
+    fn merge_trusted_fs_only_is_fs() {
+        // Fresh device / no node yet → fs is the only signal.
+        let merged = merge_trusted_deny_dominates(Some(trusted_set(&["a", "b"])), None).unwrap();
+        assert_eq!(merged, trusted_set(&["a", "b"]));
+    }
+
+    #[test]
+    fn merge_trusted_node_only_is_node() {
+        // The leak case pre-B: config arrived only over CRDT → node is the only signal.
+        let merged = merge_trusted_deny_dominates(None, Some(trusted_set(&["a"]))).unwrap();
+        assert_eq!(merged, trusted_set(&["a"]));
+    }
+
+    #[test]
+    fn merge_trusted_both_is_intersection() {
+        // Both configured → intersection. `a` revoked on the node drops even though the
+        // stale fs still lists it — deny dominates, restriction converges.
+        let merged = merge_trusted_deny_dominates(
+            Some(trusted_set(&["a", "b"])),
+            Some(trusted_set(&["b", "c"])),
+        )
+        .unwrap();
+        assert_eq!(merged, trusted_set(&["b"]));
+    }
+
+    #[test]
+    fn merge_trusted_wildcard_does_not_constrain() {
+        // `*` = the universe: `{*} ∩ N = N`, `{*} ∩ {*} = {*}`.
+        let a = merge_trusted_deny_dominates(
+            Some(trusted_set(&["*"])),
+            Some(trusted_set(&["only-this"])),
+        )
+        .unwrap();
+        assert_eq!(a, trusted_set(&["only-this"]));
+
+        let b = merge_trusted_deny_dominates(Some(trusted_set(&["*"])), Some(trusted_set(&["*"])))
+            .unwrap();
+        assert_eq!(b, trusted_set(&["*"]));
+    }
+
+    fn approved_map(
+        entries: &[(&str, &[&str])],
+    ) -> std::collections::HashMap<String, std::collections::HashSet<String>> {
+        entries
+            .iter()
+            .map(|(id, caps)| (id.to_string(), caps.iter().map(|c| c.to_string()).collect()))
+            .collect()
+    }
+
+    #[test]
+    fn merge_approved_both_intersects_caps_per_plugin() {
+        // Within a plugin present on both sides → cap intersection (deny dominates):
+        // `network:outbound` revoked on the node drops even though fs still grants it.
+        let merged = merge_approved_deny_dominates(
+            Some(approved_map(&[("vault", &["fs:read", "network:outbound"])])),
+            Some(approved_map(&[("vault", &["fs:read"])])),
+        )
+        .unwrap();
+        assert_eq!(merged, approved_map(&[("vault", &["fs:read"])]));
+    }
+
+    #[test]
+    fn merge_approved_absent_on_one_side_is_identity_not_empty() {
+        // A plugin scoped on only ONE side keeps its set AS-IS — "no entry" = "no
+        // opinion", not "deny all". Emptying it would deny-all a half-configured device.
+        let merged = merge_approved_deny_dominates(
+            Some(approved_map(&[("vault", &["fs:read"])])),
+            Some(approved_map(&[("quality", &["fs:read"])])),
+        )
+        .unwrap();
+        assert_eq!(
+            merged,
+            approved_map(&[("vault", &["fs:read"]), ("quality", &["fs:read"])])
+        );
+    }
+
+    #[test]
+    fn merge_approved_map_level_none_is_identity() {
+        let fs = approved_map(&[("vault", &["fs:read"])]);
+        assert_eq!(
+            merge_approved_deny_dominates(Some(fs.clone()), None).unwrap(),
+            fs
+        );
+        assert_eq!(
+            merge_approved_deny_dominates(None, Some(fs.clone())).unwrap(),
+            fs
+        );
+        assert!(merge_approved_deny_dominates(None, None).is_none());
+    }

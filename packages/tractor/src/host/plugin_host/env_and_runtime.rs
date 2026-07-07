@@ -676,27 +676,12 @@ impl PluginHost {
             // from env ONCE here at boot; every TractorNativeBindings gets a clone
             // at load. No hot-path env read.
             effect_policy: crate::host::host_effects_bridge::HostEffectPolicy::from_env(),
-            // Resolve the sovereign trusted-plugins allowlist ONCE at boot (same
-            // fs-first read the shell gate uses). A malformed config denies rather
-            // than opening up: treat a read error as an empty allowlist (deny-all
-            // under Strict) — never silently trust everything on a bad file.
-            trusted_plugins_at_boot: crate::host::host_effects_bridge::trusted_plugins_from_refarm_config()
-                .unwrap_or_else(|e| {
-                    tracing::warn!(error = %e, "trusted_plugins config unreadable — treating as deny-all");
-                    Some(std::collections::HashSet::new())
-                }),
-            // Approved-capability scoping is additive (it only NARROWS a declared
-            // set), so an unreadable config falls back to None = no scoping (the
-            // declared set stands). A malformed file must not accidentally widen or
-            // silently drop capabilities — leaving declared as-is is the safe,
-            // backward-compatible default; the trusted_plugins gate above still
-            // governs whether the plugin loads at all.
-            approved_permissions_at_boot:
-                crate::host::host_effects_bridge::approved_permissions_from_refarm_config()
-                    .unwrap_or_else(|e| {
-                        tracing::warn!(error = %e, "approvedPermissions config unreadable — no capability scoping applied");
-                        None
-                    }),
+            // Grants resolve PER-LOAD (where `sync` exists), from fs ∩ node
+            // (deny-dominates — B). `new` has no `sync`, so it records the intent;
+            // the boot fs-only reads moved into `resolve_*_at_load`, which preserves
+            // the same fail-shut (trusted) / fail-open (approved) posture on a bad file.
+            trusted_plugins_source: GrantSource::ResolveFromConfig,
+            approved_permissions_source: GrantSource::ResolveFromConfig,
             model_route: crate::host::wasi_bridge::ModelRoute::from_env(),
             fallback_route: crate::host::wasi_bridge::ModelRoute::fallback_from_env(),
         })
@@ -712,7 +697,7 @@ impl PluginHost {
         mut self,
         trusted: Option<std::collections::HashSet<String>>,
     ) -> Self {
-        self.trusted_plugins_at_boot = trusted;
+        self.trusted_plugins_source = GrantSource::Injected(trusted);
         self
     }
 
@@ -728,7 +713,7 @@ impl PluginHost {
             std::collections::HashMap<String, std::collections::HashSet<String>>,
         >,
     ) -> Self {
-        self.approved_permissions_at_boot = approved;
+        self.approved_permissions_source = GrantSource::Injected(approved);
         self
     }
 
@@ -791,12 +776,58 @@ impl PluginHost {
     /// no approved entry, the declared set stands unchanged (backward-compatible).
     /// A plugin WITH an approved entry runs with only the intersection, so approving
     /// fewer capabilities really restricts what the Gate A/B/C enforcement grants.
-    fn scope_to_approved(
+    /// Resolve the trusted-plugins allowlist for THIS load. An injected override wins
+    /// verbatim (deterministic test path); otherwise resolve from fs ∩ node
+    /// (deny-dominates — B), preserving the boot posture: an unreadable config denies
+    /// rather than opens (deny-all under Strict), never silently trusting everything.
+    fn resolve_trusted_at_load(
         &self,
+        base: &Path,
+        sync: &NativeSync,
+    ) -> Option<std::collections::HashSet<String>> {
+        match &self.trusted_plugins_source {
+            GrantSource::Injected(v) => v.clone(),
+            GrantSource::ResolveFromConfig => {
+                crate::host::host_effects_bridge::resolve_trusted_plugins(base, Some(sync))
+                    .unwrap_or_else(|e| {
+                        tracing::warn!(error = %e, "trusted_plugins config unreadable — treating as deny-all");
+                        Some(std::collections::HashSet::new())
+                    })
+            }
+        }
+    }
+
+    /// Resolve the approved-permissions map for THIS load. An injected override wins
+    /// verbatim; otherwise resolve from fs ∩ node (deny-dominates). Approval scoping is
+    /// additive (it only NARROWS declared), so an unreadable config falls open to None
+    /// = no scoping (declared stands) — a bad file must not silently drop capabilities;
+    /// the trusted gate still governs whether the plugin loads at all.
+    fn resolve_approved_at_load(
+        &self,
+        base: &Path,
+        sync: &NativeSync,
+    ) -> Option<std::collections::HashMap<String, std::collections::HashSet<String>>> {
+        match &self.approved_permissions_source {
+            GrantSource::Injected(v) => v.clone(),
+            GrantSource::ResolveFromConfig => {
+                crate::host::host_effects_bridge::resolve_approved_permissions(base, Some(sync))
+                    .unwrap_or_else(|e| {
+                        tracing::warn!(error = %e, "approvedPermissions config unreadable — no capability scoping applied");
+                        None
+                    })
+            }
+        }
+    }
+
+    /// Narrow a plugin's declared permissions to the operator-approved set (declared ∩
+    /// approved). `approved` is the per-load-resolved map (fs ∩ node). None (no map) or a
+    /// plugin absent from the map → declared stands unchanged (additive scoping).
+    fn scope_to_approved(
+        approved: Option<&std::collections::HashMap<String, std::collections::HashSet<String>>>,
         plugin_id: &str,
         declared: std::collections::HashSet<String>,
     ) -> std::collections::HashSet<String> {
-        let Some(approvals) = &self.approved_permissions_at_boot else {
+        let Some(approvals) = approved else {
             return declared;
         };
         let Some(approved) = approvals.get(plugin_id) else {
@@ -815,8 +846,11 @@ impl PluginHost {
     ///
     /// The operator of THIS device is authoritative over their own local plugins,
     /// so a config-declared trust is a standing "yes" — no separate grant needed.
-    fn trusted_to_load(&self, plugin_id: &str) -> bool {
-        match &self.trusted_plugins_at_boot {
+    fn trusted_to_load(
+        trusted: Option<&std::collections::HashSet<String>>,
+        plugin_id: &str,
+    ) -> bool {
+        match trusted {
             None => true,
             Some(allow) => {
                 allow.contains("*") || allow.contains(&plugin_id.to_ascii_lowercase())
@@ -843,6 +877,14 @@ impl PluginHost {
         let wasm_hash = hex::encode(Sha256::digest(&bytes));
         tracing::debug!(plugin_id = %plugin_id, wasm_hash = %wasm_hash, "Plugin hash computed");
 
+        // Resolve the sovereign grants for THIS load, where `sync` exists (B): the
+        // trusted allowlist + the approved-permissions map, each fs ∩ node
+        // (deny-dominates). Resolved ONCE per load and threaded into the trust gate,
+        // the approval scoping, AND the shell-effect bindings — one source of truth.
+        let grant_base = std::env::current_dir().unwrap_or_default();
+        let trusted_at_load = self.resolve_trusted_at_load(&grant_base, sync);
+        let approved_at_load = self.resolve_approved_at_load(&grant_base, sync);
+
         // The plugin's declared permissions (from its manifest) + the host
         // security mode form its capability grant. Built once here so BOTH load
         // paths (component + P1 module) scope their filesystem preopen to the fs
@@ -856,7 +898,8 @@ impl PluginHost {
         // is declared ∩ approved, so approving fewer capabilities actually restricts.
         // No approvals configured, or this plugin not approved → declared stands
         // (approval is opt-in scoping, backward-compatible).
-        let effective_permissions = self.scope_to_approved(&plugin_id, declared_permissions);
+        let effective_permissions =
+            Self::scope_to_approved(approved_at_load.as_ref(), &plugin_id, declared_permissions);
         let permission_grant = crate::host::wasi_bridge::PermissionGrant::new(
             effective_permissions,
             self.trust.security_mode().clone(),
@@ -869,13 +912,21 @@ impl PluginHost {
 
         if variant == crate::host::wasi_variant::WasiVariant::Module {
             return self
-                .load_module(path, &bytes, &plugin_id, &wasm_hash, &permission_grant, sync)
+                .load_module(
+                    path,
+                    &bytes,
+                    &plugin_id,
+                    &wasm_hash,
+                    &permission_grant,
+                    trusted_at_load.as_ref(),
+                    sync,
+                )
                 .await;
         }
 
         if self.trust.security_mode() == &SecurityMode::Strict
             && !self.trust.has_valid_grant(&plugin_id, Some(&wasm_hash))
-            && !self.trusted_to_load(&plugin_id)
+            && !Self::trusted_to_load(trusted_at_load.as_ref(), &plugin_id)
         {
             anyhow::bail!(
                 "SecurityMode::Strict: plugin '{}' (hash: {}) is neither trust-granted \
@@ -987,6 +1038,7 @@ impl PluginHost {
     ///   - `on_event(ptr: i32, len: i32)` — required: receive JSON event payload
     ///   - `ingest() -> i32`  — optional: trigger data ingestion, return count
     ///   - `teardown()`       — optional: clean up before unload
+    #[allow(clippy::too_many_arguments)]
     async fn load_module(
         &self,
         path: &Path,
@@ -994,13 +1046,14 @@ impl PluginHost {
         plugin_id: &str,
         wasm_hash: &str,
         permission_grant: &crate::host::wasi_bridge::PermissionGrant,
+        trusted: Option<&std::collections::HashSet<String>>,
         sync: &NativeSync,
     ) -> Result<PluginInstanceHandle> {
         tracing::info!(plugin_id, "Loading P1 plain module (WASI preview1 ABI)");
 
         if self.trust.security_mode() == &SecurityMode::Strict
             && !self.trust.has_valid_grant(plugin_id, Some(wasm_hash))
-            && !self.trusted_to_load(plugin_id)
+            && !Self::trusted_to_load(trusted, plugin_id)
         {
             anyhow::bail!(
                 "SecurityMode::Strict: P1 module '{}' (hash: {}) is neither trust-granted \

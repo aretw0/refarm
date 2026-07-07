@@ -85,12 +85,11 @@ fn is_safe_plugin_id_token(value: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b == b'.')
 }
 
-/// Read + parse the sovereign `.refarm/config.json` ONCE (hardened: size cap,
-/// symlink/regular-file check, dev+ino TOCTOU guard). Returns None when the file
-/// is absent. Both the trusted-plugins allowlist and the approved-permissions map
-/// ride this one hardened read so neither re-implements the fs safety.
-fn read_refarm_config_value() -> Result<Option<serde_json::Value>, String> {
-    let base = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
+/// Read + parse the sovereign `.refarm/config.json` under `base` ONCE (hardened: size
+/// cap, symlink/regular-file check, dev+ino TOCTOU guard). Returns None when the file is
+/// absent. Both the trusted-plugins allowlist and the approved-permissions map ride this
+/// one hardened read so neither re-implements the fs safety.
+fn read_refarm_config_value_at(base: &Path) -> Result<Option<serde_json::Value>, String> {
     let path = base.join(".refarm/config.json");
     let Some(bytes) = read_trusted_plugins_config_bytes(&path)? else {
         return Ok(None);
@@ -98,6 +97,12 @@ fn read_refarm_config_value() -> Result<Option<serde_json::Value>, String> {
     let cfg = serde_json::from_slice::<serde_json::Value>(&bytes)
         .map_err(|e| format!("[blocked: invalid .refarm/config.json: {e}]"))?;
     Ok(Some(cfg))
+}
+
+/// `read_refarm_config_value_at` rooted at the process cwd (the production default).
+fn read_refarm_config_value() -> Result<Option<serde_json::Value>, String> {
+    let base = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
+    read_refarm_config_value_at(&base)
 }
 
 pub(crate) fn trusted_plugins_from_refarm_config(
@@ -108,17 +113,146 @@ pub(crate) fn trusted_plugins_from_refarm_config(
     parse_trusted_plugins(&cfg)
 }
 
-/// The operator-APPROVED capability set per plugin id, read from the sovereign
-/// `.refarm/config.json` `approvedPermissions` map (written by `plugin approve`).
-/// Distinct from `trusted_plugins` (identity vs capability). Returns None when the
-/// file or the key is absent — meaning "no operator approval recorded", which the
-/// load path treats as permissive (backward-compatible, mirroring the allowlist).
-pub(crate) fn approved_permissions_from_refarm_config(
+/// Read the sovereign config from BOTH sources: the local fs file (hardened, the
+/// stronger posture — fail-shut on malformed) AND the replicated device-global graph
+/// node (`urn:refarm:config:workspace`), so a device that received its config purely
+/// over CRDT still resolves its grants instead of falling to a permissive default.
+///
+/// This is the security-axis counterpart to `resolve_sovereign_config` (which reads
+/// MODEL fields fs-FIRST). Here we return BOTH values un-merged so the caller can apply
+/// the more-restrictive-of-{fs, node} merge (deny dominates) — NOT fs-first, which would
+/// let a stale wide local file beat a converged narrow (revoked) node.
+///
+/// The fs error propagates (`?`) — a malformed local file fails shut, never silently
+/// permissive. Node absence (no sync, no node, null data) → node = None.
+fn refarm_config_values_two_source(
+    base: &Path,
+    sync: Option<&crate::sync::NativeSync>,
+) -> Result<(Option<serde_json::Value>, Option<serde_json::Value>), String> {
+    let fs_value = read_refarm_config_value_at(base)?;
+    let node_value = sync.and_then(config_value_from_node);
+    Ok((fs_value, node_value))
+}
+
+/// Extract the sovereign config `data` from the replicated config node, mirroring the
+/// node half of `resolve_sovereign_config` (env_and_runtime.rs): get_node → parse →
+/// `node["data"]`, guarding a null payload. Returns None on any absence/parse failure —
+/// a missing node is simply "no node signal", never an error (the fs side owns fail-shut).
+fn config_value_from_node(sync: &crate::sync::NativeSync) -> Option<serde_json::Value> {
+    let payload = sync
+        .get_node(crate::host::plugin_host::config_node::CONFIG_NODE_DEFAULT_ID)
+        .ok()??;
+    let node: serde_json::Value = serde_json::from_str(&payload).ok()?;
+    let data = node.get("data")?;
+    if data.is_null() {
+        return None;
+    }
+    Some(data.clone())
+}
+
+/// Resolve the trusted-plugins allowlist from fs ∩ node (deny dominates): a plugin is
+/// trusted iff BOTH configured sources agree. See `merge_trusted_deny_dominates` for the
+/// absent-on-one-side reconciliation (`None` = "no opinion" = identity, NOT deny-all).
+pub(crate) fn resolve_trusted_plugins(
+    base: &Path,
+    sync: Option<&crate::sync::NativeSync>,
+) -> Result<Option<std::collections::HashSet<String>>, String> {
+    let (fs_value, node_value) = refarm_config_values_two_source(base, sync)?;
+    let fs = fs_value.as_ref().map(parse_trusted_plugins).transpose()?.flatten();
+    let node = node_value.as_ref().map(parse_trusted_plugins).transpose()?.flatten();
+    Ok(merge_trusted_deny_dominates(fs, node))
+}
+
+/// Resolve the approved-permissions map from fs ∩ node (deny dominates per capability).
+/// See `merge_approved_deny_dominates` for the two-dimension reconciliation.
+pub(crate) fn resolve_approved_permissions(
+    base: &Path,
+    sync: Option<&crate::sync::NativeSync>,
 ) -> Result<Option<std::collections::HashMap<String, std::collections::HashSet<String>>>, String> {
-    let Some(cfg) = read_refarm_config_value()? else {
-        return Ok(None);
-    };
-    parse_approved_permissions(&cfg)
+    let (fs_value, node_value) = refarm_config_values_two_source(base, sync)?;
+    let fs = fs_value.as_ref().map(parse_approved_permissions).transpose()?.flatten();
+    let node = node_value.as_ref().map(parse_approved_permissions).transpose()?.flatten();
+    Ok(merge_approved_deny_dominates(fs, node))
+}
+
+/// More-restrictive-of-{fs, node} for the trust allowlist.
+///
+/// | fs        | node      | merge          | rationale                                   |
+/// |-----------|-----------|----------------|---------------------------------------------|
+/// | None      | None      | None           | no policy anywhere → permissive (compat)    |
+/// | Some(S)   | None      | Some(S)        | fresh device / no node yet → fs is signal   |
+/// | None      | Some(S)   | Some(S)        | config only over CRDT → node is signal      |
+/// | Some(F)   | Some(N)   | Some(F ∩ N)    | both configured → intersection              |
+///
+/// `None` is the IDENTITY of the intersection ("no opinion"), NOT the empty set — an ∅
+/// merge would deny-all a device that simply has no node yet. `*` (wildcard = the
+/// universe) doesn't constrain: `{*} ∩ N = N`; `{*} ∩ {*} = {*}`.
+fn merge_trusted_deny_dominates(
+    fs: Option<std::collections::HashSet<String>>,
+    node: Option<std::collections::HashSet<String>>,
+) -> Option<std::collections::HashSet<String>> {
+    match (fs, node) {
+        (None, None) => None,
+        (Some(s), None) | (None, Some(s)) => Some(s),
+        (Some(f), Some(n)) => Some(intersect_trusted(f, n)),
+    }
+}
+
+/// Intersect two trust sets, treating `*` (wildcard) as the universe on either side.
+fn intersect_trusted(
+    f: std::collections::HashSet<String>,
+    n: std::collections::HashSet<String>,
+) -> std::collections::HashSet<String> {
+    let f_all = f.contains("*");
+    let n_all = n.contains("*");
+    match (f_all, n_all) {
+        (true, true) => std::iter::once("*".to_string()).collect(),
+        (true, false) => n,
+        (false, true) => f,
+        (false, false) => f.intersection(&n).cloned().collect(),
+    }
+}
+
+/// More-restrictive-of-{fs, node} for the approved-permissions map, in two dimensions:
+///
+/// - WITHIN a plugin present on BOTH sides → caps = fs-caps ∩ node-caps (a capability
+///   survives iff both approve — deny dominates).
+/// - ACROSS the presence dimension (which plugins have an entry) → a plugin in only ONE
+///   side keeps that side's set AS-IS (identity, NOT emptied): "no entry" means "no
+///   opinion", not "deny all", so a locally-scoped plugin the node hasn't scoped yet is
+///   preserved. Emptying it would deny-all a half-configured device.
+///
+/// Map-level `None` on a side → identity (use the other); both `None` → `None`. The
+/// merged map then feeds the UNCHANGED `scope_to_approved`, whose "no entry → declared
+/// stands" guard keeps a plugin scoped on neither device at its declared set.
+fn merge_approved_deny_dominates(
+    fs: Option<std::collections::HashMap<String, std::collections::HashSet<String>>>,
+    node: Option<std::collections::HashMap<String, std::collections::HashSet<String>>>,
+) -> Option<std::collections::HashMap<String, std::collections::HashSet<String>>> {
+    match (fs, node) {
+        (None, None) => None,
+        (Some(m), None) | (None, Some(m)) => Some(m),
+        (Some(f), Some(mut n)) => {
+            let mut out = std::collections::HashMap::new();
+            for (plugin, f_caps) in f {
+                match n.remove(&plugin) {
+                    // Present on both → per-plugin cap intersection (deny dominates).
+                    Some(n_caps) => {
+                        out.insert(plugin, f_caps.intersection(&n_caps).cloned().collect());
+                    }
+                    // fs-only → identity (node has no opinion on this plugin).
+                    None => {
+                        out.insert(plugin, f_caps);
+                    }
+                }
+            }
+            // node-only plugins (not seen on fs) → identity.
+            for (plugin, n_caps) in n {
+                out.insert(plugin, n_caps);
+            }
+            Some(out)
+        }
+    }
 }
 
 fn read_trusted_plugins_config_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {
