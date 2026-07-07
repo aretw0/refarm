@@ -10,6 +10,7 @@ import {
 	defaultVaultDeps,
 	mountCapabilities,
 	mountedCliCommands,
+	serveCapabilities,
 	type RefarmCapabilityDeps,
 } from "./index.js";
 
@@ -68,5 +69,35 @@ describe("mountCapabilities — the consumer-mount seam", () => {
 		// The neutral source group projects as a top-level command too.
 		const source = registry.list().find((e) => e.name === "source");
 		expect(source && isCapabilityGroup(source)).toBe(true);
+	});
+
+	it("serves the mounted registry over HTTP — a verb's route responds", async () => {
+		// A verb declaring transports.http becomes a live endpoint via serveCapabilities.
+		const httpVerb: CapabilityDescriptor = {
+			name: "ping",
+			summary: "http verb",
+			transports: { http: { method: "GET", path: "/ping" } },
+			run: () => ({ ok: true, pong: true }) as never,
+		};
+		const registry = mountCapabilities({ deps: deps(), verbs: [httpVerb] });
+		const { server, listening } = serveCapabilities(registry, { port: 0 });
+		try {
+			const { port } = await listening;
+			const res = await fetch(`http://127.0.0.1:${port}/capabilities/ping`);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as { ok: boolean; pong: boolean };
+			expect(body.ok).toBe(true);
+			expect(body.pong).toBe(true);
+
+			// The agent-tools introspection route is served too.
+			const tools = await fetch(`http://127.0.0.1:${port}/agent-tools`);
+			expect(tools.status).toBe(200);
+
+			// An unknown path 404s.
+			const missing = await fetch(`http://127.0.0.1:${port}/capabilities/nope`);
+			expect(missing.status).toBe(404);
+		} finally {
+			await new Promise<void>((resolve) => server.close(() => resolve()));
+		}
 	});
 });

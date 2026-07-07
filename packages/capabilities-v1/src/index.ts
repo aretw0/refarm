@@ -35,5 +35,7 @@ export {
 export {
 	mountCapabilities,
 	mountedCliCommands,
+	mountedHttpHandler,
+	serveCapabilities,
 	type MountOptions,
 } from "./mount.js";

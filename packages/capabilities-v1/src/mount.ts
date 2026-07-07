@@ -1,10 +1,18 @@
 import {
+	capabilityAnthropicTools,
 	capabilityCliCommands,
 	createCapabilityRegistry,
+	createCapabilityRouteHandler,
 	type CapabilityEntry,
 	type CapabilityHooksResolver,
 	type CapabilityRegistry,
 } from "@refarm.dev/cli/capabilities";
+import {
+	createServer,
+	type IncomingMessage,
+	type Server,
+	type ServerResponse,
+} from "node:http";
 
 import {
 	refarmBuiltinCapabilities,
@@ -71,4 +79,66 @@ export function mountedCliCommands(
 	hooksFor: CapabilityHooksResolver = () => ({}),
 ): ReturnType<typeof capabilityCliCommands> {
 	return capabilityCliCommands(registry.list(), hooksFor);
+}
+
+function writeJson(res: ServerResponse, status: number, body: unknown): void {
+	const payload = JSON.stringify(body);
+	res.writeHead(status, {
+		"content-type": "application/json",
+		"content-length": Buffer.byteLength(payload),
+	});
+	res.end(payload);
+}
+
+/**
+ * An HTTP request handler for a mounted registry — the WEB surface, the same one the
+ * refarm app's `serve` stands up, now reusable by any consumer. Every verb declaring
+ * `transports.http` becomes an endpoint under `prefix` (default `/capabilities`); a
+ * `GET /agent-tools` route introspects the tool schemas; everything else 404s. This is
+ * the HTTP twin of {@link mountedCliCommands}: a consumer never re-implements the route
+ * wiring.
+ */
+export function mountedHttpHandler(
+	registry: CapabilityRegistry,
+	options: { prefix?: string } = {},
+): (req: IncomingMessage, res: ServerResponse) => void {
+	const entries = registry.list();
+	const routeHandler = createCapabilityRouteHandler(entries, {
+		prefix: options.prefix ?? "/capabilities",
+	});
+	return (req, res) => {
+		if (routeHandler(req, res)) return;
+		const url = new URL(req.url ?? "/", "http://127.0.0.1");
+		const method = (req.method ?? "GET").toUpperCase();
+		if (method === "GET" && url.pathname === "/agent-tools") {
+			writeJson(res, 200, { tools: capabilityAnthropicTools(entries) });
+			return;
+		}
+		writeJson(res, 404, {
+			ok: false,
+			error: "not-found",
+			message: `No capability surface at ${method} ${url.pathname}.`,
+		});
+	};
+}
+
+/** A live web server standing up a mounted registry's HTTP surface — the ONE call a
+ * consumer makes to serve its verbs (the twin of mounting the CLI). Returns the server
+ * so the caller can close it. `port: 0` picks a free port (the actual port is on the
+ * returned server's address). */
+export function serveCapabilities(
+	registry: CapabilityRegistry,
+	options: { port?: number; prefix?: string } = {},
+): { server: Server; listening: Promise<{ port: number }> } {
+	const handler = mountedHttpHandler(registry, { prefix: options.prefix });
+	const server = createServer(handler);
+	const listening = new Promise<{ port: number }>((resolve, reject) => {
+		server.once("error", reject);
+		server.listen(options.port ?? 0, () => {
+			const addr = server.address();
+			const port = typeof addr === "object" && addr ? addr.port : (options.port ?? 0);
+			resolve({ port });
+		});
+	});
+	return { server, listening };
 }

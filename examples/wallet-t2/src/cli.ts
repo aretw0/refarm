@@ -2,6 +2,7 @@
 import {
 	mountCapabilities,
 	mountedCliCommands,
+	serveCapabilities,
 } from "@refarm.dev/capabilities-v1";
 import { Command } from "commander";
 
@@ -28,6 +29,18 @@ export function buildProgram(): Command {
 	for (const command of mountedCliCommands(buildRegistry())) {
 		program.addCommand(command);
 	}
+	// `serve` — the citizen's wallet on a web surface, from the shared mount seam.
+	program
+		.command("serve")
+		.description("Serve the wallet's verbs over HTTP (their transports.http routes)")
+		.option("--port <port>", "TCP port (0 = pick free)", "4322")
+		.action(async (opts: { port: string }) => {
+			const { listening } = serveCapabilities(buildRegistry(), {
+				port: Number(opts.port),
+			});
+			const { port } = await listening;
+			console.log(JSON.stringify({ ok: true, url: `http://127.0.0.1:${port}` }));
+		});
 	return program;
 }
 

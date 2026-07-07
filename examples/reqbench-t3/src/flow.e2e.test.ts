@@ -6,6 +6,8 @@ import {
 } from "@refarm.dev/cli/capabilities";
 import { describe, expect, it } from "vitest";
 
+import { serveCapabilities } from "@refarm.dev/capabilities-v1";
+
 import { buildRegistry } from "./cli.js";
 import { REQ_SYSTEM_REF } from "./fixture.js";
 
@@ -81,5 +83,21 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		);
 		expect(reviewed).toContain("Cadastro de obrigação acessória");
 		expect(reviewed).toContain("Validação de layout do arquivo");
+	});
+
+	it("serves the same verbs on the web surface (the analyst's MOC over HTTP)", async () => {
+		const { server, listening } = serveCapabilities(buildRegistry(), { port: 0 });
+		try {
+			const { port } = await listening;
+			// The persona verb's declared route (/requirements/moc) responds — same product,
+			// web surface, from the shared serve seam.
+			const res = await fetch(`http://127.0.0.1:${port}/capabilities/requirements/moc`);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as { ok: boolean; moc: string };
+			expect(body.ok).toBe(true);
+			expect(body.moc).toContain("Mapa de Conteúdo — Requisitos");
+		} finally {
+			await new Promise<void>((resolve) => server.close(() => resolve()));
+		}
 	});
 });
