@@ -369,6 +369,9 @@ importers:
       '@refarm.dev/skill-contract-v1':
         specifier: workspace:*
         version: link:../../packages/skill-contract-v1
+      '@refarm.dev/source-web':
+        specifier: workspace:*
+        version: link:../../packages/source-web
       '@refarm.dev/sower':
         specifier: workspace:*
         version: link:../../packages/sower
