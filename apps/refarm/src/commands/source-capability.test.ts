@@ -4,18 +4,25 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createRequirementsCapabilityGroup } from "./requirements-capability.js";
+import { createSourceCapabilityGroup } from "./source-capability.js";
 import { isCapabilityGroup } from "@refarm.dev/cli/capabilities";
 
 let cacheRoot = "";
 
+// A source ref the web provider replays offline from its built-in fixture — the
+// verb is neutral, the ref is just an argument the caller supplies.
+const REF = "web:requirements-fixture";
+
 function group() {
-	return createRequirementsCapabilityGroup({
+	return createSourceCapabilityGroup({
 		sourceProvider: createWebSourceProvider({ cacheRoot }),
 	});
 }
 
-async function runAction(name: string, args: Record<string, unknown> = {}): Promise<unknown> {
+async function runAction(
+	name: string,
+	args: Record<string, unknown> = { ref: REF },
+): Promise<unknown> {
 	const g = group();
 	if (!isCapabilityGroup(g)) throw new Error("expected a group");
 	const action = g.actions[name];
@@ -23,22 +30,20 @@ async function runAction(name: string, args: Record<string, unknown> = {}): Prom
 	return action.run({ args: args as never, options: {}, json: true });
 }
 
-const EMPTY_INPUT = { args: {}, options: {}, json: true } as const;
-
 beforeEach(() => {
-	cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-req-cache-"));
+	cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-source-cache-"));
 });
 
 afterEach(() => {
 	fs.rmSync(cacheRoot, { recursive: true, force: true });
 });
 
-describe("requirements operator verbs (T3)", () => {
+describe("source operator verbs (generic source:v1)", () => {
 	it("declares an agent-tool + http surface (declare-once projection)", () => {
 		const g = group();
 		if (!isCapabilityGroup(g)) throw new Error("expected a group");
-		expect(g.transports?.agent).toEqual({ tool: true, toolName: "requirements_pull" });
-		expect(g.transports?.http).toEqual({ method: "POST", path: "/requirements" });
+		expect(g.transports?.agent).toEqual({ tool: true, toolName: "source_pull" });
+		expect(g.transports?.http).toEqual({ method: "POST", path: "/source" });
 		expect(Object.keys(g.actions)).toEqual(["pull", "status"]);
 	});
 
@@ -51,7 +56,7 @@ describe("requirements operator verbs (T3)", () => {
 		expect(envelope.status.materialized).toBe(false);
 	});
 
-	it("pull materializes the fixture snapshot offline (deterministic), then status sees it", async () => {
+	it("pull materializes the snapshot offline (deterministic), then status sees it", async () => {
 		const pulled = (await runAction("pull")) as {
 			ok: boolean;
 			action: string;
@@ -68,7 +73,6 @@ describe("requirements operator verbs (T3)", () => {
 		// The snapshot actually landed under the cache root.
 		expect(fs.existsSync(path.join(pulled.location.path, "snapshot.json"))).toBe(true);
 
-		// status now reflects the materialized snapshot.
 		const status = (await runAction("status")) as {
 			status: { materialized: boolean };
 		};
@@ -78,26 +82,19 @@ describe("requirements operator verbs (T3)", () => {
 	it("a second pull reuses the snapshot (idempotent, deterministic)", async () => {
 		await runAction("pull");
 		const again = (await runAction("pull")) as { action: string };
-		// offline + existing snapshot → noop (no re-materialize).
-		expect(again.action).toBe("noop");
+		expect(again.action).toBe("noop"); // offline + existing snapshot → noop
 	});
 
-	it("the default (no ref) verb is status (read-only) — a bare group never mutates", () => {
+	it("the default (bare) verb is status (read-only) — never mutates", () => {
 		const g = group();
 		if (!isCapabilityGroup(g)) throw new Error("expected a group");
 		expect(g.defaultAction).toBe("status");
 	});
 
-	// The input shape the surface hands run() — args/options/json — is honored.
-	it("accepts an explicit ref argument", async () => {
+	it("the ref is a required argument (the caller supplies it, refarm has no default)", () => {
 		const g = group();
 		if (!isCapabilityGroup(g)) throw new Error("expected a group");
-		const status = g.actions.status;
-		if (!status) throw new Error("no status action");
-		const envelope = (await status.run({
-			...EMPTY_INPUT,
-			args: { ref: "web:requirements-fixture" },
-		})) as unknown as { ref: string };
-		expect(envelope.ref).toBe("web:requirements-fixture");
+		const pull = g.actions.pull;
+		expect(pull?.args?.[0]).toEqual({ name: "ref", required: true });
 	});
 });

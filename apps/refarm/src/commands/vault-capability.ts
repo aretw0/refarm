@@ -9,8 +9,8 @@ import {
 } from "@refarm.dev/cli/json-output";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import {
-	createReferenceRecordsFixture,
 	stringifyRecordsYamlLdFrontMatter,
+	type RecordsManifest,
 } from "@refarm.dev/records-contract-v1";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -45,6 +45,11 @@ export interface VaultCommandDeps {
 	submitEffort: (effort: Effort) => Promise<string>;
 	/** A UUID source for effort/task ids — injectable for deterministic tests. */
 	newId: () => string;
+	/** OPTIONAL seed for `vault init`: the records to render into the fresh vault as
+	 * markdown. INJECTED by the caller — refarm ships NO seed content (that would be
+	 * domain vocabulary). Absent → `init` creates an empty vault. A work app supplies
+	 * its own seed (e.g. a starter template) here. */
+	seed?: () => RecordsManifest;
 }
 
 export function defaultVaultDeps(): VaultCommandDeps {
@@ -175,13 +180,13 @@ export function createVaultCapabilityGroup(
 	const init: CapabilityDescriptor = {
 		name: "init",
 		summary:
-			"Start a notes vault from 0 — seed a directory with Obsidian-ready records",
+			"Initialize a records vault at a path — empty, or seeded via an injected seed",
 		args: [{ name: "dir", required: true }],
 		options: [
 			{
 				name: "empty",
 				kind: "boolean",
-				summary: "Create the vault empty (skip the seed records)",
+				summary: "Create the vault empty (skip the injected seed)",
 			},
 		],
 		async run(input): Promise<CapabilityEnvelope> {
@@ -199,11 +204,11 @@ export function createVaultCapabilityGroup(
 				await mkdir(dir, { recursive: true });
 
 				const seeded: string[] = [];
-				if (input.options.empty !== true) {
-					// Seed with the reference records rendered as Obsidian markdown
-					// (YAML-LD front matter + body) — the vault IS just markdown files a
-					// user opens in their own Obsidian; no plugin code, secrecy-safe.
-					const manifest = createReferenceRecordsFixture();
+				// Seed content is INJECTED (deps.seed), never baked in — refarm ships no
+				// seed vocabulary. Each record renders as a markdown file (YAML-LD front
+				// matter + body): a vault IS just markdown files, opened in any editor.
+				if (input.options.empty !== true && deps.seed) {
+					const manifest = deps.seed();
 					for (const record of manifest.records) {
 						const body =
 							record.sections?.map((s) => s.content).join("\n\n") ?? "";
@@ -217,8 +222,8 @@ export function createVaultCapabilityGroup(
 				return buildJsonSuccessEnvelope({
 					command: "vault",
 					operation: "init",
-					nextCommand: "requirements pull",
-					nextCommands: ["requirements pull", "records list"],
+					nextCommand: "vault list",
+					nextCommands: ["vault list"],
 					extra: {
 						dir,
 						empty: input.options.empty === true,
@@ -241,7 +246,7 @@ export function createVaultCapabilityGroup(
 
 	return {
 		name: "vault",
-		summary: "Inspect and dispatch vault:v1 verbs, and init a notes vault",
+		summary: "Inspect and dispatch vault:v1 verbs, and init a records vault",
 		actions: { list, show, dispatch, init },
 		defaultAction: "list",
 		transports: {

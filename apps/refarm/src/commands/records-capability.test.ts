@@ -1,29 +1,93 @@
 import { isCapabilityGroup } from "@refarm.dev/cli/capabilities";
+import {
+	computeRecordContentHash,
+	type RecordsManifest,
+} from "@refarm.dev/records-contract-v1";
 import { describe, expect, it } from "vitest";
 
-import { createRecordsCapabilityGroup } from "./records-capability.js";
+import {
+	createRecordsCapabilityGroup,
+	defaultRecordsDeps,
+	type RecordsCommandDeps,
+} from "./records-capability.js";
 
-function group() {
+/** A caller-supplied manifest — refarm ships none. The records carry an
+ * `externalKey` the reference enrichment fixture (`REQ-1`/`REQ-2`) matches on, so
+ * enrichment produces changes. The KEY is the caller's data, not refarm vocabulary. */
+function injectedManifest(): RecordsManifest {
+	const records = [
+		{
+			id: "record:one",
+			schemaVersion: 1,
+			"@type": ["KnowledgeRecord"],
+			"@context": "https://refarm.dev/contexts/records/v1",
+			fields: { title: "One", externalKey: "REQ-1" },
+			review: { state: "draft", at: "2026-06-30T00:00:00.000Z" },
+			contentHash: "",
+		},
+		{
+			id: "record:two",
+			schemaVersion: 1,
+			"@type": ["KnowledgeRecord"],
+			"@context": "https://refarm.dev/contexts/records/v1",
+			fields: { title: "Two", externalKey: "REQ-2" },
+			review: { state: "reviewed", at: "2026-06-30T00:00:00.000Z" },
+			contentHash: "",
+		},
+	].map((record) => ({ ...record, contentHash: computeRecordContentHash(record) }));
+	return { manifestVersion: 1, records } as unknown as RecordsManifest;
+}
+
+/** A group over an INJECTED manifest — the way a work app wires it. refarm ships no
+ * records, so the mechanism is exercised over a caller-supplied manifest. */
+function seededGroup(overrides: Partial<RecordsCommandDeps> = {}) {
+	const deps: RecordsCommandDeps = {
+		...defaultRecordsDeps(),
+		loadManifest: injectedManifest,
+		...overrides,
+	};
+	const g = createRecordsCapabilityGroup(deps);
+	if (!isCapabilityGroup(g)) throw new Error("expected a group");
+	return g;
+}
+
+/** The bare group with refarm's NEUTRAL default deps — no manifest injected. */
+function defaultGroup() {
 	const g = createRecordsCapabilityGroup();
 	if (!isCapabilityGroup(g)) throw new Error("expected a group");
 	return g;
 }
 
-async function run(name: string, options: Record<string, unknown> = {}): Promise<unknown> {
-	const action = group().actions[name];
+async function run(
+	name: string,
+	options: Record<string, unknown> = {},
+	makeGroup = seededGroup,
+): Promise<unknown> {
+	const action = makeGroup().actions[name];
 	if (!action) throw new Error(`no action ${name}`);
 	return action.run({ args: {}, options: options as never, json: true });
 }
 
-describe("records operator verbs (T3)", () => {
+describe("records operator verbs (generic records:v1)", () => {
 	it("declares an agent-tool + http surface (declare-once projection)", () => {
-		const g = group();
+		const g = seededGroup();
 		expect(g.transports?.agent).toEqual({ tool: true, toolName: "records_enrich" });
 		expect(g.transports?.http).toEqual({ method: "POST", path: "/records" });
 		expect(g.defaultAction).toBe("list"); // read-only default
 	});
 
-	it("lists the notes-box records with their review states", async () => {
+	it("the neutral default carries NO records — refarm ships no domain manifest", async () => {
+		const action = defaultGroup().actions.list;
+		if (!action) throw new Error("no list action");
+		const envelope = (await action.run({ args: {}, options: {}, json: true })) as unknown as {
+			ok: boolean;
+			count: number;
+		};
+		expect(envelope.ok).toBe(true);
+		expect(envelope.count).toBe(0);
+	});
+
+	it("lists the injected manifest's records with their review states", async () => {
 		const envelope = (await run("list")) as {
 			ok: boolean;
 			count: number;
@@ -47,7 +111,7 @@ describe("records operator verbs (T3)", () => {
 		expect(envelope.ok).toBe(true);
 		expect(envelope.mode).toBe("dry-run"); // default is dry-run — no writes
 		expect(envelope.selected).toBeGreaterThan(0);
-		// The reference enrichment changes at least one record (the CNPJ-shaped fixture).
+		// The reference enrichment changes at least one record in the injected fixture.
 		expect(envelope.changedRecordIds.length).toBeGreaterThan(0);
 		// The enriched manifest still validates against records:v1 — enrichment is
 		// consumer-owned but must not break the schema.

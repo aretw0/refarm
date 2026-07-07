@@ -121,7 +121,7 @@ describe("vault CapabilityGroup", () => {
 		const resolved = resolveGroupAction(group, [
 			"dispatch",
 			"extract",
-			"20-Projects/demanda-42.md",
+			"20-Projects/note-42.md",
 		]);
 		const env = (await resolved!.action.run(resolved!.input)) as unknown as {
 			ok: boolean;
@@ -141,7 +141,7 @@ describe("vault CapabilityGroup", () => {
 		expect(task.fn).toBe("extract");
 		expect((task.args as { replyRef: string }).replyRef).toBe(env.effortId);
 		expect((task.args as { note: { path: string } }).note.path).toBe(
-			"20-Projects/demanda-42.md",
+			"20-Projects/note-42.md",
 		);
 	});
 
@@ -158,7 +158,7 @@ describe("vault CapabilityGroup", () => {
 	});
 });
 
-describe("vault init — start a notes vault from 0 (T3)", () => {
+describe("vault init — initialize a records vault (seed is INJECTED, not baked)", () => {
 	const dirs: string[] = [];
 	function tempDir(): string {
 		const base = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-vault-init-"));
@@ -169,20 +169,38 @@ describe("vault init — start a notes vault from 0 (T3)", () => {
 		for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
 	});
 
+	// A caller-supplied seed — refarm ships none; the app (or a test) injects it.
+	function seededManifest() {
+		return {
+			schemaVersion: 1,
+			records: [
+				{
+					id: "record:starter",
+					schemaVersion: 1,
+					"@type": ["KnowledgeRecord"],
+					"@context": "https://refarm.dev/contexts/records/v1",
+					fields: { title: "Starter" },
+					sections: [{ key: "description", content: "A seeded starter note." }],
+				},
+			],
+		} as unknown as ReturnType<NonNullable<VaultCommandDeps["seed"]>>;
+	}
+
 	async function runInit(
 		dir: string,
 		options: Record<string, unknown> = {},
+		seed?: VaultCommandDeps["seed"],
 	): Promise<unknown> {
-		const group = createVaultCapabilityGroup(deps());
+		const group = createVaultCapabilityGroup({ ...deps(), seed });
 		if (!isCapabilityGroup(group)) throw new Error("expected a group");
 		const init = group.actions.init;
 		if (!init) throw new Error("no init action");
 		return init.run({ args: { dir }, options: options as never, json: true });
 	}
 
-	it("seeds a vault with the reference records as Obsidian markdown", async () => {
+	it("seeds the vault from the INJECTED seed, rendered as markdown", async () => {
 		const dir = tempDir();
-		const envelope = (await runInit(dir)) as {
+		const envelope = (await runInit(dir, {}, seededManifest)) as {
 			ok: boolean;
 			seededCount: number;
 			seededFiles: string[];
@@ -201,15 +219,24 @@ describe("vault init — start a notes vault from 0 (T3)", () => {
 		expect(record["@type"]).toContain("KnowledgeRecord");
 	});
 
-	it("creates an empty vault with --empty (no seed files)", async () => {
+	it("creates an EMPTY vault when no seed is injected (refarm ships no seed)", async () => {
 		const dir = tempDir();
-		const envelope = (await runInit(dir, { empty: true })) as {
+		// No seed passed — refarm's default carries no domain content.
+		const envelope = (await runInit(dir)) as { ok: boolean; seededCount: number };
+		expect(envelope.ok).toBe(true);
+		expect(envelope.seededCount).toBe(0);
+		expect(fs.existsSync(dir)).toBe(true);
+		expect(fs.readdirSync(dir)).toEqual([]);
+	});
+
+	it("--empty skips even an injected seed", async () => {
+		const dir = tempDir();
+		const envelope = (await runInit(dir, { empty: true }, seededManifest)) as {
 			ok: boolean;
 			seededCount: number;
 		};
 		expect(envelope.ok).toBe(true);
 		expect(envelope.seededCount).toBe(0);
-		expect(fs.existsSync(dir)).toBe(true);
 		expect(fs.readdirSync(dir)).toEqual([]);
 	});
 

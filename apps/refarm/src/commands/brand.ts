@@ -3,7 +3,7 @@ import { resolveRefarmVersion } from "./runtime-metadata.js";
 export type RefarmLaunchExperience = "web" | "tui";
 
 /** The default brand shown in the launch banner. White-label overrides it via
- * `REFARM_BRAND_NAME` (uppercased for the banner) — the SERPRO POCs run under a
+ * `REFARM_BRAND_NAME` (uppercased for the banner) — a white-label deployment runs under a
  * neutral brand so a judge never sees the upstream name. Mirrors the
  * `<BINARY>_COMMAND` override precedent for handoff strings. */
 const DEFAULT_BRAND_NAME = "REFARM";

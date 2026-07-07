@@ -38,7 +38,7 @@ import {
 	skillCapabilityHooks,
 } from "./skill-capability.js";
 import { createRecordsCapabilityGroup } from "./records-capability.js";
-import { createRequirementsCapabilityGroup } from "./requirements-capability.js";
+import { createSourceCapabilityGroup } from "./source-capability.js";
 import { createThemeCapabilityGroup } from "./theme-capability.js";
 import { createVaultCapabilityGroup } from "./vault-capability.js";
 
@@ -68,7 +68,7 @@ const BUILTIN_CAPABILITIES: BuiltinCapability[] = [
 	{ entry: createSkillCapabilityGroup(), hooksFor: skillCapabilityHooks },
 	{ entry: createThemeCapabilityGroup(), hooksFor: () => ({}) },
 	{ entry: createVaultCapabilityGroup(), hooksFor: () => ({}) },
-	{ entry: createRequirementsCapabilityGroup(), hooksFor: () => ({}) },
+	{ entry: createSourceCapabilityGroup(), hooksFor: () => ({}) },
 	{ entry: createRecordsCapabilityGroup(), hooksFor: () => ({}) },
 ];
 

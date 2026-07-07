@@ -18,45 +18,42 @@ import path from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 
 /**
- * `requirements` — the T3 operator surface: pull requirements from a source, the
- * first step of the notes-box workflow (vault from 0 → pull requirements → correct
- * → enrich). Declared ONCE as a CapabilityGroup, so it lights up on CLI, the REPL
- * `/requirements` slash, HTTP (via `serve`), and — because it opts into
- * `transports.agent.tool` — the agent can pull requirements as a tool too.
+ * `source` — the generic source:v1 operator surface: materialize a source into a
+ * local snapshot, and inspect it. This is a NEUTRAL block: it wraps an injected
+ * source:v1 provider and shapes the provenance envelope. It carries NO domain
+ * vocabulary — a work app supplies the ref, the fixtures, and (via a real provider)
+ * the authenticated source; refarm only knows "materialize a source, report its
+ * provenance".
  *
- * The compute is the ALREADY-PROVEN source:v1 provider (packages/source-web),
- * exercised end-to-end in scripts/ci/requirements-supply-composition.mjs. This wraps
- * it as a runnable verb — no new scraping logic. The reference/fixture provider is
- * deterministic (the artifact exists before the run), and the real SERPRO source
- * (login + ALM scraping) is a downstream provider swap, not a change here.
+ * Declared once → CLI, REPL `/source`, HTTP `POST /source`, and the agent tool
+ * `source_pull`.
  */
 
-export interface RequirementsCommandDeps {
-	/** The source provider to pull from. Injected so the verb is testable + the real
-	 * SERPRO provider swaps in downstream without touching this host code. */
+export interface SourceCommandDeps {
+	/** The source provider to materialize from. Injected so the verb is testable and
+	 * a real (authenticated) provider swaps in without touching this host code. */
 	sourceProvider: WebSourceProvider;
 }
 
-/** Default deps: a web source provider caching under the refarm home so a pulled
- * snapshot persists between runs (the operator can `status` it later). */
-export function defaultRequirementsDeps(): RequirementsCommandDeps {
+/** Default deps: a web source provider caching under the refarm home so a
+ * materialized snapshot persists between runs. */
+export function defaultSourceDeps(): SourceCommandDeps {
 	let cacheRoot: string;
 	try {
-		cacheRoot = path.join(resolveRefarmHome(), "requirements-cache");
+		cacheRoot = path.join(resolveRefarmHome(), "source-cache");
 	} catch {
-		cacheRoot = mkdtempSync(path.join(os.tmpdir(), "refarm-requirements-"));
+		cacheRoot = mkdtempSync(path.join(os.tmpdir(), "refarm-source-"));
 	}
 	return { sourceProvider: createWebSourceProvider({ cacheRoot }) };
 }
 
-export function createRequirementsCapabilityGroup(
-	deps: RequirementsCommandDeps = defaultRequirementsDeps(),
+export function createSourceCapabilityGroup(
+	deps: SourceCommandDeps = defaultSourceDeps(),
 ): CapabilityGroup {
 	const pull: CapabilityDescriptor = {
 		name: "pull",
-		summary:
-			"Pull requirements from a source into the vault (offline/fixture by default)",
-		args: [{ name: "ref", required: false }],
+		summary: "Materialize a source into a local snapshot (offline replay by default)",
+		args: [{ name: "ref", required: true }],
 		options: [
 			{
 				name: "online",
@@ -70,8 +67,7 @@ export function createRequirementsCapabilityGroup(
 			},
 		],
 		async run(input): Promise<CapabilityEnvelope> {
-			const ref =
-				(input.args.ref as string | undefined) ?? "web:requirements-fixture";
+			const ref = input.args.ref as string;
 			const offline = input.options.online !== true;
 			try {
 				const result = await deps.sourceProvider.materialize(ref, {
@@ -82,10 +78,10 @@ export function createRequirementsCapabilityGroup(
 				// same audit data materialize carries — session/cache/redaction.
 				const provenance = await deps.sourceProvider.snapshotProvenance(ref);
 				return buildJsonSuccessEnvelope({
-					command: "requirements",
+					command: "source",
 					operation: "pull",
-					nextCommand: "requirements status",
-					nextCommands: ["requirements status", "records enrich"],
+					nextCommand: "source status",
+					nextCommands: ["source status"],
 					extra: {
 						ref,
 						providerId: deps.sourceProvider.pluginId,
@@ -108,12 +104,12 @@ export function createRequirementsCapabilityGroup(
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				return buildJsonErrorEnvelope({
-					command: "requirements",
+					command: "source",
 					operation: "pull",
-					error: "requirements_pull_failed",
+					error: "source_pull_failed",
 					message,
 					nextAction:
-						"Check the source ref; the default `web:requirements-fixture` replays offline.",
+						"Pass a source ref the injected provider understands, e.g. an offline-replayable fixture ref.",
 				});
 			}
 		},
@@ -121,14 +117,13 @@ export function createRequirementsCapabilityGroup(
 
 	const status: CapabilityDescriptor = {
 		name: "status",
-		summary: "Show whether a requirements source has been pulled + its snapshot state",
-		args: [{ name: "ref", required: false }],
+		summary: "Show whether a source has been materialized + its snapshot state",
+		args: [{ name: "ref", required: true }],
 		async run(input): Promise<CapabilityEnvelope> {
-			const ref =
-				(input.args.ref as string | undefined) ?? "web:requirements-fixture";
+			const ref = input.args.ref as string;
 			const state = await deps.sourceProvider.status(ref);
 			return buildJsonSuccessEnvelope({
-				command: "requirements",
+				command: "source",
 				operation: "status",
 				extra: { ref, providerId: deps.sourceProvider.pluginId, status: state },
 			});
@@ -136,19 +131,19 @@ export function createRequirementsCapabilityGroup(
 	};
 
 	return {
-		name: "requirements",
-		summary: "Pull and inspect requirements sources for the notes box (T3)",
+		name: "source",
+		summary: "Materialize and inspect source:v1 snapshots",
 		actions: { pull, status },
 		defaultAction: "status",
 		transports: {
 			cli: {},
 			repl: {},
-			http: { method: "POST", path: "/requirements" },
-			// A read step the agent can drive as a tool: pulling requirements widens
-			// REACH (the agent can seed the vault), the reference provider is
-			// side-effect-honest (offline fixture materialize), no shell/network power.
-			agent: { tool: true, toolName: "requirements_pull" },
+			http: { method: "POST", path: "/source" },
+			// A read step the agent can drive as a tool: materializing a source widens
+			// REACH (the agent can seed from a source), the provider is
+			// side-effect-honest (offline replay), no shell/network power of its own.
+			agent: { tool: true, toolName: "source_pull" },
 		},
-		renderers: { tui: { section: "notes-box" } },
+		renderers: { tui: { section: "sources" } },
 	};
 }

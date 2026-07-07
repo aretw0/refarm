@@ -9,28 +9,30 @@ import {
 } from "@refarm.dev/cli/json-output";
 import {
 	computeRecordContentHash,
-	createReferenceRecordsFixture,
 	createReferenceRecordsProvider,
+	type RecordsManifest,
 } from "@refarm.dev/records-contract-v1";
 import { createReferenceEnrichmentProvider } from "@refarm.dev/enrichment-contract-v1";
 
 /**
- * `records` — the T3 operator surface for the record layer: enrich (and later
- * correct) the KnowledgeRecords in the notes box. This wraps the ALREADY-PROVEN
- * records:v1 + enrichment:v1 composition (scripts/ci/requirements-supply-
- * composition.mjs) as a runnable verb: select the enrichable records, run the
- * reference enrichment (CNPJ-shaped, dry-run), apply the changes back, and
- * re-validate. The reference providers are deterministic (the demo artifact exists
- * before the run); the real CNPJ lookup is a downstream provider swap.
+ * `records` — the generic records:v1 operator surface: enrich (and inspect) a
+ * records manifest via an injected enrichment provider, then re-validate. A NEUTRAL
+ * block: it wraps the records:v1 + enrichment:v1 contracts and carries NO domain
+ * vocabulary — a work app injects the manifest to enrich AND the enrichment provider
+ * (a real lookup swaps in for the reference one). refarm only knows
+ * "enrich records via a provider, re-validate, don't break the schema".
  *
  * Declared once → CLI, REPL `/records`, HTTP `POST /records`, and the agent tool
  * `records_enrich`.
  */
 
-// Loosely-typed views of the contract shapes — this host coordinates them, it does
-// not own their schemas (the contracts do).
-type RecordsManifest = ReturnType<typeof createReferenceRecordsFixture>;
 type ManifestRecord = RecordsManifest["records"][number];
+
+/** An empty records manifest — the neutral default when no work manifest is
+ * injected. refarm ships no domain records. */
+function emptyRecordsManifest(): RecordsManifest {
+	return { manifestVersion: 1, records: [] };
+}
 
 /** Apply an enrichment result back onto a records manifest: for each record with
  * accepted changes, merge the new field values, record provenance, and recompute
@@ -73,12 +75,13 @@ export interface RecordsCommandDeps {
 	recordsProvider: ReturnType<typeof createReferenceRecordsProvider>;
 }
 
-/** Default deps: the reference records fixture + the reference (CNPJ-shaped)
- * enrichment provider. Injected so a real source manifest + a real CNPJ provider
- * swap in downstream without touching this host code. */
+/** Default deps: an EMPTY manifest + the reference enrichment/records providers.
+ * refarm ships no domain records — a work app injects its manifest + (for real
+ * enrichment) its own provider. The reference providers are deterministic, so the
+ * mechanism is exercisable without a work app. */
 export function defaultRecordsDeps(): RecordsCommandDeps {
 	return {
-		loadManifest: createReferenceRecordsFixture,
+		loadManifest: emptyRecordsManifest,
 		enrichmentProvider: createReferenceEnrichmentProvider(),
 		recordsProvider: createReferenceRecordsProvider(),
 	};
@@ -90,7 +93,7 @@ export function createRecordsCapabilityGroup(
 	const enrich: CapabilityDescriptor = {
 		name: "enrich",
 		summary:
-			"Enrich the notes-box records (CNPJ-shaped, dry-run) and re-validate",
+			"Enrich a records manifest via the injected provider (dry-run) and re-validate",
 		options: [
 			{
 				name: "apply",
@@ -112,7 +115,7 @@ export function createRecordsCapabilityGroup(
 						externalKey:
 							typeof record.fields.externalKey === "string"
 								? record.fields.externalKey
-								: `REQ-${index + 1}`,
+								: `rec-${index + 1}`,
 					},
 					sourceRef: record.sourceRefs?.[0],
 				}));
@@ -150,7 +153,7 @@ export function createRecordsCapabilityGroup(
 					operation: "enrich",
 					error: "records_enrich_failed",
 					message,
-					nextAction: "Ensure records are pulled first (`requirements pull`).",
+					nextAction: "Inject a records manifest to enrich, or pull a source first (`source pull`).",
 				});
 			}
 		},
@@ -158,7 +161,7 @@ export function createRecordsCapabilityGroup(
 
 	const list: CapabilityDescriptor = {
 		name: "list",
-		summary: "List the notes-box records and their review states",
+		summary: "List the records and their review states",
 		run(): CapabilityEnvelope {
 			const manifest = deps.loadManifest();
 			return buildJsonSuccessEnvelope({
@@ -179,7 +182,7 @@ export function createRecordsCapabilityGroup(
 
 	return {
 		name: "records",
-		summary: "Inspect and enrich the notes-box records (T3)",
+		summary: "Inspect and enrich a records:v1 manifest",
 		actions: { list, enrich },
 		defaultAction: "list",
 		transports: {
@@ -190,6 +193,6 @@ export function createRecordsCapabilityGroup(
 			// tool. Read/compute by default (dry-run); --apply is the operator's call.
 			agent: { tool: true, toolName: "records_enrich" },
 		},
-		renderers: { tui: { section: "notes-box" } },
+		renderers: { tui: { section: "records" } },
 	};
 }
