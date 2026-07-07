@@ -18,6 +18,16 @@ export {
 	type OpenAiToolSchema,
 	type ToolParameterSchema,
 } from "./agent-projector.js";
+export {
+	capabilityCliCommands,
+	capabilityCliCommandsForGroup,
+	capabilityToCliCommand,
+	renderCapabilityError,
+	toCommanderCommand,
+	toCommanderGroup,
+	type CapabilityHooksResolver,
+	type CapabilitySurfaceHooks,
+} from "./cli-projector.js";
 export { parseCapabilityArgv } from "./parse-argv.js";
 export {
 	resolveGroupAction,

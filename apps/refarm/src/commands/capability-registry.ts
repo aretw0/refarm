@@ -1,18 +1,15 @@
 import {
+	capabilityCliCommands as projectCliCommands,
+	capabilityCliCommandsForGroup as projectCliCommandsForGroup,
 	createCapabilityRegistry,
-	isCapabilityGroup,
 	type CapabilityDescriptor,
 	type CapabilityEntry,
 	type CapabilityGroup,
+	type CapabilitySurfaceHooks,
 } from "@refarm.dev/cli/capabilities";
 import { RESERVED_SLASH_NAMES } from "@refarm.dev/cli/chat-repl";
 import type { Command } from "commander";
 
-import {
-	toCommanderCommand,
-	toCommanderGroup,
-	type CapabilitySurfaceHooks,
-} from "./capability-commander.js";
 import { createDispatchCapability } from "./dispatch-capability.js";
 import { registerPluginCapabilities } from "./plugin-descriptor-adapter.js";
 import { readInstalledPluginManifests } from "./plugin-shared.js";
@@ -87,6 +84,15 @@ export const capabilityRegistry = createCapabilityRegistry(
 	RESERVED_SLASH_NAMES,
 );
 
+/** The refarm built-in capability ENTRIES — exposed so an external white-label app
+ * can compose them with its OWN verbs into a single registry
+ * (`createCapabilityRegistry([...refarmBuiltinCapabilities(), ...myVerbs])`) and
+ * project a CLI via the shared `capabilityCliCommands`. This is the two-layer seam:
+ * refarm supplies the neutral blocks; the app supplies the work-specific. */
+export function refarmBuiltinCapabilities(): CapabilityEntry[] {
+	return BUILTIN_CAPABILITIES.map((c) => c.entry as CapabilityEntry);
+}
+
 // Register-at-load: every installed plugin that declares a dispatchable verb surfaces
 // it into the SAME registry, so a plugin capability projects to CLI/REPL/TUI/HTTP like
 // a built-in. Best-effort + collision-safe (a plugin verb clashing with a built-in is
@@ -136,20 +142,6 @@ export function capabilitySlashNames(): ReadonlySet<string> {
 	);
 }
 
-/** Project ONE registered capability entry into a commander Command, wiring the
- * same surface hooks the REPL uses. A group binds each sub-action's hooks by the
- * composite `"<group> <sub>"` key; a flat descriptor binds by its own name. */
-function toCliCommand(
-	entry: CapabilityDescriptor | CapabilityGroup,
-): Command {
-	if (isCapabilityGroup(entry)) {
-		return toCommanderGroup(entry, (subVerb) =>
-			capabilityHooksFor(`${entry.name} ${subVerb}`),
-		);
-	}
-	return toCommanderCommand(entry, capabilityHooksFor(entry.name));
-}
-
 /**
  * The TOP-LEVEL CLI commands derived from the capability registry — the CLI's
  * half of the declare-once projection (the REPL already derives its slashes from
@@ -165,14 +157,7 @@ function toCliCommand(
  *     too (the verb reachable as both `<bin> <group> <verb>` and `<bin> <verb>`).
  */
 export function capabilityCliCommands(): Command[] {
-	return capabilityRegistry
-		.list()
-		.filter(
-			(entry) =>
-				entry.transports?.cli?.group === undefined ||
-				entry.transports?.cli?.directAlias === true,
-		)
-		.map(toCliCommand);
+	return projectCliCommands(capabilityRegistry.list(), capabilityHooksFor);
 }
 
 /**
@@ -183,10 +168,11 @@ export function capabilityCliCommands(): Command[] {
  * under its parent from ONE declaration.
  */
 export function capabilityCliCommandsForGroup(groupName: string): Command[] {
-	return capabilityRegistry
-		.list()
-		.filter((entry) => entry.transports?.cli?.group === groupName)
-		.map(toCliCommand);
+	return projectCliCommandsForGroup(
+		capabilityRegistry.list(),
+		groupName,
+		capabilityHooksFor,
+	);
 }
 
 /** One capability verb projected onto a TUI menu — the `renderers.tui` hint plus
