@@ -59,4 +59,12 @@ export {
 	renderWebUi,
 	serveWebUi,
 	type WebUiOptions,
+	type SendPrompt,
 } from "./web-ui.js";
+export {
+	runTui,
+	renderTuiMenu,
+	handleTuiLine,
+	type TuiOptions,
+	type TuiLineResult,
+} from "./tui.js";
