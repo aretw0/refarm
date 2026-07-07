@@ -81,12 +81,17 @@ export function buildExtensionReviewReport(
 	});
 	const readyToInstall =
 		decision.status === "completed" && decision.manifestValid;
+	// The handoff points at installing WHAT WAS REVIEWED (this path, with the same
+	// grants), not the bundled set — the review→install loop is closed. When a grant
+	// is still missing, the next step is to re-review with it granted.
+	const grantFlags = input.grantedCapabilities
+		.map((cap) => `--grant ${cap}`)
+		.join(" ");
+	const installHandoff = `extension install ${manifestPath}${grantFlags ? ` ${grantFlags}` : ""}`;
 	return buildJsonSuccessEnvelope({
 		command: "extension",
 		operation: "review",
-		nextCommands: readyToInstall
-			? ["refarm plugin install", "refarm resume --json"]
-			: [],
+		nextCommands: readyToInstall ? [installHandoff, "resume --json"] : [],
 		extra: {
 			manifestPath,
 			grantedCapabilities: input.grantedCapabilities,
