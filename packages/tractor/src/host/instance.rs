@@ -122,6 +122,11 @@ pub struct PluginInstanceHandle {
     /// register_for_events passes it to the registry so `list-tool-prompts` returns
     /// plugin-authored guidance instead of host boilerplate.
     pub verb_docs: std::collections::HashMap<String, String>,
+    /// Verbs the plugin serves SYNCHRONOUSLY via `respond` (`capabilities.syncVerbs`,
+    /// a subset of `provides`). Defaults empty (async-only); set via `with_sync_verbs`.
+    /// The host consults `serves_sync` before a synchronous respond dispatch — ADR-084's
+    /// negotiated flag enforced host-side.
+    pub sync_verbs: Vec<String>,
     inner: PluginImpl,
     telemetry: TelemetryBus,
     /// Shared with the store's epoch_deadline_callback. Exposes the cancel flag
@@ -165,6 +170,7 @@ impl PluginInstanceHandle {
             concurrent_safe: false,
             requires_api: Vec::new(),
             verb_docs: std::collections::HashMap::new(),
+            sync_verbs: Vec::new(),
             inner: PluginImpl::Component { plugin, store },
             telemetry,
             epoch_guard,
@@ -190,6 +196,7 @@ impl PluginInstanceHandle {
             concurrent_safe: false,
             requires_api: Vec::new(),
             verb_docs: std::collections::HashMap::new(),
+            sync_verbs: Vec::new(),
             inner: PluginImpl::Module { instance, store },
             telemetry,
             epoch_guard,
@@ -240,6 +247,22 @@ impl PluginInstanceHandle {
     ) -> Self {
         self.verb_docs = verb_docs;
         self
+    }
+
+    /// Attach the manifest's `capabilities.syncVerbs` — the verbs this plugin serves
+    /// synchronously via `respond`. Builder-style, mirroring with_subscribes. The host
+    /// consults this before dispatching a synchronous respond (a verb absent here is
+    /// async-only). Empty means the plugin serves nothing synchronously.
+    pub(crate) fn with_sync_verbs(mut self, sync_verbs: Vec<String>) -> Self {
+        self.sync_verbs = sync_verbs;
+        self
+    }
+
+    /// Whether the plugin declared `verb` (a `<key>:<verb>` string) as synchronous.
+    /// The host's not-supported guard: a respond dispatch to a verb not listed here is
+    /// refused cleanly, never a hung async-only call.
+    pub fn serves_sync(&self, verb: &str) -> bool {
+        self.sync_verbs.iter().any(|v| v == verb)
     }
 
     fn emit_lifecycle_event(

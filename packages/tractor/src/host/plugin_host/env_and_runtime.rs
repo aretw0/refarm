@@ -553,6 +553,14 @@ struct RuntimePluginCapabilities {
     /// so a plugin author teaches the agent how to use its tool. Optional + additive.
     #[serde(default, rename = "verbDocs")]
     verb_docs: std::collections::HashMap<String, String>,
+    /// The verbs (`<key>:<verb>`, a subset of `provides`) this plugin serves
+    /// SYNCHRONOUSLY via `respond` (ADR-084's negotiated sync flag). The host
+    /// dispatches a synchronous respond ONLY to a verb listed here; a verb absent
+    /// from this list stays async-default (driven via `on-event`), and a caller
+    /// requesting sync for it gets a clean not-supported instead of a hung call.
+    /// Optional + additive; empty means the plugin is async-only.
+    #[serde(default, rename = "syncVerbs")]
+    sync_verbs: Vec<String>,
     /// Whether the plugin is safe to drive concurrently — i.e. its on_event is
     /// STATELESS across events (all state lives in the shared graph, nothing is
     /// retained in the guest's own linear memory between calls). Only such a
@@ -1186,7 +1194,7 @@ impl PluginHost {
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, linker).await?;
 
-        let (provides, subscribes, concurrent_safe, requires_api, verb_docs) = if let Some(
+        let (provides, subscribes, concurrent_safe, requires_api, verb_docs, sync_verbs) = if let Some(
             manifest,
         ) =
             manifest.as_ref()
@@ -1212,6 +1220,7 @@ impl PluginHost {
                 manifest.capabilities.concurrent_safe,
                 manifest.capabilities.requires_api.clone(),
                 manifest.capabilities.verb_docs.clone(),
+                manifest.capabilities.sync_verbs.clone(),
             )
         } else {
             tracing::warn!(
@@ -1219,7 +1228,7 @@ impl PluginHost {
                 path = %path.display(),
                 "plugin manifest not found near wasm; skipping manifest/runtime alignment checks"
             );
-            (vec![], vec![], false, vec![], std::collections::HashMap::new())
+            (vec![], vec![], false, vec![], std::collections::HashMap::new(), vec![])
         };
 
         let mut handle = PluginInstanceHandle::new_component(
@@ -1233,6 +1242,7 @@ impl PluginHost {
         .with_concurrent_safe(concurrent_safe)
         .with_requires_api(requires_api)
         .with_verb_docs(verb_docs)
+        .with_sync_verbs(sync_verbs)
         .with_on_event_budget_ms(self.on_event_budget_ms);
         handle.call_setup().await?;
 
