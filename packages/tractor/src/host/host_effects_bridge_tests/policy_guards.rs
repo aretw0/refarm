@@ -877,3 +877,63 @@
         let ok = enforce_trusted_plugin_for_shell_with("any_plugin", Some(&allowed));
         assert!(ok.is_ok());
     }
+
+    // ── approvedPermissions parser (the persona approval loop's config side) ────
+
+    #[test]
+    fn approved_permissions_parse_none_when_unset() {
+        let cfg = serde_json::json!({ "trusted_plugins": ["agent"] });
+        assert!(parse_approved_permissions(&cfg).unwrap().is_none());
+    }
+
+    #[test]
+    fn approved_permissions_parse_maps_plugin_to_capability_set() {
+        let cfg = serde_json::json!({
+            "approvedPermissions": {
+                "@refarm/agent": ["fs:read", "network:outbound"],
+                "@x/tool": ["fs:read"]
+            }
+        });
+        let parsed = parse_approved_permissions(&cfg).unwrap().unwrap();
+        assert_eq!(
+            parsed.get("@refarm/agent").unwrap(),
+            &std::collections::HashSet::from([
+                "fs:read".to_string(),
+                "network:outbound".to_string()
+            ])
+        );
+        assert_eq!(
+            parsed.get("@x/tool").unwrap(),
+            &std::collections::HashSet::from(["fs:read".to_string()])
+        );
+    }
+
+    #[test]
+    fn approved_permissions_empty_list_is_an_empty_set_not_none() {
+        // A plugin approved for [] is DIFFERENT from a plugin absent from the map:
+        // [] scopes it to zero capabilities; absent leaves declared unchanged.
+        let cfg = serde_json::json!({ "approvedPermissions": { "@x/p": [] } });
+        let parsed = parse_approved_permissions(&cfg).unwrap().unwrap();
+        assert!(parsed.get("@x/p").unwrap().is_empty());
+    }
+
+    #[test]
+    fn approved_permissions_blocks_non_object() {
+        let cfg = serde_json::json!({ "approvedPermissions": ["fs:read"] });
+        let err = parse_approved_permissions(&cfg).unwrap_err();
+        assert!(err.contains("must be an object"));
+    }
+
+    #[test]
+    fn approved_permissions_blocks_non_array_value() {
+        let cfg = serde_json::json!({ "approvedPermissions": { "@x/p": "fs:read" } });
+        let err = parse_approved_permissions(&cfg).unwrap_err();
+        assert!(err.contains("values must be arrays"));
+    }
+
+    #[test]
+    fn approved_permissions_blocks_control_characters() {
+        let cfg = serde_json::json!({ "approvedPermissions": { "@x/p": ["fs:\u{7}read"] } });
+        let err = parse_approved_permissions(&cfg).unwrap_err();
+        assert!(err.contains("control characters"));
+    }

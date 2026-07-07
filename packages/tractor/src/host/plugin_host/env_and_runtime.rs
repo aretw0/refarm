@@ -685,6 +685,18 @@ impl PluginHost {
                     tracing::warn!(error = %e, "trusted_plugins config unreadable — treating as deny-all");
                     Some(std::collections::HashSet::new())
                 }),
+            // Approved-capability scoping is additive (it only NARROWS a declared
+            // set), so an unreadable config falls back to None = no scoping (the
+            // declared set stands). A malformed file must not accidentally widen or
+            // silently drop capabilities — leaving declared as-is is the safe,
+            // backward-compatible default; the trusted_plugins gate above still
+            // governs whether the plugin loads at all.
+            approved_permissions_at_boot:
+                crate::host::host_effects_bridge::approved_permissions_from_refarm_config()
+                    .unwrap_or_else(|e| {
+                        tracing::warn!(error = %e, "approvedPermissions config unreadable — no capability scoping applied");
+                        None
+                    }),
             model_route: crate::host::wasi_bridge::ModelRoute::from_env(),
             fallback_route: crate::host::wasi_bridge::ModelRoute::fallback_from_env(),
         })
@@ -701,6 +713,22 @@ impl PluginHost {
         trusted: Option<std::collections::HashSet<String>>,
     ) -> Self {
         self.trusted_plugins_at_boot = trusted;
+        self
+    }
+
+    /// Override the operator-approved capability sets that narrow declared
+    /// permissions at load (the persona approval loop's enforcement half). Default
+    /// (`new`) reads them fs-first from `.refarm/config.json`; this injects them
+    /// explicitly for tests / alternate hosts. `None` = no scoping (declared
+    /// stands); `Some(map)` scopes a plugin present in the map to declared ∩ its
+    /// approved set.
+    pub fn with_approved_permissions(
+        mut self,
+        approved: Option<
+            std::collections::HashMap<String, std::collections::HashSet<String>>,
+        >,
+    ) -> Self {
+        self.approved_permissions_at_boot = approved;
         self
     }
 
@@ -757,6 +785,26 @@ impl PluginHost {
     /// Uses the regular linker: tractor-bridge + host-fs/shell host primitives.
     /// Fase 3 TODO: if `host_effects` is loaded, compose host-fs/shell from it
     /// instead of the host primitive — see HANDOFF.md Tarefa 2B.
+    /// Narrow a plugin's DECLARED permission set to what the operator APPROVED for
+    /// it (declared ∩ approved) — the enforcement half of the persona approval loop.
+    /// Approval is opt-in scoping: if no approvals are configured, or this plugin has
+    /// no approved entry, the declared set stands unchanged (backward-compatible).
+    /// A plugin WITH an approved entry runs with only the intersection, so approving
+    /// fewer capabilities really restricts what the Gate A/B/C enforcement grants.
+    fn scope_to_approved(
+        &self,
+        plugin_id: &str,
+        declared: std::collections::HashSet<String>,
+    ) -> std::collections::HashSet<String> {
+        let Some(approvals) = &self.approved_permissions_at_boot else {
+            return declared;
+        };
+        let Some(approved) = approvals.get(plugin_id) else {
+            return declared;
+        };
+        declared.intersection(approved).cloned().collect()
+    }
+
     /// Whether the sovereign trusted_plugins allowlist admits this plugin to load
     /// under Strict, WITHOUT a per-hash trust grant. Semantics mirror the shell
     /// gate:
@@ -803,8 +851,14 @@ impl PluginHost {
             .as_ref()
             .map(|m| m.permissions.iter().cloned().collect())
             .unwrap_or_default();
+        // The operator-approved capability set NARROWS the declared set (the persona
+        // approval loop): when this plugin has an approved entry, the effective grant
+        // is declared ∩ approved, so approving fewer capabilities actually restricts.
+        // No approvals configured, or this plugin not approved → declared stands
+        // (approval is opt-in scoping, backward-compatible).
+        let effective_permissions = self.scope_to_approved(&plugin_id, declared_permissions);
         let permission_grant = crate::host::wasi_bridge::PermissionGrant::new(
-            declared_permissions,
+            effective_permissions,
             self.trust.security_mode().clone(),
         );
 

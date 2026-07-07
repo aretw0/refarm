@@ -218,6 +218,16 @@ pub struct PluginHost {
     /// None = not configured → the load gate stays permissive (backward-compatible,
     /// same as the shell gate); an empty set = deny-all; `*` = trust every plugin.
     trusted_plugins_at_boot: Option<std::collections::HashSet<String>>,
+    /// The operator-APPROVED capability set per plugin id, resolved from the
+    /// sovereign `.refarm/config.json` `approvedPermissions` map ONCE at boot
+    /// (written by `plugin approve`). At load the declared permissions are
+    /// intersected with a plugin's approved set, so approving fewer capabilities
+    /// actually restricts. None = no approvals configured → permissive (declared
+    /// stands as-is, backward-compatible); a plugin absent from the map = no
+    /// approval → its declared set is used unchanged (approval is additive scoping,
+    /// not a second gate that denies un-approved-but-declared plugins).
+    approved_permissions_at_boot:
+        Option<std::collections::HashMap<String, std::collections::HashSet<String>>>,
     /// The expected model route (provider + base-url + path) guardrail, resolved
     /// from the routing env vars ONCE at construction and cloned into every
     /// `TractorNativeBindings` at load. Only ROUTING config — API-key secrets stay

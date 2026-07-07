@@ -209,3 +209,109 @@ async fn strict_without_declared_network_grant_fails_to_link_http() {
          (link-time, before manifest validation); got: {msg}"
     );
 }
+
+// ── The persona approval loop scopes declared permissions (enforcement) ──────
+//
+// The http-plugin DECLARES network:outbound in its manifest — but the operator
+// APPROVED only a subset that omits it. The host intersects declared ∩ approved,
+// so the effective grant drops network:outbound → linker_no_http → the wasi:http
+// import cannot resolve → load fails. This proves "approving fewer capabilities
+// actually restricts", end to end, through the same linker boundary the raw grant
+// uses. The trust gate is passed via the "*" allowlist (orthogonal).
+
+fn stage_http_plugin_declaring_network(tempdir: &Path) -> std::path::PathBuf {
+    let staged = tempdir.join("http-plugin.wasm");
+    std::fs::copy(http_fixture_path(), &staged).expect("copy fixture into tempdir");
+    std::fs::write(
+        tempdir.join("plugin.json"),
+        r#"{
+  "id": "@refarm/http-plugin",
+  "version": "0.1.0",
+  "entry": "http-plugin.wasm",
+  "observability": { "hooks": ["onLoad", "onInit", "onRequest", "onError", "onTeardown"] },
+  "capabilities": { "provides": [] },
+  "permissions": ["network:outbound"]
+}"#,
+    )
+    .expect("write plugin.json into tempdir");
+    staged
+}
+
+#[tokio::test]
+async fn approving_a_subset_scopes_out_the_network_grant_and_fails_to_link_http() {
+    let path = http_fixture_path();
+    if skip_if_missing(path, "approving_a_subset_scopes_out_the_network_grant") {
+        return;
+    }
+
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let staged = stage_http_plugin_declaring_network(tempdir.path());
+
+    // Operator approved only fs:read for this plugin — network:outbound is DECLARED
+    // but NOT approved, so declared ∩ approved omits it. Keyed on the runtime
+    // plugin id ("http-plugin", the manifest id's last segment).
+    let approved = std::collections::HashMap::from([(
+        "http-plugin".to_string(),
+        std::collections::HashSet::from(["fs:read".to_string()]),
+    )]);
+
+    let host = PluginHost::new(
+        TrustManager::with_security_mode(SecurityMode::Strict),
+        TelemetryBus::new(100),
+        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .unwrap()
+    .with_trusted_plugins(Some(["*".to_string()].into_iter().collect()))
+    .with_approved_permissions(Some(approved));
+
+    let result = host.load(&staged, &make_sync()).await;
+    assert!(
+        result.is_err(),
+        "network:outbound is declared but not approved → scoped out → the http-less \
+         linker leaves wasi:http unresolved"
+    );
+    let msg = format!("{:#}", result.unwrap_err());
+    assert!(
+        !msg.contains("SecurityMode::Strict"),
+        "must NOT be the trust bail — trust gate passed; got: {msg}"
+    );
+    assert!(
+        msg.contains("wasi:http/") && msg.contains("was not found in the linker"),
+        "must fail at the linker because approval scoped out network:outbound; got: {msg}"
+    );
+}
+
+#[tokio::test]
+async fn approving_the_declared_network_grant_keeps_it_and_loads() {
+    let path = http_fixture_path();
+    if skip_if_missing(path, "approving_the_declared_network_grant_keeps_it") {
+        return;
+    }
+
+    let tempdir = tempfile::tempdir().expect("tempdir");
+    let staged = stage_http_plugin_declaring_network(tempdir.path());
+
+    // Operator approved network:outbound (declared ∩ approved keeps it) → http
+    // linker → the import resolves → loads. The positive control for the scope.
+    let approved = std::collections::HashMap::from([(
+        "http-plugin".to_string(),
+        std::collections::HashSet::from(["network:outbound".to_string()]),
+    )]);
+
+    let host = PluginHost::new(
+        TrustManager::with_security_mode(SecurityMode::Strict),
+        TelemetryBus::new(100),
+        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .unwrap()
+    .with_trusted_plugins(Some(["*".to_string()].into_iter().collect()))
+    .with_approved_permissions(Some(approved));
+
+    let handle = host.load(&staged, &make_sync()).await;
+    assert!(
+        handle.is_ok(),
+        "approved network:outbound → http linker → loads: {:?}",
+        handle.err()
+    );
+    assert_eq!(handle.unwrap().id, "http-plugin");
+}

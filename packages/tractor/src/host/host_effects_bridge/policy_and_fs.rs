@@ -85,17 +85,40 @@ fn is_safe_plugin_id_token(value: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b == b'.')
 }
 
-pub(crate) fn trusted_plugins_from_refarm_config(
-) -> Result<Option<std::collections::HashSet<String>>, String> {
+/// Read + parse the sovereign `.refarm/config.json` ONCE (hardened: size cap,
+/// symlink/regular-file check, dev+ino TOCTOU guard). Returns None when the file
+/// is absent. Both the trusted-plugins allowlist and the approved-permissions map
+/// ride this one hardened read so neither re-implements the fs safety.
+fn read_refarm_config_value() -> Result<Option<serde_json::Value>, String> {
     let base = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
     let path = base.join(".refarm/config.json");
-    let bytes = read_trusted_plugins_config_bytes(&path)?;
-    let Some(bytes) = bytes else {
+    let Some(bytes) = read_trusted_plugins_config_bytes(&path)? else {
         return Ok(None);
     };
     let cfg = serde_json::from_slice::<serde_json::Value>(&bytes)
         .map_err(|e| format!("[blocked: invalid .refarm/config.json: {e}]"))?;
+    Ok(Some(cfg))
+}
+
+pub(crate) fn trusted_plugins_from_refarm_config(
+) -> Result<Option<std::collections::HashSet<String>>, String> {
+    let Some(cfg) = read_refarm_config_value()? else {
+        return Ok(None);
+    };
     parse_trusted_plugins(&cfg)
+}
+
+/// The operator-APPROVED capability set per plugin id, read from the sovereign
+/// `.refarm/config.json` `approvedPermissions` map (written by `plugin approve`).
+/// Distinct from `trusted_plugins` (identity vs capability). Returns None when the
+/// file or the key is absent — meaning "no operator approval recorded", which the
+/// load path treats as permissive (backward-compatible, mirroring the allowlist).
+pub(crate) fn approved_permissions_from_refarm_config(
+) -> Result<Option<std::collections::HashMap<String, std::collections::HashSet<String>>>, String> {
+    let Some(cfg) = read_refarm_config_value()? else {
+        return Ok(None);
+    };
+    parse_approved_permissions(&cfg)
 }
 
 fn read_trusted_plugins_config_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {
@@ -218,6 +241,66 @@ fn parse_trusted_plugins(
             "[blocked: .refarm/config.json trusted_plugins wildcard must be the only entry]"
                 .to_string(),
         );
+    }
+    Ok(Some(out))
+}
+
+/// Parse the `approvedPermissions` object — a `{ plugin_id: [capability, …] }`
+/// map — into `plugin_id → set<capability>`. Same bounds + control-char hardening
+/// as trusted_plugins. Absent key → None (no approval recorded → permissive at
+/// load). Keys are NOT lowercased: they must match the plugin_id the load path
+/// keys on (the manifest/file-stem id), unlike the case-insensitive allowlist.
+fn parse_approved_permissions(
+    cfg: &serde_json::Value,
+) -> Result<Option<std::collections::HashMap<String, std::collections::HashSet<String>>>, String> {
+    let Some(raw) = cfg.get("approvedPermissions") else {
+        return Ok(None);
+    };
+    let obj = raw.as_object().ok_or_else(|| {
+        "[blocked: .refarm/config.json approvedPermissions must be an object]".to_string()
+    })?;
+    if obj.len() > MAX_TRUSTED_PLUGINS {
+        return Err(
+            "[blocked: .refarm/config.json approvedPermissions exceeds max entries]".to_string(),
+        );
+    }
+    let mut out = std::collections::HashMap::new();
+    for (plugin_id, caps_raw) in obj {
+        if contains_control_chars(plugin_id) {
+            return Err(
+                "[blocked: .refarm/config.json approvedPermissions plugin id cannot contain control characters]"
+                    .to_string(),
+            );
+        }
+        let caps_arr = caps_raw.as_array().ok_or_else(|| {
+            "[blocked: .refarm/config.json approvedPermissions values must be arrays]".to_string()
+        })?;
+        if caps_arr.len() > MAX_TRUSTED_PLUGINS {
+            return Err(
+                "[blocked: .refarm/config.json approvedPermissions capability list exceeds max entries]"
+                    .to_string(),
+            );
+        }
+        let mut caps = std::collections::HashSet::new();
+        for cap in caps_arr {
+            let cap = cap
+                .as_str()
+                .ok_or_else(|| {
+                    "[blocked: .refarm/config.json approvedPermissions capabilities must be strings]"
+                        .to_string()
+                })?
+                .trim();
+            if contains_control_chars(cap) {
+                return Err(
+                    "[blocked: .refarm/config.json approvedPermissions capability cannot contain control characters]"
+                        .to_string(),
+                );
+            }
+            if !cap.is_empty() {
+                caps.insert(cap.to_string());
+            }
+        }
+        out.insert(plugin_id.trim().to_string(), caps);
     }
     Ok(Some(out))
 }
