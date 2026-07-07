@@ -70,8 +70,14 @@ async function noopSubmit(): Promise<string> {
 	return "notesbox-noop";
 }
 
-/** The full deps bundle the app hands `refarmBuiltinCapabilities`. */
-export function notesboxCapabilityDeps(cacheRoot?: string): RefarmCapabilityDeps {
+/** The full deps bundle the app hands `refarmBuiltinCapabilities`. Accepts the records
+ * deps so the SAME records state (load/save) is shared with a persona extension (e.g.
+ * the requirements area) — a correction persisted via `records correct` is then
+ * visible in the analyst's MOC. */
+export function notesboxCapabilityDeps(
+	cacheRoot?: string,
+	recordsDeps: RecordsCommandDeps = notesboxRecordsDeps(),
+): RefarmCapabilityDeps {
 	const root =
 		cacheRoot ?? mkdtempSync(path.join(os.tmpdir(), "notesbox-source-"));
 	return {
@@ -88,6 +94,6 @@ export function notesboxCapabilityDeps(cacheRoot?: string): RefarmCapabilityDeps
 			// these records into markdown.
 			seed: notesboxManifest,
 		}),
-		records: notesboxRecordsDeps(),
+		records: recordsDeps,
 	};
 }

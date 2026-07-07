@@ -12,11 +12,12 @@ import {
 } from "@refarm.dev/cli/capabilities";
 import type { Command } from "commander";
 
-import { notesboxCapabilityDeps } from "./deps.js";
+import { notesboxCapabilityDeps, notesboxRecordsDeps } from "./deps.js";
 import {
 	createCapturingSubmit,
 	NOTESBOX_EXTENSION_MANIFEST,
 } from "./extension.js";
+import { createRequirementsAreaCapability } from "./requirements-area.js";
 import { requirementsCapability } from "./requirements-verb.js";
 
 /**
@@ -49,10 +50,14 @@ export function createNotesboxRegistry(
 	const deps = options.deps ?? notesboxCapabilityDeps();
 	const extensionSubmit = options.extensionSubmit ?? createCapturingSubmit();
 
-	// 1. Composition layer — neutral blocks + the app's JS work verb.
+	// 1. Composition layer — neutral blocks + the app's JS work verbs. The T3 PERSONA
+	// extension (`requirements-moc`) reads the SAME records deps as the neutral group,
+	// so a correction persisted via `records correct` shows up in the analyst's MOC —
+	// it EXPOSES the generic engine as a finished product (result mode).
 	const entries: CapabilityEntry[] = [
 		...refarmBuiltinCapabilities(deps),
 		requirementsCapability,
+		createRequirementsAreaCapability(deps.records ?? notesboxRecordsDeps()),
 	];
 	const registry = createCapabilityRegistry(entries);
 
