@@ -88,6 +88,12 @@ export interface PluginCapabilities {
 	 * system-prompt guidance for that verb is this prose instead of host boilerplate
 	 * — so a plugin author teaches the agent how to use its tool. Optional. */
 	verbDocs?: Record<string, string>;
+	/** The verbs this plugin serves SYNCHRONOUSLY via `respond` (ADR-084's negotiated
+	 * sync flag). A per-verb MODE attribute of what the plugin `provides` — each entry
+	 * must be a `<key>:<verb>` string also in `provides`. Verbs not listed are
+	 * async-default (driven via `on-event`). The host dispatches `respond` only to
+	 * these; an async-only plugin asked for sync gets a clean not-supported. Optional. */
+	syncVerbs?: string[];
 	allowedOrigins?: string[];
 }
 

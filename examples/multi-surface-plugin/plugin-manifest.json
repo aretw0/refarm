@@ -9,7 +9,7 @@
     "providesApi": ["@refarm.example/multi-surface:ui"],
     "requiresApi": []
   },
-  "permissions": ["graph:read"],
+  "permissions": [],
   "observability": {
     "hooks": ["onLoad", "onInit", "onRequest", "onError", "onTeardown"]
   },

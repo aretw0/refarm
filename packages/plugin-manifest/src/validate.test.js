@@ -425,4 +425,49 @@ describe("contract baseline validation", () => {
 		expect(wasmResult.valid).toBe(false);
 		expect(wasmResult.errors).toContain("integrity is required for .wasm entries");
 	});
+
+	it("accepts syncVerbs that are all in provides (per-verb sync mode)", () => {
+		const manifest = createMockManifest({
+			capabilities: {
+				provides: ["source:v1", "source:discover", "source:status"],
+				requires: [],
+				syncVerbs: ["source:discover", "source:status"],
+			},
+		});
+		expect(validatePluginManifest(manifest).valid).toBe(true);
+	});
+
+	it("rejects a syncVerb that is not in provides (can't be sync for a verb you don't offer)", () => {
+		const manifest = createMockManifest({
+			capabilities: {
+				provides: ["source:v1", "source:discover"],
+				requires: [],
+				syncVerbs: ["source:materialize"],
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain(
+			'capabilities.syncVerbs entry "source:materialize" is not in capabilities.provides',
+		);
+	});
+
+	it("rejects duplicate syncVerbs", () => {
+		const manifest = createMockManifest({
+			capabilities: {
+				provides: ["source:v1", "source:discover"],
+				requires: [],
+				syncVerbs: ["source:discover", "source:discover"],
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain("capabilities.syncVerbs must not contain duplicates");
+	});
+
+	it("treats absent syncVerbs as async-default (optional, permissive)", () => {
+		const manifest = createMockManifest();
+		expect(manifest.capabilities.syncVerbs).toBeUndefined();
+		expect(validatePluginManifest(manifest).valid).toBe(true);
+	});
 });

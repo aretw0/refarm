@@ -32,10 +32,14 @@ const manifest = {
 	version: "0.1.0",
 	entry: "./source_provider.wasm",
 	capabilities: {
-		// Advertises the source:v1 provider surface. It serves via `respond`
-		// (synchronous), not an event, so it subscribes to nothing.
-		provides: ["source:v1"],
+		// The verbs this provider OFFERS (the invocable surface). `source:v1` marks the
+		// capability family; the `source:<verb>` entries are the actual methods.
+		provides: ["source:v1", "source:discover", "source:status", "source:capability"],
 		requires: [],
+		// It serves those verbs SYNCHRONOUSLY via `respond` (ADR-084): the sync mode is a
+		// per-verb attribute of `provides`. Verbs here are dispatched via `call_respond`;
+		// anything else stays async-default. It subscribes to no event.
+		syncVerbs: ["source:discover", "source:status", "source:capability"],
 		subscribes: [],
 	},
 	permissions: [],

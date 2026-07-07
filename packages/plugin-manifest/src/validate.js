@@ -263,6 +263,30 @@ export function validatePluginManifest(manifest) {
 		}
 	}
 
+	// `syncVerbs` is permissive by FORM: optional. It names the verbs the plugin serves
+	// SYNCHRONOUSLY via `respond` (ADR-084's negotiated sync flag) — a per-verb MODE
+	// attribute of what the plugin `provides`, NOT a new list of verbs. So every entry
+	// must be a `<key>:<verb>` string the plugin actually provides; a verb absent from
+	// `provides` cannot be sync. Verbs not listed here are async-default. The host reads
+	// this to dispatch `respond` only to declared verbs (never a hung async-only call).
+	if (manifest.capabilities.syncVerbs !== undefined) {
+		if (!isNonEmptyStringArray(manifest.capabilities.syncVerbs)) {
+			errors.push(
+				"capabilities.syncVerbs must be an array of non-empty <key>:<verb> strings when provided",
+			);
+		} else {
+			if (hasDuplicates(manifest.capabilities.syncVerbs)) {
+				errors.push("capabilities.syncVerbs must not contain duplicates");
+			}
+			const provided = new Set(manifest.capabilities.provides ?? []);
+			for (const verb of manifest.capabilities.syncVerbs) {
+				if (!provided.has(verb)) {
+					errors.push(`capabilities.syncVerbs entry "${verb}" is not in capabilities.provides`);
+				}
+			}
+		}
+	}
+
 	// `subscribes` is permissive by FORM: optional (a plugin may be lifecycle-only),
 	// but when present it must be a non-empty string array of event names, and must
 	// not contain duplicates. The neutral event router reads it to deliver events.
