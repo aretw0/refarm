@@ -45,10 +45,28 @@ impl std::fmt::Debug for NativeSync {
 
 impl NativeSync {
     /// Create a new NativeSync.
-    /// `namespace` is used to derive a stable uint64 peer ID (sha2 of the string).
+    ///
+    /// The Loro peer ID is resolved for `namespace` as:
+    /// - an on-disk namespace → the **persisted per-device** id (`{namespace}.peer`),
+    ///   so two devices are distinct peers even on the same (default) namespace;
+    /// - `:memory:` (and any namespace with no persistent home) → derived from the
+    ///   namespace string, so in-process/test docs stay distinct by their distinct
+    ///   namespace strings without sharing a persisted peer file.
     pub fn new(storage: NativeStorage, namespace: &str) -> Result<Self> {
+        let peer_id = match crate::storage::peer_id_for_namespace(namespace)? {
+            Some(persisted) => persisted,
+            None => peer_id_from_namespace(namespace),
+        };
+        Self::new_with_peer(storage, peer_id)
+    }
+
+    /// Create a new NativeSync seeded with an explicit Loro peer ID.
+    ///
+    /// The construction seam that [`new`] delegates to once the peer ID is resolved.
+    /// Tests use it to inject distinct ids without touching a shared device-id file.
+    pub fn new_with_peer(storage: NativeStorage, peer_id: u64) -> Result<Self> {
         let doc = LoroDoc::new();
-        doc.set_peer_id(peer_id_from_namespace(namespace))
+        doc.set_peer_id(peer_id)
             .map_err(|e| anyhow!("set_peer_id: {e:?}"))?;
         Ok(Self {
             storage,
@@ -351,6 +369,36 @@ mod tests {
         let rows = sync_b.query_nodes("Task").unwrap();
         assert_eq!(rows.len(), 1, "queryNodes should return 1 Task");
         assert_eq!(rows[0].id, "urn:test:conv-1");
+    }
+
+    #[test]
+    fn lww_tiebreak_is_deterministic_between_distinct_peers() {
+        // Two devices with DISTINCT peer ids concurrently write the SAME node id with
+        // different payloads, then exchange updates both directions. Loro's LWW breaks
+        // the tie by peer id, so both must converge to the SAME winning payload. With a
+        // shared peer id (the default-namespace collision) this tie-break is undefined —
+        // this test is the proof the collision is gone.
+        let sync_a = NativeSync::new_with_peer(NativeStorage::open(":memory:").unwrap(), 111).unwrap();
+        let sync_b = NativeSync::new_with_peer(NativeStorage::open(":memory:").unwrap(), 222).unwrap();
+
+        sync_a
+            .store_node("urn:test:tie", "Note", None, r#"{"from":"a"}"#, None)
+            .unwrap();
+        sync_b
+            .store_node("urn:test:tie", "Note", None, r#"{"from":"b"}"#, None)
+            .unwrap();
+
+        // Exchange both directions.
+        let from_a = sync_a.get_update().unwrap();
+        let from_b = sync_b.get_update().unwrap();
+        sync_a.apply_update(&from_b).unwrap();
+        sync_b.apply_update(&from_a).unwrap();
+
+        // Both converge to an identical, deterministic winner.
+        let a = sync_a.get_node("urn:test:tie").unwrap();
+        let b = sync_b.get_node("urn:test:tie").unwrap();
+        assert!(a.is_some() && b.is_some());
+        assert_eq!(a, b, "distinct peers must converge to the same LWW winner");
     }
 
     #[test]
