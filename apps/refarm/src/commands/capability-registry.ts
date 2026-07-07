@@ -11,7 +11,10 @@ import { RESERVED_SLASH_NAMES } from "@refarm.dev/cli/chat-repl";
 import type { Command } from "commander";
 
 import { createDispatchCapability } from "./dispatch-capability.js";
-import { registerPluginCapabilities } from "./plugin-descriptor-adapter.js";
+import {
+	defaultPluginDescriptorDeps,
+	registerPluginCapabilities,
+} from "./plugin-descriptor-adapter.js";
 import { readInstalledPluginManifests } from "./plugin-shared.js";
 import {
 	extensionReviewCapability,
@@ -104,7 +107,11 @@ export function refarmBuiltinCapabilities(): CapabilityEntry[] {
 // a built-in. Best-effort + collision-safe (a plugin verb clashing with a built-in is
 // skipped, never fatal). Read synchronously at import so the CLI's registry-driven
 // mount sees the plugin verbs.
-registerPluginCapabilities(capabilityRegistry, readInstalledPluginManifests());
+registerPluginCapabilities(
+	capabilityRegistry,
+	readInstalledPluginManifests(),
+	defaultPluginDescriptorDeps(),
+);
 
 /** Surface hooks (text render + exit intent) keyed by capability name. The REPL
  * dispatcher keys a group's hooks by the composite `"<group> <sub>"` name (see

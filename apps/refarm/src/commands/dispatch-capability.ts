@@ -6,9 +6,10 @@ import {
 
 import {
 	buildDispatchEffort,
-	submitEffortViaSidecar,
+	parseDispatchArgs,
 	type SubmitEffort,
-} from "./dispatch-submit.js";
+} from "@refarm.dev/capabilities-v1";
+import { submitEffortViaSidecar } from "./dispatch-submit.js";
 
 /**
  * `refarm dispatch <plugin> <verb> [key=value...]` — the ONE operator command to
@@ -36,27 +37,9 @@ export function defaultDispatchDeps(): DispatchCommandDeps {
 	};
 }
 
-/** Parse `key=value` args, each value as JSON when possible (else a raw string).
- * Returns the args object, or an error message for a malformed pair. */
-export function parseDispatchArgs(
-	pairs: string[],
-): { args: Record<string, unknown> } | { error: string } {
-	const args: Record<string, unknown> = {};
-	for (const pair of pairs) {
-		const eq = pair.indexOf("=");
-		if (eq <= 0) {
-			return { error: `arg "${pair}" must be key=value` };
-		}
-		const key = pair.slice(0, eq);
-		const raw = pair.slice(eq + 1);
-		try {
-			args[key] = JSON.parse(raw);
-		} catch {
-			args[key] = raw; // a bare string value (e.g. verb=extract path=x)
-		}
-	}
-	return { args };
-}
+// `parseDispatchArgs` now lives in the plugin bridge (@refarm.dev/capabilities-v1);
+// re-exported here so existing app consumers import it from this module unchanged.
+export { parseDispatchArgs };
 
 export function createDispatchCapability(
 	deps: DispatchCommandDeps = defaultDispatchDeps(),

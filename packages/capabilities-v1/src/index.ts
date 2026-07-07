@@ -21,3 +21,14 @@ export {
 	refarmBuiltinCapabilities,
 	type RefarmCapabilityDeps,
 } from "./builtin-capabilities.js";
+export {
+	buildDispatchEffort,
+	parseDispatchArgs,
+	pluginDescriptorsFrom,
+	registerPluginCapabilities,
+	type DispatchRequest,
+	type PluginCapabilityRegistration,
+	type PluginDescriptorDeps,
+	type SubmitEffort,
+	type SurfaceableManifest,
+} from "./plugin-bridge.js";

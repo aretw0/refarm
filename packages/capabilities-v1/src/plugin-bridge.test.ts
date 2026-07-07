@@ -6,7 +6,7 @@ import {
 	pluginDescriptorsFrom,
 	registerPluginCapabilities,
 	type PluginDescriptorDeps,
-} from "./plugin-descriptor-adapter.js";
+} from "./plugin-bridge.js";
 
 function makeDeps(): PluginDescriptorDeps & { submitted: Effort[] } {
 	const submitted: Effort[] = [];
