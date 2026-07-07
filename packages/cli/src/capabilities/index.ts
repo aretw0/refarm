@@ -3,11 +3,21 @@ export {
 	buildCapabilityRoutes,
 	createCapabilityRouteHandler,
 } from "./http-projector.js";
-// NOTE: agent-projector.ts is deliberately NOT re-exported here. It is the pure
-// web-surface seam (a future browser/introspection endpoint imports it directly),
-// NOT the live agent path — the shipping agent leg (#6) lists + invokes plugin
-// tools entirely in the Rust host + WASM guest. Keeping it off the barrel prevents
-// anything wiring it onto the live path by accident. See agent-projector.ts header.
+// The agent-projector (the pure capability→tool-schema web-surface seam) is now
+// re-exported: `refarm serve` mounts it at /agent-tools, so it has a real,
+// deliberate consumer. It is NOT on the live Rust agent path (which lists/invokes
+// plugin tools in the host+guest) — see the agent-projector.ts header — but the web
+// surface listing agent tools for a browser IS exactly what it was built for.
+export {
+	capabilityAnthropicTools,
+	capabilityOpenAiTools,
+	capabilityToAnthropicTool,
+	capabilityToOpenAiTool,
+	capabilityToolParameters,
+	type AnthropicToolSchema,
+	type OpenAiToolSchema,
+	type ToolParameterSchema,
+} from "./agent-projector.js";
 export { parseCapabilityArgv } from "./parse-argv.js";
 export {
 	resolveGroupAction,

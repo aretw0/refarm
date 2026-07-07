@@ -39,6 +39,7 @@ import { telemetryCommand } from "./commands/telemetry.js";
 import { tidyCommand } from "./commands/tidy.js";
 import { treeCommand } from "./commands/tree.js";
 import { tuiCommand } from "./commands/tui.js";
+import { serveCommand } from "./commands/serve-capability.js";
 import { webCommand } from "./commands/web.js";
 import { workspaceCommand } from "./commands/workspace.js";
 import { defaultProviderModelRef } from "./model-routing.js";
@@ -222,6 +223,7 @@ for (const command of capabilityCliCommands()) {
 	program.addCommand(command);
 }
 program.addCommand(webCommand);
+program.addCommand(serveCommand);
 program.addCommand(workspaceCommand);
 program.addCommand(tuiCommand);
 program.addCommand(headlessCommand);

@@ -24,9 +24,10 @@ import { isCapabilityGroup } from "./types.js";
  * that lists the agent's tools for a browser UI) would call — the same role
  * http-projector.ts plays for the capability HTTP transport.
  *
- * It is NOT re-exported from the barrel (index.ts) precisely so nothing wires it
- * onto the live path by accident. Import it directly from this module when the web
- * surface needs it.
+ * It IS re-exported from the barrel now that `refarm serve` mounts it at
+ * /agent-tools — the deliberate web consumer it was built for. It stays OFF the
+ * live Rust agent path (that lists/invokes plugin tools in the host+guest); this
+ * projects the registry's agent-eligible verbs for a browser to read.
  *
  * DERIVATION DIVERGENCE (deliberate, documented): this projector derives a RICH
  * per-arg/per-option schema with `required` (good for a human-facing web tool

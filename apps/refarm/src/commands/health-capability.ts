@@ -112,6 +112,10 @@ export function createHealthCapabilityGroup(): CapabilityGroup {
 			repl: {},
 			// apply-policy mutates .refarm/config.json, so the group is POST-shaped.
 			http: { method: "POST", path: "/health" },
+			// The default action (`audit`) is read-only diagnostics — a safe agent
+			// tool: it widens REACH (the agent can self-diagnose the project) without
+			// POWER (no mutation). The web-surface agent projector reads this.
+			agent: { tool: true, toolName: "health_audit" },
 		},
 		renderers: { tui: { section: "diagnostics" } },
 	};
