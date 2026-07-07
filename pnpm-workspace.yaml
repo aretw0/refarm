@@ -26,6 +26,10 @@ packages:
   - "validations/*/browser"
   - "validations/*/hello-world"
   - "templates/*"
+  # Consuming-app examples (each a real workspace member that imports refarm as a
+  # white-label host). Scoped to specific dirs — the other examples/* entries are
+  # standalone plugin demos without a package.json and must NOT be globbed.
+  - "examples/notesbox-app"
 allowBuilds:
   "@loro-crdt/base": true
   "@playwright/test": true

@@ -47,7 +47,7 @@ importers:
         version: 2.31.0(@types/node@25.9.4)
       '@mermaid-js/mermaid-cli':
         specifier: ^11.14.0
-        version: 11.15.0(@babel/core@7.29.6)(@babel/template@7.29.7)(puppeteer@24.43.1(typescript@6.0.3))(tailwindcss@3.4.19(yaml@2.9.0))
+        version: 11.15.0(@babel/core@7.29.6)(@babel/template@7.29.7)(puppeteer@24.43.1(typescript@6.0.3))(tailwindcss@3.4.19(tsx@4.23.0)(yaml@2.9.0))
       '@refarm.dev/config':
         specifier: workspace:*
         version: link:packages/config
@@ -122,7 +122,7 @@ importers:
         version: 8.59.3(eslint@10.3.0(jiti@1.21.7))(typescript@6.0.3)
       vitest:
         specifier: ^4.1.9
-        version: 4.1.9(@types/node@25.9.4)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
+        version: 4.1.9(@types/node@25.9.4)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
 
   apps/dev:
     dependencies:
@@ -152,7 +152,7 @@ importers:
         version: link:../../packages/identity-nostr
       astro:
         specifier: ^6.4.8
-        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
+        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.9
@@ -274,7 +274,7 @@ importers:
         version: link:../../packages/tractor-ts
       astro:
         specifier: ^6.4.8
-        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
+        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.9
@@ -429,7 +429,7 @@ importers:
         version: link:../../packages/ds-astro
       astro:
         specifier: ^6.4.8
-        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
+        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.9
@@ -446,6 +446,34 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+
+  examples/notesbox-app:
+    dependencies:
+      '@refarm.dev/capabilities-v1':
+        specifier: workspace:*
+        version: link:../../packages/capabilities-v1
+      '@refarm.dev/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
+      '@refarm.dev/enrichment-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/enrichment-contract-v1
+      '@refarm.dev/records-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/records-contract-v1
+      '@refarm.dev/source-web':
+        specifier: workspace:*
+        version: link:../../packages/source-web
+      commander:
+        specifier: ^14.0.3
+        version: 14.0.3
+    devDependencies:
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../../packages/vtconfig
 
   packages/agent:
     devDependencies:
@@ -605,11 +633,11 @@ importers:
     dependencies:
       astro:
         specifier: '>=6.4.8'
-        version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
+        version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
     devDependencies:
       vite-plugin-wasm:
         specifier: ^3.6.0
-        version: 3.6.0(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
+        version: 3.6.0(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
 
   packages/content-projection:
     dependencies:
@@ -743,7 +771,7 @@ importers:
         version: 10.3.6(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))
       '@storybook/html-vite':
         specifier: ^10.3.5
-        version: 10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
+        version: 10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
       storybook:
         specifier: ^10.3.5
         version: 10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -755,7 +783,7 @@ importers:
         version: link:../ds
       astro:
         specifier: ^6.4.8
-        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
+        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
@@ -900,7 +928,7 @@ importers:
         version: link:../tractor-ts
       astro:
         specifier: ^6.4.8
-        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
+        version: 6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
     devDependencies:
       '@refarm.dev/config':
         specifier: workspace:*
@@ -1876,10 +1904,10 @@ importers:
         version: 6.0.3
       vite:
         specifier: ^8.0.16
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
       vitest:
         specifier: ^4.1.9
-        version: 4.1.9(@types/node@25.9.4)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
+        version: 4.1.9(@types/node@25.9.4)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
 
   packages/windmill:
     dependencies:
@@ -1952,7 +1980,7 @@ importers:
         version: 1.19.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
       astro:
         specifier: ^7.0.3
-        version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)
+        version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
   validations/simple-wasm-plugin: {}
 
@@ -2001,7 +2029,7 @@ importers:
         version: 6.0.3
       vite:
         specifier: ^8.0.16
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
   validations/wasm-plugin/hello-world: {}
 
@@ -2031,7 +2059,7 @@ importers:
         version: 6.0.3
       vite:
         specifier: ^8.0.16
-        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)
+        version: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
 packages:
 
@@ -7912,6 +7940,11 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
+  tsx@4.23.0:
+    resolution: {integrity: sha512-eUdUIaCr963q2h5u3+QwvYp0+eqPvn+egeqZUm0hwERCqqx1E3kK5ehbGCvqSE5MQAULr67ww0cA3jKc3YkM1w==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
+
   turbo@2.9.14:
     resolution: {integrity: sha512-BQqXRr4UoWI3UPFrtznCLykYHxwxWh53iCB57x092jPMjIlW1wnm3N895g5irpiXmnxUhREBB0n6+y8BHhs4nw==}
     hasBin: true
@@ -9475,9 +9508,9 @@ snapshots:
       react-dom: 19.2.6(react@19.2.6)
       use-sync-external-store: 1.6.0(react@19.2.6)
 
-  '@headlessui/tailwindcss@0.2.2(tailwindcss@3.4.19(yaml@2.9.0))':
+  '@headlessui/tailwindcss@0.2.2(tailwindcss@3.4.19(tsx@4.23.0)(yaml@2.9.0))':
     dependencies:
-      tailwindcss: 3.4.19(yaml@2.9.0)
+      tailwindcss: 3.4.19(tsx@4.23.0)(yaml@2.9.0)
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -9990,11 +10023,11 @@ snapshots:
       mermaid: 11.15.0
     optional: true
 
-  '@mermaid-js/mermaid-cli@11.15.0(@babel/core@7.29.6)(@babel/template@7.29.7)(puppeteer@24.43.1(typescript@6.0.3))(tailwindcss@3.4.19(yaml@2.9.0))':
+  '@mermaid-js/mermaid-cli@11.15.0(@babel/core@7.29.6)(@babel/template@7.29.7)(puppeteer@24.43.1(typescript@6.0.3))(tailwindcss@3.4.19(tsx@4.23.0)(yaml@2.9.0))':
     dependencies:
       '@fortawesome/fontawesome-free': 7.2.0
       '@mermaid-js/layout-elk': 0.2.1(mermaid@11.15.0)
-      '@mermaid-js/mermaid-zenuml': 0.2.3(@babel/core@7.29.6)(@babel/template@7.29.7)(mermaid@11.15.0)(tailwindcss@3.4.19(yaml@2.9.0))
+      '@mermaid-js/mermaid-zenuml': 0.2.3(@babel/core@7.29.6)(@babel/template@7.29.7)(mermaid@11.15.0)(tailwindcss@3.4.19(tsx@4.23.0)(yaml@2.9.0))
       chalk: 5.6.2
       commander: 13.1.0
       import-meta-resolve: 4.2.0
@@ -10011,9 +10044,9 @@ snapshots:
       - playwright-core
       - tailwindcss
 
-  '@mermaid-js/mermaid-zenuml@0.2.3(@babel/core@7.29.6)(@babel/template@7.29.7)(mermaid@11.15.0)(tailwindcss@3.4.19(yaml@2.9.0))':
+  '@mermaid-js/mermaid-zenuml@0.2.3(@babel/core@7.29.6)(@babel/template@7.29.7)(mermaid@11.15.0)(tailwindcss@3.4.19(tsx@4.23.0)(yaml@2.9.0))':
     dependencies:
-      '@zenuml/core': 3.50.1(@babel/core@7.29.6)(@babel/template@7.29.7)(tailwindcss@3.4.19(yaml@2.9.0))
+      '@zenuml/core': 3.50.1(@babel/core@7.29.6)(@babel/template@7.29.7)(tailwindcss@3.4.19(tsx@4.23.0)(yaml@2.9.0))
       mermaid: 11.15.0
     transitivePeerDependencies:
       - '@babel/core'
@@ -10524,31 +10557,31 @@ snapshots:
     optionalDependencies:
       react: 19.2.6
 
-  '@storybook/builder-vite@10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))':
+  '@storybook/builder-vite@10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))':
     dependencies:
-      '@storybook/csf-plugin': 10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
+      '@storybook/csf-plugin': 10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
       storybook: 10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       ts-dedent: 2.2.0
-      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
     transitivePeerDependencies:
       - esbuild
       - rollup
       - webpack
 
-  '@storybook/csf-plugin@10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))':
+  '@storybook/csf-plugin@10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))':
     dependencies:
       storybook: 10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       unplugin: 2.3.11
     optionalDependencies:
       esbuild: 0.28.1
       rollup: 4.60.3
-      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
   '@storybook/global@5.0.0': {}
 
-  '@storybook/html-vite@10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))':
+  '@storybook/html-vite@10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))':
     dependencies:
-      '@storybook/builder-vite': 10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
+      '@storybook/builder-vite': 10.3.6(esbuild@0.28.1)(rollup@4.60.3)(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
       '@storybook/html': 10.3.6(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))
       storybook: 10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
     transitivePeerDependencies:
@@ -11033,7 +11066,7 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.9(@types/node@25.9.4)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
+      vitest: 4.1.9(@types/node@25.9.4)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
 
   '@vitest/expect@3.2.4':
     dependencies:
@@ -11052,13 +11085,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.0
 
-  '@vitest/mocker@4.1.9(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))':
+  '@vitest/mocker@4.1.9(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
   '@vitest/pretty-format@3.2.4':
     dependencies:
@@ -11095,7 +11128,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vitest: 4.1.9(@types/node@25.9.4)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
+      vitest: 4.1.9(@types/node@25.9.4)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
 
   '@vitest/utils@3.2.4':
     dependencies:
@@ -11163,11 +11196,11 @@ snapshots:
 
   '@zeit/schemas@2.36.0': {}
 
-  '@zenuml/core@3.50.1(@babel/core@7.29.6)(@babel/template@7.29.7)(tailwindcss@3.4.19(yaml@2.9.0))':
+  '@zenuml/core@3.50.1(@babel/core@7.29.6)(@babel/template@7.29.7)(tailwindcss@3.4.19(tsx@4.23.0)(yaml@2.9.0))':
     dependencies:
       '@floating-ui/react': 0.27.19(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@headlessui/react': 2.2.10(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@headlessui/tailwindcss': 0.2.2(tailwindcss@3.4.19(yaml@2.9.0))
+      '@headlessui/tailwindcss': 0.2.2(tailwindcss@3.4.19(tsx@4.23.0)(yaml@2.9.0))
       antlr4: 4.11.0
       class-variance-authority: 0.7.1
       clsx: 2.1.1
@@ -11296,7 +11329,7 @@ snapshots:
       estree-walker: 3.0.3
       js-tokens: 10.0.0
 
-  astro@6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0):
+  astro@6.4.8(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0):
     dependencies:
       '@astrojs/compiler': 4.0.0
       '@astrojs/internal-helpers': 0.10.0
@@ -11348,8 +11381,8 @@ snapshots:
       unist-util-visit: 5.1.0
       unstorage: 1.17.5
       vfile: 6.0.3
-      vite: 7.3.5(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.9.0)
-      vitefu: 1.1.3(vite@7.3.5(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.9.0))
+      vite: 7.3.5(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
+      vitefu: 1.1.3(vite@7.3.5(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
       xxhash-wasm: 1.1.0
       yargs-parser: 22.0.0
       zod: 4.4.3
@@ -11389,7 +11422,7 @@ snapshots:
       - uploadthing
       - yaml
 
-  astro@7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0):
+  astro@7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0):
     dependencies:
       '@astrojs/compiler-rs': 0.2.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
       '@astrojs/internal-helpers': 0.10.0
@@ -11442,8 +11475,8 @@ snapshots:
       unist-util-visit: 5.1.0
       unstorage: 1.17.5
       vfile: 6.0.3
-      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)
-      vitefu: 1.1.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
+      vitefu: 1.1.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
       xxhash-wasm: 1.1.0
       yargs-parser: 22.0.0
       zod: 4.4.3
@@ -14310,12 +14343,13 @@ snapshots:
       camelcase-css: 2.0.1
       postcss: 8.5.15
 
-  postcss-load-config@6.0.1(jiti@1.21.7)(postcss@8.5.15)(yaml@2.9.0):
+  postcss-load-config@6.0.1(jiti@1.21.7)(postcss@8.5.15)(tsx@4.23.0)(yaml@2.9.0):
     dependencies:
       lilconfig: 3.1.3
     optionalDependencies:
       jiti: 1.21.7
       postcss: 8.5.15
+      tsx: 4.23.0
       yaml: 2.9.0
 
   postcss-nested@6.2.0(postcss@8.5.15):
@@ -15087,7 +15121,7 @@ snapshots:
 
   tailwind-merge@3.6.0: {}
 
-  tailwindcss@3.4.19(yaml@2.9.0):
+  tailwindcss@3.4.19(tsx@4.23.0)(yaml@2.9.0):
     dependencies:
       '@alloc/quick-lru': 5.2.0
       arg: 5.0.2
@@ -15106,7 +15140,7 @@ snapshots:
       postcss: 8.5.15
       postcss-import: 15.1.0(postcss@8.5.15)
       postcss-js: 4.1.0(postcss@8.5.15)
-      postcss-load-config: 6.0.1(jiti@1.21.7)(postcss@8.5.15)(yaml@2.9.0)
+      postcss-load-config: 6.0.1(jiti@1.21.7)(postcss@8.5.15)(tsx@4.23.0)(yaml@2.9.0)
       postcss-nested: 6.2.0(postcss@8.5.15)
       postcss-selector-parser: 6.1.2
       resolve: 1.22.12
@@ -15253,6 +15287,13 @@ snapshots:
   ts-interface-checker@0.1.13: {}
 
   tslib@2.8.1: {}
+
+  tsx@4.23.0:
+    dependencies:
+      esbuild: 0.28.1
+    optionalDependencies:
+      fsevents: 2.3.3
+    optional: true
 
   turbo@2.9.14:
     optionalDependencies:
@@ -15467,11 +15508,11 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite-plugin-wasm@3.6.0(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)):
+  vite-plugin-wasm@3.6.0(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)):
     dependencies:
-      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
-  vite@7.3.5(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.9.0):
+  vite@7.3.5(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0):
     dependencies:
       esbuild: 0.28.1
       fdir: 6.5.0(picomatch@4.0.4)
@@ -15485,9 +15526,10 @@ snapshots:
       jiti: 1.21.7
       lightningcss: 1.32.0
       terser: 5.47.1
+      tsx: 4.23.0
       yaml: 2.9.0
 
-  vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0):
+  vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
@@ -15500,20 +15542,21 @@ snapshots:
       fsevents: 2.3.3
       jiti: 1.21.7
       terser: 5.47.1
+      tsx: 4.23.0
       yaml: 2.9.0
 
-  vitefu@1.1.3(vite@7.3.5(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.9.0)):
+  vitefu@1.1.3(vite@7.3.5(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)):
     optionalDependencies:
-      vite: 7.3.5(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.9.0)
+      vite: 7.3.5(@types/node@25.9.4)(jiti@1.21.7)(lightningcss@1.32.0)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
-  vitefu@1.1.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)):
+  vitefu@1.1.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)):
     optionalDependencies:
-      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
-  vitest@4.1.9(@types/node@25.9.4)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)):
+  vitest@4.1.9(@types/node@25.9.4)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.9
-      '@vitest/mocker': 4.1.9(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
+      '@vitest/mocker': 4.1.9(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
       '@vitest/pretty-format': 4.1.9
       '@vitest/runner': 4.1.9
       '@vitest/snapshot': 4.1.9
@@ -15530,7 +15573,7 @@ snapshots:
       tinyexec: 1.1.2
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0)
+      vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.9.4
