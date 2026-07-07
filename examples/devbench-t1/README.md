@@ -1,6 +1,6 @@
 # devbench-t1 — the developer's extension bench (T1)
 
-A per-work POC app: its own CLI (`devbench`), refarm underneath. Presented in
+A per-work POC app: its own CLI (`dgk`). Presented in
 **process mode** — the opposite of T2/T3. Instead of hiding the machine behind a
 finished product, devbench **shows the machine being extended**: an extension declares
 itself and its verbs surface by themselves. The angle is technical and general —
@@ -12,16 +12,17 @@ Extending refarm the refarm way — not importing a package, but declaring an ex
 that multi-surfaces:
 
 ```bash
-devbench ext-inspect         # what the coding-agent extension declares, and how it surfaces
-devbench code prompt='...'   # a verb that came from the manifest, not from app code
-devbench review              # ditto — surfaced by the bridge, dispatched to the plugin
-devbench serve               # the surfaced verbs on a web surface too
+dgk extension                # what the coding-agent extension declares, and how it surfaces
+dgk actions --json           # selectable multi-surface action rows
+dgk code prompt='...'        # a verb that came from the manifest, not from app code
+dgk review                   # ditto — surfaced by the bridge, dispatched to the plugin
+dgk serve                    # the surfaced verbs on a web surface too
 ```
 
 `src/persona.ts` declares a **plugin manifest** for a coding-agent
 (`provides: ["agent:code", "agent:review"]`). The bridge (`registerPluginCapabilities`)
 synthesizes a first-class verb per declared entry, with a host-built dispatch `run()`
-the developer never writes. `ext-inspect` makes the mechanism visible: declaration →
+the developer never writes. `extension` makes the mechanism visible: declaration →
 surfaced verbs. This is the extension effect — an installed extension appearing on every
 surface by itself.
 
@@ -38,8 +39,9 @@ surface by itself.
 
 ```bash
 pnpm --filter devbench-t1 build
-pnpm --filter devbench-t1 devbench ext-inspect
-pnpm --filter devbench-t1 devbench --help    # code / review surfaced alongside the neutral verbs
+pnpm --filter devbench-t1 dgk extension
+pnpm --filter devbench-t1 dgk actions --json
+pnpm --filter devbench-t1 dgk --help    # code / review surfaced alongside the neutral verbs
 ```
 
 ## Focus — what T1 makes shine (survives our design conversation)
@@ -52,7 +54,7 @@ everywhere."
 1. **Installing the coding-agent locally** — the coding-agent is a plugin that already
    exists (`packages/agent`); T1 demonstrates installing it, not building it.
 2. **Developing a NEW extension** live — declaring it, watching it surface across CLI /
-   TUI / web from one declaration (the extension effect, `ext-inspect` makes it visible).
+   TUI / web from one declaration (the extension effect, `dgk extension` makes it visible).
    The verb comes in via a plugin manifest, dispatched over the WASM boundary — no
    hand-written run().
 

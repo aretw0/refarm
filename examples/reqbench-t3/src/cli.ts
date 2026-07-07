@@ -1,48 +1,116 @@
 #!/usr/bin/env node
 import {
-	mountCapabilities,
-	mountedCliCommands,
-	serveCapabilities,
+	defineCapabilityHost,
+	type CapabilityHost,
 } from "@refarm.dev/capabilities-v1";
-import { Command } from "commander";
+import { localRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
 
-import { createRequirementsMocCapability, reqCapabilityDeps, reqRecordsDeps } from "./persona.js";
+import {
+	createRequirementsCapability,
+	reqCapabilityDeps,
+	reqRecordsDeps,
+	type RequirementsStateOptions,
+} from "./persona.js";
 
-/**
- * `reqbench` — the T3 POC CLI (result mode). refarm's neutral blocks
- * (discover/pull/enrich/correct/analyze/vault) underneath; ONE persona verb
- * (`requirements-moc`) on top. Mounting is a single call — the boilerplate lives in
- * `mountCapabilities`, so this example is just its persona.
- */
-export function buildRegistry() {
-	const records = reqRecordsDeps();
-	return mountCapabilities({
-		deps: reqCapabilityDeps(undefined, records),
-		verbs: [createRequirementsMocCapability(records)],
+export const DGK_REQUIREMENTS_STATE_PATH_ENV = "DGK_REQUIREMENTS_STATE_PATH";
+
+export function defaultRequirementsStatePath(cwd = process.cwd()): string {
+	return process.env[DGK_REQUIREMENTS_STATE_PATH_ENV] || localRecordsStatePath({
+		appId: "dgk",
+		cwd,
+		fileName: "requirements.manifest.json",
 	});
 }
 
-export function buildProgram(): Command {
-	const program = new Command()
-		.name("reqbench")
-		.description("Requirements bench — discover, pull, correct, and read a requirements MOC")
-		.version("0.0.0");
-	for (const command of mountedCliCommands(buildRegistry())) {
-		program.addCommand(command);
-	}
-	// `serve` — the SAME verbs on a web surface, from the shared mount seam (one line).
-	program
-		.command("serve")
-		.description("Serve reqbench's verbs over HTTP (their transports.http routes)")
-		.option("--port <port>", "TCP port (0 = pick free)", "4321")
-		.action(async (opts: { port: string }) => {
-			const { listening } = serveCapabilities(buildRegistry(), {
-				port: Number(opts.port),
-			});
-			const { port } = await listening;
-			console.log(JSON.stringify({ ok: true, url: `http://127.0.0.1:${port}` }));
-		});
-	return program;
+/**
+ * `dgk` - the T3 POC CLI (result mode). refarm's neutral blocks
+ * (discover/pull/enrich/correct/analyze/vault) underneath; ONE persona verb
+ * (`requirements`) on top. Mounting is declarative so this example is just its persona.
+ */
+export function buildReqbenchHost(
+	options: RequirementsStateOptions = {},
+): CapabilityHost {
+	return defineCapabilityHost({
+		id: "examples/reqbench-t3",
+		command: "dgk",
+		description: "Digital Gardening Kit - requirements bench",
+		version: "0.0.0",
+		capabilities: () => {
+			const records = reqRecordsDeps(options);
+			return {
+				deps: reqCapabilityDeps(undefined, records),
+				extensions: [createRequirementsCapability(records)],
+			};
+		},
+		operatorStatus: {
+			summary: "Show requirements bench operator status",
+			httpPath: "/requirements/status",
+			capabilityUnit: {
+				subject: "Requirements bench",
+				action: {
+					id: "open-requirements",
+					label: "dgk requirements --json",
+					intent: "requirements:open",
+					command: "dgk requirements --json",
+					primary: true,
+				},
+			},
+			units: ({ capabilities, reviewQueueUnit }) => {
+				const records = capabilities.deps.records ?? reqRecordsDeps(options);
+				const manifest = records.loadManifest();
+				const draftRecords = manifest.records.filter(
+					(record) => record.review?.state !== "reviewed",
+				);
+				return [
+					reviewQueueUnit({
+						id: "requirements",
+						label: "Requirements",
+						total: manifest.records.length,
+						pending: draftRecords.length,
+						totalLabel: "requirements",
+						pendingLabel: "needs review",
+						pendingSummary: ({ total, pending }) =>
+							`Requirements bench has ${total} requirements; ${pending} requirement needs review.`,
+						readySummary: ({ total }) =>
+							`Requirements bench has ${total} reviewed requirements.`,
+						pendingAction: {
+							id: "review-draft-requirement",
+							label: "Review the draft requirement",
+							intent: "requirements:review",
+							command: "dgk records correct record:req-cadastro reviewed --apply",
+							primary: true,
+						},
+						details: {
+							recordIds: manifest.records.map((record) => record.id),
+							draftRecordIds: draftRecords.map((record) => record.id),
+						},
+					}),
+				];
+			},
+		},
+		serve: {
+			defaultPort: 4321,
+			description: "Serve dgk requirements verbs over HTTP (their transports.http routes)",
+		},
+	});
+}
+
+export function buildRegistry(options: RequirementsStateOptions = {}) {
+	return buildReqbenchHost(options).registry();
+}
+
+export function buildRequirementsBaseModel(options: RequirementsStateOptions = {}) {
+	return buildReqbenchHost(options).baseModel();
+}
+
+export function buildProgram(
+	options: RequirementsStateOptions = {},
+): ReturnType<CapabilityHost["program"]> {
+	const cliOptions: RequirementsStateOptions = {
+		...options,
+		statePath: options.statePath ?? defaultRequirementsStatePath(),
+	};
+	return buildReqbenchHost(cliOptions).program();
 }
 
 const isMain =

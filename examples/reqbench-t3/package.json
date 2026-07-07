@@ -2,25 +2,23 @@
   "name": "reqbench-t3",
   "version": "0.0.0",
   "private": true,
-  "description": "T3 POC (result mode): an analyst's requirements bench — discover a system, pull, enrich, correct, and read a navigable requirements MOC. Own CLI `reqbench`, refarm underneath.",
+  "description": "T3 POC (result mode): a DGK requirements bench — discover, enrich, correct, and read a navigable MOC.",
   "type": "module",
   "bin": {
-    "reqbench": "./dist/cli.js"
+    "dgk": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "reqbench": "node dist/cli.js",
+    "dgk": "node dist/cli.js",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@refarm.dev/capabilities-v1": "workspace:*",
-    "@refarm.dev/cli": "workspace:*",
     "@refarm.dev/enrichment-contract-v1": "workspace:*",
     "@refarm.dev/records-contract-v1": "workspace:*",
-    "@refarm.dev/source-web": "workspace:*",
-    "commander": "^14.0.3"
+    "@refarm.dev/source-web": "workspace:*"
   },
   "devDependencies": {
     "@refarm.dev/tsconfig": "workspace:*",

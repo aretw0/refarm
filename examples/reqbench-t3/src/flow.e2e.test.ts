@@ -3,16 +3,31 @@ import {
 	resolveGroupAction,
 	type CapabilityEntry,
 	type CapabilityGroup,
-} from "@refarm.dev/cli/capabilities";
-import { describe, expect, it } from "vitest";
+} from "@refarm.dev/capabilities-v1";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { serveCapabilities } from "@refarm.dev/capabilities-v1";
-
-import { buildRegistry } from "./cli.js";
+import { buildRegistry, buildReqbenchHost, buildRequirementsBaseModel } from "./cli.js";
 import { REQ_SYSTEM_REF } from "./fixture.js";
 
+const tempDirs: string[] = [];
+
+afterEach(() => {
+	while (tempDirs.length > 0) {
+		rmSync(tempDirs.pop()!, { force: true, recursive: true });
+	}
+});
+
+function tempStatePath(): string {
+	const dir = mkdtempSync(path.join(tmpdir(), "dgk-requirements-state-"));
+	tempDirs.push(dir);
+	return path.join(dir, "manifest.json");
+}
+
 /**
- * The T3 flow, end-to-end through reqbench's own CLI registry: discover a system →
+ * The T3 flow, end-to-end through dgk's own CLI registry: discover a system →
  * pull → correct → read the requirements MOC (the analyst's product). refarm underneath,
  * one persona verb on top.
  */
@@ -49,8 +64,22 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		const reg = buildRegistry();
 		const names = reg.list().map((e) => e.name);
 		expect(names).toEqual(
-			expect.arrayContaining(["source", "records", "vault", "requirements-moc"]),
+			expect.arrayContaining(["source", "records", "vault", "requirements", "status", "actions"]),
 		);
+	});
+
+	it("declares dgk as the white-label host and exposes action rows", () => {
+		const host = buildReqbenchHost();
+		expect(host.program().name()).toBe("dgk");
+		expect(buildRequirementsBaseModel()).toMatchObject({
+			command: "dgk",
+			operation: "base",
+			nextCommand: "dgk requirements --json",
+		});
+		expect(host.surfaceActions().map((action) => action.id)).toEqual([
+			"open-requirements",
+			"review-draft-requirement",
+		]);
 	});
 
 	it("discovers the analyst's system", async () => {
@@ -64,7 +93,7 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 	it("the requirements MOC is a navigable product, and reflects a correction", async () => {
 		const reg = buildRegistry();
 		// Before: one draft + one reviewed.
-		const before = await runVerb(reg, "requirements-moc");
+		const before = await runVerb(reg, "requirements");
 		expect((before.moc as string).startsWith("# Mapa de Conteúdo — Requisitos")).toBe(true);
 
 		// The analyst reviews the draft requirement (persists via shared records deps).
@@ -75,9 +104,11 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 			"--apply",
 		]);
 		expect(corrected.persisted).toBe(true);
+		expect(corrected.nextCommand).toBe("dgk records list");
+		expect(corrected.nextCommands).toEqual(["dgk records list"]);
 
 		// After: the MOC's reviewed section now lists both requirements.
-		const after = await runVerb(reg, "requirements-moc");
+		const after = await runVerb(reg, "requirements");
 		const reviewed = (after.moc as string).slice(
 			(after.moc as string).indexOf("Requisitos revisados"),
 		);
@@ -85,8 +116,27 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(reviewed).toContain("Validação de layout do arquivo");
 	});
 
+	it("persists analyst corrections across separate CLI registries when state is configured", async () => {
+		const statePath = tempStatePath();
+		const corrected = await runGroup(buildRegistry({ statePath }), "records", [
+			"correct",
+			"record:req-cadastro",
+			"reviewed",
+			"--apply",
+		]);
+		expect(corrected.persisted).toBe(true);
+		expect(corrected.nextCommand).toBe("dgk records list");
+
+		const after = await runVerb(buildRegistry({ statePath }), "requirements");
+		const moc = after.moc as string;
+		expect(moc).toContain("Cadastro de obrigação acessória");
+		expect(buildRequirementsBaseModel({ statePath }).nextCommands).toEqual([
+			"dgk requirements --json",
+		]);
+	});
+
 	it("serves the same verbs on the web surface (the analyst's MOC over HTTP)", async () => {
-		const { listening, close } = serveCapabilities(buildRegistry(), { port: 0 });
+		const { listening, close } = buildReqbenchHost().serve({ port: 0 });
 		try {
 			const { port } = await listening;
 			// The persona verb's declared route (/requirements/moc) responds — same product,

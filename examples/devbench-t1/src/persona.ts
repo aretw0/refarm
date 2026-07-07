@@ -1,18 +1,16 @@
 import {
+	buildJsonSuccessEnvelope,
 	defaultRecordsDeps,
 	defaultSourceDeps,
 	defaultVaultDeps,
 	pluginDescriptorsFrom,
+	type CapabilityDescriptor,
+	type CapabilityEnvelope,
 	type PluginDescriptorDeps,
 	type RefarmCapabilityDeps,
 	type SubmitEffort,
 	type SurfaceableManifest,
 } from "@refarm.dev/capabilities-v1";
-import type {
-	CapabilityDescriptor,
-	CapabilityEnvelope,
-} from "@refarm.dev/cli/capabilities";
-import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 
 /**
  * The T1 persona (PROCESS mode). devbench shows the developer's angle: the ACT of
@@ -60,28 +58,28 @@ export function devCapabilityDeps(): RefarmCapabilityDeps {
 	};
 }
 
-/** The T1 inspector verb: `ext-inspect` — makes the extension MECHANISM visible. It
+/** The T1 inspector verb: `extension` - makes the extension MECHANISM visible. It
  * shows what the coding-agent manifest declared and which capability verbs the bridge
  * synthesized from it (the machine, exposed — the developer's view of "declare once").
  */
-export function createExtInspectCapability(
+export function createExtensionCapability(
 	pluginDeps: PluginDescriptorDeps,
 ): CapabilityDescriptor {
 	return {
-		name: "ext-inspect",
+		name: "extension",
 		summary: "Inspect the coding-agent extension: what it declares, how it surfaces",
 		transports: {
 			cli: {},
 			repl: {},
 			http: { method: "GET", path: "/ext/inspect" },
-			agent: { tool: true, toolName: "ext_inspect" },
+			agent: { tool: true, toolName: "extension" },
 		},
-		renderers: { tui: { section: "devbench" } },
+		renderers: { tui: { section: "extension" } },
 		run(): CapabilityEnvelope {
 			// Show the mechanism: manifest declaration → synthesized capability verbs.
 			const descriptors = pluginDescriptorsFrom(CODING_AGENT_MANIFEST, pluginDeps);
 			return buildJsonSuccessEnvelope({
-				command: "ext-inspect",
+				command: "extension",
 				operation: "inspect",
 				extra: {
 					pluginId: CODING_AGENT_MANIFEST.id,

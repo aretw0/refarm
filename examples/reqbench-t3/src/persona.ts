@@ -1,14 +1,13 @@
 import {
+	buildJsonSuccessEnvelope,
 	createRecordsCapabilityGroup,
 	defaultVaultDeps,
+	type CapabilityDescriptor,
+	type CapabilityEnvelope,
 	type RecordsCommandDeps,
 	type RefarmCapabilityDeps,
 } from "@refarm.dev/capabilities-v1";
-import type {
-	CapabilityDescriptor,
-	CapabilityEnvelope,
-} from "@refarm.dev/cli/capabilities";
-import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
+import { createLocalRecordsCommandDeps } from "@refarm.dev/capabilities-v1/node";
 import {
 	createReferenceEnrichmentProvider,
 	type ReferenceEnrichmentEntry,
@@ -39,21 +38,25 @@ const REQ_ENRICHMENT_FIXTURE: Record<string, ReferenceEnrichmentEntry> = {
 	},
 };
 
-/** The records deps, backed by a mutable in-memory manifest so a correction persists
- * and shows up in the MOC. A real deployment backs this with the vault. */
-export function reqRecordsDeps(): RecordsCommandDeps {
-	let manifest = reqManifest();
-	return {
-		loadManifest: () => manifest,
-		saveManifest: (next) => {
-			manifest = next;
-		},
+/** The records deps, backed by a mutable manifest and optional local state file so a
+ * correction persists and shows up in the MOC. A real deployment backs this with the
+ * vault. */
+export interface RequirementsStateOptions {
+	statePath?: string;
+}
+
+export function reqRecordsDeps(
+	options: RequirementsStateOptions = {},
+): RecordsCommandDeps {
+	return createLocalRecordsCommandDeps({
+		seed: reqManifest,
+		statePath: options.statePath,
 		enrichmentProvider: createReferenceEnrichmentProvider({
 			fixture: REQ_ENRICHMENT_FIXTURE,
 			keyField: "externalKey",
 		}),
 		recordsProvider: createReferenceRecordsProvider(),
-	};
+	});
 }
 
 /** The full deps bundle for reqbench. Shares one records deps so `records correct` and
@@ -116,14 +119,14 @@ function renderRequirementsMoc(env: AnalyzeEnvelope): string {
 	return lines.join("\n").trimEnd() + "\n";
 }
 
-/** The T3 persona verb: `requirements-moc` — the analyst's product view over the
+/** The T3 persona verb: `requirements` - the analyst's product view over the
  * neutral `records analyze` envelope. */
-export function createRequirementsMocCapability(
+export function createRequirementsCapability(
 	recordsDeps: RecordsCommandDeps,
 ): CapabilityDescriptor {
 	const analyzeAction = createRecordsCapabilityGroup(recordsDeps).actions.analyze;
 	return {
-		name: "requirements-moc",
+		name: "requirements",
 		summary: "The analyst's requirements bench — a navigable Map of Content (product)",
 		options: [
 			{ name: "by", kind: "string", summary: "Group by reviewState (default), type, or sourceRef" },
@@ -132,9 +135,9 @@ export function createRequirementsMocCapability(
 			cli: {},
 			repl: {},
 			http: { method: "GET", path: "/requirements/moc" },
-			agent: { tool: true, toolName: "requirements_moc" },
+			agent: { tool: true, toolName: "requirements" },
 		},
-		renderers: { tui: { section: "reqbench" } },
+		renderers: { tui: { section: "requirements" } },
 		async run(input): Promise<CapabilityEnvelope> {
 			if (!analyzeAction) throw new Error("records analyze missing");
 			const analyzed = (await analyzeAction.run({
@@ -143,7 +146,7 @@ export function createRequirementsMocCapability(
 				json: true,
 			})) as unknown as AnalyzeEnvelope & { by: string };
 			return buildJsonSuccessEnvelope({
-				command: "requirements-moc",
+				command: "requirements",
 				operation: "render",
 				extra: {
 					by: analyzed.by,

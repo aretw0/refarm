@@ -1,10 +1,10 @@
 import {
 	isCapabilityGroup,
 	type CapabilityEntry,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities-v1";
 import { describe, expect, it } from "vitest";
 
-import { buildRegistry } from "./cli.js";
+import { buildDevbenchHost, buildRegistry } from "./cli.js";
 
 /**
  * The T1 flow through devbench's own CLI registry — PROCESS mode. It proves the
@@ -29,11 +29,30 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		// agent:code / agent:review → `code` / `review`, surfaced by the bridge.
 		expect(names).toEqual(expect.arrayContaining(["code", "review"]));
 		// The neutral blocks are there too — the extension coexists with them.
-		expect(names).toEqual(expect.arrayContaining(["source", "records", "vault"]));
+		expect(names).toEqual(
+			expect.arrayContaining(["source", "records", "vault", "extension", "status", "actions"]),
+		);
 	});
 
-	it("ext-inspect exposes the mechanism: declaration → surfaced verbs", async () => {
-		const env = await runVerb(buildRegistry(), "ext-inspect");
+	it("declares dgk as the white-label host and exposes surface actions", () => {
+		const host = buildDevbenchHost();
+		expect(host.program().name()).toBe("dgk");
+		expect(host.baseModel()).toMatchObject({
+			command: "dgk",
+			operation: "base",
+			nextCommand: "dgk extension --json",
+		});
+		expect(host.surfaceActions()).toEqual([
+			expect.objectContaining({
+				id: "inspect-extension",
+				intent: "extension:inspect",
+				payload: expect.objectContaining({ command: "dgk extension --json" }),
+			}),
+		]);
+	});
+
+	it("extension exposes the mechanism: declaration → surfaced verbs", async () => {
+		const env = await runVerb(buildRegistry(), "extension");
 		expect(env.ok).toBe(true);
 		expect(env.declared).toEqual(["agent:code", "agent:review"]);
 		const surfaced = (env.surfaced as Array<{ verb: string }>).map((s) => s.verb).sort();
