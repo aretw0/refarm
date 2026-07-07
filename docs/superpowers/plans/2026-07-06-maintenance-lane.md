@@ -85,9 +85,14 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
 - **Grant-enforcement foundation (the road to S2-strong).** Arthur's doctrine:
   support every possible grant, don't waste the effort, arrive at S2 strong, and
   eventually deliver the persona install-and-approve UX — "security down at the
-  host so the multi-surface does it beautifully." A source-verified map
-  (workflow wf_60a6603e) established the **gate trichotomy**, all fed by the single
-  `PermissionGrant::grants(cap)` decision point:
+  host so the multi-surface does it beautifully." **The persona install→approve→
+  persist→enforce loop is now CLOSED end-to-end** (47a7a8d1 approve+persist,
+  f05c556b host enforcement): `plugin approve` (an 8th tri-surface verb) persists
+  `approvedPermissions` to the sovereign config; the host intersects declared ∩
+  approved at load, so approving fewer capabilities really restricts — proved
+  through the linker (a plugin declaring network:outbound but approved for only
+  fs:read fails to link wasi:http). The gate trichotomy below is what gave the loop
+  its teeth. All fed by the single `PermissionGrant::grants(cap)` decision point:
   - **Gate A — linker-omit** (`network:outbound`/wasi:http): DONE (e568eafc,
     proved e2e). Does NOT generalize — base WASI `add_to_linker_async` is
     monolithic (no `add_only_*` for fs/sockets).
