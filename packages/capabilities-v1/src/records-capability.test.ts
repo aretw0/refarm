@@ -192,3 +192,46 @@ describe("records correct — the analyst applies a review (persistence is INJEC
 		expect(env.error).toBe("record_not_found");
 	});
 });
+
+describe("records analyze — a neutral grouping+count envelope (persona-agnostic)", () => {
+	async function analyze(options: Record<string, unknown> = {}) {
+		const action = seededGroup().actions.analyze;
+		if (!action) throw new Error("no analyze action");
+		return (await action.run({ args: {}, options: options as never, json: true })) as unknown as {
+			ok: boolean;
+			by: string;
+			summary: { total: number; byState: Record<string, number> };
+			groups: Array<{ key: string; count: number; records: Array<{ id: string; link: string }> }>;
+		};
+	}
+
+	it("groups by reviewState (the default) with per-state counts", async () => {
+		const env = await analyze();
+		expect(env.ok).toBe(true);
+		expect(env.by).toBe("reviewState");
+		// The injected manifest has one draft + one reviewed record.
+		expect(env.summary.total).toBe(2);
+		expect(env.summary.byState.draft).toBe(1);
+		expect(env.summary.byState.reviewed).toBe(1);
+		const states = env.groups.map((g) => g.key).sort();
+		expect(states).toEqual(["draft", "reviewed"]);
+		// Each grouped record carries a vault-relative link a renderer/MOC can point to.
+		expect(env.groups[0]?.records[0]?.link.endsWith(".md")).toBe(true);
+	});
+
+	it("groups by type when asked (a different lens over the SAME records)", async () => {
+		const env = await analyze({ by: "type" });
+		expect(env.by).toBe("type");
+		// The injected records are @type ["KnowledgeRecord"] → one group of 2.
+		const known = env.groups.find((g) => g.key === "KnowledgeRecord");
+		expect(known?.count).toBe(2);
+	});
+
+	it("groups by sourceRef — the envelope is data, not a rendered view", async () => {
+		const env = await analyze({ by: "sourceRef" });
+		expect(env.by).toBe("sourceRef");
+		// It's a plain object a TUI/web/Astro/vault renderer each reads its own way.
+		expect(Array.isArray(env.groups)).toBe(true);
+		expect(typeof env.summary.total).toBe("number");
+	});
+});

@@ -146,6 +146,18 @@ describe("notesbox T3 flow (two-layer: neutral blocks + app injections)", () => 
 		expect(rec?.reviewState).toBe("reviewed");
 	});
 
+	it("step 2c — `records analyze` returns a neutral grouping envelope (the analyst's MOC data)", async () => {
+		const reg = registry();
+		// The T3 analyst persona projects this envelope into a requirements-analysis MOC;
+		// refarm ships only the neutral grouping engine, the app decides the view.
+		const analyzed = await runGroup(reg, "records", ["analyze", "--by", "reviewState"]);
+		expect(analyzed.ok).toBe(true);
+		expect((analyzed.summary as { total: number }).total).toBe(2);
+		const groups = analyzed.groups as Array<{ key: string; records: unknown[] }>;
+		// Two records, one per review state → two navigable groups the MOC lists.
+		expect(groups.map((g) => g.key).sort()).toEqual(["draft", "reviewed"]);
+	});
+
 	it("step 3 — `vault init` seeds the app's records into REAL Obsidian markdown", async () => {
 		const reg = registry();
 		const vaultDir = path.join(tempDir("notesbox-vault-"), "vault");

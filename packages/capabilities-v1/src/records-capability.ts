@@ -34,6 +34,24 @@ function emptyRecordsManifest(): RecordsManifest {
 	return { manifestVersion: 1, records: [] };
 }
 
+/** The dimension a `records analyze` groups by. NEUTRAL — a work app never has to
+ * declare a new one; these are the record-shape fields any records:v1 manifest has. */
+type AnalyzeDimension = "reviewState" | "type" | "sourceRef";
+
+/** The group key(s) a record falls under for a given dimension. A record can land in
+ * more than one group (multiple sourceRefs/types); reviewState is single-valued. */
+function groupKeysFor(record: ManifestRecord, by: AnalyzeDimension): string[] {
+	if (by === "reviewState") return [record.review?.state ?? "unreviewed"];
+	if (by === "type") {
+		const t = record["@type"];
+		const types = Array.isArray(t) ? t : typeof t === "string" ? [t] : [];
+		return types.length > 0 ? types : ["untyped"];
+	}
+	// sourceRef
+	const refs = record.sourceRefs ?? [];
+	return refs.length > 0 ? refs : ["no-source"];
+}
+
 /** Apply an enrichment result back onto a records manifest: for each record with
  * accepted changes, merge the new field values, record provenance, and recompute
  * the content hash. Mirrors the composition script's applyEnrichment (which is not
@@ -281,10 +299,79 @@ export function createRecordsCapabilityGroup(
 		},
 	};
 
+	// A NEUTRAL data engine: group the records by a record-shape field and count them,
+	// returning an envelope. It presumes no persona and serves many — an analyst can
+	// build a requirements-analysis MOC from it, a citizen can inspect their own
+	// records the same way — what differs per work is only how PROMINENT that view is,
+	// not whether the engine applies. refarm ships the engine; each work's surface (an
+	// analysis area, a wallet, a dev view) is a level-3 extension that reads this
+	// envelope and decides how much to feature it.
+	const analyze: CapabilityDescriptor = {
+		name: "analyze",
+		summary:
+			"Group the records by a dimension into a neutral envelope (grouping + counts)",
+		options: [
+			{
+				name: "by",
+				kind: "string",
+				summary:
+					"Dimension to group by: reviewState (default), type, or sourceRef",
+			},
+		],
+		run(input): CapabilityEnvelope {
+			const raw = input.options.by;
+			const by: AnalyzeDimension =
+				raw === "type" || raw === "sourceRef" ? raw : "reviewState";
+			const manifest = deps.loadManifest();
+
+			// Build the groups: a map key → the records that fall under it (id+title+link,
+			// the link being the vault-relative markdown file a MOC would point to).
+			const groupsByKey = new Map<string, ManifestRecord[]>();
+			for (const record of manifest.records) {
+				for (const key of groupKeysFor(record, by)) {
+					const list = groupsByKey.get(key) ?? [];
+					list.push(record);
+					groupsByKey.set(key, list);
+				}
+			}
+
+			const groups = [...groupsByKey.entries()]
+				.map(([key, records]) => ({
+					key,
+					label: key,
+					count: records.length,
+					records: records.map((r) => ({
+						id: r.id,
+						title: (r.fields.title as string | undefined) ?? r.id,
+						// A vault-relative link a renderer (or a MOC.md writer) can point to.
+						link: `${r.id.replace(/[^a-zA-Z0-9._-]+/g, "-")}.md`,
+					})),
+				}))
+				.sort((a, b) => a.key.localeCompare(b.key));
+
+			// A summary any renderer can headline with: total + per-reviewState counts.
+			const byState: Record<string, number> = {};
+			for (const record of manifest.records) {
+				const state = record.review?.state ?? "unreviewed";
+				byState[state] = (byState[state] ?? 0) + 1;
+			}
+
+			return buildJsonSuccessEnvelope({
+				command: "records",
+				operation: "analyze",
+				extra: {
+					by,
+					summary: { total: manifest.records.length, byState },
+					groups,
+				},
+			});
+		},
+	};
+
 	return {
 		name: "records",
-		summary: "Inspect, enrich, and correct a records:v1 manifest",
-		actions: { list, enrich, correct },
+		summary: "Inspect, enrich, correct, and analyze a records:v1 manifest",
+		actions: { list, enrich, correct, analyze },
 		defaultAction: "list",
 		transports: {
 			cli: {},
