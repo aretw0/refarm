@@ -877,18 +877,34 @@
     // ── G: revocation tombstones (monotonic deny; a stale presence can't resurrect) ──
 
     use crate::host::plugin_host::revocation_node::{
-        build_revocation_tombstone_payload, capability_revocation_node_id, revocation_node_id,
-        REVOCATION_NODE_TYPE,
+        annulment_node_id, build_revocation_annulment_payload, build_revocation_tombstone_payload,
+        capability_revocation_node_id, revocation_node_id, REVOCATION_NODE_TYPE,
     };
 
     fn seed_tombstone(sync: &NativeSync, plugin_id: &str, capability: Option<&str>) {
+        seed_tombstone_seq(sync, plugin_id, capability, 1);
+    }
+
+    fn seed_tombstone_seq(sync: &NativeSync, plugin_id: &str, capability: Option<&str>, seq: u64) {
         let id = match capability {
             None => revocation_node_id(plugin_id),
             Some(c) => capability_revocation_node_id(plugin_id, c),
         };
-        let payload = build_revocation_tombstone_payload(plugin_id, capability);
+        let payload = build_revocation_tombstone_payload(plugin_id, capability, seq);
         sync.store_node(&id, REVOCATION_NODE_TYPE, None, &payload.to_string(), Some("test"))
             .unwrap();
+    }
+
+    fn seed_annulment(sync: &NativeSync, plugin_id: &str, capability: Option<&str>, seq: u64) {
+        let payload = build_revocation_annulment_payload(plugin_id, capability, seq);
+        sync.store_node(
+            &annulment_node_id(plugin_id, capability),
+            REVOCATION_NODE_TYPE,
+            None,
+            &payload.to_string(),
+            Some("test"),
+        )
+        .unwrap();
     }
 
     #[test]
@@ -978,6 +994,113 @@
         materialize_revocation_tombstones(&sync, Some(&config)).unwrap();
         let ts2 = crate::host::host_effects_bridge::resolve_revocations(Some(&sync));
         assert_eq!(ts, ts2);
+    }
+
+    #[test]
+    fn resolve_revocations_nets_out_an_annulled_id() {
+        // The read side: a revoke@1 + an annulment@2 for the same id → net not-revoked.
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-net-annul").unwrap();
+        seed_tombstone_seq(&sync, "vault", None, 1);
+        assert!(
+            crate::host::host_effects_bridge::resolve_revocations(Some(&sync))
+                .plugins
+                .contains("vault"),
+            "revoked before the annulment"
+        );
+
+        seed_annulment(&sync, "vault", None, 2);
+        assert!(
+            !crate::host::host_effects_bridge::resolve_revocations(Some(&sync))
+                .plugins
+                .contains("vault"),
+            "annulment@2 nets out revoke@1"
+        );
+    }
+
+    #[test]
+    fn approved_cap_readmitted_after_annulment() {
+        // End-to-end on the approved axis: a cap is revoked then un-revoked, and the
+        // resolved approved set gets it back.
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-readmit-cap").unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join(".refarm")).unwrap();
+        std::fs::write(
+            dir.path().join(".refarm/config.json"),
+            r#"{"approvedPermissions":{"vault":["fs:read","network:outbound"]}}"#,
+        )
+        .unwrap();
+
+        seed_tombstone_seq(&sync, "vault", Some("network:outbound"), 1);
+        let scoped = crate::host::host_effects_bridge::resolve_approved_permissions(
+            dir.path(),
+            Some(&sync),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(scoped.get("vault"), Some(&std::collections::HashSet::from(["fs:read".to_string()])));
+
+        // Un-revoke the cap: it is re-admitted into the approved set.
+        seed_annulment(&sync, "vault", Some("network:outbound"), 2);
+        let readmitted = crate::host::host_effects_bridge::resolve_approved_permissions(
+            dir.path(),
+            Some(&sync),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            readmitted.get("vault"),
+            Some(&std::collections::HashSet::from([
+                "fs:read".to_string(),
+                "network:outbound".to_string()
+            ])),
+            "the un-revoked cap is re-admitted"
+        );
+    }
+
+    #[test]
+    fn host_materializes_annulment_and_nets_it_out() {
+        // The write half of un-revoke: the config carries a revoke + an annul seq, the
+        // host materializes both nodes, and the net resolves to not-revoked. A re-revoke
+        // (bumped seq above the annul) denies again — reversible + monotone.
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-materialize-annul").unwrap();
+
+        let revoked = serde_json::json!({ "revokedPlugins": ["vault"] });
+        materialize_revocation_tombstones(&sync, Some(&revoked)).unwrap();
+        assert!(
+            crate::host::host_effects_bridge::resolve_revocations(Some(&sync))
+                .plugins
+                .contains("vault")
+        );
+
+        // Un-revoke: annul seq 2 > the base revoke seq 1.
+        let unrevoked = serde_json::json!({
+            "revokedPlugins": ["vault"],
+            "revokedPluginsAnnul": { "vault": 2 },
+        });
+        materialize_revocation_tombstones(&sync, Some(&unrevoked)).unwrap();
+        assert!(
+            !crate::host::host_effects_bridge::resolve_revocations(Some(&sync))
+                .plugins
+                .contains("vault"),
+            "materialized annulment nets out the revocation"
+        );
+
+        // Re-revoke: bump the revoke seq to 3 > annul 2 → denied again.
+        let re_revoked = serde_json::json!({
+            "revokedPlugins": ["vault"],
+            "revokedPluginsSeq": { "vault": 3 },
+            "revokedPluginsAnnul": { "vault": 2 },
+        });
+        materialize_revocation_tombstones(&sync, Some(&re_revoked)).unwrap();
+        assert!(
+            crate::host::host_effects_bridge::resolve_revocations(Some(&sync))
+                .plugins
+                .contains("vault"),
+            "re-revoke with a higher seq denies again"
+        );
     }
 
     // MANDATORY conformance: the Rust canonical digest MUST byte-match the TS

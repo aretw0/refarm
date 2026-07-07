@@ -421,9 +421,12 @@ fn materialize_revocation_tombstones(
         return Ok(());
     };
 
+    // Revoke facts. `revokedPlugins` is the add-only list; `revokedPluginsSeq` (Slice B)
+    // optionally carries the operator's per-id revoke seq (default 1 — the base revoke).
     if let Some(ids) = config.get("revokedPlugins").and_then(|v| v.as_array()) {
         for id in ids.iter().filter_map(|v| v.as_str()) {
-            let payload = rev::build_revocation_tombstone_payload(id, None);
+            let seq = revoke_seq_for(config, "revokedPluginsSeq", id);
+            let payload = rev::build_revocation_tombstone_payload(id, None, seq);
             sync.store_node(
                 &rev::revocation_node_id(id),
                 rev::REVOCATION_NODE_TYPE,
@@ -438,7 +441,8 @@ fn materialize_revocation_tombstones(
         for (plugin_id, caps) in map {
             let Some(caps) = caps.as_array() else { continue };
             for cap in caps.iter().filter_map(|v| v.as_str()) {
-                let payload = rev::build_revocation_tombstone_payload(plugin_id, Some(cap));
+                let seq = revoke_seq_for(config, "revokedPermissionsSeq", &format!("{plugin_id}:{cap}"));
+                let payload = rev::build_revocation_tombstone_payload(plugin_id, Some(cap), seq);
                 sync.store_node(
                     &rev::capability_revocation_node_id(plugin_id, cap),
                     rev::REVOCATION_NODE_TYPE,
@@ -449,7 +453,49 @@ fn materialize_revocation_tombstones(
             }
         }
     }
+
+    // Annulment (un-revoke) facts — a distinct add-only node per scope, carrying the
+    // operator's bumped seq. When annul.seq >= revoke.seq the scope is netted out.
+    if let Some(map) = config.get("revokedPluginsAnnul").and_then(|v| v.as_object()) {
+        for (id, seq) in map {
+            let Some(seq) = seq.as_u64() else { continue };
+            let payload = rev::build_revocation_annulment_payload(id, None, seq);
+            sync.store_node(
+                &rev::annulment_node_id(id, None),
+                rev::REVOCATION_NODE_TYPE,
+                None,
+                &payload.to_string(),
+                Some("tractor-host"),
+            )?;
+        }
+    }
+    if let Some(map) = config.get("revokedPermissionsAnnul").and_then(|v| v.as_object()) {
+        for (key, seq) in map {
+            let Some(seq) = seq.as_u64() else { continue };
+            let Some((plugin_id, cap)) = key.split_once(':') else { continue };
+            let payload = rev::build_revocation_annulment_payload(plugin_id, Some(cap), seq);
+            sync.store_node(
+                &rev::annulment_node_id(plugin_id, Some(cap)),
+                rev::REVOCATION_NODE_TYPE,
+                None,
+                &payload.to_string(),
+                Some("tractor-host"),
+            )?;
+        }
+    }
     Ok(())
+}
+
+/// The operator's revoke seq for a scope key, from an optional `{key: seq}` map in the
+/// config; defaults to 1 (the base revoke). Add-only: re-revoke bumps this above the
+/// annulment seq to deny again.
+fn revoke_seq_for(config: &serde_json::Value, field: &str, scope_key: &str) -> u64 {
+    config
+        .get(field)
+        .and_then(|v| v.as_object())
+        .and_then(|m| m.get(scope_key))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(1)
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
