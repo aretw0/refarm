@@ -53,7 +53,7 @@ interface RecommendationLike {
 }
 
 interface RuntimeLike extends CommandHandoffLike {
-	command?: "runtime";
+	command?: string;
 	operation?: string;
 	configuredEngine?: string;
 	activeEngine?: string;
@@ -71,7 +71,7 @@ interface RuntimeLike extends CommandHandoffLike {
 }
 
 interface ModelLike extends CommandHandoffLike {
-	command?: "model";
+	command?: string;
 	operation?: string;
 	current?: {
 		ref?: string;
@@ -80,7 +80,7 @@ interface ModelLike extends CommandHandoffLike {
 	};
 	credential?: {
 		state?: string;
-		status?: string;
+		status?: string | null;
 		envKey?: string;
 	};
 	routes?: Record<string, unknown>;
@@ -88,7 +88,7 @@ interface ModelLike extends CommandHandoffLike {
 }
 
 interface HealthLike extends CommandHandoffLike {
-	command?: "health";
+	command?: string;
 	operation?: string;
 	issueCount?: number;
 }

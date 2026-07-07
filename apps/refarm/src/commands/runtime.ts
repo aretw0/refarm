@@ -70,7 +70,7 @@ export interface RuntimeCommandDeps {
 
 const RUNTIME_ENGINE_ENV_HELP = RUNTIME_ENGINE_MODES.join(", ");
 
-function defaultDeps(): RuntimeCommandDeps {
+export function defaultRuntimeCommandDeps(): RuntimeCommandDeps {
 	return {
 		repoRoot: findRepoRoot,
 		readEngine: readTractorEngineModeAsync,
@@ -84,7 +84,7 @@ function defaultDeps(): RuntimeCommandDeps {
 
 
 export function createRuntimeCommand(
-	deps: RuntimeCommandDeps = defaultDeps(),
+	deps: RuntimeCommandDeps = defaultRuntimeCommandDeps(),
 ): Command {
 	return new Command("runtime")
 		.description("Inspect Refarm runtime engine selection")
