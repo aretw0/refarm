@@ -48,3 +48,10 @@ export {
 	createWasmEnrichmentProvider,
 	type WasmEnrichmentProviderOptions,
 } from "./wasm-enrichment-provider.js";
+export {
+	surfaceModel,
+	isSurfaceGroup,
+	type SurfaceModel,
+	type SurfaceSection,
+	type SurfaceItem,
+} from "./surface-model.js";
