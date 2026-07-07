@@ -827,6 +827,7 @@ async fn harness_plugin_tool_guidance_reaches_system_prompt() {
         vec!["vault:store".into(), "vault:dispatch".into()],
         vec!["vault:dispatch".into()],
         std::collections::HashMap::new(),
+        vec![],
     );
     let cross = tractor::host::CrossPluginAccess {
         registry,
@@ -907,6 +908,7 @@ async fn harness_plugin_declared_verb_doc_overrides_boilerplate_in_prompt() {
         vec!["vault:store".into(), "vault:dispatch".into()],
         vec!["vault:dispatch".into()],
         verb_docs,
+        vec![],
     );
     let cross = tractor::host::CrossPluginAccess {
         registry,

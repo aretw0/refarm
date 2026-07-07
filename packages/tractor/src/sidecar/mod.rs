@@ -166,6 +166,10 @@ pub struct SidecarState {
     /// the daemon via `with_reload`; None in tests that construct the sidecar
     /// without a running host (the reload endpoint then reports it's unavailable).
     pub reload: Option<Arc<crate::TractorNative>>,
+    /// The shared plugin capability registry, for the synchronous `respond` route to
+    /// consult `serves_sync` (ADR-084's negotiated-sync guard) before dispatching a
+    /// respond. Injected by the daemon via `with_registry`; None in tests without one.
+    pub plugin_registry: Option<crate::host::PluginRegistry>,
 }
 
 /// Timeout + poll cadence (ms) for the respond watcher. Resolved from env ONCE
@@ -227,6 +231,7 @@ impl SidecarState {
             namespace,
             respond_watch: RespondWatchConfig::from_env(),
             reload: None,
+            plugin_registry: None,
         })
     }
 
@@ -235,6 +240,14 @@ impl SidecarState {
     /// then reports reload is unavailable rather than pretending it worked).
     pub fn with_reload(mut self, host: Arc<crate::TractorNative>) -> Self {
         self.reload = Some(host);
+        self
+    }
+
+    /// Inject the shared plugin capability registry so the synchronous `respond` route
+    /// can enforce the ADR-084 sync guard (`serves_sync`). The daemon calls this after
+    /// boot; tests omit it when they don't exercise the respond route.
+    pub fn with_registry(mut self, registry: crate::host::PluginRegistry) -> Self {
+        self.plugin_registry = Some(registry);
         self
     }
 
@@ -506,6 +519,102 @@ pub async fn post_plugins_load_by_hash(
         Err(e) => {
             Json(serde_json::json!({ "loaded": false, "error": e.to_string() })).into_response()
         }
+    }
+}
+
+/// The body of a synchronous respond request: the verb to invoke and its JSON payload.
+#[derive(serde::Deserialize)]
+pub struct PluginRespondRequest {
+    /// The `<key>:<verb>` the caller wants to invoke synchronously.
+    pub verb: String,
+    /// The payload the guest's `respond` receives (opaque JSON string).
+    #[serde(default)]
+    pub payload: Option<String>,
+}
+
+/// POST /plugins/:id/respond — ADR-084's synchronous respond surface. This is the ONE
+/// in-band request→response path to a loaded plugin: the caller names a `<key>:<verb>`
+/// the plugin declared in `syncVerbs`, and the host calls the guest's `respond` and
+/// returns its string reply in the response body — no effort id, no polling.
+///
+/// The negotiated-sync GUARD is enforced here: a verb the plugin did not declare
+/// synchronous is refused with a clean `not-supported`, never routed to a hung call.
+/// A missing registry (test without one) or an unknown plugin/channel is reported, not
+/// silently dropped. The reply is bounded by the respond-watch timeout so a wedged
+/// guest returns an error rather than holding the connection open.
+pub async fn post_plugin_respond(
+    State(state): State<SidecarState>,
+    AxumPath(id): AxumPath<String>,
+    Json(req): Json<PluginRespondRequest>,
+) -> impl IntoResponse {
+    // Guard: the plugin must have declared this verb synchronous (serves_sync).
+    match state.plugin_registry.as_ref() {
+        None => {
+            return Json(serde_json::json!({
+                "ok": false, "error": "sync-unavailable",
+                "message": "no plugin registry wired; sync respond is unavailable",
+            }))
+            .into_response();
+        }
+        Some(registry) if !registry.serves_sync(&id, &req.verb) => {
+            return Json(serde_json::json!({
+                "ok": false, "error": "not-supported",
+                "message": format!(
+                    "plugin \"{id}\" does not serve \"{}\" synchronously (declare it in capabilities.syncVerbs)",
+                    req.verb
+                ),
+            }))
+            .into_response();
+        }
+        Some(_) => {}
+    }
+
+    // Reach the plugin's runner via its mpsc channel, carrying a oneshot for the reply.
+    let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+    let sent = {
+        let channels = state.plugin_channels.read().expect("channels poisoned");
+        channels.get(&id).map(|tx| {
+            tx.send(crate::EventEnvelope::respond_request(req.payload, reply_tx))
+        })
+    };
+    match sent {
+        None => {
+            return Json(serde_json::json!({
+                "ok": false, "error": "plugin-not-loaded",
+                "message": format!("no loaded plugin with id \"{id}\""),
+            }))
+            .into_response();
+        }
+        Some(Err(_)) => {
+            return Json(serde_json::json!({
+                "ok": false, "error": "plugin-unreachable",
+                "message": format!("plugin \"{id}\" runner channel is closed"),
+            }))
+            .into_response();
+        }
+        Some(Ok(())) => {}
+    }
+
+    // Await the guest's reply, bounded so a wedged guest can't hold the connection.
+    let timeout = std::time::Duration::from_millis(state.respond_watch.timeout_ms);
+    match tokio::time::timeout(timeout, reply_rx).await {
+        Ok(Ok(Ok(reply))) => {
+            Json(serde_json::json!({ "ok": true, "verb": req.verb, "reply": reply })).into_response()
+        }
+        Ok(Ok(Err(message))) => Json(serde_json::json!({
+            "ok": false, "error": "respond-failed", "message": message,
+        }))
+        .into_response(),
+        Ok(Err(_)) => Json(serde_json::json!({
+            "ok": false, "error": "respond-dropped",
+            "message": "the plugin runner dropped the reply channel",
+        }))
+        .into_response(),
+        Err(_) => Json(serde_json::json!({
+            "ok": false, "error": "respond-timeout",
+            "message": "the plugin did not respond within the deadline",
+        }))
+        .into_response(),
     }
 }
 
@@ -1235,6 +1344,7 @@ pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Resu
         .route("/plugins", get(get_plugins))
         .route("/plugins/reload", post(post_plugins_reload))
         .route("/plugins/load-by-hash", post(post_plugins_load_by_hash))
+        .route("/plugins/:id/respond", post(post_plugin_respond))
         .route("/providers/liveness", get(get_provider_liveness))
         .with_state(state);
 

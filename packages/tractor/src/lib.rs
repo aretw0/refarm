@@ -811,6 +811,7 @@ impl TractorNative {
         let subscribes = handle.subscribes.clone();
         let requires_api = handle.requires_api.clone();
         let verb_docs = handle.verb_docs.clone();
+        let sync_verbs = handle.sync_verbs.clone();
         // Register the plugin's cancel flag (shared with its store epoch callback)
         // BEFORE the handle moves into the runner thread, so effort-cancel can
         // force-interrupt a wedged guest that never polls its mpsc channel.
@@ -884,7 +885,7 @@ impl TractorNative {
         // declares X". The agent leg's `list-tools`/`invoke-tool` and `get_plugin_api`
         // read it; a plugin removed from here (on unload) stops being listable at once.
         self.plugin_registry
-            .register(&plugin_id, provides.clone(), subscribes.clone(), verb_docs);
+            .register(&plugin_id, provides.clone(), subscribes.clone(), verb_docs, sync_verbs);
         self.plugin_registry
             .record_requires_api(&plugin_id, requires_api);
 

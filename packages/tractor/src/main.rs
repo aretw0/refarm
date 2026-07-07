@@ -503,7 +503,9 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
             args.namespace.clone(),
         ) {
             Ok(state) => {
-                let state = state.with_reload(tractor.clone());
+                let state = state
+                    .with_reload(tractor.clone())
+                    .with_registry(tractor.plugin_registry.clone());
                 let http_host = args.http_host.clone();
                 let http_port = args.http_port;
                 tokio::spawn(async move {

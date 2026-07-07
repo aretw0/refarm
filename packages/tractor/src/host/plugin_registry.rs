@@ -39,6 +39,11 @@ pub struct PluginCapabilityProfile {
     /// host-synthesized boilerplate (promptSnippet Slice 2). Empty for plugins that
     /// declare none.
     pub verb_docs: std::collections::HashMap<String, String>,
+    /// Verbs (`<key>:<verb>`, a subset of `provides`) the plugin serves SYNCHRONOUSLY
+    /// via `respond` (`capabilities.syncVerbs`, ADR-084). The sidecar consults this to
+    /// dispatch a synchronous respond only to a declared verb — a caller requesting
+    /// sync for an unlisted verb gets a clean not-supported. Empty → async-only.
+    pub sync_verbs: Vec<String>,
 }
 
 /// A dispatchable verb surfaced by a loaded plugin: the plugin's id, its routing
@@ -95,14 +100,26 @@ impl PluginRegistry {
         provides: Vec<String>,
         subscribes: Vec<String>,
         verb_docs: std::collections::HashMap<String, String>,
+        sync_verbs: Vec<String>,
     ) {
         self.inner
             .write()
             .expect("plugin_registry poisoned")
             .insert(
                 plugin_id.to_string(),
-                PluginCapabilityProfile { provides, subscribes, verb_docs },
+                PluginCapabilityProfile { provides, subscribes, verb_docs, sync_verbs },
             );
+    }
+
+    /// Whether a loaded plugin serves `verb` (a `<key>:<verb>` string) synchronously.
+    /// The sidecar's not-supported guard: a synchronous respond dispatch to a verb not
+    /// listed here is refused cleanly, never routed to a hung async-only call.
+    pub fn serves_sync(&self, plugin_id: &str, verb: &str) -> bool {
+        self.inner
+            .read()
+            .expect("plugin_registry poisoned")
+            .get(plugin_id)
+            .is_some_and(|p| p.sync_verbs.iter().any(|v| v == verb))
     }
 
     /// Record the APIs a loaded plugin declares it REQUIRES (SPI consumer side), for
@@ -225,7 +242,7 @@ mod tests {
 
     /// Register with no verb-docs — the common test case.
     fn register_plain(r: &PluginRegistry, id: &str, provides: Vec<String>, subscribes: Vec<String>) {
-        r.register(id, provides, subscribes, std::collections::HashMap::new());
+        r.register(id, provides, subscribes, std::collections::HashMap::new(), vec![]);
     }
 
     fn reg() -> PluginRegistry {
@@ -277,6 +294,7 @@ mod tests {
             vec!["vault:store".into(), "vault:read".into(), "vault:dispatch".into()],
             vec!["vault:dispatch".into()],
             docs,
+            vec![],
         );
         let verbs = r.dispatchable_verbs();
         // The verb WITH a doc carries it; the verb WITHOUT falls back to None (host
