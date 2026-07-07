@@ -463,28 +463,6 @@ importers:
         specifier: workspace:*
         version: link:../../packages/vtconfig
 
-  examples/notesbox-app:
-    dependencies:
-      '@refarm.dev/capabilities-v1':
-        specifier: workspace:*
-        version: link:../../packages/capabilities-v1
-      '@refarm.dev/enrichment-contract-v1':
-        specifier: workspace:*
-        version: link:../../packages/enrichment-contract-v1
-      '@refarm.dev/records-contract-v1':
-        specifier: workspace:*
-        version: link:../../packages/records-contract-v1
-      '@refarm.dev/source-web':
-        specifier: workspace:*
-        version: link:../../packages/source-web
-    devDependencies:
-      '@refarm.dev/tsconfig':
-        specifier: workspace:*
-        version: link:../../packages/tsconfig
-      '@refarm.dev/vtconfig':
-        specifier: workspace:*
-        version: link:../../packages/vtconfig
-
   examples/reqbench-t3:
     dependencies:
       '@refarm.dev/capabilities-v1':
