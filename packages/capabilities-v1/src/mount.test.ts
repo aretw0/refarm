@@ -80,7 +80,7 @@ describe("mountCapabilities — the consumer-mount seam", () => {
 			run: () => ({ ok: true, pong: true }) as never,
 		};
 		const registry = mountCapabilities({ deps: deps(), verbs: [httpVerb] });
-		const { server, listening } = serveCapabilities(registry, { port: 0 });
+		const { listening, close } = serveCapabilities(registry, { port: 0 });
 		try {
 			const { port } = await listening;
 			const res = await fetch(`http://127.0.0.1:${port}/capabilities/ping`);
@@ -97,7 +97,33 @@ describe("mountCapabilities — the consumer-mount seam", () => {
 			const missing = await fetch(`http://127.0.0.1:${port}/capabilities/nope`);
 			expect(missing.status).toBe(404);
 		} finally {
-			await new Promise<void>((resolve) => server.close(() => resolve()));
+			await close();
+		}
+	});
+
+	it("a verb whose run() never resolves gets a 504 (never hangs the client)", async () => {
+		// The hanging footgun: a run() that never resolves would hold the socket forever.
+		// serveCapabilities' request timeout is the net — it must respond 504.
+		const hangVerb: CapabilityDescriptor = {
+			name: "hang",
+			summary: "never resolves",
+			transports: { http: { method: "GET", path: "/hang" } },
+			run: () => new Promise(() => {}) as never, // never settles
+		};
+		const registry = mountCapabilities({ deps: deps(), verbs: [hangVerb] });
+		const { listening, close } = serveCapabilities(registry, {
+			port: 0,
+			requestTimeoutMs: 200, // short so the test is fast
+		});
+		try {
+			const { port } = await listening;
+			const res = await fetch(`http://127.0.0.1:${port}/capabilities/hang`);
+			expect(res.status).toBe(504);
+			const body = (await res.json()) as { ok: boolean; error: string };
+			expect(body.ok).toBe(false);
+			expect(body.error).toBe("capability-timeout");
+		} finally {
+			await close();
 		}
 	});
 });

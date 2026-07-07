@@ -86,7 +86,7 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 	});
 
 	it("serves the same verbs on the web surface (the analyst's MOC over HTTP)", async () => {
-		const { server, listening } = serveCapabilities(buildRegistry(), { port: 0 });
+		const { listening, close } = serveCapabilities(buildRegistry(), { port: 0 });
 		try {
 			const { port } = await listening;
 			// The persona verb's declared route (/requirements/moc) responds — same product,
@@ -97,7 +97,7 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 			expect(body.ok).toBe(true);
 			expect(body.moc).toContain("Mapa de Conteúdo — Requisitos");
 		} finally {
-			await new Promise<void>((resolve) => server.close(() => resolve()));
+			await close();
 		}
 	});
 });
