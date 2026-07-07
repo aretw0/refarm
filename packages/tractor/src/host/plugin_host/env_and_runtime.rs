@@ -405,6 +405,53 @@ fn store_refarm_config_node(
     Ok(())
 }
 
+/// Materialize the operator's ADD-ONLY revocation list (`revokedPlugins` /
+/// `revokedPermissions` in the sovereign config) into per-revocation graph tombstones
+/// (G2). Mirrors `store_refarm_config_node`: the config file is the operator's local,
+/// append-only intent; the host projects each entry into its OWN
+/// `urn:refarm:revocation:<id>[:cap]` node so a revocation is a monotonic CRDT add a
+/// stale concurrent config write can't undo. store_node is an idempotent upsert keyed
+/// by node id, so re-materializing the same revocation on every load is a no-op.
+fn materialize_revocation_tombstones(
+    sync: &NativeSync,
+    config_json: Option<&serde_json::Value>,
+) -> anyhow::Result<()> {
+    use crate::host::plugin_host::revocation_node as rev;
+    let Some(config) = config_json else {
+        return Ok(());
+    };
+
+    if let Some(ids) = config.get("revokedPlugins").and_then(|v| v.as_array()) {
+        for id in ids.iter().filter_map(|v| v.as_str()) {
+            let payload = rev::build_revocation_tombstone_payload(id, None);
+            sync.store_node(
+                &rev::revocation_node_id(id),
+                rev::REVOCATION_NODE_TYPE,
+                None,
+                &payload.to_string(),
+                Some("tractor-host"),
+            )?;
+        }
+    }
+
+    if let Some(map) = config.get("revokedPermissions").and_then(|v| v.as_object()) {
+        for (plugin_id, caps) in map {
+            let Some(caps) = caps.as_array() else { continue };
+            for cap in caps.iter().filter_map(|v| v.as_str()) {
+                let payload = rev::build_revocation_tombstone_payload(plugin_id, Some(cap));
+                sync.store_node(
+                    &rev::capability_revocation_node_id(plugin_id, cap),
+                    rev::REVOCATION_NODE_TYPE,
+                    None,
+                    &payload.to_string(),
+                    Some("tractor-host"),
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, serde::Deserialize)]
 struct RuntimePluginManifest {
     id: String,
@@ -1070,6 +1117,9 @@ impl PluginHost {
 
         if let Err(e) = store_refarm_config_node(sync, config_json.as_ref()) {
             tracing::warn!(plugin_id = %plugin_id, error = %e, "failed to store RefarmConfig node");
+        }
+        if let Err(e) = materialize_revocation_tombstones(sync, config_json.as_ref()) {
+            tracing::warn!(plugin_id = %plugin_id, error = %e, "failed to materialize revocation tombstones");
         }
 
         self.telemetry.emit_named(

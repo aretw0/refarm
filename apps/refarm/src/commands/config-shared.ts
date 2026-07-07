@@ -33,6 +33,22 @@ export interface RefarmCliConfig {
 	 * `plugin approve`. Keyed by plugin id.
 	 */
 	approvedPermissions?: Record<string, string[]>;
+	/**
+	 * The operator's ADD-ONLY revocation list — plugin ids revoked entirely (G). A
+	 * revocation is a MONOTONIC fact, never a removal: the host materializes each id
+	 * into its own `urn:refarm:revocation:<id>` graph tombstone at load, so a stale
+	 * concurrent device cannot resurrect a revoked grant (an absence would lose to
+	 * concurrent presence under the config node's whole-value LWW). Authored via
+	 * `plugin revoke`; entries are only ever appended, never deleted.
+	 */
+	revokedPlugins?: string[];
+	/**
+	 * The operator's ADD-ONLY per-capability revocation list (G): for each plugin id,
+	 * the capabilities revoked from it. Materialized into
+	 * `urn:refarm:revocation:<id>:<cap>` tombstones at load. Append-only, like
+	 * `revokedPlugins`.
+	 */
+	revokedPermissions?: Record<string, string[]>;
 }
 
 export interface ConfigDeps {

@@ -21,28 +21,23 @@ use std::collections::{HashMap, HashSet};
 pub(crate) const REVOCATION_NODE_TYPE: &str = "RevocationTombstone";
 const REVOCATION_NODE_PREFIX: &str = "urn:refarm:revocation:";
 
-// The build/id functions below are the WRITE side of the tombstone contract. G1 (this
-// slice) wires the READ side (collect + subtract) into the load path; the host WRITE
-// side — materializing an operator's add-only revocation list into per-revocation
-// tombstone nodes — lands in G2. They are already exercised by G1's e2e tests (which
-// seed tombstones through them), so `#[allow(dead_code)]` marks them as the awaited-
-// consumer API rather than leaving the module half-defined.
+// The build/id functions below are the WRITE side of the tombstone contract — the host
+// materializes an operator's add-only revocation list into per-revocation tombstone
+// nodes at load (`materialize_revocation_tombstones`), and the READ side (collect +
+// subtract) enforces them.
 
 /// The node id for revoking an entire plugin identity (all its capabilities).
-#[allow(dead_code)]
 pub(crate) fn revocation_node_id(plugin_id: &str) -> String {
     format!("{REVOCATION_NODE_PREFIX}{plugin_id}")
 }
 
 /// The node id for revoking a single capability of a plugin.
-#[allow(dead_code)]
 pub(crate) fn capability_revocation_node_id(plugin_id: &str, capability: &str) -> String {
     format!("{REVOCATION_NODE_PREFIX}{plugin_id}:{capability}")
 }
 
 /// Build a `RevocationTombstone` node payload. `capability = None` revokes the whole
 /// plugin identity; `Some(cap)` revokes just that capability.
-#[allow(dead_code)]
 pub(crate) fn build_revocation_tombstone_payload(
     plugin_id: &str,
     capability: Option<&str>,

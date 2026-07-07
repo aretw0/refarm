@@ -956,6 +956,30 @@
         assert!(ts.capabilities.get("vault").unwrap().contains("shell:spawn"));
     }
 
+    #[test]
+    fn host_materializes_config_revocations_into_tombstone_nodes() {
+        // G2: the operator's add-only revocation list in the sovereign config is
+        // projected into per-revocation graph tombstones at load — the write half.
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-materialize-revoke").unwrap();
+        let config = serde_json::json!({
+            "revokedPlugins": ["quality"],
+            "revokedPermissions": { "vault": ["network:outbound"] },
+        });
+
+        materialize_revocation_tombstones(&sync, Some(&config)).unwrap();
+
+        // The tombstones now exist as graph nodes and are collected by the read side.
+        let ts = crate::host::host_effects_bridge::resolve_revocations(Some(&sync));
+        assert!(ts.plugins.contains("quality"));
+        assert!(ts.capabilities.get("vault").unwrap().contains("network:outbound"));
+
+        // Idempotent: re-materializing the same config is a no-op upsert (same node ids).
+        materialize_revocation_tombstones(&sync, Some(&config)).unwrap();
+        let ts2 = crate::host::host_effects_bridge::resolve_revocations(Some(&sync));
+        assert_eq!(ts, ts2);
+    }
+
     // MANDATORY conformance: the Rust canonical digest MUST byte-match the TS
     // canonicalJson()+sha256 for the same config, or a node written by the tractor
     // and one written by the TS side would compute DIFFERENT revisions and defeat
