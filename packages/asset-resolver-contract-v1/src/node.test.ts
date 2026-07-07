@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	createFsAssetResolver,
 	createFsAssetStore,
+	createPeerAssetResolver,
 	layeredAssetResolver,
 	nodeSha256Hex,
 } from "./node.js";
@@ -147,5 +148,63 @@ describe("layeredAssetResolver (org → workspace → user byte fallback)", () =
 			ok: false,
 			reason: "hash-mismatch",
 		});
+	});
+});
+
+describe("createPeerAssetResolver (E4 — verify-before-trust over an injected transport)", () => {
+	it("resolves verified bytes fetched from a peer", async () => {
+		const bytes = new TextEncoder().encode("plugin from a peer");
+		const hash = nodeSha256Hex(bytes);
+		const resolver = createPeerAssetResolver(async (ref) =>
+			ref.hash === hash ? bytes : null,
+		);
+		const result = await resolver.resolve({ hash });
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(new TextDecoder().decode(result.bytes)).toBe("plugin from a peer");
+		}
+	});
+
+	it("REJECTS bytes from a lying peer — the hash gate makes an untrusted peer safe", async () => {
+		// The peer returns DIFFERENT bytes than the requested hash (a malicious or
+		// corrupt peer). The resolver must never hand these back.
+		const wanted = nodeSha256Hex(new TextEncoder().encode("the real plugin"));
+		const resolver = createPeerAssetResolver(async () =>
+			new TextEncoder().encode("MALICIOUS SUBSTITUTE"),
+		);
+		const result = await resolver.resolve({ hash: wanted });
+		expect(result).toEqual({ ok: false, reason: "hash-mismatch" });
+	});
+
+	it("a null fetch (peer miss) is not-found", async () => {
+		const resolver = createPeerAssetResolver(async () => null);
+		expect(await resolver.resolve({ hash: "0".repeat(64) })).toEqual({
+			ok: false,
+			reason: "not-found",
+		});
+	});
+
+	it("a transport error is a miss, not a crash", async () => {
+		const resolver = createPeerAssetResolver(async () => {
+			throw new Error("transport down");
+		});
+		expect(await resolver.resolve({ hash: "0".repeat(64) })).toEqual({
+			ok: false,
+			reason: "not-found",
+		});
+	});
+
+	it("composes behind the local stores in layeredAssetResolver (peer as last resort)", async () => {
+		// Nothing local; the peer has it. The layered resolver falls through to the
+		// peer backend and returns the verified bytes — E1–E3 callers unchanged.
+		const bytes = new TextEncoder().encode("only on the network");
+		const hash = nodeSha256Hex(bytes);
+		const emptyLocal = createPeerAssetResolver(async () => null); // stand-in local miss
+		const peer = createPeerAssetResolver(async (ref) =>
+			ref.hash === hash ? bytes : null,
+		);
+		const layered = layeredAssetResolver([emptyLocal, peer]);
+		const result = await layered.resolve({ hash });
+		expect(result.ok).toBe(true);
 	});
 });

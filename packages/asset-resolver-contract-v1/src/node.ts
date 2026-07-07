@@ -92,6 +92,48 @@ export function createFsAssetStore(root: string): FsAssetStore {
 }
 
 /**
+ * Fetch the bytes for a content-addressed ref from a peer over some transport. The
+ * transport is INJECTED — the resolver is agnostic to how bytes arrive (a WebRTC
+ * data channel, a relay, libp2p). Returns the raw bytes (unverified — the resolver
+ * verifies them) or `null` for a miss. A future real transport supplies this; today
+ * it is the dormant seam, so a caller passes whatever fetch it has (or none).
+ */
+export type PeerAssetFetch = (ref: AssetRef) => Promise<Uint8Array | null>;
+
+/**
+ * A content-addressed asset resolver backed by a PEER over an injected transport
+ * (E4). This is the p2p backend the `layeredAssetResolver` was designed to accept —
+ * it slots in behind the local fs/org-synced stores with ZERO change to any caller
+ * (E1–E3 are untouched). Because the resolver contract's invariant is enforced HERE
+ * — the fetched bytes are run through `verifyContentHash` before they cross the
+ * boundary — streaming an artifact from an UNTRUSTED peer is safe: bytes whose hash
+ * does not match the ref are REJECTED (`hash-mismatch`), never returned. The hash is
+ * the identity, so the peer cannot substitute different code for a requested hash.
+ *
+ * The transport itself is dormant today; this wires the verify-before-trust gate and
+ * the composition point so that landing a real peer transport is purely additive.
+ */
+export function createPeerAssetResolver(fetchFromPeer: PeerAssetFetch): AssetResolver {
+	return {
+		capability: ASSET_RESOLVER_CAPABILITY,
+		async resolve(ref: AssetRef): Promise<AssetResolution> {
+			let bytes: Uint8Array | null;
+			try {
+				bytes = await fetchFromPeer(ref);
+			} catch {
+				// A transport error is a miss, not a crash — the layered resolver
+				// moves on to the next backend (or reports not-found).
+				return { ok: false, reason: "not-found" };
+			}
+			if (bytes === null) return { ok: false, reason: "not-found" };
+			const verified = await verifyContentHash(bytes, ref, nodeSha256Hex);
+			if (!verified) return { ok: false, reason: "hash-mismatch" };
+			return { ok: true, bytes };
+		},
+	};
+}
+
+/**
  * Compose several resolvers into one that tries each in order and returns the
  * FIRST verified hit — the seam a host uses to layer backends (a local fs store,
  * then an org-synced store, then a p2p network). A `hash-mismatch` from one
