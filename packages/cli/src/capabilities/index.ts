@@ -4,7 +4,7 @@ export {
 	createCapabilityRouteHandler,
 } from "./http-projector.js";
 // The agent-projector (the pure capability→tool-schema web-surface seam) is now
-// re-exported: `refarm serve` mounts it at /agent-tools, so it has a real,
+// re-exported: the `serve` command mounts it at /agent-tools, so it has a real,
 // deliberate consumer. It is NOT on the live Rust agent path (which lists/invokes
 // plugin tools in the host+guest) — see the agent-projector.ts header — but the web
 // surface listing agent tools for a browser IS exactly what it was built for.

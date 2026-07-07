@@ -142,6 +142,13 @@ function applicationCommandOverrideEnv(binary: string): string {
 	return `${binary.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_COMMAND`;
 }
 
+// NOTE: `applicationCommand` is DELIBERATELY product-agnostic and does NOT honor
+// the `<BINARY>_COMMAND` override — that env is a LAUNCHER PATH (e.g. a full
+// `C:\tmp\refarm.cmd`), used only by `applicationProcess` to spawn the real
+// executable. The public handoff STRING a user reads/copies must stay the stable
+// canonical binary name (a launcher path leaking into a shareable command would be
+// wrong). White-label of the binary name itself is a distribution concern (the
+// rebrand protocol renames the source), not a runtime override here.
 export function applicationCommand(binary: string, args: string[]): string {
 	return binaryCommand(binary, args);
 }
