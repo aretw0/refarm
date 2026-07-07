@@ -879,15 +879,22 @@ impl PluginHost {
     ///
     /// The operator of THIS device is authoritative over their own local plugins,
     /// so a config-declared trust is a standing "yes" — no separate grant needed.
+    ///
+    /// G: a REVOKED id is denied even when the allowlist admits it (including under `*`).
+    /// The tombstone is a monotonic add-only fact, so deny dominates the wildcard —
+    /// `{*} − {vault}` denies `vault`. `revoked` is the resolved-at-load tombstone set.
     fn trusted_to_load(
         trusted: Option<&std::collections::HashSet<String>>,
+        revoked: &std::collections::HashSet<String>,
         plugin_id: &str,
     ) -> bool {
+        let id = plugin_id.to_ascii_lowercase();
+        if revoked.iter().any(|r| r.to_ascii_lowercase() == id) {
+            return false; // deny dominates: a revoked id never loads, even under `*`
+        }
         match trusted {
             None => true,
-            Some(allow) => {
-                allow.contains("*") || allow.contains(&plugin_id.to_ascii_lowercase())
-            }
+            Some(allow) => allow.contains("*") || allow.contains(&id),
         }
     }
 
@@ -926,6 +933,11 @@ impl PluginHost {
         let grant_base = std::env::current_dir().unwrap_or_default();
         let trusted_at_load = self.resolve_trusted_at_load(&grant_base, sync);
         let approved_at_load = self.resolve_approved_at_load(&grant_base, sync);
+        // G: the revocation tombstones for this load. Denies a revoked id at the trust
+        // gate even under a `*` wildcard (approved-cap revocations are already subtracted
+        // inside resolve_approved_at_load).
+        let revoked_at_load =
+            crate::host::host_effects_bridge::resolve_revocations(Some(sync)).plugins;
 
         // The plugin's declared permissions (from its manifest) + the host
         // security mode form its capability grant. Built once here so BOTH load
@@ -961,6 +973,7 @@ impl PluginHost {
                     &wasm_hash,
                     &permission_grant,
                     trusted_at_load.as_ref(),
+                    &revoked_at_load,
                     sync,
                 )
                 .await;
@@ -968,7 +981,7 @@ impl PluginHost {
 
         if self.trust.security_mode() == &SecurityMode::Strict
             && !self.trust.has_valid_grant(&plugin_id, Some(&wasm_hash))
-            && !Self::trusted_to_load(trusted_at_load.as_ref(), &plugin_id)
+            && !Self::trusted_to_load(trusted_at_load.as_ref(), &revoked_at_load, &plugin_id)
         {
             anyhow::bail!(
                 "SecurityMode::Strict: plugin '{}' (hash: {}) is neither trust-granted \
@@ -1090,13 +1103,14 @@ impl PluginHost {
         wasm_hash: &str,
         permission_grant: &crate::host::wasi_bridge::PermissionGrant,
         trusted: Option<&std::collections::HashSet<String>>,
+        revoked: &std::collections::HashSet<String>,
         sync: &NativeSync,
     ) -> Result<PluginInstanceHandle> {
         tracing::info!(plugin_id, "Loading P1 plain module (WASI preview1 ABI)");
 
         if self.trust.security_mode() == &SecurityMode::Strict
             && !self.trust.has_valid_grant(plugin_id, Some(wasm_hash))
-            && !Self::trusted_to_load(trusted, plugin_id)
+            && !Self::trusted_to_load(trusted, revoked, plugin_id)
         {
             anyhow::bail!(
                 "SecurityMode::Strict: P1 module '{}' (hash: {}) is neither trust-granted \
@@ -1334,6 +1348,41 @@ mod capability_tests {
         let err = verify_wasm_integrity(Some("sha256-0000"), "abcd", "@test/p").unwrap_err();
         assert!(err.to_string().contains("integrity check failed"));
         assert!(err.to_string().contains("@test/p"));
+    }
+
+    // ── G: the trust gate denies a revoked id even under a `*` wildcard ────────
+
+    fn trust_set(items: &[&str]) -> std::collections::HashSet<String> {
+        items.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn trusted_to_load_denies_revoked_id_even_under_wildcard() {
+        let allow = trust_set(&["*"]);
+        let revoked = trust_set(&["vault"]);
+        // `*` admits everything EXCEPT a revoked id — deny dominates the wildcard.
+        assert!(!PluginHost::trusted_to_load(Some(&allow), &revoked, "vault"));
+        assert!(PluginHost::trusted_to_load(Some(&allow), &revoked, "quality"));
+    }
+
+    #[test]
+    fn trusted_to_load_denies_revoked_id_from_concrete_allowlist() {
+        let allow = trust_set(&["vault", "quality"]);
+        let revoked = trust_set(&["vault"]);
+        assert!(!PluginHost::trusted_to_load(Some(&allow), &revoked, "vault"));
+        assert!(PluginHost::trusted_to_load(Some(&allow), &revoked, "quality"));
+    }
+
+    #[test]
+    fn trusted_to_load_no_revocations_is_unchanged() {
+        let allow = trust_set(&["vault"]);
+        let empty = std::collections::HashSet::new();
+        assert!(PluginHost::trusted_to_load(Some(&allow), &empty, "vault"));
+        assert!(!PluginHost::trusted_to_load(Some(&allow), &empty, "other"));
+        // None (not configured) still permissive when nothing revoked.
+        assert!(PluginHost::trusted_to_load(None, &empty, "anything"));
+        // …but a revocation denies even the not-configured permissive case.
+        assert!(!PluginHost::trusted_to_load(None, &trust_set(&["anything"]), "anything"));
     }
 
     #[test]

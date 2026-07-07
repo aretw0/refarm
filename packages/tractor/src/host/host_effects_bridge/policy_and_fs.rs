@@ -146,7 +146,21 @@ pub(crate) fn resolve_trusted_plugins(
     let (fs_value, node_value) = refarm_config_values_two_source(base, sync)?;
     let fs = fs_value.as_ref().map(parse_trusted_plugins).transpose()?.flatten();
     let node = node_value.as_ref().map(parse_trusted_plugins).transpose()?.flatten();
+    // G's revocation subtraction for trust happens at the load gate (`trusted_to_load`),
+    // not here — a `{*}` wildcard can't be subtracted from as a finite set, so the gate
+    // takes the revoked set and denies a revoked id even under `*`. This resolver stays
+    // the pure fs ∩ node merge (B); the revoked set is resolved separately at load.
     Ok(merge_trusted_deny_dominates(fs, node))
+}
+
+/// Collect the revocation tombstones for THIS load (G). Returned separately from the
+/// trust/approved resolution so the load gate can apply them — for trust, denying a
+/// revoked id even under a `*` wildcard; for approved, subtracting revoked caps.
+pub(crate) fn resolve_revocations(
+    sync: Option<&crate::sync::NativeSync>,
+) -> crate::host::plugin_host::revocation_node::Tombstones {
+    sync.map(crate::host::plugin_host::revocation_node::collect_tombstones)
+        .unwrap_or_default()
 }
 
 /// Resolve the approved-permissions map from fs ∩ node (deny dominates per capability).
@@ -158,7 +172,11 @@ pub(crate) fn resolve_approved_permissions(
     let (fs_value, node_value) = refarm_config_values_two_source(base, sync)?;
     let fs = fs_value.as_ref().map(parse_approved_permissions).transpose()?.flatten();
     let node = node_value.as_ref().map(parse_approved_permissions).transpose()?.flatten();
-    Ok(merge_approved_deny_dominates(fs, node))
+    let merged = merge_approved_deny_dominates(fs, node);
+    // G: subtract revoked caps + whole-plugin revocations after B's merge (approved has
+    // no wildcard, so the subtraction is a clean final step here).
+    let ts = resolve_revocations(sync);
+    Ok(subtract_revoked_approved(merged, &ts.plugins, &ts.capabilities))
 }
 
 /// More-restrictive-of-{fs, node} for the trust allowlist.
@@ -239,6 +257,28 @@ fn merge_approved_deny_dominates(
             Some(out)
         }
     }
+}
+
+/// Subtract the revoked capabilities (and whole-plugin revocations) from the merged
+/// approved map (G). A plugin revoked entirely drops from the map (all its caps gone);
+/// a per-capability revocation removes just that cap from the plugin's set.
+fn subtract_revoked_approved(
+    approved: Option<std::collections::HashMap<String, std::collections::HashSet<String>>>,
+    revoked_plugins: &std::collections::HashSet<String>,
+    revoked_caps: &std::collections::HashMap<String, std::collections::HashSet<String>>,
+) -> Option<std::collections::HashMap<String, std::collections::HashSet<String>>> {
+    approved.map(|map| {
+        map.into_iter()
+            .filter(|(plugin, _)| !revoked_plugins.contains(plugin))
+            .map(|(plugin, caps)| {
+                let effective = match revoked_caps.get(&plugin) {
+                    Some(revoked) => caps.difference(revoked).cloned().collect(),
+                    None => caps,
+                };
+                (plugin, effective)
+            })
+            .collect()
+    })
 }
 
 fn read_trusted_plugins_config_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {

@@ -874,6 +874,88 @@
         assert!(trusted.contains("vault"));
     }
 
+    // ── G: revocation tombstones (monotonic deny; a stale presence can't resurrect) ──
+
+    use crate::host::plugin_host::revocation_node::{
+        build_revocation_tombstone_payload, capability_revocation_node_id, revocation_node_id,
+        REVOCATION_NODE_TYPE,
+    };
+
+    fn seed_tombstone(sync: &NativeSync, plugin_id: &str, capability: Option<&str>) {
+        let id = match capability {
+            None => revocation_node_id(plugin_id),
+            Some(c) => capability_revocation_node_id(plugin_id, c),
+        };
+        let payload = build_revocation_tombstone_payload(plugin_id, capability);
+        sync.store_node(&id, REVOCATION_NODE_TYPE, None, &payload.to_string(), Some("test"))
+            .unwrap();
+    }
+
+    #[test]
+    fn revoked_approved_cap_is_subtracted_after_merge() {
+        // approvedPermissions grants vault [fs:read, network:outbound]; a tombstone
+        // revokes network:outbound → the effective approved set drops it, monotonically.
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-revoke-cap").unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join(".refarm")).unwrap();
+        std::fs::write(
+            dir.path().join(".refarm/config.json"),
+            r#"{"approvedPermissions":{"vault":["fs:read","network:outbound"]}}"#,
+        )
+        .unwrap();
+
+        seed_tombstone(&sync, "vault", Some("network:outbound"));
+
+        let approved = crate::host::host_effects_bridge::resolve_approved_permissions(
+            dir.path(),
+            Some(&sync),
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(
+            approved.get("vault"),
+            Some(&std::collections::HashSet::from(["fs:read".to_string()])),
+            "revoked cap must be subtracted; a concurrent grant cannot resurrect it"
+        );
+    }
+
+    #[test]
+    fn whole_plugin_revocation_drops_all_its_approved_caps() {
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-revoke-plugin").unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join(".refarm")).unwrap();
+        std::fs::write(
+            dir.path().join(".refarm/config.json"),
+            r#"{"approvedPermissions":{"vault":["fs:read"],"quality":["fs:read"]}}"#,
+        )
+        .unwrap();
+
+        seed_tombstone(&sync, "vault", None); // revoke the whole plugin
+
+        let approved = crate::host::host_effects_bridge::resolve_approved_permissions(
+            dir.path(),
+            Some(&sync),
+        )
+        .unwrap()
+        .unwrap();
+        assert!(approved.get("vault").is_none(), "revoked plugin drops from the approved map");
+        assert!(approved.get("quality").is_some(), "other plugins untouched");
+    }
+
+    #[test]
+    fn resolve_revocations_collects_the_tombstones() {
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-collect-revoke").unwrap();
+        seed_tombstone(&sync, "quality", None);
+        seed_tombstone(&sync, "vault", Some("shell:spawn"));
+
+        let ts = crate::host::host_effects_bridge::resolve_revocations(Some(&sync));
+        assert!(ts.plugins.contains("quality"));
+        assert!(ts.capabilities.get("vault").unwrap().contains("shell:spawn"));
+    }
+
     // MANDATORY conformance: the Rust canonical digest MUST byte-match the TS
     // canonicalJson()+sha256 for the same config, or a node written by the tractor
     // and one written by the TS side would compute DIFFERENT revisions and defeat
