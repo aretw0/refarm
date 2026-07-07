@@ -3,6 +3,7 @@ import {
 	defaultRefarmConfigPath,
 	findRefarmConfigPath,
 	loadConfig,
+	refarmConfigPathCandidates,
 	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 	type DeclaredWorkspaceNamespaceConfig,
 } from "@refarm.dev/config";
@@ -118,7 +119,7 @@ export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicy
 
   const health = config.health;
   const preset = health.preset === "refarm" ? "refarm" : "workspace";
-  const ignoredGitVisibilityPatterns = asStringArray(health.ignoredGitVisibilityPatterns);
+  const ignoredGitVisibilityPatterns = layeredIgnoredGitVisibilityPatterns(rootDir, health);
   const policy: HealthPolicy = {
     preset,
     ignoredGitVisibilityPatterns: ignoredGitVisibilityPatterns.length > 0
@@ -156,6 +157,26 @@ export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicy
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function layeredIgnoredGitVisibilityPatterns(rootDir: string, mergedHealth: RefarmConfig["health"]): string[] {
+  const values: string[] = [];
+  for (const configPath of [...refarmConfigPathCandidates(rootDir)].reverse()) {
+    if (!fs.existsSync(configPath)) continue;
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as RefarmConfig;
+      values.push(...asStringArray(config.health?.ignoredGitVisibilityPatterns));
+    } catch {
+      // loadConfig already ignores malformed config layers; keep health policy
+      // resolution consistent with that behavior.
+    }
+  }
+  values.push(...asStringArray(mergedHealth?.ignoredGitVisibilityPatterns));
+  return dedupeStrings(values);
+}
+
+function dedupeStrings(values: string[]): string[] {
+  return [...new Set(values)];
 }
 
 function asPositiveInteger(value: unknown, fallback: number): number {

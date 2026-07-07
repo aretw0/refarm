@@ -45,6 +45,7 @@
       "**/*.d.ts",
       "packages/agent/src/bindings.rs",
       "packages/quality-checker-plugin/pkg-plugin/**",
+      "packages/source-provider-ref/pkg-plugin/**",
       "packages/vault-surface-ref/pkg-plugin/**",
       "validations/sqlite-benchmark/browser/public/sqlite3-opfs-async-proxy.js",
       "validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs"

@@ -307,6 +307,42 @@ describe("healthCommand", () => {
     expect(mockComplexityAuditor).not.toHaveBeenCalled();
   });
 
+  it("preserves versioned git visibility policy when local config adds operator overrides", () => {
+    mockExistsSync.mockImplementation((value) => {
+      const normalizedPath = String(value).replaceAll("\\", "/");
+      return normalizedPath.endsWith("refarm.config.json")
+        || normalizedPath.endsWith(".refarm/config.json");
+    });
+    mockReadFileSync.mockImplementation((value) => {
+      const normalizedPath = String(value).replaceAll("\\", "/");
+      if (normalizedPath.endsWith("refarm.config.json")) {
+        return JSON.stringify({
+          health: {
+            ignoredGitVisibilityPatterns: [
+              "packages/source-provider-ref/pkg-plugin/**",
+              "packages/vault-surface-ref/pkg-plugin/**",
+            ],
+          },
+        });
+      }
+      return JSON.stringify({
+        health: {
+          preset: "refarm",
+          ignoredGitVisibilityPatterns: ["local/generated/**"],
+        },
+      });
+    });
+
+    expect(resolveHealthPolicy("/tmp/project")).toEqual({
+      preset: "refarm",
+      ignoredGitVisibilityPatterns: [
+        "packages/source-provider-ref/pkg-plugin/**",
+        "packages/vault-surface-ref/pkg-plugin/**",
+        "local/generated/**",
+      ],
+    });
+  });
+
   it("registers complexity auditor only when health policy enables it", async () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(JSON.stringify({
