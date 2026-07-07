@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
 	buildBaseSurfaceModel,
+	buildCapabilitySurfaceUnit,
+	buildReviewQueueSurfaceUnit,
+	formatBaseSurfaceModelText,
 	type BaseSurfaceUnit,
 } from "./index.js";
 
@@ -256,5 +259,64 @@ describe("operator state model", () => {
 		expect(model.units).toEqual([walletUnit]);
 		expect(model.nextAction).toBe("Open wallet review queue.");
 		expect(model.nextCommand).toBe("wallet-t2 review --pending --json");
+	});
+
+	it("gives consumers helpers for capabilities, review queues and text output", () => {
+		const capabilities = buildCapabilitySurfaceUnit(
+			{ list: () => [{ name: "vault" }, { name: "records" }, { name: "wallet-show" }] },
+			{
+				owner: "examples/wallet-t2",
+				subject: "Wallet",
+				action: {
+					label: "wallet wallet-show --json",
+					command: "wallet wallet-show --json",
+					primary: true,
+				},
+			},
+		);
+		const wallet = buildReviewQueueSurfaceUnit({
+			id: "wallet",
+			label: "Wallet",
+			owner: "examples/wallet-t2",
+			total: 3,
+			pending: 1,
+			totalLabel: "held items",
+			pendingLabel: "needs review",
+			pendingSummary: ({ total, pending }) =>
+				`Wallet has ${total} held items; ${pending} item needs review.`,
+			readySummary: ({ total }) => `Wallet has ${total} held items.`,
+			pendingAction: {
+				label: "Verify the draft credential",
+				command: "wallet records correct record:cred-assinatura verified --apply",
+				primary: true,
+			},
+		});
+		const model = buildBaseSurfaceModel(
+			{ units: [capabilities, wallet] },
+			{ command: "wallet", operation: "base" },
+		);
+
+		expect(capabilities).toMatchObject({
+			id: "capabilities",
+			owner: "examples/wallet-t2",
+			state: "ready",
+			summary: "Wallet mounts 3 capability verbs.",
+			evidence: [
+				{ kind: "count", label: "verbs", value: "3" },
+				{ kind: "state", label: "mounted", value: "vault, records, wallet-show" },
+			],
+		});
+		expect(wallet).toMatchObject({
+			id: "wallet",
+			state: "degraded",
+			severity: "warning",
+			summary: "Wallet has 3 held items; 1 item needs review.",
+		});
+		expect(model.nextCommands).toEqual([
+			"wallet wallet-show --json",
+			"wallet records correct record:cred-assinatura verified --apply",
+		]);
+		expect(formatBaseSurfaceModelText(model, { title: "wallet base status" }))
+			.toContain("Wallet: Wallet has 3 held items; 1 item needs review.");
 	});
 });

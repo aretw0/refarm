@@ -116,6 +116,45 @@ export interface BaseSurfaceModel {
 	nextCommands: string[];
 }
 
+export interface CapabilitySurfaceRegistryLike {
+	list(): Array<{ name: string }>;
+}
+
+export interface CapabilitySurfaceUnitOptions {
+	owner: string;
+	id?: string;
+	label?: string;
+	subject?: string;
+	noun?: string;
+	action?: BaseSurfaceAction;
+	details?: Record<string, unknown>;
+}
+
+export interface ReviewQueueSurfaceUnitContext {
+	total: number;
+	pending: number;
+	totalLabel: string;
+	pendingLabel: string;
+}
+
+export interface ReviewQueueSurfaceUnitOptions {
+	id: string;
+	label: string;
+	owner: string;
+	total: number;
+	pending: number;
+	totalLabel: string;
+	pendingLabel: string;
+	readySummary?: string | ((context: ReviewQueueSurfaceUnitContext) => string);
+	pendingSummary?: string | ((context: ReviewQueueSurfaceUnitContext) => string);
+	pendingAction?: BaseSurfaceAction;
+	details?: Record<string, unknown>;
+}
+
+export interface BaseSurfaceTextFormatOptions {
+	title?: string;
+}
+
 export function buildBaseSurfaceModel(
 	input: BaseSurfaceModelInput,
 	options: BaseSurfaceModelOptions = {},
@@ -151,6 +190,93 @@ export function buildBaseSurfaceModel(
 		nextCommand: nextCommands[0] ?? null,
 		nextCommands,
 	};
+}
+
+export function buildCapabilitySurfaceUnit(
+	registry: CapabilitySurfaceRegistryLike,
+	options: CapabilitySurfaceUnitOptions,
+): BaseSurfaceUnit {
+	const names = registry.list().map((entry) => entry.name);
+	const noun = options.noun ?? "capability verbs";
+	return {
+		id: options.id ?? "capabilities",
+		label: options.label ?? "Capabilities",
+		owner: options.owner,
+		state: "ready",
+		severity: "info",
+		summary: `${options.subject ?? options.label ?? "Registry"} mounts ${names.length} ${noun}.`,
+		evidence: [
+			{ kind: "count", label: "verbs", value: String(names.length) },
+			{ kind: "state", label: "mounted", value: names.join(", ") },
+		],
+		actions: options.action ? [options.action] : [],
+		details: { capabilityNames: names, ...(options.details ?? {}) },
+	};
+}
+
+export function buildReviewQueueSurfaceUnit(
+	options: ReviewQueueSurfaceUnitOptions,
+): BaseSurfaceUnit {
+	const context: ReviewQueueSurfaceUnitContext = {
+		total: options.total,
+		pending: options.pending,
+		totalLabel: options.totalLabel,
+		pendingLabel: options.pendingLabel,
+	};
+	const hasPending = options.pending > 0;
+	return {
+		id: options.id,
+		label: options.label,
+		owner: options.owner,
+		state: hasPending ? "degraded" : "ready",
+		severity: hasPending ? "warning" : "info",
+		summary: renderReviewQueueSummary(
+			hasPending ? options.pendingSummary : options.readySummary,
+			context,
+			hasPending,
+			options.label,
+		),
+		evidence: [
+			{ kind: "count", label: options.totalLabel, value: String(options.total) },
+			{ kind: "count", label: options.pendingLabel, value: String(options.pending) },
+		],
+		actions: hasPending && options.pendingAction ? [options.pendingAction] : [],
+		details: options.details,
+	};
+}
+
+export function formatBaseSurfaceModelText(
+	model: BaseSurfaceModel,
+	options: BaseSurfaceTextFormatOptions = {},
+): string {
+	const lines = [options.title ?? `${model.command} ${model.operation} status`, ""];
+	for (const unit of model.units) {
+		lines.push(`${unit.label}: ${unit.summary}`);
+		for (const evidence of unit.evidence) {
+			lines.push(`  ${evidence.label}: ${evidence.value}`);
+		}
+	}
+	if (model.nextCommands.length > 0) {
+		lines.push("", "next:");
+		for (const command of model.nextCommands) {
+			lines.push(`  ${command}`);
+		}
+	}
+	return `${lines.join("\n")}\n`;
+}
+
+function renderReviewQueueSummary(
+	template: ReviewQueueSurfaceUnitOptions["readySummary"],
+	context: ReviewQueueSurfaceUnitContext,
+	hasPending: boolean,
+	label: string,
+): string {
+	if (typeof template === "function") return template(context);
+	if (template) return template;
+	if (hasPending) {
+		return `${label} has ${context.total} ${context.totalLabel}; ${context.pending} ${context.pendingLabel}.`;
+	}
+	return `${label} has ${context.total} ${context.totalLabel}.`;
 }
 
 function runtimeUnit(runtime: RuntimeLike, owner: string): BaseSurfaceUnit {

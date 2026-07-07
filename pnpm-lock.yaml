@@ -545,6 +545,9 @@ importers:
       '@refarm.dev/enrichment-contract-v1':
         specifier: workspace:*
         version: link:../../packages/enrichment-contract-v1
+      '@refarm.dev/operator-state':
+        specifier: workspace:*
+        version: link:../../packages/operator-state
       '@refarm.dev/records-contract-v1':
         specifier: workspace:*
         version: link:../../packages/records-contract-v1
@@ -647,6 +650,9 @@ importers:
       '@refarm.dev/enrichment-contract-v1':
         specifier: workspace:*
         version: link:../enrichment-contract-v1
+      '@refarm.dev/operator-state':
+        specifier: workspace:*
+        version: link:../operator-state
       '@refarm.dev/records-contract-v1':
         specifier: workspace:*
         version: link:../records-contract-v1

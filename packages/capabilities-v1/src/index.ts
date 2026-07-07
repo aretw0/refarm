@@ -9,6 +9,10 @@ export {
 	type RecordsCommandDeps,
 } from "./records-capability.js";
 export {
+	createBaseStatusCapability,
+	type BaseStatusCapabilityOptions,
+} from "./operator-state-capability.js";
+export {
 	createVaultCapabilityGroup,
 	defaultVaultDeps,
 	type VaultCommandDeps,

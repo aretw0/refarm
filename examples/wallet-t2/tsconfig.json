@@ -11,6 +11,9 @@
 			"@refarm.dev/capabilities-v1": [
 				"packages/capabilities-v1/dist/index.d.ts"
 			],
+			"@refarm.dev/capabilities-v1/node": [
+				"packages/capabilities-v1/dist/node.d.ts"
+			],
 			"@refarm.dev/cli/capabilities": [
 				"packages/cli/dist/capabilities/index.d.ts"
 			],

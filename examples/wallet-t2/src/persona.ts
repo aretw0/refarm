@@ -1,10 +1,11 @@
 import {
 	createRecordsCapabilityGroup,
-	defaultVaultDeps,
 	defaultSourceDeps,
+	defaultVaultDeps,
 	type RecordsCommandDeps,
 	type RefarmCapabilityDeps,
 } from "@refarm.dev/capabilities-v1";
+import { createLocalRecordsCommandDeps } from "@refarm.dev/capabilities-v1/node";
 import type {
 	CapabilityDescriptor,
 	CapabilityEnvelope,
@@ -22,18 +23,19 @@ import { walletManifest } from "./fixture.js";
  * machine — the opposite of T1's process view.
  */
 
-/** The citizen's records deps, backed by a mutable in-memory manifest (local-first —
- * the citizen's data lives with them; a real deployment backs it with local storage). */
-export function walletRecordsDeps(): RecordsCommandDeps {
-	let manifest = walletManifest();
-	return {
-		loadManifest: () => manifest,
-		saveManifest: (next) => {
-			manifest = next;
-		},
+/** The citizen's records deps, backed by a mutable manifest and optional local state
+ * file. Without a state path it stays in-memory for deterministic tests. */
+export interface WalletStateOptions {
+	statePath?: string;
+}
+
+export function walletRecordsDeps(options: WalletStateOptions = {}): RecordsCommandDeps {
+	return createLocalRecordsCommandDeps({
+		seed: walletManifest,
+		statePath: options.statePath,
 		enrichmentProvider: createReferenceEnrichmentProvider(),
 		recordsProvider: createReferenceRecordsProvider(),
-	};
+	});
 }
 
 export function walletCapabilityDeps(

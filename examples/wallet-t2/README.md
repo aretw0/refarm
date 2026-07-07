@@ -10,11 +10,23 @@ machine. Local-first — the citizen's data lives with them.
 The citizen holds and curates their own items:
 
 ```bash
+wallet status --base --json                         # base operator model for this app
 wallet wallet-show                                  # my wallet — the items I hold
 wallet records correct record:cred-assinatura verified --apply   # I verify a credential
 wallet wallet-show                                  # it now shows as verified
 wallet serve                                        # my wallet on a web surface
 ```
+
+`wallet status --base --json` is the manual exploratory entrypoint for the shared
+operator-state contract. It is built with `@refarm.dev/operator-state` helpers and
+owned by `examples/wallet-t2`, not `apps/refarm`, so this app composes the same base
+model with its own capability and wallet units.
+
+The CLI persists local curation to `.wallet-t2/manifest.json` by default, so a
+correction made in one process is visible to the next command. That state is wired
+through `@refarm.dev/capabilities-v1/node`, not app-local file IO. Set
+`WALLET_T2_STATE_PATH=/path/to/manifest.json` to record an isolated run, or delete
+`.wallet-t2/` to reset the demo state.
 
 `wallet-show` renders the citizen's held items grouped by verification status — the
 product view. It reads the neutral `records analyze` envelope; the citizen never sees
@@ -34,7 +46,10 @@ process view.
 
 ```bash
 pnpm --filter wallet-t2 build
+pnpm --filter wallet-t2 wallet status --base --json
 pnpm --filter wallet-t2 wallet wallet-show
+pnpm --filter wallet-t2 wallet records correct record:cred-assinatura verified --apply
+pnpm --filter wallet-t2 wallet status --base --json
 # web surface:
 pnpm --filter wallet-t2 wallet serve --port 4322
 # → GET http://127.0.0.1:4322/capabilities/wallet
