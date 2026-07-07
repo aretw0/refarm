@@ -551,6 +551,52 @@ impl PluginInstanceHandle {
         Ok(())
     }
 
+    /// Call the plugin's `respond(payload) -> result<string, plugin-error>` export.
+    ///
+    /// Unlike `on-event` (fire-and-forget), `respond` is the SYNCHRONOUS
+    /// request/response channel of the canonical `integration` interface: the host
+    /// hands the guest a payload and reads its string return. This is the seam a
+    /// provider-shaped plugin uses — a `source:v1` / `records:v1` provider implements
+    /// `integration` and routes `respond({method:"discover"|"materialize", ...})` to a
+    /// JSON result, so the host can call provider methods without a graph round-trip.
+    ///
+    /// Runs guest logic, so it arms the wall-clock deadline like `call_on_event`
+    /// (timeout + cooperative cancel). P1 plain modules have no `respond` export → a
+    /// clear error (they use `on_event` dispatch instead).
+    pub async fn call_respond(&mut self, payload: &str) -> Result<String> {
+        // Same epoch arming as call_on_event: clear a stale cancel, set the deadline.
+        self.epoch_guard
+            .cancel
+            .store(false, std::sync::atomic::Ordering::SeqCst);
+        let budget_ms = self.on_event_budget_ms;
+        let now = std::time::Instant::now();
+        let deadline = now
+            .checked_add(std::time::Duration::from_millis(budget_ms))
+            .unwrap_or_else(|| now + std::time::Duration::from_secs(3600));
+        *self.epoch_guard.wall_deadline.lock().expect("wall_deadline poisoned") = Some(deadline);
+
+        let result = match &mut self.inner {
+            PluginImpl::Component { plugin, store } => plugin
+                .refarm_plugin_integration()
+                .call_respond(store, payload)
+                .await
+                .map(|r| r.map_err(|e| anyhow::anyhow!("respond() error: {:?}", e))),
+            PluginImpl::Module { .. } => Ok(Err(anyhow::anyhow!(
+                "plugin '{}' is a P1 plain module with no respond() export",
+                self.id
+            ))),
+        };
+
+        // Disarm the deadline regardless of outcome.
+        *self.epoch_guard.wall_deadline.lock().expect("wall_deadline poisoned") = None;
+
+        match result {
+            Ok(Ok(reply)) => Ok(reply),
+            Ok(Err(e)) => anyhow::bail!(e.to_string()),
+            Err(e) => anyhow::bail!("respond() trap: {e}"),
+        }
+    }
+
     // ── Generic dispatcher (for TS-parity API) ────────────────────────────────
 
     /// Dispatch a named lifecycle call. Used by higher-level APIs.
@@ -576,6 +622,16 @@ impl PluginInstanceHandle {
             "metadata" => {
                 let m = self.call_metadata().await?;
                 Ok(Some(m))
+            }
+            "respond" => {
+                let payload = _args
+                    .as_ref()
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+                    .or_else(|| _args.as_ref().map(|v| v.to_string()))
+                    .unwrap_or_default();
+                let reply = self.call_respond(&payload).await?;
+                Ok(Some(serde_json::json!(reply)))
             }
             other => anyhow::bail!("unknown plugin function: {other}"),
         }
