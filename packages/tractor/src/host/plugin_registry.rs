@@ -93,7 +93,13 @@ impl PluginRegistry {
             .remove(plugin_id);
     }
 
-    /// The capability profile of a loaded plugin, if present.
+    /// The capability profile of a loaded plugin, if present. Kept but `#[cfg(test)]`-
+    /// gated: there is no production caller YET — the natural first consumer is the
+    /// promptSnippet Slice 2 lookup (a per-plugin verb-docs read) and any future
+    /// introspection endpoint that returns one plugin's full profile by id. The
+    /// read-shape is worth documenting, so this is gated rather than deleted; drop the
+    /// gate the moment a production path reads it.
+    #[cfg(test)]
     pub fn profile(&self, plugin_id: &str) -> Option<PluginCapabilityProfile> {
         self.inner
             .read()
