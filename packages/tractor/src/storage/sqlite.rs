@@ -267,17 +267,37 @@ impl NativeStorage {
 /// to be recovered onto a *new* device, which is the opposite of what a peer ID needs).
 ///
 /// Returns:
-/// - `Ok(Some(id))` for an on-disk namespace (read-or-create `{namespace}.peer`).
-/// - `Ok(None)` for the `:memory:` namespace — no persistent home, so the caller
-///   falls back to namespace-derivation (correct: in-process/test docs stay distinct
-///   by their distinct namespace strings and never share a peer file).
+/// - `Ok(Some(id))` when `REFARM_PEER_ID` pins an explicit valid id (any namespace),
+///   or for an on-disk namespace (read-or-create `{namespace}.peer`).
+/// - `Ok(None)` for the `:memory:` namespace with no override — no persistent home, so
+///   the caller falls back to namespace-derivation (correct: in-process/test docs stay
+///   distinct by their distinct namespace strings and never share a peer file).
+///
+/// `REFARM_PEER_ID` lets an operator pin a peer without touching the file — e.g. a
+/// deterministic id for reproducible CI or convergence debugging. An unset or invalid
+/// value falls through to the persisted path (never the default-namespace collision).
 pub(crate) fn peer_id_for_namespace(namespace: &str) -> Result<Option<u64>> {
+    if let Some(id) = peer_id_env_override() {
+        return Ok(Some(id));
+    }
     if namespace == ":memory:" {
         return Ok(None);
     }
     let dir = db_dir()?;
     std::fs::create_dir_all(&dir).with_context(|| format!("create db dir {dir:?}"))?;
     peer_id_at(&dir, namespace).map(Some)
+}
+
+/// A valid `u64` pinned via `REFARM_PEER_ID`, or `None` if unset/malformed/reserved.
+fn peer_id_env_override() -> Option<u64> {
+    let raw = std::env::var("REFARM_PEER_ID").ok()?;
+    match raw.trim().parse::<u64>() {
+        Ok(id) if is_valid_peer_id(id) => Some(id),
+        _ => {
+            tracing::warn!(value = %raw, "invalid REFARM_PEER_ID; ignoring");
+            None
+        }
+    }
 }
 
 /// Read-or-create the persisted peer ID for `{namespace}.peer` inside `dir`.
@@ -480,6 +500,29 @@ mod tests {
             std::fs::write(&path, reserved.to_string()).unwrap();
             let id = peer_id_at(dir.path(), "device-r").unwrap();
             assert!(is_valid_peer_id(id), "reserved {reserved} must be regenerated");
+        }
+    }
+
+    #[test]
+    fn peer_id_env_override_pins_id() {
+        // REFARM_PEER_ID pins the peer without touching the file — an operator escape
+        // hatch for deterministic CI/convergence debugging. It wins even for :memory:
+        // (which otherwise returns None). Invalid/reserved values are ignored.
+        let _guard = crate::test_support::env_lock();
+        let saved = std::env::var("REFARM_PEER_ID").ok();
+
+        std::env::set_var("REFARM_PEER_ID", "424242");
+        assert_eq!(peer_id_for_namespace(":memory:").unwrap(), Some(424242));
+
+        std::env::set_var("REFARM_PEER_ID", "not-a-number");
+        assert_eq!(peer_id_for_namespace(":memory:").unwrap(), None, "malformed override ignored");
+
+        std::env::set_var("REFARM_PEER_ID", "0");
+        assert_eq!(peer_id_for_namespace(":memory:").unwrap(), None, "reserved override ignored");
+
+        match saved {
+            Some(v) => std::env::set_var("REFARM_PEER_ID", v),
+            None => std::env::remove_var("REFARM_PEER_ID"),
         }
     }
 }
