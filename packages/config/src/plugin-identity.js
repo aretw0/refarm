@@ -32,6 +32,67 @@ export function normalizePluginId(pluginId) {
 	return PLUGIN_ID_ALIASES[pluginId] ?? pluginId;
 }
 
+// ── The plugin-id charset contract (single source of truth) ──────────────────
+//
+// A plugin id has TWO safe-charset notions and THREE projections of one input
+// (`@scope/name`). Declaring them ONCE here — and mirroring them in the Rust host
+// via a CI guard (scripts/ci/check-plugin-id-charset.mjs) — is what keeps RS↔TS
+// from drifting. No consumer inlines an id regex; they import these.
+//
+//   - FS-SAFE charset (no `@` `/`): a filesystem path segment. Mirrors the Rust
+//     `is_safe_plugin_id_token` charset (policy_and_fs.rs). Used by pluginIdToFsToken.
+//   - COMMAND-SAFE charset (permits `@` `/` `:`): a bare token on a command line.
+//     Used by the handoff quoter — a value matching it never needs quoting.
+//
+// The three projections are DISTINCT and must stay so:
+//   - pluginIdToFsToken   — FLATTEN (`@refarm/agent`→`refarm_agent`), a path segment.
+//   - pluginIdRuntimeToken — LAST-SEGMENT (`@refarm/agent`→`agent`), the routing /
+//     trust-grant identity. Mirrors Rust `manifest_runtime_plugin_id`; the Rust host
+//     keys trust grants + channels on it, so it is NOT the same as the fs flatten.
+//   - isFsSafeId          — PREDICATE (validate, don't rewrite). Mirrors Rust.
+export const PLUGIN_ID_FS_SAFE_CHARS = "A-Za-z0-9._-";
+export const PLUGIN_ID_COMMAND_SAFE_CHARS = "A-Za-z0-9._:@/\\-";
+export const PLUGIN_ID_MAX_LEN = 128;
+
+const FS_SAFE_RE = new RegExp(`^[${PLUGIN_ID_FS_SAFE_CHARS}]+$`);
+const NON_FS_SAFE_RE = new RegExp(`[^${PLUGIN_ID_FS_SAFE_CHARS}]`, "g");
+const COMMAND_SAFE_RE = new RegExp(`^[${PLUGIN_ID_COMMAND_SAFE_CHARS}]+$`);
+
+/**
+ * Whether `id` is a filesystem-safe token — the exact mirror of the Rust
+ * `is_safe_plugin_id_token` predicate (length + fs-safe charset, no `@` `/`). The
+ * CI guard fails if this and the Rust definition disagree.
+ * @param {string} id
+ * @returns {boolean}
+ */
+export function isFsSafeId(id) {
+	return id.length <= PLUGIN_ID_MAX_LEN && FS_SAFE_RE.test(id);
+}
+
+/**
+ * Whether `value` is command-safe (a bare command-line token that needs no
+ * quoting). The single definition the handoff quoter and the package-manager
+ * arg-check both derive from.
+ * @param {string} value
+ * @returns {boolean}
+ */
+export function isCommandSafeId(value) {
+	return COMMAND_SAFE_RE.test(value);
+}
+
+/**
+ * The runtime/routing token — the LAST `/`-segment of a plugin id
+ * (`@refarm/agent`→`agent`). Declared mirror of the Rust `manifest_runtime_plugin_id`
+ * projection (env_and_runtime.rs); the host keys trust grants and channels on it,
+ * so this is a KNOWN projection sitting beside the fs flatten, not a third string.
+ * @param {string} id
+ * @returns {string}
+ */
+export function pluginIdRuntimeToken(id) {
+	const seg = id.trim().split("/").pop();
+	return seg && seg.trim() ? seg : id;
+}
+
 /**
  * The single canonical FILESYSTEM-SAFE projection of a plugin id — the one place
  * a plugin id becomes a directory/file segment, for ANY consumer (the CLI, the
@@ -55,7 +116,7 @@ export function pluginIdToFsToken(pluginId) {
 	const token = pluginId
 		.replace(/[/\\]/g, "_")
 		.replace(/@/g, "")
-		.replace(/[^A-Za-z0-9._-]/g, "_");
+		.replace(NON_FS_SAFE_RE, "_");
 	return /^\.+$/.test(token) ? `_${token}` : token;
 }
 

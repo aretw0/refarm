@@ -13,6 +13,10 @@ import {
 	isRuntimeAgentPluginId,
 	normalizePluginId,
 	pluginIdToFsToken,
+	isFsSafeId,
+	isCommandSafeId,
+	pluginIdRuntimeToken,
+	PLUGIN_ID_MAX_LEN,
 } from "./plugin-identity.js";
 
 describe("plugin identity", () => {
@@ -119,5 +123,38 @@ describe("pluginIdToFsToken (filesystem-safe projection)", () => {
 	it("is idempotent on an already-safe token", () => {
 		const once = pluginIdToFsToken("@refarm/agent");
 		expect(pluginIdToFsToken(once)).toBe(once);
+	});
+});
+
+describe("plugin-id charset contract (RS↔TS mirror)", () => {
+	it("isFsSafeId mirrors the Rust predicate: no @ or /, alnum._- only", () => {
+		expect(isFsSafeId("refarm_agent")).toBe(true);
+		expect(isFsSafeId("my-plugin.v2")).toBe(true);
+		expect(isFsSafeId("@refarm/agent")).toBe(false); // @ and / forbidden
+		expect(isFsSafeId("a b")).toBe(false);
+		expect(isFsSafeId("a".repeat(PLUGIN_ID_MAX_LEN + 1))).toBe(false); // length
+	});
+
+	it("isCommandSafeId permits @ / : (a bare command-line token)", () => {
+		expect(isCommandSafeId("agent")).toBe(true);
+		expect(isCommandSafeId("@refarm/agent")).toBe(true); // @ / allowed
+		expect(isCommandSafeId("a:b")).toBe(true);
+		expect(isCommandSafeId("my plugin")).toBe(false); // space needs quoting
+		expect(isCommandSafeId("a;rm")).toBe(false);
+	});
+
+	it("pluginIdRuntimeToken mirrors Rust manifest_runtime_plugin_id (last segment)", () => {
+		expect(pluginIdRuntimeToken("@refarm/agent")).toBe("agent");
+		expect(pluginIdRuntimeToken("agent")).toBe("agent");
+		expect(pluginIdRuntimeToken("@scope/sub/name")).toBe("name");
+		// empty last segment falls back to the whole id (Rust filter(non-empty))
+		expect(pluginIdRuntimeToken("@refarm/")).toBe("@refarm/");
+	});
+
+	it("the fs flatten and the runtime last-segment are DISTINCT projections", () => {
+		// This distinction is load-bearing: Rust keys trust grants on the runtime
+		// token, not the fs token. They must never be unified.
+		expect(pluginIdToFsToken("@refarm/agent")).toBe("refarm_agent");
+		expect(pluginIdRuntimeToken("@refarm/agent")).toBe("agent");
 	});
 });
