@@ -321,6 +321,9 @@ importers:
       '@refarm.dev/effort-contract-v1':
         specifier: workspace:*
         version: link:../../packages/effort-contract-v1
+      '@refarm.dev/enrichment-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/enrichment-contract-v1
       '@refarm.dev/file-stream-transport':
         specifier: workspace:*
         version: link:../../packages/file-stream-transport
@@ -348,6 +351,9 @@ importers:
       '@refarm.dev/quality-checker-ref':
         specifier: workspace:*
         version: link:../../packages/quality-checker-ref
+      '@refarm.dev/records-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/records-contract-v1
       '@refarm.dev/registry':
         specifier: workspace:*
         version: link:../../packages/registry
