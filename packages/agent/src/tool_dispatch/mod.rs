@@ -1,6 +1,8 @@
 mod code_ops_tools;
 mod fs_shell;
 mod fs_tools;
+#[cfg(target_arch = "wasm32")]
+mod plugin_tools;
 mod session_tools;
 mod shell_tools;
 mod structured_tools;
@@ -67,6 +69,13 @@ pub(crate) fn dispatch_tool(name: &str, input: &serde_json::Value) -> String {
         "find_references" => code_ops_tools::find_references(input),
         "rename_symbol" => code_ops_tools::rename_symbol(input),
 
+        // A tool not built in here is a registry-contributed plugin tool (#6):
+        // route it to the host's invoke-capability-tool, which dispatches to the
+        // owning plugin under THAT plugin's grant. Only on wasm (the host import
+        // exists there); on other targets an unknown name stays an error.
+        #[cfg(target_arch = "wasm32")]
+        other => plugin_tools::invoke_plugin_tool(other, input),
+        #[cfg(not(target_arch = "wasm32"))]
         other => format!("[error] unknown tool: {other}"),
     }
 }
