@@ -12,6 +12,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmRenderer } from "../renderers.js";
 import { resolveTractorNamespace } from "../utils/tractor-store.js";
+import {
+	formatBaseSurfaceModel,
+	type BaseSurfaceModel,
+} from "./base-surface-model.js";
+import { resolveBaseSurfaceStatus } from "./base-surface-status.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { probeRuntimeLiveness } from "./runtime-readiness.js";
 import {
@@ -39,6 +44,19 @@ export interface ResolveStatusPayloadOptions {
 export interface ResolveStatusPayloadResult {
 	json: RefarmStatusJson;
 	shutdown?: () => Promise<void>;
+}
+
+export interface StatusCommandDeps {
+	resolveBaseSurfaceStatus?: () => Promise<BaseSurfaceModel>;
+}
+
+interface StatusCommandOptions {
+	json?: boolean;
+	markdown?: boolean;
+	renderer?: string;
+	input?: string;
+	action?: string;
+	base?: boolean;
 }
 
 async function createStatusRuntimeSummary(
@@ -76,31 +94,35 @@ export function printStatusSummary(json: RefarmStatusJson): void {
 	console.log(formatRefarmStatusSummary(json));
 }
 
-export const statusCommand = new Command("status")
-	.description("Report host status")
-	.option(
-		"--input <path>",
-		"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",
-	)
-	.option(
-		"--renderer <kind>",
-		"Renderer mode: web | tui | headless",
-		"headless",
-	)
-	.option("--markdown", "Output markdown report")
-	.option("--json", "Output machine-readable JSON")
-	.option(
-		"--action <id-or-index>",
-		"Invoke a live app-owned status action by available action ID or row index",
-	)
-	.addHelpText(
-		"after",
-		`
+export function createStatusCommand(deps: StatusCommandDeps = {}): Command {
+	return new Command("status")
+		.description("Report host status")
+		.option(
+			"--input <path>",
+			"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",
+		)
+		.option(
+			"--renderer <kind>",
+			"Renderer mode: web | tui | headless",
+			"headless",
+		)
+		.option("--markdown", "Output markdown report")
+		.option("--json", "Output machine-readable JSON")
+		.option("--base", "Output the zero-extension daily-driver base state")
+		.option(
+			"--action <id-or-index>",
+			"Invoke a live app-owned status action by available action ID or row index",
+		)
+		.addHelpText(
+			"after",
+			`
 
 Examples:
   $ refarm status
   $ refarm status --json
   $ refarm status --markdown
+  $ refarm status --base
+  $ refarm status --base --json
   $ refarm status --renderer web
   $ refarm status --input status.json --markdown
   $ refarm status --action inspect-trust
@@ -111,15 +133,12 @@ Notes:
   Use ${RUNTIME_DOCTOR_NEXT_COMMAND} for command-only recovery automation.
   Use ${RUNTIME_DOCTOR_COMMAND} for the full readiness report.
 `,
-	)
-	.action(
-		async (options: {
-			json?: boolean;
-			markdown?: boolean;
-			renderer?: string;
-			input?: string;
-			action?: string;
-		}) => {
+		)
+		.action(async (options: StatusCommandOptions) => {
+			if (options.base) {
+				await emitBaseStatus(options, deps);
+				return;
+			}
 			if (options.action) {
 				if (options.json || options.markdown) {
 					throw new Error(
@@ -148,8 +167,34 @@ Notes:
 				outputMode,
 				printSummary: printStatusSummary,
 			});
-		},
-	);
+		});
+}
+
+export const statusCommand = createStatusCommand();
+
+async function emitBaseStatus(
+	options: Pick<StatusCommandOptions, "json" | "markdown" | "input" | "action">,
+	deps: StatusCommandDeps,
+): Promise<void> {
+	if (options.input) {
+		throw new Error("--base cannot be combined with --input.");
+	}
+	if (options.action) {
+		throw new Error("--base cannot be combined with --action.");
+	}
+	if (options.markdown) {
+		throw new Error("--base cannot be combined with --markdown.");
+	}
+	const model = await (deps.resolveBaseSurfaceStatus ?? resolveBaseSurfaceStatus)();
+	if (options.json) {
+		printJson(model);
+	} else {
+		console.log(formatBaseSurfaceModel(model));
+	}
+	if (!model.ok) {
+		process.exitCode = 1;
+	}
+}
 
 async function emitStatusActionInvocation(options: {
 	renderer?: string;

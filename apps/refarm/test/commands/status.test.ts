@@ -15,6 +15,7 @@ const {
 	mockFormatRefarmStatusMarkdown,
 	mockParseRefarmStatusJson,
 	mockProbeRuntimeLiveness,
+	mockWaitForRuntimeReady,
 } = vi.hoisted(() => ({
 	mockAssertRefarmStatusJson: vi.fn(),
 	mockBuildRefarmStatusJson: vi.fn(),
@@ -22,6 +23,7 @@ const {
 	mockFormatRefarmStatusMarkdown: vi.fn(),
 	mockParseRefarmStatusJson: vi.fn(),
 	mockProbeRuntimeLiveness: vi.fn(),
+	mockWaitForRuntimeReady: vi.fn(),
 }));
 
 vi.mock("@refarm.dev/cli/status", () => ({
@@ -34,13 +36,14 @@ vi.mock("@refarm.dev/cli/status", () => ({
 
 vi.mock("../../src/commands/runtime-readiness.js", () => ({
 	probeRuntimeLiveness: mockProbeRuntimeLiveness,
+	waitForRuntimeReady: mockWaitForRuntimeReady,
 }));
 
 import {
 	REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
 	REFARM_STATUS_OPEN_REPORT_ACTION_ID,
 } from "../../src/commands/status-surfaces.js";
-import { statusCommand } from "../../src/commands/status.js";
+import { createStatusCommand, statusCommand } from "../../src/commands/status.js";
 
 describe("statusCommand", () => {
 	let cwd: string;
@@ -138,6 +141,67 @@ describe("statusCommand", () => {
 		expect(help).toContain("Use refarm doctor --next-action");
 		expect(help).toContain("Use refarm doctor --next-command");
 		expect(help).toContain("Use refarm doctor for the full readiness report");
+	});
+
+	it("documents the zero-extension base status surface", () => {
+		const command = createStatusCommand();
+		let help = "";
+		command.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+
+		command.outputHelp();
+
+		expect(help).toContain("refarm status --base");
+		expect(help).toContain("refarm status --base --json");
+	});
+
+	it("prints the base model as JSON", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const command = createStatusCommand({
+			resolveBaseSurfaceStatus: async () => ({
+				schemaVersion: 1,
+				command: "status",
+				operation: "base",
+				ok: false,
+				units: [
+					{
+						id: "runtime",
+						label: "Runtime",
+						owner: "apps/refarm",
+						state: "blocked",
+						severity: "failure",
+						summary: "Runtime sidecar is not ready.",
+						evidence: [],
+						actions: [
+							{
+								label: "refarm runtime ensure --wait --next-command",
+								command: "refarm runtime ensure --wait --next-command",
+								primary: true,
+							},
+						],
+					},
+				],
+				nextAction: "refarm runtime ensure --wait --next-command",
+				nextActions: ["refarm runtime ensure --wait --next-command"],
+				nextCommand: "refarm runtime ensure --wait --next-command",
+				nextCommands: ["refarm runtime ensure --wait --next-command"],
+			}),
+		});
+
+		await command.parseAsync(["--base", "--json"], { from: "user" });
+
+		expect(JSON.parse(logSpy.mock.calls[0]![0] as string)).toMatchObject({
+			command: "status",
+			operation: "base",
+			ok: false,
+			nextCommand: "refarm runtime ensure --wait --next-command",
+		});
+		expect(process.exitCode).toBe(1);
+		logSpy.mockRestore();
+		process.exitCode = undefined;
 	});
 
 	it("builds status from a local runtime snapshot without booting tractor-ts", async () => {
