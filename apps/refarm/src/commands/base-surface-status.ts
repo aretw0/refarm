@@ -20,11 +20,9 @@ export interface BaseSurfaceStatusDeps {
 export async function resolveBaseSurfaceStatus(
 	deps: BaseSurfaceStatusDeps = {},
 ): Promise<BaseSurfaceModel> {
-	const [runtime, model, health] = await Promise.all([
-		(deps.resolveRuntime ?? resolveRuntimeBaseInput)(),
-		(deps.resolveModel ?? resolveModelBaseInput)(),
-		(deps.resolveHealth ?? resolveHealthBaseInput)(),
-	]);
+	const runtime = await (deps.resolveRuntime ?? resolveRuntimeBaseInput)();
+	const model = await (deps.resolveModel ?? resolveModelBaseInput)();
+	const health = await (deps.resolveHealth ?? resolveHealthBaseInput)();
 	return buildBaseSurfaceModel({ runtime, model, health });
 }
 
