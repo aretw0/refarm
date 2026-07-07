@@ -101,24 +101,28 @@ export interface CapabilityHttpTransport {
 }
 
 /**
- * AGENT transport hints — the fourth invoker, beside cli/repl/http. Read only by
- * the agent projector, which turns a capability into a tool the model can call, so
- * a verb declared ONCE also reaches the AGENT (the full "extension effect": not
- * just a human typing the command, but the agent using the verb as a tool). The
- * tool schema (name/description/params) is DERIVED from the descriptor's
- * name/summary/args/options — nothing here duplicates it. This bucket only opts a
- * verb IN and lets it override the model-facing name.
+ * AGENT transport hints — model-facing opt-in for a capability, read by the
+ * web-surface agent projector (agent-projector.ts).
  *
- * NOTE: this bucket only makes a verb ELIGIBLE + carries its model-facing hints.
- * The bridge that actually surfaces the tool to the WASM agent guest and routes an
- * invocation to the verb's dispatch is §8 (a WIT import + guest rebuild) — a plugin
- * verb's run() dispatches to that plugin's WASM under ITS OWN load-time grant, so
- * surfacing to the agent widens REACH, never POWER (a revoked plugin never loads).
+ * ⚠️ The LIVE agent leg (#6) does NOT read this bucket. The shipping path lists +
+ * invokes plugin tools entirely in the Rust host + WASM guest (the host enumerates
+ * every LOADED dispatchable plugin verb from the registry — see
+ * packages/tractor/src/host/host_effects_bridge/capability_tools.rs). No descriptor
+ * needs to set `transports.agent` for a plugin verb to reach the agent; loading the
+ * plugin is enough. This bucket is the OPT-IN + model-facing hints the pure
+ * web-surface projector uses (a browser/introspection endpoint that lists agent
+ * tools), the same way `renderers.web` feeds a web renderer. It is a seam contract,
+ * not a switch on the live guest path.
+ *
+ * Security still composes at the source: a plugin verb runs under ITS OWN load-time
+ * grant when dispatched; surfacing to the agent widens REACH, never POWER (a revoked
+ * plugin never loads → never in the registry → never listed).
  */
 export interface CapabilityAgentTransport {
 	/**
-	 * If true, the agent projector emits a tool for this verb. Absent/false → the
-	 * verb is reachable on CLI/REPL/HTTP but NOT offered to the agent as a tool.
+	 * If true, the web-surface agent projector emits a tool for this verb. Absent/
+	 * false → the verb is not offered by that projector. (The live Rust guest path
+	 * lists loaded plugin verbs regardless — see the interface note above.)
 	 */
 	tool?: boolean;
 	/**

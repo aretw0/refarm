@@ -7,19 +7,34 @@ import type {
 import { isCapabilityGroup } from "./types.js";
 
 /**
- * The AGENT projector — the fourth surface reader, beside the CLI/REPL/HTTP ones
- * (http-projector.ts) and the TUI/web renderers. A BLIND loop over
+ * The AGENT projector — the pure "capability → tool schema" half, kept as the
+ * WEB-SURFACE SEAM (parallel to http-projector.ts). A BLIND loop over
  * `registry.list()` of ONLY the `transports.agent` bucket turns each verb that
- * opts in (`agent.tool === true`) into a TOOL the model can call. The tool's
- * schema (name / description / parameters) is DERIVED from what the descriptor
- * already carries — name, summary, args, options — so a verb declared ONCE reaches
- * the agent with zero duplication, exactly as it reaches CLI/REPL/HTTP.
+ * opts in (`agent.tool === true`) into a provider tool schema, DERIVED from the
+ * descriptor's name/summary/args/options.
  *
- * PURE + host-agnostic. This produces the provider tool-schema JSON as plain data
- * (no WASM, no host call), so it is fully testable in TS. The bridge that carries
- * these schemas into the WASM agent guest's model request, and that routes a tool
- * CALL back to the verb's dispatch, is §8 (a WIT import + guest rebuild) — this
- * projector is only the pure "capability → tool schema" half.
+ * ⚠️ NOT ON THE LIVE AGENT PATH — read this before wiring it. The shipping agent
+ * leg (#6) lists + invokes plugin tools ENTIRELY in the Rust host + WASM guest:
+ * the guest calls `capability-tools.list-tools()` (packages/agent/src/tools.rs),
+ * the host renders schemas in `render_tool_schema`
+ * (packages/tractor/src/host/host_effects_bridge/capability_tools.rs), and the
+ * guest's dispatch arm invokes them. That path is authoritative and does NOT read
+ * this file. This projector is intentionally OFF that path: it is the pure,
+ * TS-testable projection a future WEB / introspection endpoint (an HTTP surface
+ * that lists the agent's tools for a browser UI) would call — the same role
+ * http-projector.ts plays for the capability HTTP transport.
+ *
+ * It is NOT re-exported from the barrel (index.ts) precisely so nothing wires it
+ * onto the live path by accident. Import it directly from this module when the web
+ * surface needs it.
+ *
+ * DERIVATION DIVERGENCE (deliberate, documented): this projector derives a RICH
+ * per-arg/per-option schema with `required` (good for a human-facing web tool
+ * list). The live Rust `render_tool_schema` emits a FIXED `{args: string[]}`
+ * schema (matching the plugin-descriptor-adapter's variadic `args`), because a
+ * plugin verb's real arg shape is opaque to the host today. If a future slice
+ * teaches the host a plugin's per-arg schema, THAT is where the two converge — do
+ * not "fix" the divergence by wiring this projector into the guest.
  *
  * Two providers, two wire shapes, ONE derivation:
  *   - Anthropic: `{ name, description, input_schema }` (matches tools.rs
