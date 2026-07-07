@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { BaseSurfaceModelInput } from "../../src/commands/base-surface-model.js";
+import type { BaseSurfaceModelInput } from "@refarm.dev/operator-state";
 import { resolveBaseSurfaceStatus } from "../../src/commands/base-surface-status.js";
 
 describe("resolveBaseSurfaceStatus", () => {

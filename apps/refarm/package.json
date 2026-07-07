@@ -43,6 +43,7 @@
     "@refarm.dev/homestead": "workspace:*",
     "@refarm.dev/infra-cloudflare": "workspace:*",
     "@refarm.dev/infra-turbo-cache": "workspace:*",
+    "@refarm.dev/operator-state": "workspace:*",
     "@refarm.dev/plugin-manifest": "workspace:*",
     "@refarm.dev/plugin-surface-loader": "workspace:*",
     "@refarm.dev/registry": "workspace:*",

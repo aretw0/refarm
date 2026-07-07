@@ -2,7 +2,7 @@ import {
 	buildBaseSurfaceModel,
 	type BaseSurfaceModel,
 	type BaseSurfaceModelInput,
-} from "./base-surface-model.js";
+} from "@refarm.dev/operator-state";
 import { runHealthAudit } from "./health.js";
 import { buildCurrentModelEnvelope, defaultModelDeps } from "./model.js";
 import {
@@ -23,7 +23,7 @@ export async function resolveBaseSurfaceStatus(
 	const runtime = await (deps.resolveRuntime ?? resolveRuntimeBaseInput)();
 	const model = await (deps.resolveModel ?? resolveModelBaseInput)();
 	const health = await (deps.resolveHealth ?? resolveHealthBaseInput)();
-	return buildBaseSurfaceModel({ runtime, model, health });
+	return buildBaseSurfaceModel({ runtime, model, health }, { owner: "apps/refarm" });
 }
 
 async function resolveRuntimeBaseInput(): Promise<

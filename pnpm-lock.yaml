@@ -342,6 +342,9 @@ importers:
       '@refarm.dev/infra-turbo-cache':
         specifier: workspace:*
         version: link:../../packages/infra-turbo-cache
+      '@refarm.dev/operator-state':
+        specifier: workspace:*
+        version: link:../../packages/operator-state
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../../packages/plugin-manifest

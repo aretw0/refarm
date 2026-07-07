@@ -7,15 +7,13 @@ import {
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
+import type { BaseSurfaceModel } from "@refarm.dev/operator-state";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmRenderer } from "../renderers.js";
 import { resolveTractorNamespace } from "../utils/tractor-store.js";
-import {
-	formatBaseSurfaceModel,
-	type BaseSurfaceModel,
-} from "./base-surface-model.js";
+import { formatBaseSurfaceModel } from "./base-surface-output.js";
 import { resolveBaseSurfaceStatus } from "./base-surface-status.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import { probeRuntimeLiveness } from "./runtime-readiness.js";
