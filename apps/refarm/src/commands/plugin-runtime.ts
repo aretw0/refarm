@@ -37,7 +37,7 @@ import {
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 
-function pluginReloadRestartCommand(pluginIds: string[], json = false): string {
+export function pluginReloadRestartCommand(pluginIds: string[], json = false): string {
 	return refarmCommand([
 		"plugin",
 		"reload",
@@ -52,7 +52,7 @@ function runtimeRestartProcess(wait: boolean) {
 	return refarmProcess(["runtime", "restart", ...(wait ? ["--wait"] : [])]);
 }
 
-async function restartRuntimeForPluginReload(wait: boolean): Promise<{
+export async function restartRuntimeForPluginReload(wait: boolean): Promise<{
 	ok: boolean;
 	restartCommand: string;
 	failedCommand?: string;
@@ -66,7 +66,7 @@ async function restartRuntimeForPluginReload(wait: boolean): Promise<{
 	};
 }
 
-async function buildPluginListReport(): Promise<PluginListReport> {
+export async function buildPluginListReport(): Promise<PluginListReport> {
 	const plugins: PluginListEntry[] = [];
 
 	for (const plugin of BUNDLED_PLUGINS) {
@@ -129,7 +129,7 @@ export async function listInstalledPlugins(options: { json?: boolean } = {}): Pr
 	}
 }
 
-function buildRuntimePluginStatusReport(
+export function buildRuntimePluginStatusReport(
 	state: Awaited<ReturnType<typeof readRuntimePluginState>>,
 ): RuntimePluginStatusReport {
 	if (!state) {
@@ -199,7 +199,7 @@ function buildRuntimePluginStatusReport(
 	};
 }
 
-function runtimePluginUnavailableRecommendations(): RuntimePluginRecommendation[] {
+export function runtimePluginUnavailableRecommendations(): RuntimePluginRecommendation[] {
 	return [
 		{
 			diagnostic: "runtime-plugin-status-unavailable",

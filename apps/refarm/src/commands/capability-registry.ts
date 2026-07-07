@@ -27,6 +27,10 @@ import {
 	modelCapabilityHooks,
 } from "./model-capability.js";
 import {
+	createPluginCapabilityGroup,
+	pluginCapabilityHooks,
+} from "./plugin-capability.js";
+import {
 	createSkillCapabilityGroup,
 	skillCapabilityHooks,
 } from "./skill-capability.js";
@@ -54,6 +58,7 @@ const BUILTIN_CAPABILITIES: BuiltinCapability[] = [
 	{ entry: extensionReviewCapability, hooks: extensionReviewHooks },
 	{ entry: createHealthCapabilityGroup(), hooksFor: healthCapabilityHooks },
 	{ entry: createModelCapabilityGroup(), hooksFor: modelCapabilityHooks },
+	{ entry: createPluginCapabilityGroup(), hooksFor: pluginCapabilityHooks },
 	{ entry: createSkillCapabilityGroup(), hooksFor: skillCapabilityHooks },
 	{ entry: createThemeCapabilityGroup(), hooksFor: () => ({}) },
 	{ entry: createVaultCapabilityGroup(), hooksFor: () => ({}) },

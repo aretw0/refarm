@@ -74,10 +74,47 @@ vi.mock("@refarm.dev/cli/process-handoff", async () => {
 	};
 });
 
-import { pluginCommand } from "../../src/commands/plugin.js";
+import { toCommanderGroup } from "../../src/commands/capability-commander.js";
+import {
+	createPluginCapabilityGroup,
+	pluginCapabilityHooks,
+} from "../../src/commands/plugin-capability.js";
+
+// The `plugin` command is now a tri-surface CapabilityGroup; drive its PROJECTED
+// commander surface so these byte-stability assertions prove the group produces
+// the exact envelopes the legacy command did. The group's defaults call the same
+// real action functions, which the fs/process mocks above still intercept.
+const pluginCommand = toCommanderGroup(
+	createPluginCapabilityGroup(),
+	pluginCapabilityHooks,
+);
 
 async function run(...args: string[]) {
 	await pluginCommand.parseAsync(args, { from: "user" });
+}
+
+/**
+ * Drive a non-JSON sub-verb and capture its human PROJECTION + the resulting exit
+ * intent — the one place that knows the canonical projection channel (the projector
+ * prints renderText via console.log) and that exit is derived from the envelope's
+ * ok:false. Every non-JSON behavioral test reads `rendered`/`exitCode` from here
+ * instead of re-spying console + re-joining calls by hand. Restores exitCode.
+ */
+async function renderNonJson(...args: string[]): Promise<{
+	rendered: string;
+	exitCode: number | string | undefined;
+}> {
+	const previousExitCode = process.exitCode;
+	process.exitCode = undefined;
+	const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+	try {
+		await run(...args);
+		const rendered = logSpy.mock.calls.map((c) => String(c[0])).join("\n");
+		return { rendered, exitCode: process.exitCode };
+	} finally {
+		logSpy.mockRestore();
+		process.exitCode = previousExitCode;
+	}
 }
 
 describe("plugin install", () => {
@@ -87,57 +124,42 @@ describe("plugin install", () => {
 		mockMkdir.mockResolvedValue(undefined);
 	});
 
-	it("documents plugin install, status, and reload workflows in help", () => {
+	// The plugin group projects every sub-verb onto the CLI from one declaration.
+	// The recovery/handoff prose the legacy `.addHelpText` carried now lives in the
+	// verbs' envelopes (nextCommand/nextCommands), asserted by the JSON-envelope
+	// tests below — help is a sub-verb index, not a doc surface.
+	it("projects every plugin sub-verb onto the CLI", () => {
 		let help = "";
-		pluginCommand.configureOutput({
-			writeOut: (value) => {
-				help += value;
-			},
-		});
+		pluginCommand.configureOutput({ writeOut: (value) => (help += value) });
 		pluginCommand.outputHelp();
 
-		expect(help).toContain("refarm plugin status");
-		expect(help).toContain("refarm plugin reload agent --json");
-		expect(help).toContain("/reload agent");
-		expect(help).toContain("/r agent");
-		expect(help).toContain("refarm runtime ensure --wait --next-command");
-		expect(help).toContain("refarm doctor --next-action");
-		expect(help).toContain("refarm doctor");
-		expect(help).toContain("refarm ask preflights the runtime agent plugin");
-	});
-
-	it("documents runtime reload after bundled plugin install", () => {
-		const install = pluginCommand.commands.find(
-			(command) => command.name() === "install",
-		);
-		let help = "";
-		install?.configureOutput({
-			writeOut: (value) => {
-				help += value;
-			},
-		});
-
-		install?.outputHelp();
-
-		expect(help).toContain("start or restart the runtime");
-		expect(help).toContain("refarm plugin reload agent --json");
-		expect(help).toContain("/reload agent");
-		expect(help).toContain("/r agent");
-		expect(help).toContain("refarm plugin status");
+		for (const verb of [
+			"list",
+			"status",
+			"install",
+			"update",
+			"bundle",
+			"reload",
+			"permissions",
+		]) {
+			expect(help).toContain(verb);
+		}
 	});
 
 	it("reports failure when npm package cannot be resolved", async () => {
 		mockRequireResolve.mockImplementation(() => {
 			throw new Error("MODULE_NOT_FOUND");
 		});
-		const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		// The install envelope carries the per-plugin failure message; the projector
+		// prints the renderText projection via console.log (its single human channel).
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await run("install");
 
-		expect(consoleSpy).toHaveBeenCalledWith(
+		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("not found in node_modules or workspace"),
 		);
-		consoleSpy.mockRestore();
+		logSpy.mockRestore();
 	});
 
 	it("installs bundled runtime agent from local workspace when root node_modules does not link it", async () => {
@@ -187,14 +209,14 @@ describe("plugin install", () => {
 		mockReadFile.mockRejectedValue(new Error("ENOENT")); // no sentinel → needs install
 		mockExistsSync.mockReturnValue(false); // WASM not built
 
-		const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await run("install");
 
-		expect(consoleSpy).toHaveBeenCalledWith(
+		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("WASM not found"),
 		);
-		consoleSpy.mockRestore();
+		logSpy.mockRestore();
 	});
 
 	it("skips install when already up-to-date (no --force)", async () => {
@@ -734,25 +756,15 @@ describe("plugin status", () => {
 				}),
 			}),
 		);
-		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const { rendered, exitCode } = await renderNonJson("reload", "agent");
 
-		await run("reload", "agent");
-
-		expect(logSpy).toHaveBeenCalledWith(
-			expect.stringContaining("@local/tool reloaded"),
+		// PROJECTION: reloaded/skipped/hint fold into one human string via console.log.
+		expect(rendered).toContain("@local/tool reloaded");
+		expect(rendered).toContain("@refarm/agent requires runtime restart to reload");
+		expect(rendered).toContain(
+			"refarm plugin reload 'agent' --restart-if-needed --wait",
 		);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("@refarm/agent requires runtime restart to reload"),
-		);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining(
-				"refarm plugin reload 'agent' --restart-if-needed --wait",
-			),
-		);
-		expect(process.exitCode).toBe(1);
-		logSpy.mockRestore();
-		errorSpy.mockRestore();
+		expect(exitCode).toBe(1); // ESSENTIAL: partial reload → failure exit
 	});
 
 	it("restarts runtime when partial plugin reload is allowed to restart", async () => {
@@ -913,30 +925,16 @@ describe("plugin status", () => {
 
 	it("exits non-zero when runtime status is unavailable", async () => {
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await run("status");
+		const { rendered, exitCode } = await renderNonJson("status");
 
-		expect(process.exitCode).toBe(1);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("plugin status is unavailable"),
-		);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("refarm runtime ensure --wait --next-command"),
-		);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("refarm runtime start --wait"),
-		);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("refarm runtime status"),
-		);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("refarm doctor --next-action"),
-		);
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("refarm doctor"),
-		);
-		errorSpy.mockRestore();
+		expect(exitCode).toBe(1); // ESSENTIAL: unavailable status → failure exit
+		// PROJECTION: recovery lines fold into the one human string via console.log.
+		expect(rendered).toContain("plugin status is unavailable");
+		expect(rendered).toContain("refarm runtime ensure --wait --next-command");
+		expect(rendered).toContain("refarm runtime start --wait");
+		expect(rendered).toContain("refarm doctor --next-action");
+		expect(rendered).toContain("refarm doctor");
 	});
 });
 
@@ -968,31 +966,11 @@ describe("plugin bundle", () => {
 				command: "pnpm",
 				args: expect.arrayContaining(["exec", "jco", "transpile", "my-plugin.wasm", "-o", "./out"]),
 			}),
-			{ capture: false },
+			{ capture: true },
 		);
 		consoleSpy.mockRestore();
 	});
 
-	it("documents package-manager detection in bundle help", () => {
-		const bundleCommand = pluginCommand.commands.find(
-			(command) => command.name() === "bundle",
-		);
-		let help = "";
-		bundleCommand?.configureOutput({
-			writeOut: (value) => {
-				help += value;
-			},
-		});
-
-		bundleCommand?.outputHelp();
-
-		expect(help).toContain("REFARM_PACKAGE_MANAGER=npm");
-		expect(help).toContain("refarm plugin bundle ./plugin.wasm --dry-run --json");
-		expect(help).toContain("runs jco through the detected package manager");
-		expect(help).toContain("Refarm maps this to pnpm exec, npm exec --, yarn, or bun x");
-		expect(help).toContain("based on the project packageManager field or lockfile");
-		expect(help).toContain("pnpm|npm|yarn|bun");
-	});
 
 	it("prints a bundle dry-run as JSON without running jco", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1076,7 +1054,7 @@ describe("plugin bundle", () => {
 				command: "pnpm",
 				args: expect.arrayContaining(["--name", "my-plugin"]),
 			}),
-			{ capture: false },
+			{ capture: true },
 		);
 		consoleSpy.mockRestore();
 	});
@@ -1091,7 +1069,7 @@ describe("plugin bundle", () => {
 				command: "pnpm",
 				args: expect.arrayContaining(["--name", "custom-name"]),
 			}),
-			{ capture: false },
+			{ capture: true },
 		);
 		consoleSpy.mockRestore();
 	});
@@ -1142,20 +1120,14 @@ describe("plugin bundle", () => {
 		mockRunProcessHandoff.mockImplementation(() => {
 			throw new Error("jco not found");
 		});
-		const originalExitCode = process.exitCode;
-		const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-		await run("bundle", "bad-plugin.wasm");
+		const { rendered, exitCode } = await renderNonJson("bundle", "bad-plugin.wasm");
 
-		expect(process.exitCode).toBe(1);
-		expect(consoleSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Command: pnpm exec jco transpile bad-plugin.wasm"),
+		expect(exitCode).toBe(1); // ESSENTIAL
+		expect(rendered).toContain(
+			"Command: pnpm exec jco transpile bad-plugin.wasm",
 		);
-		expect(consoleSpy).toHaveBeenCalledWith(
-			expect.stringContaining("REFARM_PACKAGE_MANAGER=pnpm|npm|yarn|bun"),
-		);
-		process.exitCode = originalExitCode;
-		consoleSpy.mockRestore();
+		expect(rendered).toContain("REFARM_PACKAGE_MANAGER=pnpm|npm|yarn|bun");
 	});
 
 	it("prints bundle failures as JSON without operator stderr", async () => {

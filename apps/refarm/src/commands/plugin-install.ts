@@ -188,6 +188,49 @@ export async function installPlugin(
 	}
 }
 
+/**
+ * Install the bundled plugins and RETURN the byte-stable install envelope — the
+ * pure core the CapabilityGroup's `install`/`update` run() return directly, and
+ * the legacy command prints. No console output, no process.exitCode: the envelope
+ * IS the report (`ok:false` drives the projector's exit-1). Extracted so the one
+ * envelope shape has a single source (never duplicated across the group + legacy).
+ */
+export async function buildInstallReport(options: {
+	force?: boolean;
+}): Promise<PluginInstallReport> {
+	const results: PluginInstallResult[] = [];
+	for (const plugin of BUNDLED_PLUGINS) {
+		results.push(
+			await installPlugin(plugin, options.force === true, { quiet: true }),
+		);
+	}
+
+	const failed = results.filter((result) => result.status === "failed").length;
+	const failedResult = results.find((result) => result.status === "failed");
+	return failedResult
+		? buildJsonErrorEnvelope({
+				command: "plugin",
+				operation: "install",
+				error: "plugin-install-failed",
+				message: failedResult.message,
+				nextAction: failedResult.buildCommand ?? PLUGIN_INSTALL_COMMAND,
+				nextCommand: failedResult.buildCommand ?? PLUGIN_INSTALL_JSON_COMMAND,
+				nextCommands: [
+					...(failedResult.buildCommand ? [failedResult.buildCommand] : []),
+					PLUGIN_INSTALL_JSON_COMMAND,
+					PLUGIN_STATUS_JSON_COMMAND,
+				],
+				extra: { failed, plugins: results },
+			})
+		: buildJsonSuccessEnvelope({
+				command: "plugin",
+				operation: "install",
+				nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+				nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
+				extra: { failed, plugins: results },
+			});
+}
+
 export async function installBundledPlugins(options: {
 	force?: boolean;
 	json?: boolean;
@@ -197,41 +240,21 @@ export async function installBundledPlugins(options: {
 		console.log(options.heading);
 	}
 
+	// The pure report runs the install loop with quiet:true. For the non-json human
+	// path we still want per-plugin progress, so re-run only in that mode.
+	if (options.json) {
+		const report = await buildInstallReport({ force: options.force });
+		printJson(report);
+		if (!report.ok) process.exitCode = 1;
+		return;
+	}
+
 	const results: PluginInstallResult[] = [];
 	for (const plugin of BUNDLED_PLUGINS) {
 		results.push(
-			await installPlugin(plugin, options.force === true, {
-				quiet: options.json === true,
-			}),
+			await installPlugin(plugin, options.force === true, { quiet: false }),
 		);
 	}
-
 	const failed = results.filter((result) => result.status === "failed").length;
-	if (options.json) {
-		const failedResult = results.find((result) => result.status === "failed");
-		const report: PluginInstallReport = failedResult
-			? buildJsonErrorEnvelope({
-					command: "plugin",
-					operation: "install",
-					error: "plugin-install-failed",
-					message: failedResult.message,
-					nextAction: failedResult.buildCommand ?? PLUGIN_INSTALL_COMMAND,
-					nextCommand: failedResult.buildCommand ?? PLUGIN_INSTALL_JSON_COMMAND,
-					nextCommands: [
-						...(failedResult.buildCommand ? [failedResult.buildCommand] : []),
-						PLUGIN_INSTALL_JSON_COMMAND,
-						PLUGIN_STATUS_JSON_COMMAND,
-					],
-					extra: { failed, plugins: results },
-				})
-			: buildJsonSuccessEnvelope({
-					command: "plugin",
-					operation: "install",
-					nextCommand: PLUGIN_STATUS_JSON_COMMAND,
-					nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
-					extra: { failed, plugins: results },
-				});
-		printJson(report);
-	}
 	if (failed > 0) process.exitCode = 1;
 }

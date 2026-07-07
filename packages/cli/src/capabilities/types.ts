@@ -208,6 +208,12 @@ export interface CapabilityOptionSpec {
 	name: string;
 	kind: CapabilityOptionKind;
 	summary: string;
+	/**
+	 * Optional single-char short alias (without dash), e.g. "o" → `-o, --output`.
+	 * CLI (commander) mints the short flag; other surfaces ignore it (they read by
+	 * the long `name`). Lets a migrated command keep its historical short flags.
+	 */
+	short?: string;
 	/** Default when the flag is absent. */
 	defaultValue?: string | string[] | boolean;
 }

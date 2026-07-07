@@ -15,7 +15,6 @@ import { guideCommand } from "./commands/guide.js";
 import { headlessCommand } from "./commands/headless.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
-import { pluginCommand } from "./commands/plugin.js";
 import { projectCommand } from "./commands/project.js";
 import { provisionCommand } from "./commands/provision.js";
 import { releaseCommand } from "./commands/release.js";
@@ -264,7 +263,6 @@ Notes:
 program.addCommand(deployCommand);
 program.addCommand(doctorCommand);
 program.addCommand(packageManagerCommand);
-program.addCommand(pluginCommand);
 program.addCommand(capabilitiesCommand);
 program.addCommand(projectCommand);
 program.addCommand(extensionCommand);

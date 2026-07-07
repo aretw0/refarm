@@ -47,6 +47,27 @@ function collectRepeatable(value: string, previous: string[] = []): string[] {
 }
 
 /**
+ * Register one capability option on a commander command — the ONE place that maps
+ * a CapabilityOptionSpec to a commander flag, so the descriptor and group-child
+ * projectors never drift. A `short` alias mints `-x, --name`; string[] collects
+ * repeatably; a defaultValue seeds the flag.
+ */
+function applyOption(
+	command: Command,
+	option: import("@refarm.dev/cli/capabilities").CapabilityOptionSpec,
+): void {
+	const long = option.kind === "boolean" ? `--${option.name}` : `--${option.name} <value>`;
+	const flag = option.short ? `-${option.short}, ${long}` : long;
+	if (option.kind === "string[]") {
+		command.option(flag, option.summary, collectRepeatable, []);
+	} else if (option.defaultValue !== undefined) {
+		command.option(flag, option.summary, option.defaultValue as string);
+	} else {
+		command.option(flag, option.summary);
+	}
+}
+
+/**
  * Build the canonical commander Command for a capability. This is the ONE place
  * that reads commander's parsed values, packs them into CapabilityInput, awaits
  * run(), and prints — so the CLI surface is a thin, generated shell over the
@@ -66,17 +87,7 @@ export function toCommanderCommand(
 	}
 
 	for (const option of descriptor.options ?? []) {
-		const flag =
-			option.kind === "boolean"
-				? `--${option.name}`
-				: `--${option.name} <value>`;
-		if (option.kind === "string[]") {
-			command.option(flag, option.summary, collectRepeatable, []);
-		} else if (option.defaultValue !== undefined) {
-			command.option(flag, option.summary, option.defaultValue as string);
-		} else {
-			command.option(flag, option.summary);
-		}
+		applyOption(command, option);
 	}
 	command.option("--json", "Output machine-readable result");
 
@@ -152,17 +163,7 @@ export function toCommanderGroup(
 			// the reserved `--json` below — that name is the projector's, not a
 			// descriptor's to take.
 			for (const option of child.options ?? []) {
-				const flag =
-					option.kind === "boolean"
-						? `--${option.name}`
-						: `--${option.name} <value>`;
-				if (option.kind === "string[]") {
-					command.option(flag, option.summary, collectRepeatable, []);
-				} else if (option.defaultValue !== undefined) {
-					command.option(flag, option.summary, option.defaultValue as string);
-				} else {
-					command.option(flag, option.summary);
-				}
+				applyOption(command, option);
 			}
 			command.option("--json", "Output machine-readable result");
 			command.action(async (...actionArgs: unknown[]) => {
