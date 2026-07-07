@@ -4,6 +4,22 @@ export {
 	type SourceCommandDeps,
 } from "./source-capability.js";
 export {
+	isCapabilityGroup,
+	resolveGroupAction,
+	type ResolvedGroupAction,
+} from "@refarm.dev/cli/capabilities";
+export {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+} from "@refarm.dev/cli/json-output";
+export type {
+	CapabilityDescriptor,
+	CapabilityEntry,
+	CapabilityEnvelope,
+	CapabilityGroup,
+	CapabilityInput,
+} from "@refarm.dev/cli/capabilities";
+export {
 	createRecordsCapabilityGroup,
 	defaultRecordsDeps,
 	type RecordsCommandDeps,
@@ -43,6 +59,23 @@ export {
 	serveCapabilities,
 	type MountOptions,
 } from "./mount.js";
+export {
+	defineCapabilityHost,
+	type CapabilityHost,
+	type CapabilityHostCapabilities,
+	type CapabilityHostCapabilitiesFactory,
+	type CapabilityHostCapabilityUnitOptions,
+	type CapabilityHostDefinition,
+	type CapabilityHostOperatorStatus,
+	type CapabilityHostReviewQueueUnitOptions,
+	type CapabilityHostSurfaceAction,
+	type CapabilityHostSurfaceActionRow,
+	type CapabilityHostSurfaceActionsOptions,
+	type CapabilityHostSurfaceContext,
+	type CapabilityHostServeCallOptions,
+	type CapabilityHostServeOptions,
+	type CapabilityHostStatusContext,
+} from "./host.js";
 export {
 	createWasmSourceProvider,
 	type CallRespond,

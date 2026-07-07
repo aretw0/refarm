@@ -2,26 +2,22 @@
   "name": "wallet-t2",
   "version": "0.0.0",
   "private": true,
-  "description": "T2 POC (result mode): a sovereign citizen's digital wallet — the citizen holds and reviews their own records locally. Own CLI `wallet`, refarm underneath.",
+  "description": "T2 POC (result mode): a sovereign citizen's digital wallet for DGK, local-first records and review.",
   "type": "module",
   "bin": {
-    "wallet": "./dist/cli.js"
+    "dgk": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "wallet": "node dist/cli.js",
+    "dgk": "node dist/cli.js",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@refarm.dev/capabilities-v1": "workspace:*",
-    "@refarm.dev/cli": "workspace:*",
     "@refarm.dev/enrichment-contract-v1": "workspace:*",
-    "@refarm.dev/operator-state": "workspace:*",
-    "@refarm.dev/records-contract-v1": "workspace:*",
-    "@refarm.dev/source-web": "workspace:*",
-    "commander": "^14.0.3"
+    "@refarm.dev/records-contract-v1": "workspace:*"
   },
   "devDependencies": {
     "@refarm.dev/tsconfig": "workspace:*",

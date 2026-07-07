@@ -14,8 +14,11 @@ export interface BaseSurfaceEvidence {
 }
 
 export interface BaseSurfaceAction {
+	id?: string;
 	label: string;
 	command: string;
+	intent?: string;
+	payload?: Record<string, unknown>;
 	primary?: boolean;
 }
 

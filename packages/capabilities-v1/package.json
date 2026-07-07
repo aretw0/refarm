@@ -41,7 +41,8 @@
     "@refarm.dev/records-contract-v1": "workspace:*",
     "@refarm.dev/enrichment-contract-v1": "workspace:*",
     "@refarm.dev/effort-contract-v1": "workspace:*",
-    "@refarm.dev/vault-contract-v1": "workspace:*"
+    "@refarm.dev/vault-contract-v1": "workspace:*",
+    "commander": "^14.0.3"
   },
   "devDependencies": {
     "@refarm.dev/eslint-config": "workspace:*",

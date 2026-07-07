@@ -539,24 +539,12 @@ importers:
       '@refarm.dev/capabilities-v1':
         specifier: workspace:*
         version: link:../../packages/capabilities-v1
-      '@refarm.dev/cli':
-        specifier: workspace:*
-        version: link:../../packages/cli
       '@refarm.dev/enrichment-contract-v1':
         specifier: workspace:*
         version: link:../../packages/enrichment-contract-v1
-      '@refarm.dev/operator-state':
-        specifier: workspace:*
-        version: link:../../packages/operator-state
       '@refarm.dev/records-contract-v1':
         specifier: workspace:*
         version: link:../../packages/records-contract-v1
-      '@refarm.dev/source-web':
-        specifier: workspace:*
-        version: link:../../packages/source-web
-      commander:
-        specifier: ^14.0.3
-        version: 14.0.3
     devDependencies:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
@@ -665,6 +653,9 @@ importers:
       '@refarm.dev/vault-contract-v1':
         specifier: workspace:*
         version: link:../vault-contract-v1
+      commander:
+        specifier: ^14.0.3
+        version: 14.0.3
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

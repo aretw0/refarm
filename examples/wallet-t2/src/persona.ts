@@ -1,16 +1,14 @@
 import {
+	buildJsonSuccessEnvelope,
 	createRecordsCapabilityGroup,
 	defaultSourceDeps,
 	defaultVaultDeps,
+	type CapabilityDescriptor,
+	type CapabilityEnvelope,
 	type RecordsCommandDeps,
 	type RefarmCapabilityDeps,
 } from "@refarm.dev/capabilities-v1";
 import { createLocalRecordsCommandDeps } from "@refarm.dev/capabilities-v1/node";
-import type {
-	CapabilityDescriptor,
-	CapabilityEnvelope,
-} from "@refarm.dev/cli/capabilities";
-import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import { createReferenceEnrichmentProvider } from "@refarm.dev/enrichment-contract-v1";
 import { createReferenceRecordsProvider } from "@refarm.dev/records-contract-v1";
 
@@ -88,20 +86,20 @@ function renderWallet(env: AnalyzeEnvelope): string {
 	return lines.join("\n").trimEnd() + "\n";
 }
 
-/** The T2 persona verb: `wallet-show` — the citizen's wallet view over the neutral
+/** The T2 persona verb: `wallet` - the citizen's wallet view over the neutral
  * `records analyze` envelope (grouped by review state). */
-export function createWalletShowCapability(
+export function createWalletCapability(
 	recordsDeps: RecordsCommandDeps,
 ): CapabilityDescriptor {
 	const analyzeAction = createRecordsCapabilityGroup(recordsDeps).actions.analyze;
 	return {
-		name: "wallet-show",
+		name: "wallet",
 		summary: "Show my digital wallet — the items I hold (sovereign, local-first)",
 		transports: {
 			cli: {},
 			repl: {},
 			http: { method: "GET", path: "/wallet" },
-			agent: { tool: true, toolName: "wallet_show" },
+			agent: { tool: true, toolName: "wallet" },
 		},
 		renderers: { tui: { section: "wallet" } },
 		async run(): Promise<CapabilityEnvelope> {
@@ -112,7 +110,7 @@ export function createWalletShowCapability(
 				json: true,
 			})) as unknown as AnalyzeEnvelope;
 			return buildJsonSuccessEnvelope({
-				command: "wallet-show",
+				command: "wallet",
 				operation: "render",
 				extra: {
 					total: analyzed.summary.total,

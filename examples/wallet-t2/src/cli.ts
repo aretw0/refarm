@@ -1,123 +1,113 @@
 #!/usr/bin/env node
 import {
-	createBaseStatusCapability,
-	mountCapabilities,
-	mountedCliCommands,
-	serveCapabilities,
+	defineCapabilityHost,
+	type CapabilityHost,
 } from "@refarm.dev/capabilities-v1";
 import { localRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
-import {
-	buildBaseSurfaceModel,
-	buildCapabilitySurfaceUnit,
-	buildReviewQueueSurfaceUnit,
-	type BaseSurfaceModel,
-} from "@refarm.dev/operator-state";
-import { Command } from "commander";
 
 import {
-	createWalletShowCapability,
+	createWalletCapability,
 	walletCapabilityDeps,
 	walletRecordsDeps,
 	type WalletStateOptions,
 } from "./persona.js";
 
-export const WALLET_T2_STATE_PATH_ENV = "WALLET_T2_STATE_PATH";
+export const DGK_WALLET_STATE_PATH_ENV = "DGK_WALLET_STATE_PATH";
 
 export function defaultWalletStatePath(cwd = process.cwd()): string {
-	return process.env[WALLET_T2_STATE_PATH_ENV] || localRecordsStatePath({
-		appId: "wallet-t2",
+	return process.env[DGK_WALLET_STATE_PATH_ENV] || localRecordsStatePath({
+		appId: "dgk",
 		cwd,
+		fileName: "wallet.manifest.json",
 	});
 }
 
 /**
- * `wallet` — the T2 POC CLI (result mode). The sovereign citizen's digital wallet:
- * refarm's neutral blocks underneath, ONE persona verb (`wallet-show`) on top. The
+ * `dgk` - the T2 POC CLI (result mode). The sovereign citizen's digital wallet:
+ * neutral blocks underneath, one persona verb (`wallet`) on top. The
  * citizen sees their held items, not the machine.
  */
-export function buildRegistry(options: WalletStateOptions = {}) {
-	const records = walletRecordsDeps(options);
-	return mountCapabilities({
-		deps: walletCapabilityDeps(records),
-		verbs: [
-			createWalletShowCapability(records),
-			createBaseStatusCapability({
-				summary: "Show wallet operator status",
-				httpPath: "/wallet/status",
-				model: () => buildWalletBaseModel(options),
-			}),
-		],
+export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHost {
+	return defineCapabilityHost({
+		id: "examples/wallet-t2",
+		command: "dgk",
+		description: "Digital Gardening Kit - sovereign wallet",
+		version: "0.0.0",
+		capabilities: () => {
+			const records = walletRecordsDeps(options);
+			return {
+				deps: walletCapabilityDeps(records),
+				extensions: [createWalletCapability(records)],
+			};
+		},
+		operatorStatus: {
+			summary: "Show wallet operator status",
+			httpPath: "/wallet/status",
+			capabilityUnit: {
+				subject: "Wallet",
+				action: {
+					id: "open-wallet",
+					label: "dgk wallet --json",
+					intent: "wallet:open",
+					command: "dgk wallet --json",
+					primary: true,
+				},
+			},
+			units: ({ capabilities, reviewQueueUnit }) => {
+				const records = capabilities.deps.records ?? walletRecordsDeps(options);
+				const manifest = records.loadManifest();
+				const draftRecords = manifest.records.filter(
+					(record) => record.review?.state !== "verified",
+				);
+				return [
+					reviewQueueUnit({
+						id: "wallet",
+						label: "Wallet",
+						total: manifest.records.length,
+						pending: draftRecords.length,
+						totalLabel: "held items",
+						pendingLabel: "needs review",
+						pendingSummary: ({ total, pending }) =>
+							`Wallet has ${total} held items; ${pending} item needs review.`,
+						readySummary: ({ total }) => `Wallet has ${total} held items.`,
+						pendingAction: {
+							id: "verify-draft-credential",
+							label: "Verify the draft credential",
+							intent: "wallet:verify",
+							command: "dgk records correct record:cred-assinatura verified --apply",
+							primary: true,
+						},
+						details: {
+							recordIds: manifest.records.map((record) => record.id),
+							draftRecordIds: draftRecords.map((record) => record.id),
+						},
+					}),
+				];
+			},
+		},
+		serve: {
+			defaultPort: 4322,
+			description: "Serve the wallet's verbs over HTTP (their transports.http routes)",
+		},
 	});
 }
 
-export function buildWalletBaseModel(options: WalletStateOptions = {}): BaseSurfaceModel {
-	const registry = buildRegistry(options);
-	const manifest = walletRecordsDeps(options).loadManifest();
-	const draftRecords = manifest.records.filter((record) => record.review?.state !== "verified");
-	return buildBaseSurfaceModel(
-		{
-			units: [
-				buildCapabilitySurfaceUnit(registry, {
-					owner: "examples/wallet-t2",
-					subject: "Wallet",
-					action: {
-						label: "wallet wallet-show --json",
-						command: "wallet wallet-show --json",
-						primary: true,
-					},
-				}),
-				buildReviewQueueSurfaceUnit({
-					id: "wallet",
-					label: "Wallet",
-					owner: "examples/wallet-t2",
-					total: manifest.records.length,
-					pending: draftRecords.length,
-					totalLabel: "held items",
-					pendingLabel: "needs review",
-					pendingSummary: ({ total, pending }) =>
-						`Wallet has ${total} held items; ${pending} item needs review.`,
-					readySummary: ({ total }) => `Wallet has ${total} held items.`,
-					pendingAction: {
-						label: "Verify the draft credential",
-						command: "wallet records correct record:cred-assinatura verified --apply",
-						primary: true,
-					},
-					details: {
-						recordIds: manifest.records.map((record) => record.id),
-						draftRecordIds: draftRecords.map((record) => record.id),
-					},
-				}),
-			],
-		},
-		{ command: "wallet", operation: "base" },
-	);
+export function buildRegistry(options: WalletStateOptions = {}) {
+	return buildWalletHost(options).registry();
 }
 
-export function buildProgram(options: WalletStateOptions = {}): Command {
+export function buildWalletBaseModel(options: WalletStateOptions = {}) {
+	return buildWalletHost(options).baseModel();
+}
+
+export function buildProgram(
+	options: WalletStateOptions = {},
+): ReturnType<CapabilityHost["program"]> {
 	const cliOptions: WalletStateOptions = {
 		...options,
 		statePath: options.statePath ?? defaultWalletStatePath(),
 	};
-	const program = new Command()
-		.name("wallet")
-		.description("My digital wallet — sovereign, local-first")
-		.version("0.0.0");
-	for (const command of mountedCliCommands(buildRegistry(cliOptions))) {
-		program.addCommand(command);
-	}
-	// `serve` — the citizen's wallet on a web surface, from the shared mount seam.
-	program
-		.command("serve")
-		.description("Serve the wallet's verbs over HTTP (their transports.http routes)")
-		.option("--port <port>", "TCP port (0 = pick free)", "4322")
-		.action(async (opts: { port: string }) => {
-			const { listening } = serveCapabilities(buildRegistry(cliOptions), {
-				port: Number(opts.port),
-			});
-			const { port } = await listening;
-			console.log(JSON.stringify({ ok: true, url: `http://127.0.0.1:${port}` }));
-		});
-	return program;
+	return buildWalletHost(cliOptions).program();
 }
 
 const isMain =

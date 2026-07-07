@@ -1,0 +1,585 @@
+import {
+	createCapabilityRegistry,
+	isCapabilityGroup,
+	type CapabilityDescriptor,
+	type CapabilityEntry,
+	type CapabilityEnvelope,
+	type CapabilityHooksResolver,
+	type CapabilityInput,
+	type CapabilityRegistry,
+} from "@refarm.dev/cli/capabilities";
+import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
+import {
+	buildBaseSurfaceModel,
+	buildCapabilitySurfaceUnit,
+	buildReviewQueueSurfaceUnit,
+	type BaseSurfaceAction,
+	type BaseSurfaceModel,
+	type BaseSurfaceUnit,
+	type CapabilitySurfaceUnitOptions,
+	type ReviewQueueSurfaceUnitOptions,
+} from "@refarm.dev/operator-state";
+import { Command } from "commander";
+
+import type { RefarmCapabilityDeps } from "./builtin-capabilities.js";
+import {
+	mountCapabilities,
+	mountedCliCommands,
+	serveCapabilities,
+} from "./mount.js";
+import { createBaseStatusCapability } from "./operator-state-capability.js";
+import type {
+	PluginDescriptorDeps,
+	SurfaceableManifest,
+} from "./plugin-bridge.js";
+
+export interface CapabilityHostCapabilities {
+	deps: RefarmCapabilityDeps;
+	extensions?: CapabilityEntry[];
+	manifests?: SurfaceableManifest[];
+	pluginDeps?: PluginDescriptorDeps;
+	reservedNames?: Iterable<string>;
+}
+
+export type CapabilityHostCapabilitiesFactory = () => CapabilityHostCapabilities;
+
+export type CapabilityHostCapabilityUnitOptions = Omit<
+	CapabilitySurfaceUnitOptions,
+	"owner"
+> & { owner?: string };
+
+export type CapabilityHostReviewQueueUnitOptions = Omit<
+	ReviewQueueSurfaceUnitOptions,
+	"owner"
+> & { owner?: string };
+
+export interface CapabilityHostStatusContext {
+	id: string;
+	command: string;
+	registry: CapabilityRegistry;
+	capabilities: CapabilityHostCapabilities;
+	capabilityUnit(options: CapabilityHostCapabilityUnitOptions): BaseSurfaceUnit;
+	reviewQueueUnit(options: CapabilityHostReviewQueueUnitOptions): BaseSurfaceUnit;
+}
+
+export interface CapabilityHostOperatorStatus {
+	name?: string;
+	summary?: string;
+	httpPath?: string;
+	agentToolName?: string;
+	capabilityUnit?: false | CapabilityHostCapabilityUnitOptions;
+	units?: (context: CapabilityHostStatusContext) => BaseSurfaceUnit[];
+}
+
+export interface CapabilityHostServeOptions {
+	commandName?: string;
+	description?: string;
+	defaultPort?: number;
+	prefix?: string;
+	requestTimeoutMs?: number;
+}
+
+export interface CapabilityHostSurfaceActionsOptions {
+	name?: string;
+	summary?: string;
+	httpPath?: string;
+	agentToolName?: string;
+}
+
+export interface CapabilityHostDefinition {
+	id: string;
+	command: string;
+	description: string;
+	version?: string;
+	capabilities: CapabilityHostCapabilities | CapabilityHostCapabilitiesFactory;
+	operatorStatus?: CapabilityHostOperatorStatus;
+	hooksFor?: CapabilityHooksResolver;
+	serve?: false | CapabilityHostServeOptions;
+	surfaceActions?: false | CapabilityHostSurfaceActionsOptions;
+}
+
+export interface CapabilityHostServeCallOptions {
+	port?: number;
+	prefix?: string;
+	requestTimeoutMs?: number;
+}
+
+export interface CapabilityHost {
+	registry(): CapabilityRegistry;
+	baseModel(): BaseSurfaceModel;
+	surfaceActions(): CapabilityHostSurfaceAction[];
+	surfaceActionRows(): CapabilityHostSurfaceActionRow[];
+	surfaceContext(): CapabilityHostSurfaceContext;
+	program(): Command;
+	serve(options?: CapabilityHostServeCallOptions): ReturnType<typeof serveCapabilities>;
+}
+
+export interface CapabilityHostSurfaceAction {
+	id: string;
+	label: string;
+	intent?: string;
+	payload: {
+		command: string;
+		hostId: string;
+		unitId: string;
+		unitLabel: string;
+		primary: boolean;
+		[key: string]: unknown;
+	};
+}
+
+export interface CapabilityHostSurfaceActionRow {
+	index: number;
+	id: string;
+	label: string;
+	intent?: string;
+	display: string;
+}
+
+export interface CapabilityHostSurfaceContext {
+	hostId: string;
+	data: {
+		command: string;
+		description: string;
+	};
+	actions: CapabilityHostSurfaceAction[];
+}
+
+interface CapabilityHostBundle {
+	capabilities: CapabilityHostCapabilities;
+	registry: CapabilityRegistry;
+}
+
+export function defineCapabilityHost(
+	definition: CapabilityHostDefinition,
+): CapabilityHost {
+	const createBundle = (): CapabilityHostBundle => {
+		const capabilities = resolveCapabilities(definition.capabilities);
+		const mounted: { registry?: CapabilityRegistry } = {};
+		const statusCapability = definition.operatorStatus
+			? createBaseStatusCapability({
+				name: definition.operatorStatus.name,
+				summary: definition.operatorStatus.summary,
+				httpPath: definition.operatorStatus.httpPath,
+				agentToolName: definition.operatorStatus.agentToolName,
+				model: () =>
+					buildHostBaseModel(definition, capabilities, ensureRegistry(mounted.registry)),
+			})
+			: null;
+		const actionsCapability = definition.surfaceActions === false
+			? null
+			: createHostSurfaceActionsCapability(definition, () =>
+				hostSurfaceActionsFromModel(
+					definition,
+					buildHostBaseModel(definition, capabilities, ensureRegistry(mounted.registry)),
+				),
+			);
+		const registry = contextualizeRegistryHandoffs(
+			mountCapabilities({
+				deps: capabilities.deps,
+				verbs: [
+					...(capabilities.extensions ?? []),
+					...(statusCapability ? [statusCapability] : []),
+					...(actionsCapability ? [actionsCapability] : []),
+				],
+				manifests: capabilities.manifests,
+				pluginDeps: capabilities.pluginDeps,
+				reservedNames: capabilities.reservedNames,
+			}),
+			definition.command,
+		);
+		mounted.registry = registry;
+		return { capabilities, registry };
+	};
+
+	return {
+		registry() {
+			return createBundle().registry;
+		},
+		baseModel() {
+			const bundle = createBundle();
+			return buildHostBaseModel(definition, bundle.capabilities, bundle.registry);
+		},
+		surfaceActions() {
+			const bundle = createBundle();
+			return hostSurfaceActionsFromModel(
+				definition,
+				buildHostBaseModel(definition, bundle.capabilities, bundle.registry),
+			);
+		},
+		surfaceActionRows() {
+			return createCapabilityHostSurfaceActionRows(this.surfaceActions());
+		},
+		surfaceContext() {
+			return {
+				hostId: definition.id,
+				data: {
+					command: definition.command,
+					description: definition.description,
+				},
+				actions: this.surfaceActions(),
+			};
+		},
+		program() {
+			const bundle = createBundle();
+			const program = new Command()
+				.name(definition.command)
+				.description(definition.description);
+			if (definition.version) program.version(definition.version);
+			for (const command of mountedCliCommands(
+				bundle.registry,
+				definition.hooksFor ?? (() => ({})),
+			)) {
+				program.addCommand(command);
+			}
+			addServeCommand(program, definition, bundle.registry);
+			return program;
+		},
+		serve(options: CapabilityHostServeCallOptions = {}) {
+			const bundle = createBundle();
+			const serveOptions = normalizedServeOptions(definition.serve);
+			return serveCapabilities(bundle.registry, {
+				port: options.port ?? serveOptions.defaultPort,
+				prefix: options.prefix ?? serveOptions.prefix,
+				requestTimeoutMs: options.requestTimeoutMs ?? serveOptions.requestTimeoutMs,
+			});
+		},
+	};
+}
+
+function createHostSurfaceActionsCapability(
+	definition: CapabilityHostDefinition,
+	resolveActions: () => CapabilityHostSurfaceAction[],
+): CapabilityDescriptor {
+	const options = normalizedSurfaceActionsOptions(definition.surfaceActions);
+	const name = options.name ?? "actions";
+	return {
+		name,
+		summary: options.summary ?? "List available host surface actions",
+		options: [
+			{
+				name: "renderer",
+				kind: "string",
+				summary: "Renderer requesting action rows: web, tui, or headless",
+				defaultValue: "headless",
+			},
+			{
+				name: "select",
+				kind: "string",
+				summary: "Select an action by id or row index without executing it",
+			},
+		],
+		transports: {
+			cli: {},
+			repl: {},
+			http: { method: "GET", path: options.httpPath ?? `/${name}` },
+			agent: { tool: true, toolName: options.agentToolName ?? name },
+		},
+		renderers: { tui: { section: "host" }, web: { route: `/${name}` } },
+		run(input) {
+			return createSurfaceActionsEnvelope(
+				definition,
+				name,
+				resolveActions(),
+				input,
+			);
+		},
+	};
+}
+
+function createSurfaceActionsEnvelope(
+	definition: CapabilityHostDefinition,
+	name: string,
+	actions: CapabilityHostSurfaceAction[],
+	input: CapabilityInput,
+): CapabilityEnvelope {
+	const rows = createCapabilityHostSurfaceActionRows(actions);
+	const selection = typeof input.options.select === "string"
+		? resolveCapabilityHostSurfaceActionSelection(rows, input.options.select)
+		: undefined;
+	return buildJsonSuccessEnvelope({
+		command: name,
+		operation: "surface-actions",
+		extra: {
+			hostId: definition.id,
+			renderer: typeof input.options.renderer === "string"
+				? input.options.renderer
+				: "headless",
+			actions,
+			actionRows: rows,
+			...(selection ? { selection } : {}),
+		},
+	});
+}
+
+function normalizedSurfaceActionsOptions(
+	options: CapabilityHostDefinition["surfaceActions"],
+): CapabilityHostSurfaceActionsOptions {
+	return options === false || options === undefined ? {} : options;
+}
+
+function contextualizeRegistryHandoffs(
+	registry: CapabilityRegistry,
+	hostCommand: string,
+): CapabilityRegistry {
+	const entries = registry.list();
+	const commandNames = new Set(entries.map((entry) => entry.name));
+	return createCapabilityRegistry(
+		entries.map((entry) =>
+			contextualizeCapabilityEntryHandoffs(entry, hostCommand, commandNames)
+		),
+	);
+}
+
+function contextualizeCapabilityEntryHandoffs(
+	entry: CapabilityEntry,
+	hostCommand: string,
+	commandNames: ReadonlySet<string>,
+): CapabilityEntry {
+	if (!isCapabilityGroup(entry)) {
+		return contextualizeCapabilityDescriptorHandoffs(entry, hostCommand, commandNames);
+	}
+	const actions: Record<string, CapabilityDescriptor> = {};
+	for (const [key, action] of Object.entries(entry.actions)) {
+		actions[key] = contextualizeCapabilityDescriptorHandoffs(
+			action,
+			hostCommand,
+			commandNames,
+		);
+	}
+	return { ...entry, actions };
+}
+
+function contextualizeCapabilityDescriptorHandoffs(
+	descriptor: CapabilityDescriptor,
+	hostCommand: string,
+	commandNames: ReadonlySet<string>,
+): CapabilityDescriptor {
+	return {
+		...descriptor,
+		async run(input) {
+			return contextualizeCapabilityEnvelopeHandoffs(
+				await descriptor.run(input),
+				hostCommand,
+				commandNames,
+			);
+		},
+	};
+}
+
+function contextualizeCapabilityEnvelopeHandoffs(
+	envelope: CapabilityEnvelope,
+	hostCommand: string,
+	commandNames: ReadonlySet<string>,
+): CapabilityEnvelope {
+	const nextCommands = envelope.nextCommands.map((command) =>
+		prefixHostCommand(command, hostCommand, commandNames)
+	);
+	return {
+		...envelope,
+		nextCommand: envelope.nextCommand
+			? prefixHostCommand(envelope.nextCommand, hostCommand, commandNames)
+			: nextCommands[0] ?? null,
+		nextCommands,
+	};
+}
+
+function prefixHostCommand(
+	command: string,
+	hostCommand: string,
+	commandNames: ReadonlySet<string>,
+): string {
+	const trimmed = command.trim();
+	const [firstToken] = trimmed.split(/\s+/, 1);
+	if (!firstToken || firstToken === hostCommand || !commandNames.has(firstToken)) {
+		return trimmed;
+	}
+	return `${hostCommand} ${trimmed}`;
+}
+
+function resolveCapabilities(
+	capabilities: CapabilityHostDefinition["capabilities"],
+): CapabilityHostCapabilities {
+	return typeof capabilities === "function" ? capabilities() : capabilities;
+}
+
+function ensureRegistry(registry: CapabilityRegistry | undefined): CapabilityRegistry {
+	if (!registry) {
+		throw new Error("Capability host registry was requested before mounting completed.");
+	}
+	return registry;
+}
+
+function buildHostBaseModel(
+	definition: CapabilityHostDefinition,
+	capabilities: CapabilityHostCapabilities,
+	registry: CapabilityRegistry,
+): BaseSurfaceModel {
+	const status = definition.operatorStatus;
+	const units: BaseSurfaceUnit[] = [];
+	if (status?.capabilityUnit) {
+		units.push(
+			buildCapabilitySurfaceUnit(
+				registry,
+				withDefaultOwner(status.capabilityUnit, definition.id),
+			),
+		);
+	}
+	if (status?.units) {
+		units.push(
+			...status.units({
+				id: definition.id,
+				command: definition.command,
+				registry,
+				capabilities,
+				capabilityUnit: (options) =>
+					buildCapabilitySurfaceUnit(
+						registry,
+						withDefaultOwner(options, definition.id),
+					),
+				reviewQueueUnit: (options) =>
+					buildReviewQueueSurfaceUnit(
+						withDefaultOwner(options, definition.id),
+					),
+			}),
+		);
+	}
+	return buildBaseSurfaceModel(
+		{ units },
+		{ command: definition.command, operation: "base" },
+	);
+}
+
+function hostSurfaceActionsFromModel(
+	definition: CapabilityHostDefinition,
+	model: BaseSurfaceModel,
+): CapabilityHostSurfaceAction[] {
+	const seen = new Set<string>();
+	const actions: CapabilityHostSurfaceAction[] = [];
+	for (const unit of model.units) {
+		for (const action of unit.actions) {
+			const surfaceAction = hostSurfaceActionFromBaseAction(
+				definition,
+				unit,
+				action,
+			);
+			if (seen.has(surfaceAction.id)) {
+				throw new Error(
+					`Capability host surface action id "${surfaceAction.id}" is declared more than once.`,
+				);
+			}
+			seen.add(surfaceAction.id);
+			actions.push(surfaceAction);
+		}
+	}
+	return actions;
+}
+
+function hostSurfaceActionFromBaseAction(
+	definition: CapabilityHostDefinition,
+	unit: BaseSurfaceUnit,
+	action: BaseSurfaceAction,
+): CapabilityHostSurfaceAction {
+	return {
+		id: action.id ?? slugActionId(action.command || action.label),
+		label: action.label,
+		...(action.intent ? { intent: action.intent } : {}),
+		payload: {
+			...(action.payload ?? {}),
+			command: action.command,
+			hostId: definition.id,
+			unitId: unit.id,
+			unitLabel: unit.label,
+			primary: action.primary === true,
+		},
+	};
+}
+
+function createCapabilityHostSurfaceActionRows(
+	actions: readonly CapabilityHostSurfaceAction[],
+): CapabilityHostSurfaceActionRow[] {
+	return actions.map((action, index) => {
+		const rowIndex = index + 1;
+		const intent = action.intent ? ` (${action.intent})` : "";
+		return {
+			index: rowIndex,
+			id: action.id,
+			label: action.label,
+			...(action.intent ? { intent: action.intent } : {}),
+			display: `[${rowIndex}] ${action.label} — ${action.id}${intent}`,
+		};
+	});
+}
+
+function resolveCapabilityHostSurfaceActionSelection(
+	rows: readonly CapabilityHostSurfaceActionRow[],
+	selection: string,
+): {
+	requested: string;
+	source: "id" | "index";
+	resolvedId?: string;
+	index?: number;
+	selected?: CapabilityHostSurfaceActionRow;
+	reason: "selected" | "missing-action" | "no-actions";
+} {
+	const requested = selection.trim();
+	const source = /^\d+$/.test(requested) ? "index" : "id";
+	if (rows.length === 0) return { requested, source, reason: "no-actions" };
+	const byIndex = source === "index"
+		? rows.find((row) => row.index === Number.parseInt(requested, 10))
+		: undefined;
+	const selected = byIndex ?? rows.find((row) => row.id === requested);
+	if (!selected) return { requested, source, reason: "missing-action" };
+	return {
+		requested,
+		source,
+		resolvedId: selected.id,
+		index: selected.index,
+		selected,
+		reason: "selected",
+	};
+}
+
+function slugActionId(value: string): string {
+	const slug = value
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+	return slug || "action";
+}
+
+function withDefaultOwner<T extends { owner?: string }>(
+	options: T,
+	owner: string,
+): Omit<T, "owner"> & { owner: string } {
+	const { owner: explicitOwner, ...rest } = options;
+	return { ...rest, owner: explicitOwner ?? owner };
+}
+
+function normalizedServeOptions(
+	options: CapabilityHostDefinition["serve"],
+): CapabilityHostServeOptions {
+	return options === false || options === undefined ? {} : options;
+}
+
+function addServeCommand(
+	program: Command,
+	definition: CapabilityHostDefinition,
+	registry: CapabilityRegistry,
+): void {
+	if (definition.serve === false) return;
+	const options = normalizedServeOptions(definition.serve);
+	program
+		.command(options.commandName ?? "serve")
+		.description(options.description ?? `Serve ${definition.command}'s capability routes over HTTP`)
+		.option("--port <port>", "TCP port (0 = pick free)", String(options.defaultPort ?? 0))
+		.action(async (opts: { port: string }) => {
+			const { listening } = serveCapabilities(registry, {
+				port: Number(opts.port),
+				prefix: options.prefix,
+				requestTimeoutMs: options.requestTimeoutMs,
+			});
+			const { port } = await listening;
+			console.log(JSON.stringify({ ok: true, url: `http://127.0.0.1:${port}` }));
+		});
+}

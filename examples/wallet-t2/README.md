@@ -1,6 +1,6 @@
 # wallet-t2 — the sovereign citizen's digital wallet (T2)
 
-A per-work POC app: its own CLI (`wallet`), refarm underneath, extending the
+A per-work POC app: its own CLI (`dgk`), extending the
 multi-surface substrate for **one persona** — a sovereign citizen. Presented in
 **result mode**: the citizen sees their own data as a product (their wallet), not the
 machine. Local-first — the citizen's data lives with them.
@@ -10,25 +10,33 @@ machine. Local-first — the citizen's data lives with them.
 The citizen holds and curates their own items:
 
 ```bash
-wallet status --base --json                         # base operator model for this app
-wallet wallet-show                                  # my wallet — the items I hold
-wallet records correct record:cred-assinatura verified --apply   # I verify a credential
-wallet wallet-show                                  # it now shows as verified
-wallet serve                                        # my wallet on a web surface
+dgk status --base --json                         # base operator model for this app
+dgk actions --json                               # selectable multi-surface actions
+dgk wallet                                       # my wallet - the items I hold
+dgk records correct record:cred-assinatura verified --apply   # I verify a credential
+dgk wallet                                       # it now shows as verified
+dgk serve                                        # my wallet on a web surface
 ```
 
-`wallet status --base --json` is the manual exploratory entrypoint for the shared
-operator-state contract. It is built with `@refarm.dev/operator-state` helpers and
-owned by `examples/wallet-t2`, not `apps/refarm`, so this app composes the same base
-model with its own capability and wallet units.
+`dgk status --base --json` is the manual exploratory entrypoint for the shared
+operator-state contract. The app declares a white-label `dgk` host with
+`defineCapabilityHost` from `@refarm.dev/capabilities-v1`; Refarm composes the
+registry, CLI, HTTP surface, and base status capability. The example keeps only the
+wallet-specific extension: its records, `wallet` persona verb, and wallet review
+unit.
 
-The CLI persists local curation to `.wallet-t2/manifest.json` by default, so a
+`dgk actions --json` projects the base model actions into selectable surface rows
+(`open-wallet`, `verify-draft-credential`) with intents and command payloads. Web, TUI,
+headless, and agent surfaces can read the same action declaration instead of each
+surface inventing its own buttons.
+
+The CLI persists local curation to `.dgk/wallet.manifest.json` by default, so a
 correction made in one process is visible to the next command. That state is wired
 through `@refarm.dev/capabilities-v1/node`, not app-local file IO. Set
-`WALLET_T2_STATE_PATH=/path/to/manifest.json` to record an isolated run, or delete
-`.wallet-t2/` to reset the demo state.
+`DGK_WALLET_STATE_PATH=/path/to/manifest.json` to record an isolated run, or delete
+`.dgk/` to reset the demo state.
 
-`wallet-show` renders the citizen's held items grouped by verification status — the
+`wallet` renders the citizen's held items grouped by verification status — the
 product view. It reads the neutral `records analyze` envelope; the citizen never sees
 that engine. The focus is the benefit ("my data, my wallet"), the opposite of T1's
 process view.
@@ -38,7 +46,7 @@ process view.
 - **Generic (refarm, unchanged):** the neutral `source` / `records` / `vault` chain.
   It knows nothing about wallets, credentials, or citizens.
 - **Specific (this app):** `src/fixture.ts` holds the citizen's own items;
-  `src/persona.ts` declares `wallet-show`, which projects the neutral analyze envelope
+  `src/persona.ts` declares `wallet`, which projects the neutral analyze envelope
   into the wallet view. A different work swaps this persona (an analyst bench, a dev
   view) and the neutral blocks are untouched.
 
@@ -46,12 +54,13 @@ process view.
 
 ```bash
 pnpm --filter wallet-t2 build
-pnpm --filter wallet-t2 wallet status --base --json
-pnpm --filter wallet-t2 wallet wallet-show
-pnpm --filter wallet-t2 wallet records correct record:cred-assinatura verified --apply
-pnpm --filter wallet-t2 wallet status --base --json
+pnpm --filter wallet-t2 dgk status --base --json
+pnpm --filter wallet-t2 dgk actions --json
+pnpm --filter wallet-t2 dgk wallet
+pnpm --filter wallet-t2 dgk records correct record:cred-assinatura verified --apply
+pnpm --filter wallet-t2 dgk status --base --json
 # web surface:
-pnpm --filter wallet-t2 wallet serve --port 4322
+pnpm --filter wallet-t2 dgk serve --port 4322
 # → GET http://127.0.0.1:4322/capabilities/wallet
 ```
 

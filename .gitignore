@@ -101,6 +101,7 @@ playwright/.cache/
 # Ignore in-place JS/DTS emissions (source is always .ts)
 # Test byproducts and Local Identity
 .refarm/
+.dgk/
 
 # Standard: All compiled outputs go to dist/
 # Use a more targeted approach for packages

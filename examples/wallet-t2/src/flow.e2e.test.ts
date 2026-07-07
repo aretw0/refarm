@@ -3,13 +3,13 @@ import {
 	resolveGroupAction,
 	type CapabilityEntry,
 	type CapabilityGroup,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities-v1";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { buildRegistry, buildWalletBaseModel } from "./cli.js";
+import { buildRegistry, buildWalletBaseModel, buildWalletHost } from "./cli.js";
 
 const tempDirs: string[] = [];
 
@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 function tempStatePath(): string {
-	const dir = mkdtempSync(path.join(tmpdir(), "wallet-t2-state-"));
+	const dir = mkdtempSync(path.join(tmpdir(), "dgk-wallet-state-"));
 	tempDirs.push(dir);
 	return path.join(dir, "manifest.json");
 }
@@ -64,8 +64,9 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 			"source",
 			"records",
 			"vault",
-			"wallet-show",
+			"wallet",
 			"status",
+			"actions",
 		]));
 	});
 
@@ -73,10 +74,10 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		const model = buildWalletBaseModel();
 		expect(model).toMatchObject({
 			schemaVersion: 1,
-			command: "wallet",
+			command: "dgk",
 			operation: "base",
 			ok: true,
-			nextCommand: "wallet wallet-show --json",
+			nextCommand: "dgk wallet --json",
 		});
 		expect(model.units.map((unit) => unit.id)).toEqual(["capabilities", "wallet"]);
 		expect(model.units.every((unit) => unit.owner === "examples/wallet-t2")).toBe(true);
@@ -87,13 +88,30 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 			summary: "Wallet has 3 held items; 1 item needs review.",
 		});
 		expect(model.nextCommands).toEqual([
-			"wallet wallet-show --json",
-			"wallet records correct record:cred-assinatura verified --apply",
+			"dgk wallet --json",
+			"dgk records correct record:cred-assinatura verified --apply",
+		]);
+	});
+
+	it("declares a white-label host as the extension boundary", () => {
+		const host = buildWalletHost();
+		expect(host.program().name()).toBe("dgk");
+		expect(host.registry().list().map((entry) => entry.name)).toEqual(
+			expect.arrayContaining(["source", "records", "vault", "wallet", "status", "actions"]),
+		);
+		expect(host.baseModel()).toMatchObject({
+			command: "dgk",
+			operation: "base",
+			nextCommand: "dgk wallet --json",
+		});
+		expect(host.surfaceActions().map((action) => action.id)).toEqual([
+			"open-wallet",
+			"verify-draft-credential",
 		]);
 	});
 
 	it("shows the citizen's held items as a product view", async () => {
-		const env = await runVerb(buildRegistry(), "wallet-show");
+		const env = await runVerb(buildRegistry(), "wallet");
 		expect(env.ok).toBe(true);
 		expect(env.total).toBe(3); // the three wallet items
 		const wallet = env.wallet as string;
@@ -111,9 +129,11 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 			"--apply",
 		]);
 		expect(corrected.persisted).toBe(true);
+		expect(corrected.nextCommand).toBe("dgk records list");
+		expect(corrected.nextCommands).toEqual(["dgk records list"]);
 
 		// Now all three items are verified — the wallet's verified group holds all.
-		const env = await runVerb(reg, "wallet-show");
+		const env = await runVerb(reg, "wallet");
 		expect((env.byState as Record<string, number>).verified).toBe(3);
 	});
 
@@ -126,8 +146,10 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 			"--apply",
 		]);
 		expect(corrected.persisted).toBe(true);
+		expect(corrected.nextCommand).toBe("dgk records list");
+		expect(corrected.nextCommands).toEqual(["dgk records list"]);
 
-		const env = await runVerb(buildRegistry({ statePath }), "wallet-show");
+		const env = await runVerb(buildRegistry({ statePath }), "wallet");
 		expect((env.byState as Record<string, number>).verified).toBe(3);
 		const model = buildWalletBaseModel({ statePath });
 		expect(model.units.find((unit) => unit.id === "wallet")).toMatchObject({
@@ -135,6 +157,6 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 			severity: "info",
 			summary: "Wallet has 3 held items.",
 		});
-		expect(model.nextCommands).toEqual(["wallet wallet-show --json"]);
+		expect(model.nextCommands).toEqual(["dgk wallet --json"]);
 	});
 });
