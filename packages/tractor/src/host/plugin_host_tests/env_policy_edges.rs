@@ -1060,6 +1060,38 @@
     }
 
     #[test]
+    fn plugin_pointer_replicates_to_a_peer_with_the_grant() {
+        // E3 wiring: the plugin pointer (id -> hash + manifest) rides the SAME Loro
+        // "nodes" map as the grant/config node, so when the graph syncs to a peer the
+        // pointer travels with it — an orphan-grant device gets id -> hash + manifest.
+        use crate::host::plugin_host::plugin_pointer_node::{
+            materialize_plugin_pointer, plugin_pointer_node_id, PLUGIN_POINTER_NODE_TYPE,
+        };
+
+        let device_a = NativeSync::new(NativeStorage::open(":memory:").unwrap(), "peer-a").unwrap();
+        let manifest = serde_json::json!({
+            "id": "@refarm/vault", "version": "0.1.0",
+            "entry": "file:///local/path/plugin.wasm",
+            "permissions": ["fs:read"],
+            "observability": { "hooks": ["onLoad"] },
+        });
+        materialize_plugin_pointer(&device_a, "vault", "deadbeef", &manifest).unwrap();
+
+        // Replicate device A's graph to a fresh peer (in-process; the wire is real).
+        let device_b = NativeSync::new(NativeStorage::open(":memory:").unwrap(), "peer-b").unwrap();
+        assert!(device_b.get_node(&plugin_pointer_node_id("vault")).unwrap().is_none());
+        device_b.apply_update(&device_a.get_update().unwrap()).unwrap();
+
+        // The peer now has the pointer — id -> hash + manifest, entry stripped.
+        let rows = device_b.query_nodes(PLUGIN_POINTER_NODE_TYPE).unwrap();
+        let pointer = rows.iter().find(|r| r.id == plugin_pointer_node_id("vault")).unwrap();
+        let payload: serde_json::Value = serde_json::from_str(&pointer.payload).unwrap();
+        assert_eq!(payload["hash"], "deadbeef");
+        assert_eq!(payload["manifest"]["id"], "@refarm/vault");
+        assert!(payload["manifest"].get("entry").is_none(), "entry must not replicate");
+    }
+
+    #[test]
     fn host_materializes_annulment_and_nets_it_out() {
         // The write half of un-revoke: the config carries a revoke + an annul seq, the
         // host materializes both nodes, and the net resolves to not-revoked. A re-revoke

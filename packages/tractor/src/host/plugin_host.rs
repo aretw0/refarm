@@ -1,4 +1,5 @@
 pub(crate) mod config_node;
+pub(crate) mod plugin_pointer_node;
 pub(crate) mod revocation_node;
 
 include!("plugin_host/core.rs");

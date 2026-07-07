@@ -576,6 +576,25 @@ fn read_runtime_plugin_manifest(path: &Path) -> Result<Option<RuntimePluginManif
     Ok(None)
 }
 
+/// Read the RAW `plugin.json` manifest as a JSON value (not the typed struct) — used to
+/// build the plugin pointer node (E3), which carries the manifest essentials verbatim
+/// (minus the device-local `entry`) so an orphan-grant device can reconstruct it.
+fn read_runtime_plugin_manifest_raw(path: &Path) -> Option<serde_json::Value> {
+    let parent = path.parent()?;
+    for filename in ["plugin.json", "plugin-manifest.json", "manifest.json"] {
+        let manifest_path = parent.join(filename);
+        if !manifest_path.is_file() {
+            continue;
+        }
+        if let Ok(bytes) = std::fs::read(&manifest_path) {
+            if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                return Some(value);
+            }
+        }
+    }
+    None
+}
+
 /// Verify the loaded `.wasm` bytes against the manifest's declared integrity hash.
 ///
 /// `declared` accepts `sha256-<hex>`, `sha256:<hex>`, or bare hex (case-insensitive);
@@ -1166,6 +1185,19 @@ impl PluginHost {
         }
         if let Err(e) = materialize_revocation_tombstones(sync, config_json.as_ref()) {
             tracing::warn!(plugin_id = %plugin_id, error = %e, "failed to materialize revocation tombstones");
+        }
+        // E3: publish the plugin pointer (id -> hash + manifest) so an orphan-grant
+        // device can resolve and load this plugin by hash. Rides the same CRDT node map
+        // as the grant, so it replicates with it. Best-effort — never blocks the load.
+        if let Some(raw_manifest) = read_runtime_plugin_manifest_raw(path) {
+            if let Err(e) = crate::host::plugin_host::plugin_pointer_node::materialize_plugin_pointer(
+                sync,
+                &plugin_id,
+                &wasm_hash,
+                &raw_manifest,
+            ) {
+                tracing::warn!(plugin_id = %plugin_id, error = %e, "failed to materialize plugin pointer");
+            }
         }
 
         self.telemetry.emit_named(
