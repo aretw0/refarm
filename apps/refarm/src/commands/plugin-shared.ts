@@ -3,7 +3,7 @@ import {
 	pluginIdToFsToken,
 	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
 } from "@refarm.dev/config/plugin-identity";
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
@@ -125,4 +125,51 @@ export async function readInstalledVersion(pluginId: string): Promise<string | n
 	} catch {
 		return null;
 	}
+}
+
+/** The essentials the surface adapter needs from an installed plugin manifest. */
+export interface InstalledPluginManifest {
+	id: string;
+	capabilities?: { provides?: string[]; subscribes?: string[] };
+}
+
+/**
+ * Read every installed plugin's `plugin.json` under the plugins dir (both
+ * `plugins/<id>/` and `plugins/@scope/<id>/` layouts). Synchronous + best-effort:
+ * an unreadable/invalid manifest is skipped, and a missing plugins dir yields []. Used
+ * at import by the capability registry to surface plugin-contributed verbs (slice b).
+ */
+export function readInstalledPluginManifests(): InstalledPluginManifest[] {
+	const pluginsDir = pluginsBaseDir();
+	if (!existsSync(pluginsDir)) return [];
+
+	const out: InstalledPluginManifest[] = [];
+	const queue = [pluginsDir];
+	while (queue.length > 0) {
+		const dir = queue.shift();
+		if (!dir) break;
+		let entries;
+		try {
+			entries = readdirSync(dir, { withFileTypes: true });
+		} catch {
+			continue;
+		}
+		for (const entry of entries) {
+			if (!entry.isDirectory() || entry.name === ".versions") continue;
+			const candidate = path.join(dir, entry.name);
+			const manifestPath = path.join(candidate, "plugin.json");
+			if (existsSync(manifestPath)) {
+				try {
+					out.push(
+						JSON.parse(readFileSync(manifestPath, "utf-8")) as InstalledPluginManifest,
+					);
+				} catch {
+					// skip an unreadable/invalid manifest
+				}
+			} else {
+				queue.push(candidate); // descend into @scope/
+			}
+		}
+	}
+	return out;
 }

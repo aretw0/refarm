@@ -1,4 +1,7 @@
-import type { CapabilityDescriptor } from "@refarm.dev/cli/capabilities";
+import type {
+	CapabilityDescriptor,
+	CapabilityRegistry,
+} from "@refarm.dev/cli/capabilities";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -150,4 +153,45 @@ function pluginVerbDescriptor(
 		},
 		transports: { cli: {}, repl: {}, http: { method: "POST", path: `/${verb}` } },
 	};
+}
+
+/** The outcome of registering plugin capabilities — what surfaced, what collided. */
+export interface PluginCapabilityRegistration {
+	/** Verb names successfully registered (now reachable on every surface). */
+	registered: string[];
+	/** Verbs skipped because the name collides with an existing capability. */
+	collided: string[];
+}
+
+/**
+ * Register the surface capabilities every installed plugin contributes into the
+ * shared registry — the register-at-load wire that makes a plugin's verb reachable
+ * on CLI / REPL / TUI / HTTP. Runs in apps/refarm (which OWNS the capabilityRegistry;
+ * farmhand can't reach it — app→app is forbidden), so it enumerates the installed
+ * manifests here and registers.
+ *
+ * A name collision (a plugin verb clashing with a built-in or another plugin's verb)
+ * is skipped, not fatal — one bad plugin must not break the app's own commands. The
+ * registry's register() throws on collision; we catch per-descriptor so the rest
+ * still surface. deps.manifests is injected so this is testable without the fs.
+ */
+export function registerPluginCapabilities(
+	registry: CapabilityRegistry,
+	manifests: readonly SurfaceableManifest[],
+	deps: PluginDescriptorDeps = defaultPluginDescriptorDeps(),
+): PluginCapabilityRegistration {
+	const registered: string[] = [];
+	const collided: string[] = [];
+	for (const manifest of manifests) {
+		for (const descriptor of pluginDescriptorsFrom(manifest, deps)) {
+			try {
+				registry.register(descriptor);
+				registered.push(descriptor.name);
+			} catch {
+				// Collision with a reserved/existing name — skip this verb, keep the rest.
+				collided.push(descriptor.name);
+			}
+		}
+	}
+	return { registered, collided };
 }

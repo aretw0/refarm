@@ -14,6 +14,8 @@ import {
 	type CapabilitySurfaceHooks,
 } from "./capability-commander.js";
 import { createDispatchCapability } from "./dispatch-capability.js";
+import { registerPluginCapabilities } from "./plugin-descriptor-adapter.js";
+import { readInstalledPluginManifests } from "./plugin-shared.js";
 import {
 	extensionReviewCapability,
 	extensionReviewHooks,
@@ -75,6 +77,13 @@ export const capabilityRegistry = createCapabilityRegistry(
 	BUILTIN_CAPABILITIES.map((c) => c.entry as CapabilityEntry),
 	RESERVED_SLASH_NAMES,
 );
+
+// Register-at-load: every installed plugin that declares a dispatchable verb surfaces
+// it into the SAME registry, so a plugin capability projects to CLI/REPL/TUI/HTTP like
+// a built-in. Best-effort + collision-safe (a plugin verb clashing with a built-in is
+// skipped, never fatal). Read synchronously at import so the CLI's registry-driven
+// mount sees the plugin verbs.
+registerPluginCapabilities(capabilityRegistry, readInstalledPluginManifests());
 
 /** Surface hooks (text render + exit intent) keyed by capability name. The REPL
  * dispatcher keys a group's hooks by the composite `"<group> <sub>"` name (see

@@ -1,8 +1,10 @@
+import { createCapabilityRegistry } from "@refarm.dev/cli/capabilities";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import { describe, expect, it } from "vitest";
 
 import {
 	pluginDescriptorsFrom,
+	registerPluginCapabilities,
 	type PluginDescriptorDeps,
 } from "./plugin-descriptor-adapter.js";
 
@@ -80,5 +82,47 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 		// Most plugins: they subscribe/provide runtime events but no user verb.
 		const m = manifest("@refarm/agent", ["integration:respond"], ["user:prompt"]);
 		expect(pluginDescriptorsFrom(m, makeDeps())).toEqual([]);
+	});
+});
+
+describe("registerPluginCapabilities — the register-at-load wire", () => {
+	it("registers plugin verbs into the registry so they project to every surface", () => {
+		const registry = createCapabilityRegistry([]);
+		const result = registerPluginCapabilities(
+			registry,
+			[manifest("@refarm/vault", ["vault:search", "vault:extract"], ["vault:dispatch"])],
+			makeDeps(),
+		);
+		expect(result.registered.sort()).toEqual(["extract", "search"]);
+		expect(result.collided).toEqual([]);
+		// Now reachable via the generic registry the projectors read.
+		expect(registry.list().map((c) => c.name).sort()).toEqual(["extract", "search"]);
+		expect(registry.has("search")).toBe(true);
+	});
+
+	it("is collision-safe: a plugin verb clashing with an existing name is skipped, not fatal", () => {
+		const registry = createCapabilityRegistry([]);
+		// Pre-register "search" so the plugin's "search" collides.
+		registerPluginCapabilities(
+			registry,
+			[manifest("@a/x", ["x:search"], ["x:dispatch"])],
+			makeDeps(),
+		);
+		const result = registerPluginCapabilities(
+			registry,
+			[manifest("@b/y", ["y:search", "y:list"], ["y:dispatch"])],
+			makeDeps(),
+		);
+		// "search" collided (already registered); "list" still surfaced — one bad verb
+		// doesn't break the rest.
+		expect(result.collided).toEqual(["search"]);
+		expect(result.registered).toEqual(["list"]);
+		expect(registry.has("list")).toBe(true);
+	});
+
+	it("no installed plugins → registers nothing", () => {
+		const registry = createCapabilityRegistry([]);
+		const result = registerPluginCapabilities(registry, [], makeDeps());
+		expect(result).toEqual({ registered: [], collided: [] });
 	});
 });
