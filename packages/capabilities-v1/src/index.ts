@@ -55,3 +55,8 @@ export {
 	type SurfaceSection,
 	type SurfaceItem,
 } from "./surface-model.js";
+export {
+	renderWebUi,
+	serveWebUi,
+	type WebUiOptions,
+} from "./web-ui.js";

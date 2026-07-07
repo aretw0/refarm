@@ -14,6 +14,9 @@
 			"@refarm.dev/cli/json-output": [
 				"packages/cli/dist/json-output.d.ts"
 			],
+			"@refarm.dev/cli/chat-repl": [
+				"packages/cli/dist/chat-repl.d.ts"
+			],
 			"@refarm.dev/source-web": ["packages/source-web/dist/index.d.ts"],
 			"@refarm.dev/source-contract-v1": [
 				"packages/source-contract-v1/dist/index.d.ts"
