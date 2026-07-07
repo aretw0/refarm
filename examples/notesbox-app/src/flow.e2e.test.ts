@@ -33,7 +33,7 @@ function tempDir(prefix: string): string {
 
 function registry() {
 	// Pin the source cache so `source status` sees the `source pull` from the same run.
-	return createNotesboxRegistry(notesboxCapabilityDeps(sourceCacheRoot));
+	return createNotesboxRegistry({ deps: notesboxCapabilityDeps(sourceCacheRoot) });
 }
 
 function group(reg: ReturnType<typeof registry>, name: string): CapabilityGroup {

@@ -43,6 +43,29 @@ pnpm --filter notesbox-app notesbox vault init ./my-vault
 matter). `src/flow.e2e.test.ts` runs the whole chain through one composed registry,
 proving the neutral blocks are reusable — no work vocabulary lives in refarm.
 
+## Two ways to extend (both land on the same surfaces)
+
+This example shows BOTH, so the difference is concrete:
+
+1. **Composition (plain software).** `fixture.ts` / `deps.ts` / `requirements-verb.ts`
+   inject data and declare a JS `run()` verb; `registry.ts` composes them and `cli.ts`
+   mounts a CLI. This is necessary for the white-label name — but it's ordinary
+   engineering: you hand-wire each piece.
+
+2. **The refarm extension path (the interesting one).** `extension.ts` declares a
+   PLUGIN MANIFEST (`provides: ["annotator:annotate"]`), and the bridge
+   (`registerPluginCapabilities`, from `@refarm.dev/capabilities-v1`) SURFACES its verb
+   onto every surface from that one declaration — the app writes no `run()` for it. Run
+   `notesbox --help` and `annotate` is there, "dispatched to the @notesbox/annotator
+   plugin", with a host-built dispatch behind it. That is the effect that makes an
+   installed extension appear on the CLI by itself — extending *the refarm way*, not
+   importing a package. `src/extension.e2e.test.ts` proves it end-to-end.
+
+```bash
+pnpm --filter notesbox-app notesbox annotate note='{"path":"n.md"}'
+# → dispatches across the bridge, returns a two-phase receipt {effortId, replyRef}
+```
+
 ## Where levels 2 and 3 will diverge
 
 Some extensions (e.g. `design-tells` / `text-tells`) are **level 2** — real, reusable
