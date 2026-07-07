@@ -26,6 +26,8 @@ import {
 	readPackageVersion,
 	sentinelPath,
 } from "./plugin-shared.js";
+import { createFsAssetStore } from "@refarm.dev/asset-resolver-contract-v1/node";
+import { scopedAssetsDir } from "@refarm.dev/storage-node-view";
 
 function localRuntimeAgentBuildCommand(): string {
 	const runtimeAgentWorkspaceDir = RUNTIME_AGENT_PLUGIN_DESCRIPTOR.workspaceDir;
@@ -144,6 +146,26 @@ export async function installPlugin(
 		await mkdir(destDir, { recursive: true });
 
 		copyFileSync(wasmSrc, path.join(destDir, "plugin.wasm"));
+
+		// E2: also store the .wasm in the content-addressed store keyed by its hash
+		// (<user>/.refarm/assets/<sha256>), mirroring how skills persist their bytes.
+		// The install's `integrity` (sha256-<hash>) is now a resolvable content-address:
+		// a device with a replicated grant for this plugin (by hash) can materialize the
+		// bytes from the store, verify them, and load — closing the id↔hash drift locally.
+		// Idempotent (same content → same address); dedup for free. Never fatal to the
+		// install: the file:// entry still works even if the content-store write fails.
+		try {
+			const stored = await createFsAssetStore(scopedAssetsDir("user")).store(wasmBytes);
+			if (stored.hash !== sha256) {
+				// Defensive: the store re-hashes; a mismatch means something is very wrong.
+				throw new Error(`content-store hash ${stored.hash} != install hash ${sha256}`);
+			}
+		} catch (storeErr) {
+			if (!quiet) {
+				const msg = storeErr instanceof Error ? storeErr.message : String(storeErr);
+				console.error(`    (content-store write skipped for ${plugin.id}: ${msg})`);
+			}
+		}
 
 		const template = JSON.parse(
 			readFileSync(path.join(pkgDir, plugin.manifestFile), "utf-8"),
