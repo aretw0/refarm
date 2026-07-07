@@ -55,7 +55,7 @@ pub(crate) mod test_support {
     }
 }
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
@@ -600,6 +600,62 @@ impl TractorNative {
             .expect("plugin_paths poisoned")
             .insert(handle.id.clone(), path.to_path_buf());
         Ok(handle)
+    }
+
+    /// Load a plugin by its content hash from the content-addressed store (E3):
+    /// `<assets_dir>/<hash>` holds the `.wasm` bytes a device stored at install (E2).
+    /// This closes grant → hash → bytes: a device with a replicated grant that references
+    /// a plugin by hash but has no local install dir can materialize the artifact from
+    /// the (local or org-synced) content-store and load it.
+    ///
+    /// Following the skills content-addressing pattern, the split is: the MANIFEST is the
+    /// POINTER (it travels with the grant / as a node — it carries the id, declared
+    /// permissions, integrity, capabilities), and the WASM BYTES are content-addressed.
+    /// So this takes both: the bytes are resolved by `hash` from the store; `manifest` is
+    /// the plugin.json to pair with them. The host materializes an install dir with BOTH
+    /// (plugin.wasm + plugin.json), then loads it — so id/permissions/integrity are
+    /// correct, exactly as a local install would be.
+    ///
+    /// The hash IS the integrity: the bytes are verified to hash back to `hash` before
+    /// loading — the store may hold bytes from any origin (a synced dir, a future peer
+    /// download), so a tampered/corrupt entry whose contents don't match is REJECTED,
+    /// never loaded (mirroring createFsAssetResolver's invariant + E1's load-time check).
+    pub async fn load_plugin_by_hash(
+        &self,
+        assets_dir: &Path,
+        hash: &str,
+        manifest: &str,
+    ) -> Result<host::PluginInstanceHandle> {
+        let store_path = assets_dir.join(hash);
+        let bytes = tokio::fs::read(&store_path).await.with_context(|| {
+            format!("content-store miss for hash {hash} at {}", store_path.display())
+        })?;
+        let computed = {
+            use sha2::{Digest, Sha256};
+            hex::encode(Sha256::digest(&bytes))
+        };
+        anyhow::ensure!(
+            computed == hash.trim().to_ascii_lowercase(),
+            "content-store entry for {hash} hashes to {computed} — rejected (tampered or corrupt)"
+        );
+
+        // Materialize an install dir with the manifest (pointer) + the verified bytes,
+        // so read_runtime_plugin_manifest finds plugin.json beside plugin.wasm and the
+        // plugin loads with its real id/permissions — not the hash-as-id fallback.
+        let dir = tempfile::Builder::new()
+            .prefix("refarm-cas-")
+            .tempdir()
+            .context("materialize content-store plugin dir")?;
+        let wasm_path = dir.path().join("plugin.wasm");
+        tokio::fs::write(&wasm_path, &bytes).await.context("write materialized plugin.wasm")?;
+        tokio::fs::write(dir.path().join("plugin.json"), manifest)
+            .await
+            .context("write materialized plugin.json")?;
+
+        // The dir must outlive the load (load reads the files); keep it until after.
+        let handle = self.load_plugin(&wasm_path).await;
+        drop(dir);
+        handle
     }
 
     /// Hot-reload a loaded plugin from its original path: unregister the running
