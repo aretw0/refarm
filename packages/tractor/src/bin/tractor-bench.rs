@@ -202,8 +202,48 @@ fn main() -> Result<()> {
                 Ok(())
             }
         }
+        "save-grant" => {
+            let report = run_grant_benchmark()?;
+            write_report(GRANT_BASELINE_PATH, &report)?;
+            write_payload_to(
+                GRANT_GHA_PAYLOAD_PATH,
+                &payload_for_missing_comparison(&report),
+            )?;
+            println!(
+                "[tractor-bench] grant baseline saved: {} total={}ns per_load={}ns",
+                GRANT_BASELINE_PATH,
+                total_ns(&report)?,
+                metric_value(&report, "per_load")?
+            );
+            Ok(())
+        }
+        "check-grant" => {
+            let baseline = read_report(GRANT_BASELINE_PATH)?;
+            let current = run_grant_benchmark()?;
+            write_report(GRANT_CURRENT_PATH, &current)?;
+            let payload = compare(&baseline, &current)?;
+            write_payload_to(GRANT_GHA_PAYLOAD_PATH, &payload)?;
+            if payload.regressed {
+                Err(anyhow!(
+                    "tractor grant benchmark regressed by {:.2}% (threshold {:.2}%). baseline={}ns current={}ns",
+                    payload.diff.abs(),
+                    payload.threshold,
+                    payload.baseline_total_ns,
+                    payload.current_total_ns
+                ))
+            } else {
+                println!(
+                    "[tractor-bench] grant OK diff={:.2}% threshold={:.2}% baseline={}ns current={}ns",
+                    payload.diff,
+                    payload.threshold,
+                    payload.baseline_total_ns,
+                    payload.current_total_ns
+                );
+                Ok(())
+            }
+        }
         _ => Err(anyhow!(
-            "usage: tractor-bench <save|check|save-dispatch|check-dispatch|instantiation|save-reload|check-reload>"
+            "usage: tractor-bench <save|check|save-dispatch|check-dispatch|instantiation|save-reload|check-reload|save-grant|check-grant>"
         )),
     }
 }
@@ -573,6 +613,64 @@ fn run_reload_benchmark() -> Result<BenchReport> {
                 metric("total", total_ns, "ns"),
                 metric("reloads", RELOAD_COUNT as u128, "count"),
                 metric("per_reload", per_reload_ns, "ns"),
+            ],
+        })
+    })
+}
+
+const GRANT_BASELINE_PATH: &str = "benchmarks/baseline-grant.json";
+const GRANT_CURRENT_PATH: &str = "benchmarks/current-grant.json";
+const GRANT_GHA_PAYLOAD_PATH: &str = "benchmarks/gha-payload-grant.json";
+const GRANT_LOAD_COUNT: usize = 32;
+
+/// Measure the per-load cost WITH grant resolution active (B). Every load now
+/// resolves the sovereign trusted-plugins allowlist + approved-permissions map from
+/// fs ∩ node (deny-dominates) instead of reading a boot cache — this suite guards that
+/// the added node read + intersection never makes load pathological. It also covers the
+/// shell trust gate, which moved from a per-spawn fs read to an in-memory check (the
+/// gate is now on `&self`, cloned once here at load). Same bytes each round → the
+/// cache-hit path is timed, so the grant-resolution delta isn't hidden by first-load
+/// compile cost.
+fn run_grant_benchmark() -> Result<BenchReport> {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .context("build bench tokio runtime")?;
+
+    rt.block_on(async {
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/null-plugin.wasm");
+        if !fixture.exists() {
+            return Err(anyhow!(
+                "grant bench needs tests/fixtures/null-plugin.wasm at {}",
+                fixture.display()
+            ));
+        }
+        let sync = make_sync(":memory:")?;
+        let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(64), 2_000)
+            .context("PluginHost::new")?;
+
+        // Warm one load so page-cache / JIT-compile costs don't skew the first.
+        let _warm = host.load(&fixture, &sync).await.context("warm load")?;
+
+        let start = Instant::now();
+        let mut handles = Vec::with_capacity(GRANT_LOAD_COUNT);
+        for _ in 0..GRANT_LOAD_COUNT {
+            // Each load resolves grants (fs ∩ node) + clones the trust set into bindings.
+            handles.push(host.load(&fixture, &sync).await.context("grant load")?);
+        }
+        let total_ns = start.elapsed().as_nanos();
+        let per_load_ns = total_ns / GRANT_LOAD_COUNT as u128;
+        drop(handles);
+
+        Ok(BenchReport {
+            version: 1,
+            suite: "tractor-grant".to_string(),
+            node_count: GRANT_LOAD_COUNT,
+            threshold_pct: REGRESSION_THRESHOLD_PCT,
+            metrics: vec![
+                metric("total", total_ns, "ns"),
+                metric("loads", GRANT_LOAD_COUNT as u128, "count"),
+                metric("per_load", per_load_ns, "ns"),
             ],
         })
     })

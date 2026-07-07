@@ -496,6 +496,9 @@ jobs:
           # dispatch-stress suite: uses its own committed baseline (baseline-dispatch.json)
           # to guard the async-dispatch drain cost against regression.
           pnpm run bench:check:dispatch
+          # grant suite: committed baseline (baseline-grant.json) guards that per-load
+          # grant resolution (fs ∩ node, deny-dominates) never makes plugin load pathological.
+          pnpm run bench:check:grant
 
           # Export payload to GHA env vars if the script exited cleanly
           if [ -f "benchmarks/gha-payload.json" ]; then

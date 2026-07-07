@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "suite": "tractor-grant",
+  "node_count": 32,
+  "threshold_pct": 20.0,
+  "metrics": [
+    {
+      "name": "total",
+      "value": 151587188,
+      "unit": "ns",
+      "lower_is_better": true,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "loads",
+      "value": 32,
+      "unit": "count",
+      "lower_is_better": false,
+      "threshold_pct": 20.0
+    },
+    {
+      "name": "per_load",
+      "value": 4737099,
+      "unit": "ns",
+      "lower_is_better": true,
+      "threshold_pct": 20.0
+    }
+  ]
+}

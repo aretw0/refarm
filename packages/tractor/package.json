@@ -18,6 +18,8 @@
 		"bench:check": "node ../../scripts/ci/cargo-run.mjs run --release --bin tractor-bench -- check",
 		"bench:save:dispatch": "node ../../scripts/ci/cargo-run.mjs run --release --bin tractor-bench -- save-dispatch",
 		"bench:check:dispatch": "node ../../scripts/ci/cargo-run.mjs run --release --bin tractor-bench -- check-dispatch",
+		"bench:save:grant": "node ../../scripts/ci/cargo-run.mjs run --release --bin tractor-bench -- save-grant",
+		"bench:check:grant": "node ../../scripts/ci/cargo-run.mjs run --release --bin tractor-bench -- check-grant",
 		"coverage:save": "node scripts/coverage.mjs save",
 		"coverage:check": "node scripts/coverage.mjs check"
 	}

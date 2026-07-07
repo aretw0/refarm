@@ -143,6 +143,8 @@ deps-report.md
 **/benchmarks/current-dispatch.json
 **/benchmarks/gha-payload-reload.json
 **/benchmarks/current-reload.json
+**/benchmarks/gha-payload-grant.json
+**/benchmarks/current-grant.json
 **/benchmarks/report.md
 
 # ─── Generated Github Tag Artifacts ───────────────────────────────────────────────
