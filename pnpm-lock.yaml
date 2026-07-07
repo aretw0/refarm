@@ -1551,6 +1551,30 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/source-provider-ref:
+    devDependencies:
+      '@bytecodealliance/jco':
+        specifier: 'catalog:'
+        version: 1.19.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/plugin-manifest':
+        specifier: workspace:*
+        version: link:../plugin-manifest
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+      esbuild:
+        specifier: 0.28.1
+        version: 0.28.1
+
   packages/source-web:
     dependencies:
       '@refarm.dev/source-contract-v1':
