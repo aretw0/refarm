@@ -254,6 +254,71 @@ impl NativeStorage {
     }
 }
 
+/// Resolve (or lazily create) the stable per-device CRDT peer ID for a namespace.
+///
+/// The peer ID seeds Loro's LWW tie-break, so two devices that write concurrently
+/// MUST hold distinct peer IDs — otherwise the tie-break is undefined and "whose
+/// write wins" is a timing accident. Deriving it from the namespace string alone
+/// collides: two devices both on the default namespace derive the same ID.
+///
+/// This persists a random `u64` once, next to `{namespace}.db`, so a device keeps a
+/// stable, distinct pseudonym across restarts. It is a device pseudonym — deliberately
+/// decoupled from the per-*user* ed25519/silo account identities (those are engineered
+/// to be recovered onto a *new* device, which is the opposite of what a peer ID needs).
+///
+/// Returns:
+/// - `Ok(Some(id))` for an on-disk namespace (read-or-create `{namespace}.peer`).
+/// - `Ok(None)` for the `:memory:` namespace — no persistent home, so the caller
+///   falls back to namespace-derivation (correct: in-process/test docs stay distinct
+///   by their distinct namespace strings and never share a peer file).
+pub(crate) fn peer_id_for_namespace(namespace: &str) -> Result<Option<u64>> {
+    if namespace == ":memory:" {
+        return Ok(None);
+    }
+    let dir = db_dir()?;
+    std::fs::create_dir_all(&dir).with_context(|| format!("create db dir {dir:?}"))?;
+    peer_id_at(&dir, namespace).map(Some)
+}
+
+/// Read-or-create the persisted peer ID for `{namespace}.peer` inside `dir`.
+///
+/// Testable core of [`peer_id_for_namespace`]: production passes [`db_dir`]; tests
+/// pass a tempdir so they never touch the developer's real device identity.
+pub(crate) fn peer_id_at(dir: &std::path::Path, namespace: &str) -> Result<u64> {
+    let path = dir.join(format!("{namespace}.peer"));
+    if let Ok(raw) = std::fs::read_to_string(&path) {
+        if let Ok(id) = raw.trim().parse::<u64>() {
+            if is_valid_peer_id(id) {
+                return Ok(id);
+            }
+        }
+        // Malformed or reserved value on disk — regenerate rather than trust it.
+        tracing::warn!(path = %path.display(), "invalid persisted peer id; regenerating");
+    }
+    let id = generate_peer_id();
+    // Atomic write: temp + rename, matching the storage layer's durability posture.
+    let tmp = dir.join(format!("{namespace}.peer.tmp"));
+    std::fs::write(&tmp, id.to_string()).with_context(|| format!("write peer id {tmp:?}"))?;
+    std::fs::rename(&tmp, &path).with_context(|| format!("rename peer id into {path:?}"))?;
+    Ok(id)
+}
+
+/// Loro reserves `0` and rejects `u64::MAX`; any other value is a valid peer ID.
+fn is_valid_peer_id(id: u64) -> bool {
+    id != 0 && id != u64::MAX
+}
+
+/// Generate a random, valid CRDT peer ID via the OS RNG.
+fn generate_peer_id() -> u64 {
+    use rand_core::{OsRng, RngCore};
+    loop {
+        let id = OsRng.next_u64();
+        if is_valid_peer_id(id) {
+            return id;
+        }
+    }
+}
+
 /// Resolve the platform-appropriate database directory.
 fn db_dir() -> Result<std::path::PathBuf> {
     let base = if cfg!(windows) {
@@ -363,5 +428,58 @@ mod tests {
         assert_eq!(rows[0].context.as_deref(), Some("daily-driver"));
         assert!(rows[0].payload.contains("\"status\":\"active\""));
         assert_eq!(rows[0].source_plugin.as_deref(), Some("restart-proof"));
+    }
+
+    #[test]
+    fn peer_id_memory_namespace_has_no_persistent_home() {
+        // `:memory:` returns None → the caller falls back to namespace-derivation,
+        // so in-process/test docs never share a persisted peer file.
+        assert_eq!(peer_id_for_namespace(":memory:").unwrap(), None);
+    }
+
+    #[test]
+    fn peer_id_persists_across_reopen() {
+        // Same persisted file → same id (a "restart" reads, does not regenerate).
+        let dir = tempfile::tempdir().unwrap();
+        let first = peer_id_at(dir.path(), "device-a").unwrap();
+        let second = peer_id_at(dir.path(), "device-a").unwrap();
+        assert_eq!(first, second, "persisted peer id must be stable across reopen");
+        assert!(is_valid_peer_id(first));
+    }
+
+    #[test]
+    fn peer_id_distinct_per_device() {
+        // Two devices (two separate homes) minting the SAME namespace get DISTINCT
+        // ids — this is exactly the "default namespace collision" the persisted id fixes.
+        let home_a = tempfile::tempdir().unwrap();
+        let home_b = tempfile::tempdir().unwrap();
+        let id_a = peer_id_at(home_a.path(), "default").unwrap();
+        let id_b = peer_id_at(home_b.path(), "default").unwrap();
+        assert_ne!(id_a, id_b, "two devices on the same namespace must be distinct peers");
+    }
+
+    #[test]
+    fn peer_id_regenerates_on_corrupt_file() {
+        // A malformed persisted value must not seed an invalid peer id.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("device-x.peer");
+        std::fs::write(&path, "not-a-number").unwrap();
+        let id = peer_id_at(dir.path(), "device-x").unwrap();
+        assert!(is_valid_peer_id(id));
+        // And the corrupt content is replaced with the regenerated id.
+        let persisted: u64 = std::fs::read_to_string(&path).unwrap().trim().parse().unwrap();
+        assert_eq!(persisted, id);
+    }
+
+    #[test]
+    fn peer_id_regenerates_on_reserved_value() {
+        // Loro reserves 0 and rejects u64::MAX — a persisted reserved value is rejected.
+        let dir = tempfile::tempdir().unwrap();
+        for reserved in [0u64, u64::MAX] {
+            let path = dir.path().join("device-r.peer");
+            std::fs::write(&path, reserved.to_string()).unwrap();
+            let id = peer_id_at(dir.path(), "device-r").unwrap();
+            assert!(is_valid_peer_id(id), "reserved {reserved} must be regenerated");
+        }
     }
 }
