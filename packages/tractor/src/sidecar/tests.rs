@@ -41,6 +41,10 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
         )
         .route("/plugins", axum::routing::get(get_plugins))
         .route("/plugins/reload", axum::routing::post(post_plugins_reload))
+        .route(
+            "/plugins/load-by-hash",
+            axum::routing::post(post_plugins_load_by_hash),
+        )
         .with_state(state.clone());
 
     tokio::spawn(async move {

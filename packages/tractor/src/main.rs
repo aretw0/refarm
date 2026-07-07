@@ -65,6 +65,12 @@ struct DaemonArgs {
     #[arg(long, value_name = "PATH")]
     plugin: Vec<std::path::PathBuf>,
 
+    /// Load a plugin by content hash from a content-store at startup (E3) — for an
+    /// orphan-grant device that has the grant + the plugin pointer but no install dir.
+    /// Value: `<assetsDir>:<hash>:<manifestPath>` (repeatable).
+    #[arg(long, value_name = "ASSETS:HASH:MANIFEST")]
+    plugin_by_hash: Vec<String>,
+
     /// Fail startup when any --plugin path cannot be loaded.
     ///
     /// Default behavior is warn+continue (isolated plugin failure does not
@@ -434,6 +440,39 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
                     );
                 }
                 tracing::warn!(path = %path.display(), "plugin load failed: {e}");
+            }
+        }
+    }
+
+    // ── Load orphan-grant plugins by content hash (E3) ────────────────────────
+    // A device with the grant + the plugin pointer but no install dir loads the
+    // plugin from the content-store by hash. `<assetsDir>:<hash>:<manifestPath>`.
+    for spec in &args.plugin_by_hash {
+        let parts: Vec<&str> = spec.splitn(3, ':').collect();
+        let [assets_dir, hash, manifest_path] = parts.as_slice() else {
+            tracing::warn!(spec, "invalid --plugin-by-hash (want <assetsDir>:<hash>:<manifestPath>)");
+            continue;
+        };
+        let manifest = match std::fs::read_to_string(manifest_path) {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::warn!(manifest_path, "failed to read plugin manifest: {e}");
+                continue;
+            }
+        };
+        match tractor
+            .load_plugin_by_hash(std::path::Path::new(assets_dir), hash, &manifest)
+            .await
+        {
+            Ok(handle) => {
+                tracing::info!(hash, plugin_id = %handle.id, "plugin loaded by hash from content-store");
+                tractor.register_for_events(handle);
+            }
+            Err(e) => {
+                if load_policy == PluginLoadPolicy::FailFast {
+                    anyhow::bail!("required plugin failed to load by hash (hash={hash}): {e}");
+                }
+                tracing::warn!(hash, "plugin load-by-hash failed: {e}");
             }
         }
     }

@@ -399,6 +399,17 @@ pub struct PluginReloadRequest {
     pub plugin_ids: Option<Vec<String>>,
 }
 
+/// Load a plugin by content hash from a content-store (E3) — the runtime seam for when
+/// a grant + pointer arrive over CRDT after boot. `assetsDir`/`hash` locate the bytes;
+/// `manifest` is the plugin.json (pointer) to pair with them.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginLoadByHashRequest {
+    pub assets_dir: String,
+    pub hash: String,
+    pub manifest: String,
+}
+
 /// Hot-reload the requested plugins (all loaded ones if none specified).
 ///
 /// When the daemon injected a reload host (`with_reload`), each requested plugin
@@ -463,6 +474,39 @@ pub async fn post_plugins_reload(
         "errors": errors,
     }))
     .into_response()
+}
+
+/// POST /plugins/load-by-hash — load a plugin from the content-store by hash (E3).
+/// The runtime counterpart to the `--plugin-by-hash` boot arg: for a grant + pointer
+/// that arrive over CRDT after boot, load the plugin without a daemon restart. The bytes
+/// are verified (hash gate + E1 integrity + manifest/runtime alignment) before running.
+/// register only (no pool-staging): load_plugin_by_hash materializes into a dropped
+/// tempdir, so there is no retained source path for staging/reload of a CAS-loaded plugin.
+pub async fn post_plugins_load_by_hash(
+    State(state): State<SidecarState>,
+    Json(request): Json<PluginLoadByHashRequest>,
+) -> impl IntoResponse {
+    let Some(host) = state.reload.as_ref() else {
+        return Json(serde_json::json!({ "loaded": false, "reason": "no live host wired" }))
+            .into_response();
+    };
+    match host
+        .load_plugin_by_hash(
+            std::path::Path::new(&request.assets_dir),
+            &request.hash,
+            &request.manifest,
+        )
+        .await
+    {
+        Ok(handle) => {
+            let plugin_id = handle.id.clone();
+            host.register_for_events(handle);
+            Json(serde_json::json!({ "loaded": true, "pluginId": plugin_id })).into_response()
+        }
+        Err(e) => {
+            Json(serde_json::json!({ "loaded": false, "error": e.to_string() })).into_response()
+        }
+    }
 }
 
 mod dispatch;
@@ -1190,6 +1234,7 @@ pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Resu
         .route("/tasks/:id", get(get_task))
         .route("/plugins", get(get_plugins))
         .route("/plugins/reload", post(post_plugins_reload))
+        .route("/plugins/load-by-hash", post(post_plugins_load_by_hash))
         .route("/providers/liveness", get(get_provider_liveness))
         .with_state(state);
 

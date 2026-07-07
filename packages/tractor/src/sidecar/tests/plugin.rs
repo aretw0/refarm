@@ -81,3 +81,30 @@ async fn sidecar_plugins_reload_is_an_honest_readiness_probe_not_a_reload() {
     assert_eq!(body["reloaded"], serde_json::json!(false));
     assert!(body["probeId"].as_str().is_some());
 }
+
+#[tokio::test]
+async fn sidecar_load_by_hash_degrades_honestly_without_a_live_host() {
+    // The E3 runtime seam: POST /plugins/load-by-hash. Without a reload host wired
+    // (test sidecar, no with_reload), it degrades to an honest {loaded:false} with a
+    // reason — a client can't mistake "host not wired" for a real load. The real load
+    // path is covered end-to-end in boot_integration.rs::load_plugin_by_hash_*.
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let _ = state;
+    let client = reqwest::Client::new();
+
+    let res = client
+        .post(format!("{}/plugins/load-by-hash", base(port)))
+        .json(&serde_json::json!({
+            "assetsDir": "/tmp/assets",
+            "hash": "deadbeef",
+            "manifest": "{}"
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), 200);
+    let body: serde_json::Value = res.json().await.unwrap();
+    assert_eq!(body["loaded"], serde_json::json!(false));
+    assert!(body["reason"].as_str().is_some(), "an honest reason, not a silent success");
+}
