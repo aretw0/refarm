@@ -19,10 +19,17 @@ import {
  * MAKE-OR-BREAK — digest source parity: the recompute MUST feed `createConfigNode`
  * the SAME object the Rust host hashed: the RAW `.refarm/config.json`
  * (`loadRawSovereignConfig`), NOT the merged/interpolated `loadConfig`. Both sides
- * then redact internally and hash the redacted config with the same
- * canonicalJson+sha256 (proven byte-identical by the Rust conformance test), so
- * equal configs → equal revisions. Using `loadConfig` would fire false drift on
- * every machine with a REFARM_* var or a `${...}` placeholder.
+ * then redact secrets AND strip device-local fields internally, hashing the portable
+ * projection with the same canonicalJson+sha256 (byte-identical parity pinned by the
+ * cross-stack known-answer test in tractor config_node.rs), so equal configs → equal
+ * revisions. Using `loadConfig` would fire false drift on every machine with a REFARM_*
+ * var or a `${...}` placeholder.
+ *
+ * Device-local parity is what un-breaks cross-device auditing: because `createConfigNode`
+ * strips device-local keys (sidecarUrl, paths, engine, autostart) before hashing, a node
+ * written on device A and a local file on device B that differ ONLY in those machine-
+ * specific fields recompute to the SAME revision — a healthy per-device difference no
+ * longer reads as drift.
  *
  * Graceful no-op (informational, never a failure): no graphContext (store never
  * ran / db absent), or no RefarmConfig node yet (fresh store — which the recent
