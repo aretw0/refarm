@@ -39,3 +39,8 @@ export {
 	serveCapabilities,
 	type MountOptions,
 } from "./mount.js";
+export {
+	createWasmSourceProvider,
+	type CallRespond,
+	type WasmSourceProviderOptions,
+} from "./wasm-source-provider.js";

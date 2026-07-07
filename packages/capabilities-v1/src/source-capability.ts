@@ -7,9 +7,10 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 } from "@refarm.dev/cli/json-output";
+import type { SourceProvider } from "@refarm.dev/source-contract-v1";
 import {
 	createWebSourceProvider,
-	type WebSourceProvider,
+	type WebSourceProvenance,
 } from "@refarm.dev/source-web";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
@@ -28,9 +29,18 @@ import path from "node:path";
  */
 
 export interface SourceCommandDeps {
-	/** The source provider to materialize from. Injected so the verb is testable and
-	 * a real (authenticated) provider swaps in without touching this host code. */
-	sourceProvider: WebSourceProvider;
+	/** The source provider to materialize from — ANY `source:v1` provider (a TS one
+	 * like source-web, or a WASM plugin adapted via createWasmSourceProvider). Injected
+	 * so the verb is testable and a real provider swaps in without touching this host.
+	 *
+	 * `snapshotProvenance` is an OPTIONAL accessor: only a provider that keeps rich
+	 * audit provenance (the web provider) implements it. The `pull` verb reports the
+	 * provenance when present and omits it otherwise — so a leaner provider (a WASM
+	 * discover/status provider) satisfies the group without faking web-specific audit
+	 * data. */
+	sourceProvider: SourceProvider & {
+		snapshotProvenance?: (ref: string) => Promise<WebSourceProvenance | undefined>;
+	};
 }
 
 /** Default deps: a web source provider. Pass a `cacheRoot` to persist snapshots
@@ -69,9 +79,12 @@ export function createSourceCapabilityGroup(
 					offline,
 					force: input.options.force === true,
 				});
-				// snapshotProvenance is the WebSourceProvider's typed accessor for the
-				// same audit data materialize carries — session/cache/redaction.
-				const provenance = await deps.sourceProvider.snapshotProvenance(ref);
+				// snapshotProvenance is an OPTIONAL accessor for the audit data materialize
+				// carries (session/cache/redaction) — only a rich provider (web) has it.
+				// A leaner provider omits it; the envelope's provenance is then null.
+				const provenance = deps.sourceProvider.snapshotProvenance
+					? await deps.sourceProvider.snapshotProvenance(ref)
+					: undefined;
 				return buildJsonSuccessEnvelope({
 					command: "source",
 					operation: "pull",

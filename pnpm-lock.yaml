@@ -647,6 +647,9 @@ importers:
       '@refarm.dev/records-contract-v1':
         specifier: workspace:*
         version: link:../records-contract-v1
+      '@refarm.dev/source-contract-v1':
+        specifier: workspace:*
+        version: link:../source-contract-v1
       '@refarm.dev/source-web':
         specifier: workspace:*
         version: link:../source-web

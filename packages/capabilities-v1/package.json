@@ -32,6 +32,7 @@
   "dependencies": {
     "@refarm.dev/cli": "workspace:*",
     "@refarm.dev/source-web": "workspace:*",
+    "@refarm.dev/source-contract-v1": "workspace:*",
     "@refarm.dev/records-contract-v1": "workspace:*",
     "@refarm.dev/enrichment-contract-v1": "workspace:*",
     "@refarm.dev/effort-contract-v1": "workspace:*",

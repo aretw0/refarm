@@ -15,6 +15,9 @@
 				"packages/cli/dist/json-output.d.ts"
 			],
 			"@refarm.dev/source-web": ["packages/source-web/dist/index.d.ts"],
+			"@refarm.dev/source-contract-v1": [
+				"packages/source-contract-v1/dist/index.d.ts"
+			],
 			"@refarm.dev/records-contract-v1": [
 				"packages/records-contract-v1/dist/index.d.ts"
 			],
