@@ -125,18 +125,41 @@ export function createSourceCapabilityGroup(
 		},
 	};
 
+	const discover: CapabilityDescriptor = {
+		name: "discover",
+		summary:
+			"List the sources this provider offers to materialize (the step before pull)",
+		async run(): Promise<CapabilityEnvelope> {
+			const catalog = await deps.sourceProvider.discover();
+			return buildJsonSuccessEnvelope({
+				command: "source",
+				operation: "discover",
+				nextCommand:
+					catalog.entries[0] !== undefined
+						? `source pull ${catalog.entries[0].ref}`
+						: undefined,
+				nextCommands: catalog.entries.map((e) => `source pull ${e.ref}`),
+				extra: {
+					providerId: deps.sourceProvider.pluginId,
+					count: catalog.entries.length,
+					sources: catalog.entries,
+				},
+			});
+		},
+	};
+
 	return {
 		name: "source",
-		summary: "Materialize and inspect source:v1 snapshots",
-		actions: { pull, status },
-		defaultAction: "status",
+		summary: "Discover, materialize, and inspect source:v1 snapshots",
+		actions: { discover, pull, status },
+		defaultAction: "discover",
 		transports: {
 			cli: {},
 			repl: {},
 			http: { method: "POST", path: "/source" },
-			// A read step the agent can drive as a tool: materializing a source widens
-			// REACH (the agent can seed from a source), the provider is
-			// side-effect-honest (offline replay), no shell/network power of its own.
+			// Read steps the agent can drive as a tool: discovering + materializing a
+			// source widens REACH (the agent can find and seed from a source), the
+			// provider is side-effect-honest, no shell/network power of its own.
 			agent: { tool: true, toolName: "source_pull" },
 		},
 		renderers: { tui: { section: "sources" } },

@@ -44,7 +44,20 @@ describe("source operator verbs (generic source:v1)", () => {
 		if (!isCapabilityGroup(g)) throw new Error("expected a group");
 		expect(g.transports?.agent).toEqual({ tool: true, toolName: "source_pull" });
 		expect(g.transports?.http).toEqual({ method: "POST", path: "/source" });
-		expect(Object.keys(g.actions)).toEqual(["pull", "status"]);
+		expect(Object.keys(g.actions)).toEqual(["discover", "pull", "status"]);
+	});
+
+	it("discover lists the sources the provider offers (the step before pull)", async () => {
+		const envelope = (await runAction("discover")) as {
+			ok: boolean;
+			count: number;
+			sources: Array<{ ref: string; label: string }>;
+		};
+		expect(envelope.ok).toBe(true);
+		// The web provider advertises its fixture(s) as `web:<identity>` refs.
+		expect(envelope.count).toBeGreaterThan(0);
+		expect(envelope.sources[0]?.ref.startsWith("web:")).toBe(true);
+		expect(envelope.sources[0]?.label).toBeTruthy();
 	});
 
 	it("status reports not-materialized before a pull", async () => {
@@ -85,10 +98,10 @@ describe("source operator verbs (generic source:v1)", () => {
 		expect(again.action).toBe("noop"); // offline + existing snapshot → noop
 	});
 
-	it("the default (bare) verb is status (read-only) — never mutates", () => {
+	it("the default (bare) verb is discover (read-only) — never mutates", () => {
 		const g = group();
 		if (!isCapabilityGroup(g)) throw new Error("expected a group");
-		expect(g.defaultAction).toBe("status");
+		expect(g.defaultAction).toBe("discover");
 	});
 
 	it("the ref is a required argument (the caller supplies it, refarm has no default)", () => {

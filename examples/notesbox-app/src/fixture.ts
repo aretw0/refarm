@@ -37,8 +37,30 @@ export const NOTESBOX_SOURCE_FIXTURE: WebSourceSnapshot = {
 	].join(""),
 };
 
+/** A SECOND work system the analyst has access to — a distinct source in the app's
+ * catalog. Its presence makes `source discover` return a real list of systems (the
+ * "which systems can I access?" step of the T3 flow), all as the APP's data — refarm
+ * never knows these systems exist. */
+export const NOTESBOX_SECONDARY_IDENTITY = "notesbox-fiscal-records";
+export const NOTESBOX_SECONDARY_REF = `web:${NOTESBOX_SECONDARY_IDENTITY}`;
+
+export const NOTESBOX_SECONDARY_FIXTURE: WebSourceSnapshot = {
+	...DEFAULT_WEB_SOURCE_FIXTURE,
+	identity: NOTESBOX_SECONDARY_IDENTITY,
+	url: "https://notesbox.example/fiscal-records",
+	body: [
+		"<!doctype html>",
+		"<html><body>",
+		"<article data-rec='FR-1'>Registro fiscal exemplo</article>",
+		"</body></html>",
+	].join(""),
+};
+
+/** The app's source catalog — the systems the analyst can discover + pull from. Two
+ * distinct work systems; `source discover` lists both. */
 export const NOTESBOX_SOURCE_FIXTURES: Record<string, WebSourceSnapshot> = {
 	[NOTESBOX_SOURCE_IDENTITY]: NOTESBOX_SOURCE_FIXTURE,
+	[NOTESBOX_SECONDARY_IDENTITY]: NOTESBOX_SECONDARY_FIXTURE,
 };
 
 /**

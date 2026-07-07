@@ -1,6 +1,7 @@
 import {
 	SOURCE_CAPABILITY,
 	type MaterializeOptions,
+	type SourceCatalog,
 	type SourceLocation,
 	type SourceStatus,
 } from "@refarm.dev/source-contract-v1";
@@ -350,6 +351,19 @@ export function createWebSourceProvider(
 
 		async refresh(ref: string, opts?: MaterializeOptions): Promise<WebSourceMaterializeResult> {
 			return materialize(ref, { ...opts, force: true });
+		},
+
+		async discover(): Promise<SourceCatalog> {
+			// A ref-closed provider: its fixtures ARE the catalog. Each fixture identity
+			// becomes a `web:<identity>` ref the caller can materialize.
+			return {
+				entries: Object.values(fixtures).map((snapshot) => ({
+					ref: `web:${snapshot.identity}`,
+					label: snapshot.identity,
+					kind: "local" as const,
+					description: snapshot.url,
+				})),
+			};
 		},
 
 		async snapshotProvenance(ref: string): Promise<WebSourceProvenance | undefined> {

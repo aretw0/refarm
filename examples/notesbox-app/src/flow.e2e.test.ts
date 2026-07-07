@@ -89,6 +89,19 @@ describe("notesbox T3 flow (two-layer: neutral blocks + app injections)", () => 
 		expect(env.recordCount).toBe(2);
 	});
 
+	it("step 0 — `source discover` lists the work systems the analyst can access", async () => {
+		const reg = registry();
+		const found = await runGroup(reg, "source", ["discover"]);
+		expect(found.ok).toBe(true);
+		// The app's provider advertises BOTH work systems as its catalog — refarm ships
+		// none of them; they're the app's data.
+		expect(found.count).toBe(2);
+		const refs = (found.sources as Array<{ ref: string }>).map((s) => s.ref);
+		expect(refs).toEqual(
+			expect.arrayContaining([NOTESBOX_SOURCE_REF, "web:notesbox-fiscal-records"]),
+		);
+	});
+
 	it("step 1 — `source pull <app ref>` materializes the app's OWN fixture offline", async () => {
 		const reg = registry();
 		const pulled = await runGroup(reg, "source", ["pull", NOTESBOX_SOURCE_REF]);
@@ -128,8 +141,10 @@ describe("notesbox T3 flow (two-layer: neutral blocks + app injections)", () => 
 
 	it("the whole flow runs off ONE registry — proving neutral blocks are reusable", async () => {
 		const reg = registry();
-		// requirements → source pull → records enrich → vault init, all through the
-		// same composed registry, no refarm-side work vocabulary involved.
+		// discover → source pull → records enrich → vault init, all through the same
+		// composed registry, no refarm-side work vocabulary involved.
+		const found = await runGroup(reg, "source", ["discover"]);
+		expect(found.count).toBe(2);
 		await runGroup(reg, "source", ["pull", NOTESBOX_SOURCE_REF]);
 		const enriched = await runGroup(reg, "records", ["enrich"]);
 		const vaultDir = path.join(tempDir("notesbox-vault2-"), "vault");

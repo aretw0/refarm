@@ -68,6 +68,30 @@ export async function runSourceV1Conformance(
 		failures.push(`refresh() threw: ${String(error)}`);
 	}
 
+	try {
+		const catalog = await provider.discover();
+		if (!catalog || !Array.isArray(catalog.entries)) {
+			failures.push("discover() must return a SourceCatalog with an entries array");
+		} else {
+			// An empty catalog is valid (ref-open providers); a non-empty one must carry
+			// well-formed entries (a ref + a label the caller can act on).
+			for (const entry of catalog.entries) {
+				if (
+					typeof entry.ref !== "string" ||
+					entry.ref.length === 0 ||
+					typeof entry.label !== "string"
+				) {
+					failures.push(
+						"discover() entries must each have a non-empty ref and a label",
+					);
+					break;
+				}
+			}
+		}
+	} catch (error) {
+		failures.push(`discover() threw: ${String(error)}`);
+	}
+
 	const failed = failures.length;
-	return { pass: failed === 0, total: 7, failed, failures };
+	return { pass: failed === 0, total: 8, failed, failures };
 }

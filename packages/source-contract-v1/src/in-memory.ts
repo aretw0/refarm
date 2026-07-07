@@ -1,6 +1,7 @@
 import type {
 	MaterializeOptions,
 	MaterializeResult,
+	SourceCatalog,
 	SourceLocation,
 	SourceProvider,
 	SourceStatus,
@@ -44,6 +45,16 @@ export function createInMemorySourceProvider(): SourceProvider {
 		},
 		async refresh(ref: string, opts?: MaterializeOptions): Promise<MaterializeResult> {
 			return materialize(ref, { ...opts, force: true });
+		},
+		async discover(): Promise<SourceCatalog> {
+			// Ref-closed for the test: the paths materialized so far are the catalog.
+			return {
+				entries: [...present].map((path) => ({
+					ref: `local:${path}`,
+					label: path,
+					kind: "local" as const,
+				})),
+			};
 		},
 	};
 }

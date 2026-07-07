@@ -2,6 +2,7 @@ import {
 	SOURCE_CAPABILITY,
 	type MaterializeOptions,
 	type MaterializeResult,
+	type SourceCatalog,
 	type SourceLocation,
 	type SourceProvider,
 	type SourceStatus,
@@ -114,6 +115,12 @@ export function createLocalSourceProvider(
 
 		async refresh(ref: string, opts?: MaterializeOptions): Promise<MaterializeResult> {
 			return materialize(ref, { ...opts, force: true });
+		},
+
+		async discover(): Promise<SourceCatalog> {
+			// Ref-OPEN provider: it materializes ANY local path, so it advertises no
+			// finite catalog. An honest empty answer.
+			return { entries: [] };
 		},
 	};
 }

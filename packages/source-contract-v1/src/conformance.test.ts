@@ -12,7 +12,7 @@ describe("source:v1 conformance", () => {
 		const provider = createInMemorySourceProvider();
 		const result = await runSourceV1Conformance(provider);
 		expect(result.pass).toBe(true);
-		expect(result.total).toBe(7);
+		expect(result.total).toBe(8);
 		expect(result.failed).toBe(0);
 	});
 
@@ -29,6 +29,9 @@ describe("source:v1 conformance", () => {
 			refresh: async () => {
 				throw new Error("backend unavailable");
 			},
+			discover: async () => {
+				throw new Error("backend unavailable");
+			},
 		};
 		const result = await runSourceV1Conformance(broken, "local:/x");
 		expect(result.pass).toBe(false);
@@ -36,6 +39,9 @@ describe("source:v1 conformance", () => {
 		expect(result.failures).toContain("provider.pluginId must be a non-empty string");
 		expect(result.failures).toContain("provider.kinds must be non-empty");
 		expect(result.failures.some((failure) => failure.includes("materialize() threw"))).toBe(
+			true,
+		);
+		expect(result.failures.some((failure) => failure.includes("discover() threw"))).toBe(
 			true,
 		);
 	});
