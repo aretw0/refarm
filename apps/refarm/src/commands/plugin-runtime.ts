@@ -1,5 +1,5 @@
 import { resolvePluginPackage } from "@refarm.dev/barn";
-import { quoteCommandArg, refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
+import { quoteCommandArgIfNeeded, refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -41,7 +41,7 @@ export function pluginReloadRestartCommand(pluginIds: string[], json = false): s
 	return refarmCommand([
 		"plugin",
 		"reload",
-		...pluginIds.map(quoteCommandArg),
+		...pluginIds.map(quoteCommandArgIfNeeded),
 		"--restart-if-needed",
 		"--wait",
 		...(json ? ["--json"] : []),

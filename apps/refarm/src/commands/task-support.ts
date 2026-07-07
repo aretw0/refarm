@@ -9,7 +9,10 @@ import { InvalidArgumentError } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
-import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
+import {
+	quoteCommandArg,
+	quoteCommandArgIfNeeded,
+} from "@refarm.dev/cli/command-handoff";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import {
 	buildJsonErrorEnvelope,
@@ -388,8 +391,8 @@ export function buildTaskRunCommand(
 	return refarmCommand([
 		"task",
 		"run",
-		quoteCommandArg(plugin),
-		quoteCommandArg(fn),
+		quoteCommandArgIfNeeded(plugin),
+		quoteCommandArgIfNeeded(fn),
 		"--args",
 		quoteCommandArg("{}"),
 		"--transport",

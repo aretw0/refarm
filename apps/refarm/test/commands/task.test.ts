@@ -338,7 +338,7 @@ describe("refarm task run", () => {
 				fn: "f",
 				transport: "file",
 				nextCommand:
-					"refarm task run 'p' 'f' --args '{}' --transport file --json",
+					"refarm task run p f --args '{}' --transport file --json",
 			}),
 		);
 		expect(resolver).not.toHaveBeenCalled();

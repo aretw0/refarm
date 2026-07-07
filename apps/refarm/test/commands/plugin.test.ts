@@ -729,11 +729,11 @@ describe("plugin status", () => {
 			reloaded: ["@local/tool"],
 			skipped: ["@refarm/agent"],
 			nextAction:
-				"refarm plugin reload 'agent' --restart-if-needed --wait --json",
+				"refarm plugin reload agent --restart-if-needed --wait --json",
 			nextCommand:
-				"refarm plugin reload 'agent' --restart-if-needed --wait --json",
+				"refarm plugin reload agent --restart-if-needed --wait --json",
 			nextCommands: [
-				"refarm plugin reload 'agent' --restart-if-needed --wait --json",
+				"refarm plugin reload agent --restart-if-needed --wait --json",
 				"refarm plugin status --json",
 				"refarm doctor --next-command",
 			],
@@ -762,7 +762,7 @@ describe("plugin status", () => {
 		expect(rendered).toContain("@local/tool reloaded");
 		expect(rendered).toContain("@refarm/agent requires runtime restart to reload");
 		expect(rendered).toContain(
-			"refarm plugin reload 'agent' --restart-if-needed --wait",
+			"refarm plugin reload agent --restart-if-needed --wait",
 		);
 		expect(exitCode).toBe(1); // ESSENTIAL: partial reload → failure exit
 	});
