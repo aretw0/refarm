@@ -3,11 +3,13 @@ export const CONFIG_NODE_KIND: "refarm/config";
 export const CONFIG_NODE_DEFAULT_ID: "urn:refarm:config:workspace";
 export const CONFIG_NODE_REDACTION: "<redacted>";
 export const CONFIG_NODE_REDACTION_KEY_PATTERNS: readonly string[];
+export const CONFIG_NODE_DEVICE_LOCAL_KEYS: readonly string[];
 
 export interface ConfigNodeEvidence {
     readonly hashAlgorithm: "sha256";
     readonly configDigest: string;
     readonly redactedPaths: readonly string[];
+    readonly deviceLocalPaths: readonly string[];
     readonly source: string;
 }
 
@@ -25,17 +27,25 @@ export interface ConfigNodeOptions {
     readonly id?: string;
     readonly source?: string;
     readonly redactionKeyPatterns?: readonly string[];
+    readonly deviceLocalKeys?: readonly string[];
 }
 
 export interface RedactedConfigResult<TData = unknown> {
     readonly value: TData;
     readonly redactions: readonly string[];
+    readonly dropped: readonly string[];
 }
 
 export function redactConfigForNode<TData = unknown>(
     config: TData,
-    options?: Pick<ConfigNodeOptions, "redactionKeyPatterns">,
+    options?: Pick<ConfigNodeOptions, "redactionKeyPatterns" | "deviceLocalKeys">,
 ): RedactedConfigResult<TData>;
+
+/** The device-global projection: device-local keys removed, everything else untouched. */
+export function toPortableConfig<TData = unknown>(
+    config: TData,
+    options?: Pick<ConfigNodeOptions, "deviceLocalKeys">,
+): TData;
 
 export function createConfigNode<TData = unknown>(
     config: TData,
