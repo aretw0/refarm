@@ -21,6 +21,12 @@ import {
 	setApprovedPermissions,
 	type ApprovalResult,
 } from "./plugin-approval.js";
+import {
+	revoke,
+	revocationConfigPath,
+	unrevoke,
+	type RevocationResult,
+} from "./plugin-revocation.js";
 
 import {
 	PLUGIN_INSTALL_JSON_COMMAND,
@@ -100,6 +106,11 @@ export interface PluginCommandDeps {
 	// ── approve ───────────────────────────────────────────────────────────────
 	/** Persist the operator-approved capability set for a plugin (scope-resolved). */
 	persistApproval: typeof setApprovedPermissions;
+	// ── revoke / unrevoke (G) ──────────────────────────────────────────────────
+	/** Append an add-only revocation (monotonic; the host materializes a tombstone). */
+	persistRevocation: typeof revoke;
+	/** Append an add-only un-revoke (annulment; bumps the seq above the revoke). */
+	persistUnrevocation: typeof unrevoke;
 }
 
 export function defaultPluginDeps(): PluginCommandDeps {
@@ -120,6 +131,8 @@ export function defaultPluginDeps(): PluginCommandDeps {
 		reloadAndWait: reloadRuntimePluginsAndWait,
 		restartRuntime: restartRuntimeForPluginReload,
 		persistApproval: setApprovedPermissions,
+		persistRevocation: revoke,
+		persistUnrevocation: unrevoke,
 	};
 }
 
@@ -580,6 +593,106 @@ export function createPluginCapabilityGroup(
 		},
 	};
 
+		// Shared run() for revoke + unrevoke — same shape (validate scope → resolve
+		// path → persist via the injected add-only primitive → envelope). `operation`
+		// names the verb; `persist` is the primitive (revoke or unrevoke).
+		const revocationRun = async (
+			input: { args: Record<string, unknown>; options: Record<string, unknown> },
+			operation: "revoke" | "unrevoke",
+			persist: typeof revoke,
+		) => {
+			const id = input.args.id as string;
+			const scopeRaw = (input.options.scope as string) ?? "user";
+			if (scopeRaw !== "user" && scopeRaw !== "workspace" && scopeRaw !== "org") {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation,
+					error: "unknown-scope",
+					message: `Unknown scope "${scopeRaw}". Use user, workspace, or org.`,
+					nextAction: "Retry with --scope user|workspace|org.",
+				});
+			}
+			const scope = scopeRaw as LedgerScope;
+			const capability = (input.options.cap as string | undefined) ?? null;
+
+			const filePath = revocationConfigPath(scope);
+			if (!filePath) {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation,
+					error: "scope-unavailable",
+					message: `The ${scope} scope is not available.`,
+					nextAction: "Set REFARM_ORG_HOME for org scope, or use --scope user.",
+				});
+			}
+
+			const result: RevocationResult = persist(filePath, id, capability);
+			return buildJsonSuccessEnvelope({
+				command: "plugin",
+				operation,
+				nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+				nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
+				extra: {
+					pluginId: id,
+					scope,
+					capability: result.capability,
+					changed: result.changed,
+				},
+			});
+		};
+
+		// ── revoke <id> [--cap <c>] [--scope] ──────────────────────────────────────
+		// The monotonic counterpart to approve --deny: writes an add-only revocation
+		// the host materializes into a graph tombstone. Unlike approve, a revoked id/cap
+		// is denied even under a `*` wildcard, and a stale device can't resurrect it.
+		const revokeVerb: CapabilityDescriptor = {
+			name: "revoke",
+			summary: "Revoke a plugin (or one capability) — monotonic, denies even under wildcard",
+			args: [{ name: "id", required: true }],
+			options: [
+				{
+					name: "cap",
+					kind: "string",
+					summary: "Revoke only this capability (default: the whole plugin)",
+				},
+				{
+					name: "scope",
+					kind: "string",
+					summary: "Config scope to persist to: user | workspace | org",
+					defaultValue: "user",
+				},
+			],
+			async run(input) {
+				return revocationRun(input, "revoke", deps.persistRevocation);
+			},
+		};
+
+		// ── unrevoke <id> [--cap <c>] [--scope] ────────────────────────────────────
+		// The reversible counterpart: writes an add-only annulment (bumps the seq above
+		// the revoke), so the plugin/cap is re-admitted at the next load/reload. Nothing
+		// is removed; a later re-revoke bumps back and denies again.
+		const unrevokeVerb: CapabilityDescriptor = {
+			name: "unrevoke",
+			summary: "Un-revoke a plugin (or one capability) — reversible, re-admits at reload",
+			args: [{ name: "id", required: true }],
+			options: [
+				{
+					name: "cap",
+					kind: "string",
+					summary: "Un-revoke only this capability (default: the whole plugin)",
+				},
+				{
+					name: "scope",
+					kind: "string",
+					summary: "Config scope to persist to: user | workspace | org",
+					defaultValue: "user",
+				},
+			],
+			async run(input) {
+				return revocationRun(input, "unrevoke", deps.persistUnrevocation);
+			},
+		};
+
 	return {
 		name: "plugin",
 		summary: "Manage refarm plugins",
@@ -592,6 +705,8 @@ export function createPluginCapabilityGroup(
 			bundle,
 			reload,
 			approve,
+			revoke: revokeVerb,
+			unrevoke: unrevokeVerb,
 		},
 		defaultAction: "list",
 		transports: {

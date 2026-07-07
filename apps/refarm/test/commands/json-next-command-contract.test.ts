@@ -911,6 +911,18 @@ function createContractPluginCommand() {
 				approved: [...new Set(capabilities)].sort(),
 				changed: true,
 			}),
+			persistRevocation: (filePath, pluginId, capability) => ({
+				pluginId,
+				filePath,
+				capability,
+				changed: true,
+			}),
+			persistUnrevocation: (filePath, pluginId, capability) => ({
+				pluginId,
+				filePath,
+				capability,
+				changed: true,
+			}),
 		}),
 		pluginCapabilityHooks,
 	);

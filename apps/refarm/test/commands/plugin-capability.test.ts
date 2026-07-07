@@ -36,6 +36,18 @@ function makeDeps(overrides: Partial<PluginCommandDeps> = {}): PluginCommandDeps
 			approved: [...new Set(capabilities)].sort(),
 			changed: true,
 		}),
+		persistRevocation: (filePath, pluginId, capability) => ({
+			pluginId,
+			filePath,
+			capability,
+			changed: true,
+		}),
+		persistUnrevocation: (filePath, pluginId, capability) => ({
+			pluginId,
+			filePath,
+			capability,
+			changed: true,
+		}),
 		...overrides,
 	};
 }
@@ -523,6 +535,83 @@ describe("plugin capability group", () => {
 			expect((env as { error?: string }).error).toBe(
 				"plugin-manifest-not-found",
 			);
+		});
+	});
+
+	describe("revoke / unrevoke verbs (G — the persona projection over the primitives)", () => {
+		const input = (id: string, options: Record<string, string> = {}) => ({
+			args: { id },
+			options,
+			json: true,
+		});
+
+		it("revoke persists a whole-plugin revocation via the injected primitive", async () => {
+			let seen: { id: string; cap: string | null } | undefined;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					persistRevocation: (filePath, pluginId, capability) => {
+						seen = { id: pluginId, cap: capability };
+						return { pluginId, filePath, capability, changed: true };
+					},
+				}),
+			);
+			const env = await action(group, "revoke").run(input("@x/p"));
+			expect(env.ok).toBe(true);
+			expect(env.operation).toBe("revoke");
+			expect(seen).toEqual({ id: "@x/p", cap: null });
+			expect((env as unknown as { changed: boolean }).changed).toBe(true);
+		});
+
+		it("revoke --cap targets a single capability", async () => {
+			let seen: string | null | undefined;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					persistRevocation: (filePath, pluginId, capability) => {
+						seen = capability;
+						return { pluginId, filePath, capability, changed: true };
+					},
+				}),
+			);
+			await action(group, "revoke").run(input("@x/p", { cap: "network:outbound" }));
+			expect(seen).toBe("network:outbound");
+		});
+
+		it("unrevoke persists an annulment via the injected primitive", async () => {
+			let called = false;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					persistUnrevocation: (filePath, pluginId, capability) => {
+						called = true;
+						return { pluginId, filePath, capability, changed: true };
+					},
+				}),
+			);
+			const env = await action(group, "unrevoke").run(input("@x/p"));
+			expect(env.ok).toBe(true);
+			expect(env.operation).toBe("unrevoke");
+			expect(called).toBe(true);
+		});
+
+		it("both reject an unknown scope", async () => {
+			const group = createPluginCapabilityGroup(makeDeps());
+			for (const verb of ["revoke", "unrevoke"]) {
+				const env = await action(group, verb).run(input("@x/p", { scope: "galaxy" }));
+				expect(env.ok).toBe(false);
+				expect((env as { error?: string }).error).toBe("unknown-scope");
+			}
+		});
+
+		it("does NOT require a manifest (you can revoke a plugin whose manifest is gone)", async () => {
+			// Unlike approve, revoke targets the id/cap directly — no readManifest call.
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readManifest: async () => {
+						throw new Error("ENOENT — manifest gone");
+					},
+				}),
+			);
+			const env = await action(group, "revoke").run(input("@x/gone"));
+			expect(env.ok).toBe(true);
 		});
 	});
 });
