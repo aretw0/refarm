@@ -1,5 +1,6 @@
 import type {
 	CapabilityDescriptor,
+	CapabilityEnvelope,
 	CapabilityGroup,
 } from "@refarm.dev/cli/capabilities";
 import {
@@ -7,6 +8,13 @@ import {
 	buildJsonSuccessEnvelope,
 } from "@refarm.dev/cli/json-output";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
+import {
+	createReferenceRecordsFixture,
+	stringifyRecordsYamlLdFrontMatter,
+} from "@refarm.dev/records-contract-v1";
+import { existsSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 import { submitEffortViaSidecar } from "./dispatch-submit.js";
 import {
@@ -164,10 +172,77 @@ export function createVaultCapabilityGroup(
 		},
 	};
 
+	const init: CapabilityDescriptor = {
+		name: "init",
+		summary:
+			"Start a notes vault from 0 — seed a directory with Obsidian-ready records",
+		args: [{ name: "dir", required: true }],
+		options: [
+			{
+				name: "empty",
+				kind: "boolean",
+				summary: "Create the vault empty (skip the seed records)",
+			},
+		],
+		async run(input): Promise<CapabilityEnvelope> {
+			const dir = input.args.dir as string;
+			try {
+				if (existsSync(dir)) {
+					return buildJsonErrorEnvelope({
+						command: "vault",
+						operation: "init",
+						error: "vault_dir_exists",
+						message: `Refusing to init a vault over an existing path: ${dir}.`,
+						nextAction: "Point at a new directory, or remove the existing one.",
+					});
+				}
+				await mkdir(dir, { recursive: true });
+
+				const seeded: string[] = [];
+				if (input.options.empty !== true) {
+					// Seed with the reference records rendered as Obsidian markdown
+					// (YAML-LD front matter + body) — the vault IS just markdown files a
+					// user opens in their own Obsidian; no plugin code, secrecy-safe.
+					const manifest = createReferenceRecordsFixture();
+					for (const record of manifest.records) {
+						const body =
+							record.sections?.map((s) => s.content).join("\n\n") ?? "";
+						const markdown = stringifyRecordsYamlLdFrontMatter(record, body);
+						const fileName = `${record.id.replace(/[^a-zA-Z0-9._-]+/g, "-")}.md`;
+						await writeFile(path.join(dir, fileName), markdown, "utf-8");
+						seeded.push(fileName);
+					}
+				}
+
+				return buildJsonSuccessEnvelope({
+					command: "vault",
+					operation: "init",
+					nextCommand: "requirements pull",
+					nextCommands: ["requirements pull", "records list"],
+					extra: {
+						dir,
+						empty: input.options.empty === true,
+						seededFiles: seeded,
+						seededCount: seeded.length,
+					},
+				});
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				return buildJsonErrorEnvelope({
+					command: "vault",
+					operation: "init",
+					error: "vault_init_failed",
+					message,
+					nextAction: "Check write permissions for the target directory.",
+				});
+			}
+		},
+	};
+
 	return {
 		name: "vault",
-		summary: "Inspect and dispatch vault:v1 verbs to loaded vault plugins",
-		actions: { list, show, dispatch },
+		summary: "Inspect and dispatch vault:v1 verbs, and init a notes vault",
+		actions: { list, show, dispatch, init },
 		defaultAction: "list",
 		transports: {
 			cli: {},

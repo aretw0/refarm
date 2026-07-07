@@ -2,7 +2,11 @@ import {
 	isCapabilityGroup,
 	resolveGroupAction,
 } from "@refarm.dev/cli/capabilities";
-import { describe, expect, it } from "vitest";
+import { parseRecordsYamlLdFrontMatter } from "@refarm.dev/records-contract-v1";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
 	createVaultCapabilityGroup,
@@ -53,6 +57,7 @@ describe("vault CapabilityGroup", () => {
 		expect(isCapabilityGroup(group)).toBe(true);
 		expect(Object.keys(group.actions).sort()).toEqual([
 			"dispatch",
+			"init",
 			"list",
 			"show",
 		]);
@@ -150,5 +155,72 @@ describe("vault CapabilityGroup", () => {
 		const err = await resolved!.action.run(resolved!.input);
 		expect(err.ok).toBe(false);
 		expect((err as { error?: string }).error).toBe("vault-dispatch-failed");
+	});
+});
+
+describe("vault init — start a notes vault from 0 (T3)", () => {
+	const dirs: string[] = [];
+	function tempDir(): string {
+		const base = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-vault-init-"));
+		dirs.push(base);
+		return path.join(base, "my-vault"); // a NOT-yet-existing subdir to init into
+	}
+	afterEach(() => {
+		for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+	});
+
+	async function runInit(
+		dir: string,
+		options: Record<string, unknown> = {},
+	): Promise<unknown> {
+		const group = createVaultCapabilityGroup(deps());
+		if (!isCapabilityGroup(group)) throw new Error("expected a group");
+		const init = group.actions.init;
+		if (!init) throw new Error("no init action");
+		return init.run({ args: { dir }, options: options as never, json: true });
+	}
+
+	it("seeds a vault with the reference records as Obsidian markdown", async () => {
+		const dir = tempDir();
+		const envelope = (await runInit(dir)) as {
+			ok: boolean;
+			seededCount: number;
+			seededFiles: string[];
+		};
+		expect(envelope.ok).toBe(true);
+		expect(envelope.seededCount).toBeGreaterThan(0);
+
+		// The seeded files are REAL Obsidian markdown: YAML-LD front matter that
+		// round-trips back into a KnowledgeRecord.
+		const first = envelope.seededFiles[0];
+		expect(first).toBeTruthy();
+		const markdown = fs.readFileSync(path.join(dir, first as string), "utf-8");
+		expect(markdown.startsWith("---\n")).toBe(true);
+		const { record } = parseRecordsYamlLdFrontMatter(markdown);
+		expect(record.id).toBeTruthy();
+		expect(record["@type"]).toContain("KnowledgeRecord");
+	});
+
+	it("creates an empty vault with --empty (no seed files)", async () => {
+		const dir = tempDir();
+		const envelope = (await runInit(dir, { empty: true })) as {
+			ok: boolean;
+			seededCount: number;
+		};
+		expect(envelope.ok).toBe(true);
+		expect(envelope.seededCount).toBe(0);
+		expect(fs.existsSync(dir)).toBe(true);
+		expect(fs.readdirSync(dir)).toEqual([]);
+	});
+
+	it("refuses to init over an existing path (never clobbers)", async () => {
+		const dir = tempDir();
+		fs.mkdirSync(dir, { recursive: true });
+		fs.writeFileSync(path.join(dir, "existing.md"), "keep me");
+		const envelope = (await runInit(dir)) as { ok: boolean; error?: string };
+		expect(envelope.ok).toBe(false);
+		expect(envelope.error).toBe("vault_dir_exists");
+		// The pre-existing file is untouched.
+		expect(fs.readFileSync(path.join(dir, "existing.md"), "utf-8")).toBe("keep me");
 	});
 });
