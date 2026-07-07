@@ -125,4 +125,35 @@ describe("registerPluginCapabilities — the register-at-load wire", () => {
 		const result = registerPluginCapabilities(registry, [], makeDeps());
 		expect(result).toEqual({ registered: [], collided: [] });
 	});
+
+	it("reachability: a registered plugin verb surfaces through the generic projector seams", () => {
+		// The projectors (REPL slash names + CLI commands) are blind registry.list()
+		// loops — so a registered plugin verb is reachable on both, byte-identical to a
+		// built-in, with no per-surface wiring. Prove it via the SAME logic the seams use.
+		const registry = createCapabilityRegistry([]);
+		registerPluginCapabilities(
+			registry,
+			[manifest("@refarm/vault", ["vault:search"], ["vault:dispatch"])],
+			makeDeps(),
+		);
+		const entry = registry.get("search");
+		if (!entry) throw new Error("registered plugin verb not found in registry");
+
+		// REPL seam: capabilitySlashNames() = list().flatMap(name + aliases).
+		const slashNames = new Set(
+			registry.list().flatMap((d) => [
+				d.name.toLowerCase(),
+				...((d.transports?.repl?.slashAliases ?? []).map((a) => a.toLowerCase())),
+			]),
+		);
+		expect(slashNames.has("search")).toBe(true);
+
+		// CLI seam: capabilityCliCommands() filters list() by transports.cli — the plugin
+		// verb declares transports.cli, so it's included.
+		const cliReachable = registry
+			.list()
+			.filter((d) => d.transports?.cli !== undefined)
+			.map((d) => d.name);
+		expect(cliReachable).toContain("search");
+	});
 });
