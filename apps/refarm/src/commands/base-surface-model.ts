@@ -120,14 +120,14 @@ export function buildBaseSurfaceModel(
 		input.health ? healthUnit(input.health) : undefined,
 	].filter((unit): unit is BaseSurfaceUnit => unit !== undefined);
 	const nextActions = dedupe([
-		...(input.runtime?.nextActions ?? []),
-		...(input.model?.nextActions ?? []),
-		...(input.health?.nextActions ?? []),
+		...nextActionsFromHandoff(input.runtime),
+		...nextActionsFromHandoff(input.model),
+		...nextActionsFromHandoff(input.health),
 	]);
 	const nextCommands = dedupe([
-		...(input.runtime?.nextCommands ?? []),
-		...(input.model?.nextCommands ?? []),
-		...(input.health?.nextCommands ?? []),
+		...nextCommandsFromHandoff(input.runtime),
+		...nextCommandsFromHandoff(input.model),
+		...nextCommandsFromHandoff(input.health),
 	]);
 
 	return {
@@ -179,12 +179,12 @@ function runtimeUnit(runtime: RuntimeLike): BaseSurfaceUnit {
 		id: "runtime",
 		label: "Runtime",
 		owner: "apps/refarm",
-		state: ready ? "ready" : blocked ? "blocked" : "unknown",
+		state: blocked ? "blocked" : ready ? "ready" : "unknown",
 		severity: blocked ? "failure" : "info",
-		summary: ready
-			? "Runtime sidecar is ready."
-			: blocked
-				? "Runtime sidecar is not ready."
+		summary: blocked
+			? "Runtime sidecar is not ready."
+			: ready
+				? "Runtime sidecar is ready."
 				: "Runtime readiness is unknown.",
 		evidence,
 		actions: actionsFromHandoff(runtime),
@@ -271,13 +271,29 @@ function firstRecommendationEvidence(
 }
 
 function actionsFromHandoff(handoff: CommandHandoffLike): BaseSurfaceAction[] {
-	const commands = dedupe(handoff.nextCommands ?? []);
-	const actions = dedupe(handoff.nextActions ?? []);
+	const commands = nextCommandsFromHandoff(handoff);
+	const actions = nextActionsFromHandoff(handoff);
 	return commands.map((command, index) => ({
 		label: actions[index] ?? command,
 		command,
 		...(index === 0 ? { primary: true } : {}),
 	}));
+}
+
+function nextActionsFromHandoff(handoff?: CommandHandoffLike): string[] {
+	if (!handoff) return [];
+	return dedupe([
+		...(handoff.nextAction ? [handoff.nextAction] : []),
+		...(handoff.nextActions ?? []),
+	]);
+}
+
+function nextCommandsFromHandoff(handoff?: CommandHandoffLike): string[] {
+	if (!handoff) return [];
+	return dedupe([
+		...(handoff.nextCommand ? [handoff.nextCommand] : []),
+		...(handoff.nextCommands ?? []),
+	]);
 }
 
 function dedupe(values: string[]): string[] {

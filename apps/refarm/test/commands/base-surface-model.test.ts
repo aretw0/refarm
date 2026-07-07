@@ -130,6 +130,88 @@ describe("base surface model", () => {
 		});
 	});
 
+	it("keeps runtime state coherent when the runtime reports ready with an issue", () => {
+		const model = buildBaseSurfaceModel({
+			runtime: {
+				command: "runtime",
+				operation: "status",
+				ok: false,
+				configuredEngine: "rust",
+				activeEngine: "unknown",
+				ready: true,
+				issue: "tractor.engine=rust but the Rust tractor binary is not built",
+				nextCommand: "refarm config set tractor.engine auto",
+				nextAction: "Select a usable runtime engine.",
+			},
+		});
+
+		expect(model.ok).toBe(false);
+		expect(model.units[0]).toMatchObject({
+			id: "runtime",
+			state: "blocked",
+			severity: "failure",
+			summary: "Runtime sidecar is not ready.",
+		});
+		expect(model.nextCommand).toBe("refarm config set tractor.engine auto");
+		expect(model.nextAction).toBe("Select a usable runtime engine.");
+	});
+
+	it("dedupes plural and singular handoffs in runtime, model, health order", () => {
+		const model = buildBaseSurfaceModel({
+			runtime: {
+				command: "runtime",
+				operation: "status",
+				ok: false,
+				ready: false,
+				nextCommand: "refarm runtime status --json",
+				nextCommands: ["refarm runtime status --json", "refarm resume --json"],
+				nextAction: "Inspect runtime.",
+				nextActions: ["Inspect runtime.", "Resume after runtime."],
+			},
+			model: {
+				command: "model",
+				operation: "current",
+				ok: false,
+				current: { ref: "openai-codex/gpt-5.3-codex-spark" },
+				credential: { state: "missing" },
+				nextCommand: "refarm sow --json",
+				nextCommands: ["refarm runtime status --json", "refarm sow --json"],
+				nextAction: "Configure credentials.",
+				nextActions: ["Inspect runtime.", "Configure credentials."],
+			},
+			health: {
+				command: "health",
+				operation: "audit",
+				ok: false,
+				issueCount: 1,
+				recommendations: [],
+				nextCommand: "refarm health suggest-policy --json",
+				nextCommands: ["refarm sow --json", "refarm health suggest-policy --json"],
+				nextAction: "Fix health policy.",
+				nextActions: ["Configure credentials.", "Fix health policy."],
+			},
+		});
+
+		expect(model.nextCommands).toEqual([
+			"refarm runtime status --json",
+			"refarm resume --json",
+			"refarm sow --json",
+			"refarm health suggest-policy --json",
+		]);
+		expect(model.nextActions).toEqual([
+			"Inspect runtime.",
+			"Resume after runtime.",
+			"Configure credentials.",
+			"Fix health policy.",
+		]);
+		expect(model.units[1]).toMatchObject({
+			id: "model",
+			state: "blocked",
+			severity: "failure",
+			summary: "Model route is missing credentials.",
+		});
+	});
+
 	it("formats a compact human summary for manual exploration", () => {
 		const model = buildBaseSurfaceModel({
 			runtime: {
