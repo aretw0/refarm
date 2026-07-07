@@ -56,6 +56,27 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
 
 ## Security debt
 
+- **Plugin-id: traversal CLOSED (b9cd5d1b); the RS↔TS identity drift is the open
+  debt.** `pluginIdToFsToken` (neutral, `@refarm.dev/config/plugin-identity`) is
+  now the single filesystem-safe projection — the CLI install/read-back/sentinel
+  route through it, traversal is contained + unit-proved. It is a purely LOCAL-fs
+  projection: it never touches the wire (config.json / trusted_plugins carry the
+  original `@refarm/agent`, which the Rust host reads), so this slice added no new
+  cross-stack drift. But three id notions still disagree (Arthur: "cuidado com o
+  drift RS↔TS"):
+    1. TS `pluginIdToFsToken` — flatten `/`,`\`→`_`, drop `@` (fs segment).
+    2. Rust `is_safe_plugin_id_token` (`policy_and_fs.rs:80`) — FORBIDS `@ / :`
+       (gates the shell allowlist, not fs paths).
+    3. Rust `manifest_runtime_plugin_id` (`env_and_runtime.rs:478`) — last `/`
+       segment (`@refarm/agent`→`agent`), the trust-gate/runtime token.
+  These are three ad-hoc projections of one identity. The canonical id contract
+  (map wf_8431babc: free `name` + command-safe `id` charset `[A-Za-z0-9._:@/-]`,
+  born-with-the-plugin via the Barn, disambiguating across distributions incl. GIT)
+  should make the runtime token a DECLARED projection of the minted id, not a third
+  unrelated string — with a drift guard (the `check-permission-vocab` /
+  `check-model-defaults-drift` pattern) once the id lives in one place. Deferred:
+  touches §8 (Rust) + gated on the Barn/publish/p2p paths being built. NOT to be
+  left silent — this note is the anti-silent-bug record.
 - **Grant-enforcement foundation (the road to S2-strong).** Arthur's doctrine:
   support every possible grant, don't waste the effort, arrive at S2 strong, and
   eventually deliver the persona install-and-approve UX — "security down at the
