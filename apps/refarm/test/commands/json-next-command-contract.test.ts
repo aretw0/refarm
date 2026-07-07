@@ -905,6 +905,12 @@ function createContractPluginCommand() {
 				({ reloaded: [], skipped: [], timedOut: false }) as never,
 			restartRuntime: async () =>
 				({ ok: true, restartCommand: "refarm runtime restart" }) as never,
+			persistApproval: (filePath, pluginId, capabilities) => ({
+				pluginId,
+				filePath,
+				approved: [...new Set(capabilities)].sort(),
+				changed: true,
+			}),
 		}),
 		pluginCapabilityHooks,
 	);

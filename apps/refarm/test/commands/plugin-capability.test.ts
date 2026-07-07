@@ -30,6 +30,12 @@ function makeDeps(overrides: Partial<PluginCommandDeps> = {}): PluginCommandDeps
 			({ reloaded: [], skipped: [], timedOut: false }) as never,
 		restartRuntime: async () =>
 			({ ok: true, restartCommand: "refarm runtime restart" }) as never,
+		persistApproval: (filePath, pluginId, capabilities) => ({
+			pluginId,
+			filePath,
+			approved: [...new Set(capabilities)].sort(),
+			changed: true,
+		}),
 		...overrides,
 	};
 }
@@ -419,6 +425,104 @@ describe("plugin capability group", () => {
 			// byte-order: extra has …restarted, restart, timedOut (timedOut LAST)
 			const keys = Object.keys(env as object);
 			expect(keys.indexOf("restart")).toBeLessThan(keys.indexOf("timedOut"));
+		});
+	});
+
+	describe("approve <id> — the persona write step", () => {
+		const approveInput = (
+			id: string,
+			options: Record<string, string | string[] | boolean> = {},
+		) => ({ args: { id }, options, json: true });
+
+		it("approves a subset of the declared permissions, rendered with label/risk", async () => {
+			let persisted: string[] | undefined;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readManifest: async () => ({
+						permissions: ["fs:read", "fs:write", "network:outbound"],
+					}),
+					persistApproval: (filePath, pluginId, capabilities) => {
+						persisted = capabilities;
+						return {
+							pluginId,
+							filePath,
+							approved: [...capabilities].sort(),
+							changed: true,
+						};
+					},
+				}),
+			);
+			const env = await action(group, "approve").run(
+				approveInput("@x/p", { approve: ["fs:read", "network:outbound"] }),
+			);
+			expect(env.ok).toBe(true);
+			expect(env.operation).toBe("approve");
+			expect(persisted).toEqual(["fs:read", "network:outbound"]);
+			const x = env as unknown as {
+				approved: Array<{ id: string; label: string; risk: string }>;
+			};
+			expect(x.approved.map((p) => p.id)).toEqual([
+				"fs:read",
+				"network:outbound",
+			]);
+			expect(x.approved.find((p) => p.id === "fs:read")?.risk).toBe("low");
+		});
+
+		it("rejects approving a capability the plugin never declared", async () => {
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readManifest: async () => ({ permissions: ["fs:read"] }),
+				}),
+			);
+			const env = await action(group, "approve").run(
+				approveInput("@x/p", { approve: ["shell:spawn"] }),
+			);
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("capability-not-declared");
+		});
+
+		it("--deny revokes: persists an empty approved set", async () => {
+			let persisted: string[] | undefined;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readManifest: async () => ({ permissions: ["fs:read"] }),
+					persistApproval: (filePath, pluginId, capabilities) => {
+						persisted = capabilities;
+						return { pluginId, filePath, approved: [], changed: true };
+					},
+				}),
+			);
+			const env = await action(group, "approve").run(
+				approveInput("@x/p", { deny: true }),
+			);
+			expect(env.ok).toBe(true);
+			expect(persisted).toEqual([]);
+		});
+
+		it("rejects an unknown scope", async () => {
+			const group = createPluginCapabilityGroup(makeDeps());
+			const env = await action(group, "approve").run(
+				approveInput("@x/p", { scope: "galaxy" }),
+			);
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("unknown-scope");
+		});
+
+		it("errors when the plugin manifest is missing", async () => {
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					readManifest: async () => {
+						throw new Error("ENOENT");
+					},
+				}),
+			);
+			const env = await action(group, "approve").run(
+				approveInput("@x/nope", { approve: ["fs:read"] }),
+			);
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe(
+				"plugin-manifest-not-found",
+			);
 		});
 	});
 });

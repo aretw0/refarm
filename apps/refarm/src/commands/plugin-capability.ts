@@ -12,8 +12,15 @@ import {
 	describePermission,
 	unknownPermissions,
 } from "@refarm.dev/plugin-manifest";
+import type { LedgerScope } from "@refarm.dev/storage-node-view";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+
+import {
+	approvalConfigPath,
+	setApprovedPermissions,
+	type ApprovalResult,
+} from "./plugin-approval.js";
 
 import {
 	PLUGIN_INSTALL_JSON_COMMAND,
@@ -90,6 +97,9 @@ export interface PluginCommandDeps {
 	reloadAndWait: typeof reloadRuntimePluginsAndWait;
 	/** Spawn `runtime restart [--wait]`. Injected so an HTTP handler can GATE it. */
 	restartRuntime: typeof restartRuntimeForPluginReload;
+	// ── approve ───────────────────────────────────────────────────────────────
+	/** Persist the operator-approved capability set for a plugin (scope-resolved). */
+	persistApproval: typeof setApprovedPermissions;
 }
 
 export function defaultPluginDeps(): PluginCommandDeps {
@@ -109,6 +119,7 @@ export function defaultPluginDeps(): PluginCommandDeps {
 		onProgress: NOOP_PROGRESS,
 		reloadAndWait: reloadRuntimePluginsAndWait,
 		restartRuntime: restartRuntimeForPluginReload,
+		persistApproval: setApprovedPermissions,
 	};
 }
 
@@ -449,10 +460,139 @@ export function createPluginCapabilityGroup(
 		},
 	};
 
+	// ── approve <id> --approve <cap>... ───────────────────────────────────────
+	// The persona loop's write step: the operator APPROVES (a subset of) the
+	// permissions a plugin declares. Persists the approved set to the sovereign
+	// .refarm/config.json (the same file the host reads at load), keyed by plugin
+	// id, on a SEPARATE key from trusted_plugins (identity ⊥ capability). The host
+	// (a follow-on slice) intersects declared ∩ approved, so approving fewer
+	// capabilities actually restricts.
+	//
+	// Surface-neutral + headless by design (the multi-surface invariant): approval
+	// intent is the `--approve <cap>` flag (repeatable) or `--deny` — no TTY prompt,
+	// so CLI / TUI / HTTP / a PWA all drive it through the same envelope. An
+	// interactive surface renders the plugin's permissions (via `permissions <id>`)
+	// and collects the flags; run() only persists the already-parsed decision.
+	const approve: CapabilityDescriptor = {
+		name: "approve",
+		summary: "Approve the host-effect permissions a plugin may use",
+		args: [{ name: "id", required: true }],
+		options: [
+			{
+				name: "approve",
+				kind: "string[]",
+				summary: "Grant this declared capability (repeatable)",
+			},
+			{ name: "deny", kind: "boolean", summary: "Revoke all approved capabilities" },
+			{
+				name: "scope",
+				kind: "string",
+				summary: "Config scope to persist to: user | workspace | org",
+				defaultValue: "user",
+			},
+		],
+		async run(input) {
+			const id = input.args.id as string;
+			const scopeRaw = (input.options.scope as string) ?? "user";
+			if (scopeRaw !== "user" && scopeRaw !== "workspace" && scopeRaw !== "org") {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "approve",
+					error: "unknown-scope",
+					message: `Unknown scope "${scopeRaw}". Use user, workspace, or org.`,
+					nextAction: "Retry with --scope user|workspace|org.",
+				});
+			}
+			const scope = scopeRaw as LedgerScope;
+
+			// Read the plugin's DECLARED permissions — you can only approve what the
+			// plugin asked for. Manifest absent → nothing to approve against.
+			let declared: string[];
+			try {
+				const manifest = (await deps.readManifest(id)) as {
+					permissions?: unknown;
+				};
+				declared = Array.isArray(manifest.permissions)
+					? manifest.permissions.filter((p): p is string => typeof p === "string")
+					: [];
+			} catch {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "approve",
+					error: "plugin-manifest-not-found",
+					message: `No installed plugin manifest for "${id}".`,
+					nextAction: "Run `plugin list` to see installed plugins.",
+				});
+			}
+
+			const deny = Boolean(input.options.deny);
+			const requested = deny
+				? []
+				: ((input.options.approve as string[] | undefined) ?? []);
+
+			// Every approved capability must be one the plugin DECLARED (approving a
+			// capability the plugin never asked for is meaningless — the host only
+			// grants declared ∩ approved).
+			const notDeclared = requested.filter((c) => !declared.includes(c));
+			if (notDeclared.length > 0) {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "approve",
+					error: "capability-not-declared",
+					message: `Plugin "${id}" does not declare: ${notDeclared.join(", ")}.`,
+					nextAction: `Run \`plugin permissions ${id}\` to see what it declares.`,
+				});
+			}
+
+			const filePath = approvalConfigPath(scope);
+			if (!filePath) {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "approve",
+					error: "scope-unavailable",
+					message: `The ${scope} scope is not available.`,
+					nextAction: "Set REFARM_ORG_HOME for org scope, or use --scope user.",
+				});
+			}
+
+			const result: ApprovalResult = deps.persistApproval(
+				filePath,
+				id,
+				requested,
+			);
+			// Render the approved set with its human labels + risk (the vocab).
+			const approvedSpecs = result.approved
+				.map((cap) => describePermission(cap))
+				.filter((spec): spec is NonNullable<typeof spec> => spec != null);
+
+			return buildJsonSuccessEnvelope({
+				command: "plugin",
+				operation: "approve",
+				nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+				nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
+				extra: {
+					pluginId: id,
+					scope,
+					approved: approvedSpecs,
+					changed: result.changed,
+				},
+			});
+		},
+	};
+
 	return {
 		name: "plugin",
 		summary: "Manage refarm plugins",
-		actions: { list, permissions, status, install, update, bundle, reload },
+		actions: {
+			list,
+			permissions,
+			status,
+			install,
+			update,
+			bundle,
+			reload,
+			approve,
+		},
 		defaultAction: "list",
 		transports: {
 			cli: {},

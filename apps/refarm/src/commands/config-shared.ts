@@ -24,6 +24,15 @@ export interface RefarmCliConfig {
 	 * reads+writes the whole object, so it co-habits this file untouched.
 	 */
 	plugins?: PackageSource[];
+	/**
+	 * The operator's APPROVED capability set per plugin id (the effect axis:
+	 * fs:read, network:outbound, …). Distinct from `trusted_plugins` (the identity
+	 * axis: may this plugin load at all). The host reads this from the same
+	 * `.refarm/config.json` at load and intersects it with the plugin's declared
+	 * permissions, so approving fewer capabilities actually restricts. Authored via
+	 * `plugin approve`. Keyed by plugin id.
+	 */
+	approvedPermissions?: Record<string, string[]>;
 }
 
 export interface ConfigDeps {
