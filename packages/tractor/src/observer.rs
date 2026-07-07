@@ -132,10 +132,10 @@ fn forward_to_observers(
         return;
     };
     for tx in guard.values() {
-        let _ = tx.send(EventEnvelope {
-            event: event.event.clone(),
-            payload: Some(json_payload.to_owned()),
-        });
+        let _ = tx.send(EventEnvelope::fire(
+            event.event.clone(),
+            Some(json_payload.to_owned()),
+        ));
     }
 }
 

@@ -67,6 +67,10 @@ export const integration = {
 			version: "0.1.0",
 			description: "source:v1 provider as a WASM extension — respond routes by method",
 			supportedTypes: [],
+			// `required-capabilities` is what the plugin NEEDS from the host (host-fs,
+			// model-bridge, …) — this provider needs none. The sync-verb DECLARATION
+			// (which verbs it serves via respond) is a separate slice: a `sync-verbs`
+			// field on plugin-metadata (ADR-084), not this field.
 			requiredCapabilities: [],
 		};
 	},

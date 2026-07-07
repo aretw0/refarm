@@ -72,11 +72,43 @@ pub use trust::{ExecutionProfile, SecurityMode, TrustManager};
 /// JSON string. Nothing here is agent-specific — the agent is just one plugin
 /// whose events happen to be `user:prompt`. (Formerly `AgentMessage`; the neutral
 /// name reflects that any plugin, not only the agent, is driven through this.)
+///
+/// `reply` distinguishes the two dispatch shapes of ADR-084. `None` is the
+/// async default: the runner calls `on-event` (fire-and-forget), the result comes
+/// back out-of-band through the bridge. `Some(tx)` is the synchronous, capability-
+/// negotiated `respond` path: the runner calls `respond` and sends the string reply
+/// (or an error message) back through the oneshot, so a caller awaits a typed return
+/// in-band. Only plugins advertising `sync:<verb>` in `metadata()` are dispatched this
+/// way — the host enforces the flag before minting a reply-bearing envelope.
 #[derive(Debug)]
 pub struct EventEnvelope {
     pub event: String,
     pub payload: Option<String>,
+    pub reply: Option<tokio::sync::oneshot::Sender<Result<String, String>>>,
 }
+
+impl EventEnvelope {
+    /// The async-default envelope: fire-and-forget `on-event`, no reply channel.
+    pub fn fire(event: impl Into<String>, payload: Option<String>) -> Self {
+        Self { event: event.into(), payload, reply: None }
+    }
+
+    /// The synchronous `respond` envelope: carries a oneshot the runner satisfies by
+    /// calling `respond` and sending back its string reply (or error message). The
+    /// runner branches on `reply.is_some()` and ignores `event` for this path, so the
+    /// event is a documentation sentinel, not a routed event name.
+    pub fn respond_request(
+        payload: Option<String>,
+        reply: tokio::sync::oneshot::Sender<Result<String, String>>,
+    ) -> Self {
+        Self { event: RESPOND_REQUEST_EVENT.to_string(), payload, reply: Some(reply) }
+    }
+}
+
+/// Sentinel `event` for a synchronous respond envelope. The runner never routes on it
+/// (it branches on the presence of a reply channel); it exists only so a respond
+/// envelope reads as a respond, not a borrowed `user:prompt`.
+const RESPOND_REQUEST_EVENT: &str = "__tractor:respond";
 
 const SHUTDOWN_EVENT: &str = "__tractor:shutdown";
 
@@ -189,10 +221,7 @@ pub fn deliver_via_router(
         for plugin_id in &recipients {
             if let Some(tx) = guard.get(plugin_id) {
                 if tx
-                    .send(EventEnvelope {
-                        event: event.to_string(),
-                        payload: payload.clone(),
-                    })
+                    .send(EventEnvelope::fire(event.to_string(), payload.clone()))
                     .is_ok()
                 {
                     sent += 1;
@@ -351,6 +380,20 @@ fn spawn_plugin_store_runner(
                     h.call_teardown().await;
                     teardown_done = true;
                     break;
+                }
+
+                // ADR-084 synchronous `respond`: a reply-bearing envelope is served by
+                // `call_respond` (not `call_on_event`), and its string return is sent
+                // back in-band through the oneshot. This is the ONLY place the runner
+                // calls respond — reached solely for plugins the host verified advertise
+                // `sync:<verb>`, so an async-only plugin is never driven this way.
+                if let Some(reply) = msg.reply {
+                    let payload = msg.payload.unwrap_or_default();
+                    let result = h.call_respond(&payload).await.map_err(|e| e.to_string());
+                    // The receiver may have dropped (caller gave up / timed out); a
+                    // failed send is not the runner's problem.
+                    let _ = reply.send(result);
+                    continue;
                 }
 
                 // Precise cancel: register THIS store's cancel flag under the
@@ -994,10 +1037,7 @@ impl TractorNative {
         };
 
         for tx in &senders {
-            let _ = tx.send(EventEnvelope {
-                event: SHUTDOWN_EVENT.to_string(),
-                payload: None,
-            });
+            let _ = tx.send(EventEnvelope::fire(SHUTDOWN_EVENT.to_string(), None));
         }
         drop(senders);
 

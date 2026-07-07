@@ -306,10 +306,7 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         let sent = {
             let channels = state.plugin_channels.read().expect("channels poisoned");
             channels.get(&agent_id).map(|tx| {
-                tx.send(crate::EventEnvelope {
-                    event: "user:prompt".to_string(),
-                    payload: Some(payload),
-                })
+                tx.send(crate::EventEnvelope::fire("user:prompt".to_string(), Some(payload)))
             })
         };
 
