@@ -35,7 +35,10 @@ import {
 } from "../../src/commands/model-capability.js";
 import { createOpenUrlCommand } from "../../src/commands/open-url.js";
 import { createPackageManagerCommand } from "../../src/commands/package-manager.js";
-import { pluginCommand } from "../../src/commands/plugin.js";
+import {
+	createPluginCapabilityGroup,
+	pluginCapabilityHooks,
+} from "../../src/commands/plugin-capability.js";
 import { createProjectCommand } from "../../src/commands/project.js";
 import { provisionCommand } from "../../src/commands/provision.js";
 import { createResumeCommand } from "../../src/commands/resume.js";
@@ -884,6 +887,29 @@ function createContractModelCommand() {
 	);
 }
 
+function createContractPluginCommand() {
+	// The `plugin` CLI surface is projected from the CapabilityGroup; inject stub
+	// deps so the contract samples (list/status/bundle --json) produce their
+	// envelopes without touching the real sidecar / filesystem / jco. This test
+	// only checks the nextCommand handoff shape, not the runtime.
+	return toCommanderGroup(
+		createPluginCapabilityGroup({
+			buildListReport: async () => ({ plugins: [] }),
+			readManifest: async () => ({ permissions: [] }),
+			readRuntimePluginState: async () => null,
+			buildInstallReport: async () =>
+				({ ok: true, command: "plugin", operation: "install" }) as never,
+			runBundle: async () => ({ exitCode: 0, stdout: "", stderr: "" }) as never,
+			onProgress: () => {},
+			reloadAndWait: async () =>
+				({ reloaded: [], skipped: [], timedOut: false }) as never,
+			restartRuntime: async () =>
+				({ ok: true, restartCommand: "refarm runtime restart" }) as never,
+		}),
+		pluginCapabilityHooks,
+	);
+}
+
 function createContractSessionsCommand() {
 	const session = {
 		"@id": "urn:refarm:session:v1:abc123def456",
@@ -1437,15 +1463,19 @@ describe("JSON next command contract", () => {
 					command: createContractModelCommand(),
 					args: ["reset", "--scope", "worker", "--json"],
 				},
-				{ id: "plugin-list", command: pluginCommand, args: ["list", "--json"] },
+				{
+					id: "plugin-list",
+					command: createContractPluginCommand(),
+					args: ["list", "--json"],
+				},
 				{
 					id: "plugin-status",
-					command: pluginCommand,
+					command: createContractPluginCommand(),
 					args: ["status", "--json"],
 				},
 				{
 					id: "plugin-bundle-dry-run",
-					command: pluginCommand,
+					command: createContractPluginCommand(),
 					args: ["bundle", "contract-plugin.wasm", "--dry-run", "--json"],
 				},
 				{
