@@ -10,7 +10,7 @@ use super::{
 };
 
 #[cfg(target_arch = "wasm32")]
-use crate::tools::tools_openai;
+use crate::tools::tools_openai_with_registry;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn openai_iteration_response(
@@ -22,9 +22,14 @@ pub(crate) fn openai_iteration_response(
 ) -> Result<serde_json::Value, String> {
     let stream = crate::streaming_config::provider_stream_request_enabled_from_env();
     let body = if provider == "openai-codex" {
-        build_openai_codex_responses_body_with_streaming(model, wire_msgs, tools_openai(), stream)
+        build_openai_codex_responses_body_with_streaming(
+            model,
+            wire_msgs,
+            tools_openai_with_registry(),
+            stream,
+        )
     } else {
-        build_openai_body_with_streaming(model, wire_msgs, tools_openai(), stream)
+        build_openai_body_with_streaming(model, wire_msgs, tools_openai_with_registry(), stream)
     };
     Ok(if provider == "openai-codex" {
         let bytes = crate::provider::http_post_via_host(

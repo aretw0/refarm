@@ -14,6 +14,7 @@ use crate::host::plugin_host::refarm::plugin::{
     tractor_bridge::Host as TractorBridgeHost,
     types::{Host as TypesHost, IdentityInfo, PluginError},
 };
+use crate::host::plugin_registry::PluginRegistry;
 use crate::sync::NativeSync;
 use crate::telemetry::TelemetryBus;
 use std::io::Read as _;
@@ -23,6 +24,26 @@ pub(crate) struct ModelRoute {
     provider: String,
     base_url: String,
     path: String,
+}
+
+/// The handles a plugin's host-call needs to reach OTHER loaded plugins: the shared
+/// capability registry (who is loaded + what they serve) and the event router (how a
+/// dispatch reaches them). Cloned into every `TractorNativeBindings` at load, exactly
+/// like `effect_policy` / `model_route` — so the cross-plugin host path reads `&self`,
+/// never a global. All fields are `Arc`-backed clones sharing the runtime's live state.
+///
+/// This is the seam that unblocks two host features that both needed "reach another
+/// loaded plugin" and were stalled on the same missing registry: the agent leg (#6,
+/// `capability-tools` list/invoke) and `get_plugin_api` (was a STUB).
+#[derive(Clone)]
+pub(crate) struct CrossPluginAccess {
+    /// Who is loaded + what each declares (`provides`/`subscribes`). Source of truth
+    /// for tool eligibility; a revoked plugin never loads → never here → not listable.
+    pub(crate) registry: PluginRegistry,
+    /// event-name → subscriber-ids, for enumerating + routing a `<key>:dispatch`.
+    pub(crate) event_router: crate::EventRouter,
+    /// plugin-id → runner channel, the sinks `deliver_via_router` sends to.
+    pub(crate) plugin_channels: crate::PluginChannels,
 }
 
 /// Resolve the base URL a liveness probe should ping for `provider`, reusing the
@@ -72,6 +93,12 @@ pub struct TractorNativeBindings {
     /// — one source of truth, node-aware for free. None = permissive (not configured);
     /// Some(set): `*` = all, empty = deny-all.
     pub(crate) trusted_plugins: Option<std::collections::HashSet<String>>,
+    /// The shared registry of LOADED plugins' capability profiles + a router handle,
+    /// so a host-call from THIS plugin can list/invoke OTHER loaded plugins' verbs
+    /// (the agent leg #6 `capability-tools`) and resolve a named API (`get_plugin_api`).
+    /// `None` for test-constructed bindings / hosts wired without a registry — those
+    /// paths keep the pre-registry behavior (empty tool list, `get_plugin_api` NotFound).
+    pub(crate) cross_plugin: Option<crate::host::wasi_bridge::CrossPluginAccess>,
 }
 
 /// A plugin's capability grant for the `request-permission` host export.
@@ -175,6 +202,7 @@ impl TractorNativeBindings {
         fallback_route: Option<ModelRoute>,
         permission_grant: PermissionGrant,
         trusted_plugins: Option<std::collections::HashSet<String>>,
+        cross_plugin: Option<CrossPluginAccess>,
     ) -> Self {
         Self {
             plugin_id: plugin_id.into(),
@@ -185,6 +213,7 @@ impl TractorNativeBindings {
             fallback_route,
             permission_grant,
             trusted_plugins,
+            cross_plugin,
         }
     }
 }
@@ -294,11 +323,18 @@ impl TractorBridgeHost for TractorNativeBindings {
 
     /// Discover a plugin that provides a named API (SPI pattern).
     ///
-    /// STUB: always `NotFound`. Plugin-to-plugin API discovery needs a shared
-    /// registry (an api-name → plugin-id map populated at load, keyed on the
-    /// manifest's `capabilities.providesApi`) which is not built yet; this never
-    /// resolves an API today.
+    /// Resolves against the shared plugin registry (the same one that powers the
+    /// agent leg's `capability-tools`): a loaded plugin that declares `api:<name>`
+    /// in its `provides` is returned by id. Before the registry existed this was a
+    /// STUB that always returned `NotFound`; that fallback remains when no registry
+    /// is wired (test bindings), so behavior only ever GAINS resolution, never loses
+    /// it. Only LOADED plugins resolve — a revoked/unloaded provider is invisible.
     async fn get_plugin_api(&mut self, api_name: String) -> Result<String, PluginError> {
+        if let Some(cross) = self.cross_plugin.as_ref() {
+            if let Some(plugin_id) = cross.registry.plugin_providing_api(&api_name) {
+                return Ok(plugin_id);
+            }
+        }
         Err(PluginError::NotFound(format!(
             "no plugin provides api: {api_name}"
         )))

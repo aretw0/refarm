@@ -520,6 +520,12 @@ pub struct TractorNative {
     /// `plugin_channels`; lets any loaded plugin receive its own declared event, not
     /// just the elected agent's `user:prompt`. Populated by `register_for_events`.
     pub event_router: EventRouter,
+    /// The shared registry of loaded plugins' capability profiles (provides/subscribes),
+    /// populated at `register_for_events` beside the router. Shared (same Arc) with the
+    /// PluginHost so a plugin's host-call can list/invoke sibling verbs (agent leg #6)
+    /// and resolve `get_plugin_api`. A plugin absent here (never loaded / revoked /
+    /// unloaded) is invisible to those paths — tool eligibility composes with the grant.
+    pub plugin_registry: host::PluginRegistry,
     /// Join handles for plugin runner threads, keyed by plugin_id.
     /// Runner threads per plugin. A default plugin has one; a concurrent-safe
     /// plugin running with a store pool has N (one per store). All are joined on
@@ -563,8 +569,25 @@ impl TractorNative {
         // allowlist (`*` = all), and stays permissive when the allowlist is absent
         // — so enabling Strict does not deny an operator who hasn't configured one.
         let trust = TrustManager::with_security_mode(config.security_mode.clone());
+
+        // The cross-plugin seam (agent leg #6 + `get_plugin_api`): the registry of
+        // loaded plugins + the router handles are created HERE, before the host, so
+        // the SAME Arc-shared instances flow into both the host (via
+        // `with_cross_plugin`, so a plugin's host-call can list/invoke siblings) and
+        // this struct (which populates them at `register_for_events`). Sharing the
+        // instances — not copies — is what makes a plugin loaded later visible to a
+        // tool call made now.
+        let plugin_registry = host::PluginRegistry::default();
+        let plugin_channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
+        let event_router = EventRouter::default();
+        let cross_plugin = host::CrossPluginAccess {
+            registry: plugin_registry.clone(),
+            event_router: event_router.clone(),
+            plugin_channels: plugin_channels.clone(),
+        };
         let plugins =
-            host::PluginHost::new(trust.clone(), telemetry.clone(), config.on_event_budget_ms)?;
+            host::PluginHost::new(trust.clone(), telemetry.clone(), config.on_event_budget_ms)?
+                .with_cross_plugin(cross_plugin);
 
         // Reclaim the unbounded streaming graph nodes (one row per streamed chunk)
         // in the background, deleting from both sqlite and the Loro doc so a
@@ -578,12 +601,13 @@ impl TractorNative {
             plugins,
             trust,
             telemetry,
-            plugin_channels: Arc::new(RwLock::new(HashMap::new())),
+            plugin_channels,
             observer_channels: Arc::new(RwLock::new(HashMap::new())),
             cancel_flags: Arc::new(RwLock::new(HashMap::new())),
             in_flight_cancels: Arc::new(RwLock::new(HashMap::new())),
             default_responder_id: Arc::new(RwLock::new(None)),
-            event_router: EventRouter::default(),
+            event_router,
+            plugin_registry,
             plugin_runner_handles: Arc::new(RwLock::new(HashMap::new())),
             pool_stores: Arc::new(Mutex::new(HashMap::new())),
             plugin_paths: Arc::new(RwLock::new(HashMap::new())),
@@ -810,6 +834,13 @@ impl TractorNative {
             .expect("plugin_channels poisoned")
             .insert(plugin_id.clone(), tx.clone());
 
+        // Record the plugin's capability profile in the shared registry, beside the
+        // channel + router population — one load point owns "this plugin is here and
+        // declares X". The agent leg's `list-tools`/`invoke-tool` and `get_plugin_api`
+        // read it; a plugin removed from here (on unload) stops being listable at once.
+        self.plugin_registry
+            .register(&plugin_id, provides.clone(), subscribes.clone());
+
         // Populate the neutral event router. A plugin's explicitly declared
         // `capabilities.subscribes` events are subscribed directly...
         for event in &subscribes {
@@ -897,8 +928,9 @@ impl TractorNative {
             .expect("observer_channels poisoned")
             .remove(plugin_id);
 
-        // Neutral router + agent policy + interrupt/staging state.
+        // Neutral router + capability registry + agent policy + interrupt/staging state.
         self.event_router.unsubscribe_all(plugin_id);
+        self.plugin_registry.unregister(plugin_id);
         self.cancel_flags
             .write()
             .expect("cancel_flags poisoned")

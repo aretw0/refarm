@@ -1,3 +1,43 @@
+/// Append the host's registry-contributed agent tools (the AGENT LEG, #6) to a
+/// built-in tool array. The host owns the capability registry and pre-renders each
+/// agent-eligible verb as a provider-shaped tool schema (a JSON object string);
+/// this parses and concatenates them so the built-in and plugin tools reach the
+/// model as ONE indistinguishable list — the flat-merge model curated from pi.
+///
+/// Resilient by design: a schema string the host sends that fails to parse is
+/// skipped, never poisoning the request. `provider` is "anthropic" or "openai" so
+/// the host renders the matching envelope. On non-wasm targets (unit tests, host
+/// builds) there is no host import, so the base list is returned unchanged.
+#[cfg(target_arch = "wasm32")]
+fn with_registry_tools(mut base: serde_json::Value, provider: &str) -> serde_json::Value {
+    let schemas = crate::refarm::plugin::capability_tools::list_tools(provider);
+    if let Some(array) = base.as_array_mut() {
+        for schema in schemas {
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&schema) {
+                array.push(value);
+            }
+        }
+    }
+    base
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn with_registry_tools(base: serde_json::Value, _provider: &str) -> serde_json::Value {
+    base
+}
+
+/// Built-in + registry-contributed tools in the Anthropic wire shape. The request
+/// builder calls THIS (not the bare built-in list) so a plugin verb that opted into
+/// the agent surface reaches the model as a first-class tool.
+pub(crate) fn tools_anthropic_with_registry() -> serde_json::Value {
+    with_registry_tools(tools_anthropic(), "anthropic")
+}
+
+/// Built-in + registry-contributed tools in the OpenAI wire shape.
+pub(crate) fn tools_openai_with_registry() -> serde_json::Value {
+    with_registry_tools(tools_openai(), "openai")
+}
+
 pub(crate) fn tools_anthropic() -> serde_json::Value {
     serde_json::json!([
         {"name":"read_file","description":"Read the contents of a file at an absolute path. Large files are pageable: use limit to cap lines returned and offset to start at a later line.",

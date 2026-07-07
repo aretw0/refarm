@@ -27,6 +27,7 @@
             None,
             crate::host::wasi_bridge::PermissionGrant::permissive(),
             None,
+            None,
         )
     }
 
@@ -48,6 +49,7 @@
             None,
             crate::host::wasi_bridge::PermissionGrant::permissive(),
             trusted,
+            None,
         )
     }
 

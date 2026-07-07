@@ -829,6 +829,10 @@ impl PluginHost {
             approved_permissions_source: GrantSource::ResolveFromConfig,
             model_route: crate::host::wasi_bridge::ModelRoute::from_env(),
             fallback_route: crate::host::wasi_bridge::ModelRoute::fallback_from_env(),
+            // Wired by the runtime via `with_cross_plugin` once its registry + router
+            // exist. `new` has no runtime context, so it starts None (pre-registry
+            // behavior: empty tool list, `get_plugin_api` NotFound).
+            cross_plugin: None,
         })
     }
 
@@ -859,6 +863,19 @@ impl PluginHost {
         >,
     ) -> Self {
         self.approved_permissions_source = GrantSource::Injected(approved);
+        self
+    }
+
+    /// Wire the shared cross-plugin access (registry + router handles) the runtime
+    /// owns, so every plugin loaded by this host can list/invoke OTHER loaded plugins'
+    /// verbs (the agent leg #6 `capability-tools`) and resolve a named API
+    /// (`get_plugin_api`). Called once by the runtime after it builds its registry +
+    /// router. Absent this call the host keeps pre-registry behavior.
+    pub(crate) fn with_cross_plugin(
+        mut self,
+        cross_plugin: crate::host::wasi_bridge::CrossPluginAccess,
+    ) -> Self {
+        self.cross_plugin = Some(cross_plugin);
         self
     }
 
@@ -1132,6 +1149,7 @@ impl PluginHost {
             self.fallback_route.clone(),
             permission_grant,
             trusted_at_load,
+            self.cross_plugin.clone(),
         );
 
         let component = self.cached_component(&wasm_hash, &bytes)?;
@@ -1332,6 +1350,8 @@ impl PluginHost {
             // manifest-declared plugin — permissive grant, and no trust allowlist
             // gating (the host's own effect surface).
             crate::host::wasi_bridge::PermissionGrant::permissive(),
+            None,
+            // Not a dispatchable plugin — no cross-plugin surface.
             None,
         );
 

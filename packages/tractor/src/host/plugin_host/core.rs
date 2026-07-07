@@ -249,6 +249,12 @@ pub struct PluginHost {
     /// at load. When set, the model-POST guardrail accepts the primary OR this
     /// route — the host half of the guest's MODEL_FALLBACK_PROVIDER retry.
     fallback_route: Option<crate::host::wasi_bridge::ModelRoute>,
+    /// The shared cross-plugin access (registry + router handles), cloned into every
+    /// `TractorNativeBindings` at load so a plugin's host-call can list/invoke OTHER
+    /// loaded plugins' verbs (agent leg #6) and resolve a named API (`get_plugin_api`).
+    /// `None` until the runtime wires it via `with_cross_plugin` (test hosts / the
+    /// bare `new` keep the pre-registry behavior). Set once at boot; Arc-shared.
+    cross_plugin: Option<crate::host::wasi_bridge::CrossPluginAccess>,
 }
 
 /// Forward only MODEL_* vars into plugin WASI env.

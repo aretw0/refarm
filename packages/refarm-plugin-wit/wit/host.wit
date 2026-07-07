@@ -132,6 +132,35 @@ interface structured-io {
     ) -> result<_, string>;
 }
 
+/// Registry-contributed agent tools — the AGENT LEG (#6).
+///
+/// A capability declared once already projects to CLI/REPL/HTTP (transports) and
+/// TUI/web (renderers); this interface is the fourth invoker, the AGENT. The host
+/// owns the capability registry (TS), so it lists the registry's agent-eligible
+/// verbs as pre-rendered tool schemas that the guest concatenates with its built-in
+/// tools at request-build time, and routes a tool CALL back to the verb's dispatch.
+///
+/// SECURITY: `invoke-tool` routes to a plugin verb's dispatch, which runs that
+/// plugin's WASM under ITS OWN load-time grant (A/B/G) — never the agent's. So
+/// surfacing a verb to the agent widens REACH, not POWER: a revoked plugin never
+/// loads, its dispatch channel is never registered, and the invocation resolves to
+/// an error. The guest holds no capability the host has not granted the target.
+interface capability-tools {
+    /// The registry's agent-eligible verbs as pre-rendered provider tool schemas
+    /// (each element is a JSON object string). The guest parses and concatenates
+    /// them with its built-in tool list. Provider-shaped by the host so the guest
+    /// stays provider-agnostic here: the host renders anthropic- or openai-form to
+    /// match the request being built. Empty list when no verb opts in.
+    list-tools: func(provider: string) -> list<string>;
+
+    /// Invoke a registry tool by its model-facing name with a JSON input object.
+    /// The host routes to the verb's dispatch (an Effort to the target plugin's
+    /// WASM) and returns the result as a JSON string, or an error string. This is
+    /// the two-phase dispatch made synchronous to the guest: the host awaits the
+    /// dispatch-result correlation before returning.
+    invoke-tool: func(name: string, input-json: string) -> result<string, string>;
+}
+
 /// Semantic code operations via LSP (rename, find-references).
 ///
 /// Host manages the LSP server subprocess; plugin calls clean primitives without

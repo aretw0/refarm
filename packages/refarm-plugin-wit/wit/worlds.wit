@@ -29,6 +29,7 @@ world effect-capable {
     import host-shell;
     import structured-io;
     import code-ops;
+    import capability-tools;
     export integration;
 }
 
@@ -56,5 +57,6 @@ world refarm-plugin-host {
     import host-shell;
     import structured-io;
     import code-ops;
+    import capability-tools;
     export integration;
 }

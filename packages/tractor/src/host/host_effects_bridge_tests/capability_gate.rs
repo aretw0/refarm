@@ -34,6 +34,7 @@ fn make_strict_bindings(caps: &[&str]) -> TractorNativeBindings {
         None,
         PermissionGrant::strict_declaring(caps),
         None,
+        None,
     )
 }
 
