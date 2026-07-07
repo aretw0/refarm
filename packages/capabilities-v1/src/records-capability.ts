@@ -12,7 +12,11 @@ import {
 	createReferenceRecordsProvider,
 	type RecordsManifest,
 } from "@refarm.dev/records-contract-v1";
-import { createReferenceEnrichmentProvider } from "@refarm.dev/enrichment-contract-v1";
+import {
+	createReferenceEnrichmentProvider,
+	type EnrichmentProvider,
+	type EnrichmentResult,
+} from "@refarm.dev/enrichment-contract-v1";
 
 /**
  * `records` — the generic records:v1 operator surface: enrich (and inspect) a
@@ -58,9 +62,7 @@ function groupKeysFor(record: ManifestRecord, by: AnalyzeDimension): string[] {
  * exported), kept small + local. */
 function applyEnrichment(
 	manifest: RecordsManifest,
-	enrichment: Awaited<
-		ReturnType<ReturnType<typeof createReferenceEnrichmentProvider>["enrich"]>
-	>,
+	enrichment: EnrichmentResult,
 ): RecordsManifest {
 	const byId = new Map(enrichment.records.map((r) => [r.id, r]));
 	return {
@@ -89,7 +91,10 @@ function applyEnrichment(
 
 export interface RecordsCommandDeps {
 	loadManifest: () => RecordsManifest;
-	enrichmentProvider: ReturnType<typeof createReferenceEnrichmentProvider>;
+	/** ANY enrichment:v1 provider — the reference one, or a WASM plugin adapted via
+	 * createWasmEnrichmentProvider. The `enrich` step is where a real lookup (CNPJ, an
+	 * external registry) happens, so a WASM extension is a natural fit. */
+	enrichmentProvider: EnrichmentProvider;
 	recordsProvider: ReturnType<typeof createReferenceRecordsProvider>;
 	/** OPTIONAL persistence sink for a correction/review. INJECTED by the host — the
 	 * neutral block holds no store (that would bind it to a vault/file layout). Absent

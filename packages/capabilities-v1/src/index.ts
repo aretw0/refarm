@@ -44,3 +44,7 @@ export {
 	type CallRespond,
 	type WasmSourceProviderOptions,
 } from "./wasm-source-provider.js";
+export {
+	createWasmEnrichmentProvider,
+	type WasmEnrichmentProviderOptions,
+} from "./wasm-enrichment-provider.js";
