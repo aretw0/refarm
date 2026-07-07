@@ -3,6 +3,16 @@ export {
 	buildCapabilityRoutes,
 	createCapabilityRouteHandler,
 } from "./http-projector.js";
+export {
+	capabilityAnthropicTools,
+	capabilityOpenAiTools,
+	capabilityToAnthropicTool,
+	capabilityToOpenAiTool,
+	capabilityToolParameters,
+	type AnthropicToolSchema,
+	type OpenAiToolSchema,
+	type ToolParameterSchema,
+} from "./agent-projector.js";
 export { parseCapabilityArgv } from "./parse-argv.js";
 export {
 	resolveGroupAction,
@@ -10,6 +20,7 @@ export {
 } from "./group-dispatch.js";
 export {
 	isCapabilityGroup,
+	type CapabilityAgentTransport,
 	type CapabilityArgSpec,
 	type CapabilityCliTransport,
 	type CapabilityDescriptor,

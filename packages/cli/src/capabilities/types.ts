@@ -101,6 +101,35 @@ export interface CapabilityHttpTransport {
 }
 
 /**
+ * AGENT transport hints — the fourth invoker, beside cli/repl/http. Read only by
+ * the agent projector, which turns a capability into a tool the model can call, so
+ * a verb declared ONCE also reaches the AGENT (the full "extension effect": not
+ * just a human typing the command, but the agent using the verb as a tool). The
+ * tool schema (name/description/params) is DERIVED from the descriptor's
+ * name/summary/args/options — nothing here duplicates it. This bucket only opts a
+ * verb IN and lets it override the model-facing name.
+ *
+ * NOTE: this bucket only makes a verb ELIGIBLE + carries its model-facing hints.
+ * The bridge that actually surfaces the tool to the WASM agent guest and routes an
+ * invocation to the verb's dispatch is §8 (a WIT import + guest rebuild) — a plugin
+ * verb's run() dispatches to that plugin's WASM under ITS OWN load-time grant, so
+ * surfacing to the agent widens REACH, never POWER (a revoked plugin never loads).
+ */
+export interface CapabilityAgentTransport {
+	/**
+	 * If true, the agent projector emits a tool for this verb. Absent/false → the
+	 * verb is reachable on CLI/REPL/HTTP but NOT offered to the agent as a tool.
+	 */
+	tool?: boolean;
+	/**
+	 * Override the model-facing tool name. Defaults to the descriptor's `name`.
+	 * Use to disambiguate a plugin verb (e.g. "vault_store" vs a bare "store") or
+	 * to avoid colliding with a built-in agent tool.
+	 */
+	toolName?: string;
+}
+
+/**
  * How a capability is INVOKED. Open by design: a downstream/plugin transport is
  * additive. `[key: string]` keeps it open without losing the known-key typing.
  */
@@ -108,6 +137,7 @@ export interface CapabilityTransports {
 	cli?: CapabilityCliTransport;
 	repl?: CapabilityReplTransport;
 	http?: CapabilityHttpTransport;
+	agent?: CapabilityAgentTransport;
 	[key: string]: unknown;
 }
 
