@@ -45,6 +45,7 @@ import {
 	formatReloadFromEnvelope,
 	formatStatusFromEnvelope,
 } from "./plugin-render.js";
+import { pluginIdToFsToken } from "./plugin-shared.js";
 import { pluginsBaseDir } from "../utils/refarm-home.js";
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 
@@ -95,7 +96,11 @@ export function defaultPluginDeps(): PluginCommandDeps {
 	return {
 		buildListReport: buildPluginListReport,
 		readManifest: async (id) => {
-			const manifestPath = path.join(pluginsBaseDir(), id, "plugin.json");
+			const manifestPath = path.join(
+				pluginsBaseDir(),
+				pluginIdToFsToken(id),
+				"plugin.json",
+			);
 			return JSON.parse(await readFile(manifestPath, "utf-8")) as unknown;
 		},
 		readRuntimePluginState,

@@ -17,6 +17,11 @@ export const REFARM_BUNDLED_PLUGIN_DESCRIPTORS: readonly RefarmBundledPluginDesc
 export const RUNTIME_AGENT_ERROR_PREFIXES: readonly string[];
 
 export function normalizePluginId(pluginId: string): string;
+/**
+ * Canonical filesystem-safe projection of a plugin id (one contained segment, no
+ * path separators or `..` navigation). One-way; the true id lives in the manifest.
+ */
+export function pluginIdToFsToken(pluginId: string): string;
 export function isAgentPluginId(pluginId: string): boolean;
 export function isRuntimeAgentPluginId(pluginId: string): boolean;
 export function isRuntimeAgentErrorContent(content: string): boolean;

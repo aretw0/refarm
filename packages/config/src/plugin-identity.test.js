@@ -1,3 +1,4 @@
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	AGENT_NPM_PACKAGE,
@@ -11,6 +12,7 @@ import {
 	isAgentPluginId,
 	isRuntimeAgentPluginId,
 	normalizePluginId,
+	pluginIdToFsToken,
 } from "./plugin-identity.js";
 
 describe("plugin identity", () => {
@@ -76,5 +78,46 @@ describe("plugin identity", () => {
 		expect(canonicalRuntimeAgentContent("normal response")).toBe(
 			"normal response",
 		);
+	});
+});
+
+describe("pluginIdToFsToken (filesystem-safe projection)", () => {
+	const base = "/home/user/.refarm/plugins";
+	const contained = (id) =>
+		path.resolve(base, pluginIdToFsToken(id)).startsWith(base + path.sep);
+
+	it("flattens a scoped id to one legible segment", () => {
+		expect(pluginIdToFsToken("@refarm/agent")).toBe("refarm_agent");
+		expect(pluginIdToFsToken("vault")).toBe("vault");
+		expect(pluginIdToFsToken("my-plugin.v2")).toBe("my-plugin.v2");
+	});
+
+	it("contains a path-traversal id inside the base dir", () => {
+		// Raw, `@a/../../etc/passwd` resolves two levels ABOVE base.
+		expect(pluginIdToFsToken("@a/../../etc/passwd")).toBe("a_.._.._etc_passwd");
+		expect(contained("@a/../../etc/passwd")).toBe(true);
+	});
+
+	it("neutralizes bare `.` / `..` that would otherwise navigate", () => {
+		expect(pluginIdToFsToken("..")).toBe("_..");
+		expect(pluginIdToFsToken(".")).toBe("_.");
+		expect(contained("..")).toBe(true);
+		expect(contained(".")).toBe(true);
+	});
+
+	it("flattens Windows backslash separators", () => {
+		expect(pluginIdToFsToken("a\\b")).toBe("a_b");
+		expect(contained("..\\..\\x")).toBe(true);
+	});
+
+	it("collapses shell metacharacters and whitespace", () => {
+		expect(pluginIdToFsToken("a;rm -rf/")).toBe("a_rm_-rf_");
+		expect(pluginIdToFsToken("a'b\"c")).toBe("a_b_c");
+		expect(pluginIdToFsToken("a b")).toBe("a_b");
+	});
+
+	it("is idempotent on an already-safe token", () => {
+		const once = pluginIdToFsToken("@refarm/agent");
+		expect(pluginIdToFsToken(once)).toBe(once);
 	});
 });

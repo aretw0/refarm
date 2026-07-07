@@ -21,6 +21,7 @@ import {
 	type PluginInstallReport,
 	type PluginInstallResult,
 	pluginsBaseDir,
+	pluginIdToFsToken,
 	readInstalledVersion,
 	readPackageVersion,
 	sentinelPath,
@@ -43,7 +44,11 @@ export async function installedBundleIsCurrent(
 	if (installed !== version) return false;
 
 	try {
-		const manifestPath = path.join(pluginsBaseDir(), plugin.id, "plugin.json");
+		const manifestPath = path.join(
+			pluginsBaseDir(),
+			pluginIdToFsToken(plugin.id),
+			"plugin.json",
+		);
 		const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as {
 			integrity?: unknown;
 			capabilities?: { provides?: unknown };
@@ -135,7 +140,7 @@ export async function installPlugin(
 			};
 		}
 
-		const destDir = path.join(pluginsBaseDir(), plugin.id);
+		const destDir = path.join(pluginsBaseDir(), pluginIdToFsToken(plugin.id));
 		await mkdir(destDir, { recursive: true });
 
 		copyFileSync(wasmSrc, path.join(destDir, "plugin.wasm"));

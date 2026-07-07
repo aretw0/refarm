@@ -32,6 +32,33 @@ export function normalizePluginId(pluginId) {
 	return PLUGIN_ID_ALIASES[pluginId] ?? pluginId;
 }
 
+/**
+ * The single canonical FILESYSTEM-SAFE projection of a plugin id — the one place
+ * a plugin id becomes a directory/file segment, for ANY consumer (the CLI, the
+ * Barn, an fs/OPFS/p2p storage backend). A command-safe id (`@scope/name`) is NOT
+ * filesystem-safe: the `/` would nest, and a hostile id like `@a/../../etc` fed
+ * raw to `path.join(baseDir, id)` ESCAPES the base dir. This flattens every path
+ * separator and drops the scope sigil so the id can only ever name ONE segment
+ * inside the base:
+ *   - `/` and `\` → `_`  (no nesting; `..` between separators becomes inert text)
+ *   - `@` → ``           (scope sigil, cosmetic)
+ *   - anything outside `[A-Za-z0-9._-]` → `_`  (no separator/metachar survives)
+ *   - an all-dots token (`.`, `..`) is prefixed `_` so it can't be a relative ref
+ * Idempotent; one-way (the true id lives in the manifest, not the dir name). Lives
+ * beside normalizePluginId because it is the SAME concern — a projection of the
+ * plugin identity — and must never be reimplemented per consumer.
+ *
+ * @param {string} pluginId
+ * @returns {string}
+ */
+export function pluginIdToFsToken(pluginId) {
+	const token = pluginId
+		.replace(/[/\\]/g, "_")
+		.replace(/@/g, "")
+		.replace(/[^A-Za-z0-9._-]/g, "_");
+	return /^\.+$/.test(token) ? `_${token}` : token;
+}
+
 export function isAgentPluginId(pluginId) {
 	return normalizePluginId(pluginId) === AGENT_PLUGIN_ID;
 }

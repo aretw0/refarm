@@ -1,5 +1,8 @@
 import { type PluginPackageSource } from "@refarm.dev/barn";
-import { REFARM_BUNDLED_PLUGIN_DESCRIPTORS } from "@refarm.dev/config/plugin-identity";
+import {
+	pluginIdToFsToken,
+	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
+} from "@refarm.dev/config/plugin-identity";
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -94,6 +97,13 @@ export function pluginsBaseDir(): string {
 	return path.join(resolveRefarmHome(), "plugins");
 }
 
+// The filesystem-safe plugin-id projection lives with the rest of plugin
+// identity in @refarm.dev/config (neutral, shared by the CLI, the Barn, and any
+// storage backend) — never reimplemented per consumer. Re-exported so the
+// existing plugin-* command imports keep one import site, and used by
+// sentinelPath below.
+export { pluginIdToFsToken };
+
 export function readPackageVersion(pkgDir: string): string | null {
 	try {
 		const pkgJson = JSON.parse(
@@ -106,11 +116,7 @@ export function readPackageVersion(pkgDir: string): string | null {
 }
 
 export function sentinelPath(pluginId: string): string {
-	return path.join(
-		pluginsBaseDir(),
-		".versions",
-		pluginId.replace(/\//g, "_").replace(/@/g, ""),
-	);
+	return path.join(pluginsBaseDir(), ".versions", pluginIdToFsToken(pluginId));
 }
 
 export async function readInstalledVersion(pluginId: string): Promise<string | null> {
