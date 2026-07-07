@@ -123,6 +123,29 @@ describe("notesbox T3 flow (two-layer: neutral blocks + app injections)", () => 
 		expect((enriched.validation as { ok: boolean }).ok).toBe(true);
 	});
 
+	it("step 2b — `records correct <id> reviewed --apply` persists the analyst's review", async () => {
+		const reg = registry();
+		// The analyst marks a record reviewed and it PERSISTS via the app's injected sink.
+		const corrected = await runGroup(reg, "records", [
+			"correct",
+			"record:req-root",
+			"reviewed",
+			"--apply",
+		]);
+		expect(corrected.ok).toBe(true);
+		expect(corrected.mode).toBe("apply");
+		expect(corrected.persisted).toBe(true);
+		expect(corrected.writable).toBe(true); // the app injected a save sink
+
+		// The correction is durable: a later `records list` on the SAME registry sees the
+		// new review state (the sink wrote through; loadManifest reads it back).
+		const listed = await runGroup(reg, "records", ["list"]);
+		const rec = (listed.records as Array<{ id: string; reviewState: string }>).find(
+			(r) => r.id === "record:req-root",
+		);
+		expect(rec?.reviewState).toBe("reviewed");
+	});
+
 	it("step 3 — `vault init` seeds the app's records into REAL Obsidian markdown", async () => {
 		const reg = registry();
 		const vaultDir = path.join(tempDir("notesbox-vault-"), "vault");

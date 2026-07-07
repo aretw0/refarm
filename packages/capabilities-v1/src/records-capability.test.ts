@@ -130,3 +130,65 @@ describe("records operator verbs (generic records:v1)", () => {
 		expect(a.changedRecordIds).toEqual(b.changedRecordIds);
 	});
 });
+
+describe("records correct — the analyst applies a review (persistence is INJECTED)", () => {
+	// The first injected record's id (from injectedManifest above).
+	const RECORD_ID = "record:one";
+
+	async function correct(
+		args: { id: string; state: string },
+		options: Record<string, unknown> = {},
+		overrides: Partial<RecordsCommandDeps> = {},
+	): Promise<Record<string, unknown>> {
+		const action = seededGroup(overrides).actions.correct;
+		if (!action) throw new Error("no correct action");
+		return (await action.run({
+			args,
+			options: options as never,
+			json: true,
+		})) as unknown as Record<string, unknown>;
+	}
+
+	it("dry-run reports the review without persisting (no sink injected)", async () => {
+		const env = await correct({ id: RECORD_ID, state: "reviewed" }, { notes: "ok" });
+		expect(env.ok).toBe(true);
+		expect(env.mode).toBe("dry-run");
+		expect(env.persisted).toBe(false);
+		expect(env.writable).toBe(false); // refarm ships no save sink
+		expect((env.review as { state: string; notes?: string }).state).toBe("reviewed");
+		expect((env.review as { notes?: string }).notes).toBe("ok");
+		expect((env.validation as { ok: boolean }).ok).toBe(true);
+	});
+
+	it("--apply persists the corrected manifest via the INJECTED save sink", async () => {
+		const saved: unknown[] = [];
+		const env = await correct(
+			{ id: RECORD_ID, state: "reviewed" },
+			{ apply: true, by: "analyst" },
+			{ saveManifest: (m) => void saved.push(m) },
+		);
+		expect(env.ok).toBe(true);
+		expect(env.mode).toBe("apply");
+		expect(env.persisted).toBe(true);
+		expect(env.writable).toBe(true);
+		// The saved manifest carries the corrected record's new review state.
+		expect(saved).toHaveLength(1);
+		const savedManifest = saved[0] as { records: Array<{ id: string; review?: { state: string; by?: string } }> };
+		const rec = savedManifest.records.find((r) => r.id === RECORD_ID);
+		expect(rec?.review?.state).toBe("reviewed");
+		expect(rec?.review?.by).toBe("analyst");
+	});
+
+	it("--apply without an injected sink stays dry (writable=false, not persisted)", async () => {
+		const env = await correct({ id: RECORD_ID, state: "reviewed" }, { apply: true });
+		expect(env.ok).toBe(true);
+		expect(env.persisted).toBe(false);
+		expect(env.writable).toBe(false);
+	});
+
+	it("an unknown record id returns an error envelope", async () => {
+		const env = await correct({ id: "record:nope", state: "reviewed" });
+		expect(env.ok).toBe(false);
+		expect(env.error).toBe("record_not_found");
+	});
+});

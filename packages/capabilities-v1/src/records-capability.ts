@@ -73,6 +73,11 @@ export interface RecordsCommandDeps {
 	loadManifest: () => RecordsManifest;
 	enrichmentProvider: ReturnType<typeof createReferenceEnrichmentProvider>;
 	recordsProvider: ReturnType<typeof createReferenceRecordsProvider>;
+	/** OPTIONAL persistence sink for a correction/review. INJECTED by the host — the
+	 * neutral block holds no store (that would bind it to a vault/file layout). Absent
+	 * → `correct` runs dry-run (reports the change without writing). A host injects
+	 * where a corrected manifest lands (the vault, a file, a store). */
+	saveManifest?: (manifest: RecordsManifest) => void | Promise<void>;
 }
 
 /** Default deps: an EMPTY manifest + the reference enrichment/records providers.
@@ -180,10 +185,106 @@ export function createRecordsCapabilityGroup(
 		},
 	};
 
+	const correct: CapabilityDescriptor = {
+		name: "correct",
+		summary:
+			"Apply an analyst's review to a record (set its review state + notes), re-validate",
+		args: [
+			{ name: "id", required: true },
+			{ name: "state", required: true },
+		],
+		options: [
+			{ name: "notes", kind: "string", summary: "Reviewer notes for the correction" },
+			{ name: "by", kind: "string", summary: "Who made the correction" },
+			{
+				name: "apply",
+				kind: "boolean",
+				summary:
+					"Persist the correction (needs an injected save sink; default is dry-run)",
+			},
+		],
+		async run(input): Promise<CapabilityEnvelope> {
+			const id = input.args.id as string;
+			const state = input.args.state as string;
+			const mode = input.options.apply === true ? "apply" : "dry-run";
+			try {
+				const manifest = deps.loadManifest();
+				const target = manifest.records.find((r: ManifestRecord) => r.id === id);
+				if (!target) {
+					return buildJsonErrorEnvelope({
+						command: "records",
+						operation: "correct",
+						error: "record_not_found",
+						message: `No record with id "${id}" in the manifest.`,
+						nextAction: "Run `records list` to see record ids.",
+					});
+				}
+
+				// Apply the review onto a fresh copy: set state (+ optional notes/by), stamp
+				// the review, recompute the content hash. Mirrors applyEnrichment's shape.
+				const review = {
+					state,
+					...(typeof input.options.notes === "string"
+						? { notes: input.options.notes }
+						: {}),
+					...(typeof input.options.by === "string" ? { by: input.options.by } : {}),
+				};
+				const corrected = {
+					...target,
+					review,
+					contentHash: "",
+				};
+				corrected.contentHash = computeRecordContentHash(corrected);
+				const nextManifest = {
+					...manifest,
+					records: manifest.records.map((r: ManifestRecord) =>
+						r.id === id ? corrected : r,
+					),
+				};
+				const validation = deps.recordsProvider.validate(nextManifest);
+
+				let persisted = false;
+				if (mode === "apply" && deps.saveManifest && validation.ok) {
+					await deps.saveManifest(nextManifest);
+					persisted = true;
+				}
+
+				return buildJsonSuccessEnvelope({
+					command: "records",
+					operation: "correct",
+					nextCommand: mode === "dry-run" ? `records correct ${id} ${state} --apply` : "records list",
+					nextCommands: mode === "dry-run" ? [`records correct ${id} ${state} --apply`] : [],
+					extra: {
+						mode,
+						id,
+						review,
+						persisted,
+						// A dry-run, or an apply with no injected sink, reports the change
+						// without writing — honestly flagged.
+						writable: deps.saveManifest !== undefined,
+						validation: {
+							ok: validation.ok,
+							failureCount: validation.failures.length,
+						},
+					},
+				});
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				return buildJsonErrorEnvelope({
+					command: "records",
+					operation: "correct",
+					error: "records_correct_failed",
+					message,
+					nextAction: "Check the record id + that the injected save sink is writable.",
+				});
+			}
+		},
+	};
+
 	return {
 		name: "records",
-		summary: "Inspect and enrich a records:v1 manifest",
-		actions: { list, enrich },
+		summary: "Inspect, enrich, and correct a records:v1 manifest",
+		actions: { list, enrich, correct },
 		defaultAction: "list",
 		transports: {
 			cli: {},

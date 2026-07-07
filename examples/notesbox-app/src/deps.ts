@@ -39,10 +39,17 @@ const NOTESBOX_ENRICHMENT_FIXTURE: Record<string, ReferenceEnrichmentEntry> = {
 	},
 };
 
-/** The records deps: load the app's manifest, enrich via the app's lookup. */
+/** The records deps: load the app's manifest, enrich via the app's lookup, and
+ * PERSIST a correction. The app backs load/save with a mutable in-memory manifest —
+ * a real deployment would back it with the vault (markdown on disk). The point: the
+ * neutral `records correct` verb writes through whatever sink the host injects. */
 export function notesboxRecordsDeps(): RecordsCommandDeps {
+	let manifest = notesboxManifest();
 	return {
-		loadManifest: notesboxManifest,
+		loadManifest: () => manifest,
+		saveManifest: (next) => {
+			manifest = next;
+		},
 		enrichmentProvider: createReferenceEnrichmentProvider({
 			fixture: NOTESBOX_ENRICHMENT_FIXTURE,
 			keyField: "externalKey",
