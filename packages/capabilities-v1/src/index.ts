@@ -32,3 +32,8 @@ export {
 	type SubmitEffort,
 	type SurfaceableManifest,
 } from "./plugin-bridge.js";
+export {
+	mountCapabilities,
+	mountedCliCommands,
+	type MountOptions,
+} from "./mount.js";

@@ -1,0 +1,29 @@
+{
+  "name": "devbench-t1",
+  "version": "0.0.0",
+  "private": true,
+  "description": "T1 POC (process mode): a developer's bench — declare an extension (a coding-agent verb) and watch it multi-surface. Own CLI `devbench`, refarm underneath.",
+  "type": "module",
+  "bin": {
+    "devbench": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "devbench": "node dist/cli.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@refarm.dev/capabilities-v1": "workspace:*",
+    "@refarm.dev/cli": "workspace:*",
+    "@refarm.dev/enrichment-contract-v1": "workspace:*",
+    "@refarm.dev/records-contract-v1": "workspace:*",
+    "@refarm.dev/source-web": "workspace:*",
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@refarm.dev/tsconfig": "workspace:*",
+    "@refarm.dev/vtconfig": "workspace:*"
+  }
+}

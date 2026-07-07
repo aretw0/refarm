@@ -30,6 +30,12 @@ packages:
   # white-label host). Scoped to specific dirs — the other examples/* entries are
   # standalone plugin demos without a package.json and must NOT be globbed.
   - "examples/notesbox-app"
+  # Per-work POC apps (T1/T2/T3): each its own white-label CLI, extending refarm for
+  # ONE persona, independent so a work's registros are generated without touching the
+  # others.
+  - "examples/devbench-t1"
+  - "examples/wallet-t2"
+  - "examples/reqbench-t3"
 allowBuilds:
   "@loro-crdt/base": true
   "@playwright/test": true
