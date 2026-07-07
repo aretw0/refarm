@@ -52,6 +52,33 @@ refarm check --next-action --json
 Use `REFARM_SIDECAR_URL` only for one-shot overrides; persisted
 `runtime.sidecarUrl` is the daily-driver primitive.
 
+## Base Surface Acceptance
+
+Use this loop before recording T1/T2/T3 material. It judges Refarm as a
+zero-extension daily driver before any example app or plugin-specific surface is
+allowed to compensate for base gaps.
+
+```bash
+refarm resume --json
+refarm status --base --json
+refarm runtime status --json
+refarm model current --json
+refarm check --next-action --json
+```
+
+Acceptance rules:
+
+- `resume --json` is the continuity view and must expose useful `nextCommands`
+  when the operator is blocked.
+- `status --base --json` is the compact normalized base surface. It must include
+  runtime, model, and health units when those probes are available.
+- Runtime not-ready is acceptable only when the payload explains the sidecar
+  probe and gives a recovery command.
+- Model credentials and runtime readiness must be visible as separate units, so
+  a configured model route does not hide a failed runtime sidecar.
+- Health source visibility issues must remain base health issues; examples must
+  not paper over them.
+
 ## Work Loop
 
 For interactive agent work:
