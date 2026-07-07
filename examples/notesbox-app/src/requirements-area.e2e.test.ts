@@ -3,7 +3,7 @@ import {
 	resolveGroupAction,
 	type CapabilityEntry,
 	type CapabilityGroup,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities-v1";
 import { describe, expect, it } from "vitest";
 
 import { createNotesboxRegistry } from "./registry.js";

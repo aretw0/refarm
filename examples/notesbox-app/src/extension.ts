@@ -7,8 +7,8 @@ import type {
  * The EXTENSION-PATH layer of notesbox — distinct from the composition layer
  * (fixture/deps/requirements-verb, which is plain software: declare a JS run(), mount
  * a CLI). HERE the app declares a PLUGIN MANIFEST — the way the refarm extension path
- * works — and the bridge (registerPluginCapabilities) surfaces its verbs onto every
- * surface from ONE declaration, WITHOUT the app hand-writing a run() for each.
+ * works — and the host bridge surfaces its verbs onto every surface from ONE
+ * declaration, WITHOUT the app hand-writing a run() for each.
  *
  * This is what "extend via the refarm path" means: an installed extension's verb
  * appears on the CLI (and REPL/TUI/HTTP) by itself. A production deployment would ship

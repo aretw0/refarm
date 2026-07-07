@@ -1,6 +1,6 @@
-import { capabilityCliCommands } from "@refarm.dev/cli/capabilities";
 import { describe, expect, it } from "vitest";
 
+import { buildNotesboxHost } from "./cli.js";
 import { createCapturingSubmit } from "./extension.js";
 import { createNotesboxRegistry } from "./registry.js";
 
@@ -21,15 +21,21 @@ describe("notesbox extension path (plugin manifest → multi-surface, no app run
 	});
 
 	it("the surfaced verb projects onto the CLI exactly like a built-in", () => {
-		const registry = createNotesboxRegistry();
-		const commandNames = capabilityCliCommands(registry.list(), () => ({})).map(
-			(c) => c.name(),
-		);
+		const commandNames = buildNotesboxHost().program().commands.map((c) => c.name());
 		// The extension-path verb is a real top-level CLI command — no per-surface wiring.
 		expect(commandNames).toContain("annotate");
 		// It coexists with the composition-layer verbs on the same surface.
 		expect(commandNames).toEqual(
-			expect.arrayContaining(["source", "records", "vault", "requirements", "annotate"]),
+			expect.arrayContaining([
+				"source",
+				"records",
+				"vault",
+				"requirements",
+				"requirements-moc",
+				"status",
+				"actions",
+				"annotate",
+			]),
 		);
 	});
 

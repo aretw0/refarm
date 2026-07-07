@@ -1,12 +1,10 @@
 import {
+	buildJsonSuccessEnvelope,
 	createRecordsCapabilityGroup,
+	type CapabilityDescriptor,
+	type CapabilityEnvelope,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capabilities-v1";
-import type {
-	CapabilityDescriptor,
-	CapabilityEnvelope,
-} from "@refarm.dev/cli/capabilities";
-import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 
 /**
  * The T3 PERSONA extension — "the analyst's requirements area", presented in RESULT

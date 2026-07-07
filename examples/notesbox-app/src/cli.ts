@@ -1,7 +1,28 @@
 #!/usr/bin/env node
-import { Command } from "commander";
+import type { CapabilityHost } from "@refarm.dev/capabilities-v1";
+import { localRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
 
-import { createNotesboxRegistry, notesboxCliCommands } from "./registry.js";
+import {
+	buildNotesboxHost,
+	type NotesboxHostOptions,
+} from "./registry.js";
+
+export {
+	buildNotesboxBaseModel,
+	buildNotesboxHost,
+	createNotesboxRegistry,
+	type NotesboxHostOptions,
+} from "./registry.js";
+
+export const NOTESBOX_STATE_PATH_ENV = "NOTESBOX_STATE_PATH";
+
+export function defaultNotesboxStatePath(cwd = process.cwd()): string {
+	return process.env[NOTESBOX_STATE_PATH_ENV] || localRecordsStatePath({
+		appId: "notesbox",
+		cwd,
+		fileName: "requirements.manifest.json",
+	});
+}
 
 /**
  * The `notesbox` CLI — a white-label host over refarm. It mounts the neutral refarm
@@ -9,25 +30,21 @@ import { createNotesboxRegistry, notesboxCliCommands } from "./registry.js";
  * registry. The only thing that makes this "notesbox" and not "refarm" is the program
  * name + the app's own injected deps and verb — the substrate is unchanged.
  */
-export function buildProgram(): Command {
-	const program = new Command()
-		.name("notesbox")
-		.description("Notesbox — a white-label refarm host for a requirements note box")
-		.version("0.0.0");
-
-	const registry = createNotesboxRegistry();
-	for (const command of notesboxCliCommands(registry)) {
-		program.addCommand(command);
-	}
-	return program;
+export function buildProgram(
+	options: NotesboxHostOptions = {},
+): ReturnType<CapabilityHost["program"]> {
+	const cliOptions: NotesboxHostOptions = {
+		...options,
+		statePath: options.statePath ?? defaultNotesboxStatePath(),
+	};
+	return buildNotesboxHost(cliOptions).program();
 }
 
 // Entry point: only parse argv when run as the CLI, not when imported by a test.
 const isMain =
 	process.argv[1] !== undefined &&
 	(import.meta.url === `file://${process.argv[1]}` ||
-		import.meta.url.endsWith("/cli.js") ||
-		import.meta.url.endsWith("/cli.ts"));
+		import.meta.url.endsWith("/cli.js"));
 
 if (isMain) {
 	buildProgram()

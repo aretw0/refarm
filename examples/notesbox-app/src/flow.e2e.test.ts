@@ -3,14 +3,14 @@ import {
 	resolveGroupAction,
 	type CapabilityEntry,
 	type CapabilityGroup,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities-v1";
 import { parseRecordsYamlLdFrontMatter } from "@refarm.dev/records-contract-v1";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { notesboxCapabilityDeps } from "./deps.js";
+import { buildNotesboxBaseModel, buildNotesboxHost } from "./cli.js";
 import { NOTESBOX_SOURCE_REF } from "./fixture.js";
 import { createNotesboxRegistry } from "./registry.js";
 
@@ -33,7 +33,7 @@ function tempDir(prefix: string): string {
 
 function registry() {
 	// Pin the source cache so `source status` sees the `source pull` from the same run.
-	return createNotesboxRegistry({ deps: notesboxCapabilityDeps(sourceCacheRoot) });
+	return createNotesboxRegistry({ sourceCacheRoot });
 }
 
 function group(reg: ReturnType<typeof registry>, name: string): CapabilityGroup {
@@ -73,6 +73,36 @@ describe("notesbox T3 flow (two-layer: neutral blocks + app injections)", () => 
 		expect(names).toContain("records"); // neutral (refarm)
 		expect(names).toContain("vault"); // neutral (refarm)
 		expect(names).toContain("requirements"); // work-specific (notesbox)
+		expect(names).toContain("requirements-moc"); // product view (notesbox)
+		expect(names).toContain("annotate"); // extension-path verb
+		expect(names).toContain("status"); // host-provided operator surface
+		expect(names).toContain("actions"); // host-provided surface actions
+	});
+
+	it("declares notesbox as a white-label capability host", () => {
+		const host = buildNotesboxHost({ sourceCacheRoot });
+		expect(host.program().name()).toBe("notesbox");
+		expect(host.registry().list().map((entry) => entry.name)).toEqual(
+			expect.arrayContaining([
+				"source",
+				"records",
+				"vault",
+				"requirements",
+				"requirements-moc",
+				"annotate",
+				"status",
+				"actions",
+			]),
+		);
+		expect(host.baseModel()).toMatchObject({
+			command: "notesbox",
+			operation: "base",
+			nextCommand: "notesbox requirements-moc --json",
+		});
+		expect(host.surfaceActions().map((action) => action.id)).toEqual([
+			"open-requirements-moc",
+			"review-root-requirement",
+		]);
 	});
 
 	it("`requirements` (the app verb) reports the app's own source + records", async () => {
@@ -136,6 +166,8 @@ describe("notesbox T3 flow (two-layer: neutral blocks + app injections)", () => 
 		expect(corrected.mode).toBe("apply");
 		expect(corrected.persisted).toBe(true);
 		expect(corrected.writable).toBe(true); // the app injected a save sink
+		expect(corrected.nextCommand).toBe("notesbox records list");
+		expect(corrected.nextCommands).toEqual(["notesbox records list"]);
 
 		// The correction is durable: a later `records list` on the SAME registry sees the
 		// new review state (the sink wrote through; loadManifest reads it back).
@@ -144,6 +176,31 @@ describe("notesbox T3 flow (two-layer: neutral blocks + app injections)", () => 
 			(r) => r.id === "record:req-root",
 		);
 		expect(rec?.reviewState).toBe("reviewed");
+	});
+
+	it("persists analyst corrections across separate notesbox CLI processes when state is configured", async () => {
+		const statePath = path.join(tempDir("notesbox-state-"), "manifest.json");
+		const corrected = await runGroup(
+			createNotesboxRegistry({ sourceCacheRoot, statePath }),
+			"records",
+			["correct", "record:req-root", "reviewed", "--apply"],
+		);
+		expect(corrected.persisted).toBe(true);
+		expect(corrected.nextCommand).toBe("notesbox records list");
+
+		const env = await runGroup(
+			createNotesboxRegistry({ sourceCacheRoot, statePath }),
+			"records",
+			["list"],
+		);
+		const rec = (env.records as Array<{ id: string; reviewState: string }>).find(
+			(r) => r.id === "record:req-root",
+		);
+		expect(rec?.reviewState).toBe("reviewed");
+
+		expect(buildNotesboxBaseModel({ sourceCacheRoot, statePath }).nextCommands).toEqual([
+			"notesbox requirements-moc --json",
+		]);
 	});
 
 	it("step 2c — `records analyze` returns a neutral grouping envelope (the analyst's MOC data)", async () => {

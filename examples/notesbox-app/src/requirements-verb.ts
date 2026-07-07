@@ -1,10 +1,10 @@
-import type {
+import {
+	buildJsonSuccessEnvelope,
 	CapabilityDescriptor,
 	CapabilityEnvelope,
-} from "@refarm.dev/cli/capabilities";
-import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities-v1";
 
-import { notesboxManifest, NOTESBOX_SOURCE_REF } from "./fixture.js";
+import { NOTESBOX_SOURCE_REF, notesboxManifest } from "./fixture.js";
 
 /**
  * `requirements` — the notesbox app's OWN work verb. This is the WORK layer (level 3):

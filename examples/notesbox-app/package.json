@@ -2,7 +2,7 @@
   "name": "notesbox-app",
   "version": "0.0.0",
   "private": true,
-  "description": "Example consuming app: imports refarm as a white-label host, adds its own work-specific verb, mounts a CLI named `notesbox`.",
+	"description": "Example consuming app: declares a notesbox capability host, adds work-specific verbs, and lets refarm project every surface.",
   "type": "module",
   "bin": {
     "notesbox": "./dist/cli.js"
@@ -14,14 +14,12 @@
     "notesbox": "node dist/cli.js",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "@refarm.dev/capabilities-v1": "workspace:*",
-    "@refarm.dev/cli": "workspace:*",
-    "@refarm.dev/enrichment-contract-v1": "workspace:*",
-    "@refarm.dev/records-contract-v1": "workspace:*",
-    "@refarm.dev/source-web": "workspace:*",
-    "commander": "^14.0.3"
-  },
+	"dependencies": {
+		"@refarm.dev/capabilities-v1": "workspace:*",
+		"@refarm.dev/enrichment-contract-v1": "workspace:*",
+		"@refarm.dev/records-contract-v1": "workspace:*",
+		"@refarm.dev/source-web": "workspace:*"
+	},
   "devDependencies": {
     "@refarm.dev/tsconfig": "workspace:*",
     "@refarm.dev/vtconfig": "workspace:*"

@@ -1,9 +1,10 @@
 import {
 	defaultVaultDeps,
-	type RefarmCapabilityDeps,
 	type RecordsCommandDeps,
+	type RefarmCapabilityDeps,
 	type VaultDiscoveryResult,
 } from "@refarm.dev/capabilities-v1";
+import { createLocalRecordsCommandDeps } from "@refarm.dev/capabilities-v1/node";
 import {
 	createReferenceEnrichmentProvider,
 	type ReferenceEnrichmentEntry,
@@ -40,22 +41,24 @@ const NOTESBOX_ENRICHMENT_FIXTURE: Record<string, ReferenceEnrichmentEntry> = {
 };
 
 /** The records deps: load the app's manifest, enrich via the app's lookup, and
- * PERSIST a correction. The app backs load/save with a mutable in-memory manifest —
- * a real deployment would back it with the vault (markdown on disk). The point: the
- * neutral `records correct` verb writes through whatever sink the host injects. */
-export function notesboxRecordsDeps(): RecordsCommandDeps {
-	let manifest = notesboxManifest();
-	return {
-		loadManifest: () => manifest,
-		saveManifest: (next) => {
-			manifest = next;
-		},
+ * PERSIST a correction. By default it is process-local; when the CLI provides a
+ * statePath, the same neutral `records correct` verb writes through to disk. */
+export interface NotesboxStateOptions {
+	statePath?: string;
+}
+
+export function notesboxRecordsDeps(
+	options: NotesboxStateOptions = {},
+): RecordsCommandDeps {
+	return createLocalRecordsCommandDeps({
+		seed: notesboxManifest,
+		statePath: options.statePath,
 		enrichmentProvider: createReferenceEnrichmentProvider({
 			fixture: NOTESBOX_ENRICHMENT_FIXTURE,
 			keyField: "externalKey",
 		}),
 		recordsProvider: createReferenceRecordsProvider(),
-	};
+	});
 }
 
 /** A no-op vault discovery for the example (no installed plugins). A real host injects

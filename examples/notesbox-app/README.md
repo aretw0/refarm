@@ -1,23 +1,23 @@
 # notesbox-app (example)
 
-A **consuming app** that imports refarm as a white-label host. It is the rehearsal of
-the two-layer model: if refarm were fully published, a real work project would be
-*exactly this* — a new folder that imports refarm, renames the CLI, injects its own
-data + verbs, and registers its flows.
+A **consuming app** that declares refarm as a white-label capability host. It is the
+rehearsal of the two-layer model: if refarm were fully published, a real work project
+would be *exactly this* — a new folder that names a host, injects its own data, declares
+its own verbs/manifests, and lets refarm project the surfaces.
 
 ```
 ┌─ level 1: refarm (generic substrate) ────────────────────────────┐
 │  @refarm.dev/capabilities-v1  → source / records / vault verbs    │
-│  @refarm.dev/cli/capabilities → registry + CLI/REPL/TUI/HTTP proj │
+│  defineCapabilityHost        → registry + CLI/REPL/TUI/HTTP host   │
 │  (zero work vocabulary)                                           │
 └──────────────────────────────────────────────────────────────────┘
-                      ▲ imports, injects deps
+                      ▲ declares host, injects deps
 ┌─ level 3: notesbox-app (this folder — the WORK layer) ───────────┐
 │  fixture.ts   → the app's OWN source fixture + records manifest   │
 │  deps.ts      → the app's OWN enrichment lookup + vault seed       │
 │  requirements-verb.ts → the app's OWN work verb                    │
-│  registry.ts  → composes builtins + the work verb into ONE registry│
-│  cli.ts       → mounts a CLI named `notesbox`                       │
+│  registry.ts  → declares a host + app verbs + plugin manifest      │
+│  cli.ts       → thin entrypoint for the `notesbox` host             │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -33,7 +33,10 @@ which always resolves the compiled `dist`):
 ```bash
 pnpm --filter notesbox-app build
 
+pnpm --filter notesbox-app notesbox actions --json     # host-declared surface actions
+pnpm --filter notesbox-app notesbox status --base      # base operator model
 pnpm --filter notesbox-app notesbox requirements        # the app's work verb
+pnpm --filter notesbox-app notesbox requirements-moc    # the analyst's product view
 pnpm --filter notesbox-app notesbox source pull web:notesbox-requirements
 pnpm --filter notesbox-app notesbox records enrich
 pnpm --filter notesbox-app notesbox vault init ./my-vault
@@ -43,23 +46,26 @@ pnpm --filter notesbox-app notesbox vault init ./my-vault
 matter). `src/flow.e2e.test.ts` runs the whole chain through one composed registry,
 proving the neutral blocks are reusable — no work vocabulary lives in refarm.
 
+For manual exploratory recording, CLI state persists to `.notesbox/requirements.manifest.json`.
+Set `NOTESBOX_STATE_PATH=/tmp/notesbox.json` to isolate a run.
+
 ## Two ways to extend (both land on the same surfaces)
 
 This example shows BOTH, so the difference is concrete:
 
 1. **Composition (plain software).** `fixture.ts` / `deps.ts` / `requirements-verb.ts`
-   inject data and declare a JS `run()` verb; `registry.ts` composes them and `cli.ts`
-   mounts a CLI. This is necessary for the white-label name — but it's ordinary
-   engineering: you hand-wire each piece.
+   inject data and declare JS `run()` verbs; `registry.ts` passes them as host
+   extensions. This is still ordinary engineering, but the app no longer hand-wires
+   the registry, CLI, HTTP server, status, or actions.
 
 2. **The refarm extension path (the interesting one).** `extension.ts` declares a
-   PLUGIN MANIFEST (`provides: ["annotator:annotate"]`), and the bridge
-   (`registerPluginCapabilities`, from `@refarm.dev/capabilities-v1`) SURFACES its verb
-   onto every surface from that one declaration — the app writes no `run()` for it. Run
-   `notesbox --help` and `annotate` is there, "dispatched to the @notesbox/annotator
-   plugin", with a host-built dispatch behind it. That is the effect that makes an
-   installed extension appear on the CLI by itself — extending *the refarm way*, not
-   importing a package. `src/extension.e2e.test.ts` proves it end-to-end.
+   PLUGIN MANIFEST (`provides: ["annotator:annotate"]`), and the host bridge surfaces
+   its verb onto every surface from that one declaration — the app writes no `run()`
+   for it. Run `notesbox --help` and `annotate` is there, "dispatched to the
+   @notesbox/annotator plugin", with a host-built dispatch behind it. That is the
+   effect that makes an installed extension appear on the CLI by itself — extending
+   *the refarm way*, not importing a package. `src/extension.e2e.test.ts` proves it
+   end-to-end.
 
 ```bash
 pnpm --filter notesbox-app notesbox annotate note='{"path":"n.md"}'
