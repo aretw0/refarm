@@ -16,9 +16,60 @@ import {
 	DISPATCH_RESULT_TYPE,
 	serializeDispatchResult,
 } from "@refarm.dev/dispatch-result-contract-v1";
-import { storeNode } from "refarm:plugin/tractor-bridge@0.1.0";
+import {
+	callPlugin,
+	getPluginApi,
+	storeNode,
+} from "refarm:plugin/tractor-bridge@0.1.0";
 
 import { runVault } from "./run-core.js";
+
+/** The SPI api name the vault discovers + calls to validate record quality. Vault
+ * declares `requiresApi: ["QualityApi"]`; quality declares `providesApi: ["QualityApi"]`. */
+const QUALITY_API = "QualityApi";
+
+/** Verbs whose output vault validates for quality before persisting. */
+const QUALITY_GATED_VERBS = new Set(["organize", "extract"]);
+
+/**
+ * Validate a record's quality via the SPI before persisting — the consumer side of
+ * the cross-plugin contract. Discovers the provider (get-plugin-api) and calls it
+ * (call-plugin → quality:check). Advisory + lazy: if no provider is loaded,
+ * get-plugin-api throws and vault proceeds without the check (honest degradation,
+ * matching requiresApi's warn-not-bail posture). Returns the provider's result
+ * string, or undefined when the check couldn't run.
+ */
+function checkQuality(request) {
+	try {
+		// `get-plugin-api` returns `result<node-id, plugin-error>`; the jco binding
+		// surfaces it as a `{ tag, val }` result (not a bare string / thrown error),
+		// so read the tag before using the id.
+		const discovered = getPluginApi(QUALITY_API);
+		const providerId = resultOk(discovered);
+		if (typeof providerId !== "string") return undefined; // no provider loaded
+		const res = callPlugin(
+			providerId,
+			"check",
+			JSON.stringify({
+				subject: request.note.text ?? "",
+				profile: request.profile,
+			}),
+		);
+		return resultOk(res);
+	} catch {
+		// Provider absent / call failed → degrade gracefully; persistence proceeds.
+		return undefined;
+	}
+}
+
+/** Unwrap a jco `result` `{ tag: "ok"|"err", val }` to its Ok value, or undefined.
+ * Tolerates a bare value too (some bindings return the Ok payload directly). */
+function resultOk(result) {
+	if (result && typeof result === "object" && "tag" in result) {
+		return result.tag === "ok" ? result.val : undefined;
+	}
+	return result;
+}
 
 /** The event a caller sends to dispatch a vault verb. */
 const DISPATCH_EVENT = "vault:dispatch";
@@ -98,6 +149,11 @@ export const integration = {
 		if (event !== DISPATCH_EVENT) return;
 		const request = parseDispatch(payload);
 		if (!request) return;
+		// SPI: before persisting an organize/extract result, validate its quality
+		// through the discovered quality provider. Advisory — never blocks the verb.
+		if (QUALITY_GATED_VERBS.has(request.verb)) {
+			checkQuality(request);
+		}
 		const result = runVault(request.verb, request.note, request.profile);
 		emitResult(request, result);
 	},

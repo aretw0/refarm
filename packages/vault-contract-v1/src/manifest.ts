@@ -45,6 +45,11 @@ export interface VaultManifestOptions {
 	 * (`sha256-<64hex|base64>`). Omitted by the foundation — a `.wasm` manifest is
 	 * invalid until §8 supplies the real digest. */
 	integrity?: string;
+	/** SPI consumer side: named APIs this vault requires (discovered via
+	 * get-plugin-api, called via call-plugin). Defaults to `["QualityApi"]` — the
+	 * reference vault validates record quality before persisting. Pass `[]` for a
+	 * vault that doesn't depend on the SPI. */
+	requiresApi?: string[];
 }
 
 /** The placeholder entry a not-yet-built vault plugin ships — a `.wasm` path so
@@ -75,6 +80,11 @@ export function buildVaultPluginManifest(
 			// neutral event router delivers so a loaded vault plugin receives its
 			// OWN dispatch (not just the elected agent's user:prompt).
 			subscribes: [VAULT_DISPATCH_EVENT],
+			// SPI consumer side: vault validates a record's quality before persisting
+			// (organize/extract), discovering the provider via get-plugin-api and
+			// calling it via call-plugin. Advisory at load; get-plugin-api fails
+			// honestly if no provider is present.
+			requiresApi: options.requiresApi ?? ["QualityApi"],
 		},
 		permissions: [],
 		observability: {

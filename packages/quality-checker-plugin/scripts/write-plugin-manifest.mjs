@@ -34,6 +34,9 @@ const manifest = {
 		provides: ["quality:check"],
 		requires: [],
 		subscribes: ["quality:dispatch"],
+		// SPI provider side: quality offers a named API other plugins discover via
+		// get-plugin-api("QualityApi") and call via call-plugin (→ quality:check).
+		providesApi: ["QualityApi"],
 	},
 	permissions: [],
 	observability: {

@@ -57,8 +57,17 @@ function makeTractorBridge(): { bridge: TractorBridge; stored: string[] } {
 					val: { identityType: "guest", storageTier: "ephemeral", identifier: "test" },
 				};
 			},
-			getPluginApi(name: string) {
-				return { tag: "err", val: { tag: "not-found", val: name } };
+			getPluginApi(name: string): string {
+				// jco lowers a `result<node-id, plugin-error>` host import by wrapping
+				// the return in `{tag:'ok'}` and mapping a THROW to `{tag:'err'}` — but
+				// ONLY if the thrown value carries a `.payload` (a plain Error re-throws
+				// and traps the guest, per getErrorPayload). No provider is loaded in
+				// this unit test, so throw the tagged err variant; vault's checkQuality
+				// receives it as a `result` err and degrades.
+				throw { payload: { tag: "not-found", val: name } };
+			},
+			callPlugin(pluginId: string, _verb: string, _inputJson: string): string {
+				throw { payload: { tag: "not-found", val: pluginId } };
 			},
 			emitTelemetry() {},
 		},

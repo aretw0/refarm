@@ -136,6 +136,7 @@ export interface TractorBridge {
 	requestPermission(capability: string, reason: string): boolean;
 	getIdentity(): unknown;
 	getPluginApi(apiName: string): unknown;
+	callPlugin(pluginId: string, verb: string, inputJson: string): unknown;
 	emitTelemetry(event: string, payload?: string): void;
 }
 

@@ -284,6 +284,120 @@ async fn router_delivers_a_non_agent_event_to_its_subscribed_plugin() {
     tractor.shutdown().await.expect("shutdown must succeed");
 }
 
+/// The SPI vault verb: `organize` a note whose text carries an AI-tell, so the
+/// quality provider (discovered + called by vault) produces a real finding.
+fn spi_organize_payload() -> String {
+    serde_json::json!({
+        "verb": "organize",
+        "note": {
+            "path": "20-Projects/spi-demo.md",
+            "text": "As an AI language model, I organized this note. #project"
+        },
+        "profile": {
+            "name": "text-tells",
+            "rules": [{
+                "id": "ai-tell",
+                "severity": "warn",
+                "description": "flags an AI self-reference tell",
+                "check": { "type": "regex", "pattern": "AI language model" }
+            }]
+        },
+        "replyRef": "spi-vault-req-1"
+    })
+    .to_string()
+}
+
+/// THE SPI CALL-THROUGH PROOF: vault declares `requiresApi:["QualityApi"]` and, on
+/// `organize`, DISCOVERS the quality provider (get-plugin-api) and CALLS it
+/// (call-plugin → quality:check) before persisting — all across the real WASM
+/// boundary. Load BOTH plugins, assert discovery resolves, drive a vault verb, and
+/// assert the quality provider ran (its finding landed) — proving vault discovered
+/// AND called quality through the canonical SPI, not a hardcoded reference.
+#[tokio::test]
+#[ignore = "requires vault + quality build:plugin; run with --ignored"]
+async fn vault_discovers_and_calls_quality_via_spi() {
+    let vault = wasm_path();
+    let quality = quality_wasm_path();
+    if !vault.exists() || !quality.exists() {
+        eprintln!(
+            "SKIP: need both vault_plugin.wasm and quality_plugin.wasm — run build:plugin for @refarm.dev/vault-surface-ref and @refarm.dev/quality-checker-plugin"
+        );
+        return;
+    }
+
+    let tractor = TractorNative::boot(memory_config_none())
+        .await
+        .expect("boot must succeed");
+
+    // Load the PROVIDER first, then the consumer. (Order-immune by design — the
+    // consumer resolves the provider lazily at call time — but loading provider
+    // first is the common case.)
+    let q_handle = tractor.load_plugin(quality).await.expect("quality loads");
+    assert!(
+        q_handle.provides.iter().any(|p| p == "api:QualityApi"),
+        "quality's providesApi must fold into provides as api:QualityApi, got {:?}",
+        q_handle.provides
+    );
+    tractor.register_for_events(q_handle);
+
+    let v_handle = tractor.load_plugin(vault).await.expect("vault loads");
+    assert!(
+        v_handle.requires_api.iter().any(|a| a == "QualityApi"),
+        "vault's manifest must declare requiresApi:[QualityApi], got {:?}",
+        v_handle.requires_api
+    );
+    tractor.register_for_events(v_handle);
+
+    // DISCOVERY: the registry resolves the SPI provider by api-name (the fold made
+    // this work for a real manifest). The resolved id is the runtime plugin_id
+    // (aligned to the plugin's metadata name — "quality" — not the manifest's full
+    // scoped id), which is exactly the id call-plugin needs to route.
+    assert_eq!(
+        tractor.plugin_registry.plugin_providing_api("QualityApi").as_deref(),
+        Some("quality"),
+        "get-plugin-api must resolve QualityApi to the quality plugin"
+    );
+    assert!(
+        tractor.plugin_registry.unmet_required_apis().is_empty(),
+        "vault's requiresApi must be met once quality is loaded"
+    );
+
+    // Drive vault:organize. Vault's onEvent discovers quality (get-plugin-api) and
+    // calls it (call-plugin → quality:check) before persisting its own result.
+    let sent = tractor.deliver("vault:dispatch", None, Some(spi_organize_payload()));
+    assert_eq!(sent, 1, "the router must deliver vault:dispatch to vault");
+
+    // CALL PROOF: quality's finding lands as a DispatchResult carrying `findings`
+    // (its signature) — reachable ONLY if vault called quality across the boundary.
+    let mut quality_ran = false;
+    for _ in 0..100 {
+        let results = tractor
+            .sync
+            .query_nodes("refarm:DispatchResult")
+            .expect("query refarm:DispatchResult");
+        quality_ran = results.iter().any(|row| {
+            serde_json::from_str::<serde_json::Value>(&row.payload)
+                .ok()
+                .and_then(|node| {
+                    node["refarm:result"]["findings"]
+                        .as_array()
+                        .map(|f| f.iter().any(|x| x["ruleId"] == "ai-tell"))
+                })
+                .unwrap_or(false)
+        });
+        if quality_ran {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(
+        quality_ran,
+        "vault must have discovered AND called quality via SPI — the quality check finding (ai-tell) must land in the graph"
+    );
+
+    tractor.shutdown().await.expect("shutdown must succeed");
+}
+
 /// THE SENSOR FIX PROOF: the runner emits `plugin:on_event` carrying the REAL
 /// per-event execution cost (exec_us) and the head-of-line queue depth — the cost
 /// `router:deliver` (enqueue-only) was blind to. Fire several events and confirm
@@ -342,13 +456,14 @@ async fn runner_emits_real_drain_cost_and_queue_depth() {
     tractor.shutdown().await.expect("shutdown");
 }
 
-/// THE LIVE E2E — the whole operator loop through a RUNNING sidecar, HTTP to
-/// graph, in one test. This is the "easy place to test anything, however complex":
-/// boot the runtime, load the vault plugin, register it, stand the real HTTP
-/// sidecar, then POST an effort (fn=extract) to /efforts exactly as
-/// `refarm vault dispatch` does — and assert the vault plugin's node lands in the
-/// graph. Every link in production form: HTTP -> sidecar dispatch_effort branch ->
-/// router deliver by subscription -> plugin on-event -> store-node.
+// THE LIVE E2E — the whole operator loop through a RUNNING sidecar, HTTP to
+// graph, in one test. This is the "easy place to test anything, however complex":
+// boot the runtime, load the vault plugin, register it, stand the real HTTP
+// sidecar, then POST an effort (fn=extract) to /efforts exactly as
+// `refarm vault dispatch` does — and assert the vault plugin's node lands in the
+// graph. Every link in production form: HTTP -> sidecar dispatch_effort branch ->
+// router deliver by subscription -> plugin on-event -> store-node.
+//
 // ── The generic operator-loop e2e harness ────────────────────────────────────
 //
 // One place to test the WHOLE loop (HTTP -> live sidecar -> router -> plugin ->
