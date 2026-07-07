@@ -99,20 +99,6 @@ fn read_refarm_config_value_at(base: &Path) -> Result<Option<serde_json::Value>,
     Ok(Some(cfg))
 }
 
-/// `read_refarm_config_value_at` rooted at the process cwd (the production default).
-fn read_refarm_config_value() -> Result<Option<serde_json::Value>, String> {
-    let base = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
-    read_refarm_config_value_at(&base)
-}
-
-pub(crate) fn trusted_plugins_from_refarm_config(
-) -> Result<Option<std::collections::HashSet<String>>, String> {
-    let Some(cfg) = read_refarm_config_value()? else {
-        return Ok(None);
-    };
-    parse_trusted_plugins(&cfg)
-}
-
 /// Read the sovereign config from BOTH sources: the local fs file (hardened, the
 /// stronger posture — fail-shut on malformed) AND the replicated device-global graph
 /// node (`urn:refarm:config:workspace`), so a device that received its config purely

@@ -33,6 +33,7 @@ fn make_strict_bindings(caps: &[&str]) -> TractorNativeBindings {
         crate::host::wasi_bridge::ModelRoute::default(),
         None,
         PermissionGrant::strict_declaring(caps),
+        None,
     )
 }
 

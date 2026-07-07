@@ -964,6 +964,7 @@ impl PluginHost {
             self.model_route.clone(),
             self.fallback_route.clone(),
             permission_grant,
+            trusted_at_load,
         );
 
         let component = self.cached_component(&wasm_hash, &bytes)?;
@@ -1144,8 +1145,10 @@ impl PluginHost {
             self.model_route.clone(),
             self.fallback_route.clone(),
             // host-effects.wasm is a host-provided composition component, not a
-            // manifest-declared plugin — permissive grant.
+            // manifest-declared plugin — permissive grant, and no trust allowlist
+            // gating (the host's own effect surface).
             crate::host::wasi_bridge::PermissionGrant::permissive(),
+            None,
         );
 
         let component = Component::from_file(&self.engine, path)?;

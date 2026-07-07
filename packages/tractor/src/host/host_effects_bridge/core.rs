@@ -27,7 +27,7 @@ use crate::host::wasi_bridge::TractorNativeBindings;
 impl TractorNativeBindings {
     /// Gate a host-effect on the plugin's DECLARED capability (the capability
     /// axis). This is orthogonal to and sits BESIDE the existing path/identity
-    /// checks (`enforce_fs_root`, `enforce_trusted_plugin_for_shell` — the
+    /// checks (`enforce_fs_root`, `enforce_trusted_plugin_for_shell_with` — the
     /// path-safety axis): a plugin must BOTH declare the permission AND pass the
     /// path/identity policy. Under dev security modes `grants` is permissive, so
     /// this is a no-op there; under Strict it denies an undeclared capability
@@ -129,7 +129,10 @@ impl HostFsHost for TractorNativeBindings {
 impl HostShellHost for TractorNativeBindings {
     async fn spawn(&mut self, req: SpawnRequest) -> Result<SpawnResult, String> {
         self.enforce_permission(Permission::ShellSpawn)?;
-        enforce_trusted_plugin_for_shell(&self.plugin_id)?;
+        // In-memory trust gate — the allowlist was resolved ONCE per load (fs ∩ node,
+        // B) and cloned into these bindings, so a spawn never reads the config from
+        // disk and can never disagree with the load gate.
+        enforce_trusted_plugin_for_shell_with(&self.plugin_id, self.trusted_plugins.as_ref())?;
         if req.argv.is_empty() {
             return Err("spawn: argv must be non-empty".into());
         }
@@ -309,14 +312,6 @@ fn enforce_shell_allowlist(argv: &[String], policy: &HostEffectPolicy) -> Result
     // Backward-compatible default remains permissive for command selection when
     // the allowlist is unset, but structural argv guards must still apply.
     enforce_shell_allowlist_with(argv, policy.shell_allowlist())
-}
-
-fn enforce_trusted_plugin_for_shell(plugin_id: &str) -> Result<(), String> {
-    let Some(allowed) = trusted_plugins_from_refarm_config()? else {
-        // Backward-compatible default: permissive when trusted_plugins is not configured.
-        return Ok(());
-    };
-    enforce_trusted_plugin_for_shell_with(plugin_id, Some(&allowed))
 }
 
 fn enforce_trusted_plugin_for_shell_with(

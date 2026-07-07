@@ -65,6 +65,13 @@ pub struct TractorNativeBindings {
     /// honestly ("did this plugin declare this capability?") instead of always
     /// granting. Resolved at load from the manifest.
     pub(crate) permission_grant: PermissionGrant,
+    /// The sovereign trusted-plugins allowlist resolved ONCE per load (fs ∩ node,
+    /// deny-dominates — B) and cloned in, so the per-spawn host-shell gate reads
+    /// `&self` instead of a live `.refarm/config.json` read on every spawn. The SAME
+    /// set the load gate (`trusted_to_load`) used, so load and shell can never disagree
+    /// — one source of truth, node-aware for free. None = permissive (not configured);
+    /// Some(set): `*` = all, empty = deny-all.
+    pub(crate) trusted_plugins: Option<std::collections::HashSet<String>>,
 }
 
 /// A plugin's capability grant for the `request-permission` host export.
@@ -158,6 +165,7 @@ mod permission_grant_tests {
 }
 
 impl TractorNativeBindings {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         plugin_id: impl Into<String>,
         sync: NativeSync,
@@ -166,6 +174,7 @@ impl TractorNativeBindings {
         model_route: ModelRoute,
         fallback_route: Option<ModelRoute>,
         permission_grant: PermissionGrant,
+        trusted_plugins: Option<std::collections::HashSet<String>>,
     ) -> Self {
         Self {
             plugin_id: plugin_id.into(),
@@ -175,6 +184,7 @@ impl TractorNativeBindings {
             model_route,
             fallback_route,
             permission_grant,
+            trusted_plugins,
         }
     }
 }

@@ -26,6 +26,28 @@
             crate::host::wasi_bridge::ModelRoute::default(),
             None,
             crate::host::wasi_bridge::PermissionGrant::permissive(),
+            None,
+        )
+    }
+
+    /// Bindings with an explicit plugin id + in-memory trusted-plugins allowlist —
+    /// proves the shell gate reads the resolved set from `&self`, no per-spawn fs read.
+    fn make_bindings_with_trust(
+        plugin_id: &str,
+        trusted: Option<std::collections::HashSet<String>>,
+    ) -> TractorNativeBindings {
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, ":memory:").unwrap();
+        let telemetry = TelemetryBus::new(10);
+        TractorNativeBindings::new(
+            plugin_id,
+            sync,
+            telemetry,
+            HostEffectPolicy::default(),
+            crate::host::wasi_bridge::ModelRoute::default(),
+            None,
+            crate::host::wasi_bridge::PermissionGrant::permissive(),
+            trusted,
         )
     }
 
@@ -37,6 +59,26 @@
             timeout_ms: 5000,
             stdin: None,
         }
+    }
+
+    #[tokio::test]
+    async fn spawn_uses_the_in_memory_trust_set_no_per_call_fs_read() {
+        // The allowlist is the resolved-per-load set cloned into the bindings — spawn
+        // reads &self, never .refarm/config.json. A plugin NOT in the set is denied
+        // regardless of any file on disk; a plugin IN the set is allowed.
+        let allow = std::collections::HashSet::from(["vault".to_string()]);
+
+        let mut denied = make_bindings_with_trust("quality", Some(allow.clone()));
+        let err = denied.spawn(spawn_req(&["true"])).await.unwrap_err();
+        assert!(
+            err.contains("not allowed to use host-shell"),
+            "a plugin outside the in-memory trust set must be denied: {err}"
+        );
+
+        // A plugin in the set passes the trust gate (the spawn itself then runs `true`).
+        let mut allowed = make_bindings_with_trust("vault", Some(allow));
+        let ok = allowed.spawn(spawn_req(&["true"])).await;
+        assert!(ok.is_ok(), "a trusted plugin must pass the in-memory gate: {ok:?}");
     }
 
     fn configured_fs_root_err_for(raw: &str) -> String {
