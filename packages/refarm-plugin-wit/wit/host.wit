@@ -153,6 +153,13 @@ interface capability-tools {
     /// match the request being built. Empty list when no verb opts in.
     list-tools: func(provider: string) -> list<string>;
 
+    /// One usage-guidance line per dispatchable verb, for the guest to append to
+    /// the system prompt. Same registry + order as `list-tools`, but PROSE, not
+    /// schema: it teaches the model that these tools route to plugins and how their
+    /// args are shaped — under-explained by the flat tool schema alone. Provider-
+    /// agnostic (prose), so no provider arg. Empty when no verb is dispatchable.
+    list-tool-prompts: func() -> list<string>;
+
     /// Invoke a registry tool by its model-facing name with a JSON input object.
     /// The host routes to the verb's dispatch (an Effort to the target plugin's
     /// WASM) and returns the result as a JSON string, or an error string. This is

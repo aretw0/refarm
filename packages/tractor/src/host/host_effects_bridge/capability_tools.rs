@@ -65,6 +65,19 @@ fn render_tool_schema(verb: &DispatchableVerb, provider: &str) -> String {
     schema.to_string()
 }
 
+/// Render one usage-guidance line for a dispatchable verb, for the system prompt.
+/// PROSE (not schema): it names the model-facing tool (`<key>_<verb>`), says it
+/// routes to the plugin, and how args are shaped — the context the flat tool schema
+/// under-explains. Same derivation source as `render_tool_schema` (the same
+/// `DispatchableVerb`), so the guidance and the schema can never disagree.
+fn render_tool_prompt(verb: &DispatchableVerb) -> String {
+    format!(
+        "Tool `{}_{}` dispatches to the `{}` plugin — pass its arguments as `args` \
+         (key=value strings). Prefer it over shell/fs for anything the {} plugin owns.",
+        verb.plugin_key, verb.verb, verb.plugin_id, verb.plugin_id
+    )
+}
+
 /// Resolve a model-facing tool name (`<key>_<verb>`) back to the dispatchable verb it
 /// names, among the currently-loaded plugins. Returns None if no loaded plugin
 /// surfaces that verb (e.g. it was revoked/unloaded since the tool list was built).
@@ -88,6 +101,18 @@ impl CapabilityToolsHost for TractorNativeBindings {
             .dispatchable_verbs()
             .iter()
             .map(|verb| render_tool_schema(verb, &provider))
+            .collect()
+    }
+
+    async fn list_tool_prompts(&mut self) -> Vec<String> {
+        let Some(cross) = self.cross_plugin.as_ref() else {
+            return Vec::new(); // no registry wired → no guidance
+        };
+        cross
+            .registry
+            .dispatchable_verbs()
+            .iter()
+            .map(render_tool_prompt)
             .collect()
     }
 

@@ -88,6 +88,39 @@ async fn list_tools_surfaces_a_dispatchable_plugin_verb() {
 }
 
 #[tokio::test]
+async fn list_tool_prompts_gives_one_guidance_line_per_verb() {
+    let (mut bindings, _sync, _rx) = make_agent_leg_bindings();
+
+    let prompts = bindings.list_tool_prompts().await;
+    assert_eq!(prompts.len(), 1, "one guidance line per dispatchable verb");
+    // The guidance names the model-facing tool + the plugin it routes to — the
+    // context the flat schema under-explains.
+    assert!(prompts[0].contains("vault_store"), "names the tool: {}", prompts[0]);
+    assert!(prompts[0].contains("vault"), "names the target plugin: {}", prompts[0]);
+    assert!(prompts[0].contains("args"), "explains the arg shape: {}", prompts[0]);
+}
+
+#[tokio::test]
+async fn list_tool_prompts_is_empty_without_a_registry() {
+    // A bindings with no cross-plugin wired (test/legacy host) yields no guidance,
+    // matching list_tools' empty-list behavior — never a panic.
+    let storage = NativeStorage::open(":memory:").unwrap();
+    let sync = NativeSync::new(storage, ":memory:").unwrap();
+    let mut bindings = TractorNativeBindings::new(
+        "agent",
+        sync,
+        TelemetryBus::new(10),
+        HostEffectPolicy::default(),
+        ModelRoute::default(),
+        None,
+        PermissionGrant::permissive(),
+        None,
+        None, // no CrossPluginAccess
+    );
+    assert!(bindings.list_tool_prompts().await.is_empty());
+}
+
+#[tokio::test]
 async fn invoke_tool_routes_to_dispatch_and_awaits_the_result_node() {
     let (mut bindings, sync, mut rx) = make_agent_leg_bindings();
 
