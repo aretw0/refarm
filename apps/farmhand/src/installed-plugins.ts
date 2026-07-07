@@ -69,6 +69,82 @@ export function listInstalledPluginIds(baseDir: string): string[] {
 	return ids;
 }
 
+/** A plugin pointer node's essentials (id → hash + manifest) — the RefarmPluginPointer. */
+export interface PluginPointer {
+	pluginId: string;
+	hash: string;
+	/** The plugin.json manifest (entry stripped) that pairs with the content-addressed bytes. */
+	manifest: unknown;
+}
+
+/** An orphan grant that CAN be loaded by hash: it has a pointer AND the bytes are present. */
+export interface OrphanGrantLoadable {
+	id: string;
+	hash: string;
+	manifest: string;
+	assetsDir: string;
+}
+
+/** An orphan grant that is discoverable but NOT loadable (pointer present, bytes absent).
+ * This is the seam for E4's peer transport — the bytes must be fetched from a peer. */
+export interface OrphanGrantPending {
+	id: string;
+	hash: string;
+	reason: "bytes-missing" | "pointer-missing";
+}
+
+export interface OrphanDiscoveryResult {
+	loadable: OrphanGrantLoadable[];
+	pending: OrphanGrantPending[];
+}
+
+/**
+ * Discover plugins this device has a GRANT for (trusted_plugins / approvedPermissions)
+ * but NO local install — the orphan-grant case that E3 loads by hash. Pure over injected
+ * reads so it is testable without fs / graph: the caller supplies the grant ids, the
+ * installed ids, the pointer lookup, the byte-presence check, and the assets dir.
+ *
+ * For each granted id with no install dir:
+ *  - no pointer → pending (pointer-missing): the grant arrived but the id→hash mapping
+ *    hasn't replicated yet.
+ *  - pointer but no bytes → pending (bytes-missing): the E4 peer-transport seam.
+ *  - pointer AND bytes → loadable {id, hash, manifest, assetsDir} — the exact triple the
+ *    daemon's --plugin-by-hash / POST /plugins/load-by-hash consumes.
+ */
+export function discoverOrphanGrants(deps: {
+	grantedIds: readonly string[];
+	installedIds: readonly string[];
+	pointerFor: (id: string) => PluginPointer | null;
+	hasBytes: (hash: string) => boolean;
+	assetsDir: string;
+}): OrphanDiscoveryResult {
+	const installed = new Set(deps.installedIds);
+	const loadable: OrphanGrantLoadable[] = [];
+	const pending: OrphanGrantPending[] = [];
+
+	for (const id of new Set(deps.grantedIds)) {
+		if (installed.has(id)) continue; // has a local install → not an orphan
+
+		const pointer = deps.pointerFor(id);
+		if (!pointer) {
+			pending.push({ id, hash: "", reason: "pointer-missing" });
+			continue;
+		}
+		if (!deps.hasBytes(pointer.hash)) {
+			pending.push({ id, hash: pointer.hash, reason: "bytes-missing" });
+			continue;
+		}
+		loadable.push({
+			id,
+			hash: pointer.hash,
+			manifest: JSON.stringify(pointer.manifest),
+			assetsDir: deps.assetsDir,
+		});
+	}
+
+	return { loadable, pending };
+}
+
 export async function loadInstalledPlugins(
 	tractor: RuntimePluginLoaderTarget,
 	baseDir: string,

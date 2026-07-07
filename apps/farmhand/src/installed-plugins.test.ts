@@ -3,7 +3,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { listInstalledPluginIds, loadInstalledPlugins } from "./installed-plugins.js";
+import {
+	discoverOrphanGrants,
+	listInstalledPluginIds,
+	loadInstalledPlugins,
+	type PluginPointer,
+} from "./installed-plugins.js";
 
 const tempDirs: string[] = [];
 
@@ -212,5 +217,68 @@ describe("loadInstalledPlugins — pluginFilter", () => {
 		const tractor = createTractorStub();
 		await loadInstalledPlugins(tractor, baseDir);
 		expect(tractor.plugins.load).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe("discoverOrphanGrants (E3 — grant present, install absent)", () => {
+	const pointer = (id: string, hash: string): PluginPointer => ({
+		pluginId: id,
+		hash,
+		manifest: { id, version: "0.1.0", permissions: ["fs:read"] },
+	});
+
+	it("yields a loadable triple for a granted id with a pointer + bytes but no install", () => {
+		const result = discoverOrphanGrants({
+			grantedIds: ["vault"],
+			installedIds: [], // no local install → orphan
+			pointerFor: (id) => (id === "vault" ? pointer("vault", "abc") : null),
+			hasBytes: (hash) => hash === "abc",
+			assetsDir: "/assets",
+		});
+		expect(result.loadable).toEqual([
+			{
+				id: "vault",
+				hash: "abc",
+				manifest: JSON.stringify(pointer("vault", "abc").manifest),
+				assetsDir: "/assets",
+			},
+		]);
+		expect(result.pending).toEqual([]);
+	});
+
+	it("excludes a grant that HAS a local install (not an orphan)", () => {
+		const result = discoverOrphanGrants({
+			grantedIds: ["vault"],
+			installedIds: ["vault"], // installed locally
+			pointerFor: () => pointer("vault", "abc"),
+			hasBytes: () => true,
+			assetsDir: "/assets",
+		});
+		expect(result.loadable).toEqual([]);
+		expect(result.pending).toEqual([]);
+	});
+
+	it("marks pending (pointer-missing) when the id->hash pointer hasn't replicated yet", () => {
+		const result = discoverOrphanGrants({
+			grantedIds: ["vault"],
+			installedIds: [],
+			pointerFor: () => null, // grant arrived, pointer not yet
+			hasBytes: () => true,
+			assetsDir: "/assets",
+		});
+		expect(result.loadable).toEqual([]);
+		expect(result.pending).toEqual([{ id: "vault", hash: "", reason: "pointer-missing" }]);
+	});
+
+	it("marks pending (bytes-missing) when the pointer is present but bytes aren't — the E4 seam", () => {
+		const result = discoverOrphanGrants({
+			grantedIds: ["vault"],
+			installedIds: [],
+			pointerFor: () => pointer("vault", "abc"),
+			hasBytes: () => false, // bytes must come from a peer (dormant transport)
+			assetsDir: "/assets",
+		});
+		expect(result.loadable).toEqual([]);
+		expect(result.pending).toEqual([{ id: "vault", hash: "abc", reason: "bytes-missing" }]);
 	});
 });
