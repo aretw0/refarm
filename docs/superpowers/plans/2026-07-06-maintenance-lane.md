@@ -69,14 +69,19 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
        (gates the shell allowlist, not fs paths).
     3. Rust `manifest_runtime_plugin_id` (`env_and_runtime.rs:478`) — last `/`
        segment (`@refarm/agent`→`agent`), the trust-gate/runtime token.
-  These are three ad-hoc projections of one identity. The canonical id contract
-  (map wf_8431babc: free `name` + command-safe `id` charset `[A-Za-z0-9._:@/-]`,
-  born-with-the-plugin via the Barn, disambiguating across distributions incl. GIT)
-  should make the runtime token a DECLARED projection of the minted id, not a third
-  unrelated string — with a drift guard (the `check-permission-vocab` /
-  `check-model-defaults-drift` pattern) once the id lives in one place. Deferred:
-  touches §8 (Rust) + gated on the Barn/publish/p2p paths being built. NOT to be
-  left silent — this note is the anti-silent-bug record.
+  These were three ad-hoc projections of one identity. **CHARSET DRIFT CLOSED
+  (854fb324):** the fs-safe charset now has a single source
+  (`PLUGIN_ID_FS_SAFE_CHARS` + `PLUGIN_ID_MAX_LEN` in config/plugin-identity),
+  `pluginIdRuntimeToken` is the DECLARED mirror of the Rust last-segment projection
+  (no longer a third unrelated string), and `check-plugin-id-charset.mjs` (in
+  `gate:full:colony`) fails on any RS↔TS divergence — verified it has teeth. The
+  guard reads the existing inline Rust, so §8 stayed untouched. Remaining (optional,
+  deferred): (a) golden-vector guard for the runtime projection's behavior (Target
+  B); (b) naming the Rust charset as a const (§8 hardening, clean local rename, needs
+  explicit approval); (c) the born-with-the-plugin id derivation per distribution
+  (npm scope / GIT repo / p2p hash / local slug / runtime urn) — gated on the Barn.
+  The canonical id contract (map wf_8431babc: free `name` + command-safe `id`) is
+  the north; the low-level charset drift that "dificulta as coisas" is now locked.
 - **Grant-enforcement foundation (the road to S2-strong).** Arthur's doctrine:
   support every possible grant, don't waste the effort, arrive at S2 strong, and
   eventually deliver the persona install-and-approve UX — "security down at the
