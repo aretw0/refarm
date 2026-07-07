@@ -35,6 +35,7 @@ fn make_agent_leg_bindings() -> (
         "vault",
         vec!["vault:store".into(), "vault:dispatch".into()],
         vec!["vault:dispatch".into()],
+        std::collections::HashMap::new(),
     );
 
     let event_router = crate::EventRouter::default();

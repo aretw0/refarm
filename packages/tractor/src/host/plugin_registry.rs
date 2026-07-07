@@ -34,6 +34,11 @@ use std::sync::{Arc, RwLock};
 pub struct PluginCapabilityProfile {
     pub provides: Vec<String>,
     pub subscribes: Vec<String>,
+    /// Per-verb usage prose (`capabilities.verbDocs`), keyed by `<key>:<verb>`.
+    /// When a verb has an entry, `list-tool-prompts` returns it instead of the
+    /// host-synthesized boilerplate (promptSnippet Slice 2). Empty for plugins that
+    /// declare none.
+    pub verb_docs: std::collections::HashMap<String, String>,
 }
 
 /// A dispatchable verb surfaced by a loaded plugin: the plugin's id, its routing
@@ -45,6 +50,10 @@ pub struct DispatchableVerb {
     pub plugin_id: String,
     pub plugin_key: String,
     pub verb: String,
+    /// Plugin-authored usage prose for this verb (`verbDocs["<key>:<verb>"]`), if
+    /// declared — the agent leg's `list-tool-prompts` returns it instead of the host
+    /// boilerplate. `None` → host synthesizes generic guidance.
+    pub doc: Option<String>,
 }
 
 /// The shared registry: `plugin-id → capability profile`, Arc-shared so the runtime
@@ -80,13 +89,19 @@ fn parse_provided_verb(entry: &str) -> Option<(&str, &str)> {
 impl PluginRegistry {
     /// Record (upsert) a loaded plugin's capability profile. Called at load, beside
     /// the `plugin_channels` insert + `event_router.subscribe` calls.
-    pub fn register(&self, plugin_id: &str, provides: Vec<String>, subscribes: Vec<String>) {
+    pub fn register(
+        &self,
+        plugin_id: &str,
+        provides: Vec<String>,
+        subscribes: Vec<String>,
+        verb_docs: std::collections::HashMap<String, String>,
+    ) {
         self.inner
             .write()
             .expect("plugin_registry poisoned")
             .insert(
                 plugin_id.to_string(),
-                PluginCapabilityProfile { provides, subscribes },
+                PluginCapabilityProfile { provides, subscribes, verb_docs },
             );
     }
 
@@ -137,11 +152,12 @@ impl PluginRegistry {
     }
 
     /// The capability profile of a loaded plugin, if present. Kept but `#[cfg(test)]`-
-    /// gated: there is no production caller YET — the natural first consumer is the
-    /// promptSnippet Slice 2 lookup (a per-plugin verb-docs read) and any future
+    /// gated: there is no production caller YET. (promptSnippet Slice 2's verb-docs
+    /// ride the FLAT `dispatchable_verbs()` iterator — a per-verb `doc` on
+    /// `DispatchableVerb` — not a per-plugin `profile()` lookup, so it did NOT become
+    /// this method's consumer.) The real first consumer is a future per-plugin
     /// introspection endpoint that returns one plugin's full profile by id. The
-    /// read-shape is worth documenting, so this is gated rather than deleted; drop the
-    /// gate the moment a production path reads it.
+    /// read-shape is worth documenting, so this is gated rather than deleted.
     #[cfg(test)]
     pub fn profile(&self, plugin_id: &str) -> Option<PluginCapabilityProfile> {
         self.inner
@@ -178,6 +194,7 @@ impl PluginRegistry {
                     plugin_id: id.clone(),
                     plugin_key: key.to_string(),
                     verb: verb.to_string(),
+                    doc: profile.verb_docs.get(entry).cloned(),
                 });
             }
         }
@@ -206,21 +223,23 @@ impl PluginRegistry {
 mod tests {
     use super::*;
 
+    /// Register with no verb-docs — the common test case.
+    fn register_plain(r: &PluginRegistry, id: &str, provides: Vec<String>, subscribes: Vec<String>) {
+        r.register(id, provides, subscribes, std::collections::HashMap::new());
+    }
+
     fn reg() -> PluginRegistry {
         let r = PluginRegistry::default();
         // A dispatchable plugin: provides vault:store guarded by vault:dispatch.
-        r.register(
+        register_plain(
+            &r,
             "@acme/vault",
             vec!["vault:store".into(), "vault:read".into(), "vault:dispatch".into()],
             vec!["vault:dispatch".into()],
         );
         // A plugin that provides a verb but does NOT subscribe to its dispatch —
         // not dispatchable, must be excluded.
-        r.register(
-            "orphan",
-            vec!["orphan:go".into()],
-            vec!["something:else".into()],
-        );
+        register_plain(&r, "orphan", vec!["orphan:go".into()], vec!["something:else".into()]);
         r
     }
 
@@ -236,14 +255,36 @@ mod tests {
                     plugin_id: "@acme/vault".into(),
                     plugin_key: "vault".into(),
                     verb: "store".into(),
+                    doc: None,
                 },
                 DispatchableVerb {
                     plugin_id: "@acme/vault".into(),
                     plugin_key: "vault".into(),
                     verb: "read".into(),
+                    doc: None,
                 },
             ]
         );
+    }
+
+    #[test]
+    fn verb_docs_ride_the_dispatchable_verb_as_doc() {
+        let r = PluginRegistry::default();
+        let mut docs = std::collections::HashMap::new();
+        docs.insert("vault:store".to_string(), "Store a note in the vault.".to_string());
+        r.register(
+            "vault",
+            vec!["vault:store".into(), "vault:read".into(), "vault:dispatch".into()],
+            vec!["vault:dispatch".into()],
+            docs,
+        );
+        let verbs = r.dispatchable_verbs();
+        // The verb WITH a doc carries it; the verb WITHOUT falls back to None (host
+        // boilerplate at render time).
+        let store = verbs.iter().find(|v| v.verb == "store").unwrap();
+        assert_eq!(store.doc.as_deref(), Some("Store a note in the vault."));
+        let read = verbs.iter().find(|v| v.verb == "read").unwrap();
+        assert_eq!(read.doc, None);
     }
 
     #[test]
@@ -266,8 +307,8 @@ mod tests {
     #[test]
     fn plugin_providing_api_matches_the_api_convention() {
         let r = PluginRegistry::default();
-        r.register("provider", vec!["api:embeddings".into()], vec![]);
-        r.register("other", vec!["other:verb".into()], vec![]);
+        register_plain(&r, "provider", vec!["api:embeddings".into()], vec![]);
+        register_plain(&r, "other", vec!["other:verb".into()], vec![]);
         assert_eq!(
             r.plugin_providing_api("embeddings"),
             Some("provider".to_string())
@@ -279,14 +320,14 @@ mod tests {
     fn unmet_required_apis_reports_only_gaps_and_clears_when_provider_loads() {
         let r = PluginRegistry::default();
         // A consumer requires QualityApi; no provider yet → unmet.
-        r.register("vault", vec!["vault:store".into()], vec![]);
+        register_plain(&r, "vault", vec!["vault:store".into()], vec![]);
         r.record_requires_api("vault", vec!["QualityApi".into()]);
         assert_eq!(
             r.unmet_required_apis(),
             vec![("vault".to_string(), "QualityApi".to_string())]
         );
         // Provider loads (folded `api:QualityApi` in its provides) → gap closes.
-        r.register("quality", vec!["api:QualityApi".into()], vec![]);
+        register_plain(&r, "quality", vec!["api:QualityApi".into()], vec![]);
         assert!(r.unmet_required_apis().is_empty());
         // Unregister the provider → the gap reopens (advisory, order-immune).
         r.unregister("quality");

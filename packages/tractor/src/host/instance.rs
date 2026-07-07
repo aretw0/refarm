@@ -117,6 +117,11 @@ pub struct PluginInstanceHandle {
     /// side). Defaults empty; set via `with_requires_api`. register_for_events
     /// records it in the registry for the post-load advisory reconciliation.
     pub requires_api: Vec<String>,
+    /// Per-verb usage prose from `capabilities.verbDocs` (promptSnippet Slice 2),
+    /// keyed by `<key>:<verb>`. Defaults empty; set via `with_verb_docs`.
+    /// register_for_events passes it to the registry so `list-tool-prompts` returns
+    /// plugin-authored guidance instead of host boilerplate.
+    pub verb_docs: std::collections::HashMap<String, String>,
     inner: PluginImpl,
     telemetry: TelemetryBus,
     /// Shared with the store's epoch_deadline_callback. Exposes the cancel flag
@@ -159,6 +164,7 @@ impl PluginInstanceHandle {
             subscribes: Vec::new(),
             concurrent_safe: false,
             requires_api: Vec::new(),
+            verb_docs: std::collections::HashMap::new(),
             inner: PluginImpl::Component { plugin, store },
             telemetry,
             epoch_guard,
@@ -183,6 +189,7 @@ impl PluginInstanceHandle {
             subscribes: Vec::new(),
             concurrent_safe: false,
             requires_api: Vec::new(),
+            verb_docs: std::collections::HashMap::new(),
             inner: PluginImpl::Module { instance, store },
             telemetry,
             epoch_guard,
@@ -222,6 +229,16 @@ impl PluginInstanceHandle {
     /// Builder-style, mirroring with_subscribes.
     pub(crate) fn with_requires_api(mut self, requires_api: Vec<String>) -> Self {
         self.requires_api = requires_api;
+        self
+    }
+
+    /// Attach the manifest's `capabilities.verbDocs` (per-verb prompt prose).
+    /// Builder-style, mirroring with_subscribes.
+    pub(crate) fn with_verb_docs(
+        mut self,
+        verb_docs: std::collections::HashMap<String, String>,
+    ) -> Self {
+        self.verb_docs = verb_docs;
         self
     }
 

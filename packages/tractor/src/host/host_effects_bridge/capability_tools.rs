@@ -72,6 +72,11 @@ fn render_tool_schema(verb: &DispatchableVerb, provider: &str) -> String {
 /// under-explains. Same derivation source as `render_tool_schema` (the same
 /// `DispatchableVerb`), so the guidance and the schema can never disagree.
 fn render_tool_prompt(verb: &DispatchableVerb) -> String {
+    // Plugin-authored prose (verbDocs) wins over the host boilerplate — the plugin
+    // author teaches the agent how to use its tool (promptSnippet Slice 2).
+    if let Some(doc) = &verb.doc {
+        return doc.clone();
+    }
     format!(
         "Tool `{}_{}` dispatches to the `{}` plugin — pass its arguments as `args` \
          (key=value strings). Prefer it over shell/fs for anything the {} plugin owns.",

@@ -243,6 +243,26 @@ export function validatePluginManifest(manifest) {
 		errors.push("capabilities.requiresApi must not contain duplicates");
 	}
 
+	// `verbDocs` is permissive by FORM: optional per-verb prose. When present, every
+	// key must be a `<key>:<verb>` string the plugin actually `provides` — a doc for
+	// a verb it doesn't serve is a mistake, not extensibility. Values must be strings.
+	if (manifest.capabilities.verbDocs !== undefined) {
+		const verbDocs = manifest.capabilities.verbDocs;
+		if (typeof verbDocs !== "object" || verbDocs === null || Array.isArray(verbDocs)) {
+			errors.push("capabilities.verbDocs must be an object map of <key>:<verb> → string");
+		} else {
+			const provided = new Set(manifest.capabilities.provides ?? []);
+			for (const [key, val] of Object.entries(verbDocs)) {
+				if (typeof val !== "string") {
+					errors.push(`capabilities.verbDocs["${key}"] must be a string`);
+				}
+				if (!provided.has(key)) {
+					errors.push(`capabilities.verbDocs key "${key}" is not in capabilities.provides`);
+				}
+			}
+		}
+	}
+
 	// `subscribes` is permissive by FORM: optional (a plugin may be lifecycle-only),
 	// but when present it must be a non-empty string array of event names, and must
 	// not contain duplicates. The neutral event router reads it to deliver events.

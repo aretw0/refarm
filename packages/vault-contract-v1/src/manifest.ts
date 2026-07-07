@@ -29,6 +29,31 @@ export function vaultProvides(pluginKey: string): string[] {
 	return VAULT_VERBS.map((verb: VaultVerb) => `${pluginKey}:${verb}`);
 }
 
+/** Per-verb usage prose the agent leg surfaces in the system prompt (promptSnippet
+ * Slice 2), keyed by the same `<pluginKey>:<verb>` string in `provides`. Teaches
+ * the agent what each vault verb does + how to shape its args — richer than the
+ * host boilerplate. */
+const VAULT_VERB_PROSE: Record<VaultVerb, string> = {
+	search:
+		"Search the vault by semantic query. Pass a note (path + text) as `note` and a `profile`; returns matching records.",
+	extract:
+		"Extract structured KnowledgeRecords from a note's content per the profile's rules. Pass `note` and `profile`; the records are persisted as JSON-LD nodes.",
+	organize:
+		"Organize a note into the vault (validated for quality first). Pass `note` and `profile`.",
+	profile:
+		"Summarize a note against a profile — returns the vault's view without persisting. Pass `note` and `profile`.",
+};
+
+/** The `verbDocs` map for a vault plugin keyed by `<pluginKey>:<verb>`. */
+export function vaultVerbDocs(pluginKey: string): Record<string, string> {
+	return Object.fromEntries(
+		VAULT_VERBS.map((verb: VaultVerb) => [
+			`${pluginKey}:${verb}`,
+			VAULT_VERB_PROSE[verb],
+		]),
+	);
+}
+
 export interface VaultManifestOptions {
 	/** The plugin package id, e.g. `@demo/vault-extract`. */
 	id: string;
@@ -85,6 +110,9 @@ export function buildVaultPluginManifest(
 			// calling it via call-plugin. Advisory at load; get-plugin-api fails
 			// honestly if no provider is present.
 			requiresApi: options.requiresApi ?? ["QualityApi"],
+			// Per-verb prose the agent leg surfaces in the system prompt so the model
+			// knows what each vault verb does (promptSnippet Slice 2).
+			verbDocs: vaultVerbDocs(pluginKey),
 		},
 		permissions: [],
 		observability: {

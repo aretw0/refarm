@@ -83,6 +83,11 @@ export interface PluginCapabilities {
 	subscribes?: string[];
 	providesApi?: string[];
 	requiresApi?: string[];
+	/** Per-verb usage prose (promptSnippet Slice 2), keyed by the same
+	 * `<key>:<verb>` string in `provides`. When present, the agent leg's
+	 * system-prompt guidance for that verb is this prose instead of host boilerplate
+	 * — so a plugin author teaches the agent how to use its tool. Optional. */
+	verbDocs?: Record<string, string>;
 	allowedOrigins?: string[];
 }
 

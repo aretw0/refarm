@@ -547,6 +547,12 @@ struct RuntimePluginCapabilities {
     /// enforcement is `get_plugin_api` returning NotFound at call time.
     #[serde(default, rename = "requiresApi")]
     requires_api: Vec<String>,
+    /// Per-verb usage prose (promptSnippet Slice 2), keyed by the same `<key>:<verb>`
+    /// string in `provides`. When present, `list-tool-prompts` returns THIS for the
+    /// verb's system-prompt guidance instead of the host-synthesized boilerplate —
+    /// so a plugin author teaches the agent how to use its tool. Optional + additive.
+    #[serde(default, rename = "verbDocs")]
+    verb_docs: std::collections::HashMap<String, String>,
     /// Whether the plugin is safe to drive concurrently — i.e. its on_event is
     /// STATELESS across events (all state lives in the shared graph, nothing is
     /// retained in the guest's own linear memory between calls). Only such a
@@ -1180,7 +1186,9 @@ impl PluginHost {
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, linker).await?;
 
-        let (provides, subscribes, concurrent_safe, requires_api) = if let Some(manifest) =
+        let (provides, subscribes, concurrent_safe, requires_api, verb_docs) = if let Some(
+            manifest,
+        ) =
             manifest.as_ref()
         {
             let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
@@ -1203,6 +1211,7 @@ impl PluginHost {
                 manifest.capabilities.subscribes.clone(),
                 manifest.capabilities.concurrent_safe,
                 manifest.capabilities.requires_api.clone(),
+                manifest.capabilities.verb_docs.clone(),
             )
         } else {
             tracing::warn!(
@@ -1210,7 +1219,7 @@ impl PluginHost {
                 path = %path.display(),
                 "plugin manifest not found near wasm; skipping manifest/runtime alignment checks"
             );
-            (vec![], vec![], false, vec![])
+            (vec![], vec![], false, vec![], std::collections::HashMap::new())
         };
 
         let mut handle = PluginInstanceHandle::new_component(
@@ -1223,6 +1232,7 @@ impl PluginHost {
         .with_subscribes(subscribes)
         .with_concurrent_safe(concurrent_safe)
         .with_requires_api(requires_api)
+        .with_verb_docs(verb_docs)
         .with_on_event_budget_ms(self.on_event_budget_ms);
         handle.call_setup().await?;
 

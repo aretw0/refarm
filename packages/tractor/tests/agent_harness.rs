@@ -826,6 +826,7 @@ async fn harness_plugin_tool_guidance_reaches_system_prompt() {
         "vault",
         vec!["vault:store".into(), "vault:dispatch".into()],
         vec!["vault:dispatch".into()],
+        std::collections::HashMap::new(),
     );
     let cross = tractor::host::CrossPluginAccess {
         registry,
@@ -873,6 +874,81 @@ async fn harness_plugin_tool_guidance_reaches_system_prompt() {
     assert!(
         system.contains("vault"),
         "guidance names the target plugin; got: {system}"
+    );
+
+    clean_model_env();
+}
+
+/// promptSnippet Slice 2 — a plugin's DECLARED per-verb prose (`verbDocs`) reaches
+/// the system prompt INSTEAD of the host boilerplate. Registers vault with a
+/// verbDocs entry for `vault:store` and asserts the prompt carries that exact prose
+/// AND does NOT carry the host's "dispatches to the `vault` plugin" boilerplate —
+/// the assertion that makes it a Slice-2 proof, not a Slice-1 re-run.
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/agent"]
+async fn harness_plugin_declared_verb_doc_overrides_boilerplate_in_prompt() {
+    let _env = env_lock();
+    let path = wasm_path();
+    assert!(path.exists(), "agent.wasm not found");
+
+    clean_model_env();
+    let (port, mut requests) =
+        mock_llm_server_capturing(vec![openai_response("ok", 4, 2)]).await;
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    const DECLARED_DOC: &str = "SEARCH THE VAULT by semantic query; args: query=<text>.";
+    let mut verb_docs = std::collections::HashMap::new();
+    verb_docs.insert("vault:store".to_string(), DECLARED_DOC.to_string());
+
+    let registry = tractor::host::PluginRegistry::default();
+    registry.register(
+        "vault",
+        vec!["vault:store".into(), "vault:dispatch".into()],
+        vec!["vault:dispatch".into()],
+        verb_docs,
+    );
+    let cross = tractor::host::CrossPluginAccess {
+        registry,
+        event_router: tractor::EventRouter::default(),
+        plugin_channels: std::sync::Arc::new(std::sync::RwLock::new(
+            std::collections::HashMap::new(),
+        )),
+    };
+
+    let sync = make_sync();
+    let host = PluginHost::new(
+        TrustManager::new(),
+        TelemetryBus::new(100),
+        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .unwrap()
+    .with_cross_plugin(cross);
+    let mut handle = host.load(path, &sync).await.expect("load agent");
+
+    call_on_event_with_timeout(&mut handle, "oi", "plugin-declared verb-doc harness").await;
+
+    let request = requests.recv().await.expect("captured provider request");
+    let system: String = request["messages"]
+        .as_array()
+        .map(|msgs| {
+            msgs.iter()
+                .filter(|m| m["role"] == "system")
+                .filter_map(|m| m["content"].as_str())
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .filter(|s| !s.is_empty())
+        .or_else(|| request["system"].as_str().map(String::from))
+        .unwrap_or_default();
+
+    assert!(
+        system.contains(DECLARED_DOC),
+        "the plugin's DECLARED verb doc must reach the system prompt; got: {system}"
+    );
+    assert!(
+        !system.contains("dispatches to the `vault` plugin"),
+        "the host boilerplate must be OVERRIDDEN by the declared doc; got: {system}"
     );
 
     clean_model_env();
