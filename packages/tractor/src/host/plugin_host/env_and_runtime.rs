@@ -871,7 +871,7 @@ impl PluginHost {
     /// verbs (the agent leg #6 `capability-tools`) and resolve a named API
     /// (`get_plugin_api`). Called once by the runtime after it builds its registry +
     /// router. Absent this call the host keeps pre-registry behavior.
-    pub(crate) fn with_cross_plugin(
+    pub fn with_cross_plugin(
         mut self,
         cross_plugin: crate::host::wasi_bridge::CrossPluginAccess,
     ) -> Self {

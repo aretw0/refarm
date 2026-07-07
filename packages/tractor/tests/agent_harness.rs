@@ -801,6 +801,83 @@ async fn harness_usage_record_stored_with_tokens() {
     clean_model_env();
 }
 
+/// #6 promptSnippet Slice 1 — a dispatchable plugin's usage guidance reaches the
+/// system prompt sent to the provider. Wires a registry (via with_cross_plugin)
+/// with a mock `vault` plugin declaring `vault:store` guarded by `vault:dispatch`,
+/// then drives the real agent.wasm and asserts the captured request's `system`
+/// carries the `vault_store` guidance line the host synthesizes.
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/agent"]
+async fn harness_plugin_tool_guidance_reaches_system_prompt() {
+    let _env = env_lock();
+    let path = wasm_path();
+    assert!(path.exists(), "agent.wasm not found");
+
+    clean_model_env();
+    let (port, mut requests) =
+        mock_llm_server_capturing(vec![openai_response("ok", 4, 2)]).await;
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    // A registry with one dispatchable plugin — the agent leg's list-tool-prompts
+    // reads this at prompt-build time.
+    let registry = tractor::host::PluginRegistry::default();
+    registry.register(
+        "vault",
+        vec!["vault:store".into(), "vault:dispatch".into()],
+        vec!["vault:dispatch".into()],
+    );
+    let cross = tractor::host::CrossPluginAccess {
+        registry,
+        event_router: tractor::EventRouter::default(),
+        plugin_channels: std::sync::Arc::new(std::sync::RwLock::new(
+            std::collections::HashMap::new(),
+        )),
+    };
+
+    let sync = make_sync();
+    let host = PluginHost::new(
+        TrustManager::new(),
+        TelemetryBus::new(100),
+        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .unwrap()
+    .with_cross_plugin(cross);
+    let mut handle = host.load(path, &sync).await.expect("load agent");
+
+    call_on_event_with_timeout(&mut handle, "oi", "plugin-tool guidance harness").await;
+
+    let request = requests.recv().await.expect("captured provider request");
+    // The system prompt is the `role:"system"` message (openai-compat) or the
+    // top-level `system` field (anthropic); scan both so the assertion doesn't
+    // depend on message ordering.
+    let system_from_messages: String = request["messages"]
+        .as_array()
+        .map(|msgs| {
+            msgs.iter()
+                .filter(|m| m["role"] == "system")
+                .filter_map(|m| m["content"].as_str())
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .unwrap_or_default();
+    let system = if system_from_messages.is_empty() {
+        request["system"].as_str().unwrap_or("").to_string()
+    } else {
+        system_from_messages
+    };
+    assert!(
+        system.contains("vault_store"),
+        "system prompt must carry the plugin tool's guidance line; got: {system}"
+    );
+    assert!(
+        system.contains("vault"),
+        "guidance names the target plugin; got: {system}"
+    );
+
+    clean_model_env();
+}
+
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/agent"]
 async fn harness_context_guard_blocks_oversized_prompt() {

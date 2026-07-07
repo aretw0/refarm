@@ -38,11 +38,33 @@ fn task_context_for_prompt() -> Option<String> {
     super::task_labels::format_task_context(&tasks, n)
 }
 
+/// Usage guidance for the registry's dispatchable plugin tools (#6 promptSnippet),
+/// pulled from the host `list-tool-prompts` import — one line per plugin tool the
+/// model can call. Appended to the system prompt so the model knows these tools
+/// route to plugins and how their args are shaped (the flat tool schema alone
+/// under-explains this). `None` when no plugin tool is dispatchable, so a node with
+/// no plugins gets a byte-identical prompt to before.
+#[cfg(target_arch = "wasm32")]
+fn tool_prompts_for_prompt() -> Option<String> {
+    let lines = crate::refarm::plugin::capability_tools::list_tool_prompts();
+    if lines.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "\n\nPlugin tools available to you:\n- {}",
+        lines.join("\n- ")
+    ))
+}
+
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn resolve_system_prompt() -> String {
     let base = std::env::var("MODEL_SYSTEM").unwrap_or_else(|_| DEFAULT_SYSTEM_PROMPT.to_owned());
-    match task_context_for_prompt() {
+    let mut prompt = match task_context_for_prompt() {
         Some(ctx) => format!("{base}{ctx}"),
         None => base,
+    };
+    if let Some(tools) = tool_prompts_for_prompt() {
+        prompt.push_str(&tools);
     }
+    prompt
 }

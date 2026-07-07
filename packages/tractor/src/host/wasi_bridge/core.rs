@@ -36,14 +36,14 @@ pub(crate) struct ModelRoute {
 /// loaded plugin" and were stalled on the same missing registry: the agent leg (#6,
 /// `capability-tools` list/invoke) and `get_plugin_api` (was a STUB).
 #[derive(Clone)]
-pub(crate) struct CrossPluginAccess {
+pub struct CrossPluginAccess {
     /// Who is loaded + what each declares (`provides`/`subscribes`). Source of truth
     /// for tool eligibility; a revoked plugin never loads → never here → not listable.
-    pub(crate) registry: PluginRegistry,
+    pub registry: PluginRegistry,
     /// event-name → subscriber-ids, for enumerating + routing a `<key>:dispatch`.
-    pub(crate) event_router: crate::EventRouter,
+    pub event_router: crate::EventRouter,
     /// plugin-id → runner channel, the sinks `deliver_via_router` sends to.
-    pub(crate) plugin_channels: crate::PluginChannels,
+    pub plugin_channels: crate::PluginChannels,
 }
 
 /// Resolve the base URL a liveness probe should ping for `provider`, reusing the
