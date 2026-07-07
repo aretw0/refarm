@@ -55,38 +55,26 @@ export function buildReqbenchHost(
 					primary: true,
 				},
 			},
-			units: ({ capabilities, reviewQueueUnit }) => {
-				const records = capabilities.deps.records ?? reqRecordsDeps(options);
-				const manifest = records.loadManifest();
-				const draftRecords = manifest.records.filter(
-					(record) => record.review?.state !== "reviewed",
-				);
-				return [
-					reviewQueueUnit({
-						id: "requirements",
-						label: "Requirements",
-						total: manifest.records.length,
-						pending: draftRecords.length,
-						totalLabel: "requirements",
-						pendingLabel: "needs review",
-						pendingSummary: ({ total, pending }) =>
-							`Requirements bench has ${total} requirements; ${pending} requirement needs review.`,
-						readySummary: ({ total }) =>
-							`Requirements bench has ${total} reviewed requirements.`,
-						pendingAction: {
-							id: "review-draft-requirement",
-							label: "Review the draft requirement",
-							intent: "requirements:review",
-							command: "dgk records correct record:req-cadastro reviewed --apply",
-							primary: true,
-						},
-						details: {
-							recordIds: manifest.records.map((record) => record.id),
-							draftRecordIds: draftRecords.map((record) => record.id),
-						},
-					}),
-				];
-			},
+			units: ({ recordReviewQueueUnit }) => [
+				recordReviewQueueUnit({
+					id: "requirements",
+					label: "Requirements",
+					reviewedState: "reviewed",
+					totalLabel: "requirements",
+					pendingLabel: "needs review",
+					pendingSummary: ({ total, pending }) =>
+						`Requirements bench has ${total} requirements; ${pending} requirement needs review.`,
+					readySummary: ({ total }) =>
+						`Requirements bench has ${total} reviewed requirements.`,
+					pendingAction: {
+						id: "review-draft-requirement",
+						label: "Review the draft requirement",
+						intent: "requirements:review",
+						command: "dgk records correct record:req-cadastro reviewed --apply",
+						primary: true,
+					},
+				}),
+			],
 		},
 		serve: {
 			defaultPort: 4321,

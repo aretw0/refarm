@@ -1,3 +1,4 @@
+import type { RecordsManifest } from "@refarm.dev/records-contract-v1";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -160,5 +161,71 @@ describe("defineCapabilityHost", () => {
 		} finally {
 			await close();
 		}
+	});
+
+	it("lets a host declare a records review queue without manifest plumbing", () => {
+		const host = defineCapabilityHost({
+			id: "examples/wallet-t2",
+			command: "dgk",
+			description: "Digital Gardening Kit - sovereign wallet",
+			capabilities: {
+				deps: {
+					...deps(),
+					records: {
+						...defaultRecordsDeps(),
+						loadManifest: () => ({
+							manifestVersion: 1,
+							records: [
+								{ id: "record:draft", review: { state: "draft" } },
+								{ id: "record:verified", review: { state: "verified" } },
+							],
+						} as RecordsManifest),
+					},
+				},
+				extensions: [showVerb],
+			},
+			operatorStatus: {
+				capabilityUnit: false,
+				units: ({ recordReviewQueueUnit }) => [
+					recordReviewQueueUnit({
+						id: "wallet",
+						label: "Wallet",
+						reviewedState: "verified",
+						totalLabel: "held items",
+						pendingLabel: "needs review",
+						pendingSummary: ({ total, pending }) =>
+							`Wallet has ${total} held items; ${pending} item needs review.`,
+						readySummary: ({ total }) => `Wallet has ${total} held items.`,
+						pendingAction: {
+							id: "verify-draft-credential",
+							label: "Verify the draft credential",
+							intent: "wallet:verify",
+							command: "dgk records correct record:draft verified --apply",
+							primary: true,
+						},
+					}),
+				],
+			},
+		});
+
+		const model = host.baseModel();
+		expect(model.units).toHaveLength(1);
+		expect(model.units[0]).toMatchObject({
+			id: "wallet",
+			state: "degraded",
+			severity: "warning",
+			summary: "Wallet has 2 held items; 1 item needs review.",
+			details: {
+				recordIds: ["record:draft", "record:verified"],
+				pendingRecordIds: ["record:draft"],
+				reviewedState: "verified",
+			},
+		});
+		expect(model.nextCommands).toEqual([
+			"dgk records correct record:draft verified --apply",
+		]);
+		expect(host.surfaceActions().map((action) => action.id)).toEqual([
+			"verify-draft-credential",
+		]);
 	});
 });

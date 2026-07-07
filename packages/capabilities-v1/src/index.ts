@@ -67,6 +67,7 @@ export {
 	type CapabilityHostCapabilityUnitOptions,
 	type CapabilityHostDefinition,
 	type CapabilityHostOperatorStatus,
+	type CapabilityHostRecordReviewQueueUnitOptions,
 	type CapabilityHostReviewQueueUnitOptions,
 	type CapabilityHostSurfaceAction,
 	type CapabilityHostSurfaceActionRow,

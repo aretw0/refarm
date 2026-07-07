@@ -53,37 +53,25 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 					primary: true,
 				},
 			},
-			units: ({ capabilities, reviewQueueUnit }) => {
-				const records = capabilities.deps.records ?? walletRecordsDeps(options);
-				const manifest = records.loadManifest();
-				const draftRecords = manifest.records.filter(
-					(record) => record.review?.state !== "verified",
-				);
-				return [
-					reviewQueueUnit({
-						id: "wallet",
-						label: "Wallet",
-						total: manifest.records.length,
-						pending: draftRecords.length,
-						totalLabel: "held items",
-						pendingLabel: "needs review",
-						pendingSummary: ({ total, pending }) =>
-							`Wallet has ${total} held items; ${pending} item needs review.`,
-						readySummary: ({ total }) => `Wallet has ${total} held items.`,
-						pendingAction: {
-							id: "verify-draft-credential",
-							label: "Verify the draft credential",
-							intent: "wallet:verify",
-							command: "dgk records correct record:cred-assinatura verified --apply",
-							primary: true,
-						},
-						details: {
-							recordIds: manifest.records.map((record) => record.id),
-							draftRecordIds: draftRecords.map((record) => record.id),
-						},
-					}),
-				];
-			},
+			units: ({ recordReviewQueueUnit }) => [
+				recordReviewQueueUnit({
+					id: "wallet",
+					label: "Wallet",
+					reviewedState: "verified",
+					totalLabel: "held items",
+					pendingLabel: "needs review",
+					pendingSummary: ({ total, pending }) =>
+						`Wallet has ${total} held items; ${pending} item needs review.`,
+					readySummary: ({ total }) => `Wallet has ${total} held items.`,
+					pendingAction: {
+						id: "verify-draft-credential",
+						label: "Verify the draft credential",
+						intent: "wallet:verify",
+						command: "dgk records correct record:cred-assinatura verified --apply",
+						primary: true,
+					},
+				}),
+			],
 		},
 		serve: {
 			defaultPort: 4322,

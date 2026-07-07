@@ -32,6 +32,7 @@ import type {
 	PluginDescriptorDeps,
 	SurfaceableManifest,
 } from "./plugin-bridge.js";
+import type { RecordsCommandDeps } from "./records-capability.js";
 
 export interface CapabilityHostCapabilities {
 	deps: RefarmCapabilityDeps;
@@ -53,6 +54,14 @@ export type CapabilityHostReviewQueueUnitOptions = Omit<
 	"owner"
 > & { owner?: string };
 
+export type CapabilityHostRecordReviewQueueUnitOptions = Omit<
+	CapabilityHostReviewQueueUnitOptions,
+	"total" | "pending"
+> & {
+	reviewedState: string;
+	records?: RecordsCommandDeps;
+};
+
 export interface CapabilityHostStatusContext {
 	id: string;
 	command: string;
@@ -60,6 +69,9 @@ export interface CapabilityHostStatusContext {
 	capabilities: CapabilityHostCapabilities;
 	capabilityUnit(options: CapabilityHostCapabilityUnitOptions): BaseSurfaceUnit;
 	reviewQueueUnit(options: CapabilityHostReviewQueueUnitOptions): BaseSurfaceUnit;
+	recordReviewQueueUnit(
+		options: CapabilityHostRecordReviewQueueUnitOptions,
+	): BaseSurfaceUnit;
 }
 
 export interface CapabilityHostOperatorStatus {
@@ -441,6 +453,11 @@ function buildHostBaseModel(
 					buildReviewQueueSurfaceUnit(
 						withDefaultOwner(options, definition.id),
 					),
+				recordReviewQueueUnit: (options) =>
+					buildRecordReviewQueueSurfaceUnit(
+						withDefaultOwner(options, definition.id),
+						capabilities,
+					),
 			}),
 		);
 	}
@@ -448,6 +465,43 @@ function buildHostBaseModel(
 		{ units },
 		{ command: definition.command, operation: "base" },
 	);
+}
+
+function buildRecordReviewQueueSurfaceUnit(
+	options: CapabilityHostRecordReviewQueueUnitOptions & { owner: string },
+	capabilities: CapabilityHostCapabilities,
+): BaseSurfaceUnit {
+	const records = options.records ?? capabilities.deps.records;
+	if (!records) {
+		throw new Error(
+			"Capability host recordReviewQueueUnit requires records deps.",
+		);
+	}
+	const manifest = records.loadManifest();
+	const pendingRecords = manifest.records.filter(
+		(record) => record.review?.state !== options.reviewedState,
+	);
+	const recordIds = manifest.records.map((record) => record.id);
+	const pendingRecordIds = pendingRecords.map((record) => record.id);
+	return buildReviewQueueSurfaceUnit({
+		id: options.id,
+		label: options.label,
+		owner: options.owner,
+		totalLabel: options.totalLabel,
+		pendingLabel: options.pendingLabel,
+		readySummary: options.readySummary,
+		pendingSummary: options.pendingSummary,
+		pendingAction: options.pendingAction,
+		total: manifest.records.length,
+		pending: pendingRecords.length,
+		details: {
+			recordIds,
+			pendingRecordIds,
+			draftRecordIds: pendingRecordIds,
+			reviewedState: options.reviewedState,
+			...(options.details ?? {}),
+		},
+	});
 }
 
 function hostSurfaceActionsFromModel(
