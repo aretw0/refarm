@@ -1,5 +1,9 @@
 import { VAULT_VERBS, type VaultVerb } from "@refarm.dev/vault-contract-v1";
 import { findPluginDirs } from "@refarm.dev/plugin-surface-loader/node";
+import type {
+	VaultDiscoveryResult,
+	VaultProviderSummary,
+} from "@refarm.dev/capabilities-v1";
 import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
@@ -16,27 +20,16 @@ import { pluginsBaseDir } from "../utils/refarm-home.js";
  * A "vault surface" here is any plugin whose provides include a `<key>:<verb>`
  * where `<verb>` is one of the four vault verbs — so a plugin advertising
  * `vault:extract` or `notes:search` surfaces as a vault provider.
+ *
+ * The discovery-result TYPES (`VaultDiscoveryResult`/`VaultProviderSummary`) live in
+ * `@refarm.dev/capabilities-v1` — the neutral block's injected `discover` dep returns
+ * this shape. This module owns the IMPL (scanning the refarm plugins dir); it
+ * re-exports the types so existing app consumers keep importing them from here.
  */
 
 const VAULT_VERB_SET: ReadonlySet<string> = new Set(VAULT_VERBS);
 
-/** One discovered vault provider: the plugin id + the vault verbs it advertises. */
-export interface VaultProviderSummary {
-	/** The plugin id (from plugin.json `id`, else the directory name). */
-	pluginId: string;
-	/** The `<pluginKey>` the verbs are scoped under (e.g. `vault`). */
-	pluginKey: string;
-	/** The vault verbs this plugin advertises, in declaration order, de-duplicated. */
-	verbs: VaultVerb[];
-	/** The raw `<pluginKey>:<verb>` provides targets that matched. */
-	targets: string[];
-}
-
-export interface VaultDiscoveryResult {
-	providers: VaultProviderSummary[];
-	/** Plugin dirs whose plugin.json could not be read (advisory, never thrown). */
-	rejected: string[];
-}
+export type { VaultDiscoveryResult, VaultProviderSummary };
 
 /** Parse a `<pluginKey>:<verb>` provides target into its parts, or undefined if it
  * isn't a vault verb target. */

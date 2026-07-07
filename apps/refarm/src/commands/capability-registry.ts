@@ -37,10 +37,16 @@ import {
 	createSkillCapabilityGroup,
 	skillCapabilityHooks,
 } from "./skill-capability.js";
-import { createRecordsCapabilityGroup } from "./records-capability.js";
-import { createSourceCapabilityGroup } from "./source-capability.js";
+import {
+	createRecordsCapabilityGroup,
+	createSourceCapabilityGroup,
+	createVaultCapabilityGroup,
+} from "@refarm.dev/capabilities-v1";
+import {
+	refarmSourceDeps,
+	refarmVaultDeps,
+} from "./builtin-capability-deps.js";
 import { createThemeCapabilityGroup } from "./theme-capability.js";
-import { createVaultCapabilityGroup } from "./vault-capability.js";
 
 /**
  * A capability plus its surface hooks (text render + exit intent). A descriptor
@@ -67,8 +73,8 @@ const BUILTIN_CAPABILITIES: BuiltinCapability[] = [
 	{ entry: createPluginCapabilityGroup(), hooksFor: pluginCapabilityHooks },
 	{ entry: createSkillCapabilityGroup(), hooksFor: skillCapabilityHooks },
 	{ entry: createThemeCapabilityGroup(), hooksFor: () => ({}) },
-	{ entry: createVaultCapabilityGroup(), hooksFor: () => ({}) },
-	{ entry: createSourceCapabilityGroup(), hooksFor: () => ({}) },
+	{ entry: createVaultCapabilityGroup(refarmVaultDeps()), hooksFor: () => ({}) },
+	{ entry: createSourceCapabilityGroup(refarmSourceDeps()), hooksFor: () => ({}) },
 	{ entry: createRecordsCapabilityGroup(), hooksFor: () => ({}) },
 ];
 

@@ -16,11 +16,7 @@ import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { submitEffortViaSidecar } from "./dispatch-submit.js";
-import {
-	discoverVaultProviders,
-	type VaultDiscoveryResult,
-} from "./vault-discovery.js";
+import type { VaultDiscoveryResult } from "./vault-discovery-types.js";
 
 /**
  * The `vault` command as a multi-surface CapabilityGroup — the host seam that
@@ -52,16 +48,26 @@ export interface VaultCommandDeps {
 	seed?: () => RecordsManifest;
 }
 
-export function defaultVaultDeps(): VaultCommandDeps {
+/** Build vault deps from the app-coupled plumbing a host injects: how to discover
+ * providers (reads the host's plugin dir) and how to submit an effort (talks to the
+ * host's runtime). `newId` defaults to a crypto UUID; `seed` is passed through. This
+ * neutral block holds NO discovery/submit impl — those are host plumbing. */
+export function defaultVaultDeps(deps: {
+	discover: () => VaultDiscoveryResult;
+	submitEffort: (effort: Effort) => Promise<string>;
+	newId?: () => string;
+	seed?: () => RecordsManifest;
+}): VaultCommandDeps {
 	return {
-		discover: () => discoverVaultProviders(),
-		submitEffort: submitEffortViaSidecar,
-		newId: () => crypto.randomUUID(),
+		discover: deps.discover,
+		submitEffort: deps.submitEffort,
+		newId: deps.newId ?? (() => crypto.randomUUID()),
+		...(deps.seed ? { seed: deps.seed } : {}),
 	};
 }
 
 export function createVaultCapabilityGroup(
-	deps: VaultCommandDeps = defaultVaultDeps(),
+	deps: VaultCommandDeps,
 ): CapabilityGroup {
 	const list: CapabilityDescriptor = {
 		name: "list",

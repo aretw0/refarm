@@ -303,6 +303,9 @@ importers:
       '@refarm.dev/barn':
         specifier: workspace:*
         version: link:../../packages/barn
+      '@refarm.dev/capabilities-v1':
+        specifier: workspace:*
+        version: link:../../packages/capabilities-v1
       '@refarm.dev/cli':
         specifier: workspace:*
         version: link:../../packages/cli
@@ -511,6 +514,37 @@ importers:
       '@refarm.dev/storage-node-view':
         specifier: workspace:*
         version: link:../storage-node-view
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
+  packages/capabilities-v1:
+    dependencies:
+      '@refarm.dev/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@refarm.dev/effort-contract-v1':
+        specifier: workspace:*
+        version: link:../effort-contract-v1
+      '@refarm.dev/enrichment-contract-v1':
+        specifier: workspace:*
+        version: link:../enrichment-contract-v1
+      '@refarm.dev/records-contract-v1':
+        specifier: workspace:*
+        version: link:../records-contract-v1
+      '@refarm.dev/source-web':
+        specifier: workspace:*
+        version: link:../source-web
+      '@refarm.dev/vault-contract-v1':
+        specifier: workspace:*
+        version: link:../vault-contract-v1
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig

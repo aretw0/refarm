@@ -1,0 +1,36 @@
+{
+	"extends": [
+		"../../tsconfig.json",
+		"../tsconfig/buildable.json"
+	],
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src",
+		"baseUrl": "../..",
+		"paths": {
+			"@refarm.dev/cli/capabilities": [
+				"packages/cli/dist/capabilities/index.d.ts"
+			],
+			"@refarm.dev/cli/json-output": [
+				"packages/cli/dist/json-output.d.ts"
+			],
+			"@refarm.dev/source-web": ["packages/source-web/dist/index.d.ts"],
+			"@refarm.dev/records-contract-v1": [
+				"packages/records-contract-v1/dist/index.d.ts"
+			],
+			"@refarm.dev/enrichment-contract-v1": [
+				"packages/enrichment-contract-v1/dist/index.d.ts"
+			],
+			"@refarm.dev/effort-contract-v1": [
+				"packages/effort-contract-v1/dist/index.d.ts"
+			],
+			"@refarm.dev/vault-contract-v1": [
+				"packages/vault-contract-v1/dist/index.d.ts"
+			]
+		}
+	},
+	"include": [
+		"src/**/*"
+	],
+	"exclude": ["node_modules", "dist"]
+}

@@ -15,8 +15,6 @@ import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { resolveRefarmHome } from "../utils/refarm-home.js";
-
 /**
  * `source` — the generic source:v1 operator surface: materialize a source into a
  * local snapshot, and inspect it. This is a NEUTRAL block: it wraps an injected
@@ -35,16 +33,13 @@ export interface SourceCommandDeps {
 	sourceProvider: WebSourceProvider;
 }
 
-/** Default deps: a web source provider caching under the refarm home so a
- * materialized snapshot persists between runs. */
-export function defaultSourceDeps(): SourceCommandDeps {
-	let cacheRoot: string;
-	try {
-		cacheRoot = path.join(resolveRefarmHome(), "source-cache");
-	} catch {
-		cacheRoot = mkdtempSync(path.join(os.tmpdir(), "refarm-source-"));
-	}
-	return { sourceProvider: createWebSourceProvider({ cacheRoot }) };
+/** Default deps: a web source provider. Pass a `cacheRoot` to persist snapshots
+ * between runs; omit it for an ephemeral temp cache. Callers that want the refarm
+ * home (or any app-specific location) derive the cacheRoot themselves and pass it
+ * in — this neutral block carries no app FS layout. */
+export function defaultSourceDeps(cacheRoot?: string): SourceCommandDeps {
+	const root = cacheRoot ?? mkdtempSync(path.join(os.tmpdir(), "refarm-source-"));
+	return { sourceProvider: createWebSourceProvider({ cacheRoot: root }) };
 }
 
 export function createSourceCapabilityGroup(

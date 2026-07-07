@@ -12,7 +12,7 @@ import {
 	createVaultCapabilityGroup,
 	type VaultCommandDeps,
 } from "./vault-capability.js";
-import type { VaultDiscoveryResult } from "./vault-discovery.js";
+import type { VaultDiscoveryResult } from "./vault-discovery-types.js";
 
 function discoverWithExtractor(): VaultDiscoveryResult {
 	return {
