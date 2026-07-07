@@ -113,6 +113,10 @@ pub struct PluginInstanceHandle {
     /// register_for_events reads it (with REFARM_PLUGIN_POOL) to choose between
     /// the single-store runner and the opt-in pooled runner.
     pub concurrent_safe: bool,
+    /// APIs the plugin declared in `capabilities.requiresApi` (the SPI consumer
+    /// side). Defaults empty; set via `with_requires_api`. register_for_events
+    /// records it in the registry for the post-load advisory reconciliation.
+    pub requires_api: Vec<String>,
     inner: PluginImpl,
     telemetry: TelemetryBus,
     /// Shared with the store's epoch_deadline_callback. Exposes the cancel flag
@@ -154,6 +158,7 @@ impl PluginInstanceHandle {
             provides,
             subscribes: Vec::new(),
             concurrent_safe: false,
+            requires_api: Vec::new(),
             inner: PluginImpl::Component { plugin, store },
             telemetry,
             epoch_guard,
@@ -177,6 +182,7 @@ impl PluginInstanceHandle {
             provides,
             subscribes: Vec::new(),
             concurrent_safe: false,
+            requires_api: Vec::new(),
             inner: PluginImpl::Module { instance, store },
             telemetry,
             epoch_guard,
@@ -209,6 +215,13 @@ impl PluginInstanceHandle {
 
     pub(crate) fn with_concurrent_safe(mut self, concurrent_safe: bool) -> Self {
         self.concurrent_safe = concurrent_safe;
+        self
+    }
+
+    /// Attach the manifest's `capabilities.requiresApi` (SPI consumer side).
+    /// Builder-style, mirroring with_subscribes.
+    pub(crate) fn with_requires_api(mut self, requires_api: Vec<String>) -> Self {
+        self.requires_api = requires_api;
         self
     }
 

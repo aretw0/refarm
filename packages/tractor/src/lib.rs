@@ -766,6 +766,7 @@ impl TractorNative {
         let plugin_id = handle.id.clone();
         let provides = handle.provides.clone();
         let subscribes = handle.subscribes.clone();
+        let requires_api = handle.requires_api.clone();
         // Register the plugin's cancel flag (shared with its store epoch callback)
         // BEFORE the handle moves into the runner thread, so effort-cancel can
         // force-interrupt a wedged guest that never polls its mpsc channel.
@@ -840,6 +841,8 @@ impl TractorNative {
         // read it; a plugin removed from here (on unload) stops being listable at once.
         self.plugin_registry
             .register(&plugin_id, provides.clone(), subscribes.clone());
+        self.plugin_registry
+            .record_requires_api(&plugin_id, requires_api);
 
         // Populate the neutral event router. A plugin's explicitly declared
         // `capabilities.subscribes` events are subscribed directly...

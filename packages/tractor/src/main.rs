@@ -477,6 +477,18 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         }
     }
 
+    // Post-load SPI reconciliation (advisory, load-order-safe): now that the whole
+    // boot batch is registered, warn about any `requiresApi` with no loaded provider.
+    // This never bails — the real enforcement is `get_plugin_api` returning NotFound
+    // at call time, and a provider loaded later (hot-reload/sidecar) closes the gap.
+    for (plugin_id, api) in tractor.plugin_registry.unmet_required_apis() {
+        tracing::warn!(
+            plugin_id = %plugin_id,
+            api = %api,
+            "plugin requires an API no loaded plugin provides (advisory — calls to it will fail until a provider loads)"
+        );
+    }
+
     // ── HTTP sidecar (ADR-060) ────────────────────────────────────────────────
     if args.http_port > 0 {
         let base_dir = args.refarm_dir.clone().unwrap_or_else(dirs_refarm_base);

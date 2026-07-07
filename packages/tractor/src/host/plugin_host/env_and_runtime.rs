@@ -536,6 +536,17 @@ struct RuntimePluginCapabilities {
     /// driven only by lifecycle calls (and, for the agent, by integration:respond sugar).
     #[serde(default)]
     subscribes: Vec<String>,
+    /// Named APIs this plugin PROVIDES (the SPI provider side). A canonical manifest
+    /// field (validated in plugin-manifest); previously DROPPED at parse, so
+    /// `get_plugin_api` could never resolve a real provider. Folded into `provides`
+    /// as `api:<name>` at load so the registry's resolver finds it.
+    #[serde(default, rename = "providesApi")]
+    provides_api: Vec<String>,
+    /// Named APIs this plugin REQUIRES (the SPI consumer side). Surfaced as an
+    /// advisory warn if unmet at load (load-order-safe — never bails); the real
+    /// enforcement is `get_plugin_api` returning NotFound at call time.
+    #[serde(default, rename = "requiresApi")]
+    requires_api: Vec<String>,
     /// Whether the plugin is safe to drive concurrently — i.e. its on_event is
     /// STATELESS across events (all state lives in the shared graph, nothing is
     /// retained in the guest's own linear memory between calls). Only such a
@@ -1169,13 +1180,29 @@ impl PluginHost {
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, linker).await?;
 
-        let (provides, subscribes, concurrent_safe) = if let Some(manifest) = manifest.as_ref() {
+        let (provides, subscribes, concurrent_safe, requires_api) = if let Some(manifest) =
+            manifest.as_ref()
+        {
             let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
             validate_manifest_runtime_alignment(&plugin_id, &metadata, manifest)?;
+            // Fold each declared `providesApi: ["FooApi"]` into `provides` as
+            // `api:FooApi`, so the registry's existing `plugin_providing_api` matcher
+            // (which scans `provides` for `api:<name>`) resolves real manifests. This
+            // reconciles the manifest's bare-name array with the resolver convention
+            // without a parallel registry field — the SPI provider side wired.
+            let mut provides = manifest.capabilities.provides.clone();
+            provides.extend(
+                manifest
+                    .capabilities
+                    .provides_api
+                    .iter()
+                    .map(|api| format!("api:{api}")),
+            );
             (
-                manifest.capabilities.provides.clone(),
+                provides,
                 manifest.capabilities.subscribes.clone(),
                 manifest.capabilities.concurrent_safe,
+                manifest.capabilities.requires_api.clone(),
             )
         } else {
             tracing::warn!(
@@ -1183,7 +1210,7 @@ impl PluginHost {
                 path = %path.display(),
                 "plugin manifest not found near wasm; skipping manifest/runtime alignment checks"
             );
-            (vec![], vec![], false)
+            (vec![], vec![], false, vec![])
         };
 
         let mut handle = PluginInstanceHandle::new_component(
@@ -1195,6 +1222,7 @@ impl PluginHost {
         )
         .with_subscribes(subscribes)
         .with_concurrent_safe(concurrent_safe)
+        .with_requires_api(requires_api)
         .with_on_event_budget_ms(self.on_event_budget_ms);
         handle.call_setup().await?;
 

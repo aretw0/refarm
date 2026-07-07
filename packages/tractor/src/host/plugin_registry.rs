@@ -50,9 +50,15 @@ pub struct DispatchableVerb {
 /// The shared registry: `plugin-id → capability profile`, Arc-shared so the runtime
 /// (which OWNS the load lifecycle) populates it and every plugin's host bindings can
 /// read it. Cloning shares the same inner map (like `EventRouter`).
+///
+/// `requires_api` is kept in a SEPARATE map (not on the profile) deliberately: it's
+/// consumed only by the post-load advisory reconciliation, never on the hot
+/// list/invoke path, so keeping it off `PluginCapabilityProfile` leaves `register()`
+/// — the hot-path populator — untouched.
 #[derive(Clone, Default)]
 pub struct PluginRegistry {
     inner: Arc<RwLock<HashMap<String, PluginCapabilityProfile>>>,
+    requires_api: Arc<RwLock<HashMap<String, Vec<String>>>>,
 }
 
 /// Parse a `<key>:<verb>` provides entry into (key, verb). Returns None for a
@@ -84,12 +90,49 @@ impl PluginRegistry {
             );
     }
 
+    /// Record the APIs a loaded plugin declares it REQUIRES (SPI consumer side), for
+    /// the post-load advisory reconciliation. Separate from `register` so the hot
+    /// path stays untouched; called at the same load point.
+    pub fn record_requires_api(&self, plugin_id: &str, requires_api: Vec<String>) {
+        if requires_api.is_empty() {
+            return;
+        }
+        self.requires_api
+            .write()
+            .expect("plugin_registry requires_api poisoned")
+            .insert(plugin_id.to_string(), requires_api);
+    }
+
+    /// The APIs declared-required across all loaded plugins that have NO loaded
+    /// provider — advisory only (load-order-safe: called after a load batch, and a
+    /// later-loaded provider clears the gap on the next check). Returns
+    /// `(plugin_id, api_name)` pairs. The real enforcement is `get_plugin_api`
+    /// failing `NotFound` at call time; this is boot-time operator surfacing.
+    pub fn unmet_required_apis(&self) -> Vec<(String, String)> {
+        let requires = self.requires_api.read().expect("plugin_registry requires_api poisoned");
+        let mut ids: Vec<&String> = requires.keys().collect();
+        ids.sort();
+        let mut unmet = Vec::new();
+        for id in ids {
+            for api in &requires[id] {
+                if self.plugin_providing_api(api).is_none() {
+                    unmet.push((id.clone(), api.clone()));
+                }
+            }
+        }
+        unmet
+    }
+
     /// Remove a plugin on unload/teardown (mirrors `EventRouter::unsubscribe_all`),
     /// so its verbs stop being listable/invokable the moment it is gone.
     pub fn unregister(&self, plugin_id: &str) {
         self.inner
             .write()
             .expect("plugin_registry poisoned")
+            .remove(plugin_id);
+        self.requires_api
+            .write()
+            .expect("plugin_registry requires_api poisoned")
             .remove(plugin_id);
     }
 
@@ -230,5 +273,34 @@ mod tests {
             Some("provider".to_string())
         );
         assert_eq!(r.plugin_providing_api("missing"), None);
+    }
+
+    #[test]
+    fn unmet_required_apis_reports_only_gaps_and_clears_when_provider_loads() {
+        let r = PluginRegistry::default();
+        // A consumer requires QualityApi; no provider yet → unmet.
+        r.register("vault", vec!["vault:store".into()], vec![]);
+        r.record_requires_api("vault", vec!["QualityApi".into()]);
+        assert_eq!(
+            r.unmet_required_apis(),
+            vec![("vault".to_string(), "QualityApi".to_string())]
+        );
+        // Provider loads (folded `api:QualityApi` in its provides) → gap closes.
+        r.register("quality", vec!["api:QualityApi".into()], vec![]);
+        assert!(r.unmet_required_apis().is_empty());
+        // Unregister the provider → the gap reopens (advisory, order-immune).
+        r.unregister("quality");
+        assert_eq!(r.unmet_required_apis().len(), 1);
+    }
+
+    #[test]
+    fn record_requires_api_ignores_empty_and_unregister_clears_it() {
+        let r = PluginRegistry::default();
+        r.record_requires_api("lonely", vec![]); // empty → not tracked
+        assert!(r.unmet_required_apis().is_empty());
+        r.record_requires_api("lonely", vec!["GhostApi".into()]);
+        assert_eq!(r.unmet_required_apis().len(), 1);
+        r.unregister("lonely");
+        assert!(r.unmet_required_apis().is_empty());
     }
 }

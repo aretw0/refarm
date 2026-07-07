@@ -18,6 +18,7 @@
 use crate::deliver_via_router;
 use crate::host::plugin_host::refarm::plugin::capability_tools::Host as CapabilityToolsHost;
 use crate::host::plugin_registry::DispatchableVerb;
+use crate::host::wasi_bridge::CrossPluginAccess;
 
 /// The node `@type` a dispatched verb stores its result under, and the field that
 /// carries the correlation key — the convention proven by `vault_plugin_harness`.
@@ -140,44 +141,77 @@ impl CapabilityToolsHost for TractorNativeBindings {
                 .map_err(|e| format!("invalid tool input JSON: {e}"))?
         };
 
-        // Mint a correlation key and build the dispatch payload the SAME way the
-        // sidecar's `dispatch_event_effort` does: `{verb, ...args, replyRef}` on the
-        // `<key>:dispatch` event. The plugin runs the verb and stores a
-        // `refarm:DispatchResult` node carrying this replyRef (proven by the vault
-        // harness); we await that node below.
-        let reply_ref = format!("agent-tool-{}", uuid::Uuid::new_v4());
-        let event = format!("{}:dispatch", verb.plugin_key);
-        let mut payload = serde_json::json!({ "verb": verb.verb, "replyRef": reply_ref });
-        if let Some(map) = input.as_object() {
-            for (k, v) in map {
-                payload[k] = v.clone();
-            }
-        } else if !input.is_null() {
-            payload["args"] = input.clone();
-        }
-
-        let sent = deliver_via_router(
-            &cross.event_router,
-            &cross.plugin_channels,
+        // Everything after name→verb resolution is the shared dispatch — the SAME
+        // path a plugin-to-plugin `call-plugin` uses. One protocol, two callers.
+        dispatch_to_plugin(
+            cross,
+            &self.sync,
             &self.telemetry,
-            &event,
-            Some(&verb.plugin_id),
-            Some(payload.to_string()),
-        );
-        if sent == 0 {
-            return Err(format!(
-                "tool '{name}' could not be dispatched: plugin '{}' is not receiving '{event}'",
-                verb.plugin_id
-            ));
-        }
-
-        // Correlation-await: poll the graph for the plugin's dispatch-result:v1 node
-        // keyed by our replyRef, up to the timeout. This is the one piece the sandbox
-        // requires that an in-process tool would not — the verb result is on the far
-        // side of an async WASM/store-node hop, so the host waits for it before
-        // handing the model a tool result.
-        await_dispatch_result(&self.sync, &reply_ref).await
+            &verb.plugin_id,
+            &verb.plugin_key,
+            &verb.verb,
+            input,
+        )
+        .await
     }
+}
+
+/// Dispatch a verb to a loaded plugin and await its correlated result — the ONE
+/// cross-plugin call protocol, shared by the agent leg's `invoke_tool` (which
+/// resolves a model tool-name `<key>_<verb>` first) and the SPI `call_plugin`
+/// (which receives a resolved `plugin_id` + `verb` directly). Mints a correlation
+/// key, sends `{verb, ...args, replyRef}` on the `<key>:dispatch` event, and polls
+/// for the plugin's `refarm:DispatchResult` node keyed by that replyRef.
+///
+/// Error-neutral (`Result<String, String>`): each caller adapts it to its own WIT
+/// error type (`invoke_tool` returns the string as-is; `call_plugin` maps it into a
+/// `plugin-error`). This is why the shared protocol lives here exactly once — no
+/// replyRef/payload/router/await logic is duplicated across the two entry points.
+pub(crate) async fn dispatch_to_plugin(
+    cross: &CrossPluginAccess,
+    sync: &crate::sync::NativeSync,
+    telemetry: &crate::telemetry::TelemetryBus,
+    plugin_id: &str,
+    plugin_key: &str,
+    verb: &str,
+    input: serde_json::Value,
+) -> Result<String, String> {
+    // Mint a correlation key and build the dispatch payload the SAME way the
+    // sidecar's `dispatch_event_effort` does: `{verb, ...args, replyRef}` on the
+    // `<key>:dispatch` event. The plugin runs the verb and stores a
+    // `refarm:DispatchResult` node carrying this replyRef (proven by the vault
+    // harness); we await that node below.
+    let reply_ref = format!("dispatch-{}", uuid::Uuid::new_v4());
+    let event = format!("{plugin_key}:dispatch");
+    let mut payload = serde_json::json!({ "verb": verb, "replyRef": reply_ref });
+    if let Some(map) = input.as_object() {
+        for (k, v) in map {
+            payload[k] = v.clone();
+        }
+    } else if !input.is_null() {
+        payload["args"] = input.clone();
+    }
+
+    let sent = deliver_via_router(
+        &cross.event_router,
+        &cross.plugin_channels,
+        telemetry,
+        &event,
+        Some(plugin_id),
+        Some(payload.to_string()),
+    );
+    if sent == 0 {
+        return Err(format!(
+            "verb '{verb}' could not be dispatched: plugin '{plugin_id}' is not receiving '{event}'"
+        ));
+    }
+
+    // Correlation-await: poll the graph for the plugin's dispatch-result:v1 node
+    // keyed by our replyRef, up to the timeout. This is the one piece the sandbox
+    // requires that an in-process call would not — the verb result is on the far
+    // side of an async WASM/store-node hop, so the host waits for it before
+    // returning to the caller.
+    await_dispatch_result(sync, &reply_ref).await
 }
 
 /// Poll `self.sync` for a `refarm:DispatchResult` node whose `refarm:replyRef`

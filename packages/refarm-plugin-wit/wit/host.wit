@@ -18,6 +18,19 @@ interface tractor-bridge {
     request-permission: func(capability: string, reason: string) -> bool;
     get-identity:       func() -> result<identity-info, plugin-error>;
     get-plugin-api:     func(api-name: string) -> result<node-id, plugin-error>;
+
+    /// Call a verb on another LOADED plugin, by its id — the SPI call leg that
+    /// pairs with `get-plugin-api` (discovery). A plugin that declares
+    /// `requiresApi: ["FooApi"]` resolves the provider via `get-plugin-api`, then
+    /// invokes a verb on it here. Routes through the SAME dispatch the agent leg's
+    /// tool-call uses (`<key>:dispatch` event → correlated `dispatch-result:v1`),
+    /// so there is ONE call protocol, addressed by verb, shared by both callers.
+    ///
+    /// SECURITY: the callee runs in ITS OWN instance under ITS OWN load-time grant
+    /// + linker — never the caller's. Cross-plugin calling widens REACH, not POWER;
+    /// a revoked/unloaded target is not in the registry, so the call fails honestly.
+    call-plugin: func(plugin-id: node-id, verb: string, input-json: string) -> result<string, plugin-error>;
+
     emit-telemetry:     func(event: string, payload: option<string>);
 }
 

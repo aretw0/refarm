@@ -340,6 +340,43 @@ impl TractorBridgeHost for TractorNativeBindings {
         )))
     }
 
+    /// Call a verb on another loaded plugin, by its id (the SPI call leg, pairs with
+    /// `get_plugin_api` discovery). Routes through the SAME shared dispatch the agent
+    /// leg's tool-call uses (`dispatch_to_plugin`) — one protocol, addressed by verb,
+    /// no duplication. The callee runs under ITS OWN grant; a revoked/unloaded target
+    /// is absent from the registry so the dispatch finds no channel and fails honestly.
+    async fn call_plugin(
+        &mut self,
+        plugin_id: String,
+        verb: String,
+        input_json: String,
+    ) -> Result<String, PluginError> {
+        let Some(cross) = self.cross_plugin.as_ref() else {
+            return Err(PluginError::NotFound(
+                "cross-plugin unavailable: no registry wired".to_string(),
+            ));
+        };
+        let input = if input_json.trim().is_empty() {
+            serde_json::json!({})
+        } else {
+            serde_json::from_str(&input_json).map_err(|e| PluginError::InvalidSchema(e.to_string()))?
+        };
+        // A plugin_id carries no routing key; derive it the sidecar's canonical way
+        // (last path segment): `@refarm.dev/quality` → `quality` for `quality:dispatch`.
+        let plugin_key = plugin_id.rsplit('/').next().unwrap_or(&plugin_id).to_string();
+        crate::host::host_effects_bridge::dispatch_to_plugin(
+            cross,
+            &self.sync,
+            &self.telemetry,
+            &plugin_id,
+            &plugin_key,
+            &verb,
+            input,
+        )
+        .await
+        .map_err(PluginError::Internal)
+    }
+
     /// Emit a telemetry event from the plugin.
     async fn emit_telemetry(&mut self, event: String, payload: Option<String>) {
         let payload_val = payload.and_then(|p| serde_json::from_str(&p).ok());
