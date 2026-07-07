@@ -419,6 +419,14 @@ struct RuntimePluginManifest {
     /// plugin declare this capability?") instead of always granting.
     #[serde(default)]
     permissions: Vec<String>,
+    /// The declared content hash of the plugin `.wasm` (`sha256-<hex>`, `sha256:<hex>`,
+    /// or bare hex), written by the installer (farmhand) at install time. Verified at
+    /// load against the hash computed from the bytes on disk — a tampered artifact at a
+    /// trusted id fails to load. Previously DROPPED at parse (no field → serde ignored
+    /// it), so integrity was a write-time claim only. `None` = no integrity declared
+    /// (backward-compatible: an un-signed local plugin loads, unverified).
+    #[serde(default)]
+    integrity: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -473,6 +481,31 @@ fn read_runtime_plugin_manifest(path: &Path) -> Result<Option<RuntimePluginManif
     }
 
     Ok(None)
+}
+
+/// Verify the loaded `.wasm` bytes against the manifest's declared integrity hash.
+///
+/// `declared` accepts `sha256-<hex>`, `sha256:<hex>`, or bare hex (case-insensitive);
+/// `computed_hash` is the lowercase hex of `sha256(bytes)`. A mismatch is a hard load
+/// failure — a tampered artifact at a trusted id must not run. `None` declared = no
+/// integrity claim → Ok (backward-compatible: an un-signed local plugin still loads).
+fn verify_wasm_integrity(declared: Option<&str>, computed_hash: &str, plugin_id: &str) -> Result<()> {
+    let Some(declared) = declared else {
+        return Ok(());
+    };
+    // Lowercase FIRST so an uppercase `SHA256-...` prefix + hex both normalize.
+    let declared = declared.trim().to_ascii_lowercase();
+    let declared_hex = declared
+        .strip_prefix("sha256-")
+        .or_else(|| declared.strip_prefix("sha256:"))
+        .unwrap_or(&declared)
+        .to_string();
+    anyhow::ensure!(
+        declared_hex == computed_hash,
+        "integrity check failed for plugin '{plugin_id}': declared sha256 {declared_hex} \
+         does not match the loaded bytes ({computed_hash}) — the artifact was tampered or replaced",
+    );
+    Ok(())
 }
 
 fn manifest_runtime_plugin_id(manifest_id: &str) -> &str {
@@ -877,6 +910,15 @@ impl PluginHost {
         let wasm_hash = hex::encode(Sha256::digest(&bytes));
         tracing::debug!(plugin_id = %plugin_id, wasm_hash = %wasm_hash, "Plugin hash computed");
 
+        // Integrity-at-load (E): a tampered artifact at a trusted id must not run. The
+        // manifest's declared hash was written at install; verify the bytes on disk
+        // match it. No declared integrity → unverified local plugin still loads.
+        verify_wasm_integrity(
+            manifest.as_ref().and_then(|m| m.integrity.as_deref()),
+            &wasm_hash,
+            &plugin_id,
+        )?;
+
         // Resolve the sovereign grants for THIS load, where `sync` exists (B): the
         // trusted allowlist + the approved-permissions map, each fs ∩ node
         // (deny-dominates). Resolved ONCE per load and threaded into the trust gate,
@@ -1252,6 +1294,46 @@ mod capability_tests {
     #[test]
     fn manifest_runtime_plugin_id_uses_manifest_identity_suffix() {
         assert_eq!(manifest_runtime_plugin_id("@refarm/agent"), "agent");
+    }
+
+    // ── E1: integrity-at-load (a tampered artifact must not run) ──────────────
+
+    #[test]
+    fn manifest_parses_the_integrity_field() {
+        // Previously DROPPED (no field → serde ignored it); now read.
+        let m = minimal_manifest(r#""integrity":"sha256-abc123""#);
+        assert_eq!(m.integrity.as_deref(), Some("sha256-abc123"));
+        assert!(minimal_manifest("").integrity.is_none());
+    }
+
+    #[test]
+    fn integrity_none_declared_loads_unverified() {
+        // Backward-compatible: an un-signed local plugin (no integrity) still loads.
+        assert!(verify_wasm_integrity(None, "deadbeef", "@test/p").is_ok());
+    }
+
+    #[test]
+    fn integrity_matching_hash_passes_across_prefixes() {
+        let hash = "abc123def456";
+        for declared in [
+            "abc123def456",       // bare hex
+            "sha256-abc123def456", // SRI-style
+            "sha256:abc123def456", // colon form
+            "SHA256-ABC123DEF456", // case-insensitive
+        ] {
+            assert!(
+                verify_wasm_integrity(Some(declared), hash, "@test/p").is_ok(),
+                "declared {declared} should match {hash}"
+            );
+        }
+    }
+
+    #[test]
+    fn integrity_mismatch_fails_load() {
+        // The tampered-artifact case: declared hash ≠ the bytes on disk → hard fail.
+        let err = verify_wasm_integrity(Some("sha256-0000"), "abcd", "@test/p").unwrap_err();
+        assert!(err.to_string().contains("integrity check failed"));
+        assert!(err.to_string().contains("@test/p"));
     }
 
     #[test]
