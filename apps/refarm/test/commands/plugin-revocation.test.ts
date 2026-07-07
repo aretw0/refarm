@@ -4,6 +4,7 @@ import {
 	readRevokedPermissions,
 	readRevokedPlugins,
 	revoke,
+	unrevoke,
 } from "../../src/commands/plugin-revocation.js";
 import type { RefarmCliConfig } from "../../src/commands/config-shared.js";
 
@@ -70,11 +71,65 @@ describe("plugin revocation persistence (add-only, monotonic)", () => {
 	it("preserves approvedPermissions and other config siblings untouched", () => {
 		const io = makeIo({
 			approvedPermissions: { "@x/p": ["fs:read"] },
-			model: "gpt-4",
+			autostart: "always",
 		});
 		revoke("/cfg", "@x/p", null, io);
 		expect(io.store.approvedPermissions).toEqual({ "@x/p": ["fs:read"] });
-		expect(io.store.model).toBe("gpt-4");
+		expect(io.store.autostart).toBe("always");
 		expect(io.store.revokedPlugins).toEqual(["@x/p"]);
+	});
+
+	// ── un-revoke: reversible, monotonic (annulment seq out-ranks the revoke) ──
+
+	it("un-revokes a plugin by bumping the annul seq above the revoke seq", () => {
+		const io = makeIo();
+		revoke("/cfg", "@x/p", null, io);
+		const revokeSeq = io.store.revokedPluginsSeq?.["@x/p"] ?? 1;
+
+		const result = unrevoke("/cfg", "@x/p", null, io);
+		expect(result.changed).toBe(true);
+		const annulSeq = io.store.revokedPluginsAnnul?.["@x/p"] ?? 0;
+		expect(annulSeq).toBeGreaterThan(revokeSeq);
+		// The revoked list is NOT shrunk (add-only); the annul out-ranks it.
+		expect(io.store.revokedPlugins).toEqual(["@x/p"]);
+	});
+
+	it("re-revoke after un-revoke bumps the revoke seq back above the annul", () => {
+		const io = makeIo();
+		revoke("/cfg", "@x/p", null, io);
+		unrevoke("/cfg", "@x/p", null, io);
+		const annulSeq = io.store.revokedPluginsAnnul?.["@x/p"] ?? 0;
+
+		const result = revoke("/cfg", "@x/p", null, io); // re-revoke
+		expect(result.changed).toBe(true);
+		const revokeSeq = io.store.revokedPluginsSeq?.["@x/p"] ?? 1;
+		expect(revokeSeq).toBeGreaterThan(annulSeq);
+	});
+
+	it("un-revoke is idempotent once already un-revoked", () => {
+		const io = makeIo();
+		revoke("/cfg", "@x/p", null, io);
+		unrevoke("/cfg", "@x/p", null, io);
+		const first = io.store.revokedPluginsAnnul?.["@x/p"];
+		const again = unrevoke("/cfg", "@x/p", null, io);
+		expect(again.changed).toBe(false);
+		expect(io.store.revokedPluginsAnnul?.["@x/p"]).toBe(first);
+	});
+
+	it("un-revoke of a never-revoked plugin is a no-op", () => {
+		const io = makeIo();
+		const result = unrevoke("/cfg", "@x/p", null, io);
+		expect(result.changed).toBe(false);
+		expect(io.store.revokedPluginsAnnul).toBeUndefined();
+	});
+
+	it("un-revokes a single capability independently", () => {
+		const io = makeIo();
+		revoke("/cfg", "@x/p", "network:outbound", io);
+		revoke("/cfg", "@x/p", "fs:read", io);
+		unrevoke("/cfg", "@x/p", "network:outbound", io);
+		// network:outbound annulled; fs:read still revoked (no annul entry).
+		expect(io.store.revokedPermissionsAnnul?.["@x/p:network:outbound"]).toBeGreaterThan(0);
+		expect(io.store.revokedPermissionsAnnul?.["@x/p:fs:read"]).toBeUndefined();
 	});
 });

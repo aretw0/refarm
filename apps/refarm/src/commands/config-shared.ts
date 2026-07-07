@@ -49,6 +49,22 @@ export interface RefarmCliConfig {
 	 * `revokedPlugins`.
 	 */
 	revokedPermissions?: Record<string, string[]>;
+	/**
+	 * The operator's UN-REVOKE (annulment) seq per plugin id (G). An un-revoke writes a
+	 * monotonic seq here; the host materializes an annulment node
+	 * (`urn:refarm:revocation:<id>#annul`) carrying it, and the read side nets the
+	 * revocation out when the annul seq >= the revoke seq. Monotonic: only ever bumped up.
+	 */
+	revokedPluginsAnnul?: Record<string, number>;
+	/** Per-`<id>:<cap>` un-revoke (annulment) seq — the capability counterpart. */
+	revokedPermissionsAnnul?: Record<string, number>;
+	/**
+	 * The operator's per-id REVOKE seq (G). Defaults to 1; a re-revoke after an
+	 * un-revoke bumps it above the annulment seq so deny wins again. Monotonic.
+	 */
+	revokedPluginsSeq?: Record<string, number>;
+	/** Per-`<id>:<cap>` revoke seq — the capability counterpart of `revokedPluginsSeq`. */
+	revokedPermissionsSeq?: Record<string, number>;
 }
 
 export interface ConfigDeps {
