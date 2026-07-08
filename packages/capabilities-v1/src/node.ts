@@ -15,6 +15,11 @@ export interface LocalRecordsStatePathOptions {
 	fileName?: string;
 }
 
+export interface ResolveLocalRecordsStatePathOptions extends LocalRecordsStatePathOptions {
+	envKey?: string;
+	env?: Record<string, string | undefined>;
+}
+
 export interface LocalRecordsCommandDepsOptions {
 	seed: () => RecordsManifest;
 	statePath?: string;
@@ -28,6 +33,14 @@ export function localRecordsStatePath(options: LocalRecordsStatePathOptions): st
 		`.${options.appId}`,
 		options.fileName ?? "manifest.json",
 	);
+}
+
+export function resolveLocalRecordsStatePath(
+	options: ResolveLocalRecordsStatePathOptions,
+): string {
+	const env = options.env ?? process.env;
+	const override = options.envKey ? env[options.envKey]?.trim() : undefined;
+	return override || localRecordsStatePath(options);
 }
 
 export function createLocalRecordsCommandDeps(

@@ -3,7 +3,7 @@ import {
 	defineCapabilityHost,
 	type CapabilityHost,
 } from "@refarm.dev/capabilities-v1";
-import { localRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
+import { resolveLocalRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
 
 import {
 	createRequirementsCapability,
@@ -15,9 +15,10 @@ import {
 export const DGK_REQUIREMENTS_STATE_PATH_ENV = "DGK_REQUIREMENTS_STATE_PATH";
 
 export function defaultRequirementsStatePath(cwd = process.cwd()): string {
-	return process.env[DGK_REQUIREMENTS_STATE_PATH_ENV] || localRecordsStatePath({
+	return resolveLocalRecordsStatePath({
 		appId: "dgk",
 		cwd,
+		envKey: DGK_REQUIREMENTS_STATE_PATH_ENV,
 		fileName: "requirements.manifest.json",
 	});
 }
