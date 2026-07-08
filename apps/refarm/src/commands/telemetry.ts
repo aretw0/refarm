@@ -1,14 +1,17 @@
 import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { printJson } from "@refarm.dev/cli/json-output";
 import {
-	evaluateRuntimePressure,
-	isRuntimePressureProfileName,
-	type RuntimePressureDiagnostic,
-	type RuntimePressureProfileName,
-	type RuntimeTelemetrySnapshot,
-	type RuntimeTelemetryWindow,
-} from "@refarm.dev/runtime-telemetry-contract-v1";
-import { fetchSidecarJson, SidecarHttpError } from "@refarm.dev/sidecar-client";
+	evaluatePressure,
+	isPressureProfileName,
+	type PressureDiagnostic,
+	type PressureProfileName,
+	type PressureSnapshot,
+	type PressureWindow,
+} from "@refarm.dev/pressure-contract-v1";
+import {
+	createPressureClient,
+	SidecarHttpError,
+} from "@refarm.dev/sidecar-client";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
 import {
@@ -26,7 +29,7 @@ import {
 	printSidecarUnavailable,
 	reportSidecarError,
 } from "./sidecar-error.js";
-import { sidecarUrl } from "./sidecar-url.js";
+import { resolveSidecarUrl } from "./sidecar-url.js";
 
 const TASK_LIST_JSON_COMMAND = refarmCommand(["task", "list", "--json"]);
 const FAILED_TASKS_JSON_COMMAND = refarmCommand([
@@ -36,14 +39,14 @@ const FAILED_TASKS_JSON_COMMAND = refarmCommand([
 	"--json",
 ]);
 
-export type RuntimeTelemetryRecommendation = DiagnosticRecommendation;
+export type TelemetryRecommendation = DiagnosticRecommendation;
 
 export interface TelemetryDeps {
-	fetchTelemetry(): Promise<RuntimeTelemetrySnapshot>;
-	fetchTelemetryWindow(minutes: number): Promise<RuntimeTelemetryWindow | null>;
+	fetchTelemetry(): Promise<PressureSnapshot>;
+	fetchTelemetryWindow(minutes: number): Promise<PressureWindow | null>;
 }
 
-function parseDiagnosticList(raw: string | undefined): RuntimePressureDiagnostic[] {
+function parseDiagnosticList(raw: string | undefined): PressureDiagnostic[] {
 	if (!raw) return [];
 	return raw
 		.split(",")
@@ -73,8 +76,8 @@ function toPositiveInt(raw: number | string | undefined, fallback: number): numb
 	return Math.floor(parsed);
 }
 
-function parseThresholdProfile(value: string): RuntimePressureProfileName {
-	if (isRuntimePressureProfileName(value)) {
+function parseThresholdProfile(value: string): PressureProfileName {
+	if (isPressureProfileName(value)) {
 		return value;
 	}
 	throw new InvalidArgumentError(
@@ -82,13 +85,10 @@ function parseThresholdProfile(value: string): RuntimePressureProfileName {
 	);
 }
 
-async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
+async function fetchTelemetryFromSidecar(): Promise<PressureSnapshot> {
+	const telemetry = createPressureClient(resolveSidecarUrl());
 	try {
-		return await fetchSidecarJson<RuntimeTelemetrySnapshot>(
-			sidecarUrl("/telemetry"),
-			{},
-			{ errorLabel: "runtime telemetry HTTP" },
-		);
+		return await telemetry.getSnapshot();
 	} catch (err) {
 		if (err instanceof SidecarHttpError && err.status === 404) {
 			throw new Error("telemetry endpoint not available");
@@ -99,22 +99,11 @@ async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
 
 async function fetchTelemetryWindowFromSidecar(
 	minutes: number,
-): Promise<RuntimeTelemetryWindow | null> {
-	try {
-		return await fetchSidecarJson<RuntimeTelemetryWindow>(
-			sidecarUrl(`/telemetry/window?minutes=${minutes}`),
-			{},
-			{ errorLabel: "runtime telemetry window HTTP" },
-		);
-	} catch (err) {
-		if (err instanceof SidecarHttpError && err.status === 404) {
-			return null;
-		}
-		throw err;
-	}
+): Promise<PressureWindow | null> {
+	return createPressureClient(resolveSidecarUrl()).getWindow(minutes);
 }
 
-function formatSummary(snapshot: RuntimeTelemetrySnapshot): string[] {
+function formatSummary(snapshot: PressureSnapshot): string[] {
 	return [
 		`  queue depth   : ${snapshot.queueDepth}`,
 		`  in-flight     : ${snapshot.inFlight}`,
@@ -130,7 +119,7 @@ function formatSummary(snapshot: RuntimeTelemetrySnapshot): string[] {
 
 export function buildTelemetryRecommendations(
 	diagnostics: string[],
-): RuntimeTelemetryRecommendation[] {
+): TelemetryRecommendation[] {
 	return diagnostics.map((diagnostic) => {
 		switch (diagnostic) {
 			case "saturation:queue":
@@ -258,7 +247,7 @@ Notes:
 			async (opts: {
 				json?: boolean;
 				nextAction?: boolean;
-				profile?: RuntimePressureProfileName;
+				profile?: PressureProfileName;
 				windowMinutes?: number;
 				queueWarn?: number;
 				inflightWarn?: number;
@@ -269,7 +258,7 @@ Notes:
 				const profileName = opts.profile ?? "balanced";
 				const windowMinutes = toPositiveInt(opts.windowMinutes, 60);
 
-				let snapshot: RuntimeTelemetrySnapshot;
+				let snapshot: PressureSnapshot;
 				try {
 					snapshot = await resolved.fetchTelemetry();
 				} catch (err) {
@@ -286,7 +275,7 @@ Notes:
 					return;
 				}
 
-				let window: RuntimeTelemetryWindow | null = null;
+				let window: PressureWindow | null = null;
 				try {
 					window = await resolved.fetchTelemetryWindow(windowMinutes);
 				} catch (err) {
@@ -303,7 +292,7 @@ Notes:
 					return;
 				}
 
-				const pressure = evaluateRuntimePressure({
+				const pressure = evaluatePressure({
 					snapshot,
 					window,
 					profile: profileName,

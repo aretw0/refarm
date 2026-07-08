@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
-	buildRuntimePressureRecommendations,
-	evaluateRuntimePressure,
-	resolveRuntimePressureThresholds,
-	type RuntimeTelemetrySnapshot,
-	type RuntimeTelemetryWindow,
+	buildPressureRecommendations,
+	evaluatePressure,
+	resolvePressureThresholds,
+	type PressureSnapshot,
+	type PressureWindow,
 } from "./index.js";
 
 function snapshot(
-  overrides: Partial<RuntimeTelemetrySnapshot> = {},
-): RuntimeTelemetrySnapshot {
+  overrides: Partial<PressureSnapshot> = {},
+): PressureSnapshot {
   return {
     queueDepth: 0,
     inFlight: 0,
@@ -27,8 +27,8 @@ function snapshot(
 }
 
 function window(
-  overrides: Partial<RuntimeTelemetryWindow> = {},
-): RuntimeTelemetryWindow {
+  overrides: Partial<PressureWindow> = {},
+): PressureWindow {
   return {
     windowMinutes: 15,
     since: "2026-07-07T23:45:00.000Z",
@@ -45,9 +45,9 @@ function window(
   };
 }
 
-describe("runtime telemetry contract", () => {
-  it("evaluates runtime pressure without app-specific commands", () => {
-    const result = evaluateRuntimePressure({
+describe("pressure contract", () => {
+  it("evaluates pressure without app-specific commands", () => {
+    const result = evaluatePressure({
       snapshot: snapshot({ queueDepth: 7, failed: 1 }),
       window: window({ failed: 1, failureRatePct: 25 }),
       profile: "conservative",
@@ -78,7 +78,7 @@ describe("runtime telemetry contract", () => {
 
   it("resolves threshold overrides from a named profile", () => {
     expect(
-      resolveRuntimePressureThresholds("balanced", {
+      resolvePressureThresholds("balanced", {
         queueWarn: 12,
         failRateWarn: 10,
       }),
@@ -92,7 +92,7 @@ describe("runtime telemetry contract", () => {
 
   it("returns reusable pressure recommendations without app commands", () => {
     expect(
-      buildRuntimePressureRecommendations([
+      buildPressureRecommendations([
         "saturation:queue",
         "custom:diagnostic",
       ]),
@@ -105,7 +105,7 @@ describe("runtime telemetry contract", () => {
       },
       {
         diagnostic: "custom:diagnostic",
-        summary: "Runtime pressure diagnostic custom:diagnostic is present.",
+        summary: "Pressure diagnostic custom:diagnostic is present.",
         action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
       },
     ]);

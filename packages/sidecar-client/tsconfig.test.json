@@ -7,6 +7,9 @@
 			"@refarm.dev/node-contract-v1": [
 				"./packages/node-contract-v1/dist/index.d.ts"
 			],
+			"@refarm.dev/pressure-contract-v1": [
+				"./packages/pressure-contract-v1/dist/index.d.ts"
+			],
 			"@refarm.dev/root": [
 				"./packages/root/dist/index.d.ts"
 			]

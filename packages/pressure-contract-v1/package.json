@@ -1,8 +1,8 @@
 {
-  "name": "@refarm.dev/runtime-telemetry-contract-v1",
+  "name": "@refarm.dev/pressure-contract-v1",
   "version": "0.1.0",
   "private": false,
-  "description": "Versioned runtime pressure telemetry contract and evaluators",
+  "description": "Versioned pressure snapshot contract and evaluators",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

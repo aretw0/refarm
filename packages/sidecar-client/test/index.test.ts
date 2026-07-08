@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	createPressureClient,
 	createSidecarGraphClient,
 	fetchSidecarJson,
 	fetchSidecarWithTimeout,
@@ -176,5 +177,96 @@ describe("sidecar-client", () => {
 		await expect(graph.getNode("urn:graph:one")).rejects.toThrow(
 			"sidecar graph response missing node",
 		);
+	});
+
+	it("reads runtime telemetry snapshots and windows from the sidecar", async () => {
+		const snapshot = {
+			queueDepth: 1,
+			inFlight: 2,
+			cancelRequests: 0,
+			generatedAt: "2026-07-08T00:00:00.000Z",
+			total: 3,
+			pending: 1,
+			inProgress: 2,
+			done: 0,
+			failed: 0,
+			cancelled: 0,
+		};
+		const window = {
+			windowMinutes: 30,
+			since: "2026-07-07T23:30:00.000Z",
+			terminal: 2,
+			failureRatePct: 0,
+			generatedAt: "2026-07-08T00:00:00.000Z",
+			total: 2,
+			pending: 0,
+			inProgress: 0,
+			done: 2,
+			failed: 0,
+			cancelled: 0,
+		};
+		const fetchImpl = vi.fn(
+			async (
+				input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) => {
+				const url = String(input);
+				if (url.endsWith("/telemetry")) {
+					return new Response(JSON.stringify(snapshot), {
+						status: 200,
+						headers: { "content-type": "application/json" },
+					});
+				}
+				if (url.endsWith("/telemetry/window?minutes=30")) {
+					return new Response(JSON.stringify(window), {
+						status: 200,
+						headers: { "content-type": "application/json" },
+					});
+				}
+				return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
+			},
+		);
+		const telemetry = createPressureClient("http://sidecar.test/", {
+			fetch: fetchImpl as unknown as typeof fetch,
+		});
+
+		await expect(telemetry.getSnapshot()).resolves.toEqual(snapshot);
+		await expect(telemetry.getWindow(30)).resolves.toEqual(window);
+		expect(fetchImpl.mock.calls.map(([input]) => String(input))).toEqual([
+			"http://sidecar.test/telemetry",
+			"http://sidecar.test/telemetry/window?minutes=30",
+		]);
+	});
+
+	it("treats missing runtime telemetry windows as unavailable", async () => {
+		const fetchImpl = vi.fn(
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) => new Response("", { status: 404 }),
+		);
+		const telemetry = createPressureClient("http://sidecar.test", {
+			fetch: fetchImpl as unknown as typeof fetch,
+		});
+
+		await expect(telemetry.getWindow(60)).resolves.toBeNull();
+	});
+
+	it("labels pressure HTTP failures", async () => {
+		const fetchImpl = vi.fn(
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) => new Response(JSON.stringify({ error: "unavailable" }), { status: 503 }),
+		);
+		const telemetry = createPressureClient("http://sidecar.test", {
+			fetch: fetchImpl as unknown as typeof fetch,
+		});
+
+		await expect(telemetry.getSnapshot()).rejects.toMatchObject({
+			constructor: SidecarHttpError,
+			errorLabel: "pressure HTTP",
+			status: 503,
+		});
 	});
 });

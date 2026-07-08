@@ -1,4 +1,4 @@
-export interface RuntimeTelemetrySnapshot {
+export interface PressureSnapshot {
   queueDepth: number;
   inFlight: number;
   cancelRequests: number;
@@ -11,7 +11,7 @@ export interface RuntimeTelemetrySnapshot {
   cancelled: number;
 }
 
-export interface RuntimeTelemetryWindow {
+export interface PressureWindow {
   windowMinutes: number;
   since: string;
   terminal: number;
@@ -25,7 +25,7 @@ export interface RuntimeTelemetryWindow {
   cancelled: number;
 }
 
-export type RuntimePressureDiagnostic =
+export type PressureDiagnostic =
   | "saturation:queue"
   | "saturation:inflight"
   | "reliability:failures-present"
@@ -33,56 +33,56 @@ export type RuntimePressureDiagnostic =
   | "reliability:failure-rate"
   | (string & {});
 
-export type RuntimePressureProfileName =
+export type PressureProfileName =
   | "conservative"
   | "balanced"
   | "throughput";
 
-export interface RuntimePressureThresholds {
-  profile: RuntimePressureProfileName;
+export interface PressureThresholds {
+  profile: PressureProfileName;
   queueWarn: number;
   inflightWarn: number;
   failRateWarn: number;
 }
 
-export type RuntimePressureThresholdOverrides = Partial<
-  Omit<RuntimePressureThresholds, "profile">
+export type PressureThresholdOverrides = Partial<
+  Omit<PressureThresholds, "profile">
 >;
 
-export interface RuntimePressureStrictResult {
+export interface PressureStrictResult {
   enabled: boolean;
-  targets: RuntimePressureDiagnostic[];
-  matchedDiagnostics: RuntimePressureDiagnostic[];
+  targets: PressureDiagnostic[];
+  matchedDiagnostics: PressureDiagnostic[];
   passed: boolean;
 }
 
-export interface RuntimePressureEvaluationInput {
-  snapshot: RuntimeTelemetrySnapshot;
-  window?: RuntimeTelemetryWindow | null;
-  profile?: RuntimePressureProfileName;
-  thresholds?: RuntimePressureThresholdOverrides;
+export interface PressureEvaluationInput {
+  snapshot: PressureSnapshot;
+  window?: PressureWindow | null;
+  profile?: PressureProfileName;
+  thresholds?: PressureThresholdOverrides;
   strict?: boolean;
-  strictOn?: RuntimePressureDiagnostic[];
+  strictOn?: PressureDiagnostic[];
 }
 
-export interface RuntimePressureEvaluation {
+export interface PressureEvaluation {
   ok: boolean;
-  snapshot: RuntimeTelemetrySnapshot;
-  window: RuntimeTelemetryWindow | null;
-  thresholds: RuntimePressureThresholds;
-  diagnostics: RuntimePressureDiagnostic[];
-  strict: RuntimePressureStrictResult;
+  snapshot: PressureSnapshot;
+  window: PressureWindow | null;
+  thresholds: PressureThresholds;
+  diagnostics: PressureDiagnostic[];
+  strict: PressureStrictResult;
 }
 
-export interface RuntimePressureRecommendation {
-  diagnostic: RuntimePressureDiagnostic;
+export interface PressureRecommendation {
+  diagnostic: PressureDiagnostic;
   summary: string;
   action: string;
 }
 
 const PROFILE_THRESHOLDS: Record<
-  RuntimePressureProfileName,
-  Omit<RuntimePressureThresholds, "profile">
+  PressureProfileName,
+  Omit<PressureThresholds, "profile">
 > = {
   conservative: {
     queueWarn: 5,
@@ -101,9 +101,9 @@ const PROFILE_THRESHOLDS: Record<
   },
 };
 
-export function isRuntimePressureProfileName(
+export function isPressureProfileName(
   raw: string,
-): raw is RuntimePressureProfileName {
+): raw is PressureProfileName {
   return raw === "conservative" || raw === "balanced" || raw === "throughput";
 }
 
@@ -121,10 +121,10 @@ function positiveIntOrFallback(
   return Math.floor(positiveNumberOrFallback(raw, fallback));
 }
 
-export function resolveRuntimePressureThresholds(
-  profile: RuntimePressureProfileName,
-  overrides: RuntimePressureThresholdOverrides = {},
-): RuntimePressureThresholds {
+export function resolvePressureThresholds(
+  profile: PressureProfileName,
+  overrides: PressureThresholdOverrides = {},
+): PressureThresholds {
   const base = PROFILE_THRESHOLDS[profile];
   return {
     profile,
@@ -137,15 +137,15 @@ export function resolveRuntimePressureThresholds(
   };
 }
 
-export function evaluateRuntimePressure(
-  input: RuntimePressureEvaluationInput,
-): RuntimePressureEvaluation {
+export function evaluatePressure(
+  input: PressureEvaluationInput,
+): PressureEvaluation {
   const profile = input.profile ?? "balanced";
-  const thresholds = resolveRuntimePressureThresholds(
+  const thresholds = resolvePressureThresholds(
     profile,
     input.thresholds,
   );
-  const diagnostics: RuntimePressureDiagnostic[] = [];
+  const diagnostics: PressureDiagnostic[] = [];
 
   if (input.snapshot.queueDepth >= thresholds.queueWarn) {
     diagnostics.push("saturation:queue");
@@ -190,9 +190,9 @@ export function evaluateRuntimePressure(
   };
 }
 
-export function buildRuntimePressureRecommendations(
-  diagnostics: RuntimePressureDiagnostic[],
-): RuntimePressureRecommendation[] {
+export function buildPressureRecommendations(
+  diagnostics: PressureDiagnostic[],
+): PressureRecommendation[] {
   return diagnostics.map((diagnostic) => {
     switch (diagnostic) {
       case "saturation:queue":
@@ -233,11 +233,11 @@ export function buildRuntimePressureRecommendations(
       default:
         return {
           diagnostic,
-          summary: `Runtime pressure diagnostic ${diagnostic} is present.`,
+          summary: `Pressure diagnostic ${diagnostic} is present.`,
           action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
         };
     }
   });
 }
 
-export { PROFILE_THRESHOLDS as RUNTIME_PRESSURE_PROFILE_THRESHOLDS };
+export { PROFILE_THRESHOLDS as PRESSURE_PROFILE_THRESHOLDS };

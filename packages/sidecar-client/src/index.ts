@@ -1,4 +1,8 @@
 import type { NormalisedNode } from "@refarm.dev/node-contract-v1";
+import type {
+	PressureSnapshot,
+	PressureWindow,
+} from "@refarm.dev/pressure-contract-v1";
 import { fetchWithTimeout, resolveRequestTimeoutMs } from "@refarm.dev/root";
 
 const SIDECAR_REQUEST_TIMEOUT_ENV_VAR = "REFARM_SIDE_REQUEST_TIMEOUT_MS";
@@ -12,6 +16,11 @@ export interface SidecarGraphClient {
 		type: string,
 		options?: QueryGraphNodesOptions,
 	): Promise<SidecarGraphNode[]>;
+}
+
+export interface PressureClient {
+	getSnapshot(): Promise<PressureSnapshot>;
+	getWindow(minutes: number): Promise<PressureWindow | null>;
 }
 
 export interface QueryGraphNodesOptions {
@@ -31,6 +40,7 @@ export interface SidecarJsonRequestOptions extends SidecarRequestOptions {
 }
 
 export type SidecarGraphClientOptions = SidecarRequestOptions;
+export type PressureClientOptions = SidecarRequestOptions;
 
 export class SidecarHttpError extends Error {
 	readonly status: number;
@@ -103,6 +113,36 @@ export function createSidecarGraphClient(
 				}
 				return graphNode;
 			});
+		},
+	};
+}
+
+export function createPressureClient(
+	baseUrl: string | URL,
+	options: PressureClientOptions = {},
+): PressureClient {
+	const base = normalizeSidecarBaseUrl(baseUrl);
+	return {
+		async getSnapshot(): Promise<PressureSnapshot> {
+			return fetchSidecarJson<PressureSnapshot>(
+				`${base}/telemetry`,
+				{},
+				{ ...options, errorLabel: "pressure HTTP" },
+			);
+		},
+		async getWindow(minutes: number): Promise<PressureWindow | null> {
+			try {
+				return await fetchSidecarJson<PressureWindow>(
+					`${base}/telemetry/window?minutes=${minutes}`,
+					{},
+					{ ...options, errorLabel: "pressure window HTTP" },
+				);
+			} catch (err) {
+				if (err instanceof SidecarHttpError && err.status === 404) {
+					return null;
+				}
+				throw err;
+			}
 		},
 	};
 }

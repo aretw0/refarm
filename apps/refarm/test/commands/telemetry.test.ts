@@ -135,7 +135,7 @@ describe("refarm telemetry", () => {
 		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();
 	});
 
-	it("labels default sidecar HTTP failures as telemetry runtime errors", async () => {
+	it("labels default sidecar HTTP failures as pressure errors", async () => {
 		const command = createTelemetryCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -156,7 +156,7 @@ describe("refarm telemetry", () => {
 			operation: "snapshot",
 			ok: false,
 			error: "runtime-request-failed",
-			message: "runtime telemetry HTTP 503",
+			message: "pressure HTTP 503",
 		});
 		expect(process.exitCode).toBe(1);
 	});

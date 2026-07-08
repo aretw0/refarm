@@ -26,6 +26,7 @@
 	},
 	"dependencies": {
 		"@refarm.dev/node-contract-v1": "workspace:*",
+		"@refarm.dev/pressure-contract-v1": "workspace:*",
 		"@refarm.dev/root": "workspace:*"
 	},
 	"devDependencies": {

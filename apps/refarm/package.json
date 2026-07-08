@@ -50,7 +50,7 @@
     "@refarm.dev/release-engine": "workspace:*",
     "@refarm.dev/root": "workspace:*",
     "@refarm.dev/runtime": "workspace:*",
-    "@refarm.dev/runtime-telemetry-contract-v1": "workspace:*",
+    "@refarm.dev/pressure-contract-v1": "workspace:*",
     "@refarm.dev/sidecar-client": "workspace:*",
     "@refarm.dev/silo": "workspace:*",
     "@refarm.dev/skill-contract-v1": "workspace:*",
