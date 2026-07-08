@@ -1,36 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
-	createRefarmActionAffordanceRows,
-	createRefarmActionReadinessDryRunEnvelope,
-	createRefarmActionReadinessLine,
-	createRefarmRendererActionDryRunEnvelope,
-	createRendererSurfaceActionDryRunEnvelope,
 	createSurfaceActionAffordanceRows,
 	createSurfaceActionReadinessDryRunEnvelope,
 	createSurfaceActionReadinessLine,
-	formatRefarmActionAffordanceRows,
-	formatRefarmActionAffordanceSelection,
-	formatRefarmActionIds,
-	formatRefarmActionReadinessOutput,
-	formatRefarmActionSelectionChoices,
 	formatSurfaceActionAffordanceRows,
 	formatSurfaceActionAffordanceSelection,
 	formatSurfaceActionIds,
-	formatSurfaceActionReadinessOutput,
 	formatSurfaceActionSelectionChoices,
-	getRefarmStatusAvailableActions,
 	getStatusAvailableSurfaceActions,
-	resolveRefarmActionAffordanceSelection,
 	resolveSurfaceActionAffordanceSelection,
 } from "./action-affordances.js";
-import type { RefarmStatusJson } from "./status.js";
+import type { StatusJson } from "./status.js";
 
 function makeStatus(
-	actions: RefarmStatusJson["plugins"]["availableActions"] = [
+	actions: StatusJson["plugins"]["availableActions"] = [
 		{ id: "open-node", label: "Open node", intent: "node:open" },
 		{ id: "inspect-trust", label: "Inspect trust" },
 	],
-): RefarmStatusJson {
+): StatusJson {
 	return {
 		schemaVersion: 1,
 		host: {
@@ -62,39 +49,7 @@ function makeStatus(
 	};
 }
 
-describe("Refarm action affordance helpers", () => {
-	it("keeps Refarm aliases compatible with agnostic surface action names", () => {
-		expect(getRefarmStatusAvailableActions).toBe(getStatusAvailableSurfaceActions);
-		expect(createRefarmActionAffordanceRows).toBe(
-			createSurfaceActionAffordanceRows,
-		);
-		expect(resolveRefarmActionAffordanceSelection).toBe(
-			resolveSurfaceActionAffordanceSelection,
-		);
-		expect(formatRefarmActionAffordanceRows).toBe(
-			formatSurfaceActionAffordanceRows,
-		);
-		expect(createRefarmActionReadinessLine).toBe(
-			createSurfaceActionReadinessLine,
-		);
-		expect(createRefarmActionReadinessDryRunEnvelope).toBe(
-			createSurfaceActionReadinessDryRunEnvelope,
-		);
-		expect(createRefarmRendererActionDryRunEnvelope).toBe(
-			createRendererSurfaceActionDryRunEnvelope,
-		);
-		expect(formatRefarmActionReadinessOutput).toBe(
-			formatSurfaceActionReadinessOutput,
-		);
-		expect(formatRefarmActionAffordanceSelection).toBe(
-			formatSurfaceActionAffordanceSelection,
-		);
-		expect(formatRefarmActionIds).toBe(formatSurfaceActionIds);
-		expect(formatRefarmActionSelectionChoices).toBe(
-			formatSurfaceActionSelectionChoices,
-		);
-	});
-
+describe("surface action affordance helpers", () => {
 	it("reads available actions from status with an empty fallback", () => {
 		expect(getStatusAvailableSurfaceActions(makeStatus())).toHaveLength(2);
 		expect(
@@ -210,6 +165,49 @@ describe("Refarm action affordance helpers", () => {
 			readiness: { status: "ready", label: "Ready: yes" },
 			renderer: "web",
 			actionRows: [{ id: "open-node" }, { id: "inspect-trust" }],
+		});
+	});
+
+	it("includes an invocable action request when a selected action carries a command payload", () => {
+		const command = "host action run open-node";
+		const status = makeStatus([
+			{
+				id: "open-node",
+				label: "Open node",
+				intent: "node:open",
+				payload: { command, target: "node" },
+			},
+		]);
+		const selection = resolveSurfaceActionAffordanceSelection(
+			status,
+			"open-node",
+		);
+
+		expect(
+			createSurfaceActionReadinessDryRunEnvelope(status, {
+				command: "actions",
+				renderer: "headless",
+				selection,
+			}),
+		).toMatchObject({
+			actionRequest: {
+				schemaVersion: 1,
+				operation: "surface-action-request",
+				ok: true,
+				reason: "selected",
+				command,
+				payload: { command, target: "node" },
+				selectedAction: {
+					id: "open-node",
+					label: "Open node",
+					intent: "node:open",
+					payload: { command, target: "node" },
+				},
+				nextCommand: command,
+				nextCommands: [command],
+			},
+			nextCommand: command,
+			nextCommands: [command],
 		});
 	});
 

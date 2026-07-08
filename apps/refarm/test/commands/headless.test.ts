@@ -93,7 +93,7 @@ describe("headlessCommand", () => {
 		await headlessCommand.parseAsync(["--markdown"], { from: "user" });
 
 		expect(logSpy).toHaveBeenCalledWith(
-			expect.stringContaining("# Refarm Status"),
+			expect.stringContaining("# Status"),
 		);
 		logSpy.mockRestore();
 	});

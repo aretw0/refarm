@@ -1,7 +1,7 @@
 import {
-	classifyRefarmStatusDiagnostics,
-	REFARM_STATUS_DIAGNOSTICS,
-	type RefarmStatusJson,
+	classifyStatusDiagnostics,
+	STATUS_DIAGNOSTICS,
+	type StatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import {
@@ -40,7 +40,7 @@ export interface RefarmDoctorReport {
 	nextCommand: string | null;
 	nextCommands: string[];
 	host: RefarmRuntimeMetadata;
-	status: RefarmStatusJson;
+	status: StatusJson;
 }
 
 export interface RefarmDoctorRecommendation {
@@ -61,11 +61,11 @@ export interface RefarmDoctorOptions {
 }
 
 export function buildRefarmDoctorReport(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	options: { failOnWarnings?: boolean; metadata?: RefarmRuntimeMetadata } = {},
 ): RefarmDoctorReport {
 	const { failures, warnings, informational } =
-		classifyRefarmStatusDiagnostics(status);
+		classifyStatusDiagnostics(status);
 
 	const failOnWarnings = options.failOnWarnings === true;
 	const ok =
@@ -126,7 +126,7 @@ function createRefarmDoctorRecommendation(
 	severity: RefarmDoctorRecommendation["severity"],
 ): RefarmDoctorRecommendation {
 	switch (diagnostic) {
-		case REFARM_STATUS_DIAGNOSTICS.runtimeNotReady:
+		case STATUS_DIAGNOSTICS.runtimeNotReady:
 			return {
 				diagnostic,
 				severity,
@@ -134,49 +134,49 @@ function createRefarmDoctorRecommendation(
 				action: RUNTIME_NOT_READY_RECOVERY_ACTION,
 				command: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 			};
-		case REFARM_STATUS_DIAGNOSTICS.trustCriticalPresent:
+		case STATUS_DIAGNOSTICS.trustCriticalPresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "Critical trust diagnostics are present.",
 				action: "Review trust policy and rejected capabilities before launching interactive surfaces.",
 			};
-		case REFARM_STATUS_DIAGNOSTICS.trustWarningsPresent:
+		case STATUS_DIAGNOSTICS.trustWarningsPresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "Trust warnings are present.",
 				action: "Inspect trust warnings and decide whether they should block this workflow.",
 			};
-		case REFARM_STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent:
+		case STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "One or more plugin surfaces were rejected.",
 				action: "Inspect plugin manifests and host surface policy before exposing plugin UI.",
 			};
-		case REFARM_STATUS_DIAGNOSTICS.streamsActivePresent:
+		case STATUS_DIAGNOSTICS.streamsActivePresent:
 			return {
 				diagnostic,
 				severity,
 				summary: "Runtime streams are still active.",
 				action: "Wait for active streams to finish, or inspect stream telemetry before shutdown.",
 			};
-		case REFARM_STATUS_DIAGNOSTICS.pluginsSurfaceActionsAvailable:
+		case STATUS_DIAGNOSTICS.pluginsSurfaceActionsAvailable:
 			return {
 				diagnostic,
 				severity,
 				summary: "Plugin surface actions are available.",
 				action: "Use the actions command or renderer action view to inspect available operations.",
 			};
-		case REFARM_STATUS_DIAGNOSTICS.rendererNonInteractive:
+		case STATUS_DIAGNOSTICS.rendererNonInteractive:
 			return {
 				diagnostic,
 				severity,
 				summary: "The selected renderer is non-interactive.",
 				action: "Use a web or TUI renderer when the workflow requires interactive controls.",
 			};
-		case REFARM_STATUS_DIAGNOSTICS.rendererNoRichHtml:
+		case STATUS_DIAGNOSTICS.rendererNoRichHtml:
 			return {
 				diagnostic,
 				severity,

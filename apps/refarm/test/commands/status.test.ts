@@ -1,4 +1,4 @@
-import type { RefarmStatusOptions } from "@refarm.dev/cli/status";
+import type { StatusOptions } from "@refarm.dev/cli/status";
 import {
 	HOMESTEAD_HOST_RENDERER_KINDS,
 	requiredHomesteadHostRendererCapabilities,
@@ -9,29 +9,29 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-	mockAssertRefarmStatusJson,
-	mockBuildRefarmStatusJson,
-	mockFormatRefarmStatusJson,
-	mockFormatRefarmStatusMarkdown,
-	mockParseRefarmStatusJson,
+	mockAssertStatusJson,
+	mockBuildStatusJson,
+	mockFormatStatusJson,
+	mockFormatStatusMarkdown,
+	mockParseStatusJson,
 	mockProbeRuntimeLiveness,
 	mockWaitForRuntimeReady,
 } = vi.hoisted(() => ({
-	mockAssertRefarmStatusJson: vi.fn(),
-	mockBuildRefarmStatusJson: vi.fn(),
-	mockFormatRefarmStatusJson: vi.fn(),
-	mockFormatRefarmStatusMarkdown: vi.fn(),
-	mockParseRefarmStatusJson: vi.fn(),
+	mockAssertStatusJson: vi.fn(),
+	mockBuildStatusJson: vi.fn(),
+	mockFormatStatusJson: vi.fn(),
+	mockFormatStatusMarkdown: vi.fn(),
+	mockParseStatusJson: vi.fn(),
 	mockProbeRuntimeLiveness: vi.fn(),
 	mockWaitForRuntimeReady: vi.fn(),
 }));
 
 vi.mock("@refarm.dev/cli/status", () => ({
-	assertRefarmStatusJson: mockAssertRefarmStatusJson,
-	buildRefarmStatusJson: mockBuildRefarmStatusJson,
-	formatRefarmStatusJson: mockFormatRefarmStatusJson,
-	formatRefarmStatusMarkdown: mockFormatRefarmStatusMarkdown,
-	parseRefarmStatusJson: mockParseRefarmStatusJson,
+	assertStatusJson: mockAssertStatusJson,
+	buildStatusJson: mockBuildStatusJson,
+	formatStatusJson: mockFormatStatusJson,
+	formatStatusMarkdown: mockFormatStatusMarkdown,
+	parseStatusJson: mockParseStatusJson,
 }));
 
 vi.mock("../../src/commands/runtime-readiness.js", () => ({
@@ -40,8 +40,8 @@ vi.mock("../../src/commands/runtime-readiness.js", () => ({
 }));
 
 import {
-	REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
-	REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+	STATUS_INSPECT_TRUST_ACTION_ID,
+	STATUS_OPEN_REPORT_ACTION_ID,
 } from "../../src/commands/status-surfaces.js";
 import { createStatusCommand, statusCommand } from "../../src/commands/status.js";
 
@@ -65,7 +65,7 @@ describe("statusCommand", () => {
 			ready: true,
 			status: 200,
 		});
-		mockBuildRefarmStatusJson.mockImplementation((input: RefarmStatusOptions) => ({
+		mockBuildStatusJson.mockImplementation((input: StatusOptions) => ({
 			schemaVersion: 1,
 			host: input.host,
 			renderer: input.renderer,
@@ -80,13 +80,13 @@ describe("statusCommand", () => {
 			streams: { active: 0, terminal: 0 },
 			diagnostics: [],
 		}));
-		mockFormatRefarmStatusJson.mockImplementation(() =>
+		mockFormatStatusJson.mockImplementation(() =>
 			JSON.stringify({ schemaVersion: 1 }, null, 2),
 		);
-		mockFormatRefarmStatusMarkdown.mockImplementation(
-			() => "# Refarm Status\n",
+		mockFormatStatusMarkdown.mockImplementation(
+			() => "# Status\n",
 		);
-		mockParseRefarmStatusJson.mockReturnValue({
+		mockParseStatusJson.mockReturnValue({
 			schemaVersion: 1,
 			host: {
 				app: "apps/refarm",
@@ -206,7 +206,7 @@ describe("statusCommand", () => {
 
 	it("builds status from a local runtime snapshot without booting tractor-ts", async () => {
 		await statusCommand.parseAsync(["--json"], { from: "user" });
-		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
+		expect(mockBuildStatusJson).toHaveBeenCalledWith(
 			expect.objectContaining({
 				runtime: {
 					ready: true,
@@ -232,7 +232,7 @@ describe("statusCommand", () => {
 
 		await statusCommand.parseAsync(["--json"], { from: "user" });
 
-		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
+		expect(mockBuildStatusJson).toHaveBeenCalledWith(
 			expect.objectContaining({
 				runtime: expect.objectContaining({
 					engine: {
@@ -255,7 +255,7 @@ describe("statusCommand", () => {
 		await statusCommand.parseAsync(["--json"], { from: "user" });
 
 		expect(mockProbeRuntimeLiveness).toHaveBeenCalledWith();
-		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
+		expect(mockBuildStatusJson).toHaveBeenCalledWith(
 			expect.objectContaining({
 				runtime: expect.objectContaining({
 					ready: false,
@@ -273,8 +273,8 @@ describe("statusCommand", () => {
 		expect(output).toBeDefined();
 		const parsed = JSON.parse(output![0] as string);
 		expect(parsed.schemaVersion).toBe(1);
-		expect(mockAssertRefarmStatusJson).toHaveBeenCalled();
-		expect(mockFormatRefarmStatusJson).toHaveBeenCalledWith(
+		expect(mockAssertStatusJson).toHaveBeenCalled();
+		expect(mockFormatStatusJson).toHaveBeenCalledWith(
 			expect.objectContaining({ schemaVersion: 1 }),
 		);
 		spy.mockRestore();
@@ -282,13 +282,13 @@ describe("statusCommand", () => {
 
 	it("forwards each requested renderer descriptor to status builder", async () => {
 		for (const kind of HOMESTEAD_HOST_RENDERER_KINDS) {
-			mockBuildRefarmStatusJson.mockClear();
+			mockBuildStatusJson.mockClear();
 
 			await statusCommand.parseAsync(["--json", "--renderer", kind], {
 				from: "user",
 			});
 
-			expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
+			expect(mockBuildStatusJson).toHaveBeenCalledWith(
 				expect.objectContaining({
 					host: expect.objectContaining({ mode: kind }),
 					renderer: expect.objectContaining({
@@ -304,18 +304,18 @@ describe("statusCommand", () => {
 	it("forwards app-owned status action affordances to status builder", async () => {
 		await statusCommand.parseAsync(["--json"], { from: "user" });
 
-		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
+		expect(mockBuildStatusJson).toHaveBeenCalledWith(
 			expect.objectContaining({
 				plugins: {
 					surfaces: expect.objectContaining({
 						context: expect.objectContaining({ hostId: "apps/refarm" }),
 						availableActions: [
 							expect.objectContaining({
-								id: REFARM_STATUS_OPEN_REPORT_ACTION_ID,
-								intent: "refarm:status-open",
+								id: STATUS_OPEN_REPORT_ACTION_ID,
+								intent: "status:open-report",
 							}),
 							expect.objectContaining({
-								id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+								id: STATUS_INSPECT_TRUST_ACTION_ID,
 								intent: "trust:inspect",
 							}),
 						],
@@ -326,7 +326,7 @@ describe("statusCommand", () => {
 	});
 
 	it("invokes a live status action by ID", async () => {
-		mockBuildRefarmStatusJson.mockImplementation((input: RefarmStatusOptions) => ({
+		mockBuildStatusJson.mockImplementation((input: StatusOptions) => ({
 			schemaVersion: 1,
 			host: input.host,
 			renderer: input.renderer,
@@ -338,12 +338,12 @@ describe("statusCommand", () => {
 				surfaceActions: 2,
 				availableActions: [
 					{
-						id: REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+						id: STATUS_OPEN_REPORT_ACTION_ID,
 						label: "Open status report",
-						intent: "refarm:status-open",
+						intent: "status:open-report",
 					},
 					{
-						id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+						id: STATUS_INSPECT_TRUST_ACTION_ID,
 						label: "Inspect trust",
 						intent: "trust:inspect",
 					},
@@ -356,7 +356,7 @@ describe("statusCommand", () => {
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await statusCommand.parseAsync(
-			["--action", REFARM_STATUS_INSPECT_TRUST_ACTION_ID],
+			["--action", STATUS_INSPECT_TRUST_ACTION_ID],
 			{ from: "user" },
 		);
 
@@ -369,15 +369,15 @@ describe("statusCommand", () => {
 			statusSource: "live",
 			handled: true,
 			selection: {
-				requested: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+				requested: STATUS_INSPECT_TRUST_ACTION_ID,
 				source: "id",
-				resolvedId: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+				resolvedId: STATUS_INSPECT_TRUST_ACTION_ID,
 				index: 2,
 			},
 			actionRequest: {
 				pluginId: "apps/refarm",
 				action: {
-					id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+					id: STATUS_INSPECT_TRUST_ACTION_ID,
 					intent: "trust:inspect",
 				},
 			},
@@ -386,7 +386,7 @@ describe("statusCommand", () => {
 	});
 
 	it("invokes a live status action by row index", async () => {
-		mockBuildRefarmStatusJson.mockImplementation((input: RefarmStatusOptions) => ({
+		mockBuildStatusJson.mockImplementation((input: StatusOptions) => ({
 			schemaVersion: 1,
 			host: input.host,
 			renderer: input.renderer,
@@ -398,12 +398,12 @@ describe("statusCommand", () => {
 				surfaceActions: 2,
 				availableActions: [
 					{
-						id: REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+						id: STATUS_OPEN_REPORT_ACTION_ID,
 						label: "Open status report",
-						intent: "refarm:status-open",
+						intent: "status:open-report",
 					},
 					{
-						id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+						id: STATUS_INSPECT_TRUST_ACTION_ID,
 						label: "Inspect trust",
 						intent: "trust:inspect",
 					},
@@ -421,7 +421,7 @@ describe("statusCommand", () => {
 		expect(envelope.selection).toEqual({
 			requested: "2",
 			source: "index",
-			resolvedId: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+			resolvedId: STATUS_INSPECT_TRUST_ACTION_ID,
 			index: 2,
 		});
 		expect(envelope.statusSource).toBe("live");
@@ -451,7 +451,7 @@ describe("statusCommand", () => {
 				from: "user",
 			}),
 		).rejects.toThrow(/--action cannot be combined with --input/);
-		expect(mockParseRefarmStatusJson).not.toHaveBeenCalled();
+		expect(mockParseStatusJson).not.toHaveBeenCalled();
 	});
 
 	it("fails fast for unknown renderer kinds", async () => {
@@ -465,8 +465,8 @@ describe("statusCommand", () => {
 	it("outputs markdown when --markdown is requested", async () => {
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
 		await statusCommand.parseAsync(["--markdown"], { from: "user" });
-		expect(mockFormatRefarmStatusMarkdown).toHaveBeenCalled();
-		expect(spy).toHaveBeenCalledWith("# Refarm Status\n");
+		expect(mockFormatStatusMarkdown).toHaveBeenCalled();
+		expect(spy).toHaveBeenCalledWith("# Status\n");
 		spy.mockRestore();
 	});
 
@@ -489,8 +489,8 @@ describe("statusCommand", () => {
 			from: "user",
 		});
 
-		expect(mockBuildRefarmStatusJson).not.toHaveBeenCalled();
-		expect(mockParseRefarmStatusJson).toHaveBeenCalledWith(
+		expect(mockBuildStatusJson).not.toHaveBeenCalled();
+		expect(mockParseStatusJson).toHaveBeenCalledWith(
 			'{"schemaVersion":1}',
 		);
 		readSpy.mockRestore();
@@ -504,8 +504,8 @@ describe("statusCommand", () => {
 				if (file.endsWith("bad.json")) return "{}";
 				throw new Error(`unexpected read: ${file}`);
 			});
-		mockParseRefarmStatusJson.mockImplementation(() => {
-			throw new Error("Unsupported Refarm status schemaVersion=2.");
+		mockParseStatusJson.mockImplementation(() => {
+			throw new Error("Unsupported status schemaVersion=2.");
 		});
 
 		await expect(
@@ -529,7 +529,7 @@ describe("statusCommand", () => {
 			from: "user",
 		});
 
-		expect(mockParseRefarmStatusJson).toHaveBeenCalledWith(
+		expect(mockParseStatusJson).toHaveBeenCalledWith(
 			'{"schemaVersion":1}',
 		);
 		expect(readSpy).toHaveBeenCalledWith(0, "utf-8");

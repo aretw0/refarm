@@ -1,4 +1,3 @@
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
 	createRendererSurfaceActionDryRunEnvelope,
 	createSurfaceActionAffordanceRows,
@@ -10,6 +9,7 @@ import {
 	type SurfaceActionAffordanceSelectionReason,
 	type SurfaceActionReadinessDryRunEnvelope,
 } from "@refarm.dev/cli/action-affordances";
+import type { StatusJson } from "@refarm.dev/cli/status";
 
 export type TuiSurfaceActionRow = SurfaceActionAffordanceRow;
 export type TuiSurfaceActionSelectionReason =
@@ -28,20 +28,20 @@ export type TuiSurfaceActionDryRunEnvelope =
 	};
 
 export function createTuiSurfaceActionRows(
-	status: RefarmStatusJson,
+	status: StatusJson,
 ): TuiSurfaceActionRow[] {
 	return createSurfaceActionAffordanceRows(status);
 }
 
 export function resolveTuiSurfaceActionSelection(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	selection: string,
 ): TuiSurfaceActionSelectionResult {
 	return resolveSurfaceActionAffordanceSelection(status, selection);
 }
 
 export function createTuiSurfaceActionDryRunEnvelope(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	selection?: TuiSurfaceActionSelectionResult,
 ): TuiSurfaceActionDryRunEnvelope {
 	return createRendererSurfaceActionDryRunEnvelope(

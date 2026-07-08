@@ -1,7 +1,7 @@
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import type { StatusJson } from "@refarm.dev/cli/status";
 import {
-	emitRefarmStatusOutput,
-	type RefarmStatusOutputMode,
+	emitStatusOutput,
+	type StatusOutputMode,
 } from "./status-output.js";
 import {
 	type ResolveStatusPayloadFn,
@@ -11,19 +11,19 @@ import {
 export interface RunStatusPreflightOptions<TResolveOptions> {
 	resolveStatusPayload: ResolveStatusPayloadFn<TResolveOptions>;
 	resolveOptions: TResolveOptions;
-	outputMode: RefarmStatusOutputMode;
-	printSummary: (json: RefarmStatusJson) => void;
-	afterEmit?: (json: RefarmStatusJson) => void;
+	outputMode: StatusOutputMode;
+	printSummary: (json: StatusJson) => void;
+	afterEmit?: (json: StatusJson) => void;
 }
 
 export async function runStatusPreflight<TResolveOptions>(
 	options: RunStatusPreflightOptions<TResolveOptions>,
-): Promise<RefarmStatusJson> {
+): Promise<StatusJson> {
 	return withResolvedStatusPayload({
 		resolveStatusPayload: options.resolveStatusPayload,
 		resolveOptions: options.resolveOptions,
 		run: (json) => {
-			emitRefarmStatusOutput({
+			emitStatusOutput({
 				status: json,
 				mode: options.outputMode,
 				printSummary: options.printSummary,

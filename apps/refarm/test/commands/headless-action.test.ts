@@ -1,4 +1,4 @@
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import type { StatusJson } from "@refarm.dev/cli/status";
 import { describe, expect, it, vi } from "vitest";
 import {
 	createHeadlessStatusSurfaceActionBlockedDryRunEnvelope,
@@ -9,7 +9,7 @@ import {
 	resolveHeadlessStatusSurfaceActionRequest,
 } from "../../src/commands/headless-action.js";
 
-function makeStatus(): RefarmStatusJson {
+function makeStatus(): StatusJson {
 	return {
 		schemaVersion: 1,
 		host: {

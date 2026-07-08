@@ -1,7 +1,7 @@
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import type { StatusJson } from "@refarm.dev/cli/status";
 
 export interface ResolvedStatusPayload {
-	json: RefarmStatusJson;
+	json: StatusJson;
 	shutdown?: () => Promise<void>;
 }
 
@@ -12,7 +12,7 @@ export type ResolveStatusPayloadFn<TOptions> = (
 export async function withResolvedStatusPayload<TOptions, TResult>(options: {
 	resolveStatusPayload: ResolveStatusPayloadFn<TOptions>;
 	resolveOptions: TOptions;
-	run: (json: RefarmStatusJson) => Promise<TResult> | TResult;
+	run: (json: StatusJson) => Promise<TResult> | TResult;
 }): Promise<TResult> {
 	const { json, shutdown } = await options.resolveStatusPayload(
 		options.resolveOptions,

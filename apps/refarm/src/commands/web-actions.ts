@@ -1,4 +1,3 @@
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
 	createRendererSurfaceActionDryRunEnvelope,
 	createSurfaceActionAffordanceRows,
@@ -10,6 +9,7 @@ import {
 	type SurfaceActionAffordanceSelectionReason,
 	type SurfaceActionReadinessDryRunEnvelope,
 } from "@refarm.dev/cli/action-affordances";
+import type { StatusJson } from "@refarm.dev/cli/status";
 
 export type WebSurfaceActionRow = SurfaceActionAffordanceRow;
 export type WebSurfaceActionSelectionReason =
@@ -28,20 +28,20 @@ export type WebSurfaceActionDryRunEnvelope =
 	};
 
 export function createWebSurfaceActionRows(
-	status: RefarmStatusJson,
+	status: StatusJson,
 ): WebSurfaceActionRow[] {
 	return createSurfaceActionAffordanceRows(status);
 }
 
 export function resolveWebSurfaceActionSelection(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	selection: string,
 ): WebSurfaceActionSelectionResult {
 	return resolveSurfaceActionAffordanceSelection(status, selection);
 }
 
 export function createWebSurfaceActionDryRunEnvelope(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	selection?: WebSurfaceActionSelectionResult,
 ): WebSurfaceActionDryRunEnvelope {
 	return createRendererSurfaceActionDryRunEnvelope(

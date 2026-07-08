@@ -16,9 +16,7 @@ import {
 	WORKER_TOOL_MAX_TURNS,
 } from "./worker-profile.js";
 
-export const REFARM_CAPABILITY_INDEX_SCHEMA_VERSION = 1 as const;
-export const CAPABILITY_INDEX_SCHEMA_VERSION =
-	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
+export const CAPABILITY_INDEX_SCHEMA_VERSION = 1 as const;
 
 export type CapabilityProviderKind =
 	| "cli"
@@ -61,7 +59,7 @@ export interface CapabilityDescriptor {
 }
 
 export interface CapabilityIndex {
-	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
+	schemaVersion: typeof CAPABILITY_INDEX_SCHEMA_VERSION;
 	capabilities: readonly CapabilityDescriptor[];
 }
 
@@ -132,7 +130,7 @@ export interface ReferenceDriverSupplyEntry {
 }
 
 export interface ReferenceDriverSupplyMap {
-	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
+	schemaVersion: typeof CAPABILITY_INDEX_SCHEMA_VERSION;
 	discoverySdk: "@refarm.dev/cli/capability-index";
 	smokeCommand: "pnpm run reference-driver:smoke";
 	publicationBoundary: ReferenceDriverPublicationBoundary;
@@ -169,7 +167,7 @@ export interface ReferenceDriverSupplyPromotionQueueItem {
 }
 
 export interface ReferenceDriverSupplyPreflight {
-	schemaVersion: typeof REFARM_CAPABILITY_INDEX_SCHEMA_VERSION;
+	schemaVersion: typeof CAPABILITY_INDEX_SCHEMA_VERSION;
 	source: "@refarm.dev/cli/capability-index";
 	mode: "plan-only";
 	publicationBoundary: ReferenceDriverPublicationBoundary;
@@ -186,7 +184,7 @@ export interface ReferenceDriverSupplyPreflight {
 
 export function buildCapabilityIndex(): CapabilityIndex {
 	return {
-		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
+		schemaVersion: CAPABILITY_INDEX_SCHEMA_VERSION,
 		capabilities: CAPABILITIES,
 	};
 }
@@ -198,7 +196,7 @@ export function getCapabilityDescriptors(): readonly CapabilityDescriptor[] {
 export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
 	const descriptors = CAPABILITIES as readonly CapabilityDescriptor[];
 	return {
-		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
+		schemaVersion: CAPABILITY_INDEX_SCHEMA_VERSION,
 		discoverySdk: "@refarm.dev/cli/capability-index",
 		smokeCommand: "pnpm run reference-driver:smoke",
 		publicationBoundary: REFERENCE_DRIVER_PUBLICATION_BOUNDARY,
@@ -277,7 +275,7 @@ export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPref
 		});
 
 	return {
-		schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
+		schemaVersion: CAPABILITY_INDEX_SCHEMA_VERSION,
 		source: "@refarm.dev/cli/capability-index",
 		mode: "plan-only",
 		publicationBoundary: supplyMap.publicationBoundary,

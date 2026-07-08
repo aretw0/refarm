@@ -1,30 +1,30 @@
 import {
-	formatRefarmStatusJson,
-	formatRefarmStatusMarkdown,
-	type RefarmStatusJson,
+	formatStatusJson,
+	formatStatusMarkdown,
+	type StatusJson,
 } from "@refarm.dev/cli/status";
 import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 
-export type RefarmStatusOutputMode = "json" | "markdown" | "summary" | "silent";
+export type StatusOutputMode = "json" | "markdown" | "summary" | "silent";
 
 export const STATUS_JSON_MARKDOWN_ERROR_MESSAGE =
 	"Choose only one output format: --json or --markdown.";
 
-export interface RefarmStatusOutputFlags {
+export interface StatusOutputFlags {
 	json?: boolean;
 	markdown?: boolean;
 	summary?: boolean;
 }
 
 export interface ResolveStatusOutputModeOptions {
-	defaultMode: RefarmStatusOutputMode;
+	defaultMode: StatusOutputMode;
 	errorMessage: string;
 }
 
 export function resolveStatusOutputMode(
-	flags: RefarmStatusOutputFlags,
+	flags: StatusOutputFlags,
 	options: ResolveStatusOutputModeOptions,
-): RefarmStatusOutputMode {
+): StatusOutputMode {
 	assertAtMostOneFlagEnabled(
 		[
 			{ enabled: flags.json, flag: "--json" },
@@ -49,8 +49,8 @@ export function resolveStatusOutputMode(
 export function resolveJsonMarkdownStatusOutputMode(options: {
 	json?: boolean;
 	markdown?: boolean;
-	defaultMode: RefarmStatusOutputMode;
-}): RefarmStatusOutputMode {
+	defaultMode: StatusOutputMode;
+}): StatusOutputMode {
 	return resolveStatusOutputMode(
 		{ json: options.json, markdown: options.markdown },
 		{
@@ -60,22 +60,22 @@ export function resolveJsonMarkdownStatusOutputMode(options: {
 	);
 }
 
-export function emitRefarmStatusOutput(options: {
-	status: RefarmStatusJson;
-	mode: RefarmStatusOutputMode;
-	printSummary: (json: RefarmStatusJson) => void;
+export function emitStatusOutput(options: {
+	status: StatusJson;
+	mode: StatusOutputMode;
+	printSummary: (json: StatusJson) => void;
 }): void {
 	if (options.mode === "silent") {
 		return;
 	}
 
 	if (options.mode === "json") {
-		console.log(formatRefarmStatusJson(options.status));
+		console.log(formatStatusJson(options.status));
 		return;
 	}
 
 	if (options.mode === "markdown") {
-		console.log(formatRefarmStatusMarkdown(options.status));
+		console.log(formatStatusMarkdown(options.status));
 		return;
 	}
 

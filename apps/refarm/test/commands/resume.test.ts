@@ -1,4 +1,4 @@
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import type { StatusJson } from "@refarm.dev/cli/status";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -15,7 +15,7 @@ import type {
 	TaskSessionRecorder,
 } from "../../src/commands/task-session.js";
 
-const status: RefarmStatusJson = {
+const status: StatusJson = {
 	schemaVersion: 1,
 	host: {
 		app: "apps/refarm",

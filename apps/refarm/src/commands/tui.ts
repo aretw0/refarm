@@ -6,7 +6,7 @@ import {
 	printJson,
 } from "@refarm.dev/cli/json-output";
 import { createProcessHandoffSpec, executeProcessHandoff, type ProcessHandoffSpec, } from "@refarm.dev/cli/process-handoff";
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import type { StatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { capabilityTuiSections } from "./capability-registry.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
@@ -50,7 +50,7 @@ interface TuiDeps {
 		renderer: string;
 		input?: string;
 	}): Promise<ResolveStatusPayloadResult>;
-	printStatusSummary(json: RefarmStatusJson): void;
+	printStatusSummary(json: StatusJson): void;
 	launch(spec: TuiLaunchSpec): Promise<number>;
 }
 

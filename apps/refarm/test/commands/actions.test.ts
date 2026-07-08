@@ -56,6 +56,10 @@ const statusWithActions = makeStatus({
 				id: "inspect-trust",
 				label: "Inspect trust",
 				intent: "trust:inspect",
+				payload: {
+					command: "host status --action inspect-trust",
+					target: "trust",
+				},
 			},
 		],
 	},
@@ -139,10 +143,23 @@ describe("host action readiness helpers", () => {
 				index: 2,
 			},
 			selectedAction: { id: "inspect-trust", index: 2 },
+			actionRequest: {
+				ok: true,
+				reason: "selected",
+				command: "host status --action inspect-trust",
+				payload: {
+					command: "host status --action inspect-trust",
+					target: "trust",
+				},
+				nextCommand: "host status --action inspect-trust",
+				nextCommands: ["host status --action inspect-trust"],
+			},
 			actionRows: [
 				{ id: "open-status-report", index: 1 },
 				{ id: "inspect-trust", index: 2 },
 			],
+			nextCommand: "host status --action inspect-trust",
+			nextCommands: ["host status --action inspect-trust"],
 		});
 	});
 });
@@ -228,6 +245,13 @@ describe("actionsCommand", () => {
 				index: 2,
 			},
 			selectedAction: { id: "inspect-trust", index: 2 },
+			actionRequest: {
+				ok: true,
+				reason: "selected",
+				command: "host status --action inspect-trust",
+			},
+			nextCommand: "host status --action inspect-trust",
+			nextCommands: ["host status --action inspect-trust"],
 		});
 		logSpy.mockRestore();
 	});

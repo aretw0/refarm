@@ -3,7 +3,7 @@ import { openHostBrowserUrl, resolveBrowserOpenSpec, } from "@refarm.dev/cli/bro
 import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import { executeProcessHandoff, type ProcessHandoffSpec } from "@refarm.dev/cli/process-handoff";
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import type { StatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import {
 	launchAvailabilityMessage,
@@ -38,7 +38,7 @@ export interface WebDeps {
 		renderer: string;
 		input?: string;
 	}): Promise<ResolveStatusPayloadResult>;
-	printStatusSummary(json: RefarmStatusJson): void;
+	printStatusSummary(json: StatusJson): void;
 	launch(spec: WebLaunchSpec): Promise<number>;
 	open(url: string): Promise<void>;
 }

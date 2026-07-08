@@ -1,10 +1,10 @@
 import { printJson } from "@refarm.dev/cli/json-output";
 import {
-	assertRefarmStatusJson,
-	buildRefarmStatusJson,
-	formatRefarmStatusSummary,
-	parseRefarmStatusJson,
-	type RefarmStatusJson,
+	assertStatusJson,
+	buildStatusJson,
+	formatStatusSummary,
+	parseStatusJson,
+	type StatusJson,
 } from "@refarm.dev/cli/status";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
 import type { BaseSurfaceModel } from "@refarm.dev/operator-state";
@@ -28,11 +28,11 @@ import {
 	readTractorEngineModeAsync,
 	resolveLaunchRuntime,
 } from "./session-launch.js";
-import { invokeRefarmStatusSurfaceActionSelection } from "./status-actions.js";
+import { invokeStatusSurfaceActionSelection } from "./status-actions.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
-import { createRefarmStatusHostSurfaceState } from "./status-surfaces.js";
+import { createStatusHostSurfaceState } from "./status-surfaces.js";
 
 export interface ResolveStatusPayloadOptions {
 	renderer?: string;
@@ -40,7 +40,7 @@ export interface ResolveStatusPayloadOptions {
 }
 
 export interface ResolveStatusPayloadResult {
-	json: RefarmStatusJson;
+	json: StatusJson;
 	shutdown?: () => Promise<void>;
 }
 
@@ -59,7 +59,7 @@ interface StatusCommandOptions {
 
 async function createStatusRuntimeSummary(
 	namespace: string,
-): Promise<RefarmStatusJson["runtime"]> {
+): Promise<StatusJson["runtime"]> {
 	const configuredEngine = await readTractorEngineModeAsync();
 	const activeEngine = (() => {
 		try {
@@ -80,7 +80,7 @@ async function createStatusRuntimeSummary(
 	};
 }
 
-function createStatusTrustSummary(): RefarmStatusJson["trust"] {
+function createStatusTrustSummary(): StatusJson["trust"] {
 	return {
 		profile: "strict",
 		warnings: 0,
@@ -88,8 +88,8 @@ function createStatusTrustSummary(): RefarmStatusJson["trust"] {
 	};
 }
 
-export function printStatusSummary(json: RefarmStatusJson): void {
-	console.log(formatRefarmStatusSummary(json));
+export function printStatusSummary(json: StatusJson): void {
+	console.log(formatStatusSummary(json));
 }
 
 export function createStatusCommand(deps: StatusCommandDeps = {}): Command {
@@ -209,7 +209,7 @@ async function emitStatusActionInvocation(options: {
 			}
 
 			printJson(
-				await invokeRefarmStatusSurfaceActionSelection({
+				await invokeStatusSurfaceActionSelection({
 					status: json,
 					selection: actionSelection,
 				}),
@@ -240,7 +240,7 @@ export async function resolveStatusPayload(
 	const trust = createStatusTrustSummary();
 	const hostIdentity = resolveRefarmHostIdentity();
 
-	const json = buildRefarmStatusJson({
+	const json = buildStatusJson({
 		host: {
 			app: hostIdentity.app,
 			command: hostIdentity.command,
@@ -251,10 +251,13 @@ export async function resolveStatusPayload(
 		runtime,
 		trust,
 		plugins: {
-			surfaces: createRefarmStatusHostSurfaceState(),
+			surfaces: createStatusHostSurfaceState({
+				hostId: hostIdentity.app,
+				command: hostIdentity.command,
+			}),
 		},
 	});
-	assertRefarmStatusJson(json);
+	assertStatusJson(json);
 
 	return {
 		json,
@@ -263,7 +266,7 @@ export async function resolveStatusPayload(
 
 export function readStatusPayloadFromInput(
 	inputPath: string,
-): RefarmStatusJson {
+): StatusJson {
 	const sourceLabel = inputPath === "-" ? "stdin" : inputPath;
 	let raw: string;
 	try {
@@ -279,7 +282,7 @@ export function readStatusPayloadFromInput(
 	}
 
 	try {
-		return parseRefarmStatusJson(raw);
+		return parseStatusJson(raw);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(

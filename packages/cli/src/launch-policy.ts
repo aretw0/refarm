@@ -1,8 +1,8 @@
 import { applicationCommand } from "./command-handoff.js";
 import {
-	classifyRefarmStatusDiagnostics,
-	REFARM_STATUS_DIAGNOSTICS,
-	type RefarmStatusJson,
+	classifyStatusDiagnostics,
+	STATUS_DIAGNOSTICS,
+	type StatusJson,
 } from "./status.js";
 
 function refarmAppCommand(args: string[]): string {
@@ -28,15 +28,15 @@ export interface LaunchReadiness {
 }
 
 export function resolveLaunchReadiness(
-	json: RefarmStatusJson,
+	json: StatusJson,
 	target: string,
 ): LaunchReadiness {
-	const diagnostics = classifyRefarmStatusDiagnostics(json);
+	const diagnostics = classifyStatusDiagnostics(json);
 	if (diagnostics.failures.length === 0) {
 		return { readyToExecute: true, failures: [], recoveryCommands: [] };
 	}
 	const runtimeNotReady = diagnostics.failures.includes(
-		REFARM_STATUS_DIAGNOSTICS.runtimeNotReady,
+		STATUS_DIAGNOSTICS.runtimeNotReady,
 	);
 	const recoveryHint = runtimeNotReady
 		? RUNTIME_NOT_READY_LAUNCH_HINT
@@ -52,20 +52,9 @@ export function resolveLaunchReadiness(
 }
 
 export function assertLaunchAllowed(
-	json: RefarmStatusJson,
+	json: StatusJson,
 	target: string,
 ): void {
 	const readiness = resolveLaunchReadiness(json, target);
 	if (readiness.blockedReason) throw new Error(readiness.blockedReason);
 }
-
-export const REFARM_RUNTIME_STATUS_COMMAND = RUNTIME_STATUS_COMMAND;
-export const REFARM_RUNTIME_ENSURE_WAIT_NEXT_COMMAND =
-	RUNTIME_ENSURE_WAIT_NEXT_COMMAND;
-export const REFARM_RUNTIME_DOCTOR_NEXT_ACTION_COMMAND =
-	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND;
-export const REFARM_RUNTIME_DOCTOR_NEXT_COMMAND =
-	RUNTIME_DOCTOR_NEXT_COMMAND;
-export const REFARM_RUNTIME_NOT_READY_LAUNCH_HINT =
-	RUNTIME_NOT_READY_LAUNCH_HINT;
-export type RefarmLaunchReadiness = LaunchReadiness;

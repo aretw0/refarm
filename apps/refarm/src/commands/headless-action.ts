@@ -1,4 +1,12 @@
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import {
+	getStatusAvailableSurfaceActions,
+	type SurfaceActionAffordanceSelectionMetadata,
+} from "@refarm.dev/cli/action-affordances";
+import {
+	formatExecutionPlanReadinessLine,
+	type ExecutionPlanReadinessLine,
+} from "@refarm.dev/cli/execution-plan";
+import type { StatusJson } from "@refarm.dev/cli/status";
 import {
 	createHomesteadSurfaceRenderActionRequest,
 	invokeHomesteadSurfaceRenderAction,
@@ -9,14 +17,6 @@ import {
 	type HomesteadSurfaceRenderHostContext,
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 import type { ExtensionSurfaceDeclaration } from "@refarm.dev/plugin-manifest";
-import {
-	getStatusAvailableSurfaceActions,
-	type SurfaceActionAffordanceSelectionMetadata,
-} from "@refarm.dev/cli/action-affordances";
-import {
-	formatExecutionPlanReadinessLine,
-	type ExecutionPlanReadinessLine,
-} from "@refarm.dev/cli/execution-plan";
 
 export type HeadlessSurfaceActionMountSource =
 	| "legacy-ui-slot"
@@ -32,7 +32,7 @@ export type HeadlessSurfaceActionInvocationReason =
 	| "missing-action";
 
 export interface HeadlessSurfaceActionInvocationOptions {
-	status: RefarmStatusJson;
+	status: StatusJson;
 	actionId: string;
 	handler: HomesteadSurfaceRenderActionHandler;
 	pluginId?: string;
@@ -63,7 +63,7 @@ export interface HeadlessSurfaceActionDryRunEnvelope {
 	schemaVersion: 1;
 	command: "headless";
 	operation: "action-dry-run";
-	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
+	statusSchemaVersion: StatusJson["schemaVersion"];
 	reason: "dry-run";
 	renderer: "headless";
 	readiness: ExecutionPlanReadinessLine;
@@ -77,7 +77,7 @@ export interface HeadlessSurfaceActionDryRunEnvelope {
 }
 
 export function createHeadlessStatusSurfaceRenderRequest(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	options: Pick<
 		HeadlessSurfaceActionInvocationOptions,
 		"pluginId" | "slotId" | "locale" | "mountSource" | "surface"
@@ -93,7 +93,7 @@ export function createHeadlessStatusSurfaceRenderRequest(
 }
 
 export function createHeadlessStatusSurfaceHostContext(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	options: Pick<HeadlessSurfaceActionInvocationOptions, "hostData"> = {},
 ): HomesteadSurfaceRenderHostContext {
 	return {
@@ -111,7 +111,7 @@ export function createHeadlessStatusSurfaceHostContext(
 }
 
 export function createHeadlessStatusSurfaceActionDryRunEnvelope(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	selection: SurfaceActionAffordanceSelectionMetadata,
 	request: HomesteadSurfaceRenderActionRequest,
 	availableActions: readonly HomesteadSurfaceRenderAction[],
@@ -125,7 +125,7 @@ export function createHeadlessStatusSurfaceActionDryRunEnvelope(
 }
 
 export function createHeadlessStatusSurfaceActionBlockedDryRunEnvelope(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	blockedReason: string,
 	availableActions: readonly HomesteadSurfaceRenderAction[],
 ): HeadlessSurfaceActionDryRunEnvelope {
@@ -139,7 +139,7 @@ export function createHeadlessStatusSurfaceActionBlockedDryRunEnvelope(
 }
 
 function createHeadlessStatusSurfaceActionReadinessDryRunEnvelope(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	options: {
 		readiness: ExecutionPlanReadinessLine;
 		availableActions: readonly HomesteadSurfaceRenderAction[];

@@ -6,7 +6,6 @@ import {
 	buildReferenceDriverSupplyPreflight,
 	CAPABILITY_INDEX_SCHEMA_VERSION,
 	getCapabilityDescriptors,
-	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 } from "./capability-index.js";
 
 describe("capability index", () => {
@@ -42,9 +41,6 @@ describe("capability index", () => {
 		expect(index.capabilities).toEqual(getCapabilityDescriptors());
 		expect(buildCapabilityIndex).toBe(buildCapabilityIndex);
 		expect(getCapabilityDescriptors).toBe(getCapabilityDescriptors);
-		expect(REFARM_CAPABILITY_INDEX_SCHEMA_VERSION).toBe(
-			CAPABILITY_INDEX_SCHEMA_VERSION,
-		);
 	});
 
 	it("keeps descriptors small enough for progressive discovery", () => {
@@ -76,7 +72,7 @@ describe("capability index", () => {
 	it("maps reference-driver primitives to publication supply channels", () => {
 		const supplyMap = buildReferenceDriverSupplyMap();
 
-		expect(supplyMap.schemaVersion).toBe(REFARM_CAPABILITY_INDEX_SCHEMA_VERSION);
+		expect(supplyMap.schemaVersion).toBe(CAPABILITY_INDEX_SCHEMA_VERSION);
 		expect(supplyMap.discoverySdk).toBe("@refarm.dev/cli/capability-index");
 		expect(supplyMap.smokeCommand).toBe("pnpm run reference-driver:smoke");
 		expect(supplyMap.publicationBoundary).toEqual({
@@ -309,7 +305,7 @@ describe("capability index", () => {
 		const preflight = buildReferenceDriverSupplyPreflight();
 
 		expect(preflight).toMatchObject({
-			schemaVersion: REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
+			schemaVersion: CAPABILITY_INDEX_SCHEMA_VERSION,
 			source: "@refarm.dev/cli/capability-index",
 			mode: "plan-only",
 			publicationBoundary: {

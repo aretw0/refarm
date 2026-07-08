@@ -1,4 +1,14 @@
 import {
+	formatSurfaceActionSelectionChoices,
+	getStatusAvailableSurfaceActions,
+	resolveSurfaceActionAffordanceSelection,
+	type SurfaceActionAffordanceSelectionMetadata,
+} from "@refarm.dev/cli/action-affordances";
+import type {
+	StatusJson,
+	StatusSurfaceAction,
+} from "@refarm.dev/cli/status";
+import {
 	createHomesteadSurfaceRenderActionRequest,
 	homesteadSurfaceRenderContextMatches,
 	invokeHomesteadSurfaceRenderAction,
@@ -6,75 +16,65 @@ import {
 	type HomesteadSurfaceRenderActionRequest,
 	type HomesteadSurfaceRenderContextRequest,
 } from "@refarm.dev/homestead/sdk/surface-renderer";
-import type {
-	RefarmStatusJson,
-	RefarmStatusSurfaceAction,
-} from "@refarm.dev/cli/status";
 import {
-	formatSurfaceActionSelectionChoices,
-	getStatusAvailableSurfaceActions,
-	resolveSurfaceActionAffordanceSelection,
-	type SurfaceActionAffordanceSelectionMetadata,
-} from "@refarm.dev/cli/action-affordances";
-import {
-	createRefarmStatusHostSurfaceState,
-	REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
-	REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+	createStatusHostSurfaceState,
+	STATUS_INSPECT_TRUST_ACTION_ID,
+	STATUS_OPEN_REPORT_ACTION_ID,
 } from "./status-surfaces.js";
 
-export const REFARM_STATUS_SURFACE_PLUGIN_ID = "apps/refarm";
-export const REFARM_STATUS_SURFACE_ID = "host-status-actions";
-export const REFARM_STATUS_SURFACE_SLOT_ID = "status";
+export const STATUS_SURFACE_PLUGIN_ID = "apps/refarm";
+export const STATUS_SURFACE_ID = "host-status-actions";
+export const STATUS_SURFACE_SLOT_ID = "status";
 
-export type RefarmStatusSurfaceActionObserver = (
+export type StatusSurfaceActionObserver = (
 	request: HomesteadSurfaceRenderActionRequest,
 ) => void | Promise<void>;
 
-export interface RefarmStatusSurfaceActionResolution {
+export interface StatusSurfaceActionResolution {
 	request?: HomesteadSurfaceRenderActionRequest;
 	reason: "available" | "missing-action";
 }
 
-export interface RefarmStatusSurfaceActionInvocationEnvelope {
+export interface StatusSurfaceActionInvocationEnvelope {
 	schemaVersion: 1;
-	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
+	statusSchemaVersion: StatusJson["schemaVersion"];
 	reason: "executed";
 	renderer: "status";
 	statusSource: "live";
 	selection: SurfaceActionAffordanceSelectionMetadata;
 	actionRequest: HomesteadSurfaceRenderActionRequest;
 	handled: boolean;
-	availableActions: readonly RefarmStatusSurfaceAction[];
+	availableActions: readonly StatusSurfaceAction[];
 }
 
-export interface InvokeRefarmStatusSurfaceActionSelectionOptions {
-	status: RefarmStatusJson;
+export interface InvokeStatusSurfaceActionSelectionOptions {
+	status: StatusJson;
 	selection: string;
-	onAction?: RefarmStatusSurfaceActionObserver;
+	onAction?: StatusSurfaceActionObserver;
 }
 
-export function createRefarmStatusSurfaceRenderRequest(
+export function createStatusSurfaceRenderRequest(
 	locale = "en",
 ): HomesteadSurfaceRenderContextRequest {
 	return {
-		pluginId: REFARM_STATUS_SURFACE_PLUGIN_ID,
-		slotId: REFARM_STATUS_SURFACE_SLOT_ID,
+		pluginId: STATUS_SURFACE_PLUGIN_ID,
+		slotId: STATUS_SURFACE_SLOT_ID,
 		mountSource: "legacy-ui-slot",
 		surface: {
 			layer: "homestead",
 			kind: "panel",
-			id: REFARM_STATUS_SURFACE_ID,
-			slot: REFARM_STATUS_SURFACE_SLOT_ID,
+			id: STATUS_SURFACE_ID,
+			slot: STATUS_SURFACE_SLOT_ID,
 		},
 		locale,
 	};
 }
 
-export function resolveRefarmStatusSurfaceActionRequest(
+export function resolveStatusSurfaceActionRequest(
 	actionId: string,
-): RefarmStatusSurfaceActionResolution {
-	const renderRequest = createRefarmStatusSurfaceRenderRequest();
-	const host = createRefarmStatusHostSurfaceState().context;
+): StatusSurfaceActionResolution {
+	const renderRequest = createStatusSurfaceRenderRequest();
+	const host = createStatusHostSurfaceState().context;
 	const request = createHomesteadSurfaceRenderActionRequest(
 		renderRequest,
 		host,
@@ -86,42 +86,42 @@ export function resolveRefarmStatusSurfaceActionRequest(
 		: { reason: "missing-action" };
 }
 
-export function createRefarmStatusSurfaceActionHandler(
-	onAction: RefarmStatusSurfaceActionObserver = () => {},
+export function createStatusSurfaceActionHandler(
+	onAction: StatusSurfaceActionObserver = () => {},
 ): HomesteadSurfaceRenderActionHandler {
 	return async (request) => {
 		if (
 			!homesteadSurfaceRenderContextMatches(request, {
-				pluginId: REFARM_STATUS_SURFACE_PLUGIN_ID,
-				surfaceId: REFARM_STATUS_SURFACE_ID,
+				pluginId: STATUS_SURFACE_PLUGIN_ID,
+				surfaceId: STATUS_SURFACE_ID,
 			})
 		) {
 			return false;
 		}
-		if (!isRefarmStatusSurfaceActionId(request.action.id)) return false;
+		if (!isStatusSurfaceActionId(request.action.id)) return false;
 
 		await onAction(request);
 		return true;
 	};
 }
 
-export async function invokeRefarmStatusSurfaceAction(
+export async function invokeStatusSurfaceAction(
 	actionId: string,
-	onAction: RefarmStatusSurfaceActionObserver = () => {},
+	onAction: StatusSurfaceActionObserver = () => {},
 ): Promise<boolean> {
-	const renderRequest = createRefarmStatusSurfaceRenderRequest();
-	const host = createRefarmStatusHostSurfaceState().context;
+	const renderRequest = createStatusSurfaceRenderRequest();
+	const host = createStatusHostSurfaceState().context;
 	return invokeHomesteadSurfaceRenderAction(
-		createRefarmStatusSurfaceActionHandler(onAction),
+		createStatusSurfaceActionHandler(onAction),
 		renderRequest,
 		host,
 		actionId,
 	);
 }
 
-export async function invokeRefarmStatusSurfaceActionSelection(
-	options: InvokeRefarmStatusSurfaceActionSelectionOptions,
-): Promise<RefarmStatusSurfaceActionInvocationEnvelope> {
+export async function invokeStatusSurfaceActionSelection(
+	options: InvokeStatusSurfaceActionSelectionOptions,
+): Promise<StatusSurfaceActionInvocationEnvelope> {
 	const selectedAction = resolveSurfaceActionAffordanceSelection(
 		options.status,
 		options.selection,
@@ -133,7 +133,7 @@ export async function invokeRefarmStatusSurfaceActionSelection(
 		);
 	}
 
-	const resolution = resolveRefarmStatusSurfaceActionRequest(
+	const resolution = resolveStatusSurfaceActionRequest(
 		selectedAction.selected.id,
 	);
 
@@ -143,12 +143,12 @@ export async function invokeRefarmStatusSurfaceActionSelection(
 		);
 	}
 
-	const handled = await invokeRefarmStatusSurfaceAction(
+	const handled = await invokeStatusSurfaceAction(
 		selectedAction.selected.id,
 		options.onAction,
 	);
 
-	return createRefarmStatusSurfaceActionInvocationEnvelope(
+	return createStatusSurfaceActionInvocationEnvelope(
 		options.status,
 		selectedAction.selection,
 		resolution.request,
@@ -157,13 +157,13 @@ export async function invokeRefarmStatusSurfaceActionSelection(
 	);
 }
 
-export function createRefarmStatusSurfaceActionInvocationEnvelope(
-	status: RefarmStatusJson,
+export function createStatusSurfaceActionInvocationEnvelope(
+	status: StatusJson,
 	selection: SurfaceActionAffordanceSelectionMetadata,
 	actionRequest: HomesteadSurfaceRenderActionRequest,
 	handled: boolean,
-	availableActions: readonly RefarmStatusSurfaceAction[],
-): RefarmStatusSurfaceActionInvocationEnvelope {
+	availableActions: readonly StatusSurfaceAction[],
+): StatusSurfaceActionInvocationEnvelope {
 	return {
 		schemaVersion: 1,
 		statusSchemaVersion: status.schemaVersion,
@@ -177,9 +177,9 @@ export function createRefarmStatusSurfaceActionInvocationEnvelope(
 	};
 }
 
-function isRefarmStatusSurfaceActionId(actionId: string): boolean {
+function isStatusSurfaceActionId(actionId: string): boolean {
 	return (
-		actionId === REFARM_STATUS_OPEN_REPORT_ACTION_ID ||
-		actionId === REFARM_STATUS_INSPECT_TRUST_ACTION_ID
+		actionId === STATUS_OPEN_REPORT_ACTION_ID ||
+		actionId === STATUS_INSPECT_TRUST_ACTION_ID
 	);
 }

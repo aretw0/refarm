@@ -1,8 +1,10 @@
 import {
+	createBaseSurfaceActionRequest,
 	createBaseSurfaceActionRows,
 	formatBaseSurfaceActionRows,
 	formatBaseSurfaceActionSelectionChoices,
 	resolveBaseSurfaceActionSelection,
+	type BaseSurfaceActionRequest,
 	type BaseSurfaceActionRow,
 	type BaseSurfaceActionSelectionMetadata,
 	type BaseSurfaceActionSelectionReason,
@@ -15,8 +17,8 @@ import {
 	type ExecutionPlanReadinessLine,
 } from "./execution-plan.js";
 import type {
-	RefarmStatusJson,
-	RefarmStatusSurfaceAction,
+	StatusJson,
+	StatusSurfaceAction,
 } from "./status.js";
 
 export type SurfaceActionAffordanceRow = BaseSurfaceActionRow;
@@ -31,13 +33,14 @@ export type SurfaceActionAffordanceSelectionResult =
 
 export interface SurfaceActionReadinessDryRunEnvelope {
 	schemaVersion: 1;
-	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
+	statusSchemaVersion: StatusJson["schemaVersion"];
 	reason: "dry-run";
 	readiness: ExecutionPlanReadinessLine;
 	command?: string;
 	renderer: string;
 	selection?: SurfaceActionAffordanceSelectionMetadata;
 	selectedAction?: SurfaceActionAffordanceRow;
+	actionRequest?: BaseSurfaceActionRequest<StatusSurfaceAction>;
 	actionRows: readonly SurfaceActionAffordanceRow[];
 	nextAction: string | null;
 	nextActions: string[];
@@ -70,19 +73,19 @@ export interface SurfaceActionReadinessOutputOptions<
 }
 
 export function getStatusAvailableSurfaceActions(
-	status: RefarmStatusJson,
-): readonly RefarmStatusSurfaceAction[] {
+	status: StatusJson,
+): readonly StatusSurfaceAction[] {
 	return status.plugins.availableActions ?? [];
 }
 
 export function createSurfaceActionAffordanceRows(
-	status: RefarmStatusJson,
+	status: StatusJson,
 ): SurfaceActionAffordanceRow[] {
 	return createBaseSurfaceActionRows(getStatusAvailableSurfaceActions(status));
 }
 
 export function resolveSurfaceActionAffordanceSelection(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	selection: string,
 ): SurfaceActionAffordanceSelectionResult {
 	const rows = createSurfaceActionAffordanceRows(status);
@@ -97,7 +100,7 @@ export function formatSurfaceActionAffordanceRows(
 }
 
 export function createSurfaceActionReadinessLine(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	selection?: SurfaceActionAffordanceSelectionResult,
 ): ExecutionPlanReadinessLine {
 	const rows = selection?.rows ?? createSurfaceActionAffordanceRows(status);
@@ -117,9 +120,15 @@ export function createSurfaceActionReadinessLine(
 }
 
 export function createSurfaceActionReadinessDryRunEnvelope(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	options: SurfaceActionReadinessDryRunEnvelopeOptions,
 ): SurfaceActionReadinessDryRunEnvelope {
+	const actionRequest = options.selection
+		? createBaseSurfaceActionRequest(
+				createStatusSurfaceActionRequestActions(status),
+				options.selection.selection.requested,
+			)
+		: undefined;
 	return {
 		schemaVersion: 1,
 		statusSchemaVersion: status.schemaVersion,
@@ -131,19 +140,20 @@ export function createSurfaceActionReadinessDryRunEnvelope(
 			? options.selection.selection
 			: undefined,
 		selectedAction: options.selection?.selected,
+		...(actionRequest ? { actionRequest } : {}),
 		actionRows:
 			options.selection?.rows ?? createSurfaceActionAffordanceRows(status),
 		nextAction: null,
 		nextActions: [],
-		nextCommand: null,
-		nextCommands: [],
+		nextCommand: actionRequest?.nextCommand ?? null,
+		nextCommands: actionRequest?.nextCommands ?? [],
 	};
 }
 
 export function createRendererSurfaceActionDryRunEnvelope<
 	RendererKind extends string,
 >(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	renderer: RendererKind,
 	selection?: SurfaceActionAffordanceSelectionResult,
 	command?: string,
@@ -164,7 +174,7 @@ export function createRendererSurfaceActionDryRunEnvelope<
 export function formatSurfaceActionReadinessOutput<
 	RendererKind extends string,
 >(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	options: SurfaceActionReadinessOutputOptions<RendererKind>,
 ): string {
 	if (options.select) {
@@ -267,43 +277,25 @@ export function formatSurfaceActionSelectionChoices(
 	return formatBaseSurfaceActionSelectionChoices(rows);
 }
 
-export type RefarmActionAffordanceRow = SurfaceActionAffordanceRow;
-export type RefarmActionAffordanceSelectionReason =
-	SurfaceActionAffordanceSelectionReason;
-export type RefarmActionAffordanceSelectionSource =
-	SurfaceActionAffordanceSelectionSource;
-export type RefarmActionAffordanceSelectionMetadata =
-	SurfaceActionAffordanceSelectionMetadata;
-export type RefarmActionAffordanceSelectionResult =
-	SurfaceActionAffordanceSelectionResult;
-export type RefarmActionReadinessDryRunEnvelope =
-	SurfaceActionReadinessDryRunEnvelope;
-export type RefarmActionReadinessDryRunEnvelopeOptions =
-	SurfaceActionReadinessDryRunEnvelopeOptions;
-export type RefarmActionAffordanceSelectionFormatOptions =
-	SurfaceActionAffordanceSelectionFormatOptions;
-export type RefarmActionReadinessOutputOptions<
-	RendererKind extends string,
-> = SurfaceActionReadinessOutputOptions<RendererKind>;
+function createStatusSurfaceActionRequestActions(
+	status: StatusJson,
+): StatusSurfaceAction[] {
+	return getStatusAvailableSurfaceActions(status).map((action) => {
+		const command = getStatusSurfaceActionCommand(action);
+		return {
+			...action,
+			...(command ? { command } : {}),
+		};
+	});
+}
 
-export const getRefarmStatusAvailableActions =
-	getStatusAvailableSurfaceActions;
-export const createRefarmActionAffordanceRows =
-	createSurfaceActionAffordanceRows;
-export const resolveRefarmActionAffordanceSelection =
-	resolveSurfaceActionAffordanceSelection;
-export const formatRefarmActionAffordanceRows =
-	formatSurfaceActionAffordanceRows;
-export const createRefarmActionReadinessLine =
-	createSurfaceActionReadinessLine;
-export const createRefarmActionReadinessDryRunEnvelope =
-	createSurfaceActionReadinessDryRunEnvelope;
-export const createRefarmRendererActionDryRunEnvelope =
-	createRendererSurfaceActionDryRunEnvelope;
-export const formatRefarmActionReadinessOutput =
-	formatSurfaceActionReadinessOutput;
-export const formatRefarmActionAffordanceSelection =
-	formatSurfaceActionAffordanceSelection;
-export const formatRefarmActionIds = formatSurfaceActionIds;
-export const formatRefarmActionSelectionChoices =
-	formatSurfaceActionSelectionChoices;
+function getStatusSurfaceActionCommand(
+	action: StatusSurfaceAction,
+): string | undefined {
+	const explicitCommand = action.command?.trim();
+	if (explicitCommand) return explicitCommand;
+	const payloadCommand = action.payload?.command;
+	return typeof payloadCommand === "string" && payloadCommand.trim()
+		? payloadCommand.trim()
+		: undefined;
+}

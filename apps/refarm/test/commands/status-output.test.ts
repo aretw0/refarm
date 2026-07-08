@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-	emitRefarmStatusOutput,
+	emitStatusOutput,
 	resolveJsonMarkdownStatusOutputMode,
 	resolveStatusOutputMode,
 	STATUS_JSON_MARKDOWN_ERROR_MESSAGE,
@@ -93,21 +93,21 @@ describe("resolveStatusOutputMode", () => {
 	});
 });
 
-describe("emitRefarmStatusOutput", () => {
+describe("emitStatusOutput", () => {
 	it("emits json, markdown, or summary output based on mode", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const printSummary = vi.fn();
 		const status = makeStatus();
 
-		emitRefarmStatusOutput({ status, mode: "json", printSummary });
-		emitRefarmStatusOutput({ status, mode: "markdown", printSummary });
-		emitRefarmStatusOutput({ status, mode: "summary", printSummary });
+		emitStatusOutput({ status, mode: "json", printSummary });
+		emitStatusOutput({ status, mode: "markdown", printSummary });
+		emitStatusOutput({ status, mode: "summary", printSummary });
 
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("schemaVersion"),
 		);
 		expect(logSpy).toHaveBeenCalledWith(
-			expect.stringContaining("# Refarm Status"),
+			expect.stringContaining("# Status"),
 		);
 		expect(printSummary).toHaveBeenCalledWith(
 			expect.objectContaining({ schemaVersion: 1 }),

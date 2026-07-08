@@ -1,5 +1,5 @@
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import type { StatusJson } from "@refarm.dev/cli/status";
 import {
 	printRefarmLaunchBanner,
 	type RefarmLaunchExperience,
@@ -15,7 +15,7 @@ export interface ExecuteRendererLaunchFlowOptions<
 > {
 	launch?: boolean;
 	dryRun?: boolean;
-	status: RefarmStatusJson;
+	status: StatusJson;
 	launchGuardTarget: string;
 	bannerExperience: RefarmLaunchExperience;
 	dryRunRuntimeLabel: string;

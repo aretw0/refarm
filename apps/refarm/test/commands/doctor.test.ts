@@ -1,4 +1,4 @@
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import type { StatusJson } from "@refarm.dev/cli/status";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockResolveStatusPayload, mockShutdown } = vi.hoisted(() => ({
@@ -16,7 +16,7 @@ import {
 	doctorCommand,
 } from "../../src/commands/doctor.js";
 
-function makeStatus(diagnostics: string[]): RefarmStatusJson {
+function makeStatus(diagnostics: string[]): StatusJson {
 	return {
 		schemaVersion: 1 as const,
 		host: {

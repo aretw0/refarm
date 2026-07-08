@@ -7,9 +7,9 @@ import {
 	operatorResumeNextCommands,
 	operatorResumeNextProcesses,
 } from "./operator-resume.js";
-import type { RefarmStatusJson } from "./status.js";
+import type { StatusJson } from "./status.js";
 
-const status: RefarmStatusJson = {
+const status: StatusJson = {
 	schemaVersion: 1,
 	host: { app: "apps/refarm", command: "refarm", profile: "dev", mode: "headless" },
 	renderer: { id: "refarm-headless", kind: "headless", capabilities: [] },

@@ -50,16 +50,6 @@ export interface ExecutionPlanHandoffInput
 	processTemplate?: ApplicationProcessSpec;
 }
 
-export type RefarmExecutionPlanBase<
-	Action extends string,
-	Effects extends Record<string, unknown>,
-	Substrate extends { kind: string },
-> = ExecutionPlanBase<Action, Effects, Substrate>;
-export type RefarmExecutionPlanReadinessInput = ExecutionPlanReadinessInput;
-export type RefarmExecutionPlanReadinessLine = ExecutionPlanReadinessLine;
-export type RefarmExecutionPlanHandoff = ExecutionPlanHandoff;
-export type RefarmExecutionPlanHandoffInput = ExecutionPlanHandoffInput;
-
 export function formatExecutionPlanReadinessLine(
 	plan: ExecutionPlanReadinessInput,
 ): ExecutionPlanReadinessLine {

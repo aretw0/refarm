@@ -1,4 +1,4 @@
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import type { StatusJson } from "@refarm.dev/cli/status";
 import { describe, expect, it } from "vitest";
 import {
 	createWebSurfaceActionDryRunEnvelope,
@@ -9,11 +9,18 @@ import {
 } from "../../src/commands/web-actions.js";
 
 function makeStatus(
-	actions: RefarmStatusJson["plugins"]["availableActions"] = [
+	actions: StatusJson["plugins"]["availableActions"] = [
 		{ id: "open-node", label: "Open node", intent: "node:open" },
-		{ id: "inspect-trust", label: "Inspect trust" },
+		{
+			id: "inspect-trust",
+			label: "Inspect trust",
+			payload: {
+				command: "host status --action inspect-trust",
+				target: "trust",
+			},
+		},
 	],
-): RefarmStatusJson {
+): StatusJson {
 	return {
 		schemaVersion: 1,
 		host: {
@@ -106,8 +113,8 @@ Available Web actions:
 			renderer: "web",
 			nextAction: null,
 			nextActions: [],
-			nextCommand: null,
-			nextCommands: [],
+			nextCommand: "host status --action inspect-trust",
+			nextCommands: ["host status --action inspect-trust"],
 			selection: {
 				requested: "2",
 				source: "index",
@@ -115,6 +122,15 @@ Available Web actions:
 				index: 2,
 			},
 			selectedAction: expect.objectContaining({ id: "inspect-trust" }),
+			actionRequest: expect.objectContaining({
+				ok: true,
+				reason: "selected",
+				command: "host status --action inspect-trust",
+				payload: {
+					command: "host status --action inspect-trust",
+					target: "trust",
+				},
+			}),
 			actionRows: [
 				expect.objectContaining({ id: "open-node" }),
 				expect.objectContaining({ id: "inspect-trust" }),

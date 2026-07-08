@@ -1,24 +1,24 @@
+import type { StatusJson } from "@refarm.dev/cli/status";
 import { describe, expect, it, vi } from "vitest";
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
-	createRefarmStatusSurfaceActionHandler,
-	createRefarmStatusSurfaceActionInvocationEnvelope,
-	createRefarmStatusSurfaceRenderRequest,
-	invokeRefarmStatusSurfaceAction,
-	invokeRefarmStatusSurfaceActionSelection,
-	REFARM_STATUS_SURFACE_ID,
-	REFARM_STATUS_SURFACE_PLUGIN_ID,
-	REFARM_STATUS_SURFACE_SLOT_ID,
-	resolveRefarmStatusSurfaceActionRequest,
+	createStatusSurfaceActionHandler,
+	createStatusSurfaceActionInvocationEnvelope,
+	createStatusSurfaceRenderRequest,
+	invokeStatusSurfaceAction,
+	invokeStatusSurfaceActionSelection,
+	resolveStatusSurfaceActionRequest,
+	STATUS_SURFACE_ID,
+	STATUS_SURFACE_PLUGIN_ID,
+	STATUS_SURFACE_SLOT_ID,
 } from "../../src/commands/status-actions.js";
 import {
-	REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
-	REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+	STATUS_INSPECT_TRUST_ACTION_ID,
+	STATUS_OPEN_REPORT_ACTION_ID,
 } from "../../src/commands/status-surfaces.js";
 
 function makeStatus(
-	actions: RefarmStatusJson["plugins"]["availableActions"] = [],
-): RefarmStatusJson {
+	actions: StatusJson["plugins"]["availableActions"] = [],
+): StatusJson {
 	return {
 		schemaVersion: 1,
 		host: {
@@ -52,28 +52,28 @@ function makeStatus(
 
 const KNOWN_ACTIONS = [
 	{
-		id: REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+		id: STATUS_OPEN_REPORT_ACTION_ID,
 		label: "Open status report",
-		intent: "refarm:status-open",
+		intent: "status:open-report",
 	},
 	{
-		id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+		id: STATUS_INSPECT_TRUST_ACTION_ID,
 		label: "Inspect trust",
 		intent: "trust:inspect",
 	},
 ] as const;
 
-describe("Refarm status surface actions", () => {
+describe("status surface actions", () => {
 	it("creates a canonical status surface render request", () => {
-		expect(createRefarmStatusSurfaceRenderRequest()).toEqual({
-			pluginId: REFARM_STATUS_SURFACE_PLUGIN_ID,
-			slotId: REFARM_STATUS_SURFACE_SLOT_ID,
+		expect(createStatusSurfaceRenderRequest()).toEqual({
+			pluginId: STATUS_SURFACE_PLUGIN_ID,
+			slotId: STATUS_SURFACE_SLOT_ID,
 			mountSource: "legacy-ui-slot",
 			surface: {
 				layer: "homestead",
 				kind: "panel",
-				id: REFARM_STATUS_SURFACE_ID,
-				slot: REFARM_STATUS_SURFACE_SLOT_ID,
+				id: STATUS_SURFACE_ID,
+				slot: STATUS_SURFACE_SLOT_ID,
 			},
 			locale: "en",
 		});
@@ -81,22 +81,22 @@ describe("Refarm status surface actions", () => {
 
 	it("resolves live status action requests through Homestead envelope helpers", () => {
 		expect(
-			resolveRefarmStatusSurfaceActionRequest(
-				REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+			resolveStatusSurfaceActionRequest(
+				STATUS_INSPECT_TRUST_ACTION_ID,
 			),
 		).toMatchObject({
 			reason: "available",
 			request: {
-				pluginId: REFARM_STATUS_SURFACE_PLUGIN_ID,
-				slotId: REFARM_STATUS_SURFACE_SLOT_ID,
+				pluginId: STATUS_SURFACE_PLUGIN_ID,
+				slotId: STATUS_SURFACE_SLOT_ID,
 				action: {
-					id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+					id: STATUS_INSPECT_TRUST_ACTION_ID,
 					intent: "trust:inspect",
 				},
 				host: { hostId: "apps/refarm" },
 			},
 		});
-		expect(resolveRefarmStatusSurfaceActionRequest("missing-action")).toEqual({
+		expect(resolveStatusSurfaceActionRequest("missing-action")).toEqual({
 			reason: "missing-action",
 		});
 	});
@@ -105,29 +105,29 @@ describe("Refarm status surface actions", () => {
 		const observer = vi.fn();
 
 		await expect(
-			invokeRefarmStatusSurfaceAction(
-				REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+			invokeStatusSurfaceAction(
+				STATUS_OPEN_REPORT_ACTION_ID,
 				observer,
 			),
 		).resolves.toBe(true);
 		expect(observer).toHaveBeenCalledWith(
 			expect.objectContaining({
-				pluginId: REFARM_STATUS_SURFACE_PLUGIN_ID,
+				pluginId: STATUS_SURFACE_PLUGIN_ID,
 				action: expect.objectContaining({
-					id: REFARM_STATUS_OPEN_REPORT_ACTION_ID,
-					intent: "refarm:status-open",
+					id: STATUS_OPEN_REPORT_ACTION_ID,
+					intent: "status:open-report",
 				}),
 			}),
 		);
 
 		await expect(
-			invokeRefarmStatusSurfaceAction("missing-action", observer),
+			invokeStatusSurfaceAction("missing-action", observer),
 		).resolves.toBe(false);
 	});
 
 	it("invokes selected live status actions as deterministic result envelopes", async () => {
 		const observer = vi.fn();
-		const envelope = await invokeRefarmStatusSurfaceActionSelection({
+		const envelope = await invokeStatusSurfaceActionSelection({
 			status: makeStatus([...KNOWN_ACTIONS]),
 			selection: "2",
 			onAction: observer,
@@ -142,18 +142,18 @@ describe("Refarm status surface actions", () => {
 			selection: {
 				requested: "2",
 				source: "index",
-				resolvedId: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+				resolvedId: STATUS_INSPECT_TRUST_ACTION_ID,
 				index: 2,
 			},
 			actionRequest: {
-				action: { id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID },
+				action: { id: STATUS_INSPECT_TRUST_ACTION_ID },
 			},
 			handled: true,
 		});
 		expect(observer).toHaveBeenCalledWith(
 			expect.objectContaining({
 				action: expect.objectContaining({
-					id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+					id: STATUS_INSPECT_TRUST_ACTION_ID,
 				}),
 			}),
 		);
@@ -161,7 +161,7 @@ describe("Refarm status surface actions", () => {
 
 	it("fails selected live status invocation closed for unavailable selections", async () => {
 		await expect(
-			invokeRefarmStatusSurfaceActionSelection({
+			invokeStatusSurfaceActionSelection({
 				status: makeStatus([]),
 				selection: "missing-action",
 			}),
@@ -172,7 +172,7 @@ describe("Refarm status surface actions", () => {
 
 	it("rejects invocation when action is in affordances but has no live handler", async () => {
 		await expect(
-			invokeRefarmStatusSurfaceActionSelection({
+			invokeStatusSurfaceActionSelection({
 				status: makeStatus([
 					{ id: "plugin-custom-action", label: "Custom action" },
 				]),
@@ -185,9 +185,9 @@ describe("Refarm status surface actions", () => {
 
 	it("rejects actions outside the status action vocabulary", async () => {
 		const observer = vi.fn();
-		const handler = createRefarmStatusSurfaceActionHandler(observer);
-		const resolution = resolveRefarmStatusSurfaceActionRequest(
-			REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+		const handler = createStatusSurfaceActionHandler(observer);
+		const resolution = resolveStatusSurfaceActionRequest(
+			STATUS_INSPECT_TRUST_ACTION_ID,
 		);
 
 		await expect(
@@ -200,24 +200,24 @@ describe("Refarm status surface actions", () => {
 	});
 
 	it("creates deterministic status action invocation envelopes", () => {
-		const resolution = resolveRefarmStatusSurfaceActionRequest(
-			REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+		const resolution = resolveStatusSurfaceActionRequest(
+			STATUS_INSPECT_TRUST_ACTION_ID,
 		);
 
 		expect(
-			createRefarmStatusSurfaceActionInvocationEnvelope(
+			createStatusSurfaceActionInvocationEnvelope(
 				makeStatus(),
 				{
 					requested: "2",
 					source: "index",
-					resolvedId: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+					resolvedId: STATUS_INSPECT_TRUST_ACTION_ID,
 					index: 2,
 				},
 				resolution.request!,
 				true,
 				[
 					{
-						id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+						id: STATUS_INSPECT_TRUST_ACTION_ID,
 						label: "Inspect trust",
 						intent: "trust:inspect",
 					},
@@ -232,16 +232,16 @@ describe("Refarm status surface actions", () => {
 			selection: {
 				requested: "2",
 				source: "index",
-				resolvedId: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+				resolvedId: STATUS_INSPECT_TRUST_ACTION_ID,
 				index: 2,
 			},
 			actionRequest: {
-				action: { id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID },
+				action: { id: STATUS_INSPECT_TRUST_ACTION_ID },
 			},
 			handled: true,
 			availableActions: [
 				{
-					id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+					id: STATUS_INSPECT_TRUST_ACTION_ID,
 					label: "Inspect trust",
 					intent: "trust:inspect",
 				},

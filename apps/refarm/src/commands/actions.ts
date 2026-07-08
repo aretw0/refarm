@@ -1,5 +1,3 @@
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
-import { Command } from "commander";
 import {
 	createRendererSurfaceActionDryRunEnvelope,
 	createSurfaceActionAffordanceRows,
@@ -12,6 +10,8 @@ import {
 	type SurfaceActionAffordanceSelectionReason,
 	type SurfaceActionReadinessDryRunEnvelope,
 } from "@refarm.dev/cli/action-affordances";
+import type { StatusJson } from "@refarm.dev/cli/status";
+import { Command } from "commander";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import {
 	resolveStatusPayload,
@@ -32,7 +32,7 @@ export interface HostSurfaceActionSelectionResult {
 export type HostSurfaceActionDryRunEnvelope =
 	SurfaceActionReadinessDryRunEnvelope & {
 		command: "actions";
-		renderer: RefarmStatusJson["renderer"]["kind"];
+		renderer: StatusJson["renderer"]["kind"];
 	};
 
 export interface ActionsDeps {
@@ -50,20 +50,20 @@ interface ActionsOptions {
 }
 
 export function createHostSurfaceActionRows(
-	status: RefarmStatusJson,
+	status: StatusJson,
 ): HostSurfaceActionRow[] {
 	return createSurfaceActionAffordanceRows(status);
 }
 
 export function resolveHostSurfaceActionSelection(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	selection: string,
 ): HostSurfaceActionSelectionResult {
 	return resolveSurfaceActionAffordanceSelection(status, selection);
 }
 
 export function createHostSurfaceActionDryRunEnvelope(
-	status: RefarmStatusJson,
+	status: StatusJson,
 	selection?: HostSurfaceActionSelectionResult,
 ): HostSurfaceActionDryRunEnvelope {
 	return createRendererSurfaceActionDryRunEnvelope(

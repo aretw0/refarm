@@ -7,7 +7,7 @@ import {
 	buildJsonSuccessEnvelope,
 	type JsonSuccessEnvelope,
 } from "./json-output.js";
-import type { RefarmStatusJson } from "./status.js";
+import type { StatusJson } from "./status.js";
 
 export interface OperatorResumeModelRoute {
 	scope?: string;
@@ -132,7 +132,7 @@ export interface OperatorResumeEnvironmentPressure {
 }
 
 export interface OperatorResumeInput {
-	status?: RefarmStatusJson;
+	status?: StatusJson;
 	model?: OperatorResumeModelSummary;
 	project?: OperatorResumeProjectSummary | null;
 	taskCheckpoint?: OperatorResumeTaskCheckpoint | null;
@@ -155,7 +155,7 @@ export interface OperatorResumeTaskSummary {
 export interface OperatorResumeRuntimeSummary {
 	ready: boolean;
 	namespace: string;
-	engine?: RefarmStatusJson["runtime"]["engine"];
+	engine?: StatusJson["runtime"]["engine"];
 	diagnostics: readonly string[];
 }
 

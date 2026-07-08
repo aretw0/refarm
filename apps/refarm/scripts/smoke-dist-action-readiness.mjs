@@ -115,7 +115,7 @@ const webActions = runRefarm(["web", "--actions"]);
 assertIncludes(webActions, "Available Web actions:", "web --actions");
 assertIncludes(
 	webActions,
-	"[1] Open status report — open-status-report (refarm:status-open)",
+	"[1] Open status report — open-status-report (status:open-report)",
 	"web --actions",
 );
 assertIncludes(

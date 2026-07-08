@@ -1,13 +1,17 @@
-export type { RefarmStatusJson, RefarmStatusOptions } from "./status.js";
+export type {
+	StatusJson,
+	StatusOptions,
+	StatusSurfaceAction,
+} from "./status.js";
 export {
-	assertRefarmStatusJson,
-	buildRefarmStatusJson,
-	formatRefarmStatusJson,
-	formatRefarmStatusMarkdown,
-	getRefarmStatusSchemaVersionIssue,
-	isRefarmStatusJson,
-	parseRefarmStatusJson,
-	REFARM_STATUS_SCHEMA_VERSION,
+	assertStatusJson,
+	buildStatusJson,
+	formatStatusJson,
+	formatStatusMarkdown,
+	getStatusSchemaVersionIssue,
+	isStatusJson,
+	parseStatusJson,
+	STATUS_SCHEMA_VERSION,
 } from "./status.js";
 export {
 	applicationCommand,
@@ -212,46 +216,21 @@ export type {
 	ExecutionPlanHandoffInput,
 	ExecutionPlanReadinessInput,
 	ExecutionPlanReadinessLine,
-	RefarmExecutionPlanBase,
-	RefarmExecutionPlanHandoff,
-	RefarmExecutionPlanHandoffInput,
-	RefarmExecutionPlanReadinessInput,
-	RefarmExecutionPlanReadinessLine,
 } from "./execution-plan.js";
 export {
-	createRefarmActionAffordanceRows,
-	createRefarmActionReadinessDryRunEnvelope,
-	createRefarmActionReadinessLine,
-	createRefarmRendererActionDryRunEnvelope,
 	createSurfaceActionAffordanceRows,
 	createSurfaceActionReadinessDryRunEnvelope,
 	createSurfaceActionReadinessLine,
 	createRendererSurfaceActionDryRunEnvelope,
-	formatRefarmActionAffordanceRows,
-	formatRefarmActionAffordanceSelection,
-	formatRefarmActionIds,
-	formatRefarmActionReadinessOutput,
-	formatRefarmActionSelectionChoices,
 	formatSurfaceActionAffordanceRows,
 	formatSurfaceActionAffordanceSelection,
 	formatSurfaceActionIds,
 	formatSurfaceActionReadinessOutput,
 	formatSurfaceActionSelectionChoices,
-	getRefarmStatusAvailableActions,
 	getStatusAvailableSurfaceActions,
-	resolveRefarmActionAffordanceSelection,
 	resolveSurfaceActionAffordanceSelection,
 } from "./action-affordances.js";
 export type {
-	RefarmActionAffordanceRow,
-	RefarmActionAffordanceSelectionFormatOptions,
-	RefarmActionAffordanceSelectionMetadata,
-	RefarmActionAffordanceSelectionReason,
-	RefarmActionAffordanceSelectionResult,
-	RefarmActionAffordanceSelectionSource,
-	RefarmActionReadinessDryRunEnvelope,
-	RefarmActionReadinessDryRunEnvelopeOptions,
-	RefarmActionReadinessOutputOptions,
 	SurfaceActionAffordanceRow,
 	SurfaceActionAffordanceSelectionFormatOptions,
 	SurfaceActionAffordanceSelectionMetadata,
@@ -353,7 +332,6 @@ export {
 	buildReferenceDriverSupplyMap,
 	getCapabilityDescriptors,
 	CAPABILITY_INDEX_SCHEMA_VERSION,
-	REFARM_CAPABILITY_INDEX_SCHEMA_VERSION,
 } from "./capability-index.js";
 export type {
 	CapabilityActivation,
@@ -396,11 +374,6 @@ export type {
 } from "./process-handoff.js";
 export {
 	assertLaunchAllowed,
-	REFARM_RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-	REFARM_RUNTIME_DOCTOR_NEXT_COMMAND,
-	REFARM_RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-	REFARM_RUNTIME_NOT_READY_LAUNCH_HINT,
-	REFARM_RUNTIME_STATUS_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
@@ -410,7 +383,6 @@ export {
 } from "./launch-policy.js";
 export type {
 	LaunchReadiness,
-	RefarmLaunchReadiness,
 } from "./launch-policy.js";
 export {
 	parseChatLine,

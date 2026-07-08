@@ -1,23 +1,23 @@
-import { readFileSync } from "node:fs";
 import { createHomesteadHostRendererDescriptor } from "@refarm.dev/homestead/sdk/host-renderer";
 import { createNullRuntimeSummary } from "@refarm.dev/runtime";
 import { createNullTrustSummary } from "@refarm.dev/trust";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-	assertRefarmStatusJson,
-	buildRefarmStatusJson,
-	classifyRefarmStatusDiagnostics,
-	formatRefarmStatusJson,
-	formatRefarmStatusMarkdown,
-	formatRefarmStatusSummary,
-	getRefarmStatusSchemaVersionIssue,
-	isRefarmStatusJson,
-	parseRefarmStatusJson,
-	REFARM_STATUS_DIAGNOSTICS,
-	REFARM_STATUS_FAILURE_DIAGNOSTICS,
-	REFARM_STATUS_INFORMATIONAL_DIAGNOSTICS,
-	REFARM_STATUS_SCHEMA_VERSION,
-	REFARM_STATUS_WARNING_DIAGNOSTICS,
+	assertStatusJson,
+	buildStatusJson,
+	classifyStatusDiagnostics,
+	formatStatusJson,
+	formatStatusMarkdown,
+	formatStatusSummary,
+	getStatusSchemaVersionIssue,
+	isStatusJson,
+	parseStatusJson,
+	STATUS_DIAGNOSTICS,
+	STATUS_FAILURE_DIAGNOSTICS,
+	STATUS_INFORMATIONAL_DIAGNOSTICS,
+	STATUS_SCHEMA_VERSION,
+	STATUS_WARNING_DIAGNOSTICS,
 } from "./status.js";
 
 const STATUS_JSON_GOLDEN = readFileSync(
@@ -42,28 +42,28 @@ const BASE_OPTIONS = {
 	trust: createNullTrustSummary(),
 };
 
-describe("buildRefarmStatusJson", () => {
+describe("buildStatusJson", () => {
 	it("emits schemaVersion 1 always", () => {
-		expect(buildRefarmStatusJson(BASE_OPTIONS).schemaVersion).toBe(
-			REFARM_STATUS_SCHEMA_VERSION,
+		expect(buildStatusJson(BASE_OPTIONS).schemaVersion).toBe(
+			STATUS_SCHEMA_VERSION,
 		);
 	});
 
 	it("publishes stable status diagnostic code groups", () => {
-		expect(REFARM_STATUS_FAILURE_DIAGNOSTICS).toEqual([
-			REFARM_STATUS_DIAGNOSTICS.runtimeNotReady,
-			REFARM_STATUS_DIAGNOSTICS.trustCriticalPresent,
+		expect(STATUS_FAILURE_DIAGNOSTICS).toEqual([
+			STATUS_DIAGNOSTICS.runtimeNotReady,
+			STATUS_DIAGNOSTICS.trustCriticalPresent,
 		]);
-		expect(REFARM_STATUS_WARNING_DIAGNOSTICS).toContain(
-			REFARM_STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent,
+		expect(STATUS_WARNING_DIAGNOSTICS).toContain(
+			STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent,
 		);
-		expect(REFARM_STATUS_INFORMATIONAL_DIAGNOSTICS).toContain(
-			REFARM_STATUS_DIAGNOSTICS.pluginsSurfaceActionsAvailable,
+		expect(STATUS_INFORMATIONAL_DIAGNOSTICS).toContain(
+			STATUS_DIAGNOSTICS.pluginsSurfaceActionsAvailable,
 		);
 	});
 
 	it("maps host fields directly", () => {
-		expect(buildRefarmStatusJson(BASE_OPTIONS).host).toEqual({
+		expect(buildStatusJson(BASE_OPTIONS).host).toEqual({
 			app: "apps/refarm",
 			command: "refarm",
 			profile: "dev",
@@ -72,7 +72,7 @@ describe("buildRefarmStatusJson", () => {
 	});
 
 	it("maps renderer id, kind, and capabilities from descriptor", () => {
-		const result = buildRefarmStatusJson(BASE_OPTIONS);
+		const result = buildStatusJson(BASE_OPTIONS);
 		expect(result.renderer.id).toBe("refarm-headless");
 		expect(result.renderer.kind).toBe("headless");
 		expect(result.renderer.capabilities).toContain("telemetry");
@@ -80,7 +80,7 @@ describe("buildRefarmStatusJson", () => {
 	});
 
 	it("defaults all plugin counts to zero when no snapshot is provided", () => {
-		expect(buildRefarmStatusJson(BASE_OPTIONS).plugins).toEqual({
+		expect(buildStatusJson(BASE_OPTIONS).plugins).toEqual({
 			installed: 0,
 			active: 0,
 			rejectedSurfaces: 0,
@@ -89,7 +89,7 @@ describe("buildRefarmStatusJson", () => {
 	});
 
 	it("derives rejectedSurfaces and surfaceActions from snapshot surfaces", () => {
-		const result = buildRefarmStatusJson({
+		const result = buildStatusJson({
 			...BASE_OPTIONS,
 			plugins: {
 				surfaces: {
@@ -110,7 +110,7 @@ describe("buildRefarmStatusJson", () => {
 	});
 
 	it("prefers available surface actions over historical action telemetry", () => {
-		const result = buildRefarmStatusJson({
+		const result = buildStatusJson({
 			...BASE_OPTIONS,
 			plugins: {
 				surfaces: {
@@ -141,15 +141,43 @@ describe("buildRefarmStatusJson", () => {
 		]);
 	});
 
+	it("preserves invocable surface action payloads for readiness handoff", () => {
+		const command = "host action run open-node";
+		const result = buildStatusJson({
+			...BASE_OPTIONS,
+			plugins: {
+				surfaces: {
+					availableActions: [
+						{
+							id: "open-node",
+							label: "Open node",
+							intent: "node:open",
+							payload: { command, target: "node" },
+						},
+					],
+				},
+			},
+		});
+
+		expect(result.plugins.availableActions).toEqual([
+			{
+				id: "open-node",
+				label: "Open node",
+				intent: "node:open",
+				payload: { command, target: "node" },
+			},
+		]);
+	});
+
 	it("defaults streams to zero when not provided", () => {
-		expect(buildRefarmStatusJson(BASE_OPTIONS).streams).toEqual({
+		expect(buildStatusJson(BASE_OPTIONS).streams).toEqual({
 			active: 0,
 			terminal: 0,
 		});
 	});
 
 	it("maps streams active and terminal from stream state", () => {
-		const result = buildRefarmStatusJson({
+		const result = buildStatusJson({
 			...BASE_OPTIONS,
 			streams: { active: 3, terminal: 1 },
 		});
@@ -157,14 +185,14 @@ describe("buildRefarmStatusJson", () => {
 	});
 
 	it("adds renderer and runtime diagnostics for headless null-runtime snapshots", () => {
-		const diagnostics = buildRefarmStatusJson(BASE_OPTIONS).diagnostics;
+		const diagnostics = buildStatusJson(BASE_OPTIONS).diagnostics;
 		expect(diagnostics).toContain("renderer:non-interactive");
 		expect(diagnostics).toContain("renderer:no-rich-html");
 		expect(diagnostics).toContain("runtime:not-ready");
 	});
 
 	it("adds an informational diagnostic when surface actions are available", () => {
-		const diagnostics = buildRefarmStatusJson({
+		const diagnostics = buildStatusJson({
 			...BASE_OPTIONS,
 			plugins: {
 				surfaces: {
@@ -181,7 +209,7 @@ describe("buildRefarmStatusJson", () => {
 			"refarm-web",
 			"web",
 		);
-		const diagnostics = buildRefarmStatusJson({
+		const diagnostics = buildStatusJson({
 			...BASE_OPTIONS,
 			renderer: webRenderer,
 		}).diagnostics;
@@ -191,7 +219,7 @@ describe("buildRefarmStatusJson", () => {
 	});
 
 	it("passes through null trust and runtime stubs unchanged", () => {
-		const result = buildRefarmStatusJson(BASE_OPTIONS);
+		const result = buildStatusJson(BASE_OPTIONS);
 		expect(result.trust).toEqual({ profile: "dev", warnings: 0, critical: 0 });
 		expect(result.runtime).toEqual({
 			ready: false,
@@ -201,7 +229,7 @@ describe("buildRefarmStatusJson", () => {
 	});
 
 	it("preserves optional tractor engine runtime details", () => {
-		const result = buildRefarmStatusJson({
+		const result = buildStatusJson({
 			...BASE_OPTIONS,
 			runtime: {
 				ready: true,
@@ -218,11 +246,11 @@ describe("buildRefarmStatusJson", () => {
 			configuredEngine: "auto",
 			activeEngine: "ts",
 		});
-		expect(formatRefarmStatusJson(result)).toContain('"engine": {');
+		expect(formatStatusJson(result)).toContain('"engine": {');
 	});
 
 	it("flags trust, plugin, and stream pressure diagnostics", () => {
-		const diagnostics = buildRefarmStatusJson({
+		const diagnostics = buildStatusJson({
 			...BASE_OPTIONS,
 			trust: { profile: "strict", warnings: 1, critical: 2 },
 			streams: { active: 2, terminal: 1 },
@@ -242,23 +270,23 @@ describe("buildRefarmStatusJson", () => {
 });
 
 describe("status contract validation", () => {
-	it("accepts payloads built by buildRefarmStatusJson", () => {
-		const json = buildRefarmStatusJson(BASE_OPTIONS);
-		expect(isRefarmStatusJson(json)).toBe(true);
-		expect(() => assertRefarmStatusJson(json)).not.toThrow();
+	it("accepts payloads built by buildStatusJson", () => {
+		const json = buildStatusJson(BASE_OPTIONS);
+		expect(isStatusJson(json)).toBe(true);
+		expect(() => assertStatusJson(json)).not.toThrow();
 	});
 
 	it("rejects payloads with incompatible schemaVersion", () => {
-		const json = buildRefarmStatusJson(BASE_OPTIONS);
+		const json = buildStatusJson(BASE_OPTIONS);
 		const invalid = { ...json, schemaVersion: 2 };
-		expect(isRefarmStatusJson(invalid)).toBe(false);
-		expect(() => assertRefarmStatusJson(invalid)).toThrow(
-			/Unsupported Refarm status schemaVersion=2/,
+		expect(isStatusJson(invalid)).toBe(false);
+		expect(() => assertStatusJson(invalid)).toThrow(
+			/Unsupported status schemaVersion=2/,
 		);
 	});
 
 	it("validates optional available action details", () => {
-		const json = buildRefarmStatusJson({
+		const json = buildStatusJson({
 			...BASE_OPTIONS,
 			plugins: {
 				surfaces: {
@@ -269,9 +297,9 @@ describe("status contract validation", () => {
 			},
 		});
 
-		expect(isRefarmStatusJson(json)).toBe(true);
+		expect(isStatusJson(json)).toBe(true);
 		expect(
-			isRefarmStatusJson({
+			isStatusJson({
 				...json,
 				plugins: {
 					...json.plugins,
@@ -282,7 +310,7 @@ describe("status contract validation", () => {
 	});
 
 	it("validates optional tractor engine details", () => {
-		const json = buildRefarmStatusJson({
+		const json = buildStatusJson({
 			...BASE_OPTIONS,
 			runtime: {
 				ready: true,
@@ -295,9 +323,9 @@ describe("status contract validation", () => {
 			},
 		});
 
-		expect(isRefarmStatusJson(json)).toBe(true);
+		expect(isStatusJson(json)).toBe(true);
 		expect(
-			isRefarmStatusJson({
+			isStatusJson({
 				...json,
 				runtime: {
 					...json.runtime,
@@ -308,63 +336,63 @@ describe("status contract validation", () => {
 	});
 
 	it("rejects payloads with malformed renderer capabilities", () => {
-		const json = buildRefarmStatusJson(BASE_OPTIONS);
+		const json = buildStatusJson(BASE_OPTIONS);
 		const invalid = {
 			...json,
 			renderer: { ...json.renderer, capabilities: ["surfaces", 1] },
 		};
-		expect(isRefarmStatusJson(invalid)).toBe(false);
+		expect(isStatusJson(invalid)).toBe(false);
 	});
 
 	it("provides explicit upgrade guidance for newer schema versions", () => {
-		const json = buildRefarmStatusJson(BASE_OPTIONS);
-		const issue = getRefarmStatusSchemaVersionIssue({
+		const json = buildStatusJson(BASE_OPTIONS);
+		const issue = getStatusSchemaVersionIssue({
 			...json,
-			schemaVersion: REFARM_STATUS_SCHEMA_VERSION + 1,
+			schemaVersion: STATUS_SCHEMA_VERSION + 1,
 		});
 		expect(issue?.reason).toBe("newer");
 		expect(issue?.message).toMatch(/Upgrade @refarm.dev\/cli/);
 	});
 
 	it("provides regeneration guidance for older schema versions", () => {
-		const json = buildRefarmStatusJson(BASE_OPTIONS);
-		const issue = getRefarmStatusSchemaVersionIssue({
+		const json = buildStatusJson(BASE_OPTIONS);
+		const issue = getStatusSchemaVersionIssue({
 			...json,
-			schemaVersion: REFARM_STATUS_SCHEMA_VERSION - 1,
+			schemaVersion: STATUS_SCHEMA_VERSION - 1,
 		});
 		expect(issue?.reason).toBe("older");
 		expect(issue?.message).toMatch(/Regenerate with a newer status producer/);
 	});
 
 	it("parses valid status json strings", () => {
-		const json = buildRefarmStatusJson(BASE_OPTIONS);
-		const parsed = parseRefarmStatusJson(formatRefarmStatusJson(json));
+		const json = buildStatusJson(BASE_OPTIONS);
+		const parsed = parseStatusJson(formatStatusJson(json));
 		expect(parsed).toEqual(json);
 	});
 
 	it("fails with actionable error on newer parsed schema", () => {
-		const json = buildRefarmStatusJson(BASE_OPTIONS);
+		const json = buildStatusJson(BASE_OPTIONS);
 		const newerPayload = JSON.stringify({
 			...json,
-			schemaVersion: REFARM_STATUS_SCHEMA_VERSION + 1,
+			schemaVersion: STATUS_SCHEMA_VERSION + 1,
 		});
 
-		expect(() => parseRefarmStatusJson(newerPayload)).toThrow(
+		expect(() => parseStatusJson(newerPayload)).toThrow(
 			/Upgrade @refarm.dev\/cli/,
 		);
 	});
 
 	it("fails for non-json strings", () => {
-		expect(() => parseRefarmStatusJson("not-json")).toThrow(
-			/Invalid JSON for Refarm status payload/,
+		expect(() => parseStatusJson("not-json")).toThrow(
+			/Invalid JSON for status payload/,
 		);
 	});
 });
 
-describe("classifyRefarmStatusDiagnostics", () => {
+describe("classifyStatusDiagnostics", () => {
 	it("splits diagnostics into failure, warning and informational groups", () => {
-		const summary = classifyRefarmStatusDiagnostics(
-			buildRefarmStatusJson({
+		const summary = classifyStatusDiagnostics(
+			buildStatusJson({
 				...BASE_OPTIONS,
 				trust: { profile: "strict", warnings: 1, critical: 1 },
 				streams: { active: 1, terminal: 0 },
@@ -391,8 +419,8 @@ describe("classifyRefarmStatusDiagnostics", () => {
 	});
 
 	it("supports caller-provided severity overrides", () => {
-		const summary = classifyRefarmStatusDiagnostics(
-			buildRefarmStatusJson(BASE_OPTIONS),
+		const summary = classifyStatusDiagnostics(
+			buildStatusJson(BASE_OPTIONS),
 			{
 				failureCodes: ["renderer:no-rich-html"],
 				warningCodes: ["runtime:not-ready"],
@@ -404,16 +432,16 @@ describe("classifyRefarmStatusDiagnostics", () => {
 	});
 });
 
-describe("formatRefarmStatusMarkdown", () => {
+describe("formatStatusMarkdown", () => {
 	it("renders a markdown report with diagnostics list", () => {
-		const report = formatRefarmStatusMarkdown(
-			buildRefarmStatusJson(BASE_OPTIONS),
+		const report = formatStatusMarkdown(
+			buildStatusJson(BASE_OPTIONS),
 		);
 		expect(report.startsWith("---\nschemaVersion: 1\nhost:\n")).toBe(true);
 		expect(report).toContain(
 			'renderer:\n  id: "refarm-headless"\n  kind: "headless"',
 		);
-		expect(report).toContain("# Refarm Status");
+		expect(report).toContain("# Status");
 		expect(report).toContain("- Schema: v1");
 		expect(report).toContain("- Surfaces: 0 rejected, 0 actions");
 		expect(report).toContain("## Available Actions\n- none");
@@ -422,8 +450,8 @@ describe("formatRefarmStatusMarkdown", () => {
 	});
 
 	it("renders available action details in markdown reports", () => {
-		const report = formatRefarmStatusMarkdown(
-			buildRefarmStatusJson({
+		const report = formatStatusMarkdown(
+			buildStatusJson({
 				...BASE_OPTIONS,
 				plugins: {
 					surfaces: {
@@ -445,8 +473,8 @@ describe("formatRefarmStatusMarkdown", () => {
 			"refarm-web",
 			"web",
 		);
-		const report = formatRefarmStatusMarkdown(
-			buildRefarmStatusJson({
+		const report = formatStatusMarkdown(
+			buildStatusJson({
 				...BASE_OPTIONS,
 				renderer: webRenderer,
 				runtime: {
@@ -460,10 +488,10 @@ describe("formatRefarmStatusMarkdown", () => {
 	});
 });
 
-describe("formatRefarmStatusSummary", () => {
+describe("formatStatusSummary", () => {
 	it("renders a deterministic operator summary", () => {
-		const summary = formatRefarmStatusSummary(
-			buildRefarmStatusJson(BASE_OPTIONS),
+		const summary = formatStatusSummary(
+			buildStatusJson(BASE_OPTIONS),
 		);
 		expect(summary).toContain("Host:      apps/refarm (headless)");
 		expect(summary).toContain("Renderer:  refarm-headless (headless)");
@@ -473,8 +501,8 @@ describe("formatRefarmStatusSummary", () => {
 	});
 
 	it("renders tractor engine details in operator summaries", () => {
-		const summary = formatRefarmStatusSummary(
-			buildRefarmStatusJson({
+		const summary = formatStatusSummary(
+			buildStatusJson({
 				...BASE_OPTIONS,
 				runtime: {
 					ready: true,
@@ -494,8 +522,8 @@ describe("formatRefarmStatusSummary", () => {
 	});
 
 	it("renders available action details in operator summaries", () => {
-		const summary = formatRefarmStatusSummary(
-			buildRefarmStatusJson({
+		const summary = formatStatusSummary(
+			buildStatusJson({
 				...BASE_OPTIONS,
 				plugins: {
 					surfaces: {
@@ -516,8 +544,8 @@ describe("formatRefarmStatusSummary", () => {
 			"refarm-web",
 			"web",
 		);
-		const summary = formatRefarmStatusSummary(
-			buildRefarmStatusJson({
+		const summary = formatStatusSummary(
+			buildStatusJson({
 				...BASE_OPTIONS,
 				renderer: webRenderer,
 				runtime: {
@@ -531,14 +559,14 @@ describe("formatRefarmStatusSummary", () => {
 	});
 });
 
-describe("formatRefarmStatusJson", () => {
+describe("formatStatusJson", () => {
 	it("matches the schema v1 golden snapshot", () => {
-		const json = buildRefarmStatusJson(BASE_OPTIONS);
-		expect(formatRefarmStatusJson(json)).toBe(STATUS_JSON_GOLDEN);
+		const json = buildStatusJson(BASE_OPTIONS);
+		expect(formatStatusJson(json)).toBe(STATUS_JSON_GOLDEN);
 	});
 
 	it("preserves optional available action details in canonical JSON", () => {
-		const json = buildRefarmStatusJson({
+		const json = buildStatusJson({
 			...BASE_OPTIONS,
 			plugins: {
 				surfaces: {
@@ -549,8 +577,8 @@ describe("formatRefarmStatusJson", () => {
 			},
 		});
 
-		expect(formatRefarmStatusJson(json)).toContain('"availableActions": [');
-		expect(parseRefarmStatusJson(formatRefarmStatusJson(json))).toMatchObject({
+		expect(formatStatusJson(json)).toContain('"availableActions": [');
+		expect(parseStatusJson(formatStatusJson(json))).toMatchObject({
 			plugins: {
 				availableActions: [
 					{ id: "open-node", label: "Open node", intent: "node:open" },
@@ -560,7 +588,7 @@ describe("formatRefarmStatusJson", () => {
 	});
 
 	it("normalizes key ordering for equivalent payloads", () => {
-		const base = buildRefarmStatusJson(BASE_OPTIONS);
+		const base = buildStatusJson(BASE_OPTIONS);
 		const scrambled: typeof base = {
 			diagnostics: [...base.diagnostics],
 			streams: { ...base.streams },
@@ -585,8 +613,8 @@ describe("formatRefarmStatusJson", () => {
 			schemaVersion: base.schemaVersion,
 		};
 
-		expect(formatRefarmStatusJson(scrambled)).toBe(
-			formatRefarmStatusJson(base),
+		expect(formatStatusJson(scrambled)).toBe(
+			formatStatusJson(base),
 		);
 	});
 });
