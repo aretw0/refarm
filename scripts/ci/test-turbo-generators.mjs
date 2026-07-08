@@ -444,6 +444,43 @@ test("turbo generators expose app scaffolds for astro, cli, and service hosts", 
 	assert.match(cliTest, /buildRegistry/);
 	assert.match(cliTest, /expect\(buildProgram\(\)\.name\(\)\)\.toBe\("field"\)/);
 
+	const serviceData = {
+		name: "field-service",
+		type: "service",
+		description: "Field service app",
+		commandName: "field-service",
+		pascalName: "FieldService",
+		camelName: "fieldService",
+	};
+	const servicePackageTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/app-service/package.json.hbs"),
+		"utf8",
+	);
+	const servicePackage = JSON.parse(render(servicePackageTemplate, serviceData));
+	assert.equal(servicePackage.dependencies["@refarm.dev/capability-host"], "workspace:*");
+	assert.equal(servicePackage.dependencies["@refarm.dev/capabilities-v1"], "workspace:*");
+	assert.equal(servicePackage.dependencies["@refarm.dev/stream-contract-v1"], undefined);
+
+	const serviceTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/app-service/src/index.ts.hbs"),
+		"utf8",
+	);
+	const service = render(serviceTemplate, serviceData);
+	assert.match(service, /defineCapabilityApp/);
+	assert.match(service, /defineCapabilityHost/);
+	assert.match(service, /serveFieldService/);
+	assert.match(service, /fieldServiceApp\.host\(\)\.serve/);
+	assert.doesNotMatch(service, /createServer/);
+
+	const serviceTestTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/app-service/src/index.test.ts.hbs"),
+		"utf8",
+	);
+	const serviceTest = render(serviceTestTemplate, serviceData);
+	assert.match(serviceTest, /buildFieldServiceHost/);
+	assert.match(serviceTest, /buildRegistry/);
+	assert.match(serviceTest, /surfaceActions\(\)/);
+
 	for (const type of ["app-astro", "app-cli", "app-service"]) {
 		const packageTemplate = join(ROOT, `turbo/generators/templates/${type}/package.json.hbs`);
 		assert.doesNotThrow(() => readFileSync(packageTemplate, "utf8"), `${type} package template missing`);

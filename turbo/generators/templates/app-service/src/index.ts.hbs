@@ -1,24 +1,81 @@
-import { createServer } from "node:http";
+import {
+	createLocalVaultCommandDeps,
+	defaultRecordsDeps,
+	defaultSourceDeps,
+	type CapabilityDeps,
+} from "@refarm.dev/capabilities-v1";
+import {
+	defineCapabilityApp,
+	defineCapabilityHost,
+	type CapabilityHost,
+	type CapabilityHostServeCallOptions,
+} from "@refarm.dev/capability-host";
 
-export function build{{pascalName}}Health() {
+export function {{camelName}}CapabilityDeps(): CapabilityDeps {
 	return {
-		schemaVersion: 1,
-		service: "{{name}}",
-		ok: true,
-		summary: "{{description}}",
+		source: defaultSourceDeps(),
+		vault: createLocalVaultCommandDeps(),
+		records: defaultRecordsDeps(),
 	};
 }
 
-export function create{{pascalName}}Server() {
-	return createServer((_req, res) => {
-		res.setHeader("content-type", "application/json");
-		res.end(JSON.stringify(build{{pascalName}}Health()));
+export function build{{pascalName}}Host(): CapabilityHost {
+	return defineCapabilityHost({
+		id: "apps/{{name}}",
+		command: "{{commandName}}",
+		description: "{{description}}",
+		version: "0.1.0",
+		capabilities: {
+			deps: {{camelName}}CapabilityDeps(),
+		},
+		operatorStatus: {
+			summary: "Show {{name}} service status",
+			httpPath: "/status",
+			capabilityUnit: {
+				subject: "{{pascalName}} Service",
+				action: {
+					id: "open-status",
+					label: "{{commandName}} status --json",
+					intent: "{{name}}:status",
+					command: "{{commandName}} status --json",
+					primary: true,
+				},
+			},
+		},
+		serve: {
+			defaultPort: 4321,
+			description: "Serve {{name}} capabilities over HTTP",
+		},
 	});
+}
+
+const {{camelName}}App = defineCapabilityApp({
+	host: build{{pascalName}}Host,
+});
+
+export const buildRegistry = {{camelName}}App.registry;
+
+export function build{{pascalName}}Health() {
+	return {
+		...{{camelName}}App.baseModel(),
+		schemaVersion: 1,
+		service: "{{name}}",
+	};
+}
+
+export function serve{{pascalName}}(options: CapabilityHostServeCallOptions = {}) {
+	return {{camelName}}App.host().serve(options);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
 	const port = Number(process.env.PORT ?? "4321");
-	create{{pascalName}}Server().listen(port, "127.0.0.1", () => {
-		console.log(`{{name}} listening on http://127.0.0.1:${port}`);
-	});
+	const { listening } = serve{{pascalName}}({ port });
+	void listening
+		.then(({ port: actualPort }) => {
+			console.log(`{{name}} listening on http://127.0.0.1:${actualPort}`);
+		})
+		.catch((error: unknown) => {
+			console.error(error);
+			process.exitCode = 1;
+		});
 }
