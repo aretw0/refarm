@@ -7,8 +7,8 @@
   "main": "./pkg/{{name}}.js",
   "types": "./pkg/{{name}}.js",
   "scripts": {
-    "build:wasm": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_{{snakeCase name}}.wasm dist/refarm_{{snakeCase name}}.wasm component build --target wasm32-wasip1 --release",
-    "build:transpile": "jco transpile dist/refarm_{{snakeCase name}}.wasm -o pkg --name {{name}}",
+    "build:wasm": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_{{snakeName}}.wasm dist/refarm_{{snakeName}}.wasm component build --target wasm32-wasip1 --release",
+    "build:transpile": "jco transpile dist/refarm_{{snakeName}}.wasm -o pkg --name {{name}}",
     "build": "npm run build:wasm && npm run build:transpile",
     "test": "node ../../scripts/ci/cargo-run.mjs test -- --test-threads=1"
   }

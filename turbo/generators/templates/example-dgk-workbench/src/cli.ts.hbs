@@ -1,0 +1,73 @@
+#!/usr/bin/env node
+import {
+	defineCapabilityHost,
+	type CapabilityHost,
+} from "@refarm.dev/capability-host";
+
+import {
+	{{constantName}}_MANIFEST,
+	createCapturingSubmit,
+	create{{pascalName}}Capability,
+	{{camelName}}CapabilityDeps,
+} from "./persona.js";
+
+export function build{{pascalName}}Host(): CapabilityHost {
+	const pluginDeps = {
+		submitEffort: createCapturingSubmit(),
+		newId: () => globalThis.crypto.randomUUID(),
+		nowIso: () => new Date().toISOString(),
+	};
+
+	return defineCapabilityHost({
+		id: "examples/{{name}}",
+		command: "{{commandName}}",
+		description: "{{description}}",
+		version: "0.0.0",
+		capabilities: {
+			deps: {{camelName}}CapabilityDeps(),
+			manifests: [{{constantName}}_MANIFEST],
+			pluginDeps,
+			extensions: [create{{pascalName}}Capability(pluginDeps)],
+		},
+		operatorStatus: {
+			summary: "Show {{personaTitle}} operator status",
+			httpPath: "/{{personaVerb}}/status",
+			capabilityUnit: {
+				subject: "{{personaTitle}}",
+				action: {
+					id: "open-{{personaVerb}}",
+					label: "{{commandName}} {{personaVerb}} --json",
+					intent: "{{personaVerb}}:inspect",
+					command: "{{commandName}} {{personaVerb}} --json",
+					primary: true,
+				},
+			},
+		},
+		serve: {
+			defaultPort: {{defaultPort}},
+			description: "Serve {{personaTitle}} verbs over HTTP",
+		},
+	});
+}
+
+export function buildRegistry() {
+	return build{{pascalName}}Host().registry();
+}
+
+export function buildProgram(): ReturnType<CapabilityHost["program"]> {
+	return build{{pascalName}}Host().program();
+}
+
+const isMain =
+	process.argv[1] !== undefined &&
+	(import.meta.url === `file://${process.argv[1]}` ||
+		import.meta.url.endsWith("/cli.js"));
+
+if (isMain) {
+	buildProgram()
+		.parseAsync(process.argv)
+		.catch((error: unknown) => {
+			console.error(error);
+			process.exitCode = 1;
+		});
+}

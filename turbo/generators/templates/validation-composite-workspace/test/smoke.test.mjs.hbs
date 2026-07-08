@@ -1,0 +1,8 @@
+#!/usr/bin/env node
+import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import test from "node:test";
+
+test("{{name}} has a nested host workspace", () => {
+	assert.equal(existsSync(new URL("../host/package.json", import.meta.url)), true);
+});

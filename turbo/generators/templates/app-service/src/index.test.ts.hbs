@@ -1,0 +1,13 @@
+import { describe, expect, it } from "vitest";
+
+import { build{{pascalName}}Health } from "./index.js";
+
+describe("{{name}} service app", () => {
+	it("emits a stable health envelope", () => {
+		expect(build{{pascalName}}Health()).toMatchObject({
+			schemaVersion: 1,
+			service: "{{name}}",
+			ok: true,
+		});
+	});
+});

@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+import { build{{pascalName}}Evidence } from "./{{name}}.mjs";
+
+test("{{name}} emits the expected validation evidence", () => {
+	const actual = build{{pascalName}}Evidence();
+	const expected = JSON.parse(
+		readFileSync(new URL("./fixtures/expected/proof.json", import.meta.url), "utf8"),
+	);
+
+	assert.deepEqual(actual, expected);
+});

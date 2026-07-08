@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+import { mkdirSync, writeFileSync } from "node:fs";
+
+const evidence = {
+	schemaVersion: 1,
+	validation: "{{name}}",
+	ok: true,
+	summary: "{{description}}",
+};
+
+mkdirSync(new URL("../evidence/", import.meta.url), { recursive: true });
+writeFileSync(
+	new URL("../evidence/componentize-attempt.json", import.meta.url),
+	`${JSON.stringify(evidence, null, 2)}\n`,
+);
+console.log(JSON.stringify(evidence, null, 2));

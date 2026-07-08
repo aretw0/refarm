@@ -1,0 +1,14 @@
+{
+  "name": "@refarm.dev/{{name}}",
+  "version": "0.1.0",
+  "private": true,
+  "description": "{{description}}",
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/ci/cargo-run.mjs component build --target wasm32-wasip1 --release",
+    "lint": "node ../../scripts/ci/cargo-run.mjs clippy -- -D warnings",
+    "test": "node ../../scripts/ci/cargo-run.mjs test",
+    "test:unit": "node ../../scripts/ci/cargo-run.mjs test",
+    "test:integration": "echo 'No integration tests configured for {{name}}'"
+  }
+}

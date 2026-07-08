@@ -1,0 +1,11 @@
+# {{name}}
+
+{{description}}
+
+This validation proof emits a deterministic evidence packet and compares it
+against the files in `fixtures/expected/`.
+
+```bash
+node validations/{{name}}/{{name}}.mjs
+node --test validations/{{name}}/{{name}}.test.mjs
+```

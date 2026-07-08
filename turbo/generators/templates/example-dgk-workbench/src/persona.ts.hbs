@@ -1,0 +1,53 @@
+import {
+	createLocalVaultCommandDeps,
+	defaultRecordsDeps,
+	defaultSourceDeps,
+	definePluginInspectorCapability,
+	type CapabilityDescriptor,
+	type PluginDescriptorDeps,
+	type RefarmCapabilityDeps,
+	type SubmitEffort,
+	type SurfaceableManifest,
+} from "@refarm.dev/capabilities-v1";
+
+export const {{constantName}}_MANIFEST: SurfaceableManifest = {
+	id: "@{{name}}/{{personaVerb}}",
+	capabilities: {
+		provides: ["{{personaVerb}}:draft", "{{personaVerb}}:review"],
+		subscribes: ["{{personaVerb}}:dispatch"],
+	},
+};
+
+export function createCapturingSubmit(): SubmitEffort & {
+	readonly submitted: ReadonlyArray<{ id: string; fn: string }>;
+} {
+	const submitted: Array<{ id: string; fn: string }> = [];
+	const submit = (async (effort) => {
+		submitted.push({ id: effort.id, fn: effort.tasks[0]?.fn ?? "" });
+		return effort.id;
+	}) as SubmitEffort & { submitted: typeof submitted };
+	Object.defineProperty(submit, "submitted", { value: submitted });
+	return submit;
+}
+
+export function {{camelName}}CapabilityDeps(): RefarmCapabilityDeps {
+	return {
+		source: defaultSourceDeps(),
+		vault: createLocalVaultCommandDeps(),
+		records: defaultRecordsDeps(),
+	};
+}
+
+export function create{{pascalName}}Capability(
+	pluginDeps: PluginDescriptorDeps,
+): CapabilityDescriptor {
+	return definePluginInspectorCapability({
+		name: "{{personaVerb}}",
+		summary: "Inspect the {{personaTitle}} extension and its surfaced verbs",
+		manifest: {{constantName}}_MANIFEST,
+		deps: pluginDeps,
+		httpPath: "/{{personaVerb}}/inspect",
+		note:
+			"Declared once in the manifest; projected through the shared capability host.",
+	});
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@refarm.dev/{{name}}",
+  "version": "0.1.0",
+  "private": true,
+  "description": "{{description}}",
+  "type": "module",
+  "bin": {
+    "{{commandName}}": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit",
+    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*",
+    "@refarm.dev/vtconfig": "workspace:*"
+  }
+}

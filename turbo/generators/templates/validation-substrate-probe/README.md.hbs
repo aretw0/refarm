@@ -1,0 +1,11 @@
+# {{name}}
+
+{{description}}
+
+This validation probes a host substrate and stores the current expected evidence
+under `evidence/probe-current.json`.
+
+```bash
+node validations/{{name}}/run-probe.mjs --json
+node --test validations/{{name}}/probe.test.mjs
+```

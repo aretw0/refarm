@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { GET } from "../src/pages/health.json.js";
+
+test("{{name}} health handler returns a validation envelope", async () => {
+	const body = await (await GET()).json();
+	assert.equal(body.validation, "{{name}}");
+	assert.equal(body.ok, true);
+});

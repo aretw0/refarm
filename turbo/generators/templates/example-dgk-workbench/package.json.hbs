@@ -1,0 +1,25 @@
+{
+  "name": "{{name}}",
+  "version": "0.0.0",
+  "private": true,
+  "description": "{{description}}",
+  "type": "module",
+  "bin": {
+    "{{commandName}}": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "{{commandName}}": "node dist/cli.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@refarm.dev/capability-host": "workspace:*",
+    "@refarm.dev/capabilities-v1": "workspace:*"
+  },
+  "devDependencies": {
+    "@refarm.dev/tsconfig": "workspace:*",
+    "@refarm.dev/vtconfig": "workspace:*"
+  }
+}

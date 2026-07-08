@@ -1,0 +1,14 @@
+#!/usr/bin/env node
+
+export function build{{pascalName}}Status() {
+	return {
+		schemaVersion: 1,
+		command: "{{commandName}}",
+		ok: true,
+		summary: "{{description}}",
+	};
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+	console.log(JSON.stringify(build{{pascalName}}Status(), null, 2));
+}

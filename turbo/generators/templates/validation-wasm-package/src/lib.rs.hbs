@@ -1,0 +1,13 @@
+pub fn validation_name() -> &'static str {
+    "{{name}}"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exposes_validation_name() {
+        assert_eq!(validation_name(), "{{name}}");
+    }
+}

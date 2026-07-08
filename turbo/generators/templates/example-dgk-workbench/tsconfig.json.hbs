@@ -1,0 +1,23 @@
+{
+	"extends": [
+		"../../tsconfig.json",
+		"../../packages/tsconfig/buildable.json"
+	],
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src",
+		"baseUrl": "../..",
+		"paths": {
+			"@refarm.dev/capability-host": [
+				"packages/capability-host/dist/index.d.ts"
+			],
+			"@refarm.dev/capabilities-v1": [
+				"packages/capabilities-v1/dist/index.d.ts"
+			]
+		}
+	},
+	"include": [
+		"src/**/*"
+	],
+	"exclude": ["node_modules", "dist"]
+}

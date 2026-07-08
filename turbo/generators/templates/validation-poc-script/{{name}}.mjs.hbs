@@ -1,0 +1,15 @@
+#!/usr/bin/env node
+
+export function build{{pascalName}}Evidence() {
+	return {
+		schemaVersion: 1,
+		validation: "{{name}}",
+		ok: true,
+		summary: "{{description}}",
+		findings: [],
+	};
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+	console.log(JSON.stringify(build{{pascalName}}Evidence(), null, 2));
+}

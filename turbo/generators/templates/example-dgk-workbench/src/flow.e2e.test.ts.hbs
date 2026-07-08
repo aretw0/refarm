@@ -1,0 +1,51 @@
+import { createCapabilityTestHarness } from "@refarm.dev/capabilities-v1/testing";
+import { describe, expect, it } from "vitest";
+
+import { build{{pascalName}}Host, buildRegistry } from "./cli.js";
+
+const harness = createCapabilityTestHarness();
+
+describe("{{name}} DGK workbench", () => {
+	it("mounts neutral capabilities and the {{personaTitle}} extension", () => {
+		const names = buildRegistry().list().map((entry) => entry.name);
+		expect(names).toEqual(
+			expect.arrayContaining([
+				"source",
+				"records",
+				"vault",
+				"{{personaVerb}}",
+				"draft",
+				"review",
+				"status",
+				"actions",
+			]),
+		);
+	});
+
+	it("declares dgk as the white-label host and exposes surface actions", () => {
+		const host = build{{pascalName}}Host();
+		expect(host.program().name()).toBe("{{commandName}}");
+		expect(host.baseModel()).toMatchObject({
+			command: "{{commandName}}",
+			operation: "base",
+			nextCommand: "{{commandName}} {{personaVerb}} --json",
+		});
+		expect(host.surfaceActions()).toEqual([
+			expect.objectContaining({
+				id: "open-{{personaVerb}}",
+				intent: "{{personaVerb}}:inspect",
+				payload: expect.objectContaining({
+					command: "{{commandName}} {{personaVerb}} --json",
+				}),
+			}),
+		]);
+	});
+
+	it("shows what the extension declares and what the host surfaced", async () => {
+		const env = await harness.runVerb(buildRegistry(), "{{personaVerb}}");
+		expect(env.ok).toBe(true);
+		expect(env.declared).toEqual(["{{personaVerb}}:draft", "{{personaVerb}}:review"]);
+		const surfaced = (env.surfaced as Array<{ verb: string }>).map((s) => s.verb).sort();
+		expect(surfaced).toEqual(["draft", "review"]);
+	});
+});

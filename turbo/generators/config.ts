@@ -8,6 +8,12 @@ function toPascalCase(kebab: string): string {
     .join("");
 }
 
+/** MyContractV1 → myContractV1 */
+function toCamelCase(kebab: string): string {
+  const pascal = toPascalCase(kebab);
+  return pascal.charAt(0).toLowerCase() + pascal.slice(1);
+}
+
 export default function generator(plop: PlopTypes.NodePlopAPI): void {
   plop.setGenerator("package", {
     description: "Scaffold a new @refarm.dev package",
@@ -61,6 +67,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
 
       // SCREAMING_SNAKE_CASE: my-contract-v1 → MY_CONTRACT_V1
       data.constantName = name.replace(/-/g, "_").toUpperCase();
+      data.snakeName = name.replace(/-/g, "_");
       // PascalCase: my-contract-v1 → MyContractV1
       data.pascalName = toPascalCase(name);
       data.privateStr = data.private ? "true" : "false";
@@ -148,6 +155,170 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
       }
 
       return actions;
+    },
+  });
+
+  plop.setGenerator("example", {
+    description: "Scaffold a DGK example workbench",
+    prompts: [
+      {
+        type: "input",
+        name: "name",
+        message: "Example name (without examples/, e.g. garden-lab):",
+        validate: (v: string) =>
+          /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(v) || "Use lowercase kebab-case",
+      },
+      {
+        type: "list",
+        name: "type",
+        message: "Example type:",
+        choices: ["dgk-workbench"],
+        default: "dgk-workbench",
+      },
+      {
+        type: "input",
+        name: "description",
+        message: "Description:",
+      },
+      {
+        type: "input",
+        name: "personaVerb",
+        message: "Persona verb (e.g. wallet, requirements, extension):",
+        validate: (v: string) =>
+          /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(v) || "Use lowercase kebab-case",
+      },
+      {
+        type: "input",
+        name: "personaTitle",
+        message: "Persona title (e.g. Wallet, Requirements):",
+      },
+      {
+        type: "input",
+        name: "defaultPort",
+        message: "Default serve port:",
+        default: "4321",
+        validate: (v: string) => /^\d+$/.test(v) || "Use a numeric port",
+      },
+    ],
+    actions(data) {
+      if (!data) return [];
+      const { name, type } = data;
+      const templateDir = `templates/example-${type}`;
+
+      data.commandName = "dgk";
+      data.constantName = name.replace(/-/g, "_").toUpperCase();
+      data.pascalName = toPascalCase(name);
+      data.camelName = toCamelCase(name);
+      data.personaTitle = data.personaTitle || toPascalCase(data.personaVerb);
+
+      return [
+        {
+          type: "addMany",
+          destination: "examples/{{name}}",
+          templateFiles: `${templateDir}/**`,
+          base: templateDir,
+          globOptions: { dot: true },
+        },
+      ];
+    },
+  });
+
+  plop.setGenerator("validation", {
+    description: "Scaffold a validation proof",
+    prompts: [
+      {
+        type: "input",
+        name: "name",
+        message: "Validation name (without validations/, e.g. availability-proof):",
+        validate: (v: string) =>
+          /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(v) || "Use lowercase kebab-case",
+      },
+      {
+        type: "list",
+        name: "type",
+        message: "Validation type:",
+        choices: [
+          "poc-script",
+          "fixture-poc-script",
+          "astro-wasi",
+          "substrate-probe",
+          "wasm-package",
+          "composite-workspace",
+        ],
+        default: "poc-script",
+      },
+      {
+        type: "input",
+        name: "description",
+        message: "Description:",
+      },
+    ],
+    actions(data) {
+      if (!data) return [];
+      const { name, type } = data;
+      const templateDir = `templates/validation-${type}`;
+
+      data.pascalName = toPascalCase(name);
+      data.camelName = toCamelCase(name);
+      data.snakeName = name.replace(/-/g, "_");
+
+      return [
+        {
+          type: "addMany",
+          destination: "validations/{{name}}",
+          templateFiles: `${templateDir}/**`,
+          base: templateDir,
+          globOptions: { dot: true },
+        },
+      ];
+    },
+  });
+
+  plop.setGenerator("app", {
+    description: "Scaffold a Refarm app host",
+    prompts: [
+      {
+        type: "input",
+        name: "name",
+        message: "App name (without apps/, e.g. field-console):",
+        validate: (v: string) =>
+          /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(v) || "Use lowercase kebab-case",
+      },
+      {
+        type: "list",
+        name: "type",
+        message: "App type:",
+        choices: ["astro", "cli", "service"],
+      },
+      {
+        type: "input",
+        name: "description",
+        message: "Description:",
+      },
+      {
+        type: "input",
+        name: "commandName",
+        message: "CLI/service command name:",
+      },
+    ],
+    actions(data) {
+      if (!data) return [];
+      const { name, type } = data;
+      const templateDir = `templates/app-${type}`;
+
+      data.commandName = data.commandName || name;
+      data.pascalName = toPascalCase(name);
+      data.camelName = toCamelCase(name);
+
+      return [
+        {
+          type: "addMany",
+          destination: "apps/{{name}}",
+          templateFiles: `${templateDir}/**`,
+          base: templateDir,
+          globOptions: { dot: true },
+        },
+      ];
     },
   });
 }

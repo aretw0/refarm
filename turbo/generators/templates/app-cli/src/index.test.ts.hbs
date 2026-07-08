@@ -1,0 +1,13 @@
+import { describe, expect, it } from "vitest";
+
+import { build{{pascalName}}Status } from "./index.js";
+
+describe("{{name}} CLI app", () => {
+	it("emits a stable status envelope", () => {
+		expect(build{{pascalName}}Status()).toMatchObject({
+			schemaVersion: 1,
+			command: "{{commandName}}",
+			ok: true,
+		});
+	});
+});

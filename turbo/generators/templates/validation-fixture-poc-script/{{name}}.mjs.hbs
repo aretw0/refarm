@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+
+export function build{{pascalName}}EvidencePacket() {
+	const scorecard = {
+		schemaVersion: 1,
+		validation: "{{name}}",
+		ok: true,
+		summary: "{{description}}",
+		evidence: ["scenario.md", "task-artifacts.json"],
+	};
+	const taskArtifacts = {
+		schemaVersion: 1,
+		validation: "{{name}}",
+		artifacts: [
+			{
+				id: "{{name}}:scorecard",
+				path: "fixtures/expected/scorecard.json",
+				kind: "scorecard",
+			},
+		],
+	};
+
+	return { scorecard, taskArtifacts };
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+	console.log(JSON.stringify(build{{pascalName}}EvidencePacket(), null, 2));
+}
