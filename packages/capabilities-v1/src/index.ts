@@ -49,6 +49,10 @@ export {
 	type CapabilityDeps,
 } from "./builtin-capabilities.js";
 export {
+	createLocalCapabilityDeps,
+	type LocalCapabilityDepsOptions,
+} from "./local-deps.js";
+export {
 	buildDispatchEffort,
 	definePluginInspectorCapability,
 	parseDispatchArgs,

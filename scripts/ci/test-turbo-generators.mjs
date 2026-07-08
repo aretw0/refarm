@@ -297,9 +297,11 @@ test("turbo generators expose a DGK example workbench scaffold", async () => {
 		"utf8",
 	);
 	const cli = render(cliTemplate, data);
+	assert.match(cli, /createLocalCapabilityDeps/);
 	assert.match(cli, /defineCapabilityApp/);
 	assert.match(cli, /defineCapabilityHost/);
 	assert.doesNotMatch(cli, /runCapabilityHostCli/);
+	assert.doesNotMatch(cli, /createLocalVaultCommandDeps|defaultRecordsDeps|defaultSourceDeps/);
 	assert.match(cli, /command: "dgk"/);
 	assert.match(cli, /buildGardenLabHost/);
 	assert.match(cli, /const gardenLabApp = defineCapabilityApp/);
@@ -312,9 +314,10 @@ test("turbo generators expose a DGK example workbench scaffold", async () => {
 		"utf8",
 	);
 	const persona = render(personaTemplate, data);
-	assert.match(persona, /type CapabilityDeps/);
+	assert.doesNotMatch(persona, /CapabilityDeps/);
 	assert.doesNotMatch(persona, /\bRefarmCapabilityDeps\b/);
-	assert.match(persona, /function gardenLabCapabilityDeps\(\): CapabilityDeps/);
+	assert.doesNotMatch(persona, /createLocalVaultCommandDeps|defaultRecordsDeps|defaultSourceDeps/);
+	assert.doesNotMatch(persona, /function gardenLabCapabilityDeps/);
 
 	const readmeTemplate = readFileSync(
 		join(ROOT, "turbo/generators/templates/example-dgk-workbench/README.md.hbs"),
@@ -426,9 +429,10 @@ test("turbo generators expose app scaffolds for astro, cli, and service hosts", 
 		"utf8",
 	);
 	const cli = render(cliTemplate, data);
+	assert.match(cli, /createLocalCapabilityDeps/);
 	assert.match(cli, /defineCapabilityApp/);
 	assert.match(cli, /defineCapabilityHost/);
-	assert.match(cli, /createLocalVaultCommandDeps/);
+	assert.doesNotMatch(cli, /createLocalVaultCommandDeps|defaultRecordsDeps|defaultSourceDeps/);
 	assert.match(cli, /command: "field"/);
 	assert.match(cli, /buildFieldConsoleHost/);
 	assert.match(cli, /const fieldConsoleApp = defineCapabilityApp/);
@@ -466,11 +470,13 @@ test("turbo generators expose app scaffolds for astro, cli, and service hosts", 
 		"utf8",
 	);
 	const service = render(serviceTemplate, serviceData);
+	assert.match(service, /createLocalCapabilityDeps/);
 	assert.match(service, /defineCapabilityApp/);
 	assert.match(service, /defineCapabilityHost/);
 	assert.match(service, /serveFieldService/);
 	assert.match(service, /fieldServiceApp\.host\(\)\.serve/);
 	assert.doesNotMatch(service, /createServer/);
+	assert.doesNotMatch(service, /createLocalVaultCommandDeps|defaultRecordsDeps|defaultSourceDeps/);
 
 	const serviceTestTemplate = readFileSync(
 		join(ROOT, "turbo/generators/templates/app-service/src/index.test.ts.hbs"),

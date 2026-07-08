@@ -1,8 +1,5 @@
 import {
-	createLocalVaultCommandDeps,
-	defaultRecordsDeps,
-	defaultSourceDeps,
-	type CapabilityDeps,
+	createLocalCapabilityDeps,
 } from "@refarm.dev/capabilities-v1";
 import {
 	defineCapabilityApp,
@@ -11,14 +8,6 @@ import {
 	type CapabilityHostServeCallOptions,
 } from "@refarm.dev/capability-host";
 
-export function {{camelName}}CapabilityDeps(): CapabilityDeps {
-	return {
-		source: defaultSourceDeps(),
-		vault: createLocalVaultCommandDeps(),
-		records: defaultRecordsDeps(),
-	};
-}
-
 export function build{{pascalName}}Host(): CapabilityHost {
 	return defineCapabilityHost({
 		id: "apps/{{name}}",
@@ -26,7 +15,7 @@ export function build{{pascalName}}Host(): CapabilityHost {
 		description: "{{description}}",
 		version: "0.1.0",
 		capabilities: {
-			deps: {{camelName}}CapabilityDeps(),
+			deps: createLocalCapabilityDeps(),
 		},
 		operatorStatus: {
 			summary: "Show {{name}} service status",

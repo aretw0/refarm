@@ -12,6 +12,7 @@ describe("capabilities-v1 naming boundary", () => {
 			readSource("builtin-capabilities.ts"),
 			readSource("host.ts"),
 			readSource("index.ts"),
+			readSource("local-deps.ts"),
 			readSource("mount.ts"),
 		].join("\n");
 
