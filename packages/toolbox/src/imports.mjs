@@ -57,6 +57,43 @@ export function changedSourceFiles(root = process.cwd()) {
 export function organizeImportText(fileName, text, root = process.cwd()) {
   const absolute = path.resolve(root, fileName);
   let currentText = text;
+  const snapshots = new Map([[absolute, ts.ScriptSnapshot.fromString(currentText)]]);
+  const updateSnapshot = (next) => {
+    currentText = next;
+    snapshots.set(absolute, ts.ScriptSnapshot.fromString(currentText));
+  };
+  const service = createLanguageService(root, [absolute], snapshots);
+  updateSnapshot(organizeImportTextWithService(service, absolute, currentText));
+  return normalizeMultilineNamedBindingIndent(currentText);
+}
+
+export function organizeImports(files, { root = process.cwd(), check = false } = {}) {
+  const changed = [];
+  const entries = [];
+  const snapshots = new Map();
+  for (const file of uniqueSourceFiles(files, root)) {
+    const absolute = path.join(root, file);
+    if (!fs.existsSync(absolute)) continue;
+    const current = fs.readFileSync(absolute, "utf8");
+    entries.push({ file, absolute, current });
+    snapshots.set(path.resolve(absolute), ts.ScriptSnapshot.fromString(current));
+  }
+  const service = createLanguageService(root, entries.map((entry) => entry.absolute), snapshots);
+  for (const entry of entries) {
+    const organized = normalizeMultilineNamedBindingIndent(
+      organizeImportTextWithService(service, entry.absolute, entry.current),
+    );
+    if (organized === entry.current) continue;
+    changed.push(entry.file);
+    if (!check) {
+      fs.writeFileSync(entry.absolute, organized, "utf8");
+      snapshots.set(path.resolve(entry.absolute), ts.ScriptSnapshot.fromString(organized));
+    }
+  }
+  return changed;
+}
+
+function organizeImportTextWithService(service, absolute, currentText) {
   const sourceFile = ts.createSourceFile(
     absolute,
     currentText,
@@ -69,43 +106,23 @@ export function organizeImportText(fileName, text, root = process.cwd()) {
       start: statement.getFullStart(),
       end: statement.end,
     }));
-  const snapshots = new Map([[absolute, ts.ScriptSnapshot.fromString(currentText)]]);
-  const updateSnapshot = (next) => {
-    currentText = next;
-    snapshots.set(absolute, ts.ScriptSnapshot.fromString(currentText));
-  };
-  const service = createLanguageService(root, absolute, snapshots);
   const changes = service.organizeImports(
     { type: "file", fileName: absolute },
     ORGANIZE_FORMAT_SETTINGS,
     {},
   );
-
+  let nextText = currentText;
   for (const fileChanges of changes) {
-    if (path.resolve(fileChanges.fileName) !== absolute) continue;
+    if (path.resolve(fileChanges.fileName) !== path.resolve(absolute)) continue;
     const importTextChanges = fileChanges.textChanges.filter((change) =>
       textChangeOverlapsSpans(change, importSpans),
     );
-    updateSnapshot(applyTextChanges(currentText, importTextChanges));
+    nextText = applyTextChanges(nextText, importTextChanges);
   }
-  return normalizeMultilineNamedBindingIndent(currentText);
+  return nextText;
 }
 
-export function organizeImports(files, { root = process.cwd(), check = false } = {}) {
-  const changed = [];
-  for (const file of uniqueSourceFiles(files, root)) {
-    const absolute = path.join(root, file);
-    if (!fs.existsSync(absolute)) continue;
-    const current = fs.readFileSync(absolute, "utf8");
-    const organized = organizeImportText(file, current, root);
-    if (organized === current) continue;
-    changed.push(file);
-    if (!check) fs.writeFileSync(absolute, organized, "utf8");
-  }
-  return changed;
-}
-
-function createLanguageService(root, absolute, snapshots) {
+function createLanguageService(root, absolutes, snapshots) {
   const compilerOptions = {
     allowJs: true,
     checkJs: false,
@@ -119,7 +136,7 @@ function createLanguageService(root, absolute, snapshots) {
     getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
     getDirectories: ts.sys.getDirectories,
     getNewLine: () => "\n",
-    getScriptFileNames: () => [absolute],
+    getScriptFileNames: () => absolutes,
     getScriptSnapshot(filePath) {
       const resolved = path.resolve(filePath);
       if (snapshots.has(resolved)) return snapshots.get(resolved);

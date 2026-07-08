@@ -568,6 +568,11 @@ describe("agent command", () => {
 				command: "refarm tidy imports --check --json",
 				args: ["tidy", "imports", "--check", "--json"],
 				effect: "verify",
+				process: expect.objectContaining({
+					command: "node",
+					args: ["packages/toolbox/src/cli.mjs", "imports", "--check"],
+					tool: "toolbox",
+				}),
 			}),
 			expect.objectContaining({
 				id: "check",
@@ -1298,8 +1303,8 @@ describe("agent command", () => {
 			};
 		};
 		expect(payload.ok).toBe(true);
-		expect(runRefarm).toHaveBeenCalledTimes(2);
-		expect(runProcess).toHaveBeenCalledTimes(1);
+		expect(runRefarm).toHaveBeenCalledTimes(1);
+		expect(runProcess).toHaveBeenCalledTimes(2);
 		expect(payload.steps.map((step) => step.id)).toContain("package-validation");
 		expect(payload.steps.at(-1)?.cache).toMatchObject({
 			cached: 34,
@@ -1427,8 +1432,8 @@ describe("agent command", () => {
 			lane: "handoffs",
 			validationScope: "contract",
 		});
-		expect(runRefarm).toHaveBeenCalledTimes(2);
-		expect(runProcess).toHaveBeenCalledTimes(1);
+		expect(runRefarm).toHaveBeenCalledTimes(1);
+		expect(runProcess).toHaveBeenCalledTimes(2);
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
 			"check",

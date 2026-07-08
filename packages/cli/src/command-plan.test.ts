@@ -167,6 +167,26 @@ describe("command plan runner", () => {
 		expect(runStep).toHaveBeenCalledTimes(2);
 	});
 
+	it("records elapsed time for each step and summary", () => {
+		vi.spyOn(Date, "now")
+			.mockReturnValueOnce(100)
+			.mockReturnValueOnce(125)
+			.mockReturnValueOnce(200)
+			.mockReturnValueOnce(260);
+		const runStep = vi.fn((step: CommandPlanStep) => ({
+			...step,
+			ok: true,
+			exitCode: 0,
+			stdout: JSON.stringify({ ok: true }),
+			stderr: "",
+			payload: { ok: true },
+		}));
+
+		const result = runCommandPlan(steps, runStep);
+		expect(result.steps.map((step) => step.elapsedMs)).toEqual([25, 60]);
+		expect(commandPlanStepSummary(result.steps[0]!).elapsedMs).toBe(25);
+	});
+
 	it("stops at the first failing step and forwards payload handoffs", () => {
 		const runStep = vi
 			.fn()

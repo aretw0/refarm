@@ -310,47 +310,98 @@ async function findNodeSubstrateSourceAccessIssues(
 	root: string,
 ): Promise<NodeSubstrateCheck["sourceAccessIssues"]> {
 	const trackedFiles = await readGitTrackedFiles(root);
+	return findSourceAccessIssuesForPaths(root, trackedFiles);
+}
+
+interface SourceAccessStat {
+	uid: number;
+	gid: number;
+	mode: number;
+	isSymbolicLink(): boolean;
+	isFile(): boolean;
+}
+
+interface SourceAccessFileSystem {
+	lstat(path: string): Promise<SourceAccessStat>;
+	stat(path: string): Promise<unknown>;
+	access(path: string, mode?: number): Promise<void>;
+}
+
+export async function findSourceAccessIssuesForPaths(
+	root: string,
+	trackedFiles: string[],
+	options: {
+		concurrency?: number;
+		fs?: SourceAccessFileSystem;
+		limit?: number;
+	} = {},
+): Promise<NodeSubstrateCheck["sourceAccessIssues"]> {
+	const fsApi = options.fs ?? fs;
+	const concurrency = Math.max(1, Math.floor(options.concurrency ?? 32));
+	const limit = Math.max(1, Math.floor(options.limit ?? 200));
+	const candidates = trackedFiles.filter(isSourceOwnershipCandidate);
 	const issues: NodeSubstrateCheck["sourceAccessIssues"] = [];
-	for (const relativePath of trackedFiles) {
-		if (!isSourceOwnershipCandidate(relativePath)) continue;
+
+	let nextIndex = 0;
+	async function worker(): Promise<void> {
+		while (issues.length < limit) {
+			const index = nextIndex;
+			nextIndex += 1;
+			const relativePath = candidates[index];
+			if (!relativePath) return;
+			const issue = await findSourceAccessIssue(root, relativePath, fsApi);
+			if (issue) issues.push(issue);
+		}
+	}
+
+	await Promise.all(
+		Array.from(
+			{ length: Math.min(concurrency, candidates.length) },
+			() => worker(),
+		),
+	);
+	return issues.slice(0, limit);
+}
+
+async function findSourceAccessIssue(
+	root: string,
+	relativePath: string,
+	fsApi: SourceAccessFileSystem,
+): Promise<NodeSubstrateCheck["sourceAccessIssues"][number] | null> {
 		const absolutePath = path.join(root, relativePath);
 		try {
-			const lstat = await fs.lstat(absolutePath);
+			const lstat = await fsApi.lstat(absolutePath);
 			if (lstat.isSymbolicLink()) {
 				try {
-					await fs.stat(absolutePath);
+					await fsApi.stat(absolutePath);
 				} catch {
-					issues.push({
+					return {
 						path: relativePath,
 						reason: "broken-symlink",
 						uid: lstat.uid,
 						gid: lstat.gid,
 						mode: (lstat.mode & 0o777).toString(8).padStart(3, "0"),
-					});
-					if (issues.length >= 200) break;
-					continue;
+					};
 				}
 			} else if (!lstat.isFile()) {
-				continue;
+				return null;
 			}
-			await fs.access(absolutePath, fsConstants.W_OK);
+			await fsApi.access(absolutePath, fsConstants.W_OK);
 		} catch {
 			try {
-				const stat = await fs.lstat(absolutePath);
-				issues.push({
+				const stat = await fsApi.lstat(absolutePath);
+				return {
 					path: relativePath,
 					reason: "not-writable",
 					uid: stat.uid,
 					gid: stat.gid,
 					mode: (stat.mode & 0o777).toString(8).padStart(3, "0"),
-				});
+				};
 			} catch {
-				issues.push({ path: relativePath, reason: "missing" });
+				return { path: relativePath, reason: "missing" };
 			}
-			if (issues.length >= 200) break;
 		}
-	}
-	return issues;
+	return null;
 }
 
 function isSourceOwnershipCandidate(relativePath: string): boolean {

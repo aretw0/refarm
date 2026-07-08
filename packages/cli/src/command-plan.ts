@@ -96,6 +96,7 @@ export interface CommandPlanStepCacheObservation extends CommandPlanCacheObserva
 export interface CommandPlanStepRunResult extends CommandPlanStep {
 	ok: boolean;
 	exitCode: number;
+	elapsedMs?: number;
 	stdout: string;
 	stderr: string;
 	payload?: unknown;
@@ -137,6 +138,7 @@ export interface CommandPlanStepSummary {
 	description: string;
 	ok: boolean;
 	exitCode: number;
+	elapsedMs?: number;
 	effect?: CommandPlanEffect;
 	process?: CommandPlanStep["process"];
 	payload?: unknown;
@@ -277,6 +279,7 @@ export function commandPlanStepSummary(
 		description: step.description,
 		ok: step.ok,
 		exitCode: step.exitCode,
+		...(step.elapsedMs !== undefined ? { elapsedMs: step.elapsedMs } : {}),
 		...(step.effect ? { effect: step.effect } : {}),
 		...(step.process ? { process: step.process } : {}),
 		...(step.payload !== undefined ? { payload: commandPlanPayloadSummary(step.payload) } : {}),
@@ -310,6 +313,7 @@ export function runCommandPlanCliStep(
 	args: string[],
 	options: CommandPlanCliStepRunOptions,
 ): CommandPlanStepRunResult {
+	const startedAt = Date.now();
 	const result = spawnSync(options.executable, [options.entrypoint, ...args], {
 		cwd: options.cwd ?? process.cwd(),
 		env: options.env ?? process.env,
@@ -332,6 +336,7 @@ export function runCommandPlanCliStep(
 		description: options.description ?? "CLI command execution result.",
 		ok: exitCode === 0,
 		exitCode,
+		elapsedMs: Date.now() - startedAt,
 		stdout,
 		stderr,
 		...(payload !== undefined ? { payload } : {}),
@@ -345,6 +350,7 @@ export function runCommandPlanProcessStep(
 	if (!step.process) {
 		throw new Error(`Command plan step ${step.id} has no process metadata.`);
 	}
+	const startedAt = Date.now();
 	const result = spawnSync(step.process.command, step.process.args, {
 		cwd: step.process.cwd ?? options.cwd ?? process.cwd(),
 		env: options.env ?? process.env,
@@ -356,6 +362,7 @@ export function runCommandPlanProcessStep(
 		...step,
 		ok: exitCode === 0,
 		exitCode,
+		elapsedMs: Date.now() - startedAt,
 		stdout: result.stdout ?? "",
 		stderr: commandPlanSpawnErrorMessage(
 			result.stderr,
@@ -416,7 +423,9 @@ export function runCommandPlan(
 				recommendations: resourceCeiling.recommendations ?? [],
 			};
 		}
+		const startedAt = Date.now();
 		const observed = runStep(executableStep);
+		const elapsedMs = Math.max(0, Date.now() - startedAt);
 		const result = {
 			...observed,
 			id: executableStep.id,
@@ -424,6 +433,7 @@ export function runCommandPlan(
 			args: executableStep.args,
 			description: executableStep.description,
 			effect: executableStep.effect,
+			elapsedMs,
 		};
 		const payloadOk = commandPayloadOk(result.payload);
 		const ok = result.exitCode === 0 && payloadOk !== false;

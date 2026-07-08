@@ -122,6 +122,40 @@ function finishStep(
 	};
 }
 
+function tidyImportsStep(check: boolean): CommandPlanStep {
+	const repoRoot = findWorkspaceRoot();
+	const toolboxArgs = [
+		"packages/toolbox/src/cli.mjs",
+		"imports",
+		...(check ? ["--check"] : []),
+	];
+	return {
+		id: check ? "tidy-imports-check" : "tidy-imports",
+		command: refarmCommand([
+			"tidy",
+			"imports",
+			...(check ? ["--check"] : []),
+			"--json",
+		]),
+		args: ["tidy", "imports", ...(check ? ["--check"] : []), "--json"],
+		description: check
+			? "Check import organization after the editing slice."
+			: "Organize imports after the editing slice.",
+		effect: check ? "verify" : "write",
+		process: {
+			command: "node",
+			args: toolboxArgs,
+			cwd: repoRoot,
+			display: ["node", ...toolboxArgs].join(" "),
+			packageManager: null,
+			resourcePolicy: {
+				workClass: "focused-check",
+			},
+			tool: "toolbox",
+		},
+	};
+}
+
 function packageScriptStep(
 	workspace: string,
 	script: string,
@@ -167,17 +201,8 @@ function findWorkspaceRoot(cwd = process.cwd()): string {
 }
 
 const agentFinishSteps = [
-	finishStep(
-		"tidy-imports",
-		["tidy", "imports", "--json"],
-		"Organize imports after the editing slice.",
-		"write",
-	),
-	finishStep(
-		"tidy-imports-check",
-		["tidy", "imports", "--check", "--json"],
-		"Check import organization after the editing slice.",
-	),
+	tidyImportsStep(false),
+	tidyImportsStep(true),
 	finishStep(
 		"check",
 		["check", "--next-action", "--json"],

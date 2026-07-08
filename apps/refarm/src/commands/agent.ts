@@ -1,3 +1,7 @@
+import {
+	buildCommandPlanRunEnvelope,
+} from "@refarm.dev/cli/command-plan";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 import { Command } from "commander";
 import {
 	buildAgentFinishPlanEnvelope,
@@ -37,9 +41,6 @@ import {
 	type AgentFinishLane,
 } from "./agent-handoff-plan.js";
 import {
-	buildCommandPlanRunEnvelope,
-} from "@refarm.dev/cli/command-plan";
-import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
 	MODEL_DOCTOR_JSON_COMMAND,
@@ -48,7 +49,6 @@ import {
 	RESUME_JSON_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
 
 export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
 	const resolvedDeps: AgentCommandDeps = {
@@ -57,6 +57,9 @@ export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
 		finishRecorder: createAgentFinishSessionRecorder(),
 		...deps,
 	};
+	if (deps?.runRefarm && !deps.runProcess) {
+		resolvedDeps.runProcess = (step) => deps.runRefarm!(step.args);
+	}
 	// Agent runtime commands (status, repl, start/stop) live here.
 	// Plugin lifecycle (install, update, list) is in `refarm plugin`.
 	const command = new Command("agent").description(

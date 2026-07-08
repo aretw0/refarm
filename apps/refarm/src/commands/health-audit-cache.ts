@@ -79,26 +79,13 @@ function buildGitHealthAuditFingerprint(
     if (gitRoot !== root) return null;
     const hash = createHealthFingerprintHash(root, policyReport);
     appendHealthFingerprintValue(hash, "git:head", readGitCommand(["rev-parse", "HEAD"], { cwd: root }));
-    appendHealthFingerprintValue(
-      hash,
-      "git:status",
-      readGitCommand(["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root }),
-    );
-    appendHealthFingerprintValue(
-      hash,
-      "git:diff",
-      readGitCommand(["diff", "--no-ext-diff", "--binary", "--"], { cwd: root }),
-    );
-    appendHealthFingerprintValue(
-      hash,
-      "git:diff-cached",
-      readGitCommand(["diff", "--cached", "--no-ext-diff", "--binary", "--"], { cwd: root }),
-    );
-    appendGitPathMetadata(
-      hash,
-      root,
+    const status = readGitCommand(["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root });
+    appendHealthFingerprintValue(hash, "git:status", status);
+    appendGitChangedPathMetadata(hash, root, [
+      readGitCommand(["diff", "--no-ext-diff", "--name-only", "-z", "--"], { cwd: root }),
+      readGitCommand(["diff", "--cached", "--no-ext-diff", "--name-only", "-z", "--"], { cwd: root }),
       readGitCommand(["ls-files", "--others", "--exclude-standard", "-z"], { cwd: root }),
-    );
+    ]);
     return hash.digest("hex");
   } catch {
     return null;
@@ -132,14 +119,22 @@ function appendHealthFingerprintValue(
   hash.update("\0");
 }
 
-function appendGitPathMetadata(
+function appendGitChangedPathMetadata(
   hash: ReturnType<typeof createHash>,
   rootDir: string,
-  rawPaths: string,
+  rawPathGroups: string[],
 ): void {
-  for (const relativePath of rawPaths.split("\0").filter(Boolean).sort()) {
+  const paths = new Set<string>();
+  for (const rawPaths of rawPathGroups) {
+    for (const relativePath of rawPaths.split("\0").filter(Boolean)) {
+      paths.add(relativePath);
+    }
+  }
+  for (const relativePath of [...paths].sort()) {
     if (!isHealthFingerprintFile(relativePath)) continue;
-    appendHealthFingerprintFile(hash, rootDir, relativePath);
+    appendHealthFingerprintFile(hash, rootDir, relativePath, {
+      includeContentHash: true,
+    });
   }
 }
 
@@ -270,10 +265,15 @@ function appendHealthFingerprintFile(
   hash: ReturnType<typeof createHash>,
   rootDir: string,
   relativePath: string,
+  options: { includeContentHash?: boolean } = {},
 ): void {
   const absolutePath = path.join(rootDir, relativePath);
   try {
     const stats = fs.lstatSync(absolutePath);
+    const contentHash =
+      options.includeContentHash && stats.isFile()
+        ? createHash("sha256").update(fs.readFileSync(absolutePath)).digest("hex")
+        : null;
     hash.update(JSON.stringify({
       path: relativePath,
       type: stats.isSymbolicLink() ? "symlink" : stats.isDirectory() ? "dir" : "file",
@@ -282,6 +282,7 @@ function appendHealthFingerprintFile(
       mtimeMs: stats.mtimeMs,
       ctimeMs: stats.ctimeMs,
       link: stats.isSymbolicLink() ? fs.readlinkSync(absolutePath) : null,
+      contentHash,
     }));
     hash.update("\0");
   } catch {
