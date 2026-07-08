@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "rust-plugin",
+  "source": ".",
+  "config": {
+    "type": "plugin",
+    "engine": "heartwood"
+  },
+  "exclude": [
+    "package.json",
+    "refarm.template.json",
+    "turbo.json"
+  ],
+  "expectedFiles": [
+    ".cargo/config.toml",
+    "Cargo.lock",
+    "Cargo.toml",
+    "README.md",
+    "src/bindings.rs",
+    "src/lib.rs"
+  ],
+  "forbiddenPaths": [
+    ".turbo",
+    "dist",
+    "node_modules",
+    "package.json",
+    "pkg",
+    "refarm.template.json",
+    "target",
+    "turbo.json"
+  ]
+}

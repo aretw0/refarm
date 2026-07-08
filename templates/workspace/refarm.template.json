@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "workspace",
+  "source": "typescript",
+  "config": {
+    "type": "app"
+  },
+  "expectedFiles": [
+    "README.md",
+    "astro.config.mjs",
+    "package.json",
+    "tsconfig.json"
+  ],
+  "forbiddenPaths": [
+    ".astro",
+    ".turbo",
+    "dist",
+    "node_modules",
+    "pkg",
+    "refarm.template.json",
+    "target"
+  ]
+}

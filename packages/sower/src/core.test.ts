@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SowerCore } from "./core";
 
 describe("SowerCore Scaffolding (Isolated)", () => {
@@ -61,6 +61,99 @@ describe("SowerCore Scaffolding (Isolated)", () => {
 
         // Verify files were copied (rust-plugin has Cargo.toml)
         expect(fs.existsSync(path.join(targetDir, "Cargo.toml"))).toBe(true);
+    });
+
+    it("should skip ignored build/cache output when hydrating templates", async () => {
+        const templatesRoot = path.join(tempDir, "templates");
+        const templateDir = path.join(templatesRoot, "workspace", "typescript");
+        fs.mkdirSync(path.join(templateDir, ".turbo"), { recursive: true });
+        fs.writeFileSync(path.join(templateDir, "README.md"), "cache-safe sentinel: {{REFARM_NAME}}");
+        fs.writeFileSync(path.join(templateDir, ".turbo", "turbo-build.log"), "cache");
+
+        const sower = new SowerCore({ templatesRoot });
+        const targetDir = path.join(tempDir, "hydrated");
+
+        await sower.scaffold("workspace", {
+            name: "Cache Safe Workspace",
+            targetDir
+        });
+
+        expect(fs.readFileSync(path.join(targetDir, "README.md"), "utf-8")).toContain("cache-safe sentinel: Cache Safe Workspace");
+        expect(fs.existsSync(path.join(targetDir, ".turbo", "turbo-build.log"))).toBe(false);
+    });
+
+    it("should hydrate templates declared by a public template manifest", async () => {
+        const templatesRoot = path.join(tempDir, "templates");
+        const templateRoot = path.join(templatesRoot, "custom-plugin");
+        const sourceDir = path.join(templateRoot, "template");
+        fs.mkdirSync(sourceDir, { recursive: true });
+        fs.writeFileSync(
+            path.join(templateRoot, "refarm.template.json"),
+            JSON.stringify(
+                {
+                    schemaVersion: 1,
+                    id: "custom-plugin",
+                    source: "template",
+                    config: {
+                        type: "plugin",
+                        engine: "custom-engine",
+                    },
+                },
+                null,
+                2,
+            ),
+        );
+        fs.writeFileSync(path.join(sourceDir, "README.md"), "{{REFARM_NAME}} / {{REFARM_SLUG}}");
+
+        const sower = new SowerCore({ templatesRoot });
+        const targetDir = path.join(tempDir, "custom-plugin-output");
+
+        const result = await sower.scaffold("custom-plugin", {
+            name: "Custom Plugin",
+            targetDir
+        });
+
+        expect(result.config.type).toBe("plugin");
+        expect(result.config.engine).toBe("custom-engine");
+        expect(fs.readFileSync(path.join(targetDir, "README.md"), "utf-8")).toBe("Custom Plugin / custom-plugin");
+    });
+
+    it("should skip entries excluded by a public template manifest", async () => {
+        const templatesRoot = path.join(tempDir, "templates");
+        const templateRoot = path.join(templatesRoot, "custom-plugin");
+        const sourceDir = path.join(templateRoot, "template");
+        fs.mkdirSync(path.join(sourceDir, "internal"), { recursive: true });
+        fs.writeFileSync(
+            path.join(templateRoot, "refarm.template.json"),
+            JSON.stringify(
+                {
+                    schemaVersion: 1,
+                    id: "custom-plugin",
+                    source: "template",
+                    config: {
+                        type: "plugin",
+                    },
+                    exclude: ["internal", "template-only.json"],
+                },
+                null,
+                2,
+            ),
+        );
+        fs.writeFileSync(path.join(sourceDir, "README.md"), "{{REFARM_NAME}}");
+        fs.writeFileSync(path.join(sourceDir, "template-only.json"), "{}");
+        fs.writeFileSync(path.join(sourceDir, "internal", "notes.md"), "internal");
+
+        const sower = new SowerCore({ templatesRoot });
+        const targetDir = path.join(tempDir, "custom-plugin-output");
+
+        await sower.scaffold("custom-plugin", {
+            name: "Custom Plugin",
+            targetDir
+        });
+
+        expect(fs.readFileSync(path.join(targetDir, "README.md"), "utf-8")).toBe("Custom Plugin");
+        expect(fs.existsSync(path.join(targetDir, "template-only.json"))).toBe(false);
+        expect(fs.existsSync(path.join(targetDir, "internal", "notes.md"))).toBe(false);
     });
 
     it("should generate correct brand configuration", async () => {

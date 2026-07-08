@@ -24,7 +24,31 @@ export interface SowerScaffoldResult {
 	identity: { hostingPath: string };
 }
 
+export interface SowerCoreOptions {
+	templatesRoot?: string;
+}
+
+interface SowerTemplateManifest {
+	schemaVersion?: number;
+	id?: string;
+	source?: string;
+	config?: Partial<Pick<SowerScaffoldConfig, "type" | "engine">>;
+	exclude?: string[];
+	expectedFiles?: string[];
+	forbiddenPaths?: string[];
+}
+
+function normalizeTemplatePath(value: string) {
+	return value.split(path.sep).join("/");
+}
+
 export class SowerCore {
+	private readonly templatesRoot: string;
+
+	constructor(options: SowerCoreOptions = {}) {
+		this.templatesRoot = options.templatesRoot ?? path.resolve(__dirname, "../../../templates");
+	}
+
 	/**
 	 * Returns the onboarding steps/intentions as a data-driven structure.
 	 */
@@ -58,7 +82,13 @@ export class SowerCore {
 		src: string,
 		dest: string,
 		tokens: Record<string, string> = {},
+		excludedPaths: Set<string> = new Set(),
+		sourceRoot: string = src,
 	) {
+		if (this._shouldSkipTemplateEntry(path.basename(src))) return;
+		const relativeSourcePath = normalizeTemplatePath(path.relative(sourceRoot, src));
+		if (relativeSourcePath && excludedPaths.has(relativeSourcePath)) return;
+
 		const exists = fs.existsSync(src);
 		const stats = exists && fs.statSync(src);
 		const isDirectory = exists && stats && stats.isDirectory();
@@ -72,6 +102,8 @@ export class SowerCore {
 					path.join(src, child),
 					path.join(dest, child),
 					tokens,
+					excludedPaths,
+					sourceRoot,
 				);
 			});
 		} else {
@@ -86,6 +118,60 @@ export class SowerCore {
 
 			fs.writeFileSync(dest, hydratedContent);
 		}
+	}
+
+	private _shouldSkipTemplateEntry(name: string) {
+		return [".astro", ".turbo", "dist", "node_modules"].includes(name);
+	}
+
+	private _readTemplateManifest(templateId: string): SowerTemplateManifest | null {
+		const manifestPath = path.resolve(
+			this.templatesRoot,
+			templateId,
+			"refarm.template.json",
+		);
+		if (!fs.existsSync(manifestPath)) return null;
+		const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as SowerTemplateManifest;
+		if (manifest.id && manifest.id !== templateId) {
+			throw new Error(
+				`Template manifest id mismatch: expected ${templateId}, got ${manifest.id}`,
+			);
+		}
+		return manifest;
+	}
+
+	private _resolveTemplate(templateId: string): {
+		source: string;
+		config: Partial<Pick<SowerScaffoldConfig, "type" | "engine">>;
+		exclude: string[];
+	} {
+		const manifest = this._readTemplateManifest(templateId);
+		if (manifest) {
+			return {
+				source: manifest.source ?? ".",
+				config: manifest.config ?? {},
+				exclude: manifest.exclude ?? [],
+			};
+		}
+		if (templateId === "workspace") {
+			return {
+				source: "typescript",
+				config: { type: "app" },
+				exclude: [],
+			};
+		}
+		if (templateId === "rust-plugin") {
+			return {
+				source: ".",
+				config: { type: "plugin", engine: "heartwood" },
+				exclude: [],
+			};
+		}
+		return {
+			source: "typescript",
+			config: {},
+			exclude: [],
+		};
 	}
 
 	/**
@@ -114,23 +200,15 @@ export class SowerCore {
 			REFARM_SLUG: brand.slug,
 		};
 
-		// Template specific adjustments
-		let templateSubPath = "typescript"; // Default
-		if (templateId === "workspace") {
-			config.type = "app";
-		} else if (templateId === "rust-plugin") {
-			config.type = "plugin";
-			config.engine = "heartwood";
-			templateSubPath = "."; // rust-plugin template doesn't have subdirs yet
-		}
+		const template = this._resolveTemplate(templateId);
+		Object.assign(config, template.config);
 
 		// Hydrate files if targetDir is provided
 		if (options["targetDir"]) {
 			const templatePath = path.resolve(
-				__dirname,
-				"../../../templates",
+				this.templatesRoot,
 				templateId,
-				templateSubPath,
+				template.source,
 			);
 
 			if (fs.existsSync(templatePath)) {
@@ -138,7 +216,13 @@ export class SowerCore {
 				console.log(
 					`[sower-core] Hydrating from ${templatePath} to ${targetDir}...`,
 				);
-				this._copyRecursive(templatePath, targetDir, tokens);
+				this._copyRecursive(
+					templatePath,
+					targetDir,
+					tokens,
+					new Set(template.exclude.map((entry) => normalizeTemplatePath(entry))),
+					templatePath,
+				);
 			} else {
 				console.warn(`[sower-core] Template path not found: ${templatePath}`);
 			}
