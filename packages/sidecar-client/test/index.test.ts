@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	createSidecarGraphClient,
+	fetchSidecarJson,
 	fetchSidecarWithTimeout,
 	resolveSidecarRequestTimeoutMs,
 	SIDECAR_REQUEST_TIMEOUT_ENV_VAR,
+	SidecarHttpError,
 } from "../src/index.js";
 
 describe("sidecar-client", () => {
@@ -30,6 +32,57 @@ describe("sidecar-client", () => {
 		expect(fetchMock).toHaveBeenCalledOnce();
 		const [url] = fetchMock.mock.calls[0]!;
 		expect(String(url)).toBe("http://127.0.0.1:42001/efforts");
+	});
+
+	it("reads JSON through the sidecar timeout wrapper", async () => {
+		const fetchImpl = vi.fn(
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) =>
+				new Response(JSON.stringify({ ok: true, value: 42 }), {
+					status: 200,
+					headers: { "content-type": "application/json" },
+				}),
+		);
+
+		await expect(
+			fetchSidecarJson<{ ok: boolean; value: number }>(
+				"http://sidecar.test/status",
+				{},
+				{ fetch: fetchImpl as unknown as typeof fetch },
+			),
+		).resolves.toEqual({ ok: true, value: 42 });
+		expect(String(fetchImpl.mock.calls[0]?.[0])).toBe(
+			"http://sidecar.test/status",
+		);
+	});
+
+	it("throws a status-labelled error when JSON requests fail", async () => {
+		const fetchImpl = vi.fn(
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) => new Response(JSON.stringify({ error: "nope" }), { status: 503 }),
+		);
+
+		await expect(
+			fetchSidecarJson("http://sidecar.test/status", {}, {
+				errorLabel: "runtime HTTP",
+				fetch: fetchImpl as unknown as typeof fetch,
+			}),
+		).rejects.toThrow("runtime HTTP 503");
+
+		await expect(
+			fetchSidecarJson("http://sidecar.test/status", {}, {
+				errorLabel: "runtime HTTP",
+				fetch: fetchImpl as unknown as typeof fetch,
+			}),
+		).rejects.toMatchObject({
+			constructor: SidecarHttpError,
+			errorLabel: "runtime HTTP",
+			status: 503,
+		});
 	});
 
 	it("reads graph nodes from the sidecar node endpoint", async () => {

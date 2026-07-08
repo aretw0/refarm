@@ -18,12 +18,30 @@ export interface QueryGraphNodesOptions {
 	limit?: number;
 }
 
-export interface SidecarGraphClientOptions {
+export interface SidecarRequestOptions {
 	env?: NodeJS.ProcessEnv;
 	timeoutEnvVar?: string;
 	defaultTimeoutMs?: number;
 	timeoutMs?: number;
 	fetch?: typeof fetch;
+}
+
+export interface SidecarJsonRequestOptions extends SidecarRequestOptions {
+	errorLabel?: string;
+}
+
+export type SidecarGraphClientOptions = SidecarRequestOptions;
+
+export class SidecarHttpError extends Error {
+	readonly status: number;
+	readonly errorLabel: string;
+
+	constructor(status: number, errorLabel = "sidecar HTTP") {
+		super(`${errorLabel} ${status}`);
+		this.name = "SidecarHttpError";
+		this.status = status;
+		this.errorLabel = errorLabel;
+	}
 }
 
 function resolveSidecarRequestTimeoutMs(
@@ -48,15 +66,21 @@ export function createSidecarGraphClient(
 	const base = normalizeSidecarBaseUrl(baseUrl);
 	return {
 		async getNode(id: string): Promise<SidecarGraphNode | null> {
-			const response = await fetchSidecarWithTimeout(
-				`${base}/nodes/${encodeURIComponent(id)}`,
-				{},
-				options,
-			);
-			if (response.status === 404) return null;
-			if (!response.ok) throw new Error(`sidecar graph HTTP ${response.status}`);
-			const body = asObject(await response.json());
-			const node = asSidecarGraphNode(body?.node);
+			let body: unknown;
+			try {
+				body = await fetchSidecarJson(
+					`${base}/nodes/${encodeURIComponent(id)}`,
+					{},
+					{ ...options, errorLabel: "sidecar graph HTTP" },
+				);
+			} catch (err) {
+				if (err instanceof SidecarHttpError && err.status === 404) {
+					return null;
+				}
+				throw err;
+			}
+			const bodyObject = asObject(body);
+			const node = asSidecarGraphNode(bodyObject?.node);
 			if (!node) throw new Error("sidecar graph response missing node");
 			return node;
 		},
@@ -65,13 +89,11 @@ export function createSidecarGraphClient(
 			queryOptions: QueryGraphNodesOptions = {},
 		): Promise<SidecarGraphNode[]> {
 			const limit = queryOptions.limit ?? 100;
-			const response = await fetchSidecarWithTimeout(
+			const body = asObject(await fetchSidecarJson(
 				`${base}/nodes?type=${encodeURIComponent(type)}&limit=${limit}`,
 				{},
-				options,
-			);
-			if (!response.ok) throw new Error(`sidecar graph HTTP ${response.status}`);
-			const body = asObject(await response.json());
+				{ ...options, errorLabel: "sidecar graph HTTP" },
+			));
 			const nodes = Array.isArray(body?.nodes) ? body.nodes : null;
 			if (!nodes) throw new Error("sidecar graph response missing nodes");
 			return nodes.map((node) => {
@@ -122,13 +144,7 @@ export { SIDECAR_REQUEST_TIMEOUT_ENV_VAR, resolveSidecarRequestTimeoutMs };
 export async function fetchSidecarWithTimeout(
 	url: string | URL,
 	init: RequestInit = {},
-	options: {
-		env?: NodeJS.ProcessEnv;
-		timeoutEnvVar?: string;
-		defaultTimeoutMs?: number;
-		timeoutMs?: number;
-		fetch?: typeof fetch;
-	} = {},
+	options: SidecarRequestOptions = {},
 ): Promise<Response> {
 	return fetchWithTimeout(url, init, {
 		env: options.env,
@@ -137,4 +153,16 @@ export async function fetchSidecarWithTimeout(
 		timeoutMs: options.timeoutMs,
 		fetch: options.fetch,
 	});
+}
+
+export async function fetchSidecarJson<T = unknown>(
+	url: string | URL,
+	init: RequestInit = {},
+	options: SidecarJsonRequestOptions = {},
+): Promise<T> {
+	const response = await fetchSidecarWithTimeout(url, init, options);
+	if (!response.ok) {
+		throw new SidecarHttpError(response.status, options.errorLabel);
+	}
+	return (await response.json()) as T;
 }
