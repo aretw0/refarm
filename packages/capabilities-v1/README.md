@@ -59,6 +59,13 @@ program.parseAsync(process.argv);
   providers. Fully portable (only contract packages); a host injects `loadManifest` to
   supply real records.
 
+## Test harness
+
+`@refarm.dev/capabilities-v1/testing` exports `createCapabilityTestHarness()`
+for white-label apps and examples. It runs flat verbs, resolves group actions,
+and owns temporary state paths, so consumer tests can focus on the work-specific
+flow instead of repeating registry and temp-directory plumbing.
+
 ## Why "neutral"
 
 The blocks know verbs, not domains. `source pull <ref>` takes a ref the caller supplies;
