@@ -2,21 +2,22 @@ import type {
 	CapabilityDescriptor,
 	CapabilityEnvelope,
 	CapabilityGroup,
+	CapabilityInput,
 } from "@refarm.dev/cli/capabilities";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 } from "@refarm.dev/cli/json-output";
 import {
-	computeRecordContentHash,
-	createReferenceRecordsProvider,
-	type RecordsManifest,
-} from "@refarm.dev/records-contract-v1";
-import {
 	createReferenceEnrichmentProvider,
 	type EnrichmentProvider,
 	type EnrichmentResult,
 } from "@refarm.dev/enrichment-contract-v1";
+import {
+	computeRecordContentHash,
+	createReferenceRecordsProvider,
+	type RecordsManifest,
+} from "@refarm.dev/records-contract-v1";
 
 /**
  * `records` — the generic records:v1 operator surface: enrich (and inspect) a
@@ -40,11 +41,43 @@ function emptyRecordsManifest(): RecordsManifest {
 
 /** The dimension a `records analyze` groups by. NEUTRAL — a work app never has to
  * declare a new one; these are the record-shape fields any records:v1 manifest has. */
-type AnalyzeDimension = "reviewState" | "type" | "sourceRef";
+export type RecordsAnalyzeDimension = "reviewState" | "type" | "sourceRef";
+
+export interface RecordsAnalyzeGroup {
+	key: string;
+	label: string;
+	count: number;
+	records: Array<{ id: string; title: string; link: string }>;
+}
+
+export interface RecordsAnalyzeEnvelope {
+	ok: boolean;
+	by: RecordsAnalyzeDimension;
+	summary: { total: number; byState: Record<string, number> };
+	groups: RecordsAnalyzeGroup[];
+}
+
+export interface RecordsViewCapabilityOptions {
+	name: string;
+	summary: string;
+	records: RecordsCommandDeps;
+	operation?: string;
+	groupBy?: RecordsAnalyzeDimension;
+	httpPath?: string;
+	tuiSection?: string;
+	agentToolName?: string;
+	options?: CapabilityDescriptor["options"];
+	transports?: CapabilityDescriptor["transports"];
+	renderers?: CapabilityDescriptor["renderers"];
+	project: (
+		analysis: RecordsAnalyzeEnvelope,
+		input: CapabilityInput,
+	) => Record<string, unknown> | Promise<Record<string, unknown>>;
+}
 
 /** The group key(s) a record falls under for a given dimension. A record can land in
  * more than one group (multiple sourceRefs/types); reviewState is single-valued. */
-function groupKeysFor(record: ManifestRecord, by: AnalyzeDimension): string[] {
+function groupKeysFor(record: ManifestRecord, by: RecordsAnalyzeDimension): string[] {
 	if (by === "reviewState") return [record.review?.state ?? "unreviewed"];
 	if (by === "type") {
 		const t = record["@type"];
@@ -54,6 +87,15 @@ function groupKeysFor(record: ManifestRecord, by: AnalyzeDimension): string[] {
 	// sourceRef
 	const refs = record.sourceRefs ?? [];
 	return refs.length > 0 ? refs : ["no-source"];
+}
+
+function normalizeAnalyzeDimension(
+	raw: unknown,
+	fallback: RecordsAnalyzeDimension = "reviewState",
+): RecordsAnalyzeDimension {
+	return raw === "reviewState" || raw === "type" || raw === "sourceRef"
+		? raw
+		: fallback;
 }
 
 /** Apply an enrichment result back onto a records manifest: for each record with
@@ -325,8 +367,7 @@ export function createRecordsCapabilityGroup(
 		],
 		run(input): CapabilityEnvelope {
 			const raw = input.options.by;
-			const by: AnalyzeDimension =
-				raw === "type" || raw === "sourceRef" ? raw : "reviewState";
+			const by = normalizeAnalyzeDimension(raw);
 			const manifest = deps.loadManifest();
 
 			// Build the groups: a map key → the records that fall under it (id+title+link,
@@ -387,5 +428,39 @@ export function createRecordsCapabilityGroup(
 			agent: { tool: true, toolName: "records_enrich" },
 		},
 		renderers: { tui: { section: "records" } },
+	};
+}
+
+export function defineRecordsViewCapability(
+	options: RecordsViewCapabilityOptions,
+): CapabilityDescriptor {
+	const analyzeAction = createRecordsCapabilityGroup(options.records).actions.analyze;
+	return {
+		name: options.name,
+		summary: options.summary,
+		...(options.options ? { options: options.options } : {}),
+		transports: options.transports ?? {
+			cli: {},
+			repl: {},
+			http: { method: "GET", path: options.httpPath ?? `/${options.name}` },
+			agent: { tool: true, toolName: options.agentToolName ?? options.name },
+		},
+		renderers: options.renderers ?? {
+			tui: { section: options.tuiSection ?? options.name },
+		},
+		async run(input): Promise<CapabilityEnvelope> {
+			if (!analyzeAction) throw new Error("records analyze missing");
+			const by = normalizeAnalyzeDimension(input.options.by, options.groupBy);
+			const analysis = (await analyzeAction.run({
+				args: {},
+				options: { by },
+				json: true,
+			})) as unknown as RecordsAnalyzeEnvelope;
+			return buildJsonSuccessEnvelope({
+				command: options.name,
+				operation: options.operation ?? "render",
+				extra: await options.project(analysis, input),
+			});
+		},
 	};
 }

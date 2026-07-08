@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
 	createRecordsCapabilityGroup,
 	defaultRecordsDeps,
+	defineRecordsViewCapability,
 	type RecordsCommandDeps,
 } from "./records-capability.js";
 
@@ -233,5 +234,77 @@ describe("records analyze — a neutral grouping+count envelope (persona-agnosti
 		// It's a plain object a TUI/web/Astro/vault renderer each reads its own way.
 		expect(Array.isArray(env.groups)).toBe(true);
 		expect(typeof env.summary.total).toBe("number");
+	});
+});
+
+describe("defineRecordsViewCapability — persona views over records analyze", () => {
+	it("declares a product view without rewiring the analyze action", async () => {
+		const view = defineRecordsViewCapability({
+			name: "wallet",
+			summary: "Show my wallet",
+			records: {
+				...defaultRecordsDeps(),
+				loadManifest: injectedManifest,
+			},
+			project: (analysis) => ({
+				total: analysis.summary.total,
+				headline: `${analysis.summary.total} records across ${analysis.groups.length} groups`,
+				groupKeys: analysis.groups.map((group) => group.key),
+			}),
+		});
+
+		expect(view.transports?.http).toEqual({ method: "GET", path: "/wallet" });
+		expect(view.renderers?.tui).toEqual({ section: "wallet" });
+
+		const env = await view.run({ args: {}, options: {}, json: true }) as unknown as {
+			ok: boolean;
+			command: string;
+			operation: string;
+			total: number;
+			headline: string;
+			groupKeys: string[];
+		};
+
+		expect(env.ok).toBe(true);
+		expect(env.command).toBe("wallet");
+		expect(env.operation).toBe("render");
+		expect(env.total).toBe(2);
+		expect(env.headline).toBe("2 records across 2 groups");
+		expect(env.groupKeys).toEqual(["draft", "reviewed"]);
+	});
+
+	it("lets the product view expose the neutral analyze dimension as a surface option", async () => {
+		const view = defineRecordsViewCapability({
+			name: "requirements",
+			summary: "Show requirements",
+			records: {
+				...defaultRecordsDeps(),
+				loadManifest: injectedManifest,
+			},
+			httpPath: "/requirements/moc",
+			options: [
+				{ name: "by", kind: "string", summary: "Group by reviewState, type, or sourceRef" },
+			],
+			project: (analysis) => ({
+				by: analysis.by,
+				groupKeys: analysis.groups.map((group) => group.key),
+			}),
+		});
+
+		expect(view.transports?.http).toEqual({ method: "GET", path: "/requirements/moc" });
+
+		const env = await view.run({
+			args: {},
+			options: { by: "type" },
+			json: true,
+		}) as unknown as {
+			ok: boolean;
+			by: string;
+			groupKeys: string[];
+		};
+
+		expect(env.ok).toBe(true);
+		expect(env.by).toBe("type");
+		expect(env.groupKeys).toEqual(["KnowledgeRecord"]);
 	});
 });

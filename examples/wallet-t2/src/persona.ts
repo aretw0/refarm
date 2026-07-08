@@ -1,10 +1,9 @@
 import {
-	buildJsonSuccessEnvelope,
-	createRecordsCapabilityGroup,
 	defaultSourceDeps,
 	defaultVaultDeps,
+	defineRecordsViewCapability,
 	type CapabilityDescriptor,
-	type CapabilityEnvelope,
+	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
 	type RefarmCapabilityDeps,
 } from "@refarm.dev/capabilities-v1";
@@ -52,16 +51,6 @@ export function walletCapabilityDeps(
 	};
 }
 
-interface AnalyzeEnvelope {
-	summary: { total: number; byState: Record<string, number> };
-	groups: Array<{
-		key: string;
-		label: string;
-		count: number;
-		records: Array<{ id: string; title: string; link: string }>;
-	}>;
-}
-
 const STATE_LABELS: Record<string, string> = {
 	verified: "Verificados",
 	draft: "A verificar",
@@ -69,7 +58,7 @@ const STATE_LABELS: Record<string, string> = {
 };
 
 /** Render the citizen's wallet — their held items, grouped by verification status. */
-function renderWallet(env: AnalyzeEnvelope): string {
+function renderWallet(env: RecordsAnalyzeEnvelope): string {
 	const lines: string[] = [
 		"👜 Minha Carteira Digital",
 		"",
@@ -91,33 +80,14 @@ function renderWallet(env: AnalyzeEnvelope): string {
 export function createWalletCapability(
 	recordsDeps: RecordsCommandDeps,
 ): CapabilityDescriptor {
-	const analyzeAction = createRecordsCapabilityGroup(recordsDeps).actions.analyze;
-	return {
+	return defineRecordsViewCapability({
 		name: "wallet",
 		summary: "Show my digital wallet — the items I hold (sovereign, local-first)",
-		transports: {
-			cli: {},
-			repl: {},
-			http: { method: "GET", path: "/wallet" },
-			agent: { tool: true, toolName: "wallet" },
-		},
-		renderers: { tui: { section: "wallet" } },
-		async run(): Promise<CapabilityEnvelope> {
-			if (!analyzeAction) throw new Error("records analyze missing");
-			const analyzed = (await analyzeAction.run({
-				args: {},
-				options: { by: "reviewState" },
-				json: true,
-			})) as unknown as AnalyzeEnvelope;
-			return buildJsonSuccessEnvelope({
-				command: "wallet",
-				operation: "render",
-				extra: {
-					total: analyzed.summary.total,
-					wallet: renderWallet(analyzed),
-					byState: analyzed.summary.byState,
-				},
-			});
-		},
-	};
+		records: recordsDeps,
+		project: (analyzed) => ({
+			total: analyzed.summary.total,
+			wallet: renderWallet(analyzed),
+			byState: analyzed.summary.byState,
+		}),
+	});
 }

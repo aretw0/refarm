@@ -1,9 +1,8 @@
 import {
-	buildJsonSuccessEnvelope,
-	createRecordsCapabilityGroup,
 	defaultVaultDeps,
+	defineRecordsViewCapability,
 	type CapabilityDescriptor,
-	type CapabilityEnvelope,
+	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
 	type RefarmCapabilityDeps,
 } from "@refarm.dev/capabilities-v1";
@@ -82,24 +81,13 @@ export function reqCapabilityDeps(
 	};
 }
 
-/** Shape of the neutral analyze envelope the MOC consumes. */
-interface AnalyzeEnvelope {
-	summary: { total: number; byState: Record<string, number> };
-	groups: Array<{
-		key: string;
-		label: string;
-		count: number;
-		records: Array<{ id: string; title: string; link: string }>;
-	}>;
-}
-
 const STATE_LABELS: Record<string, string> = {
 	reviewed: "Requisitos revisados",
 	draft: "Rascunhos a revisar",
 	unreviewed: "Sem revisão",
 };
 
-function renderRequirementsMoc(env: AnalyzeEnvelope): string {
+function renderRequirementsMoc(env: RecordsAnalyzeEnvelope): string {
 	const lines: string[] = [
 		"# Mapa de Conteúdo — Requisitos",
 		"",
@@ -124,37 +112,19 @@ function renderRequirementsMoc(env: AnalyzeEnvelope): string {
 export function createRequirementsCapability(
 	recordsDeps: RecordsCommandDeps,
 ): CapabilityDescriptor {
-	const analyzeAction = createRecordsCapabilityGroup(recordsDeps).actions.analyze;
-	return {
+	return defineRecordsViewCapability({
 		name: "requirements",
 		summary: "The analyst's requirements bench — a navigable Map of Content (product)",
+		records: recordsDeps,
+		httpPath: "/requirements/moc",
 		options: [
 			{ name: "by", kind: "string", summary: "Group by reviewState (default), type, or sourceRef" },
 		],
-		transports: {
-			cli: {},
-			repl: {},
-			http: { method: "GET", path: "/requirements/moc" },
-			agent: { tool: true, toolName: "requirements" },
-		},
-		renderers: { tui: { section: "requirements" } },
-		async run(input): Promise<CapabilityEnvelope> {
-			if (!analyzeAction) throw new Error("records analyze missing");
-			const analyzed = (await analyzeAction.run({
-				args: {},
-				options: { by: (input.options.by as string) ?? "reviewState" },
-				json: true,
-			})) as unknown as AnalyzeEnvelope & { by: string };
-			return buildJsonSuccessEnvelope({
-				command: "requirements",
-				operation: "render",
-				extra: {
-					by: analyzed.by,
-					total: analyzed.summary.total,
-					moc: renderRequirementsMoc(analyzed),
-					groupCount: analyzed.groups.length,
-				},
-			});
-		},
-	};
+		project: (analyzed) => ({
+			by: analyzed.by,
+			total: analyzed.summary.total,
+			moc: renderRequirementsMoc(analyzed),
+			groupCount: analyzed.groups.length,
+		}),
+	});
 }

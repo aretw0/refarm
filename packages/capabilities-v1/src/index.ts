@@ -21,8 +21,13 @@ export type {
 } from "@refarm.dev/cli/capabilities";
 export {
 	createRecordsCapabilityGroup,
+	defineRecordsViewCapability,
 	defaultRecordsDeps,
+	type RecordsAnalyzeDimension,
+	type RecordsAnalyzeEnvelope,
+	type RecordsAnalyzeGroup,
 	type RecordsCommandDeps,
+	type RecordsViewCapabilityOptions,
 } from "./records-capability.js";
 export {
 	createBaseStatusCapability,
