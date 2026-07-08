@@ -12,7 +12,7 @@
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
 		"dev": "tsc --project tsconfig.build.json --watch",
-		"type-check": "tsc --noEmit",
+		"type-check": "tsc --noEmit && tsc --project tsconfig.test.json --noEmit",
 		"test": "vitest run",
 		"lint": "eslint src"
 	},
@@ -25,6 +25,7 @@
 		"access": "public"
 	},
 	"dependencies": {
+		"@refarm.dev/node-contract-v1": "workspace:*",
 		"@refarm.dev/root": "workspace:*"
 	},
 	"devDependencies": {

@@ -1453,6 +1453,9 @@ importers:
 
   packages/sidecar-client:
     dependencies:
+      '@refarm.dev/node-contract-v1':
+        specifier: workspace:*
+        version: link:../node-contract-v1
       '@refarm.dev/root':
         specifier: workspace:*
         version: link:../root

@@ -15,7 +15,12 @@ describe("sidecar-client", () => {
 	});
 
 	it("fetches through the injected fetch impl (domain-owned, no reimplementation)", async () => {
-		const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }));
+		const fetchMock = vi.fn(
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) => new Response("ok", { status: 200 }),
+		);
 		const res = await fetchSidecarWithTimeout(
 			"http://127.0.0.1:42001/efforts",
 			{},
@@ -34,7 +39,10 @@ describe("sidecar-client", () => {
 			"@type": "Config",
 		};
 		const fetchImpl = vi.fn(
-			async () =>
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) =>
 				new Response(JSON.stringify({ node }), {
 					status: 200,
 					headers: { "content-type": "application/json" },
@@ -51,7 +59,12 @@ describe("sidecar-client", () => {
 	});
 
 	it("returns null when a graph node is not present", async () => {
-		const fetchImpl = vi.fn(async () => new Response("", { status: 404 }));
+		const fetchImpl = vi.fn(
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) => new Response("", { status: 404 }),
+		);
 		const graph = createSidecarGraphClient("http://sidecar.test", {
 			fetch: fetchImpl as unknown as typeof fetch,
 		});
@@ -61,11 +74,22 @@ describe("sidecar-client", () => {
 
 	it("queries graph nodes by type with an explicit limit", async () => {
 		const nodes = [
-			{ "@id": "urn:graph:one", "@type": "Config" },
-			{ "@id": "urn:graph:two", "@type": "Config" },
+			{
+				"@context": "https://schema.org/",
+				"@id": "urn:graph:one",
+				"@type": "Config",
+			},
+			{
+				"@context": "https://schema.org/",
+				"@id": "urn:graph:two",
+				"@type": "Config",
+			},
 		];
 		const fetchImpl = vi.fn(
-			async () =>
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) =>
 				new Response(JSON.stringify({ nodes, total: 2 }), {
 					status: 200,
 					headers: { "content-type": "application/json" },
@@ -83,7 +107,10 @@ describe("sidecar-client", () => {
 
 	it("rejects malformed graph node responses with a useful message", async () => {
 		const fetchImpl = vi.fn(
-			async () =>
+			async (
+				_input: Parameters<typeof fetch>[0],
+				_init?: Parameters<typeof fetch>[1],
+			) =>
 				new Response(JSON.stringify({ node: { "@id": "urn:graph:one" } }), {
 					status: 200,
 					headers: { "content-type": "application/json" },

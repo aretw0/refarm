@@ -1,7 +1,6 @@
 {
 	"name": "@refarm.dev/node-contract-v1",
 	"version": "0.1.0",
-	"private": true,
 	"description": "Base GraphNode interface — shared fields for all typed nodes in the Refarm sovereign data graph",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -19,6 +18,16 @@
 		"test": "vitest run",
 		"clean": "rm -rf dist",
 		"lint": "eslint src"
+	},
+	"license": "AGPL-3.0-only",
+	"files": [
+		"dist/index.js",
+		"dist/index.d.ts",
+		"dist/normalised.js",
+		"dist/normalised.d.ts"
+	],
+	"publishConfig": {
+		"access": "public"
 	},
 	"devDependencies": {
 		"@refarm.dev/tsconfig": "workspace:*",

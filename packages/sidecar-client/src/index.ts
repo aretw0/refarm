@@ -1,16 +1,17 @@
+import type { NormalisedNode } from "@refarm.dev/node-contract-v1";
 import { fetchWithTimeout, resolveRequestTimeoutMs } from "@refarm.dev/root";
 
 const SIDECAR_REQUEST_TIMEOUT_ENV_VAR = "REFARM_SIDE_REQUEST_TIMEOUT_MS";
 const DEFAULT_SIDE_REQUEST_TIMEOUT_MS = 500;
 
-export interface GraphNode extends Record<string, unknown> {
-	"@id": string;
-	"@type": string;
-}
+export type SidecarGraphNode = NormalisedNode;
 
 export interface SidecarGraphClient {
-	getNode(id: string): Promise<GraphNode | null>;
-	queryNodes(type: string, options?: QueryGraphNodesOptions): Promise<GraphNode[]>;
+	getNode(id: string): Promise<SidecarGraphNode | null>;
+	queryNodes(
+		type: string,
+		options?: QueryGraphNodesOptions,
+	): Promise<SidecarGraphNode[]>;
 }
 
 export interface QueryGraphNodesOptions {
@@ -46,7 +47,7 @@ export function createSidecarGraphClient(
 ): SidecarGraphClient {
 	const base = normalizeSidecarBaseUrl(baseUrl);
 	return {
-		async getNode(id: string): Promise<GraphNode | null> {
+		async getNode(id: string): Promise<SidecarGraphNode | null> {
 			const response = await fetchSidecarWithTimeout(
 				`${base}/nodes/${encodeURIComponent(id)}`,
 				{},
@@ -55,14 +56,14 @@ export function createSidecarGraphClient(
 			if (response.status === 404) return null;
 			if (!response.ok) throw new Error(`sidecar graph HTTP ${response.status}`);
 			const body = asObject(await response.json());
-			const node = asGraphNode(body?.node);
+			const node = asSidecarGraphNode(body?.node);
 			if (!node) throw new Error("sidecar graph response missing node");
 			return node;
 		},
 		async queryNodes(
 			type: string,
 			queryOptions: QueryGraphNodesOptions = {},
-		): Promise<GraphNode[]> {
+		): Promise<SidecarGraphNode[]> {
 			const limit = queryOptions.limit ?? 100;
 			const response = await fetchSidecarWithTimeout(
 				`${base}/nodes?type=${encodeURIComponent(type)}&limit=${limit}`,
@@ -74,7 +75,7 @@ export function createSidecarGraphClient(
 			const nodes = Array.isArray(body?.nodes) ? body.nodes : null;
 			if (!nodes) throw new Error("sidecar graph response missing nodes");
 			return nodes.map((node) => {
-				const graphNode = asGraphNode(node);
+				const graphNode = asSidecarGraphNode(node);
 				if (!graphNode) {
 					throw new Error("sidecar graph response includes malformed node");
 				}
@@ -94,11 +95,17 @@ function asObject(value: unknown): Record<string, unknown> | null {
 		: null;
 }
 
-function asGraphNode(value: unknown): GraphNode | null {
+function asSidecarGraphNode(value: unknown): SidecarGraphNode | null {
 	const node = asObject(value);
 	if (!node) return null;
-	return typeof node["@id"] === "string" && typeof node["@type"] === "string"
-		? (node as GraphNode)
+	const context = node["@context"];
+	const hasContext =
+		typeof context === "string" ||
+		(context !== null && typeof context === "object" && !Array.isArray(context));
+	return hasContext &&
+		typeof node["@id"] === "string" &&
+		typeof node["@type"] === "string"
+		? (node as SidecarGraphNode)
 		: null;
 }
 
