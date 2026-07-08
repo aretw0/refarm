@@ -16,6 +16,10 @@
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "clean": "rm -rf dist"
   },
+  "dependencies": {
+    "@refarm.dev/capability-host": "workspace:*",
+    "@refarm.dev/capabilities-v1": "workspace:*"
+  },
   "devDependencies": {
     "@refarm.dev/eslint-config": "workspace:*",
     "@refarm.dev/tsconfig": "workspace:*",

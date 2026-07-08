@@ -396,7 +396,8 @@ test("turbo generators expose app scaffolds for astro, cli, and service hosts", 
 	const generators = await configuredGenerators();
 	const generator = generators.get("app");
 	assert.ok(generator, "expected turbo/generators/config.ts to register an app generator");
-	assert.match(generator.description, /Refarm app host/);
+	assert.match(generator.description, /app host/);
+	assert.doesNotMatch(generator.description, /\bRefarm\b/);
 
 	const data = {
 		name: "field-console",
@@ -417,6 +418,31 @@ test("turbo generators expose app scaffolds for astro, cli, and service hosts", 
 	assert.equal(cliPackage.name, "@refarm.dev/field-console");
 	assert.equal(cliPackage.bin.field, "./dist/index.js");
 	assert.equal(cliPackage.scripts.build, "tsc --project tsconfig.build.json");
+	assert.equal(cliPackage.dependencies["@refarm.dev/capability-host"], "workspace:*");
+	assert.equal(cliPackage.dependencies["@refarm.dev/capabilities-v1"], "workspace:*");
+
+	const cliTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/app-cli/src/index.ts.hbs"),
+		"utf8",
+	);
+	const cli = render(cliTemplate, data);
+	assert.match(cli, /defineCapabilityApp/);
+	assert.match(cli, /defineCapabilityHost/);
+	assert.match(cli, /createLocalVaultCommandDeps/);
+	assert.match(cli, /command: "field"/);
+	assert.match(cli, /buildFieldConsoleHost/);
+	assert.match(cli, /const fieldConsoleApp = defineCapabilityApp/);
+	assert.match(cli, /export const buildRegistry = fieldConsoleApp\.registry/);
+	assert.match(cli, /void fieldConsoleApp\.runCli\(import\.meta\.url/);
+
+	const cliTestTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/app-cli/src/index.test.ts.hbs"),
+		"utf8",
+	);
+	const cliTest = render(cliTestTemplate, data);
+	assert.match(cliTest, /buildFieldConsoleHost/);
+	assert.match(cliTest, /buildRegistry/);
+	assert.match(cliTest, /expect\(buildProgram\(\)\.name\(\)\)\.toBe\("field"\)/);
 
 	for (const type of ["app-astro", "app-cli", "app-service"]) {
 		const packageTemplate = join(ROOT, `turbo/generators/templates/${type}/package.json.hbs`);

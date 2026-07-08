@@ -1,13 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import { build{{pascalName}}Status } from "./index.js";
+import {
+	build{{pascalName}}Host,
+	build{{pascalName}}Status,
+	buildProgram,
+	buildRegistry,
+} from "./index.js";
 
 describe("{{name}} CLI app", () => {
-	it("emits a stable status envelope", () => {
+	it("mounts the shared capability app host", () => {
+		expect(buildProgram().name()).toBe("{{commandName}}");
+		expect(buildRegistry().list().map((entry) => entry.name)).toEqual(
+			expect.arrayContaining(["source", "records", "vault", "status", "actions"]),
+		);
 		expect(build{{pascalName}}Status()).toMatchObject({
 			schemaVersion: 1,
 			command: "{{commandName}}",
+			operation: "base",
 			ok: true,
+			nextCommand: "{{commandName}} status --json",
 		});
+		expect(build{{pascalName}}Host().surfaceActions()).toEqual([
+			expect.objectContaining({
+				id: "open-status",
+				payload: expect.objectContaining({
+					command: "{{commandName}} status --json",
+				}),
+			}),
+		]);
 	});
 });

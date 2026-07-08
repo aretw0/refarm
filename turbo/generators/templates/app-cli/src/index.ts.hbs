@@ -1,14 +1,64 @@
 #!/usr/bin/env node
 
-export function build{{pascalName}}Status() {
+import {
+	createLocalVaultCommandDeps,
+	defaultRecordsDeps,
+	defaultSourceDeps,
+	type CapabilityDeps,
+} from "@refarm.dev/capabilities-v1";
+import {
+	defineCapabilityApp,
+	defineCapabilityHost,
+	type CapabilityHost,
+} from "@refarm.dev/capability-host";
+
+export function {{camelName}}CapabilityDeps(): CapabilityDeps {
 	return {
-		schemaVersion: 1,
-		command: "{{commandName}}",
-		ok: true,
-		summary: "{{description}}",
+		source: defaultSourceDeps(),
+		vault: createLocalVaultCommandDeps(),
+		records: defaultRecordsDeps(),
 	};
 }
 
+export function build{{pascalName}}Host(): CapabilityHost {
+	return defineCapabilityHost({
+		id: "apps/{{name}}",
+		command: "{{commandName}}",
+		description: "{{description}}",
+		version: "0.1.0",
+		capabilities: {
+			deps: {{camelName}}CapabilityDeps(),
+		},
+		operatorStatus: {
+			summary: "Show {{name}} operator status",
+			httpPath: "/status",
+			capabilityUnit: {
+				subject: "{{pascalName}}",
+				action: {
+					id: "open-status",
+					label: "{{commandName}} status --json",
+					intent: "{{name}}:status",
+					command: "{{commandName}} status --json",
+					primary: true,
+				},
+			},
+		},
+	});
+}
+
+const {{camelName}}App = defineCapabilityApp({
+	host: build{{pascalName}}Host,
+});
+
+export const buildRegistry = {{camelName}}App.registry;
+export const buildProgram = {{camelName}}App.program;
+
+export function build{{pascalName}}Status() {
+	return {{camelName}}App.baseModel();
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-	console.log(JSON.stringify(build{{pascalName}}Status(), null, 2));
+	void {{camelName}}App.runCli(import.meta.url, {
+		compiledFileName: "index.js",
+	});
 }

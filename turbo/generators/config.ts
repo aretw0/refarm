@@ -275,7 +275,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
   });
 
   plop.setGenerator("app", {
-    description: "Scaffold a Refarm app host",
+    description: "Scaffold an app host",
     prompts: [
       {
         type: "input",
