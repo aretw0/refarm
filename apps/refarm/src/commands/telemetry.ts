@@ -86,9 +86,9 @@ function parseThresholdProfile(value: string): PressureProfileName {
 }
 
 async function fetchTelemetryFromSidecar(): Promise<PressureSnapshot> {
-	const telemetry = createPressureClient(resolveSidecarUrl());
+	const pressure = createPressureClient(resolveSidecarUrl());
 	try {
-		return await telemetry.getSnapshot();
+		return await pressure.getSnapshot();
 	} catch (err) {
 		if (err instanceof SidecarHttpError && err.status === 404) {
 			throw new Error("telemetry endpoint not available");
@@ -161,7 +161,7 @@ export function buildTelemetryRecommendations(
 				return {
 					diagnostic,
 					summary: `Telemetry diagnostic ${diagnostic} is present.`,
-					action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
+					action: "Inspect pressure payload and host logs for the diagnostic source.",
 					command: RUNTIME_DOCTOR_NEXT_COMMAND,
 				};
 		}
@@ -190,7 +190,7 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 
 	return new Command("telemetry")
 		.description(
-			"Show runtime telemetry snapshot and saturation/reliability signals",
+			"Show pressure snapshot and saturation/reliability signals",
 		)
 		.option("--json", "Output machine-readable JSON")
 		.option("--next-action", "Print only the first telemetry recovery action")

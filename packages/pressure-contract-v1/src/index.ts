@@ -234,7 +234,7 @@ export function buildPressureRecommendations(
         return {
           diagnostic,
           summary: `Pressure diagnostic ${diagnostic} is present.`,
-          action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
+          action: "Inspect pressure payload and host logs for the diagnostic source.",
         };
     }
   });

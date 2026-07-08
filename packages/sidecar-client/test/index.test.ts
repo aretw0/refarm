@@ -179,7 +179,7 @@ describe("sidecar-client", () => {
 		);
 	});
 
-	it("reads runtime telemetry snapshots and windows from the sidecar", async () => {
+	it("reads pressure snapshots and windows from the sidecar", async () => {
 		const snapshot = {
 			queueDepth: 1,
 			inFlight: 2,
@@ -226,30 +226,30 @@ describe("sidecar-client", () => {
 				return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
 			},
 		);
-		const telemetry = createPressureClient("http://sidecar.test/", {
+		const pressure = createPressureClient("http://sidecar.test/", {
 			fetch: fetchImpl as unknown as typeof fetch,
 		});
 
-		await expect(telemetry.getSnapshot()).resolves.toEqual(snapshot);
-		await expect(telemetry.getWindow(30)).resolves.toEqual(window);
+		await expect(pressure.getSnapshot()).resolves.toEqual(snapshot);
+		await expect(pressure.getWindow(30)).resolves.toEqual(window);
 		expect(fetchImpl.mock.calls.map(([input]) => String(input))).toEqual([
 			"http://sidecar.test/telemetry",
 			"http://sidecar.test/telemetry/window?minutes=30",
 		]);
 	});
 
-	it("treats missing runtime telemetry windows as unavailable", async () => {
+	it("treats missing pressure windows as unavailable", async () => {
 		const fetchImpl = vi.fn(
 			async (
 				_input: Parameters<typeof fetch>[0],
 				_init?: Parameters<typeof fetch>[1],
 			) => new Response("", { status: 404 }),
 		);
-		const telemetry = createPressureClient("http://sidecar.test", {
+		const pressure = createPressureClient("http://sidecar.test", {
 			fetch: fetchImpl as unknown as typeof fetch,
 		});
 
-		await expect(telemetry.getWindow(60)).resolves.toBeNull();
+		await expect(pressure.getWindow(60)).resolves.toBeNull();
 	});
 
 	it("labels pressure HTTP failures", async () => {
@@ -259,11 +259,11 @@ describe("sidecar-client", () => {
 				_init?: Parameters<typeof fetch>[1],
 			) => new Response(JSON.stringify({ error: "unavailable" }), { status: 503 }),
 		);
-		const telemetry = createPressureClient("http://sidecar.test", {
+		const pressure = createPressureClient("http://sidecar.test", {
 			fetch: fetchImpl as unknown as typeof fetch,
 		});
 
-		await expect(telemetry.getSnapshot()).rejects.toMatchObject({
+		await expect(pressure.getSnapshot()).rejects.toMatchObject({
 			constructor: SidecarHttpError,
 			errorLabel: "pressure HTTP",
 			status: 503,

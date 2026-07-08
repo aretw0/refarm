@@ -504,7 +504,7 @@ describe("buildTelemetryRecommendations", () => {
 			{
 				diagnostic: "custom:diagnostic",
 				summary: "Telemetry diagnostic custom:diagnostic is present.",
-				action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
+				action: "Inspect pressure payload and host logs for the diagnostic source.",
 				command: "refarm doctor --next-command",
 			},
 		]);

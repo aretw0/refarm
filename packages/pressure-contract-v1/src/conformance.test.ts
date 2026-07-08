@@ -106,7 +106,7 @@ describe("pressure contract", () => {
       {
         diagnostic: "custom:diagnostic",
         summary: "Pressure diagnostic custom:diagnostic is present.",
-        action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
+        action: "Inspect pressure payload and host logs for the diagnostic source.",
       },
     ]);
   });
