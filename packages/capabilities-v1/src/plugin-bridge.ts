@@ -123,6 +123,54 @@ export interface SurfaceableManifest {
 	};
 }
 
+export interface PluginInspectorCapabilityOptions {
+	name: string;
+	summary: string;
+	manifest: SurfaceableManifest;
+	deps: PluginDescriptorDeps;
+	operation?: string;
+	httpPath?: string;
+	tuiSection?: string;
+	agentToolName?: string;
+	note?: string;
+	transports?: CapabilityDescriptor["transports"];
+	renderers?: CapabilityDescriptor["renderers"];
+}
+
+export function definePluginInspectorCapability(
+	options: PluginInspectorCapabilityOptions,
+): CapabilityDescriptor {
+	return {
+		name: options.name,
+		summary: options.summary,
+		transports: options.transports ?? {
+			cli: {},
+			repl: {},
+			http: { method: "GET", path: options.httpPath ?? `/${options.name}` },
+			agent: { tool: true, toolName: options.agentToolName ?? options.name },
+		},
+		renderers: options.renderers ?? {
+			tui: { section: options.tuiSection ?? options.name },
+		},
+		run() {
+			const descriptors = pluginDescriptorsFrom(options.manifest, options.deps);
+			return buildJsonSuccessEnvelope({
+				command: options.name,
+				operation: options.operation ?? "inspect",
+				extra: {
+					pluginId: options.manifest.id,
+					declared: options.manifest.capabilities?.provides ?? [],
+					surfaced: descriptors.map((descriptor) => ({
+						verb: descriptor.name,
+						summary: descriptor.summary,
+					})),
+					...(options.note ? { note: options.note } : {}),
+				},
+			});
+		},
+	};
+}
+
 /**
  * Build the surface capabilities a plugin manifest contributes — one
  * `CapabilityDescriptor` per dispatchable verb in `capabilities.provides`, guarded by

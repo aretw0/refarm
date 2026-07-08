@@ -1,11 +1,9 @@
 import {
-	buildJsonSuccessEnvelope,
 	defaultRecordsDeps,
 	defaultSourceDeps,
 	defaultVaultDeps,
-	pluginDescriptorsFrom,
+	definePluginInspectorCapability,
 	type CapabilityDescriptor,
-	type CapabilityEnvelope,
 	type PluginDescriptorDeps,
 	type RefarmCapabilityDeps,
 	type SubmitEffort,
@@ -65,31 +63,13 @@ export function devCapabilityDeps(): RefarmCapabilityDeps {
 export function createExtensionCapability(
 	pluginDeps: PluginDescriptorDeps,
 ): CapabilityDescriptor {
-	return {
+	return definePluginInspectorCapability({
 		name: "extension",
 		summary: "Inspect the coding-agent extension: what it declares, how it surfaces",
-		transports: {
-			cli: {},
-			repl: {},
-			http: { method: "GET", path: "/ext/inspect" },
-			agent: { tool: true, toolName: "extension" },
-		},
-		renderers: { tui: { section: "extension" } },
-		run(): CapabilityEnvelope {
-			// Show the mechanism: manifest declaration → synthesized capability verbs.
-			const descriptors = pluginDescriptorsFrom(CODING_AGENT_MANIFEST, pluginDeps);
-			return buildJsonSuccessEnvelope({
-				command: "extension",
-				operation: "inspect",
-				extra: {
-					pluginId: CODING_AGENT_MANIFEST.id,
-					declared: CODING_AGENT_MANIFEST.capabilities?.provides ?? [],
-					// The verbs the bridge surfaced onto every surface from the manifest.
-					surfaced: descriptors.map((d) => ({ verb: d.name, summary: d.summary })),
-					note:
-						"Each surfaced verb is a first-class command on CLI/REPL/TUI/HTTP/agent — declared once, no per-surface wiring.",
-				},
-			});
-		},
-	};
+		manifest: CODING_AGENT_MANIFEST,
+		deps: pluginDeps,
+		httpPath: "/ext/inspect",
+		note:
+			"Each surfaced verb is a first-class command on CLI/REPL/TUI/HTTP/agent — declared once, no per-surface wiring.",
+	});
 }

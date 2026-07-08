@@ -48,12 +48,14 @@ export {
 } from "./builtin-capabilities.js";
 export {
 	buildDispatchEffort,
+	definePluginInspectorCapability,
 	parseDispatchArgs,
 	pluginDescriptorsFrom,
 	registerPluginCapabilities,
 	type DispatchRequest,
 	type PluginCapabilityRegistration,
 	type PluginDescriptorDeps,
+	type PluginInspectorCapabilityOptions,
 	type SubmitEffort,
 	type SurfaceableManifest,
 } from "./plugin-bridge.js";

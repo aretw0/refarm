@@ -3,6 +3,7 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import { describe, expect, it } from "vitest";
 
 import {
+	definePluginInspectorCapability,
 	pluginDescriptorsFrom,
 	registerPluginCapabilities,
 	type PluginDescriptorDeps,
@@ -82,6 +83,44 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 		// Most plugins: they subscribe/provide runtime events but no user verb.
 		const m = manifest("@refarm/agent", ["integration:respond"], ["user:prompt"]);
 		expect(pluginDescriptorsFrom(m, makeDeps())).toEqual([]);
+	});
+});
+
+describe("definePluginInspectorCapability — manifest visibility as an extension block", () => {
+	it("declares an inspector that explains manifest provides → surfaced verbs", async () => {
+		const deps = makeDeps();
+		const inspector = definePluginInspectorCapability({
+			name: "extension",
+			summary: "Inspect the coding-agent extension",
+			manifest: manifest("@devbench/coding-agent", ["agent:code", "agent:review"], [
+				"agent:dispatch",
+			]),
+			deps,
+			httpPath: "/ext/inspect",
+			note: "Declared once, reachable on every surface.",
+		});
+
+		expect(inspector.name).toBe("extension");
+		expect(inspector.transports?.http).toEqual({ method: "GET", path: "/ext/inspect" });
+		expect(inspector.renderers?.tui).toEqual({ section: "extension" });
+
+		const env = await inspector.run({ args: {}, options: {}, json: true }) as unknown as {
+			ok: boolean;
+			command: string;
+			operation: string;
+			pluginId: string;
+			declared: string[];
+			surfaced: Array<{ verb: string; summary: string }>;
+			note: string;
+		};
+
+		expect(env.ok).toBe(true);
+		expect(env.command).toBe("extension");
+		expect(env.operation).toBe("inspect");
+		expect(env.pluginId).toBe("@devbench/coding-agent");
+		expect(env.declared).toEqual(["agent:code", "agent:review"]);
+		expect(env.surfaced.map((item) => item.verb).sort()).toEqual(["code", "review"]);
+		expect(env.note).toBe("Declared once, reachable on every surface.");
 	});
 });
 
