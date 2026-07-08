@@ -98,32 +98,31 @@ describe("config command", () => {
 		});
 	}
 
-	it("sets home farmhand autostart mode", async () => {
-		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+	it("rejects the removed farmhand autostart key on set", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		await command().parseAsync(["set", "farmhand.autostart", "always"], {
 			from: "user",
 		});
 
-		const saved = JSON.parse(
-			fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf-8"),
-		) as { autostart?: string };
-		expect(saved.autostart).toBe("always");
-		expect(logSpy).toHaveBeenCalledWith(
-			expect.stringContaining("farmhand.autostart=always"),
-		);
+		const errors = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(errors).toContain("Unknown config key: farmhand.autostart");
+		expect(process.exitCode).toBe(1);
+		expect(fs.existsSync(path.join(home, ".refarm", "config.json"))).toBe(false);
 	});
 
-	it("sets local farmhand autostart mode", async () => {
+	it("rejects the removed farmhand autostart key on set --local", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
 		await command().parseAsync(
 			["set", "farmhand.autostart", "never", "--local"],
 			{ from: "user" },
 		);
 
-		const saved = JSON.parse(
-			fs.readFileSync(path.join(cwd, ".refarm", "config.json"), "utf-8"),
-		) as { autostart?: string };
-		expect(saved.autostart).toBe("never");
+		const errors = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(errors).toContain("Unknown config key: farmhand.autostart");
+		expect(process.exitCode).toBe(1);
+		expect(fs.existsSync(path.join(cwd, ".refarm", "config.json"))).toBe(false);
 		expect(fs.existsSync(path.join(home, ".refarm", "config.json"))).toBe(false);
 	});
 
@@ -224,21 +223,20 @@ describe("config command", () => {
 		expect(fs.existsSync(path.join(home, ".refarm", "config.json"))).toBe(false);
 	});
 
-	it("marks persisted legacy config keys in JSON output", async () => {
+	it("ignores the removed farmhand autostart env override", async () => {
+		process.env.REFARM_FARMHAND_AUTOSTART = "never";
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await command().parseAsync(["set", "farmhand.autostart", "always", "--json"], {
+		await command().parseAsync(["get", "runtime.autostart", "--json"], {
 			from: "user",
 		});
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
-			...configIdentity("set"),
-			key: "farmhand.autostart",
-			value: "always",
-			path: path.join(home, ".refarm", "config.json"),
-			scope: "home",
-			legacy: true,
-			...configGetHandoff("farmhand.autostart"),
+			...configIdentity("get"),
+			key: "runtime.autostart",
+			value: "ask",
+			source: "default",
+			...EMPTY_JSON_HANDOFF,
 		});
 	});
 
@@ -306,22 +304,22 @@ describe("config command", () => {
 		expect(fs.existsSync(path.join(home, ".refarm", "config.json"))).toBe(false);
 	});
 
-	it("prints effective home autostart mode", async () => {
+	it("rejects the removed farmhand autostart key on get", async () => {
 		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
 		fs.writeFileSync(
 			path.join(home, ".refarm", "config.json"),
 			JSON.stringify({ autostart: "never" }),
 			"utf-8",
 		);
-		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		await command().parseAsync(["get", "farmhand.autostart"], {
 			from: "user",
 		});
 
-		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("farmhand.autostart=never");
-		expect(output).toContain("legacy key; prefer runtime.autostart");
+		const errors = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(errors).toContain("Unknown config key: farmhand.autostart");
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("prints effective runtime autostart mode", async () => {
@@ -431,21 +429,16 @@ describe("config command", () => {
 		});
 	});
 
-	it("marks legacy config keys in JSON output", async () => {
-		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+	it("rejects the removed farmhand autostart key on get --json", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		await command().parseAsync(["get", "farmhand.autostart", "--json"], {
 			from: "user",
 		});
 
-		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
-			...configIdentity("get"),
-			key: "farmhand.autostart",
-			value: "ask",
-			source: "default",
-			legacy: true,
-			...EMPTY_JSON_HANDOFF,
-		});
+		const errors = errorSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(errors).toContain("Unknown config key: farmhand.autostart");
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("prints a guide when run without a subcommand", async () => {
@@ -504,8 +497,8 @@ describe("config command", () => {
 
 		expect(help).toContain("refarm config get runtime.autostart");
 		expect(help).toContain("tractor.engine  auto | rust | ts");
-		expect(help).toContain("farmhand.autostart  ask | always | never");
-		expect(help).toContain("legacy; prefer runtime.autostart");
+		expect(help).not.toContain("farmhand.autostart");
+		expect(help).not.toContain("legacy; prefer runtime.autostart");
 		expect(help).toContain("REFARM_OPEN_EXTERNAL_LINKS");
 	});
 
@@ -523,8 +516,8 @@ describe("config command", () => {
 
 		expect(help).toContain("refarm config set runtime.autostart always");
 		expect(help).toContain("refarm config set tractor.engine rust");
-		expect(help).toContain("farmhand.autostart  ask | always | never");
-		expect(help).toContain("legacy; prefer runtime.autostart");
+		expect(help).not.toContain("farmhand.autostart");
+		expect(help).not.toContain("legacy; prefer runtime.autostart");
 		expect(help).toContain("repository-specific operator preferences");
 		expect(help).toContain("REFARM_RUNTIME_AUTOSTART");
 	});

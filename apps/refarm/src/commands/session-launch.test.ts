@@ -714,14 +714,14 @@ describe("readAutostartMode", () => {
 		expect(readAutostartMode()).toBe("never");
 	});
 
-	it("keeps REFARM_FARMHAND_AUTOSTART as a compatibility fallback", () => {
+	it("ignores REFARM_FARMHAND_AUTOSTART", () => {
 		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
 		process.env.REFARM_FARMHAND_AUTOSTART = "never";
 
-		expect(readAutostartMode()).toBe("never");
+		expect(readAutostartMode()).toBe("ask");
 	});
 
-	it("prefers REFARM_RUNTIME_AUTOSTART over the legacy farmhand env override", () => {
+	it("uses REFARM_RUNTIME_AUTOSTART when the removed farmhand env override is also present", () => {
 		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
 		process.env.REFARM_RUNTIME_AUTOSTART = "always";
 		process.env.REFARM_FARMHAND_AUTOSTART = "never";

@@ -91,7 +91,7 @@ describe("resolveAutostartModeAsync", () => {
 		rmSync(cwd, { recursive: true, force: true });
 	});
 
-	it("prefers the primary env var over the legacy FARMHAND var", async () => {
+	it("uses the primary env var when a removed farmhand env var is also present", async () => {
 		const seam = async () => null;
 		const out = await resolveAutostartModeAsync(seam, {
 			env: {
@@ -107,15 +107,15 @@ describe("resolveAutostartModeAsync", () => {
 		});
 	});
 
-	it("falls back to the legacy FARMHAND env var when the primary is unset", async () => {
+	it("ignores the removed farmhand env var when the primary is unset", async () => {
 		const out = await resolveAutostartModeAsync(async () => null, {
 			env: { REFARM_FARMHAND_AUTOSTART: "never" },
 			home,
 			cwd,
 		});
 		expect(out).toEqual({
-			value: "never",
-			source: "env:REFARM_FARMHAND_AUTOSTART",
+			value: "ask",
+			source: "default",
 		});
 	});
 

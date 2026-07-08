@@ -3,16 +3,32 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/cli/json-output";
-import { parseRuntimeAutostartMode, RUNTIME_AUTOSTART_MODES, RUNTIME_ENGINE_MODES, } from "@refarm.dev/runtime";
+import {
+	parseRuntimeAutostartMode,
+	RUNTIME_AUTOSTART_MODES,
+	RUNTIME_ENGINE_MODES,
+} from "@refarm.dev/runtime";
 import chalk from "chalk";
 import { Command } from "commander";
 import os from "node:os";
 import path from "node:path";
 import {
-	OPEN_EXTERNAL_LINKS_ENV_VAR, parseOpenExternalLinksMode, resolveCliOpenExternalLinksMode, type OpenExternalLinksMode,
+	OPEN_EXTERNAL_LINKS_ENV_VAR,
+	parseOpenExternalLinksMode,
+	resolveCliOpenExternalLinksMode,
+	type OpenExternalLinksMode,
 } from "../utils/open-external-links.js";
 import {
-	LEGACY_FARMHAND_AUTOSTART_ENV_VAR, parseRuntimeSidecarUrl, parseTractorEngineMode, resolveAutostartMode as resolveRuntimeAutostartMode, resolveRuntimeSidecarUrl, resolveTractorEngineMode as resolveRuntimeTractorEngineMode, RUNTIME_AUTOSTART_ENV_VAR, RUNTIME_SIDECAR_URL_ENV_VAR, TRACTOR_ENGINE_ENV_VAR, type AutostartMode, type TractorEngineMode,
+	parseRuntimeSidecarUrl,
+	parseTractorEngineMode,
+	resolveAutostartMode as resolveRuntimeAutostartMode,
+	resolveRuntimeSidecarUrl,
+	resolveTractorEngineMode as resolveRuntimeTractorEngineMode,
+	RUNTIME_AUTOSTART_ENV_VAR,
+	RUNTIME_SIDECAR_URL_ENV_VAR,
+	TRACTOR_ENGINE_ENV_VAR,
+	type AutostartMode,
+	type TractorEngineMode,
 } from "../utils/runtime-config.js";
 import { createConfigPluginsCommand } from "./config-plugins.js";
 import {
@@ -38,7 +54,6 @@ export {
 const CONFIG_JSON_COMMAND = refarmCommand(["config", "--json"]);
 
 type ConfigKey =
-	| "farmhand.autostart"
 	| "runtime.autostart"
 	| "runtime.sidecarUrl"
 	| "operator.openExternalLinks"
@@ -48,7 +63,6 @@ interface EffectiveConfigValue {
 	key: ConfigKey;
 	value: string;
 	source: string;
-	legacy?: boolean;
 }
 
 interface ConfigSummary {
@@ -60,7 +74,6 @@ interface PersistedConfigValue {
 	value: string;
 	path: string;
 	scope: "home" | "local";
-	legacy?: boolean;
 }
 
 interface UnsetConfigValue {
@@ -68,7 +81,6 @@ interface UnsetConfigValue {
 	path: string;
 	scope: "home" | "local";
 	removed: boolean;
-	legacy?: boolean;
 }
 
 interface AppliedConfigProfile {
@@ -83,7 +95,6 @@ const CONFIG_KEYS: readonly ConfigKey[] = [
 	"runtime.sidecarUrl",
 	"operator.openExternalLinks",
 	"tractor.engine",
-	"farmhand.autostart",
 ];
 const AUTOSTART_MODES = RUNTIME_AUTOSTART_MODES;
 const OPEN_EXTERNAL_LINKS_MODES: readonly OpenExternalLinksMode[] = ["auto", "never"];
@@ -186,7 +197,7 @@ function parseConfigKey(value: string): ConfigKey | null {
 }
 
 function parseConfigAutostartMode(
-	key: Extract<ConfigKey, "farmhand.autostart" | "runtime.autostart">,
+	key: Extract<ConfigKey, "runtime.autostart">,
 	value: string,
 ): AutostartMode | null {
 	const mode = parseAutostartMode(value);
@@ -243,12 +254,6 @@ function warnIgnoredAutostartEnvOverrides(): void {
 		AUTOSTART_MODES,
 		parseAutostartMode,
 	);
-	warnIgnoredEnvOverride(
-		LEGACY_FARMHAND_AUTOSTART_ENV_VAR,
-		process.env[LEGACY_FARMHAND_AUTOSTART_ENV_VAR],
-		AUTOSTART_MODES,
-		parseAutostartMode,
-	);
 }
 
 function warnIgnoredOpenExternalLinksEnvOverride(): void {
@@ -283,13 +288,12 @@ function resolveConfigValue(
 	opts: { local?: boolean },
 	deps: ConfigDeps,
 ): EffectiveConfigValue {
-	if (key === "farmhand.autostart" || key === "runtime.autostart") {
+	if (key === "runtime.autostart") {
 		const effective = resolveAutostartMode(deps, opts);
 		return {
 			key,
 			value: effective.value,
 			source: effective.source,
-			...(key === "farmhand.autostart" ? { legacy: true } : {}),
 		};
 	}
 	if (key === "operator.openExternalLinks") {
@@ -309,9 +313,6 @@ function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: Confi
 	const effective = resolveConfigValue(key, opts, deps);
 	console.log(`${effective.key}=${effective.value}`);
 	console.log(chalk.dim(`source=${effective.source}`));
-	if (effective.legacy) {
-		console.log(chalk.dim("legacy key; prefer runtime.autostart"));
-	}
 }
 
 function printConfigValueJson(key: ConfigKey, opts: { local?: boolean }, deps: ConfigDeps): void {
@@ -376,9 +377,6 @@ function configScope(opts: { local?: boolean }): "home" | "local" {
 function printPersistedConfigValue(result: PersistedConfigValue): void {
 	console.log(chalk.green(`✓  ${result.key}=${result.value}`));
 	console.log(chalk.dim(`   ${result.path}`));
-	if (result.legacy) {
-		console.log(chalk.dim("   legacy key; prefer runtime.autostart"));
-	}
 }
 
 function printPersistedConfigValueJson(result: PersistedConfigValue): void {
@@ -401,9 +399,6 @@ function printUnsetConfigValue(result: UnsetConfigValue): void {
 		console.log(chalk.dim(`-  ${result.key} was not set`));
 	}
 	console.log(chalk.dim(`   ${result.path}`));
-	if (result.legacy) {
-		console.log(chalk.dim("   legacy key; prefer runtime.autostart"));
-	}
 }
 
 function printUnsetConfigValueJson(result: UnsetConfigValue): void {
@@ -479,7 +474,7 @@ function persistConfigValue(
 	opts: { local?: boolean },
 	deps: ConfigDeps,
 ): PersistedConfigValue | null {
-	if (key === "farmhand.autostart" || key === "runtime.autostart") {
+	if (key === "runtime.autostart") {
 		const mode = parseConfigAutostartMode(key, value);
 		if (!mode) return null;
 		const filePath = configPath(deps, opts);
@@ -491,7 +486,6 @@ function persistConfigValue(
 			value: mode,
 			path: filePath,
 			scope: configScope(opts),
-			...(key === "farmhand.autostart" ? { legacy: true } : {}),
 		};
 	}
 	if (key === "operator.openExternalLinks") {
@@ -557,7 +551,7 @@ function unsetConfigValue(
 	const config = readConfig(filePath);
 	let removed = false;
 
-	if (key === "farmhand.autostart" || key === "runtime.autostart") {
+	if (key === "runtime.autostart") {
 		removed = Object.prototype.hasOwnProperty.call(config, "autostart");
 		if (removed) {
 			delete config.autostart;
@@ -591,7 +585,6 @@ function unsetConfigValue(
 		path: filePath,
 		scope: configScope(opts),
 		removed,
-		...(key === "farmhand.autostart" ? { legacy: true } : {}),
 	};
 }
 
@@ -627,9 +620,6 @@ Keys:
 
 Profiles:
   coding  MODEL_HISTORY_TURNS=20, MODEL_TOOL_CALL_MAX_ITER=20, MODEL_STREAM_RESPONSES=1
-
-Legacy aliases:
-  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (legacy; prefer runtime.autostart)
 
 Notes:
   ${RUNTIME_AUTOSTART_ENV_VAR} can be ${AUTOSTART_MODES_HELP} for one-shot autostart policy.
@@ -714,9 +704,6 @@ Keys:
   operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
   tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
 
-Legacy aliases:
-  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (legacy; prefer runtime.autostart)
-
 Notes:
   Without --local, project-local config overrides home config. Environment
   overrides such as ${RUNTIME_AUTOSTART_ENV_VAR}, ${OPEN_EXTERNAL_LINKS_ENV_VAR}, and ${TRACTOR_ENGINE_ENV_VAR} still
@@ -760,9 +747,6 @@ Keys:
   runtime.sidecarUrl  HTTP endpoint for the selected runtime sidecar
   operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
   tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
-
-Legacy aliases:
-  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (legacy; prefer runtime.autostart)
 
 Notes:
   Unset only changes persisted config. Environment overrides such as
@@ -810,9 +794,6 @@ Keys:
   runtime.sidecarUrl  HTTP endpoint for the selected runtime sidecar
   operator.openExternalLinks  ${OPEN_EXTERNAL_LINKS_MODES_HELP}
   tractor.engine  ${TRACTOR_ENGINE_MODES_HELP}
-
-Legacy aliases:
-  farmhand.autostart  ${AUTOSTART_MODES_HELP}  (legacy; prefer runtime.autostart)
 
 Notes:
   Use --local for repository-specific operator preferences. Home config is the

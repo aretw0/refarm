@@ -1,13 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createRuntimeSummaryFromTractor } from "../src/tractor-adapter.js";
 
 describe("createRuntimeSummaryFromTractor", () => {
   it("returns ready:true with namespace from tractor", () => {
-    const fakeTractor = { namespace: "refarm-main" };
+    const fakeTractor = { namespace: "main" };
     const result = createRuntimeSummaryFromTractor(fakeTractor);
     expect(result.ready).toBe(true);
-    expect(result.namespace).toBe("refarm-main");
-    expect(result.databaseName).toBe("refarm-main");
+    expect(result.namespace).toBe("main");
+    expect(result.databaseName).toBe("main");
   });
 
   it("uses namespace as databaseName", () => {

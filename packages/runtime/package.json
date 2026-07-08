@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/runtime",
   "version": "0.1.0",
-  "description": "Refarm Runtime \u2014 domain contract for host runtime state summaries",
+  "description": "Runtime contracts and host-agnostic config resolution for SDK consumers",
   "type": "module",
   "exports": {
     ".": {

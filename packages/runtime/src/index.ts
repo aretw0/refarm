@@ -77,6 +77,19 @@ export function parseRuntimeAutostartMode(
     : null;
 }
 
+export {
+  resolveRuntimeConfigValueAsync,
+  resolveRuntimeConfigValueSync,
+  type RuntimeConfigEnv,
+  type RuntimeConfigEnvProbe,
+  type RuntimeConfigLayer,
+  type RuntimeConfigObject,
+  type RuntimeConfigValueAsyncOptions,
+  type RuntimeConfigValueResolution,
+  type RuntimeConfigValueSpec,
+  type RuntimeConfigValueSyncOptions,
+} from "./config.js";
+
 export type {
   RuntimeHost,
   RuntimeNode,
