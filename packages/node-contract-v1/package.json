@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/node-contract-v1",
 	"version": "0.1.0",
-	"description": "Base GraphNode interface — shared fields for all typed nodes in the Refarm sovereign data graph",
+	"description": "Base GraphNode interface — shared fields for typed sovereign data graph nodes",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

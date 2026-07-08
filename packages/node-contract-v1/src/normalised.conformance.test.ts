@@ -58,7 +58,7 @@ describe("node graph cross-language convention", () => {
 describe("GraphNode ⇄ NormalisedNode adapter", () => {
 	const base: GraphNode = {
 		"@type": "Session",
-		"@id": "urn:refarm:agent:runtime-agent",
+		"@id": "urn:agent:runtime-agent",
 		title: "A session",
 		tags: ["a", "b"],
 		priority: 1,

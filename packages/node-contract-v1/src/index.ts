@@ -10,7 +10,7 @@ export {
 } from "./normalised.js";
 
 /**
- * Base shape for all typed nodes in the Refarm sovereign data graph.
+ * Base shape for all typed nodes in a sovereign data graph.
  *
  * Uses JSON-LD conventions (@type, @id) so nodes are serialisable to
  * linked-data formats without transformation.
