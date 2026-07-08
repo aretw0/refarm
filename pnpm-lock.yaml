@@ -372,6 +372,9 @@ importers:
       '@refarm.dev/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      '@refarm.dev/runtime-telemetry-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/runtime-telemetry-contract-v1
       '@refarm.dev/sidecar-client':
         specifier: workspace:*
         version: link:../../packages/sidecar-client
@@ -1412,6 +1415,18 @@ importers:
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../plugin-manifest
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
+  packages/runtime-telemetry-contract-v1:
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

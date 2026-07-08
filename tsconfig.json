@@ -54,6 +54,9 @@
       "@refarm.dev/plugin-tem": ["./packages/plugin-tem/src/index"],
       "@refarm.dev/registry": ["./packages/registry/src/index"],
       "@refarm.dev/runtime": ["./packages/runtime/src/index"],
+      "@refarm.dev/runtime-telemetry-contract-v1": [
+        "./packages/runtime-telemetry-contract-v1/src/index"
+      ],
       "@refarm.dev/scarecrow": ["./packages/scarecrow/src/index"],
       "@refarm.dev/silo": ["./packages/silo/src/index"],
       "@refarm.dev/sower": ["./packages/sower/src/index"],

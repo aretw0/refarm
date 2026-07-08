@@ -16,6 +16,7 @@ const STEPS = [
 	["packages/identity-contract-v1", "test:unit"],
 	["packages/task-contract-v1", "test:unit"],
 	["packages/session-contract-v1", "test:unit"],
+	["packages/runtime-telemetry-contract-v1", "test:unit"],
 	["packages/plugin-manifest", "test:conformance"],
 	["packages/storage-sqlite", "test:conformance"],
 	["packages/storage-memory", "test:conformance"],

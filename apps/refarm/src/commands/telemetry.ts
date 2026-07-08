@@ -1,5 +1,13 @@
 import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { printJson } from "@refarm.dev/cli/json-output";
+import {
+	evaluateRuntimePressure,
+	isRuntimePressureProfileName,
+	type RuntimePressureDiagnostic,
+	type RuntimePressureProfileName,
+	type RuntimeTelemetrySnapshot,
+	type RuntimeTelemetryWindow,
+} from "@refarm.dev/runtime-telemetry-contract-v1";
 import { fetchSidecarJson, SidecarHttpError } from "@refarm.dev/sidecar-client";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
@@ -20,32 +28,6 @@ import {
 } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
-type ThresholdProfileName = "conservative" | "balanced" | "throughput";
-
-interface TelemetryThresholds {
-	queueWarn: number;
-	inflightWarn: number;
-	failRateWarn: number;
-}
-
-const PROFILE_THRESHOLDS: Record<ThresholdProfileName, TelemetryThresholds> = {
-	conservative: {
-		queueWarn: 5,
-		inflightWarn: 2,
-		failRateWarn: 5,
-	},
-	balanced: {
-		queueWarn: 10,
-		inflightWarn: 4,
-		failRateWarn: 15,
-	},
-	throughput: {
-		queueWarn: 20,
-		inflightWarn: 8,
-		failRateWarn: 30,
-	},
-};
-
 const TASK_LIST_JSON_COMMAND = refarmCommand(["task", "list", "--json"]);
 const FAILED_TASKS_JSON_COMMAND = refarmCommand([
 	"tasks",
@@ -54,33 +36,6 @@ const FAILED_TASKS_JSON_COMMAND = refarmCommand([
 	"--json",
 ]);
 
-export interface RuntimeTelemetrySnapshot {
-	queueDepth: number;
-	inFlight: number;
-	cancelRequests: number;
-	generatedAt: string;
-	total: number;
-	pending: number;
-	inProgress: number;
-	done: number;
-	failed: number;
-	cancelled: number;
-}
-
-export interface RuntimeTelemetryWindow {
-	windowMinutes: number;
-	since: string;
-	terminal: number;
-	failureRatePct: number | null;
-	generatedAt: string;
-	total: number;
-	pending: number;
-	inProgress: number;
-	done: number;
-	failed: number;
-	cancelled: number;
-}
-
 export type RuntimeTelemetryRecommendation = DiagnosticRecommendation;
 
 export interface TelemetryDeps {
@@ -88,7 +43,7 @@ export interface TelemetryDeps {
 	fetchTelemetryWindow(minutes: number): Promise<RuntimeTelemetryWindow | null>;
 }
 
-function parseDiagnosticList(raw: string | undefined): string[] {
+function parseDiagnosticList(raw: string | undefined): RuntimePressureDiagnostic[] {
 	if (!raw) return [];
 	return raw
 		.split(",")
@@ -118,18 +73,8 @@ function toPositiveInt(raw: number | string | undefined, fallback: number): numb
 	return Math.floor(parsed);
 }
 
-function toPositiveNumber(raw: number | string | undefined, fallback: number): number {
-	const parsed = Number(raw);
-	if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-	return Number(parsed);
-}
-
-function isThresholdProfileName(raw: string): raw is ThresholdProfileName {
-	return raw === "conservative" || raw === "balanced" || raw === "throughput";
-}
-
-function parseThresholdProfile(value: string): ThresholdProfileName {
-	if (isThresholdProfileName(value)) {
+function parseThresholdProfile(value: string): RuntimePressureProfileName {
+	if (isRuntimePressureProfileName(value)) {
 		return value;
 	}
 	throw new InvalidArgumentError(
@@ -313,7 +258,7 @@ Notes:
 			async (opts: {
 				json?: boolean;
 				nextAction?: boolean;
-				profile?: ThresholdProfileName;
+				profile?: RuntimePressureProfileName;
 				windowMinutes?: number;
 				queueWarn?: number;
 				inflightWarn?: number;
@@ -322,19 +267,6 @@ Notes:
 				strictOn?: string;
 			}) => {
 				const profileName = opts.profile ?? "balanced";
-
-				const baseThresholds = PROFILE_THRESHOLDS[profileName];
-				const thresholds = {
-					queueWarn: toPositiveInt(opts.queueWarn, baseThresholds.queueWarn),
-					inflightWarn: toPositiveInt(
-						opts.inflightWarn,
-						baseThresholds.inflightWarn,
-					),
-					failRateWarn: toPositiveNumber(
-						opts.failRateWarn,
-						baseThresholds.failRateWarn,
-					),
-				};
 				const windowMinutes = toPositiveInt(opts.windowMinutes, 60);
 
 				let snapshot: RuntimeTelemetrySnapshot;
@@ -371,33 +303,19 @@ Notes:
 					return;
 				}
 
-				const diagnostics: string[] = [];
-				if (snapshot.queueDepth >= thresholds.queueWarn) {
-					diagnostics.push("saturation:queue");
-				}
-				if (snapshot.inFlight >= thresholds.inflightWarn) {
-					diagnostics.push("saturation:inflight");
-				}
-				if (snapshot.failed > 0) {
-					diagnostics.push("reliability:failures-present");
-				}
-				if (window) {
-					if (window.failed > 0)
-						diagnostics.push("reliability:failures-recent");
-					if (
-						window.failureRatePct !== null &&
-						window.failureRatePct >= thresholds.failRateWarn
-					) {
-						diagnostics.push("reliability:failure-rate");
-					}
-				}
-
-				const strictTargets = parseDiagnosticList(opts.strictOn);
-				const strictMatches =
-					strictTargets.length > 0
-						? diagnostics.filter((code) => strictTargets.includes(code))
-						: [...diagnostics];
-				const strictPassed = !opts.strict || strictMatches.length === 0;
+				const pressure = evaluateRuntimePressure({
+					snapshot,
+					window,
+					profile: profileName,
+					thresholds: {
+						queueWarn: opts.queueWarn,
+						inflightWarn: opts.inflightWarn,
+						failRateWarn: opts.failRateWarn,
+					},
+					strict: opts.strict,
+					strictOn: parseDiagnosticList(opts.strictOn),
+				});
+				const { diagnostics, strict } = pressure;
 				const recommendations = buildTelemetryRecommendations(diagnostics);
 				const nextActions = diagnosticNextActions(recommendations);
 				const nextCommands = diagnosticNextCommands(recommendations);
@@ -405,13 +323,12 @@ Notes:
 				const payload = {
 					command: "telemetry",
 					operation: "snapshot",
-					ok: diagnostics.length === 0,
+					ok: pressure.ok,
 					snapshot,
 					window,
 					thresholds: {
-						profile: profileName,
+						...pressure.thresholds,
 						windowMinutes,
-						...thresholds,
 					},
 					diagnostics,
 					recommendations,
@@ -419,12 +336,7 @@ Notes:
 					nextActions,
 					nextCommand: nextCommands[0] ?? null,
 					nextCommands,
-					strict: {
-						enabled: !!opts.strict,
-						targets: strictTargets,
-						matchedDiagnostics: strictMatches,
-						passed: strictPassed,
-					},
+					strict,
 				};
 
 				if (opts.nextAction && opts.json) {
@@ -436,7 +348,7 @@ Notes:
 							strict: payload.strict,
 						}),
 					);
-					if (!strictPassed) {
+					if (!strict.passed) {
 						process.exitCode = 2;
 					}
 					return;
@@ -445,7 +357,7 @@ Notes:
 				if (opts.nextAction) {
 					const [action] = nextActions;
 					if (action) console.log(action);
-					if (!strictPassed) {
+					if (!strict.passed) {
 						process.exitCode = 2;
 					}
 					return;
@@ -453,7 +365,7 @@ Notes:
 
 				if (opts.json) {
 					printJson(payload);
-					if (!strictPassed) {
+					if (!strict.passed) {
 						process.exitCode = 2;
 					}
 					return;
@@ -466,7 +378,7 @@ Notes:
 				console.log(chalk.dim(`\n  generated: ${snapshot.generatedAt}`));
 				console.log(
 					chalk.dim(
-						`  profile: ${profileName} (queue>=${thresholds.queueWarn}, in-flight>=${thresholds.inflightWarn}, fail-rate>=${thresholds.failRateWarn}%)`,
+						`  profile: ${profileName} (queue>=${pressure.thresholds.queueWarn}, in-flight>=${pressure.thresholds.inflightWarn}, fail-rate>=${pressure.thresholds.failRateWarn}%)`,
 					),
 				);
 
@@ -505,15 +417,15 @@ Notes:
 					console.log(chalk.gray(`    ${item.action}`));
 				}
 
-				if (!strictPassed) {
+				if (!strict.passed) {
 					console.error(
 						chalk.red(
-							`\n✗ strict telemetry gate failed (${strictMatches.length} matching diagnostics).`,
+							`\n✗ strict telemetry gate failed (${strict.matchedDiagnostics.length} matching diagnostics).`,
 						),
 					);
-					if (strictTargets.length > 0) {
+					if (strict.targets.length > 0) {
 						console.error(
-							chalk.dim(`  enforced codes: ${strictTargets.join(", ")}`),
+							chalk.dim(`  enforced codes: ${strict.targets.join(", ")}`),
 						);
 					}
 					process.exitCode = 2;
