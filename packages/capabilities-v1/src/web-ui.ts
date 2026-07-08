@@ -1,6 +1,6 @@
 import {
-	resolveGroupAction,
 	isCapabilityGroup,
+	resolveGroupAction,
 	type CapabilityInput,
 	type CapabilityRegistry,
 } from "@refarm.dev/cli/capabilities";
@@ -55,7 +55,7 @@ function escapeHtml(s: string): string {
 
 /** Render the neutral surface model into a full HTML document — the dashboard. */
 export function renderWebUi(model: SurfaceModel, options: WebUiOptions = {}): string {
-	const title = escapeHtml(options.title ?? "Refarm surface");
+	const title = escapeHtml(options.title ?? "Capability surface");
 	const subtitle = escapeHtml(options.subtitle ?? "Your verbs, one surface");
 	const prefix = options.prefix ?? "/capabilities";
 

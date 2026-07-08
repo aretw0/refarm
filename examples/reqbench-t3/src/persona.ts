@@ -1,10 +1,10 @@
 import {
 	createLocalVaultCommandDeps,
 	defineRecordsViewCapability,
+	type CapabilityDeps,
 	type CapabilityDescriptor,
 	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
-	type RefarmCapabilityDeps,
 } from "@refarm.dev/capabilities-v1";
 import { createLocalRecordsCommandDeps } from "@refarm.dev/capabilities-v1/node";
 import {
@@ -63,7 +63,7 @@ export function reqRecordsDeps(
 export function reqCapabilityDeps(
 	cacheRoot?: string,
 	recordsDeps: RecordsCommandDeps = reqRecordsDeps(),
-): RefarmCapabilityDeps {
+): CapabilityDeps {
 	const root = cacheRoot ?? mkdtempSync(path.join(os.tmpdir(), "reqbench-source-"));
 	return {
 		source: {

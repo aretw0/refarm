@@ -12,7 +12,7 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
  * The plugin→capability BRIDGE — the extension effect. This is the mechanism that
  * makes an installed plugin's declared verb light up on every surface (CLI / REPL /
  * TUI / HTTP) from ONE declaration, WITHOUT hand-wiring each surface. It is what
- * separates "extend via the refarm path" (declare once → multi-surface) from plain
+ * separates "extend via declaration" (declare once → multi-surface) from plain
  * software composition (import a package, mount a CLI).
  *
  * A plugin declares its dispatchable verbs in its manifest
@@ -73,7 +73,7 @@ export function buildDispatchEffort(
 				args: { ...request.args, replyRef: effortId },
 			},
 		],
-		source: "refarm-dispatch",
+		source: "capability-dispatch",
 		submittedAt: nowIso(),
 	};
 }

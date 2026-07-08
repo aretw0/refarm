@@ -11,10 +11,10 @@ import {
 	mountCapabilities,
 	mountedCliCommands,
 	serveCapabilities,
-	type RefarmCapabilityDeps,
+	type CapabilityDeps,
 } from "./index.js";
 
-function deps(): RefarmCapabilityDeps {
+function deps(): CapabilityDeps {
 	return {
 		source: defaultSourceDeps(),
 		vault: defaultVaultDeps({

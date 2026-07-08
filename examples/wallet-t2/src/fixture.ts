@@ -4,7 +4,7 @@ import {
 } from "@refarm.dev/records-contract-v1";
 
 /**
- * The T2 work layer — the CITIZEN's own data. wallet is a white-label host: refarm's
+ * The T2 work layer — the CITIZEN's own data. wallet is a white-label host: the base
  * neutral blocks underneath, this file holds what the citizen keeps in their sovereign
  * wallet (documents/credentials they own). Local-first: the citizen's data is theirs.
  */

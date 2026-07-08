@@ -13,7 +13,7 @@ import {
 } from "./persona.js";
 
 /**
- * `dgk` - the T1 POC CLI (PROCESS mode). The developer's bench: refarm's neutral
+ * `dgk` - the T1 POC CLI (PROCESS mode). The developer's bench: neutral
  * blocks underneath, plus a coding-agent EXTENSION that surfaces its verbs via the
  * bridge (declare once → multi-surface), plus an inspector that makes the mechanism
  * visible. This shows the MACHINE being extended — the technical/general angle.

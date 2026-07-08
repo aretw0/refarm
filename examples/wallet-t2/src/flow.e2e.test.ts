@@ -30,7 +30,7 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		]));
 	});
 
-	it("exposes a base operator model without importing the Refarm app", () => {
+	it("exposes a base operator model without importing the product app", () => {
 		const model = buildWalletBaseModel();
 		expect(model).toMatchObject({
 			schemaVersion: 1,

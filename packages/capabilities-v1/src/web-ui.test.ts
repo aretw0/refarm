@@ -4,13 +4,13 @@ import {
 } from "@refarm.dev/cli/capabilities";
 import { describe, expect, it } from "vitest";
 
-import { mountCapabilities } from "./mount.js";
 import {
 	defaultRecordsDeps,
 	defaultSourceDeps,
 	defaultVaultDeps,
-	type RefarmCapabilityDeps,
+	type CapabilityDeps,
 } from "./index.js";
+import { mountCapabilities } from "./mount.js";
 import { surfaceModel } from "./surface-model.js";
 import { renderWebUi, serveWebUi } from "./web-ui.js";
 
@@ -22,7 +22,7 @@ const walletVerb: CapabilityDescriptor = {
 	run: () => ({ ok: true, total: 3 }) as never,
 };
 
-function deps(): RefarmCapabilityDeps {
+function deps(): CapabilityDeps {
 	return {
 		source: defaultSourceDeps(),
 		vault: defaultVaultDeps({

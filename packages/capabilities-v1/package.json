@@ -2,7 +2,7 @@
   "name": "@refarm.dev/capabilities-v1",
   "version": "0.1.0",
   "private": false,
-  "description": "Neutral, injectable capability blocks (source:v1, records:v1, vault:v1) for refarm hosts",
+  "description": "Neutral, injectable capability blocks (source:v1, records:v1, vault:v1) for host applications",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

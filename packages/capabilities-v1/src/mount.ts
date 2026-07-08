@@ -15,8 +15,8 @@ import {
 } from "node:http";
 
 import {
-	refarmBuiltinCapabilities,
-	type RefarmCapabilityDeps,
+	builtinCapabilities,
+	type CapabilityDeps,
 } from "./builtin-capabilities.js";
 import {
 	registerPluginCapabilities,
@@ -27,7 +27,7 @@ import {
 /**
  * The consumer-mount seam — the ONE call a white-label app makes to turn its deps +
  * extensions into a live capability registry. It bundles the whole two-layer wiring:
- * the neutral refarm blocks (from an injected deps bundle), the app's own JS work
+ * the neutral base blocks (from an injected deps bundle), the app's own JS work
  * verbs, and any plugin-manifest verbs surfaced via the bridge. The result projects to
  * CLI / REPL / TUI / HTTP / agent from the shared projectors.
  *
@@ -36,12 +36,12 @@ import {
  */
 export interface MountOptions {
 	/** The deps bundle for the neutral blocks (source/records/vault). */
-	deps: RefarmCapabilityDeps;
+	deps: CapabilityDeps;
 	/** The app's own work verbs (JS CapabilityDescriptors/-Groups), added alongside the
 	 * built-ins. */
 	verbs?: CapabilityEntry[];
-	/** Plugin manifests whose dispatchable verbs are surfaced via the bridge (the
-	 * refarm extension path — declare once, multi-surface). */
+	/** Plugin manifests whose dispatchable verbs are surfaced via the bridge: declare
+	 * once, project to every surface. */
 	manifests?: SurfaceableManifest[];
 	/** Deps for the surfaced plugin verbs (how they submit efforts). Required when
 	 * `manifests` is non-empty. */
@@ -53,7 +53,7 @@ export interface MountOptions {
 /** Build the composed capability registry for a consuming app. */
 export function mountCapabilities(options: MountOptions): CapabilityRegistry {
 	const entries: CapabilityEntry[] = [
-		...refarmBuiltinCapabilities(options.deps),
+		...builtinCapabilities(options.deps),
 		...(options.verbs ?? []),
 	];
 	const registry = createCapabilityRegistry(entries, options.reservedNames ?? []);
@@ -92,7 +92,7 @@ function writeJson(res: ServerResponse, status: number, body: unknown): void {
 
 /**
  * An HTTP request handler for a mounted registry — the WEB surface, the same one the
- * refarm app's `serve` stands up, now reusable by any consumer. Every verb declaring
+ * host app's `serve` stands up, now reusable by any consumer. Every verb declaring
  * `transports.http` becomes an endpoint under `prefix` (default `/capabilities`); a
  * `GET /agent-tools` route introspects the tool schemas; everything else 404s. This is
  * the HTTP twin of {@link mountedCliCommands}: a consumer never re-implements the route

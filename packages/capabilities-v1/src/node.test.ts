@@ -20,7 +20,7 @@ afterEach(() => {
 });
 
 function tempDir(): string {
-	const dir = mkdtempSync(path.join(tmpdir(), "refarm-capabilities-node-"));
+	const dir = mkdtempSync(path.join(tmpdir(), "capabilities-node-"));
 	tempDirs.push(dir);
 	return dir;
 }

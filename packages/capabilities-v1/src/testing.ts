@@ -38,7 +38,7 @@ export function createCapabilityTestHarness(
 	options: CapabilityTestHarnessOptions = {},
 ): CapabilityTestHarness {
 	const tempDirs: string[] = [];
-	const tempPrefix = options.tempPrefix ?? "refarm-capability-test-";
+	const tempPrefix = options.tempPrefix ?? "capability-test-";
 
 	function entry(registry: CapabilityRegistry, name: string): CapabilityEntry {
 		const found = registry.list().find((candidate) => candidate.name === name);

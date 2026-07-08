@@ -208,7 +208,7 @@ describe("vault CapabilityGroup", () => {
 describe("vault init — initialize a records vault (seed is INJECTED, not baked)", () => {
 	const dirs: string[] = [];
 	function tempDir(): string {
-		const base = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-vault-init-"));
+		const base = fs.mkdtempSync(path.join(os.tmpdir(), "vault-init-"));
 		dirs.push(base);
 		return path.join(base, "my-vault"); // a NOT-yet-existing subdir to init into
 	}
@@ -216,7 +216,7 @@ describe("vault init — initialize a records vault (seed is INJECTED, not baked
 		for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
 	});
 
-	// A caller-supplied seed — refarm ships none; the app (or a test) injects it.
+	// A caller-supplied seed — the base ships none; the app (or a test) injects it.
 	function seededManifest() {
 		return {
 			schemaVersion: 1,
@@ -266,9 +266,9 @@ describe("vault init — initialize a records vault (seed is INJECTED, not baked
 		expect(record["@type"]).toContain("KnowledgeRecord");
 	});
 
-	it("creates an EMPTY vault when no seed is injected (refarm ships no seed)", async () => {
+	it("creates an EMPTY vault when no seed is injected (the base ships no seed)", async () => {
 		const dir = tempDir();
-		// No seed passed — refarm's default carries no domain content.
+		// No seed passed — the default carries no domain content.
 		const envelope = (await runInit(dir)) as { ok: boolean; seededCount: number };
 		expect(envelope.ok).toBe(true);
 		expect(envelope.seededCount).toBe(0);

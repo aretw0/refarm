@@ -12,9 +12,9 @@ import {
 	type RecordsCommandDeps,
 } from "./records-capability.js";
 
-/** A caller-supplied manifest — refarm ships none. The records carry an
+/** A caller-supplied manifest — the base ships none. The records carry an
  * `externalKey` the reference enrichment fixture (`REQ-1`/`REQ-2`) matches on, so
- * enrichment produces changes. The KEY is the caller's data, not refarm vocabulary. */
+ * enrichment produces changes. The KEY is the caller's data, not upstream vocabulary. */
 function injectedManifest(): RecordsManifest {
 	const records = [
 		{
@@ -39,7 +39,7 @@ function injectedManifest(): RecordsManifest {
 	return { manifestVersion: 1, records } as unknown as RecordsManifest;
 }
 
-/** A group over an INJECTED manifest — the way a work app wires it. refarm ships no
+/** A group over an INJECTED manifest — the way a work app wires it. The base ships no
  * records, so the mechanism is exercised over a caller-supplied manifest. */
 function seededGroup(overrides: Partial<RecordsCommandDeps> = {}) {
 	const deps: RecordsCommandDeps = {
@@ -52,7 +52,7 @@ function seededGroup(overrides: Partial<RecordsCommandDeps> = {}) {
 	return g;
 }
 
-/** The bare group with refarm's NEUTRAL default deps — no manifest injected. */
+/** The bare group with neutral default deps — no manifest injected. */
 function defaultGroup() {
 	const g = createRecordsCapabilityGroup();
 	if (!isCapabilityGroup(g)) throw new Error("expected a group");
@@ -77,7 +77,7 @@ describe("records operator verbs (generic records:v1)", () => {
 		expect(g.defaultAction).toBe("list"); // read-only default
 	});
 
-	it("the neutral default carries NO records — refarm ships no domain manifest", async () => {
+	it("the neutral default carries NO records — the base ships no domain manifest", async () => {
 		const action = defaultGroup().actions.list;
 		if (!action) throw new Error("no list action");
 		const envelope = (await action.run({ args: {}, options: {}, json: true })) as unknown as {
@@ -155,7 +155,7 @@ describe("records correct — the analyst applies a review (persistence is INJEC
 		expect(env.ok).toBe(true);
 		expect(env.mode).toBe("dry-run");
 		expect(env.persisted).toBe(false);
-		expect(env.writable).toBe(false); // refarm ships no save sink
+		expect(env.writable).toBe(false); // the base ships no save sink
 		expect((env.review as { state: string; notes?: string }).state).toBe("reviewed");
 		expect((env.review as { notes?: string }).notes).toBe("ok");
 		expect((env.validation as { ok: boolean }).ok).toBe(true);

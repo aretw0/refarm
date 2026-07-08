@@ -1,14 +1,14 @@
 import type { CapabilityEntry } from "@refarm.dev/cli/capabilities";
 
 import {
-	createSourceCapabilityGroup,
-	type SourceCommandDeps,
-} from "./source-capability.js";
-import {
 	createRecordsCapabilityGroup,
 	defaultRecordsDeps,
 	type RecordsCommandDeps,
 } from "./records-capability.js";
+import {
+	createSourceCapabilityGroup,
+	type SourceCommandDeps,
+} from "./source-capability.js";
 import {
 	createVaultCapabilityGroup,
 	type VaultCommandDeps,
@@ -22,7 +22,7 @@ import {
  * its OWN bundle (its own source fixture, its own manifest, its own vault seed) and
  * gets the same three verbs projected onto every surface.
  */
-export interface RefarmCapabilityDeps {
+export interface CapabilityDeps {
 	/** How the source verb materializes + inspects — the host's source provider. */
 	source: SourceCommandDeps;
 	/** How the vault verb discovers providers + submits efforts + (optionally) seeds. */
@@ -34,13 +34,13 @@ export interface RefarmCapabilityDeps {
 
 /**
  * The three neutral capability groups (vault, source, records), built from an
- * injected deps bundle. A host (apps/refarm, or a white-label app) composes these
+ * injected deps bundle. Any host app composes these
  * with its OWN work-specific verbs into a registry and projects a CLI/REPL/TUI/HTTP
- * from the single declaration. refarm ships zero work vocabulary — the bundle is
+ * from the single declaration. This package ships zero work vocabulary — the bundle is
  * where the host's plumbing enters.
  */
-export function refarmBuiltinCapabilities(
-	deps: RefarmCapabilityDeps,
+export function builtinCapabilities(
+	deps: CapabilityDeps,
 ): CapabilityEntry[] {
 	return [
 		createVaultCapabilityGroup(deps.vault),

@@ -16,7 +16,7 @@ function tempStatePath(): string {
 
 /**
  * The T3 flow, end-to-end through dgk's own CLI registry: discover a system →
- * pull → correct → read the requirements MOC (the analyst's product). refarm underneath,
+ * pull → correct → read the requirements MOC (the analyst's product). Base underneath,
  * one persona verb on top.
  */
 describe("reqbench T3 — the analyst's requirements bench (result mode)", () => {

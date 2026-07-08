@@ -24,7 +24,7 @@ import {
  * records manifest via an injected enrichment provider, then re-validate. A NEUTRAL
  * block: it wraps the records:v1 + enrichment:v1 contracts and carries NO domain
  * vocabulary — a work app injects the manifest to enrich AND the enrichment provider
- * (a real lookup swaps in for the reference one). refarm only knows
+ * (a real lookup swaps in for the reference one). The block only knows
  * "enrich records via a provider, re-validate, don't break the schema".
  *
  * Declared once → CLI, REPL `/records`, HTTP `POST /records`, and the agent tool
@@ -34,7 +34,7 @@ import {
 type ManifestRecord = RecordsManifest["records"][number];
 
 /** An empty records manifest — the neutral default when no work manifest is
- * injected. refarm ships no domain records. */
+ * injected. This package ships no domain records. */
 function emptyRecordsManifest(): RecordsManifest {
 	return { manifestVersion: 1, records: [] };
 }
@@ -146,7 +146,7 @@ export interface RecordsCommandDeps {
 }
 
 /** Default deps: an EMPTY manifest + the reference enrichment/records providers.
- * refarm ships no domain records — a work app injects its manifest + (for real
+ * This package ships no domain records — a work app injects its manifest + (for real
  * enrichment) its own provider. The reference providers are deterministic, so the
  * mechanism is exercisable without a work app. */
 export function defaultRecordsDeps(): RecordsCommandDeps {
@@ -350,7 +350,7 @@ export function createRecordsCapabilityGroup(
 	// returning an envelope. It presumes no persona and serves many — an analyst can
 	// build a requirements-analysis MOC from it, a citizen can inspect their own
 	// records the same way — what differs per work is only how PROMINENT that view is,
-	// not whether the engine applies. refarm ships the engine; each work's surface (an
+	// not whether the engine applies. The base ships the engine; each work's surface (an
 	// analysis area, a wallet, a dev view) is a level-3 extension that reads this
 	// envelope and decides how much to feature it.
 	const analyze: CapabilityDescriptor = {

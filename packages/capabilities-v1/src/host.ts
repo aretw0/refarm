@@ -24,7 +24,7 @@ import {
 } from "@refarm.dev/operator-state";
 import { Command } from "commander";
 
-import type { RefarmCapabilityDeps } from "./builtin-capabilities.js";
+import type { CapabilityDeps } from "./builtin-capabilities.js";
 import {
 	mountCapabilities,
 	mountedCliCommands,
@@ -38,7 +38,7 @@ import type {
 import type { RecordsCommandDeps } from "./records-capability.js";
 
 export interface CapabilityHostCapabilities {
-	deps: RefarmCapabilityDeps;
+	deps: CapabilityDeps;
 	extensions?: CapabilityEntry[];
 	manifests?: SurfaceableManifest[];
 	pluginDeps?: PluginDescriptorDeps;

@@ -25,7 +25,7 @@ export function defaultRequirementsStatePath(cwd = process.cwd()): string {
 }
 
 /**
- * `dgk` - the T3 POC CLI (result mode). refarm's neutral blocks
+ * `dgk` - the T3 POC CLI (result mode). Neutral blocks
  * (discover/pull/enrich/correct/analyze/vault) underneath; ONE persona verb
  * (`requirements`) on top. Mounting is declarative so this example is just its persona.
  */

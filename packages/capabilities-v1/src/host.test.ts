@@ -9,11 +9,11 @@ import {
 	defineCapabilityHost,
 	isCapabilityHostCliEntrypoint,
 	runCapabilityHostCli,
+	type CapabilityDeps,
 	type CapabilityDescriptor,
-	type RefarmCapabilityDeps,
 } from "./index.js";
 
-function deps(): RefarmCapabilityDeps {
+function deps(): CapabilityDeps {
 	return {
 		source: defaultSourceDeps(),
 		vault: defaultVaultDeps({

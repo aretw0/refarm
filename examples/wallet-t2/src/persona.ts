@@ -2,10 +2,10 @@ import {
 	createLocalVaultCommandDeps,
 	defaultSourceDeps,
 	defineRecordsViewCapability,
+	type CapabilityDeps,
 	type CapabilityDescriptor,
 	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
-	type RefarmCapabilityDeps,
 } from "@refarm.dev/capabilities-v1";
 import { createLocalRecordsCommandDeps } from "@refarm.dev/capabilities-v1/node";
 import { createReferenceEnrichmentProvider } from "@refarm.dev/enrichment-contract-v1";
@@ -37,7 +37,7 @@ export function walletRecordsDeps(options: WalletStateOptions = {}): RecordsComm
 
 export function walletCapabilityDeps(
 	recordsDeps: RecordsCommandDeps = walletRecordsDeps(),
-): RefarmCapabilityDeps {
+): CapabilityDeps {
 	return {
 		// The citizen holds their own data — no external source to pull. An ephemeral
 		// source provider satisfies the block; the wallet is local-first.

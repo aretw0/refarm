@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createSourceCapabilityGroup } from "./source-capability.js";
 import { isCapabilityGroup } from "@refarm.dev/cli/capabilities";
+import { createSourceCapabilityGroup } from "./source-capability.js";
 
 let cacheRoot = "";
 
@@ -31,7 +31,7 @@ async function runAction(
 }
 
 beforeEach(() => {
-	cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-source-cache-"));
+	cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), "capability-source-cache-"));
 });
 
 afterEach(() => {
@@ -104,7 +104,7 @@ describe("source operator verbs (generic source:v1)", () => {
 		expect(g.defaultAction).toBe("discover");
 	});
 
-	it("the ref is a required argument (the caller supplies it, refarm has no default)", () => {
+	it("the ref is a required argument (the caller supplies it; there is no default)", () => {
 		const g = group();
 		if (!isCapabilityGroup(g)) throw new Error("expected a group");
 		const pull = g.actions.pull;

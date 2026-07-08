@@ -21,7 +21,7 @@ import path from "node:path";
  * local snapshot, and inspect it. This is a NEUTRAL block: it wraps an injected
  * source:v1 provider and shapes the provenance envelope. It carries NO domain
  * vocabulary — a work app supplies the ref, the fixtures, and (via a real provider)
- * the authenticated source; refarm only knows "materialize a source, report its
+ * the authenticated source; the block only knows "materialize a source, report its
  * provenance".
  *
  * Declared once → CLI, REPL `/source`, HTTP `POST /source`, and the agent tool
@@ -44,11 +44,11 @@ export interface SourceCommandDeps {
 }
 
 /** Default deps: a web source provider. Pass a `cacheRoot` to persist snapshots
- * between runs; omit it for an ephemeral temp cache. Callers that want the refarm
- * home (or any app-specific location) derive the cacheRoot themselves and pass it
- * in — this neutral block carries no app FS layout. */
+ * between runs; omit it for an ephemeral temp cache. Callers that want a host-specific
+ * home derive the cacheRoot themselves and pass it in — this neutral block carries no
+ * app FS layout. */
 export function defaultSourceDeps(cacheRoot?: string): SourceCommandDeps {
-	const root = cacheRoot ?? mkdtempSync(path.join(os.tmpdir(), "refarm-source-"));
+	const root = cacheRoot ?? mkdtempSync(path.join(os.tmpdir(), "capability-source-"));
 	return { sourceProvider: createWebSourceProvider({ cacheRoot: root }) };
 }
 

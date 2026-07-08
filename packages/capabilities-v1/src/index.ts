@@ -45,8 +45,8 @@ export type {
 	VaultProviderSummary,
 } from "./vault-discovery-types.js";
 export {
-	refarmBuiltinCapabilities,
-	type RefarmCapabilityDeps,
+	builtinCapabilities,
+	type CapabilityDeps,
 } from "./builtin-capabilities.js";
 export {
 	buildDispatchEffort,

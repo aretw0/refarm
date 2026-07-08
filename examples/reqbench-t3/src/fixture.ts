@@ -9,8 +9,8 @@ import {
 
 /**
  * The T3 work layer — the requirements analyst's OWN data. reqbench is a white-label
- * host: refarm supplies the neutral blocks, this file supplies the domain (systems the
- * analyst can access + the requirements they hold). None of this lives in refarm.
+ * host: the base supplies the neutral blocks, this file supplies the domain (systems
+ * the analyst can access + the requirements they hold). None of this lives upstream.
  */
 
 export const REQ_SYSTEM_IDENTITY = "reqbench-alm";

@@ -33,7 +33,7 @@ function manifest(
 
 describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 	it("synthesizes a descriptor per dispatchable verb (provides + subscribes:dispatch)", () => {
-		const m = manifest("@refarm/vault", ["vault:search", "vault:extract"], [
+		const m = manifest("@example/vault", ["vault:search", "vault:extract"], [
 			"vault:dispatch",
 		]);
 		const caps = pluginDescriptorsFrom(m, makeDeps());
@@ -42,20 +42,20 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 		const search = caps.find((c) => c.name === "search");
 		if (!search) throw new Error("search descriptor missing");
 		expect(typeof search.run).toBe("function");
-		expect(search.summary).toContain("@refarm/vault");
+		expect(search.summary).toContain("@example/vault");
 		expect(search.transports?.cli).toBeDefined();
 		expect(search.transports?.repl).toBeDefined();
 	});
 
 	it("only surfaces a verb the plugin can receive a dispatch for (subscribes guard)", () => {
 		// provides a verb but does NOT subscribe to its own dispatch → not surfaceable.
-		const m = manifest("@refarm/vault", ["vault:search"], [] /* no dispatch */);
+		const m = manifest("@example/vault", ["vault:search"], [] /* no dispatch */);
 		expect(pluginDescriptorsFrom(m, makeDeps())).toEqual([]);
 	});
 
 	it("ignores the :dispatch routing key and non-verb entries", () => {
 		const m = manifest(
-			"@refarm/vault",
+			"@example/vault",
 			["vault:dispatch", "novcolon", "vault:"],
 			["vault:dispatch"],
 		);
@@ -64,7 +64,7 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 
 	it("run() dispatches to WASM and returns a delivery-receipt envelope (two-phase)", async () => {
 		const deps = makeDeps();
-		const m = manifest("@refarm/vault", ["vault:search"], ["vault:dispatch"]);
+		const m = manifest("@example/vault", ["vault:search"], ["vault:dispatch"]);
 		const search = pluginDescriptorsFrom(m, deps)[0];
 		if (!search) throw new Error("search descriptor missing");
 
@@ -81,7 +81,7 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 
 	it("a plugin with no surfaceable verbs contributes nothing", () => {
 		// Most plugins: they subscribe/provide runtime events but no user verb.
-		const m = manifest("@refarm/agent", ["integration:respond"], ["user:prompt"]);
+		const m = manifest("@example/agent", ["integration:respond"], ["user:prompt"]);
 		expect(pluginDescriptorsFrom(m, makeDeps())).toEqual([]);
 	});
 });
@@ -129,7 +129,7 @@ describe("registerPluginCapabilities — the register-at-load wire", () => {
 		const registry = createCapabilityRegistry([]);
 		const result = registerPluginCapabilities(
 			registry,
-			[manifest("@refarm/vault", ["vault:search", "vault:extract"], ["vault:dispatch"])],
+			[manifest("@example/vault", ["vault:search", "vault:extract"], ["vault:dispatch"])],
 			makeDeps(),
 		);
 		expect(result.registered.sort()).toEqual(["extract", "search"]);
@@ -172,7 +172,7 @@ describe("registerPluginCapabilities — the register-at-load wire", () => {
 		const registry = createCapabilityRegistry([]);
 		registerPluginCapabilities(
 			registry,
-			[manifest("@refarm/vault", ["vault:search"], ["vault:dispatch"])],
+			[manifest("@example/vault", ["vault:search"], ["vault:dispatch"])],
 			makeDeps(),
 		);
 		const entry = registry.get("search");

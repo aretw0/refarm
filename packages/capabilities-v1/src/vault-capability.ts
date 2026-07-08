@@ -30,11 +30,11 @@ import type { VaultDiscoveryResult } from "./vault-discovery-types.js";
  * DISPATCHING a verb through the WASM component (submit → runtime → instance.call)
  * is the separate "loop" slice; making providers visible is pure, safe metadata.
  *
- * `deps.discover` is injected (defaults to scanning `<refarm-home>/plugins`) so
- * run() stays testable and never touches the filesystem directly.
+ * `deps.discover` is injected so run() stays testable and never touches the
+ * filesystem directly.
  */
 export interface VaultCommandDeps {
-	/** Discover installed vault providers. Defaults to the refarm plugins dir. */
+	/** Discover installed vault providers from the host's plugin registry. */
 	discover: () => VaultDiscoveryResult;
 	/** Submit a dispatch effort to the runtime. Defaults to the sidecar HTTP sink;
 	 * injectable so `dispatch`'s run() is testable without a running daemon. */
@@ -42,7 +42,7 @@ export interface VaultCommandDeps {
 	/** A UUID source for effort/task ids — injectable for deterministic tests. */
 	newId: () => string;
 	/** OPTIONAL seed for `vault init`: the records to render into the fresh vault as
-	 * markdown. INJECTED by the caller — refarm ships NO seed content (that would be
+	 * markdown. INJECTED by the caller — this package ships NO seed content (that would be
 	 * domain vocabulary). Absent → `init` creates an empty vault. A work app supplies
 	 * its own seed (e.g. a starter template) here. */
 	seed?: () => RecordsManifest;
@@ -167,7 +167,7 @@ export function createVaultCapabilityGroup(
 						args: { note: { path: notePath }, replyRef: effortId },
 					},
 				],
-				source: "refarm-vault-dispatch",
+				source: "vault-dispatch",
 				submittedAt: new Date().toISOString(),
 			};
 
@@ -180,7 +180,7 @@ export function createVaultCapabilityGroup(
 						effortId: returnedId,
 						pluginId,
 						verb,
-						// The result lands asynchronously as a refarm:DispatchResult node
+						// The result lands asynchronously as a dispatch-result node
 						// keyed by this replyRef — the caller reads it back by effortId.
 						replyRef: effortId,
 					},
@@ -193,7 +193,7 @@ export function createVaultCapabilityGroup(
 					error: "vault-dispatch-failed",
 					message: `Could not submit the vault dispatch: ${String(error)}`,
 					nextAction:
-						"Is the runtime daemon up? Run `refarm runtime status`. Is a vault plugin loaded? Run `vault list`.",
+						"Is the host runtime up? Run the host's runtime status command. Is a vault plugin loaded? Run `vault list`.",
 				});
 			}
 		},
@@ -226,7 +226,7 @@ export function createVaultCapabilityGroup(
 				await mkdir(dir, { recursive: true });
 
 				const seeded: string[] = [];
-				// Seed content is INJECTED (deps.seed), never baked in — refarm ships no
+				// Seed content is INJECTED (deps.seed), never baked in — the base ships no
 				// seed vocabulary. Each record renders as a markdown file (YAML-LD front
 				// matter + body): a vault IS just markdown files, opened in any editor.
 				if (input.options.empty !== true && deps.seed) {
