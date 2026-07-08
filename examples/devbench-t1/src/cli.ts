@@ -2,7 +2,7 @@
 import {
 	defineCapabilityHost,
 	type CapabilityHost,
-} from "@refarm.dev/capabilities-v1";
+} from "@refarm.dev/capability-host";
 
 import {
 	CODING_AGENT_MANIFEST,

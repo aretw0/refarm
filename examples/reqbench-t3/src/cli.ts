@@ -1,9 +1,9 @@
 #!/usr/bin/env node
+import { resolveLocalRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
 import {
 	defineCapabilityHost,
 	type CapabilityHost,
-} from "@refarm.dev/capabilities-v1";
-import { resolveLocalRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
+} from "@refarm.dev/capability-host";
 
 import {
 	createRequirementsCapability,

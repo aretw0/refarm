@@ -15,6 +15,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@refarm.dev/capability-host": "workspace:*",
     "@refarm.dev/capabilities-v1": "workspace:*",
     "@refarm.dev/enrichment-contract-v1": "workspace:*",
     "@refarm.dev/records-contract-v1": "workspace:*"
