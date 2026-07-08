@@ -18,11 +18,11 @@ import { openTractorGraph } from "./tractor-store.js";
  * default, exactly as before the node existed.
  *
  * Why this lives in apps/refarm and not @refarm.dev/config: the node read needs
- * the tractor sqlite layer (openTractorGraph → storage-sqlite), and
- * @refarm.dev/config is JS-Atomic and dependency-free. So this seam COMPOSES the
- * two pure config exports (loadRawSovereignConfig + configFromNode) with the
- * app-local graph reader, keeping the config package pure — the same split the
- * health ConfigNodeAuditor already uses.
+ * the runtime graph surface (openTractorGraph), and @refarm.dev/config is
+ * JS-Atomic and dependency-free. So this seam COMPOSES the two pure config
+ * exports (loadRawSovereignConfig + configFromNode) with the app-local graph
+ * reader, keeping the config package pure — the same split the health
+ * ConfigNodeAuditor already uses.
  *
  * SCOPE CAVEAT: the graph node is workspace/cwd-scoped
  * (`urn:refarm:config:workspace`). The home `~/.refarm/config.json` layer is NOT
@@ -38,11 +38,10 @@ export async function resolveSovereignConfig(
 	const local = loadRawSovereignConfig(root);
 	if (local != null) return local as Record<string, unknown>;
 
-	// No usable local file → try the replicated node. openTractorGraph returns
-	// null when the tractor db is absent, so a device that never ran the runtime
-	// degrades to null here (and the caller to its default) — no coupling to a
-	// running runtime.
-	const graph = openTractorGraph(env);
+	// No usable local file → try the replicated node. openTractorGraph reads via
+	// the runtime sidecar by default; when the sidecar is unavailable, the read
+	// fails below and the caller falls back to its default.
+	const graph = await openTractorGraph(env);
 	if (!graph) return null;
 	try {
 		const node = await graph.getNode(CONFIG_NODE_DEFAULT_ID);
@@ -55,7 +54,8 @@ export async function resolveSovereignConfig(
 			node as unknown as Parameters<typeof configFromNode>[0],
 		) as Record<string, unknown> | null;
 	} catch {
-		// Locked/malformed db or node → degrade to null rather than inventing config.
+		// Unreachable runtime or malformed node → degrade to null rather than
+		// inventing config.
 		return null;
 	}
 }

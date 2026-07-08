@@ -48,7 +48,8 @@ fn temp_fixture_with_manifest(
 
 fn make_host(telemetry: TelemetryBus) -> PluginHost {
     let trust = TrustManager::new();
-    PluginHost::new(trust, telemetry, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS).expect("PluginHost::new")
+    PluginHost::new(trust, telemetry, tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
+        .expect("PluginHost::new")
 }
 
 fn make_sync() -> NativeSync {
@@ -306,7 +307,8 @@ async fn load_fails_when_a_permission_is_outside_the_vocabulary() {
         .expect_err("load must fail on a permission outside the closed vocabulary");
     let message = err.to_string();
     assert!(
-        message.contains("permissions contains unknown capabilities") && message.contains("fs:reed"),
+        message.contains("permissions contains unknown capabilities")
+            && message.contains("fs:reed"),
         "expected the unknown-permission detail naming fs:reed, got: {message}"
     );
 }

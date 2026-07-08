@@ -5,8 +5,8 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 use tractor::{
-    deliver_via_router, host::PluginHost, trust::TrustManager, PluginChannels, EventEnvelope,
-    EventRouter, NativeStorage, NativeSync, SecurityMode, TelemetryBus, TractorNative,
+    deliver_via_router, host::PluginHost, trust::TrustManager, EventEnvelope, EventRouter,
+    NativeStorage, NativeSync, PluginChannels, SecurityMode, TelemetryBus, TractorNative,
     TractorNativeConfig,
 };
 
@@ -323,11 +323,9 @@ fn run_dispatch_benchmark() -> Result<BenchReport> {
 
     // Speedup = serial drain / pooled drain. With N workers over CPU-bound-ish
     // sleeps it should approach N (bounded by the runtime's worker threads).
-    let speedup_x100 = if pooled.drain_ns > 0 {
-        (serial.drain_ns * 100 / pooled.drain_ns) as u128
-    } else {
-        0
-    };
+    let speedup_x100 = (serial.drain_ns * 100)
+        .checked_div(pooled.drain_ns)
+        .unwrap_or(0);
 
     Ok(BenchReport {
         version: 1,
@@ -351,11 +349,7 @@ fn run_dispatch_benchmark() -> Result<BenchReport> {
             // and the speedup over serial. The pooled numbers should be far lower.
             metric("pooled_workers", DISPATCH_POOL_WORKERS as u128, "count"),
             metric("pooled_drain_all", pooled.drain_ns, "ns"),
-            metric(
-                "pooled_blindness_ratio",
-                pooled.blindness_ratio,
-                "count",
-            ),
+            metric("pooled_blindness_ratio", pooled.blindness_ratio, "count"),
             metric("pooled_speedup_x100", speedup_x100, "count"),
         ],
     })
@@ -477,11 +471,7 @@ fn run_dispatch_drain(worker_count: usize) -> Result<DrainRun> {
         let peak = peak_depth.load(std::sync::atomic::Ordering::Relaxed);
         // The blindness gap: how many times longer the real drain is than the
         // enqueue the telemetry sees. A big number IS the head-of-line pain.
-        let blindness_ratio = if enqueue_ns > 0 {
-            (drain_ns / enqueue_ns.max(1)) as u128
-        } else {
-            0
-        };
+        let blindness_ratio = drain_ns.checked_div(enqueue_ns).unwrap_or(0);
 
         Ok(DrainRun {
             enqueue_ns,
@@ -585,12 +575,18 @@ fn run_reload_benchmark() -> Result<BenchReport> {
         .await
         .context("boot host for reload bench")?;
 
-        let handle = tractor.load_plugin(&fixture).await.context("initial load")?;
+        let handle = tractor
+            .load_plugin(&fixture)
+            .await
+            .context("initial load")?;
         let plugin_id = handle.id.clone();
         tractor.register_for_events(handle);
 
         // Warm one reload so first-time costs (page cache, cache insert) don't skew.
-        tractor.reload_plugin(&plugin_id).await.context("warm reload")?;
+        tractor
+            .reload_plugin(&plugin_id)
+            .await
+            .context("warm reload")?;
 
         let start = Instant::now();
         for _ in 0..RELOAD_COUNT {
@@ -602,7 +598,10 @@ fn run_reload_benchmark() -> Result<BenchReport> {
         let total_ns = start.elapsed().as_nanos();
         let per_reload_ns = total_ns / RELOAD_COUNT as u128;
 
-        tractor.shutdown().await.context("shutdown after reload bench")?;
+        tractor
+            .shutdown()
+            .await
+            .context("shutdown after reload bench")?;
 
         Ok(BenchReport {
             version: 1,

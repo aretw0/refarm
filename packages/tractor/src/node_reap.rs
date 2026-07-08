@@ -243,7 +243,10 @@ pub(crate) fn parse_sql_datetime_to_epoch_secs(s: &str) -> Option<u64> {
         days += if is_leap_year(y) { 366 } else { 365 };
     }
     let ml = month_lengths(is_leap_year(year));
-    days += ml.iter().take(month.saturating_sub(1) as usize).sum::<u64>();
+    days += ml
+        .iter()
+        .take(month.saturating_sub(1) as usize)
+        .sum::<u64>();
     days += day.saturating_sub(1);
     Some(days * 86_400 + hour * 3_600 + min * 60 + sec)
 }

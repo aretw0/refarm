@@ -90,7 +90,11 @@ pub struct EventEnvelope {
 impl EventEnvelope {
     /// The async-default envelope: fire-and-forget `on-event`, no reply channel.
     pub fn fire(event: impl Into<String>, payload: Option<String>) -> Self {
-        Self { event: event.into(), payload, reply: None }
+        Self {
+            event: event.into(),
+            payload,
+            reply: None,
+        }
     }
 
     /// The synchronous `respond` envelope: carries a oneshot the runner satisfies by
@@ -101,7 +105,11 @@ impl EventEnvelope {
         payload: Option<String>,
         reply: tokio::sync::oneshot::Sender<Result<String, String>>,
     ) -> Self {
-        Self { event: RESPOND_REQUEST_EVENT.to_string(), payload, reply: Some(reply) }
+        Self {
+            event: RESPOND_REQUEST_EVENT.to_string(),
+            payload,
+            reply: Some(reply),
+        }
     }
 }
 
@@ -125,8 +133,7 @@ pub type PluginChannels = Arc<RwLock<HashMap<String, mpsc::UnboundedSender<Event
 /// at the next epoch tick (the global ticker wakes the callback within ~1ms).
 /// This is how effort-cancel reaches a thread already spinning inside a guest,
 /// which the mpsc PluginChannels above cannot (the wedged thread never polls it).
-pub type CancelFlags =
-    Arc<RwLock<HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>>;
+pub type CancelFlags = Arc<RwLock<HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>>;
 
 /// Keyed by prompt_ref — the cancel flag of the SPECIFIC store currently running
 /// that prompt. A runner registers this the instant it dequeues a prompt (before
@@ -695,7 +702,10 @@ impl TractorNative {
     ) -> Result<host::PluginInstanceHandle> {
         let store_path = assets_dir.join(hash);
         let bytes = tokio::fs::read(&store_path).await.with_context(|| {
-            format!("content-store miss for hash {hash} at {}", store_path.display())
+            format!(
+                "content-store miss for hash {hash} at {}",
+                store_path.display()
+            )
         })?;
         let computed = {
             use sha2::{Digest, Sha256};
@@ -714,7 +724,9 @@ impl TractorNative {
             .tempdir()
             .context("materialize content-store plugin dir")?;
         let wasm_path = dir.path().join("plugin.wasm");
-        tokio::fs::write(&wasm_path, &bytes).await.context("write materialized plugin.wasm")?;
+        tokio::fs::write(&wasm_path, &bytes)
+            .await
+            .context("write materialized plugin.wasm")?;
         tokio::fs::write(dir.path().join("plugin.json"), manifest)
             .await
             .context("write materialized plugin.json")?;
@@ -749,7 +761,8 @@ impl TractorNative {
         // Re-stage the pool if the plugin opted in (mirrors the boot path). The
         // fresh handle already carries subscriptions/provides from the manifest;
         // register wires them back into the router.
-        self.stage_pool_stores(&path, handle.concurrent_safe).await?;
+        self.stage_pool_stores(&path, handle.concurrent_safe)
+            .await?;
         self.register_for_events(handle);
         tracing::info!(plugin_id, path = %path.display(), "plugin hot-reloaded");
         Ok(true)
@@ -884,8 +897,13 @@ impl TractorNative {
         // channel + router population — one load point owns "this plugin is here and
         // declares X". The agent leg's `list-tools`/`invoke-tool` and `get_plugin_api`
         // read it; a plugin removed from here (on unload) stops being listable at once.
-        self.plugin_registry
-            .register(&plugin_id, provides.clone(), subscribes.clone(), verb_docs, sync_verbs);
+        self.plugin_registry.register(
+            &plugin_id,
+            provides.clone(),
+            subscribes.clone(),
+            verb_docs,
+            sync_verbs,
+        );
         self.plugin_registry
             .record_requires_api(&plugin_id, requires_api);
 
@@ -1094,7 +1112,7 @@ mod event_router_tests {
         router.subscribe("shared:event", "@b/plugin");
         router.subscribe("shared:event", "@a/plugin");
         router.subscribe("shared:event", "@b/plugin"); // idempotent
-        // BTreeSet keeps them sorted and deduped.
+                                                       // BTreeSet keeps them sorted and deduped.
         assert_eq!(
             router.subscribers("shared:event"),
             vec!["@a/plugin", "@b/plugin"]
@@ -1282,7 +1300,10 @@ mod respond_error_result_tests {
         // The generalized watcher (agent default spec) finds it as a terminal error.
         let found = find_terminal_result(&ns, &TerminalResultSpec::agent_response(prompt_ref))
             .expect("watcher must find the projected terminal error result");
-        assert!(found.is_error, "the projected result must be a terminal error");
+        assert!(
+            found.is_error,
+            "the projected result must be a terminal error"
+        );
         assert_eq!(found.content, "guest blew up: boom");
 
         let _ = std::fs::remove_file(&ns);

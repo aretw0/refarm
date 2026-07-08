@@ -153,7 +153,11 @@ pub(crate) fn tombstones_from_payloads<'a>(payloads: impl Iterator<Item = &'a st
         };
 
         let entry = seqs.entry(scope).or_default();
-        let slot = if is_annulment { &mut entry.annul } else { &mut entry.revoke };
+        let slot = if is_annulment {
+            &mut entry.annul
+        } else {
+            &mut entry.revoke
+        };
         *slot = Some(slot.map_or(seq, |cur| cur.max(seq)));
     }
 
@@ -217,7 +221,10 @@ mod tests {
             capability_revocation_node_id("vault", "network:outbound"),
             "urn:refarm:revocation:vault:network:outbound"
         );
-        assert_eq!(annulment_node_id("vault", None), "urn:refarm:revocation:vault#annul");
+        assert_eq!(
+            annulment_node_id("vault", None),
+            "urn:refarm:revocation:vault#annul"
+        );
     }
 
     #[test]
@@ -230,7 +237,10 @@ mod tests {
         assert!(ts.plugins.contains("quality"));
         assert_eq!(
             ts.capabilities.get("vault"),
-            Some(&HashSet::from(["network:outbound".to_string(), "shell:spawn".to_string()]))
+            Some(&HashSet::from([
+                "network:outbound".to_string(),
+                "shell:spawn".to_string()
+            ]))
         );
     }
 
@@ -251,7 +261,10 @@ mod tests {
     fn unrevoke_with_higher_seq_nets_out_the_revoke() {
         // revoke@1 then unrevoke@2 → not revoked (the annulment out-ranks).
         let ts = net(&[revoke_seq("vault", None, 1), annul_seq("vault", None, 2)]);
-        assert!(!ts.plugins.contains("vault"), "higher-seq annulment un-revokes");
+        assert!(
+            !ts.plugins.contains("vault"),
+            "higher-seq annulment un-revokes"
+        );
     }
 
     #[test]
@@ -260,7 +273,10 @@ mod tests {
         // net is argmax(seq) over the union, identical on every device. Feed the revoke
         // AFTER the annulment; the annulment (seq 2) still wins over the revoke (seq 1).
         let ts = net(&[annul_seq("vault", None, 2), revoke_seq("vault", None, 1)]);
-        assert!(!ts.plugins.contains("vault"), "a stale revoke can't beat a higher-seq unrevoke");
+        assert!(
+            !ts.plugins.contains("vault"),
+            "a stale revoke can't beat a higher-seq unrevoke"
+        );
     }
 
     #[test]
@@ -271,7 +287,10 @@ mod tests {
             annul_seq("vault", None, 2),
             revoke_seq("vault", None, 3),
         ]);
-        assert!(ts.plugins.contains("vault"), "re-revoke with higher seq denies again");
+        assert!(
+            ts.plugins.contains("vault"),
+            "re-revoke with higher seq denies again"
+        );
     }
 
     #[test]
@@ -295,7 +314,10 @@ mod tests {
             revoke_seq("vault", None, 1),
             r#"{"@type":"RevocationTombstone","kind":"annulment"}"#.to_string(), // no pluginId
         ]);
-        assert!(ts.plugins.contains("vault"), "a broken annulment must not un-revoke");
+        assert!(
+            ts.plugins.contains("vault"),
+            "a broken annulment must not un-revoke"
+        );
     }
 
     #[test]
@@ -305,7 +327,10 @@ mod tests {
         let legacy_revoke = r#"{"@type":"RevocationTombstone","kind":"plugin","pluginId":"vault"}"#;
         assert!(net(&[legacy_revoke.to_string()]).plugins.contains("vault"));
         let ts = net(&[legacy_revoke.to_string(), annul_seq("vault", None, 1)]);
-        assert!(!ts.plugins.contains("vault"), "annulment@1 out-ranks a seq-less (0) revoke");
+        assert!(
+            !ts.plugins.contains("vault"),
+            "annulment@1 out-ranks a seq-less (0) revoke"
+        );
     }
 
     #[test]
@@ -317,7 +342,13 @@ mod tests {
             annul_seq("vault", Some("network:outbound"), 2),
         ]);
         let caps = ts.capabilities.get("vault").unwrap();
-        assert!(caps.contains("fs:read"), "the un-annulled cap stays revoked");
-        assert!(!caps.contains("network:outbound"), "the annulled cap is netted out");
+        assert!(
+            caps.contains("fs:read"),
+            "the un-annulled cap stays revoked"
+        );
+        assert!(
+            !caps.contains("network:outbound"),
+            "the annulled cap is netted out"
+        );
     }
 }

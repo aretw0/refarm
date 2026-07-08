@@ -363,10 +363,15 @@ async fn sidecar_non_respond_effort_dispatches_via_router() {
         .expect("router must deliver the event within 2s")
         .expect("the mock vault plugin must receive a message");
     assert_eq!(msg.event, "vault:dispatch");
-    let payload: serde_json::Value =
-        serde_json::from_str(msg.payload.as_deref().unwrap()).unwrap();
-    assert_eq!(payload["verb"], "extract", "the payload carries the effort's fn as the verb");
-    assert_eq!(payload["note"]["path"], "n.md", "the args ride along in the payload");
+    let payload: serde_json::Value = serde_json::from_str(msg.payload.as_deref().unwrap()).unwrap();
+    assert_eq!(
+        payload["verb"], "extract",
+        "the payload carries the effort's fn as the verb"
+    );
+    assert_eq!(
+        payload["note"]["path"], "n.md",
+        "the args ride along in the payload"
+    );
 
     // Once the event is accepted by a subscriber, the effort's whole job is done:
     // it is `delivered` (terminal, honest), NOT `done`. `done` would lie — the
@@ -432,7 +437,10 @@ async fn sidecar_non_respond_effort_with_no_subscriber_fails_honestly() {
         .await
         .unwrap();
     let body: serde_json::Value = res.json().await.unwrap();
-    assert_eq!(body["status"], "failed", "an unrouted event must fail, not fake success");
+    assert_eq!(
+        body["status"], "failed",
+        "an unrouted event must fail, not fake success"
+    );
     let err = body["results"][0]["error"].as_str().unwrap_or("");
     assert!(
         err.contains("ghost:dispatch") || err.contains("subscribed"),
@@ -520,7 +528,11 @@ async fn sidecar_cancel_marks_effort_cancelled() {
         .send()
         .await
         .unwrap();
-    assert_eq!(cancel.status(), 202, "cancel of an in-progress effort is accepted");
+    assert_eq!(
+        cancel.status(),
+        202,
+        "cancel of an in-progress effort is accepted"
+    );
 
     let body: serde_json::Value = client
         .get(format!("{}/efforts/{id}", base(port)))
@@ -545,7 +557,11 @@ async fn sidecar_cancel_marks_effort_cancelled() {
         .send()
         .await
         .unwrap();
-    assert_eq!(again.status(), 409, "cancel of an already-terminal effort is a conflict");
+    assert_eq!(
+        again.status(),
+        409,
+        "cancel of an already-terminal effort is a conflict"
+    );
 }
 
 /// Closing the state machine: a respond effort transitions in-progress -> done
@@ -583,7 +599,10 @@ async fn sidecar_respond_effort_finalises_done_when_terminal_response_lands() {
         .json()
         .await
         .unwrap();
-    assert_eq!(mid["status"], "in-progress", "still in-progress before the answer lands");
+    assert_eq!(
+        mid["status"], "in-progress",
+        "still in-progress before the answer lands"
+    );
 
     // The agent writes its terminal AgentResponse (what wasi_bridge does).
     let prompt_ref = prompt_ref_from_effort(&id);
@@ -602,7 +621,10 @@ async fn sidecar_respond_effort_finalises_done_when_terminal_response_lands() {
             .await
             .unwrap();
         if body["status"] == "done" {
-            assert!(body["completedAt"].is_string(), "done effort carries completedAt");
+            assert!(
+                body["completedAt"].is_string(),
+                "done effort carries completedAt"
+            );
             assert_eq!(
                 body["results"][0]["result"]["content"], "the answer",
                 "the finalised effort carries the real agent answer, not a fake"
@@ -611,7 +633,10 @@ async fn sidecar_respond_effort_finalises_done_when_terminal_response_lands() {
             break;
         }
     }
-    assert!(done, "respond effort must finalise to done once the terminal AgentResponse lands");
+    assert!(
+        done,
+        "respond effort must finalise to done once the terminal AgentResponse lands"
+    );
 }
 
 /// A respond effort whose agent never produces a terminal node finalises to the
@@ -621,10 +646,12 @@ async fn sidecar_respond_effort_finalises_done_when_terminal_response_lands() {
 async fn sidecar_respond_effort_times_out_when_agent_silent() {
     // Shrink the watch timeout so the test is fast — injected via config, not
     // process env (which leaks across threads under --test-threads>1).
-    let (state, port, _tmp, _ns) = start_effort_sidecar_ns_with_watch(
-        crate::sidecar::RespondWatchConfig { timeout_ms: 150, interval_ms: 100 },
-    )
-    .await;
+    let (state, port, _tmp, _ns) =
+        start_effort_sidecar_ns_with_watch(crate::sidecar::RespondWatchConfig {
+            timeout_ms: 150,
+            interval_ms: 100,
+        })
+        .await;
     let client = reqwest::Client::new();
 
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
@@ -656,12 +683,18 @@ async fn sidecar_respond_effort_times_out_when_agent_silent() {
             .await
             .unwrap();
         if body["status"] == "timed-out" {
-            assert!(body["completedAt"].is_string(), "timed-out effort carries completedAt");
+            assert!(
+                body["completedAt"].is_string(),
+                "timed-out effort carries completedAt"
+            );
             timed_out = true;
             break;
         }
     }
-    assert!(timed_out, "a silent respond effort must finalise to timed-out, not sit in-progress forever");
+    assert!(
+        timed_out,
+        "a silent respond effort must finalise to timed-out, not sit in-progress forever"
+    );
 }
 
 /// DEBT B: retry of a terminal effort re-dispatches the RETAINED original effort
@@ -691,7 +724,10 @@ async fn sidecar_retry_redispatches_retained_effort() {
         .json()
         .await
         .unwrap();
-    assert_eq!(before["status"], "failed", "unrouted respond effort is terminal failed");
+    assert_eq!(
+        before["status"], "failed",
+        "unrouted respond effort is terminal failed"
+    );
 
     // The original Effort was retained, so retry re-dispatches it (202 accepted).
     let retry = client
@@ -699,7 +735,11 @@ async fn sidecar_retry_redispatches_retained_effort() {
         .send()
         .await
         .unwrap();
-    assert_eq!(retry.status(), 202, "retry of a retained terminal effort is accepted");
+    assert_eq!(
+        retry.status(),
+        202,
+        "retry of a retained terminal effort is accepted"
+    );
     let retry_body: serde_json::Value = retry.json().await.unwrap();
     assert_eq!(retry_body["accepted"], true);
 
@@ -714,7 +754,10 @@ async fn sidecar_retry_redispatches_retained_effort() {
         .json()
         .await
         .unwrap();
-    assert_eq!(after["status"], "failed", "re-dispatched effort ran again and re-reached terminal");
+    assert_eq!(
+        after["status"], "failed",
+        "re-dispatched effort ran again and re-reached terminal"
+    );
     assert!(
         state.efforts_input.read().unwrap().contains_key(&id),
         "the retained effort input survives a retry cycle"
@@ -756,7 +799,11 @@ async fn sidecar_retry_guards_unknown_and_non_terminal() {
         .send()
         .await
         .unwrap();
-    assert_eq!(non_terminal.status(), 409, "retry of an in-progress effort is a conflict");
+    assert_eq!(
+        non_terminal.status(),
+        409,
+        "retry of an in-progress effort is a conflict"
+    );
 }
 
 /// Cancel force-interrupt wiring: cancelling an effort flips the target plugin's
@@ -926,7 +973,10 @@ fn find_terminal_result_matches_by_descriptor_and_surfaces_is_error() {
     // finalises `failed` instead of a 45s false `timed-out`).
     let err = find_terminal_result(&ns, &spec("job-2")).expect("job-2 terminal found");
     assert_eq!(err.content, "boom");
-    assert!(err.is_error, "an is_error node must surface as a terminal error");
+    assert!(
+        err.is_error,
+        "an is_error node must surface as a terminal error"
+    );
 
     // Non-terminal node → not found.
     assert!(

@@ -16,7 +16,7 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt as _;
 
 use crate::telemetry::{TelemetryBus, TelemetryEvent};
-use crate::{PluginChannels, EventEnvelope};
+use crate::{EventEnvelope, PluginChannels};
 
 pub use crate::capabilities::CAP_OBSERVE_HOST_EFFECTS;
 
@@ -370,11 +370,7 @@ mod tests {
         use std::sync::{Arc, RwLock};
 
         let observer_channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
-        let ev = make_event(
-            "host-effect:fs:read",
-            Some("agent"),
-            serde_json::json!({}),
-        );
+        let ev = make_event("host-effect:fs:read", Some("agent"), serde_json::json!({}));
         let line = format_audit_line(&ev).unwrap();
         // Should not panic with no observers registered
         forward_to_observers(&ev, &line, &observer_channels);
@@ -390,9 +386,15 @@ mod tests {
             Some(1_700_000_000)
         );
         // The LIVE file is never a sealed segment.
-        assert_eq!(sealed_segment_secs(Path::new("/x/scarecrow-audit.ndjson")), None);
+        assert_eq!(
+            sealed_segment_secs(Path::new("/x/scarecrow-audit.ndjson")),
+            None
+        );
         // Non-digit or unrelated names are ignored.
-        assert_eq!(sealed_segment_secs(Path::new("/x/scarecrow-audit.abc.ndjson")), None);
+        assert_eq!(
+            sealed_segment_secs(Path::new("/x/scarecrow-audit.abc.ndjson")),
+            None
+        );
         assert_eq!(sealed_segment_secs(Path::new("/x/other.ndjson")), None);
     }
 
@@ -404,7 +406,10 @@ mod tests {
 
         // Tiny threshold so a couple of lines trip rotation — injected via config,
         // no process env (which leaks across threads under --test-threads>1).
-        let config = AuditConfig { rotate_bytes: 20, ..AuditConfig::default() };
+        let config = AuditConfig {
+            rotate_bytes: 20,
+            ..AuditConfig::default()
+        };
 
         // Write enough to exceed 20 bytes, then one more append triggers rotation.
         append_line(&live, "first-audit-line-well-over-twenty-bytes", config).await;
@@ -441,7 +446,10 @@ mod tests {
         tokio::fs::create_dir_all(&dir).await.unwrap();
         let live = dir.join(AUDIT_FILE);
         // Small retention window — injected via config, no process env.
-        let config = AuditConfig { max_segments: 2, ..AuditConfig::default() };
+        let config = AuditConfig {
+            max_segments: 2,
+            ..AuditConfig::default()
+        };
 
         // Seal three segments with increasing stamps + keep the live file present.
         for secs in [100u64, 200, 300] {
@@ -454,9 +462,18 @@ mod tests {
         prune_old_segments(&live, config).await;
 
         // The oldest (100) is pruned; the 2 newest (200, 300) and the live file stay.
-        assert!(!dir.join("scarecrow-audit.100.ndjson").exists(), "oldest pruned");
-        assert!(dir.join("scarecrow-audit.200.ndjson").exists(), "newest kept");
-        assert!(dir.join("scarecrow-audit.300.ndjson").exists(), "newest kept");
+        assert!(
+            !dir.join("scarecrow-audit.100.ndjson").exists(),
+            "oldest pruned"
+        );
+        assert!(
+            dir.join("scarecrow-audit.200.ndjson").exists(),
+            "newest kept"
+        );
+        assert!(
+            dir.join("scarecrow-audit.300.ndjson").exists(),
+            "newest kept"
+        );
         assert!(live.exists(), "the live file is never pruned");
         std::fs::remove_dir_all(&dir).ok();
     }

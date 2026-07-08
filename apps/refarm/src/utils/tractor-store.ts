@@ -1,13 +1,26 @@
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { createNodeView } from "@refarm.dev/storage-node-view";
-import { TractorNodesReadProvider } from "@refarm.dev/storage-sqlite/node";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRefarmHome } from "./refarm-home.js";
+import { resolveRuntimeSidecarUrl } from "./runtime-config.js";
+
+export const DIRECT_SQLITE_GRAPH_ENV_VAR = "REFARM_TRACTOR_GRAPH_DIRECT_SQLITE";
+
+export interface TractorGraph {
+	getNode(id: string): Promise<Record<string, unknown> | null>;
+	queryNodes(type: string): Promise<Record<string, unknown>[]>;
+}
+
+export interface OpenTractorGraphOptions {
+	fetch?: typeof fetch;
+	directSqlite?: boolean;
+}
 
 /**
- * Shared read access to the tractor host's local sovereign store — one source of
- * truth so every command (health, status, future readers) resolves the SAME db
- * and namespace the daemon actually opens, instead of each guessing its own.
+ * Shared read access to the tractor host's local sovereign graph — one source of
+ * truth so every command (health, status, future readers) resolves the SAME
+ * runtime graph the daemon owns, instead of each guessing its own storage path.
  *
  * All resolvers are env-injectable (mirroring refarm-home.ts) so tests and other
  * apps can drive them. This module has zero app-command imports and a
@@ -45,19 +58,94 @@ export function resolveTractorDbPath(env = process.env): string {
 }
 
 /**
- * A read-only NodeView over the tractor `nodes` table — or null when the db does
- * not exist (the runtime never ran) or is unreadable/locked. Read-only: it can
- * never create or mutate the host db, so an fs-only caller is never broken by a
- * missing or locked store.
+ * A read-only runtime graph client. Distributed/normal CLI code talks to the
+ * sidecar, not to `node:sqlite`, so the packaged CLI stays off experimental Node
+ * APIs and the runtime owns its storage implementation.
  */
-export function openTractorGraph(
+export async function openTractorGraph(
 	env = process.env,
-): ReturnType<typeof createNodeView> | null {
+	options: OpenTractorGraphOptions = {},
+): Promise<TractorGraph | null> {
+	if (options.directSqlite ?? directSqliteGraphEnabled(env)) {
+		return openDirectTractorGraph(env);
+	}
+	return createRuntimeTractorGraph(env, options);
+}
+
+/**
+ * Explicit direct-SQLite fallback for local scripts/dev diagnostics. This is not
+ * the distributed default because importing `@refarm.dev/storage-sqlite/node`
+ * loads Node's experimental `node:sqlite` API.
+ */
+export async function openDirectTractorGraph(
+	env = process.env,
+): Promise<TractorGraph | null> {
 	const dbPath = resolveTractorDbPath(env);
 	if (!fs.existsSync(dbPath)) return null;
 	try {
+		const { TractorNodesReadProvider } = await import(
+			"@refarm.dev/storage-sqlite/node"
+		);
 		return createNodeView(new TractorNodesReadProvider(dbPath));
 	} catch {
 		return null;
 	}
+}
+
+function directSqliteGraphEnabled(env: NodeJS.ProcessEnv): boolean {
+	const value = env[DIRECT_SQLITE_GRAPH_ENV_VAR]?.trim().toLowerCase();
+	return value === "1" || value === "true" || value === "yes";
+}
+
+function createRuntimeTractorGraph(
+	env: NodeJS.ProcessEnv,
+	options: OpenTractorGraphOptions,
+): TractorGraph {
+	const baseUrl = resolveRuntimeSidecarUrl({ env }).value;
+	const fetchImpl = options.fetch;
+	return {
+		async getNode(id: string): Promise<Record<string, unknown> | null> {
+			const response = await fetchSidecarWithTimeout(
+				`${baseUrl}/nodes/${encodeURIComponent(id)}`,
+				{},
+				{ env, fetch: fetchImpl },
+			);
+			if (response.status === 404) return null;
+			if (!response.ok) throw new Error(`sidecar graph HTTP ${response.status}`);
+			const body = asObject(await response.json());
+			const node = asGraphNode(body?.node);
+			if (!node) throw new Error("sidecar graph response missing node");
+			return node;
+		},
+		async queryNodes(type: string): Promise<Record<string, unknown>[]> {
+			const response = await fetchSidecarWithTimeout(
+				`${baseUrl}/nodes?type=${encodeURIComponent(type)}&limit=100`,
+				{},
+				{ env, fetch: fetchImpl },
+			);
+			if (!response.ok) throw new Error(`sidecar graph HTTP ${response.status}`);
+			const body = asObject(await response.json());
+			const nodes = Array.isArray(body?.nodes) ? body.nodes : null;
+			if (!nodes) throw new Error("sidecar graph response missing nodes");
+			return nodes.map((node) => {
+				const graphNode = asGraphNode(node);
+				if (!graphNode) throw new Error("sidecar graph response includes malformed node");
+				return graphNode;
+			});
+		},
+	};
+}
+
+function asObject(value: unknown): Record<string, unknown> | null {
+	return value && typeof value === "object" && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null;
+}
+
+function asGraphNode(value: unknown): Record<string, unknown> | null {
+	const node = asObject(value);
+	if (!node) return null;
+	return typeof node["@id"] === "string" && typeof node["@type"] === "string"
+		? node
+		: null;
 }

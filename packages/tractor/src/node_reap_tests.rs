@@ -83,7 +83,10 @@ fn allowlist_only_never_reaps_durable_types() {
         .map(|(i, t)| row(&format!("n{i}"), t, 365 * 86_400, "{}"))
         .collect();
     let plan = plan_node_reap(&rows, NOW, &ttls(HOUR_MS));
-    assert!(plan.is_empty(), "no durable/unlisted type may ever be reaped: {plan:?}");
+    assert!(
+        plan.is_empty(),
+        "no durable/unlisted type may ever be reaped: {plan:?}"
+    );
 }
 
 /// A newly introduced node type defaults to KEEP (guards the allowlist invariant
@@ -127,13 +130,21 @@ fn fresh_streaming_node_within_watch_window_survives() {
 fn unparseable_updated_at_kept() {
     let mut r = row("a", "Response", 12 * 3600, "{}");
     r.updated_at = "garbage".to_string();
-    assert!(plan_node_reap(&[r], NOW, &ttls(0)).is_empty(), "bad timestamp => keep");
+    assert!(
+        plan_node_reap(&[r], NOW, &ttls(0)).is_empty(),
+        "bad timestamp => keep"
+    );
 }
 
 /// An active (non-terminal) StreamSession is never swept, regardless of age.
 #[test]
 fn active_stream_session_never_reaped() {
-    let rows = vec![row("s", "StreamSession", 365 * 86_400, r#"{"status":"active"}"#)];
+    let rows = vec![row(
+        "s",
+        "StreamSession",
+        365 * 86_400,
+        r#"{"status":"active"}"#,
+    )];
     assert!(
         plan_node_reap(&rows, NOW, &ttls(0)).is_empty(),
         "an open stream session must never be reaped mid-flight"
@@ -146,7 +157,11 @@ fn terminal_stream_session_reaped_when_old() {
         let payload = format!(r#"{{"status":"{status}"}}"#);
         let rows = vec![row("s", "StreamSession", 12 * 3600, &payload)];
         let plan = plan_node_reap(&rows, NOW, &ttls(6 * HOUR_MS));
-        assert_eq!(plan, vec!["s".to_string()], "terminal ({status}) old session is reapable");
+        assert_eq!(
+            plan,
+            vec!["s".to_string()],
+            "terminal ({status}) old session is reapable"
+        );
     }
 }
 
@@ -163,7 +178,11 @@ fn per_type_ttls_are_independent() {
         stream_session_ms: 6 * HOUR_MS,
     };
     let plan = plan_node_reap(&rows, NOW, &t);
-    assert_eq!(plan, vec!["c".to_string()], "only the short-TTL type is reaped");
+    assert_eq!(
+        plan,
+        vec!["c".to_string()],
+        "only the short-TTL type is reaped"
+    );
 }
 
 // ── integration: run_node_reap + loro resurrection ───────────────────────────
@@ -180,14 +199,25 @@ fn loro_resurrection_regression_delete_removes_from_both_models() {
     // gone from the Loro doc too, so project_all can't resurrect it.
     let sync = make_sync();
     // Store a reapable node.
-    sync.store_node("urn:chunk1", "StreamChunk", None, r#"{"is_final":true}"#, None)
-        .unwrap();
+    sync.store_node(
+        "urn:chunk1",
+        "StreamChunk",
+        None,
+        r#"{"is_final":true}"#,
+        None,
+    )
+    .unwrap();
     assert_eq!(sync.query_nodes("StreamChunk").unwrap().len(), 1);
 
     // Delete via the durable path (both models).
-    let n = sync.delete_nodes_by_ids(&["urn:chunk1".to_string()]).unwrap();
+    let n = sync
+        .delete_nodes_by_ids(&["urn:chunk1".to_string()])
+        .unwrap();
     assert_eq!(n, 1);
-    assert!(sync.query_nodes("StreamChunk").unwrap().is_empty(), "gone from sqlite");
+    assert!(
+        sync.query_nodes("StreamChunk").unwrap().is_empty(),
+        "gone from sqlite"
+    );
 
     // Re-project the Loro doc into sqlite (what a peer sync / snapshot restore
     // triggers). If the key were still in the Loro map, it would come back.
@@ -202,14 +232,24 @@ fn loro_resurrection_regression_delete_removes_from_both_models() {
 fn run_node_reap_reaps_only_old_streaming_and_keeps_durable() {
     let sync = make_sync();
     // A durable node and a streaming node, both written now.
-    sync.store_node("urn:session1", "Session", None, "{}", None).unwrap();
-    sync.store_node("urn:chunk1", "StreamChunk", None, "{}", None).unwrap();
+    sync.store_node("urn:session1", "Session", None, "{}", None)
+        .unwrap();
+    sync.store_node("urn:chunk1", "StreamChunk", None, "{}", None)
+        .unwrap();
 
     // Reap with now far in the FUTURE so the just-written chunk is "old" (its
     // updated_at is real-now; we pass a huge now_secs and a zero TTL).
     let future_now = now_unix_secs() + 10 * 86_400;
     let reaped = run_node_reap(&sync, future_now, &ttls(0));
     assert_eq!(reaped, 1, "exactly the streaming node is reaped");
-    assert_eq!(sync.query_nodes("StreamChunk").unwrap().len(), 0, "chunk gone");
-    assert_eq!(sync.query_nodes("Session").unwrap().len(), 1, "durable Session kept");
+    assert_eq!(
+        sync.query_nodes("StreamChunk").unwrap().len(),
+        0,
+        "chunk gone"
+    );
+    assert_eq!(
+        sync.query_nodes("Session").unwrap().len(),
+        1,
+        "durable Session kept"
+    );
 }

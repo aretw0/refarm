@@ -89,7 +89,11 @@ async fn unregister_tears_down_one_plugin_leaving_the_host_clean() {
 
     // Registered: channel present, cancel flag present.
     assert_eq!(tractor.plugin_channels.read().unwrap().len(), 1);
-    assert!(tractor.cancel_flags.read().unwrap().contains_key(&plugin_id));
+    assert!(tractor
+        .cancel_flags
+        .read()
+        .unwrap()
+        .contains_key(&plugin_id));
 
     // Unregister the one plugin — the inverse of register_for_events.
     let was_loaded = tractor.unregister(&plugin_id).await;
@@ -103,7 +107,11 @@ async fn unregister_tears_down_one_plugin_leaving_the_host_clean() {
         "unregister must remove the plugin's channel"
     );
     assert!(
-        !tractor.cancel_flags.read().unwrap().contains_key(&plugin_id),
+        !tractor
+            .cancel_flags
+            .read()
+            .unwrap()
+            .contains_key(&plugin_id),
         "unregister must clear the plugin's cancel flag"
     );
 
@@ -114,7 +122,10 @@ async fn unregister_tears_down_one_plugin_leaving_the_host_clean() {
     );
 
     // Shutdown after unregister still succeeds and finds nothing to drain.
-    tractor.shutdown().await.expect("shutdown after unregister must succeed");
+    tractor
+        .shutdown()
+        .await
+        .expect("shutdown after unregister must succeed");
 }
 
 #[tokio::test]
@@ -144,7 +155,11 @@ async fn reload_plugin_replaces_the_running_instance() {
         "after reload the plugin is loaded again (exactly one channel)"
     );
     assert!(
-        tractor.cancel_flags.read().unwrap().contains_key(&plugin_id),
+        tractor
+            .cancel_flags
+            .read()
+            .unwrap()
+            .contains_key(&plugin_id),
         "reload re-registers the plugin's cancel flag"
     );
 
@@ -267,7 +282,11 @@ async fn reload_while_events_are_in_flight_drains_the_queue_and_survives() {
         1,
         "exactly one instance is registered after reload-under-load"
     );
-    assert!(tractor.cancel_flags.read().unwrap().contains_key(&plugin_id));
+    assert!(tractor
+        .cancel_flags
+        .read()
+        .unwrap()
+        .contains_key(&plugin_id));
     let delivered = tractor.deliver("null:event", Some(&plugin_id), Some("post".into()));
     assert_eq!(delivered, 1, "the reloaded instance accepts new events");
 

@@ -11,9 +11,9 @@ import {
  *
  * The config is now a CRDT-replicated graph node (`urn:refarm:config:workspace`,
  * @type RefarmConfig). This auditor reads that node via an injected graphContext
- * (a `getNode`/`queryNodes` face over the tractor sqlite — no sidecar) and
- * cross-checks its `revision` digest against a recompute from the local raw
- * config file. A mismatch means the graph node and the local file diverged —
+ * (a `getNode`/`queryNodes` face over whichever runtime graph transport the host
+ * provides) and cross-checks its `revision` digest against a recompute from the
+ * local raw config file. A mismatch means the graph node and the local file diverged —
  * another device changed the config, or the local file drifted.
  *
  * MAKE-OR-BREAK — digest source parity: the recompute MUST feed `createConfigNode`

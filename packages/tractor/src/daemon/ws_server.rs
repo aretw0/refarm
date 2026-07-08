@@ -260,7 +260,13 @@ mod tests {
     ) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
-        let server = WsServer::new(make_sync(), 0, TelemetryBus::new(10), channels, event_router);
+        let server = WsServer::new(
+            make_sync(),
+            0,
+            TelemetryBus::new(10),
+            channels,
+            event_router,
+        );
         tokio::spawn(async move {
             let _ = server.run(listener).await;
         });

@@ -6,9 +6,8 @@
 use serde_json::Value;
 
 use super::{
-    persist_effort_result, prompt_ref_from_effort, record_effort_result,
-    stream_ref_for_prompt, write_stream_chunk, Effort, EffortResult, EffortTask,
-    SidecarState, TaskResult,
+    persist_effort_result, prompt_ref_from_effort, record_effort_result, stream_ref_for_prompt,
+    write_stream_chunk, Effort, EffortResult, EffortTask, SidecarState, TaskResult,
 };
 
 #[derive(Debug)]
@@ -120,11 +119,7 @@ pub(crate) fn dispatch_event_effort(
 ) {
     // The event name a plugin subscribes to: `<pluginKey>:dispatch`. `plugin_id`
     // is the task's target (e.g. `vault`), so `vault` -> `vault:dispatch`.
-    let plugin_key = task
-        .plugin_id
-        .rsplit('/')
-        .next()
-        .unwrap_or(&task.plugin_id);
+    let plugin_key = task.plugin_id.rsplit('/').next().unwrap_or(&task.plugin_id);
     let event = format!("{plugin_key}:dispatch");
 
     // The payload carries the verb (the effort's fn) plus the task args, so the
@@ -306,7 +301,10 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         let sent = {
             let channels = state.plugin_channels.read().expect("channels poisoned");
             channels.get(&agent_id).map(|tx| {
-                tx.send(crate::EventEnvelope::fire("user:prompt".to_string(), Some(payload)))
+                tx.send(crate::EventEnvelope::fire(
+                    "user:prompt".to_string(),
+                    Some(payload),
+                ))
             })
         };
 
@@ -379,7 +377,12 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
     });
 }
 
-pub(crate) fn finalise_effort(state: &SidecarState, effort_id: &str, status: &str, results: Vec<TaskResult>) {
+pub(crate) fn finalise_effort(
+    state: &SidecarState,
+    effort_id: &str,
+    status: &str,
+    results: Vec<TaskResult>,
+) {
     let result = {
         let mut s = state.efforts.write().expect("effort store poisoned");
         s.get_mut(effort_id).map(|entry| {
@@ -486,7 +489,11 @@ pub(crate) fn find_terminal_result(
         {
             continue;
         }
-        if value.get(&spec.terminal_flag_field).and_then(|v| v.as_bool()) == Some(true) {
+        if value
+            .get(&spec.terminal_flag_field)
+            .and_then(|v| v.as_bool())
+            == Some(true)
+        {
             let content = value
                 .get("content")
                 .and_then(|v| v.as_str())
@@ -510,11 +517,7 @@ pub(crate) fn find_terminal_result(
 /// already made the effort terminal wins (the watcher never walks the machine
 /// backward out of a terminal state). Bounded by a deadline so a silent producer
 /// never leaks the task.
-fn spawn_terminal_result_watcher(
-    state: SidecarState,
-    effort_id: String,
-    spec: TerminalResultSpec,
-) {
+fn spawn_terminal_result_watcher(state: SidecarState, effort_id: String, spec: TerminalResultSpec) {
     tokio::spawn(async move {
         let timeout = std::time::Duration::from_millis(state.respond_watch.timeout_ms);
         let interval = std::time::Duration::from_millis(state.respond_watch.interval_ms);
@@ -606,11 +609,11 @@ pub(crate) fn epoch_to_parts(secs: u64) -> (u64, u64, u64, u64, u64, u64) {
     let hours = mins / 60;
     let h = hours % 24;
     let mut days = hours / 24; // days since 1970-01-01
-    // Walk years linearly. The previous block-of-400/100/4 approximation had a
-    // real calendar bug (it mis-counted leap days within a 4-year block, drifting
-    // the day-of-month by up to a day); a linear walk is exact and mutually
-    // invertible with reap::parse_iso_to_epoch_secs. Timestamps are cheap and
-    // rare (one per effort finalise), so the linear scan cost is irrelevant.
+                               // Walk years linearly. The previous block-of-400/100/4 approximation had a
+                               // real calendar bug (it mis-counted leap days within a 4-year block, drifting
+                               // the day-of-month by up to a day); a linear walk is exact and mutually
+                               // invertible with reap::parse_iso_to_epoch_secs. Timestamps are cheap and
+                               // rare (one per effort finalise), so the linear scan cost is irrelevant.
     let mut year = 1970u64;
     loop {
         let year_days = if is_leap_year(year) { 366 } else { 365 };
@@ -646,4 +649,3 @@ pub(crate) fn month_lengths(leap: bool) -> [u64; 12] {
 }
 
 // ── route handlers ────────────────────────────────────────────────────────────
-

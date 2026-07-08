@@ -378,8 +378,10 @@ mod tests {
         // the tie by peer id, so both must converge to the SAME winning payload. With a
         // shared peer id (the default-namespace collision) this tie-break is undefined —
         // this test is the proof the collision is gone.
-        let sync_a = NativeSync::new_with_peer(NativeStorage::open(":memory:").unwrap(), 111).unwrap();
-        let sync_b = NativeSync::new_with_peer(NativeStorage::open(":memory:").unwrap(), 222).unwrap();
+        let sync_a =
+            NativeSync::new_with_peer(NativeStorage::open(":memory:").unwrap(), 111).unwrap();
+        let sync_b =
+            NativeSync::new_with_peer(NativeStorage::open(":memory:").unwrap(), 222).unwrap();
 
         sync_a
             .store_node("urn:test:tie", "Note", None, r#"{"from":"a"}"#, None)

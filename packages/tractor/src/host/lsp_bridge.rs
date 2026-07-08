@@ -160,7 +160,9 @@ impl LspBridge {
     /// Build a bridge from an already-resolved LSP command (from HostEffectPolicy,
     /// resolved once at boot) so a code-op reads config, not process env.
     pub(crate) fn with_cmd(lsp_cmd: impl Into<String>) -> Self {
-        Self { lsp_cmd: lsp_cmd.into() }
+        Self {
+            lsp_cmd: lsp_cmd.into(),
+        }
     }
 
     pub(crate) fn rename_symbol(

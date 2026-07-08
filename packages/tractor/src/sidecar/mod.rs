@@ -8,6 +8,8 @@
 //!   GET    /efforts/:id/logs           — effort log entries
 //!   POST   /efforts/:id/retry          — re-enqueue
 //!   POST   /efforts/:id/cancel         — cancel
+//!   GET    /nodes?type=:type           — list graph nodes by type
+//!   GET    /nodes/:id                  — graph node by id
 //!   GET    /plugins                    — installed/loaded plugin state
 //!   POST   /plugins/reload             — report reload readiness for loaded plugins
 //!
@@ -91,12 +93,7 @@ pub(crate) const EFFORT_CANCELLED: &str = "cancelled";
 pub(crate) fn is_terminal_effort_status(status: &str) -> bool {
     matches!(
         status,
-        EFFORT_DONE
-            | EFFORT_DELIVERED
-            | "partial"
-            | EFFORT_FAILED
-            | "timed-out"
-            | EFFORT_CANCELLED
+        EFFORT_DONE | EFFORT_DELIVERED | "partial" | EFFORT_FAILED | "timed-out" | EFFORT_CANCELLED
     )
 }
 
@@ -476,7 +473,9 @@ pub async fn post_plugins_reload(
         match host.reload_plugin(&plugin_id).await {
             Ok(true) => reloaded.push(plugin_id),
             Ok(false) => skipped.push(plugin_id),
-            Err(e) => errors.push(serde_json::json!({ "pluginId": plugin_id, "error": e.to_string() })),
+            Err(e) => {
+                errors.push(serde_json::json!({ "pluginId": plugin_id, "error": e.to_string() }))
+            }
         }
     }
 
@@ -573,9 +572,9 @@ pub async fn post_plugin_respond(
     let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
     let sent = {
         let channels = state.plugin_channels.read().expect("channels poisoned");
-        channels.get(&id).map(|tx| {
-            tx.send(crate::EventEnvelope::respond_request(req.payload, reply_tx))
-        })
+        channels
+            .get(&id)
+            .map(|tx| tx.send(crate::EventEnvelope::respond_request(req.payload, reply_tx)))
     };
     match sent {
         None => {
@@ -599,7 +598,8 @@ pub async fn post_plugin_respond(
     let timeout = std::time::Duration::from_millis(state.respond_watch.timeout_ms);
     match tokio::time::timeout(timeout, reply_rx).await {
         Ok(Ok(Ok(reply))) => {
-            Json(serde_json::json!({ "ok": true, "verb": req.verb, "reply": reply })).into_response()
+            Json(serde_json::json!({ "ok": true, "verb": req.verb, "reply": reply }))
+                .into_response()
         }
         Ok(Ok(Err(message))) => Json(serde_json::json!({
             "ok": false, "error": "respond-failed", "message": message,
@@ -892,12 +892,17 @@ const PROBE_UNREACHABLE: &str = "unreachable";
 /// route, never sends a key. A 401/403 still proves the endpoint is up, so it maps
 /// to `auth-failed` rather than `unreachable`. The `reason` vocabulary matches the
 /// TS providerProbe (reachable | unreachable | auth-failed | no-endpoint-source).
-async fn get_provider_liveness(
-    Query(q): Query<ProviderLivenessQuery>,
-) -> impl IntoResponse {
-    let Some(provider) = q.provider.map(|p| p.trim().to_string()).filter(|p| !p.is_empty())
+async fn get_provider_liveness(Query(q): Query<ProviderLivenessQuery>) -> impl IntoResponse {
+    let Some(provider) = q
+        .provider
+        .map(|p| p.trim().to_string())
+        .filter(|p| !p.is_empty())
     else {
-        return err(StatusCode::BAD_REQUEST, "provider query parameter is required").into_response();
+        return err(
+            StatusCode::BAD_REQUEST,
+            "provider query parameter is required",
+        )
+        .into_response();
     };
 
     let base_url = crate::host::provider_base_url_for_liveness(&provider);
@@ -1186,6 +1191,122 @@ async fn get_session_history(
     .into_response()
 }
 
+// ── generic node handlers ────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct NodesQuery {
+    #[serde(rename = "type")]
+    type_: Option<String>,
+    #[serde(default = "default_nodes_limit")]
+    limit: usize,
+}
+
+fn default_nodes_limit() -> usize {
+    20
+}
+
+fn node_value_from_row(row: crate::storage::NodeRow) -> Result<Value, String> {
+    let mut node: Value =
+        serde_json::from_str(&row.payload).map_err(|e| format!("parse node: {e}"))?;
+    let Value::Object(ref mut object) = node else {
+        return Err("parse node: payload is not an object".to_string());
+    };
+    object
+        .entry("@id".to_string())
+        .or_insert_with(|| Value::String(row.id));
+    object
+        .entry("@type".to_string())
+        .or_insert_with(|| Value::String(row.type_));
+    Ok(node)
+}
+
+async fn get_nodes(
+    State(state): State<SidecarState>,
+    Query(params): Query<NodesQuery>,
+) -> impl IntoResponse {
+    let Some(type_) = params
+        .type_
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return err(StatusCode::BAD_REQUEST, "missing type").into_response();
+    };
+
+    let storage = match crate::storage::NativeStorage::open(&state.namespace) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("storage: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let nodes: Vec<Value> = match storage.query_nodes(type_) {
+        Ok(rows) => {
+            let mut nodes = Vec::new();
+            for row in rows.into_iter().take(params.limit.min(100)) {
+                let node = match node_value_from_row(row) {
+                    Ok(node) => node,
+                    Err(e) => {
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            Json(serde_json::json!({ "error": e })),
+                        )
+                            .into_response();
+                    }
+                };
+                nodes.push(node);
+            }
+            nodes
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("query: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    Json(serde_json::json!({ "nodes": nodes, "total": nodes.len() })).into_response()
+}
+
+async fn get_node_by_id(
+    State(state): State<SidecarState>,
+    AxumPath(id): AxumPath<String>,
+) -> impl IntoResponse {
+    let storage = match crate::storage::NativeStorage::open(&state.namespace) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("storage: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    match storage.get_node_row(&id) {
+        Ok(Some(row)) => match node_value_from_row(row) {
+            Ok(node) => Json(serde_json::json!({ "node": node })).into_response(),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": e })),
+            )
+                .into_response(),
+        },
+        Ok(None) => err(StatusCode::NOT_FOUND, "node not found").into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("get_node_row: {e}") })),
+        )
+            .into_response(),
+    }
+}
+
 // ── task handlers ────────────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
@@ -1339,6 +1460,8 @@ pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Resu
         .route("/sessions", post(post_session_new).get(get_sessions))
         .route("/sessions/:id/fork", post(post_session_fork))
         .route("/sessions/:id/history", get(get_session_history))
+        .route("/nodes", get(get_nodes))
+        .route("/nodes/:id", get(get_node_by_id))
         .route("/tasks", get(get_tasks))
         .route("/tasks/:id", get(get_task))
         .route("/plugins", get(get_plugins))

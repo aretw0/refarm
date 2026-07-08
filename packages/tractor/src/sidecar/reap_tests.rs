@@ -50,7 +50,7 @@ fn malformed_iso_is_none_never_zero() {
     for bad in [
         "",
         "not-a-date",
-        "2033-05-18T03:33:00", // missing Z
+        "2033-05-18T03:33:00",  // missing Z
         "2033-13-18T03:33:00Z", // month 13
         "2033-05-18 03:33:00Z", // space not T
         "20330518T033300Z",
@@ -77,7 +77,10 @@ fn survives_terminal_but_recent() {
     let mut efforts = HashMap::new();
     efforts.insert("e1".to_string(), effort("e1", "done", Some(&iso_ago(0))));
     let plan = plan_reap(&efforts, NOW, DAY_MS, DAY_MS);
-    assert!(plan.is_empty(), "a fresh terminal effort must survive the TTL");
+    assert!(
+        plan.is_empty(),
+        "a fresh terminal effort must survive the TTL"
+    );
 }
 
 #[test]
@@ -105,7 +108,14 @@ fn terminal_no_completed_at_kept() {
 
 #[test]
 fn all_terminal_statuses_reapable_when_old() {
-    for status in ["done", "delivered", "partial", "failed", "timed-out", "cancelled"] {
+    for status in [
+        "done",
+        "delivered",
+        "partial",
+        "failed",
+        "timed-out",
+        "cancelled",
+    ] {
         let mut efforts = HashMap::new();
         efforts.insert(
             "e1".to_string(),
@@ -132,7 +142,11 @@ fn independent_effort_and_stream_ttls() {
     // effort TTL 24h (keep json), stream TTL 1h (reap stream).
     let plan = plan_reap(&efforts, NOW, DAY_MS, HOUR_MS);
     assert!(plan.effort_ids.is_empty(), "json kept by long effort TTL");
-    assert_eq!(plan.stream_refs.len(), 1, "stream reaped by short stream TTL");
+    assert_eq!(
+        plan.stream_refs.len(),
+        1,
+        "stream reaped by short stream TTL"
+    );
 }
 
 // ── execute_reap + fs (real temp dir) ────────────────────────────────────────
@@ -160,7 +174,11 @@ fn execute_reap_deletes_files_and_evicts_map() {
     let (state, tmp) = test_state();
     let old = effort("e1", "done", Some(&iso_ago(48 * 3600)));
     // Persist the json and a stream file as production would.
-    state.efforts.write().unwrap().insert("e1".to_string(), old.clone());
+    state
+        .efforts
+        .write()
+        .unwrap()
+        .insert("e1".to_string(), old.clone());
     // Also retain the effort INPUT (as dispatch does), so we can prove it's
     // reaped alongside the result and can't grow unbounded.
     state.efforts_input.write().unwrap().insert(
@@ -181,7 +199,13 @@ fn execute_reap_deletes_files_and_evicts_map() {
     assert!(json_path.exists() && stream_path.exists());
 
     let plan = plan_reap(&state.efforts.read().unwrap(), NOW, DAY_MS, DAY_MS);
-    execute_reap(&state.efforts, &state.efforts_input, &state.results_dir, &state.streams_dir, &plan);
+    execute_reap(
+        &state.efforts,
+        &state.efforts_input,
+        &state.results_dir,
+        &state.streams_dir,
+        &plan,
+    );
 
     assert!(!json_path.exists(), "json reaped");
     assert!(!stream_path.exists(), "stream reaped");
@@ -211,7 +235,13 @@ fn stream_survives_while_effort_live() {
     std::fs::write(&stream_path, "{}\n").unwrap();
 
     let plan = plan_reap(&state.efforts.read().unwrap(), NOW, 0, 0);
-    execute_reap(&state.efforts, &state.efforts_input, &state.results_dir, &state.streams_dir, &plan);
+    execute_reap(
+        &state.efforts,
+        &state.efforts_input,
+        &state.results_dir,
+        &state.streams_dir,
+        &plan,
+    );
     assert!(stream_path.exists(), "a followed stream must survive");
     std::fs::remove_dir_all(&tmp).ok();
 }
@@ -223,8 +253,17 @@ fn orphan_stream_left_alone() {
     let orphan = tmp.join("streams").join("urn:orphan.ndjson");
     std::fs::write(&orphan, "{}\n").unwrap();
     let plan = plan_reap(&state.efforts.read().unwrap(), NOW, 0, 0);
-    execute_reap(&state.efforts, &state.efforts_input, &state.results_dir, &state.streams_dir, &plan);
-    assert!(orphan.exists(), "orphan stream (unknown provenance) is kept");
+    execute_reap(
+        &state.efforts,
+        &state.efforts_input,
+        &state.results_dir,
+        &state.streams_dir,
+        &plan,
+    );
+    assert!(
+        orphan.exists(),
+        "orphan stream (unknown provenance) is kept"
+    );
     std::fs::remove_dir_all(&tmp).ok();
 }
 
@@ -237,7 +276,13 @@ fn unparseable_json_left_alone() {
     let garbage = state.results_dir.join("garbage.json");
     std::fs::write(&garbage, "not an effort result").unwrap();
     let plan = plan_reap(&state.efforts.read().unwrap(), NOW, 0, 0);
-    execute_reap(&state.efforts, &state.efforts_input, &state.results_dir, &state.streams_dir, &plan);
+    execute_reap(
+        &state.efforts,
+        &state.efforts_input,
+        &state.results_dir,
+        &state.streams_dir,
+        &plan,
+    );
     assert!(garbage.exists(), "unclassifiable file must not be deleted");
     std::fs::remove_dir_all(&tmp).ok();
 }

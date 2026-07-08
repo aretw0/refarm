@@ -177,13 +177,23 @@ mod tests {
         }
         // Count guard: bump this when the vocabulary grows (forces a conscious
         // decision + updating the mirrored TS table + the drift guard).
-        assert_eq!(Permission::ALL.len(), 4, "vocabulary size changed — update the TS mirror + guard");
+        assert_eq!(
+            Permission::ALL.len(),
+            4,
+            "vocabulary size changed — update the TS mirror + guard"
+        );
     }
 
     #[test]
     fn rejects_unknown_permissions() {
-        assert!(Permission::from_str("fs:reed").is_none(), "typo is not a known permission");
-        assert!(Permission::from_str("storage:v1").is_none(), "the requires-axis is not a permission");
+        assert!(
+            Permission::from_str("fs:reed").is_none(),
+            "typo is not a known permission"
+        );
+        assert!(
+            Permission::from_str("storage:v1").is_none(),
+            "the requires-axis is not a permission"
+        );
         assert!(Permission::from_str("").is_none());
     }
 
@@ -191,7 +201,10 @@ mod tests {
     fn unknown_permissions_flags_only_the_unrecognized() {
         let declared = ["fs:read", "fs:reed", "network:outbound", "storage:v1"];
         let unknown = unknown_permissions(declared.iter().copied());
-        assert_eq!(unknown, vec!["fs:reed".to_string(), "storage:v1".to_string()]);
+        assert_eq!(
+            unknown,
+            vec!["fs:reed".to_string(), "storage:v1".to_string()]
+        );
     }
 
     #[test]

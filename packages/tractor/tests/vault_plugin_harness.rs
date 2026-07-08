@@ -88,8 +88,12 @@ async fn vault_plugin_dispatch_stores_result_node_via_real_bridge() {
 
     // The REAL host bridge: store-node writes into this sync's SQLite/CRDT graph.
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
-        .expect("PluginHost::new");
+    let host = PluginHost::new(
+        TrustManager::new(),
+        TelemetryBus::new(100),
+        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .expect("PluginHost::new");
     let mut handle = host
         .load(path, &sync)
         .await
@@ -164,8 +168,12 @@ async fn quality_plugin_dispatch_stores_result_node_via_real_bridge() {
     }
 
     let sync = make_sync();
-    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
-        .expect("PluginHost::new");
+    let host = PluginHost::new(
+        TrustManager::new(),
+        TelemetryBus::new(100),
+        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .expect("PluginHost::new");
     let mut handle = host
         .load(path, &sync)
         .await
@@ -262,7 +270,10 @@ async fn router_delivers_a_non_agent_event_to_its_subscribed_plugin() {
     // subscription). This is the path a caller/effort-router uses; the vault
     // plugin receives vault:dispatch even though it is not the agent.
     let sent = tractor.deliver("vault:dispatch", None, Some(dispatch_payload()));
-    assert_eq!(sent, 1, "the router must deliver vault:dispatch to 1 subscriber");
+    assert_eq!(
+        sent, 1,
+        "the router must deliver vault:dispatch to 1 subscriber"
+    );
 
     // The plugin ran on its own thread; poll the graph until its result lands.
     let mut records = Vec::new();
@@ -353,7 +364,10 @@ async fn vault_discovers_and_calls_quality_via_spi() {
     // (aligned to the plugin's metadata name — "quality" — not the manifest's full
     // scoped id), which is exactly the id call-plugin needs to route.
     assert_eq!(
-        tractor.plugin_registry.plugin_providing_api("QualityApi").as_deref(),
+        tractor
+            .plugin_registry
+            .plugin_providing_api("QualityApi")
+            .as_deref(),
         Some("quality"),
         "get-plugin-api must resolve QualityApi to the quality plugin"
     );
@@ -494,7 +508,11 @@ struct OperatorLoopSpec {
 /// lands in the graph.
 async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
     if !spec.wasm.exists() {
-        eprintln!("SKIP: {} not found — {}", spec.wasm.display(), spec.build_hint);
+        eprintln!(
+            "SKIP: {} not found — {}",
+            spec.wasm.display(),
+            spec.build_hint
+        );
         return;
     }
 
@@ -590,7 +608,10 @@ async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
                 spec.plugin_id
             )
         });
-    assert_eq!(node["refarm:verb"], spec.verb, "the result carries the dispatched verb");
+    assert_eq!(
+        node["refarm:verb"], spec.verb,
+        "the result carries the dispatched verb"
+    );
 
     tractor.shutdown().await.expect("shutdown");
 }

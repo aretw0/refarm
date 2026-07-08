@@ -7,7 +7,9 @@
 use anyhow::Result;
 use wasmtime::Store;
 
-use crate::host::plugin_host::{EpochGuard, HasEpochGuard, P1Store, RefarmPluginHost, TractorStore};
+use crate::host::plugin_host::{
+    EpochGuard, HasEpochGuard, P1Store, RefarmPluginHost, TractorStore,
+};
 use crate::telemetry::TelemetryBus;
 
 /// How many ticks the callback re-arms by when it decides to keep waiting. Small
@@ -521,7 +523,11 @@ impl PluginInstanceHandle {
         let deadline = now
             .checked_add(std::time::Duration::from_millis(budget_ms))
             .unwrap_or_else(|| now + std::time::Duration::from_secs(3600));
-        *self.epoch_guard.wall_deadline.lock().expect("wall_deadline poisoned") = Some(deadline);
+        *self
+            .epoch_guard
+            .wall_deadline
+            .lock()
+            .expect("wall_deadline poisoned") = Some(deadline);
 
         let result = match &mut self.inner {
             PluginImpl::Component { plugin, store } => plugin
@@ -535,7 +541,11 @@ impl PluginInstanceHandle {
         };
 
         // Disarm the deadline regardless of outcome.
-        *self.epoch_guard.wall_deadline.lock().expect("wall_deadline poisoned") = None;
+        *self
+            .epoch_guard
+            .wall_deadline
+            .lock()
+            .expect("wall_deadline poisoned") = None;
         result
     }
 
@@ -555,15 +565,15 @@ impl PluginInstanceHandle {
         .to_string();
         let len = event_json.len() as i32;
 
-        let alloc_fn = instance.get_func(&mut *store, "alloc").ok_or_else(|| {
-            anyhow::anyhow!("P1 module '{}' must export 'alloc(i32) -> i32'", id)
-        })?;
+        let alloc_fn = instance
+            .get_func(&mut *store, "alloc")
+            .ok_or_else(|| anyhow::anyhow!("P1 module '{}' must export 'alloc(i32) -> i32'", id))?;
         let alloc: wasmtime::TypedFunc<i32, i32> = alloc_fn.typed(&*store)?;
         let ptr = alloc.call(&mut *store, len)?;
 
-        let memory = instance.get_memory(&mut *store, "memory").ok_or_else(|| {
-            anyhow::anyhow!("P1 module '{}' must export 'memory'", id)
-        })?;
+        let memory = instance
+            .get_memory(&mut *store, "memory")
+            .ok_or_else(|| anyhow::anyhow!("P1 module '{}' must export 'memory'", id))?;
         memory.write(&mut *store, ptr as usize, event_json.as_bytes())?;
 
         let on_event_fn = instance.get_func(&mut *store, "on_event").ok_or_else(|| {
@@ -596,7 +606,11 @@ impl PluginInstanceHandle {
         let deadline = now
             .checked_add(std::time::Duration::from_millis(budget_ms))
             .unwrap_or_else(|| now + std::time::Duration::from_secs(3600));
-        *self.epoch_guard.wall_deadline.lock().expect("wall_deadline poisoned") = Some(deadline);
+        *self
+            .epoch_guard
+            .wall_deadline
+            .lock()
+            .expect("wall_deadline poisoned") = Some(deadline);
 
         let result = match &mut self.inner {
             PluginImpl::Component { plugin, store } => plugin
@@ -611,7 +625,11 @@ impl PluginInstanceHandle {
         };
 
         // Disarm the deadline regardless of outcome.
-        *self.epoch_guard.wall_deadline.lock().expect("wall_deadline poisoned") = None;
+        *self
+            .epoch_guard
+            .wall_deadline
+            .lock()
+            .expect("wall_deadline poisoned") = None;
 
         match result {
             Ok(Ok(reply)) => Ok(reply),

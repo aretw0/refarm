@@ -156,6 +156,32 @@ impl NativeStorage {
         }
     }
 
+    /// Retrieve a single node row by ID. Returns `None` if not found.
+    pub fn get_node_row(&self, id: &str) -> Result<Option<NodeRow>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, type, context, payload, source_plugin, updated_at FROM nodes WHERE id = ?1",
+            )
+            .context("prepare get_node_row")?;
+        let mut rows = stmt
+            .query_map(params![id], |row| {
+                Ok(NodeRow {
+                    id: row.get(0)?,
+                    type_: row.get(1)?,
+                    context: row.get(2)?,
+                    payload: row.get(3)?,
+                    source_plugin: row.get(4)?,
+                    updated_at: row.get(5)?,
+                })
+            })
+            .context("get_node_row")?;
+        match rows.next() {
+            Some(row) => Ok(Some(row.context("get_node_row row")?)),
+            None => Ok(None),
+        }
+    }
+
     /// Query nodes by `@type`.
     ///
     /// Mirrors `queryNodes(type)` from OPFSSQLiteAdapter (TypeScript).
@@ -463,7 +489,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let first = peer_id_at(dir.path(), "device-a").unwrap();
         let second = peer_id_at(dir.path(), "device-a").unwrap();
-        assert_eq!(first, second, "persisted peer id must be stable across reopen");
+        assert_eq!(
+            first, second,
+            "persisted peer id must be stable across reopen"
+        );
         assert!(is_valid_peer_id(first));
     }
 
@@ -475,7 +504,10 @@ mod tests {
         let home_b = tempfile::tempdir().unwrap();
         let id_a = peer_id_at(home_a.path(), "default").unwrap();
         let id_b = peer_id_at(home_b.path(), "default").unwrap();
-        assert_ne!(id_a, id_b, "two devices on the same namespace must be distinct peers");
+        assert_ne!(
+            id_a, id_b,
+            "two devices on the same namespace must be distinct peers"
+        );
     }
 
     #[test]
@@ -487,7 +519,11 @@ mod tests {
         let id = peer_id_at(dir.path(), "device-x").unwrap();
         assert!(is_valid_peer_id(id));
         // And the corrupt content is replaced with the regenerated id.
-        let persisted: u64 = std::fs::read_to_string(&path).unwrap().trim().parse().unwrap();
+        let persisted: u64 = std::fs::read_to_string(&path)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
         assert_eq!(persisted, id);
     }
 
@@ -499,7 +535,10 @@ mod tests {
             let path = dir.path().join("device-r.peer");
             std::fs::write(&path, reserved.to_string()).unwrap();
             let id = peer_id_at(dir.path(), "device-r").unwrap();
-            assert!(is_valid_peer_id(id), "reserved {reserved} must be regenerated");
+            assert!(
+                is_valid_peer_id(id),
+                "reserved {reserved} must be regenerated"
+            );
         }
     }
 
@@ -515,10 +554,18 @@ mod tests {
         assert_eq!(peer_id_for_namespace(":memory:").unwrap(), Some(424242));
 
         std::env::set_var("REFARM_PEER_ID", "not-a-number");
-        assert_eq!(peer_id_for_namespace(":memory:").unwrap(), None, "malformed override ignored");
+        assert_eq!(
+            peer_id_for_namespace(":memory:").unwrap(),
+            None,
+            "malformed override ignored"
+        );
 
         std::env::set_var("REFARM_PEER_ID", "0");
-        assert_eq!(peer_id_for_namespace(":memory:").unwrap(), None, "reserved override ignored");
+        assert_eq!(
+            peer_id_for_namespace(":memory:").unwrap(),
+            None,
+            "reserved override ignored"
+        );
 
         match saved {
             Some(v) => std::env::set_var("REFARM_PEER_ID", v),

@@ -24,8 +24,8 @@ use std::sync::Weak;
 use std::time::Duration;
 
 use super::{
-    is_terminal_effort_status, prompt_ref_from_effort, stream_ref_for_prompt, EffortResult,
-    EffortInputStore, EffortStore, SidecarState,
+    is_terminal_effort_status, prompt_ref_from_effort, stream_ref_for_prompt, EffortInputStore,
+    EffortResult, EffortStore, SidecarState,
 };
 
 /// Default retention for a terminal effort's artifacts (24h). A terminal effort
@@ -199,7 +199,9 @@ fn remove_file_quiet(path: &std::path::Path) {
     match std::fs::remove_file(path) {
         Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e) => tracing::warn!(path = %path.display(), error = %e, "sidecar reaper: remove failed"),
+        Err(e) => {
+            tracing::warn!(path = %path.display(), error = %e, "sidecar reaper: remove failed")
+        }
     }
 }
 
@@ -266,8 +268,13 @@ fn now_unix_secs() -> u64 {
 pub(crate) fn parse_iso_to_epoch_secs(iso: &str) -> Option<u64> {
     // Expect exactly: YYYY-MM-DDThh:mm:ssZ
     let bytes = iso.as_bytes();
-    if bytes.len() != 20 || bytes[4] != b'-' || bytes[7] != b'-' || bytes[10] != b'T'
-        || bytes[13] != b':' || bytes[16] != b':' || bytes[19] != b'Z'
+    if bytes.len() != 20
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes[10] != b'T'
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+        || bytes[19] != b'Z'
     {
         return None;
     }
@@ -301,7 +308,10 @@ fn parts_to_epoch_secs(year: u64, month: u64, day: u64, hour: u64, min: u64, sec
         days += if is_leap_year(y) { 366 } else { 365 };
     }
     let month_days = month_lengths(is_leap_year(year));
-    days += month_days.iter().take(month.saturating_sub(1) as usize).sum::<u64>();
+    days += month_days
+        .iter()
+        .take(month.saturating_sub(1) as usize)
+        .sum::<u64>();
     days += day.saturating_sub(1);
     days * 86_400 + hour * 3_600 + min * 60 + sec
 }

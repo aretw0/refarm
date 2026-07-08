@@ -106,5 +106,8 @@ async fn sidecar_load_by_hash_degrades_honestly_without_a_live_host() {
     assert_eq!(res.status(), 200);
     let body: serde_json::Value = res.json().await.unwrap();
     assert_eq!(body["loaded"], serde_json::json!(false));
-    assert!(body["reason"].as_str().is_some(), "an honest reason, not a silent success");
+    assert!(
+        body["reason"].as_str().is_some(),
+        "an honest reason, not a silent success"
+    );
 }

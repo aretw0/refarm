@@ -15,7 +15,6 @@ use tokio::time::Duration;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tractor::{trust::SecurityMode, NativeStorage, TractorNative, TractorNativeConfig};
 
-
 #[derive(Parser, Debug)]
 #[command(name = "tractor", about = "Refarm sovereign WASM plugin host")]
 struct Cli {
@@ -427,7 +426,10 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
                 maybe_ingest_on_load(&mut handle, path, ingest_policy).await?;
                 // Stage the pool's extra stores (opt-in: concurrentSafe +
                 // REFARM_PLUGIN_POOL=N>1); a no-op otherwise.
-                if let Err(e) = tractor.stage_pool_stores(path, handle.concurrent_safe).await {
+                if let Err(e) = tractor
+                    .stage_pool_stores(path, handle.concurrent_safe)
+                    .await
+                {
                     tracing::warn!(path = %path.display(), "failed to stage plugin pool stores: {e}");
                 }
                 tractor.register_for_events(handle);
@@ -450,7 +452,10 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     for spec in &args.plugin_by_hash {
         let parts: Vec<&str> = spec.splitn(3, ':').collect();
         let [assets_dir, hash, manifest_path] = parts.as_slice() else {
-            tracing::warn!(spec, "invalid --plugin-by-hash (want <assetsDir>:<hash>:<manifestPath>)");
+            tracing::warn!(
+                spec,
+                "invalid --plugin-by-hash (want <assetsDir>:<hash>:<manifestPath>)"
+            );
             continue;
         };
         let manifest = match std::fs::read_to_string(manifest_path) {

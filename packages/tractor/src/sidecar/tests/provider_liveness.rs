@@ -10,8 +10,10 @@ use crate::test_support::env_lock;
 async fn start_liveness_sidecar() -> u16 {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    let router = axum::Router::new()
-        .route("/providers/liveness", axum::routing::get(get_provider_liveness));
+    let router = axum::Router::new().route(
+        "/providers/liveness",
+        axum::routing::get(get_provider_liveness),
+    );
     tokio::spawn(async move {
         axum::serve(listener, router).await.unwrap();
     });

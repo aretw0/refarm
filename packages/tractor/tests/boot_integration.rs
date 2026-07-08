@@ -152,7 +152,9 @@ async fn load_plugin_by_hash_round_trips_from_the_content_store() {
 
     // The manifest declares the SAME hash as integrity (E1 verifies it at load).
     let manifest = round_trip_manifest(&format!("sha256-{hash}"));
-    let handle = tractor.load_plugin_by_hash(assets.path(), &hash, &manifest).await;
+    let handle = tractor
+        .load_plugin_by_hash(assets.path(), &hash, &manifest)
+        .await;
     assert!(
         handle.is_ok(),
         "a plugin stored by hash must load from the content-store with its manifest: {:?}",
@@ -176,8 +178,13 @@ async fn load_plugin_by_hash_rejects_a_tampered_content_store_entry() {
     std::fs::write(assets.path().join(&claimed_hash), b"not the real wasm").unwrap();
 
     let manifest = round_trip_manifest(&format!("sha256-{claimed_hash}"));
-    let result = tractor.load_plugin_by_hash(assets.path(), &claimed_hash, &manifest).await;
-    assert!(result.is_err(), "a hash-mismatched content-store entry must be rejected");
+    let result = tractor
+        .load_plugin_by_hash(assets.path(), &claimed_hash, &manifest)
+        .await;
+    assert!(
+        result.is_err(),
+        "a hash-mismatched content-store entry must be rejected"
+    );
     assert!(
         result.unwrap_err().to_string().contains("rejected"),
         "the rejection must name the tamper/corruption"
@@ -193,7 +200,11 @@ async fn load_plugin_by_hash_missing_entry_returns_error() {
     let assets = tempfile::tempdir().unwrap();
 
     let result = tractor
-        .load_plugin_by_hash(assets.path(), &"a".repeat(64), &round_trip_manifest("sha256-aa"))
+        .load_plugin_by_hash(
+            assets.path(),
+            &"a".repeat(64),
+            &round_trip_manifest("sha256-aa"),
+        )
         .await;
     assert!(result.is_err(), "a content-store miss must return Err");
 }

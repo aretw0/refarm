@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tractor::daemon::WsServer;
-use tractor::{PluginChannels, NativeStorage, NativeSync, TelemetryBus};
+use tractor::{NativeStorage, NativeSync, PluginChannels, TelemetryBus};
 
 /// Start a WsServer on a random OS-assigned port, passing the pre-bound listener
 /// directly to server.run() to avoid TOCTOU race conditions.

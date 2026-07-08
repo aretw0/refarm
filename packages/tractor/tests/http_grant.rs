@@ -107,7 +107,10 @@ async fn dev_mode_links_the_http_import_and_loads() {
 #[tokio::test]
 async fn strict_with_declared_network_grant_links_http_and_loads() {
     let path = http_fixture_path();
-    if skip_if_missing(path, "strict_with_declared_network_grant_links_http_and_loads") {
+    if skip_if_missing(
+        path,
+        "strict_with_declared_network_grant_links_http_and_loads",
+    ) {
         return;
     }
 
@@ -167,7 +170,10 @@ async fn strict_with_declared_network_grant_links_http_and_loads() {
 #[tokio::test]
 async fn strict_without_declared_network_grant_fails_to_link_http() {
     let path = http_fixture_path();
-    if skip_if_missing(path, "strict_without_declared_network_grant_fails_to_link_http") {
+    if skip_if_missing(
+        path,
+        "strict_without_declared_network_grant_fails_to_link_http",
+    ) {
         return;
     }
 
@@ -180,8 +186,12 @@ async fn strict_without_declared_network_grant_fails_to_link_http() {
     let mut trust = TrustManager::with_security_mode(SecurityMode::Strict);
     trust.grant("http-plugin", &hash, None);
 
-    let host = PluginHost::new(trust, TelemetryBus::new(100), tractor::host::DEFAULT_ON_EVENT_BUDGET_MS)
-        .unwrap();
+    let host = PluginHost::new(
+        trust,
+        TelemetryBus::new(100),
+        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .unwrap();
 
     let result = host.load(path, &make_sync()).await;
     assert!(

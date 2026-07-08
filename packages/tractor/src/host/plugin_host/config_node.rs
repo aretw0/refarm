@@ -134,8 +134,13 @@ fn redact_config(config: &Value) -> (Value, Vec<String>, Vec<String>) {
     }
     let mut redacted_paths = Vec::new();
     let mut dropped_paths = Vec::new();
-    let projected = visit(config, &mut Vec::new(), &mut redacted_paths, &mut dropped_paths)
-        .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
+    let projected = visit(
+        config,
+        &mut Vec::new(),
+        &mut redacted_paths,
+        &mut dropped_paths,
+    )
+    .unwrap_or_else(|| Value::Object(serde_json::Map::new()));
     redacted_paths.sort(); // mirrors redactedPaths: redactions.sort()
     dropped_paths.sort(); // mirrors deviceLocalPaths: dropped.sort()
     (projected, redacted_paths, dropped_paths)
@@ -292,14 +297,22 @@ mod tests {
         let data = data_of(&payload);
         assert_eq!(data["model"], json!("gpt-4"));
         // device-local containers/keys removed, not placeholder'd:
-        assert!(data.get("runtime").is_none(), "runtime pruned (only sidecarUrl)");
-        assert!(data.get("tractor").is_none(), "tractor pruned (only engine)");
+        assert!(
+            data.get("runtime").is_none(),
+            "runtime pruned (only sidecarUrl)"
+        );
+        assert!(
+            data.get("tractor").is_none(),
+            "tractor pruned (only engine)"
+        );
         assert!(data.get("autostart").is_none());
         assert!(data.get("MODEL_FS_ROOT").is_none());
         assert!(data.get("MODEL_SHELL_ALLOWLIST").is_none());
         assert!(data.get("peerId").is_none());
         // no "<redacted>" anywhere — device-local is dropped, not masked
-        assert!(!serde_json::to_string(data).unwrap().contains(CONFIG_NODE_REDACTION));
+        assert!(!serde_json::to_string(data)
+            .unwrap()
+            .contains(CONFIG_NODE_REDACTION));
     }
 
     #[test]
@@ -314,7 +327,10 @@ mod tests {
             "test",
         );
         let data = data_of(&payload);
-        assert_eq!(data["approvedPermissions"], json!({ "vault": ["shell:spawn"] }));
+        assert_eq!(
+            data["approvedPermissions"],
+            json!({ "vault": ["shell:spawn"] })
+        );
         assert!(data.get("MODEL_SHELL_ALLOWLIST").is_none());
     }
 

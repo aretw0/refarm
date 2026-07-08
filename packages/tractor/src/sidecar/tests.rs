@@ -83,7 +83,10 @@ async fn start_effort_sidecar_ns_with_watch(
     let port = listener.local_addr().unwrap().port();
 
     let router = axum::Router::new()
-        .route("/efforts", axum::routing::post(post_efforts).get(get_efforts))
+        .route(
+            "/efforts",
+            axum::routing::post(post_efforts).get(get_efforts),
+        )
         .route("/efforts/summary", axum::routing::get(get_efforts_summary))
         .route("/efforts/:id", axum::routing::get(get_effort))
         .route(
@@ -165,11 +168,13 @@ fn storage_path() -> String {
 // Each child is body-only and pulls the shared helpers above via `use super::*;`.
 #[path = "tests/effort.rs"]
 mod effort;
-#[path = "tests/session.rs"]
-mod session;
-#[path = "tests/task.rs"]
-mod task;
+#[path = "tests/node.rs"]
+mod node;
 #[path = "tests/plugin.rs"]
 mod plugin;
 #[path = "tests/provider_liveness.rs"]
 mod provider_liveness;
+#[path = "tests/session.rs"]
+mod session;
+#[path = "tests/task.rs"]
+mod task;

@@ -18,14 +18,14 @@ import {
 	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
 import {
-	createHealthCapabilityGroup,
-	healthCapabilityHooks,
-} from "./health-capability.js";
-import {
 	buildHealthAuditFingerprint,
 	readHealthAuditCache,
 	writeHealthAuditCache,
 } from "./health-audit-cache.js";
+import {
+	createHealthCapabilityGroup,
+	healthCapabilityHooks,
+} from "./health-capability.js";
 import {
 	HEALTH_NEXT_ACTION_COMMAND,
 	HEALTH_POLICY_JSON_COMMAND,
@@ -222,7 +222,7 @@ export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthRep
   const cached = readHealthAuditCache(rootDir, fingerprint);
   if (cached) return cached;
 
-  const graphContext = openTractorGraph();
+  const graphContext = await openTractorGraph();
   const health = new HealthCore(graphContext);
   health.register(new FileSystemAuditor({
     ignoredGitVisibilityPatterns: policy.ignoredGitVisibilityPatterns,

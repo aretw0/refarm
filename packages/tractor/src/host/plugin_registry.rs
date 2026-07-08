@@ -107,7 +107,12 @@ impl PluginRegistry {
             .expect("plugin_registry poisoned")
             .insert(
                 plugin_id.to_string(),
-                PluginCapabilityProfile { provides, subscribes, verb_docs, sync_verbs },
+                PluginCapabilityProfile {
+                    provides,
+                    subscribes,
+                    verb_docs,
+                    sync_verbs,
+                },
             );
     }
 
@@ -141,7 +146,10 @@ impl PluginRegistry {
     /// `(plugin_id, api_name)` pairs. The real enforcement is `get_plugin_api`
     /// failing `NotFound` at call time; this is boot-time operator surfacing.
     pub fn unmet_required_apis(&self) -> Vec<(String, String)> {
-        let requires = self.requires_api.read().expect("plugin_registry requires_api poisoned");
+        let requires = self
+            .requires_api
+            .read()
+            .expect("plugin_registry requires_api poisoned");
         let mut ids: Vec<&String> = requires.keys().collect();
         ids.sort();
         let mut unmet = Vec::new();
@@ -241,8 +249,19 @@ mod tests {
     use super::*;
 
     /// Register with no verb-docs — the common test case.
-    fn register_plain(r: &PluginRegistry, id: &str, provides: Vec<String>, subscribes: Vec<String>) {
-        r.register(id, provides, subscribes, std::collections::HashMap::new(), vec![]);
+    fn register_plain(
+        r: &PluginRegistry,
+        id: &str,
+        provides: Vec<String>,
+        subscribes: Vec<String>,
+    ) {
+        r.register(
+            id,
+            provides,
+            subscribes,
+            std::collections::HashMap::new(),
+            vec![],
+        );
     }
 
     fn reg() -> PluginRegistry {
@@ -251,12 +270,21 @@ mod tests {
         register_plain(
             &r,
             "@acme/vault",
-            vec!["vault:store".into(), "vault:read".into(), "vault:dispatch".into()],
+            vec![
+                "vault:store".into(),
+                "vault:read".into(),
+                "vault:dispatch".into(),
+            ],
             vec!["vault:dispatch".into()],
         );
         // A plugin that provides a verb but does NOT subscribe to its dispatch —
         // not dispatchable, must be excluded.
-        register_plain(&r, "orphan", vec!["orphan:go".into()], vec!["something:else".into()]);
+        register_plain(
+            &r,
+            "orphan",
+            vec!["orphan:go".into()],
+            vec!["something:else".into()],
+        );
         r
     }
 
@@ -288,10 +316,17 @@ mod tests {
     fn verb_docs_ride_the_dispatchable_verb_as_doc() {
         let r = PluginRegistry::default();
         let mut docs = std::collections::HashMap::new();
-        docs.insert("vault:store".to_string(), "Store a note in the vault.".to_string());
+        docs.insert(
+            "vault:store".to_string(),
+            "Store a note in the vault.".to_string(),
+        );
         r.register(
             "vault",
-            vec!["vault:store".into(), "vault:read".into(), "vault:dispatch".into()],
+            vec![
+                "vault:store".into(),
+                "vault:read".into(),
+                "vault:dispatch".into(),
+            ],
             vec!["vault:dispatch".into()],
             docs,
             vec![],

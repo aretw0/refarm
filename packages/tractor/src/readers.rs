@@ -11,7 +11,7 @@ use anyhow::{Context, Result};
 use tokio::time::{sleep, Duration, Instant};
 use tractor::NativeStorage;
 
-use super::{ResponseEvent, OutputFormat, PlainResponseOutput, PlainResponseOutputState};
+use super::{OutputFormat, PlainResponseOutput, PlainResponseOutputState, ResponseEvent};
 
 // Stream-kind consts used only by node_row_is_terminal below.
 pub(crate) const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT: &str = "final_text";
@@ -180,7 +180,10 @@ pub(crate) fn node_row_is_terminal(row: &tractor::storage::NodeRow) -> bool {
     )
 }
 
-pub(crate) fn snapshot_seen_response_ids(namespace: &str, agent_filter: &str) -> Result<HashSet<String>> {
+pub(crate) fn snapshot_seen_response_ids(
+    namespace: &str,
+    agent_filter: &str,
+) -> Result<HashSet<String>> {
     let storage = NativeStorage::open(namespace)
         .with_context(|| format!("open storage namespace '{namespace}'"))?;
 
