@@ -6,7 +6,12 @@
 	"compilerOptions": {
 		"outDir": "dist",
 		"rootDir": "src",
-		"baseUrl": "../.."
+		"baseUrl": "../..",
+		"paths": {
+			"@refarm.dev/root": [
+				"./packages/root/dist/index.d.ts"
+			]
+		}
 	},
 	"include": [
 		"src/**/*"

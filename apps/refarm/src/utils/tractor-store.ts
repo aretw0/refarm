@@ -1,4 +1,7 @@
-import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
+import {
+	createSidecarGraphClient,
+	type SidecarGraphClient,
+} from "@refarm.dev/sidecar-client";
 import { createNodeView } from "@refarm.dev/storage-node-view";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,10 +10,7 @@ import { resolveRuntimeSidecarUrl } from "./runtime-config.js";
 
 export const DIRECT_SQLITE_GRAPH_ENV_VAR = "REFARM_TRACTOR_GRAPH_DIRECT_SQLITE";
 
-export interface TractorGraph {
-	getNode(id: string): Promise<Record<string, unknown> | null>;
-	queryNodes(type: string): Promise<Record<string, unknown>[]>;
-}
+export type TractorGraph = SidecarGraphClient;
 
 export interface OpenTractorGraphOptions {
 	fetch?: typeof fetch;
@@ -18,14 +18,10 @@ export interface OpenTractorGraphOptions {
 }
 
 /**
- * Shared read access to the tractor host's local sovereign graph — one source of
- * truth so every command (health, status, future readers) resolves the SAME
- * runtime graph the daemon owns, instead of each guessing its own storage path.
- *
- * All resolvers are env-injectable (mirroring refarm-home.ts) so tests and other
- * apps can drive them. This module has zero app-command imports and a
- * package-clean signature: the day a second app needs the tractor store, it lifts
- * verbatim into a small package.
+ * App-owned read access to the tractor host's local sovereign graph. The
+ * reusable sidecar graph client lives in @refarm.dev/sidecar-client; this module
+ * only decides which runtime URL to use and when a local direct-SQLite fallback
+ * is explicitly requested.
  */
 
 /**
@@ -102,50 +98,5 @@ function createRuntimeTractorGraph(
 	options: OpenTractorGraphOptions,
 ): TractorGraph {
 	const baseUrl = resolveRuntimeSidecarUrl({ env }).value;
-	const fetchImpl = options.fetch;
-	return {
-		async getNode(id: string): Promise<Record<string, unknown> | null> {
-			const response = await fetchSidecarWithTimeout(
-				`${baseUrl}/nodes/${encodeURIComponent(id)}`,
-				{},
-				{ env, fetch: fetchImpl },
-			);
-			if (response.status === 404) return null;
-			if (!response.ok) throw new Error(`sidecar graph HTTP ${response.status}`);
-			const body = asObject(await response.json());
-			const node = asGraphNode(body?.node);
-			if (!node) throw new Error("sidecar graph response missing node");
-			return node;
-		},
-		async queryNodes(type: string): Promise<Record<string, unknown>[]> {
-			const response = await fetchSidecarWithTimeout(
-				`${baseUrl}/nodes?type=${encodeURIComponent(type)}&limit=100`,
-				{},
-				{ env, fetch: fetchImpl },
-			);
-			if (!response.ok) throw new Error(`sidecar graph HTTP ${response.status}`);
-			const body = asObject(await response.json());
-			const nodes = Array.isArray(body?.nodes) ? body.nodes : null;
-			if (!nodes) throw new Error("sidecar graph response missing nodes");
-			return nodes.map((node) => {
-				const graphNode = asGraphNode(node);
-				if (!graphNode) throw new Error("sidecar graph response includes malformed node");
-				return graphNode;
-			});
-		},
-	};
-}
-
-function asObject(value: unknown): Record<string, unknown> | null {
-	return value && typeof value === "object" && !Array.isArray(value)
-		? (value as Record<string, unknown>)
-		: null;
-}
-
-function asGraphNode(value: unknown): Record<string, unknown> | null {
-	const node = asObject(value);
-	if (!node) return null;
-	return typeof node["@id"] === "string" && typeof node["@type"] === "string"
-		? node
-		: null;
+	return createSidecarGraphClient(baseUrl, { env, fetch: options.fetch });
 }

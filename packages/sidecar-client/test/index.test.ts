@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	createSidecarGraphClient,
 	fetchSidecarWithTimeout,
 	resolveSidecarRequestTimeoutMs,
 	SIDECAR_REQUEST_TIMEOUT_ENV_VAR,
@@ -24,5 +25,76 @@ describe("sidecar-client", () => {
 		expect(fetchMock).toHaveBeenCalledOnce();
 		const [url] = fetchMock.mock.calls[0]!;
 		expect(String(url)).toBe("http://127.0.0.1:42001/efforts");
+	});
+
+	it("reads graph nodes from the sidecar node endpoint", async () => {
+		const node = {
+			"@context": "https://schema.org/",
+			"@id": "urn:graph:one",
+			"@type": "Config",
+		};
+		const fetchImpl = vi.fn(
+			async () =>
+				new Response(JSON.stringify({ node }), {
+					status: 200,
+					headers: { "content-type": "application/json" },
+				}),
+		);
+		const graph = createSidecarGraphClient("http://sidecar.test/", {
+			fetch: fetchImpl as unknown as typeof fetch,
+		});
+
+		await expect(graph.getNode("urn:graph:one")).resolves.toEqual(node);
+		expect(String(fetchImpl.mock.calls[0]?.[0])).toBe(
+			"http://sidecar.test/nodes/urn%3Agraph%3Aone",
+		);
+	});
+
+	it("returns null when a graph node is not present", async () => {
+		const fetchImpl = vi.fn(async () => new Response("", { status: 404 }));
+		const graph = createSidecarGraphClient("http://sidecar.test", {
+			fetch: fetchImpl as unknown as typeof fetch,
+		});
+
+		await expect(graph.getNode("urn:graph:missing")).resolves.toBeNull();
+	});
+
+	it("queries graph nodes by type with an explicit limit", async () => {
+		const nodes = [
+			{ "@id": "urn:graph:one", "@type": "Config" },
+			{ "@id": "urn:graph:two", "@type": "Config" },
+		];
+		const fetchImpl = vi.fn(
+			async () =>
+				new Response(JSON.stringify({ nodes, total: 2 }), {
+					status: 200,
+					headers: { "content-type": "application/json" },
+				}),
+		);
+		const graph = createSidecarGraphClient("http://sidecar.test", {
+			fetch: fetchImpl as unknown as typeof fetch,
+		});
+
+		await expect(graph.queryNodes("Config", { limit: 2 })).resolves.toEqual(nodes);
+		expect(String(fetchImpl.mock.calls[0]?.[0])).toBe(
+			"http://sidecar.test/nodes?type=Config&limit=2",
+		);
+	});
+
+	it("rejects malformed graph node responses with a useful message", async () => {
+		const fetchImpl = vi.fn(
+			async () =>
+				new Response(JSON.stringify({ node: { "@id": "urn:graph:one" } }), {
+					status: 200,
+					headers: { "content-type": "application/json" },
+				}),
+		);
+		const graph = createSidecarGraphClient("http://sidecar.test", {
+			fetch: fetchImpl as unknown as typeof fetch,
+		});
+
+		await expect(graph.getNode("urn:graph:one")).rejects.toThrow(
+			"sidecar graph response missing node",
+		);
 	});
 });
