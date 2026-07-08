@@ -213,14 +213,14 @@ export function buildPressureRecommendations(
       case "reliability:failures-present":
         return {
           diagnostic,
-          summary: "Failed work is present in the current telemetry snapshot.",
+          summary: "Failed work is present in the current pressure snapshot.",
           action:
             "Inspect failed work logs and retry only after the failure cause is understood.",
         };
       case "reliability:failures-recent":
         return {
           diagnostic,
-          summary: "Recent telemetry window includes failed work.",
+          summary: "Recent pressure window includes failed work.",
           action: "Inspect recent failures before continuing automated execution.",
         };
       case "reliability:failure-rate":

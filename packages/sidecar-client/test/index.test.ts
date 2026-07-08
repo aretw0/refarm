@@ -69,19 +69,19 @@ describe("sidecar-client", () => {
 
 		await expect(
 			fetchSidecarJson("http://sidecar.test/status", {}, {
-				errorLabel: "runtime HTTP",
+				errorLabel: "custom HTTP",
 				fetch: fetchImpl as unknown as typeof fetch,
 			}),
-		).rejects.toThrow("runtime HTTP 503");
+		).rejects.toThrow("custom HTTP 503");
 
 		await expect(
 			fetchSidecarJson("http://sidecar.test/status", {}, {
-				errorLabel: "runtime HTTP",
+				errorLabel: "custom HTTP",
 				fetch: fetchImpl as unknown as typeof fetch,
 			}),
 		).rejects.toMatchObject({
 			constructor: SidecarHttpError,
-			errorLabel: "runtime HTTP",
+			errorLabel: "custom HTTP",
 			status: 503,
 		});
 	});

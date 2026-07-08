@@ -174,7 +174,7 @@ function asSidecarGraphNode(value: unknown): SidecarGraphNode | null {
 export { SIDECAR_REQUEST_TIMEOUT_ENV_VAR, resolveSidecarRequestTimeoutMs };
 
 /**
- * `fetch` against a runtime HTTP sidecar with the sidecar's own timeout defaults
+ * `fetch` against a host HTTP sidecar with the sidecar's own timeout defaults
  * (env `REFARM_SIDE_REQUEST_TIMEOUT_MS`). A thin, domain-owned
  * wrapper over the generic {@link fetchWithTimeout} primitive — this is the ONE
  * client for talking to sidecars, consumed by CLIs, context providers, and

@@ -109,5 +109,14 @@ describe("pressure contract", () => {
         action: "Inspect pressure payload and host logs for the diagnostic source.",
       },
     ]);
+    expect(
+      buildPressureRecommendations([
+        "reliability:failures-present",
+        "reliability:failures-recent",
+      ]).map((recommendation) => recommendation.summary),
+    ).toEqual([
+      "Failed work is present in the current pressure snapshot.",
+      "Recent pressure window includes failed work.",
+    ]);
   });
 });

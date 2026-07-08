@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/sidecar-client",
 	"version": "0.1.0",
-	"description": "Sidecar client — HTTP transport for reaching runtime sidecars.",
+	"description": "Sidecar client — HTTP transport for reaching host sidecars.",
 	"type": "module",
 	"exports": {
 		".": {
