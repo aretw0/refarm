@@ -297,11 +297,30 @@ test("turbo generators expose a DGK example workbench scaffold", async () => {
 		"utf8",
 	);
 	const cli = render(cliTemplate, data);
+	assert.match(cli, /defineCapabilityApp/);
 	assert.match(cli, /defineCapabilityHost/);
-	assert.match(cli, /runCapabilityHostCli/);
+	assert.doesNotMatch(cli, /runCapabilityHostCli/);
 	assert.match(cli, /command: "dgk"/);
 	assert.match(cli, /buildGardenLabHost/);
+	assert.match(cli, /const gardenLabApp = defineCapabilityApp/);
+	assert.match(cli, /export const buildRegistry = gardenLabApp\.registry/);
+	assert.match(cli, /void gardenLabApp\.runCli\(import\.meta\.url/);
 	assert.match(cli, /defaultPort: 4399/);
+
+	const personaTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/example-dgk-workbench/src/persona.ts.hbs"),
+		"utf8",
+	);
+	const persona = render(personaTemplate, data);
+	assert.match(persona, /type CapabilityDeps/);
+	assert.doesNotMatch(persona, /\bRefarmCapabilityDeps\b/);
+	assert.match(persona, /function gardenLabCapabilityDeps\(\): CapabilityDeps/);
+
+	const readmeTemplate = readFileSync(
+		join(ROOT, "turbo/generators/templates/example-dgk-workbench/README.md.hbs"),
+		"utf8",
+	);
+	assert.doesNotMatch(render(readmeTemplate, data), /\bRefarm\b/);
 
 	const flowTemplate = readFileSync(
 		join(ROOT, "turbo/generators/templates/example-dgk-workbench/src/flow.e2e.test.ts.hbs"),

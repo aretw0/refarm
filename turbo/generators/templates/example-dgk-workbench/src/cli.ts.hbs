@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {
+	defineCapabilityApp,
 	defineCapabilityHost,
-	runCapabilityHostCli,
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
 
@@ -51,14 +51,13 @@ export function build{{pascalName}}Host(): CapabilityHost {
 	});
 }
 
-export function buildRegistry() {
-	return build{{pascalName}}Host().registry();
-}
+const {{camelName}}App = defineCapabilityApp({
+	host: build{{pascalName}}Host,
+});
 
-export function buildProgram(): ReturnType<CapabilityHost["program"]> {
-	return build{{pascalName}}Host().program();
-}
+export const buildRegistry = {{camelName}}App.registry;
+export const buildProgram = {{camelName}}App.program;
 
-void runCapabilityHostCli(import.meta.url, () => buildProgram(), {
+void {{camelName}}App.runCli(import.meta.url, {
 	compiledFileName: "cli.js",
 });

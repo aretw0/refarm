@@ -4,8 +4,8 @@ import {
 	defaultSourceDeps,
 	definePluginInspectorCapability,
 	type CapabilityDescriptor,
+	type CapabilityDeps,
 	type PluginDescriptorDeps,
-	type RefarmCapabilityDeps,
 	type SubmitEffort,
 	type SurfaceableManifest,
 } from "@refarm.dev/capabilities-v1";
@@ -30,7 +30,7 @@ export function createCapturingSubmit(): SubmitEffort & {
 	return submit;
 }
 
-export function {{camelName}}CapabilityDeps(): RefarmCapabilityDeps {
+export function {{camelName}}CapabilityDeps(): CapabilityDeps {
 	return {
 		source: defaultSourceDeps(),
 		vault: createLocalVaultCommandDeps(),
