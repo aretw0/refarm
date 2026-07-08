@@ -179,12 +179,6 @@ const agentFinishSteps = [
 		"Check import organization after the editing slice.",
 	),
 	finishStep(
-		"health",
-		["health", "--next-action", "--json"],
-		"Audit filesystem, build alignment, and resolution health.",
-		"observe",
-	),
-	finishStep(
 		"check",
 		["check", "--next-action", "--json"],
 		"Run the composite readiness gate and surface recovery actions.",

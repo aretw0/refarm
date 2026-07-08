@@ -545,7 +545,7 @@ describe("agent command", () => {
 		expect(payload).toMatchObject({
 			ok: true,
 			status: "plan",
-			effects: ["verify", "observe"],
+			effects: ["verify"],
 			writes: false,
 			selection: {
 				profile: "quick",
@@ -558,7 +558,6 @@ describe("agent command", () => {
 			nextCommand: "refarm tidy imports --check --json",
 			nextCommands: [
 				"refarm tidy imports --check --json",
-				"refarm health --next-action --json",
 				"refarm check --next-action --json",
 			],
 		});
@@ -569,12 +568,6 @@ describe("agent command", () => {
 				command: "refarm tidy imports --check --json",
 				args: ["tidy", "imports", "--check", "--json"],
 				effect: "verify",
-			}),
-			expect.objectContaining({
-				id: "health",
-				command: "refarm health --next-action --json",
-				args: ["health", "--next-action", "--json"],
-				effect: "observe",
 			}),
 			expect.objectContaining({
 				id: "check",
@@ -1235,7 +1228,6 @@ describe("agent command", () => {
 		expect(payload.ok).toBe(true);
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 			"package-validation",
 		]);
@@ -1306,7 +1298,7 @@ describe("agent command", () => {
 			};
 		};
 		expect(payload.ok).toBe(true);
-		expect(runRefarm).toHaveBeenCalledTimes(3);
+		expect(runRefarm).toHaveBeenCalledTimes(2);
 		expect(runProcess).toHaveBeenCalledTimes(1);
 		expect(payload.steps.map((step) => step.id)).toContain("package-validation");
 		expect(payload.steps.at(-1)?.cache).toMatchObject({
@@ -1351,7 +1343,6 @@ describe("agent command", () => {
 		});
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 			"handoffs-test-handoffs",
 		]);
@@ -1386,7 +1377,6 @@ describe("agent command", () => {
 		});
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 			"script-refarm-agent-e2e-mock",
 		]);
@@ -1437,11 +1427,10 @@ describe("agent command", () => {
 			lane: "handoffs",
 			validationScope: "contract",
 		});
-		expect(runRefarm).toHaveBeenCalledTimes(3);
+		expect(runRefarm).toHaveBeenCalledTimes(2);
 		expect(runProcess).toHaveBeenCalledTimes(1);
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 			"handoffs-test-handoffs",
 		]);
@@ -1634,7 +1623,6 @@ describe("agent command", () => {
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 			"package-apps-refarm-type-check",
 			"package-apps-refarm-lint",
@@ -1695,7 +1683,6 @@ describe("agent command", () => {
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 			"package-packages-vtconfig-test",
 		]);
@@ -1775,7 +1762,6 @@ describe("agent command", () => {
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 			"package-apps-refarm-type-check",
 			"package-apps-refarm-lint",
@@ -2010,7 +1996,6 @@ describe("agent command", () => {
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 		]);
 		expect(payload.nextCommands).not.toContain("npm --prefix apps/refarm run type-check");
@@ -2266,7 +2251,6 @@ describe("agent command", () => {
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 			"script-organize-imports-test",
 		]);
@@ -2327,7 +2311,6 @@ describe("agent command", () => {
 
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 		]);
 		expect(payload.steps.map((step) => step.id)).not.toContain(
@@ -2386,7 +2369,6 @@ describe("agent command", () => {
 
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 			"script-refarm-agent-e2e-mock",
 		]);
@@ -2440,7 +2422,6 @@ describe("agent command", () => {
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 			"package-apps-refarm-lint",
 			"package-apps-refarm-test",
@@ -2493,7 +2474,6 @@ describe("agent command", () => {
 		};
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports-check",
-			"health",
 			"check",
 		]);
 		expect(payload.nextCommands).not.toContain("npm --prefix . run type-check");
@@ -2542,7 +2522,7 @@ describe("agent command", () => {
 			nextCommand: "refarm resume --json",
 			nextCommands: ["refarm resume --json"],
 		});
-		expect(payload.steps).toHaveLength(3);
+		expect(payload.steps).toHaveLength(2);
 		expect(payload.steps[0]).toMatchObject({
 			id: "tidy-imports-check",
 			ok: true,
@@ -2563,7 +2543,7 @@ describe("agent command", () => {
 				nextCommands: [],
 			}),
 		);
-		expect(runRefarm).toHaveBeenCalledTimes(3);
+		expect(runRefarm).toHaveBeenCalledTimes(2);
 		logSpy.mockRestore();
 	});
 
@@ -2593,17 +2573,16 @@ describe("agent command", () => {
 			writes: boolean;
 		};
 		expect(payload.ok).toBe(true);
-		expect(payload.effects).toEqual(["write", "verify", "observe"]);
+		expect(payload.effects).toEqual(["write", "verify"]);
 		expect(payload.writes).toBe(true);
 		expect(payload.steps.map((step) => step.id)).toEqual([
 			"tidy-imports",
 			"tidy-imports-check",
-			"health",
 			"check",
 		]);
 		expect(payload.steps[0]?.args).toEqual(["tidy", "imports", "--json"]);
 		expect(payload.steps[0]?.effect).toBe("write");
-		expect(runRefarm).toHaveBeenCalledTimes(4);
+		expect(runRefarm).toHaveBeenCalledTimes(3);
 		logSpy.mockRestore();
 	});
 
@@ -2662,8 +2641,8 @@ describe("agent command", () => {
 		expect(payload).toMatchObject({
 			ok: false,
 			status: "failed",
-			failedStepId: "health",
-			failedCommand: "refarm health --next-action --json",
+			failedStepId: "check",
+			failedCommand: "refarm check --next-action --json",
 			nextAction: "Start the runtime before running the full check.",
 			nextActions: ["Start the runtime before running the full check."],
 			nextCommand: "refarm runtime start --wait",
@@ -2671,7 +2650,7 @@ describe("agent command", () => {
 		});
 		expect(payload.steps).toHaveLength(2);
 		expect(payload.steps[1]).toMatchObject({
-			id: "health",
+			id: "check",
 			ok: false,
 		});
 		expect(runRefarm).toHaveBeenCalledTimes(2);
@@ -2771,7 +2750,7 @@ describe("agent command", () => {
 			"PASS tidy-imports-check: refarm tidy imports --check --json",
 		);
 		expect(logSpy).toHaveBeenCalledWith("Finish checks passed.");
-		expect(runRefarm).toHaveBeenCalledTimes(3);
+		expect(runRefarm).toHaveBeenCalledTimes(2);
 		logSpy.mockRestore();
 	});
 
@@ -2853,13 +2832,11 @@ describe("agent command", () => {
 		await agentCommand.parseAsync(["finish", "--run"], { from: "user" });
 
 		expect(logSpy).toHaveBeenCalledWith(
-			"FAIL health: refarm health --next-action --json",
+			"FAIL check: refarm check --next-action --json",
 		);
 		expect(logSpy).toHaveBeenCalledWith(
 			"Next command: refarm runtime ensure --wait --next-command",
 		);
-		expect(logSpy).toHaveBeenCalledWith("Remaining commands:");
-		expect(logSpy).toHaveBeenCalledWith("  refarm check --next-action --json");
 		expect(runRefarm).toHaveBeenCalledTimes(2);
 		expect(process.exitCode).toBe(1);
 		process.exitCode = originalExitCode;
