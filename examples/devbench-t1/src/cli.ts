@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import {
+	defineCapabilityApp,
 	defineCapabilityHost,
-	runCapabilityHostCli,
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
 
@@ -58,14 +58,13 @@ export function buildDevbenchHost(): CapabilityHost {
 	});
 }
 
-export function buildRegistry() {
-	return buildDevbenchHost().registry();
-}
+const devbenchApp = defineCapabilityApp({
+	host: buildDevbenchHost,
+});
 
-export function buildProgram(): ReturnType<CapabilityHost["program"]> {
-	return buildDevbenchHost().program();
-}
+export const buildRegistry = devbenchApp.registry;
+export const buildProgram = devbenchApp.program;
 
-void runCapabilityHostCli(import.meta.url, () => buildProgram(), {
+void devbenchApp.runCli(import.meta.url, {
 	compiledFileName: "cli.js",
 });

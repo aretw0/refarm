@@ -3,9 +3,10 @@ import {
 	createLocalVaultCommandDeps,
 	defaultSourceDeps,
 } from "@refarm.dev/capabilities-v1";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
+	defineCapabilityApp,
 	defineCapabilityHost,
 	type CapabilityHost,
 	type CapabilityHostDefinition,
@@ -58,5 +59,45 @@ describe("@refarm.dev/capability-host public API", () => {
 			"open-workbench",
 		]);
 		expect(host.baseModel().nextCommands).toEqual(["dgk open --json"]);
+	});
+
+	it("builds app helpers around a white-label host declaration", async () => {
+		const parseAsync = vi.fn(async () => undefined);
+		const createHost = vi.fn((options: { statePath?: string } = {}) => ({
+			registry: () => ({ statePath: options.statePath }),
+			baseModel: () => ({ nextCommands: [options.statePath ?? "memory"] }),
+			surfaceActions: () => [],
+			surfaceActionRows: () => [],
+			surfaceContext: () => ({
+				hostId: "examples/public-api",
+				data: { command: "dgk", description: "Digital Gardening Kit" },
+				actions: [],
+			}),
+			program: () => ({ parseAsync }),
+			serve: () => {
+				throw new Error("not used");
+			},
+		}) as unknown as CapabilityHost);
+		const app = defineCapabilityApp({
+			host: createHost,
+			programOptions: (options: { statePath?: string } = {}) => ({
+				...options,
+				statePath: options.statePath ?? "/tmp/dgk-state.json",
+			}),
+		});
+
+		expect(app.registry()).toEqual({ statePath: undefined });
+		expect(app.baseModel({ statePath: "/tmp/explicit.json" })).toEqual({
+			nextCommands: ["/tmp/explicit.json"],
+		});
+		expect(app.program()).toEqual({ parseAsync });
+		expect(createHost).toHaveBeenLastCalledWith({ statePath: "/tmp/dgk-state.json" });
+
+		const argv = ["node", "/repo/examples/wallet-t2/dist/cli.js"];
+		await expect(app.runCli("file:///repo/examples/wallet-t2/dist/cli.js", {
+			argv,
+			compiledFileName: "cli.js",
+		})).resolves.toBe(true);
+		expect(parseAsync).toHaveBeenCalledWith(argv);
 	});
 });

@@ -11,7 +11,12 @@ Current status: the package re-exports the host API while the implementation is
 still incubated in `@refarm.dev/capabilities-v1`. Future slices can move the
 implementation behind this boundary without changing consumers.
 
-`runCapabilityHostCli(import.meta.url, () => buildProgram(), { compiledFileName:
-"cli.js" })` is the standard entrypoint helper for white-label CLIs. It keeps
-direct-run detection, `parseAsync(process.argv)`, and error/exit-code handling in
-the host boundary instead of repeating that plumbing in every app or example.
+`defineCapabilityApp({ host, programOptions })` is the standard app/example
+factory. It returns `host`, `registry`, `baseModel`, `program`, `surfaceActions`,
+and `runCli` helpers so white-label consumers declare their extension host once
+instead of repeating CLI and inspection plumbing in every app.
+
+`app.runCli(import.meta.url, { compiledFileName: "cli.js" })` is the standard
+entrypoint helper for white-label CLIs. It keeps direct-run detection,
+`parseAsync(process.argv)`, and error/exit-code handling in the host boundary
+instead of repeating that plumbing in every app or example.

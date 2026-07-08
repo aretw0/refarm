@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { resolveLocalRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
 import {
+	defineCapabilityApp,
 	defineCapabilityHost,
-	runCapabilityHostCli,
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
 
@@ -85,24 +85,18 @@ export function buildReqbenchHost(
 	});
 }
 
-export function buildRegistry(options: RequirementsStateOptions = {}) {
-	return buildReqbenchHost(options).registry();
-}
-
-export function buildRequirementsBaseModel(options: RequirementsStateOptions = {}) {
-	return buildReqbenchHost(options).baseModel();
-}
-
-export function buildProgram(
-	options: RequirementsStateOptions = {},
-): ReturnType<CapabilityHost["program"]> {
-	const cliOptions: RequirementsStateOptions = {
+const reqbenchApp = defineCapabilityApp<RequirementsStateOptions>({
+	host: buildReqbenchHost,
+	programOptions: (options) => ({
 		...options,
 		statePath: options.statePath ?? defaultRequirementsStatePath(),
-	};
-	return buildReqbenchHost(cliOptions).program();
-}
+	}),
+});
 
-void runCapabilityHostCli(import.meta.url, () => buildProgram(), {
+export const buildRegistry = reqbenchApp.registry;
+export const buildRequirementsBaseModel = reqbenchApp.baseModel;
+export const buildProgram = reqbenchApp.program;
+
+void reqbenchApp.runCli(import.meta.url, {
 	compiledFileName: "cli.js",
 });

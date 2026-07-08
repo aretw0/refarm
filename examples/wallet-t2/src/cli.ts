@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { resolveLocalRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
 import {
+	defineCapabilityApp,
 	defineCapabilityHost,
-	runCapabilityHostCli,
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
 
@@ -82,24 +82,18 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 	});
 }
 
-export function buildRegistry(options: WalletStateOptions = {}) {
-	return buildWalletHost(options).registry();
-}
-
-export function buildWalletBaseModel(options: WalletStateOptions = {}) {
-	return buildWalletHost(options).baseModel();
-}
-
-export function buildProgram(
-	options: WalletStateOptions = {},
-): ReturnType<CapabilityHost["program"]> {
-	const cliOptions: WalletStateOptions = {
+const walletApp = defineCapabilityApp<WalletStateOptions>({
+	host: buildWalletHost,
+	programOptions: (options) => ({
 		...options,
 		statePath: options.statePath ?? defaultWalletStatePath(),
-	};
-	return buildWalletHost(cliOptions).program();
-}
+	}),
+});
 
-void runCapabilityHostCli(import.meta.url, () => buildProgram(), {
+export const buildRegistry = walletApp.registry;
+export const buildWalletBaseModel = walletApp.baseModel;
+export const buildProgram = walletApp.program;
+
+void walletApp.runCli(import.meta.url, {
 	compiledFileName: "cli.js",
 });
