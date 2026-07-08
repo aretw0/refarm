@@ -1,6 +1,6 @@
 import type { SubmitEffort } from "@refarm.dev/capabilities-v1";
 
-import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
+import { fetchSidecarJson } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 
 /**
@@ -23,14 +23,14 @@ export {
 
 /** The default sink: `POST /efforts` on the sidecar (mirrors `refarm ask`). */
 export const submitEffortViaSidecar: SubmitEffort = async (effort) => {
-	const response = await fetchSidecarWithTimeout(sidecarUrl("/efforts"), {
-		method: "POST",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify(effort),
-	});
-	if (!response.ok) {
-		throw new Error(`runtime HTTP ${response.status}`);
-	}
-	const payload = (await response.json()) as { effortId: string };
+	const payload = await fetchSidecarJson<{ effortId: string }>(
+		sidecarUrl("/efforts"),
+		{
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(effort),
+		},
+		{ errorLabel: "runtime HTTP" },
+	);
 	return payload.effortId;
 };
