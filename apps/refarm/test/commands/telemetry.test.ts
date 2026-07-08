@@ -1,9 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TelemetryDeps } from "../../src/commands/telemetry.js";
 import {
 	buildTelemetryRecommendations,
 	createTelemetryCommand,
 } from "../../src/commands/telemetry.js";
+
+let restoreSidecarUrl: string | undefined;
 
 function makeDeps(overrides: Partial<TelemetryDeps> = {}): TelemetryDeps {
 	return {
@@ -29,6 +34,35 @@ describe("refarm telemetry", () => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
 	});
+
+	afterEach(() => {
+		if (restoreSidecarUrl === undefined) {
+			delete process.env.REFARM_SIDECAR_URL;
+		} else {
+			process.env.REFARM_SIDECAR_URL = restoreSidecarUrl;
+		}
+		restoreSidecarUrl = undefined;
+	});
+
+	async function withSidecarServer(
+		handler: (req: IncomingMessage, res: ServerResponse) => void,
+		run: () => Promise<void>,
+	): Promise<void> {
+		const server = createServer(handler);
+		await new Promise<void>((resolve) =>
+			server.listen(0, "127.0.0.1", resolve),
+		);
+		const { port } = server.address() as AddressInfo;
+		restoreSidecarUrl = process.env.REFARM_SIDECAR_URL;
+		process.env.REFARM_SIDECAR_URL = `http://127.0.0.1:${port}`;
+		try {
+			await run();
+		} finally {
+			await new Promise<void>((resolve, reject) => {
+				server.close((err) => (err ? reject(err) : resolve()));
+			});
+		}
+	}
 
 	it("prints summary and no-pressure message by default", async () => {
 		const deps = makeDeps();
@@ -99,6 +133,32 @@ describe("refarm telemetry", () => {
 		});
 		expect(process.exitCode).toBe(1);
 		expect(deps.fetchTelemetryWindow).not.toHaveBeenCalled();
+	});
+
+	it("labels default sidecar HTTP failures as telemetry runtime errors", async () => {
+		const command = createTelemetryCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await withSidecarServer(
+			(_req, res) => {
+				res.writeHead(503, { "content-type": "application/json" });
+				res.end(JSON.stringify({ error: "unavailable" }));
+			},
+			async () => {
+				await command.parseAsync(["--json"], { from: "user" });
+			},
+		);
+
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
+			command: "telemetry",
+			operation: "snapshot",
+			ok: false,
+			error: "runtime-request-failed",
+			message: "runtime telemetry HTTP 503",
+		});
+		expect(process.exitCode).toBe(1);
 	});
 
 	it("rejects invalid profile before fetching telemetry", async () => {

@@ -1,9 +1,11 @@
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { printJson } from "@refarm.dev/cli/json-output";
+import { fetchSidecarJson, SidecarHttpError } from "@refarm.dev/sidecar-client";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
 import {
-	buildDiagnosticNextActionPayload, diagnosticNextActions, diagnosticNextCommands, type DiagnosticRecommendation, } from "./diagnostic-recommendations.js";
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { printJson } from "@refarm.dev/cli/json-output";
+	buildDiagnosticNextActionPayload, diagnosticNextActions, diagnosticNextCommands, type DiagnosticRecommendation,
+} from "./diagnostic-recommendations.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -16,7 +18,6 @@ import {
 	printSidecarUnavailable,
 	reportSidecarError,
 } from "./sidecar-error.js";
-import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 
 type ThresholdProfileName = "conservative" | "balanced" | "throughput";
@@ -137,29 +138,35 @@ function parseThresholdProfile(value: string): ThresholdProfileName {
 }
 
 async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
-	const response = await fetchSidecarWithTimeout(sidecarUrl("/telemetry"));
-	if (!response.ok) {
-		if (response.status === 404) {
+	try {
+		return await fetchSidecarJson<RuntimeTelemetrySnapshot>(
+			sidecarUrl("/telemetry"),
+			{},
+			{ errorLabel: "runtime telemetry HTTP" },
+		);
+	} catch (err) {
+		if (err instanceof SidecarHttpError && err.status === 404) {
 			throw new Error("telemetry endpoint not available");
 		}
-		throw new Error(`sidecar HTTP ${response.status}`);
+		throw err;
 	}
-	return (await response.json()) as RuntimeTelemetrySnapshot;
 }
 
 async function fetchTelemetryWindowFromSidecar(
 	minutes: number,
 ): Promise<RuntimeTelemetryWindow | null> {
-	const response = await fetchSidecarWithTimeout(
-		sidecarUrl(`/telemetry/window?minutes=${minutes}`),
-	);
-	if (!response.ok) {
-		if (response.status === 404) {
+	try {
+		return await fetchSidecarJson<RuntimeTelemetryWindow>(
+			sidecarUrl(`/telemetry/window?minutes=${minutes}`),
+			{},
+			{ errorLabel: "runtime telemetry window HTTP" },
+		);
+	} catch (err) {
+		if (err instanceof SidecarHttpError && err.status === 404) {
 			return null;
 		}
-		throw new Error(`sidecar HTTP ${response.status}`);
+		throw err;
 	}
-	return (await response.json()) as RuntimeTelemetryWindow;
 }
 
 function formatSummary(snapshot: RuntimeTelemetrySnapshot): string[] {
