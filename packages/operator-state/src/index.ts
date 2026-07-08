@@ -27,6 +27,8 @@ export interface BaseSurfaceActionDescriptor {
 	label: string;
 	command?: string;
 	intent?: string;
+	payload?: Record<string, unknown>;
+	primary?: boolean;
 }
 
 export interface BaseSurfaceActionRow {
@@ -56,6 +58,23 @@ export interface BaseSurfaceActionSelectionResult {
 	reason: BaseSurfaceActionSelectionReason;
 	selection: BaseSurfaceActionSelectionMetadata;
 	rows: readonly BaseSurfaceActionRow[];
+}
+
+export interface BaseSurfaceActionRequest<
+	TAction extends BaseSurfaceActionDescriptor = BaseSurfaceActionDescriptor,
+> {
+	schemaVersion: 1;
+	operation: "surface-action-request";
+	ok: boolean;
+	reason: BaseSurfaceActionSelectionReason;
+	selection: BaseSurfaceActionSelectionMetadata;
+	actionRows: readonly BaseSurfaceActionRow[];
+	selectedRow?: BaseSurfaceActionRow;
+	selectedAction?: TAction & { id: string };
+	command?: string;
+	payload?: Record<string, unknown>;
+	nextCommand: string | null;
+	nextCommands: string[];
 }
 
 export interface BaseSurfaceUnit {
@@ -352,6 +371,35 @@ export function resolveBaseSurfaceActionSelection(
 			index: selected.index,
 		},
 		rows,
+	};
+}
+
+export function createBaseSurfaceActionRequest<
+	TAction extends BaseSurfaceActionDescriptor,
+>(
+	actions: readonly TAction[],
+	selection: string,
+): BaseSurfaceActionRequest<TAction> {
+	const actionRows = createBaseSurfaceActionRows(actions);
+	const resolved = resolveBaseSurfaceActionSelection(actionRows, selection);
+	const selectedIndex = resolved.selected ? resolved.selected.index - 1 : -1;
+	const selectedAction = selectedIndex >= 0 ? actions[selectedIndex] : undefined;
+	const command = selectedAction?.command?.trim();
+	return {
+		schemaVersion: 1,
+		operation: "surface-action-request",
+		ok: resolved.reason === "selected",
+		reason: resolved.reason,
+		selection: resolved.selection,
+		actionRows,
+		...(resolved.selected ? { selectedRow: resolved.selected } : {}),
+		...(selectedAction && resolved.selected
+			? { selectedAction: { ...selectedAction, id: resolved.selected.id } }
+			: {}),
+		...(command ? { command } : {}),
+		...(selectedAction?.payload ? { payload: selectedAction.payload } : {}),
+		nextCommand: command ?? null,
+		nextCommands: command ? [command] : [],
 	};
 }
 

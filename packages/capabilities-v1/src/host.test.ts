@@ -144,6 +144,54 @@ describe("defineCapabilityHost", () => {
 			"open-wallet",
 			"verify-draft-credential",
 		]);
+		const selectedActionEnvelope = await actions.run({
+			args: {},
+			options: { select: "2", renderer: "tui" },
+			json: true,
+		}) as unknown as {
+			actionRequest: {
+				ok: boolean;
+				reason: string;
+				command?: string;
+				payload?: Record<string, unknown>;
+				selectedAction?: {
+					id: string;
+					label: string;
+					payload: Record<string, unknown>;
+				};
+				nextCommand: string | null;
+				nextCommands: string[];
+			};
+			nextCommand: string | null;
+			nextCommands: string[];
+		};
+		expect(selectedActionEnvelope.actionRequest).toMatchObject({
+			ok: true,
+			reason: "selected",
+			command: "dgk records correct record:cred-assinatura verified --apply",
+			payload: expect.objectContaining({
+				command: "dgk records correct record:cred-assinatura verified --apply",
+				hostId: "examples/wallet-t2",
+				unitId: "wallet",
+				unitLabel: "Wallet",
+				primary: true,
+			}),
+			selectedAction: {
+				id: "verify-draft-credential",
+				label: "Verify the draft credential",
+				payload: expect.objectContaining({
+					command: "dgk records correct record:cred-assinatura verified --apply",
+				}),
+			},
+			nextCommand: "dgk records correct record:cred-assinatura verified --apply",
+			nextCommands: ["dgk records correct record:cred-assinatura verified --apply"],
+		});
+		expect(selectedActionEnvelope.nextCommand).toBe(
+			"dgk records correct record:cred-assinatura verified --apply",
+		);
+		expect(selectedActionEnvelope.nextCommands).toEqual([
+			"dgk records correct record:cred-assinatura verified --apply",
+		]);
 
 		const program = host.program();
 		expect(program.name()).toBe("dgk");

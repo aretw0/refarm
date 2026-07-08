@@ -13,8 +13,8 @@ import {
 	buildBaseSurfaceModel,
 	buildCapabilitySurfaceUnit,
 	buildReviewQueueSurfaceUnit,
+	createBaseSurfaceActionRequest,
 	createBaseSurfaceActionRows,
-	resolveBaseSurfaceActionSelection,
 	type BaseSurfaceAction,
 	type BaseSurfaceActionRow,
 	type BaseSurfaceModel,
@@ -303,12 +303,27 @@ function createSurfaceActionsEnvelope(
 	input: CapabilityInput,
 ): CapabilityEnvelope {
 	const rows = createCapabilityHostSurfaceActionRows(actions);
-	const selection = typeof input.options.select === "string"
-		? resolveCapabilityHostSurfaceActionSelection(rows, input.options.select)
+	const actionRequest = typeof input.options.select === "string"
+		? createBaseSurfaceActionRequest(
+			actions.map((action) => ({
+				...action,
+				command: action.payload.command,
+			})),
+			input.options.select,
+		)
+		: undefined;
+	const selection = actionRequest
+		? {
+			...actionRequest.selection,
+			...(actionRequest.selectedRow ? { selected: actionRequest.selectedRow } : {}),
+			reason: actionRequest.reason,
+		}
 		: undefined;
 	return buildJsonSuccessEnvelope({
 		command: name,
 		operation: "surface-actions",
+		nextCommand: actionRequest?.nextCommand,
+		nextCommands: actionRequest?.nextCommands,
 		extra: {
 			hostId: definition.id,
 			renderer: typeof input.options.renderer === "string"
@@ -317,6 +332,7 @@ function createSurfaceActionsEnvelope(
 			actions,
 			actionRows: rows,
 			...(selection ? { selection } : {}),
+			...(actionRequest ? { actionRequest } : {}),
 		},
 	});
 }
@@ -550,31 +566,6 @@ function createCapabilityHostSurfaceActionRows(
 	actions: readonly CapabilityHostSurfaceAction[],
 ): CapabilityHostSurfaceActionRow[] {
 	return createBaseSurfaceActionRows(actions);
-}
-
-function resolveCapabilityHostSurfaceActionSelection(
-	rows: readonly CapabilityHostSurfaceActionRow[],
-	selection: string,
-): {
-	requested: string;
-	source: "id" | "index";
-	resolvedId?: string;
-	index?: number;
-	selected?: CapabilityHostSurfaceActionRow;
-	reason: "selected" | "missing-action" | "no-actions";
-} {
-	const resolved = resolveBaseSurfaceActionSelection(rows, selection);
-	if (!resolved.selected) {
-		return {
-			...resolved.selection,
-			reason: resolved.reason,
-		};
-	}
-	return {
-		...resolved.selection,
-		selected: resolved.selected,
-		reason: resolved.reason,
-	};
 }
 
 function slugActionId(value: string): string {

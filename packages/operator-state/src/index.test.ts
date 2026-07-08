@@ -4,6 +4,7 @@ import {
 	buildBaseSurfaceModel,
 	buildCapabilitySurfaceUnit,
 	buildReviewQueueSurfaceUnit,
+	createBaseSurfaceActionRequest,
 	createBaseSurfaceActionRows,
 	formatBaseSurfaceActionSelectionChoices,
 	formatBaseSurfaceModelText,
@@ -318,6 +319,80 @@ describe("operator state model", () => {
 		expect(formatBaseSurfaceActionSelectionChoices(rows)).toBe(
 			"[1] dgk-wallet-json, [2] verify-draft-credential",
 		);
+	});
+
+	it("builds a safe surface action request from a selected action", () => {
+		const request = createBaseSurfaceActionRequest(
+			[
+				{
+					id: "open-wallet",
+					label: "Open wallet",
+					command: "dgk wallet --json",
+					intent: "wallet:open",
+					payload: { unitId: "wallet", hostId: "examples/wallet-t2" },
+					primary: true,
+				},
+				{
+					id: "verify-draft-credential",
+					label: "Verify the draft credential",
+					command: "dgk records correct record:draft verified --apply",
+					intent: "wallet:verify",
+					payload: { recordId: "record:draft" },
+				},
+			],
+			"2",
+		);
+
+		expect(request).toMatchObject({
+			schemaVersion: 1,
+			operation: "surface-action-request",
+			ok: true,
+			reason: "selected",
+			selection: {
+				requested: "2",
+				source: "index",
+				resolvedId: "verify-draft-credential",
+				index: 2,
+			},
+			selectedRow: {
+				index: 2,
+				id: "verify-draft-credential",
+				label: "Verify the draft credential",
+			},
+			selectedAction: {
+				id: "verify-draft-credential",
+				label: "Verify the draft credential",
+				command: "dgk records correct record:draft verified --apply",
+				intent: "wallet:verify",
+				payload: { recordId: "record:draft" },
+			},
+			command: "dgk records correct record:draft verified --apply",
+			payload: { recordId: "record:draft" },
+			nextCommand: "dgk records correct record:draft verified --apply",
+			nextCommands: ["dgk records correct record:draft verified --apply"],
+		});
+
+		const noActionsRequest = createBaseSurfaceActionRequest([], "1");
+		expect(noActionsRequest).toMatchObject({
+			ok: false,
+			reason: "no-actions",
+			nextCommand: null,
+			nextCommands: [],
+		});
+		expect(noActionsRequest).not.toHaveProperty("selectedAction");
+
+		const missingRequest = createBaseSurfaceActionRequest(
+			[{ id: "open-wallet", label: "Open wallet" }],
+			"missing",
+		);
+		expect(missingRequest)
+			.toMatchObject({
+				ok: false,
+				reason: "missing-action",
+				nextCommand: null,
+				nextCommands: [],
+			});
+		expect(missingRequest).not.toHaveProperty("selectedAction");
 	});
 
 	it("gives consumers helpers for capabilities, review queues and text output", () => {
