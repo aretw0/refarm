@@ -2,13 +2,17 @@ import {
 	isCapabilityGroup,
 	resolveGroupAction,
 } from "@refarm.dev/cli/capabilities";
-import { parseRecordsYamlLdFrontMatter } from "@refarm.dev/records-contract-v1";
+import {
+	parseRecordsYamlLdFrontMatter,
+	type RecordsManifest,
+} from "@refarm.dev/records-contract-v1";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+	createLocalVaultCommandDeps,
 	createVaultCapabilityGroup,
 	type VaultCommandDeps,
 } from "./vault-capability.js";
@@ -52,6 +56,49 @@ function deps(
 }
 
 describe("vault CapabilityGroup", () => {
+	it("creates local/headless vault deps with no providers and optional seed", async () => {
+		const localManifest = {
+			manifestVersion: 1,
+			records: [
+				{
+					id: "record:local",
+					schemaVersion: 1,
+					"@type": ["KnowledgeRecord"],
+					"@context": "https://refarm.dev/contexts/records/v1",
+					fields: { title: "Local" },
+					contentHash: "hash",
+				},
+			],
+		} satisfies RecordsManifest;
+		const localDeps = createLocalVaultCommandDeps({
+			seed: () => localManifest,
+		});
+		const group = createVaultCapabilityGroup(localDeps);
+		const list = resolveGroupAction(group, ["list"]);
+		const listed = await list!.action.run(list!.input) as unknown as {
+			ok: boolean;
+			count: number;
+			providers: unknown[];
+			rejected: unknown[];
+		};
+		expect(listed).toMatchObject({
+			ok: true,
+			count: 0,
+			providers: [],
+			rejected: [],
+		});
+
+		const effortId = await localDeps.submitEffort({
+			id: "effort:local",
+			direction: "dispatch",
+			tasks: [],
+			source: "test",
+			submittedAt: "2026-07-08T00:00:00.000Z",
+		});
+		expect(effortId).toBe("effort:local");
+		expect(localDeps.seed?.().records[0]?.id).toBe("record:local");
+	});
+
 	it("projects onto every surface bucket (REPL alias, HTTP route, TUI section)", () => {
 		const group = createVaultCapabilityGroup(deps());
 		expect(isCapabilityGroup(group)).toBe(true);

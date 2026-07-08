@@ -1,6 +1,6 @@
 import {
+	createLocalVaultCommandDeps,
 	defaultSourceDeps,
-	defaultVaultDeps,
 	defineRecordsViewCapability,
 	type CapabilityDescriptor,
 	type RecordsAnalyzeEnvelope,
@@ -42,11 +42,7 @@ export function walletCapabilityDeps(
 		// The citizen holds their own data — no external source to pull. An ephemeral
 		// source provider satisfies the block; the wallet is local-first.
 		source: defaultSourceDeps(),
-		vault: defaultVaultDeps({
-			discover: () => ({ providers: [], rejected: [] }),
-			submitEffort: async () => "wallet-noop",
-			seed: walletManifest,
-		}),
+		vault: createLocalVaultCommandDeps({ seed: walletManifest }),
 		records: recordsDeps,
 	};
 }

@@ -34,8 +34,10 @@ export {
 	type BaseStatusCapabilityOptions,
 } from "./operator-state-capability.js";
 export {
+	createLocalVaultCommandDeps,
 	createVaultCapabilityGroup,
 	defaultVaultDeps,
+	type LocalVaultCommandDepsOptions,
 	type VaultCommandDeps,
 } from "./vault-capability.js";
 export type {

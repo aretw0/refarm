@@ -66,6 +66,22 @@ export function defaultVaultDeps(deps: {
 	};
 }
 
+export interface LocalVaultCommandDepsOptions {
+	newId?: () => string;
+	seed?: () => RecordsManifest;
+}
+
+export function createLocalVaultCommandDeps(
+	options: LocalVaultCommandDepsOptions = {},
+): VaultCommandDeps {
+	return defaultVaultDeps({
+		discover: () => ({ providers: [], rejected: [] }),
+		submitEffort: async (effort) => effort.id,
+		...(options.newId ? { newId: options.newId } : {}),
+		...(options.seed ? { seed: options.seed } : {}),
+	});
+}
+
 export function createVaultCapabilityGroup(
 	deps: VaultCommandDeps,
 ): CapabilityGroup {

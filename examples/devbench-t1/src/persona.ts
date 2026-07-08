@@ -1,7 +1,7 @@
 import {
+	createLocalVaultCommandDeps,
 	defaultRecordsDeps,
 	defaultSourceDeps,
-	defaultVaultDeps,
 	definePluginInspectorCapability,
 	type CapabilityDescriptor,
 	type PluginDescriptorDeps,
@@ -48,10 +48,7 @@ export function createCapturingSubmit(): SubmitEffort & {
 export function devCapabilityDeps(): RefarmCapabilityDeps {
 	return {
 		source: defaultSourceDeps(),
-		vault: defaultVaultDeps({
-			discover: () => ({ providers: [], rejected: [] }),
-			submitEffort: async () => "devbench-noop",
-		}),
+		vault: createLocalVaultCommandDeps(),
 		records: defaultRecordsDeps(),
 	};
 }

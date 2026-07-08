@@ -1,5 +1,5 @@
 import {
-	defaultVaultDeps,
+	createLocalVaultCommandDeps,
 	defineRecordsViewCapability,
 	type CapabilityDescriptor,
 	type RecordsAnalyzeEnvelope,
@@ -72,11 +72,7 @@ export function reqCapabilityDeps(
 				fixtures: REQ_SOURCE_FIXTURES,
 			}),
 		},
-		vault: defaultVaultDeps({
-			discover: () => ({ providers: [], rejected: [] }),
-			submitEffort: async () => "reqbench-noop",
-			seed: reqManifest,
-		}),
+		vault: createLocalVaultCommandDeps({ seed: reqManifest }),
 		records: recordsDeps,
 	};
 }
