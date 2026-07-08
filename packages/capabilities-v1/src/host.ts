@@ -13,7 +13,10 @@ import {
 	buildBaseSurfaceModel,
 	buildCapabilitySurfaceUnit,
 	buildReviewQueueSurfaceUnit,
+	createBaseSurfaceActionRows,
+	resolveBaseSurfaceActionSelection,
 	type BaseSurfaceAction,
+	type BaseSurfaceActionRow,
 	type BaseSurfaceModel,
 	type BaseSurfaceUnit,
 	type CapabilitySurfaceUnitOptions,
@@ -140,13 +143,7 @@ export interface CapabilityHostSurfaceAction {
 	};
 }
 
-export interface CapabilityHostSurfaceActionRow {
-	index: number;
-	id: string;
-	label: string;
-	intent?: string;
-	display: string;
-}
+export type CapabilityHostSurfaceActionRow = BaseSurfaceActionRow;
 
 export interface CapabilityHostSurfaceContext {
 	hostId: string;
@@ -552,17 +549,7 @@ function hostSurfaceActionFromBaseAction(
 function createCapabilityHostSurfaceActionRows(
 	actions: readonly CapabilityHostSurfaceAction[],
 ): CapabilityHostSurfaceActionRow[] {
-	return actions.map((action, index) => {
-		const rowIndex = index + 1;
-		const intent = action.intent ? ` (${action.intent})` : "";
-		return {
-			index: rowIndex,
-			id: action.id,
-			label: action.label,
-			...(action.intent ? { intent: action.intent } : {}),
-			display: `[${rowIndex}] ${action.label} — ${action.id}${intent}`,
-		};
-	});
+	return createBaseSurfaceActionRows(actions);
 }
 
 function resolveCapabilityHostSurfaceActionSelection(
@@ -576,21 +563,17 @@ function resolveCapabilityHostSurfaceActionSelection(
 	selected?: CapabilityHostSurfaceActionRow;
 	reason: "selected" | "missing-action" | "no-actions";
 } {
-	const requested = selection.trim();
-	const source = /^\d+$/.test(requested) ? "index" : "id";
-	if (rows.length === 0) return { requested, source, reason: "no-actions" };
-	const byIndex = source === "index"
-		? rows.find((row) => row.index === Number.parseInt(requested, 10))
-		: undefined;
-	const selected = byIndex ?? rows.find((row) => row.id === requested);
-	if (!selected) return { requested, source, reason: "missing-action" };
+	const resolved = resolveBaseSurfaceActionSelection(rows, selection);
+	if (!resolved.selected) {
+		return {
+			...resolved.selection,
+			reason: resolved.reason,
+		};
+	}
 	return {
-		requested,
-		source,
-		resolvedId: selected.id,
-		index: selected.index,
-		selected,
-		reason: "selected",
+		...resolved.selection,
+		selected: resolved.selected,
+		reason: resolved.reason,
 	};
 }
 

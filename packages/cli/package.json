@@ -191,6 +191,7 @@
 	"dependencies": {
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
+		"@refarm.dev/operator-state": "workspace:*",
 		"@refarm.dev/process-handoff": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/trust": "workspace:*",

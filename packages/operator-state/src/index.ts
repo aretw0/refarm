@@ -22,6 +22,42 @@ export interface BaseSurfaceAction {
 	primary?: boolean;
 }
 
+export interface BaseSurfaceActionDescriptor {
+	id?: string;
+	label: string;
+	command?: string;
+	intent?: string;
+}
+
+export interface BaseSurfaceActionRow {
+	index: number;
+	id: string;
+	label: string;
+	intent?: string;
+	display: string;
+}
+
+export type BaseSurfaceActionSelectionReason =
+	| "selected"
+	| "missing-action"
+	| "no-actions";
+
+export type BaseSurfaceActionSelectionSource = "id" | "index";
+
+export interface BaseSurfaceActionSelectionMetadata {
+	requested: string;
+	source: BaseSurfaceActionSelectionSource;
+	resolvedId?: string;
+	index?: number;
+}
+
+export interface BaseSurfaceActionSelectionResult {
+	selected?: BaseSurfaceActionRow;
+	reason: BaseSurfaceActionSelectionReason;
+	selection: BaseSurfaceActionSelectionMetadata;
+	rows: readonly BaseSurfaceActionRow[];
+}
+
 export interface BaseSurfaceUnit {
 	id: string;
 	label: string;
@@ -266,6 +302,90 @@ export function formatBaseSurfaceModelText(
 		}
 	}
 	return `${lines.join("\n")}\n`;
+}
+
+export function createBaseSurfaceActionRows(
+	actions: readonly BaseSurfaceActionDescriptor[],
+): BaseSurfaceActionRow[] {
+	return actions.map((action, index) => {
+		const rowIndex = index + 1;
+		const id = action.id ?? slugActionId(action.command ?? action.label);
+		const intent = action.intent ? ` (${action.intent})` : "";
+		return {
+			index: rowIndex,
+			id,
+			label: action.label,
+			...(action.intent ? { intent: action.intent } : {}),
+			display: `[${rowIndex}] ${action.label} — ${id}${intent}`,
+		};
+	});
+}
+
+export function resolveBaseSurfaceActionSelection(
+	rows: readonly BaseSurfaceActionRow[],
+	selection: string,
+): BaseSurfaceActionSelectionResult {
+	const requested = selection.trim();
+	const source = baseSurfaceActionSelectionSource(requested);
+	const selectionMetadata: BaseSurfaceActionSelectionMetadata = {
+		requested,
+		source,
+	};
+	if (rows.length === 0) {
+		return { reason: "no-actions", selection: selectionMetadata, rows };
+	}
+
+	const selectedByIndex = source === "index"
+		? rows.find((row) => row.index === Number.parseInt(requested, 10))
+		: undefined;
+	const selected = selectedByIndex ?? rows.find((row) => row.id === requested);
+	if (!selected) {
+		return { reason: "missing-action", selection: selectionMetadata, rows };
+	}
+
+	return {
+		reason: "selected",
+		selected,
+		selection: {
+			...selectionMetadata,
+			resolvedId: selected.id,
+			index: selected.index,
+		},
+		rows,
+	};
+}
+
+export function formatBaseSurfaceActionRows(
+	rows: readonly BaseSurfaceActionRow[],
+	heading = "Available actions:",
+): string {
+	if (rows.length === 0) return `${heading}\n  none`;
+	return [heading, ...rows.map((row) => `  ${row.display}`)].join("\n");
+}
+
+export function formatBaseSurfaceActionSelectionChoices(
+	rows: readonly { id: string; index?: number }[],
+): string {
+	if (rows.length === 0) return "none";
+	return rows
+		.map((row) =>
+			typeof row.index === "number" ? `[${row.index}] ${row.id}` : row.id,
+		)
+		.join(", ");
+}
+
+function baseSurfaceActionSelectionSource(
+	selection: string,
+): BaseSurfaceActionSelectionSource {
+	return /^\d+$/.test(selection) ? "index" : "id";
+}
+
+function slugActionId(value: string): string {
+	const slug = value
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+	return slug || "action";
 }
 
 function renderReviewQueueSummary(

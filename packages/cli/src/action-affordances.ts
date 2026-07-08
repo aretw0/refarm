@@ -1,40 +1,33 @@
 import {
+	createBaseSurfaceActionRows,
+	formatBaseSurfaceActionRows,
+	formatBaseSurfaceActionSelectionChoices,
+	resolveBaseSurfaceActionSelection,
+	type BaseSurfaceActionRow,
+	type BaseSurfaceActionSelectionMetadata,
+	type BaseSurfaceActionSelectionReason,
+	type BaseSurfaceActionSelectionResult,
+	type BaseSurfaceActionSelectionSource,
+} from "@refarm.dev/operator-state";
+
+import {
 	formatExecutionPlanReadinessLine,
 	type ExecutionPlanReadinessLine,
 } from "./execution-plan.js";
 import type {
-RefarmStatusJson,
-RefarmStatusSurfaceAction,
+	RefarmStatusJson,
+	RefarmStatusSurfaceAction,
 } from "./status.js";
 
-export interface SurfaceActionAffordanceRow {
-	index: number;
-	id: string;
-	label: string;
-	intent?: string;
-	display: string;
-}
-
+export type SurfaceActionAffordanceRow = BaseSurfaceActionRow;
 export type SurfaceActionAffordanceSelectionReason =
-	| "selected"
-	| "missing-action"
-	| "no-actions";
-
-export type SurfaceActionAffordanceSelectionSource = "id" | "index";
-
-export interface SurfaceActionAffordanceSelectionMetadata {
-	requested: string;
-	source: SurfaceActionAffordanceSelectionSource;
-	resolvedId?: string;
-	index?: number;
-}
-
-export interface SurfaceActionAffordanceSelectionResult {
-	selected?: SurfaceActionAffordanceRow;
-	reason: SurfaceActionAffordanceSelectionReason;
-	selection: SurfaceActionAffordanceSelectionMetadata;
-	rows: readonly SurfaceActionAffordanceRow[];
-}
+	BaseSurfaceActionSelectionReason;
+export type SurfaceActionAffordanceSelectionSource =
+	BaseSurfaceActionSelectionSource;
+export type SurfaceActionAffordanceSelectionMetadata =
+	BaseSurfaceActionSelectionMetadata;
+export type SurfaceActionAffordanceSelectionResult =
+	BaseSurfaceActionSelectionResult;
 
 export interface SurfaceActionReadinessDryRunEnvelope {
 	schemaVersion: 1;
@@ -85,9 +78,7 @@ export function getStatusAvailableSurfaceActions(
 export function createSurfaceActionAffordanceRows(
 	status: RefarmStatusJson,
 ): SurfaceActionAffordanceRow[] {
-	return getStatusAvailableSurfaceActions(status).map((action, index) =>
-		createSurfaceActionAffordanceRow(action, index),
-	);
+	return createBaseSurfaceActionRows(getStatusAvailableSurfaceActions(status));
 }
 
 export function resolveSurfaceActionAffordanceSelection(
@@ -95,47 +86,14 @@ export function resolveSurfaceActionAffordanceSelection(
 	selection: string,
 ): SurfaceActionAffordanceSelectionResult {
 	const rows = createSurfaceActionAffordanceRows(status);
-	const normalizedSelection = selection.trim();
-	const selectionSource =
-		getSurfaceActionAffordanceSelectionSource(normalizedSelection);
-	const selectionMetadata: SurfaceActionAffordanceSelectionMetadata = {
-		requested: normalizedSelection,
-		source: selectionSource,
-	};
-
-	if (rows.length === 0) {
-		return { reason: "no-actions", selection: selectionMetadata, rows };
-	}
-
-	const selectedByIndex = resolveSurfaceActionAffordanceRowIndex(
-		rows,
-		normalizedSelection,
-	);
-	const selected =
-		selectedByIndex ?? rows.find((row) => row.id === normalizedSelection);
-
-	if (!selected) {
-		return { reason: "missing-action", selection: selectionMetadata, rows };
-	}
-
-	return {
-		reason: "selected",
-		selected,
-		selection: {
-			...selectionMetadata,
-			resolvedId: selected.id,
-			index: selected.index,
-		},
-		rows,
-	};
+	return resolveBaseSurfaceActionSelection(rows, selection);
 }
 
 export function formatSurfaceActionAffordanceRows(
 	rows: readonly SurfaceActionAffordanceRow[],
 	heading = "Available actions:",
 ): string {
-	if (rows.length === 0) return `${heading}\n  none`;
-	return [heading, ...rows.map((row) => `  ${row.display}`)].join("\n");
+	return formatBaseSurfaceActionRows(rows, heading);
 }
 
 export function createSurfaceActionReadinessLine(
@@ -306,44 +264,7 @@ export function formatSurfaceActionIds(
 export function formatSurfaceActionSelectionChoices(
 	rows: readonly { id: string; index?: number }[],
 ): string {
-	if (rows.length === 0) return "none";
-	return rows
-		.map((row) =>
-			typeof row.index === "number" ? `[${row.index}] ${row.id}` : row.id,
-		)
-		.join(", ");
-}
-
-function createSurfaceActionAffordanceRow(
-	action: RefarmStatusSurfaceAction,
-	index: number,
-): SurfaceActionAffordanceRow {
-	const rowIndex = index + 1;
-	const intent = action.intent ? ` (${action.intent})` : "";
-	return {
-		index: rowIndex,
-		id: action.id,
-		label: action.label,
-		intent: action.intent,
-		display: `[${rowIndex}] ${action.label} — ${action.id}${intent}`,
-	};
-}
-
-function getSurfaceActionAffordanceSelectionSource(
-	selection: string,
-): SurfaceActionAffordanceSelectionSource {
-	return /^\d+$/.test(selection) ? "index" : "id";
-}
-
-function resolveSurfaceActionAffordanceRowIndex(
-	rows: readonly SurfaceActionAffordanceRow[],
-	selection: string,
-): SurfaceActionAffordanceRow | undefined {
-	if (getSurfaceActionAffordanceSelectionSource(selection) !== "index") {
-		return undefined;
-	}
-	const index = Number.parseInt(selection, 10);
-	return rows.find((row) => row.index === index);
+	return formatBaseSurfaceActionSelectionChoices(rows);
 }
 
 export type RefarmActionAffordanceRow = SurfaceActionAffordanceRow;

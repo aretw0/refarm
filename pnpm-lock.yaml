@@ -663,6 +663,9 @@ importers:
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../homestead
+      '@refarm.dev/operator-state':
+        specifier: workspace:*
+        version: link:../operator-state
       '@refarm.dev/process-handoff':
         specifier: workspace:*
         version: link:../process-handoff

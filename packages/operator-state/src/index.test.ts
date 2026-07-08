@@ -4,7 +4,10 @@ import {
 	buildBaseSurfaceModel,
 	buildCapabilitySurfaceUnit,
 	buildReviewQueueSurfaceUnit,
+	createBaseSurfaceActionRows,
+	formatBaseSurfaceActionSelectionChoices,
 	formatBaseSurfaceModelText,
+	resolveBaseSurfaceActionSelection,
 	type BaseSurfaceUnit,
 } from "./index.js";
 
@@ -259,6 +262,62 @@ describe("operator state model", () => {
 		expect(model.units).toEqual([walletUnit]);
 		expect(model.nextAction).toBe("Open wallet review queue.");
 		expect(model.nextCommand).toBe("wallet-t2 review --pending --json");
+	});
+
+	it("projects base surface actions into stable selectable rows", () => {
+		const rows = createBaseSurfaceActionRows([
+			{
+				label: "Open wallet",
+				command: "dgk wallet --json",
+				intent: "wallet:open",
+			},
+			{
+				id: "verify-draft-credential",
+				label: "Verify the draft credential",
+				command: "dgk records correct record:draft verified --apply",
+				intent: "wallet:verify",
+			},
+		]);
+
+		expect(rows).toEqual([
+			{
+				index: 1,
+				id: "dgk-wallet-json",
+				label: "Open wallet",
+				intent: "wallet:open",
+				display: "[1] Open wallet — dgk-wallet-json (wallet:open)",
+			},
+			{
+				index: 2,
+				id: "verify-draft-credential",
+				label: "Verify the draft credential",
+				intent: "wallet:verify",
+				display: "[2] Verify the draft credential — verify-draft-credential (wallet:verify)",
+			},
+		]);
+
+		expect(resolveBaseSurfaceActionSelection(rows, "2")).toMatchObject({
+			reason: "selected",
+			selected: rows[1],
+			selection: {
+				requested: "2",
+				source: "index",
+				resolvedId: "verify-draft-credential",
+				index: 2,
+			},
+		});
+		expect(resolveBaseSurfaceActionSelection(rows, "missing")).toMatchObject({
+			reason: "missing-action",
+			selection: { requested: "missing", source: "id" },
+		});
+		expect(resolveBaseSurfaceActionSelection([], "1")).toMatchObject({
+			reason: "no-actions",
+			selection: { requested: "1", source: "index" },
+			rows: [],
+		});
+		expect(formatBaseSurfaceActionSelectionChoices(rows)).toBe(
+			"[1] dgk-wallet-json, [2] verify-draft-credential",
+		);
 	});
 
 	it("gives consumers helpers for capabilities, review queues and text output", () => {
