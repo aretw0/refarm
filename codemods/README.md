@@ -118,6 +118,23 @@ Dry run:
 node codemods/node-test-to-vitest.mjs --input path/to/test.mjs --json
 ```
 
+`astro-6-to-7` covers the safe, mechanical part of Astro 7 upgrades:
+
+- rewrites app/runtime `astro` dependency ranges from Astro 5/6 to `^7.0.0`;
+- widens `peerDependencies.astro` from Astro 5/6 to include `^7` instead of
+  dropping existing Astro 6 compatibility;
+- reports `@astrojs/db`, removed experimental flags, reserved `src/fetch.ts`
+  / `src/fetch.js`, deprecated `getContainerRenderer` root imports, and
+  removed `astro:transitions` internals for manual review;
+- prints a stable JSON dry-run report with `--json`; `--write` only edits the
+  input package manifest and never rewrites config/source files.
+
+Dry run:
+
+```bash
+node codemods/astro-6-to-7.mjs --input apps/site/package.json --scan apps/site/astro.config.mjs --json
+```
+
 ## Manual-Reviewed Line
 
 `npm-scope-doc-sweep` stays `manual-reviewed` unless it becomes a recurring
@@ -127,7 +144,7 @@ and publish targets with different meanings.
 
 ## Promotion Beyond Local Scripts
 
-There are now two ready local codemods. That is enough evidence to consider a
+There are now four ready local codemods. That is enough evidence to consider a
 packaged runtime or shared surface, but not enough reason by itself. Promote
 beyond local scripts only when a concrete consumer needs discovery, reuse, or
 composition that cannot be handled by the checked-in dry-run commands.

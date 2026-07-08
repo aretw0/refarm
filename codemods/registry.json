@@ -18,6 +18,20 @@
       "rollbackNote": "Runner/API migration only; rerun without --write for review, keep unhandled report, and revert the changed test files if Vitest parity regresses"
     },
     {
+      "id": "astro-6-to-7",
+      "status": "ready",
+      "ownerSurface": "Astro apps/packages",
+      "tool": "codemod",
+      "inputs": ["package.json files with astro 5/6 dependency ranges plus optional Astro config/source scans for Astro 7 review breakpoints"],
+      "fixtures": [
+        "codemods/fixtures/astro-6-to-7.before.json",
+        "codemods/fixtures/astro-6-to-7.after.json"
+      ],
+      "dryRunCommand": "node codemods/astro-6-to-7.mjs --input apps/site/package.json --scan apps/site/astro.config.mjs --json",
+      "verificationGate": "node --test codemods/registry.test.mjs codemods/astro-6-to-7.test.mjs; upgraded Astro workspace runs astro check/build after review findings are resolved",
+      "rollbackNote": "Package manifest and review-report migration; rerun without --write for review, and revert package/config/source edits if Astro check/build regresses"
+    },
+    {
       "id": "npm-scope-doc-sweep",
       "status": "candidate",
       "ownerSurface": "docs",

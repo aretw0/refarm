@@ -1,0 +1,10 @@
+{
+  "name": "@example/astro-app",
+  "dependencies": {
+    "@astrojs/db": "^0.14.0",
+    "astro": "^6.4.8"
+  },
+  "peerDependencies": {
+    "astro": "^6.4.8"
+  }
+}
