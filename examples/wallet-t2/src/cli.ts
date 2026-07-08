@@ -2,6 +2,7 @@
 import { resolveLocalRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
 import {
 	defineCapabilityHost,
+	runCapabilityHostCli,
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
 
@@ -99,16 +100,6 @@ export function buildProgram(
 	return buildWalletHost(cliOptions).program();
 }
 
-const isMain =
-	process.argv[1] !== undefined &&
-	(import.meta.url === `file://${process.argv[1]}` ||
-		import.meta.url.endsWith("/cli.js"));
-
-if (isMain) {
-	buildProgram()
-		.parseAsync(process.argv)
-		.catch((error: unknown) => {
-			console.error(error);
-			process.exitCode = 1;
-		});
-}
+void runCapabilityHostCli(import.meta.url, () => buildProgram(), {
+	compiledFileName: "cli.js",
+});

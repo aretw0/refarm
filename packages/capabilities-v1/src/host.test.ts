@@ -1,13 +1,15 @@
 import type { RecordsManifest } from "@refarm.dev/records-contract-v1";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
 	buildJsonSuccessEnvelope,
-	type CapabilityDescriptor,
 	defaultRecordsDeps,
 	defaultSourceDeps,
 	defaultVaultDeps,
 	defineCapabilityHost,
+	isCapabilityHostCliEntrypoint,
+	runCapabilityHostCli,
+	type CapabilityDescriptor,
 	type RefarmCapabilityDeps,
 } from "./index.js";
 
@@ -227,5 +229,63 @@ describe("defineCapabilityHost", () => {
 		expect(host.surfaceActions().map((action) => action.id)).toEqual([
 			"verify-draft-credential",
 		]);
+	});
+});
+
+describe("capability host CLI helpers", () => {
+	it("detects direct and bin-shimmed CLI entrypoints", () => {
+		expect(isCapabilityHostCliEntrypoint("file:///repo/examples/wallet-t2/dist/cli.js", {
+			argv: ["node", "/repo/examples/wallet-t2/dist/cli.js"],
+			compiledFileName: "cli.js",
+		})).toBe(true);
+
+		expect(isCapabilityHostCliEntrypoint("file:///repo/examples/wallet-t2/dist/cli.js", {
+			argv: ["node", "/repo/node_modules/.bin/dgk"],
+			compiledFileName: "cli.js",
+		})).toBe(true);
+
+		expect(isCapabilityHostCliEntrypoint("file:///repo/examples/wallet-t2/src/cli.ts", {
+			argv: ["node", "/repo/examples/wallet-t2/dist/cli.js"],
+			compiledFileName: "cli.js",
+		})).toBe(false);
+	});
+
+	it("runs parseAsync only for direct CLI entrypoints and captures failures", async () => {
+		const parseAsync = vi.fn(async () => undefined);
+		const argv = ["node", "/repo/examples/wallet-t2/dist/cli.js"];
+
+		expect(await runCapabilityHostCli("file:///repo/examples/wallet-t2/src/cli.ts", () => ({
+			parseAsync,
+		}), {
+			argv,
+			compiledFileName: "cli.js",
+		})).toBe(false);
+		expect(parseAsync).not.toHaveBeenCalled();
+
+		expect(await runCapabilityHostCli("file:///repo/examples/wallet-t2/dist/cli.js", () => ({
+			parseAsync,
+		}), {
+			argv,
+			compiledFileName: "cli.js",
+		})).toBe(true);
+		expect(parseAsync).toHaveBeenCalledWith(argv);
+
+		const error = new Error("boom");
+		const failingParse = vi.fn(async () => {
+			throw error;
+		});
+		const processState: { exitCode?: number } = {};
+		const consoleError = vi.fn();
+
+		expect(await runCapabilityHostCli("file:///repo/examples/wallet-t2/dist/cli.js", () => ({
+			parseAsync: failingParse,
+		}), {
+			argv,
+			compiledFileName: "cli.js",
+			consoleError,
+			process: processState,
+		})).toBe(true);
+		expect(consoleError).toHaveBeenCalledWith(error);
+		expect(processState.exitCode).toBe(1);
 	});
 });

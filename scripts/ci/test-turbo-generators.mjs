@@ -298,6 +298,7 @@ test("turbo generators expose a DGK example workbench scaffold", async () => {
 	);
 	const cli = render(cliTemplate, data);
 	assert.match(cli, /defineCapabilityHost/);
+	assert.match(cli, /runCapabilityHostCli/);
 	assert.match(cli, /command: "dgk"/);
 	assert.match(cli, /buildGardenLabHost/);
 	assert.match(cli, /defaultPort: 4399/);

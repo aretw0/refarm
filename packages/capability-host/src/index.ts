@@ -1,8 +1,11 @@
 export {
 	defineCapabilityHost,
+	isCapabilityHostCliEntrypoint,
+	runCapabilityHostCli,
 	type CapabilityHost,
 	type CapabilityHostCapabilities,
 	type CapabilityHostCapabilitiesFactory,
+	type CapabilityHostCliEntrypointOptions,
 	type CapabilityHostCapabilityUnitOptions,
 	type CapabilityHostDefinition,
 	type CapabilityHostOperatorStatus,
@@ -15,4 +18,6 @@ export {
 	type CapabilityHostSurfaceActionRow,
 	type CapabilityHostSurfaceActionsOptions,
 	type CapabilityHostSurfaceContext,
+	type ParseableCapabilityHostProgram,
+	type RunCapabilityHostCliOptions,
 } from "@refarm.dev/capabilities-v1";

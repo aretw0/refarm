@@ -87,6 +87,13 @@ export {
 	type CapabilityHostStatusContext,
 } from "./host.js";
 export {
+	isCapabilityHostCliEntrypoint,
+	runCapabilityHostCli,
+	type CapabilityHostCliEntrypointOptions,
+	type ParseableCapabilityHostProgram,
+	type RunCapabilityHostCliOptions,
+} from "./host-cli.js";
+export {
 	createWasmSourceProvider,
 	type CallRespond,
 	type WasmSourceProviderOptions,
