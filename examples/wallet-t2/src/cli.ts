@@ -70,6 +70,9 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 		serve: {
 			defaultPort: 4322,
 			description: "Serve the wallet's verbs over HTTP (their transports.http routes)",
+			openApiPath: "/docs/openapi.json",
+			openApiTitle: "DGK Wallet API",
+			openApiVersion: "0.0.0",
 		},
 	});
 }

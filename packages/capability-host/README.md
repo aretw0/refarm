@@ -30,6 +30,11 @@ context. Use `hostCommand(["verb", "--json"])` for surface actions so examples
 and apps declare only the verb they extend while the host owns the white-label
 binary name.
 
+`serve.openApiPath`, `serve.openApiTitle`, and `serve.openApiVersion` let the host
+declare its HTTP capability spec with product-neutral metadata. Consumers still call
+`app.serve()` or `dgk serve`; the mounted surface publishes the OpenAPI document
+without importing the lower-level projector.
+
 Node app defaults live under `@refarm.dev/capability-host/node`. Use
 `createLocalRecordsStatePathResolver({ appId, envKey, fileName })` to keep local
 records state path and env override wiring out of each example.

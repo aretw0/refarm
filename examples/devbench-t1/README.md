@@ -17,6 +17,7 @@ dgk actions --json           # extension + plugin verb action rows for every sur
 dgk agent-code prompt='...'  # a verb that came from the manifest, not from app code
 dgk agent-review             # ditto — surfaced by the bridge, dispatched to the plugin
 dgk serve                    # the surfaced verbs on a web surface too
+# GET /docs/openapi.json     # white-label capability spec for tools such as Swagger
 ```
 
 `src/persona.ts` declares a **plugin manifest** for a coding-agent

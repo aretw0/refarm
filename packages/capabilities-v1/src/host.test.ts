@@ -219,6 +219,48 @@ describe("defineCapabilityHost", () => {
 		}
 	});
 
+	it("lets a host declare white-label OpenAPI metadata for its served capability surface", async () => {
+		const host = defineCapabilityHost({
+			id: "examples/wallet-t2",
+			command: "dgk",
+			description: "Digital Gardening Kit - sovereign wallet",
+			version: "0.0.0",
+			capabilities: {
+				deps: deps(),
+				extensions: [showVerb],
+			},
+			serve: {
+				defaultPort: 0,
+				openApiPath: "/docs/openapi.json",
+				openApiTitle: "DGK Wallet API",
+				openApiVersion: "2.0.0",
+			},
+		});
+
+		const { listening, close } = host.serve({ port: 0 });
+		try {
+			const { port } = await listening;
+			const defaultSpec = await fetch(`http://127.0.0.1:${port}/openapi.json`);
+			expect(defaultSpec.status).toBe(404);
+
+			const res = await fetch(`http://127.0.0.1:${port}/docs/openapi.json`);
+			expect(res.status).toBe(200);
+			const spec = await res.json() as {
+				openapi: string;
+				info: { title: string; version: string };
+				paths: Record<string, unknown>;
+			};
+			expect(spec.openapi).toBe("3.1.0");
+			expect(spec.info).toEqual({
+				title: "DGK Wallet API",
+				version: "2.0.0",
+			});
+			expect(Object.keys(spec.paths)).toContain("/capabilities/wallet");
+		} finally {
+			await close();
+		}
+	});
+
 	it("lets a host declare a records review queue without manifest plumbing", () => {
 		const host = defineCapabilityHost({
 			id: "examples/wallet-t2",

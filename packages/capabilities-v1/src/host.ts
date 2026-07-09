@@ -126,6 +126,9 @@ export interface CapabilityHostServeOptions {
 	defaultPort?: number;
 	prefix?: string;
 	requestTimeoutMs?: number;
+	openApiPath?: string;
+	openApiTitle?: string;
+	openApiVersion?: string;
 }
 
 export interface CapabilityHostSurfaceActionsOptions {
@@ -151,6 +154,9 @@ export interface CapabilityHostServeCallOptions {
 	port?: number;
 	prefix?: string;
 	requestTimeoutMs?: number;
+	openApiPath?: string;
+	openApiTitle?: string;
+	openApiVersion?: string;
 }
 
 export interface CapabilityHost {
@@ -285,6 +291,9 @@ export function defineCapabilityHost(
 				port: options.port ?? serveOptions.defaultPort,
 				prefix: options.prefix ?? serveOptions.prefix,
 				requestTimeoutMs: options.requestTimeoutMs ?? serveOptions.requestTimeoutMs,
+				openApiPath: options.openApiPath ?? serveOptions.openApiPath,
+				openApiTitle: options.openApiTitle ?? serveOptions.openApiTitle,
+				openApiVersion: options.openApiVersion ?? serveOptions.openApiVersion,
 			});
 		},
 	};
@@ -715,6 +724,9 @@ function addServeCommand(
 				port: Number(opts.port),
 				prefix: options.prefix,
 				requestTimeoutMs: options.requestTimeoutMs,
+				openApiPath: options.openApiPath,
+				openApiTitle: options.openApiTitle,
+				openApiVersion: options.openApiVersion,
 			});
 			const { port } = await listening;
 			console.log(JSON.stringify({ ok: true, url: `http://127.0.0.1:${port}` }));

@@ -62,6 +62,7 @@ pnpm --filter wallet-t2 dgk status --base --json
 # web surface:
 pnpm --filter wallet-t2 dgk serve --port 4322
 # → GET http://127.0.0.1:4322/capabilities/wallet
+# → GET http://127.0.0.1:4322/docs/openapi.json
 ```
 
 ## Focus — what T2 makes shine (survives our design conversation)

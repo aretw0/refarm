@@ -119,6 +119,18 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 			const body = (await res.json()) as { ok: boolean; moc: string };
 			expect(body.ok).toBe(true);
 			expect(body.moc).toContain("Mapa de Conteúdo — Requisitos");
+
+			const specRes = await fetch(`http://127.0.0.1:${port}/docs/openapi.json`);
+			expect(specRes.status).toBe(200);
+			const spec = await specRes.json() as {
+				info: { title: string; version: string };
+				paths: Record<string, unknown>;
+			};
+			expect(spec.info).toEqual({
+				title: "DGK Requirements Bench API",
+				version: "0.0.0",
+			});
+			expect(Object.keys(spec.paths)).toContain("/capabilities/requirements/moc");
 		} finally {
 			await close();
 		}

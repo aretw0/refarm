@@ -45,6 +45,7 @@ pnpm --filter reqbench-t3 dgk actions --json
 # web surface:
 pnpm --filter reqbench-t3 dgk serve --port 4321
 # → GET http://127.0.0.1:4321/capabilities/requirements/moc
+# → GET http://127.0.0.1:4321/docs/openapi.json
 ```
 
 ## Focus — what T3 makes shine (survives our design conversation)
