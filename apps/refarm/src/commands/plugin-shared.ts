@@ -5,6 +5,7 @@ import {
 } from "@refarm.dev/config/plugin-identity";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { RUNTIME_AGENT_RELOAD_JSON_COMMAND } from "./plugin-handoffs.js";
@@ -133,6 +134,11 @@ export interface InstalledPluginManifest {
 	capabilities?: { provides?: string[]; subscribes?: string[] };
 }
 
+interface LocalExtensionManifest {
+	id: string;
+	capabilities?: { provides?: string[]; subscribes?: string[] };
+}
+
 /**
  * Read every installed plugin's `plugin.json` under the plugins dir (both
  * `plugins/<id>/` and `plugins/@scope/<id>/` layouts). Synchronous + best-effort:
@@ -172,4 +178,59 @@ export function readInstalledPluginManifests(): InstalledPluginManifest[] {
 		}
 	}
 	return out;
+}
+
+function readLocalExtensionManifest(extDir: string): InstalledPluginManifest | null {
+	const manifestPath = path.join(extDir, "ext.json");
+	if (!existsSync(manifestPath)) return null;
+	try {
+		const manifest = JSON.parse(
+			readFileSync(manifestPath, "utf-8"),
+		) as LocalExtensionManifest;
+		if (!manifest.id) return null;
+		return {
+			id: manifest.id,
+			capabilities: {
+				provides: manifest.capabilities?.provides ?? [],
+				subscribes: manifest.capabilities?.subscribes ?? [],
+			},
+		};
+	} catch {
+		return null;
+	}
+}
+
+function readLocalExtensionBase(baseDir: string): InstalledPluginManifest[] {
+	const extensionsDir = path.join(baseDir, ".refarm", "extensions");
+	if (!existsSync(extensionsDir)) return [];
+	let entries;
+	try {
+		entries = readdirSync(extensionsDir, { withFileTypes: true });
+	} catch {
+		return [];
+	}
+	const manifests: InstalledPluginManifest[] = [];
+	for (const entry of entries) {
+		if (!entry.isDirectory()) continue;
+		const manifest = readLocalExtensionManifest(path.join(extensionsDir, entry.name));
+		if (manifest) manifests.push(manifest);
+	}
+	return manifests;
+}
+
+export function readLocalExtensionManifests(
+	cwd = process.cwd(),
+	homeDir = os.homedir(),
+): InstalledPluginManifest[] {
+	return [
+		...readLocalExtensionBase(cwd),
+		...readLocalExtensionBase(homeDir),
+	];
+}
+
+export function readSurfaceablePluginManifests(): InstalledPluginManifest[] {
+	return [
+		...readInstalledPluginManifests(),
+		...readLocalExtensionManifests(),
+	];
 }

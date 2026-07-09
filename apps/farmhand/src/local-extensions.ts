@@ -1,8 +1,8 @@
+import type { PluginManifest } from "@refarm.dev/plugin-manifest";
+import type { RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import type { RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 
 interface ExtJson {
   id: string;
@@ -10,6 +10,7 @@ interface ExtJson {
   version: string;
   capabilities?: {
     provides?: string[];
+    subscribes?: string[];
     requires?: string[];
     providesApi?: string[];
     requiresApi?: string[];
@@ -52,6 +53,7 @@ function buildManifest(ext: ExtJson, extDir: string): PluginManifest {
     integrity: "",
     capabilities: {
       provides: ext.capabilities?.provides ?? [],
+      subscribes: ext.capabilities?.subscribes ?? [],
       requires: ext.capabilities?.requires ?? [],
       providesApi: ext.capabilities?.providesApi ?? [],
       requiresApi: ext.capabilities?.requiresApi ?? [],

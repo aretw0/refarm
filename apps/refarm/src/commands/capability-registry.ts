@@ -1,7 +1,7 @@
 import {
+	createCapabilityRegistry,
 	capabilityCliCommands as projectCliCommands,
 	capabilityCliCommandsForGroup as projectCliCommandsForGroup,
-	createCapabilityRegistry,
 	type CapabilityDescriptor,
 	type CapabilityEntry,
 	type CapabilityGroup,
@@ -10,20 +10,24 @@ import {
 import { RESERVED_SLASH_NAMES } from "@refarm.dev/cli/chat-repl";
 import type { Command } from "commander";
 
+import {
+	createRecordsCapabilityGroup,
+	createSourceCapabilityGroup,
+	createVaultCapabilityGroup,
+} from "@refarm.dev/capabilities-v1";
+import {
+	refarmSourceDeps,
+	refarmVaultDeps,
+} from "./builtin-capability-deps.js";
 import { createDispatchCapability } from "./dispatch-capability.js";
-import {
-	defaultPluginDescriptorDeps,
-	registerPluginCapabilities,
-} from "./plugin-descriptor-adapter.js";
-import { readInstalledPluginManifests } from "./plugin-shared.js";
-import {
-	extensionReviewCapability,
-	extensionReviewHooks,
-} from "./extension-review-capability.js";
 import {
 	extensionInstallCapability,
 	extensionInstallHooks,
 } from "./extension-install-capability.js";
+import {
+	extensionReviewCapability,
+	extensionReviewHooks,
+} from "./extension-review-capability.js";
 import {
 	createHealthCapabilityGroup,
 	healthCapabilityHooks,
@@ -37,18 +41,14 @@ import {
 	pluginCapabilityHooks,
 } from "./plugin-capability.js";
 import {
+	defaultPluginDescriptorDeps,
+	registerPluginCapabilities,
+} from "./plugin-descriptor-adapter.js";
+import { readSurfaceablePluginManifests } from "./plugin-shared.js";
+import {
 	createSkillCapabilityGroup,
 	skillCapabilityHooks,
 } from "./skill-capability.js";
-import {
-	createRecordsCapabilityGroup,
-	createSourceCapabilityGroup,
-	createVaultCapabilityGroup,
-} from "@refarm.dev/capabilities-v1";
-import {
-	refarmSourceDeps,
-	refarmVaultDeps,
-} from "./builtin-capability-deps.js";
 import { createThemeCapabilityGroup } from "./theme-capability.js";
 
 /**
@@ -109,7 +109,7 @@ export function refarmBuiltinCapabilities(): CapabilityEntry[] {
 // mount sees the plugin verbs.
 registerPluginCapabilities(
 	capabilityRegistry,
-	readInstalledPluginManifests(),
+	readSurfaceablePluginManifests(),
 	defaultPluginDescriptorDeps(),
 );
 

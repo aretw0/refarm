@@ -98,7 +98,7 @@ export interface ExtJson {
   id: string;
   name: string;
   version: string;
-  capabilities: { provides: string[] };
+  capabilities: { provides: string[]; subscribes?: string[] };
 }
 
 export function buildExtJson(name: string): ExtJson {

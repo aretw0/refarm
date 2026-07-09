@@ -59,6 +59,44 @@ describe("LocalExtensionRegistry", () => {
     expect(tractor.plugins.load).toHaveBeenCalledOnce();
   });
 
+  it("preserves surfaceable extension subscriptions in the runtime manifest", async () => {
+    vi.mocked(mockFs.existsSync).mockImplementation((p) =>
+      String(p).includes("/fake/project/.refarm/extensions") ? true : false,
+    );
+    vi.mocked(mockFs.readdirSync).mockImplementation((dir) => {
+      if (String(dir).endsWith("extensions")) {
+        return [{ name: "wallet", isDirectory: () => true }] as unknown as ReturnType<typeof import("node:fs").readdirSync>;
+      }
+      return [] as unknown as ReturnType<typeof import("node:fs").readdirSync>;
+    });
+    vi.mocked(mockFs.readFileSync).mockReturnValue(
+      JSON.stringify({
+        id: "@local/wallet",
+        name: "Wallet",
+        version: "0.0.1",
+        capabilities: {
+          provides: ["wallet:open"],
+          subscribes: ["wallet:dispatch"],
+        },
+      }),
+    );
+
+    const { LocalExtensionRegistry } = await import("./local-extensions.js");
+    const registry = new LocalExtensionRegistry(cwd, home);
+    const tractor = makeTractor();
+    await registry.load(tractor as never);
+
+    expect(tractor.registry.register).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "@local/wallet",
+        capabilities: expect.objectContaining({
+          provides: ["wallet:open"],
+          subscribes: ["wallet:dispatch"],
+        }),
+      }),
+    );
+  });
+
   it("skips extension without ext.json", async () => {
     vi.mocked(mockFs.existsSync).mockImplementation((p) => {
       const s = String(p);
