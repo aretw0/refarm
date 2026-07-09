@@ -1,8 +1,12 @@
 import {
+	pluginSurfaceName,
 	runCapabilityHostCli,
+	surfaceablePluginVerbsFrom,
 	type CapabilityHost,
+	type CapabilityHostPrimaryVerbOptions,
 	type CapabilityHostServeCallOptions,
 	type RunCapabilityHostCliOptions,
+	type SurfaceableManifest,
 } from "@refarm.dev/capabilities-v1";
 
 export {
@@ -86,6 +90,74 @@ export {
 	type WasmSourceProviderOptions,
 	type WebUiOptions,
 } from "@refarm.dev/capabilities-v1";
+
+export interface HostCommandOptions {
+	command?: string;
+	commandEnv?: Record<string, string | undefined>;
+}
+
+export interface HostCommandResolverOptions {
+	defaultCommand: string;
+	commandEnvKey?: string;
+}
+
+export interface ResolveHostCommandOptions extends HostCommandOptions {
+	env?: Record<string, string | undefined>;
+	defaultCommand: string;
+	commandEnvKey?: string;
+}
+
+export const DEFAULT_HOST_COMMAND_ENV_KEY = "DGK_COMMAND";
+
+export function createHostCommandResolver(
+	options: HostCommandResolverOptions,
+): (input?: HostCommandOptions) => string {
+	return (input: HostCommandOptions = {}) => resolveHostCommand({
+		commandEnv: input.commandEnv,
+		command: input.command,
+		defaultCommand: options.defaultCommand,
+		commandEnvKey: options.commandEnvKey,
+	});
+}
+
+export function resolveHostCommand(
+	input: ResolveHostCommandOptions,
+): string {
+	const command = (
+		input.command
+		?? input.commandEnv?.[input.commandEnvKey ?? DEFAULT_HOST_COMMAND_ENV_KEY]
+		?? input.env?.[input.commandEnvKey ?? DEFAULT_HOST_COMMAND_ENV_KEY]
+		?? process.env[input.commandEnvKey ?? DEFAULT_HOST_COMMAND_ENV_KEY]
+	) ?? "";
+	return String(command).trim() || input.defaultCommand;
+}
+
+export interface HostSurfaceActionsFromManifestsOptions {
+	manifests: readonly SurfaceableManifest[];
+	includeSubject?: boolean;
+}
+
+export function buildManifestPrimaryVerbs(
+	{ manifests, includeSubject = true }: HostSurfaceActionsFromManifestsOptions,
+): CapabilityHostPrimaryVerbOptions[] {
+	const seen = new Set<string>();
+	const primaryVerbs: CapabilityHostPrimaryVerbOptions[] = [];
+	for (const manifest of manifests) {
+		for (const verb of surfaceablePluginVerbsFrom(manifest)) {
+			if (seen.has(verb.surfaceName)) {
+				continue;
+			}
+			seen.add(verb.surfaceName);
+			primaryVerbs.push({
+				name: verb.surfaceName,
+				subject: includeSubject ? `${verb.pluginKey} extension` : undefined,
+				actionId: `run-${pluginSurfaceName(verb.pluginKey, verb.verb)}`,
+				intent: `${verb.pluginKey}:${verb.verb}`,
+			});
+		}
+	}
+	return primaryVerbs;
+}
 
 export interface CapabilityAppDefinition<Options extends object = Record<string, never>> {
 	host: (options: Options) => CapabilityHost;

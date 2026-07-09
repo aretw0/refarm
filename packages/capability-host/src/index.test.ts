@@ -4,6 +4,8 @@ import {
 	buildCapabilityHostServeInfo,
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
+	buildManifestPrimaryVerbs,
+	createHostCommandResolver,
 	createLocalCapabilityDeps,
 	createLocalVaultCommandDeps,
 	createMemorySubmitEffort,
@@ -13,6 +15,7 @@ import {
 	createVaultCapabilityGroup,
 	createWasmEnrichmentProvider,
 	createWasmSourceProvider,
+	DEFAULT_HOST_COMMAND_ENV_KEY,
 	defaultRecordsDeps,
 	defaultSourceDeps,
 	defaultVaultDeps,
@@ -24,11 +27,131 @@ import {
 	parseDispatchArgs,
 	pluginSurfaceName,
 	renderWebUi,
+	resolveHostCommand,
 	serveWebUi,
 	surfaceablePluginVerbsFrom,
 	type CapabilityHost,
 	type CapabilityHostDefinition,
 } from "./index.js";
+
+describe("command-resolution helper", () => {
+	it("picks explicit command before env fallback and trims values", () => {
+		expect(resolveHostCommand({
+			command: "  custom-cmd  ",
+			defaultCommand: "dgk",
+		})).toBe("custom-cmd");
+	});
+
+	it("uses commandEnv override map before process env", () => {
+		const previous = process.env[DEFAULT_HOST_COMMAND_ENV_KEY];
+		process.env[DEFAULT_HOST_COMMAND_ENV_KEY] = "process-env-command";
+		expect(resolveHostCommand({
+			commandEnv: { [DEFAULT_HOST_COMMAND_ENV_KEY]: "explicit-env-command" },
+			defaultCommand: "dgk",
+		})).toBe("explicit-env-command");
+		if (previous === undefined) {
+			delete process.env[DEFAULT_HOST_COMMAND_ENV_KEY];
+		} else {
+			process.env[DEFAULT_HOST_COMMAND_ENV_KEY] = previous;
+		}
+	});
+
+	it("builds a resolver closure with stable defaults", () => {
+		const resolveCommand = createHostCommandResolver({
+			defaultCommand: "fallback-command",
+		});
+		expect(resolveCommand({ command: "inline-command" })).toBe("inline-command");
+		expect(resolveCommand({ commandEnv: { [DEFAULT_HOST_COMMAND_ENV_KEY]: "env-command" } })).toBe(
+			"env-command",
+		);
+		expect(resolveCommand({})).toBe("fallback-command");
+	});
+
+	it("supports custom environment keys in resolver defaults", () => {
+		const resolveCommand = createHostCommandResolver({
+			defaultCommand: "fallback-command",
+			commandEnvKey: "CUSTOM_COMMAND",
+		});
+		expect(resolveCommand({
+			commandEnv: {
+				CUSTOM_COMMAND: "custom-key-command",
+			},
+		})).toBe("custom-key-command");
+	});
+
+	it("falls back to default when empty command and env are blank", () => {
+		expect(
+			resolveHostCommand({
+				command: "   ",
+				defaultCommand: "dgk",
+				env: { [DEFAULT_HOST_COMMAND_ENV_KEY]: "   " },
+			}),
+		).toBe("dgk");
+	});
+
+	it("keeps legacy env fallback for backward compatibility", () => {
+		expect(resolveHostCommand({
+			env: { [DEFAULT_HOST_COMMAND_ENV_KEY]: "legacy-env-command" },
+			defaultCommand: "dgk",
+		})).toBe("legacy-env-command");
+	});
+});
+
+describe("manifest-primary verb helper", () => {
+	it("builds a unique set of primary verbs from multiple manifests", () => {
+		const primaryVerbs = buildManifestPrimaryVerbs({
+			manifests: [
+				{
+					id: "@app/agent",
+					capabilities: {
+						provides: ["agent:code", "agent:review"],
+						subscribes: ["agent:dispatch"],
+					},
+				},
+				{
+					id: "@app/agent-v2",
+					capabilities: {
+						provides: ["agent:code", "notes:search"],
+						subscribes: ["agent:dispatch", "notes:dispatch"],
+					},
+				},
+			],
+		});
+
+		expect(primaryVerbs.map((verb) => verb.intent)).toEqual([
+			"agent:code",
+			"agent:review",
+			"notes:search",
+		]);
+		expect(primaryVerbs.map((verb) => verb.name)).toEqual([
+			"agent-code",
+			"agent-review",
+			"notes-search",
+		]);
+	});
+
+	it("supports opting out of auto subject derivation", () => {
+		const primaryVerbs = buildManifestPrimaryVerbs({
+			manifests: [
+				{
+					id: "@app/agent",
+					capabilities: {
+						provides: ["agent:code"],
+						subscribes: ["agent:dispatch"],
+					},
+				},
+			],
+			includeSubject: false,
+		});
+		expect(primaryVerbs).toHaveLength(1);
+		expect(primaryVerbs[0]).toMatchObject({
+			name: "agent-code",
+			subject: undefined,
+			actionId: "run-agent-code",
+			intent: "agent:code",
+		});
+	});
+});
 
 describe("@refarm.dev/capability-host public API", () => {
 	it("exposes the white-label host boundary without importing capabilities-v1 host symbols", async () => {
