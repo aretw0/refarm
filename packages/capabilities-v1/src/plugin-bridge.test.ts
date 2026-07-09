@@ -37,9 +37,9 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 			"vault:dispatch",
 		]);
 		const caps = pluginDescriptorsFrom(m, makeDeps());
-		expect(caps.map((c) => c.name).sort()).toEqual(["extract", "search"]);
+		expect(caps.map((c) => c.name).sort()).toEqual(["vault-extract", "vault-search"]);
 		// It's a real CapabilityDescriptor: name, summary, run fn, projects to surfaces.
-		const search = caps.find((c) => c.name === "search");
+		const search = caps.find((c) => c.name === "vault-search");
 		if (!search) throw new Error("search descriptor missing");
 		expect(typeof search.run).toBe("function");
 		expect(search.summary).toContain("@example/vault");
@@ -47,7 +47,7 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 		expect(search.transports?.repl).toBeDefined();
 		expect(search.renderers).toEqual({
 			tui: { section: "vault" },
-			web: { route: "/search" },
+			web: { route: "/vault-search" },
 		});
 	});
 
@@ -77,7 +77,8 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 		// The verb was dispatched to the plugin's WASM via the neutral seam...
 		expect(deps.submitted).toHaveLength(1);
 		// ...and run() returned a RECEIPT (effortId + replyRef), not the verb's result.
-		const x = env as unknown as { effortId: string; replyRef: string; verb: string };
+		const x = env as unknown as { command: string; effortId: string; replyRef: string; verb: string };
+		expect(x.command).toBe("vault-search");
 		expect(x.verb).toBe("search");
 		expect(x.effortId).toBeTruthy();
 		expect(x.replyRef).toBeTruthy();
@@ -123,7 +124,7 @@ describe("definePluginInspectorCapability — manifest visibility as an extensio
 		expect(env.operation).toBe("inspect");
 		expect(env.pluginId).toBe("@devbench/coding-agent");
 		expect(env.declared).toEqual(["agent:code", "agent:review"]);
-		expect(env.surfaced.map((item) => item.verb).sort()).toEqual(["code", "review"]);
+		expect(env.surfaced.map((item) => item.verb).sort()).toEqual(["agent-code", "agent-review"]);
 		expect(env.note).toBe("Declared once, reachable on every surface.");
 	});
 });
@@ -136,31 +137,27 @@ describe("registerPluginCapabilities — the register-at-load wire", () => {
 			[manifest("@example/vault", ["vault:search", "vault:extract"], ["vault:dispatch"])],
 			makeDeps(),
 		);
-		expect(result.registered.sort()).toEqual(["extract", "search"]);
+		expect(result.registered.sort()).toEqual(["vault-extract", "vault-search"]);
 		expect(result.collided).toEqual([]);
 		// Now reachable via the generic registry the projectors read.
-		expect(registry.list().map((c) => c.name).sort()).toEqual(["extract", "search"]);
-		expect(registry.has("search")).toBe(true);
+		expect(registry.list().map((c) => c.name).sort()).toEqual(["vault-extract", "vault-search"]);
+		expect(registry.has("vault-search")).toBe(true);
 	});
 
-	it("is collision-safe: a plugin verb clashing with an existing name is skipped, not fatal", () => {
+	it("keeps same-named plugin verbs separate by using stable scoped surface names", () => {
 		const registry = createCapabilityRegistry([]);
-		// Pre-register "search" so the plugin's "search" collides.
-		registerPluginCapabilities(
-			registry,
-			[manifest("@a/x", ["x:search"], ["x:dispatch"])],
-			makeDeps(),
-		);
 		const result = registerPluginCapabilities(
 			registry,
-			[manifest("@b/y", ["y:search", "y:list"], ["y:dispatch"])],
+			[
+				manifest("@example/vault", ["vault:search"], ["vault:dispatch"]),
+				manifest("@example/web", ["web:search"], ["web:dispatch"]),
+			],
 			makeDeps(),
 		);
-		// "search" collided (already registered); "list" still surfaced — one bad verb
-		// doesn't break the rest.
-		expect(result.collided).toEqual(["search"]);
-		expect(result.registered).toEqual(["list"]);
-		expect(registry.has("list")).toBe(true);
+		expect(result.collided).toEqual([]);
+		expect(result.registered).toEqual(["vault-search", "web-search"]);
+		expect(registry.has("vault-search")).toBe(true);
+		expect(registry.has("web-search")).toBe(true);
 	});
 
 	it("no installed plugins → registers nothing", () => {
@@ -179,7 +176,7 @@ describe("registerPluginCapabilities — the register-at-load wire", () => {
 			[manifest("@example/vault", ["vault:search"], ["vault:dispatch"])],
 			makeDeps(),
 		);
-		const entry = registry.get("search");
+		const entry = registry.get("vault-search");
 		if (!entry) throw new Error("registered plugin verb not found in registry");
 
 		// REPL seam: capabilitySlashNames() = list().flatMap(name + aliases).
@@ -189,7 +186,7 @@ describe("registerPluginCapabilities — the register-at-load wire", () => {
 				...((d.transports?.repl?.slashAliases ?? []).map((a) => a.toLowerCase())),
 			]),
 		);
-		expect(slashNames.has("search")).toBe(true);
+		expect(slashNames.has("vault-search")).toBe(true);
 
 		// CLI seam: capabilityCliCommands() filters list() by transports.cli — the plugin
 		// verb declares transports.cli, so it's included.
@@ -197,6 +194,6 @@ describe("registerPluginCapabilities — the register-at-load wire", () => {
 			.list()
 			.filter((d) => d.transports?.cli !== undefined)
 			.map((d) => d.name);
-		expect(cliReachable).toContain("search");
+		expect(cliReachable).toContain("vault-search");
 	});
 });

@@ -50,7 +50,7 @@ describe("mountCapabilities — the consumer-mount seam", () => {
 				nowIso: () => "2026-01-01T00:00:00Z",
 			},
 		});
-		expect(registry.list().map((e) => e.name)).toContain("go");
+		expect(registry.list().map((e) => e.name)).toContain("x-go");
 	});
 
 	it("throws if manifests are given without pluginDeps", () => {

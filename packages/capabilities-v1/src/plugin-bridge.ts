@@ -18,8 +18,10 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
  * A plugin declares its dispatchable verbs in its manifest
  * (`capabilities.provides: ["<plugin>:<verb>"]`, guarded by
  * `capabilities.subscribes ∋ "<plugin>:dispatch"`). This synthesizes a
- * `CapabilityDescriptor` per verb; registered into a surface registry, it projects to
- * every surface for free (the projectors are generic).
+ * `CapabilityDescriptor` per verb with a stable scoped surface name
+ * (`<plugin>-<verb>`); registered into a surface registry, it projects to every
+ * surface for free (the projectors are generic). Short names like `search` are app /
+ * persona aliases, not bridge-invented defaults.
  *
  * SECURITY — no host-JS escape. `run()` is HOST-built here (never plugin-supplied JS):
  * it closes over the injected `submitEffort` + a pure effort builder, exactly like the
@@ -192,7 +194,12 @@ export function pluginDescriptorsFrom(
 		// Only surface a verb the plugin can actually receive a dispatch for.
 		if (!subscribes.has(`${parsed.pluginKey}:dispatch`)) continue;
 		descriptors.push(
-			pluginVerbDescriptor(manifest.id, parsed.pluginKey, parsed.verb, deps),
+			pluginVerbDescriptor(
+				manifest.id,
+				parsed.pluginKey,
+				parsed.verb,
+				deps,
+			),
 		);
 	}
 	return descriptors;
@@ -200,27 +207,30 @@ export function pluginDescriptorsFrom(
 
 /** One dispatch-backed descriptor for a `<pluginKey>:<verb>`. Its run() submits a
  * dispatch effort to the plugin's WASM — the same neutral seam the generic `dispatch`
- * command uses, just with the plugin + verb bound. */
+ * command uses, just with the plugin + verb bound. The public surface name is scoped
+ * (`<pluginKey>-<verb>`) so `vault:search` and `web:search` are distinct without
+ * registration-order fallback. */
 function pluginVerbDescriptor(
 	pluginId: string,
 	pluginKey: string,
 	verb: string,
 	deps: PluginDescriptorDeps,
 ): CapabilityDescriptor {
+	const name = `${pluginKey}-${verb}`;
 	return {
-		name: verb,
-		summary: `${verb} — dispatched to the ${pluginId} plugin`,
+		name,
+		summary: `${name} — dispatched to the ${pluginId} plugin`,
 		args: [{ name: "args", variadic: true }],
 		async run(input) {
 			const rawArgs = (input.args.args as string[] | undefined) ?? [];
 			const parsed = parseDispatchArgs(rawArgs);
 			if ("error" in parsed) {
 				return buildJsonErrorEnvelope({
-					command: verb,
+					command: name,
 					operation: "dispatch",
 					error: "invalid-args",
 					message: parsed.error,
-					nextAction: `Pass args as key=value, e.g. \`${verb} note={"path":"n.md"}\`.`,
+					nextAction: `Pass args as key=value, e.g. \`${name} note={"path":"n.md"}\`.`,
 				});
 			}
 			const effort = buildDispatchEffort(
@@ -231,14 +241,14 @@ function pluginVerbDescriptor(
 			try {
 				const effortId = await deps.submitEffort(effort);
 				return buildJsonSuccessEnvelope({
-					command: verb,
+					command: name,
 					operation: "dispatch",
-					extra: { effortId, pluginId, verb, replyRef: effort.id },
+					extra: { effortId, pluginId, pluginKey, verb, replyRef: effort.id },
 					nextAction: `The result will be stored as a dispatch-result node keyed by replyRef "${effort.id}".`,
 				});
 			} catch (error) {
 				return buildJsonErrorEnvelope({
-					command: verb,
+					command: name,
 					operation: "dispatch",
 					error: "dispatch-failed",
 					message: `Could not dispatch ${verb} to ${pluginId}: ${String(error)}`,
@@ -247,25 +257,25 @@ function pluginVerbDescriptor(
 				});
 			}
 		},
-		transports: { cli: {}, repl: {}, http: { method: "POST", path: `/${verb}` } },
-		renderers: { tui: { section: pluginKey }, web: { route: `/${verb}` } },
+		transports: { cli: {}, repl: {}, http: { method: "POST", path: `/${name}` } },
+		renderers: { tui: { section: pluginKey }, web: { route: `/${name}` } },
 	};
 }
 
 /** The outcome of registering plugin capabilities — what surfaced, what collided. */
 export interface PluginCapabilityRegistration {
-	/** Verb names successfully registered (now reachable on every surface). */
+	/** Scoped surface names successfully registered (now reachable on every surface). */
 	registered: string[];
-	/** Verbs skipped because the name collides with an existing capability. */
+	/** Scoped surface names skipped because they collide with an existing capability. */
 	collided: string[];
 }
 
 /**
  * Register the surface capabilities every installed plugin contributes into a shared
  * registry — the register-at-load wire that makes a plugin's verb reachable on every
- * surface. A host enumerates its installed manifests and calls this; a name collision
- * (a plugin verb clashing with a built-in or another plugin's verb) is skipped, not
- * fatal — one bad plugin must not break the app's own commands.
+ * surface. A host enumerates its installed manifests and calls this; plugin verbs use
+ * scoped names by default, and exact collisions are skipped so one bad plugin does not
+ * break the app's own commands.
  */
 export function registerPluginCapabilities(
 	registry: CapabilityRegistry,
@@ -280,7 +290,6 @@ export function registerPluginCapabilities(
 				registry.register(descriptor);
 				registered.push(descriptor.name);
 			} catch {
-				// Collision with a reserved/existing name — skip this verb, keep the rest.
 				collided.push(descriptor.name);
 			}
 		}
