@@ -1,8 +1,8 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
+import { mountedHttpHandler } from "@refarm.dev/capabilities-v1";
 import {
-	capabilityAnthropicTools,
-	createCapabilityRouteHandler,
+	createCapabilityRegistry,
 	type CapabilityEntry,
 } from "@refarm.dev/cli/capabilities";
 import { Command } from "commander";
@@ -21,53 +21,23 @@ import { capabilityRegistry } from "./capability-registry.js";
  *      registry's agent-eligible verbs (`transports.agent.tool`) as tool schemas —
  *      what a browser/agent UI lists. This is the deliberate consumer the web-surface
  *      projector was built for (it stays OFF the live Rust agent path).
+ *   GET      /openapi.json         → OpenAPI 3.1 spec generated from the same
+ *      `transports.http` metadata, so Swagger-like clients can discover the API.
  *
  * Complements `refarm web` (a UI LAUNCHER); this exposes the capability API those
  * UIs call. Pure-TS, no runtime/WASM — the projectors read the in-process registry.
  */
 
-/** JSON body for the /agent-tools introspection route. */
-export interface AgentToolsResponse {
-	tools: ReturnType<typeof capabilityAnthropicTools>;
-}
-
-function writeJson(res: ServerResponse, status: number, body: unknown): void {
-	const payload = JSON.stringify(body);
-	res.writeHead(status, {
-		"content-type": "application/json",
-		"content-length": Buffer.byteLength(payload),
-	});
-	res.end(payload);
-}
-
 /**
  * The composed request handler — the testable core. Tries the capability route
- * handler (`/capabilities/*`), then the `/agent-tools` introspection route, else
- * 404. Pure over the injected `entries` so a test drives it with any registry.
+ * handler (`/capabilities/*`), then generic introspection routes (`/agent-tools`,
+ * `/openapi.json`), else 404. Pure over the injected `entries` so a test drives
+ * it with any registry.
  */
 export function createServeHandler(
 	entries: readonly CapabilityEntry[],
 ): (req: IncomingMessage, res: ServerResponse) => void {
-	const capabilityHandler = createCapabilityRouteHandler(entries, {
-		prefix: "/capabilities",
-	});
-	return (req, res) => {
-		if (capabilityHandler(req, res)) return;
-
-		const url = new URL(req.url ?? "/", "http://127.0.0.1");
-		const method = (req.method ?? "GET").toUpperCase();
-		if (method === "GET" && url.pathname === "/agent-tools") {
-			const body: AgentToolsResponse = { tools: capabilityAnthropicTools(entries) };
-			writeJson(res, 200, body);
-			return;
-		}
-
-		writeJson(res, 404, {
-			ok: false,
-			error: "not-found",
-			message: `No capability surface at ${method} ${url.pathname}.`,
-		});
-	};
+	return mountedHttpHandler(createCapabilityRegistry(entries));
 }
 
 /** Stand a `node:http` server for the capability surface. Returns the server so the
@@ -99,6 +69,7 @@ function createServeCommand(): Command {
 					process.stdout.write(
 						`refarm capability surface listening on ${url}\n` +
 							`  GET  ${url}/agent-tools            — agent tool schemas\n` +
+							`  GET  ${url}/openapi.json           — OpenAPI capability spec\n` +
 							`  POST ${url}/capabilities/<verb>    — run a capability\n`,
 					);
 				}

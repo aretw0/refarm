@@ -1,7 +1,7 @@
 import type { AddressInfo } from "node:net";
 
-import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import type { CapabilityDescriptor } from "@refarm.dev/cli/capabilities";
+import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createServeServer } from "./serve-capability.js";
@@ -74,6 +74,20 @@ describe("refarm serve — the capability HTTP surface (real socket)", () => {
 		const tool = body.tools[0];
 		expect(tool?.description).toBe("Return a pong — a read-only health check");
 		expect(tool?.input_schema.type).toBe("object"); // real derived schema
+	});
+
+	it("serves the mounted OpenAPI spec at /openapi.json", async () => {
+		const base = await listen();
+		const res = await fetch(`${base}/openapi.json`);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			openapi: string;
+			paths: Record<string, unknown>;
+		};
+		expect(body.openapi).toBe("3.1.0");
+		expect(Object.keys(body.paths)).toEqual(
+			expect.arrayContaining(["/capabilities/ping", "/capabilities/status"]),
+		);
 	});
 
 	it("404s an unknown top-level route", async () => {
