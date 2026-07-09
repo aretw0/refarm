@@ -1,10 +1,8 @@
-import {
-	createCapabilityRegistry,
-	type CapabilityDescriptor,
-} from "@refarm.dev/cli/capabilities";
 import { describe, expect, it } from "vitest";
 
+import { createCapabilityRegistry } from "./registry.js";
 import { surfaceModel } from "./surface-model.js";
+import type { CapabilityDescriptor } from "./types.js";
 
 const withWeb: CapabilityDescriptor = {
 	name: "wallet-show",

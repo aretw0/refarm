@@ -36,6 +36,17 @@ export {
 } from "./cli-projector.js";
 export { parseCapabilityArgv } from "./parse-argv.js";
 export {
+	surfaceModel,
+	projectSurface,
+	tuiSurfaceModel,
+	webSurfaceModel,
+	isSurfaceGroup,
+	type SurfaceModel,
+	type SurfaceSection,
+	type SurfaceItem,
+	type SurfaceHint,
+} from "./surface-model.js";
+export {
 	resolveGroupAction,
 	type ResolvedGroupAction,
 } from "./group-dispatch.js";

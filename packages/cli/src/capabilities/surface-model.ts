@@ -1,8 +1,5 @@
-import {
-	isCapabilityGroup,
-	type CapabilityEntry,
-	type CapabilityRegistry,
-} from "@refarm.dev/cli/capabilities";
+import { isCapabilityGroup, type CapabilityEntry } from "./types.js";
+import type { CapabilityRegistry } from "./registry.js";
 
 /**
  * The NEUTRAL surface model — the visual twin of the CLI/HTTP projectors. Where

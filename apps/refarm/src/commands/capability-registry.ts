@@ -2,6 +2,7 @@ import {
 	createCapabilityRegistry,
 	capabilityCliCommands as projectCliCommands,
 	capabilityCliCommandsForGroup as projectCliCommandsForGroup,
+	tuiSurfaceModel,
 	type CapabilityDescriptor,
 	type CapabilityEntry,
 	type CapabilityGroup,
@@ -206,31 +207,26 @@ export interface CapabilityTuiSection {
 /**
  * The TUI menu derived from the capability registry — the third surface reader,
  * beside {@link capabilitySlashNames} (REPL) and {@link capabilityCliCommands}
- * (CLI). A BLIND reader over `registry.list()` of ONLY the `renderers.tui` bucket:
- * each verb that declares `renderers.tui` is grouped under its `section`, so a
- * verb registered ONCE lights up in the TUI palette with zero tui.ts edits (and,
- * later, so does a plugin-contributed verb). Verbs with no `renderers.tui` are
- * simply absent — projecting a hint is inert data, never a run(). Sections and
- * entries are name-sorted for a stable menu.
+ * (CLI). It now DERIVES from the shared {@link tuiSurfaceModel} (the tui face of the
+ * one neutral surface model, ADR-085) rather than re-reading `renderers.tui` here —
+ * so the CLI app and the capabilities lib project the TUI from the SAME function,
+ * with no duplicated section-grouping logic. A verb registered once (including a
+ * plugin-contributed one) still lights up with zero edits; the shape maps the shared
+ * SurfaceItem down to the app's {section, entries} view.
  */
 export function capabilityTuiSections(): CapabilityTuiSection[] {
-	const bySection = new Map<string, CapabilityTuiEntry[]>();
-	for (const entry of capabilityRegistry.list()) {
-		const tui = entry.renderers?.tui;
-		if (!tui?.section) continue;
-		const list = bySection.get(tui.section) ?? [];
-		list.push({
-			name: entry.name,
-			summary: entry.summary,
-			...(tui.shortcut ? { shortcut: tui.shortcut } : {}),
-			...(tui.icon ? { icon: tui.icon } : {}),
-		});
-		bySection.set(tui.section, list);
-	}
-	return [...bySection.entries()]
-		.map(([section, entries]) => ({
-			section,
-			entries: entries.sort((a, b) => a.name.localeCompare(b.name)),
-		}))
-		.sort((a, b) => a.section.localeCompare(b.section));
+	return tuiSurfaceModel(capabilityRegistry).sections.map((section) => ({
+		section: section.section,
+		entries: section.items.map((item) => {
+			const tui = item.surfaces.tui ?? {};
+			const shortcut = tui.shortcut;
+			const icon = tui.icon;
+			return {
+				name: item.name,
+				summary: item.summary,
+				...(typeof shortcut === "string" ? { shortcut } : {}),
+				...(typeof icon === "string" ? { icon } : {}),
+			};
+		}),
+	}));
 }
