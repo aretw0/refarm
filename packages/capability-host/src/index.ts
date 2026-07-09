@@ -23,6 +23,7 @@ export {
 	createLocalVaultCommandDeps,
 	createPluginDescriptorDeps,
 	createRecordsCapabilityGroup,
+	buildPaletteModel,
 	createSourceCapabilityGroup,
 	createVaultCapabilityGroup,
 	createWasmEnrichmentProvider,

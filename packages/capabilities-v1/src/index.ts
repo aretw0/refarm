@@ -121,18 +121,22 @@ export {
 	createWasmEnrichmentProvider,
 	type WasmEnrichmentProviderOptions,
 } from "./wasm-enrichment-provider.js";
-// surfaceModel moved to @refarm.dev/cli/capabilities (the projector home, ADR-085) so the
-// CLI app and this lib project from ONE function; re-exported here for compat.
+// surfaceModel + the surface projectors moved to @refarm.dev/cli/capabilities (the
+// projector home, ADR-085) so the CLI app and this lib project from ONE function;
+// re-exported here for compat + so downstream (capability-host, examples) reach them.
 export {
 	surfaceModel,
 	projectSurface,
 	tuiSurfaceModel,
 	webSurfaceModel,
+	buildPaletteModel,
 	isSurfaceGroup,
 	type SurfaceModel,
 	type SurfaceSection,
 	type SurfaceItem,
 	type SurfaceHint,
+	type PaletteModel,
+	type PaletteEntry,
 } from "@refarm.dev/cli/capabilities";
 // The web projection lives in the Astro + homestead surface (apps/me), not a hand-rolled
 // HTML-string renderer here. surfaceModel stays as the neutral, multi-surface model the

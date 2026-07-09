@@ -86,8 +86,13 @@ export function createExtensionCapability(
 		renderers: {
 			tui: { section: "extension" },
 			web: { route: "/extension", icon: "extension" },
+			// T1 forces the open surface axis (ADR-085): `palette` is a surface added
+			// AFTER this verb was written, yet the inspector lights up in the quick-switcher
+			// from this one added hint — no edit to the verb's run(), no per-surface wiring.
+			// This IS the "declare once → new surface for free" the inspector demonstrates.
+			palette: { group: "extension", keybind: "g x", hint: "inspect the extension mechanism" },
 		},
 		note:
-			"Each surfaced verb is a first-class command on CLI/REPL/TUI/HTTP/agent — declared once, no per-surface wiring.",
+			"Each surfaced verb is a first-class command on CLI/REPL/TUI/HTTP/agent/palette — declared once, no per-surface wiring.",
 	});
 }

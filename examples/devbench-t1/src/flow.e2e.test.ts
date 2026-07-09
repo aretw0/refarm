@@ -6,6 +6,8 @@ import {
 import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
 import { describe, expect, it } from "vitest";
 
+import { buildPaletteModel } from "@refarm.dev/capability-host";
+
 import { buildDevbenchHost, buildRegistry, DGK_COMMAND } from "./cli.js";
 import { NOTES_LOOKUP_API } from "./persona.js";
 
@@ -31,6 +33,24 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		expect(names).toEqual(
 			expect.arrayContaining(["source", "records", "vault", "extension", "status", "actions"]),
 		);
+	});
+
+	it("forces the open surface axis: the inspector lights up in the palette from one added hint (ADR-085)", () => {
+		// T1 is PROCESS: it demonstrates 'declare once → new surface for free'. `palette`
+		// is a surface added to the platform AFTER this verb was written; the inspector
+		// declared `renderers.palette` and now appears in the quick-switcher — with NO
+		// edit to its run() and NO per-surface wiring. This is the daily-driver proof of
+		// the open axis, forced by a real example.
+		const palette = buildPaletteModel(buildRegistry());
+		const extensionGroup = palette.groups.find((g) => g.group === "extension");
+		expect(extensionGroup).toBeDefined();
+		const inspector = extensionGroup!.entries.find((e) => e.name === "extension");
+		expect(inspector).toMatchObject({
+			name: "extension",
+			group: "extension",
+			keybind: "g x",
+			hint: "inspect the extension mechanism",
+		});
 	});
 
 	it("declares dgk as the white-label host and exposes surface actions", () => {
