@@ -1,7 +1,13 @@
+import { DEFAULT_HOST_COMMAND_ENV_KEY } from "@refarm.dev/capability-host";
 import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { buildRegistry, buildWalletBaseModel, buildWalletHost } from "./cli.js";
+import {
+	DGK_COMMAND,
+	buildRegistry,
+	buildWalletBaseModel,
+	buildWalletHost,
+} from "./cli.js";
 
 const harness = createCapabilityTestHarness({ tempPrefix: "dgk-wallet-state-" });
 
@@ -35,10 +41,10 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		const model = buildWalletBaseModel({ statePath });
 		expect(model).toMatchObject({
 			schemaVersion: 1,
-			command: "dgk",
+			command: DGK_COMMAND,
 			operation: "base",
 			ok: true,
-			nextCommand: "dgk wallet --json",
+			nextCommand: `${DGK_COMMAND} wallet --json`,
 		});
 		expect(model.units.map((unit) => unit.id)).toEqual(["capabilities", "wallet"]);
 		expect(model.units.every((unit) => unit.owner === "examples/wallet-t2")).toBe(true);
@@ -48,27 +54,67 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 			summary: "Wallet has 3 held items; 1 item needs review.",
 		});
 		expect(model.nextCommands).toEqual([
-			"dgk wallet --json",
-			"dgk records correct record:cred-assinatura verified --apply",
+			`${DGK_COMMAND} wallet --json`,
+			`${DGK_COMMAND} records correct record:cred-assinatura verified --apply`,
 		]);
 	});
 
 	it("declares a white-label host as the extension boundary", () => {
 		const statePath = tempStatePath();
 		const host = buildWalletHost({ statePath });
-		expect(host.program().name()).toBe("dgk");
+		expect(host.program().name()).toBe(DGK_COMMAND);
 		expect(host.registry().list().map((entry) => entry.name)).toEqual(
 			expect.arrayContaining(["source", "records", "vault", "wallet", "status", "actions"]),
 		);
+		const walletEntry = host.registry().list().find((entry) => entry.name === "wallet");
+		expect(walletEntry).toBeTruthy();
+		expect(walletEntry).toMatchObject({
+			renderers: {
+				web: { route: "/wallet", icon: "wallet" },
+				tui: expect.any(Object),
+			},
+		});
 		expect(host.baseModel()).toMatchObject({
-			command: "dgk",
+			command: DGK_COMMAND,
 			operation: "base",
-			nextCommand: "dgk wallet --json",
+			nextCommand: `${DGK_COMMAND} wallet --json`,
 		});
 		expect(host.surfaceActions().map((action) => action.id)).toEqual([
 			"open-wallet",
 			"verify-draft-credential",
 		]);
+	});
+
+	it("supports overriding the host command for white-label use", () => {
+		const command = "wallet-white-label";
+		const host = buildWalletHost({ statePath: tempStatePath(), command });
+		expect(host.program().name()).toBe(command);
+		expect(host.baseModel()).toMatchObject({
+			command,
+			operation: "base",
+			nextCommand: `${command} wallet --json`,
+		});
+	});
+
+	it("supports overriding host command via explicit environment for white-label use", () => {
+		const statePath = tempStatePath();
+		const command = "wallet-white-label-env";
+		const host = buildWalletHost({
+			statePath,
+			commandEnv: { [DEFAULT_HOST_COMMAND_ENV_KEY]: command },
+		});
+		expect(host.program().name()).toBe(command);
+		expect(buildWalletBaseModel({
+			statePath,
+			commandEnv: { [DEFAULT_HOST_COMMAND_ENV_KEY]: command },
+		})).toMatchObject({
+			command,
+			nextCommand: `${command} wallet --json`,
+		});
+		expect(host.baseModel()).toMatchObject({
+			command,
+			nextCommand: `${command} wallet --json`,
+		});
 	});
 
 	it("shows the citizen's held items as a product view", async () => {
@@ -93,8 +139,8 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 			"--apply",
 		]);
 		expect(corrected.persisted).toBe(true);
-		expect(corrected.nextCommand).toBe("dgk records list");
-		expect(corrected.nextCommands).toEqual(["dgk records list"]);
+		expect(corrected.nextCommand).toBe(`${DGK_COMMAND} records list`);
+		expect(corrected.nextCommands).toEqual([`${DGK_COMMAND} records list`]);
 
 		// Now all three items are verified — the wallet's verified group holds all.
 		const env = await harness.runVerb(reg, "wallet");
@@ -110,8 +156,8 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 			"--apply",
 		]);
 		expect(corrected.persisted).toBe(true);
-		expect(corrected.nextCommand).toBe("dgk records list");
-		expect(corrected.nextCommands).toEqual(["dgk records list"]);
+		expect(corrected.nextCommand).toBe(`${DGK_COMMAND} records list`);
+		expect(corrected.nextCommands).toEqual([`${DGK_COMMAND} records list`]);
 
 		const env = await harness.runVerb(buildRegistry({ statePath }), "wallet");
 		expect((env.byState as Record<string, number>).verified).toBe(3);
@@ -121,6 +167,6 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 			severity: "info",
 			summary: "Wallet has 3 held items.",
 		});
-		expect(model.nextCommands).toEqual(["dgk wallet --json"]);
+		expect(model.nextCommands).toEqual([`${DGK_COMMAND} wallet --json`]);
 	});
 });

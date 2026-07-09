@@ -4,6 +4,7 @@ A per-work POC app: its own CLI (`dgk`), extending the
 multi-surface substrate for **one persona** — a sovereign citizen. Presented in
 **result mode**: the citizen sees their own data as a product (their wallet), not the
 machine. Local-first — the citizen's data lives with them.
+Set `DGK_COMMAND` when you want a different binary name for white-label use.
 
 ## What it demonstrates
 
@@ -35,6 +36,8 @@ correction made in one process is visible to the next command. That state is wir
 through `@refarm.dev/capability-host/node`, not app-local file IO. Set
 `DGK_WALLET_STATE_PATH=/path/to/manifest.json` to record an isolated run, or delete
 `.dgk/` to reset the demo state.
+Set `DGK_COMMAND=/path/to/cli-name` to change the CLI command root (for example
+`DGK_COMMAND=wallet-acme`).
 
 `wallet` renders the citizen's held items grouped by verification status — the
 product view. It reads the neutral `records analyze` envelope; the citizen never sees

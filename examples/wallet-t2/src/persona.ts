@@ -61,6 +61,10 @@ export function createWalletCapability(
 		name: "wallet",
 		summary: "Show my digital wallet — the items I hold (sovereign, local-first)",
 		records: recordsDeps,
+		renderers: {
+			tui: { section: "wallet" },
+			web: { route: "/wallet", icon: "wallet" },
+		},
 		project: (analyzed) => ({
 			total: analyzed.summary.total,
 			wallet: renderWallet(analyzed),

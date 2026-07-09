@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import {
+	createHostCommandResolver,
 	defineCapabilityApp,
 	defineCapabilityHost,
+	HostCommandOptions,
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
 import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
@@ -13,23 +15,28 @@ import {
 } from "./persona.js";
 
 export const DGK_WALLET_STATE_PATH_ENV = "DGK_WALLET_STATE_PATH";
+export const DGK_COMMAND = "dgk";
 
 const walletAppDefaults = createLocalRecordsAppDefaults({
-	appId: "dgk",
+	appId: DGK_COMMAND,
 	envKey: DGK_WALLET_STATE_PATH_ENV,
 	fileName: "wallet.manifest.json",
 });
 export const defaultWalletStatePath = walletAppDefaults.statePath;
+export interface WalletHostOptions extends WalletStateOptions, HostCommandOptions {}
+
+const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND });
 
 /**
  * `dgk` - the T2 POC CLI (result mode). The sovereign citizen's digital wallet:
  * neutral blocks underneath, one persona verb (`wallet`) on top. The
  * citizen sees their held items, not the machine.
  */
-export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHost {
+export function buildWalletHost(options: WalletHostOptions = {}): CapabilityHost {
+	const command = resolveCommand(options);
 	return defineCapabilityHost({
 		id: "examples/wallet-t2",
-		command: "dgk",
+		command,
 		description: "Digital Gardening Kit - sovereign wallet",
 		version: "0.0.0",
 		capabilities: () => {
@@ -69,14 +76,14 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 		},
 		serve: {
 			defaultPort: 4322,
-			description: "Serve the wallet's verbs over HTTP (their transports.http routes)",
+			description: `Serve ${command} wallet verbs over HTTP (their transports.http routes)`,
 			openApiPath: "/docs/openapi.json",
-			openApiTitle: "DGK Wallet API",
+			openApiTitle: `${command} Wallet API`,
 		},
 	});
 }
 
-const walletApp = defineCapabilityApp<WalletStateOptions>({
+const walletApp = defineCapabilityApp<WalletHostOptions>({
 	host: buildWalletHost,
 	defaultOptions: walletAppDefaults.defaultOptions,
 });
