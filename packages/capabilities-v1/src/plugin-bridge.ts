@@ -245,6 +245,11 @@ export interface PluginInspectorCapabilityOptions {
 	note?: string;
 	transports?: CapabilityDescriptor["transports"];
 	renderers?: CapabilityDescriptor["renderers"];
+	/** The other loaded manifests, so the inspector can resolve this plugin's
+	 * `requiresApi` against their `providesApi` — surfacing the plugin-to-plugin
+	 * recursion (which extension provides the API this one consumes). Omit when the
+	 * inspector only reports the single manifest. */
+	peers?: readonly SurfaceableManifest[];
 }
 
 export function definePluginInspectorCapability(
@@ -279,6 +284,12 @@ export function definePluginInspectorCapability(
 					// "extension using another extension" recursion visible on the surface.
 					providesApi: options.manifest.capabilities?.providesApi ?? [],
 					requiresApi: options.manifest.capabilities?.requiresApi ?? [],
+					// The resolved recursion: for each requiresApi, which loaded peer
+					// provides it (or null when unmet). Only present when peers are given.
+					apiLinks: resolveApiLinks([
+						options.manifest,
+						...(options.peers ?? []),
+					]),
 					...(options.note ? { note: options.note } : {}),
 				},
 			});

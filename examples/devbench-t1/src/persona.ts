@@ -71,6 +71,7 @@ export function devCapabilityDeps(): CapabilityDeps {
 export function createExtensionCapability(
 	manifest: SurfaceableManifest,
 	pluginDeps: PluginDescriptorDeps,
+	peers: readonly SurfaceableManifest[] = [],
 ): CapabilityDescriptor {
 	return definePluginInspectorCapability({
 		name: "extension",
@@ -78,6 +79,10 @@ export function createExtensionCapability(
 		manifest,
 		deps: pluginDeps,
 		httpPath: "/ext/inspect",
+		// The other loaded extensions, so the inspector can resolve this plugin's
+		// requiresApi against their providesApi — surfacing the recursion (the
+		// coding-agent consuming the notes-indexer's NotesLookup API).
+		peers,
 		renderers: {
 			tui: { section: "extension" },
 			web: { route: "/extension", icon: "extension" },

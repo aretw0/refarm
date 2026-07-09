@@ -148,19 +148,28 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 	it("makes the plugin-to-plugin recursion visible: the coding-agent requires an API the notes-indexer provides", async () => {
 		// The T1 point: the coding-agent is itself a plugin, and it consumes another
 		// plugin (the notes-indexer) through the host — extensions extending extensions.
-		// The inspector surfaces both halves of that SPI pair.
+		// The inspector surfaces both halves of that SPI pair AND resolves the link.
 		const reg = buildRegistry();
 		const env = await harness.runVerb<{
 			ok: boolean;
 			pluginId: string;
 			providesApi: string[];
 			requiresApi: string[];
+			apiLinks: Array<{ api: string; requiredBy: string; providedBy: string | null }>;
 		}>(reg, "extension");
 		expect(env.ok).toBe(true);
 		expect(env.pluginId).toBe("@devbench/coding-agent");
 		// The coding-agent consumes the notes-indexer's API — the required half.
 		expect(env.requiresApi).toEqual([NOTES_LOOKUP_API]);
 		expect(env.providesApi).toEqual([]);
+		// The resolved recursion: the requirement is met by the loaded notes-indexer.
+		expect(env.apiLinks).toEqual([
+			{
+				api: NOTES_LOOKUP_API,
+				requiredBy: "@devbench/coding-agent",
+				providedBy: "@devbench/notes-indexer",
+			},
+		]);
 	});
 
 	it("surfaces extension and plugin verbs on web endpoints", async () => {

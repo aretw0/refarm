@@ -45,6 +45,7 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 	});
 	const manifests = [...(options.manifests ?? DEVBENCH_DEFAULT_MANIFESTS)] as SurfaceableManifest[];
 	const extensionManifest = manifests[0] ?? DEVBENCH_DEFAULT_MANIFESTS[0]!;
+	const peerManifests = manifests.slice(1);
 	return defineCapabilityHost({
 		id: "examples/devbench-t1",
 		command,
@@ -56,7 +57,9 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 			// via the bridge (e.g. agent:code/agent:review by default).
 			manifests,
 			pluginDeps,
-			extensions: [createExtensionCapability(extensionManifest, pluginDeps)],
+			// Peers are passed so the inspector resolves the coding-agent's requiresApi
+			// against the notes-indexer's providesApi — the recursion, made visible.
+			extensions: [createExtensionCapability(extensionManifest, pluginDeps, peerManifests)],
 		},
 		operatorStatus: {
 			summary: "Show extension bench operator status",
