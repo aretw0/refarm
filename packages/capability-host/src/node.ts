@@ -21,6 +21,13 @@ import {
 } from "@refarm.dev/sidecar-client";
 
 export {
+	defaultTractorBinaryPath,
+	startRuntimeDaemon,
+	type RuntimeDaemonHandle,
+	type RuntimeDaemonOptions,
+} from "./runtime-daemon.js";
+
+export {
 	createLocalRecordsCommandDeps,
 	createLocalRecordsStatePathResolver,
 	localRecordsStatePath,
