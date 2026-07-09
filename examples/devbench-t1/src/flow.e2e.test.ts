@@ -14,8 +14,8 @@ const harness = createCapabilityTestHarness();
 describe("devbench T1 — the developer's extension bench (process mode)", () => {
 	it("the coding-agent's verbs surface into the CLI from its manifest (no app run())", () => {
 		const names = buildRegistry().list().map((e: CapabilityEntry) => e.name);
-		// agent:code / agent:review → `code` / `review`, surfaced by the bridge.
-		expect(names).toEqual(expect.arrayContaining(["code", "review"]));
+		// agent:code / agent:review -> `agent-code` / `agent-review`, surfaced by the bridge.
+		expect(names).toEqual(expect.arrayContaining(["agent-code", "agent-review"]));
 		// The neutral blocks are there too — the extension coexists with them.
 		expect(names).toEqual(
 			expect.arrayContaining(["source", "records", "vault", "extension", "status", "actions"]),
@@ -44,15 +44,19 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		expect(env.ok).toBe(true);
 		expect(env.declared).toEqual(["agent:code", "agent:review"]);
 		const surfaced = (env.surfaced as Array<{ verb: string }>).map((s) => s.verb).sort();
-		expect(surfaced).toEqual(["code", "review"]);
+		expect(surfaced).toEqual(["agent-code", "agent-review"]);
 	});
 
 	it("a surfaced agent verb dispatches across the bridge (two-phase receipt)", async () => {
-		const env = await harness.runVerb<{ ok: boolean; verb: string; effortId: string; replyRef: string }>(buildRegistry(), "code", {
-			args: { args: ['prompt="add a test"'] },
-			options: {},
-			json: true,
-		});
+		const env = await harness.runVerb<{ ok: boolean; verb: string; effortId: string; replyRef: string }>(
+			buildRegistry(),
+			"agent-code",
+			{
+				args: { args: ['prompt="add a test"'] },
+				options: {},
+				json: true,
+			},
+		);
 		expect(env.ok).toBe(true);
 		expect(env.verb).toBe("code");
 		expect(env.replyRef).toBe(env.effortId);
