@@ -7,6 +7,7 @@ import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing
 import { describe, expect, it } from "vitest";
 
 import { buildDevbenchHost, buildRegistry, DGK_COMMAND } from "./cli.js";
+import { NOTES_LOOKUP_API } from "./persona.js";
 
 const harness = createCapabilityTestHarness();
 
@@ -142,6 +143,24 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		expect(env.pluginId).toBe(customManifest.id);
 		expect(env.declared).toEqual(["paper:scan"]);
 		expect(env.surfaced).toEqual([{ verb: "paper-scan", summary: expect.any(String) }]);
+	});
+
+	it("makes the plugin-to-plugin recursion visible: the coding-agent requires an API the notes-indexer provides", async () => {
+		// The T1 point: the coding-agent is itself a plugin, and it consumes another
+		// plugin (the notes-indexer) through the host — extensions extending extensions.
+		// The inspector surfaces both halves of that SPI pair.
+		const reg = buildRegistry();
+		const env = await harness.runVerb<{
+			ok: boolean;
+			pluginId: string;
+			providesApi: string[];
+			requiresApi: string[];
+		}>(reg, "extension");
+		expect(env.ok).toBe(true);
+		expect(env.pluginId).toBe("@devbench/coding-agent");
+		// The coding-agent consumes the notes-indexer's API — the required half.
+		expect(env.requiresApi).toEqual([NOTES_LOOKUP_API]);
+		expect(env.providesApi).toEqual([]);
 	});
 
 	it("surfaces extension and plugin verbs on web endpoints", async () => {

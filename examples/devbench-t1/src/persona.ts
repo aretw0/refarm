@@ -15,15 +15,25 @@ import {
  * visible. The focus is technical and general: "declare once → it appears everywhere".
  */
 
+/** The API the notes-indexer offers to OTHER plugins (the SPI axis). A plugin that
+ * declares `requiresApi: [NOTES_LOOKUP_API]` resolves this provider via the host's
+ * `get-plugin-api` and calls it via `call-plugin` — one extension using another. */
+export const NOTES_LOOKUP_API = "NotesLookup";
+
 /** The extension under development — a coding-agent plugin. Its manifest declares
  * dispatchable verbs; the bridge surfaces each onto every surface with a host-built
  * dispatch run() the developer never writes. This is the same shape a real installed
- * plugin.json carries. */
+ * plugin.json carries.
+ *
+ * It also `requiresApi: [NOTES_LOOKUP_API]` — the coding-agent is ITSELF a plugin, and
+ * it consumes another plugin (the notes-indexer) through the host. This is the T1 point:
+ * extensions extend extensions, host-mediated, no import and no privilege. */
 export const CODING_AGENT_MANIFEST: SurfaceableManifest = {
 	id: "@devbench/coding-agent",
 	capabilities: {
 		provides: ["agent:code", "agent:review"],
 		subscribes: ["agent:dispatch"],
+		requiresApi: [NOTES_LOOKUP_API],
 	},
 };
 
@@ -33,12 +43,15 @@ export const CODING_AGENT_MANIFEST: SurfaceableManifest = {
  * It intentionally targets a different plugin namespace (`notes`) so people can see how
  * `vault:search` and `web:search` would remain distinct when a power user installs
  * multiple plugins with overlapping verbs.
- */
+ *
+ * It `providesApi: [NOTES_LOOKUP_API]`, so the coding-agent above can consume it — the
+ * provider half of the plugin-to-plugin recursion. */
 export const NOTES_INDEXER_MANIFEST: SurfaceableManifest = {
 	id: "@devbench/notes-indexer",
 	capabilities: {
 		provides: ["notes:search", "notes:index"],
 		subscribes: ["notes:dispatch"],
+		providesApi: [NOTES_LOOKUP_API],
 	},
 };
 

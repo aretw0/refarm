@@ -132,12 +132,20 @@ function parseProvidedVerb(
 }
 
 /** The minimal manifest shape the bridge needs — the id + the routing lists.
- * Structurally satisfied by a full PluginManifest, so a caller passes one directly. */
+ * Structurally satisfied by a full PluginManifest, so a caller passes one directly.
+ *
+ * `providesApi`/`requiresApi` are the plugin-to-plugin (SPI) axis: a plugin that
+ * declares `requiresApi: ["FooApi"]` resolves a provider via the host's
+ * `get-plugin-api` and calls it via `call-plugin` — one extension using another,
+ * host-mediated, no import. They are orthogonal to `provides`/`subscribes` (the
+ * host-verb axis) and mirror the full PluginManifest's `capabilities` fields. */
 export interface SurfaceableManifest {
 	id: string;
 	capabilities?: {
 		provides?: string[];
 		subscribes?: string[];
+		providesApi?: string[];
+		requiresApi?: string[];
 	};
 }
 
@@ -220,6 +228,11 @@ export function definePluginInspectorCapability(
 						verb: descriptor.name,
 						summary: descriptor.summary,
 					})),
+					// The plugin-to-plugin (SPI) axis: which APIs this extension offers to
+					// other plugins, and which it consumes from them. This is what makes the
+					// "extension using another extension" recursion visible on the surface.
+					providesApi: options.manifest.capabilities?.providesApi ?? [],
+					requiresApi: options.manifest.capabilities?.requiresApi ?? [],
 					...(options.note ? { note: options.note } : {}),
 				},
 			});
