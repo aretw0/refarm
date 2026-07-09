@@ -68,11 +68,12 @@ async function createStatusRuntimeSummary(
 			return "unknown";
 		}
 	})();
-	const ready = (await probeRuntimeLiveness()).ready;
+	const probe = await probeRuntimeLiveness();
 	return {
-		ready,
+		ready: probe.ready,
 		namespace,
 		databaseName: namespace,
+		...(probe.error ? { error: probe.error } : {}),
 		engine: {
 			configuredEngine,
 			activeEngine,

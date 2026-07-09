@@ -31,7 +31,9 @@ function makeStatus(diagnostics: string[]): StatusJson {
 			capabilities: ["diagnostics"],
 		},
 		runtime: {
-			ready: !diagnostics.includes("runtime:not-ready"),
+			ready:
+				!diagnostics.includes("runtime:not-ready") &&
+				!diagnostics.includes("runtime:sidecar-access-blocked"),
 			namespace: "refarm-main",
 			databaseName: "refarm-main",
 			engine: {
@@ -145,6 +147,26 @@ describe("buildRefarmDoctorRecommendations", () => {
 				severity: "info",
 				summary: "The selected renderer does not support rich HTML.",
 				action: "Use a renderer with rich HTML support when plugin surfaces require it.",
+			},
+		]);
+	});
+
+	it("does not recommend runtime ensure when local sidecar access is blocked", () => {
+		expect(
+			buildRefarmDoctorRecommendations({
+				failures: ["runtime:sidecar-access-blocked"],
+				warnings: [],
+				informational: [],
+			}),
+		).toEqual([
+			{
+				diagnostic: "runtime:sidecar-access-blocked",
+				severity: "failure",
+				summary:
+					"The runtime sidecar could not be reached from this execution surface.",
+				action:
+					"Run the runtime status probe from a direct shell or approved command surface with local sidecar network access.",
+				command: "refarm runtime status --json",
 			},
 		]);
 	});

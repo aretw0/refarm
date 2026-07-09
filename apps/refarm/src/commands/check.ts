@@ -2,6 +2,7 @@ import type { RustSubstrateCheck } from "@refarm.dev/cli/rust-substrate";
 import { Command } from "commander";
 
 import { printJson } from "@refarm.dev/cli/json-output";
+import { STATUS_DIAGNOSTICS } from "@refarm.dev/cli/status";
 import { runDefaultNodeSubstrate } from "./check-node-substrate.js";
 import type {
 	EnvironmentPressureCheck,
@@ -151,8 +152,13 @@ function isBlockingRecommendation(
 	);
 }
 
-function isRuntimeNotReadyDoctorReport(report: RefarmDoctorReport): boolean {
-	return report.failures.includes("runtime:not-ready");
+function isRuntimePreflightFailureDoctorReport(
+	report: RefarmDoctorReport,
+): boolean {
+	return (
+		report.failures.includes(STATUS_DIAGNOSTICS.runtimeNotReady) ||
+		report.failures.includes(STATUS_DIAGNOSTICS.runtimeSidecarAccessBlocked)
+	);
 }
 
 export function createCheckCommand(
@@ -208,7 +214,7 @@ Notes:
 				preflightDoctor = await deps.runDoctor({
 					failOnWarnings: options.failOnWarnings,
 				});
-				if (isRuntimeNotReadyDoctorReport(preflightDoctor)) {
+				if (isRuntimePreflightFailureDoctorReport(preflightDoctor)) {
 					const recommendations = preflightDoctor.recommendations.filter(
 						isBlockingRecommendation,
 					);

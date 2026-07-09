@@ -2,6 +2,7 @@ export interface RuntimeSummary {
   ready: boolean;
   databaseName: string;
   namespace: string;
+  error?: string;
 }
 
 export type RuntimeEngineMode = "auto" | "rust" | "ts";

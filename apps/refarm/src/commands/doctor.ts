@@ -21,6 +21,7 @@ import {
 import {
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_NOT_READY_RECOVERY_ACTION,
+	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
@@ -133,6 +134,16 @@ function createRefarmDoctorRecommendation(
 				summary: "The runtime reported that it is not ready.",
 				action: RUNTIME_NOT_READY_RECOVERY_ACTION,
 				command: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+			};
+		case STATUS_DIAGNOSTICS.runtimeSidecarAccessBlocked:
+			return {
+				diagnostic,
+				severity,
+				summary:
+					"The runtime sidecar could not be reached from this execution surface.",
+				action:
+					"Run the runtime status probe from a direct shell or approved command surface with local sidecar network access.",
+				command: `${RUNTIME_STATUS_COMMAND} --json`,
 			};
 		case STATUS_DIAGNOSTICS.trustCriticalPresent:
 			return {

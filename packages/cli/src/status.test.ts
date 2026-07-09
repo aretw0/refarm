@@ -52,6 +52,7 @@ describe("buildStatusJson", () => {
 	it("publishes stable status diagnostic code groups", () => {
 		expect(STATUS_FAILURE_DIAGNOSTICS).toEqual([
 			STATUS_DIAGNOSTICS.runtimeNotReady,
+			STATUS_DIAGNOSTICS.runtimeSidecarAccessBlocked,
 			STATUS_DIAGNOSTICS.trustCriticalPresent,
 		]);
 		expect(STATUS_WARNING_DIAGNOSTICS).toContain(
@@ -189,6 +190,22 @@ describe("buildStatusJson", () => {
 		expect(diagnostics).toContain("renderer:non-interactive");
 		expect(diagnostics).toContain("renderer:no-rich-html");
 		expect(diagnostics).toContain("runtime:not-ready");
+	});
+
+	it("classifies sidecar permission failures separately from runtime readiness", () => {
+		const diagnostics = buildStatusJson({
+			...BASE_OPTIONS,
+			runtime: {
+				ready: false,
+				databaseName: "refarm-main",
+				namespace: "refarm-main",
+				error:
+					"fetch failed: connect EPERM 127.0.0.1:42001 - Local (undefined:undefined)",
+			},
+		}).diagnostics;
+
+		expect(diagnostics).toContain("runtime:sidecar-access-blocked");
+		expect(diagnostics).not.toContain("runtime:not-ready");
 	});
 
 	it("adds an informational diagnostic when surface actions are available", () => {
@@ -330,6 +347,29 @@ describe("status contract validation", () => {
 				runtime: {
 					...json.runtime,
 					engine: { configuredEngine: "python" },
+				},
+			}),
+		).toBe(false);
+	});
+
+	it("validates optional runtime error details", () => {
+		const json = buildStatusJson({
+			...BASE_OPTIONS,
+			runtime: {
+				ready: false,
+				databaseName: "refarm-main",
+				namespace: "refarm-main",
+				error: "fetch failed: connect EPERM 127.0.0.1:42001",
+			},
+		});
+
+		expect(isStatusJson(json)).toBe(true);
+		expect(
+			isStatusJson({
+				...json,
+				runtime: {
+					...json.runtime,
+					error: 403,
 				},
 			}),
 		).toBe(false);

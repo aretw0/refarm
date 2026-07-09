@@ -259,6 +259,7 @@ describe("statusCommand", () => {
 			expect.objectContaining({
 				runtime: expect.objectContaining({
 					ready: false,
+					error: "timeout",
 				}),
 			}),
 		);

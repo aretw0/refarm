@@ -1254,6 +1254,59 @@ describe("checkCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("short-circuits next-action JSON when sidecar access is blocked", async () => {
+		const deps = makeDeps({
+			doctor: {
+				ok: false,
+				failureCount: 1,
+				failures: ["runtime:sidecar-access-blocked"],
+				recommendations: [
+					{
+						diagnostic: "runtime:sidecar-access-blocked",
+						severity: "failure",
+						summary: "Runtime sidecar access is blocked.",
+						action: "Probe runtime status from a direct shell.",
+						command: "refarm runtime status --json",
+					},
+				],
+				nextAction: "Probe runtime status from a direct shell.",
+				nextActions: ["Probe runtime status from a direct shell."],
+				nextCommand: "refarm runtime status --json",
+				nextCommands: ["refarm runtime status --json"],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+			from: "user",
+		});
+
+		expect(deps.runDoctor).toHaveBeenCalledOnce();
+		expect(deps.runHealth).not.toHaveBeenCalled();
+		expect(deps.runNodeSubstrate).not.toHaveBeenCalled();
+		expect(deps.runRustSubstrate).not.toHaveBeenCalled();
+		expect(deps.runEnvironmentPressure).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction: "Probe runtime status from a direct shell.",
+			nextActions: ["Probe runtime status from a direct shell."],
+			nextCommand: "refarm runtime status --json",
+			nextCommands: ["refarm runtime status --json"],
+			recommendations: [
+				{
+					diagnostic: "runtime:sidecar-access-blocked",
+					severity: "failure",
+					summary: "Runtime sidecar access is blocked.",
+					action: "Probe runtime status from a direct shell.",
+					command: "refarm runtime status --json",
+				},
+			],
+		});
+		expect(process.exitCode).toBe(1);
+
+		logSpy.mockRestore();
+	});
+
 	it("prints only the first blocking recovery action with --next-action", async () => {
 		const deps = makeDeps({
 			health: {

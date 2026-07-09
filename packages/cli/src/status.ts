@@ -71,6 +71,7 @@ export interface StatusSchemaVersionIssue {
 
 export const STATUS_DIAGNOSTICS = {
 	runtimeNotReady: "runtime:not-ready",
+	runtimeSidecarAccessBlocked: "runtime:sidecar-access-blocked",
 	trustCriticalPresent: "trust:critical-present",
 	trustWarningsPresent: "trust:warnings-present",
 	pluginsRejectedSurfacesPresent: "plugins:rejected-surfaces-present",
@@ -85,6 +86,7 @@ export type StatusDiagnosticCode =
 
 export const STATUS_FAILURE_DIAGNOSTICS = [
 	STATUS_DIAGNOSTICS.runtimeNotReady,
+	STATUS_DIAGNOSTICS.runtimeSidecarAccessBlocked,
 	STATUS_DIAGNOSTICS.trustCriticalPresent,
 ] as const;
 
@@ -178,6 +180,8 @@ export function isStatusJson(value: unknown): value is StatusJson {
 		typeof runtime.namespace !== "string" ||
 		typeof runtime.databaseName !== "string"
 	)
+		return false;
+	if (typeof runtime.error !== "undefined" && typeof runtime.error !== "string")
 		return false;
 	if (
 		typeof runtime.engine !== "undefined" &&
@@ -609,7 +613,11 @@ function buildStatusDiagnostics(input: {
 		diagnostics.push(STATUS_DIAGNOSTICS.rendererNoRichHtml);
 	}
 	if (!runtime.ready) {
-		diagnostics.push(STATUS_DIAGNOSTICS.runtimeNotReady);
+		diagnostics.push(
+			isRuntimeSidecarAccessBlocked(runtime)
+				? STATUS_DIAGNOSTICS.runtimeSidecarAccessBlocked
+				: STATUS_DIAGNOSTICS.runtimeNotReady,
+		);
 	}
 	if (trust.warnings > 0) {
 		diagnostics.push(STATUS_DIAGNOSTICS.trustWarningsPresent);
@@ -627,4 +635,12 @@ function buildStatusDiagnostics(input: {
 		diagnostics.push(STATUS_DIAGNOSTICS.streamsActivePresent);
 	}
 	return diagnostics;
+}
+
+function isRuntimeSidecarAccessBlocked(runtime: RuntimeSummary): boolean {
+	const error = runtime.error?.toLowerCase();
+	return Boolean(
+		error &&
+			(error.includes("eperm") || error.includes("permission denied")),
+	);
 }
