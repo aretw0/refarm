@@ -1,18 +1,18 @@
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PluginHost } from "../src/index.browser";
-
-type RefarmGlobals = typeof globalThis & {
-	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__?: string;
-	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__?: string;
-	__REFARM_ENVIRONMENT__?: string;
-};
 import {
 	cachePlugin,
 	cachePluginRuntimeModule,
 	evictPlugin,
 } from "../src/lib/opfs-plugin-cache";
 import { clearRuntimeDescriptorRevocationListCache } from "../src/lib/runtime-descriptor-revocation";
+
+type RefarmGlobals = typeof globalThis & {
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__?: string;
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__?: string;
+	__REFARM_ENVIRONMENT__?: string;
+};
 
 async function computeIntegrity(bytes: ArrayBuffer): Promise<string> {
 	const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -73,6 +73,40 @@ afterEach(async () => {
 });
 
 describe("browser PluginHost runtime paths", () => {
+	it("dispatches events declared in capabilities.subscribes", () => {
+		const host = new PluginHost(vi.fn(), {});
+		const call = vi.fn().mockResolvedValue(null);
+		const manifest = createMockManifest({
+			id: "@local/wallet",
+			capabilities: {
+				provides: ["wallet:open"],
+				requires: [],
+				subscribes: ["wallet:dispatch"],
+			},
+		});
+
+		host.registerInternal({
+			id: "@local/wallet",
+			name: "Wallet",
+			manifest,
+			state: "running",
+			call,
+			terminate: vi.fn(),
+			emitTelemetry: vi.fn(),
+		});
+
+		host.dispatch({
+			event: "wallet:dispatch",
+			pluginId: "wallet",
+			payload: { verb: "open" },
+		});
+
+		expect(call).toHaveBeenCalledWith("on-event", [
+			"wallet:dispatch",
+			JSON.stringify({ verb: "open" }),
+		]);
+	});
+
 	it("loads a .js plugin module and exposes calls", async () => {
 		const emit = vi.fn();
 		const host = new PluginHost(emit, {});

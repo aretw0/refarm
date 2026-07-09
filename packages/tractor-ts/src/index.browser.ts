@@ -20,6 +20,7 @@ import {
 } from "@refarm.dev/plugin-manifest";
 import { Registry } from "@refarm.dev/registry";
 import { CommandHost } from "./lib/command-host.js";
+import { manifestReceivesEvent } from "./lib/event-routing.js";
 import type { NormalisedNode } from "./lib/graph-normalizer.js";
 import type { PluginInstance, PluginState } from "./lib/instance-handle.js";
 import {
@@ -133,12 +134,9 @@ function resolveRuntimeRevocationUnavailablePolicy(): ResolveRuntimeDescriptorRe
 export class PluginHost {
 	private readonly instances = new Map<string, PluginInstance>();
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	constructor(
 		private readonly emit: (data: TelemetryEvent) => void,
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		_registry: unknown,
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		_logger?: TractorLogger,
 	) {}
 
@@ -620,7 +618,7 @@ export class PluginHost {
 
 	dispatch(_event: TelemetryEvent): void {
 		for (const instance of this.instances.values()) {
-			if (_event.event.startsWith("system:")) {
+			if (manifestReceivesEvent(instance.manifest, _event)) {
 				instance.call("on-event", [
 					_event.event,
 					JSON.stringify(_event.payload),

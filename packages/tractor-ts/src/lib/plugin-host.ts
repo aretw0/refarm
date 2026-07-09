@@ -6,6 +6,7 @@ import {
 	type PluginManifest,
 } from "@refarm.dev/plugin-manifest";
 import { Registry } from "@refarm.dev/registry";
+import { manifestReceivesEvent } from "./event-routing.js";
 import { NormalisedNode } from "./graph-normalizer.js";
 import type { PluginInstance, PluginState } from "./instance-handle.js";
 import { PluginInstanceHandle } from "./instance-handle.js";
@@ -310,8 +311,7 @@ export class PluginHost {
 
   dispatch(event: TelemetryEvent) {
     for (const instance of this._instances.values()) {
-      const subscribed = instance.manifest.capabilities.subscribes?.includes(event.event) ?? false;
-      if (event.event.startsWith("system:") || subscribed) {
+      if (manifestReceivesEvent(instance.manifest, event)) {
         instance.call("on-event", [event.event, JSON.stringify(event.payload)]);
       }
     }
