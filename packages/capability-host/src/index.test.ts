@@ -26,9 +26,7 @@ import {
 	mountedHttpHandler,
 	parseDispatchArgs,
 	pluginSurfaceName,
-	renderWebUi,
 	resolveHostCommand,
-	serveWebUi,
 	surfaceablePluginVerbsFrom,
 	type CapabilityHost,
 	type CapabilityHostDefinition,
@@ -415,11 +413,6 @@ describe("@refarm.dev/capability-host public API", () => {
 			submitEffort: async (effort) => effort.id,
 		})).name).toBe("vault");
 		expect(defaultRecordsDeps()).toHaveProperty("loadManifest");
-	});
-
-	it("re-exports web surface helpers from the host boundary", () => {
-		expect(typeof renderWebUi).toBe("function");
-		expect(typeof serveWebUi).toBe("function");
 	});
 
 	it("re-exports plugin bridge helpers from the host boundary", () => {

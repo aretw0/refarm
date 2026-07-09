@@ -30,7 +30,6 @@ export {
 	defaultRecordsDeps,
 	defaultSourceDeps,
 	defaultVaultDeps,
-	renderWebUi,
 	definePluginInspectorCapability,
 	defineRecordsViewCapability,
 	defineCapabilityHost,
@@ -41,7 +40,6 @@ export {
 	pluginSurfaceName,
 	registerPluginCapabilities,
 	runCapabilityHostCli,
-	serveWebUi,
 	surfaceablePluginVerbsFrom,
 	type CapabilityHost,
 	type CapabilityHostCapabilities,
@@ -88,7 +86,6 @@ export {
 	type VaultProviderSummary,
 	type WasmEnrichmentProviderOptions,
 	type WasmSourceProviderOptions,
-	type WebUiOptions,
 } from "@refarm.dev/capabilities-v1";
 
 export interface HostCommandOptions {

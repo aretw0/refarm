@@ -128,16 +128,14 @@ export {
 	type SurfaceSection,
 	type SurfaceItem,
 } from "./surface-model.js";
-export {
-	renderWebUi,
-	serveWebUi,
-	type WebUiOptions,
-	type SendPrompt,
-} from "./web-ui.js";
+// The web projection lives in the Astro + homestead surface (apps/me), not a hand-rolled
+// HTML-string renderer here. surfaceModel stays as the neutral, multi-surface model the
+// CLI/TUI/status project from; the web consumes it through homestead.
 export {
 	runTui,
 	renderTuiMenu,
 	handleTuiLine,
+	type SendPrompt,
 	type TuiOptions,
 	type TuiLineResult,
 } from "./tui.js";

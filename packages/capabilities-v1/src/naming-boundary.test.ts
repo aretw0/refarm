@@ -19,8 +19,4 @@ describe("capabilities-v1 naming boundary", () => {
 		expect(source).not.toMatch(/\bRefarmCapabilityDeps\b/u);
 		expect(source).not.toMatch(/\brefarmBuiltinCapabilities\b/u);
 	});
-
-	it("keeps the default web surface title product-neutral", () => {
-		expect(readSource("web-ui.ts")).not.toContain("Refarm surface");
-	});
 });

@@ -8,15 +8,20 @@ import { parseChatLine } from "@refarm.dev/cli/chat-repl";
 import readline from "node:readline";
 
 import { surfaceModel } from "./surface-model.js";
-import type { SendPrompt } from "./web-ui.js";
+
+/** How a surface's REPL reaches the agent for a free-text message. Injected: a host wires
+ * its runtime (the sidecar prompt sink); absent → the REPL reports the agent is not
+ * connected, so the verb/command half still works without a daemon. Neutral across
+ * surfaces — the TUI here; the web consumes the same surfaceModel through homestead. */
+export type SendPrompt = (text: string) => Promise<string>;
 
 /**
- * The live TUI — the terminal twin of serveWebUi, sharing the SAME base with the web so
- * the two surfaces are coherent, not two disjoint UIs. It prints the neutral
- * {@link surfaceModel} as a sectioned menu (the same verbs the web renders as cards) and
- * runs a REPL over the SAME grammar (parseChatLine): `/verb …` dispatches the verb,
- * `/help` lists them, free text goes to the agent via an injected sendPrompt. One
- * command engine across CLI, TUI, and web — the multi-surface invariant.
+ * The live TUI — a terminal surface over the neutral {@link surfaceModel}, sharing the
+ * SAME base as every other surface so they stay coherent. It prints the model as a
+ * sectioned menu and runs a REPL over the SAME grammar (parseChatLine): `/verb …`
+ * dispatches the verb, `/help` lists them, free text goes to the agent via an injected
+ * sendPrompt. One command engine across CLI, TUI, and (via homestead) web — the
+ * multi-surface invariant.
  */
 
 export interface TuiOptions {
