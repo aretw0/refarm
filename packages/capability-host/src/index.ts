@@ -8,11 +8,16 @@ import {
 export {
 	buildCapabilityHostServeInfo,
 	buildDispatchEffort,
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
 	createLocalCapabilityDeps,
+	createLocalVaultCommandDeps,
 	createPluginDescriptorDeps,
 	createRecordsCapabilityGroup,
 	createSourceCapabilityGroup,
 	createVaultCapabilityGroup,
+	createWasmEnrichmentProvider,
+	createWasmSourceProvider,
 	defaultRecordsDeps,
 	defaultSourceDeps,
 	defaultVaultDeps,
@@ -72,6 +77,8 @@ export {
 	type VaultCommandDeps,
 	type VaultDiscoveryResult,
 	type VaultProviderSummary,
+	type WasmEnrichmentProviderOptions,
+	type WasmSourceProviderOptions,
 	type WebUiOptions,
 } from "@refarm.dev/capabilities-v1";
 

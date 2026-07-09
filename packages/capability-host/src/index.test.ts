@@ -1,16 +1,17 @@
-import {
-	buildJsonSuccessEnvelope,
-	createLocalVaultCommandDeps,
-} from "@refarm.dev/capabilities-v1";
 import { describe, expect, it, vi } from "vitest";
 
 import {
 	buildCapabilityHostServeInfo,
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
 	createLocalCapabilityDeps,
+	createLocalVaultCommandDeps,
 	createPluginDescriptorDeps,
 	createRecordsCapabilityGroup,
 	createSourceCapabilityGroup,
 	createVaultCapabilityGroup,
+	createWasmEnrichmentProvider,
+	createWasmSourceProvider,
 	defaultRecordsDeps,
 	defaultSourceDeps,
 	defaultVaultDeps,
@@ -207,6 +208,45 @@ describe("@refarm.dev/capability-host public API", () => {
 
 		expect(deps.newId()).toBe("id-1");
 		expect(deps.nowIso()).toBe("2026-01-01T00:00:00Z");
+	});
+
+	it("re-exports JSON envelopes and local deps used by host extensions", () => {
+		expect(buildJsonSuccessEnvelope({
+			command: "extension",
+			operation: "run",
+		})).toMatchObject({ ok: true, command: "extension" });
+		expect(buildJsonErrorEnvelope({
+			command: "extension",
+			operation: "run",
+			error: "failed",
+			message: "failed",
+			nextAction: "Retry the extension.",
+		})).toMatchObject({ ok: false, error: "failed" });
+		expect(createLocalVaultCommandDeps()).toHaveProperty("discover");
+	});
+
+	it("re-exports WASM provider adapters from the host boundary", async () => {
+		const sourceCalls: Array<{ verb: string; payload: string }> = [];
+		const source = createWasmSourceProvider({
+			pluginId: "source-provider-ref",
+			callRespond: async (verb, payload) => {
+				sourceCalls.push({ verb, payload });
+				return JSON.stringify({ entries: [{ ref: "demo", kind: "local" }] });
+			},
+		});
+		await expect(source.discover()).resolves.toEqual({
+			entries: [{ ref: "demo", kind: "local" }],
+		});
+		expect(sourceCalls[0]?.verb).toBe("source:discover");
+
+		const enrichment = createWasmEnrichmentProvider({
+			pluginId: "enrich-ref",
+			callRespond: async () =>
+				JSON.stringify({ records: [], summary: { total: 0, changed: 0, skipped: 0 } }),
+		});
+		await expect(enrichment.enrich([], { mode: "dry-run" })).resolves.toMatchObject({
+			records: [],
+		});
 	});
 
 	it("re-exports extension helpers needed by example personas", () => {
