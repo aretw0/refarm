@@ -31,6 +31,10 @@ export {
 	type InstalledPlugin,
 	type InstallPluginOptions,
 } from "./install-plugin.js";
+export {
+	createSidecarCallRespond,
+	type SidecarRespondOptions,
+} from "./sidecar-respond.js";
 
 export {
 	createLocalRecordsCommandDeps,
