@@ -3,6 +3,12 @@ export {
 	buildCapabilityRoutes,
 	createCapabilityRouteHandler,
 } from "./http-projector.js";
+export {
+	buildCapabilityOpenApiDocument,
+	type CapabilityOpenApiDocument,
+	type CapabilityOpenApiOperation,
+	type CapabilityOpenApiOptions,
+} from "./openapi-projector.js";
 // The agent-projector (the pure capability→tool-schema web-surface seam) is now
 // re-exported: the `serve` command mounts it at /agent-tools, so it has a real,
 // deliberate consumer. It is NOT on the live Rust agent path (which lists/invokes
