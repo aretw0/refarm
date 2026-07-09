@@ -15,6 +15,10 @@ import {
 	printRefarmCheckNextActionJson,
 	printRefarmCheckSummary,
 } from "./check-report.js";
+import {
+	buildDiagnosticNextActionPayload,
+	type DiagnosticRecommendation,
+} from "./diagnostic-recommendations.js";
 import type { RefarmDoctorReport } from "./doctor.js";
 import type { ModelDoctorStatus } from "./model.js";
 import type { WorkspaceExecutionStatus } from "./workspace-execution.js";
@@ -139,6 +143,18 @@ async function runDefaultReleasePolicy(): Promise<ReleasePolicyCheck> {
 	};
 }
 
+function isBlockingRecommendation(
+	recommendation: DiagnosticRecommendation,
+): boolean {
+	return (
+		recommendation.severity !== "warning" && recommendation.severity !== "info"
+	);
+}
+
+function isRuntimeNotReadyDoctorReport(report: RefarmDoctorReport): boolean {
+	return report.failures.includes("runtime:not-ready");
+}
+
 export function createCheckCommand(
 	deps: RefarmCheckDeps = {
 		runHealth: async () => {
@@ -187,6 +203,34 @@ Notes:
 		)
 		.action(async (options: RefarmCheckOptions) => {
 			const nextActionOnly = Boolean(options.nextAction || options.nextCommand);
+			let preflightDoctor: RefarmDoctorReport | undefined;
+			if (nextActionOnly) {
+				preflightDoctor = await deps.runDoctor({
+					failOnWarnings: options.failOnWarnings,
+				});
+				if (isRuntimeNotReadyDoctorReport(preflightDoctor)) {
+					const recommendations = preflightDoctor.recommendations.filter(
+						isBlockingRecommendation,
+					);
+					const payload = buildDiagnosticNextActionPayload({
+						ok: false,
+						nextActions: preflightDoctor.nextActions,
+						nextCommands: preflightDoctor.nextCommands,
+						recommendations,
+					});
+					if (options.json) {
+						printJson(payload);
+					} else if (options.nextCommand) {
+						const [command] = payload.nextCommands;
+						if (command) console.log(command);
+					} else {
+						const [action] = payload.nextActions;
+						if (action) console.log(action);
+					}
+					process.exitCode = 1;
+					return;
+				}
+			}
 			const [
 				doctor,
 				nodeSubstrate,
@@ -198,7 +242,7 @@ Notes:
 				workspaceSweep,
 				releasePolicy,
 			] = await Promise.all([
-				deps.runDoctor({
+				preflightDoctor ?? deps.runDoctor({
 					failOnWarnings: options.failOnWarnings,
 				}),
 				deps.runNodeSubstrate?.(),

@@ -1155,7 +1155,7 @@ describe("checkCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("runs doctor in the next-action fan-out", async () => {
+	it("runs doctor before the next-action fan-out", async () => {
 		const deps = makeDeps();
 		const order: string[] = [];
 		let resolveDoctor!: () => void;
@@ -1189,18 +1189,67 @@ describe("checkCommand", () => {
 		});
 		await Promise.resolve();
 
-		expect(order).toEqual(
-			expect.arrayContaining([
-				"doctor",
-				"health",
-				"node-substrate",
-				"rust-substrate",
-				"environment-pressure",
-			]),
-		);
+		expect(order).toEqual(["doctor"]);
 		resolveDoctor();
 		await run;
+		expect(order).toContain("health");
+		expect(order).toContain("node-substrate");
+		expect(order).toContain("rust-substrate");
+		expect(order).toContain("environment-pressure");
 		expect(process.exitCode).toBeUndefined();
+
+		logSpy.mockRestore();
+	});
+
+	it("short-circuits next-action JSON when runtime is not ready", async () => {
+		const deps = makeDeps({
+			doctor: {
+				ok: false,
+				failureCount: 1,
+				failures: ["runtime:not-ready"],
+				recommendations: [
+					{
+						diagnostic: "runtime:not-ready",
+						severity: "failure",
+						summary: "Runtime is not ready.",
+						action: "Repair the runtime.",
+						command: "refarm runtime ensure --wait --next-command",
+					},
+				],
+				nextAction: "Repair the runtime.",
+				nextActions: ["Repair the runtime."],
+				nextCommand: "refarm runtime ensure --wait --next-command",
+				nextCommands: ["refarm runtime ensure --wait --next-command"],
+			},
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+			from: "user",
+		});
+
+		expect(deps.runDoctor).toHaveBeenCalledOnce();
+		expect(deps.runHealth).not.toHaveBeenCalled();
+		expect(deps.runNodeSubstrate).not.toHaveBeenCalled();
+		expect(deps.runRustSubstrate).not.toHaveBeenCalled();
+		expect(deps.runEnvironmentPressure).not.toHaveBeenCalled();
+		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
+			ok: false,
+			nextAction: "Repair the runtime.",
+			nextActions: ["Repair the runtime."],
+			nextCommand: "refarm runtime ensure --wait --next-command",
+			nextCommands: ["refarm runtime ensure --wait --next-command"],
+			recommendations: [
+				{
+					diagnostic: "runtime:not-ready",
+					severity: "failure",
+					summary: "Runtime is not ready.",
+					action: "Repair the runtime.",
+					command: "refarm runtime ensure --wait --next-command",
+				},
+			],
+		});
+		expect(process.exitCode).toBe(1);
 
 		logSpy.mockRestore();
 	});
