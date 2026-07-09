@@ -17,7 +17,7 @@ import { TelemetryEvent } from "./telemetry.js";
 import type { PluginTrustGrant } from "./trust-manager.js";
 import { ExecutionProfile, TrustManager } from "./trust-manager.js";
 import { SecurityMode, TractorLogger } from "./types.js";
-import { WasiImports } from "./wasi-imports.js";
+import { WasiImports, type CrossPluginBridge } from "./wasi-imports.js";
 import { WorkerRunner } from "./worker-runner.js";
 
 export type { PluginInstance, PluginState, PluginTrustGrant };
@@ -254,7 +254,13 @@ export class PluginHost {
     this.logger.debug(`[tractor] Loading plugin WASM: ${wasmUrl}`);
     const wasmBuffer = await this.readWasmBuffer(pluginId, wasmUrl);
 
-    const wasi = new WasiImports(pluginId, this.logger, this.emit, this.storeNode);
+    const wasi = new WasiImports(
+      pluginId,
+      this.logger,
+      this.emit,
+      this.storeNode,
+      this.buildCrossPluginBridge(pluginId),
+    );
     const imports = wasi.generate(manifest, profile);
     const runner = this.resolveRunner(manifest);
 
@@ -291,8 +297,40 @@ export class PluginHost {
   }
 
   getWasiImports(manifest: PluginManifest, profile: ExecutionProfile): Record<string, unknown> {
-    const wasi = new WasiImports(manifest.id, this.logger, this.emit);
+    const wasi = new WasiImports(
+      manifest.id,
+      this.logger,
+      this.emit,
+      undefined,
+      this.buildCrossPluginBridge(manifest.id),
+    );
     return wasi.generate(manifest, profile);
+  }
+
+  /**
+   * The plugin-to-plugin (SPI) bridge for a guest — the TS mirror of the Rust host's
+   * get-plugin-api / call-plugin. `resolveApi` finds a loaded plugin that providesApi a
+   * name; `callPlugin` invokes a verb on it. This closes the drift where tractor-ts had a
+   * resolver (findByApi) the guest imports could not reach, so get-plugin-api stubbed to
+   * "" and call-plugin did not exist. The caller (`_callerId`) is reserved for future
+   * eligibility checks (a guest may only reach APIs it requiresApi) — parity with the
+   * Rust host, where the callee runs under its own grant.
+   */
+  private buildCrossPluginBridge(_callerId: string): CrossPluginBridge {
+    return {
+      resolveApi: (apiName: string): string => this.findByApi(apiName)?.manifest.id ?? "",
+      callPlugin: async (
+        pluginId: string,
+        verb: string,
+        inputJson: string,
+      ): Promise<string | null> => {
+        const target = this._instances.get(pluginId);
+        if (!target) return null;
+        const input = inputJson.trim().length > 0 ? JSON.parse(inputJson) : {};
+        const result = await target.call(verb, input);
+        return typeof result === "string" ? result : JSON.stringify(result ?? null);
+      },
+    };
   }
 
   registerInternal(instance: PluginInstance) {

@@ -28,12 +28,23 @@ function spawnSync(command: string, args: string[], options: { input: Buffer; ma
 /**
  * Generates WASI and bridge imports for a plugin based on its manifest and execution profile.
  */
+/** The plugin-to-plugin (SPI) bridge the host injects so a guest can reach another
+ * loaded plugin — the TS mirror of the Rust host's get-plugin-api / call-plugin. Without
+ * it, get-plugin-api can only stub to "" and call-plugin cannot exist. */
+export interface CrossPluginBridge {
+	/** Resolve the id of a loaded plugin that providesApi the given name, or "" if none. */
+	resolveApi(apiName: string): string;
+	/** Invoke a verb on a loaded plugin by id, returning its result JSON (or null). */
+	callPlugin(pluginId: string, verb: string, inputJson: string): Promise<string | null>;
+}
+
 export class WasiImports {
 	constructor(
 		private pluginId: string,
 		private logger: TractorLogger,
 		private emit: (data: TelemetryEvent) => void,
 		private storeNode?: (nodeJson: string) => Promise<void>,
+		private crossPlugin?: CrossPluginBridge,
 	) {}
 
 	generate(manifest: PluginManifest, profile: ExecutionProfile): Record<string, unknown> {
@@ -131,7 +142,23 @@ export class WasiImports {
 				storageTier: "memory",
 				identifier: this.pluginId,
 			}),
-			"get-plugin-api": (_apiName: string) => "",
+			// The SPI resolve leg: mirror the Rust host's get-plugin-api. Resolve the id
+			// of a loaded plugin that providesApi the name (via the injected bridge), or
+			// "" when none is loaded / no bridge is wired (degrade, don't throw).
+			"get-plugin-api": (apiName: string): string =>
+				this.crossPlugin?.resolveApi(apiName) ?? "",
+			// The SPI call leg: invoke a verb on the resolved provider. Mirrors the Rust
+			// host's call-plugin. Returns the provider's result JSON, or "" on failure /
+			// no bridge (the guest degrades gracefully, as vault does when quality is absent).
+			"call-plugin": async (
+				pluginId: string,
+				verb: string,
+				inputJson: string,
+			): Promise<string> => {
+				if (!this.crossPlugin) return "";
+				const result = await this.crossPlugin.callPlugin(pluginId, verb, inputJson);
+				return result ?? "";
+			},
 			"emit-telemetry": (event: string, payload?: string) => {
 				this.emit({ event, pluginId: this.pluginId, payload });
 			},
