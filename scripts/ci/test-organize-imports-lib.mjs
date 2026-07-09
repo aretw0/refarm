@@ -5,6 +5,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
+	changedSourceFilesFromGit,
 	isOrganizableSourceFile,
 	organizeImports,
 	organizeImportText,
@@ -26,6 +27,32 @@ describe("organize-imports-lib", () => {
 			], process.cwd()),
 			["apps/refarm/src/index.ts"],
 		);
+	});
+
+	it("limits git changed-file probes to organizable TypeScript pathspecs", () => {
+		const calls = [];
+		const files = changedSourceFilesFromGit("/repo", {
+			execFileSync(command, args) {
+				calls.push([command, args]);
+				if (args[0] === "diff" && !args.includes("--cached")) {
+					return "src/main.ts\nsrc/not-organized.js\n";
+				}
+				return "";
+			},
+			existsSync() {
+				return true;
+			},
+		});
+
+		assert.deepEqual(files, ["src/main.ts"]);
+		for (const [command, args] of calls) {
+			assert.equal(command, "git");
+			assert.ok(args.includes("--"));
+			assert.ok(args.includes(":(glob)**/*.ts"));
+			assert.ok(args.includes(":(glob)**/*.tsx"));
+			assert.ok(args.includes(":(glob)**/*.mts"));
+			assert.ok(args.includes(":(glob)**/*.cts"));
+		}
 	});
 
 	it("uses the TypeScript language service to organize imports", () => {

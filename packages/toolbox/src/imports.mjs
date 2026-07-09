@@ -5,6 +5,12 @@ import ts from "typescript";
 
 const SOURCE_EXTENSIONS = new Set([".cts", ".mts", ".ts", ".tsx"]);
 const GENERATED_SEGMENTS = new Set([".turbo", "build", "dist", "node_modules"]);
+const SOURCE_PATHSPECS = [
+  ":(glob)**/*.cts",
+  ":(glob)**/*.mts",
+  ":(glob)**/*.ts",
+  ":(glob)**/*.tsx",
+];
 const ORGANIZE_FORMAT_SETTINGS = {
   insertSpaceAfterCommaDelimiter: true,
   insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: true,
@@ -33,13 +39,20 @@ export function uniqueSourceFiles(files, root = process.cwd()) {
 }
 
 export function changedSourceFiles(root = process.cwd()) {
+  return changedSourceFilesFromGit(root);
+}
+
+export function changedSourceFilesFromGit(
+  root = process.cwd(),
+  git = { execFileSync, existsSync: fs.existsSync },
+) {
   const files = new Set();
   for (const args of [
-    ["diff", "--name-only", "--diff-filter=ACMR", "--"],
-    ["diff", "--name-only", "--cached", "--diff-filter=ACMR", "--"],
-    ["ls-files", "--others", "--exclude-standard"],
+    ["diff", "--name-only", "--diff-filter=ACMR", "--", ...SOURCE_PATHSPECS],
+    ["diff", "--name-only", "--cached", "--diff-filter=ACMR", "--", ...SOURCE_PATHSPECS],
+    ["ls-files", "--others", "--exclude-standard", "--", ...SOURCE_PATHSPECS],
   ]) {
-    const output = execFileSync("git", args, {
+    const output = git.execFileSync("git", args, {
       cwd: root,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
@@ -50,7 +63,7 @@ export function changedSourceFiles(root = process.cwd()) {
     }
   }
   return uniqueSourceFiles([...files], root).filter((file) =>
-    fs.existsSync(path.join(root, file)),
+    git.existsSync(path.join(root, file)),
   );
 }
 
