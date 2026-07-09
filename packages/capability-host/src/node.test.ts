@@ -5,6 +5,7 @@ import {
 	createLocalRecordsCapabilityDeps,
 	createLocalRecordsCommandDeps,
 	createLocalRecordsStatePathResolver,
+	createSidecarSubmitEffort,
 } from "./node.js";
 
 describe("@refarm.dev/capability-host/node", () => {
@@ -63,5 +64,35 @@ describe("@refarm.dev/capability-host/node", () => {
 		expect(bundle.records.loadManifest().records).toHaveLength(1);
 		expect(bundle.deps.records).toBe(bundle.records);
 		expect(bundle.deps.vault.seed?.()).toEqual(seed());
+	});
+
+	it("builds a sidecar submit sink for daemon-backed examples", async () => {
+		let requestedUrl = "";
+		let requestedBody = "";
+		const submit = createSidecarSubmitEffort({
+			env: { REFARM_SIDECAR_URL: "http://127.0.0.1:52001/" },
+			fetch: async (url, init) => {
+				requestedUrl = String(url);
+				requestedBody = String(init?.body);
+				return new Response(JSON.stringify({ effortId: "effort-from-runtime" }), {
+					status: 200,
+					headers: { "content-type": "application/json" },
+				});
+			},
+		});
+
+		await expect(submit({
+			id: "effort-1",
+			direction: "dispatch",
+			source: "test",
+			submittedAt: "2026-01-01T00:00:00Z",
+			tasks: [{ id: "task-1", pluginId: "@example/plugin", fn: "search", args: {} }],
+		})).resolves.toBe("effort-from-runtime");
+
+		expect(requestedUrl).toBe("http://127.0.0.1:52001/efforts");
+		expect(JSON.parse(requestedBody)).toMatchObject({
+			id: "effort-1",
+			tasks: [{ fn: "search" }],
+		});
 	});
 });

@@ -4,14 +4,22 @@ import {
 	defineCapabilityApp,
 	defineCapabilityHost,
 	type CapabilityHost,
+	type SubmitEffort,
 } from "@refarm.dev/capability-host";
+import { createSidecarSubmitEffort } from "@refarm.dev/capability-host/node";
 
 import {
 	CODING_AGENT_MANIFEST,
-	createCapturingSubmit,
 	createExtensionCapability,
 	devCapabilityDeps,
 } from "./persona.js";
+
+export const DGK_DEVBENCH_SIDECAR_URL_ENV = "DGK_DEVBENCH_SIDECAR_URL";
+export const DGK_DEVBENCH_DEFAULT_SIDECAR_URL = "http://127.0.0.1:42123";
+
+export interface DevbenchHostOptions {
+	submitEffort?: SubmitEffort;
+}
 
 /**
  * `dgk` - the T1 POC CLI (PROCESS mode). The developer's bench: neutral
@@ -19,9 +27,12 @@ import {
  * bridge (declare once → multi-surface), plus an inspector that makes the mechanism
  * visible. This shows the MACHINE being extended — the technical/general angle.
  */
-export function buildDevbenchHost(): CapabilityHost {
+export function buildDevbenchHost(options: DevbenchHostOptions = {}): CapabilityHost {
 	const pluginDeps = createPluginDescriptorDeps({
-		submitEffort: createCapturingSubmit(),
+		submitEffort: options.submitEffort ?? createSidecarSubmitEffort({
+			baseUrl: DGK_DEVBENCH_DEFAULT_SIDECAR_URL,
+			envKey: DGK_DEVBENCH_SIDECAR_URL_ENV,
+		}),
 	});
 	return defineCapabilityHost({
 		id: "examples/devbench-t1",

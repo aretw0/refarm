@@ -6,6 +6,11 @@ import {
 } from "@refarm.dev/capabilities-v1";
 
 export {
+	createMemorySubmitEffort,
+	type MemorySubmitEffort,
+} from "./memory-submit.js";
+
+export {
 	buildCapabilityHostServeInfo,
 	buildDispatchEffort,
 	buildJsonErrorEnvelope,

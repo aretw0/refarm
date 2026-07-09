@@ -44,7 +44,8 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@refarm.dev/capabilities-v1": "workspace:*"
+		"@refarm.dev/capabilities-v1": "workspace:*",
+		"@refarm.dev/sidecar-client": "workspace:*"
 	},
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",

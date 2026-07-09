@@ -4,7 +4,6 @@ import {
 	type CapabilityDeps,
 	type CapabilityDescriptor,
 	type PluginDescriptorDeps,
-	type SubmitEffort,
 	type SurfaceableManifest,
 } from "@refarm.dev/capability-host";
 
@@ -27,21 +26,6 @@ export const CODING_AGENT_MANIFEST: SurfaceableManifest = {
 		subscribes: ["agent:dispatch"],
 	},
 };
-
-/** A capturing submit sink — records the efforts a surfaced agent verb dispatches to
- * the plugin's WASM. A real bench wires the runtime; here it makes the process
- * observable without a daemon. */
-export function createCapturingSubmit(): SubmitEffort & {
-	readonly submitted: ReadonlyArray<{ id: string; fn: string }>;
-} {
-	const submitted: Array<{ id: string; fn: string }> = [];
-	const submit = (async (effort) => {
-		submitted.push({ id: effort.id, fn: effort.tasks[0]?.fn ?? "" });
-		return effort.id;
-	}) as SubmitEffort & { submitted: typeof submitted };
-	Object.defineProperty(submit, "submitted", { value: submitted });
-	return submit;
-}
 
 export function devCapabilityDeps(): CapabilityDeps {
 	return createLocalCapabilityDeps();

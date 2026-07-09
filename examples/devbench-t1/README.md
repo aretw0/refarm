@@ -36,9 +36,9 @@ not bridge defaults.
 - **Generic (refarm, unchanged):** the neutral `source` / `records` / `vault` chain
   **plus** the extension path (manifest → bridge → multi-surface).
 - **Specific (this app):** the coding-agent manifest + the inspector verb. In a real
-  deployment the agent would be a WASM plugin the developer builds and installs; here
-  the manifest is inline and the dispatch is captured, so the *process* is observable
-  without a daemon.
+  deployment the agent is a WASM plugin the developer builds and installs; here the
+  manifest is inline, but dispatch still goes through a Refarm-compatible sidecar so
+  the example dogfoods the daemon path.
 
 ## Run it
 
@@ -48,6 +48,9 @@ pnpm --filter devbench-t1 dgk extension
 pnpm --filter devbench-t1 dgk actions --json
 pnpm --filter devbench-t1 dgk --help    # agent-code / agent-review beside neutral verbs
 ```
+
+Set `DGK_DEVBENCH_SIDECAR_URL` to point this example at its isolated demo runtime.
+If unset, `dgk` targets `http://127.0.0.1:42123`.
 
 ## Focus — what T1 makes shine (survives our design conversation)
 

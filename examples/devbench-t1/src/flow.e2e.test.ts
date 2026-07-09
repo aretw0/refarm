@@ -1,4 +1,4 @@
-import { type CapabilityEntry } from "@refarm.dev/capability-host";
+import { createMemorySubmitEffort, type CapabilityEntry } from "@refarm.dev/capability-host";
 import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
 import { describe, expect, it } from "vitest";
 
@@ -59,7 +59,7 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 
 	it("a surfaced agent verb dispatches across the bridge (two-phase receipt)", async () => {
 		const env = await harness.runVerb<{ ok: boolean; verb: string; effortId: string; replyRef: string }>(
-			buildRegistry(),
+			buildRegistry({ submitEffort: createMemorySubmitEffort() }),
 			"agent-code",
 			{
 				args: { args: ['prompt="add a test"'] },

@@ -6,6 +6,7 @@ import {
 	buildJsonSuccessEnvelope,
 	createLocalCapabilityDeps,
 	createLocalVaultCommandDeps,
+	createMemorySubmitEffort,
 	createPluginDescriptorDeps,
 	createRecordsCapabilityGroup,
 	createSourceCapabilityGroup,
@@ -208,6 +209,20 @@ describe("@refarm.dev/capability-host public API", () => {
 
 		expect(deps.newId()).toBe("id-1");
 		expect(deps.nowIso()).toBe("2026-01-01T00:00:00Z");
+	});
+
+	it("creates a memory submit sink for tests and harnesses", async () => {
+		const submit = createMemorySubmitEffort();
+		await expect(submit({
+			id: "effort-1",
+			direction: "dispatch",
+			source: "test",
+			submittedAt: "2026-01-01T00:00:00Z",
+			tasks: [{ id: "task-1", pluginId: "@example/plugin", fn: "search", args: {} }],
+		})).resolves.toBe("effort-1");
+
+		expect(submit.submitted).toHaveLength(1);
+		expect(submit.submitted[0]?.tasks[0]?.fn).toBe("search");
 	});
 
 	it("re-exports JSON envelopes and local deps used by host extensions", () => {
