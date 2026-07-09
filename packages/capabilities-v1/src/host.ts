@@ -71,6 +71,17 @@ export type CapabilityHostCapabilityUnitFactory = (
 	context: CapabilityHostStatusContext,
 ) => CapabilityHostCapabilityUnitOptions;
 
+export interface CapabilityHostPrimaryVerbOptions
+	extends Omit<CapabilityHostCapabilityUnitOptions, "action"> {
+	name: string;
+	args?: string[];
+	actionId?: string;
+	actionLabel?: string;
+	intent?: string;
+	primary?: boolean;
+	payload?: Record<string, unknown>;
+}
+
 export interface CapabilityHostStatusContext {
 	id: string;
 	command: string;
@@ -89,6 +100,7 @@ export interface CapabilityHostOperatorStatus {
 	summary?: string;
 	httpPath?: string;
 	agentToolName?: string;
+	primaryVerb?: CapabilityHostPrimaryVerbOptions;
 	capabilityUnit?:
 		| false
 		| CapabilityHostCapabilityUnitOptions
@@ -453,6 +465,9 @@ function buildHostBaseModel(
 	const status = definition.operatorStatus;
 	const units: BaseSurfaceUnit[] = [];
 	const context = createCapabilityHostStatusContext(definition, capabilities, registry);
+	if (status?.primaryVerb) {
+		units.push(buildPrimaryVerbSurfaceUnit(status.primaryVerb, context));
+	}
 	if (status?.capabilityUnit) {
 		const capabilityUnit = resolveCapabilityHostCapabilityUnit(
 			status.capabilityUnit,
@@ -509,6 +524,29 @@ function resolveCapabilityHostCapabilityUnit(
 	context: CapabilityHostStatusContext,
 ): CapabilityHostCapabilityUnitOptions {
 	return typeof capabilityUnit === "function" ? capabilityUnit(context) : capabilityUnit;
+}
+
+function buildPrimaryVerbSurfaceUnit(
+	options: CapabilityHostPrimaryVerbOptions,
+	context: CapabilityHostStatusContext,
+): BaseSurfaceUnit {
+	const command = context.hostCommand(options.args ?? [options.name, "--json"]);
+	return context.capabilityUnit({
+		id: options.id,
+		label: options.label,
+		subject: options.subject,
+		noun: options.noun,
+		details: options.details,
+		owner: options.owner,
+		action: {
+			id: options.actionId ?? `open-${options.name}`,
+			label: options.actionLabel ?? command,
+			intent: options.intent ?? `${options.name}:open`,
+			command,
+			primary: options.primary ?? true,
+			...(options.payload ? { payload: options.payload } : {}),
+		},
+	});
 }
 
 function buildRecordReviewQueueSurfaceUnit(

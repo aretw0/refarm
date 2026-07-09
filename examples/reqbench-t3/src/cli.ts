@@ -44,18 +44,11 @@ export function buildReqbenchHost(
 		operatorStatus: {
 			summary: "Show requirements bench operator status",
 			httpPath: "/requirements/status",
-			capabilityUnit: ({ hostCommand }) => {
-				const requirementsCommand = hostCommand(["requirements", "--json"]);
-				return {
-					subject: "Requirements bench",
-					action: {
-						id: "open-requirements",
-						label: requirementsCommand,
-						intent: "requirements:open",
-						command: requirementsCommand,
-						primary: true,
-					},
-				};
+			primaryVerb: {
+				name: "requirements",
+				subject: "Requirements bench",
+				actionId: "open-requirements",
+				intent: "requirements:open",
 			},
 			units: ({ recordReviewQueueUnit, hostCommand }) => [
 				recordReviewQueueUnit({

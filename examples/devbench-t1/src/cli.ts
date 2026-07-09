@@ -40,18 +40,11 @@ export function buildDevbenchHost(): CapabilityHost {
 		operatorStatus: {
 			summary: "Show extension bench operator status",
 			httpPath: "/extension/status",
-			capabilityUnit: ({ hostCommand }) => {
-				const extensionCommand = hostCommand(["extension", "--json"]);
-				return {
-					subject: "Extension bench",
-					action: {
-						id: "inspect-extension",
-						label: extensionCommand,
-						intent: "extension:inspect",
-						command: extensionCommand,
-						primary: true,
-					},
-				};
+			primaryVerb: {
+				name: "extension",
+				subject: "Extension bench",
+				actionId: "inspect-extension",
+				intent: "extension:inspect",
 			},
 		},
 		serve: {

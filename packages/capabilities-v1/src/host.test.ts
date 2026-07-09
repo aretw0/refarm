@@ -290,6 +290,47 @@ describe("defineCapabilityHost", () => {
 			"verify-draft-credential",
 		]);
 	});
+
+	it("builds a primary extension action from a verb declaration", () => {
+		const host = defineCapabilityHost({
+			id: "examples/devbench-t1",
+			command: "dgk",
+			description: "Digital Gardening Kit - extension bench",
+			capabilities: {
+				deps: deps(),
+				extensions: [showVerb],
+			},
+			operatorStatus: {
+				primaryVerb: {
+					name: "wallet",
+					subject: "Extension bench",
+					actionId: "inspect-extension",
+					intent: "extension:inspect",
+				},
+			},
+		});
+
+		expect(host.baseModel()).toMatchObject({
+			nextCommand: "dgk wallet --json",
+			units: [
+				expect.objectContaining({
+					id: "capabilities",
+					summary: "Extension bench mounts 6 capability verbs.",
+				}),
+			],
+		});
+		expect(host.surfaceActions()).toEqual([
+			expect.objectContaining({
+				id: "inspect-extension",
+				label: "dgk wallet --json",
+				intent: "extension:inspect",
+				payload: expect.objectContaining({
+					command: "dgk wallet --json",
+					primary: true,
+				}),
+			}),
+		]);
+	});
 });
 
 describe("capability host CLI helpers", () => {

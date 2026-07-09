@@ -42,18 +42,11 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 		operatorStatus: {
 			summary: "Show wallet operator status",
 			httpPath: "/wallet/status",
-			capabilityUnit: ({ hostCommand }) => {
-				const walletCommand = hostCommand(["wallet", "--json"]);
-				return {
-					subject: "Wallet",
-					action: {
-						id: "open-wallet",
-						label: walletCommand,
-						intent: "wallet:open",
-						command: walletCommand,
-						primary: true,
-					},
-				};
+			primaryVerb: {
+				name: "wallet",
+				subject: "Wallet",
+				actionId: "open-wallet",
+				intent: "wallet:open",
 			},
 			units: ({ recordReviewQueueUnit, hostCommand }) => [
 				recordReviewQueueUnit({
