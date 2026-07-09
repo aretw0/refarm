@@ -20,7 +20,7 @@ dgk serve                                        # my wallet on a web surface
 
 `dgk status --base --json` is the manual exploratory entrypoint for the shared
 operator-state contract. The app declares a white-label `dgk` host with
-`defineCapabilityHost` from `@refarm.dev/capability-host`; Refarm composes the
+`defineCapabilityHost` from `@refarm.dev/capability-host`; the platform composes the
 registry, CLI, HTTP surface, and base status capability. The example keeps only the
 wallet-specific extension: its records, `wallet` persona verb, and wallet review
 unit.
@@ -43,7 +43,7 @@ process view.
 
 ## Two layers
 
-- **Generic (refarm, unchanged):** the neutral `source` / `records` / `vault` chain.
+- **Generic (platform, unchanged):** the neutral `source` / `records` / `vault` chain.
   It knows nothing about wallets, credentials, or citizens.
 - **Specific (this app):** `src/fixture.ts` holds the citizen's own items;
   `src/persona.ts` declares `wallet`, which projects the neutral analyze envelope
@@ -85,13 +85,13 @@ over the data.
 
 **What to build for a rich demo.**
 - The wallet as an EXTENSION (a work verb, or a plugin the citizen installs) — NOT baked
-  into refarm. refarm ships the surface machine; the wallet is the citizen's app on top.
+  into the base platform. The base platform ships the surface machine; the wallet is the citizen's app on top.
 - A real WEB dashboard the citizen operates (the screens matter most here) — extend
   `serveWebUi` with the wallet's own cards + a citizen-facing look, and/or the apps/me
   runtime.
 - The results the work wants to show: the citizen curating, verifying, holding their own
   records with sovereignty.
 
-**What stays generic (refarm) vs specific (here).** refarm ships the neutral chain + the
+**What stays generic (platform) vs specific (here).** The base platform ships the neutral chain + the
 CLI/TUI/web surface machine (verbs + REPL). This app supplies the citizen persona, the
 wallet vocabulary, and the extended dashboard. Swap the persona, keep the machine.

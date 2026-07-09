@@ -1,12 +1,12 @@
 {
-  "id": "@refarm.example/multi-surface",
-  "name": "Refarm Multi-Surface Example",
+  "id": "@example/multi-surface",
+  "name": "Multi-Surface Plugin Example",
   "version": "0.1.0",
   "entry": "./src/index.mjs",
   "capabilities": {
     "provides": ["example:multi-surface:v1"],
     "requires": ["tractor:graph:v1"],
-    "providesApi": ["@refarm.example/multi-surface:ui"],
+    "providesApi": ["@example/multi-surface:ui"],
     "requiresApi": []
   },
   "permissions": [],

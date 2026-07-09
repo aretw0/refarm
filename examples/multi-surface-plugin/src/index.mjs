@@ -1,5 +1,7 @@
+const pluginId = "@example/multi-surface";
+
 export async function setup() {
-	return { ready: true, plugin: "@refarm.example/multi-surface" };
+	return { ready: true, plugin: pluginId };
 }
 
 export async function renderHomesteadSurface(request = {}) {
@@ -9,11 +11,11 @@ export async function renderHomesteadSurface(request = {}) {
 	const actionLinks = (request.host?.actions ?? [])
 		.map((action) => {
 			const actionId = escapeHtml(action.id);
-			return `<button type="button" class="refarm-btn refarm-btn-pill" data-refarm-surface-action-id="${actionId}">${escapeHtml(action.label)}</button>`;
+			return `<button type="button" class="refarm-btn refarm-btn-pill" data-plugin-surface-action-id="${actionId}">${escapeHtml(action.label)}</button>`;
 		})
 		.join("");
 	return {
-		html: `<section class="refarm-card refarm-stack" data-refarm-example-surface="${escapeHtml(surfaceId)}" data-refarm-example-slot="${escapeHtml(slotId)}">
+		html: `<section class="refarm-card refarm-stack" data-plugin-surface="${escapeHtml(surfaceId)}" data-plugin-slot="${escapeHtml(slotId)}">
 			<p class="refarm-eyebrow">Plugin-provided Homestead surface</p>
 			<h2>Daily stream cockpit</h2>
 			<p>This panel is rendered by an executable plugin module through <code>renderHomesteadSurface</code>.</p>

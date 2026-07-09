@@ -1,6 +1,6 @@
 # Third-Party Plugin Example
 
-Demonstrates how external developers can use Refarm capability contracts to build and publish plugins.
+Demonstrates how external developers can use capability contracts to build and publish plugins.
 
 ## Setup
 

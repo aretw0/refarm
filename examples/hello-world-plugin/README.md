@@ -1,13 +1,13 @@
 # @refarm.dev/hello-world-plugin
 
-A minimal reference implementation of a Refarm plugin.
+A minimal reference implementation of a plugin example.
 
 ## Quick Start
 
 1. Clone the repo.
 2. `npm install`
 3. `npm run build`
-4. Load the generated WASM into a Refarm Tractor.
+4. Load the generated WASM into a host daemon.
 
 ## Installation
 

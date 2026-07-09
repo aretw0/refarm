@@ -1,13 +1,20 @@
 /**
- * Matrix Bridge — Example Refarm Plugin
+ * Matrix Bridge — Example Plugin
  *
- * Demonstrates how a plugin implements the `refarm:plugin/integration` WIT world.
+ * Demonstrates how a plugin implements the plugin integration WIT world.
  * This TypeScript version shows the contract for documentation and testing purposes.
  *
  * In a real Rust/Go→WASM implementation, bindings would be auto-generated from WIT.
  *
- * WIT world: refarm:plugin/refarm-plugin (see /wit/refarm-sdk.wit)
+ * WIT world: plugin/integration (see corresponding SDK WIT contract)
  */
+
+const EXAMPLE_NS = "example";
+const MATRIX_ROOM_FIELD = `${EXAMPLE_NS}:matrixRoom`;
+const MATRIX_SOURCE_PLUGIN_FIELD = `${EXAMPLE_NS}:sourcePlugin`;
+const MATRIX_INGESTED_AT_FIELD = `${EXAMPLE_NS}:ingestedAt`;
+const MATRIX_ROOM_ID_FIELD = `${EXAMPLE_NS}:matrixRoomId`;
+const MATRIX_MEMBER_COUNT_FIELD = `${EXAMPLE_NS}:memberCount`;
 
 // ─── Types mirroring the WIT interface ───────────────────────────────────────
 
@@ -145,14 +152,14 @@ export class MatrixBridgePlugin {
     const node = JSON.parse(payload) as {
       "@type": string;
       text?: string;
-      "refarm:matrixRoom"?: string;
+      [key: string]: unknown;
     };
 
     if (node["@type"] !== "Message" || !node.text) {
       throw new Error("push: unsupported payload type");
     }
 
-    const roomId = node["refarm:matrixRoom"] || "!example:matrix.org";
+    const roomId = (node[MATRIX_ROOM_FIELD] as string | undefined) || "!example:matrix.org";
 
     // In a real implementation, this would use the Matrix client API
     // For now, we log the intent
@@ -171,7 +178,8 @@ export class MatrixBridgePlugin {
     return {
       name: "Matrix Bridge",
       version: "1.0.0",
-      description: "Ingests Matrix room messages and member profiles into the Refarm sovereign graph",
+      description:
+        "Ingests Matrix room messages and member profiles into the example graph",
       supportedTypes: ["Message", "Person", "ChatRoom"],
       requiredCapabilities: ["network:matrix://homeserver"],
     };
@@ -203,10 +211,10 @@ function normaliseRoom(raw: MatrixRoom) {
     name: raw.name || raw.room_id,
     description: raw.topic,
     image: raw.avatar_url,
-    "refarm:sourcePlugin": "matrix-bridge",
-    "refarm:ingestedAt": new Date().toISOString(),
-    "refarm:matrixRoomId": raw.room_id,
-    "refarm:memberCount": raw.num_joined_members,
+    [MATRIX_SOURCE_PLUGIN_FIELD]: "matrix-bridge",
+    [MATRIX_INGESTED_AT_FIELD]: new Date().toISOString(),
+    [MATRIX_ROOM_ID_FIELD]: raw.room_id,
+    [MATRIX_MEMBER_COUNT_FIELD]: raw.num_joined_members,
   };
 }
 
@@ -218,8 +226,8 @@ function normaliseMember(raw: MatrixRoom) {
     "@id": `urn:matrix-bridge:room-admin-${encodeURIComponent(raw.room_id)}`,
     name: `${raw.name || "Unknown"} (room)`,
     image: raw.avatar_url,
-    "refarm:sourcePlugin": "matrix-bridge",
-    "refarm:ingestedAt": new Date().toISOString(),
+    [MATRIX_SOURCE_PLUGIN_FIELD]: "matrix-bridge",
+    [MATRIX_INGESTED_AT_FIELD]: new Date().toISOString(),
   };
 }
 
