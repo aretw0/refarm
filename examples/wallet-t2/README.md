@@ -20,7 +20,7 @@ dgk serve                                        # my wallet on a web surface
 
 `dgk status --base --json` is the manual exploratory entrypoint for the shared
 operator-state contract. The app declares a white-label `dgk` host with
-`defineCapabilityHost` from `@refarm.dev/capabilities-v1`; Refarm composes the
+`defineCapabilityHost` from `@refarm.dev/capability-host`; Refarm composes the
 registry, CLI, HTTP surface, and base status capability. The example keeps only the
 wallet-specific extension: its records, `wallet` persona verb, and wallet review
 unit.
@@ -32,7 +32,7 @@ surface inventing its own buttons.
 
 The CLI persists local curation to `.dgk/wallet.manifest.json` by default, so a
 correction made in one process is visible to the next command. That state is wired
-through `@refarm.dev/capabilities-v1/node`, not app-local file IO. Set
+through `@refarm.dev/capability-host/node`, not app-local file IO. Set
 `DGK_WALLET_STATE_PATH=/path/to/manifest.json` to record an isolated run, or delete
 `.dgk/` to reset the demo state.
 
@@ -80,7 +80,7 @@ installs the POC (a powershell / linux line).
 **The reference to draw on: `apps/me`.** apps/me is the "Sovereign Citizen Hub" (Astro,
 its own runtime/surfaces/PWA). T2 is the same idea — the citizen's daily portal. The
 wallet dashboard extends the neutral web surface (`serveWebUi` from
-`@refarm.dev/capabilities-v1`) and/or mirrors apps/me's shape. Local-first, sovereign
+`@refarm.dev/capability-host`) and/or mirrors apps/me's shape. Local-first, sovereign
 over the data.
 
 **What to build for a rich demo.**

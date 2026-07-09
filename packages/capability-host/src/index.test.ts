@@ -14,6 +14,8 @@ import {
 	defineCapabilityHost,
 	definePluginInspectorCapability,
 	defineRecordsViewCapability,
+	renderWebUi,
+	serveWebUi,
 	type CapabilityHost,
 	type CapabilityHostDefinition,
 } from "./index.js";
@@ -217,5 +219,10 @@ describe("@refarm.dev/capability-host public API", () => {
 				nowIso: () => "2026-01-01T00:00:00Z",
 			}),
 		}).name).toBe("extension");
+	});
+
+	it("re-exports web surface helpers from the host boundary", () => {
+		expect(typeof renderWebUi).toBe("function");
+		expect(typeof serveWebUi).toBe("function");
 	});
 });

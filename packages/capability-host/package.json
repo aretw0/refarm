@@ -13,6 +13,10 @@
 		"./node": {
 			"import": "./dist/node.js",
 			"types": "./dist/node.d.ts"
+		},
+		"./testing": {
+			"import": "./dist/testing.js",
+			"types": "./dist/testing.d.ts"
 		}
 	},
 	"scripts": {

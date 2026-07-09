@@ -1,4 +1,4 @@
-import { createCapabilityTestHarness } from "@refarm.dev/capabilities-v1/testing";
+import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {

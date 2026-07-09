@@ -1,5 +1,5 @@
-import { type CapabilityEntry } from "@refarm.dev/capabilities-v1";
-import { createCapabilityTestHarness } from "@refarm.dev/capabilities-v1/testing";
+import { type CapabilityEntry } from "@refarm.dev/capability-host";
+import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
 import { describe, expect, it } from "vitest";
 
 import { buildDevbenchHost, buildRegistry } from "./cli.js";

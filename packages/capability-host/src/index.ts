@@ -9,11 +9,13 @@ export {
 	buildCapabilityHostServeInfo,
 	createLocalCapabilityDeps,
 	createPluginDescriptorDeps,
+	renderWebUi,
 	definePluginInspectorCapability,
 	defineRecordsViewCapability,
 	defineCapabilityHost,
 	isCapabilityHostCliEntrypoint,
 	runCapabilityHostCli,
+	serveWebUi,
 	type CapabilityHost,
 	type CapabilityHostCapabilities,
 	type CapabilityHostCapabilitiesFactory,
@@ -37,6 +39,7 @@ export {
 	type CapabilityHostSurfaceContext,
 	type CapabilityDeps,
 	type CapabilityDescriptor,
+	type CapabilityEntry,
 	type PluginDescriptorDeps,
 	type PluginDescriptorDepsOptions,
 	type PluginInspectorCapabilityOptions,
@@ -45,8 +48,10 @@ export {
 	type RecordsViewCapabilityOptions,
 	type ParseableCapabilityHostProgram,
 	type RunCapabilityHostCliOptions,
+	type SendPrompt,
 	type SubmitEffort,
 	type SurfaceableManifest,
+	type WebUiOptions,
 } from "@refarm.dev/capabilities-v1";
 
 export interface CapabilityAppDefinition<Options extends object = Record<string, never>> {
