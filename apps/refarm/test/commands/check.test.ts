@@ -907,11 +907,15 @@ describe("checkCommand", () => {
 		expect(output).toContain('"nextCommands"');
 	});
 
-	it("runs doctor before full check fan-out", async () => {
+	it("runs doctor in the full check fan-out", async () => {
 		const deps = makeDeps();
 		const order: string[] = [];
+		let resolveDoctor!: () => void;
 		deps.runDoctor = vi.fn(async () => {
 			order.push("doctor");
+			await new Promise<void>((resolve) => {
+				resolveDoctor = resolve;
+			});
 			return makeDoctorReport();
 		});
 		deps.runHealth = vi.fn(async () => {
@@ -948,9 +952,9 @@ describe("checkCommand", () => {
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await createCheckCommand(deps).parseAsync(["--json"], { from: "user" });
+		const run = createCheckCommand(deps).parseAsync(["--json"], { from: "user" });
+		await Promise.resolve();
 
-		expect(order[0]).toBe("doctor");
 		expect(order).toEqual(
 			expect.arrayContaining([
 				"doctor",
@@ -964,6 +968,8 @@ describe("checkCommand", () => {
 				"release-policy",
 			]),
 		);
+		resolveDoctor();
+		await run;
 		expect(process.exitCode).toBeUndefined();
 
 		logSpy.mockRestore();
@@ -1149,11 +1155,15 @@ describe("checkCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("runs doctor before fan-out checks for next-action JSON", async () => {
+	it("runs doctor in the next-action fan-out", async () => {
 		const deps = makeDeps();
 		const order: string[] = [];
+		let resolveDoctor!: () => void;
 		deps.runDoctor = vi.fn(async () => {
 			order.push("doctor");
+			await new Promise<void>((resolve) => {
+				resolveDoctor = resolve;
+			});
 			return makeDoctorReport();
 		});
 		deps.runHealth = vi.fn(async () => {
@@ -1174,11 +1184,11 @@ describe("checkCommand", () => {
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
+		const run = createCheckCommand(deps).parseAsync(["--json", "--next-action"], {
 			from: "user",
 		});
+		await Promise.resolve();
 
-		expect(order[0]).toBe("doctor");
 		expect(order).toEqual(
 			expect.arrayContaining([
 				"doctor",
@@ -1188,6 +1198,8 @@ describe("checkCommand", () => {
 				"environment-pressure",
 			]),
 		);
+		resolveDoctor();
+		await run;
 		expect(process.exitCode).toBeUndefined();
 
 		logSpy.mockRestore();

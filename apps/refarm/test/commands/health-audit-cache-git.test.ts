@@ -35,11 +35,16 @@ function createWorkspace(): string {
 			types: "dist/index.d.ts",
 		}, null, 2)}\n`,
 	);
+	fs.mkdirSync(path.join(root, "packages", "example", "src"), { recursive: true });
+	fs.writeFileSync(
+		path.join(root, "packages", "example", "src", "index.ts"),
+		"export const value = 1;\n",
+	);
 	return root;
 }
 
 describe("health audit git cache fingerprint", () => {
-	it("uses changed path lists instead of raw binary diffs", async () => {
+	it("uses porcelain status paths instead of extra diff and untracked probes", async () => {
 		const root = createWorkspace();
 		const calls: string[][] = [];
 		vi.doMock("@refarm.dev/cli/git-command", () => ({
@@ -48,13 +53,14 @@ describe("health audit git cache fingerprint", () => {
 				if (args.includes("--binary")) {
 					throw new Error("binary diff should not be part of cache fingerprint");
 				}
+				if (args[0] === "diff" || args[0] === "ls-files") {
+					throw new Error("status porcelain should provide changed paths");
+				}
 				if (args.join(" ") === "rev-parse --show-toplevel") return root;
 				if (args.join(" ") === "rev-parse HEAD") return "abc123";
-				if (args[0] === "status") return " M packages/example/package.json\0";
-				if (args[0] === "diff" && args.includes("--name-only")) {
-					return "packages/example/package.json\0";
+				if (args[0] === "status") {
+					return " M packages/example/package.json\0?? packages/example/new.ts\0";
 				}
-				if (args[0] === "ls-files") return "";
 				return "";
 			},
 		}));
@@ -65,6 +71,29 @@ describe("health audit git cache fingerprint", () => {
 
 		expect(buildHealthAuditFingerprint(root)).toMatch(/^[a-f0-9]{64}$/);
 		expect(calls.some((args) => args.includes("--binary"))).toBe(false);
-		expect(calls.some((args) => args.includes("--name-only"))).toBe(true);
+		expect(calls.some((args) => args[0] === "diff")).toBe(false);
+		expect(calls.some((args) => args[0] === "ls-files")).toBe(false);
+	});
+
+	it("does not invalidate health cache for ordinary source edits when complexity is disabled", async () => {
+		const root = createWorkspace();
+		let status = "";
+		vi.doMock("@refarm.dev/cli/git-command", () => ({
+			readGitCommand: (args: string[]) => {
+				if (args.join(" ") === "rev-parse --show-toplevel") return root;
+				if (args.join(" ") === "rev-parse HEAD") return "abc123";
+				if (args[0] === "status") return status;
+				return "";
+			},
+		}));
+
+		const { buildHealthAuditFingerprint } = await import(
+			"../../src/commands/health-audit-cache.js"
+		);
+
+		const clean = buildHealthAuditFingerprint(root);
+		status = " M packages/example/src/index.ts\0";
+
+		expect(buildHealthAuditFingerprint(root)).toBe(clean);
 	});
 });

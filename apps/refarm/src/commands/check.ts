@@ -187,10 +187,8 @@ Notes:
 		)
 		.action(async (options: RefarmCheckOptions) => {
 			const nextActionOnly = Boolean(options.nextAction || options.nextCommand);
-			const doctor = await deps.runDoctor({
-				failOnWarnings: options.failOnWarnings,
-			});
 			const [
+				doctor,
 				nodeSubstrate,
 				rustSubstrate,
 				environmentPressure,
@@ -200,6 +198,9 @@ Notes:
 				workspaceSweep,
 				releasePolicy,
 			] = await Promise.all([
+				deps.runDoctor({
+					failOnWarnings: options.failOnWarnings,
+				}),
 				deps.runNodeSubstrate?.(),
 				deps.runRustSubstrate?.(),
 				deps.runEnvironmentPressure?.(),

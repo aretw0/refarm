@@ -10,7 +10,7 @@ import type { HealthReport } from "./health.js";
 
 const HEALTH_AUDIT_CACHE_VERSION = 1;
 const HEALTH_AUDIT_CACHE_FILE = "health-audit.json";
-const HEALTH_AUDIT_CACHE_MAX_AGE_MS = 30_000;
+const HEALTH_AUDIT_CACHE_MAX_AGE_MS = 5 * 60_000;
 const HEALTH_PROJECT_STATE_FINGERPRINT_FILES = [
   ".project/automations.json",
 ];
@@ -80,12 +80,23 @@ function buildGitHealthAuditFingerprint(
     const hash = createHealthFingerprintHash(root, policyReport);
     appendHealthFingerprintValue(hash, "git:head", readGitCommand(["rev-parse", "HEAD"], { cwd: root }));
     const status = readGitCommand(["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root });
-    appendHealthFingerprintValue(hash, "git:status", status);
-    appendGitChangedPathMetadata(hash, root, [
-      readGitCommand(["diff", "--no-ext-diff", "--name-only", "-z", "--"], { cwd: root }),
-      readGitCommand(["diff", "--cached", "--no-ext-diff", "--name-only", "-z", "--"], { cwd: root }),
-      readGitCommand(["ls-files", "--others", "--exclude-standard", "-z"], { cwd: root }),
-    ]);
+    const statusEntries = gitPorcelainStatusEntries(status);
+    appendHealthFingerprintValue(
+      hash,
+      "git:health-status",
+      statusEntries
+        .filter((entry) => entry.paths.some(isHealthAuditRelevantStatusPath))
+        .map((entry) => `${entry.code} ${entry.paths.join("\0")}`)
+        .sort()
+        .join("\0"),
+    );
+    appendGitChangedPathMetadata(
+      hash,
+      root,
+      statusEntries.flatMap((entry) =>
+        entry.paths.filter(isHealthAuditRelevantStatusPath)
+      ),
+    );
     return hash.digest("hex");
   } catch {
     return null;
@@ -122,13 +133,11 @@ function appendHealthFingerprintValue(
 function appendGitChangedPathMetadata(
   hash: ReturnType<typeof createHash>,
   rootDir: string,
-  rawPathGroups: string[],
+  changedPaths: string[],
 ): void {
   const paths = new Set<string>();
-  for (const rawPaths of rawPathGroups) {
-    for (const relativePath of rawPaths.split("\0").filter(Boolean)) {
-      paths.add(relativePath);
-    }
+  for (const relativePath of changedPaths) {
+    paths.add(relativePath);
   }
   for (const relativePath of [...paths].sort()) {
     if (!isHealthFingerprintFile(relativePath)) continue;
@@ -136,6 +145,53 @@ function appendGitChangedPathMetadata(
       includeContentHash: true,
     });
   }
+}
+
+function gitPorcelainStatusEntries(status: string): Array<{ code: string; paths: string[] }> {
+  const parsed: Array<{ code: string; paths: string[] }> = [];
+  const entries = status.split("\0").filter(Boolean);
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index]!;
+    if (entry.length < 4) continue;
+    const code = entry.slice(0, 2);
+    const relativePath = entry.slice(3);
+    const paths = relativePath ? [relativePath] : [];
+    if ((code.includes("R") || code.includes("C")) && entries[index + 1]) {
+      paths.push(entries[index + 1]!);
+      index += 1;
+    }
+    if (paths.length > 0) parsed.push({ code, paths });
+  }
+  return parsed;
+}
+
+function isHealthAuditRelevantStatusPath(relativePath: string): boolean {
+  const normalized = relativePath.split(path.sep).join("/");
+  const base = path.basename(normalized);
+  if (
+    base === ".gitignore" ||
+    base === "package.json" ||
+    base === "Cargo.toml" ||
+    base === "refarm.config.json" ||
+    base === "tsconfig.json" ||
+    base === "tsconfig.build.json" ||
+    base === "turbo.json" ||
+    base === "pnpm-workspace.yaml" ||
+    base === "package-lock.json" ||
+    base === "pnpm-lock.yaml"
+  ) {
+    return true;
+  }
+  return (
+    normalized === ".project/automations.json" ||
+    normalized === ".refarm/config.json" ||
+    normalized.startsWith(".cargo/") ||
+    normalized.startsWith(".changeset/") ||
+    normalized.startsWith(".devcontainer/") ||
+    normalized.startsWith(".github/") ||
+    normalized.startsWith(".project/") ||
+    normalized.startsWith(".refarm/")
+  );
 }
 
 function healthAuditCachePath(rootDir: string): string {

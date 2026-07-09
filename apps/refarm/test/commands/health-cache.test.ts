@@ -85,6 +85,29 @@ describe("health audit cache", () => {
 		]);
 	});
 
+	it("keeps healthy matching cache warm across normal finish-lane gaps", async () => {
+		const root = createWorkspace();
+		vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const first = await runHealthAudit(root);
+		expect(first.ok).toBe(true);
+
+		const cache = JSON.parse(
+			fs.readFileSync(healthCachePath(root), "utf-8"),
+		) as { createdAt: string; report: HealthReport };
+		cache.createdAt = new Date(Date.now() - 2 * 60_000).toISOString();
+		cache.report = {
+			...cache.report,
+			resolution: [{ package: "warm-cache", mode: "LINKED (dist)" }],
+		};
+		fs.writeFileSync(healthCachePath(root), `${JSON.stringify(cache, null, 2)}\n`);
+
+		const second = await runHealthAudit(root);
+		expect(second.resolution).toEqual([
+			{ package: "warm-cache", mode: "LINKED (dist)" },
+		]);
+	});
+
 	it("changes fingerprint when a source-level file changes", () => {
 		const root = createWorkspace();
 		const before = buildHealthAuditFingerprint(root);
