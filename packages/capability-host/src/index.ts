@@ -7,7 +7,10 @@ import {
 
 export {
 	buildCapabilityHostServeInfo,
+	createLocalCapabilityDeps,
 	createPluginDescriptorDeps,
+	definePluginInspectorCapability,
+	defineRecordsViewCapability,
 	defineCapabilityHost,
 	isCapabilityHostCliEntrypoint,
 	runCapabilityHostCli,
@@ -32,9 +35,18 @@ export {
 	type CapabilityHostSurfaceActionRow,
 	type CapabilityHostSurfaceActionsOptions,
 	type CapabilityHostSurfaceContext,
+	type CapabilityDeps,
+	type CapabilityDescriptor,
+	type PluginDescriptorDeps,
 	type PluginDescriptorDepsOptions,
+	type PluginInspectorCapabilityOptions,
+	type RecordsAnalyzeEnvelope,
+	type RecordsCommandDeps,
+	type RecordsViewCapabilityOptions,
 	type ParseableCapabilityHostProgram,
 	type RunCapabilityHostCliOptions,
+	type SubmitEffort,
+	type SurfaceableManifest,
 } from "@refarm.dev/capabilities-v1";
 
 export interface CapabilityAppDefinition<Options extends object = Record<string, never>> {

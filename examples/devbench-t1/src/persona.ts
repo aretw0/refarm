@@ -6,7 +6,7 @@ import {
 	type PluginDescriptorDeps,
 	type SubmitEffort,
 	type SurfaceableManifest,
-} from "@refarm.dev/capabilities-v1";
+} from "@refarm.dev/capability-host";
 
 /**
  * The T1 persona (PROCESS mode). devbench shows the developer's angle: the ACT of

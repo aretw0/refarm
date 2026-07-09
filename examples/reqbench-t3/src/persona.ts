@@ -3,7 +3,7 @@ import {
 	type CapabilityDescriptor,
 	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
-} from "@refarm.dev/capabilities-v1";
+} from "@refarm.dev/capability-host";
 import { createLocalRecordsCapabilityDeps } from "@refarm.dev/capability-host/node";
 import {
 	createReferenceEnrichmentProvider,

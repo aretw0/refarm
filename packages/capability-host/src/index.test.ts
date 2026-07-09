@@ -1,15 +1,19 @@
 import {
 	buildJsonSuccessEnvelope,
 	createLocalVaultCommandDeps,
+	defaultRecordsDeps,
 	defaultSourceDeps,
 } from "@refarm.dev/capabilities-v1";
 import { describe, expect, it, vi } from "vitest";
 
 import {
 	buildCapabilityHostServeInfo,
+	createLocalCapabilityDeps,
 	createPluginDescriptorDeps,
 	defineCapabilityApp,
 	defineCapabilityHost,
+	definePluginInspectorCapability,
+	defineRecordsViewCapability,
 	type CapabilityHost,
 	type CapabilityHostDefinition,
 } from "./index.js";
@@ -193,5 +197,25 @@ describe("@refarm.dev/capability-host public API", () => {
 
 		expect(deps.newId()).toBe("id-1");
 		expect(deps.nowIso()).toBe("2026-01-01T00:00:00Z");
+	});
+
+	it("re-exports extension helpers needed by example personas", () => {
+		expect(createLocalCapabilityDeps()).toHaveProperty("records");
+		expect(defineRecordsViewCapability({
+			name: "view",
+			summary: "View records",
+			records: defaultRecordsDeps(),
+			project: () => ({ seen: true }),
+		}).name).toBe("view");
+		expect(definePluginInspectorCapability({
+			name: "extension",
+			summary: "Inspect extension",
+			manifest: { id: "@example/ext" },
+			deps: createPluginDescriptorDeps({
+				submitEffort: async (effort) => effort.id,
+				newId: () => "id-1",
+				nowIso: () => "2026-01-01T00:00:00Z",
+			}),
+		}).name).toBe("extension");
 	});
 });
