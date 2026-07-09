@@ -24,11 +24,32 @@ const BENCHMARKS = [
 		description: "Direct dist entrypoint for comparing wrapper/startup overhead.",
 	},
 	{
+		id: "dist-loader-check-next-action",
+		profile: "quick",
+		command: process.execPath,
+		args: [
+			"--import",
+			pathToFileURL(resolve(ROOT, "scripts/farmhand-node-register-loader.mjs")).href,
+			"apps/refarm/dist/index.js",
+			"check",
+			"--next-action",
+			"--json",
+		],
+		description: "Direct dist entrypoint with the loader used by the public shim.",
+	},
+	{
 		id: "tidy-imports-check",
 		profile: "quick",
 		command: "refarm",
 		args: ["tidy", "imports", "--check", "--json"],
-		description: "Import organization check used by agent finish lanes.",
+		description: "Public CLI import organization check for wrapper/startup comparison.",
+	},
+	{
+		id: "toolbox-imports-check",
+		profile: "quick",
+		command: process.execPath,
+		args: ["packages/toolbox/src/cli.mjs", "imports", "--check"],
+		description: "Direct toolbox import check used inside agent finish lanes.",
 	},
 	{
 		id: "agent-finish-quick",
@@ -162,6 +183,7 @@ async function runBenchmark(benchmark, options) {
 	});
 	const elapsedMs = Number((process.hrtime.bigint() - startedAt) / 1_000_000n);
 	const payload = parseCliBenchPayload(result.stdout);
+	const payloadSummary = summarizeCliBenchPayload(payload, elapsedMs);
 	return {
 		id: benchmark.id,
 		profile: benchmark.profile,
@@ -176,9 +198,7 @@ async function runBenchmark(benchmark, options) {
 		timedOut: result.timedOut,
 		stdoutBytes: Buffer.byteLength(result.stdout),
 		stderrBytes: Buffer.byteLength(result.stderr),
-		payloadOk: payload && typeof payload === "object" && "ok" in payload ? payload.ok : null,
-		diagnostics: Array.isArray(payload?.diagnostics) ? payload.diagnostics : [],
-		nextCommand: typeof payload?.nextCommand === "string" ? payload.nextCommand : null,
+		...payloadSummary,
 		stderrPreview: result.stderr.trim().slice(0, 500),
 	};
 }
@@ -251,6 +271,33 @@ export function parseCliBenchPayload(stdout) {
 	return null;
 }
 
+export function summarizeCliBenchPayload(payload, elapsedMs = null) {
+	const stepResults = Array.isArray(payload?.stepResults)
+		? payload.stepResults
+				.filter((step) => typeof step?.id === "string" && Number.isFinite(step?.elapsedMs))
+				.map((step) => ({
+					id: step.id,
+					ok: typeof step.ok === "boolean" ? step.ok : null,
+					elapsedMs: step.elapsedMs,
+				}))
+		: [];
+	const slowestStep = [...stepResults].sort((a, b) => b.elapsedMs - a.elapsedMs)[0] ?? null;
+	const stepElapsedMs = stepResults.reduce((total, step) => total + step.elapsedMs, 0);
+	const overheadMs =
+		stepResults.length > 0 && Number.isFinite(elapsedMs)
+			? Math.max(0, elapsedMs - stepElapsedMs)
+			: null;
+	return {
+		payloadOk: payload && typeof payload === "object" && "ok" in payload ? payload.ok : null,
+		diagnostics: Array.isArray(payload?.diagnostics) ? payload.diagnostics : [],
+		nextCommand: typeof payload?.nextCommand === "string" ? payload.nextCommand : null,
+		stepResults,
+		stepElapsedMs,
+		overheadMs,
+		slowestStep: slowestStep ? { id: slowestStep.id, elapsedMs: slowestStep.elapsedMs } : null,
+	};
+}
+
 function displayCommand(command, args) {
 	return [command, ...args].map((part) => (/\s/u.test(part) ? JSON.stringify(part) : part)).join(" ");
 }
@@ -273,7 +320,9 @@ function printHuman(report) {
 	console.log(`CLI bench: ${report.profile} (${report.summary.total} samples)`);
 	for (const result of report.benchmarks) {
 		const status = result.ok ? "PASS" : "FAIL";
-		console.log(`${status} ${result.id} iteration=${result.iteration} elapsed=${result.elapsedMs}ms`);
+		const slowestStep = result.slowestStep ? ` slowestStep=${result.slowestStep.id}:${result.slowestStep.elapsedMs}ms` : "";
+		const overhead = result.overheadMs ? ` overhead=${result.overheadMs}ms` : "";
+		console.log(`${status} ${result.id} iteration=${result.iteration} elapsed=${result.elapsedMs}ms${slowestStep}${overhead}`);
 	}
 	if (report.summary.slowest) {
 		console.log(`Slowest: ${report.summary.slowest.id} ${report.summary.slowest.elapsedMs}ms`);

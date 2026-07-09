@@ -5,6 +5,7 @@ import {
 	parseCliBenchArgs,
 	parseCliBenchPayload,
 	selectCliBenchmarks,
+	summarizeCliBenchPayload,
 } from "../perf/cli-bench.mjs";
 
 test("cli bench parses stable options", () => {
@@ -73,4 +74,33 @@ test("cli bench parses pretty printed JSON payloads", () => {
 		ok: true,
 		nextCommand: null,
 	});
+});
+
+test("cli bench summarizes agent finish step timings from payloads", () => {
+	assert.deepEqual(
+		summarizeCliBenchPayload(
+			{
+				ok: true,
+				nextCommand: "refarm resume --json",
+				stepResults: [
+					{ id: "tidy-imports-check", ok: true, elapsedMs: 2600 },
+					{ id: "check", ok: true, elapsedMs: 6100 },
+					{ id: "missing-time", ok: true },
+				],
+			},
+			10_000,
+		),
+		{
+			payloadOk: true,
+			diagnostics: [],
+			nextCommand: "refarm resume --json",
+			stepResults: [
+				{ id: "tidy-imports-check", ok: true, elapsedMs: 2600 },
+				{ id: "check", ok: true, elapsedMs: 6100 },
+			],
+			stepElapsedMs: 8700,
+			overheadMs: 1300,
+			slowestStep: { id: "check", elapsedMs: 6100 },
+		},
+	);
 });
