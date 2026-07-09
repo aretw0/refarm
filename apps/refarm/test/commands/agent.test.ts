@@ -9,6 +9,7 @@ describe("agent command", () => {
 	const tempDirs: string[] = [];
 
 	afterEach(() => {
+		vi.restoreAllMocks();
 		while (tempDirs.length > 0) {
 			rmSync(tempDirs.pop()!, { recursive: true, force: true });
 		}
@@ -2438,6 +2439,71 @@ describe("agent command", () => {
 			validationScope: "dirtyTree",
 			affectedWorkspaces: ["apps/refarm"],
 		});
+		logSpy.mockRestore();
+	});
+
+	it("coalesces affected Turbo package validation into one process", async () => {
+		const root = mkdtempSync(path.join(os.tmpdir(), "refarm-agent-finish-turbo-batch-"));
+		tempDirs.push(root);
+		execFileSync("git", ["init"], { cwd: root, stdio: "ignore" });
+		writeFileSync(
+			path.join(root, "package.json"),
+			JSON.stringify({
+				name: "root",
+				devDependencies: { turbo: "2.9.14" },
+				packageManager: "pnpm@10.0.0",
+			}),
+			"utf8",
+		);
+		writeFileSync(path.join(root, "turbo.json"), JSON.stringify({ tasks: {} }), "utf8");
+		writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages:\n  - apps/*\n", "utf8");
+		for (const name of ["wallet", "requirements"]) {
+			const appDir = path.join(root, "apps", name);
+			mkdirSync(path.join(appDir, "src"), { recursive: true });
+			writeFileSync(
+				path.join(appDir, "package.json"),
+				JSON.stringify({
+					name,
+					scripts: { "type-check": "tsc --noEmit", build: "tsc" },
+					packageManager: "pnpm@10.0.0",
+				}),
+				"utf8",
+			);
+			writeFileSync(path.join(appDir, "src", "index.ts"), "export {};\n", "utf8");
+		}
+		const originalCwd = process.cwd();
+		process.chdir(root);
+		const agentCommand = createAgentCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		try {
+			await agentCommand.parseAsync([
+				"finish",
+				"--profile",
+				"affected",
+				"--json",
+			], { from: "user" });
+		} finally {
+			process.chdir(originalCwd);
+		}
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0])) as {
+			steps: { id: string; command: string; process?: { tool?: string } }[];
+			selection: { affectedWorkspaces?: string[] };
+		};
+		expect(payload.steps.map((step) => step.id)).toEqual([
+			"tidy-imports-check",
+			"check",
+			"package-affected-validation",
+		]);
+		const validation = payload.steps.at(-1);
+		expect(validation?.process?.tool).toBe("turbo");
+		expect(validation?.command).toContain("'--filter=./apps/requirements'");
+		expect(validation?.command).toContain("'--filter=./apps/wallet'");
+		expect(payload.selection.affectedWorkspaces).toEqual([
+			"apps/requirements",
+			"apps/wallet",
+		]);
 		logSpy.mockRestore();
 	});
 

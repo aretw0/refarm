@@ -289,22 +289,7 @@ function packageFinishStepsForWorkspace(
 	idPrefix: string,
 	includeTests = false,
 ): CommandPlanStep[] {
-	const scripts = packageScripts(workspace);
-	const candidates = [
-		["type-check", "Run the package TypeScript/type validation."],
-		["lint", "Run the package lint validation."],
-		...(includeTests ? [["test", "Run the package test suite."]] as const : []),
-		["build", "Build the package after source changes."],
-	] as const;
-	const baseCandidates = candidates.filter(([script]) => script !== "test");
-	const availableBaseCandidates = baseCandidates
-		.filter(([script]) => typeof scripts[script] === "string");
-	const availableCandidates = [
-		...candidates,
-		...(!includeTests && availableBaseCandidates.length === 0
-			? [["test", "Run the package test suite."]] as const
-			: []),
-	].filter(([script]) => typeof scripts[script] === "string");
+	const availableCandidates = packageValidationCandidates(workspace, includeTests);
 	if (availableCandidates.length === 0) return [];
 	if (workspaceCanUseTurboAdapter(findWorkspaceRoot()) && workspace !== ".") {
 		return [turboPackageValidationStep(
@@ -320,21 +305,44 @@ function packageFinishStepsForWorkspace(
 			script,
 			description,
 			idPrefix,
-		));
+	));
+}
+
+function packageValidationCandidates(
+	workspace: string,
+	includeTests = false,
+): Array<readonly [string, string]> {
+	const scripts = packageScripts(workspace);
+	const candidates = [
+		["type-check", "Run the package TypeScript/type validation."],
+		["lint", "Run the package lint validation."],
+		...(includeTests ? [["test", "Run the package test suite."]] as const : []),
+		["build", "Build the package after source changes."],
+	] as const;
+	const baseCandidates = candidates.filter(([script]) => script !== "test");
+	const availableBaseCandidates = baseCandidates
+		.filter(([script]) => typeof scripts[script] === "string");
+	return [
+		...candidates,
+		...(!includeTests && availableBaseCandidates.length === 0
+			? [["test", "Run the package test suite."]] as const
+			: []),
+	].filter(([script]) => typeof scripts[script] === "string");
 }
 
 function turboPackageValidationStep(
-	workspace: string,
+	workspace: string | readonly string[],
 	scripts: readonly string[],
 	descriptions: readonly string[],
 	idPrefix = "package",
 ): CommandPlanStep {
 	const repoRoot = findWorkspaceRoot();
+	const workspaces = typeof workspace === "string" ? [workspace] : workspace;
 	const command = createPackageBinaryCommand("turbo", [
 		"run",
 		...scripts,
 		`--concurrency=${FINISH_TURBO_CONCURRENCY}`,
-		`--filter=./${workspace}`,
+		...workspaces.map((item) => `--filter=./${item}`),
 		"--output-logs=errors-only",
 		"--ui=stream",
 	], { cwd: repoRoot });
@@ -365,13 +373,61 @@ function affectedPackageFinishSteps(
 	includeTests = false,
 	workspaces = affectedWorkspacesFromGit(),
 ): CommandPlanStep[] {
-	return workspaces.flatMap((workspace) =>
-		packageFinishStepsForWorkspace(
-			workspace,
-			`package-${sanitizeStepId(workspace)}`,
-			includeTests,
-		),
-	);
+	const repoRoot = findWorkspaceRoot();
+	if (!workspaceCanUseTurboAdapter(repoRoot)) {
+		return workspaces.flatMap((workspace) =>
+			packageFinishStepsForWorkspace(
+				workspace,
+				`package-${sanitizeStepId(workspace)}`,
+				includeTests,
+			),
+		);
+	}
+
+	const steps: CommandPlanStep[] = [];
+	const turboGroups = new Map<string, {
+		descriptions: string[];
+		scripts: string[];
+		workspaces: string[];
+	}>();
+	for (const workspace of workspaces) {
+		const candidates = packageValidationCandidates(workspace, includeTests);
+		if (candidates.length === 0) continue;
+		if (workspace === ".") {
+			steps.push(...packageFinishStepsForWorkspace(
+				workspace,
+				`package-${sanitizeStepId(workspace)}`,
+				includeTests,
+			));
+			continue;
+		}
+		const scripts = candidates.map(([script]) => script);
+		const descriptions = candidates.map(([, description]) => description);
+		const key = scripts.join("\0");
+		const group = turboGroups.get(key) ?? {
+			descriptions,
+			scripts,
+			workspaces: [],
+		};
+		group.workspaces.push(workspace);
+		turboGroups.set(key, group);
+	}
+	let groupIndex = 0;
+	for (const group of turboGroups.values()) {
+		const idPrefix = group.workspaces.length === 1
+			? `package-${sanitizeStepId(group.workspaces[0]!)}`
+			: groupIndex === 0
+				? "package-affected"
+				: `package-affected-${groupIndex + 1}`;
+		steps.push(turboPackageValidationStep(
+			group.workspaces,
+			group.scripts,
+			group.descriptions,
+			idPrefix,
+		));
+		groupIndex += 1;
+	}
+	return steps;
 }
 
 function affectedWorkspacesFromGit(options: {
