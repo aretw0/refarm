@@ -93,6 +93,16 @@ describe("mountCapabilities — the consumer-mount seam", () => {
 			const tools = await fetch(`http://127.0.0.1:${port}/agent-tools`);
 			expect(tools.status).toBe(200);
 
+			// The OpenAPI route is generated from the same registry metadata.
+			const openapi = await fetch(`http://127.0.0.1:${port}/openapi.json`);
+			expect(openapi.status).toBe(200);
+			const spec = (await openapi.json()) as {
+				openapi: string;
+				paths: Record<string, unknown>;
+			};
+			expect(spec.openapi).toBe("3.1.0");
+			expect(Object.keys(spec.paths)).toContain("/capabilities/ping");
+
 			// An unknown path 404s.
 			const missing = await fetch(`http://127.0.0.1:${port}/capabilities/nope`);
 			expect(missing.status).toBe(404);

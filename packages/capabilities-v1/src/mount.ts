@@ -1,4 +1,5 @@
 import {
+	buildCapabilityOpenApiDocument,
 	capabilityAnthropicTools,
 	capabilityCliCommands,
 	createCapabilityRegistry,
@@ -100,18 +101,32 @@ function writeJson(res: ServerResponse, status: number, body: unknown): void {
  */
 export function mountedHttpHandler(
 	registry: CapabilityRegistry,
-	options: { prefix?: string } = {},
+	options: { prefix?: string; openApiPath?: string; openApiTitle?: string; openApiVersion?: string } = {},
 ): (req: IncomingMessage, res: ServerResponse) => void {
 	const entries = registry.list();
+	const prefix = options.prefix ?? "/capabilities";
 	const routeHandler = createCapabilityRouteHandler(entries, {
-		prefix: options.prefix ?? "/capabilities",
+		prefix,
 	});
+	const openApiPath = options.openApiPath ?? "/openapi.json";
 	return (req, res) => {
 		if (routeHandler(req, res)) return;
 		const url = new URL(req.url ?? "/", "http://127.0.0.1");
 		const method = (req.method ?? "GET").toUpperCase();
 		if (method === "GET" && url.pathname === "/agent-tools") {
 			writeJson(res, 200, { tools: capabilityAnthropicTools(entries) });
+			return;
+		}
+		if (method === "GET" && url.pathname === openApiPath) {
+			writeJson(
+				res,
+				200,
+				buildCapabilityOpenApiDocument(entries, {
+					prefix,
+					...(options.openApiTitle ? { title: options.openApiTitle } : {}),
+					...(options.openApiVersion ? { version: options.openApiVersion } : {}),
+				}),
+			);
 			return;
 		}
 		writeJson(res, 404, {
@@ -140,13 +155,25 @@ export function mountedHttpHandler(
  */
 export function serveCapabilities(
 	registry: CapabilityRegistry,
-	options: { port?: number; prefix?: string; requestTimeoutMs?: number } = {},
+	options: {
+		port?: number;
+		prefix?: string;
+		requestTimeoutMs?: number;
+		openApiPath?: string;
+		openApiTitle?: string;
+		openApiVersion?: string;
+	} = {},
 ): {
 	server: Server;
 	listening: Promise<{ port: number }>;
 	close: () => Promise<void>;
 } {
-	const handler = mountedHttpHandler(registry, { prefix: options.prefix });
+	const handler = mountedHttpHandler(registry, {
+		prefix: options.prefix,
+		openApiPath: options.openApiPath,
+		openApiTitle: options.openApiTitle,
+		openApiVersion: options.openApiVersion,
+	});
 	const requestTimeoutMs = options.requestTimeoutMs ?? 15_000;
 
 	const server = createServer((req, res) => {
