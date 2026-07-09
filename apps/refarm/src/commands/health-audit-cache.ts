@@ -43,6 +43,24 @@ const HEALTH_FINGERPRINT_SKIP_DIRS = new Set([
   "test-results",
   "tmp",
 ]);
+const HEALTH_STATUS_PATHSPECS = [
+  ":(glob)**/.gitignore",
+  ":(glob)**/package.json",
+  ":(glob)**/Cargo.toml",
+  ":(glob)**/refarm.config.json",
+  ":(glob)**/tsconfig.json",
+  ":(glob)**/tsconfig.build.json",
+  ":(glob)**/turbo.json",
+  "pnpm-workspace.yaml",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  ".cargo",
+  ".changeset",
+  ".devcontainer",
+  ".github",
+  ".project",
+  ".refarm",
+];
 
 export interface HealthAuditCacheEntry {
   version: number;
@@ -79,7 +97,17 @@ function buildGitHealthAuditFingerprint(
     if (gitRoot !== root) return null;
     const hash = createHealthFingerprintHash(root, policyReport);
     appendGitTrackedHealthFileMetadata(hash, root);
-    const status = readGitCommand(["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root });
+    const status = readGitCommand(
+      [
+        "status",
+        "--porcelain=v1",
+        "-z",
+        "--untracked-files=all",
+        "--",
+        ...HEALTH_STATUS_PATHSPECS,
+      ],
+      { cwd: root },
+    );
     const statusEntries = gitPorcelainStatusEntries(status);
     appendHealthFingerprintValue(
       hash,
@@ -107,19 +135,47 @@ function appendGitTrackedHealthFileMetadata(
   hash: ReturnType<typeof createHash>,
   rootDir: string,
 ): void {
-  const tracked = readGitCommand(["ls-files", "-z"], { cwd: rootDir });
-  const files = tracked
+  const tracked = readGitCommand(["ls-files", "-s", "-z"], { cwd: rootDir });
+  const entries = gitTrackedFileEntries(tracked)
+    .map((entry) => ({
+      ...entry,
+      path: normalizeHealthFingerprintPath(entry.path),
+    }))
+    .filter((entry) => isHealthAuditRelevantStatusPath(entry.path))
+    .sort((a, b) => a.path.localeCompare(b.path));
+  const files = entries.map((entry) => entry.path);
+  appendHealthFingerprintValue(hash, "git:tracked-health-files", files.join("\0"));
+  for (const entry of entries) {
+    appendHealthFingerprintValue(
+      hash,
+      "git:tracked-health-file",
+      JSON.stringify(entry),
+    );
+  }
+}
+
+function gitTrackedFileEntries(
+  tracked: string,
+): Array<{ mode: string; object: string; stage: string; path: string }> {
+  return tracked
     .split("\0")
     .filter(Boolean)
-    .map(normalizeHealthFingerprintPath)
-    .filter(isHealthAuditRelevantStatusPath)
-    .sort();
-  appendHealthFingerprintValue(hash, "git:tracked-health-files", files.join("\0"));
-  for (const relativePath of files) {
-    appendHealthFingerprintFile(hash, rootDir, relativePath, {
-      includeContentHash: true,
-    });
-  }
+    .map((entry) => {
+      const match = /^(\d+) ([0-9a-f]+) (\d+)\t(.+)$/s.exec(entry);
+      if (!match) return null;
+      return {
+        mode: match[1]!,
+        object: match[2]!,
+        stage: match[3]!,
+        path: match[4]!,
+      };
+    })
+    .filter(
+      (
+        entry,
+      ): entry is { mode: string; object: string; stage: string; path: string } =>
+        Boolean(entry),
+    );
 }
 
 function createHealthFingerprintHash(

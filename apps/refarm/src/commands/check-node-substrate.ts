@@ -67,6 +67,24 @@ export interface NodeSubstrateCheck {
 	recommendations: DiagnosticRecommendation[];
 }
 
+interface PackageManagerBinCheck {
+	missing: string[];
+	foreignPlatformShims: NodeSubstrateCheck["foreignPlatformShims"];
+}
+
+export interface NodeSubstrateCheckDeps {
+	root: string;
+	platform: NodeJS.Platform;
+	checkPackageManagerBins(): Promise<PackageManagerBinCheck>;
+	findMountIssues(): Promise<NodeSubstrateCheck["mountIssues"]>;
+	findWorkspaceLinkChecks(): Promise<
+		NodeSubstrateCheck["missingWorkspaceDependencyLinks"]
+	>;
+	findRuntimeChecks(): Promise<NodeSubstrateCheck["runtimeChecks"]>;
+	findSourceAccessIssues(): Promise<NodeSubstrateCheck["sourceAccessIssues"]>;
+	resolveInstallCommand(): Promise<string>;
+}
+
 async function exists(filePath: string): Promise<boolean> {
 	try {
 		await fs.access(filePath);
@@ -88,6 +106,80 @@ export async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 	const { packageFrozenInstallCommand } = await import("@refarm.dev/config");
 	const root = process.cwd();
 	const platform = os.platform();
+	return runNodeSubstrateCheckWithDeps({
+		root,
+		platform,
+		checkPackageManagerBins: () =>
+			checkNodeSubstratePackageManagerBins(root, platform),
+		findMountIssues: () => findNodeSubstrateMountIssues(root),
+		findWorkspaceLinkChecks: () => findNodeSubstrateWorkspaceLinkChecks(root),
+		findRuntimeChecks: () => findNodeSubstrateRuntimeChecks(root),
+		findSourceAccessIssues: () => findNodeSubstrateSourceAccessIssues(root),
+		resolveInstallCommand: async () =>
+			packageFrozenInstallCommand({ cwd: root }).display,
+	});
+}
+
+export async function runNodeSubstrateCheckWithDeps(
+	deps: NodeSubstrateCheckDeps,
+): Promise<NodeSubstrateCheck> {
+	const [
+		packageManagerBins,
+		mountIssues,
+		workspaceLinkChecks,
+		runtimeChecks,
+		sourceAccessIssues,
+		installCommand,
+	] = await Promise.all([
+		deps.checkPackageManagerBins(),
+		deps.findMountIssues(),
+		deps.findWorkspaceLinkChecks(),
+		deps.findRuntimeChecks(),
+		deps.findSourceAccessIssues(),
+		deps.resolveInstallCommand(),
+	]);
+	const { missing, foreignPlatformShims } = packageManagerBins;
+	const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter(
+		(check) => !check.ok,
+	);
+	const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
+	const recommendations = buildNodeSubstrateRecommendations({
+		missing,
+		foreignPlatformShims,
+		mountIssues,
+		missingWorkspaceDependencyLinks,
+		missingRuntimeDependencies,
+		sourceAccessIssues,
+		installCommand,
+	});
+	return {
+		command: "node-substrate",
+		operation: "check",
+		ok: recommendations.length === 0,
+		platform: deps.platform,
+		missing,
+		foreignPlatformShims,
+		mountIssues,
+		workspaceLinkCount: workspaceLinkChecks.length,
+		missingWorkspaceDependencyLinkCount: missingWorkspaceDependencyLinks.length,
+		missingWorkspaceDependencyLinks: compactNodeSubstrateDependencyIssues(
+			missingWorkspaceDependencyLinks,
+		),
+		runtimeChecks,
+		missingRuntimeDependencyCount: missingRuntimeDependencies.length,
+		missingRuntimeDependencies: compactNodeSubstrateDependencyIssues(
+			missingRuntimeDependencies,
+		),
+		sourceAccessIssueCount: sourceAccessIssues.length,
+		sourceAccessIssues: sourceAccessIssues.slice(0, 20),
+		recommendations,
+	};
+}
+
+async function checkNodeSubstratePackageManagerBins(
+	root: string,
+	platform: NodeJS.Platform,
+): Promise<PackageManagerBinCheck> {
 	const missing: string[] = [];
 	const foreignPlatformShims: NodeSubstrateCheck["foreignPlatformShims"] = [];
 	for (const relativePath of [
@@ -120,45 +212,9 @@ export async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 			: relativePath;
 		if (!(await exists(path.join(root, relative)))) missing.push(relative);
 	}
-	const mountIssues = await findNodeSubstrateMountIssues(root);
-	const workspaceLinkChecks = await findNodeSubstrateWorkspaceLinkChecks(root);
-	const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter(
-		(check) => !check.ok,
-	);
-	const runtimeChecks = await findNodeSubstrateRuntimeChecks(root);
-	const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
-	const sourceAccessIssues = await findNodeSubstrateSourceAccessIssues(root);
-	const installCommand = packageFrozenInstallCommand({ cwd: root }).display;
-	const recommendations = buildNodeSubstrateRecommendations({
-		missing,
-		foreignPlatformShims,
-		mountIssues,
-		missingWorkspaceDependencyLinks,
-		missingRuntimeDependencies,
-		sourceAccessIssues,
-		installCommand,
-	});
 	return {
-		command: "node-substrate",
-		operation: "check",
-		ok: recommendations.length === 0,
-		platform,
 		missing,
 		foreignPlatformShims,
-		mountIssues,
-		workspaceLinkCount: workspaceLinkChecks.length,
-		missingWorkspaceDependencyLinkCount: missingWorkspaceDependencyLinks.length,
-		missingWorkspaceDependencyLinks: compactNodeSubstrateDependencyIssues(
-			missingWorkspaceDependencyLinks,
-		),
-		runtimeChecks,
-		missingRuntimeDependencyCount: missingRuntimeDependencies.length,
-		missingRuntimeDependencies: compactNodeSubstrateDependencyIssues(
-			missingRuntimeDependencies,
-		),
-		sourceAccessIssueCount: sourceAccessIssues.length,
-		sourceAccessIssues: sourceAccessIssues.slice(0, 20),
-		recommendations,
 	};
 }
 

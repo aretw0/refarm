@@ -60,8 +60,12 @@ describe("health audit git cache fingerprint", () => {
 				if (args[0] === "status") {
 					return " M packages/example/package.json\0?? packages/example/new.ts\0";
 				}
-				if (args[0] === "ls-files") {
-					return "packages/example/package.json\0packages/example/src/index.ts\0refarm.config.json\0";
+				if (args.join(" ") === "ls-files -s -z") {
+					return [
+						"100644 abc123 0\tpackages/example/package.json",
+						"100644 def456 0\tpackages/example/src/index.ts",
+						"100644 fedcba 0\trefarm.config.json",
+					].join("\0");
 				}
 				return "";
 			},
@@ -74,7 +78,15 @@ describe("health audit git cache fingerprint", () => {
 		expect(buildHealthAuditFingerprint(root)).toMatch(/^[a-f0-9]{64}$/);
 		expect(calls.some((args) => args.includes("--binary"))).toBe(false);
 		expect(calls.some((args) => args[0] === "diff")).toBe(false);
-		expect(calls.some((args) => args[0] === "ls-files")).toBe(true);
+		expect(calls.some((args) => args.join(" ") === "ls-files -s -z")).toBe(true);
+		expect(
+			calls.some(
+				(args) =>
+					args[0] === "status" &&
+					args.includes("--") &&
+					args.includes(":(glob)**/package.json"),
+			),
+		).toBe(true);
 	});
 
 	it("does not invalidate health cache for ordinary source edits when complexity is disabled", async () => {
@@ -84,8 +96,12 @@ describe("health audit git cache fingerprint", () => {
 			readGitCommand: (args: string[]) => {
 				if (args.join(" ") === "rev-parse --show-toplevel") return root;
 				if (args[0] === "status") return status;
-				if (args[0] === "ls-files") {
-					return "packages/example/package.json\0packages/example/src/index.ts\0refarm.config.json\0";
+				if (args.join(" ") === "ls-files -s -z") {
+					return [
+						"100644 abc123 0\tpackages/example/package.json",
+						"100644 def456 0\tpackages/example/src/index.ts",
+						"100644 fedcba 0\trefarm.config.json",
+					].join("\0");
 				}
 				return "";
 			},
@@ -109,8 +125,12 @@ describe("health audit git cache fingerprint", () => {
 				if (args.join(" ") === "rev-parse --show-toplevel") return root;
 				if (args.join(" ") === "rev-parse HEAD") return head;
 				if (args[0] === "status") return "";
-				if (args[0] === "ls-files") {
-					return "packages/example/package.json\0packages/example/src/index.ts\0refarm.config.json\0";
+				if (args.join(" ") === "ls-files -s -z") {
+					return [
+						"100644 abc123 0\tpackages/example/package.json",
+						"100644 def456 0\tpackages/example/src/index.ts",
+						"100644 fedcba 0\trefarm.config.json",
+					].join("\0");
 				}
 				return "";
 			},
@@ -128,12 +148,17 @@ describe("health audit git cache fingerprint", () => {
 
 	it("invalidates health cache when tracked health files change", async () => {
 		const root = createWorkspace();
+		let status = "";
 		vi.doMock("@refarm.dev/cli/git-command", () => ({
 			readGitCommand: (args: string[]) => {
 				if (args.join(" ") === "rev-parse --show-toplevel") return root;
-				if (args[0] === "status") return "";
-				if (args[0] === "ls-files") {
-					return "packages/example/package.json\0packages/example/src/index.ts\0refarm.config.json\0";
+				if (args[0] === "status") return status;
+				if (args.join(" ") === "ls-files -s -z") {
+					return [
+						"100644 abc123 0\tpackages/example/package.json",
+						"100644 def456 0\tpackages/example/src/index.ts",
+						"100644 fedcba 0\trefarm.config.json",
+					].join("\0");
 				}
 				return "";
 			},
@@ -152,6 +177,7 @@ describe("health audit git cache fingerprint", () => {
 				types: "dist/index.d.ts",
 			}, null, 2)}\n`,
 		);
+		status = " M packages/example/package.json\0";
 
 		expect(buildHealthAuditFingerprint(root)).not.toBe(before);
 	});
