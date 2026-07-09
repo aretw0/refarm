@@ -119,6 +119,9 @@ export interface HealthPolicyApplicationReport {
   nextCommands: string[];
 }
 
+export interface HealthAuditOptions {
+  cacheMode?: "fresh" | "stable";
+}
 
 const RESOLUTION_ALIGNMENT_COMMAND = "node packages/toolbox/src/cli.mjs reso dist";
 
@@ -215,11 +218,16 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
   ];
 }
 
-export async function runHealthAudit(rootDir = process.cwd()): Promise<HealthReport> {
+export async function runHealthAudit(
+  rootDir = process.cwd(),
+  options: HealthAuditOptions = {},
+): Promise<HealthReport> {
   const policyReport = resolveHealthPolicyReport(rootDir);
   const policy = policyReport.policy;
   const fingerprint = buildHealthAuditFingerprint(rootDir, policyReport);
-  const cached = readHealthAuditCache(rootDir, fingerprint);
+  const cached = readHealthAuditCache(rootDir, fingerprint, {
+    allowStale: options.cacheMode === "stable",
+  });
   if (cached) return cached;
 
   const graphContext = await openTractorGraph();

@@ -108,6 +108,47 @@ describe("health audit cache", () => {
 		]);
 	});
 
+	it("can reuse old healthy matching cache for cheap readiness gates", async () => {
+		const root = createWorkspace();
+		vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const first = await runHealthAudit(root);
+		expect(first.ok).toBe(true);
+
+		const cache = JSON.parse(
+			fs.readFileSync(healthCachePath(root), "utf-8"),
+		) as { createdAt: string; report: HealthReport };
+		cache.createdAt = new Date(Date.now() - 30 * 60_000).toISOString();
+		cache.report = {
+			...cache.report,
+			resolution: [{ package: "stable-cache", mode: "LINKED (dist)" }],
+		};
+		fs.writeFileSync(healthCachePath(root), `${JSON.stringify(cache, null, 2)}\n`);
+
+		const fresh = await runHealthAudit(root);
+		expect(fresh.resolution).not.toEqual([
+			{ package: "stable-cache", mode: "LINKED (dist)" },
+		]);
+
+		const refreshedCache = JSON.parse(
+			fs.readFileSync(healthCachePath(root), "utf-8"),
+		) as { createdAt: string; report: HealthReport };
+		refreshedCache.createdAt = new Date(Date.now() - 30 * 60_000).toISOString();
+		refreshedCache.report = {
+			...refreshedCache.report,
+			resolution: [{ package: "stable-cache", mode: "LINKED (dist)" }],
+		};
+		fs.writeFileSync(
+			healthCachePath(root),
+			`${JSON.stringify(refreshedCache, null, 2)}\n`,
+		);
+
+		const stable = await runHealthAudit(root, { cacheMode: "stable" });
+		expect(stable.resolution).toEqual([
+			{ package: "stable-cache", mode: "LINKED (dist)" },
+		]);
+	});
+
 	it("changes fingerprint when a source-level file changes", () => {
 		const root = createWorkspace();
 		const before = buildHealthAuditFingerprint(root);

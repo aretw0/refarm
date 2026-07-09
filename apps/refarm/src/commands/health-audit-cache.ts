@@ -69,6 +69,10 @@ export interface HealthAuditCacheEntry {
   report: HealthReport;
 }
 
+export interface HealthAuditCacheReadOptions {
+  allowStale?: boolean;
+}
+
 export function buildHealthAuditFingerprint(
   rootDir: string,
   policyReport = resolveHealthPolicyReport(rootDir),
@@ -276,13 +280,14 @@ function healthAuditCachePath(rootDir: string): string {
 export function readHealthAuditCache(
   rootDir: string,
   fingerprint: string,
+  options: HealthAuditCacheReadOptions = {},
 ): HealthReport | null {
   try {
     const raw = fs.readFileSync(healthAuditCachePath(rootDir), "utf-8");
     const parsed = JSON.parse(raw) as HealthAuditCacheEntry;
     if (parsed.version !== HEALTH_AUDIT_CACHE_VERSION) return null;
     if (parsed.fingerprint !== fingerprint) return null;
-    if (!isFreshHealthAuditCacheEntry(parsed)) return null;
+    if (!options.allowStale && !isFreshHealthAuditCacheEntry(parsed)) return null;
     if (!isHealthReport(parsed.report)) return null;
     if (!parsed.report.ok || parsed.report.issueCount !== 0) return null;
     return parsed.report;

@@ -165,7 +165,7 @@ export function createCheckCommand(
 	deps: RefarmCheckDeps = {
 		runHealth: async () => {
 			const { runHealthAudit } = await import("./health.js");
-			return runHealthAudit();
+			return runHealthAudit(process.cwd(), { cacheMode: "stable" });
 		},
 		runDoctor: runDefaultDoctor,
 		runModelDoctor: runDefaultModelDoctor,
