@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	findSourceAccessIssuesForPaths,
+	findWorkspaceDependencyLinkChecksForPackages,
 	runNodeSubstrateCheckWithDeps,
 } from "../../src/commands/check-node-substrate.js";
 
@@ -16,6 +17,43 @@ function fileStat() {
 }
 
 describe("check node substrate", () => {
+	it("checks workspace dependency links concurrently", async () => {
+		let active = 0;
+		let maxActive = 0;
+		const checks = await findWorkspaceDependencyLinkChecksForPackages(
+			[
+				{
+					packageDir: "/repo/packages/one",
+					manifestPath: "/repo/packages/one/package.json",
+					relativePackageDir: "packages/one",
+					packageName: "@example/one",
+					manifest: {
+						dependencies: {
+							"@example/two": "workspace:*",
+							"@example/three": "workspace:*",
+						},
+						devDependencies: {
+							"@example/four": "workspace:*",
+						},
+					},
+				},
+			],
+			{
+				exists: async () => {
+					active += 1;
+					maxActive = Math.max(maxActive, active);
+					await new Promise((resolve) => setTimeout(resolve, 5));
+					active -= 1;
+					return true;
+				},
+			},
+		);
+
+		expect(maxActive).toBeGreaterThan(1);
+		expect(checks).toHaveLength(3);
+		expect(checks.every((check) => check.ok)).toBe(true);
+	});
+
 	it("runs independent substrate probes concurrently", async () => {
 		let active = 0;
 		let maxActive = 0;

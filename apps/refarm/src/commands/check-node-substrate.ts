@@ -335,31 +335,47 @@ export function buildNodeSubstrateRecommendations(input: {
 async function findNodeSubstrateWorkspaceLinkChecks(
 	root: string,
 ): Promise<NodeSubstrateCheck["missingWorkspaceDependencyLinks"]> {
-	const checks: NodeSubstrateCheck["missingWorkspaceDependencyLinks"] = [];
+	const packages: WorkspacePackageManifest[] = [];
 	for await (const workspacePackage of readWorkspacePackageManifests(root)) {
-		for (const dependencies of [
+		packages.push(workspacePackage);
+	}
+	return findWorkspaceDependencyLinkChecksForPackages(packages);
+}
+
+interface WorkspaceDependencyLinkFileSystem {
+	exists(path: string): Promise<boolean>;
+}
+
+export async function findWorkspaceDependencyLinkChecksForPackages(
+	packages: WorkspacePackageManifest[],
+	fsApi: WorkspaceDependencyLinkFileSystem = { exists },
+): Promise<NodeSubstrateCheck["missingWorkspaceDependencyLinks"]> {
+	const checks = packages.flatMap((workspacePackage) =>
+		[
 			workspacePackage.manifest.dependencies ?? {},
 			workspacePackage.manifest.devDependencies ?? {},
-		]) {
-			for (const [dependency, version] of Object.entries(dependencies).sort()) {
-				if (!version.startsWith("workspace:")) continue;
-				const dependencyPackageJson = path.join(
-					workspacePackage.packageDir,
-					"node_modules",
-					dependency,
-					"package.json",
-				);
-				checks.push({
-					id: `workspace_dep_${workspacePackage.packageName}_${dependency}`,
-					ok: await exists(dependencyPackageJson),
-					package: workspacePackage.packageName,
-					dependency,
-					path: workspacePackage.relativePackageDir,
-				});
-			}
-		}
-	}
-	return checks;
+		].flatMap((dependencies) =>
+			Object.entries(dependencies)
+				.sort()
+				.filter(([, version]) => version.startsWith("workspace:"))
+				.map(async ([dependency]) => {
+					const dependencyPackageJson = path.join(
+						workspacePackage.packageDir,
+						"node_modules",
+						dependency,
+						"package.json",
+					);
+					return {
+						id: `workspace_dep_${workspacePackage.packageName}_${dependency}`,
+						ok: await fsApi.exists(dependencyPackageJson),
+						package: workspacePackage.packageName,
+						dependency,
+						path: workspacePackage.relativePackageDir,
+					};
+				}),
+		),
+	);
+	return Promise.all(checks);
 }
 
 async function findNodeSubstrateSourceAccessIssues(
@@ -533,7 +549,7 @@ async function findNodeSubstrateRuntimeChecks(
 	return checks;
 }
 
-async function* readWorkspacePackageManifests(root: string): AsyncGenerator<{
+interface WorkspacePackageManifest {
 	packageDir: string;
 	manifestPath: string;
 	relativePackageDir: string;
@@ -544,7 +560,11 @@ async function* readWorkspacePackageManifests(root: string): AsyncGenerator<{
 		dependencies?: Record<string, string>;
 		devDependencies?: Record<string, string>;
 	};
-}> {
+}
+
+async function* readWorkspacePackageManifests(
+	root: string,
+): AsyncGenerator<WorkspacePackageManifest> {
 	for (const workspaceGroup of ["apps", "packages"]) {
 		const groupPath = path.join(root, workspaceGroup);
 		let entries: Array<{ name: string; isDirectory(): boolean }>;
