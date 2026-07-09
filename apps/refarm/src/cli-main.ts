@@ -19,6 +19,11 @@ function renderTokenAuthError(err: TokenAuthError): void {
 
 async function parseFastCommand(argv: string[]): Promise<boolean> {
 	const [, , commandName, ...commandArgs] = argv;
+	if (commandName === "agent" && commandArgs[0] === "finish") {
+		const { agentCommand } = await import("./commands/agent.js");
+		await agentCommand.parseAsync(commandArgs, { from: "user" });
+		return true;
+	}
 	if (commandName !== "check") return false;
 
 	const { checkCommand } = await import("./commands/check.js");
