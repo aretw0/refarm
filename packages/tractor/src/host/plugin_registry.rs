@@ -358,6 +358,56 @@ mod tests {
     }
 
     #[test]
+    fn dispatchable_verbs_match_ts_conformance_fixture() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../capabilities-v1/fixtures/plugin-surface-verbs.json"
+        ))
+        .expect("valid plugin surface verb fixture");
+        let r = PluginRegistry::default();
+        for manifest in fixture["manifests"].as_array().expect("manifests array") {
+            let id = manifest["id"].as_str().expect("manifest id");
+            let capabilities = &manifest["capabilities"];
+            let provides = capabilities["provides"]
+                .as_array()
+                .expect("provides array")
+                .iter()
+                .map(|entry| entry.as_str().expect("provides string").to_string())
+                .collect();
+            let subscribes = capabilities["subscribes"]
+                .as_array()
+                .expect("subscribes array")
+                .iter()
+                .map(|entry| entry.as_str().expect("subscribes string").to_string())
+                .collect();
+            register_plain(&r, id, provides, subscribes);
+        }
+
+        let actual: Vec<serde_json::Value> = r
+            .dispatchable_verbs()
+            .into_iter()
+            .map(|verb| {
+                let target = format!("{}:{}", verb.plugin_key, verb.verb);
+                serde_json::json!({
+                    "pluginId": verb.plugin_id,
+                    "pluginKey": verb.plugin_key,
+                    "verb": verb.verb,
+                    "target": target,
+                    "dispatchEvent": format!("{}:dispatch", target.split(':').next().expect("target key")),
+                    "surfaceName": target.replace(':', "-"),
+                })
+            })
+            .collect();
+
+        assert_eq!(
+            actual,
+            fixture["expected"]
+                .as_array()
+                .expect("expected array")
+                .clone()
+        );
+    }
+
+    #[test]
     fn plugin_providing_api_matches_the_api_convention() {
         let r = PluginRegistry::default();
         register_plain(&r, "provider", vec!["api:embeddings".into()], vec![]);

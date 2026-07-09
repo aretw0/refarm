@@ -1,5 +1,9 @@
 import { type PluginPackageSource } from "@refarm.dev/barn";
 import {
+	surfaceablePluginVerbsFrom,
+	type SurfaceablePluginVerb,
+} from "@refarm.dev/capabilities-v1";
+import {
 	pluginIdToFsToken,
 	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
 } from "@refarm.dev/config/plugin-identity";
@@ -233,4 +237,15 @@ export function readSurfaceablePluginManifests(): InstalledPluginManifest[] {
 		...readInstalledPluginManifests(),
 		...readLocalExtensionManifests(),
 	];
+}
+
+export function readSurfaceablePluginVerbs(
+	cwd = process.cwd(),
+	homeDir = os.homedir(),
+	installedManifests = readInstalledPluginManifests(),
+): SurfaceablePluginVerb[] {
+	return [
+		...installedManifests,
+		...readLocalExtensionManifests(cwd, homeDir),
+	].flatMap((manifest) => surfaceablePluginVerbsFrom(manifest));
 }

@@ -1,0 +1,59 @@
+{
+	"schema": "plugin-surface-verbs.conformance.v1",
+	"manifests": [
+		{
+			"id": "@local/vault",
+			"capabilities": {
+				"provides": [
+					"vault:search",
+					"vault:extract",
+					"vault:dispatch",
+					"bad",
+					":leading",
+					"trailing:"
+				],
+				"subscribes": ["vault:dispatch"]
+			}
+		},
+		{
+			"id": "@local/web",
+			"capabilities": {
+				"provides": ["web:search"],
+				"subscribes": ["web:dispatch"]
+			}
+		},
+		{
+			"id": "@local/orphan",
+			"capabilities": {
+				"provides": ["orphan:search"],
+				"subscribes": ["other:dispatch"]
+			}
+		}
+	],
+	"expected": [
+		{
+			"pluginId": "@local/vault",
+			"pluginKey": "vault",
+			"verb": "search",
+			"target": "vault:search",
+			"dispatchEvent": "vault:dispatch",
+			"surfaceName": "vault-search"
+		},
+		{
+			"pluginId": "@local/vault",
+			"pluginKey": "vault",
+			"verb": "extract",
+			"target": "vault:extract",
+			"dispatchEvent": "vault:dispatch",
+			"surfaceName": "vault-extract"
+		},
+		{
+			"pluginId": "@local/web",
+			"pluginKey": "web",
+			"verb": "search",
+			"target": "web:search",
+			"dispatchEvent": "web:dispatch",
+			"surfaceName": "web-search"
+		}
+	]
+}

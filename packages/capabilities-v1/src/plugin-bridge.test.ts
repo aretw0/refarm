@@ -1,5 +1,6 @@
 import { createCapabilityRegistry } from "@refarm.dev/cli/capabilities";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -33,6 +34,11 @@ function manifest(
 	return { id, capabilities: { provides, subscribes } };
 }
 
+interface SurfaceVerbConformanceFixture {
+	manifests: ReturnType<typeof manifest>[];
+	expected: ReturnType<typeof surfaceablePluginVerbsFrom>;
+}
+
 describe("surfaceablePluginVerbsFrom — manifest metadata without host deps", () => {
 	it("describes dispatchable plugin verbs with their stable surface names", () => {
 		const m = manifest("@example/vault", ["vault:search", "vault:extract"], [
@@ -63,6 +69,19 @@ describe("surfaceablePluginVerbsFrom — manifest metadata without host deps", (
 	it("keeps the same subscribes guard as descriptor synthesis", () => {
 		const m = manifest("@example/vault", ["vault:search", "vault:dispatch", "bad"], []);
 		expect(surfaceablePluginVerbsFrom(m)).toEqual([]);
+	});
+
+	it("matches the shared TS/Rust plugin surface verb conformance fixture", () => {
+		const fixture = JSON.parse(
+			readFileSync(
+				new URL("../fixtures/plugin-surface-verbs.json", import.meta.url),
+				"utf-8",
+			),
+		) as SurfaceVerbConformanceFixture;
+
+		expect(
+			fixture.manifests.flatMap((entry) => surfaceablePluginVerbsFrom(entry)),
+		).toEqual(fixture.expected);
 	});
 });
 
