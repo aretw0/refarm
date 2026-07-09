@@ -4,7 +4,6 @@ import {
 	renderBootstrapFailure,
 } from "./bootstrap-preflight.js";
 import { TokenAuthError } from "./credentials/token-auth-error.js";
-import { program } from "./program.js";
 
 function terminalLink(text: string, url: string): string {
 	return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
@@ -18,7 +17,27 @@ function renderTokenAuthError(err: TokenAuthError): void {
 	process.stderr.write(chalk.dim("   Rotate at: ") + urlText + "\n");
 }
 
-program.parseAsync(process.argv).catch((err: unknown) => {
+async function parseFastCommand(argv: string[]): Promise<boolean> {
+	const [, , commandName, ...commandArgs] = argv;
+	if (commandName !== "check") return false;
+
+	const { checkCommand } = await import("./commands/check.js");
+	await checkCommand.parseAsync(commandArgs, { from: "user" });
+	return true;
+}
+
+export async function runCliMain(argv = process.argv): Promise<void> {
+	try {
+		if (await parseFastCommand(argv)) return;
+
+		const { program } = await import("./program.js");
+		await program.parseAsync(argv);
+	} catch (err) {
+		handleCliMainError(err);
+	}
+}
+
+function handleCliMainError(err: unknown): void {
 	if (err instanceof TokenAuthError) {
 		renderTokenAuthError(err);
 		process.exitCode = 1;
@@ -30,4 +49,8 @@ program.parseAsync(process.argv).catch((err: unknown) => {
 		return;
 	}
 	throw err;
-});
+}
+
+if (!process.env.VITEST) {
+	await runCliMain();
+}
