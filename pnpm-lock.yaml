@@ -627,6 +627,25 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/capability-homestead-surface:
+    dependencies:
+      '@refarm.dev/cli':
+        specifier: workspace:*
+        version: link:../cli
+      '@refarm.dev/homestead':
+        specifier: workspace:*
+        version: link:../homestead
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/capability-host:
     dependencies:
       '@refarm.dev/capabilities-v1':

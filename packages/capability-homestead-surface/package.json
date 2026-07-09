@@ -1,0 +1,45 @@
+{
+	"name": "@refarm.dev/capability-homestead-surface",
+	"version": "0.1.0",
+	"description": "The capability → Homestead web bridge — projects a registry's renderers.web verbs into a real Homestead surface plugin (ADR-085).",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"README.md",
+		"dist",
+		"!dist/**/*.tsbuildinfo"
+	],
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"lint": "eslint src"
+	},
+	"keywords": [
+		"refarm",
+		"capability",
+		"homestead",
+		"surface",
+		"web"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@refarm.dev/cli": "workspace:*",
+		"@refarm.dev/homestead": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	},
+	"license": "MIT"
+}
