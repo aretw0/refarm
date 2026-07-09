@@ -14,7 +14,7 @@ import {
 	createRecordsCapabilityGroup,
 	createSourceCapabilityGroup,
 	createVaultCapabilityGroup,
-} from "@refarm.dev/capabilities-v1";
+} from "@refarm.dev/capability-host";
 import {
 	refarmSourceDeps,
 	refarmVaultDeps,

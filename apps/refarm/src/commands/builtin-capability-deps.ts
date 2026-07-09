@@ -3,7 +3,7 @@ import {
 	defaultVaultDeps,
 	type SourceCommandDeps,
 	type VaultCommandDeps,
-} from "@refarm.dev/capabilities-v1";
+} from "@refarm.dev/capability-host";
 import path from "node:path";
 
 import { resolveRefarmHome } from "../utils/refarm-home.js";
@@ -12,7 +12,7 @@ import { discoverVaultProviders } from "./vault-discovery.js";
 
 /**
  * The app-side plumbing that turns the neutral capability blocks
- * (`@refarm.dev/capabilities-v1`) into fully-wired deps for THIS host. The package
+ * (`@refarm.dev/capability-host`) into fully-wired deps for THIS host. The package
  * carries no app FS layout or runtime knowledge; refarm supplies its own here — the
  * refarm-home cache location, the plugins-dir discovery, the sidecar effort sink.
  * A white-label app writes its OWN equivalent of this file.

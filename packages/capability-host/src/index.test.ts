@@ -1,8 +1,6 @@
 import {
 	buildJsonSuccessEnvelope,
 	createLocalVaultCommandDeps,
-	defaultRecordsDeps,
-	defaultSourceDeps,
 } from "@refarm.dev/capabilities-v1";
 import { describe, expect, it, vi } from "vitest";
 
@@ -10,6 +8,12 @@ import {
 	buildCapabilityHostServeInfo,
 	createLocalCapabilityDeps,
 	createPluginDescriptorDeps,
+	createRecordsCapabilityGroup,
+	createSourceCapabilityGroup,
+	createVaultCapabilityGroup,
+	defaultRecordsDeps,
+	defaultSourceDeps,
+	defaultVaultDeps,
 	defineCapabilityApp,
 	defineCapabilityHost,
 	definePluginInspectorCapability,
@@ -223,6 +227,16 @@ describe("@refarm.dev/capability-host public API", () => {
 				nowIso: () => "2026-01-01T00:00:00Z",
 			}),
 		}).name).toBe("extension");
+	});
+
+	it("re-exports built-in capability groups for host composition", () => {
+		expect(createRecordsCapabilityGroup().name).toBe("records");
+		expect(createSourceCapabilityGroup(defaultSourceDeps()).name).toBe("source");
+		expect(createVaultCapabilityGroup(defaultVaultDeps({
+			discover: () => ({ providers: [], rejected: [] }),
+			submitEffort: async (effort) => effort.id,
+		})).name).toBe("vault");
+		expect(defaultRecordsDeps()).toHaveProperty("loadManifest");
 	});
 
 	it("re-exports web surface helpers from the host boundary", () => {

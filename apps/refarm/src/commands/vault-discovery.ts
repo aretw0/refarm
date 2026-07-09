@@ -1,9 +1,9 @@
-import { VAULT_VERBS, type VaultVerb } from "@refarm.dev/vault-contract-v1";
-import { findPluginDirs } from "@refarm.dev/plugin-surface-loader/node";
 import type {
 	VaultDiscoveryResult,
 	VaultProviderSummary,
-} from "@refarm.dev/capabilities-v1";
+} from "@refarm.dev/capability-host";
+import { findPluginDirs } from "@refarm.dev/plugin-surface-loader/node";
+import { VAULT_VERBS, type VaultVerb } from "@refarm.dev/vault-contract-v1";
 import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
@@ -21,8 +21,8 @@ import { pluginsBaseDir } from "../utils/refarm-home.js";
  * where `<verb>` is one of the four vault verbs — so a plugin advertising
  * `vault:extract` or `notes:search` surfaces as a vault provider.
  *
- * The discovery-result TYPES (`VaultDiscoveryResult`/`VaultProviderSummary`) live in
- * `@refarm.dev/capabilities-v1` — the neutral block's injected `discover` dep returns
+ * The discovery-result TYPES (`VaultDiscoveryResult`/`VaultProviderSummary`) are exposed by
+ * `@refarm.dev/capability-host` — the neutral block's injected `discover` dep returns
  * this shape. This module owns the IMPL (scanning the refarm plugins dir); it
  * re-exports the types so existing app consumers keep importing them from here.
  */
