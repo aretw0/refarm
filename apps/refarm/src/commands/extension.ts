@@ -73,6 +73,7 @@ interface DispatchVerbScaffold {
   verb: string;
   target: string;
   dispatchEvent: string;
+  surfaceName: string;
 }
 
 function normalizeDispatchVerb(name: string, rawVerb?: string): DispatchVerbScaffold | undefined {
@@ -87,6 +88,7 @@ function normalizeDispatchVerb(name: string, rawVerb?: string): DispatchVerbScaf
       verb,
       target: `${pluginKey}:${verb}`,
       dispatchEvent: `${pluginKey}:dispatch`,
+      surfaceName: `${pluginKey}-${verb}`,
     };
   }
   if (!/^[a-z0-9][a-z0-9-]*$/.test(value)) {
@@ -97,6 +99,7 @@ function normalizeDispatchVerb(name: string, rawVerb?: string): DispatchVerbScaf
     verb: value,
     target: `${name}:${value}`,
     dispatchEvent: `${name}:dispatch`,
+    surfaceName: `${name}-${value}`,
   };
 }
 
@@ -228,6 +231,8 @@ export interface CreatedExtensionReport extends ExtensionEntry {
   ok: true;
   slug: string;
   indexPath: string;
+  surfaceName?: string;
+  surfaceCommand?: string;
   nextAction: string;
   nextActions: string[];
   nextCommand?: string;
@@ -273,6 +278,9 @@ function printCreatedExtension(report: CreatedExtensionReport): void {
   console.log(`Created extension '${report.slug}' at ${report.dir} (${report.scope})`);
   console.log(`  id: ${report.id}`);
   console.log(`  Edit: ${report.indexPath}`);
+  if (report.surfaceCommand) {
+    console.log(`  Surface: ${report.surfaceCommand}`);
+  }
   console.log(`  Activate: ${report.nextActions[0]}`);
   if (report.nextActions[1]) {
     console.log(`  Fallback: ${report.nextActions[1]}`);
@@ -321,6 +329,9 @@ async function newExtension(
 
   const scope = isGlobal ? "global" : "project";
   const reloadCommand = extensionReloadCommand(name, true);
+  const surfaceCommand = dispatch
+    ? refarmCommand([dispatch.surfaceName, "--json"])
+    : undefined;
   const report: CreatedExtensionReport = {
     command: "extension",
     operation: "new",
@@ -330,6 +341,8 @@ async function newExtension(
     dir: extDir,
     scope,
     indexPath,
+    ...(dispatch ? { surfaceName: dispatch.surfaceName } : {}),
+    ...(surfaceCommand ? { surfaceCommand } : {}),
     nextAction: reloadCommand,
     nextActions: [
       reloadCommand,
@@ -506,7 +519,7 @@ extensionCommand.addHelpText(
 
 Examples:
   $ refarm extension new my-tool
-  $ refarm extension new wallet --verb open
+  $ refarm extension new wallet --verb open  # exposes refarm wallet-open --json after reload
   $ refarm extension new my-tool --json
   $ refarm extension review ./prepared-extension
   $ refarm extension review ./prepared-extension --grant storage:v1 --json
@@ -519,6 +532,7 @@ Examples:
 Notes:
   Local extensions are loaded by the Refarm runtime. After editing one, run
   refarm plugin reload @local/<name> --json or restart the runtime.
+  Dispatch verbs surface with scoped names: wallet:open becomes wallet-open.
   Inside refarm chat, /reload @local/<name> (or /r @local/<name>) is the interactive equivalent.
 `,
 );
@@ -527,7 +541,7 @@ extensionCommand
   .command("new <name>")
   .description("Scaffold a new local extension in .refarm/extensions/<name>/")
   .option("-g, --global", "Create in ~/.refarm/extensions/ (available in all projects)", false)
-  .option("--verb <verb>", "Declare a dispatchable verb (bare 'open' -> <name>:open, or qualified 'wallet:open')")
+  .option("--verb <verb>", "Declare a dispatchable verb (bare 'open' -> <name>:open and surfaces as <name>-open)")
   .option("--json", "Output machine-readable created extension metadata")
   .action(async (name: string, options: { global: boolean; json?: boolean; verb?: string }) => {
     await newExtension(name, options.global, { json: options.json, verb: options.verb });

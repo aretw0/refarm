@@ -61,6 +61,9 @@ describe("extension commands", () => {
       provides: ["wallet:open"],
       subscribes: ["wallet:dispatch"],
     });
+    const report = JSON.parse(String(consoleLogSpy.mock.calls.at(-1)?.[0]));
+    expect(report.surfaceName).toBe("wallet-open");
+    expect(report.surfaceCommand).toBe("refarm wallet-open --json");
     expect(String(indexWrite?.[1])).toContain("async onEvent");
     expect(String(indexWrite?.[1])).toContain("wallet:dispatch");
     expect(String(indexWrite?.[1])).toContain("case \"open\"");
