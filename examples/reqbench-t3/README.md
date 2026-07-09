@@ -28,7 +28,7 @@ correction made in one process is visible to the next command. Set
 
 ## Two layers
 
-- **Generic (refarm, unchanged):** `source` / `records` / `vault` — the neutral chain
+- **Generic (platform, unchanged):** `source` / `records` / `vault` — the neutral chain
   (discover → pull → enrich → correct → analyze → vault). None of it knows about
   requirements, ALM, or EFD.
 - **Specific (this app):** `src/fixture.ts` holds the analyst's own systems + records;
@@ -69,7 +69,7 @@ quickly, then:
 the real systems (EFD / PPCF / IPI / DACON, from `rcdc5-routing.json`), its `packages`
 (`scraper-playwright` → `rm-enrichment` → `rm-renderer` → routing into the vault), and
 the analyst's day-to-day. The specifics (SERPRO login, ALM scraping, EFD/CNPJ) live
-HERE, declared as extensions — refarm/vault-seed only ever assimilate the GENERIC.
+HERE, declared as extensions — platform/vault-seed only ever assimilate the GENERIC.
 
 **The easter egg (hidden continuity T1 → T3).** The extension T1 shows being developed
 is the one T3 uses here — a requirements renderer / an enrichment provider — used as if
@@ -81,7 +81,7 @@ it always existed. T3 does not dwell on it.
   extension, `createWasmEnrichmentProvider`).
 - An Astro (or web-surface) frontend over the requirements — the "shows well" artifact.
 
-**What stays generic (refarm) vs specific (here).** refarm ships the neutral chain
+**What stays generic (platform) vs specific (here).** The platform ships the neutral chain
 (discover/pull/enrich/correct/analyze/vault) + the surfaces. This app supplies the EFD
 systems, the CNPJ enrichment, the requirements MOC/Astro projection. Swap the domain,
 keep the machine.

@@ -8,7 +8,7 @@ itself and its verbs surface by themselves. The angle is technical and general �
 
 ## What it demonstrates
 
-Extending refarm the refarm way — not importing a package, but declaring an extension
+Extending the platform the platform way — not importing a package, but declaring an extension
 that multi-surfaces:
 
 ```bash
@@ -33,11 +33,11 @@ not bridge defaults.
 
 ## Two layers
 
-- **Generic (refarm, unchanged):** the neutral `source` / `records` / `vault` chain
+- **Generic (platform, unchanged):** the neutral `source` / `records` / `vault` chain
   **plus** the extension path (manifest → bridge → multi-surface).
 - **Specific (this app):** the coding-agent manifest + the inspector verb. In a real
   deployment the agent is a WASM plugin the developer builds and installs; here the
-  manifest is inline, but dispatch still goes through a Refarm-compatible sidecar so
+  manifest is inline, but dispatch still goes through a platform-compatible sidecar so
   the example dogfoods the daemon path.
 
 ## Run it
@@ -74,10 +74,10 @@ uses it as if it already existed.
 
 **What to build for a rich demo.**
 - The coding-agent installed + driven (a real dev task, even scoped).
-- The new extension built via the refarm extension path (manifest → multi-surface),
+- The new extension built via the platform extension path (manifest → multi-surface),
   ideally the very source/enrichment/renderer WASM provider T3 then loads.
 - The surfaces (CLI + TUI + web) showing the same verb, proving "declare once".
 
-**What stays generic (refarm) vs specific (here).** refarm ships the neutral chain +
+**What stays generic (platform) vs specific (here).** The platform ships the neutral chain +
 the extension path + the CLI/TUI/web surfaces. This app supplies the dev scenario and
 the easter-egg extension. Swap the scenario, keep the machine.
