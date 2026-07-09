@@ -1,3 +1,4 @@
+import { pluginSurfaceName } from "@refarm.dev/capabilities-v1";
 import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
@@ -88,7 +89,7 @@ function normalizeDispatchVerb(name: string, rawVerb?: string): DispatchVerbScaf
       verb,
       target: `${pluginKey}:${verb}`,
       dispatchEvent: `${pluginKey}:dispatch`,
-      surfaceName: `${pluginKey}-${verb}`,
+      surfaceName: pluginSurfaceName(pluginKey, verb),
     };
   }
   if (!/^[a-z0-9][a-z0-9-]*$/.test(value)) {
@@ -99,7 +100,7 @@ function normalizeDispatchVerb(name: string, rawVerb?: string): DispatchVerbScaf
     verb: value,
     target: `${name}:${value}`,
     dispatchEvent: `${name}:dispatch`,
-    surfaceName: `${name}-${value}`,
+    surfaceName: pluginSurfaceName(name, value),
   };
 }
 

@@ -125,6 +125,44 @@ export interface SurfaceableManifest {
 	};
 }
 
+export interface SurfaceablePluginVerb {
+	pluginId: string;
+	pluginKey: string;
+	verb: string;
+	target: string;
+	dispatchEvent: string;
+	surfaceName: string;
+}
+
+export function pluginSurfaceName(pluginKey: string, verb: string): string {
+	return `${pluginKey}-${verb}`;
+}
+
+export function surfaceablePluginVerbsFrom(
+	manifest: SurfaceableManifest,
+): SurfaceablePluginVerb[] {
+	const provides = manifest.capabilities?.provides ?? [];
+	const subscribes = new Set(manifest.capabilities?.subscribes ?? []);
+
+	const verbs: SurfaceablePluginVerb[] = [];
+	for (const entry of provides) {
+		const parsed = parseProvidedVerb(entry);
+		if (!parsed) continue;
+		const dispatchEvent = `${parsed.pluginKey}:dispatch`;
+		// Only surface a verb the plugin can actually receive a dispatch for.
+		if (!subscribes.has(dispatchEvent)) continue;
+		verbs.push({
+			pluginId: manifest.id,
+			pluginKey: parsed.pluginKey,
+			verb: parsed.verb,
+			target: entry,
+			dispatchEvent,
+			surfaceName: pluginSurfaceName(parsed.pluginKey, parsed.verb),
+		});
+	}
+	return verbs;
+}
+
 export interface PluginInspectorCapabilityOptions {
 	name: string;
 	summary: string;
@@ -184,20 +222,13 @@ export function pluginDescriptorsFrom(
 	manifest: SurfaceableManifest,
 	deps: PluginDescriptorDeps,
 ): CapabilityDescriptor[] {
-	const provides = manifest.capabilities?.provides ?? [];
-	const subscribes = new Set(manifest.capabilities?.subscribes ?? []);
-
 	const descriptors: CapabilityDescriptor[] = [];
-	for (const entry of provides) {
-		const parsed = parseProvidedVerb(entry);
-		if (!parsed) continue;
-		// Only surface a verb the plugin can actually receive a dispatch for.
-		if (!subscribes.has(`${parsed.pluginKey}:dispatch`)) continue;
+	for (const verb of surfaceablePluginVerbsFrom(manifest)) {
 		descriptors.push(
 			pluginVerbDescriptor(
 				manifest.id,
-				parsed.pluginKey,
-				parsed.verb,
+				verb.pluginKey,
+				verb.verb,
 				deps,
 			),
 		);
@@ -216,7 +247,7 @@ function pluginVerbDescriptor(
 	verb: string,
 	deps: PluginDescriptorDeps,
 ): CapabilityDescriptor {
-	const name = `${pluginKey}-${verb}`;
+	const name = pluginSurfaceName(pluginKey, verb);
 	return {
 		name,
 		summary: `${name} — dispatched to the ${pluginId} plugin`,

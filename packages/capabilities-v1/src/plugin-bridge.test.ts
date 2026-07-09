@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 import {
 	definePluginInspectorCapability,
 	pluginDescriptorsFrom,
+	pluginSurfaceName,
 	registerPluginCapabilities,
+	surfaceablePluginVerbsFrom,
 	type PluginDescriptorDeps,
 } from "./plugin-bridge.js";
 
@@ -30,6 +32,39 @@ function manifest(
 ) {
 	return { id, capabilities: { provides, subscribes } };
 }
+
+describe("surfaceablePluginVerbsFrom — manifest metadata without host deps", () => {
+	it("describes dispatchable plugin verbs with their stable surface names", () => {
+		const m = manifest("@example/vault", ["vault:search", "vault:extract"], [
+			"vault:dispatch",
+		]);
+
+		expect(surfaceablePluginVerbsFrom(m)).toEqual([
+			{
+				pluginId: "@example/vault",
+				pluginKey: "vault",
+				verb: "search",
+				target: "vault:search",
+				dispatchEvent: "vault:dispatch",
+				surfaceName: "vault-search",
+			},
+			{
+				pluginId: "@example/vault",
+				pluginKey: "vault",
+				verb: "extract",
+				target: "vault:extract",
+				dispatchEvent: "vault:dispatch",
+				surfaceName: "vault-extract",
+			},
+		]);
+		expect(pluginSurfaceName("web", "search")).toBe("web-search");
+	});
+
+	it("keeps the same subscribes guard as descriptor synthesis", () => {
+		const m = manifest("@example/vault", ["vault:search", "vault:dispatch", "bad"], []);
+		expect(surfaceablePluginVerbsFrom(m)).toEqual([]);
+	});
+});
 
 describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 	it("synthesizes a descriptor per dispatchable verb (provides + subscribes:dispatch)", () => {
