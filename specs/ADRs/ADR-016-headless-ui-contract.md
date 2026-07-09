@@ -1,7 +1,7 @@
 # ADR-016: Headless UI Contract and Token Strategy
 
-**Status**: Proposed  
-**Date**: 2026-03-07  
+**Status**: Proposed (partially realized — see Realization note)
+**Date**: 2026-03-07
 **Decision Drivers**:
 
 - Plugin extensibility requires UI contract without visual coupling
@@ -14,8 +14,22 @@
 - [Design System Bootstrap Discussion](../../docs/research/design-system-bootstrap-discussion.md)
 - [A11Y & i18n Guide](../../docs/A11Y_I18N_GUIDE.md)
 - ADR-008: Ecosystem Technology Boundary
+- ADR-085: Open Surface Projection Axis (the sibling axis — WHERE a verb projects,
+  vs. this ADR's HOW a component behaves/themes)
 
 ---
+
+## Realization note (2026-07-09)
+
+The **contract** below (headless behavior, mandatory a11y/i18n, semantic tokens
+decoupled from visual identity) holds and is in force. The **package names** in the
+Phase A plan did not: `packages/ui-headless` + `packages/ui-tokens` were realized as
+a single **`packages/ds`** (the design system), which carries the token contract
+(`tokens.css`, `contract.ts`, `themes/*`), the headless HTML primitives (`html.ts`,
+`Button`), the TUI token projection (`theme-tui`), and the theme registry. Read
+"`ui-headless`/`ui-tokens`" throughout as **`packages/ds`**. This note corrects the
+drift so newer ADRs (e.g. ADR-081, ADR-085) that cite ADR-016 point at the real
+package, not a plan that never shipped under those names.
 
 ## Context
 

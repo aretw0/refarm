@@ -79,6 +79,8 @@ Architecture Decision Records for Refarm.
 | [081](ADR-081-local-surface-boundary.md)                       | Local Surface Boundary                                                            | Proposed   | 2026-07-03 |
 | [082](ADR-082-storage-provider-bootstrap-boundary.md)          | Storage Provider Bootstrap Boundary                                               | Proposed   | 2026-07-03 |
 | [083](ADR-083-canonical-plugin-wit-contract.md)                | Canonical Plugin WIT Contract                                                     | Accepted   | 2026-07-03 |
+| [084](ADR-084-plugin-dispatch-model.md)                        | Plugin Dispatch Model — Async-Default, Sync-Negotiated                            | Accepted   | 2026-07-05 |
+| [085](ADR-085-open-surface-projection-axis.md)                 | Open Surface Projection Axis — Surfaces as Data, Projectors as Plugins            | Proposed   | 2026-07-09 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 
