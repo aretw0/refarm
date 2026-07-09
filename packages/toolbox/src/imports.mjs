@@ -128,26 +128,40 @@ function createLanguageService(root, absolutes, snapshots) {
     checkJs: false,
     module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.Bundler,
+    noResolve: true,
+    skipLibCheck: true,
     target: ts.ScriptTarget.ESNext,
   };
+  const defaultLibFile = ts.getDefaultLibFilePath(compilerOptions);
   const host = {
     getCompilationSettings: () => compilerOptions,
     getCurrentDirectory: () => root,
-    getDefaultLibFileName: (options) => ts.getDefaultLibFilePath(options),
-    getDirectories: ts.sys.getDirectories,
+    getDefaultLibFileName: () => defaultLibFile,
+    getDirectories: () => [],
     getNewLine: () => "\n",
     getScriptFileNames: () => absolutes,
     getScriptSnapshot(filePath) {
       const resolved = path.resolve(filePath);
       if (snapshots.has(resolved)) return snapshots.get(resolved);
+      if (resolved !== path.resolve(defaultLibFile)) return undefined;
       if (!fs.existsSync(resolved)) return undefined;
       return ts.ScriptSnapshot.fromString(fs.readFileSync(resolved, "utf8"));
     },
     getScriptVersion: () => "0",
-    readDirectory: ts.sys.readDirectory,
-    readFile: ts.sys.readFile,
-    fileExists: ts.sys.fileExists,
-    directoryExists: ts.sys.directoryExists,
+    readDirectory: () => [],
+    readFile(filePath) {
+      const resolved = path.resolve(filePath);
+      const snapshot = snapshots.get(resolved);
+      if (snapshot) return snapshot.getText(0, snapshot.getLength());
+      if (resolved !== path.resolve(defaultLibFile)) return undefined;
+      return fs.existsSync(resolved) ? fs.readFileSync(resolved, "utf8") : undefined;
+    },
+    fileExists(filePath) {
+      const resolved = path.resolve(filePath);
+      return snapshots.has(resolved) || resolved === path.resolve(defaultLibFile);
+    },
+    directoryExists: () => true,
+    resolveModuleNames: (moduleNames) => moduleNames.map(() => undefined),
   };
   return ts.createLanguageService(host);
 }
