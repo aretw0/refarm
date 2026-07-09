@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import {
+	createHostCommandResolver,
 	defineCapabilityApp,
 	defineCapabilityHost,
+	HostCommandOptions,
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
 import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
@@ -13,13 +15,17 @@ import {
 } from "./persona.js";
 
 export const DGK_REQUIREMENTS_STATE_PATH_ENV = "DGK_REQUIREMENTS_STATE_PATH";
+export const DGK_COMMAND = "dgk";
 
 const requirementsAppDefaults = createLocalRecordsAppDefaults({
-	appId: "dgk",
+	appId: DGK_COMMAND,
 	envKey: DGK_REQUIREMENTS_STATE_PATH_ENV,
 	fileName: "requirements.manifest.json",
 });
 export const defaultRequirementsStatePath = requirementsAppDefaults.statePath;
+export interface ReqbenchHostOptions extends RequirementsStateOptions, HostCommandOptions {}
+
+const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND });
 
 /**
  * `dgk` - the T3 POC CLI (result mode). Neutral blocks
@@ -27,11 +33,12 @@ export const defaultRequirementsStatePath = requirementsAppDefaults.statePath;
  * (`requirements`) on top. Mounting is declarative so this example is just its persona.
  */
 export function buildReqbenchHost(
-	options: RequirementsStateOptions = {},
+	options: ReqbenchHostOptions = {},
 ): CapabilityHost {
+	const command = resolveCommand(options);
 	return defineCapabilityHost({
 		id: "examples/reqbench-t3",
-		command: "dgk",
+		command,
 		description: "Digital Gardening Kit - requirements bench",
 		version: "0.0.0",
 		capabilities: () => {
@@ -72,14 +79,14 @@ export function buildReqbenchHost(
 		},
 		serve: {
 			defaultPort: 4321,
-			description: "Serve dgk requirements verbs over HTTP (their transports.http routes)",
+			description: `Serve ${command} requirements verbs over HTTP (their transports.http routes)`,
 			openApiPath: "/docs/openapi.json",
-			openApiTitle: "DGK Requirements Bench API",
+			openApiTitle: `${command} Requirements Bench API`,
 		},
 	});
 }
 
-const reqbenchApp = defineCapabilityApp<RequirementsStateOptions>({
+const reqbenchApp = defineCapabilityApp<ReqbenchHostOptions>({
 	host: buildReqbenchHost,
 	defaultOptions: requirementsAppDefaults.defaultOptions,
 });

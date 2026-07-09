@@ -99,6 +99,10 @@ export function createRequirementsCapability(
 		summary: "The analyst's requirements bench — a navigable Map of Content (product)",
 		records: recordsDeps,
 		httpPath: "/requirements/moc",
+		renderers: {
+			tui: { section: "requirements" },
+			web: { route: "/requirements/moc", icon: "requirements" },
+		},
 		options: [
 			{ name: "by", kind: "string", summary: "Group by reviewState (default), type, or sourceRef" },
 		],

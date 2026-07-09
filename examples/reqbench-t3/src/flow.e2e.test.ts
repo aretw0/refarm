@@ -1,7 +1,9 @@
+import { DEFAULT_HOST_COMMAND_ENV_KEY } from "@refarm.dev/capability-host";
 import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+	DGK_COMMAND,
 	buildRegistry,
 	buildReqbenchHost,
 	buildRequirementsBaseModel,
@@ -36,16 +38,57 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 	it("declares dgk as the white-label host and exposes action rows", () => {
 		const statePath = tempStatePath();
 		const host = buildReqbenchHost({ statePath });
-		expect(host.program().name()).toBe("dgk");
+		expect(host.program().name()).toBe(DGK_COMMAND);
+		const requirementsEntry = host.registry().list().find((entry) => entry.name === "requirements");
+		expect(requirementsEntry).toBeTruthy();
+		expect(requirementsEntry).toMatchObject({
+			renderers: {
+				web: { route: "/requirements/moc", icon: "requirements" },
+				tui: expect.any(Object),
+			},
+		});
 		expect(buildRequirementsBaseModel({ statePath })).toMatchObject({
-			command: "dgk",
+			command: DGK_COMMAND,
 			operation: "base",
-			nextCommand: "dgk requirements --json",
+			nextCommand: `${DGK_COMMAND} requirements --json`,
 		});
 		expect(host.surfaceActions().map((action) => action.id)).toEqual([
 			"open-requirements",
 			"review-draft-requirement",
 		]);
+	});
+
+	it("supports overriding the host command for white-label use", () => {
+		const command = "req-white-label";
+		const statePath = tempStatePath();
+		const host = buildReqbenchHost({ statePath, command });
+		expect(host.program().name()).toBe(command);
+		expect(buildRequirementsBaseModel({ statePath, command })).toMatchObject({
+			command,
+			operation: "base",
+			nextCommand: `${command} requirements --json`,
+		});
+	});
+
+	it("supports overriding host command via explicit environment for white-label use", () => {
+		const statePath = tempStatePath();
+		const command = "req-white-label-env";
+		const host = buildReqbenchHost({
+			statePath,
+			commandEnv: { [DEFAULT_HOST_COMMAND_ENV_KEY]: command },
+		});
+		expect(host.program().name()).toBe(command);
+		expect(buildRequirementsBaseModel({
+			statePath,
+			commandEnv: { [DEFAULT_HOST_COMMAND_ENV_KEY]: command },
+		})).toMatchObject({
+			command,
+			nextCommand: `${command} requirements --json`,
+		});
+		expect(host.baseModel()).toMatchObject({
+			command,
+			nextCommand: `${command} requirements --json`,
+		});
 	});
 
 	it("discovers the analyst's system", async () => {
@@ -74,8 +117,8 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 			"--apply",
 		]);
 		expect(corrected.persisted).toBe(true);
-		expect(corrected.nextCommand).toBe("dgk records list");
-		expect(corrected.nextCommands).toEqual(["dgk records list"]);
+		expect(corrected.nextCommand).toBe(`${DGK_COMMAND} records list`);
+		expect(corrected.nextCommands).toEqual([`${DGK_COMMAND} records list`]);
 
 		// After: the MOC's reviewed section now lists both requirements.
 		const after = await harness.runVerb(reg, "requirements");
@@ -95,13 +138,13 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 			"--apply",
 		]);
 		expect(corrected.persisted).toBe(true);
-		expect(corrected.nextCommand).toBe("dgk records list");
+		expect(corrected.nextCommand).toBe(`${DGK_COMMAND} records list`);
 
 		const after = await harness.runVerb(buildRegistry({ statePath }), "requirements");
 		const moc = after.moc as string;
 		expect(moc).toContain("Cadastro de obrigação acessória");
 		expect(buildRequirementsBaseModel({ statePath }).nextCommands).toEqual([
-			"dgk requirements --json",
+			`${DGK_COMMAND} requirements --json`,
 		]);
 	});
 
@@ -127,7 +170,7 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 				paths: Record<string, unknown>;
 			};
 			expect(spec.info).toEqual({
-				title: "DGK Requirements Bench API",
+				title: `${DGK_COMMAND} Requirements Bench API`,
 				version: "0.0.0",
 			});
 			expect(Object.keys(spec.paths)).toContain("/capabilities/requirements/moc");

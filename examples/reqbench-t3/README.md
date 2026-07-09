@@ -3,6 +3,7 @@
 A per-work POC app: its own CLI (`dgk`), extending the
 multi-surface substrate for **one persona** — a requirements analyst. Presented in
 **result mode**: the analyst runs a verb and gets a finished product, never the machine.
+Set `DGK_COMMAND` to run this example under a white-label executable name.
 
 ## What it demonstrates
 
@@ -25,6 +26,7 @@ up in it, because the persona view reads the same records state.
 The CLI persists local curation to `.dgk/requirements.manifest.json` by default, so a
 correction made in one process is visible to the next command. Set
 `DGK_REQUIREMENTS_STATE_PATH=/path/to/manifest.json` to record an isolated run.
+Set `DGK_COMMAND=/path/to/cli-name` to change the CLI command root.
 
 ## Two layers
 
