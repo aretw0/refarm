@@ -6,6 +6,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import {
+	buildCapabilityHostServeInfo,
 	defineCapabilityApp,
 	defineCapabilityHost,
 	type CapabilityHost,
@@ -169,6 +170,16 @@ describe("@refarm.dev/capability-host public API", () => {
 		app.serve({ port: 4321, appOptions: { statePath: "/tmp/explicit.json" } });
 		expect(createHost).toHaveBeenLastCalledWith({
 			statePath: "/tmp/explicit.json",
+		});
+	});
+
+	it("re-exports serve info helpers from the white-label host boundary", () => {
+		expect(buildCapabilityHostServeInfo(4322, {
+			openApiPath: "/docs/openapi.json",
+		})).toMatchObject({
+			ok: true,
+			url: "http://127.0.0.1:4322",
+			openApiUrl: "http://127.0.0.1:4322/docs/openapi.json",
 		});
 	});
 });

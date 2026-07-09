@@ -6,6 +6,7 @@ import {
 } from "@refarm.dev/capabilities-v1";
 
 export {
+	buildCapabilityHostServeInfo,
 	defineCapabilityHost,
 	isCapabilityHostCliEntrypoint,
 	runCapabilityHostCli,
@@ -23,6 +24,7 @@ export {
 	type CapabilityHostRecordReviewQueueUnitOptions,
 	type CapabilityHostReviewQueueUnitOptions,
 	type CapabilityHostServeCallOptions,
+	type CapabilityHostServeInfo,
 	type CapabilityHostServeOptions,
 	type CapabilityHostStatusContext,
 	type CapabilityHostSurfaceAction,

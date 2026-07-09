@@ -2,6 +2,7 @@ import type { RecordsManifest } from "@refarm.dev/records-contract-v1";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+	buildCapabilityHostServeInfo,
 	buildJsonSuccessEnvelope,
 	defaultRecordsDeps,
 	defaultSourceDeps,
@@ -489,6 +490,19 @@ describe("defineCapabilityHost", () => {
 				command: "dgk agent-review --json",
 			},
 		]);
+	});
+
+	it("builds serve output URLs from the host serve options", () => {
+		expect(buildCapabilityHostServeInfo(4321, {
+			prefix: "/api/capabilities",
+			openApiPath: "/docs/openapi.json",
+		})).toEqual({
+			ok: true,
+			url: "http://127.0.0.1:4321",
+			capabilitiesUrl: "http://127.0.0.1:4321/api/capabilities",
+			agentToolsUrl: "http://127.0.0.1:4321/agent-tools",
+			openApiUrl: "http://127.0.0.1:4321/docs/openapi.json",
+		});
 	});
 });
 

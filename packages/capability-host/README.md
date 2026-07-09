@@ -34,6 +34,8 @@ binary name.
 declare its HTTP capability spec with product-neutral metadata. Consumers still call
 `app.serve()` or `dgk serve`; the mounted surface publishes the OpenAPI document
 without importing the lower-level projector.
+The `serve` command prints `url`, `capabilitiesUrl`, `agentToolsUrl`, and
+`openApiUrl` so manual operators and tools do not need to derive discovery URLs.
 
 Node app defaults live under `@refarm.dev/capability-host/node`. Use
 `createLocalRecordsStatePathResolver({ appId, envKey, fileName })` to keep local

@@ -159,6 +159,14 @@ export interface CapabilityHostServeCallOptions {
 	openApiVersion?: string;
 }
 
+export interface CapabilityHostServeInfo {
+	ok: true;
+	url: string;
+	capabilitiesUrl: string;
+	agentToolsUrl: string;
+	openApiUrl: string;
+}
+
 export interface CapabilityHost {
 	registry(): CapabilityRegistry;
 	baseModel(): BaseSurfaceModel;
@@ -167,6 +175,20 @@ export interface CapabilityHost {
 	surfaceContext(): CapabilityHostSurfaceContext;
 	program(): Command;
 	serve(options?: CapabilityHostServeCallOptions): ReturnType<typeof serveCapabilities>;
+}
+
+export function buildCapabilityHostServeInfo(
+	port: number,
+	options: Pick<CapabilityHostServeCallOptions, "prefix" | "openApiPath"> = {},
+): CapabilityHostServeInfo {
+	const origin = `http://127.0.0.1:${port}`;
+	return {
+		ok: true,
+		url: origin,
+		capabilitiesUrl: serveUrl(origin, options.prefix ?? "/capabilities"),
+		agentToolsUrl: serveUrl(origin, "/agent-tools"),
+		openApiUrl: serveUrl(origin, options.openApiPath ?? "/openapi.json"),
+	};
 }
 
 export interface CapabilityHostSurfaceAction {
@@ -729,6 +751,11 @@ function addServeCommand(
 				openApiVersion: options.openApiVersion,
 			});
 			const { port } = await listening;
-			console.log(JSON.stringify({ ok: true, url: `http://127.0.0.1:${port}` }));
+			console.log(JSON.stringify(buildCapabilityHostServeInfo(port, options)));
 		});
+}
+
+function serveUrl(origin: string, path: string): string {
+	const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+	return new URL(normalizedPath, origin).toString();
 }

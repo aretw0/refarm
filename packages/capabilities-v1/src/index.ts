@@ -76,6 +76,7 @@ export {
 	type MountOptions,
 } from "./mount.js";
 export {
+	buildCapabilityHostServeInfo,
 	defineCapabilityHost,
 	type CapabilityHost,
 	type CapabilityHostCapabilities,
@@ -94,6 +95,7 @@ export {
 	type CapabilityHostSurfaceActionsOptions,
 	type CapabilityHostSurfaceContext,
 	type CapabilityHostServeCallOptions,
+	type CapabilityHostServeInfo,
 	type CapabilityHostServeOptions,
 	type CapabilityHostStatusContext,
 } from "./host.js";
