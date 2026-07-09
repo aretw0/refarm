@@ -1,3 +1,4 @@
+import { probeRuntimeLiveness } from "@refarm.dev/runtime-operator";
 import { type ChildProcess, spawn } from "node:child_process";
 
 /**
@@ -11,6 +12,12 @@ import { type ChildProcess, spawn } from "node:child_process";
  *
  * This is the seam the exploratory `serve` command builds on, and the seam a
  * TS-driven execution test drives to prove dispatch reaches a real plugin.
+ *
+ * It is DISTINCT from @refarm.dev/runtime-operator's launcher: that one autostarts the
+ * production daemon (start-script or binary-on-PATH; plugins come from config/farmhand),
+ * whereas this spawns the binary with EXPLICIT `--plugin <wasm>` paths — what a test or
+ * a self-contained demo needs. Readiness is shared: it delegates to the operator's probe
+ * rather than reimplementing the poll.
  */
 
 export interface RuntimeDaemonOptions {
@@ -58,19 +65,11 @@ export function defaultTractorBinaryPath(env: NodeJS.ProcessEnv = process.env): 
 	return env.TRACTOR_BINARY ?? DEFAULT_BINARY;
 }
 
-/** Is the sidecar answering yet? A reachable HTTP response (any status) means the
- * server bound its port; a connection error means it's still coming up. */
+/** Is the sidecar answering yet? Delegates to the shared runtime-operator liveness
+ * probe (the same one the refarm app uses) — this module only adds the plugin-explicit
+ * spawn that tests need, not its own probe logic. */
 async function sidecarIsReady(baseUrl: string, timeoutMs: number): Promise<boolean> {
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), timeoutMs);
-	try {
-		await fetch(`${baseUrl}/plugins`, { signal: controller.signal });
-		return true;
-	} catch {
-		return false;
-	} finally {
-		clearTimeout(timer);
-	}
+	return (await probeRuntimeLiveness(baseUrl, timeoutMs)).ready;
 }
 
 /**

@@ -1,0 +1,45 @@
+{
+	"name": "@refarm.dev/runtime-operator",
+	"version": "0.1.0",
+	"description": "Start and probe the runtime daemon for any refarm-based app — launcher + readiness, storage-free and white-label.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"README.md",
+		"dist",
+		"!dist/**/*.tsbuildinfo"
+	],
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"lint": "eslint src"
+	},
+	"keywords": [
+		"refarm",
+		"runtime",
+		"daemon",
+		"launcher",
+		"readiness"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@refarm.dev/process-handoff": "workspace:*",
+		"@refarm.dev/sidecar-client": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	},
+	"license": "MIT"
+}

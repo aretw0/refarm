@@ -375,6 +375,9 @@ importers:
       '@refarm.dev/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      '@refarm.dev/runtime-operator':
+        specifier: workspace:*
+        version: link:../../packages/runtime-operator
       '@refarm.dev/sidecar-client':
         specifier: workspace:*
         version: link:../../packages/sidecar-client
@@ -468,9 +471,6 @@ importers:
 
   examples/reqbench-t3:
     dependencies:
-      '@refarm.dev/capabilities-v1':
-        specifier: workspace:*
-        version: link:../../packages/capabilities-v1
       '@refarm.dev/capability-host':
         specifier: workspace:*
         version: link:../../packages/capability-host
@@ -493,9 +493,6 @@ importers:
 
   examples/wallet-t2:
     dependencies:
-      '@refarm.dev/capabilities-v1':
-        specifier: workspace:*
-        version: link:../../packages/capabilities-v1
       '@refarm.dev/capability-host':
         specifier: workspace:*
         version: link:../../packages/capability-host
@@ -632,6 +629,9 @@ importers:
       '@refarm.dev/capabilities-v1':
         specifier: workspace:*
         version: link:../capabilities-v1
+      '@refarm.dev/runtime-operator':
+        specifier: workspace:*
+        version: link:../runtime-operator
       '@refarm.dev/sidecar-client':
         specifier: workspace:*
         version: link:../sidecar-client
@@ -1427,6 +1427,25 @@ importers:
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../plugin-manifest
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
+  packages/runtime-operator:
+    dependencies:
+      '@refarm.dev/process-handoff':
+        specifier: workspace:*
+        version: link:../process-handoff
+      '@refarm.dev/sidecar-client':
+        specifier: workspace:*
+        version: link:../sidecar-client
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
