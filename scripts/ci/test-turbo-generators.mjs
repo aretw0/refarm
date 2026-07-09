@@ -434,7 +434,7 @@ test("turbo generators expose app scaffolds for astro, cli, and service hosts", 
 	assert.equal(cliPackage.bin.field, "./dist/index.js");
 	assert.equal(cliPackage.scripts.build, "tsc --project tsconfig.build.json");
 	assert.equal(cliPackage.dependencies["@refarm.dev/capability-host"], "workspace:*");
-	assert.equal(cliPackage.dependencies["@refarm.dev/capabilities-v1"], "workspace:*");
+	assert.equal(cliPackage.dependencies["@refarm.dev/capabilities-v1"], undefined);
 
 	const cliTemplate = readFileSync(
 		join(ROOT, "turbo/generators/templates/app-cli/src/index.ts.hbs"),
@@ -444,6 +444,7 @@ test("turbo generators expose app scaffolds for astro, cli, and service hosts", 
 	assert.match(cli, /createLocalCapabilityDeps/);
 	assert.match(cli, /defineCapabilityApp/);
 	assert.match(cli, /defineCapabilityHost/);
+	assert.doesNotMatch(cli, /@refarm\.dev\/capabilities-v1/);
 	assert.doesNotMatch(cli, /createLocalVaultCommandDeps|defaultRecordsDeps|defaultSourceDeps/);
 	assert.match(cli, /command: "field"/);
 	assert.match(cli, /buildFieldConsoleHost/);
@@ -474,7 +475,7 @@ test("turbo generators expose app scaffolds for astro, cli, and service hosts", 
 	);
 	const servicePackage = JSON.parse(render(servicePackageTemplate, serviceData));
 	assert.equal(servicePackage.dependencies["@refarm.dev/capability-host"], "workspace:*");
-	assert.equal(servicePackage.dependencies["@refarm.dev/capabilities-v1"], "workspace:*");
+	assert.equal(servicePackage.dependencies["@refarm.dev/capabilities-v1"], undefined);
 	assert.equal(servicePackage.dependencies["@refarm.dev/stream-contract-v1"], undefined);
 
 	const serviceTemplate = readFileSync(
@@ -483,6 +484,7 @@ test("turbo generators expose app scaffolds for astro, cli, and service hosts", 
 	);
 	const service = render(serviceTemplate, serviceData);
 	assert.match(service, /createLocalCapabilityDeps/);
+	assert.doesNotMatch(service, /@refarm\.dev\/capabilities-v1/);
 	assert.match(service, /defineCapabilityApp/);
 	assert.match(service, /defineCapabilityHost/);
 	assert.match(service, /serveFieldService/);
