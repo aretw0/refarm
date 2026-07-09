@@ -1,7 +1,12 @@
 import { createCapabilityTestHarness } from "@refarm.dev/capabilities-v1/testing";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { buildRegistry, buildReqbenchHost, buildRequirementsBaseModel } from "./cli.js";
+import {
+	buildRegistry,
+	buildReqbenchHost,
+	buildRequirementsBaseModel,
+	serveReqbench,
+} from "./cli.js";
 import { REQ_SYSTEM_REF } from "./fixture.js";
 
 const harness = createCapabilityTestHarness({ tempPrefix: "dgk-requirements-state-" });
@@ -96,7 +101,7 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 	});
 
 	it("serves the same verbs on the web surface (the analyst's MOC over HTTP)", async () => {
-		const { listening, close } = buildReqbenchHost().serve({ port: 0 });
+		const { listening, close } = serveReqbench({ port: 0 });
 		try {
 			const { port } = await listening;
 			// The persona verb's declared route (/requirements/moc) responds — same product,

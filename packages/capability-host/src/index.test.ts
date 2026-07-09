@@ -132,4 +132,43 @@ describe("@refarm.dev/capability-host public API", () => {
 			statePath: "/tmp/explicit.json",
 		});
 	});
+
+	it("serves through the app helper with app defaults and call options", async () => {
+		const serve = vi.fn((options: { port?: number } = {}) => ({
+			listening: Promise.resolve({
+				port: options.port,
+				statePath: createHost.mock.calls.at(-1)?.[0]?.statePath,
+			}),
+			close: vi.fn(async () => undefined),
+		}));
+		const createHost = vi.fn((options: { statePath?: string } = {}) => ({
+			registry: () => ({ statePath: options.statePath }),
+			baseModel: () => ({ nextCommands: [options.statePath ?? "memory"] }),
+			surfaceActions: () => [],
+			surfaceActionRows: () => [],
+			surfaceContext: () => ({
+				hostId: "examples/public-api",
+				data: { command: "dgk", description: "Digital Gardening Kit" },
+				actions: [],
+			}),
+			program: () => ({ parseAsync: vi.fn(async () => undefined) }),
+			serve,
+		}) as unknown as CapabilityHost);
+		const app = defineCapabilityApp({
+			host: createHost,
+			defaultOptions: () => ({ statePath: "/tmp/dgk-state.json" }),
+		});
+
+		const server = app.serve({ port: 0 });
+		expect(serve).toHaveBeenCalledWith({ port: 0 });
+		await expect(server.listening).resolves.toEqual({
+			port: 0,
+			statePath: "/tmp/dgk-state.json",
+		});
+
+		app.serve({ port: 4321, appOptions: { statePath: "/tmp/explicit.json" } });
+		expect(createHost).toHaveBeenLastCalledWith({
+			statePath: "/tmp/explicit.json",
+		});
+	});
 });

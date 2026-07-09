@@ -93,6 +93,7 @@ const reqbenchApp = defineCapabilityApp<RequirementsStateOptions>({
 export const buildRegistry = reqbenchApp.registry;
 export const buildRequirementsBaseModel = reqbenchApp.baseModel;
 export const buildProgram = reqbenchApp.program;
+export const serveReqbench = reqbenchApp.serve;
 
 void reqbenchApp.runCli(import.meta.url, {
 	compiledFileName: "cli.js",

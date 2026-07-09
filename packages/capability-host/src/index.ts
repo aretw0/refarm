@@ -1,6 +1,7 @@
 import {
 	runCapabilityHostCli,
 	type CapabilityHost,
+	type CapabilityHostServeCallOptions,
 	type RunCapabilityHostCliOptions,
 } from "@refarm.dev/capabilities-v1";
 
@@ -39,6 +40,11 @@ export interface RunCapabilityAppCliOptions<Options extends object = Record<stri
 	appOptions?: Options;
 }
 
+export interface ServeCapabilityAppOptions<Options extends object = Record<string, never>>
+	extends CapabilityHostServeCallOptions {
+	appOptions?: Options;
+}
+
 export interface CapabilityApp<Options extends object = Record<string, never>> {
 	host(options?: Options): CapabilityHost;
 	registry(options?: Options): ReturnType<CapabilityHost["registry"]>;
@@ -47,6 +53,7 @@ export interface CapabilityApp<Options extends object = Record<string, never>> {
 	surfaceActionRows(options?: Options): ReturnType<CapabilityHost["surfaceActionRows"]>;
 	surfaceContext(options?: Options): ReturnType<CapabilityHost["surfaceContext"]>;
 	program(options?: Options): ReturnType<CapabilityHost["program"]>;
+	serve(options?: ServeCapabilityAppOptions<Options>): ReturnType<CapabilityHost["serve"]>;
 	runCli(
 		importMetaUrl: string,
 		options?: RunCapabilityAppCliOptions<Options>,
@@ -93,6 +100,10 @@ export function defineCapabilityApp<Options extends object = Record<string, neve
 			return host(options).surfaceContext();
 		},
 		program,
+		serve(options: ServeCapabilityAppOptions<Options> = {}) {
+			const { appOptions, ...serveOptions } = options;
+			return host(appOptions).serve(serveOptions);
+		},
 		runCli(
 			importMetaUrl: string,
 			options: RunCapabilityAppCliOptions<Options> = {},

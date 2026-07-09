@@ -13,10 +13,12 @@ implementation behind this boundary without changing consumers.
 
 `defineCapabilityApp({ host, defaultOptions, programOptions })` is the standard
 app/example factory. It returns `host`, `registry`, `baseModel`, `program`,
-`surfaceActions`, and `runCli` helpers so white-label consumers declare their
-extension host once instead of repeating CLI and inspection plumbing in every app.
+`surfaceActions`, `serve`, and `runCli` helpers so white-label consumers declare
+their extension host once instead of repeating CLI, HTTP, and inspection plumbing
+in every app.
 Use `defaultOptions` for normal app defaults such as local state paths; they apply
-to every helper surface. Keep `programOptions` for CLI-only option transforms.
+to every helper surface, including `serve({ appOptions })`. Keep `programOptions`
+for CLI-only option transforms.
 
 `app.runCli(import.meta.url, { compiledFileName: "cli.js" })` is the standard
 entrypoint helper for white-label CLIs. It keeps direct-run detection,
