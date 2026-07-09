@@ -1,4 +1,4 @@
-# @refarm.dev/hello-world-plugin
+# Hello World Plugin Example
 
 A minimal reference implementation of a plugin example.
 
@@ -17,7 +17,7 @@ npm install @refarm.dev/hello-world-plugin
 
 ## Usage
 
-This plugin serves as a smoke test for the Tractor:
+This plugin serves as a smoke test for a host daemon:
 
 ```typescript
 const hello = await tractor.plugins.load(manifest);
