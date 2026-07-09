@@ -1,24 +1,25 @@
 {
-  "name": "devbench-t1",
-  "version": "0.0.0",
-  "private": true,
-  "description": "T1 POC (process mode): a DGK extension bench — declare an extension and watch it multi-surface.",
-  "type": "module",
-  "bin": {
-    "dgk": "./dist/cli.js"
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run",
-    "dgk": "node dist/cli.js",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "@refarm.dev/capability-host": "workspace:*"
-  },
-  "devDependencies": {
-    "@refarm.dev/tsconfig": "workspace:*",
-    "@refarm.dev/vtconfig": "workspace:*"
-  }
+	"name": "devbench-t1",
+	"version": "0.0.0",
+	"private": true,
+	"description": "T1 POC (process mode): a DGK extension bench — declare an extension and watch it multi-surface.",
+	"type": "module",
+	"bin": {
+		"dgk": "./dist/cli.js"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"dgk": "node dist/cli.js",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@refarm.dev/capability-host": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/model-mock": "workspace:*"
+	}
 }

@@ -26,6 +26,11 @@ export {
 	type RuntimeDaemonHandle,
 	type RuntimeDaemonOptions,
 } from "./runtime-daemon.js";
+export {
+	installPluginForRuntime,
+	type InstalledPlugin,
+	type InstallPluginOptions,
+} from "./install-plugin.js";
 
 export {
 	createLocalRecordsCommandDeps,

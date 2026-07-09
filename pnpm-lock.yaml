@@ -462,6 +462,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/capability-host
     devDependencies:
+      '@refarm.dev/model-mock':
+        specifier: workspace:*
+        version: link:../../packages/model-mock
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
