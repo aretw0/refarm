@@ -24,6 +24,11 @@ async function parseFastCommand(argv: string[]): Promise<boolean> {
 		await agentCommand.parseAsync(commandArgs, { from: "user" });
 		return true;
 	}
+	if (commandName === "tidy") {
+		const { tidyCommand } = await import("./commands/tidy.js");
+		await tidyCommand.parseAsync(commandArgs, { from: "user" });
+		return true;
+	}
 	if (commandName !== "check") return false;
 
 	const { checkCommand } = await import("./commands/check.js");
