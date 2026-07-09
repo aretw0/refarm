@@ -1,4 +1,4 @@
-import { pluginSurfaceName } from "@refarm.dev/capabilities-v1";
+import { pluginSurfaceName } from "@refarm.dev/capability-host";
 import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,

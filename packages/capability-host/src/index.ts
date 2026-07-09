@@ -7,6 +7,7 @@ import {
 
 export {
 	buildCapabilityHostServeInfo,
+	buildDispatchEffort,
 	createLocalCapabilityDeps,
 	createPluginDescriptorDeps,
 	renderWebUi,
@@ -14,8 +15,14 @@ export {
 	defineRecordsViewCapability,
 	defineCapabilityHost,
 	isCapabilityHostCliEntrypoint,
+	mountedHttpHandler,
+	parseDispatchArgs,
+	pluginDescriptorsFrom,
+	pluginSurfaceName,
+	registerPluginCapabilities,
 	runCapabilityHostCli,
 	serveWebUi,
+	surfaceablePluginVerbsFrom,
 	type CapabilityHost,
 	type CapabilityHostCapabilities,
 	type CapabilityHostCapabilitiesFactory,
@@ -40,6 +47,9 @@ export {
 	type CapabilityDeps,
 	type CapabilityDescriptor,
 	type CapabilityEntry,
+	type DispatchRequest,
+	type MountOptions,
+	type PluginCapabilityRegistration,
 	type PluginDescriptorDeps,
 	type PluginDescriptorDepsOptions,
 	type PluginInspectorCapabilityOptions,
@@ -51,6 +61,7 @@ export {
 	type SendPrompt,
 	type SubmitEffort,
 	type SurfaceableManifest,
+	type SurfaceablePluginVerb,
 	type WebUiOptions,
 } from "@refarm.dev/capabilities-v1";
 

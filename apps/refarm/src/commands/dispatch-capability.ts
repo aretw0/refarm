@@ -8,7 +8,7 @@ import {
 	buildDispatchEffort,
 	parseDispatchArgs,
 	type SubmitEffort,
-} from "@refarm.dev/capabilities-v1";
+} from "@refarm.dev/capability-host";
 import { submitEffortViaSidecar } from "./dispatch-submit.js";
 
 /**
@@ -37,7 +37,7 @@ export function defaultDispatchDeps(): DispatchCommandDeps {
 	};
 }
 
-// `parseDispatchArgs` now lives in the plugin bridge (@refarm.dev/capabilities-v1);
+// `parseDispatchArgs` is exposed through the host-facing plugin bridge;
 // re-exported here so existing app consumers import it from this module unchanged.
 export { parseDispatchArgs };
 

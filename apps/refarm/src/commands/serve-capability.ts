@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
-import { mountedHttpHandler } from "@refarm.dev/capabilities-v1";
+import { mountedHttpHandler } from "@refarm.dev/capability-host";
 import {
 	createCapabilityRegistry,
 	type CapabilityEntry,

@@ -14,8 +14,12 @@ import {
 	defineCapabilityHost,
 	definePluginInspectorCapability,
 	defineRecordsViewCapability,
+	mountedHttpHandler,
+	parseDispatchArgs,
+	pluginSurfaceName,
 	renderWebUi,
 	serveWebUi,
+	surfaceablePluginVerbsFrom,
 	type CapabilityHost,
 	type CapabilityHostDefinition,
 } from "./index.js";
@@ -224,5 +228,29 @@ describe("@refarm.dev/capability-host public API", () => {
 	it("re-exports web surface helpers from the host boundary", () => {
 		expect(typeof renderWebUi).toBe("function");
 		expect(typeof serveWebUi).toBe("function");
+	});
+
+	it("re-exports plugin bridge helpers from the host boundary", () => {
+		expect(pluginSurfaceName("vault", "search")).toBe("vault-search");
+		expect(surfaceablePluginVerbsFrom({
+			id: "@example/vault",
+			capabilities: {
+				provides: ["vault:search"],
+				subscribes: ["vault:dispatch"],
+			},
+		})).toMatchObject([
+			{
+				pluginId: "@example/vault",
+				pluginKey: "vault",
+				verb: "search",
+				target: "vault:search",
+				dispatchEvent: "vault:dispatch",
+				surfaceName: "vault-search",
+			},
+		]);
+		expect(parseDispatchArgs(["limit=5", "query=soil"])).toEqual({
+			args: { limit: 5, query: "soil" },
+		});
+		expect(typeof mountedHttpHandler).toBe("function");
 	});
 });

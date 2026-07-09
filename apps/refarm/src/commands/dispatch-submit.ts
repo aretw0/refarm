@@ -1,12 +1,12 @@
-import type { SubmitEffort } from "@refarm.dev/capabilities-v1";
+import type { SubmitEffort } from "@refarm.dev/capability-host";
 
 import { fetchSidecarJson } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 
 /**
  * The app's submit PLUMBING for a plugin dispatch effort — the sidecar HTTP sink.
- * The pure effort builder + the SubmitEffort type + DispatchRequest now live in
- * `@refarm.dev/capabilities-v1` (the plugin bridge); this file keeps only the host
+ * The pure effort builder + the SubmitEffort type + DispatchRequest are exposed by
+ * `@refarm.dev/capability-host` (the host-facing plugin bridge); this file keeps only the host
  * transport (how THIS app reaches its runtime) and re-exports the pure pieces so
  * existing app consumers import them from here unchanged.
  *
@@ -19,7 +19,7 @@ export {
 	buildDispatchEffort,
 	type DispatchRequest,
 	type SubmitEffort,
-} from "@refarm.dev/capabilities-v1";
+} from "@refarm.dev/capability-host";
 
 /** The default sink: `POST /efforts` on the sidecar (mirrors `refarm ask`). */
 export const submitEffortViaSidecar: SubmitEffort = async (effort) => {

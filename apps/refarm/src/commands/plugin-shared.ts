@@ -2,7 +2,7 @@ import { type PluginPackageSource } from "@refarm.dev/barn";
 import {
 	surfaceablePluginVerbsFrom,
 	type SurfaceablePluginVerb,
-} from "@refarm.dev/capabilities-v1";
+} from "@refarm.dev/capability-host";
 import {
 	pluginIdToFsToken,
 	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
