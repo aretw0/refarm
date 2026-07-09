@@ -45,6 +45,10 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 		expect(search.summary).toContain("@example/vault");
 		expect(search.transports?.cli).toBeDefined();
 		expect(search.transports?.repl).toBeDefined();
+		expect(search.renderers).toEqual({
+			tui: { section: "vault" },
+			web: { route: "/search" },
+		});
 	});
 
 	it("only surfaces a verb the plugin can receive a dispatch for (subscribes guard)", () => {

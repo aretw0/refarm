@@ -248,6 +248,7 @@ function pluginVerbDescriptor(
 			}
 		},
 		transports: { cli: {}, repl: {}, http: { method: "POST", path: `/${verb}` } },
+		renderers: { tui: { section: pluginKey }, web: { route: `/${verb}` } },
 	};
 }
 
