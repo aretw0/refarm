@@ -4,7 +4,7 @@ import {
 	defineCapabilityHost,
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
-import { createLocalRecordsStatePathResolver } from "@refarm.dev/capability-host/node";
+import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
 
 import {
 	createWalletCapability,
@@ -15,11 +15,12 @@ import {
 
 export const DGK_WALLET_STATE_PATH_ENV = "DGK_WALLET_STATE_PATH";
 
-export const defaultWalletStatePath = createLocalRecordsStatePathResolver({
+const walletAppDefaults = createLocalRecordsAppDefaults({
 	appId: "dgk",
 	envKey: DGK_WALLET_STATE_PATH_ENV,
 	fileName: "wallet.manifest.json",
 });
+export const defaultWalletStatePath = walletAppDefaults.statePath;
 
 /**
  * `dgk` - the T2 POC CLI (result mode). The sovereign citizen's digital wallet:
@@ -76,7 +77,7 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 
 const walletApp = defineCapabilityApp<WalletStateOptions>({
 	host: buildWalletHost,
-	defaultOptions: () => ({ statePath: defaultWalletStatePath() }),
+	defaultOptions: walletAppDefaults.defaultOptions,
 });
 
 export const buildRegistry = walletApp.registry;

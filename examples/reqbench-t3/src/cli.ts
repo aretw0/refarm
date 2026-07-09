@@ -4,7 +4,7 @@ import {
 	defineCapabilityHost,
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
-import { createLocalRecordsStatePathResolver } from "@refarm.dev/capability-host/node";
+import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
 
 import {
 	createRequirementsCapability,
@@ -15,11 +15,12 @@ import {
 
 export const DGK_REQUIREMENTS_STATE_PATH_ENV = "DGK_REQUIREMENTS_STATE_PATH";
 
-export const defaultRequirementsStatePath = createLocalRecordsStatePathResolver({
+const requirementsAppDefaults = createLocalRecordsAppDefaults({
 	appId: "dgk",
 	envKey: DGK_REQUIREMENTS_STATE_PATH_ENV,
 	fileName: "requirements.manifest.json",
 });
+export const defaultRequirementsStatePath = requirementsAppDefaults.statePath;
 
 /**
  * `dgk` - the T3 POC CLI (result mode). Neutral blocks
@@ -79,7 +80,7 @@ export function buildReqbenchHost(
 
 const reqbenchApp = defineCapabilityApp<RequirementsStateOptions>({
 	host: buildReqbenchHost,
-	defaultOptions: () => ({ statePath: defaultRequirementsStatePath() }),
+	defaultOptions: requirementsAppDefaults.defaultOptions,
 });
 
 export const buildRegistry = reqbenchApp.registry;
