@@ -13,7 +13,7 @@ that multi-surfaces:
 
 ```bash
 dgk extension                # what the coding-agent extension declares, and how it surfaces
-dgk actions --json           # selectable multi-surface action rows
+dgk actions --json           # extension + plugin verb action rows for every surface
 dgk agent-code prompt='...'  # a verb that came from the manifest, not from app code
 dgk agent-review             # ditto — surfaced by the bridge, dispatched to the plugin
 dgk serve                    # the surfaced verbs on a web surface too
@@ -23,9 +23,10 @@ dgk serve                    # the surfaced verbs on a web surface too
 (`provides: ["agent:code", "agent:review"]`). The bridge (`registerPluginCapabilities`)
 synthesizes a first-class verb per declared entry, with a host-built dispatch `run()`
 the developer never writes. `extension` makes the mechanism visible: declaration →
-surfaced verbs. This is the extension effect — an installed extension appearing on every
-surface by itself. The bridge uses scoped names (`agent-code`, `agent-review`) so
-several plugins can declare the same verb, like `vault:search` and `web:search`,
+surfaced verbs, while `actions` projects the inspector and the plugin verbs into
+selectable surface rows. This is the extension effect — an installed extension appearing
+on every surface by itself. The bridge uses scoped names (`agent-code`, `agent-review`)
+so several plugins can declare the same verb, like `vault:search` and `web:search`,
 without registration-order ambiguity. Short aliases such as `code` are persona choices,
 not bridge defaults.
 

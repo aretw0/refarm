@@ -36,6 +36,16 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 				intent: "extension:inspect",
 				payload: expect.objectContaining({ command: "dgk extension --json" }),
 			}),
+			expect.objectContaining({
+				id: "run-agent-code",
+				intent: "agent:code",
+				payload: expect.objectContaining({ command: "dgk agent-code --json" }),
+			}),
+			expect.objectContaining({
+				id: "run-agent-review",
+				intent: "agent:review",
+				payload: expect.objectContaining({ command: "dgk agent-review --json" }),
+			}),
 		]);
 	});
 

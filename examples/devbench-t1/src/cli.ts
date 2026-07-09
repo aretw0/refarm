@@ -46,6 +46,20 @@ export function buildDevbenchHost(): CapabilityHost {
 				actionId: "inspect-extension",
 				intent: "extension:inspect",
 			},
+			primaryVerbs: [
+				{
+					name: "agent-code",
+					subject: "Coding agent",
+					actionId: "run-agent-code",
+					intent: "agent:code",
+				},
+				{
+					name: "agent-review",
+					subject: "Coding agent",
+					actionId: "run-agent-review",
+					intent: "agent:review",
+				},
+			],
 		},
 		serve: {
 			defaultPort: 4323,

@@ -112,6 +112,7 @@ export interface CapabilityHostOperatorStatus {
 	httpPath?: string;
 	agentToolName?: string;
 	primaryVerb?: CapabilityHostPrimaryVerbOptions;
+	primaryVerbs?: CapabilityHostPrimaryVerbOptions[];
 	capabilityUnit?:
 		| false
 		| CapabilityHostCapabilityUnitOptions
@@ -478,6 +479,9 @@ function buildHostBaseModel(
 	const context = createCapabilityHostStatusContext(definition, capabilities, registry);
 	if (status?.primaryVerb) {
 		units.push(buildPrimaryVerbSurfaceUnit(status.primaryVerb, context));
+	}
+	for (const primaryVerb of status?.primaryVerbs ?? []) {
+		units.push(buildPrimaryVerbSurfaceUnit(primaryVerb, context));
 	}
 	if (status?.capabilityUnit) {
 		const capabilityUnit = resolveCapabilityHostCapabilityUnit(

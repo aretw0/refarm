@@ -387,6 +387,67 @@ describe("defineCapabilityHost", () => {
 			}),
 		]);
 	});
+
+	it("builds several primary surface actions from verb declarations", () => {
+		const host = defineCapabilityHost({
+			id: "examples/devbench-t1",
+			command: "dgk",
+			description: "Digital Gardening Kit - extension bench",
+			capabilities: {
+				deps: deps(),
+				extensions: [showVerb],
+			},
+			operatorStatus: {
+				primaryVerb: {
+					name: "wallet",
+					subject: "Extension bench",
+					actionId: "inspect-extension",
+					intent: "extension:inspect",
+				},
+				primaryVerbs: [
+					{
+						name: "agent-code",
+						subject: "Coding agent",
+						actionId: "run-agent-code",
+						intent: "agent:code",
+					},
+					{
+						name: "agent-review",
+						subject: "Coding agent",
+						actionId: "run-agent-review",
+						intent: "agent:review",
+					},
+				],
+			},
+		});
+
+		expect(host.baseModel().nextCommands).toEqual([
+			"dgk wallet --json",
+			"dgk agent-code --json",
+			"dgk agent-review --json",
+		]);
+		expect(host.surfaceActions().map((action) => ({
+			id: action.id,
+			intent: action.intent,
+			command: action.payload.command,
+		}))).toEqual([
+			{
+				id: "inspect-extension",
+				intent: "extension:inspect",
+				command: "dgk wallet --json",
+			},
+			{
+				id: "run-agent-code",
+				intent: "agent:code",
+				command: "dgk agent-code --json",
+			},
+			{
+				id: "run-agent-review",
+				intent: "agent:review",
+				command: "dgk agent-review --json",
+			},
+		]);
+	});
 });
 
 describe("capability host CLI helpers", () => {
