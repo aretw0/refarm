@@ -20,6 +20,19 @@ export interface ResolveLocalRecordsStatePathOptions extends LocalRecordsStatePa
 	env?: Record<string, string | undefined>;
 }
 
+export type LocalRecordsStatePathResolverOptions = Pick<
+	ResolveLocalRecordsStatePathOptions,
+	"cwd" | "env"
+>;
+
+export type LocalRecordsStatePathResolverInput =
+	| string
+	| LocalRecordsStatePathResolverOptions;
+
+export type LocalRecordsStatePathResolver = (
+	options?: LocalRecordsStatePathResolverInput,
+) => string;
+
 export interface LocalRecordsCommandDepsOptions {
 	seed: () => RecordsManifest;
 	statePath?: string;
@@ -41,6 +54,20 @@ export function resolveLocalRecordsStatePath(
 	const env = options.env ?? process.env;
 	const override = options.envKey ? env[options.envKey]?.trim() : undefined;
 	return override || localRecordsStatePath(options);
+}
+
+export function createLocalRecordsStatePathResolver(
+	defaults: ResolveLocalRecordsStatePathOptions,
+): LocalRecordsStatePathResolver {
+	const normalize = (
+		options: LocalRecordsStatePathResolverInput = {},
+	): LocalRecordsStatePathResolverOptions =>
+		typeof options === "string" ? { cwd: options } : options;
+	return (options = {}) =>
+		resolveLocalRecordsStatePath({
+			...defaults,
+			...normalize(options),
+		});
 }
 
 export function createLocalRecordsCommandDeps(

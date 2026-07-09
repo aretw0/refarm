@@ -26,7 +26,7 @@ function tempStatePath(): string {
  */
 describe("reqbench T3 — the analyst's requirements bench (result mode)", () => {
 	it("mounts the neutral chain + the one persona verb", () => {
-		const reg = buildRegistry();
+		const reg = buildRegistry({ statePath: tempStatePath() });
 		const names = reg.list().map((e) => e.name);
 		expect(names).toEqual(
 			expect.arrayContaining(["source", "records", "vault", "requirements", "status", "actions"]),
@@ -34,9 +34,10 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 	});
 
 	it("declares dgk as the white-label host and exposes action rows", () => {
-		const host = buildReqbenchHost();
+		const statePath = tempStatePath();
+		const host = buildReqbenchHost({ statePath });
 		expect(host.program().name()).toBe("dgk");
-		expect(buildRequirementsBaseModel()).toMatchObject({
+		expect(buildRequirementsBaseModel({ statePath })).toMatchObject({
 			command: "dgk",
 			operation: "base",
 			nextCommand: "dgk requirements --json",
@@ -48,7 +49,11 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 	});
 
 	it("discovers the analyst's system", async () => {
-		const found = await harness.runGroup(buildRegistry(), "source", ["discover"]);
+		const found = await harness.runGroup(
+			buildRegistry({ statePath: tempStatePath() }),
+			"source",
+			["discover"],
+		);
 		expect(found.ok).toBe(true);
 		expect((found.sources as Array<{ ref: string }>).map((s) => s.ref)).toContain(
 			REQ_SYSTEM_REF,
@@ -56,7 +61,7 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 	});
 
 	it("the requirements MOC is a navigable product, and reflects a correction", async () => {
-		const reg = buildRegistry();
+		const reg = buildRegistry({ statePath: tempStatePath() });
 		// Before: one draft + one reviewed.
 		const before = await harness.runVerb(reg, "requirements");
 		expect((before.moc as string).startsWith("# Mapa de Conteúdo — Requisitos")).toBe(true);
@@ -101,7 +106,10 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 	});
 
 	it("serves the same verbs on the web surface (the analyst's MOC over HTTP)", async () => {
-		const { listening, close } = serveReqbench({ port: 0 });
+		const { listening, close } = serveReqbench({
+			port: 0,
+			appOptions: { statePath: tempStatePath() },
+		});
 		try {
 			const { port } = await listening;
 			// The persona verb's declared route (/requirements/moc) responds — same product,

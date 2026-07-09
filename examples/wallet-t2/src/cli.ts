@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-import { resolveLocalRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
 import {
 	defineCapabilityApp,
 	defineCapabilityHost,
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
+import { createLocalRecordsStatePathResolver } from "@refarm.dev/capability-host/node";
 
 import {
 	createWalletCapability,
@@ -15,14 +15,11 @@ import {
 
 export const DGK_WALLET_STATE_PATH_ENV = "DGK_WALLET_STATE_PATH";
 
-export function defaultWalletStatePath(cwd = process.cwd()): string {
-	return resolveLocalRecordsStatePath({
-		appId: "dgk",
-		cwd,
-		envKey: DGK_WALLET_STATE_PATH_ENV,
-		fileName: "wallet.manifest.json",
-	});
-}
+export const defaultWalletStatePath = createLocalRecordsStatePathResolver({
+	appId: "dgk",
+	envKey: DGK_WALLET_STATE_PATH_ENV,
+	fileName: "wallet.manifest.json",
+});
 
 /**
  * `dgk` - the T2 POC CLI (result mode). The sovereign citizen's digital wallet:

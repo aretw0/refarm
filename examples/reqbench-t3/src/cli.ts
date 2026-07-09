@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-import { resolveLocalRecordsStatePath } from "@refarm.dev/capabilities-v1/node";
 import {
 	defineCapabilityApp,
 	defineCapabilityHost,
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
+import { createLocalRecordsStatePathResolver } from "@refarm.dev/capability-host/node";
 
 import {
 	createRequirementsCapability,
@@ -15,14 +15,11 @@ import {
 
 export const DGK_REQUIREMENTS_STATE_PATH_ENV = "DGK_REQUIREMENTS_STATE_PATH";
 
-export function defaultRequirementsStatePath(cwd = process.cwd()): string {
-	return resolveLocalRecordsStatePath({
-		appId: "dgk",
-		cwd,
-		envKey: DGK_REQUIREMENTS_STATE_PATH_ENV,
-		fileName: "requirements.manifest.json",
-	});
-}
+export const defaultRequirementsStatePath = createLocalRecordsStatePathResolver({
+	appId: "dgk",
+	envKey: DGK_REQUIREMENTS_STATE_PATH_ENV,
+	fileName: "requirements.manifest.json",
+});
 
 /**
  * `dgk` - the T3 POC CLI (result mode). Neutral blocks

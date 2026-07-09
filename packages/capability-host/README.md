@@ -29,3 +29,7 @@ instead of repeating that plumbing in every app or example.
 context. Use `hostCommand(["verb", "--json"])` for surface actions so examples
 and apps declare only the verb they extend while the host owns the white-label
 binary name.
+
+Node app defaults live under `@refarm.dev/capability-host/node`. Use
+`createLocalRecordsStatePathResolver({ appId, envKey, fileName })` to keep local
+records state path and env override wiring out of each example.

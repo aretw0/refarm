@@ -31,7 +31,8 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 	});
 
 	it("exposes a base operator model without importing the product app", () => {
-		const model = buildWalletBaseModel();
+		const statePath = tempStatePath();
+		const model = buildWalletBaseModel({ statePath });
 		expect(model).toMatchObject({
 			schemaVersion: 1,
 			command: "dgk",
@@ -54,7 +55,8 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 	});
 
 	it("declares a white-label host as the extension boundary", () => {
-		const host = buildWalletHost();
+		const statePath = tempStatePath();
+		const host = buildWalletHost({ statePath });
 		expect(host.program().name()).toBe("dgk");
 		expect(host.registry().list().map((entry) => entry.name)).toEqual(
 			expect.arrayContaining(["source", "records", "vault", "wallet", "status", "actions"]),
@@ -71,7 +73,10 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 	});
 
 	it("shows the citizen's held items as a product view", async () => {
-		const env = await harness.runVerb(buildRegistry(), "wallet");
+		const env = await harness.runVerb(
+			buildRegistry({ statePath: tempStatePath() }),
+			"wallet",
+		);
 		expect(env.ok).toBe(true);
 		expect(env.total).toBe(3); // the three wallet items
 		const wallet = env.wallet as string;
@@ -80,7 +85,7 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 	});
 
 	it("the citizen curates an item and the wallet reflects it (local-first, their data)", async () => {
-		const reg = buildRegistry();
+		const reg = buildRegistry({ statePath: tempStatePath() });
 		// The citizen verifies their draft credential (persists via shared records deps).
 		const corrected = await harness.runGroup(reg, "records", [
 			"correct",

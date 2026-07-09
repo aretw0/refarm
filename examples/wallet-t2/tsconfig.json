@@ -11,6 +11,9 @@
 			"@refarm.dev/capability-host": [
 				"packages/capability-host/dist/index.d.ts"
 			],
+			"@refarm.dev/capability-host/node": [
+				"packages/capability-host/dist/node.d.ts"
+			],
 			"@refarm.dev/capabilities-v1": [
 				"packages/capabilities-v1/dist/index.d.ts"
 			],

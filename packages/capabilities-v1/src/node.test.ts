@@ -7,6 +7,7 @@ import type { RecordsManifest } from "@refarm.dev/records-contract-v1";
 
 import {
 	createLocalRecordsCommandDeps,
+	createLocalRecordsStatePathResolver,
 	localRecordsStatePath,
 	resolveLocalRecordsStatePath,
 } from "./node.js";
@@ -64,6 +65,28 @@ describe("capabilities node helpers", () => {
 			envKey: "DGK_WALLET_STATE_PATH",
 			env: {},
 		})).toBe("/repo/.dgk/wallet.manifest.json");
+	});
+
+	it("creates reusable local records state path resolvers for host defaults", () => {
+		const walletStatePath = createLocalRecordsStatePathResolver({
+			appId: "dgk",
+			fileName: "wallet.manifest.json",
+			envKey: "DGK_WALLET_STATE_PATH",
+		});
+
+		expect(walletStatePath({
+			cwd: "/repo",
+			env: {},
+		})).toBe("/repo/.dgk/wallet.manifest.json");
+
+		expect(walletStatePath({
+			cwd: "/repo",
+			env: { DGK_WALLET_STATE_PATH: "/tmp/wallet.json" },
+		})).toBe("/tmp/wallet.json");
+
+		expect(walletStatePath("/other-repo")).toBe(
+			"/other-repo/.dgk/wallet.manifest.json",
+		);
 	});
 
 	it("persists records command deps through a JSON file", async () => {
