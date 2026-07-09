@@ -66,7 +66,6 @@ export function buildDevbenchHost(): CapabilityHost {
 			description: "Serve dgk extension verbs over HTTP (their transports.http routes)",
 			openApiPath: "/docs/openapi.json",
 			openApiTitle: "DGK Extension Bench API",
-			openApiVersion: "0.0.0",
 		},
 	});
 }

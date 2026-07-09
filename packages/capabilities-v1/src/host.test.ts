@@ -262,6 +262,34 @@ describe("defineCapabilityHost", () => {
 		}
 	});
 
+	it("defaults host OpenAPI metadata from the host description and version", async () => {
+		const host = defineCapabilityHost({
+			id: "examples/reqbench-t3",
+			command: "dgk",
+			description: "Digital Gardening Kit - requirements bench",
+			version: "3.2.1",
+			capabilities: {
+				deps: deps(),
+				extensions: [showVerb],
+			},
+			serve: { defaultPort: 0 },
+		});
+
+		const { listening, close } = host.serve({ port: 0 });
+		try {
+			const { port } = await listening;
+			const res = await fetch(`http://127.0.0.1:${port}/openapi.json`);
+			expect(res.status).toBe(200);
+			const spec = await res.json() as { info: { title: string; version: string } };
+			expect(spec.info).toEqual({
+				title: "Digital Gardening Kit - requirements bench",
+				version: "3.2.1",
+			});
+		} finally {
+			await close();
+		}
+	});
+
 	it("lets a host declare a records review queue without manifest plumbing", () => {
 		const host = defineCapabilityHost({
 			id: "examples/wallet-t2",

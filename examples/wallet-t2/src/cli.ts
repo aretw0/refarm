@@ -72,7 +72,6 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 			description: "Serve the wallet's verbs over HTTP (their transports.http routes)",
 			openApiPath: "/docs/openapi.json",
 			openApiTitle: "DGK Wallet API",
-			openApiVersion: "0.0.0",
 		},
 	});
 }

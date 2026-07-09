@@ -308,7 +308,7 @@ export function defineCapabilityHost(
 		},
 		serve(options: CapabilityHostServeCallOptions = {}) {
 			const bundle = createBundle();
-			const serveOptions = normalizedServeOptions(definition.serve);
+			const serveOptions = normalizedServeOptions(definition);
 			return serveCapabilities(bundle.registry, {
 				port: options.port ?? serveOptions.defaultPort,
 				prefix: options.prefix ?? serveOptions.prefix,
@@ -725,9 +725,15 @@ function withDefaultOwner<T extends { owner?: string }>(
 }
 
 function normalizedServeOptions(
-	options: CapabilityHostDefinition["serve"],
+	definition: CapabilityHostDefinition,
 ): CapabilityHostServeOptions {
-	return options === false || options === undefined ? {} : options;
+	const options = definition.serve;
+	if (options === false) return {};
+	return {
+		openApiTitle: definition.description,
+		...(definition.version ? { openApiVersion: definition.version } : {}),
+		...(options ?? {}),
+	};
 }
 
 function addServeCommand(
@@ -736,7 +742,7 @@ function addServeCommand(
 	registry: CapabilityRegistry,
 ): void {
 	if (definition.serve === false) return;
-	const options = normalizedServeOptions(definition.serve);
+	const options = normalizedServeOptions(definition);
 	program
 		.command(options.commandName ?? "serve")
 		.description(options.description ?? `Serve ${definition.command}'s capability routes over HTTP`)

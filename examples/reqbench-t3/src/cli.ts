@@ -75,7 +75,6 @@ export function buildReqbenchHost(
 			description: "Serve dgk requirements verbs over HTTP (their transports.http routes)",
 			openApiPath: "/docs/openapi.json",
 			openApiTitle: "DGK Requirements Bench API",
-			openApiVersion: "0.0.0",
 		},
 	});
 }
