@@ -48,19 +48,30 @@ describe("surfaceModel — the neutral visual envelope both web + TUI read", () 
 		expect(citizen.items.map((i) => i.name)).toEqual(["analyze", "wallet-show"]);
 	});
 
-	it("carries the web route + http endpoint a web surface needs to render + invoke", () => {
+	it("carries the web + http surfaces a web view needs to render + invoke (open axis)", () => {
 		const wallet = model().sections[0]!.items.find((i) => i.name === "wallet-show");
-		expect(wallet?.route).toBe("/wallet");
-		expect(wallet?.icon).toBe("wallet");
-		expect(wallet?.http).toEqual({ method: "GET", path: "/wallet" });
+		expect(wallet?.surfaces.web).toEqual({ route: "/wallet", icon: "wallet" });
+		expect(wallet?.surfaces.http).toEqual({ method: "GET", path: "/wallet" });
 	});
 
-	it("carries the TUI shortcut a TUI surface binds", () => {
+	it("carries the tui surface hint a TUI binds; a tui-only verb has no web key", () => {
 		const analyze = model().sections[0]!.items.find((i) => i.name === "analyze");
-		expect(analyze?.shortcut).toBe("ctrl+a");
-		expect(analyze?.icon).toBe("chart");
-		// tui-only verb has no web route.
-		expect(analyze?.route).toBeUndefined();
+		expect(analyze?.surfaces.tui).toEqual({ section: "citizen", shortcut: "ctrl+a", icon: "chart" });
+		// tui-only verb declared no web surface.
+		expect(analyze?.surfaces.web).toBeUndefined();
+	});
+
+	it("carries an ARBITRARY new surface verbatim — no core edit (the open axis)", () => {
+		const xr: CapabilityDescriptor = {
+			name: "xr-panel",
+			summary: "an XR panel",
+			renderers: { tui: { section: "citizen" }, webxr: { anchor: "left", mesh: "panel.glb" } } as never,
+			run: () => ({ ok: true }) as never,
+		};
+		const m = surfaceModel(createCapabilityRegistry([xr]));
+		const item = m.sections[0]!.items.find((i) => i.name === "xr-panel");
+		// A surface the model never enumerated still flows through unchanged.
+		expect(item?.surfaces.webxr).toEqual({ anchor: "left", mesh: "panel.glb" });
 	});
 
 	it("defaults section to 'actions' when a verb declares web but no tui section", () => {

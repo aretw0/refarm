@@ -123,10 +123,14 @@ export {
 } from "./wasm-enrichment-provider.js";
 export {
 	surfaceModel,
+	projectSurface,
+	tuiSurfaceModel,
+	webSurfaceModel,
 	isSurfaceGroup,
 	type SurfaceModel,
 	type SurfaceSection,
 	type SurfaceItem,
+	type SurfaceHint,
 } from "./surface-model.js";
 // The web projection lives in the Astro + homestead surface (apps/me), not a hand-rolled
 // HTML-string renderer here. surfaceModel stays as the neutral, multi-surface model the

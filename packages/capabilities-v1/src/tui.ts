@@ -43,7 +43,8 @@ export function renderTuiMenu(registry: CapabilityRegistry): string {
 	for (const section of model.sections) {
 		lines.push(section.section.toUpperCase());
 		for (const item of section.items) {
-			const shortcut = item.shortcut ? `  [${item.shortcut}]` : "";
+			const key = item.surfaces.tui?.shortcut;
+			const shortcut = typeof key === "string" ? `  [${key}]` : "";
 			lines.push(`  /${item.name} — ${item.summary}${shortcut}`);
 		}
 		lines.push("");
