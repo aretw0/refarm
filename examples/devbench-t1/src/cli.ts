@@ -1,25 +1,33 @@
 #!/usr/bin/env node
 import {
+	buildManifestPrimaryVerbs,
+	createHostCommandResolver,
 	createPluginDescriptorDeps,
 	defineCapabilityApp,
 	defineCapabilityHost,
+	HostCommandOptions,
 	type CapabilityHost,
 	type SubmitEffort,
+	type SurfaceableManifest,
 } from "@refarm.dev/capability-host";
 import { createSidecarSubmitEffort } from "@refarm.dev/capability-host/node";
 
 import {
-	CODING_AGENT_MANIFEST,
 	createExtensionCapability,
+	DEVBENCH_DEFAULT_MANIFESTS,
 	devCapabilityDeps,
 } from "./persona.js";
 
 export const DGK_DEVBENCH_SIDECAR_URL_ENV = "DGK_DEVBENCH_SIDECAR_URL";
 export const DGK_DEVBENCH_DEFAULT_SIDECAR_URL = "http://127.0.0.1:42123";
+export const DGK_COMMAND = "dgk";
 
-export interface DevbenchHostOptions {
+export interface DevbenchHostOptions extends HostCommandOptions {
 	submitEffort?: SubmitEffort;
+	manifests?: readonly SurfaceableManifest[];
 }
+
+const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND });
 
 /**
  * `dgk` - the T1 POC CLI (PROCESS mode). The developer's bench: neutral
@@ -28,24 +36,27 @@ export interface DevbenchHostOptions {
  * visible. This shows the MACHINE being extended — the technical/general angle.
  */
 export function buildDevbenchHost(options: DevbenchHostOptions = {}): CapabilityHost {
+	const command = resolveCommand(options);
 	const pluginDeps = createPluginDescriptorDeps({
 		submitEffort: options.submitEffort ?? createSidecarSubmitEffort({
 			baseUrl: DGK_DEVBENCH_DEFAULT_SIDECAR_URL,
 			envKey: DGK_DEVBENCH_SIDECAR_URL_ENV,
 		}),
 	});
+	const manifests = [...(options.manifests ?? DEVBENCH_DEFAULT_MANIFESTS)] as SurfaceableManifest[];
+	const extensionManifest = manifests[0] ?? DEVBENCH_DEFAULT_MANIFESTS[0]!;
 	return defineCapabilityHost({
 		id: "examples/devbench-t1",
-		command: "dgk",
+		command,
 		description: "Digital Gardening Kit - extension bench",
 		version: "0.0.0",
 		capabilities: {
 			deps: devCapabilityDeps(),
-			// The extension path: the coding-agent manifest's verbs (agent:code,
-			// agent:review) surface themselves via the bridge.
-			manifests: [CODING_AGENT_MANIFEST],
+			// The extension path: the active manifest's verbs surface themselves
+			// via the bridge (e.g. agent:code/agent:review by default).
+			manifests,
 			pluginDeps,
-			extensions: [createExtensionCapability(pluginDeps)],
+			extensions: [createExtensionCapability(extensionManifest, pluginDeps)],
 		},
 		operatorStatus: {
 			summary: "Show extension bench operator status",
@@ -57,25 +68,14 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				intent: "extension:inspect",
 			},
 			primaryVerbs: [
-				{
-					name: "agent-code",
-					subject: "Coding agent",
-					actionId: "run-agent-code",
-					intent: "agent:code",
-				},
-				{
-					name: "agent-review",
-					subject: "Coding agent",
-					actionId: "run-agent-review",
-					intent: "agent:review",
-				},
+				...buildManifestPrimaryVerbs({ manifests }),
 			],
 		},
 		serve: {
 			defaultPort: 4323,
-			description: "Serve dgk extension verbs over HTTP (their transports.http routes)",
+			description: `Serve ${command} extension verbs over HTTP (their transports.http routes)`,
 			openApiPath: "/docs/openapi.json",
-			openApiTitle: "DGK Extension Bench API",
+			openApiTitle: `${command} Extension Bench API`,
 		},
 	});
 }

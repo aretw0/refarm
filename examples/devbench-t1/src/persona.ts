@@ -27,6 +27,26 @@ export const CODING_AGENT_MANIFEST: SurfaceableManifest = {
 	},
 };
 
+/** A second extension to prove multiple manifests can coexist in one host and still be
+ * surfaced by the same register-at-load seam.
+ *
+ * It intentionally targets a different plugin namespace (`notes`) so people can see how
+ * `vault:search` and `web:search` would remain distinct when a power user installs
+ * multiple plugins with overlapping verbs.
+ */
+export const NOTES_INDEXER_MANIFEST: SurfaceableManifest = {
+	id: "@devbench/notes-indexer",
+	capabilities: {
+		provides: ["notes:search", "notes:index"],
+		subscribes: ["notes:dispatch"],
+	},
+};
+
+export const DEVBENCH_DEFAULT_MANIFESTS: readonly SurfaceableManifest[] = [
+	CODING_AGENT_MANIFEST,
+	NOTES_INDEXER_MANIFEST,
+];
+
 export function devCapabilityDeps(): CapabilityDeps {
 	return createLocalCapabilityDeps();
 }
@@ -36,14 +56,19 @@ export function devCapabilityDeps(): CapabilityDeps {
  * synthesized from it (the machine, exposed — the developer's view of "declare once").
  */
 export function createExtensionCapability(
+	manifest: SurfaceableManifest,
 	pluginDeps: PluginDescriptorDeps,
 ): CapabilityDescriptor {
 	return definePluginInspectorCapability({
 		name: "extension",
 		summary: "Inspect the coding-agent extension: what it declares, how it surfaces",
-		manifest: CODING_AGENT_MANIFEST,
+		manifest,
 		deps: pluginDeps,
 		httpPath: "/ext/inspect",
+		renderers: {
+			tui: { section: "extension" },
+			web: { route: "/extension", icon: "extension" },
+		},
 		note:
 			"Each surfaced verb is a first-class command on CLI/REPL/TUI/HTTP/agent — declared once, no per-surface wiring.",
 	});

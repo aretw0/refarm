@@ -5,6 +5,7 @@ A per-work POC app: its own CLI (`dgk`). Presented in
 finished product, devbench **shows the machine being extended**: an extension declares
 itself and its verbs surface by themselves. The angle is technical and general —
 "declare once → it appears everywhere".
+Set `DGK_COMMAND` to white-label the command when needed.
 
 ## What it demonstrates
 
@@ -51,6 +52,8 @@ pnpm --filter devbench-t1 dgk --help    # agent-code / agent-review beside neutr
 
 Set `DGK_DEVBENCH_SIDECAR_URL` to point this example at its isolated demo runtime.
 If unset, `dgk` targets `http://127.0.0.1:42123`.
+Set `DGK_COMMAND=/path/to/cli-name` to change the CLI command root (for example
+`DGK_COMMAND=devbench-acme`).
 
 ## Focus — what T1 makes shine (survives our design conversation)
 
