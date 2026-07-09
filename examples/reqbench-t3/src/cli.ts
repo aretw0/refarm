@@ -50,7 +50,7 @@ export function buildReqbenchHost(
 				actionId: "open-requirements",
 				intent: "requirements:open",
 			},
-			units: ({ recordReviewQueueUnit, hostCommand }) => [
+			units: ({ recordReviewQueueUnit }) => [
 				recordReviewQueueUnit({
 					id: "requirements",
 					label: "Requirements",
@@ -61,18 +61,11 @@ export function buildReqbenchHost(
 						`Requirements bench has ${total} requirements; ${pending} requirement needs review.`,
 					readySummary: ({ total }) =>
 						`Requirements bench has ${total} reviewed requirements.`,
-					pendingAction: {
-						id: "review-draft-requirement",
+					pendingCorrection: {
+						actionId: "review-draft-requirement",
 						label: "Review the draft requirement",
 						intent: "requirements:review",
-						command: hostCommand([
-							"records",
-							"correct",
-							"record:req-cadastro",
-							"reviewed",
-							"--apply",
-						]),
-						primary: true,
+						targetState: "reviewed",
 					},
 				}),
 			],

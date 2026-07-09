@@ -48,7 +48,7 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 				actionId: "open-wallet",
 				intent: "wallet:open",
 			},
-			units: ({ recordReviewQueueUnit, hostCommand }) => [
+			units: ({ recordReviewQueueUnit }) => [
 				recordReviewQueueUnit({
 					id: "wallet",
 					label: "Wallet",
@@ -58,18 +58,11 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 					pendingSummary: ({ total, pending }) =>
 						`Wallet has ${total} held items; ${pending} item needs review.`,
 					readySummary: ({ total }) => `Wallet has ${total} held items.`,
-					pendingAction: {
-						id: "verify-draft-credential",
+					pendingCorrection: {
+						actionId: "verify-draft-credential",
 						label: "Verify the draft credential",
 						intent: "wallet:verify",
-						command: hostCommand([
-							"records",
-							"correct",
-							"record:cred-assinatura",
-							"verified",
-							"--apply",
-						]),
-						primary: true,
+						targetState: "verified",
 					},
 				}),
 			],

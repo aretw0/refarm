@@ -64,12 +64,23 @@ export type CapabilityHostRecordReviewQueueUnitOptions = Omit<
 > & {
 	reviewedState: string;
 	records?: RecordsCommandDeps;
+	pendingCorrection?: CapabilityHostRecordReviewCorrectionOptions;
 };
 
 export type CapabilityHostCommandBuilder = (args: string[]) => string;
 export type CapabilityHostCapabilityUnitFactory = (
 	context: CapabilityHostStatusContext,
 ) => CapabilityHostCapabilityUnitOptions;
+
+export interface CapabilityHostRecordReviewCorrectionOptions {
+	targetState: string;
+	actionId?: string;
+	label: string;
+	intent?: string;
+	apply?: boolean;
+	primary?: boolean;
+	payload?: Record<string, unknown>;
+}
 
 export interface CapabilityHostPrimaryVerbOptions
 	extends Omit<CapabilityHostCapabilityUnitOptions, "action"> {
@@ -513,6 +524,7 @@ function createCapabilityHostStatusContext(
 			buildRecordReviewQueueSurfaceUnit(
 				withDefaultOwner(options, definition.id),
 				capabilities,
+				(args) => applicationCommand(definition.command, args),
 			),
 	};
 }
@@ -552,6 +564,7 @@ function buildPrimaryVerbSurfaceUnit(
 function buildRecordReviewQueueSurfaceUnit(
 	options: CapabilityHostRecordReviewQueueUnitOptions & { owner: string },
 	capabilities: CapabilityHostCapabilities,
+	hostCommand: CapabilityHostCommandBuilder,
 ): BaseSurfaceUnit {
 	const records = options.records ?? capabilities.deps.records;
 	if (!records) {
@@ -573,7 +586,12 @@ function buildRecordReviewQueueSurfaceUnit(
 		pendingLabel: options.pendingLabel,
 		readySummary: options.readySummary,
 		pendingSummary: options.pendingSummary,
-		pendingAction: options.pendingAction,
+		pendingAction: options.pendingAction ??
+			buildRecordCorrectionAction(
+				options.pendingCorrection,
+				pendingRecordIds[0],
+				hostCommand,
+			),
 		total: manifest.records.length,
 		pending: pendingRecords.length,
 		details: {
@@ -584,6 +602,24 @@ function buildRecordReviewQueueSurfaceUnit(
 			...(options.details ?? {}),
 		},
 	});
+}
+
+function buildRecordCorrectionAction(
+	options: CapabilityHostRecordReviewCorrectionOptions | undefined,
+	recordId: string | undefined,
+	hostCommand: CapabilityHostCommandBuilder,
+): BaseSurfaceAction | undefined {
+	if (!options || !recordId) return undefined;
+	const args = ["records", "correct", recordId, options.targetState];
+	if (options.apply ?? true) args.push("--apply");
+	return {
+		id: options.actionId,
+		label: options.label,
+		...(options.intent ? { intent: options.intent } : {}),
+		command: hostCommand(args),
+		primary: options.primary ?? true,
+		...(options.payload ? { payload: options.payload } : {}),
+	};
 }
 
 function hostSurfaceActionsFromModel(

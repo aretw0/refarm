@@ -83,6 +83,7 @@ export {
 	type CapabilityHostDefinition,
 	type CapabilityHostOperatorStatus,
 	type CapabilityHostPrimaryVerbOptions,
+	type CapabilityHostRecordReviewCorrectionOptions,
 	type CapabilityHostRecordReviewQueueUnitOptions,
 	type CapabilityHostReviewQueueUnitOptions,
 	type CapabilityHostSurfaceAction,

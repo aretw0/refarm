@@ -291,6 +291,62 @@ describe("defineCapabilityHost", () => {
 		]);
 	});
 
+	it("builds a record correction action from the first pending record", () => {
+		const host = defineCapabilityHost({
+			id: "examples/reqbench-t3",
+			command: "dgk",
+			description: "Digital Gardening Kit - requirements bench",
+			capabilities: {
+				deps: {
+					...deps(),
+					records: {
+						...defaultRecordsDeps(),
+						loadManifest: () => ({
+							manifestVersion: 1,
+							records: [
+								{ id: "record:req-draft", review: { state: "draft" } },
+								{ id: "record:req-reviewed", review: { state: "reviewed" } },
+							],
+						} as RecordsManifest),
+					},
+				},
+				extensions: [showVerb],
+			},
+			operatorStatus: {
+				capabilityUnit: false,
+				units: ({ recordReviewQueueUnit }) => [
+					recordReviewQueueUnit({
+						id: "requirements",
+						label: "Requirements",
+						reviewedState: "reviewed",
+						totalLabel: "requirements",
+						pendingLabel: "needs review",
+						pendingCorrection: {
+							targetState: "reviewed",
+							actionId: "review-draft-requirement",
+							label: "Review the draft requirement",
+							intent: "requirements:review",
+						},
+					}),
+				],
+			},
+		});
+
+		expect(host.baseModel().nextCommands).toEqual([
+			"dgk records correct record:req-draft reviewed --apply",
+		]);
+		expect(host.surfaceActions()).toEqual([
+			expect.objectContaining({
+				id: "review-draft-requirement",
+				label: "Review the draft requirement",
+				intent: "requirements:review",
+				payload: expect.objectContaining({
+					command: "dgk records correct record:req-draft reviewed --apply",
+				}),
+			}),
+		]);
+	});
+
 	it("builds a primary extension action from a verb declaration", () => {
 		const host = defineCapabilityHost({
 			id: "examples/devbench-t1",
