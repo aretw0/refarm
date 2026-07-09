@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import os from "node:os";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();
@@ -22,6 +22,7 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 });
 
 const mockFs = await import("node:fs");
+const mockFsPromises = await import("node:fs/promises");
 
 describe("extension commands", () => {
   beforeEach(() => {
@@ -40,6 +41,30 @@ describe("extension commands", () => {
     const ext = buildExtJson("my-tool");
     expect(ext.id).toBe("@local/my-tool");
     expect(ext.version).toBe("0.0.1");
+  });
+
+  it("extension new --verb scaffolds a dispatchable local extension", async () => {
+    vi.mocked(mockFs.existsSync).mockReturnValue(false);
+    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { extensionCommand } = await import("./extension.js");
+
+    await extensionCommand.parseAsync(["new", "wallet", "--verb", "open", "--json"], { from: "user" });
+
+    const writes = vi.mocked(mockFsPromises.writeFile).mock.calls;
+    const extWrite = writes.find(([file]) => String(file).endsWith("ext.json"));
+    const indexWrite = writes.find(([file]) => String(file).endsWith("index.js"));
+    expect(extWrite).toBeDefined();
+    expect(indexWrite).toBeDefined();
+
+    const ext = JSON.parse(String(extWrite?.[1]));
+    expect(ext.capabilities).toEqual({
+      provides: ["wallet:open"],
+      subscribes: ["wallet:dispatch"],
+    });
+    expect(String(indexWrite?.[1])).toContain("async onEvent");
+    expect(String(indexWrite?.[1])).toContain("wallet:dispatch");
+    expect(String(indexWrite?.[1])).toContain("case \"open\"");
+    consoleLogSpy.mockRestore();
   });
 
   it("extension list reads project and global dirs", async () => {

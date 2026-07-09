@@ -68,7 +68,39 @@ function extensionReloadCommand(name: string, json = false): string {
   ]);
 }
 
-const INDEX_JS_TEMPLATE = (name: string, id: string) => `\
+interface DispatchVerbScaffold {
+  pluginKey: string;
+  verb: string;
+  target: string;
+  dispatchEvent: string;
+}
+
+function normalizeDispatchVerb(name: string, rawVerb?: string): DispatchVerbScaffold | undefined {
+  if (!rawVerb) return undefined;
+  const value = rawVerb.trim();
+  const match = value.match(/^([a-z0-9][a-z0-9-]*):([a-z0-9][a-z0-9-]*)$/);
+  if (match) {
+    const pluginKey = match[1]!;
+    const verb = match[2]!;
+    return {
+      pluginKey,
+      verb,
+      target: `${pluginKey}:${verb}`,
+      dispatchEvent: `${pluginKey}:dispatch`,
+    };
+  }
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(value)) {
+    throw new Error("invalid-extension-verb");
+  }
+  return {
+    pluginKey: name,
+    verb: value,
+    target: `${name}:${value}`,
+    dispatchEvent: `${name}:dispatch`,
+  };
+}
+
+const DEFAULT_INDEX_JS_TEMPLATE = (name: string, id: string) => `\
 // ${id} — local refarm extension
 // Loaded directly by the Refarm runtime (no WASM compilation needed).
 // Edit this file and run 'refarm plugin reload ${id} --json' to apply changes.
@@ -94,6 +126,65 @@ export const integration = {
 };
 `;
 
+const DISPATCH_INDEX_JS_TEMPLATE = (
+  name: string,
+  id: string,
+  dispatch: DispatchVerbScaffold,
+) => `\
+// ${id} — local dispatch extension
+// Edit this file and run 'refarm plugin reload ${id} --json' to apply changes.
+
+const DISPATCH_EVENT = "${dispatch.dispatchEvent}";
+
+function parseDispatch(args) {
+  const [event, payloadJson] = Array.isArray(args) ? args : [undefined, args];
+  if (event !== DISPATCH_EVENT) return undefined;
+  try {
+    const payload = typeof payloadJson === "string" ? JSON.parse(payloadJson) : payloadJson;
+    if (!payload || typeof payload !== "object") return undefined;
+    return payload;
+  } catch {
+    return undefined;
+  }
+}
+
+async function handleDispatch(payload) {
+  switch (payload.verb) {
+    case "${dispatch.verb}":
+      // TODO: replace with your ${name} extension logic
+      return JSON.stringify({
+        ok: true,
+        verb: "${dispatch.verb}",
+        input: payload,
+      });
+    default:
+      return JSON.stringify({
+        ok: false,
+        error: "unsupported-verb",
+        verb: payload.verb,
+      });
+  }
+}
+
+export const integration = {
+  async "on-event"(args) {
+    return this.onEvent(args);
+  },
+
+  async onEvent(args) {
+    const payload = parseDispatch(args);
+    if (!payload) return;
+    return handleDispatch(payload);
+  },
+};
+`;
+
+function indexJsTemplate(name: string, id: string, dispatch?: DispatchVerbScaffold): string {
+  return dispatch
+    ? DISPATCH_INDEX_JS_TEMPLATE(name, id, dispatch)
+    : DEFAULT_INDEX_JS_TEMPLATE(name, id);
+}
+
 export interface ExtJson {
   id: string;
   name: string;
@@ -101,12 +192,15 @@ export interface ExtJson {
   capabilities: { provides: string[]; subscribes?: string[] };
 }
 
-export function buildExtJson(name: string): ExtJson {
+export function buildExtJson(name: string, options: { verb?: string } = {}): ExtJson {
+  const dispatch = normalizeDispatchVerb(name, options.verb);
   return {
     id: `@local/${name}`,
     name: name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
     version: "0.0.1",
-    capabilities: { provides: ["ai:respond"] },
+    capabilities: dispatch
+      ? { provides: [dispatch.target], subscribes: [dispatch.dispatchEvent] }
+      : { provides: ["ai:respond"] },
   };
 }
 
@@ -188,11 +282,21 @@ function printCreatedExtension(report: CreatedExtensionReport): void {
 async function newExtension(
   name: string,
   isGlobal: boolean,
-  options: { json?: boolean } = {},
+  options: { json?: boolean; verb?: string } = {},
 ): Promise<void> {
   if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name)) {
     console.error(
       `Invalid extension name '${name}': use lowercase letters, digits, and hyphens only (e.g. my-tool)`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  let dispatch: DispatchVerbScaffold | undefined;
+  try {
+    dispatch = normalizeDispatchVerb(name, options.verb);
+  } catch {
+    console.error(
+      `Invalid extension verb '${options.verb}': use a bare verb (e.g. open) or a qualified verb (e.g. wallet:open)`,
     );
     process.exitCode = 1;
     return;
@@ -210,10 +314,10 @@ async function newExtension(
 
   await mkdir(extDir, { recursive: true });
 
-  const ext = buildExtJson(name);
+  const ext = buildExtJson(name, { verb: options.verb });
   await writeFile(path.join(extDir, "ext.json"), JSON.stringify(ext, null, 2) + "\n", "utf-8");
   const indexPath = path.join(extDir, "index.js");
-  await writeFile(indexPath, INDEX_JS_TEMPLATE(name, ext.id), "utf-8");
+  await writeFile(indexPath, indexJsTemplate(name, ext.id, dispatch), "utf-8");
 
   const scope = isGlobal ? "global" : "project";
   const reloadCommand = extensionReloadCommand(name, true);
@@ -402,6 +506,7 @@ extensionCommand.addHelpText(
 
 Examples:
   $ refarm extension new my-tool
+  $ refarm extension new wallet --verb open
   $ refarm extension new my-tool --json
   $ refarm extension review ./prepared-extension
   $ refarm extension review ./prepared-extension --grant storage:v1 --json
@@ -422,9 +527,10 @@ extensionCommand
   .command("new <name>")
   .description("Scaffold a new local extension in .refarm/extensions/<name>/")
   .option("-g, --global", "Create in ~/.refarm/extensions/ (available in all projects)", false)
+  .option("--verb <verb>", "Declare a dispatchable verb (bare 'open' -> <name>:open, or qualified 'wallet:open')")
   .option("--json", "Output machine-readable created extension metadata")
-  .action(async (name: string, options: { global: boolean; json?: boolean }) => {
-    await newExtension(name, options.global, { json: options.json });
+  .action(async (name: string, options: { global: boolean; json?: boolean; verb?: string }) => {
+    await newExtension(name, options.global, { json: options.json, verb: options.verb });
   });
 
 // `extension review` is declared once as a capability descriptor with
