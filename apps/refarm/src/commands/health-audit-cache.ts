@@ -8,7 +8,7 @@ import {
 } from "./health-policy.js";
 import type { HealthReport } from "./health.js";
 
-const HEALTH_AUDIT_CACHE_VERSION = 1;
+const HEALTH_AUDIT_CACHE_VERSION = 2;
 const HEALTH_AUDIT_CACHE_FILE = "health-audit.json";
 const HEALTH_AUDIT_CACHE_MAX_AGE_MS = 5 * 60_000;
 const HEALTH_PROJECT_STATE_FINGERPRINT_FILES = [
@@ -78,7 +78,7 @@ function buildGitHealthAuditFingerprint(
     const gitRoot = path.resolve(readGitCommand(["rev-parse", "--show-toplevel"], { cwd: root }));
     if (gitRoot !== root) return null;
     const hash = createHealthFingerprintHash(root, policyReport);
-    appendHealthFingerprintValue(hash, "git:head", readGitCommand(["rev-parse", "HEAD"], { cwd: root }));
+    appendGitTrackedHealthFileMetadata(hash, root);
     const status = readGitCommand(["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: root });
     const statusEntries = gitPorcelainStatusEntries(status);
     appendHealthFingerprintValue(
@@ -100,6 +100,25 @@ function buildGitHealthAuditFingerprint(
     return hash.digest("hex");
   } catch {
     return null;
+  }
+}
+
+function appendGitTrackedHealthFileMetadata(
+  hash: ReturnType<typeof createHash>,
+  rootDir: string,
+): void {
+  const tracked = readGitCommand(["ls-files", "-z"], { cwd: rootDir });
+  const files = tracked
+    .split("\0")
+    .filter(Boolean)
+    .map(normalizeHealthFingerprintPath)
+    .filter(isHealthAuditRelevantStatusPath)
+    .sort();
+  appendHealthFingerprintValue(hash, "git:tracked-health-files", files.join("\0"));
+  for (const relativePath of files) {
+    appendHealthFingerprintFile(hash, rootDir, relativePath, {
+      includeContentHash: true,
+    });
   }
 }
 
