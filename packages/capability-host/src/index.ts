@@ -30,6 +30,7 @@ export {
 
 export interface CapabilityAppDefinition<Options extends object = Record<string, never>> {
 	host: (options: Options) => CapabilityHost;
+	defaultOptions?: Options | (() => Options);
 	programOptions?: (options: Options) => Options;
 }
 
@@ -55,8 +56,17 @@ export interface CapabilityApp<Options extends object = Record<string, never>> {
 export function defineCapabilityApp<Options extends object = Record<string, never>>(
 	definition: CapabilityAppDefinition<Options>,
 ): CapabilityApp<Options> {
+	const defaultOptions = (): Options => {
+		const defaults = typeof definition.defaultOptions === "function"
+			? definition.defaultOptions()
+			: definition.defaultOptions;
+		return (defaults ?? {}) as Options;
+	};
 	const createOptions = (options?: Options): Options =>
-		(options ?? {}) as Options;
+		({
+			...defaultOptions(),
+			...(options ?? {}),
+		}) as Options;
 	const host = (options?: Options): CapabilityHost =>
 		definition.host(createOptions(options));
 	const program = (options?: Options): ReturnType<CapabilityHost["program"]> => {

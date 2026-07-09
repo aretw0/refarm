@@ -11,10 +11,12 @@ Current status: the package re-exports the host API while the implementation is
 still incubated in `@refarm.dev/capabilities-v1`. Future slices can move the
 implementation behind this boundary without changing consumers.
 
-`defineCapabilityApp({ host, programOptions })` is the standard app/example
-factory. It returns `host`, `registry`, `baseModel`, `program`, `surfaceActions`,
-and `runCli` helpers so white-label consumers declare their extension host once
-instead of repeating CLI and inspection plumbing in every app.
+`defineCapabilityApp({ host, defaultOptions, programOptions })` is the standard
+app/example factory. It returns `host`, `registry`, `baseModel`, `program`,
+`surfaceActions`, and `runCli` helpers so white-label consumers declare their
+extension host once instead of repeating CLI and inspection plumbing in every app.
+Use `defaultOptions` for normal app defaults such as local state paths; they apply
+to every helper surface. Keep `programOptions` for CLI-only option transforms.
 
 `app.runCli(import.meta.url, { compiledFileName: "cli.js" })` is the standard
 entrypoint helper for white-label CLIs. It keeps direct-run detection,

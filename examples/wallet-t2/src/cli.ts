@@ -84,10 +84,7 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 
 const walletApp = defineCapabilityApp<WalletStateOptions>({
 	host: buildWalletHost,
-	programOptions: (options) => ({
-		...options,
-		statePath: options.statePath ?? defaultWalletStatePath(),
-	}),
+	defaultOptions: () => ({ statePath: defaultWalletStatePath() }),
 });
 
 export const buildRegistry = walletApp.registry;

@@ -87,10 +87,7 @@ export function buildReqbenchHost(
 
 const reqbenchApp = defineCapabilityApp<RequirementsStateOptions>({
 	host: buildReqbenchHost,
-	programOptions: (options) => ({
-		...options,
-		statePath: options.statePath ?? defaultRequirementsStatePath(),
-	}),
+	defaultOptions: () => ({ statePath: defaultRequirementsStatePath() }),
 });
 
 export const buildRegistry = reqbenchApp.registry;

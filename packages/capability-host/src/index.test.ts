@@ -100,4 +100,36 @@ describe("@refarm.dev/capability-host public API", () => {
 		})).resolves.toBe(true);
 		expect(parseAsync).toHaveBeenCalledWith(argv);
 	});
+
+	it("applies app default options to every helper surface", () => {
+		const createHost = vi.fn((options: { statePath?: string } = {}) => ({
+			registry: () => ({ statePath: options.statePath }),
+			baseModel: () => ({ nextCommands: [options.statePath ?? "memory"] }),
+			surfaceActions: () => [{ id: options.statePath ?? "memory" }],
+			surfaceActionRows: () => [],
+			surfaceContext: () => ({
+				hostId: "examples/public-api",
+				data: { command: "dgk", description: "Digital Gardening Kit" },
+				actions: [{ id: options.statePath ?? "memory" }],
+			}),
+			program: () => ({ parseAsync: vi.fn(async () => undefined) }),
+			serve: () => {
+				throw new Error("not used");
+			},
+		}) as unknown as CapabilityHost);
+		const app = defineCapabilityApp({
+			host: createHost,
+			defaultOptions: () => ({ statePath: "/tmp/dgk-state.json" }),
+		});
+
+		expect(app.registry()).toEqual({ statePath: "/tmp/dgk-state.json" });
+		expect(app.baseModel()).toEqual({ nextCommands: ["/tmp/dgk-state.json"] });
+		expect(app.surfaceActions()).toEqual([{ id: "/tmp/dgk-state.json" }]);
+		expect(app.surfaceContext().actions).toEqual([
+			{ id: "/tmp/dgk-state.json" },
+		]);
+		expect(app.registry({ statePath: "/tmp/explicit.json" })).toEqual({
+			statePath: "/tmp/explicit.json",
+		});
+	});
 });
