@@ -5,11 +5,11 @@ vi.mock("@refarm.dev/heartwood", () => ({
   verify: vi.fn().mockReturnValue(true),
 }));
 
-import { PluginHost } from "../src/lib/plugin-host";
-import { Registry } from "@refarm.dev/registry";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
-import { cachePlugin, evictPlugin } from "../src/lib/opfs-plugin-cache";
+import { Registry } from "@refarm.dev/registry";
 import type { PluginInstance } from "../src/lib/instance-handle";
+import { cachePlugin, evictPlugin } from "../src/lib/opfs-plugin-cache";
+import { PluginHost } from "../src/lib/plugin-host";
 
 // ---------------------------------------------------------------------------
 // Module-level mocks (hoisted by Vitest)
@@ -381,7 +381,28 @@ describe("PluginHost.dispatch()", () => {
     expect(inst.call).toHaveBeenCalledWith("on-event", ["system:boot", JSON.stringify({ version: 1 })]);
   });
 
-  it("does NOT call on-event for non-system:* events", () => {
+  it("calls on-event for events declared in capabilities.subscribes", () => {
+    const { host } = makeHost();
+    const inst = mockInstance("@local/wallet");
+    inst.manifest = createMockManifest({
+      id: "@local/wallet",
+      capabilities: {
+        provides: ["wallet:open"],
+        requires: [],
+        subscribes: ["wallet:dispatch"],
+      },
+    });
+    host.registerInternal(inst);
+
+    host.dispatch({ event: "wallet:dispatch", pluginId: "wallet", payload: { verb: "open" } });
+
+    expect(inst.call).toHaveBeenCalledWith("on-event", [
+      "wallet:dispatch",
+      JSON.stringify({ verb: "open" }),
+    ]);
+  });
+
+  it("does NOT call on-event for non-system events it does not subscribe to", () => {
     const { host } = makeHost();
     const inst = mockInstance();
     host.registerInternal(inst);

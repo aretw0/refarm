@@ -1,23 +1,23 @@
 // Dynamic import — node:fs/promises is only needed for file:// URLs (Node.js path).
 // Keeping it dynamic prevents the browser bundle from pulling in Node-only modules.
 import {
-  assertEntryRuntimeCompatibility,
-  detectEntryFormat,
-  type PluginManifest,
+	assertEntryRuntimeCompatibility,
+	detectEntryFormat,
+	type PluginManifest,
 } from "@refarm.dev/plugin-manifest";
 import { Registry } from "@refarm.dev/registry";
-import { TelemetryEvent } from "./telemetry.js";
-import { TractorLogger, SecurityMode } from "./types.js";
 import { NormalisedNode } from "./graph-normalizer.js";
-import { TrustManager, ExecutionProfile } from "./trust-manager.js";
-import type { PluginTrustGrant } from "./trust-manager.js";
-import { WasiImports } from "./wasi-imports.js";
-import { PluginInstanceHandle } from "./instance-handle.js";
 import type { PluginInstance, PluginState } from "./instance-handle.js";
-import type { PluginRunner } from "./plugin-runner.js";
+import { PluginInstanceHandle } from "./instance-handle.js";
 import { MainThreadRunner } from "./main-thread-runner.js";
-import { WorkerRunner } from "./worker-runner.js";
 import { getCachedPlugin } from "./opfs-plugin-cache.js";
+import type { PluginRunner } from "./plugin-runner.js";
+import { TelemetryEvent } from "./telemetry.js";
+import type { PluginTrustGrant } from "./trust-manager.js";
+import { ExecutionProfile, TrustManager } from "./trust-manager.js";
+import { SecurityMode, TractorLogger } from "./types.js";
+import { WasiImports } from "./wasi-imports.js";
+import { WorkerRunner } from "./worker-runner.js";
 
 export type { PluginInstance, PluginState, PluginTrustGrant };
 
@@ -310,7 +310,8 @@ export class PluginHost {
 
   dispatch(event: TelemetryEvent) {
     for (const instance of this._instances.values()) {
-      if (event.event.startsWith("system:")) {
+      const subscribed = instance.manifest.capabilities.subscribes?.includes(event.event) ?? false;
+      if (event.event.startsWith("system:") || subscribed) {
         instance.call("on-event", [event.event, JSON.stringify(event.payload)]);
       }
     }
