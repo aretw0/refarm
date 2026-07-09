@@ -1,7 +1,5 @@
 import {
-	createLocalVaultCommandDeps,
-	defaultRecordsDeps,
-	defaultSourceDeps,
+	createLocalCapabilityDeps,
 	definePluginInspectorCapability,
 	type CapabilityDeps,
 	type CapabilityDescriptor,
@@ -46,11 +44,7 @@ export function createCapturingSubmit(): SubmitEffort & {
 }
 
 export function devCapabilityDeps(): CapabilityDeps {
-	return {
-		source: defaultSourceDeps(),
-		vault: createLocalVaultCommandDeps(),
-		records: defaultRecordsDeps(),
-	};
+	return createLocalCapabilityDeps();
 }
 
 /** The T1 inspector verb: `extension` - makes the extension MECHANISM visible. It

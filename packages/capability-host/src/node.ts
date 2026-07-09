@@ -1,7 +1,9 @@
 export {
+	createLocalRecordsCommandDeps,
 	createLocalRecordsStatePathResolver,
 	localRecordsStatePath,
 	resolveLocalRecordsStatePath,
+	type LocalRecordsCommandDepsOptions,
 	type LocalRecordsStatePathOptions,
 	type LocalRecordsStatePathResolver,
 	type LocalRecordsStatePathResolverInput,

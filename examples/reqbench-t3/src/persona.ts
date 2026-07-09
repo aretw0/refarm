@@ -1,4 +1,5 @@
 import {
+	createLocalCapabilityDeps,
 	createLocalVaultCommandDeps,
 	defineRecordsViewCapability,
 	type CapabilityDeps,
@@ -6,12 +7,11 @@ import {
 	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capabilities-v1";
-import { createLocalRecordsCommandDeps } from "@refarm.dev/capabilities-v1/node";
+import { createLocalRecordsCommandDeps } from "@refarm.dev/capability-host/node";
 import {
 	createReferenceEnrichmentProvider,
 	type ReferenceEnrichmentEntry,
 } from "@refarm.dev/enrichment-contract-v1";
-import { createReferenceRecordsProvider } from "@refarm.dev/records-contract-v1";
 import { createWebSourceProvider } from "@refarm.dev/source-web";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
@@ -54,7 +54,6 @@ export function reqRecordsDeps(
 			fixture: REQ_ENRICHMENT_FIXTURE,
 			keyField: "externalKey",
 		}),
-		recordsProvider: createReferenceRecordsProvider(),
 	});
 }
 
@@ -65,7 +64,7 @@ export function reqCapabilityDeps(
 	recordsDeps: RecordsCommandDeps = reqRecordsDeps(),
 ): CapabilityDeps {
 	const root = cacheRoot ?? mkdtempSync(path.join(os.tmpdir(), "reqbench-source-"));
-	return {
+	return createLocalCapabilityDeps({
 		source: {
 			sourceProvider: createWebSourceProvider({
 				cacheRoot: root,
@@ -74,7 +73,7 @@ export function reqCapabilityDeps(
 		},
 		vault: createLocalVaultCommandDeps({ seed: reqManifest }),
 		records: recordsDeps,
-	};
+	});
 }
 
 const STATE_LABELS: Record<string, string> = {

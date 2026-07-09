@@ -1,15 +1,13 @@
 import {
+	createLocalCapabilityDeps,
 	createLocalVaultCommandDeps,
-	defaultSourceDeps,
 	defineRecordsViewCapability,
 	type CapabilityDeps,
 	type CapabilityDescriptor,
 	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capabilities-v1";
-import { createLocalRecordsCommandDeps } from "@refarm.dev/capabilities-v1/node";
-import { createReferenceEnrichmentProvider } from "@refarm.dev/enrichment-contract-v1";
-import { createReferenceRecordsProvider } from "@refarm.dev/records-contract-v1";
+import { createLocalRecordsCommandDeps } from "@refarm.dev/capability-host/node";
 
 import { walletManifest } from "./fixture.js";
 
@@ -30,21 +28,16 @@ export function walletRecordsDeps(options: WalletStateOptions = {}): RecordsComm
 	return createLocalRecordsCommandDeps({
 		seed: walletManifest,
 		statePath: options.statePath,
-		enrichmentProvider: createReferenceEnrichmentProvider(),
-		recordsProvider: createReferenceRecordsProvider(),
 	});
 }
 
 export function walletCapabilityDeps(
 	recordsDeps: RecordsCommandDeps = walletRecordsDeps(),
 ): CapabilityDeps {
-	return {
-		// The citizen holds their own data — no external source to pull. An ephemeral
-		// source provider satisfies the block; the wallet is local-first.
-		source: defaultSourceDeps(),
+	return createLocalCapabilityDeps({
 		vault: createLocalVaultCommandDeps({ seed: walletManifest }),
 		records: recordsDeps,
-	};
+	});
 }
 
 const STATE_LABELS: Record<string, string> = {
