@@ -12,7 +12,7 @@ import type { DsLintSnapshot } from "@refarm.dev/ds/lint";
 import { createDsQualityChecker } from "@refarm.dev/ds/quality-checker";
 import type { QualityProfile, QualityReport } from "@refarm.dev/quality-contract-v1";
 
-export const LOCAL_SURFACE_SCHEMA = "refarm.local-surface.v1" as const;
+export const LOCAL_SURFACE_SCHEMA = "local-surface.v1" as const;
 export const LOCAL_SURFACE_CAPABILITY = "local-surface:v1" as const;
 
 export interface LocalSurfacePanel {
@@ -64,7 +64,7 @@ export interface LocalSurfaceManifest {
 }
 
 export interface LocalSurfaceLaunchPlan {
-	schema: "refarm.local-surface.launch-plan.v1";
+	schema: "local-surface.launch-plan.v1";
 	surfaceId: string;
 	commandLabel: string;
 	steps: Array<{
@@ -174,7 +174,7 @@ export function buildLocalSurfaceLaunchPlan(
 	const manifestPath = options.manifestPath ?? "local-surface.json";
 	const port = options.port ?? 4177;
 	return {
-		schema: "refarm.local-surface.launch-plan.v1",
+		schema: "local-surface.launch-plan.v1",
 		surfaceId: manifest.id,
 		commandLabel,
 		steps: [

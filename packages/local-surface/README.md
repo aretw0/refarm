@@ -7,7 +7,7 @@ Capability: `local-surface:v1`.
 
 The package owns:
 
-- a versioned `refarm.local-surface.v1` manifest;
+- a versioned `local-surface.v1` manifest;
 - static DS-backed HTML rendering;
 - a white-label launch plan for CLI wrappers;
 - a deterministic DS quality snapshot and `quality:v1` report helper.

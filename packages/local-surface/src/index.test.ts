@@ -53,7 +53,7 @@ describe("local surface", () => {
 	it("builds a local-first manifest without binding provider details", () => {
 		const manifest = fixtureManifest();
 
-		expect(manifest.schema).toBe("refarm.local-surface.v1");
+		expect(manifest.schema).toBe("local-surface.v1");
 		expect(manifest.capability).toBe("local-surface:v1");
 		expect(manifest.routeBase).toBe("/wallet");
 		expect(manifest.localFirst).toEqual({
@@ -87,7 +87,7 @@ describe("local surface", () => {
 			manifestPath: "shell.json",
 		});
 
-		expect(plan.schema).toBe("refarm.local-surface.launch-plan.v1");
+		expect(plan.schema).toBe("local-surface.launch-plan.v1");
 		expect(plan.surfaceId).toBe("wallet-demo");
 		expect(plan.steps.map((step) => step.id)).toEqual(["doctor", "render", "serve", "handoff"]);
 		expect(plan.steps[2]?.command).toBe("vault web serve ./public --host 127.0.0.1 --port 4222 --json");
