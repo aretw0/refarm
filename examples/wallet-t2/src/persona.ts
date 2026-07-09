@@ -1,13 +1,10 @@
 import {
-	createLocalCapabilityDeps,
-	createLocalVaultCommandDeps,
 	defineRecordsViewCapability,
-	type CapabilityDeps,
 	type CapabilityDescriptor,
 	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capabilities-v1";
-import { createLocalRecordsCommandDeps } from "@refarm.dev/capability-host/node";
+import { createLocalRecordsCapabilityDeps } from "@refarm.dev/capability-host/node";
 
 import { walletManifest } from "./fixture.js";
 
@@ -24,19 +21,10 @@ export interface WalletStateOptions {
 	statePath?: string;
 }
 
-export function walletRecordsDeps(options: WalletStateOptions = {}): RecordsCommandDeps {
-	return createLocalRecordsCommandDeps({
+export function walletCapabilityBundle(options: WalletStateOptions = {}) {
+	return createLocalRecordsCapabilityDeps({
 		seed: walletManifest,
 		statePath: options.statePath,
-	});
-}
-
-export function walletCapabilityDeps(
-	recordsDeps: RecordsCommandDeps = walletRecordsDeps(),
-): CapabilityDeps {
-	return createLocalCapabilityDeps({
-		vault: createLocalVaultCommandDeps({ seed: walletManifest }),
-		records: recordsDeps,
 	});
 }
 

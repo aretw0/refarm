@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	createLocalRecordsAppDefaults,
+	createLocalRecordsCapabilityDeps,
 	createLocalRecordsCommandDeps,
 	createLocalRecordsStatePathResolver,
 } from "./node.js";
@@ -41,5 +42,26 @@ describe("@refarm.dev/capability-host/node", () => {
 		expect(defaults.defaultOptions({ cwd: "/repo", env: {} })).toEqual({
 			statePath: "/repo/.dgk/wallet.manifest.json",
 		});
+	});
+
+	it("builds a shared local records capability bundle for host apps", () => {
+		const seed = () => ({
+			manifestVersion: 1 as const,
+			records: [
+				{
+					id: "record:one",
+					schemaVersion: 1,
+					fields: { title: "One" },
+					review: { state: "draft" },
+					contentHash: "hash:one",
+				},
+			],
+		});
+
+		const bundle = createLocalRecordsCapabilityDeps({ seed });
+
+		expect(bundle.records.loadManifest().records).toHaveLength(1);
+		expect(bundle.deps.records).toBe(bundle.records);
+		expect(bundle.deps.vault.seed?.()).toEqual(seed());
 	});
 });

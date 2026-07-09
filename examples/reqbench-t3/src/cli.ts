@@ -8,8 +8,7 @@ import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node"
 
 import {
 	createRequirementsCapability,
-	reqCapabilityDeps,
-	reqRecordsDeps,
+	reqCapabilityBundle,
 	type RequirementsStateOptions,
 } from "./persona.js";
 
@@ -36,9 +35,9 @@ export function buildReqbenchHost(
 		description: "Digital Gardening Kit - requirements bench",
 		version: "0.0.0",
 		capabilities: () => {
-			const records = reqRecordsDeps(options);
+			const { deps, records } = reqCapabilityBundle(options);
 			return {
-				deps: reqCapabilityDeps(undefined, records),
+				deps,
 				extensions: [createRequirementsCapability(records)],
 			};
 		},

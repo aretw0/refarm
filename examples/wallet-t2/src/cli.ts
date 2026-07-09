@@ -8,8 +8,7 @@ import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node"
 
 import {
 	createWalletCapability,
-	walletCapabilityDeps,
-	walletRecordsDeps,
+	walletCapabilityBundle,
 	type WalletStateOptions,
 } from "./persona.js";
 
@@ -34,9 +33,9 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 		description: "Digital Gardening Kit - sovereign wallet",
 		version: "0.0.0",
 		capabilities: () => {
-			const records = walletRecordsDeps(options);
+			const { deps, records } = walletCapabilityBundle(options);
 			return {
-				deps: walletCapabilityDeps(records),
+				deps,
 				extensions: [createWalletCapability(records)],
 			};
 		},

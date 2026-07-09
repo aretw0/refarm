@@ -1,13 +1,10 @@
 import {
-	createLocalCapabilityDeps,
-	createLocalVaultCommandDeps,
 	defineRecordsViewCapability,
-	type CapabilityDeps,
 	type CapabilityDescriptor,
 	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capabilities-v1";
-import { createLocalRecordsCommandDeps } from "@refarm.dev/capability-host/node";
+import { createLocalRecordsCapabilityDeps } from "@refarm.dev/capability-host/node";
 import {
 	createReferenceEnrichmentProvider,
 	type ReferenceEnrichmentEntry,
@@ -44,35 +41,25 @@ export interface RequirementsStateOptions {
 	statePath?: string;
 }
 
-export function reqRecordsDeps(
-	options: RequirementsStateOptions = {},
-): RecordsCommandDeps {
-	return createLocalRecordsCommandDeps({
+export interface RequirementsCapabilityOptions extends RequirementsStateOptions {
+	cacheRoot?: string;
+}
+
+export function reqCapabilityBundle(options: RequirementsCapabilityOptions = {}) {
+	const root = options.cacheRoot ?? mkdtempSync(path.join(os.tmpdir(), "reqbench-source-"));
+	return createLocalRecordsCapabilityDeps({
 		seed: reqManifest,
 		statePath: options.statePath,
 		enrichmentProvider: createReferenceEnrichmentProvider({
 			fixture: REQ_ENRICHMENT_FIXTURE,
 			keyField: "externalKey",
 		}),
-	});
-}
-
-/** The full deps bundle for reqbench. Shares one records deps so `records correct` and
- * the MOC see the same state. */
-export function reqCapabilityDeps(
-	cacheRoot?: string,
-	recordsDeps: RecordsCommandDeps = reqRecordsDeps(),
-): CapabilityDeps {
-	const root = cacheRoot ?? mkdtempSync(path.join(os.tmpdir(), "reqbench-source-"));
-	return createLocalCapabilityDeps({
 		source: {
 			sourceProvider: createWebSourceProvider({
 				cacheRoot: root,
 				fixtures: REQ_SOURCE_FIXTURES,
 			}),
 		},
-		vault: createLocalVaultCommandDeps({ seed: reqManifest }),
-		records: recordsDeps,
 	});
 }
 
