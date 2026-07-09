@@ -138,6 +138,18 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
 
 ## Process debt
 
+- P0 (PRE-EXISTING, found 2026-07-09): `assertTaskSmokeBuildOrderIntegrity`
+  (scripts/ci/subprocess-utils.mjs, git-hook 4a) FAILS at HEAD: `build order missing
+  "packages/sidecar-client" required by "packages/context-provider-v1" via
+  "@refarm.dev/sidecar-client"`. `sidecar-client` is a TS build (has tsconfig.build +
+  build script) but absent from TASK_SMOKE_TS_BUILD_ORDER while a listed package
+  depends on it — the exact ADR-066 invariant. Verified pre-existing (stash test), not
+  from the enrichment-provider-ref work. NOT a 1-line fix: the check stops at the first
+  gap, but at least TWO packages are missing — `sidecar-client` AND its dep
+  `pressure-contract-v1` (both TS builds). A correct fix sweeps ALL missing TS-build
+  packages + their order, not just the two this error surfaced; that's a own slice, not
+  an in-passing fix. Provider-ref plugins (source/enrichment) are correctly ABSENT (leaf,
+  nothing in the list depends on them).
 - P1: markdown-lint warnings on memory files (MD032/MD033/MD041) are cosmetic
   false-positives; the memory harness doesn't render them. Not worth per-file
   fixing; noted so we stop re-flagging.
