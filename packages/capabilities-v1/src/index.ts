@@ -54,6 +54,7 @@ export {
 } from "./local-deps.js";
 export {
 	buildDispatchEffort,
+	createPluginDescriptorDeps,
 	definePluginInspectorCapability,
 	parseDispatchArgs,
 	pluginDescriptorsFrom,
@@ -63,6 +64,7 @@ export {
 	type DispatchRequest,
 	type PluginCapabilityRegistration,
 	type PluginDescriptorDeps,
+	type PluginDescriptorDepsOptions,
 	type PluginInspectorCapabilityOptions,
 	type SurfaceablePluginVerb,
 	type SubmitEffort,

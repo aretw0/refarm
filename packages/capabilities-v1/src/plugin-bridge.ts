@@ -49,6 +49,22 @@ export interface PluginDescriptorDeps {
 	nowIso: () => string;
 }
 
+export interface PluginDescriptorDepsOptions {
+	submitEffort: SubmitEffort;
+	newId?: () => string;
+	nowIso?: () => string;
+}
+
+export function createPluginDescriptorDeps(
+	options: PluginDescriptorDepsOptions,
+): PluginDescriptorDeps {
+	return {
+		submitEffort: options.submitEffort,
+		newId: options.newId ?? (() => crypto.randomUUID()),
+		nowIso: options.nowIso ?? (() => new Date().toISOString()),
+	};
+}
+
 /** A dispatch request: the plugin + verb to invoke and the args to carry. */
 export interface DispatchRequest {
 	pluginId: string;

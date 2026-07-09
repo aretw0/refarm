@@ -7,6 +7,7 @@ import {
 
 export {
 	buildCapabilityHostServeInfo,
+	createPluginDescriptorDeps,
 	defineCapabilityHost,
 	isCapabilityHostCliEntrypoint,
 	runCapabilityHostCli,
@@ -31,6 +32,7 @@ export {
 	type CapabilityHostSurfaceActionRow,
 	type CapabilityHostSurfaceActionsOptions,
 	type CapabilityHostSurfaceContext,
+	type PluginDescriptorDepsOptions,
 	type ParseableCapabilityHostProgram,
 	type RunCapabilityHostCliOptions,
 } from "@refarm.dev/capabilities-v1";

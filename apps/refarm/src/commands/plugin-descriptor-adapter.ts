@@ -1,4 +1,7 @@
-import type { PluginDescriptorDeps } from "@refarm.dev/capabilities-v1";
+import {
+	createPluginDescriptorDeps,
+	type PluginDescriptorDeps,
+} from "@refarm.dev/capabilities-v1";
 
 import { submitEffortViaSidecar } from "./dispatch-submit.js";
 
@@ -21,9 +24,7 @@ export {
 /** The refarm app's plugin-descriptor deps: submit dispatch efforts via the sidecar,
  * crypto UUIDs, wall clock. A white-label app supplies its OWN submit sink. */
 export function defaultPluginDescriptorDeps(): PluginDescriptorDeps {
-	return {
+	return createPluginDescriptorDeps({
 		submitEffort: submitEffortViaSidecar,
-		newId: () => crypto.randomUUID(),
-		nowIso: () => new Date().toISOString(),
-	};
+	});
 }

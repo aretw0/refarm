@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
 	buildCapabilityHostServeInfo,
+	createPluginDescriptorDeps,
 	defineCapabilityApp,
 	defineCapabilityHost,
 	type CapabilityHost,
@@ -181,5 +182,16 @@ describe("@refarm.dev/capability-host public API", () => {
 			url: "http://127.0.0.1:4322",
 			openApiUrl: "http://127.0.0.1:4322/docs/openapi.json",
 		});
+	});
+
+	it("re-exports plugin descriptor deps helpers from the host boundary", () => {
+		const deps = createPluginDescriptorDeps({
+			submitEffort: async (effort) => effort.id,
+			newId: () => "id-1",
+			nowIso: () => "2026-01-01T00:00:00Z",
+		});
+
+		expect(deps.newId()).toBe("id-1");
+		expect(deps.nowIso()).toBe("2026-01-01T00:00:00Z");
 	});
 });

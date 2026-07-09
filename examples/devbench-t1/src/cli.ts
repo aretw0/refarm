@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {
+	createPluginDescriptorDeps,
 	defineCapabilityApp,
 	defineCapabilityHost,
 	type CapabilityHost,
@@ -19,11 +20,9 @@ import {
  * visible. This shows the MACHINE being extended — the technical/general angle.
  */
 export function buildDevbenchHost(): CapabilityHost {
-	const pluginDeps = {
+	const pluginDeps = createPluginDescriptorDeps({
 		submitEffort: createCapturingSubmit(),
-		newId: () => globalThis.crypto.randomUUID(),
-		nowIso: () => new Date().toISOString(),
-	};
+	});
 	return defineCapabilityHost({
 		id: "examples/devbench-t1",
 		command: "dgk",

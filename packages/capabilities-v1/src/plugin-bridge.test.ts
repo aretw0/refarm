@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+	createPluginDescriptorDeps,
 	definePluginInspectorCapability,
 	pluginDescriptorsFrom,
 	pluginSurfaceName,
@@ -86,6 +87,30 @@ describe("surfaceablePluginVerbsFrom — manifest metadata without host deps", (
 });
 
 describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
+	it("builds descriptor deps from a host submit sink and default id/time factories", async () => {
+		const submitted: Effort[] = [];
+		const deps = createPluginDescriptorDeps({
+			submitEffort: async (effort) => {
+				submitted.push(effort);
+				return effort.id;
+			},
+		});
+		const m = manifest("@example/vault", ["vault:search"], ["vault:dispatch"]);
+		const [search] = pluginDescriptorsFrom(m, deps);
+		if (!search) throw new Error("search descriptor missing");
+
+		const env = await search.run({ args: { args: ['q="notes"'] } } as never) as unknown as {
+			ok: boolean;
+			effortId: string;
+			replyRef: string;
+		};
+
+		expect(env.ok).toBe(true);
+		expect(env.effortId).toBe(submitted[0]?.id);
+		expect(env.replyRef).toBe(submitted[0]?.id);
+		expect(submitted[0]?.submittedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+	});
+
 	it("synthesizes a descriptor per dispatchable verb (provides + subscribes:dispatch)", () => {
 		const m = manifest("@example/vault", ["vault:search", "vault:extract"], [
 			"vault:dispatch",
