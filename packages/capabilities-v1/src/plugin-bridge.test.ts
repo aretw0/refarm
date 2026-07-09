@@ -4,13 +4,16 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+	apiProvideKey,
 	createPluginDescriptorDeps,
 	definePluginInspectorCapability,
 	pluginDescriptorsFrom,
 	pluginSurfaceName,
 	registerPluginCapabilities,
+	resolveApiLinks,
 	surfaceablePluginVerbsFrom,
 	type PluginDescriptorDeps,
+	type SurfaceableManifest,
 } from "./plugin-bridge.js";
 
 function makeDeps(): PluginDescriptorDeps & { submitted: Effort[] } {
@@ -274,5 +277,61 @@ describe("registerPluginCapabilities — the register-at-load wire", () => {
 			.filter((d) => d.transports?.cli !== undefined)
 			.map((d) => d.name);
 		expect(cliReachable).toContain("vault-search");
+	});
+});
+
+describe("resolveApiLinks — the plugin-to-plugin (SPI) recursion, checked on the TS side", () => {
+	const CODING_AGENT: SurfaceableManifest = {
+		id: "@devbench/coding-agent",
+		capabilities: {
+			provides: ["agent:code"],
+			subscribes: ["agent:dispatch"],
+			requiresApi: ["NotesLookup"],
+		},
+	};
+	const NOTES_INDEXER: SurfaceableManifest = {
+		id: "@devbench/notes-indexer",
+		capabilities: {
+			provides: ["notes:search"],
+			subscribes: ["notes:dispatch"],
+			providesApi: ["NotesLookup"],
+		},
+	};
+
+	it("folds providesApi into the host's api:<name> convention", () => {
+		// Mirrors tractor plugin_registry::plugin_providing_api (needle `api:<name>`).
+		expect(apiProvideKey("NotesLookup")).toBe("api:NotesLookup");
+	});
+
+	it("pairs a requiresApi to the manifest that providesApi it (recursion resolves)", () => {
+		const links = resolveApiLinks([CODING_AGENT, NOTES_INDEXER]);
+		expect(links).toEqual([
+			{
+				api: "NotesLookup",
+				requiredBy: "@devbench/coding-agent",
+				providedBy: "@devbench/notes-indexer",
+			},
+		]);
+	});
+
+	it("leaves an unmet requirement as providedBy:null (degrade, not error)", () => {
+		// The provider is not loaded — the requirement stands unmet, no throw.
+		const links = resolveApiLinks([CODING_AGENT]);
+		expect(links).toEqual([
+			{ api: "NotesLookup", requiredBy: "@devbench/coding-agent", providedBy: null },
+		]);
+	});
+
+	it("resolves nothing when no manifest requires an api", () => {
+		expect(resolveApiLinks([NOTES_INDEXER])).toEqual([]);
+	});
+
+	it("first provider wins when two manifests provide the same api (registration order)", () => {
+		const second: SurfaceableManifest = {
+			id: "@devbench/other-notes",
+			capabilities: { providesApi: ["NotesLookup"] },
+		};
+		const links = resolveApiLinks([CODING_AGENT, NOTES_INDEXER, second]);
+		expect(links[0]?.providedBy).toBe("@devbench/notes-indexer");
 	});
 });

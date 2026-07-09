@@ -187,6 +187,52 @@ export function surfaceablePluginVerbsFrom(
 	return verbs;
 }
 
+/** The host convention: a plugin's `providesApi: ["FooApi"]` folds into its `provides`
+ * as `api:FooApi`, and `get-plugin-api` resolves a requirement by matching that key
+ * (see tractor `plugin_registry::plugin_providing_api`, needle `api:<name>`). This is
+ * the TS mirror of that convention — pure, no host round-trip. */
+export function apiProvideKey(apiName: string): string {
+	return `api:${apiName}`;
+}
+
+/** One resolved plugin-to-plugin (SPI) link: a plugin that `requiresApi` a named API,
+ * paired with the id of the loaded plugin that `providesApi` it — or `null` when no
+ * loaded manifest provides it (the requirement is unmet, degrade gracefully). */
+export interface ResolvedApiLink {
+	api: string;
+	requiredBy: string;
+	providedBy: string | null;
+}
+
+/** Resolve the recursion the way the host would: for every `requiresApi` across the
+ * given manifests, find the manifest that `providesApi` it. This is what makes
+ * "an extension using another extension" checkable on the TS side the example lives on
+ * — the same pairing the vault↔quality WASM harness proves in Rust, without a round
+ * trip to a running runtime. A requirement no loaded manifest provides resolves to
+ * `providedBy: null` (unmet, not an error — the caller degrades). */
+export function resolveApiLinks(
+	manifests: readonly SurfaceableManifest[],
+): ResolvedApiLink[] {
+	const providerByApi = new Map<string, string>();
+	for (const manifest of manifests) {
+		for (const api of manifest.capabilities?.providesApi ?? []) {
+			// First provider wins (mirrors the host's registration-order resolution).
+			if (!providerByApi.has(api)) providerByApi.set(api, manifest.id);
+		}
+	}
+	const links: ResolvedApiLink[] = [];
+	for (const manifest of manifests) {
+		for (const api of manifest.capabilities?.requiresApi ?? []) {
+			links.push({
+				api,
+				requiredBy: manifest.id,
+				providedBy: providerByApi.get(api) ?? null,
+			});
+		}
+	}
+	return links;
+}
+
 export interface PluginInspectorCapabilityOptions {
 	name: string;
 	summary: string;

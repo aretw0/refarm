@@ -53,6 +53,7 @@ export {
 	type LocalCapabilityDepsOptions,
 } from "./local-deps.js";
 export {
+	apiProvideKey,
 	buildDispatchEffort,
 	createPluginDescriptorDeps,
 	definePluginInspectorCapability,
@@ -60,12 +61,14 @@ export {
 	pluginDescriptorsFrom,
 	pluginSurfaceName,
 	registerPluginCapabilities,
+	resolveApiLinks,
 	surfaceablePluginVerbsFrom,
 	type DispatchRequest,
 	type PluginCapabilityRegistration,
 	type PluginDescriptorDeps,
 	type PluginDescriptorDepsOptions,
 	type PluginInspectorCapabilityOptions,
+	type ResolvedApiLink,
 	type SurfaceablePluginVerb,
 	type SubmitEffort,
 	type SurfaceableManifest,
