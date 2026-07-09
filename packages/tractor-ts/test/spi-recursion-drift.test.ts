@@ -44,6 +44,7 @@ describe("tractor-ts SPI recursion — drift vs the Rust host", () => {
 		const bridge: CrossPluginBridge = {
 			resolveApi: (api) => (api === "NotesLookup" ? "@drift/provider" : ""),
 			callPlugin: async () => null,
+			dispatchableVerbs: () => [],
 		};
 		const imports = new WasiImports(
 			"@drift/consumer",

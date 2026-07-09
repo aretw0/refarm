@@ -17,7 +17,11 @@ import { TelemetryEvent } from "./telemetry.js";
 import type { PluginTrustGrant } from "./trust-manager.js";
 import { ExecutionProfile, TrustManager } from "./trust-manager.js";
 import { SecurityMode, TractorLogger } from "./types.js";
-import { WasiImports, type CrossPluginBridge } from "./wasi-imports.js";
+import {
+  WasiImports,
+  type CrossPluginBridge,
+  type DispatchableVerb,
+} from "./wasi-imports.js";
 import { WorkerRunner } from "./worker-runner.js";
 
 export type { PluginInstance, PluginState, PluginTrustGrant };
@@ -330,7 +334,42 @@ export class PluginHost {
         const result = await target.call(verb, input);
         return typeof result === "string" ? result : JSON.stringify(result ?? null);
       },
+      dispatchableVerbs: (): DispatchableVerb[] => this.enumerateDispatchableVerbs(),
     };
+  }
+
+  /**
+   * Every dispatchable verb across loaded plugins — the agent-tool eligibility set. A
+   * `<key>:<verb>` in a plugin's `provides`, GUARDED by `<key>:dispatch` in the SAME
+   * plugin's `subscribes` (only a plugin that receives its own dispatch events can serve
+   * a dispatched verb). Mirrors the Rust host's plugin_registry::dispatchable_verbs, incl.
+   * its deterministic order (plugins by id, verbs in declaration order) so the two hosts
+   * surface the identical tool list (the plugin-surface-verbs conformance fixture).
+   */
+  private enumerateDispatchableVerbs(): DispatchableVerb[] {
+    const out: DispatchableVerb[] = [];
+    const ids = Array.from(this._instances.keys()).sort();
+    for (const id of ids) {
+      const instance = this._instances.get(id);
+      const caps = instance?.manifest.capabilities;
+      if (!caps) continue;
+      const subscribes = new Set(caps.subscribes ?? []);
+      for (const entry of caps.provides ?? []) {
+        const colon = entry.indexOf(":");
+        if (colon <= 0 || colon === entry.length - 1) continue; // not `<key>:<verb>`
+        const key = entry.slice(0, colon);
+        const verb = entry.slice(colon + 1);
+        if (verb === "dispatch") continue; // the routing key, not a user verb
+        if (!subscribes.has(`${key}:dispatch`)) continue;
+        out.push({
+          pluginId: id,
+          pluginKey: key,
+          verb,
+          doc: instance?.manifest.capabilities?.verbDocs?.[entry],
+        });
+      }
+    }
+    return out;
   }
 
   registerInternal(instance: PluginInstance) {

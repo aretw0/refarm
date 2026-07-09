@@ -28,14 +28,63 @@ function spawnSync(command: string, args: string[], options: { input: Buffer; ma
 /**
  * Generates WASI and bridge imports for a plugin based on its manifest and execution profile.
  */
+/** One registry verb eligible to be surfaced to the agent as a tool — a
+ * `<pluginKey>:<verb>` a loaded plugin `provides` AND `subscribes` `<pluginKey>:dispatch`
+ * for. Mirrors the Rust host's DispatchableVerb (plugin_registry::dispatchable_verbs). */
+export interface DispatchableVerb {
+	pluginId: string;
+	pluginKey: string;
+	verb: string;
+	/** Plugin-authored usage prose (verbDocs), if any — wins over host boilerplate. */
+	doc?: string;
+}
+
 /** The plugin-to-plugin (SPI) bridge the host injects so a guest can reach another
  * loaded plugin — the TS mirror of the Rust host's get-plugin-api / call-plugin. Without
- * it, get-plugin-api can only stub to "" and call-plugin cannot exist. */
+ * it, get-plugin-api can only stub to "" and call-plugin cannot exist. It also enumerates
+ * the registry's dispatchable verbs so the agent leg (capability-tools) can surface them
+ * as model tools — parity with the Rust host's capability_tools. */
 export interface CrossPluginBridge {
 	/** Resolve the id of a loaded plugin that providesApi the given name, or "" if none. */
 	resolveApi(apiName: string): string;
 	/** Invoke a verb on a loaded plugin by id, returning its result JSON (or null). */
 	callPlugin(pluginId: string, verb: string, inputJson: string): Promise<string | null>;
+	/** Every dispatchable verb across loaded plugins (the agent-tool eligibility set). */
+	dispatchableVerbs(): DispatchableVerb[];
+}
+
+/** Render one dispatchable verb as a provider-shaped tool schema STRING — mirrors the
+ * Rust host's render_tool_schema. "openai" wraps in {type:function, function:{...}};
+ * anything else (anthropic) uses {name, description, input_schema}. */
+export function renderToolSchema(verb: DispatchableVerb, provider: string): string {
+	const name = `${verb.pluginKey}_${verb.verb}`;
+	const description = `${verb.verb} — dispatched to the ${verb.pluginId} plugin. Pass args as key=value strings.`;
+	const parameters = {
+		type: "object",
+		properties: {
+			args: {
+				type: "array",
+				items: { type: "string" },
+				description: 'Verb arguments as key=value strings, e.g. note={"path":"n.md"}.',
+			},
+		},
+	};
+	const schema =
+		provider === "openai"
+			? { type: "function", function: { name, description, parameters } }
+			: { name, description, input_schema: parameters };
+	return JSON.stringify(schema);
+}
+
+/** Render one usage-guidance line for a dispatchable verb — mirrors render_tool_prompt.
+ * Plugin-authored prose (doc) wins over the host boilerplate. */
+export function renderToolPrompt(verb: DispatchableVerb): string {
+	if (verb.doc) return verb.doc;
+	return (
+		`Tool \`${verb.pluginKey}_${verb.verb}\` dispatches to the \`${verb.pluginId}\` plugin — ` +
+		`pass its arguments as \`args\` (key=value strings). Prefer it over shell/fs for ` +
+		`anything the ${verb.pluginId} plugin owns.`
+	);
 }
 
 export class WasiImports {
@@ -451,6 +500,36 @@ export class WasiImports {
 				},
 			},
 			"refarm:plugin/tractor-bridge": tractorBridge,
+			// The agent leg: surface the registry's dispatchable verbs to the guest as
+			// model tools and let it invoke one. Mirrors the Rust host's capability_tools.
+			// invoke-tool reuses the SAME cross-plugin dispatch as call-plugin — one
+			// protocol, resolved by the model-facing name `<key>_<verb>`.
+			"refarm:plugin/capability-tools": {
+				"list-tools": (provider: string): string[] =>
+					(this.crossPlugin?.dispatchableVerbs() ?? []).map((verb) =>
+						renderToolSchema(verb, provider),
+					),
+				"list-tool-prompts": (): string[] =>
+					(this.crossPlugin?.dispatchableVerbs() ?? []).map(renderToolPrompt),
+				"invoke-tool": async (
+					name: string,
+					inputJson: string,
+				): Promise<{ tag: "ok"; val: string } | { tag: "err"; val: string }> => {
+					const verbs = this.crossPlugin?.dispatchableVerbs() ?? [];
+					const verb = verbs.find((v) => `${v.pluginKey}_${v.verb}` === name);
+					if (!verb) {
+						return { tag: "err", val: `no loaded plugin provides tool '${name}'` };
+					}
+					const result = await this.crossPlugin!.callPlugin(
+						verb.pluginId,
+						verb.verb,
+						inputJson,
+					);
+					return result === null
+						? { tag: "err", val: `tool '${name}' dispatch failed` }
+						: { tag: "ok", val: result };
+				},
+			},
 			"refarm:plugin/model-bridge": {
 				"complete-http": completeHttp,
 				"complete-http-stream": (
