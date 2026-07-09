@@ -8,6 +8,7 @@ import {
 	type CapabilityInput,
 	type CapabilityRegistry,
 } from "@refarm.dev/cli/capabilities";
+import { applicationCommand } from "@refarm.dev/cli/command-handoff";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import {
 	buildBaseSurfaceModel,
@@ -65,9 +66,15 @@ export type CapabilityHostRecordReviewQueueUnitOptions = Omit<
 	records?: RecordsCommandDeps;
 };
 
+export type CapabilityHostCommandBuilder = (args: string[]) => string;
+export type CapabilityHostCapabilityUnitFactory = (
+	context: CapabilityHostStatusContext,
+) => CapabilityHostCapabilityUnitOptions;
+
 export interface CapabilityHostStatusContext {
 	id: string;
 	command: string;
+	hostCommand: CapabilityHostCommandBuilder;
 	registry: CapabilityRegistry;
 	capabilities: CapabilityHostCapabilities;
 	capabilityUnit(options: CapabilityHostCapabilityUnitOptions): BaseSurfaceUnit;
@@ -82,7 +89,10 @@ export interface CapabilityHostOperatorStatus {
 	summary?: string;
 	httpPath?: string;
 	agentToolName?: string;
-	capabilityUnit?: false | CapabilityHostCapabilityUnitOptions;
+	capabilityUnit?:
+		| false
+		| CapabilityHostCapabilityUnitOptions
+		| CapabilityHostCapabilityUnitFactory;
 	units?: (context: CapabilityHostStatusContext) => BaseSurfaceUnit[];
 }
 
@@ -442,42 +452,63 @@ function buildHostBaseModel(
 ): BaseSurfaceModel {
 	const status = definition.operatorStatus;
 	const units: BaseSurfaceUnit[] = [];
+	const context = createCapabilityHostStatusContext(definition, capabilities, registry);
 	if (status?.capabilityUnit) {
+		const capabilityUnit = resolveCapabilityHostCapabilityUnit(
+			status.capabilityUnit,
+			context,
+		);
 		units.push(
 			buildCapabilitySurfaceUnit(
 				registry,
-				withDefaultOwner(status.capabilityUnit, definition.id),
+				withDefaultOwner(capabilityUnit, definition.id),
 			),
 		);
 	}
 	if (status?.units) {
-		units.push(
-			...status.units({
-				id: definition.id,
-				command: definition.command,
-				registry,
-				capabilities,
-				capabilityUnit: (options) =>
-					buildCapabilitySurfaceUnit(
-						registry,
-						withDefaultOwner(options, definition.id),
-					),
-				reviewQueueUnit: (options) =>
-					buildReviewQueueSurfaceUnit(
-						withDefaultOwner(options, definition.id),
-					),
-				recordReviewQueueUnit: (options) =>
-					buildRecordReviewQueueSurfaceUnit(
-						withDefaultOwner(options, definition.id),
-						capabilities,
-					),
-			}),
-		);
+		units.push(...status.units(context));
 	}
 	return buildBaseSurfaceModel(
 		{ units },
 		{ command: definition.command, operation: "base" },
 	);
+}
+
+function createCapabilityHostStatusContext(
+	definition: CapabilityHostDefinition,
+	capabilities: CapabilityHostCapabilities,
+	registry: CapabilityRegistry,
+): CapabilityHostStatusContext {
+	return {
+		id: definition.id,
+		command: definition.command,
+		hostCommand: (args) => applicationCommand(definition.command, args),
+		registry,
+		capabilities,
+		capabilityUnit: (options) =>
+			buildCapabilitySurfaceUnit(
+				registry,
+				withDefaultOwner(options, definition.id),
+			),
+		reviewQueueUnit: (options) =>
+			buildReviewQueueSurfaceUnit(
+				withDefaultOwner(options, definition.id),
+			),
+		recordReviewQueueUnit: (options) =>
+			buildRecordReviewQueueSurfaceUnit(
+				withDefaultOwner(options, definition.id),
+				capabilities,
+			),
+	};
+}
+
+function resolveCapabilityHostCapabilityUnit(
+	capabilityUnit:
+		| CapabilityHostCapabilityUnitOptions
+		| CapabilityHostCapabilityUnitFactory,
+	context: CapabilityHostStatusContext,
+): CapabilityHostCapabilityUnitOptions {
+	return typeof capabilityUnit === "function" ? capabilityUnit(context) : capabilityUnit;
 }
 
 function buildRecordReviewQueueSurfaceUnit(

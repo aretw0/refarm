@@ -45,17 +45,20 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 		operatorStatus: {
 			summary: "Show wallet operator status",
 			httpPath: "/wallet/status",
-			capabilityUnit: {
-				subject: "Wallet",
-				action: {
-					id: "open-wallet",
-					label: "dgk wallet --json",
-					intent: "wallet:open",
-					command: "dgk wallet --json",
-					primary: true,
-				},
+			capabilityUnit: ({ hostCommand }) => {
+				const walletCommand = hostCommand(["wallet", "--json"]);
+				return {
+					subject: "Wallet",
+					action: {
+						id: "open-wallet",
+						label: walletCommand,
+						intent: "wallet:open",
+						command: walletCommand,
+						primary: true,
+					},
+				};
 			},
-			units: ({ recordReviewQueueUnit }) => [
+			units: ({ recordReviewQueueUnit, hostCommand }) => [
 				recordReviewQueueUnit({
 					id: "wallet",
 					label: "Wallet",
@@ -69,7 +72,13 @@ export function buildWalletHost(options: WalletStateOptions = {}): CapabilityHos
 						id: "verify-draft-credential",
 						label: "Verify the draft credential",
 						intent: "wallet:verify",
-						command: "dgk records correct record:cred-assinatura verified --apply",
+						command: hostCommand([
+							"records",
+							"correct",
+							"record:cred-assinatura",
+							"verified",
+							"--apply",
+						]),
 						primary: true,
 					},
 				}),

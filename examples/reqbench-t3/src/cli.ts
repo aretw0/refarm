@@ -47,17 +47,20 @@ export function buildReqbenchHost(
 		operatorStatus: {
 			summary: "Show requirements bench operator status",
 			httpPath: "/requirements/status",
-			capabilityUnit: {
-				subject: "Requirements bench",
-				action: {
-					id: "open-requirements",
-					label: "dgk requirements --json",
-					intent: "requirements:open",
-					command: "dgk requirements --json",
-					primary: true,
-				},
+			capabilityUnit: ({ hostCommand }) => {
+				const requirementsCommand = hostCommand(["requirements", "--json"]);
+				return {
+					subject: "Requirements bench",
+					action: {
+						id: "open-requirements",
+						label: requirementsCommand,
+						intent: "requirements:open",
+						command: requirementsCommand,
+						primary: true,
+					},
+				};
 			},
-			units: ({ recordReviewQueueUnit }) => [
+			units: ({ recordReviewQueueUnit, hostCommand }) => [
 				recordReviewQueueUnit({
 					id: "requirements",
 					label: "Requirements",
@@ -72,7 +75,13 @@ export function buildReqbenchHost(
 						id: "review-draft-requirement",
 						label: "Review the draft requirement",
 						intent: "requirements:review",
-						command: "dgk records correct record:req-cadastro reviewed --apply",
+						command: hostCommand([
+							"records",
+							"correct",
+							"record:req-cadastro",
+							"reviewed",
+							"--apply",
+						]),
 						primary: true,
 					},
 				}),

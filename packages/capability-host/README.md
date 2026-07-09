@@ -24,3 +24,8 @@ for CLI-only option transforms.
 entrypoint helper for white-label CLIs. It keeps direct-run detection,
 `parseAsync(process.argv)`, and error/exit-code handling in the host boundary
 instead of repeating that plumbing in every app or example.
+
+`operatorStatus.capabilityUnit` and `operatorStatus.units` receive the same host
+context. Use `hostCommand(["verb", "--json"])` for surface actions so examples
+and apps declare only the verb they extend while the host owns the white-label
+binary name.

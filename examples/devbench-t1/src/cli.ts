@@ -40,15 +40,18 @@ export function buildDevbenchHost(): CapabilityHost {
 		operatorStatus: {
 			summary: "Show extension bench operator status",
 			httpPath: "/extension/status",
-			capabilityUnit: {
-				subject: "Extension bench",
-				action: {
-					id: "inspect-extension",
-					label: "dgk extension --json",
-					intent: "extension:inspect",
-					command: "dgk extension --json",
-					primary: true,
-				},
+			capabilityUnit: ({ hostCommand }) => {
+				const extensionCommand = hostCommand(["extension", "--json"]);
+				return {
+					subject: "Extension bench",
+					action: {
+						id: "inspect-extension",
+						label: extensionCommand,
+						intent: "extension:inspect",
+						command: extensionCommand,
+						primary: true,
+					},
+				};
 			},
 		},
 		serve: {

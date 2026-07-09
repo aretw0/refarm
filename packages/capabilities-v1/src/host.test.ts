@@ -57,17 +57,17 @@ describe("defineCapabilityHost", () => {
 			operatorStatus: {
 				summary: "Show wallet operator status",
 				httpPath: "/wallet/status",
-				capabilityUnit: {
+				capabilityUnit: ({ hostCommand }) => ({
 					subject: "Wallet",
 					action: {
 						id: "open-wallet",
-						label: "dgk wallet --json",
+						label: hostCommand(["wallet", "--json"]),
 						intent: "wallet:open",
-						command: "dgk wallet --json",
+						command: hostCommand(["wallet", "--json"]),
 						primary: true,
 					},
-				},
-				units: ({ reviewQueueUnit }) => [
+				}),
+				units: ({ reviewQueueUnit, hostCommand }) => [
 					reviewQueueUnit({
 						id: "wallet",
 						label: "Wallet",
@@ -79,7 +79,13 @@ describe("defineCapabilityHost", () => {
 							id: "verify-draft-credential",
 							label: "Verify the draft credential",
 							intent: "wallet:verify",
-							command: "dgk records correct record:cred-assinatura verified --apply",
+							command: hostCommand([
+								"records",
+								"correct",
+								"record:cred-assinatura",
+								"verified",
+								"--apply",
+							]),
 							primary: true,
 						},
 					}),
@@ -236,7 +242,7 @@ describe("defineCapabilityHost", () => {
 			},
 			operatorStatus: {
 				capabilityUnit: false,
-				units: ({ recordReviewQueueUnit }) => [
+				units: ({ recordReviewQueueUnit, hostCommand }) => [
 					recordReviewQueueUnit({
 						id: "wallet",
 						label: "Wallet",
@@ -250,7 +256,13 @@ describe("defineCapabilityHost", () => {
 							id: "verify-draft-credential",
 							label: "Verify the draft credential",
 							intent: "wallet:verify",
-							command: "dgk records correct record:draft verified --apply",
+							command: hostCommand([
+								"records",
+								"correct",
+								"record:draft",
+								"verified",
+								"--apply",
+							]),
 							primary: true,
 						},
 					}),
