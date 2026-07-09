@@ -7,6 +7,6 @@ export function manifestReceivesEvent(
 ): boolean {
 	return (
 		event.event.startsWith("system:") ||
-		(manifest.capabilities.subscribes?.includes(event.event) ?? false)
+		(manifest.capabilities?.subscribes?.includes(event.event) ?? false)
 	);
 }
