@@ -75,6 +75,21 @@ function hasVisualHint(entry: CapabilityEntry): boolean {
 	return Object.keys(renderers).length > 0;
 }
 
+/**
+ * The FULL set of surface keys a verb declares — every `transports.*` (how it's invoked)
+ * and every `renderers.*` (how it's presented), name-sorted. This is the introspection
+ * face of the open axis (ADR-085): it answers "which surfaces does this one verb reach?"
+ * without enumerating a fixed set, so an inspector can SHOW a verb's multi-surface reach
+ * (cli, http, agent, tui, web, palette, …) — the "declare once → everywhere" effect made
+ * visible. A verb that declares nothing (a bare run()) returns [].
+ */
+export function surfacesOf(entry: CapabilityEntry): string[] {
+	const keys = new Set<string>();
+	for (const key of Object.keys(entry.transports ?? {})) keys.add(key);
+	for (const key of Object.keys(entry.renderers ?? {})) keys.add(key);
+	return [...keys].sort((a, b) => a.localeCompare(b));
+}
+
 /** Build the neutral surface item for a verb — its section plus the open surfaces map. */
 function toSurfaceItem(entry: CapabilityEntry): SurfaceItem {
 	const surfaces = gatherSurfaces(entry);

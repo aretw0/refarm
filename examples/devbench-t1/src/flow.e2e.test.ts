@@ -162,7 +162,9 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		expect(env.ok).toBe(true);
 		expect(env.pluginId).toBe(customManifest.id);
 		expect(env.declared).toEqual(["paper:scan"]);
-		expect(env.surfaced).toEqual([{ verb: "paper-scan", summary: expect.any(String) }]);
+		expect(env.surfaced).toEqual([
+			{ verb: "paper-scan", summary: expect.any(String), surfaces: expect.any(Array) },
+		]);
 	});
 
 	it("makes the plugin-to-plugin recursion visible: the coding-agent requires an API the notes-indexer provides", async () => {
@@ -285,12 +287,16 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		}
 	});
 
-	it("extension exposes the mechanism: declaration → surfaced verbs", async () => {
+	it("extension exposes the mechanism: declaration → surfaced verbs, with each verb's multi-surface reach", async () => {
 		const env = await harness.runVerb(buildRegistry(), "extension");
 		expect(env.ok).toBe(true);
 		expect(env.declared).toEqual(["agent:code", "agent:review"]);
-		const surfaced = (env.surfaced as Array<{ verb: string }>).map((s) => s.verb).sort();
-		expect(surfaced).toEqual(["agent-code", "agent-review"]);
+		const surfaced = env.surfaced as Array<{ verb: string; surfaces: string[] }>;
+		expect(surfaced.map((s) => s.verb).sort()).toEqual(["agent-code", "agent-review"]);
+		// The introspection T1 demonstrates: one declaration reaches many surfaces. Each
+		// surfaced verb reports WHICH — the "declare once → everywhere" made visible.
+		const code = surfaced.find((s) => s.verb === "agent-code");
+		expect(code?.surfaces).toEqual(expect.arrayContaining(["cli", "http", "repl", "tui", "web"]));
 	});
 
 	it("multiple manifests dispatch to plugin dispatch with valid task envelopes", async () => {

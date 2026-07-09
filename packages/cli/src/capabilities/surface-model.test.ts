@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createCapabilityRegistry } from "./registry.js";
-import { surfaceModel } from "./surface-model.js";
+import { surfaceModel, surfacesOf } from "./surface-model.js";
 import type { CapabilityDescriptor } from "./types.js";
 
 const withWeb: CapabilityDescriptor = {
@@ -81,5 +81,34 @@ describe("surfaceModel — the neutral visual envelope both web + TUI read", () 
 		};
 		const m = surfaceModel(createCapabilityRegistry([webNoSection]));
 		expect(m.sections[0]?.section).toBe("actions");
+	});
+});
+
+describe("surfacesOf — the introspection face of the open axis (ADR-085)", () => {
+	it("lists every transport + renderer surface a verb declares, sorted", () => {
+		const multi: CapabilityDescriptor = {
+			name: "wallet",
+			summary: "w",
+			transports: { cli: {}, http: { path: "/wallet" }, agent: { tool: true } },
+			renderers: { tui: { section: "citizen" }, web: { route: "/wallet" }, palette: {} } as never,
+			run: () => ({ ok: true }) as never,
+		};
+		// The verb's full multi-surface reach — what an inspector shows for "declare once".
+		expect(surfacesOf(multi)).toEqual(["agent", "cli", "http", "palette", "tui", "web"]);
+	});
+
+	it("includes an ARBITRARY new surface key (open axis — no enumeration)", () => {
+		const xr: CapabilityDescriptor = {
+			name: "xr",
+			summary: "x",
+			renderers: { webxr: { anchor: "left" } } as never,
+			run: () => ({ ok: true }) as never,
+		};
+		expect(surfacesOf(xr)).toEqual(["webxr"]);
+	});
+
+	it("is [] for a bare verb that declares no surface", () => {
+		const bare: CapabilityDescriptor = { name: "b", summary: "b", run: () => ({ ok: true }) as never };
+		expect(surfacesOf(bare)).toEqual([]);
 	});
 });

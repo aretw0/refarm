@@ -2,6 +2,7 @@ import type {
 	CapabilityDescriptor,
 	CapabilityRegistry,
 } from "@refarm.dev/cli/capabilities";
+import { surfacesOf } from "@refarm.dev/cli/capabilities";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -309,6 +310,11 @@ export function definePluginInspectorCapability(
 					surfaced: descriptors.map((descriptor) => ({
 						verb: descriptor.name,
 						summary: descriptor.summary,
+						// The multi-surface reach of THIS verb, made visible: which surfaces
+						// its one declaration projects onto (cli, http, agent, tui, web,
+						// palette, …). This is the "declare once → everywhere" effect the
+						// inspector demonstrates, now introspectable per verb (ADR-085).
+						surfaces: surfacesOf(descriptor),
 					})),
 					// The plugin-to-plugin (SPI) axis: which APIs this extension offers to
 					// other plugins, and which it consumes from them. This is what makes the

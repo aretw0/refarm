@@ -40,6 +40,7 @@ export {
 	projectSurface,
 	tuiSurfaceModel,
 	webSurfaceModel,
+	surfacesOf,
 	isSurfaceGroup,
 	type SurfaceModel,
 	type SurfaceSection,
