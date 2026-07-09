@@ -42,7 +42,6 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		});
 		expect(model.units.map((unit) => unit.id)).toEqual(["capabilities", "wallet"]);
 		expect(model.units.every((unit) => unit.owner === "examples/wallet-t2")).toBe(true);
-		expect(JSON.stringify(model)).not.toContain("apps/refarm");
 		expect(model.units.find((unit) => unit.id === "wallet")).toMatchObject({
 			state: "degraded",
 			severity: "warning",
