@@ -1,4 +1,5 @@
-import { createCapabilityTestHarness } from "@refarm.dev/capabilities-v1/testing";
+import { createMemorySubmitEffort } from "@refarm.dev/capability-host";
+import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
 import { describe, expect, it } from "vitest";
 
 import { build{{pascalName}}Host, buildRegistry } from "./cli.js";
@@ -42,7 +43,10 @@ describe("{{name}} DGK workbench", () => {
 	});
 
 	it("shows what the extension declares and what the host surfaced", async () => {
-		const env = await harness.runVerb(buildRegistry(), "{{personaVerb}}");
+		const env = await harness.runVerb(
+			buildRegistry({ submitEffort: createMemorySubmitEffort() }),
+			"{{personaVerb}}",
+		);
 		expect(env.ok).toBe(true);
 		expect(env.declared).toEqual(["{{personaVerb}}:draft", "{{personaVerb}}:review"]);
 		const surfaced = (env.surfaced as Array<{ verb: string }>).map((s) => s.verb).sort();

@@ -274,6 +274,7 @@ test("turbo generators expose a DGK example workbench scaffold", async () => {
 		personaVerb: "garden",
 		personaTitle: "Garden",
 		defaultPort: "4399",
+		runtimeSidecarPort: "42199",
 	};
 	const actions = generator.actions(data);
 	assert.equal(data.pascalName, "GardenLab");
@@ -290,7 +291,7 @@ test("turbo generators expose a DGK example workbench scaffold", async () => {
 	assert.equal(packageJson.bin.dgk, "./dist/cli.js");
 	assert.equal(packageJson.scripts.dgk, "node dist/cli.js");
 	assert.equal(packageJson.dependencies["@refarm.dev/capability-host"], "workspace:*");
-	assert.equal(packageJson.dependencies["@refarm.dev/capabilities-v1"], "workspace:*");
+	assert.equal(packageJson.dependencies["@refarm.dev/capabilities-v1"], undefined);
 
 	const cliTemplate = readFileSync(
 		join(ROOT, "turbo/generators/templates/example-dgk-workbench/src/cli.ts.hbs"),
@@ -298,9 +299,15 @@ test("turbo generators expose a DGK example workbench scaffold", async () => {
 	);
 	const cli = render(cliTemplate, data);
 	assert.match(cli, /createLocalCapabilityDeps/);
+	assert.match(cli, /createPluginDescriptorDeps/);
+	assert.match(cli, /createSidecarSubmitEffort/);
 	assert.match(cli, /defineCapabilityApp/);
 	assert.match(cli, /defineCapabilityHost/);
+	assert.match(cli, /GARDEN_LAB_SIDECAR_URL/);
+	assert.match(cli, /http:\/\/127\.0\.0\.1:42199/);
 	assert.doesNotMatch(cli, /runCapabilityHostCli/);
+	assert.doesNotMatch(cli, /createCapturingSubmit/);
+	assert.doesNotMatch(cli, /@refarm\.dev\/capabilities-v1/);
 	assert.doesNotMatch(cli, /createLocalVaultCommandDeps|defaultRecordsDeps|defaultSourceDeps/);
 	assert.match(cli, /command: "dgk"/);
 	assert.match(cli, /buildGardenLabHost/);
@@ -316,6 +323,8 @@ test("turbo generators expose a DGK example workbench scaffold", async () => {
 	const persona = render(personaTemplate, data);
 	assert.doesNotMatch(persona, /CapabilityDeps/);
 	assert.doesNotMatch(persona, /\bRefarmCapabilityDeps\b/);
+	assert.doesNotMatch(persona, /createCapturingSubmit/);
+	assert.doesNotMatch(persona, /@refarm\.dev\/capabilities-v1/);
 	assert.doesNotMatch(persona, /createLocalVaultCommandDeps|defaultRecordsDeps|defaultSourceDeps/);
 	assert.doesNotMatch(persona, /function gardenLabCapabilityDeps/);
 
@@ -330,6 +339,9 @@ test("turbo generators expose a DGK example workbench scaffold", async () => {
 		"utf8",
 	);
 	const flow = render(flowTemplate, data);
+	assert.match(flow, /createMemorySubmitEffort/);
+	assert.match(flow, /@refarm\.dev\/capability-host\/testing/);
+	assert.doesNotMatch(flow, /@refarm\.dev\/capabilities-v1/);
 	assert.match(flow, /program\(\)\.name\(\)\)\.toBe\("dgk"\)/);
 	assert.match(flow, /surfaceActions\(\)/);
 });
@@ -536,6 +548,7 @@ test("turbo generators create inventory-covered app, example, and validation wor
 			personaVerb: "garden",
 			personaTitle: "Garden",
 			defaultPort: "4399",
+			runtimeSidecarPort: "42199",
 		});
 		await materializeGeneratorWorkspace(root, generators.get("app"), {
 			name: "field-console",

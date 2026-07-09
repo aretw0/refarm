@@ -1,23 +1,33 @@
 #!/usr/bin/env node
-import { createLocalCapabilityDeps } from "@refarm.dev/capabilities-v1";
 import {
+	createLocalCapabilityDeps,
+	createPluginDescriptorDeps,
 	defineCapabilityApp,
 	defineCapabilityHost,
 	type CapabilityHost,
+	type SubmitEffort,
 } from "@refarm.dev/capability-host";
+import { createSidecarSubmitEffort } from "@refarm.dev/capability-host/node";
 
 import {
 	{{constantName}}_MANIFEST,
-	createCapturingSubmit,
 	create{{pascalName}}Capability,
 } from "./persona.js";
 
-export function build{{pascalName}}Host(): CapabilityHost {
-	const pluginDeps = {
-		submitEffort: createCapturingSubmit(),
-		newId: () => globalThis.crypto.randomUUID(),
-		nowIso: () => new Date().toISOString(),
-	};
+export const {{constantName}}_SIDECAR_URL_ENV = "{{constantName}}_SIDECAR_URL";
+export const {{constantName}}_DEFAULT_SIDECAR_URL = "http://127.0.0.1:{{runtimeSidecarPort}}";
+
+export interface {{pascalName}}HostOptions {
+	submitEffort?: SubmitEffort;
+}
+
+export function build{{pascalName}}Host(options: {{pascalName}}HostOptions = {}): CapabilityHost {
+	const pluginDeps = createPluginDescriptorDeps({
+		submitEffort: options.submitEffort ?? createSidecarSubmitEffort({
+			baseUrl: {{constantName}}_DEFAULT_SIDECAR_URL,
+			envKey: {{constantName}}_SIDECAR_URL_ENV,
+		}),
+	});
 
 	return defineCapabilityHost({
 		id: "examples/{{name}}",

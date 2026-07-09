@@ -2,9 +2,8 @@ import {
 	definePluginInspectorCapability,
 	type CapabilityDescriptor,
 	type PluginDescriptorDeps,
-	type SubmitEffort,
 	type SurfaceableManifest,
-} from "@refarm.dev/capabilities-v1";
+} from "@refarm.dev/capability-host";
 
 export const {{constantName}}_MANIFEST: SurfaceableManifest = {
 	id: "@{{name}}/{{personaVerb}}",
@@ -13,18 +12,6 @@ export const {{constantName}}_MANIFEST: SurfaceableManifest = {
 		subscribes: ["{{personaVerb}}:dispatch"],
 	},
 };
-
-export function createCapturingSubmit(): SubmitEffort & {
-	readonly submitted: ReadonlyArray<{ id: string; fn: string }>;
-} {
-	const submitted: Array<{ id: string; fn: string }> = [];
-	const submit = (async (effort) => {
-		submitted.push({ id: effort.id, fn: effort.tasks[0]?.fn ?? "" });
-		return effort.id;
-	}) as SubmitEffort & { submitted: typeof submitted };
-	Object.defineProperty(submit, "submitted", { value: submitted });
-	return submit;
-}
 
 export function create{{pascalName}}Capability(
 	pluginDeps: PluginDescriptorDeps,

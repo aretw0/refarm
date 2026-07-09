@@ -104,8 +104,7 @@ function classifyExample(dir, pkg) {
 	const isDgkWorkbench =
 		pkg.bin?.dgk === "./dist/cli.js" &&
 		scripts.dgk === "node dist/cli.js" &&
-		hasDependency(pkg, "@refarm.dev/capability-host") &&
-		hasDependency(pkg, "@refarm.dev/capabilities-v1");
+		hasDependency(pkg, "@refarm.dev/capability-host");
 	if (isDgkWorkbench) return "example/dgk-workbench";
 	return "example/legacy";
 }

@@ -199,6 +199,13 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
         default: "4321",
         validate: (v: string) => /^\d+$/.test(v) || "Use a numeric port",
       },
+      {
+        type: "input",
+        name: "runtimeSidecarPort",
+        message: "Default isolated runtime sidecar port:",
+        default: "42123",
+        validate: (v: string) => /^\d+$/.test(v) || "Use a numeric port",
+      },
     ],
     actions(data) {
       if (!data) return [];

@@ -6,8 +6,15 @@ This example is a DGK workbench: it imports neutral capability host blocks, decl
 one product/persona verb (`{{personaVerb}}`), and lets the host project the same
 capabilities across CLI, HTTP, TUI-ready actions, and agent surfaces.
 
+The generated CLI is a thin white-label host. Manual dispatch goes through an
+isolated compatible sidecar by default, so the example exercises the same daemon
+path a power user extension would use.
+
 ```bash
 pnpm --filter {{name}} run build
 pnpm --filter {{name}} run {{commandName}} -- {{personaVerb}} --json
 pnpm --filter {{name}} run {{commandName}} -- actions --json
 ```
+
+Set `{{constantName}}_SIDECAR_URL` to point this example at its isolated demo
+runtime. If unset, `{{commandName}}` targets `http://127.0.0.1:{{runtimeSidecarPort}}`.
