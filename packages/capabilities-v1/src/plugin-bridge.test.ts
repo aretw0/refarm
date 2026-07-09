@@ -7,6 +7,7 @@ import {
 	apiProvideKey,
 	createPluginDescriptorDeps,
 	definePluginInspectorCapability,
+	isConnectionError,
 	pluginDescriptorsFrom,
 	pluginSurfaceName,
 	registerPluginCapabilities,
@@ -333,5 +334,54 @@ describe("resolveApiLinks — the plugin-to-plugin (SPI) recursion, checked on t
 		};
 		const links = resolveApiLinks([CODING_AGENT, NOTES_INDEXER, second]);
 		expect(links[0]?.providedBy).toBe("@devbench/notes-indexer");
+	});
+});
+
+describe("isConnectionError — a white-label app degrades on an unreachable runtime", () => {
+	it("classifies a Node fetch-to-down-daemon TypeError as a connection error", () => {
+		// This is the exact shape undici throws when the sidecar isn't up.
+		const err = new TypeError("fetch failed");
+		(err as { cause?: unknown }).cause = Object.assign(new Error("connect ECONNREFUSED"), {
+			code: "ECONNREFUSED",
+		});
+		expect(isConnectionError(err)).toBe(true);
+	});
+
+	it("classifies an AbortError (timeout) as a connection error", () => {
+		expect(isConnectionError(Object.assign(new Error("aborted"), { name: "AbortError" }))).toBe(true);
+	});
+
+	it("does NOT classify a plugin-level error as a connection error", () => {
+		expect(isConnectionError(new Error("plugin revoked: quality"))).toBe(false);
+		expect(isConnectionError({ error: "not-supported" })).toBe(false);
+	});
+
+	it("dispatch reports runtime-unreachable (not dispatch-failed) when the runtime is down", async () => {
+		const deps: PluginDescriptorDeps = {
+			submitEffort: async () => {
+				const err = new TypeError("fetch failed");
+				(err as { cause?: unknown }).cause = Object.assign(new Error("ECONNREFUSED"), {
+					code: "ECONNREFUSED",
+				});
+				throw err;
+			},
+			newId: () => "id-1",
+			nowIso: () => "2026-01-01T00:00:00Z",
+		};
+		const [descriptor] = pluginDescriptorsFrom(
+			{
+				id: "@devbench/coding-agent",
+				capabilities: { provides: ["agent:code"], subscribes: ["agent:dispatch"] },
+			},
+			deps,
+		);
+		const env = (await descriptor!.run!({ args: { args: [] } } as never)) as {
+			ok: boolean;
+			error: string;
+			nextAction: string;
+		};
+		expect(env.ok).toBe(false);
+		expect(env.error).toBe("runtime-unreachable");
+		expect(env.nextAction).toMatch(/start the runtime/i);
 	});
 });

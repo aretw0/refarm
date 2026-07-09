@@ -57,6 +57,7 @@ export {
 	buildDispatchEffort,
 	createPluginDescriptorDeps,
 	definePluginInspectorCapability,
+	isConnectionError,
 	parseDispatchArgs,
 	pluginDescriptorsFrom,
 	pluginSurfaceName,

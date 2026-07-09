@@ -118,6 +118,37 @@ export function parseDispatchArgs(
 	return { args };
 }
 
+/** Is this error a "cannot reach the runtime" failure (vs. a plugin-level error)?
+ * A fetch to a down daemon rejects with a TypeError "fetch failed" whose cause carries
+ * a Node connection code (ECONNREFUSED/ENOTFOUND/ECONNRESET) or an AbortError on
+ * timeout. We match structurally rather than on message text so the classification
+ * survives locale/runtime differences. */
+export function isConnectionError(error: unknown): boolean {
+	const codes = new Set([
+		"ECONNREFUSED",
+		"ENOTFOUND",
+		"ECONNRESET",
+		"ETIMEDOUT",
+		"UND_ERR_CONNECT_TIMEOUT",
+		"UND_ERR_SOCKET",
+	]);
+	const seen = new Set<unknown>();
+	let cursor: unknown = error;
+	while (cursor && typeof cursor === "object" && !seen.has(cursor)) {
+		seen.add(cursor);
+		const code = (cursor as { code?: unknown }).code;
+		if (typeof code === "string" && codes.has(code)) return true;
+		const name = (cursor as { name?: unknown }).name;
+		if (name === "AbortError") return true;
+		const message = (cursor as { message?: unknown }).message;
+		if (typeof message === "string" && /fetch failed|ECONNREFUSED|network/i.test(message)) {
+			return true;
+		}
+		cursor = (cursor as { cause?: unknown }).cause;
+	}
+	return false;
+}
+
 /** Split a `<plugin>:<verb>` provides entry. Returns null for a non-verb entry
  * (no colon, or the reserved `:dispatch` routing key itself). */
 function parseProvidedVerb(
@@ -364,13 +395,20 @@ function pluginVerbDescriptor(
 					nextAction: `The result will be stored as a dispatch-result node keyed by replyRef "${effort.id}".`,
 				});
 			} catch (error) {
+				// Distinguish "the runtime isn't reachable" from "the plugin can't serve".
+				// A white-label app degrades with an actionable next step, not a raw
+				// `fetch failed` — the operator needs to know WHICH to fix.
+				const offline = isConnectionError(error);
 				return buildJsonErrorEnvelope({
 					command: name,
 					operation: "dispatch",
-					error: "dispatch-failed",
-					message: `Could not dispatch ${verb} to ${pluginId}: ${String(error)}`,
-					nextAction:
-						"Is the runtime daemon up and the plugin loaded + trusted (not revoked)?",
+					error: offline ? "runtime-unreachable" : "dispatch-failed",
+					message: offline
+						? `The runtime is not reachable, so ${verb} could not dispatch to ${pluginId}.`
+						: `Could not dispatch ${verb} to ${pluginId}: ${String(error)}`,
+					nextAction: offline
+						? "Start the runtime daemon (it hosts the plugins), then retry — the dispatch reaches the plugin over the sidecar."
+						: "Is the plugin loaded + trusted (not revoked)? Check the runtime's loaded plugins.",
 				});
 			}
 		},

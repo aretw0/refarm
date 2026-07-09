@@ -321,7 +321,9 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		expect(env.replyRef).toBe(env.effortId);
 	});
 
-	it("surfaces actionable errors when dispatch fails (runtime not reachable)", async () => {
+	it("degrades with an actionable error when the runtime is not reachable", async () => {
+		// The exact shape undici throws when the sidecar daemon isn't up — a
+		// white-label app must classify this as "runtime offline", not a raw fetch error.
 		const env = await harness.runVerb<{
 			ok: boolean;
 			error: string;
@@ -330,7 +332,12 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		}>(
 			buildRegistry({
 				submitEffort: async () => {
-					throw new Error("runtime unreachable");
+					const err = new TypeError("fetch failed");
+					(err as { cause?: unknown }).cause = Object.assign(
+						new Error("connect ECONNREFUSED 127.0.0.1:42123"),
+						{ code: "ECONNREFUSED" },
+					);
+					throw err;
 				},
 			}),
 			"agent-code",
@@ -341,8 +348,8 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 			},
 		);
 		expect(env.ok).toBe(false);
-		expect(env.error).toBe("dispatch-failed");
-		expect(env.message).toContain("Could not dispatch code to @devbench/coding-agent");
-		expect(env.nextAction).toContain("runtime daemon");
+		expect(env.error).toBe("runtime-unreachable");
+		expect(env.message).toContain("The runtime is not reachable");
+		expect(env.nextAction).toMatch(/start the runtime/i);
 	});
 });
