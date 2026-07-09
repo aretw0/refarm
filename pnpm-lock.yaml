@@ -1443,9 +1443,15 @@ importers:
       '@refarm.dev/process-handoff':
         specifier: workspace:*
         version: link:../process-handoff
+      '@refarm.dev/prompt-contract-v1':
+        specifier: workspace:*
+        version: link:../prompt-contract-v1
       '@refarm.dev/sidecar-client':
         specifier: workspace:*
         version: link:../sidecar-client
+      chalk:
+        specifier: ^5.6.2
+        version: 5.6.2
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

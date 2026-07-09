@@ -40,6 +40,10 @@ import {
 } from "./runtime-launcher.js";
 import { probeRuntimeReady, waitForRuntimeReady } from "./runtime-readiness.js";
 import {
+	autoStartRuntime as operatorAutoStartRuntime,
+	type AutostartVocabulary,
+} from "@refarm.dev/runtime-operator";
+import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
@@ -429,6 +433,18 @@ export async function autoStartFarmhand(
 	return autoStartRuntime(repoRoot, farmhandDeps);
 }
 
+/** The refarm app's autostart vocabulary — the shared machine (in
+ * @refarm.dev/runtime-operator) prints THESE command strings and labels, so the
+ * guidance names refarm's commands. A white-label app (dgk) passes its own. */
+const REFARM_AUTOSTART_VOCABULARY: AutostartVocabulary = {
+	ensureCommand: RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
+	startCommand: RUNTIME_START_COMMAND,
+	doctorNextActionCommand: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+	doctorCommand: RUNTIME_DOCTOR_COMMAND,
+	engineLabel: (engine) => (engine === "rust" ? "Rust Tractor" : "TypeScript Farmhand"),
+	buildRustCommand: (repoRoot) => tractorBuildCommand(repoRoot),
+};
+
 export async function autoStartRuntime(
 	repoRoot: string,
 	deps: LaunchDeps,
@@ -437,105 +453,27 @@ export async function autoStartRuntime(
 	// did not inject one — instead of eagerly + synchronously in defaultLaunchDeps,
 	// which could not see the config graph node.
 	const mode = deps.autostartMode ?? (await readAutostartModeAsync());
-
-	if (mode === "never") {
-		process.stderr.write(chalk.red("✗  Refarm runtime is not running.\n"));
-		console.error(
-			chalk.dim(`   Ensure runtime:   ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}`),
-		);
-		console.error(chalk.dim(`   Start fallback:   ${RUNTIME_START_COMMAND}`));
-		for (const line of runtimeStartHelpLines(repoRoot)) {
-			console.error(chalk.dim(`   ${line}`));
-		}
-		console.error(
-			chalk.dim(`   Next action:      ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`),
-		);
-		console.error(chalk.dim(`   Diagnose:         ${RUNTIME_DOCTOR_COMMAND}`));
-		return false;
-	}
-
-	process.stderr.write(chalk.red("✗  Refarm runtime is not running.\n\n"));
-
-	if (mode === "ask") {
-		const confirmed = await deps.operator.ask({
-			type: "confirm",
-			question: "   Start it now?",
-			default: true,
-		});
-		if (!confirmed) {
-			console.error(
-				chalk.dim(`\n   Ensure later: ${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}`),
-			);
-			console.error(chalk.dim(`   Start fallback: ${RUNTIME_START_COMMAND}`));
-			console.error(
-				chalk.dim(`   Next action:  ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`),
-			);
-			console.error(chalk.dim(`   Diagnose:     ${RUNTIME_DOCTOR_COMMAND}`));
-			return false;
-		}
-	}
-
-	try {
-		const runtime = deps.resolveRuntime?.(repoRoot);
-		const runtimeLabel = runtime
-			? runtime.activeEngine === "rust"
-				? "Rust Tractor"
-				: "TypeScript Farmhand"
-			: "selected runtime";
-		const startCommand = runtime
-			? resolveRuntimeLaunchCommand(repoRoot, runtime.activeEngine).display
-			: null;
-		process.stdout.write(chalk.dim(`   → Starting ${runtimeLabel}...`));
-		if (runtime?.reason === "auto-ts-fallback") {
-			process.stdout.write(
-				chalk.dim(`\n   rust tractor: not built; using TypeScript fallback`),
-			);
-			process.stdout.write(
-				chalk.dim(`\n   build rust: ${tractorBuildCommand(repoRoot)}`),
-			);
-		}
-		if (startCommand) {
-			process.stdout.write(chalk.dim(`\n   command: ${startCommand}\n`));
-		}
-		const spawn = deps.spawnRuntime ?? deps.spawnFarmhand;
-		if (!spawn) throw new Error("No runtime starter is configured.");
-		spawn(repoRoot);
-	} catch (error) {
-		process.stdout.write("  " + chalk.red("✗ Failed") + "\n");
-		const message = error instanceof Error ? error.message : String(error);
-		console.error(chalk.dim(`   ${message}`));
-		console.error(
-			chalk.dim(`   Next action:  ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`),
-		);
-		console.error(chalk.dim(`   Diagnose:  ${RUNTIME_DOCTOR_COMMAND}`));
-		return false;
-	}
-
-	const start = Date.now();
+	const spawn = deps.spawnRuntime ?? deps.spawnFarmhand;
 	const probe = deps.probeRuntimeUntilReady ?? deps.probeFarmhandUntilReady;
-	const ready = probe ? await probe() : false;
-	const elapsed = ((Date.now() - start) / 1000).toFixed(1);
 
-	if (ready) {
-		process.stdout.write(
-			"  " + chalk.green("✓ Ready") + chalk.dim(` (${elapsed}s)`) + "\n\n",
-		);
-		return true;
-	}
-
-	process.stdout.write("  " + chalk.red("✗ Timed out") + "\n");
-	console.error(
-		chalk.dim(
-			`   Run \`${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}\` for the next recovery action.`,
-		),
-	);
-	console.error(
-		chalk.dim(`   Run \`${RUNTIME_DOCTOR_COMMAND}\` for diagnostics.`),
-	);
-	for (const line of runtimeStartHelpLines(repoRoot)) {
-		console.error(chalk.dim(`   ${line.replace("start:", "fallback:")}`));
-	}
-	return false;
+	// Delegate to the shared, white-label autostart machine, injecting refarm's
+	// vocabulary and its spawn/probe/resolve. The narration + state machine live once
+	// in the operator; only the command strings differ per app.
+	return operatorAutoStartRuntime(repoRoot, REFARM_AUTOSTART_VOCABULARY, {
+		operator: deps.operator,
+		mode,
+		spawnRuntime: (root) => {
+			if (!spawn) throw new Error("No runtime starter is configured.");
+			spawn(root);
+		},
+		probeRuntimeUntilReady: async () => (probe ? await probe() : false),
+		resolveRuntime: deps.resolveRuntime
+			? (root) => {
+					const runtime = deps.resolveRuntime!(root);
+					return { activeEngine: runtime.activeEngine, reason: runtime.reason };
+				}
+			: undefined,
+	});
 }
 
 export function printSessionGuide(r: SessionReadiness): void {

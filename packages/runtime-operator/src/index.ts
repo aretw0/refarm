@@ -15,3 +15,10 @@ export {
 	type RuntimeReadinessWaitOptions,
 	type SidecarUrlSource,
 } from "./readiness.js";
+export {
+	autoStartRuntime,
+	type AutostartMode,
+	type AutostartRuntimeSelection,
+	type AutostartVocabulary,
+	type AutoStartRuntimeDeps,
+} from "./autostart.js";

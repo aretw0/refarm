@@ -13,8 +13,13 @@
 			],
 			"@refarm.dev/sidecar-client": [
 				"packages/sidecar-client/dist/index.d.ts"
+			],
+			"@refarm.dev/prompt-contract-v1": [
+				"packages/prompt-contract-v1/dist/index.d.ts"
 			]
 		}
 	},
-	"include": ["src/**/*"]
+	"include": [
+		"src/**/*"
+	]
 }

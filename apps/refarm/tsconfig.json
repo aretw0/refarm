@@ -12,10 +12,12 @@
 			],
 			"@refarm.dev/stream-contract-v1": [
 				"../../packages/stream-contract-v1/dist/index.d.ts"
+			],
+			"@refarm.dev/runtime-operator": [
+				"../../packages/runtime-operator/dist/index.d.ts"
 			]
 		}
 	},
-
 	"include": [
 		"src/**/*",
 		"test/**/*"
