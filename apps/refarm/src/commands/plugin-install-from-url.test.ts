@@ -173,4 +173,67 @@ describe("plugin install from url — content-addressed remote install (ADR-086 
 		expect(report.ok).toBe(false);
 		expect((report as { error: string }).error).toBe("url_wasm_fetch_failed");
 	});
+
+	it("installs a url descriptor whose entry is a .js (multi-kind), landing as plugin.js", async () => {
+		// Multi-kind: a url descriptor can point at a .js entry, not only .wasm. The
+		// same content-address gate applies; the entry lands under its own format.
+		const JS_SOURCE = "export const activate = () => ({ ok: true });\n";
+		const JS_BYTES = new Uint8Array(Buffer.from(JS_SOURCE));
+		const JS_INTEGRITY = "sha256-89718240fd79892043c8a1096635d62f23ae7ef81940fdb7d70903af5b8be4ff";
+		const JS_DESCRIPTOR_URL = "https://plugins.example/js-plugin/plugin.json";
+		const JS_ENTRY_URL = "https://plugins.example/js-plugin/plugin.js";
+		const jsFetch: UrlFetch = async (url: string) => {
+			if (url === JS_DESCRIPTOR_URL) {
+				return {
+					ok: true,
+					status: 200,
+					statusText: "OK",
+					json: async () => ({
+						id: "@example/js-plugin",
+						version: "0.3.0",
+						entry: "plugin.js",
+						integrity: JS_INTEGRITY,
+					}),
+					arrayBuffer: async () => new ArrayBuffer(0),
+				};
+			}
+			if (url === JS_ENTRY_URL) {
+				return {
+					ok: true,
+					status: 200,
+					statusText: "OK",
+					json: async () => ({}),
+					arrayBuffer: async () => {
+						const copy = new ArrayBuffer(JS_BYTES.byteLength);
+						new Uint8Array(copy).set(JS_BYTES);
+						return copy;
+					},
+				};
+			}
+			return {
+				ok: false,
+				status: 404,
+				statusText: "Not Found",
+				json: async () => ({}),
+				arrayBuffer: async () => new ArrayBuffer(0),
+			};
+		};
+
+		const report = (await buildUrlInstallReport({
+			url: JS_DESCRIPTOR_URL,
+			fetchImpl: jsFetch,
+		})) as UrlInstallReport;
+
+		expect(report.ok).toBe(true);
+		expect(report.pluginId).toBe("@example/js-plugin");
+		const home = process.env.REFARM_HOME as string;
+		const destDir = path.join(home, "plugins", pluginIdToFsToken("@example/js-plugin"));
+		// The entry landed as plugin.js, not forced to plugin.wasm.
+		expect(fs.existsSync(path.join(destDir, "plugin.js"))).toBe(true);
+		expect(fs.existsSync(path.join(destDir, "plugin.wasm"))).toBe(false);
+		const manifest = JSON.parse(fs.readFileSync(path.join(destDir, "plugin.json"), "utf-8")) as {
+			entry: string;
+		};
+		expect(manifest.entry).toBe(`file://${path.join(destDir, "plugin.js")}`);
+	});
 });

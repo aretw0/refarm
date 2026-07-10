@@ -5,6 +5,7 @@ import {
 	buildJsonSuccessEnvelope,
 	type JsonSuccessEnvelope,
 } from "@refarm.dev/capabilities/envelope";
+import { detectEntryFormat } from "@refarm.dev/plugin-manifest";
 import { scopedAssetsDir } from "@refarm.dev/storage-node-view";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -239,15 +240,28 @@ export async function buildUrlInstallReport(
 		});
 	}
 
-	// 7) Install: content-store the verified bytes, write the wasm + rewritten
+	// 7) Install: content-store the verified bytes, write the entry + rewritten
 	//    manifest (file:// entry) + version sentinel — the SAME on-disk shape a
-	//    bundled/local install produces, so the runtime loads it identically.
+	//    bundled/local install produces, so the runtime loads it identically. The
+	//    entry may be any supported format (js/mjs/cjs/wasm); its dest filename is
+	//    derived from the descriptor's entry so a .js lands as plugin.js.
+	const entryFormat = detectEntryFormat(wasmUrl);
+	if (entryFormat === "unknown") {
+		return buildJsonErrorEnvelope({
+			command: "plugin",
+			operation: "install",
+			error: "url_entry_unsupported",
+			message: `The descriptor's entry (${wasmUrl}) is not a supported plugin format (js, mjs, cjs, wasm).`,
+			nextAction: "Point the descriptor's entry at a supported code artifact.",
+			extra: { url: input.url, wasmUrl, pluginId: descriptor.id },
+		});
+	}
 	const sha256 = declaredHex; // verified equal above
 	const integrity = `sha256-${sha256}`;
 	const destDir = path.join(pluginsBaseDir(), pluginIdToFsToken(descriptor.id));
 	await mkdir(destDir, { recursive: true });
-	const wasmDest = path.join(destDir, "plugin.wasm");
-	await writeFile(wasmDest, wasmBytes);
+	const entryDest = path.join(destDir, `plugin.${entryFormat}`);
+	await writeFile(entryDest, wasmBytes);
 
 	// Content-addressed store (E2) — best-effort, never fatal (the file:// entry
 	// works regardless), mirroring the bundled + local install paths.
@@ -265,7 +279,7 @@ export async function buildUrlInstallReport(
 	// at load), exactly like the local install.
 	const installedManifest = {
 		...descriptor,
-		entry: `file://${wasmDest}`,
+		entry: `file://${entryDest}`,
 		integrity,
 	};
 	await writeFile(
