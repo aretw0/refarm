@@ -37,7 +37,7 @@ describe("extension commands", () => {
 
   it("extension new generates id as @local/<name>", async () => {
     vi.mocked(mockFs.existsSync).mockReturnValue(false);
-    const { buildExtJson } = await import("./extension.js");
+    const { buildExtJson } = await import("./extension-scaffold.js");
     const ext = buildExtJson("my-tool");
     expect(ext.id).toBe("@local/my-tool");
     expect(ext.version).toBe("0.0.1");
@@ -68,6 +68,58 @@ describe("extension commands", () => {
     expect(String(indexWrite?.[1])).toContain("wallet:dispatch");
     expect(String(indexWrite?.[1])).toContain("case \"open\"");
     consoleLogSpy.mockRestore();
+  });
+
+  // ADR-086: the scaffold builder is command-neutral — `plugin new` reuses it, so
+  // the report's `command` + the list handoff must name whichever verb was used.
+  it("buildCreatedPluginReport defaults to `extension` and its list handoff", async () => {
+    vi.mocked(mockFs.existsSync).mockReturnValue(false);
+    const { buildCreatedPluginReport } = await import("./extension-scaffold.js");
+    const report = await buildCreatedPluginReport({
+      name: "my-tool",
+      isGlobal: false,
+      cwd: process.cwd(),
+      homeDir: os.homedir(),
+    });
+    expect(report.ok).toBe(true);
+    if (report.ok !== false) {
+      expect(report.command).toBe("extension");
+      // reload handoff is already plugin-scoped; the LIST handoff follows the verb.
+      expect(report.nextCommands).toContain("refarm extension list --json");
+    }
+  });
+
+  it("buildCreatedPluginReport stamps `plugin` when asked (plugin new)", async () => {
+    vi.mocked(mockFs.existsSync).mockReturnValue(false);
+    const { buildCreatedPluginReport } = await import("./extension-scaffold.js");
+    const report = await buildCreatedPluginReport({
+      name: "my-tool",
+      isGlobal: false,
+      cwd: process.cwd(),
+      homeDir: os.homedir(),
+      commandName: "plugin",
+    });
+    expect(report.ok).toBe(true);
+    if (report.ok !== false) {
+      expect(report.command).toBe("plugin");
+      expect(report.operation).toBe("new");
+      expect(report.nextCommands).toContain("refarm plugin list --json");
+    }
+  });
+
+  it("buildCreatedPluginReport returns an error envelope for an invalid name", async () => {
+    const { buildCreatedPluginReport } = await import("./extension-scaffold.js");
+    const report = await buildCreatedPluginReport({
+      name: "Bad Name!",
+      isGlobal: false,
+      cwd: process.cwd(),
+      homeDir: os.homedir(),
+      commandName: "plugin",
+    });
+    // Pure: returns an error envelope, never throws or sets process.exitCode.
+    expect(report.ok).toBe(false);
+    expect((report as { command?: string }).command).toBe("plugin");
+    expect((report as { error?: string }).error).toBe("invalid-name");
   });
 
   it("extension list reads project and global dirs", async () => {

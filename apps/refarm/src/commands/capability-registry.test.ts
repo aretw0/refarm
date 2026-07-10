@@ -47,6 +47,8 @@ describe("capability CLI projection (cli.group routing)", () => {
 		const plugin = capabilityCliCommands().find((c) => c.name() === "plugin");
 		expect(plugin).toBeDefined();
 		const subs = plugin!.commands.map((c) => c.name());
+		// Both authoring verbs (new = scaffold, review = gate) mounted on the group.
+		expect(subs).toContain("new");
 		expect(subs).toContain("review");
 		// It keeps the lifecycle verbs it always had.
 		expect(subs).toEqual(expect.arrayContaining(["install", "bundle", "reload"]));

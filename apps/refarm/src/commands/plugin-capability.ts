@@ -31,11 +31,16 @@ import {
 
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
+import os from "node:os";
 import { pluginsBaseDir } from "../utils/refarm-home.js";
 import {
 	buildExtensionReviewReport,
 	type ExtensionReviewReport,
 } from "./extension-review-capability.js";
+import {
+	buildCreatedPluginReport,
+	type CreatedExtensionReport,
+} from "./extension-scaffold.js";
 import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
 import {
 	PLUGIN_INSTALL_JSON_COMMAND,
@@ -165,6 +170,42 @@ export function createPluginCapabilityGroup(
 					: [PLUGIN_STATUS_JSON_COMMAND],
 				extra: report,
 			});
+		},
+	};
+
+	// ── new <name> ────────────────────────────────────────────────────────────
+	// Authoring scaffold (ADR-086): create a local plugin under .refarm/extensions/.
+	// Lifts the shared buildCreatedPluginReport (validation + fs writes + report,
+	// returns-an-envelope not fs-free) with commandName:"plugin" so the report + list
+	// handoff name THIS verb. cwd/homeDir come from process here; the builder itself
+	// takes them injected so it stays testable over a tmpdir.
+	const newPlugin: CapabilityDescriptor = {
+		name: "new",
+		summary: "Scaffold a new local plugin in .refarm/extensions/<name>/",
+		args: [{ name: "name", required: true }],
+		options: [
+			{
+				name: "global",
+				short: "g",
+				kind: "boolean",
+				summary: "Create in ~/.refarm/extensions/ (available in all projects)",
+			},
+			{
+				name: "verb",
+				kind: "string",
+				summary:
+					"Declare a dispatchable verb (bare 'open' -> <name>:open, surfaces as <name>-open)",
+			},
+		],
+		async run(input) {
+			return (await buildCreatedPluginReport({
+				name: input.args.name as string,
+				isGlobal: input.options.global === true,
+				verb: input.options.verb as string | undefined,
+				cwd: process.cwd(),
+				homeDir: os.homedir(),
+				commandName: "plugin",
+			})) as CapabilityEnvelope;
 		},
 	};
 
@@ -764,6 +805,7 @@ export function createPluginCapabilityGroup(
 		summary: "Manage refarm plugins",
 		actions: {
 			list,
+			new: newPlugin,
 			review,
 			permissions,
 			status,
@@ -807,6 +849,25 @@ export function pluginCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 			return { renderText: (envelope) => formatStatusFromEnvelope(envelope) };
 		case "list":
 			return { renderText: (envelope) => formatListFromEnvelope(envelope) };
+		case "new":
+			return {
+				renderText(envelope) {
+					if (envelope.ok === false) {
+						return `Plugin scaffold failed: ${(envelope as { message?: string }).message ?? "unknown error"}`;
+					}
+					const report = envelope as unknown as CreatedExtensionReport;
+					const lines = [
+						`Created plugin '${report.slug}' at ${report.dir} (${report.scope})`,
+						`  id: ${report.id}`,
+						`  Edit: ${report.indexPath}`,
+					];
+					if (report.surfaceCommand) lines.push(`  Surface: ${report.surfaceCommand}`);
+					lines.push(`  Activate: ${report.nextActions[0]}`);
+					if (report.nextActions[1]) lines.push(`  Fallback: ${report.nextActions[1]}`);
+					return lines.join("\n");
+				},
+				exitCode: (envelope) => (envelope.ok === false ? 1 : 0),
+			};
 		case "review":
 			// Same shape as the legacy extension-review hook, relabelled for the verb:
 			// the report is the shared ExtensionReviewReport (one builder, ADR-086).
