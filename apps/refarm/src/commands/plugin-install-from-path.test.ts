@@ -136,11 +136,11 @@ describe("extension install — closing the review→install loop", () => {
 		expect((report as { error?: string }).error).toBe("extension_integrity_mismatch");
 	});
 
-	it("fails clearly when the .wasm is missing beside the manifest", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-ext-nowasm-"));
+	it("fails clearly when the code entry is missing beside the manifest", async () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-ext-noentry-"));
 		tempRoots.push(dir);
 		fs.writeFileSync(path.join(dir, "plugin.json"), JSON.stringify(MANIFEST));
-		// no plugin.wasm written
+		// no entry file written (the manifest declares plugin.wasm)
 
 		const report = await buildExtensionInstallReport({
 			targetPath: dir,
@@ -149,6 +149,94 @@ describe("extension install — closing the review→install loop", () => {
 		});
 
 		expect(report.ok).toBe(false);
-		expect((report as { error?: string }).error).toBe("extension_wasm_missing");
+		// Generalized from the WASM-only installer: the entry may be js/mjs/cjs/wasm.
+		expect((report as { error?: string }).error).toBe("extension_entry_missing");
+	});
+});
+
+describe("plugin install — multi-kind: a JS entry (not just WASM)", () => {
+	// A JS-entry plugin. Integrity is NOT required for non-.wasm entries
+	// (validate.js:198), so the manifest is valid without it.
+	const JS_SOURCE = "export const activate = () => ({ ok: true });\n";
+	const JS_MANIFEST = {
+		id: "@example/js-plugin",
+		name: "JS Plugin",
+		version: "0.3.0",
+		entry: "plugin.js",
+		capabilities: {
+			provides: ["quality:v1"],
+			requires: ["storage:v1"],
+			providesApi: [],
+			requiresApi: [],
+		},
+		permissions: [],
+		observability: { hooks: ["onLoad", "onInit", "onRequest", "onError", "onTeardown"] },
+		targets: ["server"],
+		certification: { license: "MIT", a11yLevel: 0, languages: ["en"] },
+		trust: { profile: "strict" },
+	};
+
+	function writeJsPlugin(source = JS_SOURCE): { dir: string } {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-ext-js-"));
+		tempRoots.push(dir);
+		fs.writeFileSync(path.join(dir, "plugin.json"), JSON.stringify(JS_MANIFEST));
+		fs.writeFileSync(path.join(dir, "plugin.js"), source);
+		return { dir };
+	}
+
+	it("installs a JS-entry plugin, preserving the .js entry filename", async () => {
+		const { dir } = writeJsPlugin();
+		const report = (await buildExtensionInstallReport({
+			targetPath: dir,
+			grantedCapabilities: ["storage:v1"],
+			policyMode: "fail-fast",
+		})) as ExtensionInstallReport;
+
+		expect(report.ok).toBe(true);
+		expect(report.pluginId).toBe("@example/js-plugin");
+
+		// The entry landed as plugin.js (not forced to plugin.wasm), and the installed
+		// manifest points at it with the computed integrity.
+		const installedEntry = path.join(report.installedTo, "plugin.js");
+		expect(fs.existsSync(installedEntry)).toBe(true);
+		expect(fs.readFileSync(installedEntry, "utf8")).toBe(JS_SOURCE);
+		const manifest = JSON.parse(
+			fs.readFileSync(path.join(report.installedTo, "plugin.json"), "utf-8"),
+		);
+		expect(manifest.entry).toBe(`file://${installedEntry}`);
+		expect(manifest.integrity).toMatch(/^sha256-[0-9a-f]{64}$/);
+		// No plugin.wasm was fabricated.
+		expect(fs.existsSync(path.join(report.installedTo, "plugin.wasm"))).toBe(false);
+	});
+
+	it("still enforces the review gate for a JS plugin (missing grant refuses)", async () => {
+		const { dir } = writeJsPlugin();
+		const report = await buildExtensionInstallReport({
+			targetPath: dir,
+			grantedCapabilities: [], // storage:v1 NOT granted
+			policyMode: "fail-fast",
+		});
+		expect(report.ok).toBe(false);
+		expect((report as { error?: string }).error).toBe("extension_not_ready");
+	});
+
+	it("verifies a declared integrity for a JS entry too (tamper is rejected)", async () => {
+		// Author declares an integrity for the JS bytes; a changed file must be caught.
+		const staleIntegrity = "sha256-" + "0".repeat(64);
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-ext-js-tamper-"));
+		tempRoots.push(dir);
+		fs.writeFileSync(
+			path.join(dir, "plugin.json"),
+			JSON.stringify({ ...JS_MANIFEST, integrity: staleIntegrity }),
+		);
+		fs.writeFileSync(path.join(dir, "plugin.js"), JS_SOURCE);
+
+		const report = await buildExtensionInstallReport({
+			targetPath: dir,
+			grantedCapabilities: ["storage:v1"],
+			policyMode: "fail-fast",
+		});
+		expect(report.ok).toBe(false);
+		expect((report as { error?: string }).error).toBe("extension_integrity_mismatch");
 	});
 });

@@ -11,7 +11,7 @@ import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { PluginPolicyMode } from "@refarm.dev/plugin-manifest";
+import { detectEntryFormat, type PluginPolicyMode } from "@refarm.dev/plugin-manifest";
 import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildExtensionReviewReport,
@@ -35,7 +35,10 @@ import { pluginIdToFsToken, pluginsBaseDir, sentinelPath } from "./plugin-shared
  * capabilities, identical to review.
  */
 
-const WASM_ENTRY_CANDIDATES = ["plugin.wasm"] as const;
+// When a manifest declares no explicit `entry`, fall back to these conventional
+// filenames beside it, in order. `.wasm` first for back-compat with the original
+// WASM-only installer; a JS-entry plugin is expected to DECLARE its entry.
+const ENTRY_FALLBACK_CANDIDATES = ["plugin.wasm", "plugin.js", "plugin.mjs", "plugin.cjs"] as const;
 
 export interface ExtensionInstallInput {
 	targetPath: string;
@@ -57,23 +60,38 @@ export type ExtensionInstallReport = JsonSuccessEnvelope<{
 	bytes: number;
 }>;
 
-/** Resolve the extension's `.wasm` beside its manifest: honor a `file://` or
- * relative `entry` in the manifest, else fall back to a conventional plugin.wasm in
- * the same directory. Returns the absolute wasm path, or null if none exists. */
-function resolveExtensionWasm(
+/** The resolved code entry of a plugin: its absolute source path, the destination
+ * filename to preserve (so a `.js` entry lands as `plugin.js`, a `.wasm` as
+ * `plugin.wasm`), and its detected format. */
+interface ResolvedEntry {
+	src: string;
+	destName: string;
+	format: ReturnType<typeof detectEntryFormat>;
+}
+
+/** Resolve a plugin's CODE entry beside its manifest — any supported format
+ * (`js` / `mjs` / `cjs` / `wasm`), not just `.wasm`. Honors a `file://` or relative
+ * `entry`; else falls back to conventional `plugin.<ext>` files. The destination
+ * filename preserves the entry's own basename so the installed manifest points at
+ * the right file. Returns null if no entry file exists. */
+function resolveExtensionEntry(
 	manifest: Record<string, unknown>,
 	manifestPath: string,
-): string | null {
+): ResolvedEntry | null {
 	const dir = path.dirname(manifestPath);
 	const entry = typeof manifest.entry === "string" ? manifest.entry : undefined;
 	if (entry) {
 		const rel = entry.startsWith("file://") ? entry.slice("file://".length) : entry;
 		const abs = path.isAbsolute(rel) ? rel : path.join(dir, rel);
-		if (existsSync(abs)) return abs;
+		if (existsSync(abs)) {
+			return { src: abs, destName: path.basename(abs), format: detectEntryFormat(abs) };
+		}
 	}
-	for (const candidate of WASM_ENTRY_CANDIDATES) {
+	for (const candidate of ENTRY_FALLBACK_CANDIDATES) {
 		const abs = path.join(dir, candidate);
-		if (existsSync(abs)) return abs;
+		if (existsSync(abs)) {
+			return { src: abs, destName: candidate, format: detectEntryFormat(candidate) };
+		}
 	}
 	return null;
 }
@@ -123,33 +141,45 @@ export async function buildExtensionInstallReport(
 		});
 	}
 
-	// 2) Resolve the reviewed manifest + its wasm.
+	// 2) Resolve the reviewed manifest + its code entry (any format — js/mjs/cjs/wasm,
+	//    not just .wasm). The manifest already permits a JS entry (integrity is
+	//    required only for .wasm; validate.js:198), so the installer is generic over
+	//    the entry format — only .wasm's filename convention was ever WASM-specific.
 	const { manifest: rawManifest, manifestPath } = loadReviewableManifest(input.targetPath);
 	const manifest = rawManifest as Record<string, unknown>;
 	const pluginId = review.decision.pluginId;
-	const wasmSrc = resolveExtensionWasm(manifest, manifestPath);
-	if (!wasmSrc) {
+	const resolvedEntry = resolveExtensionEntry(manifest, manifestPath);
+	if (!resolvedEntry) {
 		return buildJsonErrorEnvelope({
 			command: commandName,
 			operation: "install",
-			error: "extension_wasm_missing",
-			message: `No .wasm found for ${pluginId} beside ${manifestPath} (looked at the manifest 'entry' and plugin.wasm).`,
-			nextAction: "Ensure the prepared extension ships its built .wasm.",
+			error: "extension_entry_missing",
+			message: `No code entry found for ${pluginId} beside ${manifestPath} (looked at the manifest 'entry' and plugin.{wasm,js,mjs,cjs}).`,
+			nextAction: "Ensure the prepared plugin ships its built entry (a .wasm or .js/.mjs/.cjs).",
+		});
+	}
+	if (resolvedEntry.format === "unknown") {
+		return buildJsonErrorEnvelope({
+			command: commandName,
+			operation: "install",
+			error: "extension_entry_unsupported",
+			message: `The entry for ${pluginId} (${path.basename(resolvedEntry.src)}) is not a supported plugin format (js, mjs, cjs, wasm).`,
+			nextAction: "Ship the plugin with a supported code entry.",
 		});
 	}
 
-	// 3) Install: copy the wasm + rewrite the manifest into the plugins dir, store
+	// 3) Install: copy the entry + rewrite the manifest into the plugins dir, store
 	//    the bytes content-addressed, and write the version sentinel — the SAME
 	//    on-disk shape a bundled install produces, so the runtime loads it identically.
-	const wasmBytes = readFileSync(wasmSrc);
-	const sha256 = createHash("sha256").update(wasmBytes).digest("hex");
+	//    Format-agnostic: it operates on BYTES, keeping the entry's own basename.
+	const entryBytes = readFileSync(resolvedEntry.src);
+	const sha256 = createHash("sha256").update(entryBytes).digest("hex");
 	const integrity = `sha256-${sha256}`;
 
-	// Defense in depth: a reviewed manifest DECLARES the wasm's integrity (a .wasm
-	// entry is invalid without it, so review already required it). Verify the bytes
-	// on disk still match — a tampered .wasm swapped in after review is rejected here,
-	// not silently installed. (Compares the hex, case-insensitively, ignoring the
-	// sha256- / sha256: prefix variants.)
+	// Defense in depth: when the reviewed manifest DECLARES an integrity (required
+	// for .wasm, optional for js), verify the bytes on disk still match — a tampered
+	// artifact swapped in after review is rejected here, not silently installed.
+	// (Compares the hex, case-insensitively, ignoring the sha256- / sha256: prefixes.)
 	const declared = typeof manifest.integrity === "string" ? manifest.integrity : "";
 	const declaredHex = declared.replace(/^sha256[-:]/i, "").toLowerCase();
 	if (declaredHex && declaredHex !== sha256) {
@@ -157,19 +187,20 @@ export async function buildExtensionInstallReport(
 			command: commandName,
 			operation: "install",
 			error: "extension_integrity_mismatch",
-			message: `The .wasm for ${pluginId} does not match the reviewed integrity (declared ${declared}, actual sha256-${sha256}). The artifact changed since review.`,
-			nextAction: "Re-review the extension; do not install a changed artifact.",
+			message: `The entry for ${pluginId} does not match the reviewed integrity (declared ${declared}, actual sha256-${sha256}). The artifact changed since review.`,
+			nextAction: "Re-review the plugin; do not install a changed artifact.",
 		});
 	}
 
 	const destDir = path.join(pluginsBaseDir(), pluginIdToFsToken(pluginId));
 	await mkdir(destDir, { recursive: true });
-	copyFileSync(wasmSrc, path.join(destDir, "plugin.wasm"));
+	const destEntry = path.join(destDir, resolvedEntry.destName);
+	copyFileSync(resolvedEntry.src, destEntry);
 
 	// Content-addressed store (E2) — best-effort, never fatal (the file:// entry works
 	// regardless), mirroring the bundled install path.
 	try {
-		const stored = await createFsAssetStore(scopedAssetsDir("user")).store(wasmBytes);
+		const stored = await createFsAssetStore(scopedAssetsDir("user")).store(entryBytes);
 		if (stored.hash !== sha256) {
 			throw new Error(`content-store hash ${stored.hash} != install hash ${sha256}`);
 		}
@@ -179,7 +210,7 @@ export async function buildExtensionInstallReport(
 
 	const installedManifest = {
 		...manifest,
-		entry: `file://${path.join(destDir, "plugin.wasm")}`,
+		entry: `file://${destEntry}`,
 		integrity,
 	};
 	await writeFile(
@@ -206,7 +237,7 @@ export async function buildExtensionInstallReport(
 			installedFrom: manifestPath,
 			installedTo: destDir,
 			integrity,
-			bytes: wasmBytes.byteLength,
+			bytes: entryBytes.byteLength,
 		},
 	});
 }
