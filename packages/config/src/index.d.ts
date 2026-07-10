@@ -165,8 +165,29 @@ export const REFARM_CONFIG_LEGACY_FILE_NAME: string;
 export function refarmConfigPathCandidates(root: string): string[];
 export function defaultRefarmConfigPath(root: string): string;
 export function findRefarmConfigPath(root: string): string | null;
-export function loadConfig(root?: string): any;
-export function loadConfigAsync(root?: string): Promise<any>;
+
+/** The neutral bootstrap key that names the env-var prefix (brand-free). */
+export const ENV_PREFIX_SELECTOR_KEY: "SOVEREIGN_ENV_PREFIX";
+/** The default env-var prefix when none is selected. */
+export const DEFAULT_ENV_PREFIX: "REFARM";
+/** Derive a normalized env-var prefix from a brand/product name. */
+export function envPrefixFromBrand(name: string): string;
+/** Resolve the active env-var prefix (explicit → selector env → default). */
+export function resolveEnvPrefix(
+    explicit?: string,
+    env?: NodeJS.ProcessEnv,
+): string;
+
+/** Options for the config loaders. */
+export interface LoadConfigOptions {
+    /** White-label env-var prefix (default resolved via {@link resolveEnvPrefix}). */
+    envPrefix?: string;
+}
+export function loadConfig(root?: string, options?: LoadConfigOptions): any;
+export function loadConfigAsync(
+    root?: string,
+    options?: LoadConfigOptions,
+): Promise<any>;
 
 declare const _default: {
     findRefarmRoot: typeof findRefarmRoot;

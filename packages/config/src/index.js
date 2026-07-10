@@ -114,6 +114,43 @@ export {
 export const REFARM_CONFIG_CANONICAL_RELATIVE_PATH = path.join(".refarm", "config.json");
 export const REFARM_CONFIG_LEGACY_FILE_NAME = "refarm.config.json";
 
+// --- Env-var prefix (white-label seam, ADR-087 phase 4) ---
+//
+// The env source below reads `<PREFIX>_SITE_URL`, `<PREFIX>_SCOPE_*`,
+// `<PREFIX>_PROVIDER_*`, etc. The prefix is NOT hardcoded to the brand — it is
+// resolved. This mirrors the `<BINARY>_COMMAND` override precedent in
+// `@refarm.dev/cli` (`command-handoff.ts`): a name derives a namespace, the host
+// may override it, and there is a documented default.
+
+/** The neutral bootstrap key that names the env-var prefix — deliberately
+ * brand-free (the repo's own "sovereign" architectural term, not a product), so a
+ * white-label can select its prefix without the upstream brand leaking into the
+ * selector itself. */
+export const ENV_PREFIX_SELECTOR_KEY = "SOVEREIGN_ENV_PREFIX";
+
+/** The default env-var prefix when none is selected. Env-prefix is the ONE brand
+ * dimension with a resolved default (per the white-label doctrine: "não é 'sempre
+ * REFARM' nem 'tira o refarm' — é config resolvida"), distinct from the CLI binary
+ * which fails up. Keeps every existing `REFARM_*` caller working. */
+export const DEFAULT_ENV_PREFIX = "REFARM";
+
+/** Derive a normalized env-var prefix from a brand/product name.
+ * `"refarm"` → `"REFARM"`, `"acme labs"` → `"ACME_LABS"`. Mirrors
+ * `applicationCommandOverrideEnv`'s `toUpperCase().replace(/[^A-Z0-9]+/g,"_")`. */
+export function envPrefixFromBrand(name) {
+    return String(name).toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+/** Resolve the active env-var prefix: an explicit prefix wins; otherwise the
+ * neutral selector env; otherwise the default. Never reads a brand-named env to
+ * decide the prefix (that would be the chicken-and-egg the doctrine rejects). */
+export function resolveEnvPrefix(explicit, env = process.env) {
+    if (explicit && String(explicit).trim().length > 0) return envPrefixFromBrand(explicit);
+    const selected = env[ENV_PREFIX_SELECTOR_KEY]?.trim();
+    if (selected && selected.length > 0) return envPrefixFromBrand(selected);
+    return DEFAULT_ENV_PREFIX;
+}
+
 export function refarmConfigPathCandidates(root) {
     return [
         path.join(root, REFARM_CONFIG_CANONICAL_RELATIVE_PATH),
@@ -227,31 +264,40 @@ const JsonSource = {
 
 const EnvSource = {
     name: "env",
-    loadSync() {
-        // Map common REFARM_ envs to the config structure
+    // `prefix` is the resolved env-var namespace (default "REFARM"). Reading it as
+    // a parameter — not a hardcoded literal — is what makes the mapping agnostic:
+    // a white-label sets its prefix and gets `<PREFIX>_SITE_URL`, `<PREFIX>_SCOPE_*`
+    // and `<PREFIX>_PROVIDER_*` for free.
+    loadSync(prefix = DEFAULT_ENV_PREFIX) {
+        // Map common <PREFIX>_ envs to the config structure
         const config = {};
-        if (process.env.REFARM_SITE_URL || process.env.REFARM_REPO_URL) {
+        const SITE_URL = `${prefix}_SITE_URL`;
+        const REPO_URL = `${prefix}_REPO_URL`;
+        const GIT_HOST = `${prefix}_GIT_HOST`;
+        const SCOPE_PREFIX = `${prefix}_SCOPE_`;
+        const PROVIDER_PREFIX = `${prefix}_PROVIDER_`;
+        if (process.env[SITE_URL] || process.env[REPO_URL]) {
             config.brand = { urls: {} };
-            if (process.env.REFARM_SITE_URL) config.brand.urls.site = process.env.REFARM_SITE_URL;
-            if (process.env.REFARM_REPO_URL) config.brand.urls.repository = process.env.REFARM_REPO_URL;
+            if (process.env[SITE_URL]) config.brand.urls.site = process.env[SITE_URL];
+            if (process.env[REPO_URL]) config.brand.urls.repository = process.env[REPO_URL];
         }
-        if (process.env.REFARM_GIT_HOST) {
-            config.infrastructure = { gitHost: process.env.REFARM_GIT_HOST };
+        if (process.env[GIT_HOST]) {
+            config.infrastructure = { gitHost: process.env[GIT_HOST] };
         }
         // Support for dynamic scopes from env
         for (const [key, value] of Object.entries(process.env)) {
-            if (key.startsWith("REFARM_SCOPE_")) {
-                const scopeKey = key.replace("REFARM_SCOPE_", "").toLowerCase();
+            if (key.startsWith(SCOPE_PREFIX)) {
+                const scopeKey = key.slice(SCOPE_PREFIX.length).toLowerCase();
                 config.brand = config.brand || {};
                 config.brand.scopes = config.brand.scopes || {};
                 config.brand.scopes[scopeKey] = value;
             }
         }
-        // REFARM_PROVIDER_<ID>_<KEY> → providers.<id>.<camelKey>
+        // <PREFIX>_PROVIDER_<ID>_<KEY> → providers.<id>.<camelKey>
         // e.g. REFARM_PROVIDER_GITHUB_CLIENT_ID → providers.github.clientId
         for (const [key, value] of Object.entries(process.env)) {
-            if (!key.startsWith("REFARM_PROVIDER_")) continue;
-            const rest = key.slice("REFARM_PROVIDER_".length); // GITHUB_CLIENT_ID
+            if (!key.startsWith(PROVIDER_PREFIX)) continue;
+            const rest = key.slice(PROVIDER_PREFIX.length); // GITHUB_CLIENT_ID
             const underscore = rest.indexOf("_");
             if (underscore === -1) continue;
             const providerId = rest.slice(0, underscore).toLowerCase(); // github
@@ -271,10 +317,10 @@ const RemoteSource = {
     /**
      * Implement full Sovereign Graph / External API resolution.
      */
-    async load(root, endpoint) {
+    async load(root, endpoint, envPrefix = DEFAULT_ENV_PREFIX) {
         if (!endpoint) return {};
 
-        const token = process.env.REFARM_REMOTE_TOKEN;
+        const token = process.env[`${envPrefix}_REMOTE_TOKEN`];
         const headers = {
             "Accept": "application/json",
             "X-Refarm-Client": "config-loader"
@@ -311,12 +357,12 @@ const RemoteSource = {
  * @param {string} root
  * @returns {object}
  */
-function bootstrapIntent(root) {
+function bootstrapIntent(root, envPrefix = DEFAULT_ENV_PREFIX) {
     const json = JsonSource.loadSync(root);
-    const env = EnvSource.loadSync();
+    const env = EnvSource.loadSync(envPrefix);
 
     // Signals
-    const ephemeralEndpoint = process.env.REFARM_EPHEMERAL_SOURCE;
+    const ephemeralEndpoint = process.env[`${envPrefix}_EPHEMERAL_SOURCE`];
     const persistentEndpoint = env.infrastructure?.remote?.endpoint || json.infrastructure?.remote?.endpoint;
 
     if (ephemeralEndpoint) {
@@ -340,14 +386,17 @@ function bootstrapIntent(root) {
 
 /**
  * Synchronous loader (JSON + ENV)
+ * @param {string} [root] monorepo root
+ * @param {{ envPrefix?: string }} [options] white-label env-var prefix (default "REFARM")
  */
-export function loadConfig(root = findRefarmRoot()) {
-    const { precedence } = bootstrapIntent(root);
+export function loadConfig(root = findRefarmRoot(), options = {}) {
+    const envPrefix = resolveEnvPrefix(options.envPrefix);
+    const { precedence } = bootstrapIntent(root, envPrefix);
     let config = {};
 
     const sources = {
         json: () => JsonSource.loadSync(root),
-        env: () => EnvSource.loadSync()
+        env: () => EnvSource.loadSync(envPrefix)
     };
 
     for (const sourceKey of precedence) {
@@ -361,15 +410,18 @@ export function loadConfig(root = findRefarmRoot()) {
 
 /**
  * Asynchronous loader (Full Sovereignty)
+ * @param {string} [root] monorepo root
+ * @param {{ envPrefix?: string }} [options] white-label env-var prefix (default "REFARM")
  */
-export async function loadConfigAsync(root = findRefarmRoot()) {
-    const { endpoint, precedence } = bootstrapIntent(root);
+export async function loadConfigAsync(root = findRefarmRoot(), options = {}) {
+    const envPrefix = resolveEnvPrefix(options.envPrefix);
+    const { endpoint, precedence } = bootstrapIntent(root, envPrefix);
     let config = {};
 
     const sources = {
         json: () => JsonSource.loadSync(root),
-        env: () => EnvSource.loadSync(),
-        remote: async () => endpoint ? await RemoteSource.load(root, endpoint) : {}
+        env: () => EnvSource.loadSync(envPrefix),
+        remote: async () => endpoint ? await RemoteSource.load(root, endpoint, envPrefix) : {}
     };
 
     for (const sourceKey of precedence) {
