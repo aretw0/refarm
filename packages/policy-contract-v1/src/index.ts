@@ -20,7 +20,7 @@ export interface RetentionPolicy {
 }
 
 export const DEFAULT_RETENTION_POLICY: RetentionPolicy = {
-	ttlSeconds: 2_592_000,     // 30 days
+	ttlSeconds: 2_592_000, // 30 days
 	maxAssetBytes: 52_428_800, // 50 MB
 	dryRun: false,
 };
@@ -46,9 +46,9 @@ export const DEFAULT_QUOTA_POLICY: QuotaPolicy = {
 
 /** Determines which assets to remove first when quota is exceeded. */
 export type EvictionStrategy =
-	| "lru"      // Least Recently Used — remove the oldest-accessed asset
-	| "lfu"      // Least Frequently Used — remove the least-accessed asset
-	| "oldest"   // Remove the oldest uploaded asset (insertion order)
+	| "lru" // Least Recently Used — remove the oldest-accessed asset
+	| "lfu" // Least Frequently Used — remove the least-accessed asset
+	| "oldest" // Remove the oldest uploaded asset (insertion order)
 	| "largest"; // Remove the largest asset first (frees most space fastest)
 
 /**
@@ -71,8 +71,8 @@ export const DEFAULT_EVICTION_POLICY: EvictionPolicy = {
 
 /** Target storage tier for archival. */
 export type ArchivalTier =
-	| "cold"     // Provider cold/infrequent-access tier (e.g. R2 Infrequent Access, S3 Glacier)
-	| "archive"  // Deepest, cheapest tier — high retrieval latency
+	| "cold" // Provider cold/infrequent-access tier (e.g. R2 Infrequent Access, S3 Glacier)
+	| "archive" // Deepest, cheapest tier — high retrieval latency
 	| "offsite"; // Export to a different provider entirely (e.g. backup to B2)
 
 /**

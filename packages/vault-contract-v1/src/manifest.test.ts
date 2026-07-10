@@ -1,14 +1,7 @@
-import {
-	detectEntryFormat,
-	validatePluginManifest,
-} from "@refarm.dev/plugin-manifest";
+import { detectEntryFormat, validatePluginManifest } from "@refarm.dev/plugin-manifest";
 import { describe, expect, it } from "vitest";
 
-import {
-	buildVaultPluginManifest,
-	VAULT_ENTRY_PLACEHOLDER,
-	vaultProvides,
-} from "./manifest.js";
+import { buildVaultPluginManifest, VAULT_ENTRY_PLACEHOLDER, vaultProvides } from "./manifest.js";
 
 // A well-formed placeholder digest — the §8 install replaces it with the real
 // SHA-256 of the built .wasm. Shape only: sha256- + 64 hex.

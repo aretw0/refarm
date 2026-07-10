@@ -1,10 +1,7 @@
 import YAML from "yaml";
 
 import { computeRecordContentHash } from "./reference.js";
-import {
-	CURRENT_RECORD_SCHEMA_VERSION,
-	type KnowledgeRecord,
-} from "./types.js";
+import { CURRENT_RECORD_SCHEMA_VERSION, type KnowledgeRecord } from "./types.js";
 
 export const RECORDS_YAML_LD_MEDIA_TYPE = "application/yaml+ld;profile=records:v1" as const;
 
@@ -70,7 +67,7 @@ function stringValue(value: unknown, fallback: string): string {
 }
 
 function integerValue(value: unknown, fallback: number): number {
-	return Number.isInteger(value) ? value as number : fallback;
+	return Number.isInteger(value) ? (value as number) : fallback;
 }
 
 function plainObjectValue(value: unknown): Record<string, unknown> {
@@ -156,7 +153,7 @@ export function recordFromYamlLdObject(
 	const review = valueAt(input, map.review);
 	if (review !== undefined) record.review = review as KnowledgeRecord["review"];
 
-	if (options.recomputeContentHash ?? (record.contentHash.length === 0)) {
+	if (options.recomputeContentHash ?? record.contentHash.length === 0) {
 		record.contentHash = computeRecordContentHash(record);
 	}
 
@@ -215,7 +212,9 @@ export function parseRecordsYamlLdFrontMatter(
 ): RecordsYamlLdFrontMatterResult {
 	const match = /^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)\r?\n?([\s\S]*)$/u.exec(markdown);
 	if (!match) {
-		throw new TypeError("records:v1 YAML-LD front matter must start with a YAML front matter block");
+		throw new TypeError(
+			"records:v1 YAML-LD front matter must start with a YAML front matter block",
+		);
 	}
 
 	const [, frontMatter = "", body = ""] = match;

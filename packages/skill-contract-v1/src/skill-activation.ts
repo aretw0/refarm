@@ -22,9 +22,7 @@ import {
 	validateSurfaceId,
 } from "./manifest-shared.js";
 
-import {
-	validateSkillManifest,
-} from "./manifest-parse.js";
+import { validateSkillManifest } from "./manifest-parse.js";
 
 export function buildSkillSurfaceDeclaration(
 	manifest: SkillManifestV1,
@@ -38,7 +36,9 @@ export function buildSkillSurfaceDeclaration(
 		return {
 			ok: false,
 			surface: null,
-			issues: [issue("SURFACE_OPTIONS_NOT_OBJECT", "$", "Expected skill surface declaration options.")],
+			issues: [
+				issue("SURFACE_OPTIONS_NOT_OBJECT", "$", "Expected skill surface declaration options."),
+			],
 		};
 	}
 
@@ -53,7 +53,7 @@ export function buildSkillSurfaceDeclaration(
 
 	const capabilities = [
 		...manifest.capabilities.requires,
-		...(options.includeOptionalCapabilities ? manifest.capabilities.optional ?? [] : []),
+		...(options.includeOptionalCapabilities ? (manifest.capabilities.optional ?? []) : []),
 	];
 	const surface: SkillSurfaceDeclarationV1 = {
 		layer: "pi",
@@ -84,17 +84,21 @@ export function evaluateSkillActivationPreflight(
 
 	const surfaceValidation = validateSkillSurfaceDeclaration(surface);
 	if (!surfaceValidation.ok) {
-		issues.push(...surfaceValidation.issues.map((item) => ({
-			...item,
-			path: `$.surface${item.path === "$" ? "" : item.path.slice(1)}`,
-		})));
+		issues.push(
+			...surfaceValidation.issues.map((item) => ({
+				...item,
+				path: `$.surface${item.path === "$" ? "" : item.path.slice(1)}`,
+			})),
+		);
 	}
 
 	if (!isRecord(options)) {
 		return {
 			ok: false,
 			preflight: null,
-			issues: [issue("ACTIVATION_OPTIONS_NOT_OBJECT", "$", "Expected activation preflight options.")],
+			issues: [
+				issue("ACTIVATION_OPTIONS_NOT_OBJECT", "$", "Expected activation preflight options."),
+			],
 		};
 	}
 
@@ -104,27 +108,31 @@ export function evaluateSkillActivationPreflight(
 	const install = isActivationInstallEvidence(options.install)
 		? options.install
 		: {
-			pluginManifestValid: false,
-			integrityVerified: false,
-			policyAccepted: false,
-		};
+				pluginManifestValid: false,
+				integrityVerified: false,
+				policyAccepted: false,
+			};
 
 	if (surface.id !== slugify(manifest.name)) {
-		issues.push(issue(
-			"ACTIVATION_SURFACE_SKILL_MISMATCH",
-			"$.surface.id",
-			"Expected surface id to match the skill manifest name slug.",
-		));
+		issues.push(
+			issue(
+				"ACTIVATION_SURFACE_SKILL_MISMATCH",
+				"$.surface.id",
+				"Expected surface id to match the skill manifest name slug.",
+			),
+		);
 	}
 
 	const surfaceCapabilities = new Set(surface.capabilities);
 	for (const capability of manifest.capabilities.requires) {
 		if (!surfaceCapabilities.has(capability)) {
-			issues.push(issue(
-				"ACTIVATION_SURFACE_CAPABILITY_MISSING",
-				"$.surface.capabilities",
-				"Expected package skill surface to declare every required capability.",
-			));
+			issues.push(
+				issue(
+					"ACTIVATION_SURFACE_CAPABILITY_MISSING",
+					"$.surface.capabilities",
+					"Expected package skill surface to declare every required capability.",
+				),
+			);
 			break;
 		}
 	}
@@ -132,11 +140,13 @@ export function evaluateSkillActivationPreflight(
 	const approvedCapabilities = new Set(options.approvedCapabilities);
 	for (const capability of manifest.capabilities.requires) {
 		if (!approvedCapabilities.has(capability)) {
-			issues.push(issue(
-				"ACTIVATION_REQUIRED_CAPABILITY_NOT_APPROVED",
-				"$.approvedCapabilities",
-				"Expected host policy to approve every required capability before runtime dispatch.",
-			));
+			issues.push(
+				issue(
+					"ACTIVATION_REQUIRED_CAPABILITY_NOT_APPROVED",
+					"$.approvedCapabilities",
+					"Expected host policy to approve every required capability before runtime dispatch.",
+				),
+			);
 			break;
 		}
 	}
@@ -144,35 +154,43 @@ export function evaluateSkillActivationPreflight(
 	const availableEngineBindings = new Set(options.availableEngineBindings);
 	for (const binding of manifest.engineBindings.requires) {
 		if (!availableEngineBindings.has(binding)) {
-			issues.push(issue(
-				"ACTIVATION_REQUIRED_ENGINE_UNAVAILABLE",
-				"$.availableEngineBindings",
-				"Expected every required engine binding to be available before runtime dispatch.",
-			));
+			issues.push(
+				issue(
+					"ACTIVATION_REQUIRED_ENGINE_UNAVAILABLE",
+					"$.availableEngineBindings",
+					"Expected every required engine binding to be available before runtime dispatch.",
+				),
+			);
 			break;
 		}
 	}
 
 	if (install.pluginManifestValid !== true) {
-		issues.push(issue(
-			"ACTIVATION_PLUGIN_MANIFEST_NOT_VALID",
-			"$.install.pluginManifestValid",
-			"Expected plugin-manifest validation evidence before activation.",
-		));
+		issues.push(
+			issue(
+				"ACTIVATION_PLUGIN_MANIFEST_NOT_VALID",
+				"$.install.pluginManifestValid",
+				"Expected plugin-manifest validation evidence before activation.",
+			),
+		);
 	}
 	if (install.integrityVerified !== true) {
-		issues.push(issue(
-			"ACTIVATION_INTEGRITY_NOT_VERIFIED",
-			"$.install.integrityVerified",
-			"Expected integrity verification evidence before activation.",
-		));
+		issues.push(
+			issue(
+				"ACTIVATION_INTEGRITY_NOT_VERIFIED",
+				"$.install.integrityVerified",
+				"Expected integrity verification evidence before activation.",
+			),
+		);
 	}
 	if (install.policyAccepted !== true) {
-		issues.push(issue(
-			"ACTIVATION_POLICY_NOT_ACCEPTED",
-			"$.install.policyAccepted",
-			"Expected host install policy acceptance before activation.",
-		));
+		issues.push(
+			issue(
+				"ACTIVATION_POLICY_NOT_ACCEPTED",
+				"$.install.policyAccepted",
+				"Expected host install policy acceptance before activation.",
+			),
+		);
 	}
 
 	const state = issues.length === 0 ? "ready" : "blocked";
@@ -245,8 +263,10 @@ export function isActivationInstallEvidence(value: unknown): value is {
 	integrityVerified: boolean;
 	policyAccepted: boolean;
 } {
-	return isRecord(value) &&
+	return (
+		isRecord(value) &&
 		typeof value.pluginManifestValid === "boolean" &&
 		typeof value.integrityVerified === "boolean" &&
-		typeof value.policyAccepted === "boolean";
+		typeof value.policyAccepted === "boolean"
+	);
 }

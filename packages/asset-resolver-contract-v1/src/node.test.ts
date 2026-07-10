@@ -125,10 +125,7 @@ describe("layeredAssetResolver (org → workspace → user byte fallback)", () =
 		// org has a TAMPERED file at this hash; user has the good one.
 		writeFileSync(join(org, hash), new TextEncoder().encode("EVIL"));
 		writeFileSync(join(user, hash), bytes);
-		const layered = layeredAssetResolver([
-			createFsAssetResolver(org),
-			createFsAssetResolver(user),
-		]);
+		const layered = layeredAssetResolver([createFsAssetResolver(org), createFsAssetResolver(user)]);
 		const result = await layered.resolve({ hash });
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -140,10 +137,7 @@ describe("layeredAssetResolver (org → workspace → user byte fallback)", () =
 		const hash = "a".repeat(64);
 		writeFileSync(join(org, hash), new TextEncoder().encode("x"));
 		writeFileSync(join(user, hash), new TextEncoder().encode("y"));
-		const layered = layeredAssetResolver([
-			createFsAssetResolver(org),
-			createFsAssetResolver(user),
-		]);
+		const layered = layeredAssetResolver([createFsAssetResolver(org), createFsAssetResolver(user)]);
 		expect(await layered.resolve({ hash })).toEqual({
 			ok: false,
 			reason: "hash-mismatch",
@@ -155,9 +149,7 @@ describe("createPeerAssetResolver (E4 — verify-before-trust over an injected t
 	it("resolves verified bytes fetched from a peer", async () => {
 		const bytes = new TextEncoder().encode("plugin from a peer");
 		const hash = nodeSha256Hex(bytes);
-		const resolver = createPeerAssetResolver(async (ref) =>
-			ref.hash === hash ? bytes : null,
-		);
+		const resolver = createPeerAssetResolver(async (ref) => (ref.hash === hash ? bytes : null));
 		const result = await resolver.resolve({ hash });
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -200,9 +192,7 @@ describe("createPeerAssetResolver (E4 — verify-before-trust over an injected t
 		const bytes = new TextEncoder().encode("only on the network");
 		const hash = nodeSha256Hex(bytes);
 		const emptyLocal = createPeerAssetResolver(async () => null); // stand-in local miss
-		const peer = createPeerAssetResolver(async (ref) =>
-			ref.hash === hash ? bytes : null,
-		);
+		const peer = createPeerAssetResolver(async (ref) => (ref.hash === hash ? bytes : null));
 		const layered = layeredAssetResolver([emptyLocal, peer]);
 		const result = await layered.resolve({ hash });
 		expect(result.ok).toBe(true);

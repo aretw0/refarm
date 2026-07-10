@@ -116,7 +116,12 @@ describe("reference vault surface — one honest matcher per verb", () => {
 	it("each verb populates ONLY its own output list", () => {
 		for (const verb of VAULT_VERBS) {
 			const result = runReferenceVault(verb, NOTE, profileForVerb(PROFILE, verb));
-			const owner = { search: "hits", extract: "records", organize: "plans", profile: "findings" } as const;
+			const owner = {
+				search: "hits",
+				extract: "records",
+				organize: "plans",
+				profile: "findings",
+			} as const;
 			for (const field of ["records", "hits", "plans", "findings"] as const) {
 				if (field === owner[verb]) continue;
 				expect(result[field], `${verb} must not populate ${field}`).toHaveLength(0);
@@ -127,9 +132,7 @@ describe("reference vault surface — one honest matcher per verb", () => {
 	it("an unknown match.type fires nothing (forward-safe)", () => {
 		const future: VaultProfile = {
 			name: "future",
-			rules: [
-				{ id: "x", verb: "search", match: JSON.stringify({ type: "semantic", q: "alpha" }) },
-			],
+			rules: [{ id: "x", verb: "search", match: JSON.stringify({ type: "semantic", q: "alpha" }) }],
 		};
 		expect(runReferenceVault("search", NOTE, future).hits).toHaveLength(0);
 	});

@@ -79,9 +79,7 @@ export async function runAutomationV1Conformance(
 		const effort = await adapter.trigger(automation.id);
 		check(
 			"trigger(active-id) returns Effort",
-			effort !== null &&
-				typeof effort.id === "string" &&
-				typeof effort.direction === "string",
+			effort !== null && typeof effort.id === "string" && typeof effort.direction === "string",
 		);
 	} catch (e) {
 		failures.push(`trigger(active-id) threw: ${String(e)}`);

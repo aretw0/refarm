@@ -53,8 +53,7 @@ export function vaultRecordToGraphNode(
 	record: KnowledgeRecord,
 	options: VaultEmitOptions,
 ): GraphNode {
-	const { id, "@type": recordType, "@context": _recordContext, ...payload } =
-		record;
+	const { id, "@type": recordType, "@context": _recordContext, ...payload } = record;
 	const type = normaliseType(recordType);
 	// GraphNode is a CLOSED domain shape (no index signature), but its open
 	// transport sibling NormalisedNode carries any extra field — so `@type` array
@@ -64,9 +63,7 @@ export function vaultRecordToGraphNode(
 		"@type": type.type,
 		"@id": id,
 		created_at_ns: options.createdAtNs,
-		...(options.contextId !== undefined
-			? { context_id: options.contextId }
-			: {}),
+		...(options.contextId !== undefined ? { context_id: options.contextId } : {}),
 		...payload,
 	};
 }
@@ -92,9 +89,7 @@ export function vaultRecordToNode(
 	return node;
 }
 
-function normaliseType(
-	recordType: KnowledgeRecord["@type"],
-): { type: string; all?: string[] } {
+function normaliseType(recordType: KnowledgeRecord["@type"]): { type: string; all?: string[] } {
 	if (typeof recordType === "string") return { type: recordType };
 	if (Array.isArray(recordType) && recordType.length > 0) {
 		return { type: recordType[0] as string, all: [...recordType] };

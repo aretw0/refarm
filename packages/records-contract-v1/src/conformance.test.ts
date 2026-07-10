@@ -33,7 +33,9 @@ describe("records:v1 conformance", () => {
 		const result = provider.validate(fixture);
 
 		expect(result.ok).toBe(false);
-		expect(result.failures.some((failure) => failure.message.includes("relation target does not exist"))).toBe(true);
+		expect(
+			result.failures.some((failure) => failure.message.includes("relation target does not exist")),
+		).toBe(true);
 	});
 
 	it("preserves unknown fields while upcasting older records", () => {

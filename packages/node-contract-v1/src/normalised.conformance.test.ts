@@ -25,15 +25,7 @@ import {
  * Oracle = the actual Rust source. We read the field names Rust writes rather
  * than hard-coding them, so the test tracks the real authoritative writer.
  */
-const RUST_SESSION_NODE = join(
-	__dirname,
-	"..",
-	"..",
-	"agent",
-	"src",
-	"session",
-	"pure.rs",
-);
+const RUST_SESSION_NODE = join(__dirname, "..", "..", "agent", "src", "session", "pure.rs");
 
 function rustEmittedFields(): Set<string> {
 	const src = readFileSync(RUST_SESSION_NODE, "utf8");

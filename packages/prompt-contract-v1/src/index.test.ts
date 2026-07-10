@@ -77,15 +77,21 @@ describe("createAutoOperatorChannel", () => {
 
 	it("returns default for select", async () => {
 		const ch = createAutoOperatorChannel();
-		const opts = [{ value: "a", label: "A" }, { value: "b", label: "B" }];
-		expect(
-			await ch.ask({ type: "select", question: "pick", options: opts, default: "b" }),
-		).toBe("b");
+		const opts = [
+			{ value: "a", label: "A" },
+			{ value: "b", label: "B" },
+		];
+		expect(await ch.ask({ type: "select", question: "pick", options: opts, default: "b" })).toBe(
+			"b",
+		);
 	});
 
 	it("returns first option when no default on select", async () => {
 		const ch = createAutoOperatorChannel();
-		const opts = [{ value: "a", label: "A" }, { value: "b", label: "B" }];
+		const opts = [
+			{ value: "a", label: "A" },
+			{ value: "b", label: "B" },
+		];
 		expect(await ch.ask({ type: "select", question: "pick", options: opts })).toBe("a");
 	});
 
@@ -113,7 +119,10 @@ describe("createAutoOperatorChannel", () => {
 describe("createScriptedOperatorChannel", () => {
 	it("returns answers in sequence", async () => {
 		const ch = createScriptedOperatorChannel([true, "openai", "sk-test"]);
-		const opts = [{ value: "openai", label: "OpenAI" }, { value: "anthropic", label: "Anthropic" }];
+		const opts = [
+			{ value: "openai", label: "OpenAI" },
+			{ value: "anthropic", label: "Anthropic" },
+		];
 		expect(await ch.ask({ type: "confirm", question: "ok?" })).toBe(true);
 		expect(await ch.ask({ type: "select", question: "provider?", options: opts })).toBe("openai");
 		expect(await ch.ask({ type: "secret", question: "key?" })).toBe("sk-test");

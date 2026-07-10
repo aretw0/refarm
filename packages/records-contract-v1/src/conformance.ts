@@ -1,7 +1,4 @@
-import {
-	computeRecordContentHash,
-	createReferenceRecordsFixture,
-} from "./reference.js";
+import { computeRecordContentHash, createReferenceRecordsFixture } from "./reference.js";
 import {
 	CURRENT_RECORD_SCHEMA_VERSION,
 	RECORDS_CAPABILITY,
@@ -60,7 +57,9 @@ export async function runRecordsV1Conformance(
 	try {
 		const result = provider.validate(sampleManifest);
 		if (!result.ok) {
-			failures.push(`valid fixture must pass validation: ${result.failures.map((item) => item.message).join("; ")}`);
+			failures.push(
+				`valid fixture must pass validation: ${result.failures.map((item) => item.message).join("; ")}`,
+			);
 		}
 	} catch (error) {
 		failures.push(`validate(valid fixture) threw: ${String(error)}`);
@@ -71,7 +70,9 @@ export async function runRecordsV1Conformance(
 		if (result.ok) {
 			failures.push("dangling relation targets must fail validation");
 		}
-		if (!result.failures.some((failure) => failure.message.includes("relation target does not exist"))) {
+		if (
+			!result.failures.some((failure) => failure.message.includes("relation target does not exist"))
+		) {
 			failures.push("dangling relation failures must identify the missing target");
 		}
 	} catch (error) {
@@ -84,7 +85,9 @@ export async function runRecordsV1Conformance(
 			failures.push("sample manifest must include at least one record");
 		} else {
 			const firstHash = computeRecordContentHash(record);
-			const secondHash = computeRecordContentHash(JSON.parse(JSON.stringify(record)) as KnowledgeRecord);
+			const secondHash = computeRecordContentHash(
+				JSON.parse(JSON.stringify(record)) as KnowledgeRecord,
+			);
 			if (firstHash !== secondHash) {
 				failures.push("content hash must be stable for canonical content");
 			}

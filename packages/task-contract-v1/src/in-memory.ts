@@ -1,10 +1,4 @@
-import type {
-	Task,
-	TaskContractAdapter,
-	TaskEvent,
-	TaskStatus,
-	TaskSummary,
-} from "./types.js";
+import type { Task, TaskContractAdapter, TaskEvent, TaskStatus, TaskSummary } from "./types.js";
 
 const TASK_STATUSES: TaskStatus[] = [
 	"pending",
@@ -99,9 +93,7 @@ export function createInMemoryTaskAdapter(
 
 		async appendEvent(eventInput) {
 			if (!tasks.has(eventInput.task_id)) {
-				throw new Error(
-					`Task not found for event append: ${eventInput.task_id}`,
-				);
+				throw new Error(`Task not found for event append: ${eventInput.task_id}`);
 			}
 
 			const event: TaskEvent = {
@@ -121,9 +113,7 @@ export function createInMemoryTaskAdapter(
 			let items = Array.from(tasks.values());
 
 			if (filter.status !== undefined) {
-				const allowed = Array.isArray(filter.status)
-					? filter.status
-					: [filter.status];
+				const allowed = Array.isArray(filter.status) ? filter.status : [filter.status];
 				items = items.filter((task) => allowed.includes(task.status));
 			}
 
@@ -136,9 +126,7 @@ export function createInMemoryTaskAdapter(
 			}
 
 			if (filter.parent_task_id !== undefined) {
-				items = items.filter(
-					(task) => task.parent_task_id === filter.parent_task_id,
-				);
+				items = items.filter((task) => task.parent_task_id === filter.parent_task_id);
 			}
 
 			if (filter.created_by !== undefined) {
@@ -160,9 +148,7 @@ export function createInMemoryTaskAdapter(
 			}
 
 			if (filter.tags !== undefined && filter.tags.length > 0) {
-				items = items.filter((task) =>
-					filter.tags!.every((tag) => task.tags?.includes(tag)),
-				);
+				items = items.filter((task) => filter.tags!.every((tag) => task.tags?.includes(tag)));
 			}
 
 			return items.sort((a, b) => a.created_at_ns - b.created_at_ns);

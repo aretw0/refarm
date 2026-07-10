@@ -36,10 +36,7 @@ import {
 	validateSource,
 } from "./manifest-shared.js";
 
-import {
-	parseSkillMarkdown,
-	validateSkillManifest,
-} from "./manifest-parse.js";
+import { parseSkillMarkdown, validateSkillManifest } from "./manifest-parse.js";
 
 export function buildSkillInvocationPlan(
 	manifest: SkillManifestV1,
@@ -116,7 +113,13 @@ export function buildSkillInvocationDecision(
 		return {
 			ok: false,
 			decision: null,
-			issues: [issue("INVOCATION_DECISION_OPTIONS_NOT_OBJECT", "$", "Expected invocation decision options.")],
+			issues: [
+				issue(
+					"INVOCATION_DECISION_OPTIONS_NOT_OBJECT",
+					"$",
+					"Expected invocation decision options.",
+				),
+			],
 		};
 	}
 
@@ -124,14 +127,21 @@ export function buildSkillInvocationDecision(
 	validatePolicyDecision(options.decision, "$.decision", issues);
 	requireNonEmptyString(options.reason, "$.reason", issues);
 	if (options.approvedCapabilities !== undefined) {
-		validateApprovedCapabilities(options.approvedCapabilities, "$.approvedCapabilities", request, issues);
+		validateApprovedCapabilities(
+			options.approvedCapabilities,
+			"$.approvedCapabilities",
+			request,
+			issues,
+		);
 	}
 	if (options.decision === "approved" && !Array.isArray(options.approvedCapabilities)) {
-		issues.push(issue(
-			"INVOCATION_DECISION_APPROVED_CAPABILITIES_REQUIRED",
-			"$.approvedCapabilities",
-			"Expected explicit approved capabilities for an approval decision.",
-		));
+		issues.push(
+			issue(
+				"INVOCATION_DECISION_APPROVED_CAPABILITIES_REQUIRED",
+				"$.approvedCapabilities",
+				"Expected explicit approved capabilities for an approval decision.",
+			),
+		);
 	}
 	if (issues.length > 0) {
 		return { ok: false, decision: null, issues };
@@ -141,8 +151,10 @@ export function buildSkillInvocationDecision(
 	const capabilityDecisions = request.capabilityRequests.map((item) => ({
 		id: item.id,
 		required: item.required,
-		decision: approvedCapabilities.has(item.id) ? "approved" as const : "denied" as const,
-		...(!approvedCapabilities.has(item.id) ? { reason: "Capability was not approved by host policy." } : {}),
+		decision: approvedCapabilities.has(item.id) ? ("approved" as const) : ("denied" as const),
+		...(!approvedCapabilities.has(item.id)
+			? { reason: "Capability was not approved by host policy." }
+			: {}),
 	}));
 	const decision: SkillInvocationDecisionV1 = {
 		schema: SKILL_INVOCATION_DECISION_SCHEMA,
@@ -174,7 +186,9 @@ export function buildSkillInvocationReceipt(
 		return {
 			ok: false,
 			receipt: null,
-			issues: [issue("INVOCATION_RECEIPT_OPTIONS_NOT_OBJECT", "$", "Expected invocation receipt options.")],
+			issues: [
+				issue("INVOCATION_RECEIPT_OPTIONS_NOT_OBJECT", "$", "Expected invocation receipt options."),
+			],
 		};
 	}
 
@@ -191,10 +205,18 @@ export function buildSkillInvocationReceipt(
 		validateIsoTimestamp(options.completedAt, "$.completedAt", issues);
 	}
 	if (options.status === "succeeded" && options.output === undefined) {
-		issues.push(issue("INVOCATION_RECEIPT_OUTPUT_REQUIRED", "$.output", "Expected output for succeeded receipts."));
+		issues.push(
+			issue(
+				"INVOCATION_RECEIPT_OUTPUT_REQUIRED",
+				"$.output",
+				"Expected output for succeeded receipts.",
+			),
+		);
 	}
 	if (options.status === "failed" && options.error === undefined) {
-		issues.push(issue("INVOCATION_RECEIPT_ERROR_REQUIRED", "$.error", "Expected error for failed receipts."));
+		issues.push(
+			issue("INVOCATION_RECEIPT_ERROR_REQUIRED", "$.error", "Expected error for failed receipts."),
+		);
 	}
 	if (issues.length > 0) {
 		return { ok: false, receipt: null, issues };
@@ -245,7 +267,9 @@ export function validateSkillInvocationPlan(value: unknown): SkillManifestValida
 	if (!isRecord(value)) {
 		return {
 			ok: false,
-			issues: [issue("INVOCATION_PLAN_NOT_OBJECT", "$", "Expected a skill invocation plan object.")],
+			issues: [
+				issue("INVOCATION_PLAN_NOT_OBJECT", "$", "Expected a skill invocation plan object."),
+			],
 		};
 	}
 
@@ -257,7 +281,13 @@ export function validateSkillInvocationPlan(value: unknown): SkillManifestValida
 	validateIo(value.io, "$.io", issues);
 	requireNonEmptyString(value.instructions, "$.instructions", issues);
 	if (value.requiresHostPolicyApproval !== true) {
-		issues.push(issue("INVOCATION_POLICY_APPROVAL_REQUIRED", "$.requiresHostPolicyApproval", "Expected true."));
+		issues.push(
+			issue(
+				"INVOCATION_POLICY_APPROVAL_REQUIRED",
+				"$.requiresHostPolicyApproval",
+				"Expected true.",
+			),
+		);
 	}
 	return { ok: issues.length === 0, issues };
 }
@@ -267,7 +297,9 @@ export function validateSkillInvocationRequest(value: unknown): SkillManifestVal
 	if (!isRecord(value)) {
 		return {
 			ok: false,
-			issues: [issue("INVOCATION_REQUEST_NOT_OBJECT", "$", "Expected a skill invocation request object.")],
+			issues: [
+				issue("INVOCATION_REQUEST_NOT_OBJECT", "$", "Expected a skill invocation request object."),
+			],
 		};
 	}
 
@@ -279,7 +311,13 @@ export function validateSkillInvocationRequest(value: unknown): SkillManifestVal
 	validateEngineBindings(value.engineBindings, "$.engineBindings", issues);
 	validateOutputEnvelope(value.output, "$.output", issues);
 	if (value.requiresHostPolicyApproval !== true) {
-		issues.push(issue("INVOCATION_POLICY_APPROVAL_REQUIRED", "$.requiresHostPolicyApproval", "Expected true."));
+		issues.push(
+			issue(
+				"INVOCATION_POLICY_APPROVAL_REQUIRED",
+				"$.requiresHostPolicyApproval",
+				"Expected true.",
+			),
+		);
 	}
 	return { ok: issues.length === 0, issues };
 }
@@ -289,30 +327,49 @@ export function validateSkillInvocationDecision(value: unknown): SkillManifestVa
 	if (!isRecord(value)) {
 		return {
 			ok: false,
-			issues: [issue("INVOCATION_DECISION_NOT_OBJECT", "$", "Expected a skill invocation decision object.")],
+			issues: [
+				issue(
+					"INVOCATION_DECISION_NOT_OBJECT",
+					"$",
+					"Expected a skill invocation decision object.",
+				),
+			],
 		};
 	}
 
 	requireExact(value.schema, SKILL_INVOCATION_DECISION_SCHEMA, "$.schema", issues);
 	const requestValidation = validateSkillInvocationRequest(value.request);
 	if (!requestValidation.ok) {
-		issues.push(...requestValidation.issues.map((item) => ({
-			...item,
-			path: `$.request${item.path === "$" ? "" : item.path.slice(1)}`,
-		})));
+		issues.push(
+			...requestValidation.issues.map((item) => ({
+				...item,
+				path: `$.request${item.path === "$" ? "" : item.path.slice(1)}`,
+			})),
+		);
 	}
 	validatePolicyDecision(value.decision, "$.decision", issues);
 	requireNonEmptyString(value.reason, "$.reason", issues);
 	validateEngineBindings(value.engineBindings, "$.engineBindings", issues);
-	if (isRecord(value.request) && !engineBindingsEqual(value.engineBindings, value.request.engineBindings)) {
-		issues.push(issue(
-			"INVOCATION_DECISION_ENGINE_BINDINGS_MISMATCH",
-			"$.engineBindings",
-			"Expected decision engine bindings to match the invocation request.",
-		));
+	if (
+		isRecord(value.request) &&
+		!engineBindingsEqual(value.engineBindings, value.request.engineBindings)
+	) {
+		issues.push(
+			issue(
+				"INVOCATION_DECISION_ENGINE_BINDINGS_MISMATCH",
+				"$.engineBindings",
+				"Expected decision engine bindings to match the invocation request.",
+			),
+		);
 	}
 	if (value.requiresRuntimeDispatch !== true && value.requiresRuntimeDispatch !== false) {
-		issues.push(issue("INVOCATION_RUNTIME_DISPATCH_INVALID", "$.requiresRuntimeDispatch", "Expected boolean."));
+		issues.push(
+			issue(
+				"INVOCATION_RUNTIME_DISPATCH_INVALID",
+				"$.requiresRuntimeDispatch",
+				"Expected boolean.",
+			),
+		);
 	}
 	if (value.executed !== false) {
 		issues.push(issue("INVOCATION_DECISION_EXECUTED_INVALID", "$.executed", "Expected false."));
@@ -321,23 +378,29 @@ export function validateSkillInvocationDecision(value: unknown): SkillManifestVa
 	validateInvocationCapabilityDecisions(
 		value.capabilityDecisions,
 		"$.capabilityDecisions",
-		isRecord(request) && Array.isArray(request.capabilityRequests) ? request.capabilityRequests : [],
+		isRecord(request) && Array.isArray(request.capabilityRequests)
+			? request.capabilityRequests
+			: [],
 		value.decision,
 		issues,
 	);
 	if (value.decision === "approved" && value.requiresRuntimeDispatch !== true) {
-		issues.push(issue(
-			"INVOCATION_APPROVAL_REQUIRES_RUNTIME_DISPATCH",
-			"$.requiresRuntimeDispatch",
-			"Expected approved decisions to require runtime dispatch.",
-		));
+		issues.push(
+			issue(
+				"INVOCATION_APPROVAL_REQUIRES_RUNTIME_DISPATCH",
+				"$.requiresRuntimeDispatch",
+				"Expected approved decisions to require runtime dispatch.",
+			),
+		);
 	}
 	if (value.decision === "denied" && value.requiresRuntimeDispatch !== false) {
-		issues.push(issue(
-			"INVOCATION_DENIAL_BLOCKS_RUNTIME_DISPATCH",
-			"$.requiresRuntimeDispatch",
-			"Expected denied decisions to block runtime dispatch.",
-		));
+		issues.push(
+			issue(
+				"INVOCATION_DENIAL_BLOCKS_RUNTIME_DISPATCH",
+				"$.requiresRuntimeDispatch",
+				"Expected denied decisions to block runtime dispatch.",
+			),
+		);
 	}
 	return { ok: issues.length === 0, issues };
 }
@@ -347,31 +410,49 @@ export function validateSkillInvocationReceipt(value: unknown): SkillManifestVal
 	if (!isRecord(value)) {
 		return {
 			ok: false,
-			issues: [issue("INVOCATION_RECEIPT_NOT_OBJECT", "$", "Expected a skill invocation receipt object.")],
+			issues: [
+				issue("INVOCATION_RECEIPT_NOT_OBJECT", "$", "Expected a skill invocation receipt object."),
+			],
 		};
 	}
 
 	requireExact(value.schema, SKILL_INVOCATION_RECEIPT_SCHEMA, "$.schema", issues);
 	const decisionValidation = validateSkillInvocationDecision(value.decision);
 	if (!decisionValidation.ok) {
-		issues.push(...decisionValidation.issues.map((item) => ({
-			...item,
-			path: `$.decision${item.path === "$" ? "" : item.path.slice(1)}`,
-		})));
+		issues.push(
+			...decisionValidation.issues.map((item) => ({
+				...item,
+				path: `$.decision${item.path === "$" ? "" : item.path.slice(1)}`,
+			})),
+		);
 	}
 	if (isRecord(value.decision)) {
 		if (value.decision.decision !== "approved") {
-			issues.push(issue("INVOCATION_RECEIPT_REQUIRES_APPROVAL", "$.decision.decision", "Expected approved decision."));
+			issues.push(
+				issue(
+					"INVOCATION_RECEIPT_REQUIRES_APPROVAL",
+					"$.decision.decision",
+					"Expected approved decision.",
+				),
+			);
 		}
 		if (value.decision.requiresRuntimeDispatch !== true) {
-			issues.push(issue(
-				"INVOCATION_RECEIPT_REQUIRES_RUNTIME_DISPATCH",
-				"$.decision.requiresRuntimeDispatch",
-				"Expected decision to require runtime dispatch.",
-			));
+			issues.push(
+				issue(
+					"INVOCATION_RECEIPT_REQUIRES_RUNTIME_DISPATCH",
+					"$.decision.requiresRuntimeDispatch",
+					"Expected decision to require runtime dispatch.",
+				),
+			);
 		}
 		if (value.decision.executed !== false) {
-			issues.push(issue("INVOCATION_RECEIPT_DECISION_ALREADY_EXECUTED", "$.decision.executed", "Expected false."));
+			issues.push(
+				issue(
+					"INVOCATION_RECEIPT_DECISION_ALREADY_EXECUTED",
+					"$.decision.executed",
+					"Expected false.",
+				),
+			);
 		}
 	}
 	validateExecutionStatus(value.status, "$.status", issues);
@@ -387,15 +468,27 @@ export function validateSkillInvocationReceipt(value: unknown): SkillManifestVal
 		issues.push(issue("INVOCATION_RECEIPT_EXECUTED_INVALID", "$.executed", "Expected true."));
 	}
 	if (value.status === "succeeded" && value.output === undefined) {
-		issues.push(issue("INVOCATION_RECEIPT_OUTPUT_REQUIRED", "$.output", "Expected output for succeeded receipts."));
+		issues.push(
+			issue(
+				"INVOCATION_RECEIPT_OUTPUT_REQUIRED",
+				"$.output",
+				"Expected output for succeeded receipts.",
+			),
+		);
 	}
 	if (value.status === "failed" && value.error === undefined) {
-		issues.push(issue("INVOCATION_RECEIPT_ERROR_REQUIRED", "$.error", "Expected error for failed receipts."));
+		issues.push(
+			issue("INVOCATION_RECEIPT_ERROR_REQUIRED", "$.error", "Expected error for failed receipts."),
+		);
 	}
 	return { ok: issues.length === 0, issues };
 }
 
-export function validateInvocationSkillRef(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateInvocationSkillRef(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (!isRecord(value)) {
 		issues.push(issue("INVOCATION_SKILL_NOT_OBJECT", path, "Expected skill reference object."));
 		return;
@@ -411,28 +504,46 @@ export function validateInvocationCapabilities(
 	issues: SkillManifestIssue[],
 ): void {
 	if (!Array.isArray(value)) {
-		issues.push(issue("INVOCATION_CAPABILITY_LIST_INVALID", path, "Expected capability request array."));
+		issues.push(
+			issue("INVOCATION_CAPABILITY_LIST_INVALID", path, "Expected capability request array."),
+		);
 		return;
 	}
 	if (value.length === 0) {
-		issues.push(issue("INVOCATION_CAPABILITY_LIST_EMPTY", path, "Expected at least one capability request."));
+		issues.push(
+			issue("INVOCATION_CAPABILITY_LIST_EMPTY", path, "Expected at least one capability request."),
+		);
 	}
 	value.forEach((item, index) => {
 		const itemPath = `${path}.${index}`;
 		if (!isRecord(item)) {
-			issues.push(issue("INVOCATION_CAPABILITY_NOT_OBJECT", itemPath, "Expected capability request object."));
+			issues.push(
+				issue("INVOCATION_CAPABILITY_NOT_OBJECT", itemPath, "Expected capability request object."),
+			);
 			return;
 		}
 		if (!isCapabilityId(item.id)) {
-			issues.push(issue("CAPABILITY_ID_INVALID", `${itemPath}.id`, "Expected a valid capability id."));
+			issues.push(
+				issue("CAPABILITY_ID_INVALID", `${itemPath}.id`, "Expected a valid capability id."),
+			);
 		}
 		if (typeof item.required !== "boolean") {
-			issues.push(issue("INVOCATION_CAPABILITY_REQUIRED_INVALID", `${itemPath}.required`, "Expected boolean."));
+			issues.push(
+				issue(
+					"INVOCATION_CAPABILITY_REQUIRED_INVALID",
+					`${itemPath}.required`,
+					"Expected boolean.",
+				),
+			);
 		}
 	});
 }
 
-export function validateInvocationInput(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateInvocationInput(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (!isRecord(value)) {
 		issues.push(issue("INVOCATION_INPUT_NOT_OBJECT", path, "Expected invocation input object."));
 		return;
@@ -441,7 +552,11 @@ export function validateInvocationInput(value: unknown, path: string, issues: Sk
 	requireNonEmptyString(value.body, `${path}.body`, issues);
 }
 
-export function validateInvocationOutputPayload(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateInvocationOutputPayload(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (!isRecord(value)) {
 		issues.push(issue("INVOCATION_OUTPUT_NOT_OBJECT", path, "Expected invocation output object."));
 		return;
@@ -450,49 +565,95 @@ export function validateInvocationOutputPayload(value: unknown, path: string, is
 	requireNonEmptyString(value.body, `${path}.body`, issues);
 }
 
-export function validatePolicyDecision(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validatePolicyDecision(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (value !== "approved" && value !== "denied") {
 		issues.push(issue("INVOCATION_DECISION_VALUE_INVALID", path, "Expected approved or denied."));
 	}
 }
 
-export function validateExecutionStatus(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateExecutionStatus(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (value !== "succeeded" && value !== "failed") {
-		issues.push(issue("INVOCATION_EXECUTION_STATUS_INVALID", path, "Expected succeeded or failed."));
+		issues.push(
+			issue("INVOCATION_EXECUTION_STATUS_INVALID", path, "Expected succeeded or failed."),
+		);
 	}
 }
 
-export function validateEngineCallEvidenceList(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateEngineCallEvidenceList(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (!Array.isArray(value)) {
-		issues.push(issue("ENGINE_CALL_EVIDENCE_LIST_INVALID", path, "Expected engine call evidence array."));
+		issues.push(
+			issue("ENGINE_CALL_EVIDENCE_LIST_INVALID", path, "Expected engine call evidence array."),
+		);
 		return;
 	}
 	if (value.length === 0) {
-		issues.push(issue("ENGINE_CALL_EVIDENCE_LIST_EMPTY", path, "Expected at least one engine call evidence entry."));
+		issues.push(
+			issue(
+				"ENGINE_CALL_EVIDENCE_LIST_EMPTY",
+				path,
+				"Expected at least one engine call evidence entry.",
+			),
+		);
 	}
 	value.forEach((item, index) => {
 		validateEngineCallEvidence(item, `${path}.${index}`, issues);
 	});
 }
 
-export function validateEngineCallEvidence(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateEngineCallEvidence(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (!isRecord(value)) {
-		issues.push(issue("ENGINE_CALL_EVIDENCE_NOT_OBJECT", path, "Expected engine call evidence object."));
+		issues.push(
+			issue("ENGINE_CALL_EVIDENCE_NOT_OBJECT", path, "Expected engine call evidence object."),
+		);
 		return;
 	}
 	if (!isEngineBindingId(value.engineBinding)) {
-		issues.push(issue("ENGINE_BINDING_ID_INVALID", `${path}.engineBinding`, "Expected a valid engine binding id."));
+		issues.push(
+			issue(
+				"ENGINE_BINDING_ID_INVALID",
+				`${path}.engineBinding`,
+				"Expected a valid engine binding id.",
+			),
+		);
 	}
 	if (!isCapabilityId(value.capability)) {
-		issues.push(issue("CAPABILITY_ID_INVALID", `${path}.capability`, "Expected a valid capability id."));
+		issues.push(
+			issue("CAPABILITY_ID_INVALID", `${path}.capability`, "Expected a valid capability id."),
+		);
 	}
 	requireNonEmptyString(value.providerId, `${path}.providerId`, issues);
 	requireNonEmptyString(value.operation, `${path}.operation`, issues);
 	if (typeof value.ok !== "boolean") {
 		issues.push(issue("ENGINE_CALL_OK_INVALID", `${path}.ok`, "Expected boolean."));
 	}
-	if (typeof value.durationMs !== "number" || value.durationMs < 0 || !Number.isFinite(value.durationMs)) {
-		issues.push(issue("ENGINE_CALL_DURATION_INVALID", `${path}.durationMs`, "Expected a non-negative duration."));
+	if (
+		typeof value.durationMs !== "number" ||
+		value.durationMs < 0 ||
+		!Number.isFinite(value.durationMs)
+	) {
+		issues.push(
+			issue(
+				"ENGINE_CALL_DURATION_INVALID",
+				`${path}.durationMs`,
+				"Expected a non-negative duration.",
+			),
+		);
 	}
 	if (value.error !== undefined) {
 		requireNonEmptyString(value.error, `${path}.error`, issues);
@@ -506,7 +667,9 @@ export function validateApprovedCapabilities(
 	issues: SkillManifestIssue[],
 ): void {
 	if (!Array.isArray(value)) {
-		issues.push(issue("APPROVED_CAPABILITY_LIST_INVALID", path, "Expected an array of capability ids."));
+		issues.push(
+			issue("APPROVED_CAPABILITY_LIST_INVALID", path, "Expected an array of capability ids."),
+		);
 		return;
 	}
 
@@ -519,10 +682,18 @@ export function validateApprovedCapabilities(
 			return;
 		}
 		if (!requested.has(item)) {
-			issues.push(issue("APPROVED_CAPABILITY_NOT_REQUESTED", itemPath, "Expected a requested capability id."));
+			issues.push(
+				issue("APPROVED_CAPABILITY_NOT_REQUESTED", itemPath, "Expected a requested capability id."),
+			);
 		}
 		if (seen.has(item)) {
-			issues.push(issue("APPROVED_CAPABILITY_DUPLICATE", itemPath, "Expected capability approvals to be unique."));
+			issues.push(
+				issue(
+					"APPROVED_CAPABILITY_DUPLICATE",
+					itemPath,
+					"Expected capability approvals to be unique.",
+				),
+			);
 		}
 		seen.add(item);
 	});
@@ -536,11 +707,19 @@ export function validateInvocationCapabilityDecisions(
 	issues: SkillManifestIssue[],
 ): void {
 	if (!Array.isArray(value)) {
-		issues.push(issue("INVOCATION_CAPABILITY_DECISIONS_INVALID", path, "Expected capability decision array."));
+		issues.push(
+			issue("INVOCATION_CAPABILITY_DECISIONS_INVALID", path, "Expected capability decision array."),
+		);
 		return;
 	}
 	if (value.length === 0) {
-		issues.push(issue("INVOCATION_CAPABILITY_DECISIONS_EMPTY", path, "Expected at least one capability decision."));
+		issues.push(
+			issue(
+				"INVOCATION_CAPABILITY_DECISIONS_EMPTY",
+				path,
+				"Expected at least one capability decision.",
+			),
+		);
 	}
 
 	const requestedById = new Map<string, boolean>();
@@ -553,51 +732,89 @@ export function validateInvocationCapabilityDecisions(
 	value.forEach((item, index) => {
 		const itemPath = `${path}.${index}`;
 		if (!isRecord(item)) {
-			issues.push(issue("INVOCATION_CAPABILITY_DECISION_NOT_OBJECT", itemPath, "Expected capability decision object."));
+			issues.push(
+				issue(
+					"INVOCATION_CAPABILITY_DECISION_NOT_OBJECT",
+					itemPath,
+					"Expected capability decision object.",
+				),
+			);
 			return;
 		}
 		if (!isCapabilityId(item.id)) {
-			issues.push(issue("CAPABILITY_ID_INVALID", `${itemPath}.id`, "Expected a valid capability id."));
+			issues.push(
+				issue("CAPABILITY_ID_INVALID", `${itemPath}.id`, "Expected a valid capability id."),
+			);
 			return;
 		}
 		if (!requestedById.has(item.id)) {
-			issues.push(issue("INVOCATION_CAPABILITY_DECISION_NOT_REQUESTED", `${itemPath}.id`, "Expected requested capability id."));
+			issues.push(
+				issue(
+					"INVOCATION_CAPABILITY_DECISION_NOT_REQUESTED",
+					`${itemPath}.id`,
+					"Expected requested capability id.",
+				),
+			);
 		}
 		if (seen.has(item.id)) {
-			issues.push(issue("INVOCATION_CAPABILITY_DECISION_DUPLICATE", `${itemPath}.id`, "Expected one decision per capability."));
+			issues.push(
+				issue(
+					"INVOCATION_CAPABILITY_DECISION_DUPLICATE",
+					`${itemPath}.id`,
+					"Expected one decision per capability.",
+				),
+			);
 		}
 		seen.add(item.id);
 		if (typeof item.required !== "boolean") {
-			issues.push(issue("INVOCATION_CAPABILITY_DECISION_REQUIRED_INVALID", `${itemPath}.required`, "Expected boolean."));
+			issues.push(
+				issue(
+					"INVOCATION_CAPABILITY_DECISION_REQUIRED_INVALID",
+					`${itemPath}.required`,
+					"Expected boolean.",
+				),
+			);
 		} else if (requestedById.get(item.id) !== item.required) {
-			issues.push(issue(
-				"INVOCATION_CAPABILITY_DECISION_REQUIRED_MISMATCH",
-				`${itemPath}.required`,
-				"Expected required flag to match the invocation request.",
-			));
+			issues.push(
+				issue(
+					"INVOCATION_CAPABILITY_DECISION_REQUIRED_MISMATCH",
+					`${itemPath}.required`,
+					"Expected required flag to match the invocation request.",
+				),
+			);
 		}
 		validatePolicyDecision(item.decision, `${itemPath}.decision`, issues);
 		if (item.reason !== undefined) {
 			requireNonEmptyString(item.reason, `${itemPath}.reason`, issues);
 		}
 		if (decision === "approved" && item.required === true && item.decision !== "approved") {
-			issues.push(issue(
-				"INVOCATION_REQUIRED_CAPABILITY_NOT_APPROVED",
-				`${itemPath}.decision`,
-				"Expected approved decisions to approve every required capability.",
-			));
+			issues.push(
+				issue(
+					"INVOCATION_REQUIRED_CAPABILITY_NOT_APPROVED",
+					`${itemPath}.decision`,
+					"Expected approved decisions to approve every required capability.",
+				),
+			);
 		}
 		if (decision === "denied" && item.decision === "approved") {
-			issues.push(issue(
-				"INVOCATION_DENIAL_APPROVES_CAPABILITY",
-				`${itemPath}.decision`,
-				"Expected denied decisions to approve no capabilities.",
-			));
+			issues.push(
+				issue(
+					"INVOCATION_DENIAL_APPROVES_CAPABILITY",
+					`${itemPath}.decision`,
+					"Expected denied decisions to approve no capabilities.",
+				),
+			);
 		}
 	});
 	for (const id of requestedById.keys()) {
 		if (!seen.has(id)) {
-			issues.push(issue("INVOCATION_CAPABILITY_DECISION_MISSING", path, "Expected one decision per requested capability."));
+			issues.push(
+				issue(
+					"INVOCATION_CAPABILITY_DECISION_MISSING",
+					path,
+					"Expected one decision per requested capability.",
+				),
+			);
 		}
 	}
 }

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-	unfoldSessionContextFold,
-	type SessionContextFold,
-} from "./context-folding.js";
+import { unfoldSessionContextFold, type SessionContextFold } from "./context-folding.js";
 import type { SessionEntry } from "./types.js";
 
 /**
@@ -76,10 +73,7 @@ describe("Rust→TS context-fold round-trip", () => {
 		const result = unfoldSessionContextFold(RUST_EMITTED_FOLD, ORIGINAL_ENTRIES);
 		// The folded turns are reconstructed, in folded-reference order.
 		expect(result.entries.map((e) => e["@id"])).toEqual(["urn:e1", "urn:e2"]);
-		expect(result.entries.map((e) => e.content)).toEqual([
-			"olá mundo",
-			"resposta ação👍",
-		]);
+		expect(result.entries.map((e) => e.content)).toEqual(["olá mundo", "resposta ação👍"]);
 		// The whole point: the Rust digest matches the TS re-computation → nothing torn.
 		expect(result.missing_entry_ids).toEqual([]);
 		expect(result.digest_mismatches).toEqual([]);

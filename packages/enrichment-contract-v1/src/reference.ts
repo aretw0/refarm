@@ -112,9 +112,7 @@ export function createReferenceEnrichmentProvider(
 
 	function describe(): EnrichmentProviderDescription {
 		const addsFields = [
-			...new Set(
-				Object.values(fixture).flatMap((entry) => Object.keys(entry.fields)),
-			),
+			...new Set(Object.values(fixture).flatMap((entry) => Object.keys(entry.fields))),
 		].sort();
 
 		return {

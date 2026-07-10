@@ -1,9 +1,5 @@
 import { isMaterializeResult } from "./schema.js";
-import {
-	SOURCE_CAPABILITY,
-	type SourceConformanceResult,
-	type SourceProvider,
-} from "./types.js";
+import { SOURCE_CAPABILITY, type SourceConformanceResult, type SourceProvider } from "./types.js";
 
 const DEFAULT_SAMPLE_REF = "local:/__source_conformance__/sample";
 
@@ -81,9 +77,7 @@ export async function runSourceV1Conformance(
 					entry.ref.length === 0 ||
 					typeof entry.label !== "string"
 				) {
-					failures.push(
-						"discover() entries must each have a non-empty ref and a label",
-					);
+					failures.push("discover() entries must each have a non-empty ref and a label");
 					break;
 				}
 			}

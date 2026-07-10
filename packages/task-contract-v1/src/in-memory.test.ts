@@ -44,8 +44,6 @@ describe("createInMemoryTaskAdapter", () => {
 
 		const events = await adapter.events?.(root["@id"]);
 		expect(events?.length).toBe(2);
-		expect(events?.[0].timestamp_ns).toBeLessThan(
-			events?.[1].timestamp_ns ?? 0,
-		);
+		expect(events?.[0].timestamp_ns).toBeLessThan(events?.[1].timestamp_ns ?? 0);
 	});
 });

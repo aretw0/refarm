@@ -123,7 +123,9 @@ future:vocabulary:
 			workflowStatus: "ready",
 		});
 		expect(record.localTag).toBe("vault-owned");
-		expect(recordToYamlLdObject(record, { propertyKeyMap: { id: "uri" } }).uri).toBe("record:mapped");
+		expect(recordToYamlLdObject(record, { propertyKeyMap: { id: "uri" } }).uri).toBe(
+			"record:mapped",
+		);
 	});
 
 	it("serializes a YAML-LD front matter block while preserving the body boundary", () => {

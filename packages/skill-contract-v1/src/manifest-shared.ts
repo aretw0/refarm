@@ -12,15 +12,17 @@ import {
 const CAPABILITY_ID_PATTERN = /^[a-z][a-z0-9]*(?:[.:/-][a-z0-9]+)*$/;
 const ENGINE_BINDING_ID_PATTERN = /^[a-z][a-z0-9]*(?:[.:/-][a-z0-9]+)*$/;
 
-
 export function slugify(value: string): string {
-	const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+	const slug = value
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "");
 	return slug || "unnamed";
 }
 
 export function stripQuotes(value: string): string {
 	if (
-		(value.startsWith("\"") && value.endsWith("\"")) ||
+		(value.startsWith('"') && value.endsWith('"')) ||
 		(value.startsWith("'") && value.endsWith("'"))
 	) {
 		return value.slice(1, -1);
@@ -85,7 +87,11 @@ export function requireNonEmptyString(
 	}
 }
 
-export function validateIsoTimestamp(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateIsoTimestamp(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	requireNonEmptyString(value, path, issues);
 	if (typeof value !== "string") return;
 	const timestamp = Date.parse(value);
@@ -96,7 +102,10 @@ export function validateIsoTimestamp(value: unknown, path: string, issues: Skill
 
 export function engineBindingsEqual(left: unknown, right: unknown): boolean {
 	if (!isRecord(left) || !isRecord(right)) return false;
-	return stringArraysEqual(left.requires, right.requires) && stringArraysEqual(left.optional, right.optional);
+	return (
+		stringArraysEqual(left.requires, right.requires) &&
+		stringArraysEqual(left.optional, right.optional)
+	);
 }
 
 export function stringArraysEqual(left: unknown, right: unknown): boolean {
@@ -108,15 +117,16 @@ export function stringArraysEqual(left: unknown, right: unknown): boolean {
 
 export function normalizeCapabilityList(value: unknown): readonly string[] {
 	if (Array.isArray(value)) {
-		return value.map(String).map((item) => item.trim()).filter(Boolean);
+		return value
+			.map(String)
+			.map((item) => item.trim())
+			.filter(Boolean);
 	}
 	if (typeof value !== "string") return [];
 	const trimmed = value.trim();
 	if (!trimmed) return [];
 	const withoutBrackets =
-		trimmed.startsWith("[") && trimmed.endsWith("]")
-			? trimmed.slice(1, -1)
-			: trimmed;
+		trimmed.startsWith("[") && trimmed.endsWith("]") ? trimmed.slice(1, -1) : trimmed;
 	return withoutBrackets
 		.split(",")
 		.map((item) => stripQuotes(item.trim()))
@@ -125,15 +135,16 @@ export function normalizeCapabilityList(value: unknown): readonly string[] {
 
 export function normalizeEngineBindingList(value: unknown): readonly string[] {
 	if (Array.isArray(value)) {
-		return value.map(String).map((item) => item.trim()).filter(Boolean);
+		return value
+			.map(String)
+			.map((item) => item.trim())
+			.filter(Boolean);
 	}
 	if (typeof value !== "string") return [];
 	const trimmed = value.trim();
 	if (!trimmed) return [];
 	const withoutBrackets =
-		trimmed.startsWith("[") && trimmed.endsWith("]")
-			? trimmed.slice(1, -1)
-			: trimmed;
+		trimmed.startsWith("[") && trimmed.endsWith("]") ? trimmed.slice(1, -1) : trimmed;
 	return withoutBrackets
 		.split(",")
 		.map((item) => stripQuotes(item.trim()))
@@ -170,7 +181,9 @@ export function parseFrontmatter(source: string): {
 		if (!line.trim()) continue;
 		const match = /^([A-Za-z][A-Za-z0-9_-]*):\s*(.*)$/.exec(line);
 		if (!match) {
-			issues.push(issue("FRONTMATTER_LINE_INVALID", `$.frontmatter.${index}`, "Expected key: value."));
+			issues.push(
+				issue("FRONTMATTER_LINE_INVALID", `$.frontmatter.${index}`, "Expected key: value."),
+			);
 			continue;
 		}
 
@@ -222,14 +235,20 @@ export function validateSource(value: unknown, path: string, issues: SkillManife
 	requireExact(value.format, "SKILL.md", `${path}.format`, issues);
 	requireNonEmptyString(value.uri, `${path}.uri`, issues);
 	if (!isSha256(value.sha256)) {
-		issues.push(issue("SOURCE_SHA256_INVALID", `${path}.sha256`, "Expected lowercase SHA-256 hex."));
+		issues.push(
+			issue("SOURCE_SHA256_INVALID", `${path}.sha256`, "Expected lowercase SHA-256 hex."),
+		);
 	}
 	if (!Number.isInteger(value.bytes) || (value.bytes as number) <= 0) {
 		issues.push(issue("SOURCE_BYTES_INVALID", `${path}.bytes`, "Expected a positive byte count."));
 	}
 }
 
-export function validateCapabilities(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateCapabilities(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (!isRecord(value)) {
 		issues.push(issue("CAPABILITIES_NOT_OBJECT", path, "Expected capabilities object."));
 		return;
@@ -248,7 +267,11 @@ export function validateCapabilities(value: unknown, path: string, issues: Skill
 	}
 }
 
-export function validateEngineBindings(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateEngineBindings(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (!isRecord(value)) {
 		issues.push(issue("ENGINE_BINDINGS_NOT_OBJECT", path, "Expected engine binding object."));
 		return;
@@ -266,10 +289,22 @@ export function validatePolicy(value: unknown, path: string, issues: SkillManife
 	}
 	const policy = value as Partial<SkillPolicyEnvelope>;
 	if (policy.executionMode !== "plan-only" && policy.executionMode !== "host-invoked") {
-		issues.push(issue("POLICY_EXECUTION_MODE_INVALID", `${path}.executionMode`, "Expected a known execution mode."));
+		issues.push(
+			issue(
+				"POLICY_EXECUTION_MODE_INVALID",
+				`${path}.executionMode`,
+				"Expected a known execution mode.",
+			),
+		);
 	}
 	if (policy.toolAccess !== "declared-capabilities-only") {
-		issues.push(issue("POLICY_TOOL_ACCESS_INVALID", `${path}.toolAccess`, "Expected declared-capabilities-only."));
+		issues.push(
+			issue(
+				"POLICY_TOOL_ACCESS_INVALID",
+				`${path}.toolAccess`,
+				"Expected declared-capabilities-only.",
+			),
+		);
 	}
 }
 
@@ -282,7 +317,11 @@ export function validateIo(value: unknown, path: string, issues: SkillManifestIs
 	validateOutputEnvelope(value.output, `${path}.output`, issues);
 }
 
-export function validateInputEnvelope(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateInputEnvelope(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (!isRecord(value)) {
 		issues.push(issue("INPUT_NOT_OBJECT", path, "Expected input envelope object."));
 		return;
@@ -296,7 +335,11 @@ export function validateInputEnvelope(value: unknown, path: string, issues: Skil
 	}
 }
 
-export function validateOutputEnvelope(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateOutputEnvelope(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (!isRecord(value)) {
 		issues.push(issue("OUTPUT_NOT_OBJECT", path, "Expected output envelope object."));
 		return;
@@ -322,7 +365,9 @@ export function validateCapabilityArray(
 	}
 	value.forEach((item, index) => {
 		if (!isCapabilityId(item)) {
-			issues.push(issue("CAPABILITY_ID_INVALID", `${path}.${index}`, "Expected a valid capability id."));
+			issues.push(
+				issue("CAPABILITY_ID_INVALID", `${path}.${index}`, "Expected a valid capability id."),
+			);
 		}
 	});
 }
@@ -333,12 +378,20 @@ export function validateEngineBindingArray(
 	issues: SkillManifestIssue[],
 ): void {
 	if (!Array.isArray(value)) {
-		issues.push(issue("ENGINE_BINDING_LIST_INVALID", path, "Expected an array of engine binding ids."));
+		issues.push(
+			issue("ENGINE_BINDING_LIST_INVALID", path, "Expected an array of engine binding ids."),
+		);
 		return;
 	}
 	value.forEach((item, index) => {
 		if (!isEngineBindingId(item)) {
-			issues.push(issue("ENGINE_BINDING_ID_INVALID", `${path}.${index}`, "Expected a valid engine binding id."));
+			issues.push(
+				issue(
+					"ENGINE_BINDING_ID_INVALID",
+					`${path}.${index}`,
+					"Expected a valid engine binding id.",
+				),
+			);
 		}
 	});
 }
@@ -365,13 +418,10 @@ export function createSkillEngineBindingEnvelope(
 	frontmatter: Readonly<Record<string, string | readonly string[]>>,
 ): SkillEngineBindingEnvelope {
 	const required = normalizeEngineBindingList(
-		frontmatter.engineBindings ??
-			frontmatter.requiredEngineBindings ??
-			frontmatter.requiresEngines,
+		frontmatter.engineBindings ?? frontmatter.requiredEngineBindings ?? frontmatter.requiresEngines,
 	);
 	const optional = normalizeEngineBindingList(
-		frontmatter.optionalEngineBindings ??
-			frontmatter.optionalEngines,
+		frontmatter.optionalEngineBindings ?? frontmatter.optionalEngines,
 	);
 	return {
 		requires: required,
@@ -379,9 +429,15 @@ export function createSkillEngineBindingEnvelope(
 	};
 }
 
-export function validateSurfaceAssets(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateSurfaceAssets(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	if (!Array.isArray(value)) {
-		issues.push(issue("SURFACE_ASSETS_INVALID", path, "Expected an array of relative asset paths."));
+		issues.push(
+			issue("SURFACE_ASSETS_INVALID", path, "Expected an array of relative asset paths."),
+		);
 		return;
 	}
 	if (value.length === 0) {
@@ -392,16 +448,26 @@ export function validateSurfaceAssets(value: unknown, path: string, issues: Skil
 	});
 }
 
-export function validateSurfaceAssetPath(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateSurfaceAssetPath(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	requireNonEmptyString(value, path, issues);
 	if (typeof value !== "string") return;
 	const trimmed = value.trim();
 	if (trimmed.startsWith("/") || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
-		issues.push(issue("SURFACE_ASSET_PATH_INVALID", path, "Expected a relative package asset path."));
+		issues.push(
+			issue("SURFACE_ASSET_PATH_INVALID", path, "Expected a relative package asset path."),
+		);
 	}
 }
 
-export function validateSurfaceId(value: unknown, path: string, issues: SkillManifestIssue[]): void {
+export function validateSurfaceId(
+	value: unknown,
+	path: string,
+	issues: SkillManifestIssue[],
+): void {
 	requireNonEmptyString(value, path, issues);
 	if (typeof value !== "string") return;
 	if (slugify(value) !== value) {

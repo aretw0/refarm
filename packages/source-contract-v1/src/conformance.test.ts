@@ -38,11 +38,7 @@ describe("source:v1 conformance", () => {
 		expect(result.failures).toContain("provider.capability must be 'source:v1'");
 		expect(result.failures).toContain("provider.pluginId must be a non-empty string");
 		expect(result.failures).toContain("provider.kinds must be non-empty");
-		expect(result.failures.some((failure) => failure.includes("materialize() threw"))).toBe(
-			true,
-		);
-		expect(result.failures.some((failure) => failure.includes("discover() threw"))).toBe(
-			true,
-		);
+		expect(result.failures.some((failure) => failure.includes("materialize() threw"))).toBe(true);
+		expect(result.failures.some((failure) => failure.includes("discover() threw"))).toBe(true);
 	});
 });

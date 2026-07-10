@@ -1,8 +1,5 @@
 import { serializeDispatchResult } from "./builders.js";
-import {
-	matchDispatchResults,
-	parseDispatchResult,
-} from "./match.js";
+import { matchDispatchResults, parseDispatchResult } from "./match.js";
 import {
 	DISPATCH_RESULT_TYPE,
 	type DispatchResultInput,

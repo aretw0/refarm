@@ -1,12 +1,6 @@
 export const SESSION_CAPABILITY = "session:v1" as const;
 
-export type SessionEntryKind =
-	| "user"
-	| "agent"
-	| "tool_call"
-	| "tool_result"
-	| "system"
-	| "error";
+export type SessionEntryKind = "user" | "agent" | "tool_call" | "tool_result" | "system" | "error";
 
 export interface Session {
 	"@type": "Session";
@@ -41,14 +35,9 @@ export interface SessionConformanceResult {
 export interface SessionContractAdapter {
 	create(session: Omit<Session, "@id" | "created_at_ns">): Promise<Session>;
 	get(id: string): Promise<Session | null>;
-	update(
-		id: string,
-		patch: Partial<Omit<Session, "@id" | "@type">>,
-	): Promise<Session>;
+	update(id: string, patch: Partial<Omit<Session, "@id" | "@type">>): Promise<Session>;
 	delete(id: string): Promise<void>;
-	appendEntry(
-		entry: Omit<SessionEntry, "@id" | "timestamp_ns">,
-	): Promise<SessionEntry>;
+	appendEntry(entry: Omit<SessionEntry, "@id" | "timestamp_ns">): Promise<SessionEntry>;
 	entries?(sessionId: string, limit?: number): Promise<SessionEntry[]>;
 	query?(filter: SessionFilter): Promise<Session[]>;
 }

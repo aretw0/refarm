@@ -132,11 +132,23 @@ export function createInMemoryEffortAdapter(
 
 			for (const tr of result.results) {
 				if (tr.status === "ok") {
-					log(effort.id, "info", "task_attempt_succeeded", `Task ${tr.taskId} succeeded`, tr.taskId);
+					log(
+						effort.id,
+						"info",
+						"task_attempt_succeeded",
+						`Task ${tr.taskId} succeeded`,
+						tr.taskId,
+					);
 				} else if (tr.status === "error") {
 					log(effort.id, "warn", "task_attempt_failed", `Task ${tr.taskId} failed`, tr.taskId);
 				} else if (tr.status === "timeout") {
-					log(effort.id, "warn", "task_attempt_timed_out", `Task ${tr.taskId} timed out`, tr.taskId);
+					log(
+						effort.id,
+						"warn",
+						"task_attempt_timed_out",
+						`Task ${tr.taskId} timed out`,
+						tr.taskId,
+					);
 				} else if (tr.status === "skipped") {
 					log(effort.id, "info", "task_skipped", `Task ${tr.taskId} skipped`, tr.taskId);
 				}

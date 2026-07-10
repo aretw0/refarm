@@ -1,10 +1,8 @@
 import type { SessionEntry, SessionEntryKind } from "./types.js";
 
-export const SESSION_CONTEXT_FOLD_SCHEMA =
-	"refarm.session-context-fold.v1" as const;
+export const SESSION_CONTEXT_FOLD_SCHEMA = "refarm.session-context-fold.v1" as const;
 
-export const SESSION_CONTEXT_FOLD_DIGEST_ALGORITHM =
-	"refarm-stable-fnv1a64-v1" as const;
+export const SESSION_CONTEXT_FOLD_DIGEST_ALGORITHM = "refarm-stable-fnv1a64-v1" as const;
 
 export interface SessionContextFoldDigest {
 	algorithm: typeof SESSION_CONTEXT_FOLD_DIGEST_ALGORITHM;
@@ -89,8 +87,8 @@ function stableStringify(value: unknown): string {
 		return `[${value.map((item) => stableStringify(item)).join(",")}]`;
 	}
 
-	const entries = Object.entries(value as Record<string, unknown>).sort(
-		([left], [right]) => left.localeCompare(right),
+	const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
+		left.localeCompare(right),
 	);
 	return `{${entries
 		.map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`)
@@ -150,9 +148,7 @@ export function planSessionContextFold(
 	entries: SessionEntry[],
 	options: PlanSessionContextFoldOptions = {},
 ): SessionContextFoldPlan | null {
-	const protectedTailCount = normalizeProtectedTailCount(
-		options.protectedTailCount,
-	);
+	const protectedTailCount = normalizeProtectedTailCount(options.protectedTailCount);
 	const ordered = [...entries].sort(compareEntries);
 	if (ordered.length === 0 || ordered.length <= protectedTailCount) {
 		return null;

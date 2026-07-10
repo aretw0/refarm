@@ -1,8 +1,4 @@
-import type {
-	Session,
-	SessionConformanceResult,
-	SessionContractAdapter,
-} from "./types.js";
+import type { Session, SessionConformanceResult, SessionContractAdapter } from "./types.js";
 
 export async function runSessionV1Conformance(
 	adapter: SessionContractAdapter,
@@ -102,9 +98,7 @@ export async function runSessionV1Conformance(
 			const result = await adapter.query({
 				participants: ["urn:refarm:conformance"],
 			});
-			const found = result.some(
-				(session) => session["@id"] === created?.["@id"],
-			);
+			const found = result.some((session) => session["@id"] === created?.["@id"]);
 			if (!found) {
 				failures.push("query({ participants }) did not return created session");
 			}
@@ -119,8 +113,7 @@ export async function runSessionV1Conformance(
 		try {
 			await adapter.delete(created["@id"]);
 			const afterDelete = await adapter.get(created["@id"]);
-			if (afterDelete !== null)
-				failures.push("delete() did not remove the session");
+			if (afterDelete !== null) failures.push("delete() did not remove the session");
 		} catch (error) {
 			failures.push(`delete() threw: ${String(error)}`);
 		}

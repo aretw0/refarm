@@ -33,9 +33,7 @@ describe("EffortTransportAdapter conformance — in-memory (partial)", () => {
 
 describe("EffortTransportAdapter conformance — in-memory (failed)", () => {
 	it("passes all checks", async () => {
-		const result = await runEffortV1Conformance(
-			createInMemoryEffortAdapter({ resolve: "failed" }),
-		);
+		const result = await runEffortV1Conformance(createInMemoryEffortAdapter({ resolve: "failed" }));
 		expect(result.failures).toEqual([]);
 		expect(result.pass).toBe(true);
 	});

@@ -48,10 +48,7 @@ export interface QualityReport {
 export interface QualityChecker<Subject = unknown> {
 	readonly checkerId: string;
 	readonly domain: string;
-	check(
-		subject: Subject,
-		profile: QualityProfile,
-	): QualityFinding[] | Promise<QualityFinding[]>;
+	check(subject: Subject, profile: QualityProfile): QualityFinding[] | Promise<QualityFinding[]>;
 }
 
 export interface QualityConformanceResult {

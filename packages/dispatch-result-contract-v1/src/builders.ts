@@ -11,9 +11,7 @@ import {
  * with; the node's `@id` is derived from it so results are addressable and a
  * caller can find them by `query-nodes(DISPATCH_RESULT_TYPE)` then filter.
  */
-export function buildDispatchResultNode(
-	input: DispatchResultInput,
-): DispatchResultNode {
+export function buildDispatchResultNode(input: DispatchResultInput): DispatchResultNode {
 	const node: DispatchResultNode = {
 		"@type": DISPATCH_RESULT_TYPE,
 		"@id": dispatchResultId(input.replyRef, input.verb),

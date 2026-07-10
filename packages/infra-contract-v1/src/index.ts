@@ -24,8 +24,7 @@ export interface ManagedServicePlan<
 
 export interface ProviderProvisionResource<
 	Kind extends ProviderProvisionResourceKind = ProviderProvisionResourceKind,
-	Action extends
-		ProviderProvisionResourceAction = ProviderProvisionResourceAction,
+	Action extends ProviderProvisionResourceAction = ProviderProvisionResourceAction,
 > {
 	readonly kind: Kind;
 	readonly action: Action;

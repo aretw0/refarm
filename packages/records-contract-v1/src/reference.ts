@@ -72,10 +72,7 @@ function requireString(
 	}
 }
 
-function validateSections(
-	record: KnowledgeRecord,
-	failures: RecordsValidationFailure[],
-): void {
+function validateSections(record: KnowledgeRecord, failures: RecordsValidationFailure[]): void {
 	if (record.sections === undefined) return;
 	if (!Array.isArray(record.sections)) {
 		failures.push({
@@ -87,7 +84,13 @@ function validateSections(
 	}
 
 	record.sections.forEach((section: RecordSection, index) => {
-		requireString(section.key, failures, "section.key must be a non-empty string", record.id, `$.sections[${index}].key`);
+		requireString(
+			section.key,
+			failures,
+			"section.key must be a non-empty string",
+			record.id,
+			`$.sections[${index}].key`,
+		);
 		if (typeof section.content !== "string") {
 			failures.push({
 				id: record.id,
@@ -121,8 +124,20 @@ function validateRelations(
 	}
 
 	record.relations.forEach((relation: RecordRelation, index) => {
-		requireString(relation.type, failures, "relation.type must be a non-empty string", record.id, `$.relations[${index}].type`);
-		requireString(relation.target, failures, "relation.target must be a non-empty string", record.id, `$.relations[${index}].target`);
+		requireString(
+			relation.type,
+			failures,
+			"relation.type must be a non-empty string",
+			record.id,
+			`$.relations[${index}].type`,
+		);
+		requireString(
+			relation.target,
+			failures,
+			"relation.target must be a non-empty string",
+			record.id,
+			`$.relations[${index}].target`,
+		);
 		if (typeof relation.target === "string" && !recordIds.has(relation.target)) {
 			failures.push({
 				id: record.id,
@@ -140,10 +155,7 @@ function validateRelations(
 	});
 }
 
-function validateAttachments(
-	record: KnowledgeRecord,
-	failures: RecordsValidationFailure[],
-): void {
+function validateAttachments(record: KnowledgeRecord, failures: RecordsValidationFailure[]): void {
 	if (record.attachments === undefined) return;
 	if (!Array.isArray(record.attachments)) {
 		failures.push({
@@ -155,8 +167,20 @@ function validateAttachments(
 	}
 
 	record.attachments.forEach((attachment: RecordAttachment, index) => {
-		requireString(attachment.id, failures, "attachment.id must be a non-empty string", record.id, `$.attachments[${index}].id`);
-		requireString(attachment.ref, failures, "attachment.ref must be a non-empty string", record.id, `$.attachments[${index}].ref`);
+		requireString(
+			attachment.id,
+			failures,
+			"attachment.id must be a non-empty string",
+			record.id,
+			`$.attachments[${index}].id`,
+		);
+		requireString(
+			attachment.ref,
+			failures,
+			"attachment.ref must be a non-empty string",
+			record.id,
+			`$.attachments[${index}].ref`,
+		);
 		if (attachment.mediaType !== undefined && typeof attachment.mediaType !== "string") {
 			failures.push({
 				id: record.id,
@@ -178,12 +202,26 @@ function validateReview(record: KnowledgeRecord, failures: RecordsValidationFail
 	if (record.review === undefined) return;
 	const review = record.review as RecordReview;
 	if (!isPlainObject(review)) {
-		failures.push({ id: record.id, message: "review must be an object when provided", path: "$.review" });
+		failures.push({
+			id: record.id,
+			message: "review must be an object when provided",
+			path: "$.review",
+		});
 		return;
 	}
-	requireString(review.state, failures, "review.state must be a non-empty string", record.id, "$.review.state");
+	requireString(
+		review.state,
+		failures,
+		"review.state must be a non-empty string",
+		record.id,
+		"$.review.state",
+	);
 	if (review.at !== undefined && Number.isNaN(Date.parse(review.at))) {
-		failures.push({ id: record.id, message: "review.at must be an ISO-compatible timestamp", path: "$.review.at" });
+		failures.push({
+			id: record.id,
+			message: "review.at must be an ISO-compatible timestamp",
+			path: "$.review.at",
+		});
 	}
 }
 
@@ -195,15 +233,33 @@ function validateRecord(
 ): void {
 	requireString(record.id, failures, "record.id must be a non-empty string", record.id, "$.id");
 	if (!Number.isInteger(record.schemaVersion) || record.schemaVersion < 1) {
-		failures.push({ id: record.id, message: "schemaVersion must be a positive integer", path: "$.schemaVersion" });
+		failures.push({
+			id: record.id,
+			message: "schemaVersion must be a positive integer",
+			path: "$.schemaVersion",
+		});
 	}
 	if (!isPlainObject(record.fields)) {
 		failures.push({ id: record.id, message: "fields must be an object", path: "$.fields" });
 	}
-	requireString(record.contentHash, failures, "contentHash must be a non-empty string", record.id, "$.contentHash");
+	requireString(
+		record.contentHash,
+		failures,
+		"contentHash must be a non-empty string",
+		record.id,
+		"$.contentHash",
+	);
 
-	if (record["@type"] !== undefined && typeof record["@type"] !== "string" && !isStringArray(record["@type"])) {
-		failures.push({ id: record.id, message: "@type must be a string or string array", path: "$.@type" });
+	if (
+		record["@type"] !== undefined &&
+		typeof record["@type"] !== "string" &&
+		!isStringArray(record["@type"])
+	) {
+		failures.push({
+			id: record.id,
+			message: "@type must be a string or string array",
+			path: "$.@type",
+		});
 	}
 
 	if (
@@ -211,11 +267,19 @@ function validateRecord(
 		typeof record["@context"] !== "string" &&
 		!isPlainObject(record["@context"])
 	) {
-		failures.push({ id: record.id, message: "@context must be a string or object", path: "$.@context" });
+		failures.push({
+			id: record.id,
+			message: "@context must be a string or object",
+			path: "$.@context",
+		});
 	}
 
 	if (record.sourceRefs !== undefined && !isStringArray(record.sourceRefs)) {
-		failures.push({ id: record.id, message: "sourceRefs must be a string array when provided", path: "$.sourceRefs" });
+		failures.push({
+			id: record.id,
+			message: "sourceRefs must be a string array when provided",
+			path: "$.sourceRefs",
+		});
 	}
 
 	validateSections(record, failures);
@@ -224,7 +288,11 @@ function validateRecord(
 	validateReview(record, failures);
 
 	if (validateContentHash && record.contentHash !== computeRecordContentHash(record)) {
-		failures.push({ id: record.id, message: "contentHash must match canonical record content", path: "$.contentHash" });
+		failures.push({
+			id: record.id,
+			message: "contentHash must match canonical record content",
+			path: "$.contentHash",
+		});
 	}
 }
 
@@ -337,7 +405,11 @@ export function createReferenceRecordsProvider(
 			for (const record of manifest.records) {
 				if (typeof record.id === "string") {
 					if (seen.has(record.id)) {
-						failures.push({ id: record.id, message: `duplicate record id: ${record.id}`, path: "$.records" });
+						failures.push({
+							id: record.id,
+							message: `duplicate record id: ${record.id}`,
+							path: "$.records",
+						});
 					}
 					seen.add(record.id);
 					recordIds.add(record.id);

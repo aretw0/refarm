@@ -25,7 +25,9 @@ function resolveProfile(
 
 	const parent = profiles[profile.extends];
 	if (!parent) {
-		throw new Error(`Quality profile '${profile.name}' extends unknown profile '${profile.extends}'`);
+		throw new Error(
+			`Quality profile '${profile.name}' extends unknown profile '${profile.extends}'`,
+		);
 	}
 
 	const resolvedParent = resolveProfile(parent, profiles, [...stack, profile.name]);

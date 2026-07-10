@@ -4,10 +4,7 @@ import type { StreamChunk, StreamTransportAdapter } from "./types.js";
 export class InMemoryStreamTransport implements StreamTransportAdapter {
 	readonly capability = STREAM_CAPABILITY;
 	private readonly stored = new Map<string, StreamChunk[]>();
-	private readonly subscribers = new Map<
-		string,
-		Set<(chunk: StreamChunk) => void>
-	>();
+	private readonly subscribers = new Map<string, Set<(chunk: StreamChunk) => void>>();
 	private readonly cancelled = new Set<string>();
 
 	write(chunk: StreamChunk): void {
@@ -20,10 +17,7 @@ export class InMemoryStreamTransport implements StreamTransportAdapter {
 		}
 	}
 
-	subscribe(
-		stream_ref: string,
-		onChunk: (chunk: StreamChunk) => void,
-	): () => void {
+	subscribe(stream_ref: string, onChunk: (chunk: StreamChunk) => void): () => void {
 		for (const chunk of this.stored.get(stream_ref) ?? []) {
 			onChunk(chunk);
 		}

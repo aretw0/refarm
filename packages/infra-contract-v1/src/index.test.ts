@@ -1,16 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { ManagedServicePlan, ProviderProvisionPlan } from "./index.js";
 
-interface ExampleServicePlan
-	extends ManagedServicePlan<
-		"example-service",
-		{
-			readonly kind: "artifact-storage";
-			readonly name: string;
-			readonly description: string;
-		},
-		"EXAMPLE_URL"
-	> {
+interface ExampleServicePlan extends ManagedServicePlan<
+	"example-service",
+	{
+		readonly kind: "artifact-storage";
+		readonly name: string;
+		readonly description: string;
+	},
+	"EXAMPLE_URL"
+> {
 	readonly team: string;
 }
 

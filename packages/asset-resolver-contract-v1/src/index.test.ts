@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { isSha256Hex, verifyContentHash, type AssetRef } from "./index.js";
 
-const digest = (bytes: Uint8Array): string =>
-	createHash("sha256").update(bytes).digest("hex");
+const digest = (bytes: Uint8Array): string => createHash("sha256").update(bytes).digest("hex");
 
 describe("verifyContentHash", () => {
 	const bytes = new TextEncoder().encode("hello content");
@@ -20,15 +19,15 @@ describe("verifyContentHash", () => {
 	});
 
 	it("rejects a non-sha-256 algorithm (v1 is sha-256 only)", async () => {
-		await expect(
-			verifyContentHash(bytes, { hash, alg: "sha-512" as never }, digest),
-		).resolves.toBe(false);
+		await expect(verifyContentHash(bytes, { hash, alg: "sha-512" as never }, digest)).resolves.toBe(
+			false,
+		);
 	});
 
 	it("is length-safe: a differently-sized digest never matches", async () => {
-		await expect(
-			verifyContentHash(bytes, { hash: hash.slice(0, 12) }, digest),
-		).resolves.toBe(false);
+		await expect(verifyContentHash(bytes, { hash: hash.slice(0, 12) }, digest)).resolves.toBe(
+			false,
+		);
 	});
 });
 

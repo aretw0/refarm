@@ -5,12 +5,7 @@ export interface StreamChunk {
 	content: string;
 	sequence: number;
 	is_final: boolean;
-	payload_kind?:
-		| "text_delta"
-		| "final_text"
-		| "final_tool_call"
-		| "final_empty"
-		| "error";
+	payload_kind?: "text_delta" | "final_text" | "final_tool_call" | "final_empty" | "error";
 	metadata?: unknown;
 }
 

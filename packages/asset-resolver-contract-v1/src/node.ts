@@ -141,9 +141,7 @@ export function createPeerAssetResolver(fetchFromPeer: PeerAssetFetch): AssetRes
  * good copy elsewhere. Only when every backend misses does the layered resolver
  * report `not-found` (or `hash-mismatch` if that was the closest any got).
  */
-export function layeredAssetResolver(
-	resolvers: readonly AssetResolver[],
-): AssetResolver {
+export function layeredAssetResolver(resolvers: readonly AssetResolver[]): AssetResolver {
 	return {
 		capability: ASSET_RESOLVER_CAPABILITY,
 		async resolve(ref: AssetRef): Promise<AssetResolution> {

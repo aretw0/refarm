@@ -77,7 +77,9 @@ function assertSelected(provider: EnrichmentProvider, failures: string[]): void 
 
 function validateDiagnostics(result: EnrichmentResult, failures: string[]): void {
 	const total = result.records.length;
-	const enriched = result.records.filter((record) => record.changes.length > 0 && !record.skipped).length;
+	const enriched = result.records.filter(
+		(record) => record.changes.length > 0 && !record.skipped,
+	).length;
 	const skippedRecords = result.records.filter((record) => record.skipped);
 	const skipped = skippedRecords.length;
 	const byCode: Partial<Record<EnrichmentErrorCode, number>> = {};

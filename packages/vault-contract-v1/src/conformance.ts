@@ -122,11 +122,7 @@ export async function runVaultV1Conformance(
 
 	// An unknown verb (outside the surface's set) must return empty, not throw.
 	try {
-		const unknown = await surface.run(
-			"search",
-			note,
-			{ name: "empty", rules: [] },
-		);
+		const unknown = await surface.run("search", note, { name: "empty", rules: [] });
 		if (unknown.hits.length !== 0) {
 			failures.push("a profile with no rules must yield no hits");
 		}
@@ -144,20 +140,11 @@ export async function runVaultV1Conformance(
 
 /** Assert that a verb's result populates ONLY its own output field and carries
  * the dispatched verb — the one-shape-per-verb invariant the host relies on. */
-function assertResultShape(
-	verb: VaultVerb,
-	result: VaultResult,
-	failures: string[],
-): void {
+function assertResultShape(verb: VaultVerb, result: VaultResult, failures: string[]): void {
 	if (result.verb !== verb) {
 		failures.push(`result.verb must be '${verb}', got '${result.verb}'`);
 	}
-	const outputFields: (keyof VaultResult)[] = [
-		"records",
-		"hits",
-		"plans",
-		"findings",
-	];
+	const outputFields: (keyof VaultResult)[] = ["records", "hits", "plans", "findings"];
 	const owner: Record<VaultVerb, keyof VaultResult> = {
 		search: "hits",
 		extract: "records",

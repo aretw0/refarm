@@ -11,10 +11,7 @@ export {
 	vaultRecordToNode,
 	type VaultEmitOptions,
 } from "./emit.js";
-export {
-	createInMemoryVaultSurface,
-	type InMemoryVaultSurfaceOptions,
-} from "./in-memory.js";
+export { createInMemoryVaultSurface, type InMemoryVaultSurfaceOptions } from "./in-memory.js";
 export {
 	buildVaultPluginManifest,
 	VAULT_ENTRY_PLACEHOLDER,

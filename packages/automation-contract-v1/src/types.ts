@@ -71,11 +71,7 @@ export interface EventTrigger {
 	filter?: Record<string, unknown>;
 }
 
-export type AutomationTrigger =
-	| ManualTrigger
-	| CronTrigger
-	| OneShotTrigger
-	| EventTrigger;
+export type AutomationTrigger = ManualTrigger | CronTrigger | OneShotTrigger | EventTrigger;
 
 // ── Core artifact type ────────────────────────────────────────────────────────
 
@@ -129,11 +125,11 @@ export interface AutomationAdapter {
 	query?(filter?: AutomationFilter): Promise<Automation[]>;
 
 	// ── Status transitions ────────────────────────────────────────────────────
-	validate(id: string): Promise<Automation>;    // draft   → ready
-	activate(id: string): Promise<Automation>;    // ready   → active
-	deactivate(id: string): Promise<Automation>;  // active  → ready
-	archive(id: string): Promise<Automation>;     // any     → archived  (terminal)
-	revert(id: string): Promise<Automation>;      // ready   → draft
+	validate(id: string): Promise<Automation>; // draft   → ready
+	activate(id: string): Promise<Automation>; // ready   → active
+	deactivate(id: string): Promise<Automation>; // active  → ready
+	archive(id: string): Promise<Automation>; // any     → archived  (terminal)
+	revert(id: string): Promise<Automation>; // ready   → draft
 
 	// ── Trigger ──────────────────────────────────────────────────────────────
 	/**

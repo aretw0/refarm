@@ -1,20 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import {
-	buildDispatchResultNode,
-	dispatchResultId,
-	serializeDispatchResult,
-} from "./builders.js";
+import { buildDispatchResultNode, dispatchResultId, serializeDispatchResult } from "./builders.js";
 import { runDispatchResultV1Conformance } from "./conformance.js";
-import {
-	isDispatchResultNode,
-	matchDispatchResults,
-	parseDispatchResult,
-} from "./match.js";
-import {
-	DISPATCH_RESULT_CAPABILITY,
-	DISPATCH_RESULT_TYPE,
-} from "./types.js";
+import { isDispatchResultNode, matchDispatchResults, parseDispatchResult } from "./match.js";
+import { DISPATCH_RESULT_CAPABILITY, DISPATCH_RESULT_TYPE } from "./types.js";
 
 describe("dispatch-result:v1 constants + builder", () => {
 	it("exposes the capability id and canonical @type", () => {

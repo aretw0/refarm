@@ -11,39 +11,37 @@ import {
 	type SkillSurfaceDeclarationV1,
 } from "./types.js";
 
-import {
-	createSkillSourceRef,
-	isRecord,
-	issue,
-	validateSource,
-} from "./manifest-shared.js";
+import { createSkillSourceRef, isRecord, issue, validateSource } from "./manifest-shared.js";
 
-import {
-	validateSkillManifest,
-} from "./manifest-parse.js";
+import { validateSkillManifest } from "./manifest-parse.js";
 
-import {
-	validateSkillSurfaceDeclaration,
-} from "./skill-activation.js";
+import { validateSkillSurfaceDeclaration } from "./skill-activation.js";
 
 export function verifySkillSource(
 	source: string,
 	expected: SkillSourceRef,
 	options: SkillManifestParseOptions = {},
 ): SkillSourceVerificationResult {
-	const expectedUri = isRecord(expected) && typeof expected.uri === "string"
-		? expected.uri
-		: "inline:skill";
+	const expectedUri =
+		isRecord(expected) && typeof expected.uri === "string" ? expected.uri : "inline:skill";
 	const actual = createSkillSourceRef(source, {
 		sourceUri: options.sourceUri ?? expectedUri,
 	});
 	const issues: SkillManifestIssue[] = [];
 	validateSource(expected, "$.expected", issues);
 	if (expected.sha256 !== actual.sha256) {
-		issues.push(issue("SOURCE_SHA256_MISMATCH", "$.expected.sha256", "Expected source content SHA-256 to match."));
+		issues.push(
+			issue(
+				"SOURCE_SHA256_MISMATCH",
+				"$.expected.sha256",
+				"Expected source content SHA-256 to match.",
+			),
+		);
 	}
 	if (expected.bytes !== actual.bytes) {
-		issues.push(issue("SOURCE_BYTES_MISMATCH", "$.expected.bytes", "Expected source byte length to match."));
+		issues.push(
+			issue("SOURCE_BYTES_MISMATCH", "$.expected.bytes", "Expected source byte length to match."),
+		);
 	}
 	if (options.sourceUri !== undefined && expected.uri !== options.sourceUri) {
 		issues.push(issue("SOURCE_URI_MISMATCH", "$.expected.uri", "Expected source URI to match."));
@@ -65,10 +63,12 @@ export function buildSkillSourceIntegrityEvidence(
 
 	const surfaceValidation = validateSkillSurfaceDeclaration(surface);
 	if (!surfaceValidation.ok) {
-		issues.push(...surfaceValidation.issues.map((item) => ({
-			...item,
-			path: `$.surface${item.path === "$" ? "" : item.path.slice(1)}`,
-		})));
+		issues.push(
+			...surfaceValidation.issues.map((item) => ({
+				...item,
+				path: `$.surface${item.path === "$" ? "" : item.path.slice(1)}`,
+			})),
+		);
 	}
 
 	const sourceCheck = verifySkillSource(source, manifest.source, options);
@@ -78,11 +78,13 @@ export function buildSkillSourceIntegrityEvidence(
 
 	const assetPath = surface.assets[0] ?? "";
 	if (!assetPath) {
-		issues.push(issue(
-			"SOURCE_INTEGRITY_ASSET_MISSING",
-			"$.surface.assets",
-			"Expected package skill surface to declare the SKILL.md asset path.",
-		));
+		issues.push(
+			issue(
+				"SOURCE_INTEGRITY_ASSET_MISSING",
+				"$.surface.assets",
+				"Expected package skill surface to declare the SKILL.md asset path.",
+			),
+		);
 	}
 
 	const verified = issues.length === 0;

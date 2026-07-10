@@ -116,11 +116,7 @@ function str(match: Match, key: string): string | undefined {
 }
 
 // ── search: "contains" ──
-function searchNote(
-	note: VaultNote,
-	ruleId: string,
-	match: Match,
-): VaultSearchHit | undefined {
+function searchNote(note: VaultNote, ruleId: string, match: Match): VaultSearchHit | undefined {
 	if (match.type !== "contains") return undefined;
 	const value = str(match, "value");
 	if (!value) return undefined;
@@ -135,11 +131,7 @@ function searchNote(
 }
 
 // ── extract: "frontmatter" → KnowledgeRecord ──
-function extractRecord(
-	note: VaultNote,
-	ruleId: string,
-	match: Match,
-): KnowledgeRecord | undefined {
+function extractRecord(note: VaultNote, ruleId: string, match: Match): KnowledgeRecord | undefined {
 	if (match.type !== "frontmatter") return undefined;
 	const fields = parseFrontmatter(note.text);
 	if (Object.keys(fields).length === 0) return undefined;

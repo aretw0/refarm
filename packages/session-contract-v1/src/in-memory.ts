@@ -1,9 +1,4 @@
-import type {
-	Session,
-	SessionContractAdapter,
-	SessionEntry,
-	SessionFilter,
-} from "./types.js";
+import type { Session, SessionContractAdapter, SessionEntry, SessionFilter } from "./types.js";
 
 export interface InMemorySessionAdapterOptions {
 	idFactory?: () => string;
@@ -31,15 +26,10 @@ function includesAllParticipants(
 	sessionParticipants: string[],
 	filterParticipants: string[],
 ): boolean {
-	return filterParticipants.every((participant) =>
-		sessionParticipants.includes(participant),
-	);
+	return filterParticipants.every((participant) => sessionParticipants.includes(participant));
 }
 
-function applySessionFilter(
-	sessions: Session[],
-	filter: SessionFilter,
-): Session[] {
+function applySessionFilter(sessions: Session[], filter: SessionFilter): Session[] {
 	let items = sessions;
 
 	if (filter.context_id !== undefined) {
@@ -112,9 +102,7 @@ export function createInMemorySessionAdapter(
 
 		async appendEntry(entryInput) {
 			if (!sessions.has(entryInput.session_id)) {
-				throw new Error(
-					`Session not found for entry append: ${entryInput.session_id}`,
-				);
+				throw new Error(`Session not found for entry append: ${entryInput.session_id}`);
 			}
 
 			const entry: SessionEntry = {
@@ -141,9 +129,7 @@ export function createInMemorySessionAdapter(
 		},
 
 		async query(filter) {
-			const all = Array.from(sessions.values()).sort(
-				(a, b) => a.created_at_ns - b.created_at_ns,
-			);
+			const all = Array.from(sessions.values()).sort((a, b) => a.created_at_ns - b.created_at_ns);
 			return applySessionFilter(all, filter);
 		},
 	};

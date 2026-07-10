@@ -19,10 +19,7 @@ export function createInMemorySourceProvider(): SourceProvider {
 		return { kind: "local", path: parseLocal(ref) };
 	}
 
-	async function materialize(
-		ref: string,
-		_opts?: MaterializeOptions,
-	): Promise<MaterializeResult> {
+	async function materialize(ref: string, _opts?: MaterializeOptions): Promise<MaterializeResult> {
 		const path = parseLocal(ref);
 		const alreadyPresent = present.has(path);
 		present.add(path);

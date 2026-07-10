@@ -77,7 +77,10 @@ export async function runSkillContractV1Conformance(
 		if (!manifest.engineBindings.requires.includes("runtime-agent")) {
 			failures.push("manifest must preserve required engine bindings");
 		}
-		if (manifest.io.input.format !== "text/markdown" || manifest.io.output.format !== "text/markdown") {
+		if (
+			manifest.io.input.format !== "text/markdown" ||
+			manifest.io.output.format !== "text/markdown"
+		) {
 			failures.push("manifest must expose markdown input/output envelopes");
 		}
 	}
@@ -106,7 +109,9 @@ export async function runSkillContractV1Conformance(
 				assetPath: "skills/refarm-git-workflow/SKILL.md",
 			});
 			if (!surfaceResult.ok || !surfaceResult.surface) {
-				failures.push(`valid manifest could not produce source integrity surface: ${formatIssues(surfaceResult.issues)}`);
+				failures.push(
+					`valid manifest could not produce source integrity surface: ${formatIssues(surfaceResult.issues)}`,
+				);
 			} else {
 				const result = await adapter.buildSourceIntegrityEvidence(
 					VALID_SKILL_MARKDOWN_FIXTURE,
@@ -115,13 +120,19 @@ export async function runSkillContractV1Conformance(
 					{ sourceUri: "fixture:refarm-git-workflow/SKILL.md" },
 				);
 				if (!result.ok || !result.evidence) {
-					failures.push(`valid SKILL.md source integrity evidence did not verify: ${formatIssues(result.issues)}`);
+					failures.push(
+						`valid SKILL.md source integrity evidence did not verify: ${formatIssues(result.issues)}`,
+					);
 				} else {
 					if (result.evidence.schema !== "refarm.skill-source-integrity.v1") {
-						failures.push("source integrity evidence schema must be refarm.skill-source-integrity.v1");
+						failures.push(
+							"source integrity evidence schema must be refarm.skill-source-integrity.v1",
+						);
 					}
 					if (result.evidence.verified !== true) {
-						failures.push("source integrity evidence must mark matching package skill source as verified");
+						failures.push(
+							"source integrity evidence must mark matching package skill source as verified",
+						);
 					}
 					if (result.evidence.assetPath !== "skills/refarm-git-workflow/SKILL.md") {
 						failures.push("source integrity evidence must preserve package skill asset path");
@@ -138,7 +149,9 @@ export async function runSkillContractV1Conformance(
 		try {
 			const result = await adapter.buildInvocationPlan(manifest);
 			if (!result.ok || !result.plan) {
-				failures.push(`valid manifest did not build invocation plan: ${formatIssues(result.issues)}`);
+				failures.push(
+					`valid manifest did not build invocation plan: ${formatIssues(result.issues)}`,
+				);
 			} else {
 				if (result.plan.schema !== "refarm.skill-invocation-plan.v1") {
 					failures.push("invocation plan schema must be refarm.skill-invocation-plan.v1");
@@ -146,9 +159,11 @@ export async function runSkillContractV1Conformance(
 				if (result.plan.requiresHostPolicyApproval !== true) {
 					failures.push("invocation plan must require host policy approval");
 				}
-				if (!result.plan.capabilityRequests.some((item) =>
-					item.id === "refarm.operator-loop" && item.required === true
-				)) {
+				if (
+					!result.plan.capabilityRequests.some(
+						(item) => item.id === "refarm.operator-loop" && item.required === true,
+					)
+				) {
 					failures.push("invocation plan must preserve required capability requests");
 				}
 				if (result.plan.io.input.required !== true) {
@@ -168,14 +183,18 @@ export async function runSkillContractV1Conformance(
 		try {
 			const planResult = await adapter.buildInvocationPlan(manifest);
 			if (!planResult.ok || !planResult.plan) {
-				failures.push(`valid manifest could not produce request plan: ${formatIssues(planResult.issues)}`);
+				failures.push(
+					`valid manifest could not produce request plan: ${formatIssues(planResult.issues)}`,
+				);
 			} else {
 				const requestResult = await adapter.buildInvocationRequest(
 					planResult.plan,
 					"Review the current git state and propose a safe workflow.",
 				);
 				if (!requestResult.ok || !requestResult.request) {
-					failures.push(`valid invocation plan did not build request: ${formatIssues(requestResult.issues)}`);
+					failures.push(
+						`valid invocation plan did not build request: ${formatIssues(requestResult.issues)}`,
+					);
 				} else {
 					if (requestResult.request.input.format !== "text/markdown") {
 						failures.push("invocation request must preserve markdown input format");
@@ -195,14 +214,18 @@ export async function runSkillContractV1Conformance(
 		try {
 			const planResult = await adapter.buildInvocationPlan(manifest);
 			if (!planResult.ok || !planResult.plan) {
-				failures.push(`valid manifest could not produce decision plan: ${formatIssues(planResult.issues)}`);
+				failures.push(
+					`valid manifest could not produce decision plan: ${formatIssues(planResult.issues)}`,
+				);
 			} else {
 				const requestResult = await adapter.buildInvocationRequest(
 					planResult.plan,
 					"Review the current git state and propose a safe workflow.",
 				);
 				if (!requestResult.ok || !requestResult.request) {
-					failures.push(`valid invocation plan could not produce decision request: ${formatIssues(requestResult.issues)}`);
+					failures.push(
+						`valid invocation plan could not produce decision request: ${formatIssues(requestResult.issues)}`,
+					);
 				} else {
 					const decisionResult = await adapter.buildInvocationDecision(requestResult.request, {
 						decision: "approved",
@@ -210,10 +233,14 @@ export async function runSkillContractV1Conformance(
 						approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
 					});
 					if (!decisionResult.ok || !decisionResult.decision) {
-						failures.push(`valid invocation request did not build host decision: ${formatIssues(decisionResult.issues)}`);
+						failures.push(
+							`valid invocation request did not build host decision: ${formatIssues(decisionResult.issues)}`,
+						);
 					} else {
 						if (decisionResult.decision.schema !== "refarm.skill-invocation-decision.v1") {
-							failures.push("invocation decision schema must be refarm.skill-invocation-decision.v1");
+							failures.push(
+								"invocation decision schema must be refarm.skill-invocation-decision.v1",
+							);
 						}
 						if (decisionResult.decision.requiresRuntimeDispatch !== true) {
 							failures.push("approved invocation decision must require runtime dispatch");
@@ -221,9 +248,11 @@ export async function runSkillContractV1Conformance(
 						if (decisionResult.decision.executed !== false) {
 							failures.push("invocation decision must remain pre-execution");
 						}
-						if (!decisionResult.decision.capabilityDecisions.some((item) =>
-							item.id === "refarm.git.write" && item.decision === "approved"
-						)) {
+						if (
+							!decisionResult.decision.capabilityDecisions.some(
+								(item) => item.id === "refarm.git.write" && item.decision === "approved",
+							)
+						) {
 							failures.push("invocation decision must preserve capability approvals");
 						}
 					}
@@ -241,7 +270,9 @@ export async function runSkillContractV1Conformance(
 				assetPath: "skills/refarm-git-workflow/SKILL.md",
 			});
 			if (!result.ok || !result.surface) {
-				failures.push(`valid manifest did not build skill surface declaration: ${formatIssues(result.issues)}`);
+				failures.push(
+					`valid manifest did not build skill surface declaration: ${formatIssues(result.issues)}`,
+				);
 			} else {
 				if (result.surface.layer !== "pi" || result.surface.kind !== "skill") {
 					failures.push("skill surface declaration must use pi/skill surface vocabulary");
@@ -265,7 +296,9 @@ export async function runSkillContractV1Conformance(
 				assetPath: "skills/refarm-git-workflow/SKILL.md",
 			});
 			if (!surfaceResult.ok || !surfaceResult.surface) {
-				failures.push(`valid manifest could not produce activation surface: ${formatIssues(surfaceResult.issues)}`);
+				failures.push(
+					`valid manifest could not produce activation surface: ${formatIssues(surfaceResult.issues)}`,
+				);
 			} else {
 				const result = await adapter.evaluateActivationPreflight(manifest, surfaceResult.surface, {
 					approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
@@ -277,12 +310,19 @@ export async function runSkillContractV1Conformance(
 					},
 				});
 				if (!result.ok || !result.preflight) {
-					failures.push(`valid manifest did not pass activation preflight: ${formatIssues(result.issues)}`);
+					failures.push(
+						`valid manifest did not pass activation preflight: ${formatIssues(result.issues)}`,
+					);
 				} else {
 					if (result.preflight.schema !== "refarm.skill-activation-preflight.v1") {
-						failures.push("activation preflight schema must be refarm.skill-activation-preflight.v1");
+						failures.push(
+							"activation preflight schema must be refarm.skill-activation-preflight.v1",
+						);
 					}
-					if (result.preflight.state !== "ready" || result.preflight.readyForRuntimeDispatch !== true) {
+					if (
+						result.preflight.state !== "ready" ||
+						result.preflight.readyForRuntimeDispatch !== true
+					) {
 						failures.push("activation preflight must mark complete evidence as runtime-ready");
 					}
 				}
@@ -298,7 +338,9 @@ export async function runSkillContractV1Conformance(
 			sourceUri: "fixture:refarm-git-workflow/SKILL.md",
 		});
 		if (!result.ok || !result.manifest || !result.plan) {
-			failures.push(`valid SKILL.md did not prepare invocation plan: ${formatIssues(result.issues)}`);
+			failures.push(
+				`valid SKILL.md did not prepare invocation plan: ${formatIssues(result.issues)}`,
+			);
 		} else {
 			if (result.plan.skill.id !== result.manifest.id) {
 				failures.push("prepared invocation plan must reference the prepared manifest");

@@ -57,13 +57,21 @@ describe("AutomationAdapter conformance — in-memory (plugin body)", () => {
 describe("createInMemoryAutomationAdapter — status transitions", () => {
 	it("create() always starts as draft", async () => {
 		const adapter = createInMemoryAutomationAdapter();
-		const a = await adapter.create({ name: "test", body: STATIC_BODY, triggers: [{ type: "manual" }] });
+		const a = await adapter.create({
+			name: "test",
+			body: STATIC_BODY,
+			triggers: [{ type: "manual" }],
+		});
 		expect(a.status).toBe("draft");
 	});
 
 	it("full lifecycle: draft → ready → active → ready → draft → archived", async () => {
 		const adapter = createInMemoryAutomationAdapter();
-		const a = await adapter.create({ name: "test", body: STATIC_BODY, triggers: [{ type: "manual" }] });
+		const a = await adapter.create({
+			name: "test",
+			body: STATIC_BODY,
+			triggers: [{ type: "manual" }],
+		});
 		expect((await adapter.validate(a.id)).status).toBe("ready");
 		expect((await adapter.activate(a.id)).status).toBe("active");
 		expect((await adapter.deactivate(a.id)).status).toBe("ready");
@@ -73,7 +81,11 @@ describe("createInMemoryAutomationAdapter — status transitions", () => {
 
 	it("invalid transitions throw", async () => {
 		const adapter = createInMemoryAutomationAdapter();
-		const a = await adapter.create({ name: "test", body: STATIC_BODY, triggers: [{ type: "manual" }] });
+		const a = await adapter.create({
+			name: "test",
+			body: STATIC_BODY,
+			triggers: [{ type: "manual" }],
+		});
 		// draft → active is invalid (must go through ready first)
 		await expect(adapter.activate(a.id)).rejects.toThrow();
 	});
@@ -82,7 +94,11 @@ describe("createInMemoryAutomationAdapter — status transitions", () => {
 describe("createInMemoryAutomationAdapter — trigger", () => {
 	it("trigger(active) returns Effort with direction from static body", async () => {
 		const adapter = createInMemoryAutomationAdapter({ body: STATIC_BODY });
-		const a = await adapter.create({ name: "test", body: STATIC_BODY, triggers: [{ type: "manual" }] });
+		const a = await adapter.create({
+			name: "test",
+			body: STATIC_BODY,
+			triggers: [{ type: "manual" }],
+		});
 		await adapter.validate(a.id);
 		await adapter.activate(a.id);
 		const effort = await adapter.trigger(a.id);
@@ -92,7 +108,11 @@ describe("createInMemoryAutomationAdapter — trigger", () => {
 
 	it("trigger(active) interpolates template body", async () => {
 		const adapter = createInMemoryAutomationAdapter({ body: TEMPLATE_BODY });
-		const a = await adapter.create({ name: "test", body: TEMPLATE_BODY, triggers: [{ type: "manual" }] });
+		const a = await adapter.create({
+			name: "test",
+			body: TEMPLATE_BODY,
+			triggers: [{ type: "manual" }],
+		});
 		await adapter.validate(a.id);
 		await adapter.activate(a.id);
 		const effort = await adapter.trigger(a.id, { name: "World" });
@@ -100,9 +120,16 @@ describe("createInMemoryAutomationAdapter — trigger", () => {
 	});
 
 	it("trigger(active) does NOT interpolate static body placeholders", async () => {
-		const bodyWithPlaceholder = { type: "static" as const, effort: { direction: "hello {{name}}", tasks: [] } };
+		const bodyWithPlaceholder = {
+			type: "static" as const,
+			effort: { direction: "hello {{name}}", tasks: [] },
+		};
 		const adapter = createInMemoryAutomationAdapter({ body: bodyWithPlaceholder });
-		const a = await adapter.create({ name: "test", body: bodyWithPlaceholder, triggers: [{ type: "manual" }] });
+		const a = await adapter.create({
+			name: "test",
+			body: bodyWithPlaceholder,
+			triggers: [{ type: "manual" }],
+		});
 		await adapter.validate(a.id);
 		await adapter.activate(a.id);
 		const effort = await adapter.trigger(a.id, { name: "World" });
@@ -111,7 +138,11 @@ describe("createInMemoryAutomationAdapter — trigger", () => {
 
 	it("trigger(draft) returns null", async () => {
 		const adapter = createInMemoryAutomationAdapter();
-		const a = await adapter.create({ name: "test", body: STATIC_BODY, triggers: [{ type: "manual" }] });
+		const a = await adapter.create({
+			name: "test",
+			body: STATIC_BODY,
+			triggers: [{ type: "manual" }],
+		});
 		const effort = await adapter.trigger(a.id);
 		expect(effort).toBeNull();
 	});
@@ -136,7 +167,11 @@ describe("createInMemoryAutomationAdapter — summary + query", () => {
 
 	it("query filters by status", async () => {
 		const adapter = createInMemoryAutomationAdapter();
-		const a = await adapter.create({ name: "a", body: STATIC_BODY, triggers: [{ type: "manual" }] });
+		const a = await adapter.create({
+			name: "a",
+			body: STATIC_BODY,
+			triggers: [{ type: "manual" }],
+		});
 		await adapter.validate(a.id);
 		const ready = await adapter.query!({ status: "ready" });
 		expect(ready.some((x) => x.id === a.id)).toBe(true);

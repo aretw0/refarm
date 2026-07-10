@@ -10,13 +10,13 @@ export interface Task {
 export type EffortStatus =
 	| "pending"
 	| "in-progress"
-	| "done"       // all tasks ok — the effort OWNS and carries the result
-	| "delivered"  // a dispatch event was accepted by a subscriber; the effort's
-	               // whole job (delivery) is complete and its verb RESULT lives
-	               // out of band as a dispatch-result:v1 node read back by replyRef
-	| "partial"    // some tasks ok, some error/timeout
-	| "failed"     // all tasks failed, or effort failed before any task ran
-	| "timed-out"  // effort expired during execution
+	| "done" // all tasks ok — the effort OWNS and carries the result
+	| "delivered" // a dispatch event was accepted by a subscriber; the effort's
+	// whole job (delivery) is complete and its verb RESULT lives
+	// out of band as a dispatch-result:v1 node read back by replyRef
+	| "partial" // some tasks ok, some error/timeout
+	| "failed" // all tasks failed, or effort failed before any task ran
+	| "timed-out" // effort expired during execution
 	| "cancelled";
 
 /** Terminal states — no further transitions except via retry().
@@ -50,8 +50,8 @@ export interface Effort {
 export type TaskResultStatus =
 	| "ok"
 	| "error"
-	| "timeout"    // task individually timed out
-	| "skipped"    // never attempted — effort was cancelled/timed-out before this task ran
+	| "timeout" // task individually timed out
+	| "skipped" // never attempted — effort was cancelled/timed-out before this task ran
 	| "cancelled"; // task was running when effort was cancelled
 
 export interface TaskResult {

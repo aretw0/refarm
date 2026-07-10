@@ -96,8 +96,7 @@ export function graphNodeToNormalised(
  */
 export function normalisedToGraphNode(node: NormalisedNode): GraphNode {
 	const createdAtIso = node["refarm:createdAt"];
-	const created_at_ns =
-		typeof createdAtIso === "string" ? isoToNanos(createdAtIso) : 0;
+	const created_at_ns = typeof createdAtIso === "string" ? isoToNanos(createdAtIso) : 0;
 
 	const context = node["refarm:context"];
 	const graph: GraphNode = {

@@ -47,10 +47,7 @@ const VAULT_VERB_PROSE: Record<VaultVerb, string> = {
 /** The `verbDocs` map for a vault plugin keyed by `<pluginKey>:<verb>`. */
 export function vaultVerbDocs(pluginKey: string): Record<string, string> {
 	return Object.fromEntries(
-		VAULT_VERBS.map((verb: VaultVerb) => [
-			`${pluginKey}:${verb}`,
-			VAULT_VERB_PROSE[verb],
-		]),
+		VAULT_VERBS.map((verb: VaultVerb) => [`${pluginKey}:${verb}`, VAULT_VERB_PROSE[verb]]),
 	);
 }
 
@@ -89,9 +86,7 @@ export const VAULT_ENTRY_PLACEHOLDER = "./pkg/vault_surface.wasm";
  * install-ready, valid manifest. It is a plain literal, not a call into the §8
  * plugin-manifest builder, so this contract owns its own manifest shape.
  */
-export function buildVaultPluginManifest(
-	options: VaultManifestOptions,
-): PluginManifest {
+export function buildVaultPluginManifest(options: VaultManifestOptions): PluginManifest {
 	const pluginKey = options.pluginKey ?? "vault";
 	const manifest: PluginManifest = {
 		id: options.id,

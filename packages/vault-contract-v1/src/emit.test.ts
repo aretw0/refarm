@@ -5,11 +5,7 @@ import {
 } from "@refarm.dev/records-contract-v1";
 import { describe, expect, it } from "vitest";
 
-import {
-	DEFAULT_VAULT_RECORD_TYPE,
-	vaultRecordToGraphNode,
-	vaultRecordToNode,
-} from "./emit.js";
+import { DEFAULT_VAULT_RECORD_TYPE, vaultRecordToGraphNode, vaultRecordToNode } from "./emit.js";
 import { profileForVerb } from "./profile.js";
 import { runReferenceVault } from "./reference.js";
 import { VAULT_CAPABILITY, type VaultNote, type VaultProfile } from "./types.js";
@@ -59,10 +55,9 @@ describe("vaultRecordToNode — the OUTPUT projection (no runtime)", () => {
 	});
 
 	it("defaults @type and preserves a @type array under refarm:types", () => {
-		const untyped = vaultRecordToGraphNode(
-			baseRecord({ "@type": undefined }),
-			{ createdAtNs: CREATED_AT_NS },
-		);
+		const untyped = vaultRecordToGraphNode(baseRecord({ "@type": undefined }), {
+			createdAtNs: CREATED_AT_NS,
+		});
 		expect(untyped["@type"]).toBe(DEFAULT_VAULT_RECORD_TYPE);
 
 		// The node type collapses to the first entry; the whole array is preserved

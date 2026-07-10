@@ -1,12 +1,6 @@
-import {
-	buildDispatchResultNode,
-	serializeDispatchResult,
-} from "./builders.js";
+import { buildDispatchResultNode, serializeDispatchResult } from "./builders.js";
 import { matchDispatchResults } from "./match.js";
-import {
-	DISPATCH_RESULT_CAPABILITY,
-	DISPATCH_RESULT_TYPE,
-} from "./types.js";
+import { DISPATCH_RESULT_CAPABILITY, DISPATCH_RESULT_TYPE } from "./types.js";
 
 export interface DispatchResultConformanceResult {
 	pass: boolean;
@@ -41,7 +35,7 @@ export function runDispatchResultV1Conformance(): DispatchResultConformanceResul
 	if (forOne[0]?.["refarm:result"] === undefined) {
 		failures.push("recovered result must carry the payload");
 	}
-	if (forOne[0] && (forOne[0]["refarm:replyRef"] !== "effort-1")) {
+	if (forOne[0] && forOne[0]["refarm:replyRef"] !== "effort-1") {
 		failures.push("recovered result must match the requested replyRef");
 	}
 

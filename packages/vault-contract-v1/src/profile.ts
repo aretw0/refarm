@@ -23,22 +23,15 @@ function resolveProfile(
 	}
 
 	if (stack.includes(profile.name)) {
-		throw new Error(
-			`Vault profile cycle detected: ${[...stack, profile.name].join(" -> ")}`,
-		);
+		throw new Error(`Vault profile cycle detected: ${[...stack, profile.name].join(" -> ")}`);
 	}
 
 	const parent = profiles[profile.extends];
 	if (!parent) {
-		throw new Error(
-			`Vault profile '${profile.name}' extends unknown profile '${profile.extends}'`,
-		);
+		throw new Error(`Vault profile '${profile.name}' extends unknown profile '${profile.extends}'`);
 	}
 
-	const resolvedParent = resolveProfile(parent, profiles, [
-		...stack,
-		profile.name,
-	]);
+	const resolvedParent = resolveProfile(parent, profiles, [...stack, profile.name]);
 	return {
 		...resolvedParent,
 		...profile,
@@ -46,10 +39,7 @@ function resolveProfile(
 	};
 }
 
-function mergeRules(
-	parentRules: VaultRule[],
-	childRules: VaultRule[],
-): VaultRule[] {
+function mergeRules(parentRules: VaultRule[], childRules: VaultRule[]): VaultRule[] {
 	const rules = new Map<string, VaultRule>();
 	for (const rule of parentRules) rules.set(rule.id, rule);
 	for (const rule of childRules) rules.set(rule.id, rule);
@@ -61,10 +51,7 @@ function mergeRules(
  * a surface when dispatching that verb. The surface never sees rules for other
  * verbs, so its output shape is unambiguous.
  */
-export function profileForVerb(
-	profile: VaultProfile,
-	verb: VaultVerb,
-): VaultProfile {
+export function profileForVerb(profile: VaultProfile, verb: VaultVerb): VaultProfile {
 	return {
 		...profile,
 		rules: profile.rules.filter((rule) => rule.verb === verb),

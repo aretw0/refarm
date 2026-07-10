@@ -1,8 +1,4 @@
-import type {
-	Effort,
-	EffortConformanceResult,
-	EffortTransportAdapter,
-} from "./types.js";
+import type { Effort, EffortConformanceResult, EffortTransportAdapter } from "./types.js";
 import { EFFORT_TERMINAL_STATES } from "./types.js";
 
 function nowIso(): string {
@@ -70,10 +66,7 @@ export async function runEffortV1Conformance(
 			// 6b. task result statuses are valid
 			const validTaskStatuses = new Set(["ok", "error", "timeout", "skipped", "cancelled"]);
 			const invalidTaskStatus = result.results.find((r) => !validTaskStatuses.has(r.status));
-			check(
-				"all task result statuses are valid",
-				invalidTaskStatus === undefined,
-			);
+			check("all task result statuses are valid", invalidTaskStatus === undefined);
 		}
 	} catch (e) {
 		failures.push(`query(submitted) threw: ${String(e)}`);
@@ -83,7 +76,10 @@ export async function runEffortV1Conformance(
 	if (adapter.list) {
 		try {
 			const all = await adapter.list();
-			check("list() contains submitted effort", all.some((r) => r.effortId === effortId));
+			check(
+				"list() contains submitted effort",
+				all.some((r) => r.effortId === effortId),
+			);
 		} catch (e) {
 			failures.push(`list() threw: ${String(e)}`);
 		}
@@ -137,13 +133,13 @@ export async function runEffortV1Conformance(
 			check(
 				"summary() has all status count fields",
 				typeof summary.pending === "number" &&
-				typeof summary.inProgress === "number" &&
-				typeof summary.done === "number" &&
-				typeof summary.delivered === "number" &&
-				typeof summary.partial === "number" &&
-				typeof summary.failed === "number" &&
-				typeof summary.timedOut === "number" &&
-				typeof summary.cancelled === "number",
+					typeof summary.inProgress === "number" &&
+					typeof summary.done === "number" &&
+					typeof summary.delivered === "number" &&
+					typeof summary.partial === "number" &&
+					typeof summary.failed === "number" &&
+					typeof summary.timedOut === "number" &&
+					typeof summary.cancelled === "number",
 			);
 		} catch (e) {
 			failures.push(`summary() threw: ${String(e)}`);

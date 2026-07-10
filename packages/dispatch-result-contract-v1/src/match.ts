@@ -1,7 +1,4 @@
-import {
-	DISPATCH_RESULT_TYPE,
-	type DispatchResultNode,
-} from "./types.js";
+import { DISPATCH_RESULT_TYPE, type DispatchResultNode } from "./types.js";
 
 /**
  * The consumer side: recover correlated results from what `query-nodes` returns.
@@ -14,17 +11,12 @@ import {
 export function isDispatchResultNode(value: unknown): value is DispatchResultNode {
 	if (!value || typeof value !== "object") return false;
 	const node = value as Record<string, unknown>;
-	return (
-		node["@type"] === DISPATCH_RESULT_TYPE &&
-		typeof node["refarm:replyRef"] === "string"
-	);
+	return node["@type"] === DISPATCH_RESULT_TYPE && typeof node["refarm:replyRef"] === "string";
 }
 
 /** Parse a stored node JSON string into a DispatchResultNode, or undefined if it
  * is not one (malformed or a different @type). Never throws. */
-export function parseDispatchResult(
-	nodeJson: string,
-): DispatchResultNode | undefined {
+export function parseDispatchResult(nodeJson: string): DispatchResultNode | undefined {
 	try {
 		const parsed = JSON.parse(nodeJson) as unknown;
 		return isDispatchResultNode(parsed) ? parsed : undefined;

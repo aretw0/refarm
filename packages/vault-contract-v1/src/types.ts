@@ -152,11 +152,7 @@ export interface VaultSurface {
 	readonly surfaceId: string;
 	/** The verbs this surface implements. A verb outside this set returns empty. */
 	readonly verbs: readonly VaultVerb[];
-	run(
-		verb: VaultVerb,
-		note: VaultNote,
-		profile: VaultProfile,
-	): VaultResult | Promise<VaultResult>;
+	run(verb: VaultVerb, note: VaultNote, profile: VaultProfile): VaultResult | Promise<VaultResult>;
 }
 
 export interface VaultConformanceResult {

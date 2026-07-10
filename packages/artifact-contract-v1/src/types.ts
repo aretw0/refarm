@@ -3,14 +3,12 @@ export const TASK_ARTIFACT_MANIFEST_SCHEMA = "refarm.task-artifacts.v1" as const
 
 export type ArtifactStatus = "draft" | "ready" | "active" | "archived";
 
-export const ARTIFACT_TERMINAL_STATES: ReadonlySet<ArtifactStatus> = new Set([
-	"archived",
-]);
+export const ARTIFACT_TERMINAL_STATES: ReadonlySet<ArtifactStatus> = new Set(["archived"]);
 
 const VALID_TRANSITIONS = new Map<ArtifactStatus, ReadonlySet<ArtifactStatus>>([
-	["draft",    new Set(["ready", "archived"])],
-	["ready",    new Set(["draft", "active", "archived"])],
-	["active",   new Set(["ready", "archived"])],
+	["draft", new Set(["ready", "archived"])],
+	["ready", new Set(["draft", "active", "archived"])],
+	["active", new Set(["ready", "archived"])],
 	["archived", new Set()],
 ]);
 
@@ -28,12 +26,7 @@ export const TASK_ARTIFACT_ROLES = [
 	"other",
 ] as const;
 
-export const ARTIFACT_REVIEW_STATES = [
-	"unreviewed",
-	"accepted",
-	"rejected",
-	"superseded",
-] as const;
+export const ARTIFACT_REVIEW_STATES = ["unreviewed", "accepted", "rejected", "superseded"] as const;
 
 const ROLE_SET = new Set<string>(TASK_ARTIFACT_ROLES);
 const REVIEW_STATE_SET = new Set<string>(ARTIFACT_REVIEW_STATES);
@@ -44,13 +37,12 @@ export interface ManagedArtifact {
 	tags?: string[];
 	/** Adapter decides whether to increment on each update. */
 	revision?: number;
-	createdAt: string;  // ISO 8601
-	updatedAt: string;  // ISO 8601
+	createdAt: string; // ISO 8601
+	updatedAt: string; // ISO 8601
 	archivedAt?: string; // ISO 8601, set when transitioning to archived
 }
 
-export type ArtifactReviewState =
-	(typeof ARTIFACT_REVIEW_STATES)[number];
+export type ArtifactReviewState = (typeof ARTIFACT_REVIEW_STATES)[number];
 
 export interface ArtifactHash {
 	algorithm: "sha256";
@@ -173,9 +165,7 @@ function validateStringArray(
 		issues.push({ path, message: "Expected an array." });
 		return;
 	}
-	value.forEach((item, index) =>
-		requireString(item, `${path}.${index}`, issues),
-	);
+	value.forEach((item, index) => requireString(item, `${path}.${index}`, issues));
 }
 
 function validateProcessReference(
@@ -290,9 +280,7 @@ function validateReference(
 	}
 }
 
-export function validateTaskArtifactManifest(
-	value: unknown,
-): ArtifactManifestValidationResult {
+export function validateTaskArtifactManifest(value: unknown): ArtifactManifestValidationResult {
 	const issues: ArtifactManifestValidationIssue[] = [];
 	if (!isRecord(value)) {
 		return {
@@ -355,14 +343,15 @@ export function selectTaskArtifacts(
 	manifest: TaskArtifactManifest,
 	selection: TaskArtifactSelection = {},
 ): readonly TaskArtifactReference[] {
-	return manifest.artifacts.filter((artifact) =>
-		matchesOptionalList(artifact.id, selection.ids) &&
-		matchesOptionalList(artifact.role, selection.roles) &&
-		matchesOptionalList(artifact.reviewState, selection.reviewStates) &&
-		matchesOptionalList(artifact.mediaType, selection.mediaTypes) &&
-		hasRequiredLabels(artifact, selection.labels) &&
-		(selection.source === undefined || artifact.provenance.source === selection.source) &&
-		(selection.producer === undefined || artifact.provenance.producer === selection.producer)
+	return manifest.artifacts.filter(
+		(artifact) =>
+			matchesOptionalList(artifact.id, selection.ids) &&
+			matchesOptionalList(artifact.role, selection.roles) &&
+			matchesOptionalList(artifact.reviewState, selection.reviewStates) &&
+			matchesOptionalList(artifact.mediaType, selection.mediaTypes) &&
+			hasRequiredLabels(artifact, selection.labels) &&
+			(selection.source === undefined || artifact.provenance.source === selection.source) &&
+			(selection.producer === undefined || artifact.provenance.producer === selection.producer),
 	);
 }
 

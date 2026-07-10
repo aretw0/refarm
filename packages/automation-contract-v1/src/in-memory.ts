@@ -23,16 +23,11 @@ function nowIso(): string {
 
 /** Replace {{varName}} placeholders in a string with values from input. */
 function interpolate(template: string, input: Record<string, unknown>): string {
-	return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) =>
-		String(input[key] ?? ""),
-	);
+	return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => String(input[key] ?? ""));
 }
 
 function bakeEffort(template: EffortTemplate, input: unknown): Effort {
-	const inp =
-		input !== null && typeof input === "object"
-			? (input as Record<string, unknown>)
-			: {};
+	const inp = input !== null && typeof input === "object" ? (input as Record<string, unknown>) : {};
 	return {
 		id: crypto.randomUUID(),
 		submittedAt: nowIso(),
@@ -66,9 +61,7 @@ export function createInMemoryAutomationAdapter(
 			status: to,
 			updatedAt: nowIso(),
 			...(to === "archived" ? { archivedAt: nowIso() } : {}),
-			...(current.revision !== undefined
-				? { revision: current.revision + 1 }
-				: {}),
+			...(current.revision !== undefined ? { revision: current.revision + 1 } : {}),
 		};
 		store.set(id, updated);
 		return updated;
@@ -108,24 +101,30 @@ export function createInMemoryAutomationAdapter(
 		async query(filter?: AutomationFilter) {
 			let results = [...store.values()];
 			if (filter?.status !== undefined) {
-				const statuses = Array.isArray(filter.status)
-					? filter.status
-					: [filter.status];
+				const statuses = Array.isArray(filter.status) ? filter.status : [filter.status];
 				results = results.filter((a) => statuses.includes(a.status));
 			}
 			if (filter?.tags?.length) {
-				results = results.filter((a) =>
-					filter.tags!.every((t) => a.tags?.includes(t)),
-				);
+				results = results.filter((a) => filter.tags!.every((t) => a.tags?.includes(t)));
 			}
 			return results;
 		},
 
-		async validate(id) { return transition(id, "ready"); },
-		async activate(id) { return transition(id, "active"); },
-		async deactivate(id) { return transition(id, "ready"); },
-		async archive(id) { return transition(id, "archived"); },
-		async revert(id) { return transition(id, "draft"); },
+		async validate(id) {
+			return transition(id, "ready");
+		},
+		async activate(id) {
+			return transition(id, "active");
+		},
+		async deactivate(id) {
+			return transition(id, "ready");
+		},
+		async archive(id) {
+			return transition(id, "archived");
+		},
+		async revert(id) {
+			return transition(id, "draft");
+		},
 
 		async trigger(id, input) {
 			const automation = store.get(id);

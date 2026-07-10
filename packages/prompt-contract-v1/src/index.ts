@@ -87,9 +87,7 @@ export function createAutoOperatorChannel(): OperatorChannel {
 // Returns predefined answers in sequence. Throws RangeError if exhausted.
 // Use in tests to drive an OperatorChannel without stdin.
 
-export function createScriptedOperatorChannel(
-	answers: Array<boolean | string>,
-): OperatorChannel {
+export function createScriptedOperatorChannel(answers: Array<boolean | string>): OperatorChannel {
 	const queue = [...answers];
 	function ask(prompt: ConfirmPrompt): Promise<boolean>;
 	function ask(prompt: SelectPrompt): Promise<string>;
@@ -180,9 +178,10 @@ function askSelectNumbered(
 				return;
 			}
 			const n = parseInt(t, 10);
-			const opt = Number.isFinite(n) && n >= 1 && n <= prompt.options.length
-				? prompt.options[n - 1]
-				: undefined;
+			const opt =
+				Number.isFinite(n) && n >= 1 && n <= prompt.options.length
+					? prompt.options[n - 1]
+					: undefined;
 			if (!opt) {
 				process.stderr.write(`  Invalid choice, using default.\n`);
 			}
@@ -198,9 +197,7 @@ function askSelectTui(
 ): Promise<string> {
 	if (prompt.options.length === 0) return Promise.resolve("");
 	const defaultIndex =
-		prompt.default !== undefined
-			? prompt.options.findIndex((o) => o.value === prompt.default)
-			: 0;
+		prompt.default !== undefined ? prompt.options.findIndex((o) => o.value === prompt.default) : 0;
 	let selectedIndex = defaultIndex >= 0 ? defaultIndex : 0;
 
 	return new Promise((resolve, reject) => {

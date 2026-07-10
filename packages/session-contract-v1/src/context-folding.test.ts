@@ -25,12 +25,7 @@ function entry(
 
 describe("session context folding", () => {
 	it("folds cold entries while preserving a protected working tail", () => {
-		const entries = [
-			entry("1", 1),
-			entry("2", 2, "agent"),
-			entry("3", 3),
-			entry("4", 4, "agent"),
-		];
+		const entries = [entry("1", 1), entry("2", 2, "agent"), entry("3", 3), entry("4", 4, "agent")];
 
 		const plan = planSessionContextFold(entries, {
 			protectedTailCount: 2,
@@ -44,15 +39,9 @@ describe("session context folding", () => {
 			to_entry_id: "urn:entry:2",
 			entry_count: 2,
 		});
-		expect(plan?.fold.protected_tail_entry_ids).toEqual([
-			"urn:entry:3",
-			"urn:entry:4",
-		]);
+		expect(plan?.fold.protected_tail_entry_ids).toEqual(["urn:entry:3", "urn:entry:4"]);
 		expect(plan?.fold.summary).toBe("first exchange");
-		expect(plan?.folded_entries.map((item) => item["@id"])).toEqual([
-			"urn:entry:1",
-			"urn:entry:2",
-		]);
+		expect(plan?.folded_entries.map((item) => item["@id"])).toEqual(["urn:entry:1", "urn:entry:2"]);
 		expect(plan?.protected_tail_entries.map((item) => item["@id"])).toEqual([
 			"urn:entry:3",
 			"urn:entry:4",
@@ -113,19 +102,14 @@ describe("session context folding", () => {
 
 		expect(result.digest_mismatches).toHaveLength(1);
 		expect(result.digest_mismatches[0]?.entry_id).toBe("urn:entry:1");
-		expect(result.digest_mismatches[0]?.actual).toEqual(
-			digestSessionEntryContent(mutated),
-		);
+		expect(result.digest_mismatches[0]?.actual).toEqual(digestSessionEntryContent(mutated));
 	});
 
 	it("rejects entries from mixed sessions", () => {
-		const mixed = [
-			entry("1", 1),
-			{ ...entry("2", 2), session_id: "urn:session:2" },
-		];
+		const mixed = [entry("1", 1), { ...entry("2", 2), session_id: "urn:session:2" }];
 
-		expect(() =>
-			planSessionContextFold(mixed, { protectedTailCount: 0 }),
-		).toThrow(/multiple sessions/);
+		expect(() => planSessionContextFold(mixed, { protectedTailCount: 0 })).toThrow(
+			/multiple sessions/,
+		);
 	});
 });

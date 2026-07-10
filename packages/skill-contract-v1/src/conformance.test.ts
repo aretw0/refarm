@@ -60,7 +60,8 @@ describe("skill-contract-v1", () => {
 				input: {
 					format: "text/markdown",
 					required: true,
-					description: "Markdown task context for the host to inspect before planning git workflow steps.",
+					description:
+						"Markdown task context for the host to inspect before planning git workflow steps.",
 				},
 				output: {
 					format: "text/markdown",
@@ -205,11 +206,13 @@ describe("skill-contract-v1", () => {
 			assetPath: "skills/refarm-git-workflow/SKILL.md",
 			verified: false,
 		});
-		expect(result.issues).toEqual(expect.arrayContaining([
-			expect.objectContaining({ code: "SOURCE_SHA256_MISMATCH" }),
-			expect.objectContaining({ code: "SOURCE_BYTES_MISMATCH" }),
-			expect.objectContaining({ code: "SOURCE_URI_MISMATCH" }),
-		]));
+		expect(result.issues).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ code: "SOURCE_SHA256_MISMATCH" }),
+				expect.objectContaining({ code: "SOURCE_BYTES_MISMATCH" }),
+				expect.objectContaining({ code: "SOURCE_URI_MISMATCH" }),
+			]),
+		);
 	});
 
 	it("builds a host-policy-checkable invocation plan", () => {
@@ -558,19 +561,19 @@ describe("skill-contract-v1", () => {
 			]),
 		);
 		expect(badAsset.issues).not.toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({ code: "CAPABILITY_LIST_EMPTY" }),
-			]),
+			expect.arrayContaining([expect.objectContaining({ code: "CAPABILITY_LIST_EMPTY" })]),
 		);
 
 		// A well-formed surface with NO declared capabilities is now accepted:
 		// permissive is the default; requiring capabilities is a policy concern.
-		expect(validateSkillSurfaceDeclaration({
-			layer: "pi",
-			kind: "skill",
-			id: "refarm-git-workflow",
-			assets: ["skills/refarm-git-workflow/SKILL.md"],
-		})).toMatchObject({ ok: true, issues: [] });
+		expect(
+			validateSkillSurfaceDeclaration({
+				layer: "pi",
+				kind: "skill",
+				id: "refarm-git-workflow",
+				assets: ["skills/refarm-git-workflow/SKILL.md"],
+			}),
+		).toMatchObject({ ok: true, issues: [] });
 	});
 
 	it("evaluates activation preflight before a package skill surface can dispatch", () => {
@@ -636,11 +639,13 @@ describe("skill-contract-v1", () => {
 				reason: "Host install policy accepted the package-declared skill surface.",
 			},
 		});
-		expect(evaluateSkillActivationPreflight(parsed.manifest!, surface.surface!, {
-			approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
-			availableEngineBindings: ["runtime-agent", "source:v1"],
-			install,
-		})).toMatchObject({
+		expect(
+			evaluateSkillActivationPreflight(parsed.manifest!, surface.surface!, {
+				approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+				availableEngineBindings: ["runtime-agent", "source:v1"],
+				install,
+			}),
+		).toMatchObject({
 			ok: true,
 			preflight: {
 				state: "ready",
@@ -665,9 +670,9 @@ describe("skill-contract-v1", () => {
 		});
 
 		expect(blocked.ok).toBe(false);
-		expect(blocked.issues).toEqual(expect.arrayContaining([
-			expect.objectContaining({ code: "ACTIVATION_POLICY_NOT_ACCEPTED" }),
-		]));
+		expect(blocked.issues).toEqual(
+			expect.arrayContaining([expect.objectContaining({ code: "ACTIVATION_POLICY_NOT_ACCEPTED" })]),
+		);
 	});
 
 	it("blocks activation preflight when host install or runtime evidence is missing", () => {
@@ -692,12 +697,14 @@ describe("skill-contract-v1", () => {
 			state: "blocked",
 			readyForRuntimeDispatch: false,
 		});
-		expect(result.issues).toEqual(expect.arrayContaining([
-			expect.objectContaining({ code: "ACTIVATION_REQUIRED_CAPABILITY_NOT_APPROVED" }),
-			expect.objectContaining({ code: "ACTIVATION_REQUIRED_ENGINE_UNAVAILABLE" }),
-			expect.objectContaining({ code: "ACTIVATION_INTEGRITY_NOT_VERIFIED" }),
-			expect.objectContaining({ code: "ACTIVATION_POLICY_NOT_ACCEPTED" }),
-		]));
+		expect(result.issues).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ code: "ACTIVATION_REQUIRED_CAPABILITY_NOT_APPROVED" }),
+				expect.objectContaining({ code: "ACTIVATION_REQUIRED_ENGINE_UNAVAILABLE" }),
+				expect.objectContaining({ code: "ACTIVATION_INTEGRITY_NOT_VERIFIED" }),
+				expect.objectContaining({ code: "ACTIVATION_POLICY_NOT_ACCEPTED" }),
+			]),
+		);
 		expect(result.preflight?.issues).toEqual(result.issues);
 	});
 

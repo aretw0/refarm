@@ -2,10 +2,7 @@ import type { SkillContractV1Adapter } from "./types.js";
 
 import { parseSkillMarkdown, validateSkillManifest } from "./manifest-parse.js";
 
-import {
-	buildSkillSourceIntegrityEvidence,
-	verifySkillSource,
-} from "./skill-source-integrity.js";
+import { buildSkillSourceIntegrityEvidence, verifySkillSource } from "./skill-source-integrity.js";
 
 import {
 	buildSkillInvocationDecision,
