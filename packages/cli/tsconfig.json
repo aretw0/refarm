@@ -5,6 +5,8 @@
 		"rootDir": "src",
 		"baseUrl": "../..",
 		"paths": {
+			"@refarm.dev/capabilities": ["packages/capabilities/dist/index.d.ts"],
+			"@refarm.dev/capabilities/envelope": ["packages/capabilities/dist/envelope.d.ts"],
 			"@refarm.dev/config": ["packages/config/index.d.ts"],
 			"@refarm.dev/silo": ["packages/silo/dist/index.d.ts"],
 			"@refarm.dev/windmill": ["packages/windmill/dist/index.d.ts"],

@@ -167,12 +167,6 @@
 		"dist/scheduled-work-runner.js",
 		"dist/capabilities/index.d.ts",
 		"dist/capabilities/index.js",
-		"dist/capabilities/registry.js",
-		"dist/capabilities/registry.d.ts",
-		"dist/capabilities/parse-argv.js",
-		"dist/capabilities/parse-argv.d.ts",
-		"dist/capabilities/types.js",
-		"dist/capabilities/types.d.ts",
 		"dist/rust-substrate.d.ts",
 		"dist/rust-substrate.js",
 		"dist/status.d.ts",
@@ -189,6 +183,7 @@
 		"dist/chat-history.js"
 	],
 	"dependencies": {
+		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/operator-state": "workspace:*",

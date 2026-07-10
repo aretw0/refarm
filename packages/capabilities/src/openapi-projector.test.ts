@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildJsonSuccessEnvelope } from "../json-output.js";
+import { buildJsonSuccessEnvelope } from "./envelope.js";
 import { buildCapabilityOpenApiDocument } from "./openapi-projector.js";
 import type { CapabilityDescriptor, CapabilityGroup } from "./types.js";
 

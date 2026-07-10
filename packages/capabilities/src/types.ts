@@ -1,7 +1,7 @@
 import type {
 	JsonErrorEnvelope,
 	JsonSuccessEnvelope,
-} from "../json-output.js";
+} from "./envelope.js";
 
 /** What a capability's run() returns: a success or error JSON envelope. */
 export type CapabilityEnvelope = JsonSuccessEnvelope | JsonErrorEnvelope;

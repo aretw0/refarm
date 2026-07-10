@@ -608,6 +608,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/operator-state':
+        specifier: workspace:*
+        version: link:../operator-state
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
@@ -713,6 +716,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@refarm.dev/capabilities':
+        specifier: workspace:*
+        version: link:../capabilities
       '@refarm.dev/config':
         specifier: workspace:*
         version: link:../config

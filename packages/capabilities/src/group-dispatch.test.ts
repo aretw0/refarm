@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { SurfaceActionAffordanceRow } from "../action-affordances.js";
-import { buildJsonSuccessEnvelope } from "../json-output.js";
+import type { BaseSurfaceActionRow } from "@refarm.dev/operator-state";
+import { buildJsonSuccessEnvelope } from "./envelope.js";
 import { resolveGroupAction } from "./group-dispatch.js";
 import { CapabilityRegistry } from "./registry.js";
 import type { CapabilityDescriptor, CapabilityGroup } from "./types.js";
@@ -27,12 +27,12 @@ function fixtureGroup(): CapabilityGroup {
 		name: "list",
 		summary: "List options to choose from",
 		run: () => {
-			const actionRows: SurfaceActionAffordanceRow[] = [
+			const actionRows: BaseSurfaceActionRow[] = [
 				{ index: 0, id: "a", label: "Option A", display: "Option A" },
 				{ index: 1, id: "b", label: "Option B", display: "Option B" },
 			];
 			return buildJsonSuccessEnvelope<{
-				actionRows: SurfaceActionAffordanceRow[];
+				actionRows: BaseSurfaceActionRow[];
 			}>({ command: "demo", operation: "list", extra: { actionRows } });
 		},
 	};
@@ -85,7 +85,7 @@ describe("CapabilityGroup dispatch", () => {
 	it("a selectable sub-action's envelope carries affordance rows (reused menu contract)", async () => {
 		const resolved = resolveGroupAction(fixtureGroup(), ["list"]);
 		const envelope = (await resolved!.action.run(resolved!.input)) as unknown as {
-			actionRows: SurfaceActionAffordanceRow[];
+			actionRows: BaseSurfaceActionRow[];
 		};
 		expect(envelope.actionRows.map((r) => r.id)).toEqual(["a", "b"]);
 	});

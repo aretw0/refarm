@@ -1,7 +1,7 @@
 import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
 
-import { buildJsonSuccessEnvelope } from "../json-output.js";
+import { buildJsonSuccessEnvelope } from "./envelope.js";
 import {
 	buildCapabilityRoutes,
 	createCapabilityRouteHandler,

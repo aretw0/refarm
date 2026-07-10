@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 
-import { printJson } from "../json-output.js";
+import { printJson } from "./envelope.js";
 import {
 	isCapabilityGroup,
 	type CapabilityDescriptor,
