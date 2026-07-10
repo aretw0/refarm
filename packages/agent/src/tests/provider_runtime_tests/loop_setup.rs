@@ -57,7 +57,7 @@ fn provider_runtime_openai_loop_plan_prepends_system_and_sets_default_max_iter()
     let msgs = vec![("user".to_string(), "hello".to_string())];
     let plan = crate::provider_runtime::openai_loop_plan("sys", &msgs);
 
-    assert_eq!(plan.max_iter, 5);
+    assert_eq!(plan.max_iter, 25);
     assert_eq!(plan.state.wire_msgs.len(), 2);
     assert_eq!(plan.state.wire_msgs[0]["role"], "system");
 }

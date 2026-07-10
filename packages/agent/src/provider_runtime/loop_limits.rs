@@ -1,8 +1,18 @@
+/// The default tool-iteration ceiling when `MODEL_TOOL_CALL_MAX_ITER` is unset. A
+/// real coding task (edit a file → run a build/test → read the failure → fix →
+/// verify) routinely takes well over a handful of tool turns, and reference agents
+/// (pi, Hermes) run dozens; the previous default of 5 forced premature termination on
+/// anything nontrivial. 25 is a coding-realistic default while still bounding a
+/// runaway loop — and hitting it is now SAFE (a forced cutoff finishes gracefully,
+/// never erroring away the work; see `resolve_termination_text`). Overridable per
+/// deployment.
+pub(crate) const DEFAULT_TOOL_CALL_MAX_ITER: u32 = 25;
+
 pub(crate) fn tool_loop_max_iter() -> u32 {
     std::env::var("MODEL_TOOL_CALL_MAX_ITER")
         .ok()
         .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(5)
+        .unwrap_or(DEFAULT_TOOL_CALL_MAX_ITER)
 }
 
 /// The default output-token ceiling when `MODEL_MAX_TOKENS` is unset. A modern
