@@ -1880,6 +1880,31 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/surface-terminal:
+    dependencies:
+      '@refarm.dev/capabilities':
+        specifier: workspace:*
+        version: link:../capabilities
+      chalk:
+        specifier: ^5.6.2
+        version: 5.6.2
+      commander:
+        specifier: ^14.0.3
+        version: 14.0.3
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/operator-state':
+        specifier: workspace:*
+        version: link:../operator-state
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/sync-contract-v1:
     devDependencies:
       '@refarm.dev/eslint-config':

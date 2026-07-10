@@ -1,0 +1,61 @@
+{
+	"name": "@refarm.dev/surface-terminal",
+	"version": "0.1.0",
+	"description": "The terminal surfaces of the capability model — the CLI projector (Commander) and the interactive TUI runtime (readline). These project the neutral capability model onto a terminal; they are surfaces coupled to a terminal technology, kept out of the pure model.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./cli": {
+			"types": "./dist/cli-projector.d.ts",
+			"import": "./dist/cli-projector.js"
+		},
+		"./tui": {
+			"types": "./dist/tui-runtime.d.ts",
+			"import": "./dist/tui-runtime.js"
+		},
+		"./argv": {
+			"types": "./dist/parse-argv.d.ts",
+			"import": "./dist/parse-argv.js"
+		}
+	},
+	"files": [
+		"README.md",
+		"dist",
+		"!dist/**/*.tsbuildinfo"
+	],
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"keywords": [
+		"refarm",
+		"capability",
+		"surface",
+		"cli",
+		"tui",
+		"terminal"
+	],
+	"dependencies": {
+		"@refarm.dev/capabilities": "workspace:*",
+		"chalk": "^5.6.2",
+		"commander": "^14.0.3"
+	},
+	"license": "AGPL-3.0-only",
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/operator-state": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}
