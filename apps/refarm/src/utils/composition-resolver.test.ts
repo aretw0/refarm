@@ -3,10 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import {
-	resolveComposition,
-	userScopeConfigPath,
-} from "./composition-resolver.js";
+import { resolveComposition, userScopeConfigPath } from "./composition-resolver.js";
 
 /** Write a `config.json` under `<base>/.refarm/config.json`. */
 function seedConfig(base: string, config: unknown): void {
@@ -58,10 +55,7 @@ describe("resolveComposition (3-tier fold, org < workspace < user)", () => {
 
 		const withoutOrg = resolveComposition({ home, cwd, env: {} });
 		expect(withoutOrg.plugins.map((p) => p.source)).not.toContain("npm:@org/base");
-		expect(withoutOrg.consulted.map((c) => c.scope)).toEqual([
-			"workspace",
-			"user",
-		]);
+		expect(withoutOrg.consulted.map((c) => c.scope)).toEqual(["workspace", "user"]);
 
 		const withOrg = resolveComposition({
 			home,
@@ -70,11 +64,7 @@ describe("resolveComposition (3-tier fold, org < workspace < user)", () => {
 		});
 		const orgEntry = withOrg.plugins.find((p) => p.source === "npm:@org/base");
 		expect(orgEntry?.scope).toBe("org");
-		expect(withOrg.consulted.map((c) => c.scope)).toEqual([
-			"org",
-			"workspace",
-			"user",
-		]);
+		expect(withOrg.consulted.map((c) => c.scope)).toEqual(["org", "workspace", "user"]);
 	});
 
 	it("a workspace/user copy of an org source overrides the org base", () => {

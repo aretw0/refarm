@@ -35,10 +35,7 @@ export function readRevokedPlugins(config: RefarmCliConfig): string[] {
 }
 
 /** The revoked capabilities for `pluginId` in the given config (empty if none). */
-export function readRevokedPermissions(
-	config: RefarmCliConfig,
-	pluginId: string,
-): string[] {
+export function readRevokedPermissions(config: RefarmCliConfig, pluginId: string): string[] {
 	return config.revokedPermissions?.[pluginId] ?? [];
 }
 
@@ -48,7 +45,10 @@ function scopeKey(pluginId: string, capability: string | null): string {
 }
 
 /** The seq-map field names for a scope (plugin vs capability). */
-function seqFields(capability: string | null): { revoke: "revokedPluginsSeq" | "revokedPermissionsSeq"; annul: "revokedPluginsAnnul" | "revokedPermissionsAnnul" } {
+function seqFields(capability: string | null): {
+	revoke: "revokedPluginsSeq" | "revokedPermissionsSeq";
+	annul: "revokedPluginsAnnul" | "revokedPermissionsAnnul";
+} {
 	return capability === null
 		? { revoke: "revokedPluginsSeq", annul: "revokedPluginsAnnul" }
 		: { revoke: "revokedPermissionsSeq", annul: "revokedPermissionsAnnul" };

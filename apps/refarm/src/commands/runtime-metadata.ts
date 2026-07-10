@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 import { makeProcessCache } from "../utils/process-cache.js";
 
 const UNKNOWN_VERSION = "unknown";
-const DEFAULT_PACKAGE_JSON_PATH = new URL(
-	"../../package.json",
-	import.meta.url,
-);
+const DEFAULT_PACKAGE_JSON_PATH = new URL("../../package.json", import.meta.url);
 
 const versionCache = makeProcessCache<string>();
 
@@ -31,8 +28,7 @@ export interface RefarmRuntimeMetadata {
 	packageManager: PackageManagerName;
 }
 
-export interface ResolveRefarmRuntimeMetadataOptions
-	extends ResolveVersionOptions {
+export interface ResolveRefarmRuntimeMetadataOptions extends ResolveVersionOptions {
 	app?: string;
 	command?: string;
 	profile?: string;
@@ -66,15 +62,13 @@ function resolveVersion(options?: ResolveVersionOptions): string {
 	}
 
 	const readPackageJson =
-		options?.readPackageJson ??
-		((path: URL | string) => readFileSync(path, "utf8"));
+		options?.readPackageJson ?? ((path: URL | string) => readFileSync(path, "utf8"));
 	const packageJsonPath = options?.packageJsonPath ?? DEFAULT_PACKAGE_JSON_PATH;
 
 	try {
 		const raw = readPackageJson(packageJsonPath);
 		const parsed = JSON.parse(raw) as { version?: unknown };
-		const version =
-			typeof parsed.version === "string" ? parsed.version.trim() : "";
+		const version = typeof parsed.version === "string" ? parsed.version.trim() : "";
 		if (!version) {
 			return UNKNOWN_VERSION;
 		}

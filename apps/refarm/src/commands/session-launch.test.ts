@@ -46,15 +46,9 @@ beforeEach(() => {
 		delete process.env[key];
 	}
 	delete process.env.REFARM_HOME;
-	stdoutWriteSpy = vi
-		.spyOn(process.stdout, "write")
-		.mockImplementation(() => true);
-	stderrWriteSpy = vi
-		.spyOn(process.stderr, "write")
-		.mockImplementation(() => true);
-	consoleErrorSpy = vi
-		.spyOn(console, "error")
-		.mockImplementation(() => undefined);
+	stdoutWriteSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+	consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
 afterEach(() => {
@@ -78,15 +72,11 @@ afterEach(() => {
 
 describe("isSessionReady", () => {
 	it("returns true when both provider and farmhand are ready", () => {
-		expect(
-			isSessionReady({ providerConfigured: true, farmhandRunning: true }),
-		).toBe(true);
+		expect(isSessionReady({ providerConfigured: true, farmhandRunning: true })).toBe(true);
 	});
 
 	it("uses runtimeRunning as the canonical readiness field", () => {
-		expect(
-			isSessionReady({ providerConfigured: true, runtimeRunning: true }),
-		).toBe(true);
+		expect(isSessionReady({ providerConfigured: true, runtimeRunning: true })).toBe(true);
 		expect(
 			isRuntimeRunning({
 				providerConfigured: true,
@@ -97,21 +87,15 @@ describe("isSessionReady", () => {
 	});
 
 	it("returns false when the runtime is not running", () => {
-		expect(
-			isSessionReady({ providerConfigured: true, farmhandRunning: false }),
-		).toBe(false);
+		expect(isSessionReady({ providerConfigured: true, farmhandRunning: false })).toBe(false);
 	});
 
 	it("returns false when provider is not configured", () => {
-		expect(
-			isSessionReady({ providerConfigured: false, farmhandRunning: true }),
-		).toBe(false);
+		expect(isSessionReady({ providerConfigured: false, farmhandRunning: true })).toBe(false);
 	});
 
 	it("returns false when neither is ready", () => {
-		expect(
-			isSessionReady({ providerConfigured: false, farmhandRunning: false }),
-		).toBe(false);
+		expect(isSessionReady({ providerConfigured: false, farmhandRunning: false })).toBe(false);
 	});
 });
 
@@ -121,9 +105,7 @@ describe("isFirstRun", () => {
 
 	beforeEach(() => {
 		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
-		cwdSpy = vi
-			.spyOn(process, "cwd")
-			.mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
+		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
 	});
 
 	afterEach(() => {
@@ -141,10 +123,7 @@ describe("isFirstRun", () => {
 		const tmpBase = join(tmpdir(), `refarm-test-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");
 		mkdirSync(refarmDir, { recursive: true });
-		writeFileSync(
-			join(refarmDir, "config.json"),
-			JSON.stringify({ provider: "anthropic" }),
-		);
+		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({ provider: "anthropic" }));
 		cwdSpy.mockReturnValue(tmpBase);
 
 		try {
@@ -199,9 +178,7 @@ describe("checkSessionReadiness", () => {
 		delete process.env.MODEL_PROVIDER;
 		delete process.env.MODEL_DEFAULT_PROVIDER;
 		delete process.env.OPENAI_API_KEY;
-		cwdSpy = vi
-			.spyOn(process, "cwd")
-			.mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
+		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
 	});
 
 	afterEach(() => {
@@ -517,9 +494,7 @@ describe("autoStartRuntime — mode: ask (default)", () => {
 		const output = (consoleErrorSpy.mock.calls as unknown[][])
 			.map((call) => String(call[0]))
 			.join("\n");
-		expect(output).toContain(
-			"Run `refarm doctor --next-action` for the next recovery action.",
-		);
+		expect(output).toContain("Run `refarm doctor --next-action` for the next recovery action.");
 	});
 
 	it("passes the repo root to spawnRuntime", async () => {
@@ -562,9 +537,7 @@ describe("autoStartRuntime — mode: ask (default)", () => {
 			.map((call) => String(call[0]))
 			.join("");
 		expect(output).toContain("Starting TypeScript Farmhand");
-		expect(output).toContain(
-			"rust tractor: not built; using TypeScript fallback",
-		);
+		expect(output).toContain("rust tractor: not built; using TypeScript fallback");
 		expect(output).toContain("build rust:");
 		expect(output).toContain("packages/tractor");
 	});
@@ -682,9 +655,7 @@ describe("readAutostartMode", () => {
 	beforeEach(() => {
 		delete process.env.REFARM_FARMHAND_AUTOSTART;
 		delete process.env.REFARM_RUNTIME_AUTOSTART;
-		cwdSpy = vi
-			.spyOn(process, "cwd")
-			.mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
+		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
 	});
 
 	afterEach(() => {
@@ -733,10 +704,7 @@ describe("readAutostartMode", () => {
 		const tmpBase = join(tmpdir(), `refarm-autostart-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");
 		mkdirSync(refarmDir, { recursive: true });
-		writeFileSync(
-			join(refarmDir, "config.json"),
-			JSON.stringify({ autostart: "always" }),
-		);
+		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({ autostart: "always" }));
 		cwdSpy.mockReturnValue(tmpBase);
 		process.env.REFARM_RUNTIME_AUTOSTART = "ask";
 
@@ -751,10 +719,7 @@ describe("readAutostartMode", () => {
 		const tmpBase = join(tmpdir(), `refarm-autostart-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");
 		mkdirSync(refarmDir, { recursive: true });
-		writeFileSync(
-			join(refarmDir, "config.json"),
-			JSON.stringify({ autostart: "never" }),
-		);
+		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({ autostart: "never" }));
 		cwdSpy.mockReturnValue(tmpBase);
 		process.env.REFARM_FARMHAND_AUTOSTART = "sometimes";
 
@@ -769,10 +734,7 @@ describe("readAutostartMode", () => {
 		const tmpBase = join(tmpdir(), `refarm-autostart-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");
 		mkdirSync(refarmDir, { recursive: true });
-		writeFileSync(
-			join(refarmDir, "config.json"),
-			JSON.stringify({ autostart: "always" }),
-		);
+		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({ autostart: "always" }));
 		cwdSpy.mockReturnValue(tmpBase);
 
 		try {
@@ -786,10 +748,7 @@ describe("readAutostartMode", () => {
 		const tmpBase = join(tmpdir(), `refarm-autostart-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");
 		mkdirSync(refarmDir, { recursive: true });
-		writeFileSync(
-			join(refarmDir, "config.json"),
-			JSON.stringify({ autostart: "never" }),
-		);
+		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({ autostart: "never" }));
 		cwdSpy.mockReturnValue(tmpBase);
 
 		try {
@@ -808,10 +767,7 @@ describe("readAutostartMode", () => {
 			join(homeBase, ".refarm", "config.json"),
 			JSON.stringify({ autostart: "always" }),
 		);
-		writeFileSync(
-			join(cwdBase, ".refarm", "config.json"),
-			JSON.stringify({ autostart: "never" }),
-		);
+		writeFileSync(join(cwdBase, ".refarm", "config.json"), JSON.stringify({ autostart: "never" }));
 		process.env.HOME = homeBase;
 		cwdSpy.mockReturnValue(cwdBase);
 
@@ -827,10 +783,7 @@ describe("readAutostartMode", () => {
 		const tmpBase = join(tmpdir(), `refarm-autostart-${Date.now()}`);
 		const refarmDir = join(tmpBase, ".refarm");
 		mkdirSync(refarmDir, { recursive: true });
-		writeFileSync(
-			join(refarmDir, "config.json"),
-			JSON.stringify({ autostart: "maybe" }),
-		);
+		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({ autostart: "maybe" }));
 		cwdSpy.mockReturnValue(tmpBase);
 
 		try {
@@ -849,9 +802,7 @@ describe("readTractorEngineMode", () => {
 	beforeEach(() => {
 		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
 		delete process.env.REFARM_TRACTOR_ENGINE;
-		cwdSpy = vi
-			.spyOn(process, "cwd")
-			.mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
+		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
 	});
 
 	afterEach(() => {
@@ -950,10 +901,7 @@ describe("resolveLaunchRuntime", () => {
 		const repoRoot = join(tmpdir(), `refarm-runtime-rust-${Date.now()}`);
 		const binDir = join(repoRoot, "packages", "tractor", "target", "release");
 		mkdirSync(binDir, { recursive: true });
-		writeFileSync(
-			join(binDir, process.platform === "win32" ? "tractor.exe" : "tractor"),
-			"",
-		);
+		writeFileSync(join(binDir, process.platform === "win32" ? "tractor.exe" : "tractor"), "");
 
 		try {
 			expect(resolveLaunchRuntime(repoRoot, "auto")).toMatchObject({
@@ -966,10 +914,7 @@ describe("resolveLaunchRuntime", () => {
 	});
 
 	it("fails early when Rust is explicitly configured but the binary is absent", () => {
-		const repoRoot = join(
-			tmpdir(),
-			`refarm-runtime-rust-missing-${Date.now()}`,
-		);
+		const repoRoot = join(tmpdir(), `refarm-runtime-rust-missing-${Date.now()}`);
 		mkdirSync(repoRoot, { recursive: true });
 
 		try {

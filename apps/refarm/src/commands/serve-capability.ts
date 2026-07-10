@@ -1,10 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import { mountedHttpHandler } from "@refarm.dev/capability-host";
-import {
-	createCapabilityRegistry,
-	type CapabilityEntry,
-} from "@refarm.dev/capabilities";
+import { createCapabilityRegistry, type CapabilityEntry } from "@refarm.dev/capabilities";
 import { Command } from "commander";
 
 import { capabilityRegistry } from "./capability-registry.js";

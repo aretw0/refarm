@@ -38,9 +38,7 @@ export class TokenAuthError extends Error {
 	private static defaultMessage(provider: TokenProvider, reason: TokenFailureReason): string {
 		const label = provider === "github" ? "GitHub" : "Cloudflare";
 		const verb =
-			reason === "expired" ? "has expired" :
-			reason === "revoked" ? "was revoked" :
-			"is invalid";
+			reason === "expired" ? "has expired" : reason === "revoked" ? "was revoked" : "is invalid";
 		return `${label} token ${verb}.`;
 	}
 }

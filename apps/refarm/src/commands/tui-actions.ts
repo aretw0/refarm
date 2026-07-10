@@ -12,8 +12,7 @@ import {
 import type { StatusJson } from "@refarm.dev/cli/status";
 
 export type TuiSurfaceActionRow = SurfaceActionAffordanceRow;
-export type TuiSurfaceActionSelectionReason =
-	SurfaceActionAffordanceSelectionReason;
+export type TuiSurfaceActionSelectionReason = SurfaceActionAffordanceSelectionReason;
 
 export interface TuiSurfaceActionSelectionResult {
 	selected?: TuiSurfaceActionRow;
@@ -22,14 +21,11 @@ export interface TuiSurfaceActionSelectionResult {
 	rows: readonly TuiSurfaceActionRow[];
 }
 
-export type TuiSurfaceActionDryRunEnvelope =
-	SurfaceActionReadinessDryRunEnvelope & {
-		renderer: "tui";
-	};
+export type TuiSurfaceActionDryRunEnvelope = SurfaceActionReadinessDryRunEnvelope & {
+	renderer: "tui";
+};
 
-export function createTuiSurfaceActionRows(
-	status: StatusJson,
-): TuiSurfaceActionRow[] {
+export function createTuiSurfaceActionRows(status: StatusJson): TuiSurfaceActionRow[] {
 	return createSurfaceActionAffordanceRows(status);
 }
 
@@ -51,9 +47,7 @@ export function createTuiSurfaceActionDryRunEnvelope(
 	) as TuiSurfaceActionDryRunEnvelope;
 }
 
-export function formatTuiSurfaceActionRows(
-	rows: readonly TuiSurfaceActionRow[],
-): string {
+export function formatTuiSurfaceActionRows(rows: readonly TuiSurfaceActionRow[]): string {
 	return formatSurfaceActionAffordanceRows(rows, "Available TUI actions:");
 }
 

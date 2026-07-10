@@ -1,7 +1,4 @@
-import {
-	defaultProviderModelId,
-	defaultProviderModelRef,
-} from "../model-routing.js";
+import { defaultProviderModelId, defaultProviderModelRef } from "../model-routing.js";
 
 const OPENAI_DEFAULT_REF = defaultProviderModelRef("openai");
 const OPENAI_DEFAULT_MODEL_ID = defaultProviderModelId("openai");

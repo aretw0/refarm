@@ -1,7 +1,4 @@
-import {
-	buildJsonSuccessEnvelope,
-	printJson,
-} from "@refarm.dev/capabilities/envelope";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	parseRuntimeAutostartMode,
 	RUNTIME_AUTOSTART_MODES,
@@ -162,11 +159,13 @@ function resolveOpenExternalLinksMode(
 	if (envMode) return { value: envMode, source: `env:${OPEN_EXTERNAL_LINKS_ENV_VAR}` };
 
 	if (!opts.local) {
-		return resolveCliOpenExternalLinksMode({
-			cwd: deps.cwd(),
-			home: deps.home(),
-			env: {},
-		}) ?? { value: "auto", source: "default" };
+		return (
+			resolveCliOpenExternalLinksMode({
+				cwd: deps.cwd(),
+				home: deps.home(),
+				env: {},
+			}) ?? { value: "auto", source: "default" }
+		);
 	}
 
 	const paths = [configPath(deps, { local: true })];
@@ -182,10 +181,7 @@ function resolveSidecarUrl(
 	deps: ConfigDeps,
 	opts: { local?: boolean },
 ): { value: string; source: string } {
-	return resolveRuntimeSidecarUrl(
-		{ cwd: deps.cwd(), home: deps.home(), env: process.env },
-		opts,
-	);
+	return resolveRuntimeSidecarUrl({ cwd: deps.cwd(), home: deps.home(), env: process.env }, opts);
 }
 
 function parseConfigKey(value: string): ConfigKey | null {
@@ -356,7 +352,9 @@ function printConfigSummary(deps: ConfigDeps): void {
 	console.log("");
 	console.log(chalk.dim(`  Change a value:       ${RUNTIME_AUTOSTART_ALWAYS_COMMAND}`));
 	console.log(chalk.dim(`  Project-local value:  ${RUNTIME_AUTOSTART_NEVER_COMMAND} --local`));
-	console.log(chalk.dim("  Future: running this command without arguments can become interactive."));
+	console.log(
+		chalk.dim("  Future: running this command without arguments can become interactive."),
+	);
 }
 
 function printConfigSummaryJson(deps: ConfigDeps): void {
@@ -415,13 +413,7 @@ function printUnsetConfigValueJson(result: UnsetConfigValue): void {
 }
 
 function configGetCommand(key: ConfigKey, opts: { local?: boolean }): string {
-	return refarmCommand([
-		"config",
-		"get",
-		key,
-		"--json",
-		...(opts.local ? ["--local"] : []),
-	]);
+	return refarmCommand(["config", "get", key, "--json", ...(opts.local ? ["--local"] : [])]);
 }
 
 function applyConfigProfile(
@@ -557,10 +549,7 @@ function unsetConfigValue(
 			delete config.autostart;
 		}
 	} else if (key === "operator.openExternalLinks") {
-		removed = Object.prototype.hasOwnProperty.call(
-			config.operator ?? {},
-			"openExternalLinks",
-		);
+		removed = Object.prototype.hasOwnProperty.call(config.operator ?? {}, "openExternalLinks");
 		if (removed && config.operator) {
 			delete config.operator.openExternalLinks;
 		}

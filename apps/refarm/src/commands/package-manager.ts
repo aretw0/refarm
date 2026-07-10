@@ -1,7 +1,16 @@
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { type ApplicationProcessSpec } from "@refarm.dev/cli/command-handoff";
 import type { ProcessHandoffSpec } from "@refarm.dev/cli/process-handoff";
-import { PACKAGE_MANAGER_OVERRIDE_ENV_VAR, PACKAGE_MANAGERS as SHARED_PACKAGE_MANAGERS, packageBinaryCommand as createSharedPackageBinaryCommand, createPackageScriptCommand as createSharedPackageScriptCommand, detectPackageManager as detectSharedPackageManager, packageManagerOverrideDiagnostic, type PackageManagerName, type PackageScriptCommandOptions, } from "@refarm.dev/config";
+import {
+	PACKAGE_MANAGER_OVERRIDE_ENV_VAR,
+	PACKAGE_MANAGERS as SHARED_PACKAGE_MANAGERS,
+	packageBinaryCommand as createSharedPackageBinaryCommand,
+	createPackageScriptCommand as createSharedPackageScriptCommand,
+	detectPackageManager as detectSharedPackageManager,
+	packageManagerOverrideDiagnostic,
+	type PackageManagerName,
+	type PackageScriptCommandOptions,
+} from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
 import { refarmCommand, refarmProcess } from "../brand.js";
@@ -14,8 +23,7 @@ export type { PackageManagerName } from "@refarm.dev/config";
 export const PACKAGE_MANAGERS = SHARED_PACKAGE_MANAGERS;
 export const PACKAGE_MANAGER_OVERRIDE = PACKAGE_MANAGER_OVERRIDE_ENV_VAR;
 
-export interface RefarmPackageScriptCommandOptions
-	extends PackageScriptCommandOptions {
+export interface RefarmPackageScriptCommandOptions extends PackageScriptCommandOptions {
 	env?: NodeJS.ProcessEnv;
 }
 
@@ -44,10 +52,12 @@ export interface PackageManagerStatus {
 	}>;
 }
 
-export function detectPackageManager(options: {
-	cwd?: string;
-	env?: NodeJS.ProcessEnv;
-} = {}): PackageManagerName {
+export function detectPackageManager(
+	options: {
+		cwd?: string;
+		env?: NodeJS.ProcessEnv;
+	} = {},
+): PackageManagerName {
 	warnInvalidPackageManagerOverride(options.env);
 	return detectSharedPackageManager(options);
 }
@@ -55,16 +65,16 @@ export function detectPackageManager(options: {
 function warnInvalidPackageManagerOverride(env: NodeJS.ProcessEnv = process.env): void {
 	const diagnostic = packageManagerOverrideDiagnostic(env);
 	if (!diagnostic) return;
-	console.error(
-		chalk.yellow(`⚠  Ignored invalid ${diagnostic.name}=${diagnostic.value}`),
-	);
+	console.error(chalk.yellow(`⚠  Ignored invalid ${diagnostic.name}=${diagnostic.value}`));
 	console.error(chalk.dim(`   Use: ${diagnostic.valid.join(", ")}`));
 }
 
-export function buildPackageManagerStatus(options: {
-	cwd?: string;
-	env?: NodeJS.ProcessEnv;
-} = {}): PackageManagerStatus {
+export function buildPackageManagerStatus(
+	options: {
+		cwd?: string;
+		env?: NodeJS.ProcessEnv;
+	} = {},
+): PackageManagerStatus {
 	const env = options.env ?? process.env;
 	const cwd = options.cwd ?? process.cwd();
 	const diagnostic = packageManagerOverrideDiagnostic(env);
@@ -88,12 +98,7 @@ export function buildPackageManagerStatus(options: {
 		validPackageManagers: PACKAGE_MANAGERS,
 		execution: buildWorkspaceExecutionStatus({ cwd, env, packageManager }),
 		handoffs: {
-			tidyImportsDryRun: refarmCommand([
-				"tidy",
-				"imports",
-				"--dry-run",
-				"--json",
-			]),
+			tidyImportsDryRun: refarmCommand(["tidy", "imports", "--dry-run", "--json"]),
 		},
 		commands: {
 			tidyImportsCheck,
@@ -102,20 +107,8 @@ export function buildPackageManagerStatus(options: {
 		templates: [
 			{
 				id: "plugin-bundle-dry-run",
-				command: refarmCommand([
-					"plugin",
-					"bundle",
-					"<plugin.wasm>",
-					"--dry-run",
-					"--json",
-				]),
-				process: refarmProcess([
-					"plugin",
-					"bundle",
-					"<plugin.wasm>",
-					"--dry-run",
-					"--json",
-				]),
+				command: refarmCommand(["plugin", "bundle", "<plugin.wasm>", "--dry-run", "--json"]),
+				process: refarmProcess(["plugin", "bundle", "<plugin.wasm>", "--dry-run", "--json"]),
 				parameters: ["plugin.wasm"],
 				useWhen: "After choosing a concrete WASM component path to inspect the jco bundle command.",
 			},
@@ -142,9 +135,7 @@ function printPackageManagerStatus(status: PackageManagerStatus): void {
 	console.log(chalk.dim(`  reason:   ${status.execution.executor.reason}`));
 	if (status.execution.adapters.turbo.configured) {
 		console.log(
-			`  turbo:    ${
-				status.execution.adapters.turbo.available ? "available" : "not provisioned"
-			}`,
+			`  turbo:    ${status.execution.adapters.turbo.available ? "available" : "not provisioned"}`,
 		);
 		if (status.execution.adapters.turbo.installCommand) {
 			console.log(chalk.dim(`  install:  ${status.execution.adapters.turbo.installCommand}`));

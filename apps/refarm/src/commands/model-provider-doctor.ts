@@ -65,9 +65,7 @@ export const DEFAULT_REMOTE_PROFILE: ProviderDoctorProfile = {
 };
 
 /** The doctor profile for a provider (case-insensitive), or the remote default. */
-export function providerDoctorProfile(
-	provider: string | undefined,
-): ProviderDoctorProfile {
+export function providerDoctorProfile(provider: string | undefined): ProviderDoctorProfile {
 	const key = provider?.trim().toLowerCase();
 	return (key && PROVIDER_DOCTOR_PROFILES[key]) || DEFAULT_REMOTE_PROFILE;
 }

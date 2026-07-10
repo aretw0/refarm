@@ -1,11 +1,7 @@
 import type { LedgerScope } from "@refarm.dev/storage-node-view";
 
 import { compositionScopePath } from "../utils/composition-resolver.js";
-import {
-	readConfig,
-	writeConfig,
-	type RefarmCliConfig,
-} from "./config-shared.js";
+import { readConfig, writeConfig, type RefarmCliConfig } from "./config-shared.js";
 
 /**
  * The persistence primitive for the persona approval loop — reads and writes the
@@ -34,10 +30,7 @@ export function approvalConfigPath(
 }
 
 /** The approved capability ids for `pluginId` in the given config (empty if none). */
-export function readApprovedPermissions(
-	config: RefarmCliConfig,
-	pluginId: string,
-): string[] {
+export function readApprovedPermissions(config: RefarmCliConfig, pluginId: string): string[] {
 	return config.approvedPermissions?.[pluginId] ?? [];
 }
 
@@ -73,9 +66,7 @@ export function setApprovedPermissions(
 	const before = readApprovedPermissions(config, pluginId);
 	const approved = [...new Set(capabilities)].sort();
 
-	const same =
-		before.length === approved.length &&
-		before.every((c, i) => c === approved[i]);
+	const same = before.length === approved.length && before.every((c, i) => c === approved[i]);
 
 	if (!same) {
 		const next: Record<string, string[]> = {

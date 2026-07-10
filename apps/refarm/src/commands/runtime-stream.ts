@@ -44,17 +44,11 @@ export async function readEffortAndSessionFallback(
 	effortId: string,
 	sessionId: string,
 	deps: {
-		readEffortResult?: (
-			effortId: string,
-		) => Promise<RuntimeEffortResult | null>;
-		readSessionFallback?: (
-			sessionId: string,
-		) => Promise<RuntimeSessionFallbackResult | null>;
+		readEffortResult?: (effortId: string) => Promise<RuntimeEffortResult | null>;
+		readSessionFallback?: (sessionId: string) => Promise<RuntimeSessionFallbackResult | null>;
 	},
 ): Promise<RuntimeEffortResult | RuntimeSessionFallbackResult | null> {
-	const fallbackFromEffort = deps.readEffortResult
-		? await deps.readEffortResult(effortId)
-		: null;
+	const fallbackFromEffort = deps.readEffortResult ? await deps.readEffortResult(effortId) : null;
 	if (fallbackFromEffort) {
 		return fallbackFromEffort;
 	}
@@ -70,18 +64,13 @@ function stringEnv(value: string | undefined): string | null {
 	return trimmed ? trimmed : null;
 }
 
-export function resolveRuntimeStreamsDir(
-	env: NodeJS.ProcessEnv = process.env,
-): string {
+export function resolveRuntimeStreamsDir(env: NodeJS.ProcessEnv = process.env): string {
 	return (
-		stringEnv(env[REFARM_STREAMS_DIR_ENV_VAR]) ??
-		path.join(os.homedir(), ".refarm", "streams")
+		stringEnv(env[REFARM_STREAMS_DIR_ENV_VAR]) ?? path.join(os.homedir(), ".refarm", "streams")
 	);
 }
 
-export function resolveRuntimeTaskResultsDir(
-	env: NodeJS.ProcessEnv = process.env,
-): string {
+export function resolveRuntimeTaskResultsDir(env: NodeJS.ProcessEnv = process.env): string {
 	return (
 		stringEnv(env[REFARM_TASK_RESULTS_DIR_ENV_VAR]) ??
 		path.join(os.homedir(), ".refarm", "task-results")
@@ -96,13 +85,14 @@ export function followStreamFile(
 	options?: FollowStreamOptions,
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
-	const submittedAtMs = options?.submittedAtMs ?? Date.now();
-	const timeoutMs = options?.timeoutMs ??
+		const submittedAtMs = options?.submittedAtMs ?? Date.now();
+		const timeoutMs =
+			options?.timeoutMs ??
 			resolveRequestTimeoutMs(process.env, {
 				timeoutEnvVar: REFARM_STREAM_FOLLOW_TIMEOUT_MS,
 				defaultTimeoutMs: DEFAULT_STREAM_FOLLOW_TIMEOUT_MS,
 			});
-	const deadline = Date.now() + timeoutMs;
+		const deadline = Date.now() + timeoutMs;
 
 		const resolveStreamFilePath = (): string | null => {
 			const exactPath = path.join(streamsDir, `${effortId}.ndjson`);
@@ -168,10 +158,7 @@ export function followStreamFile(
 				if (readFallback) {
 					try {
 						const fallback = await readFallback();
-						if (
-							fallback?.status === "ok" &&
-							typeof fallback.content === "string"
-						) {
+						if (fallback?.status === "ok" && typeof fallback.content === "string") {
 							onChunk({
 								stream_ref: effortId,
 								sequence: Number.MAX_SAFE_INTEGER,
@@ -185,9 +172,7 @@ export function followStreamFile(
 							return;
 						}
 						if (fallback?.status === "error") {
-							stopAndReject(
-								fallback.error ?? `Effort ${effortId} failed without details`,
-							);
+							stopAndReject(fallback.error ?? `Effort ${effortId} failed without details`);
 							return;
 						}
 					} catch {
@@ -224,10 +209,7 @@ function parseEffortResultPayload(result: unknown): RuntimeEffortResult | null {
 	// (pending, in-progress) means "keep polling", so return null. `delivered`
 	// (async dispatch) is terminal and honest — its task result is the delivery
 	// receipt, surfaced as ok content below alongside `done`.
-	if (
-		typeof effort.status !== "string" ||
-		!EFFORT_TERMINAL_STATES.has(effort.status as never)
-	) {
+	if (typeof effort.status !== "string" || !EFFORT_TERMINAL_STATES.has(effort.status as never)) {
 		return null;
 	}
 	const task = Array.isArray(effort.results) ? effort.results[0] : undefined;
@@ -241,10 +223,7 @@ function parseEffortResultPayload(result: unknown): RuntimeEffortResult | null {
 	if (task.status === "error") {
 		return {
 			status: "error",
-			error:
-				typeof task.error === "string"
-					? task.error
-					: "Effort finished with task error",
+			error: typeof task.error === "string" ? task.error : "Effort finished with task error",
 		};
 	}
 	// A terminal effort whose task did not succeed (cancelled/timeout/skipped)
@@ -297,14 +276,10 @@ function parseEffortResultPayload(result: unknown): RuntimeEffortResult | null {
 			pricing_mode?: unknown;
 			estimated_usd?: unknown;
 		};
-		if (typeof usage.tokens_in === "number")
-			metadata.tokens_in = usage.tokens_in;
-		if (typeof usage.tokens_out === "number")
-			metadata.tokens_out = usage.tokens_out;
-		if (typeof usage.pricing_mode === "string")
-			metadata.pricing_mode = usage.pricing_mode;
-		if (typeof usage.estimated_usd === "number")
-			metadata.estimated_usd = usage.estimated_usd;
+		if (typeof usage.tokens_in === "number") metadata.tokens_in = usage.tokens_in;
+		if (typeof usage.tokens_out === "number") metadata.tokens_out = usage.tokens_out;
+		if (typeof usage.pricing_mode === "string") metadata.pricing_mode = usage.pricing_mode;
+		if (typeof usage.estimated_usd === "number") metadata.estimated_usd = usage.estimated_usd;
 	}
 
 	return {
@@ -330,9 +305,7 @@ export function readEffortResultFile(
 	}
 }
 
-export async function readLatestAgentEntryFromSession(
-	sessionId: string,
-): Promise<{
+export async function readLatestAgentEntryFromSession(sessionId: string): Promise<{
 	status: "ok";
 	content: string;
 	metadata?: Record<string, unknown>;
@@ -347,9 +320,7 @@ export async function readLatestAgentEntryFromSession(
 		};
 		const agentEntry = [...(payload.entries ?? [])]
 			.reverse()
-			.find(
-				(entry) => entry.kind === "agent" && typeof entry.content === "string",
-			);
+			.find((entry) => entry.kind === "agent" && typeof entry.content === "string");
 		if (!agentEntry || typeof agentEntry.content !== "string") return null;
 		return {
 			status: "ok",

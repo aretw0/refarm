@@ -1,12 +1,6 @@
 import { InvalidArgumentError } from "commander";
-export {
-	assertLaunchAllowed,
-	resolveLaunchReadiness,
-} from "@refarm.dev/cli/launch-policy";
-export type {
-	LaunchReadiness,
-	LaunchRecoveryHints,
-} from "@refarm.dev/cli/launch-policy";
+export { assertLaunchAllowed, resolveLaunchReadiness } from "@refarm.dev/cli/launch-policy";
+export type { LaunchReadiness, LaunchRecoveryHints } from "@refarm.dev/cli/launch-policy";
 
 export function resolveLaunchMode<TMode extends string>(
 	input: unknown,

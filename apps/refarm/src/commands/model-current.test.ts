@@ -9,13 +9,8 @@ function captureCurrentModel(tokens: Partial<ModelTokens> = {}): string {
 	return formatCurrentModel(tokens as ModelTokens);
 }
 
-function captureCurrentModelJson(
-	tokens: Partial<ModelTokens> = {},
-): Record<string, unknown> {
-	return buildCurrentModelEnvelope(tokens as ModelTokens) as unknown as Record<
-		string,
-		unknown
-	>;
+function captureCurrentModelJson(tokens: Partial<ModelTokens> = {}): Record<string, unknown> {
+	return buildCurrentModelEnvelope(tokens as ModelTokens) as unknown as Record<string, unknown>;
 }
 
 describe("model current output", () => {
@@ -127,9 +122,12 @@ describe("model current output", () => {
 
 		expect(payload.ok).toBe(true);
 		expect(payload.nextActions).toContain("refarm sow --json");
-		expect(payload.nextCommands.some((command) =>
-			command.includes("refarm sow --model") && command.includes("github-copilot/gpt-4o")
-		)).toBe(true);
+		expect(
+			payload.nextCommands.some(
+				(command) =>
+					command.includes("refarm sow --model") && command.includes("github-copilot/gpt-4o"),
+			),
+		).toBe(true);
 		expect(payload.recommendations).toContainEqual(
 			expect.objectContaining({
 				diagnostic: "model-subscription-runtime-unsupported",

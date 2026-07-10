@@ -10,11 +10,7 @@ import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
 
 const CONFIGURE_SCHEMA_VERSION = 1;
-const MISSING_GITHUB_CREDENTIALS_COMMAND = refarmCommand([
-	"sow",
-	"--github",
-	"--json",
-]);
+const MISSING_GITHUB_CREDENTIALS_COMMAND = refarmCommand(["sow", "--github", "--json"]);
 const GH_AUTH_STATUS_COMMAND = "gh auth status";
 
 interface ConfigureGithubOptions {
@@ -145,9 +141,7 @@ export const configureCommand = new Command("configure")
 					...mapping,
 					value: normalizeToken(tokens[mapping.sourceKey]),
 				}));
-				const writable = candidates.filter((candidate) =>
-					Boolean(candidate.value),
-				);
+				const writable = candidates.filter((candidate) => Boolean(candidate.value));
 				const skipped = candidates
 					.filter((candidate) => !candidate.value)
 					.map((candidate) => candidate.label);
@@ -170,18 +164,14 @@ export const configureCommand = new Command("configure")
 						continue;
 					}
 					try {
-						setGitHubActionsSecret(
-							candidate.secretName,
-							candidate.value as string,
-						);
+						setGitHubActionsSecret(candidate.secretName, candidate.value as string);
 						written.push({
 							secret: candidate.secretName,
 							source: candidate.label,
 						});
 						seen.add(candidate.secretName);
 					} catch (error) {
-						const message =
-							error instanceof Error ? error.message : String(error);
+						const message = error instanceof Error ? error.message : String(error);
 						if (shouldJson) {
 							printJson(
 								buildWriteFailurePayload({
@@ -193,9 +183,7 @@ export const configureCommand = new Command("configure")
 							return;
 						}
 						console.error(
-							chalk.red(
-								`\nFailed to write GitHub secret ${candidate.secretName}: ${message}`,
-							),
+							chalk.red(`\nFailed to write GitHub secret ${candidate.secretName}: ${message}`),
 						);
 						process.exitCode = 1;
 						return;

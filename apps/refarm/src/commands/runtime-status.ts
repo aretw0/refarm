@@ -1,7 +1,4 @@
-import {
-	type RuntimeSidecarProbeSummary,
-	type RuntimeStatusSummary,
-} from "@refarm.dev/runtime";
+import { type RuntimeSidecarProbeSummary, type RuntimeStatusSummary } from "@refarm.dev/runtime";
 import chalk from "chalk";
 import { existsSync, readFileSync } from "node:fs";
 
@@ -15,10 +12,7 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import {
-	resolveRuntimeLaunchCommand,
-	type RuntimeLaunchCommand,
-} from "./runtime-launcher.js";
+import { resolveRuntimeLaunchCommand, type RuntimeLaunchCommand } from "./runtime-launcher.js";
 import type { RuntimeReadinessProbe } from "./runtime-readiness.js";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
@@ -67,21 +61,18 @@ export interface RuntimeDiagnosticRecovery {
 	};
 }
 
-export type RuntimeJsonPayload<TExtra extends object = object> =
-	RuntimeStatusPayload &
-		TExtra & {
-			command: "runtime";
-			operation: "status" | "ensure" | "start" | "restart";
-			ok: boolean;
-			nextAction: string | null;
-			nextActions: string[];
-			nextCommand: string | null;
-			nextCommands: string[];
-		};
+export type RuntimeJsonPayload<TExtra extends object = object> = RuntimeStatusPayload &
+	TExtra & {
+		command: "runtime";
+		operation: "status" | "ensure" | "start" | "restart";
+		ok: boolean;
+		nextAction: string | null;
+		nextActions: string[];
+		nextCommand: string | null;
+		nextCommands: string[];
+	};
 
-function runtimeSidecarProbeSummary(
-	probe: RuntimeReadinessProbe,
-): RuntimeSidecarProbeSummary {
+function runtimeSidecarProbeSummary(probe: RuntimeReadinessProbe): RuntimeSidecarProbeSummary {
 	return {
 		url: probe.url,
 		ready: probe.ready,
@@ -100,9 +91,7 @@ export async function runtimeStatusPayload(
 	const repoRoot = deps.repoRoot();
 	const readinessProbe = deps.probeReadiness ? await deps.probeReadiness() : undefined;
 	const ready = readinessProbe?.ready ?? (deps.probeReady ? await deps.probeReady() : undefined);
-	const sidecarProbe = readinessProbe
-		? runtimeSidecarProbeSummary(readinessProbe)
-		: undefined;
+	const sidecarProbe = readinessProbe ? runtimeSidecarProbeSummary(readinessProbe) : undefined;
 	try {
 		const selection = deps.resolveRuntime(repoRoot, configuredEngine);
 		return {
@@ -114,10 +103,7 @@ export async function runtimeStatusPayload(
 			sidecarUrlSource: sidecar.source,
 			...(sidecarProbe ? { sidecarProbe } : {}),
 			ready,
-			startCommand: resolveRuntimeLaunchCommand(
-				repoRoot,
-				selection.activeEngine,
-			).display,
+			startCommand: resolveRuntimeLaunchCommand(repoRoot, selection.activeEngine).display,
 		};
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -265,7 +251,8 @@ export function runtimeStartDiagnosticRecovery(
 				{
 					diagnostic: "runtime-start-no-readiness",
 					severity: "failure",
-					summary: "The runtime was started but did not become ready, and the startup log has no actionable output.",
+					summary:
+						"The runtime was started but did not become ready, and the startup log has no actionable output.",
 					action: "Inspect the resolved runtime launch command before retrying readiness recovery.",
 					command: RUNTIME_START_DRY_RUN_JSON_COMMAND,
 				},
@@ -279,8 +266,7 @@ export function printRuntimeStatus(payload: RuntimeStatusPayload): void {
 	console.log(chalk.bold("Refarm runtime"));
 	console.log(`  configured: ${payload.configuredEngine}`);
 	console.log(`  active:     ${payload.activeEngine}`);
-	const readyLabel =
-		payload.ready === undefined ? "unknown" : payload.ready ? "yes" : "no";
+	const readyLabel = payload.ready === undefined ? "unknown" : payload.ready ? "yes" : "no";
 	console.log(`  ready:      ${readyLabel}`);
 	console.log(`  autostart:  ${payload.autostart}`);
 	if (payload.sidecarUrl) {

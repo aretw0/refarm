@@ -18,19 +18,10 @@ import {
 	createSourceCapabilityGroup,
 	createVaultCapabilityGroup,
 } from "@refarm.dev/capability-host";
-import {
-	refarmSourceDeps,
-	refarmVaultDeps,
-} from "./builtin-capability-deps.js";
+import { refarmSourceDeps, refarmVaultDeps } from "./builtin-capability-deps.js";
 import { createDispatchCapability } from "./dispatch-capability.js";
-import {
-	createHealthCapabilityGroup,
-	healthCapabilityHooks,
-} from "./health-capability.js";
-import {
-	createModelCapabilityGroup,
-	modelCapabilityHooks,
-} from "./model-capability.js";
+import { createHealthCapabilityGroup, healthCapabilityHooks } from "./health-capability.js";
+import { createModelCapabilityGroup, modelCapabilityHooks } from "./model-capability.js";
 import {
 	createPluginCapabilityGroup,
 	defaultPluginDeps,
@@ -41,19 +32,10 @@ import {
 	defaultPluginDescriptorDeps,
 	registerPluginCapabilities,
 } from "./plugin-descriptor-adapter.js";
-import {
-	extensionInstallCapability,
-	extensionInstallHooks,
-} from "./plugin-install-from-path.js";
-import {
-	extensionReviewCapability,
-	extensionReviewHooks,
-} from "./plugin-review-capability.js";
+import { extensionInstallCapability, extensionInstallHooks } from "./plugin-install-from-path.js";
+import { extensionReviewCapability, extensionReviewHooks } from "./plugin-review-capability.js";
 import { readSurfaceablePluginManifests } from "./plugin-shared.js";
-import {
-	createSkillCapabilityGroup,
-	skillCapabilityHooks,
-} from "./skill-capability.js";
+import { createSkillCapabilityGroup, skillCapabilityHooks } from "./skill-capability.js";
 import { createThemeCapabilityGroup } from "./theme-capability.js";
 
 /**
@@ -85,9 +67,7 @@ export interface BuiltinCapabilityOptions {
  * light up on every surface (CLI, REPL, TUI, and later HTTP/web) with no
  * per-surface wiring. A factory (not a const) so a host app can inject its own
  * config (e.g. its bundled plugins) — see {@link refarmBuiltinCapabilities}. */
-function buildBuiltinCapabilities(
-	options: BuiltinCapabilityOptions = {},
-): BuiltinCapability[] {
+function buildBuiltinCapabilities(options: BuiltinCapabilityOptions = {}): BuiltinCapability[] {
 	return [
 		{ entry: createDispatchCapability(), hooks: {} },
 		{ entry: extensionReviewCapability, hooks: extensionReviewHooks },
@@ -136,9 +116,7 @@ export const capabilityRegistry = createCapabilityRegistry(
 export function refarmBuiltinCapabilities(
 	options: BuiltinCapabilityOptions = {},
 ): CapabilityEntry[] {
-	const source = options.bundledPlugins
-		? buildBuiltinCapabilities(options)
-		: BUILTIN_CAPABILITIES;
+	const source = options.bundledPlugins ? buildBuiltinCapabilities(options) : BUILTIN_CAPABILITIES;
 	return source.map((c) => c.entry as CapabilityEntry);
 }
 
@@ -168,10 +146,9 @@ for (const builtin of BUILTIN_CAPABILITIES) {
 		continue;
 	}
 	const { entry, hooksFor } = builtin;
-	const verbs = [
-		entry.name,
-		...(entry.transports?.repl?.slashAliases ?? []),
-	].map((name) => name.toLowerCase());
+	const verbs = [entry.name, ...(entry.transports?.repl?.slashAliases ?? [])].map((name) =>
+		name.toLowerCase(),
+	);
 	for (const verb of verbs) {
 		for (const subVerb of Object.keys(entry.actions)) {
 			capabilityHooks.set(`${verb} ${subVerb.toLowerCase()}`, hooksFor(subVerb));
@@ -186,12 +163,12 @@ export function capabilityHooksFor(name: string): CapabilitySurfaceHooks {
 /** Lowercased slash names the REPL parser should treat as capabilities. */
 export function capabilitySlashNames(): ReadonlySet<string> {
 	return new Set(
-		capabilityRegistry.list().flatMap((descriptor) => [
-			descriptor.name.toLowerCase(),
-			...(descriptor.transports?.repl?.slashAliases ?? []).map((alias) =>
-				alias.toLowerCase(),
-			),
-		]),
+		capabilityRegistry
+			.list()
+			.flatMap((descriptor) => [
+				descriptor.name.toLowerCase(),
+				...(descriptor.transports?.repl?.slashAliases ?? []).map((alias) => alias.toLowerCase()),
+			]),
 	);
 }
 
@@ -221,11 +198,7 @@ export function capabilityCliCommands(): Command[] {
  * under its parent from ONE declaration.
  */
 export function capabilityCliCommandsForGroup(groupName: string): Command[] {
-	return projectCliCommandsForGroup(
-		capabilityRegistry.list(),
-		groupName,
-		capabilityHooksFor,
-	);
+	return projectCliCommandsForGroup(capabilityRegistry.list(), groupName, capabilityHooksFor);
 }
 
 /** One capability verb projected onto a TUI menu — the `renderers.tui` hint plus

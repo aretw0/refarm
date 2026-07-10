@@ -5,10 +5,7 @@ import {
 } from "@refarm.dev/operator-state";
 import { runHealthAudit } from "./health.js";
 import { buildCurrentModelEnvelope, defaultModelDeps } from "./model.js";
-import {
-	buildRuntimeJsonPayload,
-	runtimeStatusPayload,
-} from "./runtime-status.js";
+import { buildRuntimeJsonPayload, runtimeStatusPayload } from "./runtime-status.js";
 import { defaultRuntimeCommandDeps } from "./runtime.js";
 
 export interface BaseSurfaceStatusDeps {
@@ -26,9 +23,7 @@ export async function resolveBaseSurfaceStatus(
 	return buildBaseSurfaceModel({ runtime, model, health }, { owner: "apps/refarm" });
 }
 
-async function resolveRuntimeBaseInput(): Promise<
-	BaseSurfaceModelInput["runtime"]
-> {
+async function resolveRuntimeBaseInput(): Promise<BaseSurfaceModelInput["runtime"]> {
 	const payload = await runtimeStatusPayload(defaultRuntimeCommandDeps());
 	return buildRuntimeJsonPayload(payload);
 }

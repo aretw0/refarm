@@ -16,8 +16,7 @@ let prevHome: string | undefined;
 // Real bytes + their real sha-256 — the same fixture the local-install test uses,
 // so the content-address is genuine (the hash gate actually verifies).
 const WASM_BYTES = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x42]);
-const WASM_SHA256 =
-	"e7afd3a94acc8c9488c613adfb39d03db39536e70eb1c57d5f3798197122734f";
+const WASM_SHA256 = "e7afd3a94acc8c9488c613adfb39d03db39536e70eb1c57d5f3798197122734f";
 const WASM_INTEGRITY = `sha256-${WASM_SHA256}`;
 
 const DESCRIPTOR_URL = "https://plugins.example/note-linter/plugin.json";
@@ -113,9 +112,10 @@ describe("plugin install from url — content-addressed remote install (ADR-086 
 		const home = process.env.REFARM_HOME as string;
 		const destDir = path.join(home, "plugins", pluginIdToFsToken("@example/note-linter"));
 		expect(fs.existsSync(path.join(destDir, "plugin.wasm"))).toBe(true);
-		const manifest = JSON.parse(
-			fs.readFileSync(path.join(destDir, "plugin.json"), "utf-8"),
-		) as { entry: string; integrity: string };
+		const manifest = JSON.parse(fs.readFileSync(path.join(destDir, "plugin.json"), "utf-8")) as {
+			entry: string;
+			integrity: string;
+		};
 		expect(manifest.entry).toBe(`file://${path.join(destDir, "plugin.wasm")}`);
 		expect(manifest.integrity).toBe(WASM_INTEGRITY);
 	});

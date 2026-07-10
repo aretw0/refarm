@@ -88,8 +88,15 @@ describe("modelCredentialProvider — prompt config", () => {
 			.map((value) => value.slice("api:".length));
 
 		const expectedProviders = [
-			"anthropic", "openai", "groq", "mistral",
-			"gemini", "xai", "deepseek", "together", "openrouter",
+			"anthropic",
+			"openai",
+			"groq",
+			"mistral",
+			"gemini",
+			"xai",
+			"deepseek",
+			"together",
+			"openrouter",
 		];
 		for (const id of expectedProviders) {
 			expect(apiIds, `API provider "${id}" missing from choices`).toContain(id);
@@ -273,8 +280,7 @@ describe("modelCredentialProvider — OAuth container environment", () => {
 			});
 			callbacks.onCallbackWait?.({
 				phase: "callback-timeout",
-				message:
-					"No browser callback received after 120s; switching to pasted redirect URL.",
+				message: "No browser callback received after 120s; switching to pasted redirect URL.",
 				elapsedMs: 120_000,
 				timeoutMs: 120_000,
 			});

@@ -97,11 +97,7 @@ export const integration = {
 };
 `;
 
-const DISPATCH_INDEX_JS_TEMPLATE = (
-	name: string,
-	id: string,
-	dispatch: DispatchVerbScaffold,
-) => `\
+const DISPATCH_INDEX_JS_TEMPLATE = (name: string, id: string, dispatch: DispatchVerbScaffold) => `\
 // ${id} — local dispatch extension
 // Edit this file and run 'refarm plugin reload ${id} --json' to apply changes.
 
@@ -150,11 +146,7 @@ export const integration = {
 };
 `;
 
-export function indexJsTemplate(
-	name: string,
-	id: string,
-	dispatch?: DispatchVerbScaffold,
-): string {
+export function indexJsTemplate(name: string, id: string, dispatch?: DispatchVerbScaffold): string {
 	return dispatch
 		? DISPATCH_INDEX_JS_TEMPLATE(name, id, dispatch)
 		: DEFAULT_INDEX_JS_TEMPLATE(name, id);
@@ -179,11 +171,7 @@ export function buildExtJson(name: string, options: { verb?: string } = {}): Ext
 	};
 }
 
-export function extensionBaseDir(
-	cwd: string,
-	homeDir: string,
-	isGlobal: boolean,
-): string {
+export function extensionBaseDir(cwd: string, homeDir: string, isGlobal: boolean): string {
 	return isGlobal
 		? path.join(homeDir, ".refarm", "extensions")
 		: path.join(cwd, ".refarm", "extensions");
@@ -235,10 +223,7 @@ export function listExtensions(cwd: string, homeDir: string): ExtensionEntry[] {
 	return results;
 }
 
-export function buildExtensionListReport(
-	cwd: string,
-	homeDir: string,
-): ExtensionListReport {
+export function buildExtensionListReport(cwd: string, homeDir: string): ExtensionListReport {
 	return buildJsonSuccessEnvelope({
 		command: "extension",
 		operation: "list",
@@ -323,20 +308,14 @@ export async function buildCreatedPluginReport(
 
 	await mkdir(extDir, { recursive: true });
 	const ext = buildExtJson(name, { verb });
-	await writeFile(
-		path.join(extDir, "ext.json"),
-		JSON.stringify(ext, null, 2) + "\n",
-		"utf-8",
-	);
+	await writeFile(path.join(extDir, "ext.json"), JSON.stringify(ext, null, 2) + "\n", "utf-8");
 	const indexPath = path.join(extDir, "index.js");
 	await writeFile(indexPath, indexJsTemplate(name, ext.id, dispatch), "utf-8");
 
 	const scope = isGlobal ? "global" : "project";
 	const reloadCommand = extensionReloadCommand(name, true);
 	const listHandoff = refarmCommand([commandName, "list", "--json"]);
-	const surfaceCommand = dispatch
-		? refarmCommand([dispatch.surfaceName, "--json"])
-		: undefined;
+	const surfaceCommand = dispatch ? refarmCommand([dispatch.surfaceName, "--json"]) : undefined;
 	return {
 		command: commandName,
 		operation: "new",

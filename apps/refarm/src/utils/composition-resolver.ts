@@ -1,7 +1,4 @@
-import {
-	orderedScopeStorePaths,
-	type LedgerScope,
-} from "@refarm.dev/storage-node-view";
+import { orderedScopeStorePaths, type LedgerScope } from "@refarm.dev/storage-node-view";
 import fs from "node:fs";
 import os from "node:os";
 
@@ -61,9 +58,7 @@ function readPluginsAt(filePath: string): PackageSource[] {
 		const parsed = JSON.parse(fs.readFileSync(filePath, "utf-8")) as {
 			plugins?: unknown;
 		};
-		return Array.isArray(parsed.plugins)
-			? (parsed.plugins as PackageSource[])
-			: [];
+		return Array.isArray(parsed.plugins) ? (parsed.plugins as PackageSource[]) : [];
 	} catch {
 		// A malformed config must not crash composition resolution — an unreadable
 		// scope simply contributes nothing (the scalar reader in config.ts still
@@ -80,9 +75,7 @@ function readPluginsAt(filePath: string): PackageSource[] {
  * ledger's `effectivePointers.set` overwrite; pi's per-key cross-scope union is a
  * deferred divergence).
  */
-export function resolveComposition(
-	deps: CompositionResolverDeps = {},
-): CompositionResolution {
+export function resolveComposition(deps: CompositionResolverDeps = {}): CompositionResolution {
 	const env = deps.env ?? process.env;
 	const scopePaths = orderedScopeStorePaths("config.json", {
 		workspaceRoot: deps.cwd ?? process.cwd(),
@@ -109,9 +102,8 @@ export function resolveComposition(
 /** The user-tier config path this resolver folds — exposed so a test can assert
  * it equals config.ts's `configPath({local:false})` (the co-habitation guarantee). */
 export function userScopeConfigPath(home = os.homedir()): string {
-	return orderedScopeStorePaths("config.json", { userHome: home }).find(
-		(p) => p.scope === "user",
-	)!.path;
+	return orderedScopeStorePaths("config.json", { userHome: home }).find((p) => p.scope === "user")!
+		.path;
 }
 
 /**

@@ -3,10 +3,7 @@ export interface GuardedFlag {
 	flag: string;
 }
 
-export function assertAtMostOneFlagEnabled(
-	flags: GuardedFlag[],
-	message?: string,
-): void {
+export function assertAtMostOneFlagEnabled(flags: GuardedFlag[], message?: string): void {
 	const enabled = flags.filter((flag) => flag.enabled);
 	if (enabled.length <= 1) {
 		return;

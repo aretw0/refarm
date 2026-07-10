@@ -1,7 +1,4 @@
-import {
-	createSidecarGraphClient,
-	type SidecarGraphClient,
-} from "@refarm.dev/sidecar-client";
+import { createSidecarGraphClient, type SidecarGraphClient } from "@refarm.dev/sidecar-client";
 import { createNodeView } from "@refarm.dev/storage-node-view";
 import fs from "node:fs";
 import path from "node:path";
@@ -48,8 +45,7 @@ export function resolveTractorNamespace(env = process.env): string {
  * this resolver, like the launcher, only implements the XDG/REFARM_HOME path.
  */
 export function resolveTractorDbPath(env = process.env): string {
-	const base =
-		env.XDG_DATA_HOME?.trim() || path.join(resolveRefarmHome(env), "data");
+	const base = env.XDG_DATA_HOME?.trim() || path.join(resolveRefarmHome(env), "data");
 	return path.join(base, "refarm", `${resolveTractorNamespace(env)}.db`);
 }
 
@@ -73,15 +69,11 @@ export async function openTractorGraph(
  * the distributed default because importing `@refarm.dev/storage-sqlite/node`
  * loads Node's experimental `node:sqlite` API.
  */
-export async function openDirectTractorGraph(
-	env = process.env,
-): Promise<TractorGraph | null> {
+export async function openDirectTractorGraph(env = process.env): Promise<TractorGraph | null> {
 	const dbPath = resolveTractorDbPath(env);
 	if (!fs.existsSync(dbPath)) return null;
 	try {
-		const { TractorNodesReadProvider } = await import(
-			"@refarm.dev/storage-sqlite/node"
-		);
+		const { TractorNodesReadProvider } = await import("@refarm.dev/storage-sqlite/node");
 		return createNodeView(new TractorNodesReadProvider(dbPath));
 	} catch {
 		return null;

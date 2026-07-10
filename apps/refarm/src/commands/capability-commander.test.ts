@@ -3,7 +3,10 @@ import type {
 	CapabilityGroup,
 	CapabilityInput,
 } from "@refarm.dev/capabilities";
-import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+} from "@refarm.dev/capabilities/envelope";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { toCommanderCommand, toCommanderGroup } from "./capability-commander.js";
 
@@ -48,14 +51,7 @@ async function runCommand(
 
 describe("toCommanderCommand", () => {
 	it("builds a command that packs argv into CapabilityInput and prints the envelope", async () => {
-		const envelope = await runCommand(ECHO, [
-			"./p",
-			"--grant",
-			"a",
-			"--grant",
-			"b",
-			"--json",
-		]);
+		const envelope = await runCommand(ECHO, ["./p", "--grant", "a", "--grant", "b", "--json"]);
 		expect(envelope.ok).toBe(true);
 		expect(envelope.command).toBe("echo");
 		expect((envelope as { received: CapabilityInput }).received).toEqual({
@@ -72,9 +68,7 @@ describe("toCommanderCommand", () => {
 		const withMultiWord: CapabilityDescriptor = {
 			name: "echo",
 			summary: "x",
-			options: [
-				{ name: "include-secrets", kind: "boolean", summary: "secrets" },
-			],
+			options: [{ name: "include-secrets", kind: "boolean", summary: "secrets" }],
 			run: (input: CapabilityInput) =>
 				buildJsonSuccessEnvelope({
 					command: "echo",
@@ -82,15 +76,10 @@ describe("toCommanderCommand", () => {
 					extra: { received: input },
 				}),
 		};
-		const envelope = await runCommand(withMultiWord, [
-			"--include-secrets",
-			"--json",
-		]);
-		expect(
-			(envelope as { received: CapabilityInput }).received.options[
-				"include-secrets"
-			],
-		).toBe(true);
+		const envelope = await runCommand(withMultiWord, ["--include-secrets", "--json"]);
+		expect((envelope as { received: CapabilityInput }).received.options["include-secrets"]).toBe(
+			true,
+		);
 	});
 
 	it("maps ok:false to process.exitCode=1 by default", async () => {
@@ -122,8 +111,7 @@ describe("toCommanderCommand", () => {
 				}),
 		};
 		await runCommand(review, ["--json"], {
-			exitCode: (env: { readyToInstall?: boolean }) =>
-				env.readyToInstall === false ? 1 : 0,
+			exitCode: (env: { readyToInstall?: boolean }) => (env.readyToInstall === false ? 1 : 0),
 		});
 		expect(process.exitCode).toBe(1);
 	});

@@ -3,9 +3,7 @@
  *
  * @deprecated Prefer importing from `@refarm.dev/cli/command-handoff` directly.
  */
-import {
-	type ApplicationProcessSpec,
-} from "@refarm.dev/cli/command-handoff";
+import { type ApplicationProcessSpec } from "@refarm.dev/cli/command-handoff";
 
 /**
  * Compatibility shim.

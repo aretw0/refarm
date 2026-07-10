@@ -14,9 +14,7 @@ export async function withResolvedStatusPayload<TOptions, TResult>(options: {
 	resolveOptions: TOptions;
 	run: (json: StatusJson) => Promise<TResult> | TResult;
 }): Promise<TResult> {
-	const { json, shutdown } = await options.resolveStatusPayload(
-		options.resolveOptions,
-	);
+	const { json, shutdown } = await options.resolveStatusPayload(options.resolveOptions);
 
 	try {
 		return await options.run(json);

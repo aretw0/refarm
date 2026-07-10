@@ -3,16 +3,22 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import {
-	quoteCommandArg,
-	quoteCommandArgIfNeeded,
-} from "@refarm.dev/cli/command-handoff";
+import { quoteCommandArg, quoteCommandArgIfNeeded } from "@refarm.dev/cli/command-handoff";
 import { isRuntimeAgentPluginId } from "@refarm.dev/config";
 import {
-	assertChannelControlCapability, parseTaskTransport as parseDispatchTransport, resolveChannelControlSurfaceAdapter, resolveChannelFromTransport, type ChannelControlSurfaceAdapter, type DispatchTransport,
+	assertChannelControlCapability,
+	parseTaskTransport as parseDispatchTransport,
+	resolveChannelControlSurfaceAdapter,
+	resolveChannelFromTransport,
+	type ChannelControlSurfaceAdapter,
+	type DispatchTransport,
 } from "@refarm.dev/dispatch-surface";
 import type {
-	Effort, EffortLogEntry, EffortResult, EffortSummary, EffortTransportAdapter,
+	Effort,
+	EffortLogEntry,
+	EffortResult,
+	EffortSummary,
+	EffortTransportAdapter,
 } from "@refarm.dev/effort-contract-v1";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import chalk from "chalk";
@@ -29,10 +35,7 @@ import {
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import { resolveSidecarUrl } from "./sidecar-url.js";
-import {
-	observedEffortStatus,
-	observedTaskResultError,
-} from "./task-observation.js";
+import { observedEffortStatus, observedTaskResultError } from "./task-observation.js";
 import {
 	buildTaskLogsCommand,
 	buildTaskStatusCommand,
@@ -55,9 +58,7 @@ export function parseTaskTransport(value: string): TaskTransport {
 	try {
 		return parseDispatchTransport(value);
 	} catch (error) {
-		throw new InvalidArgumentError(
-			error instanceof Error ? error.message : String(error),
-		);
+		throw new InvalidArgumentError(error instanceof Error ? error.message : String(error));
 	}
 }
 
@@ -97,10 +98,7 @@ function emptyEffortSummary(): EffortSummary {
 	};
 }
 
-function incrementEffortSummary(
-	summary: EffortSummary,
-	status: EffortResult["status"],
-): void {
+function incrementEffortSummary(summary: EffortSummary, status: EffortResult["status"]): void {
 	summary.total += 1;
 	switch (status) {
 		case "pending":
@@ -155,10 +153,7 @@ export function formatEffortSummary(summary: EffortSummary): string {
 	return `total=${summary.total} pending=${summary.pending} in-progress=${summary.inProgress} done=${summary.done} partial=${summary.partial} failed=${summary.failed} timed-out=${summary.timedOut} cancelled=${summary.cancelled}`;
 }
 
-export function effortSummariesEqual(
-	a: EffortSummary,
-	b: EffortSummary,
-): boolean {
+export function effortSummariesEqual(a: EffortSummary, b: EffortSummary): boolean {
 	return (
 		a.total === b.total &&
 		a.pending === b.pending &&
@@ -171,19 +166,13 @@ export function effortSummariesEqual(
 	);
 }
 
-export function formatLogMeta(
-	meta: Record<string, unknown> | undefined,
-): string {
+export function formatLogMeta(meta: Record<string, unknown> | undefined): string {
 	if (!meta) return "";
-	const modelScope =
-		typeof meta.modelScope === "string" ? meta.modelScope : undefined;
-	const modelProvider =
-		typeof meta.modelProvider === "string" ? meta.modelProvider : undefined;
+	const modelScope = typeof meta.modelScope === "string" ? meta.modelScope : undefined;
+	const modelProvider = typeof meta.modelProvider === "string" ? meta.modelProvider : undefined;
 	const modelId = typeof meta.modelId === "string" ? meta.modelId : undefined;
 	const modelRoute =
-		modelProvider && modelId
-			? `${modelProvider}/${modelId}`
-			: (modelProvider ?? modelId);
+		modelProvider && modelId ? `${modelProvider}/${modelId}` : (modelProvider ?? modelId);
 	const parts = [
 		modelScope ? `scope=${modelScope}` : undefined,
 		modelRoute ? `model=${modelRoute}` : undefined,
@@ -245,9 +234,7 @@ export function taskCheckpointJsonHandoff(
 	};
 }
 
-export function isResumableTaskSessionEffort(
-	effort: TaskSessionEffortRecord,
-): boolean {
+export function isResumableTaskSessionEffort(effort: TaskSessionEffortRecord): boolean {
 	if (!effort.lastStatus || effort.lastStatus === "not-found") return false;
 	return !isFinalEffortStatus(effort.lastStatus);
 }
@@ -320,10 +307,7 @@ export function reportTaskReadError(
 				operation,
 				error: `task-${operation}-failed`,
 				message,
-				nextAction:
-					operation === "logs"
-						? statusCommand
-						: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
+				nextAction: operation === "logs" ? statusCommand : RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 				nextActions:
 					operation === "logs"
 						? [statusCommand, RUNTIME_DOCTOR_NEXT_ACTION_COMMAND]
@@ -363,15 +347,9 @@ export function reportTaskListError(
 				error: "task-list-failed",
 				message,
 				nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-				nextActions: [
-					RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-					RUNTIME_STATUS_COMMAND,
-				],
+				nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND, RUNTIME_STATUS_COMMAND],
 				nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
-				nextCommands: [
-					RUNTIME_DOCTOR_NEXT_COMMAND,
-					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-				],
+				nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND, RUNTIME_ENSURE_WAIT_NEXT_COMMAND],
 				extra: {
 					transport,
 				},
@@ -481,10 +459,7 @@ class FileTransportClient implements TaskOperationsAdapter {
 		return entries;
 	}
 
-	private writeControlRequest(
-		effortId: string,
-		action: "retry" | "cancel",
-	): boolean {
+	private writeControlRequest(effortId: string, action: "retry" | "cancel"): boolean {
 		const effortPath = path.join(this.tasksDir, `${effortId}.json`);
 		if (!fs.existsSync(effortPath)) return false;
 
@@ -558,9 +533,7 @@ class HttpTransportClient implements TaskOperationsAdapter {
 	}
 
 	async query(effortId: string): Promise<EffortResult | null> {
-		const response = await fetchSidecarWithTimeout(
-			`${this.baseUrl}/efforts/${effortId}`,
-		);
+		const response = await fetchSidecarWithTimeout(`${this.baseUrl}/efforts/${effortId}`);
 		if (response.status === 404) return null;
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return (await response.json()) as EffortResult;
@@ -573,18 +546,13 @@ class HttpTransportClient implements TaskOperationsAdapter {
 	}
 
 	async logs(effortId: string): Promise<EffortLogEntry[] | null> {
-		const response = await fetchSidecarWithTimeout(
-			`${this.baseUrl}/efforts/${effortId}/logs`,
-		);
+		const response = await fetchSidecarWithTimeout(`${this.baseUrl}/efforts/${effortId}/logs`);
 		if (response.status === 404) return null;
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return (await response.json()) as EffortLogEntry[];
 	}
 
-	private async command(
-		effortId: string,
-		action: "retry" | "cancel",
-	): Promise<boolean> {
+	private async command(effortId: string, action: "retry" | "cancel"): Promise<boolean> {
 		const response = await fetchSidecarWithTimeout(
 			`${this.baseUrl}/efforts/${effortId}/${action}`,
 			{
@@ -606,9 +574,7 @@ class HttpTransportClient implements TaskOperationsAdapter {
 	}
 
 	async summary(): Promise<EffortSummary> {
-		const response = await fetchSidecarWithTimeout(
-			`${this.baseUrl}/efforts/summary`,
-		);
+		const response = await fetchSidecarWithTimeout(`${this.baseUrl}/efforts/summary`);
 		if (!response.ok) throw new Error(`HTTP ${response.status}`);
 		return (await response.json()) as EffortSummary;
 	}
@@ -624,8 +590,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 		adapter?: ChannelControlSurfaceAdapter,
 	) {
 		this.channel = channel;
-		this.adapter =
-			adapter ?? resolveChannelControlSurfaceAdapter(channel).adapter;
+		this.adapter = adapter ?? resolveChannelControlSurfaceAdapter(channel).adapter;
 	}
 
 	private channelEffortsPath(): string {
@@ -674,10 +639,7 @@ class HttpChannelTransportClient implements TaskOperationsAdapter {
 		return (await response.json()) as EffortLogEntry[];
 	}
 
-	private async command(
-		effortId: string,
-		action: "retry" | "cancel",
-	): Promise<boolean> {
+	private async command(effortId: string, action: "retry" | "cancel"): Promise<boolean> {
 		assertChannelControlCapability(this.adapter, action);
 		const path =
 			action === "retry"
@@ -715,11 +677,7 @@ export function resolveAdapter(transport: string): TaskOperationsAdapter {
 	const channel = resolveChannelFromTransport(resolvedTransport);
 	if (channel) {
 		const { adapter } = resolveChannelControlSurfaceAdapter(channel);
-		return new HttpChannelTransportClient(
-			resolveSidecarUrl(),
-			channel,
-			adapter,
-		);
+		return new HttpChannelTransportClient(resolveSidecarUrl(), channel, adapter);
 	}
 	if (resolvedTransport === "http") {
 		return new HttpTransportClient(resolveSidecarUrl());
@@ -732,10 +690,7 @@ export function deriveAttemptCount(result: EffortResult): number {
 	if (typeof result.attemptCount === "number") {
 		return result.attemptCount;
 	}
-	return result.results.reduce(
-		(acc, taskResult) => acc + Number(taskResult.attempts ?? 0),
-		0,
-	);
+	return result.results.reduce((acc, taskResult) => acc + Number(taskResult.attempts ?? 0), 0);
 }
 
 export function safeSessionRecord(fn: () => void): void {

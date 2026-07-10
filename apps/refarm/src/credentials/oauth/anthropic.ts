@@ -18,8 +18,13 @@ function parseCodeFromInput(input: string): { code?: string; state?: string } {
 	if (!v) return {};
 	try {
 		const url = new URL(v);
-		return { code: url.searchParams.get("code") ?? undefined, state: url.searchParams.get("state") ?? undefined };
-	} catch { /* not a URL */ }
+		return {
+			code: url.searchParams.get("code") ?? undefined,
+			state: url.searchParams.get("state") ?? undefined,
+		};
+	} catch {
+		/* not a URL */
+	}
 	if (v.includes("code=")) {
 		const p = new URLSearchParams(v);
 		return { code: p.get("code") ?? undefined, state: p.get("state") ?? undefined };
@@ -52,14 +57,28 @@ async function exchangeCode(
 		code_verifier: verifier,
 	});
 	const d = JSON.parse(body) as { access_token: string; refresh_token: string; expires_in: number };
-	return { access: d.access_token, refresh: d.refresh_token, expires: Date.now() + d.expires_in * 1000 - 300_000 };
+	return {
+		access: d.access_token,
+		refresh: d.refresh_token,
+		expires: Date.now() + d.expires_in * 1000 - 300_000,
+	};
 }
 
 export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OAuthCredentials> {
 	const { verifier, challenge } = await generatePKCE();
 	const server = callbacks.skipCallbackServer
-		? { listening: false, unavailableReason: "callback server disabled", waitForCode: () => Promise.resolve(null), cancelWait: () => {}, close: () => {} }
-		: await startCallbackServer({ port: CALLBACK_PORT, path: CALLBACK_PATH, expectedState: verifier });
+		? {
+				listening: false,
+				unavailableReason: "callback server disabled",
+				waitForCode: () => Promise.resolve(null),
+				cancelWait: () => {},
+				close: () => {},
+			}
+		: await startCallbackServer({
+				port: CALLBACK_PORT,
+				path: CALLBACK_PATH,
+				expectedState: verifier,
+			});
 
 	const authParams = new URLSearchParams({
 		code: "true",
@@ -74,7 +93,8 @@ export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OA
 
 	callbacks.onAuth({
 		url: `${AUTHORIZE_URL}?${authParams}`,
-		instructions: "Complete login in your browser. On a remote machine, paste the redirect URL here.",
+		instructions:
+			"Complete login in your browser. On a remote machine, paste the redirect URL here.",
 	});
 
 	let code: string | undefined;
@@ -83,10 +103,16 @@ export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OA
 	try {
 		if (callbacks.onManualCodeInput) {
 			let manualInput: string | undefined;
-			const manualPromise = callbacks.onManualCodeInput().then((v) => {
-				manualInput = v;
-				server.cancelWait();
-			}).catch((err: unknown) => { server.cancelWait(); throw err; });
+			const manualPromise = callbacks
+				.onManualCodeInput()
+				.then((v) => {
+					manualInput = v;
+					server.cancelWait();
+				})
+				.catch((err: unknown) => {
+					server.cancelWait();
+					throw err;
+				});
 
 			const result = await waitForOAuthCallback(server, {
 				timeoutMs: callbacks.callbackTimeoutMs,
@@ -115,7 +141,10 @@ export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OA
 		}
 
 		if (!code) {
-			const input = await callbacks.onPrompt({ message: "Paste the authorization code or full redirect URL:", placeholder: REDIRECT_URI });
+			const input = await callbacks.onPrompt({
+				message: "Paste the authorization code or full redirect URL:",
+				placeholder: REDIRECT_URI,
+			});
 			const parsed = parseCodeFromInput(input);
 			if (parsed.state && parsed.state !== verifier) throw new Error("OAuth state mismatch");
 			code = parsed.code;
@@ -138,7 +167,11 @@ async function refreshAnthropicToken(refreshToken: string): Promise<OAuthCredent
 		refresh_token: refreshToken,
 	});
 	const d = JSON.parse(body) as { access_token: string; refresh_token: string; expires_in: number };
-	return { access: d.access_token, refresh: d.refresh_token, expires: Date.now() + d.expires_in * 1000 - 300_000 };
+	return {
+		access: d.access_token,
+		refresh: d.refresh_token,
+		expires: Date.now() + d.expires_in * 1000 - 300_000,
+	};
 }
 
 export const anthropicOAuthProvider: OAuthProviderInterface = {

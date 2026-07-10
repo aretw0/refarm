@@ -31,24 +31,65 @@ const DEVCONTAINER_CALLBACK_TIMEOUT_MS = 120_000;
 
 function credentialEnvKey(provider: string): string {
 	const envKey = modelCredentialEnvKey(provider);
-	if (!envKey) throw new Error(`No credential env key registered for model provider "${provider}".`);
+	if (!envKey)
+		throw new Error(`No credential env key registered for model provider "${provider}".`);
 	return envKey;
 }
 
 // ── API key tier (paste + link) ───────────────────────────────────────────────
 const API_KEY_PROVIDERS = [
-	{ id: "openai",     label: "OpenAI API key",       envKey: credentialEnvKey("openai"),     url: "https://platform.openai.com/api-keys" },
-	{ id: "anthropic",  label: "Anthropic API key",   envKey: credentialEnvKey("anthropic"),  url: "https://console.anthropic.com/settings/keys" },
-	{ id: "groq",       label: "Groq",                 envKey: credentialEnvKey("groq"),       url: "https://console.groq.com/keys" },
-	{ id: "mistral",    label: "Mistral",              envKey: credentialEnvKey("mistral"),    url: "https://console.mistral.ai/api-keys" },
-	{ id: "gemini",     label: "Gemini (Google)",      envKey: credentialEnvKey("gemini"),     url: "https://aistudio.google.com/app/apikey" },
-	{ id: "xai",        label: "xAI / Grok",           envKey: credentialEnvKey("xai"),        url: "https://console.x.ai" },
-	{ id: "deepseek",   label: "DeepSeek",             envKey: credentialEnvKey("deepseek"),   url: "https://platform.deepseek.com/api_keys" },
-	{ id: "together",   label: "Together AI",          envKey: credentialEnvKey("together"),   url: "https://api.together.xyz/settings/api-keys" },
-	{ id: "openrouter", label: "OpenRouter",           envKey: credentialEnvKey("openrouter"), url: "https://openrouter.ai/keys" },
+	{
+		id: "openai",
+		label: "OpenAI API key",
+		envKey: credentialEnvKey("openai"),
+		url: "https://platform.openai.com/api-keys",
+	},
+	{
+		id: "anthropic",
+		label: "Anthropic API key",
+		envKey: credentialEnvKey("anthropic"),
+		url: "https://console.anthropic.com/settings/keys",
+	},
+	{
+		id: "groq",
+		label: "Groq",
+		envKey: credentialEnvKey("groq"),
+		url: "https://console.groq.com/keys",
+	},
+	{
+		id: "mistral",
+		label: "Mistral",
+		envKey: credentialEnvKey("mistral"),
+		url: "https://console.mistral.ai/api-keys",
+	},
+	{
+		id: "gemini",
+		label: "Gemini (Google)",
+		envKey: credentialEnvKey("gemini"),
+		url: "https://aistudio.google.com/app/apikey",
+	},
+	{ id: "xai", label: "xAI / Grok", envKey: credentialEnvKey("xai"), url: "https://console.x.ai" },
+	{
+		id: "deepseek",
+		label: "DeepSeek",
+		envKey: credentialEnvKey("deepseek"),
+		url: "https://platform.deepseek.com/api_keys",
+	},
+	{
+		id: "together",
+		label: "Together AI",
+		envKey: credentialEnvKey("together"),
+		url: "https://api.together.xyz/settings/api-keys",
+	},
+	{
+		id: "openrouter",
+		label: "OpenRouter",
+		envKey: credentialEnvKey("openrouter"),
+		url: "https://openrouter.ai/keys",
+	},
 ] as const;
 
-type ApiKeyProviderId = typeof API_KEY_PROVIDERS[number]["id"];
+type ApiKeyProviderId = (typeof API_KEY_PROVIDERS)[number]["id"];
 
 type Choice =
 	| { kind: "oauth"; id: string }
@@ -94,16 +135,12 @@ function renderCallbackWaitStatus(
 	status: OAuthCallbackWaitStatus,
 	options: { containerEnv: boolean; hasPortForwarding: boolean },
 ): void {
-	const callbackHint = status.callbackUrl
-		? ` ${chalk.dim(`callback: ${status.callbackUrl}`)}`
-		: "";
+	const callbackHint = status.callbackUrl ? ` ${chalk.dim(`callback: ${status.callbackUrl}`)}` : "";
 	if (status.phase === "callback-waiting") {
 		console.log(chalk.dim(`  ${status.message}${callbackHint}`));
 		if (options.containerEnv && options.hasPortForwarding) {
 			console.log(
-				chalk.dim(
-					"     VS Code/Codespaces must forward that callback port to this container.",
-				),
+				chalk.dim("     VS Code/Codespaces must forward that callback port to this container."),
 			);
 		}
 		if (status.timeoutMs) {
@@ -123,10 +160,7 @@ function renderCallbackWaitStatus(
 		console.log(chalk.green(`  ✓ ${status.message}`));
 		return;
 	}
-	if (
-		status.phase === "callback-timeout" ||
-		status.phase === "callback-unavailable"
-	) {
+	if (status.phase === "callback-timeout" || status.phase === "callback-unavailable") {
 		console.log(chalk.yellow(`  ⚠  ${status.message}`));
 		return;
 	}
@@ -155,38 +189,62 @@ async function runOAuthFlow(
 		onAuth: ({ url, instructions }) => {
 			console.log(chalk.dim(`\n  ${instructions ?? "Complete login in your browser."}`));
 			console.log(chalk.cyan(`  → ${url}\n`));
-				if (needsManualCode) {
-					console.log(chalk.yellow("  ⚠  Running in a container — the browser redirect cannot reach this environment."));
-					console.log(chalk.dim("     After logging in, copy the full redirect URL or authorization code and paste it below.\n"));
-				} else if (containerEnv && provider.usesCallbackServer) {
-					console.log(chalk.dim("     Devcontainer detected — VS Code should forward the callback port automatically."));
-					console.log(chalk.dim("     If the browser does not return here, you will be prompted to paste the redirect URL."));
-					console.log(chalk.dim("     You can paste the full redirect URL into this terminal early; it will be consumed when the fallback prompt appears.\n"));
+			if (needsManualCode) {
+				console.log(
+					chalk.yellow(
+						"  ⚠  Running in a container — the browser redirect cannot reach this environment.",
+					),
+				);
+				console.log(
+					chalk.dim(
+						"     After logging in, copy the full redirect URL or authorization code and paste it below.\n",
+					),
+				);
+			} else if (containerEnv && provider.usesCallbackServer) {
+				console.log(
+					chalk.dim(
+						"     Devcontainer detected — VS Code should forward the callback port automatically.",
+					),
+				);
+				console.log(
+					chalk.dim(
+						"     If the browser does not return here, you will be prompted to paste the redirect URL.",
+					),
+				);
+				console.log(
+					chalk.dim(
+						"     You can paste the full redirect URL into this terminal early; it will be consumed when the fallback prompt appears.\n",
+					),
+				);
+			}
+			ctx.tryOpenUrl(url);
+		},
+		onPrompt: async ({ message }) => promptCode(ctx, message),
+		onCallbackWait: (status) =>
+			renderCallbackWaitStatus(status, {
+				containerEnv,
+				hasPortForwarding,
+			}),
+		onProgress: (msg) => {
+			if (progress) {
+				progress.update(msg);
+				return;
+			}
+			progress = startProgressIndicator(msg);
+		},
+		...(callbackCanReachBrowser && containerEnv
+			? {
+					callbackTimeoutMs: DEVCONTAINER_CALLBACK_TIMEOUT_MS,
 				}
-				ctx.tryOpenUrl(url);
-			},
-			onPrompt: async ({ message }) => promptCode(ctx, message),
-			onCallbackWait: (status) =>
-				renderCallbackWaitStatus(status, {
-					containerEnv,
-					hasPortForwarding,
-				}),
-			onProgress: (msg) => {
-				if (progress) {
-					progress.update(msg);
-					return;
+			: {}),
+		// In plain containers without a known port-forwarding bridge, the host
+		// browser cannot reach the callback server, so prompt for the code.
+		...(needsManualCode
+			? {
+					skipCallbackServer: true,
+					onManualCodeInput: () => promptCode(ctx, "Paste the redirect URL or authorization code:"),
 				}
-				progress = startProgressIndicator(msg);
-			},
-			...(callbackCanReachBrowser && containerEnv ? {
-				callbackTimeoutMs: DEVCONTAINER_CALLBACK_TIMEOUT_MS,
-			} : {}),
-			// In plain containers without a known port-forwarding bridge, the host
-			// browser cannot reach the callback server, so prompt for the code.
-		...(needsManualCode ? {
-			skipCallbackServer: true,
-			onManualCodeInput: () => promptCode(ctx, "Paste the redirect URL or authorization code:"),
-		} : {}),
+			: {}),
 	};
 
 	const creds = await provider.login(loginCallbacks).finally(() => progress?.stop());
@@ -194,7 +252,10 @@ async function runOAuthFlow(
 	return { provider: provider.id, apiKey: provider.getApiKey(creds), oauthCredentials: creds };
 }
 
-async function runApiKeyFlow(ctx: CollectContext, p: typeof API_KEY_PROVIDERS[number]): Promise<ModelCredential> {
+async function runApiKeyFlow(
+	ctx: CollectContext,
+	p: (typeof API_KEY_PROVIDERS)[number],
+): Promise<ModelCredential> {
 	console.log(chalk.cyan(`\n  Get your key at: ${p.url}`));
 	ctx.tryOpenUrl(p.url);
 	const apiKey = await operator(ctx).ask({
@@ -264,6 +325,6 @@ export const modelCredentialProvider: CredentialProvider & {
 
 /** Map from OAuth provider id → Silo modelProvider id used by runtime agents and Farmhand. */
 export const OAUTH_PROVIDER_TO_MODEL_PROVIDER: Record<string, string> = {
-	"anthropic": "anthropic",
+	anthropic: "anthropic",
 	"openai-codex": "openai-codex",
 };

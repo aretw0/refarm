@@ -42,10 +42,7 @@ async function runTick(
 			cwd: () => root,
 			effortSubmitAdapter: () => effortAdapter,
 		});
-		await command.parseAsync(
-			["automations", "tick", ...args, "--json"],
-			{ from: "user" },
-		);
+		await command.parseAsync(["automations", "tick", ...args, "--json"], { from: "user" });
 		return JSON.parse(lines.join("\n")) as Record<string, unknown>;
 	} finally {
 		log.mockRestore();
@@ -82,9 +79,7 @@ describe("project automations tick", () => {
 		});
 		// No effort actually dispatched, no ledger written.
 		expect(effortAdapter.submitted).toHaveLength(0);
-		expect(
-			fs.existsSync(path.join(root, ".refarm", "scheduler", "ledger.json")),
-		).toBe(false);
+		expect(fs.existsSync(path.join(root, ".refarm", "scheduler", "ledger.json"))).toBe(false);
 	});
 
 	it("--submit dispatches the effort and records the .refarm ledger", async () => {
@@ -100,9 +95,7 @@ describe("project automations tick", () => {
 			alreadyFired: 0,
 		});
 		expect(effortAdapter.submitted).toHaveLength(1);
-		expect(
-			fs.existsSync(path.join(root, ".refarm", "scheduler", "ledger.json")),
-		).toBe(true);
+		expect(fs.existsSync(path.join(root, ".refarm", "scheduler", "ledger.json"))).toBe(true);
 	});
 
 	it("--submit is idempotent across ticks via the persisted ledger", async () => {

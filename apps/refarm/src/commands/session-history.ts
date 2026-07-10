@@ -16,17 +16,23 @@ interface RuntimeSessionNode {
 const RECENT_SESSION_TIMEOUT_MS = 300;
 const REFARM_RECENT_SESSION_TIMEOUT_MS = "REFARM_RECENT_SESSION_TIMEOUT_MS";
 
-export async function loadRecentRuntimeSessions(options: {
-	limit?: number;
-	timeoutMs?: number;
-} = {}): Promise<OperatorResumeSessionRecord[]> {
+export async function loadRecentRuntimeSessions(
+	options: {
+		limit?: number;
+		timeoutMs?: number;
+	} = {},
+): Promise<OperatorResumeSessionRecord[]> {
 	const limit = options.limit ?? 5;
 	try {
-		const response = await fetchSidecarWithTimeout(sidecarUrl("/sessions"), {}, {
-			timeoutEnvVar: REFARM_RECENT_SESSION_TIMEOUT_MS,
-			defaultTimeoutMs: RECENT_SESSION_TIMEOUT_MS,
-			timeoutMs: options.timeoutMs,
-		});
+		const response = await fetchSidecarWithTimeout(
+			sidecarUrl("/sessions"),
+			{},
+			{
+				timeoutEnvVar: REFARM_RECENT_SESSION_TIMEOUT_MS,
+				defaultTimeoutMs: RECENT_SESSION_TIMEOUT_MS,
+				timeoutMs: options.timeoutMs,
+			},
+		);
 		if (!response.ok) return [];
 		const body = (await response.json()) as { sessions?: RuntimeSessionNode[] };
 		return normalizeRuntimeSessions(body.sessions ?? []).slice(0, limit);

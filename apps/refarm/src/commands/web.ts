@@ -1,6 +1,6 @@
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { formatSurfaceActionReadinessOutput } from "@refarm.dev/cli/action-affordances";
-import { openHostBrowserUrl, resolveBrowserOpenSpec, } from "@refarm.dev/cli/browser-open";
+import { openHostBrowserUrl, resolveBrowserOpenSpec } from "@refarm.dev/cli/browser-open";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import { executeProcessHandoff, type ProcessHandoffSpec } from "@refarm.dev/cli/process-handoff";
 import type { StatusJson } from "@refarm.dev/cli/status";
@@ -57,9 +57,7 @@ interface WebOptions {
 	launcher?: RefarmWebLauncherMode;
 }
 
-export function resolveWebLaunchSpec(
-	mode: RefarmWebLauncherMode,
-): WebLaunchSpec {
+export function resolveWebLaunchSpec(mode: RefarmWebLauncherMode): WebLaunchSpec {
 	const script = mode === "preview" ? "preview" : "dev";
 	return createPackageScriptCommand({ cwd: "apps/dev", script });
 }
@@ -85,32 +83,17 @@ function webLaunchCommand(options: {
 		"--launcher",
 		options.launcher,
 		...(options.open ? ["--open"] : []),
-		...(options.open && options.openUrl
-			? ["--open-url", quoteCommandArg(options.openUrl)]
-			: []),
+		...(options.open && options.openUrl ? ["--open-url", quoteCommandArg(options.openUrl)] : []),
 	]);
 }
 
 function webActionsSelectCommand(select: string): string {
-	return refarmCommand([
-		"web",
-		"--actions",
-		"--select",
-		quoteCommandArg(select),
-		"--json",
-	]);
+	return refarmCommand(["web", "--actions", "--select", quoteCommandArg(select), "--json"]);
 }
 
 function webLaunchGuardRecoveryCommand(options: WebOptions): string {
 	const launcher = resolveLaunchMode(options.launcher ?? "dev", WEB_LAUNCHER_MODES);
-	return refarmCommand([
-		"web",
-		"--launch",
-		"--launcher",
-		launcher,
-		"--dry-run",
-		"--json",
-	]);
+	return refarmCommand(["web", "--launch", "--launcher", launcher, "--dry-run", "--json"]);
 }
 
 function emitWebLaunchGuardError(options: WebOptions): boolean {
@@ -154,9 +137,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 	};
 
 	return new Command("web")
-		.description(
-			"Report web renderer posture and optionally launch local web runtime",
-		)
+		.description("Report web renderer posture and optionally launch local web runtime")
 		.addHelpText(
 			"after",
 			[
@@ -190,11 +171,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 			"--select <id-or-index>",
 			"Select an available Web action ID or row index when used with --actions",
 		)
-		.option(
-			"--open-url <url>",
-			"Browser URL used with --open",
-			"http://127.0.0.1:4321",
-		)
+		.option("--open-url <url>", "Browser URL used with --open", "http://127.0.0.1:4321")
 		.option(
 			"--launcher <mode>",
 			"Launcher mode: dev | preview",
@@ -233,17 +210,15 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 
 			if (emitWebLaunchGuardError(options)) return;
 
-			const launchMode = resolveLaunchMode(
-				options.launcher ?? "dev",
-				WEB_LAUNCHER_MODES,
-			);
-			const outputMode = options.launch && options.dryRun && options.json
-				? "silent"
-				: resolveJsonMarkdownStatusOutputMode({
-						json: options.json,
-						markdown: options.markdown,
-						defaultMode: "summary",
-					});
+			const launchMode = resolveLaunchMode(options.launcher ?? "dev", WEB_LAUNCHER_MODES);
+			const outputMode =
+				options.launch && options.dryRun && options.json
+					? "silent"
+					: resolveJsonMarkdownStatusOutputMode({
+							json: options.json,
+							markdown: options.markdown,
+							defaultMode: "summary",
+						});
 			const openUrl = options.openUrl ?? "http://127.0.0.1:4321";
 			const json = await runStatusPreflight({
 				resolveStatusPayload: resolvedDeps.resolveStatusPayload,
@@ -302,10 +277,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		});
 }
 
-async function emitWebActionRows(
-	options: WebOptions,
-	deps: WebDeps,
-): Promise<void> {
+async function emitWebActionRows(options: WebOptions, deps: WebDeps): Promise<void> {
 	await withResolvedStatusPayload({
 		resolveStatusPayload: deps.resolveStatusPayload,
 		resolveOptions: {

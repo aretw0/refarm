@@ -1,8 +1,4 @@
-import {
-	formatStatusJson,
-	formatStatusMarkdown,
-	type StatusJson,
-} from "@refarm.dev/cli/status";
+import { formatStatusJson, formatStatusMarkdown, type StatusJson } from "@refarm.dev/cli/status";
 import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 
 export type StatusOutputMode = "json" | "markdown" | "summary" | "silent";

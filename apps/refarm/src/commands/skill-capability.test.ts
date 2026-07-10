@@ -1,17 +1,8 @@
-import {
-	isCapabilityGroup,
-	resolveGroupAction,
-} from "@refarm.dev/capabilities";
+import { isCapabilityGroup, resolveGroupAction } from "@refarm.dev/capabilities";
 import type { DiscoveredSkill } from "@refarm.dev/plugin-surface-loader/node";
 import { openScopedLedger } from "@refarm.dev/storage-node-view";
 import { createHash } from "node:crypto";
-import {
-	existsSync,
-	mkdtempSync,
-	readFileSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -60,9 +51,7 @@ function skill(overrides: Partial<DiscoveredSkill> = {}): DiscoveredSkill {
 type Rejected = ReturnType<SkillCommandDeps["discover"]>["rejected"];
 type Checker = Awaited<ReturnType<SkillCommandDeps["loadCheckers"]>>[number];
 type ImportResult = ReturnType<SkillCommandDeps["importSkills"]>;
-type PersistedResult = Awaited<
-	ReturnType<SkillCommandDeps["loadPersistedSkills"]>
->;
+type PersistedResult = Awaited<ReturnType<SkillCommandDeps["loadPersistedSkills"]>>;
 
 type Profiles = ReturnType<SkillCommandDeps["loadProfiles"]>;
 
@@ -108,26 +97,19 @@ describe("skill CapabilityGroup", () => {
 
 	it("`list` projects plugin and imported ledger skills with maturity hints", async () => {
 		const group = createSkillCapabilityGroup(
-			deps(
-				[skill()],
-				[],
-				[],
-				{ skills: [], rejected: [] },
-				[],
-				{
-					skills: [
-						{
-							surfaceId: "note",
-							id: "urn:skill:note",
-							name: "note",
-							requiredCapabilities: [],
-							instructions: "Take a note.",
-							ledgerScope: "user",
-						},
-					],
-					rejected: [],
-				},
-			),
+			deps([skill()], [], [], { skills: [], rejected: [] }, [], {
+				skills: [
+					{
+						surfaceId: "note",
+						id: "urn:skill:note",
+						name: "note",
+						requiredCapabilities: [],
+						instructions: "Take a note.",
+						ledgerScope: "user",
+					},
+				],
+				rejected: [],
+			}),
 		);
 		const resolved = resolveGroupAction(group, []);
 		expect(resolved?.key).toBe("list");
@@ -136,16 +118,10 @@ describe("skill CapabilityGroup", () => {
 			skills: { name: string; maturity: string; source: string; sourceLabel: string }[];
 		};
 		expect(envelope.count).toBe(2);
-		expect(envelope.skills.find((s) => s.name === "greet-operator")?.maturity).toBe(
-			"complete",
-		);
-		expect(envelope.skills.find((s) => s.name === "greet-operator")?.source).toBe(
-			"plugin",
-		);
+		expect(envelope.skills.find((s) => s.name === "greet-operator")?.maturity).toBe("complete");
+		expect(envelope.skills.find((s) => s.name === "greet-operator")?.source).toBe("plugin");
 		// A skill with no capabilities is surfaced as permissive (hint, not gate).
-		expect(envelope.skills.find((s) => s.name === "note")?.maturity).toBe(
-			"permissive",
-		);
+		expect(envelope.skills.find((s) => s.name === "note")?.maturity).toBe("permissive");
 		expect(envelope.skills.find((s) => s.name === "note")?.sourceLabel).toBe(
 			"imported ledger (user)",
 		);
@@ -161,9 +137,7 @@ describe("skill CapabilityGroup", () => {
 		expect(shown?.name).toBe("greet-operator");
 		// `show` is the read view of one skill: it carries the instruction body
 		// (for an imported skill, the bytes resolved + verified from the store).
-		expect(shown?.instructions).toBe(
-			"# Greet\n\nGreet the operator and summarize the day.",
-		);
+		expect(shown?.instructions).toBe("# Greet\n\nGreet the operator and summarize the day.");
 
 		const byId = resolveGroupAction(group, ["show", "urn:skill:greet"]);
 		expect((await byId!.action.run(byId!.input)).ok).toBe(true);
@@ -187,11 +161,7 @@ describe("skill CapabilityGroup", () => {
 			],
 		};
 		const group = createSkillCapabilityGroup(
-			deps(
-				[skill({ instructions: "As an AI language model, I help." })],
-				[],
-				[fakeChecker],
-			),
+			deps([skill({ instructions: "As an AI language model, I help." })], [], [fakeChecker]),
 		);
 		const resolved = resolveGroupAction(group, ["check", "greet-operator"]);
 		const envelope = (await resolved!.action.run(resolved!.input)) as unknown as {
@@ -258,9 +228,7 @@ describe("skill CapabilityGroup", () => {
 
 	it("`check` with no findings reports ok and zero pending-actions", async () => {
 		const cleanChecker: Checker = { check: () => [] };
-		const group = createSkillCapabilityGroup(
-			deps([skill()], [], [cleanChecker]),
-		);
+		const group = createSkillCapabilityGroup(deps([skill()], [], [cleanChecker]));
 		const resolved = resolveGroupAction(group, ["check", "greet-operator"]);
 		const envelope = (await resolved!.action.run(resolved!.input)) as unknown as {
 			ok: boolean;
@@ -318,9 +286,7 @@ describe("skill CapabilityGroup", () => {
 		expect(envelope.rejected).toHaveLength(1);
 		// Report-only by default: nothing persisted, and a --write next-command.
 		expect((envelope as unknown as { persisted: boolean }).persisted).toBe(false);
-		expect((envelope as unknown as { nextCommand?: string }).nextCommand).toContain(
-			"--write",
-		);
+		expect((envelope as unknown as { nextCommand?: string }).nextCommand).toContain("--write");
 	});
 
 	it("`import <dir> --write` persists the imported skills (content-addressed)", async () => {
@@ -342,11 +308,7 @@ describe("skill CapabilityGroup", () => {
 		const group = createSkillCapabilityGroup(
 			deps([], [], [], importResult, ["urn:refarm:skill:v1:commit:abc123"]),
 		);
-		const resolved = resolveGroupAction(group, [
-			"import",
-			"/ext/skills",
-			"--write",
-		]);
+		const resolved = resolveGroupAction(group, ["import", "/ext/skills", "--write"]);
 		const envelope = (await resolved!.action.run(resolved!.input)) as unknown as {
 			ok: boolean;
 			persisted: boolean;
@@ -377,9 +339,9 @@ describe("skill CapabilityGroup", () => {
 					source: sourceRef("Make a commit."),
 				},
 			];
-			await expect(
-				persistImportedSkillsToLedger(imported, "user", roots),
-			).resolves.toEqual(["urn:refarm:skill:v1:commit:abc123"]);
+			await expect(persistImportedSkillsToLedger(imported, "user", roots)).resolves.toEqual([
+				"urn:refarm:skill:v1:commit:abc123",
+			]);
 
 			const loaded = await loadPersistedImportedSkills(roots);
 			expect(loaded.rejected).toEqual([]);
@@ -605,9 +567,11 @@ describe("skill CapabilityGroup", () => {
 	});
 
 	it("hooks render the empty-state hint and a not-found error", () => {
-		const emptyList = skillCapabilityHooks("list").renderText!(
-			{ count: 0, skills: [], rejected: [] } as never,
-		);
+		const emptyList = skillCapabilityHooks("list").renderText!({
+			count: 0,
+			skills: [],
+			rejected: [],
+		} as never);
 		expect(emptyList).toContain("No skills found");
 
 		const notFound = skillCapabilityHooks("show").renderText!({
@@ -623,9 +587,7 @@ describe("skill CapabilityGroup", () => {
 			skill: { name: "greet-operator" },
 			findingCount: 1,
 			checkersRun: 2,
-			recommendations: [
-				{ diagnostic: "ai-self-reference", summary: "AI tell" },
-			],
+			recommendations: [{ diagnostic: "ai-self-reference", summary: "AI tell" }],
 			nextActions: ["Revise the skill's instructions."],
 		} as never);
 		expect(withFindings).toContain("ai-self-reference");
@@ -712,9 +674,7 @@ Run the loop.
 			const resolved = resolveGroupAction(group, ["invoke", dir, "--deny"]);
 			const env = await resolved!.action.run(resolved!.input);
 			expect(env.ok).toBe(false);
-			expect((env as { error?: string }).error).toBe(
-				"input-required-for-decision",
-			);
+			expect((env as { error?: string }).error).toBe("input-required-for-decision");
 		} finally {
 			rmSync(dir, { recursive: true, force: true });
 		}
@@ -724,12 +684,7 @@ Run the loop.
 		const dir = skillDir();
 		try {
 			const group = createSkillCapabilityGroup(deps());
-			const resolved = resolveGroupAction(group, [
-				"invoke",
-				dir,
-				"--scope",
-				"nope",
-			]);
+			const resolved = resolveGroupAction(group, ["invoke", dir, "--scope", "nope"]);
 			const env = await resolved!.action.run(resolved!.input);
 			expect(env.ok).toBe(false);
 			expect((env as { error?: string }).error).toBe("unknown-ledger-scope");

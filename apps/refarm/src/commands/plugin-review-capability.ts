@@ -1,7 +1,4 @@
-import type {
-	CapabilityDescriptor,
-	CapabilityInput,
-} from "@refarm.dev/capabilities";
+import type { CapabilityDescriptor, CapabilityInput } from "@refarm.dev/capabilities";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -78,24 +75,19 @@ export type ExtensionReviewReport = JsonSuccessEnvelope<{
  * host-agnostic decidePluginPolicy over the manifest and report whether it is
  * ready to install. Grants are operator-supplied; nothing is installed here.
  */
-export function buildExtensionReviewReport(
-	input: ExtensionReviewInput,
-): ExtensionReviewReport {
+export function buildExtensionReviewReport(input: ExtensionReviewInput): ExtensionReviewReport {
 	const { manifest, manifestPath } = loadReviewableManifest(input.targetPath);
 	const decision = decidePluginPolicy(manifest as never, {
 		grantedCapabilities: input.grantedCapabilities,
 		policyMode: input.policyMode,
 	});
-	const readyToInstall =
-		decision.status === "completed" && decision.manifestValid;
+	const readyToInstall = decision.status === "completed" && decision.manifestValid;
 	// The handoff points at installing WHAT WAS REVIEWED (this path, with the same
 	// grants), not the bundled set — the review→install loop is closed. When a grant
 	// is still missing, the next step is to re-review with it granted. The verb
 	// (extension|plugin) is caller-supplied so the handoff names the surface used.
 	const commandName = input.commandName ?? "extension";
-	const grantFlags = input.grantedCapabilities
-		.map((cap) => `--grant ${cap}`)
-		.join(" ");
+	const grantFlags = input.grantedCapabilities.map((cap) => `--grant ${cap}`).join(" ");
 	const installHandoff = `${commandName} install ${manifestPath}${grantFlags ? ` ${grantFlags}` : ""}`;
 	return buildJsonSuccessEnvelope({
 		command: commandName,
@@ -135,8 +127,7 @@ export const extensionReviewCapability: CapabilityDescriptor = {
 		{
 			name: "grant",
 			kind: "string[]",
-			summary:
-				"Grant a capability for this review (repeatable); default grants none",
+			summary: "Grant a capability for this review (repeatable); default grants none",
 		},
 		{
 			name: "policy",
@@ -184,13 +175,9 @@ export const extensionReviewHooks: CapabilitySurfaceHooks = {
 			}
 		}
 		if (deniedCapabilities.length > 0) {
-			lines.push(
-				`  denied capabilities (not granted): ${deniedCapabilities.join(", ")}`,
-			);
+			lines.push(`  denied capabilities (not granted): ${deniedCapabilities.join(", ")}`);
 		}
-		lines.push(
-			`  ready to install: ${readyToInstall ? "yes" : "no — review required"}`,
-		);
+		lines.push(`  ready to install: ${readyToInstall ? "yes" : "no — review required"}`);
 		return lines.join("\n");
 	},
 	exitCode(envelope) {

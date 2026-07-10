@@ -5,7 +5,11 @@ import {
 } from "@refarm.dev/capabilities/envelope";
 import { formatSurfaceActionReadinessOutput } from "@refarm.dev/cli/action-affordances";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
-import { createProcessHandoffSpec, executeProcessHandoff, type ProcessHandoffSpec, } from "@refarm.dev/cli/process-handoff";
+import {
+	createProcessHandoffSpec,
+	executeProcessHandoff,
+	type ProcessHandoffSpec,
+} from "@refarm.dev/cli/process-handoff";
 import type { StatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
@@ -18,7 +22,7 @@ import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-	RUNTIME_STATUS_COMMAND
+	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
@@ -55,9 +59,7 @@ interface TuiDeps {
 	launch(spec: TuiLaunchSpec): Promise<number>;
 }
 
-export function resolveTuiLaunchSpec(
-	mode: RefarmTuiLauncherMode,
-): TuiLaunchSpec {
+export function resolveTuiLaunchSpec(mode: RefarmTuiLauncherMode): TuiLaunchSpec {
 	if (mode === "prompt") {
 		return createProcessHandoffSpec("tractor prompt");
 	}
@@ -74,25 +76,12 @@ function tuiLaunchCommand(launcher: RefarmTuiLauncherMode): string {
 }
 
 function tuiActionsSelectCommand(select: string): string {
-	return refarmCommand([
-		"tui",
-		"--actions",
-		"--select",
-		quoteCommandArg(select),
-		"--json",
-	]);
+	return refarmCommand(["tui", "--actions", "--select", quoteCommandArg(select), "--json"]);
 }
 
 function tuiLaunchGuardRecoveryCommand(options: TuiOptions): string {
 	const launcher = resolveLaunchMode(options.launcher ?? "watch", TUI_LAUNCHER_MODES);
-	return refarmCommand([
-		"tui",
-		"--launch",
-		"--launcher",
-		launcher,
-		"--dry-run",
-		"--json",
-	]);
+	return refarmCommand(["tui", "--launch", "--launcher", launcher, "--dry-run", "--json"]);
 }
 
 function emitTuiLaunchGuardError(options: TuiOptions): boolean {
@@ -137,9 +126,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 	};
 
 	return new Command("tui")
-		.description(
-			"Report TUI renderer posture and optionally launch local terminal runtime",
-		)
+		.description("Report TUI renderer posture and optionally launch local terminal runtime")
 		.addHelpText(
 			"after",
 			[
@@ -220,17 +207,15 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 
 			if (emitTuiLaunchGuardError(options)) return;
 
-			const launchMode = resolveLaunchMode(
-				options.launcher ?? "watch",
-				TUI_LAUNCHER_MODES,
-			);
-			const outputMode = options.launch && options.dryRun && options.json
-				? "silent"
-				: resolveJsonMarkdownStatusOutputMode({
-						json: options.json,
-						markdown: options.markdown,
-						defaultMode: "summary",
-					});
+			const launchMode = resolveLaunchMode(options.launcher ?? "watch", TUI_LAUNCHER_MODES);
+			const outputMode =
+				options.launch && options.dryRun && options.json
+					? "silent"
+					: resolveJsonMarkdownStatusOutputMode({
+							json: options.json,
+							markdown: options.markdown,
+							defaultMode: "summary",
+						});
 
 			const json = await runStatusPreflight({
 				resolveStatusPayload: resolvedDeps.resolveStatusPayload,
@@ -268,10 +253,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 		});
 }
 
-async function emitTuiActionRows(
-	options: TuiOptions,
-	deps: TuiDeps,
-): Promise<void> {
+async function emitTuiActionRows(options: TuiOptions, deps: TuiDeps): Promise<void> {
 	await withResolvedStatusPayload({
 		resolveStatusPayload: deps.resolveStatusPayload,
 		resolveOptions: {
@@ -334,9 +316,7 @@ function emitTuiCapabilitySections(options: TuiOptions): void {
 
 function assertTuiActionsOutputOptions(options: TuiOptions): void {
 	if (options.markdown || options.launch || options.dryRun) {
-		throw new Error(
-			"--actions cannot be combined with --markdown, --launch, or --dry-run.",
-		);
+		throw new Error("--actions cannot be combined with --markdown, --launch, or --dry-run.");
 	}
 }
 

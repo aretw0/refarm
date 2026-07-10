@@ -2,17 +2,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const fallbackSessionLockPath = path.join(
-	os.tmpdir(),
-	".refarm",
-	"session.lock",
-);
+const fallbackSessionLockPath = path.join(os.tmpdir(), ".refarm", "session.lock");
 
-export const SESSION_LOCK_PATH = path.join(
-	os.homedir(),
-	".refarm",
-	"session.lock",
-);
+export const SESSION_LOCK_PATH = path.join(os.homedir(), ".refarm", "session.lock");
 
 const SESSION_LOCK_PATHS = [SESSION_LOCK_PATH, fallbackSessionLockPath];
 
@@ -38,9 +30,9 @@ function readWithFallback<T>(
 		try {
 			const value = read(sessionLockPath);
 			return value;
-			} catch {
-				continue;
-			}
+		} catch {
+			continue;
+		}
 	}
 	return undefined;
 }
@@ -78,15 +70,17 @@ function clearSessionLockPath(sessionLockPath: string): boolean {
 function activeSessionLockPathForRead(): string[] {
 	const writablePath = getWriteCandidatePaths().at(0);
 	if (writablePath) {
-		return [writablePath, ...SESSION_LOCK_PATHS.filter((sessionLockPath) => sessionLockPath !== writablePath)];
+		return [
+			writablePath,
+			...SESSION_LOCK_PATHS.filter((sessionLockPath) => sessionLockPath !== writablePath),
+		];
 	}
 	return SESSION_LOCK_PATHS;
 }
 
 export function readActiveSessionId(): string | null {
-	const content = readWithFallback(
-		activeSessionLockPathForRead(),
-		(sessionLockPath) => fs.readFileSync(sessionLockPath, "utf-8").trim(),
+	const content = readWithFallback(activeSessionLockPathForRead(), (sessionLockPath) =>
+		fs.readFileSync(sessionLockPath, "utf-8").trim(),
 	);
 	if (content === undefined) {
 		return null;

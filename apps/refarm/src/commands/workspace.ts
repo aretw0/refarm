@@ -1,10 +1,38 @@
-import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
-import { buildCommandPlanRunEnvelope, runCommandPlan, runCommandPlanProcessStep, type CommandPlanStep, type CommandPlanStepRunResult, type CommandProcessSpec, } from "@refarm.dev/cli/command-plan";
 import {
-	workspaceExecutionRecommendations as baseWorkspaceExecutionRecommendations, buildWorkspaceSourceCachePlan, buildWorkspaceSweepPayload, missingWorkspacePathMessage, observeDeclaredWorkspaceExecution as observeBaseDeclaredWorkspaceExecution, observeDeclaredWorkspacesExecution as observeBaseDeclaredWorkspacesExecution, resolveDeclaredWorkspacePath, summarizeWorkspaceExecutionObservations as summarizeBaseWorkspaceExecutionObservations, workspaceSweepRecommendationNextCommands, type WorkspacePathCandidate, type WorkspacePathResolution, type WorkspaceSweepObservation, type WorkspaceSweepPayload, type WorkspaceSweepRecommendation, type WorkspaceSweepSummary,
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "@refarm.dev/capabilities/envelope";
+import {
+	buildCommandPlanRunEnvelope,
+	runCommandPlan,
+	runCommandPlanProcessStep,
+	type CommandPlanStep,
+	type CommandPlanStepRunResult,
+	type CommandProcessSpec,
+} from "@refarm.dev/cli/command-plan";
+import {
+	workspaceExecutionRecommendations as baseWorkspaceExecutionRecommendations,
+	buildWorkspaceSourceCachePlan,
+	buildWorkspaceSweepPayload,
+	missingWorkspacePathMessage,
+	observeDeclaredWorkspaceExecution as observeBaseDeclaredWorkspaceExecution,
+	observeDeclaredWorkspacesExecution as observeBaseDeclaredWorkspacesExecution,
+	resolveDeclaredWorkspacePath,
+	summarizeWorkspaceExecutionObservations as summarizeBaseWorkspaceExecutionObservations,
+	workspaceSweepRecommendationNextCommands,
+	type WorkspacePathCandidate,
+	type WorkspacePathResolution,
+	type WorkspaceSweepObservation,
+	type WorkspaceSweepPayload,
+	type WorkspaceSweepRecommendation,
+	type WorkspaceSweepSummary,
 } from "@refarm.dev/cli/workspace-sweep";
 import {
-	declaredWorkspaceFromConfig, declaredWorkspacesFromConfig, loadConfig, type DeclaredWorkspaceConfig,
+	declaredWorkspaceFromConfig,
+	declaredWorkspacesFromConfig,
+	loadConfig,
+	type DeclaredWorkspaceConfig,
 } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
@@ -73,16 +101,8 @@ export type WorkspaceExecutionSweepPayload = Omit<
 };
 export type { WorkspacePathCandidate, WorkspacePathResolution };
 
-const WORKSPACE_MOUNTS_JSON_COMMAND = refarmCommand([
-	"workspace",
-	"mounts",
-	"--json",
-]);
-const WORKSPACE_SOURCES_JSON_COMMAND = refarmCommand([
-	"workspace",
-	"sources",
-	"--json",
-]);
+const WORKSPACE_MOUNTS_JSON_COMMAND = refarmCommand(["workspace", "mounts", "--json"]);
+const WORKSPACE_SOURCES_JSON_COMMAND = refarmCommand(["workspace", "sources", "--json"]);
 const WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND = refarmCommand([
 	"workspace",
 	"sources",
@@ -113,7 +133,9 @@ function printWorkspaceExecutionStatus(status: WorkspaceExecutionStatus): void {
 	console.log(
 		`  turbo:    ${
 			status.adapters.turbo.configured
-				? status.adapters.turbo.available ? "available" : "not provisioned"
+				? status.adapters.turbo.available
+					? "available"
+					: "not provisioned"
 				: "not configured"
 		}`,
 	);
@@ -130,15 +152,11 @@ function printWorkspaceExecutionStatus(status: WorkspaceExecutionStatus): void {
 	}
 }
 
-function printWorkspaceExecutionObservations(
-	observations: WorkspaceExecutionObservation[],
-): void {
+function printWorkspaceExecutionObservations(observations: WorkspaceExecutionObservation[]): void {
 	const summary = summarizeWorkspaceExecutionObservations(observations);
 	console.log(chalk.bold("Workspace execution"));
 	console.log(
-		chalk.dim(
-			`  summary: ${summary.ok}/${summary.total} ready, ${summary.failed} failed`,
-		),
+		chalk.dim(`  summary: ${summary.ok}/${summary.total} ready, ${summary.failed} failed`),
 	);
 	if (observations.length === 0) {
 		console.log(chalk.dim("  none declared"));
@@ -282,12 +300,13 @@ function buildWorkspaceMountPlan(payload: WorkspaceExecutionSweepPayload): {
 			mounts: mounts.map((mount) => mount.mount),
 		},
 		rebuildRequired: mounts.length > 0,
-		instructions: mounts.length > 0
-			? [
-					"Add the listed mount strings to .devcontainer/devcontainer.json mounts.",
-					"Rebuild the devcontainer after changing mounts.",
-				]
-			: [],
+		instructions:
+			mounts.length > 0
+				? [
+						"Add the listed mount strings to .devcontainer/devcontainer.json mounts.",
+						"Rebuild the devcontainer after changing mounts.",
+					]
+				: [],
 	};
 }
 
@@ -353,9 +372,10 @@ function printWorkspaceMounts(
 				command: "workspace",
 				operation: "mounts",
 				extra: plan,
-				nextAction: plan.mountCount > 0
-					? "Add listed mounts to .devcontainer/devcontainer.json and rebuild the devcontainer."
-					: null,
+				nextAction:
+					plan.mountCount > 0
+						? "Add listed mounts to .devcontainer/devcontainer.json and rebuild the devcontainer."
+						: null,
 			}),
 		);
 		return;
@@ -383,20 +403,22 @@ function printWorkspaceSources(
 				command: "workspace",
 				operation: "sources",
 				extra: plan,
-				nextAction: plan.summary.materializable > 0
-					? "Materialize declared repositories into the source cache; no devcontainer rebuild is required."
-					: plan.summary.unconfigured > 0
-						? "Declare repository intent for missing workspaces, or use workspace mounts when the host checkout must be operated in place."
-						: plan.summary.refreshRequired > 0
-							? "Refresh stale source cache checkouts."
-					: null,
-				nextCommands: plan.summary.materializable > 0
-					? [WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND]
-					: plan.summary.unconfigured > 0
-						? [WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND]
-						: plan.summary.refreshRequired > 0
-							? [WORKSPACE_SOURCES_REFRESH_DRY_RUN_JSON_COMMAND]
-					: [],
+				nextAction:
+					plan.summary.materializable > 0
+						? "Materialize declared repositories into the source cache; no devcontainer rebuild is required."
+						: plan.summary.unconfigured > 0
+							? "Declare repository intent for missing workspaces, or use workspace mounts when the host checkout must be operated in place."
+							: plan.summary.refreshRequired > 0
+								? "Refresh stale source cache checkouts."
+								: null,
+				nextCommands:
+					plan.summary.materializable > 0
+						? [WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND]
+						: plan.summary.unconfigured > 0
+							? [WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND]
+							: plan.summary.refreshRequired > 0
+								? [WORKSPACE_SOURCES_REFRESH_DRY_RUN_JSON_COMMAND]
+								: [],
 			}),
 		);
 		return;
@@ -413,7 +435,9 @@ function printWorkspaceSources(
 	}
 }
 
-function buildWorkspaceSourceDeclarationPlan(plan: ReturnType<typeof buildWorkspaceSourceCachePlan>): {
+function buildWorkspaceSourceDeclarationPlan(
+	plan: ReturnType<typeof buildWorkspaceSourceCachePlan>,
+): {
 	mode: "all";
 	configPath: string;
 	declarationCount: number;
@@ -421,12 +445,15 @@ function buildWorkspaceSourceDeclarationPlan(plan: ReturnType<typeof buildWorksp
 		workspaceId: string;
 		path: string;
 		snippet: {
-			workspaces: Record<string, {
-				repository: {
-					url: string;
-					ref: string | null;
-				};
-			}>;
+			workspaces: Record<
+				string,
+				{
+					repository: {
+						url: string;
+						ref: string | null;
+					};
+				}
+			>;
 		};
 	}>;
 	instructions: string[];
@@ -452,13 +479,14 @@ function buildWorkspaceSourceDeclarationPlan(plan: ReturnType<typeof buildWorksp
 		configPath: ".refarm/config.json",
 		declarationCount: declarations.length,
 		declarations,
-		instructions: declarations.length > 0
-			? [
-					"Fill each repository.url with the canonical Git remote for that workspace.",
-					"Keep ref null unless this workspace should materialize a specific branch or tag.",
-					"Run refarm workspace sources materialize --dry-run --json after declaring repositories.",
-				]
-			: [],
+		instructions:
+			declarations.length > 0
+				? [
+						"Fill each repository.url with the canonical Git remote for that workspace.",
+						"Keep ref null unless this workspace should materialize a specific branch or tag.",
+						"Run refarm workspace sources materialize --dry-run --json after declaring repositories.",
+					]
+				: [],
 	};
 }
 
@@ -467,7 +495,9 @@ function printWorkspaceSourceDeclarations(
 	deps: WorkspaceCommandDeps | undefined,
 ): void {
 	const baseDir = deps?.cwd?.() ?? process.cwd();
-	const sourcePlan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
+	const sourcePlan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), {
+		baseDir,
+	});
 	const declarationPlan = buildWorkspaceSourceDeclarationPlan(sourcePlan);
 	if (options.json) {
 		printJson(
@@ -475,12 +505,14 @@ function printWorkspaceSourceDeclarations(
 				command: "workspace",
 				operation: "source-declarations",
 				extra: declarationPlan,
-				nextAction: declarationPlan.declarationCount > 0
-					? "Add repository declarations for missing source cache workspaces."
-					: null,
-				nextCommands: declarationPlan.declarationCount > 0
-					? [WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND]
-					: [],
+				nextAction:
+					declarationPlan.declarationCount > 0
+						? "Add repository declarations for missing source cache workspaces."
+						: null,
+				nextCommands:
+					declarationPlan.declarationCount > 0
+						? [WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND]
+						: [],
 			}),
 		);
 		return;
@@ -517,7 +549,8 @@ function printWorkspaceSourceMaterialize(
 					operation: "source-materialize",
 					error: "source-materialize-requires-dry-run",
 					message: "Workspace source materialization currently requires --dry-run or --run.",
-					nextAction: "Inspect the source materialization plan before cloning repositories, or use --run to execute it.",
+					nextAction:
+						"Inspect the source materialization plan before cloning repositories, or use --run to execute it.",
 					nextCommand: WORKSPACE_SOURCES_MATERIALIZE_DRY_RUN_JSON_COMMAND,
 				}),
 			);
@@ -527,28 +560,33 @@ function printWorkspaceSourceMaterialize(
 	}
 	const baseDir = deps?.cwd?.() ?? process.cwd();
 	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
-	const processes = plan.items.flatMap((item) => item.process ? [item.process] : []);
+	const processes = plan.items.flatMap((item) => (item.process ? [item.process] : []));
 	const steps = workspaceSourceProcessSteps(processes, {
 		idPrefix: "source-cache-materialize",
 		description: "Materialize a declared repository into the source cache.",
 	});
-	const nextAction = processes.length > 0
-		? "Run the listed git clone processes to materialize source cache checkouts."
-		: plan.summary.unconfigured > 0
-			? "Declare repository intent for missing workspaces before materializing source cache checkouts."
-			: null;
+	const nextAction =
+		processes.length > 0
+			? "Run the listed git clone processes to materialize source cache checkouts."
+			: plan.summary.unconfigured > 0
+				? "Declare repository intent for missing workspaces before materializing source cache checkouts."
+				: null;
 	if (options.run) {
 		const result = runCommandPlan(
 			steps,
 			deps?.runCommandPlanStep ??
-				((step) => runCommandPlanProcessStep(step, { cwd: baseDir, env: deps?.env ?? process.env })),
+				((step) =>
+					runCommandPlanProcessStep(step, { cwd: baseDir, env: deps?.env ?? process.env })),
 		);
 		if (options.json) {
-			const envelope = buildCommandPlanRunEnvelope({
-				action: "source-materialize",
-				command: "workspace",
-				operation: "source-materialize-run",
-			}, result);
+			const envelope = buildCommandPlanRunEnvelope(
+				{
+					action: "source-materialize",
+					command: "workspace",
+					operation: "source-materialize-run",
+				},
+				result,
+			);
 			if (processes.length === 0 && plan.summary.unconfigured > 0) {
 				envelope.nextAction = nextAction;
 				envelope.nextActions = [nextAction].filter((action): action is string => Boolean(action));
@@ -584,11 +622,12 @@ function printWorkspaceSourceMaterialize(
 					plan,
 				},
 				nextAction,
-				nextCommands: processes.length > 0
-					? []
-					: plan.summary.unconfigured > 0
-						? [WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND]
-						: [],
+				nextCommands:
+					processes.length > 0
+						? []
+						: plan.summary.unconfigured > 0
+							? [WORKSPACE_SOURCES_DECLARATIONS_JSON_COMMAND]
+							: [],
 			}),
 		);
 		return;
@@ -633,7 +672,8 @@ function printWorkspaceSourceRefresh(
 					operation: "source-refresh",
 					error: "source-refresh-requires-dry-run",
 					message: "Workspace source refresh currently requires --dry-run or --run.",
-					nextAction: "Inspect the source refresh plan before fetching repositories, or use --run to execute it.",
+					nextAction:
+						"Inspect the source refresh plan before fetching repositories, or use --run to execute it.",
 					nextCommand: WORKSPACE_SOURCES_REFRESH_DRY_RUN_JSON_COMMAND,
 				}),
 			);
@@ -643,26 +683,35 @@ function printWorkspaceSourceRefresh(
 	}
 	const baseDir = deps?.cwd?.() ?? process.cwd();
 	const plan = buildWorkspaceSourceCachePlan(loadDeclaredWorkspaces(deps, baseDir), { baseDir });
-	const processes = plan.items.flatMap((item) => item.refreshProcess ? [item.refreshProcess] : []);
+	const processes = plan.items.flatMap((item) =>
+		item.refreshProcess ? [item.refreshProcess] : [],
+	);
 	const steps = workspaceSourceProcessSteps(processes, {
 		idPrefix: "source-cache-refresh",
 		description: "Refresh a stale source cache checkout.",
 	});
-	const nextAction = processes.length > 0
-		? "Run the listed git fetch processes to refresh stale source cache checkouts."
-		: null;
+	const nextAction =
+		processes.length > 0
+			? "Run the listed git fetch processes to refresh stale source cache checkouts."
+			: null;
 	if (options.run) {
 		const result = runCommandPlan(
 			steps,
 			deps?.runCommandPlanStep ??
-				((step) => runCommandPlanProcessStep(step, { cwd: baseDir, env: deps?.env ?? process.env })),
+				((step) =>
+					runCommandPlanProcessStep(step, { cwd: baseDir, env: deps?.env ?? process.env })),
 		);
 		if (options.json) {
-			printJson(buildCommandPlanRunEnvelope({
-				action: "source-refresh",
-				command: "workspace",
-				operation: "source-refresh-run",
-			}, result));
+			printJson(
+				buildCommandPlanRunEnvelope(
+					{
+						action: "source-refresh",
+						command: "workspace",
+						operation: "source-refresh-run",
+					},
+					result,
+				),
+			);
 			return;
 		}
 		console.log(chalk.bold("Workspace source refresh"));
@@ -789,10 +838,13 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.description("Plan missing repository declarations for source cache materialization")
 		.option("--json", "Output machine-readable repository declaration plan")
 		.action((options: WorkspaceSourceDeclarationsCommandOptions, declarationsCommand: Command) => {
-			printWorkspaceSourceDeclarations({
-				...options,
-				json: options.json || declarationsCommand.parent?.opts().json,
-			}, deps);
+			printWorkspaceSourceDeclarations(
+				{
+					...options,
+					json: options.json || declarationsCommand.parent?.opts().json,
+				},
+				deps,
+			);
 		});
 
 	sourcesCommand
@@ -802,10 +854,13 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--run", "Execute source cache materialization processes")
 		.option("--json", "Output machine-readable materialization dry-run")
 		.action((options: WorkspaceSourceMaterializeCommandOptions, materializeCommand: Command) => {
-			printWorkspaceSourceMaterialize({
-				...options,
-				json: options.json || materializeCommand.parent?.opts().json,
-			}, deps);
+			printWorkspaceSourceMaterialize(
+				{
+					...options,
+					json: options.json || materializeCommand.parent?.opts().json,
+				},
+				deps,
+			);
 		});
 
 	sourcesCommand
@@ -815,10 +870,13 @@ export function createWorkspaceCommand(deps?: WorkspaceCommandDeps): Command {
 		.option("--run", "Execute stale source cache refresh processes")
 		.option("--json", "Output machine-readable refresh dry-run")
 		.action((options: WorkspaceSourceRefreshCommandOptions, refreshCommand: Command) => {
-			printWorkspaceSourceRefresh({
-				...options,
-				json: options.json || refreshCommand.parent?.opts().json,
-			}, deps);
+			printWorkspaceSourceRefresh(
+				{
+					...options,
+					json: options.json || refreshCommand.parent?.opts().json,
+				},
+				deps,
+			);
 		});
 
 	sourcesCommand.action((options: WorkspaceSourcesCommandOptions) => {

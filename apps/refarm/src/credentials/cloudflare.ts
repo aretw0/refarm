@@ -11,11 +11,7 @@ export const cloudflareCredentialProvider: CredentialProvider = {
 
 	async collect(ctx: CollectContext): Promise<string> {
 		console.log(chalk.bold("\n  Cloudflare"));
-		console.log(
-			chalk.gray(
-				"  Create an API Token with two permissions:",
-			),
-		);
+		console.log(chalk.gray("  Create an API Token with two permissions:"));
 		console.log(chalk.gray("    · Workers Scripts:Edit  (deploy Worker, manage secrets)"));
 		console.log(chalk.gray("    · Workers R2 Storage:Edit  (create bucket, bind to Worker)"));
 		console.log(chalk.cyan(`  → ${TOKEN_URL}\n`));

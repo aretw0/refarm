@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-	buildRefarmLaunchBanner,
-	isRefarmBrandBannerEnabled,
-	resolveBrandName,
-} from "./brand.js";
+import { buildRefarmLaunchBanner, isRefarmBrandBannerEnabled, resolveBrandName } from "./brand.js";
 
 describe("launch banner white-label (REFARM_BRAND_NAME)", () => {
 	it("defaults to REFARM when unset", () => {

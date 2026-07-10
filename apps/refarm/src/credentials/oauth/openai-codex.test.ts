@@ -19,10 +19,13 @@ describe("openaiCodexOAuthProvider", () => {
 	it("refreshToken calls the token endpoint and returns updated credentials", async () => {
 		const mockJwt = `header.${btoa(JSON.stringify({ "https://api.openai.com/auth": { chatgpt_account_id: "acc_123" } }))}.sig`;
 		const mockResponse = { access_token: mockJwt, refresh_token: "new_ref", expires_in: 3600 };
-		vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({
-			ok: true,
-			json: async () => mockResponse,
-		}));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValueOnce({
+				ok: true,
+				json: async () => mockResponse,
+			}),
+		);
 
 		const result = await openaiCodexOAuthProvider.refreshToken({
 			access: "old_tok",

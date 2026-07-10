@@ -21,10 +21,7 @@ import {
 	formatHealthPolicySummary,
 	formatHealthSummary,
 } from "./health-output.js";
-import {
-	type HealthPolicyReport,
-	resolveHealthPolicyReport,
-} from "./health-policy.js";
+import { type HealthPolicyReport, resolveHealthPolicyReport } from "./health-policy.js";
 
 /**
  * `health` as a CapabilityGroup — the tri-surface (CLI + REPL slash + HTTP)
@@ -149,16 +146,12 @@ export function healthCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 		case "policy":
 			return {
 				renderText: (envelope) =>
-					formatHealthPolicySummary(
-						envelope as unknown as HealthPolicyReport,
-					),
+					formatHealthPolicySummary(envelope as unknown as HealthPolicyReport),
 			};
 		case "suggest-policy":
 			return {
 				renderText: (envelope) =>
-					formatHealthPolicySuggestionSummary(
-						envelope as unknown as HealthPolicySuggestionReport,
-					),
+					formatHealthPolicySuggestionSummary(envelope as unknown as HealthPolicySuggestionReport),
 			};
 		case "apply-policy":
 			return {

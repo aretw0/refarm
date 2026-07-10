@@ -13,10 +13,7 @@ import type {
 import chalk from "chalk";
 import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
-import {
-	MODEL_CURRENT_JSON_COMMAND,
-	RESUME_JSON_COMMAND,
-} from "./credential-handoffs.js";
+import { MODEL_CURRENT_JSON_COMMAND, RESUME_JSON_COMMAND } from "./credential-handoffs.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -75,11 +72,7 @@ const DEFAULT_TASK_STATUS_WATCH_LIMIT = 120;
 const REFARM_TASK_STATUS_WATCH_LIMIT_ENV_VAR = "REFARM_TASK_STATUS_WATCH_LIMIT";
 const TASK_STATUS_WATCH_INTERVAL_MS = 2_000;
 
-export function normalizeTaskArgs(
-	plugin: string,
-	fn: string,
-	args: unknown,
-): unknown {
+export function normalizeTaskArgs(plugin: string, fn: string, args: unknown): unknown {
 	if (!isRuntimeAgentRespondTask(plugin, fn)) return args;
 	if (!args || typeof args !== "object" || Array.isArray(args)) return args;
 
@@ -98,15 +91,11 @@ export function normalizeTaskArgs(
 }
 
 export function createTaskCommand(
-	adapterResolver: (
-		transport: string,
-	) => TaskOperationsAdapter = resolveAdapter,
+	adapterResolver: (transport: string) => TaskOperationsAdapter = resolveAdapter,
 	sessionRecorder: TaskSessionRecorder = createTaskSessionRecorder(),
 	discoverProvides: ProvidesDiscovery = discoverInstalledProvides,
 ): Command {
-	const taskCommand = new Command("task").description(
-		"Manage Refarm runtime task efforts",
-	);
+	const taskCommand = new Command("task").description("Manage Refarm runtime task efforts");
 
 	taskCommand.addHelpText(
 		"after",
@@ -132,11 +121,7 @@ Notes:
 		.command("run <plugin> <fn>")
 		.description("Dispatch a task effort to the Refarm runtime")
 		.option("--args <json>", "Task args as JSON string", "{}")
-		.option(
-			"--direction <text>",
-			"Effort direction (the why)",
-			"Manual CLI dispatch",
-		)
+		.option("--direction <text>", "Effort direction (the why)", "Manual CLI dispatch")
 		.option(
 			"--transport <type>",
 			"Transport adapter: file, http, or channel:<name>",
@@ -218,10 +203,7 @@ Notes:
 						),
 					);
 				}
-				const { transport, adapter } = resolveTaskAdapter(
-					opts.transport,
-					adapterResolver,
-				);
+				const { transport, adapter } = resolveTaskAdapter(opts.transport, adapterResolver);
 
 				const effort: Effort = {
 					id: crypto.randomUUID(),
@@ -251,13 +233,9 @@ Notes:
 						json: true,
 						watch: true,
 					});
-					const statusJsonCommand = buildTaskStatusCommand(
-						effortId,
-						transport,
-						{
-							json: true,
-						},
-					);
+					const statusJsonCommand = buildTaskStatusCommand(effortId, transport, {
+						json: true,
+					});
 					const logsCommand = buildTaskLogsCommand(effortId, transport, {
 						json: true,
 					});
@@ -327,19 +305,13 @@ Notes:
 					json?: boolean;
 				},
 			) => {
-				const { transport, adapter } = resolveTaskAdapter(
-					opts.transport,
-					adapterResolver,
-				);
+				const { transport, adapter } = resolveTaskAdapter(opts.transport, adapterResolver);
 				const effectiveWatchLimit = opts.watch
-					? opts.watchLimit ?? resolveTaskStatusWatchLimit(process.env)
+					? (opts.watchLimit ?? resolveTaskStatusWatchLimit(process.env))
 					: opts.watchLimit;
 				const buildWatchNextCommands = (isFinalEffort: boolean): string[] => {
 					return isFinalEffort
-						? [
-								buildTaskLogsCommand(effortId, transport, { json: true }),
-								RESUME_JSON_COMMAND,
-							]
+						? [buildTaskLogsCommand(effortId, transport, { json: true }), RESUME_JSON_COMMAND]
 						: [
 								buildTaskStatusCommand(effortId, transport, {
 									json: true,
@@ -355,9 +327,8 @@ Notes:
 				let lastObservedStatus: EffortResult["status"] | "not-found" = "not-found";
 				let lastAttempts = 0;
 				let lastAgeSeconds = "-";
-				const deriveFinalized = (
-					status: EffortResult["status"] | "not-found",
-				) => status !== "not-found" && isFinalEffortStatus(status);
+				const deriveFinalized = (status: EffortResult["status"] | "not-found") =>
+					status !== "not-found" && isFinalEffortStatus(status);
 
 				const printStatus = async (): Promise<boolean> => {
 					let result: EffortResult | null;
@@ -382,25 +353,17 @@ Notes:
 						lastAttempts = 0;
 						lastAgeSeconds = "-";
 						if (opts.json) {
-							const statusCommand = buildTaskStatusCommand(
-								effortId,
-								transport,
-								{
-									json: true,
-									watch: true,
-									...(typeof effectiveWatchLimit === "number"
-										? { watchLimit: effectiveWatchLimit }
-										: {}),
-								},
-							);
-							printTaskJsonSuccess(
-								"status",
-								{ effortId, transport, status: "not-found" },
-								[
-									statusCommand,
-									buildTaskLogsCommand(effortId, transport, { json: true }),
-								],
-							);
+							const statusCommand = buildTaskStatusCommand(effortId, transport, {
+								json: true,
+								watch: true,
+								...(typeof effectiveWatchLimit === "number"
+									? { watchLimit: effectiveWatchLimit }
+									: {}),
+							});
+							printTaskJsonSuccess("status", { effortId, transport, status: "not-found" }, [
+								statusCommand,
+								buildTaskLogsCommand(effortId, transport, { json: true }),
+							]);
 						} else {
 							console.log(chalk.gray("No result yet."));
 						}
@@ -416,9 +379,7 @@ Notes:
 					lastAttempts = attempts;
 					lastAgeSeconds = ageSeconds;
 					if (opts.json) {
-						const nextCommands = buildWatchNextCommands(
-							isFinalEffortStatus(observedStatus),
-						);
+						const nextCommands = buildWatchNextCommands(isFinalEffortStatus(observedStatus));
 						printTaskJsonSuccess(
 							"status",
 							{
@@ -439,16 +400,12 @@ Notes:
 								: observedStatus === "failed" || observedStatus === "cancelled"
 									? chalk.red
 									: chalk.yellow;
-						console.log(
-							chalk.bold(`Effort ${effortId}: ${color(observedStatus)}`),
-						);
+						console.log(chalk.bold(`Effort ${effortId}: ${color(observedStatus)}`));
 						if (observedStatus !== result.status) {
 							console.log(chalk.gray(`  stored_status=${result.status}`));
 						}
 						console.log(
-							chalk.gray(
-								`  attempts=${attempts} age=${ageSeconds} transport=${transport}`,
-							),
+							chalk.gray(`  attempts=${attempts} age=${ageSeconds} transport=${transport}`),
 						);
 						for (const taskResult of result.results) {
 							const taskObservedStatus = observedTaskResultStatus(taskResult);
@@ -460,9 +417,7 @@ Notes:
 										? chalk.yellow("cancelled")
 										: chalk.red("error");
 							const attemptsLabel =
-								typeof taskResult.attempts === "number"
-									? ` (attempts=${taskResult.attempts})`
-									: "";
+								typeof taskResult.attempts === "number" ? ` (attempts=${taskResult.attempts})` : "";
 							console.log(
 								`  Task ${taskResult.taskId}: ${statusLabel}${attemptsLabel}${taskResult.error || observedError ? ` — ${taskResult.error ?? observedError}` : ""}`,
 							);
@@ -481,9 +436,7 @@ Notes:
 					const finished = await printStatus();
 					if (finished) break;
 					if (poll + 1 >= watchLimit) break;
-					await new Promise((resolve) =>
-						setTimeout(resolve, TASK_STATUS_WATCH_INTERVAL_MS),
-					);
+					await new Promise((resolve) => setTimeout(resolve, TASK_STATUS_WATCH_INTERVAL_MS));
 				}
 
 				if (deriveFinalized(lastObservedStatus)) {
@@ -587,9 +540,7 @@ Notes:
 
 			if (opts.json) {
 				const active = checkpoint.activeEffortId
-					? checkpoint.efforts.find(
-							(entry) => entry.effortId === checkpoint.activeEffortId,
-						)
+					? checkpoint.efforts.find((entry) => entry.effortId === checkpoint.activeEffortId)
 					: undefined;
 				const resumable =
 					active && isResumableTaskSessionEffort(active)
@@ -632,14 +583,8 @@ Notes:
 					(entry) => entry.effortId === checkpoint.activeEffortId,
 				);
 				if (active) {
-					console.log(
-						chalk.yellow(
-							`Active effort: ${active.effortId} (${active.transport})`,
-						),
-					);
-					console.log(
-						chalk.gray(`  Resume watch: ${active.statusCommand} --watch`),
-					);
+					console.log(chalk.yellow(`Active effort: ${active.effortId} (${active.transport})`));
+					console.log(chalk.gray(`  Resume watch: ${active.statusCommand} --watch`));
 				}
 			}
 
@@ -688,17 +633,11 @@ Notes:
 `,
 		)
 		.action(async (opts: { transport: TaskTransport; json?: boolean }) => {
-			const { transport, adapter } = resolveTaskAdapter(
-				opts.transport,
-				adapterResolver,
-			);
+			const { transport, adapter } = resolveTaskAdapter(opts.transport, adapterResolver);
 			let summary: EffortSummary;
 			let efforts: EffortResult[];
 			try {
-				[summary, efforts] = await Promise.all([
-					adapter.summary(),
-					adapter.list(),
-				]);
+				[summary, efforts] = await Promise.all([adapter.summary(), adapter.list()]);
 			} catch (err) {
 				reportTaskListError(transport, err, { json: opts.json });
 				return;
@@ -748,9 +687,7 @@ Notes:
 			const observedSummary = observedEffortSummary(efforts);
 			console.log(chalk.bold(`Efforts: ${formatEffortSummary(summary)}`));
 			if (!effortSummariesEqual(summary, observedSummary)) {
-				console.log(
-					chalk.yellow(`Observed: ${formatEffortSummary(observedSummary)}`),
-				);
+				console.log(chalk.yellow(`Observed: ${formatEffortSummary(observedSummary)}`));
 			}
 			if (efforts.length === 0) {
 				console.log(chalk.gray("No efforts found."));
@@ -762,9 +699,7 @@ Notes:
 				const ageSeconds = formatAgeSeconds(effort.submittedAt);
 				const observedStatus = observedEffortStatus(effort);
 				const storedStatus =
-					observedStatus === effort.status
-						? ""
-						: ` stored_status=${effort.status}`;
+					observedStatus === effort.status ? "" : ` stored_status=${effort.status}`;
 				console.log(
 					`  ${effort.effortId}  status=${observedStatus}${storedStatus} tasks=${effort.results.length} attempts=${attempts} age=${ageSeconds}`,
 				);
@@ -792,10 +727,7 @@ Notes:
 				effortId: string,
 				opts: { transport: TaskTransport; tail: number; json?: boolean },
 			) => {
-				const { transport, adapter } = resolveTaskAdapter(
-					opts.transport,
-					adapterResolver,
-				);
+				const { transport, adapter } = resolveTaskAdapter(opts.transport, adapterResolver);
 				let logs: EffortLogEntry[] | null;
 				try {
 					logs = await adapter.logs(effortId);
@@ -821,11 +753,9 @@ Notes:
 				}
 				if (!logs || logs.length === 0) {
 					if (opts.json) {
-						printTaskJsonSuccess(
-							"logs",
-							{ effortId, transport, ...(observed ?? {}), logs: [] },
-							[buildTaskStatusCommand(effortId, transport, { json: true })],
-						);
+						printTaskJsonSuccess("logs", { effortId, transport, ...(observed ?? {}), logs: [] }, [
+							buildTaskStatusCommand(effortId, transport, { json: true }),
+						]);
 						return;
 					}
 					console.log(chalk.gray("No logs yet."));
@@ -834,20 +764,15 @@ Notes:
 
 				const sliced = logs.slice(-opts.tail);
 				if (opts.json) {
-					printTaskJsonSuccess(
-						"logs",
-						{ effortId, transport, ...(observed ?? {}), logs: sliced },
-						[buildTaskStatusCommand(effortId, transport, { json: true })],
-					);
+					printTaskJsonSuccess("logs", { effortId, transport, ...(observed ?? {}), logs: sliced }, [
+						buildTaskStatusCommand(effortId, transport, { json: true }),
+					]);
 					return;
 				}
 
 				for (const entry of sliced) {
 					const taskPart = entry.taskId ? ` task=${entry.taskId}` : "";
-					const attemptPart =
-						typeof entry.attempt === "number"
-							? ` attempt=${entry.attempt}`
-							: "";
+					const attemptPart = typeof entry.attempt === "number" ? ` attempt=${entry.attempt}` : "";
 					const metaPart = formatLogMeta(entry.meta);
 					console.log(
 						`${entry.timestamp} [${entry.level}] ${entry.event}${taskPart}${attemptPart}${metaPart} — ${entry.message}`,
@@ -866,89 +791,81 @@ Notes:
 			"file",
 		)
 		.option("--json", "Print machine-readable retry result")
-		.action(
-			async (
-				effortId: string,
-				opts: { transport: TaskTransport; json?: boolean },
-			) => {
-				const { transport, adapter } = resolveTaskAdapter(
-					opts.transport,
-					adapterResolver,
-				);
-				const statusCommand = buildTaskStatusCommand(effortId, transport, {
+		.action(async (effortId: string, opts: { transport: TaskTransport; json?: boolean }) => {
+			const { transport, adapter } = resolveTaskAdapter(opts.transport, adapterResolver);
+			const statusCommand = buildTaskStatusCommand(effortId, transport, {
+				json: opts.json,
+			});
+			let accepted: boolean;
+			try {
+				accepted = await adapter.retry(effortId);
+			} catch (err) {
+				reportTaskControlError("retry", effortId, transport, err, {
 					json: opts.json,
 				});
-				let accepted: boolean;
-				try {
-					accepted = await adapter.retry(effortId);
-				} catch (err) {
-					reportTaskControlError("retry", effortId, transport, err, {
-						json: opts.json,
-					});
-					return;
-				}
-				if (!accepted) {
-					if (opts.json) {
-						printJson(
-							buildJsonErrorEnvelope({
-								command: "task",
-								operation: "retry",
-								error: "task-retry-rejected",
-								message: `Retry rejected for effort ${effortId}.`,
-								nextAction: statusCommand,
-								nextActions: [statusCommand],
-								nextCommand: statusCommand,
-								nextCommands: [statusCommand, RUNTIME_DOCTOR_NEXT_COMMAND],
-								extra: {
-									effortId,
-									transport,
-									action: "retry",
-									accepted: false,
-								},
-							}),
-						);
-					} else {
-						console.error(chalk.red(`Retry rejected for effort ${effortId}`));
-					}
-					process.exitCode = 1;
-					return;
-				}
-				safeSessionRecord(() => {
-					sessionRecorder.rememberControl({
-						effortId,
-						transport,
-						action: "retry",
-					});
-				});
+				return;
+			}
+			if (!accepted) {
 				if (opts.json) {
-					const watchCommand = buildTaskStatusCommand(effortId, transport, {
-						json: true,
-						watch: true,
-					});
-					const logsCommand = buildTaskLogsCommand(effortId, transport, {
-						json: true,
-					});
 					printJson(
-						buildJsonSuccessEnvelope({
+						buildJsonErrorEnvelope({
 							command: "task",
 							operation: "retry",
-							nextAction: watchCommand,
-							nextActions: [watchCommand, logsCommand],
-							nextCommand: watchCommand,
-							nextCommands: [watchCommand, logsCommand],
+							error: "task-retry-rejected",
+							message: `Retry rejected for effort ${effortId}.`,
+							nextAction: statusCommand,
+							nextActions: [statusCommand],
+							nextCommand: statusCommand,
+							nextCommands: [statusCommand, RUNTIME_DOCTOR_NEXT_COMMAND],
 							extra: {
 								effortId,
 								transport,
 								action: "retry",
-								accepted: true,
+								accepted: false,
 							},
 						}),
 					);
-					return;
+				} else {
+					console.error(chalk.red(`Retry rejected for effort ${effortId}`));
 				}
-				console.log(chalk.green(`Retry requested for effort ${effortId}`));
-			},
-		);
+				process.exitCode = 1;
+				return;
+			}
+			safeSessionRecord(() => {
+				sessionRecorder.rememberControl({
+					effortId,
+					transport,
+					action: "retry",
+				});
+			});
+			if (opts.json) {
+				const watchCommand = buildTaskStatusCommand(effortId, transport, {
+					json: true,
+					watch: true,
+				});
+				const logsCommand = buildTaskLogsCommand(effortId, transport, {
+					json: true,
+				});
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "task",
+						operation: "retry",
+						nextAction: watchCommand,
+						nextActions: [watchCommand, logsCommand],
+						nextCommand: watchCommand,
+						nextCommands: [watchCommand, logsCommand],
+						extra: {
+							effortId,
+							transport,
+							action: "retry",
+							accepted: true,
+						},
+					}),
+				);
+				return;
+			}
+			console.log(chalk.green(`Retry requested for effort ${effortId}`));
+		});
 
 	taskCommand
 		.command("cancel <effortId>")
@@ -960,98 +877,84 @@ Notes:
 			"file",
 		)
 		.option("--json", "Print machine-readable cancel result")
-		.action(
-			async (
-				effortId: string,
-				opts: { transport: TaskTransport; json?: boolean },
-			) => {
-				const { transport, adapter } = resolveTaskAdapter(
-					opts.transport,
-					adapterResolver,
-				);
-				const statusCommand = buildTaskStatusCommand(effortId, transport, {
+		.action(async (effortId: string, opts: { transport: TaskTransport; json?: boolean }) => {
+			const { transport, adapter } = resolveTaskAdapter(opts.transport, adapterResolver);
+			const statusCommand = buildTaskStatusCommand(effortId, transport, {
+				json: opts.json,
+			});
+			let accepted: boolean;
+			try {
+				accepted = await adapter.cancel(effortId);
+			} catch (err) {
+				reportTaskControlError("cancel", effortId, transport, err, {
 					json: opts.json,
 				});
-				let accepted: boolean;
-				try {
-					accepted = await adapter.cancel(effortId);
-				} catch (err) {
-					reportTaskControlError("cancel", effortId, transport, err, {
-						json: opts.json,
-					});
-					return;
-				}
-				if (!accepted) {
-					if (opts.json) {
-						printJson(
-							buildJsonErrorEnvelope({
-								command: "task",
-								operation: "cancel",
-								error: "task-cancel-rejected",
-								message: `Cancel rejected for effort ${effortId}.`,
-								nextAction: statusCommand,
-								nextActions: [statusCommand],
-								nextCommand: statusCommand,
-								nextCommands: [statusCommand, RUNTIME_DOCTOR_NEXT_COMMAND],
-								extra: {
-									effortId,
-									transport,
-									action: "cancel",
-									accepted: false,
-								},
-							}),
-						);
-					} else {
-						console.error(chalk.red(`Cancel rejected for effort ${effortId}`));
-					}
-					process.exitCode = 1;
-					return;
-				}
-				safeSessionRecord(() => {
-					sessionRecorder.rememberControl({
-						effortId,
-						transport,
-						action: "cancel",
-					});
-				});
+				return;
+			}
+			if (!accepted) {
 				if (opts.json) {
-					const statusJsonCommand = buildTaskStatusCommand(
-						effortId,
-						transport,
-						{
-							json: true,
-						},
-					);
 					printJson(
-						buildJsonSuccessEnvelope({
+						buildJsonErrorEnvelope({
 							command: "task",
 							operation: "cancel",
-							nextAction: statusJsonCommand,
-							nextActions: [statusJsonCommand],
-							nextCommand: statusJsonCommand,
-							nextCommands: [statusJsonCommand],
+							error: "task-cancel-rejected",
+							message: `Cancel rejected for effort ${effortId}.`,
+							nextAction: statusCommand,
+							nextActions: [statusCommand],
+							nextCommand: statusCommand,
+							nextCommands: [statusCommand, RUNTIME_DOCTOR_NEXT_COMMAND],
 							extra: {
 								effortId,
 								transport,
 								action: "cancel",
-								accepted: true,
+								accepted: false,
 							},
 						}),
 					);
-					return;
+				} else {
+					console.error(chalk.red(`Cancel rejected for effort ${effortId}`));
 				}
-				console.log(chalk.yellow(`Cancel requested for effort ${effortId}`));
-			},
-		);
+				process.exitCode = 1;
+				return;
+			}
+			safeSessionRecord(() => {
+				sessionRecorder.rememberControl({
+					effortId,
+					transport,
+					action: "cancel",
+				});
+			});
+			if (opts.json) {
+				const statusJsonCommand = buildTaskStatusCommand(effortId, transport, {
+					json: true,
+				});
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "task",
+						operation: "cancel",
+						nextAction: statusJsonCommand,
+						nextActions: [statusJsonCommand],
+						nextCommand: statusJsonCommand,
+						nextCommands: [statusJsonCommand],
+						extra: {
+							effortId,
+							transport,
+							action: "cancel",
+							accepted: true,
+						},
+					}),
+				);
+				return;
+			}
+			console.log(chalk.yellow(`Cancel requested for effort ${effortId}`));
+		});
 
-function resolveTaskStatusWatchLimit(
-	env: NodeJS.ProcessEnv = process.env,
-): number {
-	const raw = env[REFARM_TASK_STATUS_WATCH_LIMIT_ENV_VAR];
-	const parsed = Number.parseInt(raw ?? "", 10);
-	if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_TASK_STATUS_WATCH_LIMIT;
-	return parsed;
-}
+	function resolveTaskStatusWatchLimit(env: NodeJS.ProcessEnv = process.env): number {
+		const raw = env[REFARM_TASK_STATUS_WATCH_LIMIT_ENV_VAR];
+		const parsed = Number.parseInt(raw ?? "", 10);
+		if (Number.isNaN(parsed) || parsed < 0) return DEFAULT_TASK_STATUS_WATCH_LIMIT;
+		return parsed;
+	}
 
 	return taskCommand;
 }

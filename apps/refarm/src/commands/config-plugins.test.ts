@@ -1,10 +1,4 @@
-import {
-	mkdirSync,
-	mkdtempSync,
-	readFileSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -123,9 +117,7 @@ describe("config plugins add / remove (RMW)", () => {
 		return { cwd: () => cwd, home: () => home };
 	}
 	function readHomeConfig(): Record<string, unknown> {
-		return JSON.parse(
-			readFileSync(join(home, ".refarm", "config.json"), "utf-8"),
-		);
+		return JSON.parse(readFileSync(join(home, ".refarm", "config.json"), "utf-8"));
 	}
 	beforeEach(() => {
 		home = mkdtempSync(join(tmpdir(), "cpm-home-"));
@@ -208,9 +200,7 @@ describe("config plugins add / remove (RMW)", () => {
 			scope: "workspace",
 			env: {},
 		});
-		const wsConfig = JSON.parse(
-			readFileSync(join(cwd, ".refarm", "config.json"), "utf-8"),
-		);
+		const wsConfig = JSON.parse(readFileSync(join(cwd, ".refarm", "config.json"), "utf-8"));
 		expect(wsConfig.plugins).toEqual(["../local"]);
 	});
 
@@ -226,23 +216,25 @@ describe("config plugins add / remove (RMW)", () => {
 			env: { REFARM_ORG_HOME: org },
 		}) as { ok: boolean; changed: boolean };
 		expect(allowed).toMatchObject({ ok: true, changed: true });
-		const orgConfig = JSON.parse(
-			readFileSync(join(org, ".refarm", "config.json"), "utf-8"),
-		);
+		const orgConfig = JSON.parse(readFileSync(join(org, ".refarm", "config.json"), "utf-8"));
 		expect(orgConfig.plugins).toEqual(["npm:@org/base"]);
 	});
 
 	it("rejects an empty source and an unknown scope", () => {
 		expect(
-			(buildCompositionMutationEnvelope(deps(), "add", "   ", { env: {} }) as {
-				error?: string;
-			}).error,
+			(
+				buildCompositionMutationEnvelope(deps(), "add", "   ", { env: {} }) as {
+					error?: string;
+				}
+			).error,
 		).toBe("empty-source");
 		expect(
-			(buildCompositionMutationEnvelope(deps(), "add", "x", {
-				scope: "nope",
-				env: {},
-			}) as { error?: string }).error,
+			(
+				buildCompositionMutationEnvelope(deps(), "add", "x", {
+					scope: "nope",
+					env: {},
+				}) as { error?: string }
+			).error,
 		).toBe("unknown-scope");
 	});
 });
@@ -254,9 +246,7 @@ describe("config plugins suppress / unsuppress (the !-grammar)", () => {
 		return { cwd: () => cwd, home: () => home };
 	}
 	function homePlugins(): unknown[] {
-		return JSON.parse(
-			readFileSync(join(home, ".refarm", "config.json"), "utf-8"),
-		).plugins;
+		return JSON.parse(readFileSync(join(home, ".refarm", "config.json"), "utf-8")).plugins;
 	}
 	beforeEach(() => {
 		home = mkdtempSync(join(tmpdir(), "cps-home-"));
@@ -278,35 +268,23 @@ describe("config plugins suppress / unsuppress (the !-grammar)", () => {
 		) as { ok: boolean; changed: boolean; entry: unknown };
 		expect(env).toMatchObject({ ok: true, changed: true });
 		expect(env.entry).toEqual({ source: "npm:@acme/x", skills: ["!skills/legacy"] });
-		expect(homePlugins()).toEqual([
-			{ source: "npm:@acme/x", skills: ["!skills/legacy"] },
-		]);
+		expect(homePlugins()).toEqual([{ source: "npm:@acme/x", skills: ["!skills/legacy"] }]);
 	});
 
 	it("suppress is Set-union (a repeated pattern is a no-op)", () => {
 		seed(home, { plugins: [{ source: "x", skills: ["!skills/a"] }] });
-		const env = buildCompositionSuppressEnvelope(
-			deps(),
-			"suppress",
-			"x",
-			"skills",
-			"skills/a",
-			{ env: {} },
-		) as { changed: boolean };
+		const env = buildCompositionSuppressEnvelope(deps(), "suppress", "x", "skills", "skills/a", {
+			env: {},
+		}) as { changed: boolean };
 		expect(env.changed).toBe(false);
 		expect(homePlugins()).toEqual([{ source: "x", skills: ["!skills/a"] }]);
 	});
 
 	it("unsuppress drops the key when the surface empties (restores all-active)", () => {
 		seed(home, { plugins: [{ source: "x", skills: ["!skills/a"] }] });
-		const env = buildCompositionSuppressEnvelope(
-			deps(),
-			"unsuppress",
-			"x",
-			"skills",
-			"skills/a",
-			{ env: {} },
-		) as { changed: boolean; entry: unknown };
+		const env = buildCompositionSuppressEnvelope(deps(), "unsuppress", "x", "skills", "skills/a", {
+			env: {},
+		}) as { changed: boolean; entry: unknown };
 		expect(env.changed).toBe(true);
 		// The surface key is gone AND the entry collapsed back to a bare string.
 		expect(env.entry).toBe("x");
@@ -343,22 +321,24 @@ describe("config plugins suppress / unsuppress (the !-grammar)", () => {
 			{ allowModeFlip: true, env: {} },
 		) as { ok: boolean; changed: boolean };
 		expect(allowed).toMatchObject({ ok: true, changed: true });
-		expect(homePlugins()).toEqual([
-			{ source: "x", skills: ["skills/keep", "!skills/other"] },
-		]);
+		expect(homePlugins()).toEqual([{ source: "x", skills: ["skills/keep", "!skills/other"] }]);
 	});
 
 	it("rejects an unknown surface and an undeclared source", () => {
 		seed(home, { plugins: ["x"] });
 		expect(
-			(buildCompositionSuppressEnvelope(deps(), "suppress", "x", "bogus", "y", {
-				env: {},
-			}) as { error?: string }).error,
+			(
+				buildCompositionSuppressEnvelope(deps(), "suppress", "x", "bogus", "y", {
+					env: {},
+				}) as { error?: string }
+			).error,
 		).toBe("unknown-surface");
 		expect(
-			(buildCompositionSuppressEnvelope(deps(), "suppress", "ghost", "skills", "y", {
-				env: {},
-			}) as { error?: string }).error,
+			(
+				buildCompositionSuppressEnvelope(deps(), "suppress", "ghost", "skills", "y", {
+					env: {},
+				}) as { error?: string }
+			).error,
 		).toBe("source-not-declared");
 	});
 });

@@ -30,20 +30,14 @@ export function observedTaskResultError(result: unknown): string | null {
 	return isRuntimeAgentErrorContent(content) ? content : null;
 }
 
-export function observedTaskResultStatus(
-	taskResult: EffortResult["results"][number],
-): string {
+export function observedTaskResultStatus(taskResult: EffortResult["results"][number]): string {
 	if (taskResult.status !== "ok") return taskResult.status;
 	return observedTaskResultError(taskResult.result) ? "error" : taskResult.status;
 }
 
-export function observedEffortStatus(
-	result: EffortResult,
-): EffortResult["status"] {
+export function observedEffortStatus(result: EffortResult): EffortResult["status"] {
 	if (result.status !== "done") return result.status;
-	return result.results.some(
-		(taskResult) => observedTaskResultStatus(taskResult) === "error",
-	)
+	return result.results.some((taskResult) => observedTaskResultStatus(taskResult) === "error")
 		? "failed"
 		: result.status;
 }

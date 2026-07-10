@@ -7,7 +7,8 @@ import {
 import { quoteCommandArgIfNeeded } from "@refarm.dev/cli/command-handoff";
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
-	isRuntimeAgentPluginId, normalizePluginId,
+	isRuntimeAgentPluginId,
+	normalizePluginId,
 	RUNTIME_AGENT_PLUGIN_ID,
 } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
@@ -29,10 +30,7 @@ import {
 	type RuntimePluginRecommendation,
 	type RuntimePluginStatusReport,
 } from "./plugin-shared.js";
-import {
-	readRuntimePluginState,
-	reloadRuntimePluginsAndWait,
-} from "./runtime-plugins.js";
+import { readRuntimePluginState, reloadRuntimePluginsAndWait } from "./runtime-plugins.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -158,10 +156,7 @@ export async function listInstalledPlugins(options: { json?: boolean } = {}): Pr
 
 	const idWidth = Math.max(...results.map((r) => r.id.length), 4);
 	const verWidth = Math.max(...results.map((r) => (r.version ?? "not installed").length), 7);
-	const sourceWidth = Math.max(
-		...results.map((r) => `${r.source}/${r.packageSource}`.length),
-		6,
-	);
+	const sourceWidth = Math.max(...results.map((r) => `${r.source}/${r.packageSource}`.length), 6);
 
 	console.log(
 		`  ${"PLUGIN".padEnd(idWidth)}  ${"VERSION".padEnd(verWidth)}  ${"SOURCE".padEnd(sourceWidth)}  PACKAGE`,
@@ -209,8 +204,7 @@ export function buildRuntimePluginStatusReport(
 		};
 	}
 
-	const known =
-		state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
+	const known = state.known.length > 0 ? state.known : BUNDLED_PLUGINS.map((p) => p.id);
 	const runtimeAgentInstalled = state.installed.some(isRuntimeAgentPluginId);
 	const runtimeAgentLoaded =
 		typeof state.defaultResponder === "string" && state.defaultResponder.length > 0;
@@ -268,7 +262,9 @@ export async function printRuntimePluginStatus(options: { json?: boolean } = {})
 
 	if (!state) {
 		console.error("Refarm runtime plugin status is unavailable.");
-		console.error(`Ensure runtime readiness with \`${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\`, then retry.`);
+		console.error(
+			`Ensure runtime readiness with \`${RUNTIME_ENSURE_WAIT_NEXT_COMMAND}\`, then retry.`,
+		);
 		console.error(`Fallback start command: \`${RUNTIME_START_WAIT_COMMAND}\`.`);
 		console.error(`Inspect runtime readiness with \`${RUNTIME_STATUS_COMMAND}\`.`);
 		console.error(`Next recovery action: \`${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}\`.`);
@@ -468,11 +464,7 @@ export async function reloadRuntimePluginCommand(
 					message: `One or more runtime plugins ${timedOutMessage}.`,
 					nextAction: restartCommand,
 					nextCommand: restartCommand,
-					nextCommands: [
-						restartCommand,
-						PLUGIN_STATUS_JSON_COMMAND,
-						RUNTIME_DOCTOR_NEXT_COMMAND,
-					],
+					nextCommands: [restartCommand, PLUGIN_STATUS_JSON_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
 					extra: {
 						requested: pluginIds,
 						reloaded: result.reloaded,
@@ -519,9 +511,7 @@ export async function reloadRuntimePluginCommand(
 			}
 			console.error(`  ✗ runtime restart failed: ${restart.failedCommand}`);
 		} else {
-			console.error(
-				`  Restart if needed: ${pluginReloadRestartCommand(pluginIds)}`,
-			);
+			console.error(`  Restart if needed: ${pluginReloadRestartCommand(pluginIds)}`);
 		}
 		process.exitCode = 1;
 	}

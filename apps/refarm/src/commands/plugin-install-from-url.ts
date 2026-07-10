@@ -1,8 +1,5 @@
 import { createFsAssetStore } from "@refarm.dev/asset-resolver-contract-v1/node";
-import {
-	isSha256Hex,
-	verifyContentHash,
-} from "@refarm.dev/asset-resolver-contract-v1";
+import { isSha256Hex, verifyContentHash } from "@refarm.dev/asset-resolver-contract-v1";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -13,11 +10,7 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import {
-	pluginIdToFsToken,
-	pluginsBaseDir,
-	sentinelPath,
-} from "./plugin-shared.js";
+import { pluginIdToFsToken, pluginsBaseDir, sentinelPath } from "./plugin-shared.js";
 
 /**
  * Install a plugin from a `url` reference (ADR-086 Fase 7) — the REMOTE sibling of

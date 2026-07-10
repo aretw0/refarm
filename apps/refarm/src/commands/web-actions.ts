@@ -12,8 +12,7 @@ import {
 import type { StatusJson } from "@refarm.dev/cli/status";
 
 export type WebSurfaceActionRow = SurfaceActionAffordanceRow;
-export type WebSurfaceActionSelectionReason =
-	SurfaceActionAffordanceSelectionReason;
+export type WebSurfaceActionSelectionReason = SurfaceActionAffordanceSelectionReason;
 
 export interface WebSurfaceActionSelectionResult {
 	selected?: WebSurfaceActionRow;
@@ -22,14 +21,11 @@ export interface WebSurfaceActionSelectionResult {
 	rows: readonly WebSurfaceActionRow[];
 }
 
-export type WebSurfaceActionDryRunEnvelope =
-	SurfaceActionReadinessDryRunEnvelope & {
-		renderer: "web";
-	};
+export type WebSurfaceActionDryRunEnvelope = SurfaceActionReadinessDryRunEnvelope & {
+	renderer: "web";
+};
 
-export function createWebSurfaceActionRows(
-	status: StatusJson,
-): WebSurfaceActionRow[] {
+export function createWebSurfaceActionRows(status: StatusJson): WebSurfaceActionRow[] {
 	return createSurfaceActionAffordanceRows(status);
 }
 
@@ -51,9 +47,7 @@ export function createWebSurfaceActionDryRunEnvelope(
 	) as WebSurfaceActionDryRunEnvelope;
 }
 
-export function formatWebSurfaceActionRows(
-	rows: readonly WebSurfaceActionRow[],
-): string {
+export function formatWebSurfaceActionRows(rows: readonly WebSurfaceActionRow[]): string {
 	return formatSurfaceActionAffordanceRows(rows, "Available Web actions:");
 }
 

@@ -1,8 +1,4 @@
-import {
-	CONFIG_NODE_DEFAULT_ID,
-	configFromNode,
-	loadRawSovereignConfig,
-} from "@refarm.dev/config";
+import { CONFIG_NODE_DEFAULT_ID, configFromNode, loadRawSovereignConfig } from "@refarm.dev/config";
 import { openTractorGraph } from "./tractor-store.js";
 
 /**
@@ -50,9 +46,10 @@ export async function resolveSovereignConfig(
 		// runtime (throwing on a malformed node, caught below) and returns node.data.
 		// The structural cast bridges the read layer's type to the config contract —
 		// the same call the health ConfigNodeAuditor makes (untyped, in JS).
-		return configFromNode(
-			node as unknown as Parameters<typeof configFromNode>[0],
-		) as Record<string, unknown> | null;
+		return configFromNode(node as unknown as Parameters<typeof configFromNode>[0]) as Record<
+			string,
+			unknown
+		> | null;
 	} catch {
 		// Unreachable runtime or malformed node → degrade to null rather than
 		// inventing config.

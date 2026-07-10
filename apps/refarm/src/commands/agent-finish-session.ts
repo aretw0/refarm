@@ -6,9 +6,7 @@ import { resolveRefarmHome } from "../utils/refarm-home.js";
 
 const AGENT_FINISH_SESSION_VERSION = 1 as const;
 
-export function agentFinishSessionFilePath(
-	baseDir = resolveRefarmHome(),
-): string {
+export function agentFinishSessionFilePath(baseDir = resolveRefarmHome()): string {
 	return path.join(baseDir, "sessions", "agent-finish-session.v1.json");
 }
 
@@ -47,9 +45,7 @@ export function buildAgentFinishRecord(input: {
 	};
 }
 
-export class FileAgentFinishSessionRecorder
-	implements AgentFinishSessionRecorder
-{
+export class FileAgentFinishSessionRecorder implements AgentFinishSessionRecorder {
 	private readonly sessionsDir: string;
 	private readonly sessionFilePath: string;
 
@@ -90,9 +86,7 @@ export class FileAgentFinishSessionRecorder
 	}
 }
 
-export function createAgentFinishSessionRecorder(
-	baseDir?: string,
-): AgentFinishSessionRecorder {
+export function createAgentFinishSessionRecorder(baseDir?: string): AgentFinishSessionRecorder {
 	return new FileAgentFinishSessionRecorder(baseDir);
 }
 
@@ -108,34 +102,23 @@ function normalizeCheckpoint(raw: unknown): AgentFinishSessionCheckpoint | null 
 		: null;
 }
 
-function normalizeFinishRecord(
-	raw: unknown,
-): OperatorResumeFinishRecord | null {
+function normalizeFinishRecord(raw: unknown): OperatorResumeFinishRecord | null {
 	if (!raw || typeof raw !== "object") return null;
 	const current = raw as Record<string, unknown>;
-	const status = current.status === "passed" || current.status === "failed"
-		? current.status
-		: null;
+	const status = current.status === "passed" || current.status === "failed" ? current.status : null;
 	if (!status) return null;
 	const command = typeof current.command === "string" ? current.command : "";
 	const updatedAt =
-		typeof current.updatedAt === "string"
-			? current.updatedAt
-			: new Date().toISOString();
+		typeof current.updatedAt === "string" ? current.updatedAt : new Date().toISOString();
 	return {
 		updatedAt,
 		status,
 		command,
 		profile: typeof current.profile === "string" ? current.profile : null,
 		lane: typeof current.lane === "string" ? current.lane : null,
-		validationScope:
-			typeof current.validationScope === "string"
-				? current.validationScope
-				: null,
-		failedStepId:
-			typeof current.failedStepId === "string" ? current.failedStepId : null,
-		failedCommand:
-			typeof current.failedCommand === "string" ? current.failedCommand : null,
+		validationScope: typeof current.validationScope === "string" ? current.validationScope : null,
+		failedStepId: typeof current.failedStepId === "string" ? current.failedStepId : null,
+		failedCommand: typeof current.failedCommand === "string" ? current.failedCommand : null,
 		nextCommands: normalizeStringArray(current.nextCommands),
 		remainingCommands: normalizeStringArray(current.remainingCommands),
 	};

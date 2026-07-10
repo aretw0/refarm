@@ -57,9 +57,7 @@ interface StatusCommandOptions {
 	base?: boolean;
 }
 
-async function createStatusRuntimeSummary(
-	namespace: string,
-): Promise<StatusJson["runtime"]> {
+async function createStatusRuntimeSummary(namespace: string): Promise<StatusJson["runtime"]> {
 	const configuredEngine = await readTractorEngineModeAsync();
 	const activeEngine = (() => {
 		try {
@@ -100,11 +98,7 @@ export function createStatusCommand(deps: StatusCommandDeps = {}): Command {
 			"--input <path>",
 			"Read status payload from JSON file (or '-' for stdin) instead of booting runtime",
 		)
-		.option(
-			"--renderer <kind>",
-			"Renderer mode: web | tui | headless",
-			"headless",
-		)
+		.option("--renderer <kind>", "Renderer mode: web | tui | headless", "headless")
 		.option("--markdown", "Output markdown report")
 		.option("--json", "Output machine-readable JSON")
 		.option("--base", "Output the zero-extension daily-driver base state")
@@ -140,9 +134,7 @@ Notes:
 			}
 			if (options.action) {
 				if (options.json || options.markdown) {
-					throw new Error(
-						"--action cannot be combined with --json or --markdown.",
-					);
+					throw new Error("--action cannot be combined with --json or --markdown.");
 				}
 				if (options.input) {
 					throw new Error(
@@ -265,9 +257,7 @@ export async function resolveStatusPayload(
 	};
 }
 
-export function readStatusPayloadFromInput(
-	inputPath: string,
-): StatusJson {
+export function readStatusPayloadFromInput(inputPath: string): StatusJson {
 	const sourceLabel = inputPath === "-" ? "stdin" : inputPath;
 	let raw: string;
 	try {
@@ -286,8 +276,6 @@ export function readStatusPayloadFromInput(
 		return parseStatusJson(raw);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		throw new Error(
-			`Failed to parse status input "${sourceLabel}": ${message}`,
-		);
+		throw new Error(`Failed to parse status input "${sourceLabel}": ${message}`);
 	}
 }

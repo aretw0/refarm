@@ -11,11 +11,7 @@ import { refarmCommand } from "../brand.js";
  * it forms no cycle with runtime-status.ts.
  */
 
-export const RUNTIME_STOP_JSON_COMMAND = refarmCommand([
-	"runtime",
-	"stop",
-	"--json",
-]);
+export const RUNTIME_STOP_JSON_COMMAND = refarmCommand(["runtime", "stop", "--json"]);
 
 export interface RuntimeStopResult {
 	ok: boolean;
@@ -311,9 +307,7 @@ export function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
 		stopRuntimeTarget("tractor", tractorPidFile),
 		stopRuntimeTarget("farmhand", farmhandPidFile),
 	];
-	const knownPids = new Set(
-		targets.flatMap((target) => (target.pid ? [target.pid] : [])),
-	);
+	const knownPids = new Set(targets.flatMap((target) => (target.pid ? [target.pid] : [])));
 	for (const pid of findDefaultPortTractorProcesses(repoRoot)) {
 		if (knownPids.has(pid)) continue;
 		targets.push(stopRuntimePid("tractor", pid, tractorPidFile, "process-scan", true));
@@ -342,9 +336,7 @@ export function stopRuntimeProcess(repoRoot: string): RuntimeStopResult {
 	};
 }
 
-export function buildRuntimeStopJsonPayload(
-	result: RuntimeStopResult,
-): RuntimeStopJsonPayload {
+export function buildRuntimeStopJsonPayload(result: RuntimeStopResult): RuntimeStopJsonPayload {
 	return {
 		command: "runtime",
 		operation: "stop",

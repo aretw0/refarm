@@ -59,9 +59,7 @@ describe("discoverVaultProviders", () => {
 			_note: "Entry injected at install time",
 			capabilities: { provides: ["vault:extract"] },
 		});
-		expect(discoverVaultProviders(pluginsDir).providers[0]?.verbs).toEqual([
-			"extract",
-		]);
+		expect(discoverVaultProviders(pluginsDir).providers[0]?.verbs).toEqual(["extract"]);
 	});
 
 	it("de-duplicates a verb advertised twice", () => {
@@ -69,18 +67,14 @@ describe("discoverVaultProviders", () => {
 			id: "@demo/v",
 			capabilities: { provides: ["vault:extract", "vault:extract"] },
 		});
-		expect(discoverVaultProviders(pluginsDir).providers[0]?.verbs).toEqual([
-			"extract",
-		]);
+		expect(discoverVaultProviders(pluginsDir).providers[0]?.verbs).toEqual(["extract"]);
 	});
 
 	it("falls back to the directory name when id is absent", () => {
 		writePlugin("@demo/anon", {
 			capabilities: { provides: ["vault:search"] },
 		});
-		expect(discoverVaultProviders(pluginsDir).providers[0]?.pluginId).toBe(
-			"anon",
-		);
+		expect(discoverVaultProviders(pluginsDir).providers[0]?.pluginId).toBe("anon");
 	});
 
 	it("collects a malformed plugin.json into `rejected` without throwing", () => {

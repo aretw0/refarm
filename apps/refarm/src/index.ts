@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 
-import {
-	isModuleResolutionError,
-	renderBootstrapFailure,
-} from "./bootstrap-preflight.js";
+import { isModuleResolutionError, renderBootstrapFailure } from "./bootstrap-preflight.js";
 
 try {
 	await import("./cli-main.js");

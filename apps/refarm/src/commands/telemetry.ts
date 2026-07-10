@@ -7,15 +7,15 @@ import {
 	type PressureSnapshot,
 	type PressureWindow,
 } from "@refarm.dev/pressure-contract-v1";
-import {
-	createPressureClient,
-	SidecarHttpError,
-} from "@refarm.dev/sidecar-client";
+import { createPressureClient, SidecarHttpError } from "@refarm.dev/sidecar-client";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
 import { refarmCommand } from "../brand.js";
 import {
-	buildDiagnosticNextActionPayload, diagnosticNextActions, diagnosticNextCommands, type DiagnosticRecommendation,
+	buildDiagnosticNextActionPayload,
+	diagnosticNextActions,
+	diagnosticNextCommands,
+	type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
@@ -32,12 +32,7 @@ import {
 import { resolveSidecarUrl } from "./sidecar-url.js";
 
 const TASK_LIST_JSON_COMMAND = refarmCommand(["task", "list", "--json"]);
-const FAILED_TASKS_JSON_COMMAND = refarmCommand([
-	"tasks",
-	"--status",
-	"failed",
-	"--json",
-]);
+const FAILED_TASKS_JSON_COMMAND = refarmCommand(["tasks", "--status", "failed", "--json"]);
 
 export type TelemetryRecommendation = DiagnosticRecommendation;
 
@@ -97,9 +92,7 @@ async function fetchTelemetryFromSidecar(): Promise<PressureSnapshot> {
 	}
 }
 
-async function fetchTelemetryWindowFromSidecar(
-	minutes: number,
-): Promise<PressureWindow | null> {
+async function fetchTelemetryWindowFromSidecar(minutes: number): Promise<PressureWindow | null> {
 	return createPressureClient(resolveSidecarUrl()).getWindow(minutes);
 }
 
@@ -117,30 +110,31 @@ function formatSummary(snapshot: PressureSnapshot): string[] {
 	];
 }
 
-export function buildTelemetryRecommendations(
-	diagnostics: string[],
-): TelemetryRecommendation[] {
+export function buildTelemetryRecommendations(diagnostics: string[]): TelemetryRecommendation[] {
 	return diagnostics.map((diagnostic) => {
 		switch (diagnostic) {
 			case "saturation:queue":
 				return {
 					diagnostic,
 					summary: "The task queue is above the configured warning threshold.",
-					action: "Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+					action:
+						"Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
 					command: TASK_LIST_JSON_COMMAND,
 				};
 			case "saturation:inflight":
 				return {
 					diagnostic,
 					summary: "In-flight effort count is above the configured warning threshold.",
-					action: "Wait for active efforts to settle or increase worker capacity before starting more work.",
+					action:
+						"Wait for active efforts to settle or increase worker capacity before starting more work.",
 					command: TASK_LIST_JSON_COMMAND,
 				};
 			case "reliability:failures-present":
 				return {
 					diagnostic,
 					summary: "Failed efforts are present in the current telemetry snapshot.",
-					action: "Inspect failed effort logs and retry only after the failure cause is understood.",
+					action:
+						"Inspect failed effort logs and retry only after the failure cause is understood.",
 					command: TASK_LIST_JSON_COMMAND,
 				};
 			case "reliability:failures-recent":
@@ -172,9 +166,7 @@ function printConnectionFailure(message: string): void {
 	if (isSidecarUnavailable(message)) {
 		printSidecarUnavailable();
 	} else if (message.includes("telemetry endpoint not available")) {
-		console.error(
-			chalk.red("✗  telemetry endpoint is unavailable in this daemon."),
-		);
+		console.error(chalk.red("✗  telemetry endpoint is unavailable in this daemon."));
 		console.error(chalk.dim("   Update or restart the Refarm runtime and retry."));
 	} else {
 		console.error(chalk.red(`✗  ${message}`));
@@ -189,9 +181,7 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 	};
 
 	return new Command("telemetry")
-		.description(
-			"Show pressure snapshot and saturation/reliability signals",
-		)
+		.description("Show pressure snapshot and saturation/reliability signals")
 		.option("--json", "Output machine-readable JSON")
 		.option("--next-action", "Print only the first telemetry recovery action")
 		.option(
@@ -209,10 +199,8 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 		.option("--queue-warn <n>", "Warn threshold for queue depth", (value) =>
 			parsePositiveIntOption(value, "--queue-warn"),
 		)
-		.option(
-			"--inflight-warn <n>",
-			"Warn threshold for in-flight efforts",
-			(value) => parsePositiveIntOption(value, "--inflight-warn"),
+		.option("--inflight-warn <n>", "Warn threshold for in-flight efforts", (value) =>
+			parsePositiveIntOption(value, "--inflight-warn"),
 		)
 		.option(
 			"--fail-rate-warn <pct>",
@@ -413,9 +401,7 @@ Notes:
 						),
 					);
 					if (strict.targets.length > 0) {
-						console.error(
-							chalk.dim(`  enforced codes: ${strict.targets.join(", ")}`),
-						);
+						console.error(chalk.dim(`  enforced codes: ${strict.targets.join(", ")}`));
 					}
 					process.exitCode = 2;
 				}

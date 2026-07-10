@@ -3,15 +3,15 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import { openHostBrowserUrl, resolveBrowserOpenCandidates, type BrowserOpenResult, } from "@refarm.dev/cli/browser-open";
+import {
+	openHostBrowserUrl,
+	resolveBrowserOpenCandidates,
+	type BrowserOpenResult,
+} from "@refarm.dev/cli/browser-open";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
-import {
-	openDryRunMessage,
-	openFailureMessage,
-	openStartMessage,
-} from "./launch-feedback.js";
+import { openDryRunMessage, openFailureMessage, openStartMessage } from "./launch-feedback.js";
 
 export interface OpenUrlDeps {
 	open(url: string): Promise<BrowserOpenResult>;
@@ -35,9 +35,7 @@ export function createOpenUrlCommand(deps?: Partial<OpenUrlDeps>): Command {
 	};
 
 	return new Command("open-url")
-		.description(
-			"Open a URL in the host browser with devcontainer-aware fallbacks",
-		)
+		.description("Open a URL in the host browser with devcontainer-aware fallbacks")
 		.argument("<url>", "URL to open")
 		.option("--dry-run", "Print opener candidates without executing them")
 		.option("--json", "Output machine-readable opener result")
@@ -63,12 +61,11 @@ Notes:
 			if (options.dryRun) {
 				const candidates = resolveBrowserOpenCandidates(url);
 				if (options.json) {
-					const nextCommand = candidates.length > 0
-						? openUrlCommandLine(url)
-						: openUrlCommandLine(url, ["--dry-run", "--json"]);
-					const nextAction = candidates.length > 0
-						? nextCommand
-						: `open manually: ${url}`;
+					const nextCommand =
+						candidates.length > 0
+							? openUrlCommandLine(url)
+							: openUrlCommandLine(url, ["--dry-run", "--json"]);
+					const nextAction = candidates.length > 0 ? nextCommand : `open manually: ${url}`;
 					printJson(
 						buildJsonSuccessEnvelope({
 							command: "open-url",

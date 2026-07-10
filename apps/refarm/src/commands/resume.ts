@@ -13,7 +13,7 @@ import {
 } from "@refarm.dev/cli/operator-resume";
 import {
 	loadProjectScheduledWork,
-	type ProjectScheduledWorkInspection
+	type ProjectScheduledWorkInspection,
 } from "@refarm.dev/cli/project-automations";
 import {
 	parseProjectHandoffSummary,
@@ -28,21 +28,11 @@ import {
 	createAgentFinishSessionRecorder,
 	type AgentFinishSessionRecorder,
 } from "./agent-finish-session.js";
-import {
-	MODEL_CURRENT_JSON_COMMAND,
-	MODEL_DOCTOR_JSON_COMMAND,
-} from "./credential-handoffs.js";
-import {
-	buildCurrentModelStatus,
-	defaultModelDeps,
-	type ModelTokens,
-} from "./model.js";
+import { MODEL_CURRENT_JSON_COMMAND, MODEL_DOCTOR_JSON_COMMAND } from "./credential-handoffs.js";
+import { buildCurrentModelStatus, defaultModelDeps, type ModelTokens } from "./model.js";
 import { loadRecentRuntimeSessions } from "./session-history.js";
 import { readActiveSessionId } from "./session-lock.js";
-import {
-	resolveStatusPayload,
-	type ResolveStatusPayloadResult,
-} from "./status.js";
+import { resolveStatusPayload, type ResolveStatusPayloadResult } from "./status.js";
 import {
 	createTaskSessionRecorder,
 	taskSessionFilePath,
@@ -55,9 +45,7 @@ import {
 const RESUME_HANDOFFS = buildOperatorResumeCommands("refarm");
 
 export interface ResumeDeps {
-	resolveStatusPayload(options: {
-		renderer?: string;
-	}): Promise<ResolveStatusPayloadResult>;
+	resolveStatusPayload(options: { renderer?: string }): Promise<ResolveStatusPayloadResult>;
 	sessionRecorder: TaskSessionRecorder;
 	finishRecorder: AgentFinishSessionRecorder;
 	readActiveSessionId(): string | null;
@@ -97,14 +85,9 @@ export function createResumeCommand(deps?: Partial<ResumeDeps>): Command {
 	};
 
 	return new Command("resume")
-		.description(
-			"Show the operator resume view across runtime and worker tasks",
-		)
+		.description("Show the operator resume view across runtime and worker tasks")
 		.option("--json", "Print machine-readable JSON output")
-		.option(
-			"--no-status",
-			"Skip runtime status inspection and only read local checkpoints",
-		)
+		.option("--no-status", "Skip runtime status inspection and only read local checkpoints")
 		.option("--next-action", "Print only the first recovery command and exit")
 		.option("--next-command", "Alias for --next-action")
 		.addHelpText(
@@ -129,10 +112,7 @@ Notes:
 		});
 }
 
-async function emitResume(
-	options: ResumeOptions,
-	deps: ResumeDeps,
-): Promise<void> {
+async function emitResume(options: ResumeOptions, deps: ResumeDeps): Promise<void> {
 	const taskCheckpoint = deps.sessionRecorder.getCheckpoint();
 	const finish = deps.finishRecorder.getLatest();
 	const activeSessionId = deps.readActiveSessionId();
@@ -141,8 +121,7 @@ async function emitResume(
 	const scheduledWork = await deps.loadScheduledWork();
 	const environmentPressure = deps.loadEnvironmentPressure();
 	const model = await loadModelResumeSummary(deps);
-	const recentSessions =
-		options.status === false ? [] : await deps.loadRecentSessions();
+	const recentSessions = options.status === false ? [] : await deps.loadRecentSessions();
 	const statusResult =
 		options.status === false
 			? undefined
@@ -255,21 +234,18 @@ export interface SessionPressureFile {
 	bytes: number;
 }
 
-export function loadKnownSessionPressureFiles(
-	baseDir?: string,
-): SessionPressureFile[] {
-	return [
-		taskSessionFilePath(baseDir),
-		agentFinishSessionFilePath(baseDir),
-	].flatMap((sessionPath) => {
-		try {
-			const stat = fs.statSync(sessionPath);
-			if (!stat.isFile()) return [];
-			return [{ path: sessionPath, bytes: stat.size }];
-		} catch {
-			return [];
-		}
-	});
+export function loadKnownSessionPressureFiles(baseDir?: string): SessionPressureFile[] {
+	return [taskSessionFilePath(baseDir), agentFinishSessionFilePath(baseDir)].flatMap(
+		(sessionPath) => {
+			try {
+				const stat = fs.statSync(sessionPath);
+				if (!stat.isFile()) return [];
+				return [{ path: sessionPath, bytes: stat.size }];
+			} catch {
+				return [];
+			}
+		},
+	);
 }
 
 export function loadProjectHandoff(
@@ -277,10 +253,9 @@ export function loadProjectHandoff(
 ): OperatorResumeProjectSummary | undefined {
 	const handoffPath = path.join(cwd, PROJECT_HANDOFF_RELATIVE_PATH);
 	try {
-		return parseProjectHandoffSummary(
-			JSON.parse(fs.readFileSync(handoffPath, "utf-8")),
-			{ arrayLimit: 5 },
-		);
+		return parseProjectHandoffSummary(JSON.parse(fs.readFileSync(handoffPath, "utf-8")), {
+			arrayLimit: 5,
+		});
 	} catch {
 		return undefined;
 	}

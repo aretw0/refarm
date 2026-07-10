@@ -14,11 +14,7 @@ import { refarmCommand } from "../brand.js";
 import { capabilityCliCommandsForGroup } from "./capability-registry.js";
 import { PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 
-const EXTENSION_LIST_JSON_COMMAND = refarmCommand([
-	"extension",
-	"list",
-	"--json",
-]);
+const EXTENSION_LIST_JSON_COMMAND = refarmCommand(["extension", "list", "--json"]);
 const EXAMPLE_EXTENSION_SAVE_GLOBAL_COMMAND = refarmCommand([
 	"extension",
 	"save",
@@ -46,11 +42,7 @@ const EXAMPLE_EXTENSION_SAVE_LOCAL_JSON_COMMAND = refarmCommand([
 	"--json",
 ]);
 
-function extensionSaveCommand(
-	name: string,
-	scope: "global" | "local",
-	json = false,
-): string {
+function extensionSaveCommand(name: string, scope: "global" | "local", json = false): string {
 	return refarmCommand([
 		"extension",
 		"save",
@@ -83,7 +75,7 @@ function printCreatedExtension(report: CreatedExtensionReport): void {
 	if (report.nextActions[1]) {
 		console.log(`  Fallback: ${report.nextActions[1]}`);
 	}
-	}
+}
 
 async function newExtension(
 	name: string,
@@ -108,7 +100,7 @@ async function newExtension(
 		return;
 	}
 	printCreatedExtension(report);
-	}
+}
 
 async function saveExtension(
 	name: string,
@@ -122,8 +114,7 @@ async function saveExtension(
 					command: "extension",
 					operation: "save",
 					error: "invalid-extension-name",
-					message:
-						"Use lowercase letters, digits, and hyphens only (e.g. my-tool).",
+					message: "Use lowercase letters, digits, and hyphens only (e.g. my-tool).",
 					nextAction: EXAMPLE_EXTENSION_SAVE_GLOBAL_COMMAND,
 					nextActions: [
 						EXAMPLE_EXTENSION_SAVE_GLOBAL_COMMAND,
@@ -211,7 +202,7 @@ async function saveExtension(
 		return;
 	}
 	console.log(`Extension '${name}' moved to ${toScope} scope (${destDir})`);
-	}
+}
 
 function publishExtensionPlan(name: string) {
 	const reloadCommand = extensionReloadCommand(name, true);
@@ -235,7 +226,7 @@ function publishExtensionPlan(name: string) {
 			status: "manual",
 		},
 	});
-	}
+}
 
 function listHandler(options: { json?: boolean } = {}): void {
 	const report = buildExtensionListReport(process.cwd(), os.homedir());
@@ -257,8 +248,7 @@ function listHandler(options: { json?: boolean } = {}): void {
 	for (const { id, version, scope } of entries) {
 		console.log(`  ${id.padEnd(idW)}  ${version.padEnd(verW)}  ${scope}`);
 	}
-	}
-
+}
 
 export const extensionCommand = new Command("extension").description(
 	"[deprecated: use `plugin`] Manage local JS extensions",
@@ -311,27 +301,30 @@ extensionCommand
 	.command("new <name>")
 	.description("Scaffold a new local extension in .refarm/extensions/<name>/")
 	.option("-g, --global", "Create in ~/.refarm/extensions/ (available in all projects)", false)
-	.option("--verb <verb>", "Declare a dispatchable verb (bare 'open' -> <name>:open and surfaces as <name>-open)")
+	.option(
+		"--verb <verb>",
+		"Declare a dispatchable verb (bare 'open' -> <name>:open and surfaces as <name>-open)",
+	)
 	.option("--json", "Output machine-readable created extension metadata")
 	.action(async (name: string, options: { global: boolean; json?: boolean; verb?: string }) => {
 		await newExtension(name, options.global, { json: options.json, verb: options.verb });
 	});
 
-	// `extension review` is declared once as a capability descriptor with
-	// `transports.cli.group: "extension"`; the parent self-populates from the ONE
-	// registry (via the group projector), so the same declaration drives the CLI
-	// subcommand and the REPL `/review` slash with no hand-mount here.
-	for (const command of capabilityCliCommandsForGroup("extension")) {
+// `extension review` is declared once as a capability descriptor with
+// `transports.cli.group: "extension"`; the parent self-populates from the ONE
+// registry (via the group projector), so the same declaration drives the CLI
+// subcommand and the REPL `/review` slash with no hand-mount here.
+for (const command of capabilityCliCommandsForGroup("extension")) {
 	extensionCommand.addCommand(command);
-	}
+}
 
-	extensionCommand
+extensionCommand
 	.command("list")
 	.description("List local extensions in this project and globally")
 	.option("--json", "Output machine-readable extension inventory")
 	.action(listHandler);
 
-	extensionCommand
+extensionCommand
 	.command("save <name>")
 	.description("Move a project extension to global scope (or vice versa)")
 	.option("-g, --global", "Move from project to global scope", false)
@@ -372,7 +365,7 @@ extensionCommand
 		await saveExtension(name, options.global, { json: options.json });
 	});
 
-	extensionCommand
+extensionCommand
 	.command("publish <name>")
 	.description("Show the current path from a local extension to a plugin package")
 	.option("--json", "Output machine-readable publish plan")

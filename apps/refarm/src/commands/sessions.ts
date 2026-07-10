@@ -9,9 +9,7 @@ import {
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
-import {
-	fetchSidecarWithTimeout,
-} from "@refarm.dev/sidecar-client";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -25,10 +23,7 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
-import {
-	type SessionParticipantAlias,
-	sessionParticipantFields,
-} from "./session-participants.js";
+import { type SessionParticipantAlias, sessionParticipantFields } from "./session-participants.js";
 import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
@@ -136,9 +131,7 @@ function enrichSessionHistory(history: SessionHistory): SessionHistory {
 function sessionActiveStaleRecommendation(
 	activeSessionStatus: SessionListReport["activeSessionStatus"],
 ): SessionListRecommendation[] {
-	return activeSessionStatus === "stale"
-		? [STALE_ACTIVE_SESSION_RECOMMENDATION]
-		: [];
+	return activeSessionStatus === "stale" ? [STALE_ACTIVE_SESSION_RECOMMENDATION] : [];
 }
 
 function printSessionJsonSuccess<TExtra extends object>(
@@ -156,9 +149,7 @@ function printSessionJsonSuccess<TExtra extends object>(
 	);
 }
 
-function resolveSessionsCommandServices(
-	deps: SessionsCommandDeps = {},
-): SessionsCommandServices {
+function resolveSessionsCommandServices(deps: SessionsCommandDeps = {}): SessionsCommandServices {
 	return {
 		clearActiveSessionId: deps.clearActiveSessionId ?? clearActiveSessionId,
 		fetch: deps.fetch ?? ((input, init) => fetchSidecarWithTimeout(input, init)),
@@ -169,13 +160,12 @@ function resolveSessionsCommandServices(
 	};
 }
 
-function sessionJsonOption(
-	opts: { json?: boolean } | undefined,
-	command?: Command,
-): boolean {
-	return opts?.json === true ||
+function sessionJsonOption(opts: { json?: boolean } | undefined, command?: Command): boolean {
+	return (
+		opts?.json === true ||
 		command?.opts<{ json?: boolean }>().json === true ||
-		command?.parent?.opts<{ json?: boolean }>().json === true;
+		command?.parent?.opts<{ json?: boolean }>().json === true
+	);
 }
 
 function writeActiveSessionOrReport(
@@ -198,10 +188,7 @@ function writeActiveSessionOrReport(
 					nextAction: SESSIONS_LIST_JSON_COMMAND,
 					nextActions: [SESSIONS_LIST_JSON_COMMAND, RUNTIME_DOCTOR_COMMAND],
 					nextCommand: SESSIONS_LIST_JSON_COMMAND,
-					nextCommands: [
-						SESSIONS_LIST_JSON_COMMAND,
-						RUNTIME_DOCTOR_NEXT_COMMAND,
-					],
+					nextCommands: [SESSIONS_LIST_JSON_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
 					extra: {
 						action: "sessions",
 						targetSessionId,
@@ -228,10 +215,7 @@ function printSessionPrefixError(
 			buildJsonErrorEnvelope({
 				command: "sessions",
 				operation: opts.operation ?? "resolve",
-				error:
-					kind === "not-found"
-						? "session-not-found"
-						: "ambiguous-session-prefix",
+				error: kind === "not-found" ? "session-not-found" : "ambiguous-session-prefix",
 				nextAction: SESSIONS_LIST_JSON_COMMAND,
 				nextCommand: SESSIONS_LIST_JSON_COMMAND,
 				extra: {
@@ -248,9 +232,7 @@ function printSessionPrefixError(
 		console.error(chalk.red(`✗  No session matching "${prefix}"`));
 	} else {
 		console.error(
-			chalk.red(
-				`✗  Ambiguous prefix "${prefix}" — matches ${matches.length} sessions:`,
-			),
+			chalk.red(`✗  Ambiguous prefix "${prefix}" — matches ${matches.length} sessions:`),
 		);
 		for (const m of matches) console.error(chalk.dim(`   ${m}`));
 	}
@@ -337,18 +319,17 @@ export function createSessionsCommand(deps: SessionsCommandDeps = {}): Command {
 		)
 		.addCommand(
 			new Command("fork")
-				.description(
-					"Branch a new session from an existing one (Loro-style fork)",
-				)
+				.description("Branch a new session from an existing one (Loro-style fork)")
 				.argument("<id>", "Session ID or unique prefix to branch from")
-				.option(
-					"--at <entry-id>",
-					"Branch from a specific entry instead of the current leaf",
-				)
+				.option("--at <entry-id>", "Branch from a specific entry instead of the current leaf")
 				.option("--name <name>", "Name for the new forked session")
 				.option("--json", "Output machine-readable fork result")
 				.action(
-					async (prefix: string, opts: { at?: string; name?: string; json?: boolean }, command: Command) => {
+					async (
+						prefix: string,
+						opts: { at?: string; name?: string; json?: boolean },
+						command: Command,
+					) => {
 						await forkSession(services, prefix, {
 							...opts,
 							json: sessionJsonOption(opts, command),
@@ -425,9 +406,7 @@ async function listSessions(
 				? "active"
 				: "stale"
 			: "none",
-		sessions: [...sessions].sort(
-			(a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0),
-		),
+		sessions: [...sessions].sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0)),
 	};
 	if (opts.json) {
 		const activeSession = report.activeSessionId
@@ -446,9 +425,7 @@ async function listSessions(
 		} else {
 			nextCommands.push(SESSIONS_NEW_JSON_COMMAND);
 		}
-		const recommendations = sessionActiveStaleRecommendation(
-			report.activeSessionStatus,
-		);
+		const recommendations = sessionActiveStaleRecommendation(report.activeSessionStatus);
 		const payload: SessionListReport & {
 			recommendations?: SessionListRecommendation[];
 		} = { ...report };
@@ -461,21 +438,11 @@ async function listSessions(
 
 	if (sessions.length === 0) {
 		if (activeId) {
-			console.log(
-				chalk.dim(
-					`No sessions found. Active pointer is stale: ${activeId}`,
-				),
-			);
-			console.log(
-				chalk.dim(
-					`Clear it with: ${SESSIONS_CLEAR_COMMAND}`,
-				),
-			);
+			console.log(chalk.dim(`No sessions found. Active pointer is stale: ${activeId}`));
+			console.log(chalk.dim(`Clear it with: ${SESSIONS_CLEAR_COMMAND}`));
 			return;
 		}
-		console.log(
-			chalk.dim("No sessions yet. Start one with: refarm ask <query>"),
-		);
+		console.log(chalk.dim("No sessions yet. Start one with: refarm ask <query>"));
 		return;
 	}
 
@@ -484,9 +451,7 @@ async function listSessions(
 
 	if (report.activeSessionStatus === "stale") {
 		console.log(
-			chalk.yellow(
-				`⚠  Active session pointer is stale: ${chalk.cyan(formatSessionId(activeId!))}`,
-			),
+			chalk.yellow(`⚠  Active session pointer is stale: ${chalk.cyan(formatSessionId(activeId!))}`),
 		);
 		console.log(chalk.dim(`   Clear it with: ${SESSIONS_CLEAR_COMMAND}`));
 		console.log();
@@ -498,9 +463,7 @@ async function listSessions(
 		const short = formatSessionId(session["@id"]);
 		const age = formatAge(session.created_at_ns);
 		const isActive = session["@id"] === activeId;
-		const name = session.name
-			? chalk.white(session.name)
-			: chalk.dim("unnamed");
+		const name = session.name ? chalk.white(session.name) : chalk.dim("unnamed");
 		const hasHistory = !!session.leaf_entry_id;
 
 		const prefix = isActive ? chalk.green("▶") : " ";
@@ -548,15 +511,9 @@ async function createSession(
 						error: "session-create-unavailable",
 						message: "Session creation endpoint is unavailable in this daemon.",
 						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-						nextActions: [
-							RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-							RUNTIME_STATUS_COMMAND,
-						],
+						nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND, RUNTIME_STATUS_COMMAND],
 						nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
-						nextCommands: [
-							RUNTIME_DOCTOR_NEXT_COMMAND,
-							RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-						],
+						nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND, RUNTIME_ENSURE_WAIT_NEXT_COMMAND],
 						extra: {
 							action: "sessions",
 							endpoint: "/sessions",
@@ -566,15 +523,9 @@ async function createSession(
 				process.exitCode = 1;
 				return;
 			}
+			console.error(chalk.red("✗  Session creation endpoint is unavailable in this daemon."));
 			console.error(
-				chalk.red(
-					"✗  Session creation endpoint is unavailable in this daemon.",
-				),
-			);
-			console.error(
-				chalk.dim(
-					`   Restart or update backend and retry: ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`,
-				),
+				chalk.dim(`   Restart or update backend and retry: ${RUNTIME_DOCTOR_NEXT_ACTION_COMMAND}`),
 			);
 			process.exitCode = 1;
 			return;
@@ -588,15 +539,9 @@ async function createSession(
 						error: "session-create-failed",
 						message: parsed.error ?? `HTTP ${response.status}`,
 						nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-						nextActions: [
-							RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-							RUNTIME_STATUS_COMMAND,
-						],
+						nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND, RUNTIME_STATUS_COMMAND],
 						nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
-						nextCommands: [
-							RUNTIME_DOCTOR_NEXT_COMMAND,
-							RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-						],
+						nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND, RUNTIME_ENSURE_WAIT_NEXT_COMMAND],
 						extra: {
 							action: "sessions",
 							endpoint: "/sessions",
@@ -606,9 +551,7 @@ async function createSession(
 				process.exitCode = 1;
 				return;
 			}
-			console.error(
-				chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`),
-			);
+			console.error(chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`));
 			process.exitCode = 1;
 			return;
 		}
@@ -622,7 +565,8 @@ async function createSession(
 		return;
 	}
 
-	if (!writeActiveSessionOrReport(services, created["@id"], { json: opts.json, operation: "new" })) return;
+	if (!writeActiveSessionOrReport(services, created["@id"], { json: opts.json, operation: "new" }))
+		return;
 	if (opts.json) {
 		const report: ActiveSessionReport = {
 			action: "created",
@@ -638,9 +582,7 @@ async function createSession(
 	const short = formatSessionId(created["@id"]);
 	const name = created.name ? chalk.white(created.name) : chalk.dim("unnamed");
 	console.log(
-		chalk.green(
-			`✓  Created session ${chalk.cyan.bold(short)}  ${name} (switched active session).`,
-		),
+		chalk.green(`✓  Created session ${chalk.cyan.bold(short)}  ${name} (switched active session).`),
 	);
 }
 
@@ -677,7 +619,10 @@ async function useSession(
 		return;
 	}
 
-	if (!writeActiveSessionOrReport(services, matches[0]!["@id"], { json: opts.json, operation: "use" })) return;
+	if (
+		!writeActiveSessionOrReport(services, matches[0]!["@id"], { json: opts.json, operation: "use" })
+	)
+		return;
 	if (opts.json) {
 		const report: ActiveSessionReport = {
 			action: "switched",
@@ -690,9 +635,7 @@ async function useSession(
 		]);
 		return;
 	}
-	console.log(
-		chalk.green(`✓  Switched to session ${formatSessionId(matches[0]!["@id"])}`),
-	);
+	console.log(chalk.green(`✓  Switched to session ${formatSessionId(matches[0]!["@id"])}`));
 }
 
 async function forkSession(
@@ -752,9 +695,7 @@ async function forkSession(
 				process.exitCode = 1;
 				return;
 			}
-			console.error(
-				chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`),
-			);
+			console.error(chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`));
 			process.exitCode = 1;
 			return;
 		}
@@ -769,7 +710,8 @@ async function forkSession(
 	}
 
 	// Auto-switch to the new fork.
-	if (!writeActiveSessionOrReport(services, fork["@id"], { json: opts.json, operation: "fork" })) return;
+	if (!writeActiveSessionOrReport(services, fork["@id"], { json: opts.json, operation: "fork" }))
+		return;
 	if (opts.json) {
 		const report: SessionForkReport = {
 			action: "forked",
@@ -806,9 +748,7 @@ async function showSession(
 	const encodedId = encodeURIComponent(prefix);
 	let history: SessionHistory;
 	try {
-		const response = await services.fetch(
-			services.sidecarUrl(`/sessions/${encodedId}/history`),
-		);
+		const response = await services.fetch(services.sidecarUrl(`/sessions/${encodedId}/history`));
 		const body = (await response.json()) as SessionHistory & {
 			error?: string;
 			matches?: string[];
@@ -864,10 +804,7 @@ async function showSession(
 		const activeSessionId = services.readActiveSessionId();
 		let recommendations: SessionListRecommendation[] = [];
 		const nextCommands: string[] = [];
-		if (
-			activeSessionId &&
-			activeSessionId !== history.session["@id"]
-		) {
+		if (activeSessionId && activeSessionId !== history.session["@id"]) {
 			try {
 				const sessions = await fetchSessions(services);
 				const activeSessionStatus = activeSessionId
@@ -904,9 +841,7 @@ async function showSession(
 	if (activeSessionId && activeSessionId !== session["@id"]) {
 		try {
 			const sessions = await fetchSessions(services);
-			const activeSessionStatus = sessions.some(
-				(sessionId) => sessionId["@id"] === activeSessionId,
-			)
+			const activeSessionStatus = sessions.some((sessionId) => sessionId["@id"] === activeSessionId)
 				? "active"
 				: "stale";
 			if (activeSessionStatus === "stale") {
@@ -940,9 +875,7 @@ async function showSession(
 		const isUser = entry.kind === "user";
 		const label = isUser ? chalk.blue.bold("  You") : chalk.green.bold("  Agent");
 		console.log(label);
-		const content = isUser
-			? entry.content
-			: canonicalRuntimeAgentContent(entry.content);
+		const content = isUser ? entry.content : canonicalRuntimeAgentContent(entry.content);
 		const lines = content.split("\n");
 		for (const line of lines) {
 			console.log(isUser ? chalk.blue(`  ${line}`) : `  ${line}`);
@@ -951,9 +884,7 @@ async function showSession(
 	}
 
 	console.log(
-		chalk.dim(
-			`  ${history.total} message${history.total === 1 ? "" : "s"} · ${session["@id"]}\n`,
-		),
+		chalk.dim(`  ${history.total} message${history.total === 1 ? "" : "s"} · ${session["@id"]}\n`),
 	);
 }
 

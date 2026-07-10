@@ -1,7 +1,4 @@
-import type {
-	VaultDiscoveryResult,
-	VaultProviderSummary,
-} from "@refarm.dev/capability-host";
+import type { VaultDiscoveryResult, VaultProviderSummary } from "@refarm.dev/capability-host";
 import { findPluginDirs } from "@refarm.dev/plugin-surface-loader/node";
 import { VAULT_VERBS, type VaultVerb } from "@refarm.dev/vault-contract-v1";
 import { readFileSync } from "node:fs";
@@ -33,9 +30,7 @@ export type { VaultDiscoveryResult, VaultProviderSummary };
 
 /** Parse a `<pluginKey>:<verb>` provides target into its parts, or undefined if it
  * isn't a vault verb target. */
-function parseVaultTarget(
-	target: string,
-): { pluginKey: string; verb: VaultVerb } | undefined {
+function parseVaultTarget(target: string): { pluginKey: string; verb: VaultVerb } | undefined {
 	const colon = target.indexOf(":");
 	if (colon <= 0) return undefined;
 	const pluginKey = target.slice(0, colon);
@@ -58,9 +53,7 @@ export function discoverVaultProviders(
 	for (const pluginDir of findPluginDirs(pluginsDir)) {
 		let parsed: { id?: unknown; capabilities?: { provides?: unknown } };
 		try {
-			parsed = JSON.parse(
-				readFileSync(join(pluginDir, "plugin.json"), "utf-8"),
-			) as typeof parsed;
+			parsed = JSON.parse(readFileSync(join(pluginDir, "plugin.json"), "utf-8")) as typeof parsed;
 		} catch {
 			rejected.push(basename(pluginDir));
 			continue;
@@ -83,9 +76,7 @@ export function discoverVaultProviders(
 		if (verbs.length === 0) continue;
 
 		const pluginId =
-			typeof parsed.id === "string" && parsed.id.length > 0
-				? parsed.id
-				: basename(pluginDir);
+			typeof parsed.id === "string" && parsed.id.length > 0 ? parsed.id : basename(pluginDir);
 		providers.push({ pluginId, pluginKey, verbs, targets });
 	}
 

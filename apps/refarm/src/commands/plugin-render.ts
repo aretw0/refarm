@@ -10,16 +10,10 @@
 
 import chalk from "chalk";
 
-import type {
-	CapabilityEnvelope,
-	CapabilityInput,
-} from "@refarm.dev/capabilities";
+import type { CapabilityEnvelope, CapabilityInput } from "@refarm.dev/capabilities";
 import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config/plugin-identity";
 import { renderCapabilityError } from "./capability-commander.js";
-import {
-	PACKAGE_MANAGER_OVERRIDE,
-	PACKAGE_MANAGERS,
-} from "./package-manager.js";
+import { PACKAGE_MANAGER_OVERRIDE, PACKAGE_MANAGERS } from "./package-manager.js";
 import { PLUGIN_INSTALL_COMMAND } from "./plugin-handoffs.js";
 import {
 	PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND,
@@ -62,9 +56,7 @@ export function formatStatusFromEnvelope(envelope: CapabilityEnvelope): string {
 	}
 
 	const idWidth = Math.max(...report.plugins.map((p) => p.id.length), 6);
-	const lines: string[] = [
-		`  ${"PLUGIN".padEnd(idWidth)}  INSTALLED  LOADED  LOCAL`,
-	];
+	const lines: string[] = [`  ${"PLUGIN".padEnd(idWidth)}  INSTALLED  LOADED  LOCAL`];
 	for (const plugin of report.plugins) {
 		const installed = plugin.installed ? "yes" : "no";
 		const loaded = plugin.loaded ? "yes" : "no";
@@ -97,14 +89,8 @@ export function formatListFromEnvelope(envelope: CapabilityEnvelope): string {
 	}
 
 	const idWidth = Math.max(...results.map((r) => r.id.length), 4);
-	const verWidth = Math.max(
-		...results.map((r) => (r.version ?? "not installed").length),
-		7,
-	);
-	const sourceWidth = Math.max(
-		...results.map((r) => `${r.source}/${r.packageSource}`.length),
-		6,
-	);
+	const verWidth = Math.max(...results.map((r) => (r.version ?? "not installed").length), 7);
+	const sourceWidth = Math.max(...results.map((r) => `${r.source}/${r.packageSource}`.length), 6);
 
 	const lines: string[] = [
 		`  ${"PLUGIN".padEnd(idWidth)}  ${"VERSION".padEnd(verWidth)}  ${"SOURCE".padEnd(sourceWidth)}  PACKAGE`,
@@ -127,16 +113,12 @@ export function formatListFromEnvelope(envelope: CapabilityEnvelope): string {
  *  effect of the install loop; run() now installs quietly, so this SUMMARIZES the
  *  result from the (byte-identical) envelope. The line shapes below are exactly
  *  the ones the install loop emitted per plugin. */
-export function formatInstallFromEnvelope(
-	envelope: CapabilityEnvelope,
-): string {
+export function formatInstallFromEnvelope(envelope: CapabilityEnvelope): string {
 	// Two envelope shapes flow through `plugin install` (ADR-086): the bundled
 	// sync (`{ plugins: [...] }`) and a single local install (`{ pluginId, … }`).
 	// An error envelope (ok:false) has neither. Detect and render each.
 	if (envelope.ok === false) {
-		return chalk.red(
-			`  ✗ ${(envelope as { message?: string }).message ?? "install failed"}`,
-		);
+		return chalk.red(`  ✗ ${(envelope as { message?: string }).message ?? "install failed"}`);
 	}
 	const single = envelope as unknown as {
 		pluginId?: string;
@@ -187,10 +169,7 @@ export function formatBundleFromEnvelope(envelope: CapabilityEnvelope): string {
 	const input = b.input ?? "";
 
 	if (b.dryRun) {
-		return [
-			`Bundle dry-run for ${name} from ${input}:`,
-			`  → ${b.display}`,
-		].join("\n");
+		return [`Bundle dry-run for ${name} from ${input}:`, `  → ${b.display}`].join("\n");
 	}
 
 	if (envelope.ok === false) {
@@ -228,8 +207,7 @@ export function formatReloadFromEnvelope(
 		nextCommand?: string | null;
 	};
 
-	const requestedIds =
-		(input?.args.pluginIds as string[] | undefined) ?? e.requested ?? [];
+	const requestedIds = (input?.args.pluginIds as string[] | undefined) ?? e.requested ?? [];
 	const requested = requestedIds.length > 0 ? requestedIds : undefined;
 	const lines: string[] = [
 		requested
@@ -243,9 +221,7 @@ export function formatReloadFromEnvelope(
 	// Pure error envelope with no per-plugin story (unavailable / restart-failed):
 	// defer to the shared error line, like the model group.
 	if (envelope.ok === false && reloaded.length === 0 && skipped.length === 0) {
-		return [lines[0], renderCapabilityError(envelope, "plugin reload error")].join(
-			"\n",
-		);
+		return [lines[0], renderCapabilityError(envelope, "plugin reload error")].join("\n");
 	}
 
 	for (const pluginId of reloaded) {
@@ -260,17 +236,12 @@ export function formatReloadFromEnvelope(
 
 	if (e.restart) {
 		if (e.restarted && e.restart.ok) {
-			lines.push(
-				chalk.green(`  ✓ runtime restarted (${e.restart.restartCommand})`),
-			);
+			lines.push(chalk.green(`  ✓ runtime restarted (${e.restart.restartCommand})`));
 		} else if (!e.restart.ok) {
-			lines.push(
-				chalk.red(`  ✗ runtime restart failed: ${e.restart.failedCommand}`),
-			);
+			lines.push(chalk.red(`  ✗ runtime restart failed: ${e.restart.failedCommand}`));
 		}
 	} else if (skipped.length > 0) {
-		const hint =
-			e.nextCommand ?? (envelope as { nextAction?: string }).nextAction;
+		const hint = e.nextCommand ?? (envelope as { nextAction?: string }).nextAction;
 		if (hint) lines.push(chalk.red(`  Restart if needed: ${hint}`));
 	}
 

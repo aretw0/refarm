@@ -1,4 +1,8 @@
-import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "@refarm.dev/capabilities/envelope";
 import {
 	addProjectAutomationRecord,
 	normalizeProjectAutomationsDocument,
@@ -151,9 +155,7 @@ function formatTickReportPlain(
 		lines.push(`  ${result.status}: ${result.job.name}`);
 	}
 	if (!submit && s.submitted > 0) {
-		lines.push(
-			chalk.dim("  (dry-run — no efforts dispatched, ledger untouched)"),
-		);
+		lines.push(chalk.dim("  (dry-run — no efforts dispatched, ledger untouched)"));
 	}
 	return lines.join("\n");
 }
@@ -192,18 +194,13 @@ function writeHandoff(filePath: string, document: ProjectHandoffDocument): void 
 	fs.writeFileSync(filePath, `${JSON.stringify(document, null, 2)}\n`, "utf-8");
 }
 
-function writeAutomations(
-	filePath: string,
-	document: ProjectAutomationsDocument,
-): void {
+function writeAutomations(filePath: string, document: ProjectAutomationsDocument): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(filePath, `${JSON.stringify(document, null, 2)}\n`, "utf-8");
 }
 
 function formatValidationPlain(result: ProjectHandoffValidationResult): string {
-	const lines = [
-		`Project handoff: ${result.ok ? "valid" : "invalid"} ${result.path}`,
-	];
+	const lines = [`Project handoff: ${result.ok ? "valid" : "invalid"} ${result.path}`];
 	if (result.summary?.timestamp) {
 		lines.push(`  timestamp: ${result.summary.timestamp}`);
 	}
@@ -243,9 +240,7 @@ function printValidation(
 	console.log(result.ok ? output : chalk.red(output));
 }
 
-function formatAutomationsValidationPlain(
-	result: ProjectAutomationsValidationResult,
-): string {
+function formatAutomationsValidationPlain(result: ProjectAutomationsValidationResult): string {
 	const lines = [
 		`Project automations: ${result.ok ? "valid" : "invalid"} ${result.path}`,
 		`  count: ${result.count}`,
@@ -257,9 +252,7 @@ function formatAutomationsValidationPlain(
 	return lines.join("\n");
 }
 
-function automationsNextCommands(
-	result: ProjectAutomationsValidationResult,
-): string[] {
+function automationsNextCommands(result: ProjectAutomationsValidationResult): string[] {
 	return result.ok
 		? [
 				refarmCommand(["project", "automations", "validate", "--json"]),
@@ -289,12 +282,7 @@ function printAutomationsValidation(
 }
 
 function parseProjectAutomationStatus(value: string | undefined): ProjectAutomationStatus {
-	if (
-		value === "draft" ||
-		value === "ready" ||
-		value === "active" ||
-		value === "archived"
-	) {
+	if (value === "draft" || value === "ready" || value === "active" || value === "archived") {
 		return value;
 	}
 	throw new Error("Automation status must be draft, ready, active, or archived.");
@@ -335,17 +323,15 @@ function updateFromOptions(options: HandoffWriteOptions): ProjectHandoffUpdate {
 }
 
 function createHandoffCommand(deps: ProjectDeps): Command {
-	const command = new Command("handoff")
-		.description("Validate or write the governed project handoff");
+	const command = new Command("handoff").description(
+		"Validate or write the governed project handoff",
+	);
 
 	command
 		.command("validate")
 		.description("Validate .project/handoff.json without modifying it")
 		.option("--json", "Output machine-readable validation result")
-		.option(
-			"--max-age-days <days>",
-			"Warn when the handoff timestamp is older than this window",
-		)
+		.option("--max-age-days <days>", "Warn when the handoff timestamp is older than this window")
 		.action((options: HandoffValidateOptions) => {
 			const filePath = handoffPath(deps.cwd());
 			try {
@@ -398,11 +384,9 @@ function createHandoffCommand(deps: ProjectDeps): Command {
 			const filePath = handoffPath(deps.cwd());
 			try {
 				const existing = readExistingHandoff(filePath);
-				const document = buildProjectHandoffDocument(
-					existing,
-					updateFromOptions(options),
-					{ now: deps.now() },
-				);
+				const document = buildProjectHandoffDocument(existing, updateFromOptions(options), {
+					now: deps.now(),
+				});
 				const result = validateProjectHandoffDocument(document, {
 					now: deps.now(),
 					maxAgeMs: parseMaxAgeMs(options.maxAgeDays),
@@ -468,8 +452,9 @@ function createHandoffCommand(deps: ProjectDeps): Command {
 }
 
 function createAutomationsCommand(deps: ProjectDeps): Command {
-	const command = new Command("automations")
-		.description("Validate or write governed project automations");
+	const command = new Command("automations").description(
+		"Validate or write governed project automations",
+	);
 
 	command
 		.command("validate")
@@ -505,10 +490,7 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 					return;
 				}
 				const document = normalizeProjectAutomationsDocument(existing);
-				const automations = filterAutomationsByStatus(
-					document.automations,
-					options.status,
-				);
+				const automations = filterAutomationsByStatus(document.automations, options.status);
 				const nextCommands = automationsNextCommands(validation);
 				if (options.json) {
 					printJson(
@@ -527,9 +509,11 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 					);
 					return;
 				}
-				console.log(formatAutomationsListPlain(automations, {
-					status: options.status,
-				}));
+				console.log(
+					formatAutomationsListPlain(automations, {
+						status: options.status,
+					}),
+				);
 				for (const next of nextCommands) {
 					console.log(chalk.dim(`  next: ${next}`));
 				}
@@ -542,7 +526,8 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 							operation: "automations.list",
 							error: "project_automation_list_failed",
 							message,
-							nextAction: "Run `refarm project automations list --help` and retry with a valid filter.",
+							nextAction:
+								"Run `refarm project automations list --help` and retry with a valid filter.",
 						}),
 					);
 				} else {
@@ -601,9 +586,7 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 					printJson(
 						buildJsonSuccessEnvelope({
 							command: "project",
-							operation: options.dryRun
-								? "automations.add.dry-run"
-								: "automations.add",
+							operation: options.dryRun ? "automations.add.dry-run" : "automations.add",
 							nextCommands,
 							extra: {
 								path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
@@ -631,7 +614,8 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 							operation: "automations.add",
 							error: "project_automation_write_failed",
 							message,
-							nextAction: "Run `refarm project automations add --help` and retry with a valid automation.",
+							nextAction:
+								"Run `refarm project automations add --help` and retry with a valid automation.",
 						}),
 					);
 				} else {
@@ -645,10 +629,7 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 		.command("set-status")
 		.description("Set the lifecycle status for one governed project automation")
 		.requiredOption("--id <id>", "Stable automation id")
-		.requiredOption(
-			"--status <status>",
-			"Automation status: draft, ready, active, or archived",
-		)
+		.requiredOption("--status <status>", "Automation status: draft, ready, active, or archived")
 		.option("--dry-run", "Print the would-be automations document without writing")
 		.option("--json", "Output machine-readable status update result")
 		.action((options: AutomationsStatusOptions) => {
@@ -706,7 +687,8 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 							operation: "automations.set-status",
 							error: "project_automation_status_failed",
 							message,
-							nextAction: "Run `refarm project automations set-status --help` and retry with a valid automation id and status.",
+							nextAction:
+								"Run `refarm project automations set-status --help` and retry with a valid automation id and status.",
 						}),
 					);
 				} else {
@@ -734,15 +716,16 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 					owner: options.owner,
 					now: options.now,
 					// Dry-run: collect efforts without submitting; --submit: real transport.
-					effortAdapter: submit
-						? deps.effortSubmitAdapter()
-						: { submit: async () => "dry-run" },
+					effortAdapter: submit ? deps.effortSubmitAdapter() : { submit: async () => "dry-run" },
 					// Dry-run consults the real .refarm ledger for hasFired (so it reports
 					// what would actually fire) but never records — no side effect.
 					ledger: submit ? createLocalSchedulerLedger({ cwd }) : dryRunLedger(cwd),
 				});
 				const nextCommands = submit
-					? [refarmCommand(["resume", "--json"]), refarmCommand(["check", "--next-action", "--json"])]
+					? [
+							refarmCommand(["resume", "--json"]),
+							refarmCommand(["check", "--next-action", "--json"]),
+						]
 					: [refarmCommand(["project", "automations", "tick", "--submit", "--json"])];
 				if (options.json) {
 					printJson(

@@ -139,7 +139,10 @@ function releaseJsonPayload(input: {
 	};
 }
 
-function releaseErrorPayload(operation: string, error: unknown): {
+function releaseErrorPayload(
+	operation: string,
+	error: unknown,
+): {
 	command: "release";
 	operation: string;
 	ok: false;
@@ -203,9 +206,7 @@ function printPlan(plan: ReleasePlan, engine: ReleaseEngine): void {
 }
 
 function printSupplyPreflight(preflight: ReferenceDriverSupplyPreflight): void {
-	const summary = preflight.summary
-		.map((entry) => `${entry.status}: ${entry.count}`)
-		.join(", ");
+	const summary = preflight.summary.map((entry) => `${entry.status}: ${entry.count}`).join(", ");
 	console.log(chalk.dim(`Supply targets (${preflight.mode}): ${summary}`));
 }
 
@@ -238,7 +239,12 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 		.option("--cwd <dir>", "Workspace root for plan resolution")
 		.option("--policy <file>", "Policy filename or path")
 		.option("--selection <id>", "Select packages using a release policy selection")
-		.option("--tag <tag>", "Select packages whose release profile contains this tag", collectTag, [])
+		.option(
+			"--tag <tag>",
+			"Select packages whose release profile contains this tag",
+			collectTag,
+			[],
+		)
 		.option("--check-gates", "Also run gate validation after plan")
 		.option("--dry-run", "Skip command execution when --check-gates is used")
 		.option("--only-required", "Run only required gates when --check-gates is used")
@@ -250,20 +256,22 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 				const plan = planFromOptions(packages, options, deps, engine);
 				const gateResult = options.checkGates
 					? engine.runReleaseGates(plan, {
-						cwd: options.cwd ?? deps?.cwd?.() ?? process.cwd(),
-						dryRun: Boolean(options.dryRun),
-						onlyRequired: Boolean(options.onlyRequired),
-					})
+							cwd: options.cwd ?? deps?.cwd?.() ?? process.cwd(),
+							dryRun: Boolean(options.dryRun),
+							onlyRequired: Boolean(options.onlyRequired),
+						})
 					: undefined;
 
 				if (options.json) {
-					printJson(releaseJsonPayload({
-						operation: "plan",
-						engine,
-						plan,
-						gateResult,
-						audit: Boolean(options.audit),
-					}));
+					printJson(
+						releaseJsonPayload({
+							operation: "plan",
+							engine,
+							plan,
+							gateResult,
+							audit: Boolean(options.audit),
+						}),
+					);
 				} else {
 					printPlan(plan, engine);
 					if (gateResult) {
@@ -283,7 +291,12 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 		.option("--cwd <dir>", "Workspace root for plan resolution")
 		.option("--policy <file>", "Policy filename or path")
 		.option("--selection <id>", "Select packages using a release policy selection")
-		.option("--tag <tag>", "Select packages whose release profile contains this tag", collectTag, [])
+		.option(
+			"--tag <tag>",
+			"Select packages whose release profile contains this tag",
+			collectTag,
+			[],
+		)
 		.option("--json", "Output machine-readable release preflight")
 		.option("--audit", "Include a deterministic release plan audit record in JSON output")
 		.action(async (packages: string[], options: ReleasePlanCommandOptions) => {
@@ -293,15 +306,17 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 				const supplyPreflight = buildReferenceDriverSupplyPreflight(REFARM_BINARY);
 
 				if (options.json) {
-					printJson(releaseJsonPayload({
-						operation: "preflight",
-						engine,
-						plan,
-						supplyPreflight,
-						commandNote:
-							"Plan-only release preflight; no gates, builds, publish dry-runs, or runtime dispatch were executed.",
-						audit: Boolean(options.audit),
-					}));
+					printJson(
+						releaseJsonPayload({
+							operation: "preflight",
+							engine,
+							plan,
+							supplyPreflight,
+							commandNote:
+								"Plan-only release preflight; no gates, builds, publish dry-runs, or runtime dispatch were executed.",
+							audit: Boolean(options.audit),
+						}),
+					);
 				} else {
 					printPlan(plan, engine);
 					printSupplyPreflight(supplyPreflight);
@@ -319,7 +334,12 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 		.option("--cwd <dir>", "Workspace root for plan resolution")
 		.option("--policy <file>", "Policy filename or path")
 		.option("--selection <id>", "Select packages using a release policy selection")
-		.option("--tag <tag>", "Select packages whose release profile contains this tag", collectTag, [])
+		.option(
+			"--tag <tag>",
+			"Select packages whose release profile contains this tag",
+			collectTag,
+			[],
+		)
 		.option("--dry-run", "Keep gate commands in dry-run mode", true)
 		.option("--only-required", "Run only required gates")
 		.option("--json", "Output machine-readable release check")
@@ -330,16 +350,16 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 				const plan = planFromOptions(packages, { ...options, dryRun: true }, deps, engine);
 				const gateResult = plan.ok
 					? engine.runReleaseGates(plan, {
-						cwd: options.cwd ?? deps?.cwd?.() ?? process.cwd(),
-						dryRun: true,
-						onlyRequired: Boolean(options.onlyRequired),
-					})
+							cwd: options.cwd ?? deps?.cwd?.() ?? process.cwd(),
+							dryRun: true,
+							onlyRequired: Boolean(options.onlyRequired),
+						})
 					: {
-						ok: false,
-						results: [],
-						policy: plan.policy,
-						dryRun: true,
-					};
+							ok: false,
+							results: [],
+							policy: plan.policy,
+							dryRun: true,
+						};
 				if (options.json) {
 					printJson(
 						releaseJsonPayload({
@@ -380,24 +400,26 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 				const plan = planFromOptions(packages, options, deps, engine);
 				const gateResult = plan.ok
 					? engine.runReleaseGates(plan, {
-						cwd: options.cwd ?? deps?.cwd?.() ?? process.cwd(),
-						dryRun: Boolean(options.dryRun),
-						onlyRequired: Boolean(options.onlyRequired),
-					})
+							cwd: options.cwd ?? deps?.cwd?.() ?? process.cwd(),
+							dryRun: Boolean(options.dryRun),
+							onlyRequired: Boolean(options.onlyRequired),
+						})
 					: {
-						ok: false,
-						results: [],
-						policy: plan.policy,
-						dryRun: Boolean(options.dryRun),
-					};
+							ok: false,
+							results: [],
+							policy: plan.policy,
+							dryRun: Boolean(options.dryRun),
+						};
 				if (options.json) {
-					printJson(releaseJsonPayload({
-						operation: "gates",
-						engine,
-						plan,
-						gateResult,
-						audit: Boolean(options.audit),
-					}));
+					printJson(
+						releaseJsonPayload({
+							operation: "gates",
+							engine,
+							plan,
+							gateResult,
+							audit: Boolean(options.audit),
+						}),
+					);
 				} else {
 					console.log(gateResult.ok ? "Release gates passed." : "Release gates blocked.");
 					printPlan(plan, engine);

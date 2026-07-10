@@ -1,10 +1,6 @@
 import { refarmCommand } from "../brand.js";
 
-export const TREE_LIST_JSON_COMMAND = refarmCommand([
-	"tree",
-	"list",
-	"--json",
-]);
+export const TREE_LIST_JSON_COMMAND = refarmCommand(["tree", "list", "--json"]);
 export const TREE_LIST_ALL_JSON_COMMAND = refarmCommand([
 	"tree",
 	"list",

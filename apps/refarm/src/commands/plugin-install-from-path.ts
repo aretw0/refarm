@@ -1,8 +1,5 @@
 import { createFsAssetStore } from "@refarm.dev/asset-resolver-contract-v1/node";
-import type {
-	CapabilityDescriptor,
-	CapabilityInput,
-} from "@refarm.dev/capabilities";
+import type { CapabilityDescriptor, CapabilityInput } from "@refarm.dev/capabilities";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -21,11 +18,7 @@ import {
 	loadReviewableManifest,
 	type ExtensionReviewReport,
 } from "./plugin-review-capability.js";
-import {
-	pluginIdToFsToken,
-	pluginsBaseDir,
-	sentinelPath,
-} from "./plugin-shared.js";
+import { pluginIdToFsToken, pluginsBaseDir, sentinelPath } from "./plugin-shared.js";
 
 /**
  * Install a PREPARED, REVIEWED extension from a path — the missing link that
@@ -131,9 +124,7 @@ export async function buildExtensionInstallReport(
 	}
 
 	// 2) Resolve the reviewed manifest + its wasm.
-	const { manifest: rawManifest, manifestPath } = loadReviewableManifest(
-		input.targetPath,
-	);
+	const { manifest: rawManifest, manifestPath } = loadReviewableManifest(input.targetPath);
 	const manifest = rawManifest as Record<string, unknown>;
 	const pluginId = review.decision.pluginId;
 	const wasmSrc = resolveExtensionWasm(manifest, manifestPath);
@@ -241,8 +232,7 @@ export const extensionInstallCapability: CapabilityDescriptor = {
 		{
 			name: "grant",
 			kind: "string[]",
-			summary:
-				"Grant a capability for this install (repeatable); default grants none",
+			summary: "Grant a capability for this install (repeatable); default grants none",
 		},
 		{
 			name: "policy",

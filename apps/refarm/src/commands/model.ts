@@ -1,13 +1,35 @@
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
-import { modelCredentialEnvKey, modelCredentialStatus as resolveModelCredentialStatus, } from "@refarm.dev/config";
+import {
+	modelCredentialEnvKey,
+	modelCredentialStatus as resolveModelCredentialStatus,
+} from "@refarm.dev/config";
 import { isContainer as detectContainerRuntime, fetchWithTimeout } from "@refarm.dev/root";
 import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { refarmCommand } from "../brand.js";
 import {
-	DEFAULT_MODEL_PROVIDER, defaultModelForProvider, defaultModelForScope, defaultProviderModelRef, defaultScopedModelRef, effectiveModelRouteForScope, formatModelRef, isRuntimeSubscriptionModelProvider, isSubscriptionModelProvider, MODEL_BASE_URL_ENV_VAR, MODEL_DEFAULT_PROVIDER_ENV_VAR, MODEL_FALLBACK_MODEL_ID_ENV_VAR, MODEL_FALLBACK_PROVIDER_ENV_VAR, MODEL_ID_ENV_VAR, MODEL_PROVIDER_ENV_VAR, MODEL_PROVIDERS, MODEL_RUNTIME_ENV_VARS, MODEL_SCOPES, parseModelRef, type ModelScope,
+	DEFAULT_MODEL_PROVIDER,
+	defaultModelForProvider,
+	defaultModelForScope,
+	defaultProviderModelRef,
+	defaultScopedModelRef,
+	effectiveModelRouteForScope,
+	formatModelRef,
+	isRuntimeSubscriptionModelProvider,
+	isSubscriptionModelProvider,
+	MODEL_BASE_URL_ENV_VAR,
+	MODEL_DEFAULT_PROVIDER_ENV_VAR,
+	MODEL_FALLBACK_MODEL_ID_ENV_VAR,
+	MODEL_FALLBACK_PROVIDER_ENV_VAR,
+	MODEL_ID_ENV_VAR,
+	MODEL_PROVIDER_ENV_VAR,
+	MODEL_PROVIDERS,
+	MODEL_RUNTIME_ENV_VARS,
+	MODEL_SCOPES,
+	parseModelRef,
+	type ModelScope,
 } from "../model-routing.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
@@ -161,10 +183,7 @@ export function defaultModelDeps(): ModelCommandDeps {
 	};
 }
 
-function modelCredentialStatus(
-	provider: string | undefined,
-	tokens: ModelTokens,
-): string | null {
+function modelCredentialStatus(provider: string | undefined, tokens: ModelTokens): string | null {
 	const status = resolveModelCredentialStatus(provider, tokens, process.env);
 	switch (status.state) {
 		case "not-required":
@@ -201,9 +220,7 @@ function modelRouteCredentialStatus(
 }
 
 function stringToken(value: unknown): string | undefined {
-	return typeof value === "string" && value.trim().length > 0
-		? value.trim()
-		: undefined;
+	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 function modelRuntimeCredentialEnv(
@@ -221,21 +238,16 @@ function runtimeOAuthCredential(
 	tokens: ModelTokens,
 ): RuntimeOAuthCredential | null {
 	if (!provider || tokens.oauthProvider !== provider) return null;
-	if (!tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object")
-		return null;
+	if (!tokens.oauthCredentials || typeof tokens.oauthCredentials !== "object") return null;
 	const value = tokens.oauthCredentials[provider];
 	if (!value || typeof value !== "object") return null;
 	const candidate = value as { access?: unknown; accountId?: unknown };
-	if (
-		typeof candidate.access !== "string" ||
-		candidate.access.trim().length === 0
-	) {
+	if (typeof candidate.access !== "string" || candidate.access.trim().length === 0) {
 		return null;
 	}
 	return {
 		access: candidate.access,
-		...(typeof candidate.accountId === "string" &&
-		candidate.accountId.trim().length > 0
+		...(typeof candidate.accountId === "string" && candidate.accountId.trim().length > 0
 			? { accountId: candidate.accountId }
 			: {}),
 	};
@@ -274,10 +286,7 @@ function buildModelEnvEntries(
 	const credential = modelRuntimeCredentialEnv(status.current.provider, tokens);
 	if (credential) entries.push(credential);
 	if (options.includeSecrets) {
-		const oauthCredential = runtimeOAuthCredential(
-			status.current.provider,
-			tokens,
-		);
+		const oauthCredential = runtimeOAuthCredential(status.current.provider, tokens);
 		const oauthEnvKey = modelCredentialEnvKey(status.current.provider);
 		if (oauthCredential && oauthEnvKey && !process.env[oauthEnvKey]) {
 			entries.push([oauthEnvKey, oauthCredential.access]);
@@ -353,8 +362,8 @@ export function formatModelEnvFromEnvelope(
 function hasPersistedModelRoutes(tokens: ModelTokens): boolean {
 	return Boolean(
 		tokens.modelRoutes &&
-			typeof tokens.modelRoutes === "object" &&
-			Object.keys(tokens.modelRoutes).length > 0,
+		typeof tokens.modelRoutes === "object" &&
+		Object.keys(tokens.modelRoutes).length > 0,
 	);
 }
 
@@ -381,22 +390,14 @@ function modelDoctorHandoffs(
 		// table; the field name stays `startOllama` (the wire) until the shape is
 		// generalized. For ollama this is "ollama serve", byte-identical to before.
 		startOllama: profile.startCommand ?? "ollama serve",
-		setDockerOllamaBaseUrl: refarmCommand([
-			"model",
-			"base-url",
-			OLLAMA_DOCKER_BASE_URL,
-			"--json",
-		]),
+		setDockerOllamaBaseUrl: refarmCommand(["model", "base-url", OLLAMA_DOCKER_BASE_URL, "--json"]),
 	};
 }
 
 function modelDoctorRecoveryCommands(status: ModelDoctorStatus): string[] {
 	if (status.providerProbe.ready !== false) return [];
 	const commands: string[] = [];
-	if (
-		status.probeEnvironment.container &&
-		status.probeEnvironment.localhostTargetsRuntime
-	) {
+	if (status.probeEnvironment.container && status.probeEnvironment.localhostTargetsRuntime) {
 		commands.push(status.handoffs.setDockerOllamaBaseUrl);
 	}
 	commands.push(status.handoffs.startOllama);
@@ -443,12 +444,16 @@ async function probeProviderEndpoint(
 ): Promise<ModelDoctorStatus["providerProbe"]> {
 	const fetchImpl = deps.fetch ?? globalThis.fetch;
 	try {
-		const response = await fetchWithTimeout(url, {
-			method: "GET",
-		}, {
-			timeoutMs: MODEL_PROVIDER_PROBE_TIMEOUT_MS,
-			fetch: fetchImpl,
-		});
+		const response = await fetchWithTimeout(
+			url,
+			{
+				method: "GET",
+			},
+			{
+				timeoutMs: MODEL_PROVIDER_PROBE_TIMEOUT_MS,
+				fetch: fetchImpl,
+			},
+		);
 		const authFailed = response.status === 401 || response.status === 403;
 		return {
 			provider,
@@ -464,11 +469,8 @@ async function probeProviderEndpoint(
 		const name = error instanceof Error ? error.name : undefined;
 		const cause = error instanceof Error ? error.cause : undefined;
 		const causeRecord =
-			cause && typeof cause === "object"
-				? (cause as Record<string, unknown>)
-				: undefined;
-		const causeCode =
-			typeof causeRecord?.code === "string" ? causeRecord.code : undefined;
+			cause && typeof cause === "object" ? (cause as Record<string, unknown>) : undefined;
+		const causeCode = typeof causeRecord?.code === "string" ? causeRecord.code : undefined;
 		const message = error instanceof Error ? error.message : String(error);
 		return {
 			provider,
@@ -511,9 +513,7 @@ async function probeProviderViaRuntime(
 		skipped: true,
 	};
 	if (!provider) return noEndpointSource;
-	const url = sidecarUrl(
-		`/providers/liveness?provider=${encodeURIComponent(provider)}`,
-	);
+	const url = sidecarUrl(`/providers/liveness?provider=${encodeURIComponent(provider)}`);
 	try {
 		const response = await fetchSidecarWithTimeout(
 			url,
@@ -640,9 +640,7 @@ export async function formatModelDoctor(
 	tokens: ModelTokens,
 	deps: Pick<ModelCommandDeps, "fetch">,
 ): Promise<string> {
-	return formatModelDoctorFromStatus(
-		await buildModelDoctorStatus(tokens, deps),
-	);
+	return formatModelDoctorFromStatus(await buildModelDoctorStatus(tokens, deps));
 }
 
 /** Format `model doctor` text from an already-computed status — so a CLI
@@ -662,8 +660,7 @@ export function formatModelDoctorFromStatus(status: ModelDoctorStatus): string {
 		return lines.join("\n");
 	}
 	lines.push(chalk.red("  status:  unreachable"));
-	if (status.providerProbe.error)
-		lines.push(`  error:   ${status.providerProbe.error}`);
+	if (status.providerProbe.error) lines.push(`  error:   ${status.providerProbe.error}`);
 	for (const command of modelDoctorRecoveryCommands(status)) {
 		lines.push(chalk.dim(`  fix:     ${command}`));
 	}
@@ -679,9 +676,7 @@ export function formatCurrentModel(tokens: ModelTokens): string {
 /** Format `model current` text from an already-computed status — so a CLI
  * renderText hook can format straight from the envelope (which carries the
  * status) without re-loading tokens. */
-export function formatCurrentModelFromStatus(
-	status: CurrentModelStatus,
-): string {
+export function formatCurrentModelFromStatus(status: CurrentModelStatus): string {
 	const provider = status.current.provider;
 	const resolvedModel = status.current.modelId;
 	const lines: string[] = [];
@@ -690,17 +685,13 @@ export function formatCurrentModelFromStatus(
 	lines.push(`  current: ${chalk.cyan(status.current.ref)}`);
 	if (provider) lines.push(`  provider: ${provider}`);
 	if (resolvedModel) lines.push(`  model:    ${resolvedModel}`);
-	if (status.credential.envKey)
-		lines.push(`  key env:  ${status.credential.envKey}`);
-	if (status.credential.status)
-		lines.push(`  key:      ${status.credential.status}`);
+	if (status.credential.envKey) lines.push(`  key env:  ${status.credential.envKey}`);
+	if (status.credential.status) lines.push(`  key:      ${status.credential.status}`);
 	if (status.baseUrl) lines.push(`  base url: ${status.baseUrl}`);
 	if (status.fallback) lines.push(`  fallback: ${status.fallback}`);
-	if (provider === "ollama")
-		lines.push(chalk.dim(`  doctor:   ${MODEL_DOCTOR_JSON_COMMAND}`));
+	if (provider === "ollama") lines.push(chalk.dim(`  doctor:   ${MODEL_DOCTOR_JSON_COMMAND}`));
 	if (status.routes.worker) lines.push(`  worker:   ${status.routes.worker}`);
-	if (status.routes.monitor)
-		lines.push(`  monitor:  ${status.routes.monitor}`);
+	if (status.routes.monitor) lines.push(`  monitor:  ${status.routes.monitor}`);
 	for (const recommendation of status.recommendations ?? []) {
 		lines.push(chalk.yellow(`  warning: ${recommendation.summary}`));
 		if (recommendation.command) {
@@ -721,11 +712,7 @@ export function formatCurrentModelFromStatus(
 		lines.push(chalk.dim("  login:          refarm sow"));
 	}
 	if (provider && !status.credential.envKey && provider !== "ollama") {
-		lines.push(
-			chalk.dim(
-				"  custom provider: set endpoint with refarm model base-url <url>",
-			),
-		);
+		lines.push(chalk.dim("  custom provider: set endpoint with refarm model base-url <url>"));
 	}
 	return lines.join("\n");
 }
@@ -769,12 +756,7 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 			commands.push(
 				SOW_JSON_COMMAND,
 				MODEL_PROVIDERS_JSON_COMMAND,
-				refarmCommand([
-					"sow",
-					"--model",
-					quoteCommandArg(status.current.ref),
-					"--json",
-				]),
+				refarmCommand(["sow", "--model", quoteCommandArg(status.current.ref), "--json"]),
 				LOCAL_MODEL_JSON_COMMAND,
 			);
 			continue;
@@ -798,8 +780,7 @@ function currentModelRecoveryCommands(status: CurrentModelStatus): string[] {
 function currentModelMissingRecommendations(
 	status: Pick<CurrentModelStatus, "routeCredentials">,
 ): NonNullable<CurrentModelStatus["recommendations"]> {
-	const recommendations: NonNullable<CurrentModelStatus["recommendations"]> =
-		[];
+	const recommendations: NonNullable<CurrentModelStatus["recommendations"]> = [];
 	const seenMissingProviders = new Set<string>();
 	const seenSubscriptionProviders = new Set<string>();
 	for (const scope of MODEL_SCOPES) {
@@ -844,8 +825,7 @@ function currentModelMissingRecommendations(
 			recommendations.push({
 				diagnostic: "model-credentials-missing",
 				severity: "failure",
-				summary:
-					"The current model route requires credentials that are not available.",
+				summary: "The current model route requires credentials that are not available.",
 				action: "Inspect provider requirements or run the credential handoff.",
 				command: SOW_JSON_COMMAND,
 			});
@@ -855,8 +835,7 @@ function currentModelMissingRecommendations(
 			diagnostic: `model-${scope}-credentials-missing`,
 			severity: "failure",
 			summary: `The ${scope} model route requires credentials that are not available.`,
-			action:
-				"Configure credentials or switch the scoped route to a no-key local model.",
+			action: "Configure credentials or switch the scoped route to a no-key local model.",
 			command: refarmCommand([
 				"model",
 				"set",
@@ -878,11 +857,7 @@ function currentModelHandoffs(
 		inspectProviders: MODEL_PROVIDERS_JSON_COMMAND,
 		localNoKeyModel: LOCAL_MODEL_JSON_COMMAND,
 		openExternalLinks: OPERATOR_LINKS_CONFIG_COMMAND,
-		setModel: refarmCommand([
-			"model",
-			quoteCommandArg(status.current.ref),
-			"--json",
-		]),
+		setModel: refarmCommand(["model", quoteCommandArg(status.current.ref), "--json"]),
 		setWorkerModel: refarmCommand([
 			"model",
 			"set",
@@ -903,10 +878,7 @@ function currentModelHandoffs(
 }
 
 function currentModelRecovery(
-	status: Pick<
-		CurrentModelStatus,
-		"credential" | "current" | "routes" | "routeCredentials"
-	>,
+	status: Pick<CurrentModelStatus, "credential" | "current" | "routes" | "routeCredentials">,
 ): Pick<CurrentModelStatus, "recommendations" | "handoffs"> {
 	const recommendations = currentModelMissingRecommendations(status);
 	if (recommendations.length === 0) {
@@ -922,33 +894,25 @@ export function resolveRuntimeModelRoute(
 	modelStatus: CurrentModelStatus,
 	scope: ModelScope,
 ): { modelProvider?: string; modelId?: string } {
-	const selectedRoute = parseModelRef(
-		modelStatus.routes[scope],
-		modelStatus.current.provider,
-	);
+	const selectedRoute = parseModelRef(modelStatus.routes[scope], modelStatus.current.provider);
 	return {
 		modelProvider: selectedRoute?.provider,
 		modelId: selectedRoute?.modelId,
 	};
 }
 
-export function buildCurrentModelStatus(
-	tokens: ModelTokens,
-): CurrentModelStatus {
+export function buildCurrentModelStatus(tokens: ModelTokens): CurrentModelStatus {
 	const defaultRoute = effectiveModelRouteForScope(tokens, "default", {
 		env: process.env,
 	});
 	const provider = defaultRoute.provider ?? DEFAULT_MODEL_PROVIDER;
-	const resolvedModel =
-		defaultRoute.modelId ?? defaultModelForProvider(provider);
+	const resolvedModel = defaultRoute.modelId ?? defaultModelForProvider(provider);
 	const ref = formatModelRef(provider, resolvedModel);
 	const routeProviderOverridden = Boolean(
-		process.env[MODEL_PROVIDER_ENV_VAR] ??
-			process.env[MODEL_DEFAULT_PROVIDER_ENV_VAR],
+		process.env[MODEL_PROVIDER_ENV_VAR] ?? process.env[MODEL_DEFAULT_PROVIDER_ENV_VAR],
 	);
 	const storedProviderMatchesRoute =
-		!routeProviderOverridden ||
-		tokens.modelProvider?.toLowerCase() === provider?.toLowerCase();
+		!routeProviderOverridden || tokens.modelProvider?.toLowerCase() === provider?.toLowerCase();
 
 	const credentialEnv = modelCredentialEnvKey(provider);
 	const credentialState = modelCredentialState(provider, tokens);
@@ -957,15 +921,12 @@ export function buildCurrentModelStatus(
 		process.env[MODEL_BASE_URL_ENV_VAR] ??
 		(storedProviderMatchesRoute ? tokens.modelBaseUrl : undefined);
 	const fallbackProvider =
-		process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR] ??
-		tokens.modelFallbackProvider;
+		process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR] ?? tokens.modelFallbackProvider;
 	let fallbackRef: string | undefined;
 	if (fallbackProvider) {
 		const fallbackModelId =
 			process.env[MODEL_FALLBACK_MODEL_ID_ENV_VAR] ??
-			(process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR]
-				? undefined
-				: tokens.modelFallbackModelId) ??
+			(process.env[MODEL_FALLBACK_PROVIDER_ENV_VAR] ? undefined : tokens.modelFallbackModelId) ??
 			defaultModelForProvider(fallbackProvider);
 		fallbackRef = formatModelRef(fallbackProvider, fallbackModelId);
 	}
@@ -1045,18 +1006,12 @@ export function formatKnownModelProviders(): string {
 		const { defaultModel, workerModel, monitorModel, credentialEnv } = provider;
 		lines.push(`  ${chalk.cyan(provider.provider)}`);
 		if (defaultModel) lines.push(`    default: ${defaultModel}`);
-		if (workerModel && workerModel !== defaultModel)
-			lines.push(`    worker:  ${workerModel}`);
-		if (monitorModel && monitorModel !== defaultModel)
-			lines.push(`    monitor: ${monitorModel}`);
+		if (workerModel && workerModel !== defaultModel) lines.push(`    worker:  ${workerModel}`);
+		if (monitorModel && monitorModel !== defaultModel) lines.push(`    monitor: ${monitorModel}`);
 		if (credentialEnv) lines.push(`    key env: ${credentialEnv}`);
 	}
 	lines.push(chalk.dim(""));
-	lines.push(
-		chalk.dim(
-			"Custom/self-hosted providers are allowed with provider/model refs.",
-		),
-	);
+	lines.push(chalk.dim("Custom/self-hosted providers are allowed with provider/model refs."));
 	lines.push(
 		chalk.dim(
 			"Use refarm model base-url <url> when the provider does not have a built-in endpoint.",

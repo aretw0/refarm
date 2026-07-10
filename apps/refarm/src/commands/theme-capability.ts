@@ -1,7 +1,4 @@
-import type {
-	CapabilityDescriptor,
-	CapabilityGroup,
-} from "@refarm.dev/capabilities";
+import type { CapabilityDescriptor, CapabilityGroup } from "@refarm.dev/capabilities";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -41,9 +38,7 @@ export function defaultThemeDeps(): ThemeCommandDeps {
 
 /** Project a discovered/registered theme for output — the addressable summary a
  * surface renders (id + origin + token count), never the raw token map. */
-function projectTheme(
-	entry: { id: string; source: "built-in" | "plugin"; tokenCount: number },
-) {
+function projectTheme(entry: { id: string; source: "built-in" | "plugin"; tokenCount: number }) {
 	return {
 		id: entry.id,
 		source: entry.source,
@@ -65,9 +60,7 @@ export function createThemeCapabilityGroup(
 					...projectTheme({
 						id: t.id,
 						source: registered?.source ?? "plugin",
-						tokenCount: registered
-							? Object.keys(registered.theme).length
-							: 0,
+						tokenCount: registered ? Object.keys(registered.theme).length : 0,
 					}),
 					pluginId: t.pluginId,
 				};

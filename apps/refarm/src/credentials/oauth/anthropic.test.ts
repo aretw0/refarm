@@ -22,10 +22,13 @@ describe("anthropicOAuthProvider", () => {
 			refresh_token: "new_refresh",
 			expires_in: 3600,
 		};
-		vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({
-			ok: true,
-			text: async () => JSON.stringify(mockResponse),
-		}));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValueOnce({
+				ok: true,
+				text: async () => JSON.stringify(mockResponse),
+			}),
+		);
 
 		const result = await anthropicOAuthProvider.refreshToken({
 			access: "old_access",

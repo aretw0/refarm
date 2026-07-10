@@ -19,9 +19,7 @@ export interface DiagnosticNextActionPayload {
 	nextCommands: string[];
 }
 
-export function diagnosticNextActions(
-	recommendations: DiagnosticRecommendation[],
-): string[] {
+export function diagnosticNextActions(recommendations: DiagnosticRecommendation[]): string[] {
 	const seen = new Set<string>();
 	const actions: string[] = [];
 	for (const recommendation of recommendations) {
@@ -34,9 +32,7 @@ export function diagnosticNextActions(
 	return actions;
 }
 
-export function diagnosticNextCommands(
-	recommendations: DiagnosticRecommendation[],
-): string[] {
+export function diagnosticNextCommands(recommendations: DiagnosticRecommendation[]): string[] {
 	const seen = new Set<string>();
 	const commands: string[] = [];
 	for (const recommendation of recommendations) {

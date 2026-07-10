@@ -71,10 +71,7 @@ export interface RefarmCheckDeps {
 	runReleasePolicy?(): Promise<ReleasePolicyCheck>;
 }
 
-export type EnvironmentPressureDecision =
-	| "continue"
-	| "safe-mode"
-	| "stop-and-investigate";
+export type EnvironmentPressureDecision = "continue" | "safe-mode" | "stop-and-investigate";
 
 export interface EnvironmentPressureSignal {
 	id: string;
@@ -149,9 +146,7 @@ export function buildRefarmCheckReport(checks: {
 		...checks.doctor.recommendations,
 		...modelDoctorCheckRecommendations(checks.model),
 	];
-	const blockingRecommendations = recommendations.filter(
-		isBlockingRecommendation,
-	);
+	const blockingRecommendations = recommendations.filter(isBlockingRecommendation);
 	const failureCount =
 		(checks.nodeSubstrate?.ok === false ? 1 : 0) +
 		(checks.rustSubstrate?.ok === false ? 1 : 0) +
@@ -223,8 +218,7 @@ function workspaceSweepCheckRecommendations(
 	if (!sweep) return [];
 	return sweep.recommendations.map((recommendation) => ({
 		diagnostic: `workspace-sweep:${recommendation.code}`,
-		severity:
-			recommendation.code === "workspace-path-missing" ? "warning" : "info",
+		severity: recommendation.code === "workspace-path-missing" ? "warning" : "info",
 		summary: recommendation.message,
 		action: workspaceSweepRecommendationAction(recommendation),
 		command: recommendation.nextCommand,
@@ -257,8 +251,7 @@ function workspaceExecutionCheckRecommendations(
 		recommendations.push({
 			diagnostic: "workspace-execution:turbo-adapter-unprovisioned",
 			severity: "warning",
-			summary:
-				"Workspace has turbo.json, but the Turbo adapter is not declared in package.json.",
+			summary: "Workspace has turbo.json, but the Turbo adapter is not declared in package.json.",
 			action:
 				"Declare Turbo in the workspace so Refarm can use cache-aware validation, or remove turbo.json if direct package scripts are intentional.",
 			command: turbo.installCommand,
@@ -289,12 +282,8 @@ function modelDoctorCheckRecommendations(
 	}));
 }
 
-function isBlockingRecommendation(
-	recommendation: DiagnosticRecommendation,
-): boolean {
-	return (
-		recommendation.severity !== "warning" && recommendation.severity !== "info"
-	);
+function isBlockingRecommendation(recommendation: DiagnosticRecommendation): boolean {
+	return recommendation.severity !== "warning" && recommendation.severity !== "info";
 }
 
 export function printRefarmCheckSummary(report: RefarmCheckReport): void {
@@ -336,9 +325,7 @@ export function printRefarmCheckSummary(report: RefarmCheckReport): void {
 		`Doctor: ${report.checks.doctor.ok ? "pass" : "fail"} (${report.checks.doctor.failureCount} failure${report.checks.doctor.failureCount === 1 ? "" : "s"}, ${report.checks.doctor.warningCount} warning${report.checks.doctor.warningCount === 1 ? "" : "s"})`,
 	);
 	if (report.checks.model) {
-		const modelWarnings = modelDoctorCheckRecommendations(
-			report.checks.model,
-		).length;
+		const modelWarnings = modelDoctorCheckRecommendations(report.checks.model).length;
 		console.log(
 			`Model: ${modelWarnings === 0 ? "pass" : "warn"} (${modelWarnings} warning${modelWarnings === 1 ? "" : "s"})`,
 		);
@@ -352,9 +339,7 @@ export function printRefarmCheckSummary(report: RefarmCheckReport): void {
 		for (const recommendation of actionable) {
 			const target = recommendation.target ? ` (${recommendation.target})` : "";
 			console.log(
-				chalk.gray(
-					`  - ${recommendation.diagnostic}${target}: ${recommendation.summary}`,
-				),
+				chalk.gray(`  - ${recommendation.diagnostic}${target}: ${recommendation.summary}`),
 			);
 			console.log(chalk.gray(`    ${recommendation.action}`));
 		}

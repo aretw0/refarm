@@ -128,17 +128,15 @@ describe("runtime plugin client", () => {
 	});
 
 	it("times out and reports pending deferred plugins as skipped", async () => {
-		const fetchSpy = vi
-			.fn()
-			.mockResolvedValueOnce({
-				ok: true,
-				json: vi.fn().mockResolvedValue({
-					reloadId: "reload-timeout",
-					reloaded: [],
-					deferred: ["agent"],
-					skipped: [],
-				}),
-			});
+		const fetchSpy = vi.fn().mockResolvedValueOnce({
+			ok: true,
+			json: vi.fn().mockResolvedValue({
+				reloadId: "reload-timeout",
+				reloaded: [],
+				deferred: ["agent"],
+				skipped: [],
+			}),
+		});
 		const onDeferred = vi.fn();
 		vi.stubGlobal("fetch", fetchSpy);
 

@@ -1,8 +1,5 @@
 import type { CapabilityInput } from "@refarm.dev/capabilities";
-import {
-	isCapabilityGroup,
-	resolveGroupAction,
-} from "@refarm.dev/capabilities";
+import { isCapabilityGroup, resolveGroupAction } from "@refarm.dev/capabilities";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -66,11 +63,7 @@ describe("model CapabilityGroup (read-only slice)", () => {
 
 		const resetDeps = deps({ modelRoutes: { worker: "ollama/llama3.2" } });
 		const resetGroup = createModelCapabilityGroup(resetDeps);
-		const resetResolved = resolveGroupAction(resetGroup, [
-			"reset",
-			"--scope",
-			"planner",
-		]);
+		const resetResolved = resolveGroupAction(resetGroup, ["reset", "--scope", "planner"]);
 		const resetEnv = await resetResolved!.action.run(resetResolved!.input);
 		expect(resetEnv.ok).toBe(false);
 		expect(resetDeps.saveTokens).not.toHaveBeenCalled();
@@ -108,9 +101,7 @@ describe("model CapabilityGroup (read-only slice)", () => {
 		const envelope = await resolved!.action.run(resolved!.input);
 		expect(envelope.ok).toBe(true);
 		expect((envelope as { operation?: string }).operation).toBe("providers");
-		expect(
-			(envelope as { providers?: unknown[] }).providers?.length ?? 0,
-		).toBeGreaterThan(0);
+		expect((envelope as { providers?: unknown[] }).providers?.length ?? 0).toBeGreaterThan(0);
 	});
 
 	it("`doctor` probes via the injected fetch and returns an envelope", async () => {
@@ -150,9 +141,7 @@ describe("model CapabilityGroup (read-only slice)", () => {
 		});
 
 		it("scope-first sugar → set --scope <scope> <ref>", () => {
-			expect(
-				resolveModelGrammar(["worker", "openai/gpt-5.3-codex-spark"]),
-			).toEqual({
+			expect(resolveModelGrammar(["worker", "openai/gpt-5.3-codex-spark"])).toEqual({
 				key: "set",
 				tokens: ["--scope", "worker", "openai/gpt-5.3-codex-spark"],
 			});
@@ -164,9 +153,7 @@ describe("model CapabilityGroup (read-only slice)", () => {
 		});
 
 		it("explicit set --scope passes through unchanged", () => {
-			expect(
-				resolveModelGrammar(["set", "--scope", "monitor", "openai/gpt-5.5"]),
-			).toEqual({
+			expect(resolveModelGrammar(["set", "--scope", "monitor", "openai/gpt-5.5"])).toEqual({
 				key: "set",
 				tokens: ["--scope", "monitor", "openai/gpt-5.5"],
 			});
@@ -188,9 +175,10 @@ describe("model CapabilityGroup (read-only slice)", () => {
 				key: "fallback",
 				tokens: ["off"],
 			});
-			expect(
-				resolveModelGrammar(["base-url", "http://127.0.0.1:8000"]),
-			).toEqual({ key: "base-url", tokens: ["http://127.0.0.1:8000"] });
+			expect(resolveModelGrammar(["base-url", "http://127.0.0.1:8000"])).toEqual({
+				key: "base-url",
+				tokens: ["http://127.0.0.1:8000"],
+			});
 		});
 
 		it("a lone scope with no ref defers to the generic default (null)", () => {
@@ -203,10 +191,7 @@ describe("model CapabilityGroup (read-only slice)", () => {
 	it("resolveGroupAction applies the grammar: `worker <ref>` → set scope=worker", async () => {
 		const d = deps({ modelProvider: "ollama" });
 		const group = createModelCapabilityGroup(d);
-		const resolved = resolveGroupAction(group, [
-			"worker",
-			"openai/gpt-5.3-codex-spark",
-		]);
+		const resolved = resolveGroupAction(group, ["worker", "openai/gpt-5.3-codex-spark"]);
 		expect(resolved?.key).toBe("set");
 		expect(resolved?.input.options.scope).toBe("worker");
 		expect(resolved?.input.args.ref).toBe("openai/gpt-5.3-codex-spark");

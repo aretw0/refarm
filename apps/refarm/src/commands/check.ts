@@ -37,9 +37,8 @@ export type {
 } from "./check-report.js";
 
 async function runDefaultEnvironmentPressure(): Promise<EnvironmentPressureCheck> {
-	const { buildEnvironmentPressureReport } = await import(
-		"@refarm.dev/health/environment-pressure"
-	);
+	const { buildEnvironmentPressureReport } =
+		await import("@refarm.dev/health/environment-pressure");
 	return buildEnvironmentPressureReport({
 		guidance: {
 			diskPressureAction:
@@ -83,10 +82,7 @@ async function runDefaultRustSubstrate(): Promise<RustSubstrateCheck> {
 	const { runRustSubstrateCheck } = await import("@refarm.dev/cli/rust-substrate");
 	// The app names its own binary in the retry handoff (ADR-087); the package
 	// takes it as an argument and never hardcodes "refarm".
-	return runRustSubstrateCheck(
-		process.cwd(),
-		refarmCommand(["check", "--next-action", "--json"]),
-	);
+	return runRustSubstrateCheck(process.cwd(), refarmCommand(["check", "--next-action", "--json"]));
 }
 
 async function runDefaultWorkspaceExecution(): Promise<WorkspaceExecutionStatus> {
@@ -96,10 +92,8 @@ async function runDefaultWorkspaceExecution(): Promise<WorkspaceExecutionStatus>
 
 async function runDefaultWorkspaceSweep(): Promise<WorkspaceSweepCheck> {
 	const { declaredWorkspacesFromConfig, loadConfig } = await import("@refarm.dev/config");
-	const {
-		buildWorkspaceExecutionSweepPayload,
-		observeDeclaredWorkspacesExecution,
-	} = await import("./workspace.js");
+	const { buildWorkspaceExecutionSweepPayload, observeDeclaredWorkspacesExecution } =
+		await import("./workspace.js");
 	const config = loadConfig(process.cwd());
 	const observations = observeDeclaredWorkspacesExecution(
 		declaredWorkspacesFromConfig(config, { baseDir: process.cwd() }),
@@ -156,17 +150,11 @@ async function runDefaultReleasePolicy(): Promise<ReleasePolicyCheck> {
 	};
 }
 
-function isBlockingRecommendation(
-	recommendation: DiagnosticRecommendation,
-): boolean {
-	return (
-		recommendation.severity !== "warning" && recommendation.severity !== "info"
-	);
+function isBlockingRecommendation(recommendation: DiagnosticRecommendation): boolean {
+	return recommendation.severity !== "warning" && recommendation.severity !== "info";
 }
 
-function isRuntimePreflightFailureDoctorReport(
-	report: RefarmDoctorReport,
-): boolean {
+function isRuntimePreflightFailureDoctorReport(report: RefarmDoctorReport): boolean {
 	return (
 		report.failures.includes(STATUS_DIAGNOSTICS.runtimeNotReady) ||
 		report.failures.includes(STATUS_DIAGNOSTICS.runtimeSidecarAccessBlocked)
@@ -193,14 +181,8 @@ export function createCheckCommand(
 		.description("Run the cheap composite readiness gate")
 		.option("--json", "Output machine-readable composite report")
 		.option("--next-action", "Print only the first blocking recovery action")
-		.option(
-			"--next-command",
-			"Print only the first executable recovery command",
-		)
-		.option(
-			"--fail-on-warnings",
-			"Treat doctor warning diagnostics as failures",
-		)
+		.option("--next-command", "Print only the first executable recovery command")
+		.option("--fail-on-warnings", "Treat doctor warning diagnostics as failures")
 		.addHelpText(
 			"after",
 			`
@@ -227,9 +209,7 @@ Notes:
 					failOnWarnings: options.failOnWarnings,
 				});
 				if (isRuntimePreflightFailureDoctorReport(preflightDoctor)) {
-					const recommendations = preflightDoctor.recommendations.filter(
-						isBlockingRecommendation,
-					);
+					const recommendations = preflightDoctor.recommendations.filter(isBlockingRecommendation);
 					const payload = buildDiagnosticNextActionPayload({
 						ok: false,
 						nextActions: preflightDoctor.nextActions,
@@ -260,9 +240,10 @@ Notes:
 				workspaceSweep,
 				releasePolicy,
 			] = await Promise.all([
-				preflightDoctor ?? deps.runDoctor({
-					failOnWarnings: options.failOnWarnings,
-				}),
+				preflightDoctor ??
+					deps.runDoctor({
+						failOnWarnings: options.failOnWarnings,
+					}),
 				deps.runNodeSubstrate?.(),
 				deps.runRustSubstrate?.(),
 				deps.runEnvironmentPressure?.(),

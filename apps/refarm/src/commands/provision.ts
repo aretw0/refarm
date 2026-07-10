@@ -6,7 +6,10 @@ import {
 import { normalizeHandoffValues } from "@refarm.dev/cli/command-handoff";
 import { setGitHubActionsSecret } from "@refarm.dev/cli/github-actions";
 import {
-	CloudflareProvider, CloudflareTurboCacheProvisioner, createCloudflareTurboCacheProvisionPlan, enrichCloudflareError,
+	CloudflareProvider,
+	CloudflareTurboCacheProvisioner,
+	createCloudflareTurboCacheProvisionPlan,
+	enrichCloudflareError,
 } from "@refarm.dev/infra-cloudflare";
 import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
 import { SiloCore } from "@refarm.dev/silo";
@@ -36,11 +39,7 @@ const PROVISION_SCHEMA_VERSION = 1;
 const DEFAULT_TURBO_CACHE_BUCKET = "refarm-turbo-cache";
 const DEFAULT_TURBO_CACHE_TEAM = "refarm";
 const SOW_CLOUDFLARE_COMMAND = refarmCommand(["sow", "--cloudflare"]);
-const SOW_CLOUDFLARE_JSON_COMMAND = refarmCommand([
-	"sow",
-	"--cloudflare",
-	"--json",
-]);
+const SOW_CLOUDFLARE_JSON_COMMAND = refarmCommand(["sow", "--cloudflare", "--json"]);
 const TURBO_CACHE_DRY_RUN_JSON_COMMAND = refarmCommand([
 	"provision",
 	"cloudflare",
@@ -70,10 +69,7 @@ function provisionNextActions(): string[] {
 }
 
 function provisionNextCommands(): string[] {
-	return [
-		TURBO_CACHE_DRY_RUN_JSON_COMMAND,
-		TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
-	];
+	return [TURBO_CACHE_DRY_RUN_JSON_COMMAND, TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND];
 }
 
 function cloudflareTurboCachePlan(input: {
@@ -143,14 +139,8 @@ function buildCloudflareCatalogPayload(options: { dryRun?: boolean } = {}) {
 }
 
 function buildTurboCacheDryRunPayload(input: TurboCacheCommandOptions) {
-	const nextActions = [
-		SOW_CLOUDFLARE_JSON_COMMAND,
-		TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
-	];
-	const nextCommands = [
-		SOW_CLOUDFLARE_JSON_COMMAND,
-		TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND,
-	];
+	const nextActions = [SOW_CLOUDFLARE_JSON_COMMAND, TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND];
+	const nextCommands = [SOW_CLOUDFLARE_JSON_COMMAND, TURBO_CACHE_GITHUB_SECRETS_JSON_COMMAND];
 	return {
 		schemaVersion: PROVISION_SCHEMA_VERSION,
 		command: "provision",
@@ -179,15 +169,9 @@ function buildTurboCacheMissingCredentialsPayload(input: TurboCacheCommandOption
 		error: "missing-cloudflare-token",
 		message: "No Cloudflare token found.",
 		nextAction: SOW_CLOUDFLARE_JSON_COMMAND,
-		nextActions: [
-			SOW_CLOUDFLARE_JSON_COMMAND,
-			TURBO_CACHE_DRY_RUN_JSON_COMMAND,
-		],
+		nextActions: [SOW_CLOUDFLARE_JSON_COMMAND, TURBO_CACHE_DRY_RUN_JSON_COMMAND],
 		nextCommand: SOW_CLOUDFLARE_JSON_COMMAND,
-		nextCommands: [
-			SOW_CLOUDFLARE_JSON_COMMAND,
-			TURBO_CACHE_DRY_RUN_JSON_COMMAND,
-		],
+		nextCommands: [SOW_CLOUDFLARE_JSON_COMMAND, TURBO_CACHE_DRY_RUN_JSON_COMMAND],
 		extra: {
 			schemaVersion: PROVISION_SCHEMA_VERSION,
 			provider: "cloudflare",
@@ -212,20 +196,14 @@ function buildTurboCacheFailurePayload(input: {
 	const nextAction = input.nextAction.startsWith("refarm sow")
 		? SOW_CLOUDFLARE_JSON_COMMAND
 		: input.nextAction;
-	const nextCommands = normalizeHandoffValues([
-		nextCommand,
-		TURBO_CACHE_DRY_RUN_JSON_COMMAND,
-	]);
+	const nextCommands = normalizeHandoffValues([nextCommand, TURBO_CACHE_DRY_RUN_JSON_COMMAND]);
 	return buildJsonErrorEnvelope({
 		command: "provision",
 		operation: "apply",
 		error: input.error,
 		message: input.message,
 		nextAction,
-		nextActions: [
-			nextAction,
-			TURBO_CACHE_DRY_RUN_JSON_COMMAND,
-		],
+		nextActions: [nextAction, TURBO_CACHE_DRY_RUN_JSON_COMMAND],
 		nextCommand,
 		nextCommands,
 		extra: {
@@ -268,9 +246,7 @@ function buildTurboCacheApplyPayload(input: {
 			service: turboCacheManifest.id,
 			bucketName: input.result.bucketName,
 			workerUrl: input.result.workerUrl,
-			authToken: input.options.printSecrets
-				? input.result.authToken
-				: "<redacted>",
+			authToken: input.options.printSecrets ? input.result.authToken : "<redacted>",
 			githubSecretsWritten: input.githubSecretsWritten,
 			plan: input.result.plan,
 		},
@@ -279,9 +255,7 @@ function buildTurboCacheApplyPayload(input: {
 
 function renderProvisionCatalog(): void {
 	console.log(chalk.bold("Provisionable services:"));
-	console.log(
-		`  - cloudflare turbo-cache ${chalk.gray(turboCacheManifest.description)}`,
-	);
+	console.log(`  - cloudflare turbo-cache ${chalk.gray(turboCacheManifest.description)}`);
 	console.log("");
 	renderProvisionNextSteps();
 }
@@ -347,10 +321,7 @@ const cloudflareCommand = new Command("cloudflare")
 			"  Use --dry-run on turbo-cache to inspect the exact plan before applying it.",
 		].join("\n"),
 	)
-	.option(
-		"--dry-run",
-		"Show provider-level provisioning plan without creating resources",
-	)
+	.option("--dry-run", "Show provider-level provisioning plan without creating resources")
 	.option("--json", "Output machine-readable provider catalog or dry-run plan")
 	.action((opts: CloudflareCommandOptions, command: Command) => {
 		const json = opts.json === true || optionIsEnabled(command, "json");
@@ -395,28 +366,15 @@ const cloudflareCommand = new Command("cloudflare")
 					"  Rebuilding the devcontainer does not clear saved ~/.refarm credentials by default.",
 				].join("\n"),
 			)
-			.option(
-				"--dry-run",
-				"Show what would be provisioned without creating resources",
-			)
+			.option("--dry-run", "Show what would be provisioned without creating resources")
 			.option("--json", "Output machine-readable dry-run or apply result")
 			.option("--team <slug>", "Team slug for cache key namespacing", DEFAULT_TURBO_CACHE_TEAM)
 			.option("--bucket <name>", "R2 bucket name", DEFAULT_TURBO_CACHE_BUCKET)
-			.option(
-				"--github-secrets",
-				"Write produced TURBO_CACHE_* values to GitHub Actions secrets",
-			)
-			.option(
-				"--print-secrets",
-				"Print produced secret values to stdout (unsafe for shared logs)",
-			)
+			.option("--github-secrets", "Write produced TURBO_CACHE_* values to GitHub Actions secrets")
+			.option("--print-secrets", "Print produced secret values to stdout (unsafe for shared logs)")
 			.action(async (opts: TurboCacheCommandOptions, command: Command) => {
-				const shouldDryRun =
-					opts.dryRun === true ||
-					optionIsEnabled(command, "dryRun");
-				const shouldJson =
-					opts.json === true ||
-					optionIsEnabled(command, "json");
+				const shouldDryRun = opts.dryRun === true || optionIsEnabled(command, "dryRun");
+				const shouldJson = opts.json === true || optionIsEnabled(command, "json");
 
 				if (shouldDryRun && shouldJson) {
 					printJson(buildTurboCacheDryRunPayload(opts));
@@ -424,15 +382,11 @@ const cloudflareCommand = new Command("cloudflare")
 				}
 
 				if (!shouldJson) {
-					console.log(
-						chalk.cyan(`\nCloudflare · ${turboCacheManifest.displayName}\n`),
-					);
+					console.log(chalk.cyan(`\nCloudflare · ${turboCacheManifest.displayName}\n`));
 				}
 
 				if (shouldDryRun) {
-					console.log(
-						chalk.yellow("  (dry-run — no resources will be created)\n"),
-					);
+					console.log(chalk.yellow("  (dry-run — no resources will be created)\n"));
 					renderCloudflarePlan(opts);
 					return;
 				}
@@ -454,9 +408,7 @@ const cloudflareCommand = new Command("cloudflare")
 					console.error(
 						chalk.dim("Then apply: refarm provision cloudflare turbo-cache --github-secrets"),
 					);
-					console.error(
-						chalk.dim("Use --dry-run only to inspect the plan without credentials."),
-					);
+					console.error(chalk.dim("Use --dry-run only to inspect the plan without credentials."));
 					process.exitCode = 1;
 					return;
 				}
@@ -479,18 +431,14 @@ const cloudflareCommand = new Command("cloudflare")
 						process.exitCode = 1;
 						return;
 					}
-					console.error(
-						chalk.red(`  Failed to connect to Cloudflare: ${String(err)}`),
-					);
+					console.error(chalk.red(`  Failed to connect to Cloudflare: ${String(err)}`));
 					process.exitCode = 1;
 					return;
 				}
 
 				const provisioner = new CloudflareTurboCacheProvisioner(provider);
 
-				let result: Awaited<
-					ReturnType<CloudflareTurboCacheProvisioner["provision"]>
-				>;
+				let result: Awaited<ReturnType<CloudflareTurboCacheProvisioner["provision"]>>;
 				try {
 					result = await provisioner.provision({
 						bucketName: opts.bucket,
@@ -538,9 +486,7 @@ const cloudflareCommand = new Command("cloudflare")
 							process.exitCode = 1;
 							return;
 						}
-						console.error(
-							chalk.red(`  Failed to write GitHub secrets: ${String(err)}`),
-						);
+						console.error(chalk.red(`  Failed to write GitHub secrets: ${String(err)}`));
 						process.exitCode = 1;
 						return;
 					}
@@ -573,9 +519,7 @@ const cloudflareCommand = new Command("cloudflare")
 				}
 
 				console.log(chalk.bold("GitHub Actions secrets produced:\n"));
-				console.log(
-					`  ${chalk.cyan("TURBO_CACHE_API_URL")} = ${result.workerUrl}`,
-				);
+				console.log(`  ${chalk.cyan("TURBO_CACHE_API_URL")} = ${result.workerUrl}`);
 				console.log(
 					`  ${chalk.cyan("TURBO_CACHE_TOKEN")}   = ${
 						opts.printSecrets ? result.authToken : "<redacted>"
@@ -586,11 +530,7 @@ const cloudflareCommand = new Command("cloudflare")
 						"  Re-run with --github-secrets to write them via gh without printing the token.",
 					),
 				);
-				console.log(
-					chalk.gray(
-						"  Re-run with --print-secrets only when stdout is private.",
-					),
-				);
+				console.log(chalk.gray("  Re-run with --print-secrets only when stdout is private."));
 			}),
 	);
 

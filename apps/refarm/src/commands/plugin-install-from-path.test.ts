@@ -17,8 +17,7 @@ let prevHome: string | undefined;
 // The integrity of the fake wasm bytes below — a .wasm-entry manifest is invalid
 // without it (the reviewer must know the hash before approving).
 const WASM_BYTES = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x42]);
-const WASM_INTEGRITY =
-	"sha256-e7afd3a94acc8c9488c613adfb39d03db39536e70eb1c57d5f3798197122734f";
+const WASM_INTEGRITY = "sha256-e7afd3a94acc8c9488c613adfb39d03db39536e70eb1c57d5f3798197122734f";
 
 const MANIFEST = {
 	id: "@example/note-linter",
@@ -117,9 +116,9 @@ describe("extension install — closing the review→install loop", () => {
 
 		// Nothing was written — the gate held. (token: @example/note-linter → example_note-linter)
 		const home = process.env.REFARM_HOME as string;
-		expect(
-			fs.existsSync(path.join(home, "plugins", "example_note-linter", "plugin.wasm")),
-		).toBe(false);
+		expect(fs.existsSync(path.join(home, "plugins", "example_note-linter", "plugin.wasm"))).toBe(
+			false,
+		);
 	});
 
 	it("REJECTS a .wasm that no longer matches the reviewed integrity (tamper guard)", async () => {

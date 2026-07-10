@@ -18,8 +18,13 @@ function parseCodeFromInput(input: string): { code?: string; state?: string } {
 	if (!v) return {};
 	try {
 		const url = new URL(v);
-		return { code: url.searchParams.get("code") ?? undefined, state: url.searchParams.get("state") ?? undefined };
-	} catch { /* not a URL */ }
+		return {
+			code: url.searchParams.get("code") ?? undefined,
+			state: url.searchParams.get("state") ?? undefined,
+		};
+	} catch {
+		/* not a URL */
+	}
 	if (v.includes("code=")) {
 		const p = new URLSearchParams(v);
 		return { code: p.get("code") ?? undefined, state: p.get("state") ?? undefined };
@@ -33,40 +38,77 @@ function extractAccountId(token: string): string | null {
 		const auth = payload[JWT_CLAIM] as { chatgpt_account_id?: string } | undefined;
 		const id = auth?.chatgpt_account_id;
 		return typeof id === "string" && id.length > 0 ? id : null;
-	} catch { return null; }
+	} catch {
+		return null;
+	}
 }
 
 async function exchangeCode(code: string, verifier: string): Promise<OAuthCredentials> {
 	const res = await fetch(TOKEN_URL, {
 		method: "POST",
 		headers: { "content-type": "application/x-www-form-urlencoded" },
-		body: new URLSearchParams({ grant_type: "authorization_code", client_id: CLIENT_ID, code, code_verifier: verifier, redirect_uri: REDIRECT_URI }),
+		body: new URLSearchParams({
+			grant_type: "authorization_code",
+			client_id: CLIENT_ID,
+			code,
+			code_verifier: verifier,
+			redirect_uri: REDIRECT_URI,
+		}),
 		signal: AbortSignal.timeout(OAUTH_HTTP_TIMEOUT_MS),
 	});
 	if (!res.ok) throw new Error(`OpenAI token exchange failed (${res.status}): ${await res.text()}`);
-	const d = (await res.json()) as { access_token: string; refresh_token: string; expires_in: number };
-	return { access: d.access_token, refresh: d.refresh_token, expires: Date.now() + d.expires_in * 1000 };
+	const d = (await res.json()) as {
+		access_token: string;
+		refresh_token: string;
+		expires_in: number;
+	};
+	return {
+		access: d.access_token,
+		refresh: d.refresh_token,
+		expires: Date.now() + d.expires_in * 1000,
+	};
 }
 
 async function refreshCodexToken(refreshToken: string): Promise<OAuthCredentials> {
 	const res = await fetch(TOKEN_URL, {
 		method: "POST",
 		headers: { "content-type": "application/x-www-form-urlencoded" },
-		body: new URLSearchParams({ grant_type: "refresh_token", client_id: CLIENT_ID, refresh_token: refreshToken }),
+		body: new URLSearchParams({
+			grant_type: "refresh_token",
+			client_id: CLIENT_ID,
+			refresh_token: refreshToken,
+		}),
 		signal: AbortSignal.timeout(OAUTH_HTTP_TIMEOUT_MS),
 	});
 	if (!res.ok) throw new Error(`OpenAI token refresh failed (${res.status}): ${await res.text()}`);
-	const d = (await res.json()) as { access_token: string; refresh_token: string; expires_in: number };
+	const d = (await res.json()) as {
+		access_token: string;
+		refresh_token: string;
+		expires_in: number;
+	};
 	const accountId = extractAccountId(d.access_token);
-	return { access: d.access_token, refresh: d.refresh_token, expires: Date.now() + d.expires_in * 1000, ...(accountId ? { accountId } : {}) };
+	return {
+		access: d.access_token,
+		refresh: d.refresh_token,
+		expires: Date.now() + d.expires_in * 1000,
+		...(accountId ? { accountId } : {}),
+	};
 }
 
 export async function loginOpenAICodex(callbacks: OAuthLoginCallbacks): Promise<OAuthCredentials> {
 	const { verifier, challenge } = await generatePKCE();
-	const state = Array.from(crypto.getRandomValues(new Uint8Array(16))).map((b) => b.toString(16).padStart(2, "0")).join("");
+	const state = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
 
 	const server = callbacks.skipCallbackServer
-		? { listening: false, unavailableReason: "callback server disabled", waitForCode: () => Promise.resolve(null), cancelWait: () => {}, close: () => {} }
+		? {
+				listening: false,
+				unavailableReason: "callback server disabled",
+				waitForCode: () => Promise.resolve(null),
+				cancelWait: () => {},
+				close: () => {},
+			}
 		: await startCallbackServer({ port: CALLBACK_PORT, path: CALLBACK_PATH, expectedState: state });
 
 	const url = new URL(AUTHORIZE_URL);
@@ -80,17 +122,26 @@ export async function loginOpenAICodex(callbacks: OAuthLoginCallbacks): Promise<
 	url.searchParams.set("codex_cli_simplified_flow", "true");
 	url.searchParams.set("originator", "refarm");
 
-	callbacks.onAuth({ url: url.toString(), instructions: "A browser window should open. Complete login to continue." });
+	callbacks.onAuth({
+		url: url.toString(),
+		instructions: "A browser window should open. Complete login to continue.",
+	});
 
 	let code: string | undefined;
 
 	try {
 		if (callbacks.onManualCodeInput) {
 			let manualInput: string | undefined;
-			const manualPromise = callbacks.onManualCodeInput().then((v) => {
-				manualInput = v;
-				server.cancelWait();
-			}).catch((err: unknown) => { server.cancelWait(); throw err; });
+			const manualPromise = callbacks
+				.onManualCodeInput()
+				.then((v) => {
+					manualInput = v;
+					server.cancelWait();
+				})
+				.catch((err: unknown) => {
+					server.cancelWait();
+					throw err;
+				});
 
 			const result = await waitForOAuthCallback(server, {
 				timeoutMs: callbacks.callbackTimeoutMs,
@@ -101,7 +152,10 @@ export async function loginOpenAICodex(callbacks: OAuthLoginCallbacks): Promise<
 			} else if (manualInput) {
 				code = parseCodeFromInput(manualInput).code;
 			}
-			if (!code) { await manualPromise; if (manualInput) code = parseCodeFromInput(manualInput).code; }
+			if (!code) {
+				await manualPromise;
+				if (manualInput) code = parseCodeFromInput(manualInput).code;
+			}
 		} else {
 			const result = await waitForOAuthCallback(server, {
 				timeoutMs: callbacks.callbackTimeoutMs,
@@ -111,7 +165,9 @@ export async function loginOpenAICodex(callbacks: OAuthLoginCallbacks): Promise<
 		}
 
 		if (!code) {
-			const input = await callbacks.onPrompt({ message: "Paste the authorization code or full redirect URL:" });
+			const input = await callbacks.onPrompt({
+				message: "Paste the authorization code or full redirect URL:",
+			});
 			code = parseCodeFromInput(input).code;
 		}
 

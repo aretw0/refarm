@@ -1,21 +1,13 @@
-import {
-	isCapabilityGroup,
-	resolveGroupAction,
-} from "@refarm.dev/capabilities";
+import { isCapabilityGroup, resolveGroupAction } from "@refarm.dev/capabilities";
 import { REQUIRED_TOKENS, ThemeRegistry, type DsTheme } from "@refarm.dev/ds";
 import type { DiscoverThemesResult } from "@refarm.dev/plugin-surface-loader/node";
 import { describe, expect, it } from "vitest";
 
-import {
-	createThemeCapabilityGroup,
-	type ThemeCommandDeps,
-} from "./theme-capability.js";
+import { createThemeCapabilityGroup, type ThemeCommandDeps } from "./theme-capability.js";
 
 /** A conformant DsTheme (every required token present) for the fixture registry. */
 function completeTheme(): DsTheme {
-	return Object.fromEntries(
-		REQUIRED_TOKENS.map((t) => [t, "#101010"]),
-	) as DsTheme;
+	return Object.fromEntries(REQUIRED_TOKENS.map((t) => [t, "#101010"])) as DsTheme;
 }
 
 /** A discover result with one plugin theme registered, mirroring the fs host. */
@@ -23,17 +15,13 @@ function discoverWithMidnight(): DiscoverThemesResult {
 	const registry = new ThemeRegistry();
 	registry.register("midnight", completeTheme(), "plugin");
 	return {
-		themes: [
-			{ id: "midnight", pluginId: "@demo/theme-plugin", pluginDir: "/plugins/demo" },
-		],
+		themes: [{ id: "midnight", pluginId: "@demo/theme-plugin", pluginDir: "/plugins/demo" }],
 		registry,
 		rejected: [],
 	};
 }
 
-function deps(
-	discover: () => DiscoverThemesResult = discoverWithMidnight,
-): ThemeCommandDeps {
+function deps(discover: () => DiscoverThemesResult = discoverWithMidnight): ThemeCommandDeps {
 	return { discover };
 }
 

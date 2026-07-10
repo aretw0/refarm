@@ -18,18 +18,11 @@ import {
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 import type { ExtensionSurfaceDeclaration } from "@refarm.dev/plugin-manifest";
 
-export type HeadlessSurfaceActionMountSource =
-	| "legacy-ui-slot"
-	| "extension-surface";
+export type HeadlessSurfaceActionMountSource = "legacy-ui-slot" | "extension-surface";
 
-export type HeadlessSurfaceActionRequestResolutionReason =
-	| "available"
-	| "missing-action";
+export type HeadlessSurfaceActionRequestResolutionReason = "available" | "missing-action";
 
-export type HeadlessSurfaceActionInvocationReason =
-	| "handled"
-	| "unhandled"
-	| "missing-action";
+export type HeadlessSurfaceActionInvocationReason = "handled" | "unhandled" | "missing-action";
 
 export interface HeadlessSurfaceActionInvocationOptions {
 	status: StatusJson;
@@ -168,16 +161,9 @@ function createHeadlessStatusSurfaceActionReadinessDryRunEnvelope(
 export function resolveHeadlessStatusSurfaceActionRequest(
 	options: Omit<HeadlessSurfaceActionInvocationOptions, "handler">,
 ): HeadlessSurfaceActionRequestResolution {
-	const renderRequest = createHeadlessStatusSurfaceRenderRequest(
-		options.status,
-		options,
-	);
+	const renderRequest = createHeadlessStatusSurfaceRenderRequest(options.status, options);
 	const host = createHeadlessStatusSurfaceHostContext(options.status, options);
-	const request = createHomesteadSurfaceRenderActionRequest(
-		renderRequest,
-		host,
-		options.actionId,
-	);
+	const request = createHomesteadSurfaceRenderActionRequest(renderRequest, host, options.actionId);
 
 	if (!request) {
 		return {

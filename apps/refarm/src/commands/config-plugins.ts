@@ -32,32 +32,20 @@ import {
 // suppression), authored via this subgroup rather than `config set`. It lives in
 // the SAME config.json but never enters the ConfigKey grammar.
 
-const CONFIG_PLUGINS_LIST_JSON_COMMAND = refarmCommand([
-	"config",
-	"plugins",
-	"list",
-	"--json",
-]);
+const CONFIG_PLUGINS_LIST_JSON_COMMAND = refarmCommand(["config", "plugins", "list", "--json"]);
 
 // SURFACE_KEYS is imported from composition.ts (the single source, guarded exhaustive
 // against the SurfaceKey union) — no longer re-listed here where it could drift.
 
 /** Parse a --scope value for a composition write; null when unrecognized. */
-function parseCompositionScope(
-	value: string | undefined,
-): LedgerScope | null {
+function parseCompositionScope(value: string | undefined): LedgerScope | null {
 	if (value === undefined) return "user";
-	return value === "org" || value === "workspace" || value === "user"
-		? value
-		: null;
+	return value === "org" || value === "workspace" || value === "user" ? value : null;
 }
 
 /** Project a resolved composition entry for output, expanding its suppression
  * into a per-surface effective view when `effective` is requested. */
-function projectCompositionEntry(
-	resolved: ResolvedPackageSource,
-	effective: boolean,
-) {
+function projectCompositionEntry(resolved: ResolvedPackageSource, effective: boolean) {
 	const { entry, source, scope } = resolved;
 	const base = { source, scope, form: typeof entry === "string" ? "bare" : "object" };
 	if (!effective || typeof entry === "string") return base;
@@ -111,8 +99,7 @@ export function buildCompositionListEnvelope(
 			error: "org-scope-unavailable",
 			message:
 				"The org scope is not active. Set REFARM_ORG_HOME to a shared org base to use --scope org.",
-			nextAction:
-				"Set REFARM_ORG_HOME to a shared org base, or omit --scope org.",
+			nextAction: "Set REFARM_ORG_HOME to a shared org base, or omit --scope org.",
 			nextCommand: CONFIG_PLUGINS_LIST_JSON_COMMAND,
 		});
 	}
@@ -153,9 +140,7 @@ function printCompositionList(
 	}
 	console.log(chalk.bold(`Composed packages (${envelope.count}):`));
 	for (const p of envelope.plugins ?? []) {
-		console.log(
-			`  ${chalk.cyan(p.source)}  ${chalk.dim(`[${p.scope}]`)}  ${chalk.dim(p.form)}`,
-		);
+		console.log(`  ${chalk.cyan(p.source)}  ${chalk.dim(`[${p.scope}]`)}  ${chalk.dim(p.form)}`);
 	}
 }
 
@@ -211,8 +196,7 @@ export function buildCompositionMutationEnvelope(
 			error: "org-scope-unavailable",
 			message:
 				"The org scope is not active. Set REFARM_ORG_HOME to a shared org base to write there.",
-			nextAction:
-				"Set REFARM_ORG_HOME to a shared org base, or omit --scope org.",
+			nextAction: "Set REFARM_ORG_HOME to a shared org base, or omit --scope org.",
 			nextCommand: CONFIG_PLUGINS_LIST_JSON_COMMAND,
 		});
 	}
@@ -451,14 +435,7 @@ function printCompositionSuppress(
 	pattern: string,
 	opts: { scope?: string; allowModeFlip?: boolean },
 ): void {
-	const envelope = buildCompositionSuppressEnvelope(
-		deps,
-		op,
-		source,
-		surface,
-		pattern,
-		opts,
-	) as {
+	const envelope = buildCompositionSuppressEnvelope(deps, op, source, surface, pattern, opts) as {
 		ok: boolean;
 		error?: string;
 		message?: string;
@@ -514,10 +491,7 @@ Notes:
 			new Command("list")
 				.description("List the effective composed packages, folded across scopes")
 				.option("--scope <scope>", "Filter the view to org | workspace | user")
-				.option(
-					"--effective",
-					"Expand each entry's surface suppression (what is actually on)",
-				)
+				.option("--effective", "Expand each entry's surface suppression (what is actually on)")
 				.option("--json", "Output machine-readable composition list")
 				.action(
 					(
@@ -548,9 +522,7 @@ Notes:
 						command: JsonOptionCarrier,
 					) => {
 						if (hasJsonOption(opts, command)) {
-							printJson(
-								buildCompositionMutationEnvelope(deps, "add", source, opts),
-							);
+							printJson(buildCompositionMutationEnvelope(deps, "add", source, opts));
 							return;
 						}
 						printCompositionMutation(deps, "add", source, opts);
@@ -560,9 +532,7 @@ Notes:
 		.addCommand(
 			new Command("remove")
 				.alias("rm")
-				.description(
-					"De-declare a package from a scope's composition (NOT a physical uninstall)",
-				)
+				.description("De-declare a package from a scope's composition (NOT a physical uninstall)")
 				.argument("<source>", "Package source to drop from this scope")
 				.option("--scope <scope>", "org | workspace | user (default user)")
 				.option("--json", "Output machine-readable result")
@@ -573,9 +543,7 @@ Notes:
 						command: JsonOptionCarrier,
 					) => {
 						if (hasJsonOption(opts, command)) {
-							printJson(
-								buildCompositionMutationEnvelope(deps, "remove", source, opts),
-							);
+							printJson(buildCompositionMutationEnvelope(deps, "remove", source, opts));
 							return;
 						}
 						printCompositionMutation(deps, "remove", source, opts);
@@ -607,14 +575,7 @@ Notes:
 					) => {
 						if (hasJsonOption(opts, command)) {
 							printJson(
-								buildCompositionSuppressEnvelope(
-									deps,
-									"suppress",
-									source,
-									surface,
-									pattern,
-									opts,
-								),
+								buildCompositionSuppressEnvelope(deps, "suppress", source, surface, pattern, opts),
 							);
 							return;
 						}

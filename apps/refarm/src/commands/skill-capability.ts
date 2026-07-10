@@ -3,10 +3,7 @@ import {
 	createFsAssetStore,
 	layeredAssetResolver,
 } from "@refarm.dev/asset-resolver-contract-v1/node";
-import type {
-	CapabilityDescriptor,
-	CapabilityGroup,
-} from "@refarm.dev/capabilities";
+import type { CapabilityDescriptor, CapabilityGroup } from "@refarm.dev/capabilities";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -26,23 +23,13 @@ import {
 	type CheckerProfile,
 	type ReferenceChecker,
 } from "@refarm.dev/quality-checker-ref";
-import {
-	openScopedLedger,
-	scopedAssetsDir,
-} from "@refarm.dev/storage-node-view";
+import { openScopedLedger, scopedAssetsDir } from "@refarm.dev/storage-node-view";
 import chalk from "chalk";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import {
-	pluginsBaseDir,
-	resolveOrgRoot,
-	resolveRefarmHome,
-} from "../utils/refarm-home.js";
-import {
-	type CapabilitySurfaceHooks,
-	renderCapabilityError,
-} from "./capability-commander.js";
+import { pluginsBaseDir, resolveOrgRoot, resolveRefarmHome } from "../utils/refarm-home.js";
+import { type CapabilitySurfaceHooks, renderCapabilityError } from "./capability-commander.js";
 import {
 	buildDiagnosticNextActionPayload,
 	diagnosticNextActions,
@@ -96,7 +83,10 @@ const SKILL_TELLS_PROFILE = {
  */
 export interface SkillCommandDeps {
 	/** Discover installed skills. Defaults to scanning the refarm plugins dir. */
-	discover: () => { skills: DiscoveredSkill[]; rejected: { pluginId: string | null; pluginDir: string; issues: string[] }[] };
+	discover: () => {
+		skills: DiscoveredSkill[];
+		rejected: { pluginId: string | null; pluginDir: string; issues: string[] }[];
+	};
 	/** Load skills previously persisted by `skill import --write`. */
 	loadPersistedSkills: () => Promise<PersistedSkillLoadResult>;
 	/**
@@ -130,10 +120,7 @@ export interface SkillCommandDeps {
 	 * it came from fs today or p2p/OPFS tomorrow. Returns the ids written. This is
 	 * the seam a future content-addressed/p2p resolver plugs into unchanged.
 	 */
-	persistSkills: (
-		skills: ImportedAgentSkill[],
-		scope: SkillLedgerScope,
-	) => Promise<string[]>;
+	persistSkills: (skills: ImportedAgentSkill[], scope: SkillLedgerScope) => Promise<string[]>;
 }
 
 /** JSON-LD type of a persisted, imported skill node. */
@@ -172,11 +159,7 @@ function skillInvocationDecisionNode(decision: SkillInvocationDecisionV1) {
  */
 export type SkillLedgerScope = "org" | "workspace" | "user";
 
-const SKILL_LEDGER_SCOPES: readonly SkillLedgerScope[] = [
-	"org",
-	"workspace",
-	"user",
-];
+const SKILL_LEDGER_SCOPES: readonly SkillLedgerScope[] = ["org", "workspace", "user"];
 
 /** Parse a scope string; null when unrecognized (the caller errors loudly). */
 function parseSkillLedgerScope(value: string | undefined): SkillLedgerScope | null {
@@ -261,10 +244,7 @@ function openSkillLedgerAt(scope: SkillLedgerScope, roots: SkillLedgerRoots) {
  * parser reports and which differs from the instructions body it extracts. Keep
  * both — one addresses what we store, the other records what we imported from.
  */
-function importedSkillNode(
-	skill: ImportedAgentSkill,
-	stored: { hash: string; bytes: number },
-) {
+function importedSkillNode(skill: ImportedAgentSkill, stored: { hash: string; bytes: number }) {
 	return {
 		"@id": skill.id,
 		"@type": IMPORTED_SKILL_NODE_TYPE,
@@ -290,9 +270,7 @@ export async function persistImportedSkillsToLedger(
 		// Move the bytes into the content-store FIRST (idempotent — same content →
 		// same address), then persist a pointer keyed on the STORED address, so the
 		// node references bytes that are already present and verify on read.
-		const stored = await store.store(
-			new TextEncoder().encode(skill.instructions),
-		);
+		const stored = await store.store(new TextEncoder().encode(skill.instructions));
 		await ledger.storeNode(importedSkillNode(skill, stored) as never);
 		written.push(skill.id);
 	}
@@ -329,16 +307,9 @@ function skillPointerFromNode(
 	scope: SkillLedgerScope,
 ): { pointer?: SkillPointer; issues: string[] } {
 	const issues: string[] = [];
-	const id =
-		typeof node["@id"] === "string" && node["@id"].trim()
-			? node["@id"]
-			: undefined;
-	const name =
-		typeof node.name === "string" && node.name.trim() ? node.name : undefined;
-	const sha256 =
-		typeof node.sha256 === "string" && node.sha256.trim()
-			? node.sha256
-			: undefined;
+	const id = typeof node["@id"] === "string" && node["@id"].trim() ? node["@id"] : undefined;
+	const name = typeof node.name === "string" && node.name.trim() ? node.name : undefined;
+	const sha256 = typeof node.sha256 === "string" && node.sha256.trim() ? node.sha256 : undefined;
 	if (!id) issues.push("Expected persisted skill node to carry a string @id.");
 	if (!name) issues.push("Expected persisted skill node to carry a name.");
 	if (!sha256) {
@@ -346,9 +317,7 @@ function skillPointerFromNode(
 	}
 	if (issues.length > 0 || !id || !name || !sha256) return { issues };
 	const surfaceId =
-		typeof node.surfaceId === "string" && node.surfaceId.trim()
-			? node.surfaceId
-			: name;
+		typeof node.surfaceId === "string" && node.surfaceId.trim() ? node.surfaceId : name;
 	return {
 		issues: [],
 		pointer: {
@@ -374,13 +343,10 @@ function legacyInlineSkill(
 	if (typeof node.sha256 === "string" && node.sha256.trim()) return null;
 	const id = typeof node["@id"] === "string" ? node["@id"].trim() : "";
 	const name = typeof node.name === "string" ? node.name.trim() : "";
-	const instructions =
-		typeof node.instructions === "string" ? node.instructions : "";
+	const instructions = typeof node.instructions === "string" ? node.instructions : "";
 	if (!id || !name || !instructions.trim()) return null;
 	const surfaceId =
-		typeof node.surfaceId === "string" && node.surfaceId.trim()
-			? node.surfaceId
-			: name;
+		typeof node.surfaceId === "string" && node.surfaceId.trim() ? node.surfaceId : name;
 	return {
 		surfaceId,
 		id,
@@ -441,10 +407,7 @@ export async function loadPersistedImportedSkills(
 			}
 			rejected.push({
 				ledgerScope: scope,
-				nodeId:
-					typeof node["@id"] === "string" && node["@id"].trim()
-						? node["@id"]
-						: "(unknown)",
+				nodeId: typeof node["@id"] === "string" && node["@id"].trim() ? node["@id"] : "(unknown)",
 				issues: result.issues,
 			});
 		}
@@ -502,14 +465,10 @@ export function defaultSkillDeps(): SkillCommandDeps {
 			// Always include the bundled reference checker; add every
 			// plugin-contributed one, each sandboxed by the same host loader.
 			const checkers: ReferenceChecker[] = [await createReferenceChecker()];
-			const { checkers: discovered } = loadCheckersFromPluginsDir(
-				pluginsBaseDir(),
-			);
+			const { checkers: discovered } = loadCheckersFromPluginsDir(pluginsBaseDir());
 			for (const c of discovered) {
 				try {
-					checkers.push(
-						await loadCheckerComponent({ pkgDir: c.pkgDir, entry: c.entry }),
-					);
+					checkers.push(await loadCheckerComponent({ pkgDir: c.pkgDir, entry: c.entry }));
 				} catch {
 					// A broken checker component must not block the others.
 				}
@@ -534,8 +493,7 @@ export function defaultSkillDeps(): SkillCommandDeps {
 			}));
 		},
 		importSkills: (dir) => loadAgentSkillsFromDir(dir),
-		persistSkills: (skills, scope) =>
-			persistImportedSkillsToLedger(skills, scope),
+		persistSkills: (skills, scope) => persistImportedSkillsToLedger(skills, scope),
 	};
 }
 
@@ -609,8 +567,7 @@ export function createSkillCapabilityGroup(
 					operation: "show",
 					error: "skill-not-found",
 					message: `No skill matches "${id}".`,
-					nextAction:
-						"Run `skill list` to see plugin-declared and imported skills.",
+					nextAction: "Run `skill list` to see plugin-declared and imported skills.",
 				});
 			}
 			return buildJsonSuccessEnvelope({
@@ -639,8 +596,7 @@ export function createSkillCapabilityGroup(
 					operation: "check",
 					error: "skill-not-found",
 					message: `No skill matches "${id}".`,
-					nextAction:
-						"Run `skill list` to see plugin-declared and imported skills.",
+					nextAction: "Run `skill list` to see plugin-declared and imported skills.",
 				});
 			}
 
@@ -658,9 +614,7 @@ export function createSkillCapabilityGroup(
 				}
 			}
 
-			const recommendations = findings.map((f) =>
-				findingToRecommendation(skill.id, f),
-			);
+			const recommendations = findings.map((f) => findingToRecommendation(skill.id, f));
 			// Findings are POLICY, not a gate: check reports them as resolvable
 			// pending-actions on the tri-interface (CLI/REPL/agent) and stays ok —
 			// a permissive skill with tells still exists; the operator is nudged.
@@ -680,21 +634,18 @@ export function createSkillCapabilityGroup(
 
 	const importAction: CapabilityDescriptor = {
 		name: "import",
-		summary:
-			"Import Agent Skills (agentskills.io SKILL.md) from a directory into refarm's model",
+		summary: "Import Agent Skills (agentskills.io SKILL.md) from a directory into refarm's model",
 		args: [{ name: "dir", required: true }],
 		options: [
 			{
 				name: "write",
 				kind: "boolean",
-				summary:
-					"Persist the imported skills into refarm's store (content-addressed nodes)",
+				summary: "Persist the imported skills into refarm's store (content-addressed nodes)",
 			},
 			{
 				name: "scope",
 				kind: "string",
-				summary:
-					"Ledger scope to persist into: user (default) | workspace | org",
+				summary: "Ledger scope to persist into: user (default) | workspace | org",
 				defaultValue: "user",
 			},
 		],
@@ -740,10 +691,7 @@ export function createSkillCapabilityGroup(
 				...(write
 					? {}
 					: {
-							nextCommand:
-								imported.length > 0
-									? `skill import ${dir} --write`
-									: undefined,
+							nextCommand: imported.length > 0 ? `skill import ${dir} --write` : undefined,
 						}),
 			});
 		},
@@ -764,8 +712,7 @@ export function createSkillCapabilityGroup(
 			{
 				name: "approve",
 				kind: "string[]",
-				summary:
-					"Approve the invocation, granting these capability ids (repeatable)",
+				summary: "Approve the invocation, granting these capability ids (repeatable)",
 			},
 			{ name: "deny", kind: "boolean", summary: "Deny the invocation" },
 			{
@@ -843,9 +790,7 @@ export function createSkillCapabilityGroup(
 			const persistDecision = approval
 				? async (decision: SkillInvocationDecisionV1) => {
 						const ledger = openSkillLedgerAt(scope, defaultSkillLedgerRoots());
-						await ledger.storeNode(
-							skillInvocationDecisionNode(decision) as never,
-						);
+						await ledger.storeNode(skillInvocationDecisionNode(decision) as never);
 					}
 				: undefined;
 
@@ -908,9 +853,7 @@ export function createSkillCapabilityGroup(
 type SkillProjection = ReturnType<typeof projectSkill>;
 
 function formatMaturity(maturity: string): string {
-	return maturity === "permissive"
-		? chalk.yellow("permissive")
-		: chalk.green("complete");
+	return maturity === "permissive" ? chalk.yellow("permissive") : chalk.green("complete");
 }
 
 function formatSkillLine(skill: SkillProjection): string {
@@ -954,18 +897,12 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 							"No skills found. Install a plugin that declares a pi/skill surface or run `skill import <dir> --write`.",
 						);
 					}
-					const lines = [
-						`Skills (${e.count})`,
-						...e.skills.map(formatSkillLine),
-					];
+					const lines = [`Skills (${e.count})`, ...e.skills.map(formatSkillLine)];
 					if (e.rejected.length > 0) {
 						lines.push(
-							chalk.yellow(
-								`\n${e.rejected.length} skill source(s) could not load:`,
-							),
+							chalk.yellow(`\n${e.rejected.length} skill source(s) could not load:`),
 							...e.rejected.map(
-								(r) =>
-									`  ${chalk.dim(formatRejectedSource(r))}: ${r.issues.join("; ")}`,
+								(r) => `  ${chalk.dim(formatRejectedSource(r))}: ${r.issues.join("; ")}`,
 							),
 						);
 					}
@@ -975,8 +912,7 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 		case "show":
 			return {
 				renderText: (envelope) => {
-					if (envelope.ok === false)
-						return renderCapabilityError(envelope, "skill error");
+					if (envelope.ok === false) return renderCapabilityError(envelope, "skill error");
 					const { skill } = envelope as unknown as { skill: SkillProjection };
 					return formatSkillLine(skill);
 				},
@@ -984,8 +920,7 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 		case "check":
 			return {
 				renderText: (envelope) => {
-					if (envelope.ok === false)
-						return renderCapabilityError(envelope, "skill error");
+					if (envelope.ok === false) return renderCapabilityError(envelope, "skill error");
 					const e = envelope as unknown as {
 						skill: SkillProjection;
 						findingCount: number;
@@ -1002,8 +937,7 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 					const lines = [
 						header,
 						...e.recommendations.map(
-							(r) =>
-								`  ${chalk.yellow("⚠")} ${chalk.dim(r.diagnostic)}  ${r.summary}`,
+							(r) => `  ${chalk.yellow("⚠")} ${chalk.dim(r.diagnostic)}  ${r.summary}`,
 						),
 						chalk.dim(`\n  ${e.nextActions.length} pending action(s):`),
 						...e.nextActions.map((a) => `    → ${a}`),
@@ -1014,8 +948,7 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 		case "import":
 			return {
 				renderText: (envelope) => {
-					if (envelope.ok === false)
-						return renderCapabilityError(envelope, "skill error");
+					if (envelope.ok === false) return renderCapabilityError(envelope, "skill error");
 					const e = envelope as unknown as {
 						source: string;
 						imported: {
@@ -1043,30 +976,22 @@ export function skillCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 							if (s.translated.newlinesNormalized) {
 								tags.push("newline-normalized");
 							}
-							const suffix = tags.length
-								? `  ${chalk.dim(`(${tags.join(", ")})`)}`
-								: "";
+							const suffix = tags.length ? `  ${chalk.dim(`(${tags.join(", ")})`)}` : "";
 							return `  ${chalk.bold(s.name)}  ${chalk.dim(s.id)}${suffix}`;
 						}),
 					];
 					if (e.rejected.length > 0) {
 						lines.push(
 							chalk.yellow(`\n${e.rejected.length} could not import:`),
-							...e.rejected.map(
-								(r) => `  ${chalk.dim(r.skillDir)}: ${r.issues.join("; ")}`,
-							),
+							...e.rejected.map((r) => `  ${chalk.dim(r.skillDir)}: ${r.issues.join("; ")}`),
 						);
 					}
 					if (e.persisted) {
 						lines.push(
-							chalk.green(
-								`\n✓ persisted ${e.written.length} skill(s) as content-addressed nodes`,
-							),
+							chalk.green(`\n✓ persisted ${e.written.length} skill(s) as content-addressed nodes`),
 						);
 					} else if (e.count > 0) {
-						lines.push(
-							chalk.dim("\nRe-run with --write to persist these into refarm."),
-						);
+						lines.push(chalk.dim("\nRe-run with --write to persist these into refarm."));
 					}
 					return lines.join("\n");
 				},

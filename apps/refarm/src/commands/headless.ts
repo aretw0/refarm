@@ -22,9 +22,7 @@ interface HeadlessOptions {
 }
 
 export const headlessCommand = new Command("headless")
-	.description(
-		"Emit a machine-readable host snapshot in headless renderer mode",
-	)
+	.description("Emit a machine-readable host snapshot in headless renderer mode")
 	.addHelpText(
 		"after",
 		[
@@ -82,9 +80,7 @@ export const headlessCommand = new Command("headless")
 		});
 	});
 
-async function emitHeadlessActionRequest(
-	options: HeadlessOptions,
-): Promise<void> {
+async function emitHeadlessActionRequest(options: HeadlessOptions): Promise<void> {
 	await withResolvedStatusPayload({
 		resolveStatusPayload,
 		resolveOptions: {
@@ -97,10 +93,7 @@ async function emitHeadlessActionRequest(
 				throw new Error("Missing --action-request action ID or row index.");
 			}
 
-			const selectedAction = resolveSurfaceActionAffordanceSelection(
-				json,
-				actionSelection,
-			);
+			const selectedAction = resolveSurfaceActionAffordanceSelection(json, actionSelection);
 
 			if (!selectedAction.selected) {
 				printJson(

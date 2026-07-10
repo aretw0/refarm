@@ -30,11 +30,7 @@ function deps(tokens: Partial<ModelTokens> = {}): ModelCommandDeps & {
 describe("model mutator builders (pure, envelope-returning)", () => {
 	it("buildSetModelEnvelope persists a valid ref and returns ok", async () => {
 		const d = deps({ modelProvider: "ollama" });
-		const envelope = await buildSetModelEnvelope(
-			"ollama/llama3.2",
-			"default",
-			d,
-		);
+		const envelope = await buildSetModelEnvelope("ollama/llama3.2", "default", d);
 		expect(envelope.ok).toBe(true);
 		expect(d.saveTokens).toHaveBeenCalledTimes(1);
 		expect((envelope as { action?: string }).action).toBe("set-route");
@@ -87,10 +83,7 @@ describe("model mutator builders (pure, envelope-returning)", () => {
 
 	it("buildSetModelBaseUrlEnvelope: sets a url; 'off' disables it", async () => {
 		const set = deps();
-		const setEnv = await buildSetModelBaseUrlEnvelope(
-			"http://localhost:11434",
-			set,
-		);
+		const setEnv = await buildSetModelBaseUrlEnvelope("http://localhost:11434", set);
 		expect(setEnv.ok).toBe(true);
 		expect((setEnv as { action?: string }).action).toBe("set-base-url");
 		expect(set.saveTokens).toHaveBeenCalledTimes(1);

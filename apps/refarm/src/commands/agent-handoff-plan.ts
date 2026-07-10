@@ -12,7 +12,7 @@ import {
 	OPERATOR_LINKS_CONFIG_COMMAND,
 	RESUME_JSON_COMMAND,
 	SOW_INTERACTIVE_COMMAND,
-	SOW_JSON_COMMAND
+	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
 import {
 	HEALTH_NEXT_ACTION_COMMAND,
@@ -26,11 +26,7 @@ import {
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 } from "./runtime-recovery.js";
 
-export const AGENT_NEXT_ACTION_COMMAND = refarmCommand([
-	"check",
-	"--next-action",
-	"--json",
-]);
+export const AGENT_NEXT_ACTION_COMMAND = refarmCommand(["check", "--next-action", "--json"]);
 export const AGENT_NEXT_COMMAND = refarmCommand(["check", "--next-command"]);
 
 export function agentFinishCommand(args: string[]): string {
@@ -85,21 +81,17 @@ export const agentFinishLaneCatalog = [
 	{
 		id: "with-package-tests",
 		recommendedKey: "withPackageTests",
-		command: agentFinishCommand([
-			"--lane",
-			"with-package-tests",
-			"--run",
-			"--json",
-		]),
+		command: agentFinishCommand(["--lane", "with-package-tests", "--run", "--json"]),
 		description: "Validate dirty-tree edits and include package tests.",
 		useWhen: "After source edits that need package test scripts in addition to type/lint/build.",
 		validationScope: "dirtyTree",
 	},
 ] as const;
 
-export type AgentFinishLane = typeof agentFinishLaneCatalog[number]["id"];
-type AgentFinishLaneRecommendedKey = typeof agentFinishLaneCatalog[number]["recommendedKey"];
-export type AgentFinishLaneValidationScope = typeof agentFinishLaneCatalog[number]["validationScope"];
+export type AgentFinishLane = (typeof agentFinishLaneCatalog)[number]["id"];
+type AgentFinishLaneRecommendedKey = (typeof agentFinishLaneCatalog)[number]["recommendedKey"];
+export type AgentFinishLaneValidationScope =
+	(typeof agentFinishLaneCatalog)[number]["validationScope"];
 
 export const AGENT_FINISH_LANE_HELP = agentFinishLaneCatalog.map((lane) => lane.id).join(" | ");
 const agentFinishLanes = agentFinishLaneCatalog.map((lane) => ({
@@ -123,7 +115,8 @@ function agentFinishTemplates() {
 			writes: false,
 			parameters: ["dir"],
 			cwdParameter: "dir",
-			useWhen: "Refresh operator state from a non-Refarm consumer workspace before dispatching work.",
+			useWhen:
+				"Refresh operator state from a non-Refarm consumer workspace before dispatching work.",
 		},
 		{
 			id: "external-consumer-check-json",
@@ -142,7 +135,8 @@ function agentFinishTemplates() {
 			effects: ["observe"],
 			writes: false,
 			parameters: ["dir"],
-			useWhen: "Inspect executor and cache readiness in a non-Refarm consumer workspace before choosing validation commands.",
+			useWhen:
+				"Inspect executor and cache readiness in a non-Refarm consumer workspace before choosing validation commands.",
 		},
 		{
 			id: "declared-workspaces-execution-all-json",
@@ -151,7 +145,8 @@ function agentFinishTemplates() {
 			effects: ["observe"],
 			writes: false,
 			parameters: [],
-			useWhen: "Inspect every workspace declared in the current Refarm config, including bridge resolution and non-blocking recommendations.",
+			useWhen:
+				"Inspect every workspace declared in the current Refarm config, including bridge resolution and non-blocking recommendations.",
 		},
 		{
 			id: "declared-release-supply-preflight-json",
@@ -160,16 +155,34 @@ function agentFinishTemplates() {
 			effects: ["observe"],
 			writes: false,
 			parameters: [],
-			useWhen: "Inspect the current workspace release-policy selection and supply posture without executing gates, builds, or publishing.",
+			useWhen:
+				"Inspect the current workspace release-policy selection and supply posture without executing gates, builds, or publishing.",
 		},
 		{
 			id: "external-consumer-release-plan-json",
-			command: refarmCommand(["release", "plan", "--cwd", "<dir>", "--selection", "default", "--json"]),
-			process: refarmProcess(["release", "plan", "--cwd", "<dir>", "--selection", "default", "--json"]),
+			command: refarmCommand([
+				"release",
+				"plan",
+				"--cwd",
+				"<dir>",
+				"--selection",
+				"default",
+				"--json",
+			]),
+			process: refarmProcess([
+				"release",
+				"plan",
+				"--cwd",
+				"<dir>",
+				"--selection",
+				"default",
+				"--json",
+			]),
 			effects: ["observe"],
 			writes: false,
 			parameters: ["dir"],
-			useWhen: "Inspect a non-Refarm consumer workspace default release-policy selection without executing gates or publishing.",
+			useWhen:
+				"Inspect a non-Refarm consumer workspace default release-policy selection without executing gates or publishing.",
 		},
 		{
 			id: "external-consumer-health-policy-json",
@@ -179,7 +192,8 @@ function agentFinishTemplates() {
 			writes: false,
 			parameters: ["dir"],
 			cwdParameter: "dir",
-			useWhen: "Inspect resolved health policy in a non-Refarm consumer workspace without running auditors or writing config.",
+			useWhen:
+				"Inspect resolved health policy in a non-Refarm consumer workspace without running auditors or writing config.",
 		},
 		{
 			id: "external-consumer-health-suggest-policy-json",
@@ -189,7 +203,8 @@ function agentFinishTemplates() {
 			writes: false,
 			parameters: ["dir"],
 			cwdParameter: "dir",
-			useWhen: "Generate a reviewed health policy candidate in a non-Refarm consumer workspace without writing .refarm/config.json.",
+			useWhen:
+				"Generate a reviewed health policy candidate in a non-Refarm consumer workspace without writing .refarm/config.json.",
 		},
 		{
 			id: "external-consumer-project-handoff-validate-json",
@@ -199,7 +214,8 @@ function agentFinishTemplates() {
 			writes: false,
 			parameters: ["dir"],
 			cwdParameter: "dir",
-			useWhen: "Validate governed project handoff state in a non-Refarm consumer workspace without writing .project/handoff.json.",
+			useWhen:
+				"Validate governed project handoff state in a non-Refarm consumer workspace without writing .project/handoff.json.",
 		},
 		{
 			id: "package-workspace-plan",
@@ -266,22 +282,8 @@ function agentFinishTemplates() {
 		},
 		{
 			id: "affected-since-ref-run-json",
-			command: agentFinishCommand([
-				"--profile",
-				"affected",
-				"--since",
-				"<ref>",
-				"--run",
-				"--json",
-			]),
-			process: agentFinishProcess([
-				"--profile",
-				"affected",
-				"--since",
-				"<ref>",
-				"--run",
-				"--json",
-			]),
+			command: agentFinishCommand(["--profile", "affected", "--since", "<ref>", "--run", "--json"]),
+			process: agentFinishProcess(["--profile", "affected", "--since", "<ref>", "--run", "--json"]),
 			parameters: ["ref"],
 			useWhen: "Validate affected workspaces against an explicit Git ref.",
 		},
@@ -314,7 +316,13 @@ export const agentRuntimePlan = {
 		packageManager: refarmCommand(["package-manager", "--json"]),
 		workspaceExecution: refarmCommand(["workspace", "execution", "--json"]),
 		workspaceSweep: refarmCommand(["workspace", "execution", "--all", "--json"]),
-		releaseSupplyPreflight: refarmCommand(["release", "preflight", "--selection", "default", "--json"]),
+		releaseSupplyPreflight: refarmCommand([
+			"release",
+			"preflight",
+			"--selection",
+			"default",
+			"--json",
+		]),
 		codingProfile: refarmCommand(["config", "profile", "coding", "--local", "--json"]),
 	},
 	runtime: {
@@ -363,15 +371,7 @@ export const agentRuntimePlan = {
 					"--json",
 				]),
 				process: {
-					...refarmProcess([
-						"task",
-						"run",
-						"<plugin>",
-						"<fn>",
-						"--args",
-						"{}",
-						"--json",
-					]),
+					...refarmProcess(["task", "run", "<plugin>", "<fn>", "--args", "{}", "--json"]),
 					display: refarmCommand([
 						"task",
 						"run",
@@ -387,35 +387,15 @@ export const agentRuntimePlan = {
 			},
 			{
 				id: "worker-task-status",
-				command: refarmCommand([
-					"task",
-					"status",
-					"<effort-id>",
-					"--json",
-				]),
-				process: refarmProcess([
-					"task",
-					"status",
-					"<effort-id>",
-					"--json",
-				]),
+				command: refarmCommand(["task", "status", "<effort-id>", "--json"]),
+				process: refarmProcess(["task", "status", "<effort-id>", "--json"]),
 				parameters: ["effort-id"],
 				useWhen: "Inspect a concrete worker effort after dispatch.",
 			},
 			{
 				id: "worker-task-logs",
-				command: refarmCommand([
-					"task",
-					"logs",
-					"<effort-id>",
-					"--json",
-				]),
-				process: refarmProcess([
-					"task",
-					"logs",
-					"<effort-id>",
-					"--json",
-				]),
+				command: refarmCommand(["task", "logs", "<effort-id>", "--json"]),
+				process: refarmProcess(["task", "logs", "<effort-id>", "--json"]),
 				parameters: ["effort-id"],
 				useWhen: "Inspect logs for a concrete worker effort after dispatch.",
 			},
@@ -430,28 +410,15 @@ export const agentRuntimePlan = {
 		tidyCheck: refarmCommand(["tidy", "imports", "--check", "--json"]),
 		finishTemplatesJsonCommand: agentFinishCommand(["--templates", "--json"]),
 		finishLanesJsonCommand: agentFinishCommand(["--lanes", "--json"]),
-		finishLanesNextJsonCommand: agentFinishCommand([
-			"--lanes",
-			"--json",
-			"--next-command",
-		]),
+		finishLanesNextJsonCommand: agentFinishCommand(["--lanes", "--json", "--next-command"]),
 		finishPlanJsonCommand: agentFinishCommand(["--json"]),
 		finishPlanNextJsonCommand: agentFinishCommand(["--json", "--next-command"]),
 		finishPlanCommand: agentFinishCommand(["--next-command"]),
 		finishRunCommand: agentFinishCommand(["--run", "--next-command"]),
 		finishFixPlanCommand: agentFinishCommand(["--fix", "--next-command"]),
 		finishFixRunCommand: agentFinishCommand(["--fix", "--run", "--next-command"]),
-		finishAffectedPlanJsonCommand: agentFinishCommand([
-			"--profile",
-			"affected",
-			"--json",
-		]),
-		finishAffectedRunJsonCommand: agentFinishCommand([
-			"--profile",
-			"affected",
-			"--run",
-			"--json",
-		]),
+		finishAffectedPlanJsonCommand: agentFinishCommand(["--profile", "affected", "--json"]),
+		finishAffectedRunJsonCommand: agentFinishCommand(["--profile", "affected", "--run", "--json"]),
 		finishAffectedUpstreamRunJsonCommand: agentFinishCommand([
 			"--profile",
 			"affected",
@@ -529,9 +496,7 @@ export function buildAgentFinishTemplatesEnvelope() {
 		command: "agent",
 		operation: "finish-templates",
 		nextAction: "Substitute template parameters before executing a finish command.",
-		nextActions: [
-			"Substitute template parameters before executing a finish command.",
-		],
+		nextActions: ["Substitute template parameters before executing a finish command."],
 		nextCommands: [],
 		extra: {
 			action: "finish",

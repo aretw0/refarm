@@ -4,10 +4,7 @@ import {
 	resolveSurfaceActionAffordanceSelection,
 	type SurfaceActionAffordanceSelectionMetadata,
 } from "@refarm.dev/cli/action-affordances";
-import type {
-	StatusJson,
-	StatusSurfaceAction,
-} from "@refarm.dev/cli/status";
+import type { StatusJson, StatusSurfaceAction } from "@refarm.dev/cli/status";
 import {
 	createHomesteadSurfaceRenderActionRequest,
 	homesteadSurfaceRenderContextMatches,
@@ -70,20 +67,12 @@ export function createStatusSurfaceRenderRequest(
 	};
 }
 
-export function resolveStatusSurfaceActionRequest(
-	actionId: string,
-): StatusSurfaceActionResolution {
+export function resolveStatusSurfaceActionRequest(actionId: string): StatusSurfaceActionResolution {
 	const renderRequest = createStatusSurfaceRenderRequest();
 	const host = createStatusHostSurfaceState().context;
-	const request = createHomesteadSurfaceRenderActionRequest(
-		renderRequest,
-		host,
-		actionId,
-	);
+	const request = createHomesteadSurfaceRenderActionRequest(renderRequest, host, actionId);
 
-	return request
-		? { reason: "available", request }
-		: { reason: "missing-action" };
+	return request ? { reason: "available", request } : { reason: "missing-action" };
 }
 
 export function createStatusSurfaceActionHandler(
@@ -122,10 +111,7 @@ export async function invokeStatusSurfaceAction(
 export async function invokeStatusSurfaceActionSelection(
 	options: InvokeStatusSurfaceActionSelectionOptions,
 ): Promise<StatusSurfaceActionInvocationEnvelope> {
-	const selectedAction = resolveSurfaceActionAffordanceSelection(
-		options.status,
-		options.selection,
-	);
+	const selectedAction = resolveSurfaceActionAffordanceSelection(options.status, options.selection);
 
 	if (!selectedAction.selected) {
 		throw new Error(
@@ -133,9 +119,7 @@ export async function invokeStatusSurfaceActionSelection(
 		);
 	}
 
-	const resolution = resolveStatusSurfaceActionRequest(
-		selectedAction.selected.id,
-	);
+	const resolution = resolveStatusSurfaceActionRequest(selectedAction.selected.id);
 
 	if (!resolution.request) {
 		throw new Error(
@@ -143,10 +127,7 @@ export async function invokeStatusSurfaceActionSelection(
 		);
 	}
 
-	const handled = await invokeStatusSurfaceAction(
-		selectedAction.selected.id,
-		options.onAction,
-	);
+	const handled = await invokeStatusSurfaceAction(selectedAction.selected.id, options.onAction);
 
 	return createStatusSurfaceActionInvocationEnvelope(
 		options.status,
@@ -178,8 +159,5 @@ export function createStatusSurfaceActionInvocationEnvelope(
 }
 
 function isStatusSurfaceActionId(actionId: string): boolean {
-	return (
-		actionId === STATUS_OPEN_REPORT_ACTION_ID ||
-		actionId === STATUS_INSPECT_TRUST_ACTION_ID
-	);
+	return actionId === STATUS_OPEN_REPORT_ACTION_ID || actionId === STATUS_INSPECT_TRUST_ACTION_ID;
 }

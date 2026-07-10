@@ -39,10 +39,7 @@ function configPaths(deps: RuntimeConfigDeps, local = false): string[] {
 	const cwd = deps.cwd ?? process.cwd();
 	const home = deps.home ?? os.homedir();
 	if (local) return [path.join(cwd, ".refarm", "config.json")];
-	return [
-		path.join(home, ".refarm", "config.json"),
-		path.join(cwd, ".refarm", "config.json"),
-	];
+	return [path.join(home, ".refarm", "config.json"), path.join(cwd, ".refarm", "config.json")];
 }
 
 function readConfig(filePath: string): RefarmRuntimeConfig {
@@ -111,7 +108,10 @@ export async function resolveRuntimeSidecarUrlAsync(
 	deps: RuntimeConfigDeps = {},
 	options: { local?: boolean } = {},
 ): Promise<{ value: string; source: string }> {
-	return resolveRuntimeConfigValueAsync(SIDECAR_URL_SPEC, configValueAsyncOptions(resolveConfig, deps, options));
+	return resolveRuntimeConfigValueAsync(
+		SIDECAR_URL_SPEC,
+		configValueAsyncOptions(resolveConfig, deps, options),
+	);
 }
 
 /**
@@ -123,7 +123,10 @@ export async function resolveAutostartModeAsync(
 	deps: RuntimeConfigDeps = {},
 	options: { local?: boolean } = {},
 ): Promise<{ value: AutostartMode; source: string }> {
-	return resolveRuntimeConfigValueAsync(AUTOSTART_SPEC, configValueAsyncOptions(resolveConfig, deps, options));
+	return resolveRuntimeConfigValueAsync(
+		AUTOSTART_SPEC,
+		configValueAsyncOptions(resolveConfig, deps, options),
+	);
 }
 
 /** Node-aware variant of {@link resolveTractorEngineMode} (nested `tractor.engine`). */
@@ -132,34 +135,29 @@ export async function resolveTractorEngineModeAsync(
 	deps: RuntimeConfigDeps = {},
 	options: { local?: boolean } = {},
 ): Promise<{ value: TractorEngineMode; source: string }> {
-	return resolveRuntimeConfigValueAsync(TRACTOR_ENGINE_SPEC, configValueAsyncOptions(resolveConfig, deps, options));
+	return resolveRuntimeConfigValueAsync(
+		TRACTOR_ENGINE_SPEC,
+		configValueAsyncOptions(resolveConfig, deps, options),
+	);
 }
 
 const AUTOSTART_SPEC: RuntimeConfigValueSpec<AutostartMode> = {
-	envProbes: [
-		{ name: RUNTIME_AUTOSTART_ENV_VAR, parse: parseAutostartMode },
-	],
+	envProbes: [{ name: RUNTIME_AUTOSTART_ENV_VAR, parse: parseAutostartMode }],
 	extract: (cfg) => cfg?.autostart,
 	parse: parseAutostartMode,
 	default: "ask",
 };
 
 const TRACTOR_ENGINE_SPEC: RuntimeConfigValueSpec<TractorEngineMode> = {
-	envProbes: [
-		{ name: TRACTOR_ENGINE_ENV_VAR, parse: parseTractorEngineMode },
-	],
-	extract: (cfg) =>
-		(cfg?.tractor as { engine?: unknown } | undefined)?.engine,
+	envProbes: [{ name: TRACTOR_ENGINE_ENV_VAR, parse: parseTractorEngineMode }],
+	extract: (cfg) => (cfg?.tractor as { engine?: unknown } | undefined)?.engine,
 	parse: parseTractorEngineMode,
 	default: "auto",
 };
 
 const SIDECAR_URL_SPEC: RuntimeConfigValueSpec<string> = {
-	envProbes: [
-		{ name: RUNTIME_SIDECAR_URL_ENV_VAR, parse: parseRuntimeSidecarUrl },
-	],
-	extract: (cfg) =>
-		(cfg?.runtime as { sidecarUrl?: unknown } | undefined)?.sidecarUrl,
+	envProbes: [{ name: RUNTIME_SIDECAR_URL_ENV_VAR, parse: parseRuntimeSidecarUrl }],
+	extract: (cfg) => (cfg?.runtime as { sidecarUrl?: unknown } | undefined)?.sidecarUrl,
 	parse: parseRuntimeSidecarUrl,
 	default: DEFAULT_RUNTIME_SIDECAR_URL,
 };

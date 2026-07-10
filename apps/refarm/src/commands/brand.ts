@@ -45,9 +45,7 @@ const EXPERIENCE_LABEL: Record<RefarmLaunchExperience, string> = {
 const DISABLED_VALUES = new Set(["0", "false", "off", "no"]);
 const ENABLED_VALUES = new Set(["1", "true", "on", "yes"]);
 
-export function isRefarmBrandBannerEnabled(
-	env: NodeJS.ProcessEnv = process.env,
-): boolean {
+export function isRefarmBrandBannerEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
 	const raw = env.REFARM_BRAND_BANNER?.trim().toLowerCase();
 	if (!raw) {
 		return true;

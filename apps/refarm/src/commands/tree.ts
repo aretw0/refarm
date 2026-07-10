@@ -11,10 +11,7 @@ import {
 	showGitTree,
 	switchGitTree,
 } from "./tree-git.js";
-import {
-	TREE_LIST_ALL_JSON_COMMAND,
-	TREE_LIST_JSON_COMMAND,
-} from "./tree-handoffs.js";
+import { TREE_LIST_ALL_JSON_COMMAND, TREE_LIST_JSON_COMMAND } from "./tree-handoffs.js";
 import {
 	buildAllTimelineListEnvelope,
 	outputTreeJson,
@@ -33,9 +30,7 @@ import {
 	switchSessionTree,
 } from "./tree-session.js";
 
-type RefarmTimelineListScope =
-	| RefarmTimelineScope
-	| typeof REFARM_TREE_ALL_SCOPE;
+type RefarmTimelineListScope = RefarmTimelineScope | typeof REFARM_TREE_ALL_SCOPE;
 type TreeBranchValidationOperation = "preview" | "fork" | "switch";
 
 function printTreeValidationJson(input: {
@@ -87,8 +82,7 @@ function parseScope(
 	if (value === REFARM_TREE_SESSION_SCOPE || value === REFARM_TREE_GIT_SCOPE) {
 		return value;
 	}
-	const message =
-		`refarm tree currently supports --scope session|git for this operation; received "${value}".`;
+	const message = `refarm tree currently supports --scope session|git for this operation; received "${value}".`;
 	if (opts.json) {
 		printTreeValidationJson({
 			operation: opts.operation,
@@ -102,11 +96,7 @@ function parseScope(
 		});
 		return null;
 	}
-	console.error(
-		chalk.red(
-			`✗  ${message}`,
-		),
-	);
+	console.error(chalk.red(`✗  ${message}`));
 	process.exitCode = 1;
 	return null;
 }
@@ -123,8 +113,7 @@ function parseListScope(
 	) {
 		return value;
 	}
-	const message =
-		`refarm tree list currently supports --scope session|git|all; received "${value}".`;
+	const message = `refarm tree list currently supports --scope session|git|all; received "${value}".`;
 	if (opts.json) {
 		printTreeValidationJson({
 			operation: "list",
@@ -133,20 +122,12 @@ function parseListScope(
 			nextCommand: TREE_LIST_ALL_JSON_COMMAND,
 			extra: {
 				scope: value,
-				allowedScopes: [
-					REFARM_TREE_SESSION_SCOPE,
-					REFARM_TREE_GIT_SCOPE,
-					REFARM_TREE_ALL_SCOPE,
-				],
+				allowedScopes: [REFARM_TREE_SESSION_SCOPE, REFARM_TREE_GIT_SCOPE, REFARM_TREE_ALL_SCOPE],
 			},
 		});
 		return null;
 	}
-	console.error(
-		chalk.red(
-			`✗  ${message}`,
-		),
-	);
+	console.error(chalk.red(`✗  ${message}`));
 	process.exitCode = 1;
 	return null;
 }
@@ -202,10 +183,7 @@ function validateBranchName(
 			.split("/")
 			.some(
 				(part) =>
-					part === "" ||
-					part.startsWith(".") ||
-					part.endsWith(".") ||
-					part.endsWith(".lock"),
+					part === "" || part.startsWith(".") || part.endsWith(".") || part.endsWith(".lock"),
 			);
 	if (!hasSafeChars || hasUnsafeShape) {
 		const message = invalidBranchNameMessage(name);
@@ -243,9 +221,7 @@ function parseLimit(limit: string | undefined, opts: { json?: boolean }): number
 			});
 			return null;
 		}
-		console.error(
-			chalk.red(`✗  ${message}`),
-		);
+		console.error(chalk.red(`✗  ${message}`));
 		process.exitCode = 1;
 		return null;
 	}
@@ -261,9 +237,7 @@ function parseLimit(limit: string | undefined, opts: { json?: boolean }): number
 			});
 			return null;
 		}
-		console.error(
-			chalk.red(`✗  ${message}`),
-		);
+		console.error(chalk.red(`✗  ${message}`));
 		process.exitCode = 1;
 		return null;
 	}
@@ -290,10 +264,7 @@ function compareAllTimelineNodes(
 	);
 }
 
-async function listAllTree(opts: {
-	json?: boolean;
-	limit?: string;
-}): Promise<void> {
+async function listAllTree(opts: { json?: boolean; limit?: string }): Promise<void> {
 	const limit = parseLimit(opts.limit, opts);
 	if (limit === null) return;
 	let nodes: RefarmAllTimelineListEnvelope["nodes"];
@@ -302,9 +273,7 @@ async function listAllTree(opts: {
 			getSessionTimelineNodes(limit),
 			Promise.resolve(getGitTimelineNodes(limit)),
 		]);
-		nodes = [...sessionNodes, ...gitNodes]
-			.sort(compareAllTimelineNodes)
-			.slice(0, limit);
+		nodes = [...sessionNodes, ...gitNodes].sort(compareAllTimelineNodes).slice(0, limit);
 	} catch (err) {
 		reportAllListError(err, opts);
 		return;
@@ -319,9 +288,7 @@ async function listAllTree(opts: {
 		console.log(chalk.dim("No session or git timeline nodes found."));
 		return;
 	}
-	console.log(
-		chalk.bold(`\n  Tree timeline  (${REFARM_TREE_ALL_SCOPE} scope)\n`),
-	);
+	console.log(chalk.bold(`\n  Tree timeline  (${REFARM_TREE_ALL_SCOPE} scope)\n`));
 	for (const node of nodes) {
 		console.log(
 			`  ${chalk.cyan(node.metadata.shortId)}  ${chalk.dim(`[${node.kind}]`)}  ${chalk.white(node.label)}`,
@@ -337,11 +304,7 @@ async function listAllTree(opts: {
 	);
 }
 
-async function listTree(opts: {
-	scope?: string;
-	json?: boolean;
-	limit?: string;
-}): Promise<void> {
+async function listTree(opts: { scope?: string; json?: boolean; limit?: string }): Promise<void> {
 	const scope = parseListScope(opts.scope, opts);
 	if (!scope) return;
 	if (scope === REFARM_TREE_ALL_SCOPE) {
@@ -359,10 +322,7 @@ async function listTree(opts: {
 	await listSessionTree({ json: opts.json, limit });
 }
 
-async function showTree(
-	prefix: string,
-	opts: { json?: boolean; scope?: string },
-): Promise<void> {
+async function showTree(prefix: string, opts: { json?: boolean; scope?: string }): Promise<void> {
 	const scope = parseScope(opts.scope, { json: opts.json, operation: "show" });
 	if (!scope) return;
 	if (scope === REFARM_TREE_GIT_SCOPE) {
@@ -521,10 +481,7 @@ async function forkTree(
 	forkGitTree(prefix, { ...opts, name });
 }
 
-async function switchTree(
-	target: string,
-	opts: { json?: boolean; scope?: string },
-): Promise<void> {
+async function switchTree(target: string, opts: { json?: boolean; scope?: string }): Promise<void> {
 	const scope = parseScope(opts.scope, { json: opts.json, operation: "switch" });
 	if (!scope) return;
 	if (scope === REFARM_TREE_GIT_SCOPE) {
@@ -570,46 +527,28 @@ export function createTreeCommand(): Command {
 				)
 				.option("--limit <count>", "Maximum timeline nodes to list", "20")
 				.option("--json", "Print machine-readable JSON")
-				.action(
-					async (opts: { scope?: string; limit?: string; json?: boolean }) => {
-						await listTree(opts);
-					},
-				),
+				.action(async (opts: { scope?: string; limit?: string; json?: boolean }) => {
+					await listTree(opts);
+				}),
 		)
 		.addCommand(
 			new Command("show")
 				.description("Show a timeline node by ID prefix")
 				.argument("<id>", "Timeline node ID or unique prefix")
-				.option(
-					"--scope <scope>",
-					"Timeline scope: session or git",
-					REFARM_TREE_SESSION_SCOPE,
-				)
+				.option("--scope <scope>", "Timeline scope: session or git", REFARM_TREE_SESSION_SCOPE)
 				.option("--json", "Print machine-readable JSON")
-				.action(
-					async (prefix: string, opts: { scope?: string; json?: boolean }) => {
-						await showTree(prefix, opts);
-					},
-				),
+				.action(async (prefix: string, opts: { scope?: string; json?: boolean }) => {
+					await showTree(prefix, opts);
+				}),
 		)
 		.addCommand(
 			new Command("preview")
 				.description("Preview a safe fork or switch plan for a timeline node")
 				.argument("<target>", "Session ID/prefix, git commit, or git branch")
-				.option(
-					"--scope <scope>",
-					"Timeline scope: session or git",
-					REFARM_TREE_SESSION_SCOPE,
-				)
+				.option("--scope <scope>", "Timeline scope: session or git", REFARM_TREE_SESSION_SCOPE)
 				.option("--at <entry-id>", "Session entry to use as the branch point")
-				.option(
-					"--name <branch-name>",
-					"Branch/fork name to include in the dry-run plan",
-				)
-				.option(
-					"--switch",
-					"Preview switching to an existing session or git branch",
-				)
+				.option("--name <branch-name>", "Branch/fork name to include in the dry-run plan")
+				.option("--switch", "Preview switching to an existing session or git branch")
 				.option("--json", "Print machine-readable JSON")
 				.action(
 					async (
@@ -628,9 +567,7 @@ export function createTreeCommand(): Command {
 		)
 		.addCommand(
 			new Command("fork")
-				.description(
-					"Create an explicit non-switching git fork from a timeline node",
-				)
+				.description("Create an explicit non-switching git fork from a timeline node")
 				.argument("<commit>", "Git commit-ish to fork from")
 				.option(
 					"--scope <scope>",
@@ -657,17 +594,11 @@ export function createTreeCommand(): Command {
 			new Command("switch")
 				.description("Switch the active timeline pointer")
 				.argument("<target>", "Session ID/prefix or existing git branch")
-				.option(
-					"--scope <scope>",
-					"Timeline scope: session or git",
-					REFARM_TREE_SESSION_SCOPE,
-				)
+				.option("--scope <scope>", "Timeline scope: session or git", REFARM_TREE_SESSION_SCOPE)
 				.option("--json", "Print machine-readable JSON")
-				.action(
-					async (target: string, opts: { scope?: string; json?: boolean }) => {
-						await switchTree(target, opts);
-					},
-				),
+				.action(async (target: string, opts: { scope?: string; json?: boolean }) => {
+					await switchTree(target, opts);
+				}),
 		)
 		.action(async () => {
 			await listTree({ scope: REFARM_TREE_SESSION_SCOPE });

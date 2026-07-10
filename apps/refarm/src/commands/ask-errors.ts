@@ -55,38 +55,23 @@ export function usageLine(metadata: Record<string, unknown>): string {
 }
 
 export function pricingDisplay(metadata: Record<string, unknown>): string {
-	if (
-		metadata.pricing_mode === "subscription" ||
-		metadata.provider === "openai-codex"
-	) {
+	if (metadata.pricing_mode === "subscription" || metadata.provider === "openai-codex") {
 		return "subscription";
 	}
 	if (metadata.pricing_mode === "local" || metadata.provider === "ollama") {
 		return "local";
 	}
-	return metadata.estimated_usd != null
-		? `~$${Number(metadata.estimated_usd).toFixed(4)}`
-		: "";
+	return metadata.estimated_usd != null ? `~$${Number(metadata.estimated_usd).toFixed(4)}` : "";
 }
 
 export function printAskError(message: string): void {
 	const payload = buildAskErrorPayload(message);
 	if (payload.error === "agent-not-loaded") {
-		console.error(
-			chalk.red("\n✗  Runtime agent is not loaded in the Refarm runtime."),
-		);
-		console.error(
-			chalk.dim("   Install bundled plugins:  refarm plugin install"),
-		);
-		console.error(
-			chalk.dim("   Reload runtime plugins:   /reload agent (or /r agent)"),
-		);
-		console.error(
-			chalk.dim(`   Or restart runtime:       ${RUNTIME_START_COMMAND}`),
-		);
-		console.error(
-			chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`),
-		);
+		console.error(chalk.red("\n✗  Runtime agent is not loaded in the Refarm runtime."));
+		console.error(chalk.dim("   Install bundled plugins:  refarm plugin install"));
+		console.error(chalk.dim("   Reload runtime plugins:   /reload agent (or /r agent)"));
+		console.error(chalk.dim(`   Or restart runtime:       ${RUNTIME_START_COMMAND}`));
+		console.error(chalk.dim(`   Diagnose:                 ${RUNTIME_DOCTOR_COMMAND}`));
 	} else if (payload.error === "runtime-unavailable") {
 		console.error();
 		printSidecarUnavailable();
@@ -100,9 +85,7 @@ export function printAskError(message: string): void {
 			console.error(chalk.dim("   Reconfigure/login:  refarm sow"));
 			console.error(chalk.dim("   Inspect route:      refarm model current"));
 			console.error(chalk.dim("   List providers:     refarm model providers"));
-			console.error(
-				chalk.dim(`   Switch model:       refarm model ${OPENAI_DEFAULT_REF}`),
-			);
+			console.error(chalk.dim(`   Switch model:       refarm model ${OPENAI_DEFAULT_REF}`));
 		}
 	} else if (payload.error === "model-quota-exceeded") {
 		console.error(chalk.red("\n✗  Model quota or billing limit reached."));
@@ -136,17 +119,11 @@ export function buildAskErrorPayload(message: string): {
 	const normalizedMessage = message.toLowerCase();
 	const runtimeAgentMentioned =
 		normalizedMessage.includes(RUNTIME_AGENT_PLUGIN_ID.toLowerCase()) ||
-		(runtimeAgentShortIdText.length > 0 &&
-			normalizedMessage.includes(runtimeAgentShortIdText));
+		(runtimeAgentShortIdText.length > 0 && normalizedMessage.includes(runtimeAgentShortIdText));
 	const isRuntimeAgentMissing =
-		normalizedMessage.includes(
-			`${RUNTIME_AGENT_PLUGIN_ID.toLowerCase()} not loaded`,
-		) ||
-		normalizedMessage.includes(
-			`plugin "${RUNTIME_AGENT_PLUGIN_ID.toLowerCase()}" is not loaded`,
-		) ||
-		(normalizedMessage.includes("agent not loaded") &&
-			runtimeAgentMentioned) ||
+		normalizedMessage.includes(`${RUNTIME_AGENT_PLUGIN_ID.toLowerCase()} not loaded`) ||
+		normalizedMessage.includes(`plugin "${RUNTIME_AGENT_PLUGIN_ID.toLowerCase()}" is not loaded`) ||
+		(normalizedMessage.includes("agent not loaded") && runtimeAgentMentioned) ||
 		(runtimeAgentShortIdText.length > 0 &&
 			normalizedMessage.includes(`${runtimeAgentShortIdText} not loaded`));
 
@@ -161,8 +138,7 @@ export function buildAskErrorPayload(message: string): {
 	const isQuotaError =
 		normalizedMessage.includes("current quota") ||
 		normalizedMessage.includes("quota exceeded") ||
-		(normalizedMessage.includes("quota") &&
-			normalizedMessage.includes("billing"));
+		(normalizedMessage.includes("quota") && normalizedMessage.includes("billing"));
 
 	if (isRuntimeAgentMissing) {
 		return buildJsonErrorEnvelope({
@@ -223,10 +199,8 @@ export function buildAskErrorPayload(message: string): {
 				action: "ask",
 				recommendations: [
 					buildRuntimeUnavailableRecommendation({
-						summary:
-							"The runtime sidecar is not reachable while submitting an ask.",
-						action:
-							"Ensure the selected runtime is running before submitting again.",
+						summary: "The runtime sidecar is not reachable while submitting an ask.",
+						action: "Ensure the selected runtime is running before submitting again.",
 					}),
 				],
 			},
@@ -248,11 +222,7 @@ export function buildAskErrorPayload(message: string): {
 						MODEL_CURRENT_JSON_COMMAND,
 						MODEL_PROVIDERS_JSON_COMMAND,
 					]
-				: [
-						MODEL_CURRENT_JSON_COMMAND,
-						MODEL_PROVIDERS_JSON_COMMAND,
-						OPENAI_MODEL_JSON_COMMAND,
-					];
+				: [MODEL_CURRENT_JSON_COMMAND, MODEL_PROVIDERS_JSON_COMMAND, OPENAI_MODEL_JSON_COMMAND];
 		return buildJsonErrorEnvelope({
 			command: "ask",
 			operation: "submit",
@@ -319,21 +289,13 @@ export function printAskErrorJson(message: string): void {
 }
 
 export function printAskSuccessJson(result: AskJsonResult): void {
-	const sessionShowTemplate = refarmCommand([
-		"sessions",
-		"show",
-		result.sessionId,
-		"--json",
-	]);
+	const sessionShowTemplate = refarmCommand(["sessions", "show", result.sessionId, "--json"]);
 	printJson(
 		buildJsonSuccessEnvelope({
 			command: "ask",
 			operation: "submit",
 			nextAction: RESUME_JSON_COMMAND,
-			nextActions: [
-				RESUME_JSON_COMMAND,
-				AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,
-			],
+			nextActions: [RESUME_JSON_COMMAND, AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND],
 			nextCommand: RESUME_JSON_COMMAND,
 			nextCommands: [
 				RESUME_JSON_COMMAND,
@@ -389,7 +351,5 @@ export function printMissingModelCredentials(json: boolean): void {
 	console.error(chalk.dim("   Set up credentials: refarm sow"));
 	console.error(chalk.dim("   Inspect route:      refarm model current"));
 	console.error(chalk.dim("   List providers:     refarm model providers"));
-	console.error(
-		chalk.dim("   Or use Ollama:      ollama serve  (then refarm sow)"),
-	);
+	console.error(chalk.dim("   Or use Ollama:      ollama serve  (then refarm sow)"));
 }

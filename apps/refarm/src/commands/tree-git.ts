@@ -1,7 +1,4 @@
-import {
-	readGitCommand,
-	runGitCommand,
-} from "@refarm.dev/cli/git-command";
+import { readGitCommand, runGitCommand } from "@refarm.dev/cli/git-command";
 import chalk from "chalk";
 import { formatExecutionPlanReadinessLine } from "@refarm.dev/cli/execution-plan";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
@@ -46,16 +43,10 @@ function runGit(args: string[]): string {
 }
 
 function gitBranchExists(name: string): boolean {
-	const result = runGitCommand([
-		"show-ref",
-		"--verify",
-		"--quiet",
-		`refs/heads/${name}`,
-	]);
+	const result = runGitCommand(["show-ref", "--verify", "--quiet", `refs/heads/${name}`]);
 	if (result.status === 0) return true;
 	if (result.status === 1) return false;
-	const detail =
-		result.stderr || result.stdout || `git show-ref failed for ${name}`;
+	const detail = result.stderr || result.stdout || `git show-ref failed for ${name}`;
 	throw new Error(detail.trim());
 }
 
@@ -104,14 +95,16 @@ function showGitTimelineNode(ref: string): RefarmGitTimelineNode {
 
 function reportGitError(
 	err: unknown,
-	opts: { json?: boolean; operation: "list" | "show" | "preview" | "fork" | "switch"; target?: string },
+	opts: {
+		json?: boolean;
+		operation: "list" | "show" | "preview" | "fork" | "switch";
+		target?: string;
+	},
 ): void {
 	const msg = err instanceof Error ? err.message : String(err);
 	if (opts.json) {
 		const nextCommand =
-			opts.operation === "list"
-				? RUNTIME_DOCTOR_NEXT_COMMAND
-				: TREE_GIT_LIST_JSON_COMMAND;
+			opts.operation === "list" ? RUNTIME_DOCTOR_NEXT_COMMAND : TREE_GIT_LIST_JSON_COMMAND;
 		printJson(
 			buildJsonErrorEnvelope({
 				command: "tree",
@@ -164,16 +157,10 @@ export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 		return;
 	}
 
-	console.log(
-		chalk.bold(`\n  Tree timeline  (${REFARM_TREE_GIT_SCOPE} scope)\n`),
-	);
+	console.log(chalk.bold(`\n  Tree timeline  (${REFARM_TREE_GIT_SCOPE} scope)\n`));
 	for (const node of nodes) {
-		const refs = node.metadata.refs?.length
-			? chalk.dim(` · ${node.metadata.refs.join(", ")}`)
-			: "";
-		console.log(
-			`  ${chalk.cyan(node.metadata.shortId)}  ${chalk.white(node.label)}${refs}`,
-		);
+		const refs = node.metadata.refs?.length ? chalk.dim(` · ${node.metadata.refs.join(", ")}`) : "";
+		console.log(`  ${chalk.cyan(node.metadata.shortId)}  ${chalk.white(node.label)}${refs}`);
 	}
 	console.log(
 		chalk.dim(
@@ -206,18 +193,14 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 		),
 	);
 	console.log(chalk.dim(`  kind=${node.kind} timeline=${node.timelineId}`));
-	if (node.parentNodeId)
-		console.log(chalk.dim(`  parent=${node.parentNodeId}`));
+	if (node.parentNodeId) console.log(chalk.dim(`  parent=${node.parentNodeId}`));
 	if (node.metadata.refs?.length) {
 		console.log(chalk.dim(`  refs=${node.metadata.refs.join(", ")}`));
 	}
 	console.log();
 }
 
-export function previewGitTree(
-	prefix: string,
-	opts: { json?: boolean; name?: string },
-): void {
+export function previewGitTree(prefix: string, opts: { json?: boolean; name?: string }): void {
 	let node: RefarmGitTimelineNode;
 	let branchAlreadyExists: boolean | undefined;
 	try {
@@ -256,10 +239,7 @@ export function previewGitTree(
 	);
 }
 
-export function previewGitSwitchTree(
-	name: string,
-	opts: { json?: boolean },
-): void {
+export function previewGitSwitchTree(name: string, opts: { json?: boolean }): void {
 	let node: RefarmGitTimelineNode;
 	let currentRefBefore: string;
 	let worktreeClean: boolean;
@@ -280,9 +260,7 @@ export function previewGitSwitchTree(
 		currentRefBefore,
 		worktreeClean,
 		blockedReason:
-			currentRefBefore === name
-				? `Git branch "${name}" is already active.`
-				: undefined,
+			currentRefBefore === name ? `Git branch "${name}" is already active.` : undefined,
 	});
 
 	if (opts.json) {
@@ -302,9 +280,7 @@ export function previewGitSwitchTree(
 	console.log(
 		`  Would:  switch git worktree from ${chalk.cyan(substrate.currentRefBefore)} to ${chalk.cyan(substrate.targetRefAfter)}`,
 	);
-	console.log(
-		chalk.dim(`  Worktree clean: ${substrate.worktreeClean ? "yes" : "no"}`),
-	);
+	console.log(chalk.dim(`  Worktree clean: ${substrate.worktreeClean ? "yes" : "no"}`));
 	const readiness = formatExecutionPlanReadinessLine(plan);
 	console.log(
 		readiness.status === "blocked"
@@ -314,10 +290,7 @@ export function previewGitSwitchTree(
 	console.log(chalk.dim(`  Command: ${plan.recommendedCommand}\n`));
 }
 
-export function forkGitTree(
-	prefix: string,
-	opts: { json?: boolean; name: string },
-): void {
+export function forkGitTree(prefix: string, opts: { json?: boolean; name: string }): void {
 	let node: RefarmGitTimelineNode;
 	let currentRefBefore: string;
 	let currentRefAfter: string;
@@ -375,9 +348,7 @@ export function switchGitTree(name: string, opts: { json?: boolean }): void {
 		runGit(["switch", name]);
 		currentRefAfter = currentGitRef();
 		if (currentRefAfter !== name) {
-			throw new Error(
-				`Git switch expected current ref "${name}", got "${currentRefAfter}".`,
-			);
+			throw new Error(`Git switch expected current ref "${name}", got "${currentRefAfter}".`);
 		}
 	} catch (err) {
 		reportGitError(err, { ...opts, operation: "switch", target: name });

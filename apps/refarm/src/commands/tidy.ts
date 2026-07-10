@@ -4,7 +4,12 @@ import {
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
 import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
-import { runProcessHandoff, type ProcessHandoffRunOptions, type ProcessHandoffRunResult, type ProcessHandoffSpec, } from "@refarm.dev/cli/process-handoff";
+import {
+	runProcessHandoff,
+	type ProcessHandoffRunOptions,
+	type ProcessHandoffRunResult,
+	type ProcessHandoffSpec,
+} from "@refarm.dev/cli/process-handoff";
 import { findWorkspaceRoot } from "@refarm.dev/config";
 import { Command } from "commander";
 import { refarmCommand } from "../brand.js";
@@ -55,10 +60,7 @@ export function resolveTidyImportsSpec(options: {
 	return createPackageScriptCommand({
 		cwd: options.cwd,
 		script: "imports:organize",
-		args: [
-			...(options.check ? ["--check"] : []),
-			...(options.files ?? []),
-		],
+		args: [...(options.check ? ["--check"] : []), ...(options.files ?? [])],
 	});
 }
 
@@ -187,15 +189,9 @@ export function createTidyCommand(deps?: Partial<TidyDeps>): Command {
 							error: "tidy-imports-failed",
 							message: `Import organization exited with code ${result.exitCode}.`,
 							nextAction: fixCommand,
-							nextActions: [
-								fixCommand,
-								refarmTidyImportsCommand(selectedFiles, { check: true }),
-							],
+							nextActions: [fixCommand, refarmTidyImportsCommand(selectedFiles, { check: true })],
 							nextCommand: fixCommand,
-							nextCommands: [
-								fixCommand,
-								refarmTidyImportsCommand(selectedFiles, { check: true }),
-							],
+							nextCommands: [fixCommand, refarmTidyImportsCommand(selectedFiles, { check: true })],
 							extra: {
 								...plan,
 								exitCode: result.exitCode,

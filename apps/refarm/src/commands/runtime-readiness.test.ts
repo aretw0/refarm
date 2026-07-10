@@ -45,17 +45,13 @@ describe("runtime readiness", () => {
 	});
 
 	it("does not probe /sessions when /efforts/summary is unreachable", async () => {
-		const fetch = vi
-			.fn()
-			.mockRejectedValueOnce(new Error("down"));
+		const fetch = vi.fn().mockRejectedValueOnce(new Error("down"));
 		vi.stubGlobal("fetch", fetch);
 
 		await expect(probeRuntimeReady()).resolves.toBe(false);
 
 		expect(fetch).toHaveBeenCalledTimes(1);
-		expect(fetch.mock.calls[0]?.[0]).toBe(
-			"http://127.0.0.1:42001/efforts/summary",
-		);
+		expect(fetch.mock.calls[0]?.[0]).toBe("http://127.0.0.1:42001/efforts/summary");
 	});
 
 	it("checks /sessions as an additional readiness requirement", async () => {
@@ -85,9 +81,7 @@ describe("runtime readiness", () => {
 		});
 
 		expect(fetch).toHaveBeenCalledTimes(1);
-		expect(fetch.mock.calls[0]?.[0]).toBe(
-			"http://127.0.0.1:42001/efforts/summary",
-		);
+		expect(fetch.mock.calls[0]?.[0]).toBe("http://127.0.0.1:42001/efforts/summary");
 	});
 
 	it("returns readiness probe transport errors", async () => {

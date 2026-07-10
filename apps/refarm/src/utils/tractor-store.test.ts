@@ -20,20 +20,17 @@ describe("tractor-store imports", () => {
 			runtime: { sidecarUrl: "http://127.0.0.1:42001" },
 		};
 		const fetchMock = vi.fn(
-			async (
-				_input: Parameters<typeof fetch>[0],
-				_init?: Parameters<typeof fetch>[1],
-			) =>
+			async (_input: Parameters<typeof fetch>[0], _init?: Parameters<typeof fetch>[1]) =>
 				new Response(JSON.stringify({ node }), {
 					status: 200,
 					headers: { "content-type": "application/json" },
 				}),
 		);
-		const warningSpy = vi
-			.spyOn(process, "emitWarning")
-			.mockImplementation(((warning: string | Error) => {
-				warnings.push(warning instanceof Error ? warning.message : warning);
-			}) as typeof process.emitWarning);
+		const warningSpy = vi.spyOn(process, "emitWarning").mockImplementation(((
+			warning: string | Error,
+		) => {
+			warnings.push(warning instanceof Error ? warning.message : warning);
+		}) as typeof process.emitWarning);
 		try {
 			const { openTractorGraph } = await loadTractorStore();
 			const graph = await openTractorGraph(
@@ -59,9 +56,7 @@ describe("resolveTractorNamespace", () => {
 
 	it("uses REFARM_NAMESPACE when set (trimmed)", async () => {
 		const { resolveTractorNamespace } = await loadTractorStore();
-		expect(resolveTractorNamespace({ REFARM_NAMESPACE: "  proj  " })).toBe(
-			"proj",
-		);
+		expect(resolveTractorNamespace({ REFARM_NAMESPACE: "  proj  " })).toBe("proj");
 	});
 
 	it("ignores an empty REFARM_NAMESPACE", async () => {
@@ -73,9 +68,9 @@ describe("resolveTractorNamespace", () => {
 describe("resolveTractorDbPath", () => {
 	it("mirrors the launcher: XDG_DATA_HOME/refarm/{namespace}.db when set", async () => {
 		const { resolveTractorDbPath } = await loadTractorStore();
-		expect(
-			resolveTractorDbPath({ XDG_DATA_HOME: "/x/data", REFARM_NAMESPACE: "ns" }),
-		).toBe(path.join("/x/data", "refarm", "ns.db"));
+		expect(resolveTractorDbPath({ XDG_DATA_HOME: "/x/data", REFARM_NAMESPACE: "ns" })).toBe(
+			path.join("/x/data", "refarm", "ns.db"),
+		);
 	});
 
 	it("falls back to REFARM_HOME/data (the launcher default) when XDG unset", async () => {

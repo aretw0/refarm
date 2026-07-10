@@ -50,29 +50,37 @@ describe("runSkillInvocation (neutral plan → request → decision loop)", () =
 	});
 
 	it("approves and grants exactly the listed capabilities; unlisted → denied", async () => {
-		const result = await runSkillInvocation(source(), "rebase", {}, {
-			decision: "approved",
-			reason: "trusted",
-			approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
-		});
+		const result = await runSkillInvocation(
+			source(),
+			"rebase",
+			{},
+			{
+				decision: "approved",
+				reason: "trusted",
+				approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+			},
+		);
 		expect(result.ok).toBe(true);
 		expect(result.decision?.decision).toBe("approved");
 		// The approval gate: requiresRuntimeDispatch true, but NEVER executed here.
 		expect(result.decision?.requiresRuntimeDispatch).toBe(true);
-		const grants = new Map(
-			result.decision!.capabilityDecisions.map((c) => [c.id, c.decision]),
-		);
+		const grants = new Map(result.decision!.capabilityDecisions.map((c) => [c.id, c.decision]));
 		expect(grants.get("refarm.operator-loop")).toBe("approved");
 		expect(grants.get("refarm.git.write")).toBe("approved");
 		expect(grants.get("refarm.github.pr")).toBe("denied"); // optional, unlisted
 	});
 
 	it("fails the gate when a required capability is not approved", async () => {
-		const result = await runSkillInvocation(source(), "rebase", {}, {
-			decision: "approved",
-			reason: "partial",
-			approvedCapabilities: ["refarm.operator-loop"], // missing refarm.git.write
-		});
+		const result = await runSkillInvocation(
+			source(),
+			"rebase",
+			{},
+			{
+				decision: "approved",
+				reason: "partial",
+				approvedCapabilities: ["refarm.operator-loop"], // missing refarm.git.write
+			},
+		);
 		expect(result.ok).toBe(false);
 		expect(result.issues.map((i) => i.code)).toContain(
 			"INVOCATION_REQUIRED_CAPABILITY_NOT_APPROVED",
@@ -80,23 +88,31 @@ describe("runSkillInvocation (neutral plan → request → decision loop)", () =
 	});
 
 	it("denies without granting any capability", async () => {
-		const result = await runSkillInvocation(source(), "rebase", {}, {
-			decision: "denied",
-			reason: "untrusted source",
-		});
+		const result = await runSkillInvocation(
+			source(),
+			"rebase",
+			{},
+			{
+				decision: "denied",
+				reason: "untrusted source",
+			},
+		);
 		expect(result.ok).toBe(true);
 		expect(result.decision?.decision).toBe("denied");
-		expect(
-			result.decision!.capabilityDecisions.every((c) => c.decision === "denied"),
-		).toBe(true);
+		expect(result.decision!.capabilityDecisions.every((c) => c.decision === "denied")).toBe(true);
 	});
 
 	it("persists a built decision through the injected sink", async () => {
 		const persistDecision = vi.fn();
-		const result = await runSkillInvocation(source(), "rebase", { persistDecision }, {
-			decision: "denied",
-			reason: "no",
-		});
+		const result = await runSkillInvocation(
+			source(),
+			"rebase",
+			{ persistDecision },
+			{
+				decision: "denied",
+				reason: "no",
+			},
+		);
 		expect(result.persisted).toBe(true);
 		expect(persistDecision).toHaveBeenCalledOnce();
 		// The sink receives the decision AND the source (for labeling/provenance).

@@ -22,7 +22,12 @@ export function parseOpenExternalLinksMode(value: unknown): OpenExternalLinksMod
 	if (value === true) return "auto";
 	if (typeof value !== "string") return null;
 	const normalized = value.trim().toLowerCase();
-	if (normalized === "0" || normalized === "false" || normalized === "off" || normalized === "never") {
+	if (
+		normalized === "0" ||
+		normalized === "false" ||
+		normalized === "off" ||
+		normalized === "never"
+	) {
 		return "never";
 	}
 	if (normalized === "1" || normalized === "true" || normalized === "on" || normalized === "auto") {

@@ -46,11 +46,7 @@ export async function installedBundleIsCurrent(
 	if (installed !== version) return false;
 
 	try {
-		const manifestPath = path.join(
-			pluginsBaseDir(),
-			pluginIdToFsToken(plugin.id),
-			"plugin.json",
-		);
+		const manifestPath = path.join(pluginsBaseDir(), pluginIdToFsToken(plugin.id), "plugin.json");
 		const manifest = JSON.parse(await readFile(manifestPath, "utf-8")) as {
 			integrity?: unknown;
 			capabilities?: { provides?: unknown };
@@ -128,7 +124,7 @@ export async function installPlugin(
 		const sha256 = createHash("sha256").update(wasmBytes).digest("hex");
 		const integrity = `sha256-${sha256}`;
 
-		if (!force && await installedBundleIsCurrent(plugin, pkgVersion, integrity)) {
+		if (!force && (await installedBundleIsCurrent(plugin, pkgVersion, integrity))) {
 			const message = "already up-to-date";
 			if (!quiet) console.log(`  ✓ ${plugin.id} v${pkgVersion} ${message}`);
 			return {
@@ -236,9 +232,7 @@ export async function buildInstallReport(options: {
 	const bundled = options.bundled ?? BUNDLED_PLUGINS;
 	const results: PluginInstallResult[] = [];
 	for (const plugin of bundled) {
-		results.push(
-			await installPlugin(plugin, options.force === true, { quiet: true }),
-		);
+		results.push(await installPlugin(plugin, options.force === true, { quiet: true }));
 	}
 
 	const failed = results.filter((result) => result.status === "failed").length;
@@ -287,9 +281,7 @@ export async function installBundledPlugins(options: {
 
 	const results: PluginInstallResult[] = [];
 	for (const plugin of BUNDLED_PLUGINS) {
-		results.push(
-			await installPlugin(plugin, options.force === true, { quiet: false }),
-		);
+		results.push(await installPlugin(plugin, options.force === true, { quiet: false }));
 	}
 	const failed = results.filter((result) => result.status === "failed").length;
 	if (failed > 0) process.exitCode = 1;

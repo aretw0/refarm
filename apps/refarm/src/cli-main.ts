@@ -1,8 +1,5 @@
 import chalk from "chalk";
-import {
-	isModuleResolutionError,
-	renderBootstrapFailure,
-} from "./bootstrap-preflight.js";
+import { isModuleResolutionError, renderBootstrapFailure } from "./bootstrap-preflight.js";
 import { TokenAuthError } from "./credentials/token-auth-error.js";
 
 function terminalLink(text: string, url: string): string {

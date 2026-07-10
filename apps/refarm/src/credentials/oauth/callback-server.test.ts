@@ -23,7 +23,11 @@ describe("startCallbackServer", () => {
 	});
 
 	it("returns null on state mismatch via HTTP GET", async () => {
-		const server = await startCallbackServer({ port: 59003, path: "/cb", expectedState: "correct" });
+		const server = await startCallbackServer({
+			port: 59003,
+			path: "/cb",
+			expectedState: "correct",
+		});
 		// Send wrong state — server closes the race, resolves null
 		fetch(`http://127.0.0.1:59003/cb?code=abc&state=wrong`).catch(() => {});
 		// Cancel so the test doesn't hang; the state mismatch returns 400

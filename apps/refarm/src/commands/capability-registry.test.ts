@@ -65,19 +65,13 @@ describe("capability TUI projection (renderers.tui bucket)", () => {
 		// model → section "settings" with its ctrl+m shortcut; skill → "extensions".
 		const settings = bySection.get("settings");
 		expect(settings?.entries.map((e) => e.name)).toContain("model");
-		expect(settings?.entries.find((e) => e.name === "model")?.shortcut).toBe(
-			"ctrl+m",
-		);
-		expect(bySection.get("extensions")?.entries.map((e) => e.name)).toContain(
-			"skill",
-		);
+		expect(settings?.entries.find((e) => e.name === "model")?.shortcut).toBe("ctrl+m");
+		expect(bySection.get("extensions")?.entries.map((e) => e.name)).toContain("skill");
 	});
 
 	it("omits verbs that declare no renderers.tui (a hint is inert data)", () => {
 		// review declares no renderers.tui → it appears on no TUI section.
-		const named = capabilityTuiSections().flatMap((s) =>
-			s.entries.map((e) => e.name),
-		);
+		const named = capabilityTuiSections().flatMap((s) => s.entries.map((e) => e.name));
 		expect(named).not.toContain("review");
 	});
 

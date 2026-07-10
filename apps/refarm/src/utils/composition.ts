@@ -26,13 +26,22 @@ export type SurfaceKey = "skills" | "tools" | "themes" | "commands";
  * the type so the values and the union cannot drift apart. Consumers import this instead
  * of re-listing the literals (which would silently fall out of sync when the union grows).
  * The `satisfies` below makes an added/removed union member a COMPILE error. */
-export const SURFACE_KEYS = ["skills", "tools", "themes", "commands"] as const satisfies readonly SurfaceKey[];
+export const SURFACE_KEYS = [
+	"skills",
+	"tools",
+	"themes",
+	"commands",
+] as const satisfies readonly SurfaceKey[];
 
 // Exhaustiveness guard: if a SurfaceKey is added to the union but not to SURFACE_KEYS
 // (or vice-versa), this fails to typecheck — the list can't drift from the type.
-type _SurfaceKeysAreExhaustive = Exclude<SurfaceKey, (typeof SURFACE_KEYS)[number]> extends never
-	? true
-	: ["SURFACE_KEYS is missing a SurfaceKey member", Exclude<SurfaceKey, (typeof SURFACE_KEYS)[number]>];
+type _SurfaceKeysAreExhaustive =
+	Exclude<SurfaceKey, (typeof SURFACE_KEYS)[number]> extends never
+		? true
+		: [
+				"SURFACE_KEYS is missing a SurfaceKey member",
+				Exclude<SurfaceKey, (typeof SURFACE_KEYS)[number]>,
+			];
 const _surfaceKeysExhaustive: _SurfaceKeysAreExhaustive = true;
 void _surfaceKeysExhaustive;
 
@@ -63,7 +72,9 @@ export function getSource(entry: PackageSource): string {
  * `normalizeSurfacePath`.
  */
 export function normalizeSurfacePath(value: string): string {
-	return String(value ?? "").replace(/\\/g, "/").replace(/^\.\//, "");
+	return String(value ?? "")
+		.replace(/\\/g, "/")
+		.replace(/^\.\//, "");
 }
 
 /**
@@ -79,11 +90,7 @@ export function normalizeSurfacePath(value: string): string {
  * "turn off every skill this package offers", while omitting `skills` means
  * "leave them all on". Do not collapse the two.
  */
-export function surfaceActive(
-	entry: PackageSource,
-	surface: SurfaceKey,
-	id: string,
-): boolean {
+export function surfaceActive(entry: PackageSource, surface: SurfaceKey, id: string): boolean {
 	if (typeof entry === "string") return true; // bare string: all active
 	const patterns = entry[surface];
 	if (patterns === undefined) return true; // absent key: all active
@@ -98,8 +105,5 @@ export function surfaceActive(
 	}
 
 	const normalized = normalizeSurfacePath(id);
-	return (
-		(includes.size === 0 || includes.has(normalized)) &&
-		!excludes.has(normalized)
-	);
+	return (includes.size === 0 || includes.has(normalized)) && !excludes.has(normalized);
 }

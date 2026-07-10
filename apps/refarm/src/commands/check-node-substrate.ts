@@ -77,9 +77,7 @@ export interface NodeSubstrateCheckDeps {
 	platform: NodeJS.Platform;
 	checkPackageManagerBins(): Promise<PackageManagerBinCheck>;
 	findMountIssues(): Promise<NodeSubstrateCheck["mountIssues"]>;
-	findWorkspaceLinkChecks(): Promise<
-		NodeSubstrateCheck["missingWorkspaceDependencyLinks"]
-	>;
+	findWorkspaceLinkChecks(): Promise<NodeSubstrateCheck["missingWorkspaceDependencyLinks"]>;
 	findRuntimeChecks(): Promise<NodeSubstrateCheck["runtimeChecks"]>;
 	findSourceAccessIssues(): Promise<NodeSubstrateCheck["sourceAccessIssues"]>;
 	resolveInstallCommand(): Promise<string>;
@@ -109,14 +107,12 @@ export async function runDefaultNodeSubstrate(): Promise<NodeSubstrateCheck> {
 	return runNodeSubstrateCheckWithDeps({
 		root,
 		platform,
-		checkPackageManagerBins: () =>
-			checkNodeSubstratePackageManagerBins(root, platform),
+		checkPackageManagerBins: () => checkNodeSubstratePackageManagerBins(root, platform),
 		findMountIssues: () => findNodeSubstrateMountIssues(root),
 		findWorkspaceLinkChecks: () => findNodeSubstrateWorkspaceLinkChecks(root),
 		findRuntimeChecks: () => findNodeSubstrateRuntimeChecks(root),
 		findSourceAccessIssues: () => findNodeSubstrateSourceAccessIssues(root),
-		resolveInstallCommand: async () =>
-			packageFrozenInstallCommand({ cwd: root }).display,
+		resolveInstallCommand: async () => packageFrozenInstallCommand({ cwd: root }).display,
 	});
 }
 
@@ -139,9 +135,7 @@ export async function runNodeSubstrateCheckWithDeps(
 		deps.resolveInstallCommand(),
 	]);
 	const { missing, foreignPlatformShims } = packageManagerBins;
-	const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter(
-		(check) => !check.ok,
-	);
+	const missingWorkspaceDependencyLinks = workspaceLinkChecks.filter((check) => !check.ok);
 	const missingRuntimeDependencies = runtimeChecks.filter((check) => !check.ok);
 	const recommendations = buildNodeSubstrateRecommendations({
 		missing,
@@ -167,9 +161,7 @@ export async function runNodeSubstrateCheckWithDeps(
 		),
 		runtimeChecks,
 		missingRuntimeDependencyCount: missingRuntimeDependencies.length,
-		missingRuntimeDependencies: compactNodeSubstrateDependencyIssues(
-			missingRuntimeDependencies,
-		),
+		missingRuntimeDependencies: compactNodeSubstrateDependencyIssues(missingRuntimeDependencies),
 		sourceAccessIssueCount: sourceAccessIssues.length,
 		sourceAccessIssues: sourceAccessIssues.slice(0, 20),
 		recommendations,
@@ -189,18 +181,10 @@ async function checkNodeSubstratePackageManagerBins(
 	]) {
 		if (relativePath.startsWith("bin:")) {
 			const binary = relativePath.slice("bin:".length);
-			const expected = path.join(
-				"node_modules",
-				".bin",
-				expectedBinaryName(binary, platform),
-			);
+			const expected = path.join("node_modules", ".bin", expectedBinaryName(binary, platform));
 			if (!(await exists(path.join(root, expected)))) {
 				missing.push(expected);
-				const found = path.join(
-					"node_modules",
-					".bin",
-					foreignBinaryName(binary, platform),
-				);
+				const found = path.join("node_modules", ".bin", foreignBinaryName(binary, platform));
 				if (await exists(path.join(root, found))) {
 					foreignPlatformShims.push({ binary, expected, found });
 				}
@@ -231,8 +215,7 @@ export function buildNodeSubstrateRecommendations(input: {
 	sourceAccessIssues?: NodeSubstrateCheck["sourceAccessIssues"];
 	installCommand?: string;
 }): DiagnosticRecommendation[] {
-	const installCommand =
-		input.installCommand ?? FALLBACK_PACKAGE_INSTALL_COMMAND;
+	const installCommand = input.installCommand ?? FALLBACK_PACKAGE_INSTALL_COMMAND;
 	const sourceAccessIssues = input.sourceAccessIssues ?? [];
 	if (input.foreignPlatformShims.length > 0 || input.mountIssues.length > 0) {
 		return [
@@ -248,12 +231,8 @@ export function buildNodeSubstrateRecommendations(input: {
 						: "node_modules contains package-manager shims for a different platform.",
 				action: NODE_SUBSTRATE_ENVIRONMENT_COMMAND,
 				target: [
-					...input.foreignPlatformShims.map(
-						(shim) => `${shim.found} -> ${shim.expected}`,
-					),
-					...input.mountIssues.map(
-						(issue) => `${issue.path} -> ${issue.target}`,
-					),
+					...input.foreignPlatformShims.map((shim) => `${shim.found} -> ${shim.expected}`),
+					...input.mountIssues.map((issue) => `${issue.path} -> ${issue.target}`),
 				].join(", "),
 			},
 		];
@@ -288,8 +267,7 @@ export function buildNodeSubstrateRecommendations(input: {
 	}
 	if (input.missingWorkspaceDependencyLinks.length > 0) {
 		const massiveWindowsWorkspaceLinkFailure =
-			os.platform() === "win32" &&
-			input.missingWorkspaceDependencyLinks.length > 20;
+			os.platform() === "win32" && input.missingWorkspaceDependencyLinks.length > 20;
 		return [
 			{
 				diagnostic: "node-substrate:missing-workspace-dependency-links",
@@ -300,14 +278,10 @@ export function buildNodeSubstrateRecommendations(input: {
 				action: massiveWindowsWorkspaceLinkFailure
 					? NODE_SUBSTRATE_WORKSPACE_MATERIALIZATION_COMMAND
 					: NODE_SUBSTRATE_INSTALL_COMMAND,
-				command: massiveWindowsWorkspaceLinkFailure
-					? undefined
-					: installCommand,
+				command: massiveWindowsWorkspaceLinkFailure ? undefined : installCommand,
 				target: input.missingWorkspaceDependencyLinks
 					.slice(0, 20)
-					.map(
-						(dependency) => `${dependency.package} -> ${dependency.dependency}`,
-					)
+					.map((dependency) => `${dependency.package} -> ${dependency.dependency}`)
 					.join(", "),
 			},
 		];
@@ -322,9 +296,7 @@ export function buildNodeSubstrateRecommendations(input: {
 				action: NODE_SUBSTRATE_INSTALL_COMMAND,
 				command: installCommand,
 				target: input.missingRuntimeDependencies
-					.map(
-						(dependency) => `${dependency.package} -> ${dependency.dependency}`,
-					)
+					.map((dependency) => `${dependency.package} -> ${dependency.dependency}`)
 					.join(", "),
 			},
 		];
@@ -427,10 +399,7 @@ export async function findSourceAccessIssuesForPaths(
 	}
 
 	await Promise.all(
-		Array.from(
-			{ length: Math.min(concurrency, candidates.length) },
-			() => worker(),
-		),
+		Array.from({ length: Math.min(concurrency, candidates.length) }, () => worker()),
 	);
 	return issues.slice(0, limit);
 }
@@ -440,39 +409,39 @@ async function findSourceAccessIssue(
 	relativePath: string,
 	fsApi: SourceAccessFileSystem,
 ): Promise<NodeSubstrateCheck["sourceAccessIssues"][number] | null> {
-		const absolutePath = path.join(root, relativePath);
-		try {
-			const lstat = await fsApi.lstat(absolutePath);
-			if (lstat.isSymbolicLink()) {
-				try {
-					await fsApi.stat(absolutePath);
-				} catch {
-					return {
-						path: relativePath,
-						reason: "broken-symlink",
-						uid: lstat.uid,
-						gid: lstat.gid,
-						mode: (lstat.mode & 0o777).toString(8).padStart(3, "0"),
-					};
-				}
-			} else if (!lstat.isFile()) {
-				return null;
-			}
-			await fsApi.access(absolutePath, fsConstants.W_OK);
-		} catch {
+	const absolutePath = path.join(root, relativePath);
+	try {
+		const lstat = await fsApi.lstat(absolutePath);
+		if (lstat.isSymbolicLink()) {
 			try {
-				const stat = await fsApi.lstat(absolutePath);
+				await fsApi.stat(absolutePath);
+			} catch {
 				return {
 					path: relativePath,
-					reason: "not-writable",
-					uid: stat.uid,
-					gid: stat.gid,
-					mode: (stat.mode & 0o777).toString(8).padStart(3, "0"),
+					reason: "broken-symlink",
+					uid: lstat.uid,
+					gid: lstat.gid,
+					mode: (lstat.mode & 0o777).toString(8).padStart(3, "0"),
 				};
-			} catch {
-				return { path: relativePath, reason: "missing" };
 			}
+		} else if (!lstat.isFile()) {
+			return null;
 		}
+		await fsApi.access(absolutePath, fsConstants.W_OK);
+	} catch {
+		try {
+			const stat = await fsApi.lstat(absolutePath);
+			return {
+				path: relativePath,
+				reason: "not-writable",
+				uid: stat.uid,
+				gid: stat.gid,
+				mode: (stat.mode & 0o777).toString(8).padStart(3, "0"),
+			};
+		} catch {
+			return { path: relativePath, reason: "missing" };
+		}
+	}
 	return null;
 }
 
@@ -516,11 +485,7 @@ async function findNodeSubstrateRuntimeChecks(
 ): Promise<NodeSubstrateCheck["runtimeChecks"]> {
 	const checks: NodeSubstrateCheck["runtimeChecks"] = [];
 	for await (const workspacePackage of readWorkspacePackageManifests(root)) {
-		if (
-			!workspacePackage.manifest.bin ||
-			!workspacePackage.manifest.dependencies
-		)
-			continue;
+		if (!workspacePackage.manifest.bin || !workspacePackage.manifest.dependencies) continue;
 		const requireFromPackage = createRequire(workspacePackage.manifestPath);
 		for (const [dependency, version] of Object.entries(
 			workspacePackage.manifest.dependencies,
@@ -616,14 +581,9 @@ async function findNodeSubstrateMountIssues(
 	];
 }
 
-async function readDevcontainerNodeModulesTarget(
-	root: string,
-): Promise<string | null> {
+async function readDevcontainerNodeModulesTarget(root: string): Promise<string | null> {
 	try {
-		const raw = await fs.readFile(
-			path.join(root, ".devcontainer", "devcontainer.json"),
-			"utf8",
-		);
+		const raw = await fs.readFile(path.join(root, ".devcontainer", "devcontainer.json"), "utf8");
 		const config = JSON.parse(raw) as { mounts?: unknown };
 		if (!Array.isArray(config.mounts)) return null;
 		for (const mount of config.mounts) {
@@ -636,8 +596,7 @@ async function readDevcontainerNodeModulesTarget(
 				}),
 			);
 			if (fields.source !== "refarm-node-modules") continue;
-			if (typeof fields.target !== "string" || fields.target.length === 0)
-				continue;
+			if (typeof fields.target !== "string" || fields.target.length === 0) continue;
 			const target = path.resolve(fields.target);
 			if (target === path.resolve(root, "node_modules")) return target;
 		}

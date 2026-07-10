@@ -17,9 +17,7 @@ export function canonicalSessionParticipantId(participantId: string): string {
 	const agentId = participantId.startsWith(AGENT_PARTICIPANT_PREFIX)
 		? participantId.slice(AGENT_PARTICIPANT_PREFIX.length)
 		: participantId;
-	return isRuntimeAgentPluginId(agentId)
-		? RUNTIME_AGENT_PARTICIPANT_ID
-		: participantId;
+	return isRuntimeAgentPluginId(agentId) ? RUNTIME_AGENT_PARTICIPANT_ID : participantId;
 }
 
 export function sessionParticipantFields(

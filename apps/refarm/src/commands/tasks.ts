@@ -193,7 +193,7 @@ async function listTasks(opts: {
 	console.log(
 		chalk.dim(
 			"\n  refarm tasks show <id-prefix>   task details and events" +
-			"\n  refarm tasks --status active    filter by status\n",
+				"\n  refarm tasks --status active    filter by status\n",
 		),
 	);
 }
@@ -234,9 +234,7 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 				});
 				return;
 			}
-			console.error(
-				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${parsed.error}`),
-			);
+			console.error(chalk.red(`✗  Ambiguous prefix "${prefix}" — ${parsed.error}`));
 			for (const m of parsed.matches ?? []) console.error(chalk.dim(`   ${m}`));
 			process.exitCode = 1;
 			return;
@@ -248,15 +246,9 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 					message: parsed.error ?? `HTTP ${response.status}`,
 					prefix,
 					nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-					nextActions: [
-						RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-						RUNTIME_STATUS_COMMAND,
-					],
+					nextActions: [RUNTIME_DOCTOR_NEXT_ACTION_COMMAND, RUNTIME_STATUS_COMMAND],
 					nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
-					nextCommands: [
-						RUNTIME_DOCTOR_NEXT_COMMAND,
-						RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-					],
+					nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND, RUNTIME_ENSURE_WAIT_NEXT_COMMAND],
 				});
 				return;
 			}
@@ -295,7 +287,9 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 	const short = formatTaskId(task["@id"]);
 
 	console.log(chalk.bold(`\n  Task ${chalk.cyan(short)}`));
-	console.log(`  ${statusIcon(task.status)} ${statusLabel(task.status)}  ${chalk.white(task.title ?? "untitled")}`);
+	console.log(
+		`  ${statusIcon(task.status)} ${statusLabel(task.status)}  ${chalk.white(task.title ?? "untitled")}`,
+	);
 	if (task.created_at_ns) {
 		console.log(chalk.dim(`  Created ${formatAge(task.created_at_ns)}`));
 	}
@@ -315,9 +309,7 @@ async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<
 				const tout = typeof payload.tokens_out === "number" ? `↑${payload.tokens_out}` : "";
 				detail = chalk.dim(`${payload.status}${model}${tin} ${tout}`);
 			}
-			console.log(
-				`  ${chalk.dim(ev.event.padEnd(16))}  ${chalk.dim(ts)}  ${detail}`,
-			);
+			console.log(`  ${chalk.dim(ev.event.padEnd(16))}  ${chalk.dim(ts)}  ${detail}`);
 		}
 	}
 
@@ -365,20 +357,14 @@ export function createTasksCommand(): Command {
 					await showTask(prefix, { json: opts.json });
 				}),
 		)
-		.action(
-			async (opts: {
-				status?: string;
-				session?: string;
-				limit?: number;
-				json?: boolean;
-			}) => {
-				await listTasks({
-					status: opts.status,
-					session: opts.session,
-					limit: opts.limit,
-					json: opts.json,
-				});
+		.action(async (opts: { status?: string; session?: string; limit?: number; json?: boolean }) => {
+			await listTasks({
+				status: opts.status,
+				session: opts.session,
+				limit: opts.limit,
+				json: opts.json,
 			});
+		});
 }
 
 export const tasksCommand = createTasksCommand();

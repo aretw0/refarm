@@ -1,7 +1,4 @@
-import {
-	createPluginDescriptorDeps,
-	type PluginDescriptorDeps,
-} from "@refarm.dev/capability-host";
+import { createPluginDescriptorDeps, type PluginDescriptorDeps } from "@refarm.dev/capability-host";
 
 import { submitEffortViaSidecar } from "./dispatch-submit.js";
 

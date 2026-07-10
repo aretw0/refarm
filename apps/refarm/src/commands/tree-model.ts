@@ -17,9 +17,7 @@ export const REFARM_TREE_GIT_SCOPE = GIT_SCOPE;
 export const REFARM_TREE_ALL_SCOPE = ALL_SCOPE;
 
 export type RefarmTimelineScope = typeof SESSION_SCOPE | typeof GIT_SCOPE;
-export type RefarmTimelineEnvelopeScope =
-	| RefarmTimelineScope
-	| typeof ALL_SCOPE;
+export type RefarmTimelineEnvelopeScope = RefarmTimelineScope | typeof ALL_SCOPE;
 
 export interface RefarmTimelineMetadata {
 	shortId: string;
@@ -69,20 +67,17 @@ export interface RefarmTimelineListEnvelope {
 	nextCommands: [];
 }
 
-export interface RefarmSessionTimelineListEnvelope
-	extends RefarmTimelineListEnvelope {
+export interface RefarmSessionTimelineListEnvelope extends RefarmTimelineListEnvelope {
 	scope: typeof REFARM_TREE_SESSION_SCOPE;
 	nodes: RefarmSessionTimelineNode[];
 }
 
-export interface RefarmGitTimelineListEnvelope
-	extends RefarmTimelineListEnvelope {
+export interface RefarmGitTimelineListEnvelope extends RefarmTimelineListEnvelope {
 	scope: typeof REFARM_TREE_GIT_SCOPE;
 	nodes: RefarmGitTimelineNode[];
 }
 
-export interface RefarmAllTimelineListEnvelope
-	extends RefarmTimelineListEnvelope {
+export interface RefarmAllTimelineListEnvelope extends RefarmTimelineListEnvelope {
 	scope: typeof REFARM_TREE_ALL_SCOPE;
 	nodes: Array<RefarmSessionTimelineNode | RefarmGitTimelineNode>;
 }
@@ -99,14 +94,12 @@ export interface RefarmTimelineShowEnvelope {
 	nextCommands: string[];
 }
 
-export interface RefarmGitTimelineShowEnvelope
-	extends RefarmTimelineShowEnvelope {
+export interface RefarmGitTimelineShowEnvelope extends RefarmTimelineShowEnvelope {
 	scope: typeof REFARM_TREE_GIT_SCOPE;
 	node: RefarmGitTimelineNode;
 }
 
-export interface RefarmSessionTimelineShowEnvelope
-	extends RefarmTimelineShowEnvelope {
+export interface RefarmSessionTimelineShowEnvelope extends RefarmTimelineShowEnvelope {
 	scope: typeof REFARM_TREE_SESSION_SCOPE;
 	node: RefarmSessionTimelineNode;
 	entries: unknown[];
@@ -194,15 +187,13 @@ export interface RefarmTimelinePreviewEnvelope {
 	templates: ExecutionPlanHandoff["templates"];
 }
 
-export interface RefarmSessionTimelinePreviewEnvelope
-	extends RefarmTimelinePreviewEnvelope {
+export interface RefarmSessionTimelinePreviewEnvelope extends RefarmTimelinePreviewEnvelope {
 	scope: typeof REFARM_TREE_SESSION_SCOPE;
 	target: RefarmSessionTimelineNode;
 	plan: RefarmSessionTimelinePreviewPlan;
 }
 
-export interface RefarmGitTimelinePreviewEnvelope
-	extends RefarmTimelinePreviewEnvelope {
+export interface RefarmGitTimelinePreviewEnvelope extends RefarmTimelinePreviewEnvelope {
 	scope: typeof REFARM_TREE_GIT_SCOPE;
 	target: RefarmGitTimelineNode;
 	plan: RefarmGitTimelinePreviewPlan;
@@ -254,8 +245,7 @@ export interface RefarmTimelineForkEnvelope {
 	nextCommands: string[];
 }
 
-export interface RefarmGitTimelineForkEnvelope
-	extends RefarmTimelineForkEnvelope {
+export interface RefarmGitTimelineForkEnvelope extends RefarmTimelineForkEnvelope {
 	scope: typeof REFARM_TREE_GIT_SCOPE;
 	target: RefarmGitTimelineNode;
 	result: RefarmGitTimelineForkResult;
@@ -409,8 +399,7 @@ export function buildSessionForkPreviewEnvelope(args: {
 		...(name
 			? {}
 			: {
-					blockedReason:
-						"Provide a branch name with --name before executing session fork.",
+					blockedReason: "Provide a branch name with --name before executing session fork.",
 				}),
 		recommendedCommand: name ? command : null,
 		effects: {
@@ -496,10 +485,7 @@ export function buildSessionSwitchEnvelope(args: {
 		nextAction: nextCommand,
 		nextActions: [nextCommand],
 		nextCommand,
-		nextCommands: [
-			nextCommand,
-			refarmCommand(["tree", "list", "--scope", "session", "--json"]),
-		],
+		nextCommands: [nextCommand, refarmCommand(["tree", "list", "--scope", "session", "--json"])],
 		result: {
 			kind: "session-switch",
 			destructive: false,
@@ -585,16 +571,9 @@ export function buildGitSwitchPreviewEnvelope(args: {
 			: worktreeClean
 				? {}
 				: {
-						blockedReason:
-							"Git worktree must be clean before tree switch execution.",
+						blockedReason: "Git worktree must be clean before tree switch execution.",
 					}),
-		recommendedCommand: refarmCommand([
-			"tree",
-			"switch",
-			"--scope",
-			"git",
-			name,
-		]),
+		recommendedCommand: refarmCommand(["tree", "switch", "--scope", "git", name]),
 		effects: {
 			activePointerChanged: true,
 			branchCreated: false,
@@ -671,14 +650,7 @@ export function buildGitSwitchEnvelope(args: {
 	currentRefAfter: string;
 }): RefarmGitTimelineSwitchEnvelope {
 	const { node, name, currentRefBefore, currentRefAfter } = args;
-	const nextCommand = refarmCommand([
-		"tree",
-		"show",
-		"--scope",
-		"git",
-		name,
-		"--json",
-	]);
+	const nextCommand = refarmCommand(["tree", "show", "--scope", "git", name, "--json"]);
 	return {
 		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 		command: "tree",
@@ -689,10 +661,7 @@ export function buildGitSwitchEnvelope(args: {
 		nextAction: nextCommand,
 		nextActions: [nextCommand],
 		nextCommand,
-		nextCommands: [
-			nextCommand,
-			TREE_GIT_LIST_JSON_COMMAND,
-		],
+		nextCommands: [nextCommand, TREE_GIT_LIST_JSON_COMMAND],
 		result: {
 			kind: "git-switch",
 			destructive: false,

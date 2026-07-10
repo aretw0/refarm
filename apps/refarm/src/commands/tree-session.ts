@@ -1,8 +1,6 @@
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { formatExecutionPlanReadinessLine } from "@refarm.dev/cli/execution-plan";
-import {
-	fetchSidecarWithTimeout,
-} from "@refarm.dev/sidecar-client";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import chalk from "chalk";
 import { refarmCommand } from "../brand.js";
 import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
@@ -13,10 +11,7 @@ import {
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import { formatSessionId } from "./session-ids.js";
-import {
-	readActiveSessionId,
-	writeActiveSessionIdAndVerify,
-} from "./session-lock.js";
+import { readActiveSessionId, writeActiveSessionIdAndVerify } from "./session-lock.js";
 import { reportSidecarError } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 import { TREE_SESSION_LIST_JSON_COMMAND } from "./tree-handoffs.js";
@@ -115,9 +110,7 @@ function printSessionTreeErrorJson(input: {
 	process.exitCode = 1;
 }
 
-function createSessionTimelineNode(
-	session: SessionNode,
-): RefarmSessionTimelineNode {
+function createSessionTimelineNode(session: SessionNode): RefarmSessionTimelineNode {
 	return {
 		timelineId: REFARM_TREE_SESSION_SCOPE,
 		nodeId: session["@id"],
@@ -204,11 +197,8 @@ async function fetchSessionHistory(
 			});
 			return null;
 		}
-		console.error(
-			chalk.red(`✗  Ambiguous timeline node "${prefix}" — ${body.error}`),
-		);
-		for (const match of body.matches ?? [])
-			console.error(chalk.dim(`   ${match}`));
+		console.error(chalk.red(`✗  Ambiguous timeline node "${prefix}" — ${body.error}`));
+		for (const match of body.matches ?? []) console.error(chalk.dim(`   ${match}`));
 		process.exitCode = 1;
 		return null;
 	}
@@ -221,10 +211,7 @@ async function fetchSessionHistory(
 				prefix,
 				nextAction: RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 				nextCommand: RUNTIME_DOCTOR_NEXT_COMMAND,
-				nextCommands: [
-					RUNTIME_DOCTOR_NEXT_COMMAND,
-					RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-				],
+				nextCommands: [RUNTIME_DOCTOR_NEXT_COMMAND, RUNTIME_ENSURE_WAIT_NEXT_COMMAND],
 				extra: {
 					statusCommand: RUNTIME_STATUS_COMMAND,
 				},
@@ -245,10 +232,7 @@ export async function getSessionTimelineNodes(
 	return buildSessionTimelineNodes(sessions, limit);
 }
 
-export async function listSessionTree(opts: {
-	json?: boolean;
-	limit?: number;
-}): Promise<void> {
+export async function listSessionTree(opts: { json?: boolean; limit?: number }): Promise<void> {
 	let sessions: SessionNode[];
 	try {
 		sessions = await fetchSessions(opts.limit);
@@ -269,21 +253,13 @@ export async function listSessionTree(opts: {
 	}
 
 	if (visibleNodes.length === 0) {
-		console.log(
-			chalk.dim(
-				"No session timeline nodes yet. Start one with: refarm ask <query>",
-			),
-		);
+		console.log(chalk.dim("No session timeline nodes yet. Start one with: refarm ask <query>"));
 		return;
 	}
 
-	console.log(
-		chalk.bold(`\n  Tree timeline  (${REFARM_TREE_SESSION_SCOPE} scope)\n`),
-	);
+	console.log(chalk.bold(`\n  Tree timeline  (${REFARM_TREE_SESSION_SCOPE} scope)\n`));
 	for (const node of visibleNodes) {
-		const createdAtNs = sessions.find(
-			(session) => session["@id"] === node.nodeId,
-		)?.created_at_ns;
+		const createdAtNs = sessions.find((session) => session["@id"] === node.nodeId)?.created_at_ns;
 		const history = node.metadata.hasHistory ? chalk.dim(" · has history") : "";
 		console.log(
 			`  ${chalk.cyan(node.metadata.shortId)}  ${chalk.white(node.label)}  ${chalk.dim(formatAge(createdAtNs))}${history}`,
@@ -299,10 +275,7 @@ export async function listSessionTree(opts: {
 	);
 }
 
-export async function showSessionTree(
-	prefix: string,
-	opts: { json?: boolean },
-): Promise<void> {
+export async function showSessionTree(prefix: string, opts: { json?: boolean }): Promise<void> {
 	let history: SessionHistory | null;
 	try {
 		history = await fetchSessionHistory(prefix, {
@@ -337,13 +310,8 @@ export async function showSessionTree(
 			`\n  Timeline node ${chalk.cyan(node.metadata.shortId)}  ${chalk.white(node.label)}`,
 		),
 	);
-	console.log(
-		chalk.dim(
-			`  kind=${node.kind} timeline=${node.timelineId} total=${history.total}`,
-		),
-	);
-	if (node.parentNodeId)
-		console.log(chalk.dim(`  parent=${node.parentNodeId}`));
+	console.log(chalk.dim(`  kind=${node.kind} timeline=${node.timelineId} total=${history.total}`));
+	if (node.parentNodeId) console.log(chalk.dim(`  parent=${node.parentNodeId}`));
 	if (node.metadata.leafEntryId) {
 		console.log(chalk.dim(`  leaf=${node.metadata.leafEntryId}`));
 	}
@@ -387,9 +355,7 @@ export async function previewSessionTree(
 			return;
 		}
 		console.error(
-			chalk.red(
-				`✗  No entry "${opts.at}" in session ${formatSessionId(history.session["@id"])}.`,
-			),
+			chalk.red(`✗  No entry "${opts.at}" in session ${formatSessionId(history.session["@id"])}.`),
 		);
 		process.exitCode = 1;
 		return;
@@ -420,17 +386,14 @@ export async function previewSessionTree(
 			? chalk.yellow(`  ${readiness.label}`)
 			: chalk.dim(`  ${readiness.label}`),
 	);
-		console.log(
-			chalk.dim(
-				`  Command: ${envelope.plan.recommendedCommand ?? envelope.templates[0]?.command ?? "(blocked)"}\n`,
-			),
-		);
+	console.log(
+		chalk.dim(
+			`  Command: ${envelope.plan.recommendedCommand ?? envelope.templates[0]?.command ?? "(blocked)"}\n`,
+		),
+	);
 }
 
-export async function switchSessionTree(
-	prefix: string,
-	opts: { json?: boolean },
-): Promise<void> {
+export async function switchSessionTree(prefix: string, opts: { json?: boolean }): Promise<void> {
 	let history: SessionHistory | null;
 	try {
 		history = await fetchSessionHistory(prefix, {
@@ -463,9 +426,7 @@ export async function switchSessionTree(
 			});
 			return;
 		}
-		console.error(
-			chalk.red(`✗  Session "${node.metadata.shortId}" is already active.`),
-		);
+		console.error(chalk.red(`✗  Session "${node.metadata.shortId}" is already active.`));
 		process.exitCode = 1;
 		return;
 	}
@@ -512,9 +473,7 @@ export async function switchSessionTree(
 	}
 
 	console.log(
-		chalk.green(
-			`✓  Switched active session to ${chalk.cyan.bold(node.metadata.shortId)}.`,
-		),
+		chalk.green(`✓  Switched active session to ${chalk.cyan.bold(node.metadata.shortId)}.`),
 	);
 }
 
@@ -557,11 +516,7 @@ export async function previewSessionSwitchTree(
 	);
 	console.log("  Would:  switch active session pointer");
 	if (substrate.activeSessionIdBefore) {
-		console.log(
-			chalk.dim(
-				`  Current: ${formatSessionId(substrate.activeSessionIdBefore)}`,
-			),
-		);
+		console.log(chalk.dim(`  Current: ${formatSessionId(substrate.activeSessionIdBefore)}`));
 	}
 	const readiness = formatExecutionPlanReadinessLine(envelope.plan);
 	console.log(

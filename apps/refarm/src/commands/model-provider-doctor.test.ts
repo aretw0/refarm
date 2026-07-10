@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	DEFAULT_REMOTE_PROFILE,
-	providerDoctorProfile,
-} from "./model-provider-doctor.js";
+import { DEFAULT_REMOTE_PROFILE, providerDoctorProfile } from "./model-provider-doctor.js";
 
 describe("providerDoctorProfile", () => {
 	it("returns the ollama profile — the keyless local floor", () => {

@@ -13,14 +13,10 @@ import {
 import type { StatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { withResolvedStatusPayload } from "./status-payload.js";
-import {
-	resolveStatusPayload,
-	type ResolveStatusPayloadResult,
-} from "./status.js";
+import { resolveStatusPayload, type ResolveStatusPayloadResult } from "./status.js";
 
 export type HostSurfaceActionRow = SurfaceActionAffordanceRow;
-export type HostSurfaceActionSelectionReason =
-	SurfaceActionAffordanceSelectionReason;
+export type HostSurfaceActionSelectionReason = SurfaceActionAffordanceSelectionReason;
 
 export interface HostSurfaceActionSelectionResult {
 	selected?: HostSurfaceActionRow;
@@ -29,11 +25,10 @@ export interface HostSurfaceActionSelectionResult {
 	rows: readonly HostSurfaceActionRow[];
 }
 
-export type HostSurfaceActionDryRunEnvelope =
-	SurfaceActionReadinessDryRunEnvelope & {
-		command: "actions";
-		renderer: StatusJson["renderer"]["kind"];
-	};
+export type HostSurfaceActionDryRunEnvelope = SurfaceActionReadinessDryRunEnvelope & {
+	command: "actions";
+	renderer: StatusJson["renderer"]["kind"];
+};
 
 export interface ActionsDeps {
 	resolveStatusPayload(options: {
@@ -49,9 +44,7 @@ interface ActionsOptions {
 	select?: string;
 }
 
-export function createHostSurfaceActionRows(
-	status: StatusJson,
-): HostSurfaceActionRow[] {
+export function createHostSurfaceActionRows(status: StatusJson): HostSurfaceActionRow[] {
 	return createSurfaceActionAffordanceRows(status);
 }
 
@@ -74,9 +67,7 @@ export function createHostSurfaceActionDryRunEnvelope(
 	) as HostSurfaceActionDryRunEnvelope;
 }
 
-export function formatHostSurfaceActionRows(
-	rows: readonly HostSurfaceActionRow[],
-): string {
+export function formatHostSurfaceActionRows(rows: readonly HostSurfaceActionRow[]): string {
 	return formatSurfaceActionAffordanceRows(rows, "Available host actions:");
 }
 
@@ -99,9 +90,7 @@ export function createActionsCommand(deps?: Partial<ActionsDeps>): Command {
 	};
 
 	return new Command("actions")
-		.description(
-			"List available host surface actions without executing product behavior",
-		)
+		.description("List available host surface actions without executing product behavior")
 		.addHelpText(
 			"after",
 			[
@@ -137,10 +126,7 @@ export function createActionsCommand(deps?: Partial<ActionsDeps>): Command {
 		});
 }
 
-async function emitHostActionRows(
-	options: ActionsOptions,
-	deps: ActionsDeps,
-): Promise<void> {
+async function emitHostActionRows(options: ActionsOptions, deps: ActionsDeps): Promise<void> {
 	await withResolvedStatusPayload({
 		resolveStatusPayload: deps.resolveStatusPayload,
 		resolveOptions: {

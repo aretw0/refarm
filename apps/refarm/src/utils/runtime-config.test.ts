@@ -121,10 +121,7 @@ describe("resolveAutostartModeAsync", () => {
 
 	it("reads autostart (top-level key) from the seam, cwd winning over home", async () => {
 		mkdirSync(path.join(home, ".refarm"), { recursive: true });
-		writeFileSync(
-			path.join(home, ".refarm", "config.json"),
-			JSON.stringify({ autostart: "ask" }),
-		);
+		writeFileSync(path.join(home, ".refarm", "config.json"), JSON.stringify({ autostart: "ask" }));
 		const seam = async () => ({ autostart: "always" });
 		const out = await resolveAutostartModeAsync(seam, { env: {}, home, cwd });
 		expect(out).toEqual({ value: "always", source: "sovereign-config" });

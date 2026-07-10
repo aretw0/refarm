@@ -1,6 +1,12 @@
-import { workspaceCanUseTurboAdapter as baseWorkspaceCanUseTurboAdapter, buildWorkspaceExecutionStatus as buildBaseWorkspaceExecutionStatus, type WorkspaceExecutionStatus as BaseWorkspaceExecutionStatus, type WorkspaceExecutionPackageManager, } from "@refarm.dev/cli/workspace-execution";
 import {
-	detectPackageManager as detectSharedPackageManager, type PackageManagerName,
+	workspaceCanUseTurboAdapter as baseWorkspaceCanUseTurboAdapter,
+	buildWorkspaceExecutionStatus as buildBaseWorkspaceExecutionStatus,
+	type WorkspaceExecutionStatus as BaseWorkspaceExecutionStatus,
+	type WorkspaceExecutionPackageManager,
+} from "@refarm.dev/cli/workspace-execution";
+import {
+	detectPackageManager as detectSharedPackageManager,
+	type PackageManagerName,
 } from "@refarm.dev/config";
 import { refarmCommand } from "../brand.js";
 
@@ -13,11 +19,13 @@ export interface WorkspaceExecutionStatus extends Omit<BaseWorkspaceExecutionSta
 	};
 }
 
-export function buildWorkspaceExecutionStatus(options: {
-	cwd?: string;
-	env?: NodeJS.ProcessEnv;
-	packageManager?: PackageManagerName;
-} = {}): WorkspaceExecutionStatus {
+export function buildWorkspaceExecutionStatus(
+	options: {
+		cwd?: string;
+		env?: NodeJS.ProcessEnv;
+		packageManager?: PackageManagerName;
+	} = {},
+): WorkspaceExecutionStatus {
 	const cwd = options.cwd ?? process.cwd();
 	const env = options.env ?? process.env;
 	const packageManager = options.packageManager ?? detectSharedPackageManager({ cwd, env });

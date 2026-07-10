@@ -61,7 +61,9 @@ describe("sidecar-error", () => {
 	});
 
 	it("surfaces bind-permission context in runtime unavailable recommendations", () => {
-		expect(buildSidecarErrorPayload("fetch failed: EPERM: connect EPERM 127.0.0.1:42001")).toMatchObject({
+		expect(
+			buildSidecarErrorPayload("fetch failed: EPERM: connect EPERM 127.0.0.1:42001"),
+		).toMatchObject({
 			ok: false,
 			error: "runtime-unavailable",
 			recommendations: [

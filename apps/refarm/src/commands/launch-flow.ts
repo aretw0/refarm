@@ -1,19 +1,11 @@
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import type { StatusJson } from "@refarm.dev/cli/status";
-import {
-	printRefarmLaunchBanner,
-	type RefarmLaunchExperience,
-} from "./brand.js";
+import { printRefarmLaunchBanner, type RefarmLaunchExperience } from "./brand.js";
 import { launchDryRunMessage, launchStartMessage } from "./launch-feedback.js";
-import {
-	assertLaunchAllowed,
-	resolveLaunchReadiness,
-} from "./launch-policy.js";
+import { assertLaunchAllowed, resolveLaunchReadiness } from "./launch-policy.js";
 import { REFARM_LAUNCH_RECOVERY_HINTS } from "./runtime-recovery.js";
 
-export interface ExecuteRendererLaunchFlowOptions<
-	TSpec extends { display: string },
-> {
+export interface ExecuteRendererLaunchFlowOptions<TSpec extends { display: string }> {
 	launch?: boolean;
 	dryRun?: boolean;
 	status: StatusJson;
@@ -34,9 +26,9 @@ export interface ExecuteRendererLaunchFlowOptions<
 	setExitCode?: (code: number) => void;
 }
 
-export async function executeRendererLaunchFlow<
-	TSpec extends { display: string },
->(options: ExecuteRendererLaunchFlowOptions<TSpec>): Promise<void> {
+export async function executeRendererLaunchFlow<TSpec extends { display: string }>(
+	options: ExecuteRendererLaunchFlowOptions<TSpec>,
+): Promise<void> {
 	if (!options.launch) {
 		return;
 	}
@@ -47,11 +39,7 @@ export async function executeRendererLaunchFlow<
 		REFARM_LAUNCH_RECOVERY_HINTS,
 	);
 	if (!options.dryRun) {
-		assertLaunchAllowed(
-			options.status,
-			options.launchGuardTarget,
-			REFARM_LAUNCH_RECOVERY_HINTS,
-		);
+		assertLaunchAllowed(options.status, options.launchGuardTarget, REFARM_LAUNCH_RECOVERY_HINTS);
 	}
 	if (!(options.dryRun && options.dryRunJson)) {
 		printRefarmLaunchBanner(options.bannerExperience);
@@ -62,27 +50,22 @@ export async function executeRendererLaunchFlow<
 
 	if (options.dryRun) {
 		if (options.dryRunJson) {
-			const nextCommand = typeof options.dryRunJsonNextCommand === "function"
-				? options.dryRunJsonNextCommand(spec)
-				: options.dryRunJsonNextCommand ?? spec.display;
-			const nextCommands = readiness.readyToExecute
-				? [nextCommand]
-				: readiness.recoveryCommands;
+			const nextCommand =
+				typeof options.dryRunJsonNextCommand === "function"
+					? options.dryRunJsonNextCommand(spec)
+					: (options.dryRunJsonNextCommand ?? spec.display);
+			const nextCommands = readiness.readyToExecute ? [nextCommand] : readiness.recoveryCommands;
 			printJson(
 				buildJsonSuccessEnvelope({
 					command: options.dryRunJsonCommand,
 					operation: options.dryRunJsonOperation ?? "dry-run",
-					nextAction: readiness.readyToExecute
-						? nextCommand
-						: readiness.blockedReason,
+					nextAction: readiness.readyToExecute ? nextCommand : readiness.blockedReason,
 					extra: {
 						reason: "dry-run",
 						runtimeLabel: options.dryRunRuntimeLabel,
 						launchReady: readiness.readyToExecute,
 						launchFailures: readiness.failures,
-						...(readiness.blockedReason
-							? { launchBlockedReason: readiness.blockedReason }
-							: {}),
+						...(readiness.blockedReason ? { launchBlockedReason: readiness.blockedReason } : {}),
 						launchCommand: spec.display,
 						launchSpec: spec,
 						...(options.dryRunJsonExtra?.(spec) ?? {}),

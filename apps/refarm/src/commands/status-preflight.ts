@@ -1,12 +1,6 @@
 import type { StatusJson } from "@refarm.dev/cli/status";
-import {
-	emitStatusOutput,
-	type StatusOutputMode,
-} from "./status-output.js";
-import {
-	type ResolveStatusPayloadFn,
-	withResolvedStatusPayload,
-} from "./status-payload.js";
+import { emitStatusOutput, type StatusOutputMode } from "./status-output.js";
+import { type ResolveStatusPayloadFn, withResolvedStatusPayload } from "./status-payload.js";
 
 export interface RunStatusPreflightOptions<TResolveOptions> {
 	resolveStatusPayload: ResolveStatusPayloadFn<TResolveOptions>;

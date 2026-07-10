@@ -30,10 +30,7 @@ interface TokenResponse {
 
 const OAUTH_HTTP_TIMEOUT_MS = 30_000;
 
-async function requestDeviceCode(
-	clientId: string,
-	scopes: string,
-): Promise<DeviceCodeResponse> {
+async function requestDeviceCode(clientId: string, scopes: string): Promise<DeviceCodeResponse> {
 	const res = await fetch(DEVICE_CODE_URL, {
 		method: "POST",
 		headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -65,11 +62,8 @@ async function pollForToken(
 		if (data.access_token) return data.access_token;
 		if (data.error === "slow_down") delay += 5;
 		if (data.error === "expired_token")
-			throw new Error(
-					`Authorization expired. Run '${refarmCommand(["sow"])}' again.`,
-				);
-		if (data.error === "access_denied")
-			throw new Error("Authorization declined.");
+			throw new Error(`Authorization expired. Run '${refarmCommand(["sow"])}' again.`);
+		if (data.error === "access_denied") throw new Error("Authorization declined.");
 		// authorization_pending → keep polling
 	}
 }
@@ -100,9 +94,7 @@ export const githubCredentialProvider: CredentialProvider = {
 		const device = await requestDeviceCode(clientId, scopes);
 		if (device.error) throw new Error(`GitHub: ${device.error}`);
 
-		console.log(
-			`  ${chalk.bold("Code:")} ${chalk.cyan.bold(device.user_code)}`,
-		);
+		console.log(`  ${chalk.bold("Code:")} ${chalk.cyan.bold(device.user_code)}`);
 		console.log(chalk.gray(`  → ${device.verification_uri}\n`));
 		ctx.tryOpenUrl(device.verification_uri);
 

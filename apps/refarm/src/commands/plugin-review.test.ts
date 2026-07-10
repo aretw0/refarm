@@ -2,10 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-	buildExtensionReviewReport,
-	loadReviewableManifest,
-} from "./plugin-review-capability.js";
+import { buildExtensionReviewReport, loadReviewableManifest } from "./plugin-review-capability.js";
 
 const tempRoots: string[] = [];
 
@@ -65,9 +62,7 @@ describe("loadReviewableManifest", () => {
 	it("throws when no manifest is found in a directory", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-review-"));
 		tempRoots.push(root);
-		expect(() => loadReviewableManifest(root)).toThrow(
-			"No plugin.json or ext.json",
-		);
+		expect(() => loadReviewableManifest(root)).toThrow("No plugin.json or ext.json");
 	});
 });
 

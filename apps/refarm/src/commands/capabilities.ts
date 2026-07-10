@@ -24,10 +24,7 @@ function collectOption(value: string, previous: string[] = []): string[] {
 	return [...previous, value];
 }
 
-function matchesTags(
-	capability: CapabilityDescriptor,
-	tags: readonly string[],
-): boolean {
+function matchesTags(capability: CapabilityDescriptor, tags: readonly string[]): boolean {
 	if (tags.length === 0) return true;
 	const capabilityTags = new Set(capability.tags);
 	return tags.every((tag) => capabilityTags.has(tag));
@@ -41,14 +38,10 @@ function matchesStates(
 	return states.includes(capability.policy.state);
 }
 
-function formatCapabilityRows(
-	capabilities: readonly CapabilityDescriptor[],
-): string {
+function formatCapabilityRows(capabilities: readonly CapabilityDescriptor[]): string {
 	const lines = [chalk.bold("Refarm capabilities")];
 	for (const capability of capabilities) {
-		lines.push(
-			`${capability.id} ${chalk.dim(`[${capability.provider.kind}]`)}`,
-		);
+		lines.push(`${capability.id} ${chalk.dim(`[${capability.provider.kind}]`)}`);
 		lines.push(`  ${capability.description}`);
 		if (capability.activation.command) {
 			lines.push(chalk.dim(`  command: ${capability.activation.command}`));
@@ -57,18 +50,18 @@ function formatCapabilityRows(
 			lines.push(chalk.dim(`  sdk:     ${capability.activation.sdk}`));
 		}
 		lines.push(
-			chalk.dim(
-				`  policy:  ${capability.policy.state}; tags: ${capability.tags.join(", ")}`,
-			),
+			chalk.dim(`  policy:  ${capability.policy.state}; tags: ${capability.tags.join(", ")}`),
 		);
 	}
 	return lines.join("\n");
 }
 
-function buildSupplyPayload(surface: string | undefined): {
-	surface: "reference-driver";
-	map: ReferenceDriverSupplyMap;
-} | undefined {
+function buildSupplyPayload(surface: string | undefined):
+	| {
+			surface: "reference-driver";
+			map: ReferenceDriverSupplyMap;
+	  }
+	| undefined {
 	if (!surface) return undefined;
 	if (surface !== "reference-driver") {
 		throw new Error(
@@ -81,10 +74,12 @@ function buildSupplyPayload(surface: string | undefined): {
 	};
 }
 
-function buildSupplyPreflightPayload(surface: string | undefined): {
-	surface: "reference-driver";
-	preflight: ReferenceDriverSupplyPreflight;
-} | undefined {
+function buildSupplyPreflightPayload(surface: string | undefined):
+	| {
+			surface: "reference-driver";
+			preflight: ReferenceDriverSupplyPreflight;
+	  }
+	| undefined {
 	if (!surface) return undefined;
 	if (surface !== "reference-driver") {
 		throw new Error(
@@ -102,22 +97,14 @@ function formatReferenceDriverSupplyMap(supplyMap: ReferenceDriverSupplyMap): st
 	for (const entry of supplyMap.entries) {
 		lines.push(`${entry.capabilityId} ${chalk.dim(`[${entry.policyState}]`)}`);
 		for (const target of entry.targets) {
-			lines.push(
-				chalk.dim(
-					`  ${target.status}: ${target.channel} ${target.name}`,
-				),
-			);
+			lines.push(chalk.dim(`  ${target.status}: ${target.channel} ${target.name}`));
 		}
 	}
 	return lines.join("\n");
 }
 
-function formatReferenceDriverSupplyPreflight(
-	preflight: ReferenceDriverSupplyPreflight,
-): string {
-	const summary = preflight.summary
-		.map((entry) => `${entry.status}: ${entry.count}`)
-		.join(", ");
+function formatReferenceDriverSupplyPreflight(preflight: ReferenceDriverSupplyPreflight): string {
+	const summary = preflight.summary.map((entry) => `${entry.status}: ${entry.count}`).join(", ");
 	const proofSummary = preflight.proofSummary;
 	return [
 		"",
@@ -129,11 +116,13 @@ function formatReferenceDriverSupplyPreflight(
 		chalk.dim(
 			`proofs: blocked targets ${proofSummary.blockedTargetCount}; with proofs ${proofSummary.targetsWithPromotionProofTargets}; unique proof targets ${proofSummary.uniquePromotionProofTargetCount}; budget contracts ${proofSummary.targetsWithBudgetContract}`,
 		),
-		...preflight.promotionQueue.slice(0, 3).map((item) =>
-			chalk.dim(
-				`  #${item.rank} ${item.status}: ${item.channel} ${item.name}; proofs ${item.proofTargetCount}; budget ${item.hasBudgetContract ? "yes" : "no"}`,
+		...preflight.promotionQueue
+			.slice(0, 3)
+			.map((item) =>
+				chalk.dim(
+					`  #${item.rank} ${item.status}: ${item.channel} ${item.name}; proofs ${item.proofTargetCount}; budget ${item.hasBudgetContract ? "yes" : "no"}`,
+				),
 			),
-		),
 		...preflight.nextDecisions.map((entry) =>
 			chalk.dim(`  ${entry.capabilityId}: ${entry.nextDecision}`),
 		),
@@ -145,10 +134,7 @@ export function createCapabilitiesCommand(): Command {
 		.description("List compact Refarm capability descriptors for consumers")
 		.option("--json", "Output machine-readable capability index")
 		.option("--tag <tag>", "Filter by tag", collectOption, [])
-		.option(
-			"--supply <surface>",
-			"Include supply posture for a surface (reference-driver)",
-		)
+		.option("--supply <surface>", "Include supply posture for a surface (reference-driver)")
 		.option(
 			"--supply-preflight <surface>",
 			"Include plan-only supply preflight for a surface (reference-driver)",
@@ -180,8 +166,8 @@ export function createCapabilitiesCommand(): Command {
 			const index = buildCapabilityIndex(REFARM_BINARY);
 			const tags = options.tag ?? [];
 			const states = options.state ?? [];
-			const capabilities = index.capabilities.filter((capability) =>
-				matchesTags(capability, tags) && matchesStates(capability, states),
+			const capabilities = index.capabilities.filter(
+				(capability) => matchesTags(capability, tags) && matchesStates(capability, states),
 			);
 			const supply = buildSupplyPayload(options.supply);
 			const supplyPreflight = buildSupplyPreflightPayload(options.supplyPreflight);

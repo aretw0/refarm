@@ -82,9 +82,7 @@ function createLazyCommand<TOptions extends Record<string, unknown>>(
 	}
 	return command.action(async (...actionArgs: unknown[]) => {
 		const invokedCommand = actionArgs.at(-1) as Command;
-		const argument = config.argument
-			? (actionArgs[0] as string | undefined)
-			: undefined;
+		const argument = config.argument ? (actionArgs[0] as string | undefined) : undefined;
 		const opts = invokedCommand.opts<TOptions>();
 		const loaded = await config.load();
 		await loaded.parseAsync(config.toArgs(argument, opts), { from: "user" });
@@ -169,10 +167,7 @@ Notes:
   to generate a local setup audit with GitHub/Cloudflare next steps.
 `,
 		load: async () => (await import("./commands/init.js")).initCommand,
-		toArgs: (name, opts) => [
-			name ?? "my-workspace",
-			...(opts.force ? ["--force"] : []),
-		],
+		toArgs: (name, opts) => [name ?? "my-workspace", ...(opts.force ? ["--force"] : [])],
 	}),
 );
 program.addCommand(

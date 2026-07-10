@@ -14,9 +14,10 @@ describe("waitForOAuthCallback", () => {
 			close: vi.fn(),
 		};
 
-		await expect(
-			waitForOAuthCallback(server, { callbacks: { onCallbackWait } }),
-		).resolves.toEqual({ code: "code-1", state: "state-1" });
+		await expect(waitForOAuthCallback(server, { callbacks: { onCallbackWait } })).resolves.toEqual({
+			code: "code-1",
+			state: "state-1",
+		});
 
 		expect(onCallbackWait).toHaveBeenCalledWith(
 			expect.objectContaining({

@@ -29,11 +29,7 @@ interface DeployCommandOptions {
 
 const DEPLOY_SCHEMA_VERSION = 1;
 const DEPLOY_DRY_RUN_COMMAND = refarmCommand(["deploy", "--dry-run"]);
-const DEPLOY_HEALTH_COMMAND = refarmCommand([
-  "health",
-  "--next-action",
-  "--json",
-]);
+const DEPLOY_HEALTH_COMMAND = refarmCommand(["health", "--next-action", "--json"]);
 
 function parseDeployTarget(value: string): DeployTarget {
 	if ((DEPLOY_TARGETS as readonly string[]).includes(value)) {
@@ -68,149 +64,156 @@ function deployJsonNextCommands(input: {
 }
 
 export const deployCommand = new Command("deploy")
-  .description("Deploy artifacts to configured targets")
-  .addHelpText(
-    "after",
-    [
-      "",
-      "Examples:",
-      "  $ refarm deploy --dry-run",
-      "  $ refarm deploy --dry-run --json",
-      "  $ refarm deploy --target github --dry-run",
-      "  $ refarm deploy --target cloudflare",
-      "",
-      "Notes:",
-      "  Run from a workspace containing .refarm/config.json.",
-      "  Use --dry-run first; live deploy resolves credentials from Silo and passes them to Windmill.",
-      "  Use refarm provision cloudflare turbo-cache before deploying Cloudflare-backed cache infrastructure.",
-    ].join("\n"),
-  )
-  .option("--target <target>", "Target platform (cloudflare, github, all)", "all")
-  .option("--dry-run", "Simulate the deployment")
-  .option("--json", "Output machine-readable deployment result")
-  .action(async (options: DeployCommandOptions) => {
-    if (!options.json) {
-      console.log(chalk.bold.green("\nStarting deployment orchestration..."));
-    }
+	.description("Deploy artifacts to configured targets")
+	.addHelpText(
+		"after",
+		[
+			"",
+			"Examples:",
+			"  $ refarm deploy --dry-run",
+			"  $ refarm deploy --dry-run --json",
+			"  $ refarm deploy --target github --dry-run",
+			"  $ refarm deploy --target cloudflare",
+			"",
+			"Notes:",
+			"  Run from a workspace containing .refarm/config.json.",
+			"  Use --dry-run first; live deploy resolves credentials from Silo and passes them to Windmill.",
+			"  Use refarm provision cloudflare turbo-cache before deploying Cloudflare-backed cache infrastructure.",
+		].join("\n"),
+	)
+	.option("--target <target>", "Target platform (cloudflare, github, all)", "all")
+	.option("--dry-run", "Simulate the deployment")
+	.option("--json", "Output machine-readable deployment result")
+	.action(async (options: DeployCommandOptions) => {
+		if (!options.json) {
+			console.log(chalk.bold.green("\nStarting deployment orchestration..."));
+		}
 
-    try {
-      const target = parseDeployTarget(options.target);
-      const configPath = findRefarmConfigPath(process.cwd());
-      if (!configPath) {
-          throw new Error(".refarm/config.json not found in current directory.");
-      }
+		try {
+			const target = parseDeployTarget(options.target);
+			const configPath = findRefarmConfigPath(process.cwd());
+			if (!configPath) {
+				throw new Error(".refarm/config.json not found in current directory.");
+			}
 
-      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-      const silo = new SiloCore(config);
-      const tokens = await silo.provision();
+			const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+			const silo = new SiloCore(config);
+			const tokens = await silo.provision();
 
-      // Ensure tokens are available in environment for Windmill
-      Object.assign(process.env, tokens);
+			// Ensure tokens are available in environment for Windmill
+			Object.assign(process.env, tokens);
 
-      const windmill = new Windmill(config, { dryRun: options.dryRun });
+			const windmill = new Windmill(config, { dryRun: options.dryRun });
 
-      if (!options.json) {
-        console.log(`🚀 Deploying to ${chalk.cyan(target)}...`);
-      }
+			if (!options.json) {
+				console.log(`🚀 Deploying to ${chalk.cyan(target)}...`);
+			}
 
-      const result = await windmill.deploy(target) as unknown as DeployResult;
+			const result = (await windmill.deploy(target)) as unknown as DeployResult;
 
-      if (options.json) {
-        const ok = result.status === "success" || result.status === "dry-run";
-        const nextCommands = deployJsonNextCommands({
-          target,
-          dryRun: options.dryRun === true,
-          ok,
-        });
-        const jsonEnvelope = ok
-          ? buildJsonSuccessEnvelope({
-              command: "deploy",
-              operation: "deploy",
-              nextAction: nextCommands[0] ?? null,
-              nextActions: nextCommands,
-              nextCommand: nextCommands[0] ?? null,
-              nextCommands,
-              extra: {
-                schemaVersion: DEPLOY_SCHEMA_VERSION,
-                target,
-                dryRun: options.dryRun === true,
-                status: result.status,
-                result,
-              },
-            })
-          : buildJsonErrorEnvelope({
-              command: "deploy",
-              operation: "deploy",
-              error: "deploy-failed",
-              message: result.message,
-              nextAction: nextCommands[0] ?? DEPLOY_DRY_RUN_COMMAND,
-              nextActions: nextCommands,
-              nextCommand: nextCommands[0] ?? DEPLOY_DRY_RUN_COMMAND,
-              nextCommands,
-              extra: {
-                schemaVersion: DEPLOY_SCHEMA_VERSION,
-                target,
-                dryRun: options.dryRun === true,
-                status: result.status,
-                result,
-              },
-            });
-        printJson(jsonEnvelope);
-        if (!ok) process.exitCode = 1;
-        return;
-      }
+			if (options.json) {
+				const ok = result.status === "success" || result.status === "dry-run";
+				const nextCommands = deployJsonNextCommands({
+					target,
+					dryRun: options.dryRun === true,
+					ok,
+				});
+				const jsonEnvelope = ok
+					? buildJsonSuccessEnvelope({
+							command: "deploy",
+							operation: "deploy",
+							nextAction: nextCommands[0] ?? null,
+							nextActions: nextCommands,
+							nextCommand: nextCommands[0] ?? null,
+							nextCommands,
+							extra: {
+								schemaVersion: DEPLOY_SCHEMA_VERSION,
+								target,
+								dryRun: options.dryRun === true,
+								status: result.status,
+								result,
+							},
+						})
+					: buildJsonErrorEnvelope({
+							command: "deploy",
+							operation: "deploy",
+							error: "deploy-failed",
+							message: result.message,
+							nextAction: nextCommands[0] ?? DEPLOY_DRY_RUN_COMMAND,
+							nextActions: nextCommands,
+							nextCommand: nextCommands[0] ?? DEPLOY_DRY_RUN_COMMAND,
+							nextCommands,
+							extra: {
+								schemaVersion: DEPLOY_SCHEMA_VERSION,
+								target,
+								dryRun: options.dryRun === true,
+								status: result.status,
+								result,
+							},
+						});
+				printJson(jsonEnvelope);
+				if (!ok) process.exitCode = 1;
+				return;
+			}
 
-      if (result.status === "success" || result.status === "dry-run" || result.status === "partial_failure") {
-          console.log(chalk.bold.green("\n✨ Deployment orchestration finished!"));
+			if (
+				result.status === "success" ||
+				result.status === "dry-run" ||
+				result.status === "partial_failure"
+			) {
+				console.log(chalk.bold.green("\n✨ Deployment orchestration finished!"));
 
-          if (result.results) {
-              console.log(chalk.gray("\n--- Target Summary ---"));
-              for (const r of result.results) {
-                  const statusColor = r.status === "success" || r.status === "dry-run" ? chalk.green : chalk.red;
-                  console.log(`${chalk.bold(r.target.toUpperCase())}: ${statusColor(r.status)}`);
-                  if (r.url) console.log(`  🔗 ${chalk.underline.blue(r.url)}`);
-                  if (r.message) console.log(`  📝 ${r.message}`);
-              }
-          } else if (result.url) {
-              console.log(`🔗 Preview URL: ${chalk.underline.blue(result.url)}`);
-          }
+				if (result.results) {
+					console.log(chalk.gray("\n--- Target Summary ---"));
+					for (const r of result.results) {
+						const statusColor =
+							r.status === "success" || r.status === "dry-run" ? chalk.green : chalk.red;
+						console.log(`${chalk.bold(r.target.toUpperCase())}: ${statusColor(r.status)}`);
+						if (r.url) console.log(`  🔗 ${chalk.underline.blue(r.url)}`);
+						if (r.message) console.log(`  📝 ${r.message}`);
+					}
+				} else if (result.url) {
+					console.log(`🔗 Preview URL: ${chalk.underline.blue(result.url)}`);
+				}
 
-          if (result.status === "partial_failure") {
-              console.warn(chalk.yellow("\n⚠️ Some deployment targets failed."));
-              process.exitCode = 1;
-              return;
-          }
-      } else {
-          console.error(chalk.red(`\n❌ Deployment failed: ${result.message}`));
-          process.exitCode = 1;
-          return;
-      }
-    } catch (error) {
-      if (options.json) {
-        const message = error instanceof Error ? error.message : String(error);
-        printJson(
-          buildJsonErrorEnvelope({
-            command: "deploy",
-            operation: "deploy",
-            error: "deploy-failed",
-            message,
-            nextAction: DEPLOY_DRY_RUN_COMMAND,
-            nextActions: [DEPLOY_DRY_RUN_COMMAND],
-            nextCommand: DEPLOY_DRY_RUN_COMMAND,
-            nextCommands: [DEPLOY_DRY_RUN_COMMAND],
-            extra: {
-              schemaVersion: DEPLOY_SCHEMA_VERSION,
-              target: options.target,
-              dryRun: options.dryRun === true,
-              status: "error",
-            },
-          }),
-        );
-        process.exitCode = 1;
-        return;
-      }
-      console.error(chalk.red(`\n❌ Error: ${error instanceof Error ? error.message : String(error)}`));
-      process.exitCode = 1;
-      return;
-    }
-  });
+				if (result.status === "partial_failure") {
+					console.warn(chalk.yellow("\n⚠️ Some deployment targets failed."));
+					process.exitCode = 1;
+					return;
+				}
+			} else {
+				console.error(chalk.red(`\n❌ Deployment failed: ${result.message}`));
+				process.exitCode = 1;
+				return;
+			}
+		} catch (error) {
+			if (options.json) {
+				const message = error instanceof Error ? error.message : String(error);
+				printJson(
+					buildJsonErrorEnvelope({
+						command: "deploy",
+						operation: "deploy",
+						error: "deploy-failed",
+						message,
+						nextAction: DEPLOY_DRY_RUN_COMMAND,
+						nextActions: [DEPLOY_DRY_RUN_COMMAND],
+						nextCommand: DEPLOY_DRY_RUN_COMMAND,
+						nextCommands: [DEPLOY_DRY_RUN_COMMAND],
+						extra: {
+							schemaVersion: DEPLOY_SCHEMA_VERSION,
+							target: options.target,
+							dryRun: options.dryRun === true,
+							status: "error",
+						},
+					}),
+				);
+				process.exitCode = 1;
+				return;
+			}
+			console.error(
+				chalk.red(`\n❌ Error: ${error instanceof Error ? error.message : String(error)}`),
+			);
+			process.exitCode = 1;
+			return;
+		}
+	});

@@ -6,10 +6,7 @@ import type {
 import chalk from "chalk";
 
 import { parseModelScope } from "../model-routing.js";
-import {
-	type CapabilitySurfaceHooks,
-	renderCapabilityError,
-} from "./capability-commander.js";
+import { type CapabilitySurfaceHooks, renderCapabilityError } from "./capability-commander.js";
 import {
 	buildCurrentModelEnvelope,
 	buildInvalidScopeEnvelope,
@@ -47,9 +44,7 @@ import {
  * (env, doctor) and for the explicit-sub forms above once matched by key, so
  * `resolveGroupAction` parses the child's own flags. Pure; unit-testable.
  */
-export function resolveModelGrammar(
-	tokens: string[],
-): CapabilityGroupResolution | null {
+export function resolveModelGrammar(tokens: string[]): CapabilityGroupResolution | null {
 	const clean = tokens.filter(Boolean);
 	const [firstRaw, ...rest] = clean;
 	const first = firstRaw?.toLowerCase();
@@ -257,9 +252,7 @@ export function modelCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 		case "current":
 			return {
 				renderText: (envelope) =>
-					formatCurrentModelFromStatus(
-						envelope as unknown as CurrentModelStatus,
-					),
+					formatCurrentModelFromStatus(envelope as unknown as CurrentModelStatus),
 			};
 		case "providers":
 			return { renderText: () => formatKnownModelProviders() };
@@ -277,9 +270,7 @@ export function modelCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 		case "doctor":
 			return {
 				renderText: (envelope) =>
-					formatModelDoctorFromStatus(
-						envelope as unknown as ModelDoctorStatus,
-					),
+					formatModelDoctorFromStatus(envelope as unknown as ModelDoctorStatus),
 			};
 		case "set":
 		case "fallback":
@@ -287,8 +278,7 @@ export function modelCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 		case "base-url": {
 			return {
 				renderText: (envelope) => {
-					if (envelope.ok === false)
-						return renderCapabilityError(envelope, "model error");
+					if (envelope.ok === false) return renderCapabilityError(envelope, "model error");
 					const m = envelope as unknown as {
 						action: string;
 						ref?: string;
@@ -309,9 +299,7 @@ export function modelCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 						case "disable-base-url":
 							return chalk.green("✓  Model base URL disabled");
 						case "reset-route":
-							return chalk.green(
-								`✓  ${m.scope} model reset to built-in default`,
-							);
+							return chalk.green(`✓  ${m.scope} model reset to built-in default`);
 						default:
 							return chalk.green("✓  model updated");
 					}

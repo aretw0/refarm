@@ -22,41 +22,21 @@ const HEALTH = "health";
 export const HEALTH_HELP_COMMAND = refarmCommand([HEALTH, "--help"]);
 
 /** `refarm health suggest-policy --json` — propose a reviewed policy. */
-export const HEALTH_SUGGEST_POLICY_COMMAND = refarmCommand([
-	HEALTH,
-	"suggest-policy",
-	"--json",
-]);
+export const HEALTH_SUGGEST_POLICY_COMMAND = refarmCommand([HEALTH, "suggest-policy", "--json"]);
 
 /** `refarm health apply-policy --json` — write the suggested policy. */
-export const HEALTH_APPLY_POLICY_COMMAND = refarmCommand([
-	HEALTH,
-	"apply-policy",
-	"--json",
-]);
+export const HEALTH_APPLY_POLICY_COMMAND = refarmCommand([HEALTH, "apply-policy", "--json"]);
 
 /** `refarm health policy --json` — print the resolved policy. */
-export const HEALTH_POLICY_JSON_COMMAND = refarmCommand([
-	HEALTH,
-	"policy",
-	"--json",
-]);
+export const HEALTH_POLICY_JSON_COMMAND = refarmCommand([HEALTH, "policy", "--json"]);
 
 /** `refarm health --next-action --json` — first blocking action (option, not a
  * sub-verb, so the form is unchanged from the pre-group command). */
-export const HEALTH_NEXT_ACTION_COMMAND = refarmCommand([
-	HEALTH,
-	"--next-action",
-	"--json",
-]);
+export const HEALTH_NEXT_ACTION_COMMAND = refarmCommand([HEALTH, "--next-action", "--json"]);
 
 /** The argv (not the joined string) for the audit next-action handoff, for
  * callers that build an ApplicationProcessSpec or a finish-plan step. */
-export const HEALTH_NEXT_ACTION_ARGV: readonly string[] = [
-	HEALTH,
-	"--next-action",
-	"--json",
-];
+export const HEALTH_NEXT_ACTION_ARGV: readonly string[] = [HEALTH, "--next-action", "--json"];
 
 /** The process spec form of {@link HEALTH_POLICY_JSON_COMMAND}. */
 export function healthPolicyProcess(): ApplicationProcessSpec {

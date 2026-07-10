@@ -14,7 +14,9 @@ import {
 } from "@refarm.dev/cli/command-plan";
 import { readGitCommand } from "@refarm.dev/cli/git-command";
 import {
-	affectedWorkspacePackagesFromChangedPaths, changedFilePathsFromGitNameOnly, changedFilePathsFromGitStatus,
+	affectedWorkspacePackagesFromChangedPaths,
+	changedFilePathsFromGitNameOnly,
+	changedFilePathsFromGitStatus,
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,
 	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 } from "@refarm.dev/config";
@@ -29,12 +31,13 @@ import path from "node:path";
 import { refarmCommand } from "../brand.js";
 import type { AgentFinishSessionRecorder } from "./agent-finish-session.js";
 import {
-	AGENT_FINISH_LANE_HELP, agentFinishCommand, agentFinishLaneCatalog, type AgentFinishLane, type AgentFinishLaneValidationScope,
+	AGENT_FINISH_LANE_HELP,
+	agentFinishCommand,
+	agentFinishLaneCatalog,
+	type AgentFinishLane,
+	type AgentFinishLaneValidationScope,
 } from "./agent-handoff-plan.js";
-import {
-	createPackageBinaryCommand,
-	createPackageScriptCommand,
-} from "./package-manager.js";
+import { createPackageBinaryCommand, createPackageScriptCommand } from "./package-manager.js";
 import { workspaceCanUseTurboAdapter } from "./workspace-execution.js";
 
 const FINISH_TURBO_CONCURRENCY = 2;
@@ -124,19 +127,10 @@ function finishStep(
 
 function tidyImportsStep(check: boolean): CommandPlanStep {
 	const repoRoot = findWorkspaceRoot();
-	const toolboxArgs = [
-		"packages/toolbox/src/cli.mjs",
-		"imports",
-		...(check ? ["--check"] : []),
-	];
+	const toolboxArgs = ["packages/toolbox/src/cli.mjs", "imports", ...(check ? ["--check"] : [])];
 	return {
 		id: check ? "tidy-imports-check" : "tidy-imports",
-		command: refarmCommand([
-			"tidy",
-			"imports",
-			...(check ? ["--check"] : []),
-			"--json",
-		]),
+		command: refarmCommand(["tidy", "imports", ...(check ? ["--check"] : []), "--json"]),
 		args: ["tidy", "imports", ...(check ? ["--check"] : []), "--json"],
 		description: check
 			? "Check import organization after the editing slice."
@@ -218,7 +212,7 @@ function packageScripts(workspace: string): Record<string, string> {
 			scripts?: unknown;
 		};
 		return parsed.scripts && typeof parsed.scripts === "object" && !Array.isArray(parsed.scripts)
-			? parsed.scripts as Record<string, string>
+			? (parsed.scripts as Record<string, string>)
 			: {};
 	} catch {
 		return {};
@@ -292,20 +286,18 @@ function packageFinishStepsForWorkspace(
 	const availableCandidates = packageValidationCandidates(workspace, includeTests);
 	if (availableCandidates.length === 0) return [];
 	if (workspaceCanUseTurboAdapter(findWorkspaceRoot()) && workspace !== ".") {
-		return [turboPackageValidationStep(
-			workspace,
-			availableCandidates.map(([script]) => script),
-			availableCandidates.map(([, description]) => description),
-			idPrefix,
-		)];
+		return [
+			turboPackageValidationStep(
+				workspace,
+				availableCandidates.map(([script]) => script),
+				availableCandidates.map(([, description]) => description),
+				idPrefix,
+			),
+		];
 	}
-	return availableCandidates
-		.map(([script, description]) => packageScriptStep(
-			workspace,
-			script,
-			description,
-			idPrefix,
-	));
+	return availableCandidates.map(([script, description]) =>
+		packageScriptStep(workspace, script, description, idPrefix),
+	);
 }
 
 function packageValidationCandidates(
@@ -316,16 +308,17 @@ function packageValidationCandidates(
 	const candidates = [
 		["type-check", "Run the package TypeScript/type validation."],
 		["lint", "Run the package lint validation."],
-		...(includeTests ? [["test", "Run the package test suite."]] as const : []),
+		...(includeTests ? ([["test", "Run the package test suite."]] as const) : []),
 		["build", "Build the package after source changes."],
 	] as const;
 	const baseCandidates = candidates.filter(([script]) => script !== "test");
-	const availableBaseCandidates = baseCandidates
-		.filter(([script]) => typeof scripts[script] === "string");
+	const availableBaseCandidates = baseCandidates.filter(
+		([script]) => typeof scripts[script] === "string",
+	);
 	return [
 		...candidates,
 		...(!includeTests && availableBaseCandidates.length === 0
-			? [["test", "Run the package test suite."]] as const
+			? ([["test", "Run the package test suite."]] as const)
 			: []),
 	].filter(([script]) => typeof scripts[script] === "string");
 }
@@ -338,14 +331,18 @@ function turboPackageValidationStep(
 ): CommandPlanStep {
 	const repoRoot = findWorkspaceRoot();
 	const workspaces = typeof workspace === "string" ? [workspace] : workspace;
-	const command = createPackageBinaryCommand("turbo", [
-		"run",
-		...scripts,
-		`--concurrency=${FINISH_TURBO_CONCURRENCY}`,
-		...workspaces.map((item) => `--filter=./${item}`),
-		"--output-logs=errors-only",
-		"--ui=stream",
-	], { cwd: repoRoot });
+	const command = createPackageBinaryCommand(
+		"turbo",
+		[
+			"run",
+			...scripts,
+			`--concurrency=${FINISH_TURBO_CONCURRENCY}`,
+			...workspaces.map((item) => `--filter=./${item}`),
+			"--output-logs=errors-only",
+			"--ui=stream",
+		],
+		{ cwd: repoRoot },
+	);
 	return {
 		id: `${idPrefix}-validation`,
 		command: command.display,
@@ -385,20 +382,25 @@ function affectedPackageFinishSteps(
 	}
 
 	const steps: CommandPlanStep[] = [];
-	const turboGroups = new Map<string, {
-		descriptions: string[];
-		scripts: string[];
-		workspaces: string[];
-	}>();
+	const turboGroups = new Map<
+		string,
+		{
+			descriptions: string[];
+			scripts: string[];
+			workspaces: string[];
+		}
+	>();
 	for (const workspace of workspaces) {
 		const candidates = packageValidationCandidates(workspace, includeTests);
 		if (candidates.length === 0) continue;
 		if (workspace === ".") {
-			steps.push(...packageFinishStepsForWorkspace(
-				workspace,
-				`package-${sanitizeStepId(workspace)}`,
-				includeTests,
-			));
+			steps.push(
+				...packageFinishStepsForWorkspace(
+					workspace,
+					`package-${sanitizeStepId(workspace)}`,
+					includeTests,
+				),
+			);
 			continue;
 		}
 		const scripts = candidates.map(([script]) => script);
@@ -414,45 +416,46 @@ function affectedPackageFinishSteps(
 	}
 	let groupIndex = 0;
 	for (const group of turboGroups.values()) {
-		const idPrefix = group.workspaces.length === 1
-			? `package-${sanitizeStepId(group.workspaces[0]!)}`
-			: groupIndex === 0
-				? "package-affected"
-				: `package-affected-${groupIndex + 1}`;
-		steps.push(turboPackageValidationStep(
-			group.workspaces,
-			group.scripts,
-			group.descriptions,
-			idPrefix,
-		));
+		const idPrefix =
+			group.workspaces.length === 1
+				? `package-${sanitizeStepId(group.workspaces[0]!)}`
+				: groupIndex === 0
+					? "package-affected"
+					: `package-affected-${groupIndex + 1}`;
+		steps.push(
+			turboPackageValidationStep(group.workspaces, group.scripts, group.descriptions, idPrefix),
+		);
 		groupIndex += 1;
 	}
 	return steps;
 }
 
-function affectedWorkspacesFromGit(options: {
-	includeWorkingTree?: boolean;
-	repoRoot?: string;
-	since?: string;
-} = {}): string[] {
+function affectedWorkspacesFromGit(
+	options: {
+		includeWorkingTree?: boolean;
+		repoRoot?: string;
+		since?: string;
+	} = {},
+): string[] {
 	return affectedWorkspacePackagesFromChangedPaths(
 		options.repoRoot ?? findWorkspaceRoot(),
 		changedPathsFromGit(options),
 	);
 }
 
-function changedPathsFromGit(options: {
-	includeWorkingTree?: boolean;
-	repoRoot?: string;
-	since?: string;
-} = {}): string[] {
+function changedPathsFromGit(
+	options: {
+		includeWorkingTree?: boolean;
+		repoRoot?: string;
+		since?: string;
+	} = {},
+): string[] {
 	const repoRoot = options.repoRoot ?? findWorkspaceRoot();
 	const includeWorkingTree = options.includeWorkingTree ?? true;
 	try {
-		const status = readGitCommand(
-			["status", "--short", "--untracked-files=all"],
-			{ cwd: repoRoot },
-		);
+		const status = readGitCommand(["status", "--short", "--untracked-files=all"], {
+			cwd: repoRoot,
+		});
 		if (!options.since) {
 			return changedFilePathsFromGitStatus(status);
 		}
@@ -466,7 +469,9 @@ function changedPathsFromGit(options: {
 		];
 	} catch {
 		if (options.since) {
-			throw new Error(`Could not inspect changed workspaces since ${options.since}. Check that the ref exists.`);
+			throw new Error(
+				`Could not inspect changed workspaces since ${options.since}. Check that the ref exists.`,
+			);
 		}
 		return [];
 	}
@@ -512,15 +517,18 @@ function resolveSinceRef(repoRoot: string, since: string): string {
 	if (since !== "upstream") return since;
 	let upstream = "";
 	try {
-		upstream = readGitCommand(
-			["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
-			{ cwd: repoRoot },
-		).trim();
+		upstream = readGitCommand(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], {
+			cwd: repoRoot,
+		}).trim();
 	} catch {
-		throw new Error("Could not resolve upstream for the current branch. Configure a branch upstream or pass an explicit ref with --since <ref>.");
+		throw new Error(
+			"Could not resolve upstream for the current branch. Configure a branch upstream or pass an explicit ref with --since <ref>.",
+		);
 	}
 	if (!upstream) {
-		throw new Error("Could not resolve upstream for the current branch. Configure a branch upstream or pass an explicit ref with --since <ref>.");
+		throw new Error(
+			"Could not resolve upstream for the current branch. Configure a branch upstream or pass an explicit ref with --since <ref>.",
+		);
 	}
 	return upstream;
 }
@@ -561,7 +569,10 @@ export function finishSelectionFromLane(lane: AgentFinishLane): Omit<AgentFinish
 	return { lane, profile: "affected" };
 }
 
-export function laneConflictMessage(lane: AgentFinishLane | undefined, options: AgentFinishOptions): string | null {
+export function laneConflictMessage(
+	lane: AgentFinishLane | undefined,
+	options: AgentFinishOptions,
+): string | null {
 	if (!lane) return null;
 	if (options.profile && options.profile !== "quick") {
 		return "--lane cannot be combined with --profile. Use one selection style.";
@@ -589,10 +600,15 @@ export function lanesConflictMessage(options: AgentFinishOptions): string | null
 	if (options.includeTests === true) {
 		return "--lanes cannot be combined with --include-tests. Inspect the with-package-tests lane instead.";
 	}
-	if (typeof options.workspace === "string" && options.workspace.length > 0 && options.workspace !== ".") {
+	if (
+		typeof options.workspace === "string" &&
+		options.workspace.length > 0 &&
+		options.workspace !== "."
+	) {
 		return "--lanes cannot be combined with --workspace. It is not workspace-specific.";
 	}
-	if (options.fix === true) return "--lanes cannot be combined with --fix. It only lists recommended commands.";
+	if (options.fix === true)
+		return "--lanes cannot be combined with --fix. It only lists recommended commands.";
 	return null;
 }
 
@@ -604,7 +620,8 @@ export function templatesConflictMessage(options: AgentFinishOptions): string | 
 	if (typeof options.lane === "string" && options.lane.length > 0) {
 		return "--templates cannot be combined with --lane. Choose a concrete command after substituting parameters.";
 	}
-	if (options.lanes === true) return "--templates cannot be combined with --lanes. Choose one catalog.";
+	if (options.lanes === true)
+		return "--templates cannot be combined with --lanes. Choose one catalog.";
 	if (typeof options.profile === "string" && options.profile !== "quick") {
 		return "--templates cannot be combined with --profile. It is not profile-specific.";
 	}
@@ -614,22 +631,29 @@ export function templatesConflictMessage(options: AgentFinishOptions): string | 
 	if (options.includeTests === true) {
 		return "--templates cannot be combined with --include-tests. It only lists command templates.";
 	}
-	if (typeof options.workspace === "string" && options.workspace.length > 0 && options.workspace !== ".") {
+	if (
+		typeof options.workspace === "string" &&
+		options.workspace.length > 0 &&
+		options.workspace !== "."
+	) {
 		return "--templates cannot be combined with --workspace. Templates require placeholder substitution.";
 	}
-	if (options.fix === true) return "--templates cannot be combined with --fix. It only lists command templates.";
+	if (options.fix === true)
+		return "--templates cannot be combined with --fix. It only lists command templates.";
 	return null;
 }
 
-function selectedFinishSteps(options: {
-	fix?: boolean;
-	includeTests?: boolean;
-	lane?: AgentFinishLane;
-	profile?: AgentFinishProfile;
-	workspace?: string;
-	affectedScriptChecks?: string[];
-	affectedWorkspaces?: string[];
-} = {}): CommandPlanStep[] {
+function selectedFinishSteps(
+	options: {
+		fix?: boolean;
+		includeTests?: boolean;
+		lane?: AgentFinishLane;
+		profile?: AgentFinishProfile;
+		workspace?: string;
+		affectedScriptChecks?: string[];
+		affectedWorkspaces?: string[];
+	} = {},
+): CommandPlanStep[] {
 	const steps = options.fix
 		? agentFinishSteps
 		: agentFinishSteps.filter((step) => step.id !== "tidy-imports");
@@ -646,24 +670,23 @@ function selectedFinishSteps(options: {
 		return [
 			...steps,
 			...affectedScriptFinishSteps(options.affectedScriptChecks),
-			...affectedPackageFinishSteps(
-				options.includeTests,
-				options.affectedWorkspaces,
-			),
+			...affectedPackageFinishSteps(options.includeTests, options.affectedWorkspaces),
 		];
 	}
 	return steps;
 }
 
-export function plannedFinishCommands(options: {
-	fix?: boolean;
-	includeTests?: boolean;
-	lane?: AgentFinishLane;
-	profile?: AgentFinishProfile;
-	workspace?: string;
-	affectedScriptChecks?: string[];
-	affectedWorkspaces?: string[];
-} = {}): string[] {
+export function plannedFinishCommands(
+	options: {
+		fix?: boolean;
+		includeTests?: boolean;
+		lane?: AgentFinishLane;
+		profile?: AgentFinishProfile;
+		workspace?: string;
+		affectedScriptChecks?: string[];
+		affectedWorkspaces?: string[];
+	} = {},
+): string[] {
 	return commandPlanStepCommands(selectedFinishSteps(options));
 }
 
@@ -683,14 +706,15 @@ export function runAgentFinishPlan(
 		command: "agent",
 		operation: "finish",
 	});
-	return runCommandPlan(selectedFinishSteps(options), (step) =>
-		step.process
-			? enrichFinishStepResult(step, deps.runProcess(step))
-			: deps.runRefarm(step.args),
-	{
-		planResourceCeiling: (step) =>
-			finishStepResourceCeiling(step, environmentPressure),
-	},
+	return runCommandPlan(
+		selectedFinishSteps(options),
+		(step) =>
+			step.process
+				? enrichFinishStepResult(step, deps.runProcess(step))
+				: deps.runRefarm(step.args),
+		{
+			planResourceCeiling: (step) => finishStepResourceCeiling(step, environmentPressure),
+		},
 	);
 }
 
@@ -703,12 +727,8 @@ function finishStepResourceCeiling(
 	return planEnvironmentWorkCeiling(environmentPressure, {
 		workClass: resourcePolicy.workClass,
 		command: step.command,
-		...(resourcePolicy.fallbackCommand
-			? { fallbackCommand: resourcePolicy.fallbackCommand }
-			: {}),
-		...(resourcePolicy.concurrency
-			? { maxConcurrency: resourcePolicy.concurrency }
-			: {}),
+		...(resourcePolicy.fallbackCommand ? { fallbackCommand: resourcePolicy.fallbackCommand } : {}),
+		...(resourcePolicy.concurrency ? { maxConcurrency: resourcePolicy.concurrency } : {}),
 	}) as CommandPlanResourceCeilingPlan;
 }
 
@@ -733,11 +753,14 @@ export function buildAgentFinishPlanEnvelope(
 	affectedWorkspaces?: string[],
 ) {
 	return {
-		...buildCommandPlanEnvelope({
-			action: "finish",
-			command: "agent",
-			operation: "finish",
-		}, selectedFinishSteps(selection)),
+		...buildCommandPlanEnvelope(
+			{
+				action: "finish",
+				command: "agent",
+				operation: "finish",
+			},
+			selectedFinishSteps(selection),
+		),
 		selection: finishSelectionMetadata(selection, affectedWorkspaces),
 	};
 }
@@ -751,10 +774,11 @@ export function finishSelectionMetadata(
 		fix: Boolean(selection.fix),
 		includeTests: Boolean(selection.includeTests),
 		lane: selection.lane ?? null,
-		since: selection.profile === "affected" ? selection.since ?? null : null,
-		sinceRef: selection.profile === "affected" ? selection.sinceRef ?? selection.since ?? null : null,
+		since: selection.profile === "affected" ? (selection.since ?? null) : null,
+		sinceRef:
+			selection.profile === "affected" ? (selection.sinceRef ?? selection.since ?? null) : null,
 		validationScope: finishValidationScope(selection),
-		workspace: selection.profile === "package" ? selection.workspace ?? "." : null,
+		workspace: selection.profile === "package" ? (selection.workspace ?? ".") : null,
 		...(selection.profile === "affected"
 			? {
 					affectedScriptChecks: selection.affectedScriptChecks ?? [],
@@ -882,9 +906,10 @@ function formatSinceSelection(selection: AgentFinishSelectionMetadata): string {
 }
 
 export function resolveFinishOptions(self: Command, actionArg: unknown): AgentFinishOptions {
-	const command = actionArg && typeof actionArg === "object" && "opts" in actionArg
-		? actionArg as Command
-		: self;
+	const command =
+		actionArg && typeof actionArg === "object" && "opts" in actionArg
+			? (actionArg as Command)
+			: self;
 	return {
 		...command.parent?.opts<AgentFinishOptions>(),
 		...command.opts<AgentFinishOptions>(),
@@ -896,31 +921,36 @@ export function reportAgentFinishOptionError(
 	options: AgentFinishOptions,
 	error = "invalid-agent-finish-options",
 ): void {
-	const fallbackCommand = error === "invalid-agent-finish-since-ref"
-		? options.run
-			? agentFinishCommand(["--profile", "affected", "--run", "--json"])
-			: agentFinishCommand(["--profile", "affected", "--json"])
-		: agentFinishCommand(["--help"]);
-	const nextActions = error === "invalid-agent-finish-since-ref"
-		? [
-			"Run the dirty-tree affected fallback while choosing an explicit Git ref or configuring upstream.",
-			"Pass an explicit Git ref with `refarm agent finish --profile affected --since <ref> --json`.",
-			"Configure the current branch upstream, then retry `refarm agent finish --profile affected --since upstream --json`.",
-		]
-		: ["Run `refarm agent finish --help` and choose a valid finish lane or profile."];
+	const fallbackCommand =
+		error === "invalid-agent-finish-since-ref"
+			? options.run
+				? agentFinishCommand(["--profile", "affected", "--run", "--json"])
+				: agentFinishCommand(["--profile", "affected", "--json"])
+			: agentFinishCommand(["--help"]);
+	const nextActions =
+		error === "invalid-agent-finish-since-ref"
+			? [
+					"Run the dirty-tree affected fallback while choosing an explicit Git ref or configuring upstream.",
+					"Pass an explicit Git ref with `refarm agent finish --profile affected --since <ref> --json`.",
+					"Configure the current branch upstream, then retry `refarm agent finish --profile affected --since upstream --json`.",
+				]
+			: ["Run `refarm agent finish --help` and choose a valid finish lane or profile."];
 	if (options.json) {
-		printJson(buildJsonErrorEnvelope({
-			command: "agent",
-			operation: "finish",
-			error,
-			message,
-			nextAction: nextActions[0]!,
-			nextActions,
-			nextCommand: fallbackCommand,
-			nextCommands: error === "invalid-agent-finish-since-ref"
-				? [fallbackCommand, agentFinishCommand(["--help"])]
-				: [fallbackCommand],
-		}));
+		printJson(
+			buildJsonErrorEnvelope({
+				command: "agent",
+				operation: "finish",
+				error,
+				message,
+				nextAction: nextActions[0]!,
+				nextActions,
+				nextCommand: fallbackCommand,
+				nextCommands:
+					error === "invalid-agent-finish-since-ref"
+						? [fallbackCommand, agentFinishCommand(["--help"])]
+						: [fallbackCommand],
+			}),
+		);
 	} else {
 		console.error(message);
 	}

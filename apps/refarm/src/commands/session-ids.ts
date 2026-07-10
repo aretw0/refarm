@@ -22,8 +22,7 @@ export function findSessionIdPrefixMatches<T extends SessionIdNode>(
 	if (exact) return [exact];
 
 	return sessions.filter(
-		(session) =>
-			session["@id"].includes(prefix) || session["@id"].endsWith(prefix),
+		(session) => session["@id"].includes(prefix) || session["@id"].endsWith(prefix),
 	);
 }
 
@@ -36,9 +35,7 @@ export function resolveSessionIdPrefix<T extends SessionIdNode>(
 		throw new Error(`No session matching "${prefix}"`);
 	}
 	if (matches.length > 1) {
-		throw new Error(
-			`Ambiguous session prefix "${prefix}" (${matches.length} matches)`,
-		);
+		throw new Error(`Ambiguous session prefix "${prefix}" (${matches.length} matches)`);
 	}
 	return matches[0]!["@id"];
 }

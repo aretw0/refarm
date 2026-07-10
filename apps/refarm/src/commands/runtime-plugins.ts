@@ -43,9 +43,7 @@ function pluginIdArray(value: unknown): string[] {
 }
 
 function reloadBody(pluginIds?: string[]): string | undefined {
-	return pluginIds
-		? JSON.stringify({ pluginIds: pluginIds.map(normalizePluginId) })
-		: undefined;
+	return pluginIds ? JSON.stringify({ pluginIds: pluginIds.map(normalizePluginId) }) : undefined;
 }
 
 export async function readRuntimePluginState(): Promise<RuntimePluginState | null> {
@@ -60,9 +58,7 @@ export async function readRuntimePluginState(): Promise<RuntimePluginState | nul
 			local: pluginIdArray(payload.local),
 			known: pluginIdArray(payload.known),
 			defaultResponder:
-				typeof raw.defaultResponder === "string"
-					? normalizePluginId(raw.defaultResponder)
-					: null,
+				typeof raw.defaultResponder === "string" ? normalizePluginId(raw.defaultResponder) : null,
 		};
 	} catch {
 		return null;

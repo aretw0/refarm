@@ -34,10 +34,7 @@ import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
 import { pluginsBaseDir } from "../utils/refarm-home.js";
 import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
-import {
-	PLUGIN_INSTALL_JSON_COMMAND,
-	PLUGIN_STATUS_JSON_COMMAND,
-} from "./plugin-handoffs.js";
+import { PLUGIN_INSTALL_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 import { buildExtensionInstallReport } from "./plugin-install-from-path.js";
 import { buildUrlInstallReport } from "./plugin-install-from-url.js";
 import { buildInstallReport } from "./plugin-install.js";
@@ -59,20 +56,14 @@ import {
 	restartRuntimeForPluginReload,
 	runtimePluginUnavailableRecommendations,
 } from "./plugin-runtime.js";
-import {
-	buildCreatedPluginReport,
-	type CreatedExtensionReport,
-} from "./plugin-scaffold.js";
+import { buildCreatedPluginReport, type CreatedExtensionReport } from "./plugin-scaffold.js";
 import {
 	detectPluginOrigin,
 	pluginIdToFsToken,
 	type BundledPlugin,
 	type PluginOrigin,
 } from "./plugin-shared.js";
-import {
-	readRuntimePluginState,
-	reloadRuntimePluginsAndWait,
-} from "./runtime-plugins.js";
+import { readRuntimePluginState, reloadRuntimePluginsAndWait } from "./runtime-plugins.js";
 import {
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
@@ -154,10 +145,7 @@ function parsePluginOrigin(value: unknown): {
 	error?: string;
 } {
 	if (value === undefined) return {};
-	if (
-		typeof value === "string" &&
-		(PLUGIN_ORIGINS as readonly string[]).includes(value)
-	) {
+	if (typeof value === "string" && (PLUGIN_ORIGINS as readonly string[]).includes(value)) {
 		return { value: value as PluginOrigin };
 	}
 	return {
@@ -169,11 +157,7 @@ export function defaultPluginDeps(): PluginCommandDeps {
 	return {
 		buildListReport: buildPluginListReport,
 		readManifest: async (id) => {
-			const manifestPath = path.join(
-				pluginsBaseDir(),
-				pluginIdToFsToken(id),
-				"plugin.json",
-			);
+			const manifestPath = path.join(pluginsBaseDir(), pluginIdToFsToken(id), "plugin.json");
 			return JSON.parse(await readFile(manifestPath, "utf-8")) as unknown;
 		},
 		readRuntimePluginState,
@@ -203,8 +187,7 @@ export function createPluginCapabilityGroup(
 			{
 				name: "origin",
 				kind: "string",
-				summary:
-					"Filter by provenance: local | installed | bundled | npm | git | url",
+				summary: "Filter by provenance: local | installed | bundled | npm | git | url",
 			},
 		],
 		async run(input) {
@@ -226,9 +209,7 @@ export function createPluginCapabilityGroup(
 			return buildJsonSuccessEnvelope({
 				command: "plugin",
 				operation: "list",
-				nextCommand: missing
-					? PLUGIN_INSTALL_JSON_COMMAND
-					: PLUGIN_STATUS_JSON_COMMAND,
+				nextCommand: missing ? PLUGIN_INSTALL_JSON_COMMAND : PLUGIN_STATUS_JSON_COMMAND,
 				nextCommands: missing
 					? [PLUGIN_INSTALL_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND]
 					: [PLUGIN_STATUS_JSON_COMMAND],
@@ -281,15 +262,13 @@ export function createPluginCapabilityGroup(
 	// stays pure over the builder; nothing is installed here.
 	const review: CapabilityDescriptor = {
 		name: "review",
-		summary:
-			"Review a prepared plugin against a capability grant (review-first; installs nothing)",
+		summary: "Review a prepared plugin against a capability grant (review-first; installs nothing)",
 		args: [{ name: "path", required: true }],
 		options: [
 			{
 				name: "grant",
 				kind: "string[]",
-				summary:
-					"Grant a capability for this review (repeatable); default grants none",
+				summary: "Grant a capability for this review (repeatable); default grants none",
 			},
 			{
 				name: "policy",
@@ -300,11 +279,7 @@ export function createPluginCapabilityGroup(
 		],
 		run(input) {
 			const policy = input.options.policy;
-			if (
-				policy !== undefined &&
-				policy !== "fail-fast" &&
-				policy !== "warn+continue"
-			) {
+			if (policy !== undefined && policy !== "fail-fast" && policy !== "warn+continue") {
 				return buildJsonErrorEnvelope({
 					command: "plugin",
 					operation: "review",
@@ -359,9 +334,7 @@ export function createPluginCapabilityGroup(
 				});
 			}
 			const declared = Array.isArray(manifest.permissions)
-				? manifest.permissions.filter(
-						(p): p is string => typeof p === "string",
-					)
+				? manifest.permissions.filter((p): p is string => typeof p === "string")
 				: [];
 			// Known permissions rendered with their human label + risk (the approval
 			// surface); anything outside the closed vocabulary is called out.
@@ -401,8 +374,7 @@ export function createPluginCapabilityGroup(
 	// the same operation:"install" — preserved here.
 	const install: CapabilityDescriptor = {
 		name: "install",
-		summary:
-			"Install a plugin from <ref> (origin detected), or --bundled to sync all bundled",
+		summary: "Install a plugin from <ref> (origin detected), or --bundled to sync all bundled",
 		args: [{ name: "ref", required: false }],
 		options: [
 			{
@@ -419,8 +391,7 @@ export function createPluginCapabilityGroup(
 			{
 				name: "grant",
 				kind: "string[]",
-				summary:
-					"For a <ref>: grant a capability for this install (repeatable)",
+				summary: "For a <ref>: grant a capability for this install (repeatable)",
 			},
 			{
 				name: "policy",
@@ -462,11 +433,7 @@ export function createPluginCapabilityGroup(
 			const origin = detectPluginOrigin(ref);
 			if (origin === "local") {
 				const policy = input.options.policy;
-				if (
-					policy !== undefined &&
-					policy !== "fail-fast" &&
-					policy !== "warn+continue"
-				) {
+				if (policy !== undefined && policy !== "fail-fast" && policy !== "warn+continue") {
 					return buildJsonErrorEnvelope({
 						command: "plugin",
 						operation: "install",
@@ -612,8 +579,7 @@ export function createPluginCapabilityGroup(
 						command: "plugin",
 						operation: "reload",
 						error: "runtime-plugin-restart-failed",
-						message:
-							"Runtime restart failed after plugin reload endpoint was unavailable.",
+						message: "Runtime restart failed after plugin reload endpoint was unavailable.",
 						nextAction: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
 						nextCommand: restart.failedCommand ?? RUNTIME_START_WAIT_COMMAND,
 						nextCommands: [
@@ -702,11 +668,7 @@ export function createPluginCapabilityGroup(
 					message: `One or more runtime plugins ${timedOutMessage}.`,
 					nextAction: restartCommand,
 					nextCommand: restartCommand,
-					nextCommands: [
-						restartCommand,
-						PLUGIN_STATUS_JSON_COMMAND,
-						RUNTIME_DOCTOR_NEXT_COMMAND,
-					],
+					nextCommands: [restartCommand, PLUGIN_STATUS_JSON_COMMAND, RUNTIME_DOCTOR_NEXT_COMMAND],
 					extra: {
 						requested: pluginIds,
 						reloaded: result.reloaded,
@@ -798,9 +760,7 @@ export function createPluginCapabilityGroup(
 			}
 
 			const deny = Boolean(input.options.deny);
-			const requested = deny
-				? []
-				: ((input.options.approve as string[] | undefined) ?? []);
+			const requested = deny ? [] : ((input.options.approve as string[] | undefined) ?? []);
 
 			// Every approved capability must be one the plugin DECLARED (approving a
 			// capability the plugin never asked for is meaningless — the host only
@@ -827,11 +787,7 @@ export function createPluginCapabilityGroup(
 				});
 			}
 
-			const result: ApprovalResult = deps.persistApproval(
-				filePath,
-				id,
-				requested,
-			);
+			const result: ApprovalResult = deps.persistApproval(filePath, id, requested);
 			// Render the approved set with its human labels + risk (the vocab).
 			const approvedSpecs = result.approved
 				.map((cap) => describePermission(cap))
@@ -852,105 +808,105 @@ export function createPluginCapabilityGroup(
 		},
 	};
 
-		// Shared run() for revoke + unrevoke — same shape (validate scope → resolve
-		// path → persist via the injected add-only primitive → envelope). `operation`
-		// names the verb; `persist` is the primitive (revoke or unrevoke).
-		const revocationRun = async (
-			input: { args: Record<string, unknown>; options: Record<string, unknown> },
-			operation: "revoke" | "unrevoke",
-			persist: typeof revoke,
-		) => {
-			const id = input.args.id as string;
-			const scopeRaw = (input.options.scope as string) ?? "user";
-			if (scopeRaw !== "user" && scopeRaw !== "workspace" && scopeRaw !== "org") {
-				return buildJsonErrorEnvelope({
-					command: "plugin",
-					operation,
-					error: "unknown-scope",
-					message: `Unknown scope "${scopeRaw}". Use user, workspace, or org.`,
-					nextAction: "Retry with --scope user|workspace|org.",
-				});
-			}
-			const scope = scopeRaw as LedgerScope;
-			const capability = (input.options.cap as string | undefined) ?? null;
-
-			const filePath = revocationConfigPath(scope);
-			if (!filePath) {
-				return buildJsonErrorEnvelope({
-					command: "plugin",
-					operation,
-					error: "scope-unavailable",
-					message: `The ${scope} scope is not available.`,
-					nextAction: "Set REFARM_ORG_HOME for org scope, or use --scope user.",
-				});
-			}
-
-			const result: RevocationResult = persist(filePath, id, capability);
-			return buildJsonSuccessEnvelope({
+	// Shared run() for revoke + unrevoke — same shape (validate scope → resolve
+	// path → persist via the injected add-only primitive → envelope). `operation`
+	// names the verb; `persist` is the primitive (revoke or unrevoke).
+	const revocationRun = async (
+		input: { args: Record<string, unknown>; options: Record<string, unknown> },
+		operation: "revoke" | "unrevoke",
+		persist: typeof revoke,
+	) => {
+		const id = input.args.id as string;
+		const scopeRaw = (input.options.scope as string) ?? "user";
+		if (scopeRaw !== "user" && scopeRaw !== "workspace" && scopeRaw !== "org") {
+			return buildJsonErrorEnvelope({
 				command: "plugin",
 				operation,
-				nextCommand: PLUGIN_STATUS_JSON_COMMAND,
-				nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
-				extra: {
-					pluginId: id,
-					scope,
-					capability: result.capability,
-					changed: result.changed,
-				},
+				error: "unknown-scope",
+				message: `Unknown scope "${scopeRaw}". Use user, workspace, or org.`,
+				nextAction: "Retry with --scope user|workspace|org.",
 			});
-		};
+		}
+		const scope = scopeRaw as LedgerScope;
+		const capability = (input.options.cap as string | undefined) ?? null;
 
-		// ── revoke <id> [--cap <c>] [--scope] ──────────────────────────────────────
-		// The monotonic counterpart to approve --deny: writes an add-only revocation
-		// the host materializes into a graph tombstone. Unlike approve, a revoked id/cap
-		// is denied even under a `*` wildcard, and a stale device can't resurrect it.
-		const revokeVerb: CapabilityDescriptor = {
-			name: "revoke",
-			summary: "Revoke a plugin (or one capability) — monotonic, denies even under wildcard",
-			args: [{ name: "id", required: true }],
-			options: [
-				{
-					name: "cap",
-					kind: "string",
-					summary: "Revoke only this capability (default: the whole plugin)",
-				},
-				{
-					name: "scope",
-					kind: "string",
-					summary: "Config scope to persist to: user | workspace | org",
-					defaultValue: "user",
-				},
-			],
-			async run(input) {
-				return revocationRun(input, "revoke", deps.persistRevocation);
-			},
-		};
+		const filePath = revocationConfigPath(scope);
+		if (!filePath) {
+			return buildJsonErrorEnvelope({
+				command: "plugin",
+				operation,
+				error: "scope-unavailable",
+				message: `The ${scope} scope is not available.`,
+				nextAction: "Set REFARM_ORG_HOME for org scope, or use --scope user.",
+			});
+		}
 
-		// ── unrevoke <id> [--cap <c>] [--scope] ────────────────────────────────────
-		// The reversible counterpart: writes an add-only annulment (bumps the seq above
-		// the revoke), so the plugin/cap is re-admitted at the next load/reload. Nothing
-		// is removed; a later re-revoke bumps back and denies again.
-		const unrevokeVerb: CapabilityDescriptor = {
-			name: "unrevoke",
-			summary: "Un-revoke a plugin (or one capability) — reversible, re-admits at reload",
-			args: [{ name: "id", required: true }],
-			options: [
-				{
-					name: "cap",
-					kind: "string",
-					summary: "Un-revoke only this capability (default: the whole plugin)",
-				},
-				{
-					name: "scope",
-					kind: "string",
-					summary: "Config scope to persist to: user | workspace | org",
-					defaultValue: "user",
-				},
-			],
-			async run(input) {
-				return revocationRun(input, "unrevoke", deps.persistUnrevocation);
+		const result: RevocationResult = persist(filePath, id, capability);
+		return buildJsonSuccessEnvelope({
+			command: "plugin",
+			operation,
+			nextCommand: PLUGIN_STATUS_JSON_COMMAND,
+			nextCommands: [PLUGIN_STATUS_JSON_COMMAND],
+			extra: {
+				pluginId: id,
+				scope,
+				capability: result.capability,
+				changed: result.changed,
 			},
-		};
+		});
+	};
+
+	// ── revoke <id> [--cap <c>] [--scope] ──────────────────────────────────────
+	// The monotonic counterpart to approve --deny: writes an add-only revocation
+	// the host materializes into a graph tombstone. Unlike approve, a revoked id/cap
+	// is denied even under a `*` wildcard, and a stale device can't resurrect it.
+	const revokeVerb: CapabilityDescriptor = {
+		name: "revoke",
+		summary: "Revoke a plugin (or one capability) — monotonic, denies even under wildcard",
+		args: [{ name: "id", required: true }],
+		options: [
+			{
+				name: "cap",
+				kind: "string",
+				summary: "Revoke only this capability (default: the whole plugin)",
+			},
+			{
+				name: "scope",
+				kind: "string",
+				summary: "Config scope to persist to: user | workspace | org",
+				defaultValue: "user",
+			},
+		],
+		async run(input) {
+			return revocationRun(input, "revoke", deps.persistRevocation);
+		},
+	};
+
+	// ── unrevoke <id> [--cap <c>] [--scope] ────────────────────────────────────
+	// The reversible counterpart: writes an add-only annulment (bumps the seq above
+	// the revoke), so the plugin/cap is re-admitted at the next load/reload. Nothing
+	// is removed; a later re-revoke bumps back and denies again.
+	const unrevokeVerb: CapabilityDescriptor = {
+		name: "unrevoke",
+		summary: "Un-revoke a plugin (or one capability) — reversible, re-admits at reload",
+		args: [{ name: "id", required: true }],
+		options: [
+			{
+				name: "cap",
+				kind: "string",
+				summary: "Un-revoke only this capability (default: the whole plugin)",
+			},
+			{
+				name: "scope",
+				kind: "string",
+				summary: "Config scope to persist to: user | workspace | org",
+				defaultValue: "user",
+			},
+		],
+		async run(input) {
+			return revocationRun(input, "unrevoke", deps.persistUnrevocation);
+		},
+	};
 
 	return {
 		name: "plugin",
@@ -1039,13 +995,9 @@ export function pluginCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 						}
 					}
 					if (deniedCapabilities.length > 0) {
-						lines.push(
-							`  denied capabilities (not granted): ${deniedCapabilities.join(", ")}`,
-						);
+						lines.push(`  denied capabilities (not granted): ${deniedCapabilities.join(", ")}`);
 					}
-					lines.push(
-						`  ready to install: ${readyToInstall ? "yes" : "no — review required"}`,
-					);
+					lines.push(`  ready to install: ${readyToInstall ? "yes" : "no — review required"}`);
 					return lines.join("\n");
 				},
 				exitCode(envelope) {
@@ -1058,8 +1010,7 @@ export function pluginCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 			return { renderText: (envelope) => formatInstallFromEnvelope(envelope) };
 		case "reload":
 			return {
-				renderText: (envelope, input) =>
-					formatReloadFromEnvelope(envelope, input),
+				renderText: (envelope, input) => formatReloadFromEnvelope(envelope, input),
 			};
 		// `permissions` has no bespoke human table → default JSON render.
 		default:

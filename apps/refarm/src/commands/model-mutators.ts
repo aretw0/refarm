@@ -58,11 +58,7 @@ export function buildModelValidationErrorEnvelope(input: {
 		message: input.message,
 		nextAction: nextCommand,
 		nextCommand,
-		nextCommands: [
-			nextCommand,
-			MODEL_PROVIDERS_JSON_COMMAND,
-			LOCAL_MODEL_JSON_COMMAND,
-		],
+		nextCommands: [nextCommand, MODEL_PROVIDERS_JSON_COMMAND, LOCAL_MODEL_JSON_COMMAND],
 		extra: input.extra,
 	});
 }
@@ -134,10 +130,7 @@ export async function buildSetModelEnvelope(
 /** Build the `model fallback` envelope: validate, persist (including the
  * off/disable path), and RETURN a success or error envelope — pure of
  * console/exitCode. */
-export async function buildSetFallbackEnvelope(
-	ref: string,
-	deps: ModelCommandDeps,
-) {
+export async function buildSetFallbackEnvelope(ref: string, deps: ModelCommandDeps) {
 	const tokens = await deps.loadTokens();
 	if (ref.trim().toLowerCase() === "off") {
 		await deps.saveTokens({
@@ -153,10 +146,7 @@ export async function buildSetFallbackEnvelope(
 			nextCommands: [MODEL_CURRENT_JSON_COMMAND],
 		});
 	}
-	const parsed = parseModelRef(
-		ref,
-		tokens.modelFallbackProvider ?? tokens.modelProvider,
-	);
+	const parsed = parseModelRef(ref, tokens.modelFallbackProvider ?? tokens.modelProvider);
 	if (!parsed) {
 		return buildModelValidationErrorEnvelope({
 			error: "empty-fallback-model-ref",
@@ -195,15 +185,11 @@ export async function buildSetFallbackEnvelope(
 /** Build the `model reset` envelope: reject the default scope, otherwise drop
  * the persisted scoped route and RETURN a success or error envelope — pure of
  * console/exitCode. */
-export async function buildResetScopedModelEnvelope(
-	scope: ModelScope,
-	deps: ModelCommandDeps,
-) {
+export async function buildResetScopedModelEnvelope(scope: ModelScope, deps: ModelCommandDeps) {
 	if (scope === "default") {
 		return buildModelValidationErrorEnvelope({
 			error: "default-route-reset-not-supported",
-			message:
-				"Default route reset is explicit: set the desired provider/model.",
+			message: "Default route reset is explicit: set the desired provider/model.",
 			nextCommand: OPENAI_MODEL_JSON_COMMAND,
 		});
 	}
@@ -230,10 +216,7 @@ export async function buildResetScopedModelEnvelope(
 /** Build the `model base-url` envelope: handle the off/disable path, reject an
  * empty URL, otherwise persist it and RETURN a success or error envelope — pure
  * of console/exitCode. */
-export async function buildSetModelBaseUrlEnvelope(
-	value: string,
-	deps: ModelCommandDeps,
-) {
+export async function buildSetModelBaseUrlEnvelope(value: string, deps: ModelCommandDeps) {
 	const trimmed = value.trim();
 	if (trimmed.toLowerCase() === "off") {
 		await deps.saveTokens({ modelBaseUrl: undefined });

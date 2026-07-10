@@ -1,6 +1,4 @@
-import {
-	buildCommandPlanRunEnvelope,
-} from "@refarm.dev/cli/command-plan";
+import { buildCommandPlanRunEnvelope } from "@refarm.dev/cli/command-plan";
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { Command } from "commander";
 import {
@@ -62,15 +60,14 @@ export function createAgentCommand(deps?: Partial<AgentCommandDeps>): Command {
 	}
 	// Agent runtime commands (status, repl, start/stop) live here.
 	// Plugin lifecycle (install, update, list) is in `refarm plugin`.
-	const command = new Command("agent").description(
-		"Manage the refarm AI agent",
-	)
+	const command = new Command("agent")
+		.description("Manage the refarm AI agent")
 		.option("--json", "Output machine-readable agent handoff plan")
 		.option("--next-action", "Print the first agent handoff action")
 		.option("--next-command", "Print the first executable agent handoff command")
 		.addHelpText(
-		"after",
-		`
+			"after",
+			`
 
 Runtime commands:
   $ refarm runtime status       Inspect selected runtime engine and readiness
@@ -141,105 +138,106 @@ Notes:
   Today, use runtime/status/doctor for the host, sow/model for credentials and
   routing, plugin for installation, and task for worker efforts.
 `,
-	).action(function (this: Command) {
-		const options = this.opts<{ json?: boolean; nextAction?: boolean; nextCommand?: boolean }>();
-		if (options.nextCommand && options.json) {
-			printJson(buildAgentNextHandoffEnvelope());
-			return;
-		}
-		if (options.nextCommand) {
-			console.log(AGENT_NEXT_COMMAND);
-			return;
-		}
-		if (options.nextAction && options.json) {
-			printJson(buildAgentNextHandoffEnvelope());
-			return;
-		}
-		if (options.nextAction) {
-			console.log(AGENT_NEXT_ACTION_COMMAND);
-			return;
-		}
-		if (options.json) {
-			printJson(
-				buildJsonSuccessEnvelope({
-					command: "agent",
-					operation: "handoff",
-					nextAction: AGENT_NEXT_ACTION_COMMAND,
-					nextCommand: AGENT_NEXT_COMMAND,
-					nextActions: [
-						AGENT_NEXT_ACTION_COMMAND,
-						agentRuntimePlan.runtime.status,
-						agentRuntimePlan.runtime.ensure,
-						agentRuntimePlan.usage.resume,
-						MODEL_CURRENT_JSON_COMMAND,
-						MODEL_DOCTOR_JSON_COMMAND,
-						agentRuntimePlan.environment.packageManager,
-						agentRuntimePlan.environment.workspaceExecution,
-						agentRuntimePlan.environment.workspaceSweep,
-						agentRuntimePlan.environment.codingProfile,
-						MODEL_PROVIDERS_JSON_COMMAND,
-						agentRuntimePlan.plugins.list,
-						agentRuntimePlan.workers.resume,
-						agentRuntimePlan.workers.list,
-						agentRuntimePlan.verification.finishTemplatesJsonCommand,
-						agentRuntimePlan.verification.finishLanesJsonCommand,
-						agentRuntimePlan.verification.finishLanesNextJsonCommand,
-						agentRuntimePlan.verification.recommended.handoffs,
-						agentRuntimePlan.verification.recommended.agentE2eMock,
-						agentRuntimePlan.verification.finishPlanJsonCommand,
-						agentRuntimePlan.verification.finishPlanNextJsonCommand,
-						agentRuntimePlan.verification.finishPlanCommand,
-						agentRuntimePlan.verification.finishFixPlanCommand,
-						agentRuntimePlan.verification.finishAffectedPlanJsonCommand,
-						agentRuntimePlan.verification.finishAffectedRunJsonCommand,
-						agentRuntimePlan.verification.finishAffectedUpstreamRunJsonCommand,
-						agentRuntimePlan.verification.finishAffectedRunCommand,
-						agentRuntimePlan.verification.finishAffectedUpstreamRunCommand,
-						agentRuntimePlan.verification.finishAffectedTestRunCommand,
-					],
-					nextCommands: [
-						AGENT_NEXT_COMMAND,
-						agentRuntimePlan.runtime.ensure,
-						agentRuntimePlan.usage.resume,
-						LOCAL_MODEL_JSON_COMMAND,
-						SOW_JSON_COMMAND,
-						MODEL_CURRENT_JSON_COMMAND,
-						MODEL_DOCTOR_JSON_COMMAND,
-						MODEL_PROVIDERS_JSON_COMMAND,
-						agentRuntimePlan.environment.packageManager,
-						agentRuntimePlan.environment.workspaceExecution,
-						agentRuntimePlan.environment.workspaceSweep,
-						agentRuntimePlan.environment.codingProfile,
-						agentRuntimePlan.plugins.list,
-						agentRuntimePlan.workers.resume,
-						agentRuntimePlan.workers.list,
-						agentRuntimePlan.verification.finishTemplatesJsonCommand,
-						agentRuntimePlan.verification.finishLanesJsonCommand,
-						agentRuntimePlan.verification.finishLanesNextJsonCommand,
-						agentRuntimePlan.verification.recommended.handoffs,
-						agentRuntimePlan.verification.recommended.agentE2eMock,
-						agentRuntimePlan.verification.finishPlanJsonCommand,
-						agentRuntimePlan.verification.finishPlanNextJsonCommand,
-						agentRuntimePlan.verification.finishPlanCommand,
-						agentRuntimePlan.verification.finishFixPlanCommand,
-						agentRuntimePlan.verification.finishAffectedPlanJsonCommand,
-						agentRuntimePlan.verification.finishAffectedRunJsonCommand,
-						agentRuntimePlan.verification.finishAffectedUpstreamRunJsonCommand,
-						agentRuntimePlan.verification.finishAffectedRunCommand,
-						agentRuntimePlan.verification.finishAffectedUpstreamRunCommand,
-						agentRuntimePlan.verification.finishAffectedTestRunCommand,
-					],
-					extra: {
-						action: "agent",
-						status: "handoff",
-						...agentRuntimePlan,
-					},
-				}),
-			);
-			return;
-		}
-		this.outputHelp();
-	});
+		)
+		.action(function (this: Command) {
+			const options = this.opts<{ json?: boolean; nextAction?: boolean; nextCommand?: boolean }>();
+			if (options.nextCommand && options.json) {
+				printJson(buildAgentNextHandoffEnvelope());
+				return;
+			}
+			if (options.nextCommand) {
+				console.log(AGENT_NEXT_COMMAND);
+				return;
+			}
+			if (options.nextAction && options.json) {
+				printJson(buildAgentNextHandoffEnvelope());
+				return;
+			}
+			if (options.nextAction) {
+				console.log(AGENT_NEXT_ACTION_COMMAND);
+				return;
+			}
+			if (options.json) {
+				printJson(
+					buildJsonSuccessEnvelope({
+						command: "agent",
+						operation: "handoff",
+						nextAction: AGENT_NEXT_ACTION_COMMAND,
+						nextCommand: AGENT_NEXT_COMMAND,
+						nextActions: [
+							AGENT_NEXT_ACTION_COMMAND,
+							agentRuntimePlan.runtime.status,
+							agentRuntimePlan.runtime.ensure,
+							agentRuntimePlan.usage.resume,
+							MODEL_CURRENT_JSON_COMMAND,
+							MODEL_DOCTOR_JSON_COMMAND,
+							agentRuntimePlan.environment.packageManager,
+							agentRuntimePlan.environment.workspaceExecution,
+							agentRuntimePlan.environment.workspaceSweep,
+							agentRuntimePlan.environment.codingProfile,
+							MODEL_PROVIDERS_JSON_COMMAND,
+							agentRuntimePlan.plugins.list,
+							agentRuntimePlan.workers.resume,
+							agentRuntimePlan.workers.list,
+							agentRuntimePlan.verification.finishTemplatesJsonCommand,
+							agentRuntimePlan.verification.finishLanesJsonCommand,
+							agentRuntimePlan.verification.finishLanesNextJsonCommand,
+							agentRuntimePlan.verification.recommended.handoffs,
+							agentRuntimePlan.verification.recommended.agentE2eMock,
+							agentRuntimePlan.verification.finishPlanJsonCommand,
+							agentRuntimePlan.verification.finishPlanNextJsonCommand,
+							agentRuntimePlan.verification.finishPlanCommand,
+							agentRuntimePlan.verification.finishFixPlanCommand,
+							agentRuntimePlan.verification.finishAffectedPlanJsonCommand,
+							agentRuntimePlan.verification.finishAffectedRunJsonCommand,
+							agentRuntimePlan.verification.finishAffectedUpstreamRunJsonCommand,
+							agentRuntimePlan.verification.finishAffectedRunCommand,
+							agentRuntimePlan.verification.finishAffectedUpstreamRunCommand,
+							agentRuntimePlan.verification.finishAffectedTestRunCommand,
+						],
+						nextCommands: [
+							AGENT_NEXT_COMMAND,
+							agentRuntimePlan.runtime.ensure,
+							agentRuntimePlan.usage.resume,
+							LOCAL_MODEL_JSON_COMMAND,
+							SOW_JSON_COMMAND,
+							MODEL_CURRENT_JSON_COMMAND,
+							MODEL_DOCTOR_JSON_COMMAND,
+							MODEL_PROVIDERS_JSON_COMMAND,
+							agentRuntimePlan.environment.packageManager,
+							agentRuntimePlan.environment.workspaceExecution,
+							agentRuntimePlan.environment.workspaceSweep,
+							agentRuntimePlan.environment.codingProfile,
+							agentRuntimePlan.plugins.list,
+							agentRuntimePlan.workers.resume,
+							agentRuntimePlan.workers.list,
+							agentRuntimePlan.verification.finishTemplatesJsonCommand,
+							agentRuntimePlan.verification.finishLanesJsonCommand,
+							agentRuntimePlan.verification.finishLanesNextJsonCommand,
+							agentRuntimePlan.verification.recommended.handoffs,
+							agentRuntimePlan.verification.recommended.agentE2eMock,
+							agentRuntimePlan.verification.finishPlanJsonCommand,
+							agentRuntimePlan.verification.finishPlanNextJsonCommand,
+							agentRuntimePlan.verification.finishPlanCommand,
+							agentRuntimePlan.verification.finishFixPlanCommand,
+							agentRuntimePlan.verification.finishAffectedPlanJsonCommand,
+							agentRuntimePlan.verification.finishAffectedRunJsonCommand,
+							agentRuntimePlan.verification.finishAffectedUpstreamRunJsonCommand,
+							agentRuntimePlan.verification.finishAffectedRunCommand,
+							agentRuntimePlan.verification.finishAffectedUpstreamRunCommand,
+							agentRuntimePlan.verification.finishAffectedTestRunCommand,
+						],
+						extra: {
+							action: "agent",
+							status: "handoff",
+							...agentRuntimePlan,
+						},
+					}),
+				);
+				return;
+			}
+			this.outputHelp();
+		});
 
 	command
 		.command("finish")
@@ -390,17 +388,17 @@ Notes:
 			}
 			const selection = lane
 				? {
-					...finishSelectionFromLane(lane),
-					fix: options.fix,
-					workspace: options.workspace,
-				}
+						...finishSelectionFromLane(lane),
+						fix: options.fix,
+						workspace: options.workspace,
+					}
 				: {
-					fix: options.fix,
-					includeTests: options.includeTests,
-					profile,
-					since: options.since,
-					workspace: options.workspace,
-				};
+						fix: options.fix,
+						includeTests: options.includeTests,
+						profile,
+						since: options.since,
+						workspace: options.workspace,
+					};
 			let selectionContext: AgentFinishSelectionContext;
 			try {
 				selectionContext = resolveFinishSelectionContext(selection);
@@ -433,21 +431,24 @@ Notes:
 					}),
 				);
 				if (options.json) {
-					const envelope = buildCommandPlanRunEnvelope({
-						action: "finish",
-						command: "agent",
-						operation: "finish",
-					}, result);
+					const envelope = buildCommandPlanRunEnvelope(
+						{
+							action: "finish",
+							command: "agent",
+							operation: "finish",
+						},
+						result,
+					);
 					const cacheObservations = finishCacheObservations(result);
 					printJson({
 						...envelope,
-						...(result.ok ? {
-							nextCommand: RESUME_JSON_COMMAND,
-							nextCommands: [RESUME_JSON_COMMAND],
-						} : {}),
-						...(cacheObservations.length > 0
-							? { cache: { steps: cacheObservations } }
+						...(result.ok
+							? {
+									nextCommand: RESUME_JSON_COMMAND,
+									nextCommands: [RESUME_JSON_COMMAND],
+								}
 							: {}),
+						...(cacheObservations.length > 0 ? { cache: { steps: cacheObservations } } : {}),
 						selection: selectionMetadata,
 					});
 				} else if (options.nextCommand) {
@@ -457,20 +458,16 @@ Notes:
 					const [nextAction] = result.nextActions;
 					if (nextAction) console.log(nextAction);
 				} else {
-					printAgentFinishRunHuman(
-						result,
-						selectionMetadata,
-					);
+					printAgentFinishRunHuman(result, selectionMetadata);
 				}
 				if (!result.ok) process.exitCode = 1;
 				return;
 			}
 			const nextCommands = plannedFinishCommands(selectionWithAffected);
 			if (options.nextCommand && options.json) {
-				printJson(buildAgentFinishPlanEnvelope(
-					selectionWithAffected,
-					selectionContext.affectedWorkspaces,
-				));
+				printJson(
+					buildAgentFinishPlanEnvelope(selectionWithAffected, selectionContext.affectedWorkspaces),
+				);
 				return;
 			}
 			if (options.nextCommand) {
@@ -479,10 +476,9 @@ Notes:
 				return;
 			}
 			if (options.nextAction && options.json) {
-				printJson(buildAgentFinishPlanEnvelope(
-					selectionWithAffected,
-					selectionContext.affectedWorkspaces,
-				));
+				printJson(
+					buildAgentFinishPlanEnvelope(selectionWithAffected, selectionContext.affectedWorkspaces),
+				);
 				return;
 			}
 			if (options.nextAction) {
@@ -491,10 +487,9 @@ Notes:
 				return;
 			}
 			if (options.json) {
-				printJson(buildAgentFinishPlanEnvelope(
-					selectionWithAffected,
-					selectionContext.affectedWorkspaces,
-				));
+				printJson(
+					buildAgentFinishPlanEnvelope(selectionWithAffected, selectionContext.affectedWorkspaces),
+				);
 				return;
 			}
 			this.outputHelp();

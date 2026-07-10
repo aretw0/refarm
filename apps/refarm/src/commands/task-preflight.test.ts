@@ -3,10 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import {
-	checkTaskProvides,
-	discoverInstalledProvides,
-} from "./task-preflight.js";
+import { checkTaskProvides, discoverInstalledProvides } from "./task-preflight.js";
 
 describe("checkTaskProvides (advisory provides preflight)", () => {
 	it("resolves <plugin>:<fn> and reports provided when the set advertises it", () => {
@@ -49,11 +46,7 @@ describe("discoverInstalledProvides (reads provides, not the full manifest)", ()
 			capabilities: { provides: ["other:run"] },
 		});
 		const provides = discoverInstalledProvides(pluginsDir);
-		expect([...provides].sort()).toEqual([
-			"agent:plan",
-			"integration:respond",
-			"other:run",
-		]);
+		expect([...provides].sort()).toEqual(["agent:plan", "integration:respond", "other:run"]);
 	});
 
 	it("reads provides even when `entry` is a not-yet-installed template", () => {
@@ -75,8 +68,6 @@ describe("discoverInstalledProvides (reads provides, not the full manifest)", ()
 	});
 
 	it("returns an empty set when the plugins dir does not exist", () => {
-		expect(discoverInstalledProvides(join(pluginsDir, "nope"))).toEqual(
-			new Set(),
-		);
+		expect(discoverInstalledProvides(join(pluginsDir, "nope"))).toEqual(new Set());
 	});
 });

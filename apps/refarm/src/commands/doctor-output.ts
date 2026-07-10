@@ -23,28 +23,24 @@ export function resolveDoctorOutputMode(options: {
 	return options.json ? "json" : "summary";
 }
 
-export function formatRefarmDoctorReportJson(
-	report: RefarmDoctorReport,
-): string {
-	return formatJson(
-		{
-			command: report.command,
-			operation: report.operation,
-			ok: report.ok,
-			failureCount: report.failureCount,
-			warningCount: report.warningCount,
-			failures: report.failures,
-			warnings: report.warnings,
-			informational: report.informational,
-			recommendations: report.recommendations,
-			nextAction: report.nextAction,
-			nextActions: report.nextActions,
-			nextCommand: report.nextCommand,
-			nextCommands: report.nextCommands,
-			host: report.host,
-			status: JSON.parse(formatStatusJson(report.status)),
-		},
-	);
+export function formatRefarmDoctorReportJson(report: RefarmDoctorReport): string {
+	return formatJson({
+		command: report.command,
+		operation: report.operation,
+		ok: report.ok,
+		failureCount: report.failureCount,
+		warningCount: report.warningCount,
+		failures: report.failures,
+		warnings: report.warnings,
+		informational: report.informational,
+		recommendations: report.recommendations,
+		nextAction: report.nextAction,
+		nextActions: report.nextActions,
+		nextCommand: report.nextCommand,
+		nextCommands: report.nextCommands,
+		host: report.host,
+		status: JSON.parse(formatStatusJson(report.status)),
+	});
 }
 
 export function printRefarmDoctorReport(
@@ -56,16 +52,12 @@ export function printRefarmDoctorReport(
 	log(
 		`Host: ${report.host.command} v${report.host.version} (${report.host.app}, profile=${report.host.profile}, packageManager=${report.host.packageManager})`,
 	);
-	log(
-		`Renderer: ${report.status.renderer.id} (${report.status.renderer.kind})`,
-	);
+	log(`Renderer: ${report.status.renderer.id} (${report.status.renderer.kind})`);
 	const runtimeEngine = report.status.runtime.engine;
 	const runtimeEngineSuffix = runtimeEngine
 		? ` (engine=${runtimeEngine.activeEngine ?? "unknown"}, configured=${runtimeEngine.configuredEngine ?? "unknown"})`
 		: "";
-	log(
-		`Runtime: ${report.status.runtime.ready ? "ready" : "not ready"}${runtimeEngineSuffix}`,
-	);
+	log(`Runtime: ${report.status.runtime.ready ? "ready" : "not ready"}${runtimeEngineSuffix}`);
 
 	if (report.failures.length > 0) {
 		log("Failures:");
@@ -88,9 +80,7 @@ export function printRefarmDoctorReport(
 		}
 	}
 
-	const blockingRecommendations = report.recommendations.filter(
-		(item) => item.severity !== "info",
-	);
+	const blockingRecommendations = report.recommendations.filter((item) => item.severity !== "info");
 	if (blockingRecommendations.length > 0) {
 		log("Recommendations:");
 		for (const item of blockingRecommendations) {
@@ -116,9 +106,7 @@ export function printRefarmDoctorNextCommand(
 	if (command) log(command);
 }
 
-export function formatRefarmDoctorNextActionJson(
-	report: RefarmDoctorReport,
-): string {
+export function formatRefarmDoctorNextActionJson(report: RefarmDoctorReport): string {
 	return formatJson(
 		buildDiagnosticNextActionPayload({
 			ok: report.ok,

@@ -14,11 +14,9 @@ import {
 export function tryOpenUrl(url: string): void {
 	if (!shouldOpenExternalLinks()) return;
 
-	void openHostBrowserUrl(url, { run: runBestEffortBrowserOpenCandidate }).catch(
-		() => {
-			// best-effort — callers print the URL and manual fallback instructions.
-		},
-	);
+	void openHostBrowserUrl(url, { run: runBestEffortBrowserOpenCandidate }).catch(() => {
+		// best-effort — callers print the URL and manual fallback instructions.
+	});
 }
 
 export function shouldOpenExternalLinks(): boolean {

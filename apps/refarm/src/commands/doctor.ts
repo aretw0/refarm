@@ -10,14 +10,8 @@ import {
 	type DiagnosticRecommendation,
 	type DiagnosticRecommendationSeverity,
 } from "./diagnostic-recommendations.js";
-import {
-	emitRefarmDoctorOutput,
-	resolveDoctorOutputMode,
-} from "./doctor-output.js";
-import {
-	resolveRefarmRuntimeMetadata,
-	type RefarmRuntimeMetadata,
-} from "./runtime-metadata.js";
+import { emitRefarmDoctorOutput, resolveDoctorOutputMode } from "./doctor-output.js";
+import { resolveRefarmRuntimeMetadata, type RefarmRuntimeMetadata } from "./runtime-metadata.js";
 import {
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_NOT_READY_RECOVERY_ACTION,
@@ -65,12 +59,10 @@ export function buildRefarmDoctorReport(
 	status: StatusJson,
 	options: { failOnWarnings?: boolean; metadata?: RefarmRuntimeMetadata } = {},
 ): RefarmDoctorReport {
-	const { failures, warnings, informational } =
-		classifyStatusDiagnostics(status);
+	const { failures, warnings, informational } = classifyStatusDiagnostics(status);
 
 	const failOnWarnings = options.failOnWarnings === true;
-	const ok =
-		failures.length === 0 && (!failOnWarnings || warnings.length === 0);
+	const ok = failures.length === 0 && (!failOnWarnings || warnings.length === 0);
 	const recommendations = buildRefarmDoctorRecommendations({
 		failures,
 		warnings,
@@ -139,8 +131,7 @@ function createRefarmDoctorRecommendation(
 			return {
 				diagnostic,
 				severity,
-				summary:
-					"The runtime sidecar could not be reached from this execution surface.",
+				summary: "The runtime sidecar could not be reached from this execution surface.",
 				action:
 					"Run the runtime status probe from a direct shell or approved command surface with local sidecar network access.",
 				command: `${RUNTIME_STATUS_COMMAND} --json`,
@@ -150,7 +141,8 @@ function createRefarmDoctorRecommendation(
 				diagnostic,
 				severity,
 				summary: "Critical trust diagnostics are present.",
-				action: "Review trust policy and rejected capabilities before launching interactive surfaces.",
+				action:
+					"Review trust policy and rejected capabilities before launching interactive surfaces.",
 			};
 		case STATUS_DIAGNOSTICS.trustWarningsPresent:
 			return {

@@ -29,13 +29,7 @@ export const PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSO
  * (`PluginPackageSource` in barn, install-plugin provenance in tractor-ts)
  * converge onto later.
  */
-export type PluginOrigin =
-	| "local"
-	| "installed"
-	| "bundled"
-	| "npm"
-	| "git"
-	| "url";
+export type PluginOrigin = "local" | "installed" | "bundled" | "npm" | "git" | "url";
 
 /**
  * Classify an install reference by its SHAPE (ADR-086) — the operator says
@@ -59,11 +53,7 @@ export function detectPluginOrigin(ref: string): PluginOrigin {
 	}
 	if (/^https?:\/\//i.test(value)) return "url";
 	// A leading `.`, `/`, or `~` is unambiguously a filesystem path → local.
-	if (
-		value.startsWith(".") ||
-		value.startsWith("/") ||
-		value.startsWith("~")
-	) {
+	if (value.startsWith(".") || value.startsWith("/") || value.startsWith("~")) {
 		return "local";
 	}
 	// npm: an `@scope/name` (the one `/` is the scope separator, NOT a path), or a
@@ -171,9 +161,9 @@ export { pluginIdToFsToken };
 
 export function readPackageVersion(pkgDir: string): string | null {
 	try {
-		const pkgJson = JSON.parse(
-			readFileSync(path.join(pkgDir, "package.json"), "utf-8"),
-		) as { version?: string };
+		const pkgJson = JSON.parse(readFileSync(path.join(pkgDir, "package.json"), "utf-8")) as {
+			version?: string;
+		};
 		return pkgJson.version ?? null;
 	} catch {
 		return null;
@@ -230,9 +220,7 @@ export function readInstalledPluginManifests(): InstalledPluginManifest[] {
 			const manifestPath = path.join(candidate, "plugin.json");
 			if (existsSync(manifestPath)) {
 				try {
-					out.push(
-						JSON.parse(readFileSync(manifestPath, "utf-8")) as InstalledPluginManifest,
-					);
+					out.push(JSON.parse(readFileSync(manifestPath, "utf-8")) as InstalledPluginManifest);
 				} catch {
 					// skip an unreadable/invalid manifest
 				}
@@ -248,9 +236,7 @@ function readLocalExtensionManifest(extDir: string): InstalledPluginManifest | n
 	const manifestPath = path.join(extDir, "ext.json");
 	if (!existsSync(manifestPath)) return null;
 	try {
-		const manifest = JSON.parse(
-			readFileSync(manifestPath, "utf-8"),
-		) as LocalExtensionManifest;
+		const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as LocalExtensionManifest;
 		if (!manifest.id) return null;
 		return {
 			id: manifest.id,
@@ -286,17 +272,11 @@ export function readLocalExtensionManifests(
 	cwd = process.cwd(),
 	homeDir = os.homedir(),
 ): InstalledPluginManifest[] {
-	return [
-		...readLocalExtensionBase(cwd),
-		...readLocalExtensionBase(homeDir),
-	];
+	return [...readLocalExtensionBase(cwd), ...readLocalExtensionBase(homeDir)];
 }
 
 export function readSurfaceablePluginManifests(): InstalledPluginManifest[] {
-	return [
-		...readInstalledPluginManifests(),
-		...readLocalExtensionManifests(),
-	];
+	return [...readInstalledPluginManifests(), ...readLocalExtensionManifests()];
 }
 
 export function readSurfaceablePluginVerbs(
@@ -304,8 +284,7 @@ export function readSurfaceablePluginVerbs(
 	homeDir = os.homedir(),
 	installedManifests = readInstalledPluginManifests(),
 ): SurfaceablePluginVerb[] {
-	return [
-		...installedManifests,
-		...readLocalExtensionManifests(cwd, homeDir),
-	].flatMap((manifest) => surfaceablePluginVerbsFrom(manifest));
+	return [...installedManifests, ...readLocalExtensionManifests(cwd, homeDir)].flatMap((manifest) =>
+		surfaceablePluginVerbsFrom(manifest),
+	);
 }
