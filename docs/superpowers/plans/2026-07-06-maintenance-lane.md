@@ -136,6 +136,33 @@ holds the verbatim-move slicing pattern; `fs_shell_core`/`sidecar` remained on i
   persisted, acknowledge-risk grants (the TS `system:security:trust-plugin-once`
   ceremony has no Rust equivalent).
 
+## Anti-drift policy (type/vocabulary duplication — Arthur 2026-07-10: "proteção para crescer e escalar")
+
+Duplicating a type/list across packages is often the RIGHT call (it avoids a runtime
+dependency for one shape). The danger is not the duplication — it is duplication that
+**drifts silently**, caught only when a human notices it in a diff. So the rule:
+
+**Every intentional cross-package redeclaration ships with a sensor that turns drift into
+a build error.** Two regimes — pick by the boundary:
+
+1. **TS↔TS (pure type subset/mirror)** → a TYPE-LEVEL conformance test. Import the
+   canonical type as a **type-only devDep** and assert the local shape stays assignable.
+   Precedent: `packages/capabilities-v1/src/manifest-surface-conformance.test.ts`
+   (ManifestExtensionSurface ⊂ plugin-manifest's ExtensionSurfaceDeclaration). A union +
+   its value list → colocate the list at the type source with an exhaustiveness guard
+   (`satisfies` + `Exclude<U, list[number]> extends never`). Precedent: `SURFACE_KEYS` in
+   `apps/refarm/src/utils/composition.ts` (7397da1c).
+2. **WIT / cross-language (Rust↔TS, WIT↔TS jco)** → a RUNTIME conformance fixture, NOT a
+   type sensor. The boundary is a real serialization (json-ld-node string, jco camelCasing),
+   so compile-time coupling is wrong ON PURPOSE. Precedent: `*.conformance.test.ts` (52 in
+   the repo), `quality-checker-ref` (comment: "runtime conformance proves parity, not a
+   compile-time coupling"), the tractor-ts `drift-prevention` wasi-imports test.
+
+Audit done 2026-07-10 (~20 self-declared "mirror/subset"): the only unprotected pure TS↔TS
+type redeclaration was ManifestExtensionSurface (now sensored) + SURFACE_KEYS (now guarded);
+everything else is same-package (TS checks natively) or regime 2. When adding a new
+redeclaration, add its sensor in the same commit — don't leave it for a future diff-catch.
+
 ## Process debt
 
 - P0 (PRE-EXISTING, found 2026-07-09): `assertTaskSmokeBuildOrderIntegrity`
