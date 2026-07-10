@@ -171,6 +171,16 @@ function parseProvidedVerb(
  * `get-plugin-api` and calls it via `call-plugin` — one extension using another,
  * host-mediated, no import. They are orthogonal to `provides`/`subscribes` (the
  * host-verb axis) and mirror the full PluginManifest's `capabilities` fields. */
+/** A surface a plugin declares in its manifest (`extensions.surfaces[]`) — WHERE it mounts
+ * (the homestead panel, an asset pack, …). Structurally a subset of the full
+ * ExtensionSurfaceDeclaration, so a real manifest satisfies it. */
+export interface ManifestExtensionSurface {
+	layer: string;
+	kind?: string;
+	id: string;
+	slot?: string;
+}
+
 export interface SurfaceableManifest {
 	id: string;
 	capabilities?: {
@@ -178,6 +188,12 @@ export interface SurfaceableManifest {
 		subscribes?: string[];
 		providesApi?: string[];
 		requiresApi?: string[];
+	};
+	/** The surfaces this plugin declares in its manifest. Folded onto each surfaced verb's
+	 * `renderers` so a plugin-declared surface (homestead panel, a new surface) reaches the
+	 * open axis — closing the manifest→descriptor gap where these were ignored (ADR-085). */
+	extensions?: {
+		surfaces?: ManifestExtensionSurface[];
 	};
 }
 
@@ -345,6 +361,7 @@ export function pluginDescriptorsFrom(
 	manifest: SurfaceableManifest,
 	deps: PluginDescriptorDeps,
 ): CapabilityDescriptor[] {
+	const manifestSurfaces = manifest.extensions?.surfaces ?? [];
 	const descriptors: CapabilityDescriptor[] = [];
 	for (const verb of surfaceablePluginVerbsFrom(manifest)) {
 		descriptors.push(
@@ -353,10 +370,30 @@ export function pluginDescriptorsFrom(
 				verb.pluginKey,
 				verb.verb,
 				deps,
+				manifestSurfaces,
 			),
 		);
 	}
 	return descriptors;
+}
+
+/** Fold a plugin's manifest-declared surfaces into a verb's `renderers` — each declared
+ * surface layer becomes a renderer key carrying its declaration, ON TOP of the defaults,
+ * without overwriting them. This is what lets a plugin's `extensions.surfaces[]` reach the
+ * open axis (and thus the web bridge / any projector), instead of being ignored. */
+function foldManifestSurfaces(
+	base: NonNullable<CapabilityDescriptor["renderers"]>,
+	surfaces: readonly ManifestExtensionSurface[],
+): NonNullable<CapabilityDescriptor["renderers"]> {
+	const merged: Record<string, unknown> = { ...base };
+	for (const surface of surfaces) {
+		// A declared surface keyed by its layer (homestead, asset, …) — a new surface on the
+		// verb the projector for that layer reads. Don't clobber a default already present.
+		if (merged[surface.layer] === undefined) {
+			merged[surface.layer] = { id: surface.id, kind: surface.kind, slot: surface.slot };
+		}
+	}
+	return merged as NonNullable<CapabilityDescriptor["renderers"]>;
 }
 
 /** One dispatch-backed descriptor for a `<pluginKey>:<verb>`. Its run() submits a
@@ -369,6 +406,7 @@ function pluginVerbDescriptor(
 	pluginKey: string,
 	verb: string,
 	deps: PluginDescriptorDeps,
+	manifestSurfaces: readonly ManifestExtensionSurface[] = [],
 ): CapabilityDescriptor {
 	const name = pluginSurfaceName(pluginKey, verb);
 	return {
@@ -419,7 +457,13 @@ function pluginVerbDescriptor(
 			}
 		},
 		transports: { cli: {}, repl: {}, http: { method: "POST", path: `/${name}` } },
-		renderers: { tui: { section: pluginKey }, web: { route: `/${name}` } },
+		// The default surfaces (tui/web) PLUS any the plugin declared in its manifest — so a
+		// plugin's extensions.surfaces[] (a homestead panel, a new surface) reaches the open
+		// axis and every projector, not just the two hardcoded here.
+		renderers: foldManifestSurfaces(
+			{ tui: { section: pluginKey }, web: { route: `/${name}` } },
+			manifestSurfaces,
+		),
 	};
 }
 

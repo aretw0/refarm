@@ -172,6 +172,30 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 		const m = manifest("@example/agent", ["integration:respond"], ["user:prompt"]);
 		expect(pluginDescriptorsFrom(m, makeDeps())).toEqual([]);
 	});
+
+	it("folds a plugin's manifest-declared surfaces onto its verb's renderers (manifest→descriptor gap closed)", () => {
+		// The plugin declares a homestead panel in its manifest; without the fold, that
+		// surface was IGNORED — the descriptor only carried hardcoded tui/web. Now the
+		// declared surface reaches the open axis, so a projector for it can find the verb.
+		const m = {
+			id: "@example/vault",
+			capabilities: { provides: ["vault:search"], subscribes: ["vault:dispatch"] },
+			extensions: {
+				surfaces: [{ layer: "homestead", kind: "panel", id: "vault-panel", slot: "main" }],
+			},
+		};
+		const search = pluginDescriptorsFrom(m, makeDeps())[0];
+		if (!search) throw new Error("search descriptor missing");
+		// The defaults survive...
+		expect(search.renderers?.tui).toEqual({ section: "vault" });
+		expect(search.renderers?.web).toEqual({ route: "/vault-search" });
+		// ...and the manifest-declared homestead surface is now on the verb.
+		expect((search.renderers as Record<string, unknown>).homestead).toEqual({
+			id: "vault-panel",
+			kind: "panel",
+			slot: "main",
+		});
+	});
 });
 
 describe("definePluginInspectorCapability — manifest visibility as an extension block", () => {
