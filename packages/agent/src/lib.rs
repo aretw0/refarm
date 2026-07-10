@@ -76,8 +76,8 @@ pub(crate) use session::{
 };
 #[allow(unused_imports)]
 pub(crate) use session::{
-    history_from_nodes, history_from_tree, provider_name_from_env, session_entry_node,
-    session_node, session_participant_from_agent_id, sum_provider_spend_usd,
+    compact_history, history_from_nodes, history_from_tree, provider_name_from_env,
+    session_entry_node, session_node, session_participant_from_agent_id, sum_provider_spend_usd,
 };
 #[allow(unused_imports)]
 pub(crate) use structured_io::{

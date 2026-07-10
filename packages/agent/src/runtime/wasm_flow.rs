@@ -6,7 +6,15 @@ use super::{
 fn history_with_prompt(prompt: &str) -> Vec<(String, String)> {
     let mut messages = crate::query_history();
     messages.push(("user".to_owned(), prompt.to_owned()));
-    messages
+    // ADR-058 `on_overflow`: when a token budget is set and the history would exceed
+    // it, fold the oldest turns into a structured summary instead of blowing the
+    // window. Opt-in via MODEL_CONTEXT_BUDGET_TOKENS (0/unset = off) so the default
+    // footprint is unchanged. The current prompt is the last pair and is preserved.
+    let budget = std::env::var("MODEL_CONTEXT_BUDGET_TOKENS")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(0);
+    crate::compact_history(messages, budget)
 }
 
 fn run_primary_completion(

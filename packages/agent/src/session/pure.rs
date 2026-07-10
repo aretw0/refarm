@@ -160,3 +160,123 @@ pub(crate) fn session_entry_node(
         "timestamp_ns":    timestamp_ns,
     })
 }
+
+/// Rough token estimate for a role+content pair (the chars/4 heuristic the context
+/// guard already uses; a real tokenizer is a later refinement). The role label and
+/// wire overhead are folded into a small per-message constant.
+fn estimated_pair_tokens(role: &str, content: &str) -> usize {
+    (role.len() + content.len()) / 4 + 4
+}
+
+/// The `on_overflow` moment of ADR-058: when the conversation history would exceed
+/// the context budget, FOLD the oldest turns into one structured summary and keep a
+/// recent tail at full fidelity — instead of blocking the turn (the old behavior) or
+/// letting the window silently overflow.
+///
+/// Pure and deterministic (no clock, no I/O), so it is unit-testable and runs the
+/// same in the wasm guest. `pairs` is oldest-first `(role, content)`. Returns the
+/// compacted list: `[("system", <summary>), ...recent tail...]` when folding kicked
+/// in, or `pairs` unchanged when it already fits (or budget is 0 = disabled).
+///
+/// The summary is a deterministic, structured digest (Goal / Progress / Next Steps —
+/// the ADR's schema) built from the folded turns' text, NOT an LLM call: compaction
+/// must not itself cost a round-trip. A model-authored summary can replace this body
+/// later without changing the seam.
+pub(crate) fn compact_history(
+    pairs: Vec<(String, String)>,
+    budget_tokens: usize,
+) -> Vec<(String, String)> {
+    if budget_tokens == 0 {
+        return pairs; // disabled
+    }
+    let total: usize = pairs
+        .iter()
+        .map(|(r, c)| estimated_pair_tokens(r, c))
+        .sum();
+    if total <= budget_tokens {
+        return pairs; // already fits — no-op
+    }
+
+    // Keep the newest tail that fits under the budget, reserving room for the summary
+    // block. Walk from the end, accumulating, until adding the next-older pair would
+    // exceed the tail budget; everything older than that is folded.
+    let summary_reserve = budget_tokens / 4; // cap the digest at ~1/4 of the budget
+    let tail_budget = budget_tokens.saturating_sub(summary_reserve).max(1);
+
+    let mut tail_tokens = 0usize;
+    let mut split = pairs.len(); // index where the tail starts
+    for (i, (role, content)) in pairs.iter().enumerate().rev() {
+        let cost = estimated_pair_tokens(role, content);
+        if tail_tokens + cost > tail_budget {
+            split = i + 1;
+            break;
+        }
+        tail_tokens += cost;
+        split = i;
+    }
+    // Always keep at least the last pair (the current turn context) even if huge.
+    if split >= pairs.len() && !pairs.is_empty() {
+        split = pairs.len() - 1;
+    }
+
+    let folded = &pairs[..split];
+    if folded.is_empty() {
+        return pairs; // nothing old enough to fold; fits as-is
+    }
+    let summary = summarize_folded_turns(folded, summary_reserve);
+    let mut out = Vec::with_capacity(pairs.len() - split + 1);
+    out.push(("system".to_string(), summary));
+    out.extend(pairs[split..].iter().cloned());
+    out
+}
+
+/// Build the deterministic Goal / Progress / Next Steps digest from the folded turns.
+/// Goal = the first user turn; Next Steps = the last user turn; Progress = the count
+/// plus the last folded result. Every structured section is ALWAYS present — the size
+/// is bounded per-field (so a small budget shrinks each field), never by chopping the
+/// whole summary, which could drop a section entirely.
+fn summarize_folded_turns(folded: &[(String, String)], token_cap: usize) -> String {
+    // Split the field budget across the ~4 fields, in chars (tokens*4). A floor keeps
+    // each field readable even on a tiny budget; the fields shrink, they don't vanish.
+    let per_field = (token_cap.saturating_mul(4) / 4).clamp(40, 400);
+    let first_user = folded
+        .iter()
+        .find(|(r, _)| r == "user")
+        .map(|(_, c)| c.as_str());
+    let last_user = folded
+        .iter()
+        .rev()
+        .find(|(r, _)| r == "user")
+        .map(|(_, c)| c.as_str());
+    let user_turns = folded.iter().filter(|(r, _)| r == "user").count();
+    let assistant_turns = folded.iter().filter(|(r, _)| r == "assistant").count();
+
+    let mut summary = String::from("[compacted history — earlier turns folded]\n");
+    if let Some(goal) = first_user {
+        summary.push_str(&format!("Goal: {}\n", truncate_line(goal, per_field)));
+    }
+    summary.push_str(&format!(
+        "Progress: {user_turns} user / {assistant_turns} assistant turns folded.\n"
+    ));
+    // The last folded assistant text is the most recent progress signal — keeps a
+    // thread of what was just done.
+    if let Some((_, last_asst)) = folded.iter().rev().find(|(r, _)| r == "assistant") {
+        summary.push_str(&format!("Last result: {}\n", truncate_line(last_asst, per_field)));
+    }
+    if let Some(next) = last_user {
+        summary.push_str(&format!("Next Steps: {}\n", truncate_line(next, per_field)));
+    }
+    summary
+}
+
+/// Collapse whitespace/newlines and cap a single field at `max_chars`.
+fn truncate_line(text: &str, max_chars: usize) -> String {
+    let flat: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if flat.chars().count() <= max_chars {
+        flat
+    } else {
+        let mut s: String = flat.chars().take(max_chars).collect();
+        s.push('…');
+        s
+    }
+}
