@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 
-import { printJson } from "./envelope.js";
+import { printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	isCapabilityGroup,
 	type CapabilityDescriptor,
@@ -10,7 +10,7 @@ import {
 	type CapabilityGroup,
 	type CapabilityInput,
 	type CapabilityOptionSpec,
-} from "./types.js";
+} from "@refarm.dev/capabilities";
 
 /**
  * The Commander CLI projector — the CLI half of the declare-once capability

@@ -17,10 +17,6 @@
 		"./tui": {
 			"types": "./dist/tui-runtime.d.ts",
 			"import": "./dist/tui-runtime.js"
-		},
-		"./argv": {
-			"types": "./dist/parse-argv.d.ts",
-			"import": "./dist/parse-argv.js"
 		}
 	},
 	"files": [

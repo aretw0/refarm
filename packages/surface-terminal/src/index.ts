@@ -1,4 +1,17 @@
-// Scaffold placeholder. The CLI projector and parse-argv move here from
-// @refarm.dev/capabilities via `git mv` (history preserved) in the next commit,
-// and the TUI runtime is authored after. This file is replaced by the real barrel.
-export {};
+// The terminal surfaces of the capability model.
+//
+// Each export projects the neutral model (@refarm.dev/capabilities) onto a
+// terminal. They live here — not in the model — because each marries a terminal
+// technology (Commander for the CLI, a read-loop for the TUI); the model stays a
+// clean leaf. See README.
+
+export {
+	capabilityCliCommands,
+	capabilityCliCommandsForGroup,
+	capabilityToCliCommand,
+	renderCapabilityError,
+	toCommanderCommand,
+	toCommanderGroup,
+	type CapabilityHooksResolver,
+	type CapabilitySurfaceHooks,
+} from "./cli-projector.js";

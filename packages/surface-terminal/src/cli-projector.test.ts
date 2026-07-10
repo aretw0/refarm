@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { buildJsonSuccessEnvelope } from "./envelope.js";
+import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import {
 	capabilityCliCommands,
 	capabilityCliCommandsForGroup,
 	toCommanderCommand,
 	type CapabilityHooksResolver,
 } from "./cli-projector.js";
-import type { CapabilityDescriptor, CapabilityGroup } from "./types.js";
+import type { CapabilityDescriptor, CapabilityGroup } from "@refarm.dev/capabilities";
 
 const noHooks: CapabilityHooksResolver = () => ({});
 
