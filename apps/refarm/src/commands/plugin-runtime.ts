@@ -1,15 +1,17 @@
 import { resolvePluginPackage } from "@refarm.dev/barn";
-import { quoteCommandArgIfNeeded, refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import { quoteCommandArgIfNeeded, refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	isRuntimeAgentPluginId, normalizePluginId,
 	RUNTIME_AGENT_PLUGIN_ID,
 } from "@refarm.dev/config/plugin-identity";
+import os from "node:os";
+import { listExtensions } from "./extension-scaffold.js";
 import {
 	PLUGIN_INSTALL_COMMAND,
 	PLUGIN_INSTALL_JSON_COMMAND,
@@ -20,6 +22,7 @@ import {
 	PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND,
 	type PluginListEntry,
 	type PluginListReport,
+	type PluginOrigin,
 	readInstalledVersion,
 	type RuntimePluginRecommendation,
 	type RuntimePluginStatusReport,
@@ -66,21 +69,57 @@ export async function restartRuntimeForPluginReload(wait: boolean): Promise<{
 	};
 }
 
-export async function buildPluginListReport(): Promise<PluginListReport> {
+/**
+ * The unified plugin inventory (ADR-086): bundled plugins AND authored local
+ * plugins, each tagged with its `origin`. `options.origin` filters to one
+ * provenance (the `--origin` flag); an origin the resolver can't yet materialize
+ * (npm/git/url) is a valid filter that simply matches nothing — the list never
+ * over-claims coverage. Defaults (no filter) to every known plugin.
+ */
+export async function buildPluginListReport(
+	options: { origin?: PluginOrigin } = {},
+): Promise<PluginListReport> {
+	const wanted = options.origin;
 	const plugins: PluginListEntry[] = [];
 
-	for (const plugin of BUNDLED_PLUGINS) {
-		const version = await readInstalledVersion(plugin.id);
-		const resolution = resolvePluginPackage(plugin, { baseUrl: import.meta.url });
-		plugins.push({
-			id: plugin.id,
-			version,
-			source: "bundled",
-			packageSource: resolution?.source ?? "unresolved",
-			packageDir: resolution?.pkgDir ?? null,
-			installed: version !== null,
-		});
+	// bundled — shipped with refarm, resolved from node_modules/workspace.
+	if (wanted === undefined || wanted === "bundled") {
+		for (const plugin of BUNDLED_PLUGINS) {
+			const version = await readInstalledVersion(plugin.id);
+			const resolution = resolvePluginPackage(plugin, {
+				baseUrl: import.meta.url,
+			});
+			plugins.push({
+				id: plugin.id,
+				version,
+				source: "bundled",
+				packageSource: resolution?.source ?? "unresolved",
+				packageDir: resolution?.pkgDir ?? null,
+				installed: version !== null,
+			});
+		}
 	}
+
+	// local — authored under .refarm/extensions/ (project + global). A local
+	// plugin IS installed by virtue of existing on disk; its dir/scope ride along.
+	if (wanted === undefined || wanted === "local") {
+		for (const ext of listExtensions(process.cwd(), os.homedir())) {
+			plugins.push({
+				id: ext.id,
+				version: ext.version,
+				source: "local",
+				packageSource: "unresolved",
+				packageDir: ext.dir,
+				installed: true,
+				scope: ext.scope,
+				dir: ext.dir,
+			});
+		}
+	}
+
+	// installed / npm / git / url: no resolver wires these yet (ADR-086 phases 3+6).
+	// Asking for one is valid and simply yields nothing here — never a lie about
+	// coverage, never a crash.
 
 	return { plugins };
 }

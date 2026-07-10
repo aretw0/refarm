@@ -61,7 +61,7 @@ import {
 	restartRuntimeForPluginReload,
 	runtimePluginUnavailableRecommendations,
 } from "./plugin-runtime.js";
-import { pluginIdToFsToken } from "./plugin-shared.js";
+import { pluginIdToFsToken, type PluginOrigin } from "./plugin-shared.js";
 import {
 	readRuntimePluginState,
 	reloadRuntimePluginsAndWait,
@@ -123,6 +123,34 @@ export interface PluginCommandDeps {
 	persistUnrevocation: typeof unrevoke;
 }
 
+/** The closed `PluginOrigin` vocabulary, as `--origin` values (ADR-086). */
+const PLUGIN_ORIGINS: readonly PluginOrigin[] = [
+	"local",
+	"installed",
+	"bundled",
+	"npm",
+	"git",
+	"url",
+];
+
+/** Parse a `--origin` value: undefined ⇒ no filter; a known origin ⇒ that filter;
+ *  anything else ⇒ a loud error (loud > silent, CLAUDE.md). */
+function parsePluginOrigin(value: unknown): {
+	value?: PluginOrigin;
+	error?: string;
+} {
+	if (value === undefined) return {};
+	if (
+		typeof value === "string" &&
+		(PLUGIN_ORIGINS as readonly string[]).includes(value)
+	) {
+		return { value: value as PluginOrigin };
+	}
+	return {
+		error: `--origin must be one of: ${PLUGIN_ORIGINS.join(", ")}`,
+	};
+}
+
 export function defaultPluginDeps(): PluginCommandDeps {
 	return {
 		buildListReport: buildPluginListReport,
@@ -150,14 +178,35 @@ export function createPluginCapabilityGroup(
 	deps: PluginCommandDeps = defaultPluginDeps(),
 ): CapabilityGroup {
 	// ── list ─────────────────────────────────────────────────────────────────
-	// Lifts the pure `buildPluginListReport` AS-IS; the missing→nextCommand logic
-	// (previously inside listInstalledPlugins' --json branch) moves into run() so
-	// the envelope is byte-identical to what the legacy command printed.
+	// Unified inventory over the origin axis (ADR-086): bundled + local plugins,
+	// each origin-tagged; `--origin` filters to one provenance. The missing→
+	// nextCommand logic stays here so the no-filter envelope is byte-compatible
+	// with what the legacy command printed.
 	const list: CapabilityDescriptor = {
 		name: "list",
-		summary: "List installed plugins and their versions",
-		async run() {
-			const report = await deps.buildListReport();
+		summary: "List plugins (bundled + local); --origin filters by provenance",
+		options: [
+			{
+				name: "origin",
+				kind: "string",
+				summary:
+					"Filter by provenance: local | installed | bundled | npm | git | url",
+			},
+		],
+		async run(input) {
+			const origin = parsePluginOrigin(input.options.origin);
+			if (origin.error) {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "list",
+					error: "invalid-origin",
+					message: origin.error,
+					nextAction: "Run `refarm plugin list --help`.",
+				});
+			}
+			const report = await deps.buildListReport(
+				origin.value ? { origin: origin.value } : {},
+			);
 			const missing = report.plugins.some((plugin) => !plugin.installed);
 			return buildJsonSuccessEnvelope({
 				command: "plugin",

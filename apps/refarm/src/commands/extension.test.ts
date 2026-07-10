@@ -131,9 +131,9 @@ describe("extension commands", () => {
       JSON.stringify({ id: "@local/my-tool", name: "My Tool", version: "0.0.1" }),
     );
 
-    const { listExtensions } = await import("./extension.js");
+    const { listExtensions } = await import("./extension-scaffold.js");
     const result = listExtensions(process.cwd(), os.homedir());
-    expect(result.some((e) => e.id === "@local/my-tool")).toBe(true);
+    expect(result.some((e: { id: string }) => e.id === "@local/my-tool")).toBe(true);
   });
 
   it("save command errors when neither --global nor --local is passed", async () => {

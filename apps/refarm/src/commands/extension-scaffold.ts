@@ -13,12 +13,13 @@
  */
 import {
 	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
 	type JsonErrorEnvelope,
 	type JsonSuccessEnvelope,
 } from "@refarm.dev/capabilities/envelope";
 import { pluginSurfaceName } from "@refarm.dev/capability-host";
 import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -198,6 +199,53 @@ export interface ExtensionEntry {
 export type ExtensionListReport = JsonSuccessEnvelope<{
 	extensions: ExtensionEntry[];
 }>;
+
+/** Scan `.refarm/extensions/` (project then global) for authored local plugins.
+ *  Lives here (the leaf) so both `extension list` and the unified `plugin list`
+ *  reader (ADR-086) can read local plugins without the registry import cycle. */
+export function listExtensions(cwd: string, homeDir: string): ExtensionEntry[] {
+	const results: ExtensionEntry[] = [];
+
+	const scan = (baseDir: string, scope: "project" | "global") => {
+		if (!existsSync(baseDir)) return;
+		const entries = readdirSync(baseDir, { withFileTypes: true });
+		for (const entry of entries) {
+			if (!entry.isDirectory()) continue;
+			const extDir = path.join(baseDir, entry.name);
+			const extJsonPath = path.join(extDir, "ext.json");
+			if (!existsSync(extJsonPath)) continue;
+			try {
+				const ext = JSON.parse(readFileSync(extJsonPath, "utf-8")) as ExtJson;
+				results.push({
+					id: ext.id,
+					name: ext.name,
+					version: ext.version,
+					dir: extDir,
+					scope,
+				});
+			} catch {
+				// skip unreadable manifests
+			}
+		}
+	};
+
+	scan(path.join(cwd, ".refarm", "extensions"), "project");
+	scan(path.join(homeDir, ".refarm", "extensions"), "global");
+	return results;
+}
+
+export function buildExtensionListReport(
+	cwd: string,
+	homeDir: string,
+): ExtensionListReport {
+	return buildJsonSuccessEnvelope({
+		command: "extension",
+		operation: "list",
+		extra: {
+			extensions: listExtensions(cwd, homeDir),
+		},
+	});
+}
 
 export interface CreatedExtensionReport extends ExtensionEntry {
 	// The verb this scaffold was created under (ADR-086). Defaults to "extension"

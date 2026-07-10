@@ -6,7 +6,7 @@ import {
 } from "@refarm.dev/capabilities/envelope";
 import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { Command } from "commander";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { mkdir, rename } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -59,54 +59,17 @@ function extensionSaveCommand(
 	]);
 }
 
-// The scaffold model + fs writes live in the leaf module `extension-scaffold.ts`
-// (ADR-086) so the `plugin` CapabilityGroup can reuse buildCreatedPluginReport
-// without importing this file's `capability-registry` dependency (that closed an
-// import cycle). Only what this file's body uses is imported; other consumers
-// import from `extension-scaffold.js` directly.
+// The scaffold model + fs writes + local-plugin scan live in the leaf module
+// `extension-scaffold.ts` (ADR-086) so both the `plugin` CapabilityGroup and the
+// unified `plugin list` reader can reuse them without this file's
+// `capability-registry` dependency (that closed an import cycle). Only what this
+// file's body uses is imported; other consumers import from the leaf directly.
 import {
 	buildCreatedPluginReport,
+	buildExtensionListReport,
 	extensionReloadCommand,
 	type CreatedExtensionReport,
-	type ExtensionEntry,
-	type ExtensionListReport,
-	type ExtJson,
 } from "./extension-scaffold.js";
-
-export function listExtensions(cwd: string, homeDir: string): ExtensionEntry[] {
-	const results: ExtensionEntry[] = [];
-
-	const scan = (baseDir: string, scope: "project" | "global") => {
-		if (!existsSync(baseDir)) return;
-		const entries = readdirSync(baseDir, { withFileTypes: true });
-		for (const entry of entries) {
-			if (!entry.isDirectory()) continue;
-			const extDir = path.join(baseDir, entry.name);
-			const extJsonPath = path.join(extDir, "ext.json");
-			if (!existsSync(extJsonPath)) continue;
-			try {
-				const ext = JSON.parse(readFileSync(extJsonPath, "utf-8")) as ExtJson;
-				results.push({ id: ext.id, name: ext.name, version: ext.version, dir: extDir, scope });
-			} catch {
-				// skip unreadable manifests
-			}
-		}
-	};
-
-	scan(path.join(cwd, ".refarm", "extensions"), "project");
-	scan(path.join(homeDir, ".refarm", "extensions"), "global");
-	return results;
-	}
-
-export function buildExtensionListReport(cwd: string, homeDir: string): ExtensionListReport {
-	return buildJsonSuccessEnvelope({
-		command: "extension",
-		operation: "list",
-		extra: {
-			extensions: listExtensions(cwd, homeDir),
-		},
-	});
-	}
 
 function printCreatedExtension(report: CreatedExtensionReport): void {
 	console.log(`Created extension '${report.slug}' at ${report.dir} (${report.scope})`);

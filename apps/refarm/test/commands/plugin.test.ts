@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const {
 	mockReadFileSync,
 	mockExistsSync,
+	mockReaddirSync,
 	mockCopyFileSync,
 	mockReadFile,
 	mockWriteFile,
@@ -16,6 +17,9 @@ const {
 	return {
 		mockReadFileSync: vi.fn(),
 		mockExistsSync: vi.fn(),
+		// The unified `plugin list` reader (ADR-086) scans .refarm/extensions/ for
+		// local plugins; this suite exercises bundled-only, so the scan finds none.
+		mockReaddirSync: vi.fn(() => []),
 		mockCopyFileSync: vi.fn(),
 		mockReadFile: vi.fn(),
 		mockWriteFile: vi.fn().mockResolvedValue(undefined),
@@ -30,10 +34,12 @@ vi.mock("node:fs", () => ({
 	default: {
 		readFileSync: mockReadFileSync,
 		existsSync: mockExistsSync,
+		readdirSync: mockReaddirSync,
 		copyFileSync: mockCopyFileSync,
 	},
 	readFileSync: mockReadFileSync,
 	existsSync: mockExistsSync,
+	readdirSync: mockReaddirSync,
 	copyFileSync: mockCopyFileSync,
 }));
 

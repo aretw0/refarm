@@ -2,10 +2,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import * as os from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import {
-	buildExtensionListReport,
-	extensionCommand,
-} from "../../src/commands/extension.js";
+import { buildExtensionListReport } from "../../src/commands/extension-scaffold.js";
+import { extensionCommand } from "../../src/commands/extension.js";
 
 describe("extension command", () => {
 	it("documents runtime reload behavior in help", () => {

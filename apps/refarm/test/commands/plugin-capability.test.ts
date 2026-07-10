@@ -107,6 +107,63 @@ describe("plugin capability group", () => {
 			expect(env.ok).toBe(true);
 			expect(env.nextCommand).toContain("install");
 		});
+
+		// ADR-086 phase 2: the origin axis. --origin passes a validated filter to
+		// the reader; an unknown origin is a loud error, not a silent empty list.
+		it("passes a validated --origin filter through to the reader", async () => {
+			let received: { origin?: string } | undefined;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					buildListReport: async (opts) => {
+						received = opts;
+						return { plugins: [] };
+					},
+				}),
+			);
+			const env = await action(group, "list").run({
+				args: {},
+				options: { origin: "local" },
+				json: true,
+			});
+			expect(env.ok).toBe(true);
+			expect(received).toEqual({ origin: "local" });
+		});
+
+		it("calls the reader with no filter when --origin is absent", async () => {
+			let received: { origin?: string } | undefined = { origin: "sentinel" };
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					buildListReport: async (opts) => {
+						received = opts;
+						return { plugins: [] };
+					},
+				}),
+			);
+			await action(group, "list").run(input());
+			expect(received).toEqual({});
+		});
+
+		it("rejects an unknown --origin with a loud error envelope", async () => {
+			let called = false;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					buildListReport: async () => {
+						called = true;
+						return { plugins: [] };
+					},
+				}),
+			);
+			const env = await action(group, "list").run({
+				args: {},
+				options: { origin: "moon" },
+				json: true,
+			});
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("invalid-origin");
+			expect((env as { message?: string }).message).toContain("local");
+			// loud: it never queried the reader with a bad filter.
+			expect(called).toBe(false);
+		});
 	});
 
 	describe("permissions <id>", () => {

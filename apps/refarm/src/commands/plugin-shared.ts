@@ -19,13 +19,35 @@ export const BUNDLED_PLUGINS = REFARM_BUNDLED_PLUGIN_DESCRIPTORS;
 export type BundledPlugin = (typeof REFARM_BUNDLED_PLUGIN_DESCRIPTORS)[number];
 export const PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSON_COMMAND;
 
+/**
+ * Where a plugin comes from — its provenance (ADR-086). One vocabulary the CLI
+ * reports and `plugin list --origin` filters on. `local` (authored under
+ * .refarm/extensions/), `installed` (materialized), `bundled` (shipped with
+ * refarm), and the resolver origins `npm` / `git` / `url` (admitted by the vocab,
+ * matched by nothing until the resolver wires them — the list never over-claims
+ * coverage). This is the app-owned surface that the §8 runtime notions
+ * (`PluginPackageSource` in barn, install-plugin provenance in tractor-ts)
+ * converge onto later.
+ */
+export type PluginOrigin =
+	| "local"
+	| "installed"
+	| "bundled"
+	| "npm"
+	| "git"
+	| "url";
+
 export interface PluginListEntry {
 	id: string;
 	version: string | null;
-	source: "bundled";
+	/** The plugin's origin (ADR-086); was frozen at "bundled" before the origin axis. */
+	source: PluginOrigin;
 	packageSource: PluginPackageSource;
 	packageDir: string | null;
 	installed: boolean;
+	/** Set for `local` plugins (authored under .refarm/extensions/): where + which scope. */
+	scope?: "project" | "global";
+	dir?: string;
 }
 
 export interface PluginListReport {
