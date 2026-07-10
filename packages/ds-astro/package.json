@@ -30,7 +30,7 @@
 		"@refarm.dev/ds": "workspace:*"
 	},
 	"peerDependencies": {
-		"astro": "^6.4.8"
+		"astro": "^6.4.8 || ^7"
 	},
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",
