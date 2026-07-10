@@ -1,26 +1,27 @@
 {
-  "name": "wallet-t2",
-  "version": "0.0.0",
-  "private": true,
-  "description": "T2 POC (result mode): a sovereign citizen's digital wallet for DGK, local-first records and review.",
-  "type": "module",
-  "bin": {
-    "dgk": "./dist/cli.js"
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run",
-    "dgk": "node dist/cli.js",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "@refarm.dev/capability-host": "workspace:*",
-    "@refarm.dev/enrichment-contract-v1": "workspace:*",
-    "@refarm.dev/records-contract-v1": "workspace:*"
-  },
-  "devDependencies": {
-    "@refarm.dev/tsconfig": "workspace:*",
-    "@refarm.dev/vtconfig": "workspace:*"
-  }
+	"name": "wallet-t2",
+	"version": "0.0.0",
+	"private": true,
+	"description": "T2 POC (result mode): a sovereign citizen's digital wallet for DGK, local-first records and review.",
+	"type": "module",
+	"bin": {
+		"dgk": "./dist/cli.js"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"dgk": "node dist/cli.js",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@refarm.dev/capability-host": "workspace:*",
+		"@refarm.dev/enrichment-contract-v1": "workspace:*",
+		"@refarm.dev/records-contract-v1": "workspace:*",
+		"@refarm.dev/capability-homestead-surface": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
 }

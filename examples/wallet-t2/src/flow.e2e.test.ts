@@ -24,16 +24,33 @@ function tempStatePath(): string {
  * wallet (result mode — the product, not the machine) and curates an item.
  */
 describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", () => {
-	it("mounts the neutral chain + the one persona verb", () => {
+	it("mounts the neutral chain + the wallet dashboard verbs", () => {
 		const names = buildRegistry().list().map((e) => e.name);
 		expect(names).toEqual(expect.arrayContaining([
 			"source",
 			"records",
 			"vault",
 			"wallet",
+			// The dashboard breadth — a card per review state, from pure declaration.
+			"wallet-verified",
+			"wallet-draft",
 			"status",
 			"actions",
 		]));
+	});
+
+	it("projects the wallet dashboard into a Homestead web panel of cards (RICH via breadth)", async () => {
+		// T2 RESULT mode: the SAME registry becomes a citizen wallet dashboard on the web.
+		// The three wallet views (main + verified + draft), all in the "wallet" section,
+		// render as DS cards in one panel — richness from declarations, not a hand-rolled UI.
+		const { walletWebSurface } = await import("./persona.js");
+		const handle = walletWebSurface(buildRegistry());
+		const result = (await handle.call?.("renderHomesteadSurface", {})) as { html: string };
+		expect(result.html).toContain("Minha Carteira Digital");
+		expect(result.html).toContain("wallet");
+		expect(result.html).toContain("wallet-verified");
+		expect(result.html).toContain("wallet-draft");
+		expect(result.html).toContain("refarm-surface-card");
 	});
 
 	it("exposes a base operator model without importing the product app", () => {

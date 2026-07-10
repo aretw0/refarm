@@ -9,7 +9,7 @@ import {
 import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
 
 import {
-	createWalletCapability,
+	createWalletCapabilities,
 	walletCapabilityBundle,
 	type WalletStateOptions,
 } from "./persona.js";
@@ -43,7 +43,7 @@ export function buildWalletHost(options: WalletHostOptions = {}): CapabilityHost
 			const { deps, records } = walletCapabilityBundle(options);
 			return {
 				deps,
-				extensions: [createWalletCapability(records)],
+				extensions: createWalletCapabilities(records),
 			};
 		},
 		operatorStatus: {
