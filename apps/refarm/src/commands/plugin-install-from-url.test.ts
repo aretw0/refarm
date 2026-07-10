@@ -61,7 +61,13 @@ function stubFetch(
 				status,
 				statusText: status === 200 ? "OK" : "Error",
 				json: async () => ({}),
-				arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+				// Copy into a fresh ArrayBuffer so the return type is ArrayBuffer (not the
+				// ArrayBufferLike a Uint8Array's .buffer may be, e.g. SharedArrayBuffer).
+				arrayBuffer: async () => {
+					const copy = new ArrayBuffer(bytes.byteLength);
+					new Uint8Array(copy).set(bytes);
+					return copy;
+				},
 			};
 		}
 		return {
