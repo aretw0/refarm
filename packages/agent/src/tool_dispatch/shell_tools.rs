@@ -44,6 +44,59 @@ pub(crate) fn list_dir(input: &serde_json::Value) -> String {
     }
 }
 
+/// Find files BY NAME matching a glob (e.g. `**/*.rs`, `Cargo.toml`) under a path —
+/// the "locate files" complement to `search_files` (which greps file CONTENT) and
+/// `list_dir` (one directory, no recursion/pattern). Shells `find` with `-name`, so
+/// the glob matches the basename; results are one path per line.
+pub(crate) fn glob(input: &serde_json::Value) -> String {
+    let pattern = input["pattern"].as_str().unwrap_or("");
+    if pattern.is_empty() {
+        return "[error] glob requires a `pattern` (e.g. *.rs)".into();
+    }
+    let path = input["path"].as_str().unwrap_or(".");
+    let max_results = input["max_results"].as_u64().map(|v| v as usize);
+    // `find <path> -name <glob> -type f` — the basename glob is the common case; a
+    // path-segment glob (**/) is matched on the last segment by find's -name.
+    let name = pattern.rsplit('/').next().unwrap_or(pattern);
+    let argv = vec![
+        "find".into(),
+        path.into(),
+        "-type".into(),
+        "f".into(),
+        "-name".into(),
+        name.into(),
+    ];
+    match spawn(argv, None, 15_000) {
+        Ok(r) if r.exit_code == 0 => {
+            let out = String::from_utf8_lossy(&r.stdout);
+            let mut lines: Vec<&str> = out.lines().filter(|l| !l.is_empty()).collect();
+            let total = lines.len();
+            if total == 0 {
+                return format!("[no files matching '{pattern}' under {path}]");
+            }
+            let truncated = matches!(max_results, Some(n) if total > n);
+            if let Some(n) = max_results {
+                lines.truncate(n);
+            }
+            let body = crate::compress_tool_output(&lines.join("\n"));
+            if truncated {
+                format!(
+                    "[truncated: {total} matches → showing {}]\n{body}",
+                    lines.len()
+                )
+            } else {
+                body
+            }
+        }
+        Ok(r) => format!(
+            "[error globbing {path}] exit {}\n{}",
+            r.exit_code,
+            String::from_utf8_lossy(&r.stderr)
+        ),
+        Err(e) => format!("[error globbing {path}] {e}"),
+    }
+}
+
 pub(crate) fn search_files(input: &serde_json::Value) -> String {
     let pattern = input["pattern"].as_str().unwrap_or("");
     let path = input["path"].as_str().unwrap_or(".");

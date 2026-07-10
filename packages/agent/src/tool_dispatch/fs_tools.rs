@@ -45,6 +45,24 @@ pub(crate) fn write_file(input: &serde_json::Value) -> String {
     }
 }
 
+/// Apply a UNIFIED DIFF to a file in one shot — the large-refactor complement to
+/// `edit_file`'s per-string replacements. Routes to the host `host-fs.edit` primitive
+/// (already in the WIT), which applies the diff ATOMICALLY and fails if the diff's
+/// context does not match the current file (so a stale patch is rejected, not
+/// half-applied). Prefer this over many `edit_file` calls when the model already has
+/// a diff or is changing several hunks of one file.
+pub(crate) fn apply_patch(input: &serde_json::Value) -> String {
+    let path = input["path"].as_str().unwrap_or("");
+    let patch = match input["patch"].as_str() {
+        Some(p) if !p.is_empty() => p,
+        _ => return "[error] apply_patch requires a non-empty unified-diff `patch`".into(),
+    };
+    match host_fs::edit(path, patch) {
+        Ok(()) => format!("applied patch to {path}"),
+        Err(e) => format!("[error applying patch to {path}] {e}"),
+    }
+}
+
 pub(crate) fn edit_file(input: &serde_json::Value) -> String {
     let path = input["path"].as_str().unwrap_or("");
     let edits = match input["edits"].as_array() {
