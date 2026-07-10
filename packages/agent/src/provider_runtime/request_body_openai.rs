@@ -15,7 +15,7 @@ pub(crate) fn build_openai_body_with_streaming(
 ) -> String {
     let mut body = serde_json::json!({
         "model": model,
-        "max_tokens": 1024,
+        "max_tokens": super::loop_limits::max_output_tokens(),
         "tools": tools,
         "messages": wire_msgs,
     });
@@ -51,6 +51,7 @@ pub(crate) fn build_openai_codex_responses_body_with_streaming(
         "model": model,
         "store": false,
         "stream": true,
+        "max_output_tokens": super::loop_limits::max_output_tokens(),
         "input": input,
         "tools": openai_chat_tools_to_responses_tools(tools),
     });

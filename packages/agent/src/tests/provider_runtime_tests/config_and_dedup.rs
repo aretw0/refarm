@@ -19,6 +19,30 @@ fn provider_runtime_tool_loop_max_iter_invalid_env_falls_back() {
     std::env::remove_var("MODEL_TOOL_CALL_MAX_ITER");
 }
 #[test]
+fn provider_runtime_max_output_tokens_defaults_to_4096() {
+    let _guard = super::ENV_LOCK.lock().unwrap();
+    std::env::remove_var("MODEL_MAX_TOKENS");
+    // The default is the modern ceiling, NOT the old hardcoded 1024 that truncated
+    // long files/patches. This is the drift-sensor for the max_tokens unlock.
+    assert_eq!(crate::provider_runtime::max_output_tokens(), 4096);
+}
+#[test]
+fn provider_runtime_max_output_tokens_reads_env() {
+    let _guard = super::ENV_LOCK.lock().unwrap();
+    std::env::set_var("MODEL_MAX_TOKENS", "16000");
+    assert_eq!(crate::provider_runtime::max_output_tokens(), 16000);
+    std::env::remove_var("MODEL_MAX_TOKENS");
+}
+#[test]
+fn provider_runtime_max_output_tokens_invalid_or_zero_falls_back() {
+    let _guard = super::ENV_LOCK.lock().unwrap();
+    std::env::set_var("MODEL_MAX_TOKENS", "0");
+    assert_eq!(crate::provider_runtime::max_output_tokens(), 4096); // 0 is rejected
+    std::env::set_var("MODEL_MAX_TOKENS", "nonsense");
+    assert_eq!(crate::provider_runtime::max_output_tokens(), 4096);
+    std::env::remove_var("MODEL_MAX_TOKENS");
+}
+#[test]
 fn provider_runtime_dedup_tool_output_marks_duplicates() {
     let mut seen = std::collections::HashSet::new();
     let first = crate::provider_runtime::dedup_tool_output("same-output".to_string(), &mut seen);

@@ -92,6 +92,8 @@ pub(crate) use loop_runner_types::ProviderRunnerCommonConfig;
 pub(crate) use loop_core::{run_completion_loop_from_plan_with, CompletionLoopOutcome};
 #[cfg(test)]
 pub(crate) use loop_limits::tool_loop_max_iter;
+#[cfg(test)]
+pub(crate) use loop_limits::max_output_tokens;
 
 #[cfg(test)]
 pub(crate) use loop_core::run_completion_loop_with;

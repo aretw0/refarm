@@ -17,7 +17,7 @@ pub(crate) fn build_anthropic_body_with_streaming(
 ) -> String {
     let mut body = serde_json::json!({
         "model": model,
-        "max_tokens": 1024,
+        "max_tokens": super::loop_limits::max_output_tokens(),
         "system": system,
         "tools": tools,
         "messages": wire_msgs,

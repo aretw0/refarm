@@ -108,7 +108,8 @@ fn provider_runtime_build_openai_body_includes_expected_fields() {
     );
     let v: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(v["model"], "m");
-    assert_eq!(v["max_tokens"], 1024);
+    // No MODEL_MAX_TOKENS in the env → the default ceiling (not the old hardcoded 1024).
+    assert_eq!(v["max_tokens"], 4096);
     assert_eq!(v["messages"][0]["role"], "user");
     assert_eq!(v["tools"][0]["type"], "function");
     assert!(v.get("stream").is_none());
@@ -166,7 +167,8 @@ fn provider_runtime_build_anthropic_body_includes_expected_fields() {
     let v: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(v["model"], "m2");
     assert_eq!(v["system"], "sys");
-    assert_eq!(v["max_tokens"], 1024);
+    // No MODEL_MAX_TOKENS in the env → the default ceiling (not the old hardcoded 1024).
+    assert_eq!(v["max_tokens"], 4096);
     assert_eq!(v["messages"][0]["role"], "user");
     assert_eq!(v["tools"][0]["name"], "read_file");
     assert!(v.get("stream").is_none());
