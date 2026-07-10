@@ -85,12 +85,24 @@ Scripts: `pnpm format` (write) / `pnpm format:check` (gate). It supersedes the
 home-grown `imports` tool (which corrupted indentation — the footgun that also bit
 the astro codemod).
 
-**Rollout (sliced, not one giant commit):** ~714/900 files differ from oxfmt's
-output. The config + scripts land first (this leaves `format:check` red); then the
-sweep is applied `oxfmt --write` **per area** (contract-v1 packages, then cli,
-then apps, …), one format-only commit per slice so the whitespace churn never
-mixes with logic and `git blame` isn't rewritten in a single blast. Once the sweep
-completes, wire `format:check` into the gate.
+**Rollout — DONE (sliced).** ~714/900 files were reformatted across format-only
+commits sliced by area: contract-v1 packages → cli/capabilities → remaining non-§8
+packages → §8 packages (tractor-ts, plugin-manifest, flagged) → apps/refarm →
+farmhand/dev/me/examples. Each slice was verified behavior-neutral (type-check +
+tests) before committing, so whitespace churn never mixed with logic. `pnpm
+format:check` is now GREEN across all 900 files.
+
+**Gate:** `format:check` is wired into the non-§8 `factory:pre-rebuild` composite
+(beside `git:diff-check` and `imports:organize:check`). Adding it to the CI
+workflows (`.github/workflows/test.yml`'s turbo step) is a §8 change — a tracked
+follow-up, not done here.
+
+**Notes:**
+- oxfmt and the toolbox `imports` tool are complementary: oxfmt does whitespace /
+  wrapping; `imports` does import ordering. Both run in the gate.
+- oxfmt 0.58 quirk: certain `.fn().method({ …object… })` chains need a **second
+  pass** to converge (it expands then re-collapses). Rare; `format` twice if a
+  fresh `format:check` flags a file the first `format` just wrote. Stable after.
 
 ## Sequence
 
@@ -101,5 +113,8 @@ completes, wire `format:check` into the gate.
    `vault-seed-ready` policy).
 3. ✅ Astro 6 → 7 (28d8490f) — zero breaking findings; all apps build + check
    clean on 7.0.3; brought Rolldown-Vite/oxc into the stack.
-4. **Formatter (P5)** — settle oxfmt-vs-Biome (now with oxc live via Astro 7's
-   Rolldown-Vite), then adopt with a `format:check` gate.
+4. ✅ Formatter (P5) — oxfmt adopted; whole repo swept (900 files green);
+   `format:check` gated in `factory:pre-rebuild`. CI-workflow gating is a §8
+   follow-up.
+5. **TypeScript 7** — assess the migration (TS 7 released; native Go compiler).
+   Next.
