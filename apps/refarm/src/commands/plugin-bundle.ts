@@ -1,4 +1,4 @@
-import type { CapabilityEnvelope } from "@refarm.dev/cli/capabilities";
+import type { CapabilityEnvelope } from "@refarm.dev/capabilities";
 import { quoteCommandArg, refarmCommand, shellCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,

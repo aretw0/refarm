@@ -7,7 +7,7 @@ import {
 	type CapabilityHooksResolver,
 	type CapabilityInput,
 	type CapabilityRegistry,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import { applicationCommand } from "@refarm.dev/cli/command-handoff";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import {

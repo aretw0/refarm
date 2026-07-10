@@ -11,4 +11,4 @@ export {
 	toCommanderGroup,
 	type CapabilityHooksResolver,
 	type CapabilitySurfaceHooks,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";

@@ -1,4 +1,4 @@
-import { isCapabilityGroup, resolveGroupAction } from "@refarm.dev/cli/capabilities";
+import { isCapabilityGroup, resolveGroupAction } from "@refarm.dev/capabilities";
 import { describe, expect, it } from "vitest";
 
 import { createSourceCapabilityGroup } from "./source-capability.js";

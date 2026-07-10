@@ -38,6 +38,7 @@
 		"access": "public"
 	},
 	"dependencies": {
+		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/cli": "workspace:*",
 		"@refarm.dev/source-web": "workspace:*",
 		"@refarm.dev/operator-state": "workspace:*",

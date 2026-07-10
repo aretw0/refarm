@@ -2,7 +2,7 @@ import {
 	isCapabilityGroup,
 	parseCapabilityArgv,
 	resolveGroupAction,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import {
 	loadChatHistory,
 	MAX_CHAT_HISTORY_LINES,

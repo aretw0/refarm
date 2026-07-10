@@ -1,4 +1,4 @@
-import { parseCapabilityArgv } from "@refarm.dev/cli/capabilities";
+import { parseCapabilityArgv } from "@refarm.dev/capabilities";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import { describe, expect, it } from "vitest";
 

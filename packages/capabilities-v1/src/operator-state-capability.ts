@@ -1,7 +1,7 @@
 import type {
 	CapabilityDescriptor,
 	CapabilityEnvelope,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import type { BaseSurfaceModel } from "@refarm.dev/operator-state";
 
 export interface BaseStatusCapabilityOptions {

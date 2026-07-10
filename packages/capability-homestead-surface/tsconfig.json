@@ -8,7 +8,7 @@
 		"rootDir": "src",
 		"baseUrl": "../..",
 		"paths": {
-			"@refarm.dev/cli/capabilities": ["packages/cli/dist/capabilities/index.d.ts"],
+			"@refarm.dev/capabilities": ["packages/capabilities/dist/index.d.ts"],
 			"@refarm.dev/homestead/sdk/plugin-handle": ["packages/homestead/dist/sdk/plugin-handle.d.ts"],
 			"@refarm.dev/homestead/sdk/surface-renderer": ["packages/homestead/dist/sdk/surface-renderer.d.ts"],
 			"@refarm.dev/homestead/sdk/runtime": ["packages/homestead/dist/sdk/runtime.d.ts"]

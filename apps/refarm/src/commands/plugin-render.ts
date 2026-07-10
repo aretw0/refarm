@@ -13,7 +13,7 @@ import chalk from "chalk";
 import type {
 	CapabilityEnvelope,
 	CapabilityInput,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config/plugin-identity";
 import { renderCapabilityError } from "./capability-commander.js";
 import {

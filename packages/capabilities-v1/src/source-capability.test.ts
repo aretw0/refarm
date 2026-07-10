@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { isCapabilityGroup } from "@refarm.dev/cli/capabilities";
+import { isCapabilityGroup } from "@refarm.dev/capabilities";
 import { createSourceCapabilityGroup } from "./source-capability.js";
 
 let cacheRoot = "";

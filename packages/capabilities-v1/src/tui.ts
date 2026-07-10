@@ -3,11 +3,11 @@ import {
 	resolveGroupAction,
 	type CapabilityInput,
 	type CapabilityRegistry,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import { parseChatLine } from "@refarm.dev/cli/chat-repl";
 import readline from "node:readline";
 
-import { surfaceModel } from "@refarm.dev/cli/capabilities";
+import { surfaceModel } from "@refarm.dev/capabilities";
 
 /** How a surface's REPL reaches the agent for a free-text message. Injected: a host wires
  * its runtime (the sidecar prompt sink); absent → the REPL reports the agent is not

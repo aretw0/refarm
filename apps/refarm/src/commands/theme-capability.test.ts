@@ -1,7 +1,7 @@
 import {
 	isCapabilityGroup,
 	resolveGroupAction,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import { REQUIRED_TOKENS, ThemeRegistry, type DsTheme } from "@refarm.dev/ds";
 import type { DiscoverThemesResult } from "@refarm.dev/plugin-surface-loader/node";
 import { describe, expect, it } from "vitest";

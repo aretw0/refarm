@@ -7,7 +7,7 @@ import {
 	type CapabilityEntry,
 	type CapabilityGroup,
 	type CapabilitySurfaceHooks,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import { RESERVED_SLASH_NAMES } from "@refarm.dev/cli/chat-repl";
 import type { Command } from "commander";
 

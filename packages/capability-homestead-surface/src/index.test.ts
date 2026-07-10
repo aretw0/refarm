@@ -1,4 +1,4 @@
-import { createCapabilityRegistry, type CapabilityDescriptor } from "@refarm.dev/cli/capabilities";
+import { createCapabilityRegistry, type CapabilityDescriptor } from "@refarm.dev/capabilities";
 import { describe, expect, it } from "vitest";
 
 import {

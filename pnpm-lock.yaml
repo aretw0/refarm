@@ -303,6 +303,9 @@ importers:
       '@refarm.dev/barn':
         specifier: workspace:*
         version: link:../../packages/barn
+      '@refarm.dev/capabilities':
+        specifier: workspace:*
+        version: link:../../packages/capabilities
       '@refarm.dev/capability-host':
         specifier: workspace:*
         version: link:../../packages/capability-host
@@ -620,6 +623,9 @@ importers:
 
   packages/capabilities-v1:
     dependencies:
+      '@refarm.dev/capabilities':
+        specifier: workspace:*
+        version: link:../capabilities
       '@refarm.dev/cli':
         specifier: workspace:*
         version: link:../cli
@@ -663,9 +669,9 @@ importers:
 
   packages/capability-homestead-surface:
     dependencies:
-      '@refarm.dev/cli':
+      '@refarm.dev/capabilities':
         specifier: workspace:*
-        version: link:../cli
+        version: link:../capabilities
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../homestead

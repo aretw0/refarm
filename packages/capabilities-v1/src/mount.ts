@@ -8,7 +8,7 @@ import {
 	type CapabilityEntry,
 	type CapabilityHooksResolver,
 	type CapabilityRegistry,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import {
 	createServer,
 	type IncomingMessage,

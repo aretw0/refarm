@@ -1,6 +1,6 @@
 import type { AddressInfo } from "node:net";
 
-import type { CapabilityDescriptor } from "@refarm.dev/cli/capabilities";
+import type { CapabilityDescriptor } from "@refarm.dev/capabilities";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
 import { afterEach, describe, expect, it } from "vitest";
 

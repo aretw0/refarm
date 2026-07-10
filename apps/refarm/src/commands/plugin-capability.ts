@@ -2,7 +2,7 @@ import type {
 	CapabilityDescriptor,
 	CapabilityEnvelope,
 	CapabilityGroup,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildJsonErrorEnvelope,

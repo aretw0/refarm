@@ -1,4 +1,4 @@
-import { webSurfaceModel, type CapabilityRegistry } from "@refarm.dev/cli/capabilities";
+import { webSurfaceModel, type CapabilityRegistry } from "@refarm.dev/capabilities";
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import type {
 	HomesteadSurfaceRenderRequest,

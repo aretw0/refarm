@@ -8,8 +8,11 @@
 		"rootDir": "src",
 		"baseUrl": "../..",
 		"paths": {
-			"@refarm.dev/cli/capabilities": [
-				"packages/cli/dist/capabilities/index.d.ts"
+			"@refarm.dev/capabilities": [
+				"packages/capabilities/dist/index.d.ts"
+			],
+			"@refarm.dev/capabilities/envelope": [
+				"packages/capabilities/dist/envelope.d.ts"
 			],
 			"@refarm.dev/cli/json-output": [
 				"packages/cli/dist/json-output.d.ts"

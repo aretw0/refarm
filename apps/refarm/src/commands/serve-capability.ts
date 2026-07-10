@@ -4,7 +4,7 @@ import { mountedHttpHandler } from "@refarm.dev/capability-host";
 import {
 	createCapabilityRegistry,
 	type CapabilityEntry,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import { Command } from "commander";
 
 import { capabilityRegistry } from "./capability-registry.js";

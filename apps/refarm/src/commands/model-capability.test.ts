@@ -1,8 +1,8 @@
-import type { CapabilityInput } from "@refarm.dev/cli/capabilities";
+import type { CapabilityInput } from "@refarm.dev/capabilities";
 import {
 	isCapabilityGroup,
 	resolveGroupAction,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import { describe, expect, it, vi } from "vitest";
 
 import {

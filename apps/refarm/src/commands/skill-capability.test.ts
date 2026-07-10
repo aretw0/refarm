@@ -1,7 +1,7 @@
 import {
 	isCapabilityGroup,
 	resolveGroupAction,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import type { DiscoveredSkill } from "@refarm.dev/plugin-surface-loader/node";
 import { openScopedLedger } from "@refarm.dev/storage-node-view";
 import { createHash } from "node:crypto";

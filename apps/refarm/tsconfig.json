@@ -4,6 +4,9 @@
 		"noEmit": true,
 		"baseUrl": ".",
 		"paths": {
+			"@refarm.dev/capabilities": [
+				"../../packages/capabilities/dist/index.d.ts"
+			],
 			"@refarm.dev/context-provider-v1": [
 				"../../packages/context-provider-v1/dist/index.d.ts"
 			],

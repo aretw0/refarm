@@ -1,4 +1,4 @@
-import type { CapabilityEntry } from "@refarm.dev/cli/capabilities";
+import type { CapabilityEntry } from "@refarm.dev/capabilities";
 
 import {
 	createRecordsCapabilityGroup,

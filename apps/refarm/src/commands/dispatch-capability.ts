@@ -1,4 +1,4 @@
-import type { CapabilityDescriptor } from "@refarm.dev/cli/capabilities";
+import type { CapabilityDescriptor } from "@refarm.dev/capabilities";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,

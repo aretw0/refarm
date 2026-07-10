@@ -1,7 +1,7 @@
 import {
 	isCapabilityGroup,
 	type CapabilityDescriptor,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import { describe, expect, it } from "vitest";
 
 import {

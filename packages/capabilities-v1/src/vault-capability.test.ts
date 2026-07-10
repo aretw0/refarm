@@ -1,7 +1,7 @@
 import {
 	isCapabilityGroup,
 	resolveGroupAction,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import {
 	parseRecordsYamlLdFrontMatter,
 	type RecordsManifest,

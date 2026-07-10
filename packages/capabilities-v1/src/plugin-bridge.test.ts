@@ -1,4 +1,4 @@
-import { createCapabilityRegistry } from "@refarm.dev/cli/capabilities";
+import { createCapabilityRegistry } from "@refarm.dev/capabilities";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";

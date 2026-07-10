@@ -1,4 +1,4 @@
-import { isCapabilityGroup } from "@refarm.dev/cli/capabilities";
+import { isCapabilityGroup } from "@refarm.dev/capabilities";
 import {
 	computeRecordContentHash,
 	type RecordsManifest,

@@ -7,7 +7,7 @@ export {
 	isCapabilityGroup,
 	resolveGroupAction,
 	type ResolvedGroupAction,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 export {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -18,7 +18,7 @@ export type {
 	CapabilityEnvelope,
 	CapabilityGroup,
 	CapabilityInput,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 export {
 	createRecordsCapabilityGroup,
 	defineRecordsViewCapability,
@@ -121,7 +121,7 @@ export {
 	createWasmEnrichmentProvider,
 	type WasmEnrichmentProviderOptions,
 } from "./wasm-enrichment-provider.js";
-// surfaceModel + the surface projectors moved to @refarm.dev/cli/capabilities (the
+// surfaceModel + the surface projectors moved to @refarm.dev/capabilities (the
 // projector home, ADR-085) so the CLI app and this lib project from ONE function;
 // re-exported here for compat + so downstream (capability-host, examples) reach them.
 export {
@@ -137,7 +137,7 @@ export {
 	type SurfaceHint,
 	type PaletteModel,
 	type PaletteEntry,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 // The web projection lives in the Astro + homestead surface (apps/me), not a hand-rolled
 // HTML-string renderer here. surfaceModel stays as the neutral, multi-surface model the
 // CLI/TUI/status project from; the web consumes it through homestead.

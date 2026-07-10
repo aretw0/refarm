@@ -2,7 +2,7 @@ import type {
 	CapabilityDescriptor,
 	CapabilityGroup,
 	CapabilityGroupResolution,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import chalk from "chalk";
 
 import { parseModelScope } from "../model-routing.js";

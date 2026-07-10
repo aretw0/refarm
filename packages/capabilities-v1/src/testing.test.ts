@@ -2,7 +2,7 @@ import {
 	createCapabilityRegistry,
 	type CapabilityDescriptor,
 	type CapabilityGroup,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import { existsSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";

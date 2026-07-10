@@ -33,7 +33,7 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@refarm.dev/cli": "workspace:*",
+		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*"
 	},
 	"devDependencies": {

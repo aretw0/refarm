@@ -1,8 +1,8 @@
 import type {
 	CapabilityDescriptor,
 	CapabilityRegistry,
-} from "@refarm.dev/cli/capabilities";
-import { surfacesOf } from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
+import { surfacesOf } from "@refarm.dev/capabilities";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,

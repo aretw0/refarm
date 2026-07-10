@@ -4,7 +4,7 @@ import {
 	type CapabilityEntry,
 	type CapabilityInput,
 	type CapabilityRegistry,
-} from "@refarm.dev/cli/capabilities";
+} from "@refarm.dev/capabilities";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
