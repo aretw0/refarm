@@ -32,6 +32,7 @@ import path from "node:path";
 import { autoInstallPlugins } from "./auto-install-plugins.js";
 import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
 import { injectConfigEnv } from "./config-env.js";
+import { injectSkillEnv } from "./skill-env.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
 import { LocalExtensionRegistry } from "./local-extensions.js";
 import {
@@ -329,6 +330,14 @@ async function main() {
 		console.log(
 			`[farmhand] Installed plugin scan complete: loaded=${loadSummary.loaded} skipped=${loadSummary.skipped}`,
 		);
+	}
+
+	// Pack the installed skills' disclosure index into MODEL_SKILLS so the agent's
+	// system prompt lists them (progressive disclosure). After the plugin scan, so
+	// any pi/skill surface a just-loaded plugin ships is included.
+	const skillEnv = injectSkillEnv(pluginsDir);
+	if (skillEnv.count > 0) {
+		console.log(`[farmhand] Skills disclosed to the agent: ${skillEnv.count}`);
 	}
 
 	const taskDbPath = path.join(farmhandBaseDir, "task-memory.db");

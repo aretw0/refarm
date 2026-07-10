@@ -202,6 +202,9 @@ importers:
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../../packages/plugin-manifest
+      '@refarm.dev/plugin-surface-loader':
+        specifier: workspace:*
+        version: link:../../packages/plugin-surface-loader
       '@refarm.dev/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
