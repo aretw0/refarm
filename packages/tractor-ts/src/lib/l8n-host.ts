@@ -1,115 +1,115 @@
 /**
  * L8nHost — Sovereign Internationalization Machinery.
- * 
+ *
  * Implements namespaced translation keys with inheritance:
  * - "refarm:core/save" -> Core terminology correctly localized.
  * - "plugin-id:welcome" -> Plugin-specific terminology.
  */
 export interface L8nHostLogger {
-  info(...args: unknown[]): void;
+	info(...args: unknown[]): void;
 }
 
 type NodeEnvGlobal = typeof globalThis & { process?: { env?: Record<string, string | undefined> } };
 
 function resolveDefaultLogger(): L8nHostLogger {
-  const env = (globalThis as NodeEnvGlobal).process?.env;
-  if (env?.VITEST === "true" || env?.NODE_ENV === "test") {
-    return { info: () => {} };
-  }
-  return console;
+	const env = (globalThis as NodeEnvGlobal).process?.env;
+	if (env?.VITEST === "true" || env?.NODE_ENV === "test") {
+		return { info: () => {} };
+	}
+	return console;
 }
 
 export class L8nHost {
-  private _namespaces: Map<string, Record<string, string>> = new Map();
-  private _currentLocale: string = 'en';
+	private _namespaces: Map<string, Record<string, string>> = new Map();
+	private _currentLocale: string = "en";
 
-  constructor(private logger: L8nHostLogger = resolveDefaultLogger()) {
-    this.setupCore();
-  }
+	constructor(private logger: L8nHostLogger = resolveDefaultLogger()) {
+		this.setupCore();
+	}
 
-  private setupCore() {
-    // Initial core keys (fallback before Graph load)
-    this._namespaces.set('refarm:core', {
-      'save': 'Save',
-      'cancel': 'Cancel',
-      'loading': 'Loading...',
-      'status_ready': 'Ready',
-      'unlocked': 'Unlocked'
-    });
-  }
+	private setupCore() {
+		// Initial core keys (fallback before Graph load)
+		this._namespaces.set("refarm:core", {
+			save: "Save",
+			cancel: "Cancel",
+			loading: "Loading...",
+			status_ready: "Ready",
+			unlocked: "Unlocked",
+		});
+	}
 
-  /**
-   * Gets the current locale.
-   */
-  getLocale(): string {
-    return this._currentLocale;
-  }
+	/**
+	 * Gets the current locale.
+	 */
+	getLocale(): string {
+		return this._currentLocale;
+	}
 
-  /**
-   * Sets the current locale and triggers a reactive update.
-   */
-  setLocale(locale: string) {
-    this._currentLocale = locale;
-    this.logger.info(`[l8n] Locale changed to: ${locale}`);
-  }
+	/**
+	 * Sets the current locale and triggers a reactive update.
+	 */
+	setLocale(locale: string) {
+		this._currentLocale = locale;
+		this.logger.info(`[l8n] Locale changed to: ${locale}`);
+	}
 
-  /**
-   * Register translation keys for a specific namespace.
-   */
-  registerKeys(namespace: string, keys: Record<string, string>) {
-    const existing = this._namespaces.get(namespace) || {};
-    this._namespaces.set(namespace, { ...existing, ...keys });
-  }
+	/**
+	 * Register translation keys for a specific namespace.
+	 */
+	registerKeys(namespace: string, keys: Record<string, string>) {
+		const existing = this._namespaces.get(namespace) || {};
+		this._namespaces.set(namespace, { ...existing, ...keys });
+	}
 
-  /**
-   * The primary translation function.
-   * Handles:
-   * 1. Namespace lookup (p:key or p/key)
-   * 2. Core inheritance (if no namespace supplied)
-   * 3. Fallback to key itself
-   */
-  t(key: string, params?: Record<string, string>): string {
-    let ns = 'refarm:core';
-    let k = key;
+	/**
+	 * The primary translation function.
+	 * Handles:
+	 * 1. Namespace lookup (p:key or p/key)
+	 * 2. Core inheritance (if no namespace supplied)
+	 * 3. Fallback to key itself
+	 */
+	t(key: string, params?: Record<string, string>): string {
+		let ns = "refarm:core";
+		let k = key;
 
-    if (key.includes(':')) {
-      const parts = key.split(':');
-      ns = parts[0]!;
-      k = parts[1]!;
-    } else if (key.includes('/')) {
-      // Support "refarm:core/save" or "plugin/key"
-      const parts = key.split('/');
-      ns = parts[0]!;
-      k = parts[1]!;
-    }
+		if (key.includes(":")) {
+			const parts = key.split(":");
+			ns = parts[0]!;
+			k = parts[1]!;
+		} else if (key.includes("/")) {
+			// Support "refarm:core/save" or "plugin/key"
+			const parts = key.split("/");
+			ns = parts[0]!;
+			k = parts[1]!;
+		}
 
-    // Special case for "refarm:core" as it contains a colon
-    if (key.startsWith('refarm:core/')) {
-      ns = 'refarm:core';
-      k = key.replace('refarm:core/', '');
-    }
+		// Special case for "refarm:core" as it contains a colon
+		if (key.startsWith("refarm:core/")) {
+			ns = "refarm:core";
+			k = key.replace("refarm:core/", "");
+		}
 
-    const bundle = this._namespaces.get(ns);
-    let value = bundle ? bundle[k] : null;
+		const bundle = this._namespaces.get(ns);
+		let value = bundle ? bundle[k] : null;
 
-    // Fallback to core if not found in plugin namespace
-    if (!value && ns !== 'refarm:core') {
-      value = this._namespaces.get('refarm:core')?.[k] || null;
-    }
+		// Fallback to core if not found in plugin namespace
+		if (!value && ns !== "refarm:core") {
+			value = this._namespaces.get("refarm:core")?.[k] || null;
+		}
 
-    if (!value) return key; // Return raw key as ultimate fallback
+		if (!value) return key; // Return raw key as ultimate fallback
 
-    // Simple param replacement
-    if (params) {
-      Object.entries(params).forEach(([p, v]) => {
-        value = value!.replace(`{${p}}`, v);
-      });
-    }
+		// Simple param replacement
+		if (params) {
+			Object.entries(params).forEach(([p, v]) => {
+				value = value!.replace(`{${p}}`, v);
+			});
+		}
 
-    return value!;
-  }
+		return value!;
+	}
 
-  get currentLocale() {
-    return this._currentLocale;
-  }
+	get currentLocale() {
+		return this._currentLocale;
+	}
 }

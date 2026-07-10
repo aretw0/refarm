@@ -66,10 +66,7 @@ describe("extension surface helpers", () => {
 		const manifest = readMultiSurfaceExampleManifest();
 		const [surface] = getExtensionSurfaces(manifest, "homestead");
 		const pluginModule = await import(
-			new URL(
-				"../../../examples/multi-surface-plugin/src/index.mjs",
-				import.meta.url,
-			)
+			new URL("../../../examples/multi-surface-plugin/src/index.mjs", import.meta.url)
 		);
 
 		const rendered = await pluginModule.renderHomesteadSurface({
@@ -82,9 +79,7 @@ describe("extension surface helpers", () => {
 		// The example renders data-plugin-surface (renamed from data-refarm-example-surface);
 		// this assertion had drifted to the old attribute — a pre-existing red, unrelated to
 		// the layer-vocabulary change, corrected here since we hit it.
-		expect(rendered.html).toContain(
-			'data-plugin-surface="stream-panel"',
-		);
+		expect(rendered.html).toContain('data-plugin-surface="stream-panel"');
 		expect(rendered.html).toContain("ui:stream:read");
 
 		await expect(
@@ -98,10 +93,7 @@ describe("extension surface helpers", () => {
 function readMultiSurfaceExampleManifest() {
 	return JSON.parse(
 		readFileSync(
-			new URL(
-				"../../../examples/multi-surface-plugin/plugin-manifest.json",
-				import.meta.url,
-			),
+			new URL("../../../examples/multi-surface-plugin/plugin-manifest.json", import.meta.url),
 			"utf8",
 		),
 	);

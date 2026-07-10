@@ -1,8 +1,7 @@
 const SHA256_PREFIX = "sha256-";
 
 export const SHA256_HEX_VALUE_RE = /^[0-9a-fA-F]{64}$/;
-export const SHA256_BASE64_VALUE_RE =
-	/^(?:[A-Za-z0-9+/]{43}=|[A-Za-z0-9+/]{43})$/;
+export const SHA256_BASE64_VALUE_RE = /^(?:[A-Za-z0-9+/]{43}=|[A-Za-z0-9+/]{43})$/;
 
 /**
  * @typedef {{ algorithm: 'sha256'; encoding: 'hex'|'base64'; value: string }} ParsedIntegrity
@@ -12,9 +11,7 @@ export const SHA256_BASE64_VALUE_RE =
 function getSubtleCrypto() {
 	const subtle = globalThis.crypto?.subtle;
 	if (!subtle) {
-		throw new Error(
-			"Web Crypto API (crypto.subtle) is required for SHA-256 verification",
-		);
+		throw new Error("Web Crypto API (crypto.subtle) is required for SHA-256 verification");
 	}
 	return subtle;
 }
@@ -46,9 +43,7 @@ function bytesToBase64(bytes) {
 export function parseSha256Integrity(integrity) {
 	const normalized = integrity?.trim?.() ?? "";
 	if (!normalized.startsWith(SHA256_PREFIX)) {
-		throw new Error(
-			`Integrity must use ${SHA256_PREFIX} prefix (received: "${integrity}")`,
-		);
+		throw new Error(`Integrity must use ${SHA256_PREFIX} prefix (received: "${integrity}")`);
 	}
 
 	const value = normalized.slice(SHA256_PREFIX.length);
@@ -72,9 +67,7 @@ export function parseSha256Integrity(integrity) {
 		};
 	}
 
-	throw new Error(
-		"Integrity digest must be 64-char hex or base64 sha256 value",
-	);
+	throw new Error("Integrity digest must be 64-char hex or base64 sha256 value");
 }
 
 /**

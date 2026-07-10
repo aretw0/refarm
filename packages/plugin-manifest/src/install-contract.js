@@ -4,11 +4,7 @@ const WASM_MAGIC = [0x00, 0x61, 0x73, 0x6d];
 const WASM_MODULE_VERSION = [0x01, 0x00, 0x00, 0x00];
 const WASM_COMPONENT_VERSION = [0x0a, 0x00, 0x01, 0x00];
 
-export const WASM_BINARY_KINDS = Object.freeze([
-	"module",
-	"component",
-	"unknown",
-]);
+export const WASM_BINARY_KINDS = Object.freeze(["module", "component", "unknown"]);
 
 /**
  * @param {ArrayBuffer} bytes
@@ -28,9 +24,7 @@ export function detectWasmBinaryKind(bytes) {
 		return "module";
 	}
 
-	if (
-		version.every((value, index) => value === WASM_COMPONENT_VERSION[index])
-	) {
+	if (version.every((value, index) => value === WASM_COMPONENT_VERSION[index])) {
 		return "component";
 	}
 
@@ -121,9 +115,7 @@ export async function installWasmArtifact(request, deps) {
 	}
 
 	if (!cache?.get || !cache?.set || !cache?.evict) {
-		throw new Error(
-			"[install-contract] cache adapter must implement get/set/evict",
-		);
+		throw new Error("[install-contract] cache adapter must implement get/set/evict");
 	}
 
 	if (typeof fetchFn !== "function") {
@@ -142,11 +134,7 @@ export async function installWasmArtifact(request, deps) {
 				const wasmHash = `sha256-${digest.base64}`;
 
 				if (metadataExtensions) {
-					await cache.set(
-						pluginId,
-						cached,
-						buildMetadata(wasmHash, artifactKind),
-					);
+					await cache.set(pluginId, cached, buildMetadata(wasmHash, artifactKind));
 				}
 
 				return {
@@ -165,9 +153,7 @@ export async function installWasmArtifact(request, deps) {
 
 	const response = await fetchFn(wasmUrl);
 	if (!response.ok) {
-		throw new Error(
-			`[install-contract] Failed to fetch ${wasmUrl}: ${response.statusText}`,
-		);
+		throw new Error(`[install-contract] Failed to fetch ${wasmUrl}: ${response.statusText}`);
 	}
 
 	const bytes = await response.arrayBuffer();

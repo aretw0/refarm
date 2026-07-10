@@ -71,31 +71,27 @@ const BROWSER_ERROR =
 	"[tractor] PluginHost requires the Node.js runtime or a pre-installed WASM cache. " +
 	"Use installPlugin() to cache the transpiled module to OPFS first. See ADR-044.";
 
-const RUNTIME_DESCRIPTOR_REVOCATION_ASSET =
-	"runtime-descriptor-revocations.json";
+const RUNTIME_DESCRIPTOR_REVOCATION_ASSET = "runtime-descriptor-revocations.json";
 const RUNTIME_DESCRIPTOR_REVOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY: RuntimeDescriptorRevocationUnavailablePolicy =
 	"stale-allowed";
 
 function resolveRuntimeRevocationUnavailablePolicy(): ResolveRuntimeDescriptorRevocationUnavailablePolicyResult {
-	const runtimePolicyOverride = refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
+	const runtimePolicyOverride =
+		refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
 	const runtimeProfileOverride = refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
 	const runtimeEnvironmentOverride = refarmGlobals.__REFARM_ENVIRONMENT__;
 	const env = (import.meta as ViteImportMeta).env;
 
-	const environmentProfileResolution =
-		resolveRuntimeDescriptorRevocationEnvironmentProfile({
-			dedicatedProfile:
-				runtimeProfileOverride ??
-				env?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE,
-			genericEnvironment:
-				runtimeEnvironmentOverride ?? env?.VITE_REFARM_ENVIRONMENT,
-		});
+	const environmentProfileResolution = resolveRuntimeDescriptorRevocationEnvironmentProfile({
+		dedicatedProfile:
+			runtimeProfileOverride ?? env?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE,
+		genericEnvironment: runtimeEnvironmentOverride ?? env?.VITE_REFARM_ENVIRONMENT,
+	});
 
 	const resolved = resolveRuntimeDescriptorRevocationUnavailablePolicy({
 		explicitPolicy:
-			runtimePolicyOverride ??
-			env?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY,
+			runtimePolicyOverride ?? env?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY,
 		environmentProfile: environmentProfileResolution.profile,
 		fallbackPolicy: DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY,
 	});
@@ -175,9 +171,7 @@ export class PluginHost {
 				signal: AbortSignal.timeout(30_000),
 			});
 			if (!response.ok) {
-				throw new Error(
-					`[tractor] Failed to fetch browser plugin module: ${response.statusText}`,
-				);
+				throw new Error(`[tractor] Failed to fetch browser plugin module: ${response.statusText}`);
 			}
 			const source = await response.text();
 			const dataUrl = `data:text/javascript;base64,${this.encodeBase64Utf8(source)}`;
@@ -313,8 +307,7 @@ export class PluginHost {
 			);
 		}
 
-		const artifactKind =
-			metadata.artifactKind ?? detectWasmBinaryKind(cachedBytes);
+		const artifactKind = metadata.artifactKind ?? detectWasmBinaryKind(cachedBytes);
 		if (artifactKind === "module") {
 			return artifactKind;
 		}
@@ -344,10 +337,7 @@ export class PluginHost {
 				);
 			}
 
-			if (
-				metadata.browserRuntimeDescriptor.source !==
-				metadata.browserRuntimeProvenance.source
-			) {
+			if (metadata.browserRuntimeDescriptor.source !== metadata.browserRuntimeProvenance.source) {
 				throw new Error(
 					`[tractor] Browser runtime descriptor/provenance source mismatch for ${pluginId}. Reinstall the plugin.`,
 				);
@@ -442,27 +432,25 @@ export class PluginHost {
 
 		let revocationList;
 		try {
-			revocationList = await fetchRuntimeDescriptorRevocationList(
-				revocationListUrl,
-				{
-					cacheTtlMs: RUNTIME_DESCRIPTOR_REVOCATION_CACHE_TTL_MS,
-					fetchFn: globalThis.fetch.bind(globalThis),
-					allowStaleOnError: unavailablePolicy === "stale-allowed",
-					onStaleFallback: (info) => {
-						this.emit({
-							event: "system:descriptor_revocation_stale_cache_used",
-							pluginId: manifest.id,
-							payload: {
-								policy: unavailablePolicy,
-								policySource: policyResolution.source,
-								profile: policyResolution.profile,
-								cacheAgeMs: info.cacheAgeMs,
-								error: (info.error instanceof Error ? info.error.message : null) ?? String(info.error),
-							},
-						});
-					},
+			revocationList = await fetchRuntimeDescriptorRevocationList(revocationListUrl, {
+				cacheTtlMs: RUNTIME_DESCRIPTOR_REVOCATION_CACHE_TTL_MS,
+				fetchFn: globalThis.fetch.bind(globalThis),
+				allowStaleOnError: unavailablePolicy === "stale-allowed",
+				onStaleFallback: (info) => {
+					this.emit({
+						event: "system:descriptor_revocation_stale_cache_used",
+						pluginId: manifest.id,
+						payload: {
+							policy: unavailablePolicy,
+							policySource: policyResolution.source,
+							profile: policyResolution.profile,
+							cacheAgeMs: info.cacheAgeMs,
+							error:
+								(info.error instanceof Error ? info.error.message : null) ?? String(info.error),
+						},
+					});
 				},
-			);
+			});
 		} catch (error) {
 			if (unavailablePolicy === "fail-open") {
 				this.emit({
@@ -494,18 +482,11 @@ export class PluginHost {
 		return false;
 	}
 
-	grantTrust(
-		_pluginId: string,
-		_wasmHash: string,
-		_leaseMs?: number,
-	): PluginTrustGrant {
+	grantTrust(_pluginId: string, _wasmHash: string, _leaseMs?: number): PluginTrustGrant {
 		throw new Error(BROWSER_ERROR);
 	}
 
-	trustManifestOnce(
-		_manifest: PluginManifest,
-		_wasmHash: string,
-	): PluginTrustGrant {
+	trustManifestOnce(_manifest: PluginManifest, _wasmHash: string): PluginTrustGrant {
 		throw new Error(BROWSER_ERROR);
 	}
 
@@ -513,10 +494,7 @@ export class PluginHost {
 		// no-op in browser
 	}
 
-	async load(
-		_manifest: PluginManifest,
-		_wasmHash?: string,
-	): Promise<PluginInstance> {
+	async load(_manifest: PluginManifest, _wasmHash?: string): Promise<PluginInstance> {
 		const manifest = _manifest;
 		const entryFormat = detectEntryFormat(manifest.entry);
 
@@ -593,10 +571,7 @@ export class PluginHost {
 		return instance;
 	}
 
-	getWasiImports(
-		_manifest: PluginManifest,
-		_profile: ExecutionProfile,
-	): Record<string, unknown> {
+	getWasiImports(_manifest: PluginManifest, _profile: ExecutionProfile): Record<string, unknown> {
 		return {};
 	}
 
@@ -619,10 +594,7 @@ export class PluginHost {
 	dispatch(_event: TelemetryEvent): void {
 		for (const instance of this.instances.values()) {
 			if (manifestReceivesEvent(instance.manifest, _event)) {
-				instance.call("on-event", [
-					_event.event,
-					JSON.stringify(_event.payload),
-				]);
+				instance.call("on-event", [_event.event, JSON.stringify(_event.payload)]);
 			}
 		}
 	}
@@ -731,9 +703,7 @@ export class Tractor {
 			this.registry,
 			this.logger(),
 		);
-		this.commands = new CommandHost((event, payload) =>
-			this.emitTelemetry({ event, payload }),
-		);
+		this.commands = new CommandHost((event, payload) => this.emitTelemetry({ event, payload }));
 	}
 
 	static async boot(config: TractorConfig): Promise<Tractor> {
@@ -786,10 +756,7 @@ export class Tractor {
 		};
 	}
 
-	private log(
-		level: Exclude<TractorLogLevel, "silent">,
-		...args: unknown[]
-	): void {
+	private log(level: Exclude<TractorLogLevel, "silent">, ...args: unknown[]): void {
 		if (this.logLevel === "silent") return;
 		if (level === "debug" && this.logLevel !== "debug") return;
 		if (level === "info" && !["info", "debug"].includes(this.logLevel)) return;

@@ -15,9 +15,9 @@ function manifestRequiring(requires) {
 
 describe("evaluateCapabilityGrant", () => {
 	it("returns the required capabilities that are not granted", () => {
-		expect(
-			evaluateCapabilityGrant(["storage:v1", "network:v1"], ["storage:v1"]),
-		).toEqual(["network:v1"]);
+		expect(evaluateCapabilityGrant(["storage:v1", "network:v1"], ["storage:v1"])).toEqual([
+			"network:v1",
+		]);
 	});
 
 	it("returns empty when every requirement is granted", () => {
@@ -67,10 +67,10 @@ describe("decidePluginPolicy", () => {
 	it("short-circuits to invalid-manifest for a malformed manifest", () => {
 		// A well-formed shape whose id violates the manifest contract (must start
 		// with "@"): validation reports an error rather than admitting it.
-		const decision = decidePluginPolicy(
-			createMockManifest({ id: "no-scope-prefix" }),
-			{ grantedCapabilities: ["storage:v1"], policyMode: "fail-fast" },
-		);
+		const decision = decidePluginPolicy(createMockManifest({ id: "no-scope-prefix" }), {
+			grantedCapabilities: ["storage:v1"],
+			policyMode: "fail-fast",
+		});
 		expect(decision).toMatchObject({
 			status: "invalid-manifest",
 			manifestValid: false,

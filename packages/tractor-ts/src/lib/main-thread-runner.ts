@@ -1,7 +1,9 @@
 // Node-only deps (jco, fs, path) are loaded dynamically inside instantiate()
 // so this module can be safely imported in browser bundles without pulling in Node.js APIs.
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-type RefarmPluginGlobals = typeof globalThis & { __REFARM_PLUGIN_IMPORTS__?: Record<string, unknown> };
+type RefarmPluginGlobals = typeof globalThis & {
+	__REFARM_PLUGIN_IMPORTS__?: Record<string, unknown>;
+};
 import type { PluginInstance } from "./instance-handle.js";
 import { PluginInstanceHandle } from "./instance-handle.js";
 import type { PluginRunner } from "./plugin-runner.js";
@@ -40,10 +42,7 @@ export class MainThreadRunner implements PluginRunner {
 		let componentInstance: unknown = null;
 
 		try {
-			const [fs, path] = await Promise.all([
-				import("node:fs/promises"),
-				import("node:path"),
-			]);
+			const [fs, path] = await Promise.all([import("node:fs/promises"), import("node:path")]);
 
 			const jcoName = pluginId.replace(/[^a-z0-9]/gi, "_");
 			const distDir = path.resolve(this.distBase, pluginId);
@@ -89,19 +88,19 @@ export class MainThreadRunner implements PluginRunner {
 			}
 
 			const { pathToFileURL } = await import("node:url");
-			(globalThis as RefarmPluginGlobals).__REFARM_PLUGIN_IMPORTS__ = imports as Record<string, unknown>;
+			(globalThis as RefarmPluginGlobals).__REFARM_PLUGIN_IMPORTS__ = imports as Record<
+				string,
+				unknown
+			>;
 			const module = await import(pathToFileURL(entryPoint).href);
 
 			if (module.instantiate) {
-				componentInstance = await module.instantiate(
-					imports,
-					(name: string) => {
-						const wasmFile = Object.entries(files).find(
-							([f]) => f.includes(name) && f.endsWith(".wasm"),
-						);
-						return wasmFile ? wasmFile[1] : null;
-					},
-				);
+				componentInstance = await module.instantiate(imports, (name: string) => {
+					const wasmFile = Object.entries(files).find(
+						([f]) => f.includes(name) && f.endsWith(".wasm"),
+					);
+					return wasmFile ? wasmFile[1] : null;
+				});
 			} else {
 				componentInstance = module;
 			}

@@ -45,9 +45,7 @@ function _getPluginMetadataPath(pluginId: string): string {
 	return `/${OPFS_ROOT_SEGMENT}/${OPFS_BARN_SEGMENT}/${OPFS_METADATA_SEGMENT}/${getPluginCacheKey(pluginId)}.json`;
 }
 
-async function getDir(
-	pathSegments: string[],
-): Promise<FileSystemDirectoryHandle> {
+async function getDir(pathSegments: string[]): Promise<FileSystemDirectoryHandle> {
 	let cursor = await navigator.storage.getDirectory();
 	for (const segment of pathSegments) {
 		cursor = await cursor.getDirectoryHandle(segment, { create: true });
@@ -56,11 +54,7 @@ async function getDir(
 }
 
 async function getImplementsDir(): Promise<FileSystemDirectoryHandle> {
-	return getDir([
-		OPFS_ROOT_SEGMENT,
-		OPFS_BARN_SEGMENT,
-		OPFS_IMPLEMENTS_SEGMENT,
-	]);
+	return getDir([OPFS_ROOT_SEGMENT, OPFS_BARN_SEGMENT, OPFS_IMPLEMENTS_SEGMENT]);
 }
 
 async function getMetadataDir(): Promise<FileSystemDirectoryHandle> {
@@ -90,7 +84,9 @@ export async function cachePlugin(
 	const fileHandle = await implementsDir.getFileHandle(`${key}.wasm`, {
 		create: true,
 	});
-	type WritableHandle = { createWritable(): Promise<{ write(d: unknown): Promise<void>; close(): Promise<void> }> };
+	type WritableHandle = {
+		createWritable(): Promise<{ write(d: unknown): Promise<void>; close(): Promise<void> }>;
+	};
 	const writable = await (fileHandle as unknown as WritableHandle).createWritable();
 	await writable.write(buffer);
 	await writable.close();
@@ -109,10 +105,7 @@ export async function cachePlugin(
 /**
  * Store browser runtime module source tied to a plugin ID.
  */
-export async function cachePluginRuntimeModule(
-	pluginId: string,
-	source: string,
-): Promise<void> {
+export async function cachePluginRuntimeModule(pluginId: string, source: string): Promise<void> {
 	if (!hasOpfs()) {
 		const existing = memoryCache.get(pluginId);
 		memoryCache.set(pluginId, {
@@ -128,7 +121,9 @@ export async function cachePluginRuntimeModule(
 	const moduleHandle = await implementsDir.getFileHandle(`${key}.mjs`, {
 		create: true,
 	});
-	type WritableHandle = { createWritable(): Promise<{ write(d: unknown): Promise<void>; close(): Promise<void> }> };
+	type WritableHandle = {
+		createWritable(): Promise<{ write(d: unknown): Promise<void>; close(): Promise<void> }>;
+	};
 	const writable = await (moduleHandle as unknown as WritableHandle).createWritable();
 	await writable.write(source);
 	await writable.close();
@@ -138,9 +133,7 @@ export async function cachePluginRuntimeModule(
  * Retrieve a cached WASM buffer for a given plugin ID.
  * Returns null if not cached.
  */
-export async function getCachedPlugin(
-	pluginId: string,
-): Promise<ArrayBuffer | null> {
+export async function getCachedPlugin(pluginId: string): Promise<ArrayBuffer | null> {
 	if (!hasOpfs()) {
 		const bytes = memoryCache.get(pluginId)?.bytes;
 		return bytes && bytes.byteLength > 0 ? bytes : null;
@@ -160,9 +153,7 @@ export async function getCachedPlugin(
 /**
  * Retrieve cached browser runtime module source for a given plugin ID.
  */
-export async function getCachedPluginRuntimeModule(
-	pluginId: string,
-): Promise<string | null> {
+export async function getCachedPluginRuntimeModule(pluginId: string): Promise<string | null> {
 	if (!hasOpfs()) {
 		return memoryCache.get(pluginId)?.runtimeModule ?? null;
 	}

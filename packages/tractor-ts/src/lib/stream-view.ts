@@ -52,11 +52,9 @@ export function streamObservationView({
 	session,
 	chunk,
 }: StreamObservationViewInput): StreamObservationView {
-	const resolvedStreamRef =
-		streamRef ?? session?.streamRef ?? chunk?.streamRef ?? null;
+	const resolvedStreamRef = streamRef ?? session?.streamRef ?? chunk?.streamRef ?? null;
 	const isTerminal = Boolean(
-		(session && isTerminalStreamSession(session)) ||
-			(chunk && isTerminalStreamChunkState(chunk)),
+		(session && isTerminalStreamSession(session)) || (chunk && isTerminalStreamChunkState(chunk)),
 	);
 
 	return {

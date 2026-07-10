@@ -15,11 +15,7 @@ export interface FetchRuntimeDescriptorRevocationOptions {
 	timeoutMs?: number;
 	cacheTtlMs?: number;
 	allowStaleOnError?: boolean;
-	onStaleFallback?: (info: {
-		url: string;
-		error: unknown;
-		cacheAgeMs: number;
-	}) => void;
+	onStaleFallback?: (info: { url: string; error: unknown; cacheAgeMs: number }) => void;
 }
 
 const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -89,9 +85,7 @@ export function normalizeRuntimeDescriptorRevocationList(
 ): RuntimeDescriptorRevocationList {
 	const list = payload as RuntimeDescriptorRevocationList;
 	if (list?.schemaVersion !== 1) {
-		throw new Error(
-			`Runtime descriptor revocation list schemaVersion must be 1 (${source}).`,
-		);
+		throw new Error(`Runtime descriptor revocation list schemaVersion must be 1 (${source}).`);
 	}
 
 	if (!Array.isArray(list.revokedDescriptorHashes)) {

@@ -47,9 +47,7 @@ export const TERMINAL_STREAM_CHUNK_PAYLOAD_KINDS = new Set([
 	STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY,
 ]);
 
-export function emptyStreamChunkState(
-	streamRef: string | null = null,
-): StreamChunkState {
+export function emptyStreamChunkState(streamRef: string | null = null): StreamChunkState {
 	return {
 		streamRef,
 		content: "",
@@ -69,17 +67,13 @@ export function applyStreamChunkEvent(
 		typeof event.sequence === "number" && Number.isFinite(event.sequence)
 			? event.sequence
 			: state.lastSequence;
-	const streamRef =
-		typeof event.stream_ref === "string" ? event.stream_ref : state.streamRef;
+	const streamRef = typeof event.stream_ref === "string" ? event.stream_ref : state.streamRef;
 	const payloadKind =
-		typeof event.payload_kind === "string"
-			? event.payload_kind
-			: state.payloadKind;
+		typeof event.payload_kind === "string" ? event.payload_kind : state.payloadKind;
 
 	return {
 		streamRef,
-		content:
-			event.is_final === true ? eventContent : state.content + eventContent,
+		content: event.is_final === true ? eventContent : state.content + eventContent,
 		lastSequence: eventSequence,
 		isFinal: event.is_final === true,
 		payloadKind,
@@ -94,9 +88,7 @@ export function reduceStreamChunkEvents(
 	return events.reduce(applyStreamChunkEvent, initialState);
 }
 
-export function orderStreamChunkEvents<T extends StreamChunkEvent>(
-	events: readonly T[],
-): T[] {
+export function orderStreamChunkEvents<T extends StreamChunkEvent>(events: readonly T[]): T[] {
 	return [...events].sort((a, b) => streamSequence(a) - streamSequence(b));
 }
 
@@ -107,9 +99,7 @@ function streamSequence(event: StreamChunkEvent): number {
 }
 
 export function streamChunkKey(event: StreamChunkEvent): string {
-	return typeof event.stream_ref === "string"
-		? event.stream_ref
-		: UNKNOWN_STREAM_REF;
+	return typeof event.stream_ref === "string" ? event.stream_ref : UNKNOWN_STREAM_REF;
 }
 
 export function applyStreamChunkEventToMap(
@@ -117,9 +107,7 @@ export function applyStreamChunkEventToMap(
 	event: StreamChunkEvent,
 ): StreamChunkStateMap {
 	const key = streamChunkKey(event);
-	const previous =
-		stateMap[key] ??
-		emptyStreamChunkState(key === UNKNOWN_STREAM_REF ? null : key);
+	const previous = stateMap[key] ?? emptyStreamChunkState(key === UNKNOWN_STREAM_REF ? null : key);
 
 	return {
 		...stateMap,
@@ -137,10 +125,7 @@ export function reduceStreamChunkEventsByStream(
 export function isStreamChunkPayloadKind(
 	payloadKind: string | null,
 ): payloadKind is StreamChunkPayloadKind {
-	return (
-		typeof payloadKind === "string" &&
-		STREAM_CHUNK_PAYLOAD_KINDS.has(payloadKind)
-	);
+	return typeof payloadKind === "string" && STREAM_CHUNK_PAYLOAD_KINDS.has(payloadKind);
 }
 
 export function isTextDeltaStreamChunkPayloadKind(
@@ -152,10 +137,7 @@ export function isTextDeltaStreamChunkPayloadKind(
 export function isTerminalStreamChunkPayloadKind(
 	payloadKind: string | null,
 ): payloadKind is TerminalStreamChunkPayloadKind {
-	return (
-		typeof payloadKind === "string" &&
-		TERMINAL_STREAM_CHUNK_PAYLOAD_KINDS.has(payloadKind)
-	);
+	return typeof payloadKind === "string" && TERMINAL_STREAM_CHUNK_PAYLOAD_KINDS.has(payloadKind);
 }
 
 export function isFinalTextStreamChunkPayloadKind(
@@ -186,10 +168,7 @@ export function isTerminalStreamChunk(event: StreamChunkEvent): boolean {
 }
 
 export function isTerminalStreamChunkState(state: StreamChunkState): boolean {
-	return (
-		state.isFinal === true ||
-		isTerminalStreamChunkPayloadKind(state.payloadKind)
-	);
+	return state.isFinal === true || isTerminalStreamChunkPayloadKind(state.payloadKind);
 }
 
 export function streamChunkProjection(state: StreamChunkState): string | null {
@@ -200,9 +179,7 @@ export function streamChunkPromptRef(state: StreamChunkState): string | null {
 	return metadataStringField(state.metadata, "prompt_ref");
 }
 
-export function streamChunkProviderFamily(
-	state: StreamChunkState,
-): string | null {
+export function streamChunkProviderFamily(state: StreamChunkState): string | null {
 	return metadataStringField(state.metadata, "provider_family");
 }
 
@@ -211,11 +188,7 @@ export function streamChunkModel(state: StreamChunkState): string | null {
 }
 
 function metadataStringField(metadata: unknown, field: string): string | null {
-	if (
-		typeof metadata !== "object" ||
-		metadata === null ||
-		!(field in metadata)
-	) {
+	if (typeof metadata !== "object" || metadata === null || !(field in metadata)) {
 		return null;
 	}
 	const value = (metadata as Record<string, unknown>)[field];

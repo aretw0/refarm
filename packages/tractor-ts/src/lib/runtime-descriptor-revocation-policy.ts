@@ -3,10 +3,7 @@ export type RuntimeDescriptorRevocationUnavailablePolicy =
 	| "stale-allowed"
 	| "fail-open";
 
-export type RuntimeDescriptorRevocationProfile =
-	| "dev"
-	| "staging"
-	| "production-sensitive";
+export type RuntimeDescriptorRevocationProfile = "dev" | "staging" | "production-sensitive";
 
 export type RuntimeDescriptorRevocationPolicyResolutionSource =
 	| "explicit-policy"
@@ -89,8 +86,7 @@ export function dedupeRuntimeDescriptorRevocationInvalidInputs(
 	return inputs.filter(
 		(input, index, all) =>
 			all.findIndex(
-				(candidate) =>
-					candidate.slot === input.slot && candidate.value === input.value,
+				(candidate) => candidate.slot === input.slot && candidate.value === input.value,
 			) === index,
 	);
 }
@@ -117,11 +113,7 @@ export function normalizeRuntimeDescriptorRevocationUnavailablePolicy(
 	value: string | undefined,
 ): RuntimeDescriptorRevocationUnavailablePolicy | null {
 	const candidate = normalizeValue(value);
-	if (
-		candidate === "fail-closed" ||
-		candidate === "stale-allowed" ||
-		candidate === "fail-open"
-	) {
+	if (candidate === "fail-closed" || candidate === "stale-allowed" || candidate === "fail-open") {
 		return candidate;
 	}
 	return null;
@@ -131,11 +123,7 @@ export function normalizeRuntimeDescriptorRevocationProfile(
 	value: string | undefined,
 ): RuntimeDescriptorRevocationProfile | null {
 	const candidate = normalizeValue(value);
-	if (
-		candidate === "dev" ||
-		candidate === "development" ||
-		candidate === "local"
-	) {
+	if (candidate === "dev" || candidate === "development" || candidate === "local") {
 		return "dev";
 	}
 
@@ -207,13 +195,9 @@ export function resolveRuntimeDescriptorRevocationEnvironmentProfile(
 	const conflicts: RuntimeDescriptorRevocationConfigConflict[] = [];
 
 	const dedicatedProfileRaw =
-		typeof input.dedicatedProfile === "string"
-			? input.dedicatedProfile.trim()
-			: "";
+		typeof input.dedicatedProfile === "string" ? input.dedicatedProfile.trim() : "";
 	const genericEnvironmentRaw =
-		typeof input.genericEnvironment === "string"
-			? input.genericEnvironment.trim()
-			: "";
+		typeof input.genericEnvironment === "string" ? input.genericEnvironment.trim() : "";
 
 	const dedicatedProfile = dedicatedProfileRaw
 		? normalizeRuntimeDescriptorRevocationProfile(dedicatedProfileRaw)
@@ -314,9 +298,7 @@ export function resolveRuntimeDescriptorRevocationUnavailablePolicy(
 	if (
 		typeof input.environmentPolicy === "string" &&
 		input.environmentPolicy.trim().length > 0 &&
-		!normalizeRuntimeDescriptorRevocationUnavailablePolicy(
-			input.environmentPolicy,
-		)
+		!normalizeRuntimeDescriptorRevocationUnavailablePolicy(input.environmentPolicy)
 	) {
 		invalidInputs.push({
 			slot: "environment-policy",
@@ -355,9 +337,7 @@ export function resolveRuntimeDescriptorRevocationUnavailablePolicy(
 		});
 	}
 
-	const explicitProfile = normalizeRuntimeDescriptorRevocationProfile(
-		input.explicitProfile,
-	);
+	const explicitProfile = normalizeRuntimeDescriptorRevocationProfile(input.explicitProfile);
 	if (explicitProfile) {
 		return withInvalidInputs({
 			policy: getRuntimeDescriptorRevocationPolicyForProfile(explicitProfile),
@@ -366,10 +346,9 @@ export function resolveRuntimeDescriptorRevocationUnavailablePolicy(
 		});
 	}
 
-	const environmentPolicy =
-		normalizeRuntimeDescriptorRevocationUnavailablePolicy(
-			input.environmentPolicy,
-		);
+	const environmentPolicy = normalizeRuntimeDescriptorRevocationUnavailablePolicy(
+		input.environmentPolicy,
+	);
 	if (environmentPolicy) {
 		return withInvalidInputs({
 			policy: environmentPolicy,
@@ -377,13 +356,10 @@ export function resolveRuntimeDescriptorRevocationUnavailablePolicy(
 		});
 	}
 
-	const environmentProfile = normalizeRuntimeDescriptorRevocationProfile(
-		input.environmentProfile,
-	);
+	const environmentProfile = normalizeRuntimeDescriptorRevocationProfile(input.environmentProfile);
 	if (environmentProfile) {
 		return withInvalidInputs({
-			policy:
-				getRuntimeDescriptorRevocationPolicyForProfile(environmentProfile),
+			policy: getRuntimeDescriptorRevocationPolicyForProfile(environmentProfile),
 			source: "environment-profile",
 			profile: environmentProfile,
 		});

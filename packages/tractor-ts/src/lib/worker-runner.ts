@@ -22,91 +22,105 @@ import type { PluginRunner } from "./plugin-runner.js";
  * above is intentionally simple and Comlink-compatible.
  */
 export class WorkerRunner implements PluginRunner {
-  constructor(private storeNode?: (nodeJson: string) => Promise<void>) {}
+	constructor(private storeNode?: (nodeJson: string) => Promise<void>) {}
 
-  supports(_manifest: PluginManifest): boolean {
-    return typeof Worker !== "undefined";
-  }
+	supports(_manifest: PluginManifest): boolean {
+		return typeof Worker !== "undefined";
+	}
 
-  async instantiate(
-    manifest: PluginManifest,
-    _wasmBuffer: ArrayBuffer,
-    _imports: Record<string, unknown>,
-    emit: (data: TelemetryEvent) => void,
-    onTerminate: (id: string) => void,
-  ): Promise<PluginInstance> {
-    const pluginId = manifest.id;
-    const workerEntry = (manifest as PluginManifest & { workerEntry?: string }).workerEntry ?? manifest.entry;
+	async instantiate(
+		manifest: PluginManifest,
+		_wasmBuffer: ArrayBuffer,
+		_imports: Record<string, unknown>,
+		emit: (data: TelemetryEvent) => void,
+		onTerminate: (id: string) => void,
+	): Promise<PluginInstance> {
+		const pluginId = manifest.id;
+		const workerEntry =
+			(manifest as PluginManifest & { workerEntry?: string }).workerEntry ?? manifest.entry;
 
-    const worker = new Worker(workerEntry, { type: "module" });
-    const pendingCalls = new Map<
-      string,
-      { resolve: (v: unknown) => void; reject: (e: Error) => void }
-    >();
-    let callSeq = 0;
+		const worker = new Worker(workerEntry, { type: "module" });
+		const pendingCalls = new Map<
+			string,
+			{ resolve: (v: unknown) => void; reject: (e: Error) => void }
+		>();
+		let callSeq = 0;
 
-    worker.addEventListener("message", async (ev) => {
-      const msg = ev.data as { type: string; id: string; fn: string; args?: unknown; result?: unknown; message?: string; event?: string; payload?: unknown };
+		worker.addEventListener("message", async (ev) => {
+			const msg = ev.data as {
+				type: string;
+				id: string;
+				fn: string;
+				args?: unknown;
+				result?: unknown;
+				message?: string;
+				event?: string;
+				payload?: unknown;
+			};
 
-      if (msg.type === "bridge-call") {
-        const { id, fn, args } = msg;
-        try {
-          if (fn === "store-node" && this.storeNode) await this.storeNode(args as string);
-          worker.postMessage({ type: "bridge-result", id, result: "ok" });
-        } catch (e) {
-          worker.postMessage({ type: "bridge-error", id, message: e instanceof Error ? e.message : String(e) });
-        }
-        return;
-      }
+			if (msg.type === "bridge-call") {
+				const { id, fn, args } = msg;
+				try {
+					if (fn === "store-node" && this.storeNode) await this.storeNode(args as string);
+					worker.postMessage({ type: "bridge-result", id, result: "ok" });
+				} catch (e) {
+					worker.postMessage({
+						type: "bridge-error",
+						id,
+						message: e instanceof Error ? e.message : String(e),
+					});
+				}
+				return;
+			}
 
-      if (msg.type === "result" || msg.type === "error") {
-        const pending = pendingCalls.get(msg.id);
-        if (!pending) return;
-        pendingCalls.delete(msg.id);
-        if (msg.type === "result") {
-          pending.resolve(msg.result);
-        } else {
-          pending.reject(new Error(msg.message));
-        }
-      } else if (msg.type === "telemetry") {
-        emit({ event: msg.event ?? "unknown", pluginId, payload: msg.payload });
-      }
-    });
+			if (msg.type === "result" || msg.type === "error") {
+				const pending = pendingCalls.get(msg.id);
+				if (!pending) return;
+				pendingCalls.delete(msg.id);
+				if (msg.type === "result") {
+					pending.resolve(msg.result);
+				} else {
+					pending.reject(new Error(msg.message));
+				}
+			} else if (msg.type === "telemetry") {
+				emit({ event: msg.event ?? "unknown", pluginId, payload: msg.payload });
+			}
+		});
 
-    // Wrap Worker in a PluginInstanceHandle-compatible shim
-    const callWorker = (fn: string, args?: unknown): Promise<unknown> => {
-      const id = `${pluginId}:${++callSeq}`;
-      return new Promise((resolve, reject) => {
-        pendingCalls.set(id, { resolve, reject });
-        worker.postMessage({ type: "call", id, fn, args });
-      });
-    };
+		// Wrap Worker in a PluginInstanceHandle-compatible shim
+		const callWorker = (fn: string, args?: unknown): Promise<unknown> => {
+			const id = `${pluginId}:${++callSeq}`;
+			return new Promise((resolve, reject) => {
+				pendingCalls.set(id, { resolve, reject });
+				worker.postMessage({ type: "call", id, fn, args });
+			});
+		};
 
-    const workerInstance: PluginInstance = {
-      id: pluginId,
-      name: manifest.name,
-      manifest,
-      state: "running" as PluginState,
+		const workerInstance: PluginInstance = {
+			id: pluginId,
+			name: manifest.name,
+			manifest,
+			state: "running" as PluginState,
 
-      call(fn: string, args?: unknown) {
-        return callWorker(fn, args);
-      },
+			call(fn: string, args?: unknown) {
+				return callWorker(fn, args);
+			},
 
-      terminate() {
-        worker.postMessage({ type: "terminate" });
-        worker.terminate();
-        onTerminate(pluginId);
-        emit({ event: "plugin:terminate", pluginId });
-      },
+			terminate() {
+				worker.postMessage({ type: "terminate" });
+				worker.terminate();
+				onTerminate(pluginId);
+				emit({ event: "plugin:terminate", pluginId });
+			},
 
-      emitTelemetry(event: string, payload?: unknown) {
-        emit({ event, pluginId, payload });
-      },
-    };
+			emitTelemetry(event: string, payload?: unknown) {
+				emit({ event, pluginId, payload });
+			},
+		};
 
-    // Initialize the worker — send the WASM URL so it can self-load
-    await callWorker("setup", { wasmUrl: manifest.entry, manifest });
+		// Initialize the worker — send the WASM URL so it can self-load
+		await callWorker("setup", { wasmUrl: manifest.entry, manifest });
 
-    return workerInstance;
-  }
+		return workerInstance;
+	}
 }

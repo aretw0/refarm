@@ -20,25 +20,23 @@ import type { NormalisedNode } from "@refarm.dev/node-contract-v1";
 export type { NormalisedNode, Signature } from "@refarm.dev/node-contract-v1";
 
 export function normaliseToGraph(
-  raw: Record<string, unknown>,
-  pluginId: string,
-  type: string,
+	raw: Record<string, unknown>,
+	pluginId: string,
+	type: string,
 ): NormalisedNode {
-  const id =
-    (raw["@id"] as string | undefined) ??
-    `urn:refarm:${pluginId}:${crypto.randomUUID()}`;
+	const id = (raw["@id"] as string | undefined) ?? `urn:refarm:${pluginId}:${crypto.randomUUID()}`;
 
-  const now = new Date().toISOString();
+	const now = new Date().toISOString();
 
-  return {
-    ...raw,
-    "@context": "https://schema.org/",
-    "@type": type,
-    "@id": id,
-    "refarm:sourcePlugin": pluginId,
-    "refarm:ingestedAt": now,
-    "refarm:createdAt": (raw["refarm:createdAt"] as string) || now,
-    "refarm:updatedAt": now,
-    "refarm:clock": (raw["refarm:clock"] as number) || 0,
-  };
+	return {
+		...raw,
+		"@context": "https://schema.org/",
+		"@type": type,
+		"@id": id,
+		"refarm:sourcePlugin": pluginId,
+		"refarm:ingestedAt": now,
+		"refarm:createdAt": (raw["refarm:createdAt"] as string) || now,
+		"refarm:updatedAt": now,
+		"refarm:clock": (raw["refarm:clock"] as number) || 0,
+	};
 }

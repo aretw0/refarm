@@ -60,9 +60,7 @@ function validatePiSkillSurface(surface, index, errors) {
 	if (surface.layer !== "pi" || surface.kind !== "skill") return;
 
 	if (surface.slot !== undefined) {
-		errors.push(
-			`extensions.surfaces[${index}].slot must not be provided for pi skill surfaces`,
-		);
+		errors.push(`extensions.surfaces[${index}].slot must not be provided for pi skill surfaces`);
 	}
 
 	// Capabilities are OPTIONAL here, on purpose. Permissive-vs-complete maturity
@@ -123,9 +121,7 @@ function validateExtensionSurfaces(manifest, errors, warnings) {
 		// game to the platform does not invalidate the manifest. Doctrine: validation
 		// validates form, not vocabulary; completeness/policy is a separate concern.
 		if (!isNonEmptyString(surface.layer)) {
-			errors.push(
-				`extensions.surfaces[${index}].layer must be a non-empty string`,
-			);
+			errors.push(`extensions.surfaces[${index}].layer must be a non-empty string`);
 		} else if (!EXTENSION_SURFACE_LAYERS.has(surface.layer)) {
 			warnings.push(
 				`extensions.surfaces[${index}].layer "${surface.layer}" is outside the known set (tractor, homestead, pi, automation, desktop, asset) — treated as a new surface; a projector must exist for it to render.`,
@@ -133,36 +129,24 @@ function validateExtensionSurfaces(manifest, errors, warnings) {
 		}
 
 		if (!isNonEmptyString(surface.kind)) {
-			errors.push(
-				`extensions.surfaces[${index}].kind must be a non-empty string`,
-			);
+			errors.push(`extensions.surfaces[${index}].kind must be a non-empty string`);
 		}
 
 		if (!isNonEmptyString(surface.id)) {
-			errors.push(
-				`extensions.surfaces[${index}].id must be a non-empty string`,
-			);
+			errors.push(`extensions.surfaces[${index}].id must be a non-empty string`);
 		}
 
 		if (surface.slot !== undefined && !isNonEmptyString(surface.slot)) {
-			errors.push(
-				`extensions.surfaces[${index}].slot must be a non-empty string when provided`,
-			);
+			errors.push(`extensions.surfaces[${index}].slot must be a non-empty string when provided`);
 		}
 
-		if (
-			surface.capabilities !== undefined &&
-			!isNonEmptyStringArray(surface.capabilities)
-		) {
+		if (surface.capabilities !== undefined && !isNonEmptyStringArray(surface.capabilities)) {
 			errors.push(
 				`extensions.surfaces[${index}].capabilities must be an array of non-empty strings when provided`,
 			);
 		}
 
-		if (
-			surface.assets !== undefined &&
-			!isNonEmptyStringArray(surface.assets)
-		) {
+		if (surface.assets !== undefined && !isNonEmptyStringArray(surface.assets)) {
 			errors.push(
 				`extensions.surfaces[${index}].assets must be an array of non-empty strings when provided`,
 			);
@@ -176,9 +160,7 @@ function validateExtensionSurfaces(manifest, errors, warnings) {
 	}
 
 	if (hasDuplicates(surfaceKeys)) {
-		errors.push(
-			"extensions.surfaces must not contain duplicate layer/id pairs",
-		);
+		errors.push("extensions.surfaces must not contain duplicate layer/id pairs");
 	}
 }
 
@@ -193,9 +175,7 @@ export function validatePluginManifest(manifest) {
 	const warnings = [];
 
 	if (!manifest.id || !manifest.id.startsWith("@")) {
-		errors.push(
-			"id must be a non-empty scoped package name (e.g. @vendor/plugin)",
-		);
+		errors.push("id must be a non-empty scoped package name (e.g. @vendor/plugin)");
 	}
 
 	if (!manifest.name || manifest.name.trim().length < 3) {
@@ -224,9 +204,7 @@ export function validatePluginManifest(manifest) {
 		!INTEGRITY_HEX_RE.test(manifest.integrity) &&
 		!INTEGRITY_BASE64_RE.test(manifest.integrity)
 	) {
-		errors.push(
-			"integrity must use sha256- prefix with 64 hex chars or base64 digest",
-		);
+		errors.push("integrity must use sha256- prefix with 64 hex chars or base64 digest");
 	}
 
 	if (!manifest.capabilities || manifest.capabilities.provides.length === 0) {
@@ -241,17 +219,11 @@ export function validatePluginManifest(manifest) {
 		errors.push("capabilities.requires must not contain duplicates");
 	}
 
-	if (
-		manifest.capabilities.providesApi &&
-		hasDuplicates(manifest.capabilities.providesApi)
-	) {
+	if (manifest.capabilities.providesApi && hasDuplicates(manifest.capabilities.providesApi)) {
 		errors.push("capabilities.providesApi must not contain duplicates");
 	}
 
-	if (
-		manifest.capabilities.requiresApi &&
-		hasDuplicates(manifest.capabilities.requiresApi)
-	) {
+	if (manifest.capabilities.requiresApi && hasDuplicates(manifest.capabilities.requiresApi)) {
 		errors.push("capabilities.requiresApi must not contain duplicates");
 	}
 
@@ -346,10 +318,7 @@ export function validatePluginManifest(manifest) {
 		if (manifest.ui.slots && !Array.isArray(manifest.ui.slots)) {
 			errors.push("ui.slots must be an array");
 		}
-		if (
-			manifest.ui.color &&
-			!/^#([A-Fa-f0-9]{3}){1,2}$/.test(manifest.ui.color)
-		) {
+		if (manifest.ui.color && !/^#([A-Fa-f0-9]{3}){1,2}$/.test(manifest.ui.color)) {
 			errors.push("ui.color must be a valid hex color (e.g. #238636)");
 		}
 	}
@@ -361,8 +330,7 @@ export function validatePluginManifest(manifest) {
 
 		if (
 			manifest.trust.leaseHours !== undefined &&
-			(!Number.isFinite(manifest.trust.leaseHours) ||
-				manifest.trust.leaseHours <= 0)
+			(!Number.isFinite(manifest.trust.leaseHours) || manifest.trust.leaseHours <= 0)
 		) {
 			errors.push("trust.leaseHours must be a positive number when provided");
 		}
@@ -379,8 +347,7 @@ export function validatePluginManifest(manifest) {
 	if (!manifest.certification) {
 		errors.push("certification metadata is required");
 	} else {
-		if (!manifest.certification.license)
-			errors.push("certification.license is required");
+		if (!manifest.certification.license) errors.push("certification.license is required");
 		if (
 			typeof manifest.certification.a11yLevel !== "number" ||
 			manifest.certification.a11yLevel < 0 ||

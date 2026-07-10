@@ -13,12 +13,14 @@ type SpawnSyncResult = {
 type NodeProcess = { getBuiltinModule?: (m: string) => unknown };
 type NodeEnvGlobal = typeof globalThis & { process?: NodeProcess };
 
-function spawnSync(command: string, args: string[], options: { input: Buffer; maxBuffer: number }): SpawnSyncResult {
+function spawnSync(
+	command: string,
+	args: string[],
+	options: { input: Buffer; maxBuffer: number },
+): SpawnSyncResult {
 	const getBuiltinModule = (globalThis as NodeEnvGlobal).process?.getBuiltinModule;
 	const childProcess =
-		typeof getBuiltinModule === "function"
-			? getBuiltinModule("node:child_process")
-			: null;
+		typeof getBuiltinModule === "function" ? getBuiltinModule("node:child_process") : null;
 	if (!childProcess?.spawnSync) {
 		throw new Error("model-bridge requires Node.js child_process.spawnSync");
 	}
@@ -104,10 +106,7 @@ export class WasiImports {
 			if (isTrustedFast) return true;
 			if (allowedOrigins.length === 0) return false;
 
-			const url =
-				typeof request === "string"
-					? request
-					: (request as { url?: string })?.url;
+			const url = typeof request === "string" ? request : (request as { url?: string })?.url;
 			if (!url) return false;
 
 			return allowedOrigins.some((origin: string) => url.startsWith(origin));
@@ -194,16 +193,11 @@ export class WasiImports {
 			// The SPI resolve leg: mirror the Rust host's get-plugin-api. Resolve the id
 			// of a loaded plugin that providesApi the name (via the injected bridge), or
 			// "" when none is loaded / no bridge is wired (degrade, don't throw).
-			"get-plugin-api": (apiName: string): string =>
-				this.crossPlugin?.resolveApi(apiName) ?? "",
+			"get-plugin-api": (apiName: string): string => this.crossPlugin?.resolveApi(apiName) ?? "",
 			// The SPI call leg: invoke a verb on the resolved provider. Mirrors the Rust
 			// host's call-plugin. Returns the provider's result JSON, or "" on failure /
 			// no bridge (the guest degrades gracefully, as vault does when quality is absent).
-			"call-plugin": async (
-				pluginId: string,
-				verb: string,
-				inputJson: string,
-			): Promise<string> => {
+			"call-plugin": async (pluginId: string, verb: string, inputJson: string): Promise<string> => {
 				if (!this.crossPlugin) return "";
 				const result = await this.crossPlugin.callPlugin(pluginId, verb, inputJson);
 				return result ?? "";
@@ -218,12 +212,9 @@ export class WasiImports {
 			typeof mockModelBodyRaw === "string" && mockModelBodyRaw.trim().length > 0
 				? mockModelBodyRaw
 				: null;
-		const mockModelBytes = mockModelBody
-			? new TextEncoder().encode(mockModelBody)
-			: null;
+		const mockModelBytes = mockModelBody ? new TextEncoder().encode(mockModelBody) : null;
 
-		const normalizeProviderName = (provider: string): string =>
-			provider.trim().toLowerCase();
+		const normalizeProviderName = (provider: string): string => provider.trim().toLowerCase();
 
 		const isOpenAiProviderFamily = (provider: string): boolean => {
 			const normalized = normalizeProviderName(provider);
@@ -251,9 +242,7 @@ export class WasiImports {
 
 			const raw =
 				process.env[primaryEnv] ??
-				(primaryEnv !== "OPENAI_API_KEY"
-					? process.env.OPENAI_API_KEY
-					: undefined);
+				(primaryEnv !== "OPENAI_API_KEY" ? process.env.OPENAI_API_KEY : undefined);
 			if (!raw) return null;
 
 			const token = sanitizeAuthToken(raw);
@@ -263,9 +252,7 @@ export class WasiImports {
 			return `Bearer ${token}`;
 		};
 
-		const authHeaderForProvider = (
-			provider: string,
-		): [string, string] | null => {
+		const authHeaderForProvider = (provider: string): [string, string] | null => {
 			const normalized = normalizeProviderName(provider);
 			if (["", "ollama", "local", "mock"].includes(normalized)) {
 				return null;
@@ -289,9 +276,7 @@ export class WasiImports {
 			if (!bearer) {
 				const providerEnv = `${normalized.toUpperCase().replace(/-/g, "_")}_API_KEY`;
 				const envHint =
-					providerEnv === "OPENAI_API_KEY"
-						? providerEnv
-						: `${providerEnv} (or OPENAI_API_KEY)`;
+					providerEnv === "OPENAI_API_KEY" ? providerEnv : `${providerEnv} (or OPENAI_API_KEY)`;
 				throw new Error(
 					`No credentials configured for provider "${normalized}". Set ${envHint}, run refarm sow, or use MODEL_PROVIDER=ollama.`,
 				);
@@ -312,9 +297,7 @@ export class WasiImports {
 			return right.startsWith("/") ? `${left}${right}` : `${left}/${right}`;
 		};
 
-		const sanitizedPluginHeaders = (
-			headers: Array<[string, string]>,
-		): Array<[string, string]> => {
+		const sanitizedPluginHeaders = (headers: Array<[string, string]>): Array<[string, string]> => {
 			return headers
 				.map(([name, value]) => [name.trim(), value.trim()] as [string, string])
 				.filter(([name, value]) => name.length > 0 && value.length > 0)
@@ -355,17 +338,13 @@ export class WasiImports {
 						})
 					: null;
 
-			const promptRef =
-				typeof metadata?.promptRef === "string"
-					? metadata.promptRef.trim()
-					: "";
+			const promptRef = typeof metadata?.promptRef === "string" ? metadata.promptRef.trim() : "";
 			if (!promptRef) {
 				return { storedChunks: 0, lastSequence: undefined };
 			}
 
 			const sequence =
-				typeof metadata?.lastSequence === "number" &&
-				Number.isFinite(metadata.lastSequence)
+				typeof metadata?.lastSequence === "number" && Number.isFinite(metadata.lastSequence)
 					? metadata.lastSequence + 1
 					: 0;
 			const model =
@@ -373,8 +352,7 @@ export class WasiImports {
 					? metadata.model
 					: "mock-model";
 			const providerFamily =
-				typeof metadata?.providerFamily === "string" &&
-				metadata.providerFamily.trim().length > 0
+				typeof metadata?.providerFamily === "string" && metadata.providerFamily.trim().length > 0
 					? metadata.providerFamily
 					: provider;
 
@@ -438,9 +416,7 @@ export class WasiImports {
 			curlArgs.push("--data-binary", "@-");
 
 			const reqBody =
-				body instanceof Uint8Array
-					? Buffer.from(body)
-					: Buffer.from(body as unknown as string);
+				body instanceof Uint8Array ? Buffer.from(body) : Buffer.from(body as unknown as string);
 			const resp = spawnSync("curl", curlArgs, {
 				input: reqBody,
 				maxBuffer: 2 * 1024 * 1024 + 64 * 1024,
@@ -451,9 +427,7 @@ export class WasiImports {
 			}
 
 			if (resp.status !== 0) {
-				const stderr = (resp.stderr ?? Buffer.alloc(0))
-					.toString("utf-8")
-					.trim();
+				const stderr = (resp.stderr ?? Buffer.alloc(0)).toString("utf-8").trim();
 				throw new Error(
 					`model-bridge request failed for provider "${providerName || "<empty>"}": ${stderr || `curl exited with status ${resp.status}`}`,
 				);
@@ -486,12 +460,12 @@ export class WasiImports {
 					if (typeof Request !== "undefined" && request instanceof Request) {
 						const requestSignal = request.signal;
 						const timeoutSignal = AbortSignal.timeout(timeoutMs);
-						const anySignal = (AbortSignal as unknown as {
-							any?: (signals: Iterable<AbortSignal>) => AbortSignal;
-						}).any;
-						const signal = anySignal
-							? anySignal([requestSignal, timeoutSignal])
-							: requestSignal;
+						const anySignal = (
+							AbortSignal as unknown as {
+								any?: (signals: Iterable<AbortSignal>) => AbortSignal;
+							}
+						).any;
+						const signal = anySignal ? anySignal([requestSignal, timeoutSignal]) : requestSignal;
 						return fetch(new Request(request, { signal }));
 					}
 					return fetch(request as RequestInfo | URL, {
@@ -520,11 +494,7 @@ export class WasiImports {
 					if (!verb) {
 						return { tag: "err", val: `no loaded plugin provides tool '${name}'` };
 					}
-					const result = await this.crossPlugin!.callPlugin(
-						verb.pluginId,
-						verb.verb,
-						inputJson,
-					);
+					const result = await this.crossPlugin!.callPlugin(verb.pluginId, verb.verb, inputJson);
 					return result === null
 						? { tag: "err", val: `tool '${name}' dispatch failed` }
 						: { tag: "ok", val: result };
@@ -540,13 +510,7 @@ export class WasiImports {
 					body: Uint8Array,
 					_streamMetadata: unknown,
 				) => {
-					const finalBody = completeHttp(
-						provider,
-						baseUrl,
-						reqPath,
-						headers,
-						body,
-					);
+					const finalBody = completeHttp(provider, baseUrl, reqPath, headers, body);
 					const streamResult = mockModelBytes
 						? persistMockStreamFinalChunk(provider, _streamMetadata)
 						: { storedChunks: 0, lastSequence: undefined };
@@ -577,11 +541,7 @@ export class WasiImports {
 					_pageSize: number,
 					_pageOffset: number,
 				) => JSON.stringify({ value: null }),
-				"write-structured": (
-					_path: string,
-					_content: string,
-					_format: unknown,
-				) => undefined,
+				"write-structured": (_path: string, _content: string, _format: unknown) => undefined,
 			},
 			"refarm:plugin/code-ops": {
 				"rename-symbol": (_loc: unknown, _newName: string) => ({

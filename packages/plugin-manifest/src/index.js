@@ -34,7 +34,4 @@ export {
 } from "./permission-vocab.js";
 export { decidePluginPolicy, evaluateCapabilityGrant } from "./policy.js";
 export { REQUIRED_TELEMETRY_HOOKS } from "./types.js";
-export {
-	assertValidPluginManifest,
-	validatePluginManifest,
-} from "./validate.js";
+export { assertValidPluginManifest, validatePluginManifest } from "./validate.js";

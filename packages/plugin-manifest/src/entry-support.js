@@ -64,33 +64,21 @@ export function evaluateEntryRuntimeCompatibility(entry, runtime, options = {}) 
  * @param {RuntimeCompatibilityOptions} [options]
  */
 export function assertEntryRuntimeCompatibility(entry, runtime, options = {}) {
-	const { format, supported } = evaluateEntryRuntimeCompatibility(
-		entry,
-		runtime,
-		options,
-	);
+	const { format, supported } = evaluateEntryRuntimeCompatibility(entry, runtime, options);
 
 	if (format === "unknown") {
-		throw new Error(
-			`entry must be a .js/.mjs/.cjs or .wasm path (received: "${entry}")`,
-		);
+		throw new Error(`entry must be a .js/.mjs/.cjs or .wasm path (received: "${entry}")`);
 	}
 
 	if (supported) return;
 
 	if (runtime === "browser" && format === "wasm") {
-		throw new Error(
-			`entry format .wasm is not yet supported in browser runtime (ADR-044 roadmap)`,
-		);
+		throw new Error(`entry format .wasm is not yet supported in browser runtime (ADR-044 roadmap)`);
 	}
 
 	if (runtime === "browser" && format === "cjs") {
-		throw new Error(
-			`entry format .cjs is not supported in browser runtime; use .mjs/.js`,
-		);
+		throw new Error(`entry format .cjs is not supported in browser runtime; use .mjs/.js`);
 	}
 
-	throw new Error(
-		`entry format .${format} is not supported in ${runtime} runtime`,
-	);
+	throw new Error(`entry format .${format} is not supported in ${runtime} runtime`);
 }

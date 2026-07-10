@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-	detectWasmBinaryKind,
-	installWasmArtifact,
-} from "./install-contract.js";
+import { detectWasmBinaryKind, installWasmArtifact } from "./install-contract.js";
 
 function createMemoryCache() {
 	const map = new Map();
@@ -32,26 +29,8 @@ async function toIntegrity(content) {
 
 describe("installWasmArtifact", () => {
 	it("detects wasm binary kind from header", () => {
-		const moduleBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x01,
-			0x00,
-			0x00,
-			0x00,
-		]).buffer;
-		const componentBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x0a,
-			0x00,
-			0x01,
-			0x00,
-		]).buffer;
+		const moduleBytes = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]).buffer;
+		const componentBytes = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00]).buffer;
 
 		expect(detectWasmBinaryKind(moduleBytes)).toBe("module");
 		expect(detectWasmBinaryKind(componentBytes)).toBe("component");
@@ -82,16 +61,7 @@ describe("installWasmArtifact", () => {
 
 	it("updates cache metadata on cache hit when metadata extensions are provided", async () => {
 		const { cache, map, metadataMap } = createMemoryCache();
-		const wasmBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x0a,
-			0x00,
-			0x01,
-			0x00,
-		]).buffer;
+		const wasmBytes = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00]).buffer;
 		const digest = await crypto.subtle.digest("SHA-256", wasmBytes);
 		const integrity = `sha256-${Buffer.from(new Uint8Array(digest)).toString("base64")}`;
 		map.set("plugin-a", wasmBytes);
@@ -128,16 +98,7 @@ describe("installWasmArtifact", () => {
 	it("evicts bad cache and refetches with artifact metadata", async () => {
 		const { cache, map, metadataMap } = createMemoryCache();
 		map.set("plugin-a", new TextEncoder().encode("tampered").buffer);
-		const freshBuffer = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x01,
-			0x00,
-			0x00,
-			0x00,
-		]).buffer;
+		const freshBuffer = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]).buffer;
 		const digest = await crypto.subtle.digest("SHA-256", freshBuffer);
 		const integrity = `sha256-${Buffer.from(new Uint8Array(digest)).toString("base64")}`;
 
@@ -180,9 +141,7 @@ describe("installWasmArtifact", () => {
 				},
 				{ cache, fetchFn },
 			),
-		).rejects.toThrow(
-			"Integrity digest must be 64-char hex or base64 sha256 value",
-		);
+		).rejects.toThrow("Integrity digest must be 64-char hex or base64 sha256 value");
 		expect(fetchFn).not.toHaveBeenCalled();
 	});
 });

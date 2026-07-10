@@ -70,10 +70,7 @@ export function decidePluginPolicy(manifest, options) {
 	if (missingCapabilities.length > 0) {
 		return {
 			pluginId: manifest.id,
-			status:
-				policyMode === "fail-fast"
-					? "blocked-fail-fast"
-					: "blocked-warn-continue",
+			status: policyMode === "fail-fast" ? "blocked-fail-fast" : "blocked-warn-continue",
 			policyMode,
 			manifestValid: true,
 			manifestErrors: [],

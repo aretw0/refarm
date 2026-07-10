@@ -38,9 +38,7 @@ export type StreamSessionStatus =
 	| typeof STREAM_SESSION_STATUS_COMPLETED
 	| typeof STREAM_SESSION_STATUS_FAILED;
 
-export function emptyStreamSessionState(
-	streamRef: string | null = null,
-): StreamSessionState {
+export function emptyStreamSessionState(streamRef: string | null = null): StreamSessionState {
 	return {
 		streamRef,
 		streamKind: null,
@@ -59,12 +57,8 @@ export function applyStreamSessionEvent(
 	event: StreamSessionEvent,
 ): StreamSessionState {
 	return {
-		streamRef:
-			typeof event.stream_ref === "string" ? event.stream_ref : state.streamRef,
-		streamKind:
-			typeof event.stream_kind === "string"
-				? event.stream_kind
-				: state.streamKind,
+		streamRef: typeof event.stream_ref === "string" ? event.stream_ref : state.streamRef,
+		streamKind: typeof event.stream_kind === "string" ? event.stream_kind : state.streamKind,
 		status: typeof event.status === "string" ? event.status : state.status,
 		startedAtNs: finiteNumberOr(event.started_at_ns, state.startedAtNs),
 		updatedAtNs: finiteNumberOr(event.updated_at_ns, state.updatedAtNs),
@@ -82,18 +76,12 @@ export function reduceStreamSessionEvents(
 	return events.reduce(applyStreamSessionEvent, initialState);
 }
 
-export function orderStreamSessionEvents<T extends StreamSessionEvent>(
-	events: readonly T[],
-): T[] {
-	return [...events].sort(
-		(a, b) => streamSessionSortValue(a) - streamSessionSortValue(b),
-	);
+export function orderStreamSessionEvents<T extends StreamSessionEvent>(events: readonly T[]): T[] {
+	return [...events].sort((a, b) => streamSessionSortValue(a) - streamSessionSortValue(b));
 }
 
 export function streamSessionKey(event: StreamSessionEvent): string {
-	return typeof event.stream_ref === "string"
-		? event.stream_ref
-		: UNKNOWN_STREAM_SESSION_REF;
+	return typeof event.stream_ref === "string" ? event.stream_ref : UNKNOWN_STREAM_SESSION_REF;
 }
 
 export function applyStreamSessionEventToMap(
@@ -102,8 +90,7 @@ export function applyStreamSessionEventToMap(
 ): StreamSessionStateMap {
 	const key = streamSessionKey(event);
 	const previous =
-		stateMap[key] ??
-		emptyStreamSessionState(key === UNKNOWN_STREAM_SESSION_REF ? null : key);
+		stateMap[key] ?? emptyStreamSessionState(key === UNKNOWN_STREAM_SESSION_REF ? null : key);
 
 	return {
 		...stateMap,
@@ -118,21 +105,15 @@ export function reduceStreamSessionEventsByStream(
 	return events.reduce(applyStreamSessionEventToMap, initialStateMap);
 }
 
-export function isStreamSessionKind(
-	streamKind: string | null,
-): streamKind is StreamSessionKind {
+export function isStreamSessionKind(streamKind: string | null): streamKind is StreamSessionKind {
 	return streamKind === STREAM_SESSION_KIND_RESPONSE;
 }
 
-export function isResponseStreamSession(
-	state: StreamSessionState,
-): boolean {
+export function isResponseStreamSession(state: StreamSessionState): boolean {
 	return state.streamKind === STREAM_SESSION_KIND_RESPONSE;
 }
 
-export function isStreamSessionStatus(
-	status: string | null,
-): status is StreamSessionStatus {
+export function isStreamSessionStatus(status: string | null): status is StreamSessionStatus {
 	return (
 		status === STREAM_SESSION_STATUS_ACTIVE ||
 		status === STREAM_SESSION_STATUS_COMPLETED ||
@@ -142,13 +123,8 @@ export function isStreamSessionStatus(
 
 export function isTerminalStreamSessionStatus(
 	status: string | null,
-): status is
-	| typeof STREAM_SESSION_STATUS_COMPLETED
-	| typeof STREAM_SESSION_STATUS_FAILED {
-	return (
-		status === STREAM_SESSION_STATUS_COMPLETED ||
-		status === STREAM_SESSION_STATUS_FAILED
-	);
+): status is typeof STREAM_SESSION_STATUS_COMPLETED | typeof STREAM_SESSION_STATUS_FAILED {
+	return status === STREAM_SESSION_STATUS_COMPLETED || status === STREAM_SESSION_STATUS_FAILED;
 }
 
 export function isActiveStreamSession(state: StreamSessionState): boolean {
@@ -167,21 +143,15 @@ export function isTerminalStreamSession(state: StreamSessionState): boolean {
 	return isTerminalStreamSessionStatus(state.status);
 }
 
-export function streamSessionProjection(
-	state: StreamSessionState,
-): string | null {
+export function streamSessionProjection(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "projection");
 }
 
-export function streamSessionPromptRef(
-	state: StreamSessionState,
-): string | null {
+export function streamSessionPromptRef(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "prompt_ref");
 }
 
-export function streamSessionProviderFamily(
-	state: StreamSessionState,
-): string | null {
+export function streamSessionProviderFamily(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "provider_family");
 }
 
@@ -189,24 +159,18 @@ export function streamSessionModel(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "model");
 }
 
-export function streamSessionDurationNs(
-	state: StreamSessionState,
-): number | null {
+export function streamSessionDurationNs(state: StreamSessionState): number | null {
 	if (state.startedAtNs === null || state.completedAtNs === null) {
 		return null;
 	}
 	return Math.max(0, state.completedAtNs - state.startedAtNs);
 }
 
-export function streamSessionFailureReason(
-	state: StreamSessionState,
-): string | null {
+export function streamSessionFailureReason(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "failure_reason");
 }
 
-export function streamSessionFailureKind(
-	state: StreamSessionState,
-): string | null {
+export function streamSessionFailureKind(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "failure_kind");
 }
 
@@ -220,20 +184,13 @@ function streamSessionSortValue(event: StreamSessionEvent): number {
 }
 
 function metadataStringField(metadata: unknown, field: string): string | null {
-	if (
-		typeof metadata !== "object" ||
-		metadata === null ||
-		!(field in metadata)
-	) {
+	if (typeof metadata !== "object" || metadata === null || !(field in metadata)) {
 		return null;
 	}
 	const value = (metadata as Record<string, unknown>)[field];
 	return typeof value === "string" ? value : null;
 }
 
-function finiteNumberOr(
-	value: number | null | undefined,
-	fallback: number | null,
-): number | null {
+function finiteNumberOr(value: number | null | undefined, fallback: number | null): number | null {
 	return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }

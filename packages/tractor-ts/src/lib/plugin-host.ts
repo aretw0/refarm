@@ -17,23 +17,17 @@ import { TelemetryEvent } from "./telemetry.js";
 import type { PluginTrustGrant } from "./trust-manager.js";
 import { ExecutionProfile, TrustManager } from "./trust-manager.js";
 import { SecurityMode, TractorLogger } from "./types.js";
-import {
-  WasiImports,
-  type CrossPluginBridge,
-  type DispatchableVerb,
-} from "./wasi-imports.js";
+import { WasiImports, type CrossPluginBridge, type DispatchableVerb } from "./wasi-imports.js";
 import { WorkerRunner } from "./worker-runner.js";
 
 export type { PluginInstance, PluginState, PluginTrustGrant };
 
 const DEFAULT_DIST_BASE = (() => {
-  const pathname = decodeURIComponent(
-    new URL("../.jco-dist", import.meta.url).pathname,
-  );
+	const pathname = decodeURIComponent(new URL("../.jco-dist", import.meta.url).pathname);
 
-  // Windows file URLs may include an extra leading slash before drive letters.
-  // Example: /C:/repo/.../.jco-dist -> C:/repo/.../.jco-dist
-  return pathname.replace(/^\/([A-Za-z]:\/)/, "$1");
+	// Windows file URLs may include an extra leading slash before drive letters.
+	// Example: /C:/repo/.../.jco-dist -> C:/repo/.../.jco-dist
+	return pathname.replace(/^\/([A-Za-z]:\/)/, "$1");
 })();
 
 /**
@@ -41,386 +35,371 @@ const DEFAULT_DIST_BASE = (() => {
  * Orchestrates trust, lifecycle, and WASI integration.
  */
 export class PluginHost {
-  private _instances: Map<string, PluginInstance> = new Map();
-  private trustManager: TrustManager;
-  private _mainThreadRunner: MainThreadRunner;
-  private _workerRunner: WorkerRunner;
+	private _instances: Map<string, PluginInstance> = new Map();
+	private trustManager: TrustManager;
+	private _mainThreadRunner: MainThreadRunner;
+	private _workerRunner: WorkerRunner;
 
-  constructor(
-    private emit: (data: TelemetryEvent) => void,
-    private registry: Registry,
-    private logger: TractorLogger = console,
-    private securityMode: SecurityMode = "strict",
-    private distBase: string = DEFAULT_DIST_BASE,
-    private storeNode?: (nodeJson: string) => Promise<void>,
-  ) {
-    this.trustManager = new TrustManager(emit);
-    this._mainThreadRunner = new MainThreadRunner(this.distBase, this.logger);
-    this._workerRunner = new WorkerRunner(this.storeNode);
-  }
+	constructor(
+		private emit: (data: TelemetryEvent) => void,
+		private registry: Registry,
+		private logger: TractorLogger = console,
+		private securityMode: SecurityMode = "strict",
+		private distBase: string = DEFAULT_DIST_BASE,
+		private storeNode?: (nodeJson: string) => Promise<void>,
+	) {
+		this.trustManager = new TrustManager(emit);
+		this._mainThreadRunner = new MainThreadRunner(this.distBase, this.logger);
+		this._workerRunner = new WorkerRunner(this.storeNode);
+	}
 
-  /**
-   * Resolves the appropriate PluginRunner for a manifest's execution context.
-   * Respects `preferred` → `fallback` → main-thread cascade.
-   */
-  private resolveRunner(manifest: PluginManifest): PluginRunner {
-    const ctx = manifest.executionContext;
-    if (!ctx) return this._mainThreadRunner;
+	/**
+	 * Resolves the appropriate PluginRunner for a manifest's execution context.
+	 * Respects `preferred` → `fallback` → main-thread cascade.
+	 */
+	private resolveRunner(manifest: PluginManifest): PluginRunner {
+		const ctx = manifest.executionContext;
+		if (!ctx) return this._mainThreadRunner;
 
-    const preferred = ctx.preferred;
+		const preferred = ctx.preferred;
 
-    if (preferred === "worker" && this._workerRunner.supports(manifest)) {
-      return this._workerRunner;
-    }
+		if (preferred === "worker" && this._workerRunner.supports(manifest)) {
+			return this._workerRunner;
+		}
 
-    if (ctx.fallback === "main-thread" || !ctx.fallback) {
-      return this._mainThreadRunner;
-    }
+		if (ctx.fallback === "main-thread" || !ctx.fallback) {
+			return this._mainThreadRunner;
+		}
 
-    // Unrecognized fallback — default to main thread
-    this.logger.warn(
-      `[tractor] executionContext.fallback "${ctx.fallback}" not supported; using main-thread`,
-    );
-    return this._mainThreadRunner;
-  }
+		// Unrecognized fallback — default to main thread
+		this.logger.warn(
+			`[tractor] executionContext.fallback "${ctx.fallback}" not supported; using main-thread`,
+		);
+		return this._mainThreadRunner;
+	}
 
-  hasValidTrustGrant(pluginId: string, wasmHash?: string): boolean {
-    return this.trustManager.hasValidTrustGrant(pluginId, wasmHash);
-  }
+	hasValidTrustGrant(pluginId: string, wasmHash?: string): boolean {
+		return this.trustManager.hasValidTrustGrant(pluginId, wasmHash);
+	}
 
-  grantTrust(pluginId: string, wasmHash: string, leaseMs?: number): PluginTrustGrant {
-    return this.trustManager.grantTrust(pluginId, wasmHash, leaseMs);
-  }
+	grantTrust(pluginId: string, wasmHash: string, leaseMs?: number): PluginTrustGrant {
+		return this.trustManager.grantTrust(pluginId, wasmHash, leaseMs);
+	}
 
-  trustManifestOnce(manifest: PluginManifest, wasmHash: string): PluginTrustGrant {
-    return this.trustManager.trustManifestOnce(manifest, wasmHash);
-  }
+	trustManifestOnce(manifest: PluginManifest, wasmHash: string): PluginTrustGrant {
+		return this.trustManager.trustManifestOnce(manifest, wasmHash);
+	}
 
-  revokeTrust(pluginId: string, wasmHash?: string): void {
-    this.trustManager.revokeTrust(pluginId, wasmHash);
-  }
+	revokeTrust(pluginId: string, wasmHash?: string): void {
+		this.trustManager.revokeTrust(pluginId, wasmHash);
+	}
 
-  private normalizeJavaScriptModule(moduleNamespace: unknown): unknown {
-    if (!moduleNamespace || typeof moduleNamespace !== "object") return moduleNamespace;
-    const ns = moduleNamespace as Record<string, unknown>;
-    const defaultExport = ns["default"];
-    if (defaultExport && typeof defaultExport === "object") {
-      return { ...(defaultExport as Record<string, unknown>), ...ns };
-    }
-    return moduleNamespace;
-  }
+	private normalizeJavaScriptModule(moduleNamespace: unknown): unknown {
+		if (!moduleNamespace || typeof moduleNamespace !== "object") return moduleNamespace;
+		const ns = moduleNamespace as Record<string, unknown>;
+		const defaultExport = ns["default"];
+		if (defaultExport && typeof defaultExport === "object") {
+			return { ...(defaultExport as Record<string, unknown>), ...ns };
+		}
+		return moduleNamespace;
+	}
 
-  private encodeBase64Utf8(source: string): string {
-    if (typeof Buffer !== "undefined") {
-      return Buffer.from(source, "utf8").toString("base64");
-    }
+	private encodeBase64Utf8(source: string): string {
+		if (typeof Buffer !== "undefined") {
+			return Buffer.from(source, "utf8").toString("base64");
+		}
 
-    const bytes = new TextEncoder().encode(source);
-    let binary = "";
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary);
-  }
+		const bytes = new TextEncoder().encode(source);
+		let binary = "";
+		for (const byte of bytes) binary += String.fromCharCode(byte);
+		return btoa(binary);
+	}
 
-  private async loadJavaScriptModule(entryUrl: string): Promise<unknown> {
-    try {
-      const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
-      return this.normalizeJavaScriptModule(moduleNamespace);
-    } catch {
-      const response = await fetch(entryUrl, {
-        signal: AbortSignal.timeout(30_000),
-      });
-      if (!response.ok) {
-        throw new Error(
-          `[tractor] Failed to fetch plugin JS module: ${response.statusText}`,
-        );
-      }
+	private async loadJavaScriptModule(entryUrl: string): Promise<unknown> {
+		try {
+			const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
+			return this.normalizeJavaScriptModule(moduleNamespace);
+		} catch {
+			const response = await fetch(entryUrl, {
+				signal: AbortSignal.timeout(30_000),
+			});
+			if (!response.ok) {
+				throw new Error(`[tractor] Failed to fetch plugin JS module: ${response.statusText}`);
+			}
 
-      const source = await response.text();
-      const dataUrl = `data:text/javascript;base64,${this.encodeBase64Utf8(source)}`;
-      const moduleNamespace = await import(/* @vite-ignore */ dataUrl);
-      return this.normalizeJavaScriptModule(moduleNamespace);
-    }
-  }
+			const source = await response.text();
+			const dataUrl = `data:text/javascript;base64,${this.encodeBase64Utf8(source)}`;
+			const moduleNamespace = await import(/* @vite-ignore */ dataUrl);
+			return this.normalizeJavaScriptModule(moduleNamespace);
+		}
+	}
 
-  private async readWasmBuffer(
-    pluginId: string,
-    wasmUrl: string,
-  ): Promise<ArrayBuffer> {
-    if (wasmUrl.startsWith("file://")) {
-      const filePath = wasmUrl.replace("file://", "");
-      const { readFile } = await import("node:fs/promises");
-      const buffer = await readFile(filePath);
-      return buffer.buffer.slice(
-        buffer.byteOffset,
-        buffer.byteOffset + buffer.byteLength,
-      );
-    }
+	private async readWasmBuffer(pluginId: string, wasmUrl: string): Promise<ArrayBuffer> {
+		if (wasmUrl.startsWith("file://")) {
+			const filePath = wasmUrl.replace("file://", "");
+			const { readFile } = await import("node:fs/promises");
+			const buffer = await readFile(filePath);
+			return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+		}
 
-    if (detectEntryFormat(wasmUrl) === "wasm") {
-      const cached = await getCachedPlugin(pluginId);
-      if (cached) {
-        this.logger.debug(`[tractor] Using cached plugin WASM: ${pluginId}`);
-        return cached;
-      }
-    }
+		if (detectEntryFormat(wasmUrl) === "wasm") {
+			const cached = await getCachedPlugin(pluginId);
+			if (cached) {
+				this.logger.debug(`[tractor] Using cached plugin WASM: ${pluginId}`);
+				return cached;
+			}
+		}
 
-    const response = await fetch(wasmUrl, {
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!response.ok)
-      throw new Error(`[tractor] Failed to fetch plugin: ${response.statusText}`);
-    return response.arrayBuffer();
-  }
+		const response = await fetch(wasmUrl, {
+			signal: AbortSignal.timeout(30_000),
+		});
+		if (!response.ok) throw new Error(`[tractor] Failed to fetch plugin: ${response.statusText}`);
+		return response.arrayBuffer();
+	}
 
-  async load(
-    manifest: PluginManifest,
-    wasmHash?: string,
-  ): Promise<PluginInstance> {
-    const pluginId = manifest.id;
-    const wasmUrl = manifest.entry;
-    const entryFormat = detectEntryFormat(wasmUrl);
-    const startTime = performance.now();
+	async load(manifest: PluginManifest, wasmHash?: string): Promise<PluginInstance> {
+		const pluginId = manifest.id;
+		const wasmUrl = manifest.entry;
+		const entryFormat = detectEntryFormat(wasmUrl);
+		const startTime = performance.now();
 
-    assertEntryRuntimeCompatibility(wasmUrl, "node");
+		assertEntryRuntimeCompatibility(wasmUrl, "node");
 
-    const profile = this.trustManager.resolveExecutionProfile(manifest, wasmHash);
-    const trust = (manifest as PluginManifest & { trust?: { profile?: string } }).trust;
+		const profile = this.trustManager.resolveExecutionProfile(manifest, wasmHash);
+		const trust = (manifest as PluginManifest & { trust?: { profile?: string } }).trust;
 
-    if (trust?.profile === "trusted-fast" && entryFormat !== "wasm") {
-      throw new Error(
-        `[tractor] Trusted-fast is only available for .wasm plugin entries (${pluginId}).`,
-      );
-    }
+		if (trust?.profile === "trusted-fast" && entryFormat !== "wasm") {
+			throw new Error(
+				`[tractor] Trusted-fast is only available for .wasm plugin entries (${pluginId}).`,
+			);
+		}
 
-    if (trust?.profile === "trusted-fast" && !wasmHash) {
-      throw new Error(`[tractor] Trusted-fast requires wasmHash for ${pluginId}.`);
-    }
+		if (trust?.profile === "trusted-fast" && !wasmHash) {
+			throw new Error(`[tractor] Trusted-fast requires wasmHash for ${pluginId}.`);
+		}
 
-    if (trust?.profile === "trusted-fast" && wasmHash) {
-      const grants = this.trustManager.getGrantsForPlugin(pluginId);
-      const hasGrantForCurrentHash = grants.some((grant) => grant.wasmHash === wasmHash);
-      if (grants.length > 0 && !hasGrantForCurrentHash) {
-        this.trustManager.revokeTrust(pluginId);
-        throw new Error(`[tractor] Trusted-fast revoked for ${pluginId}: wasm hash changed.`);
-      }
-    }
+		if (trust?.profile === "trusted-fast" && wasmHash) {
+			const grants = this.trustManager.getGrantsForPlugin(pluginId);
+			const hasGrantForCurrentHash = grants.some((grant) => grant.wasmHash === wasmHash);
+			if (grants.length > 0 && !hasGrantForCurrentHash) {
+				this.trustManager.revokeTrust(pluginId);
+				throw new Error(`[tractor] Trusted-fast revoked for ${pluginId}: wasm hash changed.`);
+			}
+		}
 
-    if (trust?.profile === "trusted-fast" && profile !== "trusted-fast") {
-      throw new Error(`[tractor] Trusted-fast denied for ${pluginId}. Grant trust before loading.`);
-    }
+		if (trust?.profile === "trusted-fast" && profile !== "trusted-fast") {
+			throw new Error(`[tractor] Trusted-fast denied for ${pluginId}. Grant trust before loading.`);
+		}
 
-    const registryEntry = this.registry.getPlugin(pluginId);
-    if (!registryEntry || (registryEntry.status !== "validated" && registryEntry.status !== "active")) {
-        const msg = `[tractor] Plugin ${pluginId} is not validated (status: ${registryEntry?.status ?? "unregistered"})`;
-        if (this.securityMode !== "permissive") {
-            throw new Error(msg);
-        }
-        this.logger.warn(msg);
-    }
+		const registryEntry = this.registry.getPlugin(pluginId);
+		if (
+			!registryEntry ||
+			(registryEntry.status !== "validated" && registryEntry.status !== "active")
+		) {
+			const msg = `[tractor] Plugin ${pluginId} is not validated (status: ${registryEntry?.status ?? "unregistered"})`;
+			if (this.securityMode !== "permissive") {
+				throw new Error(msg);
+			}
+			this.logger.warn(msg);
+		}
 
-    if (entryFormat !== "wasm") {
-      this.logger.debug(`[tractor] Loading JavaScript plugin module: ${wasmUrl}`);
-      const moduleNamespace = await this.loadJavaScriptModule(wasmUrl);
+		if (entryFormat !== "wasm") {
+			this.logger.debug(`[tractor] Loading JavaScript plugin module: ${wasmUrl}`);
+			const moduleNamespace = await this.loadJavaScriptModule(wasmUrl);
 
-      const instance = new PluginInstanceHandle(
-        pluginId,
-        manifest.name,
-        manifest,
-        moduleNamespace as Record<string, unknown> | null,
-        this.emit,
-        (id) => {
-          this._instances.delete(id);
-          this.registry.deactivatePlugin(id).catch(() => {});
-        },
-      );
+			const instance = new PluginInstanceHandle(
+				pluginId,
+				manifest.name,
+				manifest,
+				moduleNamespace as Record<string, unknown> | null,
+				this.emit,
+				(id) => {
+					this._instances.delete(id);
+					this.registry.deactivatePlugin(id).catch(() => {});
+				},
+			);
 
-      this._instances.set(pluginId, instance);
+			this._instances.set(pluginId, instance);
 
-      try {
-        await instance.call("setup");
-        if (registryEntry && registryEntry.status === "validated") {
-          await this.registry.activatePlugin(pluginId);
-        }
-      } catch (err) {
-        this.logger.warn(`[tractor] Setup failed for plugin ${pluginId}:`, err);
-      }
+			try {
+				await instance.call("setup");
+				if (registryEntry && registryEntry.status === "validated") {
+					await this.registry.activatePlugin(pluginId);
+				}
+			} catch (err) {
+				this.logger.warn(`[tractor] Setup failed for plugin ${pluginId}:`, err);
+			}
 
-      this.emit({
-        event: "plugin:load",
-        pluginId,
-        durationMs: performance.now() - startTime,
-        payload: { profile, wasmHash, entryType: "js" },
-      });
+			this.emit({
+				event: "plugin:load",
+				pluginId,
+				durationMs: performance.now() - startTime,
+				payload: { profile, wasmHash, entryType: "js" },
+			});
 
-      return instance;
-    }
+			return instance;
+		}
 
-    this.logger.debug(`[tractor] Loading plugin WASM: ${wasmUrl}`);
-    const wasmBuffer = await this.readWasmBuffer(pluginId, wasmUrl);
+		this.logger.debug(`[tractor] Loading plugin WASM: ${wasmUrl}`);
+		const wasmBuffer = await this.readWasmBuffer(pluginId, wasmUrl);
 
-    const wasi = new WasiImports(
-      pluginId,
-      this.logger,
-      this.emit,
-      this.storeNode,
-      this.buildCrossPluginBridge(pluginId),
-    );
-    const imports = wasi.generate(manifest, profile);
-    const runner = this.resolveRunner(manifest);
+		const wasi = new WasiImports(
+			pluginId,
+			this.logger,
+			this.emit,
+			this.storeNode,
+			this.buildCrossPluginBridge(pluginId),
+		);
+		const imports = wasi.generate(manifest, profile);
+		const runner = this.resolveRunner(manifest);
 
-    const instance = await runner.instantiate(
-      manifest,
-      wasmBuffer,
-      imports,
-      this.emit,
-      (id) => {
-        this._instances.delete(id);
-        this.registry.deactivatePlugin(id).catch(() => {});
-      },
-    );
+		const instance = await runner.instantiate(manifest, wasmBuffer, imports, this.emit, (id) => {
+			this._instances.delete(id);
+			this.registry.deactivatePlugin(id).catch(() => {});
+		});
 
-    this._instances.set(pluginId, instance);
+		this._instances.set(pluginId, instance);
 
-    try {
-      await instance.call("setup");
-      if (registryEntry && registryEntry.status === "validated") {
-          await this.registry.activatePlugin(pluginId);
-      }
-    } catch (err) {
-      this.logger.warn(`[tractor] Setup failed for plugin ${pluginId}:`, err);
-    }
+		try {
+			await instance.call("setup");
+			if (registryEntry && registryEntry.status === "validated") {
+				await this.registry.activatePlugin(pluginId);
+			}
+		} catch (err) {
+			this.logger.warn(`[tractor] Setup failed for plugin ${pluginId}:`, err);
+		}
 
-    this.emit({
-      event: "plugin:load",
-      pluginId,
-      durationMs: performance.now() - startTime,
-      payload: { profile, wasmHash },
-    });
+		this.emit({
+			event: "plugin:load",
+			pluginId,
+			durationMs: performance.now() - startTime,
+			payload: { profile, wasmHash },
+		});
 
-    return instance;
-  }
+		return instance;
+	}
 
-  getWasiImports(manifest: PluginManifest, profile: ExecutionProfile): Record<string, unknown> {
-    const wasi = new WasiImports(
-      manifest.id,
-      this.logger,
-      this.emit,
-      undefined,
-      this.buildCrossPluginBridge(manifest.id),
-    );
-    return wasi.generate(manifest, profile);
-  }
+	getWasiImports(manifest: PluginManifest, profile: ExecutionProfile): Record<string, unknown> {
+		const wasi = new WasiImports(
+			manifest.id,
+			this.logger,
+			this.emit,
+			undefined,
+			this.buildCrossPluginBridge(manifest.id),
+		);
+		return wasi.generate(manifest, profile);
+	}
 
-  /**
-   * The plugin-to-plugin (SPI) bridge for a guest — the TS mirror of the Rust host's
-   * get-plugin-api / call-plugin. `resolveApi` finds a loaded plugin that providesApi a
-   * name; `callPlugin` invokes a verb on it. This closes the drift where tractor-ts had a
-   * resolver (findByApi) the guest imports could not reach, so get-plugin-api stubbed to
-   * "" and call-plugin did not exist. The caller (`_callerId`) is reserved for future
-   * eligibility checks (a guest may only reach APIs it requiresApi) — parity with the
-   * Rust host, where the callee runs under its own grant.
-   */
-  private buildCrossPluginBridge(_callerId: string): CrossPluginBridge {
-    return {
-      resolveApi: (apiName: string): string => this.findByApi(apiName)?.manifest.id ?? "",
-      callPlugin: async (
-        pluginId: string,
-        verb: string,
-        inputJson: string,
-      ): Promise<string | null> => {
-        const target = this._instances.get(pluginId);
-        if (!target) return null;
-        const input = inputJson.trim().length > 0 ? JSON.parse(inputJson) : {};
-        const result = await target.call(verb, input);
-        return typeof result === "string" ? result : JSON.stringify(result ?? null);
-      },
-      dispatchableVerbs: (): DispatchableVerb[] => this.enumerateDispatchableVerbs(),
-    };
-  }
+	/**
+	 * The plugin-to-plugin (SPI) bridge for a guest — the TS mirror of the Rust host's
+	 * get-plugin-api / call-plugin. `resolveApi` finds a loaded plugin that providesApi a
+	 * name; `callPlugin` invokes a verb on it. This closes the drift where tractor-ts had a
+	 * resolver (findByApi) the guest imports could not reach, so get-plugin-api stubbed to
+	 * "" and call-plugin did not exist. The caller (`_callerId`) is reserved for future
+	 * eligibility checks (a guest may only reach APIs it requiresApi) — parity with the
+	 * Rust host, where the callee runs under its own grant.
+	 */
+	private buildCrossPluginBridge(_callerId: string): CrossPluginBridge {
+		return {
+			resolveApi: (apiName: string): string => this.findByApi(apiName)?.manifest.id ?? "",
+			callPlugin: async (
+				pluginId: string,
+				verb: string,
+				inputJson: string,
+			): Promise<string | null> => {
+				const target = this._instances.get(pluginId);
+				if (!target) return null;
+				const input = inputJson.trim().length > 0 ? JSON.parse(inputJson) : {};
+				const result = await target.call(verb, input);
+				return typeof result === "string" ? result : JSON.stringify(result ?? null);
+			},
+			dispatchableVerbs: (): DispatchableVerb[] => this.enumerateDispatchableVerbs(),
+		};
+	}
 
-  /**
-   * Every dispatchable verb across loaded plugins — the agent-tool eligibility set. A
-   * `<key>:<verb>` in a plugin's `provides`, GUARDED by `<key>:dispatch` in the SAME
-   * plugin's `subscribes` (only a plugin that receives its own dispatch events can serve
-   * a dispatched verb). Mirrors the Rust host's plugin_registry::dispatchable_verbs, incl.
-   * its deterministic order (plugins by id, verbs in declaration order) so the two hosts
-   * surface the identical tool list (the plugin-surface-verbs conformance fixture).
-   */
-  private enumerateDispatchableVerbs(): DispatchableVerb[] {
-    const out: DispatchableVerb[] = [];
-    const ids = Array.from(this._instances.keys()).sort();
-    for (const id of ids) {
-      const instance = this._instances.get(id);
-      const caps = instance?.manifest.capabilities;
-      if (!caps) continue;
-      const subscribes = new Set(caps.subscribes ?? []);
-      for (const entry of caps.provides ?? []) {
-        const colon = entry.indexOf(":");
-        if (colon <= 0 || colon === entry.length - 1) continue; // not `<key>:<verb>`
-        const key = entry.slice(0, colon);
-        const verb = entry.slice(colon + 1);
-        if (verb === "dispatch") continue; // the routing key, not a user verb
-        if (!subscribes.has(`${key}:dispatch`)) continue;
-        out.push({
-          pluginId: id,
-          pluginKey: key,
-          verb,
-          doc: instance?.manifest.capabilities?.verbDocs?.[entry],
-        });
-      }
-    }
-    return out;
-  }
+	/**
+	 * Every dispatchable verb across loaded plugins — the agent-tool eligibility set. A
+	 * `<key>:<verb>` in a plugin's `provides`, GUARDED by `<key>:dispatch` in the SAME
+	 * plugin's `subscribes` (only a plugin that receives its own dispatch events can serve
+	 * a dispatched verb). Mirrors the Rust host's plugin_registry::dispatchable_verbs, incl.
+	 * its deterministic order (plugins by id, verbs in declaration order) so the two hosts
+	 * surface the identical tool list (the plugin-surface-verbs conformance fixture).
+	 */
+	private enumerateDispatchableVerbs(): DispatchableVerb[] {
+		const out: DispatchableVerb[] = [];
+		const ids = Array.from(this._instances.keys()).sort();
+		for (const id of ids) {
+			const instance = this._instances.get(id);
+			const caps = instance?.manifest.capabilities;
+			if (!caps) continue;
+			const subscribes = new Set(caps.subscribes ?? []);
+			for (const entry of caps.provides ?? []) {
+				const colon = entry.indexOf(":");
+				if (colon <= 0 || colon === entry.length - 1) continue; // not `<key>:<verb>`
+				const key = entry.slice(0, colon);
+				const verb = entry.slice(colon + 1);
+				if (verb === "dispatch") continue; // the routing key, not a user verb
+				if (!subscribes.has(`${key}:dispatch`)) continue;
+				out.push({
+					pluginId: id,
+					pluginKey: key,
+					verb,
+					doc: instance?.manifest.capabilities?.verbDocs?.[entry],
+				});
+			}
+		}
+		return out;
+	}
 
-  registerInternal(instance: PluginInstance) {
-    if (!instance.state) instance.state = "running";
-    this._instances.set(instance.id, instance);
-    this.emit({ event: "plugin:load", pluginId: instance.id });
-  }
+	registerInternal(instance: PluginInstance) {
+		if (!instance.state) instance.state = "running";
+		this._instances.set(instance.id, instance);
+		this.emit({ event: "plugin:load", pluginId: instance.id });
+	}
 
-  setState(pluginId: string, state: PluginState) {
-    const instance = this._instances.get(pluginId);
-    if (instance && instance.state !== state) {
-      instance.state = state;
-      this.emit({ event: "system:plugin_state_changed", pluginId, payload: { state } });
-    }
-  }
+	setState(pluginId: string, state: PluginState) {
+		const instance = this._instances.get(pluginId);
+		if (instance && instance.state !== state) {
+			instance.state = state;
+			this.emit({ event: "system:plugin_state_changed", pluginId, payload: { state } });
+		}
+	}
 
-  dispatch(event: TelemetryEvent) {
-    for (const instance of this._instances.values()) {
-      if (manifestReceivesEvent(instance.manifest, event)) {
-        instance.call("on-event", [event.event, JSON.stringify(event.payload)]);
-      }
-    }
-  }
+	dispatch(event: TelemetryEvent) {
+		for (const instance of this._instances.values()) {
+			if (manifestReceivesEvent(instance.manifest, event)) {
+				instance.call("on-event", [event.event, JSON.stringify(event.payload)]);
+			}
+		}
+	}
 
-  async getHelpNodes(): Promise<NormalisedNode[]> {
-    const allHelp: NormalisedNode[] = [];
-    for (const plugin of this._instances.values()) {
-      try {
-        const nodes = (await plugin.call("get-help-nodes")) as unknown[];
-        if (nodes) allHelp.push(...nodes.map((n) => JSON.parse(n as string)));
-      } catch {}
-    }
-    return allHelp;
-  }
+	async getHelpNodes(): Promise<NormalisedNode[]> {
+		const allHelp: NormalisedNode[] = [];
+		for (const plugin of this._instances.values()) {
+			try {
+				const nodes = (await plugin.call("get-help-nodes")) as unknown[];
+				if (nodes) allHelp.push(...nodes.map((n) => JSON.parse(n as string)));
+			} catch {}
+		}
+		return allHelp;
+	}
 
-  findByApi(apiName: string): PluginInstance | undefined {
-    for (const instance of this._instances.values()) {
-      if (instance.manifest.capabilities.providesApi?.includes(apiName)) return instance;
-    }
-    return undefined;
-  }
+	findByApi(apiName: string): PluginInstance | undefined {
+		for (const instance of this._instances.values()) {
+			if (instance.manifest.capabilities.providesApi?.includes(apiName)) return instance;
+		}
+		return undefined;
+	}
 
-  get(pluginId: string): PluginInstance | undefined {
-    return this._instances.get(pluginId);
-  }
+	get(pluginId: string): PluginInstance | undefined {
+		return this._instances.get(pluginId);
+	}
 
-  getAllPlugins(): PluginInstance[] {
-    return Array.from(this._instances.values());
-  }
+	getAllPlugins(): PluginInstance[] {
+		return Array.from(this._instances.values());
+	}
 
-  terminateAll(): void {
-    for (const inst of this._instances.values()) inst.terminate();
-  }
+	terminateAll(): void {
+		for (const inst of this._instances.values()) inst.terminate();
+	}
 }

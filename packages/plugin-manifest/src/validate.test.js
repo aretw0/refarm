@@ -21,9 +21,7 @@ describe("plugin-manifest validation", () => {
 
 		const result = validatePluginManifest(manifest);
 		expect(result.valid).toBe(false);
-		expect(result.errors.some((error) => error.includes("onRequest"))).toBe(
-			true,
-		);
+		expect(result.errors.some((error) => error.includes("onRequest"))).toBe(true);
 	});
 });
 
@@ -44,10 +42,7 @@ describe("permission vocabulary (effect axis)", () => {
 		const result = validatePluginManifest(manifest);
 		expect(result.valid).toBe(false);
 		expect(
-			result.errors.some(
-				(e) =>
-					e.includes("unknown capabilities") && e.includes("fs:reed"),
-			),
+			result.errors.some((e) => e.includes("unknown capabilities") && e.includes("fs:reed")),
 		).toBe(true);
 	});
 
@@ -56,9 +51,7 @@ describe("permission vocabulary (effect axis)", () => {
 		const manifest = createMockManifest({ permissions: ["storage:v1"] });
 		const result = validatePluginManifest(manifest);
 		expect(result.valid).toBe(false);
-		expect(
-			result.errors.some((e) => e.includes("storage:v1")),
-		).toBe(true);
+		expect(result.errors.some((e) => e.includes("storage:v1"))).toBe(true);
 	});
 });
 
@@ -81,9 +74,7 @@ describe("composition validation", () => {
 		manifest.capabilities.providesApi = ["Api1", "Api1"];
 
 		const result = validatePluginManifest(manifest);
-		expect(result.errors).toContain(
-			"capabilities.providesApi must not contain duplicates",
-		);
+		expect(result.errors).toContain("capabilities.providesApi must not contain duplicates");
 	});
 });
 
@@ -108,18 +99,14 @@ describe("certification validation", () => {
 			...manifest,
 			certification: { ...manifest.certification, a11yLevel: -1 },
 		});
-		expect(result.errors).toContain(
-			"certification.a11yLevel must be a number between 0 and 3",
-		);
+		expect(result.errors).toContain("certification.a11yLevel must be a number between 0 and 3");
 
 		// Level > 3
 		result = validatePluginManifest({
 			...manifest,
 			certification: { ...manifest.certification, a11yLevel: 4 },
 		});
-		expect(result.errors).toContain(
-			"certification.a11yLevel must be a number between 0 and 3",
-		);
+		expect(result.errors).toContain("certification.a11yLevel must be a number between 0 and 3");
 	});
 
 	it("rejects empty certification fields", () => {
@@ -137,9 +124,7 @@ describe("certification validation", () => {
 			...manifest,
 			certification: { ...manifest.certification, languages: [] },
 		});
-		expect(result.errors).toContain(
-			"certification.languages must be a non-empty array",
-		);
+		expect(result.errors).toContain("certification.languages must be a non-empty array");
 	});
 });
 
@@ -167,12 +152,8 @@ describe("trust profile validation", () => {
 		manifest.trust.profile = "unsafe";
 
 		const result = validatePluginManifest(manifest);
-		expect(result.errors).toContain(
-			"trust.profile must be one of: strict, trusted-fast",
-		);
-		expect(result.errors).toContain(
-			"trust.leaseHours must be a positive number when provided",
-		);
+		expect(result.errors).toContain("trust.profile must be one of: strict, trusted-fast");
+		expect(result.errors).toContain("trust.leaseHours must be a positive number when provided");
 	});
 });
 
@@ -237,12 +218,8 @@ describe("extension surface validation", () => {
 			"extensions.surfaces[0].layer must be one of: tractor, homestead, pi, automation, desktop, asset",
 		);
 		expect(result.warnings?.some((w) => w.includes('layer "unknown"'))).toBe(true);
-		expect(result.errors).toContain(
-			"extensions.surfaces[0].kind must be a non-empty string",
-		);
-		expect(result.errors).toContain(
-			"extensions.surfaces[0].id must be a non-empty string",
-		);
+		expect(result.errors).toContain("extensions.surfaces[0].kind must be a non-empty string");
+		expect(result.errors).toContain("extensions.surfaces[0].id must be a non-empty string");
 		expect(result.errors).toContain(
 			"extensions.surfaces[0].slot must be a non-empty string when provided",
 		);
@@ -366,9 +343,7 @@ describe("contract baseline validation", () => {
 		const result = validatePluginManifest(manifest);
 
 		expect(result.valid).toBe(false);
-		expect(result.errors).toContain(
-			"entry must not be an absolute filesystem path",
-		);
+		expect(result.errors).toContain("entry must not be an absolute filesystem path");
 	});
 
 	it("rejects invalid execution targets", () => {

@@ -13,14 +13,10 @@ export interface ResponseStreamState {
 	isFinal: boolean;
 }
 
-export type ResponseStreamStateMap = Record<
-	string,
-	ResponseStreamState
->;
+export type ResponseStreamStateMap = Record<string, ResponseStreamState>;
 
 export const UNKNOWN_AGENT_RESPONSE_PROMPT_REF = "__tractor:no-prompt-ref__";
-export const AGENT_RESPONSE_STREAM_REF_PREFIX =
-	"urn:tractor:stream:response:";
+export const AGENT_RESPONSE_STREAM_REF_PREFIX = "urn:tractor:stream:response:";
 
 export function agentResponseStreamRef(promptRef: string): string {
 	return `${AGENT_RESPONSE_STREAM_REF_PREFIX}${promptRef}`;
@@ -30,17 +26,13 @@ export function isAgentResponseStreamRef(streamRef: string): boolean {
 	return streamRef.startsWith(AGENT_RESPONSE_STREAM_REF_PREFIX);
 }
 
-export function promptRefFromAgentResponseStreamRef(
-	streamRef: string,
-): string | null {
+export function promptRefFromAgentResponseStreamRef(streamRef: string): string | null {
 	return streamRef.startsWith(AGENT_RESPONSE_STREAM_REF_PREFIX)
 		? streamRef.slice(AGENT_RESPONSE_STREAM_REF_PREFIX.length)
 		: null;
 }
 
-export function emptyResponseStreamState(
-	promptRef: string | null = null,
-): ResponseStreamState {
+export function emptyResponseStreamState(promptRef: string | null = null): ResponseStreamState {
 	return {
 		promptRef,
 		content: "",
@@ -58,8 +50,7 @@ export function applyResponseStreamEvent(
 		typeof event.sequence === "number" && Number.isFinite(event.sequence)
 			? event.sequence
 			: state.lastSequence;
-	const promptRef =
-		typeof event.prompt_ref === "string" ? event.prompt_ref : state.promptRef;
+	const promptRef = typeof event.prompt_ref === "string" ? event.prompt_ref : state.promptRef;
 
 	if (event.is_final === true) {
 		return {
@@ -85,9 +76,9 @@ export function reduceResponseStreamEvents(
 	return events.reduce(applyResponseStreamEvent, initialState);
 }
 
-export function orderResponseStreamEvents<
-	T extends ResponseStreamEvent,
->(events: readonly T[]): T[] {
+export function orderResponseStreamEvents<T extends ResponseStreamEvent>(
+	events: readonly T[],
+): T[] {
 	return [...events].sort((a, b) => streamSequence(a) - streamSequence(b));
 }
 
@@ -97,9 +88,7 @@ function streamSequence(event: ResponseStreamEvent): number {
 		: Number.MAX_SAFE_INTEGER;
 }
 
-export function agentResponseStreamKey(
-	event: ResponseStreamEvent,
-): string {
+export function agentResponseStreamKey(event: ResponseStreamEvent): string {
 	return typeof event.prompt_ref === "string"
 		? event.prompt_ref
 		: UNKNOWN_AGENT_RESPONSE_PROMPT_REF;
@@ -112,9 +101,7 @@ export function applyResponseStreamEventToMap(
 	const key = agentResponseStreamKey(event);
 	const previous =
 		stateMap[key] ??
-		emptyResponseStreamState(
-			key === UNKNOWN_AGENT_RESPONSE_PROMPT_REF ? null : key,
-		);
+		emptyResponseStreamState(key === UNKNOWN_AGENT_RESPONSE_PROMPT_REF ? null : key);
 
 	return {
 		...stateMap,
@@ -129,14 +116,10 @@ export function reduceResponseStreamEventsByPrompt(
 	return events.reduce(applyResponseStreamEventToMap, initialStateMap);
 }
 
-export function isTerminalResponseStreamEvent(
-	event: ResponseStreamEvent,
-): boolean {
+export function isTerminalResponseStreamEvent(event: ResponseStreamEvent): boolean {
 	return event.is_final === true;
 }
 
-export function isTerminalResponseStreamState(
-	state: ResponseStreamState,
-): boolean {
+export function isTerminalResponseStreamState(state: ResponseStreamState): boolean {
 	return state.isFinal === true;
 }

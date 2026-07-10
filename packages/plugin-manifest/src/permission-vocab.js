@@ -29,9 +29,7 @@ export const PERMISSIONS = Object.freeze([
 ]);
 
 /** The set of known permission id strings. @type {ReadonlySet<string>} */
-export const KNOWN_PERMISSIONS = Object.freeze(
-	new Set(PERMISSIONS.map((p) => p.id)),
-);
+export const KNOWN_PERMISSIONS = Object.freeze(new Set(PERMISSIONS.map((p) => p.id)));
 
 /**
  * Whether `id` is a permission in the closed vocabulary.

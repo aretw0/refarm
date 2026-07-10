@@ -39,10 +39,7 @@ export interface RuntimeDescriptorRevocationTelemetrySummaryOptions {
 	limit?: number;
 }
 
-export type RuntimeDescriptorRevocationAlertSeverity =
-	| "info"
-	| "warn"
-	| "critical";
+export type RuntimeDescriptorRevocationAlertSeverity = "info" | "warn" | "critical";
 
 export interface RuntimeDescriptorRevocationAlert {
 	id:
@@ -82,9 +79,7 @@ const DEFAULT_RUNTIME_DESCRIPTOR_REVOCATION_ALERT_THRESHOLDS: Required<RuntimeDe
 function isRuntimeDescriptorRevocationEvent(
 	eventName: string,
 ): eventName is RuntimeDescriptorRevocationEventName {
-	return (RUNTIME_DESCRIPTOR_REVOCATION_EVENTS as readonly string[]).includes(
-		eventName,
-	);
+	return (RUNTIME_DESCRIPTOR_REVOCATION_EVENTS as readonly string[]).includes(eventName);
 }
 
 function incrementCounter(counter: Record<string, number>, key: string): void {
@@ -93,8 +88,7 @@ function incrementCounter(counter: Record<string, number>, key: string): void {
 }
 
 function toPositiveInteger(value: unknown): number | undefined {
-	if (typeof value === "number" && Number.isInteger(value) && value > 0)
-		return value;
+	if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
 	if (typeof value === "string" && value.trim().length > 0) {
 		const parsed = Number.parseInt(value, 10);
 		if (Number.isInteger(parsed) && parsed > 0) return parsed;
@@ -107,8 +101,7 @@ function resolveRuntimeDescriptorRevocationPolicy(payload: unknown): string {
 	const policy = (payload as Record<string, unknown>).policy;
 	if (typeof policy === "string" && policy.trim().length > 0) return policy;
 	const resolvedPolicy = (payload as Record<string, unknown>).resolvedPolicy;
-	if (typeof resolvedPolicy === "string" && resolvedPolicy.trim().length > 0)
-		return resolvedPolicy;
+	if (typeof resolvedPolicy === "string" && resolvedPolicy.trim().length > 0) return resolvedPolicy;
 	return "";
 }
 
@@ -135,19 +128,17 @@ function selectRuntimeDescriptorRevocationEvents(
 	const pluginFilter = options.pluginId?.trim();
 	const policyFilter = options.policy?.trim();
 	const profileFilter = options.profile?.trim();
-	const selected = events
-		.filter(isRuntimeDescriptorRevocationTelemetryEvent)
-		.filter((event) => {
-			if (pluginFilter && event.pluginId !== pluginFilter) return false;
+	const selected = events.filter(isRuntimeDescriptorRevocationTelemetryEvent).filter((event) => {
+		if (pluginFilter && event.pluginId !== pluginFilter) return false;
 
-			const policy = resolveRuntimeDescriptorRevocationPolicy(event.payload);
-			if (policyFilter && policy !== policyFilter) return false;
+		const policy = resolveRuntimeDescriptorRevocationPolicy(event.payload);
+		if (policyFilter && policy !== policyFilter) return false;
 
-			const profile = resolveRuntimeDescriptorRevocationProfile(event.payload);
-			if (profileFilter && profile !== profileFilter) return false;
+		const profile = resolveRuntimeDescriptorRevocationProfile(event.payload);
+		if (profileFilter && profile !== profileFilter) return false;
 
-			return true;
-		});
+		return true;
+	});
 
 	const limit = toPositiveInteger(options.limit);
 	if (!limit || selected.length <= limit) return selected;
@@ -194,30 +185,21 @@ export function summarizeRuntimeDescriptorRevocationTelemetry(
 	const byProfile: Record<string, number> = {};
 	const affectedPlugins = new Set<string>();
 
-	const selectedEvents = selectRuntimeDescriptorRevocationEvents(
-		events,
-		options,
-	);
+	const selectedEvents = selectRuntimeDescriptorRevocationEvents(events, options);
 
 	let totalEvents = 0;
 	for (const event of selectedEvents) {
 		totalEvents += 1;
 		byEvent[event.event] += 1;
 
-		if (
-			typeof event.pluginId === "string" &&
-			event.pluginId.trim().length > 0
-		) {
+		if (typeof event.pluginId === "string" && event.pluginId.trim().length > 0) {
 			affectedPlugins.add(event.pluginId);
 		}
 
 		const payload = event.payload ?? {};
 		if (typeof payload === "object" && payload !== null) {
 			const record = payload as Record<string, unknown>;
-			incrementCounter(
-				byPolicy,
-				String(record.policy ?? record.resolvedPolicy ?? ""),
-			);
+			incrementCounter(byPolicy, String(record.policy ?? record.resolvedPolicy ?? ""));
 			incrementCounter(byPolicySource, String(record.policySource ?? ""));
 			incrementCounter(byProfile, String(record.profile ?? ""));
 		}
@@ -229,15 +211,11 @@ export function summarizeRuntimeDescriptorRevocationTelemetry(
 		byPolicy,
 		byPolicySource,
 		byProfile,
-		affectedPlugins: Array.from(affectedPlugins).sort((a, b) =>
-			a.localeCompare(b),
-		),
+		affectedPlugins: Array.from(affectedPlugins).sort((a, b) => a.localeCompare(b)),
 	};
 }
 
-function revocationAlertSeverityRank(
-	severity: RuntimeDescriptorRevocationAlertSeverity,
-): number {
+function revocationAlertSeverityRank(severity: RuntimeDescriptorRevocationAlertSeverity): number {
 	switch (severity) {
 		case "critical":
 			return 3;
@@ -252,21 +230,15 @@ export function detectRuntimeDescriptorRevocationAlerts(
 	summary: RuntimeDescriptorRevocationTelemetrySummary,
 	thresholds: RuntimeDescriptorRevocationAlertThresholds = {},
 ): RuntimeDescriptorRevocationAlert[] {
-	const resolvedThresholds =
-		resolveRuntimeDescriptorRevocationAlertThresholds(thresholds);
+	const resolvedThresholds = resolveRuntimeDescriptorRevocationAlertThresholds(thresholds);
 	const alerts: RuntimeDescriptorRevocationAlert[] = [];
 
-	const unavailableCount =
-		summary.byEvent["system:descriptor_revocation_unavailable"];
+	const unavailableCount = summary.byEvent["system:descriptor_revocation_unavailable"];
 	const failClosedUnavailableCount = summary.byPolicy["fail-closed"] ?? 0;
 
-	if (
-		unavailableCount >= resolvedThresholds.unavailableWarnAt ||
-		failClosedUnavailableCount > 0
-	) {
+	if (unavailableCount >= resolvedThresholds.unavailableWarnAt || failClosedUnavailableCount > 0) {
 		const severity: RuntimeDescriptorRevocationAlertSeverity =
-			failClosedUnavailableCount > 0 ||
-			unavailableCount >= resolvedThresholds.unavailableCriticalAt
+			failClosedUnavailableCount > 0 || unavailableCount >= resolvedThresholds.unavailableCriticalAt
 				? "critical"
 				: "warn";
 		alerts.push({
@@ -294,8 +266,7 @@ export function detectRuntimeDescriptorRevocationAlerts(
 		});
 	}
 
-	const staleCacheCount =
-		summary.byEvent["system:descriptor_revocation_stale_cache_used"];
+	const staleCacheCount = summary.byEvent["system:descriptor_revocation_stale_cache_used"];
 	if (staleCacheCount >= resolvedThresholds.staleCacheWarnAt) {
 		alerts.push({
 			id: "revocation-stale-cache",
@@ -321,8 +292,7 @@ export function detectRuntimeDescriptorRevocationAlerts(
 
 	alerts.sort((a, b) => {
 		const severityDelta =
-			revocationAlertSeverityRank(b.severity) -
-			revocationAlertSeverityRank(a.severity);
+			revocationAlertSeverityRank(b.severity) - revocationAlertSeverityRank(a.severity);
 		if (severityDelta !== 0) return severityDelta;
 		return a.id.localeCompare(b.id);
 	});
@@ -340,13 +310,8 @@ export function buildRuntimeDescriptorRevocationDiagnostics(
 	events: TelemetryEvent[],
 	options: RuntimeDescriptorRevocationDiagnosticsOptions = {},
 ): RuntimeDescriptorRevocationDiagnostics {
-	const summary = summarizeRuntimeDescriptorRevocationTelemetry(
-		events,
-		options.summary,
-	);
-	const thresholds = resolveRuntimeDescriptorRevocationAlertThresholds(
-		options.thresholds,
-	);
+	const summary = summarizeRuntimeDescriptorRevocationTelemetry(events, options.summary);
+	const thresholds = resolveRuntimeDescriptorRevocationAlertThresholds(options.thresholds);
 	const alerts = detectRuntimeDescriptorRevocationAlerts(summary, thresholds);
 	return {
 		generatedAt: options.generatedAt ?? new Date().toISOString(),
@@ -397,13 +362,7 @@ export class TelemetryRingBuffer {
 		this.capacity = options.capacity ?? 1000;
 		this.buffer = new Array(this.capacity);
 		this.sensitiveKeys = new Set(
-			options.sensitiveKeys ?? [
-				"secretKey",
-				"privateKey",
-				"token",
-				"password",
-				"sas",
-			],
+			options.sensitiveKeys ?? ["secretKey", "privateKey", "token", "password", "sas"],
 		);
 		this.maxValueLength = options.maxValueLength ?? 500;
 	}
@@ -423,9 +382,7 @@ export class TelemetryRingBuffer {
 			pluginId: event.pluginId,
 			durationMs: event.durationMs,
 			payload:
-				event.payload && typeof event.payload === "object"
-					? { ...event.payload }
-					: event.payload,
+				event.payload && typeof event.payload === "object" ? { ...event.payload } : event.payload,
 		};
 
 		this.buffer[this.head] = snapshot;
@@ -471,12 +428,8 @@ export class TelemetryRingBuffer {
 		for (const [key, value] of Object.entries(payload)) {
 			if (this.sensitiveKeys.has(key)) {
 				sanitized[key] = "[REDACTED]";
-			} else if (
-				typeof value === "string" &&
-				value.length > this.maxValueLength
-			) {
-				sanitized[key] =
-					value.substring(0, this.maxValueLength) + "... [TRUNCATED]";
+			} else if (typeof value === "string" && value.length > this.maxValueLength) {
+				sanitized[key] = value.substring(0, this.maxValueLength) + "... [TRUNCATED]";
 			} else if (value instanceof Uint8Array) {
 				sanitized[key] = `[Uint8Array(${value.length})]`;
 			} else if (Array.isArray(value)) {
@@ -531,8 +484,7 @@ export class TelemetryHost {
 			id: "system:diagnostics:export",
 			title: "Export Diagnostic Telemetry",
 			category: "System",
-			description:
-				"Exports a sanitized slice of recent internal telemetry events.",
+			description: "Exports a sanitized slice of recent internal telemetry events.",
 			handler: () => {
 				return { events: this.dump() };
 			},
@@ -547,7 +499,10 @@ export class TelemetryHost {
 			handler: (args?: unknown) => {
 				const events = this.dump();
 				return {
-					summary: summarizeRuntimeDescriptorRevocationTelemetry(events, args as RuntimeDescriptorRevocationTelemetrySummaryOptions),
+					summary: summarizeRuntimeDescriptorRevocationTelemetry(
+						events,
+						args as RuntimeDescriptorRevocationTelemetrySummaryOptions,
+					),
 				};
 			},
 		});
@@ -559,7 +514,10 @@ export class TelemetryHost {
 			description:
 				"Builds revocation telemetry diagnostics with severity-ranked alerts for incident triage.",
 			handler: (args?: unknown) => {
-				const a = args as (RuntimeDescriptorRevocationTelemetrySummaryOptions & RuntimeDescriptorRevocationAlertThresholds) | undefined;
+				const a = args as
+					| (RuntimeDescriptorRevocationTelemetrySummaryOptions &
+							RuntimeDescriptorRevocationAlertThresholds)
+					| undefined;
 				const events = this.dump();
 				return buildRuntimeDescriptorRevocationDiagnostics(events, {
 					summary: {

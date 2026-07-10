@@ -11,10 +11,4 @@
 /** @typedef {import('./index.d.ts').ManifestValidationResult} ManifestValidationResult */
 
 /** @type {readonly TelemetryHook[]} */
-export const REQUIRED_TELEMETRY_HOOKS = [
-  "onLoad",
-  "onInit",
-  "onRequest",
-  "onError",
-  "onTeardown",
-];
+export const REQUIRED_TELEMETRY_HOOKS = ["onLoad", "onInit", "onRequest", "onError", "onTeardown"];

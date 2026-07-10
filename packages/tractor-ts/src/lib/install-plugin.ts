@@ -93,25 +93,19 @@ export interface BrowserRuntimeModuleDescriptorReference {
 	url: string;
 }
 
-export type BrowserRuntimeDescriptorRevocationList =
-	RuntimeDescriptorRevocationList;
+export type BrowserRuntimeDescriptorRevocationList = RuntimeDescriptorRevocationList;
 
 export type BrowserRuntimeDescriptorRevocationListReference =
 	RuntimeDescriptorRevocationListReference;
 
-export type BrowserRuntimeDescriptorDistributionPolicy =
-	| "package-embedded"
-	| "external-signed";
+export type BrowserRuntimeDescriptorDistributionPolicy = "package-embedded" | "external-signed";
 
 export type BrowserRuntimeDescriptorRevocationUnavailablePolicy =
 	RuntimeDescriptorRevocationUnavailablePolicy;
 
-export type BrowserRuntimeDescriptorRevocationProfile =
-	RuntimeDescriptorRevocationProfile;
+export type BrowserRuntimeDescriptorRevocationProfile = RuntimeDescriptorRevocationProfile;
 
-export type BrowserRuntimeDescriptorTrustMode =
-	| "strict-manual"
-	| "repository-derived";
+export type BrowserRuntimeDescriptorTrustMode = "strict-manual" | "repository-derived";
 
 export interface InstallPluginOptions {
 	force?: boolean;
@@ -197,24 +191,24 @@ function normalizeTrustedOrigins(origins: string[] | undefined): Set<string> {
 function resolveInstallRevocationUnavailablePolicy(
 	options: InstallPluginOptions,
 ): ResolveRuntimeDescriptorRevocationUnavailablePolicyResult {
-	const runtimePolicyOverride = refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
+	const runtimePolicyOverride =
+		refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
 	const runtimeProfileOverride = refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
 	const runtimeEnvironmentOverride = refarmGlobals.__REFARM_ENVIRONMENT__;
 	const viteEnv = (import.meta as ViteImportMeta).env;
 	const nodeEnv = (globalThis as NodeEnvGlobal).process?.env;
 
-	const environmentProfileResolution =
-		resolveRuntimeDescriptorRevocationEnvironmentProfile({
-			dedicatedProfile:
-				runtimeProfileOverride ??
-				viteEnv?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE ??
-				nodeEnv?.REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE,
-			genericEnvironment:
-				runtimeEnvironmentOverride ??
-				viteEnv?.VITE_REFARM_ENVIRONMENT ??
-				nodeEnv?.REFARM_ENVIRONMENT ??
-				nodeEnv?.NODE_ENV,
-		});
+	const environmentProfileResolution = resolveRuntimeDescriptorRevocationEnvironmentProfile({
+		dedicatedProfile:
+			runtimeProfileOverride ??
+			viteEnv?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE ??
+			nodeEnv?.REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE,
+		genericEnvironment:
+			runtimeEnvironmentOverride ??
+			viteEnv?.VITE_REFARM_ENVIRONMENT ??
+			nodeEnv?.REFARM_ENVIRONMENT ??
+			nodeEnv?.NODE_ENV,
+	});
 
 	const resolved = resolveRuntimeDescriptorRevocationUnavailablePolicy({
 		explicitPolicy: options.descriptorRevocationUnavailablePolicy,
@@ -265,8 +259,7 @@ function buildReleaseAssetDescriptorUrl(
 		);
 	}
 
-	const releaseTag =
-		options.descriptorReleaseTag ?? `${manifest.id}@${manifest.version}`;
+	const releaseTag = options.descriptorReleaseTag ?? `${manifest.id}@${manifest.version}`;
 	const descriptorAssetName =
 		options.descriptorReleaseAssetName ?? "runtime-descriptor-manifest.json";
 
@@ -280,14 +273,9 @@ function buildReleaseAssetDescriptorUrl(
 }
 
 function isRevocationListReference(
-	input:
-		| BrowserRuntimeDescriptorRevocationList
-		| BrowserRuntimeDescriptorRevocationListReference,
+	input: BrowserRuntimeDescriptorRevocationList | BrowserRuntimeDescriptorRevocationListReference,
 ): input is BrowserRuntimeDescriptorRevocationListReference {
-	return (
-		typeof (input as BrowserRuntimeDescriptorRevocationListReference).url ===
-		"string"
-	);
+	return typeof (input as BrowserRuntimeDescriptorRevocationListReference).url === "string";
 }
 
 function resolveAutoRevocationListReference(
@@ -296,23 +284,16 @@ function resolveAutoRevocationListReference(
 	options: InstallPluginOptions,
 ): BrowserRuntimeDescriptorRevocationListReference | null {
 	const sourceRepository =
-		options.descriptorSourceRepository ??
-		descriptor.provenance?.sourceRepository;
+		options.descriptorSourceRepository ?? descriptor.provenance?.sourceRepository;
 	if (!sourceRepository) return null;
 
-	const releaseTag =
-		options.descriptorReleaseTag ?? `${manifest.id}@${manifest.version}`;
+	const releaseTag = options.descriptorReleaseTag ?? `${manifest.id}@${manifest.version}`;
 	const revocationAssetName =
-		options.descriptorRevocationAssetName ??
-		"runtime-descriptor-revocations.json";
+		options.descriptorRevocationAssetName ?? "runtime-descriptor-revocations.json";
 
 	try {
 		return {
-			url: buildGithubReleaseAssetUrl(
-				sourceRepository,
-				releaseTag,
-				revocationAssetName,
-			),
+			url: buildGithubReleaseAssetUrl(sourceRepository, releaseTag, revocationAssetName),
 		};
 	} catch (error) {
 		if (options.descriptorSourceRepository) {
@@ -373,7 +354,7 @@ async function assertDescriptorNotRevoked(
 					}
 					throw error;
 				}
-		  })()
+			})()
 		: normalizeRuntimeDescriptorRevocationList(revocationInput, "inline");
 
 	if (!revocationList) return;
@@ -426,13 +407,10 @@ function assertDescriptorReferencePolicy(
 		);
 	}
 
-	const isBundleManifestPath =
-		/runtime-descriptor-manifest(?:-[^/]+)?\.json$/i.test(
-			descriptorUrl.pathname,
-		);
-	const isDescriptorPath = descriptorUrl.pathname.endsWith(
-		".runtime-descriptor.json",
+	const isBundleManifestPath = /runtime-descriptor-manifest(?:-[^/]+)?\.json$/i.test(
+		descriptorUrl.pathname,
 	);
+	const isDescriptorPath = descriptorUrl.pathname.endsWith(".runtime-descriptor.json");
 
 	if (!isDescriptorPath && !isBundleManifestPath) {
 		throw new Error(
@@ -470,9 +448,7 @@ function assertDescriptorReferencePolicy(
 }
 
 function isBundleManifestUrl(descriptorUrl: URL): boolean {
-	return /runtime-descriptor-manifest(?:-[^/]+)?\.json$/i.test(
-		descriptorUrl.pathname,
-	);
+	return /runtime-descriptor-manifest(?:-[^/]+)?\.json$/i.test(descriptorUrl.pathname);
 }
 
 function extractDescriptorFromBundleManifest(
@@ -497,8 +473,7 @@ function extractDescriptorFromBundleManifest(
 	}
 
 	const entry = bundle.descriptors.find(
-		(item) =>
-			item?.pluginId === manifest.id && item?.componentWasmUrl === wasmUrl,
+		(item) => item?.pluginId === manifest.id && item?.componentWasmUrl === wasmUrl,
 	);
 
 	if (!entry?.descriptor || typeof entry.descriptor !== "object") {
@@ -511,13 +486,9 @@ function extractDescriptorFromBundleManifest(
 }
 
 function isDescriptorReference(
-	input:
-		| BrowserRuntimeModuleDescriptor
-		| BrowserRuntimeModuleDescriptorReference,
+	input: BrowserRuntimeModuleDescriptor | BrowserRuntimeModuleDescriptorReference,
 ): input is BrowserRuntimeModuleDescriptorReference {
-	return (
-		typeof (input as BrowserRuntimeModuleDescriptorReference).url === "string"
-	);
+	return typeof (input as BrowserRuntimeModuleDescriptorReference).url === "string";
 }
 
 function stableCanonicalize(value: unknown): unknown {
@@ -585,10 +556,7 @@ function assertDescriptorShape(
 		);
 	}
 
-	if (
-		!descriptor.provenance?.buildId ||
-		!isFullCommitSha(descriptor.provenance?.commitSha)
-	) {
+	if (!descriptor.provenance?.buildId || !isFullCommitSha(descriptor.provenance?.commitSha)) {
 		throw new Error(
 			`[install-plugin] Browser runtime descriptor for ${manifest.id} requires provenance buildId + full commitSha.`,
 		);
@@ -618,9 +586,7 @@ function assertDescriptorObjectPolicy(
 async function resolveDescriptorInput(
 	manifest: PluginManifest,
 	wasmUrl: string,
-	input:
-		| BrowserRuntimeModuleDescriptor
-		| BrowserRuntimeModuleDescriptorReference,
+	input: BrowserRuntimeModuleDescriptor | BrowserRuntimeModuleDescriptorReference,
 	policy: BrowserRuntimeDescriptorDistributionPolicy,
 	trustedOrigins: Set<string>,
 	trustMode: BrowserRuntimeDescriptorTrustMode,
@@ -666,12 +632,7 @@ async function resolveDescriptorInput(
 
 		const payload = await response.json();
 		const descriptor = isBundleManifestUrl(descriptorUrl)
-			? extractDescriptorFromBundleManifest(
-					payload,
-					manifest,
-					wasmUrl,
-					descriptorUrl.toString(),
-				)
+			? extractDescriptorFromBundleManifest(payload, manifest, wasmUrl, descriptorUrl.toString())
 			: (payload as BrowserRuntimeModuleDescriptor);
 		assertDescriptorShape(descriptor, manifest, wasmUrl);
 		assertDescriptorObjectPolicy(manifest, descriptor, policy);
@@ -755,21 +716,16 @@ export async function installPlugin(
 ): Promise<InstallPluginResult> {
 	if (
 		options.browserRuntimeModule &&
-		(options.browserRuntimeModuleDescriptor ||
-			options.descriptorSourceRepository)
+		(options.browserRuntimeModuleDescriptor || options.descriptorSourceRepository)
 	) {
 		throw new Error(
 			`[install-plugin] Provide either browserRuntimeModule or descriptor-based inputs (not both) for ${manifest.id}.`,
 		);
 	}
 
-	const descriptorDistributionPolicy =
-		options.descriptorDistributionPolicy ?? "package-embedded";
-	const descriptorTrustedOrigins = normalizeTrustedOrigins(
-		options.descriptorTrustedOrigins,
-	);
-	const descriptorTrustMode =
-		options.descriptorTrustMode ?? "repository-derived";
+	const descriptorDistributionPolicy = options.descriptorDistributionPolicy ?? "package-embedded";
+	const descriptorTrustedOrigins = normalizeTrustedOrigins(options.descriptorTrustedOrigins);
+	const descriptorTrustMode = options.descriptorTrustMode ?? "repository-derived";
 
 	const descriptorInput =
 		options.browserRuntimeModuleDescriptor ??
@@ -800,12 +756,7 @@ export async function installPlugin(
 			));
 
 		if (descriptorDistributionPolicy === "external-signed") {
-			await assertDescriptorNotRevoked(
-				manifest,
-				descriptorHash,
-				descriptor,
-				options,
-			);
+			await assertDescriptorNotRevoked(manifest, descriptorHash, descriptor, options);
 		}
 
 		runtimeModule = await fetchBrowserRuntimeModule(
