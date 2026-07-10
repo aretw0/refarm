@@ -205,9 +205,18 @@ export function missingHomesteadHostRendererCapabilities(
 }
 
 export function requiredHomesteadHostRendererCapabilities(
-	kind: HomesteadHostRendererKind,
+	kind: HomesteadHostRendererKind | string,
 ): readonly HomesteadHostRendererCapability[] {
-	return DEFAULT_HOMESTEAD_HOST_RENDERER_CAPABILITIES[kind];
+	// A kind outside the known set (a NEW surface renderer — webxr, voice, …) is not a
+	// crash: the open axis means the platform may grow renderers the host doesn't know
+	// yet. Fall back to no *required* capabilities so an unknown kind is handled
+	// gracefully (a projector for it declares what it can do), instead of returning
+	// undefined and throwing downstream. (ADR-085: surfaces are data.)
+	return (
+		DEFAULT_HOMESTEAD_HOST_RENDERER_CAPABILITIES[
+			kind as HomesteadHostRendererKind
+		] ?? []
+	);
 }
 
 export function checkHomesteadHostRendererConformance(

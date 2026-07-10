@@ -40,6 +40,13 @@ describe("Homestead host renderer conformance", () => {
 		]);
 	});
 
+	it("degrades gracefully for a NEW renderer kind — no required caps, no crash (open axis)", () => {
+		// A kind outside the known set (webxr, voice, …) must not throw: the platform may
+		// grow renderers the host doesn't know yet. It falls back to no required
+		// capabilities instead of returning undefined (ADR-085: surfaces are data).
+		expect(requiredHomesteadHostRendererCapabilities("webxr")).toEqual([]);
+	});
+
 	it("passes default descriptors for web, tui, and headless", () => {
 		for (const kind of HOMESTEAD_HOST_RENDERER_KINDS) {
 			const report = runHostRendererConformance(kind, (rendererKind) =>
