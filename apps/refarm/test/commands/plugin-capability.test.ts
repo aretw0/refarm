@@ -384,16 +384,18 @@ describe("plugin capability group", () => {
 			expect(syncCalled).toBe(false);
 		});
 
-		it("routes a git ref to a loud resolver-not-wired envelope", async () => {
+		it("routes a git ref to the git installer (wired; a bad remote fails at clone)", async () => {
 			const group = createPluginCapabilityGroup(makeDeps());
+			// A non-resolvable host (.invalid, RFC 6761) — the clone fails fast (DNS),
+			// proving git routes to the git installer (ADR-086 Fase 7c), NOT the old
+			// not-wired path.
 			const env = await action(group, "install").run({
-				args: { ref: "git+https://host/x.git" },
+				args: { ref: "git+https://nonexistent.invalid/x.git" },
 				options: {},
 				json: true,
 			});
 			expect(env.ok).toBe(false);
-			expect((env as { error?: string }).error).toBe("resolver-not-wired");
-			expect((env as { origin?: string }).origin).toBe("git");
+			expect((env as { error?: string }).error).toBe("git_clone_failed");
 		});
 
 		it("rejects --bundled together with a positional ref (ambiguous)", async () => {

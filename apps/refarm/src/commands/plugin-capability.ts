@@ -35,6 +35,7 @@ import os from "node:os";
 import { pluginsBaseDir } from "../utils/refarm-home.js";
 import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
 import { PLUGIN_INSTALL_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
+import { buildGitInstallReport } from "./plugin-install-from-git.js";
 import { buildNpmInstallReport } from "./plugin-install-from-npm.js";
 import { buildExtensionInstallReport } from "./plugin-install-from-path.js";
 import { buildUrlInstallReport } from "./plugin-install-from-url.js";
@@ -427,17 +428,16 @@ export function createPluginCapabilityGroup(
 				})) as CapabilityEnvelope;
 			}
 
-			// A ref: its shape selects the origin. `local` (a reviewed path), `url` (a
-			// content-addressed descriptor), and `npm` (a resolved package) are
-			// materializable; `git` is recognized and routed to a loud not-wired
-			// envelope (never a silent no-op that pretends coverage — ADR-086).
+			// A ref: its shape selects the origin. `local` (a reviewed path), `npm` (a
+			// resolved package), `git` (a cloned repo), and `url` (a content-addressed
+			// descriptor) are all materializable — every origin is now wired.
 			const origin = detectPluginOrigin(ref);
 
-			// local + npm both run the review-first path installer, so both honor
+			// local + npm + git all run the review-first path installer, so all honor
 			// --policy / --grant. Validate the shared policy option once.
 			const policy = input.options.policy;
 			if (
-				(origin === "local" || origin === "npm") &&
+				(origin === "local" || origin === "npm" || origin === "git") &&
 				policy !== undefined &&
 				policy !== "fail-fast" &&
 				policy !== "warn+continue"
@@ -473,6 +473,18 @@ export function createPluginCapabilityGroup(
 				})) as CapabilityEnvelope;
 			}
 
+			// git: shallow-clone the repo, then run the SAME review-first local installer
+			// against its shipped plugin.json — git gains local's gate + multi-kind. The
+			// repo must ship its BUILT entry (installers don't build); no built entry
+			// fails loud.
+			if (origin === "git") {
+				return (await buildGitInstallReport({
+					ref,
+					grantedCapabilities,
+					policyMode,
+				})) as CapabilityEnvelope;
+			}
+
 			// url: fetch a plugin descriptor, verify the wasm against its declared
 			// content-address (the hash gate), then content-store + install. Safe from
 			// an untrusted URL by construction — tampered bytes are rejected, not run.
@@ -480,13 +492,15 @@ export function createPluginCapabilityGroup(
 				return (await buildUrlInstallReport({ url: ref })) as CapabilityEnvelope;
 			}
 
+			// Every PluginOrigin is now wired; this is a defensive catch for an
+			// unexpected origin value (should be unreachable).
 			return buildJsonErrorEnvelope({
 				command: "plugin",
 				operation: "install",
 				error: "resolver-not-wired",
-				message: `Installing from a ${origin} reference ("${ref}") is not wired yet. Today a local path, an npm package, a url descriptor, and --bundled are supported.`,
+				message: `Installing from a ${origin} reference ("${ref}") is not supported.`,
 				nextAction:
-					"Install a local prepared plugin by path, an npm package, a url descriptor, or `refarm plugin install --bundled`.",
+					"Install from a local path, an npm package, a git repo, a url descriptor, or `refarm plugin install --bundled`.",
 				extra: { origin, ref },
 			});
 		},
