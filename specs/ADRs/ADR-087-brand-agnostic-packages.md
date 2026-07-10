@@ -194,3 +194,17 @@ the use site). Keep a namespace/prefix when it genuinely disambiguates.
    Net: (a) is the real prize and is DONE. (b) is mostly app-owned (leave). (c) is
    scattered injectable-defaults, part behind §8 — chew opportunistically where a
    package is touched for another reason, not as a standalone grind.
+
+5. ✅ **DONE** (3a0d36da + 8016e92d). Revealed by the T1 white-label seam
+   (`examples/devbench-t1`): the MIRROR of this whole ADR — a generic package
+   leaking a DIFFERENT brand. `@refarm.dev/capability-host` hardcoded
+   `DEFAULT_HOST_COMMAND_ENV_KEY = "DGK_COMMAND"` (the devbench example's brand),
+   so any white-label calling `createHostCommandResolver({ defaultCommand: "acme" })`
+   silently got `DGK_COMMAND` as its override env, not `ACME_COMMAND`. Fixed with
+   `hostCommandOverrideEnv(command)` (derives `dgk`→`DGK_COMMAND`, mirrors
+   `applicationCommandOverrideEnv`); the constant is dropped (nothing published →
+   no compat alias). The constructive half (`white-label-config.test.ts`) proves
+   phase-4a's env-prefix seam end-to-end from the consumer side: devbench drives
+   the shared `@refarm.dev/config` under the `DGK` prefix, zero refarm leak. The
+   lesson: a real T1 consumer reveals brand leaks in BOTH directions (refarm →
+   example AND example → shared substrate).
