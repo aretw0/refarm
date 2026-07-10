@@ -56,6 +56,31 @@ fn tool_prompts_for_prompt() -> Option<String> {
     ))
 }
 
+/// Progressive-disclosure skill index for the system prompt (skill leg, ADR-086).
+/// The host packs one disclosure line per installed skill (name + description +
+/// when-to-use) into `MODEL_SKILLS`, newline-separated — the CHEAP metadata the
+/// references (Codex/Hermes/Claude Skills) always keep present, WITHOUT loading the
+/// full instructions. Pure + native-testable: given the raw env value, format the
+/// section, or `None` when there is no skill (byte-identical prompt for a node with
+/// none). Blank lines are dropped so a trailing newline never yields an empty entry.
+fn skill_prompts_section(raw: &str) -> Option<String> {
+    let lines: Vec<&str> = raw.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    if lines.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "\n\nSkills available to you (guidance you should follow when a task matches):\n- {}",
+        lines.join("\n- ")
+    ))
+}
+
+#[cfg(target_arch = "wasm32")]
+fn skill_prompts_for_prompt() -> Option<String> {
+    std::env::var("MODEL_SKILLS")
+        .ok()
+        .and_then(|raw| skill_prompts_section(&raw))
+}
+
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn resolve_system_prompt() -> String {
     let base = std::env::var("MODEL_SYSTEM").unwrap_or_else(|_| DEFAULT_SYSTEM_PROMPT.to_owned());
@@ -66,5 +91,37 @@ pub(crate) fn resolve_system_prompt() -> String {
     if let Some(tools) = tool_prompts_for_prompt() {
         prompt.push_str(&tools);
     }
+    if let Some(skills) = skill_prompts_for_prompt() {
+        prompt.push_str(&skills);
+    }
     prompt
+}
+
+#[cfg(test)]
+mod tests {
+    use super::skill_prompts_section;
+
+    #[test]
+    fn none_when_no_skills() {
+        // A node with no skills must yield NO section (byte-identical prompt).
+        assert_eq!(skill_prompts_section(""), None);
+        assert_eq!(skill_prompts_section("   \n  \n"), None);
+    }
+
+    #[test]
+    fn formats_disclosure_lines_as_a_bulleted_section() {
+        let raw = "git-workflow — commit + PR flow (use when: the task edits code and needs a PR)\nvault-search — find notes (use when: asked to locate a note)";
+        let section = skill_prompts_section(raw).expect("a section for two skills");
+        assert!(section.starts_with("\n\nSkills available to you"));
+        assert!(section.contains("\n- git-workflow — commit + PR flow"));
+        assert!(section.contains("\n- vault-search — find notes"));
+    }
+
+    #[test]
+    fn drops_blank_lines_so_a_trailing_newline_is_not_an_empty_bullet() {
+        let raw = "only-skill — does one thing\n";
+        let section = skill_prompts_section(raw).expect("a section");
+        // Exactly one bullet, no empty trailing "- ".
+        assert_eq!(section.matches("\n- ").count(), 1);
+    }
 }
