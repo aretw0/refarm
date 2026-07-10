@@ -2117,3 +2117,70 @@ async fn harness_pre_tool_budget_model_can_override_limit() {
 
     clean_model_env();
 }
+
+/// The reversible-fold seam, end to end: with MODEL_CONTEXT_BUDGET_TOKENS set low and
+/// several turns of prior history, a turn that pulls that history must FOLD the oldest
+/// turns and PERSIST a `SessionContextFold` record into the CRDT (so the folded turns
+/// stay reconstructable). This is what a unit test can't feel — the guest running the
+/// real agent.wasm, the seam firing, the node landing in the store.
+#[tokio::test]
+#[ignore]
+async fn harness_context_budget_persists_reversible_fold() {
+    let _env = env_lock();
+    let path = wasm_path();
+    assert!(path.exists(), "agent.wasm not found");
+
+    clean_model_env();
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    // A tiny budget forces a fold once a few turns of history are pulled. Set BEFORE
+    // load — the guest reads it from the WASI env, which is frozen at load time.
+    std::env::set_var("MODEL_CONTEXT_BUDGET_TOKENS", "40");
+
+    // The mock returns a sizable assistant message so folded turns actually cost tokens.
+    let big = "resposta detalhada ".repeat(20);
+    let resp = openai_response(&big, 30, 20);
+    let port = mock_llm_server(resp).await;
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let sync = make_sync();
+    let host = PluginHost::new(
+        TrustManager::new(),
+        TelemetryBus::new(100),
+        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load agent");
+
+    // Build several turns of CRDT history (history disabled on these — just state).
+    for i in 0..4 {
+        let q = format!("pergunta número {i} com bastante texto para ocupar tokens no contexto");
+        call_on_event_with_timeout(&mut handle, &q, "fold harness build history").await;
+    }
+
+    // A turn that pulls the full history — with the low budget, the guest must fold the
+    // oldest turns and record a SessionContextFold.
+    let final_turn = serde_json::json!({ "prompt": "última pergunta", "history_turns": 8 });
+    call_on_event_with_timeout(&mut handle, &final_turn.to_string(), "fold harness final").await;
+
+    let folds = sync
+        .query_nodes("SessionContextFold")
+        .expect("query SessionContextFold");
+    assert!(
+        !folds.is_empty(),
+        "a low MODEL_CONTEXT_BUDGET_TOKENS with prior history must persist a SessionContextFold"
+    );
+
+    // The persisted fold is the reversible record: it carries refs + a matching-schema
+    // digest, not just a lossy summary.
+    let fold: serde_json::Value = serde_json::from_str(&folds[0].payload).unwrap();
+    assert_eq!(fold["@type"], "SessionContextFold");
+    assert_eq!(fold["schema"], "refarm.session-context-fold.v1");
+    assert_eq!(fold["digest"]["algorithm"], "refarm-stable-fnv1a64-v1");
+    assert!(
+        !fold["folded_entry_refs"].as_array().unwrap().is_empty(),
+        "fold must reference the folded turns (the reversibility)"
+    );
+
+    clean_model_env();
+    std::env::remove_var("MODEL_CONTEXT_BUDGET_TOKENS");
+}

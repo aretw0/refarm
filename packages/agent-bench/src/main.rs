@@ -147,6 +147,12 @@ async fn run_scenario() -> Result<BenchReport> {
         tokens_out += v["tokens_out"].as_u64().unwrap_or(0) as u128;
     }
 
+    // Second scenario: the reversible fold. Under a tiny context budget with prior
+    // history, the agent must fold — measured as the count of SessionContextFold records
+    // it persists. This is a regression guard for context compaction: if a change breaks
+    // folding, this metric drops to 0 and the check fails (higher-is-better here).
+    let context_folds = run_fold_scenario(&path).await?;
+
     Ok(BenchReport {
         version: 1,
         suite: "agent-tokens".to_string(),
@@ -173,8 +179,66 @@ async fn run_scenario() -> Result<BenchReport> {
                 lower_is_better: true,
                 threshold_pct: REGRESSION_THRESHOLD_PCT,
             },
+            BenchMetric {
+                name: "context_folds".to_string(),
+                value: context_folds,
+                unit: "folds".to_string(),
+                // higher is better: folding MUST keep firing; a drop past threshold
+                // (e.g. to 0) means context compaction regressed.
+                lower_is_better: false,
+                threshold_pct: REGRESSION_THRESHOLD_PCT,
+            },
         ],
     })
+}
+
+/// Drive a multi-turn scenario under a tiny context budget so the agent folds, and
+/// return how many `SessionContextFold` records it persisted. A fresh host/session so
+/// it doesn't perturb the single-turn token metrics above.
+async fn run_fold_scenario(path: &std::path::Path) -> Result<u128> {
+    clean_model_env();
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    // Low budget forces a fold once history is pulled; set BEFORE load (WASI env frozen).
+    std::env::set_var("MODEL_CONTEXT_BUDGET_TOKENS", "40");
+    let big = "resposta detalhada ".repeat(20);
+    let port = mock_llm_server(openai_response(&big, 30, 20));
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let storage = NativeStorage::open(":memory:").context("open storage (fold)")?;
+    let sync = NativeSync::new(storage, ":memory:").context("open sync (fold)")?;
+    let host = PluginHost::new(
+        TrustManager::new(),
+        TelemetryBus::new(100),
+        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
+    )
+    .map_err(|e| anyhow!("PluginHost::new (fold): {e}"))?;
+    let mut handle = host.load(path, &sync).await.map_err(|e| anyhow!("load agent (fold): {e}"))?;
+
+    for i in 0..4 {
+        let q = format!("pergunta {i} com bastante texto para ocupar tokens no contexto do agente");
+        tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            handle.call_on_event("user:prompt", Some(&q)),
+        )
+        .await
+        .map_err(|_| anyhow!("fold turn timed out"))?
+        .map_err(|e| anyhow!("fold turn failed: {e}"))?;
+    }
+    let final_turn = serde_json::json!({ "prompt": "última pergunta", "history_turns": 8 });
+    tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        handle.call_on_event("user:prompt", Some(&final_turn.to_string())),
+    )
+    .await
+    .map_err(|_| anyhow!("fold final turn timed out"))?
+    .map_err(|e| anyhow!("fold final turn failed: {e}"))?;
+
+    let folds = sync
+        .query_nodes("SessionContextFold")
+        .map_err(|e| anyhow!("query SessionContextFold: {e}"))?;
+    clean_model_env();
+    std::env::remove_var("MODEL_CONTEXT_BUDGET_TOKENS");
+    Ok(folds.len() as u128)
 }
 
 /// Compare the current report to the committed baseline; fail if any metric where
@@ -199,8 +263,14 @@ fn check_against_baseline(current: &BenchReport) -> Result<()> {
         } else {
             ((cur_v - base_v) / base_v) * 100.0
         };
-        // lower_is_better: a POSITIVE diff (grew) past the threshold is a regression.
-        let metric_regressed = cur.lower_is_better && diff_pct > cur.threshold_pct;
+        // A regression is a move in the WRONG direction past the threshold:
+        //  - lower_is_better: a POSITIVE diff (grew) beyond +threshold;
+        //  - higher_is_better: a NEGATIVE diff (dropped) beyond -threshold (e.g. folds → 0).
+        let metric_regressed = if cur.lower_is_better {
+            diff_pct > cur.threshold_pct
+        } else {
+            diff_pct < -cur.threshold_pct
+        };
         if metric_regressed {
             regressed = true;
         }
@@ -236,7 +306,7 @@ fn check_against_baseline(current: &BenchReport) -> Result<()> {
 
     if regressed {
         Err(anyhow!(
-            "token regression detected (a lower-is-better metric grew past its threshold)"
+            "regression detected (a metric moved the wrong way past its threshold)"
         ))
     } else {
         println!("[agent-token-bench] no token regression");

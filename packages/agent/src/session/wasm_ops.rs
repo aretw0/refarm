@@ -234,6 +234,73 @@ pub(crate) fn query_history() -> Vec<(String, String)> {
     history_from_nodes(&nodes, max_turns)
 }
 
+/// Walk the current session chain returning the raw SessionEntry JSONs, oldest-first,
+/// up to `max_turns` user/agent entries. This is the entry-preserving twin of
+/// `query_history_from_session` (which throws away everything but role+content) — the
+/// fold record needs the ids/timestamps/parentage, so it reads the full entries.
+fn session_entries_oldest_first(max_turns: usize) -> Vec<serde_json::Value> {
+    let Some(leaf_id) = latest_session_leaf_id(10) else {
+        return vec![];
+    };
+    let mut chain: Vec<serde_json::Value> = Vec::new();
+    let mut current = Some(leaf_id);
+    while let Some(id) = current.take() {
+        if chain.len() >= max_turns {
+            break;
+        }
+        let Ok(raw) = tractor_bridge::get_node(&id) else {
+            break;
+        };
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&raw) else {
+            break;
+        };
+        let kind = v["kind"].as_str().unwrap_or("");
+        current = v["parent_entry_id"].as_str().map(|s| s.to_owned());
+        if kind == "user" || kind == "agent" {
+            chain.push(v);
+        }
+    }
+    chain.reverse();
+    chain
+}
+
+/// Record a reversible `SessionContextFold` for the turns a compaction folded, so the
+/// dropped-from-prompt turns remain reconstructable (a TS `unfoldSessionContextFold`
+/// can rebuild them from the CRDT and verify their digests). Called from the context
+/// seam AFTER it decides a fold happened; `folded_pair_count` is how many of the
+/// oldest role/content pairs were folded away (the split `compact_history` chose).
+///
+/// No-op (returns None) when nothing was folded or the session can't be read — the
+/// fold is a durable side-record, never a hard dependency of the turn.
+pub(crate) fn record_context_fold(
+    folded_pair_count: usize,
+    summary: Option<&str>,
+) -> Option<String> {
+    if folded_pair_count == 0 {
+        return None;
+    }
+    let max_turns = std::env::var("MODEL_HISTORY_TURNS")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(0);
+    if max_turns == 0 {
+        return None;
+    }
+    let entries = session_entries_oldest_first(max_turns);
+    if entries.len() < folded_pair_count {
+        return None; // can't map the pair split onto entries — skip silently
+    }
+    let (folded, tail) = entries.split_at(folded_pair_count);
+    let tail_ids: Vec<String> = tail
+        .iter()
+        .filter_map(|e| e.get("@id").and_then(|v| v.as_str()).map(|s| s.to_string()))
+        .collect();
+    let fold = super::build_session_context_fold(folded, &tail_ids, summary, now_ns())?;
+    let fold_id = fold.get("@id").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let _ = tractor_bridge::store_node(&fold.to_string());
+    fold_id
+}
+
 /// Returns true when `MODEL_BUDGET_<PROVIDER>_USD` is set and the rolling 30-day
 /// spend for `provider_name` (read from CRDT UsageRecord nodes) meets or exceeds it.
 pub(crate) fn budget_exceeded_for_provider(provider_name: &str) -> bool {

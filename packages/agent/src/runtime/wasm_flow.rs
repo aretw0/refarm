@@ -14,7 +14,16 @@ fn history_with_prompt(prompt: &str) -> Vec<(String, String)> {
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(0);
-    crate::compact_history(messages, budget)
+    let result = crate::compact_history_detailed(messages, budget);
+    // Record a REVERSIBLE fold for the folded turns: the summary went into the prompt,
+    // but the turns stay in the CRDT, and this durable record (refs + digest, the
+    // @refarm.dev/session-contract-v1 shape) lets them be reconstructed/verified later.
+    // The last pair is the just-appended current prompt (not yet persisted as an entry),
+    // so it is never part of the folded count. Best-effort — never blocks the turn.
+    if result.folded_count > 0 {
+        let _ = crate::record_context_fold(result.folded_count, result.summary.as_deref());
+    }
+    result.compacted
 }
 
 fn run_primary_completion(

@@ -3,6 +3,7 @@ use super::*;
 mod apply_edits_tests;
 mod budget_tests;
 mod compress_tests;
+mod context_fold_tests;
 mod history_nodes_tests;
 mod history_tree_tests;
 mod id_core_tests;

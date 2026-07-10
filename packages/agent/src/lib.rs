@@ -72,12 +72,13 @@ pub(crate) use runtime::react;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use session::{
     append_to_session, budget_exceeded_for_provider, fork_session, get_or_create_session,
-    get_or_create_session_id_readonly, navigate_session, query_history,
+    get_or_create_session_id_readonly, navigate_session, query_history, record_context_fold,
 };
 #[allow(unused_imports)]
 pub(crate) use session::{
-    compact_history, history_from_nodes, history_from_tree, provider_name_from_env,
-    session_entry_node, session_node, session_participant_from_agent_id, sum_provider_spend_usd,
+    compact_history, compact_history_detailed, history_from_nodes, history_from_tree,
+    provider_name_from_env, session_entry_node, session_node, session_participant_from_agent_id,
+    sum_provider_spend_usd,
 };
 #[allow(unused_imports)]
 pub(crate) use structured_io::{

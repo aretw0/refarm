@@ -186,15 +186,39 @@ pub(crate) fn compact_history(
     pairs: Vec<(String, String)>,
     budget_tokens: usize,
 ) -> Vec<(String, String)> {
+    compact_history_detailed(pairs, budget_tokens).compacted
+}
+
+/// The result of a compaction: the compacted list, plus HOW MANY of the oldest pairs
+/// were folded and the summary that replaced them. The seam uses `folded_count`/
+/// `summary` to record a reversible `SessionContextFold`; `folded_count == 0` means no
+/// fold happened (disabled, already-fits, or nothing old enough).
+pub(crate) struct CompactionResult {
+    pub compacted: Vec<(String, String)>,
+    pub folded_count: usize,
+    pub summary: Option<String>,
+}
+
+/// The full compaction, returning the fold details. `compact_history` is the thin
+/// list-only wrapper over this.
+pub(crate) fn compact_history_detailed(
+    pairs: Vec<(String, String)>,
+    budget_tokens: usize,
+) -> CompactionResult {
+    let no_fold = |compacted: Vec<(String, String)>| CompactionResult {
+        compacted,
+        folded_count: 0,
+        summary: None,
+    };
     if budget_tokens == 0 {
-        return pairs; // disabled
+        return no_fold(pairs); // disabled
     }
     let total: usize = pairs
         .iter()
         .map(|(r, c)| estimated_pair_tokens(r, c))
         .sum();
     if total <= budget_tokens {
-        return pairs; // already fits — no-op
+        return no_fold(pairs); // already fits — no-op
     }
 
     // Keep the newest tail that fits under the budget, reserving room for the summary
@@ -221,13 +245,17 @@ pub(crate) fn compact_history(
 
     let folded = &pairs[..split];
     if folded.is_empty() {
-        return pairs; // nothing old enough to fold; fits as-is
+        return no_fold(pairs); // nothing old enough to fold; fits as-is
     }
     let summary = summarize_folded_turns(folded, summary_reserve);
     let mut out = Vec::with_capacity(pairs.len() - split + 1);
-    out.push(("system".to_string(), summary));
+    out.push(("system".to_string(), summary.clone()));
     out.extend(pairs[split..].iter().cloned());
-    out
+    CompactionResult {
+        compacted: out,
+        folded_count: split,
+        summary: Some(summary),
+    }
 }
 
 /// Build the deterministic Goal / Progress / Next Steps digest from the folded turns.

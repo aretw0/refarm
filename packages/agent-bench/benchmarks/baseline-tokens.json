@@ -23,6 +23,13 @@
       "unit": "records",
       "lower_is_better": true,
       "threshold_pct": 20.0
+    },
+    {
+      "name": "context_folds",
+      "value": 1,
+      "unit": "folds",
+      "lower_is_better": false,
+      "threshold_pct": 20.0
     }
   ]
 }
