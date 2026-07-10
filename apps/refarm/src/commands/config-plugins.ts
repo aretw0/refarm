@@ -14,6 +14,7 @@ import {
 } from "../utils/composition-resolver.js";
 import {
 	getSource,
+	SURFACE_KEYS,
 	type PackageSourceObject,
 	type SurfaceKey,
 } from "../utils/composition.js";
@@ -38,12 +39,8 @@ const CONFIG_PLUGINS_LIST_JSON_COMMAND = refarmCommand([
 	"--json",
 ]);
 
-const SURFACE_KEYS: readonly SurfaceKey[] = [
-	"skills",
-	"tools",
-	"themes",
-	"commands",
-];
+// SURFACE_KEYS is imported from composition.ts (the single source, guarded exhaustive
+// against the SurfaceKey union) — no longer re-listed here where it could drift.
 
 /** Parse a --scope value for a composition write; null when unrecognized. */
 function parseCompositionScope(

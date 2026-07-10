@@ -22,6 +22,20 @@ export type SurfacePattern = string;
 /** The refarm surface kinds a package may contribute (its extension-model surfaces). */
 export type SurfaceKey = "skills" | "tools" | "themes" | "commands";
 
+/** The canonical list of every {@link SurfaceKey} — the single source, kept HERE beside
+ * the type so the values and the union cannot drift apart. Consumers import this instead
+ * of re-listing the literals (which would silently fall out of sync when the union grows).
+ * The `satisfies` below makes an added/removed union member a COMPILE error. */
+export const SURFACE_KEYS = ["skills", "tools", "themes", "commands"] as const satisfies readonly SurfaceKey[];
+
+// Exhaustiveness guard: if a SurfaceKey is added to the union but not to SURFACE_KEYS
+// (or vice-versa), this fails to typecheck — the list can't drift from the type.
+type _SurfaceKeysAreExhaustive = Exclude<SurfaceKey, (typeof SURFACE_KEYS)[number]> extends never
+	? true
+	: ["SURFACE_KEYS is missing a SurfaceKey member", Exclude<SurfaceKey, (typeof SURFACE_KEYS)[number]>];
+const _surfaceKeysExhaustive: _SurfaceKeysAreExhaustive = true;
+void _surfaceKeysExhaustive;
+
 /** A package activated in object form, optionally suppressing some of its surfaces. */
 export interface PackageSourceObject {
 	/** Where the package resolves from: `npm:@scope/pkg`, a relative path, or an id. */
