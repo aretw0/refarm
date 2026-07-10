@@ -31,11 +31,7 @@ function makeDeps(): PluginDescriptorDeps & { submitted: Effort[] } {
 	};
 }
 
-function manifest(
-	id: string,
-	provides: string[],
-	subscribes: string[] = [],
-) {
+function manifest(id: string, provides: string[], subscribes: string[] = []) {
 	return { id, capabilities: { provides, subscribes } };
 }
 
@@ -46,9 +42,7 @@ interface SurfaceVerbConformanceFixture {
 
 describe("surfaceablePluginVerbsFrom — manifest metadata without host deps", () => {
 	it("describes dispatchable plugin verbs with their stable surface names", () => {
-		const m = manifest("@example/vault", ["vault:search", "vault:extract"], [
-			"vault:dispatch",
-		]);
+		const m = manifest("@example/vault", ["vault:search", "vault:extract"], ["vault:dispatch"]);
 
 		expect(surfaceablePluginVerbsFrom(m)).toEqual([
 			{
@@ -78,15 +72,12 @@ describe("surfaceablePluginVerbsFrom — manifest metadata without host deps", (
 
 	it("matches the shared TS/Rust plugin surface verb conformance fixture", () => {
 		const fixture = JSON.parse(
-			readFileSync(
-				new URL("../fixtures/plugin-surface-verbs.json", import.meta.url),
-				"utf-8",
-			),
+			readFileSync(new URL("../fixtures/plugin-surface-verbs.json", import.meta.url), "utf-8"),
 		) as SurfaceVerbConformanceFixture;
 
-		expect(
-			fixture.manifests.flatMap((entry) => surfaceablePluginVerbsFrom(entry)),
-		).toEqual(fixture.expected);
+		expect(fixture.manifests.flatMap((entry) => surfaceablePluginVerbsFrom(entry))).toEqual(
+			fixture.expected,
+		);
 	});
 });
 
@@ -103,7 +94,7 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 		const [search] = pluginDescriptorsFrom(m, deps);
 		if (!search) throw new Error("search descriptor missing");
 
-		const env = await search.run({ args: { args: ['q="notes"'] } } as never) as unknown as {
+		const env = (await search.run({ args: { args: ['q="notes"'] } } as never)) as unknown as {
 			ok: boolean;
 			effortId: string;
 			replyRef: string;
@@ -116,9 +107,7 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 	});
 
 	it("synthesizes a descriptor per dispatchable verb (provides + subscribes:dispatch)", () => {
-		const m = manifest("@example/vault", ["vault:search", "vault:extract"], [
-			"vault:dispatch",
-		]);
+		const m = manifest("@example/vault", ["vault:search", "vault:extract"], ["vault:dispatch"]);
 		const caps = pluginDescriptorsFrom(m, makeDeps());
 		expect(caps.map((c) => c.name).sort()).toEqual(["vault-extract", "vault-search"]);
 		// It's a real CapabilityDescriptor: name, summary, run fn, projects to surfaces.
@@ -160,7 +149,12 @@ describe("pluginDescriptorsFrom — a plugin surfaces a capability", () => {
 		// The verb was dispatched to the plugin's WASM via the neutral seam...
 		expect(deps.submitted).toHaveLength(1);
 		// ...and run() returned a RECEIPT (effortId + replyRef), not the verb's result.
-		const x = env as unknown as { command: string; effortId: string; replyRef: string; verb: string };
+		const x = env as unknown as {
+			command: string;
+			effortId: string;
+			replyRef: string;
+			verb: string;
+		};
 		expect(x.command).toBe("vault-search");
 		expect(x.verb).toBe("search");
 		expect(x.effortId).toBeTruthy();
@@ -204,9 +198,11 @@ describe("definePluginInspectorCapability — manifest visibility as an extensio
 		const inspector = definePluginInspectorCapability({
 			name: "extension",
 			summary: "Inspect the coding-agent extension",
-			manifest: manifest("@devbench/coding-agent", ["agent:code", "agent:review"], [
-				"agent:dispatch",
-			]),
+			manifest: manifest(
+				"@devbench/coding-agent",
+				["agent:code", "agent:review"],
+				["agent:dispatch"],
+			),
 			deps,
 			httpPath: "/ext/inspect",
 			note: "Declared once, reachable on every surface.",
@@ -216,7 +212,7 @@ describe("definePluginInspectorCapability — manifest visibility as an extensio
 		expect(inspector.transports?.http).toEqual({ method: "GET", path: "/ext/inspect" });
 		expect(inspector.renderers?.tui).toEqual({ section: "extension" });
 
-		const env = await inspector.run({ args: {}, options: {}, json: true }) as unknown as {
+		const env = (await inspector.run({ args: {}, options: {}, json: true })) as unknown as {
 			ok: boolean;
 			command: string;
 			operation: string;
@@ -247,7 +243,12 @@ describe("registerPluginCapabilities — the register-at-load wire", () => {
 		expect(result.registered.sort()).toEqual(["vault-extract", "vault-search"]);
 		expect(result.collided).toEqual([]);
 		// Now reachable via the generic registry the projectors read.
-		expect(registry.list().map((c) => c.name).sort()).toEqual(["vault-extract", "vault-search"]);
+		expect(
+			registry
+				.list()
+				.map((c) => c.name)
+				.sort(),
+		).toEqual(["vault-extract", "vault-search"]);
 		expect(registry.has("vault-search")).toBe(true);
 	});
 
@@ -288,10 +289,12 @@ describe("registerPluginCapabilities — the register-at-load wire", () => {
 
 		// REPL seam: capabilitySlashNames() = list().flatMap(name + aliases).
 		const slashNames = new Set(
-			registry.list().flatMap((d) => [
-				d.name.toLowerCase(),
-				...((d.transports?.repl?.slashAliases ?? []).map((a) => a.toLowerCase())),
-			]),
+			registry
+				.list()
+				.flatMap((d) => [
+					d.name.toLowerCase(),
+					...(d.transports?.repl?.slashAliases ?? []).map((a) => a.toLowerCase()),
+				]),
 		);
 		expect(slashNames.has("vault-search")).toBe(true);
 
@@ -372,7 +375,9 @@ describe("isConnectionError — a white-label app degrades on an unreachable run
 	});
 
 	it("classifies an AbortError (timeout) as a connection error", () => {
-		expect(isConnectionError(Object.assign(new Error("aborted"), { name: "AbortError" }))).toBe(true);
+		expect(isConnectionError(Object.assign(new Error("aborted"), { name: "AbortError" }))).toBe(
+			true,
+		);
 	});
 
 	it("does NOT classify a plugin-level error as a connection error", () => {

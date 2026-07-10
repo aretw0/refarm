@@ -1,7 +1,4 @@
-import type {
-	CapabilityDescriptor,
-	CapabilityEnvelope,
-} from "@refarm.dev/capabilities";
+import type { CapabilityDescriptor, CapabilityEnvelope } from "@refarm.dev/capabilities";
 import type { BaseSurfaceModel } from "@refarm.dev/operator-state";
 
 export interface BaseStatusCapabilityOptions {
@@ -34,7 +31,7 @@ export function createBaseStatusCapability(
 		},
 		renderers: { tui: { section: name } },
 		async run(): Promise<CapabilityEnvelope> {
-			return await options.model() as CapabilityEnvelope;
+			return (await options.model()) as CapabilityEnvelope;
 		},
 	};
 }

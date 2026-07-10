@@ -33,16 +33,13 @@ describe("resolveBrowserOpenSpec", () => {
 
 describe("resolveBrowserOpenCandidates", () => {
 	it("prioritizes VS Code server openExternal and WSL helpers in devcontainer-like environments", () => {
-		const candidates = resolveBrowserOpenCandidates(
-			"https://github.com/login/device",
-			{
-				platform: "linux",
-				env: {
-					TERM_PROGRAM: "vscode",
-					WSL_DISTRO_NAME: "Ubuntu",
-				},
+		const candidates = resolveBrowserOpenCandidates("https://github.com/login/device", {
+			platform: "linux",
+			env: {
+				TERM_PROGRAM: "vscode",
+				WSL_DISTRO_NAME: "Ubuntu",
 			},
-		);
+		});
 
 		expect(candidates.map((candidate) => candidate.command)).toEqual([
 			"sh",
@@ -56,13 +53,10 @@ describe("resolveBrowserOpenCandidates", () => {
 	});
 
 	it("does not use code --open-url as an implicit Linux fallback", () => {
-		const candidates = resolveBrowserOpenCandidates(
-			"https://example.test/auth",
-			{
-				platform: "linux",
-				env: {},
-			},
-		);
+		const candidates = resolveBrowserOpenCandidates("https://example.test/auth", {
+			platform: "linux",
+			env: {},
+		});
 
 		expect(candidates).not.toContainEqual(
 			expect.objectContaining({
@@ -73,15 +67,12 @@ describe("resolveBrowserOpenCandidates", () => {
 	});
 
 	it("allows an explicit BROWSER_OPEN_COMMAND override", () => {
-		const candidates = resolveBrowserOpenCandidates(
-			"https://example.test/auth",
-			{
-				platform: "linux",
-				env: {
-					[BROWSER_OPEN_COMMAND_ENV_VAR]: "custom-open --flag",
-				},
+		const candidates = resolveBrowserOpenCandidates("https://example.test/auth", {
+			platform: "linux",
+			env: {
+				[BROWSER_OPEN_COMMAND_ENV_VAR]: "custom-open --flag",
 			},
-		);
+		});
 
 		expect(candidates[0]).toEqual({
 			command: "custom-open",
@@ -91,35 +82,29 @@ describe("resolveBrowserOpenCandidates", () => {
 	});
 
 	it("keeps quoted BROWSER_OPEN_COMMAND words intact", () => {
-		const candidates = resolveBrowserOpenCandidates(
-			"https://example.test/auth",
-			{
-				platform: "linux",
-				env: {
-					[BROWSER_OPEN_COMMAND_ENV_VAR]:
-						"\"/mnt/c/Program Files/Browser/open.exe\" --profile \"Refarm Dev\"",
-				},
+		const candidates = resolveBrowserOpenCandidates("https://example.test/auth", {
+			platform: "linux",
+			env: {
+				[BROWSER_OPEN_COMMAND_ENV_VAR]:
+					'"/mnt/c/Program Files/Browser/open.exe" --profile "Refarm Dev"',
 			},
-		);
+		});
 
 		expect(candidates[0]).toEqual({
 			command: "/mnt/c/Program Files/Browser/open.exe",
 			args: ["--profile", "Refarm Dev", "https://example.test/auth"],
 			display:
-				"\"/mnt/c/Program Files/Browser/open.exe\" --profile \"Refarm Dev\" https://example.test/auth",
+				'"/mnt/c/Program Files/Browser/open.exe" --profile "Refarm Dev" https://example.test/auth',
 		});
 	});
 
 	it("keeps REFARM_BROWSER_OPEN_COMMAND as a legacy override", () => {
-		const candidates = resolveBrowserOpenCandidates(
-			"https://example.test/auth",
-			{
-				platform: "linux",
-				env: {
-					[LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR]: "legacy-open --flag",
-				},
+		const candidates = resolveBrowserOpenCandidates("https://example.test/auth", {
+			platform: "linux",
+			env: {
+				[LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR]: "legacy-open --flag",
 			},
-		);
+		});
 
 		expect(candidates[0]).toEqual({
 			command: "legacy-open",
@@ -129,16 +114,13 @@ describe("resolveBrowserOpenCandidates", () => {
 	});
 
 	it("prefers BROWSER_OPEN_COMMAND over the legacy Refarm override", () => {
-		const candidates = resolveBrowserOpenCandidates(
-			"https://example.test/auth",
-			{
-				platform: "linux",
-				env: {
-					[BROWSER_OPEN_COMMAND_ENV_VAR]: "generic-open",
-					[LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR]: "legacy-open",
-				},
+		const candidates = resolveBrowserOpenCandidates("https://example.test/auth", {
+			platform: "linux",
+			env: {
+				[BROWSER_OPEN_COMMAND_ENV_VAR]: "generic-open",
+				[LEGACY_BROWSER_OPEN_COMMAND_ENV_VAR]: "legacy-open",
 			},
-		);
+		});
 
 		expect(candidates[0]).toEqual({
 			command: "generic-open",
@@ -158,9 +140,7 @@ describe("splitBrowserOpenCommand", () => {
 	});
 
 	it("rejects unterminated quotes", () => {
-		expect(() => splitBrowserOpenCommand("custom-open 'broken")).toThrow(
-			/Unterminated quote/,
-		);
+		expect(() => splitBrowserOpenCommand("custom-open 'broken")).toThrow(/Unterminated quote/);
 	});
 });
 

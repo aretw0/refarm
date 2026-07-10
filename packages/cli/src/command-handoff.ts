@@ -12,11 +12,7 @@ export function joinCommand(parts: string[]): string {
 
 export function normalizeHandoffValues(values: string[]): string[] {
 	return Array.from(
-		new Set(
-			values
-				.map((value) => value.trim())
-				.filter((value) => value.length > 0),
-		),
+		new Set(values.map((value) => value.trim()).filter((value) => value.length > 0)),
 	);
 }
 
@@ -51,9 +47,7 @@ export interface InstantiatedCommandTemplate {
 export function commandTemplateParameters(value: string | string[]): string[] {
 	const values = Array.isArray(value) ? value : [value];
 	return normalizeHandoffValues(
-		values.flatMap((entry) =>
-			[...entry.matchAll(/<([^<>]+)>/g)].map((match) => match[1]!),
-		),
+		values.flatMap((entry) => [...entry.matchAll(/<([^<>]+)>/g)].map((match) => match[1]!)),
 	);
 }
 
@@ -116,9 +110,7 @@ export function instantiateCommandTemplate(
 		...(template.process
 			? { process: instantiateProcessTemplate(template.process, parameters) }
 			: {}),
-		...(template.cwdParameter
-			? { cwd: parameters[template.cwdParameter]! }
-			: {}),
+		...(template.cwdParameter ? { cwd: parameters[template.cwdParameter]! } : {}),
 	};
 }
 
@@ -153,10 +145,7 @@ export function applicationCommand(binary: string, args: string[]): string {
 	return binaryCommand(binary, args);
 }
 
-export function applicationProcess(
-	binary: string,
-	args: string[],
-): ApplicationProcessSpec {
+export function applicationProcess(binary: string, args: string[]): ApplicationProcessSpec {
 	const override = process.env[applicationCommandOverrideEnv(binary)]?.trim();
 	const command = override || binary;
 	return {

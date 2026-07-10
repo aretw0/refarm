@@ -22,16 +22,12 @@ describe("github actions cli helpers", () => {
 
 		setGitHubActionsSecret("TURBO_CACHE_TOKEN", "secret-value");
 
-		expect(spawnSyncMock).toHaveBeenCalledWith(
-			"gh",
-			["secret", "set", "TURBO_CACHE_TOKEN"],
-			{
-				cwd: undefined,
-				input: "secret-value",
-				encoding: "utf-8",
-				stdio: ["pipe", "pipe", "pipe"],
-			},
-		);
+		expect(spawnSyncMock).toHaveBeenCalledWith("gh", ["secret", "set", "TURBO_CACHE_TOKEN"], {
+			cwd: undefined,
+			input: "secret-value",
+			encoding: "utf-8",
+			stdio: ["pipe", "pipe", "pipe"],
+		});
 	});
 
 	it("surfaces stderr from gh failures", () => {
@@ -41,8 +37,6 @@ describe("github actions cli helpers", () => {
 			stderr: "not authenticated",
 		} as ReturnType<typeof spawnSync>);
 
-		expect(() => setGitHubActionsSecret("TOKEN", "value")).toThrow(
-			"not authenticated",
-		);
+		expect(() => setGitHubActionsSecret("TOKEN", "value")).toThrow("not authenticated");
 	});
 });

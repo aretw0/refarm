@@ -1,7 +1,4 @@
-import {
-	isCapabilityGroup,
-	resolveGroupAction,
-} from "@refarm.dev/capabilities";
+import { isCapabilityGroup, resolveGroupAction } from "@refarm.dev/capabilities";
 import {
 	parseRecordsYamlLdFrontMatter,
 	type RecordsManifest,
@@ -49,9 +46,7 @@ function makeDeps(
 	};
 }
 
-function deps(
-	discover: () => VaultDiscoveryResult = discoverWithExtractor,
-): VaultCommandDeps {
+function deps(discover: () => VaultDiscoveryResult = discoverWithExtractor): VaultCommandDeps {
 	return makeDeps(discover);
 }
 
@@ -75,7 +70,7 @@ describe("vault CapabilityGroup", () => {
 		});
 		const group = createVaultCapabilityGroup(localDeps);
 		const list = resolveGroupAction(group, ["list"]);
-		const listed = await list!.action.run(list!.input) as unknown as {
+		const listed = (await list!.action.run(list!.input)) as unknown as {
 			ok: boolean;
 			count: number;
 			providers: unknown[];
@@ -102,12 +97,7 @@ describe("vault CapabilityGroup", () => {
 	it("projects onto every surface bucket (REPL alias, HTTP route, TUI section)", () => {
 		const group = createVaultCapabilityGroup(deps());
 		expect(isCapabilityGroup(group)).toBe(true);
-		expect(Object.keys(group.actions).sort()).toEqual([
-			"dispatch",
-			"init",
-			"list",
-			"show",
-		]);
+		expect(Object.keys(group.actions).sort()).toEqual(["dispatch", "init", "list", "show"]);
 		expect(group.defaultAction).toBe("list");
 		expect(group.transports?.repl?.slashAliases).toContain("vaults");
 		expect(group.transports?.http).toEqual({ method: "GET", path: "/vault" });
@@ -165,11 +155,7 @@ describe("vault CapabilityGroup", () => {
 	it("`dispatch <verb> <note>` submits an effort whose fn is the verb + replyRef", async () => {
 		const d = makeDeps();
 		const group = createVaultCapabilityGroup(d);
-		const resolved = resolveGroupAction(group, [
-			"dispatch",
-			"extract",
-			"20-Projects/note-42.md",
-		]);
+		const resolved = resolveGroupAction(group, ["dispatch", "extract", "20-Projects/note-42.md"]);
 		const env = (await resolved!.action.run(resolved!.input)) as unknown as {
 			ok: boolean;
 			effortId: string;
@@ -187,9 +173,7 @@ describe("vault CapabilityGroup", () => {
 		expect(task.pluginId).toBe("vault");
 		expect(task.fn).toBe("extract");
 		expect((task.args as { replyRef: string }).replyRef).toBe(env.effortId);
-		expect((task.args as { note: { path: string } }).note.path).toBe(
-			"20-Projects/note-42.md",
-		);
+		expect((task.args as { note: { path: string } }).note.path).toBe("20-Projects/note-42.md");
 	});
 
 	it("`dispatch` returns an error envelope when the submit fails", async () => {

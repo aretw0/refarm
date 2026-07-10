@@ -5,22 +5,14 @@ export const INTERACTION_DRIVER_MIN_REQUIRED_EVENTS = [
 	"completed",
 	"failed",
 ] as const;
-export const INTERACTION_DRIVER_TERMINAL_EVENTS = [
-	"completed",
-	"failed",
-] as const;
+export const INTERACTION_DRIVER_TERMINAL_EVENTS = ["completed", "failed"] as const;
 
 export type InteractionDriverMode = "local-loop" | "gateway-rpc";
-export type InteractionDriverEventName =
-	(typeof INTERACTION_DRIVER_MIN_REQUIRED_EVENTS)[number];
+export type InteractionDriverEventName = (typeof INTERACTION_DRIVER_MIN_REQUIRED_EVENTS)[number];
 export type InteractionDriverTerminalEventName =
 	(typeof INTERACTION_DRIVER_TERMINAL_EVENTS)[number];
 export type InteractionDriverReadinessState = "ready" | "blocked";
-export type InteractionDriverReadinessRequirement =
-	| "lifecycle"
-	| "steering"
-	| "gateway"
-	| "budget";
+export type InteractionDriverReadinessRequirement = "lifecycle" | "steering" | "gateway" | "budget";
 
 export interface InteractionDriverReadinessBlocker {
 	code: string;
@@ -128,8 +120,7 @@ export function createInteractionDriverDescriptor(
 		mode: input.mode ?? "local-loop",
 		eventContract: {
 			format: "json-events",
-			requiredEvents:
-				input.requiredEvents ?? INTERACTION_DRIVER_MIN_REQUIRED_EVENTS,
+			requiredEvents: input.requiredEvents ?? INTERACTION_DRIVER_MIN_REQUIRED_EVENTS,
 		},
 		handoffs: {
 			resume: input.handoffs?.resume ?? true,

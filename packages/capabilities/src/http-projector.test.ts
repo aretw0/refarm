@@ -2,10 +2,7 @@ import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
 
 import { buildJsonSuccessEnvelope } from "./envelope.js";
-import {
-	buildCapabilityRoutes,
-	createCapabilityRouteHandler,
-} from "./http-projector.js";
+import { buildCapabilityRoutes, createCapabilityRouteHandler } from "./http-projector.js";
 import type { CapabilityDescriptor, CapabilityGroup } from "./types.js";
 
 function descriptor(
@@ -103,9 +100,7 @@ describe("createCapabilityRouteHandler", () => {
 
 	it("invokes run() and writes the envelope verbatim as the body (200)", async () => {
 		const res = fakeRes();
-		expect(
-			handler(fakeReq("POST", "/capabilities/model", { args: { ref: "x" } }), res),
-		).toBe(true);
+		expect(handler(fakeReq("POST", "/capabilities/model", { args: { ref: "x" } }), res)).toBe(true);
 		await new Promise((r) => setImmediate(r));
 		expect(res.statusCode).toBe(200);
 		const body = JSON.parse(res.body);

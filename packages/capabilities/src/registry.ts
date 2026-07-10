@@ -1,8 +1,4 @@
-import {
-	type CapabilityDescriptor,
-	type CapabilityEntry,
-	isCapabilityGroup,
-} from "./types.js";
+import { type CapabilityDescriptor, type CapabilityEntry, isCapabilityGroup } from "./types.js";
 
 /**
  * A name lookup for capabilities. Pure data: `has`/`get` touch no I/O, so the
@@ -24,9 +20,7 @@ export class CapabilityRegistry {
 	#reserved: Set<string>;
 
 	constructor(reservedNames: Iterable<string> = []) {
-		this.#reserved = new Set(
-			[...reservedNames].map((name) => name.toLowerCase()),
-		);
+		this.#reserved = new Set([...reservedNames].map((name) => name.toLowerCase()));
 	}
 
 	register(entry: CapabilityEntry): this {

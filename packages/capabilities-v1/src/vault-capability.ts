@@ -82,9 +82,7 @@ export function createLocalVaultCommandDeps(
 	});
 }
 
-export function createVaultCapabilityGroup(
-	deps: VaultCommandDeps,
-): CapabilityGroup {
+export function createVaultCapabilityGroup(deps: VaultCommandDeps): CapabilityGroup {
 	const list: CapabilityDescriptor = {
 		name: "list",
 		summary: "List vault:v1 providers contributed by installed plugins",
@@ -201,8 +199,7 @@ export function createVaultCapabilityGroup(
 
 	const init: CapabilityDescriptor = {
 		name: "init",
-		summary:
-			"Initialize a records vault at a path — empty, or seeded via an injected seed",
+		summary: "Initialize a records vault at a path — empty, or seeded via an injected seed",
 		args: [{ name: "dir", required: true }],
 		options: [
 			{
@@ -232,8 +229,7 @@ export function createVaultCapabilityGroup(
 				if (input.options.empty !== true && deps.seed) {
 					const manifest = deps.seed();
 					for (const record of manifest.records) {
-						const body =
-							record.sections?.map((s) => s.content).join("\n\n") ?? "";
+						const body = record.sections?.map((s) => s.content).join("\n\n") ?? "";
 						const markdown = stringifyRecordsYamlLdFrontMatter(record, body);
 						const fileName = `${record.id.replace(/[^a-zA-Z0-9._-]+/g, "-")}.md`;
 						await writeFile(path.join(dir, fileName), markdown, "utf-8");

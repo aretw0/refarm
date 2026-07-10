@@ -45,26 +45,31 @@ function manifest(state = "draft"): RecordsManifest {
 
 describe("capabilities node helpers", () => {
 	it("builds deterministic local records state paths", () => {
-		expect(localRecordsStatePath({ cwd: "/repo", appId: "wallet-t2" }))
-			.toBe("/repo/.wallet-t2/manifest.json");
+		expect(localRecordsStatePath({ cwd: "/repo", appId: "wallet-t2" })).toBe(
+			"/repo/.wallet-t2/manifest.json",
+		);
 	});
 
 	it("lets white-label CLIs override local records state through an env key", () => {
-		expect(resolveLocalRecordsStatePath({
-			cwd: "/repo",
-			appId: "dgk",
-			fileName: "wallet.manifest.json",
-			envKey: "DGK_WALLET_STATE_PATH",
-			env: { DGK_WALLET_STATE_PATH: "/tmp/wallet-state.json" },
-		})).toBe("/tmp/wallet-state.json");
+		expect(
+			resolveLocalRecordsStatePath({
+				cwd: "/repo",
+				appId: "dgk",
+				fileName: "wallet.manifest.json",
+				envKey: "DGK_WALLET_STATE_PATH",
+				env: { DGK_WALLET_STATE_PATH: "/tmp/wallet-state.json" },
+			}),
+		).toBe("/tmp/wallet-state.json");
 
-		expect(resolveLocalRecordsStatePath({
-			cwd: "/repo",
-			appId: "dgk",
-			fileName: "wallet.manifest.json",
-			envKey: "DGK_WALLET_STATE_PATH",
-			env: {},
-		})).toBe("/repo/.dgk/wallet.manifest.json");
+		expect(
+			resolveLocalRecordsStatePath({
+				cwd: "/repo",
+				appId: "dgk",
+				fileName: "wallet.manifest.json",
+				envKey: "DGK_WALLET_STATE_PATH",
+				env: {},
+			}),
+		).toBe("/repo/.dgk/wallet.manifest.json");
 	});
 
 	it("creates reusable local records state path resolvers for host defaults", () => {
@@ -74,19 +79,21 @@ describe("capabilities node helpers", () => {
 			envKey: "DGK_WALLET_STATE_PATH",
 		});
 
-		expect(walletStatePath({
-			cwd: "/repo",
-			env: {},
-		})).toBe("/repo/.dgk/wallet.manifest.json");
+		expect(
+			walletStatePath({
+				cwd: "/repo",
+				env: {},
+			}),
+		).toBe("/repo/.dgk/wallet.manifest.json");
 
-		expect(walletStatePath({
-			cwd: "/repo",
-			env: { DGK_WALLET_STATE_PATH: "/tmp/wallet.json" },
-		})).toBe("/tmp/wallet.json");
+		expect(
+			walletStatePath({
+				cwd: "/repo",
+				env: { DGK_WALLET_STATE_PATH: "/tmp/wallet.json" },
+			}),
+		).toBe("/tmp/wallet.json");
 
-		expect(walletStatePath("/other-repo")).toBe(
-			"/other-repo/.dgk/wallet.manifest.json",
-		);
+		expect(walletStatePath("/other-repo")).toBe("/other-repo/.dgk/wallet.manifest.json");
 	});
 
 	it("persists records command deps through a JSON file", async () => {

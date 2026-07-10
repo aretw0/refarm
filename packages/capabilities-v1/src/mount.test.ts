@@ -1,7 +1,4 @@
-import {
-	isCapabilityGroup,
-	type CapabilityDescriptor,
-} from "@refarm.dev/capabilities";
+import { isCapabilityGroup, type CapabilityDescriptor } from "@refarm.dev/capabilities";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -41,9 +38,7 @@ describe("mountCapabilities — the consumer-mount seam", () => {
 	it("surfaces a plugin manifest's verb via the bridge (extension path)", () => {
 		const registry = mountCapabilities({
 			deps: deps(),
-			manifests: [
-				{ id: "@w/x", capabilities: { provides: ["x:go"], subscribes: ["x:dispatch"] } },
-			],
+			manifests: [{ id: "@w/x", capabilities: { provides: ["x:go"], subscribes: ["x:dispatch"] } }],
 			pluginDeps: {
 				submitEffort: async (e) => e.id,
 				newId: () => "id-1",
@@ -57,7 +52,9 @@ describe("mountCapabilities — the consumer-mount seam", () => {
 		expect(() =>
 			mountCapabilities({
 				deps: deps(),
-				manifests: [{ id: "@w/x", capabilities: { provides: ["x:go"], subscribes: ["x:dispatch"] } }],
+				manifests: [
+					{ id: "@w/x", capabilities: { provides: ["x:go"], subscribes: ["x:dispatch"] } },
+				],
 			}),
 		).toThrow(/pluginDeps/);
 	});

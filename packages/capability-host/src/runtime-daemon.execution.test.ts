@@ -29,8 +29,7 @@ const QUALITY_WASM = resolve(REPO_ROOT, "packages/quality-checker-plugin/dist/qu
 
 // Opt-in: this spawns a real daemon and loads ~24 MB of WASM. Gate on an env flag AND
 // on the artifacts existing, so CI and casual runs skip it cleanly.
-const artifactsReady =
-	existsSync(BINARY) && existsSync(VAULT_WASM) && existsSync(QUALITY_WASM);
+const artifactsReady = existsSync(BINARY) && existsSync(VAULT_WASM) && existsSync(QUALITY_WASM);
 const enabled = process.env.RUN_RUNTIME_EXECUTION === "1" && artifactsReady;
 
 describe.skipIf(!enabled)("runtime daemon — the real WASM execution leg", () => {

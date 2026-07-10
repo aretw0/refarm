@@ -10,8 +10,7 @@ function descriptor(
 	return {
 		name,
 		summary: `${name} summary`,
-		run: () =>
-			buildJsonSuccessEnvelope({ command: name, operation: "run" }),
+		run: () => buildJsonSuccessEnvelope({ command: name, operation: "run" }),
 		...overrides,
 	};
 }
@@ -38,17 +37,13 @@ describe("CapabilityRegistry", () => {
 
 	it("refuses a name that collides with a reserved built-in", () => {
 		const registry = new CapabilityRegistry(["model", "reload"]);
-		expect(() => registry.register(descriptor("model"))).toThrow(
-			"collides with a built-in",
-		);
+		expect(() => registry.register(descriptor("model"))).toThrow("collides with a built-in");
 	});
 
 	it("refuses a duplicate registration", () => {
 		const registry = new CapabilityRegistry();
 		registry.register(descriptor("review"));
-		expect(() => registry.register(descriptor("review"))).toThrow(
-			"already registered",
-		);
+		expect(() => registry.register(descriptor("review"))).toThrow("already registered");
 	});
 
 	it("refuses when a slash alias collides with a reserved built-in", () => {
@@ -69,15 +64,20 @@ describe("createCapabilityRegistry (the SDK factory)", () => {
 			descriptor("review"),
 			descriptor("model", { transports: { repl: { slashAliases: ["provider"] } } }),
 		]);
-		expect(registry.list().map((e) => e.name).sort()).toEqual(["model", "review"]);
+		expect(
+			registry
+				.list()
+				.map((e) => e.name)
+				.sort(),
+		).toEqual(["model", "review"]);
 		// Aliases resolve to the same entry, exactly as register() does.
 		expect(registry.get("provider")?.name).toBe("model");
 	});
 
 	it("honors reserved names (a colliding entry throws)", () => {
-		expect(() =>
-			createCapabilityRegistry([descriptor("help")], ["help"]),
-		).toThrow("collides with a built-in");
+		expect(() => createCapabilityRegistry([descriptor("help")], ["help"])).toThrow(
+			"collides with a built-in",
+		);
 	});
 
 	it("an empty factory is a usable, empty registry", () => {

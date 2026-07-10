@@ -26,16 +26,9 @@ import {
 import { Command } from "commander";
 
 import type { CapabilityDeps } from "./builtin-capabilities.js";
-import {
-	mountCapabilities,
-	mountedCliCommands,
-	serveCapabilities,
-} from "./mount.js";
+import { mountCapabilities, mountedCliCommands, serveCapabilities } from "./mount.js";
 import { createBaseStatusCapability } from "./operator-state-capability.js";
-import type {
-	PluginDescriptorDeps,
-	SurfaceableManifest,
-} from "./plugin-bridge.js";
+import type { PluginDescriptorDeps, SurfaceableManifest } from "./plugin-bridge.js";
 import type { RecordsCommandDeps } from "./records-capability.js";
 
 export interface CapabilityHostCapabilities {
@@ -48,15 +41,13 @@ export interface CapabilityHostCapabilities {
 
 export type CapabilityHostCapabilitiesFactory = () => CapabilityHostCapabilities;
 
-export type CapabilityHostCapabilityUnitOptions = Omit<
-	CapabilitySurfaceUnitOptions,
-	"owner"
-> & { owner?: string };
+export type CapabilityHostCapabilityUnitOptions = Omit<CapabilitySurfaceUnitOptions, "owner"> & {
+	owner?: string;
+};
 
-export type CapabilityHostReviewQueueUnitOptions = Omit<
-	ReviewQueueSurfaceUnitOptions,
-	"owner"
-> & { owner?: string };
+export type CapabilityHostReviewQueueUnitOptions = Omit<ReviewQueueSurfaceUnitOptions, "owner"> & {
+	owner?: string;
+};
 
 export type CapabilityHostRecordReviewQueueUnitOptions = Omit<
 	CapabilityHostReviewQueueUnitOptions,
@@ -82,8 +73,10 @@ export interface CapabilityHostRecordReviewCorrectionOptions {
 	payload?: Record<string, unknown>;
 }
 
-export interface CapabilityHostPrimaryVerbOptions
-	extends Omit<CapabilityHostCapabilityUnitOptions, "action"> {
+export interface CapabilityHostPrimaryVerbOptions extends Omit<
+	CapabilityHostCapabilityUnitOptions,
+	"action"
+> {
 	name: string;
 	args?: string[];
 	actionId?: string;
@@ -101,9 +94,7 @@ export interface CapabilityHostStatusContext {
 	capabilities: CapabilityHostCapabilities;
 	capabilityUnit(options: CapabilityHostCapabilityUnitOptions): BaseSurfaceUnit;
 	reviewQueueUnit(options: CapabilityHostReviewQueueUnitOptions): BaseSurfaceUnit;
-	recordReviewQueueUnit(
-		options: CapabilityHostRecordReviewQueueUnitOptions,
-	): BaseSurfaceUnit;
+	recordReviewQueueUnit(options: CapabilityHostRecordReviewQueueUnitOptions): BaseSurfaceUnit;
 }
 
 export interface CapabilityHostOperatorStatus {
@@ -221,30 +212,29 @@ interface CapabilityHostBundle {
 	registry: CapabilityRegistry;
 }
 
-export function defineCapabilityHost(
-	definition: CapabilityHostDefinition,
-): CapabilityHost {
+export function defineCapabilityHost(definition: CapabilityHostDefinition): CapabilityHost {
 	const createBundle = (): CapabilityHostBundle => {
 		const capabilities = resolveCapabilities(definition.capabilities);
 		const mounted: { registry?: CapabilityRegistry } = {};
 		const statusCapability = definition.operatorStatus
 			? createBaseStatusCapability({
-				name: definition.operatorStatus.name,
-				summary: definition.operatorStatus.summary,
-				httpPath: definition.operatorStatus.httpPath,
-				agentToolName: definition.operatorStatus.agentToolName,
-				model: () =>
-					buildHostBaseModel(definition, capabilities, ensureRegistry(mounted.registry)),
-			})
+					name: definition.operatorStatus.name,
+					summary: definition.operatorStatus.summary,
+					httpPath: definition.operatorStatus.httpPath,
+					agentToolName: definition.operatorStatus.agentToolName,
+					model: () =>
+						buildHostBaseModel(definition, capabilities, ensureRegistry(mounted.registry)),
+				})
 			: null;
-		const actionsCapability = definition.surfaceActions === false
-			? null
-			: createHostSurfaceActionsCapability(definition, () =>
-				hostSurfaceActionsFromModel(
-					definition,
-					buildHostBaseModel(definition, capabilities, ensureRegistry(mounted.registry)),
-				),
-			);
+		const actionsCapability =
+			definition.surfaceActions === false
+				? null
+				: createHostSurfaceActionsCapability(definition, () =>
+						hostSurfaceActionsFromModel(
+							definition,
+							buildHostBaseModel(definition, capabilities, ensureRegistry(mounted.registry)),
+						),
+					);
 		const registry = contextualizeRegistryHandoffs(
 			mountCapabilities({
 				deps: capabilities.deps,
@@ -293,9 +283,7 @@ export function defineCapabilityHost(
 		},
 		program() {
 			const bundle = createBundle();
-			const program = new Command()
-				.name(definition.command)
-				.description(definition.description);
+			const program = new Command().name(definition.command).description(definition.description);
 			if (definition.version) program.version(definition.version);
 			for (const command of mountedCliCommands(
 				bundle.registry,
@@ -351,12 +339,7 @@ function createHostSurfaceActionsCapability(
 		},
 		renderers: { tui: { section: "host" }, web: { route: `/${name}` } },
 		run(input) {
-			return createSurfaceActionsEnvelope(
-				definition,
-				name,
-				resolveActions(),
-				input,
-			);
+			return createSurfaceActionsEnvelope(definition, name, resolveActions(), input);
 		},
 	};
 }
@@ -368,21 +351,22 @@ function createSurfaceActionsEnvelope(
 	input: CapabilityInput,
 ): CapabilityEnvelope {
 	const rows = createCapabilityHostSurfaceActionRows(actions);
-	const actionRequest = typeof input.options.select === "string"
-		? createBaseSurfaceActionRequest(
-			actions.map((action) => ({
-				...action,
-				command: action.payload.command,
-			})),
-			input.options.select,
-		)
-		: undefined;
+	const actionRequest =
+		typeof input.options.select === "string"
+			? createBaseSurfaceActionRequest(
+					actions.map((action) => ({
+						...action,
+						command: action.payload.command,
+					})),
+					input.options.select,
+				)
+			: undefined;
 	const selection = actionRequest
 		? {
-			...actionRequest.selection,
-			...(actionRequest.selectedRow ? { selected: actionRequest.selectedRow } : {}),
-			reason: actionRequest.reason,
-		}
+				...actionRequest.selection,
+				...(actionRequest.selectedRow ? { selected: actionRequest.selectedRow } : {}),
+				reason: actionRequest.reason,
+			}
 		: undefined;
 	return buildJsonSuccessEnvelope({
 		command: name,
@@ -391,9 +375,7 @@ function createSurfaceActionsEnvelope(
 		nextCommands: actionRequest?.nextCommands,
 		extra: {
 			hostId: definition.id,
-			renderer: typeof input.options.renderer === "string"
-				? input.options.renderer
-				: "headless",
+			renderer: typeof input.options.renderer === "string" ? input.options.renderer : "headless",
 			actions,
 			actionRows: rows,
 			...(selection ? { selection } : {}),
@@ -415,9 +397,7 @@ function contextualizeRegistryHandoffs(
 	const entries = registry.list();
 	const commandNames = new Set(entries.map((entry) => entry.name));
 	return createCapabilityRegistry(
-		entries.map((entry) =>
-			contextualizeCapabilityEntryHandoffs(entry, hostCommand, commandNames)
-		),
+		entries.map((entry) => contextualizeCapabilityEntryHandoffs(entry, hostCommand, commandNames)),
 	);
 }
 
@@ -431,11 +411,7 @@ function contextualizeCapabilityEntryHandoffs(
 	}
 	const actions: Record<string, CapabilityDescriptor> = {};
 	for (const [key, action] of Object.entries(entry.actions)) {
-		actions[key] = contextualizeCapabilityDescriptorHandoffs(
-			action,
-			hostCommand,
-			commandNames,
-		);
+		actions[key] = contextualizeCapabilityDescriptorHandoffs(action, hostCommand, commandNames);
 	}
 	return { ...entry, actions };
 }
@@ -463,13 +439,13 @@ function contextualizeCapabilityEnvelopeHandoffs(
 	commandNames: ReadonlySet<string>,
 ): CapabilityEnvelope {
 	const nextCommands = envelope.nextCommands.map((command) =>
-		prefixHostCommand(command, hostCommand, commandNames)
+		prefixHostCommand(command, hostCommand, commandNames),
 	);
 	return {
 		...envelope,
 		nextCommand: envelope.nextCommand
 			? prefixHostCommand(envelope.nextCommand, hostCommand, commandNames)
-			: nextCommands[0] ?? null,
+			: (nextCommands[0] ?? null),
 		nextCommands,
 	};
 }
@@ -515,24 +491,15 @@ function buildHostBaseModel(
 		units.push(buildPrimaryVerbSurfaceUnit(primaryVerb, context));
 	}
 	if (status?.capabilityUnit) {
-		const capabilityUnit = resolveCapabilityHostCapabilityUnit(
-			status.capabilityUnit,
-			context,
-		);
+		const capabilityUnit = resolveCapabilityHostCapabilityUnit(status.capabilityUnit, context);
 		units.push(
-			buildCapabilitySurfaceUnit(
-				registry,
-				withDefaultOwner(capabilityUnit, definition.id),
-			),
+			buildCapabilitySurfaceUnit(registry, withDefaultOwner(capabilityUnit, definition.id)),
 		);
 	}
 	if (status?.units) {
 		units.push(...status.units(context));
 	}
-	return buildBaseSurfaceModel(
-		{ units },
-		{ command: definition.command, operation: "base" },
-	);
+	return buildBaseSurfaceModel({ units }, { command: definition.command, operation: "base" });
 }
 
 function createCapabilityHostStatusContext(
@@ -547,14 +514,9 @@ function createCapabilityHostStatusContext(
 		registry,
 		capabilities,
 		capabilityUnit: (options) =>
-			buildCapabilitySurfaceUnit(
-				registry,
-				withDefaultOwner(options, definition.id),
-			),
+			buildCapabilitySurfaceUnit(registry, withDefaultOwner(options, definition.id)),
 		reviewQueueUnit: (options) =>
-			buildReviewQueueSurfaceUnit(
-				withDefaultOwner(options, definition.id),
-			),
+			buildReviewQueueSurfaceUnit(withDefaultOwner(options, definition.id)),
 		recordReviewQueueUnit: (options) =>
 			buildRecordReviewQueueSurfaceUnit(
 				withDefaultOwner(options, definition.id),
@@ -565,9 +527,7 @@ function createCapabilityHostStatusContext(
 }
 
 function resolveCapabilityHostCapabilityUnit(
-	capabilityUnit:
-		| CapabilityHostCapabilityUnitOptions
-		| CapabilityHostCapabilityUnitFactory,
+	capabilityUnit: CapabilityHostCapabilityUnitOptions | CapabilityHostCapabilityUnitFactory,
 	context: CapabilityHostStatusContext,
 ): CapabilityHostCapabilityUnitOptions {
 	return typeof capabilityUnit === "function" ? capabilityUnit(context) : capabilityUnit;
@@ -603,9 +563,7 @@ function buildRecordReviewQueueSurfaceUnit(
 ): BaseSurfaceUnit {
 	const records = options.records ?? capabilities.deps.records;
 	if (!records) {
-		throw new Error(
-			"Capability host recordReviewQueueUnit requires records deps.",
-		);
+		throw new Error("Capability host recordReviewQueueUnit requires records deps.");
 	}
 	const manifest = records.loadManifest();
 	const pendingRecords = manifest.records.filter(
@@ -621,12 +579,9 @@ function buildRecordReviewQueueSurfaceUnit(
 		pendingLabel: options.pendingLabel,
 		readySummary: options.readySummary,
 		pendingSummary: options.pendingSummary,
-		pendingAction: options.pendingAction ??
-			buildRecordCorrectionAction(
-				options.pendingCorrection,
-				pendingRecordIds[0],
-				hostCommand,
-			),
+		pendingAction:
+			options.pendingAction ??
+			buildRecordCorrectionAction(options.pendingCorrection, pendingRecordIds[0], hostCommand),
 		total: manifest.records.length,
 		pending: pendingRecords.length,
 		details: {
@@ -665,11 +620,7 @@ function hostSurfaceActionsFromModel(
 	const actions: CapabilityHostSurfaceAction[] = [];
 	for (const unit of model.units) {
 		for (const action of unit.actions) {
-			const surfaceAction = hostSurfaceActionFromBaseAction(
-				definition,
-				unit,
-				action,
-			);
+			const surfaceAction = hostSurfaceActionFromBaseAction(definition, unit, action);
 			if (seen.has(surfaceAction.id)) {
 				throw new Error(
 					`Capability host surface action id "${surfaceAction.id}" is declared more than once.`,
@@ -724,9 +675,7 @@ function withDefaultOwner<T extends { owner?: string }>(
 	return { ...rest, owner: explicitOwner ?? owner };
 }
 
-function normalizedServeOptions(
-	definition: CapabilityHostDefinition,
-): CapabilityHostServeOptions {
+function normalizedServeOptions(definition: CapabilityHostDefinition): CapabilityHostServeOptions {
 	const options = definition.serve;
 	if (options === false) return {};
 	return {

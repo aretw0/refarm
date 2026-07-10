@@ -25,10 +25,7 @@ const STATUS_JSON_GOLDEN = readFileSync(
 	"utf-8",
 ).trimEnd();
 
-const HEADLESS_RENDERER = createHomesteadHostRendererDescriptor(
-	"refarm-headless",
-	"headless",
-);
+const HEADLESS_RENDERER = createHomesteadHostRendererDescriptor("refarm-headless", "headless");
 
 const BASE_OPTIONS = {
 	host: {
@@ -44,9 +41,7 @@ const BASE_OPTIONS = {
 
 describe("buildStatusJson", () => {
 	it("emits schemaVersion 1 always", () => {
-		expect(buildStatusJson(BASE_OPTIONS).schemaVersion).toBe(
-			STATUS_SCHEMA_VERSION,
-		);
+		expect(buildStatusJson(BASE_OPTIONS).schemaVersion).toBe(STATUS_SCHEMA_VERSION);
 	});
 
 	it("publishes stable status diagnostic code groups", () => {
@@ -55,9 +50,7 @@ describe("buildStatusJson", () => {
 			STATUS_DIAGNOSTICS.runtimeSidecarAccessBlocked,
 			STATUS_DIAGNOSTICS.trustCriticalPresent,
 		]);
-		expect(STATUS_WARNING_DIAGNOSTICS).toContain(
-			STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent,
-		);
+		expect(STATUS_WARNING_DIAGNOSTICS).toContain(STATUS_DIAGNOSTICS.pluginsRejectedSurfacesPresent);
 		expect(STATUS_INFORMATIONAL_DIAGNOSTICS).toContain(
 			STATUS_DIAGNOSTICS.pluginsSurfaceActionsAvailable,
 		);
@@ -199,8 +192,7 @@ describe("buildStatusJson", () => {
 				ready: false,
 				databaseName: "refarm-main",
 				namespace: "refarm-main",
-				error:
-					"fetch failed: connect EPERM 127.0.0.1:42001 - Local (undefined:undefined)",
+				error: "fetch failed: connect EPERM 127.0.0.1:42001 - Local (undefined:undefined)",
 			},
 		}).diagnostics;
 
@@ -222,10 +214,7 @@ describe("buildStatusJson", () => {
 	});
 
 	it("emits no renderer diagnostics for web renderer", () => {
-		const webRenderer = createHomesteadHostRendererDescriptor(
-			"refarm-web",
-			"web",
-		);
+		const webRenderer = createHomesteadHostRendererDescriptor("refarm-web", "web");
 		const diagnostics = buildStatusJson({
 			...BASE_OPTIONS,
 			renderer: webRenderer,
@@ -297,9 +286,7 @@ describe("status contract validation", () => {
 		const json = buildStatusJson(BASE_OPTIONS);
 		const invalid = { ...json, schemaVersion: 2 };
 		expect(isStatusJson(invalid)).toBe(false);
-		expect(() => assertStatusJson(invalid)).toThrow(
-			/Unsupported status schemaVersion=2/,
-		);
+		expect(() => assertStatusJson(invalid)).toThrow(/Unsupported status schemaVersion=2/);
 	});
 
 	it("validates optional available action details", () => {
@@ -307,9 +294,7 @@ describe("status contract validation", () => {
 			...BASE_OPTIONS,
 			plugins: {
 				surfaces: {
-					availableActions: [
-						{ id: "open-node", label: "Open node", intent: "node:open" },
-					],
+					availableActions: [{ id: "open-node", label: "Open node", intent: "node:open" }],
 				},
 			},
 		});
@@ -417,15 +402,11 @@ describe("status contract validation", () => {
 			schemaVersion: STATUS_SCHEMA_VERSION + 1,
 		});
 
-		expect(() => parseStatusJson(newerPayload)).toThrow(
-			/Upgrade @refarm.dev\/cli/,
-		);
+		expect(() => parseStatusJson(newerPayload)).toThrow(/Upgrade @refarm.dev\/cli/);
 	});
 
 	it("fails for non-json strings", () => {
-		expect(() => parseStatusJson("not-json")).toThrow(
-			/Invalid JSON for status payload/,
-		);
+		expect(() => parseStatusJson("not-json")).toThrow(/Invalid JSON for status payload/);
 	});
 });
 
@@ -452,20 +433,15 @@ describe("classifyStatusDiagnostics", () => {
 		expect(summary.warnings).toContain("plugins:rejected-surfaces-present");
 		expect(summary.warnings).toContain("streams:active-present");
 		expect(summary.informational).toContain("renderer:non-interactive");
-		expect(summary.informational).toContain(
-			"plugins:surface-actions-available",
-		);
+		expect(summary.informational).toContain("plugins:surface-actions-available");
 		expect(summary.hasFailure).toBe(true);
 	});
 
 	it("supports caller-provided severity overrides", () => {
-		const summary = classifyStatusDiagnostics(
-			buildStatusJson(BASE_OPTIONS),
-			{
-				failureCodes: ["renderer:no-rich-html"],
-				warningCodes: ["runtime:not-ready"],
-			},
-		);
+		const summary = classifyStatusDiagnostics(buildStatusJson(BASE_OPTIONS), {
+			failureCodes: ["renderer:no-rich-html"],
+			warningCodes: ["runtime:not-ready"],
+		});
 
 		expect(summary.failures).toEqual(["renderer:no-rich-html"]);
 		expect(summary.warnings).toContain("runtime:not-ready");
@@ -474,13 +450,9 @@ describe("classifyStatusDiagnostics", () => {
 
 describe("formatStatusMarkdown", () => {
 	it("renders a markdown report with diagnostics list", () => {
-		const report = formatStatusMarkdown(
-			buildStatusJson(BASE_OPTIONS),
-		);
+		const report = formatStatusMarkdown(buildStatusJson(BASE_OPTIONS));
 		expect(report.startsWith("---\nschemaVersion: 1\nhost:\n")).toBe(true);
-		expect(report).toContain(
-			'renderer:\n  id: "refarm-headless"\n  kind: "headless"',
-		);
+		expect(report).toContain('renderer:\n  id: "refarm-headless"\n  kind: "headless"');
 		expect(report).toContain("# Status");
 		expect(report).toContain("- Schema: v1");
 		expect(report).toContain("- Surfaces: 0 rejected, 0 actions");
@@ -495,24 +467,17 @@ describe("formatStatusMarkdown", () => {
 				...BASE_OPTIONS,
 				plugins: {
 					surfaces: {
-						availableActions: [
-							{ id: "open-node", label: "Open node", intent: "node:open" },
-						],
+						availableActions: [{ id: "open-node", label: "Open node", intent: "node:open" }],
 					},
 				},
 			}),
 		);
 
-		expect(report).toContain(
-			"## Available Actions\n- open-node: Open node (node:open)",
-		);
+		expect(report).toContain("## Available Actions\n- open-node: Open node (node:open)");
 	});
 
 	it("prints '- none' when diagnostics are empty", () => {
-		const webRenderer = createHomesteadHostRendererDescriptor(
-			"refarm-web",
-			"web",
-		);
+		const webRenderer = createHomesteadHostRendererDescriptor("refarm-web", "web");
 		const report = formatStatusMarkdown(
 			buildStatusJson({
 				...BASE_OPTIONS,
@@ -530,9 +495,7 @@ describe("formatStatusMarkdown", () => {
 
 describe("formatStatusSummary", () => {
 	it("renders a deterministic operator summary", () => {
-		const summary = formatStatusSummary(
-			buildStatusJson(BASE_OPTIONS),
-		);
+		const summary = formatStatusSummary(buildStatusJson(BASE_OPTIONS));
 		expect(summary).toContain("Host:      apps/refarm (headless)");
 		expect(summary).toContain("Renderer:  refarm-headless (headless)");
 		expect(summary).toContain("Surfaces:  0 rejected, 0 actions");
@@ -556,9 +519,7 @@ describe("formatStatusSummary", () => {
 			}),
 		);
 
-		expect(summary).toContain(
-			"Runtime:   ready — refarm-main (engine: ts, configured: rust)",
-		);
+		expect(summary).toContain("Runtime:   ready — refarm-main (engine: ts, configured: rust)");
 	});
 
 	it("renders available action details in operator summaries", () => {
@@ -567,9 +528,7 @@ describe("formatStatusSummary", () => {
 				...BASE_OPTIONS,
 				plugins: {
 					surfaces: {
-						availableActions: [
-							{ id: "open-node", label: "Open node", intent: "node:open" },
-						],
+						availableActions: [{ id: "open-node", label: "Open node", intent: "node:open" }],
 					},
 				},
 			}),
@@ -580,10 +539,7 @@ describe("formatStatusSummary", () => {
 	});
 
 	it("omits diagnostics section when no diagnostics are present", () => {
-		const webRenderer = createHomesteadHostRendererDescriptor(
-			"refarm-web",
-			"web",
-		);
+		const webRenderer = createHomesteadHostRendererDescriptor("refarm-web", "web");
 		const summary = formatStatusSummary(
 			buildStatusJson({
 				...BASE_OPTIONS,
@@ -610,9 +566,7 @@ describe("formatStatusJson", () => {
 			...BASE_OPTIONS,
 			plugins: {
 				surfaces: {
-					availableActions: [
-						{ id: "open-node", label: "Open node", intent: "node:open" },
-					],
+					availableActions: [{ id: "open-node", label: "Open node", intent: "node:open" }],
 				},
 			},
 		});
@@ -620,9 +574,7 @@ describe("formatStatusJson", () => {
 		expect(formatStatusJson(json)).toContain('"availableActions": [');
 		expect(parseStatusJson(formatStatusJson(json))).toMatchObject({
 			plugins: {
-				availableActions: [
-					{ id: "open-node", label: "Open node", intent: "node:open" },
-				],
+				availableActions: [{ id: "open-node", label: "Open node", intent: "node:open" }],
 			},
 		});
 	});
@@ -653,8 +605,6 @@ describe("formatStatusJson", () => {
 			schemaVersion: base.schemaVersion,
 		};
 
-		expect(formatStatusJson(scrambled)).toBe(
-			formatStatusJson(base),
-		);
+		expect(formatStatusJson(scrambled)).toBe(formatStatusJson(base));
 	});
 });

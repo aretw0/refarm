@@ -232,10 +232,9 @@ export interface OperatorResumeSummary {
 	tasks: OperatorResumeTaskSummary;
 }
 
-export type OperatorResumeEnvelope =
-	JsonSuccessEnvelope<
-		OperatorResumeSummary & { nextProcesses: readonly ApplicationProcessSpec[] }
-	>;
+export type OperatorResumeEnvelope = JsonSuccessEnvelope<
+	OperatorResumeSummary & { nextProcesses: readonly ApplicationProcessSpec[] }
+>;
 
 /** The complete operator-resume handoff set for one binary: the string commands,
  *  their spawnable process twins, and the builder for dynamic per-effort processes.
@@ -255,9 +254,7 @@ export interface OperatorResumeHandoffs {
  * calls this with its own name (a white-label app its own). REQUIRED — no default
  * binary; a caller that needs it configures it, or it fails up.
  */
-export function buildOperatorResumeCommands(
-	binary: string,
-): OperatorResumeHandoffs {
+export function buildOperatorResumeCommands(binary: string): OperatorResumeHandoffs {
 	const cmd = (args: string[]) => applicationCommand(binary, args);
 	const proc = (args: string[]) => applicationProcess(binary, args);
 	// One args table drives both the string and the process form — no duplication.
@@ -307,9 +304,7 @@ function taskWatchJsonCommand(command: string): string {
 	return taskReadJsonCommand(ensureCommandFlag(command, "--watch"));
 }
 
-function taskJsonRecord(
-	effort: OperatorResumeTaskRecord,
-): OperatorResumeTaskRecord {
+function taskJsonRecord(effort: OperatorResumeTaskRecord): OperatorResumeTaskRecord {
 	return {
 		...effort,
 		statusCommand: taskReadJsonCommand(effort.statusCommand),
@@ -317,15 +312,11 @@ function taskJsonRecord(
 	};
 }
 
-function taskJsonSummary(
-	tasks: OperatorResumeTaskSummary,
-): OperatorResumeTaskSummary {
+function taskJsonSummary(tasks: OperatorResumeTaskSummary): OperatorResumeTaskSummary {
 	const recentEfforts = tasks.recentEfforts.map(taskJsonRecord);
 	return {
 		...tasks,
-		activeEffort: tasks.activeEffort
-			? taskJsonRecord(tasks.activeEffort)
-			: undefined,
+		activeEffort: tasks.activeEffort ? taskJsonRecord(tasks.activeEffort) : undefined,
 		recentEfforts,
 	};
 }
@@ -335,21 +326,21 @@ function isRefarmResumeCommand(command: string): boolean {
 }
 
 function isTerminalTaskStatus(status: string | undefined): boolean {
-	return status === "done" ||
+	return (
+		status === "done" ||
 		status === "partial" ||
 		status === "failed" ||
 		status === "timed-out" ||
 		status === "cancelled" ||
-		status === "not-found";
+		status === "not-found"
+	);
 }
 
 function hasResumableTaskEffort(tasks: OperatorResumeTaskSummary): boolean {
 	return tasks.recentEfforts.some((effort) => !isTerminalTaskStatus(effort.lastStatus));
 }
 
-function operatorResumeJsonSummary(
-	summary: OperatorResumeSummary,
-): OperatorResumeSummary {
+function operatorResumeJsonSummary(summary: OperatorResumeSummary): OperatorResumeSummary {
 	return {
 		...summary,
 		tasks: taskJsonSummary(summary.tasks),
@@ -359,10 +350,7 @@ function operatorResumeJsonSummary(
 function operatorResumeParticipantDisplay(
 	record:
 		| OperatorResumeSessionSummary
-		| Pick<
-				OperatorResumeSessionRecord,
-				"canonicalParticipants" | "participantAliases"
-		  >,
+		| Pick<OperatorResumeSessionRecord, "canonicalParticipants" | "participantAliases">,
 ): string | undefined {
 	const participants =
 		record.canonicalParticipants && record.canonicalParticipants.length > 0
@@ -385,19 +373,15 @@ export function formatOperatorResumeModelRoute(
 		route.ref ??
 		(route.provider && route.modelId
 			? `${route.provider}/${route.modelId}`
-			: route.provider ?? route.modelId);
+			: (route.provider ?? route.modelId));
 	if (route.scope && ref) return `${route.scope} ${ref}`;
 	return route.scope ?? ref;
 }
 
-export function buildOperatorResumeSummary(
-	input: OperatorResumeInput,
-): OperatorResumeSummary {
+export function buildOperatorResumeSummary(input: OperatorResumeInput): OperatorResumeSummary {
 	const efforts = input.taskCheckpoint?.efforts ?? [];
 	const activeEffort = input.taskCheckpoint?.activeEffortId
-		? efforts.find(
-				(effort) => effort.effortId === input.taskCheckpoint?.activeEffortId,
-			)
+		? efforts.find((effort) => effort.effortId === input.taskCheckpoint?.activeEffortId)
 		: undefined;
 	const runtime = input.status
 		? {
@@ -420,13 +404,10 @@ export function buildOperatorResumeSummary(
 	const activeRecentSession = input.activeSessionId
 		? recentSessions.find(
 				(session) =>
-					session.sessionId === input.activeSessionId ||
-					session.shortId === activeShortId,
+					session.sessionId === input.activeSessionId || session.shortId === activeShortId,
 			)
 		: undefined;
-	const sessionStatus = input.activeSessionId
-		? activeRecentSession ? "active" : "stale"
-		: "none";
+	const sessionStatus = input.activeSessionId ? (activeRecentSession ? "active" : "stale") : "none";
 	const sessionShowCommand = activeRecentSession?.showCommand;
 	const session: OperatorResumeSessionSummary = {
 		status: sessionStatus,
@@ -456,18 +437,19 @@ export function buildOperatorResumeSummary(
 				remainingCommands: [],
 			};
 	return {
-			status: runtime ||
-				Boolean(input.model) ||
-				Boolean(input.project) ||
-				Boolean(input.scheduledWork) ||
-				Boolean(input.environmentPressure) ||
-				session.status !== "none" ||
+		status:
+			runtime ||
+			Boolean(input.model) ||
+			Boolean(input.project) ||
+			Boolean(input.scheduledWork) ||
+			Boolean(input.environmentPressure) ||
+			session.status !== "none" ||
 			session.recentSessions.length > 0 ||
 			efforts.length > 0 ||
 			(input.recentPrompts?.length ?? 0) > 0 ||
 			finish.status !== "none"
-			? "ok"
-		: "empty",
+				? "ok"
+				: "empty",
 		runtime,
 		model: input.model,
 		project: input.project ?? undefined,
@@ -488,18 +470,14 @@ export function operatorResumeNextCommands(
 
 	// Emergency: runtime not ready — fix that first, everything else is noise.
 	if (summary.runtime && !summary.runtime.ready) {
-		const recovery = summary.finish.status === "failed"
-			? summary.finish.nextCommands
-			: [];
+		const recovery = summary.finish.status === "failed" ? summary.finish.nextCommands : [];
 		return [...new Set([resolved.runtimeDoctor, ...recovery])];
 	}
 
 	const nextCommands: string[] = [];
 
 	if (summary.environmentPressure?.decision === "stop-and-investigate") {
-		nextCommands.push(
-			...summary.environmentPressure.nextCommands.filter(isRefarmResumeCommand),
-		);
+		nextCommands.push(...summary.environmentPressure.nextCommands.filter(isRefarmResumeCommand));
 		return [...new Set(nextCommands)];
 	}
 
@@ -517,9 +495,7 @@ export function operatorResumeNextCommands(
 
 	// Model: only surface when credentials are missing, not on every resume.
 	if (summary.model?.credential?.state === "missing") {
-		nextCommands.push(
-			summary.model.inspectCommand ?? resolved.modelCurrent,
-		);
+		nextCommands.push(summary.model.inspectCommand ?? resolved.modelCurrent);
 	}
 
 	// Task: active effort takes priority; checkpoints resume before generic list.
@@ -541,9 +517,7 @@ function commandProcessKey(processSpec: ApplicationProcessSpec): string {
 	return `${processSpec.command}\0${processSpec.args.join("\0")}`;
 }
 
-function dedupeCommandProcesses(
-	processes: ApplicationProcessSpec[],
-): ApplicationProcessSpec[] {
+function dedupeCommandProcesses(processes: ApplicationProcessSpec[]): ApplicationProcessSpec[] {
 	const seen = new Set<string>();
 	return processes.filter((processSpec) => {
 		const key = commandProcessKey(processSpec);
@@ -560,10 +534,7 @@ export function operatorResumeNextProcesses(
 	const { commands, processes, processBuilder } = handoffs;
 	const nextCommands = operatorResumeNextCommands(summary, commands);
 	const processByCommand = new Map<string, ApplicationProcessSpec>();
-	const addDefaultProcess = (
-		command: string,
-		processSpec: ApplicationProcessSpec,
-	): void => {
+	const addDefaultProcess = (command: string, processSpec: ApplicationProcessSpec): void => {
 		processByCommand.set(command, processSpec);
 	};
 
@@ -575,10 +546,7 @@ export function operatorResumeNextProcesses(
 	addDefaultProcess(commands.sessionList, processes.sessionList);
 	for (const session of summary.session.recentSessions) {
 		if (session.showCommand) {
-			addDefaultProcess(
-				session.showCommand,
-				processes.sessionShow(session.sessionId),
-			);
+			addDefaultProcess(session.showCommand, processes.sessionShow(session.sessionId));
 		}
 	}
 	if (summary.session.activeSessionId && summary.session.showCommand) {
@@ -612,21 +580,13 @@ export function operatorResumeNextProcesses(
 	return dedupeCommandProcesses(
 		nextCommands
 			.map((command) => processByCommand.get(command))
-			.filter(
-				(processSpec): processSpec is ApplicationProcessSpec =>
-					processSpec !== undefined,
-			),
+			.filter((processSpec): processSpec is ApplicationProcessSpec => processSpec !== undefined),
 	);
 }
 
-export function buildOperatorResumeEnvelope(
-	input: OperatorResumeInput,
-): OperatorResumeEnvelope {
+export function buildOperatorResumeEnvelope(input: OperatorResumeInput): OperatorResumeEnvelope {
 	const summary = buildOperatorResumeSummary(input);
-	const nextCommands = operatorResumeNextCommands(
-		summary,
-		input.handoffs.commands,
-	);
+	const nextCommands = operatorResumeNextCommands(summary, input.handoffs.commands);
 	const nextProcesses = operatorResumeNextProcesses(summary, input.handoffs);
 	return buildJsonSuccessEnvelope<
 		OperatorResumeSummary & { nextProcesses: readonly ApplicationProcessSpec[] }
@@ -642,15 +602,11 @@ export function buildOperatorResumeEnvelope(
 	});
 }
 
-export function formatOperatorResumeSummary(
-	summary: OperatorResumeSummary,
-): string {
+export function formatOperatorResumeSummary(summary: OperatorResumeSummary): string {
 	const lines: string[] = [];
 	lines.push("Operator resume");
 	if (summary.runtime) {
-		const engine = summary.runtime.engine
-			? ` engine=${summary.runtime.engine.activeEngine}`
-			: "";
+		const engine = summary.runtime.engine ? ` engine=${summary.runtime.engine.activeEngine}` : "";
 		lines.push(
 			`Runtime: ${summary.runtime.ready ? "ready" : "not-ready"} namespace=${summary.runtime.namespace}${engine}`,
 		);
@@ -681,12 +637,9 @@ export function formatOperatorResumeSummary(
 		lines.push("Model: not inspected");
 	}
 	if (summary.project) {
-		const phase = summary.project.currentPhase !== undefined
-			? ` phase=${summary.project.currentPhase}`
-			: "";
-		const timestamp = summary.project.timestamp
-			? ` timestamp=${summary.project.timestamp}`
-			: "";
+		const phase =
+			summary.project.currentPhase !== undefined ? ` phase=${summary.project.currentPhase}` : "";
+		const timestamp = summary.project.timestamp ? ` timestamp=${summary.project.timestamp}` : "";
 		lines.push(`Project handoff: ${summary.project.path}${phase}${timestamp}`);
 		if (summary.project.context) {
 			lines.push(`  context: ${truncateResumeText(summary.project.context, 180)}`);
@@ -731,9 +684,9 @@ export function formatOperatorResumeSummary(
 		lines.push(
 			`Environment pressure: ${summary.environmentPressure.decision} (${summary.environmentPressure.signals.length} signals)`,
 		);
-		for (const signal of summary.environmentPressure.signals.filter(
-			(signal) => signal.severity !== "info",
-		).slice(0, 5)) {
+		for (const signal of summary.environmentPressure.signals
+			.filter((signal) => signal.severity !== "info")
+			.slice(0, 5)) {
 			lines.push(`  ${signal.severity}: ${signal.summary}`);
 			if (signal.action) lines.push(`    action: ${signal.action}`);
 			if (signal.command) lines.push(`    command: ${signal.command}`);
@@ -763,8 +716,7 @@ export function formatOperatorResumeSummary(
 		for (const session of summary.session.recentSessions) {
 			const name = session.name ? ` name=${session.name}` : "";
 			const history = session.hasHistory ? " history=yes" : " history=no";
-			const active =
-				session.sessionId === summary.session.activeSessionId ? " *" : "";
+			const active = session.sessionId === summary.session.activeSessionId ? " *" : "";
 			lines.push(
 				`  ${active}${session.shortId ?? formatOperatorResumeSessionId(session.sessionId)}${name}${history}`,
 			);
@@ -788,9 +740,7 @@ export function formatOperatorResumeSummary(
 		lines.push("Finish: none");
 	} else {
 		const lane = summary.finish.lane ? ` lane=${summary.finish.lane}` : "";
-		const profile = summary.finish.profile
-			? ` profile=${summary.finish.profile}`
-			: "";
+		const profile = summary.finish.profile ? ` profile=${summary.finish.profile}` : "";
 		lines.push(
 			`Finish: ${summary.finish.status}${profile}${lane}${summary.finish.updatedAt ? ` updated=${summary.finish.updatedAt}` : ""}`,
 		);
@@ -807,7 +757,9 @@ export function formatOperatorResumeSummary(
 			lines.push(`  next: ${command}`);
 		}
 		if (summary.finish.remainingCommands.length > 0) {
-			lines.push(`  remaining: ${summary.finish.remainingCommands.length} command${summary.finish.remainingCommands.length === 1 ? "" : "s"}`);
+			lines.push(
+				`  remaining: ${summary.finish.remainingCommands.length} command${summary.finish.remainingCommands.length === 1 ? "" : "s"}`,
+			);
 		}
 	}
 
@@ -837,9 +789,7 @@ export function formatOperatorResumeSummary(
 	return lines.join("\n");
 }
 
-function formatScheduledWorkSchedule(
-	job: OperatorResumeScheduledWorkJob,
-): string | undefined {
+function formatScheduledWorkSchedule(job: OperatorResumeScheduledWorkJob): string | undefined {
 	if (job.schedule.type === "once" && job.schedule.at) {
 		return `at=${job.schedule.at}`;
 	}

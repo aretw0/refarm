@@ -16,10 +16,12 @@ describe("@refarm.dev/capability-host/node", () => {
 			fileName: "wallet.manifest.json",
 		});
 
-		expect(statePath({
-			cwd: "/repo",
-			env: {},
-		})).toBe("/repo/.dgk/wallet.manifest.json");
+		expect(
+			statePath({
+				cwd: "/repo",
+				env: {},
+			}),
+		).toBe("/repo/.dgk/wallet.manifest.json");
 	});
 
 	it("exposes local records deps for thin host examples", () => {
@@ -37,9 +39,7 @@ describe("@refarm.dev/capability-host/node", () => {
 			fileName: "wallet.manifest.json",
 		});
 
-		expect(defaults.statePath({ cwd: "/repo", env: {} })).toBe(
-			"/repo/.dgk/wallet.manifest.json",
-		);
+		expect(defaults.statePath({ cwd: "/repo", env: {} })).toBe("/repo/.dgk/wallet.manifest.json");
 		expect(defaults.defaultOptions({ cwd: "/repo", env: {} })).toEqual({
 			statePath: "/repo/.dgk/wallet.manifest.json",
 		});
@@ -81,13 +81,15 @@ describe("@refarm.dev/capability-host/node", () => {
 			},
 		});
 
-		await expect(submit({
-			id: "effort-1",
-			direction: "dispatch",
-			source: "test",
-			submittedAt: "2026-01-01T00:00:00Z",
-			tasks: [{ id: "task-1", pluginId: "@example/plugin", fn: "search", args: {} }],
-		})).resolves.toBe("effort-from-runtime");
+		await expect(
+			submit({
+				id: "effort-1",
+				direction: "dispatch",
+				source: "test",
+				submittedAt: "2026-01-01T00:00:00Z",
+				tasks: [{ id: "task-1", pluginId: "@example/plugin", fn: "search", args: {} }],
+			}),
+		).resolves.toBe("effort-from-runtime");
 
 		expect(requestedUrl).toBe("http://127.0.0.1:52001/efforts");
 		expect(JSON.parse(requestedBody)).toMatchObject({

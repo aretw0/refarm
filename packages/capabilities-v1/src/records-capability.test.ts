@@ -1,8 +1,5 @@
 import { isCapabilityGroup } from "@refarm.dev/capabilities";
-import {
-	computeRecordContentHash,
-	type RecordsManifest,
-} from "@refarm.dev/records-contract-v1";
+import { computeRecordContentHash, type RecordsManifest } from "@refarm.dev/records-contract-v1";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -174,7 +171,9 @@ describe("records correct — the analyst applies a review (persistence is INJEC
 		expect(env.writable).toBe(true);
 		// The saved manifest carries the corrected record's new review state.
 		expect(saved).toHaveLength(1);
-		const savedManifest = saved[0] as { records: Array<{ id: string; review?: { state: string; by?: string } }> };
+		const savedManifest = saved[0] as {
+			records: Array<{ id: string; review?: { state: string; by?: string } }>;
+		};
 		const rec = savedManifest.records.find((r) => r.id === RECORD_ID);
 		expect(rec?.review?.state).toBe("reviewed");
 		expect(rec?.review?.by).toBe("analyst");
@@ -256,7 +255,7 @@ describe("defineRecordsViewCapability — persona views over records analyze", (
 		expect(view.transports?.http).toEqual({ method: "GET", path: "/wallet" });
 		expect(view.renderers?.tui).toEqual({ section: "wallet" });
 
-		const env = await view.run({ args: {}, options: {}, json: true }) as unknown as {
+		const env = (await view.run({ args: {}, options: {}, json: true })) as unknown as {
 			ok: boolean;
 			command: string;
 			operation: string;
@@ -293,11 +292,11 @@ describe("defineRecordsViewCapability — persona views over records analyze", (
 
 		expect(view.transports?.http).toEqual({ method: "GET", path: "/requirements/moc" });
 
-		const env = await view.run({
+		const env = (await view.run({
 			args: {},
 			options: { by: "type" },
 			json: true,
-		}) as unknown as {
+		})) as unknown as {
 			ok: boolean;
 			by: string;
 			groupKeys: string[];

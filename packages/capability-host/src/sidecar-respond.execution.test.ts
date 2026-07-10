@@ -28,33 +28,36 @@ const SOURCE_WASM = resolve(REPO_ROOT, "packages/source-provider-ref/dist/source
 const enabled =
 	process.env.RUN_RUNTIME_EXECUTION === "1" && existsSync(BINARY) && existsSync(SOURCE_WASM);
 
-describe.skipIf(!enabled)("WASM source provider over the sidecar — the extend-not-import cord", () => {
-	let daemon: RuntimeDaemonHandle | undefined;
+describe.skipIf(!enabled)(
+	"WASM source provider over the sidecar — the extend-not-import cord",
+	() => {
+		let daemon: RuntimeDaemonHandle | undefined;
 
-	afterAll(async () => {
-		await daemon?.stop();
-	});
-
-	it("discovers via a loaded plugin, called over HTTP — no provider import", async () => {
-		daemon = await startRuntimeDaemon({
-			binaryPath: BINARY,
-			plugins: [SOURCE_WASM],
-			wsPort: 42066,
-			httpPort: 42067,
-			securityMode: "none",
-			readyTimeoutMs: 40_000,
+		afterAll(async () => {
+			await daemon?.stop();
 		});
 
-		// The seam under test: a real callRespond bound to the loaded plugin.
-		const callRespond = createSidecarCallRespond({
-			baseUrl: daemon.sidecarBaseUrl,
-			pluginId: "source-provider-ref",
-		});
-		const provider = createWasmSourceProvider({ pluginId: "source-provider-ref", callRespond });
+		it("discovers via a loaded plugin, called over HTTP — no provider import", async () => {
+			daemon = await startRuntimeDaemon({
+				binaryPath: BINARY,
+				plugins: [SOURCE_WASM],
+				wsPort: 42066,
+				httpPort: 42067,
+				securityMode: "none",
+				readyTimeoutMs: 40_000,
+			});
 
-		// discover() marshals `source:discover` over the sidecar to the plugin's WASM.
-		const catalog = await provider.discover();
-		expect(Array.isArray(catalog.entries)).toBe(true);
-		expect(catalog.entries.length).toBeGreaterThan(0);
-	}, 60_000);
-});
+			// The seam under test: a real callRespond bound to the loaded plugin.
+			const callRespond = createSidecarCallRespond({
+				baseUrl: daemon.sidecarBaseUrl,
+				pluginId: "source-provider-ref",
+			});
+			const provider = createWasmSourceProvider({ pluginId: "source-provider-ref", callRespond });
+
+			// discover() marshals `source:discover` over the sidecar to the plugin's WASM.
+			const catalog = await provider.discover();
+			expect(Array.isArray(catalog.entries)).toBe(true);
+			expect(catalog.entries.length).toBeGreaterThan(0);
+		}, 60_000);
+	},
+);

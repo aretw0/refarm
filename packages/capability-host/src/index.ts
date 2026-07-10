@@ -9,10 +9,7 @@ import {
 	type SurfaceableManifest,
 } from "@refarm.dev/capabilities-v1";
 
-export {
-	createMemorySubmitEffort,
-	type MemorySubmitEffort,
-} from "./memory-submit.js";
+export { createMemorySubmitEffort, type MemorySubmitEffort } from "./memory-submit.js";
 
 export {
 	buildCapabilityHostServeInfo,
@@ -110,7 +107,10 @@ export interface ResolveHostCommandOptions extends HostCommandOptions {
  * `@refarm.dev/cli`'s `applicationCommandOverrideEnv(binary)` — a name derives its
  * namespace; the package never hardcodes a product's env key. */
 export function hostCommandOverrideEnv(command: string): string {
-	return `${String(command).toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "")}_COMMAND`;
+	return `${String(command)
+		.toUpperCase()
+		.replace(/[^A-Z0-9]+/g, "_")
+		.replace(/^_+|_+$/g, "")}_COMMAND`;
 }
 
 export function createHostCommandResolver(
@@ -119,26 +119,25 @@ export function createHostCommandResolver(
 	// The default override env follows the host's own command (dgk → DGK_COMMAND),
 	// unless the host names an explicit key. No brand baked into the resolver.
 	const commandEnvKey = options.commandEnvKey ?? hostCommandOverrideEnv(options.defaultCommand);
-	return (input: HostCommandOptions = {}) => resolveHostCommand({
-		commandEnv: input.commandEnv,
-		command: input.command,
-		defaultCommand: options.defaultCommand,
-		commandEnvKey,
-	});
+	return (input: HostCommandOptions = {}) =>
+		resolveHostCommand({
+			commandEnv: input.commandEnv,
+			command: input.command,
+			defaultCommand: options.defaultCommand,
+			commandEnvKey,
+		});
 }
 
-export function resolveHostCommand(
-	input: ResolveHostCommandOptions,
-): string {
+export function resolveHostCommand(input: ResolveHostCommandOptions): string {
 	// The override env key follows the command being resolved unless an explicit
 	// key is supplied — the generic package derives, never hardcodes a brand.
 	const commandEnvKey = input.commandEnvKey ?? hostCommandOverrideEnv(input.defaultCommand);
-	const command = (
-		input.command
-		?? input.commandEnv?.[commandEnvKey]
-		?? input.env?.[commandEnvKey]
-		?? process.env[commandEnvKey]
-	) ?? "";
+	const command =
+		input.command ??
+		input.commandEnv?.[commandEnvKey] ??
+		input.env?.[commandEnvKey] ??
+		process.env[commandEnvKey] ??
+		"";
 	return String(command).trim() || input.defaultCommand;
 }
 
@@ -147,9 +146,10 @@ export interface HostSurfaceActionsFromManifestsOptions {
 	includeSubject?: boolean;
 }
 
-export function buildManifestPrimaryVerbs(
-	{ manifests, includeSubject = true }: HostSurfaceActionsFromManifestsOptions,
-): CapabilityHostPrimaryVerbOptions[] {
+export function buildManifestPrimaryVerbs({
+	manifests,
+	includeSubject = true,
+}: HostSurfaceActionsFromManifestsOptions): CapabilityHostPrimaryVerbOptions[] {
 	const seen = new Set<string>();
 	const primaryVerbs: CapabilityHostPrimaryVerbOptions[] = [];
 	for (const manifest of manifests) {
@@ -175,13 +175,15 @@ export interface CapabilityAppDefinition<Options extends object = Record<string,
 	programOptions?: (options: Options) => Options;
 }
 
-export interface RunCapabilityAppCliOptions<Options extends object = Record<string, never>>
-	extends RunCapabilityHostCliOptions {
+export interface RunCapabilityAppCliOptions<
+	Options extends object = Record<string, never>,
+> extends RunCapabilityHostCliOptions {
 	appOptions?: Options;
 }
 
-export interface ServeCapabilityAppOptions<Options extends object = Record<string, never>>
-	extends CapabilityHostServeCallOptions {
+export interface ServeCapabilityAppOptions<
+	Options extends object = Record<string, never>,
+> extends CapabilityHostServeCallOptions {
 	appOptions?: Options;
 }
 
@@ -194,19 +196,17 @@ export interface CapabilityApp<Options extends object = Record<string, never>> {
 	surfaceContext(options?: Options): ReturnType<CapabilityHost["surfaceContext"]>;
 	program(options?: Options): ReturnType<CapabilityHost["program"]>;
 	serve(options?: ServeCapabilityAppOptions<Options>): ReturnType<CapabilityHost["serve"]>;
-	runCli(
-		importMetaUrl: string,
-		options?: RunCapabilityAppCliOptions<Options>,
-	): Promise<boolean>;
+	runCli(importMetaUrl: string, options?: RunCapabilityAppCliOptions<Options>): Promise<boolean>;
 }
 
 export function defineCapabilityApp<Options extends object = Record<string, never>>(
 	definition: CapabilityAppDefinition<Options>,
 ): CapabilityApp<Options> {
 	const defaultOptions = (): Options => {
-		const defaults = typeof definition.defaultOptions === "function"
-			? definition.defaultOptions()
-			: definition.defaultOptions;
+		const defaults =
+			typeof definition.defaultOptions === "function"
+				? definition.defaultOptions()
+				: definition.defaultOptions;
 		return (defaults ?? {}) as Options;
 	};
 	const createOptions = (options?: Options): Options =>
@@ -214,13 +214,10 @@ export function defineCapabilityApp<Options extends object = Record<string, neve
 			...defaultOptions(),
 			...(options ?? {}),
 		}) as Options;
-	const host = (options?: Options): CapabilityHost =>
-		definition.host(createOptions(options));
+	const host = (options?: Options): CapabilityHost => definition.host(createOptions(options));
 	const program = (options?: Options): ReturnType<CapabilityHost["program"]> => {
 		const hostOptions = createOptions(options);
-		return host(
-			definition.programOptions?.(hostOptions) ?? hostOptions,
-		).program();
+		return host(definition.programOptions?.(hostOptions) ?? hostOptions).program();
 	};
 	return {
 		host,
@@ -244,16 +241,9 @@ export function defineCapabilityApp<Options extends object = Record<string, neve
 			const { appOptions, ...serveOptions } = options;
 			return host(appOptions).serve(serveOptions);
 		},
-		runCli(
-			importMetaUrl: string,
-			options: RunCapabilityAppCliOptions<Options> = {},
-		) {
+		runCli(importMetaUrl: string, options: RunCapabilityAppCliOptions<Options> = {}) {
 			const { appOptions, ...cliOptions } = options;
-			return runCapabilityHostCli(
-				importMetaUrl,
-				() => program(appOptions),
-				cliOptions,
-			);
+			return runCapabilityHostCli(importMetaUrl, () => program(appOptions), cliOptions);
 		},
 	};
 }

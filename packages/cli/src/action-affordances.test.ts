@@ -93,15 +93,11 @@ describe("surface action affordance helpers", () => {
 		).toBe(`Available TUI actions:
   [1] Open node — open-node (node:open)
   [2] Inspect trust — inspect-trust`);
-		expect(formatSurfaceActionAffordanceRows([])).toBe(
-			"Available actions:\n  none",
-		);
+		expect(formatSurfaceActionAffordanceRows([])).toBe("Available actions:\n  none");
 	});
 
 	it("resolves selections by one-based row index or stable id", () => {
-		expect(
-			resolveSurfaceActionAffordanceSelection(makeStatus(), "1"),
-		).toMatchObject({
+		expect(resolveSurfaceActionAffordanceSelection(makeStatus(), "1")).toMatchObject({
 			reason: "selected",
 			selected: { id: "open-node" },
 			selection: {
@@ -111,9 +107,7 @@ describe("surface action affordance helpers", () => {
 				index: 1,
 			},
 		});
-		expect(
-			resolveSurfaceActionAffordanceSelection(makeStatus(), " inspect-trust "),
-		).toMatchObject({
+		expect(resolveSurfaceActionAffordanceSelection(makeStatus(), " inspect-trust ")).toMatchObject({
 			reason: "selected",
 			selected: { index: 2, id: "inspect-trust" },
 			selection: {
@@ -178,10 +172,7 @@ describe("surface action affordance helpers", () => {
 				payload: { command, target: "node" },
 			},
 		]);
-		const selection = resolveSurfaceActionAffordanceSelection(
-			status,
-			"open-node",
-		);
+		const selection = resolveSurfaceActionAffordanceSelection(status, "open-node");
 
 		expect(
 			createSurfaceActionReadinessDryRunEnvelope(status, {
@@ -244,15 +235,11 @@ describe("surface action affordance helpers", () => {
 		const selection = resolveSurfaceActionAffordanceSelection(status, "2");
 
 		expect(
-			formatSurfaceActionAffordanceSelection(
-				selection.selected!,
-				selection.rows,
-				{
-					selectedHeading: "Selected host action:",
-					availableHeading: "Available host actions:",
-					selection: selection.selection,
-				},
-			),
+			formatSurfaceActionAffordanceSelection(selection.selected!, selection.rows, {
+				selectedHeading: "Selected host action:",
+				availableHeading: "Available host actions:",
+				selection: selection.selection,
+			}),
 		).toBe(`Selected host action:
   [2] Inspect trust — inspect-trust
 Selection:
@@ -265,26 +252,20 @@ Available host actions:
 	});
 
 	it("reports missing selections and formats available IDs", () => {
-		expect(
-			resolveSurfaceActionAffordanceSelection(makeStatus(), "missing"),
-		).toMatchObject({
+		expect(resolveSurfaceActionAffordanceSelection(makeStatus(), "missing")).toMatchObject({
 			reason: "missing-action",
 			selection: { requested: "missing", source: "id" },
 		});
-		expect(
-			resolveSurfaceActionAffordanceSelection(makeStatus([]), "1"),
-		).toMatchObject({
+		expect(resolveSurfaceActionAffordanceSelection(makeStatus([]), "1")).toMatchObject({
 			reason: "no-actions",
 			selection: { requested: "1", source: "index" },
 		});
-		expect(
-			formatSurfaceActionIds(getStatusAvailableSurfaceActions(makeStatus())),
-		).toBe("open-node, inspect-trust");
+		expect(formatSurfaceActionIds(getStatusAvailableSurfaceActions(makeStatus()))).toBe(
+			"open-node, inspect-trust",
+		);
 		expect(formatSurfaceActionIds([])).toBe("none");
 		expect(
-			formatSurfaceActionSelectionChoices(
-				createSurfaceActionAffordanceRows(makeStatus()),
-			),
+			formatSurfaceActionSelectionChoices(createSurfaceActionAffordanceRows(makeStatus())),
 		).toBe("[1] open-node, [2] inspect-trust");
 		expect(formatSurfaceActionSelectionChoices([])).toBe("none");
 	});

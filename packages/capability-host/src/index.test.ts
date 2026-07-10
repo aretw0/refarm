@@ -34,10 +34,12 @@ import {
 
 describe("command-resolution helper", () => {
 	it("picks explicit command before env fallback and trims values", () => {
-		expect(resolveHostCommand({
-			command: "  custom-cmd  ",
-			defaultCommand: "dgk",
-		})).toBe("custom-cmd");
+		expect(
+			resolveHostCommand({
+				command: "  custom-cmd  ",
+				defaultCommand: "dgk",
+			}),
+		).toBe("custom-cmd");
 	});
 
 	it("derives the override env key from the command (no brand hardcoded)", () => {
@@ -52,10 +54,12 @@ describe("command-resolution helper", () => {
 		const key = hostCommandOverrideEnv("dgk");
 		const previous = process.env[key];
 		process.env[key] = "process-env-command";
-		expect(resolveHostCommand({
-			commandEnv: { [key]: "explicit-env-command" },
-			defaultCommand: "dgk",
-		})).toBe("explicit-env-command");
+		expect(
+			resolveHostCommand({
+				commandEnv: { [key]: "explicit-env-command" },
+				defaultCommand: "dgk",
+			}),
+		).toBe("explicit-env-command");
 		if (previous === undefined) {
 			delete process.env[key];
 		} else {
@@ -70,9 +74,7 @@ describe("command-resolution helper", () => {
 		expect(resolveCommand({ command: "inline-command" })).toBe("inline-command");
 		// The override env is derived from defaultCommand ("acme" → ACME_COMMAND),
 		// NOT a hardcoded brand key.
-		expect(
-			resolveCommand({ commandEnv: { ACME_COMMAND: "env-command" } }),
-		).toBe("env-command");
+		expect(resolveCommand({ commandEnv: { ACME_COMMAND: "env-command" } })).toBe("env-command");
 		expect(resolveCommand({})).toBe("acme");
 	});
 
@@ -81,11 +83,13 @@ describe("command-resolution helper", () => {
 			defaultCommand: "fallback-command",
 			commandEnvKey: "CUSTOM_COMMAND",
 		});
-		expect(resolveCommand({
-			commandEnv: {
-				CUSTOM_COMMAND: "custom-key-command",
-			},
-		})).toBe("custom-key-command");
+		expect(
+			resolveCommand({
+				commandEnv: {
+					CUSTOM_COMMAND: "custom-key-command",
+				},
+			}),
+		).toBe("custom-key-command");
 	});
 
 	it("falls back to default when empty command and env are blank", () => {
@@ -99,10 +103,12 @@ describe("command-resolution helper", () => {
 	});
 
 	it("reads the derived env key as a fallback", () => {
-		expect(resolveHostCommand({
-			env: { [hostCommandOverrideEnv("dgk")]: "env-fallback-command" },
-			defaultCommand: "dgk",
-		})).toBe("env-fallback-command");
+		expect(
+			resolveHostCommand({
+				env: { [hostCommandOverrideEnv("dgk")]: "env-fallback-command" },
+				defaultCommand: "dgk",
+			}),
+		).toBe("env-fallback-command");
 	});
 });
 
@@ -205,29 +211,30 @@ describe("@refarm.dev/capability-host public API", () => {
 		const host: CapabilityHost = defineCapabilityHost(definition);
 		expect(host.program().name()).toBe("dgk");
 		expect(host.registry().get("open")).toBeDefined();
-		expect(host.surfaceActions().map((action) => action.id)).toEqual([
-			"open-workbench",
-		]);
+		expect(host.surfaceActions().map((action) => action.id)).toEqual(["open-workbench"]);
 		expect(host.baseModel().nextCommands).toEqual(["dgk open --json"]);
 	});
 
 	it("builds app helpers around a white-label host declaration", async () => {
 		const parseAsync = vi.fn(async () => undefined);
-		const createHost = vi.fn((options: { statePath?: string } = {}) => ({
-			registry: () => ({ statePath: options.statePath }),
-			baseModel: () => ({ nextCommands: [options.statePath ?? "memory"] }),
-			surfaceActions: () => [],
-			surfaceActionRows: () => [],
-			surfaceContext: () => ({
-				hostId: "examples/public-api",
-				data: { command: "dgk", description: "Digital Gardening Kit" },
-				actions: [],
-			}),
-			program: () => ({ parseAsync }),
-			serve: () => {
-				throw new Error("not used");
-			},
-		}) as unknown as CapabilityHost);
+		const createHost = vi.fn(
+			(options: { statePath?: string } = {}) =>
+				({
+					registry: () => ({ statePath: options.statePath }),
+					baseModel: () => ({ nextCommands: [options.statePath ?? "memory"] }),
+					surfaceActions: () => [],
+					surfaceActionRows: () => [],
+					surfaceContext: () => ({
+						hostId: "examples/public-api",
+						data: { command: "dgk", description: "Digital Gardening Kit" },
+						actions: [],
+					}),
+					program: () => ({ parseAsync }),
+					serve: () => {
+						throw new Error("not used");
+					},
+				}) as unknown as CapabilityHost,
+		);
 		const app = defineCapabilityApp({
 			host: createHost,
 			programOptions: (options: { statePath?: string } = {}) => ({
@@ -244,29 +251,34 @@ describe("@refarm.dev/capability-host public API", () => {
 		expect(createHost).toHaveBeenLastCalledWith({ statePath: "/tmp/dgk-state.json" });
 
 		const argv = ["node", "/repo/examples/wallet-t2/dist/cli.js"];
-		await expect(app.runCli("file:///repo/examples/wallet-t2/dist/cli.js", {
-			argv,
-			compiledFileName: "cli.js",
-		})).resolves.toBe(true);
+		await expect(
+			app.runCli("file:///repo/examples/wallet-t2/dist/cli.js", {
+				argv,
+				compiledFileName: "cli.js",
+			}),
+		).resolves.toBe(true);
 		expect(parseAsync).toHaveBeenCalledWith(argv);
 	});
 
 	it("applies app default options to every helper surface", () => {
-		const createHost = vi.fn((options: { statePath?: string } = {}) => ({
-			registry: () => ({ statePath: options.statePath }),
-			baseModel: () => ({ nextCommands: [options.statePath ?? "memory"] }),
-			surfaceActions: () => [{ id: options.statePath ?? "memory" }],
-			surfaceActionRows: () => [],
-			surfaceContext: () => ({
-				hostId: "examples/public-api",
-				data: { command: "dgk", description: "Digital Gardening Kit" },
-				actions: [{ id: options.statePath ?? "memory" }],
-			}),
-			program: () => ({ parseAsync: vi.fn(async () => undefined) }),
-			serve: () => {
-				throw new Error("not used");
-			},
-		}) as unknown as CapabilityHost);
+		const createHost = vi.fn(
+			(options: { statePath?: string } = {}) =>
+				({
+					registry: () => ({ statePath: options.statePath }),
+					baseModel: () => ({ nextCommands: [options.statePath ?? "memory"] }),
+					surfaceActions: () => [{ id: options.statePath ?? "memory" }],
+					surfaceActionRows: () => [],
+					surfaceContext: () => ({
+						hostId: "examples/public-api",
+						data: { command: "dgk", description: "Digital Gardening Kit" },
+						actions: [{ id: options.statePath ?? "memory" }],
+					}),
+					program: () => ({ parseAsync: vi.fn(async () => undefined) }),
+					serve: () => {
+						throw new Error("not used");
+					},
+				}) as unknown as CapabilityHost,
+		);
 		const app = defineCapabilityApp({
 			host: createHost,
 			defaultOptions: () => ({ statePath: "/tmp/dgk-state.json" }),
@@ -275,9 +287,7 @@ describe("@refarm.dev/capability-host public API", () => {
 		expect(app.registry()).toEqual({ statePath: "/tmp/dgk-state.json" });
 		expect(app.baseModel()).toEqual({ nextCommands: ["/tmp/dgk-state.json"] });
 		expect(app.surfaceActions()).toEqual([{ id: "/tmp/dgk-state.json" }]);
-		expect(app.surfaceContext().actions).toEqual([
-			{ id: "/tmp/dgk-state.json" },
-		]);
+		expect(app.surfaceContext().actions).toEqual([{ id: "/tmp/dgk-state.json" }]);
 		expect(app.registry({ statePath: "/tmp/explicit.json" })).toEqual({
 			statePath: "/tmp/explicit.json",
 		});
@@ -291,19 +301,22 @@ describe("@refarm.dev/capability-host public API", () => {
 			}),
 			close: vi.fn(async () => undefined),
 		}));
-		const createHost = vi.fn((options: { statePath?: string } = {}) => ({
-			registry: () => ({ statePath: options.statePath }),
-			baseModel: () => ({ nextCommands: [options.statePath ?? "memory"] }),
-			surfaceActions: () => [],
-			surfaceActionRows: () => [],
-			surfaceContext: () => ({
-				hostId: "examples/public-api",
-				data: { command: "dgk", description: "Digital Gardening Kit" },
-				actions: [],
-			}),
-			program: () => ({ parseAsync: vi.fn(async () => undefined) }),
-			serve,
-		}) as unknown as CapabilityHost);
+		const createHost = vi.fn(
+			(options: { statePath?: string } = {}) =>
+				({
+					registry: () => ({ statePath: options.statePath }),
+					baseModel: () => ({ nextCommands: [options.statePath ?? "memory"] }),
+					surfaceActions: () => [],
+					surfaceActionRows: () => [],
+					surfaceContext: () => ({
+						hostId: "examples/public-api",
+						data: { command: "dgk", description: "Digital Gardening Kit" },
+						actions: [],
+					}),
+					program: () => ({ parseAsync: vi.fn(async () => undefined) }),
+					serve,
+				}) as unknown as CapabilityHost,
+		);
 		const app = defineCapabilityApp({
 			host: createHost,
 			defaultOptions: () => ({ statePath: "/tmp/dgk-state.json" }),
@@ -323,9 +336,11 @@ describe("@refarm.dev/capability-host public API", () => {
 	});
 
 	it("re-exports serve info helpers from the white-label host boundary", () => {
-		expect(buildCapabilityHostServeInfo(4322, {
-			openApiPath: "/docs/openapi.json",
-		})).toMatchObject({
+		expect(
+			buildCapabilityHostServeInfo(4322, {
+				openApiPath: "/docs/openapi.json",
+			}),
+		).toMatchObject({
 			ok: true,
 			url: "http://127.0.0.1:4322",
 			openApiUrl: "http://127.0.0.1:4322/docs/openapi.json",
@@ -345,30 +360,36 @@ describe("@refarm.dev/capability-host public API", () => {
 
 	it("creates a memory submit sink for tests and harnesses", async () => {
 		const submit = createMemorySubmitEffort();
-		await expect(submit({
-			id: "effort-1",
-			direction: "dispatch",
-			source: "test",
-			submittedAt: "2026-01-01T00:00:00Z",
-			tasks: [{ id: "task-1", pluginId: "@example/plugin", fn: "search", args: {} }],
-		})).resolves.toBe("effort-1");
+		await expect(
+			submit({
+				id: "effort-1",
+				direction: "dispatch",
+				source: "test",
+				submittedAt: "2026-01-01T00:00:00Z",
+				tasks: [{ id: "task-1", pluginId: "@example/plugin", fn: "search", args: {} }],
+			}),
+		).resolves.toBe("effort-1");
 
 		expect(submit.submitted).toHaveLength(1);
 		expect(submit.submitted[0]?.tasks[0]?.fn).toBe("search");
 	});
 
 	it("re-exports JSON envelopes and local deps used by host extensions", () => {
-		expect(buildJsonSuccessEnvelope({
-			command: "extension",
-			operation: "run",
-		})).toMatchObject({ ok: true, command: "extension" });
-		expect(buildJsonErrorEnvelope({
-			command: "extension",
-			operation: "run",
-			error: "failed",
-			message: "failed",
-			nextAction: "Retry the extension.",
-		})).toMatchObject({ ok: false, error: "failed" });
+		expect(
+			buildJsonSuccessEnvelope({
+				command: "extension",
+				operation: "run",
+			}),
+		).toMatchObject({ ok: true, command: "extension" });
+		expect(
+			buildJsonErrorEnvelope({
+				command: "extension",
+				operation: "run",
+				error: "failed",
+				message: "failed",
+				nextAction: "Retry the extension.",
+			}),
+		).toMatchObject({ ok: false, error: "failed" });
 		expect(createLocalVaultCommandDeps()).toHaveProperty("discover");
 	});
 
@@ -398,43 +419,53 @@ describe("@refarm.dev/capability-host public API", () => {
 
 	it("re-exports extension helpers needed by example personas", () => {
 		expect(createLocalCapabilityDeps()).toHaveProperty("records");
-		expect(defineRecordsViewCapability({
-			name: "view",
-			summary: "View records",
-			records: defaultRecordsDeps(),
-			project: () => ({ seen: true }),
-		}).name).toBe("view");
-		expect(definePluginInspectorCapability({
-			name: "extension",
-			summary: "Inspect extension",
-			manifest: { id: "@example/ext" },
-			deps: createPluginDescriptorDeps({
-				submitEffort: async (effort) => effort.id,
-				newId: () => "id-1",
-				nowIso: () => "2026-01-01T00:00:00Z",
-			}),
-		}).name).toBe("extension");
+		expect(
+			defineRecordsViewCapability({
+				name: "view",
+				summary: "View records",
+				records: defaultRecordsDeps(),
+				project: () => ({ seen: true }),
+			}).name,
+		).toBe("view");
+		expect(
+			definePluginInspectorCapability({
+				name: "extension",
+				summary: "Inspect extension",
+				manifest: { id: "@example/ext" },
+				deps: createPluginDescriptorDeps({
+					submitEffort: async (effort) => effort.id,
+					newId: () => "id-1",
+					nowIso: () => "2026-01-01T00:00:00Z",
+				}),
+			}).name,
+		).toBe("extension");
 	});
 
 	it("re-exports built-in capability groups for host composition", () => {
 		expect(createRecordsCapabilityGroup().name).toBe("records");
 		expect(createSourceCapabilityGroup(defaultSourceDeps()).name).toBe("source");
-		expect(createVaultCapabilityGroup(defaultVaultDeps({
-			discover: () => ({ providers: [], rejected: [] }),
-			submitEffort: async (effort) => effort.id,
-		})).name).toBe("vault");
+		expect(
+			createVaultCapabilityGroup(
+				defaultVaultDeps({
+					discover: () => ({ providers: [], rejected: [] }),
+					submitEffort: async (effort) => effort.id,
+				}),
+			).name,
+		).toBe("vault");
 		expect(defaultRecordsDeps()).toHaveProperty("loadManifest");
 	});
 
 	it("re-exports plugin bridge helpers from the host boundary", () => {
 		expect(pluginSurfaceName("vault", "search")).toBe("vault-search");
-		expect(surfaceablePluginVerbsFrom({
-			id: "@example/vault",
-			capabilities: {
-				provides: ["vault:search"],
-				subscribes: ["vault:dispatch"],
-			},
-		})).toMatchObject([
+		expect(
+			surfaceablePluginVerbsFrom({
+				id: "@example/vault",
+				capabilities: {
+					provides: ["vault:search"],
+					subscribes: ["vault:dispatch"],
+				},
+			}),
+		).toMatchObject([
 			{
 				pluginId: "@example/vault",
 				pluginKey: "vault",

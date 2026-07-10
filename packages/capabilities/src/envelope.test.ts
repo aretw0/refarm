@@ -90,10 +90,7 @@ describe("json output helpers", () => {
 			nextAction: "Inspect diagnostics.",
 			nextActions: ["Start runtime.", "Inspect diagnostics."],
 			nextCommand: "refarm doctor --next-command",
-			nextCommands: [
-				"refarm doctor --next-command",
-				"refarm runtime ensure --wait --next-command",
-			],
+			nextCommands: ["refarm doctor --next-command", "refarm runtime ensure --wait --next-command"],
 		});
 	});
 

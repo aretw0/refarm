@@ -5,14 +5,8 @@ import {
 	defaultRecordsDeps,
 	type RecordsCommandDeps,
 } from "./records-capability.js";
-import {
-	createSourceCapabilityGroup,
-	type SourceCommandDeps,
-} from "./source-capability.js";
-import {
-	createVaultCapabilityGroup,
-	type VaultCommandDeps,
-} from "./vault-capability.js";
+import { createSourceCapabilityGroup, type SourceCommandDeps } from "./source-capability.js";
+import { createVaultCapabilityGroup, type VaultCommandDeps } from "./vault-capability.js";
 
 /**
  * The deps bundle a host injects to build the three neutral capability groups. The
@@ -39,9 +33,7 @@ export interface CapabilityDeps {
  * from the single declaration. This package ships zero work vocabulary — the bundle is
  * where the host's plumbing enters.
  */
-export function builtinCapabilities(
-	deps: CapabilityDeps,
-): CapabilityEntry[] {
+export function builtinCapabilities(deps: CapabilityDeps): CapabilityEntry[] {
 	return [
 		createVaultCapabilityGroup(deps.vault),
 		createSourceCapabilityGroup(deps.source),

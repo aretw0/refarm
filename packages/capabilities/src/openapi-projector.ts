@@ -1,8 +1,4 @@
-import type {
-	CapabilityArgSpec,
-	CapabilityEntry,
-	CapabilityOptionSpec,
-} from "./types.js";
+import type { CapabilityArgSpec, CapabilityEntry, CapabilityOptionSpec } from "./types.js";
 import { isCapabilityGroup } from "./types.js";
 
 type JsonSchema = Record<string, unknown>;

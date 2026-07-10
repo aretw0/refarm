@@ -1,16 +1,7 @@
 import type { CapabilityDeps } from "./builtin-capabilities.js";
-import {
-	defaultRecordsDeps,
-	type RecordsCommandDeps,
-} from "./records-capability.js";
-import {
-	defaultSourceDeps,
-	type SourceCommandDeps,
-} from "./source-capability.js";
-import {
-	createLocalVaultCommandDeps,
-	type VaultCommandDeps,
-} from "./vault-capability.js";
+import { defaultRecordsDeps, type RecordsCommandDeps } from "./records-capability.js";
+import { defaultSourceDeps, type SourceCommandDeps } from "./source-capability.js";
+import { createLocalVaultCommandDeps, type VaultCommandDeps } from "./vault-capability.js";
 
 export interface LocalCapabilityDepsOptions {
 	source?: SourceCommandDeps;

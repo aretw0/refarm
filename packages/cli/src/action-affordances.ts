@@ -16,20 +16,13 @@ import {
 	formatExecutionPlanReadinessLine,
 	type ExecutionPlanReadinessLine,
 } from "./execution-plan.js";
-import type {
-	StatusJson,
-	StatusSurfaceAction,
-} from "./status.js";
+import type { StatusJson, StatusSurfaceAction } from "./status.js";
 
 export type SurfaceActionAffordanceRow = BaseSurfaceActionRow;
-export type SurfaceActionAffordanceSelectionReason =
-	BaseSurfaceActionSelectionReason;
-export type SurfaceActionAffordanceSelectionSource =
-	BaseSurfaceActionSelectionSource;
-export type SurfaceActionAffordanceSelectionMetadata =
-	BaseSurfaceActionSelectionMetadata;
-export type SurfaceActionAffordanceSelectionResult =
-	BaseSurfaceActionSelectionResult;
+export type SurfaceActionAffordanceSelectionReason = BaseSurfaceActionSelectionReason;
+export type SurfaceActionAffordanceSelectionSource = BaseSurfaceActionSelectionSource;
+export type SurfaceActionAffordanceSelectionMetadata = BaseSurfaceActionSelectionMetadata;
+export type SurfaceActionAffordanceSelectionResult = BaseSurfaceActionSelectionResult;
 
 export interface SurfaceActionReadinessDryRunEnvelope {
 	schemaVersion: 1;
@@ -60,9 +53,7 @@ export interface SurfaceActionAffordanceSelectionFormatOptions {
 	selection?: SurfaceActionAffordanceSelectionMetadata;
 }
 
-export interface SurfaceActionReadinessOutputOptions<
-	RendererKind extends string,
-> {
+export interface SurfaceActionReadinessOutputOptions<RendererKind extends string> {
 	renderer: RendererKind;
 	command?: string;
 	json?: boolean;
@@ -136,13 +127,10 @@ export function createSurfaceActionReadinessDryRunEnvelope(
 		readiness: createSurfaceActionReadinessLine(status, options.selection),
 		...(options.command ? { command: options.command } : {}),
 		renderer: options.renderer,
-		selection: options.selection?.selected
-			? options.selection.selection
-			: undefined,
+		selection: options.selection?.selected ? options.selection.selection : undefined,
 		selectedAction: options.selection?.selected,
 		...(actionRequest ? { actionRequest } : {}),
-		actionRows:
-			options.selection?.rows ?? createSurfaceActionAffordanceRows(status),
+		actionRows: options.selection?.rows ?? createSurfaceActionAffordanceRows(status),
 		nextAction: null,
 		nextActions: [],
 		nextCommand: actionRequest?.nextCommand ?? null,
@@ -150,9 +138,7 @@ export function createSurfaceActionReadinessDryRunEnvelope(
 	};
 }
 
-export function createRendererSurfaceActionDryRunEnvelope<
-	RendererKind extends string,
->(
+export function createRendererSurfaceActionDryRunEnvelope<RendererKind extends string>(
 	status: StatusJson,
 	renderer: RendererKind,
 	selection?: SurfaceActionAffordanceSelectionResult,
@@ -171,17 +157,12 @@ export function createRendererSurfaceActionDryRunEnvelope<
 	};
 }
 
-export function formatSurfaceActionReadinessOutput<
-	RendererKind extends string,
->(
+export function formatSurfaceActionReadinessOutput<RendererKind extends string>(
 	status: StatusJson,
 	options: SurfaceActionReadinessOutputOptions<RendererKind>,
 ): string {
 	if (options.select) {
-		const selection = resolveSurfaceActionAffordanceSelection(
-			status,
-			options.select,
-		);
+		const selection = resolveSurfaceActionAffordanceSelection(status, options.select);
 		if (!selection.selected) {
 			if (options.json) {
 				return JSON.stringify(
@@ -213,15 +194,11 @@ export function formatSurfaceActionReadinessOutput<
 			);
 		}
 
-		return formatSurfaceActionAffordanceSelection(
-			selection.selected,
-			selection.rows,
-			{
-				selectedHeading: options.selectedHeading,
-				availableHeading: options.rowsHeading,
-				selection: selection.selection,
-			},
-		);
+		return formatSurfaceActionAffordanceSelection(selection.selected, selection.rows, {
+			selectedHeading: options.selectedHeading,
+			availableHeading: options.rowsHeading,
+			selection: selection.selection,
+		});
 	}
 
 	const rows = createSurfaceActionAffordanceRows(status);
@@ -263,12 +240,8 @@ export function formatSurfaceActionAffordanceSelection(
 	].join("\n");
 }
 
-export function formatSurfaceActionIds(
-	actions: readonly { id: string }[],
-): string {
-	return actions.length > 0
-		? actions.map((action) => action.id).join(", ")
-		: "none";
+export function formatSurfaceActionIds(actions: readonly { id: string }[]): string {
+	return actions.length > 0 ? actions.map((action) => action.id).join(", ") : "none";
 }
 
 export function formatSurfaceActionSelectionChoices(
@@ -277,9 +250,7 @@ export function formatSurfaceActionSelectionChoices(
 	return formatBaseSurfaceActionSelectionChoices(rows);
 }
 
-function createStatusSurfaceActionRequestActions(
-	status: StatusJson,
-): StatusSurfaceAction[] {
+function createStatusSurfaceActionRequestActions(status: StatusJson): StatusSurfaceAction[] {
 	return getStatusAvailableSurfaceActions(status).map((action) => {
 		const command = getStatusSurfaceActionCommand(action);
 		return {
@@ -289,9 +260,7 @@ function createStatusSurfaceActionRequestActions(
 	});
 }
 
-function getStatusSurfaceActionCommand(
-	action: StatusSurfaceAction,
-): string | undefined {
+function getStatusSurfaceActionCommand(action: StatusSurfaceAction): string | undefined {
 	const explicitCommand = action.command?.trim();
 	if (explicitCommand) return explicitCommand;
 	const payloadCommand = action.payload?.command;

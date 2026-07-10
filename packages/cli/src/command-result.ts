@@ -58,7 +58,5 @@ function commandPayloadStringList(
 	}
 	const singular = record[singularKey];
 	const trimmed = typeof singular === "string" ? singular.trim() : "";
-	return trimmed.length > 0
-		? [trimmed]
-		: undefined;
+	return trimmed.length > 0 ? [trimmed] : undefined;
 }

@@ -22,9 +22,7 @@ export function isCapabilityHostCliEntrypoint(
 	const scriptPath = argv[1];
 	if (!scriptPath) return false;
 	if (importMetaUrl === pathToFileURL(scriptPath).href) return true;
-	return options.compiledFileName
-		? importMetaUrl.endsWith(`/${options.compiledFileName}`)
-		: false;
+	return options.compiledFileName ? importMetaUrl.endsWith(`/${options.compiledFileName}`) : false;
 }
 
 export async function runCapabilityHostCli(
@@ -33,10 +31,12 @@ export async function runCapabilityHostCli(
 	options: RunCapabilityHostCliOptions = {},
 ): Promise<boolean> {
 	const argv = options.argv ?? process.argv;
-	if (!isCapabilityHostCliEntrypoint(importMetaUrl, {
-		argv,
-		compiledFileName: options.compiledFileName,
-	})) {
+	if (
+		!isCapabilityHostCliEntrypoint(importMetaUrl, {
+			argv,
+			compiledFileName: options.compiledFileName,
+		})
+	) {
 		return false;
 	}
 

@@ -23,34 +23,24 @@ describe("command handoff helpers", () => {
 	it("quotes command arguments with shell-safe JSON string syntax", () => {
 		expect(quoteCommandArg("hello world")).toBe("'hello world'");
 		expect(quoteCommandArg('say "hi"')).toBe("'say \"hi\"'");
-		expect(quoteCommandArg("don't expand $HOME")).toBe(
-			"'don'\"'\"'t expand $HOME'",
-		);
+		expect(quoteCommandArg("don't expand $HOME")).toBe("'don'\"'\"'t expand $HOME'");
 	});
 
 	it("quotes command arguments only when needed", () => {
 		expect(quoteCommandArgIfNeeded("effort-1")).toBe("effort-1");
-		expect(quoteCommandArgIfNeeded("urn:refarm:task:v1:abc123")).toBe(
-			"urn:refarm:task:v1:abc123",
-		);
-		expect(quoteCommandArgIfNeeded("effort with space")).toBe(
-			"'effort with space'",
-		);
+		expect(quoteCommandArgIfNeeded("urn:refarm:task:v1:abc123")).toBe("urn:refarm:task:v1:abc123");
+		expect(quoteCommandArgIfNeeded("effort with space")).toBe("'effort with space'");
 	});
 
 	it("builds application command strings without product-specific naming", () => {
-		expect(applicationCommand("tool", ["ask", quoteCommandArg("hello")])).toBe(
-			"tool ask 'hello'",
-		);
+		expect(applicationCommand("tool", ["ask", quoteCommandArg("hello")])).toBe("tool ask 'hello'");
 	});
 
 	it("keeps public command strings stable when launcher overrides are present", () => {
 		const previous = process.env.TOOL_COMMAND;
 		process.env.TOOL_COMMAND = "C:\\tmp\\tool.cmd";
 		try {
-			expect(applicationCommand("tool", ["resume", "--json"])).toBe(
-				"tool resume --json",
-			);
+			expect(applicationCommand("tool", ["resume", "--json"])).toBe("tool resume --json");
 		} finally {
 			if (previous === undefined) {
 				delete process.env.TOOL_COMMAND;
@@ -63,10 +53,7 @@ describe("command handoff helpers", () => {
 	it.each([
 		["/home/runner/.local/bin/refarm", "tool resume --json"],
 		["C:\\tmp\\refarm.cmd", "tool resume --json"],
-		[
-			"/home/runner/Refarm CLI/refarm",
-			"tool resume --json",
-		],
+		["/home/runner/Refarm CLI/refarm", "tool resume --json"],
 	])("ignores launcher override %s for public command strings", (override, expected) => {
 		const previous = process.env.TOOL_COMMAND;
 		process.env.TOOL_COMMAND = override;
@@ -127,19 +114,17 @@ describe("command handoff helpers", () => {
 	});
 
 	it("extracts unique command template parameters from commands and argv", () => {
-		expect(commandTemplateParameters([
-			"refarm agent finish --workspace <dir>",
-			"<dir>",
-			"<ref>",
-		])).toEqual(["dir", "ref"]);
+		expect(
+			commandTemplateParameters(["refarm agent finish --workspace <dir>", "<dir>", "<ref>"]),
+		).toEqual(["dir", "ref"]);
 	});
 
 	it("substitutes command template values and rejects missing parameters", () => {
 		expect(
-			substituteCommandTemplateValue(
-				"refarm agent finish --workspace <dir> --since <ref>",
-				{ dir: "packages/cli", ref: "HEAD~1" },
-			),
+			substituteCommandTemplateValue("refarm agent finish --workspace <dir> --since <ref>", {
+				dir: "packages/cli",
+				ref: "HEAD~1",
+			}),
 		).toBe("refarm agent finish --workspace packages/cli --since HEAD~1");
 		expect(() =>
 			substituteCommandTemplateValue("refarm agent finish --workspace <dir>", {}),
@@ -240,16 +225,14 @@ describe("command handoff helpers", () => {
 				display: "refarm task status effort-123 --json",
 			},
 		});
-		expect(() =>
-			instantiateCommandTemplateById(templates, "missing", {}),
-		).toThrow("Unknown command template: missing");
+		expect(() => instantiateCommandTemplateById(templates, "missing", {})).toThrow(
+			"Unknown command template: missing",
+		);
 	});
 
 	it("keeps cli source handoff commands behind helpers", () => {
 		const srcDir = path.dirname(fileURLToPath(import.meta.url));
-		const sourceFiles = listSourceFiles(srcDir).filter(
-			(file) => !file.endsWith(".test.ts"),
-		);
+		const sourceFiles = listSourceFiles(srcDir).filter((file) => !file.endsWith(".test.ts"));
 		const offenders = sourceFiles.flatMap((file) => {
 			const source = readFileSync(file, "utf8");
 			const matches = source.match(/["'`]refarm\s+[a-z][^"'`]*/g) ?? [];
@@ -268,16 +251,11 @@ describe("command handoff helpers", () => {
 		// No exceptions: capability-index-data.ts was parameterized off "refarm"
 		// (ADR-087 phase 3a — buildCapabilities(binary)), so NO generic cli source
 		// may name the brand. Any offender fails.
-		const sourceFiles = listSourceFiles(srcDir).filter(
-			(file) => !file.endsWith(".test.ts"),
-		);
+		const sourceFiles = listSourceFiles(srcDir).filter((file) => !file.endsWith(".test.ts"));
 		const offenders = sourceFiles.flatMap((file) => {
 			const rel = path.relative(srcDir, file);
 			const source = readFileSync(file, "utf8");
-			const matches =
-				source.match(
-					/application(?:Command|Process)\(\s*["'`]refarm["'`]/g,
-				) ?? [];
+			const matches = source.match(/application(?:Command|Process)\(\s*["'`]refarm["'`]/g) ?? [];
 			return matches.map((match) => `${rel}: ${match}`);
 		});
 

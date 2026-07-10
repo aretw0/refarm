@@ -18,10 +18,7 @@ export function loadChatHistory(historyPath = resolveChatHistoryPath()): string[
 		.slice(0, MAX_CHAT_HISTORY_LINES);
 }
 
-export function rememberChatHistoryLine(
-	history: string[],
-	line: string,
-): string[] {
+export function rememberChatHistoryLine(history: string[], line: string): string[] {
 	const trimmed = line.trim();
 	if (!trimmed || trimmed.startsWith("/")) return history;
 

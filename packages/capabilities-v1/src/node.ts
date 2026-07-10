@@ -25,9 +25,7 @@ export type LocalRecordsStatePathResolverOptions = Pick<
 	"cwd" | "env"
 >;
 
-export type LocalRecordsStatePathResolverInput =
-	| string
-	| LocalRecordsStatePathResolverOptions;
+export type LocalRecordsStatePathResolverInput = string | LocalRecordsStatePathResolverOptions;
 
 export type LocalRecordsStatePathResolver = (
 	options?: LocalRecordsStatePathResolverInput,
@@ -48,9 +46,7 @@ export function localRecordsStatePath(options: LocalRecordsStatePathOptions): st
 	);
 }
 
-export function resolveLocalRecordsStatePath(
-	options: ResolveLocalRecordsStatePathOptions,
-): string {
+export function resolveLocalRecordsStatePath(options: ResolveLocalRecordsStatePathOptions): string {
 	const env = options.env ?? process.env;
 	const override = options.envKey ? env[options.envKey]?.trim() : undefined;
 	return override || localRecordsStatePath(options);

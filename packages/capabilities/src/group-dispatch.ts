@@ -1,9 +1,5 @@
 import { parseCapabilityArgv } from "./parse-argv.js";
-import type {
-	CapabilityDescriptor,
-	CapabilityGroup,
-	CapabilityInput,
-} from "./types.js";
+import type { CapabilityDescriptor, CapabilityGroup, CapabilityInput } from "./types.js";
 
 /**
  * Resolve a group invocation to the sub-action to run + its parsed input, from

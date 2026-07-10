@@ -1,21 +1,16 @@
 import { describe, expect, it } from "vitest";
-import {
-	createExecutionPlanHandoff,
-	formatExecutionPlanReadinessLine,
-} from "./execution-plan.js";
+import { createExecutionPlanHandoff, formatExecutionPlanReadinessLine } from "./execution-plan.js";
 
 describe("execution plan readiness", () => {
 	it("formats blocked plans with their deterministic reason", () => {
 		expect(
 			formatExecutionPlanReadinessLine({
 				readyToExecute: false,
-				blockedReason:
-					"Git worktree must be clean before tree switch execution.",
+				blockedReason: "Git worktree must be clean before tree switch execution.",
 			}),
 		).toEqual({
 			status: "blocked",
-			label:
-				"Blocked: Git worktree must be clean before tree switch execution.",
+			label: "Blocked: Git worktree must be clean before tree switch execution.",
 		});
 	});
 
@@ -24,9 +19,10 @@ describe("execution plan readiness", () => {
 			status: "ready",
 			label: "Ready: yes",
 		});
-		expect(formatExecutionPlanReadinessLine({ readyToExecute: false })).toEqual(
-			{ status: "ready", label: "Ready: no" },
-		);
+		expect(formatExecutionPlanReadinessLine({ readyToExecute: false })).toEqual({
+			status: "ready",
+			label: "Ready: no",
+		});
 	});
 });
 
@@ -50,31 +46,18 @@ describe("execution plan handoffs", () => {
 		expect(
 			createExecutionPlanHandoff({
 				readyToExecute: false,
-				blockedReason:
-					"Provide a branch name with --name before executing tree fork.",
+				blockedReason: "Provide a branch name with --name before executing tree fork.",
 				recommendedCommand: null,
-				commandTemplate:
-					"refarm tree fork --scope git abc123 --name <branch-name>",
+				commandTemplate: "refarm tree fork --scope git abc123 --name <branch-name>",
 				processTemplate: {
 					command: "refarm",
-					args: [
-						"tree",
-						"fork",
-						"--scope",
-						"git",
-						"abc123",
-						"--name",
-						"<branch-name>",
-					],
+					args: ["tree", "fork", "--scope", "git", "abc123", "--name", "<branch-name>"],
 					display: "refarm tree fork --scope git abc123 --name <branch-name>",
 				},
 			}),
 		).toEqual({
-			nextAction:
-				"Provide a branch name with --name before executing tree fork.",
-			nextActions: [
-				"Provide a branch name with --name before executing tree fork.",
-			],
+			nextAction: "Provide a branch name with --name before executing tree fork.",
+			nextActions: ["Provide a branch name with --name before executing tree fork."],
 			nextCommand: null,
 			nextCommands: [],
 			templates: [
@@ -84,19 +67,10 @@ describe("execution plan handoffs", () => {
 					parameters: ["branch-name"],
 					process: {
 						command: "refarm",
-						args: [
-							"tree",
-							"fork",
-							"--scope",
-							"git",
-							"abc123",
-							"--name",
-							"<branch-name>",
-						],
+						args: ["tree", "fork", "--scope", "git", "abc123", "--name", "<branch-name>"],
 						display: "refarm tree fork --scope git abc123 --name <branch-name>",
 					},
-					useWhen:
-						"Provide a branch name with --name before executing tree fork.",
+					useWhen: "Provide a branch name with --name before executing tree fork.",
 				},
 			],
 		});

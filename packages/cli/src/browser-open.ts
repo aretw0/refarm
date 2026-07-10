@@ -17,8 +17,7 @@ export interface ResolveBrowserOpenCandidatesOptions {
 	env?: NodeJS.ProcessEnv;
 }
 
-export interface OpenHostBrowserUrlOptions
-	extends ResolveBrowserOpenCandidatesOptions {
+export interface OpenHostBrowserUrlOptions extends ResolveBrowserOpenCandidatesOptions {
 	run?: (candidate: BrowserOpenSpec) => Promise<void>;
 }
 
@@ -78,17 +77,10 @@ export function resolveBrowserOpenCandidates(
 
 	const configuredCommand = resolveConfiguredBrowserOpenCommand(env);
 	if (configuredCommand) {
-		const parts = splitBrowserOpenCommand(
-			configuredCommand.commandLine,
-			configuredCommand.envVar,
-		);
+		const parts = splitBrowserOpenCommand(configuredCommand.commandLine, configuredCommand.envVar);
 		const [command, ...args] = parts;
 		if (command) {
-			add(
-				command,
-				[...args, url],
-				`${configuredCommand.commandLine} ${url}`,
-			);
+			add(command, [...args, url], `${configuredCommand.commandLine} ${url}`);
 		}
 	}
 
@@ -96,7 +88,7 @@ export function resolveBrowserOpenCandidates(
 		"sh",
 		[
 			"-lc",
-			"for helper in /vscode/vscode-server/bin/linux-x64/*/bin/helpers/browser.sh \"$HOME\"/.vscode-server/bin/*/bin/helpers/browser.sh; do [ -x \"$helper\" ] && exec \"$helper\" \"$1\"; done; exit 127",
+			'for helper in /vscode/vscode-server/bin/linux-x64/*/bin/helpers/browser.sh "$HOME"/.vscode-server/bin/*/bin/helpers/browser.sh; do [ -x "$helper" ] && exec "$helper" "$1"; done; exit 127',
 			"refarm-vscode-open-external",
 			url,
 		],
@@ -148,9 +140,7 @@ export async function openHostBrowserUrl(
 	);
 }
 
-export function runBrowserOpenCandidate(
-	spec: BrowserOpenSpec,
-): Promise<void> {
+export function runBrowserOpenCandidate(spec: BrowserOpenSpec): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const child = spawn(spec.command, spec.args, {
 			cwd: process.cwd(),
@@ -168,11 +158,7 @@ export function runBrowserOpenCandidate(
 				return;
 			}
 
-			reject(
-				new Error(
-					`Browser opener exited with code ${code ?? -1} (${spec.display}).`,
-				),
-			);
+			reject(new Error(`Browser opener exited with code ${code ?? -1} (${spec.display}).`));
 		});
 	});
 }

@@ -54,7 +54,11 @@ describe("surfaceModel — the neutral visual envelope both web + TUI read", () 
 
 	it("carries the tui surface hint a TUI binds; a tui-only verb has no web key", () => {
 		const analyze = model().sections[0]!.items.find((i) => i.name === "analyze");
-		expect(analyze?.surfaces.tui).toEqual({ section: "citizen", shortcut: "ctrl+a", icon: "chart" });
+		expect(analyze?.surfaces.tui).toEqual({
+			section: "citizen",
+			shortcut: "ctrl+a",
+			icon: "chart",
+		});
 		// tui-only verb declared no web surface.
 		expect(analyze?.surfaces.web).toBeUndefined();
 	});
@@ -63,7 +67,10 @@ describe("surfaceModel — the neutral visual envelope both web + TUI read", () 
 		const xr: CapabilityDescriptor = {
 			name: "xr-panel",
 			summary: "an XR panel",
-			renderers: { tui: { section: "citizen" }, webxr: { anchor: "left", mesh: "panel.glb" } } as never,
+			renderers: {
+				tui: { section: "citizen" },
+				webxr: { anchor: "left", mesh: "panel.glb" },
+			} as never,
 			run: () => ({ ok: true }) as never,
 		};
 		const m = surfaceModel(createCapabilityRegistry([xr]));
@@ -108,7 +115,11 @@ describe("surfacesOf — the introspection face of the open axis (ADR-085)", () 
 	});
 
 	it("is [] for a bare verb that declares no surface", () => {
-		const bare: CapabilityDescriptor = { name: "b", summary: "b", run: () => ({ ok: true }) as never };
+		const bare: CapabilityDescriptor = {
+			name: "b",
+			summary: "b",
+			run: () => ({ ok: true }) as never,
+		};
 		expect(surfacesOf(bare)).toEqual([]);
 	});
 });

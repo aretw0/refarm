@@ -142,26 +142,15 @@ export interface ProjectScheduledWorkOptions {
 
 export type ProjectScheduledWorkSummary = OperatorResumeScheduledWorkSummary;
 
-export type ProjectScheduledWorkInspection =
-	OperatorResumeScheduledWorkInspection;
+export type ProjectScheduledWorkInspection = OperatorResumeScheduledWorkInspection;
 
 export interface ProjectAutomationAdapterOptions {
 	cwd?: string;
 	now?: () => Date;
 }
 
-const PROJECT_AUTOMATION_STATUSES = new Set([
-	"draft",
-	"ready",
-	"active",
-	"archived",
-]);
-const PROJECT_AUTOMATION_TRIGGER_TYPES = new Set([
-	"manual",
-	"cron",
-	"once",
-	"event",
-]);
+const PROJECT_AUTOMATION_STATUSES = new Set(["draft", "ready", "active", "archived"]);
+const PROJECT_AUTOMATION_TRIGGER_TYPES = new Set(["manual", "cron", "once", "event"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -188,9 +177,7 @@ function requireCleanString(value: unknown, field: string): string {
 	return cleaned;
 }
 
-export function normalizeProjectAutomationsDocument(
-	value: unknown,
-): ProjectAutomationsDocument {
+export function normalizeProjectAutomationsDocument(value: unknown): ProjectAutomationsDocument {
 	if (Array.isArray(value)) {
 		return { automations: value as ProjectAutomationRecord[] };
 	}
@@ -284,11 +271,7 @@ export function validateProjectAutomationsDocument(
 		return { ok: true, path, issues, count: 0 };
 	}
 
-	const records = Array.isArray(value)
-		? value
-		: isRecord(value)
-			? value.automations
-			: undefined;
+	const records = Array.isArray(value) ? value : isRecord(value) ? value.automations : undefined;
 	if (!Array.isArray(records)) {
 		return {
 			ok: false,
@@ -352,8 +335,7 @@ function validateProjectAutomationRecord(
 	}
 	if (
 		record.status !== undefined &&
-		(typeof record.status !== "string" ||
-			!PROJECT_AUTOMATION_STATUSES.has(record.status))
+		(typeof record.status !== "string" || !PROJECT_AUTOMATION_STATUSES.has(record.status))
 	) {
 		issues.push(
 			issue(
@@ -375,10 +357,7 @@ function validateProjectAutomationRecord(
 	}
 	record.triggers.forEach((trigger, triggerIndex) => {
 		issues.push(
-			...validateProjectAutomationTrigger(
-				trigger,
-				`${recordPath}.triggers[${triggerIndex}]`,
-			),
+			...validateProjectAutomationTrigger(trigger, `${recordPath}.triggers[${triggerIndex}]`),
 		);
 	});
 	return issues;
@@ -397,10 +376,7 @@ function validateProjectAutomationTrigger(
 			),
 		];
 	}
-	if (
-		typeof trigger.type !== "string" ||
-		!PROJECT_AUTOMATION_TRIGGER_TYPES.has(trigger.type)
-	) {
+	if (typeof trigger.type !== "string" || !PROJECT_AUTOMATION_TRIGGER_TYPES.has(trigger.type)) {
 		return [
 			issue(
 				`${path}.type`,
@@ -442,9 +418,7 @@ function validateProjectAutomationTrigger(
 	return [];
 }
 
-export function findProjectAutomationsPath(
-	cwd: string = process.cwd(),
-): string | undefined {
+export function findProjectAutomationsPath(cwd: string = process.cwd()): string | undefined {
 	let current = path.resolve(cwd);
 	while (true) {
 		const candidate = path.join(current, PROJECT_AUTOMATIONS_RELATIVE_PATH);
@@ -458,9 +432,7 @@ export function findProjectAutomationsPath(
 export async function loadProjectScheduledWork(
 	options: ProjectScheduledWorkOptions = {},
 ): Promise<ProjectScheduledWorkInspection | undefined> {
-	const automationsPath = findProjectAutomationsPath(
-		options.cwd ?? process.cwd(),
-	);
+	const automationsPath = findProjectAutomationsPath(options.cwd ?? process.cwd());
 	if (!automationsPath) return undefined;
 
 	let records: unknown;
@@ -484,18 +456,14 @@ export async function loadProjectScheduledWork(
 		{
 			async query(filter?: { status?: string }) {
 				if (!filter?.status) return automations;
-				return automations.filter(
-					(automation) => automation.status === filter.status,
-				);
+				return automations.filter((automation) => automation.status === filter.status);
 			},
 		},
 		{ owner: options.owner ?? "refarm-main", now: options.now },
 	) as Promise<ProjectScheduledWorkInspection>;
 }
 
-export function createProjectAutomationAdapter(
-	options: ProjectAutomationAdapterOptions = {},
-) {
+export function createProjectAutomationAdapter(options: ProjectAutomationAdapterOptions = {}) {
 	const cwd = options.cwd ?? process.cwd();
 	const now = options.now ?? (() => new Date());
 
@@ -512,16 +480,11 @@ export function createProjectAutomationAdapter(
 		async query(filter?: { status?: string }) {
 			const automations = loadAutomations();
 			if (!filter?.status) return automations;
-			return automations.filter(
-				(automation) => automation.status === filter.status,
-			);
+			return automations.filter((automation) => automation.status === filter.status);
 		},
-		async trigger(
-			id: string,
-			input?: unknown,
-		): Promise<ProjectAutomationEffort | null> {
-			const automation = readProjectAutomationsDocument(cwd)?.automations
-				.flatMap((record) => {
+		async trigger(id: string, input?: unknown): Promise<ProjectAutomationEffort | null> {
+			const automation = readProjectAutomationsDocument(cwd)
+				?.automations.flatMap((record) => {
 					const normalized = normalizeProjectAutomationForTrigger(record);
 					return normalized ? [normalized] : [];
 				})
@@ -544,9 +507,7 @@ export function createProjectAutomationAdapter(
 	};
 }
 
-function readProjectAutomationsDocument(
-	cwd: string,
-): ProjectAutomationsDocument | undefined {
+function readProjectAutomationsDocument(cwd: string): ProjectAutomationsDocument | undefined {
 	const automationsPath = findProjectAutomationsPath(cwd);
 	if (!automationsPath) return undefined;
 	try {
@@ -627,9 +588,7 @@ function buildDefaultProjectAutomationBody(
 	};
 }
 
-function normalizeProjectAutomationBody(
-	body: unknown,
-): ProjectAutomationBody | undefined {
+function normalizeProjectAutomationBody(body: unknown): ProjectAutomationBody | undefined {
 	if (!isRecord(body) || typeof body.type !== "string") return undefined;
 	if (body.type === "plugin") {
 		const pluginId = cleanString(body.pluginId);
@@ -678,9 +637,7 @@ function normalizeProjectAutomationEffortTemplate(
 	};
 }
 
-function normalizeProjectAutomationTask(
-	value: unknown,
-): ProjectAutomationTask | undefined {
+function normalizeProjectAutomationTask(value: unknown): ProjectAutomationTask | undefined {
 	if (!isRecord(value)) return undefined;
 	const id = cleanString(value.id);
 	const pluginId = cleanString(value.pluginId);
@@ -719,9 +676,7 @@ function bakeProjectAutomationEffort(options: {
 				path: PROJECT_AUTOMATIONS_RELATIVE_PATH,
 			},
 			trigger: options.input,
-			...(template.context === undefined
-				? {}
-				: { templateContext: template.context }),
+			...(template.context === undefined ? {} : { templateContext: template.context }),
 		},
 		priority: template.priority,
 		tags: template.tags ?? ["project-automation", options.automation.id],
@@ -732,14 +687,10 @@ function interpolateProjectAutomationString(
 	template: string,
 	input: Record<string, unknown>,
 ): string {
-	return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) =>
-		String(input[key] ?? ""),
-	);
+	return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => String(input[key] ?? ""));
 }
 
-function normalizeScheduledTrigger(
-	trigger: unknown,
-): LocalScheduledTrigger | undefined {
+function normalizeScheduledTrigger(trigger: unknown): LocalScheduledTrigger | undefined {
 	if (!isRecord(trigger)) return undefined;
 	if (trigger.type === "once" && typeof trigger.at === "string") {
 		return { type: "once", at: trigger.at };
@@ -748,8 +699,7 @@ function normalizeScheduledTrigger(
 		return {
 			type: "cron",
 			schedule: trigger.schedule,
-			timezone:
-				typeof trigger.timezone === "string" ? trigger.timezone : undefined,
+			timezone: typeof trigger.timezone === "string" ? trigger.timezone : undefined,
 		};
 	}
 	return undefined;

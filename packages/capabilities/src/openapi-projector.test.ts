@@ -22,9 +22,7 @@ describe("buildCapabilityOpenApiDocument", () => {
 			[
 				descriptor("wallet-open", {
 					args: [{ name: "path" }],
-					options: [
-						{ name: "dryRun", kind: "boolean", summary: "Preview only." },
-					],
+					options: [{ name: "dryRun", kind: "boolean", summary: "Preview only." }],
 					transports: { http: { method: "POST", path: "/wallet/open" } },
 				}),
 				descriptor("cli-only"),

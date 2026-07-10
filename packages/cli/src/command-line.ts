@@ -1,7 +1,7 @@
 export function splitCommandLine(commandLine: string, label = "command line"): string[] {
 	const words: string[] = [];
 	let current = "";
-	let quote: "'" | "\"" | null = null;
+	let quote: "'" | '"' | null = null;
 	let escaping = false;
 
 	for (const char of commandLine.trim()) {
@@ -25,7 +25,7 @@ export function splitCommandLine(commandLine: string, label = "command line"): s
 			continue;
 		}
 
-		if (char === "'" || char === "\"") {
+		if (char === "'" || char === '"') {
 			quote = char;
 			continue;
 		}

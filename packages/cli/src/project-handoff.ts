@@ -71,9 +71,7 @@ function cleanString(value: unknown): string | undefined {
 
 function cleanStringArray(value: unknown, limit?: number): string[] {
 	if (!Array.isArray(value)) return [];
-	const items = value
-		.map(cleanString)
-		.filter((item): item is string => item !== undefined);
+	const items = value.map(cleanString).filter((item): item is string => item !== undefined);
 	return limit === undefined ? items : items.slice(0, limit);
 }
 
@@ -94,8 +92,7 @@ export function parseProjectHandoffSummary(
 	const context = cleanString(value.context);
 	const timestamp = cleanString(value.timestamp);
 	const currentPhase =
-		typeof value.current_phase === "string" ||
-		typeof value.current_phase === "number"
+		typeof value.current_phase === "string" || typeof value.current_phase === "number"
 			? value.current_phase
 			: undefined;
 	if (!context && !timestamp && currentPhase === undefined) return undefined;
@@ -121,9 +118,7 @@ export function validateProjectHandoffDocument(
 		return {
 			ok: false,
 			path,
-			issues: [
-				fieldIssue(path, "not_object", "Project handoff must be a JSON object."),
-			],
+			issues: [fieldIssue(path, "not_object", "Project handoff must be a JSON object.")],
 			stale: false,
 		};
 	}
@@ -243,7 +238,11 @@ export function buildProjectHandoffDocument(
 ): ProjectHandoffDocument {
 	const base: Record<string, unknown> = isRecord(existing) ? { ...existing } : {};
 	if (update.context !== undefined) base.context = update.context.trim();
-	base.timestamp = (update.timestamp ?? options.now?.toISOString() ?? new Date().toISOString()).trim();
+	base.timestamp = (
+		update.timestamp ??
+		options.now?.toISOString() ??
+		new Date().toISOString()
+	).trim();
 	if (update.currentPhase !== undefined) base.current_phase = update.currentPhase;
 	if (update.currentTasks !== undefined) {
 		base.current_tasks = cleanStringArray([...update.currentTasks]);

@@ -8,15 +8,18 @@ import {
 describe("project handoff", () => {
 	it("parses the resume summary shape from project handoff JSON", () => {
 		expect(
-			parseProjectHandoffSummary({
-				context: "current work",
-				timestamp: "2026-06-27T06:00:00.000Z",
-				current_phase: 12,
-				current_tasks: ["task A", "task B", "task C"],
-				blockers: ["blocked"],
-				next_actions: ["next"],
-				open_questions: ["question"],
-			}, { arrayLimit: 2 }),
+			parseProjectHandoffSummary(
+				{
+					context: "current work",
+					timestamp: "2026-06-27T06:00:00.000Z",
+					current_phase: 12,
+					current_tasks: ["task A", "task B", "task C"],
+					blockers: ["blocked"],
+					next_actions: ["next"],
+					open_questions: ["question"],
+				},
+				{ arrayLimit: 2 },
+			),
 		).toEqual({
 			path: ".project/handoff.json",
 			context: "current work",
@@ -49,33 +52,38 @@ describe("project handoff", () => {
 	});
 
 	it("reports stale handoffs as warnings without failing validation", () => {
-		const result = validateProjectHandoffDocument({
-			context: "old but parseable",
-			timestamp: "2026-06-01T00:00:00.000Z",
-		}, {
-			now: new Date("2026-06-27T00:00:00.000Z"),
-			maxAgeMs: 7 * 24 * 60 * 60 * 1000,
-		});
+		const result = validateProjectHandoffDocument(
+			{
+				context: "old but parseable",
+				timestamp: "2026-06-01T00:00:00.000Z",
+			},
+			{
+				now: new Date("2026-06-27T00:00:00.000Z"),
+				maxAgeMs: 7 * 24 * 60 * 60 * 1000,
+			},
+		);
 
 		expect(result.ok).toBe(true);
 		expect(result.stale).toBe(true);
-		expect(result.issues).toMatchObject([
-			{ code: "timestamp_stale", severity: "warning" },
-		]);
+		expect(result.issues).toMatchObject([{ code: "timestamp_stale", severity: "warning" }]);
 	});
 
 	it("builds explicit checkpoint updates while preserving unknown fields", () => {
-		const document = buildProjectHandoffDocument({
-			context: "before",
-			timestamp: "2026-06-01T00:00:00.000Z",
-			key_decisions_active: ["DEC-1"],
-		}, {
-			context: "after",
-			currentPhase: 12,
-			nextActions: ["ship write command"],
-		}, {
-			now: new Date("2026-06-27T06:00:00.000Z"),
-		});
+		const document = buildProjectHandoffDocument(
+			{
+				context: "before",
+				timestamp: "2026-06-01T00:00:00.000Z",
+				key_decisions_active: ["DEC-1"],
+			},
+			{
+				context: "after",
+				currentPhase: 12,
+				nextActions: ["ship write command"],
+			},
+			{
+				now: new Date("2026-06-27T06:00:00.000Z"),
+			},
+		);
 
 		expect(document).toMatchObject({
 			context: "after",

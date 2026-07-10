@@ -150,14 +150,17 @@ describe("operator resume", () => {
 			"refarm runtime start --wait",
 		]);
 		const formatted = formatOperatorResumeSummary(summary);
-		expect(formatted).toContain(
-			"participants: urn:refarm:agent:runtime-agent",
-		);
+		expect(formatted).toContain("participants: urn:refarm:agent:runtime-agent");
 		expect(formatted).not.toContain("urn:refarm:agent:agent ->");
 	});
 
 	it("builds a JSON handoff envelope with task list fallback", () => {
-		expect(buildOperatorResumeEnvelope({ handoffs: HANDOFFS, status: { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] } })).toMatchObject({
+		expect(
+			buildOperatorResumeEnvelope({
+				handoffs: HANDOFFS,
+				status: { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] },
+			}),
+		).toMatchObject({
 			command: "resume",
 			operation: "operator",
 			ok: true,
@@ -274,9 +277,7 @@ describe("operator resume", () => {
 		const formatted = formatOperatorResumeSummary(
 			buildOperatorResumeSummary({ handoffs: HANDOFFS, status: readyStatus, scheduledWork }),
 		);
-		expect(formatted).toContain(
-			"Scheduled work: 2 local jobs due=1 scheduled=1 unsupported=0",
-		);
+		expect(formatted).toContain("Scheduled work: 2 local jobs due=1 scheduled=1 unsupported=0");
 		expect(formatted).toContain(
 			"automation-1:0 due one-shot daily handoff at=2026-06-27T09:00:00.000Z",
 		);
@@ -316,14 +317,14 @@ describe("operator resume", () => {
 		expect(formatOperatorResumeSummary(summary)).toContain(
 			"Environment pressure: stop-and-investigate (1 signals)",
 		);
-		expect(formatOperatorResumeSummary(summary)).toContain(
-			"command: pnpm run clean:rust:check",
-		);
-		expect(buildOperatorResumeEnvelope({
-			handoffs: HANDOFFS,
-			status: readyStatus,
-			environmentPressure,
-		})).toMatchObject({
+		expect(formatOperatorResumeSummary(summary)).toContain("command: pnpm run clean:rust:check");
+		expect(
+			buildOperatorResumeEnvelope({
+				handoffs: HANDOFFS,
+				status: readyStatus,
+				environmentPressure,
+			}),
+		).toMatchObject({
 			environmentPressure: {
 				decision: "stop-and-investigate",
 				signals: [
@@ -515,15 +516,7 @@ describe("operator resume", () => {
 		expect(operatorResumeNextProcesses(summary, HANDOFFS)).toEqual([
 			{
 				command: "refarm",
-				args: [
-					"task",
-					"status",
-					"effort-1",
-					"--transport",
-					"file",
-					"--watch",
-					"--json",
-				],
+				args: ["task", "status", "effort-1", "--transport", "file", "--watch", "--json"],
 				display: "refarm task status effort-1 --transport file --watch --json",
 			},
 			{
@@ -537,23 +530,25 @@ describe("operator resume", () => {
 	it("keeps task command fields JSON-readable in resume envelopes", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 
-		expect(buildOperatorResumeEnvelope({
-			handoffs: HANDOFFS,
-			status: readyStatus,
-			taskCheckpoint: {
-				updatedAt: "2026-05-27T12:00:00.000Z",
-				activeEffortId: "effort-1",
-				efforts: [
-					{
-						effortId: "effort-1",
-						transport: "file",
-						lastStatus: "in-progress",
-						statusCommand: "refarm task status effort-1 --transport file",
-						logsCommand: "refarm task logs effort-1 --transport file",
-					},
-				],
-			},
-		})).toMatchObject({
+		expect(
+			buildOperatorResumeEnvelope({
+				handoffs: HANDOFFS,
+				status: readyStatus,
+				taskCheckpoint: {
+					updatedAt: "2026-05-27T12:00:00.000Z",
+					activeEffortId: "effort-1",
+					efforts: [
+						{
+							effortId: "effort-1",
+							transport: "file",
+							lastStatus: "in-progress",
+							statusCommand: "refarm task status effort-1 --transport file",
+							logsCommand: "refarm task logs effort-1 --transport file",
+						},
+					],
+				},
+			}),
+		).toMatchObject({
 			nextCommand: "refarm task status effort-1 --transport file --watch --json",
 			tasks: {
 				activeEffort: {

@@ -1,9 +1,6 @@
 export { CapabilityRegistry, createCapabilityRegistry } from "./registry.js";
 export { parseCapabilityArgv } from "./parse-argv.js";
-export {
-	buildCapabilityRoutes,
-	createCapabilityRouteHandler,
-} from "./http-projector.js";
+export { buildCapabilityRoutes, createCapabilityRouteHandler } from "./http-projector.js";
 export {
 	buildCapabilityOpenApiDocument,
 	type CapabilityOpenApiDocument,
@@ -37,15 +34,8 @@ export {
 	type SurfaceItem,
 	type SurfaceHint,
 } from "./surface-model.js";
-export {
-	buildPaletteModel,
-	type PaletteModel,
-	type PaletteEntry,
-} from "./palette-projector.js";
-export {
-	resolveGroupAction,
-	type ResolvedGroupAction,
-} from "./group-dispatch.js";
+export { buildPaletteModel, type PaletteModel, type PaletteEntry } from "./palette-projector.js";
+export { resolveGroupAction, type ResolvedGroupAction } from "./group-dispatch.js";
 export {
 	isCapabilityGroup,
 	type CapabilityAgentTransport,

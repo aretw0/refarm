@@ -27,8 +27,10 @@ export interface RustSubstrateCheck {
 	recommendations: RustSubstrateRecommendation[];
 }
 
-const RUST_SUBSTRATE_BUILD_TOOLS_COMMAND = "Install Visual Studio Build Tools with the C++ build tools workload.";
-const RUST_SUBSTRATE_DEVELOPER_SHELL_COMMAND = "Open a Developer PowerShell for VS, set CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER, or put the MSVC linker before Git usr/bin in PATH.";
+const RUST_SUBSTRATE_BUILD_TOOLS_COMMAND =
+	"Install Visual Studio Build Tools with the C++ build tools workload.";
+const RUST_SUBSTRATE_DEVELOPER_SHELL_COMMAND =
+	"Open a Developer PowerShell for VS, set CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER, or put the MSVC linker before Git usr/bin in PATH.";
 const RUST_SUBSTRATE_CARGO_COMPONENT_COMMAND = "cargo install cargo-component --locked";
 const RUST_SUBSTRATE_WASI_TARGET_COMMAND = "rustup target add wasm32-wasip1";
 // The brand-specific retry command (e.g. `<binary> check --next-action --json`)
@@ -44,12 +46,17 @@ async function exists(filePath: string): Promise<boolean> {
 }
 
 async function rustSubstrateRequired(root: string): Promise<boolean> {
-	return (await exists(path.join(root, "Cargo.toml"))) ||
+	return (
+		(await exists(path.join(root, "Cargo.toml"))) ||
 		(await exists(path.join(root, "rust-toolchain.toml"))) ||
-		(await exists(path.join(root, ".cargo", "config.toml")));
+		(await exists(path.join(root, ".cargo", "config.toml")))
+	);
 }
 
-function runProbe(command: string, args: string[] = []): {
+function runProbe(
+	command: string,
+	args: string[] = [],
+): {
 	ok: boolean;
 	stdout: string;
 	stderr: string;
@@ -111,7 +118,9 @@ export async function runRustSubstrateCheck(
 	const rustupVersion = runProbe("rustup", ["--version"]);
 	const rustcHost = rustc.stdout.match(/^host:\s*(.+)$/m)?.[1] ?? null;
 	const installedTargets = rustupTargets.stdout.split(/\r?\n/).filter(Boolean);
-	const cargoCommands = stripAnsi(cargoList.stdout).split(/\r?\n/).map((line) => line.trim());
+	const cargoCommands = stripAnsi(cargoList.stdout)
+		.split(/\r?\n/)
+		.map((line) => line.trim());
 	const missing: string[] = [];
 
 	if (!rustc.ok) missing.push("rustc");
@@ -127,7 +136,7 @@ export async function runRustSubstrateCheck(
 	const compiler = platform === "win32" ? commandSource("cl.exe") : null;
 	const linker = platform === "win32" ? commandSource("link.exe") : null;
 	const explicitMsvcLinker =
-		platform === "win32" ? process.env.CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER ?? null : null;
+		platform === "win32" ? (process.env.CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER ?? null) : null;
 	const explicitMsvcLinkerOk =
 		typeof explicitMsvcLinker === "string" &&
 		/\\link\.exe$/i.test(explicitMsvcLinker) &&
@@ -135,10 +144,7 @@ export async function runRustSubstrateCheck(
 	const effectiveLinker = explicitMsvcLinkerOk ? explicitMsvcLinker : linker;
 	if (platform === "win32" && rustcHost?.endsWith("-msvc")) {
 		if (!compiler) missing.push("msvc_cl");
-		if (
-			!explicitMsvcLinkerOk &&
-			(!linker || /\\Git\\usr\\bin\\link\.exe$/i.test(linker))
-		) {
+		if (!explicitMsvcLinkerOk && (!linker || /\\Git\\usr\\bin\\link\.exe$/i.test(linker))) {
 			missing.push("msvc_link");
 		}
 	}
@@ -208,7 +214,8 @@ function buildRustSubstrateRecommendations(input: {
 		recommendations.push({
 			diagnostic: "rust-substrate:wrong-msvc-linker",
 			severity: "failure",
-			summary: "The Rust MSVC linker resolves to Git's Unix-style link.exe instead of the MSVC linker.",
+			summary:
+				"The Rust MSVC linker resolves to Git's Unix-style link.exe instead of the MSVC linker.",
 			action: RUST_SUBSTRATE_DEVELOPER_SHELL_COMMAND,
 			target: input.linker,
 		});
@@ -223,7 +230,11 @@ function buildRustSubstrateRecommendations(input: {
 			target: "cargo component",
 		});
 	}
-	if (input.missing.includes("rustc") || input.missing.includes("cargo") || input.missing.includes("rustup_targets")) {
+	if (
+		input.missing.includes("rustc") ||
+		input.missing.includes("cargo") ||
+		input.missing.includes("rustup_targets")
+	) {
 		recommendations.push({
 			diagnostic: "rust-substrate:missing-rust-toolchain",
 			severity: "failure",
@@ -235,8 +246,10 @@ function buildRustSubstrateRecommendations(input: {
 		recommendations.push({
 			diagnostic: "rust-substrate:rustup-version-probe",
 			severity: "warning",
-			summary: "rustup --version failed, but Rust target validation succeeded through rustup target list.",
-			action: "Inspect rustup --version only if Rust diagnostics need the exact rustup manager version.",
+			summary:
+				"rustup --version failed, but Rust target validation succeeded through rustup target list.",
+			action:
+				"Inspect rustup --version only if Rust diagnostics need the exact rustup manager version.",
 			target: "rustup --version",
 		});
 	}

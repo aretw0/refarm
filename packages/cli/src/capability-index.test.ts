@@ -115,12 +115,8 @@ describe("capability index", () => {
 			"runtime-agent.structured-io",
 			"runtime-agent.code-ops",
 		]);
-		expect(
-			supplyMap.entries.every((entry) => entry.referenceLessons.length > 0),
-		).toBe(true);
-		expect(
-			supplyMap.entries.every((entry) => entry.referenceSources.length > 0),
-		).toBe(true);
+		expect(supplyMap.entries.every((entry) => entry.referenceLessons.length > 0)).toBe(true);
+		expect(supplyMap.entries.every((entry) => entry.referenceSources.length > 0)).toBe(true);
 		expect(supplyMap.entries).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
@@ -132,8 +128,7 @@ describe("capability index", () => {
 						},
 						{
 							name: "Pi coding-agent README",
-							url:
-								"https://github.com/earendil-works/pi/tree/main/packages/coding-agent",
+							url: "https://github.com/earendil-works/pi/tree/main/packages/coding-agent",
 						},
 						{
 							name: "OpenAI Codex non-interactive mode",
@@ -167,12 +162,7 @@ describe("capability index", () => {
 							export: "@refarm.dev/cli/interaction-driver",
 							eventContract: {
 								format: "json-events",
-								requiredEvents: [
-									"accepted",
-									"streamed",
-									"completed",
-									"failed",
-								],
+								requiredEvents: ["accepted", "streamed", "completed", "failed"],
 								terminalEvents: ["completed", "failed"],
 							},
 							status: "exported",

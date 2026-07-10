@@ -87,7 +87,14 @@ describe("workspace sweep", () => {
 	it("summarizes adapter and remote cache recommendations across observations", () => {
 		const turboWorkspace = path.join(tempRoot, "turbo-workspace");
 		const installCommand = ["pnpm", "add", "-D", "-w", "turbo"].join(" ");
-		const provisionCommand = ["refarm", "provision", "cloudflare", "turbo-cache", "--dry-run", "--json"].join(" ");
+		const provisionCommand = [
+			"refarm",
+			"provision",
+			"cloudflare",
+			"turbo-cache",
+			"--dry-run",
+			"--json",
+		].join(" ");
 		fs.mkdirSync(turboWorkspace, { recursive: true });
 		writeJson(path.join(turboWorkspace, "package.json"), {
 			devDependencies: {},
@@ -163,11 +170,13 @@ describe("workspace sweep", () => {
 		]);
 		expect(recommendations[0]?.nextCommand).toBe(installCommand);
 		expect(recommendations[1]?.nextCommand).toBe(provisionCommand);
-		expect(workspaceSweepRecommendationNextCommands([
-			recommendations[0]!,
-			recommendations[1]!,
-			recommendations[0]!,
-		])).toEqual([installCommand, provisionCommand]);
+		expect(
+			workspaceSweepRecommendationNextCommands([
+				recommendations[0]!,
+				recommendations[1]!,
+				recommendations[0]!,
+			]),
+		).toEqual([installCommand, provisionCommand]);
 	});
 
 	it("builds the reusable all-workspaces payload without command-shell fields", () => {
@@ -193,8 +202,24 @@ describe("workspace sweep", () => {
 
 	it("plans source repository cache without requiring devcontainer rebuilds", () => {
 		const visiblePath = path.join(tempRoot, "visible");
-		const visibleCachePath = path.join(tempRoot, ".refarm", "cache", "checkouts", "github.com", "example", "visible");
-		const cachedPath = path.join(tempRoot, ".refarm", "cache", "checkouts", "github.com", "example", "cached");
+		const visibleCachePath = path.join(
+			tempRoot,
+			".refarm",
+			"cache",
+			"checkouts",
+			"github.com",
+			"example",
+			"visible",
+		);
+		const cachedPath = path.join(
+			tempRoot,
+			".refarm",
+			"cache",
+			"checkouts",
+			"github.com",
+			"example",
+			"cached",
+		);
 		fs.mkdirSync(visiblePath, { recursive: true });
 		fs.mkdirSync(visibleCachePath, { recursive: true });
 		fs.mkdirSync(cachedPath, { recursive: true });
@@ -202,36 +227,39 @@ describe("workspace sweep", () => {
 		fs.utimesSync(visibleCachePath, staleCacheTime, staleCacheTime);
 		fs.utimesSync(cachedPath, staleCacheTime, staleCacheTime);
 
-		const plan = buildWorkspaceSourceCachePlan([
-			createWorkspace({
-				id: "visible",
-				absolutePath: visiblePath,
-				repository: {
-					url: "https://github.com/example/visible.git",
-					ref: null,
-				},
-			}),
-			createWorkspace({
-				id: "cached",
-				absolutePath: path.join(tempRoot, "missing-cached"),
-				repository: {
-					url: "https://github.com/example/cached.git",
-					ref: "develop",
-				},
-			}),
-			createWorkspace({
-				id: "missing",
-				absolutePath: path.join(tempRoot, "missing"),
-				repository: {
-					url: "https://github.com/example/missing.git",
-					ref: "main",
-				},
-			}),
-			createWorkspace({
-				id: "unconfigured",
-				absolutePath: path.join(tempRoot, "unconfigured"),
-			}),
-		], { baseDir: tempRoot });
+		const plan = buildWorkspaceSourceCachePlan(
+			[
+				createWorkspace({
+					id: "visible",
+					absolutePath: visiblePath,
+					repository: {
+						url: "https://github.com/example/visible.git",
+						ref: null,
+					},
+				}),
+				createWorkspace({
+					id: "cached",
+					absolutePath: path.join(tempRoot, "missing-cached"),
+					repository: {
+						url: "https://github.com/example/cached.git",
+						ref: "develop",
+					},
+				}),
+				createWorkspace({
+					id: "missing",
+					absolutePath: path.join(tempRoot, "missing"),
+					repository: {
+						url: "https://github.com/example/missing.git",
+						ref: "main",
+					},
+				}),
+				createWorkspace({
+					id: "unconfigured",
+					absolutePath: path.join(tempRoot, "unconfigured"),
+				}),
+			],
+			{ baseDir: tempRoot },
+		);
 
 		expect(plan).toMatchObject({
 			mode: "all",
@@ -288,7 +316,15 @@ describe("workspace sweep", () => {
 							"--branch",
 							"main",
 							"https://github.com/example/missing.git",
-							path.join(tempRoot, ".refarm", "cache", "checkouts", "github.com", "example", "missing"),
+							path.join(
+								tempRoot,
+								".refarm",
+								"cache",
+								"checkouts",
+								"github.com",
+								"example",
+								"missing",
+							),
 						],
 					},
 				},
@@ -305,10 +341,12 @@ describe("workspace sweep", () => {
 				},
 			],
 		});
-		expect(plan.items.find((item) => item.workspaceId === "visible")?.cacheAgeSeconds)
-			.toBeGreaterThanOrEqual(300);
-		expect(plan.items.find((item) => item.workspaceId === "cached")?.cacheAgeSeconds)
-			.toBeGreaterThanOrEqual(300);
+		expect(
+			plan.items.find((item) => item.workspaceId === "visible")?.cacheAgeSeconds,
+		).toBeGreaterThanOrEqual(300);
+		expect(
+			plan.items.find((item) => item.workspaceId === "cached")?.cacheAgeSeconds,
+		).toBeGreaterThanOrEqual(300);
 	});
 });
 

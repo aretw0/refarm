@@ -65,7 +65,11 @@ describe("createWasmEnrichmentProvider — enrichment backed by a WASM plugin's 
 		const calls: Array<{ verb: string; payload: string }> = [];
 		const spy: CallRespond = async (verb, payload) => {
 			calls.push({ verb, payload });
-			return JSON.stringify({ mode: "dry-run", records: [], diagnostics: { total: 0, enriched: 0, skipped: 0, byCode: {} } });
+			return JSON.stringify({
+				mode: "dry-run",
+				records: [],
+				diagnostics: { total: 0, enriched: 0, skipped: 0, byCode: {} },
+			});
 		};
 		await provider(spy).enrich([{ id: "a", fields: { externalKey: "K1" } }]);
 		expect(calls[0]?.verb).toBe("enrichment:enrich");

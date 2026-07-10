@@ -36,9 +36,7 @@ export interface WasmSourceProviderOptions {
  * side — which needs host filesystem effects — is delegated to a host-side provider in a
  * real deployment, so this adapter rejects them with a clear message rather than faking
  * them. Discovery + status are the pure, ref-closed surface a WASM provider serves. */
-export function createWasmSourceProvider(
-	options: WasmSourceProviderOptions,
-): SourceProvider {
+export function createWasmSourceProvider(options: WasmSourceProviderOptions): SourceProvider {
 	const { pluginId, callRespond } = options;
 
 	async function call(method: string, extra: Record<string, unknown> = {}): Promise<unknown> {

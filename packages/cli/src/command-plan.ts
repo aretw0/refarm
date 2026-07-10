@@ -1,8 +1,5 @@
 import { spawnSync } from "node:child_process";
-import {
-	normalizeHandoffValues,
-	shellCommand,
-} from "./command-handoff.js";
+import { normalizeHandoffValues, shellCommand } from "./command-handoff.js";
 import {
 	commandPayloadNextActions,
 	commandPayloadNextCommands,
@@ -40,11 +37,7 @@ export type CommandPlanWorkClass =
 	| "worker-fanout"
 	| "mutation";
 
-export type CommandPlanResourceCeilingDecision =
-	| "allow"
-	| "degrade"
-	| "serialize"
-	| "refuse";
+export type CommandPlanResourceCeilingDecision = "allow" | "degrade" | "serialize" | "refuse";
 
 export interface CommandPlanResourceCeilingPlan {
 	schemaVersion?: 1;
@@ -160,8 +153,7 @@ export interface CommandPlanEnvelopeExtra {
 	nextProcesses: CommandProcessSpec[];
 }
 
-export type CommandPlanEnvelope =
-	JsonSuccessEnvelope<CommandPlanEnvelopeExtra>;
+export type CommandPlanEnvelope = JsonSuccessEnvelope<CommandPlanEnvelopeExtra>;
 
 export interface CommandPlanRunEnvelope {
 	action: string;
@@ -187,23 +179,17 @@ export interface CommandPlanRunEnvelope {
 	recommendations: unknown[];
 }
 
-export function commandPlanStepCommands(
-	steps: readonly CommandPlanStep[],
-): string[] {
+export function commandPlanStepCommands(steps: readonly CommandPlanStep[]): string[] {
 	return steps.map((step) => step.command);
 }
 
-export function commandPlanStepProcesses(
-	steps: readonly CommandPlanStep[],
-): CommandProcessSpec[] {
+export function commandPlanStepProcesses(steps: readonly CommandPlanStep[]): CommandProcessSpec[] {
 	return steps
 		.map((step) => step.process)
 		.filter((process): process is CommandProcessSpec => Boolean(process));
 }
 
-export function commandPlanEffects(
-	steps: readonly CommandPlanStep[],
-): CommandPlanEffect[] {
+export function commandPlanEffects(steps: readonly CommandPlanStep[]): CommandPlanEffect[] {
 	return Array.from(
 		new Set(
 			steps
@@ -270,9 +256,7 @@ export function buildCommandPlanRunEnvelope(
 	};
 }
 
-export function commandPlanStepSummary(
-	step: CommandPlanStepRunResult,
-): CommandPlanStepSummary {
+export function commandPlanStepSummary(step: CommandPlanStepRunResult): CommandPlanStepSummary {
 	return {
 		id: step.id,
 		command: step.command,
@@ -397,11 +381,7 @@ export function runCommandPlan(
 			? commandPlanSerializedStep(step, resourceCeiling)
 			: null;
 		const executableStep = serializedStep ?? step;
-		if (
-			resourceCeiling &&
-			!serializedStep &&
-			shouldStopForResourceCeiling(resourceCeiling)
-		) {
+		if (resourceCeiling && !serializedStep && shouldStopForResourceCeiling(resourceCeiling)) {
 			const normalized = commandPlanResourceCeilingStepResult(step, resourceCeiling);
 			steps.push(normalized);
 			const remainingSteps = stepsToRun.slice(index + 1);
@@ -444,12 +424,9 @@ export function runCommandPlan(
 			const payloadNextCommands = commandPayloadNextCommands(result.payload);
 			const fallbackNextActions = commandPlanStepFallbackNextActions(executableStep, result);
 			const nextActions = normalizeHandoffValues(
-				commandPayloadNextActions(result.payload) ??
-					payloadNextCommands ?? fallbackNextActions,
+				commandPayloadNextActions(result.payload) ?? payloadNextCommands ?? fallbackNextActions,
 			);
-			const nextCommands = normalizeHandoffValues(
-				payloadNextCommands ?? [executableStep.command],
-			);
+			const nextCommands = normalizeHandoffValues(payloadNextCommands ?? [executableStep.command]);
 			return {
 				ok: false,
 				status: "failed",
@@ -500,9 +477,7 @@ function isNestedSpawnRestricted(result: CommandPlanStepRunResult): boolean {
 	return /spawnSync .* EPERM/.test(result.stderr);
 }
 
-function shouldStopForResourceCeiling(
-	resourceCeiling: CommandPlanResourceCeilingPlan,
-): boolean {
+function shouldStopForResourceCeiling(resourceCeiling: CommandPlanResourceCeilingPlan): boolean {
 	return resourceCeiling.ok === false || resourceCeiling.decision !== "allow";
 }
 
@@ -524,14 +499,11 @@ function commandPlanSerializedStep(
 		Number(maxConcurrency),
 	);
 	if (!serializedProcessArgs) return null;
-	const serializedDisplay = commandPlanSerializedConcurrencyText(
-		process.display,
-		Number(maxConcurrency),
-	) ?? shellCommand(process.command, serializedProcessArgs);
-	const serializedCommand = commandPlanSerializedConcurrencyText(
-		step.command,
-		Number(maxConcurrency),
-	) ?? serializedDisplay;
+	const serializedDisplay =
+		commandPlanSerializedConcurrencyText(process.display, Number(maxConcurrency)) ??
+		shellCommand(process.command, serializedProcessArgs);
+	const serializedCommand =
+		commandPlanSerializedConcurrencyText(step.command, Number(maxConcurrency)) ?? serializedDisplay;
 	return {
 		...step,
 		command: serializedCommand,

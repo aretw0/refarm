@@ -37,11 +37,13 @@ export interface WorkspaceExecutionStatus {
 	};
 }
 
-export function buildWorkspaceExecutionStatus(options: {
-	cwd?: string;
-	env?: NodeJS.ProcessEnv;
-	packageManager?: WorkspaceExecutionPackageManager;
-} = {}): WorkspaceExecutionStatus {
+export function buildWorkspaceExecutionStatus(
+	options: {
+		cwd?: string;
+		env?: NodeJS.ProcessEnv;
+		packageManager?: WorkspaceExecutionPackageManager;
+	} = {},
+): WorkspaceExecutionStatus {
 	const cwd = options.cwd ?? process.cwd();
 	const env = options.env ?? process.env;
 	const rootResolution = findWorkspaceExecutionRoot(cwd);
@@ -51,7 +53,9 @@ export function buildWorkspaceExecutionStatus(options: {
 	const turboConfigured = fs.existsSync(turboConfigPath);
 	const turboDeclared = workspaceDeclaresDependency(root, "turbo");
 	const turboAvailable = turboConfigured && turboDeclared;
-	const localCache = turboConfigured ? detectLocalTurboCache(root) : { available: false, path: null, kind: null };
+	const localCache = turboConfigured
+		? detectLocalTurboCache(root)
+		: { available: false, path: null, kind: null };
 	const remoteConfigured = Boolean(env.TURBO_CACHE_API_URL && env.TURBO_CACHE_TOKEN);
 	return {
 		root,
@@ -59,7 +63,8 @@ export function buildWorkspaceExecutionStatus(options: {
 		executor: turboAvailable
 			? {
 					selected: "turbo",
-					reason: "Workspace declares turbo and has turbo.json; cache-aware validation can use the Turbo adapter.",
+					reason:
+						"Workspace declares turbo and has turbo.json; cache-aware validation can use the Turbo adapter.",
 				}
 			: {
 					selected: "direct-script",
@@ -76,15 +81,16 @@ export function buildWorkspaceExecutionStatus(options: {
 				configured: turboConfigured,
 				declared: turboDeclared,
 				configPath: turboConfigured ? turboConfigPath : null,
-				installCommand: turboConfigured && !turboDeclared
-					? packageAddDevCommand("turbo", {
-							cwd: root,
-							env: {
-								...env,
-								REFARM_PACKAGE_MANAGER: packageManager,
-							},
-						}).display
-					: null,
+				installCommand:
+					turboConfigured && !turboDeclared
+						? packageAddDevCommand("turbo", {
+								cwd: root,
+								env: {
+									...env,
+									REFARM_PACKAGE_MANAGER: packageManager,
+								},
+							}).display
+						: null,
 			},
 		},
 		cache: {
@@ -180,7 +186,7 @@ function workspaceDeclaresDependency(root: string, dependencyName: string): bool
 		};
 		return Boolean(
 			recordHasDependency(parsed.dependencies, dependencyName) ||
-				recordHasDependency(parsed.devDependencies, dependencyName),
+			recordHasDependency(parsed.devDependencies, dependencyName),
 		);
 	} catch {
 		return false;

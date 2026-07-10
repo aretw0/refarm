@@ -54,10 +54,7 @@ export function createWasmEnrichmentProvider(
 
 		// The remote step: marshal the selected inputs to the plugin's respond and parse
 		// its EnrichmentResult. This is the I/O-shaped method a WASM extension owns.
-		async enrich(
-			inputs: EnrichmentInput[],
-			opts?: EnrichmentOptions,
-		): Promise<EnrichmentResult> {
+		async enrich(inputs: EnrichmentInput[], opts?: EnrichmentOptions): Promise<EnrichmentResult> {
 			opts?.signal?.throwIfAborted();
 			const mode = opts?.mode ?? "dry-run";
 			const reply = await callRespond(

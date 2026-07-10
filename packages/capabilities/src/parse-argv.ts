@@ -1,8 +1,4 @@
-import type {
-	CapabilityDescriptor,
-	CapabilityInput,
-	CapabilityOptionSpec,
-} from "./types.js";
+import type { CapabilityDescriptor, CapabilityInput, CapabilityOptionSpec } from "./types.js";
 
 /**
  * Parse a token list (from the REPL's splitCommandLine) into the SAME
@@ -71,10 +67,7 @@ export function parseCapabilityArgv(
 		}
 		if (option.kind === "string[]") {
 			const current = options[option.name];
-			options[option.name] = [
-				...(Array.isArray(current) ? current : []),
-				value,
-			];
+			options[option.name] = [...(Array.isArray(current) ? current : []), value];
 		} else {
 			options[option.name] = value;
 		}

@@ -10,11 +10,7 @@ export type WorkerOutputFormat = "summary" | "json";
 export type WorkerToolExecutionMode = "plan-only" | "runtime-dispatch";
 export type WorkerTokenUse = "provider";
 export type WorkerToolReadinessState = "ready" | "blocked";
-export type WorkerToolResultStatus =
-	| "completed"
-	| "blocked"
-	| "failed"
-	| "cancelled";
+export type WorkerToolResultStatus = "completed" | "blocked" | "failed" | "cancelled";
 export type WorkerToolReadinessRequirement =
 	| "policy"
 	| "cancellation"
@@ -167,8 +163,7 @@ export const WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS = [
 	{
 		code: "runtime-dispatch.cancellation-proof-missing",
 		requirement: "cancellation",
-		description:
-			"Worker dispatch needs a cancellation and resume proof before work can fan out.",
+		description: "Worker dispatch needs a cancellation and resume proof before work can fan out.",
 		proofTarget:
 			"worker lifecycle: cancellable task state, resume policy, and fanout stop propagation",
 	},
@@ -190,9 +185,7 @@ export const WORKER_TOOL_RUNTIME_DISPATCH_BLOCKERS = [
 	},
 ] as const satisfies readonly WorkerToolReadinessBlocker[];
 
-export function createWorkerProfile(
-	input: WorkerProfileInput,
-): WorkerProfile {
+export function createWorkerProfile(input: WorkerProfileInput): WorkerProfile {
 	return {
 		schemaVersion: WORKER_PROFILE_SCHEMA_VERSION,
 		id: input.id,
@@ -225,9 +218,7 @@ export function createWorkerProfile(
 	};
 }
 
-export function validateWorkerProfile(
-	profile: WorkerProfile,
-): WorkerProfileValidation {
+export function validateWorkerProfile(profile: WorkerProfile): WorkerProfileValidation {
 	const issues: string[] = [];
 	if (profile.schemaVersion !== WORKER_PROFILE_SCHEMA_VERSION) {
 		issues.push("schemaVersion must be 1");
@@ -246,9 +237,7 @@ export function validateWorkerProfile(
 		profile.concurrency.maxParallel < 1 ||
 		profile.concurrency.maxParallel > WORKER_PROFILE_MAX_PARALLEL
 	) {
-		issues.push(
-			`concurrency.maxParallel must be between 1 and ${WORKER_PROFILE_MAX_PARALLEL}`,
-		);
+		issues.push(`concurrency.maxParallel must be between 1 and ${WORKER_PROFILE_MAX_PARALLEL}`);
 	}
 	if (!["default", "worker", "monitor"].includes(profile.model.scope)) {
 		issues.push("model.scope must be default, worker, or monitor");
@@ -348,9 +337,7 @@ export function validateWorkerToolDescriptor(
 	return { ok: issues.length === 0, issues };
 }
 
-export function assessWorkerToolReadiness(
-	descriptor: WorkerToolDescriptor,
-): WorkerToolReadiness {
+export function assessWorkerToolReadiness(descriptor: WorkerToolDescriptor): WorkerToolReadiness {
 	const validation = validateWorkerToolDescriptor(descriptor);
 	const blockers: WorkerToolReadinessBlocker[] = [];
 

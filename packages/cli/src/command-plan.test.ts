@@ -66,17 +66,19 @@ const processSteps: CommandPlanStep[] = [
 
 describe("command plan runner", () => {
 	it("builds plan command lists and JSON envelopes", () => {
-		expect(commandPlanStepCommands(steps)).toEqual([
-			"refarm first --json",
-			"refarm second --json",
-		]);
+		expect(commandPlanStepCommands(steps)).toEqual(["refarm first --json", "refarm second --json"]);
 		expect(commandPlanEffects(steps)).toEqual(["verify", "observe"]);
 		expect(commandPlanWrites(steps)).toBe(false);
-		expect(buildCommandPlanEnvelope({
-			action: "finish",
-			command: "agent",
-			operation: "finish",
-		}, steps)).toMatchObject({
+		expect(
+			buildCommandPlanEnvelope(
+				{
+					action: "finish",
+					command: "agent",
+					operation: "finish",
+				},
+				steps,
+			),
+		).toMatchObject({
 			action: "finish",
 			status: "plan",
 			command: "agent",
@@ -109,11 +111,16 @@ describe("command plan runner", () => {
 				tool: "direct-script",
 			},
 		]);
-		expect(buildCommandPlanEnvelope({
-			action: "finish",
-			command: "agent",
-			operation: "finish",
-		}, processSteps)).toMatchObject({
+		expect(
+			buildCommandPlanEnvelope(
+				{
+					action: "finish",
+					command: "agent",
+					operation: "finish",
+				},
+				processSteps,
+			),
+		).toMatchObject({
 			nextCommand: "refarm agent finish --workspace packages/cli --json",
 			nextCommands: [
 				"refarm agent finish --workspace packages/cli --json",
@@ -162,7 +169,10 @@ describe("command plan runner", () => {
 			nextActions: [],
 			nextCommands: [],
 			nextProcesses: [],
-			steps: [{ id: "first", ok: true }, { id: "second", ok: true }],
+			steps: [
+				{ id: "first", ok: true },
+				{ id: "second", ok: true },
+			],
 		});
 		expect(runStep).toHaveBeenCalledTimes(2);
 	});
@@ -205,21 +215,13 @@ describe("command plan runner", () => {
 				stdout: JSON.stringify({
 					ok: false,
 					nextActions: [" Repair runtime. ", "Repair runtime.", ""],
-					nextCommands: [
-						" refarm runtime start --wait ",
-						"refarm runtime start --wait",
-						"  ",
-					],
+					nextCommands: [" refarm runtime start --wait ", "refarm runtime start --wait", "  "],
 				}),
 				stderr: "",
 				payload: {
 					ok: false,
 					nextActions: [" Repair runtime. ", "Repair runtime.", ""],
-					nextCommands: [
-						" refarm runtime start --wait ",
-						"refarm runtime start --wait",
-						"  ",
-					],
+					nextCommands: [" refarm runtime start --wait ", "refarm runtime start --wait", "  "],
 				},
 			}));
 
@@ -234,7 +236,10 @@ describe("command plan runner", () => {
 			nextActions: ["Repair runtime."],
 			nextCommands: ["refarm runtime start --wait"],
 			nextProcesses: [],
-			steps: [{ id: "first", ok: true }, { id: "second", ok: false }],
+			steps: [
+				{ id: "first", ok: true },
+				{ id: "second", ok: false },
+			],
 		});
 	});
 
@@ -347,24 +352,12 @@ describe("command plan runner", () => {
 		const fanoutStep: CommandPlanStep = {
 			id: "fanout",
 			command: "worker-runner run tests --concurrency=4 --scope apps/refarm",
-			args: [
-				"run",
-				"tests",
-				"--concurrency=4",
-				"--scope",
-				"apps/refarm",
-			],
+			args: ["run", "tests", "--concurrency=4", "--scope", "apps/refarm"],
 			description: "Run broad test fanout.",
 			effect: "verify",
 			process: {
 				command: "worker-runner",
-				args: [
-					"run",
-					"tests",
-					"--concurrency=4",
-					"--scope",
-					"apps/refarm",
-				],
+				args: ["run", "tests", "--concurrency=4", "--scope", "apps/refarm"],
 				cwd: "/workspaces/refarm",
 				display: "worker-runner run tests --concurrency=4 --scope apps/refarm",
 				packageManager: null,
@@ -401,22 +394,9 @@ describe("command plan runner", () => {
 		expect(runStep).toHaveBeenCalledTimes(1);
 		expect(runStep.mock.calls[0]?.[0]).toMatchObject({
 			command: "worker-runner run tests --concurrency=1 --scope apps/refarm",
-			args: [
-				"worker-runner",
-				"run",
-				"tests",
-				"--concurrency=1",
-				"--scope",
-				"apps/refarm",
-			],
+			args: ["worker-runner", "run", "tests", "--concurrency=1", "--scope", "apps/refarm"],
 			process: {
-				args: [
-					"run",
-					"tests",
-					"--concurrency=1",
-					"--scope",
-					"apps/refarm",
-				],
+				args: ["run", "tests", "--concurrency=1", "--scope", "apps/refarm"],
 				display: "worker-runner run tests --concurrency=1 --scope apps/refarm",
 				resourcePolicy: {
 					concurrency: 1,
@@ -472,11 +452,16 @@ describe("command plan runner", () => {
 			},
 		}));
 
-		expect(buildCommandPlanRunEnvelope({
-			action: "finish",
-			command: "agent",
-			operation: "finish",
-		}, result)).toMatchObject({
+		expect(
+			buildCommandPlanRunEnvelope(
+				{
+					action: "finish",
+					command: "agent",
+					operation: "finish",
+				},
+				result,
+			),
+		).toMatchObject({
 			action: "finish",
 			status: "failed",
 			ok: false,
@@ -496,20 +481,22 @@ describe("command plan runner", () => {
 	});
 
 	it("keeps process metadata in command plan step summaries", () => {
-		expect(commandPlanStepSummary({
-			...steps[0]!,
-			ok: true,
-			exitCode: 0,
-			stdout: "",
-			stderr: "",
-			process: {
-				command: "npm",
-				args: ["--prefix", "apps/refarm", "run", "type-check"],
-				cwd: "/workspaces/refarm",
-				display: "npm --prefix apps/refarm run type-check",
-				packageManager: "npm",
-			},
-		})).toMatchObject({
+		expect(
+			commandPlanStepSummary({
+				...steps[0]!,
+				ok: true,
+				exitCode: 0,
+				stdout: "",
+				stderr: "",
+				process: {
+					command: "npm",
+					args: ["--prefix", "apps/refarm", "run", "type-check"],
+					cwd: "/workspaces/refarm",
+					display: "npm --prefix apps/refarm run type-check",
+					packageManager: "npm",
+				},
+			}),
+		).toMatchObject({
 			id: "first",
 			process: {
 				command: "npm",

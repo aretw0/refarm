@@ -49,9 +49,7 @@ describe("splitProcessHandoffCommand", () => {
 	});
 
 	it("rejects empty process handoff command", () => {
-		expect(() => splitProcessHandoffCommand("   ")).toThrow(
-			/Invalid process handoff command/,
-		);
+		expect(() => splitProcessHandoffCommand("   ")).toThrow(/Invalid process handoff command/);
 	});
 
 	it("builds full process handoff spec from command display", () => {
@@ -63,9 +61,7 @@ describe("splitProcessHandoffCommand", () => {
 	});
 
 	it("can carry an explicit working directory", () => {
-		expect(
-			createProcessHandoffSpec("tractor watch", { cwd: "/workspaces/refarm" }),
-		).toEqual({
+		expect(createProcessHandoffSpec("tractor watch", { cwd: "/workspaces/refarm" })).toEqual({
 			command: "tractor",
 			args: ["watch"],
 			cwd: "/workspaces/refarm",
@@ -75,14 +71,10 @@ describe("splitProcessHandoffCommand", () => {
 
 	it("builds process specs from runner-style command arguments", () => {
 		expect(
-			createProcessHandoffSpecFromRunner(
-				"node",
-				["scripts/run task.mjs", "--json"],
-				{
-					cwd: "/workspaces/consumer vault",
-					packageManager: "pnpm",
-				},
-			),
+			createProcessHandoffSpecFromRunner("node", ["scripts/run task.mjs", "--json"], {
+				cwd: "/workspaces/consumer vault",
+				packageManager: "pnpm",
+			}),
 		).toEqual({
 			command: "node",
 			args: ["scripts/run task.mjs", "--json"],
@@ -181,9 +173,7 @@ describe("splitProcessHandoffCommand", () => {
 				},
 				{ logPath },
 			);
-			await expect(waitForLogContent(logPath, "detached ok")).resolves.toContain(
-				"detached ok",
-			);
+			await expect(waitForLogContent(logPath, "detached ok")).resolves.toContain("detached ok");
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}

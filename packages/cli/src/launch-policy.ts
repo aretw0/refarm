@@ -1,8 +1,4 @@
-import {
-	classifyStatusDiagnostics,
-	STATUS_DIAGNOSTICS,
-	type StatusJson,
-} from "./status.js";
+import { classifyStatusDiagnostics, STATUS_DIAGNOSTICS, type StatusJson } from "./status.js";
 
 /**
  * The brand-specific recovery handoffs this policy weaves into its messages
@@ -43,9 +39,7 @@ export function resolveLaunchReadiness(
 	if (diagnostics.failures.length === 0) {
 		return { readyToExecute: true, failures: [], recoveryCommands: [] };
 	}
-	const runtimeNotReady = diagnostics.failures.includes(
-		STATUS_DIAGNOSTICS.runtimeNotReady,
-	);
+	const runtimeNotReady = diagnostics.failures.includes(STATUS_DIAGNOSTICS.runtimeNotReady);
 	const recoveryHint = runtimeNotReady
 		? hints.runtimeNotReadyHint
 		: hints.doctorNextActionCommand

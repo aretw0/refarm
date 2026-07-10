@@ -73,10 +73,7 @@ export const RESERVED_SLASH_NAMES: ReadonlySet<string> = new Set([
  * through to a model message. Built-in names are matched first, so a capability
  * can never shadow `/model`, `/reload`, etc.
  */
-export function parseChatLine(
-	line: string,
-	capabilityNames?: ReadonlySet<string>,
-): ChatCommand {
+export function parseChatLine(line: string, capabilityNames?: ReadonlySet<string>): ChatCommand {
 	const trimmed = line.trim();
 
 	if (!trimmed.startsWith("/")) {
@@ -111,11 +108,7 @@ export function parseChatLine(
 		};
 	}
 
-	if (
-		commandName === "login" ||
-		commandName === "sow" ||
-		commandName === "keys"
-	) {
+	if (commandName === "login" || commandName === "sow" || commandName === "keys") {
 		if (commandName === "keys") {
 			return { kind: "keys", action: "provider-keys" };
 		}

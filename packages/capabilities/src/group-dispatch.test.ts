@@ -16,8 +16,7 @@ function fixtureGroup(): CapabilityGroup {
 	const current: CapabilityDescriptor = {
 		name: "current",
 		summary: "Show the current selection",
-		run: () =>
-			buildJsonSuccessEnvelope({ command: "demo", operation: "current" }),
+		run: () => buildJsonSuccessEnvelope({ command: "demo", operation: "current" }),
 	};
 
 	// A selectable sub-action returns affordance rows in its envelope — the TUI
@@ -67,8 +66,7 @@ describe("CapabilityGroup dispatch", () => {
 					name: "current",
 					summary: "current",
 					args: [{ name: "ref" }],
-					run: () =>
-						buildJsonSuccessEnvelope({ command: "demo", operation: "current" }),
+					run: () => buildJsonSuccessEnvelope({ command: "demo", operation: "current" }),
 				},
 			},
 		};
@@ -105,8 +103,7 @@ describe("CapabilityGroup custom token grammar (group.resolve)", () => {
 					name: "pick",
 					summary: "pick one",
 					args: [{ name: "which", required: true }],
-					run: () =>
-						buildJsonSuccessEnvelope({ command: "demo", operation: "pick" }),
+					run: () => buildJsonSuccessEnvelope({ command: "demo", operation: "pick" }),
 				},
 			},
 			// Bare unknown token → the `pick` action (a shape the generic dispatcher

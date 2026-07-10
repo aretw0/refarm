@@ -81,8 +81,7 @@ export const STATUS_DIAGNOSTICS = {
 	rendererNoRichHtml: "renderer:no-rich-html",
 } as const;
 
-export type StatusDiagnosticCode =
-	(typeof STATUS_DIAGNOSTICS)[keyof typeof STATUS_DIAGNOSTICS];
+export type StatusDiagnosticCode = (typeof STATUS_DIAGNOSTICS)[keyof typeof STATUS_DIAGNOSTICS];
 
 export const STATUS_FAILURE_DIAGNOSTICS = [
 	STATUS_DIAGNOSTICS.runtimeNotReady,
@@ -109,9 +108,7 @@ export interface StatusDiagnosticSummary {
 	hasFailure: boolean;
 }
 
-export function buildStatusJson(
-	options: StatusOptions,
-): StatusJson {
+export function buildStatusJson(options: StatusOptions): StatusJson {
 	const { host, renderer, runtime, trust, streams, plugins } = options;
 	const surfaces = summarizeHomesteadHostSurfaceState(plugins?.surfaces);
 	return {
@@ -181,12 +178,8 @@ export function isStatusJson(value: unknown): value is StatusJson {
 		typeof runtime.databaseName !== "string"
 	)
 		return false;
-	if (typeof runtime.error !== "undefined" && typeof runtime.error !== "string")
-		return false;
-	if (
-		typeof runtime.engine !== "undefined" &&
-		!isHostRuntimeEngineSummary(runtime.engine)
-	)
+	if (typeof runtime.error !== "undefined" && typeof runtime.error !== "string") return false;
+	if (typeof runtime.engine !== "undefined" && !isHostRuntimeEngineSummary(runtime.engine))
 		return false;
 
 	const plugins = value.plugins;
@@ -222,24 +215,18 @@ export function isStatusJson(value: unknown): value is StatusJson {
 	return isStringArray(value.diagnostics);
 }
 
-export function assertStatusJson(
-	value: unknown,
-): asserts value is StatusJson {
+export function assertStatusJson(value: unknown): asserts value is StatusJson {
 	const schemaIssue = getStatusSchemaVersionIssue(value);
 	if (schemaIssue) {
 		throw new Error(schemaIssue.message);
 	}
 
 	if (!isStatusJson(value)) {
-		throw new Error(
-			`Invalid status payload for schemaVersion=${STATUS_SCHEMA_VERSION}.`,
-		);
+		throw new Error(`Invalid status payload for schemaVersion=${STATUS_SCHEMA_VERSION}.`);
 	}
 }
 
-export function getStatusSchemaVersionIssue(
-	value: unknown,
-): StatusSchemaVersionIssue | null {
+export function getStatusSchemaVersionIssue(value: unknown): StatusSchemaVersionIssue | null {
 	const found = isRecord(value) ? value.schemaVersion : undefined;
 
 	if (typeof found === "undefined") {
@@ -281,9 +268,7 @@ export function getStatusSchemaVersionIssue(
 	return null;
 }
 
-export function parseStatusJson(
-	input: string | unknown,
-): StatusJson {
+export function parseStatusJson(input: string | unknown): StatusJson {
 	const value = typeof input === "string" ? parseJsonString(input) : input;
 	assertStatusJson(value);
 	return value;
@@ -296,12 +281,8 @@ export function classifyStatusDiagnostics(
 		warningCodes?: readonly string[];
 	} = {},
 ): StatusDiagnosticSummary {
-	const failureCodes = new Set(
-		options.failureCodes ?? STATUS_FAILURE_DIAGNOSTICS,
-	);
-	const warningCodes = new Set(
-		options.warningCodes ?? STATUS_WARNING_DIAGNOSTICS,
-	);
+	const failureCodes = new Set(options.failureCodes ?? STATUS_FAILURE_DIAGNOSTICS);
+	const warningCodes = new Set(options.warningCodes ?? STATUS_WARNING_DIAGNOSTICS);
 
 	const failures: string[] = [];
 	const warnings: string[] = [];
@@ -350,9 +331,7 @@ export function formatStatusMarkdown(json: StatusJson): string {
 		...(json.renderer.capabilities.length > 0
 			? [
 					"  capabilities:",
-					...json.renderer.capabilities.map(
-						(capability) => `    - ${JSON.stringify(capability)}`,
-					),
+					...json.renderer.capabilities.map((capability) => `    - ${JSON.stringify(capability)}`),
 				]
 			: ["  capabilities: []"]),
 		"runtime:",
@@ -363,9 +342,7 @@ export function formatStatusMarkdown(json: StatusJson): string {
 			? [
 					"  engine:",
 					...(json.runtime.engine.configuredEngine
-						? [
-								`    configured: ${JSON.stringify(json.runtime.engine.configuredEngine)}`,
-							]
+						? [`    configured: ${JSON.stringify(json.runtime.engine.configuredEngine)}`]
 						: []),
 					...(json.runtime.engine.activeEngine
 						? [`    active: ${JSON.stringify(json.runtime.engine.activeEngine)}`]
@@ -424,9 +401,7 @@ export function formatStatusSummary(json: StatusJson): string {
 	if (json.plugins.availableActions?.length) {
 		lines.push("Available actions:");
 		for (const action of json.plugins.availableActions) {
-			lines.push(
-				`  - ${action.id}: ${action.label}${action.intent ? ` (${action.intent})` : ""}`,
-			);
+			lines.push(`  - ${action.id}: ${action.label}${action.intent ? ` (${action.intent})` : ""}`);
 		}
 	}
 
@@ -444,15 +419,10 @@ export function formatStatusJson(json: StatusJson): string {
 	return JSON.stringify(toCanonicalStatusJson(json), null, 2);
 }
 
-function formatStatusAvailableActionsMarkdown(
-	json: StatusJson,
-): string {
+function formatStatusAvailableActionsMarkdown(json: StatusJson): string {
 	if (!json.plugins.availableActions?.length) return "- none";
 	return json.plugins.availableActions
-		.map(
-			(action) =>
-				`- ${action.id}: ${action.label}${action.intent ? ` (${action.intent})` : ""}`,
-		)
+		.map((action) => `- ${action.id}: ${action.label}${action.intent ? ` (${action.intent})` : ""}`)
 		.join("\n");
 }
 
@@ -482,9 +452,7 @@ function statusAvailableSurfaceActions(
 }
 
 function toCanonicalStatusJson(json: StatusJson): StatusJson {
-	const availableActions = statusAvailableSurfaceActions(
-		json.plugins.availableActions,
-	);
+	const availableActions = statusAvailableSurfaceActions(json.plugins.availableActions);
 	return {
 		schemaVersion: json.schemaVersion,
 		host: {
@@ -529,14 +497,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isStringArray(value: unknown): value is string[] {
-	return (
-		Array.isArray(value) && value.every((item) => typeof item === "string")
-	);
+	return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-function isStatusSurfaceActions(
-	value: unknown,
-): value is StatusSurfaceAction[] {
+function isStatusSurfaceActions(value: unknown): value is StatusSurfaceAction[] {
 	return (
 		Array.isArray(value) &&
 		value.every((item) => {
@@ -545,21 +509,16 @@ function isStatusSurfaceActions(
 				return false;
 			}
 			return (
-				(typeof item.command === "undefined" ||
-					typeof item.command === "string") &&
-				(typeof item.intent === "undefined" ||
-					typeof item.intent === "string") &&
+				(typeof item.command === "undefined" || typeof item.command === "string") &&
+				(typeof item.intent === "undefined" || typeof item.intent === "string") &&
 				(typeof item.payload === "undefined" || isRecord(item.payload)) &&
-				(typeof item.primary === "undefined" ||
-					typeof item.primary === "boolean")
+				(typeof item.primary === "undefined" || typeof item.primary === "boolean")
 			);
 		})
 	);
 }
 
-function isHostRuntimeEngineSummary(
-	value: unknown,
-): value is HostRuntimeEngineSummary {
+function isHostRuntimeEngineSummary(value: unknown): value is HostRuntimeEngineSummary {
 	if (!isRecord(value)) return false;
 	return (
 		(typeof value.configuredEngine === "undefined" ||
@@ -573,9 +532,7 @@ function isHostRuntimeEngineSummary(
 	);
 }
 
-function formatRuntimeEngineSuffix(
-	engine: HostRuntimeEngineSummary | undefined,
-): string {
+function formatRuntimeEngineSuffix(engine: HostRuntimeEngineSummary | undefined): string {
 	if (!engine) return "";
 	const active = engine.activeEngine ? `engine: ${engine.activeEngine}` : "engine: unknown";
 	const configured =
@@ -639,8 +596,5 @@ function buildStatusDiagnostics(input: {
 
 function isRuntimeSidecarAccessBlocked(runtime: RuntimeSummary): boolean {
 	const error = runtime.error?.toLowerCase();
-	return Boolean(
-		error &&
-			(error.includes("eperm") || error.includes("permission denied")),
-	);
+	return Boolean(error && (error.includes("eperm") || error.includes("permission denied")));
 }

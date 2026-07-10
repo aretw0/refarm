@@ -1,7 +1,4 @@
-import type {
-	JsonErrorEnvelope,
-	JsonSuccessEnvelope,
-} from "./envelope.js";
+import type { JsonErrorEnvelope, JsonSuccessEnvelope } from "./envelope.js";
 
 /** What a capability's run() returns: a success or error JSON envelope. */
 export type CapabilityEnvelope = JsonSuccessEnvelope | JsonErrorEnvelope;
@@ -78,9 +75,7 @@ export interface CapabilityGroupResolution {
  * generic sub-verb dispatch. Reusable across rich verbs (`model`, a future
  * `thinking`/`effort`/`session`) with no verb-specific branches in the dispatcher.
  */
-export type CapabilityGroupResolver = (
-	tokens: string[],
-) => CapabilityGroupResolution | null;
+export type CapabilityGroupResolver = (tokens: string[]) => CapabilityGroupResolution | null;
 
 /** REPL (/slash) transport hints. Read only by the REPL projector. */
 export interface CapabilityReplTransport {
@@ -222,9 +217,7 @@ export interface CapabilityGroup {
 export type CapabilityEntry = CapabilityDescriptor | CapabilityGroup;
 
 /** Narrow a registry entry to a group. */
-export function isCapabilityGroup(
-	entry: CapabilityEntry,
-): entry is CapabilityGroup {
+export function isCapabilityGroup(entry: CapabilityEntry): entry is CapabilityGroup {
 	return "actions" in entry && typeof entry.actions === "object";
 }
 

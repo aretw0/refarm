@@ -38,12 +38,16 @@ export type WorkspaceSweepBuildStatus<TStatus extends WorkspaceExecutionStatus> 
 	options: WorkspaceSweepBuildStatusOptions,
 ) => TStatus;
 
-export interface WorkspaceSweepOptions<TStatus extends WorkspaceExecutionStatus = WorkspaceExecutionStatus> {
+export interface WorkspaceSweepOptions<
+	TStatus extends WorkspaceExecutionStatus = WorkspaceExecutionStatus,
+> {
 	env?: NodeJS.ProcessEnv;
 	buildStatus?: WorkspaceSweepBuildStatus<TStatus>;
 }
 
-export interface WorkspaceSweepObservation<TStatus extends WorkspaceExecutionStatus = WorkspaceExecutionStatus> {
+export interface WorkspaceSweepObservation<
+	TStatus extends WorkspaceExecutionStatus = WorkspaceExecutionStatus,
+> {
 	declaredWorkspace: WorkspaceSweepDeclaredWorkspace;
 	resolution: WorkspacePathResolution;
 	ok: boolean;
@@ -72,7 +76,9 @@ export interface WorkspaceSweepRecommendation {
 	devcontainerMounts?: string[];
 }
 
-export interface WorkspaceSweepPayload<TStatus extends WorkspaceExecutionStatus = WorkspaceExecutionStatus> {
+export interface WorkspaceSweepPayload<
+	TStatus extends WorkspaceExecutionStatus = WorkspaceExecutionStatus,
+> {
 	mode: "all";
 	summary: WorkspaceSweepSummary;
 	recommendations: WorkspaceSweepRecommendation[];
@@ -94,11 +100,7 @@ export interface WorkspacePathResolution {
 	candidates: WorkspacePathCandidate[];
 }
 
-export type WorkspaceSourceCacheState =
-	| "visible"
-	| "cached"
-	| "materializable"
-	| "unconfigured";
+export type WorkspaceSourceCacheState = "visible" | "cached" | "materializable" | "unconfigured";
 
 export interface WorkspaceSourceCachePlanItem {
 	workspaceId: string;
@@ -189,7 +191,8 @@ export function observeDeclaredWorkspaceExecution<
 		};
 	}
 	try {
-		const buildStatus = options.buildStatus ?? (buildWorkspaceExecutionStatus as WorkspaceSweepBuildStatus<TStatus>);
+		const buildStatus =
+			options.buildStatus ?? (buildWorkspaceExecutionStatus as WorkspaceSweepBuildStatus<TStatus>);
 		return {
 			declaredWorkspace: workspace,
 			resolution,
@@ -224,9 +227,7 @@ export function observeDeclaredWorkspacesExecution<
 
 export function buildWorkspaceSweepPayload<
 	TStatus extends WorkspaceExecutionStatus = WorkspaceExecutionStatus,
->(
-	observations: WorkspaceSweepObservation<TStatus>[],
-): WorkspaceSweepPayload<TStatus> {
+>(observations: WorkspaceSweepObservation<TStatus>[]): WorkspaceSweepPayload<TStatus> {
 	return {
 		mode: "all",
 		summary: summarizeWorkspaceExecutionObservations(observations),
@@ -355,9 +356,8 @@ export function buildWorkspaceSourceCachePlan(
 				: repository
 					? "materializable"
 					: "unconfigured";
-		const refreshRequired = state === "cached" &&
-			cacheAgeSeconds !== null &&
-			cacheAgeSeconds >= updateIntervalSeconds;
+		const refreshRequired =
+			state === "cached" && cacheAgeSeconds !== null && cacheAgeSeconds >= updateIntervalSeconds;
 		return {
 			workspaceId: workspace.id,
 			state,
@@ -371,12 +371,9 @@ export function buildWorkspaceSourceCachePlan(
 			refreshRequired,
 			updateIntervalSeconds,
 			rebuildRequired: false as const,
-			process: state === "materializable" && repository
-				? gitCloneProcess(repository, cachePath)
-				: null,
-			refreshProcess: refreshRequired
-				? gitRefreshProcess(cachePath)
-				: null,
+			process:
+				state === "materializable" && repository ? gitCloneProcess(repository, cachePath) : null,
+			refreshProcess: refreshRequired ? gitRefreshProcess(cachePath) : null,
 		};
 	});
 	return {
@@ -450,7 +447,10 @@ function parseRepositoryReference(repositoryUrl: string): {
 	owner: string;
 	repo: string;
 } | null {
-	const input = repositoryUrl.trim().replace(/[?#].*$/, "").replace(/\/$/, "");
+	const input = repositoryUrl
+		.trim()
+		.replace(/[?#].*$/, "")
+		.replace(/\/$/, "");
 	const sshMatch = input.match(/^git@([^:]+):(.+)$/);
 	if (sshMatch) return parseRepositoryParts(sshMatch[1]!, sshMatch[2]!);
 	if (input.startsWith("ssh://")) {
@@ -476,7 +476,10 @@ function parseRepositoryReference(repositoryUrl: string): {
 	return parseRepositoryParts("github.com", input);
 }
 
-function parseRepositoryParts(host: string, rawPath: string): {
+function parseRepositoryParts(
+	host: string,
+	rawPath: string,
+): {
 	host: string;
 	owner: string;
 	repo: string;

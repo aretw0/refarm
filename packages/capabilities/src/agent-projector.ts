@@ -80,9 +80,7 @@ function groupAgentAction(entry: CapabilityEntry): CapabilityDescriptor | null {
 /** The model-facing tool name for a descriptor: the agent override, else `name`. */
 function toolNameOf(descriptor: CapabilityDescriptor): string {
 	const override = descriptor.transports?.agent?.toolName;
-	return typeof override === "string" && override.length > 0
-		? override
-		: descriptor.name;
+	return typeof override === "string" && override.length > 0 ? override : descriptor.name;
 }
 
 /** Map a capability option's kind to its JSON-Schema property. `string[]` becomes
@@ -118,9 +116,7 @@ function argProperty(arg: CapabilityArgSpec): Record<string, unknown> {
  * only args — flags are optional by nature) lands in `required`. Deterministic
  * order: args first (declaration order), then options.
  */
-export function capabilityToolParameters(
-	descriptor: CapabilityDescriptor,
-): ToolParameterSchema {
+export function capabilityToolParameters(descriptor: CapabilityDescriptor): ToolParameterSchema {
 	const properties: Record<string, unknown> = {};
 	const required: string[] = [];
 
@@ -143,9 +139,7 @@ function optsIntoAgentTool(descriptor: CapabilityDescriptor): boolean {
 }
 
 /** Project ONE descriptor to an Anthropic tool schema. */
-export function capabilityToAnthropicTool(
-	descriptor: CapabilityDescriptor,
-): AnthropicToolSchema {
+export function capabilityToAnthropicTool(descriptor: CapabilityDescriptor): AnthropicToolSchema {
 	return {
 		name: toolNameOf(descriptor),
 		description: descriptor.summary,
@@ -154,9 +148,7 @@ export function capabilityToAnthropicTool(
 }
 
 /** Project ONE descriptor to an OpenAI tool schema. */
-export function capabilityToOpenAiTool(
-	descriptor: CapabilityDescriptor,
-): OpenAiToolSchema {
+export function capabilityToOpenAiTool(descriptor: CapabilityDescriptor): OpenAiToolSchema {
 	return {
 		type: "function",
 		function: {
@@ -169,9 +161,7 @@ export function capabilityToOpenAiTool(
 
 /** The default-action descriptor of each registry entry that opted into the agent
  * surface. Shared by both provider projectors so eligibility is decided once. */
-function agentToolDescriptors(
-	entries: readonly CapabilityEntry[],
-): CapabilityDescriptor[] {
+function agentToolDescriptors(entries: readonly CapabilityEntry[]): CapabilityDescriptor[] {
 	const out: CapabilityDescriptor[] = [];
 	for (const entry of entries) {
 		const action = groupAgentAction(entry);
@@ -196,8 +186,6 @@ export function capabilityAnthropicTools(
 
 /** Project the registry to the OpenAI tool list — the OpenAI counterpart of
  * {@link capabilityAnthropicTools}, concatenated with built-in `tools_openai()`. */
-export function capabilityOpenAiTools(
-	entries: readonly CapabilityEntry[],
-): OpenAiToolSchema[] {
+export function capabilityOpenAiTools(entries: readonly CapabilityEntry[]): OpenAiToolSchema[] {
 	return agentToolDescriptors(entries).map(capabilityToOpenAiTool);
 }

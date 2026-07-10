@@ -21,19 +21,14 @@ describe("chat history persistence", () => {
 	});
 
 	it("resolves the global refarm chat history path", () => {
-		expect(resolveChatHistoryPath(rootDir)).toBe(
-			path.join(rootDir, ".refarm", "chat-history"),
-		);
+		expect(resolveChatHistoryPath(rootDir)).toBe(path.join(rootDir, ".refarm", "chat-history"));
 	});
 
 	it("loads, saves, and trims empty history lines", () => {
 		const historyPath = path.join(rootDir, ".refarm", "chat-history");
 		saveChatHistory(["latest prompt", "", "older prompt"], historyPath);
 
-		expect(loadChatHistory(historyPath)).toEqual([
-			"latest prompt",
-			"older prompt",
-		]);
+		expect(loadChatHistory(historyPath)).toEqual(["latest prompt", "older prompt"]);
 	});
 
 	it("remembers message lines newest-first and ignores slash commands", () => {

@@ -10,10 +10,7 @@ export interface GitCommandOptions {
 	cwd?: string;
 }
 
-export function runGitCommand(
-	args: string[],
-	options: GitCommandOptions = {},
-): GitCommandResult {
+export function runGitCommand(args: string[], options: GitCommandOptions = {}): GitCommandResult {
 	const result = spawnSync("git", args, {
 		...(options.cwd ? { cwd: options.cwd } : {}),
 		encoding: "utf8",
@@ -25,14 +22,10 @@ export function runGitCommand(
 	};
 }
 
-export function readGitCommand(
-	args: string[],
-	options: GitCommandOptions = {},
-): string {
+export function readGitCommand(args: string[], options: GitCommandOptions = {}): string {
 	const result = runGitCommand(args, options);
 	if (result.status !== 0) {
-		const detail =
-			result.stderr || result.stdout || `git ${args.join(" ")} failed`;
+		const detail = result.stderr || result.stdout || `git ${args.join(" ")} failed`;
 		throw new Error(detail.trim());
 	}
 	return result.stdout.trim();

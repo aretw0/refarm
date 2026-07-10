@@ -8,16 +8,10 @@ import {
 	capabilityToOpenAiTool,
 	capabilityToolParameters,
 } from "./agent-projector.js";
-import type {
-	CapabilityDescriptor,
-	CapabilityEntry,
-	CapabilityGroup,
-} from "./types.js";
+import type { CapabilityDescriptor, CapabilityEntry, CapabilityGroup } from "./types.js";
 
 /** A minimal descriptor factory — every field the projector reads is explicit. */
-function descriptor(
-	over: Partial<CapabilityDescriptor> = {},
-): CapabilityDescriptor {
+function descriptor(over: Partial<CapabilityDescriptor> = {}): CapabilityDescriptor {
 	return {
 		name: "review",
 		summary: "Review the working tree",
@@ -30,10 +24,7 @@ describe("capabilityToolParameters — schema derivation", () => {
 	it("maps args to string properties and required args to `required`", () => {
 		const schema = capabilityToolParameters(
 			descriptor({
-				args: [
-					{ name: "target", required: true },
-					{ name: "note" },
-				],
+				args: [{ name: "target", required: true }, { name: "note" }],
 			}),
 		);
 		expect(schema).toEqual({
@@ -162,12 +153,8 @@ describe("capabilityAnthropicTools / capabilityOpenAiTools — registry projecti
 
 	it("emits a tool ONLY for verbs that opt in via transports.agent.tool", () => {
 		const entries: CapabilityEntry[] = [toolVerb, cliOnlyVerb, optedOutVerb];
-		expect(capabilityAnthropicTools(entries).map((t) => t.name)).toEqual([
-			"store",
-		]);
-		expect(capabilityOpenAiTools(entries).map((t) => t.function.name)).toEqual([
-			"store",
-		]);
+		expect(capabilityAnthropicTools(entries).map((t) => t.name)).toEqual(["store"]);
+		expect(capabilityOpenAiTools(entries).map((t) => t.function.name)).toEqual(["store"]);
 	});
 
 	it("returns [] when no verb opts in", () => {
@@ -188,9 +175,7 @@ describe("capabilityAnthropicTools / capabilityOpenAiTools — registry projecti
 				}),
 			},
 		};
-		expect(capabilityAnthropicTools([group]).map((t) => t.name)).toEqual([
-			"current",
-		]);
+		expect(capabilityAnthropicTools([group]).map((t) => t.name)).toEqual(["current"]);
 	});
 
 	it("skips a group with no default action", () => {

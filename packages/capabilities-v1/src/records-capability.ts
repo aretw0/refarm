@@ -93,19 +93,14 @@ function normalizeAnalyzeDimension(
 	raw: unknown,
 	fallback: RecordsAnalyzeDimension = "reviewState",
 ): RecordsAnalyzeDimension {
-	return raw === "reviewState" || raw === "type" || raw === "sourceRef"
-		? raw
-		: fallback;
+	return raw === "reviewState" || raw === "type" || raw === "sourceRef" ? raw : fallback;
 }
 
 /** Apply an enrichment result back onto a records manifest: for each record with
  * accepted changes, merge the new field values, record provenance, and recompute
  * the content hash. Mirrors the composition script's applyEnrichment (which is not
  * exported), kept small + local. */
-function applyEnrichment(
-	manifest: RecordsManifest,
-	enrichment: EnrichmentResult,
-): RecordsManifest {
+function applyEnrichment(manifest: RecordsManifest, enrichment: EnrichmentResult): RecordsManifest {
 	const byId = new Map(enrichment.records.map((r) => [r.id, r]));
 	return {
 		...manifest,
@@ -118,9 +113,7 @@ function applyEnrichment(
 				...record,
 				fields: {
 					...record.fields,
-					...Object.fromEntries(
-						enriched.changes.map((c) => [c.field, c.after]),
-					),
+					...Object.fromEntries(enriched.changes.map((c) => [c.field, c.after])),
 				},
 				enrichmentProvenance: enriched.changes.map((c) => c.provenance),
 				contentHash: "",
@@ -162,14 +155,12 @@ export function createRecordsCapabilityGroup(
 ): CapabilityGroup {
 	const enrich: CapabilityDescriptor = {
 		name: "enrich",
-		summary:
-			"Enrich a records manifest via the injected provider (dry-run) and re-validate",
+		summary: "Enrich a records manifest via the injected provider (dry-run) and re-validate",
 		options: [
 			{
 				name: "apply",
 				kind: "boolean",
-				summary:
-					"Apply enrichment (default is dry-run: compute changes without writing)",
+				summary: "Apply enrichment (default is dry-run: compute changes without writing)",
 			},
 		],
 		async run(input): Promise<CapabilityEnvelope> {
@@ -223,7 +214,8 @@ export function createRecordsCapabilityGroup(
 					operation: "enrich",
 					error: "records_enrich_failed",
 					message,
-					nextAction: "Inject a records manifest to enrich, or pull a source first (`source pull`).",
+					nextAction:
+						"Inject a records manifest to enrich, or pull a source first (`source pull`).",
 				});
 			}
 		},
@@ -252,8 +244,7 @@ export function createRecordsCapabilityGroup(
 
 	const correct: CapabilityDescriptor = {
 		name: "correct",
-		summary:
-			"Apply an analyst's review to a record (set its review state + notes), re-validate",
+		summary: "Apply an analyst's review to a record (set its review state + notes), re-validate",
 		args: [
 			{ name: "id", required: true },
 			{ name: "state", required: true },
@@ -264,8 +255,7 @@ export function createRecordsCapabilityGroup(
 			{
 				name: "apply",
 				kind: "boolean",
-				summary:
-					"Persist the correction (needs an injected save sink; default is dry-run)",
+				summary: "Persist the correction (needs an injected save sink; default is dry-run)",
 			},
 		],
 		async run(input): Promise<CapabilityEnvelope> {
@@ -289,9 +279,7 @@ export function createRecordsCapabilityGroup(
 				// the review, recompute the content hash. Mirrors applyEnrichment's shape.
 				const review = {
 					state,
-					...(typeof input.options.notes === "string"
-						? { notes: input.options.notes }
-						: {}),
+					...(typeof input.options.notes === "string" ? { notes: input.options.notes } : {}),
 					...(typeof input.options.by === "string" ? { by: input.options.by } : {}),
 				};
 				const corrected = {
@@ -302,9 +290,7 @@ export function createRecordsCapabilityGroup(
 				corrected.contentHash = computeRecordContentHash(corrected);
 				const nextManifest = {
 					...manifest,
-					records: manifest.records.map((r: ManifestRecord) =>
-						r.id === id ? corrected : r,
-					),
+					records: manifest.records.map((r: ManifestRecord) => (r.id === id ? corrected : r)),
 				};
 				const validation = deps.recordsProvider.validate(nextManifest);
 
@@ -317,7 +303,8 @@ export function createRecordsCapabilityGroup(
 				return buildJsonSuccessEnvelope({
 					command: "records",
 					operation: "correct",
-					nextCommand: mode === "dry-run" ? `records correct ${id} ${state} --apply` : "records list",
+					nextCommand:
+						mode === "dry-run" ? `records correct ${id} ${state} --apply` : "records list",
 					nextCommands: mode === "dry-run" ? [`records correct ${id} ${state} --apply`] : [],
 					extra: {
 						mode,
@@ -355,14 +342,12 @@ export function createRecordsCapabilityGroup(
 	// envelope and decides how much to feature it.
 	const analyze: CapabilityDescriptor = {
 		name: "analyze",
-		summary:
-			"Group the records by a dimension into a neutral envelope (grouping + counts)",
+		summary: "Group the records by a dimension into a neutral envelope (grouping + counts)",
 		options: [
 			{
 				name: "by",
 				kind: "string",
-				summary:
-					"Dimension to group by: reviewState (default), type, or sourceRef",
+				summary: "Dimension to group by: reviewState (default), type, or sourceRef",
 			},
 		],
 		run(input): CapabilityEnvelope {

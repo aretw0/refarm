@@ -48,11 +48,11 @@ describe("operator-state capability", () => {
 			},
 		});
 
-		const envelope = await capability.run({
+		const envelope = (await capability.run({
 			args: {},
 			options: { base: true },
 			json: true,
-		}) as BaseSurfaceModel;
+		})) as BaseSurfaceModel;
 		expect(envelope).toMatchObject({
 			schemaVersion: 1,
 			command: "wallet",

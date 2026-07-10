@@ -1,10 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import type {
-	CapabilityDescriptor,
-	CapabilityEntry,
-	CapabilityInput,
-} from "./types.js";
+import type { CapabilityDescriptor, CapabilityEntry, CapabilityInput } from "./types.js";
 import { isCapabilityGroup } from "./types.js";
 
 /**
@@ -100,9 +96,7 @@ export function createCapabilityRouteHandler(
 	return (req, res) => {
 		const url = new URL(req.url ?? "/", "http://127.0.0.1");
 		const method = (req.method ?? "GET").toUpperCase();
-		const route = routes.find(
-			(r) => r.method === method && r.path === url.pathname,
-		);
+		const route = routes.find((r) => r.method === method && r.path === url.pathname);
 		if (!route) return false;
 		void (async () => {
 			let input: CapabilityInput;

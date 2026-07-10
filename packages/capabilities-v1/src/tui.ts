@@ -116,10 +116,7 @@ export async function handleTuiLine(
  * dispatches each via {@link handleTuiLine}. Resolves when the user exits. The pure
  * pieces (renderTuiMenu, handleTuiLine) carry the logic; this is the thin readline shell.
  */
-export function runTui(
-	registry: CapabilityRegistry,
-	options: TuiOptions = {},
-): Promise<void> {
+export function runTui(registry: CapabilityRegistry, options: TuiOptions = {}): Promise<void> {
 	const capabilityNames = new Set(registry.list().map((e) => e.name.toLowerCase()));
 	const rl = readline.createInterface({
 		input: process.stdin,
@@ -135,16 +132,14 @@ export function runTui(
 
 	return new Promise<void>((resolve) => {
 		rl.on("line", (line) => {
-			void handleTuiLine(line, registry, capabilityNames, options.sendPrompt).then(
-				(res) => {
-					if (res.output) process.stdout.write(`${res.output}\n`);
-					if (res.close) {
-						rl.close();
-						return;
-					}
-					rl.prompt();
-				},
-			);
+			void handleTuiLine(line, registry, capabilityNames, options.sendPrompt).then((res) => {
+				if (res.output) process.stdout.write(`${res.output}\n`);
+				if (res.close) {
+					rl.close();
+					return;
+				}
+				rl.prompt();
+			});
 		});
 		rl.on("close", () => resolve());
 	});

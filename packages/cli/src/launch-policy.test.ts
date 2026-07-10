@@ -81,9 +81,7 @@ describe("assertLaunchAllowed", () => {
 	});
 
 	it("does not throw when there are no failure diagnostics", () => {
-		expect(() =>
-			assertLaunchAllowed(makeStatus(), "web runtime"),
-		).not.toThrow();
+		expect(() => assertLaunchAllowed(makeStatus(), "web runtime")).not.toThrow();
 	});
 
 	it("throws when status includes launch-blocking diagnostics", () => {

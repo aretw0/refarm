@@ -51,15 +51,11 @@ describe("parseCapabilityArgv", () => {
 	});
 
 	it("throws on an unknown option", () => {
-		expect(() => parseCapabilityArgv(REVIEW, ["./p", "--frob"])).toThrow(
-			"Unknown option: --frob",
-		);
+		expect(() => parseCapabilityArgv(REVIEW, ["./p", "--frob"])).toThrow("Unknown option: --frob");
 	});
 
 	it("throws when a string option is missing its value", () => {
-		expect(() => parseCapabilityArgv(REVIEW, ["./p", "--policy"])).toThrow(
-			"requires a value",
-		);
+		expect(() => parseCapabilityArgv(REVIEW, ["./p", "--policy"])).toThrow("requires a value");
 	});
 
 	it("throws on a missing required positional", () => {

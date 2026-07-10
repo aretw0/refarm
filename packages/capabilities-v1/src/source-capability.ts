@@ -8,10 +8,7 @@ import {
 	buildJsonSuccessEnvelope,
 } from "@refarm.dev/capabilities/envelope";
 import type { SourceProvider } from "@refarm.dev/source-contract-v1";
-import {
-	createWebSourceProvider,
-	type WebSourceProvenance,
-} from "@refarm.dev/source-web";
+import { createWebSourceProvider, type WebSourceProvenance } from "@refarm.dev/source-web";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -140,17 +137,14 @@ export function createSourceCapabilityGroup(
 
 	const discover: CapabilityDescriptor = {
 		name: "discover",
-		summary:
-			"List the sources this provider offers to materialize (the step before pull)",
+		summary: "List the sources this provider offers to materialize (the step before pull)",
 		async run(): Promise<CapabilityEnvelope> {
 			const catalog = await deps.sourceProvider.discover();
 			return buildJsonSuccessEnvelope({
 				command: "source",
 				operation: "discover",
 				nextCommand:
-					catalog.entries[0] !== undefined
-						? `source pull ${catalog.entries[0].ref}`
-						: undefined,
+					catalog.entries[0] !== undefined ? `source pull ${catalog.entries[0].ref}` : undefined,
 				nextCommands: catalog.entries.map((e) => `source pull ${e.ref}`),
 				extra: {
 					providerId: deps.sourceProvider.pluginId,

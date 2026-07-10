@@ -75,14 +75,18 @@ describe("workspace execution discovery", () => {
 			tasks: {},
 		});
 
-		expect(buildWorkspaceExecutionStatus({
-			cwd: tempRoot,
-			packageManager: "npm",
-		}).adapters.turbo.installCommand).toBe("npm install --save-dev turbo");
-		expect(buildWorkspaceExecutionStatus({
-			cwd: tempRoot,
-			packageManager: "bun",
-		}).adapters.turbo.installCommand).toBe("bun add -d turbo");
+		expect(
+			buildWorkspaceExecutionStatus({
+				cwd: tempRoot,
+				packageManager: "npm",
+			}).adapters.turbo.installCommand,
+		).toBe("npm install --save-dev turbo");
+		expect(
+			buildWorkspaceExecutionStatus({
+				cwd: tempRoot,
+				packageManager: "bun",
+			}).adapters.turbo.installCommand,
+		).toBe("bun add -d turbo");
 	});
 
 	it("infers the package manager for adapter install handoffs", () => {

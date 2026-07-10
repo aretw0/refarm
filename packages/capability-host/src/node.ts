@@ -15,10 +15,7 @@ import {
 	type LocalRecordsStatePathResolverInput,
 	type ResolveLocalRecordsStatePathOptions,
 } from "@refarm.dev/capabilities-v1/node";
-import {
-	fetchSidecarJson,
-	type SidecarJsonRequestOptions,
-} from "@refarm.dev/sidecar-client";
+import { fetchSidecarJson, type SidecarJsonRequestOptions } from "@refarm.dev/sidecar-client";
 
 export {
 	defaultTractorBinaryPath,
@@ -31,10 +28,7 @@ export {
 	type InstalledPlugin,
 	type InstallPluginOptions,
 } from "./install-plugin.js";
-export {
-	createSidecarCallRespond,
-	type SidecarRespondOptions,
-} from "./sidecar-respond.js";
+export { createSidecarCallRespond, type SidecarRespondOptions } from "./sidecar-respond.js";
 
 export {
 	createLocalRecordsCommandDeps,
@@ -54,8 +48,7 @@ export interface LocalRecordsAppDefaults {
 	defaultOptions(input?: LocalRecordsStatePathResolverInput): { statePath: string };
 }
 
-export interface LocalRecordsCapabilityDepsOptions
-	extends LocalRecordsCommandDepsOptions {
+export interface LocalRecordsCapabilityDepsOptions extends LocalRecordsCommandDepsOptions {
 	source?: SourceCommandDeps;
 	vault?: VaultCommandDeps;
 }
@@ -103,9 +96,7 @@ function resolveSidecarBaseUrl(options: SidecarSubmitEffortOptions): string {
 	return String(options.baseUrl ?? env[envKey] ?? DEFAULT_SIDECAR_URL).replace(/\/+$/, "");
 }
 
-export function createSidecarSubmitEffort(
-	options: SidecarSubmitEffortOptions = {},
-): SubmitEffort {
+export function createSidecarSubmitEffort(options: SidecarSubmitEffortOptions = {}): SubmitEffort {
 	const baseUrl = resolveSidecarBaseUrl(options);
 	return async (effort) => {
 		const payload = await fetchSidecarJson<{ effortId?: string }>(

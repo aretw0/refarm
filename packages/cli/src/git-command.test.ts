@@ -1,9 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-	readGitCommand,
-	runGitCommand,
-} from "./git-command.js";
+import { readGitCommand, runGitCommand } from "./git-command.js";
 
 vi.mock("node:child_process", () => ({
 	spawnSync: vi.fn(),
@@ -31,11 +28,9 @@ describe("git command helpers", () => {
 			stdout: "develop\n",
 			stderr: "",
 		});
-		expect(spawnSyncMock).toHaveBeenCalledWith(
-			"git",
-			["rev-parse", "--abbrev-ref", "HEAD"],
-			{ encoding: "utf8" },
-		);
+		expect(spawnSyncMock).toHaveBeenCalledWith("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+			encoding: "utf8",
+		});
 	});
 
 	it("passes an explicit working directory when provided", () => {
@@ -50,11 +45,10 @@ describe("git command helpers", () => {
 
 		runGitCommand(["status", "--short"], { cwd: "/workspaces/refarm" });
 
-		expect(spawnSyncMock).toHaveBeenCalledWith(
-			"git",
-			["status", "--short"],
-			{ cwd: "/workspaces/refarm", encoding: "utf8" },
-		);
+		expect(spawnSyncMock).toHaveBeenCalledWith("git", ["status", "--short"], {
+			cwd: "/workspaces/refarm",
+			encoding: "utf8",
+		});
 	});
 
 	it("reads trimmed stdout and throws with stderr details on failure", () => {
@@ -77,8 +71,6 @@ describe("git command helpers", () => {
 			});
 
 		expect(readGitCommand(["branch", "--show-current"])).toBe("main");
-		expect(() => readGitCommand(["status"])).toThrow(
-			/fatal: not a git repository/,
-		);
+		expect(() => readGitCommand(["status"])).toThrow(/fatal: not a git repository/);
 	});
 });

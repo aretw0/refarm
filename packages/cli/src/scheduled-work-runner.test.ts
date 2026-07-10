@@ -128,9 +128,7 @@ describe("runDueScheduledWork", () => {
 
 		expect(fired.size).toBe(1);
 		// No .refarm ledger file was written, because the injected ledger was used.
-		expect(fs.existsSync(path.join(root, ".refarm", "scheduler", "ledger.json"))).toBe(
-			false,
-		);
+		expect(fs.existsSync(path.join(root, ".refarm", "scheduler", "ledger.json"))).toBe(false);
 	});
 
 	it("submits nothing when no automation is due", async () => {

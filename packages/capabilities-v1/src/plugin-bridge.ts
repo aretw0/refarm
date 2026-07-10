@@ -1,7 +1,4 @@
-import type {
-	CapabilityDescriptor,
-	CapabilityRegistry,
-} from "@refarm.dev/capabilities";
+import type { CapabilityDescriptor, CapabilityRegistry } from "@refarm.dev/capabilities";
 import { surfacesOf } from "@refarm.dev/capabilities";
 import {
 	buildJsonErrorEnvelope,
@@ -152,9 +149,7 @@ export function isConnectionError(error: unknown): boolean {
 
 /** Split a `<plugin>:<verb>` provides entry. Returns null for a non-verb entry
  * (no colon, or the reserved `:dispatch` routing key itself). */
-function parseProvidedVerb(
-	entry: string,
-): { pluginKey: string; verb: string } | null {
+function parseProvidedVerb(entry: string): { pluginKey: string; verb: string } | null {
 	const idx = entry.indexOf(":");
 	if (idx <= 0 || idx === entry.length - 1) return null;
 	const pluginKey = entry.slice(0, idx);
@@ -212,9 +207,7 @@ export function pluginSurfaceName(pluginKey: string, verb: string): string {
 	return `${pluginKey}-${verb}`;
 }
 
-export function surfaceablePluginVerbsFrom(
-	manifest: SurfaceableManifest,
-): SurfaceablePluginVerb[] {
+export function surfaceablePluginVerbsFrom(manifest: SurfaceableManifest): SurfaceablePluginVerb[] {
 	const provides = manifest.capabilities?.provides ?? [];
 	const subscribes = new Set(manifest.capabilities?.subscribes ?? []);
 
@@ -260,9 +253,7 @@ export interface ResolvedApiLink {
  * — the same pairing the vault↔quality WASM harness proves in Rust, without a round
  * trip to a running runtime. A requirement no loaded manifest provides resolves to
  * `providedBy: null` (unmet, not an error — the caller degrades). */
-export function resolveApiLinks(
-	manifests: readonly SurfaceableManifest[],
-): ResolvedApiLink[] {
+export function resolveApiLinks(manifests: readonly SurfaceableManifest[]): ResolvedApiLink[] {
 	const providerByApi = new Map<string, string>();
 	for (const manifest of manifests) {
 		for (const api of manifest.capabilities?.providesApi ?? []) {
@@ -341,10 +332,7 @@ export function definePluginInspectorCapability(
 					requiresApi: options.manifest.capabilities?.requiresApi ?? [],
 					// The resolved recursion: for each requiresApi, which loaded peer
 					// provides it (or null when unmet). Only present when peers are given.
-					apiLinks: resolveApiLinks([
-						options.manifest,
-						...(options.peers ?? []),
-					]),
+					apiLinks: resolveApiLinks([options.manifest, ...(options.peers ?? [])]),
 					...(options.note ? { note: options.note } : {}),
 				},
 			});
@@ -367,13 +355,7 @@ export function pluginDescriptorsFrom(
 	const descriptors: CapabilityDescriptor[] = [];
 	for (const verb of surfaceablePluginVerbsFrom(manifest)) {
 		descriptors.push(
-			pluginVerbDescriptor(
-				manifest.id,
-				verb.pluginKey,
-				verb.verb,
-				deps,
-				manifestSurfaces,
-			),
+			pluginVerbDescriptor(manifest.id, verb.pluginKey, verb.verb, deps, manifestSurfaces),
 		);
 	}
 	return descriptors;

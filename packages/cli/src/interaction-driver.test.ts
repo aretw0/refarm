@@ -41,10 +41,7 @@ describe("interaction driver contract", () => {
 			ok: true,
 			issues: [],
 		});
-		expect(INTERACTION_DRIVER_TERMINAL_EVENTS).toEqual([
-			"completed",
-			"failed",
-		]);
+		expect(INTERACTION_DRIVER_TERMINAL_EVENTS).toEqual(["completed", "failed"]);
 		expect(assessInteractionDriverReadiness(descriptor)).toEqual({
 			ok: true,
 			state: "ready",

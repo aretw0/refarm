@@ -94,16 +94,12 @@ describe("parseChatLine", () => {
 			name: "model",
 			argv: ["openai/gpt-5.5"],
 		});
-		expect(
-			parseChatLine("/model worker openai/gpt-5.3-codex-spark", CAPS),
-		).toEqual({
+		expect(parseChatLine("/model worker openai/gpt-5.3-codex-spark", CAPS)).toEqual({
 			kind: "capability",
 			name: "model",
 			argv: ["worker", "openai/gpt-5.3-codex-spark"],
 		});
-		expect(
-			parseChatLine("/model set --scope monitor openai/gpt-5.5", CAPS),
-		).toEqual({
+		expect(parseChatLine("/model set --scope monitor openai/gpt-5.5", CAPS)).toEqual({
 			kind: "capability",
 			name: "model",
 			argv: ["set", "--scope", "monitor", "openai/gpt-5.5"],
@@ -154,9 +150,7 @@ describe("parseChatLine", () => {
 			kind: "login",
 			args: ["--model", "openai/gpt-5.5"],
 		});
-		expect(
-			parseChatLine("/sow --model 'openrouter/anthropic/claude-sonnet-4.6'"),
-		).toEqual({
+		expect(parseChatLine("/sow --model 'openrouter/anthropic/claude-sonnet-4.6'")).toEqual({
 			kind: "login",
 			args: ["--model", "openrouter/anthropic/claude-sonnet-4.6"],
 		});
@@ -174,10 +168,7 @@ describe("parseChatLine", () => {
 		// The quote is stripped by the token splitter; the capability argv keeps the
 		// unquoted value as one token (the model group parses it downstream).
 		expect(
-			parseChatLine(
-				"/model set --scope worker 'openai/gpt-5.3-codex-spark'",
-				new Set(["model"]),
-			),
+			parseChatLine("/model set --scope worker 'openai/gpt-5.3-codex-spark'", new Set(["model"])),
 		).toEqual({
 			kind: "capability",
 			name: "model",
@@ -311,9 +302,7 @@ describe("parseChatLine", () => {
 		expect(CHAT_HELP_TEXT).toContain("/reload agent");
 		expect(CHAT_HELP_TEXT).toContain("/model providers");
 		expect(CHAT_HELP_TEXT).toContain("/provider openai/gpt-5.5");
-		expect(CHAT_HELP_TEXT).toContain(
-			"/model worker openai/gpt-5.3-codex-spark",
-		);
+		expect(CHAT_HELP_TEXT).toContain("/model worker openai/gpt-5.3-codex-spark");
 		expect(CHAT_HELP_TEXT).toContain("/model monitor openai/gpt-5.5");
 		expect(CHAT_HELP_TEXT).toContain("/model reset worker");
 		expect(CHAT_HELP_TEXT).toContain("/model base-url http://127.0.0.1:8000");

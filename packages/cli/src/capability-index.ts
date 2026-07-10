@@ -11,24 +11,13 @@ import type {
 	InteractionDriverEventName,
 	InteractionDriverTerminalEventName,
 } from "./interaction-driver.js";
-import {
-	WORKER_PROFILE_MAX_PARALLEL,
-	WORKER_TOOL_MAX_TURNS,
-} from "./worker-profile.js";
+import { WORKER_PROFILE_MAX_PARALLEL, WORKER_TOOL_MAX_TURNS } from "./worker-profile.js";
 
 export const CAPABILITY_INDEX_SCHEMA_VERSION = 1 as const;
 
-export type CapabilityProviderKind =
-	| "cli"
-	| "sdk"
-	| "runtime"
-	| "policy"
-	| "ui";
+export type CapabilityProviderKind = "cli" | "sdk" | "runtime" | "policy" | "ui";
 
-export type CapabilityPolicyState =
-	| "planned"
-	| "governed"
-	| "proven";
+export type CapabilityPolicyState = "planned" | "governed" | "proven";
 
 export interface CapabilityProvider {
 	kind: CapabilityProviderKind;
@@ -63,17 +52,9 @@ export interface CapabilityIndex {
 	capabilities: readonly CapabilityDescriptor[];
 }
 
-export type CapabilitySupplyChannel =
-	| "npm"
-	| "crate"
-	| "wit"
-	| "runtime";
+export type CapabilitySupplyChannel = "npm" | "crate" | "wit" | "runtime";
 
-export type CapabilitySupplyStatus =
-	| "exported"
-	| "candidate"
-	| "internal"
-	| "hold";
+export type CapabilitySupplyStatus = "exported" | "candidate" | "internal" | "hold";
 
 export interface CapabilitySupplyTarget {
 	channel: CapabilitySupplyChannel;
@@ -192,15 +173,11 @@ export function buildCapabilityIndex(binary: string): CapabilityIndex {
 	};
 }
 
-export function getCapabilityDescriptors(
-	binary: string,
-): readonly CapabilityDescriptor[] {
+export function getCapabilityDescriptors(binary: string): readonly CapabilityDescriptor[] {
 	return buildCapabilities(binary);
 }
 
-export function buildReferenceDriverSupplyMap(
-	binary: string,
-): ReferenceDriverSupplyMap {
+export function buildReferenceDriverSupplyMap(binary: string): ReferenceDriverSupplyMap {
 	const descriptors = buildCapabilities(binary) as readonly CapabilityDescriptor[];
 	return {
 		schemaVersion: CAPABILITY_INDEX_SCHEMA_VERSION,
@@ -220,8 +197,7 @@ export function buildReferenceDriverSupplyMap(
 				activation: capability.activation,
 				referenceSources: REFERENCE_DRIVER_SOURCE_REFERENCES[id] ?? [],
 				referenceLessons: REFERENCE_DRIVER_LESSONS[id] ?? [],
-				promotionProofTargets:
-					REFERENCE_DRIVER_PROMOTION_PROOF_TARGETS[id] ?? [],
+				promotionProofTargets: REFERENCE_DRIVER_PROMOTION_PROOF_TARGETS[id] ?? [],
 				targets: supply.targets,
 				nextDecision: supply.nextDecision,
 			};
@@ -266,8 +242,7 @@ export function buildReferenceDriverSupplyPreflight(
 	const promotionQueue = [...targets]
 		.sort(
 			(left, right) =>
-				statusRank[statusForQueue(left.status)] -
-				statusRank[statusForQueue(right.status)],
+				statusRank[statusForQueue(left.status)] - statusRank[statusForQueue(right.status)],
 		)
 		.map((target, index) => {
 			const status = statusForQueue(target.status);
@@ -300,9 +275,8 @@ export function buildReferenceDriverSupplyPreflight(
 				(target) => target.promotionProofTargets.length > 0,
 			).length,
 			uniquePromotionProofTargetCount: uniquePromotionProofTargets.size,
-			targetsWithBudgetContract: targets.filter(
-				(target) => target.budgetContract !== undefined,
-			).length,
+			targetsWithBudgetContract: targets.filter((target) => target.budgetContract !== undefined)
+				.length,
 		},
 		promotionQueue,
 		nextDecisions: supplyMap.entries.map((entry) => ({

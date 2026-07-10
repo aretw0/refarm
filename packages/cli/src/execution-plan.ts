@@ -1,7 +1,4 @@
-import {
-	commandTemplateParameters,
-	type ApplicationProcessSpec,
-} from "./command-handoff.js";
+import { commandTemplateParameters, type ApplicationProcessSpec } from "./command-handoff.js";
 
 export interface ExecutionPlanBase<
 	Action extends string,
@@ -41,10 +38,9 @@ export interface ExecutionPlanHandoff {
 	}>;
 }
 
-export interface ExecutionPlanHandoffInput
-	extends Pick<
-		ExecutionPlanBase<string, Record<string, unknown>, { kind: string }>,
-		"readyToExecute" | "blockedReason" | "recommendedCommand"
+export interface ExecutionPlanHandoffInput extends Pick<
+	ExecutionPlanBase<string, Record<string, unknown>, { kind: string }>,
+	"readyToExecute" | "blockedReason" | "recommendedCommand"
 > {
 	commandTemplate?: string;
 	processTemplate?: ApplicationProcessSpec;
@@ -65,14 +61,10 @@ export function formatExecutionPlanReadinessLine(
 	};
 }
 
-export function createExecutionPlanHandoff(
-	plan: ExecutionPlanHandoffInput,
-): ExecutionPlanHandoff {
+export function createExecutionPlanHandoff(plan: ExecutionPlanHandoffInput): ExecutionPlanHandoff {
 	const command = plan.recommendedCommand ?? null;
 	const templateCommand = plan.commandTemplate ?? plan.processTemplate?.display ?? command;
-	const nextAction = plan.readyToExecute
-		? command
-		: plan.blockedReason ?? command;
+	const nextAction = plan.readyToExecute ? command : (plan.blockedReason ?? command);
 	const nextCommands = plan.readyToExecute && command ? [command] : [];
 	const parameters = commandTemplateParameters([
 		templateCommand ?? "",

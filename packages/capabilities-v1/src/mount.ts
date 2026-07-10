@@ -7,21 +7,10 @@ import {
 	type CapabilityEntry,
 	type CapabilityRegistry,
 } from "@refarm.dev/capabilities";
-import {
-	capabilityCliCommands,
-	type CapabilityHooksResolver,
-} from "@refarm.dev/surface-terminal";
-import {
-	createServer,
-	type IncomingMessage,
-	type Server,
-	type ServerResponse,
-} from "node:http";
+import { capabilityCliCommands, type CapabilityHooksResolver } from "@refarm.dev/surface-terminal";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
-import {
-	builtinCapabilities,
-	type CapabilityDeps,
-} from "./builtin-capabilities.js";
+import { builtinCapabilities, type CapabilityDeps } from "./builtin-capabilities.js";
 import {
 	registerPluginCapabilities,
 	type PluginDescriptorDeps,
@@ -104,7 +93,12 @@ function writeJson(res: ServerResponse, status: number, body: unknown): void {
  */
 export function mountedHttpHandler(
 	registry: CapabilityRegistry,
-	options: { prefix?: string; openApiPath?: string; openApiTitle?: string; openApiVersion?: string } = {},
+	options: {
+		prefix?: string;
+		openApiPath?: string;
+		openApiTitle?: string;
+		openApiVersion?: string;
+	} = {},
 ): (req: IncomingMessage, res: ServerResponse) => void {
 	const entries = registry.list();
 	const prefix = options.prefix ?? "/capabilities";

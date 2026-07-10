@@ -40,18 +40,9 @@ export {
 	type LocalVaultCommandDepsOptions,
 	type VaultCommandDeps,
 } from "./vault-capability.js";
-export type {
-	VaultDiscoveryResult,
-	VaultProviderSummary,
-} from "./vault-discovery-types.js";
-export {
-	builtinCapabilities,
-	type CapabilityDeps,
-} from "./builtin-capabilities.js";
-export {
-	createLocalCapabilityDeps,
-	type LocalCapabilityDepsOptions,
-} from "./local-deps.js";
+export type { VaultDiscoveryResult, VaultProviderSummary } from "./vault-discovery-types.js";
+export { builtinCapabilities, type CapabilityDeps } from "./builtin-capabilities.js";
+export { createLocalCapabilityDeps, type LocalCapabilityDepsOptions } from "./local-deps.js";
 export {
 	apiProvideKey,
 	buildDispatchEffort,

@@ -51,11 +51,7 @@ describe("createCapabilityTestHarness", () => {
 			total: 3,
 		});
 		await expect(
-			harness.runGroup(registry, "records", [
-				"correct",
-				"record:1",
-				"verified",
-			]),
+			harness.runGroup(registry, "records", ["correct", "record:1", "verified"]),
 		).resolves.toMatchObject({
 			ok: true,
 			ref: "record:1",

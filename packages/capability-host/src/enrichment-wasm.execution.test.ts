@@ -28,50 +28,53 @@ const ENRICH_WASM = resolve(
 const enabled =
 	process.env.RUN_RUNTIME_EXECUTION === "1" && existsSync(BINARY) && existsSync(ENRICH_WASM);
 
-describe.skipIf(!enabled)("WASM enrichment provider over the sidecar — the extend-not-import twin", () => {
-	let daemon: RuntimeDaemonHandle | undefined;
+describe.skipIf(!enabled)(
+	"WASM enrichment provider over the sidecar — the extend-not-import twin",
+	() => {
+		let daemon: RuntimeDaemonHandle | undefined;
 
-	afterAll(async () => {
-		await daemon?.stop();
-	});
-
-	it("enriches via a loaded plugin, called over HTTP — no provider import", async () => {
-		daemon = await startRuntimeDaemon({
-			binaryPath: BINARY,
-			plugins: [ENRICH_WASM],
-			wsPort: 42072,
-			httpPort: 42073,
-			securityMode: "none",
-			readyTimeoutMs: 40_000,
+		afterAll(async () => {
+			await daemon?.stop();
 		});
 
-		const callRespond = createSidecarCallRespond({
-			baseUrl: daemon.sidecarBaseUrl,
-			pluginId: "enrichment-provider-ref",
-		});
-		const provider = createWasmEnrichmentProvider({
-			pluginId: "enrichment-provider-ref",
-			callRespond,
-			keyField: "externalKey",
-		});
+		it("enriches via a loaded plugin, called over HTTP — no provider import", async () => {
+			daemon = await startRuntimeDaemon({
+				binaryPath: BINARY,
+				plugins: [ENRICH_WASM],
+				wsPort: 42072,
+				httpPort: 42073,
+				securityMode: "none",
+				readyTimeoutMs: 40_000,
+			});
 
-		// select() is local; enrich() marshals over the sidecar to the plugin's WASM.
-		const inputs = [
-			{ id: "req-1", fields: { externalKey: "REQ-1" } },
-			{ id: "req-x", fields: { externalKey: "UNKNOWN" } },
-		];
-		const selected = provider.select(inputs);
-		expect(selected).toHaveLength(2); // both carry the key field
+			const callRespond = createSidecarCallRespond({
+				baseUrl: daemon.sidecarBaseUrl,
+				pluginId: "enrichment-provider-ref",
+			});
+			const provider = createWasmEnrichmentProvider({
+				pluginId: "enrichment-provider-ref",
+				callRespond,
+				keyField: "externalKey",
+			});
 
-		const result = await provider.enrich(selected, { mode: "dry-run" });
-		expect(result.mode).toBe("dry-run");
-		// REQ-1 resolves to two domain fields; UNKNOWN is skipped (no-key).
-		const enrichedRecord = result.records.find((r) => r.id === "req-1");
-		expect(enrichedRecord?.changes.map((c) => c.field).sort()).toEqual([
-			"req.modulo",
-			"req.prioridade",
-		]);
-		expect(result.diagnostics.enriched).toBe(1);
-		expect(result.diagnostics.skipped).toBe(1);
-	}, 60_000);
-});
+			// select() is local; enrich() marshals over the sidecar to the plugin's WASM.
+			const inputs = [
+				{ id: "req-1", fields: { externalKey: "REQ-1" } },
+				{ id: "req-x", fields: { externalKey: "UNKNOWN" } },
+			];
+			const selected = provider.select(inputs);
+			expect(selected).toHaveLength(2); // both carry the key field
+
+			const result = await provider.enrich(selected, { mode: "dry-run" });
+			expect(result.mode).toBe("dry-run");
+			// REQ-1 resolves to two domain fields; UNKNOWN is skipped (no-key).
+			const enrichedRecord = result.records.find((r) => r.id === "req-1");
+			expect(enrichedRecord?.changes.map((c) => c.field).sort()).toEqual([
+				"req.modulo",
+				"req.prioridade",
+			]);
+			expect(result.diagnostics.enriched).toBe(1);
+			expect(result.diagnostics.skipped).toBe(1);
+		}, 60_000);
+	},
+);

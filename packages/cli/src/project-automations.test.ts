@@ -38,22 +38,25 @@ describe("project automations", () => {
 	});
 
 	it("appends to object documents and rejects duplicate ids", () => {
-		const document = addProjectAutomationRecord({
-			automations: [
-				{
-					id: "existing",
-					name: "Existing",
-					status: "active",
-					triggers: [{ type: "manual" }],
-				},
-			],
-			source: "project",
-		}, {
-			id: "daily-handoff",
-			name: "Daily handoff",
-			status: "active",
-			trigger: { type: "once", at: "2026-06-27T09:00:00.000Z" },
-		});
+		const document = addProjectAutomationRecord(
+			{
+				automations: [
+					{
+						id: "existing",
+						name: "Existing",
+						status: "active",
+						triggers: [{ type: "manual" }],
+					},
+				],
+				source: "project",
+			},
+			{
+				id: "daily-handoff",
+				name: "Daily handoff",
+				status: "active",
+				trigger: { type: "once", at: "2026-06-27T09:00:00.000Z" },
+			},
+		);
 
 		expect(document).toMatchObject({
 			source: "project",
@@ -104,21 +107,24 @@ describe("project automations", () => {
 	});
 
 	it("updates automation status and preserves unknown fields", () => {
-		const document = updateProjectAutomationStatus({
-			automations: [
-				{
-					id: "daily-handoff",
-					name: "Daily handoff",
-					status: "active",
-					triggers: [{ type: "cron", schedule: "@daily" }],
-					owner: "refarm-main",
-				},
-			],
-			source: "project",
-		}, {
-			id: "daily-handoff",
-			status: "archived",
-		});
+		const document = updateProjectAutomationStatus(
+			{
+				automations: [
+					{
+						id: "daily-handoff",
+						name: "Daily handoff",
+						status: "active",
+						triggers: [{ type: "cron", schedule: "@daily" }],
+						owner: "refarm-main",
+					},
+				],
+				source: "project",
+			},
+			{
+				id: "daily-handoff",
+				status: "archived",
+			},
+		);
 
 		expect(document).toMatchObject({
 			source: "project",
@@ -264,9 +270,7 @@ describe("project automations", () => {
 							type: "static",
 							effort: {
 								direction: "static direction",
-								tasks: [
-									{ id: "notify", pluginId: "@refarm/pi-agent", fn: "notify" },
-								],
+								tasks: [{ id: "notify", pluginId: "@refarm/pi-agent", fn: "notify" }],
 								context: { channel: "local" },
 							},
 						},
@@ -336,14 +340,10 @@ describe("project automations", () => {
 		};
 
 		await expect(
-			executeDueLocalScheduledWork(
-				createProjectAutomationAdapter({ cwd: root }),
-				effortAdapter,
-				{
-					owner: "refarm-main",
-					now: "2026-06-27T10:00:00.000Z",
-				},
-			),
+			executeDueLocalScheduledWork(createProjectAutomationAdapter({ cwd: root }), effortAdapter, {
+				owner: "refarm-main",
+				now: "2026-06-27T10:00:00.000Z",
+			}),
 		).resolves.toMatchObject({
 			summary: { due: 1, submitted: 1 },
 			results: [{ status: "submitted", effortId: "effort-1" }],

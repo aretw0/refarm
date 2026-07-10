@@ -26,10 +26,7 @@ describe("cli sdk barrel", () => {
 			state: "ready",
 			supportedMode: "local-loop",
 		});
-		expect(INTERACTION_DRIVER_TERMINAL_EVENTS).toEqual([
-			"completed",
-			"failed",
-		]);
+		expect(INTERACTION_DRIVER_TERMINAL_EVENTS).toEqual(["completed", "failed"]);
 	});
 
 	it("exports agnostic capability discovery helpers for downstream SDK consumers", () => {
@@ -37,11 +34,9 @@ describe("cli sdk barrel", () => {
 
 		expect(index.schemaVersion).toBe(CAPABILITY_INDEX_SCHEMA_VERSION);
 		expect(index.capabilities).toEqual(getCapabilityDescriptors("refarm"));
-		expect(
-			index.capabilities.some(
-				(capability) => capability.id === "runtime-agent.ask",
-			),
-		).toBe(true);
+		expect(index.capabilities.some((capability) => capability.id === "runtime-agent.ask")).toBe(
+			true,
+		);
 	});
 
 	it("exports worker tool result helpers for downstream SDK consumers", () => {

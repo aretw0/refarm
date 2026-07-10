@@ -64,10 +64,7 @@ describe("worker profile contract", () => {
 			scope: "monitor",
 			ref: "openai/gpt-5.5",
 		});
-		expect(profile.output.requiredFields).toEqual([
-			"findings",
-			"residualRisk",
-		]);
+		expect(profile.output.requiredFields).toEqual(["findings", "residualRisk"]);
 		expect(validateWorkerProfile(profile).ok).toBe(true);
 	});
 
@@ -122,8 +119,7 @@ describe("worker profile contract", () => {
 				maxTurns: 2,
 				maxParallel: 2,
 				tokenUse: "provider",
-				stopCondition:
-					"stop when the objective is satisfied or the maxTurns budget is exhausted",
+				stopCondition: "stop when the objective is satisfied or the maxTurns budget is exhausted",
 			},
 			invocation: {
 				mode: "plan-only",
@@ -253,9 +249,7 @@ describe("worker profile contract", () => {
 				summary: "Plan is small.",
 				risks: ["Missing rollback evidence."],
 			},
-			handoffs: [
-				"refarm capabilities --tag reference-driver --supply reference-driver --json",
-			],
+			handoffs: ["refarm capabilities --tag reference-driver --supply reference-driver --json"],
 		});
 
 		expect(result).toMatchObject({
@@ -263,9 +257,7 @@ describe("worker profile contract", () => {
 			descriptorName: "worker.planReview",
 			profileId: "worker.plan-review",
 			status: "completed",
-			handoffs: [
-				"refarm capabilities --tag reference-driver --supply reference-driver --json",
-			],
+			handoffs: ["refarm capabilities --tag reference-driver --supply reference-driver --json"],
 			issues: [],
 		});
 		expect(validateWorkerToolResult(descriptor, result)).toEqual({

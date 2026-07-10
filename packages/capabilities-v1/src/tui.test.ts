@@ -1,7 +1,4 @@
-import {
-	createCapabilityRegistry,
-	type CapabilityDescriptor,
-} from "@refarm.dev/capabilities";
+import { createCapabilityRegistry, type CapabilityDescriptor } from "@refarm.dev/capabilities";
 import { describe, expect, it } from "vitest";
 
 import { handleTuiLine, renderTuiMenu } from "./tui.js";
