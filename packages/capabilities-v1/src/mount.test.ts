@@ -77,6 +77,7 @@ describe("mountCapabilities — the consumer-mount seam", () => {
 			name: "ping",
 			summary: "http verb",
 			transports: { http: { method: "GET", path: "/ping" } },
+			renderers: { palette: { group: "tools", keybind: "g p" } } as never,
 			run: () => ({ ok: true, pong: true }) as never,
 		};
 		const registry = mountCapabilities({ deps: deps(), verbs: [httpVerb] });
@@ -92,6 +93,16 @@ describe("mountCapabilities — the consumer-mount seam", () => {
 			// The agent-tools introspection route is served too.
 			const tools = await fetch(`http://127.0.0.1:${port}/agent-tools`);
 			expect(tools.status).toBe(200);
+
+			// The palette (quick-switcher) route serves the renderers.palette verbs — no
+			// longer orphaned. The ping verb opted in and appears under its group.
+			const palette = await fetch(`http://127.0.0.1:${port}/palette`);
+			expect(palette.status).toBe(200);
+			const paletteBody = (await palette.json()) as {
+				groups: { group: string; entries: { name: string; keybind?: string }[] }[];
+			};
+			const tools_group = paletteBody.groups.find((g) => g.group === "tools");
+			expect(tools_group?.entries.find((e) => e.name === "ping")?.keybind).toBe("g p");
 
 			// The OpenAPI route is generated from the same registry metadata.
 			const openapi = await fetch(`http://127.0.0.1:${port}/openapi.json`);

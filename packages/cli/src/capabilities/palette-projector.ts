@@ -11,8 +11,8 @@ import type { CapabilityRegistry } from "./registry.js";
  * `palette` is a NEW surface: nothing in the core enumerates it. It flows through
  * `surfaceModel` verbatim (the open axis) and this projector reads its hints
  * (`group` / `keybind` / `hint`). Adding it required ZERO edits to surfaceModel or any
- * other projector — the daily-driver proof that a domain can reach a new surface from
- * one declaration.
+ * other projector — a domain reaching a new surface from one declaration. The model is
+ * served over HTTP at `GET /palette` (mount.ts), the switcher's transport.
  */
 
 /** One entry in the palette — a verb the switcher can jump to. */

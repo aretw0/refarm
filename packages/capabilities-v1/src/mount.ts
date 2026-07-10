@@ -1,5 +1,6 @@
 import {
 	buildCapabilityOpenApiDocument,
+	buildPaletteModel,
 	capabilityAnthropicTools,
 	capabilityCliCommands,
 	createCapabilityRegistry,
@@ -115,6 +116,13 @@ export function mountedHttpHandler(
 		const method = (req.method ?? "GET").toUpperCase();
 		if (method === "GET" && url.pathname === "/agent-tools") {
 			writeJson(res, 200, { tools: capabilityAnthropicTools(entries) });
+			return;
+		}
+		// GET /palette — the quick-switcher (cmd-K) face: the registry's renderers.palette
+		// verbs as a grouped, ranked model a switcher renders. Was orphaned (built, mounted
+		// by nothing); this is its transport, the twin of /agent-tools for the palette axis.
+		if (method === "GET" && url.pathname === "/palette") {
+			writeJson(res, 200, buildPaletteModel(registry));
 			return;
 		}
 		if (method === "GET" && url.pathname === openApiPath) {
