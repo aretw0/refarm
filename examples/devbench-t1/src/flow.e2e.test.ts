@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { buildPaletteModel } from "@refarm.dev/capability-host";
 
 import { buildDevbenchHost, buildRegistry, DGK_COMMAND } from "./cli.js";
-import { NOTES_LOOKUP_API } from "./persona.js";
+import { devWebSurface, NOTES_LOOKUP_API } from "./persona.js";
 
 const harness = createCapabilityTestHarness();
 
@@ -297,6 +297,17 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		// surfaced verb reports WHICH — the "declare once → everywhere" made visible.
 		const code = surfaced.find((s) => s.verb === "agent-code");
 		expect(code?.surfaces).toEqual(expect.arrayContaining(["cli", "http", "repl", "tui", "web"]));
+	});
+
+	it("the SAME registry projects into a web panel (declare renderers.web once → web for free)", async () => {
+		// T1 MINIMAL web proof: the bridge turns the registry's renderers.web verbs into a
+		// Homestead surface plugin, rendered headlessly here — no Astro, no runtime. The
+		// inspector declared renderers.web { route:/extension } and lights up as a card.
+		const handle = devWebSurface(buildRegistry());
+		const result = (await handle.call?.("renderHomesteadSurface", {})) as { html: string };
+		expect(result.html).toContain("extension");
+		expect(result.html).toContain('data-route="/extension"');
+		expect(result.html).toContain("refarm-surface-card");
 	});
 
 	it("multiple manifests dispatch to plugin dispatch with valid task envelopes", async () => {

@@ -6,6 +6,11 @@ import {
 	type PluginDescriptorDeps,
 	type SurfaceableManifest,
 } from "@refarm.dev/capability-host";
+import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
+
+/** The registry type the bridge accepts — inferred from the bridge so the example doesn't
+ * import the cli/capabilities type directly (it reaches the bridge, not cli). */
+type BridgeRegistry = Parameters<typeof createCapabilityWebSurfacePlugin>[0];
 
 /**
  * The T1 persona (PROCESS mode). devbench shows the developer's angle: the ACT of
@@ -94,5 +99,20 @@ export function createExtensionCapability(
 		},
 		note:
 			"Each surfaced verb is a first-class command on CLI/REPL/TUI/HTTP/agent/palette — declared once, no per-surface wiring.",
+	});
+}
+
+/**
+ * The T1 web face — the SAME registry, projected into a Homestead surface plugin by the
+ * bridge. T1 is PROCESS mode: this proves "declare `renderers.web` once → a real web panel
+ * for free", MINIMAL by design. It is not a rich product UI (that's T2/T3); it's the least
+ * that shows the multi-surface effect reaching the web. A host registers the returned
+ * handle; here the headless `handle.call("renderHomesteadSurface", …)` render is the proof.
+ */
+export function devWebSurface(registry: BridgeRegistry) {
+	return createCapabilityWebSurfacePlugin(registry, {
+		pluginId: "@devbench/extension-web",
+		name: "Extension Bench",
+		title: "Extension bench (declare once → here)",
 	});
 }

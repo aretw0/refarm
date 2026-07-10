@@ -15,7 +15,8 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@refarm.dev/capability-host": "workspace:*"
+		"@refarm.dev/capability-host": "workspace:*",
+		"@refarm.dev/capability-homestead-surface": "workspace:*"
 	},
 	"devDependencies": {
 		"@refarm.dev/tsconfig": "workspace:*",
