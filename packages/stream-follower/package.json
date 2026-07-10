@@ -1,0 +1,41 @@
+{
+	"name": "@refarm.dev/stream-follower",
+	"version": "0.1.0",
+	"description": "Client-side stream follower — consumes a StreamChunk stream (agent response, effort) until is_final, from an injectable ChunkSource (local NDJSON file, or the sidecar's SSE endpoint). The reusable CLIENT half of the stream transports (which are the server half).",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist"
+	},
+	"keywords": [
+		"refarm",
+		"stream",
+		"follower",
+		"client",
+		"sse"
+	],
+	"license": "AGPL-3.0-only",
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@refarm.dev/stream-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}
