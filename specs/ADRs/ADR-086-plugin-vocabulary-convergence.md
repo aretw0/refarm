@@ -1,6 +1,6 @@
 # ADR-086: Plugin Vocabulary Convergence — One Verb, N Natures
 
-**Status**: Accepted (CLI convergence phases 1-5 done; phase 6 retired; phase 7 resolver being chewed origin-by-origin — 7a `url` DONE, `npm`/`git`/p2p remain)
+**Status**: Accepted (CLI convergence phases 1-5 done; phase 6 retired; phase 7 resolver COMPLETE — 7a `url`, 7b `npm`, 7c `git` all DONE, p2p a future origin; phase 8 multi-kind installer DONE)
 **Date**: 2026-07-10
 **Deciders**: Arthur Silva, Refarm agents
 **Related**: ADR-085 (Open Surface Projection Axis — unifies *surfaces*; this ADR
@@ -276,13 +276,17 @@ transition; removal is a later, separate decision (a MAJOR, tracked below).
         package ALREADY present (workspace or installed dep); a missing package
         fails loud ("add it as a dependency, then retry"), never a stateful
         `npm install` from inside the command. 5 tests.
-    7c. **(still loud not-wired)** `git` remains a follow-on. Finding: a git repo is
-        just a directory, so `git install` = clone → local-install and would inherit
-        multi-kind for free; but the repo's convention is that installers DON'T build
-        (even the bundled path tells the user to build manually), so a git install
-        would clone a repo that already SHIPS its built entry — a clone helper is the
-        only new piece. The p2p transport behind `createPeerAssetResolver` is dormant
-        (the verify gate is wired, the transport is not).
+    7c. ✅ **DONE** (`git`). `plugin install git+https://host/repo.git` (optional
+        `#<ref>`). A git repo is just a directory, so — with the multi-kind installer
+        — git install = shallow-clone (`git clone --depth 1`, injected for tests) →
+        locate the manifest (root or `dist/`) → `buildExtensionInstallReport`. git
+        gains the local gate (review + grants + integrity) + multi-kind. Per the
+        repo's convention (installers DON'T build), the repo must SHIP its built
+        entry; a repo with no built entry fails loud, never a build shelled from the
+        command. The temp clone is always cleaned up. 8 tests. **Fase 7 (url + npm +
+        git) is complete.** The p2p transport behind `createPeerAssetResolver` stays
+        dormant (the verify gate is wired, the transport is not) — a separate future
+        origin.
 
 8.  ✅ **DONE — multi-kind installer** (e1c38523 + db10b25b). Arthur's question — "not
     all plugins are WASM; some are just skill or JS; must everything ship WASM?" —
