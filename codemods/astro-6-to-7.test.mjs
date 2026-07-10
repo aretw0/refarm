@@ -62,6 +62,29 @@ test("astro 6 to 7 transform preserves manifest text when no range changes", () 
 	assert.equal(result.peerRangesWidened, 0);
 });
 
+test("astro 6 to 7 transform preserves tab indentation across a bump", () => {
+	// Regression: re-serializing with a hardcoded 2-space indent reindented every
+	// line of this tab-first repo (whitespace-only diff noise). The rewrite must
+	// keep the source's own indentation.
+	const source = '{\n\t"dependencies": {\n\t\t"astro": "^6.4.8"\n\t}\n}\n';
+	const result = transformAstro6To7WithReport(source);
+
+	assert.equal(result.changed, true);
+	assert.equal(result.astroRangesUpdated, 1);
+	assert.ok(result.json.includes('\n\t"dependencies"'), "keeps one-tab indent");
+	assert.ok(result.json.includes('\n\t\t"astro": "^7.0.0"'), "keeps two-tab indent + bump");
+	assert.ok(!result.json.includes('\n  "'), "does not introduce 2-space indent");
+});
+
+test("astro 6 to 7 transform keeps 2-space indentation for 2-space sources", () => {
+	const source = '{\n  "dependencies": {\n    "astro": "^6.4.8"\n  }\n}\n';
+	const result = transformAstro6To7WithReport(source);
+
+	assert.equal(result.changed, true);
+	assert.ok(result.json.includes('\n  "dependencies"'), "keeps 2-space indent");
+	assert.ok(result.json.includes('\n    "astro": "^7.0.0"'), "keeps 4-space nested + bump");
+});
+
 test("astro 7 upgrade scanner reports review-only breakpoints", () => {
 	const config = `import { defineConfig, logHandlers, memoryCache } from "astro/config";
 import { getContainerRenderer } from "@astrojs/react";

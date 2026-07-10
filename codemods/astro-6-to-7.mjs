@@ -80,8 +80,17 @@ function values(value) {
 	return Array.isArray(value) ? value : [value];
 }
 
-function stringifyPackageJson(value) {
-	return `${JSON.stringify(value, null, 2)}\n`;
+/** Detect the indentation of an existing JSON string so a rewrite preserves it —
+ * this repo uses TABS, and re-serializing with a hardcoded 2-space indent would
+ * reindent every line (huge whitespace-only diff, the no-formatter footgun). Falls
+ * back to two spaces only when the source has no discernible indent. */
+function detectIndent(json) {
+	const match = /\n([\t ]+)"/.exec(json);
+	return match ? match[1] : "  ";
+}
+
+function stringifyPackageJson(value, indent = "  ") {
+	return `${JSON.stringify(value, null, indent)}\n`;
 }
 
 function shouldUpdateAppRange(range) {
@@ -150,7 +159,9 @@ export function transformAstro6To7WithReport(
 	}
 
 	const packageRangeChanged = astroRangesUpdated > 0 || peerRangesWidened > 0;
-	const output = packageRangeChanged ? stringifyPackageJson(next) : json;
+	const output = packageRangeChanged
+		? stringifyPackageJson(next, detectIndent(json))
+		: json;
 	return {
 		json: output,
 		changed: packageRangeChanged && output !== json,
