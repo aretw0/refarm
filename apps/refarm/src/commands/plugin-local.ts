@@ -221,10 +221,10 @@ function publishExtensionPlan(name: string) {
 		message: `Publishing local extension '${name}' is not automated yet.`,
 		nextAction: "Package the extension as a WASM plugin before bundling.",
 		nextActions: [
-			"refarm extension list",
+			refarmCommand(["extension", "list"]),
 			reloadCommand,
 			"Package the extension as a WASM plugin before bundling.",
-			"refarm plugin status",
+			refarmCommand(["plugin", "status"]),
 		],
 		nextCommand: EXTENSION_LIST_JSON_COMMAND,
 		nextCommands: [EXTENSION_LIST_JSON_COMMAND, reloadCommand, PLUGIN_STATUS_JSON_COMMAND],

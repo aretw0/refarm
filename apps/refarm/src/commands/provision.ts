@@ -1,17 +1,17 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { setGitHubActionsSecret } from "@refarm.dev/cli/github-actions";
-import {
-	CloudflareProvider, CloudflareTurboCacheProvisioner, createCloudflareTurboCacheProvisionPlan, enrichCloudflareError, } from "@refarm.dev/infra-cloudflare";
-import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
-import { SiloCore } from "@refarm.dev/silo";
-import chalk from "chalk";
-import { Command } from "commander";
-import { normalizeHandoffValues } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import { normalizeHandoffValues, refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { setGitHubActionsSecret } from "@refarm.dev/cli/github-actions";
+import {
+	CloudflareProvider, CloudflareTurboCacheProvisioner, createCloudflareTurboCacheProvisionPlan, enrichCloudflareError,
+} from "@refarm.dev/infra-cloudflare";
+import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
+import { SiloCore } from "@refarm.dev/silo";
+import chalk from "chalk";
+import { Command } from "commander";
 
 interface TurboCacheCommandOptions {
 	dryRun?: boolean;
@@ -299,13 +299,13 @@ function renderCloudflareCatalog(): void {
 function renderProvisionNextSteps(): void {
 	console.log(chalk.bold("Next steps:"));
 	console.log(
-		`  ${chalk.cyan("refarm sow --cloudflare")} ${chalk.gray("# configure Cloudflare token")}`,
+		`  ${chalk.cyan(refarmCommand(["sow", "--cloudflare"]))} ${chalk.gray("# configure Cloudflare token")}`,
 	);
 	console.log(
-		`  ${chalk.cyan("refarm provision cloudflare turbo-cache --dry-run")}`,
+		`  ${chalk.cyan(refarmCommand(["provision", "cloudflare", "turbo-cache", "--dry-run"]))}`,
 	);
 	console.log(
-		`  ${chalk.cyan("refarm provision cloudflare turbo-cache --github-secrets")}`,
+		`  ${chalk.cyan(refarmCommand(["provision", "cloudflare", "turbo-cache", "--github-secrets"]))}`,
 	);
 }
 

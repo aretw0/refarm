@@ -1,4 +1,9 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "@refarm.dev/capabilities/envelope";
+import { quoteCommandArg, refarmCommand, workspaceCommand } from "@refarm.dev/cli/command-handoff";
 import { defaultRefarmConfigPath } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
@@ -7,13 +12,6 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
-import {
-	quoteCommandArg, workspaceCommand } from "@refarm.dev/cli/command-handoff";
-import {
-	buildJsonErrorEnvelope,
-	buildJsonSuccessEnvelope,
-	printJson,
-} from "@refarm.dev/capabilities/envelope";
 
 interface InitOptions {
   force?: boolean;
@@ -179,9 +177,9 @@ export function createInitCommand(deps: InitCommandDeps = {}): Command {
     }
 
     if (opts.json) {
-      const sowCommand = workspaceCommand(projectDir, "refarm sow --json");
-      const modelCurrentCommand = workspaceCommand(projectDir, "refarm model current --json");
-      const guideCommand = workspaceCommand(projectDir, "refarm guide --json");
+      const sowCommand = workspaceCommand(projectDir, refarmCommand(["sow", "--json"]));
+      const modelCurrentCommand = workspaceCommand(projectDir, refarmCommand(["model", "current", "--json"]));
+      const guideCommand = workspaceCommand(projectDir, refarmCommand(["guide", "--json"]));
       printJson(
         buildJsonSuccessEnvelope({
           command: "init",
@@ -211,8 +209,8 @@ export function createInitCommand(deps: InitCommandDeps = {}): Command {
     }
 
     console.log(chalk.blue("\nProject structure initialized."));
-    console.log(`\nNext step: cd into ${chalk.cyan(name)} and run ${chalk.cyan("refarm sow")} to configure model credentials.`);
-    console.log(chalk.dim(`Then run ${chalk.cyan("refarm guide")} for GitHub/Cloudflare setup hints.`));
+    console.log(`\nNext step: cd into ${chalk.cyan(name)} and run ${chalk.cyan(refarmCommand(["sow"]))} to configure model credentials.`);
+    console.log(chalk.dim(`Then run ${chalk.cyan(refarmCommand(["guide"]))} for GitHub/Cloudflare setup hints.`));
   });
 }
 

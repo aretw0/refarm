@@ -3,6 +3,7 @@
  * No readline REPL, no Commander. Just policy.
  */
 
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { executeProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	hasUsableModelCredential,
@@ -13,6 +14,10 @@ import {
 	createStdioOperatorChannel,
 	type OperatorChannel,
 } from "@refarm.dev/prompt-contract-v1";
+import {
+	autoStartRuntime as operatorAutoStartRuntime,
+	type AutostartVocabulary,
+} from "@refarm.dev/runtime-operator";
 import chalk from "chalk";
 import fs from "node:fs";
 import path from "node:path";
@@ -38,10 +43,6 @@ import {
 	startRuntimeProcess,
 } from "./runtime-launcher.js";
 import { probeRuntimeReady, waitForRuntimeReady } from "./runtime-readiness.js";
-import {
-	autoStartRuntime as operatorAutoStartRuntime,
-	type AutostartVocabulary,
-} from "@refarm.dev/runtime-operator";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -381,7 +382,7 @@ export function defaultLaunchDeps(): LaunchDeps {
 			await executeProcessHandoff({
 				command: process.argv[0]!,
 				args: [process.argv[1]!, "sow"],
-				display: "refarm sow",
+				display: refarmCommand(["sow"]),
 			});
 			return detectProvider();
 		},
@@ -485,15 +486,15 @@ export function printSessionGuide(r: SessionReadiness): void {
 		console.error(chalk.red("✗  refarm is not configured yet.\n"));
 		console.error(
 			chalk.dim("   Configure model credentials:    ") +
-				chalk.cyan("refarm sow"),
+				chalk.cyan(refarmCommand(["sow"])),
 		);
 		console.error(
 			chalk.dim("   Inspect current model route:     ") +
-				chalk.cyan("refarm model current"),
+				chalk.cyan(refarmCommand(["model", "current"])),
 		);
 		console.error(
 			chalk.dim("   List provider defaults:         ") +
-				chalk.cyan("refarm model providers"),
+				chalk.cyan(refarmCommand(["model", "providers"])),
 		);
 		return;
 	}
@@ -501,14 +502,14 @@ export function printSessionGuide(r: SessionReadiness): void {
 	if (!r.providerConfigured) {
 		console.error(chalk.red("✗  No usable model credentials configured.\n"));
 		console.error(
-			chalk.dim("   Set up credentials: ") + chalk.cyan("refarm sow"),
+			chalk.dim("   Set up credentials: ") + chalk.cyan(refarmCommand(["sow"])),
 		);
 		console.error(
-			chalk.dim("   Inspect route:      ") + chalk.cyan("refarm model current"),
+			chalk.dim("   Inspect route:      ") + chalk.cyan(refarmCommand(["model", "current"])),
 		);
 		console.error(
 			chalk.dim("   List providers:     ") +
-				chalk.cyan("refarm model providers"),
+				chalk.cyan(refarmCommand(["model", "providers"])),
 		);
 		console.error(
 			chalk.dim("   Use Ollama:         ") +
@@ -533,7 +534,7 @@ export function printOnboarding(): void {
 		"  " +
 			chalk.cyan("1.") +
 			"  Configure credentials:  " +
-			chalk.cyan("refarm sow"),
+			chalk.cyan(refarmCommand(["sow"])),
 	);
 	console.log(
 		"  " +

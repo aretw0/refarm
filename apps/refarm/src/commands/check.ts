@@ -1,3 +1,4 @@
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import type { RustSubstrateCheck } from "@refarm.dev/cli/rust-substrate";
 import { Command } from "commander";
 
@@ -108,7 +109,13 @@ async function runDefaultWorkspaceSweep(): Promise<WorkspaceSweepCheck> {
 }
 
 async function runDefaultReleasePolicy(): Promise<ReleasePolicyCheck> {
-	const recommendedCommand = "refarm release preflight --selection default --json";
+	const recommendedCommand = refarmCommand([
+		"release",
+		"preflight",
+		"--selection",
+		"default",
+		"--json",
+	]);
 	const engine = (await import("@refarm.dev/release-engine")) as {
 		buildReleasePlan: (options: {
 			cwd?: string;

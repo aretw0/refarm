@@ -93,7 +93,7 @@ export function formatStatusFromEnvelope(envelope: CapabilityEnvelope): string {
 export function formatListFromEnvelope(envelope: CapabilityEnvelope): string {
 	const results = (envelope as unknown as PluginListReport).plugins;
 	if (results.length === 0) {
-		return "No plugins installed. Run 'refarm plugin install' to install bundled plugins.";
+		return `No plugins installed. Run '${PLUGIN_INSTALL_COMMAND}' to install bundled plugins.`;
 	}
 
 	const idWidth = Math.max(...results.map((r) => r.id.length), 4);

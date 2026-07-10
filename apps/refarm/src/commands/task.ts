@@ -3,6 +3,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { normalizePluginId } from "@refarm.dev/config";
 import type {
 	Effort,
@@ -576,7 +577,7 @@ Notes:
 			if (!checkpoint) {
 				if (opts.json) {
 					printTaskJsonSuccess("resume", { status: "empty" }, [
-						"refarm task list --json",
+						refarmCommand(["task", "list", "--json"]),
 					]);
 					return;
 				}

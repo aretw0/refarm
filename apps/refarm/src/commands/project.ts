@@ -1,4 +1,5 @@
 import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	addProjectAutomationRecord,
 	normalizeProjectAutomationsDocument,
@@ -220,7 +221,7 @@ function formatValidationPlain(result: ProjectHandoffValidationResult): string {
 }
 
 function validationNextCommands(result: ProjectHandoffValidationResult): string[] {
-	return result.ok ? ["refarm resume --json"] : [];
+	return result.ok ? [refarmCommand(["resume", "--json"])] : [];
 }
 
 function printValidation(
@@ -261,9 +262,9 @@ function automationsNextCommands(
 ): string[] {
 	return result.ok
 		? [
-				"refarm project automations validate --json",
-				"refarm resume --json",
-				"refarm check --next-action --json",
+				refarmCommand(["project", "automations", "validate", "--json"]),
+				refarmCommand(["resume", "--json"]),
+				refarmCommand(["check", "--next-action", "--json"]),
 			]
 		: [];
 }
@@ -422,8 +423,8 @@ function createHandoffCommand(deps: ProjectDeps): Command {
 							command: "project",
 							operation: options.dryRun ? "handoff.write.dry-run" : "handoff.write",
 							nextCommands: [
-								"refarm resume --json",
-								"refarm check --next-action --json",
+								refarmCommand(["resume", "--json"]),
+								refarmCommand(["check", "--next-action", "--json"]),
 							],
 							extra: {
 								path: PROJECT_HANDOFF_RELATIVE_PATH,
@@ -741,8 +742,8 @@ function createAutomationsCommand(deps: ProjectDeps): Command {
 					ledger: submit ? createLocalSchedulerLedger({ cwd }) : dryRunLedger(cwd),
 				});
 				const nextCommands = submit
-					? ["refarm resume --json", "refarm check --next-action --json"]
-					: ["refarm project automations tick --submit --json"];
+					? [refarmCommand(["resume", "--json"]), refarmCommand(["check", "--next-action", "--json"])]
+					: [refarmCommand(["project", "automations", "tick", "--submit", "--json"])];
 				if (options.json) {
 					printJson(
 						buildJsonSuccessEnvelope({

@@ -149,7 +149,9 @@ export async function listInstalledPlugins(options: { json?: boolean } = {}): Pr
 
 	const results = report.plugins;
 	if (results.length === 0) {
-		console.log("No plugins installed. Run 'refarm plugin install' to install bundled plugins.");
+		console.log(
+			`No plugins installed. Run '${refarmCommand(["plugin", "install"])}' to install bundled plugins.`,
+		);
 		return;
 	}
 

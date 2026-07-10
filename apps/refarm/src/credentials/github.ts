@@ -1,3 +1,4 @@
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { loadConfig } from "@refarm.dev/config";
 import chalk from "chalk";
 import { startSpinner } from "../utils/spinner.js";
@@ -64,7 +65,9 @@ async function pollForToken(
 		if (data.access_token) return data.access_token;
 		if (data.error === "slow_down") delay += 5;
 		if (data.error === "expired_token")
-			throw new Error("Authorization expired. Run 'refarm sow' again.");
+			throw new Error(
+					`Authorization expired. Run '${refarmCommand(["sow"])}' again.`,
+				);
 		if (data.error === "access_denied")
 			throw new Error("Authorization declined.");
 		// authorization_pending → keep polling

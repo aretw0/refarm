@@ -1,5 +1,5 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { printJson } from "@refarm.dev/capabilities/envelope";
+import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { DEFAULT_MODEL_PROVIDER, defaultProviderModelRef, effectiveModelRouteForScope, loadConfig, modelCredentialStatus, } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
@@ -132,7 +132,7 @@ export function createGuideCommand(deps: GuideDeps = defaultGuideDeps()): Comman
         ok: modelReady,
         status: modelReady ? "ready" : "missing",
         action: modelReady
-          ? `Inspect route with 'refarm model current' (${modelRef}).`
+          ? `Inspect route with '${refarmCommand(["model", "current"])}' (${modelRef}).`
           : `Configure model credentials for ${modelRef}.`,
         actionCommand: modelReady
           ? refarmCommand(["model", "current", "--json"])
