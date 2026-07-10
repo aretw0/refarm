@@ -4,10 +4,10 @@ import {
 	type CapabilityDescriptor,
 	type CapabilityEntry,
 	type CapabilityEnvelope,
-	type CapabilityHooksResolver,
 	type CapabilityInput,
 	type CapabilityRegistry,
 } from "@refarm.dev/capabilities";
+import type { CapabilityHooksResolver } from "@refarm.dev/surface-terminal";
 import { applicationCommand } from "@refarm.dev/cli/command-handoff";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import {

@@ -10,6 +10,9 @@
 			"@refarm.dev/capabilities/envelope": [
 				"../../packages/capabilities/dist/envelope.d.ts"
 			],
+			"@refarm.dev/surface-terminal": [
+				"../../packages/surface-terminal/dist/index.d.ts"
+			],
 			"@refarm.dev/context-provider-v1": [
 				"../../packages/context-provider-v1/dist/index.d.ts"
 			],

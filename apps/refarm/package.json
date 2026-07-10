@@ -29,6 +29,7 @@
 	},
 	"dependencies": {
 		"@refarm.dev/capabilities": "workspace:*",
+		"@refarm.dev/surface-terminal": "workspace:*",
 		"@refarm.dev/cli": "workspace:*",
 		"@refarm.dev/asset-resolver-contract-v1": "workspace:*",
 		"@refarm.dev/barn": "workspace:*",

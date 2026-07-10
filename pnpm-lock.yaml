@@ -405,6 +405,9 @@ importers:
       '@refarm.dev/stream-contract-v1':
         specifier: workspace:*
         version: link:../../packages/stream-contract-v1
+      '@refarm.dev/surface-terminal':
+        specifier: workspace:*
+        version: link:../../packages/surface-terminal
       '@refarm.dev/task-contract-v1':
         specifier: workspace:*
         version: link:../../packages/task-contract-v1
@@ -647,6 +650,9 @@ importers:
       '@refarm.dev/source-web':
         specifier: workspace:*
         version: link:../source-web
+      '@refarm.dev/surface-terminal':
+        specifier: workspace:*
+        version: link:../surface-terminal
       '@refarm.dev/vault-contract-v1':
         specifier: workspace:*
         version: link:../vault-contract-v1

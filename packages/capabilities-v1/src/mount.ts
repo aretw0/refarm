@@ -2,13 +2,15 @@ import {
 	buildCapabilityOpenApiDocument,
 	buildPaletteModel,
 	capabilityAnthropicTools,
-	capabilityCliCommands,
 	createCapabilityRegistry,
 	createCapabilityRouteHandler,
 	type CapabilityEntry,
-	type CapabilityHooksResolver,
 	type CapabilityRegistry,
 } from "@refarm.dev/capabilities";
+import {
+	capabilityCliCommands,
+	type CapabilityHooksResolver,
+} from "@refarm.dev/surface-terminal";
 import {
 	createServer,
 	type IncomingMessage,

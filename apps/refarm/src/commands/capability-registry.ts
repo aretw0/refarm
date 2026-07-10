@@ -1,13 +1,15 @@
 import {
 	createCapabilityRegistry,
-	capabilityCliCommands as projectCliCommands,
-	capabilityCliCommandsForGroup as projectCliCommandsForGroup,
 	tuiSurfaceModel,
 	type CapabilityDescriptor,
 	type CapabilityEntry,
 	type CapabilityGroup,
-	type CapabilitySurfaceHooks,
 } from "@refarm.dev/capabilities";
+import {
+	capabilityCliCommands as projectCliCommands,
+	capabilityCliCommandsForGroup as projectCliCommandsForGroup,
+	type CapabilitySurfaceHooks,
+} from "@refarm.dev/surface-terminal";
 import { RESERVED_SLASH_NAMES } from "@refarm.dev/cli/chat-repl";
 import type { Command } from "commander";
 
