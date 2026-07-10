@@ -1,56 +1,57 @@
 {
-  "name": "@refarm.dev/capabilities-v1",
-  "version": "0.1.0",
-  "private": false,
-  "description": "Neutral, injectable capability blocks (source:v1, records:v1, vault:v1) for host applications",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./testing": {
-      "import": "./dist/testing.js",
-      "types": "./dist/testing.d.ts"
-    },
-    "./node": {
-      "import": "./dist/node.js",
-      "types": "./dist/node.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "eslint src",
-    "type-check": "tsc --noEmit",
-    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-    "test": "vitest run",
-    "clean": "rm -rf dist"
-  },
-  "files": [
-    "dist",
-    "!dist/**/*.tsbuildinfo",
-    "README.md"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "dependencies": {
-    "@refarm.dev/cli": "workspace:*",
-    "@refarm.dev/source-web": "workspace:*",
-    "@refarm.dev/operator-state": "workspace:*",
-    "@refarm.dev/source-contract-v1": "workspace:*",
-    "@refarm.dev/records-contract-v1": "workspace:*",
-    "@refarm.dev/enrichment-contract-v1": "workspace:*",
-    "@refarm.dev/effort-contract-v1": "workspace:*",
-    "@refarm.dev/vault-contract-v1": "workspace:*",
-    "commander": "^14.0.3"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "workspace:*",
-    "@refarm.dev/tsconfig": "workspace:*",
-    "@refarm.dev/vtconfig": "workspace:*"
-  }
+	"name": "@refarm.dev/capabilities-v1",
+	"version": "0.1.0",
+	"private": false,
+	"description": "Neutral, injectable capability blocks (source:v1, records:v1, vault:v1) for host applications",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./testing": {
+			"import": "./dist/testing.js",
+			"types": "./dist/testing.d.ts"
+		},
+		"./node": {
+			"import": "./dist/node.js",
+			"types": "./dist/node.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@refarm.dev/cli": "workspace:*",
+		"@refarm.dev/source-web": "workspace:*",
+		"@refarm.dev/operator-state": "workspace:*",
+		"@refarm.dev/source-contract-v1": "workspace:*",
+		"@refarm.dev/records-contract-v1": "workspace:*",
+		"@refarm.dev/enrichment-contract-v1": "workspace:*",
+		"@refarm.dev/effort-contract-v1": "workspace:*",
+		"@refarm.dev/vault-contract-v1": "workspace:*",
+		"commander": "^14.0.3"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/plugin-manifest": "workspace:*"
+	}
 }

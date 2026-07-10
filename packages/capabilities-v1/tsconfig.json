@@ -17,7 +17,9 @@
 			"@refarm.dev/cli/chat-repl": [
 				"packages/cli/dist/chat-repl.d.ts"
 			],
-			"@refarm.dev/source-web": ["packages/source-web/dist/index.d.ts"],
+			"@refarm.dev/source-web": [
+				"packages/source-web/dist/index.d.ts"
+			],
 			"@refarm.dev/source-contract-v1": [
 				"packages/source-contract-v1/dist/index.d.ts"
 			],
@@ -32,11 +34,17 @@
 			],
 			"@refarm.dev/vault-contract-v1": [
 				"packages/vault-contract-v1/dist/index.d.ts"
+			],
+			"@refarm.dev/plugin-manifest": [
+				"../plugin-manifest/dist/index.d.ts"
 			]
 		}
 	},
 	"include": [
 		"src/**/*"
 	],
-	"exclude": ["node_modules", "dist"]
+	"exclude": [
+		"node_modules",
+		"dist"
+	]
 }

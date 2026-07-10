@@ -629,6 +629,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/plugin-manifest':
+        specifier: workspace:*
+        version: link:../plugin-manifest
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig

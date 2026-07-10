@@ -163,6 +163,18 @@ function parseProvidedVerb(
 	return { pluginKey, verb };
 }
 
+/** A surface a plugin declares in its manifest (`extensions.surfaces[]`) — WHERE it mounts
+ * (the homestead panel, an asset pack, …). A structural SUBSET of plugin-manifest's
+ * `ExtensionSurfaceDeclaration` (the canonical type), redeclared here only because
+ * capabilities-v1 does not depend on plugin-manifest — the shared fields are asserted
+ * against the canonical type by a conformance test, so this cannot silently drift. */
+export interface ManifestExtensionSurface {
+	layer: string;
+	kind?: string;
+	id: string;
+	slot?: string;
+}
+
 /** The minimal manifest shape the bridge needs — the id + the routing lists.
  * Structurally satisfied by a full PluginManifest, so a caller passes one directly.
  *
@@ -171,16 +183,6 @@ function parseProvidedVerb(
  * `get-plugin-api` and calls it via `call-plugin` — one extension using another,
  * host-mediated, no import. They are orthogonal to `provides`/`subscribes` (the
  * host-verb axis) and mirror the full PluginManifest's `capabilities` fields. */
-/** A surface a plugin declares in its manifest (`extensions.surfaces[]`) — WHERE it mounts
- * (the homestead panel, an asset pack, …). Structurally a subset of the full
- * ExtensionSurfaceDeclaration, so a real manifest satisfies it. */
-export interface ManifestExtensionSurface {
-	layer: string;
-	kind?: string;
-	id: string;
-	slot?: string;
-}
-
 export interface SurfaceableManifest {
 	id: string;
 	capabilities?: {
