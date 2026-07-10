@@ -95,13 +95,11 @@ describe("TaskMemoryBridge", () => {
 
 	it("records done outcome as status_changed event", async () => {
 		const create = vi.fn().mockResolvedValue(makeTask("done-task", "effort-done"));
-		const update = vi
-			.fn()
-			.mockResolvedValue({
-				"@type": "Task",
-				"@id": "urn:refarm:task:v1:done-task",
-				status: "done",
-			});
+		const update = vi.fn().mockResolvedValue({
+			"@type": "Task",
+			"@id": "urn:refarm:task:v1:done-task",
+			status: "done",
+		});
 		const appendEvent = vi
 			.fn()
 			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:2" });
@@ -124,13 +122,11 @@ describe("TaskMemoryBridge", () => {
 
 	it("records failed outcome when executor returns error", async () => {
 		const create = vi.fn().mockResolvedValue(makeTask("failed-task", "effort-failed"));
-		const update = vi
-			.fn()
-			.mockResolvedValue({
-				"@type": "Task",
-				"@id": "urn:refarm:task:v1:failed-task",
-				status: "failed",
-			});
+		const update = vi.fn().mockResolvedValue({
+			"@type": "Task",
+			"@id": "urn:refarm:task:v1:failed-task",
+			status: "failed",
+		});
 		const appendEvent = vi
 			.fn()
 			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:3" });
