@@ -35,7 +35,6 @@ import { resolveSovereignConfig } from "../utils/sovereign-config.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import {
 	resolveRuntimeLaunchCommand,
-	runtimeStartHelpLines,
 	startRuntimeProcess,
 } from "./runtime-launcher.js";
 import { probeRuntimeReady, waitForRuntimeReady } from "./runtime-readiness.js";
