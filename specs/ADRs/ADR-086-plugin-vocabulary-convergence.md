@@ -1,6 +1,6 @@
 # ADR-086: Plugin Vocabulary Convergence — One Verb, N Natures
 
-**Status**: Accepted (CLI convergence phases 1-4 implemented + tested; phases 5-7 are follow-ons)
+**Status**: Accepted (CLI convergence phases 1-5 done; phase 6 retired; phase 7 resolver being chewed origin-by-origin — 7a `url` DONE, `npm`/`git`/p2p remain)
 **Date**: 2026-07-10
 **Deciders**: Arthur Silva, Refarm agents
 **Related**: ADR-085 (Open Surface Projection Axis — unifies *surfaces*; this ADR
