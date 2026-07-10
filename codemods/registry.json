@@ -19,7 +19,7 @@
     },
     {
       "id": "astro-6-to-7",
-      "status": "ready",
+      "status": "implemented",
       "ownerSurface": "Astro apps/packages",
       "tool": "codemod",
       "inputs": ["package.json files with astro 5/6 dependency ranges plus optional Astro config/source scans for Astro 7 review breakpoints"],
@@ -29,7 +29,8 @@
       ],
       "dryRunCommand": "node codemods/astro-6-to-7.mjs --input apps/site/package.json --scan apps/site/astro.config.mjs --json",
       "verificationGate": "node --test codemods/registry.test.mjs codemods/astro-6-to-7.test.mjs; upgraded Astro workspace runs astro check/build after review findings are resolved",
-      "rollbackNote": "Package manifest and review-report migration; rerun without --write for review, and revert package/config/source edits if Astro check/build regresses"
+      "rollbackNote": "Package manifest and review-report migration; rerun without --write for review, and revert package/config/source edits if Astro check/build regresses",
+      "appliedNote": "Applied to the monorepo (28d8490f): apps/dev, apps/me, apps/site, homestead → astro ^7.0.0; ds-astro peer widened; config unchanged. Dry-run + scan found zero breaking findings; all 3 apps build + astro check clean on 7.0.3. The --write path preserves the source indentation (ed90d196) — earlier it forced 2-space, so the bumps were applied surgically by hand."
     },
     {
       "id": "npm-scope-doc-sweep",
