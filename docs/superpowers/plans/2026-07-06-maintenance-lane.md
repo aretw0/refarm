@@ -193,6 +193,17 @@ redeclaration, add its sensor in the same commit — don't leave it for a future
   centralizing test construction (P3) and wiring real hot-reload, tighten coverage
   so a refactor there can't silently mask a regression. Track which endpoints have
   behavioral (not just status-code) assertions; fill the gaps.
+- P5 (Arthur, 2026-07-10: "podemos depois deixar pronto na fábrica o prettier ou
+  biome para uso geral"): **there is no repo-wide code formatter.** The toolbox has
+  `imports` (organize only) and ESLint has no `indent` rule, so indentation style
+  drifts silently — files are mostly tabs (plugin-capability, capability-registry,
+  skill-capability, extension-scaffold) but some are 2-space (extension.ts was, until
+  the ADR-086 split reindented it to tabs by hand). The pain was FELT: the imports
+  organizer reindented a 2-space file into a tab/space mix that only a manual
+  pass fixed. Fix (a slice of its own, touches repo config): adopt biome (or
+  prettier) as the general formatter — pick tabs to match the majority — wire a
+  `format`/`format:check` task + a git-hook/CI gate, and run it once to normalize.
+  Deferred by Arthur ("depois"); do NOT bundle into a feature slice.
 
 ## Abstract follow-ons
 
