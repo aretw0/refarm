@@ -471,6 +471,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/capability-host
     devDependencies:
+      '@refarm.dev/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@refarm.dev/model-mock':
         specifier: workspace:*
         version: link:../../packages/model-mock

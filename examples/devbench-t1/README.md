@@ -55,6 +55,26 @@ If unset, `dgk` targets `http://127.0.0.1:42123`.
 Set `DGK_COMMAND=/path/to/cli-name` to change the CLI command root (for example
 `DGK_COMMAND=devbench-acme`).
 
+## White-label to the core — one brand, every layer
+
+devbench runs under its OWN brand (`DGK`), and that brand reaches every layer of
+the shared substrate — nothing is nailed to "refarm":
+
+- **Command**: `DGK_COMMAND` overrides the CLI name. The generic
+  `@refarm.dev/capability-host` derives the override env from the command itself
+  (`dgk` → `DGK_COMMAND`), so it names no brand (ADR-087).
+- **Runtime**: `DGK_DEVBENCH_SIDECAR_URL` points at devbench's own daemon.
+- **Config**: the SHARED `@refarm.dev/config` resolves devbench's env under the
+  `DGK` prefix — `DGK_SITE_URL`, `DGK_SCOPE_*`, `DGK_PROVIDER_*` feed the
+  brand/providers tree, and a stray upstream `REFARM_*` is ignored. Pick the
+  prefix once via the neutral selector (`SOVEREIGN_ENV_PREFIX=DGK`) or per call
+  (`loadConfig(root, { envPrefix: "DGK" })`).
+
+`src/white-label-config.test.ts` proves this end-to-end from the consumer side: a
+white-label app drives the shared config with zero refarm leak. This is the point
+of a genuine T1 consumer — it exercises the substrate's white-label seams for
+real, and reveals anything still tied to the upstream brand.
+
 ## Focus — what T1 makes shine (survives our design conversation)
 
 **Persona & mode.** The developer; **process mode** — show the MACHINE being extended,

@@ -19,6 +19,7 @@
 		"@refarm.dev/capability-homestead-surface": "workspace:*"
 	},
 	"devDependencies": {
+		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
 		"@refarm.dev/model-mock": "workspace:*"
