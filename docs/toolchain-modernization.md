@@ -116,5 +116,45 @@ follow-up, not done here.
 4. ✅ Formatter (P5) — oxfmt adopted; whole repo swept (900 files green);
    `format:check` gated in `factory:pre-rebuild`. CI-workflow gating is a §8
    follow-up.
-5. **TypeScript 7** — assess the migration (TS 7 released; native Go compiler).
-   Next.
+5. ⏸️ TypeScript 7 — assessed, **DEFERRED** (not a drop-in; see below).
+
+## TypeScript 7 — assessed, deferred
+
+`typescript@7.0.2` is the **native Go compiler** ("Corsa"/tsgo) shipped as the main
+`typescript` package — not a routine bump. Evidence: 20 per-platform binary deps
+(`@typescript/typescript-linux-x64`, …); the package shrank 24 MB → 2.5 MB (the JS
+implementation is gone, replaced by a thin wrapper over the native binary).
+
+Isolated trial (repo untouched):
+
+- ✅ `tsc --noEmit` (type-check) works.
+- ✅ `tsc --declaration --outDir` (emit `.d.ts` + `.js`) works — our TS-strict build
+  path is fine.
+- ❌ **The JS compiler API is removed from the default import.** `require("typescript")`
+  no longer exposes `transpileModule` / `createProgram` / `ModuleKind` (all
+  `undefined`); the API moved to explicitly-**`unstable/`** subpaths
+  (`typescript/unstable/ast`, `/unstable/sync`, …) with a reorganized shape.
+
+That breaks real consumers here:
+
+- `packages/toolbox/src/imports.mjs` — our import organizer (15 API calls:
+  `createLanguageService`, `createSourceFile`, `isImportDeclaration`, …). Hard
+  dependency on the full AST/LanguageService API.
+- `apps/site/test/site-data.test.mjs` — `ts.transpileModule`.
+- `scripts/ci/test-turbo-generators.mjs`.
+- `typescript-eslint` (our repo-wide `pnpm lint`) consumes the TS API internally;
+  TS 7-native compat is an open area needing its own release.
+
+**Verdict:** unlike Astro 7 (zero findings) and oxfmt (zero corruption), TS 7 today
+costs real work against an `unstable/` API. Deferred. Revisit when typescript-eslint
++ the `unstable/` API stabilize (likely 7.1/7.2), or adopt `tsgo` for **type-check
+only** (the `--noEmit` path works now) as a surgical, non-breaking half-step.
+
+---
+
+## Status: toolchain modernization CLOSED (for now)
+
+The leva is complete for this pass: Vite/Vitest were already converged; the stale
+release snapshots are reconciled; Astro is on 7; oxfmt formats the whole repo with a
+gate. TypeScript 7 is assessed and deferred with a clear re-entry condition. Reopen
+when TS 7's ecosystem settles, or to wire `format:check` into CI (§8).
