@@ -35,6 +35,7 @@ import os from "node:os";
 import { pluginsBaseDir } from "../utils/refarm-home.js";
 import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
 import { PLUGIN_INSTALL_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
+import { buildNpmInstallReport } from "./plugin-install-from-npm.js";
 import { buildExtensionInstallReport } from "./plugin-install-from-path.js";
 import { buildUrlInstallReport } from "./plugin-install-from-url.js";
 import { buildInstallReport } from "./plugin-install.js";
@@ -426,27 +427,49 @@ export function createPluginCapabilityGroup(
 				})) as CapabilityEnvelope;
 			}
 
-			// A ref: its shape selects the origin. `local` (a reviewed path) and `url`
-			// (a content-addressed descriptor, ADR-086 Fase 7) are materializable;
-			// npm/git are recognized and routed to a loud not-wired envelope (never a
-			// silent no-op that pretends coverage — ADR-086).
+			// A ref: its shape selects the origin. `local` (a reviewed path), `url` (a
+			// content-addressed descriptor), and `npm` (a resolved package) are
+			// materializable; `git` is recognized and routed to a loud not-wired
+			// envelope (never a silent no-op that pretends coverage — ADR-086).
 			const origin = detectPluginOrigin(ref);
+
+			// local + npm both run the review-first path installer, so both honor
+			// --policy / --grant. Validate the shared policy option once.
+			const policy = input.options.policy;
+			if (
+				(origin === "local" || origin === "npm") &&
+				policy !== undefined &&
+				policy !== "fail-fast" &&
+				policy !== "warn+continue"
+			) {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "install",
+					error: "invalid-policy",
+					message: "--policy must be fail-fast or warn+continue",
+					nextAction: "Run `refarm plugin install --help`.",
+				});
+			}
+			const grantedCapabilities = (input.options.grant as string[]) ?? [];
+			const policyMode = (policy as "fail-fast" | "warn+continue") ?? "fail-fast";
+
 			if (origin === "local") {
-				const policy = input.options.policy;
-				if (policy !== undefined && policy !== "fail-fast" && policy !== "warn+continue") {
-					return buildJsonErrorEnvelope({
-						command: "plugin",
-						operation: "install",
-						error: "invalid-policy",
-						message: "--policy must be fail-fast or warn+continue",
-						nextAction: "Run `refarm plugin install --help`.",
-					});
-				}
 				return (await buildExtensionInstallReport({
 					targetPath: ref,
-					grantedCapabilities: (input.options.grant as string[]) ?? [],
-					policyMode: (policy as "fail-fast" | "warn+continue") ?? "fail-fast",
+					grantedCapabilities,
+					policyMode,
 					commandName: "plugin",
+				})) as CapabilityEnvelope;
+			}
+
+			// npm: resolve the package to its dir, then run the SAME review-first local
+			// installer against its shipped plugin.json — npm gains local's review gate
+			// + integrity check. A package not present fails loud (add the dep first).
+			if (origin === "npm") {
+				return (await buildNpmInstallReport({
+					ref,
+					grantedCapabilities,
+					policyMode,
 				})) as CapabilityEnvelope;
 			}
 
@@ -461,9 +484,9 @@ export function createPluginCapabilityGroup(
 				command: "plugin",
 				operation: "install",
 				error: "resolver-not-wired",
-				message: `Installing from a ${origin} reference ("${ref}") is not wired yet. Today a local path, a url descriptor, and --bundled are supported.`,
+				message: `Installing from a ${origin} reference ("${ref}") is not wired yet. Today a local path, an npm package, a url descriptor, and --bundled are supported.`,
 				nextAction:
-					"Install a local prepared plugin by path, a url descriptor, or `refarm plugin install --bundled`.",
+					"Install a local prepared plugin by path, an npm package, a url descriptor, or `refarm plugin install --bundled`.",
 				extra: { origin, ref },
 			});
 		},

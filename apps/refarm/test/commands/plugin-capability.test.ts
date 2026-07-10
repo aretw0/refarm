@@ -360,7 +360,7 @@ describe("plugin capability group", () => {
 			expect(receivedBundled).toBe(appBundled);
 		});
 
-		it("routes an npm ref to a loud resolver-not-wired envelope", async () => {
+		it("routes an npm ref to the npm installer (wired; unresolved package fails loud)", async () => {
 			let syncCalled = false;
 			const group = createPluginCapabilityGroup(
 				makeDeps({
@@ -370,14 +370,16 @@ describe("plugin capability group", () => {
 					},
 				}),
 			);
+			// A package not present in this test's resolution scope routes to the npm
+			// installer (ADR-086 Fase 7b) and fails loud — NOT the old not-wired, and
+			// NOT a silent registry fetch.
 			const env = await action(group, "install").run({
-				args: { ref: "@scope/pkg" },
+				args: { ref: "@scope/pkg-not-installed-anywhere" },
 				options: {},
 				json: true,
 			});
 			expect(env.ok).toBe(false);
-			expect((env as { error?: string }).error).toBe("resolver-not-wired");
-			expect((env as { origin?: string }).origin).toBe("npm");
+			expect((env as { error?: string }).error).toBe("npm_package_not_resolved");
 			// it did NOT fall back to a bundled sync.
 			expect(syncCalled).toBe(false);
 		});
