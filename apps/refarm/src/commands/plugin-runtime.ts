@@ -19,6 +19,7 @@ import {
 import { listExtensions } from "./plugin-scaffold.js";
 import {
 	BUNDLED_PLUGINS,
+	type BundledPlugin,
 	PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND,
 	type PluginListEntry,
 	type PluginListReport,
@@ -77,14 +78,17 @@ export async function restartRuntimeForPluginReload(wait: boolean): Promise<{
  * over-claims coverage. Defaults (no filter) to every known plugin.
  */
 export async function buildPluginListReport(
-	options: { origin?: PluginOrigin } = {},
+	options: { origin?: PluginOrigin; bundled?: readonly BundledPlugin[] } = {},
 ): Promise<PluginListReport> {
 	const wanted = options.origin;
+	// The bundled set defaults to refarm's own; a white-label app injects its own
+	// (ADR-086 white-label seam) so `--origin bundled` reflects the app's plugins.
+	const bundledSet = options.bundled ?? BUNDLED_PLUGINS;
 	const plugins: PluginListEntry[] = [];
 
-	// bundled — shipped with refarm, resolved from node_modules/workspace.
+	// bundled — shipped with the app, resolved from node_modules/workspace.
 	if (wanted === undefined || wanted === "bundled") {
-		for (const plugin of BUNDLED_PLUGINS) {
+		for (const plugin of bundledSet) {
 			const version = await readInstalledVersion(plugin.id);
 			const resolution = resolvePluginPackage(plugin, {
 				baseUrl: import.meta.url,

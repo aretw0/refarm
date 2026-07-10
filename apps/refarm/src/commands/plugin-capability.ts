@@ -65,6 +65,7 @@ import {
 import {
 	detectPluginOrigin,
 	pluginIdToFsToken,
+	type BundledPlugin,
 	type PluginOrigin,
 } from "./plugin-shared.js";
 import {
@@ -109,6 +110,13 @@ export interface PluginCommandDeps {
 	readRuntimePluginState: typeof readRuntimePluginState;
 	/** Install the bundled plugins; returns the byte-stable install envelope. */
 	buildInstallReport: typeof buildInstallReport;
+	/**
+	 * The bundled plugin set this app ships (ADR-086 white-label seam). Undefined =
+	 * refarm's own `BUNDLED_PLUGINS`; a white-label app passes ITS descriptors so
+	 * `plugin list --origin bundled` and `plugin install --bundled` reflect the
+	 * app's plugins, not refarm's. Flows through to the list + install builders.
+	 */
+	bundledPlugins?: readonly BundledPlugin[];
 	/** Spawn the jco transpiler (the only side effect `bundle` had). */
 	runBundle: RunBundleProcess;
 	// ── reload ────────────────────────────────────────────────────────────────
@@ -209,9 +217,10 @@ export function createPluginCapabilityGroup(
 					nextAction: "Run `refarm plugin list --help`.",
 				});
 			}
-			const report = await deps.buildListReport(
-				origin.value ? { origin: origin.value } : {},
-			);
+			const report = await deps.buildListReport({
+				...(origin.value ? { origin: origin.value } : {}),
+				bundled: deps.bundledPlugins,
+			});
 			const missing = report.plugins.some((plugin) => !plugin.installed);
 			return buildJsonSuccessEnvelope({
 				command: "plugin",
@@ -441,6 +450,7 @@ export function createPluginCapabilityGroup(
 			if (!ref) {
 				return (await deps.buildInstallReport({
 					force: input.options.force === true,
+					bundled: deps.bundledPlugins,
 				})) as CapabilityEnvelope;
 			}
 
@@ -487,7 +497,10 @@ export function createPluginCapabilityGroup(
 		name: "update",
 		summary: "Update bundled plugins when a newer version is available",
 		async run() {
-			return (await deps.buildInstallReport({ force: false })) as CapabilityEnvelope;
+			return (await deps.buildInstallReport({
+				force: false,
+				bundled: deps.bundledPlugins,
+			})) as CapabilityEnvelope;
 		},
 	};
 

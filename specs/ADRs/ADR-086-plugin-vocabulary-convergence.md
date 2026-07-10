@@ -256,3 +256,25 @@ transition; removal is a later, separate decision (a MAJOR, tracked below).
     `npm`/`git`/`url`/p2p resolvers behind `plugin install <ref>` (content-
     addressed identity, per the plugin-resolver work). Until then, those origins
     fail loudly with a "resolver not wired" envelope, never a silent no-op.
+
+## White-label seam: injectable bundled set (done, alongside the rollout)
+
+`plugin list --origin bundled` and `plugin install --bundled` iterate a bundled
+plugin set that was hardcoded to refarm's own (`BUNDLED_PLUGINS` =
+`REFARM_BUNDLED_PLUGIN_DESCRIPTORS`). That made the converged `plugin` command
+NOT white-label: any app composing refarm's blocks would sync refarm's plugins,
+not its own. Closed by threading the set through as injected data (the
+per-descriptor install was already origin-neutral — only the LIST was fixed):
+
+- `buildInstallReport` / `buildPluginListReport` take an optional
+  `bundled` list, defaulting to `BUNDLED_PLUGINS` (refarm unchanged).
+- `PluginCommandDeps.bundledPlugins` flows the app's set into both builders.
+- `refarmBuiltinCapabilities({ bundledPlugins })` — the two-layer seam — lets a
+  white-label app inject its set when composing the built-ins; no options = refarm
+  defaults. Proven: with an injected set, `install --bundled` targets the app's id,
+  never `@refarm/agent`.
+
+This is the "refarm = neutral substrate, the app supplies the specific" doctrine
+applied to the bundled set. Sibling white-label debts remain (hardcoded `refarm
+<verb>` handoffs; the two-layer seam not yet exercised by a real second app — the
+T1 example is the intended forcing function).

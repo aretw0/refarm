@@ -129,6 +129,33 @@ describe("plugin capability group", () => {
 			expect(received).toEqual({ origin: "local" });
 		});
 
+		// ADR-086 white-label seam: a white-label app injects its OWN bundled set,
+		// and both list + install must reflect it (not refarm's fixed BUNDLED_PLUGINS).
+		it("threads the app's injected bundled set into the list reader", async () => {
+			const appBundled = [
+				{
+					id: "@acme/tool",
+					npmPackage: "@acme/tool",
+					workspaceDir: "",
+					wasmFile: "",
+					manifestFile: "",
+					requiredProvides: [],
+				},
+			];
+			let receivedBundled: unknown;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					bundledPlugins: appBundled,
+					buildListReport: async (opts) => {
+						receivedBundled = opts?.bundled;
+						return { plugins: [] };
+					},
+				}),
+			);
+			await action(group, "list").run(input());
+			expect(receivedBundled).toBe(appBundled);
+		});
+
 		it("calls the reader with no filter when --origin is absent", async () => {
 			let received: { origin?: string } | undefined = { origin: "sentinel" };
 			const group = createPluginCapabilityGroup(
@@ -302,6 +329,35 @@ describe("plugin capability group", () => {
 			});
 			expect(called).toBe(true);
 			expect(env.ok).toBe(true);
+		});
+
+		it("threads the app's injected bundled set into --bundled install (white-label)", async () => {
+			const appBundled = [
+				{
+					id: "@acme/tool",
+					npmPackage: "@acme/tool",
+					workspaceDir: "",
+					wasmFile: "",
+					manifestFile: "",
+					requiredProvides: [],
+				},
+			];
+			let receivedBundled: unknown;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					bundledPlugins: appBundled,
+					buildInstallReport: async (opts) => {
+						receivedBundled = opts?.bundled;
+						return { ok: true, command: "plugin", operation: "install" } as never;
+					},
+				}),
+			);
+			await action(group, "install").run({
+				args: {},
+				options: { bundled: true },
+				json: true,
+			});
+			expect(receivedBundled).toBe(appBundled);
 		});
 
 		it("routes an npm ref to a loud resolver-not-wired envelope", async () => {

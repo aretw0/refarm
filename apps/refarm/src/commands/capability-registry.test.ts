@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import type { CapabilityGroup } from "@refarm.dev/capabilities";
+
 import {
 	capabilityCliCommands,
 	capabilityCliCommandsForGroup,
 	capabilityTuiSections,
+	refarmBuiltinCapabilities,
 } from "./capability-registry.js";
 
 /**
@@ -82,5 +85,41 @@ describe("capability TUI projection (renderers.tui bucket)", () => {
 		const sections = capabilityTuiSections();
 		const sectionNames = sections.map((s) => s.section);
 		expect(sectionNames).toEqual([...sectionNames].sort());
+	});
+});
+
+// ADR-086 white-label seam: a host app composes refarm's blocks and shapes them.
+describe("refarmBuiltinCapabilities (white-label seam)", () => {
+	it("returns refarm's neutral blocks unchanged with no options", () => {
+		const entries = refarmBuiltinCapabilities();
+		const names = entries.map((e) => e.name);
+		expect(names).toContain("plugin");
+		expect(names).toContain("model");
+	});
+
+	it("threads an app's bundled plugins into the `plugin` group's install", async () => {
+		const appBundled = [
+			{
+				id: "@acme/tool",
+				npmPackage: "@acme/tool",
+				workspaceDir: "",
+				wasmFile: "",
+				manifestFile: "",
+				requiredProvides: [],
+			},
+		];
+		const entries = refarmBuiltinCapabilities({ bundledPlugins: appBundled });
+		const plugin = entries.find((e) => e.name === "plugin") as CapabilityGroup;
+		expect(plugin).toBeDefined();
+		// Running `install --bundled` should try to install the app's plugin — proven
+		// by the install failing on THAT id (no real wasm), not refarm's @refarm/agent.
+		const env = await plugin.actions.install!.run({
+			args: {},
+			options: { bundled: true },
+			json: true,
+		});
+		// The report (ok or error) references the injected id, never refarm's.
+		expect(JSON.stringify(env)).toContain("@acme/tool");
+		expect(JSON.stringify(env)).not.toContain("@refarm/agent");
 	});
 });

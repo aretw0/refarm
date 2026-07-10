@@ -1,3 +1,4 @@
+import { createFsAssetStore } from "@refarm.dev/asset-resolver-contract-v1/node";
 import { resolvePluginPackage } from "@refarm.dev/barn";
 import {
 	buildJsonErrorEnvelope,
@@ -5,6 +6,7 @@ import {
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
 import { RUNTIME_AGENT_PLUGIN_DESCRIPTOR } from "@refarm.dev/config/plugin-identity";
+import { scopedAssetsDir } from "@refarm.dev/storage-node-view";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -18,16 +20,14 @@ import {
 import {
 	BUNDLED_PLUGINS,
 	type BundledPlugin,
+	pluginIdToFsToken,
 	type PluginInstallReport,
 	type PluginInstallResult,
 	pluginsBaseDir,
-	pluginIdToFsToken,
 	readInstalledVersion,
 	readPackageVersion,
 	sentinelPath,
 } from "./plugin-shared.js";
-import { createFsAssetStore } from "@refarm.dev/asset-resolver-contract-v1/node";
-import { scopedAssetsDir } from "@refarm.dev/storage-node-view";
 
 function localRuntimeAgentBuildCommand(): string {
 	const runtimeAgentWorkspaceDir = RUNTIME_AGENT_PLUGIN_DESCRIPTOR.workspaceDir;
@@ -224,9 +224,18 @@ export async function installPlugin(
  */
 export async function buildInstallReport(options: {
 	force?: boolean;
+	/**
+	 * The bundled set to install (ADR-086 white-label seam). Defaults to refarm's
+	 * `BUNDLED_PLUGINS`; a white-label app passes ITS OWN descriptors so
+	 * `plugin install --bundled` syncs the app's plugins, not refarm's. The
+	 * per-descriptor install (`installPlugin`) is already origin-neutral — only the
+	 * list was fixed.
+	 */
+	bundled?: readonly BundledPlugin[];
 }): Promise<PluginInstallReport> {
+	const bundled = options.bundled ?? BUNDLED_PLUGINS;
 	const results: PluginInstallResult[] = [];
-	for (const plugin of BUNDLED_PLUGINS) {
+	for (const plugin of bundled) {
 		results.push(
 			await installPlugin(plugin, options.force === true, { quiet: true }),
 		);

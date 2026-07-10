@@ -33,7 +33,9 @@ import {
 } from "./model-capability.js";
 import {
 	createPluginCapabilityGroup,
+	defaultPluginDeps,
 	pluginCapabilityHooks,
+	type PluginCommandDeps,
 } from "./plugin-capability.js";
 import {
 	defaultPluginDescriptorDeps,
@@ -67,22 +69,50 @@ type BuiltinCapability =
 			hooksFor: (subVerb: string) => CapabilitySurfaceHooks;
 	  };
 
+/**
+ * Options a host app can pass to shape the built-in capabilities (ADR-086
+ * white-label seam). Undefined everywhere = refarm's own defaults; a white-label
+ * app overrides only what it needs to make the neutral blocks reflect ITS product.
+ */
+export interface BuiltinCapabilityOptions {
+	/** The bundled plugin set this app ships — flows into the `plugin` group so
+	 *  `plugin list --origin bundled` / `plugin install --bundled` reflect the app's
+	 *  plugins, not refarm's. Undefined = refarm's `BUNDLED_PLUGINS`. */
+	bundledPlugins?: PluginCommandDeps["bundledPlugins"];
+}
+
 /** The app's built-in capabilities, declared ONCE. New verbs are added here and
  * light up on every surface (CLI, REPL, TUI, and later HTTP/web) with no
- * per-surface wiring. */
-const BUILTIN_CAPABILITIES: BuiltinCapability[] = [
-	{ entry: createDispatchCapability(), hooks: {} },
-	{ entry: extensionReviewCapability, hooks: extensionReviewHooks },
-	{ entry: extensionInstallCapability, hooks: extensionInstallHooks },
-	{ entry: createHealthCapabilityGroup(), hooksFor: healthCapabilityHooks },
-	{ entry: createModelCapabilityGroup(), hooksFor: modelCapabilityHooks },
-	{ entry: createPluginCapabilityGroup(), hooksFor: pluginCapabilityHooks },
-	{ entry: createSkillCapabilityGroup(), hooksFor: skillCapabilityHooks },
-	{ entry: createThemeCapabilityGroup(), hooksFor: () => ({}) },
-	{ entry: createVaultCapabilityGroup(refarmVaultDeps()), hooksFor: () => ({}) },
-	{ entry: createSourceCapabilityGroup(refarmSourceDeps()), hooksFor: () => ({}) },
-	{ entry: createRecordsCapabilityGroup(), hooksFor: () => ({}) },
-];
+ * per-surface wiring. A factory (not a const) so a host app can inject its own
+ * config (e.g. its bundled plugins) — see {@link refarmBuiltinCapabilities}. */
+function buildBuiltinCapabilities(
+	options: BuiltinCapabilityOptions = {},
+): BuiltinCapability[] {
+	return [
+		{ entry: createDispatchCapability(), hooks: {} },
+		{ entry: extensionReviewCapability, hooks: extensionReviewHooks },
+		{ entry: extensionInstallCapability, hooks: extensionInstallHooks },
+		{ entry: createHealthCapabilityGroup(), hooksFor: healthCapabilityHooks },
+		{ entry: createModelCapabilityGroup(), hooksFor: modelCapabilityHooks },
+		{
+			entry: createPluginCapabilityGroup(
+				options.bundledPlugins
+					? { ...defaultPluginDeps(), bundledPlugins: options.bundledPlugins }
+					: undefined,
+			),
+			hooksFor: pluginCapabilityHooks,
+		},
+		{ entry: createSkillCapabilityGroup(), hooksFor: skillCapabilityHooks },
+		{ entry: createThemeCapabilityGroup(), hooksFor: () => ({}) },
+		{ entry: createVaultCapabilityGroup(refarmVaultDeps()), hooksFor: () => ({}) },
+		{ entry: createSourceCapabilityGroup(refarmSourceDeps()), hooksFor: () => ({}) },
+		{ entry: createRecordsCapabilityGroup(), hooksFor: () => ({}) },
+	];
+}
+
+/** Refarm's own built-in set (no white-label overrides) — the const the app's
+ *  registry + hook map derive from. */
+const BUILTIN_CAPABILITIES: BuiltinCapability[] = buildBuiltinCapabilities();
 
 /**
  * The one registry of tri-surface capabilities for this app, built from
@@ -98,11 +128,18 @@ export const capabilityRegistry = createCapabilityRegistry(
 
 /** The refarm built-in capability ENTRIES — exposed so an external white-label app
  * can compose them with its OWN verbs into a single registry
- * (`createCapabilityRegistry([...refarmBuiltinCapabilities(), ...myVerbs])`) and
- * project a CLI via the shared `capabilityCliCommands`. This is the two-layer seam:
- * refarm supplies the neutral blocks; the app supplies the work-specific. */
-export function refarmBuiltinCapabilities(): CapabilityEntry[] {
-	return BUILTIN_CAPABILITIES.map((c) => c.entry as CapabilityEntry);
+ * (`createCapabilityRegistry([...refarmBuiltinCapabilities({ bundledPlugins }), ...myVerbs])`)
+ * and project a CLI via the shared `capabilityCliCommands`. This is the two-layer
+ * seam: refarm supplies the neutral blocks; the app supplies the work-specific and
+ * (ADR-086) shapes them — e.g. its own bundled plugins — via
+ * {@link BuiltinCapabilityOptions}. No options = refarm's own defaults. */
+export function refarmBuiltinCapabilities(
+	options: BuiltinCapabilityOptions = {},
+): CapabilityEntry[] {
+	const source = options.bundledPlugins
+		? buildBuiltinCapabilities(options)
+		: BUILTIN_CAPABILITIES;
+	return source.map((c) => c.entry as CapabilityEntry);
 }
 
 // Register-at-load: every installed plugin that declares a dispatchable verb surfaces
