@@ -2,7 +2,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import { normalizePluginId } from "@refarm.dev/config";
 import type {
 	Effort,

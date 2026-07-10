@@ -9,7 +9,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 
 interface DeployResult {
 	status: string;

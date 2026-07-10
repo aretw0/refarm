@@ -4,7 +4,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import { createProcessHandoffSpec, executeProcessHandoff, type ProcessHandoffSpec, } from "@refarm.dev/cli/process-handoff";
 import type { StatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";

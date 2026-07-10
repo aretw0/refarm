@@ -37,19 +37,6 @@ export type {
 	InstantiatedCommandTemplate,
 } from "./command-handoff.js";
 export {
-	buildJsonErrorEnvelope,
-	buildJsonSuccessEnvelope,
-	formatJson,
-	printJson,
-} from "./json-output.js";
-export type {
-	JsonErrorEnvelope,
-	JsonErrorEnvelopeContext,
-	JsonErrorEnvelopeInput,
-	JsonSuccessEnvelope,
-	JsonSuccessEnvelopeInput,
-} from "./json-output.js";
-export {
 	commandPayloadNextActions,
 	commandPayloadNextCommands,
 	commandPayloadOk,

@@ -6,7 +6,7 @@ import type {
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import type { SourceProvider } from "@refarm.dev/source-contract-v1";
 import {
 	createWebSourceProvider,

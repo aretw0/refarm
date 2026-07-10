@@ -26,10 +26,6 @@
 			"types": "./dist/command-handoff.d.ts",
 			"import": "./dist/command-handoff.js"
 		},
-		"./json-output": {
-			"types": "./dist/json-output.d.ts",
-			"import": "./dist/json-output.js"
-		},
 		"./command-result": {
 			"types": "./dist/command-result.d.ts",
 			"import": "./dist/command-result.js"
@@ -65,10 +61,6 @@
 		"./scheduled-work-runner": {
 			"types": "./dist/scheduled-work-runner.d.ts",
 			"import": "./dist/scheduled-work-runner.js"
-		},
-		"./capabilities": {
-			"types": "./dist/capabilities/index.d.ts",
-			"import": "./dist/capabilities/index.js"
 		},
 		"./process-handoff": {
 			"types": "./dist/process-handoff.d.ts",
@@ -151,8 +143,6 @@
 		"dist/index.js",
 		"dist/interaction-driver.d.ts",
 		"dist/interaction-driver.js",
-		"dist/json-output.d.ts",
-		"dist/json-output.js",
 		"dist/launch-policy.d.ts",
 		"dist/launch-policy.js",
 		"dist/process-handoff.d.ts",
@@ -165,8 +155,6 @@
 		"dist/project-automations.js",
 		"dist/scheduled-work-runner.d.ts",
 		"dist/scheduled-work-runner.js",
-		"dist/capabilities/index.d.ts",
-		"dist/capabilities/index.js",
 		"dist/rust-substrate.d.ts",
 		"dist/rust-substrate.js",
 		"dist/status.d.ts",

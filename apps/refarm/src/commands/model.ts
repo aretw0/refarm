@@ -1,5 +1,5 @@
 import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
+import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import { modelCredentialEnvKey, modelCredentialStatus as resolveModelCredentialStatus, } from "@refarm.dev/config";
 import { isContainer as detectContainerRuntime } from "@refarm.dev/root";
 import { SiloCore } from "@refarm.dev/silo";

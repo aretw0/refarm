@@ -13,7 +13,7 @@ import {
 import {
 	buildJsonSuccessEnvelope,
 	type JsonSuccessEnvelope,
-} from "./json-output.js";
+} from "@refarm.dev/capabilities/envelope";
 
 export interface CommandProcessSpec {
 	command: string;

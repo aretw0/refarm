@@ -6,7 +6,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	type JsonSuccessEnvelope,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import {
 	decidePluginPolicy,
 	type PluginPolicyDecision,

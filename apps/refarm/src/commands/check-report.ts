@@ -1,7 +1,7 @@
 import type { RustSubstrateCheck } from "@refarm.dev/cli/rust-substrate";
 import chalk from "chalk";
 
-import { printJson } from "@refarm.dev/cli/json-output";
+import { printJson } from "@refarm.dev/capabilities/envelope";
 import type { NodeSubstrateCheck } from "./check-node-substrate.js";
 import {
 	buildDiagnosticNextActionPayload,

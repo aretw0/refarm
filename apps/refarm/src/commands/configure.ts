@@ -7,7 +7,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 
 const CONFIGURE_SCHEMA_VERSION = 1;
 const MISSING_GITHUB_CREDENTIALS_COMMAND = refarmCommand([

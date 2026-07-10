@@ -2,7 +2,7 @@ import {
 	buildReferenceDriverSupplyPreflight,
 	type ReferenceDriverSupplyPreflight,
 } from "@refarm.dev/cli/capability-index";
-import { printJson } from "@refarm.dev/cli/json-output";
+import { printJson } from "@refarm.dev/capabilities/envelope";
 import type {
 	ReleaseGateResult,
 	ReleasePlan,

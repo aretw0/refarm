@@ -6,7 +6,7 @@ import {
 import chalk from "chalk";
 import { Command } from "commander";
 import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	buildWorkspaceExecutionStatus,
 	type WorkspaceExecutionStatus,

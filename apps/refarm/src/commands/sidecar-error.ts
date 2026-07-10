@@ -1,5 +1,5 @@
 import chalk from "chalk";
-import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	RUNTIME_AUTOSTART_ALWAYS_COMMAND,
 	RUNTIME_DOCTOR_COMMAND,

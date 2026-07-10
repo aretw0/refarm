@@ -1,7 +1,7 @@
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import {
 	formatModelRef,
 	modelRouteTokenUpdate,

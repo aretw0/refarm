@@ -1,4 +1,4 @@
-import { formatJson } from "@refarm.dev/cli/json-output";
+import { formatJson } from "@refarm.dev/capabilities/envelope";
 import { formatStatusJson } from "@refarm.dev/cli/status";
 import { buildDiagnosticNextActionPayload } from "./diagnostic-recommendations.js";
 import type { RefarmDoctorReport } from "./doctor.js";

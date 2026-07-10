@@ -3,7 +3,7 @@ import type {
 	CapabilityGroup,
 	CapabilityInput,
 } from "@refarm.dev/capabilities";
-import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
+import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { toCommanderCommand, toCommanderGroup } from "./capability-commander.js";
 

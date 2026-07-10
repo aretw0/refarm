@@ -2,7 +2,7 @@ import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import {
 	parseRuntimeAutostartMode,
 	RUNTIME_AUTOSTART_MODES,

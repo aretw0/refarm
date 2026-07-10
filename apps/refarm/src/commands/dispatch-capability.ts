@@ -2,7 +2,7 @@ import type { CapabilityDescriptor } from "@refarm.dev/capabilities";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 
 import {
 	buildDispatchEffort,

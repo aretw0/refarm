@@ -3,7 +3,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import type { LedgerScope } from "@refarm.dev/storage-node-view";
 import chalk from "chalk";
 import { Command } from "commander";

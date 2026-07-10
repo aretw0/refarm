@@ -1,4 +1,4 @@
-import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import type { StatusJson } from "@refarm.dev/cli/status";
 import {
 	printRefarmLaunchBanner,

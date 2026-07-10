@@ -1,4 +1,4 @@
-import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	addProjectAutomationRecord,
 	normalizeProjectAutomationsDocument,

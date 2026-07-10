@@ -6,7 +6,7 @@ import {
 import {
 	buildJsonSuccessEnvelope,
 	type JsonSuccessEnvelope,
-} from "./json-output.js";
+} from "@refarm.dev/capabilities/envelope";
 import type { StatusJson } from "./status.js";
 
 export interface OperatorResumeModelRoute {

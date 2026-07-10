@@ -5,7 +5,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 	type JsonSuccessEnvelope,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import { Command } from "commander";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";

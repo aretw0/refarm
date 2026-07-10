@@ -4,7 +4,7 @@ import {
 	buildJsonSuccessEnvelope,
 	formatJson,
 	printJson,
-} from "./json-output.js";
+} from "./envelope.js";
 
 describe("json output helpers", () => {
 	it("formats stable pretty JSON", () => {

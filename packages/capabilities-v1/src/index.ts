@@ -11,7 +11,7 @@ export {
 export {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 export type {
 	CapabilityDescriptor,
 	CapabilityEntry,

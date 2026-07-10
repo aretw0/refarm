@@ -4,7 +4,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	isRuntimeAgentPluginId, normalizePluginId,

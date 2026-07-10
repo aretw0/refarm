@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { Command } from "commander";
-import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { reportSidecarError } from "./sidecar-error.js";
 import {
 	forkGitTree,

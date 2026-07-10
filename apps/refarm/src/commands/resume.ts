@@ -1,5 +1,5 @@
 import { loadChatHistory } from "@refarm.dev/cli/chat-history";
-import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,

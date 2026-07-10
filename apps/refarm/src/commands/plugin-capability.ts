@@ -7,7 +7,7 @@ import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import {
 	describePermission,
 	unknownPermissions,

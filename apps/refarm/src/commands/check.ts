@@ -1,7 +1,7 @@
 import type { RustSubstrateCheck } from "@refarm.dev/cli/rust-substrate";
 import { Command } from "commander";
 
-import { printJson } from "@refarm.dev/cli/json-output";
+import { printJson } from "@refarm.dev/capabilities/envelope";
 import { STATUS_DIAGNOSTICS } from "@refarm.dev/cli/status";
 import { runDefaultNodeSubstrate } from "./check-node-substrate.js";
 import type {

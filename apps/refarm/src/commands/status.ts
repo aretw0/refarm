@@ -1,4 +1,4 @@
-import { printJson } from "@refarm.dev/cli/json-output";
+import { printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	assertStatusJson,
 	buildStatusJson,

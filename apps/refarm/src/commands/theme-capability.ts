@@ -5,7 +5,7 @@ import type {
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import {
 	loadThemesFromPluginsDir,
 	type DiscoverThemesResult,

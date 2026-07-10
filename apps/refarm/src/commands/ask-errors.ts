@@ -3,7 +3,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import chalk from "chalk";
 import type { AskJsonResult } from "./ask.js";

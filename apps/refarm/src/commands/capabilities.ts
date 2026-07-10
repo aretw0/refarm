@@ -7,7 +7,7 @@ import {
 	type ReferenceDriverSupplyMap,
 	type ReferenceDriverSupplyPreflight,
 } from "@refarm.dev/cli/capability-index";
-import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import chalk from "chalk";
 import { Command } from "commander";
 

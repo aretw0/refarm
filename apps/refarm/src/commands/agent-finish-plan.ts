@@ -13,7 +13,7 @@ import {
 	type CommandPlanWorkClass,
 } from "@refarm.dev/cli/command-plan";
 import { readGitCommand } from "@refarm.dev/cli/git-command";
-import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	affectedWorkspacePackagesFromChangedPaths, changedFilePathsFromGitNameOnly, changedFilePathsFromGitStatus,
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,

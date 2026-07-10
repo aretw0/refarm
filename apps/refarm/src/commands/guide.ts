@@ -1,5 +1,5 @@
 import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { printJson } from "@refarm.dev/cli/json-output";
+import { printJson } from "@refarm.dev/capabilities/envelope";
 import { DEFAULT_MODEL_PROVIDER, defaultProviderModelRef, effectiveModelRouteForScope, loadConfig, modelCredentialStatus, } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";

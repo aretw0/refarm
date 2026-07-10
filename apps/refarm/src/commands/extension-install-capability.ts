@@ -6,7 +6,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	type JsonSuccessEnvelope,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import { createFsAssetStore } from "@refarm.dev/asset-resolver-contract-v1/node";
 import { scopedAssetsDir } from "@refarm.dev/storage-node-view";
 import { createHash } from "node:crypto";

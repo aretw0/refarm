@@ -4,7 +4,7 @@ import {
 	type ExecutionPlanBase,
 	type ExecutionPlanHandoff,
 } from "@refarm.dev/cli/execution-plan";
-import { printJson } from "@refarm.dev/cli/json-output";
+import { printJson } from "@refarm.dev/capabilities/envelope";
 import { TREE_GIT_LIST_JSON_COMMAND } from "./tree-handoffs.js";
 
 const SESSION_SCOPE = "session";

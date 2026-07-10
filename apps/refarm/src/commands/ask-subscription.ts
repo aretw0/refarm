@@ -1,5 +1,5 @@
 import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/cli/json-output";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	isRuntimeSubscriptionModelProvider,
 	isSubscriptionModelProvider,

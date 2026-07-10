@@ -6,7 +6,7 @@ import {
 	healthPolicyProcess,
 	healthSuggestPolicyProcess,
 } from "./health-commands.js";
-import { buildJsonSuccessEnvelope } from "@refarm.dev/cli/json-output";
+import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,

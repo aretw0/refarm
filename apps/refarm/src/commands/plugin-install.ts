@@ -3,7 +3,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import { RUNTIME_AGENT_PLUGIN_DESCRIPTOR } from "@refarm.dev/config/plugin-identity";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";

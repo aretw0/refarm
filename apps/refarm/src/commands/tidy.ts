@@ -3,7 +3,7 @@ import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
-} from "@refarm.dev/cli/json-output";
+} from "@refarm.dev/capabilities/envelope";
 import { runProcessHandoff, type ProcessHandoffRunOptions, type ProcessHandoffRunResult, type ProcessHandoffSpec, } from "@refarm.dev/cli/process-handoff";
 import { findWorkspaceRoot } from "@refarm.dev/config";
 import { Command } from "commander";
