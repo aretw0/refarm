@@ -9,7 +9,9 @@ granularity), ADR-084 (Plugin Dispatch Model), ADR-083 (Canonical Plugin WIT
 Contract), ADR-027 (Compositional Plugin Architecture),
 `docs/EXTENSIBILITY_MODEL.md`, `packages/plugin-manifest`
 (`PluginManifest.capabilities.provides` + `extensions.surfaces`),
-`apps/refarm/src/commands/{extension,plugin}*.ts`
+`apps/refarm/src/commands/{extension,plugin}*.ts`, `@refarm.dev/barn`
+(`PluginPackageSource`), `@refarm.dev/tractor-ts` (`install-plugin` provenance) —
+the two §8-protected origin notions this ADR converges into one `PluginOrigin`
 
 ---
 
@@ -83,44 +85,88 @@ retargeting a `group` string.
 ## Decision
 
 **`plugin` is the single command for the single concept. The nature (WASM / skill
-/ theme / mixed) is detected from what is operated on, never encoded in the verb.
-`extension` becomes a deprecated alias that forwards to `plugin`.**
+/ theme / mixed) is detected from what is operated on, and the ORIGIN (local /
+npm / git / …) is detected from the shape of the reference — never encoded in the
+verb. `extension` becomes a deprecated alias that forwards to `plugin`.**
 
-### 1. `plugin install` — one verb, both intents, nature-detected
+### 0. Two orthogonal attributes, both detected — never verbs
 
-`install` accepts an **optional target**; the presence/shape of the target selects
-the intent, and the target's manifest selects the nature:
+A plugin has two attributes the verb must NOT encode; both are inferred, so one
+`install`/`list` pair serves all combinations:
+
+- **Nature** — WHAT it is: WASM (`capabilities.provides`) / skill·theme·asset
+  (`extensions.surfaces`) / mixed. Read from the **manifest**.
+- **Origin** — WHERE it comes from: `local` (authored in `.refarm/`) / `installed`
+  (already materialized) / `npm` (a published package) / `git` (a repo) / `url`
+  (a direct descriptor URL) / `bundled` (shipped with refarm). Detected from the
+  **shape of the reference** (`./path` ⇒ local, `@scope/pkg` ⇒ npm, a git URL ⇒
+  git, `https://…/x.wasm` ⇒ url), or carried as provenance on an installed unit.
+
+**This unifies three origin notions the code already fractured** (the debt this
+ADR also pays):
+- `PluginListEntry.source: "bundled"` (`apps/refarm/.../plugin-shared.ts`) — an
+  origin field frozen at a single literal.
+- `PluginPackageSource: "node_modules" | "workspace" | "unresolved"`
+  (`@refarm.dev/barn`) — where an npm package resolved.
+- `install-plugin.ts`'s `source: "descriptor" | "direct"` + `sourceRepository`
+  (`@refarm.dev/tractor-ts`, browser) — remote-descriptor provenance.
+
+The target is ONE `PluginOrigin` vocabulary these three converge on. Because
+`barn` and `tractor-ts` are §8-protected, widening `source`/`PluginPackageSource`
+into the shared `PluginOrigin` follows the serialized lock/handoff policy and is
+sequenced AFTER the CLI-only slices below (which can carry the richer origin in
+the app-owned report first, then the runtime types catch up).
+
+### 1. `plugin install` — one verb, all origins + all natures
+
+`install` accepts an **optional reference**; its shape selects the origin, its
+manifest selects the nature:
 
 ```
-plugin install <path>        # install ONE unit from a path
+plugin install <path>        # a local prepared unit      (origin: local)
                              #   (was `extension install <path>`; keeps --grant, --policy,
                              #    the re-review gate)
-plugin install --bundled     # sync ALL bundled plugins
+plugin install <@scope/pkg>  # a published npm package     (origin: npm)
+plugin install <git-url>     # a git repo                  (origin: git)
+plugin install <https-url>   # a direct descriptor/wasm URL (origin: url)
+plugin install --bundled     # sync ALL bundled plugins    (origin: bundled)
                              #   (was `plugin install`; keeps --force)
-plugin install               # no target: same as --bundled (the mass-sync default,
-                             #   preserving today's `plugin install` behavior)
+plugin install               # no reference: same as --bundled (preserves today's
+                             #   `plugin install` mass-sync behavior)
 ```
 
-- With a `<path>`, the nature is read from the unit's manifest
-  (`capabilities.provides` ⇒ WASM; `extensions.surfaces` ⇒ skill/theme/asset;
-  both ⇒ mixed). The installer routes on the manifest, not on which command the
-  operator typed. "One verb, N natures" holds: the operator says *install this*;
-  the manifest says *what it is*.
-- `--bundled` is mutually exclusive with a positional `<path>` (installing a
-  specific unit and syncing the fixed bundled set are distinct intents; asking for
-  both is an error, not a merge).
+- The origin is inferred from the reference shape; the nature is read from the
+  resolved unit's manifest (`capabilities.provides` ⇒ WASM; `extensions.surfaces`
+  ⇒ skill/theme/asset; both ⇒ mixed). The installer routes on reference + manifest,
+  not on which command the operator typed. "One verb, N natures × N origins" holds:
+  the operator says *install this*; the reference says *from where*; the manifest
+  says *what it is*.
+- `--bundled` is mutually exclusive with a positional reference (syncing the fixed
+  bundled set and installing a specific unit are distinct intents; asking for both
+  is an error, not a merge).
+- **Scope of THIS ADR's rollout**: the `local` and `bundled` origins are unified
+  first (they exist today as `extension install <path>` and `plugin install`). The
+  `npm`/`git`/`url` origins are the resolver seam — they compose onto the same
+  verb but land as follow-on slices behind the resolver work
+  (content-addressed / p2p / registry), NOT silently in the CLI slice. The verb is
+  designed to admit them; the resolvers arrive separately and are logged as
+  not-yet-wired rather than pretended-complete.
 
 ### 2. `plugin list` — one verb, origin as a filter
 
 ```
-plugin list                    # all known plugins (local + installed), origin-tagged
-plugin list --origin local     # authored/local only   (was `extension list`)
+plugin list                    # all known plugins, origin-tagged
+plugin list --origin local     # authored/local only    (was `extension list`)
 plugin list --origin installed # installed only         (was `plugin list`)
+plugin list --origin bundled   # shipped-with-refarm only
+plugin list --origin npm|git   # by published provenance (as the resolver lands them)
 ```
 
-Each row carries its `origin` (`local` | `installed`) and its detected nature, so
-the two lists that diverged become one reader with a filter — the same collapse
-ADR-085 does for surface readers, one granularity down.
+Each row carries its `origin` (the `PluginOrigin` vocabulary above) and its
+detected nature, so the two lists that diverged become one reader with a filter —
+the same collapse ADR-085 does for surface readers, one granularity down. Origins
+not yet resolvable (`npm`/`git`/`url`) are valid filter values that simply match
+nothing until the resolver wires them — the list never lies about coverage.
 
 ### 3. `plugin new` / `plugin review` — authoring under the one verb
 
@@ -176,14 +222,31 @@ transition; removal is a later, separate decision (a MAJOR, tracked below).
 
 ## Rollout (phased, not one commit)
 
-1. `plugin new` + `plugin review` (move the non-colliding authoring verbs to the
-   `plugin` group; `extension new/review` become alias forwards). Behavior
-   identical, tested.
-2. `plugin list --origin` (unify the two lists behind one origin-filtered reader;
-   `extension list` → alias for `--origin local`). Behavior identical per origin,
-   tested.
-3. `plugin install <path> | --bundled` (unify the two installs with
-   manifest-driven nature routing; `extension install <path>` → alias). Both
-   branches byte-stable, tested — the highest-risk slice, last.
-4. `extension` becomes a pure deprecated alias command (forward + stderr notice);
-   handoffs regenerated. Removal tracked as a future MAJOR.
+1a. **DONE.** `plugin review` moves onto the canonical `plugin` CapabilityGroup
+    (the non-colliding gate). Builder neutralized with `commandName`; `extension
+    review` stays byte-identical; proven by pins + e2e. (`plugin new` is split to
+    1b — its scaffold mixes validate/fs/print and needs a pure builder extracted
+    first.)
+1b. `plugin new` — extract a pure report builder from `newExtension` (today it
+    mixes validation + fs writes + print), then mount it as a `plugin` verb;
+    `extension new` → alias. Behavior identical, tested.
+2.  `plugin list --origin` (unify the two lists behind one origin-filtered reader
+    over the `PluginOrigin` vocab; `extension list` → alias for `--origin local`).
+    The app-owned report carries the richer origin first; `local`/`installed`/
+    `bundled` resolve, `npm`/`git`/`url` are valid-but-empty until the resolver.
+    Behavior identical per origin, tested.
+3.  `plugin install <ref> | --bundled` (unify the two installs with origin-from-
+    reference + nature-from-manifest routing; `extension install <path>` → alias).
+    `local` + `bundled` origins wired; `npm`/`git`/`url` admitted by the verb but
+    logged as not-yet-resolvable. Both wired branches byte-stable, tested — the
+    highest-risk slice, last.
+4.  `extension` becomes a pure deprecated alias command (forward + stderr notice);
+    handoffs regenerated. Removal tracked as a future MAJOR.
+5.  **(§8, serialized)** Converge `PluginListEntry.source` +
+    `PluginPackageSource` (barn) + `install-plugin` provenance (tractor-ts) onto
+    the one `PluginOrigin` vocabulary the CLI already reports — under lock/handoff
+    policy, after the app-owned surface has proven the shape.
+6.  **(resolver seam, separate track)** Wire the `npm`/`git`/`url`/p2p resolvers
+    behind `plugin install <ref>` (content-addressed identity, per the
+    plugin-resolver work). Until then, those origins fail loudly with a
+    "resolver not wired" envelope, never a silent no-op.
