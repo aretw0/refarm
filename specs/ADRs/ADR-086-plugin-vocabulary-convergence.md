@@ -9,9 +9,10 @@ granularity), ADR-084 (Plugin Dispatch Model), ADR-083 (Canonical Plugin WIT
 Contract), ADR-027 (Compositional Plugin Architecture),
 `docs/EXTENSIBILITY_MODEL.md`, `packages/plugin-manifest`
 (`PluginManifest.capabilities.provides` + `extensions.surfaces`),
-`apps/refarm/src/commands/{extension,plugin}*.ts`, `@refarm.dev/barn`
-(`PluginPackageSource`), `@refarm.dev/tractor-ts` (`install-plugin` provenance) —
-the two §8-protected origin notions this ADR converges into one `PluginOrigin`
+`apps/refarm/src/commands/{plugin,extension}*.ts` (`extension*` renamed to
+`plugin*` in phase 5), `@refarm.dev/barn` (`PluginPackageSource`) and
+`@refarm.dev/tractor-ts` (`install-plugin` provenance) — distinct axes that
+COEXIST with `PluginOrigin`, not merged (see §0)
 
 ---
 
@@ -102,20 +103,25 @@ A plugin has two attributes the verb must NOT encode; both are inferred, so one
   **shape of the reference** (`./path` ⇒ local, `@scope/pkg` ⇒ npm, a git URL ⇒
   git, `https://…/x.wasm` ⇒ url), or carried as provenance on an installed unit.
 
-**This unifies three origin notions the code already fractured** (the debt this
-ADR also pays):
-- `PluginListEntry.source: "bundled"` (`apps/refarm/.../plugin-shared.ts`) — an
-  origin field frozen at a single literal.
+**`PluginOrigin` is a NEW app-owned field, not a merge of existing ones.** An
+earlier draft claimed three "origin notions" the code had fractured and should
+converge into one `PluginOrigin`. Verifying at the source (the discipline this
+repo demands) corrected that: they are THREE DIFFERENT axes that only share the
+word "source", and they legitimately coexist —
+- `PluginOrigin` (this ADR, `apps/refarm/.../plugin-shared.ts`) — WHERE a plugin
+  comes from: local / npm / git / url / bundled. Distribution provenance.
 - `PluginPackageSource: "node_modules" | "workspace" | "unresolved"`
-  (`@refarm.dev/barn`) — where an npm package resolved.
-- `install-plugin.ts`'s `source: "descriptor" | "direct"` + `sourceRepository`
-  (`@refarm.dev/tractor-ts`, browser) — remote-descriptor provenance.
+  (`@refarm.dev/barn`) — where an npm package RESOLVED ON DISK. A sub-detail of an
+  npm/bundled origin, complementary; `PluginListEntry` already carries BOTH
+  (`source: PluginOrigin` + `packageSource: PluginPackageSource`), correctly.
+- `install-plugin.ts`'s `source: "descriptor" | "direct"` + build metadata
+  (`@refarm.dev/tractor-ts`, browser/OPFS) — HOW a remote descriptor was fetched.
+  Build provenance (commitSha/buildId), a different concept again.
 
-The target is ONE `PluginOrigin` vocabulary these three converge on. Because
-`barn` and `tractor-ts` are §8-protected, widening `source`/`PluginPackageSource`
-into the shared `PluginOrigin` follows the serialized lock/handoff policy and is
-sequenced AFTER the CLI-only slices below (which can carry the richer origin in
-the app-owned report first, then the runtime types catch up).
+So there is NO §8 field to widen and nothing to converge across barn/tractor-ts:
+`PluginOrigin` is added where it belongs (the app inventory) and the two runtime
+notions stay as the distinct axes they are. (This retires what the rollout below
+had queued as phase 6.)
 
 ### 1. `plugin install` — one verb, all origins + all natures
 
@@ -237,16 +243,16 @@ transition; removal is a later, separate decision (a MAJOR, tracked below).
 4.  ✅ **DONE** (ca66e55c). `extension` becomes a deprecated alias: a preAction hook
     emits a stderr notice pointing at the `plugin` equivalent (suppressed on
     `--json`); help documents the mapping. Removal is a future MAJOR.
-5.  **(file rename, app-only)** Rename `extension*.ts` → `plugin*.ts` so the SOURCE
-    vocabulary matches the command vocabulary (Arthur: "iremos mudar os arquivos de
-    extension para plugin também"). git mv + repoint imports; behavior-neutral.
-    Deferred until the CLI convergence settled (done) to keep each rename diff a
-    pure move, not tangled with logic changes.
-6.  **(§8, serialized)** Converge `PluginListEntry.source` + `PluginPackageSource`
-    (barn) + `install-plugin` provenance (tractor-ts) onto the one `PluginOrigin`
-    vocabulary the CLI already reports — under lock/handoff policy, after the
-    app-owned surface has proven the shape.
-7.  **(resolver seam, separate track)** Wire the `npm`/`git`/`url`/p2p resolvers
-    behind `plugin install <ref>` (content-addressed identity, per the
-    plugin-resolver work). Until then, those origins fail loudly with a
-    "resolver not wired" envelope, never a silent no-op.
+5.  ✅ **DONE** (414e8656). Renamed `extension*.ts` → `plugin*.ts` (git mv +
+    repoint) so the SOURCE vocabulary matches the command vocabulary (Arthur:
+    "iremos mudar os arquivos de extension para plugin também"). Behavior-neutral,
+    1396 tests unchanged. Deferred until the CLI convergence settled so each rename
+    diff stayed a pure move.
+6.  ~~**(§8)** Converge the three "source" notions.~~ **RETIRED** — verifying at
+    the source showed they are DISTINCT axes that coexist, not one to merge (see
+    §0). `PluginOrigin` is a new app-owned field; barn's `PluginPackageSource` and
+    tractor-ts's fetch-provenance stay as-is. No §8 change needed.
+7.  **(resolver seam, separate track — the one real follow-on left)** Wire the
+    `npm`/`git`/`url`/p2p resolvers behind `plugin install <ref>` (content-
+    addressed identity, per the plugin-resolver work). Until then, those origins
+    fail loudly with a "resolver not wired" envelope, never a silent no-op.
