@@ -1,0 +1,11 @@
+{
+	"name": "@refarm.dev/agent-bench",
+	"version": "0.1.0",
+	"description": "Token regression-net for the agent — mirrors tractor-bench (baseline + threshold + GHA payload) but the metric is TOKENS, not latency. Drives the real agent.wasm through a fixed scenario, reads the persisted UsageRecord, and fails if token usage regresses past its threshold.",
+	"private": true,
+	"scripts": {
+		"bench:tokens:save": "node ../../scripts/ci/cargo-run.mjs run --release --bin agent-token-bench -- save",
+		"bench:tokens:check": "node ../../scripts/ci/cargo-run.mjs run --release --bin agent-token-bench -- check"
+	},
+	"license": "AGPL-3.0-only"
+}

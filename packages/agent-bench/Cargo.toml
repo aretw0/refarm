@@ -1,0 +1,22 @@
+[package]
+name = "agent-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# A token-regression bench for the agent, mirroring the shape of tractor-bench
+# (baseline JSON + percentage threshold + GHA payload) but measuring TOKENS, not
+# latency. It lives OUTSIDE packages/tractor (a §8-protected surface) and depends
+# on the tractor host as a library — the same way the harness tests do — so the
+# token regression-net is its own thing and adding it touches no protected code.
+
+[[bin]]
+name = "agent-token-bench"
+path = "src/main.rs"
+
+[dependencies]
+refarm-tractor = { path = "../tractor" }
+tokio      = { version = "1", features = ["full"] }
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow     = "1"
