@@ -94,7 +94,7 @@ function validatePiSkillSurface(surface, index, errors) {
  * @param {string[]} errors
  * @returns {void}
  */
-function validateExtensionSurfaces(manifest, errors) {
+function validateExtensionSurfaces(manifest, errors, warnings) {
 	if (manifest.extensions === undefined) return;
 
 	if (typeof manifest.extensions !== "object" || manifest.extensions === null) {
@@ -117,9 +117,18 @@ function validateExtensionSurfaces(manifest, errors) {
 			continue;
 		}
 
-		if (!EXTENSION_SURFACE_LAYERS.has(surface.layer)) {
+		// The surface LAYER is an open axis (ADR-085: surfaces are data). A layer outside
+		// the known set is not a form error — it is a new surface. Validate FORM (a
+		// non-empty string) and WARN (not reject) when it is unknown, so adding webxr/voice/
+		// game to the platform does not invalidate the manifest. Doctrine: validation
+		// validates form, not vocabulary; completeness/policy is a separate concern.
+		if (!isNonEmptyString(surface.layer)) {
 			errors.push(
-				`extensions.surfaces[${index}].layer must be one of: tractor, homestead, pi, automation, desktop, asset`,
+				`extensions.surfaces[${index}].layer must be a non-empty string`,
+			);
+		} else if (!EXTENSION_SURFACE_LAYERS.has(surface.layer)) {
+			warnings.push(
+				`extensions.surfaces[${index}].layer "${surface.layer}" is outside the known set (tractor, homestead, pi, automation, desktop, asset) — treated as a new surface; a projector must exist for it to render.`,
 			);
 		}
 
@@ -179,6 +188,9 @@ function validateExtensionSurfaces(manifest, errors) {
  */
 export function validatePluginManifest(manifest) {
 	const errors = [];
+	/** Non-fatal advisories — e.g. a surface layer outside the known set (a new surface,
+	 * not a form error). The manifest is still `valid`; warnings surface intent to open. */
+	const warnings = [];
 
 	if (!manifest.id || !manifest.id.startsWith("@")) {
 		errors.push(
@@ -384,11 +396,12 @@ export function validatePluginManifest(manifest) {
 		}
 	}
 
-	validateExtensionSurfaces(manifest, errors);
+	validateExtensionSurfaces(manifest, errors, warnings);
 
 	return {
 		valid: errors.length === 0,
 		errors,
+		warnings,
 	};
 }
 

@@ -134,6 +134,10 @@ export interface PluginManifest {
 export interface ManifestValidationResult {
 	valid: boolean;
 	errors: string[];
+	/** Non-fatal advisories — e.g. a surface layer outside the known set (a NEW surface per
+	 * ADR-085, not a form error). The manifest is still `valid`; a projector must exist for
+	 * the surface to render. Optional for back-compat with older result readers. */
+	warnings?: string[];
 }
 
 export const EXTENSION_SURFACE_LAYERS: ReadonlySet<ExtensionSurfaceLayer>;

@@ -231,9 +231,12 @@ describe("extension surface validation", () => {
 
 		const result = validatePluginManifest(manifest);
 		expect(result.valid).toBe(false);
-		expect(result.errors).toContain(
+		// An unknown layer is now a WARNING (a new surface, ADR-085), not an error — the
+		// form errors below (empty kind/id) are what make this manifest invalid.
+		expect(result.errors).not.toContain(
 			"extensions.surfaces[0].layer must be one of: tractor, homestead, pi, automation, desktop, asset",
 		);
+		expect(result.warnings?.some((w) => w.includes('layer "unknown"'))).toBe(true);
 		expect(result.errors).toContain(
 			"extensions.surfaces[0].kind must be a non-empty string",
 		);
@@ -252,6 +255,20 @@ describe("extension surface validation", () => {
 		expect(result.errors).toContain(
 			"extensions.surfaces must not contain duplicate layer/id pairs",
 		);
+	});
+
+	it("accepts a NEW surface layer with only a warning (open axis, ADR-085)", () => {
+		// A layer outside the known set is a new surface, not a form error. A well-formed
+		// declaration validates (valid:true) and only WARNS that a projector must exist.
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [{ layer: "webxr", kind: "scene", id: "xr-panel", slot: "world" }],
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+		expect(result.errors).toEqual([]);
+		expect(result.warnings?.some((w) => w.includes('layer "webxr"'))).toBe(true);
 	});
 
 	it("accepts pi skill surfaces with declared capabilities and a package SKILL.md asset", () => {

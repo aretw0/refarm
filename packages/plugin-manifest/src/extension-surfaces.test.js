@@ -79,8 +79,11 @@ describe("extension surface helpers", () => {
 			surface,
 			locale: "en",
 		});
+		// The example renders data-plugin-surface (renamed from data-refarm-example-surface);
+		// this assertion had drifted to the old attribute — a pre-existing red, unrelated to
+		// the layer-vocabulary change, corrected here since we hit it.
 		expect(rendered.html).toContain(
-			'data-refarm-example-surface="stream-panel"',
+			'data-plugin-surface="stream-panel"',
 		);
 		expect(rendered.html).toContain("ui:stream:read");
 
