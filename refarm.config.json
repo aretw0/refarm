@@ -44,6 +44,7 @@
     "ignoredGitVisibilityPatterns": [
       "**/*.d.ts",
       "packages/agent/src/bindings.rs",
+      "packages/enrichment-provider-ref/pkg-plugin/**",
       "packages/quality-checker-plugin/pkg-plugin/**",
       "packages/source-provider-ref/pkg-plugin/**",
       "packages/vault-surface-ref/pkg-plugin/**",
