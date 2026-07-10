@@ -43,6 +43,78 @@ fn provider_runtime_completion_text_if_terminate_propagates_error() {
 }
 
 #[test]
+fn provider_runtime_resolve_termination_text_none_when_continuing() {
+    // Tool calls pending, not at the ceiling → keep looping.
+    assert_eq!(
+        crate::provider_runtime::resolve_termination_text(true, 2, 5, None),
+        None
+    );
+}
+
+#[test]
+fn provider_runtime_resolve_termination_text_returns_model_text_on_natural_finish() {
+    // The model chose to stop (no tool calls) and produced text.
+    assert_eq!(
+        crate::provider_runtime::resolve_termination_text(false, 3, 5, Some("all done".to_string())),
+        Some("all done".to_string())
+    );
+}
+
+#[test]
+fn provider_runtime_resolve_termination_text_forced_cutoff_with_no_text_is_graceful_not_error() {
+    // THE BUG FIX: at the iteration ceiling with tool calls still pending and NO text,
+    // synthesize a graceful final instead of erroring + discarding the loop's work.
+    let out = crate::provider_runtime::resolve_termination_text(true, 5, 5, None)
+        .expect("a graceful final, never None at a cutoff");
+    assert!(out.contains("tool-iteration limit (5)"));
+    assert!(out.contains("MODEL_TOOL_CALL_MAX_ITER"));
+}
+
+#[test]
+fn provider_runtime_resolve_termination_text_forced_cutoff_prefers_partial_text() {
+    // If the model DID emit partial text alongside its tool calls at the cutoff, keep it.
+    assert_eq!(
+        crate::provider_runtime::resolve_termination_text(
+            true,
+            5,
+            5,
+            Some("here is what I found so far".to_string())
+        ),
+        Some("here is what I found so far".to_string())
+    );
+}
+
+#[test]
+fn provider_runtime_anthropic_completion_text_at_cutoff_with_only_tool_uses_is_graceful() {
+    // A response with ONLY tool_use blocks (no text) at the ceiling — the exact case
+    // that used to return Err("no text in response").
+    let response = serde_json::json!({
+        "content": [{"type":"tool_use","name":"read_file","input":{"path":"x"},"id":"t1"}]
+    });
+    let phase = crate::provider_runtime::anthropic_iteration_phase(&response);
+    let out = crate::provider_runtime::anthropic_completion_text_if_terminate(&phase, 5, 5, &response)
+        .expect("no Err from a productive loop at the cutoff")
+        .expect("a graceful final");
+    assert!(out.contains("tool-iteration limit"));
+}
+
+#[test]
+fn provider_runtime_openai_completion_text_at_cutoff_with_only_tool_calls_is_graceful() {
+    let response = serde_json::json!({
+        "choices": [{
+            "message": {
+                "tool_calls": [{"id":"c1","function":{"name":"search_files","arguments":"{}"}}]
+            }
+        }]
+    });
+    let phase = crate::provider_runtime::openai_iteration_phase(&response);
+    let out = crate::provider_runtime::openai_completion_text_if_terminate(&phase, 5, 5, &response)
+        .expect("no Err from a productive loop at the cutoff")
+        .expect("a graceful final");
+    assert!(out.contains("tool-iteration limit"));
+}
+
+#[test]
 fn provider_runtime_anthropic_completion_text_if_terminate_returns_some_on_termination() {
     let phase = crate::provider_runtime::anthropic_iteration_phase(&serde_json::json!({
         "content": [{"type":"text","text":"done"}]

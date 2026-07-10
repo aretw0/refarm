@@ -179,7 +179,8 @@ pub(crate) use openai_phase::openai_has_tool_calls;
 pub(crate) use openai_tool_calls::{openai_tool_calls_array, parse_openai_tool_calls};
 #[cfg(test)]
 pub(crate) use phase_common::{
-    completion_text_if_terminate, error_message, parse_json_arguments, should_terminate_tool_loop,
+    completion_text_if_terminate, error_message, parse_json_arguments, resolve_termination_text,
+    should_terminate_tool_loop,
 };
 
 #[cfg(test)]

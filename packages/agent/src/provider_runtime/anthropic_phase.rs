@@ -1,9 +1,9 @@
 use super::{
-    anthropic_text::require_anthropic_text_content,
+    anthropic_text::anthropic_text_content,
     anthropic_tool_uses::{
         anthropic_content_array, parse_anthropic_tool_uses, ParsedAnthropicToolUse,
     },
-    phase_common::completion_text_if_terminate,
+    phase_common::resolve_termination_text,
 };
 
 pub(crate) struct AnthropicIterationPhase {
@@ -28,12 +28,16 @@ pub(crate) fn anthropic_completion_text_if_terminate(
     phase: &AnthropicIterationPhase,
     iter_idx: u32,
     max_iter: u32,
-    response: &serde_json::Value,
+    // Kept to match the loop's terminate-fn signature; no longer read (a no-text
+    // cutoff is handled gracefully, not as a response error).
+    _response: &serde_json::Value,
 ) -> Result<Option<String>, String> {
-    completion_text_if_terminate(
+    // No text at a forced cutoff is NOT an error — resolve_termination_text
+    // synthesizes a graceful final. So pass the OPTIONAL text, never a required Result.
+    Ok(resolve_termination_text(
         anthropic_has_tool_calls(phase),
         iter_idx,
         max_iter,
-        require_anthropic_text_content(&phase.content_arr, response),
-    )
+        anthropic_text_content(&phase.content_arr),
+    ))
 }

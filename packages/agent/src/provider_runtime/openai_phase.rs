@@ -1,7 +1,7 @@
 use super::{
-    openai_message::{openai_choice_message, require_openai_message_content},
+    openai_message::{openai_choice_message, openai_message_content},
     openai_tool_calls::{openai_tool_calls_array, parse_openai_tool_calls, ParsedOpenAiToolCall},
-    phase_common::completion_text_if_terminate,
+    phase_common::resolve_termination_text,
 };
 
 pub(crate) struct OpenAiIterationPhase {
@@ -29,12 +29,14 @@ pub(crate) fn openai_completion_text_if_terminate(
     phase: &OpenAiIterationPhase,
     iter_idx: u32,
     max_iter: u32,
-    response: &serde_json::Value,
+    // Kept to match the loop's terminate-fn signature; no longer read (a no-text
+    // cutoff is handled gracefully, not as a response error).
+    _response: &serde_json::Value,
 ) -> Result<Option<String>, String> {
-    completion_text_if_terminate(
+    Ok(resolve_termination_text(
         openai_has_tool_calls(phase),
         iter_idx,
         max_iter,
-        require_openai_message_content(&phase.msg, response),
-    )
+        openai_message_content(&phase.msg),
+    ))
 }
