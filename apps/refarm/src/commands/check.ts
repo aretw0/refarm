@@ -81,7 +81,12 @@ async function runDefaultModelDoctor(): Promise<ModelDoctorStatus> {
 
 async function runDefaultRustSubstrate(): Promise<RustSubstrateCheck> {
 	const { runRustSubstrateCheck } = await import("@refarm.dev/cli/rust-substrate");
-	return runRustSubstrateCheck();
+	// The app names its own binary in the retry handoff (ADR-087); the package
+	// takes it as an argument and never hardcodes "refarm".
+	return runRustSubstrateCheck(
+		process.cwd(),
+		refarmCommand(["check", "--next-action", "--json"]),
+	);
 }
 
 async function runDefaultWorkspaceExecution(): Promise<WorkspaceExecutionStatus> {

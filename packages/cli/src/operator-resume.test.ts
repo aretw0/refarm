@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	buildOperatorResumeCommands,
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,
 	formatOperatorResumeSessionId,
@@ -25,9 +26,12 @@ const status: StatusJson = {
 	diagnostics: ["runtime:not-ready"],
 };
 
+const HANDOFFS = buildOperatorResumeCommands("refarm");
+
 describe("operator resume", () => {
 	it("summarizes runtime and task checkpoint state", () => {
 		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
 			status,
 			model: {
 				current: {
@@ -141,7 +145,7 @@ describe("operator resume", () => {
 			},
 		});
 		// Emergency mode: runtime not ready → only runtime recovery, no noise.
-		expect(operatorResumeNextCommands(summary)).toEqual([
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toEqual([
 			"refarm doctor --next-command",
 			"refarm runtime start --wait",
 		]);
@@ -153,7 +157,7 @@ describe("operator resume", () => {
 	});
 
 	it("builds a JSON handoff envelope with task list fallback", () => {
-		expect(buildOperatorResumeEnvelope({ status: { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] } })).toMatchObject({
+		expect(buildOperatorResumeEnvelope({ handoffs: HANDOFFS, status: { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] } })).toMatchObject({
 			command: "resume",
 			operation: "operator",
 			ok: true,
@@ -176,6 +180,7 @@ describe("operator resume", () => {
 	it("carries repository project handoff context without changing command recovery", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const envelope = buildOperatorResumeEnvelope({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			project: {
 				path: ".project/handoff.json",
@@ -201,6 +206,7 @@ describe("operator resume", () => {
 		expect(
 			formatOperatorResumeSummary(
 				buildOperatorResumeSummary({
+					handoffs: HANDOFFS,
 					status: readyStatus,
 					project: envelope.project,
 				}),
@@ -245,6 +251,7 @@ describe("operator resume", () => {
 			],
 		};
 		const envelope = buildOperatorResumeEnvelope({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			scheduledWork,
 		});
@@ -265,7 +272,7 @@ describe("operator resume", () => {
 			nextCommands: ["refarm task list --json"],
 		});
 		const formatted = formatOperatorResumeSummary(
-			buildOperatorResumeSummary({ status: readyStatus, scheduledWork }),
+			buildOperatorResumeSummary({ handoffs: HANDOFFS, status: readyStatus, scheduledWork }),
 		);
 		expect(formatted).toContain(
 			"Scheduled work: 2 local jobs due=1 scheduled=1 unsupported=0",
@@ -300,11 +307,12 @@ describe("operator resume", () => {
 			],
 		};
 		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			environmentPressure,
 		});
 
-		expect(operatorResumeNextCommands(summary)).toEqual([]);
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toEqual([]);
 		expect(formatOperatorResumeSummary(summary)).toContain(
 			"Environment pressure: stop-and-investigate (1 signals)",
 		);
@@ -312,6 +320,7 @@ describe("operator resume", () => {
 			"command: pnpm run clean:rust:check",
 		);
 		expect(buildOperatorResumeEnvelope({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			environmentPressure,
 		})).toMatchObject({
@@ -332,6 +341,7 @@ describe("operator resume", () => {
 	it("uses task resume when a checkpoint has resumable work without an active effort", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			taskCheckpoint: {
 				updatedAt: "2026-05-27T12:00:00.000Z",
@@ -346,7 +356,7 @@ describe("operator resume", () => {
 				],
 			},
 		});
-		expect(operatorResumeNextCommands(summary)).toEqual([
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toEqual([
 			"refarm task resume --json",
 		]);
 	});
@@ -354,6 +364,7 @@ describe("operator resume", () => {
 	it("does not suggest task resume when checkpoint efforts are terminal", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			taskCheckpoint: {
 				updatedAt: "2026-05-27T12:00:00.000Z",
@@ -368,12 +379,13 @@ describe("operator resume", () => {
 				],
 			},
 		});
-		expect(operatorResumeNextCommands(summary)).toEqual([]);
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toEqual([]);
 	});
 
 	it("keeps recent sessions contextual when the active session is stale", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			activeSessionId: "urn:refarm:session:v1:stale1234567890",
 			recentSessions: [
@@ -387,7 +399,7 @@ describe("operator resume", () => {
 
 		expect(summary.session.status).toBe("stale");
 		expect(summary.session.showCommand).toBeUndefined();
-		expect(operatorResumeNextCommands(summary)).toEqual([
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toEqual([
 			"refarm sessions clear --json",
 			"refarm sessions list --json",
 			"refarm task list --json",
@@ -397,6 +409,7 @@ describe("operator resume", () => {
 	it("does not suggest recent session handoffs when no session is active", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const envelope = buildOperatorResumeEnvelope({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			recentSessions: [
 				{
@@ -435,6 +448,7 @@ describe("operator resume", () => {
 	it("does not invent a session show handoff when the active session is orphaned", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const envelope = buildOperatorResumeEnvelope({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			activeSessionId: "urn:refarm:session:v1:orphan1234567890",
 			recentSessions: [],
@@ -477,6 +491,7 @@ describe("operator resume", () => {
 	it("keeps active effort resume handoffs in JSON mode", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			taskCheckpoint: {
 				updatedAt: "2026-05-27T12:00:00.000Z",
@@ -493,11 +508,11 @@ describe("operator resume", () => {
 			},
 		});
 
-		expect(operatorResumeNextCommands(summary)).toEqual([
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toEqual([
 			"refarm task status effort-1 --transport file --watch --json",
 			"refarm task logs effort-1 --transport file --json",
 		]);
-		expect(operatorResumeNextProcesses(summary)).toEqual([
+		expect(operatorResumeNextProcesses(summary, HANDOFFS)).toEqual([
 			{
 				command: "refarm",
 				args: [
@@ -523,6 +538,7 @@ describe("operator resume", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 
 		expect(buildOperatorResumeEnvelope({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			taskCheckpoint: {
 				updatedAt: "2026-05-27T12:00:00.000Z",
@@ -557,6 +573,7 @@ describe("operator resume", () => {
 	it("prioritizes finish recovery when runtime is ready", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
 			finish: {
@@ -577,7 +594,7 @@ describe("operator resume", () => {
 				efforts: [],
 			},
 		});
-		expect(operatorResumeNextCommands(summary)).toEqual([
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toEqual([
 			"refarm runtime ensure --wait --next-command",
 			"refarm sessions clear --json",
 			"refarm sessions list --json",
@@ -588,6 +605,7 @@ describe("operator resume", () => {
 	it("surfaces missing model credentials when runtime is ready", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			model: {
 				current: { scope: "default", provider: "openai" },
@@ -595,7 +613,7 @@ describe("operator resume", () => {
 				inspectCommand: "refarm model current --json",
 			},
 		});
-		expect(operatorResumeNextCommands(summary)).toEqual([
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toEqual([
 			"refarm model current --json",
 			"refarm task list --json",
 		]);
@@ -604,6 +622,7 @@ describe("operator resume", () => {
 	it("omits model inspect when credentials are healthy", () => {
 		const readyStatus = { ...status, runtime: { ...status.runtime, ready: true }, diagnostics: [] };
 		const summary = buildOperatorResumeSummary({
+			handoffs: HANDOFFS,
 			status: readyStatus,
 			model: {
 				current: { scope: "default", provider: "openai", modelId: "gpt-5.5" },
@@ -611,7 +630,7 @@ describe("operator resume", () => {
 				inspectCommand: "refarm model current --json",
 			},
 		});
-		expect(operatorResumeNextCommands(summary)).toEqual([
+		expect(operatorResumeNextCommands(summary, HANDOFFS.commands)).toEqual([
 			"refarm task list --json",
 		]);
 	});
@@ -626,6 +645,7 @@ describe("operator resume", () => {
 	it("formats a concise operator view", () => {
 		const formatted = formatOperatorResumeSummary(
 			buildOperatorResumeSummary({
+				handoffs: HANDOFFS,
 				taskCheckpoint: {
 					updatedAt: "2026-05-27T12:00:00.000Z",
 					efforts: [

@@ -1,6 +1,7 @@
-import { loadChatHistory } from "@refarm.dev/cli/chat-history";
 import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import { loadChatHistory } from "@refarm.dev/cli/chat-history";
 import {
+	buildOperatorResumeCommands,
 	buildOperatorResumeEnvelope,
 	buildOperatorResumeSummary,
 	formatOperatorResumeSummary,
@@ -10,7 +11,6 @@ import {
 	type OperatorResumeScheduledWorkInspection,
 	type OperatorResumeSessionRecord,
 } from "@refarm.dev/cli/operator-resume";
-import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
 import {
 	loadProjectScheduledWork,
 	type ProjectScheduledWorkInspection
@@ -19,6 +19,7 @@ import {
 	parseProjectHandoffSummary,
 	PROJECT_HANDOFF_RELATIVE_PATH,
 } from "@refarm.dev/cli/project-handoff";
+import { buildEnvironmentPressureReport } from "@refarm.dev/health/environment-pressure";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
@@ -48,6 +49,10 @@ import {
 	type TaskSessionCheckpoint,
 	type TaskSessionRecorder,
 } from "./task-session.js";
+
+// The app's operator-resume handoffs, built with its own binary name (ADR-087) —
+// the generic operator-resume package names no binary; the app injects "refarm".
+const RESUME_HANDOFFS = buildOperatorResumeCommands("refarm");
 
 export interface ResumeDeps {
 	resolveStatusPayload(options: {
@@ -155,6 +160,7 @@ async function emitResume(
 			recentPrompts,
 			finish,
 			environmentPressure,
+			handoffs: RESUME_HANDOFFS,
 		});
 
 		const nextCommandMode = options.nextAction || options.nextCommand;
@@ -197,6 +203,7 @@ async function emitResume(
 			recentPrompts,
 			finish,
 			environmentPressure,
+			handoffs: RESUME_HANDOFFS,
 		});
 		console.log(formatOperatorResumeSummary(summary));
 		const nextCommands = envelope.nextCommands;

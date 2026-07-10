@@ -9,6 +9,7 @@ import {
 	assertLaunchAllowed,
 	resolveLaunchReadiness,
 } from "./launch-policy.js";
+import { REFARM_LAUNCH_RECOVERY_HINTS } from "./runtime-recovery.js";
 
 export interface ExecuteRendererLaunchFlowOptions<
 	TSpec extends { display: string },
@@ -43,9 +44,14 @@ export async function executeRendererLaunchFlow<
 	const readiness = resolveLaunchReadiness(
 		options.status,
 		options.launchGuardTarget,
+		REFARM_LAUNCH_RECOVERY_HINTS,
 	);
 	if (!options.dryRun) {
-		assertLaunchAllowed(options.status, options.launchGuardTarget);
+		assertLaunchAllowed(
+			options.status,
+			options.launchGuardTarget,
+			REFARM_LAUNCH_RECOVERY_HINTS,
+		);
 	}
 	if (!(options.dryRun && options.dryRunJson)) {
 		printRefarmLaunchBanner(options.bannerExperience);

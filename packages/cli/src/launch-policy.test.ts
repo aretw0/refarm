@@ -1,9 +1,22 @@
 import { describe, expect, it } from "vitest";
 import {
 	assertLaunchAllowed,
+	type LaunchRecoveryHints,
 	resolveLaunchReadiness,
 } from "./launch-policy.js";
 import type { StatusJson } from "./status.js";
+
+// ADR-087: the package names no binary; the caller supplies the recovery hints.
+// The test supplies refarm's so the asserted messages match the app's behavior.
+const HINTS: LaunchRecoveryHints = {
+	runtimeNotReadyHint:
+		" Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`.",
+	doctorNextActionCommand: "refarm doctor --next-action",
+	runtimeNotReadyCommands: [
+		"refarm runtime ensure --wait --next-command",
+		"refarm doctor --next-command",
+	],
+};
 
 type TestStatus = StatusJson;
 
@@ -55,6 +68,7 @@ describe("assertLaunchAllowed", () => {
 			resolveLaunchReadiness(
 				makeStatus({ diagnostics: ["runtime:not-ready"] }),
 				"web runtime",
+				HINTS,
 			),
 		).toMatchObject({
 			readyToExecute: false,
@@ -74,14 +88,14 @@ describe("assertLaunchAllowed", () => {
 
 	it("throws when status includes launch-blocking diagnostics", () => {
 		const status = makeStatus({ diagnostics: ["runtime:not-ready"] });
-		expect(() => assertLaunchAllowed(status, "web runtime")).toThrow(
+		expect(() => assertLaunchAllowed(status, "web runtime", HINTS)).toThrow(
 			/Cannot launch web runtime due status failures: runtime:not-ready\. Run `refarm runtime status`, then `refarm runtime ensure --wait --next-command`\./,
 		);
 	});
 
 	it("points non-runtime launch failures at doctor", () => {
 		const status = makeStatus({ diagnostics: ["trust:critical-present"] });
-		expect(() => assertLaunchAllowed(status, "web runtime")).toThrow(
+		expect(() => assertLaunchAllowed(status, "web runtime", HINTS)).toThrow(
 			/Cannot launch web runtime due status failures: trust:critical-present\. Run `refarm doctor --next-action` for the next recovery action\./,
 		);
 	});

@@ -1,12 +1,12 @@
 import {
+	buildJsonSuccessEnvelope,
+	type JsonSuccessEnvelope,
+} from "@refarm.dev/capabilities/envelope";
+import {
 	applicationCommand,
 	applicationProcess,
 	type ApplicationProcessSpec,
 } from "./command-handoff.js";
-import {
-	buildJsonSuccessEnvelope,
-	type JsonSuccessEnvelope,
-} from "@refarm.dev/capabilities/envelope";
 import type { StatusJson } from "./status.js";
 
 export interface OperatorResumeModelRoute {
@@ -42,6 +42,17 @@ export interface OperatorResumeCommands {
 	sessionClear: string;
 	sessionList: string;
 	sessionShow: (sessionId: string) => string;
+}
+
+/** The process-spec twin of {@link OperatorResumeCommands} (spawnable form). */
+export interface OperatorResumeProcesses {
+	runtimeDoctor: ApplicationProcessSpec;
+	taskList: ApplicationProcessSpec;
+	taskResume: ApplicationProcessSpec;
+	modelCurrent: ApplicationProcessSpec;
+	sessionClear: ApplicationProcessSpec;
+	sessionList: ApplicationProcessSpec;
+	sessionShow: (sessionId: string) => ApplicationProcessSpec;
 }
 
 export interface OperatorResumeSessionRecord {
@@ -142,7 +153,9 @@ export interface OperatorResumeInput {
 	finish?: OperatorResumeFinishRecord | null;
 	scheduledWork?: OperatorResumeScheduledWorkInspection | null;
 	environmentPressure?: OperatorResumeEnvironmentPressure | null;
-	commands?: Partial<OperatorResumeCommands>;
+	/** The app-supplied handoff set (ADR-087) — commands + processes + dynamic
+	 *  builder for the app's binary. Required: the package names no binary. */
+	handoffs: OperatorResumeHandoffs;
 }
 
 export interface OperatorResumeTaskSummary {
@@ -224,45 +237,59 @@ export type OperatorResumeEnvelope =
 		OperatorResumeSummary & { nextProcesses: readonly ApplicationProcessSpec[] }
 	>;
 
-function refarmAppCommand(args: string[]): string {
-	return applicationCommand("refarm", args);
+/** The complete operator-resume handoff set for one binary: the string commands,
+ *  their spawnable process twins, and the builder for dynamic per-effort processes.
+ *  The app builds this once (via {@link buildOperatorResumeCommands}) and hands it
+ *  in — the generic package never names a binary. */
+export interface OperatorResumeHandoffs {
+	commands: OperatorResumeCommands;
+	processes: OperatorResumeProcesses;
+	/** Builds a dynamic process spec (task status/logs) for the same binary. */
+	processBuilder: (args: string[]) => ApplicationProcessSpec;
 }
 
-function refarmAppProcess(args: string[]): ApplicationProcessSpec {
-	return applicationProcess("refarm", args);
+/**
+ * Build the complete operator-resume handoffs for a given binary (ADR-087). The
+ * generic package must not name the app's binary, so it takes the neutral
+ * `applicationCommand`/`applicationProcess` and the binary as arguments; the app
+ * calls this with its own name (a white-label app its own). REQUIRED — no default
+ * binary; a caller that needs it configures it, or it fails up.
+ */
+export function buildOperatorResumeCommands(
+	binary: string,
+): OperatorResumeHandoffs {
+	const cmd = (args: string[]) => applicationCommand(binary, args);
+	const proc = (args: string[]) => applicationProcess(binary, args);
+	// One args table drives both the string and the process form — no duplication.
+	const ARGS = {
+		runtimeDoctor: ["doctor", "--next-command"],
+		taskList: ["task", "list", "--json"],
+		taskResume: ["task", "resume", "--json"],
+		modelCurrent: ["model", "current", "--json"],
+		sessionClear: ["sessions", "clear", "--json"],
+		sessionList: ["sessions", "list", "--json"],
+	} satisfies Record<string, string[]>;
+	const sessionShowArgs = (sessionId: string) => [
+		"sessions",
+		"show",
+		formatOperatorResumeSessionId(sessionId),
+		"--json",
+	];
+	const mapArgs = <T>(fn: (args: string[]) => T) => ({
+		runtimeDoctor: fn(ARGS.runtimeDoctor),
+		taskList: fn(ARGS.taskList),
+		taskResume: fn(ARGS.taskResume),
+		modelCurrent: fn(ARGS.modelCurrent),
+		sessionClear: fn(ARGS.sessionClear),
+		sessionList: fn(ARGS.sessionList),
+		sessionShow: (sessionId: string) => fn(sessionShowArgs(sessionId)),
+	});
+	return {
+		commands: mapArgs(cmd),
+		processes: mapArgs(proc),
+		processBuilder: proc,
+	};
 }
-
-const DEFAULT_OPERATOR_RESUME_COMMANDS: OperatorResumeCommands = {
-	runtimeDoctor: refarmAppCommand(["doctor", "--next-command"]),
-	taskList: refarmAppCommand(["task", "list", "--json"]),
-	taskResume: refarmAppCommand(["task", "resume", "--json"]),
-	modelCurrent: refarmAppCommand(["model", "current", "--json"]),
-	sessionClear: refarmAppCommand(["sessions", "clear", "--json"]),
-	sessionList: refarmAppCommand(["sessions", "list", "--json"]),
-	sessionShow: (sessionId) =>
-		refarmAppCommand([
-			"sessions",
-			"show",
-			formatOperatorResumeSessionId(sessionId),
-			"--json",
-		]),
-};
-
-const DEFAULT_OPERATOR_RESUME_PROCESSES = {
-	runtimeDoctor: refarmAppProcess(["doctor", "--next-command"]),
-	taskList: refarmAppProcess(["task", "list", "--json"]),
-	taskResume: refarmAppProcess(["task", "resume", "--json"]),
-	modelCurrent: refarmAppProcess(["model", "current", "--json"]),
-	sessionClear: refarmAppProcess(["sessions", "clear", "--json"]),
-	sessionList: refarmAppProcess(["sessions", "list", "--json"]),
-	sessionShow: (sessionId: string) =>
-		refarmAppProcess([
-			"sessions",
-			"show",
-			formatOperatorResumeSessionId(sessionId),
-			"--json",
-		]),
-};
 
 function hasCommandFlag(command: string, flag: string): boolean {
 	return new RegExp(`(?:^|\\s)${flag}(?:\\s|$)`).test(command);
@@ -455,9 +482,9 @@ export function buildOperatorResumeSummary(
 
 export function operatorResumeNextCommands(
 	summary: OperatorResumeSummary,
-	commands: Partial<OperatorResumeCommands> = {},
+	commands: OperatorResumeCommands,
 ): string[] {
-	const resolved = { ...DEFAULT_OPERATOR_RESUME_COMMANDS, ...commands };
+	const resolved = commands;
 
 	// Emergency: runtime not ready — fix that first, everything else is noise.
 	if (summary.runtime && !summary.runtime.ready) {
@@ -528,8 +555,9 @@ function dedupeCommandProcesses(
 
 export function operatorResumeNextProcesses(
 	summary: OperatorResumeSummary,
-	commands: Partial<OperatorResumeCommands> = {},
+	handoffs: OperatorResumeHandoffs,
 ): ApplicationProcessSpec[] {
+	const { commands, processes, processBuilder } = handoffs;
 	const nextCommands = operatorResumeNextCommands(summary, commands);
 	const processByCommand = new Map<string, ApplicationProcessSpec>();
 	const addDefaultProcess = (
@@ -539,68 +567,45 @@ export function operatorResumeNextProcesses(
 		processByCommand.set(command, processSpec);
 	};
 
-	addDefaultProcess(
-		DEFAULT_OPERATOR_RESUME_COMMANDS.runtimeDoctor,
-		DEFAULT_OPERATOR_RESUME_PROCESSES.runtimeDoctor,
-	);
-	addDefaultProcess(
-		DEFAULT_OPERATOR_RESUME_COMMANDS.taskList,
-		DEFAULT_OPERATOR_RESUME_PROCESSES.taskList,
-	);
-	addDefaultProcess(
-		DEFAULT_OPERATOR_RESUME_COMMANDS.taskResume,
-		DEFAULT_OPERATOR_RESUME_PROCESSES.taskResume,
-	);
-	addDefaultProcess(
-		DEFAULT_OPERATOR_RESUME_COMMANDS.modelCurrent,
-		DEFAULT_OPERATOR_RESUME_PROCESSES.modelCurrent,
-	);
-	addDefaultProcess(
-		DEFAULT_OPERATOR_RESUME_COMMANDS.sessionClear,
-		DEFAULT_OPERATOR_RESUME_PROCESSES.sessionClear,
-	);
-	addDefaultProcess(
-		DEFAULT_OPERATOR_RESUME_COMMANDS.sessionList,
-		DEFAULT_OPERATOR_RESUME_PROCESSES.sessionList,
-	);
+	addDefaultProcess(commands.runtimeDoctor, processes.runtimeDoctor);
+	addDefaultProcess(commands.taskList, processes.taskList);
+	addDefaultProcess(commands.taskResume, processes.taskResume);
+	addDefaultProcess(commands.modelCurrent, processes.modelCurrent);
+	addDefaultProcess(commands.sessionClear, processes.sessionClear);
+	addDefaultProcess(commands.sessionList, processes.sessionList);
 	for (const session of summary.session.recentSessions) {
 		if (session.showCommand) {
 			addDefaultProcess(
 				session.showCommand,
-				DEFAULT_OPERATOR_RESUME_PROCESSES.sessionShow(session.sessionId),
+				processes.sessionShow(session.sessionId),
 			);
 		}
 	}
 	if (summary.session.activeSessionId && summary.session.showCommand) {
 		addDefaultProcess(
 			summary.session.showCommand,
-			DEFAULT_OPERATOR_RESUME_PROCESSES.sessionShow(
-				summary.session.activeSessionId,
-			),
+			processes.sessionShow(summary.session.activeSessionId),
 		);
 	}
 	if (summary.tasks.activeEffort) {
 		const effort = summary.tasks.activeEffort;
-		addDefaultProcess(taskWatchJsonCommand(effort.statusCommand), {
-			...refarmAppProcess([
+		// Both the status(--watch) and logs processes share the same task/effort/
+		// transport shape — centralized so the args aren't duplicated.
+		const taskEffortProcess = (verb: string, extraFlags: string[]) =>
+			processBuilder([
 				"task",
-				"status",
+				verb,
 				effort.effortId,
 				"--transport",
 				effort.transport,
-				"--watch",
+				...extraFlags,
 				"--json",
-			]),
+			]);
+		addDefaultProcess(taskWatchJsonCommand(effort.statusCommand), {
+			...taskEffortProcess("status", ["--watch"]),
 		});
 		addDefaultProcess(taskReadJsonCommand(effort.logsCommand), {
-			...refarmAppProcess([
-				"task",
-				"logs",
-				effort.effortId,
-				"--transport",
-				effort.transport,
-				"--json",
-			]),
+			...taskEffortProcess("logs", []),
 		});
 	}
 
@@ -618,8 +623,11 @@ export function buildOperatorResumeEnvelope(
 	input: OperatorResumeInput,
 ): OperatorResumeEnvelope {
 	const summary = buildOperatorResumeSummary(input);
-	const nextCommands = operatorResumeNextCommands(summary, input.commands);
-	const nextProcesses = operatorResumeNextProcesses(summary, input.commands);
+	const nextCommands = operatorResumeNextCommands(
+		summary,
+		input.handoffs.commands,
+	);
+	const nextProcesses = operatorResumeNextProcesses(summary, input.handoffs);
 	return buildJsonSuccessEnvelope<
 		OperatorResumeSummary & { nextProcesses: readonly ApplicationProcessSpec[] }
 	>({

@@ -5,6 +5,7 @@ export {
 } from "@refarm.dev/cli/launch-policy";
 export type {
 	LaunchReadiness,
+	LaunchRecoveryHints,
 } from "@refarm.dev/cli/launch-policy";
 
 export function resolveLaunchMode<TMode extends string>(

@@ -361,15 +361,11 @@ export type {
 } from "./process-handoff.js";
 export {
 	assertLaunchAllowed,
-	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
-	RUNTIME_DOCTOR_NEXT_COMMAND,
-	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
-	RUNTIME_NOT_READY_LAUNCH_HINT,
-	RUNTIME_STATUS_COMMAND,
 	resolveLaunchReadiness,
 } from "./launch-policy.js";
 export type {
 	LaunchReadiness,
+	LaunchRecoveryHints,
 } from "./launch-policy.js";
 export {
 	parseChatLine,

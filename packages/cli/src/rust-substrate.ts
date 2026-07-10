@@ -2,7 +2,6 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { applicationCommand } from "./command-handoff.js";
 
 export interface RustSubstrateRecommendation {
 	diagnostic: string;
@@ -32,11 +31,8 @@ const RUST_SUBSTRATE_BUILD_TOOLS_COMMAND = "Install Visual Studio Build Tools wi
 const RUST_SUBSTRATE_DEVELOPER_SHELL_COMMAND = "Open a Developer PowerShell for VS, set CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER, or put the MSVC linker before Git usr/bin in PATH.";
 const RUST_SUBSTRATE_CARGO_COMPONENT_COMMAND = "cargo install cargo-component --locked";
 const RUST_SUBSTRATE_WASI_TARGET_COMMAND = "rustup target add wasm32-wasip1";
-const RUST_SUBSTRATE_RETRY_CHECK_COMMAND = applicationCommand("refarm", [
-	"check",
-	"--next-action",
-	"--json",
-]);
+// The brand-specific retry command (e.g. `<binary> check --next-action --json`)
+// is supplied by the caller (ADR-087) — the generic package names no binary.
 
 async function exists(filePath: string): Promise<boolean> {
 	try {
@@ -86,6 +82,9 @@ function commandSource(command: string): string | null {
 
 export async function runRustSubstrateCheck(
 	root = process.cwd(),
+	// The brand-specific "retry the check" handoff shown in recovery actions
+	// (ADR-087). Required from the caller; the generic package names no binary.
+	retryCheckCommand = "",
 ): Promise<RustSubstrateCheck> {
 	const required = await rustSubstrateRequired(root);
 	const platform = os.platform();
@@ -150,6 +149,7 @@ export async function runRustSubstrateCheck(
 		linker,
 		explicitMsvcLinkerOk,
 		warnings,
+		retryCheckCommand,
 	});
 	return {
 		command: "rust-substrate",
@@ -173,6 +173,8 @@ function buildRustSubstrateRecommendations(input: {
 	linker: string | null;
 	explicitMsvcLinkerOk?: boolean;
 	warnings?: string[];
+	/** Brand-specific "retry the check" handoff (ADR-087) — caller-supplied. */
+	retryCheckCommand: string;
 }): RustSubstrateRecommendation[] {
 	const recommendations: RustSubstrateRecommendation[] = [];
 	const missingMsvcPrerequisite =
@@ -226,7 +228,7 @@ function buildRustSubstrateRecommendations(input: {
 			diagnostic: "rust-substrate:missing-rust-toolchain",
 			severity: "failure",
 			summary: "The Rust toolchain is required by this workspace.",
-			action: `Install Rust with rustup, then retry \`${RUST_SUBSTRATE_RETRY_CHECK_COMMAND}\`.`,
+			action: `Install Rust with rustup, then retry \`${input.retryCheckCommand}\`.`,
 		});
 	}
 	if (input.warnings?.includes("rustup_version")) {
