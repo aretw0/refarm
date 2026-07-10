@@ -463,3 +463,71 @@ describe("contract baseline validation", () => {
 		expect(validatePluginManifest(manifest).valid).toBe(true);
 	});
 });
+
+describe("verbSchemas validation (per-verb typed tool schema)", () => {
+	it("accepts verbSchemas whose keys are all in provides, values are JSON-Schema objects", () => {
+		const manifest = createMockManifest({
+			capabilities: {
+				provides: ["source:v1", "source:discover", "source:dispatch"],
+				requires: [],
+				verbSchemas: {
+					"source:discover": {
+						type: "object",
+						properties: { root: { type: "string" }, depth: { type: "number" } },
+						required: ["root"],
+					},
+				},
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+		expect(result.errors).toHaveLength(0);
+	});
+
+	it("rejects a verbSchemas key that is not in provides (can't type a verb you don't offer)", () => {
+		const manifest = createMockManifest({
+			capabilities: {
+				provides: ["source:v1", "source:discover"],
+				requires: [],
+				verbSchemas: { "source:materialize": { type: "object", properties: {} } },
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain(
+			'capabilities.verbSchemas key "source:materialize" is not in capabilities.provides',
+		);
+	});
+
+	it("rejects a verbSchemas value that is not a JSON-Schema object", () => {
+		const manifest = createMockManifest({
+			capabilities: {
+				provides: ["source:v1", "source:discover"],
+				requires: [],
+				// An array is not a schema object; the host wraps an OBJECT into the envelope.
+				verbSchemas: { "source:discover": ["not", "an", "object"] },
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain(
+			'capabilities.verbSchemas["source:discover"] must be a JSON-Schema object',
+		);
+	});
+
+	it("rejects verbSchemas that is not an object map", () => {
+		const manifest = createMockManifest();
+		manifest.capabilities.verbSchemas = ["source:discover"];
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain(
+			"capabilities.verbSchemas must be an object map of <key>:<verb> → JSON-Schema object",
+		);
+	});
+
+	it("treats absent verbSchemas as variadic-default (optional, permissive)", () => {
+		const manifest = createMockManifest();
+		expect(manifest.capabilities.verbSchemas).toBeUndefined();
+		expect(validatePluginManifest(manifest).valid).toBe(true);
+	});
+});

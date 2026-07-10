@@ -247,6 +247,29 @@ export function validatePluginManifest(manifest) {
 		}
 	}
 
+	// `verbSchemas` is permissive by FORM: optional per-verb argument schema. The
+	// companion of `verbDocs` (prose ↔ form): when present, each key must be a
+	// `<key>:<verb>` string the plugin `provides`, and each value must be a JSON-Schema
+	// OBJECT (the body the host wraps as Anthropic input_schema / OpenAI parameters).
+	// We validate SHAPE (object map → object values, keys provided), not the meta-schema
+	// itself — the host renders whatever object is declared, same permissiveness as verbDocs.
+	if (manifest.capabilities.verbSchemas !== undefined) {
+		const verbSchemas = manifest.capabilities.verbSchemas;
+		if (typeof verbSchemas !== "object" || verbSchemas === null || Array.isArray(verbSchemas)) {
+			errors.push("capabilities.verbSchemas must be an object map of <key>:<verb> → JSON-Schema object");
+		} else {
+			const provided = new Set(manifest.capabilities.provides ?? []);
+			for (const [key, val] of Object.entries(verbSchemas)) {
+				if (typeof val !== "object" || val === null || Array.isArray(val)) {
+					errors.push(`capabilities.verbSchemas["${key}"] must be a JSON-Schema object`);
+				}
+				if (!provided.has(key)) {
+					errors.push(`capabilities.verbSchemas key "${key}" is not in capabilities.provides`);
+				}
+			}
+		}
+	}
+
 	// `syncVerbs` is permissive by FORM: optional. It names the verbs the plugin serves
 	// SYNCHRONOUSLY via `respond` (ADR-084's negotiated sync flag) — a per-verb MODE
 	// attribute of what the plugin `provides`, NOT a new list of verbs. So every entry

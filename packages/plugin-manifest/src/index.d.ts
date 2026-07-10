@@ -88,6 +88,15 @@ export interface PluginCapabilities {
 	 * system-prompt guidance for that verb is this prose instead of host boilerplate
 	 * — so a plugin author teaches the agent how to use its tool. Optional. */
 	verbDocs?: Record<string, string>;
+	/** Per-verb argument SCHEMA (JSON-Schema object), keyed by the same `<key>:<verb>`
+	 * string in `provides`. When present, the agent leg renders THIS as the model tool's
+	 * parameters instead of the generic variadic `{ args: string[] }` — so a plugin verb
+	 * reaches the agent as a TYPED tool. The value is the JSON-Schema body (the object
+	 * that becomes Anthropic `input_schema` / OpenAI `parameters`); the host wraps it in
+	 * the provider envelope. A verb with no entry keeps the variadic shape — that is not a
+	 * legacy fallback but the correct schema for a verb whose args are genuinely opaque.
+	 * The companion of `verbDocs`: docs teach PROSE, schemas teach FORM. Optional. */
+	verbSchemas?: Record<string, Record<string, unknown>>;
 	/** The verbs this plugin serves SYNCHRONOUSLY via `respond` (ADR-084's negotiated
 	 * sync flag). A per-verb MODE attribute of what the plugin `provides` — each entry
 	 * must be a `<key>:<verb>` string also in `provides`. Verbs not listed are
