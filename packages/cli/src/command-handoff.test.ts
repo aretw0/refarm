@@ -258,6 +258,34 @@ describe("command handoff helpers", () => {
 
 		expect(offenders).toEqual([]);
 	});
+
+	// ADR-087 phase 3: the generic package must not NAME the brand — not as a
+	// `"refarm <verb>"` literal (guarded above) NOR as `applicationCommand("refarm",
+	// …)` inside the package. A white-label app supplies the binary; the package
+	// takes it. This guards the second form.
+	it("never hardcodes the brand binary in applicationCommand/applicationProcess", () => {
+		const srcDir = path.dirname(fileURLToPath(import.meta.url));
+		// Known, tracked exception: capability-index-data.ts is a static reference
+		// TABLE of example activation commands (docs-like), not runtime handoffs. Its
+		// brand parameterization is a follow-on (ADR-087 phase 3 tail); until then it
+		// is the ONLY allowed site. Any NEW offender fails.
+		const TRACKED_EXCEPTIONS = new Set(["capability-index-data.ts"]);
+		const sourceFiles = listSourceFiles(srcDir).filter(
+			(file) => !file.endsWith(".test.ts"),
+		);
+		const offenders = sourceFiles.flatMap((file) => {
+			const rel = path.relative(srcDir, file);
+			if (TRACKED_EXCEPTIONS.has(rel)) return [];
+			const source = readFileSync(file, "utf8");
+			const matches =
+				source.match(
+					/application(?:Command|Process)\(\s*["'`]refarm["'`]/g,
+				) ?? [];
+			return matches.map((match) => `${rel}: ${match}`);
+		});
+
+		expect(offenders).toEqual([]);
+	});
 });
 
 function listSourceFiles(dir: string): string[] {

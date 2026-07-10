@@ -1,6 +1,6 @@
 # ADR-087: Brand-Agnostic Packages — Only the App Owns Its Name
 
-**Status**: Proposed
+**Status**: Accepted (binary decoupling phases 1-3 implemented + tested; phase 3a tail + phase 4 env-prefix are follow-ons)
 **Date**: 2026-07-10
 **Deciders**: Arthur Silva, Refarm agents
 **Related**: ADR-086 (Plugin Vocabulary Convergence — the `plugin` command; its
@@ -134,13 +134,22 @@ the use site). Keep a namespace/prefix when it genuinely disambiguates.
 
 ## Rollout (phased)
 
-1. Move `refarmCommand` / `refarmProcess` to `apps/refarm/src/brand.ts` over the
-   agnostic `applicationCommand`; repoint the ~49 app consumers. `@refarm.dev/cli`
-   drops the brand helpers. Behavior-identical, tested.
-2. Thread the binary into the 3 package internals (`launch-policy`,
-   `operator-resume`, `rust-substrate`) via a `BrandContext` (or a binary param);
-   they stop hardcoding `"refarm"`.
-3. Extend the source-guard to fail on a brand literal inside any generic package
-   (not just `packages/cli` `"refarm <verb>"` strings).
+1. ✅ **DONE** (35073ea9). Moved `refarmCommand`/`refarmProcess` to
+   `apps/refarm/src/brand.ts` over the agnostic `applicationCommand`; repointed ~45
+   app consumers; `@refarm.dev/cli` dropped the brand helpers. Behavior-identical.
+2. ✅ **DONE** (06ee4824). Threaded the binary through `launch-policy`,
+   `operator-resume`, `rust-substrate`: the binary is now REQUIRED (Arthur: "fail
+   up" — no `binary="refarm"` fallback). The app injects its own; the RUNTIME_*
+   constants + operator-resume handoffs moved to the app; a neutral (brand-free)
+   default keeps bare launch-policy calls agnostic.
+3. ✅ **DONE** (this commit). Extended the source-guard to also fail on
+   `applicationCommand("refarm", …)` inside any generic package, not just the
+   `"refarm <verb>"` literal form. ONE tracked exception remains:
+   `capability-index-data.ts` — a static reference TABLE of example activation
+   commands (docs-like, not runtime handoffs). Its brand parameterization is the
+   phase-3 tail; the guard fails on any NEW offender.
+   3a. **(phase-3 tail, tracked)** Parameterize `capability-index-data.ts`'s example
+       commands off the hardcoded `"refarm"` (a `buildCapabilities(binary)` factory
+       or binary-free data), then drop the guard exception.
 4. **(phase 2, wider)** Thread `BrandContext.envPrefix` to retire the hardcoded
    `REFARM_…` env keys across the generic packages.
