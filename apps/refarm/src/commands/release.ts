@@ -1,8 +1,8 @@
+import { printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	buildReferenceDriverSupplyPreflight,
 	type ReferenceDriverSupplyPreflight,
 } from "@refarm.dev/cli/capability-index";
-import { printJson } from "@refarm.dev/capabilities/envelope";
 import type {
 	ReleaseGateResult,
 	ReleasePlan,
@@ -11,6 +11,7 @@ import type {
 } from "@refarm.dev/release-engine";
 import chalk from "chalk";
 import { Command } from "commander";
+import { REFARM_BINARY } from "../brand.js";
 
 export interface ReleaseCommandDeps {
 	cwd?: () => string;
@@ -289,7 +290,7 @@ export function createReleaseCommand(deps?: ReleaseCommandDeps): Command {
 			try {
 				const engine = await loadReleaseEngine(deps);
 				const plan = planFromOptions(packages, { ...options, dryRun: true }, deps, engine);
-				const supplyPreflight = buildReferenceDriverSupplyPreflight();
+				const supplyPreflight = buildReferenceDriverSupplyPreflight(REFARM_BINARY);
 
 				if (options.json) {
 					printJson(releaseJsonPayload({

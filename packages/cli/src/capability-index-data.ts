@@ -36,7 +36,8 @@ export const REFERENCE_DRIVER_PUBLICATION_BOUNDARY: ReferenceDriverPublicationBo
 		"Reference-driver discovery is exported from the CLI package for dogfood and planning, but @refarm.dev/cli is not a vault-seed-ready leaf and runtime execution stays private until promotion proofs pass.",
 } as const;
 
-export const CAPABILITIES = [
+export function buildCapabilities(binary: string) {
+	return [
 	{
 		id: "runtime-agent.ask",
 		title: "Runtime agent ask loop",
@@ -65,7 +66,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: applicationCommand("refarm", ["ask", "ok", "--json"]),
+			command: applicationCommand(binary, ["ask", "ok", "--json"]),
 		},
 		tags: ["daily-driver", "runtime", "streaming", "reference-driver"],
 	},
@@ -93,7 +94,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: applicationCommand("refarm", ["project", "handoff", "validate", "--json"]),
+			command: applicationCommand(binary, ["project", "handoff", "validate", "--json"]),
 			sdk: "@refarm.dev/cli/project-handoff",
 		},
 		tags: ["handoff", "memory", "sdk"],
@@ -125,7 +126,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: applicationCommand("refarm", ["project", "automations", "validate", "--json"]),
+			command: applicationCommand(binary, ["project", "automations", "validate", "--json"]),
 			sdk: "@refarm.dev/cli/project-automations",
 		},
 		tags: ["automation", "handoff", "scheduler", "sdk"],
@@ -154,7 +155,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: applicationCommand("refarm", [
+			command: applicationCommand(binary, [
 				"agent",
 				"finish",
 				"--lane",
@@ -194,7 +195,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: applicationCommand("refarm", ["health", "--policy", "--json"]),
+			command: applicationCommand(binary, ["health", "--policy", "--json"]),
 		},
 		tags: ["policy", "audit", "runtime"],
 	},
@@ -225,7 +226,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: applicationCommand("refarm", ["status", "--json"]),
+			command: applicationCommand(binary, ["status", "--json"]),
 		},
 		tags: ["ui", "streaming", "daily-driver"],
 	},
@@ -293,7 +294,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: applicationCommand("refarm", ["ask", "list my sessions", "--json"]),
+			command: applicationCommand(binary, ["ask", "list my sessions", "--json"]),
 		},
 		tags: ["runtime", "session", "memory", "reference-driver"],
 	},
@@ -326,7 +327,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: applicationCommand("refarm", ["ask", "inspect package metadata", "--json"]),
+			command: applicationCommand(binary, ["ask", "inspect package metadata", "--json"]),
 		},
 		tags: ["runtime", "tools", "structured-io", "reference-driver"],
 	},
@@ -359,7 +360,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: applicationCommand("refarm", ["ask", "find references for this symbol", "--json"]),
+			command: applicationCommand(binary, ["ask", "find references for this symbol", "--json"]),
 		},
 		tags: ["runtime", "tools", "code-ops", "reference-driver"],
 	},
@@ -397,6 +398,7 @@ export const CAPABILITIES = [
 		tags: ["automation", "scheduler", "planning"],
 	},
 ] as const satisfies readonly CapabilityDescriptor[];
+}
 
 export const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 	"runtime-agent.ask": {

@@ -1,3 +1,4 @@
+import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	buildCapabilityIndex,
 	buildReferenceDriverSupplyMap,
@@ -7,9 +8,9 @@ import {
 	type ReferenceDriverSupplyMap,
 	type ReferenceDriverSupplyPreflight,
 } from "@refarm.dev/cli/capability-index";
-import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import chalk from "chalk";
 import { Command } from "commander";
+import { REFARM_BINARY } from "../brand.js";
 
 interface CapabilitiesOptions {
 	json?: boolean;
@@ -76,7 +77,7 @@ function buildSupplyPayload(surface: string | undefined): {
 	}
 	return {
 		surface,
-		map: buildReferenceDriverSupplyMap(),
+		map: buildReferenceDriverSupplyMap(REFARM_BINARY),
 	};
 }
 
@@ -92,7 +93,7 @@ function buildSupplyPreflightPayload(surface: string | undefined): {
 	}
 	return {
 		surface,
-		preflight: buildReferenceDriverSupplyPreflight(),
+		preflight: buildReferenceDriverSupplyPreflight(REFARM_BINARY),
 	};
 }
 
@@ -176,7 +177,7 @@ export function createCapabilitiesCommand(): Command {
 			].join("\n"),
 		)
 		.action((options: CapabilitiesOptions) => {
-			const index = buildCapabilityIndex();
+			const index = buildCapabilityIndex(REFARM_BINARY);
 			const tags = options.tag ?? [];
 			const states = options.state ?? [];
 			const capabilities = index.capabilities.filter((capability) =>

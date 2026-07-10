@@ -213,7 +213,10 @@ function readRefarmMeBootstrapDriverStatus(): RefarmMeDriverStatus {
 		};
 	};
 	return {
-		referenceDriverCapabilityIds: buildCapabilityIndex()
+		// Only the capability IDs/tags are read here — the example activation commands
+		// (which the binary would name, ADR-087) are irrelevant to me's browser
+		// runtime, so the canonical binary is passed as a harmless label.
+		referenceDriverCapabilityIds: buildCapabilityIndex("refarm")
 			.capabilities.filter((capability) =>
 				capability.tags.includes("reference-driver"),
 			)

@@ -1,5 +1,5 @@
 import {
-	CAPABILITIES,
+	buildCapabilities,
 	REFERENCE_DRIVER_ADOPTION_CRITERIA,
 	REFERENCE_DRIVER_LESSONS,
 	REFERENCE_DRIVER_PROMOTION_PROOF_TARGETS,
@@ -182,19 +182,26 @@ export interface ReferenceDriverSupplyPreflight {
 	}[];
 }
 
-export function buildCapabilityIndex(): CapabilityIndex {
+// ADR-087: these take the app's binary (REQUIRED — the package names no brand) and
+// build the capability table with it, so the example activation commands carry the
+// app's name, not a hardcoded "refarm".
+export function buildCapabilityIndex(binary: string): CapabilityIndex {
 	return {
 		schemaVersion: CAPABILITY_INDEX_SCHEMA_VERSION,
-		capabilities: CAPABILITIES,
+		capabilities: buildCapabilities(binary),
 	};
 }
 
-export function getCapabilityDescriptors(): readonly CapabilityDescriptor[] {
-	return CAPABILITIES;
+export function getCapabilityDescriptors(
+	binary: string,
+): readonly CapabilityDescriptor[] {
+	return buildCapabilities(binary);
 }
 
-export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
-	const descriptors = CAPABILITIES as readonly CapabilityDescriptor[];
+export function buildReferenceDriverSupplyMap(
+	binary: string,
+): ReferenceDriverSupplyMap {
+	const descriptors = buildCapabilities(binary) as readonly CapabilityDescriptor[];
 	return {
 		schemaVersion: CAPABILITY_INDEX_SCHEMA_VERSION,
 		discoverySdk: "@refarm.dev/cli/capability-index",
@@ -222,10 +229,12 @@ export function buildReferenceDriverSupplyMap(): ReferenceDriverSupplyMap {
 	};
 }
 
-export function buildReferenceDriverSupplyPreflight(): ReferenceDriverSupplyPreflight {
+export function buildReferenceDriverSupplyPreflight(
+	binary: string,
+): ReferenceDriverSupplyPreflight {
 	const includedStatuses = ["candidate", "internal", "hold"] as const;
 	const includedStatusSet = new Set<CapabilitySupplyStatus>(includedStatuses);
-	const supplyMap = buildReferenceDriverSupplyMap();
+	const supplyMap = buildReferenceDriverSupplyMap(binary);
 	const targets = supplyMap.entries.flatMap((entry) =>
 		entry.targets
 			.filter((target) => includedStatusSet.has(target.status))

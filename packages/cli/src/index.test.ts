@@ -33,10 +33,10 @@ describe("cli sdk barrel", () => {
 	});
 
 	it("exports agnostic capability discovery helpers for downstream SDK consumers", () => {
-		const index = buildCapabilityIndex();
+		const index = buildCapabilityIndex("refarm");
 
 		expect(index.schemaVersion).toBe(CAPABILITY_INDEX_SCHEMA_VERSION);
-		expect(index.capabilities).toEqual(getCapabilityDescriptors());
+		expect(index.capabilities).toEqual(getCapabilityDescriptors("refarm"));
 		expect(
 			index.capabilities.some(
 				(capability) => capability.id === "runtime-agent.ask",

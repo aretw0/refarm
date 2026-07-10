@@ -20,7 +20,7 @@ describe("capability index", () => {
 	});
 
 	it("builds a compact, stable descriptor index", () => {
-		const index = buildCapabilityIndex();
+		const index = buildCapabilityIndex("refarm");
 		const ids = index.capabilities.map((capability) => capability.id);
 
 		expect(index.schemaVersion).toBe(CAPABILITY_INDEX_SCHEMA_VERSION);
@@ -38,13 +38,13 @@ describe("capability index", () => {
 			"scheduler.local-jobs",
 		]);
 		expect(new Set(ids).size).toBe(ids.length);
-		expect(index.capabilities).toEqual(getCapabilityDescriptors());
+		expect(index.capabilities).toEqual(getCapabilityDescriptors("refarm"));
 		expect(buildCapabilityIndex).toBe(buildCapabilityIndex);
 		expect(getCapabilityDescriptors).toBe(getCapabilityDescriptors);
 	});
 
 	it("keeps descriptors small enough for progressive discovery", () => {
-		const index = buildCapabilityIndex();
+		const index = buildCapabilityIndex("refarm");
 
 		for (const capability of index.capabilities) {
 			expect(capability.description.length).toBeLessThanOrEqual(140);
@@ -55,7 +55,7 @@ describe("capability index", () => {
 	});
 
 	it("surfaces runtime-agent reference-driver primitives", () => {
-		const index = buildCapabilityIndex();
+		const index = buildCapabilityIndex("refarm");
 		const referenceDriverIds = index.capabilities
 			.filter((capability) => capability.tags.includes("reference-driver"))
 			.map((capability) => capability.id);
@@ -70,7 +70,7 @@ describe("capability index", () => {
 	});
 
 	it("maps reference-driver primitives to publication supply channels", () => {
-		const supplyMap = buildReferenceDriverSupplyMap();
+		const supplyMap = buildReferenceDriverSupplyMap("refarm");
 
 		expect(supplyMap.schemaVersion).toBe(CAPABILITY_INDEX_SCHEMA_VERSION);
 		expect(supplyMap.discoverySdk).toBe("@refarm.dev/cli/capability-index");
@@ -302,7 +302,7 @@ describe("capability index", () => {
 	});
 
 	it("builds a plan-only supply preflight for release posture checks", () => {
-		const preflight = buildReferenceDriverSupplyPreflight();
+		const preflight = buildReferenceDriverSupplyPreflight("refarm");
 
 		expect(preflight).toMatchObject({
 			schemaVersion: CAPABILITY_INDEX_SCHEMA_VERSION,

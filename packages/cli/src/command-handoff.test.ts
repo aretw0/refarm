@@ -265,17 +265,14 @@ describe("command handoff helpers", () => {
 	// takes it. This guards the second form.
 	it("never hardcodes the brand binary in applicationCommand/applicationProcess", () => {
 		const srcDir = path.dirname(fileURLToPath(import.meta.url));
-		// Known, tracked exception: capability-index-data.ts is a static reference
-		// TABLE of example activation commands (docs-like), not runtime handoffs. Its
-		// brand parameterization is a follow-on (ADR-087 phase 3 tail); until then it
-		// is the ONLY allowed site. Any NEW offender fails.
-		const TRACKED_EXCEPTIONS = new Set(["capability-index-data.ts"]);
+		// No exceptions: capability-index-data.ts was parameterized off "refarm"
+		// (ADR-087 phase 3a — buildCapabilities(binary)), so NO generic cli source
+		// may name the brand. Any offender fails.
 		const sourceFiles = listSourceFiles(srcDir).filter(
 			(file) => !file.endsWith(".test.ts"),
 		);
 		const offenders = sourceFiles.flatMap((file) => {
 			const rel = path.relative(srcDir, file);
-			if (TRACKED_EXCEPTIONS.has(rel)) return [];
 			const source = readFileSync(file, "utf8");
 			const matches =
 				source.match(

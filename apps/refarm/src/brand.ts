@@ -11,12 +11,16 @@ import {
 	type ApplicationProcessSpec,
 } from "@refarm.dev/cli/command-handoff";
 
+/** The canonical CLI binary name — the ONE literal "refarm" the app owns. Pass it
+ *  to any generic package that takes a binary (ADR-087). */
+export const REFARM_BINARY = "refarm";
+
 /** A shareable `refarm <args…>` handoff string (the stable, canonical binary name). */
 export function refarmCommand(args: string[]): string {
-	return applicationCommand("refarm", args);
+	return applicationCommand(REFARM_BINARY, args);
 }
 
 /** A spawnable `refarm <args…>` process spec (honors the launcher-path override). */
 export function refarmProcess(args: string[]): ApplicationProcessSpec {
-	return applicationProcess("refarm", args);
+	return applicationProcess(REFARM_BINARY, args);
 }
