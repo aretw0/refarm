@@ -1,6 +1,6 @@
 # ADR-087: Brand-Agnostic Packages — Only the App Owns Its Name
 
-**Status**: Accepted (binary decoupling phases 1-3 implemented + tested; phase 3a tail + phase 4 env-prefix are follow-ons)
+**Status**: Accepted (binary decoupling phases 1-3a DONE + tested; env-prefix phase 4a — the config env-bridge, the structural leak — DONE; remaining env-prefix work is scattered injectable-defaults, chewed opportunistically per the phase-4 survey)
 **Date**: 2026-07-10
 **Deciders**: Arthur Silva, Refarm agents
 **Related**: ADR-086 (Plugin Vocabulary Convergence — the `plugin` command; its
@@ -153,5 +153,44 @@ the use site). Keep a namespace/prefix when it genuinely disambiguates.
        app injects it (a new `REFARM_BINARY` constant in brand.ts). Guard exception
        dropped — **@refarm.dev/cli is now fully brand-agnostic** (zero
        `applicationCommand("refarm")` remains).
-4. **(phase 2, wider)** Thread `BrandContext.envPrefix` to retire the hardcoded
-   `REFARM_…` env keys across the generic packages.
+4. **(env-prefix, chewed slice by slice)** Retire the hardcoded `REFARM_…` env
+   keys across the generic packages. A measured survey found the env-prefix is
+   NOT one uniform sweep but three categories with very different value/cost, and
+   the *runtime* read-sites in packages are far fewer than the raw literal count:
+
+   - **(a) env→config bridge** — `@refarm.dev/config`'s `EnvSource` read
+     `REFARM_SITE_URL / _SCOPE_* / _PROVIDER_* / _GIT_HOST / _REMOTE_TOKEN /
+     _EPHEMERAL_SOURCE` from `process.env` with the brand baked in. This is the
+     STRUCTURAL leak (maps env → the `brand`/`providers` config tree) and the
+     highest-value target.
+     4a. ✅ **DONE** (bff0d919). Parameterized off the prefix:
+         `envPrefixFromBrand(name)` (mirrors `applicationCommandOverrideEnv`'s
+         normalization), `resolveEnvPrefix(explicit, env)` (explicit → neutral
+         selector `SOVEREIGN_ENV_PREFIX` → default `"REFARM"`), and an
+         `{ envPrefix }` options bag on `loadConfig`/`loadConfigAsync`. Env-prefix
+         is the ONE brand dimension with a RESOLVED DEFAULT (per the white-label
+         doctrine: "não é 'sempre REFARM' nem 'tira o refarm' — é config
+         resolvida"), unlike the CLI binary which fails up. Backward-compatible
+         (default `REFARM`); 5 new tests prove an `ACME` prefix reads
+         `ACME_SITE_URL / _SCOPE_* / _PROVIDER_*`.
+
+   - **(b) home / identity** — `REFARM_HOME`, the `.refarm/` directory name (~100
+     literal sites), `REFARM_VERSION`. Survey finding: this lives OVERWHELMINGLY
+     in `apps/refarm` (`refarm-home.ts`, `tractor-store.ts`, `runtime-metadata.ts`,
+     `composition-resolver.ts`) — which is CORRECT, the app owns its brand. The
+     only package reader is `silo/src/index.js:359` (`REFARM_HOME`). Touching the
+     100 `.refarm` app-sites is high-churn / low-value and mostly inside the brand
+     owner; NOT worth a sweep. `VITE_REFARM_VERSION` (in `tractor-ts`, `homestead`)
+     is a distinct build-time Vite var with a `"0.1.0-solo-fertil"` fallback.
+
+   - **(c) per-package tuning knobs** — `REFARM_SIDECAR_URL` (capability-host),
+     `REFARM_SIDE_REQUEST_TIMEOUT_MS` (sidecar-client), `REFARM_NAMESPACE` (spawn
+     env), `REFARM_LOG_LEVEL`, etc. Survey finding: these are ALREADY injectable
+     (`envKey?`, `timeoutEnvVar?` options) with the `REFARM_*` only a DEFAULT
+     fallback — a softer leak than (a). Several live in §8-protected surfaces
+     (`packages/tractor/**`, `tractor-ts/**`) requiring lock/handoff. Each is a
+     1-2-line default of modest individual value.
+
+   Net: (a) is the real prize and is DONE. (b) is mostly app-owned (leave). (c) is
+   scattered injectable-defaults, part behind §8 — chew opportunistically where a
+   package is touched for another reason, not as a standalone grind.
