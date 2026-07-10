@@ -20,8 +20,11 @@ and records the token totals. Because the mock counts are fixed, the signal is t
 grows — how much prefix it re-sends.
 
 ```bash
-pnpm --filter @refarm.dev/agent-bench run bench:tokens:save   # establish the baseline
-pnpm --filter @refarm.dev/agent-bench run bench:tokens:check  # fail if tokens regressed
+pnpm --filter @refarm.dev/agent-bench run bench:save   # establish the baseline
+pnpm --filter @refarm.dev/agent-bench run bench:check  # fail if tokens regressed
+
+# or across every package that has a bench, via the unified turbo task:
+pnpm turbo run bench:check
 ```
 
 `check` fails (exit 1) if any `lower_is_better` metric grew past its threshold — a

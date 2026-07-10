@@ -102,6 +102,14 @@
       ],
       "env": ["VITEST_USE_DIST", "VITEST_FORCE_DIST"]
     },
+    "bench:check": {
+      "cache": false,
+      "outputs": ["benchmarks/current*.json", "benchmarks/gha-payload*.json"]
+    },
+    "bench:save": {
+      "cache": false,
+      "outputs": ["benchmarks/baseline*.json"]
+    },
     "test:integration": {
       "dependsOn": ["build"],
       "inputs": [
