@@ -217,6 +217,21 @@ redeclaration, add its sensor in the same commit — don't leave it for a future
 - **grants next interfaces.** The per-plugin-linker pattern generalizes: filesystem
   and sockets are the next WASI interfaces to gate per declared-grant, reusing the
   same seam (a linker variant chosen at load by `PermissionGrant::grants`).
+- **bench cohesion — partial (e6791fa2), the sink is the open part.** Benches were
+  dispersed across three homes with three name conventions and no single entry point;
+  CI hardcodes `cd packages/tractor && pnpm run bench:check` per suite, so a new bench
+  is born orphaned from CI. FIXED the immediate footgun: `bench:save`/`bench:check`
+  are now turbo tasks and `pnpm turbo run bench:check` runs every package that has one
+  (agent-bench, tractor, tractor-rs today) — new benches join by just having the
+  script. STILL OPEN, in priority order: (1) rewire `.github/workflows/test.yml` to
+  call `pnpm turbo run bench:check` instead of the hardcoded per-suite `cd` (a §8
+  surface — do under lock/handoff); (2) the larger vision Arthur named — refarm as
+  "the great sink": a `refarm bench` / `refarm gate` verb that abstracts running the
+  benches+gates behind one cohesive, extensible operator command (the same "declare
+  once → one surface" doctrine the capability model already embodies), so a developer
+  never learns per-package script names. Do (2) when there's a second reason to touch
+  the gate surface, not before — but keep new benches on the `bench:check` name so
+  they're already sink-ready.
 
 ## How to use this lane
 
