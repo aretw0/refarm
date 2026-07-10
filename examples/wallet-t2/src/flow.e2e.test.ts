@@ -1,4 +1,4 @@
-import { DEFAULT_HOST_COMMAND_ENV_KEY } from "@refarm.dev/capability-host";
+import { hostCommandOverrideEnv } from "@refarm.dev/capability-host";
 import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -118,12 +118,12 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		const command = "wallet-white-label-env";
 		const host = buildWalletHost({
 			statePath,
-			commandEnv: { [DEFAULT_HOST_COMMAND_ENV_KEY]: command },
+			commandEnv: { [hostCommandOverrideEnv(DGK_COMMAND)]: command },
 		});
 		expect(host.program().name()).toBe(command);
 		expect(buildWalletBaseModel({
 			statePath,
-			commandEnv: { [DEFAULT_HOST_COMMAND_ENV_KEY]: command },
+			commandEnv: { [hostCommandOverrideEnv(DGK_COMMAND)]: command },
 		})).toMatchObject({
 			command,
 			nextCommand: `${command} wallet --json`,

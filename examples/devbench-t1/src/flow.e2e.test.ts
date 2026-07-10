@@ -1,6 +1,6 @@
 import {
 	createMemorySubmitEffort,
-	DEFAULT_HOST_COMMAND_ENV_KEY,
+	hostCommandOverrideEnv,
 	type CapabilityEntry,
 } from "@refarm.dev/capability-host";
 import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
@@ -121,8 +121,10 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 
 	it("supports overriding the host command from explicit environment for white-label consumers", () => {
 		const command = "t1-white-label-env";
+		// The override env follows dgk's own command → DGK_COMMAND (derived, not a
+		// hardcoded brand key in the generic package — ADR-087).
 		const host = buildDevbenchHost({
-			commandEnv: { [DEFAULT_HOST_COMMAND_ENV_KEY]: command },
+			commandEnv: { [hostCommandOverrideEnv(DGK_COMMAND)]: command },
 		});
 		expect(host.program().name()).toBe(command);
 		expect(host.baseModel()).toMatchObject({

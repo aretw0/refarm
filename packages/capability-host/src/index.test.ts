@@ -15,7 +15,7 @@ import {
 	createVaultCapabilityGroup,
 	createWasmEnrichmentProvider,
 	createWasmSourceProvider,
-	DEFAULT_HOST_COMMAND_ENV_KEY,
+	hostCommandOverrideEnv,
 	defaultRecordsDeps,
 	defaultSourceDeps,
 	defaultVaultDeps,
@@ -40,29 +40,40 @@ describe("command-resolution helper", () => {
 		})).toBe("custom-cmd");
 	});
 
+	it("derives the override env key from the command (no brand hardcoded)", () => {
+		// ADR-087: a generic package names no brand. The default override env
+		// follows whatever command the host declares.
+		expect(hostCommandOverrideEnv("dgk")).toBe("DGK_COMMAND");
+		expect(hostCommandOverrideEnv("acme")).toBe("ACME_COMMAND");
+		expect(hostCommandOverrideEnv("acme labs")).toBe("ACME_LABS_COMMAND");
+	});
+
 	it("uses commandEnv override map before process env", () => {
-		const previous = process.env[DEFAULT_HOST_COMMAND_ENV_KEY];
-		process.env[DEFAULT_HOST_COMMAND_ENV_KEY] = "process-env-command";
+		const key = hostCommandOverrideEnv("dgk");
+		const previous = process.env[key];
+		process.env[key] = "process-env-command";
 		expect(resolveHostCommand({
-			commandEnv: { [DEFAULT_HOST_COMMAND_ENV_KEY]: "explicit-env-command" },
+			commandEnv: { [key]: "explicit-env-command" },
 			defaultCommand: "dgk",
 		})).toBe("explicit-env-command");
 		if (previous === undefined) {
-			delete process.env[DEFAULT_HOST_COMMAND_ENV_KEY];
+			delete process.env[key];
 		} else {
-			process.env[DEFAULT_HOST_COMMAND_ENV_KEY] = previous;
+			process.env[key] = previous;
 		}
 	});
 
-	it("builds a resolver closure with stable defaults", () => {
+	it("builds a resolver closure whose override env follows the command", () => {
 		const resolveCommand = createHostCommandResolver({
-			defaultCommand: "fallback-command",
+			defaultCommand: "acme",
 		});
 		expect(resolveCommand({ command: "inline-command" })).toBe("inline-command");
-		expect(resolveCommand({ commandEnv: { [DEFAULT_HOST_COMMAND_ENV_KEY]: "env-command" } })).toBe(
-			"env-command",
-		);
-		expect(resolveCommand({})).toBe("fallback-command");
+		// The override env is derived from defaultCommand ("acme" → ACME_COMMAND),
+		// NOT a hardcoded brand key.
+		expect(
+			resolveCommand({ commandEnv: { ACME_COMMAND: "env-command" } }),
+		).toBe("env-command");
+		expect(resolveCommand({})).toBe("acme");
 	});
 
 	it("supports custom environment keys in resolver defaults", () => {
@@ -82,16 +93,16 @@ describe("command-resolution helper", () => {
 			resolveHostCommand({
 				command: "   ",
 				defaultCommand: "dgk",
-				env: { [DEFAULT_HOST_COMMAND_ENV_KEY]: "   " },
+				env: { [hostCommandOverrideEnv("dgk")]: "   " },
 			}),
 		).toBe("dgk");
 	});
 
-	it("keeps legacy env fallback for backward compatibility", () => {
+	it("reads the derived env key as a fallback", () => {
 		expect(resolveHostCommand({
-			env: { [DEFAULT_HOST_COMMAND_ENV_KEY]: "legacy-env-command" },
+			env: { [hostCommandOverrideEnv("dgk")]: "env-fallback-command" },
 			defaultCommand: "dgk",
-		})).toBe("legacy-env-command");
+		})).toBe("env-fallback-command");
 	});
 });
 

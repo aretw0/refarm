@@ -105,27 +105,39 @@ export interface ResolveHostCommandOptions extends HostCommandOptions {
 	commandEnvKey?: string;
 }
 
-export const DEFAULT_HOST_COMMAND_ENV_KEY = "DGK_COMMAND";
+/** Derive the command-override env key from a host command, so a generic package
+ * NAMES NO BRAND: `dgk` → `DGK_COMMAND`, `acme` → `ACME_COMMAND` (ADR-087). Mirrors
+ * `@refarm.dev/cli`'s `applicationCommandOverrideEnv(binary)` — a name derives its
+ * namespace; the package never hardcodes a product's env key. */
+export function hostCommandOverrideEnv(command: string): string {
+	return `${String(command).toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "")}_COMMAND`;
+}
 
 export function createHostCommandResolver(
 	options: HostCommandResolverOptions,
 ): (input?: HostCommandOptions) => string {
+	// The default override env follows the host's own command (dgk → DGK_COMMAND),
+	// unless the host names an explicit key. No brand baked into the resolver.
+	const commandEnvKey = options.commandEnvKey ?? hostCommandOverrideEnv(options.defaultCommand);
 	return (input: HostCommandOptions = {}) => resolveHostCommand({
 		commandEnv: input.commandEnv,
 		command: input.command,
 		defaultCommand: options.defaultCommand,
-		commandEnvKey: options.commandEnvKey,
+		commandEnvKey,
 	});
 }
 
 export function resolveHostCommand(
 	input: ResolveHostCommandOptions,
 ): string {
+	// The override env key follows the command being resolved unless an explicit
+	// key is supplied — the generic package derives, never hardcodes a brand.
+	const commandEnvKey = input.commandEnvKey ?? hostCommandOverrideEnv(input.defaultCommand);
 	const command = (
 		input.command
-		?? input.commandEnv?.[input.commandEnvKey ?? DEFAULT_HOST_COMMAND_ENV_KEY]
-		?? input.env?.[input.commandEnvKey ?? DEFAULT_HOST_COMMAND_ENV_KEY]
-		?? process.env[input.commandEnvKey ?? DEFAULT_HOST_COMMAND_ENV_KEY]
+		?? input.commandEnv?.[commandEnvKey]
+		?? input.env?.[commandEnvKey]
+		?? process.env[commandEnvKey]
 	) ?? "";
 	return String(command).trim() || input.defaultCommand;
 }
