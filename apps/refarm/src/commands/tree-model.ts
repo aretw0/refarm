@@ -1,10 +1,10 @@
-import { refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
+import { printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	createExecutionPlanHandoff,
 	type ExecutionPlanBase,
 	type ExecutionPlanHandoff,
 } from "@refarm.dev/cli/execution-plan";
-import { printJson } from "@refarm.dev/capabilities/envelope";
+import { refarmCommand, refarmProcess } from "../brand.js";
 import { TREE_GIT_LIST_JSON_COMMAND } from "./tree-handoffs.js";
 
 const SESSION_SCOPE = "session";

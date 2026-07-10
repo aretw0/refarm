@@ -3,11 +3,12 @@ import {
 	joinCommand,
 	quoteCommandArg,
 	quoteCommandArgIfNeeded,
-	refarmCommand,
 	shellCommand,
 	workspaceCommand,
 } from "@refarm.dev/cli/command-handoff";
 import { describe, expect, it } from "vitest";
+// refarmCommand moved to the app-owned brand module (ADR-087).
+import { refarmCommand } from "../../src/brand.js";
 
 describe("command handoff helpers", () => {
 	it("quotes command arguments with shell-safe JSON string syntax", () => {

@@ -3,7 +3,6 @@
  * No readline REPL, no Commander. Just policy.
  */
 
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { executeProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	hasUsableModelCredential,
@@ -22,6 +21,7 @@ import chalk from "chalk";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { refarmCommand } from "../brand.js";
 import {
 	DEFAULT_MODEL_PROVIDER,
 	MODEL_DEFAULT_PROVIDER_ENV_VAR,

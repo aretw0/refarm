@@ -4,13 +4,14 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import { quoteCommandArgIfNeeded, refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
+import { quoteCommandArgIfNeeded } from "@refarm.dev/cli/command-handoff";
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import {
 	isRuntimeAgentPluginId, normalizePluginId,
 	RUNTIME_AGENT_PLUGIN_ID,
 } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
+import { refarmCommand, refarmProcess } from "../brand.js";
 import {
 	PLUGIN_INSTALL_COMMAND,
 	PLUGIN_INSTALL_JSON_COMMAND,

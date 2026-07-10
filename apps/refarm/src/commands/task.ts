@@ -3,7 +3,6 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { normalizePluginId } from "@refarm.dev/config";
 import type {
 	Effort,
@@ -13,6 +12,7 @@ import type {
 } from "@refarm.dev/effort-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
+import { refarmCommand } from "../brand.js";
 import {
 	MODEL_CURRENT_JSON_COMMAND,
 	RESUME_JSON_COMMAND,

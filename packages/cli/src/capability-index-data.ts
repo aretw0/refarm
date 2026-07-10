@@ -5,7 +5,7 @@ import type {
 	ReferenceDriverPublicationBoundary,
 	ReferenceDriverSourceReference,
 } from "./capability-index.js";
-import { refarmCommand } from "./command-handoff.js";
+import { applicationCommand } from "./command-handoff.js";
 import {
 	INTERACTION_DRIVER_GATEWAY_BLOCKERS,
 	INTERACTION_DRIVER_MIN_REQUIRED_EVENTS,
@@ -65,7 +65,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: refarmCommand(["ask", "ok", "--json"]),
+			command: applicationCommand("refarm", ["ask", "ok", "--json"]),
 		},
 		tags: ["daily-driver", "runtime", "streaming", "reference-driver"],
 	},
@@ -93,7 +93,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: refarmCommand(["project", "handoff", "validate", "--json"]),
+			command: applicationCommand("refarm", ["project", "handoff", "validate", "--json"]),
 			sdk: "@refarm.dev/cli/project-handoff",
 		},
 		tags: ["handoff", "memory", "sdk"],
@@ -125,7 +125,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: refarmCommand(["project", "automations", "validate", "--json"]),
+			command: applicationCommand("refarm", ["project", "automations", "validate", "--json"]),
 			sdk: "@refarm.dev/cli/project-automations",
 		},
 		tags: ["automation", "handoff", "scheduler", "sdk"],
@@ -154,7 +154,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: refarmCommand([
+			command: applicationCommand("refarm", [
 				"agent",
 				"finish",
 				"--lane",
@@ -194,7 +194,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: refarmCommand(["health", "--policy", "--json"]),
+			command: applicationCommand("refarm", ["health", "--policy", "--json"]),
 		},
 		tags: ["policy", "audit", "runtime"],
 	},
@@ -225,7 +225,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: refarmCommand(["status", "--json"]),
+			command: applicationCommand("refarm", ["status", "--json"]),
 		},
 		tags: ["ui", "streaming", "daily-driver"],
 	},
@@ -293,7 +293,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: refarmCommand(["ask", "list my sessions", "--json"]),
+			command: applicationCommand("refarm", ["ask", "list my sessions", "--json"]),
 		},
 		tags: ["runtime", "session", "memory", "reference-driver"],
 	},
@@ -326,7 +326,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: refarmCommand(["ask", "inspect package metadata", "--json"]),
+			command: applicationCommand("refarm", ["ask", "inspect package metadata", "--json"]),
 		},
 		tags: ["runtime", "tools", "structured-io", "reference-driver"],
 	},
@@ -359,7 +359,7 @@ export const CAPABILITIES = [
 			],
 		},
 		activation: {
-			command: refarmCommand(["ask", "find references for this symbol", "--json"]),
+			command: applicationCommand("refarm", ["ask", "find references for this symbol", "--json"]),
 		},
 		tags: ["runtime", "tools", "code-ops", "reference-driver"],
 	},

@@ -1,8 +1,11 @@
-import chalk from "chalk";
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
-import { formatExecutionPlanReadinessLine } from "@refarm.dev/cli/execution-plan";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import { formatExecutionPlanReadinessLine } from "@refarm.dev/cli/execution-plan";
+import {
+	fetchSidecarWithTimeout,
+} from "@refarm.dev/sidecar-client";
+import chalk from "chalk";
+import { refarmCommand } from "../brand.js";
+import { RESUME_JSON_COMMAND } from "./credential-handoffs.js";
 import {
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
 	RUNTIME_DOCTOR_NEXT_COMMAND,
@@ -15,9 +18,6 @@ import {
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 import { reportSidecarError } from "./sidecar-error.js";
-import {
-	fetchSidecarWithTimeout,
-} from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 import { TREE_SESSION_LIST_JSON_COMMAND } from "./tree-handoffs.js";
 import {

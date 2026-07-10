@@ -1,12 +1,13 @@
 import type { CapabilityEnvelope } from "@refarm.dev/capabilities";
-import { quoteCommandArg, refarmCommand, shellCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import { quoteCommandArg, shellCommand } from "@refarm.dev/cli/command-handoff";
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import { basename, extname } from "node:path";
+import { refarmCommand } from "../brand.js";
 import {
 	createPackageBinaryCommand,
 	PACKAGE_MANAGER_OVERRIDE,

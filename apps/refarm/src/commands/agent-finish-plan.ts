@@ -1,4 +1,4 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	buildCommandPlanEnvelope,
 	commandPlanCacheObservations,
@@ -13,7 +13,6 @@ import {
 	type CommandPlanWorkClass,
 } from "@refarm.dev/cli/command-plan";
 import { readGitCommand } from "@refarm.dev/cli/git-command";
-import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	affectedWorkspacePackagesFromChangedPaths, changedFilePathsFromGitNameOnly, changedFilePathsFromGitStatus,
 	findWorkspaceRoot as findWorkspaceRootFromMarkers,
@@ -27,6 +26,7 @@ import { parseTurboCacheRunSummary } from "@refarm.dev/infra-turbo-cache";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import { refarmCommand } from "../brand.js";
 import type { AgentFinishSessionRecorder } from "./agent-finish-session.js";
 import {
 	AGENT_FINISH_LANE_HELP, agentFinishCommand, agentFinishLaneCatalog, type AgentFinishLane, type AgentFinishLaneValidationScope,

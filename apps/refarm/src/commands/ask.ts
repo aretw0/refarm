@@ -1,16 +1,18 @@
-import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import { isRuntimeAgentPluginId, RUNTIME_AGENT_PLUGIN_ID, } from "@refarm.dev/config";
 import {
 	buildSystemPrompt, ContextRegistry, CwdContextProvider, DateContextProvider, FilesContextProvider, GitStatusContextProvider, OperatorStateProvider, PolicyFilesContextProvider, SessionDigestContextProvider, type ContextProvider,
 } from "@refarm.dev/context-provider-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
+import { refarmCommand } from "../brand.js";
 import {
 	MODEL_SCOPES, parseModelScope, type ModelScope,
 } from "../model-routing.js";
@@ -70,7 +72,6 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
-import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { resolveSidecarUrlAsync, sidecarUrlAsync } from "./sidecar-url.js";
 
 const SESSIONS_LIST_JSON_COMMAND = refarmCommand([

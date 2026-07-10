@@ -166,13 +166,10 @@ export function applicationProcess(
 	};
 }
 
-export function refarmCommand(args: string[]): string {
-	return applicationCommand("refarm", args);
-}
-
-export function refarmProcess(args: string[]): ApplicationProcessSpec {
-	return applicationProcess("refarm", args);
-}
+// `refarmCommand` / `refarmProcess` moved to apps/refarm/src/brand.ts (ADR-087):
+// only the app that owns the brand names it. This package stays agnostic, exposing
+// the neutral `applicationCommand` / `applicationProcess` a white-label app builds
+// its own brand helpers over.
 
 export function workspaceCommand(cwd: string, command: string): string {
 	return joinCommand(["cd", quoteCommandArg(cwd), "&&", command]);

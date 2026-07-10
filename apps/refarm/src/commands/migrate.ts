@@ -1,9 +1,9 @@
-import { joinCommand, quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import { joinCommand, quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import { findRefarmConfigPath } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
@@ -12,6 +12,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { refarmCommand } from "../brand.js";
 
 interface MigrateConfig {
 	brand?: { slug?: string; urls?: { repository?: string } };

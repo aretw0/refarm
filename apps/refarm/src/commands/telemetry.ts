@@ -1,4 +1,3 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { printJson } from "@refarm.dev/capabilities/envelope";
 import {
 	evaluatePressure,
@@ -14,6 +13,7 @@ import {
 } from "@refarm.dev/sidecar-client";
 import chalk from "chalk";
 import { Command, InvalidArgumentError } from "commander";
+import { refarmCommand } from "../brand.js";
 import {
 	buildDiagnosticNextActionPayload, diagnosticNextActions, diagnosticNextCommands, type DiagnosticRecommendation,
 } from "./diagnostic-recommendations.js";

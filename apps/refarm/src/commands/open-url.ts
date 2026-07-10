@@ -1,12 +1,12 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { openHostBrowserUrl, resolveBrowserOpenCandidates, type BrowserOpenResult, } from "@refarm.dev/cli/browser-open";
-import { Command } from "commander";
-import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import { openHostBrowserUrl, resolveBrowserOpenCandidates, type BrowserOpenResult, } from "@refarm.dev/cli/browser-open";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
+import { Command } from "commander";
+import { refarmCommand } from "../brand.js";
 import {
 	openDryRunMessage,
 	openFailureMessage,

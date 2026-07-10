@@ -1,6 +1,6 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { loadConfig } from "@refarm.dev/config";
 import chalk from "chalk";
+import { refarmCommand } from "../brand.js";
 import { startSpinner } from "../utils/spinner.js";
 import type { CollectContext, CredentialProvider } from "./types.js";
 

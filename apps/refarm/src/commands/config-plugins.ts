@@ -1,4 +1,3 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -7,6 +6,7 @@ import {
 import type { LedgerScope } from "@refarm.dev/storage-node-view";
 import chalk from "chalk";
 import { Command } from "commander";
+import { refarmCommand } from "../brand.js";
 import {
 	compositionScopePath,
 	resolveComposition,
@@ -14,8 +14,8 @@ import {
 } from "../utils/composition-resolver.js";
 import {
 	getSource,
-	SURFACE_KEYS,
 	type PackageSourceObject,
+	SURFACE_KEYS,
 	type SurfaceKey,
 } from "../utils/composition.js";
 import {

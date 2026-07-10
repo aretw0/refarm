@@ -1,5 +1,5 @@
-import { refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
 import type { ApplicationProcessSpec } from "@refarm.dev/cli/command-handoff";
+import { refarmCommand, refarmProcess } from "../brand.js";
 
 /**
  * The ONE source of truth for the recovery/handoff commands that reference the

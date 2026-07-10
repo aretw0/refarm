@@ -1,8 +1,8 @@
 import type { OperatorResumeSessionRecord } from "@refarm.dev/cli/operator-resume";
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
+import { refarmCommand } from "../brand.js";
 import { formatSessionId } from "./session-ids.js";
 import { sessionParticipantFields } from "./session-participants.js";
-import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 
 interface RuntimeSessionNode {

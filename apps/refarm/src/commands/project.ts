@@ -1,5 +1,4 @@
 import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	addProjectAutomationRecord,
 	normalizeProjectAutomationsDocument,
@@ -28,6 +27,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import { refarmCommand } from "../brand.js";
 import { resolveAdapter } from "./task-support.js";
 
 /** Minimal effort submit adapter — the shape `runDueScheduledWork` needs. */

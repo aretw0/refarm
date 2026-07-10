@@ -1,4 +1,4 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { refarmCommand } from "../brand.js";
 
 export const PLUGIN_INSTALL_COMMAND = refarmCommand(["plugin", "install"]);
 export const PLUGIN_INSTALL_JSON_COMMAND = refarmCommand([

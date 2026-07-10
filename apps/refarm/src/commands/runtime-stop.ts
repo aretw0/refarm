@@ -1,7 +1,7 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { runProcessHandoffSync } from "@refarm.dev/cli/process-handoff";
 import { existsSync, readdirSync, readFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
+import { refarmCommand } from "../brand.js";
 
 /**
  * The OS process-stop engine for `refarm runtime stop` — extracted verbatim from

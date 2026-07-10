@@ -3,7 +3,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import { normalizeHandoffValues, refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { normalizeHandoffValues } from "@refarm.dev/cli/command-handoff";
 import { setGitHubActionsSecret } from "@refarm.dev/cli/github-actions";
 import {
 	CloudflareProvider, CloudflareTurboCacheProvisioner, createCloudflareTurboCacheProvisionPlan, enrichCloudflareError,
@@ -12,6 +12,7 @@ import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
+import { refarmCommand } from "../brand.js";
 
 interface TurboCacheCommandOptions {
 	dryRun?: boolean;

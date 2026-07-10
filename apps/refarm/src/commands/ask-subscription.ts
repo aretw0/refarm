@@ -1,10 +1,11 @@
-import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	isRuntimeSubscriptionModelProvider,
 	isSubscriptionModelProvider,
 } from "@refarm.dev/config";
 import chalk from "chalk";
+import { refarmCommand } from "../brand.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,

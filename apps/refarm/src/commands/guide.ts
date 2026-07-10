@@ -1,10 +1,10 @@
 import { printJson } from "@refarm.dev/capabilities/envelope";
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { DEFAULT_MODEL_PROVIDER, defaultProviderModelRef, effectiveModelRouteForScope, loadConfig, modelCredentialStatus, } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
 import { writeFileSync } from "node:fs";
+import { refarmCommand } from "../brand.js";
 
 interface GuideOptions {
   json?: boolean;

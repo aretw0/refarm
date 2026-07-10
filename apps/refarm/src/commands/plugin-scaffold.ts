@@ -18,10 +18,11 @@ import {
 	type JsonSuccessEnvelope,
 } from "@refarm.dev/capabilities/envelope";
 import { pluginSurfaceName } from "@refarm.dev/capability-host";
-import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { refarmCommand } from "../brand.js";
 
 export function extensionReloadCommand(name: string, json = false): string {
 	return refarmCommand([

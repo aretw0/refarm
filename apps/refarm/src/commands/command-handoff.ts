@@ -35,6 +35,8 @@ export {
 	substituteCommandTemplateValue,
 	substituteCommandTemplateValues,
 	workspaceCommand,
-	refarmCommand,
-	refarmProcess,
 } from "@refarm.dev/cli/command-handoff";
+
+// `refarmCommand` / `refarmProcess` moved to `../brand.ts` (ADR-087 — only the app
+// owns its brand). Re-exported here so the deprecated shim keeps resolving them.
+export { refarmCommand, refarmProcess } from "../brand.js";

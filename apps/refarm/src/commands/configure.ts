@@ -3,11 +3,11 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { setGitHubActionsSecret } from "@refarm.dev/cli/github-actions";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
+import { refarmCommand } from "../brand.js";
 
 const CONFIGURE_SCHEMA_VERSION = 1;
 const MISSING_GITHUB_CREDENTIALS_COMMAND = refarmCommand([

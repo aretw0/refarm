@@ -1,6 +1,6 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import type { RustSubstrateCheck } from "@refarm.dev/cli/rust-substrate";
 import { Command } from "commander";
+import { refarmCommand } from "../brand.js";
 
 import { printJson } from "@refarm.dev/capabilities/envelope";
 import { STATUS_DIAGNOSTICS } from "@refarm.dev/cli/status";

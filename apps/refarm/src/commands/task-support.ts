@@ -1,24 +1,26 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { isRuntimeAgentPluginId } from "@refarm.dev/config";
-import {
-	assertChannelControlCapability, parseTaskTransport as parseDispatchTransport, resolveChannelControlSurfaceAdapter, resolveChannelFromTransport, type ChannelControlSurfaceAdapter, type DispatchTransport, } from "@refarm.dev/dispatch-surface";
-import type {
-	Effort, EffortLogEntry, EffortResult, EffortSummary, EffortTransportAdapter, } from "@refarm.dev/effort-contract-v1";
-import chalk from "chalk";
-import { InvalidArgumentError } from "commander";
-import fs from "node:fs";
-import path from "node:path";
-import { resolveRefarmHome } from "../utils/refarm-home.js";
-import {
-	quoteCommandArg,
-	quoteCommandArgIfNeeded,
-} from "@refarm.dev/cli/command-handoff";
-import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import {
+	quoteCommandArg,
+	quoteCommandArgIfNeeded,
+} from "@refarm.dev/cli/command-handoff";
+import { isRuntimeAgentPluginId } from "@refarm.dev/config";
+import {
+	assertChannelControlCapability, parseTaskTransport as parseDispatchTransport, resolveChannelControlSurfaceAdapter, resolveChannelFromTransport, type ChannelControlSurfaceAdapter, type DispatchTransport,
+} from "@refarm.dev/dispatch-surface";
+import type {
+	Effort, EffortLogEntry, EffortResult, EffortSummary, EffortTransportAdapter,
+} from "@refarm.dev/effort-contract-v1";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
+import chalk from "chalk";
+import { InvalidArgumentError } from "commander";
+import fs from "node:fs";
+import path from "node:path";
+import { refarmCommand } from "../brand.js";
+import { resolveRefarmHome } from "../utils/refarm-home.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,

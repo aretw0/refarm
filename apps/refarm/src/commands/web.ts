@@ -1,10 +1,11 @@
+import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
 import { formatSurfaceActionReadinessOutput } from "@refarm.dev/cli/action-affordances";
 import { openHostBrowserUrl, resolveBrowserOpenSpec, } from "@refarm.dev/cli/browser-open";
-import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { buildJsonErrorEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import { executeProcessHandoff, type ProcessHandoffSpec } from "@refarm.dev/cli/process-handoff";
 import type { StatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { refarmCommand } from "../brand.js";
 import {
 	launchAvailabilityMessage,
 	openDryRunMessage,

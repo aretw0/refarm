@@ -1,12 +1,6 @@
-import { quoteCommandArg, refarmCommand, refarmProcess } from "@refarm.dev/cli/command-handoff";
-import {
-	HEALTH_NEXT_ACTION_COMMAND,
-	HEALTH_POLICY_JSON_COMMAND,
-	HEALTH_SUGGEST_POLICY_COMMAND,
-	healthPolicyProcess,
-	healthSuggestPolicyProcess,
-} from "./health-commands.js";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
+import { refarmCommand, refarmProcess } from "../brand.js";
 import {
 	LOCAL_MODEL_JSON_COMMAND,
 	MODEL_CURRENT_JSON_COMMAND,
@@ -20,6 +14,13 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND
 } from "./credential-handoffs.js";
+import {
+	HEALTH_NEXT_ACTION_COMMAND,
+	HEALTH_POLICY_JSON_COMMAND,
+	HEALTH_SUGGEST_POLICY_COMMAND,
+	healthPolicyProcess,
+	healthSuggestPolicyProcess,
+} from "./health-commands.js";
 import {
 	RUNTIME_DOCTOR_NEXT_COMMAND,
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,

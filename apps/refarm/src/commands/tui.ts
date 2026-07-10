@@ -1,13 +1,14 @@
-import { formatSurfaceActionReadinessOutput } from "@refarm.dev/cli/action-affordances";
-import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import { formatSurfaceActionReadinessOutput } from "@refarm.dev/cli/action-affordances";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import { createProcessHandoffSpec, executeProcessHandoff, type ProcessHandoffSpec, } from "@refarm.dev/cli/process-handoff";
 import type { StatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { refarmCommand } from "../brand.js";
 import { capabilityTuiSections } from "./capability-registry.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";

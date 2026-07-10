@@ -1,13 +1,14 @@
-import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
-import chalk from "chalk";
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
-import { Command, InvalidArgumentError } from "commander";
-import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
+import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
+import chalk from "chalk";
+import { Command, InvalidArgumentError } from "commander";
+import { refarmCommand } from "../brand.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -16,7 +17,6 @@ import {
 	RUNTIME_STATUS_COMMAND,
 } from "./runtime-recovery.js";
 import { reportSidecarError } from "./sidecar-error.js";
-import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 
 function parsePositiveIntOption(value: string, label: string): number {

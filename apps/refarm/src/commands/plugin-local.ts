@@ -4,12 +4,13 @@ import {
 	printJson,
 	type JsonErrorEnvelope,
 } from "@refarm.dev/capabilities/envelope";
-import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import { Command } from "commander";
 import { existsSync } from "node:fs";
 import { mkdir, rename } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { refarmCommand } from "../brand.js";
 import { capabilityCliCommandsForGroup } from "./capability-registry.js";
 import { PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
 

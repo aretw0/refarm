@@ -1,9 +1,11 @@
-import { quoteCommandArg, refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import { modelCredentialEnvKey, modelCredentialStatus as resolveModelCredentialStatus, } from "@refarm.dev/config";
-import { isContainer as detectContainerRuntime } from "@refarm.dev/root";
+import { isContainer as detectContainerRuntime, fetchWithTimeout } from "@refarm.dev/root";
+import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
+import { refarmCommand } from "../brand.js";
 import {
 	DEFAULT_MODEL_PROVIDER, defaultModelForProvider, defaultModelForScope, defaultProviderModelRef, defaultScopedModelRef, effectiveModelRouteForScope, formatModelRef, isRuntimeSubscriptionModelProvider, isSubscriptionModelProvider, MODEL_BASE_URL_ENV_VAR, MODEL_DEFAULT_PROVIDER_ENV_VAR, MODEL_FALLBACK_MODEL_ID_ENV_VAR, MODEL_FALLBACK_PROVIDER_ENV_VAR, MODEL_ID_ENV_VAR, MODEL_PROVIDER_ENV_VAR, MODEL_PROVIDERS, MODEL_RUNTIME_ENV_VARS, MODEL_SCOPES, parseModelRef, type ModelScope,
 } from "../model-routing.js";
@@ -16,13 +18,11 @@ import {
 	SOW_INTERACTIVE_COMMAND,
 	SOW_JSON_COMMAND,
 } from "./credential-handoffs.js";
-import { fetchWithTimeout } from "@refarm.dev/root";
 import {
+	providerDoctorProfile,
 	type ProviderDoctorProfile,
 	type ProviderProbeReason,
-	providerDoctorProfile,
 } from "./model-provider-doctor.js";
-import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 export {
 	buildInvalidScopeEnvelope,

@@ -1,14 +1,17 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import { canonicalRuntimeAgentContent } from "@refarm.dev/config";
 import chalk from "chalk";
 import { Command } from "commander";
+import { refarmCommand } from "../brand.js";
 
-import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
+import { quoteCommandArg } from "@refarm.dev/cli/command-handoff";
+import {
+	fetchSidecarWithTimeout,
+} from "@refarm.dev/sidecar-client";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -27,9 +30,6 @@ import {
 	sessionParticipantFields,
 } from "./session-participants.js";
 import { reportSidecarError } from "./sidecar-error.js";
-import {
-	fetchSidecarWithTimeout,
-} from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 
 interface SessionNode {

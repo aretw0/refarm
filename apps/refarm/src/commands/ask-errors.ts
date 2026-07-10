@@ -1,4 +1,3 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -6,6 +5,7 @@ import {
 } from "@refarm.dev/capabilities/envelope";
 import { RUNTIME_AGENT_PLUGIN_ID } from "@refarm.dev/config";
 import chalk from "chalk";
+import { refarmCommand } from "../brand.js";
 import type { AskJsonResult } from "./ask.js";
 import {
 	AGENT_FINISH_AFTER_EDIT_RUN_JSON_COMMAND,

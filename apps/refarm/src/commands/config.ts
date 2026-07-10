@@ -1,4 +1,3 @@
-import { refarmCommand } from "@refarm.dev/cli/command-handoff";
 import {
 	buildJsonSuccessEnvelope,
 	printJson,
@@ -12,6 +11,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import os from "node:os";
 import path from "node:path";
+import { refarmCommand } from "../brand.js";
 import {
 	OPEN_EXTERNAL_LINKS_ENV_VAR,
 	parseOpenExternalLinksMode,

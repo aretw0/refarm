@@ -3,7 +3,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import { quoteCommandArg, refarmCommand, workspaceCommand } from "@refarm.dev/cli/command-handoff";
+import { quoteCommandArg, workspaceCommand } from "@refarm.dev/cli/command-handoff";
 import { defaultRefarmConfigPath } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
@@ -12,6 +12,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
+import { refarmCommand } from "../brand.js";
 
 interface InitOptions {
   force?: boolean;
