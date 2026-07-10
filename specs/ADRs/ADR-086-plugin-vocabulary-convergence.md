@@ -268,10 +268,36 @@ transition; removal is a later, separate decision (a MAJOR, tracked below).
         (6 tests: verify-pass, integrity-mismatch reject, descriptor/wasm fetch
         failure, invalid descriptor, malformed integrity). No execution at
         install — only fetch + verify + store.
-    7b. **(still loud not-wired)** `npm` (package resolution + build) and `git`
-        (clone + build) remain follow-ons; the p2p transport behind
-        `createPeerAssetResolver` is dormant (the verify gate is wired, the
-        transport is not).
+    7b. ✅ **DONE** (`npm`). `plugin install @scope/pkg`. A resolved npm package
+        is just a directory shipping a `plugin.json` + its entry, so npm install =
+        `resolvePluginPackage` → locate the manifest (root or `dist/`) →
+        `buildExtensionInstallReport`. npm gains the local installer's EXACT gate
+        (review + grants + integrity) + content-store. Scope (like url): resolves a
+        package ALREADY present (workspace or installed dep); a missing package
+        fails loud ("add it as a dependency, then retry"), never a stateful
+        `npm install` from inside the command. 5 tests.
+    7c. **(still loud not-wired)** `git` remains a follow-on. Finding: a git repo is
+        just a directory, so `git install` = clone → local-install and would inherit
+        multi-kind for free; but the repo's convention is that installers DON'T build
+        (even the bundled path tells the user to build manually), so a git install
+        would clone a repo that already SHIPS its built entry — a clone helper is the
+        only new piece. The p2p transport behind `createPeerAssetResolver` is dormant
+        (the verify gate is wired, the transport is not).
+
+8.  ✅ **DONE — multi-kind installer** (e1c38523 + db10b25b). Arthur's question — "not
+    all plugins are WASM; some are just skill or JS; must everything ship WASM?" —
+    surfaced that the manifest is already multi-modal (`EntryFormat` js|mjs|cjs|wasm;
+    integrity required only for `.wasm`, validate.js:198) but the INSTALLER was
+    WASM-only. Generalized: `buildExtensionInstallReport` (and the `url` fetch path)
+    resolve the entry for ANY supported format via `detectEntryFormat`, preserving
+    the entry's basename (a `.js` lands as `plugin.js`, not forced to `plugin.wasm`);
+    integrity is verified when declared; an unknown format is rejected. local/npm/url
+    all install any code entry. SKILLS are NOT an installer gap — they have their own
+    mature content-addressed door (`skill import`), and conflating prose-with-assets
+    (skill) with a code artifact (plugin) would be the wrong convergence; plugin-bundled
+    `assets[]` is a latent manifest feature with no current consumer. Unifying
+    `plugin install` + `skill import` is a larger architectural question, not pursued
+    speculatively.
 
 ## White-label seam: injectable bundled set (done, alongside the rollout)
 
