@@ -1,6 +1,6 @@
 # ADR-086: Plugin Vocabulary Convergence — One Verb, N Natures
 
-**Status**: Proposed
+**Status**: Accepted (CLI convergence phases 1-4 implemented + tested; phases 5-7 are follow-ons)
 **Date**: 2026-07-10
 **Deciders**: Arthur Silva, Refarm agents
 **Related**: ADR-085 (Open Surface Projection Axis — unifies *surfaces*; this ADR
@@ -222,31 +222,31 @@ transition; removal is a later, separate decision (a MAJOR, tracked below).
 
 ## Rollout (phased, not one commit)
 
-1a. **DONE.** `plugin review` moves onto the canonical `plugin` CapabilityGroup
-    (the non-colliding gate). Builder neutralized with `commandName`; `extension
-    review` stays byte-identical; proven by pins + e2e. (`plugin new` is split to
-    1b — its scaffold mixes validate/fs/print and needs a pure builder extracted
-    first.)
-1b. `plugin new` — extract a pure report builder from `newExtension` (today it
-    mixes validation + fs writes + print), then mount it as a `plugin` verb;
-    `extension new` → alias. Behavior identical, tested.
-2.  `plugin list --origin` (unify the two lists behind one origin-filtered reader
-    over the `PluginOrigin` vocab; `extension list` → alias for `--origin local`).
-    The app-owned report carries the richer origin first; `local`/`installed`/
-    `bundled` resolve, `npm`/`git`/`url` are valid-but-empty until the resolver.
-    Behavior identical per origin, tested.
-3.  `plugin install <ref> | --bundled` (unify the two installs with origin-from-
-    reference + nature-from-manifest routing; `extension install <path>` → alias).
-    `local` + `bundled` origins wired; `npm`/`git`/`url` admitted by the verb but
-    logged as not-yet-resolvable. Both wired branches byte-stable, tested — the
-    highest-risk slice, last.
-4.  `extension` becomes a pure deprecated alias command (forward + stderr notice);
-    handoffs regenerated. Removal tracked as a future MAJOR.
-5.  **(§8, serialized)** Converge `PluginListEntry.source` +
-    `PluginPackageSource` (barn) + `install-plugin` provenance (tractor-ts) onto
-    the one `PluginOrigin` vocabulary the CLI already reports — under lock/handoff
-    policy, after the app-owned surface has proven the shape.
-6.  **(resolver seam, separate track)** Wire the `npm`/`git`/`url`/p2p resolvers
+1a. ✅ **DONE** (3cd6379a). `plugin review` moves onto the canonical `plugin`
+    CapabilityGroup (the non-colliding gate). Builder neutralized with
+    `commandName`; `extension review` stays byte-identical; proven by pins + e2e.
+1b. ✅ **DONE** (c23bd72e). `plugin new` — extracted a pure report builder from
+    `newExtension` into the leaf `extension-scaffold.ts` (which also broke the
+    registry import cycle); mounted as a `plugin` verb; `extension new` unchanged.
+2.  ✅ **DONE** (1344060d). `plugin list --origin` unifies the two lists behind one
+    origin-filtered reader over the `PluginOrigin` vocab. bundled + local resolve;
+    npm/git/url are valid-but-empty; unknown origin fails loud.
+3.  ✅ **DONE** (fbbab3e2). `plugin install <ref> | --bundled` unifies the two
+    installs with origin-from-reference (`detectPluginOrigin`) + the same
+    review-first gate. local + bundled wired; npm/git/url fail loud (not-wired).
+4.  ✅ **DONE** (ca66e55c). `extension` becomes a deprecated alias: a preAction hook
+    emits a stderr notice pointing at the `plugin` equivalent (suppressed on
+    `--json`); help documents the mapping. Removal is a future MAJOR.
+5.  **(file rename, app-only)** Rename `extension*.ts` → `plugin*.ts` so the SOURCE
+    vocabulary matches the command vocabulary (Arthur: "iremos mudar os arquivos de
+    extension para plugin também"). git mv + repoint imports; behavior-neutral.
+    Deferred until the CLI convergence settled (done) to keep each rename diff a
+    pure move, not tangled with logic changes.
+6.  **(§8, serialized)** Converge `PluginListEntry.source` + `PluginPackageSource`
+    (barn) + `install-plugin` provenance (tractor-ts) onto the one `PluginOrigin`
+    vocabulary the CLI already reports — under lock/handoff policy, after the
+    app-owned surface has proven the shape.
+7.  **(resolver seam, separate track)** Wire the `npm`/`git`/`url`/p2p resolvers
     behind `plugin install <ref>` (content-addressed identity, per the
     plugin-resolver work). Until then, those origins fail loudly with a
     "resolver not wired" envelope, never a silent no-op.
