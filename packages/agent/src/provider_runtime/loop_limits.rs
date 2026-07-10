@@ -21,3 +21,18 @@ pub(crate) fn max_output_tokens() -> u32 {
         .filter(|&n| n > 0)
         .unwrap_or(DEFAULT_MAX_OUTPUT_TOKENS)
 }
+
+/// Whether to mark the stable request prefix (system prompt + tool schemas) with
+/// Anthropic `cache_control`, so re-sends across agentic iterations hit the prompt
+/// cache instead of re-billing the full prefix every turn. Opt-in via
+/// `MODEL_PROMPT_CACHE` (matching the agent's other opt-in toggles); default OFF so
+/// providers/proxies that don't understand the field are never sent it unexpectedly.
+///
+/// The agent already *reads* `cache_read_input_tokens` for cost accounting; this is
+/// the missing *write* side that actually creates the cache.
+pub(crate) fn prompt_cache_enabled() -> bool {
+    matches!(
+        std::env::var("MODEL_PROMPT_CACHE").ok().as_deref(),
+        Some("1") | Some("true") | Some("on")
+    )
+}

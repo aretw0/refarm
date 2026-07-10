@@ -158,6 +158,8 @@ fn provider_runtime_build_openai_codex_body_uses_responses_shape() {
 
 #[test]
 fn provider_runtime_build_anthropic_body_includes_expected_fields() {
+    let _guard = super::ENV_LOCK.lock().expect("env lock");
+    std::env::remove_var("MODEL_PROMPT_CACHE");
     let body = crate::provider_runtime::build_anthropic_body(
         "m2",
         "sys",
@@ -166,12 +168,36 @@ fn provider_runtime_build_anthropic_body_includes_expected_fields() {
     );
     let v: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(v["model"], "m2");
+    // Caching OFF (default): system stays a plain string, tools carry no cache_control.
     assert_eq!(v["system"], "sys");
+    assert!(v["tools"][0].get("cache_control").is_none());
     // No MODEL_MAX_TOKENS in the env → the default ceiling (not the old hardcoded 1024).
     assert_eq!(v["max_tokens"], 4096);
     assert_eq!(v["messages"][0]["role"], "user");
     assert_eq!(v["tools"][0]["name"], "read_file");
     assert!(v.get("stream").is_none());
+}
+
+#[test]
+fn provider_runtime_anthropic_body_marks_prompt_cache_when_enabled() {
+    let _guard = super::ENV_LOCK.lock().expect("env lock");
+    std::env::set_var("MODEL_PROMPT_CACHE", "1");
+    let body = crate::provider_runtime::build_anthropic_body(
+        "m2",
+        "sys",
+        &[serde_json::json!({"role":"user","content":"hi"})],
+        serde_json::json!([{"name":"read_file"}, {"name":"write_file"}]),
+    );
+    std::env::remove_var("MODEL_PROMPT_CACHE");
+    let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+    // system becomes a cached text block (the stable prefix billed once, then read).
+    assert_eq!(v["system"][0]["type"], "text");
+    assert_eq!(v["system"][0]["text"], "sys");
+    assert_eq!(v["system"][0]["cache_control"]["type"], "ephemeral");
+    // The LAST tool carries the cache breakpoint; earlier tools do not.
+    assert!(v["tools"][0].get("cache_control").is_none());
+    assert_eq!(v["tools"][1]["cache_control"]["type"], "ephemeral");
+    assert_eq!(v["tools"][1]["name"], "write_file");
 }
 
 #[test]
