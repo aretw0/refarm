@@ -248,7 +248,12 @@ pub(crate) async fn spawn_process(
             std::process::Stdio::piped()
         } else {
             std::process::Stdio::null()
-        });
+        })
+        // Put the child in its OWN process group (its PID becomes the PGID), so any
+        // grandchild it forks (`bash -c 'sleep 999 &'`) joins that group. On timeout
+        // we kill the whole group, not just the direct PID — otherwise the grandchild
+        // survives as an orphan reparented to init. Unix-only; harmless elsewhere.
+        .process_group(0);
 
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
@@ -283,10 +288,28 @@ pub(crate) async fn spawn_process(
         Err(_) => {
             stdout_task.abort();
             stderr_task.abort();
-            let _ = child.kill().await;
+            // Kill the whole process GROUP (negative PGID), so forked grandchildren die
+            // too. The child leads its own group (`process_group(0)` above), so its PID
+            // is the PGID. Fall back to killing just the child if the PID is already gone.
+            kill_process_group(&mut child).await;
             Ok((vec![], b"process killed: timeout exceeded".to_vec(), -1, true))
         }
     }
+}
+
+/// SIGKILL the child's process group so grandchildren (forked `&` jobs) die with it,
+/// then reap the child. `child` leads its own group (see `process_group(0)` at spawn),
+/// so its PID is the group id; `kill(-pgid, SIGKILL)` targets the group.
+async fn kill_process_group(child: &mut tokio::process::Child) {
+    if let Some(pid) = child.id() {
+        // SAFETY: `kill` with a negative pid targets the process group; SIGKILL is a
+        // plain signal number. No memory is touched. A dead group returns ESRCH, ignored.
+        unsafe {
+            libc::kill(-(pid as i32), libc::SIGKILL);
+        }
+    }
+    // Still reap the direct child so it doesn't linger as a zombie.
+    let _ = child.kill().await;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

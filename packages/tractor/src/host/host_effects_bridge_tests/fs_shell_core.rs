@@ -1339,6 +1339,60 @@
         );
     }
 
+    /// The orphaned-grandchild footgun: a `bash` that forks a background job (`&`) used
+    /// to leave that grandchild alive after the spawn timed out — `child.kill()` SIGKILLs
+    /// only the direct PID. With `process_group(0)` + a group kill, the grandchild dies
+    /// too. Proven by a sentinel file the grandchild appends to forever: after the kill,
+    /// the file must STOP growing.
+    #[tokio::test]
+    async fn spawn_timeout_kills_forked_grandchild_not_just_the_child() {
+        let _guard = env_lock();
+        // sh may not support job control the same way; require bash for the `&` fork.
+        let bash_ok = std::process::Command::new("bash")
+            .arg("-c")
+            .arg("true")
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if !bash_ok {
+            eprintln!("skipping grandchild-kill test: bash is not runnable");
+            return;
+        }
+
+        let temp = tempfile::tempdir().unwrap();
+        let sentinel = temp.path().join("grandchild-alive.log");
+        let sentinel_str = sentinel.to_string_lossy().to_string();
+
+        // The grandchild appends a byte every 50ms FOREVER, backgrounded (`&`); the
+        // parent bash then sleeps past the spawn timeout, so the spawn times out with
+        // the grandchild still running.
+        let script = format!(
+            "( while true; do printf x >> '{sentinel}'; sleep 0.05; done ) & sleep 30",
+            sentinel = sentinel_str
+        );
+        let argv = vec!["bash".to_string(), "-c".to_string(), script];
+
+        // 500ms timeout: the parent's `sleep 30` overruns it → timeout branch fires.
+        let (_out, _err, _code, timed_out) =
+            spawn_process(&argv, &[], None, 500, None, &HostEffectPolicy::default())
+                .await
+                .expect("spawn should return a timeout result, not an error");
+        assert!(timed_out, "the spawn must have timed out");
+
+        // Give the group kill a moment, then record the size and wait again: if the
+        // grandchild were still alive it would keep appending and the size would grow.
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        let size_after_kill = std::fs::metadata(&sentinel).map(|m| m.len()).unwrap_or(0);
+        tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+        let size_later = std::fs::metadata(&sentinel).map(|m| m.len()).unwrap_or(0);
+
+        assert_eq!(
+            size_later, size_after_kill,
+            "the forked grandchild must be dead after the timeout kill — the sentinel \
+             file stopped growing (was {size_after_kill}, still {size_later})"
+        );
+    }
+
     const FAKE_CODE_OPS_LSP_SERVER: &str = r#"
 import json
 import sys

@@ -40,6 +40,10 @@ loro = "~1.10"
 # Async runtime + WebSocket daemon + HTTP sidecar (ADR-060)
 tokio             = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+# POSIX process-group kill for the spawn tool: a bash child that forks (`sleep &`)
+# must be killed as a GROUP on timeout, not just the direct PID, or grandchildren
+# survive as orphans. Already in the lock transitively; pinned as a direct dep.
+libc              = "0.2"
 futures-util      = "0.3"
 axum              = { version = "0.7", default-features = false, features = ["json", "tokio", "http1", "macros", "query"] }
 tower             = { version = "0.4", default-features = false }
