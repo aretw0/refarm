@@ -58,4 +58,18 @@ describe("capability → homestead web bridge (ADR-085)", () => {
 		const result = (await handle.call?.("renderHomesteadSurface", {})) as { html: string };
 		expect(result.html).toContain("No verb declares a web surface");
 	});
+
+	it("injects a content projector's HTML (from host.data) above the cards — the MOC seam", async () => {
+		// The generic content seam: a host runs its verb, puts the structured result on
+		// host.data, and the content projector turns it into HTML rendered above the cards.
+		// This is how a verb shows its CONTENT (a MOC, a dashboard) not just launcher cards.
+		const handle = createCapabilityWebSurfacePlugin(registry, {
+			content: (data) => `<nav data-moc>${data.moc ?? ""}</nav>`,
+		});
+		const request = { host: { hostId: "test", data: { moc: "REQ-1 · REQ-2" } } };
+		const result = (await handle.call?.("renderHomesteadSurface", request)) as { html: string };
+		expect(result.html).toContain("<nav data-moc>REQ-1 · REQ-2</nav>");
+		// Content sits ABOVE the launcher cards.
+		expect(result.html.indexOf("data-moc")).toBeLessThan(result.html.indexOf("refarm-btn-pill"));
+	});
 });

@@ -32,6 +32,16 @@ export interface CapabilityWebSurfaceOptions {
 	surfaceId?: string;
 	/** Panel heading shown above the verb cards. */
 	title?: string;
+	/**
+	 * OPTIONAL content projector — render extra structured HTML ABOVE the verb cards from
+	 * the host's per-render data (`request.host.data`). This is how a host shows a verb's
+	 * actual CONTENT (a requirements Map of Content, a dashboard summary) and not just
+	 * launcher cards, WITHOUT the bridge forking per app: the host runs its verb, puts the
+	 * structured result on `host.data`, and this turns it into DS-styled HTML. Return "" to
+	 * show cards only. Generic — every capability host reuses it (the higher-leverage seam
+	 * than a per-example bespoke panel).
+	 */
+	content?: (data: Record<string, unknown>) => string;
 }
 
 const DEFAULTS = {
@@ -56,9 +66,10 @@ function escape(value: string): string {
 function renderCapabilityWebPanel(
 	registry: CapabilityRegistry,
 	title: string,
+	content = "",
 ): string {
 	const model = webSurfaceModel(registry);
-	if (model.sections.length === 0) {
+	if (model.sections.length === 0 && !content) {
 		return `<section class="refarm-surface-card refarm-stack" data-capability-web-surface>
 			<p class="refarm-eyebrow">${escape(title)}</p>
 			<p>No verb declares a web surface yet. Add <code class="refarm-code">renderers.web</code> to a verb.</p>
@@ -84,8 +95,12 @@ function renderCapabilityWebPanel(
 			</div>`;
 		})
 		.join("");
+	// Content (a verb's structured result — e.g. a MOC) renders ABOVE the launcher cards:
+	// what the surface IS, then how to act on it. The content HTML is host-supplied and
+	// already DS-shaped; it is trusted as the host's own render, not escaped here.
 	return `<section class="refarm-surface-card refarm-stack" data-capability-web-surface>
 		<p class="refarm-eyebrow">${escape(title)}</p>
+		${content}
 		${sections}
 	</section>`;
 }
@@ -121,10 +136,15 @@ export function createCapabilityWebSurfacePlugin(
 		id: pluginId,
 		name,
 		surfaces: [{ kind: "panel", id: surfaceId, slot, capabilities: ["ui:panel:render"] }],
-		call: async (fn: string, _args?: unknown): Promise<HomesteadSurfaceRenderResult> =>
-			fn === "renderHomesteadSurface"
-				? { html: renderCapabilityWebPanel(registry, title) }
-				: null,
+		call: async (fn: string, args?: unknown): Promise<HomesteadSurfaceRenderResult> => {
+			if (fn !== "renderHomesteadSurface") return null;
+			// The host's per-render data (request.host.data) — where a host puts a verb's
+			// structured result for the content projector to turn into HTML.
+			const data =
+				(args as HomesteadSurfaceRenderRequest | undefined)?.host?.data ?? {};
+			const content = options.content ? options.content(data) : "";
+			return { html: renderCapabilityWebPanel(registry, title, content) };
+		},
 	});
 }
 

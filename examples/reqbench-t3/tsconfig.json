@@ -8,23 +8,31 @@
 		"rootDir": "src",
 		"baseUrl": "../..",
 		"paths": {
-		"@refarm.dev/capability-host": [
-			"packages/capability-host/dist/index.d.ts"
-		],
-		"@refarm.dev/capability-host/node": [
-			"packages/capability-host/dist/node.d.ts"
-		],
-		"@refarm.dev/source-web": ["packages/source-web/dist/index.d.ts"],
-		"@refarm.dev/records-contract-v1": [
-			"packages/records-contract-v1/dist/index.d.ts"
-		],
+			"@refarm.dev/capability-host": [
+				"packages/capability-host/dist/index.d.ts"
+			],
+			"@refarm.dev/capability-host/node": [
+				"packages/capability-host/dist/node.d.ts"
+			],
+			"@refarm.dev/source-web": [
+				"packages/source-web/dist/index.d.ts"
+			],
+			"@refarm.dev/records-contract-v1": [
+				"packages/records-contract-v1/dist/index.d.ts"
+			],
 			"@refarm.dev/enrichment-contract-v1": [
 				"packages/enrichment-contract-v1/dist/index.d.ts"
+			],
+			"@refarm.dev/capability-homestead-surface": [
+				"packages/capability-homestead-surface/dist/index.d.ts"
 			]
 		}
 	},
 	"include": [
 		"src/**/*"
 	],
-	"exclude": ["node_modules", "dist"]
+	"exclude": [
+		"node_modules",
+		"dist"
+	]
 }

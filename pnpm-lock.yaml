@@ -477,6 +477,9 @@ importers:
 
   examples/reqbench-t3:
     dependencies:
+      '@refarm.dev/capability-homestead-surface':
+        specifier: workspace:*
+        version: link:../../packages/capability-homestead-surface
       '@refarm.dev/capability-host':
         specifier: workspace:*
         version: link:../../packages/capability-host

@@ -1,27 +1,28 @@
 {
-  "name": "reqbench-t3",
-  "version": "0.0.0",
-  "private": true,
-  "description": "T3 POC (result mode): a DGK requirements bench — discover, enrich, correct, and read a navigable MOC.",
-  "type": "module",
-  "bin": {
-    "dgk": "./dist/cli.js"
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run",
-    "dgk": "node dist/cli.js",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "@refarm.dev/capability-host": "workspace:*",
-    "@refarm.dev/enrichment-contract-v1": "workspace:*",
-    "@refarm.dev/records-contract-v1": "workspace:*",
-    "@refarm.dev/source-web": "workspace:*"
-  },
-  "devDependencies": {
-    "@refarm.dev/tsconfig": "workspace:*",
-    "@refarm.dev/vtconfig": "workspace:*"
-  }
+	"name": "reqbench-t3",
+	"version": "0.0.0",
+	"private": true,
+	"description": "T3 POC (result mode): a DGK requirements bench — discover, enrich, correct, and read a navigable MOC.",
+	"type": "module",
+	"bin": {
+		"dgk": "./dist/cli.js"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"dgk": "node dist/cli.js",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@refarm.dev/capability-host": "workspace:*",
+		"@refarm.dev/enrichment-contract-v1": "workspace:*",
+		"@refarm.dev/records-contract-v1": "workspace:*",
+		"@refarm.dev/source-web": "workspace:*",
+		"@refarm.dev/capability-homestead-surface": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
 }

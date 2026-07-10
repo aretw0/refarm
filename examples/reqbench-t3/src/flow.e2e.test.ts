@@ -9,6 +9,7 @@ import {
 	buildRequirementsBaseModel,
 	serveReqbench,
 } from "./cli.js";
+import { renderRequirementsMocHtml, reqWebSurface } from "./persona.js";
 import { REQ_SYSTEM_REF } from "./fixture.js";
 
 const harness = createCapabilityTestHarness({ tempPrefix: "dgk-requirements-state-" });
@@ -177,5 +178,47 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		} finally {
 			await close();
 		}
+	});
+
+	it("renders the MOC as NAVIGABLE web HTML (structured, not raw markdown)", () => {
+		// T3 richness: the MOC is markdown-with-wikilinks; the web needs native nav, not
+		// literal `- [[link|title]]`. renderRequirementsMocHtml projects the same structured
+		// groups/records into <nav>/<ul><li><a> with DS classes.
+		const env = {
+			by: "reviewState",
+			summary: { total: 2, byState: { draft: 2 } },
+			groups: [
+				{
+					key: "draft",
+					label: "draft",
+					count: 2,
+					records: [
+						{ title: "Cadastro de obrigação acessória", link: "req-cadastro.md" },
+						{ title: "Validação de CNPJ", link: "req-validacao.md" },
+					],
+				},
+			],
+		} as never;
+		const html = renderRequirementsMocHtml(env);
+		expect(html).toContain("data-requirements-moc");
+		expect(html).toContain("Cadastro de obrigação acessória");
+		expect(html).toContain('<a href="req-cadastro.md"');
+		// Structured, not markdown: no literal wikilink syntax.
+		expect(html).not.toContain("[[");
+	});
+
+	it("the bench web surface injects the MOC content above the launcher cards (content seam)", async () => {
+		// T3 as a web PRODUCT: the bridge renders the requirements launcher card AND the
+		// navigable MOC (supplied via host.data.mocHtml by the content seam) above it.
+		const handle = reqWebSurface(buildRegistry());
+		const request = {
+			host: { hostId: "test", data: { mocHtml: '<nav data-requirements-moc>REQ MAP</nav>' } },
+		};
+		const result = (await handle.call?.("renderHomesteadSurface", request)) as { html: string };
+		expect(result.html).toContain("Bancada de Requisitos");
+		expect(result.html).toContain("data-requirements-moc");
+		expect(result.html).toContain("REQ MAP");
+		// The requirements launcher card is present too.
+		expect(result.html).toContain("requirements");
 	});
 });
