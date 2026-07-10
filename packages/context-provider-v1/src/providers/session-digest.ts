@@ -48,9 +48,7 @@ export class SessionDigestContextProvider implements ContextProvider {
 
 			const lines = efforts.map((e) => {
 				const taskCount = e.tasks?.length ?? "?";
-				const date = e.submittedAt
-					? e.submittedAt.slice(0, 10)
-					: "unknown";
+				const date = e.submittedAt ? e.submittedAt.slice(0, 10) : "unknown";
 				return `- ${e.id}  status=${e.status}  tasks=${taskCount}  date=${date}`;
 			});
 

@@ -1,15 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-	createTurboCacheServicePlan,
-	turboCacheManifest,
-} from "@refarm.dev/infra-turbo-cache";
+import { createTurboCacheServicePlan, turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
 import type { TurboCacheServicePlan } from "@refarm.dev/infra-turbo-cache";
-import {
-	DEFAULT_RETENTION_POLICY,
-	type RetentionPolicy,
-} from "@refarm.dev/policy-contract-v1";
+import { DEFAULT_RETENTION_POLICY, type RetentionPolicy } from "@refarm.dev/policy-contract-v1";
 import type { CloudflareProvider } from "../../provider.js";
 import type { CloudflareProvisionPlan } from "../../types.js";
 
@@ -29,8 +23,7 @@ export interface CloudflareTurboCacheProvisionInput {
 	dryRun?: boolean;
 }
 
-export type CloudflareTurboCacheProvisionPlan =
-	CloudflareProvisionPlan<TurboCacheServicePlan>;
+export type CloudflareTurboCacheProvisionPlan = CloudflareProvisionPlan<TurboCacheServicePlan>;
 
 export interface CloudflareTurboCacheProvisionOutput {
 	workerUrl: string;
@@ -69,8 +62,7 @@ export function createCloudflareTurboCacheProvisionPlan(
 				kind: "worker",
 				action: "deploy",
 				name: workerName,
-				description:
-					"Cloudflare Worker implementing Turborepo Remote Cache API v8",
+				description: "Cloudflare Worker implementing Turborepo Remote Cache API v8",
 			},
 		],
 		ciSecrets: turboCacheManifest.ciSecrets,
@@ -109,11 +101,7 @@ export class CloudflareTurboCacheProvisioner {
 	}
 
 	private async setSecret(key: string, value: string): Promise<void> {
-		await this.provider.execWithStdin(
-			["secret", "put", key],
-			value,
-			WORKER_DIR,
-		);
+		await this.provider.execWithStdin(["secret", "put", key], value, WORKER_DIR);
 	}
 
 	private async ensureWorkersSubdomain(): Promise<void> {
@@ -130,7 +118,7 @@ export class CloudflareTurboCacheProvisioner {
 			const url = `https://dash.cloudflare.com/${this.provider.accountId}/workers-and-pages`;
 			throw new Error(
 				`Could not auto-register a workers.dev subdomain (name conflict).\n` +
-				`Choose a subdomain at: ${url}`,
+					`Choose a subdomain at: ${url}`,
 			);
 		}
 	}

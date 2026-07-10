@@ -10,15 +10,15 @@ export const CONFIG_NODE_DEFAULT_ID = "urn:refarm:config:workspace";
 export const CONFIG_NODE_REDACTION = "<redacted>";
 
 export const CONFIG_NODE_REDACTION_KEY_PATTERNS = [
-    "accessToken",
-    "apiKey",
-    "clientSecret",
-    "credential",
-    "password",
-    "privateKey",
-    "refreshToken",
-    "secret",
-    "token",
+	"accessToken",
+	"apiKey",
+	"clientSecret",
+	"credential",
+	"password",
+	"privateKey",
+	"refreshToken",
+	"secret",
+	"token",
 ];
 
 /**
@@ -49,53 +49,53 @@ export const CONFIG_NODE_REDACTION_KEY_PATTERNS = [
  * even if a future writer ever puts them on the config.
  */
 export const CONFIG_NODE_DEVICE_LOCAL_KEYS = [
-    "autostart",
-    "engine",
-    "hostPath",
-    "MODEL_FS_ROOT",
-    "MODEL_SHELL_ALLOWLIST",
-    "path",
-    "peerId",
-    "sidecarUrl",
+	"autostart",
+	"engine",
+	"hostPath",
+	"MODEL_FS_ROOT",
+	"MODEL_SHELL_ALLOWLIST",
+	"path",
+	"peerId",
+	"sidecarUrl",
 ];
 
 function canonicalJson(value) {
-    if (Array.isArray(value)) {
-        return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
-    }
-    if (value && typeof value === "object") {
-        return `{${Object.keys(value)
-            .sort()
-            .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
-            .join(",")}}`;
-    }
-    return JSON.stringify(value);
+	if (Array.isArray(value)) {
+		return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
+	}
+	if (value && typeof value === "object") {
+		return `{${Object.keys(value)
+			.sort()
+			.map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+			.join(",")}}`;
+	}
+	return JSON.stringify(value);
 }
 
 function sha256(value) {
-    return createHash("sha256").update(value).digest("hex");
+	return createHash("sha256").update(value).digest("hex");
 }
 
 function isPlainObject(value) {
-    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function normalizePattern(pattern) {
-    return String(pattern).toLowerCase();
+	return String(pattern).toLowerCase();
 }
 
 function pathLabel(pathParts) {
-    return pathParts.join(".");
+	return pathParts.join(".");
 }
 
 function shouldRedactKey(key, patterns) {
-    const normalizedKey = String(key).toLowerCase();
-    return patterns.some((pattern) => normalizedKey.includes(pattern));
+	const normalizedKey = String(key).toLowerCase();
+	return patterns.some((pattern) => normalizedKey.includes(pattern));
 }
 
 function shouldDropKey(key, deviceLocalKeys) {
-    const normalizedKey = String(key).toLowerCase();
-    return deviceLocalKeys.some((deviceLocal) => normalizedKey === deviceLocal);
+	const normalizedKey = String(key).toLowerCase();
+	return deviceLocalKeys.some((deviceLocal) => normalizedKey === deviceLocal);
 }
 
 // Sentinel: an object that became empty BECAUSE its only contents were device-local.
@@ -105,67 +105,67 @@ function shouldDropKey(key, deviceLocalKeys) {
 const DROP = Symbol("device-local-empty");
 
 function redactValue(value, options, pathParts = []) {
-    const patterns = options.patterns.map(normalizePattern);
-    const deviceLocalKeys = options.deviceLocalKeys.map(normalizePattern);
-    const redactions = [];
-    const dropped = [];
+	const patterns = options.patterns.map(normalizePattern);
+	const deviceLocalKeys = options.deviceLocalKeys.map(normalizePattern);
+	const redactions = [];
+	const dropped = [];
 
-    function visit(current, currentPath) {
-        if (Array.isArray(current)) {
-            return current.map((item, index) => visit(item, [...currentPath, String(index)]));
-        }
+	function visit(current, currentPath) {
+		if (Array.isArray(current)) {
+			return current.map((item, index) => visit(item, [...currentPath, String(index)]));
+		}
 
-        if (!isPlainObject(current)) {
-            return current;
-        }
+		if (!isPlainObject(current)) {
+			return current;
+		}
 
-        const output = {};
-        let sawEntry = false;
-        let droppedDeviceLocalHere = false;
-        for (const [key, child] of Object.entries(current)) {
-            sawEntry = true;
-            const childPath = [...currentPath, key];
-            // Device-local BEFORE secret: a device-local subtree vanishes as a whole
-            // (a nested secret goes with it), so the two stacks agree on shape.
-            if (shouldDropKey(key, deviceLocalKeys)) {
-                dropped.push(pathLabel(childPath));
-                droppedDeviceLocalHere = true;
-                continue;
-            }
-            if (shouldRedactKey(key, patterns)) {
-                output[key] = CONFIG_NODE_REDACTION;
-                redactions.push(pathLabel(childPath));
-                continue;
-            }
-            const visited = visit(child, childPath);
-            if (visited === DROP) {
-                dropped.push(pathLabel(childPath));
-                droppedDeviceLocalHere = true;
-                continue;
-            }
-            output[key] = visited;
-        }
-        // Prune a container ONLY when the strip emptied it — a legitimately-empty
-        // device-global object (no device-local key removed) is preserved as-is.
-        if (sawEntry && droppedDeviceLocalHere && Object.keys(output).length === 0) {
-            return DROP;
-        }
-        return output;
-    }
+		const output = {};
+		let sawEntry = false;
+		let droppedDeviceLocalHere = false;
+		for (const [key, child] of Object.entries(current)) {
+			sawEntry = true;
+			const childPath = [...currentPath, key];
+			// Device-local BEFORE secret: a device-local subtree vanishes as a whole
+			// (a nested secret goes with it), so the two stacks agree on shape.
+			if (shouldDropKey(key, deviceLocalKeys)) {
+				dropped.push(pathLabel(childPath));
+				droppedDeviceLocalHere = true;
+				continue;
+			}
+			if (shouldRedactKey(key, patterns)) {
+				output[key] = CONFIG_NODE_REDACTION;
+				redactions.push(pathLabel(childPath));
+				continue;
+			}
+			const visited = visit(child, childPath);
+			if (visited === DROP) {
+				dropped.push(pathLabel(childPath));
+				droppedDeviceLocalHere = true;
+				continue;
+			}
+			output[key] = visited;
+		}
+		// Prune a container ONLY when the strip emptied it — a legitimately-empty
+		// device-global object (no device-local key removed) is preserved as-is.
+		if (sawEntry && droppedDeviceLocalHere && Object.keys(output).length === 0) {
+			return DROP;
+		}
+		return output;
+	}
 
-    const visited = visit(value, pathParts);
-    return {
-        value: visited === DROP ? {} : visited,
-        redactions,
-        dropped,
-    };
+	const visited = visit(value, pathParts);
+	return {
+		value: visited === DROP ? {} : visited,
+		redactions,
+		dropped,
+	};
 }
 
 export function redactConfigForNode(config, options = {}) {
-    return redactValue(config ?? {}, {
-        patterns: options.redactionKeyPatterns ?? CONFIG_NODE_REDACTION_KEY_PATTERNS,
-        deviceLocalKeys: options.deviceLocalKeys ?? CONFIG_NODE_DEVICE_LOCAL_KEYS,
-    });
+	return redactValue(config ?? {}, {
+		patterns: options.redactionKeyPatterns ?? CONFIG_NODE_REDACTION_KEY_PATTERNS,
+		deviceLocalKeys: options.deviceLocalKeys ?? CONFIG_NODE_DEVICE_LOCAL_KEYS,
+	});
 }
 
 /**
@@ -176,47 +176,47 @@ export function redactConfigForNode(config, options = {}) {
  * `runtime.sidecarUrl`) stops reading as drift.
  */
 export function toPortableConfig(config, options = {}) {
-    const deviceLocalKeys = (options.deviceLocalKeys ?? CONFIG_NODE_DEVICE_LOCAL_KEYS).map(
-        normalizePattern,
-    );
-    // Reuse the same walk with an empty redaction set: drop device-local keys, touch
-    // nothing else (secret redaction still happens later inside createConfigNode).
-    const { value } = redactValue(config ?? {}, { patterns: [], deviceLocalKeys });
-    return value;
+	const deviceLocalKeys = (options.deviceLocalKeys ?? CONFIG_NODE_DEVICE_LOCAL_KEYS).map(
+		normalizePattern,
+	);
+	// Reuse the same walk with an empty redaction set: drop device-local keys, touch
+	// nothing else (secret redaction still happens later inside createConfigNode).
+	const { value } = redactValue(config ?? {}, { patterns: [], deviceLocalKeys });
+	return value;
 }
 
 export function createConfigNode(config, options = {}) {
-    const { value: redactedConfig, redactions, dropped } = redactConfigForNode(config, options);
-    const configDigest = sha256(canonicalJson(redactedConfig));
-    const id = options.id ?? CONFIG_NODE_DEFAULT_ID;
+	const { value: redactedConfig, redactions, dropped } = redactConfigForNode(config, options);
+	const configDigest = sha256(canonicalJson(redactedConfig));
+	const id = options.id ?? CONFIG_NODE_DEFAULT_ID;
 
-    return {
-        schema: CONFIG_NODE_SCHEMA,
-        kind: CONFIG_NODE_KIND,
-        id,
-        revision: `sha256:${configDigest}`,
-        data: redactedConfig,
-        evidence: {
-            hashAlgorithm: "sha256",
-            configDigest,
-            redactedPaths: redactions.sort(),
-            deviceLocalPaths: dropped.sort(),
-            source: options.source ?? "loaded-config",
-        },
-        boundaries: [
-            "node data is redacted before hashing or graph handoff",
-            "runtime secrets stay outside graph-portable config nodes",
-            "device-local fields (paths, endpoints, per-host launch/exec) never replicate",
-            "host policy owns which config node revisions may be activated",
-        ],
-    };
+	return {
+		schema: CONFIG_NODE_SCHEMA,
+		kind: CONFIG_NODE_KIND,
+		id,
+		revision: `sha256:${configDigest}`,
+		data: redactedConfig,
+		evidence: {
+			hashAlgorithm: "sha256",
+			configDigest,
+			redactedPaths: redactions.sort(),
+			deviceLocalPaths: dropped.sort(),
+			source: options.source ?? "loaded-config",
+		},
+		boundaries: [
+			"node data is redacted before hashing or graph handoff",
+			"runtime secrets stay outside graph-portable config nodes",
+			"device-local fields (paths, endpoints, per-host launch/exec) never replicate",
+			"host policy owns which config node revisions may be activated",
+		],
+	};
 }
 
 export function configFromNode(node) {
-    if (!node || node.schema !== CONFIG_NODE_SCHEMA || node.kind !== CONFIG_NODE_KIND) {
-        throw new TypeError("Expected a refarm.config.node.v1 config node");
-    }
-    return node.data;
+	if (!node || node.schema !== CONFIG_NODE_SCHEMA || node.kind !== CONFIG_NODE_KIND) {
+		throw new TypeError("Expected a refarm.config.node.v1 config node");
+	}
+	return node.data;
 }
 
 /**
@@ -231,30 +231,30 @@ export function configFromNode(node) {
  * host's early-return). CONFORMANCE: keep in lockstep with refarm_config_json_from.
  */
 export function loadRawSovereignConfig(root = process.cwd()) {
-    const filePath = path.join(root, ".refarm", "config.json");
-    let raw;
-    try {
-        raw = fs.readFileSync(filePath, "utf-8");
-    } catch {
-        return null;
-    }
-    try {
-        return JSON.parse(raw);
-    } catch {
-        return null;
-    }
+	const filePath = path.join(root, ".refarm", "config.json");
+	let raw;
+	try {
+		raw = fs.readFileSync(filePath, "utf-8");
+	} catch {
+		return null;
+	}
+	try {
+		return JSON.parse(raw);
+	} catch {
+		return null;
+	}
 }
 
 export function loadConfigNode(root, options = {}) {
-    return createConfigNode(loadConfig(root), {
-        ...options,
-        source: options.source ?? "loadConfig",
-    });
+	return createConfigNode(loadConfig(root), {
+		...options,
+		source: options.source ?? "loadConfig",
+	});
 }
 
 export async function loadConfigNodeAsync(root, options = {}) {
-    return createConfigNode(await loadConfigAsync(root), {
-        ...options,
-        source: options.source ?? "loadConfigAsync",
-    });
+	return createConfigNode(await loadConfigAsync(root), {
+		...options,
+		source: options.source ?? "loadConfigAsync",
+	});
 }

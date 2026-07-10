@@ -8,14 +8,9 @@ import type {
 	HomesteadSurfaceRenderHostContext,
 } from "./surface-renderer.js";
 
-export const HOMESTEAD_HOST_RENDERER_KINDS = [
-	"web",
-	"tui",
-	"headless",
-] as const;
+export const HOMESTEAD_HOST_RENDERER_KINDS = ["web", "tui", "headless"] as const;
 
-export type HomesteadHostRendererKind =
-	(typeof HOMESTEAD_HOST_RENDERER_KINDS)[number];
+export type HomesteadHostRendererKind = (typeof HOMESTEAD_HOST_RENDERER_KINDS)[number];
 
 export const HOMESTEAD_HOST_RENDERER_CAPABILITIES = [
 	"surfaces",
@@ -28,8 +23,7 @@ export const HOMESTEAD_HOST_RENDERER_CAPABILITIES = [
 	"rich-html",
 ] as const;
 
-export type HomesteadHostRendererCapability =
-	(typeof HOMESTEAD_HOST_RENDERER_CAPABILITIES)[number];
+export type HomesteadHostRendererCapability = (typeof HOMESTEAD_HOST_RENDERER_CAPABILITIES)[number];
 
 export const DEFAULT_HOMESTEAD_HOST_RENDERER_CAPABILITIES: Record<
 	HomesteadHostRendererKind,
@@ -54,14 +48,7 @@ export const DEFAULT_HOMESTEAD_HOST_RENDERER_CAPABILITIES: Record<
 		"diagnostics",
 		"interactive",
 	],
-	headless: [
-		"surfaces",
-		"surface-actions",
-		"host-context",
-		"streams",
-		"telemetry",
-		"diagnostics",
-	],
+	headless: ["surfaces", "surface-actions", "host-context", "streams", "telemetry", "diagnostics"],
 };
 
 export interface HomesteadHostRendererDescriptor {
@@ -146,9 +133,7 @@ export interface HomesteadHostRendererConformanceReport {
 	issues: readonly HomesteadHostRendererConformanceIssue[];
 }
 
-export function isHomesteadHostRendererKind(
-	value: unknown,
-): value is HomesteadHostRendererKind {
+export function isHomesteadHostRendererKind(value: unknown): value is HomesteadHostRendererKind {
 	return (
 		typeof value === "string" &&
 		(HOMESTEAD_HOST_RENDERER_KINDS as readonly string[]).includes(value)
@@ -165,8 +150,7 @@ export function createHomesteadHostRendererDescriptor(
 		kind,
 		label: options.label,
 		capabilities: normalizeHomesteadHostRendererCapabilities(
-			options.capabilities ??
-				DEFAULT_HOMESTEAD_HOST_RENDERER_CAPABILITIES[kind],
+			options.capabilities ?? DEFAULT_HOMESTEAD_HOST_RENDERER_CAPABILITIES[kind],
 		),
 		metadata: options.metadata,
 	};
@@ -189,9 +173,7 @@ export function summarizeHomesteadHostSurfaceState(
 		rejected: surfaces?.rejected?.length ?? 0,
 		availableActions,
 		actionEvents,
-		surfaceActions: surfaces?.availableActions
-			? availableActions
-			: actionEvents,
+		surfaceActions: surfaces?.availableActions ? availableActions : actionEvents,
 	};
 }
 
@@ -212,11 +194,7 @@ export function requiredHomesteadHostRendererCapabilities(
 	// yet. Fall back to no *required* capabilities so an unknown kind is handled
 	// gracefully (a projector for it declares what it can do), instead of returning
 	// undefined and throwing downstream. (ADR-085: surfaces are data.)
-	return (
-		DEFAULT_HOMESTEAD_HOST_RENDERER_CAPABILITIES[
-			kind as HomesteadHostRendererKind
-		] ?? []
-	);
+	return DEFAULT_HOMESTEAD_HOST_RENDERER_CAPABILITIES[kind as HomesteadHostRendererKind] ?? [];
 }
 
 export function checkHomesteadHostRendererConformance(

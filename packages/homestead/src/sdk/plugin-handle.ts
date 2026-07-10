@@ -5,10 +5,7 @@ import type {
 	RuntimePluginState,
 } from "@refarm.dev/runtime";
 
-export type StudioPluginTelemetryEmitter = (
-	event: string,
-	payload?: unknown,
-) => void;
+export type StudioPluginTelemetryEmitter = (event: string, payload?: unknown) => void;
 
 export interface CreateStudioPluginHandleOptions {
 	id: string;
@@ -22,23 +19,15 @@ export interface CreateStudioPluginHandleOptions {
 	terminate?: RuntimePluginHandle["terminate"];
 }
 
-export type HomesteadSurfaceDeclarationInput = Omit<
-	ExtensionSurfaceDeclaration,
-	"layer"
-> & {
+export type HomesteadSurfaceDeclarationInput = Omit<ExtensionSurfaceDeclaration, "layer"> & {
 	layer?: "homestead";
 };
 
-export interface CreateHomesteadSurfacePluginHandleOptions
-	extends CreateStudioPluginHandleOptions {
+export interface CreateHomesteadSurfacePluginHandleOptions extends CreateStudioPluginHandleOptions {
 	surfaces: HomesteadSurfaceDeclarationInput[];
 }
 
-export type StudioPluginRegistryStatus =
-	| "registered"
-	| "validated"
-	| "active"
-	| "error";
+export type StudioPluginRegistryStatus = "registered" | "validated" | "active" | "error";
 
 export interface StudioPluginRegistryEntryLike {
 	status: StudioPluginRegistryStatus;

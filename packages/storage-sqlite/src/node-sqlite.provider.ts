@@ -47,9 +47,9 @@ export class NodeSqliteStorageProvider implements StorageProvider {
 	}
 
 	async get(id: string): Promise<StorageRecord | null> {
-		const row = this.db
-			.prepare("SELECT * FROM storage_records WHERE id = ?")
-			.get(id) as unknown as RawRow | undefined;
+		const row = this.db.prepare("SELECT * FROM storage_records WHERE id = ?").get(id) as unknown as
+			| RawRow
+			| undefined;
 		return row ? toRecord(row) : null;
 	}
 
@@ -63,13 +63,7 @@ export class NodeSqliteStorageProvider implements StorageProvider {
            payload    = excluded.payload,
            updated_at = excluded.updated_at`,
 			)
-			.run(
-				record.id,
-				record.type,
-				record.payload,
-				record.createdAt,
-				record.updatedAt,
-			);
+			.run(record.id, record.type, record.payload, record.createdAt, record.updatedAt);
 	}
 
 	async putMany(records: StorageRecord[]): Promise<void> {
@@ -79,17 +73,13 @@ export class NodeSqliteStorageProvider implements StorageProvider {
 	}
 
 	async delete(id: string): Promise<void> {
-		this.db
-			.prepare("DELETE FROM storage_records WHERE id = ?")
-			.run(id);
+		this.db.prepare("DELETE FROM storage_records WHERE id = ?").run(id);
 	}
 
 	async deleteMany(ids: string[]): Promise<void> {
 		if (ids.length === 0) return;
 		const placeholders = ids.map(() => "?").join(", ");
-		this.db
-			.prepare(`DELETE FROM storage_records WHERE id IN (${placeholders})`)
-			.run(...ids);
+		this.db.prepare(`DELETE FROM storage_records WHERE id IN (${placeholders})`).run(...ids);
 	}
 
 	async query(query: StorageQuery): Promise<StorageRecord[]> {
@@ -108,8 +98,6 @@ export class NodeSqliteStorageProvider implements StorageProvider {
 	}
 }
 
-export function createNodeSqliteStorageProvider(
-	dbPath: string,
-): StorageProvider {
+export function createNodeSqliteStorageProvider(dbPath: string): StorageProvider {
 	return new NodeSqliteStorageProvider(dbPath);
 }

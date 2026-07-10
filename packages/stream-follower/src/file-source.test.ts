@@ -30,9 +30,36 @@ describe("createFileChunkSource", () => {
 		const source = createFileChunkSource(streamsDir, { pollIntervalMs: 10 });
 
 		// The 'other process' writes chunks over time while we follow.
-		setTimeout(() => appendChunk(streamsDir, ref, { stream_ref: ref, content: "Hel", sequence: 0, is_final: false }), 15);
-		setTimeout(() => appendChunk(streamsDir, ref, { stream_ref: ref, content: "lo", sequence: 1, is_final: false }), 30);
-		setTimeout(() => appendChunk(streamsDir, ref, { stream_ref: ref, content: "!", sequence: 2, is_final: true }), 45);
+		setTimeout(
+			() =>
+				appendChunk(streamsDir, ref, {
+					stream_ref: ref,
+					content: "Hel",
+					sequence: 0,
+					is_final: false,
+				}),
+			15,
+		);
+		setTimeout(
+			() =>
+				appendChunk(streamsDir, ref, {
+					stream_ref: ref,
+					content: "lo",
+					sequence: 1,
+					is_final: false,
+				}),
+			30,
+		);
+		setTimeout(
+			() =>
+				appendChunk(streamsDir, ref, {
+					stream_ref: ref,
+					content: "!",
+					sequence: 2,
+					is_final: true,
+				}),
+			45,
+		);
 
 		const result = await followStream(source, ref, { timeoutMs: 2_000 });
 		expect(result.content).toBe("Hello!");
@@ -52,7 +79,12 @@ describe("createFileChunkSource", () => {
 	it("times out when the final chunk never lands", async () => {
 		const streamsDir = makeDir();
 		const ref = "effort-3";
-		appendChunk(streamsDir, ref, { stream_ref: ref, content: "partial", sequence: 0, is_final: false });
+		appendChunk(streamsDir, ref, {
+			stream_ref: ref,
+			content: "partial",
+			sequence: 0,
+			is_final: false,
+		});
 		const source = createFileChunkSource(streamsDir, { pollIntervalMs: 10 });
 		await expect(followStream(source, ref, { timeoutMs: 80 })).rejects.toThrow(
 			/did not reach a final chunk/,

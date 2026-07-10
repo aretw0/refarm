@@ -7,9 +7,7 @@ import { REQUIRED_TOKENS, type DsTheme, type DsToken } from "./contract.js";
  */
 export const TUI_COLOR_TOKENS = REQUIRED_TOKENS.filter(
 	(token) =>
-		!token.startsWith("radius") &&
-		!token.startsWith("shadow") &&
-		!token.startsWith("font"),
+		!token.startsWith("radius") && !token.startsWith("shadow") && !token.startsWith("font"),
 ) as readonly DsToken[];
 
 export type TuiColorToken = (typeof TUI_COLOR_TOKENS)[number];

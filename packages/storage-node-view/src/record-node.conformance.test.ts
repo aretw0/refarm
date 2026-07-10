@@ -65,9 +65,7 @@ describe("record⇄node round-trip", () => {
 		expect(back.type).toBe(record.type);
 		expect(back.createdAt).toBe(record.createdAt);
 		// The node body survives verbatim.
-		expect(JSON.parse(back.payload)["refarm:capabilities"]).toEqual([
-			"network:fetch",
-		]);
+		expect(JSON.parse(back.payload)["refarm:capabilities"]).toEqual(["network:fetch"]);
 	});
 
 	it("fills a default node id/type/context when the node omits them via the record columns", () => {

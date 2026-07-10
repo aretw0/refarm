@@ -1,9 +1,7 @@
 import { openScopedLedger, scopedLedgerPath } from "@refarm.dev/storage-node-view";
 
-export const LOCAL_SCHEDULER_LEDGER_SCHEMA =
-	"refarm.local-scheduler-ledger.v1";
-export const DEFAULT_LOCAL_SCHEDULER_LEDGER_PATH =
-	".refarm/scheduler/ledger.json";
+export const LOCAL_SCHEDULER_LEDGER_SCHEMA = "refarm.local-scheduler-ledger.v1";
+export const DEFAULT_LOCAL_SCHEDULER_LEDGER_PATH = ".refarm/scheduler/ledger.json";
 
 // The ledger is a durable node-ledger opened via the host bootstrap
 // (openScopedLedger): each fired-schedule key is a node, so hasFired/recordFired
@@ -43,9 +41,7 @@ async function guardMalformed(filePath, read) {
 		return await read();
 	} catch (error) {
 		if (error instanceof SyntaxError) {
-			throw new Error(
-				`Invalid local scheduler ledger at ${filePath}: ${error.message}`,
-			);
+			throw new Error(`Invalid local scheduler ledger at ${filePath}: ${error.message}`);
 		}
 		throw error;
 	}
@@ -97,18 +93,13 @@ export function createLocalSchedulerLedger(options = {}) {
 			});
 		},
 		async read() {
-			const nodes = await guardMalformed(filePath, () =>
-				store.queryNodes(FIRED_NODE_TYPE),
-			);
+			const nodes = await guardMalformed(filePath, () => store.queryNodes(FIRED_NODE_TYPE));
 			const entries = {};
 			let updatedAt = null;
 			for (const node of nodes) {
 				const entry = nodeToEntry(node);
 				entries[node["@id"]] = entry;
-				if (
-					entry.recordedAt &&
-					(updatedAt === null || entry.recordedAt > updatedAt)
-				) {
+				if (entry.recordedAt && (updatedAt === null || entry.recordedAt > updatedAt)) {
 					updatedAt = entry.recordedAt;
 				}
 			}

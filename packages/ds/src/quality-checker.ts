@@ -4,11 +4,7 @@ import type {
 	QualityProfile,
 } from "@refarm.dev/quality-contract-v1";
 
-import {
-	runDsLint,
-	type DsLintOptions,
-	type DsLintSnapshot,
-} from "./lint.js";
+import { runDsLint, type DsLintOptions, type DsLintSnapshot } from "./lint.js";
 
 const CHECK_TYPE_TO_OPTION: Record<string, keyof DsLintOptions> = {
 	contrast: "contrast",

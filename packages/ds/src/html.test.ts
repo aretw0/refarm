@@ -15,9 +15,7 @@ import {
 
 describe("ds html helpers", () => {
 	it("escapes html-sensitive characters", () => {
-		expect(escapeHtml(`<a href="x">&'`)).toBe(
-			"&lt;a href=&quot;x&quot;&gt;&amp;&#x27;",
-		);
+		expect(escapeHtml(`<a href="x">&'`)).toBe("&lt;a href=&quot;x&quot;&gt;&amp;&#x27;");
 		expect(escapeHtml(null)).toBe("");
 	});
 
@@ -64,19 +62,13 @@ describe("ds html helpers", () => {
 	});
 
 	it("feedbackHtml sets data-kind and role", () => {
-		expect(feedbackHtml({ kind: "error", message: "no" })).toContain(
-			'data-kind="error"',
-		);
-		expect(feedbackHtml({ kind: "error", message: "no" })).toContain(
-			'role="status"',
-		);
+		expect(feedbackHtml({ kind: "error", message: "no" })).toContain('data-kind="error"');
+		expect(feedbackHtml({ kind: "error", message: "no" })).toContain('role="status"');
 	});
 
 	it("section/grid/footer wrap with ds classes", () => {
 		expect(sectionHtml("T", "<i>")).toContain('class="ds-section"');
-		expect(gridHtml(["<a>", "<b>"])).toBe(
-			'<div class="ds-grid"><a><b></div>',
-		);
+		expect(gridHtml(["<a>", "<b>"])).toBe('<div class="ds-grid"><a><b></div>');
 		expect(footerHtml("f")).toContain('class="ds-footer"');
 	});
 

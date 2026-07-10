@@ -17,9 +17,7 @@ export interface HomesteadSurfaceTelemetryEvent {
 }
 
 export interface HomesteadSurfaceTelemetrySource {
-	observe(
-		listener: (event: HomesteadSurfaceTelemetryEvent) => void,
-	): (() => void) | void;
+	observe(listener: (event: HomesteadSurfaceTelemetryEvent) => void): (() => void) | void;
 }
 
 export const HOMESTEAD_SURFACE_CHANGE_EVENTS = [
@@ -29,8 +27,7 @@ export const HOMESTEAD_SURFACE_CHANGE_EVENTS = [
 	"system:plugin_state_changed",
 ] as const;
 
-export type HomesteadSurfaceChangeEventName =
-	(typeof HOMESTEAD_SURFACE_CHANGE_EVENTS)[number];
+export type HomesteadSurfaceChangeEventName = (typeof HOMESTEAD_SURFACE_CHANGE_EVENTS)[number];
 
 export interface RejectedHomesteadSurfaceActivation {
 	pluginId?: string;
@@ -64,17 +61,14 @@ export const HOMESTEAD_SURFACE_ACTION_EVENTS = [
 	"ui:surface_action_failed",
 ] as const;
 
-export type HomesteadSurfaceActionEventName =
-	(typeof HOMESTEAD_SURFACE_ACTION_EVENTS)[number];
+export type HomesteadSurfaceActionEventName = (typeof HOMESTEAD_SURFACE_ACTION_EVENTS)[number];
 
 export function isHomesteadSurfaceChangeEvent(
 	event: HomesteadSurfaceTelemetryEvent,
 ): event is HomesteadSurfaceTelemetryEvent & {
 	event: HomesteadSurfaceChangeEventName;
 } {
-	return (HOMESTEAD_SURFACE_CHANGE_EVENTS as readonly string[]).includes(
-		event.event,
-	);
+	return (HOMESTEAD_SURFACE_CHANGE_EVENTS as readonly string[]).includes(event.event);
 }
 
 export function isHomesteadSurfaceActionEvent(
@@ -82,14 +76,10 @@ export function isHomesteadSurfaceActionEvent(
 ): event is HomesteadSurfaceTelemetryEvent & {
 	event: HomesteadSurfaceActionEventName;
 } {
-	return (HOMESTEAD_SURFACE_ACTION_EVENTS as readonly string[]).includes(
-		event.event,
-	);
+	return (HOMESTEAD_SURFACE_ACTION_EVENTS as readonly string[]).includes(event.event);
 }
 
-export function mountedHomesteadSurfaceKey(
-	surface: MountedHomesteadSurface,
-): string {
+export function mountedHomesteadSurfaceKey(surface: MountedHomesteadSurface): string {
 	return [
 		surface.pluginId,
 		surface.mountSource,
@@ -169,9 +159,7 @@ export function listHomesteadSurfaceActions(
 }
 
 function stringPayloadValue(value: unknown): string | undefined {
-	return typeof value === "string" && value.trim().length > 0
-		? value
-		: undefined;
+	return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 }
 
 function recordPayloadValue(value: unknown): Record<string, unknown> {
@@ -216,9 +204,7 @@ export function listMountedHomesteadSurfaces(
 		surfaceLayer: element.dataset.refarmSurfaceLayer,
 		surfaceKind: element.dataset.refarmSurfaceKind,
 		surfaceId: element.dataset.refarmSurfaceId,
-		surfaceCapabilities: dataAttributeListValue(
-			element.dataset.refarmSurfaceCapabilities,
-		),
+		surfaceCapabilities: dataAttributeListValue(element.dataset.refarmSurfaceCapabilities),
 		surfaceRenderMode: element.dataset.refarmSurfaceRenderMode,
 	}));
 }

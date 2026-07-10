@@ -3,7 +3,7 @@ import {
 	type StorageAdapter,
 	type StorageProvider,
 	type StorageQuery,
-	type StorageRecord
+	type StorageRecord,
 } from "@refarm.dev/storage-contract-v1";
 
 /**
@@ -21,8 +21,8 @@ import {
 // ─── Physical Schema ────────────────────────────────────────────────────────
 
 export const PHYSICAL_SCHEMA_V1 = [
-  // Core nodes table (Materialized View)
-  `CREATE TABLE IF NOT EXISTS nodes (
+	// Core nodes table (Materialized View)
+	`CREATE TABLE IF NOT EXISTS nodes (
     id            TEXT PRIMARY KEY,
     type          TEXT NOT NULL,
     context       TEXT NOT NULL,
@@ -30,10 +30,10 @@ export const PHYSICAL_SCHEMA_V1 = [
     source_plugin TEXT,
     updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
-  
-  // CRDT Operation Log (The Truth)
-  // Implements ADR-028: Triple-based Op-Log
-  `CREATE TABLE IF NOT EXISTS crdt_log (
+
+	// CRDT Operation Log (The Truth)
+	// Implements ADR-028: Triple-based Op-Log
+	`CREATE TABLE IF NOT EXISTS crdt_log (
     id         TEXT PRIMARY KEY, -- Operation ID (peer/clock)
     node_id    TEXT NOT NULL,
     field      TEXT NOT NULL,
@@ -43,9 +43,9 @@ export const PHYSICAL_SCHEMA_V1 = [
     applied_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY(node_id) REFERENCES nodes(id)
   )`,
-  
-  `CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(type)`,
-  `CREATE INDEX IF NOT EXISTS idx_crdt_node ON crdt_log(node_id)`,
+
+	`CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(type)`,
+	`CREATE INDEX IF NOT EXISTS idx_crdt_node ON crdt_log(node_id)`,
 ];
 
 /**
@@ -53,132 +53,139 @@ export const PHYSICAL_SCHEMA_V1 = [
  * Implements Multi-Vault (Namespace) isolation.
  */
 type SqliteDbOpts = { bind?: unknown[]; returnValue?: string; rowMode?: string };
-type SqliteDbHandle = { exec(sql: string, opts?: SqliteDbOpts): Promise<unknown>; close(): Promise<void> };
+type SqliteDbHandle = {
+	exec(sql: string, opts?: SqliteDbOpts): Promise<unknown>;
+	close(): Promise<void>;
+};
 type SqliteEngineHandle = { open(path: string): Promise<SqliteDbHandle> };
 
 export class OPFSSQLiteAdapter implements StorageAdapter {
-  private _db: SqliteDbHandle | null = null;
-  private _namespace: string = "default";
-  private _sqlite: SqliteEngineHandle | null = null;
+	private _db: SqliteDbHandle | null = null;
+	private _namespace: string = "default";
+	private _sqlite: SqliteEngineHandle | null = null;
 
-  constructor(sqlite?: SqliteEngineHandle | null) {
-    // In a real browser environment, sqlite would be imported or injected
-    this._sqlite = sqlite ?? null;
-  }
+	constructor(sqlite?: SqliteEngineHandle | null) {
+		// In a real browser environment, sqlite would be imported or injected
+		this._sqlite = sqlite ?? null;
+	}
 
-  /**
-   * Opens a namespaced vault. 
-   * @param namespace The vault name (e.g. "prod", "dev", ":memory:").
-   */
-  async open(namespace: string): Promise<OPFSSQLiteAdapter> {
-    const scoped = new OPFSSQLiteAdapter(this._sqlite);
-    scoped._namespace = namespace;
-    console.info(`[storage-sqlite] Opening namespaced vault: ${namespace}`);
-    
-    // 1. Identify Target Path
-    const isMemory = namespace === ":memory:" || !namespace;
-    const dbPath = isMemory ? ":memory:" : `/opfs/refarm-${namespace}.db`;
+	/**
+	 * Opens a namespaced vault.
+	 * @param namespace The vault name (e.g. "prod", "dev", ":memory:").
+	 */
+	async open(namespace: string): Promise<OPFSSQLiteAdapter> {
+		const scoped = new OPFSSQLiteAdapter(this._sqlite);
+		scoped._namespace = namespace;
+		console.info(`[storage-sqlite] Opening namespaced vault: ${namespace}`);
 
-    // 2. Initialize Engine
-    if (!scoped._sqlite) {
-      console.warn("[storage-sqlite] No SQLite engine provided, falling back to memory stub");
-      scoped._db = scoped._createMemoryStub() as SqliteDbHandle;
-    } else {
-      scoped._db = await scoped._sqlite.open(dbPath);
-    }
+		// 1. Identify Target Path
+		const isMemory = namespace === ":memory:" || !namespace;
+		const dbPath = isMemory ? ":memory:" : `/opfs/refarm-${namespace}.db`;
 
-    return scoped;
-  }
+		// 2. Initialize Engine
+		if (!scoped._sqlite) {
+			console.warn("[storage-sqlite] No SQLite engine provided, falling back to memory stub");
+			scoped._db = scoped._createMemoryStub() as SqliteDbHandle;
+		} else {
+			scoped._db = await scoped._sqlite.open(dbPath);
+		}
 
-  async ensureSchema(): Promise<void> {
-    await runMigrations(this, PHYSICAL_SCHEMA_V1);
-  }
+		return scoped;
+	}
 
-  async storeNode(
-    id: string,
-    type: string,
-    context: string,
-    payload: string,
-    sourcePlugin: string | null,
-  ): Promise<void> {
-    const hlc = new Date().toISOString(); 
-    const peerId = "local-host"; 
+	async ensureSchema(): Promise<void> {
+		await runMigrations(this, PHYSICAL_SCHEMA_V1);
+	}
 
-    await this.transaction(async () => {
-      await this.execute(
-        `INSERT OR REPLACE INTO crdt_log (id, node_id, field, value, peer_id, hlc_time)
+	async storeNode(
+		id: string,
+		type: string,
+		context: string,
+		payload: string,
+		sourcePlugin: string | null,
+	): Promise<void> {
+		const hlc = new Date().toISOString();
+		const peerId = "local-host";
+
+		await this.transaction(async () => {
+			await this.execute(
+				`INSERT OR REPLACE INTO crdt_log (id, node_id, field, value, peer_id, hlc_time)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        { params: [`${peerId}/${Date.now()}`, id, "@payload", payload, peerId, hlc] },
-      );
+				{ params: [`${peerId}/${Date.now()}`, id, "@payload", payload, peerId, hlc] },
+			);
 
-      await this.execute(
-        `INSERT OR REPLACE INTO nodes (id, type, context, payload, source_plugin, updated_at)
+			await this.execute(
+				`INSERT OR REPLACE INTO nodes (id, type, context, payload, source_plugin, updated_at)
          VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-        { params: [id, type, context, payload, sourcePlugin] },
-      );
-    });
-  }
+				{ params: [id, type, context, payload, sourcePlugin] },
+			);
+		});
+	}
 
-  async getLogForNode(nodeId: string): Promise<unknown[]> {
-    return this.query("SELECT * FROM crdt_log WHERE node_id = ? ORDER BY hlc_time ASC", { params: [nodeId] });
-  }
+	async getLogForNode(nodeId: string): Promise<unknown[]> {
+		return this.query("SELECT * FROM crdt_log WHERE node_id = ? ORDER BY hlc_time ASC", {
+			params: [nodeId],
+		});
+	}
 
-  async queryNodes(type: string): Promise<unknown[]> {
-    return this.query(
-      "SELECT payload FROM nodes WHERE type = ? ORDER BY updated_at DESC",
-      { params: [type] },
-    );
-  }
+	async queryNodes(type: string): Promise<unknown[]> {
+		return this.query("SELECT payload FROM nodes WHERE type = ? ORDER BY updated_at DESC", {
+			params: [type],
+		});
+	}
 
-  async execute(sql: string, args: { params?: unknown[] } | unknown[] = {}): Promise<unknown> {
-    this._assertOpen();
-    const params = (args as { params?: unknown[] })?.params ?? args;
-    return await this._db!.exec(sql, { bind: params as unknown[] });
-  }
+	async execute(sql: string, args: { params?: unknown[] } | unknown[] = {}): Promise<unknown> {
+		this._assertOpen();
+		const params = (args as { params?: unknown[] })?.params ?? args;
+		return await this._db!.exec(sql, { bind: params as unknown[] });
+	}
 
-  async query<T = unknown>(sql: string, args: { params?: unknown[] } | unknown[] = {}): Promise<T[]> {
-    this._assertOpen();
-    const params = (args as { params?: unknown[] })?.params ?? args;
-    return await this._db!.exec(sql, {
-      bind: params as unknown[],
-      returnValue: 'resultRows',
-      rowMode: 'object'
-    }) as T[];
-  }
+	async query<T = unknown>(
+		sql: string,
+		args: { params?: unknown[] } | unknown[] = {},
+	): Promise<T[]> {
+		this._assertOpen();
+		const params = (args as { params?: unknown[] })?.params ?? args;
+		return (await this._db!.exec(sql, {
+			bind: params as unknown[],
+			returnValue: "resultRows",
+			rowMode: "object",
+		})) as T[];
+	}
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    this._assertOpen();
-    await this.execute("BEGIN");
-    try {
-      const result = await fn();
-      await this.execute("COMMIT");
-      return result;
-    } catch (err) {
-      await this.execute("ROLLBACK");
-      throw err;
-    }
-  }
+	async transaction<T>(fn: () => Promise<T>): Promise<T> {
+		this._assertOpen();
+		await this.execute("BEGIN");
+		try {
+			const result = await fn();
+			await this.execute("COMMIT");
+			return result;
+		} catch (err) {
+			await this.execute("ROLLBACK");
+			throw err;
+		}
+	}
 
-  async close(): Promise<void> {
-    if (this._db) {
-      await this._db.close();
-      this._db = null;
-    }
-  }
+	async close(): Promise<void> {
+		if (this._db) {
+			await this._db.close();
+			this._db = null;
+		}
+	}
 
-  private _assertOpen(): void {
-    if (!this._db) throw new Error(`[storage-sqlite] Vault "${this._namespace}" not open`);
-  }
+	private _assertOpen(): void {
+		if (!this._db) throw new Error(`[storage-sqlite] Vault "${this._namespace}" not open`);
+	}
 
-  private _createMemoryStub() {
-    // Fallback for tests if real wa-sqlite is not injected
-    return {
-      exec: async (_sql: string, _options: Record<string, unknown> = {}) => {
-        return [];
-      },
-      close: async () => {}
-    };
-  }
+	private _createMemoryStub() {
+		// Fallback for tests if real wa-sqlite is not injected
+		return {
+			exec: async (_sql: string, _options: Record<string, unknown> = {}) => {
+				return [];
+			},
+			close: async () => {},
+		};
+	}
 }
 
 /**
@@ -189,50 +196,50 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
  * conformance checks and third-party integrations.
  */
 export class StorageSqliteV1Provider implements StorageProvider {
-  readonly pluginId = "@refarm.dev/storage-sqlite";
-  readonly capability = STORAGE_CAPABILITY;
+	readonly pluginId = "@refarm.dev/storage-sqlite";
+	readonly capability = STORAGE_CAPABILITY;
 
-  private readonly rows = new Map<string, StorageRecord>();
+	private readonly rows = new Map<string, StorageRecord>();
 
-  async get(id: string): Promise<StorageRecord | null> {
-    return this.rows.get(id) ?? null;
-  }
+	async get(id: string): Promise<StorageRecord | null> {
+		return this.rows.get(id) ?? null;
+	}
 
-  async put(record: StorageRecord): Promise<void> {
-    this.rows.set(record.id, record);
-  }
+	async put(record: StorageRecord): Promise<void> {
+		this.rows.set(record.id, record);
+	}
 
-  async putMany(records: StorageRecord[]): Promise<void> {
-    for (const record of records) {
-      this.rows.set(record.id, record);
-    }
-  }
+	async putMany(records: StorageRecord[]): Promise<void> {
+		for (const record of records) {
+			this.rows.set(record.id, record);
+		}
+	}
 
-  async delete(id: string): Promise<void> {
-    this.rows.delete(id);
-  }
+	async delete(id: string): Promise<void> {
+		this.rows.delete(id);
+	}
 
-  async deleteMany(ids: string[]): Promise<void> {
-    for (const id of ids) {
-      this.rows.delete(id);
-    }
-  }
+	async deleteMany(ids: string[]): Promise<void> {
+		for (const id of ids) {
+			this.rows.delete(id);
+		}
+	}
 
-  async query(query: StorageQuery): Promise<StorageRecord[]> {
-    let values = [...this.rows.values()];
+	async query(query: StorageQuery): Promise<StorageRecord[]> {
+		let values = [...this.rows.values()];
 
-    if (query.type) {
-      values = values.filter((row) => row.type === query.type);
-    }
+		if (query.type) {
+			values = values.filter((row) => row.type === query.type);
+		}
 
-    const offset = query.offset ?? 0;
-    const limit = query.limit ?? values.length;
-    return values.slice(offset, offset + limit);
-  }
+		const offset = query.offset ?? 0;
+		const limit = query.limit ?? values.length;
+		return values.slice(offset, offset + limit);
+	}
 }
 
 export function createStorageV1Provider(): StorageProvider {
-  return new StorageSqliteV1Provider();
+	return new StorageSqliteV1Provider();
 }
 
 export { createTaskV1StorageAdapter } from "./task-v1.adapter.js";
@@ -247,32 +254,27 @@ export { createSessionV1StorageAdapter } from "./session-v1.adapter.js";
  * Pass an ordered array of SQL strings; each will be applied once and tracked
  * in a `_migrations` meta-table.
  */
-export async function runMigrations(
-  adapter: StorageAdapter,
-  migrations: string[]
-): Promise<void> {
-  await adapter.execute(`
+export async function runMigrations(adapter: StorageAdapter, migrations: string[]): Promise<void> {
+	await adapter.execute(`
     CREATE TABLE IF NOT EXISTS _migrations (
       id        INTEGER PRIMARY KEY,
       applied_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
 
-  const applied = await adapter.query<{ id: number }>(
-    "SELECT id FROM _migrations ORDER BY id"
-  );
-  const appliedIds = new Set(applied.map((r: { id: number }) => r.id));
+	const applied = await adapter.query<{ id: number }>("SELECT id FROM _migrations ORDER BY id");
+	const appliedIds = new Set(applied.map((r: { id: number }) => r.id));
 
-  for (let i = 0; i < migrations.length; i++) {
-    if (!appliedIds.has(i)) {
-      await adapter.transaction(async () => {
-        await adapter.execute(migrations[i]!);
-        await adapter.execute("INSERT INTO _migrations (id) VALUES (?)", {
-          params: [i],
-        });
-      });
-    }
-  }
+	for (let i = 0; i < migrations.length; i++) {
+		if (!appliedIds.has(i)) {
+			await adapter.transaction(async () => {
+				await adapter.execute(migrations[i]!);
+				await adapter.execute("INSERT INTO _migrations (id) VALUES (?)", {
+					params: [i],
+				});
+			});
+		}
+	}
 }
 
 // ─── Default Export ───────────────────────────────────────────────────────────

@@ -19,52 +19,54 @@ import type { WeightsBundle } from "../core/weights";
 import { bundleToTypeScript, validateBundleShapes } from "./weights-to-ts";
 
 function parseArgs(argv: string[]): { weights: string; out: string } | null {
-  const args: Record<string, string> = {};
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i]!.startsWith("--")) {
-      args[argv[i]!.slice(2)] = argv[i + 1] ?? "";
-      i++;
-    }
-  }
+	const args: Record<string, string> = {};
+	for (let i = 0; i < argv.length; i++) {
+		if (argv[i]!.startsWith("--")) {
+			args[argv[i]!.slice(2)] = argv[i + 1] ?? "";
+			i++;
+		}
+	}
 
-  if (!args["weights"]) {
-    console.error("Usage: tem-codegen --weights <bundle.json> --out <weights.ts>");
-    process.exitCode = 1;
-    return null;
-  }
-  if (!args["out"]) {
-    console.error("Usage: tem-codegen --weights <bundle.json> --out <weights.ts>");
-    process.exitCode = 1;
-    return null;
-  }
+	if (!args["weights"]) {
+		console.error("Usage: tem-codegen --weights <bundle.json> --out <weights.ts>");
+		process.exitCode = 1;
+		return null;
+	}
+	if (!args["out"]) {
+		console.error("Usage: tem-codegen --weights <bundle.json> --out <weights.ts>");
+		process.exitCode = 1;
+		return null;
+	}
 
-  return { weights: args["weights"], out: args["out"] };
+	return { weights: args["weights"], out: args["out"] };
 }
 
 function main() {
-  const parsed = parseArgs(process.argv.slice(2));
-  if (!parsed) return;
-  const { weights: weightsPath, out: outPath } = parsed;
+	const parsed = parseArgs(process.argv.slice(2));
+	if (!parsed) return;
+	const { weights: weightsPath, out: outPath } = parsed;
 
-  const bundleRaw = readFileSync(resolve(weightsPath), "utf-8");
-  const bundle = JSON.parse(bundleRaw) as WeightsBundle;
+	const bundleRaw = readFileSync(resolve(weightsPath), "utf-8");
+	const bundle = JSON.parse(bundleRaw) as WeightsBundle;
 
-  try {
-    validateBundleShapes(bundle);
-  } catch (err) {
-    console.error(`Shape validation failed: ${(err as Error).message}`);
-    process.exitCode = 1;
-    return;
-  }
+	try {
+		validateBundleShapes(bundle);
+	} catch (err) {
+		console.error(`Shape validation failed: ${(err as Error).message}`);
+		process.exitCode = 1;
+		return;
+	}
 
-  const src = bundleToTypeScript(bundle);
+	const src = bundleToTypeScript(bundle);
 
-  const outDir = dirname(resolve(outPath));
-  mkdirSync(outDir, { recursive: true });
-  writeFileSync(resolve(outPath), src, "utf-8");
+	const outDir = dirname(resolve(outPath));
+	mkdirSync(outDir, { recursive: true });
+	writeFileSync(resolve(outPath), src, "utf-8");
 
-  console.log(`✓ Wrote ${outPath} (${src.length} bytes)`);
-  console.log(`  Config: nG=${JSON.stringify(bundle.config.nG)} nX=${bundle.config.nX} nActions=${bundle.config.nActions}`);
+	console.log(`✓ Wrote ${outPath} (${src.length} bytes)`);
+	console.log(
+		`  Config: nG=${JSON.stringify(bundle.config.nG)} nX=${bundle.config.nX} nActions=${bundle.config.nActions}`,
+	);
 }
 
 main();

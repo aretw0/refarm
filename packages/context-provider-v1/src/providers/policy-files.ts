@@ -28,11 +28,9 @@ export class PolicyFilesContextProvider implements ContextProvider {
 
 	async provide(request: ContextRequest): Promise<ContextEntry[]> {
 		try {
-			const rootResult = await execFileAsync(
-				"git",
-				["rev-parse", "--show-toplevel"],
-				{ cwd: request.cwd },
-			);
+			const rootResult = await execFileAsync("git", ["rev-parse", "--show-toplevel"], {
+				cwd: request.cwd,
+			});
 			const gitRoot = rootResult.stdout.trim();
 			const found = PolicyFilesContextProvider.scanPolicyFiles(gitRoot);
 			if (found.length === 0) return [];

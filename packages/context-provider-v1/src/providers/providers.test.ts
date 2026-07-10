@@ -31,9 +31,7 @@ describe("CwdContextProvider", () => {
 		const provider = new CwdContextProvider();
 		expect(provider.capability).toBe(CONTEXT_CAPABILITY);
 		const entries = await provider.provide({ cwd: "/workspace/refarm" });
-		expect(entries).toEqual([
-			{ label: "cwd", content: "/workspace/refarm", priority: 10 },
-		]);
+		expect(entries).toEqual([{ label: "cwd", content: "/workspace/refarm", priority: 10 }]);
 	});
 });
 
@@ -68,12 +66,8 @@ describe("GitStatusContextProvider", () => {
 		expect(affected?.content).toContain("Changed workspace candidates:");
 		expect(affected?.content).toContain("- apps/refarm");
 		expect(affected?.content).toContain("Preferred aggregate validation command:");
-		expect(affected?.content).toContain(
-			"refarm agent finish --lane after-edit --run --json",
-		);
-		expect(affected?.content).toContain(
-			"refarm agent finish --lane before-push --run --json",
-		);
+		expect(affected?.content).toContain("refarm agent finish --lane after-edit --run --json");
+		expect(affected?.content).toContain("refarm agent finish --lane before-push --run --json");
 		expect(affected?.content).toContain(
 			"refarm agent finish --profile package --workspace apps/refarm --run --json",
 		);
@@ -153,9 +147,7 @@ describe("OperatorStateProvider", () => {
 		});
 
 		it("returns null when only finish with unknown status and no session", () => {
-			expect(
-				OperatorStateProvider.parseResumeJson({ finish: { status: "unknown" } }),
-			).toBeNull();
+			expect(OperatorStateProvider.parseResumeJson({ finish: { status: "unknown" } })).toBeNull();
 		});
 	});
 
@@ -239,11 +231,7 @@ describe("PolicyFilesContextProvider", () => {
 	});
 });
 
-function sessionEntry(
-	id: string,
-	index: number,
-	kind: SessionEntryKind = "user",
-): SessionEntry {
+function sessionEntry(id: string, index: number, kind: SessionEntryKind = "user"): SessionEntry {
 	return {
 		"@type": "SessionEntry",
 		"@id": `urn:entry:${id}`,

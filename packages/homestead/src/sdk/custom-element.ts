@@ -4,8 +4,7 @@ export interface HomesteadReactiveElementController {
 
 export interface HomesteadReactiveElement<
 	TOptions = unknown,
-	TController extends
-		HomesteadReactiveElementController = HomesteadReactiveElementController,
+	TController extends HomesteadReactiveElementController = HomesteadReactiveElementController,
 > extends HTMLElement {
 	connectHomesteadReactiveElement(options?: TOptions): TController;
 }
@@ -21,8 +20,7 @@ export interface HomesteadReactiveElementDefinition<
 
 export function defineHomesteadReactiveElement<
 	TOptions = undefined,
-	TController extends
-		HomesteadReactiveElementController = HomesteadReactiveElementController,
+	TController extends HomesteadReactiveElementController = HomesteadReactiveElementController,
 >(definition: HomesteadReactiveElementDefinition<TOptions, TController>): void {
 	const registry = definition.registry ?? globalThis.customElements;
 	if (!registry || registry.get(definition.name)) return;
@@ -51,9 +49,6 @@ export function defineHomesteadReactiveElement<
 export function connectHomesteadReactiveElement<
 	TOptions,
 	TController extends HomesteadReactiveElementController,
->(
-	element: HomesteadReactiveElement<TOptions, TController>,
-	options: TOptions,
-): TController {
+>(element: HomesteadReactiveElement<TOptions, TController>, options: TOptions): TController {
 	return element.connectHomesteadReactiveElement(options);
 }

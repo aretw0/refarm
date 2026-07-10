@@ -25,38 +25,38 @@ export const ACTION_UNKNOWN = 0;
  * Indices are stable — do not renumber existing entries.
  */
 export const ACTION_VOCAB: Record<string, number> = {
-  // Graph operations (core Tractor API)
-  "storage:io.storeNode": 1,
-  "storage:io.queryNodes": 2,
-  "storage:io.getNode": 3,
+	// Graph operations (core Tractor API)
+	"storage:io.storeNode": 1,
+	"storage:io.queryNodes": 2,
+	"storage:io.getNode": 3,
 
-  // Plugin lifecycle
-  "plugin:load": 4,
-  "plugin:terminate": 5,
-  "plugin:log": 6,
+	// Plugin lifecycle
+	"plugin:load": 4,
+	"plugin:terminate": 5,
+	"plugin:log": 6,
 
-  // Inter-plugin API calls
-  "api:call": 7,
+	// Inter-plugin API calls
+	"api:call": 7,
 
-  // Command execution
-  "system:command_executed": 8,
-  "system:command_failed": 9,
+	// Command execution
+	"system:command_executed": 8,
+	"system:command_failed": 9,
 
-  // Plugin state changes
-  "system:plugin_state_changed": 10,
+	// Plugin state changes
+	"system:plugin_state_changed": 10,
 
-  // Security events
-  "system:security:canary_tripped": 11,
+	// Security events
+	"system:security:canary_tripped": 11,
 
-  // Identity
-  "identity:guest_enabled": 12,
-  "identity:connected": 13,
+	// Identity
+	"identity:guest_enabled": 12,
+	"identity:connected": 13,
 
-  // Storage tier transitions
-  "system:switch-tier": 14,
+	// Storage tier transitions
+	"system:switch-tier": 14,
 
-  // Catch-all for storage:io and other prefixes not listed above
-  "storage:io": 2,    // alias
+	// Catch-all for storage:io and other prefixes not listed above
+	"storage:io": 2, // alias
 };
 
 /**
@@ -68,32 +68,32 @@ export const ACTION_VOCAB: Record<string, number> = {
  *   3. ACTION_UNKNOWN (index 0)
  */
 export function encodeAction(event: { event: string }): Float32Array {
-  const vec = new Float32Array(N_ACTIONS);
-  const idx = resolveActionIndex(event.event);
-  vec[idx] = 1.0;
-  return vec;
+	const vec = new Float32Array(N_ACTIONS);
+	const idx = resolveActionIndex(event.event);
+	vec[idx] = 1.0;
+	return vec;
 }
 
 /** Resolve the action index for an event string. */
 export function resolveActionIndex(eventName: string): number {
-  // Exact match
-  if (eventName in ACTION_VOCAB) {
-    return ACTION_VOCAB[eventName]!;
-  }
+	// Exact match
+	if (eventName in ACTION_VOCAB) {
+		return ACTION_VOCAB[eventName]!;
+	}
 
-  // Prefix match: "api:call.OutputApi" → "api:call"
-  const parts = eventName.split(".");
-  if (parts.length > 1 && parts[0]! in ACTION_VOCAB) {
-    return ACTION_VOCAB[parts[0]!]!;
-  }
+	// Prefix match: "api:call.OutputApi" → "api:call"
+	const parts = eventName.split(".");
+	if (parts.length > 1 && parts[0]! in ACTION_VOCAB) {
+		return ACTION_VOCAB[parts[0]!]!;
+	}
 
-  // Namespace prefix: "system:security:canary_tripped" already in vocab
-  // but handle "system:security:*" wildcard
-  const colon = eventName.lastIndexOf(":");
-  if (colon > 0) {
-    const ns = eventName.slice(0, colon);
-    if (ns in ACTION_VOCAB) return ACTION_VOCAB[ns]!;
-  }
+	// Namespace prefix: "system:security:canary_tripped" already in vocab
+	// but handle "system:security:*" wildcard
+	const colon = eventName.lastIndexOf(":");
+	if (colon > 0) {
+		const ns = eventName.slice(0, colon);
+		if (ns in ACTION_VOCAB) return ACTION_VOCAB[ns]!;
+	}
 
-  return ACTION_UNKNOWN;
+	return ACTION_UNKNOWN;
 }

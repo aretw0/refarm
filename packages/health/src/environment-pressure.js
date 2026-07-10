@@ -110,14 +110,14 @@ const GiB = 1024 * MiB;
 
 /** @type {EnvironmentPressureThresholds} */
 export const DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS = {
-    diskWarnFreeBytes: 10 * GiB,
-    diskBlockFreeBytes: 3 * GiB,
-    memoryWarnFreeBytes: 1536 * MiB,
-    memoryBlockFreeBytes: 512 * MiB,
-    memoryWarnUsedRatio: 0.88,
-    memoryBlockUsedRatio: 0.95,
-    sessionWarnBytes: 50 * MiB,
-    sessionBlockBytes: 150 * MiB,
+	diskWarnFreeBytes: 10 * GiB,
+	diskBlockFreeBytes: 3 * GiB,
+	memoryWarnFreeBytes: 1536 * MiB,
+	memoryBlockFreeBytes: 512 * MiB,
+	memoryWarnUsedRatio: 0.88,
+	memoryBlockUsedRatio: 0.95,
+	sessionWarnBytes: 50 * MiB,
+	sessionBlockBytes: 150 * MiB,
 };
 
 /**
@@ -125,7 +125,7 @@ export const DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS = {
  * @returns {number}
  */
 export function bytesToMiB(value) {
-    return Math.round(value / MiB);
+	return Math.round(value / MiB);
 }
 
 /**
@@ -134,12 +134,12 @@ export function bytesToMiB(value) {
  * @returns {EnvironmentPressureSeverity}
  */
 export function classifyDiskPressure(
-    freeBytes,
-    thresholds = DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
+	freeBytes,
+	thresholds = DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
 ) {
-    if (freeBytes < thresholds.diskBlockFreeBytes) return "failure";
-    if (freeBytes < thresholds.diskWarnFreeBytes) return "warning";
-    return "info";
+	if (freeBytes < thresholds.diskBlockFreeBytes) return "failure";
+	if (freeBytes < thresholds.diskWarnFreeBytes) return "warning";
+	return "info";
 }
 
 /**
@@ -148,23 +148,23 @@ export function classifyDiskPressure(
  * @returns {EnvironmentPressureSeverity}
  */
 export function classifyMemoryPressure(
-    memory,
-    thresholds = DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
+	memory,
+	thresholds = DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
 ) {
-    const usedRatio = memory.totalBytes > 0 ? 1 - memory.freeBytes / memory.totalBytes : 0;
-    if (
-        memory.freeBytes < thresholds.memoryBlockFreeBytes &&
-        usedRatio >= thresholds.memoryBlockUsedRatio
-    ) {
-        return "failure";
-    }
-    if (
-        memory.freeBytes < thresholds.memoryWarnFreeBytes ||
-        usedRatio >= thresholds.memoryWarnUsedRatio
-    ) {
-        return "warning";
-    }
-    return "info";
+	const usedRatio = memory.totalBytes > 0 ? 1 - memory.freeBytes / memory.totalBytes : 0;
+	if (
+		memory.freeBytes < thresholds.memoryBlockFreeBytes &&
+		usedRatio >= thresholds.memoryBlockUsedRatio
+	) {
+		return "failure";
+	}
+	if (
+		memory.freeBytes < thresholds.memoryWarnFreeBytes ||
+		usedRatio >= thresholds.memoryWarnUsedRatio
+	) {
+		return "warning";
+	}
+	return "info";
 }
 
 /**
@@ -172,13 +172,13 @@ export function classifyMemoryPressure(
  * @returns {EnvironmentPressureDecision}
  */
 export function decideEnvironmentPressure(signals) {
-    if (signals.some((signal) => signal.severity === "failure")) {
-        return "stop-and-investigate";
-    }
-    if (signals.some((signal) => signal.severity === "warning")) {
-        return "safe-mode";
-    }
-    return "continue";
+	if (signals.some((signal) => signal.severity === "failure")) {
+		return "stop-and-investigate";
+	}
+	if (signals.some((signal) => signal.severity === "warning")) {
+		return "safe-mode";
+	}
+	return "continue";
 }
 
 const FOCUSED_WORK_CLASSES = new Set(["focused-check", "package-check"]);
@@ -189,99 +189,98 @@ const FOCUSED_WORK_CLASSES = new Set(["focused-check", "package-check"]);
  * @returns {EnvironmentWorkCeilingPlan}
  */
 export function planEnvironmentWorkCeiling(report, request) {
-    const pressureDecision = report.decision;
-    const workClass = request.workClass;
-    const recommendations = Array.isArray(report.recommendations)
-        ? report.recommendations
-        : [];
+	const pressureDecision = report.decision;
+	const workClass = request.workClass;
+	const recommendations = Array.isArray(report.recommendations) ? report.recommendations : [];
 
-    if (pressureDecision === "stop-and-investigate") {
-        return buildWorkCeilingPlan({
-            ok: false,
-            decision: "refuse",
-            workClass,
-            pressureDecision,
-            reason: "Environment pressure is blocking; inspect and recover before running more work.",
-            nextActions: report.nextActions.length > 0
-                ? report.nextActions
-                : ["Recover environment headroom before running more work."],
-            nextCommands: report.nextCommands,
-            maxConcurrency: null,
-            recommendations,
-        });
-    }
+	if (pressureDecision === "stop-and-investigate") {
+		return buildWorkCeilingPlan({
+			ok: false,
+			decision: "refuse",
+			workClass,
+			pressureDecision,
+			reason: "Environment pressure is blocking; inspect and recover before running more work.",
+			nextActions:
+				report.nextActions.length > 0
+					? report.nextActions
+					: ["Recover environment headroom before running more work."],
+			nextCommands: report.nextCommands,
+			maxConcurrency: null,
+			recommendations,
+		});
+	}
 
-    if (pressureDecision === "safe-mode") {
-        if (FOCUSED_WORK_CLASSES.has(workClass)) {
-            return buildWorkCeilingPlan({
-                ok: true,
-                decision: "allow",
-                workClass,
-                pressureDecision,
-                reason: "Focused checks can continue under safe mode.",
-                nextActions: [],
-                nextCommands: [],
-                maxConcurrency: request.maxConcurrency ?? null,
-                recommendations,
-            });
-        }
+	if (pressureDecision === "safe-mode") {
+		if (FOCUSED_WORK_CLASSES.has(workClass)) {
+			return buildWorkCeilingPlan({
+				ok: true,
+				decision: "allow",
+				workClass,
+				pressureDecision,
+				reason: "Focused checks can continue under safe mode.",
+				nextActions: [],
+				nextCommands: [],
+				maxConcurrency: request.maxConcurrency ?? null,
+				recommendations,
+			});
+		}
 
-        if (workClass === "worker-fanout" || workClass === "mutation") {
-            return buildWorkCeilingPlan({
-                ok: true,
-                decision: "serialize",
-                workClass,
-                pressureDecision,
-                reason: "Safe mode requires serialized work instead of fan-out.",
-                nextActions: [
-                    request.command
-                        ? `Run \`${request.command}\` with concurrency 1.`
-                        : "Run the work with concurrency 1.",
-                ],
-                nextCommands: request.command ? [request.command] : [],
-                maxConcurrency: 1,
-                recommendations,
-            });
-        }
+		if (workClass === "worker-fanout" || workClass === "mutation") {
+			return buildWorkCeilingPlan({
+				ok: true,
+				decision: "serialize",
+				workClass,
+				pressureDecision,
+				reason: "Safe mode requires serialized work instead of fan-out.",
+				nextActions: [
+					request.command
+						? `Run \`${request.command}\` with concurrency 1.`
+						: "Run the work with concurrency 1.",
+				],
+				nextCommands: request.command ? [request.command] : [],
+				maxConcurrency: 1,
+				recommendations,
+			});
+		}
 
-        if (request.fallbackCommand) {
-            return buildWorkCeilingPlan({
-                ok: true,
-                decision: "degrade",
-                workClass,
-                pressureDecision,
-                reason: "Safe mode requires a smaller proof instead of broad work.",
-                nextActions: [`Run the bounded fallback: ${request.fallbackCommand}`],
-                nextCommands: [request.fallbackCommand],
-                maxConcurrency: request.maxConcurrency ?? null,
-                recommendations,
-            });
-        }
+		if (request.fallbackCommand) {
+			return buildWorkCeilingPlan({
+				ok: true,
+				decision: "degrade",
+				workClass,
+				pressureDecision,
+				reason: "Safe mode requires a smaller proof instead of broad work.",
+				nextActions: [`Run the bounded fallback: ${request.fallbackCommand}`],
+				nextCommands: [request.fallbackCommand],
+				maxConcurrency: request.maxConcurrency ?? null,
+				recommendations,
+			});
+		}
 
-        return buildWorkCeilingPlan({
-            ok: false,
-            decision: "refuse",
-            workClass,
-            pressureDecision,
-            reason: "Safe mode blocks broad work without a bounded fallback.",
-            nextActions: ["Choose a focused check or provide a bounded fallback command."],
-            nextCommands: [],
-            maxConcurrency: null,
-            recommendations,
-        });
-    }
+		return buildWorkCeilingPlan({
+			ok: false,
+			decision: "refuse",
+			workClass,
+			pressureDecision,
+			reason: "Safe mode blocks broad work without a bounded fallback.",
+			nextActions: ["Choose a focused check or provide a bounded fallback command."],
+			nextCommands: [],
+			maxConcurrency: null,
+			recommendations,
+		});
+	}
 
-    return buildWorkCeilingPlan({
-        ok: true,
-        decision: "allow",
-        workClass,
-        pressureDecision,
-        reason: "Environment pressure allows the requested work.",
-        nextActions: [],
-        nextCommands: [],
-        maxConcurrency: request.maxConcurrency ?? null,
-        recommendations,
-    });
+	return buildWorkCeilingPlan({
+		ok: true,
+		decision: "allow",
+		workClass,
+		pressureDecision,
+		reason: "Environment pressure allows the requested work.",
+		nextActions: [],
+		nextCommands: [],
+		maxConcurrency: request.maxConcurrency ?? null,
+		recommendations,
+	});
 }
 
 /**
@@ -289,16 +288,16 @@ export function planEnvironmentWorkCeiling(report, request) {
  * @returns {EnvironmentWorkCeilingPlan}
  */
 function buildWorkCeilingPlan(input) {
-    const nextActions = Array.from(new Set(input.nextActions));
-    const nextCommands = Array.from(new Set(input.nextCommands));
-    return {
-        schemaVersion: 1,
-        ...input,
-        nextAction: nextActions[0] ?? null,
-        nextActions,
-        nextCommand: nextCommands[0] ?? null,
-        nextCommands,
-    };
+	const nextActions = Array.from(new Set(input.nextActions));
+	const nextCommands = Array.from(new Set(input.nextCommands));
+	return {
+		schemaVersion: 1,
+		...input,
+		nextAction: nextActions[0] ?? null,
+		nextActions,
+		nextCommand: nextCommands[0] ?? null,
+		nextCommands,
+	};
 }
 
 /**
@@ -307,36 +306,35 @@ function buildWorkCeilingPlan(input) {
  * @returns {{ warnBytes: number, blockBytes: number, oversized: Array<EnvironmentPressureSessionFile & { level: "warning" | "failure", overWarnMiB: number, overBlockMiB: number }>, blockers: Array<EnvironmentPressureSessionFile & { level: "warning" | "failure", overWarnMiB: number, overBlockMiB: number }>, recommendation: "within-budget" | "prefer-new-session-and-checkpoint-before-resume" | "do-not-resume-archive-or-delete-after-checkpoint" }}
  */
 export function buildSessionPressureBudget(
-    files,
-    thresholds = DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
+	files,
+	thresholds = DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
 ) {
-    const warnBytes = Number.isFinite(Number(thresholds.sessionWarnBytes))
-        ? Number(thresholds.sessionWarnBytes)
-        : DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS.sessionWarnBytes;
-    const blockBytes = Number.isFinite(Number(thresholds.sessionBlockBytes))
-        ? Number(thresholds.sessionBlockBytes)
-        : DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS.sessionBlockBytes;
-    const oversized = (Array.isArray(files) ? files : [])
-        .filter((file) => Number(file.bytes) >= warnBytes)
-        .map((file) => {
-            const level = Number(file.bytes) >= blockBytes ? "failure" : "warning";
-            return {
-                ...file,
-                level,
-                overWarnMiB: bytesToMiB(Number(file.bytes) - warnBytes),
-                overBlockMiB: level === "failure"
-                    ? bytesToMiB(Number(file.bytes) - blockBytes)
-                    : 0,
-            };
-        });
-    const blockers = oversized.filter((file) => file.level === "failure");
-    const recommendation = blockers.length > 0
-        ? "do-not-resume-archive-or-delete-after-checkpoint"
-        : oversized.length > 0
-            ? "prefer-new-session-and-checkpoint-before-resume"
-            : "within-budget";
+	const warnBytes = Number.isFinite(Number(thresholds.sessionWarnBytes))
+		? Number(thresholds.sessionWarnBytes)
+		: DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS.sessionWarnBytes;
+	const blockBytes = Number.isFinite(Number(thresholds.sessionBlockBytes))
+		? Number(thresholds.sessionBlockBytes)
+		: DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS.sessionBlockBytes;
+	const oversized = (Array.isArray(files) ? files : [])
+		.filter((file) => Number(file.bytes) >= warnBytes)
+		.map((file) => {
+			const level = Number(file.bytes) >= blockBytes ? "failure" : "warning";
+			return {
+				...file,
+				level,
+				overWarnMiB: bytesToMiB(Number(file.bytes) - warnBytes),
+				overBlockMiB: level === "failure" ? bytesToMiB(Number(file.bytes) - blockBytes) : 0,
+			};
+		});
+	const blockers = oversized.filter((file) => file.level === "failure");
+	const recommendation =
+		blockers.length > 0
+			? "do-not-resume-archive-or-delete-after-checkpoint"
+			: oversized.length > 0
+				? "prefer-new-session-and-checkpoint-before-resume"
+				: "within-budget";
 
-    return { warnBytes, blockBytes, oversized, blockers, recommendation };
+	return { warnBytes, blockBytes, oversized, blockers, recommendation };
 }
 
 /**
@@ -344,168 +342,166 @@ export function buildSessionPressureBudget(
  * @returns {EnvironmentPressureReport}
  */
 export function buildEnvironmentPressureReport(options = {}) {
-    const cwd = path.resolve(options.cwd ?? process.cwd());
-    const thresholds = {
-        ...DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
-        ...(options.thresholds ?? {}),
-    };
-    const env = options.env ?? process.env;
-    const osApi = options.os ?? os;
-    const fsApi = options.fs ?? fs;
-    const now = options.now ?? new Date();
-    const command = options.command ?? "environment-pressure";
-    const operation = options.operation ?? "check";
-    /** @type {Required<EnvironmentPressureGuidance>} */
-    const guidance = {
-        diskPressureAction:
-            "Recover disk headroom before broad builds or test gates.",
-        diskPressureCommand: null,
-        diskProbeFailureAction:
-            "Inspect filesystem pressure with the environment's disk diagnostic.",
-        diskProbeFailureCommand: null,
-        memoryPressureAction:
-            "Use explicit test files, bounded workers, and package-scoped checks until memory pressure drops.",
-        gitGcLogAction:
-            "Inspect the Git maintenance marker; do not run prune or destructive Git cleanup without explicit operator intent.",
-        sessionPressureAction:
-            "Prefer a new session and checkpoint before resuming large session files.",
-        sessionResumePressureAction:
-            "Do not resume oversized session files until they are archived, reduced, or explicitly accepted by the operator.",
-        ...(options.guidance ?? {}),
-    };
-    /** @type {EnvironmentPressureSignal[]} */
-    const signals = [];
+	const cwd = path.resolve(options.cwd ?? process.cwd());
+	const thresholds = {
+		...DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
+		...(options.thresholds ?? {}),
+	};
+	const env = options.env ?? process.env;
+	const osApi = options.os ?? os;
+	const fsApi = options.fs ?? fs;
+	const now = options.now ?? new Date();
+	const command = options.command ?? "environment-pressure";
+	const operation = options.operation ?? "check";
+	/** @type {Required<EnvironmentPressureGuidance>} */
+	const guidance = {
+		diskPressureAction: "Recover disk headroom before broad builds or test gates.",
+		diskPressureCommand: null,
+		diskProbeFailureAction: "Inspect filesystem pressure with the environment's disk diagnostic.",
+		diskProbeFailureCommand: null,
+		memoryPressureAction:
+			"Use explicit test files, bounded workers, and package-scoped checks until memory pressure drops.",
+		gitGcLogAction:
+			"Inspect the Git maintenance marker; do not run prune or destructive Git cleanup without explicit operator intent.",
+		sessionPressureAction:
+			"Prefer a new session and checkpoint before resuming large session files.",
+		sessionResumePressureAction:
+			"Do not resume oversized session files until they are archived, reduced, or explicitly accepted by the operator.",
+		...(options.guidance ?? {}),
+	};
+	/** @type {EnvironmentPressureSignal[]} */
+	const signals = [];
 
-    try {
-        const stats = fsApi.statfsSync(cwd);
-        const freeBytes = Number(stats.bavail) * Number(stats.bsize);
-        const totalBytes = Number(stats.blocks) * Number(stats.bsize);
-        const severity = classifyDiskPressure(freeBytes, thresholds);
-        signals.push({
-            id: "filesystem-free-space",
-            kind: "filesystem",
-            severity,
-            ok: severity !== "failure",
-            path: cwd,
-            freeMiB: bytesToMiB(freeBytes),
-            totalMiB: bytesToMiB(totalBytes),
-            summary:
-                severity === "info"
-                    ? "Workspace filesystem has enough free space for focused work."
-                    : "Workspace filesystem is under disk pressure.",
-            action: severity === "info" ? null : guidance.diskPressureAction,
-            command: severity === "info" ? null : guidance.diskPressureCommand,
-        });
-    } catch (error) {
-        signals.push({
-            id: "filesystem-free-space",
-            kind: "filesystem",
-            severity: "warning",
-            ok: true,
-            path: cwd,
-            summary: "Workspace filesystem free-space probe failed.",
-            action: guidance.diskProbeFailureAction,
-            command: guidance.diskProbeFailureCommand,
-            error: error instanceof Error ? error.message : String(error),
-        });
-    }
+	try {
+		const stats = fsApi.statfsSync(cwd);
+		const freeBytes = Number(stats.bavail) * Number(stats.bsize);
+		const totalBytes = Number(stats.blocks) * Number(stats.bsize);
+		const severity = classifyDiskPressure(freeBytes, thresholds);
+		signals.push({
+			id: "filesystem-free-space",
+			kind: "filesystem",
+			severity,
+			ok: severity !== "failure",
+			path: cwd,
+			freeMiB: bytesToMiB(freeBytes),
+			totalMiB: bytesToMiB(totalBytes),
+			summary:
+				severity === "info"
+					? "Workspace filesystem has enough free space for focused work."
+					: "Workspace filesystem is under disk pressure.",
+			action: severity === "info" ? null : guidance.diskPressureAction,
+			command: severity === "info" ? null : guidance.diskPressureCommand,
+		});
+	} catch (error) {
+		signals.push({
+			id: "filesystem-free-space",
+			kind: "filesystem",
+			severity: "warning",
+			ok: true,
+			path: cwd,
+			summary: "Workspace filesystem free-space probe failed.",
+			action: guidance.diskProbeFailureAction,
+			command: guidance.diskProbeFailureCommand,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
 
-    const totalBytes = Number(osApi.totalmem?.() ?? 0);
-    const freeBytes = Number(osApi.freemem?.() ?? 0);
-    const memorySeverity = classifyMemoryPressure({ totalBytes, freeBytes }, thresholds);
-    signals.push({
-        id: "host-memory-available",
-        kind: "memory",
-        severity: memorySeverity,
-        ok: memorySeverity !== "failure",
-        freeMiB: bytesToMiB(freeBytes),
-        totalMiB: bytesToMiB(totalBytes),
-        usedRatio: totalBytes > 0 ? Number((1 - freeBytes / totalBytes).toFixed(3)) : null,
-        summary:
-            memorySeverity === "info"
-                ? "Host memory has enough headroom for focused work."
-                : "Host memory is tight; broad worker fan-out can stall the environment.",
-        action: memorySeverity === "info" ? null : guidance.memoryPressureAction,
-    });
+	const totalBytes = Number(osApi.totalmem?.() ?? 0);
+	const freeBytes = Number(osApi.freemem?.() ?? 0);
+	const memorySeverity = classifyMemoryPressure({ totalBytes, freeBytes }, thresholds);
+	signals.push({
+		id: "host-memory-available",
+		kind: "memory",
+		severity: memorySeverity,
+		ok: memorySeverity !== "failure",
+		freeMiB: bytesToMiB(freeBytes),
+		totalMiB: bytesToMiB(totalBytes),
+		usedRatio: totalBytes > 0 ? Number((1 - freeBytes / totalBytes).toFixed(3)) : null,
+		summary:
+			memorySeverity === "info"
+				? "Host memory has enough headroom for focused work."
+				: "Host memory is tight; broad worker fan-out can stall the environment.",
+		action: memorySeverity === "info" ? null : guidance.memoryPressureAction,
+	});
 
-    const gitGcLogPath = path.join(cwd, ".git", "gc.log");
-    if (fsApi.existsSync(gitGcLogPath)) {
-        signals.push({
-            id: "git-gc-log-present",
-            kind: "git",
-            severity: "warning",
-            ok: true,
-            path: gitGcLogPath,
-            summary: "Git left a gc.log marker; automatic maintenance may be disabled until inspected.",
-            action: guidance.gitGcLogAction,
-        });
-    }
+	const gitGcLogPath = path.join(cwd, ".git", "gc.log");
+	if (fsApi.existsSync(gitGcLogPath)) {
+		signals.push({
+			id: "git-gc-log-present",
+			kind: "git",
+			severity: "warning",
+			ok: true,
+			path: gitGcLogPath,
+			summary: "Git left a gc.log marker; automatic maintenance may be disabled until inspected.",
+			action: guidance.gitGcLogAction,
+		});
+	}
 
-    const cacheDir = env.CARGO_TARGET_DIR ? path.resolve(cwd, env.CARGO_TARGET_DIR) : null;
-    if (cacheDir) {
-        signals.push({
-            id: "cargo-target-dir",
-            kind: "cache",
-            severity: "info",
-            ok: true,
-            path: cacheDir,
-            summary: "Rust builds are routed through CARGO_TARGET_DIR.",
-            action: null,
-        });
-    }
+	const cacheDir = env.CARGO_TARGET_DIR ? path.resolve(cwd, env.CARGO_TARGET_DIR) : null;
+	if (cacheDir) {
+		signals.push({
+			id: "cargo-target-dir",
+			kind: "cache",
+			severity: "info",
+			ok: true,
+			path: cacheDir,
+			summary: "Rust builds are routed through CARGO_TARGET_DIR.",
+			action: null,
+		});
+	}
 
-    if (Array.isArray(options.sessionFiles) && options.sessionFiles.length > 0) {
-        const budget = buildSessionPressureBudget(options.sessionFiles, thresholds);
-        for (const file of budget.oversized) {
-            const resumeBlocked = file.level === "failure" && options.sessionResumeIntent === true;
-            const severity = resumeBlocked ? "failure" : "warning";
-            signals.push({
-                id: resumeBlocked ? "huge-resume-session" : "large-session-file",
-                kind: "session",
-                severity,
-                ok: !resumeBlocked,
-                path: file.path,
-                sizeMiB: bytesToMiB(Number(file.bytes)),
-                summary: resumeBlocked
-                    ? "A requested resume session is too large for safe continuation."
-                    : "A session file is large enough to make resume or context loading expensive.",
-                action: resumeBlocked
-                    ? guidance.sessionResumePressureAction
-                    : guidance.sessionPressureAction,
-            });
-        }
-    }
+	if (Array.isArray(options.sessionFiles) && options.sessionFiles.length > 0) {
+		const budget = buildSessionPressureBudget(options.sessionFiles, thresholds);
+		for (const file of budget.oversized) {
+			const resumeBlocked = file.level === "failure" && options.sessionResumeIntent === true;
+			const severity = resumeBlocked ? "failure" : "warning";
+			signals.push({
+				id: resumeBlocked ? "huge-resume-session" : "large-session-file",
+				kind: "session",
+				severity,
+				ok: !resumeBlocked,
+				path: file.path,
+				sizeMiB: bytesToMiB(Number(file.bytes)),
+				summary: resumeBlocked
+					? "A requested resume session is too large for safe continuation."
+					: "A session file is large enough to make resume or context loading expensive.",
+				action: resumeBlocked
+					? guidance.sessionResumePressureAction
+					: guidance.sessionPressureAction,
+			});
+		}
+	}
 
-    const decision = decideEnvironmentPressure(signals);
-    /** @type {EnvironmentPressureRecommendation[]} */
-    const recommendations = signals
-        .filter((signal) => signal.action)
-        .map((signal) => ({
-            diagnostic: `${command}:${signal.id}`,
-            severity: signal.severity,
-            summary: signal.summary,
-            action: signal.action,
-            command: signal.command ?? undefined,
-            target: signal.path ?? signal.kind,
-        }));
-    const nextCommands = recommendations
-        .map((recommendation) => recommendation.command)
-        .filter((candidate, index, all) => candidate && all.indexOf(candidate) === index);
-    const nextActions = recommendations.map((recommendation) => recommendation.action);
+	const decision = decideEnvironmentPressure(signals);
+	/** @type {EnvironmentPressureRecommendation[]} */
+	const recommendations = signals
+		.filter((signal) => signal.action)
+		.map((signal) => ({
+			diagnostic: `${command}:${signal.id}`,
+			severity: signal.severity,
+			summary: signal.summary,
+			action: signal.action,
+			command: signal.command ?? undefined,
+			target: signal.path ?? signal.kind,
+		}));
+	const nextCommands = recommendations
+		.map((recommendation) => recommendation.command)
+		.filter((candidate, index, all) => candidate && all.indexOf(candidate) === index);
+	const nextActions = recommendations.map((recommendation) => recommendation.action);
 
-    return {
-        schemaVersion: 1,
-        command,
-        operation,
-        ok: decision !== "stop-and-investigate",
-        decision,
-        generatedAt: now.toISOString(),
-        cwd,
-        signals,
-        recommendations,
-        nextAction: nextActions[0] ?? null,
-        nextActions,
-        nextCommand: nextCommands[0] ?? null,
-        nextCommands,
-    };
+	return {
+		schemaVersion: 1,
+		command,
+		operation,
+		ok: decision !== "stop-and-investigate",
+		decision,
+		generatedAt: now.toISOString(),
+		cwd,
+		signals,
+		recommendations,
+		nextAction: nextActions[0] ?? null,
+		nextActions,
+		nextCommand: nextCommands[0] ?? null,
+		nextCommands,
+	};
 }

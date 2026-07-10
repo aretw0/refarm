@@ -29,7 +29,7 @@ import { SiloCore } from "./index.js";
  * @returns {Promise<SiloCollectResult>}
  */
 export async function collectAndStore(provider, ctx, core = new SiloCore()) {
-    const value = await provider.collect(ctx);
-    await core.saveSecret(provider.namespace, provider.id, value);
-    return { id: provider.id, namespace: provider.namespace, stored: true };
+	const value = await provider.collect(ctx);
+	await core.saveSecret(provider.namespace, provider.id, value);
+	return { id: provider.id, namespace: provider.namespace, stored: true };
 }

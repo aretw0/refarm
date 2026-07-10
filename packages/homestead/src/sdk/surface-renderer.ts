@@ -23,8 +23,7 @@ export interface HomesteadSurfaceRenderHostContext {
 	actions?: HomesteadSurfaceRenderAction[];
 }
 
-export interface HomesteadSurfaceRenderActionRequest
-	extends HomesteadSurfaceRenderContextRequest {
+export interface HomesteadSurfaceRenderActionRequest extends HomesteadSurfaceRenderContextRequest {
 	action: HomesteadSurfaceRenderAction;
 	host?: HomesteadSurfaceRenderHostContext;
 }
@@ -33,18 +32,13 @@ export type HomesteadSurfaceRenderActionHandlerResult = boolean | void;
 
 export type HomesteadSurfaceRenderActionHandler = (
 	request: HomesteadSurfaceRenderActionRequest,
-) =>
-	| HomesteadSurfaceRenderActionHandlerResult
-	| Promise<HomesteadSurfaceRenderActionHandlerResult>;
+) => HomesteadSurfaceRenderActionHandlerResult | Promise<HomesteadSurfaceRenderActionHandlerResult>;
 
 export type HomesteadSurfaceRenderActionScopedHandler = (
 	request: HomesteadSurfaceRenderActionRequest,
 ) => void | Promise<void>;
 
-export type HomesteadSurfaceRenderContextRequest = Omit<
-	HomesteadSurfaceRenderRequest,
-	"host"
->;
+export type HomesteadSurfaceRenderContextRequest = Omit<HomesteadSurfaceRenderRequest, "host">;
 
 export type HomesteadSurfaceRenderContextProvider = (
 	request: HomesteadSurfaceRenderContextRequest,
@@ -99,9 +93,7 @@ export function createScopedHomesteadSurfaceContextProvider(
 	createContext: HomesteadSurfaceRenderContextFactory,
 ): HomesteadSurfaceRenderContextProvider {
 	return (request) =>
-		homesteadSurfaceRenderContextMatches(request, scope)
-			? createContext(request)
-			: undefined;
+		homesteadSurfaceRenderContextMatches(request, scope) ? createContext(request) : undefined;
 }
 
 export function composeHomesteadSurfaceContextProviders(
@@ -163,11 +155,7 @@ export async function invokeHomesteadSurfaceRenderAction(
 	host: HomesteadSurfaceRenderHostContext | undefined,
 	actionId: string | undefined | null,
 ): Promise<boolean> {
-	const request = createHomesteadSurfaceRenderActionRequest(
-		renderRequest,
-		host,
-		actionId,
-	);
+	const request = createHomesteadSurfaceRenderActionRequest(renderRequest, host, actionId);
 	if (!handler || !request) return false;
 	const result = await handler(request);
 	return result !== false;

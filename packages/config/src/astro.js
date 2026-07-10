@@ -5,23 +5,41 @@ import wasm from "vite-plugin-wasm";
 import { findRefarmRoot, loadConfig } from "./index.js";
 
 export function coreAstroAliases(root) {
-    return {
-        "@refarm.dev/homestead/sdk/custom-element": path.resolve(root, "packages/homestead/src/sdk/custom-element.ts"),
-        "@refarm.dev/homestead/sdk/host-renderer": path.resolve(root, "packages/homestead/src/sdk/host-renderer.ts"),
-        "@refarm.dev/homestead/sdk/plugin-handle": path.resolve(root, "packages/homestead/src/sdk/plugin-handle.ts"),
-        "@refarm.dev/homestead/sdk/runtime": path.resolve(root, "packages/homestead/src/sdk/runtime.ts"),
-        "@refarm.dev/homestead/sdk/shell": path.resolve(root, "packages/homestead/src/sdk/Shell.ts"),
-        "@refarm.dev/homestead/sdk/surface-inspector": path.resolve(root, "packages/homestead/src/sdk/surface-inspector.ts"),
-        "@refarm.dev/homestead/sdk/surface-renderer": path.resolve(root, "packages/homestead/src/sdk/surface-renderer.ts"),
-        "@refarm.dev/homestead/sdk": path.resolve(root, "packages/homestead/src/sdk/index.ts"),
-        "@refarm.dev/homestead/ui": path.resolve(root, "packages/homestead/src/ui/index.ts"),
-        "@refarm.dev/tractor/browser": path.resolve(root, "packages/tractor-ts/src/index.browser.ts"),
-        "@refarm.dev/tractor": path.resolve(root, "packages/tractor-ts/src/index.browser.ts"),
-        "@refarm.dev/config": path.resolve(root, "packages/config/src/index.js"),
-        "@refarm.dev/ds/styles/tokens.css": path.resolve(root, "packages/ds/src/tokens.css"),
-        "@refarm.dev/ds/styles/styles.css": path.resolve(root, "packages/ds/src/styles.css"),
-        "@refarm.dev/locales": path.resolve(root, "locales")
-    };
+	return {
+		"@refarm.dev/homestead/sdk/custom-element": path.resolve(
+			root,
+			"packages/homestead/src/sdk/custom-element.ts",
+		),
+		"@refarm.dev/homestead/sdk/host-renderer": path.resolve(
+			root,
+			"packages/homestead/src/sdk/host-renderer.ts",
+		),
+		"@refarm.dev/homestead/sdk/plugin-handle": path.resolve(
+			root,
+			"packages/homestead/src/sdk/plugin-handle.ts",
+		),
+		"@refarm.dev/homestead/sdk/runtime": path.resolve(
+			root,
+			"packages/homestead/src/sdk/runtime.ts",
+		),
+		"@refarm.dev/homestead/sdk/shell": path.resolve(root, "packages/homestead/src/sdk/Shell.ts"),
+		"@refarm.dev/homestead/sdk/surface-inspector": path.resolve(
+			root,
+			"packages/homestead/src/sdk/surface-inspector.ts",
+		),
+		"@refarm.dev/homestead/sdk/surface-renderer": path.resolve(
+			root,
+			"packages/homestead/src/sdk/surface-renderer.ts",
+		),
+		"@refarm.dev/homestead/sdk": path.resolve(root, "packages/homestead/src/sdk/index.ts"),
+		"@refarm.dev/homestead/ui": path.resolve(root, "packages/homestead/src/ui/index.ts"),
+		"@refarm.dev/tractor/browser": path.resolve(root, "packages/tractor-ts/src/index.browser.ts"),
+		"@refarm.dev/tractor": path.resolve(root, "packages/tractor-ts/src/index.browser.ts"),
+		"@refarm.dev/config": path.resolve(root, "packages/config/src/index.js"),
+		"@refarm.dev/ds/styles/tokens.css": path.resolve(root, "packages/ds/src/tokens.css"),
+		"@refarm.dev/ds/styles/styles.css": path.resolve(root, "packages/ds/src/styles.css"),
+		"@refarm.dev/locales": path.resolve(root, "locales"),
+	};
 }
 
 /**
@@ -29,72 +47,73 @@ export function coreAstroAliases(root) {
  * It automatically reads Refarm project config and injects required headers for WebContainers.
  */
 export function defineConfig(userConfig = {}) {
-    const root = findRefarmRoot();
-    const refarmConfig = loadConfig(root);
+	const root = findRefarmRoot();
+	const refarmConfig = loadConfig(root);
 
-    // Base path configuration for Pages deployment
-    const site = process.env.ASTRO_SITE || refarmConfig?.brand?.urls?.site || undefined;
-    const base = process.env.ASTRO_BASE || (process.env.NODE_ENV === 'production' && refarmConfig?.brand?.slug ? `/${refarmConfig.brand.slug}/` : '/');
+	// Base path configuration for Pages deployment
+	const site = process.env.ASTRO_SITE || refarmConfig?.brand?.urls?.site || undefined;
+	const base =
+		process.env.ASTRO_BASE ||
+		(process.env.NODE_ENV === "production" && refarmConfig?.brand?.slug
+			? `/${refarmConfig.brand.slug}/`
+			: "/");
 
-    // Manually define core aliases for robust resolution in monorepo
-    const coreAliases = coreAstroAliases(root);
+	// Manually define core aliases for robust resolution in monorepo
+	const coreAliases = coreAstroAliases(root);
 
-    // Safely merge configurations
-    const mergedConfig = {
-        site,
-        base,
-        output: "static",
-        ...userConfig,
-        server: {
-            ...(userConfig.server || {}),
-            headers: {
-                "Cross-Origin-Opener-Policy": "same-origin",
-                "Cross-Origin-Embedder-Policy": "require-corp",
-                ...(userConfig.server?.headers || {})
-            }
-        },
-        vite: {
-            ...(userConfig.vite || {}),
-            plugins: [
-                wasm(),
-                ...(userConfig.vite?.plugins || [])
-            ],
-            ssr: {
-                noExternal: ["@refarm.dev/homestead", "@refarm.dev/tractor", "@refarm.dev/config"],
-                ...(userConfig.vite?.ssr || {}),
-                external: [
-                    "node:fs",
-                    "node:path",
-                    "node:os",
-                    "isomorphic-git",
-                    "@bytecodealliance/jco",
-                    ...(userConfig.vite?.ssr?.external || [])
-                ]
-            },
-            resolve: {
-                ...(userConfig.vite?.resolve || {}),
-                extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.astro'],
-                alias: {
-                    ...coreAliases,
-                    ...(userConfig.vite?.resolve?.alias || {})
-                }
-            },
-            optimizeDeps: {
-                ...(userConfig.vite?.optimizeDeps || {}),
-                exclude: [
-                    "@sqlite.org/sqlite-wasm",
-                    "loro-crdt",
-                    ...(userConfig.vite?.optimizeDeps?.exclude || [])
-                ]
-            },
-            worker: {
-                format: "es",
-                ...(userConfig.vite?.worker || {})
-            }
-        }
-    };
+	// Safely merge configurations
+	const mergedConfig = {
+		site,
+		base,
+		output: "static",
+		...userConfig,
+		server: {
+			...(userConfig.server || {}),
+			headers: {
+				"Cross-Origin-Opener-Policy": "same-origin",
+				"Cross-Origin-Embedder-Policy": "require-corp",
+				...(userConfig.server?.headers || {}),
+			},
+		},
+		vite: {
+			...(userConfig.vite || {}),
+			plugins: [wasm(), ...(userConfig.vite?.plugins || [])],
+			ssr: {
+				noExternal: ["@refarm.dev/homestead", "@refarm.dev/tractor", "@refarm.dev/config"],
+				...(userConfig.vite?.ssr || {}),
+				external: [
+					"node:fs",
+					"node:path",
+					"node:os",
+					"isomorphic-git",
+					"@bytecodealliance/jco",
+					...(userConfig.vite?.ssr?.external || []),
+				],
+			},
+			resolve: {
+				...(userConfig.vite?.resolve || {}),
+				extensions: [".mjs", ".js", ".ts", ".jsx", ".tsx", ".json", ".astro"],
+				alias: {
+					...coreAliases,
+					...(userConfig.vite?.resolve?.alias || {}),
+				},
+			},
+			optimizeDeps: {
+				...(userConfig.vite?.optimizeDeps || {}),
+				exclude: [
+					"@sqlite.org/sqlite-wasm",
+					"loro-crdt",
+					...(userConfig.vite?.optimizeDeps?.exclude || []),
+				],
+			},
+			worker: {
+				format: "es",
+				...(userConfig.vite?.worker || {}),
+			},
+		},
+	};
 
-    return defineAstroConfig(mergedConfig);
+	return defineAstroConfig(mergedConfig);
 }
 
 // Allow default imports as well

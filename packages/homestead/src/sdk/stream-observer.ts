@@ -13,9 +13,8 @@ export function sortedStreamObservationViews(
 	sessions: StreamSessionStateMap,
 	chunks: StreamChunkStateMap,
 ): StreamObservationView[] {
-	return Object.values(streamObservationViewsByStream(sessions, chunks)).sort(
-		(left, right) =>
-			(left.streamRef ?? "").localeCompare(right.streamRef ?? ""),
+	return Object.values(streamObservationViewsByStream(sessions, chunks)).sort((left, right) =>
+		(left.streamRef ?? "").localeCompare(right.streamRef ?? ""),
 	);
 }
 
@@ -50,9 +49,7 @@ export function renderStreamStatusbarHtml(
 	views: StreamObservationView[],
 	translator?: StreamObserverTranslator,
 ): string {
-	return views
-		.map((view) => renderStreamObservationPill(view, translator))
-		.join("");
+	return views.map((view) => renderStreamObservationPill(view, translator)).join("");
 }
 
 export function renderStreamPanelHtml(
@@ -131,10 +128,7 @@ function streamText(
 	return fallbackStreamText(key, params);
 }
 
-function fallbackStreamText(
-	key: string,
-	params?: Record<string, string>,
-): string {
+function fallbackStreamText(key: string, params?: Record<string, string>): string {
 	switch (key) {
 		case "agent_streams":
 			return "Agent streams";

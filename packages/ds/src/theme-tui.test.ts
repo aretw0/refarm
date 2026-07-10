@@ -9,9 +9,7 @@ import {
 } from "./theme-tui.js";
 
 function completeTheme(overrides: Partial<DsTheme> = {}): DsTheme {
-	const theme = Object.fromEntries(
-		REQUIRED_TOKENS.map((token) => [token, "#808080"]),
-	) as DsTheme;
+	const theme = Object.fromEntries(REQUIRED_TOKENS.map((token) => [token, "#808080"])) as DsTheme;
 	return { ...theme, ...overrides };
 }
 

@@ -94,8 +94,7 @@ export function createHomesteadL8n(locale = resolveBrowserLocale()): L8nHost {
 }
 
 function resolveBrowserLocale(): string {
-	const language =
-		typeof navigator === "undefined" ? "en" : navigator.language;
+	const language = typeof navigator === "undefined" ? "en" : navigator.language;
 	return language.split("-")[0] || "en";
 }
 

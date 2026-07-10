@@ -1,7 +1,4 @@
-import type {
-	RuntimeNode,
-	RuntimePluginHandle,
-} from "@refarm.dev/runtime";
+import type { RuntimeNode, RuntimePluginHandle } from "@refarm.dev/runtime";
 
 export interface StudioHostTelemetryEvent {
 	event: string;
@@ -29,9 +26,7 @@ export interface StudioHost {
 	logLevel?: string;
 	plugins: StudioHostPluginStore;
 	registry?: StudioHostRegistry;
-	observe(
-		handler: (event: StudioHostTelemetryEvent) => void | Promise<void>,
-	): void;
+	observe(handler: (event: StudioHostTelemetryEvent) => void | Promise<void>): void;
 	emitTelemetry(event: StudioHostTelemetryEvent): void;
 	onNode(type: string, handler: (node: RuntimeNode) => void | Promise<void>): void;
 	getHelpNodes(): Promise<RuntimeNode[]>;

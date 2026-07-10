@@ -9,5 +9,10 @@ export { loadWeightsFromBundle, createRandomWeights } from "./core/weights";
 export type { TEMWeights, WeightsBundle } from "./core/weights";
 export { StructAwareEncoder } from "./encoding/obs-encoder";
 export type { ObsEncoder, NormalisedNodeLike, TelemetryEventLike } from "./encoding/obs-encoder";
-export { encodeAction, resolveActionIndex, ACTION_VOCAB, N_ACTIONS } from "./encoding/action-encoder";
+export {
+	encodeAction,
+	resolveActionIndex,
+	ACTION_VOCAB,
+	N_ACTIONS,
+} from "./encoding/action-encoder";
 export { SLOTS, TYPE_VOCAB, N_X } from "./encoding/schema-slots";

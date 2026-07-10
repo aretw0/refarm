@@ -79,12 +79,8 @@ export class StudioShell {
 	private shouldLog(level: "info" | "warn" | "error"): boolean {
 		const logLevel = this.tractor.logLevel;
 		const current =
-			logLevel && logLevel in HOMESTEAD_LOG_PRIORITY
-				? (logLevel as HomesteadLogLevel)
-				: "info";
-		return (
-			HOMESTEAD_LOG_PRIORITY[current] >= HOMESTEAD_LOG_PRIORITY[level]
-		);
+			logLevel && logLevel in HOMESTEAD_LOG_PRIORITY ? (logLevel as HomesteadLogLevel) : "info";
+		return HOMESTEAD_LOG_PRIORITY[current] >= HOMESTEAD_LOG_PRIORITY[level];
 	}
 
 	private logInfo(...args: unknown[]): void {
@@ -121,9 +117,7 @@ export class StudioShell {
 			const payload = recordTelemetryPayload(data.payload);
 			if (data.event === "system:switch-tier") {
 				const tier = typeof payload.tier === "string" ? payload.tier : "";
-				this.logInfo(
-					`[shell] Mode switch detected: ${tier}. Persisting and reloading...`,
-				);
+				this.logInfo(`[shell] Mode switch detected: ${tier}. Persisting and reloading...`);
 				localStorage.setItem("refarm:mode", tier);
 				window.location.reload();
 			}
@@ -135,9 +129,7 @@ export class StudioShell {
 				const el = document.querySelector(selector) as HTMLElement;
 
 				if (el && state) {
-					this.logInfo(
-						`[shell] Reflection: Plugin ${pluginId} moved to state: ${state}`,
-					);
+					this.logInfo(`[shell] Reflection: Plugin ${pluginId} moved to state: ${state}`);
 					el.setAttribute("data-refarm-state", state);
 				}
 			}
@@ -180,9 +172,7 @@ export class StudioShell {
 			return { trusted: true, source: "internal-entry" };
 		}
 
-		const registryStatus = this.tractor.registry?.getPlugin?.(
-			plugin.id,
-		)?.status;
+		const registryStatus = this.tractor.registry?.getPlugin?.(plugin.id)?.status;
 		return {
 			trusted: registryStatus === "validated" || registryStatus === "active",
 			source: "registry",
@@ -190,10 +180,7 @@ export class StudioShell {
 		};
 	}
 
-	private emitSurfaceRejected(
-		pluginId: string,
-		rejection: HomesteadSurfaceRejection,
-	) {
+	private emitSurfaceRejected(pluginId: string, rejection: HomesteadSurfaceRejection) {
 		const payload: Record<string, unknown> = {
 			reason: rejection.reason,
 			surfaceId: rejection.surface.id,
@@ -224,10 +211,7 @@ export class StudioShell {
 		});
 
 		this.tractor.onNode("StreamChunk", async (node: StudioHostNode) => {
-			this.streamChunks = applyStreamChunkEventToMap(
-				this.streamChunks,
-				node as StreamChunkEvent,
-			);
+			this.streamChunks = applyStreamChunkEventToMap(this.streamChunks, node as StreamChunkEvent);
 			this.renderStreamObservationPanel();
 		});
 	}
@@ -237,22 +221,14 @@ export class StudioShell {
 		const streamSlot = this.slots.get("streams");
 		if (!statusSlot && !streamSlot) return;
 
-		const views = sortedStreamObservationViews(
-			this.streamSessions,
-			this.streamChunks,
-		);
+		const views = sortedStreamObservationViews(this.streamSessions, this.streamChunks);
 
 		if (statusSlot) {
-			let panel = statusSlot.querySelector<HTMLElement>(
-				"[data-refarm-stream-observer]",
-			);
+			let panel = statusSlot.querySelector<HTMLElement>("[data-refarm-stream-observer]");
 			if (!panel) {
 				panel = document.createElement("section");
 				panel.dataset.refarmStreamObserver = "true";
-				panel.setAttribute(
-					"aria-label",
-					this.l8n.t("refarm:core/live_agent_streams"),
-				);
+				panel.setAttribute("aria-label", this.l8n.t("refarm:core/live_agent_streams"));
 				panel.style.display = "inline-flex";
 				panel.style.gap = "0.5rem";
 				panel.style.marginLeft = "1rem";
@@ -266,24 +242,18 @@ export class StudioShell {
 		}
 
 		if (streamSlot) {
-			let panel = streamSlot.querySelector<HTMLElement>(
-				"[data-refarm-stream-panel]",
-			);
+			let panel = streamSlot.querySelector<HTMLElement>("[data-refarm-stream-panel]");
 			if (!panel) {
 				panel = document.createElement("section");
 				panel.dataset.refarmStreamPanel = "true";
-				panel.setAttribute(
-					"aria-label",
-					this.l8n.t("refarm:core/live_agent_stream_panel"),
-				);
+				panel.setAttribute("aria-label", this.l8n.t("refarm:core/live_agent_stream_panel"));
 				streamSlot.appendChild(panel);
 			}
 
 			panel.hidden = views.length === 0;
 			panel.innerHTML = renderStreamPanelHtml(views, this.l8n);
 			streamSlot.hidden =
-				views.length === 0 &&
-				!streamSlot.querySelector("[data-refarm-plugin-id]");
+				views.length === 0 && !streamSlot.querySelector("[data-refarm-plugin-id]");
 		}
 	}
 
@@ -293,9 +263,7 @@ export class StudioShell {
 
 		const helpNodes = await this.tractor.getHelpNodes();
 		const seedNode =
-			helpNodes.find(
-				(n: StudioHostNode) => n["refarm:renderType"] === "landing",
-			) || helpNodes[0];
+			helpNodes.find((n: StudioHostNode) => n["refarm:renderType"] === "landing") || helpNodes[0];
 		if (!seedNode) return;
 
 		if (seedNode["refarm:renderType"] === "landing") {
@@ -325,11 +293,9 @@ export class StudioShell {
       `;
 
 			// Wire up Guest Mode button (Insight "Divisor de Águas")
-			mainSlot
-				.querySelector("#try-guest-mode")
-				?.addEventListener("click", () => {
-					window.location.href = `${(import.meta as ViteImportMeta).env?.BASE_URL || "/"}onboarding?mode=guest`;
-				});
+			mainSlot.querySelector("#try-guest-mode")?.addEventListener("click", () => {
+				window.location.href = `${(import.meta as ViteImportMeta).env?.BASE_URL || "/"}onboarding?mode=guest`;
+			});
 
 			return;
 		}
@@ -362,8 +328,7 @@ export class StudioShell {
 				card.addEventListener("click", () => {
 					const intent = card.getAttribute("data-intent");
 					if (intent === "switch-to-guest") this.tractor.switchTier("guest");
-					if (intent === "switch-to-persistent")
-						this.tractor.switchTier("persistent");
+					if (intent === "switch-to-persistent") this.tractor.switchTier("persistent");
 				});
 			});
 
@@ -393,10 +358,7 @@ export class StudioShell {
     `;
 	}
 
-	private async injectPluginIntoSlot(
-		pluginId: string,
-		mount: HomesteadSurfaceMount,
-	) {
+	private async injectPluginIntoSlot(pluginId: string, mount: HomesteadSurfaceMount) {
 		const slotId = mount.slotId;
 		const container = this.slots.get(slotId);
 		if (!container) {
@@ -422,8 +384,7 @@ export class StudioShell {
 			pluginWrap.dataset.refarmSurfaceId = mount.surface.id;
 			pluginWrap.dataset.refarmSurfaceRenderMode = "wrapper";
 			if (mount.surface.capabilities?.length) {
-				pluginWrap.dataset.refarmSurfaceCapabilities =
-					mount.surface.capabilities.join(" ");
+				pluginWrap.dataset.refarmSurfaceCapabilities = mount.surface.capabilities.join(" ");
 			}
 		}
 
@@ -470,9 +431,7 @@ export class StudioShell {
 					this.l8n.registerKeys(pluginId, keys);
 				} else if (typeof bundle === "string") {
 					// Future: Fetch remote bundle
-					this.logInfo(
-						`[shell] Plugin ${pluginId} defines remote i18n: ${bundle}`,
-					);
+					this.logInfo(`[shell] Plugin ${pluginId} defines remote i18n: ${bundle}`);
 				}
 			}
 
@@ -489,9 +448,7 @@ export class StudioShell {
 						locale,
 					};
 					host = await this.options.surfaceContext?.(renderRequest);
-					const surfaceRenderRequest = host
-						? { ...renderRequest, host }
-						: renderRequest;
+					const surfaceRenderRequest = host ? { ...renderRequest, host } : renderRequest;
 					renderResult = (await plugin.call(
 						"renderHomesteadSurface",
 						surfaceRenderRequest,
@@ -508,9 +465,7 @@ export class StudioShell {
 				}
 				if (renderContent?.kind === "html") {
 					pluginWrap.dataset.refarmSurfaceRenderMode = "html";
-					const fragment = document
-						.createRange()
-						.createContextualFragment(renderContent.value);
+					const fragment = document.createRange().createContextualFragment(renderContent.value);
 					pluginWrap.replaceChildren(fragment);
 					this.emitSurfaceRendered(pluginId, mount, slotId, "html");
 					return;
@@ -543,9 +498,7 @@ export class StudioShell {
 			const target = event.target;
 			if (!(target instanceof Element)) return;
 
-			const actionElement = target.closest<HTMLElement>(
-				"[data-refarm-surface-action-id]",
-			);
+			const actionElement = target.closest<HTMLElement>("[data-refarm-surface-action-id]");
 			if (!actionElement || !pluginWrap.contains(actionElement)) return;
 
 			const action = homesteadSurfaceRenderActionById(
@@ -564,11 +517,7 @@ export class StudioShell {
 		host: HomesteadSurfaceRenderHostContext,
 		action: HomesteadSurfaceRenderAction,
 	) {
-		const actionRequest = createHomesteadSurfaceRenderActionRequest(
-			renderRequest,
-			host,
-			action.id,
-		);
+		const actionRequest = createHomesteadSurfaceRenderActionRequest(renderRequest, host, action.id);
 		if (!actionRequest) return;
 
 		this.emitSurfaceActionRequested(renderRequest, actionRequest.action);

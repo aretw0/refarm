@@ -21,10 +21,7 @@ export class NodeView {
 	/** Injected clock so the pure adapters stay deterministic in tests. */
 	private readonly now: () => string;
 
-	constructor(
-		provider: StorageProvider,
-		options: { now?: () => string } = {},
-	) {
+	constructor(provider: StorageProvider, options: { now?: () => string } = {}) {
 		this.provider = provider;
 		this.now = options.now ?? (() => new Date().toISOString());
 	}

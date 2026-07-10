@@ -55,10 +55,7 @@ const ASSETS_DIR = "assets";
  * authority: a node-ledger holds the LIST (pointers), this store holds the BYTES
  * keyed by hash. Uses the same org < workspace < user roots.
  */
-export function scopedAssetsDir(
-	scope: LedgerScope,
-	options: ScopeResolutionOptions = {},
-): string {
+export function scopedAssetsDir(scope: LedgerScope, options: ScopeResolutionOptions = {}): string {
 	return resolveScopedStorePath(scope, ASSETS_DIR, options);
 }
 
@@ -97,15 +94,13 @@ export function openScopedLedgerLayers(
 	options: OpenScopedLedgerOptions = {},
 ): ScopedLedgerLayer[] {
 	const storeFile = options.storeFile ?? LEDGER_STORE_FILE;
-	return orderedScopeStorePaths(`${name}/${storeFile}`, options).map(
-		({ scope, path }) => ({
-			scope,
-			path,
-			ledger: new NodeView(createNodeFsStorageProvider(path), {
-				now: options.now,
-			}),
+	return orderedScopeStorePaths(`${name}/${storeFile}`, options).map(({ scope, path }) => ({
+		scope,
+		path,
+		ledger: new NodeView(createNodeFsStorageProvider(path), {
+			now: options.now,
 		}),
-	);
+	}));
 }
 
 /**

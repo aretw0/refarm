@@ -24,10 +24,7 @@ describe("ConfigNodeAuditor", () => {
 	afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 	function writeLocalConfig(config) {
-		writeFileSync(
-			path.join(root, ".refarm", "config.json"),
-			JSON.stringify(config),
-		);
+		writeFileSync(path.join(root, ".refarm", "config.json"), JSON.stringify(config));
 	}
 
 	it("reports NO drift when the graph node matches the raw local config", async () => {

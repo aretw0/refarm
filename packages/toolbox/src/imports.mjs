@@ -6,214 +6,212 @@ import ts from "typescript";
 const SOURCE_EXTENSIONS = new Set([".cts", ".mts", ".ts", ".tsx"]);
 const GENERATED_SEGMENTS = new Set([".turbo", "build", "dist", "node_modules"]);
 const SOURCE_PATHSPECS = [
-  ":(glob)**/*.cts",
-  ":(glob)**/*.mts",
-  ":(glob)**/*.ts",
-  ":(glob)**/*.tsx",
+	":(glob)**/*.cts",
+	":(glob)**/*.mts",
+	":(glob)**/*.ts",
+	":(glob)**/*.tsx",
 ];
 const ORGANIZE_FORMAT_SETTINGS = {
-  insertSpaceAfterCommaDelimiter: true,
-  insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: true,
-  newLineCharacter: "\n",
+	insertSpaceAfterCommaDelimiter: true,
+	insertSpaceAfterOpeningAndBeforeClosingNonemptyBraces: true,
+	newLineCharacter: "\n",
 };
 
 export function isOrganizableSourceFile(filePath) {
-  const normalized = filePath.replaceAll("\\", "/");
-  if (normalized.endsWith(".d.ts")) return false;
-  if (!SOURCE_EXTENSIONS.has(path.extname(normalized))) return false;
-  return !normalized.split("/").some((segment) => GENERATED_SEGMENTS.has(segment));
+	const normalized = filePath.replaceAll("\\", "/");
+	if (normalized.endsWith(".d.ts")) return false;
+	if (!SOURCE_EXTENSIONS.has(path.extname(normalized))) return false;
+	return !normalized.split("/").some((segment) => GENERATED_SEGMENTS.has(segment));
 }
 
 export function uniqueSourceFiles(files, root = process.cwd()) {
-  const seen = new Set();
-  const selected = [];
-  for (const file of files) {
-    const relative = path.relative(root, path.resolve(root, file)).replaceAll("\\", "/");
-    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) continue;
-    if (!isOrganizableSourceFile(relative)) continue;
-    if (seen.has(relative)) continue;
-    seen.add(relative);
-    selected.push(relative);
-  }
-  return selected.sort();
+	const seen = new Set();
+	const selected = [];
+	for (const file of files) {
+		const relative = path.relative(root, path.resolve(root, file)).replaceAll("\\", "/");
+		if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) continue;
+		if (!isOrganizableSourceFile(relative)) continue;
+		if (seen.has(relative)) continue;
+		seen.add(relative);
+		selected.push(relative);
+	}
+	return selected.sort();
 }
 
 export function changedSourceFiles(root = process.cwd()) {
-  return changedSourceFilesFromGit(root);
+	return changedSourceFilesFromGit(root);
 }
 
 export function changedSourceFilesFromGit(
-  root = process.cwd(),
-  git = { execFileSync, existsSync: fs.existsSync },
+	root = process.cwd(),
+	git = { execFileSync, existsSync: fs.existsSync },
 ) {
-  const files = new Set();
-  for (const args of [
-    ["diff", "--name-only", "--diff-filter=ACMR", "--", ...SOURCE_PATHSPECS],
-    ["diff", "--name-only", "--cached", "--diff-filter=ACMR", "--", ...SOURCE_PATHSPECS],
-    ["ls-files", "--others", "--exclude-standard", "--", ...SOURCE_PATHSPECS],
-  ]) {
-    const output = git.execFileSync("git", args, {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-    for (const line of output.split(/\r?\n/)) {
-      const file = line.trim();
-      if (file) files.add(file);
-    }
-  }
-  return uniqueSourceFiles([...files], root).filter((file) =>
-    git.existsSync(path.join(root, file)),
-  );
+	const files = new Set();
+	for (const args of [
+		["diff", "--name-only", "--diff-filter=ACMR", "--", ...SOURCE_PATHSPECS],
+		["diff", "--name-only", "--cached", "--diff-filter=ACMR", "--", ...SOURCE_PATHSPECS],
+		["ls-files", "--others", "--exclude-standard", "--", ...SOURCE_PATHSPECS],
+	]) {
+		const output = git.execFileSync("git", args, {
+			cwd: root,
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+		});
+		for (const line of output.split(/\r?\n/)) {
+			const file = line.trim();
+			if (file) files.add(file);
+		}
+	}
+	return uniqueSourceFiles([...files], root).filter((file) =>
+		git.existsSync(path.join(root, file)),
+	);
 }
 
 export function organizeImportText(fileName, text, root = process.cwd()) {
-  const absolute = path.resolve(root, fileName);
-  let currentText = text;
-  const snapshots = new Map([[absolute, ts.ScriptSnapshot.fromString(currentText)]]);
-  const updateSnapshot = (next) => {
-    currentText = next;
-    snapshots.set(absolute, ts.ScriptSnapshot.fromString(currentText));
-  };
-  const service = createLanguageService(root, [absolute], snapshots);
-  updateSnapshot(organizeImportTextWithService(service, absolute, currentText));
-  return normalizeMultilineNamedBindingIndent(currentText);
+	const absolute = path.resolve(root, fileName);
+	let currentText = text;
+	const snapshots = new Map([[absolute, ts.ScriptSnapshot.fromString(currentText)]]);
+	const updateSnapshot = (next) => {
+		currentText = next;
+		snapshots.set(absolute, ts.ScriptSnapshot.fromString(currentText));
+	};
+	const service = createLanguageService(root, [absolute], snapshots);
+	updateSnapshot(organizeImportTextWithService(service, absolute, currentText));
+	return normalizeMultilineNamedBindingIndent(currentText);
 }
 
 export function organizeImports(files, { root = process.cwd(), check = false } = {}) {
-  const changed = [];
-  const entries = [];
-  const snapshots = new Map();
-  for (const file of uniqueSourceFiles(files, root)) {
-    const absolute = path.join(root, file);
-    if (!fs.existsSync(absolute)) continue;
-    const current = fs.readFileSync(absolute, "utf8");
-    entries.push({ file, absolute, current });
-    snapshots.set(path.resolve(absolute), ts.ScriptSnapshot.fromString(current));
-  }
-  const service = createLanguageService(root, entries.map((entry) => entry.absolute), snapshots);
-  for (const entry of entries) {
-    const organized = normalizeMultilineNamedBindingIndent(
-      organizeImportTextWithService(service, entry.absolute, entry.current),
-    );
-    if (organized === entry.current) continue;
-    changed.push(entry.file);
-    if (!check) {
-      fs.writeFileSync(entry.absolute, organized, "utf8");
-      snapshots.set(path.resolve(entry.absolute), ts.ScriptSnapshot.fromString(organized));
-    }
-  }
-  return changed;
+	const changed = [];
+	const entries = [];
+	const snapshots = new Map();
+	for (const file of uniqueSourceFiles(files, root)) {
+		const absolute = path.join(root, file);
+		if (!fs.existsSync(absolute)) continue;
+		const current = fs.readFileSync(absolute, "utf8");
+		entries.push({ file, absolute, current });
+		snapshots.set(path.resolve(absolute), ts.ScriptSnapshot.fromString(current));
+	}
+	const service = createLanguageService(
+		root,
+		entries.map((entry) => entry.absolute),
+		snapshots,
+	);
+	for (const entry of entries) {
+		const organized = normalizeMultilineNamedBindingIndent(
+			organizeImportTextWithService(service, entry.absolute, entry.current),
+		);
+		if (organized === entry.current) continue;
+		changed.push(entry.file);
+		if (!check) {
+			fs.writeFileSync(entry.absolute, organized, "utf8");
+			snapshots.set(path.resolve(entry.absolute), ts.ScriptSnapshot.fromString(organized));
+		}
+	}
+	return changed;
 }
 
 function organizeImportTextWithService(service, absolute, currentText) {
-  const sourceFile = ts.createSourceFile(
-    absolute,
-    currentText,
-    ts.ScriptTarget.Latest,
-    true,
-  );
-  const importSpans = sourceFile.statements
-    .filter(ts.isImportDeclaration)
-    .map((statement) => ({
-      start: statement.getFullStart(),
-      end: statement.end,
-    }));
-  const changes = service.organizeImports(
-    { type: "file", fileName: absolute },
-    ORGANIZE_FORMAT_SETTINGS,
-    {},
-  );
-  let nextText = currentText;
-  for (const fileChanges of changes) {
-    if (path.resolve(fileChanges.fileName) !== path.resolve(absolute)) continue;
-    const importTextChanges = fileChanges.textChanges.filter((change) =>
-      textChangeOverlapsSpans(change, importSpans),
-    );
-    nextText = applyTextChanges(nextText, importTextChanges);
-  }
-  return nextText;
+	const sourceFile = ts.createSourceFile(absolute, currentText, ts.ScriptTarget.Latest, true);
+	const importSpans = sourceFile.statements.filter(ts.isImportDeclaration).map((statement) => ({
+		start: statement.getFullStart(),
+		end: statement.end,
+	}));
+	const changes = service.organizeImports(
+		{ type: "file", fileName: absolute },
+		ORGANIZE_FORMAT_SETTINGS,
+		{},
+	);
+	let nextText = currentText;
+	for (const fileChanges of changes) {
+		if (path.resolve(fileChanges.fileName) !== path.resolve(absolute)) continue;
+		const importTextChanges = fileChanges.textChanges.filter((change) =>
+			textChangeOverlapsSpans(change, importSpans),
+		);
+		nextText = applyTextChanges(nextText, importTextChanges);
+	}
+	return nextText;
 }
 
 function createLanguageService(root, absolutes, snapshots) {
-  const compilerOptions = {
-    allowJs: true,
-    checkJs: false,
-    module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.Bundler,
-    noResolve: true,
-    skipLibCheck: true,
-    target: ts.ScriptTarget.ESNext,
-  };
-  const defaultLibFile = ts.getDefaultLibFilePath(compilerOptions);
-  const host = {
-    getCompilationSettings: () => compilerOptions,
-    getCurrentDirectory: () => root,
-    getDefaultLibFileName: () => defaultLibFile,
-    getDirectories: () => [],
-    getNewLine: () => "\n",
-    getScriptFileNames: () => absolutes,
-    getScriptSnapshot(filePath) {
-      const resolved = path.resolve(filePath);
-      if (snapshots.has(resolved)) return snapshots.get(resolved);
-      if (resolved !== path.resolve(defaultLibFile)) return undefined;
-      if (!fs.existsSync(resolved)) return undefined;
-      return ts.ScriptSnapshot.fromString(fs.readFileSync(resolved, "utf8"));
-    },
-    getScriptVersion: () => "0",
-    readDirectory: () => [],
-    readFile(filePath) {
-      const resolved = path.resolve(filePath);
-      const snapshot = snapshots.get(resolved);
-      if (snapshot) return snapshot.getText(0, snapshot.getLength());
-      if (resolved !== path.resolve(defaultLibFile)) return undefined;
-      return fs.existsSync(resolved) ? fs.readFileSync(resolved, "utf8") : undefined;
-    },
-    fileExists(filePath) {
-      const resolved = path.resolve(filePath);
-      return snapshots.has(resolved) || resolved === path.resolve(defaultLibFile);
-    },
-    directoryExists: () => true,
-    resolveModuleNames: (moduleNames) => moduleNames.map(() => undefined),
-  };
-  return ts.createLanguageService(host);
+	const compilerOptions = {
+		allowJs: true,
+		checkJs: false,
+		module: ts.ModuleKind.ESNext,
+		moduleResolution: ts.ModuleResolutionKind.Bundler,
+		noResolve: true,
+		skipLibCheck: true,
+		target: ts.ScriptTarget.ESNext,
+	};
+	const defaultLibFile = ts.getDefaultLibFilePath(compilerOptions);
+	const host = {
+		getCompilationSettings: () => compilerOptions,
+		getCurrentDirectory: () => root,
+		getDefaultLibFileName: () => defaultLibFile,
+		getDirectories: () => [],
+		getNewLine: () => "\n",
+		getScriptFileNames: () => absolutes,
+		getScriptSnapshot(filePath) {
+			const resolved = path.resolve(filePath);
+			if (snapshots.has(resolved)) return snapshots.get(resolved);
+			if (resolved !== path.resolve(defaultLibFile)) return undefined;
+			if (!fs.existsSync(resolved)) return undefined;
+			return ts.ScriptSnapshot.fromString(fs.readFileSync(resolved, "utf8"));
+		},
+		getScriptVersion: () => "0",
+		readDirectory: () => [],
+		readFile(filePath) {
+			const resolved = path.resolve(filePath);
+			const snapshot = snapshots.get(resolved);
+			if (snapshot) return snapshot.getText(0, snapshot.getLength());
+			if (resolved !== path.resolve(defaultLibFile)) return undefined;
+			return fs.existsSync(resolved) ? fs.readFileSync(resolved, "utf8") : undefined;
+		},
+		fileExists(filePath) {
+			const resolved = path.resolve(filePath);
+			return snapshots.has(resolved) || resolved === path.resolve(defaultLibFile);
+		},
+		directoryExists: () => true,
+		resolveModuleNames: (moduleNames) => moduleNames.map(() => undefined),
+	};
+	return ts.createLanguageService(host);
 }
 
 function applyTextChanges(text, changes) {
-  let next = text;
-  for (const change of [...changes].sort((a, b) => b.span.start - a.span.start)) {
-    next =
-      next.slice(0, change.span.start) +
-      change.newText +
-      next.slice(change.span.start + change.span.length);
-  }
-  return next;
+	let next = text;
+	for (const change of [...changes].sort((a, b) => b.span.start - a.span.start)) {
+		next =
+			next.slice(0, change.span.start) +
+			change.newText +
+			next.slice(change.span.start + change.span.length);
+	}
+	return next;
 }
 
 function textChangeOverlapsSpans(change, spans) {
-  const start = change.span.start;
-  const end = change.span.start + change.span.length;
-  return spans.some((span) =>
-    (start >= span.start && start <= span.end) ||
-    (start < span.end && end > span.start),
-  );
+	const start = change.span.start;
+	const end = change.span.start + change.span.length;
+	return spans.some(
+		(span) => (start >= span.start && start <= span.end) || (start < span.end && end > span.start),
+	);
 }
 
 function normalizeMultilineNamedBindingIndent(text) {
-  const lines = text.split("\n");
-  let inNamedBinding = false;
-  return lines.map((line) => {
-    if (/^(?:import|export)(?:\s+type)?\s+\{\s*$/.test(line)) {
-      inNamedBinding = true;
-      return line;
-    }
-    if (inNamedBinding && /^\}\s+from\s+/.test(line)) {
-      inNamedBinding = false;
-      return line;
-    }
-    if (inNamedBinding && line.trim().length > 0 && !/^\s/.test(line)) {
-      return `\t${line}`;
-    }
-    return line;
-  }).join("\n");
+	const lines = text.split("\n");
+	let inNamedBinding = false;
+	return lines
+		.map((line) => {
+			if (/^(?:import|export)(?:\s+type)?\s+\{\s*$/.test(line)) {
+				inNamedBinding = true;
+				return line;
+			}
+			if (inNamedBinding && /^\}\s+from\s+/.test(line)) {
+				inNamedBinding = false;
+				return line;
+			}
+			if (inNamedBinding && line.trim().length > 0 && !/^\s/.test(line)) {
+				return `\t${line}`;
+			}
+			return line;
+		})
+		.join("\n");
 }

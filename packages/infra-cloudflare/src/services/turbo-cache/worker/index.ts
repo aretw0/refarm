@@ -105,10 +105,7 @@ export default {
 
 				const contentLength = Number(request.headers.get("content-length") ?? 0);
 				if (contentLength > maxBytes) {
-					return respond(
-						{ error: `Artifact exceeds size limit (${formatBytes(maxBytes)})` },
-						413,
-					);
+					return respond({ error: `Artifact exceeds size limit (${formatBytes(maxBytes)})` }, 413);
 				}
 
 				const tag = request.headers.get("x-artifact-tag") ?? undefined;
@@ -131,7 +128,11 @@ export default {
 
 	// Cloudflare Cron Trigger — runs on schedule defined in wrangler.toml [triggers].
 	// Deletes all R2 objects whose uploaded-at metadata exceeds ARTIFACT_TTL_SECONDS.
-	async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+	async scheduled(
+		_controller: ScheduledController,
+		env: Env,
+		ctx: ExecutionContext,
+	): Promise<void> {
 		const ttlSeconds = Number(env.ARTIFACT_TTL_SECONDS) || 2_592_000;
 		if (ttlSeconds === 0) return; // TTL=0 means retain forever — skip cleanup.
 
@@ -151,7 +152,11 @@ interface CleanupReport {
 	ttlSeconds: number;
 }
 
-async function runCleanup(bucket: R2Bucket, ttlSeconds: number, dryRun: boolean): Promise<CleanupReport> {
+async function runCleanup(
+	bucket: R2Bucket,
+	ttlSeconds: number,
+	dryRun: boolean,
+): Promise<CleanupReport> {
 	let scanned = 0;
 	let deleted = 0;
 	let cursor: string | undefined;

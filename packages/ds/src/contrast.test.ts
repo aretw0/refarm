@@ -33,17 +33,12 @@ function channelLuminance(channel: number): number {
 describe("DS text contrast", () => {
 	it("keeps secondary text accessible on dark DS surfaces", () => {
 		for (const background of ["#0d1117", "#161b22", "#21262d"]) {
-			expect(contrastRatio("#8b949e", background)).toBeGreaterThanOrEqual(
-				AA_NORMAL_TEXT,
-			);
+			expect(contrastRatio("#8b949e", background)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
 		}
 	});
 
 	it("keeps workbench backgrounds dark enough for DS text tokens", () => {
-		const stylesPath = join(
-			dirname(fileURLToPath(import.meta.url)),
-			"styles.css",
-		);
+		const stylesPath = join(dirname(fileURLToPath(import.meta.url)), "styles.css");
 		const styles = readFileSync(stylesPath, "utf8");
 		const workbenchBlock =
 			styles.match(/\.ds-workbench[\s\S]*?\.refarm-workbench\s*\{[\s\S]*?\n\}/)?.[0] ?? "";

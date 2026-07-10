@@ -36,14 +36,11 @@ describe("shipped theme CSS conformance", () => {
 		expect(result.pass).toBe(true);
 	});
 
-	it.each(["oceano", "terracota", "verde-jardim"])(
-		"%s defines every required token",
-		(name) => {
-			const result = runDsThemeConformance(tokensInThemeCss(`./themes/${name}.css`));
-			expect(result.missing).toEqual([]);
-			expect(result.pass).toBe(true);
-		},
-	);
+	it.each(["oceano", "terracota", "verde-jardim"])("%s defines every required token", (name) => {
+		const result = runDsThemeConformance(tokensInThemeCss(`./themes/${name}.css`));
+		expect(result.missing).toEqual([]);
+		expect(result.pass).toBe(true);
+	});
 
 	it("verde-jardim ships the Lab-proven light mode values", () => {
 		const css = readFileSync(
@@ -63,7 +60,11 @@ describe("shipped theme CSS conformance", () => {
 			"accent-foreground": "#0f3d26",
 		});
 		expect(light["shadow-md"]).toBeDefined();
-		expect(css).toContain('[data-mode="light"] :where([data-ds-theme="verde-jardim"], [data-refarm-theme="verde-jardim"])');
-		expect(css).toContain(':where([data-ds-theme="verde-jardim"], [data-refarm-theme="verde-jardim"])[data-mode="dark"]');
+		expect(css).toContain(
+			'[data-mode="light"] :where([data-ds-theme="verde-jardim"], [data-refarm-theme="verde-jardim"])',
+		);
+		expect(css).toContain(
+			':where([data-ds-theme="verde-jardim"], [data-refarm-theme="verde-jardim"])[data-mode="dark"]',
+		);
 	});
 });

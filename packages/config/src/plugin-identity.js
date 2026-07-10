@@ -10,9 +10,7 @@ export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR = {
 	manifestFile: "dist/plugin.json",
 	requiredProvides: ["integration:respond"],
 };
-export const REFARM_BUNDLED_PLUGIN_DESCRIPTORS = [
-	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
-];
+export const REFARM_BUNDLED_PLUGIN_DESCRIPTORS = [RUNTIME_AGENT_PLUGIN_DESCRIPTOR];
 export const RUNTIME_AGENT_ERROR_PREFIXES = [
 	"[runtime-agent error]",
 	"[runtime-agent stub]",
@@ -20,10 +18,10 @@ export const RUNTIME_AGENT_ERROR_PREFIXES = [
 ];
 
 const PLUGIN_ID_ALIASES = {
-	"agent": AGENT_PLUGIN_ID,
+	agent: AGENT_PLUGIN_ID,
 	"refarm/agent": AGENT_PLUGIN_ID,
 	"runtime-agent": RUNTIME_AGENT_PLUGIN_ID,
-	"runtime_agent": RUNTIME_AGENT_PLUGIN_ID,
+	runtime_agent: RUNTIME_AGENT_PLUGIN_ID,
 	"refarm/runtime-agent": RUNTIME_AGENT_PLUGIN_ID,
 	[AGENT_NPM_PACKAGE]: AGENT_PLUGIN_ID,
 };
@@ -113,10 +111,7 @@ export function pluginIdRuntimeToken(id) {
  * @returns {string}
  */
 export function pluginIdToFsToken(pluginId) {
-	const token = pluginId
-		.replace(/[/\\]/g, "_")
-		.replace(/@/g, "")
-		.replace(NON_FS_SAFE_RE, "_");
+	const token = pluginId.replace(/[/\\]/g, "_").replace(/@/g, "").replace(NON_FS_SAFE_RE, "_");
 	return /^\.+$/.test(token) ? `_${token}` : token;
 }
 
@@ -129,9 +124,7 @@ export function isRuntimeAgentPluginId(pluginId) {
 }
 
 export function isRuntimeAgentErrorContent(content) {
-	return RUNTIME_AGENT_ERROR_PREFIXES.some((prefix) =>
-		content.startsWith(prefix),
-	);
+	return RUNTIME_AGENT_ERROR_PREFIXES.some((prefix) => content.startsWith(prefix));
 }
 
 // Content already uses the canonical `[runtime-agent …]` labels; the legacy

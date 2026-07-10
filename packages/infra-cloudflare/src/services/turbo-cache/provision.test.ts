@@ -73,14 +73,12 @@ describe("createCloudflareTurboCacheProvisionPlan", () => {
 					{
 						kind: "http-endpoint",
 						name: "cache-api",
-						description:
-							"HTTP endpoint implementing Turborepo Remote Cache API v8",
+						description: "HTTP endpoint implementing Turborepo Remote Cache API v8",
 					},
 					{
 						kind: "bearer-auth",
 						name: "cache-auth-token",
-						description:
-							"Bearer token required by CI clients that read/write cache artifacts",
+						description: "Bearer token required by CI clients that read/write cache artifacts",
 						secret: true,
 					},
 				],
@@ -109,8 +107,7 @@ describe("createCloudflareTurboCacheProvisionPlan", () => {
 					kind: "worker",
 					action: "deploy",
 					name: "refarm-worker-test",
-					description:
-						"Cloudflare Worker implementing Turborepo Remote Cache API v8",
+					description: "Cloudflare Worker implementing Turborepo Remote Cache API v8",
 				},
 			],
 			ciSecrets: ["TURBO_CACHE_API_URL", "TURBO_CACHE_TOKEN"],
@@ -135,7 +132,9 @@ describe("CloudflareTurboCacheProvisioner", () => {
 
 		const workerCwd = calls[0]!.cwd;
 		expect(existsSync(workerCwd), `WORKER_DIR not found on disk: ${workerCwd}`).toBe(true);
-		expect(existsSync(`${workerCwd}/wrangler.toml`), "wrangler.toml missing from WORKER_DIR").toBe(true);
+		expect(existsSync(`${workerCwd}/wrangler.toml`), "wrangler.toml missing from WORKER_DIR").toBe(
+			true,
+		);
 
 		const wranglerToml = readFileSync(`${workerCwd}/wrangler.toml`, "utf-8");
 		expect(wranglerToml).toContain("\n[triggers]\n");
@@ -212,9 +211,12 @@ describe("CloudflareTurboCacheProvisioner", () => {
 				kind: "exec",
 				args: [
 					"deploy",
-					"--var", "ARTIFACT_TTL_SECONDS:2592000",
-					"--var", "MAX_ARTIFACT_BYTES:52428800",
-					"--var", "CLEANUP_DRY_RUN:false",
+					"--var",
+					"ARTIFACT_TTL_SECONDS:2592000",
+					"--var",
+					"MAX_ARTIFACT_BYTES:52428800",
+					"--var",
+					"CLEANUP_DRY_RUN:false",
 				],
 				input: undefined,
 			},
@@ -224,13 +226,9 @@ describe("CloudflareTurboCacheProvisioner", () => {
 	it("continues when the R2 bucket already exists", async () => {
 		const { provider, calls } = createProvider({
 			execErrors: {
-				"r2 bucket create refarm-cache-test": new Error(
-					"bucket already exists",
-				),
+				"r2 bucket create refarm-cache-test": new Error("bucket already exists"),
 			},
-			execResults: [
-				{ stdout: "https://refarm-cache.example.workers.dev", stderr: "" },
-			],
+			execResults: [{ stdout: "https://refarm-cache.example.workers.dev", stderr: "" }],
 		});
 		const provisioner = new CloudflareTurboCacheProvisioner(provider);
 

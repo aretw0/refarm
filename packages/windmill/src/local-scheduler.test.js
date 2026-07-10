@@ -157,9 +157,7 @@ describe("local scheduled work", () => {
 	it("requires an explicit owner", async () => {
 		const adapter = createAutomationAdapter();
 
-		await expect(listLocalScheduledJobs(adapter)).rejects.toThrow(
-			"non-empty owner",
-		);
+		await expect(listLocalScheduledJobs(adapter)).rejects.toThrow("non-empty owner");
 	});
 
 	it("requires a valid clock override", async () => {
@@ -207,9 +205,7 @@ describe("local scheduled work", () => {
 			],
 		});
 		expect(submitted).toHaveLength(1);
-		expect(submitted[0]).toEqual(
-			expect.objectContaining({ direction: "scheduled local work" }),
-		);
+		expect(submitted[0]).toEqual(expect.objectContaining({ direction: "scheduled local work" }));
 	});
 
 	it("reports skipped and failed due work without aborting the tick", async () => {
@@ -287,11 +283,11 @@ describe("local scheduled work", () => {
 			triggers: [{ type: "once", at: "2026-06-27T08:00:00.000Z" }],
 		});
 
-		const first = await executeDueLocalScheduledWork(
-			automationAdapter,
-			effortAdapter,
-			{ owner: "refarm-main", now: "2026-06-27T09:00:00.000Z", ledger },
-		);
+		const first = await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:00:00.000Z",
+			ledger,
+		});
 		expect(first.summary).toMatchObject({ due: 1, submitted: 1, alreadyFired: 0 });
 		expect(first.results[0]).toMatchObject({
 			status: "submitted",
@@ -300,11 +296,11 @@ describe("local scheduled work", () => {
 
 		// A later tick still sees the one-shot as due (at <= now), but the ledger
 		// suppresses the re-fire.
-		const second = await executeDueLocalScheduledWork(
-			automationAdapter,
-			effortAdapter,
-			{ owner: "refarm-main", now: "2026-06-27T09:05:00.000Z", ledger },
-		);
+		const second = await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:05:00.000Z",
+			ledger,
+		});
 		expect(second.summary).toMatchObject({ due: 1, submitted: 0, alreadyFired: 1 });
 		expect(second.results[0]).toMatchObject({ status: "already-fired" });
 		expect(submitted).toHaveLength(1);
@@ -356,20 +352,20 @@ describe("local scheduled work", () => {
 			now: "2026-06-27T09:05:00.000Z",
 			ledger,
 		});
-		const sameWindow = await executeDueLocalScheduledWork(
-			automationAdapter,
-			effortAdapter,
-			{ owner: "refarm-main", now: "2026-06-27T09:05:30.000Z", ledger },
-		);
+		const sameWindow = await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:05:30.000Z",
+			ledger,
+		});
 		expect(sameWindow.summary).toMatchObject({ submitted: 0, alreadyFired: 1 });
 		expect(submitted).toHaveLength(1);
 
 		// A later due window is a fresh fire key: fires again.
-		const nextWindow = await executeDueLocalScheduledWork(
-			automationAdapter,
-			effortAdapter,
-			{ owner: "refarm-main", now: "2026-06-27T09:10:00.000Z", ledger },
-		);
+		const nextWindow = await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:10:00.000Z",
+			ledger,
+		});
 		expect(nextWindow.summary).toMatchObject({ submitted: 1, alreadyFired: 0 });
 		expect(submitted).toHaveLength(2);
 	});
@@ -393,19 +389,19 @@ describe("local scheduled work", () => {
 			triggers: [{ type: "cron", schedule: "*/5 * * * *" }],
 		});
 
-		const firstTick = await executeDueLocalScheduledWork(
-			automationAdapter,
-			effortAdapter,
-			{ owner: "refarm-main", now: "2026-06-27T09:05:00.000Z", ledger },
-		);
+		const firstTick = await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:05:00.000Z",
+			ledger,
+		});
 		expect(firstTick.summary).toMatchObject({ due: 2, submitted: 2, alreadyFired: 0 });
 		expect(submitted).toHaveLength(2);
 
-		const secondTick = await executeDueLocalScheduledWork(
-			automationAdapter,
-			effortAdapter,
-			{ owner: "refarm-main", now: "2026-06-27T09:05:30.000Z", ledger },
-		);
+		const secondTick = await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:05:30.000Z",
+			ledger,
+		});
 		expect(secondTick.summary).toMatchObject({ due: 2, submitted: 0, alreadyFired: 2 });
 		expect(new Set(secondTick.results.map((result) => result.job.fireKey)).size).toBe(2);
 		expect(submitted).toHaveLength(2);
@@ -427,19 +423,19 @@ describe("local scheduled work", () => {
 			triggers: [{ type: "once", at: "2026-06-27T08:00:00.000Z" }],
 		});
 
-		const first = await executeDueLocalScheduledWork(
-			automationAdapter,
-			effortAdapter,
-			{ owner: "refarm-main", now: "2026-06-27T09:00:00.000Z", ledger },
-		);
+		const first = await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:00:00.000Z",
+			ledger,
+		});
 		expect(first.summary).toMatchObject({ failed: 1, submitted: 0 });
 		expect(ledger.size()).toBe(0);
 
-		const second = await executeDueLocalScheduledWork(
-			automationAdapter,
-			effortAdapter,
-			{ owner: "refarm-main", now: "2026-06-27T09:05:00.000Z", ledger },
-		);
+		const second = await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:05:00.000Z",
+			ledger,
+		});
 		expect(second.summary).toMatchObject({ submitted: 1, alreadyFired: 0 });
 		expect(attempts).toBe(2);
 	});
@@ -466,11 +462,11 @@ describe("local scheduled work", () => {
 			triggers: [{ type: "once", at: "2026-06-27T08:00:00.000Z" }],
 		});
 
-		const report = await executeDueLocalScheduledWork(
-			automationAdapter,
-			effortAdapter,
-			{ owner: "refarm-main", now: "2026-06-27T09:00:00.000Z", ledger },
-		);
+		const report = await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:00:00.000Z",
+			ledger,
+		});
 		expect(report.summary).toMatchObject({ submitted: 1, failed: 0 });
 		expect(report.results[0]).toMatchObject({
 			status: "submitted",

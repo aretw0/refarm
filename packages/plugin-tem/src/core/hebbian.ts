@@ -29,24 +29,24 @@
  * @param lambda Exponential decay per step (default 0.9999)
  */
 export function hebbianUpdate(
-  M: Float32Array,
-  pInf: Float32Array,
-  pGen: Float32Array,
-  eta: number = 0.5,
-  lambda: number = 0.9999,
+	M: Float32Array,
+	pInf: Float32Array,
+	pGen: Float32Array,
+	eta: number = 0.5,
+	lambda: number = 0.9999,
 ): void {
-  const n = pInf.length;
-  for (let i = 0; i < n; i++) {
-    const infI = pInf[i]!;
-    const genI = pGen[i]!;
-    for (let j = 0; j < n; j++) {
-      const idx = i * n + j;
-      const delta = infI * pInf[j]! - genI * pGen[j]!;
-      const updated = lambda * M[idx]! + eta * delta;
-      // clamp to [-1, +1] — prevents runaway weight growth
-      M[idx] = updated < -1 ? -1 : updated > 1 ? 1 : updated;
-    }
-  }
+	const n = pInf.length;
+	for (let i = 0; i < n; i++) {
+		const infI = pInf[i]!;
+		const genI = pGen[i]!;
+		for (let j = 0; j < n; j++) {
+			const idx = i * n + j;
+			const delta = infI * pInf[j]! - genI * pGen[j]!;
+			const updated = lambda * M[idx]! + eta * delta;
+			// clamp to [-1, +1] — prevents runaway weight growth
+			M[idx] = updated < -1 ? -1 : updated > 1 ? 1 : updated;
+		}
+	}
 }
 
 /**
@@ -54,5 +54,5 @@ export function hebbianUpdate(
  * @param sumP Total place-cell count (default 120)
  */
 export function createHebbianMemory(sumP: number = 120): Float32Array {
-  return new Float32Array(sumP * sumP);
+	return new Float32Array(sumP * sumP);
 }

@@ -50,9 +50,7 @@ export class TractorNodesReadProvider implements StorageProvider {
 			hasType ? " WHERE type = ?" : ""
 		} ORDER BY updated_at ASC`;
 		const stmt = this.db.prepare(sql);
-		const rows = (
-			hasType ? stmt.all(query.type as string) : stmt.all()
-		) as unknown as NodeRow[];
+		const rows = (hasType ? stmt.all(query.type as string) : stmt.all()) as unknown as NodeRow[];
 		return rows.map((row) => this.toRecord(row));
 	}
 
@@ -61,21 +59,15 @@ export class TractorNodesReadProvider implements StorageProvider {
 	}
 
 	async putMany(): Promise<void> {
-		throw new Error(
-			"TractorNodesReadProvider is read-only: putMany() not allowed",
-		);
+		throw new Error("TractorNodesReadProvider is read-only: putMany() not allowed");
 	}
 
 	async delete(): Promise<void> {
-		throw new Error(
-			"TractorNodesReadProvider is read-only: delete() not allowed",
-		);
+		throw new Error("TractorNodesReadProvider is read-only: delete() not allowed");
 	}
 
 	async deleteMany(): Promise<void> {
-		throw new Error(
-			"TractorNodesReadProvider is read-only: deleteMany() not allowed",
-		);
+		throw new Error("TractorNodesReadProvider is read-only: deleteMany() not allowed");
 	}
 
 	close(): void {

@@ -7,32 +7,32 @@
  */
 
 const BROWSER_ERROR =
-  "[windmill] Infrastructure operations (git mirroring, DNS reconciliation, deployment) " +
-  "require the Node.js runtime and cannot run in the browser.";
+	"[windmill] Infrastructure operations (git mirroring, DNS reconciliation, deployment) " +
+	"require the Node.js runtime and cannot run in the browser.";
 
 /**
  * Browser stub for WindmillEngine.
  */
 export class WindmillEngine {
-  constructor(_config, _options = {}) {
-    // no-op: allow construction in browser contexts
-  }
+	constructor(_config, _options = {}) {
+		// no-op: allow construction in browser contexts
+	}
 
-  async pull() {
-    throw new Error(BROWSER_ERROR);
-  }
+	async pull() {
+		throw new Error(BROWSER_ERROR);
+	}
 
-  async sync() {
-    throw new Error(BROWSER_ERROR);
-  }
+	async sync() {
+		throw new Error(BROWSER_ERROR);
+	}
 
-  async deploy(_target = "all") {
-    throw new Error(BROWSER_ERROR);
-  }
+	async deploy(_target = "all") {
+		throw new Error(BROWSER_ERROR);
+	}
 
-  async _deployToTarget(_targetConfig) {
-    throw new Error(BROWSER_ERROR);
-  }
+	async _deployToTarget(_targetConfig) {
+		throw new Error(BROWSER_ERROR);
+	}
 }
 
 export { WindmillEngine as Windmill };

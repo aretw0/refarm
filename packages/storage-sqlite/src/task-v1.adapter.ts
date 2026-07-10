@@ -1,7 +1,4 @@
-import type {
-	StorageProvider,
-	StorageRecord,
-} from "@refarm.dev/storage-contract-v1";
+import type { StorageProvider, StorageRecord } from "@refarm.dev/storage-contract-v1";
 import type {
 	Task,
 	TaskContractAdapter,
@@ -10,7 +7,6 @@ import type {
 	TaskStatus,
 	TaskSummary,
 } from "@refarm.dev/task-contract-v1";
-
 
 const TASK_RECORD_TYPE = "Task";
 const TASK_EVENT_RECORD_TYPE = "TaskEvent";
@@ -86,9 +82,7 @@ function applyTaskFilter(tasks: Task[], filter: TaskFilter): Task[] {
 	}
 
 	if (filter.assigned_to !== undefined) {
-		filtered = filtered.filter(
-			(task) => task.assigned_to === filter.assigned_to,
-		);
+		filtered = filtered.filter((task) => task.assigned_to === filter.assigned_to);
 	}
 
 	if (filter.context_id !== undefined) {
@@ -96,9 +90,7 @@ function applyTaskFilter(tasks: Task[], filter: TaskFilter): Task[] {
 	}
 
 	if ("parent_task_id" in filter) {
-		filtered = filtered.filter(
-			(task) => task.parent_task_id === filter.parent_task_id,
-		);
+		filtered = filtered.filter((task) => task.parent_task_id === filter.parent_task_id);
 	}
 
 	return filtered;
@@ -162,9 +154,7 @@ export function createTaskV1StorageAdapter(
 		return lastNs;
 	}
 
-	async function readTask(
-		id: string,
-	): Promise<{ record: StorageRecord; task: Task } | null> {
+	async function readTask(id: string): Promise<{ record: StorageRecord; task: Task } | null> {
 		const record = await provider.get(id);
 		if (!record || record.type !== TASK_RECORD_TYPE) return null;
 		const task = asTask(parsePayload<Task>(record));
@@ -229,9 +219,7 @@ export function createTaskV1StorageAdapter(
 		async appendEvent(eventInput) {
 			const task = await readTask(eventInput.task_id);
 			if (!task) {
-				throw new Error(
-					`Task not found for appendEvent: ${eventInput.task_id}`,
-				);
+				throw new Error(`Task not found for appendEvent: ${eventInput.task_id}`);
 			}
 			const event: TaskEvent = {
 				...eventInput,

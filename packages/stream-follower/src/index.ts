@@ -5,10 +5,6 @@
 export { followStream } from "./follow.js";
 export { createFileChunkSource } from "./file-source.js";
 export { createSseChunkSource } from "./sse-source.js";
-export type {
-	ChunkSource,
-	FollowStreamOptions,
-	FollowStreamResult,
-} from "./types.js";
+export type { ChunkSource, FollowStreamOptions, FollowStreamResult } from "./types.js";
 export type { FileChunkSourceOptions } from "./file-source.js";
 export type { SseChunkSourceOptions } from "./sse-source.js";

@@ -59,10 +59,7 @@ export function resolveStudioRuntimeDatabaseName(
 	return `${options.temporaryPrefix}-${now()}`;
 }
 
-export function createStudioRuntimeIdentity(
-	id: string,
-	publicKey = id,
-): StudioRuntimeIdentity {
+export function createStudioRuntimeIdentity(id: string, publicKey = id): StudioRuntimeIdentity {
 	return {
 		id,
 		getPublicKey: async () => publicKey,
@@ -70,17 +67,10 @@ export function createStudioRuntimeIdentity(
 	};
 }
 
-export async function bootStudioRuntime(
-	options: BootStudioRuntimeOptions,
-): Promise<StudioRuntime> {
-	const sqliteStorage = await new OPFSSQLiteAdapter().open(
-		options.databaseName,
-	);
+export async function bootStudioRuntime(options: BootStudioRuntimeOptions): Promise<StudioRuntime> {
+	const sqliteStorage = await new OPFSSQLiteAdapter().open(options.databaseName);
 	const storage = new LoroCRDTStorage(sqliteStorage, randomPeerId());
-	const identity = createStudioRuntimeIdentity(
-		options.identityId,
-		options.identityPublicKey,
-	);
+	const identity = createStudioRuntimeIdentity(options.identityId, options.identityPublicKey);
 	const syncClient = options.connectBrowserSync
 		? new BrowserSyncClient(storage, options.browserSync)
 		: undefined;

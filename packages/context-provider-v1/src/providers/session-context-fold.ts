@@ -11,8 +11,7 @@ export type SessionContextFoldEntryLoader =
 	| SessionEntry[]
 	| ((request: ContextRequest) => SessionEntry[] | Promise<SessionEntry[]>);
 
-export interface SessionContextFoldProviderOptions
-	extends PlanSessionContextFoldOptions {
+export interface SessionContextFoldProviderOptions extends PlanSessionContextFoldOptions {
 	entries: SessionContextFoldEntryLoader;
 	priority?: number;
 	foldedRefPreviewCount?: number;
@@ -32,10 +31,7 @@ function formatDigest(plan: SessionContextFoldPlan): string {
 	return `${plan.fold.digest.algorithm}:${plan.fold.digest.value}`;
 }
 
-function formatEntryRefPreview(
-	plan: SessionContextFoldPlan,
-	previewCount: number,
-): string[] {
+function formatEntryRefPreview(plan: SessionContextFoldPlan, previewCount: number): string[] {
 	const refs = plan.fold.folded_entry_refs.slice(0, previewCount);
 	const lines = refs.map(
 		(ref) =>
@@ -84,13 +80,8 @@ export class SessionContextFoldProvider implements ContextProvider {
 	}
 
 	private buildContent(plan: SessionContextFoldPlan): string {
-		const protectedTail = plan.fold.protected_tail_entry_ids.map(
-			(id) => `- ${id}`,
-		);
-		const preview = formatEntryRefPreview(
-			plan,
-			this.foldedRefPreviewCount,
-		);
+		const protectedTail = plan.fold.protected_tail_entry_ids.map((id) => `- ${id}`);
+		const preview = formatEntryRefPreview(plan, this.foldedRefPreviewCount);
 		return [
 			"# Session context fold",
 			`fold_id: ${plan.fold["@id"]}`,

@@ -30,17 +30,12 @@ export function cardHtml(opts: {
 	actionsHtml?: string;
 }): string {
 	const active = opts.active ? ` data-active="1"` : "";
-	const actions = opts.actionsHtml
-		? `<div class="ds-card__actions">${opts.actionsHtml}</div>`
-		: "";
+	const actions = opts.actionsHtml ? `<div class="ds-card__actions">${opts.actionsHtml}</div>` : "";
 
 	return `<div class="ds-card"${active}><div class="ds-card__title">${escapeHtml(opts.title)}</div>${opts.rows.join("")}${actions}</div>`;
 }
 
-export function tableHtml(opts: {
-	headers: string[];
-	rows: string[][];
-}): string {
+export function tableHtml(opts: { headers: string[]; rows: string[][] }): string {
 	const head = opts.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("");
 	const body = opts.rows
 		.map((r) => `<tr>${r.map((c) => `<td>${escapeHtml(c)}</td>`).join("")}</tr>`)
@@ -57,8 +52,7 @@ export function fieldHtml(opts: {
 }): string {
 	const name = escapeHtml(opts.name);
 	const type = escapeHtml(opts.type ?? "text");
-	const value =
-		opts.value === undefined ? "" : ` value="${escapeHtml(opts.value)}"`;
+	const value = opts.value === undefined ? "" : ` value="${escapeHtml(opts.value)}"`;
 
 	return `<div class="ds-field"><label for="${name}">${escapeHtml(opts.label)}</label><input id="${name}" name="${name}" type="${type}"${value}></div>`;
 }

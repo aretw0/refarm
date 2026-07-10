@@ -35,9 +35,7 @@ const SUPPORTED_SCHEDULE_TRIGGERS = new Set(["once", "cron"]);
 
 function assertAdapter(adapter) {
 	if (!adapter || typeof adapter.query !== "function") {
-		throw new Error(
-			"Local scheduled work requires an AutomationAdapter with query() support",
-		);
+		throw new Error("Local scheduled work requires an AutomationAdapter with query() support");
 	}
 }
 
@@ -116,10 +114,7 @@ function inspectCronDue(schedule, now) {
 	if (schedule === "@weekly") {
 		return {
 			supported: true,
-			due:
-				now.getUTCDay() === 0 &&
-				now.getUTCHours() === 0 &&
-				now.getUTCMinutes() === 0,
+			due: now.getUTCDay() === 0 && now.getUTCHours() === 0 && now.getUTCMinutes() === 0,
 		};
 	}
 
@@ -167,9 +162,7 @@ function describeTrigger(trigger, now) {
 			timezone: trigger.timezone ?? "UTC",
 		},
 		status: cron.supported ? (cron.due ? "due" : "scheduled") : "unsupported",
-		unsupportedReason: cron.supported
-			? undefined
-			: "unsupported cron expression",
+		unsupportedReason: cron.supported ? undefined : "unsupported cron expression",
 	};
 }
 
@@ -286,9 +279,7 @@ function assertLedger(ledger) {
 		typeof ledger.hasFired !== "function" ||
 		typeof ledger.recordFired !== "function"
 	) {
-		throw new Error(
-			"Local scheduled work ledger requires hasFired() and recordFired() support",
-		);
+		throw new Error("Local scheduled work ledger requires hasFired() and recordFired() support");
 	}
 	return ledger;
 }
@@ -313,11 +304,7 @@ function assertLedger(ledger) {
  * @param {Partial<LocalScheduledWorkExecutionOptions>} [options]
  * @returns {Promise<LocalScheduledWorkExecutionReport>}
  */
-export async function executeDueLocalScheduledWork(
-	automationAdapter,
-	effortAdapter,
-	options = {},
-) {
+export async function executeDueLocalScheduledWork(automationAdapter, effortAdapter, options = {}) {
 	assertExecutionAdapter(automationAdapter);
 	assertEffortSubmitAdapter(effortAdapter);
 	const ledger = assertLedger(options.ledger);
@@ -395,8 +382,7 @@ export async function executeDueLocalScheduledWork(
 			due: dueJobs.length,
 			submitted: results.filter((result) => result.status === "submitted").length,
 			skipped: results.filter((result) => result.status === "skipped").length,
-			alreadyFired: results.filter((result) => result.status === "already-fired")
-				.length,
+			alreadyFired: results.filter((result) => result.status === "already-fired").length,
 			failed: results.filter((result) => result.status === "failed").length,
 		},
 		results,

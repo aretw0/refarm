@@ -4,11 +4,7 @@ import type {
 	SessionEntry,
 	SessionFilter,
 } from "@refarm.dev/session-contract-v1";
-import type {
-	StorageProvider,
-	StorageRecord,
-} from "@refarm.dev/storage-contract-v1";
-
+import type { StorageProvider, StorageRecord } from "@refarm.dev/storage-contract-v1";
 
 const SESSION_RECORD_TYPE = "Session";
 const SESSION_ENTRY_RECORD_TYPE = "SessionEntry";
@@ -73,21 +69,14 @@ function includesAllParticipants(
 	sessionParticipants: string[],
 	filterParticipants: string[],
 ): boolean {
-	return filterParticipants.every((participant) =>
-		sessionParticipants.includes(participant),
-	);
+	return filterParticipants.every((participant) => sessionParticipants.includes(participant));
 }
 
-function applySessionFilter(
-	sessions: Session[],
-	filter: SessionFilter,
-): Session[] {
+function applySessionFilter(sessions: Session[], filter: SessionFilter): Session[] {
 	let filtered = sessions;
 
 	if (filter.context_id !== undefined) {
-		filtered = filtered.filter(
-			(session) => session.context_id === filter.context_id,
-		);
+		filtered = filtered.filter((session) => session.context_id === filter.context_id);
 	}
 
 	if (filter.participants !== undefined && filter.participants.length > 0) {
@@ -206,9 +195,7 @@ export function createSessionV1StorageAdapter(
 		async appendEntry(entryInput) {
 			const session = await readSession(entryInput.session_id);
 			if (!session) {
-				throw new Error(
-					`Session not found for appendEntry: ${entryInput.session_id}`,
-				);
+				throw new Error(`Session not found for appendEntry: ${entryInput.session_id}`);
 			}
 			const entry: SessionEntry = {
 				...entryInput,

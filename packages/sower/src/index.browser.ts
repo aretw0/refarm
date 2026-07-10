@@ -9,17 +9,13 @@
  * the browser UI can also use the static data helpers directly.
  */
 
-import type {
-  RuntimeNode,
-  RuntimeTelemetryTarget,
-  RuntimeTierTarget,
-} from "@refarm.dev/runtime";
+import type { RuntimeNode, RuntimeTelemetryTarget, RuntimeTierTarget } from "@refarm.dev/runtime";
 
 export type SowerHost = RuntimeTelemetryTarget & RuntimeTierTarget;
 
 const NODE_ERROR =
-  "[sower] Scaffolding and token provisioning require the Node.js runtime " +
-  "and cannot run in the browser.";
+	"[sower] Scaffolding and token provisioning require the Node.js runtime " +
+	"and cannot run in the browser.";
 
 /**
  * Browser-safe subset of SowerCore.
@@ -29,97 +25,100 @@ const NODE_ERROR =
  * - _copyRecursive(): throws (node:fs)
  */
 export class SowerCore {
-  getOnboardingFlow() {
-    return {
-      name: "Set up your workspace",
-      description: "Choose how this Refarm workspace should persist data.",
-      options: [
-        {
-          id: "guest",
-          label: "Guest Mode",
-          description: "Temporary participation. No keys, no persistent storage.",
-          intent: "switch-to-guest"
-        },
-        {
-          id: "persistent",
-          label: "Persistent Workspace",
-          description: "Persistent identity and local storage for ongoing work.",
-          intent: "switch-to-persistent"
-        }
-      ]
-    };
-  }
+	getOnboardingFlow() {
+		return {
+			name: "Set up your workspace",
+			description: "Choose how this Refarm workspace should persist data.",
+			options: [
+				{
+					id: "guest",
+					label: "Guest Mode",
+					description: "Temporary participation. No keys, no persistent storage.",
+					intent: "switch-to-guest",
+				},
+				{
+					id: "persistent",
+					label: "Persistent Workspace",
+					description: "Persistent identity and local storage for ongoing work.",
+					intent: "switch-to-persistent",
+				},
+			],
+		};
+	}
 
-  async scaffold(_templateId: string, _options: Record<string, unknown> = {}): Promise<never> {
-    throw new Error(NODE_ERROR);
-  }
+	async scaffold(_templateId: string, _options: Record<string, unknown> = {}): Promise<never> {
+		throw new Error(NODE_ERROR);
+	}
 
-  async sow(_tokens: { githubToken: string; cloudflareToken: string }, _brand: { owner: string }): Promise<never> {
-    throw new Error(NODE_ERROR);
-  }
+	async sow(
+		_tokens: { githubToken: string; cloudflareToken: string },
+		_brand: { owner: string },
+	): Promise<never> {
+		throw new Error(NODE_ERROR);
+	}
 
-  async hydrateFromRemote(_nodeId: string, _gatewayUrl: string): Promise<never> {
-    throw new Error(NODE_ERROR);
-  }
+	async hydrateFromRemote(_nodeId: string, _gatewayUrl: string): Promise<never> {
+		throw new Error(NODE_ERROR);
+	}
 }
 
 /**
  * Sower — public onboarding and workspace scaffold plugin (browser safe).
  */
 export class SowerPlugin {
-  private core: SowerCore;
+	private core: SowerCore;
 
-  constructor(private host: SowerHost) {
-    this.core = new SowerCore();
-  }
+	constructor(private host: SowerHost) {
+		this.core = new SowerCore();
+	}
 
-  async getOnboardingNode(): Promise<RuntimeNode> {
-    const flow = this.core.getOnboardingFlow();
-    
-    return {
-      "@context": "https://schema.org/",
-      "@type": "EntryPoint",
-      "@id": "urn:refarm:sower:onboarding",
-      "name": flow.name,
-      "description": flow.description,
-      "refarm:renderType": "onboarding",
-      "refarm:options": flow.options.map(opt => ({
-        ...opt,
-        "label": opt.label,
-        "description": opt.description,
-        "intent": opt.intent
-      }))
-    };
-  }
+	async getOnboardingNode(): Promise<RuntimeNode> {
+		const flow = this.core.getOnboardingFlow();
 
-  async handleIntent(intent: string) {
-    // This will throw in the browser via SowerCore.scaffold
-    const result = await this.core.scaffold(intent);
-    
-    const scaffoldResult = result as unknown as { tier?: string };
-    if (scaffoldResult.tier) {
-      await this.host.switchTier(scaffoldResult.tier);
-    }
-  }
+		return {
+			"@context": "https://schema.org/",
+			"@type": "EntryPoint",
+			"@id": "urn:refarm:sower:onboarding",
+			name: flow.name,
+			description: flow.description,
+			"refarm:renderType": "onboarding",
+			"refarm:options": flow.options.map((opt) => ({
+				...opt,
+				label: opt.label,
+				description: opt.description,
+				intent: opt.intent,
+			})),
+		};
+	}
 
-  onEvent(event: string, payload: string) {
-    console.info(`[sower] Received system event: ${event}`, payload);
-    const data = JSON.parse(payload);
-    
-    if (event === "system:switch-tier" && data.tier === "guest") {
-      console.log("[sower] Tier switched to guest. Injecting 'Guest Tutorial' node...");
-      
-      this.host.emitTelemetry({
-        event: "node:created",
-        payload: {
-          "@context": "https://schema.org/",
-          "@type": "Message",
-          "@id": "urn:refarm:sower:welcome-guest",
-          "name": "Welcome Guest",
-          "text": "Your temporary workspace is active. Explore the tools below.",
-          "refarm:renderType": "tutorial-step"
-        }
-      });
-    }
-  }
+	async handleIntent(intent: string) {
+		// This will throw in the browser via SowerCore.scaffold
+		const result = await this.core.scaffold(intent);
+
+		const scaffoldResult = result as unknown as { tier?: string };
+		if (scaffoldResult.tier) {
+			await this.host.switchTier(scaffoldResult.tier);
+		}
+	}
+
+	onEvent(event: string, payload: string) {
+		console.info(`[sower] Received system event: ${event}`, payload);
+		const data = JSON.parse(payload);
+
+		if (event === "system:switch-tier" && data.tier === "guest") {
+			console.log("[sower] Tier switched to guest. Injecting 'Guest Tutorial' node...");
+
+			this.host.emitTelemetry({
+				event: "node:created",
+				payload: {
+					"@context": "https://schema.org/",
+					"@type": "Message",
+					"@id": "urn:refarm:sower:welcome-guest",
+					name: "Welcome Guest",
+					text: "Your temporary workspace is active. Explore the tools below.",
+					"refarm:renderType": "tutorial-step",
+				},
+			});
+		}
+	}
 }

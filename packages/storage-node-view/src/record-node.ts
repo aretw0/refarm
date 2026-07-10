@@ -32,18 +32,11 @@ const DEFAULT_CONTEXT = "https://schema.org/";
  * timestamps; both default to `now` (an ISO string the caller supplies) when
  * the node has not set them.
  */
-export function nodeToRecord(
-	node: NormalisedNode,
-	now: string,
-): StorageRecord {
+export function nodeToRecord(node: NormalisedNode, now: string): StorageRecord {
 	const createdAt =
-		typeof node["refarm:createdAt"] === "string"
-			? (node["refarm:createdAt"] as string)
-			: now;
+		typeof node["refarm:createdAt"] === "string" ? (node["refarm:createdAt"] as string) : now;
 	const updatedAt =
-		typeof node["refarm:updatedAt"] === "string"
-			? (node["refarm:updatedAt"] as string)
-			: now;
+		typeof node["refarm:updatedAt"] === "string" ? (node["refarm:updatedAt"] as string) : now;
 
 	// The full node lives in payload so nothing is lost across the flat record.
 	const body: NormalisedNode = {

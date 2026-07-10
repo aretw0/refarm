@@ -9,16 +9,9 @@ export const DEFAULT_HOMESTEAD_SURFACE_CAPABILITIES = new Set([
 	"ui:stream:read",
 ]);
 
-export const DEFAULT_HOMESTEAD_SURFACE_REQUIRED_CAPABILITIES = new Set([
-	"ui:panel:render",
-]);
+export const DEFAULT_HOMESTEAD_SURFACE_REQUIRED_CAPABILITIES = new Set(["ui:panel:render"]);
 
-export const DEFAULT_HOMESTEAD_SURFACE_KINDS = new Set([
-	"panel",
-	"widget",
-	"statusbar",
-	"editor",
-]);
+export const DEFAULT_HOMESTEAD_SURFACE_KINDS = new Set(["panel", "widget", "statusbar", "editor"]);
 
 export interface HomesteadSurfaceSlotOptions {
 	allowedCapabilities?: ReadonlySet<string> | readonly string[];
@@ -100,14 +93,10 @@ export function resolveHomesteadSurfaceActivationPlan(
 	const rejected: HomesteadSurfaceRejection[] = [];
 	const legacySlots = new Set<string>();
 	const surfaceIds = new Set<string>();
-	const allowedCapabilities = normalizeAllowedCapabilities(
-		options.allowedCapabilities,
-	);
+	const allowedCapabilities = normalizeAllowedCapabilities(options.allowedCapabilities);
 	const allowedKinds = normalizeAllowedKinds(options.allowedKinds);
 	const availableSlots = normalizeAvailableSlots(options.availableSlots);
-	const requiredCapabilities = normalizeRequiredCapabilities(
-		options.requiredCapabilities,
-	);
+	const requiredCapabilities = normalizeRequiredCapabilities(options.requiredCapabilities);
 	const trustStatus = options.trustStatus;
 
 	for (const slotId of manifest.ui?.slots ?? []) {
@@ -204,9 +193,7 @@ function normalizeRequiredCapabilities(
 	capabilities: HomesteadSurfaceSlotOptions["requiredCapabilities"],
 ): ReadonlySet<string> {
 	if (capabilities instanceof Set) return capabilities;
-	return new Set(
-		capabilities ?? DEFAULT_HOMESTEAD_SURFACE_REQUIRED_CAPABILITIES,
-	);
+	return new Set(capabilities ?? DEFAULT_HOMESTEAD_SURFACE_REQUIRED_CAPABILITIES);
 }
 
 function normalizeAvailableSlots(
@@ -220,9 +207,7 @@ export function unsupportedHomesteadSurfaceCapabilities(
 	surface: ExtensionSurfaceDeclaration,
 	allowedCapabilities: ReadonlySet<string>,
 ): string[] {
-	return (surface.capabilities ?? []).filter(
-		(capability) => !allowedCapabilities.has(capability),
-	);
+	return (surface.capabilities ?? []).filter((capability) => !allowedCapabilities.has(capability));
 }
 
 export function missingHomesteadSurfaceCapabilities(
@@ -230,7 +215,5 @@ export function missingHomesteadSurfaceCapabilities(
 	requiredCapabilities: ReadonlySet<string>,
 ): string[] {
 	const declaredCapabilities = new Set(surface.capabilities ?? []);
-	return [...requiredCapabilities].filter(
-		(capability) => !declaredCapabilities.has(capability),
-	);
+	return [...requiredCapabilities].filter((capability) => !declaredCapabilities.has(capability));
 }

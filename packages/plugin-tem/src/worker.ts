@@ -18,83 +18,93 @@ import { integration, temApi, setStoreNodeFn } from "./plugin";
 import { codegenApi } from "./codegen/plugin";
 
 const API: Record<string, (args?: unknown) => unknown | Promise<unknown>> = {
-  // WIT integration interface
-  setup: (_args: unknown) => {
-    // Wire tractor-bridge store-node via bridge-call round-trip protocol
-    setStoreNodeFn(async (nodeJson: string): Promise<void> => {
-      const id = `bridge:${Date.now()}`;
-      await new Promise<void>((resolve, reject) => {
-        const onMsg = (ev: MessageEvent<{ type: string; id: string; message?: string }>) => {
-          const m = ev.data;
-          if ((m.type === "bridge-result" || m.type === "bridge-error") && m.id === id) {
-            self.removeEventListener("message", onMsg as EventListener);
-            if (m.type === "bridge-result") resolve();
-            else reject(new Error(m.message));
-          }
-        };
-        self.addEventListener("message", onMsg as EventListener);
-        self.postMessage({ type: "bridge-call", id, fn: "store-node", args: nodeJson });
-      });
-    });
-    integration.setup();
-    return null;
-  },
-  ingest: () => integration.ingest(),
-  "on-event": (args: unknown) => {
-    const { event, payload } = args as { event: string; payload?: string };
-    integration.onEvent(event, payload);
-    return null;
-  },
-  teardown: () => { integration.teardown(); return null; },
-  "get-help-nodes": () => integration.getHelpNodes(),
-  metadata: () => integration.metadata(),
+	// WIT integration interface
+	setup: (_args: unknown) => {
+		// Wire tractor-bridge store-node via bridge-call round-trip protocol
+		setStoreNodeFn(async (nodeJson: string): Promise<void> => {
+			const id = `bridge:${Date.now()}`;
+			await new Promise<void>((resolve, reject) => {
+				const onMsg = (ev: MessageEvent<{ type: string; id: string; message?: string }>) => {
+					const m = ev.data;
+					if ((m.type === "bridge-result" || m.type === "bridge-error") && m.id === id) {
+						self.removeEventListener("message", onMsg as EventListener);
+						if (m.type === "bridge-result") resolve();
+						else reject(new Error(m.message));
+					}
+				};
+				self.addEventListener("message", onMsg as EventListener);
+				self.postMessage({ type: "bridge-call", id, fn: "store-node", args: nodeJson });
+			});
+		});
+		integration.setup();
+		return null;
+	},
+	ingest: () => integration.ingest(),
+	"on-event": (args: unknown) => {
+		const { event, payload } = args as { event: string; payload?: string };
+		integration.onEvent(event, payload);
+		return null;
+	},
+	teardown: () => {
+		integration.teardown();
+		return null;
+	},
+	"get-help-nodes": () => integration.getHelpNodes(),
+	metadata: () => integration.metadata(),
 
-  // TEM API
-  "tem:step": (args: unknown) => {
-    const { actionId, obsVec } = args as { actionId: number; obsVec: number[] };
-    return temApi.step(actionId, obsVec);
-  },
-  "tem:recall": (args: unknown) => {
-    const { locationHint } = args as { locationHint: number[] };
-    return temApi.recall(locationHint);
-  },
-  "tem:reset-walk": () => { temApi.resetWalk(); return null; },
-  "tem:last-novelty": () => temApi.lastNovelty(),
+	// TEM API
+	"tem:step": (args: unknown) => {
+		const { actionId, obsVec } = args as { actionId: number; obsVec: number[] };
+		return temApi.step(actionId, obsVec);
+	},
+	"tem:recall": (args: unknown) => {
+		const { locationHint } = args as { locationHint: number[] };
+		return temApi.recall(locationHint);
+	},
+	"tem:reset-walk": () => {
+		temApi.resetWalk();
+		return null;
+	},
+	"tem:last-novelty": () => temApi.lastNovelty(),
 
-  // Codegen API
-  "codegen:validate-bundle": (args: unknown) => {
-    const { bundleJson } = args as { bundleJson: string };
-    return codegenApi.validateBundle(bundleJson);
-  },
-  "codegen:generate-weights-ts": (args: unknown) => {
-    const { bundleJson } = args as { bundleJson: string };
-    return codegenApi.generateWeightsTs(bundleJson);
-  },
+	// Codegen API
+	"codegen:validate-bundle": (args: unknown) => {
+		const { bundleJson } = args as { bundleJson: string };
+		return codegenApi.validateBundle(bundleJson);
+	},
+	"codegen:generate-weights-ts": (args: unknown) => {
+		const { bundleJson } = args as { bundleJson: string };
+		return codegenApi.generateWeightsTs(bundleJson);
+	},
 };
 
 // Listen for messages from WorkerRunner
 if (typeof self !== "undefined") {
-  self.addEventListener("message", async (ev: MessageEvent) => {
-    const msg = ev.data as { type: string; id: string; fn: string; args?: unknown };
+	self.addEventListener("message", async (ev: MessageEvent) => {
+		const msg = ev.data as { type: string; id: string; fn: string; args?: unknown };
 
-    if (msg.type === "terminate") {
-      integration.teardown();
-      self.close?.();
-      return;
-    }
+		if (msg.type === "terminate") {
+			integration.teardown();
+			self.close?.();
+			return;
+		}
 
-    if (msg.type === "call") {
-      const handler = API[msg.fn];
-      if (!handler) {
-        self.postMessage({ type: "error", id: msg.id, message: `Unknown fn: ${msg.fn}` });
-        return;
-      }
-      try {
-        const result = await handler(msg.args);
-        self.postMessage({ type: "result", id: msg.id, result });
-      } catch (e) {
-        self.postMessage({ type: "error", id: msg.id, message: e instanceof Error ? e.message : String(e) });
-      }
-    }
-  });
+		if (msg.type === "call") {
+			const handler = API[msg.fn];
+			if (!handler) {
+				self.postMessage({ type: "error", id: msg.id, message: `Unknown fn: ${msg.fn}` });
+				return;
+			}
+			try {
+				const result = await handler(msg.args);
+				self.postMessage({ type: "result", id: msg.id, result });
+			} catch (e) {
+				self.postMessage({
+					type: "error",
+					id: msg.id,
+					message: e instanceof Error ? e.message : String(e),
+				});
+			}
+		}
+	});
 }

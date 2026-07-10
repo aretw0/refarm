@@ -20,11 +20,7 @@ function scriptedSource(chunks: StreamChunk[]): ChunkSource {
 
 describe("followStream", () => {
 	it("resolves with concatenated content when the final chunk arrives", async () => {
-		const source = scriptedSource([
-			chunk(0, "Hello "),
-			chunk(1, "world"),
-			chunk(2, "!", true),
-		]);
+		const source = scriptedSource([chunk(0, "Hello "), chunk(1, "world"), chunk(2, "!", true)]);
 		const result = await followStream(source, "ref");
 		expect(result.content).toBe("Hello world!");
 		expect(result.final.is_final).toBe(true);
@@ -33,11 +29,7 @@ describe("followStream", () => {
 
 	it("orders content by sequence even if earlier chunks arrive out of order", async () => {
 		// A realistic race: non-final chunks arrive shuffled; the final is still last.
-		const source = scriptedSource([
-			chunk(1, "B"),
-			chunk(0, "A"),
-			chunk(2, "C", true),
-		]);
+		const source = scriptedSource([chunk(1, "B"), chunk(0, "A"), chunk(2, "C", true)]);
 		const result = await followStream(source, "ref");
 		// Content is assembled in ascending sequence order, so it is stable.
 		expect(result.content).toBe("ABC");
@@ -94,7 +86,11 @@ describe("followStream", () => {
 		const source: ChunkSource = {
 			follow(_ref, onChunk) {
 				onChunk(chunk(0, "done", true));
-				return { stop: () => { stopped = true; } };
+				return {
+					stop: () => {
+						stopped = true;
+					},
+				};
 			},
 		};
 		await followStream(source, "ref");

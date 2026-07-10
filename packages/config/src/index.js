@@ -1,109 +1,109 @@
 import fs from "node:fs";
 import path from "node:path";
 export {
-    DEFAULT_MODEL_PROVIDER,
-    MODEL_BASE_URL_ENV_VAR,
-    MODEL_DEFAULT_PROVIDER_ENV_VAR,
-    MODEL_CREDENTIAL_ENV_KEYS,
-    MODEL_FALLBACK_MODEL_ID_ENV_VAR,
-    MODEL_FALLBACK_PROVIDER_ENV_VAR,
-    MODEL_ID_ENV_VAR,
-    MODEL_PROVIDER_ENV_VAR,
-    MODEL_PROVIDERS,
-    MODEL_ROUTE_ENV_VARS,
-    MODEL_RUNTIME_ENV_VARS,
-    MODEL_SCOPES,
-    RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS,
-    SUBSCRIPTION_MODEL_PROVIDERS,
-    defaultProviderModelId,
-    defaultProviderModelRef,
-    effectiveModelRouteForScope,
-    defaultModelForProvider,
-    defaultModelForScope,
-    defaultScopedModelRef,
-    formatModelRef,
-    inferProviderFromModelId,
-    hasUsableModelCredential,
-    hasUsableModelCredentialSource,
-    isModelProvider,
-    isModelScope,
-    isRuntimeSubscriptionModelProvider,
-    isSubscriptionModelProvider,
-    modelCredentialStatus,
-    modelCredentialEnvKey,
-    modelCredentialSource,
-    modelOAuthCredential,
-    modelRouteTokenUpdate,
-    parseModelScope,
-    parseModelRef,
+	DEFAULT_MODEL_PROVIDER,
+	MODEL_BASE_URL_ENV_VAR,
+	MODEL_DEFAULT_PROVIDER_ENV_VAR,
+	MODEL_CREDENTIAL_ENV_KEYS,
+	MODEL_FALLBACK_MODEL_ID_ENV_VAR,
+	MODEL_FALLBACK_PROVIDER_ENV_VAR,
+	MODEL_ID_ENV_VAR,
+	MODEL_PROVIDER_ENV_VAR,
+	MODEL_PROVIDERS,
+	MODEL_ROUTE_ENV_VARS,
+	MODEL_RUNTIME_ENV_VARS,
+	MODEL_SCOPES,
+	RUNTIME_SUBSCRIPTION_MODEL_PROVIDERS,
+	SUBSCRIPTION_MODEL_PROVIDERS,
+	defaultProviderModelId,
+	defaultProviderModelRef,
+	effectiveModelRouteForScope,
+	defaultModelForProvider,
+	defaultModelForScope,
+	defaultScopedModelRef,
+	formatModelRef,
+	inferProviderFromModelId,
+	hasUsableModelCredential,
+	hasUsableModelCredentialSource,
+	isModelProvider,
+	isModelScope,
+	isRuntimeSubscriptionModelProvider,
+	isSubscriptionModelProvider,
+	modelCredentialStatus,
+	modelCredentialEnvKey,
+	modelCredentialSource,
+	modelOAuthCredential,
+	modelRouteTokenUpdate,
+	parseModelScope,
+	parseModelRef,
 } from "./model-routing.js";
 export {
-    AGENT_NPM_PACKAGE,
-    AGENT_PLUGIN_ID,
-    REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
-    RUNTIME_AGENT_ERROR_PREFIXES,
-    RUNTIME_AGENT_NPM_PACKAGE,
-    RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
-    RUNTIME_AGENT_PLUGIN_ID,
-    canonicalRuntimeAgentContent,
-    isRuntimeAgentErrorContent,
-    isAgentPluginId,
-    isRuntimeAgentPluginId,
-    normalizePluginId,
+	AGENT_NPM_PACKAGE,
+	AGENT_PLUGIN_ID,
+	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
+	RUNTIME_AGENT_ERROR_PREFIXES,
+	RUNTIME_AGENT_NPM_PACKAGE,
+	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
+	RUNTIME_AGENT_PLUGIN_ID,
+	canonicalRuntimeAgentContent,
+	isRuntimeAgentErrorContent,
+	isAgentPluginId,
+	isRuntimeAgentPluginId,
+	normalizePluginId,
 } from "./plugin-identity.js";
 export {
-    ENVIRONMENT_CEILING_ENFORCEMENT_MODES,
-    ENVIRONMENT_CEILING_SCOPES,
-    ENVIRONMENT_CEILING_SLICE_KINDS,
-    ENVIRONMENT_CEILING_STATUSES,
-    declaredEnvironmentCeilingsFromConfig,
-    parseEnvironmentCeilingEnforcementMode,
-    parseEnvironmentCeilingScope,
-    parseEnvironmentCeilingSliceKind,
-    parseEnvironmentCeilingStatus,
+	ENVIRONMENT_CEILING_ENFORCEMENT_MODES,
+	ENVIRONMENT_CEILING_SCOPES,
+	ENVIRONMENT_CEILING_SLICE_KINDS,
+	ENVIRONMENT_CEILING_STATUSES,
+	declaredEnvironmentCeilingsFromConfig,
+	parseEnvironmentCeilingEnforcementMode,
+	parseEnvironmentCeilingScope,
+	parseEnvironmentCeilingSliceKind,
+	parseEnvironmentCeilingStatus,
 } from "./environment-ceilings.js";
 export {
-    PACKAGE_MANAGER_OVERRIDE_ENV_VAR,
-    PACKAGE_MANAGERS,
-    createPackageScriptCommand,
-    detectPackageManager,
-    packageAddDevCommand,
-    packageAuditCommand,
-    packageAuditHighCommand,
-    packageBinaryCommand,
-    packageFrozenInstallCommand,
-    packageInstallCommand,
-    packageManagerOverrideDiagnostic,
-    packagePublishDryRunCommand,
-    packageScriptCommand,
-    packageWorkspacePublishDryRunCommand,
-    parsePackageManager,
+	PACKAGE_MANAGER_OVERRIDE_ENV_VAR,
+	PACKAGE_MANAGERS,
+	createPackageScriptCommand,
+	detectPackageManager,
+	packageAddDevCommand,
+	packageAuditCommand,
+	packageAuditHighCommand,
+	packageBinaryCommand,
+	packageFrozenInstallCommand,
+	packageInstallCommand,
+	packageManagerOverrideDiagnostic,
+	packagePublishDryRunCommand,
+	packageScriptCommand,
+	packageWorkspacePublishDryRunCommand,
+	parsePackageManager,
 } from "./package-manager.js";
 export {
-    WORKSPACE_EXECUTION_ADAPTERS,
-    WORKSPACE_KINDS,
-    WORKSPACE_REMOTE_CACHE_PROVIDERS,
-    declaredWorkspaceFromConfig,
-    declaredWorkspacesFromConfig,
-    parseWorkspaceExecutionAdapter,
-    parseWorkspaceKind,
-    parseWorkspaceRemoteCacheProvider,
+	WORKSPACE_EXECUTION_ADAPTERS,
+	WORKSPACE_KINDS,
+	WORKSPACE_REMOTE_CACHE_PROVIDERS,
+	declaredWorkspaceFromConfig,
+	declaredWorkspacesFromConfig,
+	parseWorkspaceExecutionAdapter,
+	parseWorkspaceKind,
+	parseWorkspaceRemoteCacheProvider,
 } from "./workspaces-config.js";
 export {
-    WORKSPACE_NAMESPACE_ACCESS,
-    WORKSPACE_NAMESPACE_PERSISTENCE,
-    declaredWorkspaceNamespaceFromConfig,
-    declaredWorkspaceNamespacesFromConfig,
-    parseWorkspaceNamespaceAccess,
-    parseWorkspaceNamespacePersistence,
+	WORKSPACE_NAMESPACE_ACCESS,
+	WORKSPACE_NAMESPACE_PERSISTENCE,
+	declaredWorkspaceNamespaceFromConfig,
+	declaredWorkspaceNamespacesFromConfig,
+	parseWorkspaceNamespaceAccess,
+	parseWorkspaceNamespacePersistence,
 } from "./workspace-namespaces-config.js";
 export {
-    affectedWorkspacePackagesFromChangedPaths,
-    affectedWorkspacePackagesFromGitStatus,
-    changedFilePathsFromGitNameOnly,
-    changedFilePathsFromGitStatus,
-    findWorkspacePackageForPath,
-    findWorkspaceRoot,
+	affectedWorkspacePackagesFromChangedPaths,
+	affectedWorkspacePackagesFromGitStatus,
+	changedFilePathsFromGitNameOnly,
+	changedFilePathsFromGitStatus,
+	findWorkspacePackageForPath,
+	findWorkspaceRoot,
 } from "./workspace.js";
 
 /**
@@ -138,46 +138,49 @@ export const DEFAULT_ENV_PREFIX = "REFARM";
  * `"refarm"` → `"REFARM"`, `"acme labs"` → `"ACME_LABS"`. Mirrors
  * `applicationCommandOverrideEnv`'s `toUpperCase().replace(/[^A-Z0-9]+/g,"_")`. */
 export function envPrefixFromBrand(name) {
-    return String(name).toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+	return String(name)
+		.toUpperCase()
+		.replace(/[^A-Z0-9]+/g, "_")
+		.replace(/^_+|_+$/g, "");
 }
 
 /** Resolve the active env-var prefix: an explicit prefix wins; otherwise the
  * neutral selector env; otherwise the default. Never reads a brand-named env to
  * decide the prefix (that would be the chicken-and-egg the doctrine rejects). */
 export function resolveEnvPrefix(explicit, env = process.env) {
-    if (explicit && String(explicit).trim().length > 0) return envPrefixFromBrand(explicit);
-    const selected = env[ENV_PREFIX_SELECTOR_KEY]?.trim();
-    if (selected && selected.length > 0) return envPrefixFromBrand(selected);
-    return DEFAULT_ENV_PREFIX;
+	if (explicit && String(explicit).trim().length > 0) return envPrefixFromBrand(explicit);
+	const selected = env[ENV_PREFIX_SELECTOR_KEY]?.trim();
+	if (selected && selected.length > 0) return envPrefixFromBrand(selected);
+	return DEFAULT_ENV_PREFIX;
 }
 
 export function refarmConfigPathCandidates(root) {
-    return [
-        path.join(root, REFARM_CONFIG_CANONICAL_RELATIVE_PATH),
-        path.join(root, REFARM_CONFIG_LEGACY_FILE_NAME),
-    ];
+	return [
+		path.join(root, REFARM_CONFIG_CANONICAL_RELATIVE_PATH),
+		path.join(root, REFARM_CONFIG_LEGACY_FILE_NAME),
+	];
 }
 
 export function defaultRefarmConfigPath(root) {
-    return path.join(root, REFARM_CONFIG_CANONICAL_RELATIVE_PATH);
+	return path.join(root, REFARM_CONFIG_CANONICAL_RELATIVE_PATH);
 }
 
 export function findRefarmConfigPath(root) {
-    return refarmConfigPathCandidates(root).find((candidate) => fs.existsSync(candidate)) ?? null;
+	return refarmConfigPathCandidates(root).find((candidate) => fs.existsSync(candidate)) ?? null;
 }
 
 /**
  * Helper to find the root directory of the monorepo.
  */
 export function findRefarmRoot(startDir = process.cwd()) {
-    let currentDir = startDir;
-    while (true) {
-        if (findRefarmConfigPath(currentDir)) return currentDir;
-        const parentDir = path.dirname(currentDir);
-        if (parentDir === currentDir) break;
-        currentDir = parentDir;
-    }
-    return process.cwd();
+	let currentDir = startDir;
+	while (true) {
+		if (findRefarmConfigPath(currentDir)) return currentDir;
+		const parentDir = path.dirname(currentDir);
+		if (parentDir === currentDir) break;
+		currentDir = parentDir;
+	}
+	return process.cwd();
 }
 
 /**
@@ -187,19 +190,19 @@ export function findRefarmRoot(startDir = process.cwd()) {
  * @returns {object}
  */
 function deepMerge(target, source) {
-    if (!source) return target;
-    if (Array.isArray(source)) return [...source];
-    if (Array.isArray(target)) return source;
-    const output = { ...target };
+	if (!source) return target;
+	if (Array.isArray(source)) return [...source];
+	if (Array.isArray(target)) return source;
+	const output = { ...target };
 
-    for (const key of Object.keys(source)) {
-        if (source[key] instanceof Object && key in target) {
-            output[key] = deepMerge(target[key], source[key]);
-        } else {
-            output[key] = source[key];
-        }
-    }
-    return output;
+	for (const key of Object.keys(source)) {
+		if (source[key] instanceof Object && key in target) {
+			output[key] = deepMerge(target[key], source[key]);
+		} else {
+			output[key] = source[key];
+		}
+	}
+	return output;
 }
 
 /**
@@ -210,145 +213,145 @@ function deepMerge(target, source) {
  * @returns {object}
  */
 function resolveInterpolation(config, current = config) {
-    if (typeof current === "string") {
-        return current.replace(/\{\{([\w\.]+)\}\}/g, (match, pathStr) => {
-            if (pathStr.startsWith("env.")) {
-                const envVar = pathStr.slice(4);
-                return process.env[envVar] || match;
-            }
+	if (typeof current === "string") {
+		return current.replace(/\{\{([\w\.]+)\}\}/g, (match, pathStr) => {
+			if (pathStr.startsWith("env.")) {
+				const envVar = pathStr.slice(4);
+				return process.env[envVar] || match;
+			}
 
-            // Traverse config
-            const parts = pathStr.split(".");
-            let val = config;
-            for (const part of parts) {
-                val = val?.[part];
-                if (val === undefined) break;
-            }
+			// Traverse config
+			const parts = pathStr.split(".");
+			let val = config;
+			for (const part of parts) {
+				val = val?.[part];
+				if (val === undefined) break;
+			}
 
-            return val !== undefined ? String(val) : match;
-        });
-    }
+			return val !== undefined ? String(val) : match;
+		});
+	}
 
-    if (Array.isArray(current)) {
-        return current.map(item => resolveInterpolation(config, item));
-    }
+	if (Array.isArray(current)) {
+		return current.map((item) => resolveInterpolation(config, item));
+	}
 
-    if (current !== null && typeof current === "object") {
-        const resolved = {};
-        for (const [key, value] of Object.entries(current)) {
-            resolved[key] = resolveInterpolation(config, value);
-        }
-        return resolved;
-    }
+	if (current !== null && typeof current === "object") {
+		const resolved = {};
+		for (const [key, value] of Object.entries(current)) {
+			resolved[key] = resolveInterpolation(config, value);
+		}
+		return resolved;
+	}
 
-    return current;
+	return current;
 }
 
 // --- Sources ---
 
 const JsonSource = {
-    name: "json",
-    loadSync(root) {
-        let config = {};
-        for (const configPath of [...refarmConfigPathCandidates(root)].reverse()) {
-            if (!fs.existsSync(configPath)) continue;
-            try {
-                config = deepMerge(config, JSON.parse(fs.readFileSync(configPath, "utf-8")));
-            } catch (e) {
-                console.warn(`[refarm/config] Failed to parse JSON at ${configPath}`);
-            }
-        }
-        return config;
-    }
+	name: "json",
+	loadSync(root) {
+		let config = {};
+		for (const configPath of [...refarmConfigPathCandidates(root)].reverse()) {
+			if (!fs.existsSync(configPath)) continue;
+			try {
+				config = deepMerge(config, JSON.parse(fs.readFileSync(configPath, "utf-8")));
+			} catch (e) {
+				console.warn(`[refarm/config] Failed to parse JSON at ${configPath}`);
+			}
+		}
+		return config;
+	},
 };
 
 const EnvSource = {
-    name: "env",
-    // `prefix` is the resolved env-var namespace (default "REFARM"). Reading it as
-    // a parameter — not a hardcoded literal — is what makes the mapping agnostic:
-    // a white-label sets its prefix and gets `<PREFIX>_SITE_URL`, `<PREFIX>_SCOPE_*`
-    // and `<PREFIX>_PROVIDER_*` for free.
-    loadSync(prefix = DEFAULT_ENV_PREFIX) {
-        // Map common <PREFIX>_ envs to the config structure
-        const config = {};
-        const SITE_URL = `${prefix}_SITE_URL`;
-        const REPO_URL = `${prefix}_REPO_URL`;
-        const GIT_HOST = `${prefix}_GIT_HOST`;
-        const SCOPE_PREFIX = `${prefix}_SCOPE_`;
-        const PROVIDER_PREFIX = `${prefix}_PROVIDER_`;
-        if (process.env[SITE_URL] || process.env[REPO_URL]) {
-            config.brand = { urls: {} };
-            if (process.env[SITE_URL]) config.brand.urls.site = process.env[SITE_URL];
-            if (process.env[REPO_URL]) config.brand.urls.repository = process.env[REPO_URL];
-        }
-        if (process.env[GIT_HOST]) {
-            config.infrastructure = { gitHost: process.env[GIT_HOST] };
-        }
-        // Support for dynamic scopes from env
-        for (const [key, value] of Object.entries(process.env)) {
-            if (key.startsWith(SCOPE_PREFIX)) {
-                const scopeKey = key.slice(SCOPE_PREFIX.length).toLowerCase();
-                config.brand = config.brand || {};
-                config.brand.scopes = config.brand.scopes || {};
-                config.brand.scopes[scopeKey] = value;
-            }
-        }
-        // <PREFIX>_PROVIDER_<ID>_<KEY> → providers.<id>.<camelKey>
-        // e.g. REFARM_PROVIDER_GITHUB_CLIENT_ID → providers.github.clientId
-        for (const [key, value] of Object.entries(process.env)) {
-            if (!key.startsWith(PROVIDER_PREFIX)) continue;
-            const rest = key.slice(PROVIDER_PREFIX.length); // GITHUB_CLIENT_ID
-            const underscore = rest.indexOf("_");
-            if (underscore === -1) continue;
-            const providerId = rest.slice(0, underscore).toLowerCase(); // github
-            const fieldRaw = rest.slice(underscore + 1); // CLIENT_ID
-            // snake_case → camelCase
-            const fieldKey = fieldRaw.toLowerCase().replace(/_([a-z])/g, (_, c) => c.toUpperCase()); // clientId
-            config.providers = config.providers || {};
-            config.providers[providerId] = config.providers[providerId] || {};
-            config.providers[providerId][fieldKey] = value;
-        }
-        return config;
-    }
+	name: "env",
+	// `prefix` is the resolved env-var namespace (default "REFARM"). Reading it as
+	// a parameter — not a hardcoded literal — is what makes the mapping agnostic:
+	// a white-label sets its prefix and gets `<PREFIX>_SITE_URL`, `<PREFIX>_SCOPE_*`
+	// and `<PREFIX>_PROVIDER_*` for free.
+	loadSync(prefix = DEFAULT_ENV_PREFIX) {
+		// Map common <PREFIX>_ envs to the config structure
+		const config = {};
+		const SITE_URL = `${prefix}_SITE_URL`;
+		const REPO_URL = `${prefix}_REPO_URL`;
+		const GIT_HOST = `${prefix}_GIT_HOST`;
+		const SCOPE_PREFIX = `${prefix}_SCOPE_`;
+		const PROVIDER_PREFIX = `${prefix}_PROVIDER_`;
+		if (process.env[SITE_URL] || process.env[REPO_URL]) {
+			config.brand = { urls: {} };
+			if (process.env[SITE_URL]) config.brand.urls.site = process.env[SITE_URL];
+			if (process.env[REPO_URL]) config.brand.urls.repository = process.env[REPO_URL];
+		}
+		if (process.env[GIT_HOST]) {
+			config.infrastructure = { gitHost: process.env[GIT_HOST] };
+		}
+		// Support for dynamic scopes from env
+		for (const [key, value] of Object.entries(process.env)) {
+			if (key.startsWith(SCOPE_PREFIX)) {
+				const scopeKey = key.slice(SCOPE_PREFIX.length).toLowerCase();
+				config.brand = config.brand || {};
+				config.brand.scopes = config.brand.scopes || {};
+				config.brand.scopes[scopeKey] = value;
+			}
+		}
+		// <PREFIX>_PROVIDER_<ID>_<KEY> → providers.<id>.<camelKey>
+		// e.g. REFARM_PROVIDER_GITHUB_CLIENT_ID → providers.github.clientId
+		for (const [key, value] of Object.entries(process.env)) {
+			if (!key.startsWith(PROVIDER_PREFIX)) continue;
+			const rest = key.slice(PROVIDER_PREFIX.length); // GITHUB_CLIENT_ID
+			const underscore = rest.indexOf("_");
+			if (underscore === -1) continue;
+			const providerId = rest.slice(0, underscore).toLowerCase(); // github
+			const fieldRaw = rest.slice(underscore + 1); // CLIENT_ID
+			// snake_case → camelCase
+			const fieldKey = fieldRaw.toLowerCase().replace(/_([a-z])/g, (_, c) => c.toUpperCase()); // clientId
+			config.providers = config.providers || {};
+			config.providers[providerId] = config.providers[providerId] || {};
+			config.providers[providerId][fieldKey] = value;
+		}
+		return config;
+	},
 };
 
 const RemoteSource = {
-    name: "remote",
-    /**
-     * Implement full Sovereign Graph / External API resolution.
-     */
-    async load(root, endpoint, envPrefix = DEFAULT_ENV_PREFIX) {
-        if (!endpoint) return {};
+	name: "remote",
+	/**
+	 * Implement full Sovereign Graph / External API resolution.
+	 */
+	async load(root, endpoint, envPrefix = DEFAULT_ENV_PREFIX) {
+		if (!endpoint) return {};
 
-        const token = process.env[`${envPrefix}_REMOTE_TOKEN`];
-        const headers = {
-            "Accept": "application/json",
-            "X-Refarm-Client": "config-loader"
-        };
+		const token = process.env[`${envPrefix}_REMOTE_TOKEN`];
+		const headers = {
+			Accept: "application/json",
+			"X-Refarm-Client": "config-loader",
+		};
 
-        if (token) {
-            headers["Authorization"] = `Bearer ${token}`;
-        }
+		if (token) {
+			headers["Authorization"] = `Bearer ${token}`;
+		}
 
-        try {
-            console.log(`📡 [refarm/config] Fetching remote config from ${endpoint}...`);
-            const res = await fetch(endpoint, {
-                headers,
-                signal: AbortSignal.timeout(15_000),
-            });
+		try {
+			console.log(`📡 [refarm/config] Fetching remote config from ${endpoint}...`);
+			const res = await fetch(endpoint, {
+				headers,
+				signal: AbortSignal.timeout(15_000),
+			});
 
-            if (!res.ok) {
-                console.warn(`[refarm/config] Remote source failed: ${res.status} ${res.statusText}`);
-                return {};
-            }
+			if (!res.ok) {
+				console.warn(`[refarm/config] Remote source failed: ${res.status} ${res.statusText}`);
+				return {};
+			}
 
-            const data = await res.json();
-            return data?.config || data; // Support both wrapped and direct JSON
-        } catch (e) {
-            console.warn(`[refarm/config] Remote source error at ${endpoint}: ${e.message}`);
-            return {};
-        }
-    }
+			const data = await res.json();
+			return data?.config || data; // Support both wrapped and direct JSON
+		} catch (e) {
+			console.warn(`[refarm/config] Remote source error at ${endpoint}: ${e.message}`);
+			return {};
+		}
+	},
 };
 
 /**
@@ -358,30 +361,31 @@ const RemoteSource = {
  * @returns {object}
  */
 function bootstrapIntent(root, envPrefix = DEFAULT_ENV_PREFIX) {
-    const json = JsonSource.loadSync(root);
-    const env = EnvSource.loadSync(envPrefix);
+	const json = JsonSource.loadSync(root);
+	const env = EnvSource.loadSync(envPrefix);
 
-    // Signals
-    const ephemeralEndpoint = process.env[`${envPrefix}_EPHEMERAL_SOURCE`];
-    const persistentEndpoint = env.infrastructure?.remote?.endpoint || json.infrastructure?.remote?.endpoint;
+	// Signals
+	const ephemeralEndpoint = process.env[`${envPrefix}_EPHEMERAL_SOURCE`];
+	const persistentEndpoint =
+		env.infrastructure?.remote?.endpoint || json.infrastructure?.remote?.endpoint;
 
-    if (ephemeralEndpoint) {
-        return {
-            strategy: "ephemeral", // TODO: Use strategy to adjust logging level
-            endpoint: ephemeralEndpoint,
-            precedence: ["json", "env", "remote"]
-        };
-    }
+	if (ephemeralEndpoint) {
+		return {
+			strategy: "ephemeral", // TODO: Use strategy to adjust logging level
+			endpoint: ephemeralEndpoint,
+			precedence: ["json", "env", "remote"],
+		};
+	}
 
-    if (persistentEndpoint) {
-        return {
-            strategy: "persistent", // TODO: Add schema validation for persistent mode
-            endpoint: persistentEndpoint,
-            precedence: ["json", "remote", "env"]
-        };
-    }
+	if (persistentEndpoint) {
+		return {
+			strategy: "persistent", // TODO: Add schema validation for persistent mode
+			endpoint: persistentEndpoint,
+			precedence: ["json", "remote", "env"],
+		};
+	}
 
-    return { strategy: "static", precedence: ["json", "env"] };
+	return { strategy: "static", precedence: ["json", "env"] };
 }
 
 /**
@@ -390,22 +394,22 @@ function bootstrapIntent(root, envPrefix = DEFAULT_ENV_PREFIX) {
  * @param {{ envPrefix?: string }} [options] white-label env-var prefix (default "REFARM")
  */
 export function loadConfig(root = findRefarmRoot(), options = {}) {
-    const envPrefix = resolveEnvPrefix(options.envPrefix);
-    const { precedence } = bootstrapIntent(root, envPrefix);
-    let config = {};
+	const envPrefix = resolveEnvPrefix(options.envPrefix);
+	const { precedence } = bootstrapIntent(root, envPrefix);
+	let config = {};
 
-    const sources = {
-        json: () => JsonSource.loadSync(root),
-        env: () => EnvSource.loadSync(envPrefix)
-    };
+	const sources = {
+		json: () => JsonSource.loadSync(root),
+		env: () => EnvSource.loadSync(envPrefix),
+	};
 
-    for (const sourceKey of precedence) {
-        if (sources[sourceKey]) {
-            config = deepMerge(config, sources[sourceKey]());
-        }
-    }
+	for (const sourceKey of precedence) {
+		if (sources[sourceKey]) {
+			config = deepMerge(config, sources[sourceKey]());
+		}
+	}
 
-    return resolveInterpolation(config);
+	return resolveInterpolation(config);
 }
 
 /**
@@ -414,31 +418,31 @@ export function loadConfig(root = findRefarmRoot(), options = {}) {
  * @param {{ envPrefix?: string }} [options] white-label env-var prefix (default "REFARM")
  */
 export async function loadConfigAsync(root = findRefarmRoot(), options = {}) {
-    const envPrefix = resolveEnvPrefix(options.envPrefix);
-    const { endpoint, precedence } = bootstrapIntent(root, envPrefix);
-    let config = {};
+	const envPrefix = resolveEnvPrefix(options.envPrefix);
+	const { endpoint, precedence } = bootstrapIntent(root, envPrefix);
+	let config = {};
 
-    const sources = {
-        json: () => JsonSource.loadSync(root),
-        env: () => EnvSource.loadSync(envPrefix),
-        remote: async () => endpoint ? await RemoteSource.load(root, endpoint, envPrefix) : {}
-    };
+	const sources = {
+		json: () => JsonSource.loadSync(root),
+		env: () => EnvSource.loadSync(envPrefix),
+		remote: async () => (endpoint ? await RemoteSource.load(root, endpoint, envPrefix) : {}),
+	};
 
-    for (const sourceKey of precedence) {
-        const data = await sources[sourceKey]();
-        config = deepMerge(config, data);
-    }
+	for (const sourceKey of precedence) {
+		const data = await sources[sourceKey]();
+		config = deepMerge(config, data);
+	}
 
-    return resolveInterpolation(config);
+	return resolveInterpolation(config);
 }
 
 export default {
-    findRefarmRoot,
-    refarmConfigPathCandidates,
-    defaultRefarmConfigPath,
-    findRefarmConfigPath,
-    loadConfig,
-    loadConfigAsync,
+	findRefarmRoot,
+	refarmConfigPathCandidates,
+	defaultRefarmConfigPath,
+	findRefarmConfigPath,
+	loadConfig,
+	loadConfigAsync,
 };
 
 // Re-export the config-node contract from the package root so consumers (and
@@ -448,12 +452,12 @@ export default {
 // from here) is safe: config-node only calls loadConfig inside functions, never
 // at module init.
 export {
-    CONFIG_NODE_SCHEMA,
-    CONFIG_NODE_KIND,
-    CONFIG_NODE_DEFAULT_ID,
-    createConfigNode,
-    configFromNode,
-    loadRawSovereignConfig,
-    loadConfigNode,
-    loadConfigNodeAsync,
+	CONFIG_NODE_SCHEMA,
+	CONFIG_NODE_KIND,
+	CONFIG_NODE_DEFAULT_ID,
+	createConfigNode,
+	configFromNode,
+	loadRawSovereignConfig,
+	loadConfigNode,
+	loadConfigNodeAsync,
 } from "./config-node.js";

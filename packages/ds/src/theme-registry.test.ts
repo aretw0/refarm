@@ -34,9 +34,7 @@ describe("ThemeRegistry", () => {
 
 		const result = registry.register("broken", incomplete);
 		expect(result.ok).toBe(false);
-		expect(result.missing).toEqual(
-			expect.arrayContaining(["primary", "background"]),
-		);
+		expect(result.missing).toEqual(expect.arrayContaining(["primary", "background"]));
 		// Nothing was registered.
 		expect(registry.has("broken")).toBe(false);
 	});

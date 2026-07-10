@@ -2,17 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import { ContextRegistry, buildSystemPrompt } from "./registry.js";
 import { CONTEXT_CAPABILITY, type ContextEntry, type ContextProvider } from "./types.js";
 
-function makeProvider(
-	name: string,
-	entries: ContextEntry[],
-	priority = 100,
-): ContextProvider {
+function makeProvider(name: string, entries: ContextEntry[], priority = 100): ContextProvider {
 	return {
 		name,
 		capability: CONTEXT_CAPABILITY,
-		provide: vi.fn().mockResolvedValue(
-			entries.map((entry) => ({ ...entry, priority: entry.priority ?? priority })),
-		),
+		provide: vi
+			.fn()
+			.mockResolvedValue(
+				entries.map((entry) => ({ ...entry, priority: entry.priority ?? priority })),
+			),
 	};
 }
 
@@ -88,7 +86,9 @@ describe("buildSystemPrompt", () => {
 		expect(prompt).toContain("refarm package-manager --json");
 		expect(prompt).toContain("refarm agent finish --lane after-edit --run --json");
 		expect(prompt).toContain("refarm agent finish --lane before-push --run --json");
-		expect(prompt).toContain("refarm agent finish --profile package --workspace <dir> --run --json");
+		expect(prompt).toContain(
+			"refarm agent finish --profile package --workspace <dir> --run --json",
+		);
 		expect(prompt).toContain("Do not commit until verification passes");
 	});
 });

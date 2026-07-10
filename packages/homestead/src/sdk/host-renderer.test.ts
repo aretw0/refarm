@@ -50,10 +50,7 @@ describe("Homestead host renderer conformance", () => {
 	it("passes default descriptors for web, tui, and headless", () => {
 		for (const kind of HOMESTEAD_HOST_RENDERER_KINDS) {
 			const report = runHostRendererConformance(kind, (rendererKind) =>
-				createHomesteadHostRendererDescriptor(
-					`refarm-${rendererKind}`,
-					rendererKind,
-				),
+				createHomesteadHostRendererDescriptor(`refarm-${rendererKind}`, rendererKind),
 			);
 
 			expect(report).toMatchObject({
@@ -62,9 +59,7 @@ describe("Homestead host renderer conformance", () => {
 				renderer: { id: `refarm-${kind}`, kind },
 				issues: [],
 			});
-			expect(() =>
-				assertHomesteadHostRendererConformance(report),
-			).not.toThrow();
+			expect(() => assertHomesteadHostRendererConformance(report)).not.toThrow();
 		}
 	});
 

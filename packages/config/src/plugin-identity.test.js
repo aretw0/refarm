@@ -44,9 +44,7 @@ describe("plugin identity", () => {
 		expect(normalizePluginId("refarm/agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
 		expect(normalizePluginId("runtime-agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
 		expect(normalizePluginId("runtime_agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
-		expect(normalizePluginId("refarm/runtime-agent")).toBe(
-			RUNTIME_AGENT_PLUGIN_ID,
-		);
+		expect(normalizePluginId("refarm/runtime-agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
 		expect(isRuntimeAgentPluginId("agent")).toBe(true);
 		expect(isRuntimeAgentPluginId("runtime-agent")).toBe(true);
 		expect(isRuntimeAgentPluginId("@local/tool")).toBe(false);
@@ -61,9 +59,7 @@ describe("plugin identity", () => {
 			manifestFile: "dist/plugin.json",
 			requiredProvides: ["integration:respond"],
 		});
-		expect(REFARM_BUNDLED_PLUGIN_DESCRIPTORS).toEqual([
-			RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
-		]);
+		expect(REFARM_BUNDLED_PLUGIN_DESCRIPTORS).toEqual([RUNTIME_AGENT_PLUGIN_DESCRIPTOR]);
 	});
 
 	it("detects runtime agent error-like content", () => {
@@ -79,16 +75,13 @@ describe("plugin identity", () => {
 		expect(canonicalRuntimeAgentContent("[runtime-agent error] quota")).toBe(
 			"[runtime-agent error] quota",
 		);
-		expect(canonicalRuntimeAgentContent("normal response")).toBe(
-			"normal response",
-		);
+		expect(canonicalRuntimeAgentContent("normal response")).toBe("normal response");
 	});
 });
 
 describe("pluginIdToFsToken (filesystem-safe projection)", () => {
 	const base = "/home/user/.refarm/plugins";
-	const contained = (id) =>
-		path.resolve(base, pluginIdToFsToken(id)).startsWith(base + path.sep);
+	const contained = (id) => path.resolve(base, pluginIdToFsToken(id)).startsWith(base + path.sep);
 
 	it("flattens a scoped id to one legible segment", () => {
 		expect(pluginIdToFsToken("@refarm/agent")).toBe("refarm_agent");

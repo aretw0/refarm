@@ -48,18 +48,10 @@ describe("Homestead surface action requests", () => {
 
 	it("does not create an action request when the host or action is missing", () => {
 		expect(
-			createHomesteadSurfaceRenderActionRequest(
-				renderRequest,
-				undefined,
-				"open-alpha",
-			),
+			createHomesteadSurfaceRenderActionRequest(renderRequest, undefined, "open-alpha"),
 		).toBeUndefined();
 		expect(
-			createHomesteadSurfaceRenderActionRequest(
-				renderRequest,
-				host,
-				"missing-action",
-			),
+			createHomesteadSurfaceRenderActionRequest(renderRequest, host, "missing-action"),
 		).toBeUndefined();
 		expect(
 			createHomesteadSurfaceRenderActionRequest(renderRequest, host, undefined),
@@ -70,12 +62,7 @@ describe("Homestead surface action requests", () => {
 		const handler = vi.fn(async () => undefined);
 
 		await expect(
-			invokeHomesteadSurfaceRenderAction(
-				handler,
-				renderRequest,
-				host,
-				"open-alpha",
-			),
+			invokeHomesteadSurfaceRenderAction(handler, renderRequest, host, "open-alpha"),
 		).resolves.toBe(true);
 
 		expect(handler).toHaveBeenCalledWith({
@@ -89,20 +76,10 @@ describe("Homestead surface action requests", () => {
 		const handler = vi.fn();
 
 		await expect(
-			invokeHomesteadSurfaceRenderAction(
-				handler,
-				renderRequest,
-				host,
-				"missing-action",
-			),
+			invokeHomesteadSurfaceRenderAction(handler, renderRequest, host, "missing-action"),
 		).resolves.toBe(false);
 		await expect(
-			invokeHomesteadSurfaceRenderAction(
-				undefined,
-				renderRequest,
-				host,
-				"open-alpha",
-			),
+			invokeHomesteadSurfaceRenderAction(undefined, renderRequest, host, "open-alpha"),
 		).resolves.toBe(false);
 
 		expect(handler).not.toHaveBeenCalled();
@@ -110,12 +87,7 @@ describe("Homestead surface action requests", () => {
 
 	it("preserves explicit false as an unhandled result", async () => {
 		await expect(
-			invokeHomesteadSurfaceRenderAction(
-				async () => false,
-				renderRequest,
-				host,
-				"open-alpha",
-			),
+			invokeHomesteadSurfaceRenderAction(async () => false, renderRequest, host, "open-alpha"),
 		).resolves.toBe(false);
 	});
 });

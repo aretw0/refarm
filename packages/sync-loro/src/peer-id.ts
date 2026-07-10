@@ -9,17 +9,17 @@
  * alongside the Loro snapshot in the farmhand database.
  */
 export function peerIdFromString(input: string): bigint {
-  let h1 = 0xdeadbeefn;
-  let h2 = 0x41c6ce57n;
+	let h1 = 0xdeadbeefn;
+	let h2 = 0x41c6ce57n;
 
-  for (let i = 0; i < input.length; i++) {
-    const ch = BigInt(input.charCodeAt(i));
-    h1 = BigInt.asUintN(32, (h1 ^ ch) * 0x9e3779b9n);
-    h2 = BigInt.asUintN(32, (h2 ^ ch) * 0x9e3779b9n);
-  }
+	for (let i = 0; i < input.length; i++) {
+		const ch = BigInt(input.charCodeAt(i));
+		h1 = BigInt.asUintN(32, (h1 ^ ch) * 0x9e3779b9n);
+		h2 = BigInt.asUintN(32, (h2 ^ ch) * 0x9e3779b9n);
+	}
 
-  // Combine two 32-bit halves into a 64-bit BigInt
-  return BigInt.asUintN(64, (h1 << 32n) | h2);
+	// Combine two 32-bit halves into a 64-bit BigInt
+	return BigInt.asUintN(64, (h1 << 32n) | h2);
 }
 
 /**
@@ -27,11 +27,11 @@ export function peerIdFromString(input: string): bigint {
  * Use this when no stable identifier is available (e.g. ephemeral browser session).
  */
 export function randomPeerId(): bigint {
-  const bytes = new Uint8Array(8);
-  globalThis.crypto.getRandomValues(bytes);
-  let result = 0n;
-  for (const byte of bytes) {
-    result = (result << 8n) | BigInt(byte);
-  }
-  return BigInt.asUintN(64, result);
+	const bytes = new Uint8Array(8);
+	globalThis.crypto.getRandomValues(bytes);
+	let result = 0n;
+	for (const byte of bytes) {
+		result = (result << 8n) | BigInt(byte);
+	}
+	return BigInt.asUintN(64, result);
 }

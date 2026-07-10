@@ -95,29 +95,22 @@ describe("local scheduler ledger", () => {
 		// The entry carries only recordedAt + the caller's receipt — the node
 		// envelope (@id/@type/@context, refarm:createdAt/updatedAt) must not leak.
 		const entry = snapshot.entries["job:1"];
-		expect(Object.keys(entry).sort()).toEqual([
-			"effortId",
-			"firedAt",
-			"recordedAt",
-		]);
+		expect(Object.keys(entry).sort()).toEqual(["effortId", "firedAt", "recordedAt"]);
 	});
 
-	it.skipIf(platform() === "win32")(
-		"writes the ledger tree with owner-only modes",
-		async () => {
-			const cwd = await createTempDir();
-			const ledger = createLocalSchedulerLedger({ cwd });
-			await ledger.recordFired("job:1", { effortId: "effort-1" });
+	it.skipIf(platform() === "win32")("writes the ledger tree with owner-only modes", async () => {
+		const cwd = await createTempDir();
+		const ledger = createLocalSchedulerLedger({ cwd });
+		await ledger.recordFired("job:1", { effortId: "effort-1" });
 
-			const filePath = resolveLocalSchedulerLedgerPath({ cwd });
-			const fileStat = await stat(filePath);
-			const dirStat = await stat(dirname(filePath));
+		const filePath = resolveLocalSchedulerLedgerPath({ cwd });
+		const fileStat = await stat(filePath);
+		const dirStat = await stat(dirname(filePath));
 
-			// group/other must have no write bit on either the dir or the file.
-			expect(dirStat.mode & 0o077).toBe(0);
-			expect(fileStat.mode & 0o077).toBe(0);
-		},
-	);
+		// group/other must have no write bit on either the dir or the file.
+		expect(dirStat.mode & 0o077).toBe(0);
+		expect(fileStat.mode & 0o077).toBe(0);
+	});
 
 	it("preserves existing entries when recording a new fired key", async () => {
 		const cwd = await createTempDir();
@@ -137,12 +130,10 @@ describe("local scheduler ledger", () => {
 		const seed = createLocalSchedulerLedger({ cwd });
 		await seed.recordFired("bootstrap", { effortId: "bootstrap" });
 		const filePath = resolveLocalSchedulerLedgerPath({ cwd });
-		await writeFile(filePath, "{\"records\":", "utf8");
+		await writeFile(filePath, '{"records":', "utf8");
 
 		const ledger = createLocalSchedulerLedger({ cwd });
-		await expect(ledger.hasFired("job:1")).rejects.toThrow(
-			"Invalid local scheduler ledger",
-		);
+		await expect(ledger.hasFired("job:1")).rejects.toThrow("Invalid local scheduler ledger");
 	});
 
 	it("plugs into due-work execution and suppresses duplicate persisted ticks", async () => {
@@ -161,24 +152,16 @@ describe("local scheduler ledger", () => {
 			triggers: [{ type: "once", at: "2026-06-27T08:00:00.000Z" }],
 		});
 
-		const first = await executeDueLocalScheduledWork(
-			automationAdapter,
-			effortAdapter,
-			{
-				owner: "refarm-main",
-				now: "2026-06-27T09:00:00.000Z",
-				ledger: createLocalSchedulerLedger({ cwd }),
-			},
-		);
-		const second = await executeDueLocalScheduledWork(
-			automationAdapter,
-			effortAdapter,
-			{
-				owner: "refarm-main",
-				now: "2026-06-27T09:05:00.000Z",
-				ledger: createLocalSchedulerLedger({ cwd }),
-			},
-		);
+		const first = await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:00:00.000Z",
+			ledger: createLocalSchedulerLedger({ cwd }),
+		});
+		const second = await executeDueLocalScheduledWork(automationAdapter, effortAdapter, {
+			owner: "refarm-main",
+			now: "2026-06-27T09:05:00.000Z",
+			ledger: createLocalSchedulerLedger({ cwd }),
+		});
 
 		expect(first.summary).toMatchObject({ due: 1, submitted: 1, alreadyFired: 0 });
 		expect(second.summary).toMatchObject({ due: 1, submitted: 0, alreadyFired: 1 });

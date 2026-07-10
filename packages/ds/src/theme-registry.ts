@@ -131,14 +131,10 @@ export function resolveThemePacksFromSurfaces(
 			}
 			if (!payload || typeof payload !== "object") continue;
 			const record = payload as Record<string, unknown>;
-			const theme = (record.theme ?? record.tokens) as
-				| Partial<DsTheme>
-				| undefined;
+			const theme = (record.theme ?? record.tokens) as Partial<DsTheme> | undefined;
 			if (!theme || typeof theme !== "object") continue;
 			const id =
-				typeof record.id === "string" && record.id.trim().length > 0
-					? record.id
-					: surface.id;
+				typeof record.id === "string" && record.id.trim().length > 0 ? record.id : surface.id;
 			packs.push({ id, theme });
 		}
 	}

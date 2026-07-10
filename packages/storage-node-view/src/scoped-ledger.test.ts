@@ -75,12 +75,8 @@ describe("openScopedLedger (host bootstrap for durable node-ledgers)", () => {
 	it("layers open workspace then user in apply order (lowest precedence first)", () => {
 		const layers = openScopedLedgerLayers("config", { userHome, workspaceRoot });
 		expect(layers.map((l) => l.scope)).toEqual(["workspace", "user"]);
-		expect(layers[0]!.path).toBe(
-			join(workspaceRoot, ".refarm", "config", "ledger.json"),
-		);
-		expect(layers[1]!.path).toBe(
-			join(userHome, ".refarm", "config", "ledger.json"),
-		);
+		expect(layers[0]!.path).toBe(join(workspaceRoot, ".refarm", "config", "ledger.json"));
+		expect(layers[1]!.path).toBe(join(userHome, ".refarm", "config", "ledger.json"));
 	});
 
 	it("layers include org as the shared base only when orgRoot is injected", () => {
@@ -90,12 +86,8 @@ describe("openScopedLedger (host bootstrap for durable node-ledgers)", () => {
 			workspaceRoot,
 		});
 		expect(layers.map((l) => l.scope)).toEqual(["org", "workspace", "user"]);
-		expect(layers[0]!.path).toBe(
-			join(orgRoot, ".refarm", "config", "ledger.json"),
-		);
-		expect(layers[2]!.path).toBe(
-			join(userHome, ".refarm", "config", "ledger.json"),
-		);
+		expect(layers[0]!.path).toBe(join(orgRoot, ".refarm", "config", "ledger.json"));
+		expect(layers[2]!.path).toBe(join(userHome, ".refarm", "config", "ledger.json"));
 	});
 
 	it("readLayeredNode: user overrides workspace for the same id; base shows through", async () => {
@@ -126,9 +118,7 @@ describe("openScopedLedger (host bootstrap for durable node-ledgers)", () => {
 
 		await org!.ledger.storeNode(node("model", { ref: "org-default" }));
 		await org!.ledger.storeNode(node("theme", { ref: "org-theme" }));
-		await workspace!.ledger.storeNode(
-			node("model", { ref: "workspace-override" }),
-		);
+		await workspace!.ledger.storeNode(node("model", { ref: "workspace-override" }));
 		await user!.ledger.storeNode(node("model", { ref: "user-override" }));
 
 		const model = await readLayeredNode(layers, "model");

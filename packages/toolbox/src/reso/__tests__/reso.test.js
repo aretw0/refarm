@@ -4,176 +4,180 @@ import { switchResolution } from "../../reso.mjs";
 
 // Mock do fs para não alterar arquivos reais durante os testes
 vi.mock("node:fs", async () => {
-  const actual = await vi.importActual("node:fs");
-  return {
-    ...actual,
-    default: {
-      ...actual.default,
-      readdirSync: vi.fn(),
-      readFileSync: vi.fn(),
-      writeFileSync: vi.fn(),
-      existsSync: vi.fn(),
-    },
-  };
+	const actual = await vi.importActual("node:fs");
+	return {
+		...actual,
+		default: {
+			...actual.default,
+			readdirSync: vi.fn(),
+			readFileSync: vi.fn(),
+			writeFileSync: vi.fn(),
+			existsSync: vi.fn(),
+		},
+	};
 });
 
 vi.mock("chalk", () => ({
-  default: {
-    blue: (s) => s,
-    green: (s) => s,
-    yellow: (s) => s,
-    gray: (s) => s,
-    bold: (s) => s,
-    dim: (s) => s,
-  },
+	default: {
+		blue: (s) => s,
+		green: (s) => s,
+		yellow: (s) => s,
+		gray: (s) => s,
+		bold: (s) => s,
+		dim: (s) => s,
+	},
 }));
 
 describe("switchResolution", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
 
-  it("should identify a package as LOCAL if it points to src/", async () => {
-    const mockPkgJson = JSON.stringify({
-      name: "@refarm.dev/test-pkg",
-      main: "./src/index.ts",
-      types: "./src/index.ts",
-    });
+	it("should identify a package as LOCAL if it points to src/", async () => {
+		const mockPkgJson = JSON.stringify({
+			name: "@refarm.dev/test-pkg",
+			main: "./src/index.ts",
+			types: "./src/index.ts",
+		});
 
-    vi.mocked(fs.readdirSync).mockImplementation((p) => {
-        if (p.toString().includes("packages")) return ["test-pkg"];
-        return [];
-    });
-    vi.mocked(fs.existsSync).mockImplementation(
-      (p) => p.toString().includes("package.json") || p.toString().includes("packages") || p.toString().includes("apps"),
-    );
-    vi.mocked(fs.readFileSync).mockReturnValue(mockPkgJson);
+		vi.mocked(fs.readdirSync).mockImplementation((p) => {
+			if (p.toString().includes("packages")) return ["test-pkg"];
+			return [];
+		});
+		vi.mocked(fs.existsSync).mockImplementation(
+			(p) =>
+				p.toString().includes("package.json") ||
+				p.toString().includes("packages") ||
+				p.toString().includes("apps"),
+		);
+		vi.mocked(fs.readFileSync).mockReturnValue(mockPkgJson);
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await switchResolution("status", { rootDir: "/mock/root" });
+		await switchResolution("status", { rootDir: "/mock/root" });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("LOCAL (src)"),
-    );
-    consoleSpy.mockRestore();
-  });
+		expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("LOCAL (src)"));
+		consoleSpy.mockRestore();
+	});
 
-  it("should identify a package as PUBLISHED if it points to dist/", async () => {
-    const mockPkgJson = JSON.stringify({
-      name: "@refarm.dev/test-pkg",
-      main: "./dist/index.js",
-      types: "./dist/index.d.ts",
-    });
+	it("should identify a package as PUBLISHED if it points to dist/", async () => {
+		const mockPkgJson = JSON.stringify({
+			name: "@refarm.dev/test-pkg",
+			main: "./dist/index.js",
+			types: "./dist/index.d.ts",
+		});
 
-    vi.mocked(fs.readdirSync).mockImplementation((p) => {
-        if (p.toString().includes("packages")) return ["test-pkg"];
-        return [];
-    });
-    vi.mocked(fs.existsSync).mockImplementation(
-      (p) => p.toString().includes("package.json") || p.toString().includes("packages") || p.toString().includes("apps"),
-    );
-    vi.mocked(fs.readFileSync).mockReturnValue(mockPkgJson);
+		vi.mocked(fs.readdirSync).mockImplementation((p) => {
+			if (p.toString().includes("packages")) return ["test-pkg"];
+			return [];
+		});
+		vi.mocked(fs.existsSync).mockImplementation(
+			(p) =>
+				p.toString().includes("package.json") ||
+				p.toString().includes("packages") ||
+				p.toString().includes("apps"),
+		);
+		vi.mocked(fs.readFileSync).mockReturnValue(mockPkgJson);
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await switchResolution("status", { rootDir: "/mock/root" });
+		await switchResolution("status", { rootDir: "/mock/root" });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("PUBLISHED (dist)"),
-    );
-    consoleSpy.mockRestore();
-  });
+		expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("PUBLISHED (dist)"));
+		consoleSpy.mockRestore();
+	});
 
-  it("should handle complex exports and identify LOCAL status only if entry point is src", async () => {
-    const mockPkgJson = JSON.stringify({
-      name: "@refarm.dev/complex-pkg",
-      exports: {
-        ".": "./src/index.ts",
-        "./test-utils": "./dist/test/test-utils.js",
-      },
-    });
+	it("should handle complex exports and identify LOCAL status only if entry point is src", async () => {
+		const mockPkgJson = JSON.stringify({
+			name: "@refarm.dev/complex-pkg",
+			exports: {
+				".": "./src/index.ts",
+				"./test-utils": "./dist/test/test-utils.js",
+			},
+		});
 
-    vi.mocked(fs.readdirSync).mockImplementation((p) => {
-        if (p.toString().includes("packages")) return ["complex-pkg"];
-        return [];
-    });
-    vi.mocked(fs.existsSync).mockImplementation(
-      (p) => p.toString().includes("package.json") || p.toString().includes("packages") || p.toString().includes("apps"),
-    );
-    vi.mocked(fs.readFileSync).mockReturnValue(mockPkgJson);
+		vi.mocked(fs.readdirSync).mockImplementation((p) => {
+			if (p.toString().includes("packages")) return ["complex-pkg"];
+			return [];
+		});
+		vi.mocked(fs.existsSync).mockImplementation(
+			(p) =>
+				p.toString().includes("package.json") ||
+				p.toString().includes("packages") ||
+				p.toString().includes("apps"),
+		);
+		vi.mocked(fs.readFileSync).mockReturnValue(mockPkgJson);
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await switchResolution("status", { rootDir: "/mock/root" });
+		await switchResolution("status", { rootDir: "/mock/root" });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("LOCAL (src)"),
-    );
-    consoleSpy.mockRestore();
-  });
+		expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("LOCAL (src)"));
+		consoleSpy.mockRestore();
+	});
 
-  it("should identify PUBLISHED if exports root points to dist even if sub-exports point to src", async () => {
-    const mockPkgJson = JSON.stringify({
-      name: "@refarm.dev/complex-pkg",
-      exports: {
-        ".": "./dist/index.js",
-        "./test-utils": "./src/test-utils.ts",
-      },
-    });
+	it("should identify PUBLISHED if exports root points to dist even if sub-exports point to src", async () => {
+		const mockPkgJson = JSON.stringify({
+			name: "@refarm.dev/complex-pkg",
+			exports: {
+				".": "./dist/index.js",
+				"./test-utils": "./src/test-utils.ts",
+			},
+		});
 
-    vi.mocked(fs.readdirSync).mockImplementation((p) => {
-        if (p.toString().includes("packages")) return ["complex-pkg"];
-        return [];
-    });
-    vi.mocked(fs.existsSync).mockImplementation(
-      (p) => p.toString().includes("package.json") || p.toString().includes("packages") || p.toString().includes("apps"),
-    );
-    vi.mocked(fs.readFileSync).mockReturnValue(mockPkgJson);
+		vi.mocked(fs.readdirSync).mockImplementation((p) => {
+			if (p.toString().includes("packages")) return ["complex-pkg"];
+			return [];
+		});
+		vi.mocked(fs.existsSync).mockImplementation(
+			(p) =>
+				p.toString().includes("package.json") ||
+				p.toString().includes("packages") ||
+				p.toString().includes("apps"),
+		);
+		vi.mocked(fs.readFileSync).mockReturnValue(mockPkgJson);
 
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    await switchResolution("status", { rootDir: "/mock/root" });
+		await switchResolution("status", { rootDir: "/mock/root" });
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("PUBLISHED (dist)"),
-    );
-    consoleSpy.mockRestore();
-  });
+		expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("PUBLISHED (dist)"));
+		consoleSpy.mockRestore();
+	});
 
-  it("should rewrite module to src when switching resolution to src", async () => {
-    const pkgJsonPath = "/mock/root/packages/test-pkg/package.json";
-    const mockPkgJson = JSON.stringify({
-      name: "@refarm.dev/test-pkg",
-      main: "./dist/index.js",
-      module: "./dist/index.js",
-      types: "./dist/index.d.ts",
-    });
+	it("should rewrite module to src when switching resolution to src", async () => {
+		const pkgJsonPath = "/mock/root/packages/test-pkg/package.json";
+		const mockPkgJson = JSON.stringify({
+			name: "@refarm.dev/test-pkg",
+			main: "./dist/index.js",
+			module: "./dist/index.js",
+			types: "./dist/index.d.ts",
+		});
 
-    vi.mocked(fs.readdirSync).mockImplementation((p) => {
-      if (p.toString() === "/mock/root/packages") return ["test-pkg"];
-      if (p.toString() === "/mock/root/apps") return [];
-      return [];
-    });
-    vi.mocked(fs.existsSync).mockImplementation((p) => {
-      const value = p.toString();
-      return [
-        "/mock/root/packages",
-        "/mock/root/apps",
-        pkgJsonPath,
-        "/mock/root/packages/test-pkg/src/index.ts",
-      ].includes(value);
-    });
-    vi.mocked(fs.readFileSync).mockImplementation((p) => {
-      if (p.toString() === pkgJsonPath) return mockPkgJson;
-      return "{}";
-    });
+		vi.mocked(fs.readdirSync).mockImplementation((p) => {
+			if (p.toString() === "/mock/root/packages") return ["test-pkg"];
+			if (p.toString() === "/mock/root/apps") return [];
+			return [];
+		});
+		vi.mocked(fs.existsSync).mockImplementation((p) => {
+			const value = p.toString();
+			return [
+				"/mock/root/packages",
+				"/mock/root/apps",
+				pkgJsonPath,
+				"/mock/root/packages/test-pkg/src/index.ts",
+			].includes(value);
+		});
+		vi.mocked(fs.readFileSync).mockImplementation((p) => {
+			if (p.toString() === pkgJsonPath) return mockPkgJson;
+			return "{}";
+		});
 
-    await switchResolution("src", { rootDir: "/mock/root" });
+		await switchResolution("src", { rootDir: "/mock/root" });
 
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
-      pkgJsonPath,
-      expect.stringContaining('"module": "./src/index.ts"'),
-    );
-  });
+		expect(fs.writeFileSync).toHaveBeenCalledWith(
+			pkgJsonPath,
+			expect.stringContaining('"module": "./src/index.ts"'),
+		);
+	});
 });

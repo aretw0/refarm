@@ -7,8 +7,8 @@
  */
 
 const FS_ERROR =
-  "[silo] Persistent token/identity storage requires the Node.js runtime " +
-  "and cannot run in the browser.";
+	"[silo] Persistent token/identity storage requires the Node.js runtime " +
+	"and cannot run in the browser.";
 
 /**
  * Browser stub for SiloCore.
@@ -19,64 +19,64 @@ const FS_ERROR =
  * - saveTokens(), bootstrapIdentity(), saveIdentityMetadata(): throw
  */
 export class SiloCore {
-  constructor(_config = {}) {
-    this.config = _config;
-  }
+	constructor(_config = {}) {
+		this.config = _config;
+	}
 
-  async saveTokens(_tokens) {
-    throw new Error(FS_ERROR);
-  }
+	async saveTokens(_tokens) {
+		throw new Error(FS_ERROR);
+	}
 
-  async loadTokens() {
-    return {};
-  }
+	async loadTokens() {
+		return {};
+	}
 
-  async loadRemoteConfig(url) {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    this.config = { ...this.config, ...data };
-    return { status: "success", strategy: data.strategy || "ephemeral" };
-  }
+	async loadRemoteConfig(url) {
+		const res = await fetch(url, {
+			signal: AbortSignal.timeout(15_000),
+		});
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const data = await res.json();
+		this.config = { ...this.config, ...data };
+		return { status: "success", strategy: data.strategy || "ephemeral" };
+	}
 
-  async resolve() {
-    return new Map();
-  }
+	async resolve() {
+		return new Map();
+	}
 
-  async provision(_targetType = "object") {
-    return {};
-  }
+	async provision(_targetType = "object") {
+		return {};
+	}
 
-  async bootstrapIdentity() {
-    throw new Error(FS_ERROR);
-  }
+	async bootstrapIdentity() {
+		throw new Error(FS_ERROR);
+	}
 
-  async saveIdentityMetadata(_metadata) {
-    throw new Error(FS_ERROR);
-  }
+	async saveIdentityMetadata(_metadata) {
+		throw new Error(FS_ERROR);
+	}
 
-  toGitHubEnv(tokens) {
-    return Object.entries(tokens)
-      .map(([key, val]) => `${key}=${val}`)
-      .join("\n");
-  }
+	toGitHubEnv(tokens) {
+		return Object.entries(tokens)
+			.map(([key, val]) => `${key}=${val}`)
+			.join("\n");
+	}
 }
 
 /**
  * Browser stub for KeyManager.
  */
 export class KeyManager {
-  constructor(_config = {}) {}
+	constructor(_config = {}) {}
 
-  async generateMasterKey() {
-    throw new Error(FS_ERROR);
-  }
+	async generateMasterKey() {
+		throw new Error(FS_ERROR);
+	}
 }
 
 export function resolveSiloHome() {
-  throw new Error(FS_ERROR);
+	throw new Error(FS_ERROR);
 }
 
 export default SiloCore;

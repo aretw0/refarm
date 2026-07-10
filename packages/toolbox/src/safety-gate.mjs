@@ -36,7 +36,8 @@ function normalizeStep(step) {
 
 function normalizeProfiles(rawProfiles = {}) {
 	const normalized = {};
-	if (!rawProfiles || typeof rawProfiles !== "object" || Array.isArray(rawProfiles)) return normalized;
+	if (!rawProfiles || typeof rawProfiles !== "object" || Array.isArray(rawProfiles))
+		return normalized;
 
 	for (const [name, profile] of Object.entries(rawProfiles)) {
 		if (!Array.isArray(profile)) continue;

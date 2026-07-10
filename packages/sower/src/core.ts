@@ -60,15 +60,13 @@ export class SowerCore {
 				{
 					id: "guest",
 					label: "Guest Mode",
-					description:
-						"Temporary participation. No keys, no persistent storage.",
+					description: "Temporary participation. No keys, no persistent storage.",
 					intent: "switch-to-guest",
 				},
 				{
 					id: "persistent",
 					label: "Persistent Workspace",
-					description:
-						"Persistent identity and local storage for ongoing work.",
+					description: "Persistent identity and local storage for ongoing work.",
 					intent: "switch-to-persistent",
 				},
 			],
@@ -125,17 +123,11 @@ export class SowerCore {
 	}
 
 	private _readTemplateManifest(templateId: string): SowerTemplateManifest | null {
-		const manifestPath = path.resolve(
-			this.templatesRoot,
-			templateId,
-			"refarm.template.json",
-		);
+		const manifestPath = path.resolve(this.templatesRoot, templateId, "refarm.template.json");
 		if (!fs.existsSync(manifestPath)) return null;
 		const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as SowerTemplateManifest;
 		if (manifest.id && manifest.id !== templateId) {
-			throw new Error(
-				`Template manifest id mismatch: expected ${templateId}, got ${manifest.id}`,
-			);
+			throw new Error(`Template manifest id mismatch: expected ${templateId}, got ${manifest.id}`);
 		}
 		return manifest;
 	}
@@ -205,17 +197,11 @@ export class SowerCore {
 
 		// Hydrate files if targetDir is provided
 		if (options["targetDir"]) {
-			const templatePath = path.resolve(
-				this.templatesRoot,
-				templateId,
-				template.source,
-			);
+			const templatePath = path.resolve(this.templatesRoot, templateId, template.source);
 
 			if (fs.existsSync(templatePath)) {
 				const targetDir = options["targetDir"] as string;
-				console.log(
-					`[sower-core] Hydrating from ${templatePath} to ${targetDir}...`,
-				);
+				console.log(`[sower-core] Hydrating from ${templatePath} to ${targetDir}...`);
 				this._copyRecursive(
 					templatePath,
 					targetDir,
@@ -241,10 +227,7 @@ export class SowerCore {
 	/**
 	 * Sows the project with tokens and verifies infrastructure.
 	 */
-	async sow(
-		tokens: { githubToken: string; cloudflareToken: string },
-		brand: { owner: string },
-	) {
+	async sow(tokens: { githubToken: string; cloudflareToken: string }, brand: { owner: string }) {
 		console.log(`[sower-core] Sowing tokens for ${brand.owner}...`);
 
 		const silo = new SiloCore();
@@ -259,10 +242,7 @@ export class SowerCore {
 			infrastructure: { gitHost: "github" },
 		});
 
-		const results: Record<
-			string,
-			{ ok: boolean; count?: number; error?: string }
-		> = {
+		const results: Record<string, { ok: boolean; count?: number; error?: string }> = {
 			github: { ok: false },
 			cloudflare: { ok: true },
 		};
@@ -285,14 +265,11 @@ export class SowerCore {
 	 */
 	async hydrateFromRemote(nodeId: string, gatewayUrl: string): Promise<unknown> {
 		const timeoutMs = 20_000;
-		console.log(
-			`[sower-core] Hydrating from remote graph node: ${nodeId} via ${gatewayUrl}`,
-		);
+		console.log(`[sower-core] Hydrating from remote graph node: ${nodeId} via ${gatewayUrl}`);
 		try {
-			const response = await fetch(
-				`${gatewayUrl}/nodes/${encodeURIComponent(nodeId)}`,
-				{ signal: AbortSignal.timeout(timeoutMs) },
-			);
+			const response = await fetch(`${gatewayUrl}/nodes/${encodeURIComponent(nodeId)}`, {
+				signal: AbortSignal.timeout(timeoutMs),
+			});
 			if (!response.ok) {
 				throw new Error(`Failed to fetch graph node: ${response.statusText}`);
 			}
@@ -305,9 +282,7 @@ export class SowerCore {
 				plugins: node["refarm:recommendedPlugins"] || [],
 			};
 		} catch (e) {
-			throw new Error(
-				`Remote hydration failed: ${e instanceof Error ? e.message : String(e)}`,
-			);
+			throw new Error(`Remote hydration failed: ${e instanceof Error ? e.message : String(e)}`);
 		}
 	}
 }

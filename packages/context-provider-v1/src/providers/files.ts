@@ -15,9 +15,7 @@ export class FilesContextProvider implements ContextProvider {
 		if (this.files.length === 0) return [];
 		const entries: ContextEntry[] = [];
 		for (const file of this.files) {
-			const filePath = path.isAbsolute(file)
-				? file
-				: path.join(request.cwd, file);
+			const filePath = path.isAbsolute(file) ? file : path.join(request.cwd, file);
 			try {
 				const buffer = fs.readFileSync(filePath);
 				const content =

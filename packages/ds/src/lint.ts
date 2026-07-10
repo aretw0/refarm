@@ -74,10 +74,7 @@ export interface DsLintReport {
 	issues: DsLintIssue[];
 }
 
-export function runDsLint(
-	snapshot: DsLintSnapshot,
-	options: DsLintOptions = {},
-): DsLintReport {
+export function runDsLint(snapshot: DsLintSnapshot, options: DsLintOptions = {}): DsLintReport {
 	const enabled = {
 		contrast: options.contrast ?? true,
 		overflow: options.overflow ?? true,
@@ -113,7 +110,14 @@ function checkContrast(snapshot: DsLintSnapshot): DsLintIssue[] {
 		const foreground = parseColor(element.styles?.color);
 		const background = parseColor(element.styles?.backgroundColor);
 		if (!foreground || !background) {
-			issues.push(issue("ds-contrast", "warning", "Text element is missing a concrete foreground/background pair.", element));
+			issues.push(
+				issue(
+					"ds-contrast",
+					"warning",
+					"Text element is missing a concrete foreground/background pair.",
+					element,
+				),
+			);
 			continue;
 		}
 
@@ -121,10 +125,16 @@ function checkContrast(snapshot: DsLintSnapshot): DsLintIssue[] {
 		const minRatio = isLargeText(element) ? AA_LARGE_TEXT : AA_NORMAL_TEXT;
 		if (ratio < minRatio) {
 			issues.push(
-				issue("ds-contrast", "error", "Text contrast is below WCAG AA for its computed size.", element, {
-					ratio: Number(ratio.toFixed(2)),
-					minRatio,
-				}),
+				issue(
+					"ds-contrast",
+					"error",
+					"Text contrast is below WCAG AA for its computed size.",
+					element,
+					{
+						ratio: Number(ratio.toFixed(2)),
+						minRatio,
+					},
+				),
 			);
 		}
 	}
@@ -165,18 +175,30 @@ function checkOverflow(snapshot: DsLintSnapshot, tolerancePx: number): DsLintIss
 		const box = metrics.boundingBox;
 		if (box && box.x + box.width > snapshot.viewport.width + tolerancePx) {
 			issues.push(
-				issue("ds-viewport-overflow", "error", "Element extends beyond the viewport width.", element, {
-					right: box.x + box.width,
-					viewportWidth: snapshot.viewport.width,
-				}),
+				issue(
+					"ds-viewport-overflow",
+					"error",
+					"Element extends beyond the viewport width.",
+					element,
+					{
+						right: box.x + box.width,
+						viewportWidth: snapshot.viewport.width,
+					},
+				),
 			);
 		}
 		if (box && box.y + box.height > snapshot.viewport.height + tolerancePx) {
 			issues.push(
-				issue("ds-viewport-overflow", "error", "Element extends beyond the viewport height.", element, {
-					bottom: box.y + box.height,
-					viewportHeight: snapshot.viewport.height,
-				}),
+				issue(
+					"ds-viewport-overflow",
+					"error",
+					"Element extends beyond the viewport height.",
+					element,
+					{
+						bottom: box.y + box.height,
+						viewportHeight: snapshot.viewport.height,
+					},
+				),
 			);
 		}
 	}
@@ -188,9 +210,15 @@ function checkFluidType(snapshot: DsLintSnapshot): DsLintIssue[] {
 		.filter(isHeading)
 		.filter((element) => !String(element.styles?.fontSizeExpression || "").includes("clamp("))
 		.map((element) =>
-			issue("ds-fluid-type", "error", "Heading font size must be authored as a clamp() expression.", element, {
-				fontSizeExpression: element.styles?.fontSizeExpression || null,
-			}),
+			issue(
+				"ds-fluid-type",
+				"error",
+				"Heading font size must be authored as a clamp() expression.",
+				element,
+				{
+					fontSizeExpression: element.styles?.fontSizeExpression || null,
+				},
+			),
 		);
 }
 
@@ -283,9 +311,7 @@ function parseColor(value: string | null | undefined): Rgb | null {
 			return null;
 		}
 		const digits =
-			captured.length === 3
-				? [...captured].map((digit) => `${digit}${digit}`).join("")
-				: captured;
+			captured.length === 3 ? [...captured].map((digit) => `${digit}${digit}`).join("") : captured;
 		const numeric = Number.parseInt(digits, 16);
 		return {
 			red: (numeric >> 16) & 255,
@@ -315,7 +341,11 @@ function contrastRatio(foreground: Rgb, background: Rgb): number {
 }
 
 function relativeLuminance({ red, green, blue }: Rgb): number {
-	return 0.2126 * channelLuminance(red) + 0.7152 * channelLuminance(green) + 0.0722 * channelLuminance(blue);
+	return (
+		0.2126 * channelLuminance(red) +
+		0.7152 * channelLuminance(green) +
+		0.0722 * channelLuminance(blue)
+	);
 }
 
 function channelLuminance(channel: number): number {

@@ -1,10 +1,6 @@
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 
-import type {
-	ChunkSource,
-	FollowStreamOptions,
-	FollowStreamResult,
-} from "./types.js";
+import type { ChunkSource, FollowStreamOptions, FollowStreamResult } from "./types.js";
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 
@@ -73,9 +69,7 @@ export function followStream(
 		timer = setTimeout(() => {
 			finish(() =>
 				reject(
-					new Error(
-						`stream '${streamRef}' did not reach a final chunk within ${timeoutMs}ms`,
-					),
+					new Error(`stream '${streamRef}' did not reach a final chunk within ${timeoutMs}ms`),
 				),
 			);
 		}, timeoutMs);

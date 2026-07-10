@@ -48,10 +48,7 @@ export class OperatorStateProvider implements ContextProvider {
 		const finish = parsed.finish;
 		if (finish?.status === "failed" && finish.failedCommand) {
 			lines.push(`finish: FAILED — blocked at \`${finish.failedCommand}\``);
-			const pending = [
-				...(finish.nextCommands ?? []),
-				...(finish.remainingCommands ?? []),
-			];
+			const pending = [...(finish.nextCommands ?? []), ...(finish.remainingCommands ?? [])];
 			if (pending.length > 0) {
 				lines.push("Resolve before starting new work:");
 				pending.forEach((cmd, i) => lines.push(`  ${i + 1}. ${cmd}`));

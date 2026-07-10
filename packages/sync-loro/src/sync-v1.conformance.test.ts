@@ -53,11 +53,7 @@ function createTestReadModel(): StorageAdapter {
 class InMemorySyncHub {
 	private readonly endpoints = new Map<string, Map<string, LoroSyncProvider>>();
 
-	register(
-		endpoint: string,
-		sessionId: string,
-		provider: LoroSyncProvider,
-	): void {
+	register(endpoint: string, sessionId: string, provider: LoroSyncProvider): void {
 		if (!this.endpoints.has(endpoint)) {
 			this.endpoints.set(endpoint, new Map());
 		}
@@ -125,11 +121,7 @@ class LoroSyncProvider implements SyncProvider {
 
 		this.unsubscribe = this.storage.onUpdate((update) => {
 			if (!this.endpoint || !this.sessionId) return;
-			LoroSyncProvider.hub.broadcast(
-				this.endpoint,
-				this.sessionId,
-				new Uint8Array(update),
-			);
+			LoroSyncProvider.hub.broadcast(this.endpoint, this.sessionId, new Uint8Array(update));
 		});
 
 		LoroSyncProvider.hub.register(endpoint, sessionId, this);
@@ -197,12 +189,7 @@ class LoroSyncProvider implements SyncProvider {
 	}
 }
 
-function createChange(
-	id: string,
-	author: string,
-	resourceId: string,
-	status: string,
-): SyncChange {
+function createChange(id: string, author: string, resourceId: string, status: string): SyncChange {
 	return {
 		id,
 		timestamp: new Date().toISOString(),
@@ -247,19 +234,13 @@ describe("@refarm.dev/sync-loro sync:v1 conformance", () => {
 
 		await flushProjection();
 
-		const [changesA, changesB] = await Promise.all([
-			peerA.pull(),
-			peerB.pull(),
-		]);
+		const [changesA, changesB] = await Promise.all([peerA.pull(), peerB.pull()]);
 		const idsA = changesA.map((change) => change.id).sort();
 		const idsB = changesB.map((change) => change.id).sort();
 
 		expect(idsA).toEqual(["change-a", "change-b"]);
 		expect(idsB).toEqual(["change-a", "change-b"]);
 
-		await Promise.all([
-			peerA.disconnect(sessionA.sessionId),
-			peerB.disconnect(sessionB.sessionId),
-		]);
+		await Promise.all([peerA.disconnect(sessionA.sessionId), peerB.disconnect(sessionB.sessionId)]);
 	});
 });

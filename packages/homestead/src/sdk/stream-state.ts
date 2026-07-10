@@ -106,9 +106,7 @@ export interface StreamObservationView {
 
 export type StreamObservationViewMap = Record<string, StreamObservationView>;
 
-export function emptyStreamSessionState(
-	streamRef: string | null = null,
-): StreamSessionState {
+export function emptyStreamSessionState(streamRef: string | null = null): StreamSessionState {
 	return {
 		streamRef,
 		streamKind: null,
@@ -127,12 +125,8 @@ export function applyStreamSessionEvent(
 	event: StreamSessionEvent,
 ): StreamSessionState {
 	return {
-		streamRef:
-			typeof event.stream_ref === "string" ? event.stream_ref : state.streamRef,
-		streamKind:
-			typeof event.stream_kind === "string"
-				? event.stream_kind
-				: state.streamKind,
+		streamRef: typeof event.stream_ref === "string" ? event.stream_ref : state.streamRef,
+		streamKind: typeof event.stream_kind === "string" ? event.stream_kind : state.streamKind,
 		status: typeof event.status === "string" ? event.status : state.status,
 		startedAtNs: finiteNumberOr(event.started_at_ns, state.startedAtNs),
 		updatedAtNs: finiteNumberOr(event.updated_at_ns, state.updatedAtNs),
@@ -149,10 +143,7 @@ export function applyStreamSessionEventToMap(
 ): StreamSessionStateMap {
 	const key = streamSessionKey(event);
 	const previous =
-		stateMap[key] ??
-		emptyStreamSessionState(
-			key === UNKNOWN_STREAM_SESSION_REF ? null : key,
-		);
+		stateMap[key] ?? emptyStreamSessionState(key === UNKNOWN_STREAM_SESSION_REF ? null : key);
 
 	return {
 		...stateMap,
@@ -160,9 +151,7 @@ export function applyStreamSessionEventToMap(
 	};
 }
 
-export function emptyStreamChunkState(
-	streamRef: string | null = null,
-): StreamChunkState {
+export function emptyStreamChunkState(streamRef: string | null = null): StreamChunkState {
 	return {
 		streamRef,
 		content: "",
@@ -182,17 +171,13 @@ export function applyStreamChunkEvent(
 		typeof event.sequence === "number" && Number.isFinite(event.sequence)
 			? event.sequence
 			: state.lastSequence;
-	const streamRef =
-		typeof event.stream_ref === "string" ? event.stream_ref : state.streamRef;
+	const streamRef = typeof event.stream_ref === "string" ? event.stream_ref : state.streamRef;
 	const payloadKind =
-		typeof event.payload_kind === "string"
-			? event.payload_kind
-			: state.payloadKind;
+		typeof event.payload_kind === "string" ? event.payload_kind : state.payloadKind;
 
 	return {
 		streamRef,
-		content:
-			event.is_final === true ? eventContent : state.content + eventContent,
+		content: event.is_final === true ? eventContent : state.content + eventContent,
 		lastSequence: eventSequence,
 		isFinal: event.is_final === true,
 		payloadKind,
@@ -205,9 +190,7 @@ export function applyStreamChunkEventToMap(
 	event: StreamChunkEvent,
 ): StreamChunkStateMap {
 	const key = streamChunkKey(event);
-	const previous =
-		stateMap[key] ??
-		emptyStreamChunkState(key === UNKNOWN_STREAM_REF ? null : key);
+	const previous = stateMap[key] ?? emptyStreamChunkState(key === UNKNOWN_STREAM_REF ? null : key);
 
 	return {
 		...stateMap,
@@ -220,11 +203,9 @@ export function streamObservationView({
 	session,
 	chunk,
 }: StreamObservationViewInput): StreamObservationView {
-	const resolvedStreamRef =
-		streamRef ?? session?.streamRef ?? chunk?.streamRef ?? null;
+	const resolvedStreamRef = streamRef ?? session?.streamRef ?? chunk?.streamRef ?? null;
 	const isTerminal = Boolean(
-		(session && isTerminalStreamSession(session)) ||
-			(chunk && isTerminalStreamChunkState(chunk)),
+		(session && isTerminalStreamSession(session)) || (chunk && isTerminalStreamChunkState(chunk)),
 	);
 
 	return {
@@ -277,15 +258,11 @@ export function streamObservationViewsByStream(
 }
 
 function streamSessionKey(event: StreamSessionEvent): string {
-	return typeof event.stream_ref === "string"
-		? event.stream_ref
-		: UNKNOWN_STREAM_SESSION_REF;
+	return typeof event.stream_ref === "string" ? event.stream_ref : UNKNOWN_STREAM_SESSION_REF;
 }
 
 function streamChunkKey(event: StreamChunkEvent): string {
-	return typeof event.stream_ref === "string"
-		? event.stream_ref
-		: UNKNOWN_STREAM_REF;
+	return typeof event.stream_ref === "string" ? event.stream_ref : UNKNOWN_STREAM_REF;
 }
 
 function isActiveStreamSession(state: StreamSessionState): boolean {
@@ -307,21 +284,15 @@ function isTerminalStreamChunkState(state: StreamChunkState): boolean {
 	);
 }
 
-function streamSessionProjection(
-	state: StreamSessionState,
-): string | null {
+function streamSessionProjection(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "projection");
 }
 
-function streamSessionPromptRef(
-	state: StreamSessionState,
-): string | null {
+function streamSessionPromptRef(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "prompt_ref");
 }
 
-function streamSessionProviderFamily(
-	state: StreamSessionState,
-): string | null {
+function streamSessionProviderFamily(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "provider_family");
 }
 
@@ -329,24 +300,18 @@ function streamSessionModel(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "model");
 }
 
-function streamSessionDurationNs(
-	state: StreamSessionState,
-): number | null {
+function streamSessionDurationNs(state: StreamSessionState): number | null {
 	if (state.startedAtNs === null || state.completedAtNs === null) {
 		return null;
 	}
 	return Math.max(0, state.completedAtNs - state.startedAtNs);
 }
 
-function streamSessionFailureReason(
-	state: StreamSessionState,
-): string | null {
+function streamSessionFailureReason(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "failure_reason");
 }
 
-function streamSessionFailureKind(
-	state: StreamSessionState,
-): string | null {
+function streamSessionFailureKind(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "failure_kind");
 }
 
@@ -358,9 +323,7 @@ function streamChunkPromptRef(state: StreamChunkState): string | null {
 	return metadataStringField(state.metadata, "prompt_ref");
 }
 
-function streamChunkProviderFamily(
-	state: StreamChunkState,
-): string | null {
+function streamChunkProviderFamily(state: StreamChunkState): string | null {
 	return metadataStringField(state.metadata, "provider_family");
 }
 
@@ -369,21 +332,14 @@ function streamChunkModel(state: StreamChunkState): string | null {
 }
 
 function metadataStringField(metadata: unknown, field: string): string | null {
-	if (
-		typeof metadata !== "object" ||
-		metadata === null ||
-		!(field in metadata)
-	) {
+	if (typeof metadata !== "object" || metadata === null || !(field in metadata)) {
 		return null;
 	}
 	const value = (metadata as Record<string, unknown>)[field];
 	return typeof value === "string" ? value : null;
 }
 
-function finiteNumberOr(
-	value: number | null | undefined,
-	fallback: number | null,
-): number | null {
+function finiteNumberOr(value: number | null | undefined, fallback: number | null): number | null {
 	return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 

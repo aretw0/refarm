@@ -4,95 +4,95 @@
  * Supports stratified auditing where layers can build on each other.
  */
 export class HealthCore {
-    #auditors = new Map();
-    /** @type {{ getNode?: (id: string) => Promise<unknown>, queryNode?: (id: string) => Promise<unknown> } | null} */
-    #graphContext = null;
+	#auditors = new Map();
+	/** @type {{ getNode?: (id: string) => Promise<unknown>, queryNode?: (id: string) => Promise<unknown> } | null} */
+	#graphContext = null;
 
-    /**
-     * @param {{ getNode?: (id: string) => Promise<unknown>, queryNode?: (id: string) => Promise<unknown> } | null} [graphContext]
-     *   A read face over the graph (getNode/queryNodes). Null → graph-dependent
-     *   auditors no-op.
-     */
-    constructor(graphContext = null) {
-        this.#graphContext = graphContext;
-    }
+	/**
+	 * @param {{ getNode?: (id: string) => Promise<unknown>, queryNode?: (id: string) => Promise<unknown> } | null} [graphContext]
+	 *   A read face over the graph (getNode/queryNodes). Null → graph-dependent
+	 *   auditors no-op.
+	 */
+	constructor(graphContext = null) {
+		this.#graphContext = graphContext;
+	}
 
-    /**
-     * Registers a new specialized health auditor.
-     */
-    register(auditor) {
-        if (!auditor.id) throw new Error("Auditor must have a unique 'id' field.");
-        this.#auditors.set(auditor.id, auditor);
-    }
+	/**
+	 * Registers a new specialized health auditor.
+	 */
+	register(auditor) {
+		if (!auditor.id) throw new Error("Auditor must have a unique 'id' field.");
+		this.#auditors.set(auditor.id, auditor);
+	}
 
-    /**
-     * Loads a health policy from an external graph context to guide auditors.
-     * Positioned for future use where policies are encoded as graph nodes.
-     */
-    async loadPolicy(policyNodeId) {
-        if (!this.#graphContext) {
-            console.warn(`[Health] Cannot load policy ${policyNodeId}: No Graph Context provided.`);
-            return null;
-        }
+	/**
+	 * Loads a health policy from an external graph context to guide auditors.
+	 * Positioned for future use where policies are encoded as graph nodes.
+	 */
+	async loadPolicy(policyNodeId) {
+		if (!this.#graphContext) {
+			console.warn(`[Health] Cannot load policy ${policyNodeId}: No Graph Context provided.`);
+			return null;
+		}
 
-        try {
-            // Mocking graph fetch for now - in full implementation, 
-            // this would use the real Tractor/Graph query engine.
-            const policyNode = await this.#graphContext.queryNode(policyNodeId);
-            return policyNode?.healthPolicy || null;
-        } catch (e) {
-            console.error(`[Health] Failed to fetch policy ${policyNodeId}: ${e.message}`);
-            return null;
-        }
-    }
+		try {
+			// Mocking graph fetch for now - in full implementation,
+			// this would use the real Tractor/Graph query engine.
+			const policyNode = await this.#graphContext.queryNode(policyNodeId);
+			return policyNode?.healthPolicy || null;
+		} catch (e) {
+			console.error(`[Health] Failed to fetch policy ${policyNodeId}: ${e.message}`);
+			return null;
+		}
+	}
 
-    /**
-     * Runs all registered auditors or a specific subset in a stratified sequence.
-     */
-    async audit(requestedAuditors = null, policyId = null, options = {}) {
-        const results = {};
-        const policy = policyId ? await this.loadPolicy(policyId) : null;
+	/**
+	 * Runs all registered auditors or a specific subset in a stratified sequence.
+	 */
+	async audit(requestedAuditors = null, policyId = null, options = {}) {
+		const results = {};
+		const policy = policyId ? await this.loadPolicy(policyId) : null;
 
-        const context = {
-            rootDir: options.rootDir || process.cwd(),
-            timestamp: new Date().toISOString(),
-            policy: policy || {} // Inject policy into the context
-        };
+		const context = {
+			rootDir: options.rootDir || process.cwd(),
+			timestamp: new Date().toISOString(),
+			policy: policy || {}, // Inject policy into the context
+		};
 
-        const targets = requestedAuditors
-            ? requestedAuditors.map(id => this.#auditors.get(id)).filter(Boolean)
-            : Array.from(this.#auditors.values());
+		const targets = requestedAuditors
+			? requestedAuditors.map((id) => this.#auditors.get(id)).filter(Boolean)
+			: Array.from(this.#auditors.values());
 
-        for (const auditor of targets) {
-            const auditorResult = await auditor.audit(context);
-            results[auditor.id] = auditorResult;
-            context[auditor.id] = auditorResult;
-        }
+		for (const auditor of targets) {
+			const auditorResult = await auditor.audit(context);
+			results[auditor.id] = auditorResult;
+			context[auditor.id] = auditorResult;
+		}
 
-        if (results.project) {
-            const projectResult = {
-                ...results.project,
-                _orchestrator: results,
-                _policy: policy
-            };
-            if (results.complexity) {
-                projectResult.complexity = results.complexity.blockingFindings || [];
-                projectResult.complexitySummary = results.complexity;
-            }
-            return projectResult;
-        }
+		if (results.project) {
+			const projectResult = {
+				...results.project,
+				_orchestrator: results,
+				_policy: policy,
+			};
+			if (results.complexity) {
+				projectResult.complexity = results.complexity.blockingFindings || [];
+				projectResult.complexitySummary = results.complexity;
+			}
+			return projectResult;
+		}
 
-        return results;
-    }
+		return results;
+	}
 
-    /**
-     * Helper for backward compatibility.
-     */
-    async checkResolutionStatus(rootDir = process.cwd()) {
-        const projectAuditor = this.#auditors.get("project");
-        if (!projectAuditor) return [];
-        return await projectAuditor.checkResolutionStatus(rootDir);
-    }
+	/**
+	 * Helper for backward compatibility.
+	 */
+	async checkResolutionStatus(rootDir = process.cwd()) {
+		const projectAuditor = this.#auditors.get("project");
+		if (!projectAuditor) return [];
+		return await projectAuditor.checkResolutionStatus(rootDir);
+	}
 }
 
 import { FileSystemAuditor } from "./auditors/generic.js";
@@ -101,14 +101,21 @@ import { ComplexityAuditor } from "./auditors/complexity.js";
 import { ToolchainAuditor } from "./auditors/toolchain.js";
 import { ConfigNodeAuditor } from "./auditors/config-node.js";
 export {
-    buildSessionPressureBudget,
-    buildEnvironmentPressureReport,
-    bytesToMiB,
-    classifyDiskPressure,
-    classifyMemoryPressure,
-    decideEnvironmentPressure,
-    planEnvironmentWorkCeiling,
-    DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
+	buildSessionPressureBudget,
+	buildEnvironmentPressureReport,
+	bytesToMiB,
+	classifyDiskPressure,
+	classifyMemoryPressure,
+	decideEnvironmentPressure,
+	planEnvironmentWorkCeiling,
+	DEFAULT_ENVIRONMENT_PRESSURE_THRESHOLDS,
 } from "./environment-pressure.js";
 
-export { ComplexityAuditor, ConfigNodeAuditor, FileSystemAuditor, ProjectAuditor, RefarmProjectAuditor, ToolchainAuditor };
+export {
+	ComplexityAuditor,
+	ConfigNodeAuditor,
+	FileSystemAuditor,
+	ProjectAuditor,
+	RefarmProjectAuditor,
+	ToolchainAuditor,
+};

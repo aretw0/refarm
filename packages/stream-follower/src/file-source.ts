@@ -64,10 +64,7 @@ export function createFileChunkSource(
 				try {
 					if (!resolvedPath) resolvedPath = resolvePath();
 					if (!resolvedPath || !fs.existsSync(resolvedPath)) return;
-					const lines = fs
-						.readFileSync(resolvedPath, "utf-8")
-						.split("\n")
-						.filter(Boolean);
+					const lines = fs.readFileSync(resolvedPath, "utf-8").split("\n").filter(Boolean);
 					for (let i = lineOffset; i < lines.length; i++) {
 						try {
 							onChunk(JSON.parse(lines[i]!) as StreamChunk);

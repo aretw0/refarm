@@ -9,17 +9,14 @@ export class ContextRegistry {
 		);
 		return results
 			.filter(
-				(result): result is PromiseFulfilledResult<ContextEntry[]> =>
-					result.status === "fulfilled",
+				(result): result is PromiseFulfilledResult<ContextEntry[]> => result.status === "fulfilled",
 			)
 			.flatMap((result) => result.value);
 	}
 }
 
 export function buildSystemPrompt(entries: ContextEntry[]): string {
-	const sorted = [...entries].sort(
-		(a, b) => (a.priority ?? 100) - (b.priority ?? 100),
-	);
+	const sorted = [...entries].sort((a, b) => (a.priority ?? 100) - (b.priority ?? 100));
 	const contextBlocks = sorted
 		.map((entry) => `<context label="${entry.label}">\n${entry.content}\n</context>`)
 		.join("\n");

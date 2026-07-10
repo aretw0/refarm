@@ -8,53 +8,59 @@ export interface FireflyPluginOptions {
 
 /**
  * Firefly Plugin (O Vagalume)
- * 
+ *
  * Responsible for system-wide presence and guidance UI.
  * - Global Notifications (Toasts)
  * - Spotlight (Element focus for tutorials)
  */
 export class FireflyPlugin {
-  private readonly l8n: L8nHost;
+	private readonly l8n: L8nHost;
 
-  constructor(private tractor: StudioHost, options: FireflyPluginOptions = {}) {
-    this.l8n = options.l8n ?? createHomesteadL8n();
-    this.setupListeners();
-    this.injectStyles();
-  }
+	constructor(
+		private tractor: StudioHost,
+		options: FireflyPluginOptions = {},
+	) {
+		this.l8n = options.l8n ?? createHomesteadL8n();
+		this.setupListeners();
+		this.injectStyles();
+	}
 
-  private setupListeners() {
-    this.tractor.observe((data: StudioHostTelemetryEvent) => {
-      const payload = recordTelemetryPayload(data.payload);
-      // Listen for system alerts
-      if (data.event === "system:alert") {
-        this.showToast(
-          String(payload.reason || this.l8n.t("refarm:core/system_alert")),
-          payload.severity === "error",
-        );
-      }
+	private setupListeners() {
+		this.tractor.observe((data: StudioHostTelemetryEvent) => {
+			const payload = recordTelemetryPayload(data.payload);
+			// Listen for system alerts
+			if (data.event === "system:alert") {
+				this.showToast(
+					String(payload.reason || this.l8n.t("refarm:core/system_alert")),
+					payload.severity === "error",
+				);
+			}
 
-      // Listen for update notifications (wired by Herald)
-      if (data.event === "system:update_available") {
-        this.showToast(this.l8n.t("refarm:core/update_available"));
-      }
+			// Listen for update notifications (wired by Herald)
+			if (data.event === "system:update_available") {
+				this.showToast(this.l8n.t("refarm:core/update_available"));
+			}
 
-      if (data.event === "system:update_ready") {
-        this.showToast(this.l8n.t("refarm:core/update_ready"), true);
-      }
+			if (data.event === "system:update_ready") {
+				this.showToast(this.l8n.t("refarm:core/update_ready"), true);
+			}
 
-      // Listen for guidance/spotlight events
-      if (data.event === "system:guidance" && typeof payload.targetId === "string") {
-        this.spotlight(payload.targetId, typeof payload.message === "string" ? payload.message : "");
-      }
-    });
-  }
+			// Listen for guidance/spotlight events
+			if (data.event === "system:guidance" && typeof payload.targetId === "string") {
+				this.spotlight(
+					payload.targetId,
+					typeof payload.message === "string" ? payload.message : "",
+				);
+			}
+		});
+	}
 
-  private injectStyles() {
-    if (document.getElementById("refarm-firefly-styles")) return;
+	private injectStyles() {
+		if (document.getElementById("refarm-firefly-styles")) return;
 
-    const style = document.createElement("style");
-    style.id = "refarm-firefly-styles";
-    style.textContent = `
+		const style = document.createElement("style");
+		style.id = "refarm-firefly-styles";
+		style.textContent = `
       @keyframes slideInUp {
         from { transform: translateY(100%) scale(0.95); opacity: 0; }
         to { transform: translateY(0) scale(1); opacity: 1; }
@@ -100,81 +106,81 @@ export class FireflyPlugin {
         pointer-events: auto !important;
       }
     `;
-    document.head.appendChild(style);
-  }
+		document.head.appendChild(style);
+	}
 
-  public showToast(message: string, isActionable: boolean = false) {
-    let toast = document.getElementById("refarm-firefly-toast");
-    if (!toast) {
-      toast = document.createElement("div");
-      toast.id = "refarm-firefly-toast";
-      toast.className = "firefly-toast";
-      document.body.appendChild(toast);
-    }
+	public showToast(message: string, isActionable: boolean = false) {
+		let toast = document.getElementById("refarm-firefly-toast");
+		if (!toast) {
+			toast = document.createElement("div");
+			toast.id = "refarm-firefly-toast";
+			toast.className = "firefly-toast";
+			document.body.appendChild(toast);
+		}
 
-    toast.replaceChildren();
+		toast.replaceChildren();
 
-    const messageElement = document.createElement("span");
-    messageElement.style.fontSize = "0.9rem";
-    messageElement.style.fontWeight = "500";
-    messageElement.textContent = message;
-    toast.appendChild(messageElement);
+		const messageElement = document.createElement("span");
+		messageElement.style.fontSize = "0.9rem";
+		messageElement.style.fontWeight = "500";
+		messageElement.textContent = message;
+		toast.appendChild(messageElement);
 
-    if (isActionable) {
-      const action = document.createElement("button");
-      action.id = "firefly-refresh";
-      action.style.cssText = `
+		if (isActionable) {
+			const action = document.createElement("button");
+			action.id = "firefly-refresh";
+			action.style.cssText = `
         background: var(--refarm-accent-primary);
         color: white; border: none; padding: 0.5rem 1rem;
         border-radius: 8px; cursor: pointer; font-weight: 600;
         font-size: 0.8rem;
       `;
-      action.textContent = this.l8n.t("refarm:core/refresh");
-      action.addEventListener("click", () => {
-        window.location.reload();
-      });
-      toast.appendChild(action);
-    } else {
-      const spinner = document.createElement("div");
-      spinner.style.cssText =
-        "width:12px; height:12px; border:2px solid rgba(255,255,255,0.1); border-top-color:#fff; border-radius:50%; animation: spin 1s linear infinite;";
-      toast.appendChild(spinner);
-      setTimeout(() => {
-        toast?.remove();
-      }, 5000);
-    }
-  }
+			action.textContent = this.l8n.t("refarm:core/refresh");
+			action.addEventListener("click", () => {
+				window.location.reload();
+			});
+			toast.appendChild(action);
+		} else {
+			const spinner = document.createElement("div");
+			spinner.style.cssText =
+				"width:12px; height:12px; border:2px solid rgba(255,255,255,0.1); border-top-color:#fff; border-radius:50%; animation: spin 1s linear infinite;";
+			toast.appendChild(spinner);
+			setTimeout(() => {
+				toast?.remove();
+			}, 5000);
+		}
+	}
 
-  public spotlight(targetId: string, message?: string) {
-    const target = document.getElementById(targetId);
-    if (!target) return;
+	public spotlight(targetId: string, message?: string) {
+		const target = document.getElementById(targetId);
+		if (!target) return;
 
-    let overlay = document.getElementById("firefly-overlay");
-    if (!overlay) {
-      overlay = document.createElement("div");
-      overlay.id = "firefly-overlay";
-      overlay.className = "firefly-spotlight-overlay";
-      document.body.appendChild(overlay);
-    }
+		let overlay = document.getElementById("firefly-overlay");
+		if (!overlay) {
+			overlay = document.createElement("div");
+			overlay.id = "firefly-overlay";
+			overlay.className = "firefly-spotlight-overlay";
+			document.body.appendChild(overlay);
+		}
 
-    // Activate spotlight
-    overlay.style.opacity = "1";
-    target.classList.add("firefly-focused");
+		// Activate spotlight
+		overlay.style.opacity = "1";
+		target.classList.add("firefly-focused");
 
-    if (message) {
-      this.showToast(message);
-    }
+		if (message) {
+			this.showToast(message);
+		}
 
-    // Return a function to clear spotlight
-    return () => {
-      overlay?.remove();
-      target.classList.remove("firefly-focused");
-    };
-  }
+		// Return a function to clear spotlight
+		return () => {
+			overlay?.remove();
+			target.classList.remove("firefly-focused");
+		};
+	}
 }
 
 function recordTelemetryPayload(payload: unknown): Record<string, unknown> {
-  return payload && typeof payload === "object" && !Array.isArray(payload)
-    ? (payload as Record<string, unknown>)
-    : {};
+	return payload && typeof payload === "object" && !Array.isArray(payload)
+		? (payload as Record<string, unknown>)
+		: {};
 }
