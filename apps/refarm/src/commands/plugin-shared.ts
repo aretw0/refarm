@@ -37,6 +37,44 @@ export type PluginOrigin =
 	| "git"
 	| "url";
 
+/**
+ * Classify an install reference by its SHAPE (ADR-086) — the operator says
+ * *install this*, the reference says *from where*. A git URL is checked before
+ * the generic URL/npm cases (`git+…`, or a host+`.git`); an `@scope/pkg` or bare
+ * package name is npm; an `http(s)://…` is a direct descriptor URL; everything
+ * else is treated as a local path (the reviewed-directory case, which
+ * `existsSync` ultimately validates). Only `local` is materializable today; the
+ * rest are recognized so `plugin install` can route them to a loud
+ * "resolver-not-wired" instead of guessing.
+ */
+export function detectPluginOrigin(ref: string): PluginOrigin {
+	const value = ref.trim();
+	if (
+		value.startsWith("git+") ||
+		value.startsWith("git@") ||
+		/^(https?|ssh):\/\/.*\.git($|#|\?)/i.test(value) ||
+		value.endsWith(".git")
+	) {
+		return "git";
+	}
+	if (/^https?:\/\//i.test(value)) return "url";
+	// A leading `.`, `/`, or `~` is unambiguously a filesystem path → local.
+	if (
+		value.startsWith(".") ||
+		value.startsWith("/") ||
+		value.startsWith("~")
+	) {
+		return "local";
+	}
+	// npm: an `@scope/name` (the one `/` is the scope separator, NOT a path), or a
+	// bare package name with no path separator at all (e.g. `left-pad`).
+	if (/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/i.test(value)) return "npm";
+	if (!value.includes("/") && /^[a-z0-9][a-z0-9._-]*$/i.test(value)) return "npm";
+	// Anything else (a bare relative path like `prepared/plugin`, a Windows path)
+	// is treated as local — existsSync ultimately validates it.
+	return "local";
+}
+
 export interface PluginListEntry {
 	id: string;
 	version: string | null;

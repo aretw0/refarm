@@ -281,6 +281,73 @@ describe("plugin capability group", () => {
 			await action(group, "update").run(input());
 			expect(sawForce).toBe(false);
 		});
+
+		// ADR-086 phase 3: install unifies bundled-sync + install-one-by-ref, routing
+		// on the reference shape. These cover the routing WITHOUT touching the fs
+		// (the local branch is proven e2e); each asserts the branch is reached.
+		it("--bundled (no ref) syncs the bundled set", async () => {
+			let called = false;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					buildInstallReport: async () => {
+						called = true;
+						return { ok: true, command: "plugin", operation: "install" } as never;
+					},
+				}),
+			);
+			const env = await action(group, "install").run({
+				args: {},
+				options: { bundled: true },
+				json: true,
+			});
+			expect(called).toBe(true);
+			expect(env.ok).toBe(true);
+		});
+
+		it("routes an npm ref to a loud resolver-not-wired envelope", async () => {
+			let syncCalled = false;
+			const group = createPluginCapabilityGroup(
+				makeDeps({
+					buildInstallReport: async () => {
+						syncCalled = true;
+						return { ok: true } as never;
+					},
+				}),
+			);
+			const env = await action(group, "install").run({
+				args: { ref: "@scope/pkg" },
+				options: {},
+				json: true,
+			});
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("resolver-not-wired");
+			expect((env as { origin?: string }).origin).toBe("npm");
+			// it did NOT fall back to a bundled sync.
+			expect(syncCalled).toBe(false);
+		});
+
+		it("routes a git ref to a loud resolver-not-wired envelope", async () => {
+			const group = createPluginCapabilityGroup(makeDeps());
+			const env = await action(group, "install").run({
+				args: { ref: "git+https://host/x.git" },
+				options: {},
+				json: true,
+			});
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("resolver-not-wired");
+			expect((env as { origin?: string }).origin).toBe("git");
+		});
+
+		it("rejects --bundled together with a positional ref (ambiguous)", async () => {
+			const group = createPluginCapabilityGroup(makeDeps());
+			const env = await action(group, "install").run({
+				args: { ref: "./somewhere" },
+				options: { bundled: true },
+				json: true,
+			});
+			expect(env.ok).toBe(false);
+			expect((env as { error?: string }).error).toBe("install-ambiguous");
+		});
 	});
 
 	describe("bundle <input>", () => {

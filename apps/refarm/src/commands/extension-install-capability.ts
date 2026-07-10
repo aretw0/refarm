@@ -1,3 +1,4 @@
+import { createFsAssetStore } from "@refarm.dev/asset-resolver-contract-v1/node";
 import type {
 	CapabilityDescriptor,
 	CapabilityInput,
@@ -7,23 +8,22 @@ import {
 	buildJsonSuccessEnvelope,
 	type JsonSuccessEnvelope,
 } from "@refarm.dev/capabilities/envelope";
-import { createFsAssetStore } from "@refarm.dev/asset-resolver-contract-v1/node";
 import { scopedAssetsDir } from "@refarm.dev/storage-node-view";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import type { PluginPolicyMode } from "@refarm.dev/plugin-manifest";
 import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildExtensionReviewReport,
 	loadReviewableManifest,
 	type ExtensionReviewReport,
 } from "./extension-review-capability.js";
-import type { PluginPolicyMode } from "@refarm.dev/plugin-manifest";
 import {
-	pluginsBaseDir,
 	pluginIdToFsToken,
+	pluginsBaseDir,
 	sentinelPath,
 } from "./plugin-shared.js";
 
@@ -48,6 +48,12 @@ export interface ExtensionInstallInput {
 	targetPath: string;
 	grantedCapabilities: string[];
 	policyMode: PluginPolicyMode;
+	/**
+	 * The command verb this install is projected under (ADR-086) — stamped into the
+	 * envelope. Defaults to "extension" so the legacy `extension install` call-site
+	 * is byte-identical; `plugin install <path>` passes "plugin".
+	 */
+	commandName?: "extension" | "plugin";
 }
 
 export type ExtensionInstallReport = JsonSuccessEnvelope<{
@@ -90,24 +96,25 @@ function resolveExtensionWasm(
 export async function buildExtensionInstallReport(
 	input: ExtensionInstallInput,
 ): Promise<ExtensionInstallReport | ReturnType<typeof buildJsonErrorEnvelope>> {
+	const commandName = input.commandName ?? "extension";
 	// 1) Re-run the SAME policy decision — install-first is never review-bypass.
+	//    The review is projected under the SAME verb so its handoffs match.
 	let review: ExtensionReviewReport;
 	try {
-		review = buildExtensionReviewReport(input);
+		review = buildExtensionReviewReport({ ...input, commandName });
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return buildJsonErrorEnvelope({
-			command: "extension",
+			command: commandName,
 			operation: "install",
 			error: "extension_install_failed",
 			message,
-			nextAction:
-				"Point --at a prepared extension directory or manifest; run `extension review` first.",
+			nextAction: `Point --at a prepared extension directory or manifest; run \`${commandName} review\` first.`,
 		});
 	}
 	if (!review.readyToInstall) {
 		return buildJsonErrorEnvelope({
-			command: "extension",
+			command: commandName,
 			operation: "install",
 			error: "extension_not_ready",
 			message: `Extension is not ready to install (${review.decision.status}). ${
@@ -115,8 +122,7 @@ export async function buildExtensionInstallReport(
 					? `Denied capabilities (not granted): ${review.deniedCapabilities.join(", ")}.`
 					: review.decision.manifestErrors.join("; ")
 			}`,
-			nextAction:
-				"Review it and grant the required capabilities, then install: `extension review <path> --grant <cap>`.",
+			nextAction: `Review it and grant the required capabilities, then install: \`${commandName} review <path> --grant <cap>\`.`,
 			extra: {
 				pluginId: review.decision.pluginId,
 				deniedCapabilities: review.deniedCapabilities,
@@ -133,7 +139,7 @@ export async function buildExtensionInstallReport(
 	const wasmSrc = resolveExtensionWasm(manifest, manifestPath);
 	if (!wasmSrc) {
 		return buildJsonErrorEnvelope({
-			command: "extension",
+			command: commandName,
 			operation: "install",
 			error: "extension_wasm_missing",
 			message: `No .wasm found for ${pluginId} beside ${manifestPath} (looked at the manifest 'entry' and plugin.wasm).`,
@@ -157,7 +163,7 @@ export async function buildExtensionInstallReport(
 	const declaredHex = declared.replace(/^sha256[-:]/i, "").toLowerCase();
 	if (declaredHex && declaredHex !== sha256) {
 		return buildJsonErrorEnvelope({
-			command: "extension",
+			command: commandName,
 			operation: "install",
 			error: "extension_integrity_mismatch",
 			message: `The .wasm for ${pluginId} does not match the reviewed integrity (declared ${declared}, actual sha256-${sha256}). The artifact changed since review.`,
@@ -200,7 +206,7 @@ export async function buildExtensionInstallReport(
 	);
 
 	return buildJsonSuccessEnvelope({
-		command: "extension",
+		command: commandName,
 		operation: "install",
 		nextCommand: "resume --json",
 		nextCommands: ["resume --json"],

@@ -33,6 +33,7 @@ import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
 import { pluginsBaseDir } from "../utils/refarm-home.js";
+import { buildExtensionInstallReport } from "./extension-install-capability.js";
 import {
 	buildExtensionReviewReport,
 	type ExtensionReviewReport,
@@ -61,7 +62,11 @@ import {
 	restartRuntimeForPluginReload,
 	runtimePluginUnavailableRecommendations,
 } from "./plugin-runtime.js";
-import { pluginIdToFsToken, type PluginOrigin } from "./plugin-shared.js";
+import {
+	detectPluginOrigin,
+	pluginIdToFsToken,
+	type PluginOrigin,
+} from "./plugin-shared.js";
 import {
 	readRuntimePluginState,
 	reloadRuntimePluginsAndWait,
@@ -386,19 +391,95 @@ export function createPluginCapabilityGroup(
 	// the same operation:"install" — preserved here.
 	const install: CapabilityDescriptor = {
 		name: "install",
-		summary: "Install (or force-reinstall) all bundled plugins",
+		summary:
+			"Install a plugin from <ref> (origin detected), or --bundled to sync all bundled",
+		args: [{ name: "ref", required: false }],
 		options: [
+			{
+				name: "bundled",
+				kind: "boolean",
+				summary: "Sync ALL bundled plugins (the default when no <ref> is given)",
+			},
 			{
 				name: "force",
 				short: "f",
 				kind: "boolean",
-				summary: "Reinstall even if already up-to-date",
+				summary: "For --bundled: reinstall even if already up-to-date",
+			},
+			{
+				name: "grant",
+				kind: "string[]",
+				summary:
+					"For a <ref>: grant a capability for this install (repeatable)",
+			},
+			{
+				name: "policy",
+				kind: "string",
+				summary: "For a <ref>: policy mode: fail-fast or warn+continue",
+				defaultValue: "fail-fast",
 			},
 		],
 		async run(input) {
-			return (await deps.buildInstallReport({
-				force: input.options.force === true,
-			})) as CapabilityEnvelope;
+			const ref = input.args.ref as string | undefined;
+			const bundled = input.options.bundled === true;
+
+			// --bundled and a positional <ref> are distinct intents (sync the fixed
+			// set vs install one unit); asking for both is an error, not a merge.
+			if (bundled && ref) {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "install",
+					error: "install-ambiguous",
+					message:
+						"Pass either a <ref> to install one plugin OR --bundled to sync all bundled plugins, not both.",
+					nextAction: "Run `refarm plugin install --help`.",
+				});
+			}
+
+			// No ref (or explicit --bundled): the mass-sync of bundled plugins,
+			// preserving today's `plugin install` behavior byte-for-byte.
+			if (!ref) {
+				return (await deps.buildInstallReport({
+					force: input.options.force === true,
+				})) as CapabilityEnvelope;
+			}
+
+			// A ref: its shape selects the origin. Only `local` is materializable
+			// today; npm/git/url are recognized and routed to a loud not-wired
+			// envelope (never a silent no-op that pretends coverage — ADR-086).
+			const origin = detectPluginOrigin(ref);
+			if (origin === "local") {
+				const policy = input.options.policy;
+				if (
+					policy !== undefined &&
+					policy !== "fail-fast" &&
+					policy !== "warn+continue"
+				) {
+					return buildJsonErrorEnvelope({
+						command: "plugin",
+						operation: "install",
+						error: "invalid-policy",
+						message: "--policy must be fail-fast or warn+continue",
+						nextAction: "Run `refarm plugin install --help`.",
+					});
+				}
+				return (await buildExtensionInstallReport({
+					targetPath: ref,
+					grantedCapabilities: (input.options.grant as string[]) ?? [],
+					policyMode: (policy as "fail-fast" | "warn+continue") ?? "fail-fast",
+					commandName: "plugin",
+				})) as CapabilityEnvelope;
+			}
+
+			return buildJsonErrorEnvelope({
+				command: "plugin",
+				operation: "install",
+				error: "resolver-not-wired",
+				message: `Installing from a ${origin} reference ("${ref}") is not wired yet. Today only a local path and --bundled are supported.`,
+				nextAction:
+					"Install a local prepared plugin by path, or `refarm plugin install --bundled`.",
+				extra: { origin, ref },
+			});
 		},
 	};
 

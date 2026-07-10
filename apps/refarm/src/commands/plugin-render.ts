@@ -130,8 +130,31 @@ export function formatListFromEnvelope(envelope: CapabilityEnvelope): string {
 export function formatInstallFromEnvelope(
 	envelope: CapabilityEnvelope,
 ): string {
+	// Two envelope shapes flow through `plugin install` (ADR-086): the bundled
+	// sync (`{ plugins: [...] }`) and a single local install (`{ pluginId, … }`).
+	// An error envelope (ok:false) has neither. Detect and render each.
+	if (envelope.ok === false) {
+		return chalk.red(
+			`  ✗ ${(envelope as { message?: string }).message ?? "install failed"}`,
+		);
+	}
+	const single = envelope as unknown as {
+		pluginId?: string;
+		installedFrom?: string;
+		installedTo?: string;
+		integrity?: string;
+		bytes?: number;
+	};
+	if (single.pluginId && single.installedTo) {
+		return chalk.green(
+			`  ✓ ${single.pluginId} installed (${single.bytes ?? 0} bytes)\n` +
+				`    from: ${single.installedFrom}\n` +
+				`    to:   ${single.installedTo}\n` +
+				`    integrity: ${single.integrity}`,
+		);
+	}
 	const report = envelope as unknown as PluginInstallReport;
-	return report.plugins
+	return (report.plugins ?? [])
 		.map((p) => {
 			switch (p.status) {
 				case "installed":
