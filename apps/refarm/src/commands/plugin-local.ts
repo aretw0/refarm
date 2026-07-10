@@ -60,7 +60,7 @@ function extensionSaveCommand(
 }
 
 // The scaffold model + fs writes + local-plugin scan live in the leaf module
-// `extension-scaffold.ts` (ADR-086) so both the `plugin` CapabilityGroup and the
+// `plugin-scaffold.ts` (ADR-086) so both the `plugin` CapabilityGroup and the
 // unified `plugin list` reader can reuse them without this file's
 // `capability-registry` dependency (that closed an import cycle). Only what this
 // file's body uses is imported; other consumers import from the leaf directly.
@@ -69,7 +69,7 @@ import {
 	buildExtensionListReport,
 	extensionReloadCommand,
 	type CreatedExtensionReport,
-} from "./extension-scaffold.js";
+} from "./plugin-scaffold.js";
 
 function printCreatedExtension(report: CreatedExtensionReport): void {
 	console.log(`Created extension '${report.slug}' at ${report.dir} (${report.scope})`);

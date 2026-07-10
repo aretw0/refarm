@@ -1,11 +1,11 @@
 /**
- * The local-plugin scaffold: the pure model + fs writes behind `plugin new` /
- * `extension new`. Split out of `extension.ts` (ADR-086) so the `plugin`
- * CapabilityGroup can reuse `buildCreatedPluginReport` WITHOUT pulling
- * `extension.ts`'s `capability-registry` import — that closed an import cycle
- * (capability-registry → plugin-capability → extension → capability-registry) and
- * broke registry initialization at load. This module is a leaf: it imports only
- * `@refarm.dev/*` + `node:*`, never the registry.
+ * The local-plugin scaffold: the pure model + fs writes behind `plugin new`
+ * (and its `extension new` alias). Split out of `plugin-local.ts` (ADR-086) so
+ * the `plugin` CapabilityGroup can reuse `buildCreatedPluginReport` WITHOUT
+ * pulling `plugin-local.ts`'s `capability-registry` import — that closed an import
+ * cycle (capability-registry → plugin-capability → plugin-local →
+ * capability-registry) and broke registry initialization at load. This module is a
+ * leaf: it imports only `@refarm.dev/*` + `node:*`, never the registry.
  *
  * "Pure" here means returns-an-envelope and never prints; the fs writes are the
  * point of `new`, done directly (the same way buildInstallReport writes). cwd /

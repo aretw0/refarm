@@ -11,12 +11,12 @@ import {
 	RUNTIME_AGENT_PLUGIN_ID,
 } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
-import { listExtensions } from "./extension-scaffold.js";
 import {
 	PLUGIN_INSTALL_COMMAND,
 	PLUGIN_INSTALL_JSON_COMMAND,
 	PLUGIN_STATUS_JSON_COMMAND,
 } from "./plugin-handoffs.js";
+import { listExtensions } from "./plugin-scaffold.js";
 import {
 	BUNDLED_PLUGINS,
 	PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND,

@@ -18,17 +18,16 @@ import { createActionsCommand } from "../../src/commands/actions.js";
 import { createAgentCommand } from "../../src/commands/agent.js";
 import { createAskCommand } from "../../src/commands/ask.js";
 import { createCapabilitiesCommand } from "../../src/commands/capabilities.js";
+import { toCommanderGroup } from "../../src/commands/capability-commander.js";
 import { createCheckCommand } from "../../src/commands/check.js";
 import { createConfigCommand } from "../../src/commands/config.js";
 import { deployCommand } from "../../src/commands/deploy.js";
 import { doctorCommand } from "../../src/commands/doctor.js";
-import { extensionCommand } from "../../src/commands/extension.js";
 import { createGuideCommand } from "../../src/commands/guide.js";
 import { headlessCommand } from "../../src/commands/headless.js";
 import { healthCommand } from "../../src/commands/health.js";
 import { createInitCommand } from "../../src/commands/init.js";
 import { migrateCommand } from "../../src/commands/migrate.js";
-import { toCommanderGroup } from "../../src/commands/capability-commander.js";
 import {
 	createModelCapabilityGroup,
 	modelCapabilityHooks,
@@ -39,6 +38,7 @@ import {
 	createPluginCapabilityGroup,
 	pluginCapabilityHooks,
 } from "../../src/commands/plugin-capability.js";
+import { extensionCommand } from "../../src/commands/plugin-local.js";
 import { createProjectCommand } from "../../src/commands/project.js";
 import { provisionCommand } from "../../src/commands/provision.js";
 import { createResumeCommand } from "../../src/commands/resume.js";

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	buildExtensionReviewReport,
 	loadReviewableManifest,
-} from "./extension-review-capability.js";
+} from "./plugin-review-capability.js";
 
 const tempRoots: string[] = [];
 

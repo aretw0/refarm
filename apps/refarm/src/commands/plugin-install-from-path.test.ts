@@ -3,11 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { buildExtensionReviewReport } from "./extension-review-capability.js";
 import {
 	buildExtensionInstallReport,
 	type ExtensionInstallReport,
-} from "./extension-install-capability.js";
+} from "./plugin-install-from-path.js";
+import { buildExtensionReviewReport } from "./plugin-review-capability.js";
 
 const tempRoots: string[] = [];
 let prevHome: string | undefined;

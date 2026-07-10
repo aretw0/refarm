@@ -33,20 +33,12 @@ import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
 import { pluginsBaseDir } from "../utils/refarm-home.js";
-import { buildExtensionInstallReport } from "./extension-install-capability.js";
-import {
-	buildExtensionReviewReport,
-	type ExtensionReviewReport,
-} from "./extension-review-capability.js";
-import {
-	buildCreatedPluginReport,
-	type CreatedExtensionReport,
-} from "./extension-scaffold.js";
 import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
 import {
 	PLUGIN_INSTALL_JSON_COMMAND,
 	PLUGIN_STATUS_JSON_COMMAND,
 } from "./plugin-handoffs.js";
+import { buildExtensionInstallReport } from "./plugin-install-from-path.js";
 import { buildInstallReport } from "./plugin-install.js";
 import {
 	formatBundleFromEnvelope,
@@ -56,12 +48,20 @@ import {
 	formatStatusFromEnvelope,
 } from "./plugin-render.js";
 import {
+	buildExtensionReviewReport,
+	type ExtensionReviewReport,
+} from "./plugin-review-capability.js";
+import {
 	buildPluginListReport,
 	buildRuntimePluginStatusReport,
 	pluginReloadRestartCommand,
 	restartRuntimeForPluginReload,
 	runtimePluginUnavailableRecommendations,
 } from "./plugin-runtime.js";
+import {
+	buildCreatedPluginReport,
+	type CreatedExtensionReport,
+} from "./plugin-scaffold.js";
 import {
 	detectPluginOrigin,
 	pluginIdToFsToken,

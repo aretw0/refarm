@@ -5,12 +5,12 @@ import {
 	type CapabilityEntry,
 	type CapabilityGroup,
 } from "@refarm.dev/capabilities";
+import { RESERVED_SLASH_NAMES } from "@refarm.dev/cli/chat-repl";
 import {
 	capabilityCliCommands as projectCliCommands,
 	capabilityCliCommandsForGroup as projectCliCommandsForGroup,
 	type CapabilitySurfaceHooks,
 } from "@refarm.dev/surface-terminal";
-import { RESERVED_SLASH_NAMES } from "@refarm.dev/cli/chat-repl";
 import type { Command } from "commander";
 
 import {
@@ -23,14 +23,6 @@ import {
 	refarmVaultDeps,
 } from "./builtin-capability-deps.js";
 import { createDispatchCapability } from "./dispatch-capability.js";
-import {
-	extensionInstallCapability,
-	extensionInstallHooks,
-} from "./extension-install-capability.js";
-import {
-	extensionReviewCapability,
-	extensionReviewHooks,
-} from "./extension-review-capability.js";
 import {
 	createHealthCapabilityGroup,
 	healthCapabilityHooks,
@@ -47,6 +39,14 @@ import {
 	defaultPluginDescriptorDeps,
 	registerPluginCapabilities,
 } from "./plugin-descriptor-adapter.js";
+import {
+	extensionInstallCapability,
+	extensionInstallHooks,
+} from "./plugin-install-from-path.js";
+import {
+	extensionReviewCapability,
+	extensionReviewHooks,
+} from "./plugin-review-capability.js";
 import { readSurfaceablePluginManifests } from "./plugin-shared.js";
 import {
 	createSkillCapabilityGroup,

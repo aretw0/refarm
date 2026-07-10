@@ -31,13 +31,13 @@ describe("extension commands", () => {
   });
 
   it("extensionCommand exports a Commander Command named 'extension'", async () => {
-    const { extensionCommand } = await import("./extension.js");
+    const { extensionCommand } = await import("./plugin-local.js");
     expect(extensionCommand.name()).toBe("extension");
   });
 
   it("extension new generates id as @local/<name>", async () => {
     vi.mocked(mockFs.existsSync).mockReturnValue(false);
-    const { buildExtJson } = await import("./extension-scaffold.js");
+    const { buildExtJson } = await import("./plugin-scaffold.js");
     const ext = buildExtJson("my-tool");
     expect(ext.id).toBe("@local/my-tool");
     expect(ext.version).toBe("0.0.1");
@@ -46,7 +46,7 @@ describe("extension commands", () => {
   it("extension new --verb scaffolds a dispatchable local extension", async () => {
     vi.mocked(mockFs.existsSync).mockReturnValue(false);
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const { extensionCommand } = await import("./extension.js");
+    const { extensionCommand } = await import("./plugin-local.js");
 
     await extensionCommand.parseAsync(["new", "wallet", "--verb", "open", "--json"], { from: "user" });
 
@@ -74,7 +74,7 @@ describe("extension commands", () => {
   // the report's `command` + the list handoff must name whichever verb was used.
   it("buildCreatedPluginReport defaults to `extension` and its list handoff", async () => {
     vi.mocked(mockFs.existsSync).mockReturnValue(false);
-    const { buildCreatedPluginReport } = await import("./extension-scaffold.js");
+    const { buildCreatedPluginReport } = await import("./plugin-scaffold.js");
     const report = await buildCreatedPluginReport({
       name: "my-tool",
       isGlobal: false,
@@ -91,7 +91,7 @@ describe("extension commands", () => {
 
   it("buildCreatedPluginReport stamps `plugin` when asked (plugin new)", async () => {
     vi.mocked(mockFs.existsSync).mockReturnValue(false);
-    const { buildCreatedPluginReport } = await import("./extension-scaffold.js");
+    const { buildCreatedPluginReport } = await import("./plugin-scaffold.js");
     const report = await buildCreatedPluginReport({
       name: "my-tool",
       isGlobal: false,
@@ -108,7 +108,7 @@ describe("extension commands", () => {
   });
 
   it("buildCreatedPluginReport returns an error envelope for an invalid name", async () => {
-    const { buildCreatedPluginReport } = await import("./extension-scaffold.js");
+    const { buildCreatedPluginReport } = await import("./plugin-scaffold.js");
     const report = await buildCreatedPluginReport({
       name: "Bad Name!",
       isGlobal: false,
@@ -131,14 +131,14 @@ describe("extension commands", () => {
       JSON.stringify({ id: "@local/my-tool", name: "My Tool", version: "0.0.1" }),
     );
 
-    const { listExtensions } = await import("./extension-scaffold.js");
+    const { listExtensions } = await import("./plugin-scaffold.js");
     const result = listExtensions(process.cwd(), os.homedir());
     expect(result.some((e: { id: string }) => e.id === "@local/my-tool")).toBe(true);
   });
 
   it("save command errors when neither --global nor --local is passed", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { extensionCommand } = await import("./extension.js");
+    const { extensionCommand } = await import("./plugin-local.js");
 
     await extensionCommand.parseAsync(["save", "my-tool"], { from: "user" });
 
@@ -151,7 +151,7 @@ describe("extension commands", () => {
 
   it("new command rejects names with path separators", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { extensionCommand } = await import("./extension.js");
+    const { extensionCommand } = await import("./plugin-local.js");
 
     await extensionCommand.parseAsync(["new", "../evil"], { from: "user" });
 

@@ -20,7 +20,7 @@ import {
 	buildExtensionReviewReport,
 	loadReviewableManifest,
 	type ExtensionReviewReport,
-} from "./extension-review-capability.js";
+} from "./plugin-review-capability.js";
 import {
 	pluginIdToFsToken,
 	pluginsBaseDir,

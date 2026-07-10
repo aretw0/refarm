@@ -10,11 +10,11 @@ import { configCommand } from "./commands/config.js";
 import { configureCommand } from "./commands/configure.js";
 import { deployCommand } from "./commands/deploy.js";
 import { doctorCommand } from "./commands/doctor.js";
-import { extensionCommand } from "./commands/extension.js";
 import { guideCommand } from "./commands/guide.js";
 import { headlessCommand } from "./commands/headless.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { packageManagerCommand } from "./commands/package-manager.js";
+import { extensionCommand } from "./commands/plugin-local.js";
 import { projectCommand } from "./commands/project.js";
 import { provisionCommand } from "./commands/provision.js";
 import { releaseCommand } from "./commands/release.js";
@@ -25,6 +25,7 @@ import {
 	RUNTIME_ENGINE_AUTO_COMMAND,
 } from "./commands/runtime-recovery.js";
 import { runtimeCommand } from "./commands/runtime.js";
+import { serveCommand } from "./commands/serve-capability.js";
 import { runSessionLaunchFlow, sessionCommand } from "./commands/session.js";
 import { sessionsCommand } from "./commands/sessions.js";
 import {
@@ -39,7 +40,6 @@ import { telemetryCommand } from "./commands/telemetry.js";
 import { tidyCommand } from "./commands/tidy.js";
 import { treeCommand } from "./commands/tree.js";
 import { tuiCommand } from "./commands/tui.js";
-import { serveCommand } from "./commands/serve-capability.js";
 import { webCommand } from "./commands/web.js";
 import { workspaceCommand } from "./commands/workspace.js";
 import { defaultProviderModelRef } from "./model-routing.js";
