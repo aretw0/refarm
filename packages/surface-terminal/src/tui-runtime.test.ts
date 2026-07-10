@@ -1,7 +1,4 @@
-import {
-	createCapabilityRegistry,
-	type CapabilityEnvelope,
-} from "@refarm.dev/capabilities";
+import { createCapabilityRegistry, type CapabilityEnvelope } from "@refarm.dev/capabilities";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import { describe, expect, it } from "vitest";
 

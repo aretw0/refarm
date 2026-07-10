@@ -78,9 +78,7 @@ describe("SseStreamTransport — HTTP route handler", () => {
 			is_final: false,
 		});
 
-		expect(written.some((value) => value.includes('"content":"tok"'))).toBe(
-			true,
-		);
+		expect(written.some((value) => value.includes('"content":"tok"'))).toBe(true);
 	});
 
 	it("sends [DONE] frame and closes on is_final", () => {
@@ -141,9 +139,7 @@ describe("SseStreamTransport — HTTP route handler", () => {
 		} as unknown as http.ServerResponse;
 
 		handler(request, response);
-		expect(written.some((value) => value.includes('"content":"past"'))).toBe(
-			true,
-		);
+		expect(written.some((value) => value.includes('"content":"past"'))).toBe(true);
 	});
 });
 
@@ -194,22 +190,14 @@ function mockConnection(): {
 }
 
 /** Connect a mock client to `/stream/<ref>` on the transport's route handler. */
-function connect(
-	transport: SseStreamTransport,
-	ref: string,
-): ReturnType<typeof mockConnection> {
+function connect(transport: SseStreamTransport, ref: string): ReturnType<typeof mockConnection> {
 	const conn = mockConnection();
 	(conn.request as { url?: string }).url = `/stream/${ref}`;
 	transport.getRouteHandler()(conn.request, conn.response);
 	return conn;
 }
 
-function chunk(
-	stream_ref: string,
-	content: string,
-	is_final = false,
-	sequence = 0,
-): StreamChunk {
+function chunk(stream_ref: string, content: string, is_final = false, sequence = 0): StreamChunk {
 	return { stream_ref, content, sequence, is_final };
 }
 

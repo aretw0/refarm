@@ -118,10 +118,16 @@ export function renderLocalSurfaceDocument(
 			rows: [
 				`<p>${escapeHtml(panel.summary)}</p>`,
 				`<p><strong>Kind:</strong> ${escapeHtml(panel.kind)}</p>`,
-				...(panel.rows?.length ? [tableHtml({
-					headers: Object.keys(panel.rows[0] ?? {}),
-					rows: panel.rows.map((row) => Object.values(row).map((value) => String(value ?? ""))),
-				})] : []),
+				...(panel.rows?.length
+					? [
+							tableHtml({
+								headers: Object.keys(panel.rows[0] ?? {}),
+								rows: panel.rows.map((row) =>
+									Object.values(row).map((value) => String(value ?? "")),
+								),
+							}),
+						]
+					: []),
 			],
 		}),
 	);
@@ -151,10 +157,15 @@ ${feedbackHtml({ kind: "info", message: "Local-first surface manifest loaded." }
 </header>
 ${sectionHtml("Panels", gridHtml(panels))}
 ${sectionHtml("Actions", `<div class="ds-card__actions">${actions.join("")}</div>`)}
-${sectionHtml("Local Storage", storageRows.length ? tableHtml({
-	headers: ["Namespace", "Mode", "Network"],
-	rows: storageRows,
-}) : "<p>No storage namespaces declared.</p>")}
+${sectionHtml(
+	"Local Storage",
+	storageRows.length
+		? tableHtml({
+				headers: ["Namespace", "Mode", "Network"],
+				rows: storageRows,
+			})
+		: "<p>No storage namespaces declared.</p>",
+)}
 </main>`;
 
 	return documentHtml({
@@ -239,9 +250,7 @@ export function buildLocalSurfaceQualityProfile(): QualityProfile {
 	};
 }
 
-export function createLocalSurfaceQualitySnapshot(
-	manifest: LocalSurfaceManifest,
-): DsLintSnapshot {
+export function createLocalSurfaceQualitySnapshot(manifest: LocalSurfaceManifest): DsLintSnapshot {
 	return {
 		viewport: { width: 1280, height: 900 },
 		elements: [

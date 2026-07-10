@@ -65,9 +65,7 @@ export async function loadQualityPluginComponent(options: {
 }
 
 /** Instantiate the BUNDLED quality integration plugin with a host bridge. */
-export function createQualityPluginComponent(
-	bridge: TractorBridge,
-): Promise<IntegrationPlugin> {
+export function createQualityPluginComponent(bridge: TractorBridge): Promise<IntegrationPlugin> {
 	return loadQualityPluginComponent({
 		pkgDir: bundledPluginPkgDir,
 		entry: "quality_plugin.js",

@@ -19,11 +19,14 @@ describe("ModelMockServer — non-streaming", () => {
 		const res = await fetch(`http://127.0.0.1:${mock.port}/v1/chat/completions`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json", Authorization: "Bearer mock-key" },
-			body: JSON.stringify({ model: MODEL_MOCK_DEFAULT_MODEL, messages: [{ role: "user", content: "oi" }] }),
+			body: JSON.stringify({
+				model: MODEL_MOCK_DEFAULT_MODEL,
+				messages: [{ role: "user", content: "oi" }],
+			}),
 		});
 
 		expect(res.status).toBe(200);
-		const body = await res.json() as { choices: Array<{ message: { content: string } }> };
+		const body = (await res.json()) as { choices: Array<{ message: { content: string } }> };
 		expect(body.choices[0].message.content).toBe("Olá do mock!");
 	});
 
@@ -37,7 +40,10 @@ describe("ModelMockServer — non-streaming", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const body = await res.json() as { ok: boolean; choices: Array<{ message: { content: string } }> };
+		const body = (await res.json()) as {
+			ok: boolean;
+			choices: Array<{ message: { content: string } }>;
+		};
 		expect(body.ok).toBe(true);
 		expect(body.choices[0].message.content).toBe("raw");
 	});
@@ -52,7 +58,7 @@ describe("ModelMockServer — non-streaming", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const body = await res.json() as {
+		const body = (await res.json()) as {
 			choices: Array<{
 				message: {
 					tool_calls: Array<{
@@ -95,7 +101,7 @@ describe("ModelMockServer — non-streaming", () => {
 		});
 
 		expect(res.status).toBe(500);
-		const body = await res.json() as { error: { type: string } };
+		const body = (await res.json()) as { error: { type: string } };
 		expect(body.error.type).toBe("mock_error");
 	});
 });
@@ -148,7 +154,7 @@ describe("ModelMockServer — repeatLast", () => {
 				headers: { "Content-Type": "application/json", Authorization: "Bearer mock-key" },
 				body: JSON.stringify({ model: MODEL_MOCK_DEFAULT_MODEL, messages: [] }),
 			});
-			const body = await res.json() as { choices: Array<{ message: { content: string } }> };
+			const body = (await res.json()) as { choices: Array<{ message: { content: string } }> };
 			expect(body.choices[0].message.content).toBe("sempre essa");
 		}
 

@@ -116,12 +116,17 @@ function recordIdFor(item: ContentProjectionItem, config: ContentProjectionConfi
 
 function titleFromPath(path: string): string {
 	const fileName = normalizePath(path).split("/").at(-1) ?? path;
-	return fileName.replace(/\.[^.]+$/u, "").replace(/[-_]+/gu, " ").trim();
+	return fileName
+		.replace(/\.[^.]+$/u, "")
+		.replace(/[-_]+/gu, " ")
+		.trim();
 }
 
 function folderTypeFor(path: string, config: ContentProjectionConfig): KnowledgeRecord["@type"] {
 	const normalized = normalizePath(path);
-	const entries = Object.entries(config.folderTypes ?? {}).sort(([left], [right]) => right.length - left.length);
+	const entries = Object.entries(config.folderTypes ?? {}).sort(
+		([left], [right]) => right.length - left.length,
+	);
 	for (const [folder, type] of entries) {
 		const normalizedFolder = normalizePath(folder).replace(/\/$/u, "");
 		if (normalized === normalizedFolder || normalized.startsWith(`${normalizedFolder}/`)) {
@@ -131,7 +136,10 @@ function folderTypeFor(path: string, config: ContentProjectionConfig): Knowledge
 	return config.defaultType ?? ["KnowledgeRecord", "Content"];
 }
 
-function fieldsFromFrontmatter(data: Record<string, unknown>, config: ContentProjectionConfig): Record<string, unknown> {
+function fieldsFromFrontmatter(
+	data: Record<string, unknown>,
+	config: ContentProjectionConfig,
+): Record<string, unknown> {
 	const fields: Record<string, unknown> = {};
 	const keys = config.includeFrontmatterKeys ?? Object.keys(data);
 	for (const key of keys) {
@@ -166,20 +174,24 @@ export function parseFrontmatter(text: string): FrontmatterParseResult {
 }
 
 export function extractWikilinks(body: string): WikiLink[] {
-	return [...body.matchAll(WIKILINK_RE)].map((match) => ({
-		raw: match[0],
-		target: match[1]?.trim() ?? "",
-		...(match[2] ? { label: match[2].trim() } : {}),
-	})).filter((link) => link.target.length > 0);
+	return [...body.matchAll(WIKILINK_RE)]
+		.map((match) => ({
+			raw: match[0],
+			target: match[1]?.trim() ?? "",
+			...(match[2] ? { label: match[2].trim() } : {}),
+		}))
+		.filter((link) => link.target.length > 0);
 }
 
 export function extractMarkdownLinks(body: string): MarkdownLink[] {
-	return [...body.matchAll(MARKDOWN_LINK_RE)].map((match) => ({
-		raw: match[0],
-		label: match[1]?.trim() ?? "",
-		target: match[2]?.trim() ?? "",
-		...(match[3] ? { title: match[3].trim() } : {}),
-	})).filter((link) => link.label.length > 0 && link.target.length > 0);
+	return [...body.matchAll(MARKDOWN_LINK_RE)]
+		.map((match) => ({
+			raw: match[0],
+			label: match[1]?.trim() ?? "",
+			target: match[2]?.trim() ?? "",
+			...(match[3] ? { title: match[3].trim() } : {}),
+		}))
+		.filter((link) => link.label.length > 0 && link.target.length > 0);
 }
 
 export function extractExternalMarkdownLinks(body: string): MarkdownLink[] {
@@ -194,7 +206,8 @@ export function buildContentIdIndex(
 	for (const item of items) {
 		const id = recordIdFor(item, config);
 		const parsed = parseFrontmatter(item.text);
-		const title = typeof parsed.data.title === "string" ? parsed.data.title : titleFromPath(item.path);
+		const title =
+			typeof parsed.data.title === "string" ? parsed.data.title : titleFromPath(item.path);
 		const aliases = Array.isArray(parsed.data.aliases) ? parsed.data.aliases : [];
 		for (const key of [
 			item.id,
@@ -245,7 +258,9 @@ export function resolveMarkdownLinks(
 	const relations: RecordRelation[] = [];
 	for (const link of links) {
 		if (isExternalTarget(link.target)) continue;
-		const target = localLinkCandidates(link.target).map((candidate) => index.get(candidate)).find((candidate) => candidate);
+		const target = localLinkCandidates(link.target)
+			.map((candidate) => index.get(candidate))
+			.find((candidate) => candidate);
 		if (!target || target === options.selfId || seen.has(target)) continue;
 		seen.add(target);
 		relations.push({

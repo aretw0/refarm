@@ -16,10 +16,7 @@ class NostrIdentityConformanceProvider implements IdentityProvider {
 
 	private readonly manager = new NostrIdentityManager();
 	private readonly identities = new Map<string, Identity>();
-	private readonly signatures = new Map<
-		string,
-		{ identityId: string; data: string }
-	>();
+	private readonly signatures = new Map<string, { identityId: string; data: string }>();
 	private counter = 0;
 
 	async create(displayName?: string): Promise<Identity> {

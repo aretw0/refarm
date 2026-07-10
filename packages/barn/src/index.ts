@@ -73,8 +73,7 @@ function nodeToPluginEntry(node: PluginLedgerNode): PluginEntry {
 		integrity: String(node.sha256Integrity ?? ""),
 		status: (node["refarm:status"] as PluginEntry["status"]) ?? "installed",
 		installedAt: Number(node["refarm:installedAt"] ?? 0),
-		cacheStatus:
-			(node["refarm:cacheStatus"] as PluginEntry["cacheStatus"]) ?? "miss",
+		cacheStatus: (node["refarm:cacheStatus"] as PluginEntry["cacheStatus"]) ?? "miss",
 		wasmHash: String(node["refarm:wasmHash"] ?? ""),
 	};
 }
@@ -131,8 +130,10 @@ export function resolvePluginPackage(
 	plugin: PluginPackageDescriptor,
 	options: { cwd?: string; baseUrl?: string } = {},
 ): PluginPackageResolution | null {
-	return resolvePluginPackageFromNodeModules(plugin.npmPackage, options) ??
-		resolveWorkspacePluginPackage(plugin, options);
+	return (
+		resolvePluginPackageFromNodeModules(plugin.npmPackage, options) ??
+		resolveWorkspacePluginPackage(plugin, options)
+	);
 }
 
 type CachedBinary = {
@@ -153,13 +154,8 @@ export class Barn {
 		this.ledger = options.ledger ?? null;
 
 		this.cacheAdapter = {
-			get: async (pluginId: string) =>
-				this._cacheByPluginId.get(pluginId)?.bytes ?? null,
-			set: async (
-				pluginId: string,
-				bytes: ArrayBuffer,
-				metadata?: PluginArtifactMetadata,
-			) => {
+			get: async (pluginId: string) => this._cacheByPluginId.get(pluginId)?.bytes ?? null,
+			set: async (pluginId: string, bytes: ArrayBuffer, metadata?: PluginArtifactMetadata) => {
 				this._cacheByPluginId.set(pluginId, { bytes, metadata });
 			},
 			evict: async (pluginId: string) => {

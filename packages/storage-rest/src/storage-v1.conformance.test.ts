@@ -53,9 +53,7 @@ function installStorageRestMock(): void {
 
 			if (requestUrl.pathname === "/nodes") {
 				const type = requestUrl.searchParams.get("type") ?? undefined;
-				const filtered = [...rows.values()].filter((row) =>
-					type ? row.type === type : true,
-				);
+				const filtered = [...rows.values()].filter((row) => (type ? row.type === type : true));
 				return jsonResponse(filtered);
 			}
 
@@ -76,10 +74,7 @@ function installStorageRestMock(): void {
 					return jsonResponse(row ? [row] : []);
 				}
 
-				if (
-					sql.startsWith("delete from nodes") &&
-					sql.includes("where id = ?")
-				) {
+				if (sql.startsWith("delete from nodes") && sql.includes("where id = ?")) {
 					const id = String(args[0] ?? "");
 					rows.delete(id);
 					return jsonResponse([]);

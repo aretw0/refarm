@@ -86,12 +86,14 @@ function sha256(value: unknown): string {
 }
 
 function sanitizeSegment(value: string): string {
-	return value
-		.trim()
-		.toLowerCase()
-		.replace(/[^a-z0-9._-]+/g, "-")
-		.replace(/^-+|-+$/g, "")
-		.slice(0, 96) || "snapshot";
+	return (
+		value
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9._-]+/g, "-")
+			.replace(/^-+|-+$/g, "")
+			.slice(0, 96) || "snapshot"
+	);
 }
 
 function parseWebRef(ref: string): { identity: string; sourceRef: string } {
@@ -119,7 +121,9 @@ function parseWebRef(ref: string): { identity: string; sourceRef: string } {
 	throw new Error("UNSUPPORTED_KIND: source-web supports web: refs and http(s) fixture refs");
 }
 
-function normalizeEgressPolicy(policy: Partial<WebSourceEgressPolicy> | undefined): WebSourceEgressPolicy {
+function normalizeEgressPolicy(
+	policy: Partial<WebSourceEgressPolicy> | undefined,
+): WebSourceEgressPolicy {
 	return {
 		allowedHosts: Array.isArray(policy?.allowedHosts)
 			? policy.allowedHosts.map((host) => host.trim().toLowerCase()).filter(Boolean)
@@ -187,7 +191,8 @@ function fixtureFor(
 	fixtures: Record<string, WebSourceSnapshot>,
 	now: () => string,
 ): WebSourceSnapshot {
-	const fixture = fixtures[identity] ?? fixtures["requirements-fixture"] ?? DEFAULT_WEB_SOURCE_FIXTURE;
+	const fixture =
+		fixtures[identity] ?? fixtures["requirements-fixture"] ?? DEFAULT_WEB_SOURCE_FIXTURE;
 	return {
 		...fixture,
 		identity,
@@ -253,22 +258,29 @@ async function writeSnapshot(
 	await writeFile(path.join(snapshotPath, "content.html"), snapshot.body);
 	await writeFile(
 		path.join(snapshotPath, "snapshot.json"),
-		`${JSON.stringify({
-			identity: snapshot.identity,
-			url: snapshot.url,
-			mediaType: snapshot.mediaType,
-			capturedAt: snapshot.capturedAt,
-			contentPath: "content.html",
-		}, null, 2)}\n`,
+		`${JSON.stringify(
+			{
+				identity: snapshot.identity,
+				url: snapshot.url,
+				mediaType: snapshot.mediaType,
+				capturedAt: snapshot.capturedAt,
+				contentPath: "content.html",
+			},
+			null,
+			2,
+		)}\n`,
 	);
-	await writeFile(path.join(snapshotPath, "provenance.json"), `${JSON.stringify(provenance, null, 2)}\n`);
+	await writeFile(
+		path.join(snapshotPath, "provenance.json"),
+		`${JSON.stringify(provenance, null, 2)}\n`,
+	);
 }
 
-export function createWebSourceProvider(
-	options: WebSourceProviderOptions = {},
-): WebSourceProvider {
+export function createWebSourceProvider(options: WebSourceProviderOptions = {}): WebSourceProvider {
 	const cacheRoot = options.cacheRoot ?? defaultCacheRoot();
-	const fixtures = options.fixtures ?? { [DEFAULT_WEB_SOURCE_FIXTURE.identity]: DEFAULT_WEB_SOURCE_FIXTURE };
+	const fixtures = options.fixtures ?? {
+		[DEFAULT_WEB_SOURCE_FIXTURE.identity]: DEFAULT_WEB_SOURCE_FIXTURE,
+	};
 	const egressPolicy = normalizeEgressPolicy(options.egress);
 	const now = options.now ?? (() => DEFAULT_CAPTURED_AT);
 

@@ -6,18 +6,12 @@ import {
 	type StreamTransportAdapter,
 } from "@refarm.dev/stream-contract-v1";
 
-export type RouteHandler = (
-	req: http.IncomingMessage,
-	res: http.ServerResponse,
-) => boolean;
+export type RouteHandler = (req: http.IncomingMessage, res: http.ServerResponse) => boolean;
 
 export class SseStreamTransport implements StreamTransportAdapter {
 	readonly capability = STREAM_CAPABILITY;
 	private readonly connections = new Map<string, Set<http.ServerResponse>>();
-	private readonly inProcess = new Map<
-		string,
-		Set<(chunk: StreamChunk) => void>
-	>();
+	private readonly inProcess = new Map<string, Set<(chunk: StreamChunk) => void>>();
 	private readonly stored = new Map<string, StreamChunk[]>();
 
 	constructor(private readonly fileTransport: FileStreamTransport | null) {}
@@ -42,13 +36,10 @@ export class SseStreamTransport implements StreamTransportAdapter {
 		}
 	}
 
-	subscribe(
-		stream_ref: string,
-		onChunk: (chunk: StreamChunk) => void,
-	): () => void {
+	subscribe(stream_ref: string, onChunk: (chunk: StreamChunk) => void): () => void {
 		const replaySource = this.fileTransport
 			? this.fileTransport.replay(stream_ref)
-			: this.stored.get(stream_ref) ?? [];
+			: (this.stored.get(stream_ref) ?? []);
 		for (const chunk of replaySource) {
 			onChunk(chunk);
 		}

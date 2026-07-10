@@ -16,11 +16,7 @@ import {
 	DISPATCH_RESULT_TYPE,
 	serializeDispatchResult,
 } from "@refarm.dev/dispatch-result-contract-v1";
-import {
-	callPlugin,
-	getPluginApi,
-	storeNode,
-} from "refarm:plugin/tractor-bridge@0.1.0";
+import { callPlugin, getPluginApi, storeNode } from "refarm:plugin/tractor-bridge@0.1.0";
 
 import { runVault } from "./run-core.js";
 
@@ -160,6 +156,9 @@ export const integration = {
 	respond(_payload) {
 		// The runtime never calls respond today (a dead channel); vault dispatch
 		// rides on-event instead. Stub it per the interface convention.
-		return { tag: "err", val: { tag: "not-permitted", val: "vault dispatches via on-event 'vault:dispatch'" } };
+		return {
+			tag: "err",
+			val: { tag: "not-permitted", val: "vault dispatches via on-event 'vault:dispatch'" },
+		};
 	},
 };

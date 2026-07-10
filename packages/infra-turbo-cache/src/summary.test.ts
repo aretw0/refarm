@@ -3,11 +3,15 @@ import { parseTurboCacheRunSummary } from "./summary.js";
 
 describe("parseTurboCacheRunSummary", () => {
 	it("parses turbo task and cache counters", () => {
-		expect(parseTurboCacheRunSummary([
-			" Tasks:    38 successful, 38 total",
-			"Cached:    34 cached, 38 total",
-			"  Time:    16.984s",
-		].join("\n"))).toEqual({
+		expect(
+			parseTurboCacheRunSummary(
+				[
+					" Tasks:    38 successful, 38 total",
+					"Cached:    34 cached, 38 total",
+					"  Time:    16.984s",
+				].join("\n"),
+			),
+		).toEqual({
 			tool: "turbo",
 			cached: 34,
 			total: 38,

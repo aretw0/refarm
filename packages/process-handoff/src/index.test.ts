@@ -38,14 +38,10 @@ describe("process-handoff leaf package", () => {
 
 	it("builds process specs from runner-style command arguments", () => {
 		expect(
-			createProcessHandoffSpecFromRunner(
-				"node",
-				["scripts/run task.mjs", "--json"],
-				{
-					cwd: "/workspaces/consumer vault",
-					packageManager: "pnpm",
-				},
-			),
+			createProcessHandoffSpecFromRunner("node", ["scripts/run task.mjs", "--json"], {
+				cwd: "/workspaces/consumer vault",
+				packageManager: "pnpm",
+			}),
 		).toEqual({
 			command: "node",
 			args: ["scripts/run task.mjs", "--json"],

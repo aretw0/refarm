@@ -20,9 +20,7 @@ function fixtureManifest() {
 				title: "Credentials",
 				summary: "Credential records stored in a local namespace.",
 				kind: "dataset",
-				rows: [
-					{ label: "Credential", status: "ready" },
-				],
+				rows: [{ label: "Credential", status: "ready" }],
 			},
 			{
 				id: "receipts",
@@ -75,8 +73,8 @@ describe("local surface", () => {
 		expect(html).toContain("<!DOCTYPE html>");
 		expect(html).toContain("/assets/ds/tokens.css");
 		expect(html).toContain("Local &lt;Wallet&gt;");
-		expect(html).toContain("data-action-id=\"review-request\"");
-		expect(html).toContain("data-requires-review=\"true\"");
+		expect(html).toContain('data-action-id="review-request"');
+		expect(html).toContain('data-requires-review="true"');
 		expect(html).toContain("credentials");
 	});
 
@@ -90,7 +88,9 @@ describe("local surface", () => {
 		expect(plan.schema).toBe("local-surface.launch-plan.v1");
 		expect(plan.surfaceId).toBe("wallet-demo");
 		expect(plan.steps.map((step) => step.id)).toEqual(["doctor", "render", "serve", "handoff"]);
-		expect(plan.steps[2]?.command).toBe("vault web serve ./public --host 127.0.0.1 --port 4222 --json");
+		expect(plan.steps[2]?.command).toBe(
+			"vault web serve ./public --host 127.0.0.1 --port 4222 --json",
+		);
 		expect(plan.boundaries.join("\n")).toContain("provider adapters remain consumer-owned");
 	});
 

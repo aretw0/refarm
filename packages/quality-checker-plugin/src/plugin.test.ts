@@ -3,11 +3,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import {
-	loadQualityPluginComponent,
-	type IntegrationPlugin,
-	type TractorBridge,
-} from "./index.js";
+import { loadQualityPluginComponent, type IntegrationPlugin, type TractorBridge } from "./index.js";
 
 // Drives the REAL transpiled quality integration plugin; needs `pnpm build:plugin`
 // to have produced `pkg-plugin/`. Gitignored + rebuilt, so this SKIPS when absent.

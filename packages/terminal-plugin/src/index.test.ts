@@ -22,9 +22,7 @@ describe("TerminalPlugin", () => {
 		const lines = terminal?.querySelectorAll("div") ?? [];
 		expect(lines).toHaveLength(2);
 		expect(lines[1]?.textContent).toContain("[WARN] Disk almost full");
-		expect((lines[1] as HTMLElement | undefined)?.style.color).toBe(
-			"var(--refarm-warning)",
-		);
+		expect((lines[1] as HTMLElement | undefined)?.style.color).toBe("var(--refarm-warning)");
 
 		plugin.clear();
 		expect(terminal?.textContent).toBe("");

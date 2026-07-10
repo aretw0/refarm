@@ -109,8 +109,7 @@ export async function waitForRuntimeReady(
 	options: RuntimeReadinessWaitOptions = {},
 ): Promise<boolean> {
 	const timeoutMs = options.timeoutMs ?? DEFAULT_RUNTIME_READY_TIMEOUT_MS;
-	const pollIntervalMs =
-		options.pollIntervalMs ?? DEFAULT_RUNTIME_READY_POLL_INTERVAL_MS;
+	const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_RUNTIME_READY_POLL_INTERVAL_MS;
 	const probeTimeoutMs = options.probeTimeoutMs ?? DEFAULT_RUNTIME_PROBE_TIMEOUT_MS;
 	const deadline = Date.now() + timeoutMs;
 

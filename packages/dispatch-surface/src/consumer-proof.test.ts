@@ -37,9 +37,7 @@ describe("dispatch-surface external consumer proof", () => {
 	});
 
 	it("normalizes an unknown channel to the fallback control surface", () => {
-		const resolved = resolveChannelControlSurfaceAdapter(
-			" definitely-not-a-channel ",
-		);
+		const resolved = resolveChannelControlSurfaceAdapter(" definitely-not-a-channel ");
 
 		expect(resolved.channel).toBe("definitely-not-a-channel");
 		expect(isKnownChannelControlSurface(resolved.channel)).toBe(false);

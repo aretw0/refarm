@@ -1,7 +1,4 @@
-import {
-	computeSha256Digest,
-	validatePluginManifest,
-} from "@refarm.dev/plugin-manifest";
+import { computeSha256Digest, validatePluginManifest } from "@refarm.dev/plugin-manifest";
 import {
 	buildVaultPluginManifest,
 	profileForVerb,
@@ -35,7 +32,11 @@ const NOTE = {
 const PROFILE: VaultProfile = {
 	name: "demo",
 	rules: [
-		{ id: "find-alpha", verb: "search", match: JSON.stringify({ type: "contains", value: "alpha" }) },
+		{
+			id: "find-alpha",
+			verb: "search",
+			match: JSON.stringify({ type: "contains", value: "alpha" }),
+		},
 		{
 			id: "extract-frontmatter",
 			verb: "extract",
@@ -44,9 +45,18 @@ const PROFILE: VaultProfile = {
 		{
 			id: "route-project",
 			verb: "organize",
-			match: JSON.stringify({ type: "prefix-route", marker: "#project", destination: "20-Projects" }),
+			match: JSON.stringify({
+				type: "prefix-route",
+				marker: "#project",
+				destination: "20-Projects",
+			}),
 		},
-		{ id: "require-summary", verb: "profile", severity: "warn", match: JSON.stringify({ type: "requires", value: "summary:" }) },
+		{
+			id: "require-summary",
+			verb: "profile",
+			severity: "warn",
+			match: JSON.stringify({ type: "requires", value: "summary:" }),
+		},
 	],
 };
 

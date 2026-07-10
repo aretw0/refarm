@@ -17,14 +17,12 @@ describe("createTurboCacheServicePlan", () => {
 				{
 					kind: "http-endpoint",
 					name: "cache-api",
-					description:
-						"HTTP endpoint implementing Turborepo Remote Cache API v8",
+					description: "HTTP endpoint implementing Turborepo Remote Cache API v8",
 				},
 				{
 					kind: "bearer-auth",
 					name: "cache-auth-token",
-					description:
-						"Bearer token required by CI clients that read/write cache artifacts",
+					description: "Bearer token required by CI clients that read/write cache artifacts",
 					secret: true,
 				},
 			],

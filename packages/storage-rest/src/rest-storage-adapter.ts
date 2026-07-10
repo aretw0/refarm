@@ -13,24 +13,24 @@ import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
  * All paths are configurable via `endpoints`.
  */
 export interface RestStorageOptions {
-  /** Base URL of the backend API (no trailing slash). */
-  baseUrl: string;
-  /** HTTP headers sent with every request (e.g. Authorization). */
-  headers?: Record<string, string>;
-  /**
-   * Enable the SQL passthrough endpoints (`execute` / `query`).
-   * Defaults to false. Most REST backends will not expose raw SQL.
-   */
-  enableSql?: boolean;
-  /**
-   * Override individual endpoint paths (relative to baseUrl).
-   * Defaults: storeNode → "/nodes", queryNodes → "/nodes", sql → "/sql"
-   */
-  endpoints?: {
-    storeNode?: string;
-    queryNodes?: string;
-    sql?: string;
-  };
+	/** Base URL of the backend API (no trailing slash). */
+	baseUrl: string;
+	/** HTTP headers sent with every request (e.g. Authorization). */
+	headers?: Record<string, string>;
+	/**
+	 * Enable the SQL passthrough endpoints (`execute` / `query`).
+	 * Defaults to false. Most REST backends will not expose raw SQL.
+	 */
+	enableSql?: boolean;
+	/**
+	 * Override individual endpoint paths (relative to baseUrl).
+	 * Defaults: storeNode → "/nodes", queryNodes → "/nodes", sql → "/sql"
+	 */
+	endpoints?: {
+		storeNode?: string;
+		queryNodes?: string;
+		sql?: string;
+	};
 }
 
 /**
@@ -50,89 +50,87 @@ export interface RestStorageOptions {
  * See: ADR-046 — Refarm Composition Model
  */
 export class RestStorageAdapter implements StorageAdapter {
-  private readonly baseUrl: string;
-  private readonly headers: Record<string, string>;
-  private readonly enableSql: boolean;
-  private readonly nodesPath: string;
-  private readonly sqlPath: string;
+	private readonly baseUrl: string;
+	private readonly headers: Record<string, string>;
+	private readonly enableSql: boolean;
+	private readonly nodesPath: string;
+	private readonly sqlPath: string;
 
-  constructor(options: RestStorageOptions) {
-    this.baseUrl = options.baseUrl.replace(/\/$/, ""); // strip trailing slash
-    this.headers = options.headers ?? {};
-    this.enableSql = options.enableSql ?? false;
-    this.nodesPath = options.endpoints?.storeNode ?? "/nodes";
-    this.sqlPath = options.endpoints?.sql ?? "/sql";
-  }
+	constructor(options: RestStorageOptions) {
+		this.baseUrl = options.baseUrl.replace(/\/$/, ""); // strip trailing slash
+		this.headers = options.headers ?? {};
+		this.enableSql = options.enableSql ?? false;
+		this.nodesPath = options.endpoints?.storeNode ?? "/nodes";
+		this.sqlPath = options.endpoints?.sql ?? "/sql";
+	}
 
-  // ── StorageAdapter ──────────────────────────────────────────────────────
+	// ── StorageAdapter ──────────────────────────────────────────────────────
 
-  async ensureSchema(): Promise<void> {
-    // no-op: schema is the backend's responsibility
-  }
+	async ensureSchema(): Promise<void> {
+		// no-op: schema is the backend's responsibility
+	}
 
-  async storeNode(
-    id: string,
-    type: string,
-    context: string,
-    payload: string,
-    sourcePlugin: string | null,
-  ): Promise<void> {
-    await this._post(this.nodesPath, { id, type, context, payload, sourcePlugin });
-  }
+	async storeNode(
+		id: string,
+		type: string,
+		context: string,
+		payload: string,
+		sourcePlugin: string | null,
+	): Promise<void> {
+		await this._post(this.nodesPath, { id, type, context, payload, sourcePlugin });
+	}
 
-  async queryNodes(type: string): Promise<unknown[]> {
-    const queryPath =
-      (this.nodesPath) +
-      "?type=" + encodeURIComponent(type);
-    return this._get(queryPath) as Promise<unknown[]>;
-  }
+	async queryNodes(type: string): Promise<unknown[]> {
+		const queryPath = this.nodesPath + "?type=" + encodeURIComponent(type);
+		return this._get(queryPath) as Promise<unknown[]>;
+	}
 
-  async execute(sql: string, args?: unknown): Promise<unknown> {
-    if (!this.enableSql) return [];
-    return this._post(this.sqlPath, { sql, args });
-  }
+	async execute(sql: string, args?: unknown): Promise<unknown> {
+		if (!this.enableSql) return [];
+		return this._post(this.sqlPath, { sql, args });
+	}
 
-  async query<T = unknown>(sql: string, args?: unknown): Promise<T[]> {
-    return this.execute(sql, args) as Promise<T[]>;
-  }
+	async query<T = unknown>(sql: string, args?: unknown): Promise<T[]> {
+		return this.execute(sql, args) as Promise<T[]>;
+	}
 
-  async transaction<T>(fn: () => Promise<T>): Promise<T> {
-    // REST has no native transaction semantics — best-effort sequential execution.
-    // For transactional guarantees, use a backend that exposes a transaction endpoint
-    // and override this method in a subclass.
-    return fn();
-  }
+	async transaction<T>(fn: () => Promise<T>): Promise<T> {
+		// REST has no native transaction semantics — best-effort sequential execution.
+		// For transactional guarantees, use a backend that exposes a transaction endpoint
+		// and override this method in a subclass.
+		return fn();
+	}
 
-  async close(): Promise<void> {
-    // no-op: no persistent connection to tear down
-  }
+	async close(): Promise<void> {
+		// no-op: no persistent connection to tear down
+	}
 
-  // ── HTTP helpers ────────────────────────────────────────────────────────
+	// ── HTTP helpers ────────────────────────────────────────────────────────
 
-  private async _get(path: string): Promise<unknown> {
-    const timeoutMs = 15_000;
-    const res = await fetch(this.baseUrl + path, {
-      headers: this.headers,
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!res.ok) {
-      throw new Error(`[storage-rest] GET ${path} → HTTP ${res.status}`);
-    }
-    return res.json();
-  }
+	private async _get(path: string): Promise<unknown> {
+		const timeoutMs = 15_000;
+		const res = await fetch(this.baseUrl + path, {
+			headers: this.headers,
+			signal: AbortSignal.timeout(timeoutMs),
+		});
+		if (!res.ok) {
+			throw new Error(`[storage-rest] GET ${path} → HTTP ${res.status}`);
+		}
+		return res.json();
+	}
 
-  private async _post(path: string, body: unknown): Promise<unknown> {
-    const timeoutMs = 15_000;
-    const res = await fetch(this.baseUrl + path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...this.headers },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!res.ok) {
-      throw new Error(`[storage-rest] POST ${path} → HTTP ${res.status}`);
-    }
-    // Some endpoints return 204 No Content — gracefully handle empty body
-    return res.json().catch(() => undefined);
-  }
+	private async _post(path: string, body: unknown): Promise<unknown> {
+		const timeoutMs = 15_000;
+		const res = await fetch(this.baseUrl + path, {
+			method: "POST",
+			headers: { "Content-Type": "application/json", ...this.headers },
+			body: JSON.stringify(body),
+			signal: AbortSignal.timeout(timeoutMs),
+		});
+		if (!res.ok) {
+			throw new Error(`[storage-rest] POST ${path} → HTTP ${res.status}`);
+		}
+		// Some endpoints return 204 No Content — gracefully handle empty body
+		return res.json().catch(() => undefined);
+	}
 }

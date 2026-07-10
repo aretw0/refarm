@@ -3,19 +3,13 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import {
-	loadVaultPluginComponent,
-	type IntegrationPlugin,
-	type TractorBridge,
-} from "./index.js";
+import { loadVaultPluginComponent, type IntegrationPlugin, type TractorBridge } from "./index.js";
 
 // This suite drives the REAL transpiled integration-plugin component, so it needs
 // `pnpm build:plugin` (esbuild bundle + jco componentize + transpile) to have
 // produced `pkg-plugin/`. Gitignored + rebuilt, so — like surface.test.ts — this
 // SKIPS when the pkg is absent instead of failing the repo-wide test run.
-const pkgEntry = fileURLToPath(
-	new URL("../pkg-plugin/vault_plugin.js", import.meta.url),
-);
+const pkgEntry = fileURLToPath(new URL("../pkg-plugin/vault_plugin.js", import.meta.url));
 const componentBuilt = existsSync(pkgEntry);
 const pkgDir = fileURLToPath(new URL("../pkg-plugin/", import.meta.url));
 
@@ -75,9 +69,7 @@ function makeTractorBridge(): { bridge: TractorBridge; stored: string[] } {
 	};
 }
 
-async function loadPlugin(
-	bridge: TractorBridge,
-): Promise<{ integration: IntegrationPlugin }> {
+async function loadPlugin(bridge: TractorBridge): Promise<{ integration: IntegrationPlugin }> {
 	const integration = await loadVaultPluginComponent({
 		pkgDir,
 		entry: "vault_plugin.js",

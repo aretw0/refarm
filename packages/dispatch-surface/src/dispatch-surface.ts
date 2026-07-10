@@ -5,9 +5,7 @@ const TASK_TRANSPORTS = ["file", "http"] as const;
 type StaticDispatchTransport = (typeof TASK_TRANSPORTS)[number];
 
 export type ChannelDispatchTransport = `channel:${string}`;
-export type DispatchTransport =
-	| StaticDispatchTransport
-	| ChannelDispatchTransport;
+export type DispatchTransport = StaticDispatchTransport | ChannelDispatchTransport;
 
 interface NativeDispatchTransportFile {
 	tag: "file";
@@ -29,9 +27,7 @@ type NativeDispatchTransport =
 
 interface NativeDispatchSurface {
 	parseTaskTransport(transport: string): NativeDispatchTransport;
-	resolveChannelFromTransport(
-		transport: NativeDispatchTransport,
-	): string | undefined;
+	resolveChannelFromTransport(transport: NativeDispatchTransport): string | undefined;
 	isChannelEffortPayload(payloadJson: string): boolean;
 	normalizeChannelSource(channel: string, source: string | undefined): string;
 	normalizeChannelContext(
@@ -68,17 +64,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
 }
 
-function toNativeDispatchTransport(
-	transport: DispatchTransport,
-): NativeDispatchTransport {
+function toNativeDispatchTransport(transport: DispatchTransport): NativeDispatchTransport {
 	if (transport === "file") return { tag: "file" };
 	if (transport === "http") return { tag: "http" };
 	return { tag: "channel", val: transport.slice("channel:".length) };
 }
 
-function nativeDispatchTransportToString(
-	transport: NativeDispatchTransport,
-): DispatchTransport {
+function nativeDispatchTransportToString(transport: NativeDispatchTransport): DispatchTransport {
 	switch (transport.tag) {
 		case "file":
 			return "file";
@@ -101,10 +93,7 @@ async function loadNativeBinding(): Promise<NativeDispatchSurface | null> {
 	if (!isNativeEnabled()) return null;
 
 	try {
-		const moduleUrl = new URL(
-			"../../dispatch-surface-rs/pkg/dispatch_surface.js",
-			import.meta.url,
-		);
+		const moduleUrl = new URL("../../dispatch-surface-rs/pkg/dispatch_surface.js", import.meta.url);
 		const module = (await import(moduleUrl.href)) as {
 			dispatchSurfaceControl?: NativeDispatchSurface;
 		};
@@ -117,21 +106,14 @@ async function loadNativeBinding(): Promise<NativeDispatchSurface | null> {
 
 const nativeBinding = await loadNativeBinding();
 
-export function isChannelDispatchTransport(
-	value: string,
-): value is ChannelDispatchTransport {
-	return (
-		value.startsWith("channel:") &&
-		value.slice("channel:".length).trim().length > 0
-	);
+export function isChannelDispatchTransport(value: string): value is ChannelDispatchTransport {
+	return value.startsWith("channel:") && value.slice("channel:".length).trim().length > 0;
 }
 
 export function parseTaskTransport(value: string): DispatchTransport {
 	if (nativeBinding) {
 		try {
-			return nativeDispatchTransportToString(
-				nativeBinding.parseTaskTransport(value),
-			);
+			return nativeDispatchTransportToString(nativeBinding.parseTaskTransport(value));
 		} catch {
 			// Fallback to TS implementation
 		}
@@ -148,14 +130,10 @@ export function parseTaskTransport(value: string): DispatchTransport {
 	);
 }
 
-export function resolveChannelFromTransport(
-	transport: DispatchTransport,
-): string | undefined {
+export function resolveChannelFromTransport(transport: DispatchTransport): string | undefined {
 	if (nativeBinding) {
 		try {
-			return nativeBinding.resolveChannelFromTransport(
-				toNativeDispatchTransport(transport),
-			);
+			return nativeBinding.resolveChannelFromTransport(toNativeDispatchTransport(transport));
 		} catch {
 			// Fallback to local behavior
 		}
@@ -164,9 +142,7 @@ export function resolveChannelFromTransport(
 	return transport.slice("channel:".length);
 }
 
-export function isChannelEffortPayload(
-	value: unknown,
-): value is RawChannelEffortPayload {
+export function isChannelEffortPayload(value: unknown): value is RawChannelEffortPayload {
 	if (nativeBinding) {
 		try {
 			return nativeBinding.isChannelEffortPayload(
@@ -178,8 +154,7 @@ export function isChannelEffortPayload(
 	}
 
 	if (!isRecord(value)) return false;
-	if (typeof value.direction !== "string" || value.direction.length === 0)
-		return false;
+	if (typeof value.direction !== "string" || value.direction.length === 0) return false;
 	if (!Array.isArray(value.tasks)) return false;
 	return true;
 }
@@ -198,13 +173,9 @@ export function decodeChannel(channel: string): string {
 	return decodeURIComponent(channel);
 }
 
-export function normalizeChannelSource(
-	channel: string,
-	source: unknown,
-): string {
+export function normalizeChannelSource(channel: string, source: unknown): string {
 	if (nativeBinding) {
-		const value =
-			isString(source) && source.trim().length > 0 ? source : undefined;
+		const value = isString(source) && source.trim().length > 0 ? source : undefined;
 		return nativeBinding.normalizeChannelSource(channel, value);
 	}
 	if (isString(source) && source.trim().length > 0) return source;
@@ -224,32 +195,20 @@ export function normalizeChannelContext(
 			: replyTo === undefined
 				? undefined
 				: JSON.stringify(replyTo);
-		const traceIdsJson = Array.isArray(traceIds)
-			? JSON.stringify(traceIds)
-			: undefined;
+		const traceIdsJson = Array.isArray(traceIds) ? JSON.stringify(traceIds) : undefined;
 		return JSON.parse(
-			nativeBinding.normalizeChannelContext(
-				contextJson,
-				channel,
-				replyToJson,
-				traceIdsJson,
-			),
+			nativeBinding.normalizeChannelContext(contextJson, channel, replyToJson, traceIdsJson),
 		);
 	}
 
-	const existing = isRecord(context)
-		? (context as Record<string, unknown>)
-		: {};
+	const existing = isRecord(context) ? (context as Record<string, unknown>) : {};
 	const next: Record<string, unknown> = { ...existing, channel };
 	if (replyTo !== undefined) next.replyTo = replyTo;
 	if (Array.isArray(traceIds)) next.traceIds = traceIds;
 	return next;
 }
 
-export function buildChannelEffort(
-	body: RawChannelEffortPayload,
-	channel: string,
-): Effort {
+export function buildChannelEffort(body: RawChannelEffortPayload, channel: string): Effort {
 	if (nativeBinding) {
 		const effort = JSON.parse(
 			nativeBinding.buildChannelEffort(JSON.stringify(body), channel),
@@ -286,28 +245,18 @@ export function buildChannelEffort(
 		direction: body.direction,
 		tasks: body.tasks,
 		source: normalizeChannelSource(channel, body.source),
-		context: normalizeChannelContext(
-			body.context,
-			channel,
-			body.replyTo,
-			body.traceIds,
-		),
+		context: normalizeChannelContext(body.context, channel, body.replyTo, body.traceIds),
 		submittedAt: body.submittedAt ?? new Date().toISOString(),
 		...(typeof body.priority === "number" ? { priority: body.priority } : {}),
 		...(Array.isArray(body.tags) ? { tags: body.tags } : {}),
 	};
 }
 
-export function buildChannelEffortsPath(
-	baseUrl: string,
-	channel: string,
-): string {
+export function buildChannelEffortsPath(baseUrl: string, channel: string): string {
 	if (nativeBinding) {
 		return nativeBinding.buildChannelEffortsPath(baseUrl, channel);
 	}
-	return `${baseUrl.replace(/\/$/, "")}/channels/${encodeURIComponent(
-		channel,
-	)}/efforts`;
+	return `${baseUrl.replace(/\/$/, "")}/channels/${encodeURIComponent(channel)}/efforts`;
 }
 
 export function buildChannelEffortPath(
@@ -317,12 +266,7 @@ export function buildChannelEffortPath(
 	segment?: string,
 ): string {
 	if (nativeBinding) {
-		return nativeBinding.buildChannelEffortPath(
-			baseUrl,
-			channel,
-			effortId,
-			segment,
-		);
+		return nativeBinding.buildChannelEffortPath(baseUrl, channel, effortId, segment);
 	}
 	return `${buildChannelEffortsPath(baseUrl, channel)}/${encodeURIComponent(
 		effortId,
@@ -339,11 +283,9 @@ export interface ChannelControlSurfaceCapabilities {
 	cancel: boolean;
 }
 
-export type ChannelControlSurfaceOperation =
-	keyof ChannelControlSurfaceCapabilities;
+export type ChannelControlSurfaceOperation = keyof ChannelControlSurfaceCapabilities;
 
-export const CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR =
-	"channel operation unsupported";
+export const CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR = "channel operation unsupported";
 
 export interface ChannelControlSurfaceAdapter {
 	readonly id: string;
@@ -391,8 +333,7 @@ const DEFAULT_CHANNEL_CONTROL_SURFACE: ChannelControlSurfaceAdapter = {
 		retry: true,
 		cancel: true,
 	},
-	buildSubmitPath: (baseUrl: string, channel: string) =>
-		buildChannelEffortsPath(baseUrl, channel),
+	buildSubmitPath: (baseUrl: string, channel: string) => buildChannelEffortsPath(baseUrl, channel),
 	buildQueryPath: (baseUrl: string, channel: string, effortId: string) =>
 		buildChannelEffortPath(baseUrl, channel, effortId, "status"),
 	buildLogsPath: (baseUrl: string, channel: string, effortId: string) =>
@@ -401,24 +342,14 @@ const DEFAULT_CHANNEL_CONTROL_SURFACE: ChannelControlSurfaceAdapter = {
 		buildChannelEffortPath(baseUrl, channel, effortId, "retry"),
 	buildCancelPath: (baseUrl: string, channel: string, effortId: string) =>
 		buildChannelEffortPath(baseUrl, channel, effortId, "cancel"),
-	buildSummaryPath: (baseUrl: string) =>
-		`${baseUrl.replace(/\/$/, "")}/efforts/summary`,
+	buildSummaryPath: (baseUrl: string) => `${baseUrl.replace(/\/$/, "")}/efforts/summary`,
 	buildListPath: (baseUrl: string) => `${baseUrl.replace(/\/$/, "")}/efforts`,
 };
 
-const CONTROL_SURFACE_REGISTRY = new Map<
-	string,
-	KnownChannelControlSurfaceDescriptor
->([
+const CONTROL_SURFACE_REGISTRY = new Map<string, KnownChannelControlSurfaceDescriptor>([
 	["matrix", { channel: "matrix", adapter: DEFAULT_CHANNEL_CONTROL_SURFACE }],
-	[
-		"telegram",
-		{ channel: "telegram", adapter: DEFAULT_CHANNEL_CONTROL_SURFACE },
-	],
-	[
-		"telegram-dm",
-		{ channel: "telegram-dm", adapter: DEFAULT_CHANNEL_CONTROL_SURFACE },
-	],
+	["telegram", { channel: "telegram", adapter: DEFAULT_CHANNEL_CONTROL_SURFACE }],
+	["telegram-dm", { channel: "telegram-dm", adapter: DEFAULT_CHANNEL_CONTROL_SURFACE }],
 ]);
 
 export function setChannelControlSurfaceAdapter(

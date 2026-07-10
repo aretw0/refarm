@@ -43,8 +43,14 @@ describe("content projection", () => {
 	});
 
 	it("extracts external Markdown inline links separately", () => {
-		expect(extractExternalMarkdownLinks("[Alpha](./Alpha.md) [External](https://example.test/doc)")).toEqual([
-			{ raw: "[External](https://example.test/doc)", label: "External", target: "https://example.test/doc" },
+		expect(
+			extractExternalMarkdownLinks("[Alpha](./Alpha.md) [External](https://example.test/doc)"),
+		).toEqual([
+			{
+				raw: "[External](https://example.test/doc)",
+				label: "External",
+				target: "https://example.test/doc",
+			},
 		]);
 	});
 
@@ -127,7 +133,11 @@ describe("content projection", () => {
 			},
 		]);
 		expect(records[0]?.["content-projection:externalLinks"]).toEqual([
-			{ raw: "[docs](https://example.test/docs)", label: "docs", target: "https://example.test/docs" },
+			{
+				raw: "[docs](https://example.test/docs)",
+				label: "docs",
+				target: "https://example.test/docs",
+			},
 		]);
 		expect(records[1]).toMatchObject({
 			"@type": ["KnowledgeRecord", "Resource"],

@@ -1,10 +1,7 @@
 import { createCapabilityRegistry, type CapabilityDescriptor } from "@refarm.dev/capabilities";
 import { describe, expect, it } from "vitest";
 
-import {
-	capabilityWebSurfaceActions,
-	createCapabilityWebSurfacePlugin,
-} from "./index.js";
+import { capabilityWebSurfaceActions, createCapabilityWebSurfacePlugin } from "./index.js";
 
 const walletVerb: CapabilityDescriptor = {
 	name: "wallet",
@@ -48,9 +45,7 @@ describe("capability → homestead web bridge (ADR-085)", () => {
 
 	it("exposes one action per web verb for the host to dispatch", () => {
 		const actions = capabilityWebSurfaceActions(registry);
-		expect(actions).toEqual([
-			{ id: "wallet", label: "wallet", intent: "capability:wallet" },
-		]);
+		expect(actions).toEqual([{ id: "wallet", label: "wallet", intent: "capability:wallet" }]);
 	});
 
 	it("renders an empty-state when no verb declares a web surface", async () => {

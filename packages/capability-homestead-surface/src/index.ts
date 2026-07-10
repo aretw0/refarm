@@ -140,8 +140,7 @@ export function createCapabilityWebSurfacePlugin(
 			if (fn !== "renderHomesteadSurface") return null;
 			// The host's per-render data (request.host.data) — where a host puts a verb's
 			// structured result for the content projector to turn into HTML.
-			const data =
-				(args as HomesteadSurfaceRenderRequest | undefined)?.host?.data ?? {};
+			const data = (args as HomesteadSurfaceRenderRequest | undefined)?.host?.data ?? {};
 			const content = options.content ? options.content(data) : "";
 			return { html: renderCapabilityWebPanel(registry, title, content) };
 		},

@@ -8,10 +8,7 @@ import {
 
 export class FileStreamTransport implements StreamTransportAdapter {
 	readonly capability = STREAM_CAPABILITY;
-	private readonly subscribers = new Map<
-		string,
-		Set<(chunk: StreamChunk) => void>
-	>();
+	private readonly subscribers = new Map<string, Set<(chunk: StreamChunk) => void>>();
 
 	constructor(private readonly baseDir: string) {
 		fs.mkdirSync(baseDir, { recursive: true });
@@ -28,10 +25,7 @@ export class FileStreamTransport implements StreamTransportAdapter {
 		}
 	}
 
-	subscribe(
-		stream_ref: string,
-		onChunk: (chunk: StreamChunk) => void,
-	): () => void {
+	subscribe(stream_ref: string, onChunk: (chunk: StreamChunk) => void): () => void {
 		for (const chunk of this.replay(stream_ref)) {
 			onChunk(chunk);
 		}

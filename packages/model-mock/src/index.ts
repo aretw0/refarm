@@ -9,30 +9,27 @@ import type {
 } from "./types.js";
 
 export { MODEL_MOCK_DEFAULT_MODEL, ModelMockServer };
-export type {
-	CapturedRequest,
-	MockResponse,
-	ModelMockOptions,
-	RawJsonResponse,
-	SaysResponse,
-	};
+export type { CapturedRequest, MockResponse, ModelMockOptions, RawJsonResponse, SaysResponse };
 
-	/** Script a plain-text model response. */
-	export function says(text: string): SaysResponse {
+/** Script a plain-text model response. */
+export function says(text: string): SaysResponse {
 	return { type: "says", text };
-	}
+}
 
-	/** Script an exact JSON response for OpenAI-compatible endpoints. */
-	export function rawJson(body: unknown): RawJsonResponse {
+/** Script an exact JSON response for OpenAI-compatible endpoints. */
+export function rawJson(body: unknown): RawJsonResponse {
 	return { type: "raw-json", body };
-	}
+}
 
-	/** Script an OpenAI chat tool-call response. Queue a final response after this. */
-	export function toolCall(
+/** Script an OpenAI chat tool-call response. Queue a final response after this. */
+export function toolCall(
 	name: string,
 	argumentsJson: Record<string, unknown>,
-	opts: { id?: string; usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number } } = {},
-	): RawJsonResponse {
+	opts: {
+		id?: string;
+		usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+	} = {},
+): RawJsonResponse {
 	const id = opts.id ?? `call_${name}`;
 	return rawJson({
 		id: "chatcmpl-mock-tool-0001",
@@ -60,9 +57,9 @@ export type {
 		],
 		usage: opts.usage ?? { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
 	});
-	}
+}
 
-	/** Start a mock OpenAI-compatible server on a random port. */
-	export async function createModelMock(opts?: ModelMockOptions): Promise<ModelMockServer> {
+/** Start a mock OpenAI-compatible server on a random port. */
+export async function createModelMock(opts?: ModelMockOptions): Promise<ModelMockServer> {
 	return new ModelMockServer(opts).start();
-	}
+}

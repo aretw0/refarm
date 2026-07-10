@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-	orderedScopeStorePaths,
-	resolveScopedStorePath,
-} from "./scope.js";
+import { orderedScopeStorePaths, resolveScopedStorePath } from "./scope.js";
 
 const OPTS = {
 	userHome: "/home/tester",
@@ -40,9 +37,7 @@ describe("@refarm.dev/storage-fs scope resolution", () => {
 	});
 
 	it("passes absolute paths through unchanged (opt-out of scope)", () => {
-		expect(resolveScopedStorePath("user", "/etc/refarm/x.json", OPTS)).toBe(
-			"/etc/refarm/x.json",
-		);
+		expect(resolveScopedStorePath("user", "/etc/refarm/x.json", OPTS)).toBe("/etc/refarm/x.json");
 	});
 
 	it("honours a custom ledger dir name", () => {
@@ -64,10 +59,7 @@ describe("@refarm.dev/storage-fs scope resolution", () => {
 	});
 
 	it("includes org as the lowest-precedence layer only when orgRoot is supplied", () => {
-		const ordered = orderedScopeStorePaths(
-			"config/overrides.json",
-			ORG_OPTS,
-		);
+		const ordered = orderedScopeStorePaths("config/overrides.json", ORG_OPTS);
 		expect(ordered.map((s) => s.scope)).toEqual(["org", "workspace", "user"]);
 		expect(ordered.map((s) => s.path)).toEqual([
 			"/mnt/refarm-org/acme/.refarm/config/overrides.json",

@@ -14,11 +14,7 @@ export interface FetchTimeoutOptions {
 }
 
 function isValidTimeoutMs(timeoutMs: unknown): timeoutMs is number {
-	return (
-		typeof timeoutMs === "number" &&
-		Number.isFinite(timeoutMs) &&
-		timeoutMs >= 0
-	);
+	return typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs >= 0;
 }
 
 export function resolveRequestTimeoutMs(
@@ -53,10 +49,7 @@ export async function fetchWithTimeout(
 	init: RequestInit = {},
 	options: FetchTimeoutOptions = {},
 ): Promise<Response> {
-	const timeoutMs = resolveRequestTimeoutMs(
-		options.env ?? process.env,
-		options,
-	);
+	const timeoutMs = resolveRequestTimeoutMs(options.env ?? process.env, options);
 
 	const fetchImpl = options.fetch ?? ((...args) => fetch(...args));
 	const controller = new AbortController();

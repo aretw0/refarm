@@ -1,7 +1,4 @@
-export {
-	NodeFsStorageProvider,
-	createNodeFsStorageProvider,
-} from "./node-fs.provider.js";
+export { NodeFsStorageProvider, createNodeFsStorageProvider } from "./node-fs.provider.js";
 export {
 	type LedgerScope,
 	type ScopeResolutionOptions,

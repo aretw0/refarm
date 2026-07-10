@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-	probeRuntimeLiveness,
-	probeRuntimeReadiness,
-	probeRuntimeReady,
-} from "./readiness.js";
+import { probeRuntimeLiveness, probeRuntimeReadiness, probeRuntimeReady } from "./readiness.js";
 
 const SIDECAR = "http://127.0.0.1:42001";
 

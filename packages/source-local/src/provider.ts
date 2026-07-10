@@ -66,10 +66,7 @@ export function createLocalSourceProvider(
 		return { kind: "local", path: parseLocalRef(ref, cwd) };
 	}
 
-	async function materialize(
-		ref: string,
-		_opts?: MaterializeOptions,
-	): Promise<MaterializeResult> {
+	async function materialize(ref: string, _opts?: MaterializeOptions): Promise<MaterializeResult> {
 		const location = resolveLocation(ref);
 		if (!existsSync(location.path)) {
 			throw new Error(`NOT_MATERIALIZED: local source path does not exist: ${location.path}`);

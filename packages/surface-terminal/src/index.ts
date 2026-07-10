@@ -15,9 +15,4 @@ export {
 	type CapabilityHooksResolver,
 	type CapabilitySurfaceHooks,
 } from "./cli-projector.js";
-export {
-	runTui,
-	createReadlineTuiIo,
-	type TuiIo,
-	type RunTuiOptions,
-} from "./tui-runtime.js";
+export { runTui, createReadlineTuiIo, type TuiIo, type RunTuiOptions } from "./tui-runtime.js";

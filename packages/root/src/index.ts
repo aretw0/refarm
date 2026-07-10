@@ -10,15 +10,18 @@ export {
  *  Localhost ports may not be reachable from the host browser. */
 export function isContainer(): boolean {
 	if (existsSync("/.dockerenv")) return true;
-	if (process.env["REMOTE_CONTAINERS"] || process.env["VSCODE_REMOTE_CONTAINERS_SESSION"]) return true;
+	if (process.env["REMOTE_CONTAINERS"] || process.env["VSCODE_REMOTE_CONTAINERS_SESSION"])
+		return true;
 	if (process.env["CODESPACES"]) return true;
 	return false;
 }
 
 /** True when running inside WSL1 or WSL2 (Windows Subsystem for Linux). */
 export function isWsl(): boolean {
-	return process.platform === "linux" &&
-		(process.env["WSL_DISTRO_NAME"] !== undefined || process.env["WSL_INTEROP"] !== undefined);
+	return (
+		process.platform === "linux" &&
+		(process.env["WSL_DISTRO_NAME"] !== undefined || process.env["WSL_INTEROP"] !== undefined)
+	);
 }
 
 /** True when a standard CI environment variable is detected. */

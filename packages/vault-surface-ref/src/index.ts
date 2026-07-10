@@ -77,11 +77,7 @@ export interface SurfaceResult {
 }
 
 export interface ReferenceVaultSurface {
-	run(
-		verb: string,
-		note: SurfaceNote,
-		profile: SurfaceProfile,
-	): SurfaceResult;
+	run(verb: string, note: SurfaceNote, profile: SurfaceProfile): SurfaceResult;
 }
 
 /**
@@ -186,9 +182,7 @@ export async function loadVaultPluginComponent(options: {
 }
 
 /** Instantiate the BUNDLED vault integration plugin with a host bridge. */
-export function createVaultPluginComponent(
-	bridge: TractorBridge,
-): Promise<IntegrationPlugin> {
+export function createVaultPluginComponent(bridge: TractorBridge): Promise<IntegrationPlugin> {
 	return loadVaultPluginComponent({
 		pkgDir: bundledPluginPkgDir,
 		entry: "vault_plugin.js",

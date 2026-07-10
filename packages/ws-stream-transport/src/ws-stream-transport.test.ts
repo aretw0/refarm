@@ -47,9 +47,7 @@ describe("WsStreamTransport — WebSocket protocol", () => {
 		});
 		await new Promise((resolve) => setTimeout(resolve, 30));
 
-		expect(received.some((message) => message.includes('"content":"hello"'))).toBe(
-			true,
-		);
+		expect(received.some((message) => message.includes('"content":"hello"'))).toBe(true);
 		ws.close();
 		await new Promise<void>((resolve) => server.close(() => resolve()));
 	});
@@ -104,9 +102,7 @@ describe("WsStreamTransport — WebSocket protocol", () => {
 		ws.send(JSON.stringify({ action: "subscribe", stream_ref: "ws-ref3" }));
 		await new Promise((resolve) => setTimeout(resolve, 30));
 
-		expect(received.some((message) => message.includes('"content":"past"'))).toBe(
-			true,
-		);
+		expect(received.some((message) => message.includes('"content":"past"'))).toBe(true);
 		ws.close();
 		await new Promise<void>((resolve) => server.close(() => resolve()));
 	});

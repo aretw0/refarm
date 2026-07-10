@@ -83,7 +83,8 @@ function numberItems(registry: CapabilityRegistry): NumberedItem[] {
 /** The `renderers.tui` shortcut for an item, if it declared one. */
 function shortcutOf(item: SurfaceItem): string | undefined {
 	const tui = item.surfaces.tui;
-	const shortcut = tui && typeof tui === "object" ? (tui as { shortcut?: unknown }).shortcut : undefined;
+	const shortcut =
+		tui && typeof tui === "object" ? (tui as { shortcut?: unknown }).shortcut : undefined;
 	return typeof shortcut === "string" && shortcut.length > 0 ? shortcut : undefined;
 }
 
@@ -98,7 +99,9 @@ function renderMenu(numbered: NumberedItem[], write: (line: string) => void): vo
 		}
 		const shortcut = shortcutOf(item);
 		const hint = shortcut ? chalk.dim(` (${shortcut})`) : "";
-		write(`  ${chalk.yellow(String(index).padStart(2))}  ${item.name}${hint}  ${chalk.dim(item.summary)}`);
+		write(
+			`  ${chalk.yellow(String(index).padStart(2))}  ${item.name}${hint}  ${chalk.dim(item.summary)}`,
+		);
 	}
 	write("");
 	write(chalk.dim("  Enter a number, a verb name, or 'q' to quit."));
@@ -163,7 +166,10 @@ function registryInvoke(
  * invokes verbs, and renders their envelopes until the user quits. Resolves when
  * the loop ends (a normal exit).
  */
-export async function runTui(registry: CapabilityRegistry, options: RunTuiOptions = {}): Promise<void> {
+export async function runTui(
+	registry: CapabilityRegistry,
+	options: RunTuiOptions = {},
+): Promise<void> {
 	const io = options.io ?? createReadlineTuiIo();
 	const invoke = options.invoke ?? registryInvoke(registry);
 	const title = options.title ?? "Capabilities";

@@ -42,9 +42,7 @@ export class ModelMockServer {
 	}
 
 	async start(): Promise<this> {
-		await new Promise<void>((resolve) =>
-			this.server.listen(0, "127.0.0.1", resolve),
-		);
+		await new Promise<void>((resolve) => this.server.listen(0, "127.0.0.1", resolve));
 		return this;
 	}
 

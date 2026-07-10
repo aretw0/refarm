@@ -34,10 +34,7 @@ import {
  * `message` nor `error`. Call it after the case's own `if (ok === false)` guard
  * so the happy path keeps its narrowing.
  */
-export function renderCapabilityError(
-	envelope: CapabilityEnvelope,
-	label: string,
-): string {
+export function renderCapabilityError(envelope: CapabilityEnvelope, label: string): string {
 	const e = envelope as { message?: string; error?: string };
 	return chalk.red(`✗  ${e.message ?? e.error ?? label}`);
 }
@@ -130,11 +127,7 @@ export function toCommanderCommand(
 			printJson(envelope);
 		}
 
-		const code = hooks.exitCode
-			? hooks.exitCode(envelope)
-			: envelope.ok === false
-				? 1
-				: 0;
+		const code = hooks.exitCode ? hooks.exitCode(envelope) : envelope.ok === false ? 1 : 0;
 		if (code !== 0) process.exitCode = code;
 		void command;
 	});
@@ -198,11 +191,7 @@ export function toCommanderGroup(
 				} else {
 					printJson(envelope);
 				}
-				const code = hooks.exitCode
-					? hooks.exitCode(envelope)
-					: envelope.ok === false
-						? 1
-						: 0;
+				const code = hooks.exitCode ? hooks.exitCode(envelope) : envelope.ok === false ? 1 : 0;
 				if (code !== 0) process.exitCode = code;
 				void cmd;
 			});
@@ -221,9 +210,7 @@ export function capabilityToCliCommand(
 	hooksFor: CapabilityHooksResolver,
 ): Command {
 	if (isCapabilityGroup(entry)) {
-		return toCommanderGroup(entry, (subVerb) =>
-			hooksFor(`${entry.name} ${subVerb}`),
-		);
+		return toCommanderGroup(entry, (subVerb) => hooksFor(`${entry.name} ${subVerb}`));
 	}
 	return toCommanderCommand(entry, hooksFor(entry.name));
 }
@@ -245,8 +232,7 @@ export function capabilityCliCommands(
 	return entries
 		.filter(
 			(entry) =>
-				entry.transports?.cli?.group === undefined ||
-				entry.transports?.cli?.directAlias === true,
+				entry.transports?.cli?.group === undefined || entry.transports?.cli?.directAlias === true,
 		)
 		.map((entry) => capabilityToCliCommand(entry, hooksFor));
 }
@@ -280,9 +266,7 @@ function buildCapabilityInput(
 		// commander stores a hyphenated flag (`--include-secrets`) under its
 		// camelCased key (`includeSecrets`), but the descriptor addresses it by the
 		// raw name. Look up both so a multi-word option actually reaches run().
-		const value =
-			commanderOptions[option.name] ??
-			commanderOptions[camelCaseFlag(option.name)];
+		const value = commanderOptions[option.name] ?? commanderOptions[camelCaseFlag(option.name)];
 		if (value !== undefined) {
 			options[option.name] = value as string | string[] | boolean;
 		}

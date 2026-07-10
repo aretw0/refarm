@@ -1,27 +1,16 @@
-import type {
-	ManagedResourceRequirement,
-	ManagedServicePlan,
-} from "@refarm.dev/infra-contract-v1";
-import {
-	DEFAULT_RETENTION_POLICY,
-	type RetentionPolicy,
-} from "@refarm.dev/policy-contract-v1";
+import type { ManagedResourceRequirement, ManagedServicePlan } from "@refarm.dev/infra-contract-v1";
+import { DEFAULT_RETENTION_POLICY, type RetentionPolicy } from "@refarm.dev/policy-contract-v1";
 import { turboCacheManifest } from "./manifest.js";
 
-export type TurboCacheRequirementKind =
-	| "artifact-storage"
-	| "http-endpoint"
-	| "bearer-auth";
+export type TurboCacheRequirementKind = "artifact-storage" | "http-endpoint" | "bearer-auth";
 
-export type TurboCacheRequirement =
-	ManagedResourceRequirement<TurboCacheRequirementKind>;
+export type TurboCacheRequirement = ManagedResourceRequirement<TurboCacheRequirementKind>;
 
-export interface TurboCacheServicePlan
-	extends ManagedServicePlan<
-		"turbo-cache",
-		TurboCacheRequirement,
-		(typeof turboCacheManifest.ciSecrets)[number]
-	> {
+export interface TurboCacheServicePlan extends ManagedServicePlan<
+	"turbo-cache",
+	TurboCacheRequirement,
+	(typeof turboCacheManifest.ciSecrets)[number]
+> {
 	readonly team: string;
 	readonly retention: RetentionPolicy;
 	readonly ciSecrets: typeof turboCacheManifest.ciSecrets;
@@ -62,8 +51,7 @@ export function createTurboCacheServicePlan(
 			{
 				kind: "bearer-auth",
 				name: "cache-auth-token",
-				description:
-					"Bearer token required by CI clients that read/write cache artifacts",
+				description: "Bearer token required by CI clients that read/write cache artifacts",
 				secret: true,
 			},
 		],

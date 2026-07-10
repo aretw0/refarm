@@ -1,8 +1,5 @@
 import type { NormalisedNode } from "@refarm.dev/node-contract-v1";
-import type {
-	PressureSnapshot,
-	PressureWindow,
-} from "@refarm.dev/pressure-contract-v1";
+import type { PressureSnapshot, PressureWindow } from "@refarm.dev/pressure-contract-v1";
 import { fetchWithTimeout, resolveRequestTimeoutMs } from "@refarm.dev/root";
 
 const SIDECAR_REQUEST_TIMEOUT_ENV_VAR = "REFARM_SIDE_REQUEST_TIMEOUT_MS";
@@ -12,10 +9,7 @@ export type SidecarGraphNode = NormalisedNode;
 
 export interface SidecarGraphClient {
 	getNode(id: string): Promise<SidecarGraphNode | null>;
-	queryNodes(
-		type: string,
-		options?: QueryGraphNodesOptions,
-	): Promise<SidecarGraphNode[]>;
+	queryNodes(type: string, options?: QueryGraphNodesOptions): Promise<SidecarGraphNode[]>;
 }
 
 export interface PressureClient {
@@ -99,11 +93,13 @@ export function createSidecarGraphClient(
 			queryOptions: QueryGraphNodesOptions = {},
 		): Promise<SidecarGraphNode[]> {
 			const limit = queryOptions.limit ?? 100;
-			const body = asObject(await fetchSidecarJson(
-				`${base}/nodes?type=${encodeURIComponent(type)}&limit=${limit}`,
-				{},
-				{ ...options, errorLabel: "sidecar graph HTTP" },
-			));
+			const body = asObject(
+				await fetchSidecarJson(
+					`${base}/nodes?type=${encodeURIComponent(type)}&limit=${limit}`,
+					{},
+					{ ...options, errorLabel: "sidecar graph HTTP" },
+				),
+			);
 			const nodes = Array.isArray(body?.nodes) ? body.nodes : null;
 			if (!nodes) throw new Error("sidecar graph response missing nodes");
 			return nodes.map((node) => {
@@ -164,9 +160,7 @@ function asSidecarGraphNode(value: unknown): SidecarGraphNode | null {
 	const hasContext =
 		typeof context === "string" ||
 		(context !== null && typeof context === "object" && !Array.isArray(context));
-	return hasContext &&
-		typeof node["@id"] === "string" &&
-		typeof node["@type"] === "string"
+	return hasContext && typeof node["@id"] === "string" && typeof node["@type"] === "string"
 		? (node as SidecarGraphNode)
 		: null;
 }

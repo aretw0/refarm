@@ -4,17 +4,10 @@ import {
 	ThemeRegistry,
 	type ThemeRegistrationResult,
 } from "@refarm.dev/ds";
-import {
-	getExtensionSurfaces,
-	type PluginManifest,
-} from "@refarm.dev/plugin-manifest";
-import {
-	parseSkillMarkdown,
-	type SkillSourceRef,
-} from "@refarm.dev/skill-contract-v1";
+import { getExtensionSurfaces, type PluginManifest } from "@refarm.dev/plugin-manifest";
+import { parseSkillMarkdown, type SkillSourceRef } from "@refarm.dev/skill-contract-v1";
 
-export const PLUGIN_SURFACE_LOADER_CAPABILITY =
-	"plugin-surface-loader:v1" as const;
+export const PLUGIN_SURFACE_LOADER_CAPABILITY = "plugin-surface-loader:v1" as const;
 
 /**
  * Loads the extension surfaces a plugin declares in its manifest into the host
@@ -55,9 +48,7 @@ export function loadThemesFromManifest(
 	return {
 		results,
 		registered: results.filter((r) => r.ok).map((r) => r.id),
-		rejected: results
-			.filter((r) => !r.ok)
-			.map((r) => ({ id: r.id, missing: r.missing })),
+		rejected: results.filter((r) => !r.ok).map((r) => ({ id: r.id, missing: r.missing })),
 	};
 }
 
@@ -138,9 +129,7 @@ export function loadSkillsFromManifest(
 		if (!parsed.ok || !parsed.manifest) {
 			rejected.push({
 				surfaceId: surface.id,
-				issues: parsed.issues.map(
-					(issue) => `${issue.code}: ${issue.message}`,
-				),
+				issues: parsed.issues.map((issue) => `${issue.code}: ${issue.message}`),
 			});
 			continue;
 		}
@@ -188,9 +177,7 @@ export interface LoadCheckersResult {
  * throwing. `kind` and `assets` are already open in the plugin-manifest schema,
  * so a checker surface needs no schema change.
  */
-export function loadCheckersFromManifest(
-	manifest: PluginManifest,
-): LoadCheckersResult {
+export function loadCheckersFromManifest(manifest: PluginManifest): LoadCheckersResult {
 	const loaded: DiscoveredChecker[] = [];
 	const rejected: { surfaceId: string; issues: string[] }[] = [];
 
@@ -200,9 +187,7 @@ export function loadCheckersFromManifest(
 		if (!entryAsset) {
 			rejected.push({
 				surfaceId: surface.id,
-				issues: [
-					"quality-checker surface declares no component entry asset",
-				],
+				issues: ["quality-checker surface declares no component entry asset"],
 			});
 			continue;
 		}
@@ -344,10 +329,7 @@ const FRONTMATTER_NAME_LINE = /^name\s*:/m;
  * valid FORM, and any completeness nudge is a policy evaluator's job, not this
  * translator's.
  */
-export function translateAgentSkill(
-	source: string,
-	dirName: string,
-): AgentSkillTranslation {
+export function translateAgentSkill(source: string, dirName: string): AgentSkillTranslation {
 	// 1. Normalize newlines: CRLF → LF, and strip leading blank lines/whitespace
 	// so the frontmatter fence lands at position 0 as `---\n`.
 	const lf = source.replace(/\r\n/g, "\n").replace(/\r/g, "\n");

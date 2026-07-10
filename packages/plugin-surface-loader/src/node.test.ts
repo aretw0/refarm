@@ -59,19 +59,13 @@ function writePlugin(
 					layer: "pi",
 					kind: "skill",
 					id: skill.id,
-					...(skill.capabilities
-						? { capabilities: skill.capabilities }
-						: {}),
+					...(skill.capabilities ? { capabilities: skill.capabilities } : {}),
 					assets: [skill.asset],
 				},
 			],
 		},
 	});
-	writeFileSync(
-		join(pluginDir, "plugin.json"),
-		JSON.stringify(manifest, null, 2),
-		"utf-8",
-	);
+	writeFileSync(join(pluginDir, "plugin.json"), JSON.stringify(manifest, null, 2), "utf-8");
 }
 
 describe("plugin-surface-loader/node — fs enumeration", () => {
@@ -199,11 +193,7 @@ describe("plugin-surface-loader/node — fs enumeration", () => {
 				],
 			},
 		});
-		writeFileSync(
-			join(pluginDir, "plugin.json"),
-			JSON.stringify(manifest, null, 2),
-			"utf-8",
-		);
+		writeFileSync(join(pluginDir, "plugin.json"), JSON.stringify(manifest, null, 2), "utf-8");
 
 		const { checkers, rejected } = loadCheckersFromPluginsDir(pluginsDir);
 		expect(rejected).toEqual([]);
@@ -219,8 +209,7 @@ describe("plugin-surface-loader/node — fs enumeration", () => {
 
 describe("translateAgentSkill (Agent Skill → refarm-acceptable)", () => {
 	it("leaves a well-formed LF+named skill untouched", () => {
-		const clean =
-			"---\nname: commit\ndescription: Read this before committing\n---\n\nBody.\n";
+		const clean = "---\nname: commit\ndescription: Read this before committing\n---\n\nBody.\n";
 		const t = translateAgentSkill(clean, "commit");
 		expect(t.source).toBe(clean);
 		expect(t.nameInjected).toBe(false);
@@ -318,16 +307,10 @@ function writeThemePlugin(
 	const manifest = createMockManifest({
 		id: `@refarm.dev/${pluginId}`,
 		extensions: {
-			surfaces: [
-				{ layer: "asset", kind: "theme-pack", id: theme.id, assets: [theme.asset] },
-			],
+			surfaces: [{ layer: "asset", kind: "theme-pack", id: theme.id, assets: [theme.asset] }],
 		},
 	});
-	writeFileSync(
-		join(pluginDir, "plugin.json"),
-		JSON.stringify(manifest, null, 2),
-		"utf-8",
-	);
+	writeFileSync(join(pluginDir, "plugin.json"), JSON.stringify(manifest, null, 2), "utf-8");
 }
 
 function completeTokens(): Record<string, string> {

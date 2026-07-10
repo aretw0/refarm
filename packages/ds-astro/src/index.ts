@@ -4,12 +4,7 @@ export const dsAstroCssImports = [
 	"@refarm.dev/ds/components.css",
 ] as const;
 
-export const dsAstroComponents = [
-	"Card",
-	"MetricStrip",
-	"CalloutSection",
-	"ContentList",
-] as const;
+export const dsAstroComponents = ["Card", "MetricStrip", "CalloutSection", "ContentList"] as const;
 
 export type DsAstroComponentName = (typeof dsAstroComponents)[number];
 

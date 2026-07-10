@@ -1,13 +1,7 @@
 export const CHANNEL_POLICY_CAPABILITY = "channel-policy:v1" as const;
-export const CHANNEL_DELIVERY_ENVELOPE_SCHEMA =
-	"refarm.channel-delivery-envelope.v1" as const;
+export const CHANNEL_DELIVERY_ENVELOPE_SCHEMA = "refarm.channel-delivery-envelope.v1" as const;
 
-export const CHANNEL_REVIEW_STATES = [
-	"not-required",
-	"pending",
-	"approved",
-	"rejected",
-] as const;
+export const CHANNEL_REVIEW_STATES = ["not-required", "pending", "approved", "rejected"] as const;
 
 export const CHANNEL_DELIVERY_STATUSES = [
 	"queued",
@@ -126,26 +120,24 @@ export function buildChannelIdempotencyKey(input: {
 	readonly logicalKey?: string;
 }): string {
 	const logical = input.logicalKey ? `:${encodePart(input.logicalKey)}` : "";
-	return [
-		"channel-delivery",
-		encodePart(input.channelId),
-		encodePart(input.destinationId),
-		input.contentHash.algorithm,
-		input.contentHash.value,
-	].join(":") + logical;
+	return (
+		[
+			"channel-delivery",
+			encodePart(input.channelId),
+			encodePart(input.destinationId),
+			input.contentHash.algorithm,
+			input.contentHash.value,
+		].join(":") + logical
+	);
 }
 
-export function validateChannelDeliveryEnvelope(
-	value: unknown,
-): ChannelPolicyValidationResult {
+export function validateChannelDeliveryEnvelope(value: unknown): ChannelPolicyValidationResult {
 	const issues: ChannelPolicyValidationIssue[] = [];
 	validateEnvelope(value, "$", issues);
 	return { ok: issues.length === 0, issues };
 }
 
-export function isChannelDeliveryEnvelope(
-	value: unknown,
-): value is ChannelDeliveryEnvelope {
+export function isChannelDeliveryEnvelope(value: unknown): value is ChannelDeliveryEnvelope {
 	return validateChannelDeliveryEnvelope(value).ok;
 }
 
@@ -161,11 +153,7 @@ function isNonEmptyString(value: unknown): value is string {
 	return typeof value === "string" && value.length > 0;
 }
 
-function requireString(
-	value: unknown,
-	path: string,
-	issues: ChannelPolicyValidationIssue[],
-): void {
+function requireString(value: unknown, path: string, issues: ChannelPolicyValidationIssue[]): void {
 	if (!isNonEmptyString(value)) {
 		issues.push({ path, message: "Expected a non-empty string." });
 	}
@@ -180,9 +168,7 @@ function validateStringArray(
 		issues.push({ path, message: "Expected an array." });
 		return;
 	}
-	value.forEach((item, index) =>
-		requireString(item, `${path}.${index}`, issues),
-	);
+	value.forEach((item, index) => requireString(item, `${path}.${index}`, issues));
 }
 
 function validateNonNegativeInteger(
@@ -205,11 +191,7 @@ function validatePositiveInteger(
 	}
 }
 
-function validateHash(
-	value: unknown,
-	path: string,
-	issues: ChannelPolicyValidationIssue[],
-): void {
+function validateHash(value: unknown, path: string, issues: ChannelPolicyValidationIssue[]): void {
 	if (!isRecord(value)) {
 		issues.push({ path, message: "Expected a content hash object." });
 		return;
@@ -284,11 +266,7 @@ function validateRateLimitPolicy(
 			return;
 		}
 		validatePositiveInteger(window.limit, `${windowPath}.limit`, issues);
-		validatePositiveInteger(
-			window.intervalSeconds,
-			`${windowPath}.intervalSeconds`,
-			issues,
-		);
+		validatePositiveInteger(window.intervalSeconds, `${windowPath}.intervalSeconds`, issues);
 		if (window.burst !== undefined) {
 			validateNonNegativeInteger(window.burst, `${windowPath}.burst`, issues);
 		}
@@ -339,11 +317,7 @@ function validateRateLimitEvidence(
 		requireString(value.resetAt, `${path}.resetAt`, issues);
 	}
 	if (value.retryAfterSeconds !== undefined) {
-		validateNonNegativeInteger(
-			value.retryAfterSeconds,
-			`${path}.retryAfterSeconds`,
-			issues,
-		);
+		validateNonNegativeInteger(value.retryAfterSeconds, `${path}.retryAfterSeconds`, issues);
 	}
 }
 
@@ -365,11 +339,7 @@ function validateDeliveryItem(
 	requireString(value.createdAt, `${path}.createdAt`, issues);
 	validateReviewGate(value.review, `${path}.review`, issues);
 	if (value.rateLimitPolicy !== undefined) {
-		validateRateLimitPolicy(
-			value.rateLimitPolicy,
-			`${path}.rateLimitPolicy`,
-			issues,
-		);
+		validateRateLimitPolicy(value.rateLimitPolicy, `${path}.rateLimitPolicy`, issues);
 	}
 	if (value.labels !== undefined) {
 		validateStringArray(value.labels, `${path}.labels`, issues);
@@ -394,10 +364,7 @@ function validateDryRun(
 		issues.push({ path: `${path}.ok`, message: "Expected a boolean." });
 	}
 	requireString(value.checkedAt, `${path}.checkedAt`, issues);
-	if (
-		!isNonEmptyString(value.reviewState) ||
-		!REVIEW_STATE_SET.has(value.reviewState)
-	) {
+	if (!isNonEmptyString(value.reviewState) || !REVIEW_STATE_SET.has(value.reviewState)) {
 		issues.push({
 			path: `${path}.reviewState`,
 			message: "Expected a valid review state.",
@@ -439,11 +406,7 @@ function validateReceipt(
 		requireString(value.providerStatus, `${path}.providerStatus`, issues);
 	}
 	if (value.retryAfterSeconds !== undefined) {
-		validateNonNegativeInteger(
-			value.retryAfterSeconds,
-			`${path}.retryAfterSeconds`,
-			issues,
-		);
+		validateNonNegativeInteger(value.retryAfterSeconds, `${path}.retryAfterSeconds`, issues);
 	}
 	if (value.error !== undefined) {
 		requireString(value.error, `${path}.error`, issues);
@@ -501,12 +464,7 @@ function validateEnvelope(
 			issues.push({ path: `${path}.receipts`, message: "Expected an array." });
 		} else {
 			value.receipts.forEach((receipt, index) =>
-				validateReceipt(
-					receipt,
-					`${path}.receipts.${index}`,
-					issues,
-					deliveryIds,
-				),
+				validateReceipt(receipt, `${path}.receipts.${index}`, issues, deliveryIds),
 			);
 		}
 	}

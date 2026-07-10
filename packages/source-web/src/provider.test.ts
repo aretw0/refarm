@@ -81,7 +81,9 @@ describe("source-web provider", () => {
 			},
 		});
 
-		const result = await provider.materialize("https://docs.example/refarm/requirements", { offline: true });
+		const result = await provider.materialize("https://docs.example/refarm/requirements", {
+			offline: true,
+		});
 
 		expect(result.web.egress).toEqual({
 			enforced: true,

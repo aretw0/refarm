@@ -8,8 +8,16 @@ const mockExists = vi.mocked(existsSync);
 
 afterEach(() => {
 	vi.clearAllMocks();
-	for (const k of ["WSL_DISTRO_NAME", "WSL_INTEROP", "REMOTE_CONTAINERS",
-		"VSCODE_REMOTE_CONTAINERS_SESSION", "CODESPACES", "CI", "GITHUB_ACTIONS", "CIRCLECI"]) {
+	for (const k of [
+		"WSL_DISTRO_NAME",
+		"WSL_INTEROP",
+		"REMOTE_CONTAINERS",
+		"VSCODE_REMOTE_CONTAINERS_SESSION",
+		"CODESPACES",
+		"CI",
+		"GITHUB_ACTIONS",
+		"CIRCLECI",
+	]) {
 		delete process.env[k];
 	}
 });

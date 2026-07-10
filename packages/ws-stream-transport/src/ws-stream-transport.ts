@@ -40,7 +40,7 @@ export class WsStreamTransport implements StreamTransportAdapter {
 
 					const replaySource = this.fileTransport
 						? this.fileTransport.replay(stream_ref)
-						: this.stored.get(stream_ref) ?? [];
+						: (this.stored.get(stream_ref) ?? []);
 					for (const chunk of replaySource) {
 						ws.send(JSON.stringify(chunk));
 					}
@@ -79,13 +79,10 @@ export class WsStreamTransport implements StreamTransportAdapter {
 		}
 	}
 
-	subscribe(
-		stream_ref: string,
-		onChunk: (chunk: StreamChunk) => void,
-	): () => void {
+	subscribe(stream_ref: string, onChunk: (chunk: StreamChunk) => void): () => void {
 		const replaySource = this.fileTransport
 			? this.fileTransport.replay(stream_ref)
-			: this.stored.get(stream_ref) ?? [];
+			: (this.stored.get(stream_ref) ?? []);
 		for (const chunk of replaySource) {
 			onChunk(chunk);
 		}

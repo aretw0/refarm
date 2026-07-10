@@ -3,7 +3,7 @@
  * Stub reconstruction.
  */
 export class FenceCore {
-    async audit() {
-        return [];
-    }
+	async audit() {
+		return [];
+	}
 }

@@ -3,10 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const packageRoot = path.resolve(
-	path.dirname(fileURLToPath(import.meta.url)),
-	"..",
-);
+const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("@refarm.dev/operator-state boundary", () => {
 	it("does not import app, runtime, CLI, filesystem, HTTP, or renderer code", () => {

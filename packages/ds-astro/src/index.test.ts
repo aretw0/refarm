@@ -1,10 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import {
-	dsAstroComponents,
-	dsAstroCssImports,
-	mdxComponents,
-} from "./index.js";
+import { dsAstroComponents, dsAstroCssImports, mdxComponents } from "./index.js";
 
 const componentFiles = {
 	Card: "Card.astro",
@@ -19,12 +15,7 @@ function readComponent(name: keyof typeof componentFiles): string {
 
 describe("ds-astro package contract", () => {
 	it("exports stable MDX component subpaths", () => {
-		expect(dsAstroComponents).toEqual([
-			"Card",
-			"MetricStrip",
-			"CalloutSection",
-			"ContentList",
-		]);
+		expect(dsAstroComponents).toEqual(["Card", "MetricStrip", "CalloutSection", "ContentList"]);
 		expect(mdxComponents).toEqual({
 			Card: "@refarm.dev/ds-astro/Card.astro",
 			MetricStrip: "@refarm.dev/ds-astro/MetricStrip.astro",
@@ -58,17 +49,8 @@ describe("ds-astro package contract", () => {
 	});
 
 	it("keeps the package product neutral and app independent", () => {
-		const packageJson = readFileSync(
-			new URL("../package.json", import.meta.url),
-			"utf-8",
-		);
-		for (const forbidden of [
-			"vault-seed",
-			"dgk",
-			"homestead",
-			"apps/site",
-			"apps/refarm",
-		]) {
+		const packageJson = readFileSync(new URL("../package.json", import.meta.url), "utf-8");
+		for (const forbidden of ["vault-seed", "dgk", "homestead", "apps/site", "apps/refarm"]) {
 			expect(packageJson).not.toContain(forbidden);
 			for (const name of dsAstroComponents) {
 				expect(readComponent(name)).not.toContain(forbidden);

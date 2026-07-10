@@ -87,9 +87,7 @@ function denyAllWasiImports(): Any {
 }
 
 /** What a subject looks like to the reference checker (mirrors the WIT variant). */
-export type CheckerSubject =
-	| { tag: "text"; val: string }
-	| { tag: "dom"; val: string };
+export type CheckerSubject = { tag: "text"; val: string } | { tag: "dom"; val: string };
 
 export interface ReferenceChecker {
 	/** Inspect a subject against a profile; returns findings (pure compute). */

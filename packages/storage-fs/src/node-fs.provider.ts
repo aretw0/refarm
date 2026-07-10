@@ -87,16 +87,10 @@ function nextTempTicket(): number {
 
 function matchesQuery(record: StorageRecord, query: StorageQuery): boolean {
 	if (query.type !== undefined && record.type !== query.type) return false;
-	if (
-		query.createdAfter !== undefined &&
-		!(record.createdAt > query.createdAfter)
-	) {
+	if (query.createdAfter !== undefined && !(record.createdAt > query.createdAfter)) {
 		return false;
 	}
-	if (
-		query.createdBefore !== undefined &&
-		!(record.createdAt < query.createdBefore)
-	) {
+	if (query.createdBefore !== undefined && !(record.createdAt < query.createdBefore)) {
 		return false;
 	}
 	return true;

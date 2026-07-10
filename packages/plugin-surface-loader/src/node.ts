@@ -1,7 +1,4 @@
-import {
-	assertValidPluginManifest,
-	type PluginManifest,
-} from "@refarm.dev/plugin-manifest";
+import { assertValidPluginManifest, type PluginManifest } from "@refarm.dev/plugin-manifest";
 import { parseSkillMarkdown } from "@refarm.dev/skill-contract-v1";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
@@ -94,9 +91,7 @@ export interface DiscoverSkillsResult {
  * An unreadable manifest is recorded in `rejected`, never thrown — one broken
  * plugin must not hide every other plugin's skills.
  */
-export function loadSkillsFromPluginsDir(
-	pluginsDir: string,
-): DiscoverSkillsResult {
+export function loadSkillsFromPluginsDir(pluginsDir: string): DiscoverSkillsResult {
 	const skills: DiscoveredSkill[] = [];
 	const rejected: DiscoverSkillsResult["rejected"] = [];
 
@@ -117,10 +112,7 @@ export function loadSkillsFromPluginsDir(
 
 		const loadAsset = (assetPath: string): string =>
 			readFileSync(join(pluginDir, assetPath), "utf-8");
-		const result: LoadSkillsResult = loadSkillsFromManifest(
-			manifest,
-			loadAsset,
-		);
+		const result: LoadSkillsResult = loadSkillsFromManifest(manifest, loadAsset);
 
 		for (const skill of result.loaded) {
 			skills.push({ ...skill, pluginId: manifest.id, pluginDir });
@@ -163,9 +155,7 @@ export interface DiscoverCheckersResult {
  * this only LOCATES the component; loading + sandboxing (deny-all) is the host's
  * job, so a checker plugin cannot run anything just by being discovered.
  */
-export function loadCheckersFromPluginsDir(
-	pluginsDir: string,
-): DiscoverCheckersResult {
+export function loadCheckersFromPluginsDir(pluginsDir: string): DiscoverCheckersResult {
 	const checkers: DiscoveredCheckerComponent[] = [];
 	const rejected: DiscoverCheckersResult["rejected"] = [];
 
@@ -252,9 +242,7 @@ function findSkillMarkdownDirs(root: string): string[] {
  * plugin-extends-plugin recursion without the (unbuilt) live link. A malformed
  * skill is rejected, never thrown.
  */
-export function loadAgentSkillsFromDir(
-	skillsRoot: string,
-): ImportAgentSkillsResult {
+export function loadAgentSkillsFromDir(skillsRoot: string): ImportAgentSkillsResult {
 	const skills: ImportedAgentSkill[] = [];
 	const rejected: { skillDir: string; issues: string[] }[] = [];
 
@@ -409,9 +397,7 @@ export interface DiscoverProfilesResult {
  * safe plugin-contribution front; a malformed profile is recorded in `rejected`,
  * never thrown.
  */
-export function loadProfilesFromPluginsDir(
-	pluginsDir: string,
-): DiscoverProfilesResult {
+export function loadProfilesFromPluginsDir(pluginsDir: string): DiscoverProfilesResult {
 	const profiles: DiscoveredProfile[] = [];
 	const rejected: DiscoverProfilesResult["rejected"] = [];
 

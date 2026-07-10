@@ -47,10 +47,7 @@ export function quoteProcessHandoffArg(value: string): string {
 	return `'${value.replace(/'/g, "'\"'\"'")}'`;
 }
 
-export function createProcessHandoffDisplay(
-	command: string,
-	args: readonly string[] = [],
-): string {
+export function createProcessHandoffDisplay(command: string, args: readonly string[] = []): string {
 	return [command, ...args.map(quoteProcessHandoffArg)].join(" ");
 }
 
@@ -75,9 +72,7 @@ export function createProcessHandoffSpecFromRunner(
 		command,
 		args,
 		...(options.cwd ? { cwd: options.cwd } : {}),
-		...(options.packageManager !== undefined
-			? { packageManager: options.packageManager }
-			: {}),
+		...(options.packageManager !== undefined ? { packageManager: options.packageManager } : {}),
 		display: options.display ?? createProcessHandoffDisplay(command, args),
 	};
 }
@@ -150,9 +145,7 @@ export function runProcessHandoffSync(
 	};
 }
 
-export async function executeProcessHandoff(
-	spec: ProcessHandoffSpec,
-): Promise<number> {
+export async function executeProcessHandoff(spec: ProcessHandoffSpec): Promise<number> {
 	const result = await runProcessHandoff(spec);
 	return result.exitCode;
 }
@@ -204,7 +197,7 @@ function openProcessHandoffLog(logPath: string): number {
 function splitCommandLine(commandLine: string, label = "command line"): string[] {
 	const words: string[] = [];
 	let current = "";
-	let quote: "'" | "\"" | null = null;
+	let quote: "'" | '"' | null = null;
 	let escaping = false;
 
 	for (const char of commandLine.trim()) {
@@ -228,7 +221,7 @@ function splitCommandLine(commandLine: string, label = "command line"): string[]
 			continue;
 		}
 
-		if (char === "'" || char === "\"") {
+		if (char === "'" || char === '"') {
 			quote = char;
 			continue;
 		}

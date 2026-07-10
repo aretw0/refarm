@@ -8,15 +8,11 @@ import {
 } from "./index.js";
 
 function completeTheme(overrides: Partial<DsTheme> = {}): DsTheme {
-	const theme = Object.fromEntries(
-		REQUIRED_TOKENS.map((token) => [token, "#808080"]),
-	) as DsTheme;
+	const theme = Object.fromEntries(REQUIRED_TOKENS.map((token) => [token, "#808080"])) as DsTheme;
 	return { ...theme, ...overrides };
 }
 
-function manifestWithThemePacks(
-	surfaces: { id: string; assets: string[] }[],
-) {
+function manifestWithThemePacks(surfaces: { id: string; assets: string[] }[]) {
 	return createMockManifest({
 		extensions: {
 			surfaces: surfaces.map((s) => ({
@@ -46,9 +42,7 @@ describe("plugin-surface-loader", () => {
 	});
 
 	it("rejects a token-incomplete plugin theme and reports missing tokens", () => {
-		const manifest = manifestWithThemePacks([
-			{ id: "broken", assets: ["./themes/broken.json"] },
-		]);
+		const manifest = manifestWithThemePacks([{ id: "broken", assets: ["./themes/broken.json"] }]);
 		const result = loadThemesFromManifest(manifest, () => ({
 			theme: { primary: "#fff" },
 		}));
@@ -89,9 +83,7 @@ requiredCapabilities:
 Answer questions about open-source libraries.
 `;
 
-function manifestWithSkills(
-	skills: { id: string; assets: string[] }[],
-) {
+function manifestWithSkills(skills: { id: string; assets: string[] }[]) {
 	return createMockManifest({
 		extensions: {
 			surfaces: skills.map((s) => ({
@@ -128,9 +120,7 @@ describe("loadSkillsFromManifest", () => {
 	});
 
 	it("rejects a malformed SKILL.md with its parse issues", () => {
-		const manifest = manifestWithSkills([
-			{ id: "broken", assets: ["./skills/broken/SKILL.md"] },
-		]);
+		const manifest = manifestWithSkills([{ id: "broken", assets: ["./skills/broken/SKILL.md"] }]);
 		const result = loadSkillsFromManifest(manifest, () => "no frontmatter here");
 		expect(result.loaded).toEqual([]);
 		expect(result.rejected[0]?.surfaceId).toBe("broken");
@@ -138,9 +128,7 @@ describe("loadSkillsFromManifest", () => {
 	});
 
 	it("rejects a skill whose asset fails to load without crashing", () => {
-		const manifest = manifestWithSkills([
-			{ id: "missing", assets: ["./skills/missing/SKILL.md"] },
-		]);
+		const manifest = manifestWithSkills([{ id: "missing", assets: ["./skills/missing/SKILL.md"] }]);
 		const result = loadSkillsFromManifest(manifest, () => {
 			throw new Error("ENOENT");
 		});

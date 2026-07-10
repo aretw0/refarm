@@ -49,7 +49,9 @@ export function writeSseResponse(res: ServerResponse, response: SaysResponse): v
 		id: FAKE_ID,
 		object: "chat.completion.chunk",
 		model: MODEL_MOCK_DEFAULT_MODEL,
-		choices: [{ index: 0, delta: { role: "assistant", content: response.text }, finish_reason: null }],
+		choices: [
+			{ index: 0, delta: { role: "assistant", content: response.text }, finish_reason: null },
+		],
 	});
 	res.write(`data: ${delta}\n\n`);
 

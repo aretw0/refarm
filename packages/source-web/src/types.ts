@@ -1,7 +1,4 @@
-import type {
-	MaterializeResult,
-	SourceProvider,
-} from "@refarm.dev/source-contract-v1";
+import type { MaterializeResult, SourceProvider } from "@refarm.dev/source-contract-v1";
 
 export interface WebSourceSessionEvidence {
 	kind: "fixture" | "authenticated";

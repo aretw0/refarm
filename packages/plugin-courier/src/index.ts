@@ -1,50 +1,54 @@
 import type { RuntimeQueryTarget } from "@refarm.dev/runtime";
 
 export interface AntennaOptions {
-  fallbackRoute?: string;
-  enableEasterEggs?: boolean;
+	fallbackRoute?: string;
+	enableEasterEggs?: boolean;
 }
 
 export class AntennaPlugin {
-  private host: RuntimeQueryTarget;
-  private options: AntennaOptions;
+	private host: RuntimeQueryTarget;
+	private options: AntennaOptions;
 
-  constructor(host: RuntimeQueryTarget, options: AntennaOptions = {}) {
-    this.host = host;
-    this.options = { fallbackRoute: "/", enableEasterEggs: true, ...options };
-  }
+	constructor(host: RuntimeQueryTarget, options: AntennaOptions = {}) {
+		this.host = host;
+		this.options = { fallbackRoute: "/", enableEasterEggs: true, ...options };
+	}
 
-  public async handleRequest(req: Request): Promise<Response> {
-    const url = new URL(req.url);
-    const path = url.pathname;
+	public async handleRequest(req: Request): Promise<Response> {
+		const url = new URL(req.url);
+		const path = url.pathname;
 
-    if (this.options.enableEasterEggs && path === "/.well-known/sovereign-signal") {
-      return new Response(this.getEasterEggAscii(), {
-        status: 200,
-        headers: { "Content-Type": "text/plain" },
-      });
-    }
+		if (this.options.enableEasterEggs && path === "/.well-known/sovereign-signal") {
+			return new Response(this.getEasterEggAscii(), {
+				status: 200,
+				headers: { "Content-Type": "text/plain" },
+			});
+		}
 
-    try {
-      const nodes = await this.host.queryNodes(`SELECT * WHERE url = '${path}'`);
-      if (!nodes || nodes.length === 0) return new Response("404 - Not Found", { status: 404 });
-      
-      const html = await this.materializeHtml(nodes[0]!);
-      const headers = new Headers({ "Content-Type": "text/html" });
-      if (this.options.enableEasterEggs) headers.set("X-Broadcasted-By", "Refarm Antenna (The Sovereign Signal)");
+		try {
+			const nodes = await this.host.queryNodes(`SELECT * WHERE url = '${path}'`);
+			if (!nodes || nodes.length === 0) return new Response("404 - Not Found", { status: 404 });
 
-      return new Response(html, { status: 200, headers });
-    } catch (error) {
-      return new Response(`500 - Radio Failure: ${error instanceof Error ? error.message : String(error)}`, { status: 500 });
-    }
-  }
+			const html = await this.materializeHtml(nodes[0]!);
+			const headers = new Headers({ "Content-Type": "text/html" });
+			if (this.options.enableEasterEggs)
+				headers.set("X-Broadcasted-By", "Refarm Antenna (The Sovereign Signal)");
 
-  private async materializeHtml(node: Record<string, unknown>): Promise<string> {
-    return `<!DOCTYPE html><html><head><title>${node["name"]}</title></head><body><h1>${node["content"]}</h1></body></html>`;
-  }
+			return new Response(html, { status: 200, headers });
+		} catch (error) {
+			return new Response(
+				`500 - Radio Failure: ${error instanceof Error ? error.message : String(error)}`,
+				{ status: 500 },
+			);
+		}
+	}
 
-  private getEasterEggAscii(): string {
-    return `
+	private async materializeHtml(node: Record<string, unknown>): Promise<string> {
+		return `<!DOCTYPE html><html><head><title>${node["name"]}</title></head><body><h1>${node["content"]}</h1></body></html>`;
+	}
+
+	private getEasterEggAscii(): string {
+		return `
     .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
    .                                                       .
   .     (((((        R E F A R M   S O V E R E I G N       .
@@ -57,5 +61,5 @@ export class AntennaPlugin {
   .    /  |  \\                                             .
    .  ......................................................
     `;
-  }
+	}
 }

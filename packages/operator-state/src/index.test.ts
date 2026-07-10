@@ -74,11 +74,7 @@ describe("operator state model", () => {
 
 		expect(model.ok).toBe(false);
 		expect(model.nextCommand).toBe("refarm runtime ensure --wait --next-command");
-		expect(model.units.map((unit) => unit.id)).toEqual([
-			"runtime",
-			"model",
-			"health",
-		]);
+		expect(model.units.map((unit) => unit.id)).toEqual(["runtime", "model", "health"]);
 		expect(model.units[0]).toMatchObject({
 			id: "runtime",
 			owner: "apps/refarm",
@@ -112,8 +108,7 @@ describe("operator state model", () => {
 						{
 							diagnostic: "git_ignored",
 							issueType: "git_ignored",
-							target:
-								"packages/quality-checker-plugin/pkg-plugin/quality_plugin.js",
+							target: "packages/quality-checker-plugin/pkg-plugin/quality_plugin.js",
 							summary:
 								"packages/quality-checker-plugin/pkg-plugin/quality_plugin.js is ignored by Git.",
 							action:
@@ -385,13 +380,12 @@ describe("operator state model", () => {
 			[{ id: "open-wallet", label: "Open wallet" }],
 			"missing",
 		);
-		expect(missingRequest)
-			.toMatchObject({
-				ok: false,
-				reason: "missing-action",
-				nextCommand: null,
-				nextCommands: [],
-			});
+		expect(missingRequest).toMatchObject({
+			ok: false,
+			reason: "missing-action",
+			nextCommand: null,
+			nextCommands: [],
+		});
 		expect(missingRequest).not.toHaveProperty("selectedAction");
 	});
 
@@ -450,7 +444,8 @@ describe("operator state model", () => {
 			"wallet wallet-show --json",
 			"wallet records correct record:cred-assinatura verified --apply",
 		]);
-		expect(formatBaseSurfaceModelText(model, { title: "wallet base status" }))
-			.toContain("Wallet: Wallet has 3 held items; 1 item needs review.");
+		expect(formatBaseSurfaceModelText(model, { title: "wallet base status" })).toContain(
+			"Wallet: Wallet has 3 held items; 1 item needs review.",
+		);
 	});
 });

@@ -3,7 +3,7 @@
  * Stub reconstruction.
  */
 export class ThresherCore {
-    async audit() {
-        return [];
-    }
+	async audit() {
+		return [];
+	}
 }

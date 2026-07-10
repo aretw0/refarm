@@ -15,12 +15,7 @@ export interface RuntimePluginInstance {
 	call(fn: string, args?: unknown): Promise<unknown>;
 }
 
-export type RuntimePluginState =
-	| "idle"
-	| "running"
-	| "hot"
-	| "throttled"
-	| "error";
+export type RuntimePluginState = "idle" | "running" | "hot" | "throttled" | "error";
 
 export interface RuntimePluginHandle extends RuntimePluginInstance {
 	id: string;

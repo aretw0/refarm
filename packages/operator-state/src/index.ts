@@ -1,9 +1,4 @@
-export type BaseSurfaceState =
-	| "ready"
-	| "degraded"
-	| "blocked"
-	| "unavailable"
-	| "unknown";
+export type BaseSurfaceState = "ready" | "degraded" | "blocked" | "unavailable" | "unknown";
 
 export type BaseSurfaceSeverity = "info" | "warning" | "failure";
 
@@ -39,10 +34,7 @@ export interface BaseSurfaceActionRow {
 	display: string;
 }
 
-export type BaseSurfaceActionSelectionReason =
-	| "selected"
-	| "missing-action"
-	| "no-actions";
+export type BaseSurfaceActionSelectionReason = "selected" | "missing-action" | "no-actions";
 
 export type BaseSurfaceActionSelectionSource = "id" | "index";
 
@@ -354,9 +346,10 @@ export function resolveBaseSurfaceActionSelection(
 		return { reason: "no-actions", selection: selectionMetadata, rows };
 	}
 
-	const selectedByIndex = source === "index"
-		? rows.find((row) => row.index === Number.parseInt(requested, 10))
-		: undefined;
+	const selectedByIndex =
+		source === "index"
+			? rows.find((row) => row.index === Number.parseInt(requested, 10))
+			: undefined;
 	const selected = selectedByIndex ?? rows.find((row) => row.id === requested);
 	if (!selected) {
 		return { reason: "missing-action", selection: selectionMetadata, rows };
@@ -374,9 +367,7 @@ export function resolveBaseSurfaceActionSelection(
 	};
 }
 
-export function createBaseSurfaceActionRequest<
-	TAction extends BaseSurfaceActionDescriptor,
->(
+export function createBaseSurfaceActionRequest<TAction extends BaseSurfaceActionDescriptor>(
 	actions: readonly TAction[],
 	selection: string,
 ): BaseSurfaceActionRequest<TAction> {
@@ -416,15 +407,11 @@ export function formatBaseSurfaceActionSelectionChoices(
 ): string {
 	if (rows.length === 0) return "none";
 	return rows
-		.map((row) =>
-			typeof row.index === "number" ? `[${row.index}] ${row.id}` : row.id,
-		)
+		.map((row) => (typeof row.index === "number" ? `[${row.index}] ${row.id}` : row.id))
 		.join(", ");
 }
 
-function baseSurfaceActionSelectionSource(
-	selection: string,
-): BaseSurfaceActionSelectionSource {
+function baseSurfaceActionSelectionSource(selection: string): BaseSurfaceActionSelectionSource {
 	return /^\d+$/.test(selection) ? "index" : "id";
 }
 
@@ -452,8 +439,7 @@ function renderReviewQueueSummary(
 
 function runtimeUnit(runtime: RuntimeLike, owner: string): BaseSurfaceUnit {
 	const ready = runtime.ready === true;
-	const blocked =
-		runtime.ready === false || runtime.ok === false || Boolean(runtime.issue);
+	const blocked = runtime.ready === false || runtime.ok === false || Boolean(runtime.issue);
 	const evidence: BaseSurfaceEvidence[] = [];
 	if (runtime.activeEngine) {
 		evidence.push({ kind: "state", label: "engine", value: runtime.activeEngine });
@@ -562,18 +548,12 @@ function healthUnit(health: HealthLike, owner: string): BaseSurfaceUnit {
 	};
 }
 
-function firstRecommendationEvidence(
-	recommendations: RecommendationLike[],
-): BaseSurfaceEvidence[] {
+function firstRecommendationEvidence(recommendations: RecommendationLike[]): BaseSurfaceEvidence[] {
 	const first = recommendations[0];
 	if (!first) return [];
 	return [
-		...(first.summary
-			? [{ kind: "state", label: "recommendation", value: first.summary }]
-			: []),
-		...(first.target
-			? [{ kind: "path", label: "target", value: first.target }]
-			: []),
+		...(first.summary ? [{ kind: "state", label: "recommendation", value: first.summary }] : []),
+		...(first.target ? [{ kind: "path", label: "target", value: first.target }] : []),
 	];
 }
 

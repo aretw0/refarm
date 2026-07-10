@@ -5,116 +5,123 @@ import { KeyManager } from "../../silo/src/key-manager.js";
 
 // Explicit mock for heartwood in this test suite to avoid environment issues
 vi.mock("@refarm.dev/heartwood", () => {
-  const mock = {
-    generateKeypair: vi.fn().mockReturnValue({
-      secretKey: new Uint8Array(32),
-      publicKey: new Uint8Array(32)
-    }),
-    sign: vi.fn().mockReturnValue(new Uint8Array(64)),
-    verify: vi.fn().mockReturnValue(true)
-  };
-  return {
-    ...mock,
-    default: mock
-  };
+	const mock = {
+		generateKeypair: vi.fn().mockReturnValue({
+			secretKey: new Uint8Array(32),
+			publicKey: new Uint8Array(32),
+		}),
+		sign: vi.fn().mockReturnValue(new Uint8Array(64)),
+		verify: vi.fn().mockReturnValue(true),
+	};
+	return {
+		...mock,
+		default: mock,
+	};
 });
 
 describe("Registry", () => {
-    let registry: Registry;
+	let registry: Registry;
 
-    beforeEach(() => {
-        registry = new Registry();
-    });
+	beforeEach(() => {
+		registry = new Registry();
+	});
 
-    it("should register a plugin manifest", async () => {
-        const manifest = {
-            id: "io.refarm.test-plugin",
-            version: "1.0.0",
-            name: "Test Plugin"
-        };
-        
-        const id = await registry.register(manifest);
-        expect(id).toBe("io.refarm.test-plugin");
-        
-        const plugin = registry.getPlugin(id);
-        expect(plugin.manifest.name).toBe("Test Plugin");
-        expect(plugin.status).toBe("registered");
-    });
+	it("should register a plugin manifest", async () => {
+		const manifest = {
+			id: "io.refarm.test-plugin",
+			version: "1.0.0",
+			name: "Test Plugin",
+		};
 
-    it("should list all registered plugins", async () => {
-        await registry.register({ id: "p1", version: "1" });
-        await registry.register({ id: "p2", version: "1" });
-        
-        const plugins = registry.listPlugins();
-        expect(plugins).toHaveLength(2);
-    });
+		const id = await registry.register(manifest);
+		expect(id).toBe("io.refarm.test-plugin");
 
-    it("should fail to register a plugin without ID", async () => {
-        const manifest = { version: "1.0.0" } as unknown as PluginManifest;
-        await expect(registry.register(manifest)).rejects.toThrow("Plugin must have a unique identifier");
-    });
+		const plugin = registry.getPlugin(id);
+		expect(plugin.manifest.name).toBe("Test Plugin");
+		expect(plugin.status).toBe("registered");
+	});
 
-    it("should resolve a plugin from a remote URL", async () => {
-        const mockManifest = {
-            id: "remote-plugin",
-            version: "2.0.0",
-            name: "Remote Plugin"
-        };
+	it("should list all registered plugins", async () => {
+		await registry.register({ id: "p1", version: "1" });
+		await registry.register({ id: "p2", version: "1" });
 
-        // Mock fetch
-        global.fetch = vi.fn().mockResolvedValue({
-            ok: true,
-            json: async () => mockManifest
-        });
+		const plugins = registry.listPlugins();
+		expect(plugins).toHaveLength(2);
+	});
 
-        const entry = await registry.resolveRemote("remote-plugin", "https://api.refarm.dev/plugins/remote-plugin");
-        
-        expect(entry.manifest.id).toBe("remote-plugin");
-        expect(entry.sourceUrl).toBe("https://api.refarm.dev/plugins/remote-plugin");
-        expect(registry.getPlugin("remote-plugin")).toBeDefined();
-    });
+	it("should fail to register a plugin without ID", async () => {
+		const manifest = { version: "1.0.0" } as unknown as PluginManifest;
+		await expect(registry.register(manifest)).rejects.toThrow(
+			"Plugin must have a unique identifier",
+		);
+	});
 
-    it("should manage plugin lifecycle (activate/deactivate)", async () => {
-        const keyManager = new KeyManager();
-        const keypair = await keyManager.generateMasterKey();
-        const manifest = { id: "lifecycle-plugin", version: "1" } as unknown as PluginManifest;
-        
-        await registry.register(manifest);
-        
-        // Validation required before activation
-        await expect(registry.activatePlugin("lifecycle-plugin")).rejects.toThrow("must be validated before activation");
+	it("should resolve a plugin from a remote URL", async () => {
+		const mockManifest = {
+			id: "remote-plugin",
+			version: "2.0.0",
+			name: "Remote Plugin",
+		};
 
-        const signature = await keyManager.sign(JSON.stringify(manifest), keypair.privateKey);
-        await registry.validatePlugin("lifecycle-plugin", signature, keypair.publicKey);
-        
-        expect(registry.getPlugin("lifecycle-plugin")?.status).toBe("validated");
+		// Mock fetch
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: true,
+			json: async () => mockManifest,
+		});
 
-        // Activate
-        await registry.activatePlugin("lifecycle-plugin");
-        expect(registry.getPlugin("lifecycle-plugin")?.status).toBe("active");
+		const entry = await registry.resolveRemote(
+			"remote-plugin",
+			"https://api.refarm.dev/plugins/remote-plugin",
+		);
 
-        // Deactivate
-        await registry.deactivatePlugin("lifecycle-plugin");
-        expect(registry.getPlugin("lifecycle-plugin")?.status).toBe("validated");
-    });
+		expect(entry.manifest.id).toBe("remote-plugin");
+		expect(entry.sourceUrl).toBe("https://api.refarm.dev/plugins/remote-plugin");
+		expect(registry.getPlugin("remote-plugin")).toBeDefined();
+	});
 
-    it("should validate a plugin signature using Heartwood", async () => {
-        const keyManager = new KeyManager();
-        const keypair = await keyManager.generateMasterKey();
-        
-        const manifest = {
-            id: "io.refarm.secure-plugin",
-            version: "1.0.0"
-        } as unknown as PluginManifest;
-        
-        await registry.register(manifest);
-        
-        // Sign manifest
-        const manifestData = JSON.stringify(manifest);
-        const signature = await keyManager.sign(manifestData, keypair.privateKey);
-        
-        const isValid = await registry.validatePlugin(manifest.id, signature, keypair.publicKey);
-        expect(isValid).toBe(true);
-        expect(registry.getPlugin(manifest.id)?.status).toBe("validated");
-    });
+	it("should manage plugin lifecycle (activate/deactivate)", async () => {
+		const keyManager = new KeyManager();
+		const keypair = await keyManager.generateMasterKey();
+		const manifest = { id: "lifecycle-plugin", version: "1" } as unknown as PluginManifest;
+
+		await registry.register(manifest);
+
+		// Validation required before activation
+		await expect(registry.activatePlugin("lifecycle-plugin")).rejects.toThrow(
+			"must be validated before activation",
+		);
+
+		const signature = await keyManager.sign(JSON.stringify(manifest), keypair.privateKey);
+		await registry.validatePlugin("lifecycle-plugin", signature, keypair.publicKey);
+
+		expect(registry.getPlugin("lifecycle-plugin")?.status).toBe("validated");
+
+		// Activate
+		await registry.activatePlugin("lifecycle-plugin");
+		expect(registry.getPlugin("lifecycle-plugin")?.status).toBe("active");
+
+		// Deactivate
+		await registry.deactivatePlugin("lifecycle-plugin");
+		expect(registry.getPlugin("lifecycle-plugin")?.status).toBe("validated");
+	});
+
+	it("should validate a plugin signature using Heartwood", async () => {
+		const keyManager = new KeyManager();
+		const keypair = await keyManager.generateMasterKey();
+
+		const manifest = {
+			id: "io.refarm.secure-plugin",
+			version: "1.0.0",
+		} as unknown as PluginManifest;
+
+		await registry.register(manifest);
+
+		// Sign manifest
+		const manifestData = JSON.stringify(manifest);
+		const signature = await keyManager.sign(manifestData, keypair.privateKey);
+
+		const isValid = await registry.validatePlugin(manifest.id, signature, keypair.publicKey);
+		expect(isValid).toBe(true);
+		expect(registry.getPlugin(manifest.id)?.status).toBe("validated");
+	});
 });
