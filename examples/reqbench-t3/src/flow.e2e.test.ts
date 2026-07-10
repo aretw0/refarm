@@ -40,7 +40,10 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		const statePath = tempStatePath();
 		const host = buildReqbenchHost({ statePath });
 		expect(host.program().name()).toBe(DGK_COMMAND);
-		const requirementsEntry = host.registry().list().find((entry) => entry.name === "requirements");
+		const requirementsEntry = host
+			.registry()
+			.list()
+			.find((entry) => entry.name === "requirements");
 		expect(requirementsEntry).toBeTruthy();
 		expect(requirementsEntry).toMatchObject({
 			renderers: {
@@ -79,10 +82,12 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 			commandEnv: { [hostCommandOverrideEnv(DGK_COMMAND)]: command },
 		});
 		expect(host.program().name()).toBe(command);
-		expect(buildRequirementsBaseModel({
-			statePath,
-			commandEnv: { [hostCommandOverrideEnv(DGK_COMMAND)]: command },
-		})).toMatchObject({
+		expect(
+			buildRequirementsBaseModel({
+				statePath,
+				commandEnv: { [hostCommandOverrideEnv(DGK_COMMAND)]: command },
+			}),
+		).toMatchObject({
 			command,
 			nextCommand: `${command} requirements --json`,
 		});
@@ -93,15 +98,11 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 	});
 
 	it("discovers the analyst's system", async () => {
-		const found = await harness.runGroup(
-			buildRegistry({ statePath: tempStatePath() }),
-			"source",
-			["discover"],
-		);
+		const found = await harness.runGroup(buildRegistry({ statePath: tempStatePath() }), "source", [
+			"discover",
+		]);
 		expect(found.ok).toBe(true);
-		expect((found.sources as Array<{ ref: string }>).map((s) => s.ref)).toContain(
-			REQ_SYSTEM_REF,
-		);
+		expect((found.sources as Array<{ ref: string }>).map((s) => s.ref)).toContain(REQ_SYSTEM_REF);
 	});
 
 	it("the requirements MOC is a navigable product, and reflects a correction", async () => {
@@ -166,7 +167,7 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 
 			const specRes = await fetch(`http://127.0.0.1:${port}/docs/openapi.json`);
 			expect(specRes.status).toBe(200);
-			const spec = await specRes.json() as {
+			const spec = (await specRes.json()) as {
 				info: { title: string; version: string };
 				paths: Record<string, unknown>;
 			};
@@ -212,7 +213,7 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		// navigable MOC (supplied via host.data.mocHtml by the content seam) above it.
 		const handle = reqWebSurface(buildRegistry());
 		const request = {
-			host: { hostId: "test", data: { mocHtml: '<nav data-requirements-moc>REQ MAP</nav>' } },
+			host: { hostId: "test", data: { mocHtml: "<nav data-requirements-moc>REQ MAP</nav>" } },
 		};
 		const result = (await handle.call?.("renderHomesteadSurface", request)) as { html: string };
 		expect(result.html).toContain("Bancada de Requisitos");

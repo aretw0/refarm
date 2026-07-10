@@ -55,9 +55,7 @@ function renderWallet(env: RecordsAnalyzeEnvelope): string {
 
 /** The T2 persona verb: `wallet` - the citizen's wallet view over the neutral
  * `records analyze` envelope (grouped by review state). */
-export function createWalletCapability(
-	recordsDeps: RecordsCommandDeps,
-): CapabilityDescriptor {
+export function createWalletCapability(recordsDeps: RecordsCommandDeps): CapabilityDescriptor {
 	return defineRecordsViewCapability({
 		name: "wallet",
 		summary: "Minha carteira digital — os itens que eu detenho (soberano, local-first)",
@@ -105,9 +103,7 @@ function createWalletStateView(
 
 /** The citizen wallet dashboard: the main wallet view plus one card per review state.
  * All share `renderers.tui.section = "wallet"` so they group into a single web panel. */
-export function createWalletCapabilities(
-	recordsDeps: RecordsCommandDeps,
-): CapabilityDescriptor[] {
+export function createWalletCapabilities(recordsDeps: RecordsCommandDeps): CapabilityDescriptor[] {
 	return [
 		createWalletCapability(recordsDeps),
 		createWalletStateView(recordsDeps, "verified", "Verificados"),
@@ -118,9 +114,7 @@ export function createWalletCapabilities(
 /** The wallet's web surface — the SAME registry projected into a Homestead panel of
  * cards (the dashboard). T2 is RESULT mode: this is the citizen's wallet as a real web
  * product, rich via the declared views above, mounted by a host that registers the handle. */
-export function walletWebSurface(
-	registry: Parameters<typeof createCapabilityWebSurfacePlugin>[0],
-) {
+export function walletWebSurface(registry: Parameters<typeof createCapabilityWebSurfacePlugin>[0]) {
 	return createCapabilityWebSurfacePlugin(registry, {
 		pluginId: "wallet-t2/web",
 		name: "Minha Carteira Digital",

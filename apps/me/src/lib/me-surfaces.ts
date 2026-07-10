@@ -13,19 +13,14 @@ import {
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 
-export const REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID =
-	"refarm-me-personal-surface";
+export const REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID = "refarm-me-personal-surface";
 export const REFARM_ME_PERSONAL_SURFACE_ID = "personal-vault-panel";
 export const REFARM_ME_OPEN_VAULT_ACTION_ID = "open-personal-vault";
 export const REFARM_ME_IDENTITY_STATUS = "unauthenticated";
 export const REFARM_ME_SYNC_STATUS = "waiting-for-tractor";
 export const REFARM_ME_GRAPH_MODE = "bootstrap";
 
-export type RefarmMeSurfaceTelemetry = (
-	pluginId: string,
-	event: string,
-	payload?: unknown,
-) => void;
+export type RefarmMeSurfaceTelemetry = (pluginId: string, event: string, payload?: unknown) => void;
 
 export type RefarmMeSurfaceActionObserver = (
 	request: HomesteadSurfaceRenderActionRequest,
@@ -185,10 +180,8 @@ export function createRefarmMeSurfaceContextProvider(
 				syncStatus: options.syncStatus ?? REFARM_ME_SYNC_STATUS,
 				graphMode: options.graphMode ?? REFARM_ME_GRAPH_MODE,
 				pluginRegistryCount: options.pluginRegistryCount ?? 0,
-				discoveredContentPluginCount:
-					options.discoveredContentPluginCount ?? 0,
-				referenceDriverCapabilityIds:
-					options.referenceDriverCapabilityIds ?? [],
+				discoveredContentPluginCount: options.discoveredContentPluginCount ?? 0,
+				referenceDriverCapabilityIds: options.referenceDriverCapabilityIds ?? [],
 				scheduledWorkSummary: options.scheduledWorkSummary ?? null,
 			},
 			actions: [
@@ -225,15 +218,9 @@ export async function resolveRefarmMePersonalSurfaceActionRequest(
 ): Promise<RefarmMePersonalSurfaceActionResolution> {
 	const renderRequest = createRefarmMePersonalSurfaceRenderRequest();
 	const host = await createRefarmMeSurfaceContextProvider()(renderRequest);
-	const request = createHomesteadSurfaceRenderActionRequest(
-		renderRequest,
-		host,
-		actionId,
-	);
+	const request = createHomesteadSurfaceRenderActionRequest(renderRequest, host, actionId);
 
-	return request
-		? { reason: "available", request }
-		: { reason: "missing-action" };
+	return request ? { reason: "available", request } : { reason: "missing-action" };
 }
 
 export async function invokeRefarmMePersonalSurfaceAction(

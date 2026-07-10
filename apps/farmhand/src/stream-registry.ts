@@ -1,7 +1,4 @@
-import type {
-	StreamChunk,
-	StreamProducer,
-} from "@refarm.dev/stream-contract-v1";
+import type { StreamChunk, StreamProducer } from "@refarm.dev/stream-contract-v1";
 
 export class StreamRegistry {
 	private readonly adapters: StreamProducer[] = [];

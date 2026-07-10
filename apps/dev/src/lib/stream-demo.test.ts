@@ -71,9 +71,7 @@ describe("Studio stream demo seeding", () => {
 			locale: "en",
 		});
 		expect(rendered).toMatchObject({
-			html: expect.stringContaining(
-				'data-refarm-studio-stream-surface="studio-stream-panel"',
-			),
+			html: expect.stringContaining('data-refarm-studio-stream-surface="studio-stream-panel"'),
 		});
 	});
 
@@ -143,15 +141,11 @@ describe("Studio stream demo seeding", () => {
 		});
 
 		expect((rendered as { html: string }).html).toContain("apps/dev");
-		expect((rendered as { html: string }).html).toContain(
-			"open-stream-workbench",
-		);
+		expect((rendered as { html: string }).html).toContain("open-stream-workbench");
 		expect((rendered as { html: string }).html).toContain(
 			'data-refarm-surface-action-id="open-stream-workbench"',
 		);
-		expect((rendered as { html: string }).html).toContain(
-			"/studio/streams?stream-demo",
-		);
+		expect((rendered as { html: string }).html).toContain("/studio/streams?stream-demo");
 	});
 
 	it("keeps concrete Studio navigation behavior in apps/dev", () => {
@@ -239,9 +233,7 @@ describe("Studio stream demo seeding", () => {
 			enabled: true,
 			onToggle,
 		});
-		expect(
-			container.querySelectorAll("[data-refarm-studio-stream-demo]"),
-		).toHaveLength(1);
+		expect(container.querySelectorAll("[data-refarm-studio-stream-demo]")).toHaveLength(1);
 		expect(replacement.textContent).toBe("Disable Studio stream demo");
 		expect(replacement.getAttribute("aria-pressed")).toBe("true");
 	});

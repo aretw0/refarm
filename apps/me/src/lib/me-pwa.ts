@@ -32,7 +32,5 @@ export async function registerRefarmMePwa(
 function normalizeBaseUrl(baseUrl: string): string {
 	if (baseUrl.length === 0) return "/";
 	const withLeadingSlash = baseUrl.startsWith("/") ? baseUrl : `/${baseUrl}`;
-	return withLeadingSlash.endsWith("/")
-		? withLeadingSlash
-		: `${withLeadingSlash}/`;
+	return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
 }

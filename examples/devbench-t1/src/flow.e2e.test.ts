@@ -20,15 +20,14 @@ const harness = createCapabilityTestHarness();
  */
 describe("devbench T1 — the developer's extension bench (process mode)", () => {
 	it("the coding-agent's verbs surface into the CLI from its manifest (no app run())", () => {
-		const names = buildRegistry().list().map((e: CapabilityEntry) => e.name);
+		const names = buildRegistry()
+			.list()
+			.map((e: CapabilityEntry) => e.name);
 		// agent:code / agent:review -> `agent-code` / `agent-review`,
 		// notes:search / notes:index -> `notes-search` / `notes-index`.
-		expect(names).toEqual(expect.arrayContaining([
-			"agent-code",
-			"agent-review",
-			"notes-search",
-			"notes-index",
-		]));
+		expect(names).toEqual(
+			expect.arrayContaining(["agent-code", "agent-review", "notes-search", "notes-index"]),
+		);
 		// The neutral blocks are there too — the extension coexists with them.
 		expect(names).toEqual(
 			expect.arrayContaining(["source", "records", "vault", "extension", "status", "actions"]),
@@ -61,29 +60,31 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 			operation: "base",
 			nextCommand: `${DGK_COMMAND} extension --json`,
 		});
-		expect(host.surfaceActions()).toEqual(expect.arrayContaining([
-			expect.objectContaining({
-				id: "inspect-extension",
-				intent: "extension:inspect",
-				payload: expect.objectContaining({
-					command: `${DGK_COMMAND} extension --json`,
+		expect(host.surfaceActions()).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: "inspect-extension",
+					intent: "extension:inspect",
+					payload: expect.objectContaining({
+						command: `${DGK_COMMAND} extension --json`,
+					}),
 				}),
-			}),
-			expect.objectContaining({
-				id: "run-agent-code",
-				intent: "agent:code",
-				payload: expect.objectContaining({
-					command: `${DGK_COMMAND} agent-code --json`,
+				expect.objectContaining({
+					id: "run-agent-code",
+					intent: "agent:code",
+					payload: expect.objectContaining({
+						command: `${DGK_COMMAND} agent-code --json`,
+					}),
 				}),
-			}),
-			expect.objectContaining({
-				id: "run-agent-review",
-				intent: "agent:review",
-				payload: expect.objectContaining({
-					command: `${DGK_COMMAND} agent-review --json`,
+				expect.objectContaining({
+					id: "run-agent-review",
+					intent: "agent:review",
+					payload: expect.objectContaining({
+						command: `${DGK_COMMAND} agent-review --json`,
+					}),
 				}),
-			}),
-		]));
+			]),
+		);
 	});
 
 	it("supports overriding the host command for white-label consumers", () => {
@@ -147,10 +148,7 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		const reg = buildRegistry({ manifests: [customManifest] });
 		expect(host.baseModel().nextCommand).toBe(`${DGK_COMMAND} extension --json`);
 		expect(host.surfaceActions().map((action) => action.id)).toEqual(
-			expect.arrayContaining([
-				"run-paper-scan",
-				"inspect-extension",
-			]),
+			expect.arrayContaining(["run-paper-scan", "inspect-extension"]),
 		);
 		const names = reg.list().map((e: CapabilityEntry) => e.name);
 		expect(names).toEqual(expect.arrayContaining(["paper-scan", "extension"]));
@@ -320,15 +318,11 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 			verb: string;
 			effortId: string;
 			replyRef: string;
-		}>(
-			buildRegistry({ submitEffort }),
-			"notes-search",
-			{
-				args: { args: ['query="security"', "limit=3"] },
-				options: {},
-				json: true,
-			},
-		);
+		}>(buildRegistry({ submitEffort }), "notes-search", {
+			args: { args: ['query="security"', "limit=3"] },
+			options: {},
+			json: true,
+		});
 		expect(env.ok).toBe(true);
 		expect(env.command).toBe("notes-search");
 		expect(env.verb).toBe("search");
@@ -346,15 +340,16 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 	});
 
 	it("a surfaced agent verb dispatches across the bridge (two-phase receipt)", async () => {
-		const env = await harness.runVerb<{ ok: boolean; verb: string; effortId: string; replyRef: string }>(
-			buildRegistry({ submitEffort: createMemorySubmitEffort() }),
-			"agent-code",
-			{
-				args: { args: ['prompt="add a test"'] },
-				options: {},
-				json: true,
-			},
-		);
+		const env = await harness.runVerb<{
+			ok: boolean;
+			verb: string;
+			effortId: string;
+			replyRef: string;
+		}>(buildRegistry({ submitEffort: createMemorySubmitEffort() }), "agent-code", {
+			args: { args: ['prompt="add a test"'] },
+			options: {},
+			json: true,
+		});
 		expect(env.ok).toBe(true);
 		expect(env.verb).toBe("code");
 		expect(env.replyRef).toBe(env.effortId);

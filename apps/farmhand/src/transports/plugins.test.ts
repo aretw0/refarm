@@ -66,9 +66,7 @@ function makeTarget() {
 			trust: vi.fn().mockResolvedValue(undefined),
 		},
 		plugins: {
-			get: vi.fn((pluginId: string) =>
-				pluginId === "plugin-a" ? { call: vi.fn() } : undefined,
-			),
+			get: vi.fn((pluginId: string) => (pluginId === "plugin-a" ? { call: vi.fn() } : undefined)),
 			load: vi.fn().mockResolvedValue(undefined),
 		},
 	};
@@ -191,11 +189,9 @@ describe("createPluginsRouteHandler", () => {
 
 		it("calls loadInstalledPlugins with pluginFilter for the plugin", async () => {
 			await request(port, "POST", "/plugins/reload");
-			expect(loadInstalledPlugins).toHaveBeenCalledWith(
-				target,
-				baseDir,
-				{ pluginFilter: ["plugin-a"] },
-			);
+			expect(loadInstalledPlugins).toHaveBeenCalledWith(target, baseDir, {
+				pluginFilter: ["plugin-a"],
+			});
 		});
 
 		it("uses pluginIds from request body when provided", async () => {
@@ -215,11 +211,9 @@ describe("createPluginsRouteHandler", () => {
 			});
 
 			expect(res.status).toBe(200);
-			expect(loadInstalledPlugins).toHaveBeenCalledWith(
-				target,
-				baseDir,
-				{ pluginFilter: ["@refarm/agent"] },
-			);
+			expect(loadInstalledPlugins).toHaveBeenCalledWith(target, baseDir, {
+				pluginFilter: ["@refarm/agent"],
+			});
 		});
 
 		it("returns 405 for GET /plugins/reload", async () => {
@@ -243,21 +237,13 @@ describe("createPluginsRouteHandler", () => {
 			const res = await request(port, "POST", "/plugins/reload");
 			const { reloadId } = res.body as { reloadId: string };
 
-			const beforeIdle = await request(
-				port,
-				"GET",
-				`/plugins/reload/status/${reloadId}`,
-			);
+			const beforeIdle = await request(port, "GET", `/plugins/reload/status/${reloadId}`);
 			expect((beforeIdle.body as { pending: string[] }).pending).toContain("plugin-a");
 
 			tracker.releaseEffort("e1");
 			await new Promise((r) => setTimeout(r, 50));
 
-			const afterIdle = await request(
-				port,
-				"GET",
-				`/plugins/reload/status/${reloadId}`,
-			);
+			const afterIdle = await request(port, "GET", `/plugins/reload/status/${reloadId}`);
 			const afterBody = afterIdle.body as { pending: string[]; completed: string[] };
 			expect(afterBody.pending).toEqual([]);
 			expect(afterBody.completed).toContain("plugin-a");
@@ -268,11 +254,7 @@ describe("createPluginsRouteHandler", () => {
 		beforeEach(() => startSidecar(true));
 
 		it("returns 404 for an unknown reloadId", async () => {
-			const res = await request(
-				port,
-				"GET",
-				`/plugins/reload/status/${crypto.randomUUID()}`,
-			);
+			const res = await request(port, "GET", `/plugins/reload/status/${crypto.randomUUID()}`);
 			expect(res.status).toBe(404);
 			expect(res.body).toEqual({ error: "not found" });
 		});

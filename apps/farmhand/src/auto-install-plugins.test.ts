@@ -47,17 +47,17 @@ describe("autoInstallPlugins", () => {
 		];
 		await autoInstallPlugins(entries, pluginsDir, logger);
 		expect(installWasmArtifact).toHaveBeenCalledWith(
-			{ pluginId: "plugin-a", wasmUrl: "https://example.com/plugin-a.wasm", integrity: "sha256-abc" },
+			{
+				pluginId: "plugin-a",
+				wasmUrl: "https://example.com/plugin-a.wasm",
+				integrity: "sha256-abc",
+			},
 			expect.objectContaining({ cache: expect.anything() }),
 		);
 	});
 
 	it("creates the cache adapter with pluginsDir", async () => {
-		await autoInstallPlugins(
-			[{ id: "a", url: "u", integrity: "i" }],
-			pluginsDir,
-			logger,
-		);
+		await autoInstallPlugins([{ id: "a", url: "u", integrity: "i" }], pluginsDir, logger);
 		expect(createFilesystemCacheAdapter).toHaveBeenCalledWith(pluginsDir);
 	});
 
@@ -109,9 +109,7 @@ describe("autoInstallPlugins", () => {
 	});
 
 	it("counts failed and warns when installWasmArtifact throws", async () => {
-		vi.mocked(installWasmArtifact).mockRejectedValueOnce(
-			new Error("integrity check failed"),
-		);
+		vi.mocked(installWasmArtifact).mockRejectedValueOnce(new Error("integrity check failed"));
 		const summary = await autoInstallPlugins(
 			[{ id: "a", url: "u", integrity: "bad" }],
 			pluginsDir,
@@ -126,8 +124,22 @@ describe("autoInstallPlugins", () => {
 
 	it("processes multiple entries accumulating counts", async () => {
 		vi.mocked(installWasmArtifact)
-			.mockResolvedValueOnce({ pluginId: "a", wasmUrl: "ua", cached: false, byteLength: 100, wasmHash: "h1", artifactKind: "component" })
-			.mockResolvedValueOnce({ pluginId: "b", wasmUrl: "ub", cached: true, byteLength: 200, wasmHash: "h2", artifactKind: "component" })
+			.mockResolvedValueOnce({
+				pluginId: "a",
+				wasmUrl: "ua",
+				cached: false,
+				byteLength: 100,
+				wasmHash: "h1",
+				artifactKind: "component",
+			})
+			.mockResolvedValueOnce({
+				pluginId: "b",
+				wasmUrl: "ub",
+				cached: true,
+				byteLength: 200,
+				wasmHash: "h2",
+				artifactKind: "component",
+			})
 			.mockRejectedValueOnce(new Error("network error"));
 		const entries = [
 			{ id: "a", url: "ua", integrity: "ia" },

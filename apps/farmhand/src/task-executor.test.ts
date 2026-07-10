@@ -151,10 +151,7 @@ describe("executeTask", () => {
 			args: { prompt: "hello" },
 		});
 
-		expect(instance.call).toHaveBeenCalledWith(
-			"respond",
-			JSON.stringify({ prompt: "hello" }),
-		);
+		expect(instance.call).toHaveBeenCalledWith("respond", JSON.stringify({ prompt: "hello" }));
 	});
 
 	it("resolves runtime-agent task aliases to the canonical plugin id", async () => {
@@ -170,9 +167,6 @@ describe("executeTask", () => {
 		});
 
 		expect(tractor.plugins.get).toHaveBeenCalledWith("@refarm/agent");
-		expect(instance.call).toHaveBeenCalledWith(
-			"respond",
-			JSON.stringify({ prompt: "hello" }),
-		);
+		expect(instance.call).toHaveBeenCalledWith("respond", JSON.stringify({ prompt: "hello" }));
 	});
 });

@@ -36,22 +36,14 @@ export interface SiloModelEnvInjectorOptions {
 	store: SiloModelTokenStore;
 	env?: NodeJS.ProcessEnv;
 	warn?: (message: string) => void;
-	refreshOAuthToken?: (
-		oauthProvider: string,
-		creds: OAuthCreds,
-	) => Promise<OAuthCreds | null>;
+	refreshOAuthToken?: (oauthProvider: string, creds: OAuthCreds) => Promise<OAuthCreds | null>;
 }
 
 function stringValue(value: unknown): string | undefined {
-	return typeof value === "string" && value.trim().length > 0
-		? value.trim()
-		: undefined;
+	return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function oauthCredentialsFor(
-	tokens: SiloModelTokens,
-	provider: string,
-): OAuthCreds | undefined {
+function oauthCredentialsFor(tokens: SiloModelTokens, provider: string): OAuthCreds | undefined {
 	const allOAuth =
 		tokens.oauthCredentials && typeof tokens.oauthCredentials === "object"
 			? (tokens.oauthCredentials as Record<string, unknown>)
@@ -73,9 +65,10 @@ function oauthCredentialsFor(
 		: undefined;
 }
 
-export function createSiloModelEnvInjector(
-	options: SiloModelEnvInjectorOptions,
-): { inject(): Promise<void>; managedEnvKeys(): string[] } {
+export function createSiloModelEnvInjector(options: SiloModelEnvInjectorOptions): {
+	inject(): Promise<void>;
+	managedEnvKeys(): string[];
+} {
 	const env = options.env ?? process.env;
 	const warn = options.warn ?? ((message) => console.warn(message));
 	const managedEnvKeys = new Set<string>();
@@ -131,7 +124,8 @@ export function createSiloModelEnvInjector(
 					}
 				}
 
-				const credentialProviderMatchesRoute = !routeProviderOverridden || effectiveProvider === provider;
+				const credentialProviderMatchesRoute =
+					!routeProviderOverridden || effectiveProvider === provider;
 
 				if (oauthProvider && credentialProviderMatchesRoute) {
 					const creds = oauthCredentialsFor(tokens, oauthProvider);
@@ -152,9 +146,7 @@ export function createSiloModelEnvInjector(
 									},
 								});
 							} else {
-								warn(
-									`[farmhand] OAuth token refresh failed for ${oauthProvider} - agent may fail`,
-								);
+								warn(`[farmhand] OAuth token refresh failed for ${oauthProvider} - agent may fail`);
 								return;
 							}
 						}

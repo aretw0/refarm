@@ -9,14 +9,10 @@ import {
 	type HomesteadSurfaceRenderResult,
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 
-export const STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID =
-	"studio-surface-diagnostics";
-export const FAILING_SURFACE_DIAGNOSTICS_PLUGIN_ID =
-	"failing-surface-diagnostics";
-export const EXTERNAL_VALIDATED_SURFACE_PLUGIN_ID =
-	"external-validated-surface";
-export const EXTERNAL_UNTRUSTED_SURFACE_PLUGIN_ID =
-	"external-untrusted-surface";
+export const STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID = "studio-surface-diagnostics";
+export const FAILING_SURFACE_DIAGNOSTICS_PLUGIN_ID = "failing-surface-diagnostics";
+export const EXTERNAL_VALIDATED_SURFACE_PLUGIN_ID = "external-validated-surface";
+export const EXTERNAL_UNTRUSTED_SURFACE_PLUGIN_ID = "external-untrusted-surface";
 export const SURFACE_DIAGNOSTICS_ACTION_ID = "run-denied-diagnostic-action";
 
 export type StudioSurfaceDiagnosticsTelemetry = (
@@ -48,9 +44,7 @@ export function createStudioSurfaceDiagnosticsPlugins(
 			],
 			call: async (fn, args) =>
 				fn === "renderHomesteadSurface"
-					? renderStudioSurfaceDiagnostics(
-							args as HomesteadSurfaceRenderRequest,
-						)
+					? renderStudioSurfaceDiagnostics(args as HomesteadSurfaceRenderRequest)
 					: null,
 			emitTelemetry: (event, payload) =>
 				emitTelemetry(STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID, event, payload),
@@ -117,9 +111,7 @@ export function createStudioSurfaceDiagnosticsPlugins(
 export function renderStudioSurfaceDiagnostics(
 	request: HomesteadSurfaceRenderRequest,
 ): HomesteadSurfaceRenderResult {
-	const hostId = escapeStudioSurfaceDiagnosticsText(
-		request.host?.hostId ?? "unknown host",
-	);
+	const hostId = escapeStudioSurfaceDiagnosticsText(request.host?.hostId ?? "unknown host");
 	const action = request.host?.actions?.find(
 		(candidate) => candidate.id === SURFACE_DIAGNOSTICS_ACTION_ID,
 	);

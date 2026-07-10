@@ -41,9 +41,7 @@ export function mountStudioSurfaceLedger(
 	root: ParentNode = document,
 	options: { telemetryEvents?: readonly HomesteadSurfaceTelemetryEvent[] } = {},
 ): HTMLElement {
-	container
-		.querySelector<HTMLElement>("[data-refarm-studio-surface-ledger]")
-		?.remove();
+	container.querySelector<HTMLElement>("[data-refarm-studio-surface-ledger]")?.remove();
 
 	const mountedSurfaces = listMountedHomesteadSurfaces(root);
 	const telemetryEvents = options.telemetryEvents ?? [];
@@ -103,10 +101,7 @@ export function mountReactiveStudioSurfaceLedger(
 	};
 
 	const disposeTelemetry = options.telemetry?.observe((event) => {
-		if (
-			event.event === "ui:surface_rejected" ||
-			isHomesteadSurfaceActionEvent(event)
-		) {
+		if (event.event === "ui:surface_rejected" || isHomesteadSurfaceActionEvent(event)) {
 			telemetryEvents.push(event);
 			refresh();
 			return;
@@ -135,8 +130,7 @@ export function defineStudioSurfaceLedgerElement(
 	>({
 		name: STUDIO_SURFACE_LEDGER_ELEMENT_NAME,
 		registry,
-		connect: (element, options) =>
-			mountReactiveStudioSurfaceLedger(element, options ?? {}),
+		connect: (element, options) => mountReactiveStudioSurfaceLedger(element, options ?? {}),
 	});
 }
 
@@ -159,14 +153,7 @@ function renderMetric(label: string, value: number): HTMLElement {
 function renderHeader(): HTMLTableSectionElement {
 	const head = document.createElement("thead");
 	const row = document.createElement("tr");
-	for (const label of [
-		"status",
-		"plugin",
-		"surface",
-		"slot",
-		"kind",
-		"gate detail",
-	]) {
+	for (const label of ["status", "plugin", "surface", "slot", "kind", "gate detail"]) {
 		const cell = document.createElement("th");
 		cell.scope = "col";
 		cell.textContent = label;
@@ -176,9 +163,7 @@ function renderHeader(): HTMLTableSectionElement {
 	return head;
 }
 
-function renderMountedRow(
-	surface: MountedHomesteadSurface,
-): HTMLTableRowElement {
+function renderMountedRow(surface: MountedHomesteadSurface): HTMLTableRowElement {
 	const row = document.createElement("tr");
 	row.dataset.refarmSurfaceLedgerState = "mounted";
 	row.dataset.refarmSurfaceMountKey = mountedHomesteadSurfaceKey(surface);
@@ -198,15 +183,11 @@ function mountedSurfaceGateDetail(surface: MountedHomesteadSurface): string {
 	const capabilities = surface.surfaceCapabilities?.length
 		? ` caps: ${surface.surfaceCapabilities.join(", ")}`
 		: "";
-	const renderMode = surface.surfaceRenderMode
-		? ` render: ${surface.surfaceRenderMode}`
-		: "";
+	const renderMode = surface.surfaceRenderMode ? ` render: ${surface.surfaceRenderMode}` : "";
 	return `${state}${capabilities}${renderMode}`;
 }
 
-function renderRejectedRow(
-	surface: RejectedHomesteadSurfaceActivation,
-): HTMLTableRowElement {
+function renderRejectedRow(surface: RejectedHomesteadSurfaceActivation): HTMLTableRowElement {
 	const row = document.createElement("tr");
 	row.dataset.refarmSurfaceLedgerState = "rejected";
 	const missing = surface.missingCapabilities?.length
@@ -226,9 +207,7 @@ function renderRejectedRow(
 	return row;
 }
 
-function renderActionRow(
-	action: HomesteadSurfaceActionDiagnostic,
-): HTMLTableRowElement {
+function renderActionRow(action: HomesteadSurfaceActionDiagnostic): HTMLTableRowElement {
 	const row = document.createElement("tr");
 	row.dataset.refarmSurfaceLedgerState = `action-${action.status}`;
 	const detail = [

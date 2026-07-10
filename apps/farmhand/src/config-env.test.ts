@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { injectConfigEnv } from "./config-env.js";
 
 function tempDir(): string {
-	return path.join(tmpdir(), `refarm-farmhand-config-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+	return path.join(
+		tmpdir(),
+		`refarm-farmhand-config-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+	);
 }
 
 function writeRefarmConfig(base: string, config: Record<string, unknown>): void {

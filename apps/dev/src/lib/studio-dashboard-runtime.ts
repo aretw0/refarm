@@ -51,9 +51,7 @@ interface StudioDashboardFirefly {
 export interface StudioDashboardPluginConstructors {
 	HeraldPlugin: new (tractor: StudioDashboardTractor) => StudioDashboardHerald;
 	SowerPlugin: new (tractor: StudioDashboardTractor) => StudioDashboardSower;
-	FireflyPlugin: new (
-		tractor: StudioDashboardTractor,
-	) => StudioDashboardFirefly;
+	FireflyPlugin: new (tractor: StudioDashboardTractor) => StudioDashboardFirefly;
 }
 
 export interface StudioDashboardWorkbench {
@@ -112,8 +110,7 @@ export async function bootStudioDashboardWorkbench(
 		localStore.getItem(STUDIO_STREAM_DEMO_STORAGE_KEY),
 	);
 	const constructors =
-		options.pluginConstructors ??
-		(await loadStudioDashboardPluginConstructors());
+		options.pluginConstructors ?? (await loadStudioDashboardPluginConstructors());
 	const herald = registerStudioDashboardPlugins(
 		tractor,
 		constructors,
@@ -203,7 +200,9 @@ function registerStudioDashboardPlugins(
 		createPluginHandle({
 			id: "sower",
 			name: "O Semeador",
-			manifest: { capabilities: { providersApi: ["onboarding"] } } as unknown as Parameters<typeof createPluginHandle>[0]["manifest"],
+			manifest: { capabilities: { providersApi: ["onboarding"] } } as unknown as Parameters<
+				typeof createPluginHandle
+			>[0]["manifest"],
 			call: async (fn, args: unknown) => {
 				if (fn === "get-help-nodes") {
 					return [JSON.stringify(await sower.getOnboardingNode())];
@@ -236,8 +235,7 @@ function registerStudioDashboardPlugins(
 			name: "O Vagalume",
 			call: async (fn, args: unknown) => {
 				const a = args as { message?: string; actionable?: boolean; targetId?: string } | undefined;
-				if (fn === "show-toast")
-					firefly.showToast(a?.message ?? "", a?.actionable);
+				if (fn === "show-toast") firefly.showToast(a?.message ?? "", a?.actionable);
 				if (fn === "spotlight") firefly.spotlight(a?.targetId ?? "", a?.message ?? "");
 				return null;
 			},
@@ -287,13 +285,10 @@ function mountStudioDashboardStatusbar(
 		STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME,
 	) as StudioSurfaceInspectorElement;
 	statusbar.appendChild(inspector);
-	return (options.mountInspector ?? mountReactiveStudioSurfaceInspectorElement)(
-		inspector,
-		{
-			telemetry: tractor,
-			telemetryEvents: tractor.telemetry.dump(),
-		},
-	);
+	return (options.mountInspector ?? mountReactiveStudioSurfaceInspectorElement)(inspector, {
+		telemetry: tractor,
+		telemetryEvents: tractor.telemetry.dump(),
+	});
 }
 
 async function loadStudioDashboardPluginConstructors(): Promise<StudioDashboardPluginConstructors> {
@@ -315,7 +310,5 @@ async function loadSetupStudioShell(): Promise<SetupStudioShell> {
 
 function studioDashboardErrorMessage(error: unknown): string {
 	if (error instanceof Error) return error.message;
-	return typeof error === "string" && error.length > 0
-		? error
-		: "unknown error";
+	return typeof error === "string" && error.length > 0 ? error : "unknown error";
 }

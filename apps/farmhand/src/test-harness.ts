@@ -69,9 +69,7 @@ async function pollReady(url: string, timeoutMs: number): Promise<void> {
  * artifact that CI validates. Build @refarm.dev/farmhand with the workspace
  * package manager before running integration tests.
  */
-export async function startTestFarmhand(
-	opts: TestFarmhandOptions = {},
-): Promise<TestFarmhand> {
+export async function startTestFarmhand(opts: TestFarmhandOptions = {}): Promise<TestFarmhand> {
 	const port = await findFreePort();
 	const dataDir = await mkdtemp(join(tmpdir(), "farmhand-test-"));
 
@@ -79,7 +77,7 @@ export async function startTestFarmhand(
 	const entry = fileURLToPath(new URL("./index.js", import.meta.url));
 
 	const env: Record<string, string> = {
-		...process.env as Record<string, string>,
+		...(process.env as Record<string, string>),
 		FARMHAND_HTTP_PORT: String(port),
 		FARMHAND_DATA_DIR: dataDir,
 		// Disable bundled plugin install in tests unless model env is provided

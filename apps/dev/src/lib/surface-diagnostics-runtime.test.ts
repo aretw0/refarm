@@ -26,17 +26,13 @@ describe("surface diagnostics runtime", () => {
 		const bootRuntime = vi.fn(async () => ({
 			tractor,
 		})) as unknown as typeof bootStudioRuntime;
-		const setupShell = vi.fn(
-			async () => ({}),
-		) as unknown as typeof setupStudioShell;
+		const setupShell = vi.fn(async () => ({})) as unknown as typeof setupStudioShell;
 		const registerManifest = vi.fn(
 			async () => undefined,
 		) as unknown as typeof registerStudioPluginManifest;
 		const defineLedgerElement = vi.fn();
 		const ledgerController = {
-			element: doc.querySelector<HTMLElement>(
-				SURFACE_DIAGNOSTICS_LEDGER_SELECTOR,
-			)!,
+			element: doc.querySelector<HTMLElement>(SURFACE_DIAGNOSTICS_LEDGER_SELECTOR)!,
 			refresh: vi.fn(),
 			dispose: vi.fn(),
 		};
@@ -93,18 +89,15 @@ describe("surface diagnostics runtime", () => {
 		);
 		expect(defineLedgerElement).toHaveBeenCalled();
 		expect(mountLedger).toHaveBeenCalledWith(
-			doc.querySelector<StudioSurfaceLedgerElement>(
-				SURFACE_DIAGNOSTICS_LEDGER_SELECTOR,
-			),
+			doc.querySelector<StudioSurfaceLedgerElement>(SURFACE_DIAGNOSTICS_LEDGER_SELECTOR),
 			expect.objectContaining({
 				telemetry: tractor,
 				telemetryEvents: [{ event: "existing:event" }],
 			}),
 		);
-		expect(
-			doc.querySelector<HTMLElement>(SURFACE_DIAGNOSTICS_STATUS_SELECTOR)
-				?.textContent,
-		).toBe("Ready");
+		expect(doc.querySelector<HTMLElement>(SURFACE_DIAGNOSTICS_STATUS_SELECTOR)?.textContent).toBe(
+			"Ready",
+		);
 		expect(workbench).toEqual({ tractor, ledger: ledgerController });
 	});
 
@@ -115,14 +108,12 @@ describe("surface diagnostics runtime", () => {
 			document: doc,
 		});
 
-		expect(
-			doc.querySelector<HTMLElement>(SURFACE_DIAGNOSTICS_STATUS_SELECTOR)
-				?.textContent,
-		).toBe("Boot failed");
-		expect(
-			doc.querySelector<HTMLElement>(SURFACE_DIAGNOSTICS_LEDGER_SELECTOR)
-				?.textContent,
-		).toBe("Surface diagnostics boot failed: OPFS denied");
+		expect(doc.querySelector<HTMLElement>(SURFACE_DIAGNOSTICS_STATUS_SELECTOR)?.textContent).toBe(
+			"Boot failed",
+		);
+		expect(doc.querySelector<HTMLElement>(SURFACE_DIAGNOSTICS_LEDGER_SELECTOR)?.textContent).toBe(
+			"Surface diagnostics boot failed: OPFS denied",
+		);
 	});
 });
 

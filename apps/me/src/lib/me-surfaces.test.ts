@@ -21,9 +21,7 @@ describe("refarm.me Homestead surface", () => {
 		const [plugin] = createRefarmMeSurfacePlugins(emitTelemetry);
 
 		expect(plugin?.id).toBe(REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID);
-		expect(plugin?.manifest.entry).toBe(
-			`internal:${REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID}`,
-		);
+		expect(plugin?.manifest.entry).toBe(`internal:${REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID}`);
 		expect(plugin?.manifest.extensions?.surfaces?.[0]).toMatchObject({
 			layer: "homestead",
 			kind: "panel",
@@ -33,11 +31,9 @@ describe("refarm.me Homestead surface", () => {
 		});
 
 		plugin?.emitTelemetry("me:event", { ok: true });
-		expect(emitTelemetry).toHaveBeenCalledWith(
-			REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
-			"me:event",
-			{ ok: true },
-		);
+		expect(emitTelemetry).toHaveBeenCalledWith(REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID, "me:event", {
+			ok: true,
+		});
 	});
 
 	it("renders host-provided context and action affordance", async () => {
@@ -83,9 +79,7 @@ describe("refarm.me Homestead surface", () => {
 				`data-refarm-surface-action-id="${REFARM_ME_OPEN_VAULT_ACTION_ID}"`,
 			),
 		});
-		expect((rendered as { html: string }).html).toContain(
-			`<dd>${REFARM_ME_IDENTITY_STATUS}</dd>`,
-		);
+		expect((rendered as { html: string }).html).toContain(`<dd>${REFARM_ME_IDENTITY_STATUS}</dd>`);
 		expect((rendered as { html: string }).html).toContain(
 			`<dd data-refarm-me-sync-status>${REFARM_ME_SYNC_STATUS}</dd>`,
 		);
@@ -185,10 +179,7 @@ describe("refarm.me Homestead surface", () => {
 			graphMode: "sovereign",
 			pluginRegistryCount: 1,
 			discoveredContentPluginCount: 2,
-			referenceDriverCapabilityIds: [
-				"runtime-agent.session-tree",
-				"runtime-agent.structured-io",
-			],
+			referenceDriverCapabilityIds: ["runtime-agent.session-tree", "runtime-agent.structured-io"],
 			scheduledWorkSummary: {
 				total: 1,
 				due: 0,
@@ -208,10 +199,7 @@ describe("refarm.me Homestead surface", () => {
 				graphMode: "sovereign",
 				pluginRegistryCount: 1,
 				discoveredContentPluginCount: 2,
-				referenceDriverCapabilityIds: [
-					"runtime-agent.session-tree",
-					"runtime-agent.structured-io",
-				],
+				referenceDriverCapabilityIds: ["runtime-agent.session-tree", "runtime-agent.structured-io"],
 				scheduledWorkSummary: {
 					total: 1,
 					due: 0,
@@ -224,9 +212,7 @@ describe("refarm.me Homestead surface", () => {
 
 	it("resolves personal surface action requests through Homestead envelope helpers", async () => {
 		await expect(
-			resolveRefarmMePersonalSurfaceActionRequest(
-				REFARM_ME_OPEN_VAULT_ACTION_ID,
-			),
+			resolveRefarmMePersonalSurfaceActionRequest(REFARM_ME_OPEN_VAULT_ACTION_ID),
 		).resolves.toMatchObject({
 			reason: "available",
 			request: {
@@ -241,19 +227,16 @@ describe("refarm.me Homestead surface", () => {
 				},
 			},
 		});
-		await expect(
-			resolveRefarmMePersonalSurfaceActionRequest("missing-action"),
-		).resolves.toEqual({ reason: "missing-action" });
+		await expect(resolveRefarmMePersonalSurfaceActionRequest("missing-action")).resolves.toEqual({
+			reason: "missing-action",
+		});
 	});
 
 	it("invokes personal surface actions through the shared Homestead envelope", async () => {
 		const observer = vi.fn();
 
 		await expect(
-			invokeRefarmMePersonalSurfaceAction(
-				REFARM_ME_OPEN_VAULT_ACTION_ID,
-				observer,
-			),
+			invokeRefarmMePersonalSurfaceAction(REFARM_ME_OPEN_VAULT_ACTION_ID, observer),
 		).resolves.toBe(true);
 		expect(observer).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -264,9 +247,9 @@ describe("refarm.me Homestead surface", () => {
 				}),
 			}),
 		);
-		await expect(
-			invokeRefarmMePersonalSurfaceAction("missing-action", observer),
-		).resolves.toBe(false);
+		await expect(invokeRefarmMePersonalSurfaceAction("missing-action", observer)).resolves.toBe(
+			false,
+		);
 	});
 
 	it("scopes personal surface actions to the Refarm.me plugin", async () => {

@@ -3,10 +3,7 @@ import type { StudioHostTelemetryEvent } from "@refarm.dev/homestead/sdk";
 import type { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
 import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-	bootRefarmMeWorkbench,
-	REFARM_ME_LOADING_ID,
-} from "./me-runtime";
+import { bootRefarmMeWorkbench, REFARM_ME_LOADING_ID } from "./me-runtime";
 import {
 	REFARM_ME_IDENTITY_STATUS,
 	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
@@ -26,8 +23,7 @@ describe("refarm.me real shell runtime", () => {
 	});
 
 	it("mounts Herald, Firefly, and the personal surface into real Homestead slots", async () => {
-		const telemetryHandlers: Array<(event: StudioHostTelemetryEvent) => void> =
-			[];
+		const telemetryHandlers: Array<(event: StudioHostTelemetryEvent) => void> = [];
 		const plugins = new Map<string, RuntimePluginHandle>();
 		const tractor = {
 			logLevel: "error",
@@ -72,9 +68,7 @@ describe("refarm.me real shell runtime", () => {
 			`[data-refarm-plugin-id="${REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID}"]`,
 		);
 		expect(mountedSurface?.getAttribute("data-refarm-slot-id")).toBe("main");
-		expect(mountedSurface?.getAttribute("data-refarm-mount-source")).toBe(
-			"extension-surface",
-		);
+		expect(mountedSurface?.getAttribute("data-refarm-mount-source")).toBe("extension-surface");
 		expect(mountedSurface?.textContent).toContain("My Sovereign Space");
 		expect(mountedSurface?.textContent).toContain(REFARM_ME_IDENTITY_STATUS);
 		expect(mountedSurface?.textContent).toContain(REFARM_ME_SYNC_STATUS);
@@ -85,9 +79,9 @@ describe("refarm.me real shell runtime", () => {
 				payload: { reason: "Personal shell ready" },
 			});
 		}
-		expect(
-			document.getElementById("refarm-firefly-toast")?.textContent,
-		).toContain("Personal shell ready");
+		expect(document.getElementById("refarm-firefly-toast")?.textContent).toContain(
+			"Personal shell ready",
+		);
 
 		expect(tractor.emitTelemetry).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -95,9 +89,7 @@ describe("refarm.me real shell runtime", () => {
 				pluginId: REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
 			}),
 		);
-		expect(workbench.surfacePluginIds).toEqual([
-			REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
-		]);
+		expect(workbench.surfacePluginIds).toEqual([REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID]);
 	});
 });
 

@@ -28,9 +28,7 @@ describe("studio dashboard runtime", () => {
 		const bootRuntime = vi.fn(async () => ({
 			tractor,
 		})) as unknown as typeof bootStudioRuntime;
-		const setupShell = vi.fn(
-			async () => ({}),
-		) as unknown as typeof setupStudioShell;
+		const setupShell = vi.fn(async () => ({})) as unknown as typeof setupStudioShell;
 		const seedStreamDemo = vi.fn(async () => undefined);
 		const reload = vi.fn();
 		const pluginConstructors = createPluginConstructors();
@@ -80,15 +78,9 @@ describe("studio dashboard runtime", () => {
 			tractorSync: true,
 		});
 		expect(tractor.plugins.registerInternal).toHaveBeenCalledTimes(4);
-		expect(createPluginHandle).toHaveBeenCalledWith(
-			expect.objectContaining({ id: "sower" }),
-		);
-		expect(createPluginHandle).toHaveBeenCalledWith(
-			expect.objectContaining({ id: "scarecrow" }),
-		);
-		expect(createPluginHandle).toHaveBeenCalledWith(
-			expect.objectContaining({ id: "firefly" }),
-		);
+		expect(createPluginHandle).toHaveBeenCalledWith(expect.objectContaining({ id: "sower" }));
+		expect(createPluginHandle).toHaveBeenCalledWith(expect.objectContaining({ id: "scarecrow" }));
+		expect(createPluginHandle).toHaveBeenCalledWith(expect.objectContaining({ id: "firefly" }));
 		expect(setupShell).toHaveBeenCalledWith(
 			tractor,
 			expect.objectContaining({
@@ -126,9 +118,7 @@ describe("studio dashboard runtime", () => {
 		);
 
 		toggleDemo?.();
-		expect(localStore.removeItem).toHaveBeenCalledWith(
-			STUDIO_STREAM_DEMO_STORAGE_KEY,
-		);
+		expect(localStore.removeItem).toHaveBeenCalledWith(STUDIO_STREAM_DEMO_STORAGE_KEY);
 		expect(reload).toHaveBeenCalled();
 	});
 
@@ -151,12 +141,9 @@ describe("studio dashboard runtime", () => {
 				}),
 			),
 		).toBe("session");
-		expect(
-			resolveStudioDashboardMode(
-				createStorageFixture(),
-				createStorageFixture(),
-			),
-		).toBe("visitor");
+		expect(resolveStudioDashboardMode(createStorageFixture(), createStorageFixture())).toBe(
+			"visitor",
+		);
 	});
 
 	it("renders safe boot failure UI", () => {

@@ -1,10 +1,6 @@
 import type { Task as EffortTask } from "@refarm.dev/effort-contract-v1";
 import { normalizePluginId } from "@refarm.dev/config";
-import type {
-	Task,
-	TaskContractAdapter,
-	TaskStatus,
-} from "@refarm.dev/task-contract-v1";
+import type { Task, TaskContractAdapter, TaskStatus } from "@refarm.dev/task-contract-v1";
 
 export interface TaskMemoryOutcome {
 	status: "ok" | "error";
@@ -35,8 +31,7 @@ export class TaskMemoryBridge {
 	private readonly contextPrefix: string;
 
 	constructor(private readonly options: TaskMemoryBridgeOptions) {
-		this.contextPrefix =
-			options.contextPrefix?.trim() || "urn:refarm:effort:v1:";
+		this.contextPrefix = options.contextPrefix?.trim() || "urn:refarm:effort:v1:";
 	}
 
 	async ensureTask(task: EffortTask, effortId: string): Promise<string> {
@@ -100,8 +95,6 @@ export class TaskMemoryBridge {
 	}
 }
 
-export function createTaskMemoryBridge(
-	options: TaskMemoryBridgeOptions,
-): TaskMemoryBridge {
+export function createTaskMemoryBridge(options: TaskMemoryBridgeOptions): TaskMemoryBridge {
 	return new TaskMemoryBridge(options);
 }

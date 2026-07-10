@@ -21,12 +21,8 @@ describe("createStudioSurfaceDiagnosticsPlugins", () => {
 			EXTERNAL_VALIDATED_SURFACE_PLUGIN_ID,
 			EXTERNAL_UNTRUSTED_SURFACE_PLUGIN_ID,
 		]);
-		expect(plugins[0]?.manifest.entry).toBe(
-			`internal:${STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID}`,
-		);
-		expect(plugins[1]?.manifest.entry).toBe(
-			`internal:${FAILING_SURFACE_DIAGNOSTICS_PLUGIN_ID}`,
-		);
+		expect(plugins[0]?.manifest.entry).toBe(`internal:${STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID}`);
+		expect(plugins[1]?.manifest.entry).toBe(`internal:${FAILING_SURFACE_DIAGNOSTICS_PLUGIN_ID}`);
 		expect(plugins[2]?.manifest.entry).toBe("./dist/validated-surface.mjs");
 		expect(plugins[3]?.manifest.entry).toBe("./dist/untrusted-surface.mjs");
 		for (const plugin of plugins) {
@@ -124,9 +120,7 @@ describe("createStudioSurfaceDiagnosticsPlugins", () => {
 		expect((rendered as { html: string }).html).toContain(
 			"&lt;apps/dev &amp; &quot;studio&quot;&gt;",
 		);
-		expect((rendered as { html: string }).html).toContain(
-			"Run &lt;denied&gt; action",
-		);
+		expect((rendered as { html: string }).html).toContain("Run &lt;denied&gt; action");
 	});
 
 	it("keeps diagnostics surface context and action behavior in apps/dev", async () => {

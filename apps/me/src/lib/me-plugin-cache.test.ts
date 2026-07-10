@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-	proveRefarmMePluginCache,
-	type RefarmMePluginCacheProofInput,
-} from "./me-plugin-cache";
+import { proveRefarmMePluginCache, type RefarmMePluginCacheProofInput } from "./me-plugin-cache";
 
 vi.mock("@refarm.dev/tractor/browser", () => ({
 	evictPlugin: vi.fn(),

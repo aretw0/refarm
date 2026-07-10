@@ -47,18 +47,14 @@ describe("Studio surface inspector", () => {
 		const inspector = mountStudioSurfaceInspector(container, root);
 
 		expect(inspector.textContent).toContain("1 mounted surface");
-		expect(inspector.textContent).toContain(
-			"stream-plugin · stream-panel → streams",
-		);
+		expect(inspector.textContent).toContain("stream-plugin · stream-panel → streams");
 		expect(inspector.textContent).toContain("panel · running");
 		expect(
 			inspector
 				.querySelector("[data-refarm-surface-mount-key]")
 				?.getAttribute("data-refarm-surface-mount-key"),
 		).toBe("stream-plugin:extension-surface:streams::panel:stream-panel");
-		expect(
-			container.querySelectorAll("[data-refarm-studio-surface-inspector]"),
-		).toHaveLength(1);
+		expect(container.querySelectorAll("[data-refarm-studio-surface-inspector]")).toHaveLength(1);
 	});
 
 	it("replaces any previous inspector when remounted", () => {
@@ -67,34 +63,26 @@ describe("Studio surface inspector", () => {
 		mountStudioSurfaceInspector(container, document.createElement("div"));
 		mountStudioSurfaceInspector(container, document.createElement("div"));
 
-		expect(
-			container.querySelectorAll("[data-refarm-studio-surface-inspector]"),
-		).toHaveLength(1);
-		expect(container.textContent).toContain(
-			"No plugin surfaces are mounted yet.",
-		);
+		expect(container.querySelectorAll("[data-refarm-studio-surface-inspector]")).toHaveLength(1);
+		expect(container.textContent).toContain("No plugin surfaces are mounted yet.");
 	});
 
 	it("renders rejected surface activation diagnostics from telemetry history", () => {
 		const container = document.createElement("div");
-		const inspector = mountStudioSurfaceInspector(
-			container,
-			document.createElement("div"),
-			{
-				telemetryEvents: [
-					{
-						event: "ui:surface_rejected",
-						pluginId: "plugin-a",
-						payload: {
-							reason: "untrusted-plugin",
-							surfaceId: "secrets-panel",
-							trustSource: "registry",
-							registryStatus: "registered",
-						},
+		const inspector = mountStudioSurfaceInspector(container, document.createElement("div"), {
+			telemetryEvents: [
+				{
+					event: "ui:surface_rejected",
+					pluginId: "plugin-a",
+					payload: {
+						reason: "untrusted-plugin",
+						surfaceId: "secrets-panel",
+						trustSource: "registry",
+						registryStatus: "registered",
 					},
-				],
-			},
-		);
+				},
+			],
+		});
 
 		expect(inspector.textContent).toContain("1 rejected surface");
 		expect(inspector.textContent).toContain(
@@ -125,12 +113,8 @@ describe("Studio surface inspector", () => {
 		telemetry.emit({ event: "ui:surface_mounted" });
 
 		expect(controller.element.textContent).toContain("1 mounted surface");
-		expect(controller.element.textContent).toContain(
-			"stream-plugin · stream-panel → streams",
-		);
-		expect(
-			container.querySelectorAll("[data-refarm-studio-surface-inspector]"),
-		).toHaveLength(1);
+		expect(controller.element.textContent).toContain("stream-plugin · stream-panel → streams");
+		expect(container.querySelectorAll("[data-refarm-studio-surface-inspector]")).toHaveLength(1);
 	});
 
 	it("refreshes when surface rejection telemetry arrives", () => {
@@ -151,9 +135,7 @@ describe("Studio surface inspector", () => {
 		});
 
 		expect(controller.element.textContent).toContain("1 rejected surface");
-		expect(controller.element.textContent).toContain(
-			"plugin-a · floating-panel: missing-slot",
-		);
+		expect(controller.element.textContent).toContain("plugin-a · floating-panel: missing-slot");
 	});
 
 	it("disposes reactive telemetry subscriptions", () => {
@@ -217,8 +199,7 @@ function createSurfaceMount(metadata: {
 	element.dataset.refarmSlotId = metadata.slotId;
 	element.dataset.refarmMountSource = metadata.mountSource;
 	if (metadata.state) element.dataset.refarmState = metadata.state;
-	if (metadata.surfaceKind)
-		element.dataset.refarmSurfaceKind = metadata.surfaceKind;
+	if (metadata.surfaceKind) element.dataset.refarmSurfaceKind = metadata.surfaceKind;
 	if (metadata.surfaceId) element.dataset.refarmSurfaceId = metadata.surfaceId;
 	return element;
 }

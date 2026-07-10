@@ -1,8 +1,4 @@
-import type {
-	RuntimeNode,
-	RuntimeNodeStoreTarget,
-	RuntimePluginHandle,
-} from "@refarm.dev/runtime";
+import type { RuntimeNode, RuntimeNodeStoreTarget, RuntimePluginHandle } from "@refarm.dev/runtime";
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import {
 	createScopedHomesteadSurfaceActionHandler,
@@ -30,10 +26,7 @@ export interface StudioStreamSurfaceActionHandlerOptions {
 	navigate?: (href: string) => void;
 }
 
-export function shouldSeedStudioStreamDemo(
-	url: string,
-	persistedFlag?: string | null,
-): boolean {
+export function shouldSeedStudioStreamDemo(url: string, persistedFlag?: string | null): boolean {
 	const searchParams = new URL(url, "http://refarm.local").searchParams;
 	return (
 		searchParams.has("stream-demo") ||
@@ -42,9 +35,7 @@ export function shouldSeedStudioStreamDemo(
 	);
 }
 
-export function studioStreamDemoNodes(
-	startedAt: Date = new Date(),
-): RuntimeNode[] {
+export function studioStreamDemoNodes(startedAt: Date = new Date()): RuntimeNode[] {
 	const startedAtIso = startedAt.toISOString();
 	return [
 		{
@@ -91,9 +82,7 @@ export function studioStreamDemoNodes(
 	];
 }
 
-export async function seedStudioStreamDemo(
-	tractor: RuntimeNodeStoreTarget,
-): Promise<void> {
+export async function seedStudioStreamDemo(tractor: RuntimeNodeStoreTarget): Promise<void> {
 	for (const node of studioStreamDemoNodes()) {
 		await tractor.storeNode(node, "none");
 	}
@@ -102,21 +91,16 @@ export async function seedStudioStreamDemo(
 export function renderStudioStreamSurfaceDemo(
 	request: HomesteadSurfaceRenderRequest,
 ): HomesteadSurfaceRenderResult {
-	const surfaceId = escapeStudioStreamSurfaceText(
-		request.surface?.id ?? "studio-stream-panel",
-	);
+	const surfaceId = escapeStudioStreamSurfaceText(request.surface?.id ?? "studio-stream-panel");
 	const slotId = escapeStudioStreamSurfaceText(request.slotId);
-	const hostId = escapeStudioStreamSurfaceText(
-		request.host?.hostId ?? "unknown host",
-	);
+	const hostId = escapeStudioStreamSurfaceText(request.host?.hostId ?? "unknown host");
 	const streamRef = escapeStudioStreamSurfaceText(
 		String(request.host?.data?.streamRef ?? DEMO_STREAM_REF),
 	);
 	const actionLinks = (request.host?.actions ?? [])
 		.map((action) => {
 			const actionId = escapeStudioStreamSurfaceText(action.id);
-			const href =
-				typeof action.payload?.href === "string" ? action.payload.href : "#";
+			const href = typeof action.payload?.href === "string" ? action.payload.href : "#";
 			return `<a class="refarm-btn refarm-btn-pill" data-refarm-surface-action-id="${actionId}" data-refarm-studio-surface-action="${actionId}" href="${escapeStudioStreamSurfaceText(href)}">${escapeStudioStreamSurfaceText(action.label)}</a>`;
 		})
 		.join("");
@@ -172,9 +156,7 @@ export function createStudioStreamSurfaceActionHandler(
 
 			const href = action.payload?.href;
 			if (typeof href !== "string" || href.length === 0) {
-				throw new Error(
-					`Studio surface action ${action.id} is missing an href`,
-				);
+				throw new Error(`Studio surface action ${action.id} is missing an href`);
 			}
 
 			const navigate =
@@ -213,17 +195,13 @@ export function mountStudioStreamDemoControl(
 	container: HTMLElement,
 	options: StudioStreamDemoControlOptions,
 ): HTMLButtonElement {
-	container
-		.querySelector<HTMLElement>("[data-refarm-studio-stream-demo]")
-		?.remove();
+	container.querySelector<HTMLElement>("[data-refarm-studio-stream-demo]")?.remove();
 
 	const button = document.createElement("button");
 	button.type = "button";
 	button.className = "refarm-btn refarm-btn-pill";
 	button.dataset.refarmStudioStreamDemo = "true";
-	button.textContent = options.enabled
-		? "Disable Studio stream demo"
-		: "Enable Studio stream demo";
+	button.textContent = options.enabled ? "Disable Studio stream demo" : "Enable Studio stream demo";
 	button.setAttribute("aria-pressed", options.enabled ? "true" : "false");
 	button.addEventListener("click", options.onToggle);
 

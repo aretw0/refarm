@@ -5,14 +5,10 @@ import {
 	type HomesteadHostRendererKind,
 } from "@refarm.dev/homestead/sdk/host-renderer";
 
-export const STUDIO_WEB_RENDERER = createHomesteadHostRendererDescriptor(
-	"refarm-dev-web",
-	"web",
-	{
-		label: "Refarm Studio Web",
-		metadata: { app: "apps/dev" },
-	},
-);
+export const STUDIO_WEB_RENDERER = createHomesteadHostRendererDescriptor("refarm-dev-web", "web", {
+	label: "Refarm Studio Web",
+	metadata: { app: "apps/dev" },
+});
 
 export const STUDIO_HEADLESS_RENDERER = createHomesteadHostRendererDescriptor(
 	"refarm-dev-headless",

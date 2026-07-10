@@ -97,8 +97,7 @@ export function createExtensionCapability(
 			// This IS the "declare once → new surface for free" the inspector demonstrates.
 			palette: { group: "extension", keybind: "g x", hint: "inspect the extension mechanism" },
 		},
-		note:
-			"Each surfaced verb is a first-class command on CLI/REPL/TUI/HTTP/agent/palette — declared once, no per-surface wiring.",
+		note: "Each surfaced verb is a first-class command on CLI/REPL/TUI/HTTP/agent/palette — declared once, no per-surface wiring.",
 	});
 }
 

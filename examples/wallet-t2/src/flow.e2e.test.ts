@@ -2,12 +2,7 @@ import { hostCommandOverrideEnv } from "@refarm.dev/capability-host";
 import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-	DGK_COMMAND,
-	buildRegistry,
-	buildWalletBaseModel,
-	buildWalletHost,
-} from "./cli.js";
+import { DGK_COMMAND, buildRegistry, buildWalletBaseModel, buildWalletHost } from "./cli.js";
 
 const harness = createCapabilityTestHarness({ tempPrefix: "dgk-wallet-state-" });
 
@@ -25,18 +20,22 @@ function tempStatePath(): string {
  */
 describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", () => {
 	it("mounts the neutral chain + the wallet dashboard verbs", () => {
-		const names = buildRegistry().list().map((e) => e.name);
-		expect(names).toEqual(expect.arrayContaining([
-			"source",
-			"records",
-			"vault",
-			"wallet",
-			// The dashboard breadth — a card per review state, from pure declaration.
-			"wallet-verified",
-			"wallet-draft",
-			"status",
-			"actions",
-		]));
+		const names = buildRegistry()
+			.list()
+			.map((e) => e.name);
+		expect(names).toEqual(
+			expect.arrayContaining([
+				"source",
+				"records",
+				"vault",
+				"wallet",
+				// The dashboard breadth — a card per review state, from pure declaration.
+				"wallet-verified",
+				"wallet-draft",
+				"status",
+				"actions",
+			]),
+		);
 	});
 
 	it("projects the wallet dashboard into a Homestead web panel of cards (RICH via breadth)", async () => {
@@ -80,10 +79,18 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		const statePath = tempStatePath();
 		const host = buildWalletHost({ statePath });
 		expect(host.program().name()).toBe(DGK_COMMAND);
-		expect(host.registry().list().map((entry) => entry.name)).toEqual(
+		expect(
+			host
+				.registry()
+				.list()
+				.map((entry) => entry.name),
+		).toEqual(
 			expect.arrayContaining(["source", "records", "vault", "wallet", "status", "actions"]),
 		);
-		const walletEntry = host.registry().list().find((entry) => entry.name === "wallet");
+		const walletEntry = host
+			.registry()
+			.list()
+			.find((entry) => entry.name === "wallet");
 		expect(walletEntry).toBeTruthy();
 		expect(walletEntry).toMatchObject({
 			renderers: {
@@ -121,10 +128,12 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 			commandEnv: { [hostCommandOverrideEnv(DGK_COMMAND)]: command },
 		});
 		expect(host.program().name()).toBe(command);
-		expect(buildWalletBaseModel({
-			statePath,
-			commandEnv: { [hostCommandOverrideEnv(DGK_COMMAND)]: command },
-		})).toMatchObject({
+		expect(
+			buildWalletBaseModel({
+				statePath,
+				commandEnv: { [hostCommandOverrideEnv(DGK_COMMAND)]: command },
+			}),
+		).toMatchObject({
 			command,
 			nextCommand: `${command} wallet --json`,
 		});
@@ -135,10 +144,7 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 	});
 
 	it("shows the citizen's held items as a product view", async () => {
-		const env = await harness.runVerb(
-			buildRegistry({ statePath: tempStatePath() }),
-			"wallet",
-		);
+		const env = await harness.runVerb(buildRegistry({ statePath: tempStatePath() }), "wallet");
 		expect(env.ok).toBe(true);
 		expect(env.total).toBe(3); // the three wallet items
 		const wallet = env.wallet as string;

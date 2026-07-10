@@ -1,8 +1,5 @@
 /** @vitest-environment jsdom */
-import {
-	FireflyPlugin,
-	type StudioHostTelemetryEvent,
-} from "@refarm.dev/homestead/sdk";
+import { FireflyPlugin, type StudioHostTelemetryEvent } from "@refarm.dev/homestead/sdk";
 import type { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
 import type { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
 import { describe, expect, it, vi } from "vitest";
@@ -16,8 +13,7 @@ import type { createRefarmMeSurfacePlugins } from "./me-surfaces";
 describe("refarm.me Firefly runtime", () => {
 	it("boots the real Firefly plugin and renders system notifications", async () => {
 		document.body.innerHTML = `<div id="${REFARM_ME_LOADING_ID}"></div>`;
-		const telemetryHandlers: Array<(event: StudioHostTelemetryEvent) => void> =
-			[];
+		const telemetryHandlers: Array<(event: StudioHostTelemetryEvent) => void> = [];
 		const tractor = {
 			plugins: { registerInternal: vi.fn() },
 			observe: vi.fn((handler) => {
@@ -35,9 +31,7 @@ describe("refarm.me Firefly runtime", () => {
 		const setupShell = vi.fn(
 			async (_tractor: unknown, _options: unknown) => ({}),
 		) as unknown as typeof setupStudioShell;
-		const createSurfacePlugins = vi.fn(
-			() => [],
-		) as unknown as typeof createRefarmMeSurfacePlugins;
+		const createSurfacePlugins = vi.fn(() => []) as unknown as typeof createRefarmMeSurfacePlugins;
 		class HeraldPlugin {
 			announce(): void {}
 		}

@@ -62,7 +62,11 @@ async function readInstalledVersion(pluginsDir: string, pluginId: string): Promi
 	}
 }
 
-async function writeInstalledVersion(pluginsDir: string, pluginId: string, version: string): Promise<void> {
+async function writeInstalledVersion(
+	pluginsDir: string,
+	pluginId: string,
+	version: string,
+): Promise<void> {
 	const p = sentinelPath(pluginsDir, pluginId);
 	await mkdir(path.dirname(p), { recursive: true });
 	await writeFile(p, version, "utf-8");
@@ -160,7 +164,9 @@ export async function bundleInstallPlugin(
 
 		await writeInstalledVersion(pluginsDir, entry.id, pkgVersion);
 
-		logger.info(`[farmhand] bundled: ${entry.id} v${pkgVersion} installed (${wasmBytes.byteLength} bytes)`);
+		logger.info(
+			`[farmhand] bundled: ${entry.id} v${pkgVersion} installed (${wasmBytes.byteLength} bytes)`,
+		);
 		return { status: "installed", id: entry.id };
 	} catch (err) {
 		logger.warn(

@@ -26,14 +26,10 @@ export function mountStudioSurfaceInspector(
 	root: ParentNode = document,
 	options: { telemetryEvents?: readonly HomesteadSurfaceTelemetryEvent[] } = {},
 ): HTMLElement {
-	container
-		.querySelector<HTMLElement>("[data-refarm-studio-surface-inspector]")
-		?.remove();
+	container.querySelector<HTMLElement>("[data-refarm-studio-surface-inspector]")?.remove();
 
 	const surfaces = listMountedHomesteadSurfaces(root);
-	const rejectedSurfaces = listRejectedHomesteadSurfaces(
-		options.telemetryEvents ?? [],
-	);
+	const rejectedSurfaces = listRejectedHomesteadSurfaces(options.telemetryEvents ?? []);
 	const details = document.createElement("details");
 	details.dataset.refarmStudioSurfaceInspector = "true";
 	details.className = "refarm-surface-card";
@@ -137,8 +133,7 @@ export function defineStudioSurfaceInspectorElement(
 	>({
 		name: STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME,
 		registry,
-		connect: (element, options) =>
-			mountReactiveStudioSurfaceInspector(element, options ?? {}),
+		connect: (element, options) => mountReactiveStudioSurfaceInspector(element, options ?? {}),
 	});
 }
 
@@ -173,14 +168,10 @@ function renderRejectedSurfaceList(
 	return section;
 }
 
-function renderRejectedSurfaceListItem(
-	surface: RejectedHomesteadSurfaceActivation,
-): HTMLLIElement {
+function renderRejectedSurfaceListItem(surface: RejectedHomesteadSurfaceActivation): HTMLLIElement {
 	const item = document.createElement("li");
 	item.className = "refarm-card-body";
-	const name = [surface.pluginId, surface.surfaceId]
-		.filter(Boolean)
-		.join(" · ");
+	const name = [surface.pluginId, surface.surfaceId].filter(Boolean).join(" · ");
 	const missing = surface.missingCapabilities?.length
 		? ` (${surface.missingCapabilities.join(", ")})`
 		: "";
@@ -191,9 +182,7 @@ function renderRejectedSurfaceListItem(
 	return item;
 }
 
-function renderSurfaceListItem(
-	surface: MountedHomesteadSurface,
-): HTMLLIElement {
+function renderSurfaceListItem(surface: MountedHomesteadSurface): HTMLLIElement {
 	const item = document.createElement("li");
 	item.className = "refarm-card-body";
 	item.dataset.refarmSurfaceMountKey = mountedHomesteadSurfaceKey(surface);
@@ -206,9 +195,7 @@ function renderSurfaceListItem(
 		const metadata = document.createElement("span");
 		metadata.className = "refarm-pill-meta";
 		metadata.style.marginLeft = "0.5rem";
-		metadata.textContent = [surface.surfaceKind, surface.state]
-			.filter(Boolean)
-			.join(" · ");
+		metadata.textContent = [surface.surfaceKind, surface.state].filter(Boolean).join(" · ");
 		item.appendChild(metadata);
 	}
 

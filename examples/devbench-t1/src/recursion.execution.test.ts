@@ -77,7 +77,9 @@ describe.skipIf(!enabled)("T1 recursion, executed on the Rust runtime", () => {
 		});
 
 		// The runtime reports the agent loaded and active.
-		const pluginsBody = JSON.stringify(await (await fetch(`${daemon.sidecarBaseUrl}/plugins`)).json());
+		const pluginsBody = JSON.stringify(
+			await (await fetch(`${daemon.sidecarBaseUrl}/plugins`)).json(),
+		);
 		expect(pluginsBody).toContain("agent");
 
 		// Drive the agent with a prompt. Its respond flow calls the model (the mock),

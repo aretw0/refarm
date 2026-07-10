@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHomesteadHostRendererDescriptor } from "@refarm.dev/homestead/sdk/host-renderer";
-import {
-	createStudioHeadlessSnapshot,
-	STUDIO_HEADLESS_RENDERER,
-} from "./studio-headless-runtime";
+import { createStudioHeadlessSnapshot, STUDIO_HEADLESS_RENDERER } from "./studio-headless-runtime";
 
 describe("studio headless runtime", () => {
 	it("advertises a non-interactive headless renderer for automation", () => {
@@ -68,20 +65,13 @@ describe("studio headless runtime", () => {
 				actionIntent: "navigate",
 			}),
 		]);
-		expect(snapshot.diagnostics).toEqual([
-			"renderer:non-interactive",
-			"renderer:no-rich-html",
-		]);
+		expect(snapshot.diagnostics).toEqual(["renderer:non-interactive", "renderer:no-rich-html"]);
 	});
 
 	it("reports required capability gaps for narrowed headless profiles", () => {
-		const renderer = createHomesteadHostRendererDescriptor(
-			"audit-only",
-			"headless",
-			{
-				capabilities: ["telemetry"],
-			},
-		);
+		const renderer = createHomesteadHostRendererDescriptor("audit-only", "headless", {
+			capabilities: ["telemetry"],
+		});
 
 		expect(
 			createStudioHeadlessSnapshot({

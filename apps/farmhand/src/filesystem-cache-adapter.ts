@@ -2,9 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { PluginBinaryCacheAdapter } from "@refarm.dev/plugin-manifest";
 
-export function createFilesystemCacheAdapter(
-	baseDir: string,
-): PluginBinaryCacheAdapter {
+export function createFilesystemCacheAdapter(baseDir: string): PluginBinaryCacheAdapter {
 	function wasmPath(pluginId: string): string {
 		return path.join(baseDir, pluginId, "plugin.wasm");
 	}

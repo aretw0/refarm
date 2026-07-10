@@ -57,10 +57,7 @@ export interface RefarmMeDiscoveredContentPlugin {
 }
 
 export interface RefarmMePluginConstructors {
-	HeraldPlugin: new (
-		tractor: RefarmMeTractor,
-		options?: RefarmMeHeraldOptions,
-	) => RefarmMeHerald;
+	HeraldPlugin: new (tractor: RefarmMeTractor, options?: RefarmMeHeraldOptions) => RefarmMeHerald;
 	FireflyPlugin: new (tractor: RefarmMeTractor) => RefarmMeFirefly;
 }
 
@@ -114,11 +111,10 @@ export async function bootRefarmMeWorkbench(
 ): Promise<RefarmMeWorkbench> {
 	const doc = options.document ?? document;
 	const browserSyncTelemetry = createRefarmMeBrowserSyncTelemetryBuffer(doc);
-	const browserSyncWsUrl =
-		options.browserSyncWsUrl ?? readRefarmMeBootstrapSyncUrl();
-	const browserSyncOptions: NonNullable<
-		BootStudioRuntimeOptions["browserSync"]
-	> = { onEvent: browserSyncTelemetry.capture };
+	const browserSyncWsUrl = options.browserSyncWsUrl ?? readRefarmMeBootstrapSyncUrl();
+	const browserSyncOptions: NonNullable<BootStudioRuntimeOptions["browserSync"]> = {
+		onEvent: browserSyncTelemetry.capture,
+	};
 	if (browserSyncWsUrl) browserSyncOptions.wsUrl = browserSyncWsUrl;
 	const runtime = await (options.bootRuntime ?? bootStudioRuntime)({
 		databaseName: "refarm-me-main",
@@ -133,11 +129,9 @@ export async function bootRefarmMeWorkbench(
 	const tractor = runtime.tractor;
 	browserSyncTelemetry.flushTo(tractor);
 	const graphStatus = await readRefarmMeGraphStatus(runtime);
-	const driverStatus =
-		options.driverStatus ?? readRefarmMeBootstrapDriverStatus();
+	const driverStatus = options.driverStatus ?? readRefarmMeBootstrapDriverStatus();
 
-	const constructors =
-		options.pluginConstructors ?? (await loadRefarmMePluginConstructors());
+	const constructors = options.pluginConstructors ?? (await loadRefarmMePluginConstructors());
 	const herald = new constructors.HeraldPlugin(tractor, {
 		identityStatus: REFARM_ME_IDENTITY_STATUS,
 	});
@@ -168,10 +162,8 @@ export async function bootRefarmMeWorkbench(
 			syncStatus: browserSyncTelemetry.status(),
 			graphMode: graphStatus.mode,
 			pluginRegistryCount: graphStatus.pluginRegistryIds.length,
-			discoveredContentPluginCount:
-				graphStatus.discoveredContentPlugins.length,
-			referenceDriverCapabilityIds:
-				driverStatus.referenceDriverCapabilityIds,
+			discoveredContentPluginCount: graphStatus.discoveredContentPlugins.length,
+			referenceDriverCapabilityIds: driverStatus.referenceDriverCapabilityIds,
 			scheduledWorkSummary: driverStatus.scheduledWorkSummary,
 		}),
 		surfaceAction: createRefarmMeSurfaceActionHandler((request) => {
@@ -217,13 +209,10 @@ function readRefarmMeBootstrapDriverStatus(): RefarmMeDriverStatus {
 		// (which the binary would name, ADR-087) are irrelevant to me's browser
 		// runtime, so the canonical binary is passed as a harmless label.
 		referenceDriverCapabilityIds: buildCapabilityIndex("refarm")
-			.capabilities.filter((capability) =>
-				capability.tags.includes("reference-driver"),
-			)
+			.capabilities.filter((capability) => capability.tags.includes("reference-driver"))
 			.map((capability) => capability.id),
 		scheduledWorkSummary: readRefarmMeScheduledWorkSummary(
-			globalConfig.__REFARM_ME_BOOTSTRAP_OPERATOR_STATUS__?.scheduledWork
-				?.summary,
+			globalConfig.__REFARM_ME_BOOTSTRAP_OPERATOR_STATUS__?.scheduledWork?.summary,
 		),
 	};
 }
@@ -254,37 +243,26 @@ function readRefarmMeScheduledWorkSummary(
 	};
 }
 
-async function readRefarmMeGraphStatus(
-	runtime: RefarmMeRuntime,
-): Promise<RefarmMeGraphStatus> {
-	const registries = await runtime.storage.queryNodes(
-		REFARM_ME_PLUGIN_REGISTRY_TYPE,
-	);
+async function readRefarmMeGraphStatus(runtime: RefarmMeRuntime): Promise<RefarmMeGraphStatus> {
+	const registries = await runtime.storage.queryNodes(REFARM_ME_PLUGIN_REGISTRY_TYPE);
 	const pluginRegistryIds = registries
 		.map(readRefarmMeStorageNodeId)
 		.filter((id): id is string => typeof id === "string" && id.length > 0);
 	return {
 		mode: pluginRegistryIds.length > 0 ? "sovereign" : "bootstrap",
 		pluginRegistryIds,
-		discoveredContentPlugins: registries.flatMap(
-			readRefarmMeDiscoveredContentPlugins,
-		),
+		discoveredContentPlugins: registries.flatMap(readRefarmMeDiscoveredContentPlugins),
 	};
 }
 
-function readRefarmMeDiscoveredContentPlugins(
-	node: unknown,
-): RefarmMeDiscoveredContentPlugin[] {
+function readRefarmMeDiscoveredContentPlugins(node: unknown): RefarmMeDiscoveredContentPlugin[] {
 	const registryId = readRefarmMeStorageNodeId(node);
 	if (!registryId) return [];
 	const payload = readRefarmMeStorageNodePayload(node);
 	const entries = readRefarmMeRegistryPluginEntries(payload);
 	return entries
 		.map((entry) => readRefarmMeRegistryContentPluginInput(entry))
-		.filter(
-			(input): input is RefarmMeContentPluginInstallInput =>
-				input !== undefined,
-		)
+		.filter((input): input is RefarmMeContentPluginInstallInput => input !== undefined)
 		.map((input) => ({ registryId, input }));
 }
 
@@ -356,9 +334,7 @@ function readRefarmMeRegistryContentPluginInput(
 		input.sourceUrl = candidate.sourceUrl;
 	}
 	if (typeof candidate.force === "boolean") input.force = candidate.force;
-	const browserRuntimeModule = readRefarmMeBrowserRuntimeModule(
-		candidate.browserRuntimeModule,
-	);
+	const browserRuntimeModule = readRefarmMeBrowserRuntimeModule(candidate.browserRuntimeModule);
 	if (browserRuntimeModule) input.browserRuntimeModule = browserRuntimeModule;
 	return input;
 }
@@ -385,10 +361,7 @@ function readRefarmMeBrowserRuntimeModule(
 		integrity?: unknown;
 		format?: unknown;
 	};
-	if (
-		typeof candidate.url !== "string" ||
-		typeof candidate.integrity !== "string"
-	) {
+	if (typeof candidate.url !== "string" || typeof candidate.integrity !== "string") {
 		return undefined;
 	}
 	return {
@@ -536,9 +509,7 @@ async function loadSetupStudioShell(): Promise<SetupStudioShell> {
 
 function refarmMeErrorMessage(error: unknown): string {
 	if (error instanceof Error) return error.message;
-	return typeof error === "string" && error.length > 0
-		? error
-		: "unknown error";
+	return typeof error === "string" && error.length > 0 ? error : "unknown error";
 }
 
 function readRefarmMeBootstrapContentPlugins():

@@ -20,11 +20,9 @@ describe("shouldProjectStreamChunk (farmhand dedup)", () => {
 	it("drops the host whole-answer final for agent-response streams", () => {
 		// The guest writes the single final ndjson line; projecting the host's
 		// is_final observation too would double the answer in {stream_ref}.ndjson.
-		expect(
-			shouldProjectStreamChunk(
-				chunk({ is_final: true, content: "the whole answer" }),
-			),
-		).toBe(false);
+		expect(shouldProjectStreamChunk(chunk({ is_final: true, content: "the whole answer" }))).toBe(
+			false,
+		);
 	});
 
 	it("projects final chunks for NON-agent-response streams", () => {

@@ -142,18 +142,27 @@ export function createPluginsRouteHandler(
 							? (body.manifest as PluginManifest)
 							: null;
 
-					if (!pluginId) { json(res, 400, { error: "pluginId is required" }); return; }
-					if (!wasmUrl) { json(res, 400, { error: "wasmUrl is required" }); return; }
-					if (!integrity) { json(res, 400, { error: "integrity is required" }); return; }
-					if (!manifest) { json(res, 400, { error: "manifest is required" }); return; }
+					if (!pluginId) {
+						json(res, 400, { error: "pluginId is required" });
+						return;
+					}
+					if (!wasmUrl) {
+						json(res, 400, { error: "wasmUrl is required" });
+						return;
+					}
+					if (!integrity) {
+						json(res, 400, { error: "integrity is required" });
+						return;
+					}
+					if (!manifest) {
+						json(res, 400, { error: "manifest is required" });
+						return;
+					}
 
 					const pluginsDir = path.join(baseDir, "plugins");
 					const cache = createFilesystemCacheAdapter(pluginsDir);
 
-					const result = await installWasmArtifact(
-						{ pluginId, wasmUrl, integrity },
-						{ cache },
-					);
+					const result = await installWasmArtifact({ pluginId, wasmUrl, integrity }, { cache });
 
 					const wasmAbsPath = path.join(pluginsDir, pluginId, "plugin.wasm");
 					const manifestOnDisk: PluginManifest = {
@@ -220,10 +229,7 @@ export function createPluginsRouteHandler(
 					Array.isArray(body?.pluginIds) &&
 					(body.pluginIds as unknown[]).every((id) => typeof id === "string")
 						? (body.pluginIds as string[]).map(normalizePluginId)
-						: [
-								...listInstalledPluginIds(baseDir),
-								...(localExtensions?.getLoadedIds() ?? []),
-							];
+						: [...listInstalledPluginIds(baseDir), ...(localExtensions?.getLoadedIds() ?? [])];
 
 				const reloadId = crypto.randomUUID();
 				const status: ReloadStatus = {

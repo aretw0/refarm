@@ -36,14 +36,8 @@ function toJson(res: http.ServerResponse, status: number, body: unknown): void {
 	res.end(payload);
 }
 
-function canChannelPerform(
-	channel: string,
-	action: ChannelControlSurfaceOperation,
-): boolean {
-	return hasChannelControlCapability(
-		resolveChannelControlSurfaceAdapter(channel).adapter,
-		action,
-	);
+function canChannelPerform(channel: string, action: ChannelControlSurfaceOperation): boolean {
+	return hasChannelControlCapability(resolveChannelControlSurfaceAdapter(channel).adapter, action);
 }
 export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 	return (req: http.IncomingMessage, res: http.ServerResponse): boolean => {
@@ -91,9 +85,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 			return true;
 		}
 
-		const logsMatch = pathname.match(
-			/^\/channels\/([^/]+)\/efforts\/([^/]+)\/logs$/,
-		);
+		const logsMatch = pathname.match(/^\/channels\/([^/]+)\/efforts\/([^/]+)\/logs$/);
 		if (logsMatch && req.method === "GET") {
 			void (async () => {
 				try {
@@ -120,9 +112,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 			return true;
 		}
 
-		const retryMatch = pathname.match(
-			/^\/channels\/([^/]+)\/efforts\/([^/]+)\/retry$/,
-		);
+		const retryMatch = pathname.match(/^\/channels\/([^/]+)\/efforts\/([^/]+)\/retry$/);
 		if (retryMatch && req.method === "POST") {
 			void (async () => {
 				try {
@@ -149,9 +139,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 			return true;
 		}
 
-		const cancelMatch = pathname.match(
-			/^\/channels\/([^/]+)\/efforts\/([^/]+)\/cancel$/,
-		);
+		const cancelMatch = pathname.match(/^\/channels\/([^/]+)\/efforts\/([^/]+)\/cancel$/);
 		if (cancelMatch && req.method === "POST") {
 			void (async () => {
 				try {
@@ -178,9 +166,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 			return true;
 		}
 
-		const statusMatch = pathname.match(
-			/^\/channels\/([^/]+)\/efforts\/([^/]+)\/status$/,
-		);
+		const statusMatch = pathname.match(/^\/channels\/([^/]+)\/efforts\/([^/]+)\/status$/);
 		if (statusMatch && req.method === "GET") {
 			void (async () => {
 				try {
@@ -207,9 +193,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 			return true;
 		}
 
-		const streamMatch = pathname.match(
-			/^\/channels\/([^/]+)\/efforts\/([^/]+)\/stream$/,
-		);
+		const streamMatch = pathname.match(/^\/channels\/([^/]+)\/efforts\/([^/]+)\/stream$/);
 		if (streamMatch && req.method === "GET") {
 			void (async () => {
 				try {
@@ -236,9 +220,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 			return true;
 		}
 
-		const evidenceMatch = pathname.match(
-			/^\/channels\/([^/]+)\/efforts\/([^/]+)\/evidence$/,
-		);
+		const evidenceMatch = pathname.match(/^\/channels\/([^/]+)\/efforts\/([^/]+)\/evidence$/);
 		if (evidenceMatch && req.method === "GET") {
 			void (async () => {
 				try {
@@ -265,9 +247,7 @@ export function createControlSurfaceRouteHandler(adapter: SidecarAdapter) {
 			return true;
 		}
 
-		const statusByIdMatch = pathname.match(
-			/^\/channels\/([^/]+)\/efforts\/([^/]+)$/,
-		);
+		const statusByIdMatch = pathname.match(/^\/channels\/([^/]+)\/efforts\/([^/]+)$/);
 		if (statusByIdMatch && req.method === "GET") {
 			void (async () => {
 				try {

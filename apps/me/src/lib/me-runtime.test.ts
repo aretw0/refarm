@@ -34,9 +34,7 @@ describe("refarm.me runtime", () => {
 			queryNodes: vi.fn(async () => []),
 			storeNode: vi.fn(async () => {}),
 		};
-		const setupShellMock = vi.fn(
-			async (_tractor: unknown, _options: unknown) => ({}),
-		);
+		const setupShellMock = vi.fn(async (_tractor: unknown, _options: unknown) => ({}));
 		const setupShell = setupShellMock as unknown as typeof setupStudioShell;
 		const pluginConstructors = createPluginConstructors();
 		const createSurfacePlugins = vi.fn((emit) => {
@@ -110,21 +108,19 @@ describe("refarm.me runtime", () => {
 			},
 			storeLocalNode: expect.any(Function),
 		});
-		expect(storage.queryNodes).toHaveBeenCalledWith(
-			REFARM_ME_PLUGIN_REGISTRY_TYPE,
-		);
+		expect(storage.queryNodes).toHaveBeenCalledWith(REFARM_ME_PLUGIN_REGISTRY_TYPE);
 		await workbench.storeLocalNode({
 			id: "refarm-me-proof",
 			type: "refarm:Proof",
 			context: "citizen",
-			payload: "{\"ok\":true}",
+			payload: '{"ok":true}',
 			sourcePlugin: "apps/me:test",
 		});
 		expect(storage.storeNode).toHaveBeenCalledWith(
 			"refarm-me-proof",
 			"refarm:Proof",
 			"citizen",
-			"{\"ok\":true}",
+			'{"ok":true}',
 			"apps/me:test",
 		);
 
@@ -200,9 +196,7 @@ describe("refarm.me runtime", () => {
 			bootRuntime,
 			setupShell: vi.fn(async () => ({})) as unknown as typeof setupStudioShell,
 			pluginConstructors: createPluginConstructors(),
-			createSurfacePlugins: vi.fn(
-				() => [],
-			) as unknown as typeof createRefarmMeSurfacePlugins,
+			createSurfacePlugins: vi.fn(() => []) as unknown as typeof createRefarmMeSurfacePlugins,
 			browserSyncWsUrl: "ws://127.0.0.1:49999",
 			log: { error: vi.fn() },
 		});
@@ -292,7 +286,7 @@ describe("refarm.me runtime", () => {
 		const storage = {
 			queryNodes: vi.fn(async () => [
 				{ id: "refarm-me:registry:local" },
-				{ payload: "{\"@id\":\"refarm-me:registry:payload\"}" },
+				{ payload: '{"@id":"refarm-me:registry:payload"}' },
 			]),
 			storeNode: vi.fn(async () => {}),
 		};
@@ -312,9 +306,7 @@ describe("refarm.me runtime", () => {
 			log: { error: vi.fn() },
 		});
 
-		expect(storage.queryNodes).toHaveBeenCalledWith(
-			REFARM_ME_PLUGIN_REGISTRY_TYPE,
-		);
+		expect(storage.queryNodes).toHaveBeenCalledWith(REFARM_ME_PLUGIN_REGISTRY_TYPE);
 		expect(workbench.graphMode).toBe("sovereign");
 		expect(workbench.pluginRegistryIds).toEqual([
 			"refarm-me:registry:local",
@@ -386,13 +378,10 @@ describe("refarm.me runtime", () => {
 			]),
 			storeNode: vi.fn(async () => {}),
 		};
-		const installContentPluginsMock = vi.fn(
-			async (_tractor: unknown, inputs: readonly unknown[]) =>
-				inputs.map((input) => ({
-					pluginId: (
-						input as { manifest: { id: string } }
-					).manifest.id,
-				})),
+		const installContentPluginsMock = vi.fn(async (_tractor: unknown, inputs: readonly unknown[]) =>
+			inputs.map((input) => ({
+				pluginId: (input as { manifest: { id: string } }).manifest.id,
+			})),
 		);
 		const installContentPlugins =
 			installContentPluginsMock as unknown as typeof installRefarmMeContentPlugins;
@@ -413,12 +402,8 @@ describe("refarm.me runtime", () => {
 		});
 
 		expect(workbench.graphMode).toBe("sovereign");
-		expect(workbench.pluginRegistryIds).toEqual([
-			"refarm-me:registry:plugins",
-		]);
-		expect(workbench.discoveredContentPluginIds).toEqual([
-			"@refarm.me/graph-content",
-		]);
+		expect(workbench.pluginRegistryIds).toEqual(["refarm-me:registry:plugins"]);
+		expect(workbench.discoveredContentPluginIds).toEqual(["@refarm.me/graph-content"]);
 		expect(workbench.contentPluginIds).toEqual(["@refarm.me/graph-content"]);
 		expect(installContentPluginsMock).toHaveBeenCalledWith(tractor, [
 			expect.objectContaining({
@@ -445,10 +430,7 @@ describe("refarm.me runtime", () => {
 			log,
 		});
 
-		expect(log.error).toHaveBeenCalledWith(
-			"[me] Boot failed",
-			expect.any(Error),
-		);
+		expect(log.error).toHaveBeenCalledWith("[me] Boot failed", expect.any(Error));
 		expect(doc.getElementById(REFARM_ME_LOADING_ID)?.textContent).toBe(
 			"Personal space boot failed: OPFS denied",
 		);
@@ -458,11 +440,7 @@ describe("refarm.me runtime", () => {
 		const doc = createMeDocument();
 		const tractor = createTractorFixture();
 		let onBrowserSync:
-			| NonNullable<
-					NonNullable<
-						Parameters<typeof bootStudioRuntime>[0]["browserSync"]
-					>["onEvent"]
-			  >
+			| NonNullable<NonNullable<Parameters<typeof bootStudioRuntime>[0]["browserSync"]>["onEvent"]>
 			| undefined;
 		const bootRuntime = vi.fn(async (runtimeOptions) => {
 			onBrowserSync = runtimeOptions.browserSync?.onEvent;
@@ -527,10 +505,7 @@ function createDocumentFixture() {
 		},
 		querySelector: (selector: string) =>
 			selector === "[data-refarm-me-sync-status]"
-				? findElementByAttribute(
-						document.body,
-						"data-refarm-me-sync-status",
-					)
+				? findElementByAttribute(document.body, "data-refarm-me-sync-status")
 				: null,
 		registerElement: (element: ReturnType<typeof createElementFixture>) => {
 			if (element.id) elementsById.set(element.id, element);
@@ -611,10 +586,7 @@ function createElementFixture(
 	return element;
 }
 
-function findElementByAttribute(
-	element: ElementFixture,
-	attribute: string,
-): ElementFixture | null {
+function findElementByAttribute(element: ElementFixture, attribute: string): ElementFixture | null {
 	if (element.attributes.has(attribute)) return element;
 	for (const child of element.children) {
 		const match = findElementByAttribute(child, attribute);

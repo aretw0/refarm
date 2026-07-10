@@ -145,10 +145,7 @@ function withDisabledChannelCapabilities(
 	disabledCapabilities: Partial<MockChannelControlSurface["capabilities"]> = {},
 ): () => void {
 	const previous = getRegisteredChannelControlSurface("matrix");
-	setChannelControlSurfaceAdapter(
-		"matrix",
-		controlSurfaceAdapter(disabledCapabilities),
-	);
+	setChannelControlSurfaceAdapter("matrix", controlSurfaceAdapter(disabledCapabilities));
 	return () => {
 		if (previous) {
 			setChannelControlSurfaceAdapter(previous.channel, previous.adapter);
@@ -207,12 +204,7 @@ describe("HttpSidecar", () => {
 		} as unknown as Effort;
 		adapter.submit.mockResolvedValue("e1");
 		adapter.submit.mockClear();
-		const { status, body } = await request(
-			PORT,
-			"POST",
-			"/channels/matrix/efforts",
-			effort,
-		);
+		const { status, body } = await request(PORT, "POST", "/channels/matrix/efforts", effort);
 		expect(status).toBe(200);
 		expect((body as Record<string, unknown>).effortId).toBe("e1");
 		expect(adapter.submit).toHaveBeenCalledTimes(1);
@@ -227,18 +219,11 @@ describe("HttpSidecar", () => {
 	});
 
 	it("POST /channels/:channel/efforts rejects invalid payloads", async () => {
-		const { status, body } = await request(
-			PORT,
-			"POST",
-			"/channels/matrix/efforts",
-			{
-				direction: "missing tasks",
-			},
-		);
+		const { status, body } = await request(PORT, "POST", "/channels/matrix/efforts", {
+			direction: "missing tasks",
+		});
 		expect(status).toBe(400);
-		expect((body as Record<string, unknown>).error).toBe(
-			"invalid-effort-payload",
-		);
+		expect((body as Record<string, unknown>).error).toBe("invalid-effort-payload");
 		expect(adapter.submit).not.toHaveBeenCalled();
 	});
 
@@ -251,11 +236,7 @@ describe("HttpSidecar", () => {
 		};
 		adapter.query.mockResolvedValueOnce(mockResult);
 
-		const { status, body } = await request(
-			PORT,
-			"GET",
-			"/channels/matrix/efforts/e1",
-		);
+		const { status, body } = await request(PORT, "GET", "/channels/matrix/efforts/e1");
 		expect(status).toBe(200);
 		expect((body as Record<string, unknown>).effortId).toBe("e1");
 		expect(adapter.query).toHaveBeenCalledWith("e1");
@@ -270,11 +251,7 @@ describe("HttpSidecar", () => {
 		};
 		adapter.query.mockResolvedValueOnce(mockResult);
 
-		const { status, body } = await request(
-			PORT,
-			"GET",
-			"/channels/matrix/efforts/e1/status",
-		);
+		const { status, body } = await request(PORT, "GET", "/channels/matrix/efforts/e1/status");
 		expect(status).toBe(200);
 		expect((body as Record<string, unknown>).effortId).toBe("e1");
 		expect(adapter.query).toHaveBeenCalledWith("e1");
@@ -310,11 +287,7 @@ describe("HttpSidecar", () => {
 			},
 		]);
 
-		const { status, body } = await request(
-			PORT,
-			"GET",
-			"/channels/matrix/efforts/e1/logs",
-		);
+		const { status, body } = await request(PORT, "GET", "/channels/matrix/efforts/e1/logs");
 		expect(status).toBe(200);
 		expect(Array.isArray(body)).toBe(true);
 		expect((body as Record<string, unknown>[])[0]?.effortId).toBe("e1");
@@ -331,11 +304,7 @@ describe("HttpSidecar", () => {
 			},
 		]);
 
-		const { status, body } = await request(
-			PORT,
-			"GET",
-			"/channels/matrix/efforts/e1/stream",
-		);
+		const { status, body } = await request(PORT, "GET", "/channels/matrix/efforts/e1/stream");
 		expect(status).toBe(200);
 		expect(Array.isArray(body)).toBe(true);
 		expect(adapter.logs).toHaveBeenCalledWith("e1");
@@ -352,11 +321,7 @@ describe("HttpSidecar", () => {
 			},
 		]);
 
-		const { status, body } = await request(
-			PORT,
-			"GET",
-			"/channels/matrix/efforts/e1/evidence",
-		);
+		const { status, body } = await request(PORT, "GET", "/channels/matrix/efforts/e1/evidence");
 		expect(status).toBe(200);
 		expect(Array.isArray(body)).toBe(true);
 		expect(adapter.logs).toHaveBeenCalledWith("e1");
@@ -364,11 +329,7 @@ describe("HttpSidecar", () => {
 
 	it("POST /channels/:channel/efforts/:id/retry returns accepted", async () => {
 		adapter.retry.mockResolvedValueOnce(true);
-		const { status, body } = await request(
-			PORT,
-			"POST",
-			"/channels/matrix/efforts/e1/retry",
-		);
+		const { status, body } = await request(PORT, "POST", "/channels/matrix/efforts/e1/retry");
 		expect(status).toBe(202);
 		expect((body as Record<string, unknown>).accepted).toBe(true);
 		expect(adapter.retry).toHaveBeenCalledWith("e1");
@@ -377,11 +338,7 @@ describe("HttpSidecar", () => {
 	it("POST /channels/:channel/efforts/:id/retry is rejected when adapter disables retry", async () => {
 		const restore = withDisabledChannelCapabilities({ retry: false });
 		try {
-			const { status, body } = await request(
-				PORT,
-				"POST",
-				"/channels/matrix/efforts/e1/retry",
-			);
+			const { status, body } = await request(PORT, "POST", "/channels/matrix/efforts/e1/retry");
 			expect(status).toBe(405);
 			expect((body as Record<string, unknown>).error).toBe(
 				CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR,
@@ -395,11 +352,7 @@ describe("HttpSidecar", () => {
 	it("GET /channels/:channel/efforts/:id returns 405 when query unsupported", async () => {
 		const restore = withDisabledChannelCapabilities({ query: false });
 		try {
-			const { status, body } = await request(
-				PORT,
-				"GET",
-				"/channels/matrix/efforts/e1/status",
-			);
+			const { status, body } = await request(PORT, "GET", "/channels/matrix/efforts/e1/status");
 			expect(status).toBe(405);
 			expect((body as Record<string, unknown>).error).toBe(
 				CHANNEL_CONTROL_SURFACE_OPERATION_UNSUPPORTED_ERROR,
@@ -412,11 +365,7 @@ describe("HttpSidecar", () => {
 
 	it("POST /channels/:channel/efforts/:id/cancel returns accepted", async () => {
 		adapter.cancel.mockResolvedValueOnce(true);
-		const { status, body } = await request(
-			PORT,
-			"POST",
-			"/channels/matrix/efforts/e1/cancel",
-		);
+		const { status, body } = await request(PORT, "POST", "/channels/matrix/efforts/e1/cancel");
 		expect(status).toBe(202);
 		expect((body as Record<string, unknown>).accepted).toBe(true);
 		expect(adapter.cancel).toHaveBeenCalledWith("e1");
@@ -487,11 +436,7 @@ describe("HttpSidecar", () => {
 	});
 
 	it("GET /telemetry/window returns rolling window summary", async () => {
-		const { status, body } = await request(
-			PORT,
-			"GET",
-			"/telemetry/window?minutes=15",
-		);
+		const { status, body } = await request(PORT, "GET", "/telemetry/window?minutes=15");
 		expect(status).toBe(200);
 		expect(adapter.telemetryWindow).toHaveBeenCalledWith(15);
 		expect((body as Record<string, unknown>).windowMinutes).toBe(60);

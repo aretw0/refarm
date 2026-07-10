@@ -1,11 +1,5 @@
-import {
-	computeRecordContentHash,
-	type RecordsManifest,
-} from "@refarm.dev/records-contract-v1";
-import {
-	DEFAULT_WEB_SOURCE_FIXTURE,
-	type WebSourceSnapshot,
-} from "@refarm.dev/source-web";
+import { computeRecordContentHash, type RecordsManifest } from "@refarm.dev/records-contract-v1";
+import { DEFAULT_WEB_SOURCE_FIXTURE, type WebSourceSnapshot } from "@refarm.dev/source-web";
 
 /**
  * The T3 work layer — the requirements analyst's OWN data. reqbench is a white-label
@@ -48,9 +42,7 @@ export function reqManifest(): RecordsManifest {
 				status: "draft",
 				externalKey: "REQ-1",
 			},
-			sections: [
-				{ key: "description", content: "O sistema deve permitir cadastrar a obrigação." },
-			],
+			sections: [{ key: "description", content: "O sistema deve permitir cadastrar a obrigação." }],
 			sourceRefs: [REQ_SYSTEM_REF],
 			review: { state: "draft", at: "2026-07-07T00:00:00.000Z" },
 			contentHash: "",

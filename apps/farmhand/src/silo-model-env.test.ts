@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-	createSiloModelEnvInjector,
-	type SiloModelTokens,
-} from "./silo-model-env.js";
+import { createSiloModelEnvInjector, type SiloModelTokens } from "./silo-model-env.js";
 
 function makeStore(sequence: SiloModelTokens[]) {
 	let index = 0;
@@ -25,11 +22,7 @@ describe("createSiloModelEnvInjector", () => {
 		expect(env.MODEL_PROVIDER).toBe("openai");
 		expect(env.MODEL_ID).toBe("gpt-5.5");
 		expect(env.OPENAI_API_KEY).toBe("sk-test");
-		expect(injector.managedEnvKeys()).toEqual([
-			"MODEL_PROVIDER",
-			"MODEL_ID",
-			"OPENAI_API_KEY",
-		]);
+		expect(injector.managedEnvKeys()).toEqual(["MODEL_PROVIDER", "MODEL_ID", "OPENAI_API_KEY"]);
 	});
 
 	it("does not override operator-provided env values", async () => {

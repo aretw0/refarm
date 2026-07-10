@@ -61,27 +61,19 @@ describe("Studio surface ledger", () => {
 		expect(ledger.textContent).toContain("1 actions");
 		expect(ledger.textContent).toContain("studio-surface-diagnostics");
 		expect(ledger.textContent).toContain("surface-ledger-panel");
-		expect(ledger.textContent).toContain(
-			"caps: ui:panel:render, ui:stream:read",
-		);
+		expect(ledger.textContent).toContain("caps: ui:panel:render, ui:stream:read");
 		expect(ledger.textContent).toContain("render: html");
 		expect(ledger.textContent).toContain("external-untrusted-surface");
-		expect(ledger.textContent).toContain(
-			"untrusted-plugin registry: registered",
-		);
+		expect(ledger.textContent).toContain("untrusted-plugin registry: registered");
 		expect(ledger.textContent).toContain("action requested");
 		expect(ledger.textContent).toContain("action: open-ledger");
 		expect(ledger.textContent).toContain("intent: studio:navigate");
+		expect(ledger.querySelectorAll('[data-refarm-surface-ledger-state="mounted"]')).toHaveLength(1);
+		expect(ledger.querySelectorAll('[data-refarm-surface-ledger-state="rejected"]')).toHaveLength(
+			1,
+		);
 		expect(
-			ledger.querySelectorAll('[data-refarm-surface-ledger-state="mounted"]'),
-		).toHaveLength(1);
-		expect(
-			ledger.querySelectorAll('[data-refarm-surface-ledger-state="rejected"]'),
-		).toHaveLength(1);
-		expect(
-			ledger.querySelectorAll(
-				'[data-refarm-surface-ledger-state="action-requested"]',
-			),
+			ledger.querySelectorAll('[data-refarm-surface-ledger-state="action-requested"]'),
 		).toHaveLength(1);
 	});
 
@@ -91,12 +83,8 @@ describe("Studio surface ledger", () => {
 		mountStudioSurfaceLedger(container, document.createElement("div"));
 		mountStudioSurfaceLedger(container, document.createElement("div"));
 
-		expect(
-			container.querySelectorAll("[data-refarm-studio-surface-ledger]"),
-		).toHaveLength(1);
-		expect(container.textContent).toContain(
-			"No surface activation telemetry is available yet.",
-		);
+		expect(container.querySelectorAll("[data-refarm-studio-surface-ledger]")).toHaveLength(1);
+		expect(container.textContent).toContain("No surface activation telemetry is available yet.");
 	});
 
 	it("refreshes as surface telemetry arrives", () => {
@@ -152,9 +140,7 @@ describe("Studio surface ledger", () => {
 
 		expect(controller.element.textContent).toContain("1 actions");
 		expect(controller.element.textContent).toContain("action failed");
-		expect(controller.element.textContent).toContain(
-			"error: navigation blocked",
-		);
+		expect(controller.element.textContent).toContain("error: navigation blocked");
 	});
 
 	it("disposes reactive telemetry subscriptions", () => {
@@ -220,12 +206,10 @@ function createSurfaceMount(metadata: {
 	element.dataset.refarmSlotId = metadata.slotId;
 	element.dataset.refarmMountSource = metadata.mountSource;
 	if (metadata.state) element.dataset.refarmState = metadata.state;
-	if (metadata.surfaceKind)
-		element.dataset.refarmSurfaceKind = metadata.surfaceKind;
+	if (metadata.surfaceKind) element.dataset.refarmSurfaceKind = metadata.surfaceKind;
 	if (metadata.surfaceId) element.dataset.refarmSurfaceId = metadata.surfaceId;
 	if (metadata.surfaceCapabilities?.length) {
-		element.dataset.refarmSurfaceCapabilities =
-			metadata.surfaceCapabilities.join(" ");
+		element.dataset.refarmSurfaceCapabilities = metadata.surfaceCapabilities.join(" ");
 	}
 	if (metadata.surfaceRenderMode) {
 		element.dataset.refarmSurfaceRenderMode = metadata.surfaceRenderMode;

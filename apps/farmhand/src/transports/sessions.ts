@@ -53,8 +53,7 @@ function normalizeSession(node: Record<string, unknown>): SessionNode | null {
 		name: typeof node.name === "string" ? node.name : null,
 		leaf_entry_id: null,
 		parent_session_id: null,
-		created_at_ns:
-			typeof createdAt === "number" ? createdAt : Date.now() * 1_000_000,
+		created_at_ns: typeof createdAt === "number" ? createdAt : Date.now() * 1_000_000,
 	};
 }
 
@@ -92,9 +91,7 @@ export function createSessionsRouteHandler(store: SessionStore) {
 				}
 
 				if (req.method === "POST") {
-					const body = await readJson<{ name?: unknown }>(req).catch(
-						() => null,
-					);
+					const body = await readJson<{ name?: unknown }>(req).catch(() => null);
 					if (body === null) {
 						json(res, 400, { error: "invalid json" });
 						return;
@@ -102,9 +99,7 @@ export function createSessionsRouteHandler(store: SessionStore) {
 
 					const rawName = body.name;
 					const name =
-						typeof rawName === "string" && rawName.trim().length > 0
-							? rawName.trim()
-							: null;
+						typeof rawName === "string" && rawName.trim().length > 0 ? rawName.trim() : null;
 					const session: SessionNode = {
 						"@type": "Session",
 						"@id": `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`,

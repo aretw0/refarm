@@ -53,7 +53,9 @@ function makeBridge(adapter: ReturnType<typeof makeAdapter>) {
 describe("TaskMemoryBridge", () => {
 	it("creates task once and reuses mapping for same effort/task id", async () => {
 		const create = vi.fn().mockResolvedValue(makeTask("abc", "effort-1"));
-		const appendEvent = vi.fn().mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:1" });
+		const appendEvent = vi
+			.fn()
+			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:1" });
 		const adapter = makeAdapter({ create, appendEvent });
 		const bridge = makeBridge(adapter);
 
@@ -69,7 +71,9 @@ describe("TaskMemoryBridge", () => {
 
 	it("normalizes plugin aliases in task title and created event payload", async () => {
 		const create = vi.fn().mockResolvedValue(makeTask("alias", "effort-alias"));
-		const appendEvent = vi.fn().mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:alias" });
+		const appendEvent = vi
+			.fn()
+			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:alias" });
 		const adapter = makeAdapter({ create, appendEvent });
 		const bridge = makeBridge(adapter);
 
@@ -91,8 +95,16 @@ describe("TaskMemoryBridge", () => {
 
 	it("records done outcome as status_changed event", async () => {
 		const create = vi.fn().mockResolvedValue(makeTask("done-task", "effort-done"));
-		const update = vi.fn().mockResolvedValue({ "@type": "Task", "@id": "urn:refarm:task:v1:done-task", status: "done" });
-		const appendEvent = vi.fn().mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:2" });
+		const update = vi
+			.fn()
+			.mockResolvedValue({
+				"@type": "Task",
+				"@id": "urn:refarm:task:v1:done-task",
+				status: "done",
+			});
+		const appendEvent = vi
+			.fn()
+			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:2" });
 		const bridge = makeBridge(makeAdapter({ create, update, appendEvent }));
 
 		await bridge.recordOutcome(sampleEffortTask("task-done"), "effort-done", { status: "ok" });
@@ -112,8 +124,16 @@ describe("TaskMemoryBridge", () => {
 
 	it("records failed outcome when executor returns error", async () => {
 		const create = vi.fn().mockResolvedValue(makeTask("failed-task", "effort-failed"));
-		const update = vi.fn().mockResolvedValue({ "@type": "Task", "@id": "urn:refarm:task:v1:failed-task", status: "failed" });
-		const appendEvent = vi.fn().mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:3" });
+		const update = vi
+			.fn()
+			.mockResolvedValue({
+				"@type": "Task",
+				"@id": "urn:refarm:task:v1:failed-task",
+				status: "failed",
+			});
+		const appendEvent = vi
+			.fn()
+			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:3" });
 		const bridge = makeBridge(makeAdapter({ create, update, appendEvent }));
 
 		await bridge.recordOutcome(sampleEffortTask("task-failed"), "effort-failed", {

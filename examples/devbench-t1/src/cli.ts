@@ -38,10 +38,12 @@ const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND }
 export function buildDevbenchHost(options: DevbenchHostOptions = {}): CapabilityHost {
 	const command = resolveCommand(options);
 	const pluginDeps = createPluginDescriptorDeps({
-		submitEffort: options.submitEffort ?? createSidecarSubmitEffort({
-			baseUrl: DGK_DEVBENCH_DEFAULT_SIDECAR_URL,
-			envKey: DGK_DEVBENCH_SIDECAR_URL_ENV,
-		}),
+		submitEffort:
+			options.submitEffort ??
+			createSidecarSubmitEffort({
+				baseUrl: DGK_DEVBENCH_DEFAULT_SIDECAR_URL,
+				envKey: DGK_DEVBENCH_SIDECAR_URL_ENV,
+			}),
 	});
 	const manifests = [...(options.manifests ?? DEVBENCH_DEFAULT_MANIFESTS)] as SurfaceableManifest[];
 	const extensionManifest = manifests[0] ?? DEVBENCH_DEFAULT_MANIFESTS[0]!;
@@ -70,9 +72,7 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				actionId: "inspect-extension",
 				intent: "extension:inspect",
 			},
-			primaryVerbs: [
-				...buildManifestPrimaryVerbs({ manifests }),
-			],
+			primaryVerbs: [...buildManifestPrimaryVerbs({ manifests })],
 		},
 		serve: {
 			defaultPort: 4323,

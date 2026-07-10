@@ -16,16 +16,11 @@ import {
 	type StudioSurfaceLedgerElement,
 } from "./surface-ledger";
 
-export const SURFACE_DIAGNOSTICS_STATUS_SELECTOR =
-	"[data-refarm-surfaces-status]";
-export const SURFACE_DIAGNOSTICS_LEDGER_SELECTOR =
-	"[data-refarm-surfaces-ledger-slot]";
+export const SURFACE_DIAGNOSTICS_STATUS_SELECTOR = "[data-refarm-surfaces-status]";
+export const SURFACE_DIAGNOSTICS_LEDGER_SELECTOR = "[data-refarm-surfaces-ledger-slot]";
 
-type StudioSurfaceDiagnosticsRuntime = Awaited<
-	ReturnType<typeof bootStudioRuntime>
->;
-type StudioSurfaceDiagnosticsTractor =
-	StudioSurfaceDiagnosticsRuntime["tractor"];
+type StudioSurfaceDiagnosticsRuntime = Awaited<ReturnType<typeof bootStudioRuntime>>;
+type StudioSurfaceDiagnosticsTractor = StudioSurfaceDiagnosticsRuntime["tractor"];
 type SetupStudioShell = typeof setupStudioShell;
 
 export interface StudioSurfaceDiagnosticsWorkbench {
@@ -62,12 +57,9 @@ export async function bootStudioSurfaceDiagnosticsWorkbench(
 	const setupShell = options.setupShell ?? (await loadSetupStudioShell());
 	await setupShell(tractor, {
 		surfaceContext: (
-			options.createContextProvider ??
-			createStudioSurfaceDiagnosticsContextProvider
+			options.createContextProvider ?? createStudioSurfaceDiagnosticsContextProvider
 		)(),
-		surfaceAction: (
-			options.createActionHandler ?? createStudioSurfaceDiagnosticsActionHandler
-		)(),
+		surfaceAction: (options.createActionHandler ?? createStudioSurfaceDiagnosticsActionHandler)(),
 	});
 
 	const ledger = mountSurfaceDiagnosticsLedger(doc, tractor, options);
@@ -82,9 +74,7 @@ export function renderStudioSurfaceDiagnosticsBootFailure(
 ): void {
 	const doc = options.document ?? document;
 	setSurfaceDiagnosticsStatus(doc, "Boot failed");
-	const ledgerSlot = doc.querySelector<HTMLElement>(
-		SURFACE_DIAGNOSTICS_LEDGER_SELECTOR,
-	);
+	const ledgerSlot = doc.querySelector<HTMLElement>(SURFACE_DIAGNOSTICS_LEDGER_SELECTOR);
 	if (!ledgerSlot) return;
 
 	const message = doc.createElement("p");
@@ -94,9 +84,7 @@ export function renderStudioSurfaceDiagnosticsBootFailure(
 }
 
 export function setSurfaceDiagnosticsStatus(doc: Document, text: string): void {
-	const status = doc.querySelector<HTMLElement>(
-		SURFACE_DIAGNOSTICS_STATUS_SELECTOR,
-	);
+	const status = doc.querySelector<HTMLElement>(SURFACE_DIAGNOSTICS_STATUS_SELECTOR);
 	if (status) status.textContent = text;
 }
 
@@ -104,17 +92,14 @@ async function registerSurfaceDiagnosticsPlugins(
 	tractor: StudioSurfaceDiagnosticsTractor,
 	options: StudioSurfaceDiagnosticsWorkbenchOptions,
 ): Promise<void> {
-	const createPlugins =
-		options.createPlugins ?? createStudioSurfaceDiagnosticsPlugins;
+	const createPlugins = options.createPlugins ?? createStudioSurfaceDiagnosticsPlugins;
 	for (const plugin of createPlugins((pluginId, event, payload) =>
 		tractor.emitTelemetry({ event, payload, pluginId }),
 	)) {
 		if (plugin.id === EXTERNAL_VALIDATED_SURFACE_PLUGIN_ID) {
-			await (options.registerManifest ?? registerStudioPluginManifest)(
-				tractor.registry,
-				plugin,
-				{ status: "validated" },
-			);
+			await (options.registerManifest ?? registerStudioPluginManifest)(tractor.registry, plugin, {
+				status: "validated",
+			});
 		}
 		tractor.plugins.registerInternal(plugin as RuntimePluginHandle);
 	}
@@ -131,14 +116,10 @@ function mountSurfaceDiagnosticsLedger(
 	);
 	if (!ledgerSlot) return undefined;
 
-	return (options.mountLedger ?? mountReactiveStudioSurfaceLedgerElement)(
-		ledgerSlot,
-		{
-			telemetry: tractor,
-			telemetryEvents:
-				tractor.telemetry.dump() as readonly HomesteadSurfaceTelemetryEvent[],
-		},
-	);
+	return (options.mountLedger ?? mountReactiveStudioSurfaceLedgerElement)(ledgerSlot, {
+		telemetry: tractor,
+		telemetryEvents: tractor.telemetry.dump() as readonly HomesteadSurfaceTelemetryEvent[],
+	});
 }
 
 async function loadSetupStudioShell(): Promise<SetupStudioShell> {
@@ -148,7 +129,5 @@ async function loadSetupStudioShell(): Promise<SetupStudioShell> {
 
 function surfaceDiagnosticsErrorMessage(error: unknown): string {
 	if (error instanceof Error) return error.message;
-	return typeof error === "string" && error.length > 0
-		? error
-		: "unknown error";
+	return typeof error === "string" && error.length > 0 ? error : "unknown error";
 }

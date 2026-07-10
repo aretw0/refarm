@@ -102,8 +102,7 @@ export function withModelRouteEnv<T>(
 		previousProviderManaged &&
 		previousProvider !== undefined &&
 		route.provider !== undefined &&
-		route.provider.trim().toLowerCase() !==
-			previousProvider.trim().toLowerCase();
+		route.provider.trim().toLowerCase() !== previousProvider.trim().toLowerCase();
 	if (route.provider) {
 		process.env[MODEL_PROVIDER_ENV_VAR] = route.provider;
 	} else {

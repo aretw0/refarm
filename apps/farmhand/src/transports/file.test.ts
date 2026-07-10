@@ -27,10 +27,7 @@ describe("FileTransportAdapter", () => {
 			status: "ok",
 			result: 42,
 		});
-		adapter = new FileTransportAdapter(
-			TEST_BASE,
-			executor as unknown as TaskExecutorFn,
-		);
+		adapter = new FileTransportAdapter(TEST_BASE, executor as unknown as TaskExecutorFn);
 	});
 
 	afterEach(() => {

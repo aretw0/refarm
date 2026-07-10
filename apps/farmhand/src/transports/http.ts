@@ -46,9 +46,7 @@ export class HttpSidecar {
 		});
 	}
 
-	addRouteHandler(
-		handler: (req: http.IncomingMessage, res: http.ServerResponse) => boolean,
-	): void {
+	addRouteHandler(handler: (req: http.IncomingMessage, res: http.ServerResponse) => boolean): void {
 		this.routeHandlers.push(handler);
 	}
 
@@ -56,10 +54,7 @@ export class HttpSidecar {
 		return this.server;
 	}
 
-	private async handle(
-		req: http.IncomingMessage,
-		res: http.ServerResponse,
-	): Promise<void> {
+	private async handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
 		const requestUrl = new URL(req.url ?? "/", "http://127.0.0.1");
 		const pathname = requestUrl.pathname;
 
@@ -100,10 +95,7 @@ export class HttpSidecar {
 					json(res, 404, { error: "not found" });
 					return;
 				}
-				const minutes = normalizePositiveInt(
-					requestUrl.searchParams.get("minutes"),
-					60,
-				);
+				const minutes = normalizePositiveInt(requestUrl.searchParams.get("minutes"), 60);
 				json(res, 200, await this.adapter.telemetryWindow(minutes));
 				return;
 			}
@@ -187,10 +179,7 @@ function json(res: http.ServerResponse, status: number, body: unknown): void {
 	res.end(payload);
 }
 
-function normalizePositiveInt(
-	raw: string | null | undefined,
-	fallback: number,
-): number {
+function normalizePositiveInt(raw: string | null | undefined, fallback: number): number {
 	const parsed = Number(raw);
 	if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
 	return Math.floor(parsed);

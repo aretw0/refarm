@@ -96,7 +96,7 @@ export function createTasksRouteHandler(adapter: TaskContractAdapter) {
 					if (status) filter.status = status;
 					if (sessionId) filter.context_id = sessionId;
 
-					const tasks = sortNewestFirst(await adapter.query?.(filter) ?? []);
+					const tasks = sortNewestFirst((await adapter.query?.(filter)) ?? []);
 					json(res, 200, { tasks: limit === null ? tasks : tasks.slice(0, limit) });
 				} catch (error) {
 					json(res, 500, {
@@ -118,7 +118,7 @@ export function createTasksRouteHandler(adapter: TaskContractAdapter) {
 				}
 
 				const prefix = decodeURIComponent(showMatch[1]!);
-				const tasks = await adapter.query?.({}) ?? [];
+				const tasks = (await adapter.query?.({})) ?? [];
 				const task = resolveTaskPrefix(tasks, prefix);
 				if (task === null) {
 					json(res, 404, { error: "not found" });
@@ -128,18 +128,17 @@ export function createTasksRouteHandler(adapter: TaskContractAdapter) {
 					json(res, 409, {
 						error: "ambiguous task prefix",
 						matches: tasks
-							.filter((candidate) =>
-								candidate["@id"].startsWith(prefix) ||
-								shortId(candidate["@id"]).startsWith(prefix),
+							.filter(
+								(candidate) =>
+									candidate["@id"].startsWith(prefix) ||
+									shortId(candidate["@id"]).startsWith(prefix),
 							)
 							.map((candidate) => candidate["@id"]),
 					});
 					return;
 				}
 
-				const events = sortNewestFirst<TaskEvent>(
-					await adapter.events?.(task["@id"]) ?? [],
-				);
+				const events = sortNewestFirst<TaskEvent>((await adapter.events?.(task["@id"])) ?? []);
 				json(res, 200, { task, events });
 			} catch (error) {
 				json(res, 500, {

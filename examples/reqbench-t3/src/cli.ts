@@ -32,9 +32,7 @@ const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND }
  * (discover/pull/enrich/correct/analyze/vault) underneath; ONE persona verb
  * (`requirements`) on top. Mounting is declarative so this example is just its persona.
  */
-export function buildReqbenchHost(
-	options: ReqbenchHostOptions = {},
-): CapabilityHost {
+export function buildReqbenchHost(options: ReqbenchHostOptions = {}): CapabilityHost {
 	const command = resolveCommand(options);
 	return defineCapabilityHost({
 		id: "examples/reqbench-t3",
@@ -66,8 +64,7 @@ export function buildReqbenchHost(
 					pendingLabel: "needs review",
 					pendingSummary: ({ total, pending }) =>
 						`Requirements bench has ${total} requirements; ${pending} requirement needs review.`,
-					readySummary: ({ total }) =>
-						`Requirements bench has ${total} reviewed requirements.`,
+					readySummary: ({ total }) => `Requirements bench has ${total} reviewed requirements.`,
 					pendingCorrection: {
 						actionId: "review-draft-requirement",
 						label: "Review the draft requirement",

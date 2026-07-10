@@ -62,10 +62,7 @@ function sidecarPort(sidecar: HttpSidecar): number {
 	return address.port;
 }
 
-async function waitFor<T>(
-	read: () => Promise<T>,
-	done: (value: T) => boolean,
-): Promise<T> {
+async function waitFor<T>(read: () => Promise<T>, done: (value: T) => boolean): Promise<T> {
 	const deadline = Date.now() + 1_000;
 	let last = await read();
 	while (!done(last) && Date.now() < deadline) {
@@ -96,25 +93,20 @@ describe("Effort chat integration", () => {
 			adapter: taskAdapter,
 			actorUrn: "urn:refarm:actor:v1:farmhand",
 		});
-		const executor = vi.fn(
-			async (task: Task, effortId: string) => {
-				await taskMemory.ensureTask(task, effortId);
-				await taskMemory.recordOutcome(task, effortId, { status: "ok" });
-				return {
-					status: "ok" as const,
-					result: {
-						effortId,
-						pluginId: task.pluginId,
-						fn: task.fn,
-						args: task.args,
-					},
-				};
-			},
-		);
-		const effortTransport = new FileTransportAdapter(
-			TEST_BASE,
-			executor as TaskExecutorFn,
-		);
+		const executor = vi.fn(async (task: Task, effortId: string) => {
+			await taskMemory.ensureTask(task, effortId);
+			await taskMemory.recordOutcome(task, effortId, { status: "ok" });
+			return {
+				status: "ok" as const,
+				result: {
+					effortId,
+					pluginId: task.pluginId,
+					fn: task.fn,
+					args: task.args,
+				},
+			};
+		});
+		const effortTransport = new FileTransportAdapter(TEST_BASE, executor as TaskExecutorFn);
 		const sidecar = new HttpSidecar(0, effortTransport);
 		sidecar.addRouteHandler(createTasksRouteHandler(taskAdapter));
 		const automations = createInMemoryAutomationAdapter();
@@ -213,9 +205,9 @@ describe("Effort chat integration", () => {
 			const taskDetails = await request(port, "GET", `/tasks/${taskIdPrefix}`);
 			expect(taskDetails.status).toBe(200);
 			expect(
-				(
-					taskDetails.body as { events: Array<{ event: string }> }
-				).events.map((event) => event.event),
+				(taskDetails.body as { events: Array<{ event: string }> }).events.map(
+					(event) => event.event,
+				),
 			).toEqual(["status_changed", "created"]);
 
 			const logs = await effortTransport.logs(effortId);

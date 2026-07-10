@@ -52,11 +52,13 @@ describe("bundleInstallPlugin", () => {
 		vi.mocked(mockFs.readFileSync)
 			.mockReturnValueOnce(JSON.stringify({ version: "0.1.0" })) // package.json
 			.mockReturnValueOnce("fake-wasm-bytes");
-			readFileMock()
-				.mockResolvedValueOnce("0.1.0")
-				.mockResolvedValueOnce(
-					JSON.stringify({ integrity: "sha256-4cce60be1895fcc792aae73e3a1204bb470c42aca7a6da800711cf2135fead65" }),
-				);
+		readFileMock()
+			.mockResolvedValueOnce("0.1.0")
+			.mockResolvedValueOnce(
+				JSON.stringify({
+					integrity: "sha256-4cce60be1895fcc792aae73e3a1204bb470c42aca7a6da800711cf2135fead65",
+				}),
+			);
 		vi.mocked(mockFs.existsSync).mockReturnValue(true);
 
 		const { bundleInstallPlugin } = await import("./bundled-plugins.js");
@@ -72,15 +74,17 @@ describe("bundleInstallPlugin", () => {
 		vi.mocked(mockFs.readFileSync)
 			.mockReturnValueOnce(JSON.stringify({ version: "0.1.0" }))
 			.mockReturnValueOnce("fake-wasm-bytes")
-			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/agent", name: "Agent", version: "0.1.0" }));
-			readFileMock()
-				.mockResolvedValueOnce("0.1.0")
-				.mockResolvedValueOnce(
-					JSON.stringify({
-						integrity: "sha256-4cce60be1895fcc792aae73e3a1204bb470c42aca7a6da800711cf2135fead65",
-						capabilities: { provides: ["integration:v1"] },
-					}),
-				);
+			.mockReturnValueOnce(
+				JSON.stringify({ id: "@refarm/agent", name: "Agent", version: "0.1.0" }),
+			);
+		readFileMock()
+			.mockResolvedValueOnce("0.1.0")
+			.mockResolvedValueOnce(
+				JSON.stringify({
+					integrity: "sha256-4cce60be1895fcc792aae73e3a1204bb470c42aca7a6da800711cf2135fead65",
+					capabilities: { provides: ["integration:v1"] },
+				}),
+			);
 		vi.mocked(mockFs.existsSync).mockReturnValue(true);
 
 		const { bundleInstallPlugin } = await import("./bundled-plugins.js");
@@ -101,8 +105,12 @@ describe("bundleInstallPlugin", () => {
 	it("returns failed when WASM file does not exist", async () => {
 		vi.mocked(mockFs.readFileSync)
 			.mockReturnValueOnce(JSON.stringify({ version: "0.1.0" }))
-			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/agent", name: "Agent", version: "0.1.0" }));
-		vi.mocked(mockFsP.readFile).mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
+			.mockReturnValueOnce(
+				JSON.stringify({ id: "@refarm/agent", name: "Agent", version: "0.1.0" }),
+			);
+		vi.mocked(mockFsP.readFile).mockRejectedValue(
+			Object.assign(new Error("ENOENT"), { code: "ENOENT" }),
+		);
 		vi.mocked(mockFs.existsSync).mockReturnValue(false);
 
 		const { bundleInstallPlugin } = await import("./bundled-plugins.js");
@@ -118,7 +126,9 @@ describe("bundleInstallPlugin", () => {
 		vi.mocked(mockFs.readFileSync)
 			.mockReturnValueOnce(JSON.stringify({ version: "0.2.0" })) // package.json - new version
 			.mockReturnValueOnce("fake-wasm-bytes") // wasm bytes (string works for createHash)
-			.mockReturnValueOnce(JSON.stringify({ id: "@refarm/agent", name: "Agent", version: "0.1.0" })); // plugin.json template
+			.mockReturnValueOnce(
+				JSON.stringify({ id: "@refarm/agent", name: "Agent", version: "0.1.0" }),
+			); // plugin.json template
 		readFileMock().mockResolvedValue("0.1.0"); // installed version
 		vi.mocked(mockFs.existsSync).mockReturnValue(true);
 

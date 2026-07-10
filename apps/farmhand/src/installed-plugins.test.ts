@@ -13,9 +13,7 @@ import {
 const tempDirs: string[] = [];
 
 function createTempDir(): string {
-	const dir = fs.mkdtempSync(
-		path.join(os.tmpdir(), "farmhand-installed-plugins-"),
-	);
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "farmhand-installed-plugins-"));
 	tempDirs.push(dir);
 	return dir;
 }

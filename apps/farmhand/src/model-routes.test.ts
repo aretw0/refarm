@@ -144,8 +144,7 @@ describe("model routes", () => {
 						MODEL_PROVIDER: "openai",
 						MODEL_ID: "gpt-5.5",
 						OPENAI_API_KEY: "sk-managed",
-						REFARM_MANAGED_MODEL_ENV_KEYS:
-							"MODEL_PROVIDER,MODEL_ID,OPENAI_API_KEY",
+						REFARM_MANAGED_MODEL_ENV_KEYS: "MODEL_PROVIDER,MODEL_ID,OPENAI_API_KEY",
 					},
 					[],
 				),
@@ -183,13 +182,9 @@ describe("model routes", () => {
 
 	it("does not pair an env provider override with a stored model from another provider", () => {
 		expect(
-			routeForScope(
-				{ modelProvider: "openai", modelId: "gpt-5.5" },
-				"default",
-				{
-					env: { MODEL_PROVIDER: "gemini" },
-				},
-			),
+			routeForScope({ modelProvider: "openai", modelId: "gpt-5.5" }, "default", {
+				env: { MODEL_PROVIDER: "gemini" },
+			}),
 		).toEqual({
 			provider: "gemini",
 			modelId: "gemini-3-flash-preview",
@@ -211,13 +206,10 @@ describe("model routes", () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.MODEL_ID = "gpt-5.5";
 
-		await withModelRouteEnv(
-			{ provider: "openai", modelId: "gpt-5.3-codex-spark" },
-			async () => {
-				expect(process.env.MODEL_PROVIDER).toBe("openai");
-				expect(process.env.MODEL_ID).toBe("gpt-5.3-codex-spark");
-			},
-		);
+		await withModelRouteEnv({ provider: "openai", modelId: "gpt-5.3-codex-spark" }, async () => {
+			expect(process.env.MODEL_PROVIDER).toBe("openai");
+			expect(process.env.MODEL_ID).toBe("gpt-5.3-codex-spark");
+		});
 
 		expect(process.env.MODEL_PROVIDER).toBe("openai");
 		expect(process.env.MODEL_ID).toBe("gpt-5.5");
@@ -227,13 +219,10 @@ describe("model routes", () => {
 		process.env.MODEL_PROVIDER = "openai";
 		process.env.MODEL_ID = "gpt-5.5";
 
-		await withModelRouteEnv(
-			{ provider: "vllm", modelId: undefined },
-			async () => {
-				expect(process.env.MODEL_PROVIDER).toBe("vllm");
-				expect(process.env.MODEL_ID).toBeUndefined();
-			},
-		);
+		await withModelRouteEnv({ provider: "vllm", modelId: undefined }, async () => {
+			expect(process.env.MODEL_PROVIDER).toBe("vllm");
+			expect(process.env.MODEL_ID).toBeUndefined();
+		});
 
 		expect(process.env.MODEL_PROVIDER).toBe("openai");
 		expect(process.env.MODEL_ID).toBe("gpt-5.5");

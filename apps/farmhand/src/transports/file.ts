@@ -93,11 +93,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 	}
 
 	async submit(effort: Effort): Promise<string> {
-		fs.writeFileSync(
-			this.effortPath(effort.id),
-			JSON.stringify(effort, null, 2),
-			"utf-8",
-		);
+		fs.writeFileSync(this.effortPath(effort.id), JSON.stringify(effort, null, 2), "utf-8");
 
 		const existing = this.readEffortResult(effort.id);
 		if (!existing) {
@@ -220,14 +216,30 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 
 		for (const result of results) {
 			switch (result.status) {
-				case "pending":       summary.pending += 1;    break;
-				case "in-progress":   summary.inProgress += 1; break;
-				case "done":          summary.done += 1;       break;
-				case "delivered":     summary.delivered += 1;  break;
-				case "partial":       summary.partial += 1;    break;
-				case "failed":        summary.failed += 1;     break;
-				case "timed-out":     summary.timedOut += 1;   break;
-				case "cancelled":     summary.cancelled += 1;  break;
+				case "pending":
+					summary.pending += 1;
+					break;
+				case "in-progress":
+					summary.inProgress += 1;
+					break;
+				case "done":
+					summary.done += 1;
+					break;
+				case "delivered":
+					summary.delivered += 1;
+					break;
+				case "partial":
+					summary.partial += 1;
+					break;
+				case "failed":
+					summary.failed += 1;
+					break;
+				case "timed-out":
+					summary.timedOut += 1;
+					break;
+				case "cancelled":
+					summary.cancelled += 1;
+					break;
 			}
 		}
 
@@ -246,8 +258,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 	}
 
 	async telemetryWindow(minutes: number): Promise<RuntimeTelemetryWindow> {
-		const windowMinutes =
-			Number.isFinite(minutes) && minutes > 0 ? Math.floor(minutes) : 60;
+		const windowMinutes = Number.isFinite(minutes) && minutes > 0 ? Math.floor(minutes) : 60;
 		const cutoffMs = Date.now() - windowMinutes * 60_000;
 		const windowSummary: EffortSummary = {
 			total: 0,
@@ -269,24 +280,42 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 
 			windowSummary.total += 1;
 			switch (result.status) {
-				case "pending":       windowSummary.pending += 1;    break;
-				case "in-progress":   windowSummary.inProgress += 1; break;
-				case "done":          windowSummary.done += 1;       break;
-				case "delivered":     windowSummary.delivered += 1;  break;
-				case "partial":       windowSummary.partial += 1;    break;
-				case "failed":        windowSummary.failed += 1;     break;
-				case "timed-out":     windowSummary.timedOut += 1;   break;
-				case "cancelled":     windowSummary.cancelled += 1;  break;
+				case "pending":
+					windowSummary.pending += 1;
+					break;
+				case "in-progress":
+					windowSummary.inProgress += 1;
+					break;
+				case "done":
+					windowSummary.done += 1;
+					break;
+				case "delivered":
+					windowSummary.delivered += 1;
+					break;
+				case "partial":
+					windowSummary.partial += 1;
+					break;
+				case "failed":
+					windowSummary.failed += 1;
+					break;
+				case "timed-out":
+					windowSummary.timedOut += 1;
+					break;
+				case "cancelled":
+					windowSummary.cancelled += 1;
+					break;
 			}
 		}
 
 		const terminal =
-			windowSummary.done + windowSummary.delivered + windowSummary.partial +
-			windowSummary.failed + windowSummary.timedOut + windowSummary.cancelled;
+			windowSummary.done +
+			windowSummary.delivered +
+			windowSummary.partial +
+			windowSummary.failed +
+			windowSummary.timedOut +
+			windowSummary.cancelled;
 		const failureRatePct =
-			terminal > 0
-				? Number(((windowSummary.failed / terminal) * 100).toFixed(2))
-				: null;
+			terminal > 0 ? Number(((windowSummary.failed / terminal) * 100).toFixed(2)) : null;
 
 		return {
 			...windowSummary,
@@ -417,28 +446,18 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 		}
 	}
 
-	private async processEffort(
-		effort: Effort,
-		options: { force: boolean },
-	): Promise<void> {
+	private async processEffort(effort: Effort, options: { force: boolean }): Promise<void> {
 		if (this.inFlightEfforts.has(effort.id)) return;
 
 		const current = this.readEffortResult(effort.id);
-		if (
-			current &&
-			!options.force &&
-			TERMINAL_STATUSES.has(current.status)
-		) {
+		if (current && !options.force && TERMINAL_STATUSES.has(current.status)) {
 			return;
 		}
 
 		const startTime = nowIso();
 		const maxAttempts = parseEffortMaxAttempts(effort);
-		const baseResults =
-			options.force || !current ? [] : [...(current.results ?? [])];
-		const resultByTaskId = new Map(
-			baseResults.map((result) => [result.taskId, result]),
-		);
+		const baseResults = options.force || !current ? [] : [...(current.results ?? [])];
+		const resultByTaskId = new Map(baseResults.map((result) => [result.taskId, result]));
 		const finalResults: TaskResult[] = [];
 		let attemptCount = options.force ? 0 : Number(current?.attemptCount ?? 0);
 		let cancelled = this.cancelRequests.has(effort.id);
@@ -549,8 +568,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 							...(output.meta ? { meta: output.meta } : {}),
 						});
 					} catch (error: unknown) {
-						const message =
-							error instanceof Error ? error.message : String(error);
+						const message = error instanceof Error ? error.message : String(error);
 						failureResult = {
 							taskId: task.id,
 							effortId: effort.id,
@@ -611,8 +629,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 
 			if (cancelled) {
 				for (const task of effort.tasks) {
-					if (finalResults.find((result) => result.taskId === task.id))
-						continue;
+					if (finalResults.find((result) => result.taskId === task.id)) continue;
 					finalResults.push({
 						taskId: task.id,
 						effortId: effort.id,
@@ -643,8 +660,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 			this.appendLog(effort.id, {
 				effortId: effort.id,
 				timestamp: completedAt,
-				level:
-					status === "done" ? "info" : status === "failed" ? "error" : "warn",
+				level: status === "done" ? "info" : status === "failed" ? "error" : "warn",
 				event: "processing_finished",
 				message: `Processing finished with status=${status}`,
 				meta: {
@@ -655,11 +671,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 		} finally {
 			this.inFlightEfforts.delete(effort.id);
 			this.options.onEffortEnd?.(effort.id);
-			if (
-				TERMINAL_STATUSES.has(
-					this.readEffortResult(effort.id)?.status ?? "pending",
-				)
-			) {
+			if (TERMINAL_STATUSES.has(this.readEffortResult(effort.id)?.status ?? "pending")) {
 				this.cancelRequests.delete(effort.id);
 			}
 		}
@@ -688,11 +700,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 	}
 
 	private writeEffortResult(result: EffortResult): void {
-		fs.writeFileSync(
-			this.resultPath(result.effortId),
-			JSON.stringify(result, null, 2),
-			"utf-8",
-		);
+		fs.writeFileSync(this.resultPath(result.effortId), JSON.stringify(result, null, 2), "utf-8");
 	}
 
 	private readEffortLogs(effortId: string): EffortLogEntry[] | null {

@@ -8,9 +8,7 @@ import { createFilesystemCacheAdapter } from "./filesystem-cache-adapter.js";
 const tempDirs: string[] = [];
 
 function createTempDir(): string {
-	const dir = fs.mkdtempSync(
-		path.join(os.tmpdir(), "farmhand-fs-cache-"),
-	);
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "farmhand-fs-cache-"));
 	tempDirs.push(dir);
 	return dir;
 }

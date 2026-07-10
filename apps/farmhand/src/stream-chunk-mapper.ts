@@ -13,10 +13,7 @@ const AGENT_RESPONSE_STREAM_PREFIX = "urn:tractor:stream:response:";
  * the guest owns the final line. Non-agent-response streams project as before.
  */
 export function shouldProjectStreamChunk(chunk: StreamChunk): boolean {
-	return !(
-		chunk.is_final &&
-		chunk.stream_ref.startsWith(AGENT_RESPONSE_STREAM_PREFIX)
-	);
+	return !(chunk.is_final && chunk.stream_ref.startsWith(AGENT_RESPONSE_STREAM_PREFIX));
 }
 
 export function toStreamChunk(node: Record<string, unknown>): StreamChunk {

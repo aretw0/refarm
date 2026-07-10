@@ -1,7 +1,4 @@
-import {
-	computeRecordContentHash,
-	type RecordsManifest,
-} from "@refarm.dev/records-contract-v1";
+import { computeRecordContentHash, type RecordsManifest } from "@refarm.dev/records-contract-v1";
 
 /**
  * The T2 work layer — the CITIZEN's own data. wallet is a white-label host: the base

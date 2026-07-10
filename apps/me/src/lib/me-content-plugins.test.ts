@@ -13,8 +13,7 @@ vi.mock("@refarm.dev/tractor/browser", () => ({
 		wasmHash: "sha256-content",
 		artifactKind: "component",
 		cachePath: "/refarm/barn/implements/_refarm_me_content-proof.wasm",
-		runtimeModuleCachePath:
-			"/refarm/barn/implements/_refarm_me_content-proof.mjs",
+		runtimeModuleCachePath: "/refarm/barn/implements/_refarm_me_content-proof.mjs",
 	})),
 }));
 
@@ -67,9 +66,7 @@ describe("refarm.me content plugin bootstrap", () => {
 			emitTelemetry: vi.fn(),
 		};
 
-		await expect(
-			installRefarmMeContentPlugin(tractor, input),
-		).resolves.toMatchObject({
+		await expect(installRefarmMeContentPlugin(tractor, input)).resolves.toMatchObject({
 			pluginId: "@refarm.me/content-proof",
 			cached: false,
 			wasmHash: "sha256-content",
@@ -77,18 +74,10 @@ describe("refarm.me content plugin bootstrap", () => {
 			registryStatus: "active",
 			instance,
 		});
-		expect(tractor.registry.register).toHaveBeenCalledWith(
-			input.manifest,
-			input.manifest.entry,
-		);
+		expect(tractor.registry.register).toHaveBeenCalledWith(input.manifest, input.manifest.entry);
 		expect(tractor.registry.trust).toHaveBeenCalledWith(input.manifest.id);
-		expect(tractor.registry.activatePlugin).toHaveBeenCalledWith(
-			input.manifest.id,
-		);
-		expect(tractor.plugins.load).toHaveBeenCalledWith(
-			input.manifest,
-			"sha256-content",
-		);
+		expect(tractor.registry.activatePlugin).toHaveBeenCalledWith(input.manifest.id);
+		expect(tractor.plugins.load).toHaveBeenCalledWith(input.manifest, "sha256-content");
 		expect(tractor.emitTelemetry).toHaveBeenCalledWith({
 			event: "me:content_plugin_installed",
 			pluginId: input.manifest.id,

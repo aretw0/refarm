@@ -13,11 +13,7 @@ describe("refarm.me renderer catalog", () => {
 				metadata: { app: "apps/me" },
 			}),
 		);
-		expect(homesteadHostRendererCan(REFARM_ME_WEB_RENDERER, "surfaces")).toBe(
-			true,
-		);
-		expect(homesteadHostRendererCan(REFARM_ME_WEB_RENDERER, "rich-html")).toBe(
-			true,
-		);
+		expect(homesteadHostRendererCan(REFARM_ME_WEB_RENDERER, "surfaces")).toBe(true);
+		expect(homesteadHostRendererCan(REFARM_ME_WEB_RENDERER, "rich-html")).toBe(true);
 	});
 });

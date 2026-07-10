@@ -9,10 +9,7 @@ import {
 
 describe("studio renderer catalog", () => {
 	it("collects product-owned renderer descriptors", () => {
-		expect(STUDIO_RENDERERS).toEqual([
-			STUDIO_WEB_RENDERER,
-			STUDIO_HEADLESS_RENDERER,
-		]);
+		expect(STUDIO_RENDERERS).toEqual([STUDIO_WEB_RENDERER, STUDIO_HEADLESS_RENDERER]);
 		expect(STUDIO_WEB_RENDERER).toEqual(
 			expect.objectContaining({
 				id: "refarm-dev-web",

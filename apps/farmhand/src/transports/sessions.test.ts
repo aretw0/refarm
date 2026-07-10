@@ -182,11 +182,11 @@ describe("sessions route handler", () => {
 			name: "auth-refactor",
 		});
 		expect(status).toBe(200);
-		const session = (body as Record<string, unknown>).session as Record<string, unknown> | undefined;
+		const session = (body as Record<string, unknown>).session as
+			| Record<string, unknown>
+			| undefined;
 		expect(session?.name).toBe("auth-refactor");
-		expect(session?.["@id"]).toMatch(
-			/^urn:refarm:session:v1:[a-f0-9]+$/,
-		);
+		expect(session?.["@id"]).toMatch(/^urn:refarm:session:v1:[a-f0-9]+$/);
 		expect(store.storeNode).toHaveBeenCalledWith(
 			expect.objectContaining({
 				"@type": "Session",

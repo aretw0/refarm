@@ -1,8 +1,4 @@
-import {
-	evictPlugin,
-	getCachedPlugin,
-	installPlugin,
-} from "@refarm.dev/tractor/browser";
+import { evictPlugin, getCachedPlugin, installPlugin } from "@refarm.dev/tractor/browser";
 
 type RefarmMePluginManifest = Parameters<typeof installPlugin>[0];
 

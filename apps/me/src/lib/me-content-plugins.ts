@@ -25,30 +25,20 @@ export interface RefarmMeContentPluginInstallResult {
 }
 
 interface RefarmMeContentPluginRegistry {
-	register(
-		manifest: RefarmMeContentPluginManifest,
-		sourceUrl?: string,
-	): Promise<string> | string;
+	register(manifest: RefarmMeContentPluginManifest, sourceUrl?: string): Promise<string> | string;
 	trust(id: string): Promise<void> | void;
 	activatePlugin(id: string): Promise<void> | void;
 	getPlugin(id: string): { status?: string } | undefined;
 }
 
 interface RefarmMeContentPluginHost {
-	load(
-		manifest: RefarmMeContentPluginManifest,
-		wasmHash?: string,
-	): Promise<RuntimePluginHandle>;
+	load(manifest: RefarmMeContentPluginManifest, wasmHash?: string): Promise<RuntimePluginHandle>;
 }
 
 export interface RefarmMeContentPluginTractor {
 	registry: RefarmMeContentPluginRegistry;
 	plugins: RefarmMeContentPluginHost;
-	emitTelemetry?(event: {
-		event: string;
-		pluginId?: string;
-		payload?: unknown;
-	}): void;
+	emitTelemetry?(event: { event: string; pluginId?: string; payload?: unknown }): void;
 }
 
 export async function installRefarmMeContentPlugin(
@@ -61,10 +51,7 @@ export async function installRefarmMeContentPlugin(
 		force: input.force,
 	});
 
-	await tractor.registry.register(
-		input.manifest,
-		input.sourceUrl ?? wasmUrl,
-	);
+	await tractor.registry.register(input.manifest, input.sourceUrl ?? wasmUrl);
 	await tractor.registry.trust(input.manifest.id);
 	await tractor.registry.activatePlugin(input.manifest.id);
 	const instance = await tractor.plugins.load(input.manifest, install.wasmHash);

@@ -1,9 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import {
-	assertValidPluginManifest,
-	type PluginManifest,
-} from "@refarm.dev/plugin-manifest";
+import { assertValidPluginManifest, type PluginManifest } from "@refarm.dev/plugin-manifest";
 import type { RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 
 interface LoggerLike {
@@ -170,16 +167,12 @@ export async function loadInstalledPlugins(
 			await tractor.registry.trust(manifest.id);
 			await tractor.plugins.load(manifest);
 			loaded += 1;
-			logger.info(
-				`[farmhand] Installed plugin loaded: ${manifest.id} (${manifest.version})`,
-			);
+			logger.info(`[farmhand] Installed plugin loaded: ${manifest.id} (${manifest.version})`);
 		} catch (error: unknown) {
 			skipped += 1;
 			const message = error instanceof Error ? error.message : String(error);
 			const pluginLabel = path.relative(pluginsDir, pluginDir) || pluginDir;
-			logger.warn(
-				`[farmhand] Failed to load installed plugin ${pluginLabel}: ${message}`,
-			);
+			logger.warn(`[farmhand] Failed to load installed plugin ${pluginLabel}: ${message}`);
 		}
 	}
 

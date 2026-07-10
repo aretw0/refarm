@@ -1,7 +1,4 @@
-import {
-	isRuntimeAgentErrorContent,
-	normalizePluginId,
-} from "@refarm.dev/config";
+import { isRuntimeAgentErrorContent, normalizePluginId } from "@refarm.dev/config";
 import type { RuntimeTaskTarget } from "@refarm.dev/runtime";
 
 const FARMHAND_PLUGIN_ID = "farmhand";
@@ -60,9 +57,7 @@ export async function executeTask(
 
 	try {
 		const normalizedArgs =
-			fn === "respond" && typeof args !== "string"
-				? JSON.stringify(args ?? {})
-				: args;
+			fn === "respond" && typeof args !== "string" ? JSON.stringify(args ?? {}) : args;
 		const result = await instance.call(fn, normalizedArgs);
 		const taskError = resultErrorMessage(result);
 		if (taskError) {

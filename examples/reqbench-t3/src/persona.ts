@@ -162,9 +162,7 @@ export function createRequirementsCapability(
  * just a launcher. A host runs `requirements`, calls renderRequirementsMocHtml on the
  * envelope, and puts the HTML on host.data.mocHtml — the generic content path, no bespoke
  * panel. The one deep thing (real content) T3 must show; the rest is declared breadth. */
-export function reqWebSurface(
-	registry: Parameters<typeof createCapabilityWebSurfacePlugin>[0],
-) {
+export function reqWebSurface(registry: Parameters<typeof createCapabilityWebSurfacePlugin>[0]) {
 	return createCapabilityWebSurfacePlugin(registry, {
 		pluginId: "reqbench-t3/web",
 		name: "Bancada de Requisitos",

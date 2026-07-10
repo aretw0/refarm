@@ -29,10 +29,7 @@ export function createStudioHeadlessSnapshot(
 ): StudioHeadlessSnapshot {
 	const renderer = options.renderer ?? STUDIO_HEADLESS_RENDERER;
 	const telemetryEvents = options.telemetryEvents ?? [];
-	const requiredCapabilities = options.requiredCapabilities ?? [
-		"telemetry",
-		"diagnostics",
-	];
+	const requiredCapabilities = options.requiredCapabilities ?? ["telemetry", "diagnostics"];
 	const missingCapabilities = missingHomesteadHostRendererCapabilities(
 		renderer,
 		requiredCapabilities,

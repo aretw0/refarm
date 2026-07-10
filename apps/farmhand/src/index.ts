@@ -17,10 +17,7 @@ import {
 } from "@refarm.dev/config";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
-import type {
-	RuntimeHost,
-	RuntimePluginLoaderTarget,
-} from "@refarm.dev/runtime";
+import type { RuntimeHost, RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 import { SiloCore } from "@refarm.dev/silo";
 import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
@@ -45,23 +42,14 @@ import {
 	withModelRouteEnv,
 } from "./model-routes.js";
 import { PluginUsageTracker } from "./plugin-usage-tracker.js";
-import {
-	createSiloModelEnvInjector,
-	type OAuthCreds,
-} from "./silo-model-env.js";
-import {
-	shouldProjectStreamChunk,
-	toStreamChunk,
-} from "./stream-chunk-mapper.js";
+import { createSiloModelEnvInjector, type OAuthCreds } from "./silo-model-env.js";
+import { shouldProjectStreamChunk, toStreamChunk } from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
 import { createTaskMemoryBridge } from "./task-memory-bridge.js";
 import { WebSocketSyncTransport } from "./transport.js";
 import { createControlSurfaceRouteHandler } from "./transports/channels.js";
-import {
-	FileTransportAdapter,
-	type TaskExecutorFn,
-} from "./transports/file.js";
+import { FileTransportAdapter, type TaskExecutorFn } from "./transports/file.js";
 import { HttpSidecar } from "./transports/http.js";
 import { createPluginsRouteHandler } from "./transports/plugins.js";
 import { createSessionsRouteHandler } from "./transports/sessions.js";
@@ -94,9 +82,7 @@ function createMemoryStorage(): StorageAdapter {
 			});
 		},
 		async queryNodes(type: string) {
-			return Array.from(store.values()).filter(
-				(r) => (r as { type: string }).type === type,
-			);
+			return Array.from(store.values()).filter((r) => (r as { type: string }).type === type);
 		},
 		async execute(_sql: string, _args?: unknown) {
 			return [];
@@ -133,9 +119,7 @@ async function handlePluginRoute(
 	const assignedTo = node["plugin:assignedTo"] as string | undefined;
 	if (assignedTo && assignedTo !== FARMHAND_ID) return; // not for this daemon
 
-	const manifest = node["plugin:manifest"] as
-		| Record<string, unknown>
-		| undefined;
+	const manifest = node["plugin:manifest"] as Record<string, unknown> | undefined;
 	if (!manifest?.id) {
 		console.warn("[farmhand] PluginRoute missing plugin:manifest — skipping");
 		return;
@@ -180,8 +164,7 @@ async function handleFarmhandTask(
 
 	await executeTask(tractor, {
 		taskId: node["@id"] as string,
-		effortId:
-			(node["task:effortId"] as string | undefined) ?? (node["@id"] as string),
+		effortId: (node["task:effortId"] as string | undefined) ?? (node["@id"] as string),
 		pluginId: node["task:pluginId"] as string,
 		fn: node["task:function"] as string,
 		args: node["task:args"],
@@ -287,8 +270,7 @@ async function main() {
 
 	console.log("[farmhand] Tractor booted with Loro CRDT storage.");
 
-	const farmhandBaseDir =
-		process.env.FARMHAND_DATA_DIR ?? path.join(os.homedir(), ".refarm");
+	const farmhandBaseDir = process.env.FARMHAND_DATA_DIR ?? path.join(os.homedir(), ".refarm");
 	await mkdir(farmhandBaseDir, { recursive: true });
 
 	const config = await loadConfigAsync().catch((err: unknown) => {
@@ -307,10 +289,7 @@ async function main() {
 
 	// Phase 0: Load local extensions from .refarm/extensions/ (project) and ~/.refarm/extensions/ (global)
 	// Loaded first so project-local extensions can override bundled runtime-agent plugins.
-	const localExtRegistry = new LocalExtensionRegistry(
-		process.cwd(),
-		os.homedir(),
-	);
+	const localExtRegistry = new LocalExtensionRegistry(process.cwd(), os.homedir());
 	const localExtSummary = await localExtRegistry.load(runtime);
 	if (localExtSummary.loaded > 0 || localExtSummary.skipped > 0) {
 		console.log(
@@ -331,9 +310,7 @@ async function main() {
 		? (config.plugins.bundled as BundledEntry[])
 		: [];
 	const bundledEntries =
-		process.env.FARMHAND_SKIP_BUNDLED_INSTALL === "1"
-			? []
-			: [...defaultBundled, ...configBundled];
+		process.env.FARMHAND_SKIP_BUNDLED_INSTALL === "1" ? [] : [...defaultBundled, ...configBundled];
 	const bundledSummary = await bundleInstallPlugins(bundledEntries, pluginsDir);
 	console.log(
 		`[farmhand] Bundled install: installed=${bundledSummary.installed} cached=${bundledSummary.cached} failed=${bundledSummary.failed}`,
@@ -374,9 +351,7 @@ async function main() {
 		} catch (memoryError) {
 			console.warn(
 				"[farmhand] task memory ensure failed:",
-				memoryError instanceof Error
-					? memoryError.message
-					: String(memoryError),
+				memoryError instanceof Error ? memoryError.message : String(memoryError),
 			);
 		}
 
@@ -402,10 +377,7 @@ async function main() {
 		await injectSiloModelEnv();
 		const tokens = await modelRouteResolver.refreshTokens();
 		const route = routeForScope(tokens, scope, {
-			env: routeResolutionEnv(
-				process.env,
-				siloModelEnvInjector.managedEnvKeys(),
-			),
+			env: routeResolutionEnv(process.env, siloModelEnvInjector.managedEnvKeys()),
 		});
 		await withModelRouteEnv(
 			route,
@@ -425,9 +397,7 @@ async function main() {
 		} catch (memoryError) {
 			console.warn(
 				"[farmhand] task memory outcome failed:",
-				memoryError instanceof Error
-					? memoryError.message
-					: String(memoryError),
+				memoryError instanceof Error ? memoryError.message : String(memoryError),
 			);
 		}
 
@@ -444,15 +414,10 @@ async function main() {
 	};
 
 	const pluginTracker = new PluginUsageTracker();
-	const fileTransport = new FileTransportAdapter(
-		farmhandBaseDir,
-		taskExecutorFn,
-		{
-			onEffortStart: (effortId, pluginIds) =>
-				pluginTracker.registerEffort(effortId, pluginIds),
-			onEffortEnd: (effortId) => pluginTracker.releaseEffort(effortId),
-		},
-	);
+	const fileTransport = new FileTransportAdapter(farmhandBaseDir, taskExecutorFn, {
+		onEffortStart: (effortId, pluginIds) => pluginTracker.registerEffort(effortId, pluginIds),
+		onEffortEnd: (effortId) => pluginTracker.releaseEffort(effortId),
+	});
 	const stopFileWatcher = fileTransport.watch();
 	console.log(`[farmhand] File transport watching ${farmhandBaseDir}/tasks/`);
 
@@ -461,12 +426,7 @@ async function main() {
 	httpSidecar.addRouteHandler(createTasksRouteHandler(taskMemoryAdapter));
 	httpSidecar.addRouteHandler(createControlSurfaceRouteHandler(fileTransport));
 	httpSidecar.addRouteHandler(
-		createPluginsRouteHandler(
-			runtime,
-			farmhandBaseDir,
-			pluginTracker,
-			localExtRegistry,
-		),
+		createPluginsRouteHandler(runtime, farmhandBaseDir, pluginTracker, localExtRegistry),
 	);
 	await httpSidecar.start();
 	console.log("[farmhand] HTTP sidecar listening on http://127.0.0.1:42001");
@@ -474,10 +434,7 @@ async function main() {
 	const streamsDir = path.join(farmhandBaseDir, "streams");
 	const fileStreamTransport = new FileStreamTransport(streamsDir);
 	const sseStreamTransport = new SseStreamTransport(fileStreamTransport);
-	const wsStreamTransport = new WsStreamTransport(
-		httpSidecar.httpServer,
-		fileStreamTransport,
-	);
+	const wsStreamTransport = new WsStreamTransport(httpSidecar.httpServer, fileStreamTransport);
 	httpSidecar.addRouteHandler(sseStreamTransport.getRouteHandler());
 
 	const streamRegistry = new StreamRegistry();
@@ -493,9 +450,7 @@ async function main() {
 			streamRegistry.dispatch(chunk);
 		}
 	});
-	console.log(
-		"[farmhand] Stream transports registered (File, SSE, WebSocket).",
-	);
+	console.log("[farmhand] Stream transports registered (File, SSE, WebSocket).");
 
 	// Write initial presence node (goes into LoroDoc, projected to read model)
 	await runtime.storeNode({
@@ -513,9 +468,7 @@ async function main() {
 
 	// Start WebSocket transport (binary Uint8Array frames — Loro deltas)
 	const transport = new WebSocketSyncTransport(FARMHAND_PORT);
-	console.log(
-		`[farmhand] WebSocket server listening on ws://localhost:${FARMHAND_PORT}`,
-	);
+	console.log(`[farmhand] WebSocket server listening on ws://localhost:${FARMHAND_PORT}`);
 
 	// Wire transport ↔ LoroCRDTStorage (binary Loro sync)
 	transport.onMessage((bytes) => void storage.applyUpdate(bytes));
