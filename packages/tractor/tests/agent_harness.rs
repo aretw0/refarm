@@ -2184,3 +2184,80 @@ async fn harness_context_budget_persists_reversible_fold() {
     clean_model_env();
     std::env::remove_var("MODEL_CONTEXT_BUDGET_TOKENS");
 }
+
+/// A mock LLM that DELAYS `delay_ms` before responding — simulates a slow model turn,
+/// the case the 2s on_event budget used to lose. The response processing (parse/store)
+/// runs AFTER the delayed host call returns; with a too-small budget the wall deadline
+/// has already elapsed and the guest traps on the first post-call wasm checkpoint.
+async fn mock_llm_server_delayed(body: serde_json::Value, delay_ms: u64) -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let body_str = body.to_string();
+    std::thread::spawn(move || {
+        while let Ok((mut stream, _)) = listener.accept() {
+            let _ = read_http_request(&mut stream);
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            let _ = write_http_response(&mut stream, &body_str);
+        }
+    });
+    port
+}
+
+/// The budget-2s footgun, proven by construction and by the fix. A model turn slower
+/// than the on_event budget used to lose the response: the LLM host call is slow, and
+/// when it returns the wall deadline (armed at on_event start) has passed, so the guest
+/// traps in post-processing and NO AgentResponse is stored. With a realistic budget the
+/// same slow turn completes and the response IS stored. Same wasm, two budgets.
+#[tokio::test]
+#[ignore]
+async fn harness_slow_model_response_survives_with_realistic_budget() {
+    let _env = env_lock();
+    let path = wasm_path();
+    assert!(path.exists(), "agent.wasm not found");
+
+    // A model that takes ~400ms — longer than the old 2s only in aggregate, so use a
+    // budget BELOW the delay to reproduce the trap deterministically.
+    let resp = openai_response("resposta lenta", 10, 5);
+    let port = mock_llm_server_delayed(resp, 400).await;
+
+    // (1) Too-small budget (200ms < 400ms delay): the old failure mode — response lost.
+    {
+        clean_model_env();
+        std::env::set_var("MODEL_PROVIDER", "ollama");
+        std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+        let sync = make_sync();
+        let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), 200).unwrap();
+        let mut handle = host.load(path, &sync).await.expect("load agent");
+        // The call itself may return Err (trap) or Ok; the OBSERVABLE symptom is that
+        // no AgentResponse was persisted because post-processing trapped.
+        let _ = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            handle.call_on_event("user:prompt", Some("pergunta lenta")),
+        )
+        .await;
+        let responses = sync.query_nodes("Response").unwrap_or_default();
+        assert!(
+            responses.is_empty(),
+            "with a budget below the model delay, the response must be LOST (the footgun)"
+        );
+    }
+
+    // (2) Realistic budget (10s ≫ 400ms delay): the fix — the slow turn completes and
+    // the response is stored.
+    {
+        clean_model_env();
+        std::env::set_var("MODEL_PROVIDER", "ollama");
+        std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+        let sync = make_sync();
+        let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100), 10_000).unwrap();
+        let mut handle = host.load(path, &sync).await.expect("load agent");
+        call_on_event_with_timeout(&mut handle, "pergunta lenta", "slow model realistic budget").await;
+        let responses = sync.query_nodes("Response").expect("query AgentResponse");
+        assert!(
+            !responses.is_empty(),
+            "with a realistic budget, a slow model turn must still produce a stored response"
+        );
+    }
+
+    clean_model_env();
+}

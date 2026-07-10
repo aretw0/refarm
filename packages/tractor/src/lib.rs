@@ -313,7 +313,9 @@ fn on_event_budget_ms_from_env() -> u64 {
         .ok()
         .and_then(|raw| raw.parse::<u64>().ok())
         .filter(|ms| *ms > 0)
-        .unwrap_or(2_000)
+        // Same default as the constant so env-unset and non-boot paths agree — 60s,
+        // realistic for a plugin whose on_event includes a synchronous LLM round-trip.
+        .unwrap_or(crate::host::DEFAULT_ON_EVENT_BUDGET_MS)
         .min(MAX_ON_EVENT_BUDGET_MS)
 }
 
@@ -507,8 +509,9 @@ pub struct TractorNativeConfig {
     /// Env override at boot: `REFARM_PLUGIN_POOL`.
     pub plugin_pool_size: usize,
     /// Wall-clock budget (ms) for a single plugin `on_event` call; the per-store
-    /// epoch callback traps a wedged guest once it elapses (default 2000).
-    /// Env override at boot: `REFARM_ON_EVENT_TIMEOUT_MS`.
+    /// epoch callback traps a wedged guest once it elapses (default
+    /// [`crate::host::DEFAULT_ON_EVENT_BUDGET_MS`] = 60s, sized for a synchronous
+    /// LLM round-trip). Env override at boot: `REFARM_ON_EVENT_TIMEOUT_MS`.
     pub on_event_budget_ms: u64,
 }
 
@@ -520,7 +523,7 @@ impl Default for TractorNativeConfig {
             security_mode: SecurityMode::Strict,
             telemetry_capacity: 1000,
             plugin_pool_size: 1,
-            on_event_budget_ms: 2_000,
+            on_event_budget_ms: crate::host::DEFAULT_ON_EVENT_BUDGET_MS,
         }
     }
 }
@@ -1201,9 +1204,13 @@ mod pool_tests {
         assert!(std::time::Instant::now()
             .checked_add(std::time::Duration::from_millis(clamped))
             .is_some());
-        // Normal + default still resolve untouched.
+        // Normal + default still resolve untouched. Env-unset falls back to the shared
+        // constant (60s) — NOT the old 2s that lost the agent's response post-LLM.
         assert_eq!(with_budget_env(Some("50"), on_event_budget_ms_from_env), 50);
-        assert_eq!(with_budget_env(None, on_event_budget_ms_from_env), 2_000);
+        assert_eq!(
+            with_budget_env(None, on_event_budget_ms_from_env),
+            crate::host::DEFAULT_ON_EVENT_BUDGET_MS
+        );
     }
 }
 

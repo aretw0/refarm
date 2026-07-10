@@ -149,7 +149,17 @@ pub struct PluginInstanceHandle {
 /// without an explicit budget (tests, non-boot paths) use this. `pub` so
 /// integration tests and benches can pass an explicit, named default to
 /// `PluginHost::new` instead of a bare literal.
-pub const DEFAULT_ON_EVENT_BUDGET_MS: u64 = 2_000;
+///
+/// 60s, NOT 2s: an `on_event` runs the plugin's whole reaction, and for the agent
+/// that includes a SYNCHRONOUS LLM round-trip (via the model-bridge host call, which
+/// the epoch cannot interrupt while it blocks). With a 2s budget the wall deadline
+/// expired mid-LLM and the agent trapped on the FIRST wasm checkpoint after the call
+/// returned — losing the model's response in post-processing and discarding the store.
+/// The sidecar already waits ~45s for a response (`respond_watch` default), so a 2s
+/// execution budget contradicted it. 60s covers a slow model turn; a deployment that
+/// wants tighter (or looser) sets `REFARM_ON_EVENT_TIMEOUT_MS`. A per-plugin declared
+/// budget in the manifest is the fuller fix (tracked) so a plugin states its own need.
+pub const DEFAULT_ON_EVENT_BUDGET_MS: u64 = 60_000;
 
 impl PluginInstanceHandle {
     pub(crate) fn new_component(
