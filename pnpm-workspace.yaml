@@ -1,6 +1,8 @@
 catalog:
   # build tooling
   typescript: "^6.0.3"
+  # formatter (oxc ecosystem — Prettier-compatible, arrived with Astro 7's Rolldown-Vite)
+  oxfmt: "^0.58.0"
   # wasm runtime
   "@bytecodealliance/jco": "^1.18.0"
   # crypto / identity primitives

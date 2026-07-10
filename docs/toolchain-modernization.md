@@ -59,13 +59,38 @@ surgically to keep the diff to one line per file.
 logs show `[plugin rolldown:vite-resolve]`. So the oxc/Rolldown ecosystem is now
 live in the stack, which directly informs the oxfmt-vs-Biome call below.
 
-## Formatter — OPEN (P5)
+## Formatter — oxfmt (oxc), adopted; sweep in progress (P5)
 
-The repo has **no formatter** — only a home-grown `imports` tool in the toolbox
-that corrupts indentation. Style is **tabs**; ~1113 TS files. Direction (Arthur):
-prefer the Vite 8 / Rolldown / oxc ecosystem; reach for Biome/others only if they
-complement a gap oxc leaves. Open question to settle before adopting: the real
-maturity of `oxfmt`/oxlint today vs Biome/Prettier for production formatting.
+**Decision: oxfmt** (the oxc formatter). Direction (Arthur): use the oxc ecosystem
+— now live in the stack via Astro 7's Rolldown-Vite — and reach for Biome/Prettier
+only if a real gap is felt. oxfmt cleared the bar; **no gap felt**, so no
+Biome/Prettier.
+
+Validated at the source before adopting:
+
+- `oxfmt@0.58` — published, actively maintained (updated days ago), Prettier-
+  compatible, TypeScript-aware. (`oxlint@1.x` is the mature sibling linter, held
+  for later.)
+- **Respects tabs** — with `useTabs: true`, a clean hand-written file produces a
+  ZERO diff (our idioms already match oxfmt's output). Changes on messier files
+  are sensible line-wraps (long strings, multi-clause conditions, method chains),
+  never corruption.
+- **Idempotent** (format twice = same — a stable `--check` gate), **strict config
+  validation** (rejects unknown keys), **fast** (900 files in ~1.4s, Rust).
+- Config: [`.oxfmtrc.json`](../.oxfmtrc.json) — `useTabs`, `printWidth: 100`
+  (matches our p99 line length ≈104), Prettier defaults otherwise. oxfmt honors
+  `.gitignore`.
+
+Scripts: `pnpm format` (write) / `pnpm format:check` (gate). It supersedes the
+home-grown `imports` tool (which corrupted indentation — the footgun that also bit
+the astro codemod).
+
+**Rollout (sliced, not one giant commit):** ~714/900 files differ from oxfmt's
+output. The config + scripts land first (this leaves `format:check` red); then the
+sweep is applied `oxfmt --write` **per area** (contract-v1 packages, then cli,
+then apps, …), one format-only commit per slice so the whitespace churn never
+mixes with logic and `git blame` isn't rewritten in a single blast. Once the sweep
+completes, wire `format:check` into the gate.
 
 ## Sequence
 
