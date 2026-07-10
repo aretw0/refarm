@@ -148,8 +148,10 @@ the use site). Keep a namespace/prefix when it genuinely disambiguates.
    `capability-index-data.ts` — a static reference TABLE of example activation
    commands (docs-like, not runtime handoffs). Its brand parameterization is the
    phase-3 tail; the guard fails on any NEW offender.
-   3a. **(phase-3 tail, tracked)** Parameterize `capability-index-data.ts`'s example
-       commands off the hardcoded `"refarm"` (a `buildCapabilities(binary)` factory
-       or binary-free data), then drop the guard exception.
+   3a. ✅ **DONE** (7e1cf08f). Parameterized `capability-index-data.ts` off `"refarm"`
+       (`buildCapabilities(binary)`); the index accessors require the binary and the
+       app injects it (a new `REFARM_BINARY` constant in brand.ts). Guard exception
+       dropped — **@refarm.dev/cli is now fully brand-agnostic** (zero
+       `applicationCommand("refarm")` remains).
 4. **(phase 2, wider)** Thread `BrandContext.envPrefix` to retire the hardcoded
    `REFARM_…` env keys across the generic packages.
