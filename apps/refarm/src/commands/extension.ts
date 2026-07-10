@@ -260,34 +260,53 @@ function listHandler(options: { json?: boolean } = {}): void {
 
 
 export const extensionCommand = new Command("extension").description(
-	"Manage local JS extensions (no WASM compilation needed)",
-	);
+	"[deprecated: use `plugin`] Manage local JS extensions",
+);
 
-	extensionCommand.addHelpText(
+// ADR-086 phase 4: `extension` is a deprecated alias for `plugin`. Each sub-verb
+// that has a canonical `plugin` home is pointed there; this notice writes to
+// STDERR so a `--json` stdout envelope stays clean (machines parse stdout only).
+// `save`/`publish` have no `plugin` equivalent yet — they get a generic notice.
+const EXTENSION_TO_PLUGIN_HINT: Record<string, string> = {
+	new: "plugin new",
+	review: "plugin review",
+	list: "plugin list --origin local",
+	install: "plugin install",
+};
+
+extensionCommand.hook("preAction", (_thisCommand, actionCommand) => {
+	// Suppress the notice on `--json` so structured consumers never see it on stderr
+	// interleaved with progress; the notice is for humans at a terminal.
+	const opts = actionCommand.opts();
+	if (opts.json === true) return;
+	const verb = actionCommand.name();
+	const hint = EXTENSION_TO_PLUGIN_HINT[verb];
+	process.stderr.write(
+		hint
+			? `note: \`extension ${verb}\` is deprecated; use \`${hint}\`.\n`
+			: `note: the \`extension\` command is deprecated; prefer \`plugin\` (\`${verb}\` will move there).\n`,
+	);
+});
+
+extensionCommand.addHelpText(
 	"after",
 	`
+Deprecated — use the \`plugin\` command (ADR-086):
+  refarm extension new     ->  refarm plugin new
+  refarm extension review  ->  refarm plugin review
+  refarm extension list    ->  refarm plugin list --origin local
+  refarm extension install ->  refarm plugin install <path>
+  (save/publish have no plugin equivalent yet)
 
-	Examples:
-	$ refarm extension new my-tool
-	$ refarm extension new wallet --verb open  # exposes refarm wallet-open --json after reload
-	$ refarm extension new my-tool --json
-	$ refarm extension review ./prepared-extension
-	$ refarm extension review ./prepared-extension --grant storage:v1 --json
-	$ refarm extension list
-	$ refarm extension list --json
-	$ refarm extension save my-tool --global
-	$ refarm extension save my-tool --global --json
-	$ refarm extension publish my-tool --json
+Notes:
+  Local plugins are loaded by the Refarm runtime. After editing one, run
+  refarm plugin reload @local/<name> --json or restart the runtime.
+  Dispatch verbs surface with scoped names: wallet:open becomes wallet-open.
+  Inside refarm chat, /reload @local/<name> (or /r @local/<name>) is the interactive equivalent.
+`,
+);
 
-	Notes:
-	Local extensions are loaded by the Refarm runtime. After editing one, run
-	refarm plugin reload @local/<name> --json or restart the runtime.
-	Dispatch verbs surface with scoped names: wallet:open becomes wallet-open.
-	Inside refarm chat, /reload @local/<name> (or /r @local/<name>) is the interactive equivalent.
-	`,
-	);
-
-	extensionCommand
+extensionCommand
 	.command("new <name>")
 	.description("Scaffold a new local extension in .refarm/extensions/<name>/")
 	.option("-g, --global", "Create in ~/.refarm/extensions/ (available in all projects)", false)

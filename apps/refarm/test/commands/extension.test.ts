@@ -6,7 +6,7 @@ import { buildExtensionListReport } from "../../src/commands/extension-scaffold.
 import { extensionCommand } from "../../src/commands/extension.js";
 
 describe("extension command", () => {
-	it("documents runtime reload behavior in help", () => {
+	it("documents deprecation + runtime reload behavior in help", () => {
 		let help = "";
 		extensionCommand.configureOutput({
 			writeOut: (value) => {
@@ -16,9 +16,11 @@ describe("extension command", () => {
 
 		extensionCommand.outputHelp();
 
-		expect(help).toContain("Local extensions are loaded by the Refarm runtime");
-		expect(help).toContain("refarm extension save my-tool --global --json");
-		expect(help).toContain("refarm extension publish my-tool --json");
+		// ADR-086 phase 4: help now points at the canonical `plugin` command.
+		expect(help).toContain("Deprecated");
+		expect(help).toContain("refarm plugin list --origin local");
+		expect(help).toContain("refarm plugin install <path>");
+		expect(help).toContain("Local plugins are loaded by the Refarm runtime");
 		expect(help).toContain("refarm plugin reload @local/<name> --json");
 		expect(help).toContain("/reload @local/<name>");
 		expect(help).toContain("/r @local/<name>");
