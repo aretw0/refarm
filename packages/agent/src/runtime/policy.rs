@@ -74,7 +74,9 @@ fn skill_prompts_section(raw: &str) -> Option<String> {
     ))
 }
 
-#[cfg(target_arch = "wasm32")]
+// Not wasm-gated: unlike `tool_prompts_for_prompt` (which imports the WIT
+// `list-tool-prompts`), skills arrive purely via the `MODEL_SKILLS` env the host
+// packs — so the whole env→section path is native-testable (the seam proof).
 fn skill_prompts_for_prompt() -> Option<String> {
     std::env::var("MODEL_SKILLS")
         .ok()
@@ -123,5 +125,17 @@ mod tests {
         let section = skill_prompts_section(raw).expect("a section");
         // Exactly one bullet, no empty trailing "- ".
         assert_eq!(section.matches("\n- ").count(), 1);
+    }
+
+    #[test]
+    fn reads_model_skills_env_end_to_end() {
+        // The seam proof: a skill packed into MODEL_SKILLS (as the host does) reaches
+        // the system-prompt section (as the agent renders it). MODEL_SKILLS is touched
+        // by no other test.
+        std::env::set_var("MODEL_SKILLS", "deploy-runbook — how to ship. Use when releasing.");
+        let section = super::skill_prompts_for_prompt().expect("env-fed section");
+        assert!(section.contains("deploy-runbook — how to ship"));
+        std::env::remove_var("MODEL_SKILLS");
+        assert_eq!(super::skill_prompts_for_prompt(), None);
     }
 }
