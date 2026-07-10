@@ -39,6 +39,7 @@ import {
 	PLUGIN_STATUS_JSON_COMMAND,
 } from "./plugin-handoffs.js";
 import { buildExtensionInstallReport } from "./plugin-install-from-path.js";
+import { buildUrlInstallReport } from "./plugin-install-from-url.js";
 import { buildInstallReport } from "./plugin-install.js";
 import {
 	formatBundleFromEnvelope,
@@ -454,9 +455,10 @@ export function createPluginCapabilityGroup(
 				})) as CapabilityEnvelope;
 			}
 
-			// A ref: its shape selects the origin. Only `local` is materializable
-			// today; npm/git/url are recognized and routed to a loud not-wired
-			// envelope (never a silent no-op that pretends coverage — ADR-086).
+			// A ref: its shape selects the origin. `local` (a reviewed path) and `url`
+			// (a content-addressed descriptor, ADR-086 Fase 7) are materializable;
+			// npm/git are recognized and routed to a loud not-wired envelope (never a
+			// silent no-op that pretends coverage — ADR-086).
 			const origin = detectPluginOrigin(ref);
 			if (origin === "local") {
 				const policy = input.options.policy;
@@ -481,13 +483,20 @@ export function createPluginCapabilityGroup(
 				})) as CapabilityEnvelope;
 			}
 
+			// url: fetch a plugin descriptor, verify the wasm against its declared
+			// content-address (the hash gate), then content-store + install. Safe from
+			// an untrusted URL by construction — tampered bytes are rejected, not run.
+			if (origin === "url") {
+				return (await buildUrlInstallReport({ url: ref })) as CapabilityEnvelope;
+			}
+
 			return buildJsonErrorEnvelope({
 				command: "plugin",
 				operation: "install",
 				error: "resolver-not-wired",
-				message: `Installing from a ${origin} reference ("${ref}") is not wired yet. Today only a local path and --bundled are supported.`,
+				message: `Installing from a ${origin} reference ("${ref}") is not wired yet. Today a local path, a url descriptor, and --bundled are supported.`,
 				nextAction:
-					"Install a local prepared plugin by path, or `refarm plugin install --bundled`.",
+					"Install a local prepared plugin by path, a url descriptor, or `refarm plugin install --bundled`.",
 				extra: { origin, ref },
 			});
 		},

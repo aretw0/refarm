@@ -252,10 +252,26 @@ transition; removal is a later, separate decision (a MAJOR, tracked below).
     the source showed they are DISTINCT axes that coexist, not one to merge (see
     §0). `PluginOrigin` is a new app-owned field; barn's `PluginPackageSource` and
     tractor-ts's fetch-provenance stay as-is. No §8 change needed.
-7.  **(resolver seam, separate track — the one real follow-on left)** Wire the
-    `npm`/`git`/`url`/p2p resolvers behind `plugin install <ref>` (content-
-    addressed identity, per the plugin-resolver work). Until then, those origins
-    fail loudly with a "resolver not wired" envelope, never a silent no-op.
+7.  **(resolver seam, chewed origin by origin)** Wire the `npm`/`git`/`url`/p2p
+    resolvers behind `plugin install <ref>` (content-addressed identity, per the
+    plugin-resolver work). Origins land one at a time; an unwired one still fails
+    loudly with a "resolver not wired" envelope, never a silent no-op.
+    7a. ✅ **DONE** (`url`). `plugin install <https-url>` fetches a plugin
+        DESCRIPTOR (a `plugin.json`-shaped JSON with `id`/`entry`/`integrity`),
+        fetches the wasm, and VERIFIES it against the declared integrity via
+        `verifyContentHash` (the same content-addressed hash gate the p2p
+        `AssetResolver` enforces) BEFORE storing or trusting it — tampered bytes
+        are rejected, never installed. Then content-stores the bytes + writes a
+        self-contained local manifest (`file://` entry), the SAME on-disk shape a
+        bundled/local install produces. `buildUrlInstallReport` is the remote
+        sibling of `buildExtensionInstallReport`; `fetch` is injected for tests
+        (6 tests: verify-pass, integrity-mismatch reject, descriptor/wasm fetch
+        failure, invalid descriptor, malformed integrity). No execution at
+        install — only fetch + verify + store.
+    7b. **(still loud not-wired)** `npm` (package resolution + build) and `git`
+        (clone + build) remain follow-ons; the p2p transport behind
+        `createPeerAssetResolver` is dormant (the verify gate is wired, the
+        transport is not).
 
 ## White-label seam: injectable bundled set (done, alongside the rollout)
 
