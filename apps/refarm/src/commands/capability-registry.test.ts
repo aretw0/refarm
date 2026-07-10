@@ -39,6 +39,18 @@ describe("capability CLI projection (cli.group routing)", () => {
 		// The group projector mounted the model sub-actions from one declaration.
 		expect(subs).toEqual(expect.arrayContaining(["current", "set", "providers"]));
 	});
+
+	it("mounts `review` as a sub-verb of the canonical `plugin` group (ADR-086)", () => {
+		// The authoring gate moved onto the canonical CapabilityGroup: `plugin review`
+		// is now an internal verb of `plugin`, alongside install/bundle/reload — not a
+		// standalone descriptor tagged into a hand-written `extension` command.
+		const plugin = capabilityCliCommands().find((c) => c.name() === "plugin");
+		expect(plugin).toBeDefined();
+		const subs = plugin!.commands.map((c) => c.name());
+		expect(subs).toContain("review");
+		// It keeps the lifecycle verbs it always had.
+		expect(subs).toEqual(expect.arrayContaining(["install", "bundle", "reload"]));
+	});
 });
 
 describe("capability TUI projection (renderers.tui bucket)", () => {

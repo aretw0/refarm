@@ -3,7 +3,6 @@ import type {
 	CapabilityEnvelope,
 	CapabilityGroup,
 } from "@refarm.dev/capabilities";
-import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 import {
 	buildJsonErrorEnvelope,
 	buildJsonSuccessEnvelope,
@@ -11,10 +10,12 @@ import {
 import {
 	describePermission,
 	unknownPermissions,
+	type PluginPolicyMode,
 } from "@refarm.dev/plugin-manifest";
 import type { LedgerScope } from "@refarm.dev/storage-node-view";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import type { CapabilitySurfaceHooks } from "./capability-commander.js";
 
 import {
 	approvalConfigPath,
@@ -22,19 +23,32 @@ import {
 	type ApprovalResult,
 } from "./plugin-approval.js";
 import {
-	revoke,
 	revocationConfigPath,
+	revoke,
 	unrevoke,
 	type RevocationResult,
 } from "./plugin-revocation.js";
 
+import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
+import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
+import { pluginsBaseDir } from "../utils/refarm-home.js";
+import {
+	buildExtensionReviewReport,
+	type ExtensionReviewReport,
+} from "./extension-review-capability.js";
+import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
 import {
 	PLUGIN_INSTALL_JSON_COMMAND,
 	PLUGIN_STATUS_JSON_COMMAND,
 } from "./plugin-handoffs.js";
-import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
-import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
 import { buildInstallReport } from "./plugin-install.js";
+import {
+	formatBundleFromEnvelope,
+	formatInstallFromEnvelope,
+	formatListFromEnvelope,
+	formatReloadFromEnvelope,
+	formatStatusFromEnvelope,
+} from "./plugin-render.js";
 import {
 	buildPluginListReport,
 	buildRuntimePluginStatusReport,
@@ -42,6 +56,7 @@ import {
 	restartRuntimeForPluginReload,
 	runtimePluginUnavailableRecommendations,
 } from "./plugin-runtime.js";
+import { pluginIdToFsToken } from "./plugin-shared.js";
 import {
 	readRuntimePluginState,
 	reloadRuntimePluginsAndWait,
@@ -51,16 +66,6 @@ import {
 	RUNTIME_ENSURE_WAIT_NEXT_COMMAND,
 	RUNTIME_START_WAIT_COMMAND,
 } from "./runtime-recovery.js";
-import {
-	formatBundleFromEnvelope,
-	formatInstallFromEnvelope,
-	formatListFromEnvelope,
-	formatReloadFromEnvelope,
-	formatStatusFromEnvelope,
-} from "./plugin-render.js";
-import { pluginIdToFsToken } from "./plugin-shared.js";
-import { pluginsBaseDir } from "../utils/refarm-home.js";
-import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 
 /** OperatorChannel-style progress sink — run() emits progress here instead of
  *  console.log; headless/HTTP inject a no-op, the CLI injects a stderr writer. */
@@ -160,6 +165,67 @@ export function createPluginCapabilityGroup(
 					: [PLUGIN_STATUS_JSON_COMMAND],
 				extra: report,
 			});
+		},
+	};
+
+	// ── review <path> ─────────────────────────────────────────────────────────
+	// Authoring gate (ADR-086): review a prepared plugin against a capability grant
+	// BEFORE installing. Lifts the shared, host-agnostic buildExtensionReviewReport
+	// AS-IS (same policy engine the legacy `extension review` used) — passing
+	// commandName:"plugin" so the envelope + install handoff name THIS verb. run()
+	// stays pure over the builder; nothing is installed here.
+	const review: CapabilityDescriptor = {
+		name: "review",
+		summary:
+			"Review a prepared plugin against a capability grant (review-first; installs nothing)",
+		args: [{ name: "path", required: true }],
+		options: [
+			{
+				name: "grant",
+				kind: "string[]",
+				summary:
+					"Grant a capability for this review (repeatable); default grants none",
+			},
+			{
+				name: "policy",
+				kind: "string",
+				summary: "Policy mode: fail-fast or warn+continue",
+				defaultValue: "fail-fast",
+			},
+		],
+		run(input) {
+			const policy = input.options.policy;
+			if (
+				policy !== undefined &&
+				policy !== "fail-fast" &&
+				policy !== "warn+continue"
+			) {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "review",
+					error: "plugin_review_failed",
+					message: "--policy must be fail-fast or warn+continue",
+					nextAction: "Run `refarm plugin review --help`.",
+				});
+			}
+			try {
+				return buildExtensionReviewReport({
+					targetPath: input.args.path as string,
+					grantedCapabilities: (input.options.grant as string[]) ?? [],
+					policyMode: (policy as PluginPolicyMode) ?? "fail-fast",
+					commandName: "plugin",
+				});
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "review",
+					error: "plugin_review_failed",
+					message,
+					nextAction:
+						"Run `refarm plugin review --help`; point at a prepared plugin directory or manifest.",
+				});
+			}
 		},
 	};
 
@@ -698,6 +764,7 @@ export function createPluginCapabilityGroup(
 		summary: "Manage refarm plugins",
 		actions: {
 			list,
+			review,
 			permissions,
 			status,
 			install,
@@ -740,6 +807,39 @@ export function pluginCapabilityHooks(subVerb: string): CapabilitySurfaceHooks {
 			return { renderText: (envelope) => formatStatusFromEnvelope(envelope) };
 		case "list":
 			return { renderText: (envelope) => formatListFromEnvelope(envelope) };
+		case "review":
+			// Same shape as the legacy extension-review hook, relabelled for the verb:
+			// the report is the shared ExtensionReviewReport (one builder, ADR-086).
+			return {
+				renderText(envelope) {
+					if (envelope.ok === false) {
+						return `Plugin review failed: ${(envelope as { message?: string }).message ?? "unknown error"}`;
+					}
+					const report = envelope as ExtensionReviewReport;
+					const { decision, deniedCapabilities, readyToInstall } = report;
+					const lines = [
+						`Plugin review: ${decision.pluginId ?? "unknown"} — ${decision.status} (policy: ${decision.policyMode})`,
+					];
+					if (!decision.manifestValid) {
+						for (const err of decision.manifestErrors) {
+							lines.push(`  manifest error: ${err}`);
+						}
+					}
+					if (deniedCapabilities.length > 0) {
+						lines.push(
+							`  denied capabilities (not granted): ${deniedCapabilities.join(", ")}`,
+						);
+					}
+					lines.push(
+						`  ready to install: ${readyToInstall ? "yes" : "no — review required"}`,
+					);
+					return lines.join("\n");
+				},
+				exitCode(envelope) {
+					if (envelope.ok === false) return 1;
+					return (envelope as ExtensionReviewReport).readyToInstall ? 0 : 1;
+				},
+			};
 		case "install":
 		case "update":
 			return { renderText: (envelope) => formatInstallFromEnvelope(envelope) };

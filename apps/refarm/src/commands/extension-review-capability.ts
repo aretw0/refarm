@@ -55,6 +55,13 @@ export interface ExtensionReviewInput {
 	targetPath: string;
 	grantedCapabilities: string[];
 	policyMode: PluginPolicyMode;
+	/**
+	 * The command verb this review is projected under — stamped into the envelope's
+	 * `command` field and the install handoff. Defaults to `"extension"` so the
+	 * legacy `extension review` call-site is byte-identical; `plugin review`
+	 * (ADR-086) passes `"plugin"` so the envelope names the verb the operator used.
+	 */
+	commandName?: string;
 }
 
 export type ExtensionReviewReport = JsonSuccessEnvelope<{
@@ -83,13 +90,15 @@ export function buildExtensionReviewReport(
 		decision.status === "completed" && decision.manifestValid;
 	// The handoff points at installing WHAT WAS REVIEWED (this path, with the same
 	// grants), not the bundled set — the review→install loop is closed. When a grant
-	// is still missing, the next step is to re-review with it granted.
+	// is still missing, the next step is to re-review with it granted. The verb
+	// (extension|plugin) is caller-supplied so the handoff names the surface used.
+	const commandName = input.commandName ?? "extension";
 	const grantFlags = input.grantedCapabilities
 		.map((cap) => `--grant ${cap}`)
 		.join(" ");
-	const installHandoff = `extension install ${manifestPath}${grantFlags ? ` ${grantFlags}` : ""}`;
+	const installHandoff = `${commandName} install ${manifestPath}${grantFlags ? ` ${grantFlags}` : ""}`;
 	return buildJsonSuccessEnvelope({
-		command: "extension",
+		command: commandName,
 		operation: "review",
 		nextCommands: readyToInstall ? [installHandoff, "resume --json"] : [],
 		extra: {

@@ -120,3 +120,38 @@ describe("buildExtensionReviewReport", () => {
 		expect(report.readyToInstall).toBe(false);
 	});
 });
+
+// ADR-086: the same builder projects under either verb (extension|plugin). The
+// commandName param is what lets `plugin review` reuse this builder while the
+// envelope + install handoff name the verb the operator actually used.
+describe("buildExtensionReviewReport commandName (ADR-086 neutralization)", () => {
+	it("defaults to the legacy `extension` verb, byte-identical to before", () => {
+		const dir = writePreparedExtension(VALID_MANIFEST);
+		const report = buildExtensionReviewReport({
+			targetPath: dir,
+			grantedCapabilities: ["network:v1", "storage:v1"],
+			policyMode: "fail-fast",
+		});
+		expect(report.command).toBe("extension");
+		// The install handoff still names `extension install <path>` — the closed
+		// review→install loop the legacy call-site emitted.
+		expect(report.nextCommands[0]).toMatch(/^extension install /);
+	});
+
+	it("stamps `plugin` into the envelope and the install handoff when asked", () => {
+		const dir = writePreparedExtension(VALID_MANIFEST);
+		const report = buildExtensionReviewReport({
+			targetPath: dir,
+			grantedCapabilities: ["network:v1", "storage:v1"],
+			policyMode: "fail-fast",
+			commandName: "plugin",
+		});
+		expect(report.command).toBe("plugin");
+		expect(report.operation).toBe("review");
+		// The loop stays closed under the new verb: review → `plugin install <path>`.
+		expect(report.nextCommands[0]).toMatch(/^plugin install /);
+		// The grant flags ride along so the handoff re-reviews with the same grants.
+		expect(report.nextCommands[0]).toContain("--grant network:v1");
+		expect(report.nextCommands[0]).toContain("--grant storage:v1");
+	});
+});
