@@ -823,12 +823,11 @@ impl TractorNative {
     /// stores (see stage_pool_stores) gets N threads sharing one queue.
     pub fn register_for_events(&self, handle: host::PluginInstanceHandle) {
         let plugin_id = handle.id.clone();
-        let provides = handle.provides.clone();
-        let subscribes = handle.subscribes.clone();
+        // The whole capability profile travels as one aggregate — cloned once here, read
+        // for provides/subscribes below (router + sugar), and handed to the registry
+        // wholesale. No field-by-field disassemble/reassemble.
+        let profile = handle.profile.clone();
         let requires_api = handle.requires_api.clone();
-        let verb_docs = handle.verb_docs.clone();
-        let verb_schemas = handle.verb_schemas.clone();
-        let sync_verbs = handle.sync_verbs.clone();
         // Register the plugin's cancel flag (shared with its store epoch callback)
         // BEFORE the handle moves into the runner thread, so effort-cancel can
         // force-interrupt a wedged guest that never polls its mpsc channel.
@@ -901,14 +900,10 @@ impl TractorNative {
         // channel + router population — one load point owns "this plugin is here and
         // declares X". The agent leg's `list-tools`/`invoke-tool` and `get_plugin_api`
         // read it; a plugin removed from here (on unload) stops being listable at once.
-        self.plugin_registry.register(
-            &plugin_id,
-            provides.clone(),
-            subscribes.clone(),
-            verb_docs,
-            verb_schemas,
-            sync_verbs,
-        );
+        // Read the routing lists off the profile BEFORE it moves into the registry.
+        let provides = profile.provides.clone();
+        let subscribes = profile.subscribes.clone();
+        self.plugin_registry.register(&plugin_id, profile);
         self.plugin_registry
             .record_requires_api(&plugin_id, requires_api);
 

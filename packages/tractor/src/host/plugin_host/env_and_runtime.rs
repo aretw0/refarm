@@ -579,6 +579,27 @@ struct RuntimePluginCapabilities {
     concurrent_safe: bool,
 }
 
+/// Build the registry's `PluginCapabilityProfile` from a parsed manifest's capabilities
+/// — the ONE place manifest fields map onto the aggregate the handle carries and the
+/// registry stores. Folds each declared `providesApi: ["FooApi"]` into `provides` as
+/// `api:FooApi`, so the registry's `plugin_providing_api` matcher (which scans `provides`
+/// for `api:<name>`) resolves real manifests without a parallel field. `concurrent_safe`
+/// and `requires_api` are deliberately NOT here: they feed the runner and the registry's
+/// separate requires-api map, not the list/invoke profile.
+fn capability_profile_from_manifest(
+    caps: &RuntimePluginCapabilities,
+) -> crate::host::plugin_registry::PluginCapabilityProfile {
+    let mut provides = caps.provides.clone();
+    provides.extend(caps.provides_api.iter().map(|api| format!("api:{api}")));
+    crate::host::plugin_registry::PluginCapabilityProfile {
+        provides,
+        subscribes: caps.subscribes.clone(),
+        verb_docs: caps.verb_docs.clone(),
+        verb_schemas: caps.verb_schemas.clone(),
+        sync_verbs: caps.sync_verbs.clone(),
+    }
+}
+
 const REQUIRED_RUNTIME_HOOKS: &[&str] = &[
     "onLoad",
     "onInit",
@@ -1201,38 +1222,16 @@ impl PluginHost {
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, linker).await?;
 
-        let (
-            provides,
-            subscribes,
-            concurrent_safe,
-            requires_api,
-            verb_docs,
-            verb_schemas,
-            sync_verbs,
-        ) = if let Some(manifest) = manifest.as_ref() {
+        // The capability profile (the registry aggregate) is built ONCE from the
+        // manifest; `concurrent_safe` + `requires_api` ride alongside it but stay
+        // separate (they feed the runner + the requires-api map, not the profile).
+        let (profile, concurrent_safe, requires_api) = if let Some(manifest) = manifest.as_ref() {
             let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
             validate_manifest_runtime_alignment(&plugin_id, &metadata, manifest)?;
-            // Fold each declared `providesApi: ["FooApi"]` into `provides` as
-            // `api:FooApi`, so the registry's existing `plugin_providing_api` matcher
-            // (which scans `provides` for `api:<name>`) resolves real manifests. This
-            // reconciles the manifest's bare-name array with the resolver convention
-            // without a parallel registry field — the SPI provider side wired.
-            let mut provides = manifest.capabilities.provides.clone();
-            provides.extend(
-                manifest
-                    .capabilities
-                    .provides_api
-                    .iter()
-                    .map(|api| format!("api:{api}")),
-            );
             (
-                provides,
-                manifest.capabilities.subscribes.clone(),
+                capability_profile_from_manifest(&manifest.capabilities),
                 manifest.capabilities.concurrent_safe,
                 manifest.capabilities.requires_api.clone(),
-                manifest.capabilities.verb_docs.clone(),
-                manifest.capabilities.verb_schemas.clone(),
-                manifest.capabilities.sync_verbs.clone(),
             )
         } else {
             tracing::warn!(
@@ -1241,12 +1240,8 @@ impl PluginHost {
                 "plugin manifest not found near wasm; skipping manifest/runtime alignment checks"
             );
             (
-                vec![],
-                vec![],
+                crate::host::plugin_registry::PluginCapabilityProfile::default(),
                 false,
-                vec![],
-                std::collections::HashMap::new(),
-                std::collections::HashMap::new(),
                 vec![],
             )
         };
@@ -1256,14 +1251,10 @@ impl PluginHost {
             plugin,
             store,
             self.telemetry.clone(),
-            provides,
+            profile,
         )
-        .with_subscribes(subscribes)
         .with_concurrent_safe(concurrent_safe)
         .with_requires_api(requires_api)
-        .with_verb_docs(verb_docs)
-        .with_verb_schemas(verb_schemas)
-        .with_sync_verbs(sync_verbs)
         .with_on_event_budget_ms(self.on_event_budget_ms);
         handle.call_setup().await?;
 
@@ -1359,16 +1350,22 @@ impl PluginHost {
         );
         let instance = self.module_linker.instantiate(&mut store, &module)?;
 
+        // A P1 module surfaces only `provides` (no WIT integration → no dispatchable
+        // verbs / prompts / schemas); the rest of the profile stays default.
         let provides = read_runtime_plugin_manifest(path)?
             .map(|m| m.capabilities.provides)
             .unwrap_or_default();
+        let profile = crate::host::plugin_registry::PluginCapabilityProfile {
+            provides,
+            ..Default::default()
+        };
 
         let mut handle = PluginInstanceHandle::new_module(
             plugin_id.to_string(),
             instance,
             store,
             self.telemetry.clone(),
-            provides,
+            profile,
         )
         .with_on_event_budget_ms(self.on_event_budget_ms);
         handle.call_setup().await?;

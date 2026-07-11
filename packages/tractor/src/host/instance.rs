@@ -103,38 +103,25 @@ enum PluginImpl {
 pub struct PluginInstanceHandle {
     pub id: String,
     pub state: PluginState,
-    /// Capabilities declared in the plugin's `capabilities.provides` manifest field.
-    pub provides: Vec<String>,
-    /// Runtime event names the plugin declared in `capabilities.subscribes` — what
-    /// the neutral event router delivers to it. Defaults empty; set from the
-    /// manifest via `with_subscribes` right after construction.
-    pub subscribes: Vec<String>,
+    /// The plugin's declared capability profile (`provides` / `subscribes` /
+    /// `verb_docs` / `verb_schemas` / `sync_verbs`) — the SAME aggregate the shared
+    /// `PluginRegistry` stores. Carried as ONE struct, not five parallel fields, so the
+    /// load path builds it once (`env_and_runtime`) and `register_for_events` passes it
+    /// straight to `PluginRegistry::register` — no disassemble-into-args/reassemble round
+    /// trip. Adding a per-verb capability touches only `PluginCapabilityProfile`.
+    pub profile: super::plugin_registry::PluginCapabilityProfile,
     /// Whether the plugin declared `capabilities.concurrentSafe` — i.e. its
     /// on_event is stateless and may be driven by a pool of N stores in parallel.
     /// Defaults false; set from the manifest via `with_concurrent_safe`.
     /// register_for_events reads it (with REFARM_PLUGIN_POOL) to choose between
-    /// the single-store runner and the opt-in pooled runner.
+    /// the single-store runner and the opt-in pooled runner. NOT part of the profile:
+    /// it drives the runner, never the registry's list/invoke surface.
     pub concurrent_safe: bool,
     /// APIs the plugin declared in `capabilities.requiresApi` (the SPI consumer
     /// side). Defaults empty; set via `with_requires_api`. register_for_events
-    /// records it in the registry for the post-load advisory reconciliation.
+    /// records it in the registry's SEPARATE requires-api map (not the profile) for
+    /// the post-load advisory reconciliation.
     pub requires_api: Vec<String>,
-    /// Per-verb usage prose from `capabilities.verbDocs` (promptSnippet Slice 2),
-    /// keyed by `<key>:<verb>`. Defaults empty; set via `with_verb_docs`.
-    /// register_for_events passes it to the registry so `list-tool-prompts` returns
-    /// plugin-authored guidance instead of host boilerplate.
-    pub verb_docs: std::collections::HashMap<String, String>,
-    /// Per-verb argument SCHEMA from `capabilities.verbSchemas`, keyed by `<key>:<verb>`.
-    /// Each value is the JSON-Schema object the agent leg renders as that verb's model-tool
-    /// parameters (the FORM companion of `verb_docs`' prose). Defaults empty; set via
-    /// `with_verb_schemas`. register_for_events passes it to the registry so `list-tools`
-    /// emits a TYPED schema for a declared verb instead of the variadic `{ args }`.
-    pub verb_schemas: std::collections::HashMap<String, serde_json::Value>,
-    /// Verbs the plugin serves SYNCHRONOUSLY via `respond` (`capabilities.syncVerbs`,
-    /// a subset of `provides`). Defaults empty (async-only); set via `with_sync_verbs`.
-    /// The host consults `serves_sync` before a synchronous respond dispatch — ADR-084's
-    /// negotiated flag enforced host-side.
-    pub sync_verbs: Vec<String>,
     inner: PluginImpl,
     telemetry: TelemetryBus,
     /// Shared with the store's epoch_deadline_callback. Exposes the cancel flag
@@ -173,7 +160,7 @@ impl PluginInstanceHandle {
         plugin: RefarmPluginHost,
         store: Store<TractorStore>,
         telemetry: TelemetryBus,
-        provides: Vec<String>,
+        profile: super::plugin_registry::PluginCapabilityProfile,
     ) -> Self {
         // The epoch callback + baseline deadline were armed on this store at
         // creation (new_armed_store in load()), because the component's own
@@ -183,13 +170,9 @@ impl PluginInstanceHandle {
         Self {
             id,
             state: PluginState::Idle,
-            provides,
-            subscribes: Vec::new(),
+            profile,
             concurrent_safe: false,
             requires_api: Vec::new(),
-            verb_docs: std::collections::HashMap::new(),
-            verb_schemas: std::collections::HashMap::new(),
-            sync_verbs: Vec::new(),
             inner: PluginImpl::Component { plugin, store },
             telemetry,
             epoch_guard,
@@ -202,7 +185,7 @@ impl PluginInstanceHandle {
         instance: wasmtime::Instance,
         store: Store<P1Store>,
         telemetry: TelemetryBus,
-        provides: Vec<String>,
+        profile: super::plugin_registry::PluginCapabilityProfile,
     ) -> Self {
         // Epoch callback + baseline armed before module instantiation (see
         // new_component); just capture the guard here.
@@ -210,13 +193,9 @@ impl PluginInstanceHandle {
         Self {
             id,
             state: PluginState::Idle,
-            provides,
-            subscribes: Vec::new(),
+            profile,
             concurrent_safe: false,
             requires_api: Vec::new(),
-            verb_docs: std::collections::HashMap::new(),
-            verb_schemas: std::collections::HashMap::new(),
-            sync_verbs: Vec::new(),
             inner: PluginImpl::Module { instance, store },
             telemetry,
             epoch_guard,
@@ -231,69 +210,33 @@ impl PluginInstanceHandle {
         self.epoch_guard.cancel.clone()
     }
 
-    /// Attach the manifest's `capabilities.subscribes` event names to this handle.
-    /// A builder-style setter so the existing constructors and their callers stay
-    /// unchanged (the smallest-ripple way to flow subscriptions to the router).
-    pub(crate) fn with_subscribes(mut self, subscribes: Vec<String>) -> Self {
-        self.subscribes = subscribes;
-        self
-    }
-
-    /// Attach the manifest's `capabilities.concurrentSafe` flag. Builder-style,
-    /// mirroring with_subscribes. Records the plugin's opt-in to concurrent
-    /// (pooled) dispatch; the runner reads it to choose the drain strategy.
+    /// Set the single-event wall-clock budget (ms). Builder-style. Not a capability —
+    /// a runtime knob stamped from host config at load.
     pub(crate) fn with_on_event_budget_ms(mut self, budget_ms: u64) -> Self {
         self.on_event_budget_ms = budget_ms;
         self
     }
 
+    /// Attach the manifest's `capabilities.concurrentSafe` flag. Builder-style. Records
+    /// the plugin's opt-in to concurrent (pooled) dispatch; the runner reads it to choose
+    /// the drain strategy. Kept off the profile: it drives the runner, not the registry.
     pub(crate) fn with_concurrent_safe(mut self, concurrent_safe: bool) -> Self {
         self.concurrent_safe = concurrent_safe;
         self
     }
 
-    /// Attach the manifest's `capabilities.requiresApi` (SPI consumer side).
-    /// Builder-style, mirroring with_subscribes.
+    /// Attach the manifest's `capabilities.requiresApi` (SPI consumer side). Builder-style.
+    /// Kept off the profile: it feeds the registry's separate requires-api map.
     pub(crate) fn with_requires_api(mut self, requires_api: Vec<String>) -> Self {
         self.requires_api = requires_api;
         self
     }
 
-    /// Attach the manifest's `capabilities.verbDocs` (per-verb prompt prose).
-    /// Builder-style, mirroring with_subscribes.
-    pub(crate) fn with_verb_docs(
-        mut self,
-        verb_docs: std::collections::HashMap<String, String>,
-    ) -> Self {
-        self.verb_docs = verb_docs;
-        self
-    }
-
-    /// Attach the manifest's `capabilities.verbSchemas` (per-verb argument schema).
-    /// Builder-style, mirroring with_verb_docs. The agent leg renders a declared verb's
-    /// schema as its typed model-tool parameters instead of the variadic `{ args }`.
-    pub(crate) fn with_verb_schemas(
-        mut self,
-        verb_schemas: std::collections::HashMap<String, serde_json::Value>,
-    ) -> Self {
-        self.verb_schemas = verb_schemas;
-        self
-    }
-
-    /// Attach the manifest's `capabilities.syncVerbs` — the verbs this plugin serves
-    /// synchronously via `respond`. Builder-style, mirroring with_subscribes. The host
-    /// consults this before dispatching a synchronous respond (a verb absent here is
-    /// async-only). Empty means the plugin serves nothing synchronously.
-    pub(crate) fn with_sync_verbs(mut self, sync_verbs: Vec<String>) -> Self {
-        self.sync_verbs = sync_verbs;
-        self
-    }
-
     /// Whether the plugin declared `verb` (a `<key>:<verb>` string) as synchronous.
     /// The host's not-supported guard: a respond dispatch to a verb not listed here is
-    /// refused cleanly, never a hung async-only call.
+    /// refused cleanly, never a hung async-only call. Reads the profile's `sync_verbs`.
     pub fn serves_sync(&self, verb: &str) -> bool {
-        self.sync_verbs.iter().any(|v| v == verb)
+        self.profile.sync_verbs.iter().any(|v| v == verb)
     }
 
     fn emit_lifecycle_event(
@@ -769,7 +712,10 @@ mod tests {
             instance,
             store,
             TelemetryBus::new(16),
-            vec!["integration:respond".to_string()],
+            crate::host::plugin_registry::PluginCapabilityProfile {
+                provides: vec!["integration:respond".to_string()],
+                ..Default::default()
+            },
         )
     }
 

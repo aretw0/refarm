@@ -33,11 +33,11 @@ fn make_agent_leg_bindings() -> (
     let registry = crate::host::PluginRegistry::default();
     registry.register(
         "vault",
-        vec!["vault:store".into(), "vault:dispatch".into()],
-        vec!["vault:dispatch".into()],
-        std::collections::HashMap::new(),
-        std::collections::HashMap::new(),
-        vec![],
+        crate::host::plugin_registry::PluginCapabilityProfile {
+            provides: vec!["vault:store".into(), "vault:dispatch".into()],
+            subscribes: vec!["vault:dispatch".into()],
+            ..Default::default()
+        },
     );
 
     let event_router = crate::EventRouter::default();
@@ -115,11 +115,12 @@ fn make_typed_agent_leg_bindings() -> TractorNativeBindings {
     );
     registry.register(
         "vault",
-        vec!["vault:store".into(), "vault:dispatch".into()],
-        vec!["vault:dispatch".into()],
-        std::collections::HashMap::new(),
-        schemas,
-        vec![],
+        crate::host::plugin_registry::PluginCapabilityProfile {
+            provides: vec!["vault:store".into(), "vault:dispatch".into()],
+            subscribes: vec!["vault:dispatch".into()],
+            verb_schemas: schemas,
+            ..Default::default()
+        },
     );
 
     let event_router = crate::EventRouter::default();

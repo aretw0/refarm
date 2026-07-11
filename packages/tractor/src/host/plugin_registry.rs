@@ -102,29 +102,16 @@ fn parse_provided_verb(entry: &str) -> Option<(&str, &str)> {
 
 impl PluginRegistry {
     /// Record (upsert) a loaded plugin's capability profile. Called at load, beside
-    /// the `plugin_channels` insert + `event_router.subscribe` calls.
-    pub fn register(
-        &self,
-        plugin_id: &str,
-        provides: Vec<String>,
-        subscribes: Vec<String>,
-        verb_docs: std::collections::HashMap<String, String>,
-        verb_schemas: std::collections::HashMap<String, serde_json::Value>,
-        sync_verbs: Vec<String>,
-    ) {
+    /// the `plugin_channels` insert + `event_router.subscribe` calls. Takes the whole
+    /// `PluginCapabilityProfile` — the SAME struct the handle already carries — so the
+    /// load path passes it through instead of disassembling it into positional args and
+    /// reassembling it here (one aggregate, one owner; adding a capability field touches
+    /// only the struct).
+    pub fn register(&self, plugin_id: &str, profile: PluginCapabilityProfile) {
         self.inner
             .write()
             .expect("plugin_registry poisoned")
-            .insert(
-                plugin_id.to_string(),
-                PluginCapabilityProfile {
-                    provides,
-                    subscribes,
-                    verb_docs,
-                    verb_schemas,
-                    sync_verbs,
-                },
-            );
+            .insert(plugin_id.to_string(), profile);
     }
 
     /// Whether a loaded plugin serves `verb` (a `<key>:<verb>` string) synchronously.
@@ -260,7 +247,8 @@ impl PluginRegistry {
 mod tests {
     use super::*;
 
-    /// Register with no verb-docs — the common test case.
+    /// Register with only provides + subscribes (no verb-docs / schemas / sync) — the
+    /// common test case. Builds the profile from the two lists the test cares about.
     fn register_plain(
         r: &PluginRegistry,
         id: &str,
@@ -269,11 +257,11 @@ mod tests {
     ) {
         r.register(
             id,
-            provides,
-            subscribes,
-            std::collections::HashMap::new(),
-            std::collections::HashMap::new(),
-            vec![],
+            PluginCapabilityProfile {
+                provides,
+                subscribes,
+                ..Default::default()
+            },
         );
     }
 
@@ -337,15 +325,16 @@ mod tests {
         );
         r.register(
             "vault",
-            vec![
-                "vault:store".into(),
-                "vault:read".into(),
-                "vault:dispatch".into(),
-            ],
-            vec!["vault:dispatch".into()],
-            docs,
-            std::collections::HashMap::new(),
-            vec![],
+            PluginCapabilityProfile {
+                provides: vec![
+                    "vault:store".into(),
+                    "vault:read".into(),
+                    "vault:dispatch".into(),
+                ],
+                subscribes: vec!["vault:dispatch".into()],
+                verb_docs: docs,
+                ..Default::default()
+            },
         );
         let verbs = r.dispatchable_verbs();
         // The verb WITH a doc carries it; the verb WITHOUT falls back to None (host
@@ -370,15 +359,16 @@ mod tests {
         );
         r.register(
             "vault",
-            vec![
-                "vault:store".into(),
-                "vault:read".into(),
-                "vault:dispatch".into(),
-            ],
-            vec!["vault:dispatch".into()],
-            std::collections::HashMap::new(),
-            schemas,
-            vec![],
+            PluginCapabilityProfile {
+                provides: vec![
+                    "vault:store".into(),
+                    "vault:read".into(),
+                    "vault:dispatch".into(),
+                ],
+                subscribes: vec!["vault:dispatch".into()],
+                verb_schemas: schemas,
+                ..Default::default()
+            },
         );
         let verbs = r.dispatchable_verbs();
         // The verb WITH a schema carries it verbatim; the verb WITHOUT falls back to None
