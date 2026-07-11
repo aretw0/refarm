@@ -494,15 +494,42 @@ function validateSourceOnly(pkgDir, pkg) {
   return violations;
 }
 
+/// A server-only dispatch plugin has no JavaScript surface: the host loads its
+/// .wasm directly (farmhand copies dist/plugin.wasm + dist/plugin.json), and no
+/// consumer ever `import`s it as a JS module. We detect it from its plugin.json
+/// manifest — `targets: ["server"]` with no browser/web target — so such a package
+/// is exempt from the JS-entry / .d.ts / exports["."] / build:transpile rules that
+/// only make sense for a JS-importable component. This is the cargo counterpart of
+/// the wasm-jco-component exemption (the agent), for a plugin that genuinely has no
+/// jco/JS surface rather than one that merely omits it.
+function isServerOnlyDispatchPlugin(pkgDir) {
+  const manifestPath = join(pkgDir, "plugin.json");
+  if (!existsSync(manifestPath)) return false;
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+    const targets = Array.isArray(manifest.targets) ? manifest.targets : [];
+    return targets.length > 0 && targets.every((t) => t === "server");
+  } catch {
+    return false;
+  }
+}
+
 export function validateWasmComponent(pkgDir, pkg) {
   const violations = [];
 
   if (!existsSync(join(pkgDir, "Cargo.toml"))) violations.push("Cargo.toml missing");
   if (!pkg.scripts?.["build:wasm"]) violations.push('script "build:wasm" missing');
-  if (!pkg.scripts?.["build:transpile"]) violations.push('script "build:transpile" missing');
   if (!pkg.scripts?.build) violations.push('script "build" missing');
 
-  if (pkg.private !== true && pkg.publishConfig?.access === "public") {
+  // A server-only dispatch plugin (loaded by the host from its .wasm, never imported
+  // as JS) needs no transpile or JS entry — the rules below only fit a JS-importable
+  // component. Its .wasm + plugin.json in `files` are the whole distributable surface.
+  const serverOnly = isServerOnlyDispatchPlugin(pkgDir);
+  if (!serverOnly && !pkg.scripts?.["build:transpile"]) {
+    violations.push('script "build:transpile" missing');
+  }
+
+  if (!serverOnly && pkg.private !== true && pkg.publishConfig?.access === "public") {
     if (typeof pkg.main !== "string" || !pkg.main.endsWith(".js")) {
       violations.push("public WASM component packages must declare a JavaScript main entry");
     }

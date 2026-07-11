@@ -1,0 +1,73 @@
+{
+  "_note": "Template only — farmhand auto-installs via bundleInstallPlugin (AGENT_CORE_BUNDLE.corePlugins). Entry and integrity are injected at install time. The first non-agent effect-capable plugin: it imports host code-ops (LSP) and surfaces find-references + rename-symbol to the agent via capability-tools, proving a plugin can EXTEND the agent without the agent depending on it.",
+  "id": "@refarm/lsp-code-ops",
+  "name": "LSP Code Ops",
+  "version": "0.1.0",
+  "capabilities": {
+    "requires": [],
+    "verbs": {
+      "key": "code-ops",
+      "list": {
+        "find-references": {
+          "doc": "Find all references to a symbol at a source location (file, line, column) via the language server. Returns each reference's file/line/column/kind. Prefer this over text search for accurate symbol references.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "file": { "type": "string", "description": "Source file path" },
+              "line": { "type": "integer", "description": "1-based line of the symbol" },
+              "column": { "type": "integer", "description": "1-based column of the symbol" }
+            },
+            "required": ["file", "line", "column"]
+          }
+        },
+        "rename-symbol": {
+          "doc": "Rename a symbol at a source location across the entire project via the language server (workspace rename). Returns files-changed and edit count. Prefer this over manual find-and-replace for correctness.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "file": { "type": "string", "description": "Source file path" },
+              "line": { "type": "integer", "description": "1-based line of the symbol" },
+              "column": { "type": "integer", "description": "1-based column of the symbol" },
+              "new_name": { "type": "string", "description": "The new symbol name" }
+            },
+            "required": ["file", "line", "column", "new_name"]
+          }
+        }
+      }
+    }
+  },
+  "permissions": [
+    "fs:read",
+    "fs:write",
+    "shell:spawn"
+  ],
+  "observability": {
+    "hooks": [
+      "onLoad",
+      "onInit",
+      "onRequest",
+      "onError",
+      "onTeardown"
+    ]
+  },
+  "targets": [
+    "server"
+  ],
+  "executionContext": {
+    "preferred": "node",
+    "allowed": [
+      "node"
+    ]
+  },
+  "certification": {
+    "license": "AGPL-3.0-only",
+    "a11yLevel": 0,
+    "languages": [
+      "en",
+      "pt"
+    ]
+  },
+  "trust": {
+    "profile": "strict"
+  }
+}

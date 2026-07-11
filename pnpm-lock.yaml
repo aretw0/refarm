@@ -199,6 +199,9 @@ importers:
       '@refarm.dev/identity-contract-v1':
         specifier: workspace:*
         version: link:../../packages/identity-contract-v1
+      '@refarm.dev/lsp-code-ops':
+        specifier: workspace:*
+        version: link:../../packages/lsp-code-ops
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../../packages/plugin-manifest

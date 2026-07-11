@@ -31,6 +31,7 @@
 		"@refarm.dev/file-stream-transport": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
 		"@refarm.dev/agent": "workspace:*",
+		"@refarm.dev/lsp-code-ops": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/plugin-surface-loader": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",

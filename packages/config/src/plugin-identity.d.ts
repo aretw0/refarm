@@ -13,6 +13,10 @@ export interface BundledPluginDescriptor {
 }
 
 export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR: BundledPluginDescriptor;
+
+/** The first extracted core-plugin: LSP code-ops (find-references / rename-symbol,
+ * surfaced to the agent via capability-tools). */
+export const LSP_CODE_OPS_PLUGIN_DESCRIPTOR: BundledPluginDescriptor;
 /** The plugins bundled with the runtime by default (agnostic — a white-label app brands
  * this on re-export). Today: just the runtime agent. */
 export const BUNDLED_PLUGIN_DESCRIPTORS: readonly BundledPluginDescriptor[];

@@ -5,6 +5,7 @@ import {
 	AGENT_NPM_PACKAGE,
 	AGENT_PLUGIN_ID,
 	BUNDLED_PLUGIN_DESCRIPTORS,
+	LSP_CODE_OPS_PLUGIN_DESCRIPTOR,
 	RUNTIME_AGENT_NPM_PACKAGE,
 	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 	RUNTIME_AGENT_PLUGIN_ID,
@@ -65,9 +66,11 @@ describe("plugin identity", () => {
 
 	it("names the agent core-plugin cut (agent + its core-plugins, curated as a unit)", () => {
 		// The agent is minimal (requires:[]); the cut names the group so it is curatable.
-		// corePlugins starts empty — the first (LSP code-ops) is extracted in a later slice.
+		// The first core-plugin — LSP code-ops (find-references/rename-symbol, extracted
+		// from the agent built-ins) — amplifies the agent via capability-tools; it is not
+		// a boot dependency (the agent still declares requires:[]).
 		expect(AGENT_CORE_BUNDLE.agent).toBe(RUNTIME_AGENT_PLUGIN_DESCRIPTOR);
-		expect(AGENT_CORE_BUNDLE.corePlugins).toEqual([]);
+		expect(AGENT_CORE_BUNDLE.corePlugins).toEqual([LSP_CODE_OPS_PLUGIN_DESCRIPTOR]);
 	});
 
 	it("detects runtime agent error-like content", () => {

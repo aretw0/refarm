@@ -16,13 +16,26 @@ export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR = {
 // via `config.plugins.bundled` and, for the agent's own cut, via AGENT_CORE_BUNDLE below.
 export const BUNDLED_PLUGIN_DESCRIPTORS = [RUNTIME_AGENT_PLUGIN_DESCRIPTOR];
 
+// The descriptor for the first extracted core-plugin: LSP code-ops. It surfaces
+// find-references / rename-symbol to the agent via capability-tools (the ops that
+// used to be agent built-ins). Bundled AGNOSTICALLY like the agent — the id is the
+// plugin's own, not a product name.
+export const LSP_CODE_OPS_PLUGIN_DESCRIPTOR = {
+	id: "@refarm/lsp-code-ops",
+	npmPackage: "@refarm.dev/lsp-code-ops",
+	workspaceDir: "packages/lsp-code-ops",
+	wasmFile: "dist/plugin.wasm",
+	manifestFile: "dist/plugin.json",
+	requiredProvides: [], // manifest declares requires:[] + verbs; provides nothing back
+};
+
 // The NAMED agent core-plugin cut: the minimal agent + the plugins that extend IT (via
-// capability-tools / agent events), curated as a unit. `corePlugins` is empty until the
-// first is extracted (LSP code-ops). The agent stays `requires: []` — these AMPLIFY it,
-// they are not boot dependencies; naming the group makes the cut visible and curatable.
+// capability-tools / agent events), curated as a unit. The agent stays `requires: []` —
+// these AMPLIFY it, they are not boot dependencies; naming the group makes the cut
+// visible and curatable. First member: LSP code-ops (extracted from the agent built-ins).
 export const AGENT_CORE_BUNDLE = {
 	agent: RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
-	corePlugins: [],
+	corePlugins: [LSP_CODE_OPS_PLUGIN_DESCRIPTOR],
 };
 export const RUNTIME_AGENT_ERROR_PREFIXES = [
 	"[runtime-agent error]",

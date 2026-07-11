@@ -10,11 +10,7 @@
  *  - FarmhandTask nodes → execute the plugin function, write result back to graph
  */
 
-import {
-	RUNTIME_AGENT_NPM_PACKAGE,
-	RUNTIME_AGENT_PLUGIN_ID,
-	loadConfigAsync,
-} from "@refarm.dev/config";
+import { AGENT_CORE_BUNDLE, loadConfigAsync } from "@refarm.dev/config";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import type { RuntimeHost, RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
@@ -298,15 +294,21 @@ async function main() {
 		);
 	}
 
-	// Phase 1: Bundled plugins — auto-install from co-located npm packages
+	// Phase 1: Bundled plugins — auto-install from co-located npm packages.
+	// The default set IS the agent core-plugin cut (config.AGENT_CORE_BUNDLE): the
+	// minimal agent plus the plugins that extend it (today: LSP code-ops). Deriving
+	// from the config descriptor — rather than hand-listing here — is what makes
+	// AGENT_CORE_BUNDLE.corePlugins the single source of truth; farmhand only maps the
+	// descriptor shape to its installer entry (id/package/wasmFile/requiredProvides).
 	const defaultBundled: BundledEntry[] = [
-		{
-			id: RUNTIME_AGENT_PLUGIN_ID,
-			package: RUNTIME_AGENT_NPM_PACKAGE,
-			wasmFile: "dist/agent.wasm",
-			requiredProvides: ["integration:respond"],
-		},
-	];
+		AGENT_CORE_BUNDLE.agent,
+		...AGENT_CORE_BUNDLE.corePlugins,
+	].map((d) => ({
+		id: d.id,
+		package: d.npmPackage,
+		wasmFile: d.wasmFile,
+		requiredProvides: [...d.requiredProvides],
+	}));
 	const configBundled: BundledEntry[] = Array.isArray(config?.plugins?.bundled)
 		? (config.plugins.bundled as BundledEntry[])
 		: [];
