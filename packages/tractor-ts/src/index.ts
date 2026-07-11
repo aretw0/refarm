@@ -325,7 +325,7 @@ export class Tractor {
 		const permanentPubKey = adapter.publicKey;
 		if (previousGuestKey && permanentPubKey) {
 			const conversionNode: NormalisedNode = {
-				"@context": "https://refarm.dev/schemas/v1",
+				"@context": "urn:sovereign:schema:v1",
 				"@type": "IdentityConversion",
 				"@id": `urn:sovereign:identity:conversion:${this.uint8ToHex(previousGuestKey.publicKey)}`,
 				guestPubkey: this.uint8ToHex(previousGuestKey.publicKey),

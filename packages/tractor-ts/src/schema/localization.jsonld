@@ -1,15 +1,15 @@
 {
   "@context": {
-    "refarm": "https://refarm.dev/ontology#",
+    "sovereign": "urn:sovereign:vocab#",
     "schema": "https://schema.org/",
-    "SovereignTranslation": "refarm:SovereignTranslation",
-    "namespace": "refarm:namespace",
+    "SovereignTranslation": "sovereign:SovereignTranslation",
+    "namespace": "sovereign:namespace",
     "locale": "schema:inLanguage",
-    "keys": "refarm:translationKeys",
+    "keys": "sovereign:translationKeys",
     "timestamp": "schema:dateModified"
   },
   "@type": "SovereignTranslation",
-  "@id": "urn:refarm:l8n:{namespace}:{locale}",
+  "@id": "urn:sovereign:l8n:{namespace}:{locale}",
   "namespace": "{plugin-id | core}",
   "locale": "{ISO-639-1}",
   "timestamp": "{ISO_DATE}",

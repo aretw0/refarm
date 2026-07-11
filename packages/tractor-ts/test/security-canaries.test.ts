@@ -17,7 +17,7 @@ describe("Security Canaries (Tripwires)", () => {
   it("should block storage if verifyNode fails (Tampering Canary)", async () => {
     // 1. Create a seemingly valid node
     const node: NormalisedNode = {
-      "@context": "https://refarm.dev/schemas/v1",
+      "@context": "urn:sovereign:schema:v1",
       "@type": "Note",
       "@id": "urn:sovereign:note:1",
       "text": "Secret info"
@@ -41,7 +41,7 @@ describe("Security Canaries (Tripwires)", () => {
 
   it("should block nodes from the distant future (Clock Skew Canary)", async () => {
     const futureNode: NormalisedNode = {
-      "@context": "https://refarm.dev/schemas/v1",
+      "@context": "urn:sovereign:schema:v1",
       "@type": "Note",
       "@id": "urn:sovereign:note:future",
       "timestamp": new Date(Date.now() + 1000 * 60 * 60).toISOString() // 1 hour in future
@@ -60,7 +60,7 @@ describe("Security Canaries (Tripwires)", () => {
 
   it("should allow tampered nodes with warning in Permissive Mode", async () => {
     const node: NormalisedNode = {
-      "@context": "https://refarm.dev/schemas/v1",
+      "@context": "urn:sovereign:schema:v1",
       "@type": "Note",
       "@id": "urn:sovereign:note:permissive",
       "text": "Edit me"
@@ -80,7 +80,7 @@ describe("Security Canaries (Tripwires)", () => {
 
   it("should skip all checks in None Mode (Fast Path)", async () => {
     const node: NormalisedNode = {
-      "@context": "https://refarm.dev/schemas/v1",
+      "@context": "urn:sovereign:schema:v1",
       "@type": "Note",
       "@id": "urn:sovereign:note:none",
       "timestamp": new Date(Date.now() + 1000 * 60 * 60).toISOString() // Future
@@ -103,7 +103,7 @@ describe("Security Canaries (Tripwires)", () => {
 
   it("should allow nodes within the 10s grace period", async () => {
     const nearFutureNode: NormalisedNode = {
-      "@context": "https://refarm.dev/schemas/v1",
+      "@context": "urn:sovereign:schema:v1",
       "@type": "Note",
       "@id": "urn:sovereign:note:near-future",
       "timestamp": new Date(Date.now() + 5000).toISOString() // 5s in future

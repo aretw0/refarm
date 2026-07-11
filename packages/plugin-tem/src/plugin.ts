@@ -153,7 +153,7 @@ async function storeNoveltyNode(
 ): Promise<void> {
 	if (!_storeNodeFn) return;
 	const nodeJson = JSON.stringify({
-		"@context": "https://refarm.dev/context/v1",
+		"@context": "urn:sovereign:context:v1",
 		"@type": "TemMemory",
 		"@id": `urn:sovereign:tem:novelty:${Date.now()}`,
 		"triggerEvent": triggerEvent,

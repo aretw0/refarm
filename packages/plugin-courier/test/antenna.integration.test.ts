@@ -15,7 +15,7 @@ describe("Antenna Plugin (SDD/BDD)", () => {
     const host = createQueryHost([{
       "@id": "urn:sovereign:node:webpage:1",
       "@type": "WebPage",
-      "@context": "https://refarm.dev/ns/v1",
+      "@context": "urn:sovereign:ns:v1",
       name: "Landing Page",
       url: "/home",
       content: "This is the refarm homepage.",

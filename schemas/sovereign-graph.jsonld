@@ -1,20 +1,20 @@
 {
   "@context": {
     "@vocab": "https://schema.org/",
-    "refarm": "https://refarm.app/vocab#",
+    "sovereign": "urn:sovereign:vocab#",
     "nostr": "https://nostr.com/vocab#",
     "crdt": "https://crdt.tech/vocab#"
   },
   "@graph": [
     {
       "@type": "DataCatalog",
-      "@id": "urn:refarm:sovereign-graph:v1",
-      "name": "Refarm Sovereign Data Graph",
+      "@id": "urn:sovereign:sovereign-graph:v1",
+      "name": "Sovereign Data Graph",
       "description": "The user's personal, portable, offline-first data graph. All nodes are normalised to JSON-LD before SQLite persistence, ensuring semantic interoperability across any platform.",
       "license": "https://creativecommons.org/licenses/by/4.0/",
-      "refarm:schemaVersion": "0.1.0",
-      "refarm:storageBackend": "SQLite/OPFS",
-      "refarm:syncProtocol": "CRDT + Nostr"
+      "sovereign:schemaVersion": "0.1.0",
+      "sovereign:storageBackend": "SQLite/OPFS",
+      "sovereign:syncProtocol": "CRDT + Nostr"
     },
     {
       "@comment": "Example 1 — A contact ingested via a 'Matrix Bridge' plugin",
@@ -24,17 +24,17 @@
       "telephone": "+55 11 99999-0000",
       "email": "alice@example.com",
       "image": "https://cdn.example.com/avatar/alice.jpg",
-      "refarm:sourcePlugin": "matrix-bridge",
-      "refarm:ingestedAt": "2026-03-04T04:00:00Z",
-      "refarm:confidence": 0.95,
-      "refarm:rawReference": {
-        "@type": "refarm:RawCapture",
-        "refarm:pluginPayload": {
+      "sovereign:sourcePlugin": "matrix-bridge",
+      "sovereign:ingestedAt": "2026-03-04T04:00:00Z",
+      "sovereign:confidence": 0.95,
+      "sovereign:rawReference": {
+        "@type": "sovereign:RawCapture",
+        "sovereign:pluginPayload": {
           "matrix_id": "@alice:example.org",
           "displayname": "Alice Souza",
           "avatar_url": "mxc://example.org/abc123"
         },
-        "refarm:capturedAt": "2026-03-04T03:58:12Z"
+        "sovereign:capturedAt": "2026-03-04T03:58:12Z"
       },
       "crdt:vectorClock": {
         "device-A": 7,
@@ -50,15 +50,15 @@
       "dateSent": "2026-03-04T03:55:00Z",
       "sender": {
         "@type": "Person",
-        "@id": "urn:refarm:identity:self",
+        "@id": "urn:sovereign:identity:self",
         "name": "Me"
       },
       "recipient": {
         "@type": "Person",
         "@id": "urn:matrix-bridge:contact-alice-42"
       },
-      "refarm:sourcePlugin": "matrix-bridge",
-      "refarm:ingestedAt": "2026-03-04T04:00:00Z",
+      "sovereign:sourcePlugin": "matrix-bridge",
+      "sovereign:ingestedAt": "2026-03-04T04:00:00Z",
       "crdt:vectorClock": {
         "device-A": 8
       }
@@ -66,15 +66,15 @@
     {
       "@comment": "Example 3 — The user's own Nostr identity node",
       "@type": "Person",
-      "@id": "urn:refarm:identity:self",
-      "name": "Refarm User",
+      "@id": "urn:sovereign:identity:self",
+      "name": "Sovereign User",
       "nostr:publicKey": "npub1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
       "nostr:relays": [
         "wss://relay.damus.io",
         "wss://nos.lol"
       ],
-      "refarm:sourcePlugin": "kernel",
-      "refarm:ingestedAt": "2026-03-04T00:00:00Z"
+      "sovereign:sourcePlugin": "kernel",
+      "sovereign:ingestedAt": "2026-03-04T00:00:00Z"
     },
     {
       "@comment": "Example 4 — An installed plugin manifest node",
@@ -83,33 +83,33 @@
       "name": "Matrix Bridge",
       "softwareVersion": "1.0.0",
       "description": "Ingests Matrix messages and contacts into the sovereign graph",
-      "applicationCategory": "Refarm Plugin",
+      "applicationCategory": "Sovereign Plugin",
       "downloadUrl": "https://cdn.example.com/plugins/matrix-bridge.wasm",
-      "refarm:wasmHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "refarm:pluginAuthor": {
+      "sovereign:wasmHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sovereign:pluginAuthor": {
         "@type": "Person",
         "nostr:publicKey": "npub1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
       },
-      "refarm:nip89EventId": "abc123def456",
-      "refarm:installedAt": "2026-03-04T01:00:00Z",
-      "refarm:enabled": true,
-      "refarm:sourcePlugin": "kernel"
+      "sovereign:nip89EventId": "abc123def456",
+      "sovereign:installedAt": "2026-03-04T01:00:00Z",
+      "sovereign:enabled": true,
+      "sovereign:sourcePlugin": "kernel"
         },
         {
           "@comment": "Example 5 — A user-created task (offline)",
           "@type": "Action",
-          "@id": "urn:refarm:task-001",
+          "@id": "urn:sovereign:task-001",
           "name": "Buy groceries",
           "description": "Milk, eggs, bread",
           "actionStatus": "PotentialActionStatus",
           "startTime": "2026-03-05T10:00:00Z",
           "agent": {
             "@type": "Person",
-            "@id": "urn:refarm:identity:self"
+            "@id": "urn:sovereign:identity:self"
           },
-          "refarm:sourcePlugin": "kernel",
-          "refarm:createdAt": "2026-03-05T09:30:00Z",
-          "refarm:updatedAt": "2026-03-05T09:30:00Z",
+          "sovereign:sourcePlugin": "kernel",
+          "sovereign:createdAt": "2026-03-05T09:30:00Z",
+          "sovereign:updatedAt": "2026-03-05T09:30:00Z",
           "crdt:vectorClock": {
             "device-laptop": 15
           }
@@ -117,51 +117,51 @@
         {
           "@comment": "Example 6 — Guest vault metadata (ephemeral identity)",
           "@type": "CreativeWork",
-          "@id": "urn:refarm:vault:guest-a7c3f2e1",
+          "@id": "urn:sovereign:vault:guest-a7c3f2e1",
           "name": "Guest Vault",
           "identifier": "guest-a7c3f2e1",
-          "refarm:vaultType": "guest",
-          "refarm:storageTier": "persistent",
-          "refarm:createdAt": "2026-03-05T14:00:00Z",
-          "refarm:canUpgrade": true,
-          "refarm:dataRetentionDays": null,
-          "refarm:sourcePlugin": "kernel"
+          "sovereign:vaultType": "guest",
+          "sovereign:storageTier": "persistent",
+          "sovereign:createdAt": "2026-03-05T14:00:00Z",
+          "sovereign:canUpgrade": true,
+          "sovereign:dataRetentionDays": null,
+          "sovereign:sourcePlugin": "kernel"
         },
         {
           "@comment": "Example 7 — Permanent user vault metadata (Nostr keypair)",
           "@type": "CreativeWork",
-          "@id": "urn:refarm:vault:npub1xxx",
+          "@id": "urn:sovereign:vault:npub1xxx",
           "name": "Alice's Vault",
           "identifier": "npub1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-          "refarm:vaultType": "permanent",
-          "refarm:storageTier": "synced",
-          "refarm:nostrPublicKey": "npub1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-          "refarm:createdAt": "2026-03-04T00:00:00Z",
-          "refarm:migratedFrom": "urn:refarm:vault:guest-a7c3f2e1",
-          "refarm:sourcePlugin": "kernel"
+          "sovereign:vaultType": "permanent",
+          "sovereign:storageTier": "synced",
+          "sovereign:nostrPublicKey": "npub1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "sovereign:createdAt": "2026-03-04T00:00:00Z",
+          "sovereign:migratedFrom": "urn:sovereign:vault:guest-a7c3f2e1",
+          "sovereign:sourcePlugin": "kernel"
         },
         {
           "@comment": "Example 8 — A collaborative board (guest-accessible)",
           "@type": "CreativeWork",
-          "@id": "urn:refarm:board-collab-001",
+          "@id": "urn:sovereign:board-collab-001",
           "name": "Project Planning Board",
           "description": "Shared Kanban board for team project",
           "creator": {
             "@type": "Person",
-            "@id": "urn:refarm:identity:self"
+            "@id": "urn:sovereign:identity:self"
           },
-          "refarm:guestAccessEnabled": true,
-          "refarm:accessCode": "6d8f3a",
-          "refarm:accessCodeExpiry": "2026-03-05T15:00:00Z",
-          "refarm:collaborators": [
+          "sovereign:guestAccessEnabled": true,
+          "sovereign:accessCode": "6d8f3a",
+          "sovereign:accessCodeExpiry": "2026-03-05T15:00:00Z",
+          "sovereign:collaborators": [
             {
               "@type": "Person",
-              "@id": "urn:refarm:vault:guest-xyz123",
+              "@id": "urn:sovereign:vault:guest-xyz123",
               "name": "Guest User (device-phone)"
             }
           ],
-          "refarm:sourcePlugin": "kernel",
-          "refarm:createdAt": "2026-03-05T14:30:00Z",
+          "sovereign:sourcePlugin": "kernel",
+          "sovereign:createdAt": "2026-03-05T14:30:00Z",
           "crdt:vectorClock": {
             "device-laptop": 20,
             "device-phone": 5
@@ -170,17 +170,17 @@
         {
           "@comment": "Example 9 — Schema migration record (JSON-LD evolution)",
           "@type": "Action",
-          "@id": "urn:refarm:migration:v0.1.0-to-v0.2.0",
+          "@id": "urn:sovereign:migration:v0.1.0-to-v0.2.0",
           "name": "Schema Migration: Task status field added",
           "actionStatus": "CompletedActionStatus",
           "startTime": "2026-03-05T12:00:00Z",
           "endTime": "2026-03-05T12:00:05Z",
-          "refarm:migrationType": "addField",
-          "refarm:affectedType": "Action",
-          "refarm:changeDescription": "Added 'actionStatus' field to all Action nodes, defaulting to 'PotentialActionStatus'",
-          "refarm:nodesUpdated": 47,
-          "refarm:lensFunction": "addField('actionStatus', 'PotentialActionStatus')",
-          "refarm:sourcePlugin": "kernel"
+          "sovereign:migrationType": "addField",
+          "sovereign:affectedType": "Action",
+          "sovereign:changeDescription": "Added 'actionStatus' field to all Action nodes, defaulting to 'PotentialActionStatus'",
+          "sovereign:nodesUpdated": 47,
+          "sovereign:lensFunction": "addField('actionStatus', 'PotentialActionStatus')",
+          "sovereign:sourcePlugin": "kernel"
     }
   ]
 }

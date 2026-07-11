@@ -1,16 +1,16 @@
 {
   "@context": {
-    "refarm": "https://refarm.dev/ontology#",
+    "sovereign": "urn:sovereign:vocab#",
     "schema": "https://schema.org/",
-    "UIStateSnapshot": "refarm:UIStateSnapshot",
-    "slots": "refarm:slots",
-    "activePlugins": "refarm:activePlugins",
-    "theme": "refarm:theme",
+    "UIStateSnapshot": "sovereign:UIStateSnapshot",
+    "slots": "sovereign:slots",
+    "activePlugins": "sovereign:activePlugins",
+    "theme": "sovereign:theme",
     "timestamp": "schema:dateCreated",
     "author": "schema:author"
   },
   "@type": "UIStateSnapshot",
-  "@id": "urn:refarm:ui:snapshot:{timestamp}",
+  "@id": "urn:sovereign:ui:snapshot:{timestamp}",
   "timestamp": "{ISO_DATE}",
   "author": "{USER_ID}",
   "slots": {

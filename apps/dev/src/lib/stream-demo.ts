@@ -39,7 +39,7 @@ export function studioStreamDemoNodes(startedAt: Date = new Date()): RuntimeNode
 	const startedAtIso = startedAt.toISOString();
 	return [
 		{
-			"@context": "https://refarm.dev/schemas/stream/v1",
+			"@context": "urn:sovereign:stream:v1",
 			"@type": "StreamSession",
 			"@id": DEMO_STREAM_REF,
 			stream_ref: DEMO_STREAM_REF,
@@ -54,7 +54,7 @@ export function studioStreamDemoNodes(startedAt: Date = new Date()): RuntimeNode
 			"sourcePlugin": "studio-demo",
 		},
 		{
-			"@context": "https://refarm.dev/schemas/stream/v1",
+			"@context": "urn:sovereign:stream:v1",
 			"@type": "StreamChunk",
 			"@id": `${DEMO_STREAM_REF}:chunk:1`,
 			stream_ref: DEMO_STREAM_REF,
@@ -67,7 +67,7 @@ export function studioStreamDemoNodes(startedAt: Date = new Date()): RuntimeNode
 			"sourcePlugin": "studio-demo",
 		},
 		{
-			"@context": "https://refarm.dev/schemas/stream/v1",
+			"@context": "urn:sovereign:stream:v1",
 			"@type": "StreamChunk",
 			"@id": `${DEMO_STREAM_REF}:chunk:2`,
 			stream_ref: DEMO_STREAM_REF,
