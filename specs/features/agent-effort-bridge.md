@@ -11,7 +11,7 @@
 Makes `agent` (the sovereign AI plugin) callable via the effort queue. Adds a `respond`
 function to the WIT `integration` contract, enables Farmhand to auto-boot installed plugins,
 and consolidates the `refarm:plugin@0.1.0` WIT definition into a single canonical package
-(`packages/refarm-plugin-wit/`) to eliminate silent drift between tractor and agent.
+(`packages/plugin-wit/`) to eliminate silent drift between tractor and agent.
 
 ---
 
@@ -49,7 +49,7 @@ and consolidates the `refarm:plugin@0.1.0` WIT definition into a single canonica
    **When** `respond` is invoked
    **Then** `TaskResult` has `status: "error"` with a descriptive error message
 
-5. **Given** `packages/refarm-plugin-wit/wit/refarm-plugin-host.wit` is modified
+5. **Given** `packages/plugin-wit/wit/refarm-plugin-host.wit` is modified
    **When** agent and tractor are built
    **Then** both pick up the change automatically — no manual copy needed
 
@@ -64,7 +64,7 @@ and consolidates the `refarm:plugin@0.1.0` WIT definition into a single canonica
 **High-level design:**
 
 ```
-packages/refarm-plugin-wit/          ← new: canonical WIT source for refarm:plugin@0.1.0
+packages/plugin-wit/          ← new: canonical WIT source for refarm:plugin@0.1.0
   Cargo.toml
   wit/refarm-plugin-host.wit         ← sole copy of integration, tractor-bridge, etc.
 
@@ -74,7 +74,7 @@ packages/agent/
   src/lib.rs                         ← fn respond(payload: String) -> Result<String, PluginError>
 
 packages/tractor/
-  src/host/plugin_host/core.rs       ← bindgen path updated to refarm-plugin-wit
+  src/host/plugin_host/core.rs       ← bindgen path updated to plugin-wit
   wit/host/refarm-plugin-host.wit    ← REMOVED
 
 apps/farmhand/
@@ -153,7 +153,7 @@ async function loadInstalledPlugins(tractor: Tractor, baseDir: string): Promise<
 
 **DDD:**
 
-- [x] Scaffold `packages/refarm-plugin-wit/` with Cargo.toml
+- [x] Scaffold `packages/plugin-wit/` with Cargo.toml
 - [x] Move `refarm-plugin-host.wit` to canonical location
 - [x] Update agent WIT dependency in Cargo.toml
 - [x] Update tractor `bindgen!` path in `core.rs`

@@ -83,7 +83,7 @@ What is already solid:
   status, `ask`, task status/logs, task resume, and top-level resume.
 - The no-token e2e path now builds `@refarm.dev/agent` on a Windows-mounted
   checkout without relying on Git symlinks for WIT imports; `check:wit` guards
-  the copied host WIT against drift from the canonical `refarm-plugin-wit`
+  the copied host WIT against drift from the canonical `plugin-wit`
   contract.
 - Platform compatibility now has two proven lanes: CI validates
   `windows-2025-vs2026` and `macos-latest`, while local Windows host validation

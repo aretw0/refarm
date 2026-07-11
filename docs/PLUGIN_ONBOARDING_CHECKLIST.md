@@ -7,7 +7,7 @@ Guia prático para criar um plugin Refarm-compatible do zero. Complementa o [PLU
 ## Pré-requisitos
 
 - [ ] Leu o [PLUGIN_DEVELOPER_PLAYBOOK.md](./PLUGIN_DEVELOPER_PLAYBOOK.md) (fluxo completo, exemplos em TS/Go/Rust)
-- [ ] Tem o WIT canônico: `packages/refarm-plugin-wit/`
+- [ ] Tem o WIT canônico: `packages/plugin-wit/`
 - [ ] Decidiu a linguagem: TypeScript (JCO), Go (TinyGo), Rust (recomendado para prod)
 - [ ] Entende o modelo Effort/Task/Result — ver [farmhand-task-execution.md](../specs/features/farmhand-task-execution.md)
 
@@ -21,7 +21,7 @@ my-plugin/
 ├── src/
 │   └── lib.rs           ← (ou .ts / .go)
 ├── wit/
-│   └── world.wit        ← importa do refarm-plugin-wit canônico
+│   └── world.wit        ← importa do plugin-wit canônico
 ├── Cargo.toml           ← (ou package.json)
 └── README.md            ← obrigatório para publicação
 ```
@@ -171,5 +171,5 @@ Se qualquer check falhar, o plugin é colocado em quarentena e aparece em `refar
 - [ADR-017](../specs/ADRs/ADR-017-microkernel-boundary.md) — fronteira host/guest, sandbox
 - [ADR-018](../specs/ADRs/ADR-018-capability-contracts.md) — contrato de capabilities
 - [ADR-032](../specs/ADRs/ADR-032-proton-security.md) — signing obrigatório, WASM security
-- [packages/refarm-plugin-wit/](../packages/refarm-plugin-wit/) — WIT canônico
+- [packages/plugin-wit/](../packages/plugin-wit/) — WIT canônico
 - [packages/identity-nostr/README.md](../packages/identity-nostr/README.md) — publicação via Nostr

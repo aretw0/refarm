@@ -1,6 +1,6 @@
 wit_bindgen::generate!({
     world: "refarm-plugin",
-    path: "../../packages/refarm-plugin-wit/wit",
+    path: "../../packages/plugin-wit/wit",
 });
 
 use crate::exports::host::plugin::integration::{self, PluginError, PluginMetadata};

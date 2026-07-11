@@ -123,7 +123,7 @@ export function createReferenceVaultSurfaceComponent(): Promise<ReferenceVaultSu
 /** The host capability the vault integration plugin imports (`tractor-bridge`).
  * A host implements this to give the plugin its ONLY data channel — the plugin
  * emits results through `storeNode` and a host reads them back with `queryNodes`.
- * Mirrors packages/refarm-plugin-wit/wit/host.wit; the real host implements it in
+ * Mirrors packages/plugin-wit/wit/host.wit; the real host implements it in
  * packages/tractor/src/host/wasi_bridge/core.rs. */
 export interface TractorBridge {
 	storeNode(node: string): unknown;

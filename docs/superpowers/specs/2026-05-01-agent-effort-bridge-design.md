@@ -24,7 +24,7 @@ This slice closes all three gaps.
 
 ---
 
-## Canonical WIT Package (`packages/refarm-plugin-wit/`)
+## Canonical WIT Package (`packages/plugin-wit/`)
 
 ### Problem
 
@@ -33,11 +33,11 @@ twice manually. As agents accelerate feature development, this guarantees eventu
 
 ### Solution
 
-A dedicated Cargo workspace package `packages/refarm-plugin-wit/` becomes the single canonical
+A dedicated Cargo workspace package `packages/plugin-wit/` becomes the single canonical
 source for the `refarm:plugin@0.1.0` WIT contract.
 
 ```
-packages/refarm-plugin-wit/
+packages/plugin-wit/
   Cargo.toml                   ← [package.metadata.component] package = "refarm:plugin"
   wit/
     refarm-plugin-host.wit     ← all interfaces + host world (sole canonical copy)
@@ -48,7 +48,7 @@ packages/refarm-plugin-wit/
 ```toml
 # packages/agent/Cargo.toml
 [package.metadata.component.target.dependencies]
-"refarm:plugin" = { path = "../refarm-plugin-wit" }
+"refarm:plugin" = { path = "../plugin-wit" }
 ```
 
 `packages/agent/wit/world.wit` stays local (agent-specific world) and imports from the
@@ -59,7 +59,7 @@ dependency package.
 ```rust
 wasmtime::component::bindgen!({
     world: "refarm-plugin-host",
-    path: "../../refarm-plugin-wit/wit",   // was "wit/host"
+    path: "../../plugin-wit/wit",   // was "wit/host"
     async: true,
 });
 ```
@@ -68,7 +68,7 @@ wasmtime::component::bindgen!({
 `tractor/wit/host/agent-tools/` is untouched — it is `refarm:agent-tools@0.1.0`, a separate
 package with no dependency on `refarm:plugin`.
 
-**Publishing path:** `refarm-plugin-wit` is already a Cargo package. When publishing begins,
+**Publishing path:** `plugin-wit` is already a Cargo package. When publishing begins,
 add `publish = true` and third-party plugin authors gain a versioned crate dependency.
 No structural change needed at that point.
 

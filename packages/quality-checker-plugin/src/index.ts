@@ -14,7 +14,7 @@ type Any = any;
 
 const bundledPluginPkgDir = fileURLToPath(new URL("../pkg-plugin/", import.meta.url));
 
-/** The host capability the plugin imports (mirrors refarm-plugin-wit host.wit). */
+/** The host capability the plugin imports (mirrors plugin-wit host.wit). */
 export interface TractorBridge {
 	storeNode(node: string): unknown;
 	getNode(id: string): unknown;

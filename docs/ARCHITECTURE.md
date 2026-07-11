@@ -111,7 +111,7 @@ refarm/
 │   │   └── ws-stream-transport/      # WebSocket stream
 │   │
 │   ├── plugin-manifest/              # Plugin manifest schema & validation
-│   ├── refarm-plugin-wit/            # WIT interface — plugin ↔ Tractor
+│   ├── plugin-wit/            # WIT interface — plugin ↔ Tractor
 │   ├── barn/                         # Plugin lifecycle · OPFS cache · SHA-256
 │   ├── agent/                     # Sovereign AI plugin (WASM)
 │   └── ...                           # heartwood, silo, fence, health, ds, …

@@ -39,7 +39,7 @@
 
 wit_bindgen::generate!({
     world: "effect-capable",
-    path: "../refarm-plugin-wit/wit",
+    path: "../plugin-wit/wit",
 });
 
 mod compress;

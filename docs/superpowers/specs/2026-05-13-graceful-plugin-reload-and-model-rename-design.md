@@ -199,7 +199,7 @@ The term `model` (Large Language Model) is semantically incorrect for a provider
 
 ### Scope
 
-#### WIT Interface (`packages/refarm-plugin-wit`)
+#### WIT Interface (`packages/plugin-wit`)
 
 `refarm-plugin-host.wit`:
 - `interface model-bridge` → `interface model-bridge`

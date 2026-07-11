@@ -193,7 +193,7 @@ Variáveis de ambiente relevantes (definidas no host Tractor):
 
 ## 6. WIT contract do plugin (canônico)
 
-O contrato WIT está em `packages/refarm-plugin-wit/`. A função de entry point:
+O contrato WIT está em `packages/plugin-wit/`. A função de entry point:
 
 ```wit
 world plugin {

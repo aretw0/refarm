@@ -5,7 +5,7 @@
 **Deciders**: Arthur Silva, Refarm agents
 **Related**: ADR-047 (Tractor Native Rust Host), ADR-059 (Tractor Rust as
 Authoritative Runtime), ADR-070 (WASM Surface Substrate),
-`packages/refarm-plugin-wit`, `packages/agent`, `packages/tractor`
+`packages/plugin-wit`, `packages/agent`, `packages/tractor`
 
 ---
 
@@ -15,7 +15,7 @@ The `refarm:plugin@0.1.0` WIT contract — the language-neutral boundary every
 plugin crosses — had drifted into **eight files in four mutually-incompatible
 shapes**, each copied locally by its consumer:
 
-- `refarm-plugin-host.wit` (byte-identical copies in `packages/refarm-plugin-wit/wit/`
+- `refarm-plugin-host.wit` (byte-identical copies in `packages/plugin-wit/wit/`
   and `packages/agent/wit/`): `integration` **with** `respond`, 6 host imports.
 - `refarm-sdk.wit` (byte-identical copies in `wit/` and `packages/tractor/wit/`,
   kept in sync by a Windows-symlink workaround script): `integration` **without**
@@ -25,7 +25,7 @@ shapes**, each copied locally by its consumer:
 - `null-plugin/wit/world.wit` (test fixture): its own local copy.
 
 **Root cause:** every consumer's `[package.metadata.component.target] path = "wit"`
-pointed at a **local copy**. `packages/refarm-plugin-wit` — a WIT-only crate
+pointed at a **local copy**. `packages/plugin-wit` — a WIT-only crate
 created to be the canonical home — was **orphaned** (no consumer referenced it).
 
 Because the copies drifted, a plugin built against the "SDK" shape exported a
@@ -45,7 +45,7 @@ interface.*
 **One canonical WIT package, one unified `integration` interface, referenced by
 every consumer — never copied.**
 
-1. **Single source of truth.** `packages/refarm-plugin-wit/wit/` is the *only*
+1. **Single source of truth.** `packages/plugin-wit/wit/` is the *only*
    place `refarm:plugin@0.1.0` is defined, split for readability into
    `types.wit` / `host.wit` / `integration.wit` / `optional.wit` / `worlds.wit`
    (a WIT directory is one package namespace). Content is the existing
@@ -62,7 +62,7 @@ every consumer — never copied.**
 3. **Consumers reference, never copy.** Each consumer's
    `[package.metadata.component.target] path` (and `wit_bindgen::generate!` /
    `wasmtime::component::bindgen!` path) points at
-   `packages/refarm-plugin-wit/wit`. The local `wit/` copies are deleted.
+   `packages/plugin-wit/wit`. The local `wit/` copies are deleted.
 
 4. **`http-handler` and `identity-provider` are preserved** (ported into
    `optional.wit`) as additive interfaces exported via composed worlds
@@ -115,6 +115,6 @@ Out of scope here (see ADR on the graph node) — the node wire type stays an op
 
 ## References
 
-- `packages/refarm-plugin-wit/wit/` — the canonical package (this ADR).
+- `packages/plugin-wit/wit/` — the canonical package (this ADR).
 - `scripts/ci/check-agent-wit-sync.mjs` — the anti-drift guard (`check:wit`).
 - `packages/tractor/tests/conformance.rs` — cross-language load/lifecycle proof.

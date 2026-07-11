@@ -277,7 +277,7 @@ describe("capability index", () => {
 						}),
 						expect.objectContaining({
 							channel: "crate",
-							name: "refarm-plugin-wit",
+							name: "plugin-wit",
 							status: "internal",
 						}),
 						expect.objectContaining({
@@ -411,7 +411,7 @@ describe("capability index", () => {
 				expect.objectContaining({
 					capabilityId: "runtime-agent.code-ops",
 					channel: "crate",
-					name: "refarm-plugin-wit",
+					name: "plugin-wit",
 					status: "internal",
 				}),
 				expect.objectContaining({

@@ -67,7 +67,7 @@ The fixture-local world (`wit/fixture-world.wit`, package
 the `wasi:http/outgoing-handler` import. The `refarm:plugin` dependency is
 resolved to the **canonical** WIT directly, NOT vendored: `Cargo.toml`'s
 `[package.metadata.component.target.dependencies]` points `refarm:plugin` at
-`../../../../refarm-plugin-wit/wit`. This is deliberate — ADR-083 mandates a
+`../../../../plugin-wit/wit`. This is deliberate — ADR-083 mandates a
 single source of truth for the plugin WIT, and the `check:wit` guard fails any
 tracked `.wit` that declares `package refarm:plugin@` outside the canonical dir.
 Only the wasi deps (`wit/deps/{http,io,clocks}/`, distinct packages) are

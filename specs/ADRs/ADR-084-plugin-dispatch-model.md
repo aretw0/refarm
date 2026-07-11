@@ -4,7 +4,7 @@
 **Date**: 2026-07-05
 **Deciders**: Arthur Silva, Refarm agents
 **Related**: ADR-059 (Tractor Rust as Authoritative Runtime), ADR-083 (Canonical
-Plugin WIT Contract), `packages/refarm-plugin-wit`, `packages/agent`,
+Plugin WIT Contract), `packages/plugin-wit`, `packages/agent`,
 `packages/tractor`, `packages/vault-surface-ref`
 
 ---

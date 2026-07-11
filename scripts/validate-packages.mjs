@@ -290,7 +290,7 @@ const WIT_COMPONENT_DISTRIBUTION_TARGETS = [
   },
   {
     id: "refarm-plugin",
-    packageDir: "packages/refarm-plugin-wit",
+    packageDir: "packages/plugin-wit",
     cargoPackage: "host:plugin",
     targetPath: "wit",
     // Canonical package is split across wit/*.wit; the host world + its

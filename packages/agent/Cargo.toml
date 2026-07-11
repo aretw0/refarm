@@ -22,5 +22,5 @@ strip = true
 package = "host:plugin"
 
 [package.metadata.component.target]
-path = "../refarm-plugin-wit/wit"
+path = "../plugin-wit/wit"
 world = "effect-capable"

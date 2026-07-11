@@ -26,12 +26,12 @@ use crate::trust::{SecurityMode, TrustManager};
 
 // ── WIT Bindings: regular integration plugins ─────────────────────────────────
 //
-// Reads `../refarm-plugin-wit/wit/refarm-plugin-host.wit`.
+// Reads `../plugin-wit/wit/refarm-plugin-host.wit`.
 // Generates RefarmPluginHost + host traits for tractor-bridge, host-fs, host-shell.
 
 wasmtime::component::bindgen!({
     world: "refarm-plugin-host",
-    path: "../refarm-plugin-wit/wit",
+    path: "../plugin-wit/wit",
     async: true,
 });
 

@@ -1,7 +1,7 @@
 // check:wit — canonical WIT guard (formerly a two-copy sync check).
 //
 // Since the host:plugin@0.1.0 WIT was consolidated into a single canonical
-// package (packages/refarm-plugin-wit/wit/), there are no copies to keep in
+// package (packages/plugin-wit/wit/), there are no copies to keep in
 // sync. This guard now enforces the single-source-of-truth invariant:
 //
 //   1. The canonical package parses (wasm-tools).
@@ -16,7 +16,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..", "..");
-const canonicalDir = resolve(root, "packages/refarm-plugin-wit/wit");
+const canonicalDir = resolve(root, "packages/plugin-wit/wit");
 
 // Independent WIT packages (their own `package X@`, not `host:plugin@`) that
 // must also parse. Each is a self-contained contract dir; add a package here
@@ -63,7 +63,7 @@ if (offenders.length > 0) {
 	console.error(
 		"[check:wit] found `package host:plugin@` declared outside the canonical package:\n" +
 			offenders.map((f) => `  - ${f}`).join("\n") +
-			"\nThe host:plugin WIT lives ONLY in packages/refarm-plugin-wit/wit/.\n" +
+			"\nThe host:plugin WIT lives ONLY in packages/plugin-wit/wit/.\n" +
 			"Point the consumer's [package.metadata.component.target] path at that dir instead of copying it.",
 	);
 	process.exit(1);
