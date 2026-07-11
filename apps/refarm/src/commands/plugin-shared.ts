@@ -3,10 +3,7 @@ import {
 	surfaceablePluginVerbsFrom,
 	type SurfaceablePluginVerb,
 } from "@refarm.dev/capability-host";
-import {
-	BUNDLED_PLUGIN_DESCRIPTORS,
-	pluginIdToFsToken,
-} from "@refarm.dev/config/plugin-identity";
+import { BUNDLED_PLUGIN_DESCRIPTORS, pluginIdToFsToken } from "@refarm.dev/config/plugin-identity";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import os from "node:os";

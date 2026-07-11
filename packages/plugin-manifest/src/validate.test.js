@@ -494,9 +494,7 @@ describe("verbs authoring block (lowers to raw vocab)", () => {
 		});
 		const result = validatePluginManifest(manifest);
 		expect(result.valid).toBe(false);
-		expect(
-			result.errors.some((e) => e.includes('must be a SHORT verb name')),
-		).toBe(true);
+		expect(result.errors.some((e) => e.includes("must be a SHORT verb name"))).toBe(true);
 	});
 
 	it("rejects non-boolean flags and non-object schema in a verb entry", () => {
@@ -510,7 +508,9 @@ describe("verbs authoring block (lowers to raw vocab)", () => {
 		const result = validatePluginManifest(manifest);
 		expect(result.valid).toBe(false);
 		expect(result.errors.some((e) => e.includes(".provides must be a boolean"))).toBe(true);
-		expect(result.errors.some((e) => e.includes(".schema must be a JSON-Schema object"))).toBe(true);
+		expect(result.errors.some((e) => e.includes(".schema must be a JSON-Schema object"))).toBe(
+			true,
+		);
 	});
 
 	it("requires a resolvable key (an unscoped id with no explicit key fails on a non-empty list)", () => {
@@ -523,7 +523,9 @@ describe("verbs authoring block (lowers to raw vocab)", () => {
 		const result = validatePluginManifest(manifest);
 		// key:"" is rejected as non-empty-string when provided.
 		expect(result.valid).toBe(false);
-		expect(result.errors.some((e) => e.includes("verbs.key must be a non-empty string"))).toBe(true);
+		expect(result.errors.some((e) => e.includes("verbs.key must be a non-empty string"))).toBe(
+			true,
+		);
 	});
 
 	it("an explicit diverging key validates (coding-agent → agent)", () => {

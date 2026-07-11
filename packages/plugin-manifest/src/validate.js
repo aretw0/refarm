@@ -61,11 +61,15 @@ function validateVerbsBlock(verbs, manifestId, errors) {
 			return;
 		}
 		if (Object.keys(verbs.list).length > 0 && !isNonEmptyString(resolvedKey)) {
-			errors.push("capabilities.verbs.key is required (or inferable from id) when list is non-empty");
+			errors.push(
+				"capabilities.verbs.key is required (or inferable from id) when list is non-empty",
+			);
 		}
 		for (const [verb, entry] of Object.entries(verbs.list)) {
 			if (verb.includes(":")) {
-				errors.push(`capabilities.verbs.list key "${verb}" must be a SHORT verb name (no "<key>:" prefix)`);
+				errors.push(
+					`capabilities.verbs.list key "${verb}" must be a SHORT verb name (no "<key>:" prefix)`,
+				);
 			}
 			if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
 				errors.push(`capabilities.verbs.list["${verb}"] must be an entry object`);
@@ -83,7 +87,9 @@ function validateVerbsBlock(verbs, manifestId, errors) {
 				entry.schema !== undefined &&
 				(typeof entry.schema !== "object" || entry.schema === null || Array.isArray(entry.schema))
 			) {
-				errors.push(`capabilities.verbs.list["${verb}"].schema must be a JSON-Schema object when provided`);
+				errors.push(
+					`capabilities.verbs.list["${verb}"].schema must be a JSON-Schema object when provided`,
+				);
 			}
 		}
 	}
@@ -322,7 +328,9 @@ export function validatePluginManifest(manifest) {
 	if (manifest.capabilities.verbSchemas !== undefined) {
 		const verbSchemas = manifest.capabilities.verbSchemas;
 		if (typeof verbSchemas !== "object" || verbSchemas === null || Array.isArray(verbSchemas)) {
-			errors.push("capabilities.verbSchemas must be an object map of <key>:<verb> → JSON-Schema object");
+			errors.push(
+				"capabilities.verbSchemas must be an object map of <key>:<verb> → JSON-Schema object",
+			);
 		} else {
 			const provided = new Set(manifest.capabilities.provides ?? []);
 			for (const [key, val] of Object.entries(verbSchemas)) {

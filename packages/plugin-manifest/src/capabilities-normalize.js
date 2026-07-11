@@ -76,7 +76,8 @@ export function normalizeCapabilities(capabilities, id) {
 	if (!verbs || typeof verbs !== "object") return capabilities;
 
 	// Explicit key wins; else infer from the plugin id (last path segment).
-	const key = typeof verbs.key === "string" && verbs.key.length > 0 ? verbs.key : pluginKeyFromId(id);
+	const key =
+		typeof verbs.key === "string" && verbs.key.length > 0 ? verbs.key : pluginKeyFromId(id);
 	const list = verbs.list && typeof verbs.list === "object" ? verbs.list : {};
 
 	// Start from the raw lists (they carry the non-verb entries) and append expansions.

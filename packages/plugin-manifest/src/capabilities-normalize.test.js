@@ -92,7 +92,12 @@ describe("normalizeCapabilities — the verbs block lowers to raw vocab", () => 
 
 	it("provides:false makes a verb subscribe-only (opt out of the default provide)", () => {
 		const caps = normalizeCapabilities(
-			{ verbs: { key: "vault", list: { search: {}, incoming: { provides: false, subscribes: true } } } },
+			{
+				verbs: {
+					key: "vault",
+					list: { search: {}, incoming: { provides: false, subscribes: true } },
+				},
+			},
 			"@scope/vault",
 		);
 		// incoming NOT provided; search provided; the implicit dispatch channel added.
