@@ -364,7 +364,7 @@ fn preopen_plugin_runtime_dirs(
 }
 
 /// Publish the ONE canonical workspace config node (upsert), the unified
-/// `refarm.config.node.v1` contract shared with the TS encoder. Replaces the old
+/// `sovereign.config.node.v1` contract shared with the TS encoder. Replaces the old
 /// per-load timestamped audit writer: the node is workspace-scoped, NOT
 /// per-plugin, so every load upserts the SAME node (stable @id) — N loads => 1
 /// node, revised in place (was: N accumulating rows). Secrets are redacted before

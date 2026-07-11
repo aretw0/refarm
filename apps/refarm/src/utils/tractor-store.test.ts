@@ -16,7 +16,7 @@ describe("tractor-store imports", () => {
 		const node = {
 			"@context": "https://schema.org/",
 			"@id": "urn:graph:one",
-			"@type": "RefarmConfig",
+			"@type": "SovereignConfig",
 			runtime: { sidecarUrl: "http://127.0.0.1:42001" },
 		};
 		const fetchMock = vi.fn(

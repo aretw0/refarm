@@ -70,7 +70,7 @@ fn allowlist_only_never_reaps_durable_types() {
         "SessionEntry",
         "Task",
         "TaskEvent",
-        "RefarmConfig",
+        "SovereignConfig",
         "Message",
         "Note",
         "Article",

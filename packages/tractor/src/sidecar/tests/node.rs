@@ -38,10 +38,10 @@ async fn sidecar_get_node_returns_graph_node() {
     write_node(
         &ns,
         "urn:config:one",
-        "RefarmConfig",
+        "SovereignConfig",
         serde_json::json!({
             "@id": "urn:config:one",
-            "@type": "RefarmConfig",
+            "@type": "SovereignConfig",
             "runtime": { "sidecarUrl": "http://127.0.0.1:42001" },
         }),
     );
@@ -56,7 +56,7 @@ async fn sidecar_get_node_returns_graph_node() {
 
     let node = &body["node"];
     assert_eq!(node["@id"].as_str().unwrap(), "urn:config:one");
-    assert_eq!(node["@type"].as_str().unwrap(), "RefarmConfig");
+    assert_eq!(node["@type"].as_str().unwrap(), "SovereignConfig");
     assert_eq!(
         node["runtime"]["sidecarUrl"].as_str().unwrap(),
         "http://127.0.0.1:42001",
@@ -69,14 +69,14 @@ async fn sidecar_query_nodes_filters_by_type_and_limit() {
     write_node(
         &ns,
         "urn:config:one",
-        "RefarmConfig",
-        serde_json::json!({ "@id": "urn:config:one", "@type": "RefarmConfig" }),
+        "SovereignConfig",
+        serde_json::json!({ "@id": "urn:config:one", "@type": "SovereignConfig" }),
     );
     write_node(
         &ns,
         "urn:config:two",
-        "RefarmConfig",
-        serde_json::json!({ "@id": "urn:config:two", "@type": "RefarmConfig" }),
+        "SovereignConfig",
+        serde_json::json!({ "@id": "urn:config:two", "@type": "SovereignConfig" }),
     );
     write_node(
         &ns,
@@ -87,7 +87,7 @@ async fn sidecar_query_nodes_filters_by_type_and_limit() {
     let (_state, port) = start_nodes_sidecar(&ns).await;
 
     let body: serde_json::Value =
-        reqwest::get(format!("{}/nodes?type=RefarmConfig&limit=1", base(port)))
+        reqwest::get(format!("{}/nodes?type=SovereignConfig&limit=1", base(port)))
             .await
             .unwrap()
             .json()
@@ -96,6 +96,6 @@ async fn sidecar_query_nodes_filters_by_type_and_limit() {
 
     let nodes = body["nodes"].as_array().unwrap();
     assert_eq!(nodes.len(), 1);
-    assert_eq!(nodes[0]["@type"].as_str().unwrap(), "RefarmConfig");
+    assert_eq!(nodes[0]["@type"].as_str().unwrap(), "SovereignConfig");
     assert_eq!(body["total"].as_u64().unwrap(), 1);
 }

@@ -707,11 +707,11 @@
         let payload = build_config_node_payload(&cfg, "tractor-host");
 
         // The TS contract fields (config-node.js) — so the TS configFromNode accepts it.
-        assert_eq!(payload["schema"], "refarm.config.node.v1");
-        assert_eq!(payload["kind"], "refarm/config");
+        assert_eq!(payload["schema"], "sovereign.config.node.v1");
+        assert_eq!(payload["kind"], "sovereign/config");
         assert_eq!(payload["id"], "urn:sovereign:config:workspace");
         // The graph JSON-LD mirror — so query/reaper (type_) + payload readers work.
-        assert_eq!(payload["@type"], "RefarmConfig");
+        assert_eq!(payload["@type"], "SovereignConfig");
         assert_eq!(payload["@id"], "urn:sovereign:config:workspace");
         // data is the REDACTED sovereign config — the secret is gone, not the leak
         // (raw model_env) the old node replicated across devices.
@@ -732,13 +732,13 @@
         store_refarm_config_node(&sync, Some(&cfg)).unwrap();
         store_refarm_config_node(&sync, Some(&cfg)).unwrap();
 
-        let rows = sync.query_nodes("RefarmConfig").unwrap();
+        let rows = sync.query_nodes("SovereignConfig").unwrap();
         assert_eq!(rows.len(), 1, "stable id must upsert, not accumulate");
         let row = &rows[0];
-        assert_eq!(row.type_, "RefarmConfig");
+        assert_eq!(row.type_, "SovereignConfig");
         assert_eq!(row.source_plugin.as_deref(), Some("tractor-host"));
         let payload: serde_json::Value = serde_json::from_str(&row.payload).unwrap();
-        assert_eq!(payload["schema"], "refarm.config.node.v1");
+        assert_eq!(payload["schema"], "sovereign.config.node.v1");
         assert_eq!(payload["data"]["provider"], "ollama");
     }
 
@@ -747,7 +747,7 @@
         let storage = NativeStorage::open(":memory:").unwrap();
         let sync = NativeSync::new(storage, "test-refarm-config-none").unwrap();
         store_refarm_config_node(&sync, None).unwrap();
-        assert_eq!(sync.query_nodes("RefarmConfig").unwrap().len(), 0);
+        assert_eq!(sync.query_nodes("SovereignConfig").unwrap().len(), 0);
     }
 
     #[test]

@@ -1,7 +1,7 @@
 // Unified config-node contract — the Rust port of packages/config/src/config-node.js.
 //
-// The sovereign `.refarm/config.json` becomes a graph node (`RefarmConfig`) that
-// replicates CRDT-wide. This module produces the SAME `refarm.config.node.v1`
+// The sovereign `.refarm/config.json` becomes a graph node (`SovereignConfig`) that
+// replicates CRDT-wide. This module produces the SAME `sovereign.config.node.v1`
 // shape the TS encoder defines, so a node written by the tractor round-trips
 // through the TS `configFromNode` and (for the same config) computes the SAME
 // `revision` digest. Secrets are redacted before the config ever enters the node
@@ -10,7 +10,7 @@
 // The graph seam: `store_node(id, type_, …)` writes `type_` to the sqlite `type`
 // column, which `query_nodes` and the reaper filter on — NOT the payload's
 // `@type`. So the payload carries the full TS contract (schema/kind/id/…) while
-// `type_` stays "RefarmConfig" (queryable, kept by the reaper). `@type`/`@id`
+// `type_` stays "SovereignConfig" (queryable, kept by the reaper). `@type`/`@id`
 // mirror fields are added so a payload-level reader still sees JSON-LD.
 
 use serde_json::Value;
@@ -40,13 +40,13 @@ pub(crate) fn sovereign_config_path(base: &Path) -> Option<PathBuf> {
     Some(base.join(dir).join(CONFIG_FILE_NAME))
 }
 
-pub(crate) const CONFIG_NODE_SCHEMA: &str = "refarm.config.node.v1";
-pub(crate) const CONFIG_NODE_KIND: &str = "refarm/config";
+pub(crate) const CONFIG_NODE_SCHEMA: &str = "sovereign.config.node.v1";
+pub(crate) const CONFIG_NODE_KIND: &str = "sovereign/config";
 pub(crate) const CONFIG_NODE_DEFAULT_ID: &str = "urn:sovereign:config:workspace";
 pub(crate) const CONFIG_NODE_REDACTION: &str = "<redacted>";
-/// The graph `type_` column value — kept "RefarmConfig" so query_nodes + the
+/// The graph `type_` column value — kept "SovereignConfig" so query_nodes + the
 /// reaper allowlist (node_reap KEEP type) are unchanged.
-pub(crate) const CONFIG_NODE_GRAPH_TYPE: &str = "RefarmConfig";
+pub(crate) const CONFIG_NODE_GRAPH_TYPE: &str = "SovereignConfig";
 
 /// Mirrors CONFIG_NODE_REDACTION_KEY_PATTERNS (config-node.js:10-20), pre-lowered
 /// so the case-insensitive substring match is a plain `contains`.

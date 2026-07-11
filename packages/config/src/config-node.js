@@ -4,8 +4,8 @@ import path from "node:path";
 
 import { loadConfig, loadConfigAsync, sovereignConfigRelativePath } from "./index.js";
 
-export const CONFIG_NODE_SCHEMA = "refarm.config.node.v1";
-export const CONFIG_NODE_KIND = "refarm/config";
+export const CONFIG_NODE_SCHEMA = "sovereign.config.node.v1";
+export const CONFIG_NODE_KIND = "sovereign/config";
 export const CONFIG_NODE_DEFAULT_ID = "urn:sovereign:config:workspace";
 export const CONFIG_NODE_REDACTION = "<redacted>";
 
@@ -214,7 +214,7 @@ export function createConfigNode(config, options = {}) {
 
 export function configFromNode(node) {
 	if (!node || node.schema !== CONFIG_NODE_SCHEMA || node.kind !== CONFIG_NODE_KIND) {
-		throw new TypeError("Expected a refarm.config.node.v1 config node");
+		throw new TypeError("Expected a sovereign.config.node.v1 config node");
 	}
 	return node.data;
 }
