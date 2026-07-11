@@ -14,11 +14,11 @@ import {
 	redactConfigForNode,
 	toPortableConfig,
 } from "./config-node.js";
-import { CONFIG_DIR_SELECTOR_KEY, defaultSovereignConfigPath } from "./index.js";
+import { SOVEREIGN_DIR_SELECTOR_KEY, defaultSovereignConfigPath } from "./index.js";
 
 // The substrate has no config-dir default; the app injects it. This test stands in
 // for the app, selecting ".refarm".
-process.env[CONFIG_DIR_SELECTOR_KEY] = ".refarm";
+process.env[SOVEREIGN_DIR_SELECTOR_KEY] = ".refarm";
 
 describe("config node", () => {
 	it("creates a deterministic redacted config node", () => {

@@ -35,8 +35,15 @@ fn write_final_stream_chunk(
     let streams_dir = match std::env::var("REFARM_STREAMS_DIR") {
         Ok(v) if !v.is_empty() => v,
         _ => {
+            // The sovereign dir name is injected (SOVEREIGN_DIR), not hardcoded; streams
+            // live under <home>/<SOVEREIGN_DIR>/streams. Absent selector → the primary
+            // REFARM_STREAMS_DIR override is the intended path, so fall back to a bare
+            // "streams" under home rather than assuming a brand dir.
             let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-            format!("{home}/.refarm/streams")
+            match std::env::var("SOVEREIGN_DIR") {
+                Ok(dir) if !dir.trim().is_empty() => format!("{home}/{}/streams", dir.trim()),
+                _ => format!("{home}/streams"),
+            }
         }
     };
 

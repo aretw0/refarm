@@ -1,8 +1,8 @@
 import { createConfigNode } from "@refarm.dev/config";
 
-// The substrate has no config-dir default; the app injects SOVEREIGN_CONFIG_DIR. This
+// The substrate has no config-dir default; the app injects SOVEREIGN_DIR. This
 // test stands in for the app, selecting ".refarm".
-process.env.SOVEREIGN_CONFIG_DIR ||= ".refarm";
+process.env.SOVEREIGN_DIR ||= ".refarm";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";

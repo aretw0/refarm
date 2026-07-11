@@ -16,12 +16,12 @@
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
-/// The neutral, brand-free env var naming the sovereign config DIRECTORY — the SAME
-/// key the TS config package reads (`CONFIG_DIR_SELECTOR_KEY` in packages/config).
+/// The neutral, brand-free env var naming the sovereign DIRECTORY — the SAME
+/// key the TS config package reads (`SOVEREIGN_DIR_SELECTOR_KEY` in packages/config).
 /// The substrate has no default: the host/app sets it (e.g. ".refarm"), and both the
 /// Rust host and the TS stack read it, so they agree on the config path without
 /// either hardcoding a brand dir (the RS↔TS lockstep, now via injection).
-pub(crate) const CONFIG_DIR_SELECTOR_KEY: &str = "SOVEREIGN_CONFIG_DIR";
+pub(crate) const SOVEREIGN_DIR_SELECTOR_KEY: &str = "SOVEREIGN_DIR";
 /// The config file name inside the sovereign config dir (fixed substrate convention,
 /// matches TS `CONFIG_FILE_NAME`).
 pub(crate) const CONFIG_FILE_NAME: &str = "config.json";
@@ -32,7 +32,7 @@ pub(crate) const CONFIG_FILE_NAME: &str = "config.json";
 /// behaves as if the file is absent), never a silent brand-dir fallback. Mirrors the
 /// TS `sovereignConfigRelativePath`, kept in lockstep.
 pub(crate) fn sovereign_config_path(base: &Path) -> Option<PathBuf> {
-    let dir = std::env::var(CONFIG_DIR_SELECTOR_KEY).ok()?;
+    let dir = std::env::var(SOVEREIGN_DIR_SELECTOR_KEY).ok()?;
     let dir = dir.trim();
     if dir.is_empty() {
         return None;

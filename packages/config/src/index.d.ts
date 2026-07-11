@@ -169,13 +169,13 @@ export const REFARM_CONFIG_LEGACY_FILE_NAME: string;
 
 /** The neutral, brand-free env var naming the sovereign config directory (the app
  * sets it, e.g. ".refarm"). No substrate default — the app owns the name. */
-export const CONFIG_DIR_SELECTOR_KEY: "SOVEREIGN_CONFIG_DIR";
+export const SOVEREIGN_DIR_SELECTOR_KEY: "SOVEREIGN_DIR";
 /** The config file name inside the sovereign config dir (fixed substrate convention). */
 export const CONFIG_FILE_NAME: "config.json";
 /** Thrown when the sovereign config dir selector is unset (no substrate default). */
-export class MissingConfigDirError extends Error {}
+export class MissingSovereignDirError extends Error {}
 /** Resolve the sovereign config dir from the selector env; throws if unset. */
-export function sovereignConfigDir(env?: Record<string, string | undefined>): string;
+export function sovereignDir(env?: Record<string, string | undefined>): string;
 /** The `<configDir>/config.json` relative path, dir resolved from the selector env. */
 export function sovereignConfigRelativePath(env?: Record<string, string | undefined>): string;
 export function sovereignConfigPathCandidates(

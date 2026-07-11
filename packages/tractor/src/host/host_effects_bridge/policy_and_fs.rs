@@ -90,7 +90,7 @@ fn is_safe_plugin_id_token(value: &str) -> bool {
 /// absent. Both the trusted-plugins allowlist and the approved-permissions map ride this
 /// one hardened read so neither re-implements the fs safety.
 fn read_refarm_config_value_at(base: &Path) -> Result<Option<serde_json::Value>, String> {
-    // The config dir is injected (SOVEREIGN_CONFIG_DIR); no selector → no sovereign
+    // The sovereign dir is injected (SOVEREIGN_DIR); no selector → no sovereign
     // config path → behave as if the file is absent (never a brand-dir fallback).
     let Some(path) = crate::host::plugin_host::config_node::sovereign_config_path(base) else {
         return Ok(None);

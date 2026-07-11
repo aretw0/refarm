@@ -64,7 +64,7 @@ fn merge_plugin_env_vars(
 /// reader consumes (provider/model/default_provider/stream_responses/budgets) are
 /// never secrets, so the redacted node is a faithful source for them.
 fn resolve_sovereign_config(base: &std::path::Path, sync: Option<&NativeSync>) -> Option<serde_json::Value> {
-    // Config dir is injected (SOVEREIGN_CONFIG_DIR); no selector → skip the local file.
+    // Sovereign dir is injected (SOVEREIGN_DIR); no selector → skip the local file.
     if let Some(path) = config_node::sovereign_config_path(base) {
         if let Some(bytes) = read_refarm_config_bytes(&path) {
             match serde_json::from_slice::<serde_json::Value>(&bytes) {
@@ -294,7 +294,7 @@ fn refarm_config_path_matches_open_file(path: &std::path::Path, file: &std::fs::
 }
 
 fn refarm_config_json_from(base: &std::path::Path) -> Option<serde_json::Value> {
-    // Config dir is injected (SOVEREIGN_CONFIG_DIR); no selector → no config path.
+    // Sovereign dir is injected (SOVEREIGN_DIR); no selector → no config path.
     let path = config_node::sovereign_config_path(base)?;
     let bytes = read_refarm_config_bytes(&path)?;
     serde_json::from_slice::<serde_json::Value>(&bytes).ok()

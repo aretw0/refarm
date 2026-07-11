@@ -125,38 +125,38 @@ export {
 // via injection instead of a duplicated literal). Mirrors storage-fs's
 // MissingOrgRootError: no default means an accidental unset is a clear error.
 
-/** The neutral, brand-free env var that names the sovereign config DIRECTORY (e.g.
+/** The neutral, brand-free env var that names the sovereign DIRECTORY (e.g.
  * the app sets it to ".refarm"). No default in the substrate — the app owns the name. */
-export const CONFIG_DIR_SELECTOR_KEY = "SOVEREIGN_CONFIG_DIR";
+export const SOVEREIGN_DIR_SELECTOR_KEY = "SOVEREIGN_DIR";
 
 /** The config file name inside the sovereign config dir. This IS a fixed substrate
  * convention (the file, not the branded dir), and matches the Rust host. */
 export const CONFIG_FILE_NAME = "config.json";
 
-/** Thrown when the sovereign config dir is not injected — the substrate has no
- * default, so an unset selector is a loud error, not a silent brand fallback. */
-export class MissingConfigDirError extends Error {
+/** Thrown when the sovereign dir is not injected — the substrate has no default,
+ * so an unset selector is a loud error, not a silent brand fallback. */
+export class MissingSovereignDirError extends Error {
 	constructor() {
 		super(
-			`The sovereign config directory has no substrate default — set ${CONFIG_DIR_SELECTOR_KEY} ` +
+			`The sovereign directory has no substrate default — set ${SOVEREIGN_DIR_SELECTOR_KEY} ` +
 				`(the app chooses it, e.g. ".refarm"). The substrate never hardcodes a brand dir.`,
 		);
-		this.name = "MissingConfigDirError";
+		this.name = "MissingSovereignDirError";
 	}
 }
 
 /** Resolve the sovereign config dir name from the neutral selector env. NO fallback:
- * throws MissingConfigDirError when unset. */
-export function sovereignConfigDir(env = process.env) {
-	const dir = env[CONFIG_DIR_SELECTOR_KEY]?.trim();
-	if (!dir) throw new MissingConfigDirError();
+ * throws MissingSovereignDirError when unset. */
+export function sovereignDir(env = process.env) {
+	const dir = env[SOVEREIGN_DIR_SELECTOR_KEY]?.trim();
+	if (!dir) throw new MissingSovereignDirError();
 	return dir;
 }
 
 /** The canonical `<configDir>/config.json` RELATIVE path, resolving the dir from the
  * injected selector. Replaces the old hardcoded REFARM_CONFIG_CANONICAL_RELATIVE_PATH. */
 export function sovereignConfigRelativePath(env = process.env) {
-	return path.join(sovereignConfigDir(env), CONFIG_FILE_NAME);
+	return path.join(sovereignDir(env), CONFIG_FILE_NAME);
 }
 
 export const REFARM_CONFIG_LEGACY_FILE_NAME = "refarm.config.json";

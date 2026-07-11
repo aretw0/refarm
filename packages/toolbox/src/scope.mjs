@@ -4,11 +4,11 @@ import { execSync } from "node:child_process";
 import { defaultSovereignConfigPath, findSovereignConfigPath } from "@refarm.dev/config";
 import { packageInstallCommand } from "./package-manager.mjs";
 
-// The substrate config package has no default config-dir name (reads SOVEREIGN_CONFIG_DIR).
+// The substrate config package has no default config-dir name (reads SOVEREIGN_DIR).
 // This module runs as a toolbox subprocess (via cli.mjs, or standalone in tests), so it
 // injects the ".refarm" brand dir when the selector is unset. An operator override wins.
-if (!process.env.SOVEREIGN_CONFIG_DIR?.trim()) {
-	process.env.SOVEREIGN_CONFIG_DIR = ".refarm";
+if (!process.env.SOVEREIGN_DIR?.trim()) {
+	process.env.SOVEREIGN_DIR = ".refarm";
 }
 
 const DEP_KEYS = [

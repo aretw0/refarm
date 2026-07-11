@@ -1,12 +1,12 @@
 /// The substrate no longer defaults the sovereign config dir — it reads
-/// SOVEREIGN_CONFIG_DIR (injected by the app). These tests write their fixture under
+/// SOVEREIGN_DIR (injected by the app). These tests write their fixture under
 /// `<tmp>/.refarm/config.json`, so they stand in for the app and select ".refarm".
 /// Idempotent + thread-safe (one fixed value, no race); called by every test that
 /// exercises the config-file read path.
-fn ensure_config_dir_env() {
+fn ensure_sovereign_dir_env() {
     use std::sync::Once;
     static SET: Once = Once::new();
-    SET.call_once(|| std::env::set_var("SOVEREIGN_CONFIG_DIR", ".refarm"));
+    SET.call_once(|| std::env::set_var("SOVEREIGN_DIR", ".refarm"));
 }
 
 include!("plugin_host_tests/env_policy_core.rs");

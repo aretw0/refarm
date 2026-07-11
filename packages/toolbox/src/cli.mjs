@@ -4,10 +4,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 // The substrate (@refarm.dev/config) has no default config-dir name — it reads
-// SOVEREIGN_CONFIG_DIR. This toolbox CLI is a refarm operator tool, so it injects
+// SOVEREIGN_DIR. This toolbox CLI is a refarm operator tool, so it injects
 // ".refarm" before any config read. An operator env override wins.
-if (!process.env.SOVEREIGN_CONFIG_DIR?.trim()) {
-	process.env.SOVEREIGN_CONFIG_DIR = ".refarm";
+if (!process.env.SOVEREIGN_DIR?.trim()) {
+	process.env.SOVEREIGN_DIR = ".refarm";
 }
 
 const __filename = fileURLToPath(import.meta.url);

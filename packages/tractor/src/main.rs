@@ -363,13 +363,13 @@ struct PlainResponseOutput {
 #[tokio::main]
 async fn main() -> Result<()> {
     // The substrate (config host, @refarm.dev/config) has NO default config-dir name —
-    // it reads SOVEREIGN_CONFIG_DIR and treats an unset selector as "no config path".
+    // it reads SOVEREIGN_DIR and treats an unset selector as "no config path".
     // The `tractor` daemon is the runtime binary the user/farmhand runs, so it injects
     // the brand dir ".refarm" here, once at boot before any config read (single-threaded,
     // no concurrent reader — not the cross-thread leak class). An operator env override
     // wins. This is the one place the daemon names the dir; the substrate never assumes it.
-    if std::env::var("SOVEREIGN_CONFIG_DIR").map(|v| v.trim().is_empty()).unwrap_or(true) {
-        std::env::set_var("SOVEREIGN_CONFIG_DIR", ".refarm");
+    if std::env::var("SOVEREIGN_DIR").map(|v| v.trim().is_empty()).unwrap_or(true) {
+        std::env::set_var("SOVEREIGN_DIR", ".refarm");
     }
 
     let cli = Cli::parse();

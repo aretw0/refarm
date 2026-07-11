@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-	CONFIG_DIR_SELECTOR_KEY,
+	SOVEREIGN_DIR_SELECTOR_KEY,
 	DEFAULT_ENV_PREFIX,
 	ENV_PREFIX_SELECTOR_KEY,
 	defaultSovereignConfigPath,
@@ -17,7 +17,7 @@ import {
 
 // The substrate has no config-dir default; the app injects it. These tests stand in
 // for the app, selecting ".refarm" (the substrate must never assume a brand dir).
-process.env[CONFIG_DIR_SELECTOR_KEY] = ".refarm";
+process.env[SOVEREIGN_DIR_SELECTOR_KEY] = ".refarm";
 
 describe("@refarm.dev/config Deterministic Tests", () => {
 	const root = findSovereignRoot();

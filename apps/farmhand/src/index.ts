@@ -246,10 +246,10 @@ async function injectSiloModelEnv(): Promise<void> {
 
 async function main() {
 	console.log(`[farmhand] Booting (id=${FARMHAND_ID})...`);
-	// The substrate has NO default config-dir name (it reads SOVEREIGN_CONFIG_DIR).
+	// The substrate has NO default config-dir name (it reads SOVEREIGN_DIR).
 	// Farmhand is a refarm daemon, so it injects ".refarm" before any config read.
-	if (!process.env.SOVEREIGN_CONFIG_DIR?.trim()) {
-		process.env.SOVEREIGN_CONFIG_DIR = ".refarm";
+	if (!process.env.SOVEREIGN_DIR?.trim()) {
+		process.env.SOVEREIGN_DIR = ".refarm";
 	}
 	await injectSiloModelEnv();
 	await injectConfigEnv();
