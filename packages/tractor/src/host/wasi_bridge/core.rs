@@ -35,6 +35,31 @@ pub(crate) struct ModelRoute {
 /// This is the seam that unblocks two host features that both needed "reach another
 /// loaded plugin" and were stalled on the same missing registry: the agent leg (#6,
 /// `capability-tools` list/invoke) and `get_plugin_api` (was a STUB).
+/// A SELF-DISPATCH spawner: given a plugin id + a `respond` payload JSON, load a FRESH
+/// instance of that plugin and run its `respond` on that instance's own store/session,
+/// returning the response JSON. This is the re-entrancy escape hatch for the deadlock a
+/// plugin would hit dispatching a verb to ITSELF: its single runner thread is parked in
+/// `await_dispatch_result`, so it can't also drain its own `<key>:dispatch` event. A
+/// fresh instance sidesteps the busy runner entirely (the compiled Component is cached
+/// by hash, so this is a cache-hit cold-init, not a recompile).
+///
+/// The actual load + respond hold a `!Send` wasmtime store, so the implementation runs
+/// them via `spawn_local` on the caller's own current-thread runner runtime; the future
+/// RETURNED here only awaits a `oneshot` for the result, so it IS `Send`. That keeps this
+/// callable from the `Send`-required WIT host methods (`invoke_tool`/`call_plugin`) while
+/// the `!Send` work stays on the local executor. `Send + Sync` on the boxed Fn: the
+/// closure captures only Send+Sync state (`Weak<PluginHost>`, the `plugin_paths` Arc, the
+/// sync handle), so `CrossPluginAccess` stays `Send + Sync` and clones into every binding.
+pub type SelfRespondSpawner = std::sync::Arc<
+    dyn Fn(
+            String,
+            String,
+        ) -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = anyhow::Result<String>> + Send>,
+        > + Send
+        + Sync,
+>;
+
 #[derive(Clone)]
 pub struct CrossPluginAccess {
     /// Who is loaded + what each declares (`provides`/`subscribes`). Source of truth
@@ -44,6 +69,14 @@ pub struct CrossPluginAccess {
     pub event_router: crate::EventRouter,
     /// plugin-id → runner channel, the sinks `deliver_via_router` sends to.
     pub plugin_channels: crate::PluginChannels,
+    /// The self-dispatch spawner (see [`SelfRespondSpawner`]). Wrapped in a shared
+    /// `OnceLock` because it is populated AFTER the `PluginHost` exists (it captures a
+    /// `Weak` to it), while `CrossPluginAccess` itself is built BEFORE the host and
+    /// cloned into it. Sharing the same `Arc<OnceLock>` means filling it once, post-boot,
+    /// makes it visible to every plugin's already-cloned bindings. `None`/unset (test
+    /// hosts, or a host wired without a runtime) → self-dispatch reports honestly instead
+    /// of re-entering, i.e. the pre-existing deadlock-prone path is simply never taken.
+    pub self_respond: std::sync::Arc<std::sync::OnceLock<SelfRespondSpawner>>,
 }
 
 /// Resolve the base URL a liveness probe should ping for `provider`, reusing the
@@ -368,6 +401,7 @@ impl TractorBridgeHost for TractorNativeBindings {
             cross,
             &self.sync,
             &self.telemetry,
+            &self.plugin_id,
             &plugin_id,
             &plugin_key,
             &verb,

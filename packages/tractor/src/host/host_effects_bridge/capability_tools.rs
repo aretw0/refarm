@@ -173,10 +173,13 @@ impl CapabilityToolsHost for TractorNativeBindings {
 
         // Everything after name→verb resolution is the shared dispatch — the SAME
         // path a plugin-to-plugin `call-plugin` uses. One protocol, two callers.
+        // `self.plugin_id` is the CALLER, so the agent invoking its OWN `agent_respond`
+        // tool is recognized as a self-dispatch and re-entered on a fresh instance.
         dispatch_to_plugin(
             cross,
             &self.sync,
             &self.telemetry,
+            &self.plugin_id,
             &verb.plugin_id,
             &verb.plugin_key,
             &verb.verb,
@@ -201,11 +204,21 @@ pub(crate) async fn dispatch_to_plugin(
     cross: &CrossPluginAccess,
     sync: &crate::sync::NativeSync,
     telemetry: &crate::telemetry::TelemetryBus,
+    caller_id: &str,
     plugin_id: &str,
     plugin_key: &str,
     verb: &str,
     input: serde_json::Value,
 ) -> Result<String, String> {
+    // SELF-DISPATCH: a plugin invoking a verb on its OWN id can't go through the event +
+    // runner path — its single runner thread is what would drain the dispatch event, but
+    // it is (below) parked in await_dispatch_result → deadlock. Run the verb on a FRESH
+    // instance instead and return the result inline. Implicit: any dispatchable verb is
+    // self-dispatchable, no flag. (See host/self_dispatch.rs.)
+    if crate::host::self_dispatch::is_self_dispatch(caller_id, plugin_id) {
+        return crate::host::self_dispatch::run_self_dispatch(cross, plugin_id, verb, input).await;
+    }
+
     // Mint a correlation key and build the dispatch payload the SAME way the
     // sidecar's `dispatch_event_effort` does: `{verb, ...args, replyRef}` on the
     // `<key>:dispatch` event. The plugin runs the verb and stores a

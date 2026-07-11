@@ -51,7 +51,7 @@ fn make_agent_leg_bindings() -> (
         .unwrap()
         .insert("vault".to_string(), tx);
 
-    let cross = CrossPluginAccess { registry, event_router, plugin_channels };
+    let cross = CrossPluginAccess { registry, event_router, plugin_channels, self_respond: Default::default() };
 
     // The agent runs as "agent" — the CALLER. Its own grant is irrelevant to the
     // callee; invoke routes to vault under vault's instance, proving surfacing does
@@ -129,7 +129,7 @@ fn make_typed_agent_leg_bindings() -> TractorNativeBindings {
         std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
     plugin_channels.write().unwrap().insert("vault".to_string(), tx);
-    let cross = CrossPluginAccess { registry, event_router, plugin_channels };
+    let cross = CrossPluginAccess { registry, event_router, plugin_channels, self_respond: Default::default() };
 
     TractorNativeBindings::new(
         "agent",

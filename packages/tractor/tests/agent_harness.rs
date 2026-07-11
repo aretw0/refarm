@@ -134,6 +134,24 @@ async fn await_agent_response(tractor: &TractorNative) -> serde_json::Value {
     panic!("agent never stored a Response node");
 }
 
+/// Await the Response node that carries a non-empty `tool_calls` — the PARENT turn's
+/// final answer when a self-dispatch also made the FRESH sub-agent store its own
+/// (tool-call-less) Response into the same shared graph.
+async fn await_agent_response_with_tool_calls(tractor: &TractorNative) -> serde_json::Value {
+    for _ in 0..300 {
+        let nodes = tractor.sync.query_nodes("Response").expect("query Response");
+        for row in &nodes {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&row.payload) {
+                if v["tool_calls"].as_array().map(|a| !a.is_empty()).unwrap_or(false) {
+                    return v;
+                }
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    panic!("agent never stored a Response node carrying tool_calls");
+}
+
 /// Spawn a one-shot mock server that returns `body` for any HTTP POST.
 /// Returns the bound port. The server accepts one connection then stops.
 async fn mock_llm_server(body: serde_json::Value) -> u16 {
@@ -946,6 +964,7 @@ async fn harness_plugin_tool_guidance_reaches_system_prompt() {
         plugin_channels: std::sync::Arc::new(std::sync::RwLock::new(
             std::collections::HashMap::new(),
         )),
+        self_respond: Default::default(),
     };
 
     let sync = make_sync();
@@ -1028,6 +1047,7 @@ async fn harness_plugin_declared_verb_doc_overrides_boilerplate_in_prompt() {
         plugin_channels: std::sync::Arc::new(std::sync::RwLock::new(
             std::collections::HashMap::new(),
         )),
+        self_respond: Default::default(),
     };
 
     let sync = make_sync();
@@ -1418,6 +1438,145 @@ async fn harness_rename_symbol_tool_dispatches_to_lsp_code_ops_plugin() {
         node["result"]["editsApplied"], 2,
         "rename must report 2 edits applied: {result}"
     );
+
+    tractor.shutdown().await.expect("shutdown");
+    clean_model_env();
+}
+
+/// Materialize an agent install dir (agent.wasm + the REAL agent plugin.json, with a
+/// synthetic `entry` injected the way farmhand injects one at install) and load it as a
+/// dispatchable plugin. Its manifest's `verbs` block folds `agent:respond` + `agent:dispatch`
+/// into the shared registry, so the agent's own `invoke_tool` sees `agent_respond` as a
+/// tool. The id stays `@refarm/agent` (baked into the wasm's metadata().name — it can't be
+/// relabelled), so calling `agent_respond` is a SELF-dispatch, handled by re-entering a
+/// fresh instance. Returns (tractor, loaded id).
+async fn boot_agent_with_dispatch_manifest() -> Option<(TractorNative, String)> {
+    let wasm = wasm_path();
+    if !wasm.exists() {
+        eprintln!("SKIP: agent.wasm not found — run: cargo component build --release in packages/agent");
+        return None;
+    }
+    let manifest_src =
+        std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../agent/plugin.json"))
+            .expect("agent plugin.json reads");
+    let mut manifest: serde_json::Value =
+        serde_json::from_str(&manifest_src).expect("agent plugin.json is JSON");
+    let obj = manifest.as_object_mut().unwrap();
+    obj.remove("_note");
+    obj.insert("entry".into(), serde_json::json!("plugin.wasm"));
+
+    let dir = Box::leak(Box::new(tempfile::tempdir().expect("agent install dir")));
+    std::fs::copy(wasm, dir.path().join("plugin.wasm")).expect("copy agent.wasm");
+    std::fs::write(
+        dir.path().join("plugin.json"),
+        serde_json::to_string_pretty(&manifest).unwrap(),
+    )
+    .expect("write agent plugin.json");
+
+    let tractor = TractorNative::boot(memory_config_none())
+        .await
+        .expect("boot must succeed");
+    let handle = tractor
+        .load_plugin(&dir.path().join("plugin.wasm"))
+        .await
+        .expect("agent (with dispatch manifest) must load");
+    let id = handle.id.clone();
+    tractor.register_for_events(handle);
+    Some((tractor, id))
+}
+
+/// AGENT → SUB-AGENT DELEGATION via SELF-DISPATCH, end to end. The agent's manifest makes
+/// `agent:respond` dispatchable, so its model can call the `agent_respond` tool. Because the
+/// tool's target id equals the agent's own id, the host recognizes a SELF-dispatch and runs
+/// respond on a FRESH instance (its own store + session) instead of routing an event to the
+/// busy runner (which would deadlock). The sub-turn's response rides back as the tool result.
+///
+/// One process, one mock-LLM server, three sequenced completions:
+///   1. Parent turn → tool_call `agent_respond({prompt})`
+///   2. Sub-agent turn (fresh instance, serial under the parent's await) → its response
+///   3. Parent final turn (after the tool result) → final answer
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/agent; run with --ignored --test-threads=1"]
+async fn harness_agent_self_delegates_a_prompt_to_a_fresh_sub_agent() {
+    let _env = env_lock();
+    clean_model_env();
+
+    let sub_task = "summarize the meeting notes";
+    let tool_call_resp = serde_json::json!({
+        "id": "harness-self-delegate",
+        "object": "chat.completion",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": serde_json::Value::Null,
+                "tool_calls": [{
+                    "id": "call_delegate",
+                    "type": "function",
+                    "function": {
+                        "name": "agent_respond",
+                        "arguments": serde_json::json!({ "prompt": sub_task }).to_string()
+                    }
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    });
+    let sub_agent_resp = openai_response("meeting summary: ship on friday", 12, 7);
+    let final_resp = openai_response("delegated and summarized", 20, 6);
+
+    let port = mock_llm_server_sequence(vec![tool_call_resp, sub_agent_resp, final_resp]).await;
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let Some((tractor, agent_id)) = boot_agent_with_dispatch_manifest().await else {
+        clean_model_env();
+        return;
+    };
+
+    let sent = tractor.deliver(
+        "user:prompt",
+        Some(&agent_id),
+        Some("delegate the summary to a sub-agent".to_string()),
+    );
+    assert_eq!(sent, 1, "the prompt must reach the agent");
+
+    // The self-dispatch means BOTH the parent AND the fresh sub-agent store a Response
+    // node in the shared graph. The PARENT's is the one carrying the delegation tool call;
+    // the sub-agent's has none. Await until the parent's final Response (with tool_calls)
+    // exists, then assert against it.
+    let v = await_agent_response_with_tool_calls(&tractor).await;
+    assert_eq!(
+        v["content"], "delegated and summarized",
+        "the PARENT's final answer (the one that made the tool call)"
+    );
+
+    // The tool result is the DispatchResult-shaped node the self-dispatch produced,
+    // carrying the FRESH sub-agent instance's OWN response. THIS is the delegation
+    // round-trip — through a re-entrant fresh instance, not a deadlocked runner.
+    let result = v["tool_calls"][0]["result"].as_str().unwrap_or("");
+    let node: serde_json::Value = serde_json::from_str(result)
+        .unwrap_or_else(|_| panic!("tool result must be the dispatch-result node JSON: {result}"));
+    assert_eq!(node["@type"], "DispatchResult", "delegation node type: {result}");
+    assert_eq!(
+        node["result"]["content"], "meeting summary: ship on friday",
+        "the sub-agent's response must ride back to the parent: {result}"
+    );
+
+    // And the fresh sub-agent stored ITS OWN Response (a distinct node, no tool calls) —
+    // proof the sub-turn ran in a real separate instance, not inline in the parent.
+    let sub_agent_ran = tractor
+        .sync
+        .query_nodes("Response")
+        .unwrap()
+        .iter()
+        .filter_map(|n| serde_json::from_str::<serde_json::Value>(&n.payload).ok())
+        .any(|p| {
+            p["content"] == "meeting summary: ship on friday"
+                && p["tool_calls"].as_array().map(|a| a.is_empty()).unwrap_or(true)
+        });
+    assert!(sub_agent_ran, "the fresh sub-agent instance must have stored its own Response");
 
     tractor.shutdown().await.expect("shutdown");
     clean_model_env();

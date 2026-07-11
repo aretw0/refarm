@@ -551,7 +551,11 @@ impl TractorNativeConfig {
 pub struct TractorNative {
     pub storage: NativeStorage,
     pub sync: NativeSync,
-    pub plugins: host::PluginHost,
+    /// The wasm plugin loader. `Arc` so the self-dispatch spawner (on `CrossPluginAccess`)
+    /// can hold a `Weak` to it and instantiate a FRESH instance re-entrantly (a plugin
+    /// dispatching a verb to itself) without capturing the whole runtime. Derefs
+    /// transparently, so `self.plugins.load(...)` is unchanged.
+    pub plugins: Arc<host::PluginHost>,
     pub trust: TrustManager,
     pub telemetry: TelemetryBus,
     /// mpsc senders to plugin runner threads, keyed by plugin_id.
@@ -641,14 +645,72 @@ impl TractorNative {
         let plugin_registry = host::PluginRegistry::default();
         let plugin_channels: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
         let event_router = EventRouter::default();
+        let plugin_paths: Arc<RwLock<HashMap<String, std::path::PathBuf>>> =
+            Arc::new(RwLock::new(HashMap::new()));
         let cross_plugin = host::CrossPluginAccess {
             registry: plugin_registry.clone(),
             event_router: event_router.clone(),
             plugin_channels: plugin_channels.clone(),
+            // Populated just below, once `plugins` exists — the closure holds a Weak to it.
+            self_respond: Arc::new(std::sync::OnceLock::new()),
         };
-        let plugins =
+        let plugins = Arc::new(
             host::PluginHost::new(trust.clone(), telemetry.clone(), config.on_event_budget_ms)?
-                .with_cross_plugin(cross_plugin);
+                .with_cross_plugin(cross_plugin.clone()),
+        );
+
+        // Wire self-dispatch: give the shared `self_respond` cell a spawner that loads a
+        // FRESH instance of a plugin (by its recorded path) and runs `respond` on it —
+        // the re-entrancy path for a plugin dispatching to itself. Captures a Weak to the
+        // host (no cycle: the host holds cross, cross holds only a Weak back), the
+        // plugin_paths map, and the sync handle. Same Arc<OnceLock> the host's cloned
+        // bindings see, so setting it here lights it up everywhere.
+        {
+            let host_weak = Arc::downgrade(&plugins);
+            let paths = plugin_paths.clone();
+            let sync_for_spawn = sync.clone();
+            let spawner: host::SelfRespondSpawner = Arc::new(move |plugin_id: String, payload: String| {
+                let host_weak = host_weak.clone();
+                let paths = paths.clone();
+                let sync_for_spawn = sync_for_spawn.clone();
+                // The load + respond hold a !Send wasmtime store, so run them on the
+                // CURRENT runner's LocalSet via spawn_local and hand the result back over a
+                // oneshot. The future we RETURN only awaits the oneshot (Send), so this is
+                // callable from the Send-required WIT host methods. The caller (invoke_tool)
+                // is awaiting this on the same current-thread runtime, so it yields and lets
+                // the spawned !Send sub-turn make progress — cooperative, no deadlock.
+                let (tx, rx) = tokio::sync::oneshot::channel::<anyhow::Result<String>>();
+                tokio::task::spawn_local(async move {
+                    let result = async move {
+                        let host = host_weak.upgrade().ok_or_else(|| {
+                            anyhow::anyhow!("self-dispatch: runtime is shutting down")
+                        })?;
+                        let path = paths
+                            .read()
+                            .expect("plugin_paths poisoned")
+                            .get(&plugin_id)
+                            .cloned()
+                            .ok_or_else(|| {
+                                anyhow::anyhow!(
+                                    "self-dispatch: no recorded path for plugin '{plugin_id}' (only file-loaded plugins can self-dispatch)"
+                                )
+                            })?;
+                        // A FRESH instance — its own store + session. respond runs here,
+                        // NOT on the parent's parked runner, so no deadlock.
+                        let mut handle = host.load(&path, &sync_for_spawn).await?;
+                        handle.call_respond(&payload).await
+                    }
+                    .await;
+                    let _ = tx.send(result);
+                });
+                Box::pin(async move {
+                    rx.await
+                        .unwrap_or_else(|_| Err(anyhow::anyhow!("self-dispatch: sub-turn task dropped")))
+                })
+                    as std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<String>> + Send>>
+            });
+            let _ = cross_plugin.self_respond.set(spawner);
+        }
 
         // Reclaim the unbounded streaming graph nodes (one row per streamed chunk)
         // in the background, deleting from both sqlite and the Loro doc so a
@@ -672,7 +734,9 @@ impl TractorNative {
             plugin_registry,
             plugin_runner_handles: Arc::new(RwLock::new(HashMap::new())),
             pool_stores: Arc::new(Mutex::new(HashMap::new())),
-            plugin_paths: Arc::new(RwLock::new(HashMap::new())),
+            // The SAME map the self-dispatch spawner reads — so a plugin loaded via
+            // load_plugin (which records its path here) is self-dispatchable.
+            plugin_paths,
             config,
         })
     }
