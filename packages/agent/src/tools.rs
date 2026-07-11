@@ -71,11 +71,7 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
         {"name":"navigate","description":"Move the active session's conversation pointer to a specific entry in the tree. Use this to resume from an earlier point (e.g., before trying a different approach).",
          "input_schema":{"type":"object","properties":{"session_id":{"type":"string","description":"Session to navigate"},"entry_id":{"type":"string","description":"Target entry to set as new leaf"}},"required":["session_id","entry_id"]}},
         {"name":"fork","description":"Create a new session branching from a specific entry of an existing session. The original session is unchanged. Use before exploring a risky approach.",
-         "input_schema":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string","description":"Optional name for the new fork"}},"required":["session_id","entry_id"]}},
-        {"name":"find_references","description":"Find all references to a symbol at a given location in source code. Requires a language server (LSP) to be connected to the project.",
-         "input_schema":{"type":"object","properties":{"file":{"type":"string","description":"Absolute path to the source file"},"line":{"type":"integer","description":"0-based line number"},"column":{"type":"integer","description":"0-based column number"}},"required":["file","line","column"]}},
-        {"name":"rename_symbol","description":"Rename a symbol at a given location across the entire project. Requires a language server (LSP). Returns files changed and edit count.",
-         "input_schema":{"type":"object","properties":{"file":{"type":"string"},"line":{"type":"integer"},"column":{"type":"integer"},"new_name":{"type":"string","description":"New name for the symbol"}},"required":["file","line","column","new_name"]}}
+         "input_schema":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string","description":"Optional name for the new fork"}},"required":["session_id","entry_id"]}}
     ])
 }
 
@@ -112,10 +108,6 @@ pub(crate) fn tools_openai() -> serde_json::Value {
         {"type":"function","function":{"name":"navigate","description":"Move the active session's conversation pointer to a specific entry in the tree.",
          "parameters":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"}},"required":["session_id","entry_id"]}}},
         {"type":"function","function":{"name":"fork","description":"Create a new session branching from a specific entry of an existing session.",
-         "parameters":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string"}},"required":["session_id","entry_id"]}}},
-        {"type":"function","function":{"name":"find_references","description":"Find all references to a symbol at a given source location. Requires LSP.",
-         "parameters":{"type":"object","properties":{"file":{"type":"string"},"line":{"type":"integer"},"column":{"type":"integer"}},"required":["file","line","column"]}}},
-        {"type":"function","function":{"name":"rename_symbol","description":"Rename a symbol across the entire project. Requires LSP. Returns files changed and edit count.",
-         "parameters":{"type":"object","properties":{"file":{"type":"string"},"line":{"type":"integer"},"column":{"type":"integer"},"new_name":{"type":"string"}},"required":["file","line","column","new_name"]}}}
+         "parameters":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string"}},"required":["session_id","entry_id"]}}}
     ])
 }

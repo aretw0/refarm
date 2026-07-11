@@ -1,4 +1,3 @@
-mod code_ops_tools;
 mod fs_shell;
 mod fs_tools;
 #[cfg(target_arch = "wasm32")]
@@ -67,10 +66,11 @@ pub(crate) fn dispatch_tool(name: &str, input: &serde_json::Value) -> String {
         "list_tasks" => task_tools::list_tasks(input),
         "task_status" => task_tools::task_status(input),
 
-        // LSP code ops
-        "find_references" => code_ops_tools::find_references(input),
-        "rename_symbol" => code_ops_tools::rename_symbol(input),
-
+        // LSP code ops (find_references / rename_symbol) are no longer built in:
+        // they were extracted into the @refarm/lsp-code-ops core-plugin, which
+        // surfaces them as the `code-ops_find-references` / `code-ops_rename-symbol`
+        // verbs. The catch-all below routes those to the plugin under ITS OWN grant.
+        //
         // A tool not built in here is a registry-contributed plugin tool (#6):
         // route it to the host's invoke-capability-tool, which dispatches to the
         // owning plugin under THAT plugin's grant. Only on wasm (the host import

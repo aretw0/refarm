@@ -194,70 +194,26 @@ fn a5_agent_id_absent_produces_plain_hex() {
     );
 }
 
+/// Code-ops (find_references / rename_symbol) are NO LONGER built-in tools: they
+/// were extracted into the @refarm/lsp-code-ops core-plugin and now reach the
+/// model through the capability-tools seam as `code-ops_find-references` /
+/// `code-ops_rename-symbol`. This pins the extraction — a regression that
+/// re-adds them as built-ins (shadowing the plugin) fails here. The verbs'
+/// arg-schema contract lives in the plugin's plugin.json + its own native tests.
 #[test]
-fn tools_anthropic_includes_code_ops() {
-    let tools = tools_anthropic();
-    let names = tool_names_from_anthropic(&tools);
+fn code_ops_are_not_built_in_tools_they_come_from_the_lsp_plugin() {
+    let anthropic = tool_names_from_anthropic(&tools_anthropic());
+    let openai = tool_names_from_openai(&tools_openai());
     for name in ["find_references", "rename_symbol"] {
         assert!(
-            names.contains(&name.to_string()),
-            "tools_anthropic missing: {name}"
+            !anthropic.contains(&name.to_string()),
+            "tools_anthropic must NOT include {name}: it was extracted into @refarm/lsp-code-ops"
         );
-    }
-}
-
-#[test]
-fn tools_openai_includes_code_ops() {
-    let tools = tools_openai();
-    let names = tool_names_from_openai(&tools);
-    for name in ["find_references", "rename_symbol"] {
         assert!(
-            names.contains(&name.to_string()),
-            "tools_openai missing: {name}"
+            !openai.contains(&name.to_string()),
+            "tools_openai must NOT include {name}: it was extracted into @refarm/lsp-code-ops"
         );
     }
-}
-
-#[test]
-fn tools_find_references_has_required_fields() {
-    let tools = tools_anthropic();
-    let t = tools
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|t| t["name"] == "find_references")
-        .expect("find_references not found");
-    let req: Vec<&str> = t["input_schema"]["required"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|v| v.as_str().unwrap())
-        .collect();
-    assert!(
-        req.contains(&"file") && req.contains(&"line") && req.contains(&"column"),
-        "find_references must require file, line, column"
-    );
-}
-
-#[test]
-fn tools_rename_symbol_has_required_fields() {
-    let tools = tools_anthropic();
-    let t = tools
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|t| t["name"] == "rename_symbol")
-        .expect("rename_symbol not found");
-    let req: Vec<&str> = t["input_schema"]["required"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|v| v.as_str().unwrap())
-        .collect();
-    assert!(
-        req.contains(&"new_name"),
-        "rename_symbol must require new_name"
-    );
 }
 
 #[test]
