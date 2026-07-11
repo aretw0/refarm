@@ -1,10 +1,9 @@
 import { buildJsonErrorEnvelope } from "@refarm.dev/capabilities/envelope";
+import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import type { PluginPolicyMode } from "@refarm.dev/plugin-manifest";
-import { execFile } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { promisify } from "node:util";
 
 import {
 	buildExtensionInstallReport,
@@ -27,8 +26,6 @@ import {
  * build shelled from inside the command.
  */
 
-const pexec = promisify(execFile);
-
 /** Where a repo's `plugin.json` may live, relative to the clone root. */
 const MANIFEST_DIR_CANDIDATES = [".", "dist"] as const;
 const MANIFEST_FILENAMES = ["plugin.json", "ext.json"] as const;
@@ -38,12 +35,20 @@ const MANIFEST_FILENAMES = ["plugin.json", "ext.json"] as const;
 export type CloneRepo = (input: { remote: string; ref?: string; dest: string }) => Promise<void>;
 
 /** The default clone: a SHALLOW `git clone --depth 1` (history is irrelevant to an
- * install), honoring `--branch <ref>` when a ref is given. `execFile` (no shell). */
+ * install), honoring `--branch <ref>` when a ref is given. The subprocess is spawned
+ * by the process-handoff adapter (no shell, no child_process import in app source —
+ * the app describes the process, the substrate executes it). */
 const defaultCloneRepo: CloneRepo = async ({ remote, ref, dest }) => {
 	const args = ["clone", "--depth", "1"];
 	if (ref) args.push("--branch", ref);
 	args.push(remote, dest);
-	await pexec("git", args, { maxBuffer: 64 * 1024 * 1024 });
+	const { exitCode, stderr } = await runProcessHandoff(
+		{ command: "git", args, display: ["git", ...args].join(" ") },
+		{ capture: true },
+	);
+	if (exitCode !== 0) {
+		throw new Error(`git clone exited with code ${exitCode}${stderr ? `: ${stderr.trim()}` : ""}`);
+	}
 };
 
 export interface GitInstallInput {
