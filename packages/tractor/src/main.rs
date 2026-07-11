@@ -536,6 +536,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         tractor.telemetry.clone(),
         scarecrow_base.clone(),
         tractor.observer_channels.clone(),
+        tractor.agent_observer_channels.clone(),
     );
     tracing::info!(
         "Scarecrow audit subscriber started → {}/scarecrow-audit.ndjson",

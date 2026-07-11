@@ -18,10 +18,12 @@ use tokio::io::AsyncWriteExt as _;
 use crate::telemetry::{TelemetryBus, TelemetryEvent};
 use crate::{EventEnvelope, PluginChannels};
 
-pub use crate::capabilities::CAP_OBSERVE_HOST_EFFECTS;
+pub use crate::capabilities::{CAP_OBSERVE_AGENT_EVENTS, CAP_OBSERVE_HOST_EFFECTS};
 
 pub const AUDIT_FILE: &str = "scarecrow-audit.ndjson";
 const HOST_EFFECT_PREFIX: &str = "host-effect:";
+/// The prefix the agent narrates its lifecycle under (mirrors agent_events.rs).
+const AGENT_EVENT_PREFIX: &str = "agent:";
 
 /// Audit rotation knobs, resolved from env ONCE at boot (`AuditConfig::from_env`)
 /// and threaded through the audit-subscriber write path, so rotation reads a
@@ -79,12 +81,14 @@ pub fn spawn_audit_subscriber(
     telemetry: TelemetryBus,
     base_dir: PathBuf,
     observer_channels: PluginChannels,
+    agent_observer_channels: PluginChannels,
 ) {
     // Audit rotation knobs resolved from env ONCE here at spawn.
     tokio::spawn(audit_subscriber_task(
         telemetry,
         base_dir,
         observer_channels,
+        agent_observer_channels,
         AuditConfig::from_env(),
     ));
 }
@@ -93,6 +97,7 @@ async fn audit_subscriber_task(
     telemetry: TelemetryBus,
     base_dir: PathBuf,
     observer_channels: PluginChannels,
+    agent_observer_channels: PluginChannels,
     config: AuditConfig,
 ) {
     let audit_path = base_dir.join(AUDIT_FILE);
@@ -100,12 +105,18 @@ async fn audit_subscriber_task(
     loop {
         match rx.recv().await {
             Ok(event) => {
-                if !event.event.starts_with(HOST_EFFECT_PREFIX) {
-                    continue;
-                }
-                if let Some(line) = format_audit_line(&event) {
-                    append_line(&audit_path, &line, config).await;
-                    forward_to_observers(&event, &line, &observer_channels);
+                // Route by prefix off the SAME telemetry subscription: host effects
+                // go to the audit log + host-effect observers; agent lifecycle events
+                // go to agent-event observers. Anything else is ignored.
+                if event.event.starts_with(HOST_EFFECT_PREFIX) {
+                    if let Some(line) = format_audit_line(&event) {
+                        append_line(&audit_path, &line, config).await;
+                        forward_to_observers(&event, &line, &observer_channels);
+                    }
+                } else if event.event.starts_with(AGENT_EVENT_PREFIX) {
+                    if let Some(line) = format_audit_line(&event) {
+                        forward_to_observers(&event, &line, &agent_observer_channels);
+                    }
                 }
             }
             Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
@@ -362,6 +373,41 @@ mod tests {
         assert_eq!(msg1.event, "host-effect:fs:write");
         assert_eq!(msg2.event, "host-effect:fs:write");
         assert!(msg1.payload.unwrap().contains("512"));
+    }
+
+    #[test]
+    fn agent_and_host_effect_observers_are_distinct_capabilities() {
+        // The two observer opt-ins must not collapse into one — an audit observer
+        // should not be force-fed agent chatter, and vice versa.
+        assert_ne!(CAP_OBSERVE_HOST_EFFECTS, CAP_OBSERVE_AGENT_EVENTS);
+        assert_eq!(CAP_OBSERVE_AGENT_EVENTS, "observe-agent-events");
+    }
+
+    #[test]
+    fn an_agent_event_forwards_to_the_agent_observer_channel() {
+        use std::collections::HashMap;
+        use std::sync::{Arc, RwLock};
+        use tokio::sync::mpsc;
+
+        let (tx, mut rx) = mpsc::unbounded_channel::<EventEnvelope>();
+        let agent_observers: PluginChannels = Arc::new(RwLock::new({
+            let mut m = HashMap::new();
+            m.insert("@refarm/run-tracer".to_string(), tx);
+            m
+        }));
+
+        // A tool:call lifecycle event carries the run correlation + tool name.
+        let ev = make_event(
+            "agent:tool:call",
+            Some("agent"),
+            serde_json::json!({ "prompt_ref": "urn:refarm:prompt-1", "tool": "read_file", "ok": true }),
+        );
+        let line = format_audit_line(&ev).unwrap();
+        forward_to_observers(&ev, &line, &agent_observers);
+
+        let msg = rx.try_recv().expect("agent-event observer should receive");
+        assert_eq!(msg.event, "agent:tool:call");
+        assert!(msg.payload.unwrap().contains("read_file"));
     }
 
     #[test]

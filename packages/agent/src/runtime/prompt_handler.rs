@@ -101,6 +101,11 @@ pub(crate) fn execute_prompt_with_route(
     else {
         return None;
     };
+    // AgentEvent: the run began. Bind prompt_ref as the ambient run context so the
+    // deep loop/tool/budget emits below correlate without threading it, then emit the
+    // start — every later `agent:*` event of this run shares this prompt_ref.
+    crate::agent_events::enter_run(&ctx.prompt_ref);
+    crate::agent_events::prompt_start(&ctx.prompt_ref, &ctx.session_id);
     let task_memory_id =
         prompt_persistence::open_prompt_task(&ctx.session_id, &ctx.prompt_ref, prompt);
 
@@ -137,6 +142,10 @@ pub(crate) fn execute_prompt_with_route(
         (None, _) => {}
     }
 
+    // Count tool calls before the value is moved into the turn record — the
+    // response:done event reports the answer's SHAPE (not its body).
+    let tool_call_count = tool_calls.as_array().map(|a| a.len()).unwrap_or(0);
+
     prompt_persistence::store_agent_turn(
         &ctx.prompt_ref,
         &ctx.session_id,
@@ -149,6 +158,17 @@ pub(crate) fn execute_prompt_with_route(
             duration_ms,
             sequence: response_sequence,
         },
+    );
+
+    // AgentEvent: the run produced its final response. The full content lives in the
+    // AgentResponse node just stored; this carries the shape an observer reads first.
+    crate::agent_events::response_done(
+        &ctx.prompt_ref,
+        content.chars().count(),
+        tool_call_count,
+        tokens_in,
+        tokens_out,
+        duration_ms,
     );
 
     let provider_name = crate::provider_name_from_env();

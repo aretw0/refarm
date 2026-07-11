@@ -17,6 +17,9 @@ where
     ) -> Result<Option<String>, String>,
 {
     for iter_idx in 0..=max_iter {
+        // AgentEvent: the run entered react iteration `iter_idx` of `max_iter` — lets
+        // an observer spot a looping/runaway agent (correlated via ambient run ctx).
+        crate::agent_events::iteration(iter_idx, max_iter);
         let (response, phase) = response_and_phase(&mut state)?;
         if let Some(text) = step(&mut state, &phase, iter_idx, max_iter, &response)? {
             return Ok(CompletionLoopOutcome {

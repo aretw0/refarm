@@ -33,6 +33,9 @@ fn run_primary_completion(
     messages: &[(String, String)],
 ) -> Result<crate::provider::CompletionResult, String> {
     if crate::budget_exceeded_for_provider(provider_name) {
+        // AgentEvent: the spend guard tripped — an observer acts on cost distinctly
+        // from a generic error (correlated via ambient run ctx).
+        crate::agent_events::budget_blocked(provider_name);
         Err(format!(
             "[budget] MODEL_BUDGET_{}_USD exceeded — primary provider blocked",
             provider_name.to_uppercase()
@@ -49,6 +52,7 @@ fn try_fallback_completion(
 ) -> Option<ReactResult> {
     let fallback_name = std::env::var("MODEL_FALLBACK_PROVIDER").ok()?;
     if crate::budget_exceeded_for_provider(&fallback_name) {
+        crate::agent_events::budget_blocked(&fallback_name);
         return Some(error_result(
             format!(
                 "[runtime-agent error] primary: {primary_err}; fallback: [budget] MODEL_BUDGET_{}_USD exceeded - fallback provider blocked",
@@ -67,10 +71,13 @@ fn try_fallback_completion(
 
     Some(match fb.complete(system, messages) {
         Ok(r) => completion_result(fb_model, r),
-        Err(e) => error_result(
-            format!("[runtime-agent error] primary: {primary_err}; fallback: {e}"),
-            fb_model,
-        ),
+        Err(e) => {
+            let msg = format!("[runtime-agent error] primary: {primary_err}; fallback: {e}");
+            // AgentEvent: the run failed terminally (both providers). The failure
+            // signal an operator most needs (correlated via ambient run ctx).
+            crate::agent_events::error(&msg);
+            error_result(msg, fb_model)
+        }
     })
 }
 
@@ -121,7 +128,10 @@ pub(crate) fn run_wasm_react_with_prompt_ref_and_route(
             {
                 fallback_result
             } else {
-                error_result(format!("[runtime-agent error] {primary_err}"), model)
+                // AgentEvent: terminal failure — primary errored and no fallback ran.
+                let msg = format!("[runtime-agent error] {primary_err}");
+                crate::agent_events::error(&msg);
+                error_result(msg, model)
             }
         }
     }

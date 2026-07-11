@@ -561,6 +561,11 @@ pub struct TractorNative {
     /// the `"observe-host-effects"` capability in their manifest.
     /// Read by the Scarecrow audit subscriber to route host-effect events.
     pub observer_channels: PluginChannels,
+    /// Subset of `plugin_channels` containing only plugins that declared
+    /// the `"observe-agent-events"` capability. Read by the same subscriber to
+    /// route `agent:*` lifecycle events — kept separate from `observer_channels`
+    /// so a host-effect audit observer and an agent-run tracer are distinct opt-ins.
+    pub agent_observer_channels: PluginChannels,
     /// Cancel flags keyed by plugin_id, shared with each plugin store's epoch
     /// callback. Populated by `register_for_events`; read by the sidecar's
     /// effort-cancel to force-interrupt a wedged guest.
@@ -659,6 +664,7 @@ impl TractorNative {
             telemetry,
             plugin_channels,
             observer_channels: Arc::new(RwLock::new(HashMap::new())),
+            agent_observer_channels: Arc::new(RwLock::new(HashMap::new())),
             cancel_flags: Arc::new(RwLock::new(HashMap::new())),
             in_flight_cancels: Arc::new(RwLock::new(HashMap::new())),
             default_responder_id: Arc::new(RwLock::new(None)),
@@ -938,8 +944,16 @@ impl TractorNative {
             self.observer_channels
                 .write()
                 .expect("observer_channels poisoned")
-                .insert(plugin_id.clone(), tx);
+                .insert(plugin_id.clone(), tx.clone());
             tracing::info!(plugin_id = %plugin_id, "registered as host-effect observer");
+        }
+
+        if provides.contains(&crate::observer::CAP_OBSERVE_AGENT_EVENTS.to_string()) {
+            self.agent_observer_channels
+                .write()
+                .expect("agent_observer_channels poisoned")
+                .insert(plugin_id.clone(), tx);
+            tracing::info!(plugin_id = %plugin_id, "registered as agent-event observer");
         }
 
         self.plugin_runner_handles
@@ -995,6 +1009,10 @@ impl TractorNative {
         self.observer_channels
             .write()
             .expect("observer_channels poisoned")
+            .remove(plugin_id);
+        self.agent_observer_channels
+            .write()
+            .expect("agent_observer_channels poisoned")
             .remove(plugin_id);
 
         // Neutral router + capability registry + agent policy + interrupt/staging state.

@@ -42,6 +42,11 @@ wit_bindgen::generate!({
     path: "../plugin-wit/wit",
 });
 
+// The emit fns fire only on wasm (the host telemetry import), while the pure payload
+// shapers are exercised by native tests — so on a native build several items read as
+// unused. Same cfg-split shape as the provider modules below.
+#[allow(dead_code)]
+mod agent_events;
 mod compress;
 #[cfg(target_arch = "wasm32")]
 mod provider;
