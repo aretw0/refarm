@@ -187,7 +187,7 @@ pub(crate) fn snapshot_seen_response_ids(
     let storage = NativeStorage::open(namespace)
         .with_context(|| format!("open storage namespace '{namespace}'"))?;
 
-    let rows = storage.query_nodes("Response")?;
+    let rows = storage.query_nodes(tractor::sidecar::AGENT_RESPONSE_NODE_TYPE)?;
     let seen = rows
         .into_iter()
         .filter(|row| agent_filter.is_empty() || row.source_plugin.as_deref() == Some(agent_filter))
@@ -206,7 +206,7 @@ pub(crate) fn collect_new_response_events(
         .with_context(|| format!("open storage namespace '{namespace}'"))?;
 
     let mut out = Vec::new();
-    for row in storage.query_nodes("Response")? {
+    for row in storage.query_nodes(tractor::sidecar::AGENT_RESPONSE_NODE_TYPE)? {
         if seen.contains(&row.id) {
             continue;
         }

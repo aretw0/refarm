@@ -623,7 +623,7 @@ fn store_stream_agent_response_chunk(
     let node = stream_agent_response_chunk_node(&node_id, timestamp_ns, metadata, chunk);
     sync.store_node(
         &node_id,
-        "Response",
+        crate::sidecar::AGENT_RESPONSE_NODE_TYPE,
         None,
         &node.to_string(),
         Some(source_plugin),
@@ -766,7 +766,7 @@ fn stream_agent_response_chunk_node(
     chunk: &ModelStreamTextChunkDraft,
 ) -> serde_json::Value {
     serde_json::json!({
-        "@type":        "Response",
+        "@type":        crate::sidecar::AGENT_RESPONSE_NODE_TYPE,
         "@id":          node_id,
         "prompt_ref":   metadata.prompt_ref,
         "content":      chunk.content_delta,

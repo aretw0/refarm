@@ -10,6 +10,18 @@ use super::{
     write_stream_chunk, Effort, EffortResult, EffortTask, SidecarState, TaskResult,
 };
 
+/// The agent's TERMINAL-RESULT contract, declared ONCE. A responding plugin stores
+/// a node of `AGENT_RESPONSE_NODE_TYPE` carrying its `content`, keyed by
+/// `AGENT_RESPONSE_CORRELATION_KEY` (the prompt it answers) and marked terminal by
+/// `AGENT_RESPONSE_TERMINAL_FIELD`; the host watches for exactly that shape to
+/// finalise the respond effort. These name the contract the host applies as the
+/// DEFAULT for every responder today — the seam a per-plugin declared contract would
+/// later populate — instead of the host re-stating `"Response"` as a bare literal
+/// across the store, watcher, reader, and reaper.
+pub const AGENT_RESPONSE_NODE_TYPE: &str = "Response";
+pub const AGENT_RESPONSE_CORRELATION_KEY: &str = "prompt_ref";
+pub const AGENT_RESPONSE_TERMINAL_FIELD: &str = "is_final";
+
 #[derive(Debug)]
 pub(crate) struct TaskArgs {
     pub(crate) prompt: String,
@@ -45,10 +57,10 @@ impl TerminalResultSpec {
     /// terminal when `is_final` — so the LLM path is byte-for-byte unchanged.
     pub(crate) fn agent_response(prompt_ref: impl Into<String>) -> Self {
         Self {
-            node_type: "Response".to_string(),
-            correlation_key: "prompt_ref".to_string(),
+            node_type: AGENT_RESPONSE_NODE_TYPE.to_string(),
+            correlation_key: AGENT_RESPONSE_CORRELATION_KEY.to_string(),
             correlation_value: prompt_ref.into(),
-            terminal_flag_field: "is_final".to_string(),
+            terminal_flag_field: AGENT_RESPONSE_TERMINAL_FIELD.to_string(),
         }
     }
 }

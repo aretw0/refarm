@@ -620,6 +620,11 @@ pub async fn post_plugin_respond(
 
 mod dispatch;
 pub(crate) use dispatch::*;
+// The agent terminal-result contract is part of the crate's PUBLIC surface: the
+// `tractor` binary's CLI readers query for it too, and they are a separate crate.
+pub use dispatch::{
+    AGENT_RESPONSE_CORRELATION_KEY, AGENT_RESPONSE_NODE_TYPE, AGENT_RESPONSE_TERMINAL_FIELD,
+};
 mod reap;
 async fn post_efforts(
     State(state): State<SidecarState>,

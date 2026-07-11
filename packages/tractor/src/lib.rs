@@ -336,17 +336,20 @@ fn on_event_budget_ms_from_env() -> u64 {
 /// is logged, not fatal (the watcher then falls back to its timeout, no worse
 /// than before this fix).
 fn write_terminal_error_result(sync: &NativeSync, plugin_id: &str, prompt_ref: &str, error: &str) {
+    use crate::sidecar::{
+        AGENT_RESPONSE_CORRELATION_KEY, AGENT_RESPONSE_NODE_TYPE, AGENT_RESPONSE_TERMINAL_FIELD,
+    };
     let id = format!("urn:result:error:{prompt_ref}");
     let payload = serde_json::json!({
-        "@type": "Response",
+        "@type": AGENT_RESPONSE_NODE_TYPE,
         "@id": id,
-        "prompt_ref": prompt_ref,
+        AGENT_RESPONSE_CORRELATION_KEY: prompt_ref,
         "content": error,
-        "is_final": true,
+        AGENT_RESPONSE_TERMINAL_FIELD: true,
         "is_error": true,
     })
     .to_string();
-    if let Err(e) = sync.store_node(&id, "Response", None, &payload, Some(plugin_id)) {
+    if let Err(e) = sync.store_node(&id, AGENT_RESPONSE_NODE_TYPE, None, &payload, Some(plugin_id)) {
         tracing::warn!(
             plugin_id = %plugin_id,
             prompt_ref = %prompt_ref,

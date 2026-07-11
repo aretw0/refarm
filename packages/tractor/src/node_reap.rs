@@ -32,7 +32,11 @@ use crate::storage::NodeRow;
 use crate::sync::NativeSync;
 
 /// The ONLY node types the reaper may delete. Everything else is kept.
-pub(crate) const REAPABLE_TYPES: &[&str] = &["Response", "StreamChunk", "StreamSession"];
+pub(crate) const REAPABLE_TYPES: &[&str] = &[
+    crate::sidecar::AGENT_RESPONSE_NODE_TYPE,
+    "StreamChunk",
+    "StreamSession",
+];
 
 /// A StreamSession is only reapable once it reached a terminal status — an
 /// `active` (still-streaming) session is never swept mid-flight.
@@ -73,7 +77,7 @@ impl NodeTtls {
 
     fn ttl_ms_for(&self, type_: &str) -> Option<u64> {
         match type_ {
-            "Response" => Some(self.agent_response_ms),
+            crate::sidecar::AGENT_RESPONSE_NODE_TYPE => Some(self.agent_response_ms),
             "StreamChunk" => Some(self.stream_chunk_ms),
             "StreamSession" => Some(self.stream_session_ms),
             _ => None, // not reapable
