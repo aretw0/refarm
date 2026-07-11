@@ -2,6 +2,16 @@ export const RECORDS_CAPABILITY = "records:v1" as const;
 export const RECORDS_MANIFEST_VERSION = 1 as const;
 export const CURRENT_RECORD_SCHEMA_VERSION = 1 as const;
 
+/**
+ * The JSON-LD `@context` IRI stamped on a KnowledgeRecord. It is an opaque
+ * namespace label (never dereferenced at runtime) whose document is SERVED by
+ * the app at this path (apps/site/src/pages/contexts/records/v1.ts) — the app
+ * owns the brand address. This single constant is the substrate's reference to
+ * it; consumers import it rather than duplicating the literal, so repointing the
+ * host (when it moves off refarm.dev) is a one-line change here.
+ */
+export const RECORDS_CONTEXT_IRI = "https://refarm.dev/contexts/records/v1" as const;
+
 export interface RecordRelation {
 	type: string;
 	target: string;

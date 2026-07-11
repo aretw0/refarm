@@ -1,6 +1,7 @@
 import { isCapabilityGroup, resolveGroupAction } from "@refarm.dev/capabilities";
 import {
 	parseRecordsYamlLdFrontMatter,
+	RECORDS_CONTEXT_IRI,
 	type RecordsManifest,
 } from "@refarm.dev/records-contract-v1";
 import fs from "node:fs";
@@ -59,7 +60,7 @@ describe("vault CapabilityGroup", () => {
 					id: "record:local",
 					schemaVersion: 1,
 					"@type": ["KnowledgeRecord"],
-					"@context": "https://refarm.dev/contexts/records/v1",
+					"@context": RECORDS_CONTEXT_IRI,
 					fields: { title: "Local" },
 					contentHash: "hash",
 				},
@@ -209,7 +210,7 @@ describe("vault init — initialize a records vault (seed is INJECTED, not baked
 					id: "record:starter",
 					schemaVersion: 1,
 					"@type": ["KnowledgeRecord"],
-					"@context": "https://refarm.dev/contexts/records/v1",
+					"@context": RECORDS_CONTEXT_IRI,
 					fields: { title: "Starter" },
 					sections: [{ key: "description", content: "A seeded starter note." }],
 				},

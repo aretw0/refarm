@@ -1,5 +1,15 @@
 export const CREDENTIALS_CAPABILITY = "credentials:v1" as const;
 
+/**
+ * The JSON-LD `@context` IRI for a sovereign VerifiableCredential (paired with the
+ * W3C `credentials/v1` context). An opaque namespace label (never dereferenced at
+ * runtime) whose document is SERVED by the app at this path
+ * (apps/site/src/pages/contexts/credentials/v1.ts) — the app owns the brand
+ * address. This single constant is the substrate's reference; repointing the host
+ * is a one-line change here.
+ */
+export const CREDENTIALS_CONTEXT_IRI = "https://refarm.dev/contexts/credentials/v1" as const;
+
 export interface CredentialProof {
 	type: string;
 	created: string;

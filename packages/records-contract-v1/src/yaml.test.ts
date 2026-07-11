@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	computeRecordContentHash,
 	createReferenceRecordsProvider,
+	RECORDS_CONTEXT_IRI,
 	type KnowledgeRecord,
 	type RecordsManifest,
 } from "./index.js";
@@ -20,7 +21,7 @@ describe("records:v1 YAML-LD codec", () => {
 		const note = `---
 id: record:yaml-note
 schemaVersion: 1
-"@context": https://refarm.dev/contexts/records/v1
+"@context": ${RECORDS_CONTEXT_IRI}
 "@type":
   - KnowledgeRecord
   - Note

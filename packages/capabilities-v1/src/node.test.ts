@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { RecordsManifest } from "@refarm.dev/records-contract-v1";
+import { RECORDS_CONTEXT_IRI, type RecordsManifest } from "@refarm.dev/records-contract-v1";
 
 import {
 	createLocalRecordsCommandDeps,
@@ -34,7 +34,7 @@ function manifest(state = "draft"): RecordsManifest {
 				id: "record:one",
 				schemaVersion: 1,
 				"@type": ["KnowledgeRecord"],
-				"@context": "https://refarm.dev/contexts/records/v1",
+				"@context": RECORDS_CONTEXT_IRI,
 				fields: { title: "One" },
 				review: { state, at: "2026-07-07T00:00:00.000Z" },
 				contentHash: "hash",

@@ -1,13 +1,16 @@
 import { createHash } from "node:crypto";
 
-import { createReferenceCredentialsProvider } from "../../packages/credentials-contract-v1/dist/index.js";
+import {
+	createReferenceCredentialsProvider,
+	CREDENTIALS_CONTEXT_IRI,
+} from "../../packages/credentials-contract-v1/dist/index.js";
 import {
 	HEARTWOOD_IDENTITY_ALGORITHM,
 	createHeartwoodIdentityProvider,
 } from "../../packages/identity-heartwood/dist/index.js";
 import { MemoryStorage } from "../../packages/storage-memory/dist/index.js";
 
-export const SCHEMA = "refarm.sovereign-citizen-reference.v1";
+export const SCHEMA = "sovereign-citizen-reference.v1";
 export const GENERATED_AT = "2026-07-01T00:00:00.000Z";
 
 const VC_TYPE = "SovereignCitizenReferenceCredential";
@@ -43,7 +46,7 @@ function sanitizedCredentialTemplate() {
 	return {
 		"@context": [
 			"https://www.w3.org/2018/credentials/v1",
-			"https://refarm.dev/contexts/credentials/v1",
+			CREDENTIALS_CONTEXT_IRI,
 		],
 		type: ["VerifiableCredential", VC_TYPE],
 		id: "urn:refarm:credential:sovereign-citizen-reference",

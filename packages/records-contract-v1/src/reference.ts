@@ -1,6 +1,7 @@
 import {
 	CURRENT_RECORD_SCHEMA_VERSION,
 	RECORDS_CAPABILITY,
+	RECORDS_CONTEXT_IRI,
 	RECORDS_MANIFEST_VERSION,
 	type KnowledgeRecord,
 	type RecordAttachment,
@@ -302,7 +303,7 @@ export function createReferenceRecordsFixture(): RecordsManifest {
 			id: "record:requirements-root",
 			schemaVersion: CURRENT_RECORD_SCHEMA_VERSION,
 			"@type": ["KnowledgeRecord", "Requirement"],
-			"@context": "https://refarm.dev/contexts/records/v1",
+			"@context": RECORDS_CONTEXT_IRI,
 			fields: {
 				title: "Requirements root",
 				status: "draft",

@@ -1,5 +1,9 @@
 import { isCapabilityGroup } from "@refarm.dev/capabilities";
-import { computeRecordContentHash, type RecordsManifest } from "@refarm.dev/records-contract-v1";
+import {
+	computeRecordContentHash,
+	RECORDS_CONTEXT_IRI,
+	type RecordsManifest,
+} from "@refarm.dev/records-contract-v1";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -18,7 +22,7 @@ function injectedManifest(): RecordsManifest {
 			id: "record:one",
 			schemaVersion: 1,
 			"@type": ["KnowledgeRecord"],
-			"@context": "https://refarm.dev/contexts/records/v1",
+			"@context": RECORDS_CONTEXT_IRI,
 			fields: { title: "One", externalKey: "REQ-1" },
 			review: { state: "draft", at: "2026-06-30T00:00:00.000Z" },
 			contentHash: "",
@@ -27,7 +31,7 @@ function injectedManifest(): RecordsManifest {
 			id: "record:two",
 			schemaVersion: 1,
 			"@type": ["KnowledgeRecord"],
-			"@context": "https://refarm.dev/contexts/records/v1",
+			"@context": RECORDS_CONTEXT_IRI,
 			fields: { title: "Two", externalKey: "REQ-2" },
 			review: { state: "reviewed", at: "2026-06-30T00:00:00.000Z" },
 			contentHash: "",

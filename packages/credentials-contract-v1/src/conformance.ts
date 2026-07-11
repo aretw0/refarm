@@ -1,5 +1,6 @@
 import {
 	CREDENTIALS_CAPABILITY,
+	CREDENTIALS_CONTEXT_IRI,
 	type CredentialsConformanceResult,
 	type CredentialsProvider,
 	type VerifiableCredential,
@@ -9,7 +10,7 @@ function baseCredential(overrides: Partial<VerifiableCredential> = {}): Verifiab
 	return {
 		"@context": [
 			"https://www.w3.org/2018/credentials/v1",
-			"https://refarm.dev/contexts/credentials/v1",
+			CREDENTIALS_CONTEXT_IRI,
 		],
 		type: ["VerifiableCredential", "RefarmConformanceCredential"],
 		issuer: "pending",
