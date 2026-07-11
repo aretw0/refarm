@@ -69,6 +69,26 @@ describe("StructAwareEncoder", () => {
 		expect(Array.from(typeSlice1)).toEqual(Array.from(typeSlice2));
 	});
 
+	it("a known substrate @type categorizes to its slot, not the unknown bucket", () => {
+		// Regression: the vocab keyed substrate types under a `refarm:` CURIE
+		// (`refarm:Command`), but real nodes carry the BARE @type (`Command`).
+		// A prefixed key never matched, so every plugin/command/identity node
+		// silently collapsed into `unknown` — losing its category signal. A known
+		// bare type must now encode DIFFERENTLY from a genuinely-unknown type.
+		const known = { "@type": "Command", "@id": "urn:a" };
+		const genuinelyUnknown = { "@type": "SomethingNeverSeen", "@id": "urn:b" };
+		const event = { event: "plugin:load" };
+
+		const kSlice = encoder
+			.encode(known, event)
+			.slice(SLOTS.type.offset, SLOTS.type.offset + SLOTS.type.width);
+		const uSlice = encoder
+			.encode(genuinelyUnknown, event)
+			.slice(SLOTS.type.offset, SLOTS.type.offset + SLOTS.type.width);
+
+		expect(Array.from(kSlice)).not.toEqual(Array.from(uSlice));
+	});
+
 	it("temporal slot encodes recency (recent node > 0 in dims 0-1)", () => {
 		const vec = encoder.encode(mockNode, mockEvent);
 		const temporalSlice = vec.slice(SLOTS.temporal.offset, SLOTS.temporal.offset + 3);

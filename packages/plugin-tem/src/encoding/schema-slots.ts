@@ -51,14 +51,16 @@ export const TYPE_VOCAB: Record<string, number> = {
 	Event: 5,
 	CreativeWork: 6,
 	DataCatalog: 7,
-	// refarm types
-	"refarm:Plugin": 8,
-	"refarm:PluginManifest": 9,
-	"refarm:PluginTrustGrant": 10,
-	"TemMemory": 11,
-	"refarm:NoveltySignal": 12,
-	"refarm:Identity": 13,
-	"refarm:Command": 14,
+	// sovereign substrate types — bare @type, matching the real graph nodes
+	// (the leva dropped the CURIE prefix; a prefixed key here would never match
+	// an emitted node and would silently bucket it as `unknown`).
+	Plugin: 8,
+	PluginManifest: 9,
+	PluginTrustGrant: 10,
+	TemMemory: 11,
+	NoveltySignal: 12,
+	Identity: 13,
+	Command: 14,
 	// meta
 	unknown: 0,
 };
