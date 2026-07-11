@@ -1,5 +1,5 @@
 // The vault:v1 plugin as the JS entry that `jco componentize` compiles into a
-// `refarm-plugin`-world component — the SAME canonical `integration` interface
+// `plugin`-world component — the SAME canonical `integration` interface
 // every refarm plugin exports, so the tractor host loads and calls it exactly
 // like the agent (load_plugin → register_for_events → call_on_event). This is the
 // bridge that runs vault verbs through the REAL runtime, no tractor edits.

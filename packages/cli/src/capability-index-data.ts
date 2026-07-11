@@ -493,7 +493,7 @@ export const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 			{
 				channel: "wit",
 				name: "plugin:host@0.1.0",
-				path: "packages/plugin-wit/wit/refarm-plugin-host.wit",
+				path: "packages/plugin-wit/wit/worlds.wit",
 				status: "internal",
 				note: "Canonical host contract for code-ops; supplyable as WIT, but not promoted as an npm or crates.io package yet.",
 			},

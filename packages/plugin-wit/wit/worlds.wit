@@ -12,7 +12,7 @@ package plugin:host@0.1.0;
 /// Base plugin: exports integration, imports only the data bridge.
 /// Simple plugins (templates, bridges) target this. They still implement all
 /// of `integration`; unused funcs (e.g. respond) return a trivial stub.
-world refarm-plugin {
+world plugin {
     import tractor-bridge;
     export integration;
 }
@@ -34,14 +34,14 @@ world effect-capable {
 }
 
 /// A plugin that also serves as an identity provider.
-world refarm-identity-plugin {
-    include refarm-plugin;
+world identity-plugin {
+    include plugin;
     export identity-provider;
 }
 
 /// A plugin that also serves HTTP requests.
-world refarm-http-plugin {
-    include refarm-plugin;
+world http-plugin {
+    include plugin;
     export http-handler;
 }
 
@@ -49,8 +49,10 @@ world refarm-http-plugin {
 
 /// The world the tractor host generates bindings for. Imports every host
 /// capability (so the host can implement them for plugins) and exports
-/// `integration` (so the host can call into any loaded plugin).
-world refarm-plugin-host {
+/// `integration` (so the host can call into any loaded plugin). Named
+/// `host-plugin` (not `plugin-host`) so the bindgen! type is `HostPlugin`,
+/// which does not collide with the host's own `PluginHost` struct.
+world host-plugin {
     import tractor-bridge;
     import model-bridge;
     import host-fs;

@@ -2,7 +2,7 @@
 // dispatch for the four verbs, shared by BOTH componentize entries:
 //   - surface.js  → the `vault-surface` world (exports run; imports NOTHING;
 //                    the sandbox-by-absence proof)
-//   - plugin.js   → the `refarm-plugin` world (exports the canonical integration
+//   - plugin.js   → the `plugin` world (exports the canonical integration
 //                    interface; imports tractor-bridge; runs on the real runtime)
 //
 // Keeping the logic here (not duplicated in each entry) means the sandbox proof

@@ -216,7 +216,7 @@ describe("Git Atomic Analysis — important commit classification", () => {
 
   it("marks WIT/contract paths as important", () => {
     const assessment = assessCommitImportance("scope:tractor", [
-      { path: "packages/tractor/wit/host/refarm-plugin-host.wit", signals: new Set(["wit-bindings"]) },
+      { path: "packages/plugin-wit/wit/worlds.wit", signals: new Set(["wit-bindings"]) },
     ]);
     expect(assessment.important).toBe(true);
     expect(assessment.reasons.join(" ")).toContain("WIT");

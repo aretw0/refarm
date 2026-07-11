@@ -920,12 +920,12 @@ impl PluginHost {
         // becomes a real WASI enforcement boundary, not just an advisory bool.
         let mut linker_no_http: Linker<TractorStore> = Linker::new(&engine);
         wasmtime_wasi::add_to_linker_async(&mut linker_no_http)?;
-        RefarmPluginHost::add_to_linker(&mut linker_no_http, |s| &mut s.bindings)?;
+        HostPlugin::add_to_linker(&mut linker_no_http, |s| &mut s.bindings)?;
 
         let mut linker: Linker<TractorStore> = Linker::new(&engine);
         wasmtime_wasi::add_to_linker_async(&mut linker)?;
         wasmtime_wasi_http::add_only_http_to_linker_async(&mut linker)?;
-        RefarmPluginHost::add_to_linker(&mut linker, |s| &mut s.bindings)?;
+        HostPlugin::add_to_linker(&mut linker, |s| &mut s.bindings)?;
 
         // ── host-effects.wasm linker ────────────────────────────────────────
         // Does NOT include tractor-bridge (host-effects is not an integration plugin).
@@ -1319,7 +1319,7 @@ impl PluginHost {
             &self.linker_no_http
         };
         let plugin =
-            RefarmPluginHost::instantiate_async(&mut store, &component, linker).await?;
+            HostPlugin::instantiate_async(&mut store, &component, linker).await?;
 
         // The capability profile (the registry aggregate) is built ONCE from the
         // manifest; `concurrent_safe` + `requires_api` ride alongside it but stay

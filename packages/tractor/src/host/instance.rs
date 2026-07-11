@@ -1,14 +1,14 @@
 //! PluginInstanceHandle — wraps a live wasmtime plugin instance.
 //!
 //! Supports two loader paths (ADR-061):
-//!   - P2 Component: RefarmPluginHost WIT bindings + Store<TractorStore>
+//!   - P2 Component: HostPlugin WIT bindings + Store<TractorStore>
 //!   - P1 Module: plain wasmtime::Instance + Store<P1Store>, WASI preview1 ABI
 
 use anyhow::Result;
 use wasmtime::Store;
 
 use crate::host::plugin_host::{
-    EpochGuard, HasEpochGuard, P1Store, RefarmPluginHost, TractorStore,
+    EpochGuard, HasEpochGuard, P1Store, HostPlugin, TractorStore,
 };
 use crate::telemetry::TelemetryBus;
 
@@ -85,7 +85,7 @@ pub enum PluginState {
 
 enum PluginImpl {
     Component {
-        plugin: RefarmPluginHost,
+        plugin: HostPlugin,
         store: Store<TractorStore>,
     },
     Module {
@@ -157,7 +157,7 @@ pub const DEFAULT_ON_EVENT_BUDGET_MS: u64 = 60_000;
 impl PluginInstanceHandle {
     pub(crate) fn new_component(
         id: String,
-        plugin: RefarmPluginHost,
+        plugin: HostPlugin,
         store: Store<TractorStore>,
         telemetry: TelemetryBus,
         profile: super::plugin_registry::PluginCapabilityProfile,

@@ -15,7 +15,7 @@
 		"bundle:surface": "esbuild src/surface.js --bundle --format=esm --platform=neutral --external:plugin:* --outfile=dist/surface.bundled.js",
 		"bundle:plugin": "esbuild src/plugin.js --bundle --format=esm --platform=neutral --external:plugin:* --outfile=dist/plugin.bundled.js",
 		"build:component": "pnpm run bundle:surface && jco componentize dist/surface.bundled.js --wit ../vault-contract-v1/wit/vault.wit --world-name vault-surface --disable all -o dist/vault_surface.wasm && jco transpile dist/vault_surface.wasm -o pkg --name vault_surface --no-wasi-shim --instantiation async",
-		"build:plugin": "pnpm run bundle:plugin && jco componentize dist/plugin.bundled.js --wit ../plugin-wit/wit --world-name refarm-plugin --disable all -o dist/vault_plugin.wasm && jco transpile dist/vault_plugin.wasm -o pkg-plugin --name vault_plugin --no-wasi-shim --instantiation async && node scripts/write-plugin-manifest.mjs",
+		"build:plugin": "pnpm run bundle:plugin && jco componentize dist/plugin.bundled.js --wit ../plugin-wit/wit --world-name plugin --disable all -o dist/vault_plugin.wasm && jco transpile dist/vault_plugin.wasm -o pkg-plugin --name vault_plugin --no-wasi-shim --instantiation async && node scripts/write-plugin-manifest.mjs",
 		"build": "tsc --project tsconfig.build.json",
 		"lint": "eslint src",
 		"type-check": "tsc --noEmit",

@@ -4,7 +4,7 @@
 //! Rust modules and never clash on type names (both generate a `refarm` root).
 //!
 //! Reads `wit/host/host-effects/world.wit` — separate directory from
-//! `../plugin-wit/wit/refarm-plugin-host.wit` to avoid cross-package parse conflicts.
+//! the `host-plugin` world in `../plugin-wit/wit` to avoid cross-package parse conflicts.
 
 wasmtime::component::bindgen!({
     world: "host-effects-host",

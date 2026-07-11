@@ -5,7 +5,7 @@
 // a null implementation that lets the host exercise load() + setup() + lifecycle.
 
 wit_bindgen::generate!({
-    world: "refarm-plugin",
+    world: "plugin",
     path: "../../../../plugin-wit/wit",
 });
 

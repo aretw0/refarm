@@ -1,7 +1,7 @@
 // PluginHost — wasmtime Component loader + Linker + lifecycle orchestration.
 //
 // Two bindgen worlds:
-//   - `refarm-plugin-host`  → regular integration plugins (tractor-bridge, host-fs/shell)
+//   - `host-plugin`         → regular integration plugins (tractor-bridge, host-fs/shell)
 //   - `host-effects-host`   → the host-effects.wasm composition component (host-spawn)
 //
 // Two loader paths (ADR-061):
@@ -26,18 +26,18 @@ use crate::trust::{SecurityMode, TrustManager};
 
 // ── WIT Bindings: regular integration plugins ─────────────────────────────────
 //
-// Reads `../plugin-wit/wit/refarm-plugin-host.wit`.
-// Generates RefarmPluginHost + host traits for tractor-bridge, host-fs, host-shell.
+// Reads the `host-plugin` world from `../plugin-wit/wit` (worlds.wit).
+// Generates HostPlugin + host traits for tractor-bridge, host-fs, host-shell.
 
 wasmtime::component::bindgen!({
-    world: "refarm-plugin-host",
+    world: "host-plugin",
     path: "../plugin-wit/wit",
     async: true,
 });
 
 // host_effects_bindings is defined in host_effects_bindings.rs — kept separate
-// so the two bindgen! expansions live in different Rust modules (both generate
-// a `refarm` root and would collide if in the same file/scope).
+// so the two bindgen! expansions live in different Rust modules (they would
+// generate colliding roots if placed in the same file/scope).
 use crate::host::host_effects_bindings as atb;
 
 // ── EpochGuard ────────────────────────────────────────────────────────────────
