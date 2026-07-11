@@ -3,7 +3,7 @@ export const AGENT_NPM_PACKAGE: "@refarm.dev/agent";
 export const RUNTIME_AGENT_PLUGIN_ID: typeof AGENT_PLUGIN_ID;
 export const RUNTIME_AGENT_NPM_PACKAGE: typeof AGENT_NPM_PACKAGE;
 
-export interface RefarmBundledPluginDescriptor {
+export interface BundledPluginDescriptor {
 	readonly id: string;
 	readonly npmPackage: string;
 	readonly workspaceDir: string;
@@ -12,8 +12,19 @@ export interface RefarmBundledPluginDescriptor {
 	readonly requiredProvides: readonly string[];
 }
 
-export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR: RefarmBundledPluginDescriptor;
-export const REFARM_BUNDLED_PLUGIN_DESCRIPTORS: readonly RefarmBundledPluginDescriptor[];
+export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR: BundledPluginDescriptor;
+/** The plugins bundled with the runtime by default (agnostic — a white-label app brands
+ * this on re-export). Today: just the runtime agent. */
+export const BUNDLED_PLUGIN_DESCRIPTORS: readonly BundledPluginDescriptor[];
+
+/** The named agent core-plugin cut: the minimal agent + the plugins that extend IT,
+ * curated as a unit. The agent stays `requires: []`; `corePlugins` amplify it, they are
+ * not boot dependencies. */
+export interface AgentCoreBundle {
+	readonly agent: BundledPluginDescriptor;
+	readonly corePlugins: readonly BundledPluginDescriptor[];
+}
+export const AGENT_CORE_BUNDLE: AgentCoreBundle;
 export const RUNTIME_AGENT_ERROR_PREFIXES: readonly string[];
 
 export function normalizePluginId(pluginId: string): string;

@@ -49,7 +49,7 @@ export const AGENT_PLUGIN_ID: "@refarm/agent";
 export const AGENT_NPM_PACKAGE: "@refarm.dev/agent";
 export const RUNTIME_AGENT_PLUGIN_ID: typeof AGENT_PLUGIN_ID;
 export const RUNTIME_AGENT_NPM_PACKAGE: typeof AGENT_NPM_PACKAGE;
-export interface RefarmBundledPluginDescriptor {
+export interface BundledPluginDescriptor {
     readonly id: string;
     readonly npmPackage: string;
     readonly workspaceDir: string;
@@ -57,8 +57,13 @@ export interface RefarmBundledPluginDescriptor {
     readonly manifestFile: string;
     readonly requiredProvides: readonly string[];
 }
-export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR: RefarmBundledPluginDescriptor;
-export const REFARM_BUNDLED_PLUGIN_DESCRIPTORS: readonly RefarmBundledPluginDescriptor[];
+export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR: BundledPluginDescriptor;
+export const BUNDLED_PLUGIN_DESCRIPTORS: readonly BundledPluginDescriptor[];
+export interface AgentCoreBundle {
+    readonly agent: BundledPluginDescriptor;
+    readonly corePlugins: readonly BundledPluginDescriptor[];
+}
+export const AGENT_CORE_BUNDLE: AgentCoreBundle;
 export const RUNTIME_AGENT_ERROR_PREFIXES: readonly string[];
 export function normalizePluginId(pluginId: string): string;
 export function isAgentPluginId(pluginId: string): boolean;

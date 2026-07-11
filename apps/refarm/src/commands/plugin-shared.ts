@@ -4,8 +4,8 @@ import {
 	type SurfaceablePluginVerb,
 } from "@refarm.dev/capability-host";
 import {
+	BUNDLED_PLUGIN_DESCRIPTORS,
 	pluginIdToFsToken,
-	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
 } from "@refarm.dev/config/plugin-identity";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -14,9 +14,11 @@ import path from "node:path";
 import { resolveRefarmHome } from "../utils/refarm-home.js";
 import { RUNTIME_AGENT_RELOAD_JSON_COMMAND } from "./plugin-handoffs.js";
 
-// Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on boot.
-export const BUNDLED_PLUGINS = REFARM_BUNDLED_PLUGIN_DESCRIPTORS;
-export type BundledPlugin = (typeof REFARM_BUNDLED_PLUGIN_DESCRIPTORS)[number];
+// Plugins bundled with the refarm npm package — auto-installed and updated by farmhand on
+// boot. The agnostic BUNDLED_PLUGIN_DESCRIPTORS carries the set; this app-level alias is
+// where the "refarm" brand attaches (the generic config package stays product-neutral).
+export const BUNDLED_PLUGINS = BUNDLED_PLUGIN_DESCRIPTORS;
+export type BundledPlugin = (typeof BUNDLED_PLUGIN_DESCRIPTORS)[number];
 export const PLUGIN_RELOAD_RUNTIME_AGENT_JSON_COMMAND = RUNTIME_AGENT_RELOAD_JSON_COMMAND;
 
 /**

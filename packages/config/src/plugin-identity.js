@@ -10,7 +10,20 @@ export const RUNTIME_AGENT_PLUGIN_DESCRIPTOR = {
 	manifestFile: "dist/plugin.json",
 	requiredProvides: ["integration:respond"],
 };
-export const REFARM_BUNDLED_PLUGIN_DESCRIPTORS = [RUNTIME_AGENT_PLUGIN_DESCRIPTOR];
+// The plugins bundled with the runtime by default — auto-installed at boot. AGNOSTIC:
+// this is the generic config package, so no product name in the identifier (a white-label
+// app brands it on re-export). Today it is just the runtime agent; an app extends the set
+// via `config.plugins.bundled` and, for the agent's own cut, via AGENT_CORE_BUNDLE below.
+export const BUNDLED_PLUGIN_DESCRIPTORS = [RUNTIME_AGENT_PLUGIN_DESCRIPTOR];
+
+// The NAMED agent core-plugin cut: the minimal agent + the plugins that extend IT (via
+// capability-tools / agent events), curated as a unit. `corePlugins` is empty until the
+// first is extracted (LSP code-ops). The agent stays `requires: []` — these AMPLIFY it,
+// they are not boot dependencies; naming the group makes the cut visible and curatable.
+export const AGENT_CORE_BUNDLE = {
+	agent: RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
+	corePlugins: [],
+};
 export const RUNTIME_AGENT_ERROR_PREFIXES = [
 	"[runtime-agent error]",
 	"[runtime-agent stub]",

@@ -1,9 +1,10 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+	AGENT_CORE_BUNDLE,
 	AGENT_NPM_PACKAGE,
 	AGENT_PLUGIN_ID,
-	REFARM_BUNDLED_PLUGIN_DESCRIPTORS,
+	BUNDLED_PLUGIN_DESCRIPTORS,
 	RUNTIME_AGENT_NPM_PACKAGE,
 	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 	RUNTIME_AGENT_PLUGIN_ID,
@@ -59,7 +60,14 @@ describe("plugin identity", () => {
 			manifestFile: "dist/plugin.json",
 			requiredProvides: ["integration:respond"],
 		});
-		expect(REFARM_BUNDLED_PLUGIN_DESCRIPTORS).toEqual([RUNTIME_AGENT_PLUGIN_DESCRIPTOR]);
+		expect(BUNDLED_PLUGIN_DESCRIPTORS).toEqual([RUNTIME_AGENT_PLUGIN_DESCRIPTOR]);
+	});
+
+	it("names the agent core-plugin cut (agent + its core-plugins, curated as a unit)", () => {
+		// The agent is minimal (requires:[]); the cut names the group so it is curatable.
+		// corePlugins starts empty — the first (LSP code-ops) is extracted in a later slice.
+		expect(AGENT_CORE_BUNDLE.agent).toBe(RUNTIME_AGENT_PLUGIN_DESCRIPTOR);
+		expect(AGENT_CORE_BUNDLE.corePlugins).toEqual([]);
 	});
 
 	it("detects runtime agent error-like content", () => {
