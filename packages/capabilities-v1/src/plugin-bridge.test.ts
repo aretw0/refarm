@@ -103,6 +103,44 @@ describe("surfaceablePluginVerbsFrom — manifest metadata without host deps", (
 		expect(extract?.schema).toBeNull();
 	});
 
+	it("surfaces verbs authored via the ergonomic `verbs` block (key inferred, dispatch implicit)", () => {
+		// No raw provides/subscribes — everything comes from the block, lowered by the
+		// shared normalizer. Verbs sorted; each carries its doc/schema; dispatch is derived.
+		const m = {
+			id: "@example/notes",
+			capabilities: {
+				verbs: {
+					list: {
+						lookup: { doc: "Look up a note.", schema: { type: "object" } },
+						index: {},
+					},
+				},
+			},
+		};
+		expect(surfaceablePluginVerbsFrom(m)).toEqual([
+			{
+				pluginId: "@example/notes",
+				pluginKey: "notes",
+				verb: "index",
+				target: "notes:index",
+				dispatchEvent: "notes:dispatch",
+				surfaceName: "notes-index",
+				doc: null,
+				schema: null,
+			},
+			{
+				pluginId: "@example/notes",
+				pluginKey: "notes",
+				verb: "lookup",
+				target: "notes:lookup",
+				dispatchEvent: "notes:dispatch",
+				surfaceName: "notes-lookup",
+				doc: "Look up a note.",
+				schema: { type: "object" },
+			},
+		]);
+	});
+
 	it("matches the shared TS/Rust plugin surface verb conformance fixture", () => {
 		const fixture = JSON.parse(
 			readFileSync(new URL("../fixtures/plugin-surface-verbs.json", import.meta.url), "utf-8"),

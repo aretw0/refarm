@@ -3,6 +3,7 @@
 import {
 	assertEntryRuntimeCompatibility,
 	detectEntryFormat,
+	normalizeCapabilities,
 	type PluginManifest,
 } from "@refarm.dev/plugin-manifest";
 import { Registry } from "@refarm.dev/registry";
@@ -330,8 +331,14 @@ export class PluginHost {
 		const ids = Array.from(this._instances.keys()).sort();
 		for (const id of ids) {
 			const instance = this._instances.get(id);
-			const caps = instance?.manifest.capabilities;
-			if (!caps) continue;
+			const rawCaps = instance?.manifest.capabilities;
+			if (!rawCaps) continue;
+			// Lower the ergonomic `verbs` block via the shared normalizer (one source of
+			// truth with the manifest package + the Rust host), then read the raw vocab.
+			const caps = normalizeCapabilities(
+				rawCaps as Parameters<typeof normalizeCapabilities>[0],
+				id,
+			);
 			const subscribes = new Set(caps.subscribes ?? []);
 			for (const entry of caps.provides ?? []) {
 				const colon = entry.indexOf(":");
@@ -344,8 +351,10 @@ export class PluginHost {
 					pluginId: id,
 					pluginKey: key,
 					verb,
-					doc: instance?.manifest.capabilities?.verbDocs?.[entry],
-					schema: instance?.manifest.capabilities?.verbSchemas?.[entry],
+					// Read doc/schema from the NORMALIZED caps — a verb authored via the
+					// `verbs` block has its doc/schema lowered into verbDocs/verbSchemas here.
+					doc: caps.verbDocs?.[entry],
+					schema: caps.verbSchemas?.[entry],
 				});
 			}
 		}

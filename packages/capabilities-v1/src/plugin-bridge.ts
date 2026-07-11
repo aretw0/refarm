@@ -5,6 +5,7 @@ import {
 	buildJsonSuccessEnvelope,
 } from "@refarm.dev/capabilities/envelope";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
+import { normalizeCapabilities } from "@refarm.dev/plugin-manifest";
 
 /**
  * The plugin→capability BRIDGE — the extension effect. This is the mechanism that
@@ -193,6 +194,17 @@ export interface SurfaceableManifest {
 		 * A verb with no entry is variadic (`{ args }`); the shared conformance fixture
 		 * asserts BOTH hosts read this identically. */
 		verbSchemas?: Record<string, Record<string, unknown>>;
+		/** The ergonomic authoring block for dispatchable verbs — lowered to the raw
+		 * fields above by normalizeCapabilities before enumeration (mirrors the hosts).
+		 * See plugin-manifest's PluginVerbsBlock. */
+		verbs?: {
+			key?: string;
+			dispatchable?: boolean;
+			list?: Record<
+				string,
+				{ provides?: boolean; subscribes?: boolean; doc?: string; schema?: Record<string, unknown> }
+			>;
+		};
 	};
 	/** The surfaces this plugin declares in its manifest. Folded onto each surfaced verb's
 	 * `renderers` so a plugin-declared surface (homestead panel, a new surface) reaches the
@@ -222,11 +234,20 @@ export function pluginSurfaceName(pluginKey: string, verb: string): string {
 }
 
 export function surfaceablePluginVerbsFrom(manifest: SurfaceableManifest): SurfaceablePluginVerb[] {
-	const provides = manifest.capabilities?.provides ?? [];
-	const subscribes = new Set(manifest.capabilities?.subscribes ?? []);
+	// Lower the ergonomic `verbs` block into the raw vocab FIRST, using the SAME
+	// normalizer the manifest package + the Rust host use (one source of truth, so the TS
+	// host can never expand `verbs` differently). A manifest with no block is unchanged.
+	const caps = manifest.capabilities
+		? normalizeCapabilities(
+				manifest.capabilities as Parameters<typeof normalizeCapabilities>[0],
+				manifest.id,
+			)
+		: undefined;
+	const provides = caps?.provides ?? [];
+	const subscribes = new Set(caps?.subscribes ?? []);
 
-	const verbDocs = manifest.capabilities?.verbDocs ?? {};
-	const verbSchemas = manifest.capabilities?.verbSchemas ?? {};
+	const verbDocs = caps?.verbDocs ?? {};
+	const verbSchemas = caps?.verbSchemas ?? {};
 
 	const verbs: SurfaceablePluginVerb[] = [];
 	for (const entry of provides) {

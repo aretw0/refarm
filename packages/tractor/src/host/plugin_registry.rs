@@ -409,45 +409,19 @@ mod tests {
             "../../../capabilities-v1/fixtures/plugin-surface-verbs.json"
         ))
         .expect("valid plugin surface verb fixture");
-        // Parse a fixture manifest's `capabilities.<field>` object-map (verbDocs /
-        // verbSchemas) into the HashMap the profile carries. Absent → empty.
-        fn map_field<T: serde::de::DeserializeOwned>(
-            caps: &serde_json::Value,
-            field: &str,
-        ) -> std::collections::HashMap<String, T> {
-            caps.get(field)
-                .and_then(|v| serde_json::from_value(v.clone()).ok())
-                .unwrap_or_default()
-        }
-
         let r = PluginRegistry::default();
         for manifest in fixture["manifests"].as_array().expect("manifests array") {
             let id = manifest["id"].as_str().expect("manifest id");
-            let capabilities = &manifest["capabilities"];
-            let provides = capabilities["provides"]
-                .as_array()
-                .expect("provides array")
-                .iter()
-                .map(|entry| entry.as_str().expect("provides string").to_string())
-                .collect();
-            let subscribes = capabilities["subscribes"]
-                .as_array()
-                .expect("subscribes array")
-                .iter()
-                .map(|entry| entry.as_str().expect("subscribes string").to_string())
-                .collect();
-            // Register the WHOLE profile including verbDocs/verbSchemas, so the fixture
-            // asserts doc + schema ride the verb identically to the TS host.
-            r.register(
-                id,
-                PluginCapabilityProfile {
-                    provides,
-                    subscribes,
-                    verb_docs: map_field(capabilities, "verbDocs"),
-                    verb_schemas: map_field(capabilities, "verbSchemas"),
-                    ..Default::default()
-                },
-            );
+            // Deserialize the fixture capabilities through the SAME struct the runtime
+            // parses (so a `verbs` block is recognized) and lower them via the SAME
+            // production expander the load path uses — no parallel parse. This is what
+            // proves the RS host expands `verbs` byte-identically to the TS host (which
+            // runs its own normalizeCapabilities before surfaceablePluginVerbsFrom).
+            let caps: crate::host::plugin_host::RuntimePluginCapabilities =
+                serde_json::from_value(manifest["capabilities"].clone())
+                    .expect("fixture capabilities parse");
+            let profile = crate::host::plugin_host::capability_profile_from_manifest(&caps, id);
+            r.register(id, profile);
         }
 
         let actual: Vec<serde_json::Value> = r

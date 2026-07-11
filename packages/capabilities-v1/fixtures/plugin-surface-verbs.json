@@ -2,6 +2,27 @@
 	"schema": "plugin-surface-verbs.conformance.v1",
 	"manifests": [
 		{
+			"id": "@local/notes",
+			"capabilities": {
+				"verbs": {
+					"list": {
+						"lookup": {
+							"doc": "Look up a note by title.",
+							"schema": { "type": "object", "properties": { "title": { "type": "string" } } }
+						},
+						"index": {}
+					}
+				}
+			}
+		},
+		{
+			"id": "@local/orphan",
+			"capabilities": {
+				"provides": ["orphan:search"],
+				"subscribes": ["other:dispatch"]
+			}
+		},
+		{
 			"id": "@local/vault",
 			"capabilities": {
 				"provides": [
@@ -31,16 +52,29 @@
 				"provides": ["web:search"],
 				"subscribes": ["web:dispatch"]
 			}
-		},
-		{
-			"id": "@local/orphan",
-			"capabilities": {
-				"provides": ["orphan:search"],
-				"subscribes": ["other:dispatch"]
-			}
 		}
 	],
 	"expected": [
+		{
+			"pluginId": "@local/notes",
+			"pluginKey": "notes",
+			"verb": "index",
+			"target": "notes:index",
+			"dispatchEvent": "notes:dispatch",
+			"surfaceName": "notes-index",
+			"doc": null,
+			"schema": null
+		},
+		{
+			"pluginId": "@local/notes",
+			"pluginKey": "notes",
+			"verb": "lookup",
+			"target": "notes:lookup",
+			"dispatchEvent": "notes:dispatch",
+			"surfaceName": "notes-lookup",
+			"doc": "Look up a note by title.",
+			"schema": { "type": "object", "properties": { "title": { "type": "string" } } }
+		},
 		{
 			"pluginId": "@local/vault",
 			"pluginKey": "vault",

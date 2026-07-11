@@ -528,7 +528,7 @@ struct RuntimePluginObservability {
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
-struct RuntimePluginCapabilities {
+pub(crate) struct RuntimePluginCapabilities {
     #[serde(default)]
     provides: Vec<String>,
     /// The runtime event names this plugin subscribes to — what the neutral event
@@ -577,6 +577,50 @@ struct RuntimePluginCapabilities {
     /// default and a future stateful plugin is never silently parallelised.
     #[serde(default, rename = "concurrentSafe")]
     concurrent_safe: bool,
+    /// The ergonomic AUTHORING block for dispatchable verbs — the high-level form that
+    /// names each verb once (short, no `<key>:` prefix); a non-empty block derives the
+    /// `<key>:dispatch` channel IMPLICITLY (dispatch is infra, no flag). Lowered into the
+    /// raw fields above by `capability_profile_from_manifest`, mirroring the JS
+    /// `normalizeCapabilities` (plugin-manifest). Optional; coexists with the raw lists
+    /// (which carry non-verb entries: events, sugar, apis).
+    #[serde(default)]
+    verbs: Option<RuntimeVerbsBlock>,
+}
+
+/// One verb's entry in the `verbs` block: WHERE it goes (flags) + its per-verb metadata,
+/// keyed by the SHORT verb name. Mirrors JS `PluginVerbEntry`.
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+struct RuntimeVerbEntry {
+    /// Put `<key>:<verb>` in provides. Absent = true (a listed verb is provided).
+    provides: Option<bool>,
+    /// Put `<key>:<verb>` in subscribes too.
+    #[serde(default)]
+    subscribes: bool,
+    /// Per-verb prose → verbDocs["<key>:<verb>"].
+    doc: Option<String>,
+    /// Per-verb JSON-Schema → verbSchemas["<key>:<verb>"].
+    schema: Option<serde_json::Value>,
+}
+
+/// The `verbs` authoring block. Mirrors JS `PluginVerbsBlock`. A non-empty block always
+/// derives `<key>:dispatch` (dispatch is implicit — declaring verbs means surfacing them).
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+struct RuntimeVerbsBlock {
+    /// The routing key prefixed onto every short verb. Absent → inferred from the id.
+    key: Option<String>,
+    /// The verbs, keyed by short name → entry.
+    #[serde(default)]
+    list: std::collections::HashMap<String, RuntimeVerbEntry>,
+}
+
+/// The canonical routing key inferred from a plugin id: the LAST path segment
+/// (`@scope/vault` → `vault`). Mirrors JS `pluginKeyFromId` + the plugin_registry key
+/// convention. Used as the default `verbs` key when none is declared.
+fn plugin_key_from_id(id: &str) -> &str {
+    match id.rfind('/') {
+        Some(idx) => &id[idx + 1..],
+        None => id,
+    }
 }
 
 /// Build the registry's `PluginCapabilityProfile` from a parsed manifest's capabilities
@@ -586,16 +630,68 @@ struct RuntimePluginCapabilities {
 /// for `api:<name>`) resolves real manifests without a parallel field. `concurrent_safe`
 /// and `requires_api` are deliberately NOT here: they feed the runner and the registry's
 /// separate requires-api map, not the list/invoke profile.
-fn capability_profile_from_manifest(
+pub(crate) fn capability_profile_from_manifest(
     caps: &RuntimePluginCapabilities,
+    id: &str,
 ) -> crate::host::plugin_registry::PluginCapabilityProfile {
+    // Start from the raw lists (they carry the non-verb entries) and LOWER the ergonomic
+    // `verbs` block into them — the Rust mirror of JS `normalizeCapabilities`, kept in
+    // lockstep by the shared plugin-surface-verbs conformance fixture.
     let mut provides = caps.provides.clone();
+    let mut subscribes = caps.subscribes.clone();
+    let mut verb_docs = caps.verb_docs.clone();
+    let mut verb_schemas = caps.verb_schemas.clone();
+
+    if let Some(block) = &caps.verbs {
+        // Explicit key wins; else infer from the id (last path segment).
+        let key = match block.key.as_deref() {
+            Some(k) if !k.is_empty() => k,
+            _ => plugin_key_from_id(id),
+        };
+        let push_unique = |v: &mut Vec<String>, s: String| {
+            if !v.contains(&s) {
+                v.push(s);
+            }
+        };
+        // Deterministic order: verbs in sorted key order (a HashMap has no stable order,
+        // and the conformance fixture asserts a specific sequence).
+        let mut verb_names: Vec<&String> = block.list.keys().collect();
+        verb_names.sort();
+        for verb in verb_names {
+            let entry = &block.list[verb];
+            let target = format!("{key}:{verb}");
+            // A listed verb is provided by default; opt out with provides:false.
+            if entry.provides != Some(false) {
+                push_unique(&mut provides, target.clone());
+            }
+            if entry.subscribes {
+                push_unique(&mut subscribes, target.clone());
+            }
+            if let Some(doc) = &entry.doc {
+                verb_docs.insert(target.clone(), doc.clone());
+            }
+            if let Some(schema) = &entry.schema {
+                verb_schemas.insert(target.clone(), schema.clone());
+            }
+        }
+        // A non-empty block IS a dispatchable surface — derive the <key>:dispatch routing
+        // channel on BOTH sides. Implicit (no flag): declaring verbs means surfacing them.
+        if !key.is_empty() && !block.list.is_empty() {
+            let channel = format!("{key}:dispatch");
+            push_unique(&mut provides, channel.clone());
+            push_unique(&mut subscribes, channel);
+        }
+    }
+
+    // Fold providesApi into the api:<name> convention (after verbs expansion, so both
+    // the raw and lowered provides participate).
     provides.extend(caps.provides_api.iter().map(|api| format!("api:{api}")));
+
     crate::host::plugin_registry::PluginCapabilityProfile {
         provides,
-        subscribes: caps.subscribes.clone(),
-        verb_docs: caps.verb_docs.clone(),
-        verb_schemas: caps.verb_schemas.clone(),
+        subscribes,
+        verb_docs,
+        verb_schemas,
         sync_verbs: caps.sync_verbs.clone(),
     }
 }
@@ -1229,7 +1325,7 @@ impl PluginHost {
             let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
             validate_manifest_runtime_alignment(&plugin_id, &metadata, manifest)?;
             (
-                capability_profile_from_manifest(&manifest.capabilities),
+                capability_profile_from_manifest(&manifest.capabilities, &plugin_id),
                 manifest.capabilities.concurrent_safe,
                 manifest.capabilities.requires_api.clone(),
             )
@@ -1482,6 +1578,75 @@ mod capability_tests {
         let m = minimal_manifest(r#""capabilities":{"provides":["observe-host-effects","audit-log"]}"#);
         assert_eq!(m.capabilities.provides.len(), 2);
         assert!(m.capabilities.provides.contains(&"observe-host-effects".to_string()));
+    }
+
+    #[test]
+    fn plugin_key_from_id_takes_the_last_segment() {
+        assert_eq!(plugin_key_from_id("@scope/vault"), "vault");
+        assert_eq!(plugin_key_from_id("@devbench/coding-agent"), "coding-agent");
+        assert_eq!(plugin_key_from_id("plain-id"), "plain-id");
+    }
+
+    #[test]
+    fn verbs_block_lowers_with_inferred_key_and_implicit_dispatch() {
+        // id @test/plugin → inferred key "plugin"; a non-empty block derives plugin:dispatch.
+        let m = minimal_manifest(
+            r#""capabilities":{"verbs":{"list":{"search":{},"extract":{}}}}"#,
+        );
+        let profile = capability_profile_from_manifest(&m.capabilities, "@test/plugin");
+        assert_eq!(
+            profile.provides,
+            vec!["plugin:extract", "plugin:search", "plugin:dispatch"],
+            "verbs sorted, then the derived dispatch channel"
+        );
+        assert_eq!(profile.subscribes, vec!["plugin:dispatch"]);
+    }
+
+    #[test]
+    fn verbs_block_explicit_key_overrides_the_id_inference() {
+        let m = minimal_manifest(
+            r#""capabilities":{"verbs":{"key":"agent","list":{"code":{},"review":{}}}}"#,
+        );
+        let profile = capability_profile_from_manifest(&m.capabilities, "@devbench/coding-agent");
+        assert_eq!(profile.provides, vec!["agent:code", "agent:review", "agent:dispatch"]);
+        assert_eq!(profile.subscribes, vec!["agent:dispatch"]);
+    }
+
+    #[test]
+    fn verbs_block_lowers_doc_and_schema_and_coexists_with_raw() {
+        // verbs for the dispatchable surface + a raw user:prompt subscription (a non-verb).
+        let m = minimal_manifest(
+            r#""capabilities":{
+                "subscribes":["user:prompt"],
+                "verbs":{"key":"vault","list":{
+                    "search":{"doc":"Search.","schema":{"type":"object"}}
+                }}
+            }"#,
+        );
+        let profile = capability_profile_from_manifest(&m.capabilities, "@example/agent");
+        assert!(profile.provides.contains(&"vault:search".to_string()));
+        assert!(profile.provides.contains(&"vault:dispatch".to_string()));
+        // The raw non-verb subscription survives the merge, plus the derived channel.
+        assert_eq!(profile.subscribes, vec!["user:prompt", "vault:dispatch"]);
+        assert_eq!(profile.verb_docs.get("vault:search").map(String::as_str), Some("Search."));
+        assert_eq!(
+            profile.verb_schemas.get("vault:search"),
+            Some(&serde_json::json!({"type":"object"}))
+        );
+    }
+
+    #[test]
+    fn verbs_block_provides_false_is_subscribe_only() {
+        let m = minimal_manifest(
+            r#""capabilities":{"verbs":{"key":"vault","list":{
+                "search":{},"incoming":{"provides":false,"subscribes":true}
+            }}}"#,
+        );
+        let profile = capability_profile_from_manifest(&m.capabilities, "@scope/vault");
+        // incoming NOT provided; search provided; implicit dispatch channel added.
+        assert_eq!(profile.provides, vec!["vault:search", "vault:dispatch"]);
+        // incoming subscribed + the derived dispatch channel.
+        assert_eq!(profile.subscribes, vec!["vault:incoming", "vault:dispatch"]);
     }
 
     #[test]
