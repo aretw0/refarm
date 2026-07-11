@@ -98,7 +98,7 @@ fn build_fold_emits_reversible_record_with_refs_and_digest() {
     let fold = build_session_context_fold(&folded, &tail, Some("digest text"), 999).unwrap();
 
     assert_eq!(fold["@type"], "SessionContextFold");
-    assert_eq!(fold["schema"], "refarm.session-context-fold.v1");
+    assert_eq!(fold["schema"], "sovereign.session-context-fold.v1");
     assert_eq!(fold["session_id"], "sess-1");
     assert_eq!(fold["range"]["from_entry_id"], "e1");
     assert_eq!(fold["range"]["to_entry_id"], "e2");
@@ -112,7 +112,7 @@ fn build_fold_emits_reversible_record_with_refs_and_digest() {
     );
     // The protected tail is recorded so unfold knows what stayed live.
     assert_eq!(fold["protected_tail_entry_ids"][0], "e3");
-    assert_eq!(fold["digest"]["algorithm"], "refarm-stable-fnv1a64-v1");
+    assert_eq!(fold["digest"]["algorithm"], "sovereign-stable-fnv1a64-v1");
     assert_eq!(fold["created_at_ns"], 999);
     // The @id is the URN the contract expects.
     assert!(fold["@id"].as_str().unwrap().starts_with("urn:sovereign:session-context-fold:v1:"));
@@ -148,6 +148,6 @@ fn emitted_fold_matches_pinned_ts_roundtrip_fixture() {
     let fold = build_session_context_fold(&folded, &tail, Some("digest"), 999).unwrap();
     // These two digests are what the TS fixture pins; if the Rust emit changes, both
     // this and the TS round-trip must be updated together (they share the fixture).
-    assert_eq!(fold["digest"]["value"], "62dc47ffa6e7e9d6");
+    assert_eq!(fold["digest"]["value"], "6cbe6a285af60c93");
     assert_eq!(fold["folded_entry_refs"][1]["content_digest"]["value"], "9ccba8cadcf2e4b2");
 }

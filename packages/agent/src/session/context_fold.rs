@@ -17,8 +17,8 @@
 //!      JSON-escaped strings), not `serde_json`'s default ordering.
 //! A conformance test pins this against shared fixtures so it cannot silently drift.
 
-pub(crate) const SESSION_CONTEXT_FOLD_SCHEMA: &str = "refarm.session-context-fold.v1";
-pub(crate) const SESSION_CONTEXT_FOLD_DIGEST_ALGORITHM: &str = "refarm-stable-fnv1a64-v1";
+pub(crate) const SESSION_CONTEXT_FOLD_SCHEMA: &str = "sovereign.session-context-fold.v1";
+pub(crate) const SESSION_CONTEXT_FOLD_DIGEST_ALGORITHM: &str = "sovereign-stable-fnv1a64-v1";
 
 /// FNV-1a 64-bit over UTF-16 code units — the mirror of the TS `stableHash` loop
 /// (`hash ^= text.charCodeAt(i)`). Returns the lowercase, zero-padded 16-hex digest.

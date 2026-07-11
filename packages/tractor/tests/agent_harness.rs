@@ -2274,8 +2274,8 @@ async fn harness_context_budget_persists_reversible_fold() {
     // digest, not just a lossy summary.
     let fold: serde_json::Value = serde_json::from_str(&folds[0].payload).unwrap();
     assert_eq!(fold["@type"], "SessionContextFold");
-    assert_eq!(fold["schema"], "refarm.session-context-fold.v1");
-    assert_eq!(fold["digest"]["algorithm"], "refarm-stable-fnv1a64-v1");
+    assert_eq!(fold["schema"], "sovereign.session-context-fold.v1");
+    assert_eq!(fold["digest"]["algorithm"], "sovereign-stable-fnv1a64-v1");
     assert!(
         !fold["folded_entry_refs"].as_array().unwrap().is_empty(),
         "fold must reference the folded turns (the reversibility)"

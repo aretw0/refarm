@@ -1,8 +1,8 @@
 import type { SessionEntry, SessionEntryKind } from "./types.js";
 
-export const SESSION_CONTEXT_FOLD_SCHEMA = "refarm.session-context-fold.v1" as const;
+export const SESSION_CONTEXT_FOLD_SCHEMA = "sovereign.session-context-fold.v1" as const;
 
-export const SESSION_CONTEXT_FOLD_DIGEST_ALGORITHM = "refarm-stable-fnv1a64-v1" as const;
+export const SESSION_CONTEXT_FOLD_DIGEST_ALGORITHM = "sovereign-stable-fnv1a64-v1" as const;
 
 export interface SessionContextFoldDigest {
 	algorithm: typeof SESSION_CONTEXT_FOLD_DIGEST_ALGORITHM;

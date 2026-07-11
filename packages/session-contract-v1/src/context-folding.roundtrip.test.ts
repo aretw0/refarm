@@ -19,20 +19,20 @@ import type { SessionEntry } from "./types.js";
  * the Rust digest were wrong for these, `digest_mismatches` here would be non-empty.
  */
 const RUST_EMITTED_FOLD: SessionContextFold = {
-	"@id": "urn:sovereign:session-context-fold:v1:1bc6557738034c81:62dc47ffa6e7e9d6",
+	"@id": "urn:sovereign:session-context-fold:v1:1bc6557738034c81:6cbe6a285af60c93",
 	"@type": "SessionContextFold",
 	created_at_ns: 999,
-	digest: { algorithm: "refarm-stable-fnv1a64-v1", value: "62dc47ffa6e7e9d6" },
+	digest: { algorithm: "sovereign-stable-fnv1a64-v1", value: "6cbe6a285af60c93" },
 	folded_entry_refs: [
 		{
-			content_digest: { algorithm: "refarm-stable-fnv1a64-v1", value: "133a5f62f36b46b4" },
+			content_digest: { algorithm: "sovereign-stable-fnv1a64-v1", value: "133a5f62f36b46b4" },
 			entry_id: "urn:e1",
 			kind: "user",
 			parent_entry_id: null,
 			timestamp_ns: 100,
 		},
 		{
-			content_digest: { algorithm: "refarm-stable-fnv1a64-v1", value: "9ccba8cadcf2e4b2" },
+			content_digest: { algorithm: "sovereign-stable-fnv1a64-v1", value: "9ccba8cadcf2e4b2" },
 			entry_id: "urn:e2",
 			kind: "agent",
 			parent_entry_id: "urn:e1",
@@ -41,7 +41,7 @@ const RUST_EMITTED_FOLD: SessionContextFold = {
 	],
 	protected_tail_entry_ids: ["urn:e3"],
 	range: { entry_count: 2, from_entry_id: "urn:e1", to_entry_id: "urn:e2" },
-	schema: "refarm.session-context-fold.v1",
+	schema: "sovereign.session-context-fold.v1",
 	session_id: "sess-1",
 	summary: "digest",
 };
