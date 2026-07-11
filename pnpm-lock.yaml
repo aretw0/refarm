@@ -1554,6 +1554,9 @@ importers:
 
   packages/runtime-operator:
     dependencies:
+      '@refarm.dev/config':
+        specifier: workspace:*
+        version: link:../config
       '@refarm.dev/process-handoff':
         specifier: workspace:*
         version: link:../process-handoff
@@ -1747,6 +1750,9 @@ importers:
 
   packages/sower:
     dependencies:
+      '@refarm.dev/config':
+        specifier: workspace:*
+        version: link:../config
       '@refarm.dev/runtime':
         specifier: workspace:*
         version: link:../runtime
