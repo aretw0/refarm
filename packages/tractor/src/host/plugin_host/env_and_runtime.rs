@@ -553,6 +553,13 @@ struct RuntimePluginCapabilities {
     /// so a plugin author teaches the agent how to use its tool. Optional + additive.
     #[serde(default, rename = "verbDocs")]
     verb_docs: std::collections::HashMap<String, String>,
+    /// Per-verb argument SCHEMA, keyed by the same `<key>:<verb>` in `provides`. When
+    /// present, the agent leg renders THIS as the model tool's parameters instead of the
+    /// generic variadic `{ args: string[] }` — a plugin verb reaches the agent TYPED. Each
+    /// value is the JSON-Schema object the host wraps in the provider envelope. The FORM
+    /// companion of `verbDocs`' prose; optional + additive (absent → variadic-default).
+    #[serde(default, rename = "verbSchemas")]
+    verb_schemas: std::collections::HashMap<String, serde_json::Value>,
     /// The verbs (`<key>:<verb>`, a subset of `provides`) this plugin serves
     /// SYNCHRONOUSLY via `respond` (ADR-084's negotiated sync flag). The host
     /// dispatches a synchronous respond ONLY to a verb listed here; a verb absent
@@ -1194,11 +1201,15 @@ impl PluginHost {
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, linker).await?;
 
-        let (provides, subscribes, concurrent_safe, requires_api, verb_docs, sync_verbs) = if let Some(
-            manifest,
-        ) =
-            manifest.as_ref()
-        {
+        let (
+            provides,
+            subscribes,
+            concurrent_safe,
+            requires_api,
+            verb_docs,
+            verb_schemas,
+            sync_verbs,
+        ) = if let Some(manifest) = manifest.as_ref() {
             let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
             validate_manifest_runtime_alignment(&plugin_id, &metadata, manifest)?;
             // Fold each declared `providesApi: ["FooApi"]` into `provides` as
@@ -1220,6 +1231,7 @@ impl PluginHost {
                 manifest.capabilities.concurrent_safe,
                 manifest.capabilities.requires_api.clone(),
                 manifest.capabilities.verb_docs.clone(),
+                manifest.capabilities.verb_schemas.clone(),
                 manifest.capabilities.sync_verbs.clone(),
             )
         } else {
@@ -1228,7 +1240,15 @@ impl PluginHost {
                 path = %path.display(),
                 "plugin manifest not found near wasm; skipping manifest/runtime alignment checks"
             );
-            (vec![], vec![], false, vec![], std::collections::HashMap::new(), vec![])
+            (
+                vec![],
+                vec![],
+                false,
+                vec![],
+                std::collections::HashMap::new(),
+                std::collections::HashMap::new(),
+                vec![],
+            )
         };
 
         let mut handle = PluginInstanceHandle::new_component(
@@ -1242,6 +1262,7 @@ impl PluginHost {
         .with_concurrent_safe(concurrent_safe)
         .with_requires_api(requires_api)
         .with_verb_docs(verb_docs)
+        .with_verb_schemas(verb_schemas)
         .with_sync_verbs(sync_verbs)
         .with_on_event_budget_ms(self.on_event_budget_ms);
         handle.call_setup().await?;

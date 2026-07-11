@@ -36,6 +36,7 @@ fn make_agent_leg_bindings() -> (
         vec!["vault:store".into(), "vault:dispatch".into()],
         vec!["vault:dispatch".into()],
         std::collections::HashMap::new(),
+        std::collections::HashMap::new(),
         vec![],
     );
 
@@ -80,6 +81,8 @@ async fn list_tools_surfaces_a_dispatchable_plugin_verb() {
         schema["name"], "vault_store",
         "tool name is <key>_<verb>, model-safe"
     );
+    // No verbSchemas declared → the variadic `{ args }` schema, the correct shape for
+    // an opaque verb (NOT a fallback).
     assert!(schema["input_schema"]["properties"]["args"].is_object());
 
     // OpenAI provider wraps the same body in the function envelope.
@@ -87,6 +90,100 @@ async fn list_tools_surfaces_a_dispatchable_plugin_verb() {
     let oschema: serde_json::Value = serde_json::from_str(&openai[0]).unwrap();
     assert_eq!(oschema["type"], "function");
     assert_eq!(oschema["function"]["name"], "vault_store");
+}
+
+/// A plugin that DECLARES `verbSchemas["vault:store"]` — the same mock as
+/// `make_agent_leg_bindings` but with a typed arg schema, so `list_tools` must render
+/// the plugin's schema verbatim (named args + `required`) instead of the variadic one.
+fn make_typed_agent_leg_bindings() -> TractorNativeBindings {
+    let storage = NativeStorage::open(":memory:").unwrap();
+    let sync = NativeSync::new(storage, ":memory:").unwrap();
+    let telemetry = TelemetryBus::new(10);
+
+    let registry = crate::host::PluginRegistry::default();
+    let mut schemas = std::collections::HashMap::new();
+    schemas.insert(
+        "vault:store".to_string(),
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "path": { "type": "string", "description": "note path" },
+                "body": { "type": "string" }
+            },
+            "required": ["path"]
+        }),
+    );
+    registry.register(
+        "vault",
+        vec!["vault:store".into(), "vault:dispatch".into()],
+        vec!["vault:dispatch".into()],
+        std::collections::HashMap::new(),
+        schemas,
+        vec![],
+    );
+
+    let event_router = crate::EventRouter::default();
+    event_router.subscribe("vault:dispatch", "vault");
+    let plugin_channels: crate::PluginChannels =
+        std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
+    let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
+    plugin_channels.write().unwrap().insert("vault".to_string(), tx);
+    let cross = CrossPluginAccess { registry, event_router, plugin_channels };
+
+    TractorNativeBindings::new(
+        "agent",
+        sync,
+        telemetry,
+        HostEffectPolicy::default(),
+        ModelRoute::default(),
+        None,
+        PermissionGrant::permissive(),
+        None,
+        Some(cross),
+    )
+}
+
+#[tokio::test]
+async fn list_tools_renders_a_declared_verb_schema_typed_not_variadic() {
+    let mut bindings = make_typed_agent_leg_bindings();
+
+    // Anthropic: the plugin's schema IS the input_schema — typed named args, `required`,
+    // and NO variadic `args` property.
+    let anthropic = bindings.list_tools("anthropic".to_string()).await;
+    assert_eq!(anthropic.len(), 1);
+    let schema: serde_json::Value = serde_json::from_str(&anthropic[0]).unwrap();
+    assert_eq!(schema["name"], "vault_store");
+    let props = &schema["input_schema"]["properties"];
+    assert!(props["path"].is_object(), "typed `path` arg present: {schema}");
+    assert!(props["body"].is_object(), "typed `body` arg present");
+    assert!(
+        props.get("args").is_none(),
+        "a declared schema replaces the variadic `args`, not augments it: {schema}"
+    );
+    assert_eq!(schema["input_schema"]["required"][0], "path");
+
+    // OpenAI: the same schema body, in the function envelope's `parameters`.
+    let openai = bindings.list_tools("openai".to_string()).await;
+    let oschema: serde_json::Value = serde_json::from_str(&openai[0]).unwrap();
+    assert_eq!(oschema["function"]["name"], "vault_store");
+    let oprops = &oschema["function"]["parameters"]["properties"];
+    assert!(oprops["path"].is_object());
+    assert!(oprops.get("args").is_none());
+}
+
+#[tokio::test]
+async fn list_tool_prompts_for_a_typed_verb_points_at_the_schema() {
+    // With a declared schema but NO verbDocs, the boilerplate guidance must agree with
+    // the typed schema render — it points at the schema, not at variadic `args` strings.
+    let mut bindings = make_typed_agent_leg_bindings();
+    let prompts = bindings.list_tool_prompts().await;
+    assert_eq!(prompts.len(), 1);
+    assert!(prompts[0].contains("vault_store"), "names the tool: {}", prompts[0]);
+    assert!(
+        prompts[0].contains("schema"),
+        "typed verb guidance points at the schema, not key=value args: {}",
+        prompts[0]
+    );
 }
 
 #[tokio::test]

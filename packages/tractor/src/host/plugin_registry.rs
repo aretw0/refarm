@@ -39,6 +39,11 @@ pub struct PluginCapabilityProfile {
     /// host-synthesized boilerplate (promptSnippet Slice 2). Empty for plugins that
     /// declare none.
     pub verb_docs: std::collections::HashMap<String, String>,
+    /// Per-verb argument SCHEMA (`capabilities.verbSchemas`), keyed by `<key>:<verb>`.
+    /// When a verb has an entry, `list-tools` renders THIS as the model tool's parameters
+    /// instead of the variadic `{ args }` — the FORM companion of `verb_docs`. Each value
+    /// is the JSON-Schema object body. Empty for plugins that declare none (variadic-default).
+    pub verb_schemas: std::collections::HashMap<String, serde_json::Value>,
     /// Verbs (`<key>:<verb>`, a subset of `provides`) the plugin serves SYNCHRONOUSLY
     /// via `respond` (`capabilities.syncVerbs`, ADR-084). The sidecar consults this to
     /// dispatch a synchronous respond only to a declared verb — a caller requesting
@@ -59,6 +64,10 @@ pub struct DispatchableVerb {
     /// declared — the agent leg's `list-tool-prompts` returns it instead of the host
     /// boilerplate. `None` → host synthesizes generic guidance.
     pub doc: Option<String>,
+    /// Plugin-authored argument SCHEMA for this verb (`verbSchemas["<key>:<verb>"]`), if
+    /// declared — the agent leg's `list-tools` renders it as the tool's parameters. `None`
+    /// → the verb's args are opaque and the host emits the variadic `{ args }` schema.
+    pub schema: Option<serde_json::Value>,
 }
 
 /// The shared registry: `plugin-id → capability profile`, Arc-shared so the runtime
@@ -100,6 +109,7 @@ impl PluginRegistry {
         provides: Vec<String>,
         subscribes: Vec<String>,
         verb_docs: std::collections::HashMap<String, String>,
+        verb_schemas: std::collections::HashMap<String, serde_json::Value>,
         sync_verbs: Vec<String>,
     ) {
         self.inner
@@ -111,6 +121,7 @@ impl PluginRegistry {
                     provides,
                     subscribes,
                     verb_docs,
+                    verb_schemas,
                     sync_verbs,
                 },
             );
@@ -220,6 +231,7 @@ impl PluginRegistry {
                     plugin_key: key.to_string(),
                     verb: verb.to_string(),
                     doc: profile.verb_docs.get(entry).cloned(),
+                    schema: profile.verb_schemas.get(entry).cloned(),
                 });
             }
         }
@@ -259,6 +271,7 @@ mod tests {
             id,
             provides,
             subscribes,
+            std::collections::HashMap::new(),
             std::collections::HashMap::new(),
             vec![],
         );
@@ -301,12 +314,14 @@ mod tests {
                     plugin_key: "vault".into(),
                     verb: "store".into(),
                     doc: None,
+                    schema: None,
                 },
                 DispatchableVerb {
                     plugin_id: "@acme/vault".into(),
                     plugin_key: "vault".into(),
                     verb: "read".into(),
                     doc: None,
+                    schema: None,
                 },
             ]
         );
@@ -329,6 +344,7 @@ mod tests {
             ],
             vec!["vault:dispatch".into()],
             docs,
+            std::collections::HashMap::new(),
             vec![],
         );
         let verbs = r.dispatchable_verbs();
@@ -338,6 +354,46 @@ mod tests {
         assert_eq!(store.doc.as_deref(), Some("Store a note in the vault."));
         let read = verbs.iter().find(|v| v.verb == "read").unwrap();
         assert_eq!(read.doc, None);
+    }
+
+    #[test]
+    fn verb_schemas_ride_the_dispatchable_verb_as_schema() {
+        let r = PluginRegistry::default();
+        let mut schemas = std::collections::HashMap::new();
+        schemas.insert(
+            "vault:store".to_string(),
+            serde_json::json!({
+                "type": "object",
+                "properties": { "path": { "type": "string" } },
+                "required": ["path"]
+            }),
+        );
+        r.register(
+            "vault",
+            vec![
+                "vault:store".into(),
+                "vault:read".into(),
+                "vault:dispatch".into(),
+            ],
+            vec!["vault:dispatch".into()],
+            std::collections::HashMap::new(),
+            schemas,
+            vec![],
+        );
+        let verbs = r.dispatchable_verbs();
+        // The verb WITH a schema carries it verbatim; the verb WITHOUT falls back to None
+        // (the host renders the variadic `{ args }` at schema-render time).
+        let store = verbs.iter().find(|v| v.verb == "store").unwrap();
+        assert_eq!(
+            store.schema,
+            Some(serde_json::json!({
+                "type": "object",
+                "properties": { "path": { "type": "string" } },
+                "required": ["path"]
+            }))
+        );
+        let read = verbs.iter().find(|v| v.verb == "read").unwrap();
+        assert_eq!(read.schema, None);
     }
 
     #[test]

@@ -124,6 +124,12 @@ pub struct PluginInstanceHandle {
     /// register_for_events passes it to the registry so `list-tool-prompts` returns
     /// plugin-authored guidance instead of host boilerplate.
     pub verb_docs: std::collections::HashMap<String, String>,
+    /// Per-verb argument SCHEMA from `capabilities.verbSchemas`, keyed by `<key>:<verb>`.
+    /// Each value is the JSON-Schema object the agent leg renders as that verb's model-tool
+    /// parameters (the FORM companion of `verb_docs`' prose). Defaults empty; set via
+    /// `with_verb_schemas`. register_for_events passes it to the registry so `list-tools`
+    /// emits a TYPED schema for a declared verb instead of the variadic `{ args }`.
+    pub verb_schemas: std::collections::HashMap<String, serde_json::Value>,
     /// Verbs the plugin serves SYNCHRONOUSLY via `respond` (`capabilities.syncVerbs`,
     /// a subset of `provides`). Defaults empty (async-only); set via `with_sync_verbs`.
     /// The host consults `serves_sync` before a synchronous respond dispatch — ADR-084's
@@ -182,6 +188,7 @@ impl PluginInstanceHandle {
             concurrent_safe: false,
             requires_api: Vec::new(),
             verb_docs: std::collections::HashMap::new(),
+            verb_schemas: std::collections::HashMap::new(),
             sync_verbs: Vec::new(),
             inner: PluginImpl::Component { plugin, store },
             telemetry,
@@ -208,6 +215,7 @@ impl PluginInstanceHandle {
             concurrent_safe: false,
             requires_api: Vec::new(),
             verb_docs: std::collections::HashMap::new(),
+            verb_schemas: std::collections::HashMap::new(),
             sync_verbs: Vec::new(),
             inner: PluginImpl::Module { instance, store },
             telemetry,
@@ -258,6 +266,17 @@ impl PluginInstanceHandle {
         verb_docs: std::collections::HashMap<String, String>,
     ) -> Self {
         self.verb_docs = verb_docs;
+        self
+    }
+
+    /// Attach the manifest's `capabilities.verbSchemas` (per-verb argument schema).
+    /// Builder-style, mirroring with_verb_docs. The agent leg renders a declared verb's
+    /// schema as its typed model-tool parameters instead of the variadic `{ args }`.
+    pub(crate) fn with_verb_schemas(
+        mut self,
+        verb_schemas: std::collections::HashMap<String, serde_json::Value>,
+    ) -> Self {
+        self.verb_schemas = verb_schemas;
         self
     }
 

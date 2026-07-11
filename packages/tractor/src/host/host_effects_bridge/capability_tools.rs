@@ -33,26 +33,44 @@ const INVOKE_TIMEOUT_MS: u64 = 30_000;
 const INVOKE_POLL_INTERVAL_MS: u64 = 25;
 
 /// Render one dispatchable verb as a provider-shaped tool schema (a JSON object
-/// STRING the guest concatenates into its tool list). The verb's args are opaque to
-/// the host, so — exactly like the #1 TS adapter's descriptor — the tool takes a
-/// single variadic `args` array of `key=value` strings. `provider` selects the wire
-/// envelope: "openai" wraps in `{type:function, function:{...}}`; anything else
-/// (anthropic) uses `{name, description, input_schema}`.
+/// STRING the guest concatenates into its tool list).
+///
+/// TWO SHAPES, ONE RENDERER, chosen by whether the plugin DECLARED the verb's arg
+/// schema (`capabilities.verbSchemas`, carried on `verb.schema`):
+///   - DECLARED → the plugin's own JSON-Schema object becomes the tool's parameters
+///     verbatim, so the verb reaches the model TYPED (named args, `required`, etc.) —
+///     the same fidelity the #1 TS projector produces from a descriptor.
+///   - ABSENT → a single variadic `args` array of `key=value` strings. This is NOT a
+///     compatibility fallback: it is the correct schema for a verb whose arg shape is
+///     genuinely opaque to the host (the plugin chose not to declare one).
+///
+/// The dispatch path accepts BOTH: `dispatch_to_plugin` spreads a JSON object's keys
+/// into the payload (typed args) and, failing that, forwards a bare value under `args`
+/// (the variadic case) — so a typed schema needs no new invoke wiring.
+///
+/// `provider` selects the wire envelope: "openai" wraps in `{type:function,
+/// function:{...}}`; anything else (anthropic) uses `{name, description, input_schema}`.
 fn render_tool_schema(verb: &DispatchableVerb, provider: &str) -> String {
     let name = format!("{}_{}", verb.plugin_key, verb.verb);
-    let description = format!(
-        "{} — dispatched to the {} plugin. Pass args as key=value strings.",
-        verb.verb, verb.plugin_id
-    );
-    let parameters = serde_json::json!({
-        "type": "object",
-        "properties": {
-            "args": {
-                "type": "array",
-                "items": { "type": "string" },
-                "description": "Verb arguments as key=value strings, e.g. note={\"path\":\"n.md\"}."
+    // A declared schema teaches the verb's true form; absent, describe the variadic tool.
+    let description = match &verb.schema {
+        Some(_) => format!("{} — dispatched to the {} plugin.", verb.verb, verb.plugin_id),
+        None => format!(
+            "{} — dispatched to the {} plugin. Pass args as key=value strings.",
+            verb.verb, verb.plugin_id
+        ),
+    };
+    let parameters = verb.schema.clone().unwrap_or_else(|| {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "args": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Verb arguments as key=value strings, e.g. note={\"path\":\"n.md\"}."
+                }
             }
-        }
+        })
     });
 
     let schema = if provider == "openai" {
@@ -77,9 +95,16 @@ fn render_tool_prompt(verb: &DispatchableVerb) -> String {
     if let Some(doc) = &verb.doc {
         return doc.clone();
     }
+    // Absent authored prose, the boilerplate must agree with the SCHEMA render: a
+    // typed verb takes named args (per its schema), a variadic one takes `args` strings.
+    let arg_hint = if verb.schema.is_some() {
+        "pass its arguments per the tool's schema"
+    } else {
+        "pass its arguments as `args` (key=value strings)"
+    };
     format!(
-        "Tool `{}_{}` dispatches to the `{}` plugin — pass its arguments as `args` \
-         (key=value strings). Prefer it over shell/fs for anything the {} plugin owns.",
+        "Tool `{}_{}` dispatches to the `{}` plugin — {arg_hint}. Prefer it over \
+         shell/fs for anything the {} plugin owns.",
         verb.plugin_key, verb.verb, verb.plugin_id, verb.plugin_id
     )
 }

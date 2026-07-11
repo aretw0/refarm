@@ -827,6 +827,7 @@ impl TractorNative {
         let subscribes = handle.subscribes.clone();
         let requires_api = handle.requires_api.clone();
         let verb_docs = handle.verb_docs.clone();
+        let verb_schemas = handle.verb_schemas.clone();
         let sync_verbs = handle.sync_verbs.clone();
         // Register the plugin's cancel flag (shared with its store epoch callback)
         // BEFORE the handle moves into the runner thread, so effort-cancel can
@@ -905,6 +906,7 @@ impl TractorNative {
             provides.clone(),
             subscribes.clone(),
             verb_docs,
+            verb_schemas,
             sync_verbs,
         );
         self.plugin_registry
