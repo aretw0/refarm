@@ -98,69 +98,27 @@ fn tool_names_from_openai(tools: &serde_json::Value) -> Vec<String> {
         .collect()
 }
 
+/// Session-tree management (list_sessions / current_session / navigate / fork) is
+/// NOT a model tool: those are OPERATOR controls, driven by the human via the CLI
+/// (`refarm tree fork/navigate`, `sessions`) — the same agent-vs-operator split the
+/// reference agents draw (pi keeps fork/tree/session as slash commands, never model
+/// tools). This pins the removal: a regression that re-exposes them to the model
+/// (letting the LLM reparent its own conversation) fails here. The capability itself
+/// lives on in session::wasm_ops for the operator path.
 #[test]
-fn tools_anthropic_includes_session_tools() {
-    let tools = tools_anthropic();
-    let names = tool_names_from_anthropic(&tools);
+fn session_tree_tools_are_not_model_tools_they_are_operator_controls() {
+    let anthropic = tool_names_from_anthropic(&tools_anthropic());
+    let openai = tool_names_from_openai(&tools_openai());
     for name in ["list_sessions", "current_session", "navigate", "fork"] {
         assert!(
-            names.contains(&name.to_string()),
-            "tools_anthropic missing: {name}"
+            !anthropic.contains(&name.to_string()),
+            "tools_anthropic must NOT expose operator tool {name} to the model"
         );
-    }
-}
-
-#[test]
-fn tools_openai_includes_session_tools() {
-    let tools = tools_openai();
-    let names = tool_names_from_openai(&tools);
-    for name in ["list_sessions", "current_session", "navigate", "fork"] {
         assert!(
-            names.contains(&name.to_string()),
-            "tools_openai missing: {name}"
+            !openai.contains(&name.to_string()),
+            "tools_openai must NOT expose operator tool {name} to the model"
         );
     }
-}
-
-#[test]
-fn tools_anthropic_navigate_has_required_fields() {
-    let tools = tools_anthropic();
-    let nav = tools
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|t| t["name"] == "navigate")
-        .expect("navigate not found");
-    let required = nav["input_schema"]["required"].as_array().unwrap();
-    let req_strs: Vec<&str> = required.iter().map(|v| v.as_str().unwrap()).collect();
-    assert!(
-        req_strs.contains(&"session_id"),
-        "navigate must require session_id"
-    );
-    assert!(
-        req_strs.contains(&"entry_id"),
-        "navigate must require entry_id"
-    );
-}
-
-#[test]
-fn tools_openai_fork_has_required_fields() {
-    let tools = tools_openai();
-    let fork = tools
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|t| t["function"]["name"] == "fork")
-        .expect("fork not found");
-    let required = fork["function"]["parameters"]["required"]
-        .as_array()
-        .unwrap();
-    let req_strs: Vec<&str> = required.iter().map(|v| v.as_str().unwrap()).collect();
-    assert!(
-        req_strs.contains(&"session_id"),
-        "fork must require session_id"
-    );
-    assert!(req_strs.contains(&"entry_id"), "fork must require entry_id");
 }
 
 #[test]

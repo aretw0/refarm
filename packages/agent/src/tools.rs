@@ -63,15 +63,7 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
         {"name":"list_tasks","description":"List Task nodes recorded in the CRDT. Each prompt execution creates one Task. Supports optional filtering by status (active/done/failed/blocked) and context_id (session).",
          "input_schema":{"type":"object","properties":{"limit":{"type":"integer","description":"Max tasks to return (default 20, max 100)"},"status":{"type":"string","enum":["active","done","failed","blocked","cancelled","deferred","pending"],"description":"Filter by task status"},"context_id":{"type":"string","description":"Filter to tasks from a specific session URN"}},"required":[]}},
         {"name":"task_status","description":"Get full details of a single Task including its title, status, timestamps, and all associated TaskEvents (created, status_changed).",
-         "input_schema":{"type":"object","properties":{"task_id":{"type":"string","description":"Task URN (urn:refarm:task:v1:...)"}},"required":["task_id"]}},
-        {"name":"list_sessions","description":"List all conversation sessions stored in the CRDT. Shows id, name, leaf_entry_id, and which session is currently active.",
-         "input_schema":{"type":"object","properties":{}}},
-        {"name":"current_session","description":"Return metadata about the currently active conversation session, including its id and current leaf_entry_id (tip of the conversation tree).",
-         "input_schema":{"type":"object","properties":{}}},
-        {"name":"navigate","description":"Move the active session's conversation pointer to a specific entry in the tree. Use this to resume from an earlier point (e.g., before trying a different approach).",
-         "input_schema":{"type":"object","properties":{"session_id":{"type":"string","description":"Session to navigate"},"entry_id":{"type":"string","description":"Target entry to set as new leaf"}},"required":["session_id","entry_id"]}},
-        {"name":"fork","description":"Create a new session branching from a specific entry of an existing session. The original session is unchanged. Use before exploring a risky approach.",
-         "input_schema":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string","description":"Optional name for the new fork"}},"required":["session_id","entry_id"]}}
+         "input_schema":{"type":"object","properties":{"task_id":{"type":"string","description":"Task URN (urn:refarm:task:v1:...)"}},"required":["task_id"]}}
     ])
 }
 
@@ -100,14 +92,6 @@ pub(crate) fn tools_openai() -> serde_json::Value {
         {"type":"function","function":{"name":"list_tasks","description":"List Task nodes from the CRDT. Each prompt creates one Task. Filter by status or context_id.",
          "parameters":{"type":"object","properties":{"limit":{"type":"integer"},"status":{"type":"string","enum":["active","done","failed","blocked","cancelled","deferred","pending"]},"context_id":{"type":"string"}}}}},
         {"type":"function","function":{"name":"task_status","description":"Get full details of a single Task by its URN, including all TaskEvents.",
-         "parameters":{"type":"object","properties":{"task_id":{"type":"string"}},"required":["task_id"]}}},
-        {"type":"function","function":{"name":"list_sessions","description":"List all conversation sessions stored in the CRDT.",
-         "parameters":{"type":"object","properties":{}}}},
-        {"type":"function","function":{"name":"current_session","description":"Return metadata about the currently active conversation session.",
-         "parameters":{"type":"object","properties":{}}}},
-        {"type":"function","function":{"name":"navigate","description":"Move the active session's conversation pointer to a specific entry in the tree.",
-         "parameters":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"}},"required":["session_id","entry_id"]}}},
-        {"type":"function","function":{"name":"fork","description":"Create a new session branching from a specific entry of an existing session.",
-         "parameters":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string"}},"required":["session_id","entry_id"]}}}
+         "parameters":{"type":"object","properties":{"task_id":{"type":"string"}},"required":["task_id"]}}}
     ])
 }

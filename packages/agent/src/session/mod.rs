@@ -18,6 +18,5 @@ mod wasm_ops;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use wasm_ops::{
-    append_to_session, budget_exceeded_for_provider, fork_session, get_or_create_session,
-    get_or_create_session_id_readonly, navigate_session, query_history,
+    append_to_session, budget_exceeded_for_provider, get_or_create_session, query_history,
 };

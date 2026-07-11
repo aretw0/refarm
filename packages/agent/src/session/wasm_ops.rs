@@ -14,10 +14,6 @@ fn new_entry_id_for_session(_session_id: &str) -> String {
     format!("{ENTRY_PREFIX_V1}{}", crate::new_id())
 }
 
-fn new_fork_session_id(_parent_session_id: &str) -> String {
-    new_session_id()
-}
-
 fn latest_session_id_with_v1_preference(limit: u32) -> Option<String> {
     let sessions: Vec<serde_json::Value> = tractor_bridge::query_nodes("Session", limit)
         .ok()?
@@ -115,39 +111,11 @@ pub(crate) fn append_to_session(session_id: &str, kind: &str, content: &str) -> 
     Some(entry_id)
 }
 
-/// Fork `session_id` at `entry_id`: create a new Session with `parent_session_id`
-/// pointing to the original and `leaf_entry_id` set to `entry_id`. The original
-/// session is not modified. Returns the new session `@id`.
-pub(crate) fn fork_session(session_id: &str, entry_id: &str, name: Option<&str>) -> Option<String> {
-    let new_id_ = new_fork_session_id(session_id);
-    let node = session_node(&new_id_, name, Some(entry_id), Some(session_id), now_ns());
-    tractor_bridge::store_node(&node.to_string()).ok()?;
-    Some(new_id_)
-}
-
-/// Navigate to `entry_id` within `session_id`: moves `leaf_entry_id` without
-/// touching any SessionEntry nodes. Returns Err if session not found.
-pub(crate) fn navigate_session(session_id: &str, entry_id: &str) -> Result<(), String> {
-    let raw = tractor_bridge::get_node(&session_id.to_string())
-        .map_err(|e| format!("navigate: session not found: {e:?}"))?;
-    let mut v = serde_json::from_str::<serde_json::Value>(&raw)
-        .map_err(|e| format!("navigate: parse error: {e}"))?;
-    v["leaf_entry_id"] = serde_json::Value::String(entry_id.to_owned());
-    tractor_bridge::store_node(&v.to_string())
-        .map(|_| ())
-        .map_err(|e| format!("navigate: store error: {e:?}"))
-}
-
-/// Read-only version of active session ID — never creates a new session.
-/// Used for display purposes (e.g., list_sessions showing which is active).
-pub(crate) fn get_or_create_session_id_readonly() -> String {
-    if let Ok(id) = std::env::var("MODEL_SESSION_ID") {
-        if !id.is_empty() {
-            return id;
-        }
-    }
-    latest_session_id(20).unwrap_or_default()
-}
+// fork_session / navigate_session / get_or_create_session_id_readonly were removed
+// with the agent's session-tree model tools (list/current/navigate/fork): inspecting
+// and reparenting the conversation tree is an OPERATOR action (the CLI's `refarm tree`
+// / `sessions` commands own it), never a model-invokable one. The runtime keeps only
+// the session bookkeeping it needs to append turns (get_or_create_session below).
 
 /// Return the active session ID for this agent instance.
 ///

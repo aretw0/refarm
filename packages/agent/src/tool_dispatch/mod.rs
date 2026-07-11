@@ -2,7 +2,6 @@ mod fs_shell;
 mod fs_tools;
 #[cfg(target_arch = "wasm32")]
 mod plugin_tools;
-mod session_tools;
 mod shell_tools;
 mod structured_tools;
 mod task_tools;
@@ -56,11 +55,12 @@ pub(crate) fn dispatch_tool(name: &str, input: &serde_json::Value) -> String {
         "read_structured" => fs_shell::read_structured(input),
         "write_structured" => fs_shell::write_structured(input),
 
-        // Session management
-        "list_sessions" => session_tools::list_sessions(),
-        "current_session" => session_tools::current_session(),
-        "navigate" => session_tools::navigate(input),
-        "fork" => session_tools::fork(input),
+        // Session-tree management (list/current/navigate/fork) is NO LONGER a model
+        // tool: those are OPERATOR controls — the human drives them via the CLI
+        // (`refarm tree fork/navigate`, `sessions`), the same split the reference
+        // agents draw (pi's /fork, /tree, /session). Keeping them off the model
+        // surface keeps the agent minimal; the session capability itself is intact
+        // (session::wasm_ops), just not model-invokable.
 
         // Task introspection
         "list_tasks" => task_tools::list_tasks(input),

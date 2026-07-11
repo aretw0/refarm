@@ -71,8 +71,8 @@ pub(crate) use compress::{compress_tool_output, dedup_lines, strip_ansi};
 pub(crate) use runtime::react;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use session::{
-    append_to_session, budget_exceeded_for_provider, fork_session, get_or_create_session,
-    get_or_create_session_id_readonly, navigate_session, query_history, record_context_fold,
+    append_to_session, budget_exceeded_for_provider, get_or_create_session, query_history,
+    record_context_fold,
 };
 #[allow(unused_imports)]
 pub(crate) use session::{
