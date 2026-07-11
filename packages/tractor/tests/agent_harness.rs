@@ -849,10 +849,11 @@ async fn harness_plugin_tool_guidance_reaches_system_prompt() {
     let registry = tractor::host::PluginRegistry::default();
     registry.register(
         "vault",
-        vec!["vault:store".into(), "vault:dispatch".into()],
-        vec!["vault:dispatch".into()],
-        std::collections::HashMap::new(),
-        vec![],
+        tractor::host::PluginCapabilityProfile {
+            provides: vec!["vault:store".into(), "vault:dispatch".into()],
+            subscribes: vec!["vault:dispatch".into()],
+            ..Default::default()
+        },
     );
     let cross = tractor::host::CrossPluginAccess {
         registry,
@@ -929,10 +930,12 @@ async fn harness_plugin_declared_verb_doc_overrides_boilerplate_in_prompt() {
     let registry = tractor::host::PluginRegistry::default();
     registry.register(
         "vault",
-        vec!["vault:store".into(), "vault:dispatch".into()],
-        vec!["vault:dispatch".into()],
-        verb_docs,
-        vec![],
+        tractor::host::PluginCapabilityProfile {
+            provides: vec!["vault:store".into(), "vault:dispatch".into()],
+            subscribes: vec!["vault:dispatch".into()],
+            verb_docs,
+            ..Default::default()
+        },
     );
     let cross = tractor::host::CrossPluginAccess {
         registry,
