@@ -73,9 +73,53 @@ export interface PluginExtensions {
 	surfaces?: ExtensionSurfaceDeclaration[];
 }
 
+/** One verb's entry in the `verbs` authoring block: WHERE it goes (list flags) plus its
+ * per-verb metadata (doc/schema), all keyed by the SHORT verb name (no `<key>:` prefix —
+ * the block's key qualifies it). `provides` defaults true (a listed verb is offered);
+ * set `provides: false` for a verb the plugin only subscribes to. */
+export interface PluginVerbEntry {
+	/** Put `<key>:<verb>` in `provides`. Defaults true — a listed verb is provided. */
+	provides?: boolean;
+	/** Put `<key>:<verb>` in `subscribes` too (the plugin listens on this verb's event). */
+	subscribes?: boolean;
+	/** Per-verb usage prose → lowered to `verbDocs["<key>:<verb>"]`. */
+	doc?: string;
+	/** Per-verb argument JSON-Schema → lowered to `verbSchemas["<key>:<verb>"]`. */
+	schema?: Record<string, unknown>;
+}
+
+/** The ergonomic authoring block for a plugin's dispatchable verbs — the high-level form
+ * that names each thing ONCE, then lowers (via normalizeCapabilities) to the raw
+ * `provides`/`subscribes`/`verbDocs`/`verbSchemas` every host consumer reads. It exists to
+ * kill the repetition of declaring `<key>:dispatch` in two lists, re-referencing a verb in
+ * three fields, and repeating the `<key>:` prefix on every entry.
+ *
+ * `key` is optional: absent, it is inferred from the manifest `id` (last path segment,
+ * `@scope/vault → vault`), so the common plugin declares nothing; an explicit `key`
+ * overrides when the key diverges from the id segment (`@devbench/coding-agent → agent`).
+ *
+ * DISPATCH IS IMPLICIT — no flag. A verbs block IS the declaration "these are my tool
+ * actions", and a tool only surfaces via the `<key>:dispatch` guard, so a non-empty block
+ * always derives `<key>:dispatch` into provides + subscribes. To declare something that
+ * does NOT surface (the agent's `integration:respond` sugar, a raw event), keep it in raw
+ * `provides`/`subscribes` OUTSIDE this block.
+ *
+ * `verbs` COEXISTS with raw `provides`/`subscribes` — those still carry the NON-verb
+ * entries a verb map cannot hold (host events like `user:prompt`, sugar strings, apis). */
+export interface PluginVerbsBlock {
+	/** The routing key prefixed onto every short verb. Optional — inferred from `id`. */
+	key?: string;
+	/** The verbs, keyed by SHORT name (no prefix) → their list flags + doc/schema. */
+	list?: Record<string, PluginVerbEntry>;
+}
+
 export interface PluginCapabilities {
 	provides: string[];
 	requires: string[];
+	/** The ergonomic authoring form for dispatchable verbs — lowered to the raw lists
+	 * below by normalizeCapabilities at load. Optional; coexists with raw provides/
+	 * subscribes (which carry non-verb entries). See {@link PluginVerbsBlock}. */
+	verbs?: PluginVerbsBlock;
 	/** The runtime event names this plugin subscribes to — what the neutral event
 	 * router delivers to it. A plugin declaring `vault:dispatch` here receives that
 	 * event; `user:prompt` is the agent's subscription. Optional and permissive:
@@ -191,6 +235,21 @@ export function createMockManifest(
 ): PluginManifest;
 export function validatePluginManifest(manifest: any): ManifestValidationResult;
 export function assertValidPluginManifest(manifest: any): void;
+
+/** The canonical routing key inferred from a plugin id (last path segment,
+ * `@scope/vault → vault`) — the default `verbs` block key. */
+export function pluginKeyFromId(id: string): string;
+/** Lower a `capabilities.verbs` authoring block into the raw vocabulary
+ * (`provides`/`subscribes`/`verbDocs`/`verbSchemas`), merged with any raw entries and
+ * de-duped. `id` supplies the inferred key when `verbs.key` is absent. Returns the
+ * capabilities unchanged when there is no `verbs` block. */
+export function normalizeCapabilities(
+	capabilities: PluginCapabilities,
+	id?: string,
+): PluginCapabilities;
+/** Manifest-level convenience: {@link normalizeCapabilities} using the manifest's own
+ * `id`, returning a new manifest (unchanged when there is no `verbs` block). */
+export function normalizeManifest(manifest: PluginManifest): PluginManifest;
 
 export type PluginPolicyMode = "warn+continue" | "fail-fast";
 export type PluginPolicyStatus =

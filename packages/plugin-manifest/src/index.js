@@ -32,6 +32,11 @@ export {
 	unknownPermissions,
 	describePermission,
 } from "./permission-vocab.js";
+export {
+	normalizeCapabilities,
+	normalizeManifest,
+	pluginKeyFromId,
+} from "./capabilities-normalize.js";
 export { decidePluginPolicy, evaluateCapabilityGrant } from "./policy.js";
 export { REQUIRED_TELEMETRY_HOOKS } from "./types.js";
 export { assertValidPluginManifest, validatePluginManifest } from "./validate.js";

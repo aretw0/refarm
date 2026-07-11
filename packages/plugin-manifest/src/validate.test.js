@@ -464,6 +464,80 @@ describe("contract baseline validation", () => {
 	});
 });
 
+describe("verbs authoring block (lowers to raw vocab)", () => {
+	it("accepts a manifest authored purely with a verbs block (no raw provides)", () => {
+		const manifest = createMockManifest({
+			id: "@example/vault",
+			capabilities: {
+				requires: [],
+				verbs: {
+					list: {
+						search: {
+							doc: "Search the vault.",
+							schema: { type: "object", properties: { query: { type: "string" } } },
+						},
+						extract: {},
+					},
+				},
+			},
+		});
+		// provides is empty on the RAW manifest — it must validate via the lowered expansion.
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+		expect(result.errors).toHaveLength(0);
+	});
+
+	it("rejects a short verb name that carries a prefix (the block key qualifies it)", () => {
+		const manifest = createMockManifest({
+			id: "@example/vault",
+			capabilities: { requires: [], verbs: { list: { "vault:search": {} } } },
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(
+			result.errors.some((e) => e.includes('must be a SHORT verb name')),
+		).toBe(true);
+	});
+
+	it("rejects non-boolean flags and non-object schema in a verb entry", () => {
+		const manifest = createMockManifest({
+			id: "@example/vault",
+			capabilities: {
+				requires: [],
+				verbs: { list: { search: { provides: "yes", schema: ["nope"] } } },
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors.some((e) => e.includes(".provides must be a boolean"))).toBe(true);
+		expect(result.errors.some((e) => e.includes(".schema must be a JSON-Schema object"))).toBe(true);
+	});
+
+	it("requires a resolvable key (an unscoped id with no explicit key fails on a non-empty list)", () => {
+		// id without a "/" segment → pluginKeyFromId gives the whole id; but an empty id
+		// cannot resolve. Here we force the no-key path with an id that yields empty.
+		const manifest = createMockManifest({
+			id: "@example/vault",
+			capabilities: { requires: [], verbs: { key: "", list: { search: {} } } },
+		});
+		const result = validatePluginManifest(manifest);
+		// key:"" is rejected as non-empty-string when provided.
+		expect(result.valid).toBe(false);
+		expect(result.errors.some((e) => e.includes("verbs.key must be a non-empty string"))).toBe(true);
+	});
+
+	it("an explicit diverging key validates (coding-agent → agent)", () => {
+		const manifest = createMockManifest({
+			id: "@devbench/coding-agent",
+			capabilities: {
+				requires: [],
+				verbs: { key: "agent", list: { code: {}, review: {} } },
+			},
+		});
+		expect(validatePluginManifest(manifest).valid).toBe(true);
+	});
+});
+
 describe("verbSchemas validation (per-verb typed tool schema)", () => {
 	it("accepts verbSchemas whose keys are all in provides, values are JSON-Schema objects", () => {
 		const manifest = createMockManifest({

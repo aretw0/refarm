@@ -1,3 +1,4 @@
+import { normalizeManifest, pluginKeyFromId } from "./capabilities-normalize.js";
 import { detectEntryFormat } from "./entry-support.js";
 import { EXTENSION_SURFACE_LAYERS } from "./extension-surfaces.js";
 import { PERMISSIONS, unknownPermissions } from "./permission-vocab.js";
@@ -30,6 +31,62 @@ function isNonEmptyString(value) {
  */
 function isNonEmptyStringArray(values) {
 	return Array.isArray(values) && values.every(isNonEmptyString);
+}
+
+/**
+ * Validate the FORM of a `capabilities.verbs` authoring block (before it is lowered).
+ * Permissive by form, mirroring verbDocs/syncVerbs: the block is optional; when present
+ * its shape is checked (key a string, list an object, each short verb name un-prefixed,
+ * flags boolean, doc a string, schema an object), not its lowered result — that is
+ * validated downstream on the normalized provides/subscribes.
+ * @param {any} verbs
+ * @param {string} manifestId
+ * @param {string[]} errors
+ * @returns {void}
+ */
+function validateVerbsBlock(verbs, manifestId, errors) {
+	if (verbs === undefined) return;
+	if (typeof verbs !== "object" || verbs === null || Array.isArray(verbs)) {
+		errors.push("capabilities.verbs must be an object block { key?, list }");
+		return;
+	}
+	if (verbs.key !== undefined && !isNonEmptyString(verbs.key)) {
+		errors.push("capabilities.verbs.key must be a non-empty string when provided");
+	}
+	// The key must resolve (explicit or inferred from id) or the lowered verbs collide.
+	const resolvedKey = isNonEmptyString(verbs.key) ? verbs.key : pluginKeyFromId(manifestId);
+	if (verbs.list !== undefined) {
+		if (typeof verbs.list !== "object" || verbs.list === null || Array.isArray(verbs.list)) {
+			errors.push("capabilities.verbs.list must be an object map of <verb> → entry");
+			return;
+		}
+		if (Object.keys(verbs.list).length > 0 && !isNonEmptyString(resolvedKey)) {
+			errors.push("capabilities.verbs.key is required (or inferable from id) when list is non-empty");
+		}
+		for (const [verb, entry] of Object.entries(verbs.list)) {
+			if (verb.includes(":")) {
+				errors.push(`capabilities.verbs.list key "${verb}" must be a SHORT verb name (no "<key>:" prefix)`);
+			}
+			if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+				errors.push(`capabilities.verbs.list["${verb}"] must be an entry object`);
+				continue;
+			}
+			for (const flag of ["provides", "subscribes"]) {
+				if (entry[flag] !== undefined && typeof entry[flag] !== "boolean") {
+					errors.push(`capabilities.verbs.list["${verb}"].${flag} must be a boolean when provided`);
+				}
+			}
+			if (entry.doc !== undefined && typeof entry.doc !== "string") {
+				errors.push(`capabilities.verbs.list["${verb}"].doc must be a string when provided`);
+			}
+			if (
+				entry.schema !== undefined &&
+				(typeof entry.schema !== "object" || entry.schema === null || Array.isArray(entry.schema))
+			) {
+				errors.push(`capabilities.verbs.list["${verb}"].schema must be a JSON-Schema object when provided`);
+			}
+		}
+	}
 }
 
 /**
@@ -206,6 +263,15 @@ export function validatePluginManifest(manifest) {
 	) {
 		errors.push("integrity must use sha256- prefix with 64 hex chars or base64 digest");
 	}
+
+	// Validate the FORM of the ergonomic `verbs` block (if any) on the RAW manifest,
+	// THEN lower it: everything below validates the normalized capabilities (the raw
+	// provides/subscribes the block expands into), so a manifest authored purely with
+	// `verbs` satisfies the provides/keys-in-provides checks on its expansion.
+	if (manifest.capabilities) {
+		validateVerbsBlock(manifest.capabilities.verbs, manifest.id, errors);
+	}
+	manifest = normalizeManifest(manifest);
 
 	if (!manifest.capabilities || manifest.capabilities.provides.length === 0) {
 		errors.push("capabilities.provides must contain at least one capability");
