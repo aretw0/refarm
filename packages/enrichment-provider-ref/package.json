@@ -12,7 +12,7 @@
 		}
 	},
 	"scripts": {
-		"bundle:plugin": "esbuild src/plugin.js --bundle --format=esm --platform=neutral --external:refarm:* --outfile=dist/plugin.bundled.js",
+		"bundle:plugin": "esbuild src/plugin.js --bundle --format=esm --platform=neutral --external:plugin:* --outfile=dist/plugin.bundled.js",
 		"build:plugin": "pnpm run bundle:plugin && jco componentize dist/plugin.bundled.js --wit ../plugin-wit/wit --world-name refarm-plugin --disable all -o dist/enrichment_provider.wasm && jco transpile dist/enrichment_provider.wasm -o pkg-plugin --name enrichment_provider --no-wasi-shim --instantiation async && node scripts/write-plugin-manifest.mjs",
 		"build": "tsc --project tsconfig.build.json",
 		"lint": "eslint src",
