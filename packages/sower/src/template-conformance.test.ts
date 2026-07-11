@@ -14,6 +14,9 @@ interface PublicTemplateManifest {
 	forbiddenPaths?: string[];
 }
 
+// The substrate has no sovereign-dir default; the app injects SOVEREIGN_DIR. Test stands in for the app.
+process.env.SOVEREIGN_DIR ||= ".refarm";
+
 const templatesRoot = path.resolve(__dirname, "../../../templates");
 
 function readManifest(templateId: string): PublicTemplateManifest {

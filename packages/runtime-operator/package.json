@@ -33,9 +33,10 @@
 		"access": "public"
 	},
 	"dependencies": {
+		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/process-handoff": "workspace:*",
-		"@refarm.dev/sidecar-client": "workspace:*",
 		"@refarm.dev/prompt-contract-v1": "workspace:*",
+		"@refarm.dev/sidecar-client": "workspace:*",
 		"chalk": "^5.6.2"
 	},
 	"devDependencies": {

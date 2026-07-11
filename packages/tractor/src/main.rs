@@ -506,7 +506,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
 
     // ── HTTP sidecar (ADR-060) ────────────────────────────────────────────────
     if args.http_port > 0 {
-        let base_dir = args.refarm_dir.clone().unwrap_or_else(dirs_refarm_base);
+        let base_dir = args.refarm_dir.clone().unwrap_or_else(dirs_sovereign_base);
         match tractor::sidecar::SidecarState::new(
             tractor.plugin_channels.clone(),
             tractor.cancel_flags.clone(),
@@ -541,7 +541,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     }
 
     // ── Scarecrow audit subscriber ────────────────────────────────────────────
-    let scarecrow_base = args.refarm_dir.clone().unwrap_or_else(dirs_refarm_base);
+    let scarecrow_base = args.refarm_dir.clone().unwrap_or_else(dirs_sovereign_base);
     tractor::observer::spawn_audit_subscriber(
         tractor.telemetry.clone(),
         scarecrow_base.clone(),
@@ -567,7 +567,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     Ok(())
 }
 
-fn dirs_refarm_base() -> std::path::PathBuf {
+fn dirs_sovereign_base() -> std::path::PathBuf {
     if let Ok(path) = std::env::var("REFARM_HOME") {
         let trimmed = path.trim();
         if !trimmed.is_empty() {
@@ -575,9 +575,14 @@ fn dirs_refarm_base() -> std::path::PathBuf {
         }
     }
 
-    dirs::home_dir()
-        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
-        .join(".refarm")
+    // The sovereign dir name is injected (SOVEREIGN_DIR — main() sets ".refarm" for this
+    // daemon); the data-home base is <home>/<SOVEREIGN_DIR>. Absent selector → a bare home
+    // base rather than an assumed brand dir (REFARM_HOME is the primary override anyway).
+    let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/tmp"));
+    match std::env::var("SOVEREIGN_DIR") {
+        Ok(dir) if !dir.trim().is_empty() => home.join(dir.trim()),
+        _ => home,
+    }
 }
 
 async fn run_prompt(args: PromptArgs) -> Result<()> {

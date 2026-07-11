@@ -24,6 +24,9 @@ afterEach(() => {
 	fs.rmSync(tempRoot, { recursive: true, force: true });
 });
 
+// The substrate has no sovereign-dir default; the app injects SOVEREIGN_DIR. Test stands in for the app.
+process.env.SOVEREIGN_DIR ||= ".refarm";
+
 describe("workspace sweep", () => {
 	it("reports a missing declared workspace path with bridge mount hints", () => {
 		const workspace = createWorkspace({

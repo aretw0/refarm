@@ -4,6 +4,9 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SowerCore } from "./core";
 
+// The substrate has no sovereign-dir default; the app injects SOVEREIGN_DIR. Test stands in for the app.
+process.env.SOVEREIGN_DIR ||= ".refarm";
+
 describe("SowerCore Scaffolding (Isolated)", () => {
 	let tempDir: string;
 

@@ -1,3 +1,4 @@
+import { sovereignDir } from "@refarm.dev/config";
 import {
 	startDetachedProcessHandoff,
 	type DetachedProcessHandoff,
@@ -63,7 +64,7 @@ export function resolveRuntimeLaunchCommand(
 			args: [scriptPath, ...starter.scriptArgs],
 			display: ["bash", path.join("scripts", starter.script), ...starter.scriptArgs].join(" "),
 			source: "repo-script",
-			logPath: path.join(repoRoot, ".refarm", `${engine}-runtime-start.log`),
+			logPath: path.join(repoRoot, sovereignDir(), `${engine}-runtime-start.log`),
 		};
 	}
 	return {

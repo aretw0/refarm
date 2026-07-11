@@ -1,3 +1,4 @@
+import { sovereignDir } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
 import { Windmill } from "@refarm.dev/windmill";
 import * as fs from "node:fs";
@@ -219,7 +220,7 @@ export class SowerCore {
 			template: templateId,
 			config,
 			identity: {
-				hostingPath: ".refarm/identity.json",
+				hostingPath: path.join(sovereignDir(), "identity.json"),
 			},
 		};
 	}

@@ -1,3 +1,4 @@
+import { sovereignDir } from "@refarm.dev/config";
 import fs from "node:fs";
 import path from "node:path";
 import { normalizeHandoffValues, quoteCommandArgIfNeeded } from "./command-handoff.js";
@@ -340,7 +341,10 @@ export function buildWorkspaceSourceCachePlan(
 	workspaces: WorkspaceSweepDeclaredWorkspace[],
 	options: { baseDir: string; cacheRoot?: string; updateIntervalSeconds?: number },
 ): WorkspaceSourceCachePlan {
-	const cacheRoot = path.resolve(options.baseDir, options.cacheRoot ?? ".refarm/cache/checkouts");
+	const cacheRoot = path.resolve(
+		options.baseDir,
+		options.cacheRoot ?? path.join(sovereignDir(), "cache", "checkouts"),
+	);
 	const updateIntervalSeconds = options.updateIntervalSeconds ?? 300;
 	const items = workspaces.map((workspace) => {
 		const resolution = resolveDeclaredWorkspacePath(workspace);
