@@ -2,14 +2,14 @@ export interface SessionIdNode {
 	"@id": string;
 }
 
-export const SESSION_ID_URN_PREFIX = "urn:refarm:session:v1:";
+export const SESSION_ID_URN_PREFIX = "urn:sovereign:session:v1:";
 
 export function isFullSessionId(value: string): boolean {
 	return value.startsWith(SESSION_ID_URN_PREFIX);
 }
 
 export function formatSessionId(id: string): string {
-	// urn:refarm:session:v1:0123456789abcdef → show last 12 chars
+	// urn:sovereign:session:v1:0123456789abcdef → show last 12 chars
 	const parts = id.split(":");
 	return parts.at(-1)?.slice(-12) ?? id;
 }

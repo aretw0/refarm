@@ -19,7 +19,7 @@
 use serde_json::Value;
 
 pub(crate) const PLUGIN_POINTER_NODE_TYPE: &str = "RefarmPluginPointer";
-const PLUGIN_POINTER_NODE_PREFIX: &str = "urn:refarm:plugin-pointer:";
+const PLUGIN_POINTER_NODE_PREFIX: &str = "urn:sovereign:plugin-pointer:";
 
 /// The node id for a plugin's pointer — one per plugin id (upsert, like the config node).
 pub(crate) fn plugin_pointer_node_id(plugin_id: &str) -> String {
@@ -94,7 +94,7 @@ mod tests {
     fn pointer_id_is_stable_per_plugin() {
         assert_eq!(
             plugin_pointer_node_id("vault"),
-            "urn:refarm:plugin-pointer:vault"
+            "urn:sovereign:plugin-pointer:vault"
         );
     }
 

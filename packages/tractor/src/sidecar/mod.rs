@@ -348,7 +348,7 @@ fn err(status: StatusCode, msg: &str) -> impl IntoResponse {
 
 fn prompt_ref_from_effort(effort_id: &str) -> String {
     // Mirrors agent's new_agent_urn("prompt") convention — stable for stream_ref derivation.
-    format!("urn:refarm:prompt-{}", effort_id.replace('-', ""))
+    format!("urn:sovereign:prompt-{}", effort_id.replace('-', ""))
 }
 
 fn stream_ref_for_prompt(prompt_ref: &str) -> String {
@@ -980,7 +980,7 @@ async fn post_session_new(
         .unwrap_or_default()
         .as_nanos() as u64;
 
-    let new_id = format!("urn:refarm:session:v1:{}", uuid::Uuid::new_v4().simple());
+    let new_id = format!("urn:sovereign:session:v1:{}", uuid::Uuid::new_v4().simple());
     let session_node = serde_json::json!({
         "@type": "Session",
         "@id": new_id,
@@ -1075,7 +1075,7 @@ async fn post_session_fork(
         .unwrap_or_default()
         .as_nanos() as u64;
 
-    let new_id = format!("urn:refarm:session:v1:{}", uuid::Uuid::new_v4().simple());
+    let new_id = format!("urn:sovereign:session:v1:{}", uuid::Uuid::new_v4().simple());
     let fork_node = serde_json::json!({
         "@type": "Session",
         "@id": new_id,

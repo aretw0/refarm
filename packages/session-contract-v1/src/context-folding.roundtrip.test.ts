@@ -19,7 +19,7 @@ import type { SessionEntry } from "./types.js";
  * the Rust digest were wrong for these, `digest_mismatches` here would be non-empty.
  */
 const RUST_EMITTED_FOLD: SessionContextFold = {
-	"@id": "urn:refarm:session-context-fold:v1:1bc6557738034c81:62dc47ffa6e7e9d6",
+	"@id": "urn:sovereign:session-context-fold:v1:1bc6557738034c81:62dc47ffa6e7e9d6",
 	"@type": "SessionContextFold",
 	created_at_ns: 999,
 	digest: { algorithm: "refarm-stable-fnv1a64-v1", value: "62dc47ffa6e7e9d6" },

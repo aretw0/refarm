@@ -19,7 +19,7 @@ describe("Security Canaries (Tripwires)", () => {
     const node: NormalisedNode = {
       "@context": "https://refarm.dev/schemas/v1",
       "@type": "Note",
-      "@id": "urn:refarm:note:1",
+      "@id": "urn:sovereign:note:1",
       "text": "Secret info"
     };
 
@@ -43,7 +43,7 @@ describe("Security Canaries (Tripwires)", () => {
     const futureNode: NormalisedNode = {
       "@context": "https://refarm.dev/schemas/v1",
       "@type": "Note",
-      "@id": "urn:refarm:note:future",
+      "@id": "urn:sovereign:note:future",
       "timestamp": new Date(Date.now() + 1000 * 60 * 60).toISOString() // 1 hour in future
     };
 
@@ -62,7 +62,7 @@ describe("Security Canaries (Tripwires)", () => {
     const node: NormalisedNode = {
       "@context": "https://refarm.dev/schemas/v1",
       "@type": "Note",
-      "@id": "urn:refarm:note:permissive",
+      "@id": "urn:sovereign:note:permissive",
       "text": "Edit me"
     };
 
@@ -82,7 +82,7 @@ describe("Security Canaries (Tripwires)", () => {
     const node: NormalisedNode = {
       "@context": "https://refarm.dev/schemas/v1",
       "@type": "Note",
-      "@id": "urn:refarm:note:none",
+      "@id": "urn:sovereign:note:none",
       "timestamp": new Date(Date.now() + 1000 * 60 * 60).toISOString() // Future
     };
 
@@ -98,14 +98,14 @@ describe("Security Canaries (Tripwires)", () => {
 
     // Verify it was stored via the mock storage
     const stored = await tractor.queryNodes("Note");
-    expect(stored.some(n => n["@id"] === "urn:refarm:note:none")).toBe(true);
+    expect(stored.some(n => n["@id"] === "urn:sovereign:note:none")).toBe(true);
   });
 
   it("should allow nodes within the 10s grace period", async () => {
     const nearFutureNode: NormalisedNode = {
       "@context": "https://refarm.dev/schemas/v1",
       "@type": "Note",
-      "@id": "urn:refarm:note:near-future",
+      "@id": "urn:sovereign:note:near-future",
       "timestamp": new Date(Date.now() + 5000).toISOString() // 5s in future
     };
 

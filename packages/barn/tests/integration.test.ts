@@ -29,7 +29,7 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 
 		expect(plugin).toBeDefined();
 		expect(plugin.status).toBe("installed");
-		expect(plugin.id).toContain("urn:refarm:plugin:");
+		expect(plugin.id).toContain("urn:sovereign:plugin:");
 		expect(plugin.cacheStatus).toBe("miss");
 		expect(plugin.wasmHash).toBe(integrity);
 	});

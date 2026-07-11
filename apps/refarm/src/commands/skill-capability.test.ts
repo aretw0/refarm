@@ -294,7 +294,7 @@ describe("skill CapabilityGroup", () => {
 			skills: [
 				{
 					surfaceId: "commit",
-					id: "urn:refarm:skill:v1:commit:abc123",
+					id: "urn:sovereign:skill:v1:commit:abc123",
 					name: "commit",
 					requiredCapabilities: [],
 					instructions: "Make a commit.",
@@ -306,7 +306,7 @@ describe("skill CapabilityGroup", () => {
 			rejected: [],
 		};
 		const group = createSkillCapabilityGroup(
-			deps([], [], [], importResult, ["urn:refarm:skill:v1:commit:abc123"]),
+			deps([], [], [], importResult, ["urn:sovereign:skill:v1:commit:abc123"]),
 		);
 		const resolved = resolveGroupAction(group, ["import", "/ext/skills", "--write"]);
 		const envelope = (await resolved!.action.run(resolved!.input)) as unknown as {
@@ -318,7 +318,7 @@ describe("skill CapabilityGroup", () => {
 		expect(envelope.persisted).toBe(true);
 		// The persisted id is the CONTENT-ADDRESSED id (sha256 in the urn) — the
 		// same seam a p2p/OPFS resolver would key on.
-		expect(envelope.written).toEqual(["urn:refarm:skill:v1:commit:abc123"]);
+		expect(envelope.written).toEqual(["urn:sovereign:skill:v1:commit:abc123"]);
 	});
 
 	it("persists imported skills to the user ledger and loads them back for list", async () => {
@@ -329,7 +329,7 @@ describe("skill CapabilityGroup", () => {
 			const imported: ImportResult["skills"] = [
 				{
 					surfaceId: "commit",
-					id: "urn:refarm:skill:v1:commit:abc123",
+					id: "urn:sovereign:skill:v1:commit:abc123",
 					name: "commit",
 					description: "Read before committing",
 					requiredCapabilities: [],
@@ -340,14 +340,14 @@ describe("skill CapabilityGroup", () => {
 				},
 			];
 			await expect(persistImportedSkillsToLedger(imported, "user", roots)).resolves.toEqual([
-				"urn:refarm:skill:v1:commit:abc123",
+				"urn:sovereign:skill:v1:commit:abc123",
 			]);
 
 			const loaded = await loadPersistedImportedSkills(roots);
 			expect(loaded.rejected).toEqual([]);
 			expect(loaded.skills).toHaveLength(1);
 			expect(loaded.skills[0]).toMatchObject({
-				id: "urn:refarm:skill:v1:commit:abc123",
+				id: "urn:sovereign:skill:v1:commit:abc123",
 				name: "commit",
 				ledgerScope: "user",
 			});
@@ -382,7 +382,7 @@ describe("skill CapabilityGroup", () => {
 			// only carries its own personal skill.
 			const shared = (instructions: string): ImportResult["skills"][number] => ({
 				surfaceId: "shared",
-				id: "urn:refarm:skill:v1:shared:aaaa1111",
+				id: "urn:sovereign:skill:v1:shared:aaaa1111",
 				name: "shared",
 				requiredCapabilities: [],
 				instructions,
@@ -392,7 +392,7 @@ describe("skill CapabilityGroup", () => {
 			});
 			const orgOnly: ImportResult["skills"][number] = {
 				surfaceId: "org-base",
-				id: "urn:refarm:skill:v1:org-base:bbbb2222",
+				id: "urn:sovereign:skill:v1:org-base:bbbb2222",
 				name: "org-base",
 				requiredCapabilities: [],
 				instructions: "org-only skill",
@@ -408,12 +408,12 @@ describe("skill CapabilityGroup", () => {
 			// Same content-addressed id: workspace overrides org (higher precedence),
 			// and there is ONE effective skill, not two.
 			expect(loaded.skills.filter((s) => s.name === "shared")).toHaveLength(1);
-			expect(byId.get("urn:refarm:skill:v1:shared:aaaa1111")).toMatchObject({
+			expect(byId.get("urn:sovereign:skill:v1:shared:aaaa1111")).toMatchObject({
 				instructions: "WORKSPACE",
 				ledgerScope: "workspace",
 			});
 			// The org-only skill still shows through (base inherited).
-			expect(byId.get("urn:refarm:skill:v1:org-base:bbbb2222")).toMatchObject({
+			expect(byId.get("urn:sovereign:skill:v1:org-base:bbbb2222")).toMatchObject({
 				ledgerScope: "org",
 			});
 		} finally {
@@ -433,7 +433,7 @@ describe("skill CapabilityGroup", () => {
 				[
 					{
 						surfaceId: "commit",
-						id: "urn:refarm:skill:v1:commit:abc123",
+						id: "urn:sovereign:skill:v1:commit:abc123",
 						name: "commit",
 						requiredCapabilities: [],
 						instructions,
@@ -486,7 +486,7 @@ describe("skill CapabilityGroup", () => {
 			// instructions with no sha256 pointer — the exact shape 8bb00fa9 wrote.
 			const ledger = openScopedLedger("skills", "user", roots);
 			await ledger.storeNode({
-				"@id": "urn:refarm:skill:v1:legacy:deadbeef",
+				"@id": "urn:sovereign:skill:v1:legacy:deadbeef",
 				"@type": "imported-skill",
 				surfaceId: "legacy",
 				name: "legacy",
@@ -498,7 +498,7 @@ describe("skill CapabilityGroup", () => {
 			expect(loaded.rejected).toEqual([]);
 			expect(loaded.skills).toHaveLength(1);
 			expect(loaded.skills[0]).toMatchObject({
-				id: "urn:refarm:skill:v1:legacy:deadbeef",
+				id: "urn:sovereign:skill:v1:legacy:deadbeef",
 				instructions: "old inline body",
 				ledgerScope: "user",
 			});
@@ -515,7 +515,7 @@ describe("skill CapabilityGroup", () => {
 				skills: [
 					{
 						surfaceId: "s",
-						id: "urn:refarm:skill:v1:s:cccc3333",
+						id: "urn:sovereign:skill:v1:s:cccc3333",
 						name: "s",
 						requiredCapabilities: [],
 						instructions: "body",
@@ -528,7 +528,7 @@ describe("skill CapabilityGroup", () => {
 			}),
 			persistSkills: async (_skills, scope) => {
 				capturedScope = scope;
-				return ["urn:refarm:skill:v1:s:cccc3333"];
+				return ["urn:sovereign:skill:v1:s:cccc3333"];
 			},
 		});
 

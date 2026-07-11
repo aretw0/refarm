@@ -143,7 +143,7 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 }
 
 function newSessionId(): string {
-	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
+	return `urn:sovereign:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
 function sourceForAskScope(

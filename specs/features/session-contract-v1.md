@@ -52,7 +52,7 @@ entry refs that can be unfolded on demand
 
 2. **Given** agent starts a new conversation
    **When** it calls `sessionAdapter.create()`
-   **Then** a `Session` node with `urn:refarm:session:v1:{id}` is written to the CRDT graph
+   **Then** a `Session` node with `urn:sovereign:session:v1:{id}` is written to the CRDT graph
 
 3. **Given** a `Session` exists
    **When** agent appends a user message via `sessionAdapter.appendEntry()`
@@ -66,7 +66,7 @@ entry refs that can be unfolded on demand
 
 5. **Given** the namespace migration script runs
    **When** it processes an existing `urn:pi-agent:session-{id}` node
-   **Then** the node is rewritten to `urn:refarm:session:v1:{id}` and old references
+   **Then** the node is rewritten to `urn:sovereign:session:v1:{id}` and old references
    are updated
 
 6. **Given** a `SessionContractAdapter` with `entries` implemented
@@ -91,8 +91,8 @@ entry refs that can be unfolded on demand
 
 ```
 Before (agent private):
-  urn:pi-agent:session-{id}    →  After: urn:refarm:session:v1:{id}
-  urn:pi-agent:entry-{id}      →  After: urn:refarm:session-entry:v1:{id}
+  urn:pi-agent:session-{id}    →  After: urn:sovereign:session:v1:{id}
+  urn:pi-agent:entry-{id}      →  After: urn:sovereign:session-entry:v1:{id}
 ```
 
 **Pi-agent extension model (no coupling):**
@@ -151,7 +151,7 @@ export type SessionEntryKind =
 
 export interface Session {
   "@type": "Session";
-  "@id": string;              // urn:refarm:session:v1:{id}
+  "@id": string;              // urn:sovereign:session:v1:{id}
   participants: string[];     // array of URNs
   context_id: string | null;
   created_at_ns: number;
@@ -159,7 +159,7 @@ export interface Session {
 
 export interface SessionEntry {
   "@type": "SessionEntry";
-  "@id": string;              // urn:refarm:session-entry:v1:{id}
+  "@id": string;              // urn:sovereign:session-entry:v1:{id}
   session_id: string;
   parent_entry_id: string | null;  // linked list for branch-safe history
   kind: SessionEntryKind;
@@ -218,7 +218,7 @@ export function unfoldSessionContextFold(
 **Migration test:**
 
 - [x] Namespace migration script rewrites `urn:pi-agent:session-*` →
-      `urn:refarm:session:v1:*` without data loss
+      `urn:sovereign:session:v1:*` without data loss
 
 ---
 

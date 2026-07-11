@@ -23,8 +23,8 @@ fn every_event_name_carries_the_routed_prefix() {
 
 #[test]
 fn prompt_start_carries_the_run_correlation_and_session() {
-    let p = prompt_start_payload("urn:refarm:prompt-1", "urn:session:a");
-    assert_eq!(p["prompt_ref"], "urn:refarm:prompt-1");
+    let p = prompt_start_payload("urn:sovereign:prompt-1", "urn:session:a");
+    assert_eq!(p["prompt_ref"], "urn:sovereign:prompt-1");
     assert_eq!(p["session_id"], "urn:session:a");
 }
 

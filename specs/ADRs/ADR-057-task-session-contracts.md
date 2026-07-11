@@ -64,14 +64,14 @@ Pi-agent extends the base contract by storing extra CRDT fields (`leaf_entry_id`
 
 ### Node schemas
 
-**`Task`** (`urn:refarm:task:v1:{id}`): `title`, `status` (7 values), `created_by`,
+**`Task`** (`urn:sovereign:task:v1:{id}`): `title`, `status` (7 values), `created_by`,
 `assigned_to`, `context_id`, `parent_task_id`, timestamps.
 
-**`TaskEvent`** (`urn:refarm:task-event:v1:{id}`): append-only event log for a Task.
+**`TaskEvent`** (`urn:sovereign:task-event:v1:{id}`): append-only event log for a Task.
 
-**`Session`** (`urn:refarm:session:v1:{id}`): `participants[]`, `context_id`, `created_at_ns`.
+**`Session`** (`urn:sovereign:session:v1:{id}`): `participants[]`, `context_id`, `created_at_ns`.
 
-**`SessionEntry`** (`urn:refarm:session-entry:v1:{id}`): append-only, `parent_entry_id`
+**`SessionEntry`** (`urn:sovereign:session-entry:v1:{id}`): append-only, `parent_entry_id`
 linked list for branch-safe history walks.
 
 Full schemas and TypeScript interfaces are covered by the feature specs: [task-contract-v1](../features/task-contract-v1.md), [session-contract-v1](../features/session-contract-v1.md).
@@ -79,7 +79,7 @@ Full schemas and TypeScript interfaces are covered by the feature specs: [task-c
 ### Pi-agent namespace migration
 
 Existing agent nodes use `urn:pi-agent:session-{id}` and `urn:pi-agent:entry-{id}`.
-A one-time migration script rewrites these to `urn:refarm:session:v1:*` before the
+A one-time migration script rewrites these to `urn:sovereign:session:v1:*` before the
 daily-driver gate. Timing is safe: the dataset is personal and pre-v0.1.0.
 
 ## Consequences

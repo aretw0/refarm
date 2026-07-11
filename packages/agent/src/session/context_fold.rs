@@ -150,7 +150,7 @@ pub(crate) fn build_session_context_fold(
     let digest_value = stable_hash_value(&digest_input);
     let session_hash = stable_hash_str(&session_id);
     let fold_id =
-        format!("urn:refarm:session-context-fold:v1:{session_hash}:{digest_value}");
+        format!("urn:sovereign:session-context-fold:v1:{session_hash}:{digest_value}");
 
     let first = &folded_entries[0];
     let last = &folded_entries[folded_entries.len() - 1];

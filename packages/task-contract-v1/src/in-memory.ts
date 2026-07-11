@@ -48,7 +48,7 @@ export function createInMemoryTaskAdapter(
 
 	return {
 		async create(taskInput) {
-			const id = `urn:refarm:task:v1:${idFactory()}`;
+			const id = `urn:sovereign:task:v1:${idFactory()}`;
 			const timestamp = issueNs();
 			const task: Task = {
 				...taskInput,
@@ -99,7 +99,7 @@ export function createInMemoryTaskAdapter(
 			const event: TaskEvent = {
 				...eventInput,
 				"@type": "TaskEvent",
-				"@id": `urn:refarm:task-event:v1:${idFactory()}`,
+				"@id": `urn:sovereign:task-event:v1:${idFactory()}`,
 				timestamp_ns: issueNs(),
 			};
 

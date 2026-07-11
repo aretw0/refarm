@@ -28,7 +28,7 @@ describe("command handoff helpers", () => {
 
 	it("quotes command arguments only when needed", () => {
 		expect(quoteCommandArgIfNeeded("effort-1")).toBe("effort-1");
-		expect(quoteCommandArgIfNeeded("urn:refarm:task:v1:abc123")).toBe("urn:refarm:task:v1:abc123");
+		expect(quoteCommandArgIfNeeded("urn:sovereign:task:v1:abc123")).toBe("urn:sovereign:task:v1:abc123");
 		expect(quoteCommandArgIfNeeded("effort with space")).toBe("'effort with space'");
 	});
 

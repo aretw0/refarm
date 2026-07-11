@@ -9,7 +9,7 @@ import { ConfigNodeAuditor } from "./config-node.js";
 function fakeGraph(node) {
 	return {
 		async getNode(id) {
-			return id === "urn:refarm:config:workspace" ? node : null;
+			return id === "urn:sovereign:config:workspace" ? node : null;
 		},
 	};
 }
@@ -115,7 +115,7 @@ describe("ConfigNodeAuditor", () => {
 
 		expect(result.issues).toHaveLength(1);
 		expect(result.issues[0].type).toBe("config_node_drift");
-		expect(result.issues[0].path).toBe("urn:refarm:config:workspace");
+		expect(result.issues[0].path).toBe("urn:sovereign:config:workspace");
 	});
 
 	it("no-ops informatively when there is no graphContext", async () => {

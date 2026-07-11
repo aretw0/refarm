@@ -1,6 +1,6 @@
 import { isRuntimeAgentPluginId } from "@refarm.dev/config";
 
-const AGENT_PARTICIPANT_PREFIX = "urn:refarm:agent:";
+const AGENT_PARTICIPANT_PREFIX = "urn:sovereign:agent:";
 const RUNTIME_AGENT_PARTICIPANT_ID = `${AGENT_PARTICIPANT_PREFIX}runtime-agent`;
 
 export interface SessionParticipantAlias {

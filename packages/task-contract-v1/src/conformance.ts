@@ -10,7 +10,7 @@ export async function runTaskV1Conformance(
 		"@type": "Task",
 		title: "Conformance test task",
 		status: "pending",
-		created_by: "urn:refarm:conformance",
+		created_by: "urn:sovereign:conformance",
 		assigned_to: null,
 		context_id: null,
 		parent_task_id: null,
@@ -64,7 +64,7 @@ export async function runTaskV1Conformance(
 				"@type": "TaskEvent",
 				task_id: created["@id"],
 				event: "status_changed",
-				actor: "urn:refarm:conformance",
+				actor: "urn:sovereign:conformance",
 				payload: { from: "pending", to: "active" },
 			});
 			if (!ev["@id"]) failures.push("appendEvent() returned TaskEvent without @id");

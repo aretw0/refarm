@@ -17,7 +17,7 @@ use serde_json::Value;
 
 pub(crate) const CONFIG_NODE_SCHEMA: &str = "refarm.config.node.v1";
 pub(crate) const CONFIG_NODE_KIND: &str = "refarm/config";
-pub(crate) const CONFIG_NODE_DEFAULT_ID: &str = "urn:refarm:config:workspace";
+pub(crate) const CONFIG_NODE_DEFAULT_ID: &str = "urn:sovereign:config:workspace";
 pub(crate) const CONFIG_NODE_REDACTION: &str = "<redacted>";
 /// The graph `type_` column value — kept "RefarmConfig" so query_nodes + the
 /// reaper allowlist (node_reap KEEP type) are unchanged.

@@ -63,7 +63,7 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
         {"name":"list_tasks","description":"List Task nodes recorded in the CRDT. Each prompt execution creates one Task. Supports optional filtering by status (active/done/failed/blocked) and context_id (session).",
          "input_schema":{"type":"object","properties":{"limit":{"type":"integer","description":"Max tasks to return (default 20, max 100)"},"status":{"type":"string","enum":["active","done","failed","blocked","cancelled","deferred","pending"],"description":"Filter by task status"},"context_id":{"type":"string","description":"Filter to tasks from a specific session URN"}},"required":[]}},
         {"name":"task_status","description":"Get full details of a single Task including its title, status, timestamps, and all associated TaskEvents (created, status_changed).",
-         "input_schema":{"type":"object","properties":{"task_id":{"type":"string","description":"Task URN (urn:refarm:task:v1:...)"}},"required":["task_id"]}}
+         "input_schema":{"type":"object","properties":{"task_id":{"type":"string","description":"Task URN (urn:sovereign:task:v1:...)"}},"required":["task_id"]}}
     ])
 }
 

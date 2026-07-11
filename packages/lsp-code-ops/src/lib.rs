@@ -71,7 +71,7 @@ fn parse_dispatch(payload: &str) -> Option<DispatchRequest> {
 /// returns the node value; the guest serializes + stores it.
 fn build_dispatch_result_node(reply_ref: &str, result: serde_json::Value) -> serde_json::Value {
     serde_json::json!({
-        "@id": format!("urn:refarm:dispatch-result:{reply_ref}"),
+        "@id": format!("urn:sovereign:dispatch-result:{reply_ref}"),
         "@type": DISPATCH_RESULT_TYPE,
         REPLY_REF_FIELD: reply_ref,
         RESULT_FIELD: result,

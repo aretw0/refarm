@@ -91,7 +91,7 @@ describe("Effort chat integration", () => {
 		});
 		const taskMemory = createTaskMemoryBridge({
 			adapter: taskAdapter,
-			actorUrn: "urn:refarm:actor:v1:farmhand",
+			actorUrn: "urn:sovereign:actor:v1:farmhand",
 		});
 		const executor = vi.fn(async (task: Task, effortId: string) => {
 			await taskMemory.ensureTask(task, effortId);
@@ -186,7 +186,7 @@ describe("Effort chat integration", () => {
 			const taskList = await request(
 				port,
 				"GET",
-				`/tasks?status=done&session_id=${encodeURIComponent(`urn:refarm:effort:v1:${effortId}`)}`,
+				`/tasks?status=done&session_id=${encodeURIComponent(`urn:sovereign:effort:v1:${effortId}`)}`,
 			);
 			expect(taskList.status).toBe(200);
 			const tasks = (

@@ -1,6 +1,6 @@
 export const CONFIG_NODE_SCHEMA: "refarm.config.node.v1";
 export const CONFIG_NODE_KIND: "refarm/config";
-export const CONFIG_NODE_DEFAULT_ID: "urn:refarm:config:workspace";
+export const CONFIG_NODE_DEFAULT_ID: "urn:sovereign:config:workspace";
 export const CONFIG_NODE_REDACTION: "<redacted>";
 export const CONFIG_NODE_REDACTION_KEY_PATTERNS: readonly string[];
 export const CONFIG_NODE_DEVICE_LOCAL_KEYS: readonly string[];

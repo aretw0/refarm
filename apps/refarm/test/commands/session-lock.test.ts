@@ -23,10 +23,10 @@ describe("active session pointer helpers", () => {
 
 	it("reads trimmed active session IDs", () => {
 		vi.spyOn(fs, "readFileSync").mockReturnValue(
-			" urn:refarm:session:v1:abc123 \n",
+			" urn:sovereign:session:v1:abc123 \n",
 		);
 
-		expect(readActiveSessionId()).toBe("urn:refarm:session:v1:abc123");
+		expect(readActiveSessionId()).toBe("urn:sovereign:session:v1:abc123");
 		expect(fs.readFileSync).toHaveBeenCalledWith(
 			expect.stringContaining("/session.lock"),
 			"utf-8",
@@ -52,48 +52,48 @@ describe("active session pointer helpers", () => {
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation(() => undefined);
 
-		writeActiveSessionId("urn:refarm:session:v1:abc123");
+		writeActiveSessionId("urn:sovereign:session:v1:abc123");
 
 		expect(mkdirSpy).toHaveBeenCalledWith(expect.stringContaining(".refarm"), {
 			recursive: true,
 		});
 		expect(writeSpy).toHaveBeenCalledWith(
 			expect.stringContaining("/session.lock"),
-			"urn:refarm:session:v1:abc123",
+			"urn:sovereign:session:v1:abc123",
 			"utf-8",
 		);
 	});
 
 	it("writes and verifies active session IDs", () => {
 		vi.spyOn(fs, "readFileSync").mockReturnValueOnce(
-			"urn:refarm:session:v1:target",
+			"urn:sovereign:session:v1:target",
 		);
 		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
 		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
 
 		expect(
 			writeActiveSessionIdAndVerify(
-				"urn:refarm:session:v1:target",
-				"urn:refarm:session:v1:before",
+				"urn:sovereign:session:v1:target",
+				"urn:sovereign:session:v1:before",
 			),
 		).toEqual({
-			currentSessionIdBefore: "urn:refarm:session:v1:before",
-			currentSessionIdAfter: "urn:refarm:session:v1:target",
-			targetSessionId: "urn:refarm:session:v1:target",
+			currentSessionIdBefore: "urn:sovereign:session:v1:before",
+			currentSessionIdAfter: "urn:sovereign:session:v1:target",
+			targetSessionId: "urn:sovereign:session:v1:target",
 		});
 	});
 
 	it("fails closed when active session ID verification reads back a different value", () => {
 		vi.spyOn(fs, "readFileSync").mockReturnValueOnce(
-			"urn:refarm:session:v1:other",
+			"urn:sovereign:session:v1:other",
 		);
 		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
 		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
 
 		expect(() =>
-			writeActiveSessionIdAndVerify("urn:refarm:session:v1:target", null),
+			writeActiveSessionIdAndVerify("urn:sovereign:session:v1:target", null),
 		).toThrow(
-			'Session switch expected active session "urn:refarm:session:v1:target", got "urn:refarm:session:v1:other".',
+			'Session switch expected active session "urn:sovereign:session:v1:target", got "urn:sovereign:session:v1:other".',
 		);
 	});
 
@@ -119,7 +119,7 @@ describe("active session pointer helpers", () => {
 			error.code = "ENOENT";
 			throw error;
 		});
-		readSpy.mockReturnValueOnce("urn:refarm:session:v1:still-active");
+		readSpy.mockReturnValueOnce("urn:sovereign:session:v1:still-active");
 		expect(clearActiveSessionId()).toBe(false);
 	});
 
@@ -138,7 +138,7 @@ describe("active session pointer helpers", () => {
 				return undefined;
 			});
 
-		writeActiveSessionId("urn:refarm:session:v1:abc123");
+		writeActiveSessionId("urn:sovereign:session:v1:abc123");
 
 		expect(mkdirSpy).toHaveBeenCalledWith(
 			expect.stringContaining(".refarm"),
@@ -146,7 +146,7 @@ describe("active session pointer helpers", () => {
 		);
 		expect(writeSpy).toHaveBeenCalledWith(
 			FALLBACK_SESSION_LOCK_PATH,
-			"urn:refarm:session:v1:abc123",
+			"urn:sovereign:session:v1:abc123",
 			"utf-8",
 		);
 	});
@@ -197,7 +197,7 @@ describe("active session pointer helpers", () => {
 		});
 		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
 		vi.spyOn(fs, "readFileSync").mockReturnValue(
-			"urn:refarm:session:v1:still-active",
+			"urn:sovereign:session:v1:still-active",
 		);
 
 		expect(clearActiveSessionId()).toBe(false);

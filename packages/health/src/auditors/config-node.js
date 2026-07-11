@@ -9,7 +9,7 @@ import {
  * ConfigNodeAuditor: audits the RefarmConfig graph node against the local
  * `.refarm/config.json`, detecting cross-device drift.
  *
- * The config is now a CRDT-replicated graph node (`urn:refarm:config:workspace`,
+ * The config is now a CRDT-replicated graph node (`urn:sovereign:config:workspace`,
  * @type RefarmConfig). This auditor reads that node via an injected graphContext
  * (a `getNode`/`queryNodes` face over whichever runtime graph transport the host
  * provides) and cross-checks its `revision` digest against a recompute from the

@@ -49,7 +49,7 @@ function stableId(prefix: string, value: unknown): string {
 }
 
 function statusListIdForIssuer(issuerId: string): string {
-	return `urn:refarm:credentials:v1:status-list:${encodeURIComponent(issuerId)}:${STATUS_PURPOSE_REVOCATION}`;
+	return `urn:sovereign:credentials:v1:status-list:${encodeURIComponent(issuerId)}:${STATUS_PURPOSE_REVOCATION}`;
 }
 
 function statusListCounterId(statusListId: string): string {

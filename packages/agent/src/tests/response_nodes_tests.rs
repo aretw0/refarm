@@ -2,9 +2,9 @@ use super::*;
 
 #[test]
 fn response_nodes_user_prompt_builder_shape() {
-    let node = user_prompt_node("urn:refarm:prompt-test", "hello");
+    let node = user_prompt_node("urn:sovereign:prompt-test", "hello");
     assert_eq!(node["@type"], "UserPrompt");
-    assert_eq!(node["@id"], "urn:refarm:prompt-test");
+    assert_eq!(node["@id"], "urn:sovereign:prompt-test");
     assert_eq!(node["content"], "hello");
     assert!(node["timestamp_ns"].as_u64().unwrap_or(0) > 0);
 }
@@ -12,7 +12,7 @@ fn response_nodes_user_prompt_builder_shape() {
 #[test]
 fn response_nodes_agent_response_builder_shape() {
     let node = agent_response_node(AgentResponsePayload {
-        prompt_ref: "urn:refarm:prompt-test",
+        prompt_ref: "urn:sovereign:prompt-test",
         content: "done",
         tool_calls: serde_json::json!([]),
         model: "stub",
@@ -23,7 +23,7 @@ fn response_nodes_agent_response_builder_shape() {
         is_final: true,
     });
     assert_eq!(node["@type"], "Response");
-    assert_eq!(node["prompt_ref"], "urn:refarm:prompt-test");
+    assert_eq!(node["prompt_ref"], "urn:sovereign:prompt-test");
     assert_eq!(node["content"], "done");
     assert_eq!(node["inference"]["model"], "stub");
     assert_eq!(node["inference"]["tokens_in"], 1);
@@ -36,7 +36,7 @@ fn response_nodes_agent_response_builder_shape() {
 #[test]
 fn response_nodes_agent_response_builder_can_mark_partial() {
     let node = agent_response_node(AgentResponsePayload {
-        prompt_ref: "urn:refarm:prompt-test",
+        prompt_ref: "urn:sovereign:prompt-test",
         content: "partial",
         tool_calls: serde_json::json!([]),
         model: "stub",
@@ -55,7 +55,7 @@ fn response_nodes_agent_response_builder_can_mark_partial() {
 #[test]
 fn response_nodes_usage_builder_shape() {
     let node = usage_record_node(UsageRecordPayload {
-        prompt_ref: "urn:refarm:prompt-test",
+        prompt_ref: "urn:sovereign:prompt-test",
         provider: "stub",
         model: "stub",
         tokens_in: 10,
@@ -66,7 +66,7 @@ fn response_nodes_usage_builder_shape() {
         duration_ms: 5,
     });
     assert_eq!(node["@type"], "UsageRecord");
-    assert_eq!(node["prompt_ref"], "urn:refarm:prompt-test");
+    assert_eq!(node["prompt_ref"], "urn:sovereign:prompt-test");
     assert_eq!(node["provider"], "stub");
     assert_eq!(node["model"], "stub");
     assert_eq!(node["tokens_in"], 10);

@@ -37,8 +37,8 @@ fn agent_response_schema_has_required_fields() {
     ) = react("hello");
     let node = serde_json::json!({
         "@type":      "Response",
-        "@id":        "urn:refarm:resp-test",
-        "prompt_ref": "urn:refarm:prompt-test",
+        "@id":        "urn:sovereign:resp-test",
+        "prompt_ref": "urn:sovereign:prompt-test",
         "content":    content,
         "sequence":   0,
         "is_final":   true,

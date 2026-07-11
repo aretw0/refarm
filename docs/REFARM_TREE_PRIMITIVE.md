@@ -252,8 +252,8 @@ before the combined timeline is sorted and sliced to the final limit:
     },
     {
       "timelineId": "session",
-      "nodeId": "urn:refarm:session:v1:abc123def456",
-      "branchId": "urn:refarm:session:v1:abc123def456",
+      "nodeId": "urn:sovereign:session:v1:abc123def456",
+      "branchId": "urn:sovereign:session:v1:abc123def456",
       "kind": "session",
       "label": "auth-refactor",
       "timestamp": "2023-11-14T22:13:20.000Z",
@@ -364,8 +364,8 @@ Session switch preview is a non-mutating readiness envelope:
     },
     "substrate": {
       "kind": "session-switch",
-      "activeSessionIdBefore": "urn:refarm:session:v1:before",
-      "targetSessionIdAfter": "urn:refarm:session:v1:abc123def456",
+      "activeSessionIdBefore": "urn:sovereign:session:v1:before",
+      "targetSessionIdAfter": "urn:sovereign:session:v1:abc123def456",
       "activeSessionWillSwitch": true
     }
   }
@@ -385,9 +385,9 @@ Explicit session switch execution is a result envelope, not a plan:
     "kind": "session-switch",
     "destructive": false,
     "activePointerChanged": true,
-    "currentSessionIdBefore": "urn:refarm:session:v1:before",
-    "currentSessionIdAfter": "urn:refarm:session:v1:abc123def456",
-    "targetSessionId": "urn:refarm:session:v1:abc123def456",
+    "currentSessionIdBefore": "urn:sovereign:session:v1:before",
+    "currentSessionIdAfter": "urn:sovereign:session:v1:abc123def456",
+    "targetSessionId": "urn:sovereign:session:v1:abc123def456",
     "command": "refarm tree switch abc123def456"
   }
 }

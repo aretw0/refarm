@@ -126,7 +126,7 @@ describe("sessions route handler", () => {
 		store.queryNodes.mockResolvedValueOnce([
 			{
 				"@type": "Session",
-				"@id": "urn:refarm:session:v1:abc",
+				"@id": "urn:sovereign:session:v1:abc",
 				name: "alpha",
 				created_at_ns: 42,
 			},
@@ -137,7 +137,7 @@ describe("sessions route handler", () => {
 		expect(store.queryNodes).toHaveBeenCalledWith("Session");
 		expect((body as Record<string, unknown>).sessions).toEqual([
 			expect.objectContaining({
-				"@id": "urn:refarm:session:v1:abc",
+				"@id": "urn:sovereign:session:v1:abc",
 				name: "alpha",
 			}),
 		]);
@@ -147,13 +147,13 @@ describe("sessions route handler", () => {
 		store.queryNodes.mockResolvedValueOnce([
 			{
 				"@type": "Session",
-				"@id": "urn:refarm:session:v1:older",
+				"@id": "urn:sovereign:session:v1:older",
 				name: "older",
 				created_at_ns: 1,
 			},
 			{
 				"@type": "Session",
-				"@id": "urn:refarm:session:v1:newer",
+				"@id": "urn:sovereign:session:v1:newer",
 				name: "newer",
 				created_at_ns: 2,
 			},
@@ -163,7 +163,7 @@ describe("sessions route handler", () => {
 		expect(status).toBe(200);
 		expect((body as Record<string, unknown>).sessions).toEqual([
 			expect.objectContaining({
-				"@id": "urn:refarm:session:v1:newer",
+				"@id": "urn:sovereign:session:v1:newer",
 			}),
 		]);
 	});
@@ -186,7 +186,7 @@ describe("sessions route handler", () => {
 			| Record<string, unknown>
 			| undefined;
 		expect(session?.name).toBe("auth-refactor");
-		expect(session?.["@id"]).toMatch(/^urn:refarm:session:v1:[a-f0-9]+$/);
+		expect(session?.["@id"]).toMatch(/^urn:sovereign:session:v1:[a-f0-9]+$/);
 		expect(store.storeNode).toHaveBeenCalledWith(
 			expect.objectContaining({
 				"@type": "Session",

@@ -170,8 +170,8 @@ describe("refarm tree show", () => {
 				json: async () => ({
 					error: "ambiguous prefix",
 					matches: [
-						"urn:refarm:session:v1:abc123def456",
-						"urn:refarm:session:v1:abc123999999",
+						"urn:sovereign:session:v1:abc123def456",
+						"urn:sovereign:session:v1:abc123999999",
 					],
 				}),
 			}),
@@ -194,8 +194,8 @@ describe("refarm tree show", () => {
 			message: "ambiguous prefix",
 			prefix: "abc123",
 			matches: [
-				"urn:refarm:session:v1:abc123def456",
-				"urn:refarm:session:v1:abc123999999",
+				"urn:sovereign:session:v1:abc123def456",
+				"urn:sovereign:session:v1:abc123999999",
 			],
 			nextCommand: "refarm tree list --scope session --json",
 		});

@@ -124,7 +124,7 @@ export interface ChatDeps {
 const DEFAULT_HISTORY_TURNS = 20;
 
 function newSessionId(): string {
-	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
+	return `urn:sovereign:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
 async function submitViaHttp(effort: Effort): Promise<string> {

@@ -141,7 +141,7 @@ describe("refarm tree switch and guards", () => {
 	it("switches active session pointers explicitly", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		vi.spyOn(fs, "readFileSync")
-			.mockReturnValueOnce("urn:refarm:session:v1:previous0001")
+			.mockReturnValueOnce("urn:sovereign:session:v1:previous0001")
 			.mockReturnValueOnce(SESSION["@id"]);
 		const mkdirSpy = vi
 			.spyOn(fs, "mkdirSync")
@@ -180,7 +180,7 @@ describe("refarm tree switch and guards", () => {
 				kind: "session-switch",
 				destructive: false,
 				activePointerChanged: true,
-				currentSessionIdBefore: "urn:refarm:session:v1:previous0001",
+				currentSessionIdBefore: "urn:sovereign:session:v1:previous0001",
 				currentSessionIdAfter: SESSION["@id"],
 				targetSessionId: SESSION["@id"],
 				command: "refarm tree switch abc123def456",
@@ -192,8 +192,8 @@ describe("refarm tree switch and guards", () => {
 	it("fails closed when session switch verification reads the wrong pointer", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		vi.spyOn(fs, "readFileSync")
-			.mockReturnValueOnce("urn:refarm:session:v1:previous0001")
-			.mockReturnValueOnce("urn:refarm:session:v1:other00000001");
+			.mockReturnValueOnce("urn:sovereign:session:v1:previous0001")
+			.mockReturnValueOnce("urn:sovereign:session:v1:other00000001");
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation(() => undefined);
@@ -222,8 +222,8 @@ describe("refarm tree switch and guards", () => {
 	it("prints session switch verification failures as JSON", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		vi.spyOn(fs, "readFileSync")
-			.mockReturnValueOnce("urn:refarm:session:v1:previous0001")
-			.mockReturnValueOnce("urn:refarm:session:v1:other00000001");
+			.mockReturnValueOnce("urn:sovereign:session:v1:previous0001")
+			.mockReturnValueOnce("urn:sovereign:session:v1:other00000001");
 		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
 		vi.spyOn(fs, "mkdirSync").mockImplementation(
 			() => undefined as string | undefined,
@@ -245,7 +245,7 @@ describe("refarm tree switch and guards", () => {
 			error: "session-tree-switch-failed",
 			prefix: "abc123",
 			sessionId: SESSION["@id"],
-			currentSessionIdBefore: "urn:refarm:session:v1:previous0001",
+			currentSessionIdBefore: "urn:sovereign:session:v1:previous0001",
 			nextAction: "refarm tree preview abc123def456 --switch --json",
 			nextCommand: "refarm tree preview abc123def456 --switch --json",
 			nextCommands: [

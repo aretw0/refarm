@@ -247,14 +247,14 @@ describe("resume command", () => {
 			}),
 			readActiveSessionId: vi
 				.fn()
-				.mockReturnValue("urn:refarm:session:v1:abcdef1234567890"),
+				.mockReturnValue("urn:sovereign:session:v1:abcdef1234567890"),
 			loadModelTokens: vi.fn().mockResolvedValue({
 				modelProvider: "openai",
 				modelId: "gpt-5.5",
 			}),
 			loadRecentSessions: vi.fn().mockResolvedValue([
 				{
-					sessionId: "urn:refarm:session:v1:abcdef1234567890",
+					sessionId: "urn:sovereign:session:v1:abcdef1234567890",
 					shortId: "ef1234567890",
 					name: "planning",
 					hasHistory: true,
@@ -500,14 +500,14 @@ describe("resume command", () => {
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),
-			readActiveSessionId: vi.fn().mockReturnValue("urn:refarm:session:v1:stale987654"),
+			readActiveSessionId: vi.fn().mockReturnValue("urn:sovereign:session:v1:stale987654"),
 			loadModelTokens: vi.fn().mockResolvedValue({
 				modelProvider: "openai",
 				modelId: "gpt-5.5",
 			}),
 			loadRecentSessions: vi.fn().mockResolvedValue([
 				{
-					sessionId: "urn:refarm:session:v1:other123456",
+					sessionId: "urn:sovereign:session:v1:other123456",
 					shortId: "other123",
 					name: "other",
 					hasHistory: true,
@@ -537,14 +537,14 @@ describe("resume command", () => {
 			resolveStatusPayload: vi.fn().mockResolvedValue({ json: status }),
 			sessionRecorder: recorder(null),
 			finishRecorder: finishRecorder(null),
-			readActiveSessionId: vi.fn().mockReturnValue("urn:refarm:session:v1:stale987654"),
+			readActiveSessionId: vi.fn().mockReturnValue("urn:sovereign:session:v1:stale987654"),
 			loadModelTokens: vi.fn().mockResolvedValue({
 				modelProvider: "openai",
 				modelId: "gpt-5.5",
 			}),
 			loadRecentSessions: vi.fn().mockResolvedValue([
 				{
-					sessionId: "urn:refarm:session:v1:other123456",
+					sessionId: "urn:sovereign:session:v1:other123456",
 					shortId: "other123",
 					name: "other",
 					hasHistory: true,

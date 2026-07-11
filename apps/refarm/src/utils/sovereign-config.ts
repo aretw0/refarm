@@ -21,7 +21,7 @@ import { openTractorGraph } from "./tractor-store.js";
  * ConfigNodeAuditor already uses.
  *
  * SCOPE CAVEAT: the graph node is workspace/cwd-scoped
- * (`urn:refarm:config:workspace`). The home `~/.refarm/config.json` layer is NOT
+ * (`urn:sovereign:config:workspace`). The home `~/.refarm/config.json` layer is NOT
  * represented in the node; a resolver that also honors the home file must read it
  * from fs separately — do not expect this seam to surface home-scoped config.
  */

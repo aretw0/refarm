@@ -28,7 +28,7 @@ import { fetchSidecarWithTimeout } from "@refarm.dev/sidecar-client";
 import { sidecarUrl } from "./sidecar-url.js";
 
 function newSessionId(): string {
-	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
+	return `urn:sovereign:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
 async function resolveTargetSession(

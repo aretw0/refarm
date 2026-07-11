@@ -64,7 +64,7 @@ export function createInMemorySessionAdapter(
 			const session: Session = {
 				...sessionInput,
 				"@type": "Session",
-				"@id": `urn:refarm:session:v1:${idFactory()}`,
+				"@id": `urn:sovereign:session:v1:${idFactory()}`,
 				created_at_ns: issueNs(),
 			};
 			sessions.set(session["@id"], session);
@@ -108,7 +108,7 @@ export function createInMemorySessionAdapter(
 			const entry: SessionEntry = {
 				...entryInput,
 				"@type": "SessionEntry",
-				"@id": `urn:refarm:session-entry:v1:${idFactory()}`,
+				"@id": `urn:sovereign:session-entry:v1:${idFactory()}`,
 				timestamp_ns: issueNs(),
 			};
 			const entries = entriesBySession.get(entry.session_id) ?? [];

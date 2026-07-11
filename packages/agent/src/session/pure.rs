@@ -111,8 +111,8 @@ pub(crate) fn history_from_tree(
 /// `parent_session_id`: set when this session is a fork of another (None for root).
 pub(crate) fn session_participant_from_agent_id(agent_id: Option<&str>) -> String {
     match agent_id {
-        Some(agent_id) if !agent_id.is_empty() => format!("urn:refarm:agent:{agent_id}"),
-        _ => "urn:refarm:agent:runtime-agent".to_string(),
+        Some(agent_id) if !agent_id.is_empty() => format!("urn:sovereign:agent:{agent_id}"),
+        _ => "urn:sovereign:agent:runtime-agent".to_string(),
     }
 }
 

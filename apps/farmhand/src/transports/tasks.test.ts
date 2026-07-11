@@ -125,23 +125,23 @@ describe("tasks route handler", () => {
 		await seedTask(taskAdapter, {
 			title: "matching",
 			status: "done",
-			contextId: "urn:refarm:session:v1:abc",
+			contextId: "urn:sovereign:session:v1:abc",
 		});
 		await seedTask(taskAdapter, {
 			title: "other-session",
 			status: "done",
-			contextId: "urn:refarm:session:v1:def",
+			contextId: "urn:sovereign:session:v1:def",
 		});
 		await seedTask(taskAdapter, {
 			title: "other-status",
 			status: "failed",
-			contextId: "urn:refarm:session:v1:abc",
+			contextId: "urn:sovereign:session:v1:abc",
 		});
 
 		const { status, body } = await request(
 			PORT,
 			"GET",
-			"/tasks?status=done&session_id=urn%3Arefarm%3Asession%3Av1%3Aabc",
+			"/tasks?status=done&session_id=urn%3Asovereign%3Asession%3Av1%3Aabc",
 		);
 		expect(status).toBe(200);
 		expect((body as { tasks: Array<{ title: string }> }).tasks).toEqual([

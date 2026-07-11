@@ -14,17 +14,17 @@ describe("session history helpers", () => {
 				json: vi.fn().mockResolvedValue({
 					sessions: [
 						{
-							"@id": "urn:refarm:session:v1:olderaaaaaaaaaaaa",
+							"@id": "urn:sovereign:session:v1:olderaaaaaaaaaaaa",
 							name: "older",
 							created_at_ns: 10,
 							leaf_entry_id: null,
 						},
 						{
-							"@id": "urn:refarm:session:v1:newerbbbbbbbbbbbb",
+							"@id": "urn:sovereign:session:v1:newerbbbbbbbbbbbb",
 							name: "newer",
 							created_at_ns: 20,
 							leaf_entry_id: "entry-1",
-							participants: ["urn:refarm:agent:agent"],
+							participants: ["urn:sovereign:agent:agent"],
 						},
 					],
 				}),
@@ -33,23 +33,23 @@ describe("session history helpers", () => {
 
 		await expect(loadRecentRuntimeSessions()).resolves.toEqual([
 			{
-				sessionId: "urn:refarm:session:v1:newerbbbbbbbbbbbb",
+				sessionId: "urn:sovereign:session:v1:newerbbbbbbbbbbbb",
 				shortId: "bbbbbbbbbbbb",
 				name: "newer",
 				createdAtNs: 20,
 				hasHistory: true,
-				canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+				canonicalParticipants: ["urn:sovereign:agent:runtime-agent"],
 				participantAliases: [
 					{
-						participantId: "urn:refarm:agent:agent",
-						canonicalParticipantId: "urn:refarm:agent:runtime-agent",
+						participantId: "urn:sovereign:agent:agent",
+						canonicalParticipantId: "urn:sovereign:agent:runtime-agent",
 					},
 				],
 				showCommand: "refarm sessions show bbbbbbbbbbbb --json",
 				useCommand: "refarm sessions use bbbbbbbbbbbb --json",
 			},
 			{
-				sessionId: "urn:refarm:session:v1:olderaaaaaaaaaaaa",
+				sessionId: "urn:sovereign:session:v1:olderaaaaaaaaaaaa",
 				shortId: "aaaaaaaaaaaa",
 				name: "older",
 				createdAtNs: 10,

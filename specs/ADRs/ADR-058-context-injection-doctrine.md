@@ -41,9 +41,9 @@ content. Full content is fetched by the agent on demand via tool calls (`read_fi
 **Allowed in system prompt:**
 ```
 # Recent agent sessions (last 3)
-- urn:refarm:session:v1:abc → 12 tasks done (2026-05-02)
-- urn:refarm:session:v1:def → 3 tasks, 1 failed (2026-05-01)
-Current: urn:refarm:session:v1:xyz
+- urn:sovereign:session:v1:abc → 12 tasks done (2026-05-02)
+- urn:sovereign:session:v1:def → 3 tasks, 1 failed (2026-05-01)
+Current: urn:sovereign:session:v1:xyz
 ```
 
 **Not allowed in system prompt:**
@@ -53,7 +53,7 @@ Title: Implement storage adapter
 Status: done
 Created: 2026-05-02T14:32:11Z
 Events:
-  - created by urn:refarm:agent:agent at 14:32:11
+  - created by urn:sovereign:agent:agent at 14:32:11
   - status_changed to done at 14:45:03
   ...
 ```

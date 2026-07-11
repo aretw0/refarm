@@ -152,7 +152,7 @@ export function normalizeEngineBindingList(value: unknown): readonly string[] {
 }
 
 export function createSkillManifestId(name: string, hash: string): string {
-	return `urn:refarm:skill:v1:${slugify(name)}:${hash.slice(0, 12)}`;
+	return `urn:sovereign:skill:v1:${slugify(name)}:${hash.slice(0, 12)}`;
 }
 
 export function parseFrontmatter(source: string): {

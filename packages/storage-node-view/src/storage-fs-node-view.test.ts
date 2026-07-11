@@ -37,7 +37,7 @@ describe("storage-fs serves ledger records AND nodes", () => {
 		const task: NormalisedNode = {
 			"@context": "https://schema.org/",
 			"@type": "Task",
-			"@id": "urn:refarm:agent:task-42",
+			"@id": "urn:sovereign:agent:task-42",
 			"sourcePlugin": "agent",
 			title: "Ship the node view",
 			priority: 2,
@@ -46,14 +46,14 @@ describe("storage-fs serves ledger records AND nodes", () => {
 		await view.storeNode(task);
 
 		// Face 1 — as a typed node (schema-on-read).
-		const node = await view.getNode("urn:refarm:agent:task-42");
+		const node = await view.getNode("urn:sovereign:agent:task-42");
 		expect(node?.["@type"]).toBe("Task");
 		expect(node?.title).toBe("Ship the node view");
 		expect(node?.["sourcePlugin"]).toBe("agent");
 
 		// Face 2 — the SAME bytes as a plain ledger StorageRecord.
-		const record = await provider.get("urn:refarm:agent:task-42");
-		expect(record?.id).toBe("urn:refarm:agent:task-42");
+		const record = await provider.get("urn:sovereign:agent:task-42");
+		expect(record?.id).toBe("urn:sovereign:agent:task-42");
 		expect(record?.type).toBe("Task");
 		// The node body is carried losslessly in the record payload.
 		expect(JSON.parse(record!.payload).title).toBe("Ship the node view");
@@ -68,23 +68,23 @@ describe("storage-fs serves ledger records AND nodes", () => {
 		await view.storeNode({
 			"@context": "https://schema.org/",
 			"@type": "PluginCatalogEntry",
-			"@id": "urn:refarm:plugin:a",
+			"@id": "urn:sovereign:plugin:a",
 		});
 		await view.storeNode({
 			"@context": "https://schema.org/",
 			"@type": "PluginCatalogEntry",
-			"@id": "urn:refarm:plugin:b",
+			"@id": "urn:sovereign:plugin:b",
 		});
 		await view.storeNode({
 			"@context": "https://schema.org/",
 			"@type": "ConfigOverride",
-			"@id": "urn:refarm:config:x",
+			"@id": "urn:sovereign:config:x",
 		});
 
 		const plugins = await view.queryNodes("PluginCatalogEntry");
 		expect(plugins.map((n) => n["@id"]).sort()).toEqual([
-			"urn:refarm:plugin:a",
-			"urn:refarm:plugin:b",
+			"urn:sovereign:plugin:a",
+			"urn:sovereign:plugin:b",
 		]);
 	});
 });

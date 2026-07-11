@@ -181,7 +181,7 @@ export class Barn {
 		}
 		const suffix = (hash >>> 0).toString(16).padStart(8, "0");
 
-		return `urn:refarm:plugin:${baseSlug}-${suffix}`;
+		return `urn:sovereign:plugin:${baseSlug}-${suffix}`;
 	}
 
 	private resolvePluginId(url: string, explicitPluginId?: string): string {

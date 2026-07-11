@@ -70,7 +70,7 @@ describe("skill-contract-v1", () => {
 			},
 		});
 		expect(result.manifest?.source.sha256).toMatch(/^[a-f0-9]{64}$/);
-		expect(result.manifest?.id).toMatch(/^urn:refarm:skill:v1:refarm-git-workflow:/);
+		expect(result.manifest?.id).toMatch(/^urn:sovereign:skill:v1:refarm-git-workflow:/);
 	});
 
 	it("accepts a permissive SKILL.md with no required capabilities", () => {

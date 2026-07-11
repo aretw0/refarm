@@ -237,7 +237,7 @@ async fn invoke_tool_routes_to_dispatch_and_awaits_the_result_node() {
         let reply_ref = payload["replyRef"].as_str().unwrap().to_string();
         // Store the correlated result node the caller awaits.
         let node = serde_json::json!({
-            "@id": format!("urn:refarm:dispatch-result:{reply_ref}"),
+            "@id": format!("urn:sovereign:dispatch-result:{reply_ref}"),
             "@type": "DispatchResult",
             "replyRef": reply_ref,
             "result": { "stored": true },

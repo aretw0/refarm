@@ -76,7 +76,7 @@ describe("refarm tree git integration", () => {
 				json: async () => ({
 					sessions: [
 						{
-							"@id": "urn:refarm:session:v1:integration0001",
+							"@id": "urn:sovereign:session:v1:integration0001",
 							"@type": "Session",
 							name: "integration-session",
 							created_at_ns: 1_700_000_000_000_000_000,

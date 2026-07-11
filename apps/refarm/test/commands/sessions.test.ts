@@ -41,7 +41,7 @@ describe("refarm sessions", () => {
 			status: 200,
 			json: async () => ({
 				session: {
-					"@id": "urn:refarm:session:v1:abc123def456",
+					"@id": "urn:sovereign:session:v1:abc123def456",
 					"@type": "Session",
 					name: "auth-refactor",
 				},
@@ -56,7 +56,7 @@ describe("refarm sessions", () => {
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation(() => undefined);
 		vi.spyOn(fs, "readFileSync").mockReturnValue(
-			"urn:refarm:session:v1:abc123def456",
+			"urn:sovereign:session:v1:abc123def456",
 		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -74,7 +74,7 @@ describe("refarm sessions", () => {
 		expect(mkdirSpy).toHaveBeenCalled();
 		expect(writeSpy).toHaveBeenCalledWith(
 			expect.stringContaining(".refarm/session.lock"),
-			"urn:refarm:session:v1:abc123def456",
+			"urn:sovereign:session:v1:abc123def456",
 			"utf-8",
 		);
 		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Created session"));
@@ -86,7 +86,7 @@ describe("refarm sessions", () => {
 			status: 200,
 			json: async () => ({
 				session: {
-					"@id": "urn:refarm:session:v1:abc123def456",
+					"@id": "urn:sovereign:session:v1:abc123def456",
 					"@type": "Session",
 					name: "auth-refactor",
 				},
@@ -96,7 +96,7 @@ describe("refarm sessions", () => {
 		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
 		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
 		vi.spyOn(fs, "readFileSync").mockReturnValue(
-			"urn:refarm:session:v1:abc123def456",
+			"urn:sovereign:session:v1:abc123def456",
 		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -109,9 +109,9 @@ describe("refarm sessions", () => {
 			command: "sessions",
 			operation: "new",
 			action: "created",
-			activeSessionId: "urn:refarm:session:v1:abc123def456",
+			activeSessionId: "urn:sovereign:session:v1:abc123def456",
 			session: {
-				"@id": "urn:refarm:session:v1:abc123def456",
+				"@id": "urn:sovereign:session:v1:abc123def456",
 				"@type": "Session",
 				name: "auth-refactor",
 			},
@@ -119,9 +119,9 @@ describe("refarm sessions", () => {
 			nextAction: null,
 			nextActions: [],
 			nextCommand:
-				"refarm sessions show 'urn:refarm:session:v1:abc123def456' --json",
+				"refarm sessions show 'urn:sovereign:session:v1:abc123def456' --json",
 			nextCommands: [
-				"refarm sessions show 'urn:refarm:session:v1:abc123def456' --json",
+				"refarm sessions show 'urn:sovereign:session:v1:abc123def456' --json",
 				"refarm sessions list --json",
 			],
 		});
@@ -136,13 +136,13 @@ describe("refarm sessions", () => {
 				json: async () => ({
 					sessions: [
 						{
-							"@id": "urn:refarm:session:v1:older",
+							"@id": "urn:sovereign:session:v1:older",
 							"@type": "Session",
 							name: "older",
 							created_at_ns: 1,
 						},
 						{
-							"@id": "urn:refarm:session:v1:newer",
+							"@id": "urn:sovereign:session:v1:newer",
 							"@type": "Session",
 							name: "newer",
 							created_at_ns: 2,
@@ -151,7 +151,7 @@ describe("refarm sessions", () => {
 				}),
 			}),
 		);
-		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:newer");
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:sovereign:session:v1:newer");
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createSessionsCommand().parseAsync(["--json"], { from: "user" });
@@ -159,17 +159,17 @@ describe("refarm sessions", () => {
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			command: "sessions",
 			operation: "list",
-			activeSessionId: "urn:refarm:session:v1:newer",
+			activeSessionId: "urn:sovereign:session:v1:newer",
 			activeSessionStatus: "active",
 			sessions: [
 				{
-					"@id": "urn:refarm:session:v1:newer",
+					"@id": "urn:sovereign:session:v1:newer",
 					"@type": "Session",
 					name: "newer",
 					created_at_ns: 2,
 				},
 				{
-					"@id": "urn:refarm:session:v1:older",
+					"@id": "urn:sovereign:session:v1:older",
 					"@type": "Session",
 					name: "older",
 					created_at_ns: 1,
@@ -179,10 +179,10 @@ describe("refarm sessions", () => {
 			nextAction: null,
 			nextActions: [],
 			nextCommand:
-				"refarm sessions show 'urn:refarm:session:v1:newer' --json",
+				"refarm sessions show 'urn:sovereign:session:v1:newer' --json",
 			nextCommands: [
-				"refarm sessions show 'urn:refarm:session:v1:newer' --json",
-				"refarm sessions use 'urn:refarm:session:v1:newer' --json",
+				"refarm sessions show 'urn:sovereign:session:v1:newer' --json",
+				"refarm sessions use 'urn:sovereign:session:v1:newer' --json",
 			],
 		});
 
@@ -207,7 +207,7 @@ describe("refarm sessions", () => {
 				json: async () => ({
 					sessions: [
 						{
-							"@id": "urn:refarm:session:v1:newer",
+							"@id": "urn:sovereign:session:v1:newer",
 							"@type": "Session",
 							name: "newer",
 							created_at_ns: 2,
@@ -216,7 +216,7 @@ describe("refarm sessions", () => {
 				}),
 			}),
 		);
-		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:stale");
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:sovereign:session:v1:stale");
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createSessionsCommand().parseAsync(["--json"], { from: "user" });
@@ -239,8 +239,8 @@ describe("refarm sessions", () => {
 		);
 		expect(payload.nextCommands).toEqual([
 			"refarm sessions clear --json",
-			"refarm sessions show 'urn:refarm:session:v1:newer' --json",
-			"refarm sessions use 'urn:refarm:session:v1:newer' --json",
+			"refarm sessions show 'urn:sovereign:session:v1:newer' --json",
+			"refarm sessions use 'urn:sovereign:session:v1:newer' --json",
 		]);
 		expect(payload.recommendations).toEqual([
 			{
@@ -263,7 +263,7 @@ describe("refarm sessions", () => {
 				json: async () => ({
 					sessions: [
 						{
-							"@id": "urn:refarm:session:v1:abc123def456",
+							"@id": "urn:sovereign:session:v1:abc123def456",
 							"@type": "Session",
 							name: "planning",
 							created_at_ns: 1,
@@ -273,7 +273,7 @@ describe("refarm sessions", () => {
 			}),
 		);
 		vi.spyOn(fs, "readFileSync").mockReturnValue(
-			"urn:refarm:session:v1:abc123def456",
+			"urn:sovereign:session:v1:abc123def456",
 		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -283,11 +283,11 @@ describe("refarm sessions", () => {
 			.parseAsync(["--json"], { from: "user" });
 
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
-			activeSessionId: "urn:refarm:session:v1:abc123def456",
+			activeSessionId: "urn:sovereign:session:v1:abc123def456",
 			activeSessionStatus: "active",
 			sessions: [
 				{
-					"@id": "urn:refarm:session:v1:abc123def456",
+					"@id": "urn:sovereign:session:v1:abc123def456",
 					name: "planning",
 				},
 			],
@@ -305,7 +305,7 @@ describe("refarm sessions", () => {
 				}),
 			}),
 		);
-		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:stale");
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:sovereign:session:v1:stale");
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createSessionsCommand().parseAsync(["--json"], { from: "user" });
@@ -313,7 +313,7 @@ describe("refarm sessions", () => {
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toMatchObject({
 			command: "sessions",
 			operation: "list",
-			activeSessionId: "urn:refarm:session:v1:stale",
+			activeSessionId: "urn:sovereign:session:v1:stale",
 			activeSessionStatus: "stale",
 			sessions: [],
 			recommendations: [
@@ -345,7 +345,7 @@ describe("refarm sessions", () => {
 				}),
 			}),
 		);
-		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:stale");
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:sovereign:session:v1:stale");
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createSessionsCommand().parseAsync([], { from: "user" });
@@ -395,7 +395,7 @@ describe("refarm sessions", () => {
 				json: async () => ({
 					sessions: [
 						{
-							"@id": "urn:refarm:session:v1:abc123def456",
+							"@id": "urn:sovereign:session:v1:abc123def456",
 							"@type": "Session",
 						},
 					],
@@ -403,8 +403,8 @@ describe("refarm sessions", () => {
 			}),
 		);
 		vi.spyOn(fs, "readFileSync")
-			.mockReturnValueOnce("urn:refarm:session:v1:before000000")
-			.mockReturnValueOnce("urn:refarm:session:v1:other0000000");
+			.mockReturnValueOnce("urn:sovereign:session:v1:before000000")
+			.mockReturnValueOnce("urn:sovereign:session:v1:other0000000");
 		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
@@ -418,7 +418,7 @@ describe("refarm sessions", () => {
 
 		expect(writeSpy).toHaveBeenCalledWith(
 			expect.stringContaining(".refarm/session.lock"),
-			"urn:refarm:session:v1:abc123def456",
+			"urn:sovereign:session:v1:abc123def456",
 			"utf-8",
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
@@ -436,7 +436,7 @@ describe("refarm sessions", () => {
 				json: async () => ({
 					sessions: [
 						{
-							"@id": "urn:refarm:session:v1:abc123def456",
+							"@id": "urn:sovereign:session:v1:abc123def456",
 							"@type": "Session",
 							name: "planning",
 						},
@@ -445,7 +445,7 @@ describe("refarm sessions", () => {
 			}),
 		);
 		vi.spyOn(fs, "readFileSync").mockReturnValue(
-			"urn:refarm:session:v1:abc123def456",
+			"urn:sovereign:session:v1:abc123def456",
 		);
 		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
 		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
@@ -460,9 +460,9 @@ describe("refarm sessions", () => {
 			command: "sessions",
 			operation: "use",
 			action: "switched",
-			activeSessionId: "urn:refarm:session:v1:abc123def456",
+			activeSessionId: "urn:sovereign:session:v1:abc123def456",
 			session: {
-				"@id": "urn:refarm:session:v1:abc123def456",
+				"@id": "urn:sovereign:session:v1:abc123def456",
 				"@type": "Session",
 				name: "planning",
 			},
@@ -470,9 +470,9 @@ describe("refarm sessions", () => {
 			nextAction: null,
 			nextActions: [],
 			nextCommand:
-				"refarm sessions show 'urn:refarm:session:v1:abc123def456' --json",
+				"refarm sessions show 'urn:sovereign:session:v1:abc123def456' --json",
 			nextCommands: [
-				"refarm sessions show 'urn:refarm:session:v1:abc123def456' --json",
+				"refarm sessions show 'urn:sovereign:session:v1:abc123def456' --json",
 				"refarm sessions list --json",
 			],
 		});
@@ -545,7 +545,7 @@ describe("refarm sessions", () => {
 				status: 200,
 				json: async () => ({
 					session: {
-						"@id": "urn:refarm:session:v1:abc123def456",
+						"@id": "urn:sovereign:session:v1:abc123def456",
 						"@type": "Session",
 						name: "planning",
 					},
@@ -572,7 +572,7 @@ describe("refarm sessions", () => {
 			command: "sessions",
 			operation: "show",
 			session: {
-				"@id": "urn:refarm:session:v1:abc123def456",
+				"@id": "urn:sovereign:session:v1:abc123def456",
 				"@type": "Session",
 				name: "planning",
 			},
@@ -589,9 +589,9 @@ describe("refarm sessions", () => {
 			nextAction: null,
 			nextActions: [],
 			nextCommand:
-				"refarm sessions use 'urn:refarm:session:v1:abc123def456' --json",
+				"refarm sessions use 'urn:sovereign:session:v1:abc123def456' --json",
 			nextCommands: [
-				"refarm sessions use 'urn:refarm:session:v1:abc123def456' --json",
+				"refarm sessions use 'urn:sovereign:session:v1:abc123def456' --json",
 				"refarm sessions list --json",
 			],
 		});
@@ -608,7 +608,7 @@ describe("refarm sessions", () => {
 						status: 200,
 						json: async () => ({
 							session: {
-								"@id": "urn:refarm:session:v1:newer",
+								"@id": "urn:sovereign:session:v1:newer",
 								"@type": "Session",
 								name: "planning",
 							},
@@ -623,7 +623,7 @@ describe("refarm sessions", () => {
 					json: async () => ({
 						sessions: [
 							{
-								"@id": "urn:refarm:session:v1:older",
+								"@id": "urn:sovereign:session:v1:older",
 								"@type": "Session",
 								name: "older",
 							},
@@ -632,7 +632,7 @@ describe("refarm sessions", () => {
 				};
 			}),
 		);
-		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:stale");
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:sovereign:session:v1:stale");
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createSessionsCommand()
@@ -644,14 +644,14 @@ describe("refarm sessions", () => {
 			command: "sessions",
 			operation: "show",
 			session: {
-				"@id": "urn:refarm:session:v1:newer",
+				"@id": "urn:sovereign:session:v1:newer",
 				"@type": "Session",
 				name: "planning",
 			},
 			nextCommand: "refarm sessions clear --json",
 			nextCommands: [
 				"refarm sessions clear --json",
-				"refarm sessions use 'urn:refarm:session:v1:newer' --json",
+				"refarm sessions use 'urn:sovereign:session:v1:newer' --json",
 				"refarm sessions list --json",
 			],
 			recommendations: [
@@ -678,7 +678,7 @@ describe("refarm sessions", () => {
 						status: 200,
 						json: async () => ({
 							session: {
-								"@id": "urn:refarm:session:v1:newer",
+								"@id": "urn:sovereign:session:v1:newer",
 								"@type": "Session",
 								name: "planning",
 							},
@@ -693,7 +693,7 @@ describe("refarm sessions", () => {
 					json: async () => ({
 						sessions: [
 							{
-								"@id": "urn:refarm:session:v1:older",
+								"@id": "urn:sovereign:session:v1:older",
 								"@type": "Session",
 								name: "older",
 							},
@@ -702,7 +702,7 @@ describe("refarm sessions", () => {
 				};
 			}),
 		);
-		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:refarm:session:v1:stale");
+		vi.spyOn(fs, "readFileSync").mockReturnValue("urn:sovereign:session:v1:stale");
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createSessionsCommand()
@@ -723,9 +723,9 @@ describe("refarm sessions", () => {
 				status: 200,
 				json: async () => ({
 					session: {
-						"@id": "urn:refarm:session:v1:abc123def456",
+						"@id": "urn:sovereign:session:v1:abc123def456",
 						"@type": "Session",
-						participants: ["urn:refarm:agent:agent"],
+						participants: ["urn:sovereign:agent:agent"],
 					},
 					entries: [],
 					total: 0,
@@ -743,13 +743,13 @@ describe("refarm sessions", () => {
 			command: "sessions",
 			operation: "show",
 			session: {
-				participants: ["urn:refarm:agent:agent"],
+				participants: ["urn:sovereign:agent:agent"],
 			},
-			canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+			canonicalParticipants: ["urn:sovereign:agent:runtime-agent"],
 			participantAliases: [
 				{
-					participantId: "urn:refarm:agent:agent",
-					canonicalParticipantId: "urn:refarm:agent:runtime-agent",
+					participantId: "urn:sovereign:agent:agent",
+					canonicalParticipantId: "urn:sovereign:agent:runtime-agent",
 				},
 			],
 			ok: true,
@@ -764,7 +764,7 @@ describe("refarm sessions", () => {
 				status: 200,
 				json: async () => ({
 					session: {
-						"@id": "urn:refarm:session:v1:abc123def456",
+						"@id": "urn:sovereign:session:v1:abc123def456",
 						"@type": "Session",
 						name: "planning",
 					},
@@ -776,7 +776,7 @@ describe("refarm sessions", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await createSessionsCommand({
-			readActiveSessionId: () => "urn:refarm:session:v1:abc123def456",
+			readActiveSessionId: () => "urn:sovereign:session:v1:abc123def456",
 		})
 			.commands
 			.find((c) => c.name() === "show")!
@@ -802,7 +802,7 @@ describe("refarm sessions", () => {
 				status: 200,
 				json: async () => ({
 					session: {
-						"@id": "urn:refarm:session:v1:abc123def456",
+						"@id": "urn:sovereign:session:v1:abc123def456",
 						"@type": "Session",
 					},
 					entries: [],
@@ -833,8 +833,8 @@ describe("refarm sessions", () => {
 				json: async () => ({
 					error: "ambiguous",
 					matches: [
-						"urn:refarm:session:v1:abc111",
-						"urn:refarm:session:v1:abc222",
+						"urn:sovereign:session:v1:abc111",
+						"urn:sovereign:session:v1:abc222",
 					],
 				}),
 			}),
@@ -856,8 +856,8 @@ describe("refarm sessions", () => {
 			error: "ambiguous-session-prefix",
 			prefix: "abc",
 			matches: [
-				"urn:refarm:session:v1:abc111",
-				"urn:refarm:session:v1:abc222",
+				"urn:sovereign:session:v1:abc111",
+				"urn:sovereign:session:v1:abc222",
 			],
 			nextAction: "refarm sessions list --json",
 			nextCommand: "refarm sessions list --json",
@@ -873,10 +873,10 @@ describe("refarm sessions", () => {
 				status: 200,
 				json: async () => ({
 					session: {
-						"@id": "urn:refarm:session:v1:fork123",
+						"@id": "urn:sovereign:session:v1:fork123",
 						"@type": "Session",
 						name: "experiment",
-						parent_session_id: "urn:refarm:session:v1:parent123",
+						parent_session_id: "urn:sovereign:session:v1:parent123",
 						leaf_entry_id: "entry-1",
 					},
 				}),
@@ -885,7 +885,7 @@ describe("refarm sessions", () => {
 		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
 		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
 		vi.spyOn(fs, "readFileSync").mockReturnValue(
-			"urn:refarm:session:v1:fork123",
+			"urn:sovereign:session:v1:fork123",
 		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -898,23 +898,23 @@ describe("refarm sessions", () => {
 			command: "sessions",
 			operation: "fork",
 			action: "forked",
-			activeSessionId: "urn:refarm:session:v1:fork123",
-			parentSessionId: "urn:refarm:session:v1:parent123",
+			activeSessionId: "urn:sovereign:session:v1:fork123",
+			parentSessionId: "urn:sovereign:session:v1:parent123",
 			branchEntryId: "entry-1",
 			session: {
-				"@id": "urn:refarm:session:v1:fork123",
+				"@id": "urn:sovereign:session:v1:fork123",
 				"@type": "Session",
 				name: "experiment",
-				parent_session_id: "urn:refarm:session:v1:parent123",
+				parent_session_id: "urn:sovereign:session:v1:parent123",
 				leaf_entry_id: "entry-1",
 			},
 			ok: true,
 			nextAction: null,
 			nextActions: [],
 			nextCommand:
-				"refarm sessions show 'urn:refarm:session:v1:fork123' --json",
+				"refarm sessions show 'urn:sovereign:session:v1:fork123' --json",
 			nextCommands: [
-				"refarm sessions show 'urn:refarm:session:v1:fork123' --json",
+				"refarm sessions show 'urn:sovereign:session:v1:fork123' --json",
 				"refarm sessions list --json",
 			],
 		});

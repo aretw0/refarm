@@ -102,7 +102,7 @@ export function createSessionsRouteHandler(store: SessionStore) {
 						typeof rawName === "string" && rawName.trim().length > 0 ? rawName.trim() : null;
 					const session: SessionNode = {
 						"@type": "Session",
-						"@id": `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`,
+						"@id": `urn:sovereign:session:v1:${crypto.randomUUID().replace(/-/g, "")}`,
 						name,
 						leaf_entry_id: null,
 						parent_session_id: null,

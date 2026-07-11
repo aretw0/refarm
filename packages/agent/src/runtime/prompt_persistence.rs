@@ -66,8 +66,8 @@ fn task_memory_enabled_from_env() -> bool {
 
 fn task_actor_urn() -> String {
     match std::env::var("MODEL_AGENT_ID") {
-        Ok(agent_id) if !agent_id.is_empty() => format!("urn:refarm:agent:{agent_id}"),
-        _ => "urn:refarm:agent:runtime-agent".to_string(),
+        Ok(agent_id) if !agent_id.is_empty() => format!("urn:sovereign:agent:{agent_id}"),
+        _ => "urn:sovereign:agent:runtime-agent".to_string(),
     }
 }
 
@@ -80,7 +80,7 @@ pub(crate) fn open_prompt_task(session_id: &str, prompt_ref: &str, prompt: &str)
 
     let actor = task_actor_urn();
     let now_ns = crate::now_ns();
-    let task_id = format!("urn:refarm:task:v1:{}", crate::new_id());
+    let task_id = format!("urn:sovereign:task:v1:{}", crate::new_id());
     let task_node = serde_json::json!({
         "@type": "Task",
         "@id": task_id,
@@ -100,7 +100,7 @@ pub(crate) fn open_prompt_task(session_id: &str, prompt_ref: &str, prompt: &str)
 
     let created_event = serde_json::json!({
         "@type": "TaskEvent",
-        "@id": format!("urn:refarm:task-event:v1:{}", crate::new_id()),
+        "@id": format!("urn:sovereign:task-event:v1:{}", crate::new_id()),
         "task_id": task_node["@id"],
         "event": "created",
         "actor": task_actor_urn(),
@@ -143,7 +143,7 @@ pub(crate) fn close_prompt_task(
 
     let status_event = serde_json::json!({
         "@type": "TaskEvent",
-        "@id": format!("urn:refarm:task-event:v1:{}", crate::new_id()),
+        "@id": format!("urn:sovereign:task-event:v1:{}", crate::new_id()),
         "task_id": task_id,
         "event": "status_changed",
         "actor": task_actor_urn(),

@@ -17,7 +17,7 @@ Source: `packages/barn/src/index.ts`
 2. Fetches plugin bytes on cache miss (`_cacheByUrl` in-memory).
 3. Computes SHA-256 digest and validates against expected digest.
 4. Stores cached binary in memory map (`_cacheByUrl`).
-5. Registers inventory entry in memory (`_inventory`) with random `urn:refarm:plugin:*` id.
+5. Registers inventory entry in memory (`_inventory`) with random `urn:sovereign:plugin:*` id.
 
 **Observed:** integrity enforcement exists, but persistence is process-local (no OPFS, no durable catalog).
 

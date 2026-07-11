@@ -45,7 +45,7 @@ describe("chat runtime helpers", () => {
 
 		const effort = await createChatEffort(
 			"teste ok",
-			"urn:refarm:session:v1:test",
+			"urn:sovereign:session:v1:test",
 			modelDeps,
 			{
 				system: "test system prompt",
@@ -55,7 +55,7 @@ describe("chat runtime helpers", () => {
 
 		expect(effort.tasks[0]!.args).toMatchObject({
 			prompt: "teste ok",
-			session_id: "urn:refarm:session:v1:test",
+			session_id: "urn:sovereign:session:v1:test",
 			provider: "openai-codex",
 			model: "gpt-5.3-codex-spark",
 			history_turns: 20,
@@ -63,7 +63,7 @@ describe("chat runtime helpers", () => {
 	});
 
 	it("provides exit resume hints", () => {
-		const sessionId = "urn:refarm:session:v1:test-session";
+		const sessionId = "urn:sovereign:session:v1:test-session";
 		expect(buildChatSessionResumeHint(sessionId)).toBe(
 			`To continue this session, run: refarm session --session ${sessionId}`,
 		);

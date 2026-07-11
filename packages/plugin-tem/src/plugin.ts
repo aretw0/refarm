@@ -87,7 +87,7 @@ export const integration = {
 		return [
 			JSON.stringify({
 				"@type": "HelpNode",
-				"@id": "urn:refarm:tem:help",
+				"@id": "urn:sovereign:tem:help",
 				name: "TEM Reasoning Engine",
 				description:
 					"Observes system events and learns the Sovereign Graph topology using Hebbian associative memory. Exposes novelty scoring and pattern recall.",
@@ -155,7 +155,7 @@ async function storeNoveltyNode(
 	const nodeJson = JSON.stringify({
 		"@context": "https://refarm.dev/context/v1",
 		"@type": "TemMemory",
-		"@id": `urn:refarm:tem:novelty:${Date.now()}`,
+		"@id": `urn:sovereign:tem:novelty:${Date.now()}`,
 		"triggerEvent": triggerEvent,
 		"noveltyScore": noveltyScore,
 		"predictionConfidence": confidence,

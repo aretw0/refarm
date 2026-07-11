@@ -1319,7 +1319,7 @@ mod respond_error_result_tests {
         let storage = NativeStorage::open(&ns).unwrap();
         let sync = NativeSync::new(storage, &ns).unwrap();
 
-        let prompt_ref = "urn:refarm:prompt-abc";
+        let prompt_ref = "urn:sovereign:prompt-abc";
         write_terminal_error_result(&sync, "@refarm/agent", prompt_ref, "guest blew up: boom");
 
         // The generalized watcher (agent default spec) finds it as a terminal error.

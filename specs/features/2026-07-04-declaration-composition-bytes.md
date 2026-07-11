@@ -10,7 +10,7 @@ I now have everything source-verified. Here is my judgment.
 
 Every load-bearing factual claim in BOTH designs checks out at the source:
 
-1. **8bb00fa9 mixes list+bytes with a truncated id.** `importedSkillNode` (skill-capability.ts:199-209) inlines `instructions` (the SKILL.md body) into the same node whose `@id` is `urn:refarm:skill:v1:<name>:<hash.slice(0,12)>` — a 48-bit prefix (manifest.ts:1310-1311). Confirmed.
+1. **8bb00fa9 mixes list+bytes with a truncated id.** `importedSkillNode` (skill-capability.ts:199-209) inlines `instructions` (the SKILL.md body) into the same node whose `@id` is `urn:sovereign:skill:v1:<name>:<hash.slice(0,12)>` — a 48-bit prefix (manifest.ts:1310-1311). Confirmed.
 
 2. **The full 64-hex hash is computed then dropped end-to-end.** `parseSkillMarkdown` builds `manifest.source = createSkillSourceRef(...)` with `sha256: sha256(source)` (full 64-hex) + `bytes` length (manifest.ts:72, 126-136). Both loaders have `m.source` in scope and discard it: index.ts:137-144 (`loaded.push`) and node.ts:281-293 (`skills.push`). `LoadedSkill`/`ImportedAgentSkill` have no `source` field. Confirmed — this is the single enabling change both designs converge on.
 

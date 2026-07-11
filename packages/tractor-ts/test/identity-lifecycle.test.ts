@@ -23,7 +23,7 @@ describe("Tractor Identity Lifecycle & Mandatory Signing", () => {
     const node = {
       "@context": "https://schema.org/",
       "@type": "Note",
-      "@id": "urn:refarm:test:1",
+      "@id": "urn:sovereign:test:1",
       "text": "Hello Visitor"
     };
 
@@ -43,7 +43,7 @@ describe("Tractor Identity Lifecycle & Mandatory Signing", () => {
     const node = {
       "@context": "https://schema.org/",
       "@type": "Note",
-      "@id": "urn:refarm:test:2",
+      "@id": "urn:sovereign:test:2",
       "text": "Hello Guest"
     };
 
@@ -97,7 +97,7 @@ describe("Tractor Identity Lifecycle & Mandatory Signing", () => {
     const node = {
       "@context": "https://schema.org/",
       "@type": "Note",
-      "@id": "urn:refarm:test:3",
+      "@id": "urn:sovereign:test:3",
       "text": "Hello Permanent"
     };
 
@@ -105,7 +105,7 @@ describe("Tractor Identity Lifecycle & Mandatory Signing", () => {
 
     // 6. Verify signing with permanent identity
     const allNotes = await storage.queryNodes("Note");
-    const permanentNote = JSON.parse(((allNotes as { id: string; payload: string }[]).find((n) => n.id === "urn:refarm:test:3") as { payload: string }).payload);
+    const permanentNote = JSON.parse(((allNotes as { id: string; payload: string }[]).find((n) => n.id === "urn:sovereign:test:3") as { payload: string }).payload);
     
     expect(permanentNote["signature"]).toBeDefined();
     expect(permanentNote["signature"].pubkey).toBe("did:nostr:pubkey_permanent_123");

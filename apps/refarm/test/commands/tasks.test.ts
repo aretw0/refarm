@@ -46,11 +46,11 @@ describe("refarm tasks", () => {
 			jsonResponse({
 				tasks: [
 					{
-						"@id": "urn:refarm:task:v1:abc123def456",
+						"@id": "urn:sovereign:task:v1:abc123def456",
 						"@type": "Task",
 						title: "@refarm/agent.respond",
 						status: "done",
-						context_id: "urn:refarm:session:v1:s1",
+						context_id: "urn:sovereign:session:v1:s1",
 						created_at_ns: Date.now() * 1_000_000,
 					},
 				],
@@ -65,7 +65,7 @@ describe("refarm tasks", () => {
 				"--status",
 				"done",
 				"--session",
-				"urn:refarm:session:v1:s1",
+				"urn:sovereign:session:v1:s1",
 				"--limit",
 				"2",
 			],
@@ -73,7 +73,7 @@ describe("refarm tasks", () => {
 		);
 
 		expect(fetchMock).toHaveBeenCalledWith(
-			"http://127.0.0.1:42001/tasks?status=done&session_id=urn%3Arefarm%3Asession%3Av1%3As1&limit=2",
+			"http://127.0.0.1:42001/tasks?status=done&session_id=urn%3Asovereign%3Asession%3Av1%3As1&limit=2",
 			expect.objectContaining({
 				signal: expect.any(Object),
 			}),
@@ -163,7 +163,7 @@ describe("refarm tasks", () => {
 				jsonResponse({
 					tasks: [
 						{
-							"@id": "urn:refarm:task:v1:abc123def456",
+							"@id": "urn:sovereign:task:v1:abc123def456",
 							"@type": "Task",
 							title: "@refarm/agent.respond",
 							status: "done",
@@ -189,9 +189,9 @@ describe("refarm tasks", () => {
 			nextAction: null,
 			nextActions: [],
 			nextCommand:
-				"refarm tasks show 'urn:refarm:task:v1:abc123def456' --json",
+				"refarm tasks show 'urn:sovereign:task:v1:abc123def456' --json",
 			nextCommands: [
-				"refarm tasks show 'urn:refarm:task:v1:abc123def456' --json",
+				"refarm tasks show 'urn:sovereign:task:v1:abc123def456' --json",
 				"refarm tasks --json",
 			],
 			filters: {
@@ -201,7 +201,7 @@ describe("refarm tasks", () => {
 			},
 			tasks: [
 				{
-					"@id": "urn:refarm:task:v1:abc123def456",
+					"@id": "urn:sovereign:task:v1:abc123def456",
 					"@type": "Task",
 					title: "@refarm/agent.respond",
 					status: "done",
@@ -214,17 +214,17 @@ describe("refarm tasks", () => {
 		const fetchMock = vi.fn().mockResolvedValue(
 			jsonResponse({
 				task: {
-					"@id": "urn:refarm:task:v1:abc123def456",
+					"@id": "urn:sovereign:task:v1:abc123def456",
 					"@type": "Task",
 					title: "@refarm/agent.respond",
 					status: "failed",
-					context_id: "urn:refarm:session:v1:s1",
+					context_id: "urn:sovereign:session:v1:s1",
 					created_at_ns: Date.now() * 1_000_000,
 				},
 				events: [
 					{
-						"@id": "urn:refarm:task-event:v1:e1",
-						task_id: "urn:refarm:task:v1:abc123def456",
+						"@id": "urn:sovereign:task-event:v1:e1",
+						task_id: "urn:sovereign:task:v1:abc123def456",
 						event: "status_changed",
 						actor: "tester",
 						timestamp_ns: Date.now() * 1_000_000,
@@ -255,7 +255,7 @@ describe("refarm tasks", () => {
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Task");
 		expect(output).toContain("@refarm/agent.respond");
-		expect(output).toContain("urn:refarm:session:v1:s1");
+		expect(output).toContain("urn:sovereign:session:v1:s1");
 		expect(output).toContain("status_changed");
 		expect(output).toContain("mock-model");
 	});
@@ -266,15 +266,15 @@ describe("refarm tasks", () => {
 			vi.fn().mockResolvedValue(
 				jsonResponse({
 					task: {
-						"@id": "urn:refarm:task:v1:abc123def456",
+						"@id": "urn:sovereign:task:v1:abc123def456",
 						"@type": "Task",
 						title: "@refarm/agent.respond",
 						status: "active",
 					},
 					events: [
 						{
-							"@id": "urn:refarm:task-event:v1:e1",
-							task_id: "urn:refarm:task:v1:abc123def456",
+							"@id": "urn:sovereign:task-event:v1:e1",
+							task_id: "urn:sovereign:task:v1:abc123def456",
 							event: "status_changed",
 						},
 					],
@@ -300,15 +300,15 @@ describe("refarm tasks", () => {
 			nextCommands: ["refarm tasks --json"],
 			prefix: "abc123",
 			task: {
-				"@id": "urn:refarm:task:v1:abc123def456",
+				"@id": "urn:sovereign:task:v1:abc123def456",
 				"@type": "Task",
 				title: "@refarm/agent.respond",
 				status: "active",
 			},
 			events: [
 				{
-					"@id": "urn:refarm:task-event:v1:e1",
-					task_id: "urn:refarm:task:v1:abc123def456",
+					"@id": "urn:sovereign:task-event:v1:e1",
+					task_id: "urn:sovereign:task:v1:abc123def456",
 					event: "status_changed",
 				},
 			],
@@ -323,8 +323,8 @@ describe("refarm tasks", () => {
 					{
 						error: "ambiguous task prefix",
 						matches: [
-							"urn:refarm:task:v1:aaa111",
-							"urn:refarm:task:v1:aaa222",
+							"urn:sovereign:task:v1:aaa111",
+							"urn:sovereign:task:v1:aaa222",
 						],
 					},
 					409,
@@ -342,7 +342,7 @@ describe("refarm tasks", () => {
 			expect.stringContaining("Ambiguous prefix"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("urn:refarm:task:v1:aaa111"),
+			expect.stringContaining("urn:sovereign:task:v1:aaa111"),
 		);
 		expect(process.exitCode).toBe(1);
 	});
@@ -355,8 +355,8 @@ describe("refarm tasks", () => {
 					{
 						error: "ambiguous task prefix",
 						matches: [
-							"urn:refarm:task:v1:aaa111",
-							"urn:refarm:task:v1:aaa222",
+							"urn:sovereign:task:v1:aaa111",
+							"urn:sovereign:task:v1:aaa222",
 						],
 					},
 					409,
@@ -381,8 +381,8 @@ describe("refarm tasks", () => {
 			message: "ambiguous task prefix",
 			prefix: "aaa",
 			matches: [
-				"urn:refarm:task:v1:aaa111",
-				"urn:refarm:task:v1:aaa222",
+				"urn:sovereign:task:v1:aaa111",
+				"urn:sovereign:task:v1:aaa222",
 			],
 			nextAction: "refarm tasks --json",
 			nextActions: ["refarm tasks --json"],

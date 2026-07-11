@@ -521,7 +521,7 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
         task["@id"]
             .as_str()
             .unwrap_or("")
-            .starts_with("urn:refarm:task:v1:"),
+            .starts_with("urn:sovereign:task:v1:"),
         "@id must follow task URN scheme, got: {}",
         task["@id"]
     );
@@ -537,12 +537,12 @@ async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
         task["context_id"]
             .as_str()
             .unwrap_or("")
-            .starts_with("urn:refarm:session"),
+            .starts_with("urn:sovereign:session"),
         "context_id must reference the session URN, got: {}",
         task["context_id"]
     );
     assert_eq!(
-        task["assigned_to"], "urn:refarm:agent:runtime-agent",
+        task["assigned_to"], "urn:sovereign:agent:runtime-agent",
         "assigned_to must default to runtime-agent actor URN when MODEL_AGENT_ID is unset"
     );
 
@@ -1715,8 +1715,8 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
         let v: serde_json::Value = serde_json::from_str(&node.payload).unwrap();
         let id = v["@id"].as_str().unwrap_or("");
         // The namespace must be CARRIED, not necessarily lead: Session/SessionEntry
-        // ids now get a typed `urn:refarm:session:v1:` scheme prefix, so the agent
-        // namespace is an embedded segment (e.g. urn:refarm:session:v1:urn:farmhand:
+        // ids now get a typed `urn:sovereign:session:v1:` scheme prefix, so the agent
+        // namespace is an embedded segment (e.g. urn:sovereign:session:v1:urn:farmhand:
         // test-agent-alpha:…) rather than the leading one.
         assert!(
             id.contains("urn:farmhand:test-agent-alpha:"),

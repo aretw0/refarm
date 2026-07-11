@@ -57,13 +57,13 @@ surviving across sessions.
 ```json
 {
   "@type":          "Task",
-  "@id":            "urn:refarm:task:v1:{id}",
+  "@id":            "urn:sovereign:task:v1:{id}",
   "title":          "string",
   "status":         "pending | active | blocked | done | failed | cancelled | deferred",
   "created_by":     "urn:... | null",
   "assigned_to":    "urn:... | null",
   "context_id":     "urn:... | null",
-  "parent_task_id": "urn:refarm:task:v1:{id} | null",
+  "parent_task_id": "urn:sovereign:task:v1:{id} | null",
   "created_at_ns":  1234567890000000000,
   "updated_at_ns":  1234567890000000000
 }
@@ -74,7 +74,7 @@ surviving across sessions.
 | `status` | `pending` = not started; `active` = in progress; `blocked` = waiting on dependency; `done` = completed; `failed` = agent attempted, could not complete; `cancelled` = won't do (final); `deferred` = consciously postponed (agent may reactivate) |
 | `created_by` | Any URN — agent, user, or system |
 | `assigned_to` | Any URN — `null` means unassigned |
-| `context_id` | Any URN — typically `urn:refarm:session:v1:*` or a project/vault URN |
+| `context_id` | Any URN — typically `urn:sovereign:session:v1:*` or a project/vault URN |
 | `parent_task_id` | Hierarchical decomposition only — not execution routing (see `effort-contract-v1`) |
 
 **`TaskEvent`** — append-only, immutable:
@@ -82,8 +82,8 @@ surviving across sessions.
 ```json
 {
   "@type":        "TaskEvent",
-  "@id":          "urn:refarm:task-event:v1:{id}",
-  "task_id":      "urn:refarm:task:v1:{id}",
+  "@id":          "urn:sovereign:task-event:v1:{id}",
+  "task_id":      "urn:sovereign:task:v1:{id}",
   "event":        "created | status_changed | assigned | noted | linked | blocked_by | unblocked",
   "actor":        "urn:...",
   "payload":      {},
@@ -194,7 +194,7 @@ The base contract is agnostic of MODEL branching semantics.
 ```json
 {
   "@type":         "Session",
-  "@id":           "urn:refarm:session:v1:{id}",
+  "@id":           "urn:sovereign:session:v1:{id}",
   "participants":  ["urn:...", "urn:..."],
   "context_id":    "urn:... | null",
   "created_at_ns": 1234567890000000000
@@ -206,9 +206,9 @@ The base contract is agnostic of MODEL branching semantics.
 ```json
 {
   "@type":           "SessionEntry",
-  "@id":             "urn:refarm:session-entry:v1:{id}",
-  "session_id":      "urn:refarm:session:v1:{id}",
-  "parent_entry_id": "urn:refarm:session-entry:v1:{id} | null",
+  "@id":             "urn:sovereign:session-entry:v1:{id}",
+  "session_id":      "urn:sovereign:session:v1:{id}",
+  "parent_entry_id": "urn:sovereign:session-entry:v1:{id} | null",
   "kind":            "user | agent | tool_call | tool_result | system",
   "content":         "string",
   "timestamp_ns":    1234567890000000000
@@ -301,8 +301,8 @@ Since CRDT nodes are schema-free (Extensibility Axiom A5), agent stores extra fi
 alongside the base fields. Consumers that only know `session-contract-v1` safely ignore them.
 
 **Namespace migration** (one-time script, pre-v0.1.0):
-- Old: `urn:pi-agent:session-{id}` → New: `urn:refarm:session:v1:{id}`
-- Old: `urn:pi-agent:entry-{id}` → New: `urn:refarm:session-entry:v1:{id}`
+- Old: `urn:pi-agent:session-{id}` → New: `urn:sovereign:session:v1:{id}`
+- Old: `urn:pi-agent:entry-{id}` → New: `urn:sovereign:session-entry:v1:{id}`
 - Timing: before daily-driver gate, while dataset is small and personal.
 
 ---

@@ -680,10 +680,10 @@
         // The TS contract fields (config-node.js) — so the TS configFromNode accepts it.
         assert_eq!(payload["schema"], "refarm.config.node.v1");
         assert_eq!(payload["kind"], "refarm/config");
-        assert_eq!(payload["id"], "urn:refarm:config:workspace");
+        assert_eq!(payload["id"], "urn:sovereign:config:workspace");
         // The graph JSON-LD mirror — so query/reaper (type_) + payload readers work.
         assert_eq!(payload["@type"], "RefarmConfig");
-        assert_eq!(payload["@id"], "urn:refarm:config:workspace");
+        assert_eq!(payload["@id"], "urn:sovereign:config:workspace");
         // data is the REDACTED sovereign config — the secret is gone, not the leak
         // (raw model_env) the old node replicated across devices.
         assert_eq!(payload["data"]["provider"], "ollama");

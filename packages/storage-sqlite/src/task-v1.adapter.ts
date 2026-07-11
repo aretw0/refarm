@@ -168,7 +168,7 @@ export function createTaskV1StorageAdapter(
 			const task: Task = {
 				...taskInput,
 				"@type": "Task",
-				"@id": `urn:refarm:task:v1:${idFactory()}`,
+				"@id": `urn:sovereign:task:v1:${idFactory()}`,
 				created_at_ns: timestamp,
 				updated_at_ns: timestamp,
 			};
@@ -224,7 +224,7 @@ export function createTaskV1StorageAdapter(
 			const event: TaskEvent = {
 				...eventInput,
 				"@type": "TaskEvent",
-				"@id": `urn:refarm:task-event:v1:${idFactory()}`,
+				"@id": `urn:sovereign:task-event:v1:${idFactory()}`,
 				timestamp_ns: issueNs(),
 			};
 			const nowIso = new Date().toISOString();

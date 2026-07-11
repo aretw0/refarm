@@ -45,18 +45,18 @@ describe("operator resume", () => {
 				inspectCommand: "refarm model current --json",
 				doctorCommand: "refarm model doctor --json",
 			},
-			activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
+			activeSessionId: "urn:sovereign:session:v1:abcdef1234567890",
 			recentSessions: [
 				{
-					sessionId: "urn:refarm:session:v1:abcdef1234567890",
+					sessionId: "urn:sovereign:session:v1:abcdef1234567890",
 					shortId: "ef1234567890",
 					name: "planning",
 					hasHistory: true,
-					canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+					canonicalParticipants: ["urn:sovereign:agent:runtime-agent"],
 					participantAliases: [
 						{
-							participantId: "urn:refarm:agent:agent",
-							canonicalParticipantId: "urn:refarm:agent:runtime-agent",
+							participantId: "urn:sovereign:agent:agent",
+							canonicalParticipantId: "urn:sovereign:agent:runtime-agent",
 						},
 					],
 					showCommand: "refarm sessions show ef1234567890 --json",
@@ -108,24 +108,24 @@ describe("operator resume", () => {
 				status: "active",
 				shortId: "ef1234567890",
 				showCommand: "refarm sessions show ef1234567890 --json",
-				canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+				canonicalParticipants: ["urn:sovereign:agent:runtime-agent"],
 				participantAliases: [
 					{
-						participantId: "urn:refarm:agent:agent",
-						canonicalParticipantId: "urn:refarm:agent:runtime-agent",
+						participantId: "urn:sovereign:agent:agent",
+						canonicalParticipantId: "urn:sovereign:agent:runtime-agent",
 					},
 				],
 				recentSessions: [
 					{
-						sessionId: "urn:refarm:session:v1:abcdef1234567890",
+						sessionId: "urn:sovereign:session:v1:abcdef1234567890",
 						shortId: "ef1234567890",
 						name: "planning",
 						hasHistory: true,
-						canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+						canonicalParticipants: ["urn:sovereign:agent:runtime-agent"],
 						participantAliases: [
 							{
-								participantId: "urn:refarm:agent:agent",
-								canonicalParticipantId: "urn:refarm:agent:runtime-agent",
+								participantId: "urn:sovereign:agent:agent",
+								canonicalParticipantId: "urn:sovereign:agent:runtime-agent",
 							},
 						],
 						showCommand: "refarm sessions show ef1234567890 --json",
@@ -150,8 +150,8 @@ describe("operator resume", () => {
 			"refarm runtime start --wait",
 		]);
 		const formatted = formatOperatorResumeSummary(summary);
-		expect(formatted).toContain("participants: urn:refarm:agent:runtime-agent");
-		expect(formatted).not.toContain("urn:refarm:agent:agent ->");
+		expect(formatted).toContain("participants: urn:sovereign:agent:runtime-agent");
+		expect(formatted).not.toContain("urn:sovereign:agent:agent ->");
 	});
 
 	it("builds a JSON handoff envelope with task list fallback", () => {
@@ -388,10 +388,10 @@ describe("operator resume", () => {
 		const summary = buildOperatorResumeSummary({
 			handoffs: HANDOFFS,
 			status: readyStatus,
-			activeSessionId: "urn:refarm:session:v1:stale1234567890",
+			activeSessionId: "urn:sovereign:session:v1:stale1234567890",
 			recentSessions: [
 				{
-					sessionId: "urn:refarm:session:v1:abcdef1234567890",
+					sessionId: "urn:sovereign:session:v1:abcdef1234567890",
 					shortId: "ef1234567890",
 					showCommand: "refarm sessions show ef1234567890 --json",
 				},
@@ -414,9 +414,9 @@ describe("operator resume", () => {
 			status: readyStatus,
 			recentSessions: [
 				{
-					sessionId: "urn:refarm:session:v1:abcdef1234567890",
+					sessionId: "urn:sovereign:session:v1:abcdef1234567890",
 					shortId: "ef1234567890",
-					canonicalParticipants: ["urn:refarm:agent:runtime-agent"],
+					canonicalParticipants: ["urn:sovereign:agent:runtime-agent"],
 					hasHistory: true,
 					showCommand: "refarm sessions show ef1234567890 --json",
 					useCommand: "refarm sessions use ef1234567890 --json",
@@ -451,7 +451,7 @@ describe("operator resume", () => {
 		const envelope = buildOperatorResumeEnvelope({
 			handoffs: HANDOFFS,
 			status: readyStatus,
-			activeSessionId: "urn:refarm:session:v1:orphan1234567890",
+			activeSessionId: "urn:sovereign:session:v1:orphan1234567890",
 			recentSessions: [],
 		});
 
@@ -481,7 +481,7 @@ describe("operator resume", () => {
 			],
 			session: {
 				status: "stale",
-				activeSessionId: "urn:refarm:session:v1:orphan1234567890",
+				activeSessionId: "urn:sovereign:session:v1:orphan1234567890",
 				shortId: "an1234567890",
 				showCommand: undefined,
 				recentSessions: [],
@@ -570,7 +570,7 @@ describe("operator resume", () => {
 		const summary = buildOperatorResumeSummary({
 			handoffs: HANDOFFS,
 			status: readyStatus,
-			activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
+			activeSessionId: "urn:sovereign:session:v1:abcdef1234567890",
 			finish: {
 				updatedAt: "2026-05-27T12:05:00.000Z",
 				status: "failed",
@@ -631,7 +631,7 @@ describe("operator resume", () => {
 	});
 
 	it("formats active session ids for session handoff commands", () => {
-		expect(formatOperatorResumeSessionId("urn:refarm:session:v1:abcdef1234567890")).toBe(
+		expect(formatOperatorResumeSessionId("urn:sovereign:session:v1:abcdef1234567890")).toBe(
 			"ef1234567890",
 		);
 		expect(formatOperatorResumeSessionId("short")).toBe("short");
@@ -662,10 +662,10 @@ describe("operator resume", () => {
 					inspectCommand: "refarm model current --json",
 					doctorCommand: "refarm model doctor --json",
 				},
-				activeSessionId: "urn:refarm:session:v1:abcdef1234567890",
+				activeSessionId: "urn:sovereign:session:v1:abcdef1234567890",
 				recentSessions: [
 					{
-						sessionId: "urn:refarm:session:v1:abcdef1234567890",
+						sessionId: "urn:sovereign:session:v1:abcdef1234567890",
 						shortId: "ef1234567890",
 						name: "shipping",
 						hasHistory: true,

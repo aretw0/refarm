@@ -6,7 +6,7 @@ describe("createRuntimeAgentRespondEffort", () => {
 		const effort = createRuntimeAgentRespondEffort({
 			prompt: "Summarize the open work",
 			system: "system context",
-			sessionId: "urn:refarm:session:v1:abc",
+			sessionId: "urn:sovereign:session:v1:abc",
 			source: "refarm-chat",
 			historyTurns: 20,
 			modelProvider: "openai-codex",
@@ -29,7 +29,7 @@ describe("createRuntimeAgentRespondEffort", () => {
 					args: {
 						prompt: "Summarize the open work",
 						system: "system context",
-						session_id: "urn:refarm:session:v1:abc",
+						session_id: "urn:sovereign:session:v1:abc",
 						history_turns: 20,
 						provider: "openai-codex",
 						model: "gpt-5.3-codex-spark",

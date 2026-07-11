@@ -24,7 +24,7 @@ export function normaliseToGraph(
 	pluginId: string,
 	type: string,
 ): NormalisedNode {
-	const id = (raw["@id"] as string | undefined) ?? `urn:refarm:${pluginId}:${crypto.randomUUID()}`;
+	const id = (raw["@id"] as string | undefined) ?? `urn:sovereign:${pluginId}:${crypto.randomUUID()}`;
 
 	const now = new Date().toISOString();
 

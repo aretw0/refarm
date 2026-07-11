@@ -348,7 +348,7 @@ async function main() {
 	});
 	const taskMemoryBridge = createTaskMemoryBridge({
 		adapter: taskMemoryAdapter,
-		actorUrn: `urn:refarm:farmhand:${FARMHAND_ID}`,
+		actorUrn: `urn:sovereign:farmhand:${FARMHAND_ID}`,
 	});
 	console.log(`[farmhand] Task memory persisted to ${taskDbPath}`);
 

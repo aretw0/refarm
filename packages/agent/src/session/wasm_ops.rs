@@ -3,8 +3,8 @@ use crate::plugin::host::tractor_bridge;
 
 use super::{history_from_nodes, session_entry_node, session_node, sum_provider_spend_usd};
 
-const SESSION_PREFIX_V1: &str = "urn:refarm:session:v1:";
-const ENTRY_PREFIX_V1: &str = "urn:refarm:session-entry:v1:";
+const SESSION_PREFIX_V1: &str = "urn:sovereign:session:v1:";
+const ENTRY_PREFIX_V1: &str = "urn:sovereign:session-entry:v1:";
 
 fn new_session_id() -> String {
     format!("{SESSION_PREFIX_V1}{}", crate::new_id())

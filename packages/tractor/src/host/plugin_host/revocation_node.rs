@@ -1,13 +1,13 @@
 // Revocation tombstones — monotonic security state (G).
 //
 // A revocation must be a fact that a stale, concurrently-writing device cannot
-// undo. The config node (`urn:refarm:config:workspace`) is a single whole-value
+// undo. The config node (`urn:sovereign:config:workspace`) is a single whole-value
 // LWW register: encoding a revocation as an ABSENCE there (removing an id from
 // `trusted_plugins`) loses to a concurrent higher-Lamport whole-node write —
 // "absence loses to presence", so a revoked grant resurrects. For security, DENY
 // must dominate ALLOW regardless of clock.
 //
-// So each revocation is its OWN Loro node (`urn:refarm:revocation:<pluginId>` or
+// So each revocation is its OWN Loro node (`urn:sovereign:revocation:<pluginId>` or
 // `…:<pluginId>:<cap>`), type `RevocationTombstone`. A node ADD is a first-class
 // monotonic CRDT op — a competing whole-config write in a DIFFERENT map key cannot
 // un-add it. Tombstones are add-only (union across devices), and the grant
@@ -19,7 +19,7 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 
 pub(crate) const REVOCATION_NODE_TYPE: &str = "RevocationTombstone";
-const REVOCATION_NODE_PREFIX: &str = "urn:refarm:revocation:";
+const REVOCATION_NODE_PREFIX: &str = "urn:sovereign:revocation:";
 
 // The build/id functions below are the WRITE side of the tombstone contract — the host
 // materializes an operator's add-only revocation list into per-revocation tombstone
@@ -216,14 +216,14 @@ mod tests {
 
     #[test]
     fn node_ids_distinguish_plugin_from_capability() {
-        assert_eq!(revocation_node_id("vault"), "urn:refarm:revocation:vault");
+        assert_eq!(revocation_node_id("vault"), "urn:sovereign:revocation:vault");
         assert_eq!(
             capability_revocation_node_id("vault", "network:outbound"),
-            "urn:refarm:revocation:vault:network:outbound"
+            "urn:sovereign:revocation:vault:network:outbound"
         );
         assert_eq!(
             annulment_node_id("vault", None),
-            "urn:refarm:revocation:vault#annul"
+            "urn:sovereign:revocation:vault#annul"
         );
     }
 

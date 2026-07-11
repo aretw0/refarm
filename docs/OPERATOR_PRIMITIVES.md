@@ -119,8 +119,8 @@ Session Rules:
   `refarm` session roots only; legacy `~/.pi` sources must be explicitly selected
   only for migration or forensics.
 - New runtime-agent sessions should identify the participant as
-  `urn:refarm:agent:runtime-agent`.
-- Historical `urn:refarm:agent:agent` participants and `[agent ...]`
+  `urn:sovereign:agent:runtime-agent`.
+- Historical `urn:sovereign:agent:agent` participants and `[agent ...]`
   entries are compatibility data, not the product-facing concept.
 
 ### Task And Effort

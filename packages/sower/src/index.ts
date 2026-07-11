@@ -19,7 +19,7 @@ export class SowerPlugin {
 		return {
 			"@context": "https://schema.org/",
 			"@type": "EntryPoint",
-			"@id": "urn:refarm:sower:onboarding",
+			"@id": "urn:sovereign:sower:onboarding",
 			name: flow.name,
 			description: flow.description,
 			"renderType": "onboarding",
@@ -52,7 +52,7 @@ export class SowerPlugin {
 				payload: {
 					"@context": "https://schema.org/",
 					"@type": "Message",
-					"@id": "urn:refarm:sower:welcome-guest",
+					"@id": "urn:sovereign:sower:welcome-guest",
 					name: "Welcome Guest",
 					text: "Your temporary workspace is active. Explore the tools below.",
 					"renderType": "tutorial-step",

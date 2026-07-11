@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createTaskMemoryBridge } from "./task-memory-bridge.js";
 
-const ACTOR_URN = "urn:refarm:farmhand:test";
+const ACTOR_URN = "urn:sovereign:farmhand:test";
 
 function sampleEffortTask(id = "task-1") {
 	return {
@@ -22,12 +22,12 @@ function aliasEffortTask(id = "task-alias") {
 function makeTask(id: string, contextId: string) {
 	return {
 		"@type": "Task",
-		"@id": `urn:refarm:task:v1:${id}`,
+		"@id": `urn:sovereign:task:v1:${id}`,
 		title: "@refarm/agent.respond",
 		status: "active",
 		created_by: ACTOR_URN,
 		assigned_to: ACTOR_URN,
-		context_id: `urn:refarm:effort:v1:${contextId}`,
+		context_id: `urn:sovereign:effort:v1:${contextId}`,
 		parent_task_id: null,
 		created_at_ns: 1,
 		updated_at_ns: 1,
@@ -55,14 +55,14 @@ describe("TaskMemoryBridge", () => {
 		const create = vi.fn().mockResolvedValue(makeTask("abc", "effort-1"));
 		const appendEvent = vi
 			.fn()
-			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:1" });
+			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:sovereign:task-event:v1:1" });
 		const adapter = makeAdapter({ create, appendEvent });
 		const bridge = makeBridge(adapter);
 
 		const first = await bridge.ensureTask(sampleEffortTask("task-1"), "effort-1");
 		const second = await bridge.ensureTask(sampleEffortTask("task-1"), "effort-1");
 
-		expect(first).toBe("urn:refarm:task:v1:abc");
+		expect(first).toBe("urn:sovereign:task:v1:abc");
 		expect(second).toBe(first);
 		expect(create).toHaveBeenCalledTimes(1);
 		expect(appendEvent).toHaveBeenCalledTimes(1);
@@ -73,7 +73,7 @@ describe("TaskMemoryBridge", () => {
 		const create = vi.fn().mockResolvedValue(makeTask("alias", "effort-alias"));
 		const appendEvent = vi
 			.fn()
-			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:alias" });
+			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:sovereign:task-event:v1:alias" });
 		const adapter = makeAdapter({ create, appendEvent });
 		const bridge = makeBridge(adapter);
 
@@ -97,17 +97,17 @@ describe("TaskMemoryBridge", () => {
 		const create = vi.fn().mockResolvedValue(makeTask("done-task", "effort-done"));
 		const update = vi.fn().mockResolvedValue({
 			"@type": "Task",
-			"@id": "urn:refarm:task:v1:done-task",
+			"@id": "urn:sovereign:task:v1:done-task",
 			status: "done",
 		});
 		const appendEvent = vi
 			.fn()
-			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:2" });
+			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:sovereign:task-event:v1:2" });
 		const bridge = makeBridge(makeAdapter({ create, update, appendEvent }));
 
 		await bridge.recordOutcome(sampleEffortTask("task-done"), "effort-done", { status: "ok" });
 
-		expect(update).toHaveBeenCalledWith("urn:refarm:task:v1:done-task", {
+		expect(update).toHaveBeenCalledWith("urn:sovereign:task:v1:done-task", {
 			status: "done",
 			assigned_to: ACTOR_URN,
 		});
@@ -124,12 +124,12 @@ describe("TaskMemoryBridge", () => {
 		const create = vi.fn().mockResolvedValue(makeTask("failed-task", "effort-failed"));
 		const update = vi.fn().mockResolvedValue({
 			"@type": "Task",
-			"@id": "urn:refarm:task:v1:failed-task",
+			"@id": "urn:sovereign:task:v1:failed-task",
 			status: "failed",
 		});
 		const appendEvent = vi
 			.fn()
-			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:3" });
+			.mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:sovereign:task-event:v1:3" });
 		const bridge = makeBridge(makeAdapter({ create, update, appendEvent }));
 
 		await bridge.recordOutcome(sampleEffortTask("task-failed"), "effort-failed", {
@@ -137,7 +137,7 @@ describe("TaskMemoryBridge", () => {
 			error: "timeout",
 		});
 
-		expect(update).toHaveBeenCalledWith("urn:refarm:task:v1:failed-task", {
+		expect(update).toHaveBeenCalledWith("urn:sovereign:task:v1:failed-task", {
 			status: "failed",
 			assigned_to: ACTOR_URN,
 		});

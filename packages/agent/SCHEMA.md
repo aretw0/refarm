@@ -15,12 +15,12 @@ new Session with `parent_session_id` pointing to the ancestor session.
 ```json
 {
   "@type":             "Session",
-  "@id":               "urn:refarm:session:v1:{new_id()}",
-  "participants":      ["urn:refarm:agent:runtime-agent"],
+  "@id":               "urn:sovereign:session:v1:{new_id()}",
+  "participants":      ["urn:sovereign:agent:runtime-agent"],
   "context_id":        "urn:... | null",
   "name":              "string | null",
-  "leaf_entry_id":     "urn:refarm:session-entry:v1:{id} | null",
-  "parent_session_id": "urn:refarm:session:v1:{id} | null",
+  "leaf_entry_id":     "urn:sovereign:session-entry:v1:{id} | null",
+  "parent_session_id": "urn:sovereign:session:v1:{id} | null",
   "created_at_ns":     1234567890000000000
 }
 ```
@@ -28,7 +28,7 @@ new Session with `parent_session_id` pointing to the ancestor session.
 | Field               | Type             | Required | Notes                                     |
 |---------------------|------------------|----------|-------------------------------------------|
 | `@type`             | `"Session"`      | yes      | Discriminant for `query_nodes`            |
-| `@id`               | URN string       | yes      | `urn:refarm:session:v1:{new_id()}`        |
+| `@id`               | URN string       | yes      | `urn:sovereign:session:v1:{new_id()}`        |
 | `participants`      | string[]         | yes      | Base `session-contract-v1` participant URNs |
 | `context_id`        | URN string \| null | yes    | Base `session-contract-v1` context link   |
 | `name`              | string \| null   | no       | Human-readable label                      |
@@ -50,9 +50,9 @@ naturally: two entries with the same `parent_entry_id` are a fork at that point.
 ```json
 {
   "@type":           "SessionEntry",
-  "@id":             "urn:refarm:session-entry:v1:{new_id()}",
-  "session_id":      "urn:refarm:session:v1:{id}",
-  "parent_entry_id": "urn:refarm:session-entry:v1:{id} | null",
+  "@id":             "urn:sovereign:session-entry:v1:{new_id()}",
+  "session_id":      "urn:sovereign:session:v1:{id}",
+  "parent_entry_id": "urn:sovereign:session-entry:v1:{id} | null",
   "kind":            "user | agent | tool_call | tool_result",
   "content":         "string",
   "timestamp_ns":    1234567890000000000
@@ -62,7 +62,7 @@ naturally: two entries with the same `parent_entry_id` are a fork at that point.
 | Field             | Type                        | Required | Notes                                          |
 |-------------------|-----------------------------|----------|------------------------------------------------|
 | `@type`           | `"SessionEntry"`            | yes      | Discriminant for `query_nodes`                 |
-| `@id`             | URN string                  | yes      | `urn:refarm:session-entry:v1:{new_id()}`       |
+| `@id`             | URN string                  | yes      | `urn:sovereign:session-entry:v1:{new_id()}`       |
 | `session_id`      | URN string                  | yes      | Owning Session                                 |
 | `parent_entry_id` | URN string \| null          | no       | null = tree root; non-null = chained entry     |
 | `kind`            | enum string                 | yes      | `user` \| `agent` \| `tool_call` \| `tool_result` |

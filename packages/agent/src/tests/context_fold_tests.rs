@@ -115,7 +115,7 @@ fn build_fold_emits_reversible_record_with_refs_and_digest() {
     assert_eq!(fold["digest"]["algorithm"], "refarm-stable-fnv1a64-v1");
     assert_eq!(fold["created_at_ns"], 999);
     // The @id is the URN the contract expects.
-    assert!(fold["@id"].as_str().unwrap().starts_with("urn:refarm:session-context-fold:v1:"));
+    assert!(fold["@id"].as_str().unwrap().starts_with("urn:sovereign:session-context-fold:v1:"));
 }
 
 #[test]

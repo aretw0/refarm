@@ -19,7 +19,7 @@ describe("record⇄node round-trip", () => {
 		const node: NormalisedNode = {
 			"@context": "https://schema.org/",
 			"@type": "Task",
-			"@id": "urn:refarm:agent:task-1",
+			"@id": "urn:sovereign:agent:task-1",
 			"sourcePlugin": "agent",
 			"context": "ctx-1",
 			"createdAt": "2026-07-01T00:00:00.000Z",
@@ -72,14 +72,14 @@ describe("record⇄node round-trip", () => {
 		const node: NormalisedNode = {
 			"@context": "https://schema.org/",
 			"@type": "PluginCatalogEntry",
-			"@id": "urn:refarm:plugin:matrix",
+			"@id": "urn:sovereign:plugin:matrix",
 		};
 		const record = nodeToRecord(node, NOW);
 		// No createdAt on the node → record uses the injected clock.
 		expect(record.createdAt).toBe(NOW);
 		expect(record.updatedAt).toBe(NOW);
 		const back = recordToNode(record);
-		expect(back["@id"]).toBe("urn:refarm:plugin:matrix");
+		expect(back["@id"]).toBe("urn:sovereign:plugin:matrix");
 	});
 
 	it("stays total for an opaque (non-node) ledger payload", () => {

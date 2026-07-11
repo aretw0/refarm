@@ -10,7 +10,7 @@ Representa uma entrada no catálogo de plugins do Barn. É um tipo de `Sovereign
 {
   "@context": "https://schema.org/",
   "@type": "SoftwareApplication",
-  "@id": "urn:refarm:plugin:<plugin-id>",
+  "@id": "urn:sovereign:plugin:<plugin-id>",
   "name": "Nome do Plugin",
   "description": "Descrição breve do plugin.",
   "softwareVersion": "0.1.0",
@@ -33,12 +33,12 @@ Representa uma entrada no catálogo de plugins do Barn. É um tipo de `Sovereign
 
 *   `@context`: `https://schema.org/`
 *   `@type`: `SoftwareApplication` (tipo base para softwares)
-*   `@id`: URN único para o plugin (ex: `urn:refarm:plugin:my-awesome-plugin`)
+*   `@id`: URN único para o plugin (ex: `urn:sovereign:plugin:my-awesome-plugin`)
 *   `name`: Nome legível do plugin.
 *   `description`: Descrição curta do que o plugin faz.
 *   `softwareVersion`: Versão semântica do plugin.
 *   `applicationCategory`: Sempre "Plugin" para identificação.
-*   `installUrl`: URL de instalação. Pode ser `https://`, `file://` (para dev local) ou `urn:refarm:blob:` (para plugins no grafo).
+*   `installUrl`: URL de instalação. Pode ser `https://`, `file://` (para dev local) ou `urn:sovereign:blob:` (para plugins no grafo).
 *   `sha256Integrity`: Hash SHA-256 para verificação. Obrigatório para todos os tipos de fonte.
 *   `refarm:status`: Status atual (e.g., `installed`, `development`, `synthetic`).
 *   `refarm:sourceType`: Origem do plugin:
@@ -63,8 +63,8 @@ Proveniências diferentes → registros/arquivos diferentes. Persistido via
 {
   "@context": "https://schema.org/",
   "@type": "refarm:ConfigOverride",
-  "@id": "urn:refarm:config-override:<plugin-id>",
-  "refarm:targetPlugin": "urn:refarm:plugin:<plugin-id>",
+  "@id": "urn:sovereign:config-override:<plugin-id>",
+  "refarm:targetPlugin": "urn:sovereign:plugin:<plugin-id>",
   "refarm:scope": "workspace", // ou "user"
   "refarm:capabilities": ["network:fetch"], // additivo sobre o manifesto
   "refarm:disabled": false,                  // desliga a extensão sem desinstalar

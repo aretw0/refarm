@@ -28,7 +28,7 @@ export function log(level, message) {
  */
 export function storeNode(jsonLd) {
   const node = JSON.parse(jsonLd);
-  const id = node['@id'] || `urn:refarm:node:${Math.random().toString(36).substr(2, 9)}`;
+  const id = node['@id'] || `urn:sovereign:node:${Math.random().toString(36).substr(2, 9)}`;
   console.log(`[Host] Storing node: ${id}`);
   
   // In a real host, this would persist to a database or state manager.

@@ -77,7 +77,7 @@ async fn sidecar_session_history_unknown_id_returns_404() {
 #[tokio::test]
 async fn sidecar_session_history_no_entries_returns_empty() {
     let ns = storage_path();
-    let session_id = "urn:refarm:session:v1:empty";
+    let session_id = "urn:sovereign:session:v1:empty";
     write_session(&ns, session_id, None);
     let (_state, port) = start_history_sidecar(&ns).await;
 
@@ -97,9 +97,9 @@ async fn sidecar_session_history_no_entries_returns_empty() {
 #[tokio::test]
 async fn sidecar_session_history_returns_entries_oldest_first() {
     let ns = storage_path();
-    let sid = "urn:refarm:session:v1:hist01";
-    let e1 = "urn:refarm:entry:v1:e001";
-    let e2 = "urn:refarm:entry:v1:e002";
+    let sid = "urn:sovereign:session:v1:hist01";
+    let e1 = "urn:sovereign:entry:v1:e001";
+    let e2 = "urn:sovereign:entry:v1:e002";
 
     // e1 (user, oldest) → e2 (assistant, newest), leaf = e2
     write_entry(&ns, e1, "user", "hello world", None, 1_000);
@@ -126,7 +126,7 @@ async fn sidecar_session_history_returns_entries_oldest_first() {
 #[tokio::test]
 async fn sidecar_session_history_prefix_resolves_unique_session() {
     let ns = storage_path();
-    let sid = "urn:refarm:session:v1:uniq99";
+    let sid = "urn:sovereign:session:v1:uniq99";
     write_session(&ns, sid, None);
     let (_state, port) = start_history_sidecar(&ns).await;
 
@@ -145,8 +145,8 @@ async fn sidecar_session_history_prefix_resolves_unique_session() {
 #[tokio::test]
 async fn sidecar_session_history_ambiguous_prefix_returns_409() {
     let ns = storage_path();
-    write_session(&ns, "urn:refarm:session:v1:ambig-alpha", None);
-    write_session(&ns, "urn:refarm:session:v1:ambig-beta", None);
+    write_session(&ns, "urn:sovereign:session:v1:ambig-alpha", None);
+    write_session(&ns, "urn:sovereign:session:v1:ambig-beta", None);
     let (_state, port) = start_history_sidecar(&ns).await;
 
     let resp = reqwest::get(format!("{}/sessions/ambig/history", base(port)))
@@ -161,8 +161,8 @@ async fn sidecar_session_history_ambiguous_prefix_returns_409() {
 #[tokio::test]
 async fn sidecar_session_fork_creates_child_session() {
     let ns = storage_path();
-    let sid = "urn:refarm:session:v1:parent01";
-    let e1 = "urn:refarm:entry:v1:p01e1";
+    let sid = "urn:sovereign:session:v1:parent01";
+    let e1 = "urn:sovereign:entry:v1:p01e1";
     write_entry(&ns, e1, "user", "hello", None, 1_000);
     write_session(&ns, sid, Some(e1));
     let (_state, port) = start_history_sidecar(&ns).await;
@@ -188,15 +188,15 @@ async fn sidecar_session_fork_creates_child_session() {
     assert!(fork["@id"]
         .as_str()
         .unwrap()
-        .starts_with("urn:refarm:session:v1:"));
+        .starts_with("urn:sovereign:session:v1:"));
 }
 
 #[tokio::test]
 async fn sidecar_session_fork_at_explicit_entry() {
     let ns = storage_path();
-    let sid = "urn:refarm:session:v1:parent02";
-    let e1 = "urn:refarm:entry:v1:p02e1";
-    let e2 = "urn:refarm:entry:v1:p02e2";
+    let sid = "urn:sovereign:session:v1:parent02";
+    let e1 = "urn:sovereign:entry:v1:p02e1";
+    let e2 = "urn:sovereign:entry:v1:p02e2";
     write_entry(&ns, e1, "user", "first", None, 1_000);
     write_entry(&ns, e2, "agent", "reply", Some(e1), 2_000);
     write_session(&ns, sid, Some(e2));
@@ -253,7 +253,7 @@ async fn sidecar_post_session_creates_unnamed_session() {
     assert!(session["@id"]
         .as_str()
         .unwrap()
-        .starts_with("urn:refarm:session:v1:"));
+        .starts_with("urn:sovereign:session:v1:"));
     assert!(session["leaf_entry_id"].is_null());
     assert!(session["parent_session_id"].is_null());
 }

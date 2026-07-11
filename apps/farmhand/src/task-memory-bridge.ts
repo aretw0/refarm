@@ -31,7 +31,7 @@ export class TaskMemoryBridge {
 	private readonly contextPrefix: string;
 
 	constructor(private readonly options: TaskMemoryBridgeOptions) {
-		this.contextPrefix = options.contextPrefix?.trim() || "urn:refarm:effort:v1:";
+		this.contextPrefix = options.contextPrefix?.trim() || "urn:sovereign:effort:v1:";
 	}
 
 	async ensureTask(task: EffortTask, effortId: string): Promise<string> {

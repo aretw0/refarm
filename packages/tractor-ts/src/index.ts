@@ -327,7 +327,7 @@ export class Tractor {
 			const conversionNode: NormalisedNode = {
 				"@context": "https://refarm.dev/schemas/v1",
 				"@type": "IdentityConversion",
-				"@id": `urn:refarm:identity:conversion:${this.uint8ToHex(previousGuestKey.publicKey)}`,
+				"@id": `urn:sovereign:identity:conversion:${this.uint8ToHex(previousGuestKey.publicKey)}`,
 				guestPubkey: this.uint8ToHex(previousGuestKey.publicKey),
 				permanentPubkey: permanentPubKey,
 				timestamp: new Date().toISOString(),
@@ -379,7 +379,7 @@ export class Tractor {
 		return {
 			"@context": "https://schema.org/",
 			"@type": "HelpPage",
-			"@id": "urn:refarm:core:seed",
+			"@id": "urn:sovereign:core:seed",
 			name: "Sovereign Engine",
 			text: "The engine is active.",
 			"sourcePlugin": "core",

@@ -172,7 +172,7 @@ export function planSessionContextFold(
 	const digest = stableHash(digestInput);
 	const foldId =
 		options.id ??
-		`urn:refarm:session-context-fold:v1:${stableHash(sessionId).value}:${digest.value}`;
+		`urn:sovereign:session-context-fold:v1:${stableHash(sessionId).value}:${digest.value}`;
 
 	return {
 		fold: {

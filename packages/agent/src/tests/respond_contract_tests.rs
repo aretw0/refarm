@@ -4,13 +4,13 @@ use super::*;
 fn parse_respond_payload_parses_session_fields() {
     let payload = serde_json::json!({
         "prompt": "hello",
-        "session_id": "urn:refarm:session:abc123",
+        "session_id": "urn:sovereign:session:abc123",
         "history_turns": 10,
     })
     .to_string();
     let req = parse_respond_payload(&payload).expect("valid payload must parse");
     assert_eq!(req.prompt, "hello");
-    assert_eq!(req.session_id.as_deref(), Some("urn:refarm:session:abc123"));
+    assert_eq!(req.session_id.as_deref(), Some("urn:sovereign:session:abc123"));
     assert_eq!(req.history_turns, Some(10));
 }
 
@@ -52,7 +52,7 @@ fn parse_respond_payload_ignores_empty_session_id() {
 fn respond_accepts_session_id_and_history_turns() {
     let payload = serde_json::json!({
         "prompt": "hello",
-        "session_id": "urn:refarm:session:test",
+        "session_id": "urn:sovereign:session:test",
         "history_turns": 5,
     })
     .to_string();

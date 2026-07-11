@@ -8,8 +8,8 @@ export async function runSessionV1Conformance(
 
 	const sessionInput: Omit<Session, "@id" | "created_at_ns"> = {
 		"@type": "Session",
-		participants: ["urn:refarm:conformance", "urn:refarm:agent:test"],
-		context_id: "urn:refarm:context:conformance",
+		participants: ["urn:sovereign:conformance", "urn:sovereign:agent:test"],
+		context_id: "urn:sovereign:context:conformance",
 	};
 
 	let created: Session | undefined;
@@ -96,7 +96,7 @@ export async function runSessionV1Conformance(
 		total++;
 		try {
 			const result = await adapter.query({
-				participants: ["urn:refarm:conformance"],
+				participants: ["urn:sovereign:conformance"],
 			});
 			const found = result.some((session) => session["@id"] === created?.["@id"]);
 			if (!found) {

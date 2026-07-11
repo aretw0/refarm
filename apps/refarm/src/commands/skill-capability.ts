@@ -115,7 +115,7 @@ export interface SkillCommandDeps {
 	};
 	/**
 	 * Persist imported skills into refarm's store as CONTENT-ADDRESSED nodes: the
-	 * skill's `@id` is `urn:refarm:skill:v1:<name>:<sha256>` — the sha256 of the
+	 * skill's `@id` is `urn:sovereign:skill:v1:<name>:<sha256>` — the sha256 of the
 	 * SKILL.md IS the identity, so the same content maps to the same node whether
 	 * it came from fs today or p2p/OPFS tomorrow. Returns the ids written. This is
 	 * the seam a future content-addressed/p2p resolver plugs into unchanged.
@@ -139,7 +139,7 @@ const SKILL_INVOCATION_DECISION_NODE_TYPE = "refarm:skill-invocation-decision";
  */
 function skillInvocationDecisionNode(decision: SkillInvocationDecisionV1) {
 	return {
-		"@id": `urn:refarm:skill-invocation-decision:${decision.request.skill.id}:${decision.decision}`,
+		"@id": `urn:sovereign:skill-invocation-decision:${decision.request.skill.id}:${decision.decision}`,
 		"@type": SKILL_INVOCATION_DECISION_NODE_TYPE,
 		skillId: decision.request.skill.id,
 		skillName: decision.request.skill.name,

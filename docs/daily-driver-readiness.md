@@ -113,9 +113,9 @@ What is already solid:
   "Refarm runtime agent"; the physical `@refarm/agent` package remains a
   compatibility identity rather than the operator-facing semantic center.
 - Session participants now expose the same boundary: legacy
-  `urn:refarm:agent:agent` data is preserved for history, while
+  `urn:sovereign:agent:agent` data is preserved for history, while
   `canonicalParticipants` and `participantAliases` surface
-  `urn:refarm:agent:runtime-agent` in both `sessions show --json` and
+  `urn:sovereign:agent:runtime-agent` in both `sessions show --json` and
   `resume --json`.
 - `refarm task resume --json` is now the preferred continuation when a task
   checkpoint exists; it carries the current effort handoffs, model inspection

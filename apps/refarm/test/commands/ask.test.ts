@@ -279,7 +279,7 @@ describe("refarm ask", () => {
 		const command = createAskCommand(deps);
 		const readSpy = vi
 			.spyOn(fs, "readFileSync")
-			.mockReturnValue("urn:refarm:session:v1:active123");
+			.mockReturnValue("urn:sovereign:session:v1:active123");
 		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
@@ -295,7 +295,7 @@ describe("refarm ask", () => {
 				tasks: [
 					expect.objectContaining({
 						args: expect.objectContaining({
-							session_id: "urn:refarm:session:v1:active123",
+							session_id: "urn:sovereign:session:v1:active123",
 						}),
 					}),
 				],
@@ -303,7 +303,7 @@ describe("refarm ask", () => {
 		);
 		expect(writeSpy).toHaveBeenCalledWith(
 			expect.stringContaining(".refarm/session.lock"),
-			"urn:refarm:session:v1:active123",
+			"urn:sovereign:session:v1:active123",
 			"utf-8",
 		);
 		expect(readSpy).toHaveBeenCalled();
@@ -413,7 +413,7 @@ describe("refarm ask", () => {
 		const deps = makeDeps({
 			readActiveSessionId: vi
 				.fn()
-				.mockReturnValue("urn:refarm:session:v1:jsonactive"),
+				.mockReturnValue("urn:sovereign:session:v1:jsonactive"),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -427,7 +427,7 @@ describe("refarm ask", () => {
 		expect(logSpy).toHaveBeenCalledTimes(1);
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			effortId: "eff-1",
-			sessionId: "urn:refarm:session:v1:jsonactive",
+			sessionId: "urn:sovereign:session:v1:jsonactive",
 			content: "hello world",
 			command: "ask",
 			operation: "submit",
@@ -440,7 +440,7 @@ describe("refarm ask", () => {
 			nextCommand: "refarm resume --json",
 			nextCommands: [
 				"refarm resume --json",
-				"refarm sessions show urn:refarm:session:v1:jsonactive --json",
+				"refarm sessions show urn:sovereign:session:v1:jsonactive --json",
 				"refarm agent finish --lane after-edit --run --json",
 			],
 			metadata: {
@@ -451,7 +451,7 @@ describe("refarm ask", () => {
 			},
 		});
 		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
-			"urn:refarm:session:v1:jsonactive",
+			"urn:sovereign:session:v1:jsonactive",
 		);
 
 		logSpy.mockRestore();
@@ -1192,7 +1192,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const deps = makeDeps({
 			readActiveSessionId: vi
 				.fn()
-				.mockReturnValue("urn:refarm:session:v1:oldactive"),
+				.mockReturnValue("urn:sovereign:session:v1:oldactive"),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1208,7 +1208,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 				tasks: [
 					expect.objectContaining({
 						args: expect.objectContaining({
-							session_id: expect.stringMatching(/^urn:refarm:session:v1:/),
+							session_id: expect.stringMatching(/^urn:sovereign:session:v1:/),
 						}),
 					}),
 				],
@@ -1219,7 +1219,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 				tasks: [
 					expect.objectContaining({
 						args: expect.objectContaining({
-							session_id: "urn:refarm:session:v1:oldactive",
+							session_id: "urn:sovereign:session:v1:oldactive",
 						}),
 					}),
 				],
@@ -1232,7 +1232,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
 			submittedSessionId,
 		);
-		expect(submittedSessionId).not.toBe("urn:refarm:session:v1:oldactive");
+		expect(submittedSessionId).not.toBe("urn:sovereign:session:v1:oldactive");
 
 		logSpy.mockRestore();
 		outSpy.mockRestore();
@@ -1242,7 +1242,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const deps = makeDeps({
 			readActiveSessionId: vi
 				.fn()
-				.mockReturnValue("urn:refarm:session:v1:activefallback"),
+				.mockReturnValue("urn:sovereign:session:v1:activefallback"),
 			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),
 			readEffortResult: vi.fn().mockResolvedValue({
 				status: "ok",
@@ -1261,7 +1261,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		expect(deps.followStream).toHaveBeenCalledOnce();
 		expect(deps.readEffortResult).toHaveBeenCalledWith("eff-1");
 		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
-			"urn:refarm:session:v1:activefallback",
+			"urn:sovereign:session:v1:activefallback",
 		);
 		expect(outSpy).toHaveBeenCalledWith("fallback response\n");
 
@@ -1277,7 +1277,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const deps = makeDeps({
 			readActiveSessionId: vi
 				.fn()
-				.mockReturnValue("urn:refarm:session:v1:jsonfallback"),
+				.mockReturnValue("urn:sovereign:session:v1:jsonfallback"),
 			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),
 			readEffortResult: vi.fn().mockResolvedValue({
 				status: "ok",
@@ -1296,7 +1296,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		expect(outSpy).not.toHaveBeenCalled();
 		expect(JSON.parse(String(logSpy.mock.calls[0]?.[0]))).toEqual({
 			effortId: "eff-1",
-			sessionId: "urn:refarm:session:v1:jsonfallback",
+			sessionId: "urn:sovereign:session:v1:jsonfallback",
 			content: "fallback response",
 			command: "ask",
 			operation: "submit",
@@ -1309,7 +1309,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 			nextCommand: "refarm resume --json",
 			nextCommands: [
 				"refarm resume --json",
-				"refarm sessions show urn:refarm:session:v1:jsonfallback --json",
+				"refarm sessions show urn:sovereign:session:v1:jsonfallback --json",
 				"refarm agent finish --lane after-edit --run --json",
 			],
 			metadata: { model: "mock-model", tokens_in: 1, tokens_out: 2 },
@@ -1323,7 +1323,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const deps = makeDeps({
 			readActiveSessionId: vi
 				.fn()
-				.mockReturnValue("urn:refarm:session:v1:quota"),
+				.mockReturnValue("urn:sovereign:session:v1:quota"),
 			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),
 			readEffortResult: vi.fn().mockResolvedValue({
 				status: "error",
@@ -1360,7 +1360,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const deps = makeDeps({
 			readActiveSessionId: vi
 				.fn()
-				.mockReturnValue("urn:refarm:session:v1:providerdown"),
+				.mockReturnValue("urn:sovereign:session:v1:providerdown"),
 			followStream: vi
 				.fn()
 				.mockImplementation(
@@ -1413,7 +1413,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 			.mockImplementation(() => true);
 
 		await command.parseAsync(
-			["hello", "--session", "urn:refarm:session:v1:test123"],
+			["hello", "--session", "urn:sovereign:session:v1:test123"],
 			{
 				from: "user",
 			},
@@ -1424,7 +1424,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 				tasks: [
 					expect.objectContaining({
 						args: expect.objectContaining({
-							session_id: "urn:refarm:session:v1:test123",
+							session_id: "urn:sovereign:session:v1:test123",
 						}),
 					}),
 				],
@@ -1439,7 +1439,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const deps = makeDeps({
 			resolveSessionIdPrefix: vi
 				.fn()
-				.mockResolvedValue("urn:refarm:session:v1:resolved123"),
+				.mockResolvedValue("urn:sovereign:session:v1:resolved123"),
 		});
 		const command = createAskCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1457,7 +1457,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 				tasks: [
 					expect.objectContaining({
 						args: expect.objectContaining({
-							session_id: "urn:refarm:session:v1:resolved123",
+							session_id: "urn:sovereign:session:v1:resolved123",
 						}),
 					}),
 				],
@@ -1472,7 +1472,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const deps = makeDeps({
 			persistActiveSessionId: vi.fn().mockImplementation(() => {
 				throw new Error(
-					'Session switch expected active session "urn:refarm:session:v1:target", got "urn:refarm:session:v1:other".',
+					'Session switch expected active session "urn:sovereign:session:v1:target", got "urn:sovereign:session:v1:other".',
 				);
 			}),
 		});
@@ -1484,7 +1484,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		await command.parseAsync(
-			["hello", "--session", "urn:refarm:session:v1:target"],
+			["hello", "--session", "urn:sovereign:session:v1:target"],
 			{
 				from: "user",
 			},
@@ -1492,7 +1492,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 
 		expect(deps.submitEffort).toHaveBeenCalledOnce();
 		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
-			"urn:refarm:session:v1:target",
+			"urn:sovereign:session:v1:target",
 		);
 		expect(errSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Session switch expected active session"),
@@ -1565,7 +1565,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		await command.parseAsync(
-			["hello", "--new", "--session", "urn:refarm:session:v1:test123"],
+			["hello", "--new", "--session", "urn:sovereign:session:v1:test123"],
 			{
 				from: "user",
 			},
@@ -1587,7 +1587,7 @@ it("classifies runtime submit errors for configured runtime agent id as agent-no
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		await command.parseAsync(
-			["hello", "--new", "--session", "urn:refarm:session:v1:test123", "--json"],
+			["hello", "--new", "--session", "urn:sovereign:session:v1:test123", "--json"],
 			{
 				from: "user",
 			},

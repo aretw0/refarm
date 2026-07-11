@@ -146,7 +146,7 @@ export function createSessionV1StorageAdapter(
 			const session: Session = {
 				...sessionInput,
 				"@type": "Session",
-				"@id": `urn:refarm:session:v1:${idFactory()}`,
+				"@id": `urn:sovereign:session:v1:${idFactory()}`,
 				created_at_ns: issueNs(),
 			};
 			const nowIso = new Date().toISOString();
@@ -200,7 +200,7 @@ export function createSessionV1StorageAdapter(
 			const entry: SessionEntry = {
 				...entryInput,
 				"@type": "SessionEntry",
-				"@id": `urn:refarm:session-entry:v1:${idFactory()}`,
+				"@id": `urn:sovereign:session-entry:v1:${idFactory()}`,
 				timestamp_ns: issueNs(),
 			};
 			const nowIso = new Date().toISOString();

@@ -461,7 +461,7 @@ function makeStatusWithActions() {
 }
 
 function createContractAskSuccessCommand() {
-	const sessionId = "urn:refarm:session:v1:contract123456";
+	const sessionId = "urn:sovereign:session:v1:contract123456";
 	return createAskCommand({
 		submitEffort: vi.fn().mockResolvedValue("effort-contract-123"),
 		followStream: vi
@@ -690,15 +690,15 @@ function makeContractFetch() {
 				status: 200,
 				json: async () => ({
 					task: {
-						"@id": "urn:refarm:task:v1:abc123def456",
+						"@id": "urn:sovereign:task:v1:abc123def456",
 						"@type": "Task",
 						title: "contract task",
 						status: "active",
 					},
 					events: [
 						{
-							"@id": "urn:refarm:task-event:v1:event123",
-							task_id: "urn:refarm:task:v1:abc123def456",
+							"@id": "urn:sovereign:task-event:v1:event123",
+							task_id: "urn:sovereign:task:v1:abc123def456",
 							event: "status_changed",
 						},
 					],
@@ -712,7 +712,7 @@ function makeContractFetch() {
 				json: async () => ({
 					tasks: [
 						{
-							"@id": "urn:refarm:task:v1:abc123def456",
+							"@id": "urn:sovereign:task:v1:abc123def456",
 							"@type": "Task",
 							title: "contract task",
 							status: "active",
@@ -930,14 +930,14 @@ function createContractPluginCommand() {
 
 function createContractSessionsCommand() {
 	const session = {
-		"@id": "urn:refarm:session:v1:abc123def456",
+		"@id": "urn:sovereign:session:v1:abc123def456",
 		"@type": "Session",
 		name: "contract session",
 		created_at_ns: 1_700_000_000_000_000_000,
 		leaf_entry_id: "entry-abc",
 	};
 	const fork = {
-		"@id": "urn:refarm:session:v1:fork123def456",
+		"@id": "urn:sovereign:session:v1:fork123def456",
 		"@type": "Session",
 		name: "experiment",
 		created_at_ns: 1_700_000_000_000_000_001,

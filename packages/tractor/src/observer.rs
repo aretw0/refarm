@@ -400,7 +400,7 @@ mod tests {
         let ev = make_event(
             "agent:tool:call",
             Some("agent"),
-            serde_json::json!({ "prompt_ref": "urn:refarm:prompt-1", "tool": "read_file", "ok": true }),
+            serde_json::json!({ "prompt_ref": "urn:sovereign:prompt-1", "tool": "read_file", "ok": true }),
         );
         let line = format_audit_line(&ev).unwrap();
         forward_to_observers(&ev, &line, &agent_observers);

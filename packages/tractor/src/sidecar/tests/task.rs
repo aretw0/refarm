@@ -174,10 +174,10 @@ async fn sidecar_get_task_not_found_returns_404() {
 #[tokio::test]
 async fn sidecar_get_task_returns_task_with_events() {
     let ns = storage_path();
-    let tid = "urn:refarm:task:v1:abc";
+    let tid = "urn:sovereign:task:v1:abc";
     write_task(&ns, tid, "Test task", "done", None, 1_000);
-    write_task_event(&ns, "urn:refarm:task-event:v1:ev1", tid, "created");
-    write_task_event(&ns, "urn:refarm:task-event:v1:ev2", tid, "status_changed");
+    write_task_event(&ns, "urn:sovereign:task-event:v1:ev1", tid, "created");
+    write_task_event(&ns, "urn:sovereign:task-event:v1:ev2", tid, "status_changed");
     let (_state, port) = start_tasks_sidecar(&ns).await;
 
     let body: serde_json::Value = reqwest::get(format!("{}/tasks/{tid}", base(port)))

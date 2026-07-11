@@ -8,7 +8,7 @@ import { readConfig, writeConfig, type RefarmCliConfig } from "./config-shared.j
  * `plugin-approval.ts`. Where approval writes a replaceable set, revocation is
  * ADD-ONLY: a revoked plugin id (or capability) is a fact that is only ever
  * appended, never removed. This is what makes deny dominate across devices — the
- * host materializes each entry into its own `urn:refarm:revocation:<id>` graph
+ * host materializes each entry into its own `urn:sovereign:revocation:<id>` graph
  * tombstone at load, so a stale concurrent device rewriting the whole config node
  * (a single whole-value LWW register) cannot resurrect a revoked grant. Removing
  * an entry would reintroduce the "absence loses to concurrent presence" race.

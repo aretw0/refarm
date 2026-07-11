@@ -409,7 +409,7 @@ fn store_refarm_config_node(
 /// `revokedPermissions` in the sovereign config) into per-revocation graph tombstones
 /// (G2). Mirrors `store_refarm_config_node`: the config file is the operator's local,
 /// append-only intent; the host projects each entry into its OWN
-/// `urn:refarm:revocation:<id>[:cap]` node so a revocation is a monotonic CRDT add a
+/// `urn:sovereign:revocation:<id>[:cap]` node so a revocation is a monotonic CRDT add a
 /// stale concurrent config write can't undo. store_node is an idempotent upsert keyed
 /// by node id, so re-materializing the same revocation on every load is a no-op.
 fn materialize_revocation_tombstones(

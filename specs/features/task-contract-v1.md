@@ -47,7 +47,7 @@ modifying core Refarm packages
 
 2. **Given** agent processes a user prompt that implies work
    **When** it calls `taskAdapter.create()`
-   **Then** a `Task` node with `urn:refarm:task:v1:{id}` is written to the CRDT graph
+   **Then** a `Task` node with `urn:sovereign:task:v1:{id}` is written to the CRDT graph
    and survives a session restart
 
 3. **Given** a Task exists with `status: "pending"`
@@ -84,8 +84,8 @@ composition (in consumer, never in packages):
 **Node schemas:**
 
 ```
-Task       urn:refarm:task:v1:{id}        LWW, mutable
-TaskEvent  urn:refarm:task-event:v1:{id}  append-only, immutable
+Task       urn:sovereign:task:v1:{id}        LWW, mutable
+TaskEvent  urn:sovereign:task-event:v1:{id}  append-only, immutable
 ```
 
 **Package layout:**
@@ -133,7 +133,7 @@ export type TaskEventKind =
 
 export interface Task {
   "@type": "Task";
-  "@id": string;              // urn:refarm:task:v1:{id}
+  "@id": string;              // urn:sovereign:task:v1:{id}
   title: string;
   status: TaskStatus;
   created_by: string | null;  // any URN — agent, user, or system
@@ -146,7 +146,7 @@ export interface Task {
 
 export interface TaskEvent {
   "@type": "TaskEvent";
-  "@id": string;              // urn:refarm:task-event:v1:{id}
+  "@id": string;              // urn:sovereign:task-event:v1:{id}
   task_id: string;
   event: TaskEventKind;
   actor: string;

@@ -36,7 +36,7 @@ fn dispatch_result_node_carries_reply_ref_and_result_where_the_host_looks() {
     assert_eq!(node[REPLY_REF_FIELD], "r-42");
     assert_eq!(node[RESULT_FIELD], serde_json::json!({ "ok": true }));
     // A stable, replyRef-scoped id so re-dispatch of the same ref overwrites, not dupes.
-    assert_eq!(node["@id"], "urn:refarm:dispatch-result:r-42");
+    assert_eq!(node["@id"], "urn:sovereign:dispatch-result:r-42");
 }
 
 #[test]

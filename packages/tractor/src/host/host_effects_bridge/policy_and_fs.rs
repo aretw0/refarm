@@ -101,7 +101,7 @@ fn read_refarm_config_value_at(base: &Path) -> Result<Option<serde_json::Value>,
 
 /// Read the sovereign config from BOTH sources: the local fs file (hardened, the
 /// stronger posture — fail-shut on malformed) AND the replicated device-global graph
-/// node (`urn:refarm:config:workspace`), so a device that received its config purely
+/// node (`urn:sovereign:config:workspace`), so a device that received its config purely
 /// over CRDT still resolves its grants instead of falling to a permissive default.
 ///
 /// This is the security-axis counterpart to `resolve_sovereign_config` (which reads
