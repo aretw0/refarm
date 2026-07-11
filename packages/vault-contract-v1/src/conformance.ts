@@ -26,7 +26,7 @@ const BASE_PROFILE: VaultProfile = {
 		{
 			id: "extract-frontmatter",
 			verb: "extract",
-			match: JSON.stringify({ type: "frontmatter", recordType: "refarm:VaultRecord" }),
+			match: JSON.stringify({ type: "frontmatter", recordType: "VaultRecord" }),
 			description: "Extract a record from note frontmatter.",
 		},
 		{

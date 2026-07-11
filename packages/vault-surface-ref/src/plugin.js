@@ -137,7 +137,7 @@ export const integration = {
 			name: "vault",
 			version: "0.1.0",
 			description: "vault:v1 surface — search/extract/organize/profile over a note",
-			supportedTypes: [DISPATCH_RESULT_TYPE, "refarm:VaultRecord"],
+			supportedTypes: [DISPATCH_RESULT_TYPE, "VaultRecord"],
 			requiredCapabilities: ["tractor-bridge"],
 		};
 	},

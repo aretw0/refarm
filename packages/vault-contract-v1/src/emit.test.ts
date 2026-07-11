@@ -17,7 +17,7 @@ function baseRecord(overrides: Partial<KnowledgeRecord> = {}): KnowledgeRecord {
 	return {
 		id: "20-Projects/demanda-42.md",
 		schemaVersion: CURRENT_RECORD_SCHEMA_VERSION,
-		"@type": "refarm:VaultRecord",
+		"@type": "VaultRecord",
 		fields: { title: "Demanda 42", state: "doing" },
 		sourceRefs: ["20-Projects/demanda-42.md"],
 		contentHash: "fnv1a32:deadbeef",
@@ -34,10 +34,10 @@ describe("vaultRecordToNode — the OUTPUT projection (no runtime)", () => {
 
 		// The shape every producer emits: @context / @type / @id + provenance.
 		expect(node["@context"]).toBe("https://schema.org/");
-		expect(node["@type"]).toBe("refarm:VaultRecord");
+		expect(node["@type"]).toBe("VaultRecord");
 		expect(node["@id"]).toBe("20-Projects/demanda-42.md");
 		expect(node["sourcePlugin"]).toBe("@demo/vault-extract");
-		expect(node["refarm:capability"]).toBe(VAULT_CAPABILITY);
+		expect(node["capability"]).toBe(VAULT_CAPABILITY);
 		// The host-stamped clock becomes an ISO string.
 		expect(node["createdAt"]).toBe(new Date(1_720_000_000_000).toISOString());
 		// The record's structured payload rides through, nothing lost.
@@ -50,24 +50,24 @@ describe("vaultRecordToNode — the OUTPUT projection (no runtime)", () => {
 		const node = vaultRecordToNode(baseRecord(), { createdAtNs: CREATED_AT_NS });
 		const graph = normalisedToGraphNode(node);
 		expect(graph["@id"]).toBe("20-Projects/demanda-42.md");
-		expect(graph["@type"]).toBe("refarm:VaultRecord");
+		expect(graph["@type"]).toBe("VaultRecord");
 		expect(graph.created_at_ns).toBe(CREATED_AT_NS);
 	});
 
-	it("defaults @type and preserves a @type array under refarm:types", () => {
+	it("defaults @type and preserves a @type array under types", () => {
 		const untyped = vaultRecordToGraphNode(baseRecord({ "@type": undefined }), {
 			createdAtNs: CREATED_AT_NS,
 		});
 		expect(untyped["@type"]).toBe(DEFAULT_VAULT_RECORD_TYPE);
 
 		// The node type collapses to the first entry; the whole array is preserved
-		// on the OPEN transport node under refarm:types.
+		// on the OPEN transport node under types.
 		const multi = vaultRecordToNode(
-			baseRecord({ "@type": ["refarm:VaultRecord", "schema:Article"] }),
+			baseRecord({ "@type": ["VaultRecord", "schema:Article"] }),
 			{ createdAtNs: CREATED_AT_NS },
 		);
-		expect(multi["@type"]).toBe("refarm:VaultRecord");
-		expect(multi["refarm:types"]).toEqual(["refarm:VaultRecord", "schema:Article"]);
+		expect(multi["@type"]).toBe("VaultRecord");
+		expect(multi["types"]).toEqual(["VaultRecord", "schema:Article"]);
 	});
 
 	it("the host never leaks a clock into the surface: createdAtNs is an INPUT", () => {
@@ -95,7 +95,7 @@ describe("end-to-end: extract → emit (the full OUTPUT half, no dispatch)", () 
 				{
 					id: "extract-frontmatter",
 					verb: "extract",
-					match: JSON.stringify({ type: "frontmatter", recordType: "refarm:VaultRecord" }),
+					match: JSON.stringify({ type: "frontmatter", recordType: "VaultRecord" }),
 				},
 			],
 		};
@@ -108,7 +108,7 @@ describe("end-to-end: extract → emit (the full OUTPUT half, no dispatch)", () 
 			sourcePlugin: "@demo/vault-extract",
 		});
 		expect(node["@id"]).toBe("00-Inbox/note.md");
-		expect(node["@type"]).toBe("refarm:VaultRecord");
+		expect(node["@type"]).toBe("VaultRecord");
 		expect(node.fields).toEqual({ title: "Alpha", state: "doing" });
 		expect(node["sourcePlugin"]).toBe("@demo/vault-extract");
 	});

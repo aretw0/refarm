@@ -40,7 +40,7 @@ const PROFILE: VaultProfile = {
 		{
 			id: "extract-frontmatter",
 			verb: "extract",
-			match: JSON.stringify({ type: "frontmatter", recordType: "refarm:VaultRecord" }),
+			match: JSON.stringify({ type: "frontmatter", recordType: "VaultRecord" }),
 		},
 		{
 			id: "route-project",
@@ -84,7 +84,7 @@ describe.skipIf(!componentBuilt)("vault-surface reference component (real WASM d
 			contentHash: string;
 		};
 		expect(record.id).toBe(NOTE.path);
-		expect(record["@type"]).toBe("refarm:VaultRecord");
+		expect(record["@type"]).toBe("VaultRecord");
 		expect(record.fields).toEqual({ title: "Demanda 42", state: "doing" });
 		expect(record.contentHash).toMatch(/^fnv1a32:[a-f0-9]{8}$/);
 	});

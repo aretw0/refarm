@@ -66,7 +66,7 @@ fn dispatch_payload() -> String {
             "rules": [{
                 "id": "extract-frontmatter",
                 "verb": "extract",
-                "match": "{\"type\":\"frontmatter\",\"recordType\":\"refarm:VaultRecord\"}"
+                "match": "{\"type\":\"frontmatter\",\"recordType\":\"VaultRecord\"}"
             }]
         },
         "replyRef": "harness-req-1"
@@ -110,11 +110,11 @@ async fn vault_plugin_dispatch_stores_result_node_via_real_bridge() {
 
     // The extract verb emits the KnowledgeRecord as its own node...
     let records = sync
-        .query_nodes("refarm:VaultRecord")
-        .expect("query refarm:VaultRecord");
+        .query_nodes("VaultRecord")
+        .expect("query VaultRecord");
     assert!(
         !records.is_empty(),
-        "extract must store a refarm:VaultRecord node via the real tractor-bridge"
+        "extract must store a VaultRecord node via the real tractor-bridge"
     );
 
     // ...and a correlated dispatch-result:v1 node the caller finds by replyRef.
@@ -246,7 +246,7 @@ async fn router_delivers_a_non_agent_event_to_its_subscribed_plugin() {
         .await
         .expect("vault plugin must load");
     assert!(
-        handle.subscribes.iter().any(|e| e == "vault:dispatch"),
+        handle.profile.subscribes.iter().any(|e| e == "vault:dispatch"),
         "the plugin manifest must declare subscribes:[vault:dispatch]"
     );
 
@@ -280,8 +280,8 @@ async fn router_delivers_a_non_agent_event_to_its_subscribed_plugin() {
     for _ in 0..50 {
         records = tractor
             .sync
-            .query_nodes("refarm:VaultRecord")
-            .expect("query refarm:VaultRecord");
+            .query_nodes("VaultRecord")
+            .expect("query VaultRecord");
         if !records.is_empty() {
             break;
         }
@@ -345,9 +345,9 @@ async fn vault_discovers_and_calls_quality_via_spi() {
     // first is the common case.)
     let q_handle = tractor.load_plugin(quality).await.expect("quality loads");
     assert!(
-        q_handle.provides.iter().any(|p| p == "api:QualityApi"),
+        q_handle.profile.provides.iter().any(|p| p == "api:QualityApi"),
         "quality's providesApi must fold into provides as api:QualityApi, got {:?}",
-        q_handle.provides
+        q_handle.profile.provides
     );
     tractor.register_for_events(q_handle);
 
@@ -634,7 +634,7 @@ async fn operator_loop_e2e_vault() {
                 "rules": [{
                     "id": "extract-frontmatter",
                     "verb": "extract",
-                    "match": "{\"type\":\"frontmatter\",\"recordType\":\"refarm:VaultRecord\"}"
+                    "match": "{\"type\":\"frontmatter\",\"recordType\":\"VaultRecord\"}"
                 }]
             }
         }),

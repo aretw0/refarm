@@ -135,7 +135,7 @@ function extractRecord(note: VaultNote, ruleId: string, match: Match): Knowledge
 	if (match.type !== "frontmatter") return undefined;
 	const fields = parseFrontmatter(note.text);
 	if (Object.keys(fields).length === 0) return undefined;
-	const type = str(match, "recordType") ?? "refarm:VaultRecord";
+	const type = str(match, "recordType") ?? "VaultRecord";
 	const record: KnowledgeRecord = {
 		id: note.path,
 		schemaVersion: CURRENT_RECORD_SCHEMA_VERSION,

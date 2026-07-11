@@ -88,7 +88,7 @@ const EXTRACT_PROFILE = {
 		{
 			id: "extract-frontmatter",
 			verb: "extract",
-			match: JSON.stringify({ type: "frontmatter", recordType: "refarm:VaultRecord" }),
+			match: JSON.stringify({ type: "frontmatter", recordType: "VaultRecord" }),
 		},
 	],
 };
@@ -101,7 +101,7 @@ describe.skipIf(!componentBuilt)(
 			const { integration } = await loadPlugin(bridge);
 			const meta = integration.metadata();
 			expect(meta.name).toBe("vault");
-			expect(meta.supportedTypes).toContain("refarm:VaultRecord");
+			expect(meta.supportedTypes).toContain("VaultRecord");
 		});
 
 		it("on-event('vault:dispatch', extract) stores a KnowledgeRecord node via tractor-bridge", async () => {
@@ -116,7 +116,7 @@ describe.skipIf(!componentBuilt)(
 			// The plugin ran surface.run and emitted the record OUT through store-node.
 			const records = stored
 				.map((n) => JSON.parse(n) as { "@type"?: string; id?: string; fields?: unknown })
-				.filter((n) => n["@type"] === "refarm:VaultRecord");
+				.filter((n) => n["@type"] === "VaultRecord");
 			expect(records).toHaveLength(1);
 			expect(records[0]?.id).toBe(NOTE.path);
 			expect(records[0]?.fields).toEqual({ title: "Demanda 42", state: "doing" });

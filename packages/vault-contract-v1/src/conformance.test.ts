@@ -27,7 +27,7 @@ const PROFILE: VaultProfile = {
 		{
 			id: "extract-frontmatter",
 			verb: "extract",
-			match: JSON.stringify({ type: "frontmatter", recordType: "refarm:VaultRecord" }),
+			match: JSON.stringify({ type: "frontmatter", recordType: "VaultRecord" }),
 		},
 		{
 			id: "route-project",
@@ -78,7 +78,7 @@ describe("reference vault surface — one honest matcher per verb", () => {
 		expect(result.records).toHaveLength(1);
 		const record = result.records[0];
 		expect(record?.id).toBe(NOTE.path);
-		expect(record?.["@type"]).toBe("refarm:VaultRecord");
+		expect(record?.["@type"]).toBe("VaultRecord");
 		expect(record?.fields).toEqual({ title: "Alpha", state: "doing" });
 		expect(record?.sourceRefs).toEqual([NOTE.path]);
 		// records-contract-v1 stamps a prefixed content hash, e.g. `fnv1a32:….`

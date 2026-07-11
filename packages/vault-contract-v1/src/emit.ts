@@ -17,7 +17,7 @@ import { VAULT_CAPABILITY } from "./types.js";
  *
  * The projection is `KnowledgeRecord → GraphNode → NormalisedNode`:
  *   - `record.id`      → node `@id`
- *   - `record["@type"]`→ node `@type` (defaults to `refarm:VaultRecord`)
+ *   - `record["@type"]`→ node `@type` (defaults to `VaultRecord`)
  *   - `fields`/`sections`/`relations`/`attachments`/`sourceRefs`/`contentHash`
  *     ride through as open domain fields (NormalisedNode is open by design).
  *
@@ -39,7 +39,7 @@ export interface VaultEmitOptions {
 }
 
 /** The `@type` an extracted vault record carries when the profile didn't set one. */
-export const DEFAULT_VAULT_RECORD_TYPE = "refarm:VaultRecord";
+export const DEFAULT_VAULT_RECORD_TYPE = "VaultRecord";
 
 /**
  * Turn a vault `KnowledgeRecord` into the `GraphNode` the graph domain uses.
@@ -47,7 +47,7 @@ export const DEFAULT_VAULT_RECORD_TYPE = "refarm:VaultRecord";
  * open domain fields (NormalisedNode stays open, so no field is lost). A record
  * may carry a `@type` array (records-contract-v1 allows it); the node type is a
  * single string, so an array collapses to its first entry with the whole array
- * preserved under `refarm:types`.
+ * preserved under `types`.
  */
 export function vaultRecordToGraphNode(
 	record: KnowledgeRecord,
@@ -83,9 +83,9 @@ export function vaultRecordToNode(
 		sourcePlugin: options.sourcePlugin,
 	});
 	// Provenance + @type-array preservation live on the OPEN transport node.
-	node["refarm:capability"] = VAULT_CAPABILITY;
+	node["capability"] = VAULT_CAPABILITY;
 	const all = normaliseType(record["@type"]).all;
-	if (all) node["refarm:types"] = all;
+	if (all) node["types"] = all;
 	return node;
 }
 
