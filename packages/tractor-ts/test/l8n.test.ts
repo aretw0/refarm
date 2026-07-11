@@ -4,7 +4,7 @@ import { L8nHost } from "../src/lib/l8n-host";
 describe("L8nHost", () => {
   it("initializes with core keys", () => {
     const l8n = new L8nHost();
-    expect(l8n.t("refarm:core/save")).toBe("Save");
+    expect(l8n.t("core/save")).toBe("Save");
     expect(l8n.t("save")).toBe("Save"); // implicit core
   });
 

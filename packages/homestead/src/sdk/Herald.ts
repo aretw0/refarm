@@ -80,7 +80,7 @@ export class HeraldPlugin {
 				// High-level intent: The system is ready to switch to the new version
 				this.tractor.emitTelemetry({
 					event: "system:update_ready",
-					payload: { message: this.l8n.t("refarm:core/update_ready_message") },
+					payload: { message: this.l8n.t("core/update_ready_message") },
 				});
 			});
 
@@ -117,15 +117,15 @@ export class HeraldPlugin {
 				`  ██║  ██║███████╗██║     ██║  ██║██║  ██║██║ ╚═╝ ██║\n` +
 				`  ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝\n` +
 				`%c\n` +
-				`  ${this.l8n.t("refarm:core/engine_version", { version: HOMESTEAD_ENGINE_VERSION })}\n` +
-				`  ${this.l8n.t("refarm:core/knowledge_workspace")}\n\n`,
+				`  ${this.l8n.t("core/engine_version", { version: HOMESTEAD_ENGINE_VERSION })}\n` +
+				`  ${this.l8n.t("core/knowledge_workspace")}\n\n`,
 			primary,
 			muted,
 		);
 
-		console.group(`%c${this.l8n.t("refarm:core/loaded_capabilities")}`, accent);
+		console.group(`%c${this.l8n.t("core/loaded_capabilities")}`, accent);
 		if (this._logs.length === 0) {
-			console.log(`%c  ${this.l8n.t("refarm:core/no_external_plugins_loaded")}`, muted);
+			console.log(`%c  ${this.l8n.t("core/no_external_plugins_loaded")}`, muted);
 		} else {
 			this._logs.forEach((l) => console.log(l));
 		}

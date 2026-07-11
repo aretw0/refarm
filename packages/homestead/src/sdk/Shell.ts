@@ -110,7 +110,7 @@ export class StudioShell {
 	 */
 	async setup() {
 		A11yGuard.applySaneDefaults(document.body);
-		this.updateStatus(this.l8n.t("refarm:core/loading"));
+		this.updateStatus(this.l8n.t("core/loading"));
 
 		// Listen for system events
 		this.tractor.observe((data: StudioHostTelemetryEvent) => {
@@ -118,7 +118,7 @@ export class StudioShell {
 			if (data.event === "system:switch-tier") {
 				const tier = typeof payload.tier === "string" ? payload.tier : "";
 				this.logInfo(`[shell] Mode switch detected: ${tier}. Persisting and reloading...`);
-				localStorage.setItem("refarm:mode", tier);
+				localStorage.setItem("sovereign:mode", tier);
 				window.location.reload();
 			}
 
@@ -163,7 +163,7 @@ export class StudioShell {
 			await this.renderSystemHelp();
 		}
 
-		this.updateStatus(this.l8n.t("refarm:core/status_ready"));
+		this.updateStatus(this.l8n.t("core/status_ready"));
 	}
 
 	private resolveSurfaceTrustStatus(plugin: StudioHostPlugin) {
@@ -228,7 +228,7 @@ export class StudioShell {
 			if (!panel) {
 				panel = document.createElement("section");
 				panel.dataset.refarmStreamObserver = "true";
-				panel.setAttribute("aria-label", this.l8n.t("refarm:core/live_agent_streams"));
+				panel.setAttribute("aria-label", this.l8n.t("core/live_agent_streams"));
 				panel.style.display = "inline-flex";
 				panel.style.gap = "0.5rem";
 				panel.style.marginLeft = "1rem";
@@ -246,7 +246,7 @@ export class StudioShell {
 			if (!panel) {
 				panel = document.createElement("section");
 				panel.dataset.refarmStreamPanel = "true";
-				panel.setAttribute("aria-label", this.l8n.t("refarm:core/live_agent_stream_panel"));
+				panel.setAttribute("aria-label", this.l8n.t("core/live_agent_stream_panel"));
 				streamSlot.appendChild(panel);
 			}
 
@@ -278,15 +278,15 @@ export class StudioShell {
           
           <div class="landing-actions" style="display: flex; gap: 1.5rem; justify-content: center;">
             <a href="${(import.meta as ViteImportMeta).env?.BASE_URL || "/"}onboarding" class="btn-primary" style="padding: 1rem 2.5rem; background: var(--refarm-accent-primary); color: white; border-radius: 50px; text-decoration: none; font-weight: 600; box-shadow: var(--refarm-shadow-lg);">
-              ${this.l8n.t("refarm:core/get_started")}
+              ${this.l8n.t("core/get_started")}
             </a>
             <button id="try-guest-mode" class="btn-secondary" style="padding: 1rem 2.5rem; background: transparent; color: var(--refarm-text-primary); border: 2px solid var(--refarm-border-default); border-radius: 50px; font-weight: 600; cursor: pointer;">
-              ${this.l8n.t("refarm:core/try_guest_mode")}
+              ${this.l8n.t("core/try_guest_mode")}
             </button>
           </div>
 
           <div class="semantic-preview" style="margin-top: 6rem; text-align: left; padding: 2rem; border-radius: 20px; background: rgba(0,0,0,0.03); border: 1px dashed var(--refarm-border-default);">
-            <small style="text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5;">${this.l8n.t("refarm:core/raw_node_data")}</small>
+            <small style="text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5;">${this.l8n.t("core/raw_node_data")}</small>
             <pre style="margin-top: 1rem; font-size: 0.8rem; color: var(--refarm-accent-secondary); overflow: auto;">${JSON.stringify(seedNode, null, 2)}</pre>
           </div>
         </div>
@@ -339,7 +339,7 @@ export class StudioShell {
 		mainSlot.innerHTML = `
       <div class="system-help-explorer" style="max-width: 800px; margin: 0 auto;">
         <h1 style="font-size: 2.5rem; margin-bottom: 2rem; background: var(--refarm-accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-          ${this.l8n.t("refarm:core/welcome")}
+          ${this.l8n.t("core/welcome")}
         </h1>
         <div class="help-grid" style="display: grid; gap: 1.5rem;">
           ${helpNodes
@@ -348,7 +348,7 @@ export class StudioShell {
             <div class="help-card" style="padding: 1.5rem; border: 1px solid var(--refarm-border-default); border-radius: 12px; background: var(--refarm-bg-secondary);">
               <h3 style="margin-bottom: 0.5rem; color: var(--refarm-accent-primary);">${node.name}</h3>
               <p style="font-size: 0.9rem; color: var(--refarm-text-secondary);">${node.text}</p>
-              <small style="display: block; margin-top: 1rem; opacity: 0.5;">${this.l8n.t("refarm:core/source_label", { source: String(node["sourcePlugin"] ?? "") })}</small>
+              <small style="display: block; margin-top: 1rem; opacity: 0.5;">${this.l8n.t("core/source_label", { source: String(node["sourcePlugin"] ?? "") })}</small>
             </div>
           `,
 						)
@@ -480,7 +480,7 @@ export class StudioShell {
 
 			const api = this.tractor.plugins.findByApi?.(`${pluginId}:ui`);
 			if (api) {
-				pluginWrap.innerHTML = `<small>${this.l8n.t("refarm:core/plugin_active_in_slot", { pluginId, slotId })}</small>`;
+				pluginWrap.innerHTML = `<small>${this.l8n.t("core/plugin_active_in_slot", { pluginId, slotId })}</small>`;
 			}
 		} catch (e) {
 			this.logError(`[shell] Failed to render plugin ${pluginId}`, e);

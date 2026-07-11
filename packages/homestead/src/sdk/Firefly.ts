@@ -31,18 +31,18 @@ export class FireflyPlugin {
 			// Listen for system alerts
 			if (data.event === "system:alert") {
 				this.showToast(
-					String(payload.reason || this.l8n.t("refarm:core/system_alert")),
+					String(payload.reason || this.l8n.t("core/system_alert")),
 					payload.severity === "error",
 				);
 			}
 
 			// Listen for update notifications (wired by Herald)
 			if (data.event === "system:update_available") {
-				this.showToast(this.l8n.t("refarm:core/update_available"));
+				this.showToast(this.l8n.t("core/update_available"));
 			}
 
 			if (data.event === "system:update_ready") {
-				this.showToast(this.l8n.t("refarm:core/update_ready"), true);
+				this.showToast(this.l8n.t("core/update_ready"), true);
 			}
 
 			// Listen for guidance/spotlight events
@@ -135,7 +135,7 @@ export class FireflyPlugin {
         border-radius: 8px; cursor: pointer; font-weight: 600;
         font-size: 0.8rem;
       `;
-			action.textContent = this.l8n.t("refarm:core/refresh");
+			action.textContent = this.l8n.t("core/refresh");
 			action.addEventListener("click", () => {
 				window.location.reload();
 			});

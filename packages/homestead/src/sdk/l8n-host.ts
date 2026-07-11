@@ -5,7 +5,7 @@ import ptBR from "@refarm.dev/locales/pt-BR.json";
  * L8nHost — Homestead shell internationalization helper.
  *
  * Implements namespaced translation keys with inheritance:
- * - "refarm:core/save" -> core terminology
+ * - "core/save" -> core terminology
  * - "plugin-id:welcome" -> plugin-specific terminology
  */
 export interface L8nHostLogger {
@@ -55,8 +55,8 @@ export class L8nHost {
 		const bundle = this.namespaces.get(namespace);
 		let value = bundle?.[name] ?? null;
 
-		if (!value && namespace !== "refarm:core") {
-			value = this.namespaces.get("refarm:core")?.[name] ?? null;
+		if (!value && namespace !== "core") {
+			value = this.namespaces.get("core")?.[name] ?? null;
 		}
 
 		if (!value) return key;
@@ -71,7 +71,7 @@ export class L8nHost {
 	}
 
 	private setupCore(): void {
-		this.namespaces.set("refarm:core", {
+		this.namespaces.set("core", {
 			cancel: "Cancel",
 			loading: "Loading...",
 			save: "Save",
@@ -84,10 +84,10 @@ export class L8nHost {
 export function createHomesteadL8n(locale = resolveBrowserLocale()): L8nHost {
 	const l8n = new L8nHost();
 	l8n.setLocale(locale);
-	l8n.registerKeys("refarm:core", en);
+	l8n.registerKeys("core", en);
 
 	if (locale === "pt") {
-		l8n.registerKeys("refarm:core", ptBR);
+		l8n.registerKeys("core", ptBR);
 	}
 
 	return l8n;
@@ -99,19 +99,15 @@ function resolveBrowserLocale(): string {
 }
 
 function parseTranslationKey(key: string): { namespace: string; name: string } {
-	if (key.startsWith("refarm:core/")) {
-		return { namespace: "refarm:core", name: key.replace("refarm:core/", "") };
-	}
-
 	if (key.includes(":")) {
-		const [namespace = "refarm:core", name = key] = key.split(":");
+		const [namespace = "core", name = key] = key.split(":");
 		return { namespace, name };
 	}
 
 	if (key.includes("/")) {
-		const [namespace = "refarm:core", name = key] = key.split("/");
+		const [namespace = "core", name = key] = key.split("/");
 		return { namespace, name };
 	}
 
-	return { namespace: "refarm:core", name: key };
+	return { namespace: "core", name: key };
 }

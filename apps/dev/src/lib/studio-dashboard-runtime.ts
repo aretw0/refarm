@@ -25,7 +25,7 @@ import { STUDIO_WEB_RENDERER } from "./studio-renderers";
 
 export const STUDIO_DASHBOARD_LOADING_ID = "loading-overlay";
 export const STUDIO_DASHBOARD_STATUSBAR_ID = "refarm-slot-statusbar";
-export const STUDIO_DASHBOARD_MODE_STORAGE_KEY = "refarm:mode";
+export const STUDIO_DASHBOARD_MODE_STORAGE_KEY = "sovereign:mode";
 export const STUDIO_DASHBOARD_RENDERER = STUDIO_WEB_RENDERER;
 
 type StudioDashboardRuntime = Awaited<ReturnType<typeof bootStudioRuntime>>;

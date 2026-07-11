@@ -124,7 +124,7 @@ function streamText(
 	key: string,
 	params?: Record<string, string>,
 ): string {
-	if (translator) return translator.t(`refarm:core/${key}`, params);
+	if (translator) return translator.t(`core/${key}`, params);
 	return fallbackStreamText(key, params);
 }
 
