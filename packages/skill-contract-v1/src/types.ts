@@ -1,11 +1,11 @@
 export const SKILL_CAPABILITY = "skill:v1" as const;
-export const SKILL_MANIFEST_SCHEMA = "refarm.skill-manifest.v1" as const;
-export const SKILL_INVOCATION_PLAN_SCHEMA = "refarm.skill-invocation-plan.v1" as const;
-export const SKILL_INVOCATION_REQUEST_SCHEMA = "refarm.skill-invocation-request.v1" as const;
-export const SKILL_INVOCATION_DECISION_SCHEMA = "refarm.skill-invocation-decision.v1" as const;
-export const SKILL_INVOCATION_RECEIPT_SCHEMA = "refarm.skill-invocation-receipt.v1" as const;
-export const SKILL_ACTIVATION_PREFLIGHT_SCHEMA = "refarm.skill-activation-preflight.v1" as const;
-export const SKILL_SOURCE_INTEGRITY_SCHEMA = "refarm.skill-source-integrity.v1" as const;
+export const SKILL_MANIFEST_SCHEMA = "sovereign.skill-manifest.v1" as const;
+export const SKILL_INVOCATION_PLAN_SCHEMA = "sovereign.skill-invocation-plan.v1" as const;
+export const SKILL_INVOCATION_REQUEST_SCHEMA = "sovereign.skill-invocation-request.v1" as const;
+export const SKILL_INVOCATION_DECISION_SCHEMA = "sovereign.skill-invocation-decision.v1" as const;
+export const SKILL_INVOCATION_RECEIPT_SCHEMA = "sovereign.skill-invocation-receipt.v1" as const;
+export const SKILL_ACTIVATION_PREFLIGHT_SCHEMA = "sovereign.skill-activation-preflight.v1" as const;
+export const SKILL_SOURCE_INTEGRITY_SCHEMA = "sovereign.skill-source-integrity.v1" as const;
 
 export type SkillExecutionMode = "plan-only" | "host-invoked";
 export type SkillToolAccess = "declared-capabilities-only";

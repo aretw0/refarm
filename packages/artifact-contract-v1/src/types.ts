@@ -1,5 +1,5 @@
 export const ARTIFACT_CAPABILITY = "artifact:v1" as const;
-export const TASK_ARTIFACT_MANIFEST_SCHEMA = "refarm.task-artifacts.v1" as const;
+export const TASK_ARTIFACT_MANIFEST_SCHEMA = "sovereign.task-artifacts.v1" as const;
 
 export type ArtifactStatus = "draft" | "ready" | "active" | "archived";
 

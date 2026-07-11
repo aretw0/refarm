@@ -9,10 +9,10 @@ name: refarm-git-workflow
 description: >
   Refarm operator git workflow wrapper.
 requiredCapabilities:
-  - refarm.operator-loop
-  - refarm.git.write
+  - sovereign.operator-loop
+  - sovereign.git.write
 optionalCapabilities:
-  - refarm.github.pr
+  - sovereign.github.pr
 engineBindings:
   - runtime-agent
   - source:v1
@@ -59,8 +59,8 @@ export async function runSkillContractV1Conformance(
 
 	total++;
 	if (manifest) {
-		if (manifest.schema !== "refarm.skill-manifest.v1") {
-			failures.push("manifest schema must be refarm.skill-manifest.v1");
+		if (manifest.schema !== "sovereign.skill-manifest.v1") {
+			failures.push("manifest schema must be sovereign.skill-manifest.v1");
 		}
 		if (manifest.source.format !== "SKILL.md") {
 			failures.push("manifest source format must be SKILL.md");
@@ -68,7 +68,7 @@ export async function runSkillContractV1Conformance(
 		if (!/^[a-f0-9]{64}$/.test(manifest.source.sha256)) {
 			failures.push("manifest source sha256 must be lowercase SHA-256 hex");
 		}
-		if (!manifest.capabilities.requires.includes("refarm.operator-loop")) {
+		if (!manifest.capabilities.requires.includes("sovereign.operator-loop")) {
 			failures.push("manifest must preserve required capabilities");
 		}
 		if (manifest.policy.toolAccess !== "declared-capabilities-only") {
@@ -124,9 +124,9 @@ export async function runSkillContractV1Conformance(
 						`valid SKILL.md source integrity evidence did not verify: ${formatIssues(result.issues)}`,
 					);
 				} else {
-					if (result.evidence.schema !== "refarm.skill-source-integrity.v1") {
+					if (result.evidence.schema !== "sovereign.skill-source-integrity.v1") {
 						failures.push(
-							"source integrity evidence schema must be refarm.skill-source-integrity.v1",
+							"source integrity evidence schema must be sovereign.skill-source-integrity.v1",
 						);
 					}
 					if (result.evidence.verified !== true) {
@@ -153,15 +153,15 @@ export async function runSkillContractV1Conformance(
 					`valid manifest did not build invocation plan: ${formatIssues(result.issues)}`,
 				);
 			} else {
-				if (result.plan.schema !== "refarm.skill-invocation-plan.v1") {
-					failures.push("invocation plan schema must be refarm.skill-invocation-plan.v1");
+				if (result.plan.schema !== "sovereign.skill-invocation-plan.v1") {
+					failures.push("invocation plan schema must be sovereign.skill-invocation-plan.v1");
 				}
 				if (result.plan.requiresHostPolicyApproval !== true) {
 					failures.push("invocation plan must require host policy approval");
 				}
 				if (
 					!result.plan.capabilityRequests.some(
-						(item) => item.id === "refarm.operator-loop" && item.required === true,
+						(item) => item.id === "sovereign.operator-loop" && item.required === true,
 					)
 				) {
 					failures.push("invocation plan must preserve required capability requests");
@@ -230,16 +230,16 @@ export async function runSkillContractV1Conformance(
 					const decisionResult = await adapter.buildInvocationDecision(requestResult.request, {
 						decision: "approved",
 						reason: "Conformance host approved required workflow capabilities.",
-						approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+						approvedCapabilities: ["sovereign.operator-loop", "sovereign.git.write"],
 					});
 					if (!decisionResult.ok || !decisionResult.decision) {
 						failures.push(
 							`valid invocation request did not build host decision: ${formatIssues(decisionResult.issues)}`,
 						);
 					} else {
-						if (decisionResult.decision.schema !== "refarm.skill-invocation-decision.v1") {
+						if (decisionResult.decision.schema !== "sovereign.skill-invocation-decision.v1") {
 							failures.push(
-								"invocation decision schema must be refarm.skill-invocation-decision.v1",
+								"invocation decision schema must be sovereign.skill-invocation-decision.v1",
 							);
 						}
 						if (decisionResult.decision.requiresRuntimeDispatch !== true) {
@@ -250,7 +250,7 @@ export async function runSkillContractV1Conformance(
 						}
 						if (
 							!decisionResult.decision.capabilityDecisions.some(
-								(item) => item.id === "refarm.git.write" && item.decision === "approved",
+								(item) => item.id === "sovereign.git.write" && item.decision === "approved",
 							)
 						) {
 							failures.push("invocation decision must preserve capability approvals");
@@ -280,7 +280,7 @@ export async function runSkillContractV1Conformance(
 				if (!result.surface.assets.includes("skills/refarm-git-workflow/SKILL.md")) {
 					failures.push("skill surface declaration must preserve the package asset path");
 				}
-				if (!result.surface.capabilities.includes("refarm.operator-loop")) {
+				if (!result.surface.capabilities.includes("sovereign.operator-loop")) {
 					failures.push("skill surface declaration must expose required capabilities");
 				}
 			}
@@ -301,7 +301,7 @@ export async function runSkillContractV1Conformance(
 				);
 			} else {
 				const result = await adapter.evaluateActivationPreflight(manifest, surfaceResult.surface, {
-					approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+					approvedCapabilities: ["sovereign.operator-loop", "sovereign.git.write"],
 					availableEngineBindings: ["runtime-agent", "source:v1"],
 					install: {
 						pluginManifestValid: true,
@@ -314,9 +314,9 @@ export async function runSkillContractV1Conformance(
 						`valid manifest did not pass activation preflight: ${formatIssues(result.issues)}`,
 					);
 				} else {
-					if (result.preflight.schema !== "refarm.skill-activation-preflight.v1") {
+					if (result.preflight.schema !== "sovereign.skill-activation-preflight.v1") {
 						failures.push(
-							"activation preflight schema must be refarm.skill-activation-preflight.v1",
+							"activation preflight schema must be sovereign.skill-activation-preflight.v1",
 						);
 					}
 					if (

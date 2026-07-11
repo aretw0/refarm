@@ -27,15 +27,15 @@ export interface ReferenceEnrichmentProviderOptions {
 export const DEFAULT_REFERENCE_ENRICHMENT_FIXTURE: Record<string, ReferenceEnrichmentEntry> = {
 	"REQ-1": {
 		fields: {
-			"refarm.tags": ["requirements", "review"],
-			"refarm.priority": "medium",
+			"sovereign.tags": ["requirements", "review"],
+			"sovereign.priority": "medium",
 		},
 		sourceRef: "fixture:enrichment/reference#REQ-1",
 	},
 	"REQ-2": {
 		fields: {
-			"refarm.tags": ["requirements", "accepted"],
-			"refarm.priority": "high",
+			"sovereign.tags": ["requirements", "accepted"],
+			"sovereign.priority": "high",
 		},
 		sourceRef: "fixture:enrichment/reference#REQ-2",
 	},
@@ -104,7 +104,7 @@ export function createReferenceEnrichmentProvider(
 	options: ReferenceEnrichmentProviderOptions = {},
 ): EnrichmentProvider {
 	const pluginId = options.pluginId ?? "@refarm.dev/enrichment-reference";
-	const providerId = options.providerId ?? "refarm.reference-enrichment";
+	const providerId = options.providerId ?? "sovereign.reference-enrichment";
 	const ruleId = options.ruleId ?? "fixture-map";
 	const keyField = options.keyField ?? "externalKey";
 	const fixture = options.fixture ?? DEFAULT_REFERENCE_ENRICHMENT_FIXTURE;

@@ -1,5 +1,5 @@
 export const CHANNEL_POLICY_CAPABILITY = "channel-policy:v1" as const;
-export const CHANNEL_DELIVERY_ENVELOPE_SCHEMA = "refarm.channel-delivery-envelope.v1" as const;
+export const CHANNEL_DELIVERY_ENVELOPE_SCHEMA = "sovereign.channel-delivery-envelope.v1" as const;
 
 export const CHANNEL_REVIEW_STATES = ["not-required", "pending", "approved", "rejected"] as const;
 

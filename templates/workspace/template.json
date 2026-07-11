@@ -17,7 +17,7 @@
     "dist",
     "node_modules",
     "pkg",
-    "refarm.template.json",
+    "template.json",
     "target"
   ]
 }

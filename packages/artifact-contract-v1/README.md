@@ -48,7 +48,7 @@ state are better for category selection.
 import type { TaskArtifactManifest } from "@refarm.dev/artifact-contract-v1";
 
 const manifest: TaskArtifactManifest = {
-  schema: "refarm.task-artifacts.v1",
+  schema: "sovereign.task-artifacts.v1",
   taskId: "task-wallet-poc",
   effortId: "effort-wallet-poc-001",
   createdAt: "2026-06-11T00:00:00.000Z",

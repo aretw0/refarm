@@ -8,7 +8,7 @@
   },
   "exclude": [
     "package.json",
-    "refarm.template.json",
+    "template.json",
     "turbo.json"
   ],
   "expectedFiles": [
@@ -24,7 +24,7 @@
     "node_modules",
     "package.json",
     "pkg",
-    "refarm.template.json",
+    "template.json",
     "target",
     "turbo.json"
   ]

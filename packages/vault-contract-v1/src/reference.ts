@@ -48,7 +48,7 @@ export function createReferenceVaultSurface(
 	options: ReferenceVaultSurfaceOptions = {},
 ): VaultSurface {
 	return {
-		surfaceId: options.surfaceId ?? "refarm.reference-vault-surface",
+		surfaceId: options.surfaceId ?? "sovereign.reference-vault-surface",
 		verbs: VAULT_VERBS,
 		run(verb, note, profile) {
 			return runReferenceVault(verb, note, profile);

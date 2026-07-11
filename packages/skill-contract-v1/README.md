@@ -99,7 +99,7 @@ if (!integrity.ok) {
 }
 
 const activation = evaluateSkillActivationPreflight(result.manifest, surface.surface, {
-	approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+	approvedCapabilities: ["sovereign.operator-loop", "sovereign.git.write"],
 	availableEngineBindings: ["runtime-agent", "source:v1"],
 	install: buildSkillActivationInstallEvidence({
 		pluginManifestValid: true,

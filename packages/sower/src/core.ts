@@ -124,7 +124,7 @@ export class SowerCore {
 	}
 
 	private _readTemplateManifest(templateId: string): SowerTemplateManifest | null {
-		const manifestPath = path.resolve(this.templatesRoot, templateId, "refarm.template.json");
+		const manifestPath = path.resolve(this.templatesRoot, templateId, "template.json");
 		if (!fs.existsSync(manifestPath)) return null;
 		const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as SowerTemplateManifest;
 		if (manifest.id && manifest.id !== templateId) {

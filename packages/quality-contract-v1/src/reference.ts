@@ -9,7 +9,7 @@ export function createRegexQualityChecker(
 	options: RegexQualityCheckerOptions = {},
 ): QualityChecker<string> {
 	return {
-		checkerId: options.checkerId ?? "refarm.reference-regex-quality",
+		checkerId: options.checkerId ?? "sovereign.reference-regex-quality",
 		domain: options.domain ?? "text",
 		check(subject, profile) {
 			return runRegexQualityRules(subject, profile);

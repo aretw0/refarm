@@ -15,7 +15,7 @@ Refarm's graph data workflow.
 See [ROADMAP.md](./ROADMAP.md) for the evolution of transformation pipelines and native importers.
 
 Public templates live under `templates/*` and declare their source/config in
-`refarm.template.json`, so adding a template is a declaration plus a hydration
+`template.json`, so adding a template is a declaration plus a hydration
 test rather than a new `SowerCore` branch.
 
 Hydration skips local/generated cache directories that should never reach a new

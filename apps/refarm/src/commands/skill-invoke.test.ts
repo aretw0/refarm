@@ -6,10 +6,10 @@ const SKILL_MD = `---
 name: git-flow
 description: A git workflow.
 requiredCapabilities:
-  - refarm.operator-loop
-  - refarm.git.write
+  - sovereign.operator-loop
+  - sovereign.git.write
 optionalCapabilities:
-  - refarm.github.pr
+  - sovereign.github.pr
 engineBindings:
   - runtime-agent
 input: Task context.
@@ -32,9 +32,9 @@ describe("runSkillInvocation (neutral plan → request → decision loop)", () =
 		expect(result.ok).toBe(true);
 		expect(result.plan?.skill.name).toBe("git-flow");
 		expect(result.plan?.capabilityRequests.map((c) => c.id)).toEqual([
-			"refarm.operator-loop",
-			"refarm.git.write",
-			"refarm.github.pr",
+			"sovereign.operator-loop",
+			"sovereign.git.write",
+			"sovereign.github.pr",
 		]);
 		// No input → no request, no decision.
 		expect(result.request).toBeNull();
@@ -57,7 +57,7 @@ describe("runSkillInvocation (neutral plan → request → decision loop)", () =
 			{
 				decision: "approved",
 				reason: "trusted",
-				approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+				approvedCapabilities: ["sovereign.operator-loop", "sovereign.git.write"],
 			},
 		);
 		expect(result.ok).toBe(true);
@@ -65,9 +65,9 @@ describe("runSkillInvocation (neutral plan → request → decision loop)", () =
 		// The approval gate: requiresRuntimeDispatch true, but NEVER executed here.
 		expect(result.decision?.requiresRuntimeDispatch).toBe(true);
 		const grants = new Map(result.decision!.capabilityDecisions.map((c) => [c.id, c.decision]));
-		expect(grants.get("refarm.operator-loop")).toBe("approved");
-		expect(grants.get("refarm.git.write")).toBe("approved");
-		expect(grants.get("refarm.github.pr")).toBe("denied"); // optional, unlisted
+		expect(grants.get("sovereign.operator-loop")).toBe("approved");
+		expect(grants.get("sovereign.git.write")).toBe("approved");
+		expect(grants.get("sovereign.github.pr")).toBe("denied"); // optional, unlisted
 	});
 
 	it("fails the gate when a required capability is not approved", async () => {
@@ -78,7 +78,7 @@ describe("runSkillInvocation (neutral plan → request → decision loop)", () =
 			{
 				decision: "approved",
 				reason: "partial",
-				approvedCapabilities: ["refarm.operator-loop"], // missing refarm.git.write
+				approvedCapabilities: ["sovereign.operator-loop"], // missing sovereign.git.write
 			},
 		);
 		expect(result.ok).toBe(false);

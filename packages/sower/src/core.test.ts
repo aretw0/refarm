@@ -93,7 +93,7 @@ describe("SowerCore Scaffolding (Isolated)", () => {
 		const sourceDir = path.join(templateRoot, "template");
 		fs.mkdirSync(sourceDir, { recursive: true });
 		fs.writeFileSync(
-			path.join(templateRoot, "refarm.template.json"),
+			path.join(templateRoot, "template.json"),
 			JSON.stringify(
 				{
 					schemaVersion: 1,
@@ -131,7 +131,7 @@ describe("SowerCore Scaffolding (Isolated)", () => {
 		const sourceDir = path.join(templateRoot, "template");
 		fs.mkdirSync(path.join(sourceDir, "internal"), { recursive: true });
 		fs.writeFileSync(
-			path.join(templateRoot, "refarm.template.json"),
+			path.join(templateRoot, "template.json"),
 			JSON.stringify(
 				{
 					schemaVersion: 1,

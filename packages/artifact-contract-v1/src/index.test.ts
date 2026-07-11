@@ -41,7 +41,7 @@ describe("ARTIFACT_CAPABILITY", () => {
 describe("TaskArtifactManifest", () => {
 	function sampleManifest(): TaskArtifactManifest {
 		return {
-			schema: "refarm.task-artifacts.v1",
+			schema: "sovereign.task-artifacts.v1",
 			taskId: "task-wallet-poc",
 			effortId: "effort-wallet-poc-001",
 			createdAt: "2026-06-11T00:00:00.000Z",
@@ -105,7 +105,7 @@ describe("TaskArtifactManifest", () => {
 	it("represents task outputs with provenance and review state", () => {
 		const manifest = sampleManifest();
 
-		expect(manifest.schema).toBe("refarm.task-artifacts.v1");
+		expect(manifest.schema).toBe("sovereign.task-artifacts.v1");
 		expect(manifest.artifacts[0]?.provenance.runId).toBe("wallet-poc-001");
 		expect(manifest.artifacts[0]?.provenance.process?.args).toEqual(["scripts/wallet-poc.mjs"]);
 		expect(
@@ -146,7 +146,7 @@ describe("TaskArtifactManifest", () => {
 
 	it("validates vault-seed Lab/outbox/notebook evidence without owning notebook UX", () => {
 		const manifest: TaskArtifactManifest = {
-			schema: "refarm.task-artifacts.v1",
+			schema: "sovereign.task-artifacts.v1",
 			taskId: "vault-seed-lab-export",
 			effortId: "vault-seed-2026-06-26",
 			createdAt: "2026-06-26T22:20:00.000Z",

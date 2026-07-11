@@ -83,7 +83,7 @@ describe("local scheduler ledger", () => {
 
 		const snapshot = await readLocalSchedulerLedger({ cwd });
 		expect(snapshot).toMatchObject({
-			schema: "refarm.local-scheduler-ledger.v1",
+			schema: "sovereign.local-scheduler-ledger.v1",
 			schemaVersion: 1,
 			entries: {
 				"job:1": {

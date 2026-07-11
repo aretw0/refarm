@@ -20,7 +20,7 @@ process.env.SOVEREIGN_DIR ||= ".refarm";
 const templatesRoot = path.resolve(__dirname, "../../../templates");
 
 function readManifest(templateId: string): PublicTemplateManifest {
-	const manifestPath = path.join(templatesRoot, templateId, "refarm.template.json");
+	const manifestPath = path.join(templatesRoot, templateId, "template.json");
 	return JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as PublicTemplateManifest;
 }
 

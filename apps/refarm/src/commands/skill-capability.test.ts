@@ -39,7 +39,7 @@ function skill(overrides: Partial<DiscoveredSkill> = {}): DiscoveredSkill {
 		id: "urn:skill:greet",
 		name: "greet-operator",
 		description: "Greet the operator.",
-		requiredCapabilities: ["refarm.operator-loop"],
+		requiredCapabilities: ["sovereign.operator-loop"],
 		instructions: "# Greet\n\nGreet the operator and summarize the day.",
 		source: sourceRef(),
 		pluginId: "@demo/plugin",
@@ -610,7 +610,7 @@ describe("skill invoke action (plan-only, approval-gated)", () => {
 name: git-flow
 description: A git workflow.
 requiredCapabilities:
-  - refarm.operator-loop
+  - sovereign.operator-loop
 engineBindings:
   - runtime-agent
 input: Task context.

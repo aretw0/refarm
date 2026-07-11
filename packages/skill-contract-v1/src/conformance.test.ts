@@ -39,15 +39,15 @@ describe("skill-contract-v1", () => {
 		expect(result.ok).toBe(true);
 		expect(result.issues).toEqual([]);
 		expect(result.manifest).toMatchObject({
-			schema: "refarm.skill-manifest.v1",
+			schema: "sovereign.skill-manifest.v1",
 			name: "refarm-git-workflow",
 			source: {
 				format: "SKILL.md",
 				uri: "fixture:refarm-git-workflow/SKILL.md",
 			},
 			capabilities: {
-				requires: ["refarm.operator-loop", "refarm.git.write"],
-				optional: ["refarm.github.pr"],
+				requires: ["sovereign.operator-loop", "sovereign.git.write"],
+				optional: ["sovereign.github.pr"],
 			},
 			engineBindings: {
 				requires: ["runtime-agent", "source:v1"],
@@ -158,7 +158,7 @@ describe("skill-contract-v1", () => {
 		expect(result.ok).toBe(true);
 		expect(result.issues).toEqual([]);
 		expect(result.evidence).toEqual({
-			schema: "refarm.skill-source-integrity.v1",
+			schema: "sovereign.skill-source-integrity.v1",
 			source: parsed.manifest?.source,
 			assetPath: "skills/refarm-git-workflow/SKILL.md",
 			verified: true,
@@ -202,7 +202,7 @@ describe("skill-contract-v1", () => {
 
 		expect(result.ok).toBe(false);
 		expect(result.evidence).toMatchObject({
-			schema: "refarm.skill-source-integrity.v1",
+			schema: "sovereign.skill-source-integrity.v1",
 			assetPath: "skills/refarm-git-workflow/SKILL.md",
 			verified: false,
 		});
@@ -226,7 +226,7 @@ describe("skill-contract-v1", () => {
 		expect(result.ok).toBe(true);
 		expect(result.issues).toEqual([]);
 		expect(result.plan).toMatchObject({
-			schema: "refarm.skill-invocation-plan.v1",
+			schema: "sovereign.skill-invocation-plan.v1",
 			skill: {
 				id: parsed.manifest?.id,
 				name: "refarm-git-workflow",
@@ -240,9 +240,9 @@ describe("skill-contract-v1", () => {
 				toolAccess: "declared-capabilities-only",
 			},
 			capabilityRequests: [
-				{ id: "refarm.operator-loop", required: true },
-				{ id: "refarm.git.write", required: true },
-				{ id: "refarm.github.pr", required: false },
+				{ id: "sovereign.operator-loop", required: true },
+				{ id: "sovereign.git.write", required: true },
+				{ id: "sovereign.github.pr", required: false },
 			],
 			engineBindings: {
 				requires: ["runtime-agent", "source:v1"],
@@ -296,7 +296,7 @@ describe("skill-contract-v1", () => {
 		expect(result.ok).toBe(true);
 		expect(result.issues).toEqual([]);
 		expect(result.request).toMatchObject({
-			schema: "refarm.skill-invocation-request.v1",
+			schema: "sovereign.skill-invocation-request.v1",
 			skill: {
 				id: built.plan?.skill.id,
 				name: "refarm-git-workflow",
@@ -349,13 +349,13 @@ describe("skill-contract-v1", () => {
 		const result = buildSkillInvocationDecision(request.request!, {
 			decision: "approved",
 			reason: "Operator approved the declared workflow capabilities.",
-			approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+			approvedCapabilities: ["sovereign.operator-loop", "sovereign.git.write"],
 		});
 
 		expect(result.ok).toBe(true);
 		expect(result.issues).toEqual([]);
 		expect(result.decision).toMatchObject({
-			schema: "refarm.skill-invocation-decision.v1",
+			schema: "sovereign.skill-invocation-decision.v1",
 			request: request.request,
 			decision: "approved",
 			reason: "Operator approved the declared workflow capabilities.",
@@ -363,10 +363,10 @@ describe("skill-contract-v1", () => {
 			executed: false,
 		});
 		expect(result.decision?.capabilityDecisions).toEqual([
-			{ id: "refarm.operator-loop", required: true, decision: "approved" },
-			{ id: "refarm.git.write", required: true, decision: "approved" },
+			{ id: "sovereign.operator-loop", required: true, decision: "approved" },
+			{ id: "sovereign.git.write", required: true, decision: "approved" },
 			{
-				id: "refarm.github.pr",
+				id: "sovereign.github.pr",
 				required: false,
 				decision: "denied",
 				reason: "Capability was not approved by host policy.",
@@ -383,7 +383,7 @@ describe("skill-contract-v1", () => {
 		const result = buildSkillInvocationDecision(request.request!, {
 			decision: "approved",
 			reason: "Incomplete approval should fail.",
-			approvedCapabilities: ["refarm.operator-loop"],
+			approvedCapabilities: ["sovereign.operator-loop"],
 		});
 
 		expect(result).toMatchObject({
@@ -410,9 +410,9 @@ describe("skill-contract-v1", () => {
 			requiresRuntimeDispatch: true,
 			executed: true,
 			capabilityDecisions: [
-				{ id: "refarm.operator-loop", required: true, decision: "approved" },
-				{ id: "refarm.git.write", required: true, decision: "denied" },
-				{ id: "refarm.github.pr", required: false, decision: "denied" },
+				{ id: "sovereign.operator-loop", required: true, decision: "approved" },
+				{ id: "sovereign.git.write", required: true, decision: "denied" },
+				{ id: "sovereign.github.pr", required: false, decision: "denied" },
 			],
 		});
 
@@ -433,7 +433,7 @@ describe("skill-contract-v1", () => {
 		const decision = buildSkillInvocationDecision(request.request!, {
 			decision: "approved",
 			reason: "Operator approved this workflow.",
-			approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+			approvedCapabilities: ["sovereign.operator-loop", "sovereign.git.write"],
 		});
 
 		const result = buildSkillInvocationReceipt(decision.decision!, {
@@ -442,7 +442,7 @@ describe("skill-contract-v1", () => {
 			engineCalls: [
 				{
 					engineBinding: "source:v1",
-					capability: "refarm.operator-loop",
+					capability: "sovereign.operator-loop",
 					providerId: "@refarm.dev/source-local",
 					operation: "status",
 					ok: true,
@@ -458,7 +458,7 @@ describe("skill-contract-v1", () => {
 		expect(result.ok).toBe(true);
 		expect(result.issues).toEqual([]);
 		expect(result.receipt).toMatchObject({
-			schema: "refarm.skill-invocation-receipt.v1",
+			schema: "sovereign.skill-invocation-receipt.v1",
 			status: "succeeded",
 			completedAt: "2026-06-30T00:00:00.000Z",
 			executed: true,
@@ -481,7 +481,7 @@ describe("skill-contract-v1", () => {
 		expect(denied.decision).not.toBeNull();
 
 		const result = validateSkillInvocationReceipt({
-			schema: "refarm.skill-invocation-receipt.v1",
+			schema: "sovereign.skill-invocation-receipt.v1",
 			decision: denied.decision,
 			status: "succeeded",
 			engineCalls: [],
@@ -517,7 +517,7 @@ describe("skill-contract-v1", () => {
 			kind: "skill",
 			id: "refarm-git-workflow",
 			assets: ["skills/refarm-git-workflow/SKILL.md"],
-			capabilities: ["refarm.operator-loop", "refarm.git.write"],
+			capabilities: ["sovereign.operator-loop", "sovereign.git.write"],
 		});
 	});
 
@@ -583,7 +583,7 @@ describe("skill-contract-v1", () => {
 		});
 
 		const result = evaluateSkillActivationPreflight(parsed.manifest!, surface.surface!, {
-			approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+			approvedCapabilities: ["sovereign.operator-loop", "sovereign.git.write"],
 			availableEngineBindings: ["runtime-agent", "source:v1"],
 			install: {
 				pluginManifestValid: true,
@@ -595,7 +595,7 @@ describe("skill-contract-v1", () => {
 		expect(result.ok).toBe(true);
 		expect(result.issues).toEqual([]);
 		expect(result.preflight).toMatchObject({
-			schema: "refarm.skill-activation-preflight.v1",
+			schema: "sovereign.skill-activation-preflight.v1",
 			state: "ready",
 			readyForRuntimeDispatch: true,
 			surface: surface.surface,
@@ -641,7 +641,7 @@ describe("skill-contract-v1", () => {
 		});
 		expect(
 			evaluateSkillActivationPreflight(parsed.manifest!, surface.surface!, {
-				approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+				approvedCapabilities: ["sovereign.operator-loop", "sovereign.git.write"],
 				availableEngineBindings: ["runtime-agent", "source:v1"],
 				install,
 			}),
@@ -664,7 +664,7 @@ describe("skill-contract-v1", () => {
 		});
 
 		const blocked = evaluateSkillActivationPreflight(parsed.manifest!, surface.surface!, {
-			approvedCapabilities: ["refarm.operator-loop", "refarm.git.write"],
+			approvedCapabilities: ["sovereign.operator-loop", "sovereign.git.write"],
 			availableEngineBindings: ["runtime-agent", "source:v1"],
 			install: rejectedInstall,
 		});
@@ -682,7 +682,7 @@ describe("skill-contract-v1", () => {
 		});
 
 		const result = evaluateSkillActivationPreflight(parsed.manifest!, surface.surface!, {
-			approvedCapabilities: ["refarm.operator-loop"],
+			approvedCapabilities: ["sovereign.operator-loop"],
 			availableEngineBindings: ["source:v1"],
 			install: {
 				pluginManifestValid: true,
@@ -693,7 +693,7 @@ describe("skill-contract-v1", () => {
 
 		expect(result.ok).toBe(false);
 		expect(result.preflight).toMatchObject({
-			schema: "refarm.skill-activation-preflight.v1",
+			schema: "sovereign.skill-activation-preflight.v1",
 			state: "blocked",
 			readyForRuntimeDispatch: false,
 		});

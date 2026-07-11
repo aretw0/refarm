@@ -37,7 +37,7 @@ describe("enrichment:v1 conformance", () => {
 			byCode: {},
 		});
 		expect(dryRun.records[0]?.changes[0]?.provenance).toMatchObject({
-			providerId: "refarm.reference-enrichment",
+			providerId: "sovereign.reference-enrichment",
 			ruleId: "fixture-map",
 			key: "REQ-1",
 			sourceRef: "fixture:enrichment/reference#REQ-1",

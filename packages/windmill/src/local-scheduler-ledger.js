@@ -1,6 +1,6 @@
 import { openScopedLedger, scopedLedgerPath } from "@refarm.dev/storage-node-view";
 
-export const LOCAL_SCHEDULER_LEDGER_SCHEMA = "refarm.local-scheduler-ledger.v1";
+export const LOCAL_SCHEDULER_LEDGER_SCHEMA = "sovereign.local-scheduler-ledger.v1";
 export const DEFAULT_LOCAL_SCHEDULER_LEDGER_PATH = ".refarm/scheduler/ledger.json";
 
 // The ledger is a durable node-ledger opened via the host bootstrap
