@@ -32,10 +32,10 @@ export function runDispatchResultV1Conformance(): DispatchResultConformanceResul
 	if (forOne.length !== 1) {
 		failures.push(`consumer must recover exactly its own result (got ${forOne.length})`);
 	}
-	if (forOne[0]?.["refarm:result"] === undefined) {
+	if (forOne[0]?.["result"] === undefined) {
 		failures.push("recovered result must carry the payload");
 	}
-	if (forOne[0] && forOne[0]["refarm:replyRef"] !== "effort-1") {
+	if (forOne[0] && forOne[0]["replyRef"] !== "effort-1") {
 		failures.push("recovered result must match the requested replyRef");
 	}
 

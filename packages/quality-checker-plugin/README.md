@@ -20,7 +20,7 @@ then `jco componentize` — the same TS→WASM pattern as `vault-surface-ref`.
 - It **emits** findings through the shared `@refarm.dev/dispatch-result-contract-v1`
   (`serializeDispatchResult`), so a caller correlates a quality result by `replyRef`
   **exactly** as it does a vault result — via `matchDispatchResults`, `@type`
-  `refarm:DispatchResult`, no per-family shape to learn.
+  `DispatchResult`, no per-family shape to learn.
 
 `on-event('quality:dispatch', { subject, profile, replyRef })` runs the check and
 stores the correlated result node. `loadQualityPluginComponent` ships the loader (a

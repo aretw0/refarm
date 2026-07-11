@@ -10,7 +10,7 @@
  * `@type` + `replyRef` inline. Without a shared contract, every next plugin
  * reinvents the correlation shape and callers hand-parse untyped nodes (the
  * "no typed channel" debt). This formalizes it ONCE: a stable `@type`, a typed
- * `refarm:replyRef` that ties the result to the effort/task that requested it,
+ * `replyRef` that ties the result to the effort/task that requested it,
  * and helpers so producer and consumer share one implementation.
  *
  * CORRELATION IS BY CONTENT, NOT A DERIVED FILENAME: the caller submits with a
@@ -23,20 +23,20 @@
 export const DISPATCH_RESULT_CAPABILITY = "dispatch-result:v1" as const;
 
 /** The canonical `@type` of an async dispatch-result node. A caller queries this
- * type and filters by `refarm:replyRef`. */
-export const DISPATCH_RESULT_TYPE = "refarm:DispatchResult" as const;
+ * type and filters by `replyRef`. */
+export const DISPATCH_RESULT_TYPE = "DispatchResult" as const;
 
 /** The node field carrying the correlation id — the `effortId` (or
  * `<effortId>:<taskId>`) the caller submitted with, so a result maps back to its
  * request with no derived-filename convention. */
-export const REPLY_REF_FIELD = "refarm:replyRef" as const;
+export const REPLY_REF_FIELD = "replyRef" as const;
 
 /** The node field naming the capability/verb that produced the result, for a
  * caller that dispatched several verbs under one replyRef. */
-export const RESULT_VERB_FIELD = "refarm:verb" as const;
+export const RESULT_VERB_FIELD = "verb" as const;
 
 /** The node field carrying the plugin-specific result payload. */
-export const RESULT_PAYLOAD_FIELD = "refarm:result" as const;
+export const RESULT_PAYLOAD_FIELD = "result" as const;
 
 /**
  * The async dispatch-result node — an open JSON-LD node (any plugin may add
@@ -48,11 +48,11 @@ export interface DispatchResultNode {
 	/** Stable, queryable id: `<DISPATCH_RESULT_TYPE>:<replyRef>[:<verb>]`. */
 	"@id": string;
 	/** The correlation id tying this result to the request that produced it. */
-	"refarm:replyRef": string;
+	"replyRef": string;
 	/** The verb/operation that produced this result (optional; for multi-verb). */
-	"refarm:verb"?: string;
+	"verb"?: string;
 	/** The plugin-specific result payload (the VaultResult, a findings list, …). */
-	"refarm:result": unknown;
+	"result": unknown;
 	/** Open by design: a plugin may attach any additional JSON-LD fields. */
 	[key: string]: unknown;
 }

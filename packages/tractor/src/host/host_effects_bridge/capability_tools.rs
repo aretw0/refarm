@@ -22,8 +22,8 @@ use crate::host::wasi_bridge::CrossPluginAccess;
 
 /// The node `@type` a dispatched verb stores its result under, and the field that
 /// carries the correlation key — the convention proven by `vault_plugin_harness`.
-const DISPATCH_RESULT_TYPE: &str = "refarm:DispatchResult";
-const REPLY_REF_FIELD: &str = "refarm:replyRef";
+const DISPATCH_RESULT_TYPE: &str = "DispatchResult";
+const REPLY_REF_FIELD: &str = "replyRef";
 
 /// How long `invoke_tool` waits for the target plugin to store its
 /// `dispatch-result:v1` node before giving up, and how often it polls the graph.
@@ -191,7 +191,7 @@ impl CapabilityToolsHost for TractorNativeBindings {
 /// resolves a model tool-name `<key>_<verb>` first) and the SPI `call_plugin`
 /// (which receives a resolved `plugin_id` + `verb` directly). Mints a correlation
 /// key, sends `{verb, ...args, replyRef}` on the `<key>:dispatch` event, and polls
-/// for the plugin's `refarm:DispatchResult` node keyed by that replyRef.
+/// for the plugin's `DispatchResult` node keyed by that replyRef.
 ///
 /// Error-neutral (`Result<String, String>`): each caller adapts it to its own WIT
 /// error type (`invoke_tool` returns the string as-is; `call_plugin` maps it into a
@@ -209,7 +209,7 @@ pub(crate) async fn dispatch_to_plugin(
     // Mint a correlation key and build the dispatch payload the SAME way the
     // sidecar's `dispatch_event_effort` does: `{verb, ...args, replyRef}` on the
     // `<key>:dispatch` event. The plugin runs the verb and stores a
-    // `refarm:DispatchResult` node carrying this replyRef (proven by the vault
+    // `DispatchResult` node carrying this replyRef (proven by the vault
     // harness); we await that node below.
     let reply_ref = format!("dispatch-{}", uuid::Uuid::new_v4());
     let event = format!("{plugin_key}:dispatch");
@@ -244,7 +244,7 @@ pub(crate) async fn dispatch_to_plugin(
     await_dispatch_result(sync, &reply_ref).await
 }
 
-/// Poll `self.sync` for a `refarm:DispatchResult` node whose `refarm:replyRef`
+/// Poll `self.sync` for a `DispatchResult` node whose `replyRef`
 /// matches `reply_ref`, returning its payload JSON string. Bounded by
 /// `INVOKE_TIMEOUT_MS`; a timeout is an honest error, not a hang.
 async fn await_dispatch_result(

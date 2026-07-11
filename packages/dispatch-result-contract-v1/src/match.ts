@@ -11,7 +11,7 @@ import { DISPATCH_RESULT_TYPE, type DispatchResultNode } from "./types.js";
 export function isDispatchResultNode(value: unknown): value is DispatchResultNode {
 	if (!value || typeof value !== "object") return false;
 	const node = value as Record<string, unknown>;
-	return node["@type"] === DISPATCH_RESULT_TYPE && typeof node["refarm:replyRef"] === "string";
+	return node["@type"] === DISPATCH_RESULT_TYPE && typeof node["replyRef"] === "string";
 }
 
 /** Parse a stored node JSON string into a DispatchResultNode, or undefined if it
@@ -40,8 +40,8 @@ export function matchDispatchResults(
 	for (const json of nodeJsons) {
 		const node = parseDispatchResult(json);
 		if (!node) continue;
-		if (node["refarm:replyRef"] !== replyRef) continue;
-		if (verb !== undefined && node["refarm:verb"] !== verb) continue;
+		if (node["replyRef"] !== replyRef) continue;
+		if (verb !== undefined && node["verb"] !== verb) continue;
 		matched.push(node);
 	}
 	return matched;

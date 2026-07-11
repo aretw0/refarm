@@ -16,14 +16,14 @@ nodes. This formalizes it **once**.
 
 ## The contract
 
-- **`DISPATCH_RESULT_TYPE`** (`refarm:DispatchResult`) — the canonical `@type` a
+- **`DISPATCH_RESULT_TYPE`** (`DispatchResult`) — the canonical `@type` a
   caller queries.
-- **`refarm:replyRef`** — the correlation id (typically the `effortId` or
+- **`replyRef`** — the correlation id (typically the `effortId` or
   `<effortId>:<taskId>`) the caller submitted with, stamped on the result node so
   it maps back to its request. **Correlation is by content, not a derived
   filename** — there is no fragile naming formula a second plugin can get wrong
   (the failure mode the STREAM model still has).
-- **`refarm:verb`** / **`refarm:result`** — the operation and its payload.
+- **`verb`** / **`result`** — the operation and its payload.
 
 ### Producer (a plugin)
 

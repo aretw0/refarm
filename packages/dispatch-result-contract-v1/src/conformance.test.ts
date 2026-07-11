@@ -8,7 +8,7 @@ import { DISPATCH_RESULT_CAPABILITY, DISPATCH_RESULT_TYPE } from "./types.js";
 describe("dispatch-result:v1 constants + builder", () => {
 	it("exposes the capability id and canonical @type", () => {
 		expect(DISPATCH_RESULT_CAPABILITY).toBe("dispatch-result:v1");
-		expect(DISPATCH_RESULT_TYPE).toBe("refarm:DispatchResult");
+		expect(DISPATCH_RESULT_TYPE).toBe("DispatchResult");
 	});
 
 	it("builds a correlated node with a deterministic @id", () => {
@@ -18,17 +18,17 @@ describe("dispatch-result:v1 constants + builder", () => {
 			result: { n: 1 },
 		});
 		expect(node["@type"]).toBe(DISPATCH_RESULT_TYPE);
-		expect(node["refarm:replyRef"]).toBe("effort-1");
-		expect(node["refarm:verb"]).toBe("extract");
-		expect(node["refarm:result"]).toEqual({ n: 1 });
+		expect(node["replyRef"]).toBe("effort-1");
+		expect(node["verb"]).toBe("extract");
+		expect(node["result"]).toEqual({ n: 1 });
 		expect(node["@id"]).toBe(dispatchResultId("effort-1", "extract"));
-		expect(node["@id"]).toBe("refarm:DispatchResult:effort-1:extract");
+		expect(node["@id"]).toBe("DispatchResult:effort-1:extract");
 	});
 
 	it("omits the verb field when no verb is given", () => {
 		const node = buildDispatchResultNode({ replyRef: "e", result: 1 });
-		expect(node["refarm:verb"]).toBeUndefined();
-		expect(node["@id"]).toBe("refarm:DispatchResult:e");
+		expect(node["verb"]).toBeUndefined();
+		expect(node["@id"]).toBe("DispatchResult:e");
 	});
 });
 
@@ -43,7 +43,7 @@ describe("consumer: content-based correlation (no fragile formula)", () => {
 	it("recovers only the results for one replyRef", () => {
 		const mine = matchDispatchResults(stored, "e1");
 		expect(mine).toHaveLength(2);
-		expect(mine.every((n) => n["refarm:replyRef"] === "e1")).toBe(true);
+		expect(mine.every((n) => n["replyRef"] === "e1")).toBe(true);
 	});
 
 	it("a second caller recovers only its own", () => {
@@ -52,7 +52,7 @@ describe("consumer: content-based correlation (no fragile formula)", () => {
 
 	it("the verb filter narrows within one replyRef", () => {
 		expect(matchDispatchResults(stored, "e1", "extract")).toHaveLength(1);
-		expect(matchDispatchResults(stored, "e1", "extract")[0]?.["refarm:result"]).toEqual({ a: 1 });
+		expect(matchDispatchResults(stored, "e1", "extract")[0]?.["result"]).toEqual({ a: 1 });
 	});
 
 	it("ignores non-result nodes and never throws on garbage", () => {
@@ -63,7 +63,7 @@ describe("consumer: content-based correlation (no fragile formula)", () => {
 describe("type guard + parse", () => {
 	it("isDispatchResultNode accepts a well-formed node, rejects others", () => {
 		expect(isDispatchResultNode(buildDispatchResultNode({ replyRef: "x", result: 0 }))).toBe(true);
-		expect(isDispatchResultNode({ "@type": "other", "refarm:replyRef": "x" })).toBe(false);
+		expect(isDispatchResultNode({ "@type": "other", "replyRef": "x" })).toBe(false);
 		expect(isDispatchResultNode({ "@type": DISPATCH_RESULT_TYPE })).toBe(false);
 		expect(isDispatchResultNode(null)).toBe(false);
 	});

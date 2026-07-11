@@ -1,6 +1,6 @@
 //! Native tests for the LSP-plugin's PURE dispatch helpers — the parse + result-node
 //! shaping that the wasm guest wires over. No WASM build needed (§7-cheap): these prove
-//! the dispatch contract (parse `{verb, replyRef, ...}` → run → `refarm:DispatchResult`)
+//! the dispatch contract (parse `{verb, replyRef, ...}` → run → `DispatchResult`)
 //! without a host or the LSP subprocess.
 
 use super::*;
@@ -31,7 +31,7 @@ fn parse_dispatch_rejects_missing_verb_or_reply_ref() {
 #[test]
 fn dispatch_result_node_carries_reply_ref_and_result_where_the_host_looks() {
     let node = build_dispatch_result_node("r-42", serde_json::json!({ "ok": true }));
-    // The host's await polls @type == refarm:DispatchResult and matches refarm:replyRef.
+    // The host's await polls @type == DispatchResult and matches replyRef.
     assert_eq!(node["@type"], DISPATCH_RESULT_TYPE);
     assert_eq!(node[REPLY_REF_FIELD], "r-42");
     assert_eq!(node[RESULT_FIELD], serde_json::json!({ "ok": true }));

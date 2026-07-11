@@ -15,10 +15,10 @@ export function buildDispatchResultNode(input: DispatchResultInput): DispatchRes
 	const node: DispatchResultNode = {
 		"@type": DISPATCH_RESULT_TYPE,
 		"@id": dispatchResultId(input.replyRef, input.verb),
-		"refarm:replyRef": input.replyRef,
-		"refarm:result": input.result,
+		"replyRef": input.replyRef,
+		"result": input.result,
 	};
-	if (input.verb !== undefined) node["refarm:verb"] = input.verb;
+	if (input.verb !== undefined) node["verb"] = input.verb;
 	return node;
 }
 

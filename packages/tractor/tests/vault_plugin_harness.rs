@@ -6,7 +6,7 @@
 //! — `@refarm.dev/vault-surface-ref` `build:plugin`), drives it through the same
 //! `call_on_event` path the agent uses, and the plugin emits its result through
 //! the REAL `tractor-bridge` `store-node` into the graph. A `query_nodes` for the
-//! shared `dispatch-result:v1` type (`refarm:DispatchResult`) recovers it.
+//! shared `dispatch-result:v1` type (`DispatchResult`) recovers it.
 //!
 //! This closes the loop the loader tests (with a test-double bridge) could only
 //! approximate: here the bridge is the host's own SQLite/CRDT-backed
@@ -119,20 +119,20 @@ async fn vault_plugin_dispatch_stores_result_node_via_real_bridge() {
 
     // ...and a correlated dispatch-result:v1 node the caller finds by replyRef.
     let results = sync
-        .query_nodes("refarm:DispatchResult")
-        .expect("query refarm:DispatchResult");
+        .query_nodes("DispatchResult")
+        .expect("query DispatchResult");
     assert!(
         !results.is_empty(),
-        "dispatch must store a refarm:DispatchResult node"
+        "dispatch must store a DispatchResult node"
     );
     let result: serde_json::Value =
         serde_json::from_str(&results[0].payload).expect("result node is JSON");
     assert_eq!(
-        result["@type"], "refarm:DispatchResult",
+        result["@type"], "DispatchResult",
         "result node carries the shared dispatch-result:v1 type"
     );
     assert_eq!(
-        result["refarm:replyRef"], "harness-req-1",
+        result["replyRef"], "harness-req-1",
         "the dispatch-result node carries the replyRef for content-based correlation"
     );
 }
@@ -190,17 +190,17 @@ async fn quality_plugin_dispatch_stores_result_node_via_real_bridge() {
     // The SECOND family (quality, not vault) emits its findings through the SAME
     // dispatch-result:v1 contract — one correlation shape, two plugin families.
     let results = sync
-        .query_nodes("refarm:DispatchResult")
-        .expect("query refarm:DispatchResult");
+        .query_nodes("DispatchResult")
+        .expect("query DispatchResult");
     assert!(
         !results.is_empty(),
-        "quality dispatch must store a refarm:DispatchResult node"
+        "quality dispatch must store a DispatchResult node"
     );
     let result: serde_json::Value =
         serde_json::from_str(&results[0].payload).expect("result node is JSON");
-    assert_eq!(result["refarm:replyRef"], "quality-req-1");
+    assert_eq!(result["replyRef"], "quality-req-1");
     // The quality result payload carries the findings the checker produced.
-    let findings = &result["refarm:result"]["findings"];
+    let findings = &result["result"]["findings"];
     assert!(
         findings.is_array() && !findings.as_array().unwrap().is_empty(),
         "the quality result must carry at least one finding (the AI-tell match)"
@@ -387,13 +387,13 @@ async fn vault_discovers_and_calls_quality_via_spi() {
     for _ in 0..100 {
         let results = tractor
             .sync
-            .query_nodes("refarm:DispatchResult")
-            .expect("query refarm:DispatchResult");
+            .query_nodes("DispatchResult")
+            .expect("query DispatchResult");
         quality_ran = results.iter().any(|row| {
             serde_json::from_str::<serde_json::Value>(&row.payload)
                 .ok()
                 .and_then(|node| {
-                    node["refarm:result"]["findings"]
+                    node["result"]["findings"]
                         .as_array()
                         .map(|f| f.iter().any(|x| x["ruleId"] == "ai-tell"))
                 })
@@ -484,7 +484,7 @@ async fn runner_emits_real_drain_cost_and_queue_depth() {
 // graph) for ANY dispatch-result:v1 plugin. A caller declares ONLY what differs
 // between plugins — the wasm, the plugin key, the verb, and the effort args — and
 // the harness owns everything common (boot, load, register, the running sidecar,
-// the POST, and the poll for a `refarm:DispatchResult` node correlated by
+// the POST, and the poll for a `DispatchResult` node correlated by
 // replyRef). Adding an e2e for a new plugin is now four fields, not a copy.
 
 /// The minimal declaration a plugin gives the harness to be tested end-to-end.
@@ -504,7 +504,7 @@ struct OperatorLoopSpec {
 }
 
 /// Run the full operator loop for one plugin spec. Returns early (skips) if the
-/// plugin wasm is not built. Asserts a correlated `refarm:DispatchResult` node
+/// plugin wasm is not built. Asserts a correlated `DispatchResult` node
 /// lands in the graph.
 async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
     if !spec.wasm.exists() {
@@ -591,8 +591,8 @@ async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
     for _ in 0..100 {
         results = tractor
             .sync
-            .query_nodes("refarm:DispatchResult")
-            .expect("query refarm:DispatchResult");
+            .query_nodes("DispatchResult")
+            .expect("query DispatchResult");
         if results.iter().any(|r| r.payload.contains(&reply_ref)) {
             break;
         }
@@ -601,7 +601,7 @@ async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
     let node = results
         .iter()
         .map(|r| serde_json::from_str::<serde_json::Value>(&r.payload).unwrap())
-        .find(|n| n["refarm:replyRef"] == reply_ref)
+        .find(|n| n["replyRef"] == reply_ref)
         .unwrap_or_else(|| {
             panic!(
                 "the whole loop must land a dispatch-result node for '{}': HTTP -> sidecar -> router -> plugin -> store-node",
@@ -609,7 +609,7 @@ async fn run_operator_loop_e2e(spec: OperatorLoopSpec) {
             )
         });
     assert_eq!(
-        node["refarm:verb"], spec.verb,
+        node["verb"], spec.verb,
         "the result carries the dispatched verb"
     );
 

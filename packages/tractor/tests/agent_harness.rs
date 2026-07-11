@@ -1232,7 +1232,7 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
 /// agent invokes the model tool `code-ops_find-references`, the host dispatches
 /// `code-ops:dispatch` to the LOADED @refarm/lsp-code-ops plugin, that plugin calls
 /// the host `code-ops` LSP import (driven by REFACTOR_LSP_CMD → the fake python LSP)
-/// and stores a `refarm:DispatchResult`, which the host's correlation-await returns
+/// and stores a `DispatchResult`, which the host's correlation-await returns
 /// into the AgentResponse. This is what the two former built-in tests proved for the
 /// in-agent code-ops; now the ops live in the plugin and the seam carries them.
 #[tokio::test]
@@ -1305,13 +1305,13 @@ async fn harness_find_references_tool_dispatches_to_lsp_code_ops_plugin() {
     let v = await_agent_response(&tractor).await;
     assert_eq!(v["content"], "references found");
 
-    // tool_calls[0].result is now the ENTIRE refarm:DispatchResult node the plugin
+    // tool_calls[0].result is now the ENTIRE DispatchResult node the plugin
     // stored (invoke_tool returns the node JSON), not the old flat built-in shape.
     let result = v["tool_calls"][0]["result"].as_str().unwrap_or("");
     let node: serde_json::Value = serde_json::from_str(result)
         .unwrap_or_else(|_| panic!("tool result must be the dispatch-result node JSON: {result}"));
-    assert_eq!(node["@type"], "refarm:DispatchResult");
-    let refs = node["refarm:result"]
+    assert_eq!(node["@type"], "DispatchResult");
+    let refs = node["result"]
         .as_array()
         .unwrap_or_else(|| panic!("find-references result must be an array: {result}"));
     assert!(!refs.is_empty(), "at least one reference: {result}");
@@ -1405,17 +1405,17 @@ async fn harness_rename_symbol_tool_dispatches_to_lsp_code_ops_plugin() {
     );
 
     // Result is the dispatch-result node; the plugin's rename_result() carries
-    // { filesChanged, editsApplied } under refarm:result.
+    // { filesChanged, editsApplied } under result.
     let result = v["tool_calls"][0]["result"].as_str().unwrap_or("");
     let node: serde_json::Value = serde_json::from_str(result)
         .unwrap_or_else(|_| panic!("tool result must be the dispatch-result node JSON: {result}"));
-    assert_eq!(node["@type"], "refarm:DispatchResult");
+    assert_eq!(node["@type"], "DispatchResult");
     assert_eq!(
-        node["refarm:result"]["filesChanged"], 1,
+        node["result"]["filesChanged"], 1,
         "rename must report 1 file changed: {result}"
     );
     assert_eq!(
-        node["refarm:result"]["editsApplied"], 2,
+        node["result"]["editsApplied"], 2,
         "rename must report 2 edits applied: {result}"
     );
 

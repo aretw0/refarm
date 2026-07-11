@@ -75,7 +75,7 @@ fn allowlist_only_never_reaps_durable_types() {
         "Note",
         "Article",
         "Unknown",
-        "refarm:DispatchResult",
+        "DispatchResult",
     ];
     let rows: Vec<NodeRow> = never
         .iter()
@@ -101,7 +101,7 @@ fn new_type_is_kept() {
 fn dispatch_result_excluded_even_when_old() {
     // Locks in the defer decision: DispatchResult is never reaped here, so a
     // later edit can't silently start reaping it without breaking this test.
-    let rows = vec![row("dr", "refarm:DispatchResult", 365 * 86_400, "{}")];
+    let rows = vec![row("dr", "DispatchResult", 365 * 86_400, "{}")];
     assert!(plan_node_reap(&rows, NOW, &ttls(0)).is_empty());
 }
 

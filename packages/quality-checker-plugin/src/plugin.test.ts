@@ -47,6 +47,9 @@ function makeTractorBridge(): { bridge: TractorBridge; stored: string[] } {
 			getPluginApi(name: string) {
 				return { tag: "err", val: { tag: "not-found", val: name } };
 			},
+			callPlugin(pluginId: string, _verb: string, _inputJson: string): string {
+				throw { payload: { tag: "not-found", val: pluginId } };
+			},
 			emitTelemetry() {},
 		},
 		stored,
@@ -89,7 +92,7 @@ describe.skipIf(!componentBuilt)(
 			const { integration } = await loadPlugin(bridge);
 			const meta = integration.metadata();
 			expect(meta.name).toBe("quality");
-			expect(meta.supportedTypes).toContain("refarm:DispatchResult");
+			expect(meta.supportedTypes).toContain("DispatchResult");
 		});
 
 		it("on-event('quality:dispatch') emits findings a caller correlates by replyRef", async () => {
@@ -104,7 +107,7 @@ describe.skipIf(!componentBuilt)(
 			// The SAME correlation the vault uses — one contract, two families.
 			const mine = matchDispatchResults(stored, "q-1", "check");
 			expect(mine).toHaveLength(1);
-			const result = mine[0]?.["refarm:result"] as { findings: { ruleId: string }[] };
+			const result = mine[0]?.["result"] as { findings: { ruleId: string }[] };
 			expect(result.findings).toHaveLength(1);
 			expect(result.findings[0]?.ruleId).toBe("ai-tell");
 		});

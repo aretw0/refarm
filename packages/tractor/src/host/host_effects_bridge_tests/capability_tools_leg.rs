@@ -225,7 +225,7 @@ async fn invoke_tool_routes_to_dispatch_and_awaits_the_result_node() {
     let (mut bindings, sync, mut rx) = make_agent_leg_bindings();
 
     // Spawn a mock "vault plugin": it receives the vault:dispatch event, reads the
-    // replyRef, and stores a refarm:DispatchResult node — exactly the contract the
+    // replyRef, and stores a DispatchResult node — exactly the contract the
     // real vault harness proves. This is what the invoke's correlation-await reads.
     let sync_for_plugin = sync.clone();
     let plugin = tokio::spawn(async move {
@@ -238,14 +238,14 @@ async fn invoke_tool_routes_to_dispatch_and_awaits_the_result_node() {
         // Store the correlated result node the caller awaits.
         let node = serde_json::json!({
             "@id": format!("urn:refarm:dispatch-result:{reply_ref}"),
-            "@type": "refarm:DispatchResult",
-            "refarm:replyRef": reply_ref,
-            "refarm:result": { "stored": true },
+            "@type": "DispatchResult",
+            "replyRef": reply_ref,
+            "result": { "stored": true },
         });
         sync_for_plugin
             .store_node(
                 node["@id"].as_str().unwrap(),
-                "refarm:DispatchResult",
+                "DispatchResult",
                 None,
                 &node.to_string(),
                 Some("vault"),
@@ -260,8 +260,8 @@ async fn invoke_tool_routes_to_dispatch_and_awaits_the_result_node() {
     plugin.await.unwrap();
 
     let node: serde_json::Value = serde_json::from_str(&result).unwrap();
-    assert_eq!(node["@type"], "refarm:DispatchResult");
-    assert_eq!(node["refarm:result"]["stored"], true);
+    assert_eq!(node["@type"], "DispatchResult");
+    assert_eq!(node["result"]["stored"], true);
 }
 
 #[tokio::test]

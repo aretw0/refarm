@@ -10,7 +10,7 @@
 //!
 //! DISPATCH CONTRACT (mirrors the host's `dispatch_to_plugin`): the host delivers a
 //! `code-ops:dispatch` event whose payload is `{ verb, replyRef, ...args }`; this plugin
-//! runs the verb and stores a `refarm:DispatchResult` node carrying that `replyRef` plus
+//! runs the verb and stores a `DispatchResult` node carrying that `replyRef` plus
 //! the result, which the host's correlation-await returns to the agent.
 //!
 //! The parse + result-node shaping are PURE and native-testable; the wasm guest is a thin
@@ -27,9 +27,9 @@ mod bindings {
 
 /// The node `@type` a dispatch result is stored under, and the correlation-key field —
 /// the exact strings the host's `await_dispatch_result` polls for.
-const DISPATCH_RESULT_TYPE: &str = "refarm:DispatchResult";
-const REPLY_REF_FIELD: &str = "refarm:replyRef";
-const RESULT_FIELD: &str = "refarm:result";
+const DISPATCH_RESULT_TYPE: &str = "DispatchResult";
+const REPLY_REF_FIELD: &str = "replyRef";
+const RESULT_FIELD: &str = "result";
 /// The routing key this plugin serves (mirrors `verbs.key` in plugin.json). The event we
 /// receive is `<KEY>:dispatch`. Used only by the wasm guest's `on_event`.
 #[cfg(target_arch = "wasm32")]
@@ -65,7 +65,7 @@ fn parse_dispatch(payload: &str) -> Option<DispatchRequest> {
     })
 }
 
-/// Build the `refarm:DispatchResult` node the host awaits: it carries the correlation key
+/// Build the `DispatchResult` node the host awaits: it carries the correlation key
 /// and the verb's result payload (`result` is any JSON — an array for find-references, an
 /// object for rename, or an `{ error }` object on failure). PURE: takes the result value,
 /// returns the node value; the guest serializes + stores it.
@@ -181,7 +181,7 @@ mod guest {
                 version: env!("CARGO_PKG_VERSION").to_string(),
                 description: "LSP-backed rename / find-references, surfaced to the agent"
                     .to_string(),
-                supported_types: vec!["refarm:DispatchResult".to_string()],
+                supported_types: vec!["DispatchResult".to_string()],
                 required_capabilities: vec!["code-ops".to_string(), "host-shell".to_string()],
             }
         }

@@ -139,8 +139,8 @@ describe.skipIf(!componentBuilt)(
 			// way for ANY async plugin, not a vault-specific @type or a formula.
 			const mine = matchDispatchResults(stored, "req-1", "extract");
 			expect(mine).toHaveLength(1);
-			expect(mine[0]?.["refarm:replyRef"]).toBe("req-1");
-			expect(mine[0]?.["refarm:result"]).toBeDefined();
+			expect(mine[0]?.["replyRef"]).toBe("req-1");
+			expect(mine[0]?.["result"]).toBeDefined();
 		});
 
 		it("ignores an event that is not vault:dispatch (no nodes stored)", async () => {
