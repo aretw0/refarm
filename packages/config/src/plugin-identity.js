@@ -45,10 +45,8 @@ export const RUNTIME_AGENT_ERROR_PREFIXES = [
 
 const PLUGIN_ID_ALIASES = {
 	agent: AGENT_PLUGIN_ID,
-	"refarm/agent": AGENT_PLUGIN_ID,
 	"runtime-agent": RUNTIME_AGENT_PLUGIN_ID,
 	runtime_agent: RUNTIME_AGENT_PLUGIN_ID,
-	"refarm/runtime-agent": RUNTIME_AGENT_PLUGIN_ID,
 	[AGENT_NPM_PACKAGE]: AGENT_PLUGIN_ID,
 };
 

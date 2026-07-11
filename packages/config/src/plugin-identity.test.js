@@ -24,7 +24,6 @@ import {
 describe("plugin identity", () => {
 	it("normalizes agent aliases to the manifest plugin id", () => {
 		expect(normalizePluginId("agent")).toBe(AGENT_PLUGIN_ID);
-		expect(normalizePluginId("refarm/agent")).toBe(AGENT_PLUGIN_ID);
 		expect(normalizePluginId(AGENT_NPM_PACKAGE)).toBe(AGENT_PLUGIN_ID);
 		expect(normalizePluginId(AGENT_PLUGIN_ID)).toBe(AGENT_PLUGIN_ID);
 	});
@@ -43,10 +42,8 @@ describe("plugin identity", () => {
 		expect(RUNTIME_AGENT_PLUGIN_ID).toBe(AGENT_PLUGIN_ID);
 		expect(RUNTIME_AGENT_NPM_PACKAGE).toBe(AGENT_NPM_PACKAGE);
 		expect(normalizePluginId("agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
-		expect(normalizePluginId("refarm/agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
 		expect(normalizePluginId("runtime-agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
 		expect(normalizePluginId("runtime_agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
-		expect(normalizePluginId("refarm/runtime-agent")).toBe(RUNTIME_AGENT_PLUGIN_ID);
 		expect(isRuntimeAgentPluginId("agent")).toBe(true);
 		expect(isRuntimeAgentPluginId("runtime-agent")).toBe(true);
 		expect(isRuntimeAgentPluginId("@local/tool")).toBe(false);
