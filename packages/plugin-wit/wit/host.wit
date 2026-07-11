@@ -121,7 +121,7 @@ interface host-shell {
 /// Structured I/O — parse and write JSON/TOML/YAML files with validation and pagination.
 ///
 /// Defined here (plugin:host package) so any plugin can import it as a host capability.
-/// The host-effects.wasm component exports the same interface under refarm:host-effects;
+/// The host-effects.wasm component exports the same interface under plugin:host-effects;
 /// tractor satisfies the import natively until full Component Model composition
 /// is wired (HANDOFF.md Tarefa 2B follow-up).
 interface structured-io {

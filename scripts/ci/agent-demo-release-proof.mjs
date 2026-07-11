@@ -42,7 +42,7 @@ export const HELD_AGENT_PLUGIN_SURFACES = [
 		reason: "operator tooling is not the white-label runtime surface for downstream agent demos",
 	},
 	{
-		id: "refarm:host-effects@0.1.0",
+		id: "plugin:host-effects@0.1.0",
 		reason: "WIT component boundary is internal; package/Cargo publication stays blocked by component packaging proof",
 	},
 ];

@@ -29,7 +29,7 @@ How distros connect to the dual-runtime Tractor core and reach the plugin sandbo
 
 > The execution path from distros to the plugin sandbox.
 > All 4 apps route through the dual-runtime Tractor core, which exposes a single WIT contract
-> (`refarm:plugin@0.1.0`) shared by both `tractor-ts` (JCO) and `tractor` (wasmtime).
+> (`plugin:host@0.1.0`) shared by both `tractor-ts` (JCO) and `tractor` (wasmtime).
 > Plugins run in an isolated `.wasm` sandbox on either runtime.
 <!-- {/arch-apps-runtime} -->
 

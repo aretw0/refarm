@@ -252,14 +252,14 @@ The term `model` (Large Language Model) is semantically incorrect for a provider
 #### `packages/tractor-ts`
 
 `src/lib/wasi-imports.ts`:
-- `"refarm:plugin/llm-bridge"` → `"refarm:plugin/model-bridge"`
+- `"plugin:host/llm-bridge"` → `"plugin:host/model-bridge"`
 - `REFARM_MOCK_LLM_BODY` → `REFARM_MOCK_MODEL_BODY`
 - `REFARM_LLM_HTTP_TIMEOUT_SEC` → `REFARM_MODEL_HTTP_TIMEOUT_SEC`
 - Local variable names: `mockLlm*` → `mockModel*`
 - Error messages: `"llm-bridge request failed"` → `"model-bridge request failed"`
 
 `test/wasi-imports.test.ts`:
-- `"refarm:plugin/llm-bridge"` → `"refarm:plugin/model-bridge"`
+- `"plugin:host/llm-bridge"` → `"plugin:host/model-bridge"`
 - `REFARM_MOCK_LLM_BODY` → `REFARM_MOCK_MODEL_BODY`
 
 #### `apps/farmhand`

@@ -72,7 +72,7 @@ The Barn follows a strict security protocol when "storing" a new implement, dele
 
 ### WIT Interface
 
-Plugins and the Host interact with the Barn via the `refarm:barn/manager` interface:
+Plugins and the Host interact with the Barn via the `plugin:barn/manager` interface:
 
 ```wit
 interface manager {

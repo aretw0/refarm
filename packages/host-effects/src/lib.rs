@@ -3,12 +3,12 @@ wit_bindgen::generate!({
     path: "wit",
 });
 
-use exports::refarm::host_effects::host_fs::Guest as HostFsGuest;
-use exports::refarm::host_effects::host_shell::{Guest as HostShellGuest, SpawnRequest, SpawnResult};
-use exports::refarm::host_effects::structured_io::{
+use exports::plugin::host_effects::host_fs::Guest as HostFsGuest;
+use exports::plugin::host_effects::host_shell::{Guest as HostShellGuest, SpawnRequest, SpawnResult};
+use exports::plugin::host_effects::structured_io::{
     Guest as StructuredIoGuest, FileFormat,
 };
-use refarm::host_effects::host_spawn;
+use plugin::host_effects::host_spawn;
 
 struct HostEffects;
 

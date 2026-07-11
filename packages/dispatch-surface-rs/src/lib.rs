@@ -11,7 +11,7 @@ wit_bindgen::generate!({
     path: "wit",
 });
 
-use exports::refarm::dispatch_surface::dispatch_surface_control::{
+use exports::plugin::dispatch_surface::dispatch_surface_control::{
     DispatchTransport as GuestDispatchTransport, Guest,
 };
 

@@ -223,7 +223,7 @@ redeclaration, add its sensor in the same commit — don't leave it for a future
   toolchain gotchas documented in the fixture README: wasmtime does semver-compat
   import matching (@0.2.3 plugin ↔ @0.2.1 host linker resolves), and cargo-component
   0.21.x needs `wit-bindgen-rt` (not the umbrella `wit-bindgen`). The fixture
-  references the CANONICAL refarm:plugin WIT directly (a vendored copy would trip
+  references the CANONICAL plugin:host WIT directly (a vendored copy would trip
   `check:wit`/ADR-083 the moment it's tracked — caught before commit).
 - **grants next interfaces.** The per-plugin-linker pattern generalizes: filesystem
   and sockets are the next WASI interfaces to gate per declared-grant, reusing the

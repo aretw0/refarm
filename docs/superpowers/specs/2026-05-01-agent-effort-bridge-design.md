@@ -34,11 +34,11 @@ twice manually. As agents accelerate feature development, this guarantees eventu
 ### Solution
 
 A dedicated Cargo workspace package `packages/plugin-wit/` becomes the single canonical
-source for the `refarm:plugin@0.1.0` WIT contract.
+source for the `plugin:host@0.1.0` WIT contract.
 
 ```
 packages/plugin-wit/
-  Cargo.toml                   ← [package.metadata.component] package = "refarm:plugin"
+  Cargo.toml                   ← [package.metadata.component] package = "plugin:host"
   wit/
     refarm-plugin-host.wit     ← all interfaces + host world (sole canonical copy)
 ```
@@ -48,7 +48,7 @@ packages/plugin-wit/
 ```toml
 # packages/agent/Cargo.toml
 [package.metadata.component.target.dependencies]
-"refarm:plugin" = { path = "../plugin-wit" }
+"plugin:host" = { path = "../plugin-wit" }
 ```
 
 `packages/agent/wit/world.wit` stays local (agent-specific world) and imports from the
@@ -66,7 +66,7 @@ wasmtime::component::bindgen!({
 
 `tractor/wit/host/refarm-plugin-host.wit` is deleted — it is replaced by the canonical copy.
 `tractor/wit/host/agent-tools/` is untouched — it is `refarm:agent-tools@0.1.0`, a separate
-package with no dependency on `refarm:plugin`.
+package with no dependency on `plugin:host`.
 
 **Publishing path:** `plugin-wit` is already a Cargo package. When publishing begins,
 add `publish = true` and third-party plugin authors gain a versioned crate dependency.

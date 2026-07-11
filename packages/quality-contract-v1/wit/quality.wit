@@ -1,4 +1,4 @@
-package refarm:quality@0.1.0;
+package plugin:quality@0.1.0;
 
 // DESIGN-AHEAD CONTRACT — the sandboxed-WASM face of quality:v1.
 //
@@ -14,8 +14,8 @@ package refarm:quality@0.1.0;
 // 2026-07-02-quality-contract-v1.md §Self-Review). This declares the intended
 // component boundary so that dispatch, when built, targets a fixed contract.
 //
-// It is an independent package (`refarm:quality@`), NOT part of the canonical
-// `refarm:plugin@` package, so it is outside the single-source-of-truth guard
+// It is an independent package (`plugin:quality@`), NOT part of the canonical
+// `plugin:host@` package, so it is outside the single-source-of-truth guard
 // for that package; `check:wit` parses it as its own package.
 
 /// The one interface a quality checker exports. It mirrors src/types.ts:

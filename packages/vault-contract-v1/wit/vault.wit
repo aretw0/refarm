@@ -1,4 +1,4 @@
-package refarm:vault@0.1.0;
+package plugin:vault@0.1.0;
 
 // DESIGN-AHEAD CONTRACT — the sandboxed-WASM face of vault:v1.
 //
@@ -21,8 +21,8 @@ package refarm:vault@0.1.0;
 // component boundary so that dispatch, when built (via componentize-js from the
 // TS reference surface), targets a fixed contract.
 //
-// It is an independent package (`refarm:vault@`), NOT part of the canonical
-// `refarm:plugin@` package, so it is outside that package's single-source-of-
+// It is an independent package (`plugin:vault@`), NOT part of the canonical
+// `plugin:host@` package, so it is outside that package's single-source-of-
 // truth guard; `check:wit` parses it as its own package.
 
 /// The one interface a vault surface exports. It mirrors src/types.ts:

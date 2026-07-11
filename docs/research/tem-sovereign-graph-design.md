@@ -309,7 +309,7 @@ packages/
 ## 7. WIT API Contract
 
 ```wit
-package refarm:tem@0.1.0;
+package plugin:tem@0.1.0;
 
 record tem-output {
   p-inferred:            list<float32>,   // observation-grounded place cells [sumP]
@@ -333,8 +333,8 @@ interface codegen-api {
 }
 
 world tem-plugin {
-  import refarm:plugin/tractor-bridge@0.1.0;
-  export refarm:plugin/integration@0.1.0;
+  import plugin:host/tractor-bridge@0.1.0;
+  export plugin:host/integration@0.1.0;
   export tem-api;
   export codegen-api;
 }

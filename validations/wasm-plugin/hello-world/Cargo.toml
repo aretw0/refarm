@@ -15,7 +15,7 @@ wit-bindgen = "0.41.0"
 wit-bindgen-rt = "0.41.0"
 
 [package.metadata.component]
-package = "refarm:hello-world"
+package = "plugin:hello-world"
 
 [package.metadata.component.target]
 path = "wit"

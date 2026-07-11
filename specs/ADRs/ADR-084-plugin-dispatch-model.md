@@ -12,7 +12,7 @@ Plugin WIT Contract), `packages/plugin-wit`, `packages/agent`,
 ## Context
 
 Every refarm plugin exports the same canonical `integration` interface
-(`refarm:plugin@0.1.0`): `setup`/`ingest`/`push`/`teardown`/`get-help-nodes`/
+(`plugin:host@0.1.0`): `setup`/`ingest`/`push`/`teardown`/`get-help-nodes`/
 `metadata`/`on-event`/`respond`. As the first non-agent plugin (`vault:v1`) began
 running on the real runtime, one question had to be answered for the whole
 ecosystem, not just the vault: **how does a plugin return its result?**

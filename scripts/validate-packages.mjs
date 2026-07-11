@@ -279,11 +279,11 @@ const WIT_COMPONENT_DISTRIBUTION_TARGETS = [
   {
     id: "host-effects",
     packageDir: "packages/host-effects",
-    cargoPackage: "refarm:host-effects",
+    cargoPackage: "plugin:host-effects",
     targetPath: "wit",
     targetWorld: "host-effects-provider",
     witPath: "wit/world.wit",
-    witPackage: "refarm:host-effects@0.1.0",
+    witPackage: "plugin:host-effects@0.1.0",
     world: "host-effects-provider",
     imports: ["host-spawn"],
     exports: ["host-fs", "host-shell", "structured-io"],

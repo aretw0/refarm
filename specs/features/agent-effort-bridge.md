@@ -10,7 +10,7 @@
 
 Makes `agent` (the sovereign AI plugin) callable via the effort queue. Adds a `respond`
 function to the WIT `integration` contract, enables Farmhand to auto-boot installed plugins,
-and consolidates the `refarm:plugin@0.1.0` WIT definition into a single canonical package
+and consolidates the `plugin:host@0.1.0` WIT definition into a single canonical package
 (`packages/plugin-wit/`) to eliminate silent drift between tractor and agent.
 
 ---
@@ -26,7 +26,7 @@ and consolidates the `refarm:plugin@0.1.0` WIT definition into a single canonica
 **So that** I can audit what the agent produced and what it cost
 
 **As a** third-party plugin author
-**I want** `refarm:plugin@0.1.0` to have a single canonical WIT source
+**I want** `plugin:host@0.1.0` to have a single canonical WIT source
 **So that** I can depend on it without worrying about stale copies
 
 ---
@@ -64,7 +64,7 @@ and consolidates the `refarm:plugin@0.1.0` WIT definition into a single canonica
 **High-level design:**
 
 ```
-packages/plugin-wit/          ← new: canonical WIT source for refarm:plugin@0.1.0
+packages/plugin-wit/          ← new: canonical WIT source for plugin:host@0.1.0
   Cargo.toml
   wit/refarm-plugin-host.wit         ← sole copy of integration, tractor-bridge, etc.
 

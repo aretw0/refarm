@@ -1,4 +1,4 @@
-package refarm:barn@0.1.0;
+package plugin:barn@0.1.0;
 
 // DESIGN-AHEAD CONTRACT — not compiled yet (packages/barn is TS-Strict, no
 // crate). This WIT is the intended spec for the Barn manager surface

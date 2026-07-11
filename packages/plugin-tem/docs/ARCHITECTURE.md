@@ -172,7 +172,7 @@ Slot assignments are auto-generated from `schemas/sovereign-graph.jsonld` at bui
 The `wit/tem.wit` file defines the complete plugin contract. Key interfaces:
 
 ```wit
-package refarm:tem@0.1.0;
+package plugin:tem@0.1.0;
 
 record tem-output {
   p-inferred:            list<float32>,   // observation-grounded place cells [sumP=120]
@@ -215,7 +215,7 @@ The TEM plugin declares its preferred execution context:
 
 ```json
 {
-  "id": "refarm:tem",
+  "id": "plugin:tem",
   "executionContext": {
     "preferred": "worker",
     "fallback": "main-thread",

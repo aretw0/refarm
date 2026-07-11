@@ -15,7 +15,7 @@ npm run build:wasm
 **O que `build:wasm` faz:**
 - Usa `@bytecodealliance/jco` para transpilar o WASM Component Model
 - Gera JavaScript ESM em `src/generated/`
-- Mapeia `refarm:sdk/kernel-bridge` para implementação host
+- Mapeia `plugin:sdk/kernel-bridge` para implementação host
 - Resultado: `hello-world.js` +  `hello-world.core.wasm` + `hello-world.core2.wasm`
 
 Este step é **automatico** no prebuild, então `npm run build` ou `npm run preview:static` executam o transpile antes de buildar.
@@ -114,7 +114,7 @@ A validação usa **WASM Component Model** real via `@bytecodealliance/jco`:
 - ✅ WASM Component Model real (não é mock)
 - ✅ WIT interface totalmente funcional
 - ✅ Import ESM nativo no browser
-- ✅ Host implementa `refarm:sdk/kernel-bridge` em JS puro
+- ✅ Host implementa `plugin:sdk/kernel-bridge` em JS puro
 
 **Limitações:**
 - Transpile é step de build (não runtime)

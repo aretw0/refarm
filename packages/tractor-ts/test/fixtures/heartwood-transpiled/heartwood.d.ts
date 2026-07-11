@@ -1,7 +1,7 @@
 // world root:component/root
 export type Keypair = import('./interfaces/refarm-heartwood-types.js').Keypair;
 export type HeartwoodError = import('./interfaces/refarm-heartwood-types.js').HeartwoodError;
-import type * as RefarmHeartwoodTypes from './interfaces/refarm-heartwood-types.js'; // refarm:heartwood/types
+import type * as RefarmHeartwoodTypes from './interfaces/refarm-heartwood-types.js'; // plugin:heartwood/types
 import type * as WasiCliEnvironment from './interfaces/wasi-cli-environment.js'; // wasi:cli/environment@0.2.3
 import type * as WasiCliExit from './interfaces/wasi-cli-exit.js'; // wasi:cli/exit@0.2.3
 import type * as WasiCliStderr from './interfaces/wasi-cli-stderr.js'; // wasi:cli/stderr@0.2.3
@@ -14,7 +14,7 @@ import type * as WasiIoError from './interfaces/wasi-io-error.js'; // wasi:io/er
 import type * as WasiIoStreams from './interfaces/wasi-io-streams.js'; // wasi:io/streams@0.2.3
 import type * as WasiRandomRandom from './interfaces/wasi-random-random.js'; // wasi:random/random@0.2.3
 export interface ImportObject {
-  'refarm:heartwood/types': typeof RefarmHeartwoodTypes,
+  'plugin:heartwood/types': typeof RefarmHeartwoodTypes,
   'wasi:cli/environment@0.2.3': typeof WasiCliEnvironment,
   'wasi:cli/exit@0.2.3': typeof WasiCliExit,
   'wasi:cli/stderr@0.2.3': typeof WasiCliStderr,

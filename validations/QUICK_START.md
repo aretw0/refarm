@@ -234,7 +234,7 @@ Se quiser testar com jco real (não obrigatório para validação):
 import { instantiate } from '@bytecodealliance/jco';
 
 const { instance } = await instantiate(wasmBytes, {
-  'refarm:sdk/kernel-bridge': kernelBridge
+  'plugin:sdk/kernel-bridge': kernelBridge
 });
 ```
 

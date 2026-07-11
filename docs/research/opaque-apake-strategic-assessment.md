@@ -224,7 +224,7 @@ multi-user or enterprise deployments, then OPAQUE or mTLS would become viable.
 
 ### ✅ `world refarm-identity-plugin` Added in v0.1.0
 
-Because `refarm:plugin@0.1.0` had not yet been published when this assessment was
+Because `plugin:host@0.1.0` had not yet been published when this assessment was
 written, there was no reason to defer the identity contract to a v0.2.0 bump. The
 `interface identity-provider` and `world refarm-identity-plugin` were added to
 `wit/refarm-sdk.wit` before the initial release (2026-03-20).

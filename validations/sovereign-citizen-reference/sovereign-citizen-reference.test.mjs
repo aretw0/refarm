@@ -51,7 +51,7 @@ describe("sovereign citizen reference", () => {
 		assert.equal(first.evidence.identityIds, "redacted");
 
 		const serialized = JSON.stringify(first);
-		assert.doesNotMatch(serialized, /did:refarm:heartwood/);
+		assert.doesNotMatch(serialized, /did:plugin:heartwood/);
 		assert.doesNotMatch(serialized, /secret/i);
 		assert.doesNotMatch(serialized, /identity-[0-9]/);
 		assert.match(first.boundaries.join("\n"), /synthetic holder/);

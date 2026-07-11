@@ -91,14 +91,14 @@ export const integration = {
 				name: "TEM Reasoning Engine",
 				description:
 					"Observes system events and learns the Sovereign Graph topology using Hebbian associative memory. Exposes novelty scoring and pattern recall.",
-				"refarm:sourcePlugin": "refarm:tem",
+				"refarm:sourcePlugin": "plugin:tem",
 			}),
 		];
 	},
 
 	metadata(): unknown {
 		return {
-			id: "refarm:tem",
+			id: "plugin:tem",
 			name: "TEM Reasoning Engine",
 			version: "0.1.0",
 		};
@@ -160,7 +160,7 @@ async function storeNoveltyNode(
 		"refarm:noveltyScore": noveltyScore,
 		"refarm:predictionConfidence": confidence,
 		"refarm:timestamp": new Date().toISOString(),
-		"refarm:sourcePlugin": "refarm:tem",
+		"refarm:sourcePlugin": "plugin:tem",
 	});
 	await _storeNodeFn(nodeJson);
 }

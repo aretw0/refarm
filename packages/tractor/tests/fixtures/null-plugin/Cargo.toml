@@ -16,4 +16,4 @@ lto = true
 strip = true
 
 [package.metadata.component]
-package = "refarm:null-plugin"
+package = "plugin:null-plugin"

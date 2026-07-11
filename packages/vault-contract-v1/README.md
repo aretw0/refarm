@@ -19,7 +19,7 @@ split/parse logic, a PARA routing map) never enter this contract; they ride in a
 - **Native (in-process)** — `src/types.ts`: `VaultSurface.run(verb, note, profile)`
   returns a `VaultResult`. `extract` emits `records-contract-v1` `KnowledgeRecord`s
   directly — the same nodes the silo already stores end to end.
-- **Sovereign WASM** — `wit/vault.wit` (package `refarm:vault@0.1.0`, world
+- **Sovereign WASM** — `wit/vault.wit` (package `plugin:vault@0.1.0`, world
   `vault-surface`): the same `run`, exported by a component that **imports NOTHING**.
   That absence *is* the sandbox — an untrusted surface can only see the `note` the
   host hands it and return a result; it cannot touch the filesystem or network.

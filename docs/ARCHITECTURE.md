@@ -270,7 +270,7 @@ const vaultId = crypto.randomUUID(); // "vault-a7c3f2"
 
 // 3. Guest picks storage tier (ephemeral / persistent / synced)
 // If persistent or synced → OPFS/SQLite (isolated by vaultId)
-localStorage.setItem("refarm:vault", JSON.stringify({
+localStorage.setItem("plugin:vault", JSON.stringify({
   vaultId,
   type: "guest",
   storageTier: "persistent",

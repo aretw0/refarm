@@ -18,7 +18,7 @@ lto = true
 strip = true
 
 [package.metadata.component]
-package = "refarm:http-plugin-fixture"
+package = "plugin:http-plugin-fixture"
 
 [package.metadata.component.target]
 path = "wit"

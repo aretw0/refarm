@@ -3,8 +3,8 @@
 
 mod bindings;
 
-use bindings::exports::refarm::sdk::integration::{Guest, PluginError, PluginMetadata};
-use bindings::refarm::sdk::kernel_bridge::{log, store_node, LogLevel};
+use bindings::exports::plugin::sdk::integration::{Guest, PluginError, PluginMetadata};
+use bindings::plugin::sdk::kernel_bridge::{log, store_node, LogLevel};
 
 struct HelloWorldPlugin;
 

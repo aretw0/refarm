@@ -11,7 +11,7 @@ Authoritative Runtime), ADR-070 (WASM Surface Substrate),
 
 ## Context
 
-The `refarm:plugin@0.1.0` WIT contract — the language-neutral boundary every
+The `plugin:host@0.1.0` WIT contract — the language-neutral boundary every
 plugin crosses — had drifted into **eight files in four mutually-incompatible
 shapes**, each copied locally by its consumer:
 
@@ -46,7 +46,7 @@ interface.*
 every consumer — never copied.**
 
 1. **Single source of truth.** `packages/plugin-wit/wit/` is the *only*
-   place `refarm:plugin@0.1.0` is defined, split for readability into
+   place `plugin:host@0.1.0` is defined, split for readability into
    `types.wit` / `host.wit` / `integration.wit` / `optional.wit` / `worlds.wit`
    (a WIT directory is one package namespace). Content is the existing
    host-side bodies verbatim — a file move, not a reshape — so generated Rust
@@ -71,7 +71,7 @@ every consumer — never copied.**
 
 5. **Anti-drift guard.** `scripts/ci/check:wit` (repurposed from the old
    two-copy sync check) asserts the canonical package parses AND that no `.wit`
-   declares `package refarm:plugin@` outside the canonical dir. The two
+   declares `package plugin:host@` outside the canonical dir. The two
    Windows-workaround sync scripts are retired.
 
 ---
@@ -100,7 +100,7 @@ Out of scope here (see ADR on the graph node) — the node wire type stays an op
   reserved capability.
 - Drift is structurally impossible (one file) and CI-guarded.
 - Templates/validations compile against the real contract for the first time.
-- `refarm:plugin` WIT is now genuinely reusable: a plugin (backend, worker,
+- `plugin:host` WIT is now genuinely reusable: a plugin (backend, worker,
   wasm, future frontend) references the canonical package and may extend it with
   its own WIT world.
 

@@ -1,4 +1,4 @@
-package refarm:http-plugin-fixture@0.1.0;
+package plugin:http-plugin-fixture@0.1.0;
 
 // Test fixture world: a refarm plugin that ALSO imports wasi:http's
 // outgoing-handler (an outbound HTTP client). This is the interface the

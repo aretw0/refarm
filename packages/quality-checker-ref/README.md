@@ -2,7 +2,7 @@
 
 The **reference `quality:v1` checker** — a pure-compute WASM component that proves
 the sovereign checker boundary (`world quality-checker`, package
-`refarm:quality@0.1.0`, defined in
+`plugin:quality@0.1.0`, defined in
 [`../quality-contract-v1/wit/quality.wit`](../quality-contract-v1/wit/quality.wit))
 end to end.
 

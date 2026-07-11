@@ -262,7 +262,7 @@ describe("capability index", () => {
 					targets: expect.arrayContaining([
 						expect.objectContaining({
 							channel: "wit",
-							name: "refarm:host-effects@0.1.0",
+							name: "plugin:host-effects@0.1.0",
 							status: "internal",
 						}),
 					]),
@@ -353,7 +353,7 @@ describe("capability index", () => {
 					capabilityId: "runtime-agent.structured-io",
 					status: "internal",
 					channel: "wit",
-					name: "refarm:host-effects@0.1.0",
+					name: "plugin:host-effects@0.1.0",
 					proofTargetCount: 0,
 					hasBudgetContract: false,
 					nextDecision: expect.stringContaining("Promote structured-io through WIT"),

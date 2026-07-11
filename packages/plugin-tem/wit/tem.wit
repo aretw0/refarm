@@ -14,7 +14,7 @@
 ///
 /// Standard: WebAssembly Component Model (WASI Preview 2)
 
-package refarm:tem@0.1.0;
+package plugin:tem@0.1.0;
 
 // ─── TEM API ──────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,4 @@
-# host-effects (refarm:host-effects)
+# host-effects (plugin:host-effects)
 
 Rust/WASM component providing sandboxed filesystem, subprocess, and structured I/O effects for plugins running inside WASM guest environments. Exposes three WIT interfaces: `host-fs`, `host-shell`, and `structured-io`.
 

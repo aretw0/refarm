@@ -23,7 +23,7 @@
 
 > The execution engine: dual-runtime Tractor (TS + Rust), the WIT contract interface,
 > and the plugin sandbox where `.wasm` components run.
-> Both runtimes share the **same WIT** (`refarm:plugin@0.1.0`) — no divergence possible.
+> Both runtimes share the **same WIT** (`plugin:host@0.1.0`) — no divergence possible.
 <!-- {/layer-runtime} -->
 
 <!-- {@layer-data} -->

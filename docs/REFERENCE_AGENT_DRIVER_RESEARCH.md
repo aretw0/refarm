@@ -374,13 +374,13 @@ build-free WIT/component distribution preflight. It checks that
 `packages/host-effects` still maps Cargo component metadata to
 `refarm:agent-tools@0.1.0`/`agent-tools-provider`, and that
 `packages/plugin-wit` still maps the canonical host WIT to
-`refarm:plugin@0.1.0`/`refarm-plugin-host` with the expected imports and
+`plugin:host@0.1.0`/`refarm-plugin-host` with the expected imports and
 exports. This gives publication planning a cheap signal without compiling Rust,
 building `agent.wasm`, or running JCO.
 
 Current proof (2026-06-27): the reference-driver supply map now records
 `plugin-wit` as an internal Cargo package, not a publication candidate.
-The durable supply surface is the `refarm:plugin@0.1.0` WIT contract; the crate
+The durable supply surface is the `plugin:host@0.1.0` WIT contract; the crate
 stays `publish = false` until runtime packaging policy and daily-driver evidence
 justify promoting implementation crates.
 

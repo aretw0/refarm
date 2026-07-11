@@ -1,6 +1,6 @@
 # http-plugin fixture
 
-A `refarm:http-plugin-fixture` WASM component that exports the canonical
+A `plugin:http-plugin-fixture` WASM component that exports the canonical
 `integration` interface (like every plugin) **and** imports
 `wasi:http/outgoing-handler@0.2.3` — an outbound HTTP client.
 
@@ -63,7 +63,7 @@ wasm-tools component wit ../http-plugin.wasm | grep wasi:http/outgoing-handler
 ## WIT layout
 
 The fixture-local world (`wit/fixture-world.wit`, package
-`refarm:http-plugin-fixture`) `include`s `refarm:plugin/refarm-plugin` and adds
+`plugin:http-plugin-fixture`) `include`s `plugin:host/refarm-plugin` and adds
 the `wasi:http/outgoing-handler` import. The `refarm:plugin` dependency is
 resolved to the **canonical** WIT directly, NOT vendored: `Cargo.toml`'s
 `[package.metadata.component.target.dependencies]` points `refarm:plugin` at

@@ -9,7 +9,7 @@
 /// (in packages/host-effects/wit/world.wit) from the tractor's perspective.
 /// wasmtime::component::bindgen! generates HostEffectsHost from this world.
 
-package refarm:host-effects@0.1.0;
+package plugin:host-effects@0.1.0;
 
 // ─── Interfaces (mirrored from packages/host-effects/wit/world.wit) ───────────
 

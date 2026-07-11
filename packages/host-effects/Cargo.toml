@@ -20,7 +20,7 @@ lto = true
 strip = true
 
 [package.metadata.component]
-package = "refarm:host-effects"
+package = "plugin:host-effects"
 
 [package.metadata.component.target]
 path = "wit"

@@ -177,7 +177,7 @@ export class PluginHost {
 
     // Instantiate WASM component with imports
     this.instance = await instantiate(wasmBytes, {
-      'refarm:plugin/tractor-bridge': tractorBridge,
+      'plugin:host/tractor-bridge': tractorBridge,
     });
   }
 

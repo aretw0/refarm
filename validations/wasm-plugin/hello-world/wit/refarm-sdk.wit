@@ -1,5 +1,5 @@
 // Simplified WIT contract for validation
-package refarm:sdk@0.1.0;
+package plugin:sdk@0.1.0;
 
 /// Kernel-side interface (host provides these to plugins)
 interface kernel-bridge {

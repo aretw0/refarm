@@ -3,7 +3,7 @@ import type { KnowledgeRecord } from "@refarm.dev/records-contract-v1";
 /**
  * This is the NATIVE (in-process) face of vault:v1. Its sovereign, sandboxed
  * sibling is the WASM component contract in `wit/vault.wit` (package
- * `refarm:vault@0.1.0`, world `vault-surface`). The two are the same contract
+ * `plugin:vault@0.1.0`, world `vault-surface`). The two are the same contract
  * two ways — a vault surface is satisfied in-process here OR as a pure-compute
  * WASM component, and the host aggregates either's output the same way
  * ("native ↔ WASM parity", mirroring quality:v1 spec §3). Keep the shapes below

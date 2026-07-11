@@ -86,7 +86,7 @@ host aggregates their findings into one `QualityReport`.
 ### 2.1 WASM checker surface (WIT / Component Model)
 
 ```wit
-package refarm:quality@0.1.0;
+package plugin:quality@0.1.0;
 
 interface checker {
   variant subject { text(string), dom(string) }   // dom = tree serialized by the HOST

@@ -11,7 +11,7 @@
 ///   ├── loads host-effects.wasm  ← exports: host-fs, host-shell
 ///   ├── loads a guest.wasm       ← imports: host-fs, host-shell
 ///   └── wires them via Component Model linker
-package refarm:host-effects@0.1.0;
+package plugin:host-effects@0.1.0;
 
 // ─── Filesystem Effects ───────────────────────────────────────────────────────
 

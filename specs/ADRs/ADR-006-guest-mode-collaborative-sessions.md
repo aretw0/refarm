@@ -106,7 +106,7 @@ const session = {
 };
 
 // Session metadata stored in localStorage (survives restart)
-localStorage.setItem("refarm:vault", JSON.stringify({
+localStorage.setItem("plugin:vault", JSON.stringify({
   vaultId: session.vaultId,
   type: "guest",
   storageTier: session.storageMode,
@@ -155,7 +155,7 @@ const session = {
 
    ```javascript
    if (storageChoice === "ephemeral") {
-     sessionStorage.setItem("refarm:vault", JSON.stringify({
+     sessionStorage.setItem("plugin:vault", JSON.stringify({
        vaultId,
        type: "guest",
        storageTier: "ephemeral",
@@ -163,7 +163,7 @@ const session = {
      }));
    } else {
      // Persistent or Synced → use OPFS/SQLite
-     localStorage.setItem("refarm:vault", JSON.stringify({
+     localStorage.setItem("plugin:vault", JSON.stringify({
        vaultId,
        type: "guest",
        storageTier: storageChoice,
@@ -410,7 +410,7 @@ export class SessionManager {
     }
     
     // Check if returning guest (has vault metadata in localStorage)
-    const savedVault = localStorage.getItem("refarm:vault");
+    const savedVault = localStorage.getItem("plugin:vault");
     if (savedVault) {
       const parsed = JSON.parse(savedVault) as GuestSession;
       return {
@@ -436,9 +436,9 @@ export class SessionManager {
     });
 
     if (tier === "ephemeral") {
-      sessionStorage.setItem("refarm:vault", payload);
+      sessionStorage.setItem("plugin:vault", payload);
     } else {
-      localStorage.setItem("refarm:vault", payload);
+      localStorage.setItem("plugin:vault", payload);
       await storageSqlite.initVault(vaultId);
     }
     
@@ -456,7 +456,7 @@ export class SessionManager {
     
     // Persist identity (storage backend stays the same)
     localStorage.setItem("refarm:identity", keypair.pubkey);
-    localStorage.removeItem("refarm:vault");
+    localStorage.removeItem("plugin:vault");
     
     return {
       type: "permanent",

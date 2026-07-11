@@ -11,7 +11,7 @@ export function setLogCallback(callback) {
 }
 
 /**
- * Implementation of refarm:sdk/kernel-bridge.log
+ * Implementation of plugin:sdk/kernel-bridge.log
  */
 export function log(level, message) {
   const levelStr = typeof level === 'object' ? level.tag : level;
@@ -22,7 +22,7 @@ export function log(level, message) {
 }
 
 /**
- * Implementation of refarm:sdk/kernel-bridge.store-node
+ * Implementation of plugin:sdk/kernel-bridge.store-node
  * Note: jco wraps the return value of this function in an 'ok' variant automatically.
  * To signal an error, throw an exception.
  */
@@ -37,7 +37,7 @@ export function storeNode(jsonLd) {
 }
 
 /**
- * Implementation of refarm:sdk/kernel-bridge.get-node
+ * Implementation of plugin:sdk/kernel-bridge.get-node
  */
 export function getNode(id) {
   console.log(`[Host] Getting node: ${id}`);

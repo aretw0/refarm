@@ -1,4 +1,4 @@
-package refarm:dispatch-surface@0.1.0;
+package plugin:dispatch-surface@0.1.0;
 
 interface dispatch-surface-control {
     /// Supported transport kinds.

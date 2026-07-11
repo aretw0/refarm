@@ -472,7 +472,7 @@ export const REFERENCE_DRIVER_SUPPLY_TARGETS = {
 		targets: [
 			{
 				channel: "wit",
-				name: "refarm:host-effects@0.1.0",
+				name: "plugin:host-effects@0.1.0",
 				path: "packages/host-effects/wit/world.wit",
 				status: "internal",
 				note: "WIT component boundary for structured reads/writes; not an npm/crate release surface yet.",

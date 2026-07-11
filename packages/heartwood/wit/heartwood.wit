@@ -1,4 +1,4 @@
-package refarm:heartwood;
+package plugin:heartwood;
 
 interface types {
     record keypair {

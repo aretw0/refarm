@@ -1,7 +1,7 @@
 #[allow(warnings)]
 mod bindings;
 
-use bindings::exports::refarm::quality::checker::{
+use bindings::exports::plugin::quality::checker::{
     Finding, Guest, Profile, Rule, Subject,
 };
 use serde::Deserialize;

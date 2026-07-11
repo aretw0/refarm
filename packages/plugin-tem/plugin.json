@@ -1,5 +1,5 @@
 {
-  "id": "refarm:tem",
+  "id": "plugin:tem",
   "name": "TEM Reasoning Engine",
   "version": "0.1.0",
   "entry": "./dist/worker.js",
