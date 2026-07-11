@@ -14,7 +14,7 @@
 
 // NOTE: this file is `include!`d into the same `tests` module as capability_gate.rs,
 // so `PermissionGrant` (imported there) + `super::*` are already in scope.
-use crate::host::plugin_host::refarm::plugin::capability_tools::Host as CapabilityToolsHost;
+use crate::host::plugin_host::host::plugin::capability_tools::Host as CapabilityToolsHost;
 use crate::host::wasi_bridge::{CrossPluginAccess, ModelRoute};
 
 /// Bindings wired with a cross-plugin registry + router, plus one mock dispatchable

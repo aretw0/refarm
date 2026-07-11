@@ -10,7 +10,7 @@
 /// builds) there is no host import, so the base list is returned unchanged.
 #[cfg(target_arch = "wasm32")]
 fn with_registry_tools(mut base: serde_json::Value, provider: &str) -> serde_json::Value {
-    let schemas = crate::refarm::plugin::capability_tools::list_tools(provider);
+    let schemas = crate::host::plugin::capability_tools::list_tools(provider);
     if let Some(array) = base.as_array_mut() {
         for schema in schemas {
             if let Ok(value) = serde_json::from_str::<serde_json::Value>(&schema) {

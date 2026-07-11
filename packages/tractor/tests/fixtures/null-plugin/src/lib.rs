@@ -9,7 +9,7 @@ wit_bindgen::generate!({
     path: "../../../../refarm-plugin-wit/wit",
 });
 
-use exports::refarm::plugin::integration::{Guest, PluginError, PluginMetadata};
+use exports::host::plugin::integration::{Guest, PluginError, PluginMetadata};
 
 struct NullPlugin;
 

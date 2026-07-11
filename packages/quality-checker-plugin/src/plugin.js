@@ -17,7 +17,7 @@ import {
 	serializeDispatchResult,
 } from "@refarm.dev/dispatch-result-contract-v1";
 import { runRegexQualityRules } from "@refarm.dev/quality-contract-v1";
-import { storeNode } from "refarm:plugin/tractor-bridge@0.1.0";
+import { storeNode } from "host:plugin/tractor-bridge@0.1.0";
 
 /** The event a caller sends to dispatch a quality check. */
 const DISPATCH_EVENT = "quality:dispatch";

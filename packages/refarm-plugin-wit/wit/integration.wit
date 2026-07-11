@@ -1,4 +1,4 @@
-package refarm:plugin@0.1.0;
+package host:plugin@0.1.0;
 
 // The single plugin lifecycle interface every refarm plugin exports.
 //
@@ -9,7 +9,7 @@ package refarm:plugin@0.1.0;
 // here, not because a capability is reserved to it. The agent implements
 // respond for real; a bridge/integration plugin stubs it.
 //
-// Part of the canonical refarm:plugin@0.1.0 package.
+// Part of the canonical host:plugin@0.1.0 package.
 
 interface integration {
     use types.{json-ld-node, plugin-error, plugin-metadata};

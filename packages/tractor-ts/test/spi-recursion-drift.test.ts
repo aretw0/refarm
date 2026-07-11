@@ -54,7 +54,7 @@ describe("tractor-ts SPI recursion — drift vs the Rust host", () => {
 			bridge,
 		).generate(consumerManifest(), "strict" as ExecutionProfile);
 
-		const bridgeImports = imports["refarm:plugin/tractor-bridge"] as
+		const bridgeImports = imports["host:plugin/tractor-bridge"] as
 			| Record<string, unknown>
 			| undefined;
 		const getPluginApi = bridgeImports?.["get-plugin-api"] as
@@ -77,7 +77,7 @@ describe("tractor-ts SPI recursion — drift vs the Rust host", () => {
 			() => {},
 		).generate(consumerManifest(), "strict" as ExecutionProfile);
 
-		const bridge = imports["refarm:plugin/tractor-bridge"] as
+		const bridge = imports["host:plugin/tractor-bridge"] as
 			| Record<string, unknown>
 			| undefined;
 

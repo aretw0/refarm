@@ -37,7 +37,7 @@ export class PluginInstanceHandle implements PluginInstance {
 		const namespaced = Object.entries(this.componentInstance)
 			.filter(
 				([key, value]) =>
-					key.startsWith("refarm:plugin/integration@") && !!value && typeof value === "object",
+					key.startsWith("host:plugin/integration@") && !!value && typeof value === "object",
 			)
 			.map(([, value]) => value as Record<string, unknown>);
 

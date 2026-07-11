@@ -1,4 +1,4 @@
-use crate::refarm::plugin::structured_io;
+use crate::host::plugin::structured_io;
 
 fn parse_format(input: &serde_json::Value) -> Option<structured_io::FileFormat> {
     input["format"].as_str().and_then(|s| match s {

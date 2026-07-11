@@ -16,7 +16,7 @@
 // core.rs, so `TractorNativeBindings` + the wasmtime async_trait macro are already
 // in scope. Only the symbols core.rs does not already import are brought in here.
 use crate::deliver_via_router;
-use crate::host::plugin_host::refarm::plugin::capability_tools::Host as CapabilityToolsHost;
+use crate::host::plugin_host::host::plugin::capability_tools::Host as CapabilityToolsHost;
 use crate::host::plugin_registry::DispatchableVerb;
 use crate::host::wasi_bridge::CrossPluginAccess;
 

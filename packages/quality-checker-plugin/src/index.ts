@@ -59,7 +59,7 @@ export async function loadQualityPluginComponent(options: {
 		new WebAssembly.Module(readFileSync(join(pkgDir, path)));
 	const mod = (await import(pathToFileURL(join(pkgDir, entry)).href)) as Any;
 	const root = await mod.instantiate(getCoreModule, {
-		"refarm:plugin/tractor-bridge": bridge,
+		"host:plugin/tractor-bridge": bridge,
 	});
 	return root.integration as IntegrationPlugin;
 }

@@ -1,11 +1,11 @@
-package refarm:plugin@0.1.0;
+package host:plugin@0.1.0;
 
 // Optional additive interfaces a plugin MAY export beyond `integration`.
 //
 // These are opt-in via a composed world (see worlds.wit). No live Rust/WASM
 // consumer generates bindings for them today (they were aspirational in the
 // old refarm-sdk.wit); they are preserved here so nothing is lost and future
-// plugins can adopt them. Part of the canonical refarm:plugin@0.1.0 package.
+// plugins can adopt them. Part of the canonical host:plugin@0.1.0 package.
 
 /// Interface for plugins that serve HTTP requests (like an Antenna plugin).
 /// The tractor routes requests matching specific nodes or paths to this handler.

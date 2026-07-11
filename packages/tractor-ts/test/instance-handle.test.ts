@@ -92,7 +92,7 @@ describe("PluginInstanceHandle.call()", () => {
   it("resolves namespaced integration exports when integration alias is missing", async () => {
     const respond = vi.fn().mockResolvedValue("ok");
     const { instance } = makeHandle({
-      "refarm:plugin/integration@0.1.0": { respond },
+      "host:plugin/integration@0.1.0": { respond },
     });
 
     await expect(instance.call("respond", "payload")).resolves.toBe("ok");

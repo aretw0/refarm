@@ -1,7 +1,7 @@
     use super::*;
     use crate::test_support::env_lock;
     use crate::{NativeStorage, NativeSync, TelemetryBus};
-    use crate::host::plugin_host::refarm::plugin::{
+    use crate::host::plugin_host::host::plugin::{
         code_ops::{Host as CodeOpsHost, SymbolLocation},
         host_fs::Host as HostFsHost,
         host_shell::{Host as HostShellHost, SpawnRequest},

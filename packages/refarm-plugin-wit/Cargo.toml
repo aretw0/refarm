@@ -8,7 +8,7 @@ publish = false
 path = "src/lib.rs"
 
 [package.metadata.component]
-package = "refarm:plugin"
+package = "host:plugin"
 
 [package.metadata.component.target]
 path = "wit"

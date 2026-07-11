@@ -5,7 +5,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use crate::host::plugin_host::refarm::plugin::code_ops::{
+use crate::host::plugin_host::host::plugin::code_ops::{
     CodeReference, RenameResult, SymbolLocation,
 };
 

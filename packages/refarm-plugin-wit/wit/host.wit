@@ -1,8 +1,8 @@
-package refarm:plugin@0.1.0;
+package host:plugin@0.1.0;
 
 // Host capabilities the tractor provides to plugins (plugin imports these).
 //
-// Part of the canonical refarm:plugin@0.1.0 package. WASI imports
+// Part of the canonical host:plugin@0.1.0 package. WASI imports
 // (wasi:http, wasi:logging) are OMITTED here because the wasmtime Linker
 // registers them separately via wasmtime_wasi; bindgen! does not need Rust
 // types for them, and runtime plugin binaries that import WASI still work.
@@ -120,7 +120,7 @@ interface host-shell {
 
 /// Structured I/O — parse and write JSON/TOML/YAML files with validation and pagination.
 ///
-/// Defined here (refarm:plugin package) so any plugin can import it as a host capability.
+/// Defined here (host:plugin package) so any plugin can import it as a host capability.
 /// The host-effects.wasm component exports the same interface under refarm:host-effects;
 /// tractor satisfies the import natively until full Component Model composition
 /// is wired (HANDOFF.md Tarefa 2B follow-up).

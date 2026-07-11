@@ -1,4 +1,4 @@
-use crate::refarm::plugin::code_ops::{self, SymbolLocation};
+use crate::host::plugin::code_ops::{self, SymbolLocation};
 
 pub(crate) fn find_references(input: &serde_json::Value) -> String {
     let file = input["file"].as_str().unwrap_or("");

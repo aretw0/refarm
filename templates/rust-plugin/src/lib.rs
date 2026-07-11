@@ -3,7 +3,7 @@ wit_bindgen::generate!({
     path: "../../packages/refarm-plugin-wit/wit",
 });
 
-use crate::exports::refarm::plugin::integration::{self, PluginError, PluginMetadata};
+use crate::exports::host::plugin::integration::{self, PluginError, PluginMetadata};
 
 struct MyPlugin;
 

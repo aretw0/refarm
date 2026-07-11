@@ -1,4 +1,4 @@
-use crate::refarm::plugin::capability_tools;
+use crate::host::plugin::capability_tools;
 
 /// Dispatch a tool the built-in match did not recognize — a registry-contributed
 /// plugin tool (the AGENT LEG, #6). The host owns the tool list it advertised via

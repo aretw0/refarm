@@ -88,7 +88,7 @@ describe("WasiImports — HTTP outgoing-handler", () => {
 describe("WasiImports — tractor-bridge", () => {
   it("store-node: calls storeNode callback and returns 'ok'", async () => {
     const { imports, storeNode } = makeImports("strict");
-    const result = await imports["refarm:plugin/tractor-bridge"]!["store-node"]!('{"@id":"urn:x:1"}');
+    const result = await imports["host:plugin/tractor-bridge"]!["store-node"]!('{"@id":"urn:x:1"}');
     expect(storeNode).toHaveBeenCalledWith('{"@id":"urn:x:1"}');
     expect(result).toBe("ok");
   });
@@ -100,13 +100,13 @@ describe("WasiImports — tractor-bridge", () => {
     const wasi = new WasiImports("p", logger, emit); // no storeNode
     const imports = wasi.generate(manifest, "strict") as unknown as TestImports;
 
-    const result = await imports["refarm:plugin/tractor-bridge"]!["store-node"]!("{}");
+    const result = await imports["host:plugin/tractor-bridge"]!["store-node"]!("{}");
     expect(result).toBe("ok");
   });
 
   it("request-permission: always returns true", async () => {
     const { imports } = makeImports("strict");
-    const ok = await imports["refarm:plugin/tractor-bridge"]!["request-permission"]!(
+    const ok = await imports["host:plugin/tractor-bridge"]!["request-permission"]!(
       "read:storage",
       "needs data",
     );
@@ -270,13 +270,13 @@ describe("WasiImports — versioned WASI keys", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Drift prevention: every refarm:plugin/* import in the transpiled agent
+// Drift prevention: every host:plugin/* import in the transpiled agent
 // artifact must have a matching key registered by WasiImports.generate().
 // Skips when agent hasn't been built yet (fresh checkout, CI pre-build).
 // To build: run the package-manager build script for @refarm.dev/agent.
 // ---------------------------------------------------------------------------
 describe("WasiImports — drift prevention: .jco-dist matches registered imports", () => {
-  it("every refarm:plugin/* import in _refarm_agent.js has a host registration", () => {
+  it("every host:plugin/* import in _refarm_agent.js has a host registration", () => {
     const require = createRequire(import.meta.url);
     const agentDir = dirname(require.resolve("@refarm.dev/agent/package.json"));
     const artifactPath = resolve(agentDir, "dist/jco/_refarm_agent.js");
@@ -288,9 +288,9 @@ describe("WasiImports — drift prevention: .jco-dist matches registered imports
 
     const js = readFileSync(artifactPath, "utf-8");
 
-    // Extract all unique 'refarm:plugin/X' strings from import statements.
+    // Extract all unique 'host:plugin/X' strings from import statements.
     const imported = new Set<string>();
-    for (const m of js.matchAll(/from\s+'(refarm:plugin\/[^']+)'/g)) {
+    for (const m of js.matchAll(/from\s+'(host:plugin\/[^']+)'/g)) {
       imported.add(m[1]!.replace(/@[\d.]+$/, "")); // strip version suffix
     }
 
@@ -308,7 +308,7 @@ describe("WasiImports — drift prevention: .jco-dist matches registered imports
 // ---------------------------------------------------------------------------
 // Model bridge behavior (mock opt-in + fail-closed credentials)
 // ---------------------------------------------------------------------------
-describe("WasiImports — refarm:plugin/model-bridge", () => {
+describe("WasiImports — host:plugin/model-bridge", () => {
   beforeEach(() => {
     delete process.env.REFARM_MOCK_MODEL_BODY;
     delete process.env.ANTHROPIC_API_KEY;
@@ -317,7 +317,7 @@ describe("WasiImports — refarm:plugin/model-bridge", () => {
 
   it("fails closed when non-ollama provider has no credentials", () => {
     const { imports } = makeImports("strict");
-    const modelBridge = imports["refarm:plugin/model-bridge"]!;
+    const modelBridge = imports["host:plugin/model-bridge"]!;
 
     expect(() =>
       modelBridge["complete-http"]!(
@@ -338,7 +338,7 @@ describe("WasiImports — refarm:plugin/model-bridge", () => {
     });
 
     const { imports } = makeImports("strict");
-    const modelBridge = imports["refarm:plugin/model-bridge"]!;
+    const modelBridge = imports["host:plugin/model-bridge"]!;
 
     const bytes = modelBridge["complete-http"]!(
       "openai",

@@ -485,12 +485,12 @@ export class WasiImports {
 					});
 				},
 			},
-			"refarm:plugin/tractor-bridge": tractorBridge,
+			"host:plugin/tractor-bridge": tractorBridge,
 			// The agent leg: surface the registry's dispatchable verbs to the guest as
 			// model tools and let it invoke one. Mirrors the Rust host's capability_tools.
 			// invoke-tool reuses the SAME cross-plugin dispatch as call-plugin — one
 			// protocol, resolved by the model-facing name `<key>_<verb>`.
-			"refarm:plugin/capability-tools": {
+			"host:plugin/capability-tools": {
 				"list-tools": (provider: string): string[] =>
 					(this.crossPlugin?.dispatchableVerbs() ?? []).map((verb) =>
 						renderToolSchema(verb, provider),
@@ -512,7 +512,7 @@ export class WasiImports {
 						: { tag: "ok", val: result };
 				},
 			},
-			"refarm:plugin/model-bridge": {
+			"host:plugin/model-bridge": {
 				"complete-http": completeHttp,
 				"complete-http-stream": (
 					provider: string,
@@ -533,12 +533,12 @@ export class WasiImports {
 					};
 				},
 			},
-			"refarm:plugin/host-fs": {
+			"host:plugin/host-fs": {
 				read: (_path: string) => new Uint8Array(),
 				write: (_path: string, _content: Uint8Array) => undefined,
 				edit: (_path: string, _diff: string) => undefined,
 			},
-			"refarm:plugin/host-shell": {
+			"host:plugin/host-shell": {
 				spawn: (_req: unknown) => ({
 					exitCode: 0,
 					stdout: new Uint8Array(),
@@ -546,7 +546,7 @@ export class WasiImports {
 					durationMs: 0,
 				}),
 			},
-			"refarm:plugin/structured-io": {
+			"host:plugin/structured-io": {
 				"read-structured": (
 					_path: string,
 					_format: unknown,
@@ -555,7 +555,7 @@ export class WasiImports {
 				) => JSON.stringify({ value: null }),
 				"write-structured": (_path: string, _content: string, _format: unknown) => undefined,
 			},
-			"refarm:plugin/code-ops": {
+			"host:plugin/code-ops": {
 				"rename-symbol": (_loc: unknown, _newName: string) => ({
 					filesChanged: 0,
 					editsApplied: 0,

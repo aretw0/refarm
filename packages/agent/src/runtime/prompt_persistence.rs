@@ -1,4 +1,4 @@
-use crate::refarm::plugin::tractor_bridge;
+use crate::host::plugin::tractor_bridge;
 use crate::response_nodes::{
     agent_response_node, usage_record_node, user_prompt_node, AgentResponsePayload,
     UsageRecordPayload,

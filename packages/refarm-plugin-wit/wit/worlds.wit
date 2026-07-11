@@ -1,6 +1,6 @@
-package refarm:plugin@0.1.0;
+package host:plugin@0.1.0;
 
-// The worlds of the canonical refarm:plugin@0.1.0 package.
+// The worlds of the canonical host:plugin@0.1.0 package.
 //
 // Every world exports the SAME `integration` interface (one interface for all
 // plugins — see integration.wit). Worlds differ only in which host

@@ -3,7 +3,7 @@
 //   * runtime_path: "wit_bindgen_rt"
 #[rustfmt::skip]
 #[allow(dead_code, clippy::all)]
-pub mod refarm {
+pub mod host {
     pub mod plugin {
         #[allow(dead_code, async_fn_in_trait, unused_imports, clippy::all)]
         pub mod types {
@@ -93,7 +93,7 @@ pub mod refarm {
         }
         /// Host capabilities the tractor provides to plugins (plugin imports these).
         ///
-        /// Part of the canonical refarm:plugin@0.1.0 package. WASI imports
+        /// Part of the canonical host:plugin@0.1.0 package. WASI imports
         /// (wasi:http, wasi:logging) are OMITTED here because the wasmtime Linker
         /// registers them separately via wasmtime_wasi; bindgen! does not need Rust
         /// types for them, and runtime plugin binaries that import WASI still work.
@@ -104,10 +104,10 @@ pub mod refarm {
             #[doc(hidden)]
             static __FORCE_SECTION_REF: fn() = super::super::super::__link_custom_section_describing_imports;
             use super::super::super::_rt;
-            pub type JsonLdNode = super::super::super::refarm::plugin::types::JsonLdNode;
-            pub type NodeId = super::super::super::refarm::plugin::types::NodeId;
-            pub type PluginError = super::super::super::refarm::plugin::types::PluginError;
-            pub type IdentityInfo = super::super::super::refarm::plugin::types::IdentityInfo;
+            pub type JsonLdNode = super::super::super::host::plugin::types::JsonLdNode;
+            pub type NodeId = super::super::super::host::plugin::types::NodeId;
+            pub type PluginError = super::super::super::host::plugin::types::PluginError;
+            pub type IdentityInfo = super::super::super::host::plugin::types::IdentityInfo;
             #[allow(unused_unsafe, clippy::all)]
             pub fn store_node(node: &str) -> Result<NodeId, PluginError> {
                 unsafe {
@@ -127,7 +127,7 @@ pub mod refarm {
                     let len0 = vec0.len();
                     let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
                     #[cfg(target_arch = "wasm32")]
-                    #[link(wasm_import_module = "refarm:plugin/tractor-bridge@0.1.0")]
+                    #[link(wasm_import_module = "host:plugin/tractor-bridge@0.1.0")]
                     unsafe extern "C" {
                         #[link_name = "store-node"]
                         fn wit_import2(_: *mut u8, _: usize, _: *mut u8);
@@ -162,7 +162,7 @@ pub mod refarm {
                                 let l7 = i32::from(
                                     *ptr1.add(::core::mem::size_of::<*const u8>()).cast::<u8>(),
                                 );
-                                use super::super::super::refarm::plugin::types::PluginError as V20;
+                                use super::super::super::host::plugin::types::PluginError as V20;
                                 let v20 = match l7 {
                                     0 => {
                                         let e20 = {
@@ -266,7 +266,7 @@ pub mod refarm {
                     let len0 = vec0.len();
                     let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
                     #[cfg(target_arch = "wasm32")]
-                    #[link(wasm_import_module = "refarm:plugin/tractor-bridge@0.1.0")]
+                    #[link(wasm_import_module = "host:plugin/tractor-bridge@0.1.0")]
                     unsafe extern "C" {
                         #[link_name = "get-node"]
                         fn wit_import2(_: *mut u8, _: usize, _: *mut u8);
@@ -301,7 +301,7 @@ pub mod refarm {
                                 let l7 = i32::from(
                                     *ptr1.add(::core::mem::size_of::<*const u8>()).cast::<u8>(),
                                 );
-                                use super::super::super::refarm::plugin::types::PluginError as V20;
+                                use super::super::super::host::plugin::types::PluginError as V20;
                                 let v20 = match l7 {
                                     0 => {
                                         let e20 = {
@@ -408,7 +408,7 @@ pub mod refarm {
                     let len0 = vec0.len();
                     let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
                     #[cfg(target_arch = "wasm32")]
-                    #[link(wasm_import_module = "refarm:plugin/tractor-bridge@0.1.0")]
+                    #[link(wasm_import_module = "host:plugin/tractor-bridge@0.1.0")]
                     unsafe extern "C" {
                         #[link_name = "query-nodes"]
                         fn wit_import2(_: *mut u8, _: usize, _: i32, _: *mut u8);
@@ -470,7 +470,7 @@ pub mod refarm {
                                 let l10 = i32::from(
                                     *ptr1.add(::core::mem::size_of::<*const u8>()).cast::<u8>(),
                                 );
-                                use super::super::super::refarm::plugin::types::PluginError as V23;
+                                use super::super::super::host::plugin::types::PluginError as V23;
                                 let v23 = match l10 {
                                     0 => {
                                         let e23 = {
@@ -565,7 +565,7 @@ pub mod refarm {
                     let ptr1 = vec1.as_ptr().cast::<u8>();
                     let len1 = vec1.len();
                     #[cfg(target_arch = "wasm32")]
-                    #[link(wasm_import_module = "refarm:plugin/tractor-bridge@0.1.0")]
+                    #[link(wasm_import_module = "host:plugin/tractor-bridge@0.1.0")]
                     unsafe extern "C" {
                         #[link_name = "request-permission"]
                         fn wit_import2(
@@ -606,7 +606,7 @@ pub mod refarm {
                     );
                     let ptr0 = ret_area.0.as_mut_ptr().cast::<u8>();
                     #[cfg(target_arch = "wasm32")]
-                    #[link(wasm_import_module = "refarm:plugin/tractor-bridge@0.1.0")]
+                    #[link(wasm_import_module = "host:plugin/tractor-bridge@0.1.0")]
                     unsafe extern "C" {
                         #[link_name = "get-identity"]
                         fn wit_import1(_: *mut u8);
@@ -656,7 +656,7 @@ pub mod refarm {
                                     len11,
                                     len11,
                                 );
-                                super::super::super::refarm::plugin::types::IdentityInfo {
+                                super::super::super::host::plugin::types::IdentityInfo {
                                     identity_type: _rt::string_lift(bytes5),
                                     storage_tier: _rt::string_lift(bytes8),
                                     identifier: _rt::string_lift(bytes11),
@@ -669,7 +669,7 @@ pub mod refarm {
                                 let l12 = i32::from(
                                     *ptr0.add(::core::mem::size_of::<*const u8>()).cast::<u8>(),
                                 );
-                                use super::super::super::refarm::plugin::types::PluginError as V25;
+                                use super::super::super::host::plugin::types::PluginError as V25;
                                 let v25 = match l12 {
                                     0 => {
                                         let e25 = {
@@ -773,7 +773,7 @@ pub mod refarm {
                     let len0 = vec0.len();
                     let ptr1 = ret_area.0.as_mut_ptr().cast::<u8>();
                     #[cfg(target_arch = "wasm32")]
-                    #[link(wasm_import_module = "refarm:plugin/tractor-bridge@0.1.0")]
+                    #[link(wasm_import_module = "host:plugin/tractor-bridge@0.1.0")]
                     unsafe extern "C" {
                         #[link_name = "get-plugin-api"]
                         fn wit_import2(_: *mut u8, _: usize, _: *mut u8);
@@ -808,7 +808,7 @@ pub mod refarm {
                                 let l7 = i32::from(
                                     *ptr1.add(::core::mem::size_of::<*const u8>()).cast::<u8>(),
                                 );
-                                use super::super::super::refarm::plugin::types::PluginError as V20;
+                                use super::super::super::host::plugin::types::PluginError as V20;
                                 let v20 = match l7 {
                                     0 => {
                                         let e20 = {
@@ -894,6 +894,191 @@ pub mod refarm {
                 }
             }
             #[allow(unused_unsafe, clippy::all)]
+            /// Call a verb on another LOADED plugin, by its id — the SPI call leg that
+            /// pairs with `get-plugin-api` (discovery). A plugin that declares
+            /// `requiresApi: ["FooApi"]` resolves the provider via `get-plugin-api`, then
+            /// invokes a verb on it here. Routes through the SAME dispatch the agent leg's
+            /// tool-call uses (`<key>:dispatch` event → correlated `dispatch-result:v1`),
+            /// so there is ONE call protocol, addressed by verb, shared by both callers.
+            ///
+            /// SECURITY: the callee runs in ITS OWN instance under ITS OWN load-time grant
+            /// + linker — never the caller's. Cross-plugin calling widens REACH, not POWER;
+            /// a revoked/unloaded target is not in the registry, so the call fails honestly.
+            pub fn call_plugin(
+                plugin_id: &str,
+                verb: &str,
+                input_json: &str,
+            ) -> Result<_rt::String, PluginError> {
+                unsafe {
+                    #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
+                    #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
+                    struct RetArea(
+                        [::core::mem::MaybeUninit<
+                            u8,
+                        >; 4 * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let mut ret_area = RetArea(
+                        [::core::mem::MaybeUninit::uninit(); 4
+                            * ::core::mem::size_of::<*const u8>()],
+                    );
+                    let vec0 = plugin_id;
+                    let ptr0 = vec0.as_ptr().cast::<u8>();
+                    let len0 = vec0.len();
+                    let vec1 = verb;
+                    let ptr1 = vec1.as_ptr().cast::<u8>();
+                    let len1 = vec1.len();
+                    let vec2 = input_json;
+                    let ptr2 = vec2.as_ptr().cast::<u8>();
+                    let len2 = vec2.len();
+                    let ptr3 = ret_area.0.as_mut_ptr().cast::<u8>();
+                    #[cfg(target_arch = "wasm32")]
+                    #[link(wasm_import_module = "host:plugin/tractor-bridge@0.1.0")]
+                    unsafe extern "C" {
+                        #[link_name = "call-plugin"]
+                        fn wit_import4(
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                            _: usize,
+                            _: *mut u8,
+                        );
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    unsafe extern "C" fn wit_import4(
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                        _: usize,
+                        _: *mut u8,
+                    ) {
+                        unreachable!()
+                    }
+                    unsafe {
+                        wit_import4(
+                            ptr0.cast_mut(),
+                            len0,
+                            ptr1.cast_mut(),
+                            len1,
+                            ptr2.cast_mut(),
+                            len2,
+                            ptr3,
+                        )
+                    };
+                    let l5 = i32::from(*ptr3.add(0).cast::<u8>());
+                    let result23 = match l5 {
+                        0 => {
+                            let e = {
+                                let l6 = *ptr3
+                                    .add(::core::mem::size_of::<*const u8>())
+                                    .cast::<*mut u8>();
+                                let l7 = *ptr3
+                                    .add(2 * ::core::mem::size_of::<*const u8>())
+                                    .cast::<usize>();
+                                let len8 = l7;
+                                let bytes8 = _rt::Vec::from_raw_parts(
+                                    l6.cast(),
+                                    len8,
+                                    len8,
+                                );
+                                _rt::string_lift(bytes8)
+                            };
+                            Ok(e)
+                        }
+                        1 => {
+                            let e = {
+                                let l9 = i32::from(
+                                    *ptr3.add(::core::mem::size_of::<*const u8>()).cast::<u8>(),
+                                );
+                                use super::super::super::host::plugin::types::PluginError as V22;
+                                let v22 = match l9 {
+                                    0 => {
+                                        let e22 = {
+                                            let l10 = *ptr3
+                                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<*mut u8>();
+                                            let l11 = *ptr3
+                                                .add(3 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<usize>();
+                                            let len12 = l11;
+                                            let bytes12 = _rt::Vec::from_raw_parts(
+                                                l10.cast(),
+                                                len12,
+                                                len12,
+                                            );
+                                            _rt::string_lift(bytes12)
+                                        };
+                                        V22::NotPermitted(e22)
+                                    }
+                                    1 => {
+                                        let e22 = {
+                                            let l13 = *ptr3
+                                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<*mut u8>();
+                                            let l14 = *ptr3
+                                                .add(3 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<usize>();
+                                            let len15 = l14;
+                                            let bytes15 = _rt::Vec::from_raw_parts(
+                                                l13.cast(),
+                                                len15,
+                                                len15,
+                                            );
+                                            _rt::string_lift(bytes15)
+                                        };
+                                        V22::NotFound(e22)
+                                    }
+                                    2 => {
+                                        let e22 = {
+                                            let l16 = *ptr3
+                                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<*mut u8>();
+                                            let l17 = *ptr3
+                                                .add(3 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<usize>();
+                                            let len18 = l17;
+                                            let bytes18 = _rt::Vec::from_raw_parts(
+                                                l16.cast(),
+                                                len18,
+                                                len18,
+                                            );
+                                            _rt::string_lift(bytes18)
+                                        };
+                                        V22::InvalidSchema(e22)
+                                    }
+                                    n => {
+                                        debug_assert_eq!(n, 3, "invalid enum discriminant");
+                                        let e22 = {
+                                            let l19 = *ptr3
+                                                .add(2 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<*mut u8>();
+                                            let l20 = *ptr3
+                                                .add(3 * ::core::mem::size_of::<*const u8>())
+                                                .cast::<usize>();
+                                            let len21 = l20;
+                                            let bytes21 = _rt::Vec::from_raw_parts(
+                                                l19.cast(),
+                                                len21,
+                                                len21,
+                                            );
+                                            _rt::string_lift(bytes21)
+                                        };
+                                        V22::Internal(e22)
+                                    }
+                                };
+                                v22
+                            };
+                            Err(e)
+                        }
+                        _ => _rt::invalid_enum_discriminant(),
+                    };
+                    result23
+                }
+            }
+            #[allow(unused_unsafe, clippy::all)]
             pub fn emit_telemetry(event: &str, payload: Option<&str>) -> () {
                 unsafe {
                     let vec0 = event;
@@ -909,7 +1094,7 @@ pub mod refarm {
                         None => (0i32, ::core::ptr::null_mut(), 0usize),
                     };
                     #[cfg(target_arch = "wasm32")]
-                    #[link(wasm_import_module = "refarm:plugin/tractor-bridge@0.1.0")]
+                    #[link(wasm_import_module = "host:plugin/tractor-bridge@0.1.0")]
                     unsafe extern "C" {
                         #[link_name = "emit-telemetry"]
                         fn wit_import3(
@@ -9353,7 +9538,7 @@ pub mod wasi {
 #[rustfmt::skip]
 #[allow(dead_code, clippy::all)]
 pub mod exports {
-    pub mod refarm {
+    pub mod host {
         pub mod plugin {
             /// The single plugin lifecycle interface every refarm plugin exports.
             ///
@@ -9364,16 +9549,16 @@ pub mod exports {
             /// here, not because a capability is reserved to it. The agent implements
             /// respond for real; a bridge/integration plugin stubs it.
             ///
-            /// Part of the canonical refarm:plugin@0.1.0 package.
+            /// Part of the canonical host:plugin@0.1.0 package.
             #[allow(dead_code, async_fn_in_trait, unused_imports, clippy::all)]
             pub mod integration {
                 #[used]
                 #[doc(hidden)]
                 static __FORCE_SECTION_REF: fn() = super::super::super::super::__link_custom_section_describing_imports;
                 use super::super::super::super::_rt;
-                pub type JsonLdNode = super::super::super::super::refarm::plugin::types::JsonLdNode;
-                pub type PluginError = super::super::super::super::refarm::plugin::types::PluginError;
-                pub type PluginMetadata = super::super::super::super::refarm::plugin::types::PluginMetadata;
+                pub type JsonLdNode = super::super::super::super::host::plugin::types::JsonLdNode;
+                pub type PluginError = super::super::super::super::host::plugin::types::PluginError;
+                pub type PluginMetadata = super::super::super::super::host::plugin::types::PluginMetadata;
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
                 pub unsafe fn _export_setup_cabi<T: Guest>() -> *mut u8 {
@@ -9386,7 +9571,7 @@ pub mod exports {
                         }
                         Err(e) => {
                             *ptr1.add(0).cast::<u8>() = (1i32) as u8;
-                            use super::super::super::super::refarm::plugin::types::PluginError as V6;
+                            use super::super::super::super::host::plugin::types::PluginError as V6;
                             match e {
                                 V6::NotPermitted(e) => {
                                     *ptr1
@@ -9519,7 +9704,7 @@ pub mod exports {
                         }
                         Err(e) => {
                             *ptr1.add(0).cast::<u8>() = (1i32) as u8;
-                            use super::super::super::super::refarm::plugin::types::PluginError as V6;
+                            use super::super::super::super::host::plugin::types::PluginError as V6;
                             match e {
                                 V6::NotPermitted(e) => {
                                     *ptr1
@@ -9654,7 +9839,7 @@ pub mod exports {
                         }
                         Err(e) => {
                             *ptr2.add(0).cast::<u8>() = (1i32) as u8;
-                            use super::super::super::super::refarm::plugin::types::PluginError as V7;
+                            use super::super::super::super::host::plugin::types::PluginError as V7;
                             match e {
                                 V7::NotPermitted(e) => {
                                     *ptr2
@@ -9825,7 +10010,7 @@ pub mod exports {
                         }
                         Err(e) => {
                             *ptr1.add(0).cast::<u8>() = (1i32) as u8;
-                            use super::super::super::super::refarm::plugin::types::PluginError as V8;
+                            use super::super::super::super::host::plugin::types::PluginError as V8;
                             match e {
                                 V8::NotPermitted(e) => {
                                     *ptr1
@@ -9974,7 +10159,7 @@ pub mod exports {
                     #[cfg(target_arch = "wasm32")] _rt::run_ctors_once();
                     let result0 = T::metadata();
                     let ptr1 = (&raw mut _RET_AREA.0).cast::<u8>();
-                    let super::super::super::super::refarm::plugin::types::PluginMetadata {
+                    let super::super::super::super::host::plugin::types::PluginMetadata {
                         name: name2,
                         version: version2,
                         description: description2,
@@ -10201,7 +10386,7 @@ pub mod exports {
                         }
                         Err(e) => {
                             *ptr2.add(0).cast::<u8>() = (1i32) as u8;
-                            use super::super::super::super::refarm::plugin::types::PluginError as V8;
+                            use super::super::super::super::host::plugin::types::PluginError as V8;
                             match e {
                                 V8::NotPermitted(e) => {
                                     *ptr2
@@ -10348,65 +10533,64 @@ pub mod exports {
                     fn respond(payload: _rt::String) -> Result<_rt::String, PluginError>;
                 }
                 #[doc(hidden)]
-                macro_rules! __export_refarm_plugin_integration_0_1_0_cabi {
+                macro_rules! __export_host_plugin_integration_0_1_0_cabi {
                     ($ty:ident with_types_in $($path_to_types:tt)*) => {
                         const _ : () = { #[unsafe (export_name =
-                        "refarm:plugin/integration@0.1.0#setup")] unsafe extern "C" fn
+                        "host:plugin/integration@0.1.0#setup")] unsafe extern "C" fn
                         export_setup() -> * mut u8 { unsafe { $($path_to_types)*::
                         _export_setup_cabi::<$ty > () } } #[unsafe (export_name =
-                        "cabi_post_refarm:plugin/integration@0.1.0#setup")] unsafe extern
+                        "cabi_post_host:plugin/integration@0.1.0#setup")] unsafe extern
                         "C" fn _post_return_setup(arg0 : * mut u8,) { unsafe {
                         $($path_to_types)*:: __post_return_setup::<$ty > (arg0) } }
+                        #[unsafe (export_name = "host:plugin/integration@0.1.0#ingest")]
+                        unsafe extern "C" fn export_ingest() -> * mut u8 { unsafe {
+                        $($path_to_types)*:: _export_ingest_cabi::<$ty > () } } #[unsafe
+                        (export_name = "cabi_post_host:plugin/integration@0.1.0#ingest")]
+                        unsafe extern "C" fn _post_return_ingest(arg0 : * mut u8,) {
+                        unsafe { $($path_to_types)*:: __post_return_ingest::<$ty > (arg0)
+                        } } #[unsafe (export_name =
+                        "host:plugin/integration@0.1.0#push")] unsafe extern "C" fn
+                        export_push(arg0 : * mut u8, arg1 : usize,) -> * mut u8 { unsafe
+                        { $($path_to_types)*:: _export_push_cabi::<$ty > (arg0, arg1) } }
                         #[unsafe (export_name =
-                        "refarm:plugin/integration@0.1.0#ingest")] unsafe extern "C" fn
-                        export_ingest() -> * mut u8 { unsafe { $($path_to_types)*::
-                        _export_ingest_cabi::<$ty > () } } #[unsafe (export_name =
-                        "cabi_post_refarm:plugin/integration@0.1.0#ingest")] unsafe
-                        extern "C" fn _post_return_ingest(arg0 : * mut u8,) { unsafe {
-                        $($path_to_types)*:: __post_return_ingest::<$ty > (arg0) } }
-                        #[unsafe (export_name = "refarm:plugin/integration@0.1.0#push")]
-                        unsafe extern "C" fn export_push(arg0 : * mut u8, arg1 : usize,)
-                        -> * mut u8 { unsafe { $($path_to_types)*::
-                        _export_push_cabi::<$ty > (arg0, arg1) } } #[unsafe (export_name
-                        = "cabi_post_refarm:plugin/integration@0.1.0#push")] unsafe
-                        extern "C" fn _post_return_push(arg0 : * mut u8,) { unsafe {
+                        "cabi_post_host:plugin/integration@0.1.0#push")] unsafe extern
+                        "C" fn _post_return_push(arg0 : * mut u8,) { unsafe {
                         $($path_to_types)*:: __post_return_push::<$ty > (arg0) } }
                         #[unsafe (export_name =
-                        "refarm:plugin/integration@0.1.0#teardown")] unsafe extern "C" fn
+                        "host:plugin/integration@0.1.0#teardown")] unsafe extern "C" fn
                         export_teardown() { unsafe { $($path_to_types)*::
                         _export_teardown_cabi::<$ty > () } } #[unsafe (export_name =
-                        "refarm:plugin/integration@0.1.0#get-help-nodes")] unsafe extern
+                        "host:plugin/integration@0.1.0#get-help-nodes")] unsafe extern
                         "C" fn export_get_help_nodes() -> * mut u8 { unsafe {
                         $($path_to_types)*:: _export_get_help_nodes_cabi::<$ty > () } }
                         #[unsafe (export_name =
-                        "cabi_post_refarm:plugin/integration@0.1.0#get-help-nodes")]
-                        unsafe extern "C" fn _post_return_get_help_nodes(arg0 : * mut
-                        u8,) { unsafe { $($path_to_types)*::
-                        __post_return_get_help_nodes::<$ty > (arg0) } } #[unsafe
-                        (export_name = "refarm:plugin/integration@0.1.0#metadata")]
-                        unsafe extern "C" fn export_metadata() -> * mut u8 { unsafe {
-                        $($path_to_types)*:: _export_metadata_cabi::<$ty > () } }
-                        #[unsafe (export_name =
-                        "cabi_post_refarm:plugin/integration@0.1.0#metadata")] unsafe
+                        "cabi_post_host:plugin/integration@0.1.0#get-help-nodes")] unsafe
+                        extern "C" fn _post_return_get_help_nodes(arg0 : * mut u8,) {
+                        unsafe { $($path_to_types)*:: __post_return_get_help_nodes::<$ty
+                        > (arg0) } } #[unsafe (export_name =
+                        "host:plugin/integration@0.1.0#metadata")] unsafe extern "C" fn
+                        export_metadata() -> * mut u8 { unsafe { $($path_to_types)*::
+                        _export_metadata_cabi::<$ty > () } } #[unsafe (export_name =
+                        "cabi_post_host:plugin/integration@0.1.0#metadata")] unsafe
                         extern "C" fn _post_return_metadata(arg0 : * mut u8,) { unsafe {
                         $($path_to_types)*:: __post_return_metadata::<$ty > (arg0) } }
                         #[unsafe (export_name =
-                        "refarm:plugin/integration@0.1.0#on-event")] unsafe extern "C" fn
+                        "host:plugin/integration@0.1.0#on-event")] unsafe extern "C" fn
                         export_on_event(arg0 : * mut u8, arg1 : usize, arg2 : i32, arg3 :
                         * mut u8, arg4 : usize,) { unsafe { $($path_to_types)*::
                         _export_on_event_cabi::<$ty > (arg0, arg1, arg2, arg3, arg4) } }
-                        #[unsafe (export_name =
-                        "refarm:plugin/integration@0.1.0#respond")] unsafe extern "C" fn
-                        export_respond(arg0 : * mut u8, arg1 : usize,) -> * mut u8 {
-                        unsafe { $($path_to_types)*:: _export_respond_cabi::<$ty > (arg0,
-                        arg1) } } #[unsafe (export_name =
-                        "cabi_post_refarm:plugin/integration@0.1.0#respond")] unsafe
-                        extern "C" fn _post_return_respond(arg0 : * mut u8,) { unsafe {
+                        #[unsafe (export_name = "host:plugin/integration@0.1.0#respond")]
+                        unsafe extern "C" fn export_respond(arg0 : * mut u8, arg1 :
+                        usize,) -> * mut u8 { unsafe { $($path_to_types)*::
+                        _export_respond_cabi::<$ty > (arg0, arg1) } } #[unsafe
+                        (export_name =
+                        "cabi_post_host:plugin/integration@0.1.0#respond")] unsafe extern
+                        "C" fn _post_return_respond(arg0 : * mut u8,) { unsafe {
                         $($path_to_types)*:: __post_return_respond::<$ty > (arg0) } } };
                     };
                 }
                 #[doc(hidden)]
-                pub(crate) use __export_refarm_plugin_integration_0_1_0_cabi;
+                pub(crate) use __export_host_plugin_integration_0_1_0_cabi;
                 #[cfg_attr(target_pointer_width = "64", repr(align(8)))]
                 #[cfg_attr(target_pointer_width = "32", repr(align(4)))]
                 struct _RetArea(
@@ -10646,8 +10830,8 @@ macro_rules! __export_http_plugin_impl {
     };
     ($ty:ident with_types_in $($path_to_types_root:tt)*) => {
         $($path_to_types_root)*::
-        exports::refarm::plugin::integration::__export_refarm_plugin_integration_0_1_0_cabi!($ty
-        with_types_in $($path_to_types_root)*:: exports::refarm::plugin::integration);
+        exports::host::plugin::integration::__export_host_plugin_integration_0_1_0_cabi!($ty
+        with_types_in $($path_to_types_root)*:: exports::host::plugin::integration);
     };
 }
 #[doc(inline)]
@@ -10658,8 +10842,8 @@ pub(crate) use __export_http_plugin_impl as export;
 )]
 #[doc(hidden)]
 #[allow(clippy::octal_escapes)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 7564] = *b"\
-\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\x8a:\x01A\x02\x01A\x20\
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 7614] = *b"\
+\0asm\x0d\0\x01\0\0\x19\x16wit-component-encoding\x04\0\x07\xbc:\x01A\x02\x01A\x20\
 \x01B\x0a\x04\0\x08pollable\x03\x01\x01h\0\x01@\x01\x04self\x01\0\x7f\x04\0\x16[\
 method]pollable.ready\x01\x02\x01@\x01\x04self\x01\x01\0\x04\0\x16[method]pollab\
 le.block\x01\x03\x01p\x01\x01py\x01@\x01\x02in\x04\0\x05\x04\0\x04poll\x01\x06\x03\
@@ -10789,30 +10973,31 @@ s\x04\0\x07node-id\x03\0\x02\x01q\x04\x0dnot-permitted\x01s\0\x09not-found\x01\x
 \0\x0einvalid-schema\x01s\0\x08internal\x01s\0\x04\0\x0cplugin-error\x03\0\x04\x01\
 r\x03\x0didentity-types\x0cstorage-tiers\x0aidentifiers\x04\0\x0didentity-info\x03\
 \0\x06\x01ps\x01r\x05\x04names\x07versions\x0bdescriptions\x0fsupported-types\x08\
-\x15required-capabilities\x08\x04\0\x0fplugin-metadata\x03\0\x09\x03\0\x19refarm\
-:plugin/types@0.1.0\x05\x0f\x02\x03\0\x06\x0cjson-ld-node\x02\x03\0\x06\x07node-\
-id\x02\x03\0\x06\x0cplugin-error\x02\x03\0\x06\x0didentity-info\x01B\x1c\x02\x03\
-\x02\x01\x10\x04\0\x0cjson-ld-node\x03\0\0\x02\x03\x02\x01\x11\x04\0\x07node-id\x03\
-\0\x02\x02\x03\x02\x01\x12\x04\0\x0cplugin-error\x03\0\x04\x02\x03\x02\x01\x13\x04\
+\x15required-capabilities\x08\x04\0\x0fplugin-metadata\x03\0\x09\x03\0\x17host:p\
+lugin/types@0.1.0\x05\x0f\x02\x03\0\x06\x0cjson-ld-node\x02\x03\0\x06\x07node-id\
+\x02\x03\0\x06\x0cplugin-error\x02\x03\0\x06\x0didentity-info\x01B\x1f\x02\x03\x02\
+\x01\x10\x04\0\x0cjson-ld-node\x03\0\0\x02\x03\x02\x01\x11\x04\0\x07node-id\x03\0\
+\x02\x02\x03\x02\x01\x12\x04\0\x0cplugin-error\x03\0\x04\x02\x03\x02\x01\x13\x04\
 \0\x0didentity-info\x03\0\x06\x01j\x01\x03\x01\x05\x01@\x01\x04node\x01\0\x08\x04\
 \0\x0astore-node\x01\x09\x01j\x01\x01\x01\x05\x01@\x01\x02id\x03\0\x0a\x04\0\x08\
 get-node\x01\x0b\x01p\x01\x01j\x01\x0c\x01\x05\x01@\x02\x09node-types\x05limity\0\
 \x0d\x04\0\x0bquery-nodes\x01\x0e\x01@\x02\x0acapabilitys\x06reasons\0\x7f\x04\0\
 \x12request-permission\x01\x0f\x01j\x01\x07\x01\x05\x01@\0\0\x10\x04\0\x0cget-id\
-entity\x01\x11\x01@\x01\x08api-names\0\x08\x04\0\x0eget-plugin-api\x01\x12\x01ks\
-\x01@\x02\x05events\x07payload\x13\x01\0\x04\0\x0eemit-telemetry\x01\x14\x03\0\"\
-refarm:plugin/tractor-bridge@0.1.0\x05\x14\x02\x03\0\x06\x0fplugin-metadata\x01B\
-\x1c\x02\x03\x02\x01\x10\x04\0\x0cjson-ld-node\x03\0\0\x02\x03\x02\x01\x12\x04\0\
-\x0cplugin-error\x03\0\x02\x02\x03\x02\x01\x15\x04\0\x0fplugin-metadata\x03\0\x04\
-\x01j\0\x01\x03\x01@\0\0\x06\x04\0\x05setup\x01\x07\x01j\x01y\x01\x03\x01@\0\0\x08\
-\x04\0\x06ingest\x01\x09\x01@\x01\x07payload\x01\0\x06\x04\0\x04push\x01\x0a\x01\
-@\0\x01\0\x04\0\x08teardown\x01\x0b\x01p\x01\x01j\x01\x0c\x01\x03\x01@\0\0\x0d\x04\
-\0\x0eget-help-nodes\x01\x0e\x01@\0\0\x05\x04\0\x08metadata\x01\x0f\x01ks\x01@\x02\
-\x05events\x07payload\x10\x01\0\x04\0\x08on-event\x01\x11\x01j\x01s\x01\x03\x01@\
-\x01\x07payloads\0\x12\x04\0\x07respond\x01\x13\x04\0\x1frefarm:plugin/integrati\
-on@0.1.0\x05\x16\x04\0,refarm:http-plugin-fixture/http-plugin@0.1.0\x04\0\x0b\x11\
-\x01\0\x0bhttp-plugin\x03\0\0\0G\x09producers\x01\x0cprocessed-by\x02\x0dwit-com\
-ponent\x070.227.1\x10wit-bindgen-rust\x060.41.0";
+entity\x01\x11\x01@\x01\x08api-names\0\x08\x04\0\x0eget-plugin-api\x01\x12\x01j\x01\
+s\x01\x05\x01@\x03\x09plugin-id\x03\x04verbs\x0ainput-jsons\0\x13\x04\0\x0bcall-\
+plugin\x01\x14\x01ks\x01@\x02\x05events\x07payload\x15\x01\0\x04\0\x0eemit-telem\
+etry\x01\x16\x03\0\x20host:plugin/tractor-bridge@0.1.0\x05\x14\x02\x03\0\x06\x0f\
+plugin-metadata\x01B\x1c\x02\x03\x02\x01\x10\x04\0\x0cjson-ld-node\x03\0\0\x02\x03\
+\x02\x01\x12\x04\0\x0cplugin-error\x03\0\x02\x02\x03\x02\x01\x15\x04\0\x0fplugin\
+-metadata\x03\0\x04\x01j\0\x01\x03\x01@\0\0\x06\x04\0\x05setup\x01\x07\x01j\x01y\
+\x01\x03\x01@\0\0\x08\x04\0\x06ingest\x01\x09\x01@\x01\x07payload\x01\0\x06\x04\0\
+\x04push\x01\x0a\x01@\0\x01\0\x04\0\x08teardown\x01\x0b\x01p\x01\x01j\x01\x0c\x01\
+\x03\x01@\0\0\x0d\x04\0\x0eget-help-nodes\x01\x0e\x01@\0\0\x05\x04\0\x08metadata\
+\x01\x0f\x01ks\x01@\x02\x05events\x07payload\x10\x01\0\x04\0\x08on-event\x01\x11\
+\x01j\x01s\x01\x03\x01@\x01\x07payloads\0\x12\x04\0\x07respond\x01\x13\x04\0\x1d\
+host:plugin/integration@0.1.0\x05\x16\x04\0,refarm:http-plugin-fixture/http-plug\
+in@0.1.0\x04\0\x0b\x11\x01\0\x0bhttp-plugin\x03\0\0\0G\x09producers\x01\x0cproce\
+ssed-by\x02\x0dwit-component\x070.227.1\x10wit-bindgen-rust\x060.41.0";
 #[inline(never)]
 #[doc(hidden)]
 pub fn __link_custom_section_describing_imports() {

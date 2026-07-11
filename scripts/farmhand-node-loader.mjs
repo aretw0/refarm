@@ -183,34 +183,34 @@ function refarmPluginModuleSource(specifier) {
 	const lines = [];
 
 	switch (specifier) {
-		case "refarm:plugin/host-fs":
+		case "host:plugin/host-fs":
 			lines.push(
 				"export const read = (...args) => call('read', args);",
 				"export const write = (...args) => call('write', args);",
 			);
 			break;
-		case "refarm:plugin/host-shell":
+		case "host:plugin/host-shell":
 			lines.push("export const spawn = (...args) => call('spawn', args);");
 			break;
-		case "refarm:plugin/code-ops":
+		case "host:plugin/code-ops":
 			lines.push(
 				"export const findReferences = (...args) => call('find-references', args);",
 				"export const renameSymbol = (...args) => call('rename-symbol', args);",
 			);
 			break;
-		case "refarm:plugin/model-bridge":
+		case "host:plugin/model-bridge":
 			lines.push(
 				"export const completeHttp = (...args) => call('complete-http', args);",
 				"export const completeHttpStream = (...args) => call('complete-http-stream', args);",
 			);
 			break;
-		case "refarm:plugin/structured-io":
+		case "host:plugin/structured-io":
 			lines.push(
 				"export const readStructured = (...args) => call('read-structured', args);",
 				"export const writeStructured = (...args) => call('write-structured', args);",
 			);
 			break;
-		case "refarm:plugin/tractor-bridge":
+		case "host:plugin/tractor-bridge":
 			lines.push(
 				"export const storeNode = (...args) => call('store-node', args);",
 				"export const getNode = (...args) => call('get-node', args);",

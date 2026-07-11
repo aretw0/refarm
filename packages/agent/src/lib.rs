@@ -100,10 +100,10 @@ pub(crate) use response_nodes::{
 #[cfg(test)]
 pub(crate) use tools::{tools_anthropic, tools_openai};
 
-use exports::refarm::plugin::integration::{
+use exports::host::plugin::integration::{
     Guest as IntegrationGuest, PluginError, PluginMetadata,
 };
-use refarm::plugin::tractor_bridge;
+use host::plugin::tractor_bridge;
 
 struct Agent;
 
