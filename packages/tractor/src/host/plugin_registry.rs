@@ -409,6 +409,17 @@ mod tests {
             "../../../capabilities-v1/fixtures/plugin-surface-verbs.json"
         ))
         .expect("valid plugin surface verb fixture");
+        // Parse a fixture manifest's `capabilities.<field>` object-map (verbDocs /
+        // verbSchemas) into the HashMap the profile carries. Absent → empty.
+        fn map_field<T: serde::de::DeserializeOwned>(
+            caps: &serde_json::Value,
+            field: &str,
+        ) -> std::collections::HashMap<String, T> {
+            caps.get(field)
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+                .unwrap_or_default()
+        }
+
         let r = PluginRegistry::default();
         for manifest in fixture["manifests"].as_array().expect("manifests array") {
             let id = manifest["id"].as_str().expect("manifest id");
@@ -425,7 +436,18 @@ mod tests {
                 .iter()
                 .map(|entry| entry.as_str().expect("subscribes string").to_string())
                 .collect();
-            register_plain(&r, id, provides, subscribes);
+            // Register the WHOLE profile including verbDocs/verbSchemas, so the fixture
+            // asserts doc + schema ride the verb identically to the TS host.
+            r.register(
+                id,
+                PluginCapabilityProfile {
+                    provides,
+                    subscribes,
+                    verb_docs: map_field(capabilities, "verbDocs"),
+                    verb_schemas: map_field(capabilities, "verbSchemas"),
+                    ..Default::default()
+                },
+            );
         }
 
         let actual: Vec<serde_json::Value> = r
@@ -440,6 +462,9 @@ mod tests {
                     "target": target,
                     "dispatchEvent": format!("{}:dispatch", target.split(':').next().expect("target key")),
                     "surfaceName": target.replace(':', "-"),
+                    // The aggregate the TS host also emits: doc + schema, null when undeclared.
+                    "doc": verb.doc,
+                    "schema": verb.schema,
                 })
             })
             .collect();

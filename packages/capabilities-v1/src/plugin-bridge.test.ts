@@ -52,6 +52,8 @@ describe("surfaceablePluginVerbsFrom — manifest metadata without host deps", (
 				target: "vault:search",
 				dispatchEvent: "vault:dispatch",
 				surfaceName: "vault-search",
+				doc: null,
+				schema: null,
 			},
 			{
 				pluginId: "@example/vault",
@@ -60,6 +62,8 @@ describe("surfaceablePluginVerbsFrom — manifest metadata without host deps", (
 				target: "vault:extract",
 				dispatchEvent: "vault:dispatch",
 				surfaceName: "vault-extract",
+				doc: null,
+				schema: null,
 			},
 		]);
 		expect(pluginSurfaceName("web", "search")).toBe("web-search");
@@ -68,6 +72,35 @@ describe("surfaceablePluginVerbsFrom — manifest metadata without host deps", (
 	it("keeps the same subscribes guard as descriptor synthesis", () => {
 		const m = manifest("@example/vault", ["vault:search", "vault:dispatch", "bad"], []);
 		expect(surfaceablePluginVerbsFrom(m)).toEqual([]);
+	});
+
+	it("carries per-verb doc + schema when declared, null when absent (the RS DispatchableVerb aggregate)", () => {
+		const m = {
+			id: "@example/vault",
+			capabilities: {
+				provides: ["vault:search", "vault:extract"],
+				subscribes: ["vault:dispatch"],
+				verbDocs: { "vault:search": "Search the vault." },
+				verbSchemas: {
+					"vault:search": {
+						type: "object",
+						properties: { query: { type: "string" } },
+						required: ["query"],
+					},
+				},
+			},
+		};
+		const [search, extract] = surfaceablePluginVerbsFrom(m);
+		// The declared verb carries its prose + schema verbatim...
+		expect(search?.doc).toBe("Search the vault.");
+		expect(search?.schema).toEqual({
+			type: "object",
+			properties: { query: { type: "string" } },
+			required: ["query"],
+		});
+		// ...the undeclared one is null (host renders generic guidance + variadic { args }).
+		expect(extract?.doc).toBeNull();
+		expect(extract?.schema).toBeNull();
 	});
 
 	it("matches the shared TS/Rust plugin surface verb conformance fixture", () => {

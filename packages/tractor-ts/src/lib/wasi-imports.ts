@@ -39,6 +39,10 @@ export interface DispatchableVerb {
 	verb: string;
 	/** Plugin-authored usage prose (verbDocs), if any — wins over host boilerplate. */
 	doc?: string;
+	/** Plugin-authored argument JSON-Schema (verbSchemas), if any — rendered as the tool's
+	 * typed parameters instead of the variadic `{ args }`. Absent → the verb is variadic
+	 * (its arg shape is opaque). Mirrors the Rust DispatchableVerb.schema. */
+	schema?: Record<string, unknown>;
 }
 
 /** The plugin-to-plugin (SPI) bridge the host injects so a guest can reach another
@@ -56,12 +60,17 @@ export interface CrossPluginBridge {
 }
 
 /** Render one dispatchable verb as a provider-shaped tool schema STRING — mirrors the
- * Rust host's render_tool_schema. "openai" wraps in {type:function, function:{...}};
+ * Rust host's render_tool_schema. TWO shapes, one renderer, chosen by whether the verb
+ * declared its schema: DECLARED → the plugin's JSON-Schema object IS the parameters
+ * (typed named args); ABSENT → the variadic `{ args }` shape (the correct schema for an
+ * opaque verb, not a fallback). "openai" wraps in {type:function, function:{...}};
  * anything else (anthropic) uses {name, description, input_schema}. */
 export function renderToolSchema(verb: DispatchableVerb, provider: string): string {
 	const name = `${verb.pluginKey}_${verb.verb}`;
-	const description = `${verb.verb} — dispatched to the ${verb.pluginId} plugin. Pass args as key=value strings.`;
-	const parameters = {
+	const description = verb.schema
+		? `${verb.verb} — dispatched to the ${verb.pluginId} plugin.`
+		: `${verb.verb} — dispatched to the ${verb.pluginId} plugin. Pass args as key=value strings.`;
+	const parameters = verb.schema ?? {
 		type: "object",
 		properties: {
 			args: {
@@ -79,13 +88,16 @@ export function renderToolSchema(verb: DispatchableVerb, provider: string): stri
 }
 
 /** Render one usage-guidance line for a dispatchable verb — mirrors render_tool_prompt.
- * Plugin-authored prose (doc) wins over the host boilerplate. */
+ * Plugin-authored prose (doc) wins; absent, the boilerplate agrees with the schema render
+ * (a typed verb points at its schema, a variadic one at key=value args). */
 export function renderToolPrompt(verb: DispatchableVerb): string {
 	if (verb.doc) return verb.doc;
+	const argHint = verb.schema
+		? "pass its arguments per the tool's schema"
+		: "pass its arguments as `args` (key=value strings)";
 	return (
 		`Tool \`${verb.pluginKey}_${verb.verb}\` dispatches to the \`${verb.pluginId}\` plugin — ` +
-		`pass its arguments as \`args\` (key=value strings). Prefer it over shell/fs for ` +
-		`anything the ${verb.pluginId} plugin owns.`
+		`${argHint}. Prefer it over shell/fs for anything the ${verb.pluginId} plugin owns.`
 	);
 }
 

@@ -345,6 +345,7 @@ export class PluginHost {
 					pluginKey: key,
 					verb,
 					doc: instance?.manifest.capabilities?.verbDocs?.[entry],
+					schema: instance?.manifest.capabilities?.verbSchemas?.[entry],
 				});
 			}
 		}

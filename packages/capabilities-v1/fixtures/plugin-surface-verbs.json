@@ -12,7 +12,17 @@
 					":leading",
 					"trailing:"
 				],
-				"subscribes": ["vault:dispatch"]
+				"subscribes": ["vault:dispatch"],
+				"verbDocs": {
+					"vault:search": "Search the vault for notes matching a query."
+				},
+				"verbSchemas": {
+					"vault:search": {
+						"type": "object",
+						"properties": { "query": { "type": "string" } },
+						"required": ["query"]
+					}
+				}
 			}
 		},
 		{
@@ -37,7 +47,13 @@
 			"verb": "search",
 			"target": "vault:search",
 			"dispatchEvent": "vault:dispatch",
-			"surfaceName": "vault-search"
+			"surfaceName": "vault-search",
+			"doc": "Search the vault for notes matching a query.",
+			"schema": {
+				"type": "object",
+				"properties": { "query": { "type": "string" } },
+				"required": ["query"]
+			}
 		},
 		{
 			"pluginId": "@local/vault",
@@ -45,7 +61,9 @@
 			"verb": "extract",
 			"target": "vault:extract",
 			"dispatchEvent": "vault:dispatch",
-			"surfaceName": "vault-extract"
+			"surfaceName": "vault-extract",
+			"doc": null,
+			"schema": null
 		},
 		{
 			"pluginId": "@local/web",
@@ -53,7 +71,9 @@
 			"verb": "search",
 			"target": "web:search",
 			"dispatchEvent": "web:dispatch",
-			"surfaceName": "web-search"
+			"surfaceName": "web-search",
+			"doc": null,
+			"schema": null
 		}
 	]
 }

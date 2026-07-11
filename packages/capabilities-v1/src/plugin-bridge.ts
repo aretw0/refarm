@@ -185,6 +185,14 @@ export interface SurfaceableManifest {
 		subscribes?: string[];
 		providesApi?: string[];
 		requiresApi?: string[];
+		/** Per-verb usage prose, keyed by `<key>:<verb>` — the agent leg's system-prompt
+		 * guidance for that verb (mirrors PluginManifest.capabilities.verbDocs). */
+		verbDocs?: Record<string, string>;
+		/** Per-verb argument JSON-Schema, keyed by `<key>:<verb>` — the agent leg's typed
+		 * tool parameters for that verb (mirrors PluginManifest.capabilities.verbSchemas).
+		 * A verb with no entry is variadic (`{ args }`); the shared conformance fixture
+		 * asserts BOTH hosts read this identically. */
+		verbSchemas?: Record<string, Record<string, unknown>>;
 	};
 	/** The surfaces this plugin declares in its manifest. Folded onto each surfaced verb's
 	 * `renderers` so a plugin-declared surface (homestead panel, a new surface) reaches the
@@ -201,6 +209,12 @@ export interface SurfaceablePluginVerb {
 	target: string;
 	dispatchEvent: string;
 	surfaceName: string;
+	/** Plugin-authored usage prose for this verb (`verbDocs[target]`), or null — the
+	 * host renders generic guidance when absent. */
+	doc: string | null;
+	/** Plugin-authored argument JSON-Schema for this verb (`verbSchemas[target]`), or
+	 * null — the host renders the variadic `{ args }` schema when absent. */
+	schema: Record<string, unknown> | null;
 }
 
 export function pluginSurfaceName(pluginKey: string, verb: string): string {
@@ -210,6 +224,9 @@ export function pluginSurfaceName(pluginKey: string, verb: string): string {
 export function surfaceablePluginVerbsFrom(manifest: SurfaceableManifest): SurfaceablePluginVerb[] {
 	const provides = manifest.capabilities?.provides ?? [];
 	const subscribes = new Set(manifest.capabilities?.subscribes ?? []);
+
+	const verbDocs = manifest.capabilities?.verbDocs ?? {};
+	const verbSchemas = manifest.capabilities?.verbSchemas ?? {};
 
 	const verbs: SurfaceablePluginVerb[] = [];
 	for (const entry of provides) {
@@ -225,6 +242,11 @@ export function surfaceablePluginVerbsFrom(manifest: SurfaceableManifest): Surfa
 			target: entry,
 			dispatchEvent,
 			surfaceName: pluginSurfaceName(parsed.pluginKey, parsed.verb),
+			// Per-verb prose + schema ride alongside the verb — the same aggregate the
+			// Rust DispatchableVerb carries. null (not absent) when undeclared, so the
+			// cross-lang fixture asserts both hosts agree on the whole verb.
+			doc: verbDocs[entry] ?? null,
+			schema: verbSchemas[entry] ?? null,
 		});
 	}
 	return verbs;

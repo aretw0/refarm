@@ -3,7 +3,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { WasiImports } from "../src/lib/wasi-imports";
+import {
+  WasiImports,
+  renderToolPrompt,
+  renderToolSchema,
+  type DispatchableVerb,
+} from "../src/lib/wasi-imports";
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -345,5 +350,50 @@ describe("WasiImports — refarm:plugin/model-bridge", () => {
 
     const parsed = JSON.parse(Buffer.from(bytes).toString("utf-8"));
     expect(parsed.choices[0]!.message.content).toBe("mocked from env");
+  });
+});
+
+describe("renderToolSchema / renderToolPrompt — the agent leg, in parity with the Rust host", () => {
+  const variadic: DispatchableVerb = { pluginId: "@acme/vault", pluginKey: "vault", verb: "store" };
+  const typed: DispatchableVerb = {
+    pluginId: "@acme/vault",
+    pluginKey: "vault",
+    verb: "store",
+    schema: {
+      type: "object",
+      properties: { path: { type: "string" }, body: { type: "string" } },
+      required: ["path"],
+    },
+  };
+
+  it("renders the variadic { args } schema for an undeclared verb (both providers)", () => {
+    const anthropic = JSON.parse(renderToolSchema(variadic, "anthropic"));
+    expect(anthropic.name).toBe("vault_store");
+    expect(anthropic.input_schema.properties.args).toBeDefined();
+
+    const openai = JSON.parse(renderToolSchema(variadic, "openai"));
+    expect(openai.type).toBe("function");
+    expect(openai.function.parameters.properties.args).toBeDefined();
+  });
+
+  it("renders a DECLARED verb schema typed, not variadic (both providers)", () => {
+    const anthropic = JSON.parse(renderToolSchema(typed, "anthropic"));
+    expect(anthropic.input_schema.properties.path).toBeDefined();
+    expect(anthropic.input_schema.properties.args).toBeUndefined();
+    expect(anthropic.input_schema.required).toEqual(["path"]);
+
+    const openai = JSON.parse(renderToolSchema(typed, "openai"));
+    expect(openai.function.parameters.properties.path).toBeDefined();
+    expect(openai.function.parameters.properties.args).toBeUndefined();
+  });
+
+  it("prompt guidance agrees with the schema render (variadic → args; typed → schema)", () => {
+    expect(renderToolPrompt(variadic)).toContain("key=value");
+    expect(renderToolPrompt(typed)).toContain("schema");
+    expect(renderToolPrompt(typed)).not.toContain("key=value");
+  });
+
+  it("plugin-authored doc still wins over both boilerplates", () => {
+    expect(renderToolPrompt({ ...typed, doc: "Custom guidance." })).toBe("Custom guidance.");
   });
 });
