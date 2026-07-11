@@ -16,7 +16,6 @@
     "Cargo.lock",
     "Cargo.toml",
     "README.md",
-    "src/bindings.rs",
     "src/lib.rs"
   ],
   "forbiddenPaths": [

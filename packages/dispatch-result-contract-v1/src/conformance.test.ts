@@ -35,7 +35,7 @@ describe("dispatch-result:v1 constants + builder", () => {
 describe("consumer: content-based correlation (no fragile formula)", () => {
 	const stored = [
 		serializeDispatchResult({ replyRef: "e1", verb: "extract", result: { a: 1 } }),
-		JSON.stringify({ "@type": "refarm:SomethingElse", value: 9 }),
+		JSON.stringify({ "@type": "SomethingElse", value: 9 }),
 		serializeDispatchResult({ replyRef: "e2", verb: "search", result: { hits: [] } }),
 		serializeDispatchResult({ replyRef: "e1", verb: "profile", result: { ok: true } }),
 	];

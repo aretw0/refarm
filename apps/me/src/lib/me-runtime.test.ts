@@ -111,14 +111,14 @@ describe("refarm.me runtime", () => {
 		expect(storage.queryNodes).toHaveBeenCalledWith(REFARM_ME_PLUGIN_REGISTRY_TYPE);
 		await workbench.storeLocalNode({
 			id: "refarm-me-proof",
-			type: "refarm:Proof",
+			type: "Proof",
 			context: "citizen",
 			payload: '{"ok":true}',
 			sourcePlugin: "apps/me:test",
 		});
 		expect(storage.storeNode).toHaveBeenCalledWith(
 			"refarm-me-proof",
-			"refarm:Proof",
+			"Proof",
 			"citizen",
 			'{"ok":true}',
 			"apps/me:test",

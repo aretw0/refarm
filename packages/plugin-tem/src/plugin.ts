@@ -86,7 +86,7 @@ export const integration = {
 	getHelpNodes(): string[] {
 		return [
 			JSON.stringify({
-				"@type": "refarm:HelpNode",
+				"@type": "HelpNode",
 				"@id": "urn:refarm:tem:help",
 				name: "TEM Reasoning Engine",
 				description:
@@ -154,11 +154,11 @@ async function storeNoveltyNode(
 	if (!_storeNodeFn) return;
 	const nodeJson = JSON.stringify({
 		"@context": "https://refarm.dev/context/v1",
-		"@type": "refarm:TemMemory",
+		"@type": "TemMemory",
 		"@id": `urn:refarm:tem:novelty:${Date.now()}`,
-		"refarm:triggerEvent": triggerEvent,
-		"refarm:noveltyScore": noveltyScore,
-		"refarm:predictionConfidence": confidence,
+		"triggerEvent": triggerEvent,
+		"noveltyScore": noveltyScore,
+		"predictionConfidence": confidence,
 		"refarm:timestamp": new Date().toISOString(),
 		"sourcePlugin": "plugin:tem",
 	});

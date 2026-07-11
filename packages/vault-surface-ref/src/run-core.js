@@ -92,7 +92,7 @@ function extractRecord(note, ruleId, match) {
 		fields,
 		sourceRefs: [note.path],
 		contentHash: "",
-		"refarm:ruleId": ruleId,
+		"ruleId": ruleId,
 	};
 	const { contentHash: _c, ...rest } = record;
 	record.contentHash = fnv1a32(stableStringify(rest));

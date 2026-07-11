@@ -20,8 +20,8 @@ export interface NormalisedNodeLike {
 	"@id"?: string;
 	"@context"?: unknown;
 	"sourcePlugin"?: string;
-	"refarm:owner"?: string;
-	"refarm:clock"?: number;
+	"owner"?: string;
+	"clock"?: number;
 	"createdAt"?: string;
 	"updatedAt"?: string;
 	"ingestedAt"?: string;
@@ -98,7 +98,7 @@ export class StructAwareEncoder implements ObsEncoder {
 	): void {
 		const { offset, width } = SLOTS.identity;
 		const id = node?.["@id"] ?? "";
-		const owner = (node?.["refarm:owner"] as string) ?? "";
+		const owner = (node?.["owner"] as string) ?? "";
 		const pid = (node?.["sourcePlugin"] as string) ?? pluginId ?? "";
 
 		// Hash the three identity fields into the slot
@@ -124,7 +124,7 @@ export class StructAwareEncoder implements ObsEncoder {
 		durationMs?: number,
 	): void {
 		const { offset, width } = SLOTS.temporal;
-		const clock = (node?.["refarm:clock"] as number) ?? 0;
+		const clock = (node?.["clock"] as number) ?? 0;
 		const ts =
 			node?.["ingestedAt"] ?? node?.["createdAt"] ?? node?.["updatedAt"];
 		const tsMs = ts ? new Date(ts as string).getTime() : 0;

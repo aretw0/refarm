@@ -30,7 +30,7 @@ export const SLOTS = {
 	identity: { offset: 16, width: 16 } as SlotConfig,
 	/** Relational: provides, requires, capabilities, references */
 	relational: { offset: 32, width: 16 } as SlotConfig,
-	/** Temporal: refarm:clock, createdAt, updatedAt, expiresAt */
+	/** Temporal: clock, createdAt, updatedAt, expiresAt */
 	temporal: { offset: 48, width: 8 } as SlotConfig,
 	/** Payload: content fingerprint / semantic embedding placeholder */
 	payload: { offset: 56, width: 8 } as SlotConfig,
@@ -55,7 +55,7 @@ export const TYPE_VOCAB: Record<string, number> = {
 	"refarm:Plugin": 8,
 	"refarm:PluginManifest": 9,
 	"refarm:PluginTrustGrant": 10,
-	"refarm:TemMemory": 11,
+	"TemMemory": 11,
 	"refarm:NoveltySignal": 12,
 	"refarm:Identity": 13,
 	"refarm:Command": 14,

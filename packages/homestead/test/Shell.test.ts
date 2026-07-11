@@ -62,7 +62,7 @@ describe("StudioShell Orchestrator", () => {
                 return vi.fn();
             }),
             emitTelemetry: vi.fn(),
-            getHelpNodes: vi.fn().mockResolvedValue([{ "refarm:renderType": "landing", name: "Test Landing Node", text: "Welcome" }]),
+            getHelpNodes: vi.fn().mockResolvedValue([{ "renderType": "landing", name: "Test Landing Node", text: "Welcome" }]),
             switchTier: vi.fn(),
         };
     });

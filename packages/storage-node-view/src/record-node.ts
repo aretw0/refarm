@@ -81,7 +81,7 @@ export function recordToNode(record: StorageRecord): NormalisedNode {
 					"@type": record.type,
 					"@id": record.id,
 					// Non-node payloads (opaque ledger values) are preserved verbatim.
-					"refarm:payload": record.payload,
+					"payload": record.payload,
 				};
 
 	// The flat columns are authoritative for id/type/time on the way out.

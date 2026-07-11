@@ -146,7 +146,7 @@ function extractRecord(note: VaultNote, ruleId: string, match: Match): Knowledge
 	};
 	record.contentHash = computeRecordContentHash(record);
 	// The rule id is provenance for which matcher produced the record.
-	record["refarm:ruleId"] = ruleId;
+	record["ruleId"] = ruleId;
 	return record;
 }
 

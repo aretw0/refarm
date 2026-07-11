@@ -487,7 +487,7 @@ describe("skill CapabilityGroup", () => {
 			const ledger = openScopedLedger("skills", "user", roots);
 			await ledger.storeNode({
 				"@id": "urn:refarm:skill:v1:legacy:deadbeef",
-				"@type": "refarm:imported-skill",
+				"@type": "imported-skill",
 				surfaceId: "legacy",
 				name: "legacy",
 				requiredCapabilities: [],

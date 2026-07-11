@@ -383,8 +383,8 @@ export class Tractor {
 			name: "Sovereign Engine",
 			text: "The engine is active.",
 			"sourcePlugin": "core",
-			"refarm:priority": 0,
-			"refarm:renderType": "landing",
+			"priority": 0,
+			"renderType": "landing",
 		};
 	}
 

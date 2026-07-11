@@ -81,8 +81,8 @@ export class SowerPlugin {
 			"@id": "urn:refarm:sower:onboarding",
 			name: flow.name,
 			description: flow.description,
-			"refarm:renderType": "onboarding",
-			"refarm:options": flow.options.map((opt) => ({
+			"renderType": "onboarding",
+			"options": flow.options.map((opt) => ({
 				...opt,
 				label: opt.label,
 				description: opt.description,
@@ -116,7 +116,7 @@ export class SowerPlugin {
 					"@id": "urn:refarm:sower:welcome-guest",
 					name: "Welcome Guest",
 					text: "Your temporary workspace is active. Explore the tools below.",
-					"refarm:renderType": "tutorial-step",
+					"renderType": "tutorial-step",
 				},
 			});
 		}

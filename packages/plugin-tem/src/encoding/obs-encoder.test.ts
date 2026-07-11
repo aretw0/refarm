@@ -8,8 +8,8 @@ const mockNode = {
 	"@type": "Person",
 	"@id": "urn:test:person-1",
 	"sourcePlugin": "matrix-bridge",
-	"refarm:owner": "pubkey-abc",
-	"refarm:clock": 42,
+	"owner": "pubkey-abc",
+	"clock": 42,
 	"ingestedAt": new Date(Date.now() - 1000).toISOString(), // 1 second ago
 };
 

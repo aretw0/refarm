@@ -61,8 +61,8 @@ function pluginEntryToNode(entry: PluginEntry): PluginLedgerNode {
 		sha256Integrity: entry.integrity,
 		"refarm:status": entry.status,
 		"installedAt": entry.installedAt,
-		"refarm:cacheStatus": entry.cacheStatus,
-		"refarm:wasmHash": entry.wasmHash,
+		"cacheStatus": entry.cacheStatus,
+		"wasmHash": entry.wasmHash,
 	};
 }
 
@@ -73,8 +73,8 @@ function nodeToPluginEntry(node: PluginLedgerNode): PluginEntry {
 		integrity: String(node.sha256Integrity ?? ""),
 		status: (node["refarm:status"] as PluginEntry["status"]) ?? "installed",
 		installedAt: Number(node["installedAt"] ?? 0),
-		cacheStatus: (node["refarm:cacheStatus"] as PluginEntry["cacheStatus"]) ?? "miss",
-		wasmHash: String(node["refarm:wasmHash"] ?? ""),
+		cacheStatus: (node["cacheStatus"] as PluginEntry["cacheStatus"]) ?? "miss",
+		wasmHash: String(node["wasmHash"] ?? ""),
 	};
 }
 

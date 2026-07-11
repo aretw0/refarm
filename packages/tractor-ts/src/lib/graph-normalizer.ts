@@ -37,6 +37,6 @@ export function normaliseToGraph(
 		"ingestedAt": now,
 		"createdAt": (raw["createdAt"] as string) || now,
 		"updatedAt": now,
-		"refarm:clock": (raw["refarm:clock"] as number) || 0,
+		"clock": (raw["clock"] as number) || 0,
 	};
 }

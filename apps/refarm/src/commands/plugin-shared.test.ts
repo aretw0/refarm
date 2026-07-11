@@ -139,6 +139,8 @@ describe("local extension surface manifests", () => {
 					target: "vault:search",
 					dispatchEvent: "vault:dispatch",
 					surfaceName: "vault-search",
+					doc: null,
+					schema: null,
 				},
 				{
 					pluginId: "@local/web",
@@ -147,6 +149,8 @@ describe("local extension surface manifests", () => {
 					target: "web:search",
 					dispatchEvent: "web:dispatch",
 					surfaceName: "web-search",
+					doc: null,
+					schema: null,
 				},
 			]);
 		} finally {

@@ -263,10 +263,10 @@ export class StudioShell {
 
 		const helpNodes = await this.tractor.getHelpNodes();
 		const seedNode =
-			helpNodes.find((n: StudioHostNode) => n["refarm:renderType"] === "landing") || helpNodes[0];
+			helpNodes.find((n: StudioHostNode) => n["renderType"] === "landing") || helpNodes[0];
 		if (!seedNode) return;
 
-		if (seedNode["refarm:renderType"] === "landing") {
+		if (seedNode["renderType"] === "landing") {
 			mainSlot.innerHTML = `
         <div class="visitor-landing" style="max-width: 900px; margin: 4rem auto; text-align: center; animation: fadeInUp 0.8s ease-out;">
           <h1 style="font-size: 4rem; font-weight: 800; background: var(--refarm-accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1.5rem;">
@@ -300,9 +300,9 @@ export class StudioShell {
 			return;
 		}
 
-		if (seedNode["refarm:renderType"] === "onboarding") {
+		if (seedNode["renderType"] === "onboarding") {
 			type SeedOption = { intent?: string; label?: string; description?: string };
-			const options = (seedNode["refarm:options"] as SeedOption[]) || [];
+			const options = (seedNode["options"] as SeedOption[]) || [];
 			mainSlot.innerHTML = `
         <div class="onboarding-flow" style="max-width: 700px; margin: 4rem auto; animation: fadeIn 0.5s;">
           <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">${seedNode.name}</h1>

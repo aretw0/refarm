@@ -124,7 +124,7 @@ export interface SkillCommandDeps {
 }
 
 /** JSON-LD type of a persisted, imported skill node. */
-const IMPORTED_SKILL_NODE_TYPE = "refarm:imported-skill";
+const IMPORTED_SKILL_NODE_TYPE = "imported-skill";
 
 /** JSON-LD type of a persisted skill invocation decision (the approval record). */
 const SKILL_INVOCATION_DECISION_NODE_TYPE = "refarm:skill-invocation-decision";

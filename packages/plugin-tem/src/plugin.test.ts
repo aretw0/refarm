@@ -21,10 +21,10 @@ describe("storeNoveltyNode", () => {
 
 		expect(stored.length).toBe(1);
 		const node = JSON.parse(stored[0]!);
-		expect(node["@type"]).toBe("refarm:TemMemory");
-		expect(node["refarm:triggerEvent"]).toBe("system:test");
-		expect(typeof node["refarm:noveltyScore"]).toBe("number");
-		expect(typeof node["refarm:predictionConfidence"]).toBe("number");
+		expect(node["@type"]).toBe("TemMemory");
+		expect(node["triggerEvent"]).toBe("system:test");
+		expect(typeof node["noveltyScore"]).toBe("number");
+		expect(typeof node["predictionConfidence"]).toBe("number");
 		expect(node["sourcePlugin"]).toBe("plugin:tem");
 	});
 

@@ -22,7 +22,7 @@ export function runDispatchResultV1Conformance(): DispatchResultConformanceResul
 	// A producer emits two results under two different replyRefs.
 	const a = serializeDispatchResult({ replyRef: "effort-1", verb: "extract", result: { n: 1 } });
 	const b = serializeDispatchResult({ replyRef: "effort-2", verb: "search", result: { hits: [] } });
-	const noise = JSON.stringify({ "@type": "refarm:SomethingElse", value: 1 });
+	const noise = JSON.stringify({ "@type": "SomethingElse", value: 1 });
 
 	// The store hands everything back (query-nodes returns all of a @type; here we
 	// simulate a mixed bag including a non-result node).

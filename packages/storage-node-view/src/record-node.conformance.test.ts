@@ -53,7 +53,7 @@ describe("record⇄node round-trip", () => {
 				"@context": "https://schema.org/",
 				"@type": "ConfigOverride",
 				"@id": "urn:x:1",
-				"refarm:capabilities": ["network:fetch"],
+				"capabilities": ["network:fetch"],
 			}),
 			createdAt: "2026-07-01T00:00:00.000Z",
 			updatedAt: "2026-07-01T00:00:00.000Z",
@@ -65,7 +65,7 @@ describe("record⇄node round-trip", () => {
 		expect(back.type).toBe(record.type);
 		expect(back.createdAt).toBe(record.createdAt);
 		// The node body survives verbatim.
-		expect(JSON.parse(back.payload)["refarm:capabilities"]).toEqual(["network:fetch"]);
+		expect(JSON.parse(back.payload)["capabilities"]).toEqual(["network:fetch"]);
 	});
 
 	it("fills a default node id/type/context when the node omits them via the record columns", () => {
@@ -93,6 +93,6 @@ describe("record⇄node round-trip", () => {
 		const node = recordToNode(record);
 		expect(node["@id"]).toBe("flag-1");
 		expect(node["@type"]).toBe("feature-flag");
-		expect(node["refarm:payload"]).toBe("enabled");
+		expect(node["payload"]).toBe("enabled");
 	});
 });
