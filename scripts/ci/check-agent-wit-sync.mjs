@@ -1,11 +1,11 @@
 // check:wit — canonical WIT guard (formerly a two-copy sync check).
 //
-// Since the host:plugin@0.1.0 WIT was consolidated into a single canonical
+// Since the plugin:host@0.1.0 WIT was consolidated into a single canonical
 // package (packages/plugin-wit/wit/), there are no copies to keep in
 // sync. This guard now enforces the single-source-of-truth invariant:
 //
 //   1. The canonical package parses (wasm-tools).
-//   2. No .wit file declares `package host:plugin@` outside the canonical dir
+//   2. No .wit file declares `package plugin:host@` outside the canonical dir
 //      — i.e. nobody resurrected a divergent copy.
 //
 // See ADR-083 (canonical plugin WIT). Consumers reference the canonical dir via
@@ -18,7 +18,7 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..", "..");
 const canonicalDir = resolve(root, "packages/plugin-wit/wit");
 
-// Independent WIT packages (their own `package X@`, not `host:plugin@`) that
+// Independent WIT packages (their own `package X@`, not `plugin:host@`) that
 // must also parse. Each is a self-contained contract dir; add a package here
 // when it declares a component boundary CI should keep valid.
 const independentWitDirs = [
@@ -39,7 +39,7 @@ for (const dir of [canonicalDir, ...independentWitDirs]) {
 	}
 }
 
-// 2. No `package host:plugin@` declaration outside the canonical dir.
+// 2. No `package plugin:host@` declaration outside the canonical dir.
 // Use `git ls-files` so we only consider tracked .wit files — this ignores
 // build caches (.cache/cargo-target is ~11GB) instantly and never walks them.
 const offenders = [];
@@ -54,16 +54,16 @@ for (const rel of tracked) {
 	const full = resolve(root, rel);
 	if (full.startsWith(canonicalDir)) continue;
 	const text = readFileSync(full, "utf8");
-	if (/\bpackage\s+host:plugin@/.test(text)) {
+	if (/\bpackage\s+plugin:host@/.test(text)) {
 		offenders.push(rel);
 	}
 }
 
 if (offenders.length > 0) {
 	console.error(
-		"[check:wit] found `package host:plugin@` declared outside the canonical package:\n" +
+		"[check:wit] found `package plugin:host@` declared outside the canonical package:\n" +
 			offenders.map((f) => `  - ${f}`).join("\n") +
-			"\nThe host:plugin WIT lives ONLY in packages/plugin-wit/wit/.\n" +
+			"\nThe plugin:host WIT lives ONLY in packages/plugin-wit/wit/.\n" +
 			"Point the consumer's [package.metadata.component.target] path at that dir instead of copying it.",
 	);
 	process.exit(1);

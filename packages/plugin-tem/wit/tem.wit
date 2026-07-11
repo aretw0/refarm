@@ -81,8 +81,8 @@ interface codegen-api {
 // ─── Plugin World ─────────────────────────────────────────────────────────────
 
 world tem-plugin {
-    import host:plugin/tractor-bridge@0.1.0;
-    export host:plugin/integration@0.1.0;
+    import plugin:host/tractor-bridge@0.1.0;
+    export plugin:host/integration@0.1.0;
     export tem-api;
     export codegen-api;
 }

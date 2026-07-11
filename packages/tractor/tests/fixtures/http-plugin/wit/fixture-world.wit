@@ -12,6 +12,6 @@ package refarm:http-plugin-fixture@0.1.0;
 // so the host's load path is unchanged — only the extra wasi:http import
 // distinguishes it from null-plugin.
 world http-plugin {
-    include host:plugin/refarm-plugin@0.1.0;
+    include plugin:host/refarm-plugin@0.1.0;
     import wasi:http/outgoing-handler@0.2.3;
 }

@@ -813,7 +813,7 @@ fn anthropic_text_delta(value: &serde_json::Value) -> Option<&str> {
 #[cfg(test)]
 mod partial_ndjson_tests {
     use super::*;
-    use crate::host::plugin_host::host::plugin::model_bridge::StreamResponseMetadata;
+    use crate::host::plugin_host::plugin::host::model_bridge::StreamResponseMetadata;
     use crate::test_support::env_lock;
 
     fn meta(prompt_ref: &str) -> StreamResponseMetadata {

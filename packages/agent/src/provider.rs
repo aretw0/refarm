@@ -1,6 +1,6 @@
 use crate::{
     provider_config::{choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL},
-    host::plugin::model_bridge,
+    plugin::host::model_bridge,
 };
 
 pub struct CompletionResult {

@@ -114,11 +114,11 @@ fn parse_symbol_location(args: &serde_json::Value) -> Option<(String, u32, u32)>
 #[cfg(target_arch = "wasm32")]
 mod guest {
     use super::*;
-    use bindings::exports::host::plugin::integration::{
+    use bindings::exports::plugin::host::integration::{
         Guest as IntegrationGuest, PluginError, PluginMetadata,
     };
-    use bindings::host::plugin::code_ops::{self, SymbolLocation};
-    use bindings::host::plugin::tractor_bridge;
+    use bindings::plugin::host::code_ops::{self, SymbolLocation};
+    use bindings::plugin::host::tractor_bridge;
 
     struct LspCodeOps;
 

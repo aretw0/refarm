@@ -3,7 +3,7 @@ wit_bindgen::generate!({
     path: "../../packages/plugin-wit/wit",
 });
 
-use crate::exports::host::plugin::integration::{self, PluginError, PluginMetadata};
+use crate::exports::plugin::host::integration::{self, PluginError, PluginMetadata};
 
 /// Simple WASM Plugin for Testing JCO Integration
 ///

@@ -780,7 +780,7 @@ fn manifest_runtime_plugin_id(manifest_id: &str) -> &str {
 
 fn validate_manifest_runtime_alignment(
     plugin_id: &str,
-    metadata: &host::plugin::types::PluginMetadata,
+    metadata: &plugin::host::types::PluginMetadata,
     manifest: &RuntimePluginManifest,
 ) -> Result<()> {
     let mut issues = Vec::<String>::new();
@@ -1322,7 +1322,7 @@ impl PluginHost {
         // manifest; `concurrent_safe` + `requires_api` ride alongside it but stay
         // separate (they feed the runner + the requires-api map, not the profile).
         let (profile, concurrent_safe, requires_api) = if let Some(manifest) = manifest.as_ref() {
-            let metadata = plugin.host_plugin_integration().call_metadata(&mut store).await?;
+            let metadata = plugin.plugin_host_integration().call_metadata(&mut store).await?;
             validate_manifest_runtime_alignment(&plugin_id, &metadata, manifest)?;
             (
                 capability_profile_from_manifest(&manifest.capabilities, &plugin_id),

@@ -176,7 +176,7 @@ export async function loadVaultPluginComponent(options: {
 		new WebAssembly.Module(readFileSync(join(pkgDir, path)));
 	const mod = (await import(pathToFileURL(join(pkgDir, entry)).href)) as Any;
 	const root = await mod.instantiate(getCoreModule, {
-		"host:plugin/tractor-bridge": bridge,
+		"plugin:host/tractor-bridge": bridge,
 	});
 	return root.integration as IntegrationPlugin;
 }

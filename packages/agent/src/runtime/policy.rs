@@ -30,7 +30,7 @@ fn task_context_for_prompt() -> Option<String> {
     if n == 0 {
         return None;
     }
-    let raw = crate::host::plugin::tractor_bridge::query_nodes("Task", n as u32).ok()?;
+    let raw = crate::plugin::host::tractor_bridge::query_nodes("Task", n as u32).ok()?;
     let tasks: Vec<serde_json::Value> = raw
         .iter()
         .filter_map(|r| serde_json::from_str(r).ok())
@@ -46,7 +46,7 @@ fn task_context_for_prompt() -> Option<String> {
 /// no plugins gets a byte-identical prompt to before.
 #[cfg(target_arch = "wasm32")]
 fn tool_prompts_for_prompt() -> Option<String> {
-    let lines = crate::host::plugin::capability_tools::list_tool_prompts();
+    let lines = crate::plugin::host::capability_tools::list_tool_prompts();
     if lines.is_empty() {
         return None;
     }

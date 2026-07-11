@@ -7,7 +7,7 @@ package refarm:barn@0.1.0;
 // intent ahead of the crate. Do not wire a consumer until the Barn crate lands.
 
 interface types {
-    use host:plugin/types.{json-ld-node, node-id, plugin-error, plugin-metadata};
+    use plugin:host/types.{json-ld-node, node-id, plugin-error, plugin-metadata};
 
     record plugin-entry {
         id: node-id,
@@ -21,7 +21,7 @@ interface types {
 
 interface manager {
     use types.{plugin-entry};
-    use host:plugin/types.{node-id, plugin-error};
+    use plugin:host/types.{node-id, plugin-error};
 
     /// Instala um plugin a partir de uma URL e verifica sua integridade.
     install-plugin: func(url: string, integrity: string) -> result<plugin-entry, plugin-error>;
@@ -37,6 +37,6 @@ interface manager {
 }
 
 world barn {
-    import host:plugin/tractor-bridge;
+    import plugin:host/tractor-bridge;
     export manager;
 }

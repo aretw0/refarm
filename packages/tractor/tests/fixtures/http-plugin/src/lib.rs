@@ -19,7 +19,7 @@
 #[allow(warnings)]
 mod bindings;
 
-use bindings::exports::host::plugin::integration::{Guest, PluginError, PluginMetadata};
+use bindings::exports::plugin::host::integration::{Guest, PluginError, PluginMetadata};
 use bindings::wasi::http::outgoing_handler;
 use bindings::wasi::http::types::{Fields, OutgoingRequest, Scheme};
 

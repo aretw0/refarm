@@ -293,9 +293,9 @@ test("rejects unmapped WIT component distribution target", () => {
 		validateWitComponentDistributionTarget(
 			{
 				id: "refarm-plugin",
-				cargoPackage: "host:plugin",
+				cargoPackage: "plugin:host",
 				targetPath: "wit",
-				witPackage: "host:plugin@0.1.0",
+				witPackage: "plugin:host@0.1.0",
 				world: "refarm-plugin-host",
 				imports: ["structured-io", "code-ops"],
 				exports: ["integration"],
@@ -303,13 +303,13 @@ test("rejects unmapped WIT component distribution target", () => {
 			{
 				cargoToml: `
 [package.metadata.component]
-package = "host:plugin"
+package = "plugin:host"
 
 [package.metadata.component.target]
 path = "wit"
 `,
 				wit: `
-package host:plugin@0.1.0;
+package plugin:host@0.1.0;
 
 world refarm-plugin-host {
     import structured-io;

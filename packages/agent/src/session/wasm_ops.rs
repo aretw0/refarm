@@ -1,5 +1,5 @@
 use crate::now_ns;
-use crate::host::plugin::tractor_bridge;
+use crate::plugin::host::tractor_bridge;
 
 use super::{history_from_nodes, session_entry_node, session_node, sum_provider_spend_usd};
 

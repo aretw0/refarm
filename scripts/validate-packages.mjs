@@ -291,12 +291,12 @@ const WIT_COMPONENT_DISTRIBUTION_TARGETS = [
   {
     id: "refarm-plugin",
     packageDir: "packages/plugin-wit",
-    cargoPackage: "host:plugin",
+    cargoPackage: "plugin:host",
     targetPath: "wit",
     // Canonical package is split across wit/*.wit; the host world + its
     // imports/exports live in worlds.wit (see ADR-083).
     witPath: "wit/worlds.wit",
-    witPackage: "host:plugin@0.1.0",
+    witPackage: "plugin:host@0.1.0",
     world: "refarm-plugin-host",
     imports: ["tractor-bridge", "model-bridge", "host-fs", "host-shell", "structured-io", "code-ops"],
     exports: ["integration"],

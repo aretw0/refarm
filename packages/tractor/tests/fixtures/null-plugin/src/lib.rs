@@ -9,7 +9,7 @@ wit_bindgen::generate!({
     path: "../../../../plugin-wit/wit",
 });
 
-use exports::host::plugin::integration::{Guest, PluginError, PluginMetadata};
+use exports::plugin::host::integration::{Guest, PluginError, PluginMetadata};
 
 struct NullPlugin;
 

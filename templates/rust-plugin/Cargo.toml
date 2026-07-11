@@ -15,7 +15,7 @@ wit-bindgen = "0.41.0"
 wit-bindgen-rt = "0.41.0"
 
 [package.metadata.component]
-package = "host:plugin"
+package = "plugin:host"
 
 [package.metadata.component.target]
 path = "../../packages/plugin-wit/wit"

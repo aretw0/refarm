@@ -15,7 +15,7 @@ use tokio::process::Command;
 use tokio::time::{timeout, Duration};
 
 use crate::host::host_effects_bindings::refarm::host_effects::host_spawn::Host as HostSpawnHost;
-use crate::host::plugin_host::host::plugin::{
+use crate::host::plugin_host::plugin::host::{
     code_ops::{CodeReference, Host as CodeOpsHost, RenameResult, SymbolLocation},
     host_fs::Host as HostFsHost,
     host_shell::{Host as HostShellHost, SpawnRequest, SpawnResult},

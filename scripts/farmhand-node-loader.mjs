@@ -183,34 +183,34 @@ function refarmPluginModuleSource(specifier) {
 	const lines = [];
 
 	switch (specifier) {
-		case "host:plugin/host-fs":
+		case "plugin:host/host-fs":
 			lines.push(
 				"export const read = (...args) => call('read', args);",
 				"export const write = (...args) => call('write', args);",
 			);
 			break;
-		case "host:plugin/host-shell":
+		case "plugin:host/host-shell":
 			lines.push("export const spawn = (...args) => call('spawn', args);");
 			break;
-		case "host:plugin/code-ops":
+		case "plugin:host/code-ops":
 			lines.push(
 				"export const findReferences = (...args) => call('find-references', args);",
 				"export const renameSymbol = (...args) => call('rename-symbol', args);",
 			);
 			break;
-		case "host:plugin/model-bridge":
+		case "plugin:host/model-bridge":
 			lines.push(
 				"export const completeHttp = (...args) => call('complete-http', args);",
 				"export const completeHttpStream = (...args) => call('complete-http-stream', args);",
 			);
 			break;
-		case "host:plugin/structured-io":
+		case "plugin:host/structured-io":
 			lines.push(
 				"export const readStructured = (...args) => call('read-structured', args);",
 				"export const writeStructured = (...args) => call('write-structured', args);",
 			);
 			break;
-		case "host:plugin/tractor-bridge":
+		case "plugin:host/tractor-bridge":
 			lines.push(
 				"export const storeNode = (...args) => call('store-node', args);",
 				"export const getNode = (...args) => call('get-node', args);",

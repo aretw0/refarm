@@ -18,7 +18,7 @@ lto = true
 strip = true
 
 [package.metadata.component]
-package = "host:plugin"
+package = "plugin:host"
 
 [package.metadata.component.target]
 path = "../../packages/plugin-wit/wit"

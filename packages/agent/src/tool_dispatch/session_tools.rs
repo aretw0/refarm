@@ -1,4 +1,4 @@
-use crate::host::plugin::tractor_bridge;
+use crate::plugin::host::tractor_bridge;
 
 pub(crate) fn list_sessions() -> String {
     let sessions = tractor_bridge::query_nodes("Session", 50).unwrap_or_default();

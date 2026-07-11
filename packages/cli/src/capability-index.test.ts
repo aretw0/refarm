@@ -272,7 +272,7 @@ describe("capability index", () => {
 					targets: expect.arrayContaining([
 						expect.objectContaining({
 							channel: "wit",
-							name: "host:plugin@0.1.0",
+							name: "plugin:host@0.1.0",
 							status: "internal",
 						}),
 						expect.objectContaining({

@@ -19,8 +19,8 @@ use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use tractor::host::{PluginHost, PluginInstanceHandle};
-use tractor::trust::TrustManager;
-use tractor::{NativeStorage, NativeSync, TelemetryBus};
+use tractor::trust::{SecurityMode, TrustManager};
+use tractor::{NativeStorage, NativeSync, TelemetryBus, TractorNative, TractorNativeConfig};
 
 /// Serializes env var mutations across all harness tests.
 static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -47,6 +47,91 @@ fn wasm_path() -> &'static Path {
         Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../agent/target/wasm32-wasip1/release/agent.wasm"),
     })
+}
+
+static LSP_CODE_OPS_WASM_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Resolve the lsp-code-ops plugin component built by `@refarm.dev/lsp-code-ops`
+/// (`build:wasm` → dist/plugin.wasm + dist/plugin.json, both gitignored). Beside the
+/// wasm sits its plugin.json declaring verbs.key `code-ops`, so loading from dist/
+/// puts `code-ops:find-references` / `code-ops:rename-symbol` into the shared registry.
+fn lsp_code_ops_wasm_path() -> &'static Path {
+    LSP_CODE_OPS_WASM_PATH.get_or_init(|| {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../lsp-code-ops/dist/plugin.wasm")
+    })
+}
+
+/// Memory-only, security-off runtime config (mirrors vault_plugin_harness): the
+/// untrusted agent + lsp-code-ops must load, so NOT the default Strict gate.
+fn memory_config_none() -> TractorNativeConfig {
+    TractorNativeConfig {
+        namespace: ":memory:".to_string(),
+        port: 0,
+        security_mode: SecurityMode::None,
+        ..TractorNativeConfig::default()
+    }
+}
+
+/// Boot a full `TractorNative`, load lsp-code-ops (the verb PROVIDER) then the agent
+/// (the CONSUMER), and register both — so the SAME shared registry the agent's
+/// `invoke_tool` reads holds `code-ops:find-references` / `:rename-symbol`, and the
+/// SAME channels route `code-ops:dispatch` to the loaded lsp-code-ops runner. Returns
+/// `(runtime, agent_id)`; callers set MODEL_* / REFACTOR_LSP_CMD in env BEFORE calling.
+/// Returns None (test skips) if either wasm is absent.
+///
+/// This is the TRUE single-runtime end-to-end: only `TractorNative` populates the
+/// registry + spawns the plugin runner threads (a raw `PluginHost` does neither), so
+/// the proof that the agent reaches the plugin via capability-tools must run here.
+async fn boot_agent_plus_lsp_code_ops() -> Option<(TractorNative, String)> {
+    let agent = wasm_path();
+    let lsp = lsp_code_ops_wasm_path();
+    if !agent.exists() {
+        eprintln!("SKIP: agent.wasm not found — run: cargo component build --release in packages/agent");
+        return None;
+    }
+    if !lsp.exists() {
+        eprintln!(
+            "SKIP: lsp-code-ops plugin.wasm not found at {} — run: pnpm --filter @refarm.dev/lsp-code-ops run build:wasm",
+            lsp.display()
+        );
+        return None;
+    }
+
+    let tractor = TractorNative::boot(memory_config_none())
+        .await
+        .expect("boot must succeed");
+
+    // Provider first: its manifest (verbs.key `code-ops`) folds into
+    // provides:[code-ops:find-references, code-ops:rename-symbol, code-ops:dispatch] +
+    // subscribes:[code-ops:dispatch]; register_for_events puts those verbs in the
+    // shared registry and spawns its runner draining code-ops:dispatch.
+    let lsp_handle = tractor
+        .load_plugin(lsp)
+        .await
+        .expect("lsp-code-ops plugin must load");
+    tractor.register_for_events(lsp_handle);
+
+    // The agent: no sibling manifest beside the built wasm → empty profile → NOT
+    // elected responder, does NOT subscribe user:prompt. Fine — we deliver by EXPLICIT
+    // TARGET below (bypasses subscription). register_for_events still inserts its
+    // channel + spawns its runner and clones the shared cross-plugin into its bindings.
+    let agent_handle = tractor.load_plugin(agent).await.expect("agent must load");
+    let agent_id = agent_handle.id.clone();
+    tractor.register_for_events(agent_handle);
+
+    Some((tractor, agent_id))
+}
+
+/// Poll the graph for the agent's stored Response node (its runner runs async).
+async fn await_agent_response(tractor: &TractorNative) -> serde_json::Value {
+    for _ in 0..300 {
+        let nodes = tractor.sync.query_nodes("Response").expect("query Response");
+        if let Some(row) = nodes.first() {
+            return serde_json::from_str(&row.payload).expect("Response node is JSON");
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    panic!("agent never stored a Response node");
 }
 
 /// Spawn a one-shot mock server that returns `body` for any HTTP POST.
@@ -1143,17 +1228,21 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
     clean_model_env();
 }
 
+/// End-to-end proof of the capability-tools seam via a REAL second plugin: the
+/// agent invokes the model tool `code-ops_find-references`, the host dispatches
+/// `code-ops:dispatch` to the LOADED @refarm/lsp-code-ops plugin, that plugin calls
+/// the host `code-ops` LSP import (driven by REFACTOR_LSP_CMD → the fake python LSP)
+/// and stores a `refarm:DispatchResult`, which the host's correlation-await returns
+/// into the AgentResponse. This is what the two former built-in tests proved for the
+/// in-agent code-ops; now the ops live in the plugin and the seam carries them.
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/agent"]
-async fn harness_find_references_tool_reads_lsp_locations() {
+#[ignore = "requires agent.wasm + lsp-code-ops build:wasm; run with --ignored --test-threads=1"]
+async fn harness_find_references_tool_dispatches_to_lsp_code_ops_plugin() {
     let _env = env_lock();
-    let path = wasm_path();
-    assert!(path.exists(), "agent.wasm not found");
     if !python3_is_available_for_harness() {
         eprintln!("skipping references harness: python3 is not runnable");
         return;
     }
-
     clean_model_env();
 
     let dir = tempfile::tempdir().unwrap();
@@ -1162,6 +1251,9 @@ async fn harness_find_references_tool_reads_lsp_locations() {
     std::fs::write(&source, "let old = old;\n").unwrap();
     std::fs::write(&fake_lsp, FAKE_LSP_CODE_OPS_SERVER).unwrap();
 
+    // The model now calls the PLUGIN verb: `<key>_<verb>` == `code-ops_find-references`
+    // (render_tool_schema: format!("{}_{}", plugin_key, verb)). Args match the plugin's
+    // plugin.json schema (file/line/column, 1-based).
     let arguments = serde_json::json!({
         "file": source.to_string_lossy(),
         "line": 1,
@@ -1180,7 +1272,7 @@ async fn harness_find_references_tool_reads_lsp_locations() {
                     "id": "call_refs",
                     "type": "function",
                     "function": {
-                        "name": "find_references",
+                        "name": "code-ops_find-references",
                         "arguments": arguments
                     }
                 }]
@@ -1194,59 +1286,58 @@ async fn harness_find_references_tool_reads_lsp_locations() {
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
     std::env::set_var("MODEL_PROVIDER", "ollama");
     std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
-    std::env::set_var(
-        "REFACTOR_LSP_CMD",
-        format!("python3 {}", fake_lsp.display()),
+    std::env::set_var("REFACTOR_LSP_CMD", format!("python3 {}", fake_lsp.display()));
+
+    let Some((tractor, agent_id)) = boot_agent_plus_lsp_code_ops().await else {
+        clean_model_env();
+        return;
+    };
+
+    // Deliver the prompt by explicit target — the agent has no manifest → not elected
+    // → not subscribed; an explicit target bypasses subscription.
+    let sent = tractor.deliver(
+        "user:prompt",
+        Some(&agent_id),
+        Some("find references for old".to_string()),
     );
+    assert_eq!(sent, 1, "the prompt must reach the agent runner");
 
-    let sync = make_sync();
-    let host = PluginHost::new(
-        TrustManager::new(),
-        TelemetryBus::new(100),
-        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
-    )
-    .unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load agent");
-
-    call_on_event_with_timeout(
-        &mut handle,
-        "find references for old",
-        "find references harness",
-    )
-    .await;
-
-    let nodes = sync.query_nodes("Response").expect("query AgentResponse");
-    assert!(!nodes.is_empty());
-    let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
+    let v = await_agent_response(&tractor).await;
     assert_eq!(v["content"], "references found");
-    let result = v["tool_calls"][0]["result"].as_str().unwrap_or("");
-    assert!(
-        result.contains("\"kind\": \"reference\""),
-        "missing reference kind: {result}"
-    );
-    assert!(
-        result.contains("\"line\": 1"),
-        "missing 1-based line: {result}"
-    );
-    assert!(
-        result.contains("\"column\": 5"),
-        "missing 1-based column: {result}"
-    );
 
+    // tool_calls[0].result is now the ENTIRE refarm:DispatchResult node the plugin
+    // stored (invoke_tool returns the node JSON), not the old flat built-in shape.
+    let result = v["tool_calls"][0]["result"].as_str().unwrap_or("");
+    let node: serde_json::Value = serde_json::from_str(result)
+        .unwrap_or_else(|_| panic!("tool result must be the dispatch-result node JSON: {result}"));
+    assert_eq!(node["@type"], "refarm:DispatchResult");
+    let refs = node["refarm:result"]
+        .as_array()
+        .unwrap_or_else(|| panic!("find-references result must be an array: {result}"));
+    assert!(!refs.is_empty(), "at least one reference: {result}");
+    // The fake LSP returns line0/char4; the host converts 0-based LSP → 1-based, so the
+    // first reference is line 1, column 5, kind "reference".
+    assert_eq!(refs[0]["kind"], "reference", "missing reference kind: {result}");
+    assert_eq!(refs[0]["line"], 1, "missing 1-based line: {result}");
+    assert_eq!(refs[0]["column"], 5, "missing 1-based column: {result}");
+
+    tractor.shutdown().await.expect("shutdown");
     clean_model_env();
 }
 
+/// The rename companion of the find-references end-to-end: the agent invokes
+/// `code-ops_rename-symbol`, dispatched to the loaded lsp-code-ops plugin, which runs
+/// the host LSP workspace-rename (fake python LSP). The host bridge writes the edited
+/// file to disk, so the rename REALLY rewrote the workspace — now driven through the
+/// plugin, not an agent built-in.
 #[tokio::test]
-#[ignore = "requires: cargo component build --release in packages/agent"]
-async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
+#[ignore = "requires agent.wasm + lsp-code-ops build:wasm; run with --ignored --test-threads=1"]
+async fn harness_rename_symbol_tool_dispatches_to_lsp_code_ops_plugin() {
     let _env = env_lock();
-    let path = wasm_path();
-    assert!(path.exists(), "agent.wasm not found");
     if !python3_is_available_for_harness() {
         eprintln!("skipping rename harness: python3 is not runnable");
         return;
     }
-
     clean_model_env();
 
     let dir = tempfile::tempdir().unwrap();
@@ -1255,6 +1346,7 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
     std::fs::write(&source, "let old = old;\n").unwrap();
     std::fs::write(&fake_lsp, FAKE_LSP_CODE_OPS_SERVER).unwrap();
 
+    // `code-ops_rename-symbol`; args per plugin.json (file/line/column/new_name).
     let arguments = serde_json::json!({
         "file": source.to_string_lossy(),
         "line": 1,
@@ -1274,7 +1366,7 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
                     "id": "call_rename",
                     "type": "function",
                     "function": {
-                        "name": "rename_symbol",
+                        "name": "code-ops_rename-symbol",
                         "arguments": arguments
                     }
                 }]
@@ -1288,41 +1380,46 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
     std::env::set_var("MODEL_PROVIDER", "ollama");
     std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
-    std::env::set_var(
-        "REFACTOR_LSP_CMD",
-        format!("python3 {}", fake_lsp.display()),
+    std::env::set_var("REFACTOR_LSP_CMD", format!("python3 {}", fake_lsp.display()));
+
+    let Some((tractor, agent_id)) = boot_agent_plus_lsp_code_ops().await else {
+        clean_model_env();
+        return;
+    };
+
+    let sent = tractor.deliver(
+        "user:prompt",
+        Some(&agent_id),
+        Some("rename old to new_name".to_string()),
     );
+    assert_eq!(sent, 1, "the prompt must reach the agent runner");
 
-    let sync = make_sync();
-    let host = PluginHost::new(
-        TrustManager::new(),
-        TelemetryBus::new(100),
-        tractor::host::DEFAULT_ON_EVENT_BUDGET_MS,
-    )
-    .unwrap();
-    let mut handle = host.load(path, &sync).await.expect("load agent");
+    let v = await_agent_response(&tractor).await;
+    assert_eq!(v["content"], "rename applied");
 
-    call_on_event_with_timeout(
-        &mut handle,
-        "rename old to new_name",
-        "rename symbol harness",
-    )
-    .await;
-
+    // The host LSP bridge's apply_lsp_text_edits writes the workspace file to disk, so
+    // the rename REALLY rewrote it — same proof as before, now driven via the plugin.
     assert_eq!(
         std::fs::read_to_string(&source).unwrap(),
         "let new_name = new_name;\n"
     );
-    let nodes = sync.query_nodes("Response").expect("query AgentResponse");
-    assert!(!nodes.is_empty());
-    let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
-    assert_eq!(v["content"], "rename applied");
+
+    // Result is the dispatch-result node; the plugin's rename_result() carries
+    // { filesChanged, editsApplied } under refarm:result.
     let result = v["tool_calls"][0]["result"].as_str().unwrap_or("");
-    assert!(
-        result.contains("1 files changed, 2 edits applied"),
-        "rename tool result must report applied edits: {result}"
+    let node: serde_json::Value = serde_json::from_str(result)
+        .unwrap_or_else(|_| panic!("tool result must be the dispatch-result node JSON: {result}"));
+    assert_eq!(node["@type"], "refarm:DispatchResult");
+    assert_eq!(
+        node["refarm:result"]["filesChanged"], 1,
+        "rename must report 1 file changed: {result}"
+    );
+    assert_eq!(
+        node["refarm:result"]["editsApplied"], 2,
+        "rename must report 2 edits applied: {result}"
     );
 
+    tractor.shutdown().await.expect("shutdown");
     clean_model_env();
 }
 

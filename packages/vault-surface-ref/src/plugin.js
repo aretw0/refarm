@@ -16,7 +16,7 @@ import {
 	DISPATCH_RESULT_TYPE,
 	serializeDispatchResult,
 } from "@refarm.dev/dispatch-result-contract-v1";
-import { callPlugin, getPluginApi, storeNode } from "host:plugin/tractor-bridge@0.1.0";
+import { callPlugin, getPluginApi, storeNode } from "plugin:host/tractor-bridge@0.1.0";
 
 import { runVault } from "./run-core.js";
 

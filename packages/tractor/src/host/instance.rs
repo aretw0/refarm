@@ -286,7 +286,7 @@ impl PluginInstanceHandle {
         self.state = PluginState::Running;
         let result = match &mut self.inner {
             PluginImpl::Component { plugin, store } => plugin
-                .host_plugin_integration()
+                .plugin_host_integration()
                 .call_setup(store)
                 .await
                 .map(|r| r.map_err(|e| anyhow::anyhow!("setup() error: {:?}", e))),
@@ -341,7 +341,7 @@ impl PluginInstanceHandle {
         self.state = PluginState::Running;
         let result = match &mut self.inner {
             PluginImpl::Component { plugin, store } => plugin
-                .host_plugin_integration()
+                .plugin_host_integration()
                 .call_ingest(store)
                 .await
                 .map(|r| r.map_err(|e| anyhow::anyhow!("ingest() error: {:?}", e))),
@@ -400,7 +400,7 @@ impl PluginInstanceHandle {
         self.state = PluginState::Running;
         let result: Result<()> = match &mut self.inner {
             PluginImpl::Component { plugin, store } => plugin
-                .host_plugin_integration()
+                .plugin_host_integration()
                 .call_teardown(store)
                 .await
                 .map_err(|e| anyhow::anyhow!("teardown() trap: {e}")),
@@ -449,7 +449,7 @@ impl PluginInstanceHandle {
         match &mut self.inner {
             PluginImpl::Component { plugin, store } => {
                 let meta = plugin
-                    .host_plugin_integration()
+                    .plugin_host_integration()
                     .call_metadata(store)
                     .await?;
                 Ok(serde_json::json!({
@@ -503,7 +503,7 @@ impl PluginInstanceHandle {
 
         let result = match &mut self.inner {
             PluginImpl::Component { plugin, store } => plugin
-                .host_plugin_integration()
+                .plugin_host_integration()
                 .call_on_event(store, event, payload)
                 .await
                 .map(|_| ()),
@@ -586,7 +586,7 @@ impl PluginInstanceHandle {
 
         let result = match &mut self.inner {
             PluginImpl::Component { plugin, store } => plugin
-                .host_plugin_integration()
+                .plugin_host_integration()
                 .call_respond(store, payload)
                 .await
                 .map(|r| r.map_err(|e| anyhow::anyhow!("respond() error: {:?}", e))),

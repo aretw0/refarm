@@ -1,4 +1,4 @@
-use crate::host::plugin::host_fs;
+use crate::plugin::host::host_fs;
 
 pub(crate) fn read_file(input: &serde_json::Value) -> String {
     let path = input["path"].as_str().unwrap_or("");
