@@ -1253,6 +1253,12 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/lsp-code-ops:
+    devDependencies:
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
+
   packages/model-mock:
     devDependencies:
       '@refarm.dev/eslint-config':
