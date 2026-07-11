@@ -25,7 +25,7 @@ receipt/telemetry once such a decision exists upstream.
 - [x] In-memory alert log + `getSystemHealth()` decay score.
 
 ### Not built (previously mis-marked DONE — corrected 2026-07-03)
-- [ ] `refarm:scarecrow` policy contract / JSON-LD node validation schema.
+- [ ] `scarecrow` policy contract / JSON-LD node validation schema.
 - [ ] Node rejection on failing policy check (ingress gate).
 - [ ] Heartwood signature verification before plugin registration.
 - [ ] Policy matching / rule evaluation engine.

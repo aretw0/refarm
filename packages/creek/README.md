@@ -22,10 +22,10 @@ O Creek é **Headless-First**, focado em capturar e emitir fluxos de eventos (`s
 ### WIT Interface (`refarm-creek.wit`)
 
 ```wit
-package refarm:creek@0.1.0;
+package plugin:creek@0.1.0;
 
 interface types {
-    use refarm:plugin/types.{json-ld-node, node-id};
+    use plugin:host/types.{json-ld-node, node-id};
 
     record pulse-event {
         timestamp: u64,
@@ -44,7 +44,7 @@ interface types {
 
 interface monitor {
     use types.{pulse-event, system-health};
-    use refarm:plugin/types.{plugin-error};
+    use plugin:host/types.{plugin-error};
 
     /// Obtém a saúde atual do sistema.
     get-health: func() -> result<system-health, plugin-error>;
@@ -57,7 +57,7 @@ interface monitor {
 }
 
 world creek {
-    import refarm:plugin/tractor-bridge;
+    import plugin:host/tractor-bridge;
     export monitor;
 }
 ```

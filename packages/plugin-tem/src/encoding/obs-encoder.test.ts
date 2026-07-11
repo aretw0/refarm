@@ -70,11 +70,11 @@ describe("StructAwareEncoder", () => {
 	});
 
 	it("a known substrate @type categorizes to its slot, not the unknown bucket", () => {
-		// Regression: the vocab keyed substrate types under a `refarm:` CURIE
-		// (`refarm:Command`), but real nodes carry the BARE @type (`Command`).
-		// A prefixed key never matched, so every plugin/command/identity node
-		// silently collapsed into `unknown` — losing its category signal. A known
-		// bare type must now encode DIFFERENTLY from a genuinely-unknown type.
+		// Regression: the vocab once keyed substrate types under a brand CURIE
+		// (the old `refarm:Command`), but real nodes carry the BARE @type
+		// (`Command`). A prefixed key never matched, so every plugin/command/
+		// identity node silently collapsed into `unknown` — losing its category
+		// signal. A known bare type must encode DIFFERENTLY from an unknown type.
 		const known = { "@type": "Command", "@id": "urn:a" };
 		const genuinelyUnknown = { "@type": "SomethingNeverSeen", "@id": "urn:b" };
 		const event = { event: "plugin:load" };

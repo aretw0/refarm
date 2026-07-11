@@ -128,7 +128,7 @@ TelemetryEvent
                                           └─ p_recalled:            float32[120]
                                                 │
                                         storeNoveltyNode()
-                                          └─→ Sovereign Graph  (refarm:TemMemory node, persisted via Tractor bridge)
+                                          └─→ Sovereign Graph  (TemMemory node, persisted via Tractor bridge)
 ```
 
 ### Action Space Mapping (D4)
@@ -194,8 +194,8 @@ interface codegen-api {
 }
 
 world tem-plugin {
-  import refarm:plugin/tractor-bridge@0.1.0;
-  export refarm:plugin/integration@0.1.0;
+  import plugin:host/tractor-bridge@0.1.0;
+  export plugin:host/integration@0.1.0;
   export tem-api;
   export codegen-api;
 }
@@ -246,11 +246,11 @@ const output = await tem.step(actionId, obsVec);
 // output: { noveltyScore, predictionConfidence, pInferred, pRecalled }
 
 if (output.noveltyScore > NOVELTY_THRESHOLD) {
-  await tem.storeNoveltyNode(output);  // persists refarm:TemMemory to Sovereign Graph
+  await tem.storeNoveltyNode(output);  // persists TemMemory to Sovereign Graph
 }
 ```
 
-`storeNoveltyNode()` is wired to the Tractor bridge — it writes a `refarm:TemMemory` node into the Sovereign Graph via the `tractor-bridge` WIT import. This makes novelty events durable and queryable by the AI Agent.
+`storeNoveltyNode()` is wired to the Tractor bridge — it writes a `TemMemory` node into the Sovereign Graph via the `tractor-bridge` WIT import. This makes novelty events durable and queryable by the AI Agent.
 
 ### Session Boundaries
 

@@ -11,7 +11,7 @@
 **Gate**: Verified TS/Lint/Build status reports.
 
 ### SDD (Spec Driven) ✅
-- [x] Spec: `refarm:health` contract for monorepo validation.
+- [x] Spec: `health` contract for monorepo validation.
 - [x] Spec: Integration with `Turbo` and `Vitest` for health signals.
 
 ### BDD (Behaviour Driven) ✅

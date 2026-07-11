@@ -11,7 +11,7 @@
 **Gate**: Pre-compiled JCO artifacts in `pkg/` and verified Ed25519/SHA-256 logic.
 
 ### SDD (Spec Driven) ✅
-- [x] Spec: `refarm:plugin/heartwood` WIT interface.
+- [x] Spec: `plugin:host/heartwood` WIT interface.
 - [x] Spec: WASM Component Model + JCO transpilation architecture.
 - [x] Spec: Ed25519 signing and verification contract.
 - [x] Spec: SHA-256 hashing contract.

@@ -22,10 +22,10 @@ Seguindo a filosofia **Headless-First**, o Surveyor foca na lógica de travessia
 ### WIT Interface (`refarm-surveyor.wit`)
 
 ```wit
-package refarm:surveyor@0.1.0;
+package plugin:surveyor@0.1.0;
 
 interface types {
-    use refarm:plugin/types.{json-ld-node, node-id};
+    use plugin:host/types.{json-ld-node, node-id};
 
     record graph-stats {
         node-count: u64,
@@ -36,7 +36,7 @@ interface types {
 
 interface mapper {
     use types.{graph-stats};
-    use refarm:plugin/types.{json-ld-node, node-id, plugin-error};
+    use plugin:host/types.{json-ld-node, node-id, plugin-error};
 
     /// Obtém estatísticas gerais do grafo soberano.
     get-stats: func() -> result<graph-stats, plugin-error>;
@@ -49,7 +49,7 @@ interface mapper {
 }
 
 world surveyor {
-    import refarm:plugin/tractor-bridge;
+    import plugin:host/tractor-bridge;
     export mapper;
 }
 ```

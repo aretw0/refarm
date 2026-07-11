@@ -251,7 +251,7 @@ export async function ingest(payload: Uint8Array): Result<u32> {
 DEBUG=refarm:* npm run dev
 
 # Watch WASM calls
-DEBUG=refarm:plugin-host:* npm run dev
+DEBUG=plugin:host-host:* npm run dev
 ```
 
 ### Generate browser runtime descriptor for component sidecars

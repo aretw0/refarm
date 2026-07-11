@@ -18,7 +18,7 @@ The only missing piece is a `bundle.json` produced from a trained checkpoint.
 | Hebbian memory update (`M` matrix) | ✅ | Accumulates during an episode |
 | `resetWalk()` clearing episode state | ✅ | Verified in integration tests |
 | Attractor recall via `runAttractor` | ✅ | Mechanics correct |
-| Storing `refarm:TemMemory` nodes | ✅ | Wired in commit `2f44439` |
+| Storing `TemMemory` nodes | ✅ | Wired in commit `2f44439` |
 | **noveltyScore as a familiarity signal** | ❌ | Needs trained weights |
 | **Distinguishing novel vs. familiar patterns** | ❌ | Needs trained weights |
 | **`predictionConfidence` converging toward 1** | ❌ | Needs trained weights |
@@ -26,8 +26,8 @@ The only missing piece is a `bundle.json` produced from a trained checkpoint.
 
 **When does the missing weights actually matter in production?**
 As soon as the system is used to detect anomalies or patterns in the Sovereign
-Graph. `refarm:TemMemory` nodes _are_ being written (every `onEvent` call), but
-the `refarm:noveltyScore` field carries no learned meaning — it is mathematically
+Graph. `TemMemory` nodes _are_ being written (every `onEvent` call), but
+the `noveltyScore` field carries no learned meaning — it is mathematically
 valid noise until real weights are loaded.
 
 ---
@@ -165,7 +165,7 @@ node tools/generate_tem_sequences.mjs \
 
 **Mode `--from-storage`** — sequences extracted from real usage:
 
-Reads `refarm:TemMemory` nodes already written by `storeNoveltyNode` (commit
+Reads `TemMemory` nodes already written by `storeNoveltyNode` (commit
 `2f44439`), reconstructs chronological sequences, and re-encodes them offline
 using the same deterministic encoders (`encodeAction` + `StructAwareEncoder`).
 

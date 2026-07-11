@@ -64,12 +64,12 @@ wasm-tools component wit ../http-plugin.wasm | grep wasi:http/outgoing-handler
 
 The fixture-local world (`wit/fixture-world.wit`, package
 `plugin:http-plugin-fixture`) `include`s `plugin:host/refarm-plugin` and adds
-the `wasi:http/outgoing-handler` import. The `refarm:plugin` dependency is
+the `wasi:http/outgoing-handler` import. The `plugin:host` dependency is
 resolved to the **canonical** WIT directly, NOT vendored: `Cargo.toml`'s
-`[package.metadata.component.target.dependencies]` points `refarm:plugin` at
+`[package.metadata.component.target.dependencies]` points `plugin:host` at
 `../../../../plugin-wit/wit`. This is deliberate — ADR-083 mandates a
 single source of truth for the plugin WIT, and the `check:wit` guard fails any
-tracked `.wit` that declares `package refarm:plugin@` outside the canonical dir.
+tracked `.wit` that declares `package plugin:host@` outside the canonical dir.
 Only the wasi deps (`wit/deps/{http,io,clocks}/`, distinct packages) are
 vendored here, because cargo-component needs their local paths and they are not
 part of the refarm canonical package.

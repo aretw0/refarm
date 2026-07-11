@@ -47,7 +47,7 @@ packages/barn/
 ├── src/
 │   └── index.ts          # Main Barn class & logic
 ├── wit/
-│   └── refarm-barn.wit   # WIT interface definitions
+│   └── barn.wit   # WIT interface definitions
 ├── docs/
 │   └── SCHEMA.md         # JSON-LD Sovereign Graph schema
 ├── tests/

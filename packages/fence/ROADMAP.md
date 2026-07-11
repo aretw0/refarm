@@ -11,7 +11,7 @@
 **Gate**: Verified WIT boundary and basic capability isolation.
 
 ### SDD (Spec Driven) ✅
-- [x] Spec: `refarm:plugin/tractor-bridge` security constraints.
+- [x] Spec: `plugin:host/tractor-bridge` security constraints.
 - [x] Spec: Default "Closed-by-Default" capability posture.
 
 ### BDD (Behaviour Driven) ✅

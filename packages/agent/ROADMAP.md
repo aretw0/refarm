@@ -282,7 +282,7 @@ Instead of asking the agent to "replace all occurrences of X" (fragile, misses i
 - LSP server lifetime tied to tractor process; plugin calls are synchronous from plugin POV
 - MCP is considered an extension point for future IDE integration, not the primary path
 
-**WIT interface sketch** (`interface code-ops` in `refarm-plugin-host.wit`):
+**WIT interface sketch** (`interface code-ops` in `worlds.wit`):
 
 ```wit
 interface code-ops {
@@ -323,7 +323,7 @@ interface code-ops {
 
 **Dependency**: host-effects package (T-NEXT-268) should exist before this is wired.
 
-- [x] Add `code-ops` interface to `refarm-plugin-host.wit` (T-NEXT-289)
+- [x] Add `code-ops` interface to `worlds.wit` (T-NEXT-289)
   - `symbol-location`, `code-reference`, `rename-result` records; `rename-symbol` and `find-references` funcs
 - [x] Add to agent as tools: `rename_symbol(file, line, col, new_name)`, `find_references(file, line, col)` (T-NEXT-289)
   - Dispatch arms call WIT import; 97 tests pass (4 new schema+required-fields tests)

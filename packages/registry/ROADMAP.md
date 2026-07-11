@@ -34,7 +34,7 @@
 ## v0.2.0 - Sovereign Graph Integration
 **Scope**: Connect the Registry to the user's graph as the primary discovery layer.
 
-- [ ] Implementation of **Graph Nodes for Registry**: Emit a `refarm:PluginRegistry` node to the graph on plugin installation.
+- [ ] Implementation of **Graph Nodes for Registry**: Emit a `PluginRegistry` node to the graph on plugin installation.
 - [ ] **Dynamic Discovery**: Resolving plugins directly from IPs or URLs specified in the graph rather than hardcoding in the distro.
 - [ ] **Curated Feeds**: Following other users' registries via Nostr/IPFS.
 

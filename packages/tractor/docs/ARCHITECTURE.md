@@ -48,7 +48,7 @@ Required for the WebSocket daemon and concurrent plugin execution. The host itse
 ### 6. WIT bindings — `wasmtime::component::bindgen!` macro
 
 Proc macro at compile time. No separate codegen step. The regular plugin host
-bindgen reads `../plugin-wit/wit/refarm-plugin-host.wit`; the legacy
+bindgen reads `../plugin-wit/wit/worlds.wit`; the legacy
 `packages/tractor/wit/refarm-sdk.wit` copy is kept in sync with canonical
 `wit/refarm-sdk.wit` through `pnpm -C packages/tractor run check:wit` so
 Windows checkouts do not depend on Git symlink support.
