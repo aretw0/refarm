@@ -849,6 +849,15 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/delegate:
+    devDependencies:
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
+      '@refarm.dev/plugin-manifest':
+        specifier: workspace:*
+        version: link:../plugin-manifest
+
   packages/deps:
     dependencies:
       '@bytecodealliance/jco':

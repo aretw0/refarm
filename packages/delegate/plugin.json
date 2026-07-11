@@ -1,0 +1,93 @@
+{
+  "_note": "Template only — entry and integrity are injected at build/install time (write-plugin-manifest.mjs stamps them into dist/plugin.json). The agent-delegation ergonomics plugin: surfaces `delegate_single` + `delegate_chain` tools that fan a task (or a persona pipeline) out to the agent's `respond` via call_plugin, WITHOUT the agent depending on it. A second instance of the lsp-code-ops pattern (a plugin that EXTENDS the agent). Personas are sovereign `AgentPersona` graph nodes, seeded on setup and readable via query_nodes.",
+  "id": "@refarm/delegate",
+  "name": "Delegate",
+  "version": "0.1.0",
+  "capabilities": {
+    "requires": [],
+    "verbs": {
+      "key": "delegate",
+      "list": {
+        "single": {
+          "doc": "Delegate ONE task to a sub-agent under a named persona (scout, planner, worker, reviewer). The sub-agent runs a full autonomous turn in its own fresh instance + session (nothing pollutes this conversation) and returns its response. Use this to hand a self-contained task to a specialized persona. The available personas are the `AgentPersona` nodes in the graph.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "persona": {
+                "type": "string",
+                "description": "The persona to run the task under (e.g. \"scout\", \"planner\", \"worker\", \"reviewer\"). Resolved to its system prompt + model from the AgentPersona graph nodes. Omit to use the agent's default persona."
+              },
+              "task": {
+                "type": "string",
+                "description": "The task/instruction for the sub-agent to carry out."
+              }
+            },
+            "required": [
+              "task"
+            ]
+          }
+        },
+        "chain": {
+          "doc": "Delegate a PIPELINE of steps to sub-agents, each under its own persona, run in sequence — each step's output is threaded into the next step's task (substituted for the literal `{previous}`, or appended when there is no marker). Use this for scout→planner→worker→reviewer style workflows. Each step runs in its own fresh instance + session. Returns the final step's response; the whole chain aborts on the first step that fails.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "steps": {
+                "type": "array",
+                "description": "The pipeline steps, run in order. Each step's output feeds the next.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "persona": {
+                      "type": "string",
+                      "description": "The persona for this step (resolved from AgentPersona nodes). Omit for the agent default."
+                    },
+                    "task": {
+                      "type": "string",
+                      "description": "This step's instruction. Use `{previous}` where the prior step's output should be inserted; without it, the prior output is appended as context."
+                    }
+                  },
+                  "required": [
+                    "task"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "steps"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "permissions": [],
+  "observability": {
+    "hooks": [
+      "onLoad",
+      "onInit",
+      "onRequest",
+      "onError",
+      "onTeardown"
+    ]
+  },
+  "targets": [
+    "server"
+  ],
+  "executionContext": {
+    "preferred": "node",
+    "allowed": [
+      "node"
+    ]
+  },
+  "certification": {
+    "license": "AGPL-3.0-only",
+    "a11yLevel": 0,
+    "languages": [
+      "en"
+    ]
+  },
+  "trust": {
+    "profile": "strict"
+  }
+}

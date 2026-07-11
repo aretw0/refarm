@@ -1,0 +1,27 @@
+[package]
+name = "delegate"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.36"
+serde_json = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+
+[package.metadata.component]
+package = "plugin:host"
+
+[package.metadata.component.target]
+path = "../plugin-wit/wit"
+# The base `plugin` world: imports only tractor-bridge (call-plugin, store-node,
+# query-nodes) + exports integration. The delegate needs no host-fs/shell/model — it
+# only orchestrates the agent via call_plugin. Smallest world = tightest sandbox.
+world = "plugin"
