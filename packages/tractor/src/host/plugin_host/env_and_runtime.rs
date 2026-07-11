@@ -1616,6 +1616,58 @@ mod capability_tests {
     }
 
     #[test]
+    fn real_agent_manifest_makes_respond_a_dispatchable_verb() {
+        // The load-bearing assertion for agent→agent DELEGATION: the ACTUAL agent
+        // plugin.json must lower into a dispatchable `agent:respond`. If the verbs block
+        // is dropped or malformed, respond stops being invokable by another agent and
+        // delegation silently breaks — so pin it against the real manifest, not a fixture.
+        // The agent plugin.json is a TEMPLATE — `entry`/`integrity` are injected at
+        // install time, so the strict RuntimePluginManifest deserializer (entry
+        // required) can't read it. Parse the raw JSON and lift `id` + `capabilities`,
+        // which is all the lowering depends on.
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../agent/plugin.json");
+        let raw = std::fs::read_to_string(&path).expect("agent plugin.json reads");
+        let value: serde_json::Value = serde_json::from_str(&raw).expect("agent plugin.json is JSON");
+        let id = value["id"].as_str().expect("agent manifest has an id").to_string();
+        let capabilities: RuntimePluginCapabilities =
+            serde_json::from_value(value["capabilities"].clone()).expect("capabilities deserialize");
+        let profile = capability_profile_from_manifest(&capabilities, &id);
+
+        // The verb + its derived dispatch channel exist on BOTH sides.
+        assert!(
+            profile.provides.contains(&"agent:respond".to_string()),
+            "provides must carry agent:respond, got {:?}",
+            profile.provides
+        );
+        assert!(
+            profile.provides.contains(&"agent:dispatch".to_string()),
+            "provides must carry the derived agent:dispatch channel"
+        );
+        assert!(
+            profile.subscribes.contains(&"agent:dispatch".to_string()),
+            "subscribes must carry agent:dispatch (only then is the verb dispatchable)"
+        );
+        // The verb reaches the model TYPED — its arg schema (prompt required) rides along.
+        let schema = profile
+            .verb_schemas
+            .get("agent:respond")
+            .expect("agent:respond carries a declared arg schema");
+        assert_eq!(schema["required"], serde_json::json!(["prompt"]));
+
+        // And the registry's dispatch guard actually SURFACES it (the consumer side of
+        // the same rule invoke_tool/call_plugin walk).
+        let registry = crate::host::plugin_registry::PluginRegistry::default();
+        registry.register(&id, profile);
+        let dispatchable = registry.dispatchable_verbs();
+        assert!(
+            dispatchable
+                .iter()
+                .any(|v| v.plugin_key == "agent" && v.verb == "respond"),
+            "dispatchable_verbs must include agent/respond, got {dispatchable:?}"
+        );
+    }
+
+    #[test]
     fn verbs_block_lowers_doc_and_schema_and_coexists_with_raw() {
         // verbs for the dispatchable surface + a raw user:prompt subscription (a non-verb).
         let m = minimal_manifest(

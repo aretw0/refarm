@@ -12,7 +12,50 @@
     "providesApi": [
       "AgentRespond"
     ],
-    "requiresApi": []
+    "requiresApi": [],
+    "verbs": {
+      "key": "agent",
+      "list": {
+        "respond": {
+          "doc": "Delegate a prompt to a sub-agent: it runs a full autonomous turn (its own model + tools, in its own instance and session) and returns the final response. Use this to hand a self-contained task to a fresh agent without polluting the current conversation. Returns the sub-agent's content plus token/usage.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "prompt": {
+                "type": "string",
+                "description": "The task/instruction for the sub-agent to carry out."
+              },
+              "system": {
+                "type": "string",
+                "description": "Optional system prompt overriding the sub-agent's default persona."
+              },
+              "session_id": {
+                "type": "string",
+                "description": "Optional session id to continue an existing sub-agent conversation instead of starting fresh."
+              },
+              "history_turns": {
+                "type": "integer",
+                "description": "Optional cap on how many prior turns of the referenced session to include."
+              },
+              "provider": {
+                "type": "string",
+                "description": "Optional model provider override for the sub-agent turn."
+              },
+              "model": {
+                "type": "string",
+                "description": "Optional model override for the sub-agent turn."
+              }
+            },
+            "required": [
+              "prompt"
+            ]
+          }
+        }
+      }
+    },
+    "syncVerbs": [
+      "agent:respond"
+    ]
   },
   "permissions": [
     "fs:read",

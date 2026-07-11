@@ -112,6 +112,100 @@ use plugin::host::tractor_bridge;
 
 struct Agent;
 
+// ── Delegation: the agent as a dispatchable sub-agent ─────────────────────────
+//
+// The manifest's `verbs` block (key "agent", verb "respond") makes `agent:respond`
+// a DISPATCHABLE verb: the host derives an `agent:dispatch` channel, surfaces
+// `agent_respond` as a model tool to every OTHER agent, and routes an invocation
+// here as an `agent:dispatch` EVENT carrying `{ verb, replyRef, ...args }`. This
+// mirrors the lsp-code-ops dispatch handler exactly — one call protocol
+// (`dispatch_to_plugin`) shared by `invoke_tool` (agent leg) and `call_plugin`
+// (cross-plugin leg). The correlation is out-of-band: we run the verb and store a
+// `DispatchResult` node keyed by `replyRef`, which the caller's await polls for.
+// So agent-A delegating to agent-B is `invoke_tool("agent_respond", {prompt})` →
+// this handler runs a full sub-agent turn in THIS instance → result flows back.
+
+/// The dispatch routing key — MUST match `capabilities.verbs.key` in plugin.json.
+const DISPATCH_KEY: &str = "agent";
+/// The node `@type` a dispatched verb stores its result under, and the correlation
+/// field the host awaits — the convention shared with lsp-code-ops + the
+/// `@refarm.dev/dispatch-result-contract-v1` TS contract.
+const DISPATCH_RESULT_TYPE: &str = "DispatchResult";
+const REPLY_REF_FIELD: &str = "replyRef";
+const RESULT_FIELD: &str = "result";
+
+struct DispatchRequest {
+    verb: String,
+    reply_ref: String,
+    /// The verb's args = the dispatch payload minus the `verb`/`replyRef` envelope.
+    args: serde_json::Value,
+}
+
+/// Parse an `agent:dispatch` payload into a `DispatchRequest`. Returns None when the
+/// payload is not the expected `{ verb, replyRef, ... }` object (a malformed dispatch
+/// is ignored, never stored). PURE — mirrors lsp-code-ops `parse_dispatch`.
+fn parse_agent_dispatch(payload: &str) -> Option<DispatchRequest> {
+    let value: serde_json::Value = serde_json::from_str(payload).ok()?;
+    let obj = value.as_object()?;
+    let verb = obj.get("verb")?.as_str()?.to_string();
+    let reply_ref = obj.get("replyRef")?.as_str()?.to_string();
+    let mut args = serde_json::Map::new();
+    for (k, v) in obj {
+        if k != "verb" && k != "replyRef" {
+            args.insert(k.clone(), v.clone());
+        }
+    }
+    Some(DispatchRequest {
+        verb,
+        reply_ref,
+        args: serde_json::Value::Object(args),
+    })
+}
+
+/// Build the `DispatchResult` node the host awaits: the correlation key plus the
+/// verb's result payload (`result` is any JSON — the sub-agent's response object on
+/// success, an `{ error }` object on failure). PURE — mirrors lsp-code-ops
+/// `build_dispatch_result_node`, so both plugins produce the identical node shape.
+fn build_dispatch_result_node(reply_ref: &str, result: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "@id": format!("urn:sovereign:dispatch-result:{reply_ref}"),
+        "@type": DISPATCH_RESULT_TYPE,
+        REPLY_REF_FIELD: reply_ref,
+        RESULT_FIELD: result,
+    })
+}
+
+/// An error result payload for a dispatched verb: `{ error: <message> }`. The agent
+/// ALWAYS stores a result node (even on failure) so the caller's await never hangs.
+/// PURE.
+fn dispatch_error_result(message: &str) -> serde_json::Value {
+    serde_json::json!({ "error": message })
+}
+
+/// Run a dispatched verb, returning the agent-facing result VALUE (an error result on
+/// any failure — never propagates, so a result node is always stored). Today the only
+/// dispatchable verb is `respond` (delegate a sub-agent turn); an unknown verb is an
+/// error result. Splitting the run from the store keeps this pure + unit-testable.
+#[cfg(target_arch = "wasm32")]
+fn run_dispatched_verb(verb: &str, args: &serde_json::Value) -> serde_json::Value {
+    if verb != "respond" {
+        return dispatch_error_result(&format!("unknown verb: {verb}"));
+    }
+    // The args ARE the respond payload ({ prompt, system?, session_id?, ... }).
+    let payload = args.to_string();
+    let req = match parse_respond_payload(&payload) {
+        Ok(req) => req,
+        Err(e) => return dispatch_error_result(&format!("{e:?}")),
+    };
+    match execute_respond(&req) {
+        // respond returns a JSON string ({content, model, usage}); surface it as
+        // parsed JSON so the caller gets structured data, not a stringified blob.
+        Ok(json) => serde_json::from_str::<serde_json::Value>(&json)
+            .unwrap_or_else(|_| serde_json::json!({ "content": json })),
+        Err(e) => dispatch_error_result(&format!("{e:?}")),
+    }
+}
+
 struct RespondPayload {
     prompt: String,
     system: Option<String>,
@@ -334,6 +428,24 @@ impl IntegrationGuest for Agent {
     }
 
     fn on_event(event: String, payload: Option<String>) {
+        // The delegation channel: another agent (or plugin) invoked `agent_respond`,
+        // routed here as `agent:dispatch` with `{ verb, replyRef, ...args }`. Run the
+        // sub-agent turn and store a `DispatchResult` node the caller's await polls for.
+        if event == format!("{DISPATCH_KEY}:dispatch") {
+            let Some(payload) = payload else { return };
+            let Some(req) = parse_agent_dispatch(&payload) else {
+                return;
+            };
+            #[cfg(target_arch = "wasm32")]
+            {
+                let result = run_dispatched_verb(&req.verb, &req.args);
+                let node = build_dispatch_result_node(&req.reply_ref, result);
+                let _ = tractor_bridge::store_node(&node.to_string());
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            let _ = &req;
+            return;
+        }
         if event != "user:prompt" {
             return;
         }
