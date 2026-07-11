@@ -41,7 +41,7 @@
 	"bugs": {
 		"url": "https://github.com/aretw0/refarm/issues"
 	},
-	"homepage": "https://refarm.dev.br",
+	"homepage": "https://refarm.dev",
 	"files": [
 		"dist",
 		"!dist/**/*.tsbuildinfo",

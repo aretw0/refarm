@@ -111,7 +111,7 @@ The extended generator (`turbo/generators/config.ts`) **auto-registers** the pac
 		"directory": "packages/source-contract-v1"
 	},
 	"bugs": { "url": "https://github.com/aretw0/refarm/issues" },
-	"homepage": "https://refarm.dev.br",
+	"homepage": "https://refarm.dev",
 	"files": ["dist", "README.md"],
 	"publishConfig": { "access": "public" },
 	"devDependencies": {
@@ -608,7 +608,7 @@ git commit -m "feat(source-contract-v1): in-memory reference and source:v1 confo
 		"directory": "packages/source-git"
 	},
 	"bugs": { "url": "https://github.com/aretw0/refarm/issues" },
-	"homepage": "https://refarm.dev.br",
+	"homepage": "https://refarm.dev",
 	"files": ["dist", "README.md"],
 	"publishConfig": { "access": "public" },
 	"dependencies": {

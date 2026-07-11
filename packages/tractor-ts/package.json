@@ -11,7 +11,7 @@
 	"bugs": {
 		"url": "https://github.com/aretw0/refarm/issues"
 	},
-	"homepage": "https://refarm.dev.br",
+	"homepage": "https://refarm.dev",
 	"main": "./dist/src/index.js",
 	"types": "./dist/src/index.d.ts",
 	"exports": {

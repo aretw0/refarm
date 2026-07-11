@@ -8,7 +8,7 @@
 
 ## 1. The Philosophy: "Graph as Code"
 
-If Refarm is a Personal Operating System for Sovereign Data, its own public interfaces (like the landing page `refarm.dev.br` or a user's blog) should not exist merely as static files in a repository. They should be **nodes in a graph**.
+If Refarm is a Personal Operating System for Sovereign Data, its own public interfaces (like the landing page `refarm.dev` or a user's blog) should not exist merely as static files in a repository. They should be **nodes in a graph**.
 
 - **The Shell (A Casca)**: The main Refarm binary/app contains only the bare minimum (WASM host, Tractor, and SQLite) and a tiny fallback UI for bootstrap.
 - **The Interface as Data**: The entire landing page, CSS, page structure, and routing are synchronized as JSON-LD nodes.
@@ -41,7 +41,7 @@ There is at least one peer (a friend) with Refarm online, exposing their port or
 
 - **How it works**: Anyone can access `https://purple-rat-23.tunnels.refarm.dev`. That node's Gateway takes the request, reads the "landing page" straight from *their* graph, and serves the visitor. Refarm survives through the grassroots sharing of nodes.
 
-### Level 3: The Anchor Node (refarm.dev.br)
+### Level 3: The Anchor Node (refarm.dev)
 The official page is nothing special. It's just a highly cached node on the network.
 
 - **How it works**: The infrastructure of the official domain runs one or many Tractors. They simply serve the graphs of whoever has the administrative capabilities to sign the "Home Page" node. Deploying a new landing page is, in reality, saving a new *Node* to the official graph and synchronizing it (via CRDT over Nostr).
@@ -53,7 +53,7 @@ To prevent a heavy photo from jumping through 15 slow domestic peers via P2P.
 
 ### Level 5: Shared Graph Fragments
 
-- **How it works**: If `refarm.dev.br` goes down, but you accessed it yesterday, your CRDT log (via Nostr/Yjs) might have synchronized a piece of the public page locally and stored it in your SQLite. You can act as a *fallback relay* for isolated public public fragments.
+- **How it works**: If `refarm.dev` goes down, but you accessed it yesterday, your CRDT log (via Nostr/Yjs) might have synchronized a piece of the public page locally and stored it in your SQLite. You can act as a *fallback relay* for isolated public public fragments.
 
 ---
 

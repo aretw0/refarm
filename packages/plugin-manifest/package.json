@@ -26,7 +26,7 @@
 		"url": "https://github.com/aretw0/refarm.git",
 		"directory": "packages/plugin-manifest"
 	},
-	"homepage": "https://refarm.dev.br",
+	"homepage": "https://refarm.dev",
 	"files": [
 		"dist",
 		"!dist/**/*.tsbuildinfo",

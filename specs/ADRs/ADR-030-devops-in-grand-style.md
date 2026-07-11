@@ -25,7 +25,7 @@ The Refarm host (Homestead) must be deployable as a **Sovereign Application** wi
 - **Button**: A "Deploy to..." button for GitHub repositories to fork-and-ship in one click.
 
 ## 3. Identity-Scoped Deployment
-Deployments will be pre-configured to handle `refarm.dev.br` as the central discovery relay but will allow users to point to their own Nostr relays upon boot.
+Deployments will be pre-configured to handle `refarm.dev` as the central discovery relay but will allow users to point to their own Nostr relays upon boot.
 
 **Consequences**:
 
