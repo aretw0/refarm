@@ -1,4 +1,4 @@
-import { defaultRefarmConfigPath, findRefarmConfigPath } from "@refarm.dev/config";
+import { defaultSovereignConfigPath, findSovereignConfigPath } from "@refarm.dev/config";
 import {
 	ComplexityAuditor,
 	ConfigNodeAuditor,
@@ -291,7 +291,7 @@ export async function runHealthPolicySuggestion(
 export async function applySuggestedHealthPolicy(
 	rootDir = process.cwd(),
 ): Promise<HealthPolicyApplicationReport> {
-	const configPath = findRefarmConfigPath(rootDir) ?? defaultRefarmConfigPath(rootDir);
+	const configPath = findSovereignConfigPath(rootDir) ?? defaultSovereignConfigPath(rootDir);
 	const suggestion = await runHealthPolicySuggestion(rootDir);
 	const config = readRefarmConfigForWrite(configPath);
 	const previousHealth = config.health;

@@ -3,19 +3,24 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	CONFIG_DIR_SELECTOR_KEY,
 	DEFAULT_ENV_PREFIX,
 	ENV_PREFIX_SELECTOR_KEY,
-	defaultRefarmConfigPath,
+	defaultSovereignConfigPath,
 	envPrefixFromBrand,
-	findRefarmConfigPath,
-	findRefarmRoot,
+	findSovereignConfigPath,
+	findSovereignRoot,
 	loadConfig,
 	loadConfigAsync,
 	resolveEnvPrefix,
 } from "./index.js";
 
+// The substrate has no config-dir default; the app injects it. These tests stand in
+// for the app, selecting ".refarm" (the substrate must never assume a brand dir).
+process.env[CONFIG_DIR_SELECTOR_KEY] = ".refarm";
+
 describe("@refarm.dev/config Deterministic Tests", () => {
-	const root = findRefarmRoot();
+	const root = findSovereignRoot();
 
 	afterEach(() => {
 		vi.unstubAllEnvs();
@@ -70,11 +75,11 @@ describe("@refarm.dev/config Deterministic Tests", () => {
 				JSON.stringify({ brand: { slug: "legacy" } }),
 			);
 			writeFileSync(
-				defaultRefarmConfigPath(root),
+				defaultSovereignConfigPath(root),
 				JSON.stringify({ brand: { slug: "canonical" } }),
 			);
 
-			expect(findRefarmConfigPath(root)).toBe(defaultRefarmConfigPath(root));
+			expect(findSovereignConfigPath(root)).toBe(defaultSovereignConfigPath(root));
 			expect(loadConfig(root).brand.slug).toBe("canonical");
 		} finally {
 			rmSync(root, { recursive: true, force: true });
@@ -106,7 +111,7 @@ describe("@refarm.dev/config Deterministic Tests", () => {
 				}),
 			);
 			writeFileSync(
-				defaultRefarmConfigPath(root),
+				defaultSovereignConfigPath(root),
 				JSON.stringify({
 					brand: { slug: "canonical" },
 					health: {
@@ -143,8 +148,8 @@ describe("@refarm.dev/config Deterministic Tests", () => {
 			const legacyConfigPath = join(root, "refarm.config.json");
 			writeFileSync(legacyConfigPath, JSON.stringify({ brand: { slug: "legacy" } }));
 
-			expect(findRefarmConfigPath(root)).toBe(legacyConfigPath);
-			expect(findRefarmRoot(join(root, "nested"))).toBe(root);
+			expect(findSovereignConfigPath(root)).toBe(legacyConfigPath);
+			expect(findSovereignRoot(join(root, "nested"))).toBe(root);
 			expect(loadConfig(root).brand.slug).toBe("legacy");
 		} finally {
 			rmSync(root, { recursive: true, force: true });
@@ -153,7 +158,7 @@ describe("@refarm.dev/config Deterministic Tests", () => {
 });
 
 describe("env-var prefix is parameterizable (white-label seam, ADR-087 phase 4)", () => {
-	const root = findRefarmRoot();
+	const root = findSovereignRoot();
 
 	afterEach(() => {
 		vi.unstubAllEnvs();

@@ -1,9 +1,9 @@
 import {
 	declaredWorkspaceNamespacesFromConfig,
-	defaultRefarmConfigPath,
-	findRefarmConfigPath,
+	defaultSovereignConfigPath,
+	findSovereignConfigPath,
 	loadConfig,
-	refarmConfigPathCandidates,
+	sovereignConfigPathCandidates,
 	RUNTIME_AGENT_PLUGIN_DESCRIPTOR,
 	type DeclaredWorkspaceNamespaceConfig,
 } from "@refarm.dev/config";
@@ -91,7 +91,7 @@ export function resolveHealthPolicy(rootDir = process.cwd()): HealthPolicy {
 }
 
 export function resolveHealthPolicyReport(rootDir = process.cwd()): HealthPolicyReport {
-	const configPath = findRefarmConfigPath(rootDir) ?? defaultRefarmConfigPath(rootDir);
+	const configPath = findSovereignConfigPath(rootDir) ?? defaultSovereignConfigPath(rootDir);
 	const fallback = defaultHealthPolicy(rootDir);
 	const fallbackSource = fallback.preset === "refarm" ? "refarm-default" : "workspace-default";
 
@@ -165,7 +165,7 @@ function layeredIgnoredGitVisibilityPatterns(
 	mergedHealth: RefarmConfig["health"],
 ): string[] {
 	const values: string[] = [];
-	for (const configPath of [...refarmConfigPathCandidates(rootDir)].reverse()) {
+	for (const configPath of [...sovereignConfigPathCandidates(rootDir)].reverse()) {
 		if (!fs.existsSync(configPath)) continue;
 		try {
 			const config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as RefarmConfig;

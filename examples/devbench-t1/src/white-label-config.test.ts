@@ -3,6 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DGK_COMMAND } from "./cli.js";
 
+// The substrate has no config-dir default; the app injects SOVEREIGN_CONFIG_DIR. This
+// white-label example stands in for its app and selects ".refarm" — independent of the
+// DGK_ env PREFIX it drives (config-dir and env-prefix are separate seams).
+process.env.SOVEREIGN_CONFIG_DIR ||= ".refarm";
+
 /**
  * The constructive half of C (ADR-087): a genuine WHITE-LABEL consumer drives the
  * SHARED `@refarm.dev/config` under ITS OWN brand prefix, with zero "refarm" leak.

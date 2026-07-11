@@ -3,7 +3,7 @@ import {
 	buildJsonSuccessEnvelope,
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
-import { findRefarmConfigPath } from "@refarm.dev/config";
+import { findSovereignConfigPath } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
 import { Windmill } from "@refarm.dev/windmill";
 import chalk from "chalk";
@@ -91,7 +91,7 @@ export const deployCommand = new Command("deploy")
 
 		try {
 			const target = parseDeployTarget(options.target);
-			const configPath = findRefarmConfigPath(process.cwd());
+			const configPath = findSovereignConfigPath(process.cwd());
 			if (!configPath) {
 				throw new Error(".refarm/config.json not found in current directory.");
 			}

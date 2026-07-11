@@ -4,7 +4,7 @@ import {
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
 import { quoteCommandArg, workspaceCommand } from "@refarm.dev/cli/command-handoff";
-import { defaultRefarmConfigPath } from "@refarm.dev/config";
+import { defaultSovereignConfigPath } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 import { SowerCore } from "@refarm.dev/sower";
@@ -89,7 +89,7 @@ export function createInitCommand(deps: InitCommandDeps = {}): Command {
 		.option("--template <id>", "Template to scaffold without prompting")
 		.action(async (name, opts: InitOptions) => {
 			const projectDir = name === "." ? cwd() : path.join(cwd(), name);
-			const configPath = defaultRefarmConfigPath(projectDir);
+			const configPath = defaultSovereignConfigPath(projectDir);
 			const identityPath = path.join(projectDir, ".refarm", "identity.json");
 
 			if (!opts.force && (fileExists(configPath) || fileExists(identityPath))) {

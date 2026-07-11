@@ -64,11 +64,13 @@ fn merge_plugin_env_vars(
 /// reader consumes (provider/model/default_provider/stream_responses/budgets) are
 /// never secrets, so the redacted node is a faithful source for them.
 fn resolve_sovereign_config(base: &std::path::Path, sync: Option<&NativeSync>) -> Option<serde_json::Value> {
-    let path = base.join(".refarm/config.json");
-    if let Some(bytes) = read_refarm_config_bytes(&path) {
-        match serde_json::from_slice::<serde_json::Value>(&bytes) {
-            Ok(cfg) => return Some(cfg),
-            Err(_) => tracing::warn!(".refarm/config.json is not valid JSON — ignoring"),
+    // Config dir is injected (SOVEREIGN_CONFIG_DIR); no selector → skip the local file.
+    if let Some(path) = config_node::sovereign_config_path(base) {
+        if let Some(bytes) = read_refarm_config_bytes(&path) {
+            match serde_json::from_slice::<serde_json::Value>(&bytes) {
+                Ok(cfg) => return Some(cfg),
+                Err(_) => tracing::warn!("sovereign config.json is not valid JSON — ignoring"),
+            }
         }
     }
     // No usable local file — try the replicated config node.
@@ -292,7 +294,8 @@ fn refarm_config_path_matches_open_file(path: &std::path::Path, file: &std::fs::
 }
 
 fn refarm_config_json_from(base: &std::path::Path) -> Option<serde_json::Value> {
-    let path = base.join(".refarm/config.json");
+    // Config dir is injected (SOVEREIGN_CONFIG_DIR); no selector → no config path.
+    let path = config_node::sovereign_config_path(base)?;
     let bytes = read_refarm_config_bytes(&path)?;
     serde_json::from_slice::<serde_json::Value>(&bytes).ok()
 }

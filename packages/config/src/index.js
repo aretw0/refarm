@@ -113,7 +113,52 @@ export {
  * Implements a pluggable source system with Strategic Bootstrap and prioritized merging.
  */
 
-export const REFARM_CONFIG_CANONICAL_RELATIVE_PATH = path.join(".refarm", "config.json");
+// --- Sovereign config directory (injected, no substrate default) ---
+//
+// The substrate does NOT know the config directory name. Like a config binary that
+// "fails up" (the `applicationCommand` precedent below, and unlike the env-prefix
+// which has a resolved default), the dir is SELECTED by the host/app through a
+// neutral, brand-free env var and the substrate reads it with NO fallback: an unset
+// selector fails loudly rather than silently landing on a brand name. Only the app
+// (apps/refarm) sets `.refarm`; the Rust host reads the SAME env var, so the two
+// stacks agree on the path without either hardcoding it (the RS↔TS lockstep, now
+// via injection instead of a duplicated literal). Mirrors storage-fs's
+// MissingOrgRootError: no default means an accidental unset is a clear error.
+
+/** The neutral, brand-free env var that names the sovereign config DIRECTORY (e.g.
+ * the app sets it to ".refarm"). No default in the substrate — the app owns the name. */
+export const CONFIG_DIR_SELECTOR_KEY = "SOVEREIGN_CONFIG_DIR";
+
+/** The config file name inside the sovereign config dir. This IS a fixed substrate
+ * convention (the file, not the branded dir), and matches the Rust host. */
+export const CONFIG_FILE_NAME = "config.json";
+
+/** Thrown when the sovereign config dir is not injected — the substrate has no
+ * default, so an unset selector is a loud error, not a silent brand fallback. */
+export class MissingConfigDirError extends Error {
+	constructor() {
+		super(
+			`The sovereign config directory has no substrate default — set ${CONFIG_DIR_SELECTOR_KEY} ` +
+				`(the app chooses it, e.g. ".refarm"). The substrate never hardcodes a brand dir.`,
+		);
+		this.name = "MissingConfigDirError";
+	}
+}
+
+/** Resolve the sovereign config dir name from the neutral selector env. NO fallback:
+ * throws MissingConfigDirError when unset. */
+export function sovereignConfigDir(env = process.env) {
+	const dir = env[CONFIG_DIR_SELECTOR_KEY]?.trim();
+	if (!dir) throw new MissingConfigDirError();
+	return dir;
+}
+
+/** The canonical `<configDir>/config.json` RELATIVE path, resolving the dir from the
+ * injected selector. Replaces the old hardcoded REFARM_CONFIG_CANONICAL_RELATIVE_PATH. */
+export function sovereignConfigRelativePath(env = process.env) {
+	return path.join(sovereignConfigDir(env), CONFIG_FILE_NAME);
+}
+
 export const REFARM_CONFIG_LEGACY_FILE_NAME = "refarm.config.json";
 
 // --- Env-var prefix (white-label seam, ADR-087 phase 4) ---
@@ -156,28 +201,30 @@ export function resolveEnvPrefix(explicit, env = process.env) {
 	return DEFAULT_ENV_PREFIX;
 }
 
-export function refarmConfigPathCandidates(root) {
+export function sovereignConfigPathCandidates(root, env = process.env) {
 	return [
-		path.join(root, REFARM_CONFIG_CANONICAL_RELATIVE_PATH),
+		path.join(root, sovereignConfigRelativePath(env)),
 		path.join(root, REFARM_CONFIG_LEGACY_FILE_NAME),
 	];
 }
 
-export function defaultRefarmConfigPath(root) {
-	return path.join(root, REFARM_CONFIG_CANONICAL_RELATIVE_PATH);
+export function defaultSovereignConfigPath(root, env = process.env) {
+	return path.join(root, sovereignConfigRelativePath(env));
 }
 
-export function findRefarmConfigPath(root) {
-	return refarmConfigPathCandidates(root).find((candidate) => fs.existsSync(candidate)) ?? null;
+export function findSovereignConfigPath(root, env = process.env) {
+	return (
+		sovereignConfigPathCandidates(root, env).find((candidate) => fs.existsSync(candidate)) ?? null
+	);
 }
 
 /**
  * Helper to find the root directory of the monorepo.
  */
-export function findRefarmRoot(startDir = process.cwd()) {
+export function findSovereignRoot(startDir = process.cwd()) {
 	let currentDir = startDir;
 	while (true) {
-		if (findRefarmConfigPath(currentDir)) return currentDir;
+		if (findSovereignConfigPath(currentDir)) return currentDir;
 		const parentDir = path.dirname(currentDir);
 		if (parentDir === currentDir) break;
 		currentDir = parentDir;
@@ -255,7 +302,7 @@ const JsonSource = {
 	name: "json",
 	loadSync(root) {
 		let config = {};
-		for (const configPath of [...refarmConfigPathCandidates(root)].reverse()) {
+		for (const configPath of [...sovereignConfigPathCandidates(root)].reverse()) {
 			if (!fs.existsSync(configPath)) continue;
 			try {
 				config = deepMerge(config, JSON.parse(fs.readFileSync(configPath, "utf-8")));
@@ -395,7 +442,7 @@ function bootstrapIntent(root, envPrefix = DEFAULT_ENV_PREFIX) {
  * @param {string} [root] monorepo root
  * @param {{ envPrefix?: string }} [options] white-label env-var prefix (default "REFARM")
  */
-export function loadConfig(root = findRefarmRoot(), options = {}) {
+export function loadConfig(root = findSovereignRoot(), options = {}) {
 	const envPrefix = resolveEnvPrefix(options.envPrefix);
 	const { precedence } = bootstrapIntent(root, envPrefix);
 	let config = {};
@@ -419,7 +466,7 @@ export function loadConfig(root = findRefarmRoot(), options = {}) {
  * @param {string} [root] monorepo root
  * @param {{ envPrefix?: string }} [options] white-label env-var prefix (default "REFARM")
  */
-export async function loadConfigAsync(root = findRefarmRoot(), options = {}) {
+export async function loadConfigAsync(root = findSovereignRoot(), options = {}) {
 	const envPrefix = resolveEnvPrefix(options.envPrefix);
 	const { endpoint, precedence } = bootstrapIntent(root, envPrefix);
 	let config = {};
@@ -439,10 +486,10 @@ export async function loadConfigAsync(root = findRefarmRoot(), options = {}) {
 }
 
 export default {
-	findRefarmRoot,
-	refarmConfigPathCandidates,
-	defaultRefarmConfigPath,
-	findRefarmConfigPath,
+	findSovereignRoot,
+	sovereignConfigPathCandidates,
+	defaultSovereignConfigPath,
+	findSovereignConfigPath,
 	loadConfig,
 	loadConfigAsync,
 };

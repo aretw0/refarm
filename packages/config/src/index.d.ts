@@ -164,12 +164,32 @@ export {
     findWorkspaceRoot,
 } from "./workspace.js";
 
-export function findRefarmRoot(startDir?: string): string;
-export const REFARM_CONFIG_CANONICAL_RELATIVE_PATH: string;
+export function findSovereignRoot(startDir?: string): string;
 export const REFARM_CONFIG_LEGACY_FILE_NAME: string;
-export function refarmConfigPathCandidates(root: string): string[];
-export function defaultRefarmConfigPath(root: string): string;
-export function findRefarmConfigPath(root: string): string | null;
+
+/** The neutral, brand-free env var naming the sovereign config directory (the app
+ * sets it, e.g. ".refarm"). No substrate default — the app owns the name. */
+export const CONFIG_DIR_SELECTOR_KEY: "SOVEREIGN_CONFIG_DIR";
+/** The config file name inside the sovereign config dir (fixed substrate convention). */
+export const CONFIG_FILE_NAME: "config.json";
+/** Thrown when the sovereign config dir selector is unset (no substrate default). */
+export class MissingConfigDirError extends Error {}
+/** Resolve the sovereign config dir from the selector env; throws if unset. */
+export function sovereignConfigDir(env?: Record<string, string | undefined>): string;
+/** The `<configDir>/config.json` relative path, dir resolved from the selector env. */
+export function sovereignConfigRelativePath(env?: Record<string, string | undefined>): string;
+export function sovereignConfigPathCandidates(
+	root: string,
+	env?: Record<string, string | undefined>,
+): string[];
+export function defaultSovereignConfigPath(
+	root: string,
+	env?: Record<string, string | undefined>,
+): string;
+export function findSovereignConfigPath(
+	root: string,
+	env?: Record<string, string | undefined>,
+): string | null;
 
 /** The neutral bootstrap key that names the env-var prefix (brand-free). */
 export const ENV_PREFIX_SELECTOR_KEY: "SOVEREIGN_ENV_PREFIX";
@@ -195,10 +215,10 @@ export function loadConfigAsync(
 ): Promise<any>;
 
 declare const _default: {
-    findRefarmRoot: typeof findRefarmRoot;
-    refarmConfigPathCandidates: typeof refarmConfigPathCandidates;
-    defaultRefarmConfigPath: typeof defaultRefarmConfigPath;
-    findRefarmConfigPath: typeof findRefarmConfigPath;
+    findSovereignRoot: typeof findSovereignRoot;
+    sovereignConfigPathCandidates: typeof sovereignConfigPathCandidates;
+    defaultSovereignConfigPath: typeof defaultSovereignConfigPath;
+    findSovereignConfigPath: typeof findSovereignConfigPath;
     loadConfig: typeof loadConfig;
     loadConfigAsync: typeof loadConfigAsync;
 };

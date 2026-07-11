@@ -14,6 +14,31 @@
 // mirror fields are added so a payload-level reader still sees JSON-LD.
 
 use serde_json::Value;
+use std::path::{Path, PathBuf};
+
+/// The neutral, brand-free env var naming the sovereign config DIRECTORY — the SAME
+/// key the TS config package reads (`CONFIG_DIR_SELECTOR_KEY` in packages/config).
+/// The substrate has no default: the host/app sets it (e.g. ".refarm"), and both the
+/// Rust host and the TS stack read it, so they agree on the config path without
+/// either hardcoding a brand dir (the RS↔TS lockstep, now via injection).
+pub(crate) const CONFIG_DIR_SELECTOR_KEY: &str = "SOVEREIGN_CONFIG_DIR";
+/// The config file name inside the sovereign config dir (fixed substrate convention,
+/// matches TS `CONFIG_FILE_NAME`).
+pub(crate) const CONFIG_FILE_NAME: &str = "config.json";
+
+/// Resolve `<base>/<configDir>/config.json`, reading the config dir from the injected
+/// selector env. Returns None when the selector is unset — the substrate has NO
+/// default, so an unset selector means "no sovereign config path" (the caller then
+/// behaves as if the file is absent), never a silent brand-dir fallback. Mirrors the
+/// TS `sovereignConfigRelativePath`, kept in lockstep.
+pub(crate) fn sovereign_config_path(base: &Path) -> Option<PathBuf> {
+    let dir = std::env::var(CONFIG_DIR_SELECTOR_KEY).ok()?;
+    let dir = dir.trim();
+    if dir.is_empty() {
+        return None;
+    }
+    Some(base.join(dir).join(CONFIG_FILE_NAME))
+}
 
 pub(crate) const CONFIG_NODE_SCHEMA: &str = "refarm.config.node.v1";
 pub(crate) const CONFIG_NODE_KIND: &str = "refarm/config";

@@ -1,8 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
-import { defaultRefarmConfigPath, findRefarmConfigPath } from "@refarm.dev/config";
+import { defaultSovereignConfigPath, findSovereignConfigPath } from "@refarm.dev/config";
 import { packageInstallCommand } from "./package-manager.mjs";
+
+// The substrate config package has no default config-dir name (reads SOVEREIGN_CONFIG_DIR).
+// This module runs as a toolbox subprocess (via cli.mjs, or standalone in tests), so it
+// injects the ".refarm" brand dir when the selector is unset. An operator override wins.
+if (!process.env.SOVEREIGN_CONFIG_DIR?.trim()) {
+	process.env.SOVEREIGN_CONFIG_DIR = ".refarm";
+}
 
 const DEP_KEYS = [
 	"dependencies",
@@ -448,10 +455,10 @@ async function main() {
 	validateArgs(args);
 
 	const rootDir = process.cwd();
-	const configPath = findRefarmConfigPath(rootDir);
+	const configPath = findSovereignConfigPath(rootDir);
 	if (!configPath) {
 		throw new Error(
-			`${defaultRefarmConfigPath(rootDir)} not found. Run from repository root or initialize project-local Refarm config first.`,
+			`${defaultSovereignConfigPath(rootDir)} not found. Run from repository root or initialize project-local Refarm config first.`,
 		);
 	}
 

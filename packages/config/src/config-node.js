@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { loadConfig, loadConfigAsync } from "./index.js";
+import { loadConfig, loadConfigAsync, sovereignConfigRelativePath } from "./index.js";
 
 export const CONFIG_NODE_SCHEMA = "refarm.config.node.v1";
 export const CONFIG_NODE_KIND = "refarm/config";
@@ -230,8 +230,8 @@ export function configFromNode(node) {
  * false drift. Returns null when the file is absent or invalid JSON (mirrors the
  * host's early-return). CONFORMANCE: keep in lockstep with refarm_config_json_from.
  */
-export function loadRawSovereignConfig(root = process.cwd()) {
-	const filePath = path.join(root, ".refarm", "config.json");
+export function loadRawSovereignConfig(root = process.cwd(), env = process.env) {
+	const filePath = path.join(root, sovereignConfigRelativePath(env));
 	let raw;
 	try {
 		raw = fs.readFileSync(filePath, "utf-8");

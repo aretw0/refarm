@@ -2,7 +2,7 @@ import { defineConfig as defineAstroConfig } from "astro/config";
 import path from "node:path";
 import wasm from "vite-plugin-wasm";
 
-import { findRefarmRoot, loadConfig } from "./index.js";
+import { findSovereignRoot, loadConfig } from "./index.js";
 
 export function coreAstroAliases(root) {
 	return {
@@ -47,7 +47,7 @@ export function coreAstroAliases(root) {
  * It automatically reads Refarm project config and injects required headers for WebContainers.
  */
 export function defineConfig(userConfig = {}) {
-	const root = findRefarmRoot();
+	const root = findSovereignRoot();
 	const refarmConfig = loadConfig(root);
 
 	// Base path configuration for Pages deployment

@@ -14,7 +14,11 @@ import {
 	redactConfigForNode,
 	toPortableConfig,
 } from "./config-node.js";
-import { defaultRefarmConfigPath } from "./index.js";
+import { CONFIG_DIR_SELECTOR_KEY, defaultSovereignConfigPath } from "./index.js";
+
+// The substrate has no config-dir default; the app injects it. This test stands in
+// for the app, selecting ".refarm".
+process.env[CONFIG_DIR_SELECTOR_KEY] = ".refarm";
 
 describe("config node", () => {
 	it("creates a deterministic redacted config node", () => {
@@ -59,7 +63,7 @@ describe("config node", () => {
 		try {
 			mkdirSync(join(root, ".refarm"), { recursive: true });
 			writeFileSync(
-				defaultRefarmConfigPath(root),
+				defaultSovereignConfigPath(root),
 				JSON.stringify({
 					brand: { slug: "refarm" },
 					providers: { github: { clientSecret: "secret" } },

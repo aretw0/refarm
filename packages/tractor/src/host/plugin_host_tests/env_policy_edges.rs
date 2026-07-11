@@ -78,6 +78,7 @@
     #[test]
     fn refarm_config_env_vars_maps_fields_correctly() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -96,6 +97,7 @@
     #[test]
     fn refarm_config_env_vars_maps_stream_responses_bool() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(refarm_dir.join("config.json"), r#"{"stream_responses":true}"#)
@@ -110,6 +112,7 @@
     #[test]
     fn refarm_config_env_vars_maps_stream_responses_false() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(refarm_dir.join("config.json"), r#"{"stream_responses":false}"#)
@@ -124,6 +127,7 @@
     #[test]
     fn refarm_config_env_vars_ignores_non_bool_stream_responses() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(refarm_dir.join("config.json"), r#"{"stream_responses":"true"}"#)
@@ -138,6 +142,7 @@
     #[test]
     fn refarm_config_env_vars_ignores_non_numeric_budgets() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -157,6 +162,7 @@
     #[test]
     fn refarm_config_env_vars_trim_and_skip_empty_string_fields() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -176,6 +182,7 @@
     #[test]
     fn refarm_config_env_vars_skip_string_fields_with_whitespace() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -195,6 +202,7 @@
     #[test]
     fn refarm_config_env_vars_skip_string_fields_with_control_chars() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -214,6 +222,7 @@
     #[test]
     fn refarm_config_env_vars_skip_string_fields_with_non_ascii() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -233,6 +242,7 @@
     #[test]
     fn refarm_config_env_vars_skip_overlong_string_fields() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         let long = "a".repeat(4097);
@@ -255,6 +265,7 @@
     #[test]
     fn refarm_config_env_vars_normalize_provider_fields_to_lowercase() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -273,6 +284,7 @@
     #[test]
     fn refarm_config_env_vars_skip_provider_fields_with_invalid_chars() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -292,6 +304,7 @@
     #[test]
     fn refarm_config_env_vars_trim_budget_provider_names() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -310,6 +323,7 @@
     #[test]
     fn refarm_config_env_vars_skip_non_ascii_budget_provider_names() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -328,6 +342,7 @@
     #[test]
     fn refarm_config_env_vars_skip_budget_provider_names_with_whitespace() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -346,6 +361,7 @@
     #[test]
     fn refarm_config_env_vars_cap_budget_entries() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
 
@@ -368,6 +384,7 @@
     #[test]
     fn refarm_config_env_vars_sanitize_budget_provider_tokens() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -386,6 +403,7 @@
     #[test]
     fn refarm_config_env_vars_skip_overlong_budget_provider_token() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         let overlong = "a".repeat(65);
@@ -405,6 +423,7 @@
     #[test]
     fn refarm_config_env_vars_skip_budget_provider_with_control_chars() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -423,6 +442,7 @@
     #[test]
     fn refarm_config_env_vars_dedupe_provider_and_budget_keys_after_normalization() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -441,6 +461,7 @@
     #[test]
     fn refarm_config_env_vars_ignores_negative_budgets() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -459,6 +480,7 @@
     #[test]
     fn refarm_config_env_vars_ignores_invalid_json() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(refarm_dir.join("config.json"), b"not json").unwrap();
@@ -476,6 +498,7 @@
     #[test]
     fn refarm_config_env_vars_ignores_oversized_config_file() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(refarm_dir.join("config.json"), vec![b'a'; 256 * 1024 + 1]).unwrap();
@@ -487,6 +510,7 @@
     #[test]
     fn refarm_config_reader_allows_exact_limit_file() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         let path = refarm_dir.join("config.json");
@@ -499,6 +523,7 @@
     #[test]
     fn refarm_config_reader_ignores_non_regular_file_entry() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         let path = refarm_dir.join("config.json");
@@ -512,6 +537,7 @@
     #[test]
     fn refarm_config_reader_ignores_symlink_entry() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
 
@@ -568,6 +594,7 @@
     #[test]
     fn refarm_config_json_from_reads_valid_json() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(
@@ -584,6 +611,7 @@
     #[test]
     fn refarm_config_json_from_returns_none_on_invalid_json() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(refarm_dir.join("config.json"), b"not-json").unwrap();
@@ -595,6 +623,7 @@
     #[test]
     fn refarm_config_json_from_returns_none_on_oversized_file() {
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(refarm_dir.join("config.json"), vec![b'a'; 256 * 1024 + 1]).unwrap();
@@ -761,6 +790,7 @@
         .unwrap();
 
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(refarm_dir.join("config.json"), r#"{"provider":"from-local-fs"}"#).unwrap();
@@ -826,6 +856,7 @@
         .unwrap();
 
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         std::fs::create_dir_all(dir.path().join(".refarm")).unwrap();
         std::fs::write(
             dir.path().join(".refarm/config.json"),
@@ -860,6 +891,7 @@
         let sync = NativeSync::new(storage, "test-grant-fs-only").unwrap(); // no node stored
 
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         std::fs::create_dir_all(dir.path().join(".refarm")).unwrap();
         std::fs::write(
             dir.path().join(".refarm/config.json"),
@@ -914,6 +946,7 @@
         let storage = NativeStorage::open(":memory:").unwrap();
         let sync = NativeSync::new(storage, "test-revoke-cap").unwrap();
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         std::fs::create_dir_all(dir.path().join(".refarm")).unwrap();
         std::fs::write(
             dir.path().join(".refarm/config.json"),
@@ -941,6 +974,7 @@
         let storage = NativeStorage::open(":memory:").unwrap();
         let sync = NativeSync::new(storage, "test-revoke-plugin").unwrap();
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         std::fs::create_dir_all(dir.path().join(".refarm")).unwrap();
         std::fs::write(
             dir.path().join(".refarm/config.json"),
@@ -1025,6 +1059,7 @@
         let storage = NativeStorage::open(":memory:").unwrap();
         let sync = NativeSync::new(storage, "test-readmit-cap").unwrap();
         let dir = tempfile::tempdir().unwrap();
+        ensure_config_dir_env();
         std::fs::create_dir_all(dir.path().join(".refarm")).unwrap();
         std::fs::write(
             dir.path().join(".refarm/config.json"),

@@ -4,7 +4,7 @@ import {
 	printJson,
 } from "@refarm.dev/capabilities/envelope";
 import { joinCommand, quoteCommandArg } from "@refarm.dev/cli/command-handoff";
-import { findRefarmConfigPath } from "@refarm.dev/config";
+import { findSovereignConfigPath } from "@refarm.dev/config";
 import { createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import { SiloCore } from "@refarm.dev/silo";
 import { Windmill } from "@refarm.dev/windmill";
@@ -142,7 +142,7 @@ export const migrateCommand = new Command("migrate")
 			tokens.get("CLOUDFLARE_API_TOKEN") || process.env.CLOUDFLARE_API_TOKEN;
 
 		// Load config from current directory
-		const configPath = findRefarmConfigPath(process.cwd());
+		const configPath = findSovereignConfigPath(process.cwd());
 		let config: MigrateConfig = {};
 		if (configPath) {
 			config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as MigrateConfig;

@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
-import { findRefarmConfigPath } from "@refarm.dev/config";
+import { findSovereignConfigPath } from "@refarm.dev/config";
 import { packageInstallCommand } from "./package-manager.mjs";
 
 const rl = readline.createInterface({
@@ -71,7 +71,7 @@ async function main() {
 		process.exit(0);
 	}
 
-	const configPath = findRefarmConfigPath(process.cwd());
+	const configPath = findSovereignConfigPath(process.cwd());
 	if (!configPath) {
 		console.error(".refarm/config.json not found. Must run from project root.");
 		process.exit(1);
