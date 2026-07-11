@@ -63,7 +63,7 @@ export class HeartwoodIdentityProvider implements IdentityProvider {
 		const keypair = heartwood.generateKeypair();
 		const publicKey = bytesToHex(keypair.publicKey);
 		const identity: Identity = {
-			id: `did:refarm:heartwood:${publicKey}`,
+			id: `did:heartwood:${publicKey}`,
 			publicKey,
 			displayName,
 			createdAt: new Date().toISOString(),

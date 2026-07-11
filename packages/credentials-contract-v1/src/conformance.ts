@@ -15,7 +15,7 @@ function baseCredential(overrides: Partial<VerifiableCredential> = {}): Verifiab
 		issuer: "pending",
 		issuanceDate: new Date().toISOString(),
 		credentialSubject: {
-			id: "did:refarm:subject:conformance",
+			id: "did:example:subject:conformance",
 			capability: "credentials:v1",
 		},
 		evidence: {
