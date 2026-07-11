@@ -238,12 +238,12 @@ export class Tractor {
 	}
 
 	async verifyNode(node: NormalisedNode): Promise<boolean> {
-		const signature = node["refarm:signature"];
+		const signature = node["signature"];
 		if (!signature) return false;
 		if (signature.alg === "external" && signature.sig === "delegated") return true;
 		if (signature.alg !== "ed25519") return false;
 		try {
-			const { "refarm:signature": _s, "refarm:signatures": _ss, ...unsignedNode } = node;
+			const { "signature": _s, "signatures": _ss, ...unsignedNode } = node;
 			const data = new TextEncoder().encode(JSON.stringify(unsignedNode));
 			const sig = this.hexToUint8(signature.sig);
 			const pub = this.hexToUint8(signature.pubkey);
@@ -358,7 +358,7 @@ export class Tractor {
 		const signature = await ed.signAsync(data, keypair.secretKey);
 		return {
 			...node,
-			"refarm:signature": {
+			"signature": {
 				pubkey: this.uint8ToHex(keypair.publicKey),
 				sig: this.uint8ToHex(signature),
 				alg: "ed25519",
@@ -382,7 +382,7 @@ export class Tractor {
 			"@id": "urn:refarm:core:seed",
 			name: "Sovereign Engine",
 			text: "The engine is active.",
-			"refarm:sourcePlugin": "core",
+			"sourcePlugin": "core",
 			"refarm:priority": 0,
 			"refarm:renderType": "landing",
 		};
@@ -423,16 +423,16 @@ export class Tractor {
 			signedNode["@type"],
 			JSON.stringify(signedNode["@context"]),
 			JSON.stringify(signedNode),
-			(signedNode["refarm:sourcePlugin"] as string | undefined) ?? null,
+			(signedNode["sourcePlugin"] as string | undefined) ?? null,
 		);
 		this.events.emit({
 			event: "storage:node:written",
-			pluginId: node["refarm:sourcePlugin"] as string | undefined,
+			pluginId: node["sourcePlugin"] as string | undefined,
 			payload: signedNode,
 		});
 		this.events.emit({
 			event: "storage:io",
-			pluginId: node["refarm:sourcePlugin"] as string | undefined,
+			pluginId: node["sourcePlugin"] as string | undefined,
 			durationMs: performance.now() - startTime,
 			payload: { type: node["@type"], action: "store" },
 		});
@@ -452,7 +452,7 @@ export class Tractor {
 			throw new Error(
 				"[tractor] Action blocked: You must be in Guest or Permanent mode to sign and store data.",
 			);
-		const { "refarm:signature": _s, "refarm:signatures": _ss, ...pureNode } = node;
+		const { "signature": _s, "signatures": _ss, ...pureNode } = node;
 		const nodeData = JSON.stringify(pureNode);
 		const dataEncoded = new TextEncoder().encode(nodeData);
 		let signature: Signature;
@@ -466,14 +466,14 @@ export class Tractor {
 			signature = { pubkey: pubKey, alg: "external", sig: "delegated" };
 		}
 		const newNode = { ...node };
-		if (newNode["refarm:signature"]) {
-			const existingSigs = newNode["refarm:signatures"] || [
-				newNode["refarm:signature"] as Signature,
+		if (newNode["signature"]) {
+			const existingSigs = newNode["signatures"] || [
+				newNode["signature"] as Signature,
 			];
-			newNode["refarm:signatures"] = [...existingSigs, signature];
-			newNode["refarm:signature"] = signature;
+			newNode["signatures"] = [...existingSigs, signature];
+			newNode["signature"] = signature;
 		} else {
-			newNode["refarm:signature"] = signature;
+			newNode["signature"] = signature;
 		}
 		return newNode;
 	}

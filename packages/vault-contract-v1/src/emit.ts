@@ -10,7 +10,7 @@ import { VAULT_CAPABILITY } from "./types.js";
 /**
  * Project a `KnowledgeRecord` produced by the `extract` verb into the canonical
  * JSON-LD `NormalisedNode` the silo persists — the SAME shape
- * (`@context`/`@type`/`@id`/`refarm:sourcePlugin`) any producer emits, so an
+ * (`@context`/`@type`/`@id`/`sourcePlugin`) any producer emits, so an
  * extracted record enters the graph indistinguishably from a natively-authored
  * node. This is the OUTPUT half of vault:v1, proven without any runtime dispatch:
  * a record → node projection the host runs after a surface returns records.
@@ -28,13 +28,13 @@ import { VAULT_CAPABILITY } from "./types.js";
  */
 export interface VaultEmitOptions {
 	/** Nanoseconds since the Unix epoch, stamped by the HOST (the surface has no
-	 * clock). Becomes `refarm:createdAt` (ISO) on the node. */
+	 * clock). Becomes `createdAt` (ISO) on the node. */
 	createdAtNs: number;
-	/** The plugin id that produced the record → `refarm:sourcePlugin`. */
+	/** The plugin id that produced the record → `sourcePlugin`. */
 	sourcePlugin?: string;
 	/** JSON-LD `@context`; defaults to schema.org via graphNodeToNormalised. */
 	context?: string | Record<string, string>;
-	/** The context/workspace id → `refarm:context`. */
+	/** The context/workspace id → `context`. */
 	contextId?: string | null;
 }
 
@@ -72,7 +72,7 @@ export function vaultRecordToGraphNode(
  * The full OUTPUT projection: a vault `KnowledgeRecord` → the canonical
  * `NormalisedNode` the silo stores. Composes {@link vaultRecordToGraphNode} with
  * `graphNodeToNormalised`, so the node carries `@context`/`@type`/`@id` +
- * `refarm:createdAt`/`refarm:sourcePlugin` exactly like every other producer.
+ * `createdAt`/`sourcePlugin` exactly like every other producer.
  */
 export function vaultRecordToNode(
 	record: KnowledgeRecord,

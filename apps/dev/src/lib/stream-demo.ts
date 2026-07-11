@@ -51,7 +51,7 @@ export function studioStreamDemoNodes(startedAt: Date = new Date()): RuntimeNode
 				provider_family: "demo",
 				model: "apps-dev",
 			},
-			"refarm:sourcePlugin": "studio-demo",
+			"sourcePlugin": "studio-demo",
 		},
 		{
 			"@context": "https://refarm.dev/schemas/stream/v1",
@@ -64,7 +64,7 @@ export function studioStreamDemoNodes(startedAt: Date = new Date()): RuntimeNode
 			metadata: {
 				prompt_ref: "studio-demo",
 			},
-			"refarm:sourcePlugin": "studio-demo",
+			"sourcePlugin": "studio-demo",
 		},
 		{
 			"@context": "https://refarm.dev/schemas/stream/v1",
@@ -77,7 +77,7 @@ export function studioStreamDemoNodes(startedAt: Date = new Date()): RuntimeNode
 			metadata: {
 				prompt_ref: "studio-demo",
 			},
-			"refarm:sourcePlugin": "studio-demo",
+			"sourcePlugin": "studio-demo",
 		},
 	];
 }

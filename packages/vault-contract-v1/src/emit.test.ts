@@ -36,10 +36,10 @@ describe("vaultRecordToNode — the OUTPUT projection (no runtime)", () => {
 		expect(node["@context"]).toBe("https://schema.org/");
 		expect(node["@type"]).toBe("refarm:VaultRecord");
 		expect(node["@id"]).toBe("20-Projects/demanda-42.md");
-		expect(node["refarm:sourcePlugin"]).toBe("@demo/vault-extract");
+		expect(node["sourcePlugin"]).toBe("@demo/vault-extract");
 		expect(node["refarm:capability"]).toBe(VAULT_CAPABILITY);
 		// The host-stamped clock becomes an ISO string.
-		expect(node["refarm:createdAt"]).toBe(new Date(1_720_000_000_000).toISOString());
+		expect(node["createdAt"]).toBe(new Date(1_720_000_000_000).toISOString());
 		// The record's structured payload rides through, nothing lost.
 		expect(node.fields).toEqual({ title: "Demanda 42", state: "doing" });
 		expect(node.sourceRefs).toEqual(["20-Projects/demanda-42.md"]);
@@ -71,14 +71,14 @@ describe("vaultRecordToNode — the OUTPUT projection (no runtime)", () => {
 	});
 
 	it("the host never leaks a clock into the surface: createdAtNs is an INPUT", () => {
-		// Two emits with different host clocks differ only in refarm:createdAt —
+		// Two emits with different host clocks differ only in createdAt —
 		// the surface's record is identical, proving the surface is clock-free.
 		const record = baseRecord();
 		const a = vaultRecordToNode(record, { createdAtNs: 1_000_000_000 });
 		const b = vaultRecordToNode(record, { createdAtNs: 2_000_000_000 });
-		expect(a["refarm:createdAt"]).not.toBe(b["refarm:createdAt"]);
-		const { "refarm:createdAt": _a, ...restA } = a;
-		const { "refarm:createdAt": _b, ...restB } = b;
+		expect(a["createdAt"]).not.toBe(b["createdAt"]);
+		const { "createdAt": _a, ...restA } = a;
+		const { "createdAt": _b, ...restB } = b;
 		expect(restA).toEqual(restB);
 	});
 });
@@ -110,6 +110,6 @@ describe("end-to-end: extract → emit (the full OUTPUT half, no dispatch)", () 
 		expect(node["@id"]).toBe("00-Inbox/note.md");
 		expect(node["@type"]).toBe("refarm:VaultRecord");
 		expect(node.fields).toEqual({ title: "Alpha", state: "doing" });
-		expect(node["refarm:sourcePlugin"]).toBe("@demo/vault-extract");
+		expect(node["sourcePlugin"]).toBe("@demo/vault-extract");
 	});
 });

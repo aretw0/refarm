@@ -93,7 +93,7 @@ describe("local scheduler ledger", () => {
 			},
 		});
 		// The entry carries only recordedAt + the caller's receipt — the node
-		// envelope (@id/@type/@context, refarm:createdAt/updatedAt) must not leak.
+		// envelope (@id/@type/@context, createdAt/updatedAt) must not leak.
 		const entry = snapshot.entries["job:1"];
 		expect(Object.keys(entry).sort()).toEqual(["effortId", "firedAt", "recordedAt"]);
 	});

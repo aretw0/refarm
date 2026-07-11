@@ -32,7 +32,7 @@ describe("Tractor Telemetry", () => {
       "@context": "https://schema.org/",
       "@type": "TestNode",
       "@id": "urn:test:1",
-      "refarm:sourcePlugin": "test-plugin"
+      "sourcePlugin": "test-plugin"
     }, "none");
 
     expect(listener).toHaveBeenCalledWith(expect.objectContaining({
@@ -53,7 +53,7 @@ describe("Tractor Telemetry", () => {
       "@id": "urn:test:stream-chunk:1",
       stream_ref: "urn:test:stream:1",
       content: "hello",
-      "refarm:sourcePlugin": "test-plugin"
+      "sourcePlugin": "test-plugin"
     }, "none");
 
     expect(handler).toHaveBeenCalledWith(expect.objectContaining({

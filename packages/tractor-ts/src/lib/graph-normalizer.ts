@@ -33,10 +33,10 @@ export function normaliseToGraph(
 		"@context": "https://schema.org/",
 		"@type": type,
 		"@id": id,
-		"refarm:sourcePlugin": pluginId,
-		"refarm:ingestedAt": now,
-		"refarm:createdAt": (raw["refarm:createdAt"] as string) || now,
-		"refarm:updatedAt": now,
+		"sourcePlugin": pluginId,
+		"ingestedAt": now,
+		"createdAt": (raw["createdAt"] as string) || now,
+		"updatedAt": now,
 		"refarm:clock": (raw["refarm:clock"] as number) || 0,
 	};
 }

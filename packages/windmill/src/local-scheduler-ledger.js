@@ -56,8 +56,8 @@ function nodeToEntry(node) {
 		"@id": _id,
 		"@type": _type,
 		"@context": _context,
-		"refarm:createdAt": _createdAt,
-		"refarm:updatedAt": _updatedAt,
+		"createdAt": _createdAt,
+		"updatedAt": _updatedAt,
 		...entry
 	} = node;
 	return entry;

@@ -39,7 +39,7 @@ export async function executeTask(
 		"@context": "https://schema.refarm.dev/",
 		"@type": "FarmhandTaskResult",
 		"@id": resultId,
-		"refarm:sourcePlugin": FARMHAND_PLUGIN_ID,
+		"sourcePlugin": FARMHAND_PLUGIN_ID,
 		"task:resultFor": taskId,
 		"task:effortId": effortId,
 	};

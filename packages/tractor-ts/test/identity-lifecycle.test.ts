@@ -54,10 +54,10 @@ describe("Tractor Identity Lifecycle & Mandatory Signing", () => {
     expect(storedNodes.length).toBe(1);
     
     const storedNode = JSON.parse(storedNodes[0].payload);
-    expect(storedNode["refarm:signature"]).toBeDefined();
-    expect(storedNode["refarm:signature"].pubkey).toBe(pubKey);
-    expect(storedNode["refarm:signature"].alg).toBe("ed25519");
-    expect(storedNode["refarm:signature"].sig).toBeDefined();
+    expect(storedNode["signature"]).toBeDefined();
+    expect(storedNode["signature"].pubkey).toBe(pubKey);
+    expect(storedNode["signature"].alg).toBe("ed25519");
+    expect(storedNode["signature"].sig).toBeDefined();
   });
 
   it("should maintain the same identity once enabled", async () => {
@@ -90,8 +90,8 @@ describe("Tractor Identity Lifecycle & Mandatory Signing", () => {
     expect(conversionNode.permanentPubkey).toBe("did:nostr:pubkey_permanent_123");
     
     // It should be signed by the permanent identity (final signature)
-    expect(conversionNode["refarm:signature"]).toBeDefined();
-    expect(conversionNode["refarm:signature"].pubkey).toBe("did:nostr:pubkey_permanent_123");
+    expect(conversionNode["signature"]).toBeDefined();
+    expect(conversionNode["signature"].pubkey).toBe("did:nostr:pubkey_permanent_123");
 
     // 5. Storing a new node should now use the permanent identity
     const node = {
@@ -107,9 +107,9 @@ describe("Tractor Identity Lifecycle & Mandatory Signing", () => {
     const allNotes = await storage.queryNodes("Note");
     const permanentNote = JSON.parse(((allNotes as { id: string; payload: string }[]).find((n) => n.id === "urn:refarm:test:3") as { payload: string }).payload);
     
-    expect(permanentNote["refarm:signature"]).toBeDefined();
-    expect(permanentNote["refarm:signature"].pubkey).toBe("did:nostr:pubkey_permanent_123");
-    expect(permanentNote["refarm:signature"].alg).toBe("external");
-    expect(permanentNote["refarm:signature"].sig).toBe("delegated");
+    expect(permanentNote["signature"]).toBeDefined();
+    expect(permanentNote["signature"].pubkey).toBe("did:nostr:pubkey_permanent_123");
+    expect(permanentNote["signature"].alg).toBe("external");
+    expect(permanentNote["signature"].sig).toBe("delegated");
   });
 });

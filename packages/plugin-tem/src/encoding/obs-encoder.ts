@@ -19,12 +19,12 @@ export interface NormalisedNodeLike {
 	"@type"?: string | string[];
 	"@id"?: string;
 	"@context"?: unknown;
-	"refarm:sourcePlugin"?: string;
+	"sourcePlugin"?: string;
 	"refarm:owner"?: string;
 	"refarm:clock"?: number;
-	"refarm:createdAt"?: string;
-	"refarm:updatedAt"?: string;
-	"refarm:ingestedAt"?: string;
+	"createdAt"?: string;
+	"updatedAt"?: string;
+	"ingestedAt"?: string;
 	provides?: string[];
 	requires?: string[];
 	capabilities?: {
@@ -99,7 +99,7 @@ export class StructAwareEncoder implements ObsEncoder {
 		const { offset, width } = SLOTS.identity;
 		const id = node?.["@id"] ?? "";
 		const owner = (node?.["refarm:owner"] as string) ?? "";
-		const pid = (node?.["refarm:sourcePlugin"] as string) ?? pluginId ?? "";
+		const pid = (node?.["sourcePlugin"] as string) ?? pluginId ?? "";
 
 		// Hash the three identity fields into the slot
 		hashIntoSlot(vec, offset, width, `${id}|${owner}|${pid}`);
@@ -126,7 +126,7 @@ export class StructAwareEncoder implements ObsEncoder {
 		const { offset, width } = SLOTS.temporal;
 		const clock = (node?.["refarm:clock"] as number) ?? 0;
 		const ts =
-			node?.["refarm:ingestedAt"] ?? node?.["refarm:createdAt"] ?? node?.["refarm:updatedAt"];
+			node?.["ingestedAt"] ?? node?.["createdAt"] ?? node?.["updatedAt"];
 		const tsMs = ts ? new Date(ts as string).getTime() : 0;
 
 		// Encode clock as normalised value, timestamp as recency fraction

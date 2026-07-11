@@ -22,8 +22,8 @@ describe("@refarm.dev/tractor smoke", () => {
 
     expect(node["@id"]).toBe("urn:test:1");
     expect(node["@type"]).toBe("Note");
-    expect(node["refarm:sourcePlugin"]).toBe("plugin-smoke");
-    expect(typeof node["refarm:ingestedAt"]).toBe("string");
+    expect(node["sourcePlugin"]).toBe("plugin-smoke");
+    expect(typeof node["ingestedAt"]).toBe("string");
   });
 
   it("loads plugin handle and tracks instance lifecycle", async () => {

@@ -25,7 +25,7 @@ describe("storeNoveltyNode", () => {
 		expect(node["refarm:triggerEvent"]).toBe("system:test");
 		expect(typeof node["refarm:noveltyScore"]).toBe("number");
 		expect(typeof node["refarm:predictionConfidence"]).toBe("number");
-		expect(node["refarm:sourcePlugin"]).toBe("plugin:tem");
+		expect(node["sourcePlugin"]).toBe("plugin:tem");
 	});
 
 	it("não lança quando nenhuma fn está registrada", () => {

@@ -7,10 +7,10 @@ const encoder = new StructAwareEncoder();
 const mockNode = {
 	"@type": "Person",
 	"@id": "urn:test:person-1",
-	"refarm:sourcePlugin": "matrix-bridge",
+	"sourcePlugin": "matrix-bridge",
 	"refarm:owner": "pubkey-abc",
 	"refarm:clock": 42,
-	"refarm:ingestedAt": new Date(Date.now() - 1000).toISOString(), // 1 second ago
+	"ingestedAt": new Date(Date.now() - 1000).toISOString(), // 1 second ago
 };
 
 const mockEvent = {

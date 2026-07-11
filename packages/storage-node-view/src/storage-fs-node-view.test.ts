@@ -38,7 +38,7 @@ describe("storage-fs serves ledger records AND nodes", () => {
 			"@context": "https://schema.org/",
 			"@type": "Task",
 			"@id": "urn:refarm:agent:task-42",
-			"refarm:sourcePlugin": "agent",
+			"sourcePlugin": "agent",
 			title: "Ship the node view",
 			priority: 2,
 		};
@@ -49,7 +49,7 @@ describe("storage-fs serves ledger records AND nodes", () => {
 		const node = await view.getNode("urn:refarm:agent:task-42");
 		expect(node?.["@type"]).toBe("Task");
 		expect(node?.title).toBe("Ship the node view");
-		expect(node?.["refarm:sourcePlugin"]).toBe("agent");
+		expect(node?.["sourcePlugin"]).toBe("agent");
 
 		// Face 2 — the SAME bytes as a plain ledger StorageRecord.
 		const record = await provider.get("urn:refarm:agent:task-42");

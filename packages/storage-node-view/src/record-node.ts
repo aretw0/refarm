@@ -27,16 +27,16 @@ const DEFAULT_CONTEXT = "https://schema.org/";
  *
  * Lossless: `@id`/`@type` surface as `id`/`type`; the ENTIRE node (including
  * `@context`, `refarm:*` provenance, domain fields, signatures) is serialized
- * into `payload`, so `recordToNode` recovers it exactly. `refarm:createdAt` /
- * `refarm:updatedAt` (ISO strings the node already carries) become the record's
+ * into `payload`, so `recordToNode` recovers it exactly. `createdAt` /
+ * `updatedAt` (ISO strings the node already carries) become the record's
  * timestamps; both default to `now` (an ISO string the caller supplies) when
  * the node has not set them.
  */
 export function nodeToRecord(node: NormalisedNode, now: string): StorageRecord {
 	const createdAt =
-		typeof node["refarm:createdAt"] === "string" ? (node["refarm:createdAt"] as string) : now;
+		typeof node["createdAt"] === "string" ? (node["createdAt"] as string) : now;
 	const updatedAt =
-		typeof node["refarm:updatedAt"] === "string" ? (node["refarm:updatedAt"] as string) : now;
+		typeof node["updatedAt"] === "string" ? (node["updatedAt"] as string) : now;
 
 	// The full node lives in payload so nothing is lost across the flat record.
 	const body: NormalisedNode = {
@@ -89,7 +89,7 @@ export function recordToNode(record: StorageRecord): NormalisedNode {
 		...base,
 		"@type": record.type,
 		"@id": record.id,
-		"refarm:createdAt": base["refarm:createdAt"] ?? record.createdAt,
-		"refarm:updatedAt": record.updatedAt,
+		"createdAt": base["createdAt"] ?? record.createdAt,
+		"updatedAt": record.updatedAt,
 	};
 }

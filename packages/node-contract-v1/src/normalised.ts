@@ -29,8 +29,8 @@ export interface NormalisedNode {
 	"@context": string | Record<string, string>;
 	"@type": string;
 	"@id": string;
-	"refarm:signature"?: Signature;
-	"refarm:signatures"?: Signature[];
+	"signature"?: Signature;
+	"signatures"?: Signature[];
 	/** Open by design: any plugin may attach any additional JSON-LD fields. */
 	[key: string]: unknown;
 }
@@ -61,8 +61,8 @@ export function isoToNanos(iso: string): number {
  * Project a domain {@link GraphNode} into a transport {@link NormalisedNode}.
  *
  * Reconciles the two representations that used to diverge:
- *   - `created_at_ns` (nanoseconds number) → `refarm:createdAt` (ISO string).
- *   - `context_id` → `refarm:context`.
+ *   - `created_at_ns` (nanoseconds number) → `createdAt` (ISO string).
+ *   - `context_id` → `context`.
  * Domain fields (title/body/tags/priority) are carried through untouched.
  */
 export function graphNodeToNormalised(
@@ -75,13 +75,13 @@ export function graphNodeToNormalised(
 		"@context": options.context ?? "https://schema.org/",
 		"@type": node["@type"],
 		"@id": node["@id"],
-		"refarm:createdAt": nanosToIso(created_at_ns),
+		"createdAt": nanosToIso(created_at_ns),
 	};
 	if (context_id !== undefined && context_id !== null) {
-		normalised["refarm:context"] = context_id;
+		normalised["context"] = context_id;
 	}
 	if (options.sourcePlugin !== undefined) {
-		normalised["refarm:sourcePlugin"] = options.sourcePlugin;
+		normalised["sourcePlugin"] = options.sourcePlugin;
 	}
 	return normalised;
 }
@@ -89,16 +89,16 @@ export function graphNodeToNormalised(
 /**
  * Recover a domain {@link GraphNode} from a transport {@link NormalisedNode}.
  *
- * The inverse of {@link graphNodeToNormalised}: reads `refarm:createdAt` (ISO)
- * back into `created_at_ns` (nanoseconds), and `refarm:context` into
+ * The inverse of {@link graphNodeToNormalised}: reads `createdAt` (ISO)
+ * back into `created_at_ns` (nanoseconds), and `context` into
  * `context_id`. Transport-only fields (`@context`, signatures, clock) are
  * dropped. Unknown domain fields on the open node are preserved.
  */
 export function normalisedToGraphNode(node: NormalisedNode): GraphNode {
-	const createdAtIso = node["refarm:createdAt"];
+	const createdAtIso = node["createdAt"];
 	const created_at_ns = typeof createdAtIso === "string" ? isoToNanos(createdAtIso) : 0;
 
-	const context = node["refarm:context"];
+	const context = node["context"];
 	const graph: GraphNode = {
 		"@type": node["@type"],
 		"@id": node["@id"],

@@ -348,7 +348,7 @@ export class StudioShell {
             <div class="help-card" style="padding: 1.5rem; border: 1px solid var(--refarm-border-default); border-radius: 12px; background: var(--refarm-bg-secondary);">
               <h3 style="margin-bottom: 0.5rem; color: var(--refarm-accent-primary);">${node.name}</h3>
               <p style="font-size: 0.9rem; color: var(--refarm-text-secondary);">${node.text}</p>
-              <small style="display: block; margin-top: 1rem; opacity: 0.5;">${this.l8n.t("refarm:core/source_label", { source: String(node["refarm:sourcePlugin"] ?? "") })}</small>
+              <small style="display: block; margin-top: 1rem; opacity: 0.5;">${this.l8n.t("refarm:core/source_label", { source: String(node["sourcePlugin"] ?? "") })}</small>
             </div>
           `,
 						)

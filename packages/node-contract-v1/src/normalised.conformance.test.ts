@@ -63,10 +63,10 @@ describe("GraphNode ⇄ NormalisedNode adapter", () => {
 		expect(normalised["@type"]).toBe("Session");
 		expect(normalised["@id"]).toBe(base["@id"]);
 		expect(normalised["@context"]).toBe("https://schema.org/");
-		expect(normalised["refarm:sourcePlugin"]).toBe("agent");
-		expect(normalised["refarm:context"]).toBe("ctx-1");
+		expect(normalised["sourcePlugin"]).toBe("agent");
+		expect(normalised["context"]).toBe("ctx-1");
 		// created_at_ns → ISO
-		expect(normalised["refarm:createdAt"]).toBe(nanosToIso(base.created_at_ns));
+		expect(normalised["createdAt"]).toBe(nanosToIso(base.created_at_ns));
 
 		const back = normalisedToGraphNode(normalised);
 		expect(back["@type"]).toBe(base["@type"]);
@@ -84,7 +84,7 @@ describe("GraphNode ⇄ NormalisedNode adapter", () => {
 			"@context": "https://schema.org/",
 			"@type": "Custom",
 			"@id": "urn:x:1",
-			"refarm:createdAt": "2026-07-03T00:00:00.000Z",
+			"createdAt": "2026-07-03T00:00:00.000Z",
 			"custom:field": 42,
 		};
 		// A domain projection drops transport-only fields but the envelope itself

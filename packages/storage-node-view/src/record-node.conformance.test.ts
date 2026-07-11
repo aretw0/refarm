@@ -20,10 +20,10 @@ describe("record⇄node round-trip", () => {
 			"@context": "https://schema.org/",
 			"@type": "Task",
 			"@id": "urn:refarm:agent:task-1",
-			"refarm:sourcePlugin": "agent",
-			"refarm:context": "ctx-1",
-			"refarm:createdAt": "2026-07-01T00:00:00.000Z",
-			"refarm:updatedAt": "2026-07-02T00:00:00.000Z",
+			"sourcePlugin": "agent",
+			"context": "ctx-1",
+			"createdAt": "2026-07-01T00:00:00.000Z",
+			"updatedAt": "2026-07-02T00:00:00.000Z",
 			title: "Do the thing",
 			priority: 1,
 		};
@@ -31,18 +31,18 @@ describe("record⇄node round-trip", () => {
 		const record = nodeToRecord(node, NOW);
 		expect(record.id).toBe(node["@id"]);
 		expect(record.type).toBe(node["@type"]);
-		expect(record.createdAt).toBe(node["refarm:createdAt"]);
+		expect(record.createdAt).toBe(node["createdAt"]);
 
 		const back = recordToNode(record);
 		// Every field survives the flat record via payload.
 		expect(back["@type"]).toBe("Task");
 		expect(back["@id"]).toBe(node["@id"]);
 		expect(back["@context"]).toBe("https://schema.org/");
-		expect(back["refarm:sourcePlugin"]).toBe("agent");
-		expect(back["refarm:context"]).toBe("ctx-1");
+		expect(back["sourcePlugin"]).toBe("agent");
+		expect(back["context"]).toBe("ctx-1");
 		expect(back.title).toBe("Do the thing");
 		expect(back.priority).toBe(1);
-		expect(back["refarm:createdAt"]).toBe("2026-07-01T00:00:00.000Z");
+		expect(back["createdAt"]).toBe("2026-07-01T00:00:00.000Z");
 	});
 
 	it("record → node → record is identity for a node-shaped payload", () => {
@@ -75,7 +75,7 @@ describe("record⇄node round-trip", () => {
 			"@id": "urn:refarm:plugin:matrix",
 		};
 		const record = nodeToRecord(node, NOW);
-		// No refarm:createdAt on the node → record uses the injected clock.
+		// No createdAt on the node → record uses the injected clock.
 		expect(record.createdAt).toBe(NOW);
 		expect(record.updatedAt).toBe(NOW);
 		const back = recordToNode(record);
