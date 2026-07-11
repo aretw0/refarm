@@ -276,11 +276,11 @@ export class SowerCore {
 			}
 
 			const node = await response.json();
-			// Extract refarm-specific configuration from the JSON-LD node
+			// Extract the sovereign configuration fields from the JSON-LD node
 			return {
-				tier: node["refarm:tier"] || "guest",
-				config: node["refarm:config"] || {},
-				plugins: node["refarm:recommendedPlugins"] || [],
+				tier: node["tier"] || "guest",
+				config: node["config"] || {},
+				plugins: node["recommendedPlugins"] || [],
 			};
 		} catch (e) {
 			throw new Error(`Remote hydration failed: ${e instanceof Error ? e.message : String(e)}`);

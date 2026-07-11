@@ -13,7 +13,7 @@ function createQueryHost(nodes: Record<string, unknown>[] = []): RuntimeQueryTar
 describe("Antenna Plugin (SDD/BDD)", () => {
   it("GIVEN a public WebPage node in the graph, WHEN the Antenna receives a GET request for its route, THEN it should return materialistic HTML with 200 OK", async () => {
     const host = createQueryHost([{
-      "@id": "refarm:node:webpage:1",
+      "@id": "urn:sovereign:node:webpage:1",
       "@type": "WebPage",
       "@context": "https://refarm.dev/ns/v1",
       name: "Landing Page",

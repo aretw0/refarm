@@ -60,7 +60,7 @@ export interface PluginHandler {
 	wasmHash: string;
 	/** Semantic version string. */
 	version: string;
-	/** Supported data-kind URNs (e.g. "refarm:data:contact"). */
+	/** Supported data-kind URNs (e.g. "sovereign:data:contact"). */
 	supportedKinds: string[];
 }
 

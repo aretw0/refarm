@@ -10,7 +10,7 @@ export const DEFAULT_LOCAL_SCHEDULER_LEDGER_PATH = ".refarm/scheduler/ledger.jso
 // hand-rolled. `read()` reassembles the aggregate {entries} view from the nodes.
 const LEDGER_NAME = "scheduler";
 const LEDGER_SCOPE = "workspace";
-const FIRED_NODE_TYPE = "refarm:scheduler-fired";
+const FIRED_NODE_TYPE = "scheduler-fired";
 
 function assertNonEmptyString(value, name) {
 	if (typeof value !== "string" || value.trim().length === 0) {

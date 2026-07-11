@@ -3,7 +3,7 @@
 /// These tests exercise the real PluginHost::load() + lifecycle pipeline using
 /// the pre-compiled null-plugin.wasm fixture (built with cargo-component).
 ///
-/// The null-plugin exports refarm:plugin/integration with all lifecycle stubs.
+/// The null-plugin exports plugin:host/integration with all lifecycle stubs.
 use std::path::{Path, PathBuf};
 use tractor::host::PluginHost;
 use tractor::trust::TrustManager;

@@ -32,7 +32,7 @@ export interface PluginEntry {
  * Structurally satisfied by `@refarm.dev/storage-node-view`'s NodeView, but the
  * Barn depends only on this shape — never on a concrete backend. The host
  * injects a ledger (fs, memory, sqlite… resolved by environment); the Barn only
- * intends persistence. An install record IS a node (`refarm:PluginCatalogEntry`,
+ * intends persistence. An install record IS a node (`PluginCatalogEntry`,
  * see docs/SCHEMA.md), so it stores as one. When no ledger is injected, the Barn
  * falls back to an in-memory Map (unchanged legacy behaviour).
  */
@@ -59,7 +59,7 @@ function pluginEntryToNode(entry: PluginEntry): PluginLedgerNode {
 		"@id": entry.id,
 		installUrl: entry.url,
 		sha256Integrity: entry.integrity,
-		"refarm:status": entry.status,
+		"status": entry.status,
 		"installedAt": entry.installedAt,
 		"cacheStatus": entry.cacheStatus,
 		"wasmHash": entry.wasmHash,
@@ -71,7 +71,7 @@ function nodeToPluginEntry(node: PluginLedgerNode): PluginEntry {
 		id: node["@id"],
 		url: String(node.installUrl ?? ""),
 		integrity: String(node.sha256Integrity ?? ""),
-		status: (node["refarm:status"] as PluginEntry["status"]) ?? "installed",
+		status: (node["status"] as PluginEntry["status"]) ?? "installed",
 		installedAt: Number(node["installedAt"] ?? 0),
 		cacheStatus: (node["cacheStatus"] as PluginEntry["cacheStatus"]) ?? "miss",
 		wasmHash: String(node["wasmHash"] ?? ""),

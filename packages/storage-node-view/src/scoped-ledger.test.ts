@@ -14,7 +14,7 @@ import {
 } from "./scoped-ledger.js";
 
 function node(id: string, extra: Record<string, unknown> = {}): NormalisedNode {
-	return { "@id": id, "@type": "refarm:test", ...extra } as NormalisedNode;
+	return { "@id": id, "@type": "test", ...extra } as NormalisedNode;
 }
 
 describe("openScopedLedger (host bootstrap for durable node-ledgers)", () => {

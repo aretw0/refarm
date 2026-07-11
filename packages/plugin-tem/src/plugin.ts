@@ -1,7 +1,7 @@
 /**
  * TEM Plugin entry point — WIT bridge.
  *
- * Implements the refarm:plugin/integration interface (setup, ingest, on-event)
+ * Implements the plugin:host/integration interface (setup, ingest, on-event)
  * and exposes the tem-api (step, recall, reset-walk, last-novelty).
  *
  * When loaded as a Worker plugin, this module is bootstrapped by worker.ts
@@ -40,7 +40,7 @@ let temState: ReturnType<TEMInference["createState"]> | null = null;
 const obsEncoder: StructAwareEncoder = new StructAwareEncoder();
 let lastNovelty = 0;
 
-// ─── WIT: refarm:plugin/integration ─────────────────────────────────────────
+// ─── WIT: plugin:host/integration ────────────────────────────────────────────
 
 export const integration = {
 	/** Initialize TEM with random weights (Phase 1: until ONNX weights are available). */
@@ -159,7 +159,7 @@ async function storeNoveltyNode(
 		"triggerEvent": triggerEvent,
 		"noveltyScore": noveltyScore,
 		"predictionConfidence": confidence,
-		"refarm:timestamp": new Date().toISOString(),
+		"timestamp": new Date().toISOString(),
 		"sourcePlugin": "plugin:tem",
 	});
 	await _storeNodeFn(nodeJson);
