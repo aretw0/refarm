@@ -1,5 +1,5 @@
 wit_bindgen::generate!({
-    world: "refarm-plugin",
+    world: "plugin",
     path: "../../packages/plugin-wit/wit",
 });
 

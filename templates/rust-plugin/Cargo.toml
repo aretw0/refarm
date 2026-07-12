@@ -19,4 +19,4 @@ package = "plugin:host"
 
 [package.metadata.component.target]
 path = "../../packages/plugin-wit/wit"
-world = "refarm-plugin"
+world = "plugin"
