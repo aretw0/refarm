@@ -2,6 +2,7 @@ import chalk from "chalk";
 import { isModuleResolutionError, renderBootstrapFailure } from "./bootstrap-preflight.js";
 import { TokenAuthError } from "./credentials/token-auth-error.js";
 import { renderActivityOnCli } from "./utils/activity-cli.js";
+import { followActivityFile } from "./utils/activity-follow.js";
 
 function terminalLink(text: string, url: string): string {
 	return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
@@ -40,6 +41,10 @@ export async function runCliMain(argv = process.argv): Promise<void> {
 	// clone, an agent turn) shows the operator that something is happening. Attached once
 	// here; torn down in finally so it never outlives the command.
 	const activity = renderActivityOnCli();
+	// Also tail the daemon's activity file into the same sink, so work running in the
+	// runtime (an agent turn, a dispatch) lights up this CLI's spinner too — the renderer
+	// can't tell local `withActivity` work from remote daemon work.
+	const activityFollower = followActivityFile();
 	try {
 		if (await parseFastCommand(argv)) return;
 
@@ -48,6 +53,7 @@ export async function runCliMain(argv = process.argv): Promise<void> {
 	} catch (err) {
 		handleCliMainError(err);
 	} finally {
+		activityFollower.stop();
 		activity.stop();
 	}
 }
