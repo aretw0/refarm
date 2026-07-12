@@ -171,8 +171,10 @@
 		"dist/chat-history.js"
 	],
 	"dependencies": {
+		"@refarm.dev/automation-contract-v1": "workspace:*",
 		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/config": "workspace:*",
+		"@refarm.dev/effort-contract-v1": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/operator-state": "workspace:*",
 		"@refarm.dev/process-handoff": "workspace:*",

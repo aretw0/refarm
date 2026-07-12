@@ -5,6 +5,10 @@
 		"rootDir": "src",
 		"baseUrl": "../..",
 		"paths": {
+			"@refarm.dev/automation-contract-v1": [
+				"packages/automation-contract-v1/dist/index.d.ts"
+			],
+			"@refarm.dev/effort-contract-v1": ["packages/effort-contract-v1/dist/index.d.ts"],
 			"@refarm.dev/capabilities/envelope": ["packages/capabilities/dist/envelope.d.ts"],
 			"@refarm.dev/config": ["packages/config/index.d.ts"],
 			"@refarm.dev/silo": ["packages/silo/dist/index.d.ts"],

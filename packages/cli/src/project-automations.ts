@@ -1,3 +1,17 @@
+import type {
+	ArtifactStatus,
+	AutomationBody,
+	AutomationTrigger,
+	CronTrigger,
+	EffortTemplate,
+	EventTrigger,
+	ManualTrigger,
+	OneShotTrigger,
+	PluginBody,
+	StaticBody,
+	TemplateBody,
+} from "@refarm.dev/automation-contract-v1";
+import type { Effort, Task } from "@refarm.dev/effort-contract-v1";
 import {
 	inspectLocalScheduledWork,
 	type LocalScheduledTrigger,
@@ -11,34 +25,23 @@ import type {
 
 export const PROJECT_AUTOMATIONS_RELATIVE_PATH = ".project/automations.json";
 
-export type ProjectAutomationStatus = "draft" | "ready" | "active" | "archived";
-
-export interface ProjectAutomationManualTrigger {
-	type: "manual";
-}
-
-export interface ProjectAutomationCronTrigger {
-	type: "cron";
-	schedule: string;
-	timezone?: string;
-}
-
-export interface ProjectAutomationOnceTrigger {
-	type: "once";
-	at: string;
-}
-
-export interface ProjectAutomationEventTrigger {
-	type: "event";
-	eventType: string;
-	filter?: Record<string, unknown>;
-}
-
-export type ProjectAutomationTrigger =
-	| ProjectAutomationManualTrigger
-	| ProjectAutomationCronTrigger
-	| ProjectAutomationOnceTrigger
-	| ProjectAutomationEventTrigger;
+// The project-automations surface IS `automation:v1` + `effort:v1` — the canonical contracts,
+// not a private clone. These aliases keep the CLI's `ProjectAutomation*` names (nothing else
+// needs to change) while making the CANONICAL types the single source of truth. If the
+// contract evolves, this surface follows it; drift is impossible.
+export type ProjectAutomationStatus = ArtifactStatus;
+export type ProjectAutomationManualTrigger = ManualTrigger;
+export type ProjectAutomationCronTrigger = CronTrigger;
+export type ProjectAutomationOnceTrigger = OneShotTrigger;
+export type ProjectAutomationEventTrigger = EventTrigger;
+export type ProjectAutomationTrigger = AutomationTrigger;
+export type ProjectAutomationTask = Task;
+export type ProjectAutomationEffortTemplate = EffortTemplate;
+export type ProjectAutomationStaticBody = StaticBody;
+export type ProjectAutomationTemplateBody = TemplateBody;
+export type ProjectAutomationPluginBody = PluginBody;
+export type ProjectAutomationBody = AutomationBody;
+export type ProjectAutomationEffort = Effort;
 
 export interface ProjectAutomationRecord {
 	id: string;
@@ -48,56 +51,6 @@ export interface ProjectAutomationRecord {
 	triggers: ProjectAutomationTrigger[];
 	body?: ProjectAutomationBody;
 	[key: string]: unknown;
-}
-
-export interface ProjectAutomationTask {
-	id: string;
-	pluginId: string;
-	fn: string;
-	args?: unknown;
-}
-
-export interface ProjectAutomationEffortTemplate {
-	direction: string;
-	tasks: ProjectAutomationTask[];
-	source?: string;
-	context?: unknown;
-	priority?: number;
-	tags?: string[];
-}
-
-export interface ProjectAutomationStaticBody {
-	type: "static";
-	effort: ProjectAutomationEffortTemplate;
-}
-
-export interface ProjectAutomationTemplateBody {
-	type: "template";
-	effort: ProjectAutomationEffortTemplate;
-	inputSchema?: Record<string, unknown>;
-}
-
-export interface ProjectAutomationPluginBody {
-	type: "plugin";
-	pluginId: string;
-	fn: string;
-	inputSchema?: Record<string, unknown>;
-}
-
-export type ProjectAutomationBody =
-	| ProjectAutomationStaticBody
-	| ProjectAutomationTemplateBody
-	| ProjectAutomationPluginBody;
-
-export interface ProjectAutomationEffort {
-	id: string;
-	direction: string;
-	tasks: ProjectAutomationTask[];
-	source?: string;
-	context?: unknown;
-	submittedAt: string;
-	priority?: number;
-	tags?: string[];
 }
 
 export interface ProjectAutomationsDocument {

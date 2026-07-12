@@ -797,12 +797,18 @@ importers:
 
   packages/cli:
     dependencies:
+      '@refarm.dev/automation-contract-v1':
+        specifier: workspace:*
+        version: link:../automation-contract-v1
       '@refarm.dev/capabilities':
         specifier: workspace:*
         version: link:../capabilities
       '@refarm.dev/config':
         specifier: workspace:*
         version: link:../config
+      '@refarm.dev/effort-contract-v1':
+        specifier: workspace:*
+        version: link:../effort-contract-v1
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../homestead
