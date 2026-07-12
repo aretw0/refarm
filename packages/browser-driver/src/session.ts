@@ -12,8 +12,10 @@ import type { WebFetchDriver, WebFetchRequest, WebFetchResult } from "@refarm.de
  *    lazily (see ./puppeteer), so nothing here pulls it in,
  *  - a consumer can bring ANY browser (puppeteer, Playwright, CDP) without changing callers.
  *
- * The cookie→fetch bridge is pure. `createLiveFetchDriver` returns a generic cookie-carrying
- * WebFetchDriver; a domain (e.g. an OSLC/Jazz client) wraps it with its own request contract.
+ * The cookie→fetch bridge is pure. `createLiveFetch` returns a generic cookie-carrying
+ * WebFetchDriver; a domain client (REST / GraphQL / RDF / HTML) wraps it with its own request
+ * contract. Nothing here is tied to a particular site, protocol, or use — it's a base block for
+ * ANY authenticated scraping or automation, driven by a playbook or an agent tool.
  */
 
 /** One cookie captured from the authenticated browser session. */
@@ -70,7 +72,7 @@ export function saveCookieState(statePath: string, cookies: SessionCookie[]): vo
 }
 
 /** A plain cookie-carrying fetch driver: every request gets the session's Cookie header. Used
- * as the base a domain driver (e.g. OSLC) wraps with its own headers. */
+ * as the base a domain driver wraps with its own headers. */
 export function createCookieFetchDriver(
 	cookies: SessionCookie[],
 	base: typeof fetch = fetch,
@@ -90,7 +92,7 @@ export function createCookieFetchDriver(
 export interface LiveFetchOptions {
 	/** The browser session (real adapter, or a fake in tests). */
 	session: BrowserSession;
-	/** The base URL to authenticate against (e.g. https://alm.example). */
+	/** The base URL to authenticate against (e.g. https://app.example). */
 	baseUrl: string;
 	/** Where to persist/reuse the cookie storageState. */
 	statePath?: string;

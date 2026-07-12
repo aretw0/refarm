@@ -41,7 +41,7 @@ const live = await createLiveFetch({
 
 // `live.fetchImpl` is an authenticated fetch; `live.driver` is a WebFetchDriver.
 // Hand `live.fetchImpl` to a source provider, or wrap `live.driver` with a domain
-// request contract (e.g. an OSLC/RDF client).
+// request contract (any REST / GraphQL / RDF / HTML client).
 ```
 
 `puppeteer-core` downloads **no browser** — it drives the Chrome you already have. Point at it

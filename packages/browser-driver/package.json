@@ -2,7 +2,7 @@
 	"name": "@refarm.dev/browser-driver",
 	"version": "0.1.0",
 	"private": false,
-	"description": "A light, injectable browser-login driver for web sources — sign in once (SSO/VPN), reuse the cookie session for authenticated fetches.",
+	"description": "A light, injectable browser-login driver for authenticated scraping & automation — sign in once (SSO/VPN), reuse the cookie session for authenticated fetches. Generic: any site, any use, playbook- or agent-driven.",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

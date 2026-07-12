@@ -15,8 +15,8 @@ import {
 } from "./index.js";
 
 const COOKIES: SessionCookie[] = [
-	{ name: "JSESSIONID", value: "abc", domain: "alm.example" },
-	{ name: "JazzFormAuth", value: "Form", domain: "alm.example" },
+	{ name: "JSESSIONID", value: "abc", domain: "app.example" },
+	{ name: "CSRFTOKEN", value: "Form", domain: "app.example" },
 ];
 
 function tmpFile(): string {
@@ -37,19 +37,19 @@ function fakeSession(cookies: SessionCookie[], onLogin?: () => void): BrowserSes
 
 describe("cookieHeader / cookieFetch", () => {
 	it("serializes cookies into a Cookie header value", () => {
-		expect(cookieHeader(COOKIES)).toBe("JSESSIONID=abc; JazzFormAuth=Form");
+		expect(cookieHeader(COOKIES)).toBe("JSESSIONID=abc; CSRFTOKEN=Form");
 		expect(cookieHeader([])).toBe("");
 	});
 
 	it("wraps a base fetch and adds the Cookie header, preserving caller headers", async () => {
 		const base = vi.fn<typeof fetch>(async () => new Response("ok"));
 		const fetchImpl = cookieFetch(COOKIES, base);
-		await fetchImpl("https://alm.example/rm/resources/TX_1", {
-			headers: { Accept: "application/rdf+xml" },
+		await fetchImpl("https://app.example/api/items/42", {
+			headers: { Accept: "application/json" },
 		});
 		const headers = new Headers((base.mock.calls[0]?.[1] as RequestInit).headers);
-		expect(headers.get("Cookie")).toBe("JSESSIONID=abc; JazzFormAuth=Form");
-		expect(headers.get("Accept")).toBe("application/rdf+xml");
+		expect(headers.get("Cookie")).toBe("JSESSIONID=abc; CSRFTOKEN=Form");
+		expect(headers.get("Accept")).toBe("application/json");
 	});
 });
 
@@ -60,12 +60,12 @@ describe("createCookieFetchDriver", () => {
 		);
 		const driver = createCookieFetchDriver(COOKIES, base);
 		const out = await driver({
-			url: "https://alm.example/rm/resources/TX_1",
+			url: "https://app.example/api/items/42",
 			session: { kind: "authenticated", authenticated: true },
 		});
 		expect(out.mediaType).toBe("text/xml");
 		expect(new Headers((base.mock.calls[0]?.[1] as RequestInit).headers).get("Cookie")).toBe(
-			"JSESSIONID=abc; JazzFormAuth=Form",
+			"JSESSIONID=abc; CSRFTOKEN=Form",
 		);
 	});
 });
@@ -87,7 +87,7 @@ describe("createLiveFetch — login once, reuse the session", () => {
 		const file = tmpFile();
 		const live = await createLiveFetch({
 			session: fakeSession(COOKIES, onLogin),
-			baseUrl: "https://alm.example",
+			baseUrl: "https://app.example",
 			statePath: file,
 		});
 		expect(onLogin).toHaveBeenCalledOnce();
@@ -95,7 +95,7 @@ describe("createLiveFetch — login once, reuse the session", () => {
 		expect(live.cookies).toEqual(COOKIES);
 		// The returned fetchImpl carries the cookies.
 		const base = vi.fn<typeof fetch>(async () => new Response("ok"));
-		await cookieFetch(live.cookies, base)("https://alm.example/x");
+		await cookieFetch(live.cookies, base)("https://app.example/x");
 		expect(new Headers((base.mock.calls[0]?.[1] as RequestInit).headers).get("Cookie")).toContain(
 			"JSESSIONID=abc",
 		);
@@ -107,7 +107,7 @@ describe("createLiveFetch — login once, reuse the session", () => {
 		const onLogin = vi.fn();
 		await createLiveFetch({
 			session: fakeSession(COOKIES, onLogin),
-			baseUrl: "https://alm.example",
+			baseUrl: "https://app.example",
 			statePath: file,
 		});
 		expect(onLogin).not.toHaveBeenCalled();
@@ -117,15 +117,15 @@ describe("createLiveFetch — login once, reuse the session", () => {
 		const base = vi.fn<typeof fetch>(async () => new Response("<x/>", { status: 200 }));
 		const live = await createLiveFetch({
 			session: fakeSession(COOKIES),
-			baseUrl: "https://alm.example",
+			baseUrl: "https://app.example",
 			fetchImpl: base,
 		});
 		await live.driver({
-			url: "https://alm.example/rm/resources/TX_1",
+			url: "https://app.example/api/items/42",
 			session: { kind: "authenticated", authenticated: true },
 		});
 		expect(new Headers((base.mock.calls[0]?.[1] as RequestInit).headers).get("Cookie")).toBe(
-			"JSESSIONID=abc; JazzFormAuth=Form",
+			"JSESSIONID=abc; CSRFTOKEN=Form",
 		);
 	});
 });
