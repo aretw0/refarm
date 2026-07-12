@@ -155,6 +155,10 @@ impl std::fmt::Debug for TelemetryBus {
     }
 }
 
+/// Process ACTIVITY telemetry (`process:*`) — the runtime half of the surface-neutral
+/// "working" signal (mirrors TS `ProcessActivity`).
+pub(crate) mod process_activity;
+
 #[cfg(test)]
 mod tests {
     use super::*;

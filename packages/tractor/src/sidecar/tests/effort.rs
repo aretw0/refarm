@@ -248,6 +248,65 @@ async fn sidecar_effort_status_is_failed_when_no_plugin() {
     );
 }
 
+/// The surface-neutral "working" signal at the effort choke point: dispatching an effort
+/// emits `process:started` on the telemetry bus (so a surface shows work in flight), and
+/// finalising it emits `process:finished` with `ok` reflecting success/failure. This is
+/// what lets an agent turn / a dispatch light up the operator's CLI/TUI via the bridge.
+#[tokio::test]
+async fn dispatching_an_effort_emits_process_activity_on_the_telemetry_bus() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    // Subscribe BEFORE dispatching so no event is missed.
+    let mut rx = state.telemetry.subscribe();
+    let client = reqwest::Client::new();
+    let id = uuid::Uuid::new_v4().to_string();
+
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&id))
+        .send()
+        .await
+        .unwrap();
+
+    // Collect telemetry until we see the started+finished pair for this effort (or a
+    // bounded number of events, so a bug fails the test instead of hanging).
+    let mut started: Option<serde_json::Value> = None;
+    let mut finished: Option<serde_json::Value> = None;
+    for _ in 0..50 {
+        match tokio::time::timeout(std::time::Duration::from_millis(200), rx.recv()).await {
+            Ok(Ok(event)) => {
+                let payload = event.payload.clone().unwrap_or_default();
+                if payload["activityRef"] != id {
+                    continue;
+                }
+                match event.event.as_str() {
+                    "process:started" => started = Some(payload),
+                    "process:finished" => finished = Some(payload),
+                    _ => {}
+                }
+                if started.is_some() && finished.is_some() {
+                    break;
+                }
+            }
+            _ => break,
+        }
+    }
+
+    let started = started.expect("dispatching an effort must emit process:started");
+    assert_eq!(started["phase"], "started");
+    assert_eq!(started["kind"], "agent", "a respond effort's kind is agent");
+    assert!(
+        started["label"].as_str().unwrap().contains("Agent responding"),
+        "started label: {started}"
+    );
+
+    let finished = finished.expect("finalising the effort must emit process:finished");
+    assert_eq!(finished["phase"], "finished");
+    assert_eq!(
+        finished["ok"], false,
+        "the effort failed (no agent loaded), so process:finished carries ok:false"
+    );
+}
+
 #[tokio::test]
 async fn sidecar_effort_result_survives_state_reopen() {
     let (_state, port, tmp) = start_test_sidecar().await;

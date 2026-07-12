@@ -10,6 +10,40 @@ use super::{
     write_stream_chunk, Effort, EffortResult, EffortTask, SidecarState, TaskResult,
 };
 
+/// A human label for an effort's activity, shown by a surface as "working" text. Derived
+/// from the effort's first task: a `respond` fn reads as "Agent responding"; any other
+/// verb as "Running <plugin>::<verb>"; a task-less effort as a generic "Working". PURE.
+fn effort_activity_label(effort: &Effort) -> String {
+    match effort.tasks.first() {
+        Some(task) => {
+            let fn_name = task.fn_name.as_deref().unwrap_or("respond");
+            if fn_name == "respond" {
+                "Agent responding".to_string()
+            } else if task.plugin_id.is_empty() {
+                format!("Running {fn_name}")
+            } else {
+                format!("Running {}::{fn_name}", task.plugin_id)
+            }
+        }
+        None => "Working".to_string(),
+    }
+}
+
+/// The activity `kind` (open vocabulary) for an effort: `agent` for a respond turn (the
+/// long model call the operator waits on), `dispatch` for any other verb dispatch. PURE.
+fn effort_activity_kind(effort: &Effort) -> &'static str {
+    match effort.tasks.first().and_then(|t| t.fn_name.as_deref()) {
+        Some("respond") | None => "agent",
+        Some(_) => "dispatch",
+    }
+}
+
+/// Whether a terminal effort status is a SUCCESS (✓) vs a failure/timeout/cancel (✗) —
+/// for the `ok` on `process:finished`. PURE.
+fn effort_status_is_ok(status: &str) -> bool {
+    matches!(status, super::EFFORT_DONE | super::EFFORT_DELIVERED | "partial")
+}
+
 /// The agent's TERMINAL-RESULT contract, declared ONCE. A responding plugin stores
 /// a node of `AGENT_RESPONSE_NODE_TYPE` carrying its `content`, keyed by
 /// `AGENT_RESPONSE_CORRELATION_KEY` (the prompt it answers) and marked terminal by
@@ -219,6 +253,17 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
             },
         );
 
+        // Emit the surface-neutral "working" signal: this effort's work is now running.
+        // A daemon→surface bridge forwards it so the operator sees an agent turn / a
+        // dispatch in flight instead of a frozen surface. The effort id is the
+        // activityRef; `process:finished` fires from finalise_effort on the terminal state.
+        crate::telemetry::process_activity::emit_started(
+            &state.telemetry,
+            &effort_id,
+            &effort_activity_label(&effort),
+            &effort_activity_kind(&effort),
+        );
+
         let task = match effort.tasks.first() {
             Some(t) => t.clone(),
             None => {
@@ -413,6 +458,18 @@ pub(crate) fn finalise_effort(
         })
     };
     if let Some(result) = result {
+        // The work reached a terminal state — tell the surfaces to stop the "working"
+        // affordance for this effort. `ok` is whether the terminal status is a success
+        // (done) vs a failure/timeout, so a surface can show ✓ vs ✗.
+        if super::is_terminal_effort_status(status) {
+            crate::telemetry::process_activity::emit_finished(
+                &state.telemetry,
+                effort_id,
+                "",
+                "dispatch",
+                effort_status_is_ok(status),
+            );
+        }
         if let Err(error) = persist_effort_result(&state.results_dir, &result) {
             tracing::warn!(
                 effort_id = %result.effort_id,
