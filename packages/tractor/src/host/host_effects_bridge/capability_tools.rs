@@ -179,10 +179,12 @@ impl CapabilityToolsHost for TractorNativeBindings {
             cross,
             &self.sync,
             &self.telemetry,
-            &self.plugin_id,
-            &verb.plugin_id,
-            &verb.plugin_key,
-            &verb.verb,
+            DispatchTarget {
+                caller_id: &self.plugin_id,
+                plugin_id: &verb.plugin_id,
+                plugin_key: &verb.plugin_key,
+                verb: &verb.verb,
+            },
             input,
         )
         .await
@@ -200,16 +202,25 @@ impl CapabilityToolsHost for TractorNativeBindings {
 /// error type (`invoke_tool` returns the string as-is; `call_plugin` maps it into a
 /// `plugin-error`). This is why the shared protocol lives here exactly once — no
 /// replyRef/payload/router/await logic is duplicated across the two entry points.
+/// The addressing for one dispatch: WHO is calling (`caller_id`, to detect self-dispatch),
+/// WHICH plugin + routing key the verb lives on, and the verb name. Grouped so the shared
+/// `dispatch_to_plugin` protocol takes the target as one value instead of four positional
+/// strings (and so a self-dispatch check has the caller alongside the target).
+pub(crate) struct DispatchTarget<'a> {
+    pub(crate) caller_id: &'a str,
+    pub(crate) plugin_id: &'a str,
+    pub(crate) plugin_key: &'a str,
+    pub(crate) verb: &'a str,
+}
+
 pub(crate) async fn dispatch_to_plugin(
     cross: &CrossPluginAccess,
     sync: &crate::sync::NativeSync,
     telemetry: &crate::telemetry::TelemetryBus,
-    caller_id: &str,
-    plugin_id: &str,
-    plugin_key: &str,
-    verb: &str,
+    target: DispatchTarget<'_>,
     input: serde_json::Value,
 ) -> Result<String, String> {
+    let DispatchTarget { caller_id, plugin_id, plugin_key, verb } = target;
     // SELF-DISPATCH: a plugin invoking a verb on its OWN id can't go through the event +
     // runner path — its single runner thread is what would drain the dispatch event, but
     // it is (below) parked in await_dispatch_result → deadlock. Run the verb on a FRESH

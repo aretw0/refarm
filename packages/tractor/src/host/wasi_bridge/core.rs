@@ -401,10 +401,12 @@ impl TractorBridgeHost for TractorNativeBindings {
             cross,
             &self.sync,
             &self.telemetry,
-            &self.plugin_id,
-            &plugin_id,
-            &plugin_key,
-            &verb,
+            crate::host::host_effects_bridge::DispatchTarget {
+                caller_id: &self.plugin_id,
+                plugin_id: &plugin_id,
+                plugin_key: &plugin_key,
+                verb: &verb,
+            },
             input,
         )
         .await

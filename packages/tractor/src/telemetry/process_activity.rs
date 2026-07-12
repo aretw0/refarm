@@ -14,8 +14,6 @@
 //! deserialize a `process:*` telemetry event straight into a `ProcessActivity`. Emitting
 //! is a thin `TelemetryBus::emit` over these — same pattern as agent_events.rs.
 
-use crate::telemetry::{TelemetryBus, TelemetryEvent};
-
 /// The three lifecycle event names — `process:<phase>`, parallel to the TS
 /// `ProcessActivity.phase`. `started`/`finished` are the core every process emits;
 /// `progress` is optional.
@@ -87,6 +85,7 @@ pub(crate) fn finished_payload(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::telemetry::{TelemetryBus, TelemetryEvent};
 
     #[test]
     fn started_payload_matches_the_ts_contract_fields() {
