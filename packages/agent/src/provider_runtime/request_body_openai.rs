@@ -47,11 +47,15 @@ pub(crate) fn build_openai_codex_responses_body_with_streaming(
             "content": content,
         }));
     }
+    // NOTE: the openai-codex subscription endpoint (e.g. gpt-5.3-codex-spark on the
+    // Responses API) REJECTS `max_output_tokens` with HTTP 400 "Unsupported parameter:
+    // max_output_tokens" — unlike the standard OpenAI Responses API. The output cap is
+    // governed subscription-side, so we simply omit it here; the runtime's own loop limits
+    // still bound the turn. (The non-codex OpenAI chat body above keeps `max_tokens`.)
     let mut body = serde_json::json!({
         "model": model,
         "store": false,
         "stream": true,
-        "max_output_tokens": super::loop_limits::max_output_tokens(),
         "input": input,
         "tools": openai_chat_tools_to_responses_tools(tools),
     });
