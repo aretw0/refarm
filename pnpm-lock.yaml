@@ -1088,6 +1088,9 @@ importers:
 
   packages/homestead:
     dependencies:
+      '@refarm.dev/capabilities':
+        specifier: workspace:*
+        version: link:../capabilities
       '@refarm.dev/ds':
         specifier: workspace:*
         version: link:../ds

@@ -58,6 +58,7 @@
 		"lint": "eslint src"
 	},
 	"dependencies": {
+		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
