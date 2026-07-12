@@ -26,16 +26,14 @@ export async function bootReqbench(): Promise<void> {
 	try {
 		const registry = reqbenchApp.registry();
 		const verbResult = await runRequirementsVerb();
-		const base = reqbenchApp.surfaceContext();
 
 		await bootCapabilityWebShell({
 			databaseName: "reqbench-web",
 			namespace: "reqbench",
 			surfaces: [reqWebSurface(registry)],
-			surfaceContext: () => ({
-				...base,
-				data: { ...base.data, mocHtml: verbResult.mocHtml ?? "" },
-			}),
+			surfaceContext: reqbenchApp.surfaceContext(),
+			// The verb's navigable MOC HTML → the surface's content seam (host.data.mocHtml).
+			hostData: { mocHtml: verbResult.mocHtml ?? "" },
 		});
 
 		overlay?.remove();

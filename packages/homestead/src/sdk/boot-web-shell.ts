@@ -1,6 +1,6 @@
 import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 
-import { bootStudioRuntime, type StudioRuntime } from "./runtime.js";
+import { bootStudioRuntime, type BootStudioRuntimeOptions, type StudioRuntime } from "./runtime.js";
 import { setupStudioShell, type StudioShell } from "./Shell.js";
 import type {
 	HomesteadSurfaceRenderActionHandler,
@@ -47,12 +47,28 @@ export interface BootCapabilityWebShellOptions {
 	 * object is served for every render.
 	 */
 	surfaceContext?: HomesteadSurfaceRenderContextProvider | HomesteadSurfaceRenderHostContext;
+	/**
+	 * Extra fields merged into `host.data` on top of `surfaceContext` — the ergonomic way to
+	 * feed a verb's rendered content to a surface's content seam. An app runs its verb and
+	 * passes `{ walletHtml: result.walletHtml }` here instead of hand-wrapping surfaceContext
+	 * in an arrow that spreads `...base.data`. Only meaningful with a STATIC `surfaceContext`
+	 * object (or none); ignored if `surfaceContext` is a provider function, which already owns
+	 * per-render data.
+	 */
+	hostData?: Record<string, unknown>;
 	/** Handles a clicked surface action (a card/button) — routes it back to a verb's run(). */
 	surfaceAction?: HomesteadSurfaceRenderActionHandler;
 	/** Connect the browser runtime to an external daemon over WebSocket for live CRDT sync. */
 	connectBrowserSync?: boolean;
 	/** Env metadata surfaced to the runtime (version/commit); optional. */
 	envMetadata?: Record<string, string>;
+	/**
+	 * Override how the runtime is booted — the seam a jsdom render test uses to inject a
+	 * mock tractor instead of opening real OPFS/SQLite + a browser Tractor. Production omits
+	 * it and gets `bootStudioRuntime`. This is what makes "the surface actually mounts into
+	 * the slot" testable without a real browser.
+	 */
+	bootRuntime?: (options: BootStudioRuntimeOptions) => Promise<StudioRuntime>;
 }
 
 export interface CapabilityWebShell {
@@ -69,7 +85,8 @@ export interface CapabilityWebShell {
 export async function bootCapabilityWebShell(
 	options: BootCapabilityWebShellOptions,
 ): Promise<CapabilityWebShell> {
-	const runtime = await bootStudioRuntime({
+	const bootRuntime = options.bootRuntime ?? bootStudioRuntime;
+	const runtime = await bootRuntime({
 		databaseName: options.databaseName,
 		namespace: options.namespace,
 		identityId: options.identityId ?? options.namespace,
@@ -88,13 +105,24 @@ export async function bootCapabilityWebShell(
 	}
 
 	// Accept a static context object as well as a provider: wrap the object so the shell
-	// always gets a function.
-	const surfaceContext: HomesteadSurfaceRenderContextProvider | undefined =
-		typeof options.surfaceContext === "function"
-			? options.surfaceContext
-			: options.surfaceContext
-				? () => options.surfaceContext as HomesteadSurfaceRenderHostContext
-				: undefined;
+	// always gets a function. For a static object, merge `hostData` into its `data` so the
+	// caller feeds content without hand-spreading `...base.data` in an arrow.
+	let surfaceContext: HomesteadSurfaceRenderContextProvider | undefined;
+	if (typeof options.surfaceContext === "function") {
+		surfaceContext = options.surfaceContext;
+	} else if (options.surfaceContext || options.hostData) {
+		const base = (options.surfaceContext ?? {}) as HomesteadSurfaceRenderHostContext;
+		const merged: HomesteadSurfaceRenderHostContext = options.hostData
+			? {
+					...base,
+					data: {
+						...(base.data as Record<string, unknown> | undefined),
+						...options.hostData,
+					},
+				}
+			: base;
+		surfaceContext = () => merged;
+	}
 
 	const shell = await setupStudioShell(runtime.tractor, {
 		...(surfaceContext ? { surfaceContext } : {}),

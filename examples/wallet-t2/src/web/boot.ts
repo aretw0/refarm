@@ -26,18 +26,15 @@ export async function bootWallet(): Promise<void> {
 	try {
 		const registry = walletApp.registry();
 		const verbResult = await runWalletVerb();
-		const base = walletApp.surfaceContext();
 
 		await bootCapabilityWebShell({
 			databaseName: "wallet-web",
 			namespace: "wallet",
 			surfaces: [walletWebSurface(registry)],
-			// Merge the verb's rendered wallet HTML into the host context, so the surface's
-			// content seam (host.data.walletHtml) shows the actual wallet.
-			surfaceContext: () => ({
-				...base,
-				data: { ...base.data, walletHtml: verbResult.walletHtml ?? "" },
-			}),
+			surfaceContext: walletApp.surfaceContext(),
+			// The verb's rendered wallet HTML → the surface's content seam (host.data.walletHtml),
+			// so the citizen sees the actual wallet. The helper merges it into host.data.
+			hostData: { walletHtml: verbResult.walletHtml ?? "" },
 		});
 
 		overlay?.remove();
