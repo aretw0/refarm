@@ -47,6 +47,11 @@ export function coreAstroAliases(root) {
  * It automatically reads Refarm project config and injects required headers for WebContainers.
  */
 export function defineConfig(userConfig = {}) {
+	// The astro config is an APP entry point, so — like the CLI/farmhand boots — it injects
+	// the sovereign dir default the substrate deliberately does NOT hardcode. Without this,
+	// loadConfig below throws MissingSovereignDirError at `astro check`/build time (the
+	// substrate reads SOVEREIGN_DIR and fails up when unset). `||=` so an explicit env wins.
+	process.env.SOVEREIGN_DIR ||= ".refarm";
 	const root = findSovereignRoot();
 	const refarmConfig = loadConfig(root);
 
