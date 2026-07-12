@@ -49,6 +49,7 @@
     "REFARM_HOME": "/workspaces/refarm/.refarm",
     "XDG_DATA_HOME": "/workspaces/refarm/.refarm/data",
     "REFARM_STREAMS_DIR": "/workspaces/refarm/.refarm/streams",
+    "SILO_HOME": "/workspaces/refarm/.refarm/secrets",
     "REFARM_SOURCE_CACHE_ROOT": "/home/vscode/.cache/checkouts",
     "TURBO_CACHE_DIR": "/home/vscode/.turbo",
     "CARGO_BUILD_JOBS": "4",
@@ -79,7 +80,8 @@
     "source=refarm-pi-home,target=/home/vscode/.pi,type=volume",
     "source=refarm-claude-home,target=/home/vscode/.claude,type=volume",
     "source=refarm-codex-home,target=/home/vscode/.codex,type=volume",
-    "source=refarm-gh-config,target=/home/vscode/.config/gh,type=volume"
+    "source=refarm-gh-config,target=/home/vscode/.config/gh,type=volume",
+    "source=refarm-secrets,target=/workspaces/refarm/.refarm/secrets,type=volume"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "postStartCommand": "bash .devcontainer/post-start.sh",

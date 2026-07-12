@@ -10,6 +10,10 @@ export REFARM_WORKSPACE_HOST_WRITE_LOCK="${REFARM_WORKSPACE_HOST_WRITE_LOCK:-1}"
 export REFARM_HOME="${REFARM_HOME:-$ROOT/.refarm}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$REFARM_HOME/data}"
 export REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$REFARM_HOME/streams}"
+# Sovereign credentials (refarm sow → silo identity.json) live in a DEDICATED subdir
+# with its own persistent Docker volume (refarm-secrets), so they survive workspace
+# rebuilds. The volume mounts root-owned; repair it below like the other volume dirs.
+export SILO_HOME="${SILO_HOME:-$REFARM_HOME/secrets}"
 export REFARM_SOURCE_CACHE_ROOT="${REFARM_SOURCE_CACHE_ROOT:-/home/vscode/.cache/checkouts}"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/.cache/cargo-target}"
 PACKAGE_MANAGER_HELPER="$ROOT/scripts/package-manager.sh"
@@ -61,6 +65,7 @@ ensure_pnpm() {
 	repair_owned_dir /home/vscode/.cache
 	repair_owned_dir "$NPM_CONFIG_CACHE"
 	repair_owned_dir "$REFARM_HOME"
+	repair_owned_dir "$SILO_HOME"
 	repair_owned_dir "$XDG_DATA_HOME"
 	repair_owned_dir "$REFARM_STREAMS_DIR"
 	repair_owned_dir "$REFARM_SOURCE_CACHE_ROOT"
