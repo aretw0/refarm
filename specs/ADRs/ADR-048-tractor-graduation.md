@@ -1,6 +1,7 @@
 # ADR-048: tractor-native Graduation — Becomes the Canonical `tractor`
 
 **Status**: Accepted
+**Refined by**: [ADR-059](ADR-059-tractor-rust-authoritative-runtime.md) — this ADR graduated the native host to canonical while preserving the TS version as a reference; ADR-059 goes further and makes Rust the *authoritative* runtime, demoting tractor-ts to a conformance harness (not a production runtime). ADR-059 is the current binding decision.
 **Date**: 2026-03-19
 **Deciders**: Core Team
 **Supersedes**: graduation criteria defined in [ADR-047](ADR-047-tractor-native-rust-host.md)

@@ -1,6 +1,7 @@
 # ADR-019: npm Scope and Namespace Strategy
 
 **Status**: Accepted  
+**Refined by**: [ADR-069](ADR-069-npm-scope-canonicalization.md) — canonicalizes the scope and corrects the docs (resolving the `@aretw0` vs `@refarm.dev` ambiguity this ADR left open). ADR-069 is the current binding decision.  
 **Date**: 2026-03-07  
 **Deciders**: Core Team  
 **Tags**: #distribution #branding #infrastructure

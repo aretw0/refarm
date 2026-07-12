@@ -26,8 +26,8 @@ Architecture Decision Records for Refarm.
 | [019](ADR-019-npm-scope-and-namespace-strategy.md)             | npm Scope and Namespace Strategy (@refarm.dev)                                    | Accepted   | 2026-03-07 |
 | [025](ADR-025-pure-microkernel-architecture.md)                | Pure Microkernel Architecture for Tractor                                         | Proposed   | 2026-03-07 |
 | [026](ADR-026-externalized-storage-migrations.md)              | Externalized Storage Migrations                                                   | Proposed   | 2026-03-08 |
-| [027](ADR-027-compositional-plugin-architecture.md)            | Compositional Plugin Architecture                                                 | Proposed   | 2026-03-08 |
-| [028](ADR-028-crdt-sqlite-convergence-strategy.md)             | CRDT-SQLite Convergence Strategy                                                  | Proposed   | 2026-03-08 |
+| [027](ADR-027-compositional-plugin-architecture.md)            | Compositional Plugin Architecture                                                 | Superseded | 2026-03-08 |
+| [028](ADR-028-crdt-sqlite-convergence-strategy.md)             | CRDT-SQLite Convergence Strategy                                                  | Superseded | 2026-03-08 |
 | [029](ADR-029-native-browser-permissions-as-capabilities.md)   | Native Browser Permissions as Capabilities                                        | Proposed   | 2026-03-08 |
 | [030](ADR-030-devops-in-grand-style.md)                        | DevOps in Grand Style                                                             | Proposed   | 2026-03-08 |
 | [031](ADR-031-pluggable-relational-storage.md)                 | Pluggable Relational Storage                                                      | Proposed   | 2026-03-09 |
@@ -38,7 +38,7 @@ Architecture Decision Records for Refarm.
 | [036](ADR-036-sovereign-bootloader-and-strict-ssg.md)          | Sovereign Bootloader and Strict SSG                                               | Accepted   | 2026-03-11 |
 | [037](ADR-037-infrastructure-escalation-strategy.md)           | Infrastructure Escalation Strategy                                                | Accepted   | 2026-03-12 |
 | [040](ADR-040-sovereign-infrastructure-as-graph.md)            | Sovereign Infrastructure as a Graph                                               | Proposed   | 2026-03-13 |
-| [041](ADR-041-sovereign-environments-isolation.md)             | Sovereign Environments Isolation                                                  | Proposed   | 2026-03-13 |
+| [041](ADR-041-sovereign-environments-isolation.md)             | Sovereign Environments Isolation                                                  | Superseded | 2026-03-13 |
 | [042](ADR-042-homestead-modularization.md)                     | Homestead Modularization                                                          | Proposed   | 2026-03-14 |
 | [043](ADR-043-radical-dogfooding-and-eac.md)                   | Radical Dogfooding & Everything as Config (EaC)                                   | Proposed   | 2026-03-14 |
 | [044](ADR-044-wasm-plugin-loading-browser-strategy.md)         | WASM Plugin Loading Browser Strategy                                              | Accepted   | 2026-03-15 |
@@ -47,7 +47,7 @@ Architecture Decision Records for Refarm.
 | [047](ADR-047-tractor-native-rust-host.md)                     | tractor-native — Native Rust Plugin Host                                          | Accepted   | 2026-03-19 |
 | [048](ADR-048-tractor-graduation.md)                           | Tractor Graduation (tractor-native becomes canonical tractor)                     | Accepted   | 2026-03-19 |
 | [049](ADR-049-post-graduation-horizon.md)                      | Post-Graduation Horizon (tractor Rust roadmap)                                    | Proposed   | 2026-03-20 |
-| [050](ADR-050-zig-wasm-agent-tool-host.md)                     | Exploração de Host Zig + Guest ClojureWasm para Ferramentas do Agente Pi          | Proposed   | 2026-04-17 |
+| [050](ADR-050-zig-wasm-agent-tool-host.md)                     | Exploração de Host Zig + Guest ClojureWasm para Ferramentas do Agente Pi          | Superseded | 2026-04-17 |
 | [051](ADR-051-external-signed-revocation-offline-policy.md)    | External-Signed Revocation Offline Policy Profiles                                | Accepted   | 2026-04-24 |
 | [052](ADR-052-crdt-native-agent-rendezvous.md)                 | CRDT-native agent rendezvous with A2A-compatible edges                            | Proposed   | 2026-04-24 |
 | [053](ADR-053-host-proxied-model-streaming.md)                 | Host-Proxied Model Streaming Boundary                                             | Accepted   | 2026-05-02 |
@@ -118,9 +118,15 @@ These ADRs define architecture direction but are NOT executable contracts yet. S
 
 ## Superseded/Deprecated
 
-| ADR                                    | Title             | Superseded By                        | Reason                                                                                           |
-| -------------------------------------- | ----------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| [003](ADR-003-crdt-synchronization.md) | CRDT Choice (Yjs) | [045](ADR-045-loro-crdt-adoption.md) | Adoption of Loro CRDT for better cycle-safe tracking, snapshot support, and a unified Rust-core. |
+| ADR                                                        | Title                                     | Superseded By                                            | Reason                                                                                           |
+| ---------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [003](ADR-003-crdt-synchronization.md)                     | CRDT Choice (Yjs)                         | [045](ADR-045-loro-crdt-adoption.md)                     | Adoption of Loro CRDT for better cycle-safe tracking, snapshot support, and a unified Rust-core. |
+| [027](ADR-027-compositional-plugin-architecture.md)        | Compositional Plugin Architecture & Headless DSL | [086](ADR-086-plugin-vocabulary-convergence.md)   | `providesApi`/`requiresApi` replaced by the "One Verb, N Natures" model (086) + surface projection (085); Headless DSL absorbed by 016. |
+| [028](ADR-028-crdt-sqlite-convergence-strategy.md)         | CRDT-SQLite Convergence Strategy          | [045](ADR-045-loro-crdt-adoption.md)                     | Loro realizes the same op-log/materialized-view target natively; the manual HLC/materializer design is historical (031 lists it "Strategy A legacy"). |
+| [041](ADR-041-sovereign-environments-isolation.md)         | Sovereign Environments & Workspace Isolation | [071](ADR-071-workspace-namespace-policy.md)          | Workspace Namespace Policy is the shipped realization of workspace isolation (Vault-Based Namespacing superseded). |
+| [050](ADR-050-zig-wasm-agent-tool-host.md)                 | Zig Host + ClojureWasm Guest (exploration) | [059](ADR-059-tractor-rust-authoritative-runtime.md)    | Runtime direction settled on Rust `tractor` as authoritative host (059) + WASM surface substrate (070); exploration not pursued. |
+
+**Refined (still binding, but read the newer ADR for the current form):** [017](ADR-017-studio-micro-kernel-and-plugin-boundary.md) → [025](ADR-025-pure-microkernel-architecture.md) (boot model); [019](ADR-019-npm-scope-and-namespace-strategy.md) → [069](ADR-069-npm-scope-canonicalization.md) (scope canonicalization); [048](ADR-048-tractor-graduation.md) → [059](ADR-059-tractor-rust-authoritative-runtime.md) (Rust becomes authoritative).
 
 ---
 

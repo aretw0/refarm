@@ -1,7 +1,8 @@
 # ADR-041: Sovereign Environments & Workspace Isolation
 
-**Status**: Proposed  
+**Status**: Superseded by [ADR-071](ADR-071-workspace-namespace-policy.md)  
 **Date**: 2026-03-12  
+**Superseded note**: This ADR proposed "Vault-Based Namespacing" (`vault:prod`, OPFS/SQLite/IndexedDB partitioning) for environment isolation. ADR-071 (Workspace Namespace Policy — `.refarm/`, `refarm.config.json`, `workspaceProtection.roots`) is the accepted, shipped realization of workspace isolation, covering the same terrain.
 
 ## Context
 Refarm users (especially developers) often need to run multiple instances of the system:

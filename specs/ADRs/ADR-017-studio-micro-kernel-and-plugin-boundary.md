@@ -1,6 +1,7 @@
 # ADR-017: Studio Micro-Kernel and Plugin Boundary
 
 **Status**: Accepted  
+**Refined by**: [ADR-025](ADR-025-pure-microkernel-architecture.md) — the "core minimal, everything a plugin" principle here stands, but ADR-025 corrects the boot model: the initial `Tractor.boot()` violated it by importing OPFS/Nostr/Sync directly, so ADR-025 refactors to a pure IoC microkernel. Read ADR-025 for the current boot architecture.  
 **Date**: 2026-03-07  
 **Deciders**: Refarm core maintainers  
 **Related**: ADR-002, ADR-007, ADR-008, ADR-009, ADR-016

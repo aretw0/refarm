@@ -1,7 +1,7 @@
 # ADR-050: Exploração de Host Zig + Guest ClojureWasm para Ferramentas do Agente Pi
 
-**Status**: Proposed  
-**Progress**: Feasibility exploration  
+**Status**: Superseded by [ADR-059](ADR-059-tractor-rust-authoritative-runtime.md)  
+**Progress**: Feasibility exploration — not pursued; the runtime direction was settled by ADR-059 (Rust `tractor` as authoritative host) and ADR-070. Kept for the reasoning, not as a live proposal.  
 **Date**: 2026-04-17
 **Authors**: Arthur Aleksandro / Claude Code
 **Related**: ADR-047 (Tractor Native Rust Host), ADR-048 (Tractor Graduation), ADR-049 (Post-Graduation Horizon)

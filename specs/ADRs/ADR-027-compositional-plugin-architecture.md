@@ -1,7 +1,8 @@
 # ADR-027: Compositional Plugin Architecture & Headless DSL
 
 **Date**: 2026-03-07
-**Status**: Proposed
+**Status**: Superseded by [ADR-086](ADR-086-plugin-vocabulary-convergence.md)
+**Superseded note**: This ADR proposed `providesApi`/`requiresApi` in the manifest and a "Headless DSL" (`--refarm-*` design tokens). The canonical plugin model — ADR-086 ("One Verb, N Natures", `capabilities.provides` + `extensions.surfaces`) plus ADR-085 (open surface projection) — replaces the `providesApi`/`requiresApi` mechanism, and the Headless DSL was absorbed by ADR-016 (Headless UI Contract). That vocabulary no longer exists in the canonical model.
 **Context**:
 We want to take the "Everything is a Plugin" philosophy to its logical conclusion. Currently, the Refarm host (Homestead) has hardcoded features like the terminal, editor, and graph view. To achieve true sovereignty and radical modularity, the host should be a "blank canvas" (a shell) that orchestrates plugins. Furthermore, these plugins must be able to communicate with each other, defining clear APIs for composition.
 

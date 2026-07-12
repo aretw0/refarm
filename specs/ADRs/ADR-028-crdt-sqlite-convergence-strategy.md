@@ -1,7 +1,8 @@
 # ADR-028: CRDT-SQLite Convergence Strategy
 
-**Status**: Proposed
+**Status**: Superseded by [ADR-045](ADR-045-loro-crdt-adoption.md)
 **Date**: 2026-03-08
+**Superseded note**: This ADR proposed the target CRDT↔SQLite architecture (manual HLC LWW, a custom materializer). ADR-045 (Loro) realizes the same target — op-log as source of truth, SQL as a materialized view — but delivers the mechanism (time-travel, snapshots) natively at zero extra cost, so the concrete design here is historical. ADR-031 lists this as "Strategy A (legacy)".
 **Context**:
 Refarm uses a "Sovereign Graph" (JSON-LD) persisted in SQLite. Synchronization happens via CRDTs (Conflict-free Replicated Data Types) to ensure offline-first consistency. The "mathematical nightmare" arises when:
 
