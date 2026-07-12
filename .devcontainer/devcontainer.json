@@ -135,6 +135,7 @@
         "rust-analyzer.checkOnSave": false,
         "rust-analyzer.cargo.autoreload": false,
         "rust-analyzer.linkedProjects": [
+          "./packages/lsp-code-ops/Cargo.toml",
           "./packages/heartwood/Cargo.toml",
           "./packages/tractor/Cargo.toml",
           "./packages/tractor/tests/fixtures/null-plugin/Cargo.toml"
