@@ -1,7 +1,7 @@
 # ADR-043: Radical Dogfooding & Everything as Config (EaC)
 
-**Status**: Proposed  
-**Progress**: Draft  
+**Status**: Accepted  
+**Progress**: Implemented (~80%) — `@refarm.dev/config` universal bridge (consumed by ~20 scripts), `scripts/ci/sync-infra.mjs` convergence step (WindmillEngine.sync), and `.github/workflows/escape-hatch.yml` kill-switch all shipped and wired into CI.  
 **Date**: 2026-03-14  
 
 ## Context

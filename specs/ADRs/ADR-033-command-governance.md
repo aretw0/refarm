@@ -1,7 +1,9 @@
 # ADR-033: Command Governance & Unified Intent Registry
 
 ## Status
-Proposed
+Accepted
+
+**Progress**: The core Command Registry (§1) is implemented and shipping in `packages/tractor-ts/src/lib/command-host.ts` (`CommandHost` register/get/execute/getCommands, `CommandMetadata`, tests). TODO — NOT yet done: capability governance is NOT enforced (`execute()` never checks the `capability` field), §2 (cascade/decorate/override, web-shortcut delegation) is absent, and there is no parity in the now-authoritative Rust `tractor` (TS-only).
 
 **Date**: 2026-03-09
 

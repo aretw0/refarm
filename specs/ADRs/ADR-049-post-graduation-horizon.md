@@ -1,6 +1,7 @@
 # ADR-049: Post-Graduation Horizon — Dual-Runtime Capabilities
 
-**Status**: Proposed
+**Status**: Accepted
+**Progress**: Roadmap-of-record — its premises are real (both runtimes exist: `packages/tractor` Rust + `packages/tractor-ts`); amended 2026-06-25 to align with ADR-070 Part B (native-first / WASM-fallback). Accepted as the horizon doc, not a mandate.
 **Date**: 2026-03-20
 **Authors**: Refarm Team
 **Supersedes**: N/A

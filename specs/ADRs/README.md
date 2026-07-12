@@ -50,7 +50,7 @@ story its ADRs tell together and points at the entry to read first. Saga-index A
 | [030](ADR-030-devops-in-grand-style.md)                        | DevOps in Grand Style                                                             | Proposed   | 2026-03-08 |
 | [031](ADR-031-pluggable-relational-storage.md)                 | Pluggable Relational Storage                                                      | Proposed   | 2026-03-09 |
 | [032](ADR-032-proton-security-mandatory-signing.md)            | Proton Security - Mandatory Signing                                               | Proposed   | 2026-03-09 |
-| [033](ADR-033-command-governance.md)                           | Command Governance                                                                | Proposed   | 2026-03-09 |
+| [033](ADR-033-command-governance.md)                           | Command Governance                                                                | Accepted   | 2026-03-09 |
 | [034](ADR-034-identity-adoption-conversion.md)                 | Identity Adoption Conversion                                                      | Proposed   | 2026-03-10 |
 | [035](ADR-035-device-verification-cross-signing.md)            | Device Verification & Cross-Signing                                               | Proposed   | 2026-03-10 |
 | [036](ADR-036-sovereign-bootloader-and-strict-ssg.md)          | Sovereign Bootloader and Strict SSG                                               | Accepted   | 2026-03-11 |
@@ -58,13 +58,13 @@ story its ADRs tell together and points at the entry to read first. Saga-index A
 | [040](ADR-040-sovereign-infrastructure-as-graph.md)            | Sovereign Infrastructure as a Graph                                               | Proposed   | 2026-03-13 |
 | [041](ADR-041-sovereign-environments-isolation.md)             | Sovereign Environments Isolation                                                  | Superseded | 2026-03-13 |
 | [042](ADR-042-homestead-modularization.md)                     | Homestead Modularization                                                          | Proposed   | 2026-03-14 |
-| [043](ADR-043-radical-dogfooding-and-eac.md)                   | Radical Dogfooding & Everything as Config (EaC)                                   | Proposed   | 2026-03-14 |
+| [043](ADR-043-radical-dogfooding-and-eac.md)                   | Radical Dogfooding & Everything as Config (EaC)                                   | Accepted   | 2026-03-14 |
 | [044](ADR-044-wasm-plugin-loading-browser-strategy.md)         | WASM Plugin Loading Browser Strategy                                              | Accepted   | 2026-03-15 |
 | [045](ADR-045-loro-crdt-adoption.md)                           | Loro CRDT Adoption                                                                | Accepted   | 2026-03-17 |
 | [046](ADR-046-refarm-composition-model.md)                     | Refarm Composition Model (Blocks and Distros)                                     | Accepted   | 2026-03-17 |
 | [047](ADR-047-tractor-native-rust-host.md)                     | tractor-native — Native Rust Plugin Host                                          | Accepted   | 2026-03-19 |
 | [048](ADR-048-tractor-graduation.md)                           | Tractor Graduation (tractor-native becomes canonical tractor)                     | Accepted   | 2026-03-19 |
-| [049](ADR-049-post-graduation-horizon.md)                      | Post-Graduation Horizon (tractor Rust roadmap)                                    | Proposed   | 2026-03-20 |
+| [049](ADR-049-post-graduation-horizon.md)                      | Post-Graduation Horizon (tractor Rust roadmap)                                    | Accepted   | 2026-03-20 |
 | [050](ADR-050-zig-wasm-agent-tool-host.md)                     | Exploração de Host Zig + Guest ClojureWasm para Ferramentas do Agente Pi          | Superseded | 2026-04-17 |
 | [051](ADR-051-external-signed-revocation-offline-policy.md)    | External-Signed Revocation Offline Policy Profiles                                | Accepted   | 2026-04-24 |
 | [052](ADR-052-crdt-native-agent-rendezvous.md)                 | CRDT-native agent rendezvous with A2A-compatible edges                            | Proposed   | 2026-04-24 |
