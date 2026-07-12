@@ -48,6 +48,55 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		);
 	});
 
+	it("DOGFOOD: the journey runs as a declarative playbook (discover → pull, threaded)", async () => {
+		// The whole T3 journey expressed as `.dgk/requirements-sync.playbook.json` and run through
+		// the generic @refarm.dev/playbook engine driving the reqbench's OWN verbs in-process:
+		// `source:discover` lists the systems, its result THREADS the ref into
+		// `requirements:requirements-pull`, which ingests. One framework verb, the real journey.
+		const statePath = tempStatePath();
+		const host = buildReqbenchHost({ statePath });
+		const playbook = host.registry().get("playbook-run");
+		if (!playbook || "actions" in playbook) throw new Error("playbook-run verb not mounted");
+
+		const res = (await playbook.run({
+			args: { playbook: "requirements-sync" },
+			options: {},
+			json: true,
+		})) as unknown as {
+			ok: boolean;
+			playbook: string;
+			steps: Array<{ verb: string; ok: boolean }>;
+			bindings: {
+				discovered: { sources: Array<{ ref: string }> };
+				pulled: { ref: string; ingested: number };
+			};
+		};
+
+		expect(res.ok).toBe(true);
+		expect(res.playbook).toBe("requirements-sync");
+		expect(res.steps.map((s) => s.verb)).toEqual([
+			"source:discover",
+			"requirements:requirements-pull",
+		]);
+		expect(res.steps.every((s) => s.ok)).toBe(true);
+		// The ref was THREADED from discovery into the pull (not hardcoded in the pull step).
+		const discoveredRef = res.bindings.discovered.sources[0]?.ref;
+		expect(discoveredRef).toBe(REQ_SYSTEM_REF);
+		expect(res.bindings.pulled.ref).toBe(discoveredRef);
+		expect(res.bindings.pulled.ingested).toBe(3);
+
+		// And the pull actually persisted: a fresh registry over the SAME state sees the reqs.
+		const after = await harness.runVerb(buildRegistry({ statePath }), "requirements");
+		expect(after.moc as string).toContain("Identificador do CNPJ da Escrituração");
+	});
+
+	it("the playbook-run verb is surfaced as an agent tool", () => {
+		const host = buildReqbenchHost({ statePath: tempStatePath() });
+		const playbook = host.registry().get("playbook-run");
+		if (!playbook || "actions" in playbook) throw new Error("playbook-run verb not mounted");
+		expect(playbook.transports?.agent).toMatchObject({ tool: true });
+	});
+
 	it("declares dgk as the white-label host and exposes action rows", () => {
 		const statePath = tempStatePath();
 		const host = buildReqbenchHost({ statePath });

@@ -1,0 +1,16 @@
+{
+	"schemaVersion": 1,
+	"name": "requirements-sync",
+	"description": "The analyst's journey as a declarative playbook: discover the systems they can access, then pull the chosen one's requirements into the bench. The pulled ref is threaded from discovery.",
+	"steps": [
+		{
+			"verb": "source:discover",
+			"saveAs": "discovered"
+		},
+		{
+			"verb": "requirements:requirements-pull",
+			"with": { "ref": "{{ discovered.sources.0.ref }}" },
+			"saveAs": "pulled"
+		}
+	]
+}

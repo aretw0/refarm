@@ -15,6 +15,7 @@ import {
 	reqCapabilityBundle,
 	type RequirementsCapabilityOptions,
 } from "./persona.js";
+import { createRequirementsPlaybookCapability } from "./playbook.js";
 
 export const DGK_REQUIREMENTS_STATE_PATH_ENV = "DGK_REQUIREMENTS_STATE_PATH";
 export const DGK_COMMAND = "dgk";
@@ -36,7 +37,11 @@ const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND }
  */
 export function buildReqbenchHost(options: ReqbenchHostOptions = {}): CapabilityHost {
 	const command = resolveCommand(options);
-	return defineCapabilityHost({
+	// A holder so the `playbook:run` verb's dispatch can resolve the host's OWN registry lazily
+	// (at run time) — the playbook verb is itself in that registry, so it can't reference the
+	// host until it's built.
+	let host: CapabilityHost;
+	host = defineCapabilityHost({
 		id: "examples/reqbench-t3",
 		command,
 		description: "Digital Gardening Kit - requirements bench",
@@ -63,6 +68,10 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 							headless: process.env.DGK_HEADLESS === "1",
 						}),
 					}),
+					// DOGFOOD: `playbook-run <name>` runs the analyst's journey as a declarative
+					// playbook (`.dgk/*.playbook.json`) via the generic engine, driving the verbs
+					// above in-process. One framework verb → also an agent tool for free.
+					createRequirementsPlaybookCapability(host),
 				],
 			};
 		},
@@ -101,6 +110,7 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 			openApiTitle: `${command} Requirements Bench API`,
 		},
 	});
+	return host;
 }
 
 export const reqbenchApp = defineCapabilityApp<ReqbenchHostOptions>({

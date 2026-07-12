@@ -14,7 +14,9 @@
 			"@refarm.dev/enrichment-contract-v1": ["packages/enrichment-contract-v1/dist/index.d.ts"],
 			"@refarm.dev/capability-homestead-surface": [
 				"packages/capability-homestead-surface/dist/index.d.ts"
-			]
+			],
+			"@refarm.dev/playbook": ["packages/playbook/dist/index.d.ts"],
+			"@refarm.dev/playbook/capability": ["packages/playbook/dist/capability.d.ts"]
 		}
 	},
 	"include": ["src/**/*"],
