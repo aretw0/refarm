@@ -4,6 +4,8 @@
 **Date:** 2026-05-04  
 **Author:** Arthur Silva  
 
+**Related**: ADR-091 (Tractor runtime saga)  
+
 ## Context
 
 Refarm currently has two runtime implementations:

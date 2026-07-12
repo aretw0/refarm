@@ -5,7 +5,7 @@
 **Date**: 2026-03-19
 **Deciders**: Core Team
 **Supersedes**: graduation criteria defined in [ADR-047](ADR-047-tractor-native-rust-host.md)
-**Related**: [ADR-044](ADR-044-wasm-plugin-loading-browser-strategy.md), [ADR-045](ADR-045-loro-crdt-adoption.md), [ADR-046](ADR-046-refarm-composition-model.md)
+**Related**: [ADR-044](ADR-044-wasm-plugin-loading-browser-strategy.md), [ADR-045](ADR-045-loro-crdt-adoption.md), [ADR-046](ADR-046-refarm-composition-model.md), ADR-091 (Tractor runtime saga)  
 
 ---
 

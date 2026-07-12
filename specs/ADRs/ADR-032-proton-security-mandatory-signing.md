@@ -5,6 +5,8 @@ Proposed
 
 **Date**: 2026-03-09
 
+**Related**: ADR-092 (Identity saga)  
+
 ## Context
 Refarm aims for maximum user sovereignty and "Proton-level" security (end-to-end encrypted, zero-knowledge, and cryptographically verifiable).
 

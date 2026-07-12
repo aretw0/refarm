@@ -4,6 +4,8 @@
 **Date:** 2026-05-04  
 **Author:** Arthur Silva  
 
+**Related**: ADR-091 (Tractor runtime saga)  
+
 ## Context
 
 `refarm ask` submits efforts to a local HTTP sidecar on `:42001`. Today that sidecar is implemented in farmhand (Node.js). Per ADR-059, tractor Rust becomes the authoritative runtime and must implement the same protocol so clients (`refarm ask`, future UIs) are runtime-agnostic.

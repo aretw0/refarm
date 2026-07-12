@@ -87,6 +87,9 @@ Architecture Decision Records for Refarm.
 | [087](ADR-087-brand-agnostic-packages.md)                      | Brand-Agnostic Packages — Only the App Owns Its Name                              | Accepted   | 2026-07-10 |
 | [088](ADR-088-agent-surface-transport-seam.md)                 | Agent Surface Transport Seam — Telegram / PWA / P2P around the `user:prompt` seam | Proposed   | 2026-07-12 |
 | [089](ADR-089-plugin-citizenship-governance.md)                | Plugin Citizenship & Governance (umbrella index over 020-024)                     | Proposed   | 2026-07-12 |
+| [090](ADR-090-stream-transport-saga.md)                        | Streaming & Stream Transport (saga index over 053-055)                            | Accepted   | 2026-07-12 |
+| [091](ADR-091-tractor-runtime-saga.md)                         | Tractor Runtime (saga index over 047/048/059/060)                                 | Accepted   | 2026-07-12 |
+| [092](ADR-092-sovereign-identity-saga.md)                      | Sovereign Identity Continuity (saga index over 032/034/035)                       | Proposed   | 2026-07-12 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 

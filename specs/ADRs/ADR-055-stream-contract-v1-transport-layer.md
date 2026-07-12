@@ -6,6 +6,8 @@
 
 **Date**: 2026-05-05
 
+**Related**: ADR-090 (Streaming saga)  
+
 ## Context
 
 ADR-054 introduced `StreamChunk` and `StreamSession` as generic host-owned CRDT

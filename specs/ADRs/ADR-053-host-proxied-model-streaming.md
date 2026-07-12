@@ -6,6 +6,8 @@
 
 **Date**: 2026-05-20
 
+**Related**: ADR-090 (Streaming saga)  
+
 ## Context
 
 agent/farmhand now has partial `AgentResponse` schema, SSE parsing, chunk persistence helpers, provider `stream: true` gates, and an active stream sink context (`prompt_ref`, `model`, `last_sequence`). Tractor now provides the host-proxied transport: bytes are read through a streaming SSE seam, partial chunks are stored by the host, and final provider-compatible JSON is synthesized for existing guest parsers.

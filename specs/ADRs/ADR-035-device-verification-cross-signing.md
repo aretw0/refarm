@@ -5,6 +5,8 @@ Proposed
 
 **Date**: 2026-03-09
 
+**Related**: ADR-092 (Identity saga)  
+
 ## Context
 As Refarm moves towards multi-device synchronization (via ADR-003 and ADR-031), we need a robust way for a user to:
 
