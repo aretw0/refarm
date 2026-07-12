@@ -104,6 +104,17 @@ pub(crate) fn search_files(input: &serde_json::Value) -> String {
     let mut argv = vec![
         "grep".into(),
         "-rn".into(),
+        // Skip the heavy generated/dep/vcs dirs — a plain `grep -rn` at a repo root would
+        // otherwise descend into node_modules/.git/target/dist and blow past the timeout (this
+        // is what ripgrep does by default). Keeps content search fast + bounded.
+        "--exclude-dir=node_modules".into(),
+        "--exclude-dir=.git".into(),
+        "--exclude-dir=target".into(),
+        "--exclude-dir=dist".into(),
+        "--exclude-dir=dist-web".into(),
+        "--exclude-dir=.turbo".into(),
+        "--exclude-dir=.cache".into(),
+        "--exclude-dir=coverage".into(),
         "--".into(),
         pattern.into(),
         path.into(),
