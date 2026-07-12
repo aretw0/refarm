@@ -10,6 +10,7 @@
 			"@refarm.dev/capability-host": ["packages/capability-host/dist/index.d.ts"],
 			"@refarm.dev/capability-host/node": ["packages/capability-host/dist/node.d.ts"],
 			"@refarm.dev/credentials-contract-v1": ["packages/credentials-contract-v1/dist/index.d.ts"],
+			"@refarm.dev/identity-contract-v1": ["packages/identity-contract-v1/dist/index.d.ts"],
 			"@refarm.dev/records-contract-v1": ["packages/records-contract-v1/dist/index.d.ts"],
 			"@refarm.dev/enrichment-contract-v1": ["packages/enrichment-contract-v1/dist/index.d.ts"],
 			"@refarm.dev/capability-homestead-surface": [

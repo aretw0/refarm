@@ -10,8 +10,13 @@ import {
 	createInMemoryCredentialsProviderFixture,
 	type CredentialsProvider,
 } from "@refarm.dev/credentials-contract-v1";
+import type { IdentityProvider } from "@refarm.dev/identity-contract-v1";
 
-import { createWalletImportCapability, createWalletVerifyCapability } from "./credentials.js";
+import {
+	createWalletImportCapability,
+	createWalletShareCapability,
+	createWalletVerifyCapability,
+} from "./credentials.js";
 import { walletManifest } from "./fixture.js";
 
 /**
@@ -28,10 +33,13 @@ export interface WalletStateOptions {
 }
 
 export interface WalletBundleOptions extends WalletStateOptions {
-	/** The credential verifier — the substrate's W3C verifier (signature/issuer/validity). An
+	/** The credential provider — the substrate's W3C verifier + presenter (verify/present). An
 	 * in-memory fixture is used out of the box; a real deployment injects one bound to the
-	 * citizen's identity + storage (or a WASM verifier). Only used by the `verify` verb. */
+	 * citizen's identity + storage (or a WASM verifier). */
 	credentialsProvider?: CredentialsProvider;
+	/** The citizen's identity provider — the holder's key(s) that sign a presentation. Paired
+	 * with credentialsProvider from the same fixture out of the box. */
+	identity?: IdentityProvider;
 	/** Deterministic clock for `review.at` in tests. */
 	now?: () => string;
 }
@@ -41,11 +49,19 @@ export function walletCapabilityBundle(options: WalletBundleOptions = {}) {
 		seed: walletManifest,
 		statePath: options.statePath,
 	});
-	// The credential verifier: out of the box, the substrate's in-memory W3C verifier fixture
-	// (so import → verify works offline and is testable); swap for a real/WASM one in production.
-	const credentialsProvider =
-		options.credentialsProvider ?? createInMemoryCredentialsProviderFixture().provider;
-	return { ...deps, credentialsProvider, now: options.now };
+	// The credential provider + the citizen's identity: out of the box, one in-memory fixture
+	// (so import → verify → share works offline and is testable); swap for real/WASM in production.
+	// Paired so a presentation the citizen SIGNS (via identity) verifies against the same provider.
+	const fixture =
+		options.credentialsProvider && options.identity
+			? { provider: options.credentialsProvider, identity: options.identity }
+			: createInMemoryCredentialsProviderFixture();
+	return {
+		...deps,
+		credentialsProvider: fixture.provider,
+		identity: fixture.identity,
+		now: options.now,
+	};
 }
 
 const STATE_LABELS: Record<string, string> = {
@@ -159,8 +175,10 @@ function createWalletStateView(
 /** The citizen wallet dashboard: the main wallet view plus one card per review state.
  * All share `renderers.tui.section = "wallet"` so they group into a single web panel. */
 export interface WalletCapabilitiesOptions {
-	/** The credential verifier for the `verify` verb (from the bundle). */
+	/** The credential provider for `verify` + `share` (from the bundle). */
 	credentialsProvider?: CredentialsProvider;
+	/** The citizen's identity provider for `share` (signs the presentation). */
+	identity?: IdentityProvider;
 	/** Deterministic clock for import/verify `review.at` in tests. */
 	now?: () => string;
 }
@@ -180,6 +198,12 @@ export function createWalletCapabilities(
 		capabilities.push(
 			createWalletVerifyCapability(recordsDeps, options.credentialsProvider, { now: options.now }),
 		);
+		// Sharing needs the citizen's identity to SIGN the presentation.
+		if (options.identity) {
+			capabilities.push(
+				createWalletShareCapability(recordsDeps, options.credentialsProvider, options.identity),
+			);
+		}
 	}
 	return capabilities;
 }

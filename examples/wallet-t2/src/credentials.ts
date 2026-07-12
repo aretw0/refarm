@@ -11,6 +11,7 @@ import type {
 	CredentialVerificationPolicy,
 	VerifiableCredential,
 } from "@refarm.dev/credentials-contract-v1";
+import type { IdentityProvider } from "@refarm.dev/identity-contract-v1";
 import {
 	computeRecordContentHash,
 	type KnowledgeRecord,
@@ -19,27 +20,28 @@ import {
 import { readFileSync } from "node:fs";
 
 /**
- * The citizen's CREDENTIALS — import a Verifiable Credential into the wallet (local-first) and
- * VERIFY it for real. Both are the T2 work: refarm ships the credential model + a real verifier
- * (@refarm.dev/credentials-contract-v1, W3C VC), the ingest/records seam, and the review-state
- * the UI renders; this only wires them for a wallet — the VC↔record mapping and the two verbs.
+ * The citizen's CREDENTIALS — the wallet's real work: IMPORT a Verifiable Credential (local-
+ * first), VERIFY it for real, and SHARE only the ones they choose. refarm ships the credential
+ * model + a real W3C verifier/presenter (@refarm.dev/credentials-contract-v1), the ingest/records
+ * seam, and the review-state the UI renders; this only wires them for a wallet — the VC↔record
+ * mapping and the three verbs.
  *
  * Import is local-first (read a file the citizen holds, no network). Verify is REAL — signature,
- * issuer trust, revocation, validity — not the review-state flip it replaces. A verified
- * credential lands in the same `verified` state the wallet already shows.
+ * issuer trust, revocation, validity — not the review-state flip it replaces. Share is the
+ * sovereignty move — a presentation the citizen signs, carrying only the credentials they pick.
  */
 
 /** The record `@type` for an imported credential — a KnowledgeRecord that is also a wallet item
  * and a Verifiable Credential. */
 const CREDENTIAL_TYPE = ["KnowledgeRecord", "WalletItem", "VerifiableCredential"];
 
-/** Derive a stable record id from a credential (its `id`, else the subject id, else a hash-ish
- * of issuer+issuanceDate). Local + deterministic so re-importing the same credential updates it. */
+/** Derive a stable record id from a credential. Prefer its own `id` (unique per VC); else key
+ * by subject + specific type + issuanceDate, so two DIFFERENT credential types for the same
+ * subject don't collide. Deterministic, so re-importing the same credential updates it. */
 function credentialRecordId(vc: VerifiableCredential): string {
-	const key =
-		vc.id ??
-		(typeof vc.credentialSubject?.id === "string" ? vc.credentialSubject.id : undefined) ??
-		`${vc.issuer}:${vc.issuanceDate}`;
+	const subject = typeof vc.credentialSubject?.id === "string" ? vc.credentialSubject.id : "";
+	const specificType = vc.type.find((t) => t !== "VerifiableCredential") ?? "";
+	const key = vc.id ?? `${subject}:${specificType}:${vc.issuer}:${vc.issuanceDate}`;
 	return `record:cred-${String(key)
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "-")
@@ -268,6 +270,99 @@ export function createWalletVerifyCapability(
 				nextCommand: "wallet",
 				nextCommands: ["wallet"],
 				extra: { id, valid: true, state: "verified", checks: result.checks, issuer: result.issuer },
+			});
+		},
+	};
+}
+
+/** Parse `share`'s ids arg — one id, or several as `a,b,c` or repeated tokens. */
+function parseShareIds(raw: unknown): string[] {
+	if (Array.isArray(raw))
+		return raw
+			.flatMap((v) => String(v).split(","))
+			.map((s) => s.trim())
+			.filter(Boolean);
+	return String(raw ?? "")
+		.split(",")
+		.map((s) => s.trim())
+		.filter(Boolean);
+}
+
+export interface WalletShareOptions {
+	/** The holder identity the citizen presents AS — created on demand if absent. Injected so a
+	 * real deployment binds it to the citizen's persistent key. */
+	holderIdentityId?: string;
+}
+
+/**
+ * `share <ids…>` — the sovereignty move: the citizen COMPARTILHA only the credentials they
+ * choose, as a Verifiable Presentation SIGNED BY THEM. This is "compartilhe apenas o
+ * estritamente necessário" at the credential level — the citizen picks which credentials go
+ * into the presentation; nothing else is disclosed. The receiving party can then verify the
+ * presentation (each credential is genuine AND the holder who presents is who signed it).
+ *
+ * Selective disclosure of individual FIELDS (SD-JWT/BBS+) is not in the substrate's VC model
+ * yet, so selection is per-credential — honest, and already the private-by-default share.
+ */
+export function createWalletShareCapability(
+	recordsDeps: RecordsCommandDeps,
+	provider: CredentialsProvider,
+	identity: IdentityProvider,
+	options: WalletShareOptions = {},
+): CapabilityDescriptor {
+	return {
+		name: "share",
+		summary: "Share only the credentials you choose, as a presentation signed by you",
+		args: [{ name: "ids", required: true }],
+		transports: { http: { path: "/wallet/share" } },
+		renderers: { tui: { section: "wallet" } },
+		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
+			const ids = parseShareIds(input.args.ids);
+			if (ids.length === 0) {
+				return buildJsonErrorEnvelope({
+					command: "share",
+					operation: "share",
+					error: "no_ids",
+					message: "Pass the credential id(s) to share (e.g. share record:cred-a,record:cred-b).",
+					nextAction: "wallet",
+				});
+			}
+
+			const manifest = recordsDeps.loadManifest();
+			const credentials: VerifiableCredential[] = [];
+			const missing: string[] = [];
+			for (const id of ids) {
+				const record = manifest.records.find((r) => r.id === id);
+				const vc = record ? recordToCredential(record) : null;
+				if (vc) credentials.push(vc);
+				else missing.push(id);
+			}
+			if (missing.length > 0) {
+				return buildJsonErrorEnvelope({
+					command: "share",
+					operation: "share",
+					error: "not_a_credential",
+					message: `Not shareable credentials: ${missing.join(", ")} (import a credential first).`,
+					nextAction: "wallet",
+				});
+			}
+
+			// The citizen is the HOLDER — presenting AS themselves. Create/reuse their identity so
+			// the presentation is signed by them (holder-binding a verifier can check).
+			const holderId = options.holderIdentityId ?? (await identity.create("Cidadão (holder)")).id;
+			const presentation = await provider.present(credentials, holderId);
+
+			return buildJsonSuccessEnvelope({
+				command: "share",
+				operation: "share",
+				nextCommand: "wallet",
+				extra: {
+					shared: ids,
+					holder: holderId,
+					// The signed presentation — hand this to the receiving party; they verify it.
+					presentation,
+					count: credentials.length,
+				},
 			});
 		},
 	};

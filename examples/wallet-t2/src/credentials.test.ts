@@ -70,10 +70,17 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 	});
 
 	function bundle(statePath: string) {
-		// The SAME provider issues the test VC and backs verify, so a genuine signature checks out.
-		const b = walletCapabilityBundle({ statePath, credentialsProvider: fixture.provider, now });
+		// The SAME provider + identity issue the test VC and back verify/share, so a genuine
+		// signature (and holder-signed presentation) checks out.
+		const b = walletCapabilityBundle({
+			statePath,
+			credentialsProvider: fixture.provider,
+			identity: fixture.identity,
+			now,
+		});
 		const verbs = createWalletCapabilities(b.records, {
 			credentialsProvider: b.credentialsProvider,
+			identity: b.identity,
 			now,
 		});
 		const byName = new Map(verbs.map((v) => [v.name, v]));
@@ -175,5 +182,69 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 		};
 		expect(res.ok).toBe(false);
 		expect(res.error).toBe("invalid_credential");
+	});
+
+	it("SHARE only the chosen credentials — a signed presentation the other party can verify", async () => {
+		// The sovereignty move: hold TWO credentials, share only ONE. The presentation is signed
+		// by the citizen (holder) and carries ONLY the chosen credential; the other stays private.
+		const idCred = await issueTestCredential(fixture, {
+			type: ["VerifiableCredential", "Identidade"],
+		});
+		const salaryCred = await issueTestCredential(fixture, {
+			type: ["VerifiableCredential", "ComprovanteRenda"],
+		});
+		const statePath = path.join(dir, "wallet.json");
+		const b = bundle(statePath);
+		const imp = b.byName.get("import")!;
+		writeFileSync(path.join(dir, "id.json"), JSON.stringify(idCred));
+		writeFileSync(path.join(dir, "salary.json"), JSON.stringify(salaryCred));
+		const idId = (
+			(await imp.run({
+				args: { file: path.join(dir, "id.json") },
+				options: {},
+				json: true,
+			})) as unknown as { id: string }
+		).id;
+		await imp.run({ args: { file: path.join(dir, "salary.json") }, options: {}, json: true });
+
+		// SHARE only the identity credential — NOT the income one.
+		const share = bundle(statePath).byName.get("share")!;
+		const shareRes = (await share.run({
+			args: { ids: idId },
+			options: {},
+			json: true,
+		})) as unknown as {
+			ok: boolean;
+			count: number;
+			presentation: {
+				verifiableCredential: Array<{ type: string[] }>;
+				holder: string;
+				proof?: unknown;
+			};
+		};
+		expect(shareRes.ok).toBe(true);
+		expect(shareRes.count).toBe(1); // ONLY one credential in the presentation
+		const vp = shareRes.presentation;
+		expect(vp.verifiableCredential).toHaveLength(1);
+		expect(vp.verifiableCredential[0]?.type).toContain("Identidade");
+		// The income credential was NOT disclosed — privacy / minimization.
+		expect(JSON.stringify(vp)).not.toContain("ComprovanteRenda");
+		expect(vp.proof).toBeDefined(); // signed by the holder
+
+		// The receiving party VERIFIES the presentation: credential genuine + holder signed it.
+		const result = await fixture.provider.verify(vp as never);
+		expect(result.valid).toBe(true);
+		expect(result.checks.signature?.ok).toBe(true);
+	});
+
+	it("share errors helpfully on a non-credential id", async () => {
+		const share = bundle(path.join(dir, "wallet.json")).byName.get("share")!;
+		const res = (await share.run({
+			args: { ids: "record:doc-identidade" }, // a plain doc, not a VC
+			options: {},
+			json: true,
+		})) as unknown as { ok: boolean; error: string };
+		expect(res.ok).toBe(false);
+		expect(res.error).toBe("not_a_credential");
 	});
 });

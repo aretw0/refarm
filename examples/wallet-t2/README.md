@@ -14,6 +14,7 @@ The citizen imports, verifies, holds and curates their own items:
 dgk wallet                                       # my wallet - the items I hold
 dgk import ./minha-credencial.json               # import a credential I hold (local-first)
 dgk verify record:cred-<id>                      # verify it FOR REAL (signature/issuer/validity)
+dgk share record:cred-<id>,record:cred-<other>   # SHARE only the ones I choose (a signed presentation)
 dgk wallet                                       # a verified credential now shows as verified
 dgk serve                                        # my wallet on a web surface
 ```
@@ -28,6 +29,14 @@ verification — not a review-state flip. Out of the box the verifier is an in-m
 `import`→`verify` works offline and is testable); a real deployment binds it to the citizen's
 identity/storage or a trust registry (and could run it as a sandboxed WASM verifier). QR import
 is not yet supported — file-JSON import is the first path.
+
+`share` is the sovereignty move — the point of the whole Carteira Digital: the citizen
+**compartilha apenas o estritamente necessário**. They pick which credentials go into a
+**Verifiable Presentation signed by them** (the holder); anything they didn't choose is never
+disclosed. The receiving party then verifies the presentation — each credential is genuine AND
+the holder who presents is who signed it. Selection is per-credential (revealing individual
+fields within a credential, SD-JWT/BBS+ style, isn't in the substrate's VC model yet); even so,
+it is private-by-default sharing under the citizen's control.
 
 `dgk status --base --json` is the manual exploratory entrypoint for the shared
 operator-state contract. The app declares a white-label `dgk` host with

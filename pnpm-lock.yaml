@@ -568,6 +568,9 @@ importers:
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../../packages/homestead
+      '@refarm.dev/identity-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/identity-contract-v1
       '@refarm.dev/records-contract-v1':
         specifier: workspace:*
         version: link:../../packages/records-contract-v1

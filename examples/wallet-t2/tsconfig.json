@@ -21,6 +21,9 @@
 			"@refarm.dev/credentials-contract-v1": [
 				"packages/credentials-contract-v1/dist/index.d.ts"
 			],
+			"@refarm.dev/identity-contract-v1": [
+				"packages/identity-contract-v1/dist/index.d.ts"
+			],
 			"@refarm.dev/records-contract-v1": [
 				"packages/records-contract-v1/dist/index.d.ts"
 			],
