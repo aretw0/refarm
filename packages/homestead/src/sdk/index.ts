@@ -1,4 +1,5 @@
 export * from "./Shell.js";
+export * from "./boot-web-shell.js";
 export * from "./custom-element.js";
 export * from "./host-renderer.js";
 export * from "./l8n-host.js";
