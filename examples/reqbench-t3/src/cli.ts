@@ -83,7 +83,7 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 	});
 }
 
-const reqbenchApp = defineCapabilityApp<ReqbenchHostOptions>({
+export const reqbenchApp = defineCapabilityApp<ReqbenchHostOptions>({
 	host: buildReqbenchHost,
 	defaultOptions: requirementsAppDefaults.defaultOptions,
 });

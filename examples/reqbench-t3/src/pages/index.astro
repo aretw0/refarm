@@ -1,0 +1,15 @@
+---
+import { Layout } from "@refarm.dev/homestead/ui";
+---
+
+<Layout title="Bancada de Requisitos do Analista">
+  <div id="loading-overlay" class="refarm-loading-state">
+    <div class="refarm-spinner" aria-hidden="true"></div>
+    <p>Abrindo a bancada de requisitos…</p>
+  </div>
+</Layout>
+
+<script>
+  import { bootReqbench } from "../web/boot";
+  bootReqbench();
+</script>

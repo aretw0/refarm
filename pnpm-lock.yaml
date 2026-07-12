@@ -507,6 +507,9 @@ importers:
       '@refarm.dev/enrichment-contract-v1':
         specifier: workspace:*
         version: link:../../packages/enrichment-contract-v1
+      '@refarm.dev/homestead':
+        specifier: workspace:*
+        version: link:../../packages/homestead
       '@refarm.dev/records-contract-v1':
         specifier: workspace:*
         version: link:../../packages/records-contract-v1
@@ -514,12 +517,21 @@ importers:
         specifier: workspace:*
         version: link:../../packages/source-web
     devDependencies:
+      '@astrojs/check':
+        specifier: ^0.9.9
+        version: 0.9.9(prettier@3.8.3)(typescript@6.0.3)
+      '@refarm.dev/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../../packages/vtconfig
+      astro:
+        specifier: ^7.0.0
+        version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
   examples/wallet-t2:
     dependencies:

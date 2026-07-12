@@ -151,6 +151,7 @@ export function createRequirementsCapability(
 			by: analyzed.by,
 			total: analyzed.summary.total,
 			moc: renderRequirementsMoc(analyzed),
+			mocHtml: renderRequirementsMocHtml(analyzed),
 			groupCount: analyzed.groups.length,
 		}),
 	});
