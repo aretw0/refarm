@@ -1381,6 +1381,15 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/playbook:
+    devDependencies:
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/plugin-courier:
     dependencies:
       '@refarm.dev/runtime':
