@@ -5,6 +5,7 @@ export {
 } from "./provider.js";
 export {
 	loadWebSourceTargets,
+	loadWebSourceTargetsSync,
 	parseWebSourceTargetsConfig,
 	webSourceFixturesFromConfig,
 	webSourceSnapshotFromTarget,

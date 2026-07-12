@@ -1,2 +1,8 @@
 dist-web/
 .astro/
+
+# The root .gitignore ignores .dgk/ (runtime state like requirements.manifest.json).
+# But sources.json is a SHIPPED sample the analyst edits — keep it versioned.
+!.dgk/
+.dgk/*
+!.dgk/sources.json

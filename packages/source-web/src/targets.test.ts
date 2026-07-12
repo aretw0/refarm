@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createWebSourceProvider } from "./provider.js";
 import {
 	loadWebSourceTargets,
+	loadWebSourceTargetsSync,
 	parseWebSourceTargetsConfig,
 	webSourceFixturesFromConfig,
 } from "./targets.js";
@@ -79,5 +80,13 @@ describe("loadWebSourceTargets (from a ledger file)", () => {
 	it("returns an empty map when no config exists yet (fresh install)", async () => {
 		const fixtures = await loadWebSourceTargets(join(dir, "does-not-exist.json"));
 		expect(fixtures).toEqual({});
+	});
+
+	it("loadWebSourceTargetsSync reads a config file synchronously (startup path)", async () => {
+		const configPath = join(dir, "sources.json");
+		await writeFile(configPath, JSON.stringify(CONFIG), "utf-8");
+		const fixtures = loadWebSourceTargetsSync(configPath);
+		expect(Object.keys(fixtures)).toEqual(["system-a", "system-b"]);
+		expect(loadWebSourceTargetsSync(join(dir, "missing.json"))).toEqual({});
 	});
 });

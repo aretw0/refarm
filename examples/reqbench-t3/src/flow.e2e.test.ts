@@ -1,5 +1,8 @@
 import { hostCommandOverrideEnv } from "@refarm.dev/capability-host";
 import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -97,7 +100,7 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		});
 	});
 
-	it("discovers the analyst's system", async () => {
+	it("discovers the analyst's system (from the sample .dgk ledger, EFD)", async () => {
 		const found = await harness.runGroup(buildRegistry({ statePath: tempStatePath() }), "source", [
 			"discover",
 		]);
@@ -105,16 +108,55 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect((found.sources as Array<{ ref: string }>).map((s) => s.ref)).toContain(REQ_SYSTEM_REF);
 	});
 
+	it("is CONFIG-DRIVEN: discover lists whatever systems the analyst declares in their ledger", async () => {
+		// The systems are NOT hardcoded — they come from the analyst's ledger. Point the
+		// bundle at a temp ledger declaring a different system and discover reflects it.
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reqbench-ledger-"));
+		const configPath = path.join(dir, "sources.json");
+		fs.writeFileSync(
+			configPath,
+			JSON.stringify({
+				targets: [
+					{ identity: "my-alm", url: "https://alm.mine/rm", body: "<p>my requirements</p>" },
+				],
+			}),
+		);
+		try {
+			const found = await harness.runGroup(
+				buildRegistry({ statePath: tempStatePath(), sourcesConfigPath: configPath }),
+				"source",
+				["discover"],
+			);
+			const refs = (found.sources as Array<{ ref: string }>).map((s) => s.ref);
+			expect(refs).toContain("web:my-alm");
+			// The sample EFD is NOT present — the ledger, not the code, decides.
+			expect(refs).not.toContain("web:efd");
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("enriches requirements with the analyst's rules (text mentioning CNPJ gets tagged)", async () => {
+		// The generic rules engine + the analyst's fiscal rules: requirements whose body/title
+		// mention CNPJ gain the req/cnpj tag, idempotently.
+		const reg = buildRegistry({ statePath: tempStatePath() });
+		const enriched = await harness.runGroup(reg, "records", ["enrich", "--apply"]);
+		expect(enriched.ok).not.toBe(false);
+		// The seed has requirements mentioning CNPJ, so at least one record was enriched.
+		const diagnostics = enriched.diagnostics as { enriched?: number } | undefined;
+		expect((diagnostics?.enriched ?? 0)).toBeGreaterThan(0);
+	});
+
 	it("the requirements MOC is a navigable product, and reflects a correction", async () => {
 		const reg = buildRegistry({ statePath: tempStatePath() });
-		// Before: one draft + one reviewed.
+		// Before: seed corpus (some draft, some reviewed).
 		const before = await harness.runVerb(reg, "requirements");
 		expect((before.moc as string).startsWith("# Mapa de Conteúdo — Requisitos")).toBe(true);
 
-		// The analyst reviews the draft requirement (persists via shared records deps).
+		// The analyst reviews a draft requirement (persists via shared records deps).
 		const corrected = await harness.runGroup(reg, "records", [
 			"correct",
-			"record:req-cadastro",
+			"record:req-cdu282405",
 			"reviewed",
 			"--apply",
 		]);
@@ -122,20 +164,20 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(corrected.nextCommand).toBe(`${DGK_COMMAND} records list`);
 		expect(corrected.nextCommands).toEqual([`${DGK_COMMAND} records list`]);
 
-		// After: the MOC's reviewed section now lists both requirements.
+		// After: the MOC's reviewed section now lists the just-reviewed requirement too.
 		const after = await harness.runVerb(reg, "requirements");
 		const reviewed = (after.moc as string).slice(
 			(after.moc as string).indexOf("Requisitos revisados"),
 		);
-		expect(reviewed).toContain("Cadastro de obrigação acessória");
-		expect(reviewed).toContain("Validação de layout do arquivo");
+		expect(reviewed).toContain("Identificador do CNPJ da Escrituração");
+		expect(reviewed).toContain("Receber Aviso de Tratamento Manual");
 	});
 
 	it("persists analyst corrections across separate CLI registries when state is configured", async () => {
 		const statePath = tempStatePath();
 		const corrected = await harness.runGroup(buildRegistry({ statePath }), "records", [
 			"correct",
-			"record:req-cadastro",
+			"record:req-cdu282405",
 			"reviewed",
 			"--apply",
 		]);
@@ -144,10 +186,12 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 
 		const after = await harness.runVerb(buildRegistry({ statePath }), "requirements");
 		const moc = after.moc as string;
-		expect(moc).toContain("Cadastro de obrigação acessória");
-		expect(buildRequirementsBaseModel({ statePath }).nextCommands).toEqual([
+		expect(moc).toContain("Receber Aviso de Tratamento Manual");
+		// The base model always offers to open the bench; with drafts still pending review,
+		// it also suggests reviewing the next one (the operator model points at pending work).
+		expect(buildRequirementsBaseModel({ statePath }).nextCommands[0]).toBe(
 			`${DGK_COMMAND} requirements --json`,
-		]);
+		);
 	});
 
 	it("serves the same verbs on the web surface (the analyst's MOC over HTTP)", async () => {

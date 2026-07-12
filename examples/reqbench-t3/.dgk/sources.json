@@ -1,0 +1,16 @@
+{
+	"_comment": "The analyst's SOURCE TARGETS — the systems they chose to work with, of the ones their login can access. THIS FILE IS YOURS TO EDIT: swap `efd` for the systems you pull from, add more, point `url` at your ALM/DOORS component. The example ships EFD as a sample so the bench works out of the box; the mechanism reads whatever you declare here (see @refarm.dev/source-web loadWebSourceTargets).",
+	"targets": [
+		{
+			"identity": "efd",
+			"label": "EFD — Escrituração Fiscal Digital",
+			"url": "https://alm.example/rm/efd/requirements",
+			"session": {
+				"kind": "authenticated",
+				"principal": "analyst",
+				"credentialRef": "silo://analyst/alm-session"
+			},
+			"body": "<!doctype html><html><body><article data-req=\"RN-632504\" data-type=\"regra-de-negocio\" data-title=\"Identificador do CNPJ da Escrituração\">A escrituração é identificada pelo CNPJ do estabelecimento. Validar e formatar o CNPJ conforme o layout.</article><article data-req=\"CDU-282405\" data-type=\"caso-de-uso\" data-title=\"Receber Aviso de Tratamento Manual\">O sistema deve avisar o analista quando o crédito exigir tratamento manual, a partir do CNPJ.</article><article data-req=\"FUN-284853\" data-type=\"funcional\" data-title=\"Selecionar o crédito para análise a partir do CNPJ\">Permitir selecionar o crédito para análise informando o CNPJ e o período de apuração.</article></body></html>"
+		}
+	]
+}

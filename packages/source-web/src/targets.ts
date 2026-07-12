@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 
 import type {
@@ -136,4 +137,21 @@ export async function loadWebSourceTargets(
 	}
 	const config = parseWebSourceTargetsConfig(JSON.parse(text));
 	return webSourceFixturesFromConfig(config, now);
+}
+
+/** Synchronous {@link loadWebSourceTargets} — for a host that resolves its sources at
+ * startup (before an async boundary), reading a local config file. Same empty-on-missing
+ * behaviour. */
+export function loadWebSourceTargetsSync(
+	configPath: string,
+	now?: () => string,
+): Record<string, WebSourceSnapshot> {
+	let text: string;
+	try {
+		text = readFileSync(configPath, "utf-8");
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
+		throw error;
+	}
+	return webSourceFixturesFromConfig(parseWebSourceTargetsConfig(JSON.parse(text)), now);
 }

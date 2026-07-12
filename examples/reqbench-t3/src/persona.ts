@@ -7,15 +7,16 @@ import {
 import { createLocalRecordsCapabilityDeps } from "@refarm.dev/capability-host/node";
 import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import {
-	createReferenceEnrichmentProvider,
-	type ReferenceEnrichmentEntry,
+	createRulesEnrichmentProvider,
+	type EnrichmentRule,
 } from "@refarm.dev/enrichment-contract-v1";
-import { createWebSourceProvider } from "@refarm.dev/source-web";
+import { createWebSourceProvider, loadWebSourceTargetsSync } from "@refarm.dev/source-web";
+import { fileURLToPath } from "node:url";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { REQ_SOURCE_FIXTURES, reqManifest } from "./fixture.js";
+import { reqManifest } from "./fixture.js";
 
 /**
  * The T3 persona (result mode). reqbench presents the analyst's requirements bench as a
@@ -23,17 +24,32 @@ import { REQ_SOURCE_FIXTURES, reqManifest } from "./fixture.js";
  * navigable requirements MOC — never the neutral engine underneath.
  */
 
-/** The analyst's enrichment lookup — adds domain fields keyed by externalKey. */
-const REQ_ENRICHMENT_FIXTURE: Record<string, ReferenceEnrichmentEntry> = {
-	"REQ-1": {
-		fields: { "req.prioridade": "alta", "req.modulo": "cadastro" },
-		sourceRef: "fixture:reqbench/enrichment#REQ-1",
+/** The analyst's OWN enrichment rules — domain patterns that tag a requirement when its
+ * text mentions them. The engine is generic (@refarm.dev/enrichment-contract-v1); these
+ * rules are the analyst's fiscal vocabulary. Swap them for yours. */
+const REQ_ENRICHMENT_RULES: EnrichmentRule[] = [
+	{ id: "tag-cnpj", matchSource: ["body", "title"], matchPattern: /\bCNPJ\b/, outputTag: "req/cnpj" },
+	{
+		id: "tag-credito",
+		matchSource: "body",
+		matchPattern: /cr[ée]dito|ressarcimento|apura[çc][ãa]o/i,
+		outputTag: "req/credito",
 	},
-	"REQ-2": {
-		fields: { "req.prioridade": "media", "req.modulo": "validacao" },
-		sourceRef: "fixture:reqbench/enrichment#REQ-2",
+	{
+		id: "tag-integracao",
+		matchSource: ["body", "section"],
+		matchPattern: /integra[çc][ãa]o|layout|arquivo/i,
+		outputTag: "req/integracao",
 	},
-};
+];
+
+/** The path to the analyst's source-targets ledger — the systems they declared they can
+ * access. Resolved next to the example (ships a sample EFD target); a real analyst edits it. */
+function sourcesConfigPath(): string {
+	const here = path.dirname(fileURLToPath(import.meta.url));
+	// dist/persona.js → ../.dgk/sources.json ; src/persona.ts → ../.dgk/sources.json
+	return path.resolve(here, "..", ".dgk", "sources.json");
+}
 
 /** The records deps, backed by a mutable manifest and optional local state file so a
  * correction persists and shows up in the MOC. A real deployment backs this with the
@@ -44,22 +60,26 @@ export interface RequirementsStateOptions {
 
 export interface RequirementsCapabilityOptions extends RequirementsStateOptions {
 	cacheRoot?: string;
+	/** Override the source-targets ledger path (tests point at a temp file). */
+	sourcesConfigPath?: string;
 }
 
 export function reqCapabilityBundle(options: RequirementsCapabilityOptions = {}) {
 	const root = options.cacheRoot ?? mkdtempSync(path.join(os.tmpdir(), "reqbench-source-"));
+	// The analyst's source systems come from THEIR ledger, not hardcoded here. `discover`
+	// lists exactly what they declared (the sample ships EFD). An override lets tests point
+	// at a temp ledger.
+	const fixtures = loadWebSourceTargetsSync(options.sourcesConfigPath ?? sourcesConfigPath());
 	return createLocalRecordsCapabilityDeps({
 		seed: reqManifest,
 		statePath: options.statePath,
-		enrichmentProvider: createReferenceEnrichmentProvider({
-			fixture: REQ_ENRICHMENT_FIXTURE,
-			keyField: "externalKey",
+		// The analyst's rules + the generic engine: text mentioning CNPJ/crédito/… gets tagged.
+		enrichmentProvider: createRulesEnrichmentProvider({
+			rules: REQ_ENRICHMENT_RULES,
+			tagField: "req.tags",
 		}),
 		source: {
-			sourceProvider: createWebSourceProvider({
-				cacheRoot: root,
-				fixtures: REQ_SOURCE_FIXTURES,
-			}),
+			sourceProvider: createWebSourceProvider({ cacheRoot: root, fixtures }),
 		},
 	});
 }

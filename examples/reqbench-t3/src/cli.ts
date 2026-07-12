@@ -11,7 +11,7 @@ import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node"
 import {
 	createRequirementsCapability,
 	reqCapabilityBundle,
-	type RequirementsStateOptions,
+	type RequirementsCapabilityOptions,
 } from "./persona.js";
 
 export const DGK_REQUIREMENTS_STATE_PATH_ENV = "DGK_REQUIREMENTS_STATE_PATH";
@@ -23,7 +23,7 @@ const requirementsAppDefaults = createLocalRecordsAppDefaults({
 	fileName: "requirements.manifest.json",
 });
 export const defaultRequirementsStatePath = requirementsAppDefaults.statePath;
-export interface ReqbenchHostOptions extends RequirementsStateOptions, HostCommandOptions {}
+export interface ReqbenchHostOptions extends RequirementsCapabilityOptions, HostCommandOptions {}
 
 const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND });
 
