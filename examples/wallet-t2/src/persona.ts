@@ -6,7 +6,12 @@ import {
 } from "@refarm.dev/capability-host";
 import { createLocalRecordsCapabilityDeps } from "@refarm.dev/capability-host/node";
 import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
+import {
+	createInMemoryCredentialsProviderFixture,
+	type CredentialsProvider,
+} from "@refarm.dev/credentials-contract-v1";
 
+import { createWalletImportCapability, createWalletVerifyCapability } from "./credentials.js";
 import { walletManifest } from "./fixture.js";
 
 /**
@@ -22,11 +27,25 @@ export interface WalletStateOptions {
 	statePath?: string;
 }
 
-export function walletCapabilityBundle(options: WalletStateOptions = {}) {
-	return createLocalRecordsCapabilityDeps({
+export interface WalletBundleOptions extends WalletStateOptions {
+	/** The credential verifier — the substrate's W3C verifier (signature/issuer/validity). An
+	 * in-memory fixture is used out of the box; a real deployment injects one bound to the
+	 * citizen's identity + storage (or a WASM verifier). Only used by the `verify` verb. */
+	credentialsProvider?: CredentialsProvider;
+	/** Deterministic clock for `review.at` in tests. */
+	now?: () => string;
+}
+
+export function walletCapabilityBundle(options: WalletBundleOptions = {}) {
+	const deps = createLocalRecordsCapabilityDeps({
 		seed: walletManifest,
 		statePath: options.statePath,
 	});
+	// The credential verifier: out of the box, the substrate's in-memory W3C verifier fixture
+	// (so import → verify works offline and is testable); swap for a real/WASM one in production.
+	const credentialsProvider =
+		options.credentialsProvider ?? createInMemoryCredentialsProviderFixture().provider;
+	return { ...deps, credentialsProvider, now: options.now };
 }
 
 const STATE_LABELS: Record<string, string> = {
@@ -139,12 +158,30 @@ function createWalletStateView(
 
 /** The citizen wallet dashboard: the main wallet view plus one card per review state.
  * All share `renderers.tui.section = "wallet"` so they group into a single web panel. */
-export function createWalletCapabilities(recordsDeps: RecordsCommandDeps): CapabilityDescriptor[] {
-	return [
+export interface WalletCapabilitiesOptions {
+	/** The credential verifier for the `verify` verb (from the bundle). */
+	credentialsProvider?: CredentialsProvider;
+	/** Deterministic clock for import/verify `review.at` in tests. */
+	now?: () => string;
+}
+
+export function createWalletCapabilities(
+	recordsDeps: RecordsCommandDeps,
+	options: WalletCapabilitiesOptions = {},
+): CapabilityDescriptor[] {
+	const capabilities = [
 		createWalletCapability(recordsDeps),
 		createWalletStateView(recordsDeps, "verified", "Verificados"),
 		createWalletStateView(recordsDeps, "draft", "A verificar"),
+		// The real work: import a credential file (local-first) and verify it for real.
+		createWalletImportCapability(recordsDeps, { now: options.now }),
 	];
+	if (options.credentialsProvider) {
+		capabilities.push(
+			createWalletVerifyCapability(recordsDeps, options.credentialsProvider, { now: options.now }),
+		);
+	}
+	return capabilities;
 }
 
 /** The wallet's web surface — the SAME registry projected into a Homestead panel of

@@ -18,6 +18,9 @@
 			"@refarm.dev/capability-host/testing": [
 				"packages/capability-host/dist/testing.d.ts"
 			],
+			"@refarm.dev/credentials-contract-v1": [
+				"packages/credentials-contract-v1/dist/index.d.ts"
+			],
 			"@refarm.dev/records-contract-v1": [
 				"packages/records-contract-v1/dist/index.d.ts"
 			],

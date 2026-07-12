@@ -1,0 +1,274 @@
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	type CapabilityDescriptor,
+	type CapabilityEnvelope,
+	type CapabilityInput,
+	type RecordsCommandDeps,
+} from "@refarm.dev/capability-host";
+import type {
+	CredentialsProvider,
+	CredentialVerificationPolicy,
+	VerifiableCredential,
+} from "@refarm.dev/credentials-contract-v1";
+import {
+	computeRecordContentHash,
+	type KnowledgeRecord,
+	type RecordsManifest,
+} from "@refarm.dev/records-contract-v1";
+import { readFileSync } from "node:fs";
+
+/**
+ * The citizen's CREDENTIALS — import a Verifiable Credential into the wallet (local-first) and
+ * VERIFY it for real. Both are the T2 work: refarm ships the credential model + a real verifier
+ * (@refarm.dev/credentials-contract-v1, W3C VC), the ingest/records seam, and the review-state
+ * the UI renders; this only wires them for a wallet — the VC↔record mapping and the two verbs.
+ *
+ * Import is local-first (read a file the citizen holds, no network). Verify is REAL — signature,
+ * issuer trust, revocation, validity — not the review-state flip it replaces. A verified
+ * credential lands in the same `verified` state the wallet already shows.
+ */
+
+/** The record `@type` for an imported credential — a KnowledgeRecord that is also a wallet item
+ * and a Verifiable Credential. */
+const CREDENTIAL_TYPE = ["KnowledgeRecord", "WalletItem", "VerifiableCredential"];
+
+/** Derive a stable record id from a credential (its `id`, else the subject id, else a hash-ish
+ * of issuer+issuanceDate). Local + deterministic so re-importing the same credential updates it. */
+function credentialRecordId(vc: VerifiableCredential): string {
+	const key =
+		vc.id ??
+		(typeof vc.credentialSubject?.id === "string" ? vc.credentialSubject.id : undefined) ??
+		`${vc.issuer}:${vc.issuanceDate}`;
+	return `record:cred-${String(key)
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "")}`;
+}
+
+/** A short human title for a credential: its non-VerifiableCredential type, else the subject. */
+function credentialTitle(vc: VerifiableCredential): string {
+	const specificType = vc.type.find((t) => t !== "VerifiableCredential");
+	if (specificType) return specificType;
+	const subjectName = vc.credentialSubject?.name;
+	return typeof subjectName === "string" ? subjectName : "Credencial";
+}
+
+/**
+ * Map a Verifiable Credential to a wallet KnowledgeRecord. The raw VC is kept on
+ * `fields.credential` so `verify` can re-read and re-check it exactly as issued. Imports land as
+ * `draft` (unverified) — the citizen verifies to promote them.
+ */
+export function credentialToRecord(vc: VerifiableCredential, now: () => string): KnowledgeRecord {
+	const record = {
+		id: credentialRecordId(vc),
+		schemaVersion: 1,
+		"@type": CREDENTIAL_TYPE,
+		"@context": "https://refarm.dev/contexts/records/v1",
+		fields: {
+			title: credentialTitle(vc),
+			kind: "credencial",
+			issuer: vc.issuer,
+			...(vc.expirationDate ? { expirationDate: vc.expirationDate } : {}),
+			// The raw VC, so verify re-checks the credential as issued (signature over the object).
+			credential: vc as unknown as Record<string, unknown>,
+		},
+		sections: [{ key: "credential", content: JSON.stringify(vc, null, 2) }],
+		review: { state: "draft", at: now() },
+		contentHash: "",
+	} as unknown as KnowledgeRecord;
+	record.contentHash = computeRecordContentHash(record);
+	return record;
+}
+
+/** Pull the raw Verifiable Credential back off an imported record (from `fields.credential`).
+ * Returns null if the record has no credential (e.g. a plain document). */
+export function recordToCredential(record: KnowledgeRecord): VerifiableCredential | null {
+	const vc = (record.fields as { credential?: unknown }).credential;
+	return vc && typeof vc === "object" ? (vc as VerifiableCredential) : null;
+}
+
+/** Merge records into a manifest by id (new added, existing replaced). */
+export function mergeRecords(
+	manifest: RecordsManifest,
+	incoming: KnowledgeRecord[],
+): RecordsManifest {
+	const byId = new Map(manifest.records.map((r) => [r.id, r]));
+	for (const record of incoming) byId.set(record.id, record);
+	return { ...manifest, records: [...byId.values()] };
+}
+
+/** Parse a credential file's text into a VerifiableCredential. Throws on non-JSON or a shape
+ * that isn't a VC (no issuer / credentialSubject). Local-first — the citizen holds the file. */
+export function parseCredentialFile(text: string): VerifiableCredential {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(text);
+	} catch {
+		throw new Error("INVALID_CREDENTIAL: not valid JSON");
+	}
+	if (!parsed || typeof parsed !== "object") {
+		throw new Error("INVALID_CREDENTIAL: expected a JSON object");
+	}
+	const vc = parsed as Record<string, unknown>;
+	if (typeof vc.issuer !== "string" || typeof vc.credentialSubject !== "object") {
+		throw new Error(
+			"INVALID_CREDENTIAL: not a Verifiable Credential (needs issuer + credentialSubject)",
+		);
+	}
+	return vc as unknown as VerifiableCredential;
+}
+
+export interface WalletCredentialOptions {
+	/** For a deterministic `review.at` in tests. Defaults to now. */
+	now?: () => string;
+}
+
+/**
+ * `import <file>` — import a Verifiable Credential from a file into the wallet, local-first.
+ * Reads the file, maps it to a wallet record (draft), merges into the manifest, and persists.
+ */
+export function createWalletImportCapability(
+	recordsDeps: RecordsCommandDeps,
+	options: WalletCredentialOptions = {},
+): CapabilityDescriptor {
+	const now = options.now ?? (() => new Date().toISOString());
+	return {
+		name: "import",
+		summary: "Import a credential file into your wallet (local-first)",
+		args: [{ name: "file", required: true }],
+		transports: { http: { path: "/wallet/import" } },
+		renderers: { tui: { section: "wallet" } },
+		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
+			const file = String(input.args.file ?? "");
+			if (!file) {
+				return buildJsonErrorEnvelope({
+					command: "import",
+					operation: "import",
+					error: "no_file",
+					message: "Pass a credential file to import.",
+					nextAction: "import <file.json>",
+				});
+			}
+			let vc: VerifiableCredential;
+			try {
+				vc = parseCredentialFile(readFileSync(file, "utf-8"));
+			} catch (error) {
+				return buildJsonErrorEnvelope({
+					command: "import",
+					operation: "import",
+					error: "invalid_credential",
+					message: error instanceof Error ? error.message : String(error),
+					nextAction: "Check the file is a JSON Verifiable Credential.",
+				});
+			}
+
+			const record = credentialToRecord(vc, now);
+			if (!recordsDeps.saveManifest) {
+				return buildJsonSuccessEnvelope({
+					command: "import",
+					operation: "import",
+					nextCommand: `verify ${record.id}`,
+					extra: { id: record.id, title: record.fields.title, persisted: false, dryRun: true },
+				});
+			}
+			const merged = mergeRecords(recordsDeps.loadManifest(), [record]);
+			await recordsDeps.saveManifest(merged);
+			return buildJsonSuccessEnvelope({
+				command: "import",
+				operation: "import",
+				nextCommand: `verify ${record.id}`,
+				nextCommands: [`verify ${record.id}`, "wallet"],
+				extra: {
+					id: record.id,
+					title: record.fields.title,
+					issuer: vc.issuer,
+					state: "draft",
+					persisted: true,
+					total: merged.records.length,
+				},
+			});
+		},
+	};
+}
+
+/**
+ * `verify <id>` — VERIFY an imported credential for real (signature, issuer, revocation,
+ * validity) via the substrate's W3C verifier, and — only if valid — promote it to `verified`
+ * (the state the wallet shows). On failure it reports the checks that failed and does NOT
+ * promote. This replaces the old fake "verify" (a bare review-state flip).
+ */
+export function createWalletVerifyCapability(
+	recordsDeps: RecordsCommandDeps,
+	provider: CredentialsProvider,
+	options: WalletCredentialOptions & { policy?: CredentialVerificationPolicy } = {},
+): CapabilityDescriptor {
+	const now = options.now ?? (() => new Date().toISOString());
+	return {
+		name: "verify",
+		summary:
+			"Verify a wallet credential for real (signature, issuer, validity) and mark it verified",
+		args: [{ name: "id", required: true }],
+		transports: { http: { path: "/wallet/verify" } },
+		renderers: { tui: { section: "wallet" } },
+		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
+			const id = String(input.args.id ?? "");
+			const manifest = recordsDeps.loadManifest();
+			const record = manifest.records.find((r) => r.id === id);
+			if (!record) {
+				return buildJsonErrorEnvelope({
+					command: "verify",
+					operation: "verify",
+					error: "not_found",
+					message: `No wallet item "${id}".`,
+					nextAction: "wallet",
+				});
+			}
+			const vc = recordToCredential(record);
+			if (!vc) {
+				return buildJsonErrorEnvelope({
+					command: "verify",
+					operation: "verify",
+					error: "not_a_credential",
+					message: `"${id}" is not a Verifiable Credential (nothing to verify).`,
+					nextAction: "Import a credential with `import <file>` first.",
+				});
+			}
+
+			const result = await provider.verify(vc, options.policy);
+			if (!result.valid) {
+				return buildJsonErrorEnvelope({
+					command: "verify",
+					operation: "verify",
+					error: "verification_failed",
+					message: `Credential "${id}" failed verification: ${result.failures.join("; ")}`,
+					nextAction: "This credential is not trustworthy — do not rely on it.",
+					extra: { id, valid: false, checks: result.checks, failures: result.failures },
+				});
+			}
+
+			// Verified for real → promote to the state the wallet shows, recording the checks.
+			const verified: KnowledgeRecord = {
+				...record,
+				review: { state: "verified", at: now(), notes: "verified: signature + issuer + validity" },
+			} as KnowledgeRecord;
+			verified.contentHash = computeRecordContentHash(verified);
+
+			if (!recordsDeps.saveManifest) {
+				return buildJsonSuccessEnvelope({
+					command: "verify",
+					operation: "verify",
+					extra: { id, valid: true, checks: result.checks, persisted: false, dryRun: true },
+				});
+			}
+			await recordsDeps.saveManifest(mergeRecords(manifest, [verified]));
+			return buildJsonSuccessEnvelope({
+				command: "verify",
+				operation: "verify",
+				nextCommand: "wallet",
+				nextCommands: ["wallet"],
+				extra: { id, valid: true, state: "verified", checks: result.checks, issuer: result.issuer },
+			});
+		},
+	};
+}

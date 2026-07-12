@@ -8,16 +8,26 @@ Set `DGK_COMMAND` when you want a different binary name for white-label use.
 
 ## What it demonstrates
 
-The citizen holds and curates their own items:
+The citizen imports, verifies, holds and curates their own items:
 
 ```bash
-dgk status --base --json                         # base operator model for this app
-dgk actions --json                               # selectable multi-surface actions
 dgk wallet                                       # my wallet - the items I hold
-dgk records correct record:cred-assinatura verified --apply   # I verify a credential
-dgk wallet                                       # it now shows as verified
+dgk import ./minha-credencial.json               # import a credential I hold (local-first)
+dgk verify record:cred-<id>                      # verify it FOR REAL (signature/issuer/validity)
+dgk wallet                                       # a verified credential now shows as verified
 dgk serve                                        # my wallet on a web surface
 ```
+
+`import` reads a Verifiable Credential (W3C VC JSON) the citizen holds — no network, local-first
+— and adds it to the wallet as a **draft** (unverified). `verify` then checks it **for real**
+via the substrate's W3C verifier (`@refarm.dev/credentials-contract-v1`): the issuer's
+signature over the credential, issuer trust, revocation and validity. Only a credential that
+actually verifies is promoted to `verified` (the state the wallet shows); a tampered or unsigned
+credential is rejected and stays draft, with the failed checks reported. This is a real
+verification — not a review-state flip. Out of the box the verifier is an in-memory fixture (so
+`import`→`verify` works offline and is testable); a real deployment binds it to the citizen's
+identity/storage or a trust registry (and could run it as a sandboxed WASM verifier). QR import
+is not yet supported — file-JSON import is the first path.
 
 `dgk status --base --json` is the manual exploratory entrypoint for the shared
 operator-state contract. The app declares a white-label `dgk` host with
