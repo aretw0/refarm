@@ -1,7 +1,20 @@
 {
-	"extends": ["./tsconfig.json", "../../packages/tsconfig/build.json"],
+	"extends": ["../../tsconfig.json", "../../packages/tsconfig/build.json"],
 	"compilerOptions": {
-		"rootDir": "src"
+		"outDir": "dist",
+		"rootDir": "src",
+		"baseUrl": "../..",
+		"paths": {
+			"@refarm.dev/capability-host": ["packages/capability-host/dist/index.d.ts"],
+			"@refarm.dev/capability-host/node": ["packages/capability-host/dist/node.d.ts"],
+			"@refarm.dev/records-contract-v1": ["packages/records-contract-v1/dist/index.d.ts"],
+			"@refarm.dev/enrichment-contract-v1": ["packages/enrichment-contract-v1/dist/index.d.ts"],
+			"@refarm.dev/capability-homestead-surface": [
+				"packages/capability-homestead-surface/dist/index.d.ts"
+			]
+		}
 	},
-	"exclude": ["node_modules", "dist", "src/**/*.test.ts"]
+	"include": ["src/**/*"],
+	"comment": "The CLI tsc build — node context. Excludes the browser web entry (built by astro).",
+	"exclude": ["node_modules", "dist", "dist-web", "src/**/*.test.ts", "src/web/**", "src/pages/**"]
 }

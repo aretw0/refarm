@@ -1,0 +1,15 @@
+---
+import { Layout } from "@refarm.dev/homestead/ui";
+---
+
+<Layout title="Minha Carteira Digital">
+  <div id="loading-overlay" class="refarm-loading-state">
+    <div class="refarm-spinner" aria-hidden="true"></div>
+    <p>Abrindo sua carteira…</p>
+  </div>
+</Layout>
+
+<script>
+  import { bootWallet } from "../web/boot";
+  bootWallet();
+</script>

@@ -83,7 +83,7 @@ export function buildWalletHost(options: WalletHostOptions = {}): CapabilityHost
 	});
 }
 
-const walletApp = defineCapabilityApp<WalletHostOptions>({
+export const walletApp = defineCapabilityApp<WalletHostOptions>({
 	host: buildWalletHost,
 	defaultOptions: walletAppDefaults.defaultOptions,
 });

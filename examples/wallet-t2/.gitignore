@@ -1,1 +1,3 @@
 .wallet-t2/
+dist-web/
+.astro/

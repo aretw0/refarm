@@ -53,6 +53,41 @@ function renderWallet(env: RecordsAnalyzeEnvelope): string {
 	return lines.join("\n").trimEnd() + "\n";
 }
 
+/** Minimal HTML escape for user-derived text going into the wallet card. */
+function esc(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
+}
+
+/** The wallet as a real WEB product: the same grouped items rendered as design-system
+ * cards, so the citizen SEES their wallet — not a list of launcher buttons. This is the
+ * `content` the web surface projects ABOVE the verb cards (the generic content seam). */
+export function renderWalletHtml(env: RecordsAnalyzeEnvelope): string {
+	const groups = env.groups
+		.map((group) => {
+			const items = group.records
+				.map(
+					(record) =>
+						`<li class="refarm-stack" data-wallet-item><strong>${esc(record.title)}</strong></li>`,
+				)
+				.join("");
+			return `<section class="refarm-surface-card refarm-stack" data-wallet-group="${esc(group.key)}">
+				<p class="refarm-eyebrow">${esc(STATE_LABELS[group.key] ?? group.label)} · ${group.count}</p>
+				<ul class="refarm-stack">${items}</ul>
+			</section>`;
+		})
+		.join("");
+	return `<section class="refarm-stack" data-wallet-html>
+		<p class="refarm-eyebrow">Minha Carteira Digital</p>
+		<h1>👜 ${env.summary.total} itens</h1>
+		<p>Você é dono dos seus dados — soberano, local-first.</p>
+		${groups}
+	</section>`;
+}
+
 /** The T2 persona verb: `wallet` - the citizen's wallet view over the neutral
  * `records analyze` envelope (grouped by review state). */
 export function createWalletCapability(recordsDeps: RecordsCommandDeps): CapabilityDescriptor {
@@ -67,6 +102,7 @@ export function createWalletCapability(recordsDeps: RecordsCommandDeps): Capabil
 		project: (analyzed) => ({
 			total: analyzed.summary.total,
 			wallet: renderWallet(analyzed),
+			walletHtml: renderWalletHtml(analyzed),
 			byState: analyzed.summary.byState,
 		}),
 	});
@@ -120,5 +156,9 @@ export function walletWebSurface(registry: Parameters<typeof createCapabilityWeb
 		name: "Minha Carteira Digital",
 		title: "Minha Carteira Digital",
 		surfaceId: "wallet-panel",
+		// The content seam: the boot runs the `wallet` verb and puts its rendered HTML on
+		// host.data.walletHtml, so the citizen sees their actual wallet ABOVE the verb cards
+		// — the generic content path (same shape reqbench uses for its MOC), no bespoke UI.
+		content: (data) => (typeof data.walletHtml === "string" ? data.walletHtml : ""),
 	});
 }

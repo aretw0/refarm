@@ -52,6 +52,47 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		expect(result.html).toContain("refarm-surface-card");
 	});
 
+	it("renders the ACTUAL wallet (not just launcher cards) via the content seam", async () => {
+		// The web face is a real product, not a menu: the boot runs the `wallet` verb, whose
+		// projection carries walletHtml, and feeds it to the surface's content seam. Prove the
+		// verb produces the wallet content, and that the surface renders it when given that data.
+		const { walletWebSurface, renderWalletHtml } = await import("./persona.js");
+		const wallet = buildRegistry().get("wallet");
+		if (!wallet || "actions" in wallet) throw new Error("wallet verb not mounted");
+		const env = (await wallet.run({ args: {}, options: {}, json: true })) as unknown as {
+			total: number;
+			walletHtml: string;
+		};
+		// The verb's projection carries the rendered wallet.
+		expect(typeof env.walletHtml).toBe("string");
+		expect(env.walletHtml).toContain("Minha Carteira Digital");
+		expect(env.walletHtml).toContain("Verificados");
+		expect(env.walletHtml).toContain("data-wallet-item");
+		expect(env.total).toBeGreaterThan(0);
+
+		// The surface renders that content ABOVE the cards when the host provides it.
+		const handle = walletWebSurface(buildRegistry());
+		const rendered = (await handle.call?.("renderHomesteadSurface", {
+			host: { data: { walletHtml: env.walletHtml } },
+		})) as { html: string };
+		expect(rendered.html).toContain("data-wallet-html");
+		expect(rendered.html).toContain("Verificados");
+
+		// renderWalletHtml is a pure projector — escapes and groups the same way.
+		const direct = renderWalletHtml({
+			summary: { total: 1, byState: { verified: 1 } },
+			groups: [
+				{
+					key: "verified",
+					label: "verified",
+					count: 1,
+					records: [{ title: "Doc <x>", link: "", review: { state: "verified" } }],
+				},
+			],
+		} as never);
+		expect(direct).toContain("Doc &lt;x&gt;"); // HTML-escaped
+	});
+
 	it("exposes a base operator model without importing the product app", () => {
 		const statePath = tempStatePath();
 		const model = buildWalletBaseModel({ statePath });
