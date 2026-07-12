@@ -10,6 +10,10 @@
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
+		},
+		"./capability": {
+			"import": "./dist/capability.js",
+			"types": "./dist/capability.d.ts"
 		}
 	},
 	"scripts": {
@@ -19,6 +23,9 @@
 		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
 		"test": "vitest run",
 		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@refarm.dev/capabilities-v1": "workspace:*"
 	},
 	"devDependencies": {
 		"@refarm.dev/tsconfig": "workspace:*",

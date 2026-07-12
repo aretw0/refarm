@@ -1388,6 +1388,10 @@ importers:
         version: link:../vtconfig
 
   packages/playbook:
+    dependencies:
+      '@refarm.dev/capabilities-v1':
+        specifier: workspace:*
+        version: link:../capabilities-v1
     devDependencies:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
