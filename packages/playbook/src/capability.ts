@@ -10,6 +10,14 @@ import { parsePlaybook } from "./parse.js";
 import { runPlaybook } from "./run.js";
 import type { DispatchStep, Playbook } from "./types.js";
 
+// The host-facing adapter layer (needs capability types) is exposed from this subpath entry.
+export {
+	createLocalDispatchStep,
+	type LocalDispatchOptions,
+	type LocalVerb,
+	type LocalVerbResolver,
+} from "./local-dispatch.js";
+
 /**
  * The `playbook:run` capability — surfaces the playbook engine as a dispatchable verb. Because
  * it's a dispatchable verb, it becomes an AGENT TOOL for free on the live capability-tools
