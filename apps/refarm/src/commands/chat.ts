@@ -35,6 +35,7 @@ import {
 	capabilityRegistry,
 	capabilitySlashNames,
 } from "./capability-registry.js";
+import { armEscapeCancel, createTurnCancelController } from "./chat-cancel.js";
 import { submitEffortWithRuntimeRecovery } from "./chat-runtime-recovery.js";
 import {
 	buildCurrentModelStatus,
@@ -304,7 +305,14 @@ export async function createChatEffort(
 	});
 }
 
-async function runTurn(query: string, sessionId: string, deps: ChatDeps): Promise<void> {
+async function runTurn(
+	query: string,
+	sessionId: string,
+	deps: ChatDeps,
+	// Called once the turn's effort is submitted, so the REPL can wire ESC-to-cancel to
+	// THIS effort id (the id `POST /efforts/:id/cancel` needs). Absent → no cancel wiring.
+	onEffortStarted?: (effortId: string) => void,
+): Promise<void> {
 	const providers = [
 		// Resolved sidecar URL (env → .refarm config → config graph node → default),
 		// not the provider's hardcoded 42001 which ignored REFARM_SIDECAR_URL.
@@ -326,7 +334,14 @@ async function runTurn(query: string, sessionId: string, deps: ChatDeps): Promis
 		system,
 	});
 
-	const stopSpinner = startThinkingSpinner(deps.spinnerMessage?.bind(deps));
+	// The hint that a turn is in flight. Default enriches "Thinking…" with the Esc-to-cancel
+	// affordance once a couple of seconds pass (so a quick turn stays quiet, a slow one tells
+	// the operator how to stop it). A caller-supplied spinnerMessage overrides.
+	const spinnerMessage =
+		deps.spinnerMessage?.bind(deps) ??
+		((_frame: number, elapsedMs: number) =>
+			elapsedMs > 2000 ? "Thinking…  (Esc to cancel)" : "Thinking…");
+	const stopSpinner = startThinkingSpinner(spinnerMessage);
 	let spinnerCleared = false;
 	function clearSpinner() {
 		if (!spinnerCleared) {
@@ -344,6 +359,7 @@ async function runTurn(query: string, sessionId: string, deps: ChatDeps): Promis
 				console.error(chalk.yellow("\nRefarm runtime stopped responding."));
 			},
 		});
+		onEffortStarted?.(effortId);
 		await deps.followStream(
 			effortId,
 			(chunk) => {
@@ -644,12 +660,26 @@ export async function runSessionRepl(
 					}
 					rl.pause();
 					void (async () => {
+						// ESC-to-cancel: interrupt THIS turn's effort without killing the
+						// session (Ctrl-C/SIGINT does that). The controller learns the effort id
+						// from runTurn's onEffortStarted, then an Escape keypress cancels it over
+						// the sidecar (the real WASM epoch-interrupt). Disarmed in finally.
+						const cancelController = createTurnCancelController({
+							onResult: (result) => {
+								process.stdout.write(`\n${chalk.yellow(result.message)}\n`);
+							},
+						});
+						const disarmEscape = armEscapeCancel({ onEscape: cancelController.onEscape });
 						try {
-							await runTurn(command.text, activeSessionId, deps);
+							await runTurn(command.text, activeSessionId, deps, (effortId) =>
+								cancelController.setEffortId(effortId),
+							);
 							persistActiveSession(activeSessionId);
 						} catch (error) {
 							const message = error instanceof Error ? error.message : String(error);
 							printChatError(message);
+						} finally {
+							disarmEscape();
 						}
 						console.log();
 						rl.resume();
