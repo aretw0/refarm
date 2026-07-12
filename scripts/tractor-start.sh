@@ -196,6 +196,23 @@ for arg in "$@"; do
 done
 
 TRACTOR_ARGS=(--plugin "$AGENT_PLUGIN")
+
+# Boot the COMPOSITION, not just the agent: load every INSTALLED plugin whose
+# runtime id is trusted (`trusted_plugins` in config.json), minus the agent (loaded
+# above). The resolver owns the JSON parse + trust/dedup rules (and stays silent on
+# error, so a hiccup never blocks the agent-only boot). This is the orchestrator step
+# ADR-059 assigns to the CLI: the Rust host stays imperative `--plugin`; discovery +
+# translation happen here. Requires the built CLI (present after `plugin update`).
+TRUSTED_PLUGINS=()
+if [ -f "$REFARM_CLI" ]; then
+  while IFS= read -r _p; do
+    [ -n "$_p" ] && TRUSTED_PLUGINS+=("$_p")
+  done < <(node "$ROOT/scripts/resolve-boot-plugins.mjs" "$REFARM_HOME" 2>/dev/null)
+fi
+for _p in ${TRUSTED_PLUGINS[@]+"${TRUSTED_PLUGINS[@]}"}; do
+  TRACTOR_ARGS+=(--plugin "$_p")
+done
+
 if [ "$HAS_HTTP_HOST" = "0" ]; then
   TRACTOR_ARGS+=(--http-host "$REFARM_HTTP_HOST")
 fi
@@ -205,6 +222,7 @@ TRACTOR_ARGS+=("$@")
 echo "   Starting tractor daemon"
 echo "   provider : $MODEL_PROVIDER"
 echo "   plugin   : $AGENT_PLUGIN"
+[ ${#TRUSTED_PLUGINS[@]} -gt 0 ] && echo "   +trusted : ${#TRUSTED_PLUGINS[@]} plugin(s) from composition"
 echo "   streams  : $REFARM_STREAMS_DIR"
 echo "   http bind: $REFARM_HTTP_HOST:42001"
 [ $# -gt 0 ] && echo "   extra    : $*"
