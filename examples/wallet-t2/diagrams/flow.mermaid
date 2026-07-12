@@ -1,0 +1,30 @@
+%% Carteira Digital — a jornada do cidadão como comandos. Local-first: o cidadão detém seus
+%% dados; o verificador/apresentador de credenciais (do SDK) faz o trabalho de confiança. Os
+%% comandos importar / verificar / compartilhar / carteira são o ciclo completo: receber →
+%% verificar → compartilhar → ver.
+flowchart LR
+    file["arquivo de credencial\n(credencial verificável)"]
+
+    subgraph wallet["Carteira (local-first)"]
+        direction TB
+        imp["importar\n→ registro (rascunho)"]
+        ver["verificar\n→ registro (verificado)"]
+        shr["compartilhar itens…\n→ apresentação"]
+        view["carteira\n→ cartões por status"]
+    end
+
+    verifier["Verificador de credenciais (SDK)\nassinatura · emissor · validade · revogação"]
+    presenter["Apresentador (SDK)\nassinado pelo cidadão (titular)"]
+    other["parte que recebe\nverifica a apresentação"]
+    manifest["carteira local\nos itens detidos"]
+
+    file -->|"lê, local"| imp
+    imp --> manifest
+    ver -->|"a credencial guardada"| verifier
+    verifier -->|"válida → promove"| manifest
+    shr -->|"só as escolhidas"| presenter
+    presenter -->|"apresentação"| other
+    manifest --> view
+
+    classDef trust fill:#eef, stroke:#5b6b9a
+    class verifier,presenter trust

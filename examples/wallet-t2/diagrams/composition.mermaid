@@ -1,0 +1,28 @@
+%% Carteira Digital — arquitetura em camadas. O aplicativo do cidadão (específico) compõe um
+%% SDK genérico multi-superfície: só o topo é do domínio da carteira; as camadas abaixo são
+%% blocos reutilizáveis do SDK (identidade, credenciais verificáveis, registros, superfície web).
+flowchart TB
+    subgraph app["Aplicativo — Carteira do Cidadão"]
+        direction TB
+        view["Visão da carteira\n+ cartões de credencial"]
+        verbs["Importar · Verificar · Compartilhar\n(credencial ↔ registro)"]
+        held["Itens que o cidadão detém"]
+    end
+
+    subgraph sdk["SDK — plataforma multi-superfície (genérica)"]
+        direction TB
+        credenciais["Credenciais verificáveis (W3C)\nverificar · apresentar · revogar"]
+        identidade["Identidade do titular\n(chaves que assinam)"]
+        registros["Registros\nanálise + estado de revisão"]
+        superficie["Superfície\nCLI · HTTP · Web (design system)"]
+    end
+
+    verbs --> credenciais
+    verbs --> identidade
+    verbs --> registros
+    held --> registros
+    view --> superficie
+    view --> registros
+
+    classDef especifico fill:#f8, stroke:#c9a227
+    class app especifico
