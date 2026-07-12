@@ -1,6 +1,7 @@
 # ADR-087: Brand-Agnostic Packages — Only the App Owns Its Name
 
-**Status**: Accepted (binary decoupling phases 1-3a DONE + tested; env-prefix phase 4a — the config env-bridge, the structural leak — DONE; remaining env-prefix work is scattered injectable-defaults, chewed opportunistically per the phase-4 survey)
+**Status**: Accepted  
+**Progress**: Binary decoupling phases 1-3a DONE + tested; env-prefix phase 4a (the config env-bridge, the structural leak) DONE; remaining env-prefix work is scattered injectable-defaults, chewed opportunistically per the phase-4 survey  
 **Date**: 2026-07-10
 **Deciders**: Arthur Silva, Refarm agents
 **Related**: ADR-086 (Plugin Vocabulary Convergence — the `plugin` command; its

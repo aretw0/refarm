@@ -1,8 +1,7 @@
 # ADR-078: Agent-Commons Environment Ceilings
 
-**Status**: Accepted (2026-07-03 — phases 1-3 shipped and locked by
-`scripts/ci/test-devcontainer-contract.mjs`; phases 4-5 remain conditional and the watchdog is the
-main plane-protection path, per the 2026-07-02 revision below)
+**Status**: Accepted  
+**Progress**: 2026-07-03 — phases 1-3 shipped and locked by `scripts/ci/test-devcontainer-contract.mjs`; phases 4-5 remain conditional and the watchdog is the main plane-protection path, per the 2026-07-02 revision below  
 **Date**: 2026-06-30
 **Authors**: Arthur Silva, Claude
 **Related**: ADR-074 (Remote Workspace Control Plane), ADR-065 (Farmhand Transparent Lifecycle),

@@ -1,6 +1,7 @@
 # ADR-020: Sovereign Graph Versioning
 
-**Status**: ✏️ PROPOSED (Design Complete, Implementation Pending)  
+**Status**: Proposed  
+**Progress**: Design complete, implementation pending  
 **Date**: 2026-03-07  
 **Target Version**: v0.2.0-0.3.0  
 **Blocking Implementation**: Requires Sprint 2 commitment + 30+ invariant tests before acceptance

@@ -1,6 +1,7 @@
 # ADR-007: Observability & Introspection Primitives
 
-**Status**: 📝 DRAFT (In Research)  
+**Status**: Proposed  
+**Progress**: Draft — in research; architectural direction chosen, implementation details TBD  
 **Date**: 2026-03-05 (Target: v0.2.0 or v0.3.0)  
 **Deciders**: Core Team  
 **Context**: [Critical Validations - Observability](../../docs/research/critical-validations.md#observabilidade--introspecção-de-estado)
@@ -612,7 +613,7 @@ await kernel.observers.register(new GrafanaObserver());
 
 ## Decision Outcome
 
-**Status**: 📝 DRAFT — Architectural direction chosen, implementation details TBD
+**Status**: Draft — architectural direction chosen, implementation details TBD
 
 **Chosen Option**: **Hybrid Approach** (Core Primitives + Pluggable Observers)
 

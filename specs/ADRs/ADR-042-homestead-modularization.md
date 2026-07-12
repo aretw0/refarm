@@ -1,6 +1,7 @@
 # ADR-042: Homestead Modularization & Multi-App Strategy
 
-**Status**: ✅ ACCEPTED
+**Status**: Accepted  
+**Date**: 2026-03-12  
 
 ## Context
 Currently, `homestead` is a monolithic app acting as the "Refarm Studio". This creates coupling between the UI components, the engine orchestration, and the specific developer tools.

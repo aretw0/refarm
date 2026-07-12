@@ -3,6 +3,8 @@
 ## Status
 Accepted
 
+**Date**: 2026-03-11
+
 ## Context
 Refarm aims to provide a Personal Operating System where all user data is owned locally and offline-first. The user interface (`apps/homestead`) is currently built using Astro.
 

@@ -4,6 +4,8 @@
 
 **Accepted**
 
+**Date**: 2026-05-05
+
 ## Context
 
 Refarm currently has multiple product surfaces (`apps/dev`, `apps/me`, `apps/farmhand`,

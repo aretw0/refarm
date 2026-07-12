@@ -3,6 +3,8 @@
 ## Status
 Proposed
 
+**Date**: 2026-03-09
+
 ## Context
 Refarm users often start as **Visitors** (read-only) or **Guests** (ephemeral keys). To encourage a "gradual sovereignty" journey, we need a way to help them transition to a **Permanent** identity (e.g., Nostr) without losing ownership of the data they signed as Guests.
 

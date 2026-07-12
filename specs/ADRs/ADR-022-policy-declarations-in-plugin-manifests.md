@@ -1,6 +1,7 @@
 # ADR-022: Policy Declarations in Plugin Manifests
 
-**Status**: ✏️ PROPOSED (Design Phase)  
+**Status**: Proposed  
+**Progress**: Design phase  
 **Date**: 2026-03-07  
 **Deciders**: Core Team  
 **Related**: ADR-017 (Micro-kernel), ADR-021 (Self-Healing), ADR-018 (Capability Contracts)  

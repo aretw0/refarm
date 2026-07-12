@@ -4,6 +4,8 @@
 
 **Proposed**
 
+**Date**: 2026-05-05
+
 ## Context
 
 Farmhand already stores sessions, entries, usage, responses, and tool traces as CRDT nodes. Recent swarm harness work proves that two farmhand instances can coordinate by reading the same CRDT graph without direct runtime coupling.

@@ -3,6 +3,8 @@
 ## Status
 Accepted
 
+**Date**: 2026-03-11
+
 ## Context
 Refarm is designed with a strict "Offline-First" and "Sovereign Bootloader" architecture (see ADR-002 and ADR-036). The core system runs entirely in the user's browser, persisting to local SQLite/OPFS and synchronizing peer-to-peer (P2P) via WebRTC.
 

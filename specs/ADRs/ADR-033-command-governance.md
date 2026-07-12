@@ -3,6 +3,8 @@
 ## Status
 Proposed
 
+**Date**: 2026-03-09
+
 ## Context
 Refarm aims to provide a high-productivity environment where power users can quickly navigate and execute actions using keyboard-first interfaces (Command Palette, Quick Open) while maintaining accessibility and web standards.
 

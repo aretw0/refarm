@@ -1,7 +1,9 @@
 # ADR-032: Proton-Level Security & Mandatory Identity Continuity
 
 ## Status
-Proposed (v0.1)
+Proposed
+
+**Date**: 2026-03-09
 
 ## Context
 Refarm aims for maximum user sovereignty and "Proton-level" security (end-to-end encrypted, zero-knowledge, and cryptographically verifiable).

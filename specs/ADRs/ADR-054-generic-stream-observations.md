@@ -4,6 +4,8 @@
 
 **Accepted**
 
+**Date**: 2026-05-05
+
 ## Context
 
 ADR-053 accepted host-proxied model streaming and proved that Tractor can read

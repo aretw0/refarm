@@ -1,6 +1,7 @@
 # ADR-016: Headless UI Contract and Token Strategy
 
-**Status**: Proposed (partially realized — see Realization note)
+**Status**: Proposed  
+**Progress**: Partially realized — see Realization note  
 **Date**: 2026-03-07
 **Decision Drivers**:
 

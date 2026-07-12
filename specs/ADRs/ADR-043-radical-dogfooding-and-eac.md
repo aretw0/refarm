@@ -1,6 +1,8 @@
 # ADR-043: Radical Dogfooding & Everything as Config (EaC)
 
-**Status**: ✏️ DRAFT (Proposed)
+**Status**: Proposed  
+**Progress**: Draft  
+**Date**: 2026-03-14  
 
 ## Context
 

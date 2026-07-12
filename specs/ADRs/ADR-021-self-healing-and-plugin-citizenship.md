@@ -1,6 +1,7 @@
 # ADR-021: Self-Healing & Plugin Citizenship
 
-**Status**: ✏️ PROPOSED (Design Complete, Implementation Pending)  
+**Status**: Proposed  
+**Progress**: Design complete, implementation pending  
 **Date**: 2026-03-07  
 **Target Version**: v0.3.0+  
 **Blocking Implementation**: Requires Sprint 3+ commitment + 40+ integration tests before acceptance

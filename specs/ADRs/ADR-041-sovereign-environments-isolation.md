@@ -1,6 +1,7 @@
 # ADR-041: Sovereign Environments & Workspace Isolation
 
-**Status**: ✏️ PROPOSED
+**Status**: Proposed  
+**Date**: 2026-03-12  
 
 ## Context
 Refarm users (especially developers) often need to run multiple instances of the system:

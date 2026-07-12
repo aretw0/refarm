@@ -1,7 +1,8 @@
 # ADR-026: Externalized Storage Schema and Shared Blueprints
 
 **Date**: 2026-03-07
-**Status**: Proposed (Refined)
+**Status**: Proposed  
+**Progress**: Refined  
 **Context**:
 O `Tractor` (núcleo) não deve conter SQL. No entanto, se movermos as migrações SQL puramente para cada adaptador individual (`storage-sqlite`, `storage-pglite`), corremos o risco de **duplicação de lógica** e **caos de manutenção**, pois o "Coração do Refarm" (as tabelas `nodes`, `plugins`, `crdt_log`) é o mesmo para qualquer banco SQL no navegador.
 

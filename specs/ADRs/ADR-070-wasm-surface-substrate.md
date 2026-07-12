@@ -1,6 +1,7 @@
 # ADR-070: WASM Surface Substrate, Ecosystem Dependency Depth, and Tractor Distribution
 
-**Status**: Proposed (Parts A/B accepted; Part C POC red)
+**Status**: Proposed  
+**Progress**: Parts A/B accepted; Part C POC red  
 **Date**: 2026-06-25
 **Authors**: Arthur Silva
 **Related**: ADR-044 (WASM plugin loading, browser), ADR-049 (dual-runtime), `docs/CONVERGENCE_ROADMAP.md` (item 5), `docs/ECOSYSTEM_SUPPLY_MAP.md`, `docs/VAULT_SEED_CONVERGENCE.md`

@@ -1,6 +1,7 @@
 # ADR-024: Pessimistic Editing Modes (Locks via Private Branches)
 
-**Status**: ✏️ PROPOSED (Design Phase)  
+**Status**: Proposed  
+**Progress**: Design phase  
 **Date**: 2026-03-07  
 **Deciders**: Core Team  
 **Related**: ADR-020 (Graph Versioning), ADR-003 (CRDT), ADR-002 (Offline-First)  

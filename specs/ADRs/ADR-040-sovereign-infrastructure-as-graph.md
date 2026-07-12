@@ -1,6 +1,8 @@
 # ADR-040: Sovereign Infrastructure-as-Graph (IaG)
 
-**Status**: ✏️ DRAFT (Experimental)
+**Status**: Proposed  
+**Progress**: Draft — experimental  
+**Date**: 2026-03-12  
 
 ## Context
 Refarm aims to be more than a productivity tool; it is a Personal Operating System. Traditional OSs use configuration files (dotfiles, `/etc`). Modern cloud architecture uses Infrastructure-as-Code (Terraform, Nix).

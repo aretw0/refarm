@@ -40,7 +40,7 @@ Architecture Decision Records for Refarm.
 | [040](ADR-040-sovereign-infrastructure-as-graph.md)            | Sovereign Infrastructure as a Graph                                               | Proposed   | 2026-03-13 |
 | [041](ADR-041-sovereign-environments-isolation.md)             | Sovereign Environments Isolation                                                  | Proposed   | 2026-03-13 |
 | [042](ADR-042-homestead-modularization.md)                     | Homestead Modularization                                                          | Proposed   | 2026-03-14 |
-| [043](ADR-043-radical-dogfooding-and-eac.md)                   | Radical Dogfooding and Extreme Autonomy                                           | Proposed   | 2026-03-14 |
+| [043](ADR-043-radical-dogfooding-and-eac.md)                   | Radical Dogfooding & Everything as Config (EaC)                                   | Proposed   | 2026-03-14 |
 | [044](ADR-044-wasm-plugin-loading-browser-strategy.md)         | WASM Plugin Loading Browser Strategy                                              | Accepted   | 2026-03-15 |
 | [045](ADR-045-loro-crdt-adoption.md)                           | Loro CRDT Adoption                                                                | Accepted   | 2026-03-17 |
 | [046](ADR-046-refarm-composition-model.md)                     | Refarm Composition Model (Blocks and Distros)                                     | Accepted   | 2026-03-17 |
@@ -50,6 +50,8 @@ Architecture Decision Records for Refarm.
 | [050](ADR-050-zig-wasm-agent-tool-host.md)                     | Exploração de Host Zig + Guest ClojureWasm para Ferramentas do Agente Pi          | Proposed   | 2026-04-17 |
 | [051](ADR-051-external-signed-revocation-offline-policy.md)    | External-Signed Revocation Offline Policy Profiles                                | Accepted   | 2026-04-24 |
 | [052](ADR-052-crdt-native-agent-rendezvous.md)                 | CRDT-native agent rendezvous with A2A-compatible edges                            | Proposed   | 2026-04-24 |
+| [053](ADR-053-host-proxied-model-streaming.md)                 | Host-Proxied Model Streaming Boundary                                             | Accepted   | 2026-05-02 |
+| [054](ADR-054-generic-stream-observations.md)                  | Generic Stream Observations and AgentResponse Projection                         | Accepted   | 2026-05-02 |
 | [055](ADR-055-stream-contract-v1-transport-layer.md)           | stream-contract-v1 as Separate Transport Package Family                           | Accepted   | 2026-05-02 |
 | [056](ADR-056-unified-refarm-host-boundary.md)                 | Unified `refarm` Host Boundary (Distro-Owned Host, Block-Owned Primitives)        | Accepted   | 2026-05-02 |
 | [057](ADR-057-task-session-contracts.md)                        | `task-contract-v1` + `session-contract-v1` as Memory Layer Contracts               | Accepted   | 2026-05-03 |
@@ -91,13 +93,11 @@ These ADRs define architecture direction but are NOT executable contracts yet. S
 
 | ADR                                                       | Title                                                           | Status      | Target       | Blockers                                                            |
 | --------------------------------------------------------- | --------------------------------------------------------------- | ----------- | ------------ | ------------------------------------------------------------------- |
-| [020](ADR-020-sovereign-graph-versioning.md)              | Sovereign Graph Versioning (commit/branch/checkout/revert)      | ✏️ Proposed | v0.2.0-0.3.0 | 30+ invariant tests + kernel implementation                         |
-| [021](ADR-021-self-healing-and-plugin-citizenship.md)     | Self-Healing & Plugin Citizenship Monitoring                    | ✏️ Proposed | v0.3.0+      | 40+ integration tests + kernel implementation                       |
-| [022](ADR-022-policy-declarations-in-plugin-manifests.md) | Policy Declarations in Plugin Manifests (+ Performance Budgets) | ✏️ Proposed | v0.3.0+      | Manifest schema + PolicyManager + PerformanceMonitor implementation |
-| [023](ADR-023-plugin-conflict-detection.md)               | Plugin Conflict Detection and Resolution                        | ✏️ Proposed | v0.2.0-0.3.0 | ConflictDetector + GraphMonitor + UI implementation                 |
-| [024](ADR-024-pessimistic-editing-modes.md)               | Pessimistic Editing Modes (Locks via Private Branches)          | ✏️ Proposed | v0.3.0+      | LockManager + UI patterns + merge strategies implementation         |
-| [053](ADR-053-host-proxied-model-streaming.md)           | Host-Proxied Model Streaming Boundary                           | Accepted    | v0.1.x       | Initial host-proxied text and tool-call streaming implemented       |
-| [054](ADR-054-generic-stream-observations.md)             | Generic Stream Observations and AgentResponse Projection        | Accepted    | v0.1.x       | Generic stream dual-write; governed compaction guardrails pending   |
+| [020](ADR-020-sovereign-graph-versioning.md)              | Sovereign Graph Versioning (commit/branch/checkout/revert)      | Proposed | v0.2.0-0.3.0 | 30+ invariant tests + kernel implementation                         |
+| [021](ADR-021-self-healing-and-plugin-citizenship.md)     | Self-Healing & Plugin Citizenship Monitoring                    | Proposed | v0.3.0+      | 40+ integration tests + kernel implementation                       |
+| [022](ADR-022-policy-declarations-in-plugin-manifests.md) | Policy Declarations in Plugin Manifests (+ Performance Budgets) | Proposed | v0.3.0+      | Manifest schema + PolicyManager + PerformanceMonitor implementation |
+| [023](ADR-023-plugin-conflict-detection.md)               | Plugin Conflict Detection and Resolution                        | Proposed | v0.2.0-0.3.0 | ConflictDetector + GraphMonitor + UI implementation                 |
+| [024](ADR-024-pessimistic-editing-modes.md)               | Pessimistic Editing Modes (Locks via Private Branches)          | Proposed    | v0.3.0+      | LockManager + UI patterns + merge strategies implementation         |
 
 ---
 
