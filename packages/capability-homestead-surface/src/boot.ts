@@ -1,18 +1,11 @@
-import {
-	webSurfaceModel,
-	type CapabilityInput,
-	type CapabilityRegistry,
-} from "@refarm.dev/capabilities";
+import type { CapabilityInput, CapabilityRegistry } from "@refarm.dev/capabilities";
 import {
 	bootCapabilityWebShell,
 	type BootCapabilityWebShellOptions,
 	type CapabilityWebShell,
 } from "@refarm.dev/homestead/sdk/boot-web-shell";
 
-import {
-	createCapabilityWebSurfacePlugin,
-	type CapabilityWebSurfaceOptions,
-} from "./index.js";
+import { createCapabilityWebSurfacePlugin, type CapabilityWebSurfaceOptions } from "./index.js";
 
 /**
  * The BOOT entry — a separate module from index.ts on purpose. bootCapabilityWebFace pulls
