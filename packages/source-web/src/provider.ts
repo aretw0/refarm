@@ -12,6 +12,9 @@ import os from "node:os";
 import path from "node:path";
 
 import type {
+	WebFetchDriver,
+	WebFetchRequest,
+	WebFetchResult,
 	WebSourceEgressPolicy,
 	WebSourceEgressReport,
 	WebSourceMaterializeResult,
@@ -29,6 +32,17 @@ export interface WebSourceProviderOptions {
 	fixtures?: Record<string, WebSourceSnapshot>;
 	egress?: Partial<WebSourceEgressPolicy>;
 	now?: () => string;
+	/**
+	 * The FETCH driver — how a live URL is actually retrieved with the target's session.
+	 * When present and the ref is an http(s) URL, materialize calls this to get the REAL
+	 * body (an OSLC/REST client, a light browser driver) instead of replaying the fixture.
+	 * Absent = offline/out-of-the-box: the fixture snapshot's body is used (current behavior).
+	 * The provider still owns caching, egress, redaction and provenance either way.
+	 */
+	fetcher?: WebFetchDriver;
+	/** Per-request headers a caller wants the fetcher to send (e.g. OSLC RDF Accept +
+	 * Configuration-Context). Passed through to the driver; the driver decides how to apply. */
+	fetchHeaders?: Record<string, string>;
 }
 
 export const DEFAULT_WEB_SOURCE_FIXTURE: WebSourceSnapshot = {
@@ -205,6 +219,25 @@ function fixtureFor(
 	};
 }
 
+function isHttpRef(ref: string): boolean {
+	return ref.startsWith("http://") || ref.startsWith("https://");
+}
+
+/** Retrieve the live body for a target via the injected driver, folding the result into the
+ * snapshot (body + mediaType from the wire; everything else — session, pacing, redaction —
+ * stays from the template). The driver may throw HttpFetchError (e.g. 401) so the caller can
+ * re-authenticate; we let it propagate rather than silently falling back to the fixture. */
+async function fetchSnapshot(
+	base: WebSourceSnapshot,
+	sourceRef: string,
+	fetcher: WebFetchDriver,
+	headers: Record<string, string> | undefined,
+): Promise<WebSourceSnapshot> {
+	const request: WebFetchRequest = { url: sourceRef, session: base.session, headers };
+	const result: WebFetchResult = await fetcher(request);
+	return { ...base, url: sourceRef, body: result.body, mediaType: result.mediaType };
+}
+
 function provenanceFor(
 	snapshot: WebSourceSnapshot,
 	sourceRef: string,
@@ -317,7 +350,15 @@ export function createWebSourceProvider(options: WebSourceProviderOptions = {}):
 			};
 		}
 
-		const snapshot = fixtureFor(identity, sourceRef, fixtures, now);
+		const base = fixtureFor(identity, sourceRef, fixtures, now);
+		// LIVE FETCH: when a driver is configured and this is a real http(s) target (not offline),
+		// retrieve the actual body with the session instead of replaying the fixture. Egress is
+		// enforced first (egressForRef in locate would already throw for a blocked host). The
+		// fixture still supplies session/pacing/redaction — only body + mediaType come from the wire.
+		const snapshot =
+			options.fetcher && opts?.offline !== true && isHttpRef(sourceRef)
+				? await fetchSnapshot(base, sourceRef, options.fetcher, options.fetchHeaders)
+				: base;
 		const provenance = provenanceFor(snapshot, sourceRef, opts?.offline === true, egress);
 		await writeSnapshot(location.path, snapshot, provenance);
 		return {

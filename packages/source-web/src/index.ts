@@ -3,6 +3,7 @@ export {
 	createWebSourceProvider,
 	type WebSourceProviderOptions,
 } from "./provider.js";
+export { HttpFetchError, createHttpFetchDriver, isRecoverableAuthStatus } from "./fetch.js";
 export {
 	loadWebSourceTargets,
 	loadWebSourceTargetsSync,
