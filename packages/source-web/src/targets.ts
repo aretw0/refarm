@@ -40,6 +40,10 @@ export interface WebSourceTargetConfig {
 	pacing?: Partial<WebSourcePacingPolicy>;
 	/** When this snapshot was captured (default now-injected or a fixed stamp). */
 	capturedAt?: string;
+	/** OPEN driver coordinates — arbitrary key/values the analyst's fetch driver needs, opaque
+	 * to the substrate. E.g. an OSLC/Jazz driver reads `componentURI` / `streamURI` / `folderId`
+	 * from here. This is what makes the config faithful without leaking a domain into refarm. */
+	attributes?: Record<string, string>;
 }
 
 /** The file shape: a list of the analyst's configured source targets. */
@@ -81,6 +85,7 @@ export function webSourceSnapshotFromTarget(
 		pacing: { ...DEFAULT_PACING, ...target.pacing },
 		redaction: DEFAULT_REDACTION,
 		capturedAt,
+		...(target.attributes ? { attributes: target.attributes } : {}),
 	};
 }
 
@@ -102,19 +107,21 @@ export function parseWebSourceTargetsConfig(raw: unknown): WebSourceTargetsConfi
 	if (!raw || typeof raw !== "object" || !Array.isArray((raw as { targets?: unknown }).targets)) {
 		throw new Error("INVALID_CONFIG: expected { targets: [...] }");
 	}
-	const targets = (raw as { targets: unknown[] }).targets.map((entry, index): WebSourceTargetConfig => {
-		if (!entry || typeof entry !== "object") {
-			throw new Error(`INVALID_CONFIG: targets[${index}] must be an object`);
-		}
-		const { identity, url } = entry as Record<string, unknown>;
-		if (typeof identity !== "string" || identity.trim().length === 0) {
-			throw new Error(`INVALID_CONFIG: targets[${index}].identity must be a non-empty string`);
-		}
-		if (typeof url !== "string" || url.trim().length === 0) {
-			throw new Error(`INVALID_CONFIG: targets[${index}].url must be a non-empty string`);
-		}
-		return entry as WebSourceTargetConfig;
-	});
+	const targets = (raw as { targets: unknown[] }).targets.map(
+		(entry, index): WebSourceTargetConfig => {
+			if (!entry || typeof entry !== "object") {
+				throw new Error(`INVALID_CONFIG: targets[${index}] must be an object`);
+			}
+			const { identity, url } = entry as Record<string, unknown>;
+			if (typeof identity !== "string" || identity.trim().length === 0) {
+				throw new Error(`INVALID_CONFIG: targets[${index}].identity must be a non-empty string`);
+			}
+			if (typeof url !== "string" || url.trim().length === 0) {
+				throw new Error(`INVALID_CONFIG: targets[${index}].url must be a non-empty string`);
+			}
+			return entry as WebSourceTargetConfig;
+		},
+	);
 	return { targets };
 }
 

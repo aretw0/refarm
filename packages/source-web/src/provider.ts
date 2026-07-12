@@ -233,7 +233,12 @@ async function fetchSnapshot(
 	fetcher: WebFetchDriver,
 	headers: Record<string, string> | undefined,
 ): Promise<WebSourceSnapshot> {
-	const request: WebFetchRequest = { url: sourceRef, session: base.session, headers };
+	const request: WebFetchRequest = {
+		url: sourceRef,
+		session: base.session,
+		headers,
+		...(base.attributes ? { attributes: base.attributes } : {}),
+	};
 	const result: WebFetchResult = await fetcher(request);
 	return { ...base, url: sourceRef, body: result.body, mediaType: result.mediaType };
 }
@@ -351,14 +356,19 @@ export function createWebSourceProvider(options: WebSourceProviderOptions = {}):
 		}
 
 		const base = fixtureFor(identity, sourceRef, fixtures, now);
-		// LIVE FETCH: when a driver is configured and this is a real http(s) target (not offline),
+		// The URL to actually fetch: the ref itself when it's an http(s) URL, else the declared
+		// `url` of the matched target (so `web:efd` fetches efd's real URL). This is what makes a
+		// `discover`-listed `web:<id>` ref pullable against the analyst's live system.
+		const fetchUrl = isHttpRef(sourceRef) ? sourceRef : isHttpRef(base.url) ? base.url : undefined;
+		// LIVE FETCH: when a driver is configured and there's a real http(s) target (not offline),
 		// retrieve the actual body with the session instead of replaying the fixture. Egress is
-		// enforced first (egressForRef in locate would already throw for a blocked host). The
-		// fixture still supplies session/pacing/redaction — only body + mediaType come from the wire.
-		const snapshot =
-			options.fetcher && opts?.offline !== true && isHttpRef(sourceRef)
-				? await fetchSnapshot(base, sourceRef, options.fetcher, options.fetchHeaders)
-				: base;
+		// enforced on the ACTUAL fetch URL first. The fixture still supplies session/pacing/
+		// redaction/attributes — only body + mediaType come from the wire.
+		let snapshot = base;
+		if (options.fetcher && opts?.offline !== true && fetchUrl) {
+			egressForRef(fetchUrl, egressPolicy); // throws EGRESS_DENIED on a blocked host
+			snapshot = await fetchSnapshot(base, fetchUrl, options.fetcher, options.fetchHeaders);
+		}
 		const provenance = provenanceFor(snapshot, sourceRef, opts?.offline === true, egress);
 		await writeSnapshot(location.path, snapshot, provenance);
 		return {

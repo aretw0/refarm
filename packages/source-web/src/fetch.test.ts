@@ -45,6 +45,41 @@ describe("fetch driver seam — live fetch vs fixture replay", () => {
 		expect(fetcher.mock.calls[0]?.[0].session.authenticated).toBe(true);
 	});
 
+	it("passes the target's open driver attributes to the fetcher (the OSLC coordinate)", async () => {
+		// A driver-specific coordinate (componentURI/streamURI) is opaque to the substrate but
+		// must reach the driver so it can build the real OSLC request. It travels config →
+		// snapshot → fetch request.
+		const fetcher = vi.fn<WebFetchDriver>(async () => ({
+			body: "<rdf/>",
+			mediaType: "text/plain",
+		}));
+		const provider = createWebSourceProvider({
+			cacheRoot: tmpRoot(),
+			fetcher,
+			fixtures: {
+				efd: {
+					identity: "efd",
+					url: HTTP_URL,
+					mediaType: "text/html",
+					body: "",
+					session: { kind: "authenticated", authenticated: true },
+					pacing: { maxRequestsPerMinute: 12, backoffMs: 500 },
+					redaction: { applied: true, fields: [] },
+					capturedAt: "2026-06-30T00:00:00.000Z",
+					attributes: { componentURI: "urn:comp:1", streamURI: "urn:stream:1" },
+				},
+			},
+		});
+		// `web:efd` resolves the efd target and fetches its declared http url with its attributes.
+		await provider.materialize("web:efd");
+		expect(fetcher).toHaveBeenCalledOnce();
+		expect(fetcher.mock.calls[0]?.[0].url).toBe(HTTP_URL);
+		expect(fetcher.mock.calls[0]?.[0].attributes).toEqual({
+			componentURI: "urn:comp:1",
+			streamURI: "urn:stream:1",
+		});
+	});
+
 	it("does NOT fetch in offline mode — replays the fixture body", async () => {
 		const fetcher = vi.fn<WebFetchDriver>(async () => ({ body: "LIVE", mediaType: "text/plain" }));
 		const provider = createWebSourceProvider({ cacheRoot: tmpRoot(), fetcher });
@@ -56,12 +91,52 @@ describe("fetch driver seam — live fetch vs fixture replay", () => {
 		expect(body).not.toContain("LIVE"); // fixture body, not the wire
 	});
 
-	it("does NOT fetch a web: ref (non-http) — that's a fixture identity", async () => {
+	it("a web: ref whose target url is NOT http stays fixture-only (no fetch)", async () => {
 		const fetcher = vi.fn<WebFetchDriver>(async () => ({ body: "LIVE", mediaType: "text/plain" }));
-		const provider = createWebSourceProvider({ cacheRoot: tmpRoot(), fetcher });
-
-		await provider.materialize("web:requirements-fixture");
+		const provider = createWebSourceProvider({
+			cacheRoot: tmpRoot(),
+			fetcher,
+			fixtures: {
+				local: {
+					identity: "local",
+					url: "file:///captured/local.html", // non-http declared url → cannot fetch
+					mediaType: "text/html",
+					body: "<article>captured</article>",
+					session: { kind: "fixture", authenticated: true },
+					pacing: { maxRequestsPerMinute: 12, backoffMs: 500 },
+					redaction: { applied: true, fields: [] },
+					capturedAt: "2026-06-30T00:00:00.000Z",
+				},
+			},
+		});
+		await provider.materialize("web:local");
 		expect(fetcher).not.toHaveBeenCalled();
+	});
+
+	it("a web: ref resolves its target's http url and fetches it", async () => {
+		const fetcher = vi.fn<WebFetchDriver>(async (req) => ({
+			body: `LIVE:${req.url}`,
+			mediaType: "application/rdf+xml",
+		}));
+		const provider = createWebSourceProvider({
+			cacheRoot: tmpRoot(),
+			fetcher,
+			fixtures: {
+				efd: {
+					identity: "efd",
+					url: HTTP_URL,
+					mediaType: "text/html",
+					body: "",
+					session: { kind: "authenticated", authenticated: true },
+					pacing: { maxRequestsPerMinute: 12, backoffMs: 500 },
+					redaction: { applied: true, fields: [] },
+					capturedAt: "2026-06-30T00:00:00.000Z",
+				},
+			},
+		});
+		const result = await provider.materialize("web:efd");
+		const body = readFileSync(path.join(result.location.path, "content.html"), "utf8");
+		expect(body).toBe(`LIVE:${HTTP_URL}`);
 	});
 
 	it("without a fetcher, an http ref still replays the fixture (out-of-the-box)", async () => {

@@ -9,12 +9,14 @@ export interface WebSourceSessionEvidence {
 	credentialRef?: string;
 }
 
-/** What a fetch driver is asked to retrieve: the URL, the session to use, and any
- * caller-supplied headers (e.g. an OSLC client passes RDF Accept + Configuration-Context). */
+/** What a fetch driver is asked to retrieve: the URL, the session to use, any caller-supplied
+ * headers (e.g. an OSLC client passes RDF Accept + Configuration-Context), and the target's
+ * open driver `attributes` (e.g. the OSLC `componentURI`/`streamURI` the driver needs). */
 export interface WebFetchRequest {
 	url: string;
 	session: WebSourceSessionEvidence;
 	headers?: Record<string, string>;
+	attributes?: Record<string, string>;
 }
 
 /** What a fetch driver returns: the retrieved body + its media type. A driver MAY throw a
@@ -70,6 +72,12 @@ export interface WebSourceSnapshot {
 	pacing: WebSourcePacingPolicy;
 	redaction: WebSourceRedactionReport;
 	capturedAt: string;
+	/** OPEN driver coordinates — arbitrary key/values a fetch driver needs to retrieve this
+	 * target, that are meaningless to the generic substrate. An OSLC driver reads e.g.
+	 * `componentURI` / `streamURI` / `folderId` here; the substrate just carries them through.
+	 * This is the generic-vs-specific seam: refarm ships "a target can carry driver attrs";
+	 * the domain driver decides what they mean. */
+	attributes?: Record<string, string>;
 }
 
 export interface WebSourceProvenance {

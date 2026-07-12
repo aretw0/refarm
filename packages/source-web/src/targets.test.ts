@@ -18,6 +18,8 @@ const CONFIG = {
 			url: "https://example.invalid/a",
 			body: "<article data-record='A-1'>Alpha</article>",
 			session: { principal: "analyst", credentialRef: "silo://analyst/a" },
+			// Open driver coordinates (opaque to the substrate; an OSLC driver reads them).
+			attributes: { componentURI: "urn:comp:a", streamURI: "urn:stream:a" },
 		},
 		{ identity: "system-b", url: "https://example.invalid/b", body: "<p>Beta</p>" },
 	],
@@ -35,6 +37,12 @@ describe("config-driven web source targets", () => {
 		// pacing/redaction get sane defaults.
 		expect(fixtures["system-a"]?.pacing.maxRequestsPerMinute).toBeGreaterThan(0);
 		expect(fixtures["system-b"]?.redaction.applied).toBe(true);
+		// open driver attributes round-trip config → snapshot (untouched by the substrate).
+		expect(fixtures["system-a"]?.attributes).toEqual({
+			componentURI: "urn:comp:a",
+			streamURI: "urn:stream:a",
+		});
+		expect(fixtures["system-b"]?.attributes).toBeUndefined();
 	});
 
 	it("discover() lists exactly the configured targets (what THIS user's config declares)", async () => {
