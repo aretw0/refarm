@@ -1,6 +1,7 @@
 # ADR-079: Credentials Verification Policy
 
-**Status**: Proposed
+**Status**: Accepted
+**Progress**: Implemented + verified. `verify(input, policy?: CredentialVerificationPolicy)` is policy-driven (`packages/credentials-contract-v1/src/types.ts`), the reference provider evaluates every decided field (issuerTrusted incl. dynamic `trustSelf`, validity, requiredClaims, revocation via signed status list, holderBinding), the conformance suite exercises them, and `examples/wallet-t2` consumes `policy` for real; the sovereign-citizen end-to-end proof (issue → policy verify → tamper reject → present → holder-binding → status-list revocation) passes. FOLLOW-UP (deferred by this ADR): the `trustRegistry` field is reserved — the static `trustedIssuers` list ships first; a dynamic registry is a future superset.
 **Date**: 2026-07-01
 **Authors**: Arthur Silva, Claude
 **Related**: ADR-074 (Remote Workspace Control Plane — "policy precedes execution"),

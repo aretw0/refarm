@@ -1,6 +1,7 @@
 # ADR-080: The `vault-seed-ready` Handoff Pipeline as Pre-Publication Release Vehicle
 
-**Status**: Proposed
+**Status**: Accepted
+**Progress**: Implemented + tested. `scripts/vault-seed-ready-handoff.mjs` emits a mandatory `manifest.json` (with `generatedAt` + `sourceGitSha`) as the packet's source of truth, derives `consumerProofs` from release policy, and supports `--prune-extra`; `scripts/ci/test-vault-seed-ready-handoff.mjs` passes (14/0). The one open item — receipts as plain JSON — is CONDITIONAL by design (only if a downstream tranche runs before publication; the preferred resolution is the publish decision itself) and has not been triggered, so it stays a documented conditional under the capped scope below.
 **Scope**: This is deliberately **temporary scaffolding** ("puxadinho"), not product surface. It
 exists only so the official `vault-seed` checkout can validate blocks while Refarm is not yet on
 npm/cargo. Investment in it is capped (see Sunset) — no growing test suite, no new packages, no
