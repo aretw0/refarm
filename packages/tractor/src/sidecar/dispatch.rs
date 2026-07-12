@@ -44,6 +44,46 @@ fn effort_status_is_ok(status: &str) -> bool {
     matches!(status, super::EFFORT_DONE | super::EFFORT_DELIVERED | "partial")
 }
 
+/// Publish a `process:*` activity payload over BOTH transports at once — the telemetry
+/// bus (in-process subscribers + the SSE/WS forwarders) and the append-only activity
+/// file (the sovereign channel a separate-process surface tails without a live socket).
+/// One payload, one call site per phase.
+fn publish_activity(state: &SidecarState, event: &str, payload: serde_json::Value) {
+    state
+        .telemetry
+        .emit(crate::telemetry::TelemetryEvent::new(event, None).with_payload(payload.clone()));
+    let _ = super::write_activity_line(&state.streams_dir, &payload);
+}
+
+/// `process:started` for an effort — over both transports.
+fn emit_effort_started(state: &SidecarState, effort: &Effort) {
+    publish_activity(
+        state,
+        crate::telemetry::process_activity::EVENT_PROCESS_STARTED,
+        crate::telemetry::process_activity::started_payload(
+            &effort.id,
+            &effort_activity_label(effort),
+            effort_activity_kind(effort),
+        ),
+    );
+}
+
+/// `process:finished` for an effort — over both transports. `label` is empty (the surface
+/// already has it from `started`, correlated by activityRef); `ok` reflects the terminal
+/// status.
+fn emit_effort_finished(state: &SidecarState, effort_id: &str, status: &str) {
+    publish_activity(
+        state,
+        crate::telemetry::process_activity::EVENT_PROCESS_FINISHED,
+        crate::telemetry::process_activity::finished_payload(
+            effort_id,
+            "",
+            "dispatch",
+            effort_status_is_ok(status),
+        ),
+    );
+}
+
 /// The agent's TERMINAL-RESULT contract, declared ONCE. A responding plugin stores
 /// a node of `AGENT_RESPONSE_NODE_TYPE` carrying its `content`, keyed by
 /// `AGENT_RESPONSE_CORRELATION_KEY` (the prompt it answers) and marked terminal by
@@ -257,12 +297,10 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         // A daemon→surface bridge forwards it so the operator sees an agent turn / a
         // dispatch in flight instead of a frozen surface. The effort id is the
         // activityRef; `process:finished` fires from finalise_effort on the terminal state.
-        crate::telemetry::process_activity::emit_started(
-            &state.telemetry,
-            &effort_id,
-            &effort_activity_label(&effort),
-            &effort_activity_kind(&effort),
-        );
+        // Two transports, one payload: the telemetry bus (in-process subscribers + the
+        // SSE/WS forwarders) AND an append to activity.ndjson (the sovereign file a
+        // separate-process CLI/TUI tails without a live socket).
+        emit_effort_started(&state, &effort);
 
         let task = match effort.tasks.first() {
             Some(t) => t.clone(),
@@ -462,13 +500,7 @@ pub(crate) fn finalise_effort(
         // affordance for this effort. `ok` is whether the terminal status is a success
         // (done) vs a failure/timeout, so a surface can show ✓ vs ✗.
         if super::is_terminal_effort_status(status) {
-            crate::telemetry::process_activity::emit_finished(
-                &state.telemetry,
-                effort_id,
-                "",
-                "dispatch",
-                effort_status_is_ok(status),
-            );
+            emit_effort_finished(state, effort_id, status);
         }
         if let Err(error) = persist_effort_result(&state.results_dir, &result) {
             tracing::warn!(

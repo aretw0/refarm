@@ -307,6 +307,55 @@ async fn dispatching_an_effort_emits_process_activity_on_the_telemetry_bus() {
     );
 }
 
+/// The SOVEREIGN half of the activity bridge: dispatching an effort ALSO appends the
+/// `process:*` lines to `streams_dir/activity.ndjson`, so a separate-process surface
+/// (the CLI/TUI) can tail the file and render "working" WITHOUT a live socket — the same
+/// no-socket transport the response streams use.
+#[tokio::test]
+async fn dispatching_an_effort_appends_process_activity_to_the_ndjson_file() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+    let id = uuid::Uuid::new_v4().to_string();
+
+    client
+        .post(format!("{}/efforts", base(port)))
+        .json(&test_effort(&id))
+        .send()
+        .await
+        .unwrap();
+
+    // Poll the activity file until both this effort's started+finished lines land.
+    let activity_path = state.streams_dir.join("activity.ndjson");
+    let mut started_line: Option<serde_json::Value> = None;
+    let mut finished_line: Option<serde_json::Value> = None;
+    for _ in 0..50 {
+        if let Ok(text) = std::fs::read_to_string(&activity_path) {
+            for line in text.lines() {
+                let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+                    continue;
+                };
+                if value["activityRef"] != id {
+                    continue;
+                }
+                match value["phase"].as_str() {
+                    Some("started") => started_line = Some(value),
+                    Some("finished") => finished_line = Some(value),
+                    _ => {}
+                }
+            }
+        }
+        if started_line.is_some() && finished_line.is_some() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    let started = started_line.expect("activity.ndjson must carry the process:started line");
+    assert_eq!(started["kind"], "agent");
+    let finished = finished_line.expect("activity.ndjson must carry the process:finished line");
+    assert_eq!(finished["ok"], false);
+}
+
 #[tokio::test]
 async fn sidecar_effort_result_survives_state_reopen() {
     let (_state, port, tmp) = start_test_sidecar().await;

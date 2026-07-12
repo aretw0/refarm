@@ -84,29 +84,6 @@ pub(crate) fn finished_payload(
     })
 }
 
-/// Emit `process:started` on the bus. Host event (no plugin_id) — the runtime is the one
-/// narrating that a unit of work is running.
-pub(crate) fn emit_started(bus: &TelemetryBus, activity_ref: &str, label: &str, kind: &str) {
-    bus.emit(
-        TelemetryEvent::new(EVENT_PROCESS_STARTED, None)
-            .with_payload(started_payload(activity_ref, label, kind)),
-    );
-}
-
-/// Emit `process:finished` on the bus.
-pub(crate) fn emit_finished(
-    bus: &TelemetryBus,
-    activity_ref: &str,
-    label: &str,
-    kind: &str,
-    ok: bool,
-) {
-    bus.emit(
-        TelemetryEvent::new(EVENT_PROCESS_FINISHED, None)
-            .with_payload(finished_payload(activity_ref, label, kind, ok)),
-    );
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -139,12 +116,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn emit_started_and_finished_reach_a_subscriber() {
+    async fn shaped_payloads_reach_a_bus_subscriber() {
+        // The dispatch site publishes these shaped payloads over the bus (and the file);
+        // prove the shape survives a bus round-trip so a forwarder/subscriber reads it back.
         let bus = TelemetryBus::new(16);
         let mut rx = bus.subscribe();
 
-        emit_started(&bus, "eff-1", "Dispatching to agent", "dispatch");
-        emit_finished(&bus, "eff-1", "Dispatching to agent", "dispatch", true);
+        bus.emit(
+            TelemetryEvent::new(EVENT_PROCESS_STARTED, None)
+                .with_payload(started_payload("eff-1", "Dispatching to agent", "dispatch")),
+        );
+        bus.emit(
+            TelemetryEvent::new(EVENT_PROCESS_FINISHED, None)
+                .with_payload(finished_payload("eff-1", "", "dispatch", true)),
+        );
 
         let started = rx.recv().await.unwrap();
         assert_eq!(started.event, "process:started");

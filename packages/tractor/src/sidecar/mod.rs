@@ -381,6 +381,27 @@ fn write_stream_chunk(
     Ok(())
 }
 
+/// The single append-only file the daemon writes `process:*` activity to, beside the
+/// per-response stream files. A separate process (the CLI/TUI, or the web via the SSE
+/// transport that serves the same file) TAILS it to render the operator's "working"
+/// affordance — the sovereign, no-socket half of the activity bridge that mirrors how
+/// `write_stream_chunk` streams response chunks.
+pub(crate) const ACTIVITY_STREAM_NAME: &str = "activity";
+
+/// Append one `ProcessActivity` JSON line to `streams_dir/activity.ndjson`. `payload` is
+/// the already-shaped activity object ({activityRef, phase, label, kind, …}) from
+/// `telemetry::process_activity`, so the file carries the SAME shape the telemetry bus and
+/// the TS `ProcessActivity` do — one contract, three transports (file / SSE / WS).
+pub(crate) fn write_activity_line(streams_dir: &Path, payload: &Value) -> std::io::Result<()> {
+    let path = streams_dir.join(format!("{ACTIVITY_STREAM_NAME}.ndjson"));
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)?;
+    writeln!(file, "{}", payload)?;
+    Ok(())
+}
+
 async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
     let loaded: Vec<String> = {
         let channels = state.plugin_channels.read().expect("channels poisoned");
