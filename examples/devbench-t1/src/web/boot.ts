@@ -1,26 +1,23 @@
-import { bootCapabilityWebShell } from "@refarm.dev/homestead/sdk";
+import { bootCapabilityWebFace } from "@refarm.dev/capability-homestead-surface/boot";
 
 import { devbenchApp } from "../cli.js";
 import { devWebSurface } from "../persona.js";
 
 /**
- * The devbench WEB face — T1 PROCESS mode. Unlike T2/T3 (which show a product), the web
- * face here shows the extension MECHANISM: the bridge projects the manifest-declared verbs
- * into launcher cards, so "declare `renderers.web` once → a real web panel" is visible.
- * No content seam — the cards ARE the point. The whole boot is bootCapabilityWebShell over
- * the same registry that drives the CLI.
- *
- * (Drafted by the refarm agent itself — dogfooding the agent as a helper.)
+ * The devbench WEB face — T1 PROCESS mode. Unlike T2/T3, the web face shows the extension
+ * MECHANISM: the bridge projects the manifest-declared verbs into launcher cards. No content
+ * seam (the cards ARE the point) — so bootCapabilityWebFace just mounts the surface.
  */
 export async function bootDevbench(): Promise<void> {
 	const overlay = document.getElementById("loading-overlay");
 	try {
 		const registry = devbenchApp.registry();
-		await bootCapabilityWebShell({
+		await bootCapabilityWebFace({
 			databaseName: "devbench-web",
 			namespace: "devbench",
-			surfaces: [devWebSurface(registry)],
+			registry,
 			surfaceContext: devbenchApp.surfaceContext(),
+			surface: devWebSurface(registry),
 		});
 		overlay?.remove();
 	} catch (error) {

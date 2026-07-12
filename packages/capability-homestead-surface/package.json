@@ -14,6 +14,10 @@
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
+		},
+		"./boot": {
+			"import": "./dist/boot.js",
+			"types": "./dist/boot.d.ts"
 		}
 	},
 	"scripts": {

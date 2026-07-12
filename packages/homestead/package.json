@@ -20,6 +20,10 @@
 			"types": "./dist/sdk/custom-element.d.ts",
 			"import": "./dist/sdk/custom-element.js"
 		},
+		"./sdk/boot-web-shell": {
+			"types": "./dist/sdk/boot-web-shell.d.ts",
+			"import": "./dist/sdk/boot-web-shell.js"
+		},
 		"./sdk/host-renderer": {
 			"types": "./dist/sdk/host-renderer.d.ts",
 			"import": "./dist/sdk/host-renderer.js"

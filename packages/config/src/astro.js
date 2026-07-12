@@ -6,6 +6,10 @@ import { findSovereignRoot, loadConfig } from "./index.js";
 
 export function coreAstroAliases(root) {
 	return {
+		"@refarm.dev/homestead/sdk/boot-web-shell": path.resolve(
+			root,
+			"packages/homestead/src/sdk/boot-web-shell.ts",
+		),
 		"@refarm.dev/homestead/sdk/custom-element": path.resolve(
 			root,
 			"packages/homestead/src/sdk/custom-element.ts",
