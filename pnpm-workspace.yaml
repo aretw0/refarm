@@ -13,6 +13,9 @@ catalog:
   # websocket
   ws: "^8.21.0"
   "@types/ws": "^8.18.1"
+  # optional: a light browser driver for a LIVE web-source pull (uses the user's own Chrome,
+  # downloads nothing). Only a `--live` run loads it; offline/CI never do.
+  puppeteer-core: "^24.10.0"
   # node types
   "@types/node": "^25.6.0"
 

@@ -19,6 +19,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@refarm.dev/browser-driver": "workspace:*",
 		"@refarm.dev/capability-homestead-surface": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
 		"@refarm.dev/enrichment-contract-v1": "workspace:*",

@@ -9,6 +9,7 @@ import {
 import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
 
 import {
+	createLiveRequirementsProviderFactory,
 	createRequirementsCapability,
 	createRequirementsPullCapability,
 	reqCapabilityBundle,
@@ -52,6 +53,15 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 					// source provider uses, so a still-valid session is honored (login-garantido).
 					createRequirementsPullCapability(records, sourceProvider, {
 						sourcesConfigPath: options.sourcesConfigPath,
+						// `--live` wiring: the framework's browser-login driver, configured by env so
+						// the analyst just sets DGK_CHROME_PATH / DGK_SESSION_DIR (no code). Absent
+						// env still works — the factory finds Chrome via CHROME_PATH / default lookup.
+						liveProviderFactory: createLiveRequirementsProviderFactory({
+							sourcesConfigPath: options.sourcesConfigPath,
+							chromePath: process.env.DGK_CHROME_PATH,
+							sessionDir: process.env.DGK_SESSION_DIR,
+							headless: process.env.DGK_HEADLESS === "1",
+						}),
 					}),
 				],
 			};

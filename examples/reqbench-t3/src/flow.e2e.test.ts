@@ -13,10 +13,12 @@ import {
 	serveReqbench,
 } from "./cli.js";
 import {
+	createRequirementsPullCapability,
 	createRequirementsSourceProvider,
 	parseRequirements,
 	parseRequirementsFromHtml,
 	renderRequirementsMocHtml,
+	reqCapabilityBundle,
 	reqWebSurface,
 } from "./persona.js";
 import { REQ_SYSTEM_REF } from "./fixture.js";
@@ -190,6 +192,86 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		};
 		expect(res.ok).toBe(false);
 		expect(res.nextAction).toBe("dgk source discover");
+	});
+
+	it("`--live` errors helpfully when no browser driver is wired (offline build)", async () => {
+		// A build with no liveProviderFactory (e.g. no Chrome) must not pretend to scrape live.
+		const reg = buildRegistry({ statePath: tempStatePath() });
+		const pull = reg.get("requirements-pull");
+		if (!pull || "actions" in pull) throw new Error("verb not mounted");
+		// buildRegistry DOES wire a factory (puppeteer), so build a bare verb with none here.
+		const bareRecords = { loadManifest: () => ({ records: [] }) } as unknown as Parameters<
+			typeof createRequirementsPullCapability
+		>[0];
+		const bare = createRequirementsPullCapability(bareRecords, createRequirementsSourceProvider());
+		if ("actions" in bare) throw new Error("verb");
+		const res = (await bare.run({
+			args: { ref: REQ_SYSTEM_REF },
+			options: { live: true },
+			json: true,
+		})) as unknown as { ok: boolean; error?: string };
+		expect(res.ok).toBe(false);
+		expect(res.error).toBe("live_unavailable");
+	});
+
+	it("`--live` routes to the live provider (proven with a fake factory, no real browser)", async () => {
+		// With a factory wired, --live uses IT (not the offline fixture provider). We inject a
+		// fake factory returning a provider whose fetch is a canned RDF response — proving the
+		// wiring end-to-end without a real Chrome (there is none in this container).
+		const rdf = `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:jazz_rm="http://jazz.net/ns/rm#">
+			<rdf:Description rdf:about="https://alm.example/rm/resources/TX_10">
+				<dcterms:identifier>RN-LIVE</dcterms:identifier>
+				<dcterms:title>Regra viva</dcterms:title>
+				<rdf:type rdf:resource="http://jazz.net/ns/rm#BusinessRule"/>
+			</rdf:Description>
+		</rdf:RDF>`;
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reqbench-live-flag-"));
+		const configPath = path.join(dir, "sources.json");
+		fs.writeFileSync(
+			configPath,
+			JSON.stringify({
+				targets: [
+					{
+						identity: "efd",
+						url: "https://alm.example/rm/resources/TX_10",
+						session: { kind: "authenticated", principal: "analyst" },
+						attributes: { streamURI: "urn:stream:efd" },
+					},
+				],
+			}),
+		);
+		const liveFactory = vi.fn(async () =>
+			createRequirementsSourceProvider({
+				cacheRoot: dir,
+				sourcesConfigPath: configPath,
+				fetchImpl: (async () =>
+					new Response(rdf, {
+						status: 200,
+						headers: { "content-type": "application/rdf+xml" },
+					})) as unknown as typeof fetch,
+			}),
+		);
+		try {
+			const bundle = reqCapabilityBundle({
+				statePath: tempStatePath(),
+				sourcesConfigPath: configPath,
+			});
+			const verb = createRequirementsPullCapability(bundle.records, bundle.sourceProvider, {
+				sourcesConfigPath: configPath,
+				liveProviderFactory: liveFactory,
+			});
+			if ("actions" in verb) throw new Error("verb");
+			const res = (await verb.run({
+				args: { ref: REQ_SYSTEM_REF },
+				options: { live: true },
+				json: true,
+			})) as unknown as { ok: boolean; live: boolean; ingested: number };
+			expect(liveFactory).toHaveBeenCalledOnce(); // --live used the factory
+			expect(res.live).toBe(true);
+			expect(res.ingested).toBe(1); // the live RDF was ingested (RN-LIVE)
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
 	});
 
 	it("PULL → INGEST: pulling the chosen system turns its requirements into records", async () => {

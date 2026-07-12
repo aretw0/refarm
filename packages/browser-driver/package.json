@@ -1,0 +1,46 @@
+{
+	"name": "@refarm.dev/browser-driver",
+	"version": "0.1.0",
+	"private": false,
+	"description": "A light, injectable browser-login driver for web sources — sign in once (SSO/VPN), reuse the cookie session for authenticated fetches.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./puppeteer": {
+			"import": "./dist/puppeteer.js",
+			"types": "./dist/puppeteer.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@refarm.dev/source-web": "workspace:*"
+	},
+	"optionalDependencies": {
+		"puppeteer-core": "catalog:"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	},
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"license": "MIT"
+}

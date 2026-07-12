@@ -28,6 +28,52 @@ correction made in one process is visible to the next command. Set
 `DGK_REQUIREMENTS_STATE_PATH=/path/to/manifest.json` to record an isolated run.
 Set `DGK_COMMAND=/path/to/cli-name` to change the CLI command root.
 
+## Running live (a real scrape)
+
+Out of the box, `dgk requirements-pull web:efd` replays the **offline sample** in
+`.dgk/sources.json` (so everything works and is testable without a network). To scrape a
+**real** system, declare it in your ledger and add `--live`:
+
+1. **Declare your system** in `.dgk/sources.json` — its `url`, an `authenticated` session,
+   and the driver coordinate (for an IBM Jazz / DOORS-Next RM system, `componentURI` and
+   `streamURI`):
+
+   ```json
+   {
+     "targets": [
+       {
+         "identity": "efd",
+         "url": "https://your-alm.example/rm/resources/…",
+         "session": { "kind": "authenticated", "principal": "you" },
+         "attributes": {
+           "componentURI": "https://your-alm.example/rm/rm-projects/…/components/…",
+           "streamURI": "https://your-alm.example/rm/cm/stream/…"
+         }
+       }
+     ]
+   }
+   ```
+
+2. **Point at your Chrome** and a session directory, then pull live:
+
+   ```bash
+   export DGK_CHROME_PATH="/path/to/google-chrome"   # your installed Chrome
+   export DGK_SESSION_DIR="$HOME/.dgk/session"        # persistent profile + cookies
+   dgk requirements-pull web:efd --live
+   ```
+
+   A browser opens; complete your **VPN + SSO** login there. Login is **auto-detected**
+   (no keypress) — once you're through, the cookies are captured, persisted to
+   `$DGK_SESSION_DIR/auth-state.json`, and reused on the next run (no re-login until they
+   expire; an expired session mid-pull re-authenticates automatically). The requirements are
+   fetched over the **OSLC/RDF** contract, parsed, and merged — then `dgk requirements`
+   shows the MOC.
+
+The browser mechanism is the framework's (`@refarm.dev/browser-driver`) — any work, or an
+agent operator, reuses it. Only the OSLC glue (the RDF request + parser) is specific to this
+example. Without `--live`, or without a Chrome, nothing changes: the offline fixture path
+runs (`--live` on a build with no browser says so, it doesn't fail silently).
+
 ## Two layers
 
 - **Generic (platform, unchanged):** `source` / `records` / `vault` — the neutral chain

@@ -27,6 +27,9 @@ catalogs:
     oxfmt:
       specifier: ^0.58.0
       version: 0.58.0
+    puppeteer-core:
+      specifier: ^24.10.0
+      version: 24.43.1
     typescript:
       specifier: ^6.0.3
       version: 6.0.3
@@ -507,6 +510,9 @@ importers:
 
   examples/reqbench-t3:
     dependencies:
+      '@refarm.dev/browser-driver':
+        specifier: workspace:*
+        version: link:../../packages/browser-driver
       '@refarm.dev/capability-homestead-surface':
         specifier: workspace:*
         version: link:../../packages/capability-homestead-surface
@@ -651,6 +657,23 @@ importers:
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
+
+  packages/browser-driver:
+    dependencies:
+      '@refarm.dev/source-web':
+        specifier: workspace:*
+        version: link:../source-web
+    devDependencies:
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+    optionalDependencies:
+      puppeteer-core:
+        specifier: 'catalog:'
+        version: 24.43.1
 
   packages/capabilities:
     devDependencies:

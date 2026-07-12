@@ -340,6 +340,11 @@ function mergeRecords(manifest: RecordsManifest, incoming: KnowledgeRecord[]): R
 export interface RequirementsPullOptions {
 	login?: InteractiveLogin;
 	sourcesConfigPath?: string;
+	/** Build a LIVE source provider (browser-backed) for `--live`. Given the ref being pulled,
+	 * returns a provider whose fetch hits the real system. Absent → `--live` reports that live
+	 * mode isn't wired. This is where `dgk` injects the browser driver (block E); the offline
+	 * provider (the default `sourceProvider` arg) is used without `--live`. */
+	liveProviderFactory?: (ref: string) => Promise<IngestSourceProvider>;
 }
 
 /** Read the session the analyst DECLARED for a ref in their ledger (if any), to reuse as an
@@ -358,6 +363,63 @@ function declaredSessionForRef(
 // Local alias so declaredSessionForRef can default to the same ledger path resolver.
 const sourcesConfigPath0 = sourcesConfigPath;
 
+export interface LiveProviderOptions {
+	sourcesConfigPath?: string;
+	cacheRoot?: string;
+	/** Where the browser persists its profile + the cookie storageState (reused across runs). */
+	sessionDir?: string;
+	/** Path to Chrome (else CHROME_PATH / puppeteer's default lookup). */
+	chromePath?: string;
+	/** Run the browser headless (default false — the human needs to see the SSO/VPN login). */
+	headless?: boolean;
+}
+
+/**
+ * Build a `liveProviderFactory` for the pull verb: given a ref, it reads the target's declared
+ * URL from the ledger, drives the analyst's Chrome through the SSO/VPN login (reusing a
+ * persisted cookie session) via the GENERIC @refarm.dev/browser-driver, and returns a source
+ * provider whose OSLC fetch carries those cookies. The browser mechanism is the framework's
+ * (any work / an agent can reuse it); this only adds the OSLC glue on top. The browser is
+ * constructed only when `--live` is used (puppeteer-core imported lazily inside the driver).
+ */
+export function createLiveRequirementsProviderFactory(
+	options: LiveProviderOptions = {},
+): (ref: string) => Promise<IngestSourceProvider> {
+	return async (ref: string) => {
+		const identity = ref.includes(":") ? ref.slice(ref.indexOf(":") + 1) : ref;
+		const snapshots = loadWebSourceTargetsSync(options.sourcesConfigPath ?? sourcesConfigPath());
+		const target = snapshots[identity];
+		if (!target) {
+			throw new Error(
+				`LIVE_NO_TARGET: no target "${identity}" in your ledger — see \`dgk source discover\`.`,
+			);
+		}
+		const base = new URL(target.url);
+		const baseUrl = `${base.protocol}//${base.host}`;
+		// The framework's browser-login block: sign in once via the operator's Chrome, reuse the
+		// cookie session. puppeteer adapter imported lazily — only a live run pays for it.
+		const { createLiveFetch } = await import("@refarm.dev/browser-driver");
+		const { createPuppeteerSession } = await import("@refarm.dev/browser-driver/puppeteer");
+		const session = await createPuppeteerSession({
+			executablePath: options.chromePath,
+			userDataDir: options.sessionDir,
+			headless: options.headless,
+		});
+		const live = await createLiveFetch({
+			session,
+			baseUrl,
+			statePath: options.sessionDir ? path.join(options.sessionDir, "auth-state.json") : undefined,
+		});
+		// The provider re-wraps this cookie-carrying fetch with the OSLC contract (RDF headers +
+		// Configuration-Context), so the combination = authenticated OSLC GETs.
+		return createRequirementsSourceProvider({
+			cacheRoot: options.cacheRoot,
+			sourcesConfigPath: options.sourcesConfigPath,
+			fetchImpl: live.fetchImpl,
+		});
+	};
+}
+
 /** The T3 persona verb: `requirements-pull <system>` — the real ingest step of the journey.
  * It LOGS IN to the chosen system (login-garantido: reuse a valid declared session or run
  * the injected driver), materializes it (from the analyst's ledger), parses its requirements,
@@ -375,6 +437,13 @@ export function createRequirementsPullCapability(
 		name: "requirements-pull",
 		summary: "Pull a system's requirements into the bench (login + materialize + ingest + persist)",
 		args: [{ name: "ref", required: true }],
+		options: [
+			{
+				name: "live",
+				kind: "boolean",
+				summary: "Scrape the real system via the browser login (else replay the offline fixture)",
+			},
+		],
 		transports: { http: { path: "/requirements/pull" } },
 		renderers: { tui: { section: "requirements" } },
 		async run(input): Promise<CapabilityEnvelope> {
@@ -388,6 +457,18 @@ export function createRequirementsPullCapability(
 					nextAction: "dgk source discover",
 				});
 			}
+			const live = input.options.live === true;
+			if (live && !options.liveProviderFactory) {
+				return buildJsonErrorEnvelope({
+					command: "requirements-pull",
+					operation: "pull",
+					error: "live_unavailable",
+					message:
+						"--live needs a browser driver wired (puppeteer-core + Chrome). This build has none; " +
+						"run without --live for the offline fixture.",
+					nextAction: "dgk requirements-pull " + ref,
+				});
+			}
 			try {
 				// LOGIN-GARANTIDO: authenticate before scraping. Reuse a still-valid declared
 				// session; otherwise the injected driver signs in. This gate is what makes the
@@ -398,11 +479,15 @@ export function createRequirementsPullCapability(
 					existing: declared.existing,
 					login,
 				});
-				// offline:false so a wired OSLC driver fetches the system LIVE; with no driver the
-				// provider still replays the fixture, so out-of-the-box behavior is unchanged.
+				// --live: the browser-backed provider hits the real system; otherwise the default
+				// (offline) provider replays the fixture. offline:false lets a wired driver fetch;
 				// parseRequirements dispatches HTML (fixture) vs RDF/XML (live OSLC) by media type.
+				const provider =
+					live && options.liveProviderFactory
+						? await options.liveProviderFactory(ref)
+						: sourceProvider;
 				const ingested = await ingestSourceToRecords({
-					sourceProvider,
+					sourceProvider: provider,
 					ref,
 					parse: parseRequirements,
 					offline: false,
@@ -419,6 +504,7 @@ export function createRequirementsPullCapability(
 							ingested: ingested.records.length,
 							persisted: false,
 							dryRun: true,
+							live,
 							loggedIn: auth.loggedIn,
 							principal: auth.session.principal,
 						},
@@ -436,6 +522,7 @@ export function createRequirementsPullCapability(
 						ingested: ingested.records.length,
 						persisted: true,
 						total: merged.records.length,
+						live,
 						loggedIn: auth.loggedIn,
 						principal: auth.session.principal,
 					},
