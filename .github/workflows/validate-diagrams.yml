@@ -5,12 +5,14 @@ on:
     paths:
       - "docs/**/*.mermaid"
       - "specs/diagrams/**/*.mermaid"
+      - "examples/**/*.mermaid"
   push:
     branches:
       - main
     paths:
       - "docs/**/*.mermaid"
       - "specs/diagrams/**/*.mermaid"
+      - "examples/**/*.mermaid"
   # Manually triggered or scheduled validation
   workflow_dispatch:
   schedule:
@@ -33,6 +35,7 @@ jobs:
       validation-cache-files: |
         docs/**/*.mermaid
         specs/diagrams/**/*.mermaid
+        examples/**/*.mermaid
         specs/diagrams/mermaid.config.json
         scripts/check-diagrams.mjs
         scripts/ci/install-puppeteer-browser.mjs

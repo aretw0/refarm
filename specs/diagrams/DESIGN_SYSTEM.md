@@ -10,18 +10,16 @@ This file defines how diagram styling is centralized in Refarm.
 
 All SVG generation runs through `scripts/check-diagrams.mjs`, which applies the global config automatically.
 
-## Canonical vs Legacy Scripts
+## Scripts
 
 | Command | Script | Theme | Status |
 |---------|--------|-------|--------|
-| `npm run diagrams:fix` | `scripts/check-diagrams.mjs` | `mermaid.config.json` (branded) | **Canonical — use this** |
-| `npm run diagrams:check` | `scripts/check-diagrams.mjs` | `mermaid.config.json` (branded) | CI verification |
-| `npm run diagrams:generate` | `scripts/ci/generate-diagrams.mjs` | "neutral" (Mermaid default) | **Legacy — do not use for new diagrams** |
-| `npm run diagrams:watch` | `scripts/ci/generate-diagrams.mjs` | "neutral" | **Legacy** |
+| `npm run diagrams:fix` | `scripts/check-diagrams.mjs` | `mermaid.config.json` (branded) | **Regenerate — use this after editing a `.mermaid`** |
+| `npm run diagrams:check` | `scripts/check-diagrams.mjs --ci` | `mermaid.config.json` (branded) | CI verification (regenerate + drift check) |
 
-> `diagrams:generate` / `diagrams:watch` predate the design system and apply the Mermaid "neutral"
-> theme instead of the branded token set. Do not use them for new diagrams. They remain in
-> `package.json` for backwards-compatibility only.
+Both scan `docs/`, `specs/diagrams/`, and `examples/` (each example ships its own diagram set
+next to its code). The old neutral-theme `diagrams:generate` / `diagrams:watch` scripts were
+removed — they predated the design system and applied the wrong theme.
 
 ## Design Tokens (Current)
 

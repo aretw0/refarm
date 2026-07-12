@@ -3,12 +3,14 @@
 /**
  * Validate and regenerate Mermaid diagrams
  *
- * Regenerates SVG files from .mermaid sources.
- * On CI: Run with --ci flag to verify no uncommitted changes after regeneration.
+ * Regenerates SVG files from .mermaid sources under docs/, specs/diagrams/, and examples/
+ * (each example ships its own diagram set next to its code). Uses the branded, deterministic
+ * mermaid.config.json so re-renders are byte-stable.
  *
  * Usage:
  *   node scripts/check-diagrams.mjs          // Regenerate all diagrams
- *   node scripts/check-diagrams.mjs --ci     // Regenerate and verify no changes needed
+ *   node scripts/check-diagrams.mjs --fix    // Same (explicit; what `diagrams:fix` runs)
+ *   node scripts/check-diagrams.mjs --ci     // Regenerate + fail (or warn) if SVGs drifted
  */
 
 import { execSync, execFileSync } from "child_process";
@@ -21,10 +23,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const docsDir = path.join(projectRoot, "docs");
 const specsDiagramsDir = path.join(projectRoot, "specs", "diagrams");
+// Each example ships its OWN diagram set next to its code (examples/<name>/diagrams/*.mermaid),
+// so the architecture picture travels with the example. The walk below finds them recursively.
+const examplesDir = path.join(projectRoot, "examples");
 const mermaidConfigFile = path.join(specsDiagramsDir, "mermaid.config.json");
 
 const CI_MODE = process.argv.includes("--ci");
+// --fix is an explicit alias for the default "regenerate all" behavior (kept so the
+// `diagrams:fix` npm script is honest about what it does).
+const FIX_MODE = process.argv.includes("--fix");
 const STRICT_SVG_SYNC = process.env.REFARM_DIAGRAM_SYNC_STRICT !== "0";
+// Dirs the recursive walk must never descend into (build output, deps, generated).
+const SKIP_DIRS = new Set(["node_modules", "dist", "dist-web", "build", ".turbo", "coverage"]);
 
 function scriptCommand(script) {
   return packageScriptCommand(script, { cwd: projectRoot }).display;
@@ -33,7 +43,7 @@ function scriptCommand(script) {
 // Find all .mermaid files
 function findMermaidFiles() {
   const mermaidFiles = [];
-  const searchRoots = [docsDir, specsDiagramsDir];
+  const searchRoots = [docsDir, specsDiagramsDir, examplesDir];
 
   function walkDir(dir) {
     const files = fs.readdirSync(dir);
@@ -41,7 +51,9 @@ function findMermaidFiles() {
       const fullPath = path.join(dir, file);
       const stat = fs.statSync(fullPath);
 
-      if (stat.isDirectory() && !file.startsWith(".")) {
+      // Skip dot-dirs (.astro/.turbo/.dgk) AND build/dep dirs (node_modules/dist/…) — the
+      // latter matters now that we walk examples/, whose node_modules would otherwise be scanned.
+      if (stat.isDirectory() && !file.startsWith(".") && !SKIP_DIRS.has(file)) {
         walkDir(fullPath);
       } else if (file.endsWith(".mermaid")) {
         mermaidFiles.push(fullPath);
@@ -134,10 +146,10 @@ function validateDiagrams() {
       console.error("⚠️  Could not check git status (not in a git repo?)");
       // Don't fail on CI verification if not in git repo
     }
+  } else if (FIX_MODE) {
+    console.log("✅ All diagrams regenerated (--fix). Commit the updated .svg files.");
   } else {
-    console.log(
-      "✅ All diagrams regenerated. Please commit the .svg files."
-    );
+    console.log("✅ All diagrams regenerated. Please commit the .svg files.");
   }
 }
 
