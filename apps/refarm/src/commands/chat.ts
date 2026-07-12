@@ -667,16 +667,13 @@ export async function runSessionRepl(
 						const cancelController = createTurnCancelController({
 							onResult: (result) => {
 								process.stdout.write(`\n${chalk.yellow(result.message)}\n`);
-								// Cancelling an agent turn epoch-interrupts the WASM, and the agent's
-								// runner tears down on that trap. The agent needs a runtime RESTART to
-								// recover (a plain `/reload agent` won't — the agent plugin requires a
-								// restart to reload), so the NEXT turn may hang until then. Tell the
-								// operator the real recovery up front.
+								// Cancelling epoch-interrupts the WASM and tears down the agent's
+								// runner, but the runtime respawns a fresh instance in ~1s, so the
+								// next turn just works. Only if the respawn itself fails (rare) would
+								// a `refarm runtime restart` be needed — so keep the note light.
 								if (result.status === "cancelled") {
 									process.stdout.write(
-										chalk.dim(
-											"(the agent restarts on cancel — if the next turn hangs, run `refarm runtime restart`)\n",
-										),
+										chalk.dim("(the agent restarts automatically — give it a moment)\n"),
 									);
 								}
 							},
