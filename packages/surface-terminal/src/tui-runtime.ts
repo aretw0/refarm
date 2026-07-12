@@ -6,7 +6,11 @@ import type {
 	CapabilityRegistry,
 	SurfaceItem,
 } from "@refarm.dev/capabilities";
-import { tuiSurfaceModel } from "@refarm.dev/capabilities";
+import {
+	ambientActivitySink,
+	tuiSurfaceModel,
+	type ProcessActivity,
+} from "@refarm.dev/capabilities";
 import chalk from "chalk";
 
 /**
@@ -140,6 +144,35 @@ function renderEnvelope(envelope: CapabilityEnvelope, write: (line: string) => v
 	}
 }
 
+/**
+ * Show the surface-neutral activity signal in the (line-based) TUI while a verb runs.
+ * Subscribes to the ambient ActivitySink and writes one line per phase — `started`
+ * ("⏳ label"), `progress` ("   … note"), `finished` ("✓/✗ label") — via the injected
+ * `write`. A cursor spinner would fight readline, so a line trace is the right TUI
+ * affordance. Returns a detach function; call it when the verb completes. Origin- and
+ * work-type-agnostic (a login, a build, an agent turn all render the same).
+ */
+function renderActivityInTui(write: (line: string) => void): () => void {
+	const onEvent = (event: ProcessActivity) => {
+		switch (event.phase) {
+			case "started":
+				write(chalk.dim(`  ⏳ ${event.label}…`));
+				break;
+			case "progress":
+				if (event.note) write(chalk.dim(`     … ${event.note}`));
+				break;
+			case "finished":
+				write(
+					event.ok === false
+						? chalk.red(`  ✗ ${event.label}`)
+						: chalk.dim(`  ✓ ${event.label}`),
+				);
+				break;
+		}
+	};
+	return ambientActivitySink.subscribe(onEvent);
+}
+
 /** Default invoker: look the verb up in the registry and call its `run()`. */
 function registryInvoke(
 	registry: CapabilityRegistry,
@@ -190,7 +223,16 @@ export async function runTui(
 				io.write(chalk.red(`  Unknown selection: ${line.trim() || "(empty)"}`));
 				continue;
 			}
-			const envelope = await invoke(chosen.item.name, { args: {}, options: {}, json: false });
+			// Surface the activity signal while the verb runs, so the operator sees that
+			// work is happening instead of a frozen menu. The TUI is line-based (a cursor
+			// spinner fights readline), so write a line per activity phase via io.write.
+			const detach = renderActivityInTui(io.write);
+			let envelope: CapabilityEnvelope;
+			try {
+				envelope = await invoke(chosen.item.name, { args: {}, options: {}, json: false });
+			} finally {
+				detach();
+			}
 			renderEnvelope(envelope, io.write);
 		}
 	} finally {

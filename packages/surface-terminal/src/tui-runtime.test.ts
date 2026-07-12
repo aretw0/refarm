@@ -1,4 +1,8 @@
-import { createCapabilityRegistry, type CapabilityEnvelope } from "@refarm.dev/capabilities";
+import {
+	createCapabilityRegistry,
+	withActivity,
+	type CapabilityEnvelope,
+} from "@refarm.dev/capabilities";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import { describe, expect, it } from "vitest";
 
@@ -102,5 +106,27 @@ describe("runTui (the interactive TUI runtime)", () => {
 		const { io, output } = scriptedIo(["only", "q"]);
 		await runTui(registry, { io });
 		expect(output.join("\n")).toContain("✓ ok");
+	});
+
+	it("shows the activity signal while a verb runs (the operator sees 'working')", async () => {
+		const { io, output } = scriptedIo(["status", "q"]);
+		// The invoked verb wraps its slow work in withActivity — the TUI must render the
+		// activity so the operator is not staring at a frozen menu.
+		await runTui(fixtureRegistry(), {
+			io,
+			invoke: async (): Promise<CapabilityEnvelope> =>
+				withActivity(
+					"Talking to the runtime",
+					async (report) => {
+						report("waiting for reply");
+						return buildJsonSuccessEnvelope({ command: "status" });
+					},
+					{ kind: "network" },
+				),
+		});
+		const text = output.join("\n");
+		expect(text).toContain("⏳ Talking to the runtime");
+		expect(text).toContain("… waiting for reply");
+		expect(text).toContain("✓ Talking to the runtime");
 	});
 });
