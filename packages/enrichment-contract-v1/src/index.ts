@@ -9,4 +9,9 @@ export {
 	type ReferenceEnrichmentEntry,
 	type ReferenceEnrichmentProviderOptions,
 } from "./reference.js";
+export {
+	createRulesEnrichmentProvider,
+	type EnrichmentRule,
+	type RulesEnrichmentProviderOptions,
+} from "./rules.js";
 export * from "./types.js";
