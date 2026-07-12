@@ -12,4 +12,13 @@ export {
 	type WebSourceTargetConfig,
 	type WebSourceTargetsConfig,
 } from "./targets.js";
+export {
+	ensureAuthenticatedSession,
+	fixtureLogin,
+	isSessionValid,
+	type EnsureSessionOptions,
+	type EnsureSessionResult,
+	type InteractiveLogin,
+	type SessionTarget,
+} from "./session.js";
 export * from "./types.js";

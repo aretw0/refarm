@@ -125,13 +125,58 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 			args: { ref: REQ_SYSTEM_REF },
 			options: {},
 			json: true,
-		})) as unknown as { ingested: number; persisted: boolean };
+		})) as unknown as {
+			ingested: number;
+			persisted: boolean;
+			loggedIn: boolean;
+			principal?: string;
+		};
 		expect(res.persisted).toBe(true);
 		expect(res.ingested).toBe(3);
+		// LOGIN-GARANTIDO: the sample ships a valid declared session (no expiry), so the pull
+		// REUSES it — no fresh login — and reports the authenticated principal.
+		expect(res.loggedIn).toBe(false);
+		expect(res.principal).toBe("analyst");
 
 		// A fresh registry over the SAME state sees the pulled requirements (persistence).
 		const after = await harness.runVerb(buildRegistry({ statePath }), "requirements");
-		expect((after.moc as string)).toContain("Identificador do CNPJ da Escrituração");
+		expect(after.moc as string).toContain("Identificador do CNPJ da Escrituração");
+	});
+
+	it("LOGIN-GARANTIDO: pull runs the login when the ledger has no valid session", async () => {
+		// The analyst points at a system with no cached session → the injected driver signs
+		// in before scraping. Here we prove the gate FIRES: a temp ledger with a session-less
+		// target makes the pull run `login` (the fixture), report loggedIn:true, and still
+		// ingest. A real deployment injects a browser driver in place of the fixture.
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reqbench-nosession-"));
+		const configPath = path.join(dir, "sources.json");
+		fs.writeFileSync(
+			configPath,
+			JSON.stringify({
+				targets: [
+					{
+						identity: "efd",
+						url: "https://alm.example/efd",
+						// A single typed requirement, and NO session declared → login must run.
+						body: '<article data-req="RN-1" data-type="regra-de-negocio" data-title="Regra"></article>',
+						mediaType: "text/html",
+					},
+				],
+			}),
+		);
+		const statePath = tempStatePath();
+		const reg = buildRegistry({ statePath, sourcesConfigPath: configPath });
+		const pull = reg.get("requirements-pull");
+		if (!pull || "actions" in pull) throw new Error("verb not mounted");
+
+		const res = (await pull.run({
+			args: { ref: REQ_SYSTEM_REF },
+			options: {},
+			json: true,
+		})) as unknown as { ok: boolean; ingested: number; loggedIn: boolean; principal?: string };
+		expect(res.ok).toBe(true);
+		expect(res.loggedIn).toBe(true); // no valid session → the driver signed in
+		expect(res.ingested).toBe(1);
 	});
 
 	it("`requirements-pull` errors helpfully with no ref", async () => {
@@ -201,13 +246,16 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(enriched.ok).not.toBe(false);
 		// The seed has requirements mentioning CNPJ, so at least one record was enriched.
 		const diagnostics = enriched.diagnostics as { enriched?: number } | undefined;
-		expect((diagnostics?.enriched ?? 0)).toBeGreaterThan(0);
+		expect(diagnostics?.enriched ?? 0).toBeGreaterThan(0);
 	});
 
 	it("the MOC groups requirements by TYPE (regra-de-negócio / caso-de-uso / funcional)", async () => {
 		// A real requirements MOC is organized by artifact type, not just review state.
 		// The bench groups by field:tipo — the generic domain-dimension lens.
-		const env = await harness.runVerb(buildRegistry({ statePath: tempStatePath() }), "requirements");
+		const env = await harness.runVerb(
+			buildRegistry({ statePath: tempStatePath() }),
+			"requirements",
+		);
 		const moc = env.moc as string;
 		expect(moc).toContain("## Regras de Negócio");
 		expect(moc).toContain("## Casos de Uso");
@@ -220,10 +268,15 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 	it("the MOC renders the requirement GRAPH — a use case links to the rule it references", async () => {
 		// The CDU/FUN reference the CNPJ business rule; the MOC shows those tipped links as
 		// navigable wikilinks under each requirement (the vault's alm_link_relations shape).
-		const env = await harness.runVerb(buildRegistry({ statePath: tempStatePath() }), "requirements");
+		const env = await harness.runVerb(
+			buildRegistry({ statePath: tempStatePath() }),
+			"requirements",
+		);
 		const moc = env.moc as string;
 		// Under the use case, a nested relation to the CNPJ rule, by the target's title.
-		expect(moc).toContain("references → [[record-req-rn632504|Identificador do CNPJ da Escrituração]]");
+		expect(moc).toContain(
+			"references → [[record-req-rn632504|Identificador do CNPJ da Escrituração]]",
+		);
 		// And the web HTML projects the same relation as a nested <li> with a link.
 		const html = renderRequirementsMocHtml({
 			by: "field:tipo",

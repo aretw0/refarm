@@ -19,7 +19,14 @@ import {
 	createRulesEnrichmentProvider,
 	type EnrichmentRule,
 } from "@refarm.dev/enrichment-contract-v1";
-import { createWebSourceProvider, loadWebSourceTargetsSync } from "@refarm.dev/source-web";
+import {
+	createWebSourceProvider,
+	ensureAuthenticatedSession,
+	fixtureLogin,
+	loadWebSourceTargetsSync,
+	type InteractiveLogin,
+	type WebSourceSessionEvidence,
+} from "@refarm.dev/source-web";
 import { fileURLToPath } from "node:url";
 import { mkdtempSync } from "node:fs";
 import os from "node:os";
@@ -37,7 +44,12 @@ import { reqManifest } from "./fixture.js";
  * text mentions them. The engine is generic (@refarm.dev/enrichment-contract-v1); these
  * rules are the analyst's fiscal vocabulary. Swap them for yours. */
 const REQ_ENRICHMENT_RULES: EnrichmentRule[] = [
-	{ id: "tag-cnpj", matchSource: ["body", "title"], matchPattern: /\bCNPJ\b/, outputTag: "req/cnpj" },
+	{
+		id: "tag-cnpj",
+		matchSource: ["body", "title"],
+		matchPattern: /\bCNPJ\b/,
+		outputTag: "req/cnpj",
+	},
 	{
 		id: "tag-credito",
 		matchSource: "body",
@@ -249,17 +261,46 @@ function mergeRecords(manifest: RecordsManifest, incoming: KnowledgeRecord[]): R
 	return { ...manifest, records: [...byId.values()] };
 }
 
+/** Options for the pull verb. `login` is the LOGIN-GARANTIDO driver — the fixture logs in
+ * instantly (offline, out-of-the-box); the analyst swaps a real light browser driver later
+ * (their `dgk` binary injects it) without the verb changing. */
+export interface RequirementsPullOptions {
+	login?: InteractiveLogin;
+	sourcesConfigPath?: string;
+}
+
+/** Read the session the analyst DECLARED for a ref in their ledger (if any), to reuse as an
+ * already-known session — so a still-valid declared session is honored and login is skipped.
+ * The ref is `web:<identity>`; the ledger keys targets by identity. */
+function declaredSessionForRef(
+	ref: string,
+	sourcesConfigPath?: string,
+): { identity: string; credentialRef?: string; existing?: WebSourceSessionEvidence } {
+	const identity = ref.includes(":") ? ref.slice(ref.indexOf(":") + 1) : ref;
+	const snapshots = loadWebSourceTargetsSync(sourcesConfigPath ?? sourcesConfigPath0());
+	const snapshot = snapshots[identity];
+	return { identity, credentialRef: snapshot?.session?.credentialRef, existing: snapshot?.session };
+}
+
+// Local alias so declaredSessionForRef can default to the same ledger path resolver.
+const sourcesConfigPath0 = sourcesConfigPath;
+
 /** The T3 persona verb: `requirements-pull <system>` — the real ingest step of the journey.
- * It materializes the chosen system (from the analyst's ledger), parses its requirements,
- * merges them into the manifest, and persists. This is what makes "pick EFD → pull → the
- * requirements appear" a real command, not just a helper: discover → THIS → analyze/MOC. */
+ * It LOGS IN to the chosen system (login-garantido: reuse a valid declared session or run
+ * the injected driver), materializes it (from the analyst's ledger), parses its requirements,
+ * merges them into the manifest, and persists. "pick EFD → pull → the requirements appear"
+ * is a real command: discover → login+ingest HERE → analyze/MOC. */
 export function createRequirementsPullCapability(
 	recordsDeps: RecordsCommandDeps,
 	sourceProvider: IngestSourceProvider,
+	options: RequirementsPullOptions = {},
 ): CapabilityDescriptor {
+	// The out-of-the-box driver is the fixture (instant, offline). A real deployment injects
+	// a browser driver here; the gate below is identical either way.
+	const login = options.login ?? fixtureLogin();
 	return {
 		name: "requirements-pull",
-		summary: "Pull a system's requirements into the bench (materialize + ingest + persist)",
+		summary: "Pull a system's requirements into the bench (login + materialize + ingest + persist)",
 		args: [{ name: "ref", required: true }],
 		transports: { http: { path: "/requirements/pull" } },
 		renderers: { tui: { section: "requirements" } },
@@ -275,6 +316,15 @@ export function createRequirementsPullCapability(
 				});
 			}
 			try {
+				// LOGIN-GARANTIDO: authenticate before scraping. Reuse a still-valid declared
+				// session; otherwise the injected driver signs in. This gate is what makes the
+				// pull honest — you can't ingest a system you're not authenticated to.
+				const declared = declaredSessionForRef(ref, options.sourcesConfigPath);
+				const auth = await ensureAuthenticatedSession({
+					target: { identity: declared.identity, credentialRef: declared.credentialRef },
+					existing: declared.existing,
+					login,
+				});
 				const ingested = await ingestSourceToRecords({
 					sourceProvider,
 					ref,
@@ -287,7 +337,14 @@ export function createRequirementsPullCapability(
 						operation: "pull",
 						nextCommand: "dgk requirements",
 						nextCommands: ["dgk requirements"],
-						extra: { ref, ingested: ingested.records.length, persisted: false, dryRun: true },
+						extra: {
+							ref,
+							ingested: ingested.records.length,
+							persisted: false,
+							dryRun: true,
+							loggedIn: auth.loggedIn,
+							principal: auth.session.principal,
+						},
 					});
 				}
 				const merged = mergeRecords(recordsDeps.loadManifest(), ingested.records);
@@ -297,7 +354,14 @@ export function createRequirementsPullCapability(
 					operation: "pull",
 					nextCommand: "dgk requirements",
 					nextCommands: ["dgk requirements"],
-					extra: { ref, ingested: ingested.records.length, persisted: true, total: merged.records.length },
+					extra: {
+						ref,
+						ingested: ingested.records.length,
+						persisted: true,
+						total: merged.records.length,
+						loggedIn: auth.loggedIn,
+						principal: auth.session.principal,
+					},
 				});
 			} catch (error) {
 				return buildJsonErrorEnvelope({
@@ -305,7 +369,8 @@ export function createRequirementsPullCapability(
 					operation: "pull",
 					error: "pull_failed",
 					message: error instanceof Error ? error.message : String(error),
-					nextAction: "Check the ref is one `dgk source discover` lists, and its snapshot has a body.",
+					nextAction:
+						"Check the ref is one `dgk source discover` lists, and its snapshot has a body.",
 				});
 			}
 		},

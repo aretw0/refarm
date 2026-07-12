@@ -46,9 +46,13 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 				deps,
 				extensions: [
 					createRequirementsCapability(records),
-					// The real ingest step: `requirements-pull <system>` materializes + ingests +
-					// persists, so the journey (discover → pull → analyze/MOC) runs as commands.
-					createRequirementsPullCapability(records, sourceProvider),
+					// The real ingest step: `requirements-pull <system>` LOGS IN then materializes
+					// + ingests + persists, so the journey (discover → pull → analyze/MOC) runs as
+					// commands. It reads the analyst's declared session from the SAME ledger the
+					// source provider uses, so a still-valid session is honored (login-garantido).
+					createRequirementsPullCapability(records, sourceProvider, {
+						sourcesConfigPath: options.sourcesConfigPath,
+					}),
 				],
 			};
 		},
