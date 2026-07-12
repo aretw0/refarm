@@ -6,14 +6,16 @@ import {
 	probeRuntimeLiveness as probeLivenessWith,
 	probeRuntimeReadiness as probeReadinessWith,
 	probeRuntimeReady as probeReadyWith,
+	waitForRuntimeOutcome as waitForOutcomeWith,
 	waitForRuntimeReady as waitForReadyWith,
 	type RuntimeReadinessProbe,
 	type RuntimeReadinessWaitOptions,
+	type RuntimeWaitOutcome,
 } from "@refarm.dev/runtime-operator";
 
 import { resolveSidecarUrl } from "./sidecar-url.js";
 
-export type { RuntimeReadinessProbe, RuntimeReadinessWaitOptions };
+export type { RuntimeReadinessProbe, RuntimeReadinessWaitOptions, RuntimeWaitOutcome };
 
 /** The refarm app's sidecar URL, resolved from env → fs (the SYNC resolver — matches
  * the pre-extraction behaviour, which did not touch the tractor db on the probe path).
@@ -41,4 +43,13 @@ export async function waitForRuntimeReady(
 	options: RuntimeReadinessWaitOptions = {},
 ): Promise<boolean> {
 	return waitForReadyWith(refarmSidecar, options);
+}
+
+/** Like {@link waitForRuntimeReady} but returns WHY the wait ended (ready /
+ * timed-out-alive / timed-out-dead), so autostart can narrate a slow boot honestly
+ * instead of always reporting a timeout as failure. */
+export async function waitForRuntimeOutcome(
+	options: RuntimeReadinessWaitOptions = {},
+): Promise<RuntimeWaitOutcome> {
+	return waitForOutcomeWith(refarmSidecar, options);
 }

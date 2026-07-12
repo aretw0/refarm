@@ -108,14 +108,71 @@ export async function waitForRuntimeReady(
 	sidecar: SidecarUrlSource,
 	options: RuntimeReadinessWaitOptions = {},
 ): Promise<boolean> {
+	return (await waitForRuntimeOutcome(sidecar, options)).ready;
+}
+
+/** Why a readiness wait ended — the honest three-way distinction a naked boolean lost.
+ * `ready`: both endpoints answered. `timed-out-alive`: the deadline passed but the daemon
+ * was REACHING back (endpoints connecting, just not ready yet) — it is booting, not dead.
+ * `timed-out-dead`: the deadline passed and nothing ever answered (connection refused
+ * throughout) — the daemon is not there. The last two look identical to a boolean, but a
+ * surface must narrate them differently: "still starting…" vs "failed to start". */
+export type RuntimeWaitStatus = "ready" | "timed-out-alive" | "timed-out-dead";
+
+export interface RuntimeWaitOutcome {
+	ready: boolean;
+	status: RuntimeWaitStatus;
+	/** How long the wait ran, ms. */
+	elapsedMs: number;
+	/** The last probe seen — carries the endpoint error/status for diagnostics. */
+	lastProbe?: RuntimeReadinessProbe;
+}
+
+/** Does this probe error mean "nobody is listening" (daemon absent) rather than "someone
+ * answered but not ready / slowly"? A refused/reset/unreachable connection = dead; a
+ * timeout or an HTTP status = something IS there, still coming up. */
+function probeIndicatesDead(probe: RuntimeReadinessProbe): boolean {
+	if (probe.status !== undefined) return false; // an HTTP response came back → alive
+	const error = probe.error ?? "";
+	return /ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENOTFOUND| made no reply|socket hang up/i.test(
+		error,
+	);
+}
+
+/**
+ * Poll until the runtime is ready OR the deadline passes, returning WHY it stopped. On
+ * timeout it reports whether the daemon was alive-but-booting or genuinely absent, so the
+ * caller can narrate honestly instead of always crying "timed out". Tracks the last probe
+ * across the loop: if any poll saw a live-but-not-ready signal, a final timeout is
+ * `timed-out-alive`; if every poll was connection-refused, it is `timed-out-dead`.
+ */
+export async function waitForRuntimeOutcome(
+	sidecar: SidecarUrlSource,
+	options: RuntimeReadinessWaitOptions = {},
+): Promise<RuntimeWaitOutcome> {
 	const timeoutMs = options.timeoutMs ?? DEFAULT_RUNTIME_READY_TIMEOUT_MS;
 	const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_RUNTIME_READY_POLL_INTERVAL_MS;
 	const probeTimeoutMs = options.probeTimeoutMs ?? DEFAULT_RUNTIME_PROBE_TIMEOUT_MS;
-	const deadline = Date.now() + timeoutMs;
+	const start = Date.now();
+	const deadline = start + timeoutMs;
+
+	let sawAlive = false;
+	let lastProbe: RuntimeReadinessProbe | undefined;
 
 	while (Date.now() < deadline) {
-		if (await probeRuntimeReady(sidecar, probeTimeoutMs)) return true;
+		const probe = await probeRuntimeReadiness(sidecar, probeTimeoutMs);
+		lastProbe = probe;
+		if (probe.ready) {
+			return { ready: true, status: "ready", elapsedMs: Date.now() - start, lastProbe: probe };
+		}
+		if (!probeIndicatesDead(probe)) sawAlive = true;
 		await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
 	}
-	return false;
+
+	return {
+		ready: false,
+		status: sawAlive ? "timed-out-alive" : "timed-out-dead",
+		elapsedMs: Date.now() - start,
+		lastProbe,
+	};
 }

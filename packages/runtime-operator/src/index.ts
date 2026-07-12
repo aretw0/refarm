@@ -10,9 +10,12 @@ export {
 	probeRuntimeLiveness,
 	probeRuntimeReadiness,
 	probeRuntimeReady,
+	waitForRuntimeOutcome,
 	waitForRuntimeReady,
 	type RuntimeReadinessProbe,
 	type RuntimeReadinessWaitOptions,
+	type RuntimeWaitOutcome,
+	type RuntimeWaitStatus,
 	type SidecarUrlSource,
 } from "./readiness.js";
 export {

@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { probeRuntimeLiveness, probeRuntimeReadiness, probeRuntimeReady } from "./readiness.js";
+import {
+	probeRuntimeLiveness,
+	probeRuntimeReadiness,
+	probeRuntimeReady,
+	waitForRuntimeOutcome,
+} from "./readiness.js";
 
 const SIDECAR = "http://127.0.0.1:42001";
 
@@ -77,5 +82,57 @@ describe("runtime-operator readiness (injected sidecar URL)", () => {
 			ready: false,
 			error: "fetch failed: ECONNREFUSED: connect ECONNREFUSED 127.0.0.1:42001",
 		});
+	});
+});
+
+describe("waitForRuntimeOutcome (honest timeout: alive-but-booting vs dead)", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+		vi.unstubAllGlobals();
+	});
+
+	const fastWait = { timeoutMs: 40, pollIntervalMs: 5, probeTimeoutMs: 20 } as const;
+	const refused = () =>
+		new Error("fetch failed", {
+			cause: Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:42001"), {
+				code: "ECONNREFUSED",
+			}),
+		});
+
+	it("returns ready as soon as both endpoints answer", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValueOnce(response(true)).mockResolvedValueOnce(response(true)),
+		);
+		const outcome = await waitForRuntimeOutcome(SIDECAR, fastWait);
+		expect(outcome.ready).toBe(true);
+		expect(outcome.status).toBe("ready");
+	});
+
+	it("times out as DEAD when every probe is connection-refused", async () => {
+		// Nobody ever listens → the daemon is genuinely absent.
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(refused()));
+		const outcome = await waitForRuntimeOutcome(SIDECAR, fastWait);
+		expect(outcome.ready).toBe(false);
+		expect(outcome.status).toBe("timed-out-dead");
+	});
+
+	it("times out as ALIVE when the daemon answers but is never ready (503 booting)", async () => {
+		// /efforts/summary responds (a 503 = someone is there, still coming up) but never
+		// reaches ready before the deadline. This is the cold-boot case the old boolean lost.
+		vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response(false, 503)));
+		const outcome = await waitForRuntimeOutcome(SIDECAR, fastWait);
+		expect(outcome.ready).toBe(false);
+		expect(outcome.status).toBe("timed-out-alive");
+	});
+
+	it("treats a probe TIMEOUT (not a refusal) as alive-but-slow", async () => {
+		// An AbortError-style timeout means the socket connected but the response was slow —
+		// the daemon is up, just not answering in time. Must NOT be classified as dead.
+		const abort = Object.assign(new Error("The operation was aborted"), { name: "AbortError" });
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(abort));
+		const outcome = await waitForRuntimeOutcome(SIDECAR, fastWait);
+		expect(outcome.ready).toBe(false);
+		expect(outcome.status).toBe("timed-out-alive");
 	});
 });

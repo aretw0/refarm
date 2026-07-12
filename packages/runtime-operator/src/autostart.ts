@@ -41,14 +41,29 @@ export interface AutostartRuntimeSelection {
 	reason?: string;
 }
 
+/** The honest three-way result of waiting for the daemon (mirrors runtime-operator's
+ * RuntimeWaitStatus). When an app injects `probeRuntimeUntilOutcome`, a timeout can be
+ * narrated as "still starting" (alive) vs "failed to start" (dead) instead of one scary
+ * "timed out". */
+export type AutostartWaitStatus = "ready" | "timed-out-alive" | "timed-out-dead";
+export interface AutostartWaitOutcome {
+	ready: boolean;
+	status: AutostartWaitStatus;
+	elapsedMs?: number;
+}
+
 export interface AutoStartRuntimeDeps {
 	operator: OperatorChannel;
 	/** The resolved autostart mode. If absent, the machine treats it as "ask". */
 	mode?: AutostartMode;
 	/** Start the daemon (the app wires its spawn). */
 	spawnRuntime(repoRoot: string): void;
-	/** Poll until the daemon is ready (or a timeout). */
+	/** Poll until the daemon is ready (or a timeout). Legacy boolean form. */
 	probeRuntimeUntilReady(): Promise<boolean>;
+	/** Poll until ready, returning WHY it stopped — lets a timeout distinguish a daemon
+	 * that is still booting from one that never came up. Preferred over the boolean form
+	 * when the app can provide it; falls back to `probeRuntimeUntilReady` otherwise. */
+	probeRuntimeUntilOutcome?(): Promise<AutostartWaitOutcome>;
 	/** Which engine is active (for the label + start-command display). Optional. */
 	resolveRuntime?(repoRoot: string): AutostartRuntimeSelection;
 }
@@ -121,15 +136,37 @@ export async function autoStartRuntime(
 	}
 
 	const start = Date.now();
-	const ready = await deps.probeRuntimeUntilReady();
+	// Prefer the outcome-returning probe (honest timeout narration); fall back to the
+	// boolean form, treating a non-ready boolean as an unknown-liveness timeout.
+	const outcome: AutostartWaitOutcome = deps.probeRuntimeUntilOutcome
+		? await deps.probeRuntimeUntilOutcome()
+		: {
+				ready: await deps.probeRuntimeUntilReady(),
+				status: "timed-out-alive",
+			};
 	const elapsed = ((Date.now() - start) / 1000).toFixed(1);
 
-	if (ready) {
+	if (outcome.ready) {
 		process.stdout.write("  " + chalk.green("✓ Ready") + chalk.dim(` (${elapsed}s)`) + "\n\n");
 		return true;
 	}
 
-	process.stdout.write("  " + chalk.red("✗ Timed out") + "\n");
+	// A timeout is NOT automatically a failure. If the daemon was reaching back (alive but
+	// still booting), say so plainly — the operator can keep waiting or re-run — instead of
+	// the old scary "✗ Timed out" that lied when the runtime had actually come up.
+	if (outcome.status === "timed-out-alive") {
+		process.stdout.write(
+			"  " +
+				chalk.yellow("⧗ Still starting") +
+				chalk.dim(` (${elapsed}s — the daemon is up but not ready yet)`) +
+				"\n",
+		);
+		console.error(chalk.dim(`   Check again:  ${vocab.ensureCommand}`));
+		console.error(chalk.dim(`   Diagnose:     ${vocab.doctorCommand}`));
+		return false;
+	}
+
+	process.stdout.write("  " + chalk.red("✗ Failed to start") + "\n");
 	console.error(
 		chalk.dim(`   Run \`${vocab.doctorNextActionCommand}\` for the next recovery action.`),
 	);

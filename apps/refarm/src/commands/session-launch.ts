@@ -36,7 +36,12 @@ import {
 import { resolveSovereignConfig } from "../utils/sovereign-config.js";
 import { createPackageScriptCommand } from "./package-manager.js";
 import { resolveRuntimeLaunchCommand, startRuntimeProcess } from "./runtime-launcher.js";
-import { probeRuntimeReady, waitForRuntimeReady } from "./runtime-readiness.js";
+import {
+	probeRuntimeReady,
+	waitForRuntimeOutcome,
+	waitForRuntimeReady,
+	type RuntimeWaitOutcome,
+} from "./runtime-readiness.js";
 import {
 	RUNTIME_DOCTOR_COMMAND,
 	RUNTIME_DOCTOR_NEXT_ACTION_COMMAND,
@@ -64,6 +69,8 @@ export interface LaunchDeps {
 	operator: OperatorChannel;
 	spawnRuntime?(repoRoot: string): void;
 	probeRuntimeUntilReady?(): Promise<boolean>;
+	/** Honest wait: returns why the wait ended so a slow boot isn't reported as failure. */
+	probeRuntimeUntilOutcome?(): Promise<RuntimeWaitOutcome>;
 	spawnFarmhand?(repoRoot: string): void;
 	probeFarmhandUntilReady?(): Promise<boolean>;
 	resolveRuntime?(repoRoot: string): LaunchRuntimeSelection;
@@ -326,6 +333,12 @@ export function defaultLaunchDeps(): LaunchDeps {
 
 		async probeRuntimeUntilReady() {
 			return waitForRuntimeReady();
+		},
+
+		// The honest form: a cold boot that outruns the readiness deadline reports
+		// "still starting" (daemon alive) rather than a scary "timed out" that lies.
+		async probeRuntimeUntilOutcome() {
+			return waitForRuntimeOutcome();
 		},
 
 		async recoverProvider() {
