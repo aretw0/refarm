@@ -238,6 +238,29 @@ describe("records analyze — a neutral grouping+count envelope (persona-agnosti
 		expect(Array.isArray(env.groups)).toBe(true);
 		expect(typeof env.summary.total).toBe("number");
 	});
+
+	it("groups by an arbitrary field (field:<name>) — the generic domain-dimension lens", async () => {
+		// The injected records carry distinct externalKey values → one group each. This is
+		// how a rich MOC groups by a DOMAIN field (e.g. a requirement's `tipo`) without the
+		// dimension union hardcoding domain vocabulary.
+		const env = await analyze({ by: "field:externalKey" });
+		expect(env.by).toBe("field:externalKey");
+		const keys = env.groups.map((g) => g.key).sort();
+		expect(keys).toEqual(["REQ-1", "REQ-2"]);
+		expect(env.groups.find((g) => g.key === "REQ-1")?.count).toBe(1);
+	});
+
+	it("puts records missing the field under 'unspecified'", async () => {
+		const env = await analyze({ by: "field:tipo" });
+		// Neither injected record has a `tipo` field → all under one 'unspecified' group.
+		expect(env.groups.map((g) => g.key)).toEqual(["unspecified"]);
+		expect(env.groups[0]?.count).toBe(2);
+	});
+
+	it("falls back to reviewState for a malformed dimension (empty field name)", async () => {
+		const env = await analyze({ by: "field:" });
+		expect(env.by).toBe("reviewState");
+	});
 });
 
 describe("defineRecordsViewCapability — persona views over records analyze", () => {

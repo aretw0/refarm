@@ -90,6 +90,23 @@ const STATE_LABELS: Record<string, string> = {
 	unreviewed: "Sem revisão",
 };
 
+/** Labels for the requirement TYPES (the default MOC grouping = field:tipo). */
+const TYPE_LABELS: Record<string, string> = {
+	"regra-de-negocio": "Regras de Negócio",
+	"caso-de-uso": "Casos de Uso",
+	funcional: "Requisitos Funcionais",
+	"nao-funcional": "Requisitos Não Funcionais",
+	"visao-solucao": "Visão da Solução",
+	glossario: "Glossário",
+	unspecified: "Sem tipo",
+};
+
+/** A group's human label — types when grouping by tipo, review states otherwise. */
+function groupLabel(env: RecordsAnalyzeEnvelope, key: string, fallback: string): string {
+	if (env.by === "field:tipo") return TYPE_LABELS[key] ?? key;
+	return STATE_LABELS[key] ?? fallback;
+}
+
 function renderRequirementsMoc(env: RecordsAnalyzeEnvelope): string {
 	const lines: string[] = [
 		"# Mapa de Conteúdo — Requisitos",
@@ -101,7 +118,7 @@ function renderRequirementsMoc(env: RecordsAnalyzeEnvelope): string {
 		"",
 	];
 	for (const group of env.groups) {
-		lines.push(`## ${STATE_LABELS[group.key] ?? group.label} (${group.count})`);
+		lines.push(`## ${groupLabel(env, group.key, group.label)} (${group.count})`);
 		for (const record of group.records) {
 			lines.push(`- [[${record.link.replace(/\.md$/, "")}|${record.title}]]`);
 		}
@@ -138,7 +155,7 @@ export function renderRequirementsMocHtml(env: RecordsAnalyzeEnvelope): string {
 				)
 				.join("");
 			return `<div class="refarm-stack" data-moc-group="${escapeHtml(group.key)}">
-				<p class="refarm-eyebrow">${escapeHtml(STATE_LABELS[group.key] ?? group.label)} (${group.count})</p>
+				<p class="refarm-eyebrow">${escapeHtml(groupLabel(env, group.key, group.label))} (${group.count})</p>
 				<ul>${items}</ul>
 			</div>`;
 		})
@@ -160,12 +177,19 @@ export function createRequirementsCapability(
 		summary: "The analyst's requirements bench — a navigable Map of Content (product)",
 		records: recordsDeps,
 		httpPath: "/requirements/moc",
+		// Default grouping = by requirement TYPE (regra-de-negócio / caso-de-uso / funcional),
+		// the way a real requirements MOC is organized — over the generic field:<name> lens.
+		groupBy: "field:tipo",
 		renderers: {
 			tui: { section: "requirements" },
 			web: { route: "/requirements/moc", icon: "requirements" },
 		},
 		options: [
-			{ name: "by", kind: "string", summary: "Group by reviewState (default), type, or sourceRef" },
+			{
+				name: "by",
+				kind: "string",
+				summary: "Group by field:tipo (default), reviewState, type, or sourceRef",
+			},
 		],
 		project: (analyzed) => ({
 			by: analyzed.by,

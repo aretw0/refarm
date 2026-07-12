@@ -41,7 +41,15 @@ function emptyRecordsManifest(): RecordsManifest {
 
 /** The dimension a `records analyze` groups by. NEUTRAL — a work app never has to
  * declare a new one; these are the record-shape fields any records:v1 manifest has. */
-export type RecordsAnalyzeDimension = "reviewState" | "type" | "sourceRef";
+/** How `records analyze` groups. Besides the built-ins, `field:<name>` groups by any
+ * record field (e.g. `field:tipo` → group by the requirement's type) — the generic
+ * "group by a domain dimension" a rich MOC needs, without hardcoding domain fields. */
+export type RecordsAnalyzeDimension = "reviewState" | "type" | "sourceRef" | `field:${string}`;
+
+/** The field name a `field:<name>` dimension groups by, or null for the built-ins. */
+function analyzeDimensionField(by: RecordsAnalyzeDimension): string | null {
+	return by.startsWith("field:") ? by.slice("field:".length) : null;
+}
 
 export interface RecordsAnalyzeGroup {
 	key: string;
@@ -84,6 +92,18 @@ function groupKeysFor(record: ManifestRecord, by: RecordsAnalyzeDimension): stri
 		const types = Array.isArray(t) ? t : typeof t === "string" ? [t] : [];
 		return types.length > 0 ? types : ["untyped"];
 	}
+	const field = analyzeDimensionField(by);
+	if (field) {
+		// Group by an arbitrary record field. A string/number value is one group; an array
+		// puts the record in each of its groups; a missing/other value → "unspecified".
+		const value = record.fields?.[field];
+		if (typeof value === "string" || typeof value === "number") return [String(value)];
+		if (Array.isArray(value)) {
+			const keys = value.filter((v): v is string | number => typeof v === "string" || typeof v === "number");
+			return keys.length > 0 ? keys.map(String) : ["unspecified"];
+		}
+		return ["unspecified"];
+	}
 	// sourceRef
 	const refs = record.sourceRefs ?? [];
 	return refs.length > 0 ? refs : ["no-source"];
@@ -93,7 +113,12 @@ function normalizeAnalyzeDimension(
 	raw: unknown,
 	fallback: RecordsAnalyzeDimension = "reviewState",
 ): RecordsAnalyzeDimension {
-	return raw === "reviewState" || raw === "type" || raw === "sourceRef" ? raw : fallback;
+	if (raw === "reviewState" || raw === "type" || raw === "sourceRef") return raw;
+	// `field:<name>` with a non-empty field name is a valid grouping dimension.
+	if (typeof raw === "string" && raw.startsWith("field:") && raw.length > "field:".length) {
+		return raw as RecordsAnalyzeDimension;
+	}
+	return fallback;
 }
 
 /** Apply an enrichment result back onto a records manifest: for each record with

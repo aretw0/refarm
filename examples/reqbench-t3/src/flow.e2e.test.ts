@@ -147,11 +147,25 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect((diagnostics?.enriched ?? 0)).toBeGreaterThan(0);
 	});
 
+	it("the MOC groups requirements by TYPE (regra-de-negócio / caso-de-uso / funcional)", async () => {
+		// A real requirements MOC is organized by artifact type, not just review state.
+		// The bench groups by field:tipo — the generic domain-dimension lens.
+		const env = await harness.runVerb(buildRegistry({ statePath: tempStatePath() }), "requirements");
+		const moc = env.moc as string;
+		expect(moc).toContain("## Regras de Negócio");
+		expect(moc).toContain("## Casos de Uso");
+		expect(moc).toContain("## Requisitos Funcionais");
+		// Each type section lists its requirement by title.
+		expect(moc).toContain("Identificador do CNPJ da Escrituração"); // RN
+		expect(moc).toContain("Receber Aviso de Tratamento Manual"); // CDU
+	});
+
 	it("the requirements MOC is a navigable product, and reflects a correction", async () => {
 		const reg = buildRegistry({ statePath: tempStatePath() });
-		// Before: seed corpus (some draft, some reviewed).
 		const before = await harness.runVerb(reg, "requirements");
 		expect((before.moc as string).startsWith("# Mapa de Conteúdo — Requisitos")).toBe(true);
+		// The summary line counts review states even though the body groups by type.
+		expect(before.moc as string).toContain("Rascunhos a revisar");
 
 		// The analyst reviews a draft requirement (persists via shared records deps).
 		const corrected = await harness.runGroup(reg, "records", [
@@ -164,13 +178,9 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(corrected.nextCommand).toBe(`${DGK_COMMAND} records list`);
 		expect(corrected.nextCommands).toEqual([`${DGK_COMMAND} records list`]);
 
-		// After: the MOC's reviewed section now lists the just-reviewed requirement too.
+		// After: the summary reflects the review (one more reviewed, one fewer draft).
 		const after = await harness.runVerb(reg, "requirements");
-		const reviewed = (after.moc as string).slice(
-			(after.moc as string).indexOf("Requisitos revisados"),
-		);
-		expect(reviewed).toContain("Identificador do CNPJ da Escrituração");
-		expect(reviewed).toContain("Receber Aviso de Tratamento Manual");
+		expect(after.moc as string).toContain("2 Requisitos revisados");
 	});
 
 	it("persists analyst corrections across separate CLI registries when state is configured", async () => {
