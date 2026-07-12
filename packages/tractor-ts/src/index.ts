@@ -145,6 +145,7 @@ export class Tractor {
 			id: "system:security:trust-plugin",
 			title: "Trust Plugin Binary",
 			category: "Security",
+			capability: "system:security:manage-trust",
 			description: "Grant trusted-fast execution for a plugin fingerprint.",
 			handler: (args?: unknown) => {
 				const { pluginId, wasmHash, leaseMs } = args as {
@@ -161,6 +162,7 @@ export class Tractor {
 			id: "system:security:trust-plugin-once",
 			title: "Trust Plugin Manifest (Once)",
 			category: "Security",
+			capability: "system:security:manage-trust",
 			description: "Temporarily trust a plugin manifest for fast execution.",
 			handler: (args?: unknown) => {
 				const { manifest, wasmHash, acknowledgeRisk } = args as {
@@ -178,6 +180,7 @@ export class Tractor {
 			id: "system:security:revoke-plugin-trust",
 			title: "Revoke Plugin Trust",
 			category: "Security",
+			capability: "system:security:manage-trust",
 			description: "Revoke trusted-fast execution for a plugin fingerprint or all plugin grants.",
 			handler: (args?: unknown) => {
 				const { pluginId, wasmHash } = args as { pluginId: string; wasmHash?: string };

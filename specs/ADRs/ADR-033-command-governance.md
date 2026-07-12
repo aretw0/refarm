@@ -3,7 +3,21 @@
 ## Status
 Accepted
 
-**Progress**: The core Command Registry (§1) is implemented and shipping in `packages/tractor-ts/src/lib/command-host.ts` (`CommandHost` register/get/execute/getCommands, `CommandMetadata`, tests). TODO — NOT yet done: capability governance is NOT enforced (`execute()` never checks the `capability` field), §2 (cascade/decorate/override, web-shortcut delegation) is absent, and there is no parity in the now-authoritative Rust `tractor` (TS-only).
+**Progress**: Implemented in `packages/tractor-ts/src/lib/command-host.ts` (15 tests).
+§1 Command Registry (register/get/unregister/execute/getCommands, `CommandMetadata`).
+§2 Extensibility — `decorate(id, wrapper)` composes a new handler over the existing one
+(a plugin refines an intent, e.g. Vim over `editor:save`), decorations stack.
+§3 Governance — `execute()` now enforces `capability` via an injectable `CapabilityGate`:
+a gated command is denied (`CommandDeniedError` + `system:command_denied`) before the
+handler runs; `canExecute(id)` exposes the same decision for the UI; the sensitive
+`system:security:*` commands declare `capability: system:security:manage-trust`. The gate
+is optional (omit → permissive, back-compat); wiring a concrete gate to a caller-capability
+source is the remaining activation step. §4 Accessibility — `getCommands()` returns an
+`ariaLabel` (from category/title/description) + a `runnable` flag per command.
+Web-standard-shortcut delegation (part of §2) and a shell that consumes `shortcut`/`ariaLabel`
+are surface work, not registry work. NOTE: commands are a SURFACE concept (TS/browser); the
+authoritative Rust `tractor` governs plugin ADMISSION separately (trust + capability grants),
+so "Rust parity" is not applicable to this intent layer.
 
 **Date**: 2026-03-09
 
