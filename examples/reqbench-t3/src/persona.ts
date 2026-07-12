@@ -32,6 +32,7 @@ import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { createOslcFetchDriver, parseRequirementsFromRdf } from "./oslc.js";
 import { reqManifest } from "./fixture.js";
 
 /**
@@ -111,17 +112,63 @@ export interface RequirementsCapabilityOptions extends RequirementsStateOptions 
 	cacheRoot?: string;
 	/** Override the source-targets ledger path (tests point at a temp file). */
 	sourcesConfigPath?: string;
+	/** The HTTP impl the OSLC driver uses for a LIVE pull. Injected so a test drives it with a
+	 * canned RDF response and a real deployment binds it to an authenticated browser/session.
+	 * Absent = no live fetch wired (offline fixture replay, out-of-the-box). */
+	fetchImpl?: typeof fetch;
 }
 
-/** The analyst's source provider — reads their declared systems from the ledger. Exposed
- * so both the capability bundle and an ingest flow use the SAME provider (materialize a
- * pulled system, then parse it with parseRequirementsFromHtml). */
+/**
+ * Turn a pulled system's body into requirement records. Dispatches on media type: a live OSLC
+ * pull returns RDF/XML → the RDF parser; the offline fixture ships HTML → the HTML parser. The
+ * records are identical either way, so the rest of the bench doesn't care where the body came
+ * from. This is the analyst's domain parser — the substrate's ingest just calls it.
+ */
+export const parseRequirements: SourceRecordParser = (body, context) => {
+	const isRdf =
+		(context.mediaType ?? "").includes("rdf") ||
+		/<(?:rdf:RDF|rdf:Description|oslc_rm:Requirement)\b/.test(body);
+	return isRdf ? parseRequirementsFromRdf(body, context) : parseRequirementsFromHtml(body, context);
+};
+
+/** The analyst's source provider — reads their declared systems from the ledger, and (when a
+ * fetch impl is provided) wires the OSLC driver so a `pull` retrieves the system LIVE over the
+ * OSLC/RDF contract. Exposed so both the capability bundle and the ingest flow use the SAME
+ * provider (materialize a pulled system, then parse it with `parseRequirements`). */
 export function createRequirementsSourceProvider(options: RequirementsCapabilityOptions = {}) {
 	const root = options.cacheRoot ?? mkdtempSync(path.join(os.tmpdir(), "reqbench-source-"));
 	// The analyst's source systems come from THEIR ledger, not hardcoded here. `discover`
 	// lists exactly what they declared (the sample ships EFD).
 	const fixtures = loadWebSourceTargetsSync(options.sourcesConfigPath ?? sourcesConfigPath());
-	return createWebSourceProvider({ cacheRoot: root, fixtures });
+	// Egress allowlist = the hosts the analyst DECLARED (a live pull may only reach a system
+	// they configured). Derived from the targets' URLs, so a declared ALM is allowed by
+	// construction and nothing else is — the ledger is the authority, not a hardcoded host.
+	const allowedHosts = declaredHostsFrom(fixtures);
+	return createWebSourceProvider({
+		cacheRoot: root,
+		fixtures,
+		...(allowedHosts.length ? { egress: { allowedHosts } } : {}),
+		// The OSLC driver is the analyst's domain knowledge; the substrate just calls it when a
+		// live pull happens (http target, not offline). No fetchImpl → offline fixture replay.
+		...(options.fetchImpl
+			? { fetcher: createOslcFetchDriver({ fetchImpl: options.fetchImpl }) }
+			: {}),
+	});
+}
+
+/** The distinct http(s) hosts of the analyst's declared targets — the egress allowlist for a
+ * live pull. A target with a non-http url (an offline capture) contributes no host. */
+function declaredHostsFrom(fixtures: Record<string, { url: string }>): string[] {
+	const hosts = new Set<string>();
+	for (const { url } of Object.values(fixtures)) {
+		try {
+			const u = new URL(url);
+			if (u.protocol === "http:" || u.protocol === "https:") hosts.add(u.hostname.toLowerCase());
+		} catch {
+			// non-URL declared body target → contributes no egress host
+		}
+	}
+	return [...hosts];
 }
 
 export function reqCapabilityBundle(options: RequirementsCapabilityOptions = {}) {
@@ -325,10 +372,14 @@ export function createRequirementsPullCapability(
 					existing: declared.existing,
 					login,
 				});
+				// offline:false so a wired OSLC driver fetches the system LIVE; with no driver the
+				// provider still replays the fixture, so out-of-the-box behavior is unchanged.
+				// parseRequirements dispatches HTML (fixture) vs RDF/XML (live OSLC) by media type.
 				const ingested = await ingestSourceToRecords({
 					sourceProvider,
 					ref,
-					parse: parseRequirementsFromHtml,
+					parse: parseRequirements,
+					offline: false,
 				});
 				if (!recordsDeps.saveManifest) {
 					// No persistence sink → report what WOULD be ingested (dry-run), don't claim to save.

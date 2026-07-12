@@ -90,6 +90,19 @@ async function readSnapshotBody(locationPath: string, bodyFileName?: string): Pr
 	}
 }
 
+/** Best-effort read of the materialized snapshot's media type (from `snapshot.json`, which
+ * source-web writes). Returns undefined if there's no snapshot.json or no mediaType — the
+ * parser then just doesn't get to branch on it. */
+async function readSnapshotMediaType(locationPath: string): Promise<string | undefined> {
+	try {
+		const raw = await readFile(path.join(locationPath, "snapshot.json"), "utf-8");
+		const parsed = JSON.parse(raw) as { mediaType?: unknown };
+		return typeof parsed.mediaType === "string" ? parsed.mediaType : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 /**
  * Materialize `ref`, read its snapshot body, parse it into records, and stamp each record's
  * contentHash. The records are RETURNED (not persisted) — a caller merges them into its
@@ -105,8 +118,11 @@ export async function ingestSourceToRecords(
 	});
 	const locationPath = materialized.location.path;
 	const body = await readSnapshotBody(locationPath, options.bodyFileName);
+	// The media type lets a parser branch (e.g. HTML fixture vs RDF/XML from a live OSLC fetch).
+	// Best-effort: read it from the provider's snapshot.json; undefined if absent.
+	const mediaType = await readSnapshotMediaType(locationPath);
 
-	const parsed = options.parse(body, { ref: options.ref, location: locationPath });
+	const parsed = options.parse(body, { ref: options.ref, location: locationPath, mediaType });
 
 	const records: KnowledgeRecord[] = parsed.map((record) => {
 		const withHash = { ...record, contentHash: "" } as KnowledgeRecord;

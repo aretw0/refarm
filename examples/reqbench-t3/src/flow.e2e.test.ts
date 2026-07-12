@@ -3,7 +3,7 @@ import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
 	DGK_COMMAND,
@@ -14,6 +14,7 @@ import {
 } from "./cli.js";
 import {
 	createRequirementsSourceProvider,
+	parseRequirements,
 	parseRequirementsFromHtml,
 	renderRequirementsMocHtml,
 	reqWebSurface,
@@ -233,6 +234,67 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 			expect(refs).toContain("web:my-alm");
 			// The sample EFD is NOT present — the ledger, not the code, decides.
 			expect(refs).not.toContain("web:efd");
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it("LIVE OSLC pull: fetches the system over the RDF contract and parses it into records", async () => {
+		// The operationally-faithful path: the analyst's target declares an http URL + the OSLC
+		// coordinate (streamURI/componentURI); the injected OSLC driver GETs it with the RDF
+		// headers and Configuration-Context, and the RDF is parsed into typed records. A real
+		// deployment swaps the mock fetch for one bound to an authenticated browser session.
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reqbench-oslc-"));
+		const configPath = path.join(dir, "sources.json");
+		fs.writeFileSync(
+			configPath,
+			JSON.stringify({
+				targets: [
+					{
+						identity: "efd",
+						url: "https://alm.example/rm/resources/TX_10",
+						session: { kind: "authenticated", principal: "analyst" },
+						attributes: { streamURI: "urn:stream:efd", componentURI: "urn:comp:efd" },
+					},
+				],
+			}),
+		);
+		const rdf = `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:jazz_rm="http://jazz.net/ns/rm#">
+			<rdf:Description rdf:about="https://alm.example/rm/resources/TX_10">
+				<dcterms:identifier>RN-632504</dcterms:identifier>
+				<dcterms:title>Identificador do CNPJ da Escrituração</dcterms:title>
+				<rdf:type rdf:resource="http://jazz.net/ns/rm#BusinessRule"/>
+				<jazz_rm:primaryText><p>O <b>CNPJ</b> identifica.</p></jazz_rm:primaryText>
+			</rdf:Description>
+		</rdf:RDF>`;
+		const fetchImpl = vi.fn<typeof fetch>(
+			async () =>
+				new Response(rdf, { status: 200, headers: { "content-type": "application/rdf+xml" } }),
+		);
+		try {
+			const provider = createRequirementsSourceProvider({
+				cacheRoot: dir,
+				sourcesConfigPath: configPath,
+				fetchImpl,
+			});
+			const ingested = await ingestSourceToRecords({
+				sourceProvider: provider,
+				ref: REQ_SYSTEM_REF, // web:efd
+				parse: parseRequirements,
+				offline: false, // allow the live fetch
+			});
+			// The OSLC driver was called with the target's URL + the OSLC contract headers.
+			expect(fetchImpl).toHaveBeenCalledOnce();
+			expect(fetchImpl.mock.calls[0]?.[0]).toBe("https://alm.example/rm/resources/TX_10");
+			const headers = fetchImpl.mock.calls[0]?.[1]?.headers as Record<string, string>;
+			expect(headers.Accept).toBe("application/rdf+xml");
+			expect(headers["Configuration-Context"]).toBe("urn:stream:efd");
+			// The RDF was parsed (not the fixture) into the typed record.
+			expect(ingested.records).toHaveLength(1);
+			const fields = ingested.records[0]?.fields as Record<string, unknown>;
+			expect(fields.tipo).toBe("regra-de-negocio");
+			expect(fields.title).toBe("Identificador do CNPJ da Escrituração");
+			expect(fields.artifactUri).toBe("https://alm.example/rm/resources/TX_10");
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
