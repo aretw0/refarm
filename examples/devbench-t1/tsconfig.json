@@ -6,19 +6,33 @@
 		"baseUrl": "../..",
 		"rootDir": "../..",
 		"paths": {
-			"@refarm.dev/locales/*": ["locales/*"],
-			"@refarm.dev/capability-host": ["packages/capability-host/dist/index.d.ts"],
-			"@refarm.dev/capability-host/node": ["packages/capability-host/dist/node.d.ts"],
-			"@refarm.dev/capability-host/testing": ["packages/capability-host/dist/testing.d.ts"],
+			"@refarm.dev/locales/*": [
+				"locales/*"
+			],
+			"@refarm.dev/capability-host": [
+				"packages/capability-host/dist/index.d.ts"
+			],
+			"@refarm.dev/capability-host/node": [
+				"packages/capability-host/dist/node.d.ts"
+			],
+			"@refarm.dev/capability-host/testing": [
+				"packages/capability-host/dist/testing.d.ts"
+			],
 			"@refarm.dev/capability-homestead-surface": [
 				"packages/capability-homestead-surface/dist/index.d.ts"
 			],
-			"@refarm.dev/homestead": ["packages/homestead/src/index.ts"],
-			"@refarm.dev/homestead/ui": ["packages/homestead/src/ui/index.ts"],
-			"@refarm.dev/homestead/sdk": ["packages/homestead/src/sdk/index.ts"],
-			"@refarm.dev/tractor/browser": ["packages/tractor-ts/src/index.browser.ts"]
+			"@refarm.dev/tractor/browser": [
+				"packages/tractor-ts/src/index.browser.ts"
+			]
 		}
 	},
-	"exclude": ["node_modules", "dist", "dist-web"],
-	"include": ["src/**/*", ".astro/types.d.ts"]
+	"exclude": [
+		"node_modules",
+		"dist",
+		"dist-web"
+	],
+	"include": [
+		"src/**/*",
+		".astro/types.d.ts"
+	]
 }
