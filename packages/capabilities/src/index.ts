@@ -37,6 +37,19 @@ export {
 export { buildPaletteModel, type PaletteModel, type PaletteEntry } from "./palette-projector.js";
 export { resolveGroupAction, type ResolvedGroupAction } from "./group-dispatch.js";
 export {
+	ActivitySink,
+	ambientActivitySink,
+	newActivityRef,
+	withActivity,
+	type ActivityKind,
+	type ActivityListener,
+	type ActivityPhase,
+	type ActivityReporter,
+	type ProcessActivity,
+	type Unsubscribe,
+	type WithActivityOptions,
+} from "./activity.js";
+export {
 	isCapabilityGroup,
 	type CapabilityAgentTransport,
 	type CapabilityArgSpec,
