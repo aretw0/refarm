@@ -1,0 +1,15 @@
+---
+import { Layout } from "@refarm.dev/homestead/ui";
+---
+
+<Layout title="Extension Bench — declare once → here">
+  <div id="loading-overlay" class="refarm-loading-state">
+    <div class="refarm-spinner" aria-hidden="true"></div>
+    <p>Abrindo a bancada de extensões…</p>
+  </div>
+</Layout>
+
+<script>
+  import { bootDevbench } from "../web/boot";
+  bootDevbench();
+</script>

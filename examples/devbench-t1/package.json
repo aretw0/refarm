@@ -12,16 +12,23 @@
 		"type-check": "tsc --noEmit",
 		"test": "vitest run",
 		"dgk": "node dist/cli.js",
+		"web:dev": "astro dev",
+		"web:build": "astro build",
+		"web:preview": "astro preview",
+		"web:check": "astro check",
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@refarm.dev/capability-homestead-surface": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
-		"@refarm.dev/capability-homestead-surface": "workspace:*"
+		"@refarm.dev/homestead": "workspace:*"
 	},
 	"devDependencies": {
+		"@astrojs/check": "^0.9.9",
 		"@refarm.dev/config": "workspace:*",
+		"@refarm.dev/model-mock": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
-		"@refarm.dev/model-mock": "workspace:*"
+		"astro": "^7.0.0"
 	}
 }

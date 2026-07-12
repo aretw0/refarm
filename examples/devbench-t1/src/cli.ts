@@ -83,7 +83,7 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 	});
 }
 
-const devbenchApp = defineCapabilityApp({
+export const devbenchApp = defineCapabilityApp({
 	host: buildDevbenchHost,
 });
 

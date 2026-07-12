@@ -5,6 +5,7 @@ import { setupStudioShell, type StudioShell } from "./Shell.js";
 import type {
 	HomesteadSurfaceRenderActionHandler,
 	HomesteadSurfaceRenderContextProvider,
+	HomesteadSurfaceRenderHostContext,
 } from "./surface-renderer.js";
 
 /**
@@ -40,10 +41,12 @@ export interface BootCapabilityWebShellOptions {
 		| ((emitTelemetry: (pluginId: string, event: string, payload?: unknown) => void) => RuntimePluginHandle[]);
 	/**
 	 * Per-render host context — where the app puts a verb's structured result (`host.data`)
-	 * and its actions (`host.actions`) for the surface to render. A capability host exposes
-	 * exactly this via `host.surfaceContext()`; pass it straight through.
+	 * and its actions (`host.actions`) for the surface to render. Accepts EITHER a provider
+	 * function (called per render) OR a static context object, so a capability host can pass
+	 * `host.surfaceContext()` (an object) directly without wrapping it in an arrow. A static
+	 * object is served for every render.
 	 */
-	surfaceContext?: HomesteadSurfaceRenderContextProvider;
+	surfaceContext?: HomesteadSurfaceRenderContextProvider | HomesteadSurfaceRenderHostContext;
 	/** Handles a clicked surface action (a card/button) — routes it back to a verb's run(). */
 	surfaceAction?: HomesteadSurfaceRenderActionHandler;
 	/** Connect the browser runtime to an external daemon over WebSocket for live CRDT sync. */
@@ -84,8 +87,17 @@ export async function bootCapabilityWebShell(
 		runtime.tractor.plugins.registerInternal(surface);
 	}
 
+	// Accept a static context object as well as a provider: wrap the object so the shell
+	// always gets a function.
+	const surfaceContext: HomesteadSurfaceRenderContextProvider | undefined =
+		typeof options.surfaceContext === "function"
+			? options.surfaceContext
+			: options.surfaceContext
+				? () => options.surfaceContext as HomesteadSurfaceRenderHostContext
+				: undefined;
+
 	const shell = await setupStudioShell(runtime.tractor, {
-		...(options.surfaceContext ? { surfaceContext: options.surfaceContext } : {}),
+		...(surfaceContext ? { surfaceContext } : {}),
 		...(options.surfaceAction ? { surfaceAction: options.surfaceAction } : {}),
 	});
 
