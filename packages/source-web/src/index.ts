@@ -3,4 +3,12 @@ export {
 	createWebSourceProvider,
 	type WebSourceProviderOptions,
 } from "./provider.js";
+export {
+	loadWebSourceTargets,
+	parseWebSourceTargetsConfig,
+	webSourceFixturesFromConfig,
+	webSourceSnapshotFromTarget,
+	type WebSourceTargetConfig,
+	type WebSourceTargetsConfig,
+} from "./targets.js";
 export * from "./types.js";
