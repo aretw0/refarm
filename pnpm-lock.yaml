@@ -740,6 +740,9 @@ importers:
       '@refarm.dev/capabilities-v1':
         specifier: workspace:*
         version: link:../capabilities-v1
+      '@refarm.dev/records-contract-v1':
+        specifier: workspace:*
+        version: link:../records-contract-v1
       '@refarm.dev/runtime-operator':
         specifier: workspace:*
         version: link:../runtime-operator

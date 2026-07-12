@@ -29,6 +29,14 @@ export {
 	type InstallPluginOptions,
 } from "./install-plugin.js";
 export { createSidecarCallRespond, type SidecarRespondOptions } from "./sidecar-respond.js";
+export {
+	ingestSourceToRecords,
+	type IngestSourceProvider,
+	type IngestSourceResult,
+	type IngestSourceToRecordsOptions,
+	type SourceIngestContext,
+	type SourceRecordParser,
+} from "./ingest-source.js";
 
 export {
 	createLocalRecordsCommandDeps,

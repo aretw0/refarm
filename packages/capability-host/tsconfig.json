@@ -14,6 +14,9 @@
 			"@refarm.dev/capabilities-v1/node": [
 				"packages/capabilities-v1/dist/node.d.ts"
 			],
+			"@refarm.dev/records-contract-v1": [
+				"packages/records-contract-v1/dist/index.d.ts"
+			],
 			"@refarm.dev/runtime-operator": [
 				"packages/runtime-operator/dist/index.d.ts"
 			]

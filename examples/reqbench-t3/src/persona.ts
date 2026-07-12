@@ -4,7 +4,10 @@ import {
 	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capability-host";
-import { createLocalRecordsCapabilityDeps } from "@refarm.dev/capability-host/node";
+import {
+	createLocalRecordsCapabilityDeps,
+	type SourceRecordParser,
+} from "@refarm.dev/capability-host/node";
 import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import {
 	createRulesEnrichmentProvider,
@@ -43,6 +46,34 @@ const REQ_ENRICHMENT_RULES: EnrichmentRule[] = [
 	},
 ];
 
+/** The analyst's PARSER — turns a pulled system's HTML into requirement records. This is
+ * the domain step of ingest: the generic mechanism (materialize → read → parse → hash) is
+ * in @refarm.dev/capability-host; this knows THIS ALM's `<article>` shape. A different
+ * analyst's system would ship a different parser. */
+export const parseRequirementsFromHtml: SourceRecordParser = (body, context) => {
+	const records: ReturnType<SourceRecordParser> = [];
+	const re =
+		/<article data-req="([^"]+)" data-type="([^"]+)" data-title="([^"]+)">([^<]*)<\/article>/g;
+	let match: RegExpExecArray | null;
+	while ((match = re.exec(body)) !== null) {
+		const key = match[1] ?? "";
+		const tipo = match[2] ?? "";
+		const title = match[3] ?? "";
+		const text = match[4] ?? "";
+		records.push({
+			id: `record:req-${key.toLowerCase().replace(/[^a-z0-9]+/g, "")}`,
+			schemaVersion: 1,
+			"@type": ["KnowledgeRecord", "Requirement"],
+			"@context": "https://refarm.dev/contexts/records/v1",
+			fields: { title, tipo, status: "draft", externalKey: key, body: text },
+			sections: [{ key: "conteudo", content: text }],
+			sourceRefs: [context.ref],
+			review: { state: "draft" },
+		});
+	}
+	return records;
+};
+
 /** The path to the analyst's source-targets ledger — the systems they declared they can
  * access. Resolved next to the example (ships a sample EFD target); a real analyst edits it. */
 function sourcesConfigPath(): string {
@@ -64,12 +95,18 @@ export interface RequirementsCapabilityOptions extends RequirementsStateOptions 
 	sourcesConfigPath?: string;
 }
 
-export function reqCapabilityBundle(options: RequirementsCapabilityOptions = {}) {
+/** The analyst's source provider — reads their declared systems from the ledger. Exposed
+ * so both the capability bundle and an ingest flow use the SAME provider (materialize a
+ * pulled system, then parse it with parseRequirementsFromHtml). */
+export function createRequirementsSourceProvider(options: RequirementsCapabilityOptions = {}) {
 	const root = options.cacheRoot ?? mkdtempSync(path.join(os.tmpdir(), "reqbench-source-"));
 	// The analyst's source systems come from THEIR ledger, not hardcoded here. `discover`
-	// lists exactly what they declared (the sample ships EFD). An override lets tests point
-	// at a temp ledger.
+	// lists exactly what they declared (the sample ships EFD).
 	const fixtures = loadWebSourceTargetsSync(options.sourcesConfigPath ?? sourcesConfigPath());
+	return createWebSourceProvider({ cacheRoot: root, fixtures });
+}
+
+export function reqCapabilityBundle(options: RequirementsCapabilityOptions = {}) {
 	return createLocalRecordsCapabilityDeps({
 		seed: reqManifest,
 		statePath: options.statePath,
@@ -79,7 +116,7 @@ export function reqCapabilityBundle(options: RequirementsCapabilityOptions = {})
 			tagField: "req.tags",
 		}),
 		source: {
-			sourceProvider: createWebSourceProvider({ cacheRoot: root, fixtures }),
+			sourceProvider: createRequirementsSourceProvider(options),
 		},
 	});
 }

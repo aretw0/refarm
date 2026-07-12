@@ -45,6 +45,7 @@
 	},
 	"dependencies": {
 		"@refarm.dev/capabilities-v1": "workspace:*",
+		"@refarm.dev/records-contract-v1": "workspace:*",
 		"@refarm.dev/sidecar-client": "workspace:*",
 		"@refarm.dev/runtime-operator": "workspace:*"
 	},

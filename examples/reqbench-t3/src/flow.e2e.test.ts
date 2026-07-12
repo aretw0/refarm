@@ -12,8 +12,14 @@ import {
 	buildRequirementsBaseModel,
 	serveReqbench,
 } from "./cli.js";
-import { renderRequirementsMocHtml, reqWebSurface } from "./persona.js";
+import {
+	createRequirementsSourceProvider,
+	parseRequirementsFromHtml,
+	renderRequirementsMocHtml,
+	reqWebSurface,
+} from "./persona.js";
 import { REQ_SYSTEM_REF } from "./fixture.js";
+import { ingestSourceToRecords } from "@refarm.dev/capability-host/node";
 
 const harness = createCapabilityTestHarness({ tempPrefix: "dgk-requirements-state-" });
 
@@ -106,6 +112,25 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		]);
 		expect(found.ok).toBe(true);
 		expect((found.sources as Array<{ ref: string }>).map((s) => s.ref)).toContain(REQ_SYSTEM_REF);
+	});
+
+	it("PULL → INGEST: pulling the chosen system turns its requirements into records", async () => {
+		// The spine of the analyst's journey: pick a system (EFD, from the ledger), pull it,
+		// and its requirements become records — via the generic ingest + the analyst's parser.
+		const sourceProvider = createRequirementsSourceProvider();
+		const ingested = await ingestSourceToRecords({
+			sourceProvider,
+			ref: REQ_SYSTEM_REF, // web:efd (the sample the analyst chose)
+			parse: parseRequirementsFromHtml,
+		});
+		// The EFD sample body has 3 typed requirements → 3 records, typed + sourced.
+		expect(ingested.records).toHaveLength(3);
+		const byTipo = ingested.records.map((r) => r.fields.tipo).sort();
+		expect(byTipo).toEqual(["caso-de-uso", "funcional", "regra-de-negocio"]);
+		const rn = ingested.records.find((r) => r.fields.tipo === "regra-de-negocio");
+		expect(rn?.fields.title).toBe("Identificador do CNPJ da Escrituração");
+		expect(rn?.sourceRefs).toEqual([REQ_SYSTEM_REF]);
+		expect(rn?.contentHash).toMatch(/^fnv1a32:/);
 	});
 
 	it("is CONFIG-DRIVEN: discover lists whatever systems the analyst declares in their ledger", async () => {
