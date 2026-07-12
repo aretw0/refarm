@@ -4,7 +4,7 @@
 **Progress**: Design phase  
 **Date**: 2026-03-07  
 **Deciders**: Core Team  
-**Related**: ADR-017 (Micro-kernel), ADR-022 (Policy Declarations), ADR-018 (Capability Contracts)  
+**Related**: ADR-017 (Micro-kernel), ADR-022 (Policy Declarations), ADR-018 (Capability Contracts), ADR-089 (Citizenship umbrella)  
 **Target Version**: v0.2.0-0.3.0
 
 ---

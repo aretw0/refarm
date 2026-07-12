@@ -6,7 +6,7 @@
 **Target Version**: v0.3.0+  
 **Blocking Implementation**: Requires Sprint 3+ commitment + 40+ integration tests before acceptance
 **Deciders**: Core Team  
-**Related**: ADR-017 (Micro-kernel), ADR-002 (Offline-first), ADR-020 (Graph Versioning)
+**Related**: ADR-017 (Micro-kernel), ADR-002 (Offline-first), ADR-020 (Graph Versioning), ADR-089 (Citizenship umbrella)  
 
 ---
 

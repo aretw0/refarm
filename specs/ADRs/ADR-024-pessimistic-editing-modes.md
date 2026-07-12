@@ -4,7 +4,7 @@
 **Progress**: Design phase  
 **Date**: 2026-03-07  
 **Deciders**: Core Team  
-**Related**: ADR-020 (Graph Versioning), ADR-003 (CRDT), ADR-002 (Offline-First)  
+**Related**: ADR-020 (Graph Versioning), ADR-003 (CRDT), ADR-002 (Offline-First), ADR-089 (Citizenship umbrella)  
 **Target Version**: v0.3.0+
 
 ---

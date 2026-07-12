@@ -86,10 +86,13 @@ Architecture Decision Records for Refarm.
 | [086](ADR-086-plugin-vocabulary-convergence.md)                | Plugin Vocabulary Convergence — One Verb, N Natures                               | Accepted   | 2026-07-10 |
 | [087](ADR-087-brand-agnostic-packages.md)                      | Brand-Agnostic Packages — Only the App Owns Its Name                              | Accepted   | 2026-07-10 |
 | [088](ADR-088-agent-surface-transport-seam.md)                 | Agent Surface Transport Seam — Telegram / PWA / P2P around the `user:prompt` seam | Proposed   | 2026-07-12 |
+| [089](ADR-089-plugin-citizenship-governance.md)                | Plugin Citizenship & Governance (umbrella index over 020-024)                     | Proposed   | 2026-07-12 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 
 These ADRs define architecture direction but are NOT executable contracts yet. Sprint 2+ implementation required.
+
+> Plugin-governance cluster (020-024): read [ADR-089](ADR-089-plugin-citizenship-governance.md) — the umbrella index that names each mechanism (versioning, self-healing, policies, conflict detection, locks) and points at its owning ADR + blocker.
 
 | ADR                                                       | Title                                                           | Status      | Target       | Blockers                                                            |
 | --------------------------------------------------------- | --------------------------------------------------------------- | ----------- | ------------ | ------------------------------------------------------------------- |

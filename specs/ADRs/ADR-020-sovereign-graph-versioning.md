@@ -6,7 +6,7 @@
 **Target Version**: v0.2.0-0.3.0  
 **Blocking Implementation**: Requires Sprint 2 commitment + 30+ invariant tests before acceptance
 **Deciders**: Core Team  
-**Related**: ADR-002 (Offline-first), ADR-003 (CRDT), ADR-010 (Schema Evolution), ADR-017 (Micro-kernel)
+**Related**: ADR-002 (Offline-first), ADR-003 (CRDT), ADR-010 (Schema Evolution), ADR-017 (Micro-kernel), ADR-089 (Citizenship umbrella)  
 
 ---
 
