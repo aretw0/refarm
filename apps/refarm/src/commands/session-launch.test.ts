@@ -484,13 +484,34 @@ describe("autoStartRuntime — mode: ask (default)", () => {
 		expect(output).toContain("Next action:  refarm doctor --next-action");
 	});
 
-	it("returns false when runtime times out after spawning", async () => {
+	it("reports 'still starting' (not failure) when a slow boot times out but the daemon is alive", async () => {
+		// Only the boolean probe is injected → the machine can't tell live-but-slow from
+		// dead, so it defaults to the SAFER "still starting" narration, never a false failure.
 		const deps = makeLaunchDeps({
 			probeRuntimeUntilReady: vi.fn().mockResolvedValue(false),
 		});
 		const result = await autoStartRuntime("/fake/root", deps);
 		expect(result).toBe(false);
 		expect(deps.spawnRuntime).toHaveBeenCalledOnce();
+		const stdout = (stdoutWriteSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("");
+		expect(stdout).toContain("Still starting");
+		expect(stdout).not.toContain("Failed to start");
+	});
+
+	it("reports '✗ Failed to start' when the outcome probe reports the daemon is dead", async () => {
+		const deps = makeLaunchDeps({
+			probeRuntimeUntilOutcome: vi
+				.fn()
+				.mockResolvedValue({ ready: false, status: "timed-out-dead" }),
+		});
+		const result = await autoStartRuntime("/fake/root", deps);
+		expect(result).toBe(false);
+		const stdout = (stdoutWriteSpy.mock.calls as unknown[][])
+			.map((call) => String(call[0]))
+			.join("");
+		expect(stdout).toContain("Failed to start");
 		const output = (consoleErrorSpy.mock.calls as unknown[][])
 			.map((call) => String(call[0]))
 			.join("\n");
