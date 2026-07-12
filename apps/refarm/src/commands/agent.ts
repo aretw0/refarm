@@ -1,5 +1,9 @@
 import { buildCommandPlanRunEnvelope } from "@refarm.dev/cli/command-plan";
-import { buildJsonSuccessEnvelope, printJson } from "@refarm.dev/capabilities/envelope";
+import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
+	printJson,
+} from "@refarm.dev/capabilities/envelope";
 import { Command } from "commander";
 import {
 	buildAgentFinishPlanEnvelope,
@@ -493,6 +497,58 @@ Notes:
 				return;
 			}
 			this.outputHelp();
+		});
+
+	// `agent doctor` — the end-to-end liveness check the other diagnostics miss: it submits a
+	// real minimal respond and reports whether the agent COMPLETES it. `doctor`/`model doctor`
+	// pass while the agent is a zombie (dispatch received, nothing executed); this doesn't.
+	command
+		.command("doctor")
+		.description("Probe whether the agent actually completes a respond (detects a zombie agent)")
+		.option("--json", "Output machine-readable result")
+		.option("--timeout <ms>", "How long to wait for the probe respond (ms)")
+		.action(async function (this: Command) {
+			const opts = this.opts<{ json?: boolean; timeout?: string }>();
+			// The parent `agent` command also declares --json; commander may bind a trailing
+			// `--json` to the parent, so honor it from either place.
+			const parentJson = (this.parent?.opts() as { json?: boolean } | undefined)?.json === true;
+			const json = opts.json === true || parentJson;
+			const { probeAgentLiveness } = await import("./agent-liveness.js");
+			const timeoutMs = opts.timeout ? Number(opts.timeout) : undefined;
+			const result = await probeAgentLiveness({ timeoutMs });
+			if (json) {
+				const extra = {
+					status: result.status,
+					message: result.message,
+					elapsedMs: result.elapsedMs,
+				};
+				if (result.status === "responsive") {
+					printJson(
+						buildJsonSuccessEnvelope({
+							command: "agent",
+							operation: "doctor",
+							nextAction: result.nextAction,
+							extra,
+						}),
+					);
+				} else {
+					printJson(
+						buildJsonErrorEnvelope({
+							command: "agent",
+							operation: "doctor",
+							error: `agent-${result.status}`,
+							message: result.message,
+							nextAction: result.nextAction,
+							extra,
+						}),
+					);
+				}
+				return;
+			}
+			const mark = result.status === "responsive" ? "✅" : "✗";
+			console.log("Agent doctor");
+			console.log(`  ${mark} ${result.message}`);
+			console.log(`  → ${result.nextAction}`);
 		});
 
 	return command;
