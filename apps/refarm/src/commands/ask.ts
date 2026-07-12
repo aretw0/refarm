@@ -601,9 +601,14 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 						await resolved.followStream(
 							effortId,
 							(chunk) => {
-								content += chunk.content;
-								if (!opts.json) {
-									process.stdout.write(chunk.content);
+								// A chunk may be metadata/status-only (no `content`); only append + print
+								// actual text. Writing `undefined` to stdout throws (ERR_INVALID_ARG_TYPE)
+								// and `+= undefined` would inject the literal "undefined" into the answer.
+								if (typeof chunk.content === "string") {
+									content += chunk.content;
+									if (!opts.json) {
+										process.stdout.write(chunk.content);
+									}
 								}
 								if (chunk.is_final) {
 									if (!opts.json) {
