@@ -107,8 +107,22 @@ if [ -f "$REFARM_CLI" ]; then
   node "$REFARM_CLI" plugin update --json >/dev/null 2>&1 || true
 fi
 
+# Prefer the INSTALLED agent (in $REFARM_HOME/plugins) over the raw compiled artifact —
+# but only if it is not STALE. A freshly-compiled agent (e.g. after a WIT rename) whose
+# import names moved will not match the daemon's linker, and the daemon would load the old
+# installed copy and fail (`component imports instance ... not found in the linker`). So if
+# the compiled build is newer than the installed copy, reinstall it first. This is the
+# dist-stale guard: source (the compiled wasm) is truth; the install is a derived snapshot.
 if [ -f "$INSTALLED_AGENT_PLUGIN" ]; then
-  AGENT_PLUGIN="$INSTALLED_AGENT_PLUGIN"
+  if [ -f "$AGENT_PLUGIN" ] && [ "$AGENT_PLUGIN" -nt "$INSTALLED_AGENT_PLUGIN" ]; then
+    echo "   ↻ Installed agent is older than the compiled build — reinstalling…"
+    if [ -f "$REFARM_CLI" ]; then
+      REFARM_HOME="$REFARM_HOME" CARGO_TARGET_DIR="$_CARGO_TARGET" \
+        node "$ROOT/scripts/agent-install.mjs" >/dev/null 2>&1 || true
+    fi
+  fi
+  # Use the installed copy if it (still) exists after the optional reinstall.
+  [ -f "$INSTALLED_AGENT_PLUGIN" ] && AGENT_PLUGIN="$INSTALLED_AGENT_PLUGIN"
 fi
 
 if [ ! -f "$AGENT_PLUGIN" ]; then

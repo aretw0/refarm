@@ -19,6 +19,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
@@ -72,7 +73,18 @@ const refarmHome = process.env.REFARM_HOME?.trim() || path.join(os.homedir(), ".
 const pluginDir = path.join(refarmHome, "plugins/@refarm/agent");
 mkdirSync(pluginDir, { recursive: true });
 
-const wasmDest = path.join(pluginDir, "agent.wasm");
+// The installed code entry uses the CANONICAL per-format filename `plugin.wasm` — the
+// same name the start script (scripts/tractor-start.sh), the daemon `--plugin` arg, and
+// the CLI installer (apps/refarm/src/commands/plugin-install-from-path.ts, ENTRY_FALLBACK
+// = plugin.wasm) all resolve. A prior version wrote `agent.wasm`, which left an orphan
+// this dev script overwrote but the runtime never read — so a stale `agent.wasm` could
+// sit forever beside a fresh manifest. Write the canonical name and sweep the legacy one.
+const wasmDest = path.join(pluginDir, "plugin.wasm");
+const legacyWasmDest = path.join(pluginDir, "agent.wasm");
+if (existsSync(legacyWasmDest)) {
+  rmSync(legacyWasmDest, { force: true });
+  console.log(`[agent-install] Removed legacy ${legacyWasmDest} (canonical name is plugin.wasm)`);
+}
 copyFileSync(wasmSrc, wasmDest);
 console.log(`[agent-install] Copied WASM → ${wasmDest}`);
 
