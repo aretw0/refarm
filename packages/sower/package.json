@@ -27,6 +27,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/silo": "workspace:*",

@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import { isModuleResolutionError, renderBootstrapFailure } from "./bootstrap-preflight.js";
 import { TokenAuthError } from "./credentials/token-auth-error.js";
+import { renderActivityOnCli } from "./utils/activity-cli.js";
 
 function terminalLink(text: string, url: string): string {
 	return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
@@ -34,6 +35,11 @@ async function parseFastCommand(argv: string[]): Promise<boolean> {
 }
 
 export async function runCliMain(argv = process.argv): Promise<void> {
+	// Render the surface-neutral activity signal as a terminal spinner for the whole run,
+	// so ANY command that wraps slow work in `withActivity` (a provider login, a git
+	// clone, an agent turn) shows the operator that something is happening. Attached once
+	// here; torn down in finally so it never outlives the command.
+	const activity = renderActivityOnCli();
 	try {
 		if (await parseFastCommand(argv)) return;
 
@@ -41,6 +47,8 @@ export async function runCliMain(argv = process.argv): Promise<void> {
 		await program.parseAsync(argv);
 	} catch (err) {
 		handleCliMainError(err);
+	} finally {
+		activity.stop();
 	}
 }
 

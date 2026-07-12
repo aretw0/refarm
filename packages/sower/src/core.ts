@@ -1,3 +1,4 @@
+import { withActivity } from "@refarm.dev/capabilities";
 import { sovereignDir } from "@refarm.dev/config";
 import { SiloCore } from "@refarm.dev/silo";
 import { Windmill } from "@refarm.dev/windmill";
@@ -229,36 +230,46 @@ export class SowerCore {
 	 * Sows the project with tokens and verifies infrastructure.
 	 */
 	async sow(tokens: { githubToken: string; cloudflareToken: string }, brand: { owner: string }) {
-		console.log(`[sower-core] Sowing tokens for ${brand.owner}...`);
+		// Wrap the slow work (credential save + a live GitHub verification round-trip) in an
+		// activity so every surface shows the operator that something is happening — the
+		// exact "I don't know if it's running" gap. `withActivity` is surface-neutral; the
+		// CLI/TUI/web render the signal without this substrate code knowing which surface.
+		return withActivity(
+			`Sowing credentials for ${brand.owner}`,
+			async (report) => {
+				report("saving credentials");
+				const silo = new SiloCore();
+				await silo.saveTokens(tokens);
 
-		const silo = new SiloCore();
-		await silo.saveTokens(tokens);
+				// Temporarily set env for verification
+				process.env.GITHUB_TOKEN = tokens.githubToken;
+				process.env.CLOUDFLARE_API_TOKEN = tokens.cloudflareToken;
 
-		// Temporarily set env for verification
-		process.env.GITHUB_TOKEN = tokens.githubToken;
-		process.env.CLOUDFLARE_API_TOKEN = tokens.cloudflareToken;
+				const windmill = new Windmill({
+					brand: { owner: brand.owner, urls: { repository: "" } },
+					infrastructure: { gitHost: "github" },
+				});
 
-		const windmill = new Windmill({
-			brand: { owner: brand.owner, urls: { repository: "" } },
-			infrastructure: { gitHost: "github" },
-		});
+				const results: Record<string, { ok: boolean; count?: number; error?: string }> = {
+					github: { ok: false },
+					cloudflare: { ok: true },
+				};
 
-		const results: Record<string, { ok: boolean; count?: number; error?: string }> = {
-			github: { ok: false },
-			cloudflare: { ok: true },
-		};
+				try {
+					report("verifying GitHub access");
+					const repos = await windmill.github.listRepos();
+					results.github = { ok: true, count: repos.length };
+				} catch (e) {
+					results.github = {
+						ok: false,
+						error: e instanceof Error ? e.message : String(e),
+					};
+				}
 
-		try {
-			const repos = await windmill.github.listRepos();
-			results.github = { ok: true, count: repos.length };
-		} catch (e) {
-			results.github = {
-				ok: false,
-				error: e instanceof Error ? e.message : String(e),
-			};
-		}
-
-		return results;
+				return results;
+			},
+			{ kind: "auth" },
+		);
 	}
 
 	/**

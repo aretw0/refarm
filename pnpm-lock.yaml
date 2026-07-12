@@ -1759,6 +1759,9 @@ importers:
 
   packages/sower:
     dependencies:
+      '@refarm.dev/capabilities':
+        specifier: workspace:*
+        version: link:../capabilities
       '@refarm.dev/config':
         specifier: workspace:*
         version: link:../config
