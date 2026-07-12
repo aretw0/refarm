@@ -4,6 +4,24 @@ Architecture Decision Records for Refarm.
 
 ---
 
+## Reading Guide (Clusters)
+
+The full table below is chronological; this guide is thematic. Each cluster names the
+story its ADRs tell together and points at the entry to read first. Saga-index ADRs
+(089-092) are front doors that don't add a decision — they map a cluster.
+
+- **Storage / CRDT / sync** — offline-first ([002](ADR-002-offline-first-architecture.md)) over a CRDT (Yjs [003](ADR-003-crdt-synchronization.md) → **Loro [045](ADR-045-loro-crdt-adoption.md)**, the current engine) + SQLite ([015](ADR-015-sqlite-engine-decision.md)) as a materialized view of the op-log ([028](ADR-028-crdt-sqlite-convergence-strategy.md) → realized by Loro; [031](ADR-031-pluggable-relational-storage.md) opens pluggable engines), OPFS ([009](ADR-009-opfs-persistence-strategy.md)), schema evolution by lenses ([010](ADR-010-schema-evolution.md)), storage bootstrap boundary ([082](ADR-082-storage-provider-bootstrap-boundary.md)).
+- **Micro-kernel & plugin governance** — "core minimal, everything a plugin" ([017](ADR-017-studio-micro-kernel-and-plugin-boundary.md) → pure IoC in [025](ADR-025-pure-microkernel-architecture.md)) + capability contracts ([018](ADR-018-capability-contracts-and-observability-gates.md)); the citizenship mechanisms (versioning, self-healing, policies, conflicts, locks) are indexed by **[089](ADR-089-plugin-citizenship-governance.md)**.
+- **Plugin vocabulary / WIT / dispatch** — WASI multi-version host ([061](ADR-061-wasi-multi-version-plugin-host.md)), the **canonical WIT contract [083](ADR-083-canonical-plugin-wit-contract.md)**, async-default dispatch ([084](ADR-084-plugin-dispatch-model.md)), and "One Verb, N Natures" ([086](ADR-086-plugin-vocabulary-convergence.md), which superseded 027's providesApi/DSL).
+- **Composition / distribution / namespace** — the axiom is **Blocks vs Distros [046](ADR-046-refarm-composition-model.md)**; host boundary ([056](ADR-056-unified-refarm-host-boundary.md)), package/leaf ownership ([072](ADR-072-consumer-leaf-distribution-policy.md)/[073](ADR-073-capability-index-incubation-boundary.md)), release handoff ([080](ADR-080-vault-seed-ready-handoff-pipeline.md)), namespace ([019](ADR-019-npm-scope-and-namespace-strategy.md) → [069](ADR-069-npm-scope-canonicalization.md), [071](ADR-071-workspace-namespace-policy.md)), brand-agnostic packages ([087](ADR-087-brand-agnostic-packages.md)).
+- **Tractor runtime** — indexed by **[091](ADR-091-tractor-runtime-saga.md)**: browser load → native host → graduate → **Rust authoritative [059](ADR-059-tractor-rust-authoritative-runtime.md)** → sidecar protocol [060](ADR-060-tractor-http-sidecar-protocol.md).
+- **Agent / streaming / memory / surfaces** — streaming indexed by **[090](ADR-090-stream-transport-saga.md)**; memory contracts ([057](ADR-057-task-session-contracts.md)), context injection ([058](ADR-058-context-injection-doctrine.md)), and the "talk to the agent from any surface" arc: control plane ([074](ADR-074-remote-workspace-control-plane.md)) → Pears reference ([075](ADR-075-pears-distributed-runtime-reference.md)) → transport seam ([088](ADR-088-agent-surface-transport-seam.md)).
+- **Identity / security / credentials / Silo** — sovereign identity indexed by **[092](ADR-092-sovereign-identity-saga.md)**; offline revocation ([051](ADR-051-external-signed-revocation-offline-policy.md)), CLI OAuth ([063](ADR-063-cli-oauth-strategy.md)), the Silo pair ([076](ADR-076-silo-storage-identity-closure-separation.md)/[077](ADR-077-silo-protected-secret-envelope.md)), credential verification ([079](ADR-079-credentials-verification-policy.md)).
+- **Infra / CI / bootloader / environments** — sovereign bootloader ([036](ADR-036-sovereign-bootloader-and-strict-ssg.md)) + infra escalation ([037](ADR-037-infrastructure-escalation-strategy.md)); farmhand lifecycle ([065](ADR-065-farmhand-transparent-lifecycle.md)), build boundary ([066](ADR-066-typescript-turbo-build-boundary.md)), environment ceilings ([078](ADR-078-agent-commons-environment-ceilings.md)).
+- **Foundations** — monorepo ([001](ADR-001-monorepo-structure.md)), testing ([013](ADR-013-testing-strategy.md)), tech boundary ([008](ADR-008-ecosystem-technology-boundary.md)), open surface projection ([085](ADR-085-open-surface-projection-axis.md)).
+
+---
+
 ## Active Decisions
 
 | ADR                                                            | Title                                                                             | Status     | Date       |
