@@ -160,6 +160,38 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(moc).toContain("Receber Aviso de Tratamento Manual"); // CDU
 	});
 
+	it("the MOC renders the requirement GRAPH — a use case links to the rule it references", async () => {
+		// The CDU/FUN reference the CNPJ business rule; the MOC shows those tipped links as
+		// navigable wikilinks under each requirement (the vault's alm_link_relations shape).
+		const env = await harness.runVerb(buildRegistry({ statePath: tempStatePath() }), "requirements");
+		const moc = env.moc as string;
+		// Under the use case, a nested relation to the CNPJ rule, by the target's title.
+		expect(moc).toContain("references → [[record-req-rn632504|Identificador do CNPJ da Escrituração]]");
+		// And the web HTML projects the same relation as a nested <li> with a link.
+		const html = renderRequirementsMocHtml({
+			by: "field:tipo",
+			summary: { total: 1, byState: { draft: 1 } },
+			groups: [
+				{
+					key: "caso-de-uso",
+					label: "caso-de-uso",
+					count: 1,
+					records: [
+						{
+							id: "record:req-cdu282405",
+							title: "Receber Aviso de Tratamento Manual",
+							link: "cdu.md",
+							relations: [{ type: "references", target: "record:req-rn632504" }],
+						},
+						{ id: "record:req-rn632504", title: "Identificador do CNPJ", link: "rn.md" },
+					],
+				},
+			],
+		} as never);
+		expect(html).toContain('data-relation="references"');
+		expect(html).toContain('href="rn.md"');
+	});
+
 	it("the requirements MOC is a navigable product, and reflects a correction", async () => {
 		const reg = buildRegistry({ statePath: tempStatePath() });
 		const before = await harness.runVerb(reg, "requirements");

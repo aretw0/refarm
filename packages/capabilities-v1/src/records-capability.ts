@@ -51,11 +51,25 @@ function analyzeDimensionField(by: RecordsAnalyzeDimension): string | null {
 	return by.startsWith("field:") ? by.slice("field:".length) : null;
 }
 
+/** One relation of a record in the analyze envelope — the tipped edge to another record
+ * (the graph a MOC renders as navigable links). Mirrors RecordRelation. */
+export interface RecordsAnalyzeRelation {
+	type: string;
+	target: string;
+	attrs?: Record<string, unknown>;
+}
+
 export interface RecordsAnalyzeGroup {
 	key: string;
 	label: string;
 	count: number;
-	records: Array<{ id: string; title: string; link: string }>;
+	records: Array<{
+		id: string;
+		title: string;
+		link: string;
+		/** The record's tipped relations (present only when it declares any). */
+		relations?: RecordsAnalyzeRelation[];
+	}>;
 }
 
 export interface RecordsAnalyzeEnvelope {
@@ -401,6 +415,10 @@ export function createRecordsCapabilityGroup(
 						title: (r.fields.title as string | undefined) ?? r.id,
 						// A vault-relative link a renderer (or a MOC.md writer) can point to.
 						link: `${r.id.replace(/[^a-zA-Z0-9._-]+/g, "-")}.md`,
+						// The record's tipped relations, so a MOC can render the graph as links.
+						...(Array.isArray(r.relations) && r.relations.length > 0
+							? { relations: r.relations as RecordsAnalyzeRelation[] }
+							: {}),
 					})),
 				}))
 				.sort((a, b) => a.key.localeCompare(b.key));

@@ -107,7 +107,20 @@ function groupLabel(env: RecordsAnalyzeEnvelope, key: string, fallback: string):
 	return STATE_LABELS[key] ?? fallback;
 }
 
+/** Build id → { title, link } across every record in the envelope, so a relation can
+ * render the TARGET's title (a navigable wikilink), the way the vault's MOC does. */
+function recordIndex(env: RecordsAnalyzeEnvelope): Map<string, { title: string; link: string }> {
+	const index = new Map<string, { title: string; link: string }>();
+	for (const group of env.groups) {
+		for (const record of group.records) {
+			index.set(record.id, { title: record.title, link: record.link });
+		}
+	}
+	return index;
+}
+
 function renderRequirementsMoc(env: RecordsAnalyzeEnvelope): string {
+	const index = recordIndex(env);
 	const lines: string[] = [
 		"# Mapa de Conteúdo — Requisitos",
 		"",
@@ -121,6 +134,13 @@ function renderRequirementsMoc(env: RecordsAnalyzeEnvelope): string {
 		lines.push(`## ${groupLabel(env, group.key, group.label)} (${group.count})`);
 		for (const record of group.records) {
 			lines.push(`- [[${record.link.replace(/\.md$/, "")}|${record.title}]]`);
+			// The record's outgoing relations → nested navigable links (the graph).
+			for (const rel of record.relations ?? []) {
+				const target = index.get(rel.target);
+				const label = target?.title ?? rel.target;
+				const link = target?.link.replace(/\.md$/, "") ?? rel.target;
+				lines.push(`  - ${rel.type} → [[${link}|${label}]]`);
+			}
 		}
 		lines.push("");
 	}
@@ -146,13 +166,22 @@ export function renderRequirementsMocHtml(env: RecordsAnalyzeEnvelope): string {
 		Object.entries(env.summary.byState)
 			.map(([state, n]) => `${n} ${STATE_LABELS[state] ?? state}`)
 			.join(" · ");
+	const index = recordIndex(env);
 	const groups = env.groups
 		.map((group) => {
 			const items = group.records
-				.map(
-					(record) =>
-						`<li><a href="${escapeHtml(record.link)}" class="refarm-code">${escapeHtml(record.title)}</a></li>`,
-				)
+				.map((record) => {
+					const rels = (record.relations ?? [])
+						.map((rel) => {
+							const target = index.get(rel.target);
+							const label = target?.title ?? rel.target;
+							const link = target?.link ?? rel.target;
+							return `<li data-relation="${escapeHtml(rel.type)}">${escapeHtml(rel.type)} → <a href="${escapeHtml(link)}" class="refarm-code">${escapeHtml(label)}</a></li>`;
+						})
+						.join("");
+					const relList = rels ? `<ul class="refarm-muted-list">${rels}</ul>` : "";
+					return `<li><a href="${escapeHtml(record.link)}" class="refarm-code">${escapeHtml(record.title)}</a>${relList}</li>`;
+				})
 				.join("");
 			return `<div class="refarm-stack" data-moc-group="${escapeHtml(group.key)}">
 				<p class="refarm-eyebrow">${escapeHtml(groupLabel(env, group.key, group.label))} (${group.count})</p>

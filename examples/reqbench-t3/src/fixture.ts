@@ -19,6 +19,12 @@ import { computeRecordContentHash, type RecordsManifest } from "@refarm.dev/reco
 export const REQ_SYSTEM_IDENTITY = "efd";
 export const REQ_SYSTEM_REF = `web:${REQ_SYSTEM_IDENTITY}`;
 
+interface SeedRelation {
+	type: string;
+	target: string;
+	attrs?: Record<string, unknown>;
+}
+
 interface SeedRequirement {
 	id: string;
 	externalKey: string;
@@ -27,6 +33,8 @@ interface SeedRequirement {
 	status: string;
 	body: string;
 	section: { key: string; content: string };
+	/** Tipped links to other requirements (the graph a MOC renders). */
+	relations?: SeedRelation[];
 }
 
 /** A handful of EFD requirements as a starting corpus — typed (regra-de-negócio / caso-de-uso
@@ -55,6 +63,10 @@ const SEED_REQUIREMENTS: SeedRequirement[] = [
 			key: "fluxo",
 			content: "P1. O sistema identifica o crédito pelo CNPJ e emite o aviso ao analista.",
 		},
+		// The use case's flow references the CNPJ business rule (like rcdc5's inline links).
+		relations: [
+			{ type: "references", target: "record:req-rn632504", attrs: { direction: "outgoing" } },
+		],
 	},
 	{
 		id: "record:req-fun284853",
@@ -67,6 +79,10 @@ const SEED_REQUIREMENTS: SeedRequirement[] = [
 			key: "descricao",
 			content: "Permitir selecionar o crédito informando o CNPJ e o período de apuração.",
 		},
+		// The functional requirement also depends on the CNPJ business rule.
+		relations: [
+			{ type: "references", target: "record:req-rn632504", attrs: { direction: "outgoing" } },
+		],
 	},
 ];
 
@@ -87,6 +103,7 @@ export function reqManifest(): RecordsManifest {
 				body: req.body,
 			},
 			sections: [req.section],
+			...(req.relations ? { relations: req.relations } : {}),
 			sourceRefs: [REQ_SYSTEM_REF],
 			review: { state: req.status, at: "2026-07-07T00:00:00.000Z" },
 			contentHash: "",

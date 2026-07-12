@@ -261,6 +261,46 @@ describe("records analyze — a neutral grouping+count envelope (persona-agnosti
 		const env = await analyze({ by: "field:" });
 		expect(env.by).toBe("reviewState");
 	});
+
+	it("carries a record's tipped relations in the group entry (the graph for a MOC)", async () => {
+		const withRelations = (): RecordsManifest => {
+			const records = [
+				{
+					id: "record:a",
+					schemaVersion: 1,
+					"@type": ["KnowledgeRecord"],
+					"@context": RECORDS_CONTEXT_IRI,
+					fields: { title: "A" },
+					relations: [{ type: "references", target: "record:b", attrs: { direction: "outgoing" } }],
+					review: { state: "draft", at: "2026-06-30T00:00:00.000Z" },
+					contentHash: "",
+				},
+				{
+					id: "record:b",
+					schemaVersion: 1,
+					"@type": ["KnowledgeRecord"],
+					"@context": RECORDS_CONTEXT_IRI,
+					fields: { title: "B" },
+					review: { state: "draft", at: "2026-06-30T00:00:00.000Z" },
+					contentHash: "",
+				},
+			].map((r) => ({ ...r, contentHash: computeRecordContentHash(r) }));
+			return { manifestVersion: 1, records } as unknown as RecordsManifest;
+		};
+		const g = seededGroup({ loadManifest: withRelations });
+		const env = (await g.actions.analyze!.run({
+			args: {},
+			options: {} as never,
+			json: true,
+		})) as unknown as { groups: Array<{ records: Array<{ id: string; relations?: unknown[] }> }> };
+		const a = env.groups.flatMap((grp) => grp.records).find((r) => r.id === "record:a");
+		const b = env.groups.flatMap((grp) => grp.records).find((r) => r.id === "record:b");
+		expect(a?.relations).toEqual([
+			{ type: "references", target: "record:b", attrs: { direction: "outgoing" } },
+		]);
+		// A record with no relations omits the field.
+		expect(b?.relations).toBeUndefined();
+	});
 });
 
 describe("defineRecordsViewCapability — persona views over records analyze", () => {
