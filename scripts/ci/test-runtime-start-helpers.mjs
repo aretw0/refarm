@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -117,4 +117,50 @@ test("runtime start helpers fall back to shared default provider", () => {
 		rmSync(root, { recursive: true, force: true });
 		rmSync(home, { recursive: true, force: true });
 	}
+});
+
+// ── Installed-agent filename consistency ─────────────────────────────────────
+// The runtime failed to load the agent once because agent-install.mjs wrote
+// `agent.wasm` while tractor-start.sh (and the daemon) read `plugin.wasm`. Both
+// must agree on the canonical per-format name; this static guard fails fast if
+// they ever drift again — no daemon boot, no build, just read the two files.
+const CANONICAL_INSTALLED_AGENT_WASM = "plugin.wasm";
+
+test("agent-install.mjs installs the agent as the canonical plugin.wasm", () => {
+	const source = readFileSync(resolve("scripts/agent-install.mjs"), "utf8");
+	// The destination the installer copies the built wasm to.
+	assert.match(
+		source,
+		/const wasmDest = path\.join\(pluginDir, "plugin\.wasm"\)/,
+		"agent-install.mjs must write the canonical plugin.wasm (not agent.wasm)",
+	);
+	assert.ok(
+		source.includes(CANONICAL_INSTALLED_AGENT_WASM),
+		"agent-install.mjs must reference plugin.wasm",
+	);
+});
+
+test("tractor-start.sh reads the same canonical plugin.wasm the installer writes", () => {
+	const source = readFileSync(resolve("scripts/tractor-start.sh"), "utf8");
+	assert.match(
+		source,
+		/INSTALLED_AGENT_PLUGIN="\$REFARM_HOME\/plugins\/@refarm\/agent\/plugin\.wasm"/,
+		"tractor-start.sh must resolve the installed agent at plugins/@refarm/agent/plugin.wasm",
+	);
+});
+
+test("tractor-start.sh reinstalls when the compiled agent is newer than the installed copy", () => {
+	// The dist-stale guard: a rename that moves the agent's WIT imports must not leave the
+	// daemon loading an old installed copy. The start script must compare freshness (-nt)
+	// and reinstall before launching.
+	const source = readFileSync(resolve("scripts/tractor-start.sh"), "utf8");
+	assert.match(
+		source,
+		/\[ "\$AGENT_PLUGIN" -nt "\$INSTALLED_AGENT_PLUGIN" \]/,
+		"tractor-start.sh must detect a stale installed agent via a newer-than check",
+	);
+	assert.ok(
+		/agent-install\.mjs/.test(source),
+		"tractor-start.sh must reinstall (via agent-install.mjs) when the install is stale",
+	);
 });
