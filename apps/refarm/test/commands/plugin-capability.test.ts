@@ -36,6 +36,13 @@ function makeDeps(overrides: Partial<PluginCommandDeps> = {}): PluginCommandDeps
 			approved: [...new Set(capabilities)].sort(),
 			changed: true,
 		}),
+		persistTrust: (filePath, pluginId, trusted) => ({
+			pluginId,
+			filePath,
+			trusted,
+			trustedPlugins: trusted ? [pluginId] : [],
+			changed: true,
+		}),
 		persistRevocation: (filePath, pluginId, capability) => ({
 			pluginId,
 			filePath,

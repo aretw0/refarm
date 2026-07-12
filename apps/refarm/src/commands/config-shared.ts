@@ -25,6 +25,18 @@ export interface RefarmCliConfig {
 	 */
 	plugins?: PackageSource[];
 	/**
+	 * The operator's TRUSTED plugin allowlist — the IDENTITY axis: may this plugin
+	 * LOAD AT ALL. Under `SecurityMode::Strict` the host loads only a plugin whose
+	 * runtime id is in this set (or `*`); a plugin absent here is rejected at the
+	 * load gate before any capability question is asked. Distinct from and orthogonal
+	 * to `approvedPermissions` (the effect axis: WHICH host effects a loaded plugin
+	 * may use). Entries are RUNTIME plugin ids — the manifest id's last `/` segment
+	 * (`@refarm/delegate` → `delegate`), matching what the host compares. `*` is the
+	 * permissive wildcard. Authored via `plugin trust`; the host reads it from this
+	 * same `.refarm/config.json` at load.
+	 */
+	trusted_plugins?: string[];
+	/**
 	 * The operator's APPROVED capability set per plugin id (the effect axis:
 	 * fs:read, network:outbound, …). Distinct from `trusted_plugins` (the identity
 	 * axis: may this plugin load at all). The host reads this from the same

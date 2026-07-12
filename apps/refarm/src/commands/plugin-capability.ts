@@ -28,6 +28,7 @@ import {
 	unrevoke,
 	type RevocationResult,
 } from "./plugin-revocation.js";
+import { setTrustedPlugin, trustConfigPath, type TrustResult } from "./plugin-trust.js";
 
 import { runProcessHandoff } from "@refarm.dev/cli/process-handoff";
 import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
@@ -123,6 +124,9 @@ export interface PluginCommandDeps {
 	// ── approve ───────────────────────────────────────────────────────────────
 	/** Persist the operator-approved capability set for a plugin (scope-resolved). */
 	persistApproval: typeof setApprovedPermissions;
+	// ── trust (identity) ───────────────────────────────────────────────────────
+	/** Add/remove a plugin id from the `trusted_plugins` allowlist (scope-resolved). */
+	persistTrust: typeof setTrustedPlugin;
 	// ── revoke / unrevoke (G) ──────────────────────────────────────────────────
 	/** Append an add-only revocation (monotonic; the host materializes a tombstone). */
 	persistRevocation: typeof revoke;
@@ -169,6 +173,7 @@ export function defaultPluginDeps(): PluginCommandDeps {
 		reloadAndWait: reloadRuntimePluginsAndWait,
 		restartRuntime: restartRuntimeForPluginReload,
 		persistApproval: setApprovedPermissions,
+		persistTrust: setTrustedPlugin,
 		persistRevocation: revoke,
 		persistUnrevocation: unrevoke,
 	};
@@ -845,6 +850,72 @@ export function createPluginCapabilityGroup(
 		},
 	};
 
+	// ── trust <id> [--untrust] [--scope] ───────────────────────────────────────
+	// The IDENTITY axis of the persona loop — orthogonal to `approve` (the effect
+	// axis). Adds the plugin's runtime id to `trusted_plugins` so it may LOAD AT ALL
+	// under SecurityMode::Strict (a plugin absent from the allowlist is rejected at
+	// the load gate before any capability question). The id is normalized to its
+	// runtime form (`@refarm/delegate` → `delegate`) to match what the host compares.
+	// Surface-neutral + headless (the multi-surface invariant): the decision is the
+	// `--untrust` flag, no TTY prompt, so every surface drives it through one envelope.
+	const trust: CapabilityDescriptor = {
+		name: "trust",
+		summary: "Trust a plugin's identity so it may load under Strict (identity axis, not capability)",
+		args: [{ name: "id", required: true }],
+		options: [
+			{ name: "untrust", kind: "boolean", summary: "Remove the plugin from the trusted allowlist" },
+			{
+				name: "scope",
+				kind: "string",
+				summary: "Config scope to persist to: user | workspace | org",
+				defaultValue: "user",
+			},
+		],
+		async run(input) {
+			const id = input.args.id as string;
+			const scopeRaw = (input.options.scope as string) ?? "user";
+			if (scopeRaw !== "user" && scopeRaw !== "workspace" && scopeRaw !== "org") {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "trust",
+					error: "unknown-scope",
+					message: `Unknown scope "${scopeRaw}". Use user, workspace, or org.`,
+					nextAction: "Retry with --scope user|workspace|org.",
+				});
+			}
+			const scope = scopeRaw as LedgerScope;
+
+			const filePath = trustConfigPath(scope);
+			if (!filePath) {
+				return buildJsonErrorEnvelope({
+					command: "plugin",
+					operation: "trust",
+					error: "scope-unavailable",
+					message: `The ${scope} scope is not available.`,
+					nextAction: "Set REFARM_ORG_HOME for org scope, or use --scope user.",
+				});
+			}
+
+			const trusted = !input.options.untrust;
+			const result: TrustResult = deps.persistTrust(filePath, id, trusted);
+			return buildJsonSuccessEnvelope({
+				command: "plugin",
+				operation: "trust",
+				// Trust gates LOADING, which only takes effect at the next runtime start —
+				// point the operator at the reload so a fresh grant actually admits the plugin.
+				nextCommand: "refarm runtime restart --wait --json",
+				nextCommands: ["refarm runtime restart --wait --json", PLUGIN_STATUS_JSON_COMMAND],
+				extra: {
+					pluginId: result.pluginId,
+					scope,
+					trusted: result.trusted,
+					trustedPlugins: result.trustedPlugins,
+					changed: result.changed,
+				},
+			});
+		},
+	};
+
 	// Shared run() for revoke + unrevoke — same shape (validate scope → resolve
 	// path → persist via the injected add-only primitive → envelope). `operation`
 	// names the verb; `persist` is the primitive (revoke or unrevoke).
@@ -959,6 +1030,7 @@ export function createPluginCapabilityGroup(
 			bundle,
 			reload,
 			approve,
+			trust,
 			revoke: revokeVerb,
 			unrevoke: unrevokeVerb,
 		},
