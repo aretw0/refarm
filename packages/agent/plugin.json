@@ -14,7 +14,6 @@
     ],
     "requiresApi": [],
     "verbs": {
-      "key": "agent",
       "list": {
         "respond": {
           "doc": "Delegate a prompt to a sub-agent: it runs a full autonomous turn (its own model + tools, in its own instance and session) and returns the final response. Use this to hand a self-contained task to a fresh agent without polluting the current conversation. Returns the sub-agent's content plus token/usage.",

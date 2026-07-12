@@ -6,7 +6,6 @@
   "capabilities": {
     "requires": [],
     "verbs": {
-      "key": "delegate",
       "list": {
         "single": {
           "doc": "Delegate ONE task to a sub-agent under a named persona (scout, planner, worker, reviewer). The sub-agent runs a full autonomous turn in its own fresh instance + session (nothing pollutes this conversation) and returns its response. Use this to hand a self-contained task to a specialized persona. The available personas are the `AgentPersona` nodes in the graph.",
