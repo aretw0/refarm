@@ -24,6 +24,7 @@ import {
 	ensureAuthenticatedSession,
 	fixtureLogin,
 	loadWebSourceTargetsSync,
+	withReauth,
 	type InteractiveLogin,
 	type WebSourceSessionEvidence,
 } from "@refarm.dev/source-web";
@@ -116,6 +117,10 @@ export interface RequirementsCapabilityOptions extends RequirementsStateOptions 
 	 * canned RDF response and a real deployment binds it to an authenticated browser/session.
 	 * Absent = no live fetch wired (offline fixture replay, out-of-the-box). */
 	fetchImpl?: typeof fetch;
+	/** The login driver, so a live pull can RE-AUTHENTICATE when the session expires mid-pull
+	 * (a Jazz 401 → re-login → retry, the way the real vault recovers). Defaults to the fixture
+	 * login; a real deployment injects a browser login. Only used when a live fetch is wired. */
+	login?: InteractiveLogin;
 }
 
 /**
@@ -150,9 +155,30 @@ export function createRequirementsSourceProvider(options: RequirementsCapability
 		...(allowedHosts.length ? { egress: { allowedHosts } } : {}),
 		// The OSLC driver is the analyst's domain knowledge; the substrate just calls it when a
 		// live pull happens (http target, not offline). No fetchImpl → offline fixture replay.
+		// Wrapped with withReauth so an expired session mid-pull (Jazz 401) re-logs-in and
+		// retries — the vault's recovery loop, generic in the substrate, login injected here.
 		...(options.fetchImpl
-			? { fetcher: createOslcFetchDriver({ fetchImpl: options.fetchImpl }) }
+			? { fetcher: liveOslcFetcher(options.fetchImpl, options.login ?? fixtureLogin()) }
 			: {}),
+	});
+}
+
+/** The live fetcher: the OSLC driver, wrapped so a recoverable 401 re-authenticates (re-runs
+ * the login) and retries. The reauth rebuilds the login target from the FAILING request — its
+ * session's credentialRef identifies where to re-login, its url's host is the system. */
+function liveOslcFetcher(fetchImpl: typeof fetch, login: InteractiveLogin) {
+	const oslc = createOslcFetchDriver({ fetchImpl });
+	return withReauth(oslc, {
+		reauth: (failed) => {
+			const identity = (() => {
+				try {
+					return new URL(failed.url).hostname;
+				} catch {
+					return "";
+				}
+			})();
+			return login({ identity, credentialRef: failed.session.credentialRef });
+		},
 	});
 }
 

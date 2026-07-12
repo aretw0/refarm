@@ -23,6 +23,47 @@ export function isRecoverableAuthStatus(status: number): boolean {
 	return status === 401 || status === 419;
 }
 
+/** Re-authenticate after a recoverable failure: given the request that failed (its session +
+ * url identify what to re-login to), return a FRESH session to retry with. The consumer wires
+ * this to their login (the same driver login-garantido uses). */
+export type Reauthenticate = (failed: WebFetchRequest) => Promise<WebFetchRequest["session"]>;
+
+export interface WithReauthOptions {
+	reauth: Reauthenticate;
+	/** Which statuses trigger a re-auth+retry (default: {@link isRecoverableAuthStatus}). */
+	isRecoverable?: (status: number) => boolean;
+	/** How many times to re-auth+retry before giving up (default 1 — one refreshed attempt). */
+	maxRetries?: number;
+}
+
+/**
+ * Wrap a fetch driver so a recoverable auth failure (a Jazz session expiring mid-pull → 401)
+ * is handled the way the real vault handles it: re-authenticate, then retry the fetch with the
+ * FRESH session — up to `maxRetries` times, then rethrow. This is the substrate's generic
+ * session-recovery loop; the domain driver underneath just does the GET and throws
+ * HttpFetchError on 401. A non-recoverable error (403/500) propagates untouched.
+ */
+export function withReauth(fetcher: WebFetchDriver, options: WithReauthOptions): WebFetchDriver {
+	const isRecoverable = options.isRecoverable ?? isRecoverableAuthStatus;
+	const maxRetries = options.maxRetries ?? 1;
+	return async (request: WebFetchRequest): Promise<WebFetchResult> => {
+		let attempt = 0;
+		let current = request;
+		for (;;) {
+			try {
+				return await fetcher(current);
+			} catch (error) {
+				const recoverable =
+					error instanceof HttpFetchError && isRecoverable(error.status) && attempt < maxRetries;
+				if (!recoverable) throw error;
+				attempt += 1;
+				const session = await options.reauth(current); // re-login → fresh session
+				current = { ...current, session };
+			}
+		}
+	};
+}
+
 /**
  * The default fetch driver: a plain `fetch()` GET that sends the caller's headers and the
  * session's `credentialRef` as a bearer-ish hint (a real driver replaces this with cookie

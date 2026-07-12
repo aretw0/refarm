@@ -8,6 +8,7 @@ import {
 	createHttpFetchDriver,
 	createWebSourceProvider,
 	isRecoverableAuthStatus,
+	withReauth,
 	type WebFetchDriver,
 } from "./index.js";
 
@@ -197,5 +198,56 @@ describe("createHttpFetchDriver + isRecoverableAuthStatus", () => {
 		expect(isRecoverableAuthStatus(419)).toBe(true);
 		expect(isRecoverableAuthStatus(403)).toBe(false);
 		expect(isRecoverableAuthStatus(500)).toBe(false);
+	});
+});
+
+describe("withReauth — recover from a session expiring mid-pull", () => {
+	const req = {
+		url: "https://alm.example/rm/resources/TX_1",
+		session: { kind: "authenticated" as const, authenticated: true, principal: "stale" },
+	};
+
+	it("re-authenticates and retries once on a 401, using the fresh session", async () => {
+		let calls = 0;
+		const inner = vi.fn<WebFetchDriver>(async (r) => {
+			calls += 1;
+			if (calls === 1) throw new HttpFetchError(401, r.url);
+			return { body: `OK as ${r.session.principal}`, mediaType: "text/plain" };
+		});
+		const reauth = vi.fn(async () => ({
+			kind: "authenticated" as const,
+			authenticated: true,
+			principal: "fresh",
+		}));
+		const wrapped = withReauth(inner, { reauth });
+
+		const out = await wrapped(req);
+		expect(out.body).toBe("OK as fresh"); // retried with the refreshed session
+		expect(inner).toHaveBeenCalledTimes(2);
+		expect(reauth).toHaveBeenCalledOnce();
+	});
+
+	it("gives up after maxRetries and rethrows the 401", async () => {
+		const inner = vi.fn<WebFetchDriver>(async (r) => {
+			throw new HttpFetchError(401, r.url);
+		});
+		const reauth = vi.fn(async () => req.session);
+		const wrapped = withReauth(inner, { reauth, maxRetries: 2 });
+
+		await expect(wrapped(req)).rejects.toMatchObject({ status: 401 });
+		expect(inner).toHaveBeenCalledTimes(3); // initial + 2 retries
+		expect(reauth).toHaveBeenCalledTimes(2);
+	});
+
+	it("does NOT re-auth a non-recoverable error (e.g. 403)", async () => {
+		const inner = vi.fn<WebFetchDriver>(async (r) => {
+			throw new HttpFetchError(403, r.url);
+		});
+		const reauth = vi.fn(async () => req.session);
+		const wrapped = withReauth(inner, { reauth });
+
+		await expect(wrapped(req)).rejects.toMatchObject({ status: 403 });
+		expect(inner).toHaveBeenCalledOnce();
+		expect(reauth).not.toHaveBeenCalled();
 	});
 });

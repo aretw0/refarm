@@ -300,6 +300,66 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		}
 	});
 
+	it("LIVE OSLC pull RECOVERS from a mid-pull 401 by re-authenticating and retrying", async () => {
+		// The session expires mid-pull (Jazz answers 401). The generic reauth loop re-runs the
+		// login and retries — so the pull still succeeds. This is the vault's recovery behavior,
+		// proven end-to-end with a mock that 401s once then serves the RDF.
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reqbench-401-"));
+		const configPath = path.join(dir, "sources.json");
+		fs.writeFileSync(
+			configPath,
+			JSON.stringify({
+				targets: [
+					{
+						identity: "efd",
+						url: "https://alm.example/rm/resources/TX_10",
+						session: { kind: "authenticated", principal: "analyst" },
+						attributes: { streamURI: "urn:stream:efd" },
+					},
+				],
+			}),
+		);
+		const rdf = `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:jazz_rm="http://jazz.net/ns/rm#">
+			<rdf:Description rdf:about="https://alm.example/rm/resources/TX_10">
+				<dcterms:identifier>RN-1</dcterms:identifier>
+				<dcterms:title>Regra</dcterms:title>
+				<rdf:type rdf:resource="http://jazz.net/ns/rm#BusinessRule"/>
+			</rdf:Description>
+		</rdf:RDF>`;
+		let call = 0;
+		const fetchImpl = vi.fn<typeof fetch>(async () => {
+			call += 1;
+			return call === 1
+				? new Response("session expired", { status: 401 })
+				: new Response(rdf, { status: 200, headers: { "content-type": "application/rdf+xml" } });
+		});
+		const reLogin = vi.fn(async () => ({
+			kind: "authenticated" as const,
+			authenticated: true,
+			principal: "re-authed",
+		}));
+		try {
+			const provider = createRequirementsSourceProvider({
+				cacheRoot: dir,
+				sourcesConfigPath: configPath,
+				fetchImpl: fetchImpl as unknown as typeof fetch,
+				login: reLogin,
+			});
+			const ingested = await ingestSourceToRecords({
+				sourceProvider: provider,
+				ref: REQ_SYSTEM_REF,
+				parse: parseRequirements,
+				offline: false,
+			});
+			expect(fetchImpl).toHaveBeenCalledTimes(2); // 401, then success
+			expect(reLogin).toHaveBeenCalledOnce(); // re-authenticated between attempts
+			expect(ingested.records).toHaveLength(1); // the pull still delivered the requirement
+			expect(ingested.records[0]?.fields.externalKey).toBe("RN-1");
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
 	it("enriches requirements with the analyst's rules (text mentioning CNPJ gets tagged)", async () => {
 		// The generic rules engine + the analyst's fiscal rules: requirements whose body/title
 		// mention CNPJ gain the req/cnpj tag, idempotently.
