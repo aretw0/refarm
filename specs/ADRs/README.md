@@ -83,6 +83,7 @@ Architecture Decision Records for Refarm.
 | [085](ADR-085-open-surface-projection-axis.md)                 | Open Surface Projection Axis — Surfaces as Data, Projectors as Plugins            | Proposed   | 2026-07-09 |
 | [086](ADR-086-plugin-vocabulary-convergence.md)                | Plugin Vocabulary Convergence — One Verb, N Natures                               | Accepted   | 2026-07-10 |
 | [087](ADR-087-brand-agnostic-packages.md)                      | Brand-Agnostic Packages — Only the App Owns Its Name                              | Accepted   | 2026-07-10 |
+| [088](ADR-088-agent-surface-transport-seam.md)                 | Agent Surface Transport Seam — Telegram / PWA / P2P around the `user:prompt` seam | Proposed   | 2026-07-12 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 
