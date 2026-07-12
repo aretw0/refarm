@@ -457,24 +457,23 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 				<rdf:type rdf:resource="http://jazz.net/ns/rm#BusinessRule"/>
 			</rdf:Description>
 		</rdf:RDF>`;
-		let call = 0;
-		const fetchImpl = vi.fn<typeof fetch>(async () => {
-			call += 1;
-			return call === 1
-				? new Response("session expired", { status: 401 })
-				: new Response(rdf, { status: 200, headers: { "content-type": "application/rdf+xml" } });
-		});
-		const reLogin = vi.fn(async () => ({
-			kind: "authenticated" as const,
-			authenticated: true,
-			principal: "re-authed",
-		}));
+		// The EXPIRED-session fetch always 401s (stale cookies). Re-auth must produce a NEW fetch
+		// (fresh cookies from a fresh browser login) that succeeds — this proves the recovery
+		// swaps the transport, not just the session evidence (the real bug the vault avoids).
+		const staleFetch = vi.fn<typeof fetch>(
+			async () => new Response("session expired", { status: 401 }),
+		);
+		const freshFetch = vi.fn<typeof fetch>(
+			async () =>
+				new Response(rdf, { status: 200, headers: { "content-type": "application/rdf+xml" } }),
+		);
+		const reauthenticate = vi.fn(async () => freshFetch); // re-login → fresh cookie fetch
 		try {
 			const provider = createRequirementsSourceProvider({
 				cacheRoot: dir,
 				sourcesConfigPath: configPath,
-				fetchImpl: fetchImpl as unknown as typeof fetch,
-				login: reLogin,
+				fetchImpl: staleFetch,
+				reauthenticate,
 			});
 			const ingested = await ingestSourceToRecords({
 				sourceProvider: provider,
@@ -482,8 +481,9 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 				parse: parseRequirements,
 				offline: false,
 			});
-			expect(fetchImpl).toHaveBeenCalledTimes(2); // 401, then success
-			expect(reLogin).toHaveBeenCalledOnce(); // re-authenticated between attempts
+			expect(staleFetch).toHaveBeenCalledOnce(); // 401 on the stale cookies
+			expect(reauthenticate).toHaveBeenCalledOnce(); // re-opened the browser for fresh cookies
+			expect(freshFetch).toHaveBeenCalledOnce(); // retried with the FRESH fetch → 200
 			expect(ingested.records).toHaveLength(1); // the pull still delivered the requirement
 			expect(ingested.records[0]?.fields.externalKey).toBe("RN-1");
 		} finally {

@@ -31,48 +31,92 @@ Set `DGK_COMMAND=/path/to/cli-name` to change the CLI command root.
 ## Running live (a real scrape)
 
 Out of the box, `dgk requirements-pull web:efd` replays the **offline sample** in
-`.dgk/sources.json` (so everything works and is testable without a network). To scrape a
-**real** system, declare it in your ledger and add `--live`:
+`.dgk/sources.json` (so everything works and is testable without a network). `--live` scrapes a
+**real** system.
 
-1. **Declare your system** in `.dgk/sources.json` — its `url`, an `authenticated` session,
-   and the driver coordinate (for an IBM Jazz / DOORS-Next RM system, `componentURI` and
-   `streamURI`):
+### What `--live` does today — and does NOT (read this first)
+
+**It does**: open your Chrome → you complete SSO/VPN login → it captures the session cookies →
+it fetches **one OSLC resource URL** (the target's `url`) with the Jazz RDF contract → it parses
+whatever requirements that one RDF document contains → into records → the MOC. It reuses the
+cookie session across runs, and re-authenticates (a fresh browser login) if a pull hits a 401.
+
+**It does NOT (yet)**: discover a project. It does **not** open a dashboard, list folders, walk
+the artifact tree, paginate, or follow `/rm/links` to traverse the requirement graph. So it
+pulls the artifact(s) in the URL you point at — **not a whole project**. Pointing `url` at a
+dashboard/collection URL will return an HTML shell, not RDF, and yield **zero** records. This is
+a build-it gap (the discovery/walk machinery isn't written), not a config knob. Treat `--live`
+today as a **single-artifact OSLC smoke test** of the login → authenticated-GET → parse → record
+chain.
+
+### Steps
+
+1. **Declare your system** in `.dgk/sources.json`. For a live run, `url` must be a single OSLC
+   **resource** and `attributes.streamURI` is **required** (it becomes the OSLC
+   `Configuration-Context` header — without it a config-managed component GET is unscoped and
+   usually 400s). The host of `url` must be your real ALM and **not** a private/VPN IP
+   (`10.x`/`192.168.x`/`.local` are egress-blocked; a real hostname like `alm.serpro` is fine):
 
    ```json
    {
      "targets": [
        {
          "identity": "efd",
-         "url": "https://your-alm.example/rm/resources/…",
+         "url": "https://alm.serpro/rm/resources/<a-real-artifact-id>",
          "session": { "kind": "authenticated", "principal": "you" },
-         "attributes": {
-           "componentURI": "https://your-alm.example/rm/rm-projects/…/components/…",
-           "streamURI": "https://your-alm.example/rm/cm/stream/…"
-         }
+         "attributes": { "streamURI": "https://alm.serpro/rm/cm/stream/<real>" }
        }
      ]
    }
    ```
 
-2. **Point at your Chrome** and a session directory, then pull live:
+2. **Point at your Chrome** and a session directory, then pull live (connect the VPN first):
 
    ```bash
-   export DGK_CHROME_PATH="/path/to/google-chrome"   # your installed Chrome
+   export DGK_CHROME_PATH="/path/to/google-chrome"   # your installed Chrome (puppeteer downloads none)
    export DGK_SESSION_DIR="$HOME/.dgk/session"        # persistent profile + cookies
+   # DGK_HEADLESS unset — must be headful to see/scan the SerproID QR in the window
    dgk requirements-pull web:efd --live
+   dgk requirements                                   # then read the MOC
    ```
 
-   A browser opens; complete your **VPN + SSO** login there. Login is **auto-detected**
-   (no keypress) — once you're through, the cookies are captured, persisted to
-   `$DGK_SESSION_DIR/auth-state.json`, and reused on the next run (no re-login until they
-   expire; an expired session mid-pull re-authenticates automatically). The requirements are
-   fetched over the **OSLC/RDF** contract, parsed, and merged — then `dgk requirements`
-   shows the MOC.
+   A browser opens; complete **VPN + SSO** (scan the QR shown *in the browser window*). Login is
+   **auto-detected** — once you're through, cookies are captured, persisted to
+   `$DGK_SESSION_DIR/auth-state.json`, and reused next run.
 
-The browser mechanism is the framework's (`@refarm.dev/browser-driver`) — any work, or an
-agent operator, reuses it. Only the OSLC glue (the RDF request + parser) is specific to this
-example. Without `--live`, or without a Chrome, nothing changes: the offline fixture path
-runs (`--live` on a build with no browser says so, it doesn't fail silently).
+### Calibrating login detection (no recompile)
+
+The default "you're logged in" signal is: the URL left the login flow (not matching
+`login|sso|auth|signin`) **and** contains the ALM host. Real SSO chains can fool this — it can
+fire too early on an auth interstitial that's already on the ALM host, or hang if a post-login
+URL contains `auth`/`sso` in its path. Tune it from the environment:
+
+| Env var | What it does |
+| --- | --- |
+| `DGK_LOGIN_URL_INCLUDES` | Success only when the URL contains this substring (e.g. a dashboard path like `/rm/web`). |
+| `DGK_LOGIN_READY_SELECTOR` | Success only when this CSS selector is present (a dashboard element shown only when authed). |
+| `DGK_LOGIN_COOKIE` | Success only when a cookie of this name is set (the Jazz session cookie, e.g. `JSESSIONID`). |
+| `DGK_LOGIN_URL_PATTERN` | Regex of "still logging in" URL fragments (default `login\|sso\|auth\|signin`) — narrow it if a real authed URL contains one of those. |
+| `DGK_LOGIN_TIMEOUT_MS` | How long to wait for login, ms (default 180000). Raise for a slow VPN/SSO. |
+
+Most reliable combo for Jazz: set `DGK_LOGIN_COOKIE=JSESSIONID` (or your real session cookie)
+so success keys on the cookie actually being set, not just the URL.
+
+### Troubleshooting
+
+- **Hangs ~3 min then `BROWSER_LOGIN_TIMEOUT`** — the URL-pattern false-negative. Set
+  `DGK_LOGIN_URL_INCLUDES` to a path that only appears once you're in, or `DGK_LOGIN_COOKIE`.
+- **`EGRESS_DENIED`** — `url`'s host is a private/VPN IP; use the real ALM hostname.
+- **OSLC GET 400/401 or zero records** — missing/wrong `streamURI`, or `url` points at a
+  collection/dashboard (not a `/rm/resources/<id>`), or login captured cookies too early
+  (calibrate the signal above).
+- **`BROWSER_DRIVER_UNAVAILABLE`** — `puppeteer-core` (an optional dep) didn't install; run
+  `pnpm add puppeteer-core` in this example and set `DGK_CHROME_PATH`.
+
+The browser mechanism is the framework's (`@refarm.dev/browser-driver`) — any work, or an agent
+operator, reuses it. Only the OSLC glue (the RDF request + parser) is specific to this example.
+Without `--live` (or a Chrome) the offline fixture path runs; `--live` on a browserless build
+says so, it doesn't fail silently.
 
 ## Two layers
 

@@ -117,10 +117,10 @@ export interface RequirementsCapabilityOptions extends RequirementsStateOptions 
 	 * canned RDF response and a real deployment binds it to an authenticated browser/session.
 	 * Absent = no live fetch wired (offline fixture replay, out-of-the-box). */
 	fetchImpl?: typeof fetch;
-	/** The login driver, so a live pull can RE-AUTHENTICATE when the session expires mid-pull
-	 * (a Jazz 401 → re-login → retry, the way the real vault recovers). Defaults to the fixture
-	 * login; a real deployment injects a browser login. Only used when a live fetch is wired. */
-	login?: InteractiveLogin;
+	/** RE-AUTHENTICATE on a mid-pull 401 (an expired Jazz session): re-run the real browser login
+	 * and return a FRESH cookie-carrying fetch impl to retry with — the way the vault recovers.
+	 * Absent = a 401 is not recoverable. Only used when a live fetch is wired. */
+	reauthenticate?: () => Promise<typeof fetch>;
 }
 
 /**
@@ -158,26 +158,27 @@ export function createRequirementsSourceProvider(options: RequirementsCapability
 		// Wrapped with withReauth so an expired session mid-pull (Jazz 401) re-logs-in and
 		// retries — the vault's recovery loop, generic in the substrate, login injected here.
 		...(options.fetchImpl
-			? { fetcher: liveOslcFetcher(options.fetchImpl, options.login ?? fixtureLogin()) }
+			? { fetcher: liveOslcFetcher(options.fetchImpl, options.reauthenticate) }
 			: {}),
 	});
 }
 
-/** The live fetcher: the OSLC driver, wrapped so a recoverable 401 re-authenticates (re-runs
- * the login) and retries. The reauth rebuilds the login target from the FAILING request — its
- * session's credentialRef identifies where to re-login, its url's host is the system. */
-function liveOslcFetcher(fetchImpl: typeof fetch, login: InteractiveLogin) {
-	const oslc = createOslcFetchDriver({ fetchImpl });
+/**
+ * The live fetcher: the OSLC driver, wrapped so a recoverable 401 re-authenticates and retries.
+ * The vault answers an expired Jazz session with a 401 mid-pull; recovery must produce FRESH
+ * COOKIES, not just fresh session evidence — so `reauthenticate` re-runs the real browser login
+ * and returns a new cookie-carrying `fetchImpl`, which we swap in before retrying. Without a
+ * `reauthenticate` (offline/tests), a 401 is not recoverable (it just propagates).
+ */
+function liveOslcFetcher(fetchImpl: typeof fetch, reauthenticate?: () => Promise<typeof fetch>) {
+	// A mutable fetch cell so re-auth can replace the cookies the OSLC driver uses.
+	let current = fetchImpl;
+	const oslc = createOslcFetchDriver({ fetchImpl: (input, init) => current(input, init) });
+	if (!reauthenticate) return oslc;
 	return withReauth(oslc, {
-		reauth: (failed) => {
-			const identity = (() => {
-				try {
-					return new URL(failed.url).hostname;
-				} catch {
-					return "";
-				}
-			})();
-			return login({ identity, credentialRef: failed.session.credentialRef });
+		reauth: async (failed) => {
+			current = await reauthenticate(); // re-open the browser, capture fresh cookies
+			return failed.session; // evidence unchanged; the cookies (in `current`) are what matter
 		},
 	});
 }
@@ -372,6 +373,22 @@ export interface LiveProviderOptions {
 	chromePath?: string;
 	/** Run the browser headless (default false — the human needs to see the SSO/VPN login). */
 	headless?: boolean;
+	/** How login-complete is DETECTED (no keypress). Tune these for the real SSO so the pull
+	 * doesn't false-positive on an auth interstitial or time out on an auth-in-the-URL path.
+	 * All optional; passed straight to the browser driver's login signals. */
+	loginSignals?: {
+		/** Substring the post-login URL must contain (e.g. a dashboard path). Default: base host. */
+		urlIncludes?: string;
+		/** A CSS selector present only once authenticated (e.g. a dashboard element). */
+		readySelector?: string;
+		/** The session cookie name that appears once authenticated (e.g. "JSESSIONID"). */
+		cookieNamed?: string;
+		/** Regex of URL fragments that mean "still logging in" (success requires NOT matching).
+		 * Default `login|sso|auth|signin` — override if a real authed URL contains one of those. */
+		loginUrlPattern?: string;
+	};
+	/** How long to wait for login to be detected, ms (default 3 min). Raise for a slow VPN/SSO. */
+	loginTimeoutMs?: number;
 }
 
 /**
@@ -396,26 +413,40 @@ export function createLiveRequirementsProviderFactory(
 		}
 		const base = new URL(target.url);
 		const baseUrl = `${base.protocol}//${base.host}`;
-		// The framework's browser-login block: sign in once via the operator's Chrome, reuse the
-		// cookie session. puppeteer adapter imported lazily — only a live run pays for it.
-		const { createLiveFetch } = await import("@refarm.dev/browser-driver");
-		const { createPuppeteerSession } = await import("@refarm.dev/browser-driver/puppeteer");
-		const session = await createPuppeteerSession({
-			executablePath: options.chromePath,
-			userDataDir: options.sessionDir,
-			headless: options.headless,
-		});
-		const live = await createLiveFetch({
-			session,
-			baseUrl,
-			statePath: options.sessionDir ? path.join(options.sessionDir, "auth-state.json") : undefined,
-		});
+		const statePath = options.sessionDir
+			? path.join(options.sessionDir, "auth-state.json")
+			: undefined;
+		// The framework's browser-login block: sign in via the operator's Chrome, reuse the cookie
+		// session. puppeteer adapter imported lazily — only a live run pays for it. This closure
+		// is used for the initial login AND for re-auth on a mid-pull 401 (a fresh browser sign-in
+		// producing fresh cookies) — the way the real vault recovers an expired session.
+		const openLiveFetch = async (forceRelogin: boolean): Promise<typeof fetch> => {
+			const { createLiveFetch } = await import("@refarm.dev/browser-driver");
+			const { createPuppeteerSession } = await import("@refarm.dev/browser-driver/puppeteer");
+			const session = await createPuppeteerSession({
+				executablePath: options.chromePath,
+				userDataDir: options.sessionDir,
+				headless: options.headless,
+				...(options.loginTimeoutMs ? { loginTimeoutMs: options.loginTimeoutMs } : {}),
+				...(options.loginSignals ? { signals: options.loginSignals } : {}),
+			});
+			const live = await createLiveFetch({
+				session,
+				baseUrl,
+				// On re-auth, ignore the persisted cookies (they expired) and force a fresh login.
+				...(forceRelogin ? {} : statePath ? { statePath } : {}),
+			});
+			return live.fetchImpl;
+		};
+
 		// The provider re-wraps this cookie-carrying fetch with the OSLC contract (RDF headers +
-		// Configuration-Context), so the combination = authenticated OSLC GETs.
+		// Configuration-Context), so the combination = authenticated OSLC GETs. reauthenticate
+		// re-opens the browser for fresh cookies when a pull hits a 401.
 		return createRequirementsSourceProvider({
 			cacheRoot: options.cacheRoot,
 			sourcesConfigPath: options.sourcesConfigPath,
-			fetchImpl: live.fetchImpl,
+			fetchImpl: await openLiveFetch(false),
+			reauthenticate: () => openLiveFetch(true),
 		});
 	};
 }

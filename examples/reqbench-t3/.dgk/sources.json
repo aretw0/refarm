@@ -1,14 +1,19 @@
 {
-	"_comment": "The analyst's SOURCE TARGETS — the systems they chose to work with, of the ones their login can access. THIS FILE IS YOURS TO EDIT: swap `efd` for the systems you pull from, add more, point `url` at your ALM/DOORS component. The example ships EFD as a sample so the bench works out of the box; the mechanism reads whatever you declare here (see @refarm.dev/source-web loadWebSourceTargets).",
+	"_comment": "The analyst's SOURCE TARGETS — the systems they chose to work with, of the ones their login can access. THIS FILE IS YOURS TO EDIT. Out of the box, the `body` below makes the OFFLINE fixture work (dgk requirements-pull web:efd). For a LIVE run against your real ALM (dgk requirements-pull web:efd --live): (1) set `url` to a real OSLC resource, e.g. https://alm.serpro/rm/resources/<artifact-id>; (2) fill `attributes.streamURI` with your real config/stream URI (it becomes the OSLC Configuration-Context header — REQUIRED for a config-managed component, or the GET is unscoped); (3) remove or keep `body` (ignored on --live). See README 'Running live'. NOTE: a live pull currently fetches ONE resource URL and parses whatever requirements that RDF holds — it does not yet discover/walk a project.",
 	"targets": [
 		{
 			"identity": "efd",
 			"label": "EFD — Escrituração Fiscal Digital",
-			"url": "https://alm.example/rm/efd/requirements",
+			"url": "https://alm.example/rm/resources/TX_REPLACE_WITH_REAL_ARTIFACT_ID",
 			"session": {
 				"kind": "authenticated",
 				"principal": "analyst",
 				"credentialRef": "silo://analyst/alm-session"
+			},
+			"attributes": {
+				"_comment": "For a live run, replace these placeholders with your real Jazz/DOORS URIs. streamURI is used (Configuration-Context); componentURI is carried for future project-walk support.",
+				"componentURI": "https://alm.example/rm/rm-projects/_REPLACE/components/_REPLACE",
+				"streamURI": "https://alm.example/rm/cm/stream/_REPLACE"
 			},
 			"body": "<!doctype html><html><body><article data-req=\"RN-632504\" data-type=\"regra-de-negocio\" data-title=\"Identificador do CNPJ da Escrituração\">A escrituração é identificada pelo CNPJ do estabelecimento. Validar e formatar o CNPJ conforme o layout.</article><article data-req=\"CDU-282405\" data-type=\"caso-de-uso\" data-title=\"Receber Aviso de Tratamento Manual\">O sistema deve avisar o analista quando o crédito exigir tratamento manual, a partir do CNPJ.</article><article data-req=\"FUN-284853\" data-type=\"funcional\" data-title=\"Selecionar o crédito para análise a partir do CNPJ\">Permitir selecionar o crédito para análise informando o CNPJ e o período de apuração.</article></body></html>"
 		}
