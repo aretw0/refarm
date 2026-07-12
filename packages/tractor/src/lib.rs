@@ -28,6 +28,7 @@ pub mod daemon;
 pub mod host;
 pub mod node_reap;
 pub mod observer;
+pub(crate) mod respawn;
 pub mod sidecar;
 pub mod storage;
 pub(crate) mod streaming;
@@ -145,6 +146,17 @@ pub type CancelFlags = Arc<RwLock<HashMap<String, std::sync::Arc<std::sync::atom
 /// event dispatch is terminal-on-delivery and never needs this.
 pub type InFlightCancels =
     Arc<RwLock<HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>>;
+
+/// Sender a runner uses to ask the host to RE-SPAWN a plugin whose last runner
+/// tore down on an epoch trap (cancel/timeout). After such a trap the wasmtime
+/// store is unwound and cannot be re-entered, so the runner exits — for a single
+/// runner (the default, e.g. the agent) that would leave the plugin loaded but
+/// dead (dispatch delivered, nothing executes) until a full runtime restart. The
+/// runner instead sends its plugin_id here; the respawn supervisor reloads a fresh
+/// instance by the plugin's recorded path and re-registers it, so a cancelled turn
+/// costs one sub-second reinstantiation, not the agent. Unbounded is fine: sends
+/// are rare (one per trapped teardown) and the supervisor drains promptly.
+pub type RespawnTx = mpsc::UnboundedSender<String>;
 
 /// The neutral event router: maps an event name to the set of plugin_ids
 /// subscribed to it, layered OVER the plugin-id lifecycle registry
@@ -358,6 +370,7 @@ fn write_terminal_error_result(sync: &NativeSync, plugin_id: &str, prompt_ref: &
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_plugin_store_runner(
     handle: host::PluginInstanceHandle,
     shared_rx: Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<EventEnvelope>>>,
@@ -366,6 +379,11 @@ fn spawn_plugin_store_runner(
     store_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     in_flight: InFlightCancels,
     sync: NativeSync,
+    // Set when THIS is the last runner for the plugin (a single-runner plugin, or the
+    // last of a pool): on an epoch-trap teardown, ask the supervisor to reinstantiate
+    // the plugin rather than leaving it dead. None for a non-last pool worker — its
+    // siblings keep serving, so no respawn is needed.
+    respawn_tx: Option<RespawnTx>,
 ) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -474,8 +492,23 @@ fn spawn_plugin_store_runner(
 
                 // After an epoch trap the store was unwound mid-execution and is
                 // not safe to reuse — tear THIS runner down. Other pool workers
-                // keep serving on their own (intact) stores.
+                // keep serving on their own (intact) stores. If this was the LAST
+                // runner (respawn_tx set), ask the supervisor to reinstantiate the
+                // plugin so it doesn't stay loaded-but-dead until a runtime restart.
                 if timed_out {
+                    if let Some(tx) = &respawn_tx {
+                        if tx.send(plugin_id.clone()).is_err() {
+                            tracing::debug!(
+                                plugin_id = %plugin_id,
+                                "respawn channel closed (runtime shutting down) — not requesting respawn"
+                            );
+                        } else {
+                            tracing::info!(
+                                plugin_id = %plugin_id,
+                                "runner torn down by epoch trap — requested respawn"
+                            );
+                        }
+                    }
                     break;
                 }
             }
@@ -609,6 +642,16 @@ pub struct TractorNative {
     /// The on-disk path each loaded plugin came from, keyed by plugin_id. Retained
     /// by load_plugin so reload_plugin can re-read the (possibly rebuilt) bytes.
     plugin_paths: Arc<RwLock<HashMap<String, std::path::PathBuf>>>,
+    /// Sender handed to the LAST runner of each plugin: on an epoch-trap teardown it
+    /// asks the respawn supervisor (spawned by `spawn_respawn_supervisor`) to reload
+    /// a fresh instance by the plugin's recorded path. `register_for_events` clones it
+    /// into the runner; the receiver is taken once by the supervisor. None until the
+    /// supervisor is started (respawn is opt-in wiring the daemon boot turns on).
+    respawn_tx: RespawnTx,
+    /// The receiver side of `respawn_tx`, parked here until `spawn_respawn_supervisor`
+    /// takes it (once). `Mutex<Option<…>>` so the take is exclusive and the field can
+    /// be left `None` afterwards.
+    respawn_rx: Arc<Mutex<Option<mpsc::UnboundedReceiver<String>>>>,
     #[allow(dead_code)]
     config: TractorNativeConfig,
 }
@@ -647,6 +690,9 @@ impl TractorNative {
         let event_router = EventRouter::default();
         let plugin_paths: Arc<RwLock<HashMap<String, std::path::PathBuf>>> =
             Arc::new(RwLock::new(HashMap::new()));
+        // Respawn channel: a runner that trapped-out sends its plugin_id here; the
+        // supervisor (spawned by the daemon via spawn_respawn_supervisor) reloads it.
+        let (respawn_tx, respawn_rx) = mpsc::unbounded_channel::<String>();
         let cross_plugin = host::CrossPluginAccess {
             registry: plugin_registry.clone(),
             event_router: event_router.clone(),
@@ -737,6 +783,8 @@ impl TractorNative {
             // The SAME map the self-dispatch spawner reads — so a plugin loaded via
             // load_plugin (which records its path here) is self-dispatchable.
             plugin_paths,
+            respawn_tx,
+            respawn_rx: Arc::new(Mutex::new(Some(respawn_rx))),
             config,
         })
     }
@@ -750,6 +798,86 @@ impl TractorNative {
             .expect("plugin_paths poisoned")
             .insert(handle.id.clone(), path.to_path_buf());
         Ok(handle)
+    }
+
+    /// Start the RESPAWN SUPERVISOR: a background task that reinstantiates a plugin
+    /// whose last runner tore down on an epoch trap (a cancelled/timed-out turn). The
+    /// runner sends its plugin_id on the respawn channel; the supervisor looks up the
+    /// plugin's recorded path (`plugin_paths`, populated by `load_plugin`), reloads a
+    /// FRESH instance, and re-registers it — so a cancelled turn costs a sub-second
+    /// reinstantiation instead of leaving the plugin loaded-but-dead until a full
+    /// runtime restart. This is the same `load_plugin` + `register_for_events` the boot
+    /// path uses; the supervisor just drives it on demand.
+    ///
+    /// Called ONCE by the daemon after it has the `Arc<TractorNative>` (the supervisor
+    /// holds a `Weak` to it, so it stops when the runtime drops — no cycle). Taking the
+    /// receiver is idempotent-safe: a second call finds it already taken and no-ops.
+    ///
+    /// A per-plugin cooldown guards against a wedged plugin that traps on EVERY event
+    /// turning into a respawn hot-loop: if the same plugin asks to respawn again within
+    /// the cooldown, the request is dropped (logged), so a genuinely broken plugin
+    /// settles into "dead until restart" rather than pinning a core reinstantiating it.
+    pub fn spawn_respawn_supervisor(self: &Arc<Self>) {
+        let Some(mut rx) = self
+            .respawn_rx
+            .lock()
+            .expect("respawn_rx poisoned")
+            .take()
+        else {
+            // Already started — the receiver was taken by a prior call.
+            return;
+        };
+        let weak = Arc::downgrade(self);
+        let mut cooldown = crate::respawn::RespawnCooldown::new();
+        tokio::spawn(async move {
+            while let Some(plugin_id) = rx.recv().await {
+                let Some(tractor) = weak.upgrade() else {
+                    break; // runtime dropped — stop supervising.
+                };
+                if !cooldown.allow(&plugin_id, std::time::Instant::now()) {
+                    tracing::warn!(
+                        plugin_id = %plugin_id,
+                        "respawn requested again within cooldown — dropping (plugin may be wedged; \
+                         leaving it dead until restart)"
+                    );
+                    continue;
+                }
+
+                let path = tractor
+                    .plugin_paths
+                    .read()
+                    .expect("plugin_paths poisoned")
+                    .get(&plugin_id)
+                    .cloned();
+                let Some(path) = path else {
+                    tracing::warn!(
+                        plugin_id = %plugin_id,
+                        "respawn requested but no recorded path — cannot reinstantiate"
+                    );
+                    continue;
+                };
+                match tractor.load_plugin(&path).await {
+                    Ok(handle) => {
+                        // register_for_events re-inserts the plugin's channel, cancel
+                        // flag, registry profile, and router subscriptions under the
+                        // SAME id (all upserts), so the respawned instance takes over
+                        // routing transparently. The default-responder election is
+                        // idempotent too: `default_responder_id` still names this id
+                        // (the dead runner never cleared it), so `user:prompt` now
+                        // routes to the fresh channel with no re-election needed.
+                        tractor.register_for_events(handle);
+                        tracing::info!(plugin_id = %plugin_id, "respawned after epoch-trap teardown");
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            plugin_id = %plugin_id,
+                            "respawn failed to reload plugin: {e}"
+                        );
+                    }
+                }
+            }
+            tracing::debug!("respawn supervisor exiting");
+        });
     }
 
     /// Load a plugin by its content hash from the content-addressed store (E3):
@@ -939,6 +1067,11 @@ impl TractorNative {
         let in_flight = self.in_flight_cancels.clone();
         let mut joins = Vec::with_capacity(pool_size);
         let primary_cancel = handle.cancel_flag();
+        // Only the PRIMARY runner carries the respawn sender: if it traps out we
+        // reinstantiate the whole plugin. A trapped EXTRA pool worker (respawn None)
+        // just exits — its N-1 siblings keep serving, the design's original stance, so
+        // no respawn is needed there. For the common single-runner plugin (the agent),
+        // the primary IS the only runner, so its teardown always triggers a respawn.
         joins.push(spawn_plugin_store_runner(
             handle,
             shared_rx.clone(),
@@ -947,6 +1080,7 @@ impl TractorNative {
             primary_cancel,
             in_flight.clone(),
             self.sync.clone(),
+            Some(self.respawn_tx.clone()),
         ));
         for extra in extra_stores.drain(..) {
             let extra_cancel = extra.cancel_flag();
@@ -958,6 +1092,7 @@ impl TractorNative {
                 extra_cancel,
                 in_flight.clone(),
                 self.sync.clone(),
+                None,
             ));
         }
         if pool_size > 1 {

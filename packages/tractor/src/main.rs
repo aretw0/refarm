@@ -427,6 +427,11 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     // `tractor.method()` still works through the Arc deref.
     let tractor = std::sync::Arc::new(TractorNative::boot(config.clone()).await?);
 
+    // Start the respawn supervisor before loading plugins, so a plugin whose runner
+    // traps out (a cancelled/timed-out turn) is reinstantiated instead of left dead
+    // until a full runtime restart. Held by a Weak, so it stops when the runtime drops.
+    tractor.spawn_respawn_supervisor();
+
     let load_policy = plugin_load_policy(&args);
     let ingest_policy = plugin_ingest_policy(&args);
     for path in &args.plugin {
