@@ -5,6 +5,7 @@ import { createPackageScriptCommand } from "../../packages/config/src/package-ma
 
 const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/root",
+	"packages/capabilities",
 	"packages/effort-contract-v1",
 	"packages/dispatch-surface",
 	"packages/artifact-contract-v1",
@@ -38,6 +39,7 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/ds",
 	"packages/homestead",
 	"packages/process-handoff",
+	"packages/operator-state",
 	"packages/cli",
 	"packages/barn",
 	"packages/prompt-contract-v1",
@@ -45,7 +47,20 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/policy-contract-v1",
 	"packages/infra-turbo-cache",
 	"packages/infra-cloudflare",
+	"packages/skill-contract-v1",
+	"packages/plugin-surface-loader",
 	"apps/farmhand",
+	"packages/asset-resolver-contract-v1",
+	"packages/enrichment-contract-v1",
+	"packages/records-contract-v1",
+	"packages/source-contract-v1",
+	"packages/source-web",
+	"packages/surface-terminal",
+	"packages/vault-contract-v1",
+	"packages/capabilities-v1",
+	"packages/runtime-operator",
+	"packages/capability-host",
+	"packages/quality-checker-ref",
 	"apps/refarm",
 ];
 
