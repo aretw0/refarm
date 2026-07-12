@@ -262,11 +262,31 @@
     align-items: center;
     border-radius: 999px;
     padding: 0.15rem 0.45rem;
-    background: rgba(35, 134, 54, 0.12);
-    color: var(--ds-accent-primary);
+    background: var(--ds-ok-bg, rgba(35, 134, 54, 0.12));
+    color: var(--ds-ok, var(--ds-accent-primary));
     font-size: 0.7rem;
     line-height: 1.2;
     white-space: nowrap;
+}
+
+/* Status variants — pair a state indicator with a semantic color. The base badge is the
+ * `ok` look; these adjust it for danger / muted states. Any app: `refarm-badge refarm-badge-*`. */
+.ds-badge-ok,
+.refarm-badge-ok {
+    background: var(--ds-ok-bg);
+    color: var(--ds-ok);
+}
+
+.ds-badge-danger,
+.refarm-badge-danger {
+    background: var(--ds-danger-bg);
+    color: var(--ds-danger);
+}
+
+.ds-badge-muted,
+.refarm-badge-muted {
+    background: var(--ds-status-muted-bg);
+    color: var(--ds-status-muted);
 }
 
 .ds-surface-card,

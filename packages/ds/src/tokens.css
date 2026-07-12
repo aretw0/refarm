@@ -15,6 +15,16 @@
 		--ds-accent-primary: var(--primary);
 		--ds-accent-secondary: var(--accent);
 		--ds-accent-muted: color-mix(in srgb, var(--primary) 22%, transparent);
+		/* Semantic STATUS colors — ok / danger / muted — for badges, chips, and any state
+		 * indicator. Derived from theme vars via color-mix so a theme gets them for free (a
+		 * theme MAY override --ds-ok/--ds-danger for a tuned palette). green = the accent path;
+		 * danger = a red not otherwise in the token set; muted = the neutral text color. */
+		--ds-ok: var(--primary);
+		--ds-ok-bg: color-mix(in srgb, var(--primary) 14%, transparent);
+		--ds-danger: color-mix(in srgb, #e5484d 88%, var(--foreground));
+		--ds-danger-bg: color-mix(in srgb, #e5484d 14%, transparent);
+		--ds-status-muted: var(--ds-text-muted);
+		--ds-status-muted-bg: color-mix(in srgb, var(--muted-foreground) 12%, transparent);
 		--ds-font-mono: var(--font-mono);
 		--ds-font-sans: var(--font-sans);
 		--ds-radius-sm: var(--radius-sm);

@@ -131,8 +131,8 @@ function renderWalletCard(
 	if (typeof fields.issuer === "string") meta.push(`emitido por ${esc(fields.issuer)}`);
 	if (fields.expirationDate) meta.push(`válido até ${esc(shortDate(fields.expirationDate))}`);
 	return `<article class="refarm-surface-card refarm-stack" data-wallet-item data-review-state="${esc(state)}">
-		<div class="refarm-row refarm-row-between">
-			<strong>${esc(record.title)}</strong>
+		<div class="refarm-card-row">
+			<strong class="refarm-card-title">${esc(record.title)}</strong>
 			<span class="refarm-badge ${badge.cls}" data-wallet-badge>${esc(badge.text)}</span>
 		</div>
 		${meta.length ? `<p class="refarm-muted">${meta.join(" · ")}</p>` : ""}
