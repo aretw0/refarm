@@ -114,6 +114,38 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect((found.sources as Array<{ ref: string }>).map((s) => s.ref)).toContain(REQ_SYSTEM_REF);
 	});
 
+	it("`requirements-pull <system>` is a real command: pull → the requirements persist", async () => {
+		// The journey as COMMANDS: an empty bench, pull EFD, and the requirements are there.
+		const statePath = tempStatePath();
+		const reg = buildRegistry({ statePath });
+		const pull = reg.get("requirements-pull");
+		if (!pull || "actions" in pull) throw new Error("requirements-pull verb not mounted");
+
+		const res = (await pull.run({
+			args: { ref: REQ_SYSTEM_REF },
+			options: {},
+			json: true,
+		})) as unknown as { ingested: number; persisted: boolean };
+		expect(res.persisted).toBe(true);
+		expect(res.ingested).toBe(3);
+
+		// A fresh registry over the SAME state sees the pulled requirements (persistence).
+		const after = await harness.runVerb(buildRegistry({ statePath }), "requirements");
+		expect((after.moc as string)).toContain("Identificador do CNPJ da Escrituração");
+	});
+
+	it("`requirements-pull` errors helpfully with no ref", async () => {
+		const reg = buildRegistry({ statePath: tempStatePath() });
+		const pull = reg.get("requirements-pull");
+		if (!pull || "actions" in pull) throw new Error("verb not mounted");
+		const res = (await pull.run({ args: {}, options: {}, json: true })) as unknown as {
+			ok: boolean;
+			nextAction?: string;
+		};
+		expect(res.ok).toBe(false);
+		expect(res.nextAction).toBe("dgk source discover");
+	});
+
 	it("PULL → INGEST: pulling the chosen system turns its requirements into records", async () => {
 		// The spine of the analyst's journey: pick a system (EFD, from the ledger), pull it,
 		// and its requirements become records — via the generic ingest + the analyst's parser.

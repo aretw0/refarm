@@ -63,6 +63,8 @@ export {
 	type CapabilityDeps,
 	type CapabilityDescriptor,
 	type CapabilityEntry,
+	type CapabilityEnvelope,
+	type CapabilityInput,
 	type DispatchRequest,
 	type MountOptions,
 	type PluginCapabilityRegistration,

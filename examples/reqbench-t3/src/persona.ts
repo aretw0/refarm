@@ -1,13 +1,19 @@
 import {
+	buildJsonErrorEnvelope,
+	buildJsonSuccessEnvelope,
 	defineRecordsViewCapability,
 	type CapabilityDescriptor,
+	type CapabilityEnvelope,
 	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capability-host";
 import {
 	createLocalRecordsCapabilityDeps,
+	ingestSourceToRecords,
+	type IngestSourceProvider,
 	type SourceRecordParser,
 } from "@refarm.dev/capability-host/node";
+import type { KnowledgeRecord, RecordsManifest } from "@refarm.dev/records-contract-v1";
 import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import {
 	createRulesEnrichmentProvider,
@@ -107,7 +113,10 @@ export function createRequirementsSourceProvider(options: RequirementsCapability
 }
 
 export function reqCapabilityBundle(options: RequirementsCapabilityOptions = {}) {
-	return createLocalRecordsCapabilityDeps({
+	// One provider shared by the source group (discover/pull) and the requirements-pull verb
+	// (ingest), so both see the same declared systems + cache.
+	const sourceProvider = createRequirementsSourceProvider(options);
+	const bundle = createLocalRecordsCapabilityDeps({
 		seed: reqManifest,
 		statePath: options.statePath,
 		// The analyst's rules + the generic engine: text mentioning CNPJ/crédito/… gets tagged.
@@ -115,10 +124,9 @@ export function reqCapabilityBundle(options: RequirementsCapabilityOptions = {})
 			rules: REQ_ENRICHMENT_RULES,
 			tagField: "req.tags",
 		}),
-		source: {
-			sourceProvider: createRequirementsSourceProvider(options),
-		},
+		source: { sourceProvider },
 	});
+	return { ...bundle, sourceProvider };
 }
 
 const STATE_LABELS: Record<string, string> = {
@@ -231,6 +239,77 @@ export function renderRequirementsMocHtml(env: RecordsAnalyzeEnvelope): string {
 		<p>${escapeHtml(summary)}</p>
 		${groups}
 	</nav>`;
+}
+
+/** Merge freshly-ingested records into a manifest by id (new ones added, existing ones
+ * REPLACED with the pulled version — a re-pull refreshes). */
+function mergeRecords(manifest: RecordsManifest, incoming: KnowledgeRecord[]): RecordsManifest {
+	const byId = new Map(manifest.records.map((r) => [r.id, r]));
+	for (const record of incoming) byId.set(record.id, record);
+	return { ...manifest, records: [...byId.values()] };
+}
+
+/** The T3 persona verb: `requirements-pull <system>` — the real ingest step of the journey.
+ * It materializes the chosen system (from the analyst's ledger), parses its requirements,
+ * merges them into the manifest, and persists. This is what makes "pick EFD → pull → the
+ * requirements appear" a real command, not just a helper: discover → THIS → analyze/MOC. */
+export function createRequirementsPullCapability(
+	recordsDeps: RecordsCommandDeps,
+	sourceProvider: IngestSourceProvider,
+): CapabilityDescriptor {
+	return {
+		name: "requirements-pull",
+		summary: "Pull a system's requirements into the bench (materialize + ingest + persist)",
+		args: [{ name: "ref", required: true }],
+		transports: { http: { path: "/requirements/pull" } },
+		renderers: { tui: { section: "requirements" } },
+		async run(input): Promise<CapabilityEnvelope> {
+			const ref = String(input.args.ref ?? "");
+			if (!ref) {
+				return buildJsonErrorEnvelope({
+					command: "requirements-pull",
+					operation: "pull",
+					error: "no_ref",
+					message: "Pass a system ref to pull (e.g. web:efd — see `dgk source discover`).",
+					nextAction: "dgk source discover",
+				});
+			}
+			try {
+				const ingested = await ingestSourceToRecords({
+					sourceProvider,
+					ref,
+					parse: parseRequirementsFromHtml,
+				});
+				if (!recordsDeps.saveManifest) {
+					// No persistence sink → report what WOULD be ingested (dry-run), don't claim to save.
+					return buildJsonSuccessEnvelope({
+						command: "requirements-pull",
+						operation: "pull",
+						nextCommand: "dgk requirements",
+						nextCommands: ["dgk requirements"],
+						extra: { ref, ingested: ingested.records.length, persisted: false, dryRun: true },
+					});
+				}
+				const merged = mergeRecords(recordsDeps.loadManifest(), ingested.records);
+				await recordsDeps.saveManifest(merged);
+				return buildJsonSuccessEnvelope({
+					command: "requirements-pull",
+					operation: "pull",
+					nextCommand: "dgk requirements",
+					nextCommands: ["dgk requirements"],
+					extra: { ref, ingested: ingested.records.length, persisted: true, total: merged.records.length },
+				});
+			} catch (error) {
+				return buildJsonErrorEnvelope({
+					command: "requirements-pull",
+					operation: "pull",
+					error: "pull_failed",
+					message: error instanceof Error ? error.message : String(error),
+					nextAction: "Check the ref is one `dgk source discover` lists, and its snapshot has a body.",
+				});
+			}
+		},
+	};
 }
 
 /** The T3 persona verb: `requirements` - the analyst's product view over the

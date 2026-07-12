@@ -10,6 +10,7 @@ import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node"
 
 import {
 	createRequirementsCapability,
+	createRequirementsPullCapability,
 	reqCapabilityBundle,
 	type RequirementsCapabilityOptions,
 } from "./persona.js";
@@ -40,10 +41,15 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 		description: "Digital Gardening Kit - requirements bench",
 		version: "0.0.0",
 		capabilities: () => {
-			const { deps, records } = reqCapabilityBundle(options);
+			const { deps, records, sourceProvider } = reqCapabilityBundle(options);
 			return {
 				deps,
-				extensions: [createRequirementsCapability(records)],
+				extensions: [
+					createRequirementsCapability(records),
+					// The real ingest step: `requirements-pull <system>` materializes + ingests +
+					// persists, so the journey (discover → pull → analyze/MOC) runs as commands.
+					createRequirementsPullCapability(records, sourceProvider),
+				],
 			};
 		},
 		operatorStatus: {
