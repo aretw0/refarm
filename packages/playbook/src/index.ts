@@ -11,3 +11,10 @@ export {
 export { parsePlaybook, type PlaybookParseResult } from "./parse.js";
 export { interpolate, resolvePath } from "./interpolate.js";
 export { runPlaybook, type RunPlaybookOptions } from "./run.js";
+export {
+	createDispatchStep,
+	toDispatchEffort,
+	type DispatchBridgeOptions,
+	type DispatchEffort,
+	type DispatchResultNode,
+} from "./dispatch-bridge.js";
