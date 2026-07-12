@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createWalletCapabilities, walletCapabilityBundle } from "./persona.js";
+import { createWalletCapabilities, renderWalletHtml, walletCapabilityBundle } from "./persona.js";
 import { credentialToRecord, parseCredentialFile, recordToCredential } from "./credentials.js";
 
 const now = () => "2026-07-12T00:00:00.000Z";
@@ -246,5 +246,105 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 		})) as unknown as { ok: boolean; error: string };
 		expect(res.ok).toBe(false);
 		expect(res.error).toBe("not_a_credential");
+	});
+});
+
+describe("renderWalletHtml — rich credential cards (the web face)", () => {
+	const NOW = Date.parse("2026-07-01T00:00:00.000Z");
+	// An analyze-envelope shape with the fields the projection now carries.
+	const env = {
+		ok: true,
+		by: "reviewState" as const,
+		summary: { total: 3, byState: { verified: 1, draft: 1 } },
+		groups: [
+			{
+				key: "verified",
+				label: "verified",
+				count: 2,
+				records: [
+					{
+						id: "record:cred-a",
+						title: "Carteira de Motorista",
+						link: "a.md",
+						reviewState: "verified",
+						fields: {
+							kind: "credencial",
+							issuer: "did:gov:br",
+							expirationDate: "2030-01-01T00:00:00.000Z",
+						},
+					},
+					{
+						id: "record:cred-exp",
+						title: "Passaporte",
+						link: "exp.md",
+						reviewState: "verified",
+						fields: {
+							kind: "documento",
+							issuer: "did:gov:br",
+							expirationDate: "2020-01-01T00:00:00.000Z",
+						},
+					},
+				],
+			},
+			{
+				key: "draft",
+				label: "draft",
+				count: 1,
+				records: [
+					{
+						id: "record:cred-b",
+						title: "Comprovante",
+						link: "b.md",
+						reviewState: "draft",
+						fields: { kind: "documento" },
+					},
+				],
+			},
+		],
+	};
+
+	it("shows issuer, validity and a status badge per credential card", () => {
+		const html = renderWalletHtml(env, NOW);
+		// A verified, non-expired credential → verified badge + issuer + validity.
+		expect(html).toContain("✓ Verificado");
+		expect(html).toContain("emitido por did:gov:br");
+		expect(html).toContain("válido até 2030-01-01");
+		// A draft credential → "a verificar" badge.
+		expect(html).toContain("A verificar");
+		// Each item is a card the citizen sees.
+		expect(html).toContain("data-wallet-item");
+		expect(html).toContain("Carteira de Motorista");
+	});
+
+	it("flags an EXPIRED credential (past expirationDate) as Expirado, not Verificado", () => {
+		const html = renderWalletHtml(env, NOW);
+		expect(html).toContain("Expirado"); // the Passaporte (2020) is past
+		// the expired one is not shown as verified even though its review state is verified
+		expect(html).toMatch(/Passaporte[\s\S]*?Expirado/);
+	});
+
+	it("escapes user-derived text in a card", () => {
+		const nasty = {
+			...env,
+			groups: [
+				{
+					key: "draft",
+					label: "draft",
+					count: 1,
+					records: [
+						{
+							id: "x",
+							title: "<script>alert(1)</script>",
+							link: "x.md",
+							reviewState: "draft",
+							fields: {},
+						},
+					],
+				},
+			],
+		};
+		const html = renderWalletHtml(nasty, NOW);
+		expect(html).not.toContain("<script>alert(1)</script>");
+		expect(html).toContain("&lt;script&gt;");
 	});
 });

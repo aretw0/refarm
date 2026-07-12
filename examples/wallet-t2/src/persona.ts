@@ -97,28 +97,66 @@ function esc(value: string): string {
 		.replace(/"/g, "&quot;");
 }
 
-/** The wallet as a real WEB product: the same grouped items rendered as design-system
- * cards, so the citizen SEES their wallet — not a list of launcher buttons. This is the
- * `content` the web surface projects ABOVE the verb cards (the generic content seam). */
-export function renderWalletHtml(env: RecordsAnalyzeEnvelope): string {
+/** A short YYYY-MM-DD from an ISO date, or the raw value. */
+function shortDate(value: unknown): string {
+	const s = typeof value === "string" ? value : "";
+	return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : s;
+}
+
+/** Is a credential past its expirationDate (relative to now)? */
+function isExpired(expiration: unknown, nowMs: number): boolean {
+	const s = typeof expiration === "string" ? expiration : "";
+	const t = Date.parse(s);
+	return Number.isFinite(t) && t < nowMs;
+}
+
+/** Render ONE wallet item as a rich credential CARD: title, kind, issuer, validity, and a
+ * status badge (verified ✓ / a verificar / expirado). Reads the record's open fields (issuer,
+ * kind, expirationDate) the analyze envelope now carries — this is the citizen SEEING their
+ * credential, the peso of the wallet as a product. Pure HTML/CSS over the DS classes. */
+function renderWalletCard(
+	record: { title: string; reviewState?: string; fields?: Record<string, unknown> },
+	nowMs: number,
+): string {
+	const fields = record.fields ?? {};
+	const state = record.reviewState ?? "unreviewed";
+	const expired = isExpired(fields.expirationDate, nowMs);
+	const badge = expired
+		? { cls: "refarm-badge-danger", text: "Expirado" }
+		: state === "verified"
+			? { cls: "refarm-badge-ok", text: "✓ Verificado" }
+			: { cls: "refarm-badge-muted", text: STATE_LABELS[state] ?? "Sem status" };
+	const meta: string[] = [];
+	if (typeof fields.kind === "string") meta.push(esc(fields.kind));
+	if (typeof fields.issuer === "string") meta.push(`emitido por ${esc(fields.issuer)}`);
+	if (fields.expirationDate) meta.push(`válido até ${esc(shortDate(fields.expirationDate))}`);
+	return `<article class="refarm-surface-card refarm-stack" data-wallet-item data-review-state="${esc(state)}">
+		<div class="refarm-row refarm-row-between">
+			<strong>${esc(record.title)}</strong>
+			<span class="refarm-badge ${badge.cls}" data-wallet-badge>${esc(badge.text)}</span>
+		</div>
+		${meta.length ? `<p class="refarm-muted">${meta.join(" · ")}</p>` : ""}
+	</article>`;
+}
+
+/** The wallet as a real WEB product: the citizen's items rendered as credential CARDS with
+ * issuer/validity/status, grouped by verification status — so the citizen SEES their wallet,
+ * not a list of launcher buttons. This is the `content` the web surface projects ABOVE the verb
+ * cards (the generic content seam). `nowMs` is injected for a deterministic expiry check. */
+export function renderWalletHtml(env: RecordsAnalyzeEnvelope, nowMs: number = Date.now()): string {
 	const groups = env.groups
 		.map((group) => {
-			const items = group.records
-				.map(
-					(record) =>
-						`<li class="refarm-stack" data-wallet-item><strong>${esc(record.title)}</strong></li>`,
-				)
-				.join("");
-			return `<section class="refarm-surface-card refarm-stack" data-wallet-group="${esc(group.key)}">
+			const items = group.records.map((record) => renderWalletCard(record, nowMs)).join("");
+			return `<section class="refarm-stack" data-wallet-group="${esc(group.key)}">
 				<p class="refarm-eyebrow">${esc(STATE_LABELS[group.key] ?? group.label)} · ${group.count}</p>
-				<ul class="refarm-stack">${items}</ul>
+				${items}
 			</section>`;
 		})
 		.join("");
 	return `<section class="refarm-stack" data-wallet-html>
 		<p class="refarm-eyebrow">Minha Carteira Digital</p>
 		<h1>👜 ${env.summary.total} itens</h1>
-		<p>Você é dono dos seus dados — soberano, local-first.</p>
+		<p>Você é dono dos seus dados — soberano, local-first. Importe, verifique e compartilhe só o necessário.</p>
 		${groups}
 	</section>`;
 }

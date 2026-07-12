@@ -67,6 +67,12 @@ export interface RecordsAnalyzeGroup {
 		id: string;
 		title: string;
 		link: string;
+		/** The record's review state, so a rich view can badge each item (verified/draft/…). */
+		reviewState?: string;
+		/** The record's open fields, so a rich view (a wallet card, a detailed MOC) can show
+		 * domain data (issuer, validity, kind, …) without re-reading the manifest. Present only
+		 * when the record has fields. */
+		fields?: Record<string, unknown>;
 		/** The record's tipped relations (present only when it declares any). */
 		relations?: RecordsAnalyzeRelation[];
 	}>;
@@ -113,7 +119,9 @@ function groupKeysFor(record: ManifestRecord, by: RecordsAnalyzeDimension): stri
 		const value = record.fields?.[field];
 		if (typeof value === "string" || typeof value === "number") return [String(value)];
 		if (Array.isArray(value)) {
-			const keys = value.filter((v): v is string | number => typeof v === "string" || typeof v === "number");
+			const keys = value.filter(
+				(v): v is string | number => typeof v === "string" || typeof v === "number",
+			);
 			return keys.length > 0 ? keys.map(String) : ["unspecified"];
 		}
 		return ["unspecified"];
@@ -415,6 +423,10 @@ export function createRecordsCapabilityGroup(
 						title: (r.fields.title as string | undefined) ?? r.id,
 						// A vault-relative link a renderer (or a MOC.md writer) can point to.
 						link: `${r.id.replace(/[^a-zA-Z0-9._-]+/g, "-")}.md`,
+						// The review state, so a rich view can badge each item.
+						...(r.review?.state ? { reviewState: r.review.state } : {}),
+						// The open fields, so a rich view can show domain data (issuer/validity/…).
+						...(r.fields && Object.keys(r.fields).length > 0 ? { fields: r.fields } : {}),
 						// The record's tipped relations, so a MOC can render the graph as links.
 						...(Array.isArray(r.relations) && r.relations.length > 0
 							? { relations: r.relations as RecordsAnalyzeRelation[] }
