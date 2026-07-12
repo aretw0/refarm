@@ -52,6 +52,14 @@ export interface AutostartWaitOutcome {
 	elapsedMs?: number;
 }
 
+/** A surface-neutral "work is happening" reporter, injected so runtime-operator stays
+ * free of the activity package. The app backs this with `withActivity`/an ActivitySink,
+ * so the SAME boot-progress signal that lights the CLI spinner also reaches the TUI and
+ * (via a daemon bridge) any remote surface. `begin(label)` returns a `done(ok)` to close
+ * the unit — the machine calls it around the readiness wait, the silent gap the operator
+ * had no visibility into. */
+export type AutostartActivityReporter = (label: string) => (ok: boolean) => void;
+
 export interface AutoStartRuntimeDeps {
 	operator: OperatorChannel;
 	/** The resolved autostart mode. If absent, the machine treats it as "ask". */
@@ -64,6 +72,9 @@ export interface AutoStartRuntimeDeps {
 	 * that is still booting from one that never came up. Preferred over the boolean form
 	 * when the app can provide it; falls back to `probeRuntimeUntilReady` otherwise. */
 	probeRuntimeUntilOutcome?(): Promise<AutostartWaitOutcome>;
+	/** Optional "working" signal around the boot wait — surfaces show a spinner/pill while
+	 * the daemon comes up. No-op if absent. */
+	activity?: AutostartActivityReporter;
 	/** Which engine is active (for the label + start-command display). Optional. */
 	resolveRuntime?(repoRoot: string): AutostartRuntimeSelection;
 }
@@ -136,14 +147,29 @@ export async function autoStartRuntime(
 	}
 
 	const start = Date.now();
-	// Prefer the outcome-returning probe (honest timeout narration); fall back to the
-	// boolean form, treating a non-ready boolean as an unknown-liveness timeout.
-	const outcome: AutostartWaitOutcome = deps.probeRuntimeUntilOutcome
-		? await deps.probeRuntimeUntilOutcome()
-		: {
-				ready: await deps.probeRuntimeUntilReady(),
-				status: "timed-out-alive",
-			};
+	// Wrap the readiness wait in the "working" signal so surfaces show progress during the
+	// otherwise-silent gap between "Starting…" and ready. The reporter is optional and the
+	// runtime label is engine-aware ("Starting Rust Tractor").
+	const runtimeForActivity = deps.resolveRuntime?.(repoRoot);
+	const activityLabel = `Starting ${
+		runtimeForActivity ? vocab.engineLabel(runtimeForActivity.activeEngine) : "runtime"
+	}`;
+	const finishActivity = deps.activity?.(activityLabel);
+	let outcome: AutostartWaitOutcome = { ready: false, status: "timed-out-dead" };
+	try {
+		// Prefer the outcome-returning probe (honest timeout narration); fall back to the
+		// boolean form, treating a non-ready boolean as an unknown-liveness timeout.
+		outcome = deps.probeRuntimeUntilOutcome
+			? await deps.probeRuntimeUntilOutcome()
+			: {
+					ready: await deps.probeRuntimeUntilReady(),
+					status: "timed-out-alive",
+				};
+	} finally {
+		// Close the activity EXACTLY once — ok iff the daemon became ready (a throw or a
+		// timeout closes it as not-ok so the spinner never hangs).
+		finishActivity?.(outcome.ready);
+	}
 	const elapsed = ((Date.now() - start) / 1000).toFixed(1);
 
 	if (outcome.ready) {

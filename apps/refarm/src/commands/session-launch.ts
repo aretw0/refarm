@@ -9,9 +9,11 @@ import {
 	hasUsableModelCredentialSource,
 	modelCredentialSource,
 } from "@refarm.dev/config";
+import { ambientActivitySink, newActivityRef } from "@refarm.dev/capabilities";
 import { createStdioOperatorChannel, type OperatorChannel } from "@refarm.dev/prompt-contract-v1";
 import {
 	autoStartRuntime as operatorAutoStartRuntime,
+	type AutostartActivityReporter,
 	type AutostartVocabulary,
 } from "@refarm.dev/runtime-operator";
 import chalk from "chalk";
@@ -51,6 +53,13 @@ import {
 
 export type { AutostartMode, TractorEngineMode } from "../utils/runtime-config.js";
 
+/** How long to wait for the runtime on a COLD boot before giving up. The generic readiness
+ * default (10s) is tuned for quick "is it up?" status checks; a first Rust-tractor boot —
+ * WASI plugin load + graph warm-up + reapers — measured ~13s here, so autostart waits
+ * longer (with margin for a loaded container / fresh build) to avoid a false timeout on the
+ * one path where the daemon is legitimately still coming up. */
+const RUNTIME_COLD_BOOT_TIMEOUT_MS = 30_000;
+
 export interface SessionReadiness {
 	providerConfigured: boolean;
 	runtimeRunning?: boolean;
@@ -71,6 +80,8 @@ export interface LaunchDeps {
 	probeRuntimeUntilReady?(): Promise<boolean>;
 	/** Honest wait: returns why the wait ended so a slow boot isn't reported as failure. */
 	probeRuntimeUntilOutcome?(): Promise<RuntimeWaitOutcome>;
+	/** Surface-neutral "working" signal around the boot wait (spinner/pill). */
+	activity?: AutostartActivityReporter;
 	spawnFarmhand?(repoRoot: string): void;
 	probeFarmhandUntilReady?(): Promise<boolean>;
 	resolveRuntime?(repoRoot: string): LaunchRuntimeSelection;
@@ -332,13 +343,24 @@ export function defaultLaunchDeps(): LaunchDeps {
 		resolveRuntime: resolveLaunchRuntime,
 
 		async probeRuntimeUntilReady() {
-			return waitForRuntimeReady();
+			return waitForRuntimeReady({ timeoutMs: RUNTIME_COLD_BOOT_TIMEOUT_MS });
 		},
 
 		// The honest form: a cold boot that outruns the readiness deadline reports
 		// "still starting" (daemon alive) rather than a scary "timed out" that lies.
 		async probeRuntimeUntilOutcome() {
-			return waitForRuntimeOutcome();
+			return waitForRuntimeOutcome({ timeoutMs: RUNTIME_COLD_BOOT_TIMEOUT_MS });
+		},
+
+		// Emit the surface-neutral "working" signal around the boot wait, so the CLI spinner
+		// (already subscribed to the ambient sink in cli-main) — and the TUI/web via the same
+		// sink — SHOW that the runtime is coming up, instead of a silent multi-second gap.
+		activity(label: string) {
+			const activityRef = newActivityRef();
+			ambientActivitySink.emit({ activityRef, phase: "started", label, kind: "runtime" });
+			return (ok: boolean) => {
+				ambientActivitySink.emit({ activityRef, phase: "finished", label, kind: "runtime", ok });
+			};
 		},
 
 		async recoverProvider() {
@@ -435,6 +457,11 @@ export async function autoStartRuntime(repoRoot: string, deps: LaunchDeps): Prom
 			spawn(root);
 		},
 		probeRuntimeUntilReady: async () => (probe ? await probe() : false),
+		// Forward the honest-outcome probe and the "working" signal so the operator machine
+		// narrates a slow boot as "still starting" (not a false timeout) and surfaces show a
+		// spinner while the daemon comes up. Both are injected in defaultLaunchDeps.
+		probeRuntimeUntilOutcome: deps.probeRuntimeUntilOutcome,
+		activity: deps.activity,
 		resolveRuntime: deps.resolveRuntime
 			? (root) => {
 					const runtime = deps.resolveRuntime!(root);

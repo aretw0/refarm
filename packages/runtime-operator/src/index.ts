@@ -20,8 +20,11 @@ export {
 } from "./readiness.js";
 export {
 	autoStartRuntime,
+	type AutostartActivityReporter,
 	type AutostartMode,
 	type AutostartRuntimeSelection,
 	type AutostartVocabulary,
+	type AutostartWaitOutcome,
+	type AutostartWaitStatus,
 	type AutoStartRuntimeDeps,
 } from "./autostart.js";

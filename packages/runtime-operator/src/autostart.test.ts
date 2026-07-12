@@ -94,4 +94,31 @@ describe("autoStartRuntime honest narration", () => {
 		// the safer default — never a false "failed".
 		expect(out).toContain("Still starting");
 	});
+
+	it("emits the 'working' activity around the boot wait (started → finished ok)", async () => {
+		const events: Array<{ label: string; ok?: boolean }> = [];
+		const deps = baseDeps({ ready: true, status: "ready" });
+		deps.activity = (label) => {
+			events.push({ label });
+			return (ok) => events.push({ label, ok });
+		};
+		await autoStartRuntime("/repo", VOCAB, deps);
+		// One begin, one done(true) — the label names the engine, and the unit closed ok.
+		expect(events).toHaveLength(2);
+		expect(events[0]).toEqual({ label: "Starting Rust Tractor" });
+		expect(events[1]).toEqual({ label: "Starting Rust Tractor", ok: true });
+	});
+
+	it("closes the 'working' activity as not-ok when the daemon never comes up", async () => {
+		const events: Array<{ ok?: boolean }> = [];
+		const deps = baseDeps({ ready: false, status: "timed-out-dead" });
+		deps.activity = () => {
+			events.push({});
+			return (ok) => events.push({ ok });
+		};
+		await autoStartRuntime("/repo", VOCAB, deps);
+		// The spinner must be torn down (done called) even on failure — never a hung spinner.
+		expect(events).toHaveLength(2);
+		expect(events[1]).toEqual({ ok: false });
+	});
 });
