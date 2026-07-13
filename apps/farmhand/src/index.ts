@@ -29,6 +29,7 @@ import { autoInstallPlugins } from "./auto-install-plugins.js";
 import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
 import { injectConfigEnv } from "./config-env.js";
 import { injectSkillEnv } from "./skill-env.js";
+import { injectConfiguredProvidersEnv } from "./configured-providers-env.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
 import { LocalExtensionRegistry } from "./local-extensions.js";
 import {
@@ -345,6 +346,13 @@ async function main() {
 	const skillEnv = injectSkillEnv(pluginsDir);
 	if (skillEnv.count > 0) {
 		console.log(`[farmhand] Skills disclosed to the agent: ${skillEnv.count}`);
+	}
+
+	// ADR-012: tell the guest which providers are configured (names only, no keys) so
+	// its routing profiles (cheap/balanced/reliable) can resolve to a real provider.
+	const routeEnv = injectConfiguredProvidersEnv();
+	if (routeEnv.count > 0) {
+		console.log(`[farmhand] Configured providers advertised to the agent: ${routeEnv.count}`);
 	}
 
 	const taskDbPath = path.join(farmhandBaseDir, "task-memory.db");
