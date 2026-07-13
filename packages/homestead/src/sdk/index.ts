@@ -13,6 +13,7 @@ export * from "./stream-state.js";
 export * from "./stream-observer.js";
 export * from "./chat-composer.js";
 export * from "./chat-composer-bridge.js";
+export * from "./activity-web-live.js";
 export * from "./activity-web.js";
 export * from "./A11yGuard.js";
 export * from "./Firefly.js";
