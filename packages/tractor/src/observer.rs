@@ -101,6 +101,10 @@ async fn audit_subscriber_task(
     config: AuditConfig,
 ) {
     let audit_path = base_dir.join(AUDIT_FILE);
+    // The activity stream lives beside the audit log (`{base}/streams/activity.ndjson`),
+    // the deterministic derivation the sidecar dispatcher also uses. Surfaces tail it for
+    // the operator "working" affordance; we fold agent:* lifecycle into it below.
+    let streams_dir = base_dir.join("streams");
     let mut rx = telemetry.subscribe();
     loop {
         match rx.recv().await {
@@ -120,6 +124,20 @@ async fn audit_subscriber_task(
                     if let Some(line) = format_audit_line(&event) {
                         append_line(&audit_path, &line, config).await;
                         forward_to_observers(&event, &line, &agent_observer_channels);
+                    }
+                    // Also fold the lifecycle into the activity stream, so a surface
+                    // tailing activity.ndjson (the CLI does, globally) shows the turn's
+                    // route/tool/step progress — the first real consumer of agent:*.
+                    if let Some(payload) = &event.payload {
+                        if let Some(activity) =
+                            crate::sidecar::agent_event_to_activity(&event.event, payload)
+                        {
+                            // Ensure the streams dir exists (the sidecar creates it at
+                            // init, but the audit task may run before/without it). Best-
+                            // effort throughout — activity is an affordance, never fatal.
+                            let _ = tokio::fs::create_dir_all(&streams_dir).await;
+                            let _ = crate::sidecar::write_activity_line(&streams_dir, &activity);
+                        }
                     }
                 }
             }
@@ -488,6 +506,26 @@ mod tests {
         assert_eq!(parsed["cost_tier"], "local");
         // Host effects still land in the same log — the two prefixes coexist.
         assert!(contents.contains("host-effect:fs:read"));
+
+        // And the agent lifecycle is ALSO folded into the activity stream, so a surface
+        // tailing activity.ndjson renders the turn's progress — the first agent:* consumer.
+        let activity_path = dir.join("streams").join("activity.ndjson");
+        let mut activity = String::new();
+        for _ in 0..50 {
+            if let Ok(text) = tokio::fs::read_to_string(&activity_path).await {
+                if text.contains("route ollama") {
+                    activity = text;
+                    break;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        assert!(
+            activity.contains("\"phase\":\"progress\"") && activity.contains("route ollama (profile:cheap)"),
+            "the route decision must surface as a progress activity line, got: {activity:?}"
+        );
+        // A host-effect must NOT produce an activity line (only agent:* does).
+        assert!(!activity.contains("fs:read"));
 
         tokio::fs::remove_dir_all(&dir).await.ok();
     }

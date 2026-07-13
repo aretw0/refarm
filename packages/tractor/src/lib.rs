@@ -23,6 +23,7 @@
 //! # Session Continuity
 //! See `README.md` for phase checklist and instructions to resume from another session.
 
+pub(crate) mod agent_event_names;
 pub mod capabilities;
 pub mod daemon;
 pub mod host;
