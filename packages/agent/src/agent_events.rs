@@ -56,6 +56,8 @@ pub(crate) const EVENT_TOOL_CALL: &str = "agent:tool:call";
 pub(crate) const EVENT_RESPONSE_DONE: &str = "agent:response:done";
 pub(crate) const EVENT_ERROR: &str = "agent:error";
 pub(crate) const EVENT_BUDGET_BLOCKED: &str = "agent:budget:blocked";
+/// ADR-012 audit trail: the router chose a `(provider, model)` route, and WHY.
+pub(crate) const EVENT_ROUTE_SELECTED: &str = "agent:route:selected";
 
 /// How many chars of a free-text summary (tool args, error message) an event
 /// carries. Events are for observation, not transport — the full text is in the
@@ -134,6 +136,28 @@ pub(crate) fn budget_blocked_payload(prompt_ref: &str, provider: &str) -> serde_
     serde_json::json!({ "prompt_ref": prompt_ref, "provider": provider })
 }
 
+/// `agent:route:selected` — the ADR-012 audit trail. Records which `provider`/`model`
+/// the router chose for this run and HOW: `source` is `override` (explicit route arg),
+/// `profile:<name>` (a named profile resolved), or `env` (MODEL_PROVIDER/default fell
+/// through); `cost_tier` is the chosen route's declared tier. This is the "why this
+/// route" record the ADR called for — an observer reconstructs routing decisions
+/// per-run by `prompt_ref`, distinct from the fallback/budget events. PURE.
+pub(crate) fn route_selected_payload(
+    prompt_ref: &str,
+    provider: &str,
+    model: &str,
+    source: &str,
+    cost_tier: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "prompt_ref": prompt_ref,
+        "provider": provider,
+        "model": model,
+        "source": source,
+        "cost_tier": cost_tier,
+    })
+}
+
 // ── wasm guest: thin emit over the pure shapers ─────────────────────────────────
 #[cfg(target_arch = "wasm32")]
 mod emit {
@@ -190,6 +214,14 @@ mod emit {
         let prompt_ref = super::run_context::current();
         emit(EVENT_BUDGET_BLOCKED, budget_blocked_payload(&prompt_ref, provider));
     }
+
+    pub(crate) fn route_selected(provider: &str, model: &str, source: &str, cost_tier: &str) {
+        let prompt_ref = super::run_context::current();
+        emit(
+            EVENT_ROUTE_SELECTED,
+            route_selected_payload(&prompt_ref, provider, model, source, cost_tier),
+        );
+    }
 }
 
 // On non-wasm (native tests, host builds) the emit calls are no-ops: there is no
@@ -210,6 +242,13 @@ mod emit {
     }
     pub(crate) fn error(_message: &str) {}
     pub(crate) fn budget_blocked(_provider: &str) {}
+    pub(crate) fn route_selected(
+        _provider: &str,
+        _model: &str,
+        _source: &str,
+        _cost_tier: &str,
+    ) {
+    }
 }
 
 /// Bind the active run's `prompt_ref` (no-op off-wasm; the deep emits are no-ops too).
@@ -220,7 +259,7 @@ pub(crate) fn enter_run(_prompt_ref: &str) {}
 // payloads they wrap are still covered by the native tests below.
 #[allow(unused_imports)]
 pub(crate) use emit::{
-    budget_blocked, error, iteration, prompt_start, response_done, tool_call,
+    budget_blocked, error, iteration, prompt_start, response_done, route_selected, tool_call,
 };
 
 #[cfg(test)]

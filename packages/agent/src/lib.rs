@@ -97,7 +97,10 @@ pub(crate) use utils::{
 };
 
 #[cfg(test)]
-pub(crate) use provider_config::{choose_model, openai_compat_defaults, ANTHROPIC_DEFAULT_MODEL};
+pub(crate) use provider_config::{
+    choose_model, configured_providers, openai_compat_defaults, profile_candidates,
+    provider_capabilities, resolve_profile, CostTier, ANTHROPIC_DEFAULT_MODEL,
+};
 #[cfg(test)]
 pub(crate) use response_nodes::{
     agent_response_node, usage_record_node, user_prompt_node, AgentResponsePayload,

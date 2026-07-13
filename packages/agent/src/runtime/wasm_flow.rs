@@ -26,6 +26,24 @@ fn history_with_prompt(prompt: &str) -> Vec<(String, String)> {
     result.compacted
 }
 
+/// ADR-012: resolve the active named profile (`MODEL_PROFILE`) to a concrete provider,
+/// consulting the host-injected `MODEL_CONFIGURED_PROVIDERS` list for which providers
+/// the operator actually has keys for. Returns `(provider, "profile:<name>")` on a hit,
+/// or `None` when no profile is set, the profile is unknown, or none of its candidates
+/// are configured (the caller then falls through to the env default). The pure decision
+/// lives in `provider_config::resolve_profile`; this thin wrapper only reads env.
+fn resolve_profile_route() -> Option<(String, String)> {
+    let profile = std::env::var("MODEL_PROFILE").ok()?;
+    let profile = profile.trim();
+    if profile.is_empty() {
+        return None;
+    }
+    let configured =
+        crate::provider_config::configured_providers(&std::env::var("MODEL_CONFIGURED_PROVIDERS").unwrap_or_default());
+    let (provider, _caps) = crate::provider_config::resolve_profile(profile, |p| configured.contains(p))?;
+    Some((provider, format!("profile:{profile}")))
+}
+
 fn run_primary_completion(
     provider_name: &str,
     provider: &crate::provider::Provider,
@@ -93,22 +111,50 @@ pub(crate) fn run_wasm_react_with_prompt_ref_and_route(
         || model_override
             .map(str::trim)
             .is_some_and(|value| !value.is_empty());
-    let primary_name = provider_override
+    let explicit_provider = provider_override
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .map(str::to_owned)
-        .unwrap_or_else(crate::provider_name_from_env);
+        .map(str::to_owned);
     let explicit_model = model_override
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_owned)
         .unwrap_or_else(|| std::env::var("MODEL_ID").unwrap_or_default());
-    let prov = if has_route_override {
+
+    // ADR-012 route resolution, highest precedence first:
+    //   1. explicit override (route arg)       → source "override"
+    //   2. named profile (MODEL_PROFILE)        → source "profile:<name>"  (only if it
+    //                                              resolves to a CONFIGURED provider)
+    //   3. env default (MODEL_PROVIDER/…)       → source "env"
+    // The profile is a preference, never a hard requirement — an unknown profile or one
+    // whose candidates are all unconfigured falls through to (3), so a run is never
+    // stranded by a profile choice.
+    let (primary_name, route_source) = if let Some(explicit) = explicit_provider {
+        (explicit, "override".to_owned())
+    } else if let Some((provider, source)) = resolve_profile_route() {
+        (provider, source)
+    } else {
+        (crate::provider_name_from_env(), "env".to_owned())
+    };
+
+    let use_explicit_construction = has_route_override || route_source.starts_with("profile:");
+    let prov = if use_explicit_construction {
         crate::provider::Provider::from_provider_name_with_model(&primary_name, &explicit_model)
     } else {
         crate::provider::Provider::from_env()
     };
     let model = prov.model().to_owned();
+
+    // ADR-012 audit trail: record which route was chosen and why (source + cost tier),
+    // as `agent:route:selected`. Fire-and-forget telemetry, correlated by prompt_ref;
+    // free when no observer is loaded (same channel as the budget/error events).
+    crate::agent_events::route_selected(
+        &primary_name,
+        &model,
+        &route_source,
+        crate::provider_config::provider_capabilities(&primary_name).cost_tier.as_str(),
+    );
+
     if crate::streaming_config::stream_responses_enabled_from_env() {
         if let Some(prompt_ref) = prompt_ref {
             super::streaming_sink::set_active_stream_response_sink(prompt_ref, &model);

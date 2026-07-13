@@ -13,6 +13,7 @@ fn every_event_name_carries_the_routed_prefix() {
         EVENT_RESPONSE_DONE,
         EVENT_ERROR,
         EVENT_BUDGET_BLOCKED,
+        EVENT_ROUTE_SELECTED,
     ] {
         assert!(
             name.starts_with(AGENT_EVENT_PREFIX),
@@ -83,4 +84,28 @@ fn error_and_budget_blocked_are_distinct_terminal_signals() {
     assert_eq!(budget["provider"], "anthropic");
     // budget:blocked is not an error payload — an observer acts on cost differently.
     assert!(budget.get("error").is_none());
+}
+
+#[test]
+fn route_selected_records_the_choice_and_why() {
+    // ADR-012 audit trail: provider + model + how it was chosen + the cost tier.
+    let p = route_selected_payload("r-1", "groq", "llama-3.3-70b-versatile", "profile:cheap", "cheap");
+    assert_eq!(p["prompt_ref"], "r-1");
+    assert_eq!(p["provider"], "groq");
+    assert_eq!(p["model"], "llama-3.3-70b-versatile");
+    assert_eq!(p["source"], "profile:cheap");
+    assert_eq!(p["cost_tier"], "cheap");
+}
+
+#[test]
+fn route_selected_source_distinguishes_override_profile_env() {
+    // The three resolution sources are visible in the audit trail as distinct values.
+    assert_eq!(
+        route_selected_payload("r", "anthropic", "claude-sonnet-4-6", "override", "premium")["source"],
+        "override"
+    );
+    assert_eq!(
+        route_selected_payload("r", "ollama", "llama3.2", "env", "local")["source"],
+        "env"
+    );
 }
