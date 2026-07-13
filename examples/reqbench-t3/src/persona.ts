@@ -23,8 +23,10 @@ import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
 import {
 	createReferenceVaultSurface,
 	organizeRecords,
+	planRecordFiles,
 	recordToVaultNote,
 	type OrganizeDispatcher,
+	type RecordFilePlan,
 	type VaultProfile,
 } from "@refarm.dev/vault-contract-v1";
 import { createReferenceVaultSurfaceComponent } from "@refarm.dev/vault-surface-ref";
@@ -1134,6 +1136,98 @@ export function createRequirementsOrganizeCapability(
 					routed: plans.length,
 					applied: apply,
 					plans: plans.map((p) => ({ id: p.recordId, destination: p.destination })),
+				},
+			});
+		},
+	};
+}
+
+/** Stamp the ALM CANONICAL frontmatter onto a record's fields before it is written to a note —
+ * the coordinates a later incremental sync reads back (the artifact's own URI, its ALM modified
+ * timestamp, when we last synced). Domain-specific (the analyst's ALM), so it lives here, not in
+ * the substrate's planRecordFiles. Anonymized field names carry no institution. */
+function stampAlmFrontmatter(record: KnowledgeRecord, syncedAt: string): KnowledgeRecord {
+	const artifactUri = record.fields.artifactUri;
+	return {
+		...record,
+		fields: {
+			...record.fields,
+			...(typeof artifactUri === "string" ? { alm_artifact_uri: artifactUri } : {}),
+			alm_last_sync_at: syncedAt,
+		},
+	};
+}
+
+export interface RequirementsMaterializeOptions {
+	sourcesConfigPath?: string;
+	/** The vault root to write notes under (a directory). Absent → dry-run (plan only, no write). */
+	vaultRoot?: string;
+	/** The filesystem writer (injected so a test drives it in memory). Given a relative path +
+	 * text, writes idempotently (skip if the on-disk content already matches). Returns whether it
+	 * wrote (true) or skipped as unchanged (false). Absent + vaultRoot present → a node fs writer. */
+	writeNote?: (relativePath: string, text: string) => boolean | Promise<boolean>;
+	/** Injected clock for alm_last_sync_at (ISO). */
+	now?: () => string;
+}
+
+/**
+ * The T3 persona verb: `requirements-materialize [--apply]` — write the ingested requirements to
+ * Obsidian-style notes on disk (the "geração de mocs"). It ORGANIZES the records (PARA routing),
+ * plans the files via the substrate's pure planRecordFiles, stamps ALM canonical frontmatter, and
+ * writes each note idempotently under the vault root. Without a vault root it is a dry-run (it
+ * reports the file plan). This is the last backend step before a face: a scraped project becomes
+ * a navigable note vault, incrementally (an unchanged note is skipped).
+ */
+export function createRequirementsMaterializeCapability(
+	recordsDeps: RecordsCommandDeps,
+	vaultSurface: () => Promise<OrganizeDispatcher>,
+	options: RequirementsMaterializeOptions = {},
+): CapabilityDescriptor {
+	const now = options.now ?? ((): string => new Date().toISOString());
+	return {
+		name: "requirements-materialize",
+		summary: "Write the requirements to Obsidian notes on disk (organize + frontmatter + idempotent)",
+		options: [
+			{ name: "apply", kind: "boolean", summary: "Actually write the notes (else dry-run: plan only)" },
+		],
+		transports: { http: { path: "/requirements/materialize" } },
+		renderers: { tui: { section: "requirements" } },
+		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
+			const manifest = recordsDeps.loadManifest();
+			const syncedAt = now();
+			// Stamp ALM frontmatter, then organize for PARA placement, then plan the files (pure).
+			const stamped = manifest.records.map((r) => stampAlmFrontmatter(r as KnowledgeRecord, syncedAt));
+			const plans = await organizeRecords(await vaultSurface(), stamped, REQUIREMENTS_TAXONOMY);
+			const files: RecordFilePlan[] = planRecordFiles(stamped, {
+				plans,
+				// The ALM external key is the stable, human file name (RN-632504.md).
+				fileNameFor: (r) =>
+					typeof r.fields.externalKey === "string" ? `${r.fields.externalKey}.md` : `${r.id}.md`,
+			});
+
+			const apply = input.options?.apply === true;
+			let written = 0;
+			let skipped = 0;
+			if (apply && options.writeNote) {
+				for (const file of files) {
+					const didWrite = await options.writeNote(file.relativePath, file.text);
+					if (didWrite) written += 1;
+					else skipped += 1;
+				}
+			}
+
+			return buildJsonSuccessEnvelope({
+				command: "requirements-materialize",
+				operation: "materialize",
+				nextCommand: "dgk requirements",
+				nextCommands: ["dgk requirements"],
+				extra: {
+					planned: files.length,
+					applied: apply,
+					written,
+					skipped,
+					dryRun: !apply || !options.writeNote,
+					files: files.map((f) => ({ id: f.recordId, path: f.relativePath })),
 				},
 			});
 		},

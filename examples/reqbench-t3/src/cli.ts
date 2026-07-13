@@ -18,6 +18,7 @@ import {
 	createRequirementsCapability,
 	createRequirementsCheckCapability,
 	createRequirementsCrawlCapability,
+	createRequirementsMaterializeCapability,
 	createRequirementsOrganizeCapability,
 	createRequirementsPullCapability,
 	reqCapabilityBundle,
@@ -57,6 +58,39 @@ function saveCrawlCache(statePath: string, ref: string, manifest: CacheManifest)
 	const file = crawlCachePath(statePath, ref);
 	mkdirSync(path.dirname(file), { recursive: true });
 	writeFileSync(file, JSON.stringify(manifest, null, 2), "utf8");
+}
+
+/** The vault root the materialize verb writes notes under — DGK_VAULT_ROOT, else a `vault` dir
+ * beside the records manifest. */
+function vaultRoot(statePath: string): string {
+	return process.env.DGK_VAULT_ROOT ?? path.join(path.dirname(statePath), "vault");
+}
+
+/** Drop the volatile `alm_last_sync_at` line so two notes that differ ONLY in their sync
+ * timestamp compare equal — otherwise every re-materialize rewrites every note (the timestamp
+ * always changes) and the incremental skip is worthless. */
+function withoutSyncTimestamp(text: string): string {
+	return text.replace(/^alm_last_sync_at:.*$\n?/m, "");
+}
+
+/** An IDEMPOTENT note writer: write `<vaultRoot>/<relativePath>` only when its MEANINGFUL content
+ * differs from what's on disk — the sync timestamp alone never forces a rewrite (skip-if-identical,
+ * mirroring the operational scraper). Returns true if it wrote, false if it skipped an unchanged
+ * note. */
+function makeNoteWriter(root: string): (relativePath: string, text: string) => boolean {
+	return (relativePath, text) => {
+		const file = path.join(root, relativePath);
+		try {
+			if (withoutSyncTimestamp(readFileSync(file, "utf8")) === withoutSyncTimestamp(text)) {
+				return false; // unchanged but for the timestamp → keep the old note, skip
+			}
+		} catch {
+			// absent → write it
+		}
+		mkdirSync(path.dirname(file), { recursive: true });
+		writeFileSync(file, text, "utf8");
+		return true;
+	};
 }
 
 const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND });
@@ -159,6 +193,14 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 								? { loginTimeoutMs: Number(process.env.DGK_LOGIN_TIMEOUT_MS) }
 								: {}),
 						}),
+					}),
+					// Materialize the requirements to Obsidian notes on disk (the "geração de mocs"):
+					// organize → plan files (substrate's planRecordFiles) → stamp ALM frontmatter →
+					// write idempotently under the vault root. `--apply` writes; else a dry-run plan.
+					createRequirementsMaterializeCapability(records, vaultSurface, {
+						sourcesConfigPath: options.sourcesConfigPath,
+						vaultRoot: vaultRoot(statePath),
+						writeNote: makeNoteWriter(vaultRoot(statePath)),
 					}),
 					// DOGFOOD: `playbook-run <name>` runs the analyst's journey as a declarative
 					// playbook (`.dgk/*.playbook.json`) via the generic engine, driving the verbs
