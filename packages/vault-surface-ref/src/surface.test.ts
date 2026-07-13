@@ -100,6 +100,38 @@ describe.skipIf(!componentBuilt)("vault-surface reference component (real WASM d
 		expect(prof.findings[0]?.ruleId).toBe("require-summary");
 	});
 
+	it("organize taxonomy-route: multi-axis PARA routing dispatches IN THE SANDBOX", async () => {
+		// The multi-axis routing (route by what the note IS) runs inside the WASM
+		// component — governed, sovereign routing, not a host-side helper. tipo=requisito
+		// hits the first axis; sistema is the fallback axis.
+		const surface = await load();
+		const note = {
+			path: "00-Inbox/req-42.md",
+			text: "---\ntipo: requisito\nsistema: EFD\n---\n\ncorpo\n",
+		};
+		const profile: VaultProfile = {
+			name: "tax",
+			rules: [
+				{
+					id: "route-taxonomy",
+					verb: "organize",
+					match: JSON.stringify({
+						type: "taxonomy-route",
+						axes: [
+							{ field: "tipo", map: { demanda: "20-Projects", requisito: "40-Resources" } },
+							{ field: "sistema", map: { EFD: "20-Projects/EFD" } },
+						],
+						fallback: "40-Resources/Triagem",
+					}),
+				},
+			],
+		};
+		const result = surface.run("organize", note, profileForVerb(profile, "organize"));
+		expect(result.plans).toHaveLength(1);
+		expect(result.plans[0]?.destination).toBe("40-Resources");
+		expect(result.plans[0]?.fileName).toBe("req-42.md");
+	});
+
 	it("SANDBOX: the component imports NOTHING — instantiated with an empty table", async () => {
 		// The proof, stronger than deny-all stubs: the transpiled ImportObject is
 		// `{}`. loadVaultSurfaceComponent passes NO capabilities at all, and run()

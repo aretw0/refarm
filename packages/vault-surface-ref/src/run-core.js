@@ -99,13 +99,47 @@ function extractRecord(note, ruleId, match) {
 	return { ruleId, json: JSON.stringify(record) };
 }
 
-// ── organize: "prefix-route" ──
+// ── organize: "prefix-route" | "taxonomy-route" ──
+// Mirrors packages/vault-contract-v1/src/reference.ts (this is the WASM-component source
+// of the same surface). taxonomy-route = multi-axis routing by frontmatter with declared
+// precedence — the "route to a PARA area by what the note IS" a note-box needs, as data.
 function organizeNote(note, ruleId, match) {
-	if (match.type !== "prefix-route") return undefined;
+	if (match.type === "prefix-route") return organizePrefixRoute(note, ruleId, match);
+	if (match.type === "taxonomy-route") return organizeTaxonomyRoute(note, ruleId, match);
+	return undefined;
+}
+
+function organizePrefixRoute(note, ruleId, match) {
 	const marker = str(match, "marker");
 	const destination = str(match, "destination");
 	if (!marker || !destination) return undefined;
 	if (!note.text.includes(marker)) return undefined;
+	const parts = note.path.split("/");
+	const base = parts[parts.length - 1] ?? note.path;
+	const prefix = str(match, "prefix");
+	const fileName = prefix ? `${prefix}${base}` : base;
+	return { path: note.path, ruleId, destination, fileName };
+}
+
+function organizeTaxonomyRoute(note, ruleId, match) {
+	const axes = Array.isArray(match.axes) ? match.axes : [];
+	const fallback = str(match, "fallback");
+	const fields = parseFrontmatter(note.text);
+	let destination;
+	for (const axis of axes) {
+		if (!axis || typeof axis !== "object") continue;
+		const field = typeof axis.field === "string" ? axis.field : undefined;
+		if (!field) continue;
+		const value = fields[field];
+		if (typeof value !== "string") continue;
+		const mapped = axis.map ? axis.map[value] : undefined;
+		if (typeof mapped === "string" && mapped) {
+			destination = mapped;
+			break;
+		}
+	}
+	if (destination === undefined) destination = fallback;
+	if (!destination) return undefined;
 	const parts = note.path.split("/");
 	const base = parts[parts.length - 1] ?? note.path;
 	const prefix = str(match, "prefix");

@@ -95,6 +95,107 @@ describe("reference vault surface — one honest matcher per verb", () => {
 		});
 	});
 
+	it("organize taxonomy-route: routes by frontmatter with declared precedence", () => {
+		// A note typed `requisito` from system `EFD`. The profile declares two axes in
+		// order: by tipo, then by sistema. tipo resolves first → its destination wins.
+		const note: VaultNote = {
+			path: "00-Inbox/req-42.md",
+			text: "---\ntipo: requisito\nsistema: EFD\n---\n\ncorpo do requisito\n",
+		};
+		const profile: VaultProfile = {
+			name: "tax",
+			rules: [
+				{
+					id: "route-taxonomy",
+					verb: "organize",
+					match: JSON.stringify({
+						type: "taxonomy-route",
+						axes: [
+							{ field: "tipo", map: { demanda: "20-Projects", requisito: "40-Resources" } },
+							{ field: "sistema", map: { EFD: "20-Projects/EFD" } },
+						],
+						fallback: "40-Resources/Triagem",
+					}),
+				},
+			],
+		};
+		const result = runReferenceVault("organize", note, profile);
+		expect(result.plans).toHaveLength(1);
+		// tipo=requisito hit the FIRST axis → 40-Resources, not the sistema axis.
+		expect(result.plans[0]?.destination).toBe("40-Resources");
+		expect(result.plans[0]?.fileName).toBe("req-42.md");
+	});
+
+	it("organize taxonomy-route: falls through axes then to the fallback", () => {
+		// tipo is not in the first axis map; sistema is not in the second → fallback.
+		const note: VaultNote = {
+			path: "00-Inbox/x.md",
+			text: "---\ntipo: outro\nsistema: DESCONHECIDO\n---\n\ncorpo\n",
+		};
+		const profile: VaultProfile = {
+			name: "tax",
+			rules: [
+				{
+					id: "route-taxonomy",
+					verb: "organize",
+					match: JSON.stringify({
+						type: "taxonomy-route",
+						axes: [
+							{ field: "tipo", map: { requisito: "40-Resources" } },
+							{ field: "sistema", map: { EFD: "20-Projects/EFD" } },
+						],
+						fallback: "40-Resources/Triagem",
+					}),
+				},
+			],
+		};
+		const result = runReferenceVault("organize", note, profile);
+		expect(result.plans[0]?.destination).toBe("40-Resources/Triagem");
+	});
+
+	it("organize taxonomy-route: second axis wins when the first does not resolve", () => {
+		const note: VaultNote = {
+			path: "00-Inbox/y.md",
+			text: "---\ntipo: outro\nsistema: EFD\n---\n\ncorpo\n",
+		};
+		const profile: VaultProfile = {
+			name: "tax",
+			rules: [
+				{
+					id: "route-taxonomy",
+					verb: "organize",
+					match: JSON.stringify({
+						type: "taxonomy-route",
+						axes: [
+							{ field: "tipo", map: { requisito: "40-Resources" } },
+							{ field: "sistema", map: { EFD: "20-Projects/EFD" } },
+						],
+					}),
+				},
+			],
+		};
+		const result = runReferenceVault("organize", note, profile);
+		expect(result.plans[0]?.destination).toBe("20-Projects/EFD");
+	});
+
+	it("organize taxonomy-route: no plan when nothing matches and no fallback", () => {
+		const note: VaultNote = { path: "z.md", text: "---\ntipo: outro\n---\n\ncorpo\n" };
+		const profile: VaultProfile = {
+			name: "tax",
+			rules: [
+				{
+					id: "route-taxonomy",
+					verb: "organize",
+					match: JSON.stringify({
+						type: "taxonomy-route",
+						axes: [{ field: "tipo", map: { requisito: "40-Resources" } }],
+					}),
+				},
+			],
+		};
+		expect(runReferenceVault("organize", note, profile).plans).toHaveLength(0);
+	});
+
 	it("profile: flags a note MISSING required content", () => {
 		const result = runReferenceVault("profile", NOTE, profileForVerb(PROFILE, "profile"));
 		expect(result.findings).toHaveLength(1);

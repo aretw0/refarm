@@ -172,17 +172,87 @@ function parseFrontmatter(text: string): Record<string, unknown> {
 	return fields;
 }
 
-// ── organize: "prefix-route" ──
+// ── organize ──
+// Two matchers, both matcher-is-data:
+//   prefix-route   — a marker in the note text → a fixed destination.
+//   taxonomy-route — MULTI-AXIS routing with declared precedence, read from the note's
+//                    frontmatter (tipo/sistema/profile → destination). This is the
+//                    "route to a PARA area by what the note IS" that an operational
+//                    note-box needs — the same shape a routing.json declares as data.
 function organizeNote(
 	note: VaultNote,
 	ruleId: string,
 	match: Match,
 ): VaultOrganizePlan | undefined {
-	if (match.type !== "prefix-route") return undefined;
+	switch (match.type) {
+		case "prefix-route":
+			return organizePrefixRoute(note, ruleId, match);
+		case "taxonomy-route":
+			return organizeTaxonomyRoute(note, ruleId, match);
+		default:
+			return undefined;
+	}
+}
+
+function organizePrefixRoute(
+	note: VaultNote,
+	ruleId: string,
+	match: Match,
+): VaultOrganizePlan | undefined {
 	const marker = str(match, "marker");
 	const destination = str(match, "destination");
 	if (!marker || !destination) return undefined;
 	if (!note.text.includes(marker)) return undefined;
+	const base = note.path.split("/").pop() ?? note.path;
+	const prefix = str(match, "prefix");
+	const fileName = prefix ? `${prefix}${base}` : base;
+	return { path: note.path, ruleId, destination, fileName };
+}
+
+/**
+ * One routing axis: read `field` from the note's frontmatter and look its value up in
+ * `map` → a destination. `[key: string]` so the axis object stays open.
+ */
+interface RouteAxis {
+	field?: string;
+	map?: Record<string, unknown>;
+}
+
+/**
+ * `taxonomy-route` — route a note to a PARA destination by its frontmatter, trying a
+ * DECLARED ORDER of axes (precedence) and taking the first that resolves; else the
+ * `fallback`. Each axis is `{ field, map }` (e.g. by `tipo`, then by `sistema`, then by
+ * `profile`) — the multi-axis routing an operational note-box declares as data
+ * (mirrors a routing.json's tipoDestino/sistemasDestino/profileDestino precedence).
+ * Purely from frontmatter, deterministic, forward-safe.
+ */
+function organizeTaxonomyRoute(
+	note: VaultNote,
+	ruleId: string,
+	match: Match,
+): VaultOrganizePlan | undefined {
+	const axes = Array.isArray(match.axes) ? (match.axes as RouteAxis[]) : [];
+	const fallback = str(match, "fallback");
+	const fields = parseFrontmatter(note.text);
+
+	let destination: string | undefined;
+	// Axes are tried in declared order — the first axis whose field value maps wins
+	// (precedence is the array order, so a caller declares "direct/type before system").
+	for (const axis of axes) {
+		if (!axis || typeof axis !== "object") continue;
+		const field = typeof axis.field === "string" ? axis.field : undefined;
+		if (!field) continue;
+		const value = fields[field];
+		if (typeof value !== "string") continue;
+		const mapped = axis.map?.[value];
+		if (typeof mapped === "string" && mapped) {
+			destination = mapped;
+			break;
+		}
+	}
+	destination ??= fallback;
+	if (!destination) return undefined; // nothing matched and no fallback → forward-safe
+
 	const base = note.path.split("/").pop() ?? note.path;
 	const prefix = str(match, "prefix");
 	const fileName = prefix ? `${prefix}${base}` : base;
