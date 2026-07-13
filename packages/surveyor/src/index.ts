@@ -1,4 +1,10 @@
 export {
+	extractWikilinks,
+	graphFromRecords,
+	type GraphFromRecordsOptions,
+	type GraphRecord,
+} from "./adapter.js";
+export {
 	LAYOUT_DEFAULTS,
 	VIEWBOX_SIZE,
 	computeForces,
