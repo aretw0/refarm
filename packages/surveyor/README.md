@@ -43,9 +43,24 @@ const placed = layoutGraph({
 
 Segue o **Headless-First**: aqui está a lógica de layout; um render 2D/3D é um consumidor.
 
-## Especificações Iniciais (SDD)
+## Dois eixos do Surveyor
 
-### WIT Interface (`refarm-surveyor.wit`)
+O Surveyor tem **dois eixos complementares**. Só um está implementado hoje:
+
+| Eixo | Estado | O quê |
+| --- | --- | --- |
+| **Visualização** (headless) | ✅ **Implementado** (veja acima) | layout force-directed + adapter `records → {nodes,links}` + render SVG/DOM. TS puro, sem WASM. Alimenta qualquer face 2D. |
+| **Travessia soberana** (WIT/WASM) | 🔮 **Fase futura** (spec abaixo) | plugin WASM que lê nós JSON-LD do SQLite via `tractor` e resolve conexões (`get-stats`/`query-by-type`/`get-connections`). |
+
+Os dois são independentes: a camada de visualização consome **qualquer** `{nodes,links}` (de
+records em memória, como faz o exemplo T3 hoje), e **não depende** do plugin WIT. O eixo WIT
+passa a valer quando o grafo precisar vir de **múltiplos plugins soberanos** consultando o store
+compartilhado — será implementado quando um trabalho concreto pedir essa travessia (a spec abaixo
+é o alvo, não código atual).
+
+## Especificações Iniciais (SDD) — 🔮 fase futura (travessia soberana, ainda não implementada)
+
+### WIT Interface (`refarm-surveyor.wit`) — planejado, não existe ainda
 
 ```wit
 package plugin:surveyor@0.1.0;
@@ -80,7 +95,15 @@ world surveyor {
 }
 ```
 
-## Roadmap v0.1.0
+## Roadmap
+
+### ✅ Feito — camada de visualização (headless)
+
+- [x] Layout force-directed puro (`layoutGraph` / `computeForces` / `seedLayout`), determinístico.
+- [x] Adapter `graphFromRecords` (records → `{nodes,links}`, arestas de wikilinks + relações).
+- [x] Render SVG estático (`graphToSvg`) e DOM interativo (`mountGraph`: pan/zoom/drag/hover/click).
+
+### 🔮 Futuro — travessia soberana (WIT/WASM), quando um trabalho pedir
 
 - [ ] Spec: Definição completa do WIT e Esquema de Consulta.
 - [ ] BDD: Testes de integração para travessia de grafo no Studio.
