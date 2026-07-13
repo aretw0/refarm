@@ -106,8 +106,11 @@ async fn audit_subscriber_task(
         match rx.recv().await {
             Ok(event) => {
                 // Route by prefix off the SAME telemetry subscription: host effects
-                // go to the audit log + host-effect observers; agent lifecycle events
-                // go to agent-event observers. Anything else is ignored.
+                // and agent lifecycle events BOTH land in the audit log (it is the
+                // durable tamper-evidence record of what the runtime did — a run's
+                // prompt/iterations/tool-calls/route/budget/errors belong there just
+                // as much as fs/shell effects do), then each is forwarded to its own
+                // capability-scoped observer set. Anything else is ignored.
                 if event.event.starts_with(HOST_EFFECT_PREFIX) {
                     if let Some(line) = format_audit_line(&event) {
                         append_line(&audit_path, &line, config).await;
@@ -115,6 +118,7 @@ async fn audit_subscriber_task(
                     }
                 } else if event.event.starts_with(AGENT_EVENT_PREFIX) {
                     if let Some(line) = format_audit_line(&event) {
+                        append_line(&audit_path, &line, config).await;
                         forward_to_observers(&event, &line, &agent_observer_channels);
                     }
                 }
@@ -408,6 +412,84 @@ mod tests {
         let msg = rx.try_recv().expect("agent-event observer should receive");
         assert_eq!(msg.event, "agent:tool:call");
         assert!(msg.payload.unwrap().contains("read_file"));
+    }
+
+    #[tokio::test]
+    async fn agent_events_land_in_the_audit_log_not_just_observers() {
+        // The gap this closes: agent:* lifecycle events used to be forwarded ONLY to
+        // opt-in agent-observer plugins and never written to the durable audit log, so
+        // a default daemon (no observer loaded) kept no record of a run's route/tool
+        // calls/errors. They must now be appended to the audit file like host effects.
+        use std::collections::HashMap;
+        use std::sync::{Arc, RwLock};
+
+        let dir = std::env::temp_dir().join(format!("audit-agent-{}", uuid::Uuid::new_v4()));
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+        let audit_path = dir.join(AUDIT_FILE);
+
+        let bus = TelemetryBus::new(64);
+        let empty: PluginChannels = Arc::new(RwLock::new(HashMap::new()));
+        // No observer plugins registered — the audit write must happen regardless.
+        spawn_audit_subscriber(bus.clone(), dir.clone(), empty.clone(), empty.clone());
+
+        // Let the spawned task run its `telemetry.subscribe()` before we emit — a
+        // broadcast bus only delivers to receivers that subscribed before the send.
+        for _ in 0..20 {
+            tokio::task::yield_now().await;
+            if bus.receiver_count() > 0 {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+
+        // An ADR-012 route decision — exactly the kind of lifecycle record an audit
+        // should keep — plus a host effect to prove both share the one log.
+        bus.emit(make_event(
+            "agent:route:selected",
+            Some("agent"),
+            serde_json::json!({
+                "prompt_ref": "urn:sovereign:prompt-9",
+                "provider": "ollama",
+                "model": "llama3.2",
+                "source": "profile:cheap",
+                "cost_tier": "local",
+            }),
+        ));
+        bus.emit(make_event(
+            "host-effect:fs:read",
+            Some("agent"),
+            serde_json::json!({ "path": "/x/README.md", "bytes": 12 }),
+        ));
+
+        // Give the background task time to drain and append.
+        let mut contents = String::new();
+        for _ in 0..50 {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            if let Ok(text) = tokio::fs::read_to_string(&audit_path).await {
+                if text.contains("agent:route:selected") && text.contains("host-effect:fs:read") {
+                    contents = text;
+                    break;
+                }
+            }
+        }
+
+        assert!(
+            contents.contains("agent:route:selected"),
+            "the agent route decision must be in the durable audit log, got: {contents:?}"
+        );
+        // And the payload fields are preserved (an auditor can see WHICH route + why).
+        let agent_line = contents
+            .lines()
+            .find(|l| l.contains("agent:route:selected"))
+            .expect("audit line present");
+        let parsed: serde_json::Value = serde_json::from_str(agent_line).expect("valid JSON");
+        assert_eq!(parsed["provider"], "ollama");
+        assert_eq!(parsed["source"], "profile:cheap");
+        assert_eq!(parsed["cost_tier"], "local");
+        // Host effects still land in the same log — the two prefixes coexist.
+        assert!(contents.contains("host-effect:fs:read"));
+
+        tokio::fs::remove_dir_all(&dir).await.ok();
     }
 
     #[test]

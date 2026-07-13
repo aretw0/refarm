@@ -132,6 +132,12 @@ impl TelemetryBus {
         self.sender.subscribe()
     }
 
+    /// Number of live subscribers. `emit` silently drops when this is 0, so a producer
+    /// (or a test) can use this to know whether an event will actually be delivered.
+    pub fn receiver_count(&self) -> usize {
+        self.sender.receiver_count()
+    }
+
     /// Convenience: emit a named event with an optional JSON payload.
     pub fn emit_named(
         &self,
