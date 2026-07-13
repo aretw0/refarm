@@ -32,6 +32,10 @@ import {
 import { createReferenceVaultSurfaceComponent } from "@refarm.dev/vault-surface-ref";
 import { graphFromRecords, graphToSvg, type GraphRecord } from "@refarm.dev/surveyor";
 import {
+	buildLabManifest,
+	type LabCatalog,
+} from "@refarm.dev/lab-contract-v1";
+import {
 	checkNotes,
 	createNoteQualityChecker,
 	type QualityProfile,
@@ -1134,6 +1138,101 @@ export function createRequirementsGraphCapability(recordsDeps: RecordsCommandDep
 				// (pan/zoom/drag) client-side via the substrate's mountGraph — no re-derivation.
 				graph,
 				labels,
+			};
+		},
+	});
+}
+
+/** The analyst's LAB catalog — DATA: the requirement graph is published as a dataset a reactive
+ * Marimo notebook analyses (orphan requirements, hubs, relation density), and the notebook is
+ * exported to HTML+WASM the browser runs. Editing THIS (not code) adds a notebook/dataset. The
+ * notebook source ships in `lab/`; the dataset is produced from the corpus at run time. */
+const REQUIREMENTS_LAB_CATALOG: LabCatalog = {
+	datasets: [
+		{
+			id: "grafo-de-requisitos",
+			title: "Grafo de Requisitos",
+			description: "A rede de requisitos (nós + relações) para análise no notebook.",
+			source: ".dgk/lab/grafo-de-requisitos.json",
+			output: "grafo-de-requisitos.json",
+			format: "json",
+		},
+	],
+	notebooks: [
+		{
+			id: "analise-grafo",
+			title: "Análise do Grafo de Requisitos",
+			description: "Hubs, órfãos e densidade de relações — reativo, roda no navegador (WASM).",
+			source: "lab/analise-grafo.py",
+			output: "analise-grafo.html",
+		},
+	],
+};
+
+export interface RequirementsLabOptions {
+	/** Persist the dataset snapshot to disk (the file a notebook reads). Given the relative path +
+	 * JSON, writes it. Optional — absent → the manifest is still built (the dataset is fingerprinted
+	 * in-process either way). Injected by the CLI (a node fs writer). */
+	writeDataset?: (relativePath: string, json: string) => void | Promise<void>;
+	now?: () => string;
+	/** Fingerprint the dataset payload (default sha256 via node:crypto, injected so pure in tests). */
+	hashData?: (json: string) => string;
+}
+
+/**
+ * The T3 persona verb: `requirements-lab` — publish the requirement graph as a Lab dataset and
+ * emit the artifact:v1 manifest for the Lab (the dataset + the analysis notebook, with the
+ * Marimo→WASM export recorded as provenance). This is the "notebooks marimo" step: the corpus
+ * becomes a reactive, browser-runnable analysis. The example DECLARES the catalog (data) and
+ * builds the graph; the manifest machinery is the substrate's lab-contract-v1.
+ *
+ * Uses defineRecordsViewCapability's project (which hands us the analyze envelope). The dataset is
+ * fingerprinted in-process, so the manifest always carries a real hash; the fs write is a side
+ * effect the CLI wires (the same payload).
+ */
+export function createRequirementsLabCapability(
+	recordsDeps: RecordsCommandDeps,
+	options: RequirementsLabOptions = {},
+): CapabilityDescriptor {
+	const now = options.now ?? ((): string => new Date().toISOString());
+	const hashData = options.hashData ?? ((json: string): string => createHash("sha256").update(json).digest("hex"));
+	return defineRecordsViewCapability({
+		name: "requirements-lab",
+		summary: "Publish the requirement graph as a Lab dataset + notebook (Marimo→WASM manifest)",
+		records: recordsDeps,
+		httpPath: "/requirements/lab",
+		groupBy: "field:tipo",
+		renderers: { tui: { section: "requirements" } },
+		project: (analyzed) => {
+			const { graph, labels } = buildRequirementsGraph(analyzed);
+			const dataset = {
+				schemaVersion: 1,
+				source: "requirements-lab",
+				nodeCount: graph.nodes.length,
+				linkCount: graph.links.length,
+				nodes: graph.nodes.map((n) => ({ ...n, label: labels[n.id] ?? n.id })),
+				links: graph.links,
+			};
+			const datasetJson = JSON.stringify(dataset, null, 2);
+			const datasetHash = hashData(datasetJson);
+			// Side effect: persist the snapshot the notebook reads (best-effort; fire-and-forget so
+			// project stays sync — the fingerprint above already made the manifest deterministic).
+			void options.writeDataset?.(".dgk/lab/grafo-de-requisitos.json", datasetJson);
+
+			const manifest = buildLabManifest(REQUIREMENTS_LAB_CATALOG, {
+				producer: "reqbench",
+				producedAt: now(),
+				hashes: { "grafo-de-requisitos": { algorithm: "sha256", value: datasetHash } },
+			});
+			return {
+				nodeCount: dataset.nodeCount,
+				linkCount: dataset.linkCount,
+				artifacts: manifest.artifacts.map((a) => ({ id: a.id, role: a.role, uri: a.uri })),
+				// The export commands the runner would execute (Marimo→WASM), for the operator.
+				exports: manifest.artifacts
+					.filter((a) => a.role === "report")
+					.map((a) => a.provenance.process?.display),
+				manifest,
 			};
 		},
 	});

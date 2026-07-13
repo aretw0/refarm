@@ -19,6 +19,7 @@ import {
 	createRequirementsCheckCapability,
 	createRequirementsCrawlCapability,
 	createRequirementsGraphCapability,
+	createRequirementsLabCapability,
 	createRequirementsMaterializeCapability,
 	createRequirementsOrganizeCapability,
 	createRequirementsPullCapability,
@@ -150,6 +151,17 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 					// The requirement NETWORK as a force-directed SVG graph (headless Surveyor:
 					// graphFromRecords → layout → SVG). A hub requirement reads bigger + central.
 					createRequirementsGraphCapability(records),
+					// LAB: publish the requirement graph as a dataset a reactive Marimo notebook
+					// analyses (hubs/orphans/density), exported to HTML+WASM. Emits the artifact:v1
+					// manifest (dataset + notebook, Marimo→WASM export as provenance). The dataset
+					// snapshot is written beside the manifest for the notebook to read.
+					createRequirementsLabCapability(records, {
+						writeDataset: (rel, json) => {
+							const file = path.join(path.dirname(statePath), rel);
+							mkdirSync(path.dirname(file), { recursive: true });
+							writeFileSync(file, json, "utf8");
+						},
+					}),
 					// Route pulled requirements to their PARA areas (taxonomy-as-data via vault:v1).
 					// The bundle injects the (sovereign) vault surface — the verb never picks one.
 					createRequirementsOrganizeCapability(records, vaultSurface),

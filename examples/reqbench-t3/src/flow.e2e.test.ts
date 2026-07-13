@@ -220,6 +220,30 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(Object.values(res.labels)).toContain("RN-632504");
 	});
 
+	it("`requirements-lab` emits an artifact:v1 manifest with the Marimo→WASM export command", async () => {
+		// Pull records, then run the lab verb — it publishes the graph as a dataset and emits the
+		// artifact manifest (dataset + notebook, with the real marimo export recorded as provenance).
+		const statePath = tempStatePath();
+		const pull = buildRegistry({ statePath }).get("requirements-pull");
+		if (!pull || "actions" in pull) throw new Error("requirements-pull verb not mounted");
+		await pull.run({ args: { ref: REQ_SYSTEM_REF }, options: {}, json: true });
+
+		const labVerb = buildRegistry({ statePath }).get("requirements-lab");
+		if (!labVerb || "actions" in labVerb) throw new Error("requirements-lab verb not mounted");
+		const res = (await labVerb.run({ args: {}, options: {}, json: true })) as unknown as {
+			nodeCount: number;
+			artifacts: Array<{ id: string; role: string }>;
+			exports: string[];
+			manifest: { schema: string; artifacts: unknown[] };
+		};
+		expect(res.nodeCount).toBe(3);
+		// A valid artifact:v1 manifest: the dataset + the notebook.
+		expect(res.manifest.schema).toBe("sovereign.task-artifacts.v1");
+		expect(res.artifacts.map((a) => a.role).sort()).toEqual(["dataset", "report"]);
+		// The exact Marimo→WASM export command a runner would execute.
+		expect(res.exports[0]).toContain("marimo export html-wasm lab/analise-grafo.py");
+	});
+
 	it("LOGIN-GARANTIDO: pull runs the login when the ledger has no valid session", async () => {
 		// The analyst points at a system with no cached session → the injected driver signs
 		// in before scraping. Here we prove the gate FIRES: a temp ledger with a session-less

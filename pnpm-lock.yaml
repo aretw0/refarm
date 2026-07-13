@@ -525,6 +525,9 @@ importers:
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../../packages/homestead
+      '@refarm.dev/lab-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/lab-contract-v1
       '@refarm.dev/playbook':
         specifier: workspace:*
         version: link:../../packages/playbook

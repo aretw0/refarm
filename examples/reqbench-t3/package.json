@@ -29,6 +29,7 @@
 		"@refarm.dev/quality-contract-v1": "workspace:*",
 		"@refarm.dev/records-contract-v1": "workspace:*",
 		"@refarm.dev/source-web": "workspace:*",
+		"@refarm.dev/lab-contract-v1": "workspace:*",
 		"@refarm.dev/surveyor": "workspace:*",
 		"@refarm.dev/vault-contract-v1": "workspace:*",
 		"@refarm.dev/vault-surface-ref": "workspace:*"
