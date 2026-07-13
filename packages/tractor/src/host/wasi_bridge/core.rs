@@ -114,6 +114,14 @@ pub struct TractorNativeBindings {
     /// guest's documented MODEL_FALLBACK_PROVIDER retry. None → single-route
     /// behavior, byte-identical to before this field existed.
     pub(crate) fallback_route: Option<ModelRoute>,
+    /// ADR-012: the routes the guest may reach BY PROFILE — one per provider the
+    /// operator configured (`MODEL_CONFIGURED_PROVIDERS`), resolved ONCE at load with
+    /// the SAME per-provider logic as the primary/fallback route. The model-POST
+    /// guardrail accepts a request matching the primary, the fallback, OR any of these.
+    /// This keeps the boundary intact — the guest can only reach providers the operator
+    /// configured — while letting a routing profile pick AMONG them. Empty when the
+    /// list is unset (byte-identical to primary+fallback-only behavior).
+    pub(crate) configured_routes: Vec<ModelRoute>,
     /// The plugin's capability grant: the permissions it DECLARED in its manifest
     /// plus the host security mode. `request_permission` consults this to answer
     /// honestly ("did this plugin declare this capability?") instead of always
@@ -244,6 +252,9 @@ impl TractorNativeBindings {
             effect_policy,
             model_route,
             fallback_route,
+            // Resolved once here at load (not per-request) from the same env the guest's
+            // profile resolver reads, so host and guest agree on the configured set.
+            configured_routes: ModelRoute::configured_routes_from_env(),
             permission_grant,
             trusted_plugins,
             cross_plugin,
@@ -441,6 +452,7 @@ impl ModelBridgeHost for TractorNativeBindings {
             &body,
             &self.model_route,
             self.fallback_route.as_ref(),
+            &self.configured_routes,
         )
     }
 
@@ -467,6 +479,7 @@ impl ModelBridgeHost for TractorNativeBindings {
             &body,
             &self.model_route,
             self.fallback_route.as_ref(),
+            &self.configured_routes,
         )?;
         let (final_body, last_sequence, stored_chunks) = store_stream_agent_response_chunks_from_reader(
             &self.sync,
@@ -523,8 +536,11 @@ fn model_complete_http(
     body: &[u8],
     expected: &ModelRoute,
     fallback: Option<&ModelRoute>,
+    configured: &[ModelRoute],
 ) -> Result<Vec<u8>, String> {
-    let resp = send_model_http_post(provider, base_url, path, headers, body, expected, fallback)?;
+    let resp = send_model_http_post(
+        provider, base_url, path, headers, body, expected, fallback, configured,
+    )?;
     read_response_bytes(resp)
 }
 
@@ -540,13 +556,27 @@ fn enforce_model_route_any(
     path: &str,
     primary: &ModelRoute,
     fallback: Option<&ModelRoute>,
+    configured: &[ModelRoute],
 ) -> Result<(), String> {
     match enforce_model_route(provider, base_url, path, primary) {
         Ok(()) => Ok(()),
-        Err(primary_err) => match fallback {
-            Some(fb) => enforce_model_route(provider, base_url, path, fb),
-            None => Err(primary_err),
-        },
+        Err(primary_err) => {
+            // Then the documented fallback route, then any ADR-012 configured-provider
+            // route a profile may have selected. The PRIMARY error is what surfaces if
+            // none match — so an unset fallback + empty configured list is byte-identical
+            // to the single-route host, and the error string is unchanged.
+            if let Some(fb) = fallback {
+                if enforce_model_route(provider, base_url, path, fb).is_ok() {
+                    return Ok(());
+                }
+            }
+            for route in configured {
+                if enforce_model_route(provider, base_url, path, route).is_ok() {
+                    return Ok(());
+                }
+            }
+            Err(primary_err)
+        }
     }
 }
 
@@ -558,8 +588,9 @@ fn send_model_http_post(
     body: &[u8],
     expected: &ModelRoute,
     fallback: Option<&ModelRoute>,
+    configured: &[ModelRoute],
 ) -> Result<ureq::Response, String> {
-    enforce_model_route_any(provider, base_url, path, expected, fallback)?;
+    enforce_model_route_any(provider, base_url, path, expected, fallback, configured)?;
     enforce_model_request_body(body)?;
     let provider = normalize_provider_name(provider);
 
@@ -855,6 +886,41 @@ impl ModelRoute {
         }
         Some(Self::for_provider(provider.to_string()))
     }
+
+    /// ADR-012: resolve one route per provider named in `MODEL_CONFIGURED_PROVIDERS`
+    /// (the same non-secret list the guest resolves profiles against), using the SAME
+    /// per-provider logic as the primary/fallback route. These are the routes a routing
+    /// profile may legitimately select — the host accepts any of them so a profile can
+    /// pick AMONG the operator's configured providers without the guardrail (pinned to
+    /// the primary at boot) rejecting it. Unsafe/blank tokens are skipped; an unset or
+    /// empty list yields an empty vec (no change to primary+fallback-only behavior).
+    /// `parse_configured_providers` keeps the split-and-clean logic pure/testable.
+    pub(crate) fn configured_routes_from_env() -> Vec<ModelRoute> {
+        let raw = std::env::var("MODEL_CONFIGURED_PROVIDERS").unwrap_or_default();
+        parse_configured_providers(&raw)
+            .into_iter()
+            .map(Self::for_provider)
+            .collect()
+    }
+}
+
+/// Split the `MODEL_CONFIGURED_PROVIDERS` list into safe, de-duplicated provider tokens.
+/// Pure over its input (no env) so it is unit-testable. Separators are comma/whitespace;
+/// tokens are lowercased and must pass `is_safe_provider_token` (a malformed token is
+/// dropped, never routed). Order is preserved; duplicates are removed.
+pub(crate) fn parse_configured_providers(raw: &str) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for token in raw.split([',', ' ', '\t', '\n']) {
+        let token = token.trim().to_ascii_lowercase();
+        if token.is_empty() || !is_safe_provider_token(&token) {
+            continue;
+        }
+        if seen.insert(token.clone()) {
+            out.push(token);
+        }
+    }
+    out
 }
 
 impl Default for ModelRoute {

@@ -840,6 +840,7 @@
             "/v1/messages",
             &primary,
             Some(&fallback),
+            &[],
         )
         .is_ok());
 
@@ -850,6 +851,7 @@
             "/v1/chat/completions",
             &primary,
             Some(&fallback),
+            &[],
         )
         .is_ok());
 
@@ -860,8 +862,53 @@
             "/v1/chat/completions",
             &primary,
             Some(&fallback),
+            &[],
         )
         .is_err());
+    }
+
+    #[test]
+    fn enforce_route_any_accepts_a_configured_profile_route() {
+        // ADR-012: a profile can route to a provider that is neither the primary nor the
+        // fallback but IS in the operator's configured set. The guardrail accepts it, so
+        // a `cheap` profile selecting ollama isn't blocked by a codex-pinned primary —
+        // while a provider outside the configured set stays rejected (boundary intact).
+        let primary = ModelRoute::for_test("openai-codex", "https://chatgpt.com", "/backend-api/codex/responses");
+        let configured = vec![ModelRoute::for_test(
+            "ollama",
+            "http://localhost:11434",
+            "/v1/chat/completions",
+        )];
+
+        // The configured ollama route is accepted even though it is not primary/fallback.
+        assert!(enforce_model_route_any(
+            "ollama",
+            "http://localhost:11434",
+            "/v1/chat/completions",
+            &primary,
+            None,
+            &configured,
+        )
+        .is_ok());
+
+        // A provider in NEITHER the primary/fallback NOR the configured set: rejected.
+        assert!(enforce_model_route_any(
+            "anthropic",
+            "https://api.anthropic.com",
+            "/v1/messages",
+            &primary,
+            None,
+            &configured,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn parse_configured_providers_splits_dedups_and_drops_unsafe() {
+        // Comma/space separated, lowercased, deduped, malformed tokens dropped.
+        let got = parse_configured_providers("openai-codex, ollama ,OLLAMA\tgroq,,bad!token");
+        assert_eq!(got, vec!["openai-codex", "ollama", "groq"]);
+        assert!(parse_configured_providers("").is_empty());
     }
 
     #[test]
@@ -884,6 +931,7 @@
             "/v1/chat/completions",
             &primary,
             None,
+            &[],
         );
         assert!(single.is_err());
         assert_eq!(single, any, "unset fallback must not change the error path");
