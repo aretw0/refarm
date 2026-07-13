@@ -1,6 +1,14 @@
 # Skill Runtime Activation
 
-**Status:** DRAFT - activation packet for roadmap item 6
+**Status:** In progress — the core runtime surface is implemented. The agent loads a
+skill's full SKILL.md instructions on demand via the `load_skill` tool (the second jump of
+progressive disclosure): the cheap index rides `MODEL_SKILLS`, the on-demand bodies ride
+`MODEL_SKILL_BODIES`, and the agent's `resolve_skill_body` returns the body by name — proven
+end-to-end (the agent opens a skill and follows a token that lives only in its body). This
+is the "running a curated skill" surface below. FOLLOW-UP (not yet done): the capability
+activation GATE on execution (the skill-contract preflight → decision is wired for planning
+but not enforced on the runtime tool), authoring scaffolds, and the specific dgk-skill
+dogfood consumers.
 **Related:** `docs/CONVERGENCE_ROADMAP.md` item 6, `docs/GARDENING_SKILLS_TAXONOMY.md`,
 `docs/VAULT_SEED_CONVERGENCE.md`
 
