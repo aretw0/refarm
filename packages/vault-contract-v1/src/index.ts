@@ -13,6 +13,11 @@ export {
 } from "./emit.js";
 export { createInMemoryVaultSurface, type InMemoryVaultSurfaceOptions } from "./in-memory.js";
 export {
+	organizeRecords,
+	recordToVaultNote,
+	type RecordOrganizePlan,
+} from "./organize.js";
+export {
 	buildVaultPluginManifest,
 	VAULT_ENTRY_PLACEHOLDER,
 	vaultProvides,
