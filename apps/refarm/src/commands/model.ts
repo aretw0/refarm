@@ -20,6 +20,7 @@ import {
 	isRuntimeSubscriptionModelProvider,
 	isSubscriptionModelProvider,
 	MODEL_BASE_URL_ENV_VAR,
+	MODEL_CONFIGURED_PROVIDERS_ENV_VAR,
 	MODEL_DEFAULT_PROVIDER_ENV_VAR,
 	MODEL_FALLBACK_MODEL_ID_ENV_VAR,
 	MODEL_FALLBACK_PROVIDER_ENV_VAR,
@@ -285,6 +286,19 @@ function buildModelEnvEntries(
 	}
 	const credential = modelRuntimeCredentialEnv(status.current.provider, tokens);
 	if (credential) entries.push(credential);
+	// ADR-012: advertise WHICH providers are configured (names only, never keys) so the
+	// guest agent's routing profiles (cheap/balanced/reliable) can resolve to a provider
+	// the operator actually has credentials for. Derived from each known provider's
+	// credential state — env / silo key / silo oauth / keyless local floor all count as
+	// configured; only "missing" is excluded. The list crosses the host→guest boundary
+	// as text (tractor's MODEL_CONFIGURED_PROVIDERS text-content allowlist); the secrets
+	// themselves never do.
+	const configuredProviders = MODEL_PROVIDERS.filter(
+		(provider) => modelCredentialState(provider, tokens) !== "missing",
+	);
+	if (configuredProviders.length > 0) {
+		entries.push([MODEL_CONFIGURED_PROVIDERS_ENV_VAR, configuredProviders.join(",")]);
+	}
 	if (options.includeSecrets) {
 		const oauthCredential = runtimeOAuthCredential(status.current.provider, tokens);
 		const oauthEnvKey = modelCredentialEnvKey(status.current.provider);

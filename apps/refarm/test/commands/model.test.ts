@@ -158,8 +158,10 @@ describe("modelCommand", () => {
 		expect(output).toContain("export MODEL_PROVIDER='openai'");
 		expect(output).toContain("export MODEL_ID='gpt-5.5'");
 		expect(output).toContain("export OPENAI_API_KEY='sk-silo-test'");
+		// ADR-012: the non-secret configured-providers list is advertised (names only).
+		expect(output).toContain("export MODEL_CONFIGURED_PROVIDERS='openai,ollama'");
 		expect(output).toContain(
-			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID,OPENAI_API_KEY'",
+			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID,OPENAI_API_KEY,MODEL_CONFIGURED_PROVIDERS'",
 		);
 
 		logSpy.mockRestore();
@@ -186,8 +188,10 @@ describe("modelCommand", () => {
 		expect(output).toContain("export MODEL_PROVIDER='openai-codex'");
 		expect(output).toContain("export MODEL_ID='gpt-5.5'");
 		expect(output).toContain(
-			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID'",
+			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID,MODEL_CONFIGURED_PROVIDERS'",
 		);
+		// The configured-providers list carries provider NAMES, never the OAuth secret.
+		expect(output).toContain("export MODEL_CONFIGURED_PROVIDERS='openai-codex,ollama'");
 		expect(output).not.toContain("OPENAI_API_KEY");
 		expect(output).not.toContain("OPENAI_CODEX_ACCESS_TOKEN");
 		expect(output).not.toContain("oauth-access-test");
@@ -224,7 +228,7 @@ describe("modelCommand", () => {
 		);
 		expect(output).toContain("export OPENAI_CODEX_ACCOUNT_ID='account-test'");
 		expect(output).toContain(
-			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID,OPENAI_CODEX_ACCESS_TOKEN,OPENAI_CODEX_ACCOUNT_ID'",
+			"export REFARM_MANAGED_MODEL_ENV_KEYS='MODEL_PROVIDER,MODEL_ID,MODEL_CONFIGURED_PROVIDERS,OPENAI_CODEX_ACCESS_TOKEN,OPENAI_CODEX_ACCOUNT_ID'",
 		);
 		expect(output).not.toContain("OPENAI_API_KEY");
 	});

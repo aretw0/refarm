@@ -12,6 +12,11 @@ export const MODEL_ID_ENV_VAR = "MODEL_ID";
 export const MODEL_BASE_URL_ENV_VAR = "MODEL_BASE_URL";
 export const MODEL_FALLBACK_PROVIDER_ENV_VAR = "MODEL_FALLBACK_PROVIDER";
 export const MODEL_FALLBACK_MODEL_ID_ENV_VAR = "MODEL_FALLBACK_MODEL_ID";
+// ADR-012: the routing profile intent (cheap|balanced|reliable) and the non-secret
+// list of configured provider NAMES the guest resolves a profile against. Names only
+// ever cross to the guest — the credentials themselves never do.
+export const MODEL_PROFILE_ENV_VAR = "MODEL_PROFILE";
+export const MODEL_CONFIGURED_PROVIDERS_ENV_VAR = "MODEL_CONFIGURED_PROVIDERS";
 export const MODEL_ROUTE_ENV_VARS = [
 	MODEL_PROVIDER_ENV_VAR,
 	MODEL_DEFAULT_PROVIDER_ENV_VAR,
@@ -22,6 +27,8 @@ export const MODEL_RUNTIME_ENV_VARS = [
 	MODEL_BASE_URL_ENV_VAR,
 	MODEL_FALLBACK_PROVIDER_ENV_VAR,
 	MODEL_FALLBACK_MODEL_ID_ENV_VAR,
+	MODEL_PROFILE_ENV_VAR,
+	MODEL_CONFIGURED_PROVIDERS_ENV_VAR,
 ];
 export const MODEL_PROVIDERS = [
 	"openai",
