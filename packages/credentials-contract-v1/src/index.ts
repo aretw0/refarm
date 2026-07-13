@@ -1,6 +1,13 @@
 export { canonicalJson } from "./canonical.js";
 export { runCredentialsV1Conformance } from "./conformance.js";
 export {
+	decodeCredentialQrPayload,
+	scanCredentialQr,
+	type QrDecodeError,
+	type QrDecodeResult,
+	type QrImageDecoder,
+} from "./qr.js";
+export {
 	createInMemoryCredentialsProviderFixture,
 	type InMemoryCredentialsProviderFixture,
 } from "./in-memory.js";

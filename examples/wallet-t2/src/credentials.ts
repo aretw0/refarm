@@ -6,10 +6,11 @@ import {
 	type CapabilityInput,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capability-host";
-import type {
-	CredentialsProvider,
-	CredentialVerificationPolicy,
-	VerifiableCredential,
+import {
+	decodeCredentialQrPayload,
+	type CredentialsProvider,
+	type CredentialVerificationPolicy,
+	type VerifiableCredential,
 } from "@refarm.dev/credentials-contract-v1";
 import type { IdentityProvider } from "@refarm.dev/identity-contract-v1";
 import {
@@ -137,12 +138,16 @@ export function createWalletImportCapability(
 	const now = options.now ?? (() => new Date().toISOString());
 	return {
 		name: "import",
-		summary: "Import a credential file into your wallet (local-first)",
+		summary: "Import a credential into your wallet (local-first) — a JSON file or a QR payload",
 		args: [{ name: "file", required: true }],
+		options: [
+			{ name: "qr", kind: "boolean", summary: "Treat the file's content as a QR payload (raw/base64url/offer-url)" },
+		],
 		transports: { http: { path: "/wallet/import" } },
 		renderers: { tui: { section: "wallet" } },
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const file = String(input.args.file ?? "");
+			const isQr = input.options?.qr === true;
 			if (!file) {
 				return buildJsonErrorEnvelope({
 					command: "import",
@@ -154,14 +159,26 @@ export function createWalletImportCapability(
 			}
 			let vc: VerifiableCredential;
 			try {
-				vc = parseCredentialFile(readFileSync(file, "utf-8"));
+				const content = readFileSync(file, "utf-8");
+				if (isQr) {
+					// The file holds a QR's text payload (raw VC JSON, base64url, or an offer URL) —
+					// the substrate decodes it. Scanning the IMAGE to text is the injected seam (a
+					// browser BarcodeDetector); here the citizen already has the decoded payload.
+					const decoded = decodeCredentialQrPayload(content.trim());
+					if (!decoded.ok || !decoded.credential) {
+						throw new Error(`INVALID_QR: ${decoded.error ?? "could not decode a credential"}`);
+					}
+					vc = decoded.credential;
+				} else {
+					vc = parseCredentialFile(content);
+				}
 			} catch (error) {
 				return buildJsonErrorEnvelope({
 					command: "import",
 					operation: "import",
 					error: "invalid_credential",
 					message: error instanceof Error ? error.message : String(error),
-					nextAction: "Check the file is a JSON Verifiable Credential.",
+					nextAction: isQr ? "Check the QR payload carries a Verifiable Credential." : "Check the file is a JSON Verifiable Credential.",
 				});
 			}
 

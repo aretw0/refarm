@@ -234,6 +234,36 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		expect(model.nextCommands).toEqual([`${DGK_COMMAND} wallet --json`]);
 	});
 
+	it("imports a credential from a QR payload (base64url), landing it draft", async () => {
+		const { writeFileSync, mkdtempSync } = await import("node:fs");
+		const { tmpdir } = await import("node:os");
+		const { join } = await import("node:path");
+		const reg = buildRegistry({ statePath: tempStatePath() });
+		const importVerb = reg.get("import");
+		if (!importVerb || "actions" in importVerb) throw new Error("import verb not mounted");
+
+		// A QR carries the VC as base64url-encoded JSON — write that payload to a file the citizen scanned.
+		const vc = {
+			"@context": ["https://www.w3.org/ns/credentials/v2"],
+			type: ["VerifiableCredential"],
+			issuer: "did:example:orgao-emissor",
+			credentialSubject: { id: "did:example:cidadao", documento: "RG-Fictício" },
+		};
+		const b64url = Buffer.from(JSON.stringify(vc)).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+		const dir = mkdtempSync(join(tmpdir(), "wallet-qr-"));
+		const file = join(dir, "qr-payload.txt");
+		writeFileSync(file, b64url);
+
+		const env = (await importVerb.run({ args: { file }, options: { qr: true }, json: true })) as unknown as {
+			persisted: boolean;
+			issuer: string;
+			state: string;
+		};
+		expect(env.persisted).toBe(true);
+		expect(env.issuer).toBe("did:example:orgao-emissor");
+		expect(env.state).toBe("draft");
+	});
+
 	it("the T2-F7 consent journey: a service requests → the citizen sees the prompt → decides", async () => {
 		const reg = buildRegistry({ statePath: tempStatePath() });
 		const run = async (
