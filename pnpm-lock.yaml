@@ -531,6 +531,9 @@ importers:
       '@refarm.dev/provenance-contract-v1':
         specifier: workspace:*
         version: link:../../packages/provenance-contract-v1
+      '@refarm.dev/quality-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/quality-contract-v1
       '@refarm.dev/records-contract-v1':
         specifier: workspace:*
         version: link:../../packages/records-contract-v1

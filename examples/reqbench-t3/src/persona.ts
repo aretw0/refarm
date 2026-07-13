@@ -23,10 +23,16 @@ import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
 import {
 	createReferenceVaultSurface,
 	organizeRecords,
+	recordToVaultNote,
 	type OrganizeDispatcher,
 	type VaultProfile,
 } from "@refarm.dev/vault-contract-v1";
 import { createReferenceVaultSurfaceComponent } from "@refarm.dev/vault-surface-ref";
+import {
+	checkNotes,
+	createNoteQualityChecker,
+	type QualityProfile,
+} from "@refarm.dev/quality-contract-v1";
 import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import { createHash } from "node:crypto";
 import {
@@ -733,6 +739,77 @@ export function createRequirementsOrganizeCapability(
 					routed: plans.length,
 					applied: apply,
 					plans: plans.map((p) => ({ id: p.recordId, destination: p.destination })),
+				},
+			});
+		},
+	};
+}
+
+/** The analyst's REQUIREMENT GATES — pure DATA: a requirement must declare its tipo, carry
+ * its source provenance, and have real content; a dangling wikilink is flagged. Editing THIS
+ * (not code) changes what the bench enforces. The matchers are the framework's note gates. */
+const REQUIREMENTS_GATES: QualityProfile = {
+	name: "requirements-gates",
+	rules: [
+		{
+			id: "require-tipo",
+			severity: "fail",
+			description: "a requirement must declare its tipo",
+			check: { type: "frontmatter-required", field: "tipo" },
+		},
+		{
+			id: "require-provenance",
+			severity: "fail",
+			description: "a requirement must record where it came from",
+			check: { type: "frontmatter-required", field: "provenance" },
+		},
+		{
+			id: "min-body",
+			severity: "warn",
+			description: "a requirement needs real content, not a stub",
+			check: { type: "min-words", min: 4 },
+		},
+		{
+			id: "no-empty-link",
+			severity: "warn",
+			description: "an empty wikilink is a dangling reference",
+			check: { type: "wikilink-shape" },
+		},
+	],
+};
+
+/** The T3 persona verb: `requirements-check` — validate the requirements corpus against the
+ * gates. The analyst brings gate rules (DATA); the framework's note checker does the checking
+ * over records rendered to notes. Thin: declare gates + one checkNotes call. */
+export function createRequirementsCheckCapability(
+	recordsDeps: RecordsCommandDeps,
+): CapabilityDescriptor {
+	return {
+		name: "requirements-check",
+		summary: "Validate the requirements corpus (required fields, content, links)",
+		transports: { http: { path: "/requirements/check" } },
+		renderers: { tui: { section: "requirements" } },
+		async run(): Promise<CapabilityEnvelope> {
+			const records = recordsDeps.loadManifest().records;
+			const notes = records.map(recordToVaultNote);
+			const findings = await checkNotes(createNoteQualityChecker(), notes, REQUIREMENTS_GATES);
+			const failed = findings.filter((f) => f.severity === "fail").length;
+			return buildJsonSuccessEnvelope({
+				command: "requirements-check",
+				operation: "check",
+				nextCommand: "dgk requirements",
+				nextCommands: ["dgk requirements"],
+				extra: {
+					checked: records.length,
+					findings: findings.length,
+					failed,
+					// The gate results, keyed to each requirement — the analyst's governance view.
+					results: findings.map((f) => ({
+						id: f.subjectPath,
+						rule: f.ruleId,
+						severity: f.severity,
+						message: f.message,
+					})),
 				},
 			});
 		},

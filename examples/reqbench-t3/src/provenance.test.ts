@@ -74,3 +74,31 @@ describe("requirements-organize (PARA routing via vault:v1)", () => {
 		expect((persisted?.fields as Record<string, unknown>).paraDestination).toBe("40 - Resources");
 	});
 });
+
+describe("requirements-check (quality:v1 note gates)", () => {
+	it("passes a clean corpus and flags a record missing provenance", async () => {
+		const { createRequirementsCheckCapability, reqCapabilityBundle } = await import("./persona.js");
+		const { records } = reqCapabilityBundle();
+		const verb = createRequirementsCheckCapability(records);
+
+		// The seed carries provenance + tipo + content → clean.
+		const clean = (await verb.run!({ args: {}, options: {}, json: true })) as Record<string, unknown>;
+		expect(clean.failed).toBe(0);
+
+		// Add a bad record (no provenance, no tipo, stub body) → the gates catch it.
+		const manifest = records.loadManifest();
+		await records.saveManifest?.({
+			...manifest,
+			records: [
+				...manifest.records,
+				{ id: "record:req-bad", schemaVersion: 1, "@type": ["KnowledgeRecord"], fields: { title: "x" }, contentHash: "x" } as never,
+			],
+		});
+		const dirty = (await verb.run!({ args: {}, options: {}, json: true })) as Record<string, unknown>;
+		const results = dirty.results as { id: string; rule: string }[];
+		const badRules = results.filter((r) => r.id === "record:req-bad").map((r) => r.rule);
+		expect(badRules).toContain("require-tipo");
+		expect(badRules).toContain("require-provenance");
+		expect(Number(dirty.failed)).toBeGreaterThan(0);
+	});
+});

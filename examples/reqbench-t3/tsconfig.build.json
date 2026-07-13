@@ -16,7 +16,11 @@
 				"packages/capability-homestead-surface/dist/index.d.ts"
 			],
 			"@refarm.dev/playbook": ["packages/playbook/dist/index.d.ts"],
-			"@refarm.dev/playbook/capability": ["packages/playbook/dist/capability.d.ts"]
+			"@refarm.dev/playbook/capability": ["packages/playbook/dist/capability.d.ts"],
+			"@refarm.dev/provenance-contract-v1": ["packages/provenance-contract-v1/dist/index.d.ts"],
+			"@refarm.dev/vault-contract-v1": ["packages/vault-contract-v1/dist/index.d.ts"],
+			"@refarm.dev/vault-surface-ref": ["packages/vault-surface-ref/dist/index.d.ts"],
+			"@refarm.dev/quality-contract-v1": ["packages/quality-contract-v1/dist/index.d.ts"]
 		}
 	},
 	"include": ["src/**/*"],
