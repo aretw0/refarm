@@ -1,4 +1,5 @@
 import type { KnowledgeRecord } from "@refarm.dev/records-contract-v1";
+import { slugify as stdSlugify } from "@refarm.dev/std";
 
 import { profileForVerb } from "./profile.js";
 import type { VaultNote, VaultOrganizePlan, VaultProfile } from "./types.js";
@@ -122,17 +123,9 @@ export interface RecordFilePlan {
 	text: string;
 }
 
-/** Slugify a title/id into a safe file-name stem (lowercase, ascii-ish, dash-separated). */
+/** Slugify a title/id into a safe file-name stem \u2014 the shared, accent-aware @refarm.dev/std slug. */
 function slugify(value: string): string {
-	return (
-		value
-			.normalize("NFD")
-			.replace(/[\u0300-\u036f]/g, "")
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, "-")
-			.replace(/^-+|-+$/g, "")
-			.slice(0, 80) || "note"
-	);
+	return stdSlugify(value, { maxLength: 80, fallback: "note" });
 }
 
 export interface PlanRecordFilesOptions {

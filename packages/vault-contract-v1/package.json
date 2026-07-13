@@ -40,6 +40,7 @@
 		"@refarm.dev/effort-contract-v1": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/records-contract-v1": "workspace:*",
+		"@refarm.dev/std": "workspace:*",
 		"@refarm.dev/node-contract-v1": "workspace:*"
 	},
 	"devDependencies": {

@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+import { slugify as stdSlugify } from "@refarm.dev/std";
+import { sha256Hex } from "@refarm.dev/std/node";
 
 import {
 	type SkillEngineBindingEnvelope,
@@ -12,12 +13,9 @@ import {
 const CAPABILITY_ID_PATTERN = /^[a-z][a-z0-9]*(?:[.:/-][a-z0-9]+)*$/;
 const ENGINE_BINDING_ID_PATTERN = /^[a-z][a-z0-9]*(?:[.:/-][a-z0-9]+)*$/;
 
+/** The shared, accent-aware slug (@refarm.dev/std). Re-exported for skill consumers. */
 export function slugify(value: string): string {
-	const slug = value
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "-")
-		.replace(/^-|-$/g, "");
-	return slug || "unnamed";
+	return stdSlugify(value);
 }
 
 export function stripQuotes(value: string): string {
@@ -30,8 +28,9 @@ export function stripQuotes(value: string): string {
 	return value;
 }
 
+/** The shared node sha256 hex (@refarm.dev/std/node). */
 export function sha256(value: string): string {
-	return createHash("sha256").update(value).digest("hex");
+	return sha256Hex(value);
 }
 
 export function getString(value: unknown): string {
