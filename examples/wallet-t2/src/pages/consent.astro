@@ -1,0 +1,24 @@
+---
+import { Layout } from "@refarm.dev/homestead/ui";
+---
+
+<Layout title="Consentimento — Pedidos pendentes">
+  <main class="refarm-stack" style="padding: 1rem; gap: 1rem;">
+    <header class="refarm-stack">
+      <p class="refarm-eyebrow">Minha Carteira Digital</p>
+      <h1>Consentimento</h1>
+      <p id="consent-caption" class="refarm-muted">Verificando pedidos…</p>
+    </header>
+    <div id="consent-mount">
+      <div id="loading-overlay" class="refarm-loading-state">
+        <div class="refarm-spinner" aria-hidden="true"></div>
+        <p>Abrindo os pedidos de consentimento…</p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import { bootConsent } from "../web/consent-boot";
+  bootConsent();
+</script>

@@ -233,4 +233,41 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		});
 		expect(model.nextCommands).toEqual([`${DGK_COMMAND} wallet --json`]);
 	});
+
+	it("the T2-F7 consent journey: a service requests → the citizen sees the prompt → decides", async () => {
+		const reg = buildRegistry({ statePath: tempStatePath() });
+		const run = async (
+			name: string,
+			args: Record<string, string>,
+			options: Record<string, string> = {},
+		): Promise<Record<string, unknown>> => {
+			const verb = reg.get(name);
+			if (!verb || "actions" in verb) throw new Error(`${name} verb not mounted`);
+			return (await verb.run({ args, options, json: true })) as unknown as Record<string, unknown>;
+		};
+
+		// 1. A service SUBMITS a request → it lands pending (not granted).
+		const requested = await run(
+			"request",
+			{ requester: "Loja Fictícia" },
+			{ purpose: "Confirmar maioridade", scope: "faixa_etaria", expires: "2026-12-31T00:00:00Z" },
+		);
+		expect(requested.pending).toBe(true);
+
+		// 2. The consent SCREEN (T2-F7) renders the pending request as a prompt to decide.
+		const consent = await run("consent", {});
+		expect(consent.pendingCount).toBe(1);
+		const html = consent.consentHtml as string;
+		expect(html).toContain("refarm-consent-prompt"); // renderConsentPrompt was used
+		expect(html).toContain("Loja Fictícia"); // the requester
+		expect(html).toContain("Autorizar"); // the decision control
+		expect(html).toContain("faixa_etaria"); // the requested scope
+
+		// 3. The citizen DECLINES — the sovereign "no": nothing shared, the pending clears.
+		const pendingId = (consent.pending as Array<{ id: string }>)[0]!.id;
+		const declined = await run("decline", { id: pendingId });
+		expect(declined.declined).toBe(true);
+		const after = await run("consent", {});
+		expect(after.pendingCount).toBe(0);
+	});
 });

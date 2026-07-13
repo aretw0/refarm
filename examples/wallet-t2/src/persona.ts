@@ -24,6 +24,11 @@ import {
 	createWalletRevokeCapability,
 } from "./authorization.js";
 import {
+	createWalletConsentCapability,
+	createWalletDeclineCapability,
+	createWalletRequestCapability,
+} from "./consent.js";
+import {
 	createWalletImportCapability,
 	createWalletShareCapability,
 	createWalletVerifyCapability,
@@ -269,6 +274,11 @@ export function createWalletCapabilities(
 		createWalletStateView(recordsDeps, "draft", "A verificar"),
 		// The real work: import a credential file (local-first) and verify it for real.
 		createWalletImportCapability(recordsDeps, { now: options.now }),
+		// The consent-prompt journey (T2-F7): a service REQUESTS attributes → it lands pending →
+		// the citizen SEES the consent screen (`consent`) and decides — authorize (yes) or decline.
+		createWalletRequestCapability(recordsDeps, { now: options.now }),
+		createWalletConsentCapability(recordsDeps),
+		createWalletDeclineCapability(recordsDeps),
 	];
 	if (options.credentialsProvider) {
 		capabilities.push(

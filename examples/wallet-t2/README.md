@@ -95,7 +95,7 @@ focus is the advance the work brings, not the technique.
 
 **The scenario to record.** A citizen running something **local-first** for their own
 benefit: their digital wallet over their own data, with an **extended web dashboard**
-(the risk the SERPRO note warns about: without a real screen, T2 falls into "just
+(the risk the design note warns about: without a real screen, this falls into "just
 another generic solution"). CLI barely matters here — at most mention how a citizen
 installs the POC (a powershell / linux line).
 
