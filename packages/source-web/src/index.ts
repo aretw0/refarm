@@ -21,6 +21,18 @@ export {
 	type CrawledPage,
 } from "./crawl.js";
 export {
+	DEFAULT_MAX_ATTACHMENT_BYTES,
+	downloadAttachment,
+	extensionFromMimeOrTitle,
+	resolveAttachmentPolicy,
+	type AttachmentPolicyDecision,
+	type AttachmentResult,
+	type AttachmentSkipReason,
+	type BinaryFetchDriver,
+	type BinaryFetchResult,
+	type DownloadAttachmentOptions,
+} from "./attachment.js";
+export {
 	loadWebSourceTargets,
 	loadWebSourceTargetsSync,
 	parseWebSourceTargetsConfig,
