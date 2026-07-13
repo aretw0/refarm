@@ -74,14 +74,15 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 		description: "Digital Gardening Kit - requirements bench",
 		version: "0.0.0",
 		capabilities: () => {
-			const { deps, records, sourceProvider } = reqCapabilityBundle(options);
+			const { deps, records, sourceProvider, vaultSurface } = reqCapabilityBundle(options);
 			const loginSignals = loginSignalsFromEnv();
 			return {
 				deps,
 				extensions: [
 					createRequirementsCapability(records),
 					// Route pulled requirements to their PARA areas (taxonomy-as-data via vault:v1).
-					createRequirementsOrganizeCapability(records),
+					// The bundle injects the (sovereign) vault surface — the verb never picks one.
+					createRequirementsOrganizeCapability(records, vaultSurface),
 					// The real ingest step: `requirements-pull <system>` LOGS IN then materializes
 					// + ingests + persists, so the journey (discover → pull → analyze/MOC) runs as
 					// commands. It reads the analyst's declared session from the SAME ledger the

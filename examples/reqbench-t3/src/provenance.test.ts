@@ -54,8 +54,8 @@ describe("seed corpus provenance", () => {
 describe("requirements-organize (PARA routing via vault:v1)", () => {
 	it("routes seed requirements to PARA areas by tipo", async () => {
 		const { createRequirementsOrganizeCapability, reqCapabilityBundle } = await import("./persona.js");
-		const { records } = reqCapabilityBundle();
-		const verb = createRequirementsOrganizeCapability(records);
+		const { records, vaultSurface } = reqCapabilityBundle();
+		const verb = createRequirementsOrganizeCapability(records, vaultSurface);
 		const env = (await verb.run!({ args: {}, options: {}, json: true })) as Record<string, unknown>;
 		expect(env.ok).toBe(true);
 		const plans = env.plans as { id: string; destination: string }[];
@@ -63,5 +63,14 @@ describe("requirements-organize (PARA routing via vault:v1)", () => {
 		// regra-de-negocio + funcional → Resources; caso-de-uso → Projects (the taxonomy data).
 		expect(byId["record:req-rn632504"]).toBe("40 - Resources");
 		expect(byId["record:req-cdu282405"]).toBe("20 - Projects");
+
+		// --apply persists the resolved PARA destination on each routed record.
+		const applied = (await verb.run!({ args: {}, options: { apply: true }, json: true })) as Record<
+			string,
+			unknown
+		>;
+		expect(applied.applied).toBe(true);
+		const persisted = records.loadManifest().records.find((r) => r.id === "record:req-rn632504");
+		expect((persisted?.fields as Record<string, unknown>).paraDestination).toBe("40 - Resources");
 	});
 });

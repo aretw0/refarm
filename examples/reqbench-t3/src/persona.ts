@@ -4,6 +4,7 @@ import {
 	defineRecordsViewCapability,
 	type CapabilityDescriptor,
 	type CapabilityEnvelope,
+	type CapabilityInput,
 	type RecordsAnalyzeEnvelope,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capability-host";
@@ -13,13 +14,19 @@ import {
 	type IngestSourceProvider,
 	type SourceRecordParser,
 } from "@refarm.dev/capability-host/node";
-import type { KnowledgeRecord, RecordsManifest } from "@refarm.dev/records-contract-v1";
+import {
+	computeRecordContentHash,
+	type KnowledgeRecord,
+	type RecordsManifest,
+} from "@refarm.dev/records-contract-v1";
 import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
 import {
 	createReferenceVaultSurface,
 	organizeRecords,
+	type OrganizeDispatcher,
 	type VaultProfile,
 } from "@refarm.dev/vault-contract-v1";
+import { createReferenceVaultSurfaceComponent } from "@refarm.dev/vault-surface-ref";
 import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import { createHash } from "node:crypto";
 import {
@@ -220,6 +227,30 @@ function declaredHostsFrom(fixtures: Record<string, { url: string }>): string[] 
 	return [...hosts];
 }
 
+/**
+ * Resolve the vault surface the bench routes with — the SOVEREIGN, zero-import WASM
+ * component when it is built, else the pure-TS reference surface. The host/bundle picks
+ * sovereignty ONCE here, so a verb just uses the injected surface (it never instantiates
+ * or chooses one). This is the DX move: the example is agnostic to how routing is
+ * sandboxed. Cached so the WASM component loads at most once.
+ */
+let cachedVaultSurface: Promise<OrganizeDispatcher> | undefined;
+export function resolveVaultSurface(): Promise<OrganizeDispatcher> {
+	cachedVaultSurface ??= (async (): Promise<OrganizeDispatcher> => {
+		try {
+			// The sovereign, zero-import WASM surface when its component is built. It
+			// satisfies OrganizeDispatcher structurally (its result has `.plans`), so no
+			// wrapper/cast — the DX point: the sovereign surface drops straight in.
+			return await createReferenceVaultSurfaceComponent();
+		} catch {
+			// Not built (no pkg/) → the pure reference surface. Same contract, same routing;
+			// only the sandbox boundary differs, and the bench doesn't care which it got.
+			return createReferenceVaultSurface();
+		}
+	})();
+	return cachedVaultSurface;
+}
+
 export function reqCapabilityBundle(options: RequirementsCapabilityOptions = {}) {
 	// One provider shared by the source group (discover/pull) and the requirements-pull verb
 	// (ingest), so both see the same declared systems + cache.
@@ -234,7 +265,9 @@ export function reqCapabilityBundle(options: RequirementsCapabilityOptions = {})
 		}),
 		source: { sourceProvider },
 	});
-	return { ...bundle, sourceProvider };
+	// The vault surface the organize verb routes with — resolved by the bundle (sovereign
+	// WASM when built, else reference), so the verb never instantiates one.
+	return { ...bundle, sourceProvider, vaultSurface: resolveVaultSurface };
 }
 
 const STATE_LABELS: Record<string, string> = {
@@ -656,25 +689,41 @@ const REQUIREMENTS_TAXONOMY: VaultProfile = {
 	],
 };
 
-/** The T3 persona verb: `requirements-organize` — route the pulled requirements to their
- * PARA areas. The analyst brings a taxonomy (data) and the records; the vault:v1 organize
- * verb does the routing (dry-run: show the plan). The example is thin BECAUSE the framework
- * carries the plumbing — organizeRecords is one call over the sovereign surface. */
+/** The T3 persona verb: `requirements-organize [--apply]` — route the pulled requirements
+ * to their PARA areas. The analyst brings a taxonomy (DATA); the framework does the routing
+ * over the injected (sovereign) vault surface. Dry-run shows the plan; `--apply` persists
+ * each record's resolved destination. The example is thin BECAUSE the framework carries the
+ * plumbing — one organizeRecords call, no surface instantiation. */
 export function createRequirementsOrganizeCapability(
 	recordsDeps: RecordsCommandDeps,
+	vaultSurface: () => Promise<OrganizeDispatcher>,
 ): CapabilityDescriptor {
 	return {
 		name: "requirements-organize",
 		summary: "Route the pulled requirements to their PARA areas (by tipo/sistema)",
+		options: [
+			{ name: "apply", kind: "boolean", summary: "Persist each record's resolved PARA destination" },
+		],
 		transports: { http: { path: "/requirements/organize" } },
 		renderers: { tui: { section: "requirements" } },
-		async run(): Promise<CapabilityEnvelope> {
-			const records = recordsDeps.loadManifest().records;
-			const plans = await organizeRecords(
-				createReferenceVaultSurface(),
-				records,
-				REQUIREMENTS_TAXONOMY,
-			);
+		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
+			const manifest = recordsDeps.loadManifest();
+			const plans = await organizeRecords(await vaultSurface(), manifest.records, REQUIREMENTS_TAXONOMY);
+			const apply = input.options?.apply === true;
+
+			if (apply && recordsDeps.saveManifest) {
+				const dest = new Map(plans.map((p) => [p.recordId, p.destination]));
+				const records = manifest.records.map((r) => {
+					const destination = dest.get(r.id);
+					if (!destination) return r;
+					// Persist the routed destination on the record (the PARA area it belongs to).
+					const updated = { ...r, fields: { ...r.fields, paraDestination: destination } };
+					updated.contentHash = computeRecordContentHash(updated);
+					return updated;
+				});
+				await recordsDeps.saveManifest({ ...manifest, records });
+			}
+
 			return buildJsonSuccessEnvelope({
 				command: "requirements-organize",
 				operation: "organize",
@@ -682,6 +731,7 @@ export function createRequirementsOrganizeCapability(
 				nextCommands: ["dgk requirements"],
 				extra: {
 					routed: plans.length,
+					applied: apply,
 					plans: plans.map((p) => ({ id: p.recordId, destination: p.destination })),
 				},
 			});
