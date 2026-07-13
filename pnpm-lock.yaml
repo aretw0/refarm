@@ -510,6 +510,9 @@ importers:
 
   examples/reqbench-t3:
     dependencies:
+      '@refarm.dev/artifact-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/artifact-contract-v1
       '@refarm.dev/browser-driver':
         specifier: workspace:*
         version: link:../../packages/browser-driver

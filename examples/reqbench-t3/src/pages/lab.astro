@@ -1,0 +1,24 @@
+---
+import { Layout } from "@refarm.dev/homestead/ui";
+---
+
+<Layout title="Lab — Notebooks de Requisitos">
+  <main class="refarm-stack" style="padding: 1rem; gap: 1rem;">
+    <header class="refarm-stack">
+      <p class="refarm-eyebrow">Bancada de Requisitos</p>
+      <h1>Lab</h1>
+      <p class="refarm-muted">Notebooks reativos (Marimo → WASM) sobre os requisitos. Rodam no navegador.</p>
+    </header>
+    <div id="lab-mount">
+      <div id="loading-overlay" class="refarm-loading-state">
+        <div class="refarm-spinner" aria-hidden="true"></div>
+        <p>Abrindo o Lab…</p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import { bootLabGallery } from "../web/lab-boot";
+  bootLabGallery();
+</script>
