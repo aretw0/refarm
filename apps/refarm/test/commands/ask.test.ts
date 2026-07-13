@@ -248,7 +248,7 @@ describe("refarm ask", () => {
 
 		await command.parseAsync(["cheap question", "--profile", "cheap"], { from: "user" });
 
-		const effort = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls[0][0];
+		const effort = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls[0]![0];
 		const args = effort.tasks[0].args as Record<string, unknown>;
 		expect(args.profile).toBe("cheap");
 		// The profile REPLACES the pinned route so the guest resolver isn't shadowed.
@@ -269,7 +269,7 @@ describe("refarm ask", () => {
 
 		await command.parseAsync(["q"], { from: "user" });
 
-		const effort = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls[0][0];
+		const effort = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls[0]![0];
 		const args = effort.tasks[0].args as Record<string, unknown>;
 		expect(args.profile).toBe("reliable");
 		expect(args.provider).toBeUndefined();

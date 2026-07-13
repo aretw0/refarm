@@ -5,6 +5,7 @@ import { createCapabilityRegistry, type CapabilityEntry } from "@refarm.dev/capa
 import { Command } from "commander";
 
 import { capabilityRegistry } from "./capability-registry.js";
+import { createEffortProxyHandler } from "./effort-proxy.js";
 
 /**
  * `refarm serve` — the capability HTTP surface. Mounts the two projectors that
@@ -34,7 +35,11 @@ import { capabilityRegistry } from "./capability-registry.js";
 export function createServeHandler(
 	entries: readonly CapabilityEntry[],
 ): (req: IncomingMessage, res: ServerResponse) => void {
-	return mountedHttpHandler(createCapabilityRegistry(entries));
+	// ADR-088: front the capability handler with the same-origin effort proxy, so a
+	// browser chat face served here can submit/cancel efforts on the sidecar without a
+	// cross-origin request (zero CORS by default). `/efforts*` proxies to the sidecar;
+	// everything else is the capability surface as before.
+	return createEffortProxyHandler(mountedHttpHandler(createCapabilityRegistry(entries)));
 }
 
 /** Stand a `node:http` server for the capability surface. Returns the server so the

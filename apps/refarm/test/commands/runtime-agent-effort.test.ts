@@ -57,7 +57,7 @@ describe("createRuntimeAgentRespondEffort", () => {
 			})(),
 		});
 
-		const args = effort.tasks[0].args as Record<string, unknown>;
+		const args = effort.tasks[0]!.args as Record<string, unknown>;
 		expect(args.profile).toBe("cheap");
 		// No pinned route, so the guest's profile resolver isn't shadowed by an override.
 		expect(args.provider).toBeUndefined();
@@ -78,7 +78,7 @@ describe("createRuntimeAgentRespondEffort", () => {
 			modelId: "claude-sonnet-4-6",
 			profile: "reliable",
 		});
-		const args = effort.tasks[0].args as Record<string, unknown>;
+		const args = effort.tasks[0]!.args as Record<string, unknown>;
 		expect(args.provider).toBe("anthropic");
 		expect(args.profile).toBe("reliable");
 	});
