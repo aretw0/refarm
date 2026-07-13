@@ -217,6 +217,9 @@ struct RespondPayload {
     history_turns: Option<usize>,
     provider: Option<String>,
     model: Option<String>,
+    /// ADR-012 routing profile (cheap|balanced|reliable). When set (and no explicit
+    /// provider/model pin), the guest resolves the route by profile.
+    profile: Option<String>,
 }
 
 /// RAII guard: sets an env var for the duration of a call, restores on drop.
@@ -292,6 +295,12 @@ fn parse_respond_payload(payload: &str) -> Result<RespondPayload, PluginError> {
         .map(|value| value.trim())
         .filter(|value| !value.is_empty())
         .map(|value| value.to_string());
+    let profile = parsed
+        .get("profile")
+        .and_then(|v| v.as_str())
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string());
     Ok(RespondPayload {
         prompt,
         system,
@@ -299,6 +308,7 @@ fn parse_respond_payload(payload: &str) -> Result<RespondPayload, PluginError> {
         history_turns,
         provider,
         model,
+        profile,
     })
 }
 
@@ -336,6 +346,11 @@ fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
     let turns_str = req.history_turns.map(|n| n.to_string());
     let _session = EnvGuard::maybe_set("MODEL_SESSION_ID", req.session_id.as_deref());
     let _turns = EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
+    // ADR-012: a per-request routing profile. Set as a scoped MODEL_PROFILE for this
+    // run so the route resolver (execute_prompt_with_route → resolve_profile_route,
+    // which reads MODEL_PROFILE) honors it. An explicit provider/model pin below still
+    // wins; the guard restores any daemon-global MODEL_PROFILE after the turn.
+    let _profile = EnvGuard::maybe_set("MODEL_PROFILE", req.profile.as_deref());
 
     let outcome = runtime::execute_prompt_with_route(
         &req.prompt,

@@ -28,6 +28,27 @@ fn parse_respond_payload_parses_model_route_fields() {
 }
 
 #[test]
+fn parse_respond_payload_parses_profile_and_trims() {
+    // ADR-012: a per-request routing profile arrives on the respond payload.
+    let payload = serde_json::json!({ "prompt": "hi", "profile": "  cheap  " }).to_string();
+    let req = parse_respond_payload(&payload).expect("valid payload must parse");
+    assert_eq!(req.profile.as_deref(), Some("cheap"));
+}
+
+#[test]
+fn parse_respond_payload_profile_optional_and_empty_is_absent() {
+    let none = parse_respond_payload(&serde_json::json!({ "prompt": "hi" }).to_string()).unwrap();
+    assert!(none.profile.is_none(), "profile must default to None");
+    let empty =
+        parse_respond_payload(&serde_json::json!({ "prompt": "hi", "profile": "  " }).to_string())
+            .unwrap();
+    assert!(
+        empty.profile.is_none(),
+        "blank profile must be treated as absent"
+    );
+}
+
+#[test]
 fn parse_respond_payload_session_fields_optional() {
     let payload = serde_json::json!({ "prompt": "hello" }).to_string();
     let req = parse_respond_payload(&payload).expect("prompt-only payload must parse");

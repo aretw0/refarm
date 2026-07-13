@@ -255,9 +255,21 @@ pub(crate) fn handle_prompt(payload: String) {
                 .get("model")
                 .and_then(|s| s.as_str())
                 .map(|s| s.to_owned());
+            // ADR-012: a per-request routing profile (cheap|balanced|reliable). Set as a
+            // scoped MODEL_PROFILE for this run so the existing route resolver
+            // (run_wasm_react_...and_route → resolve_profile_route, which reads
+            // MODEL_PROFILE) honors it, WITHOUT threading a new arg through three
+            // signatures. Precedence is unchanged: an explicit provider/model override
+            // above still wins; the profile only applies when no route is pinned. The
+            // guard restores any daemon-global MODEL_PROFILE after the turn.
+            let profile = v
+                .get("profile")
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_owned());
             let turns_str = history_turns.map(|n| n.to_string());
             let _session = crate::EnvGuard::maybe_set("MODEL_SESSION_ID", session_id.as_deref());
             let _turns = crate::EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
+            let _profile = crate::EnvGuard::maybe_set("MODEL_PROFILE", profile.as_deref());
             let _ = execute_prompt_with_route(
                 prompt,
                 system,
