@@ -1,0 +1,37 @@
+{
+	"name": "@refarm.dev/surveyor",
+	"version": "0.1.0",
+	"description": "The Graph Mapper — headless force-directed layout + graph-data adapters for the Sovereign Graph",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist",
+		"lint": "eslint src"
+	},
+	"license": "AGPL-3.0-only",
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "catalog:",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*"
+	}
+}

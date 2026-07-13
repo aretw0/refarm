@@ -17,6 +17,32 @@ Seguindo a filosofia **Headless-First**, o Surveyor foca na lógica de travessia
 - 🔌 **Visualização de Plugins**: Mapeia como os plugins estão conectados e quais dados eles estão gerando ou consumindo.
 - 📊 **Provedor de Dados**: Fornece os dados para o `apps/dev/graph.astro` e outras interfaces 2D/3D.
 
+## Implementado hoje: layout force-directed headless (`@refarm.dev/surveyor`)
+
+O primeiro núcleo real do Surveyor: a **física de layout** que posiciona os nós de um grafo em
+2D, **sem DOM e sem framework** (uma camada de render — SVG no browser, canvas, ou um export de
+imagem — consome as coordenadas). Portado fielmente do motor de grafo zero-dependência do
+vault-seed (as constantes e fórmulas de repulsão/mola são as originais), extraído como bloco de
+substrato reutilizável, tipado e **determinístico** (seed por hash do id, nunca `Math.random`) —
+então um layout é reproduzível e testável em node.
+
+```ts
+import { layoutGraph } from "@refarm.dev/surveyor";
+
+// {nodes: {id, degree?}, links: {source, target}} → nós posicionados {id, x, y, size, ...}
+const placed = layoutGraph({
+  nodes: [{ id: "a", degree: 2 }, { id: "b", degree: 1 }, { id: "c", degree: 1 }],
+  links: [{ source: "a", target: "b" }, { source: "a", target: "c" }],
+});
+```
+
+- `layoutGraph(graph, opts?)` — semeia (espiral golden-angle) + relaxa (N passos) → coordenadas.
+- `seedLayout` / `relaxLayout` / `computeForces` — as peças puras, se a superfície quiser controlar
+  a animação passo a passo (o loop RAF de um render interativo).
+- `nodeSizeFromDegree` — o raio de um nó a partir do grau (um hub é maior).
+
+Segue o **Headless-First**: aqui está a lógica de layout; um render 2D/3D é um consumidor.
+
 ## Especificações Iniciais (SDD)
 
 ### WIT Interface (`refarm-surveyor.wit`)
