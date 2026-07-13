@@ -80,3 +80,9 @@ function timingSafeHexEqual(a: string, b: string): boolean {
 	}
 	return mismatch === 0;
 }
+
+export {
+	runAssetResolverV1Conformance,
+	type AssetResolverConformanceHarness,
+	type AssetResolverConformanceResult,
+} from "./conformance.js";
