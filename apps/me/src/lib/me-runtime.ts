@@ -11,6 +11,7 @@ import {
 	type RefarmMeContentPluginInstallInput,
 	type RefarmMeContentPluginManifest,
 } from "./me-content-plugins";
+import { mountRefarmMeChat } from "./me-chat";
 import { REFARM_ME_WEB_RENDERER } from "./me-renderers";
 import {
 	createRefarmMeSurfaceActionHandler,
@@ -179,6 +180,15 @@ export async function bootRefarmMeWorkbench(
 		}),
 	});
 	browserSyncTelemetry.renderStatus();
+
+	// ADR-088: mount the web chat panel — the composer submits/cancels over the
+	// same-origin effort proxy and streams live activity from /stream/activity. Best-
+	// effort: a chat mount failure must not block the workbench boot.
+	try {
+		mountRefarmMeChat({ document: doc });
+	} catch (error) {
+		options.log?.error(`[me] chat mount failed: ${String(error)}`);
+	}
 
 	herald.announce();
 	doc.getElementById(REFARM_ME_LOADING_ID)?.remove();
