@@ -15,6 +15,11 @@ mod wasm_flow;
 pub(crate) use react_loop::react;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) use react_loop::react_with_prompt_ref;
+// The pure `load_skill` payload resolver lives beside the skill index in `policy`;
+// re-export it so the wasm `tool_dispatch::skill_tools` wrapper can reach it without
+// opening the whole (otherwise-private) `policy` module.
+#[cfg(target_arch = "wasm32")]
+pub(crate) use policy::resolve_skill_body;
 #[allow(unused_imports)]
 pub(crate) use types::ReactResult;
 

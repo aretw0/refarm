@@ -63,7 +63,9 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
         {"name":"list_tasks","description":"List Task nodes recorded in the CRDT. Each prompt execution creates one Task. Supports optional filtering by status (active/done/failed/blocked) and context_id (session).",
          "input_schema":{"type":"object","properties":{"limit":{"type":"integer","description":"Max tasks to return (default 20, max 100)"},"status":{"type":"string","enum":["active","done","failed","blocked","cancelled","deferred","pending"],"description":"Filter by task status"},"context_id":{"type":"string","description":"Filter to tasks from a specific session URN"}},"required":[]}},
         {"name":"task_status","description":"Get full details of a single Task including its title, status, timestamps, and all associated TaskEvents (created, status_changed).",
-         "input_schema":{"type":"object","properties":{"task_id":{"type":"string","description":"Task URN (urn:sovereign:task:v1:...)"}},"required":["task_id"]}}
+         "input_schema":{"type":"object","properties":{"task_id":{"type":"string","description":"Task URN (urn:sovereign:task:v1:...)"}},"required":["task_id"]}},
+        {"name":"load_skill","description":"Load the full instructions for a skill listed in 'Skills available to you'. The system prompt shows only each skill's name + when-to-use; call this with the skill's name to get its complete SKILL.md guidance BEFORE doing a task that matches it, then follow those instructions.",
+         "input_schema":{"type":"object","properties":{"name":{"type":"string","description":"The skill name, exactly as shown in the skills list"}},"required":["name"]}}
     ])
 }
 
@@ -92,6 +94,8 @@ pub(crate) fn tools_openai() -> serde_json::Value {
         {"type":"function","function":{"name":"list_tasks","description":"List Task nodes from the CRDT. Each prompt creates one Task. Filter by status or context_id.",
          "parameters":{"type":"object","properties":{"limit":{"type":"integer"},"status":{"type":"string","enum":["active","done","failed","blocked","cancelled","deferred","pending"]},"context_id":{"type":"string"}}}}},
         {"type":"function","function":{"name":"task_status","description":"Get full details of a single Task by its URN, including all TaskEvents.",
-         "parameters":{"type":"object","properties":{"task_id":{"type":"string"}},"required":["task_id"]}}}
+         "parameters":{"type":"object","properties":{"task_id":{"type":"string"}},"required":["task_id"]}}},
+        {"type":"function","function":{"name":"load_skill","description":"Load the full instructions for a skill listed in 'Skills available to you'. The prompt shows only name + when-to-use; call this with the skill name to get its complete SKILL.md guidance before a matching task, then follow it.",
+         "parameters":{"type":"object","properties":{"name":{"type":"string","description":"The skill name, exactly as shown in the skills list"}},"required":["name"]}}}
     ])
 }

@@ -69,7 +69,8 @@ fn skill_prompts_section(raw: &str) -> Option<String> {
         return None;
     }
     Some(format!(
-        "\n\nSkills available to you (guidance you should follow when a task matches):\n- {}",
+        "\n\nSkills available to you — when a task matches one, call the `load_skill` \
+         tool with its name to load the full instructions, then follow them:\n- {}",
         lines.join("\n- ")
     ))
 }
@@ -81,6 +82,50 @@ fn skill_prompts_for_prompt() -> Option<String> {
     std::env::var("MODEL_SKILLS")
         .ok()
         .and_then(|raw| skill_prompts_section(&raw))
+}
+
+/// Resolve the full instructions for the skill named `name` from the
+/// `MODEL_SKILL_BODIES` JSON map (skill name → SKILL.md instructions) — the second
+/// jump of progressive disclosure, the payload the `load_skill` tool returns. Lives
+/// beside the skill INDEX (`skill_prompts_section`) it complements, and is PURE over
+/// the map + name so it is native-testable, the same seam the index uses (the wasm
+/// `tool_dispatch::skill_tools::load_skill` wrapper only supplies the env). Returns a
+/// legible, actionable message on a miss (an unknown name lists what IS available so
+/// the model can correct in-loop).
+pub(crate) fn resolve_skill_body(bodies_json: &str, name: &str) -> String {
+    let name = name.trim();
+    if name.is_empty() {
+        return "[error] load_skill requires a `name` (the skill to load, from the skills list)"
+            .to_string();
+    }
+    let Ok(map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(bodies_json)
+    else {
+        // No map (env unset/empty/malformed) → no skills are loadable here.
+        return format!("[no skill named '{name}' — no skills are available to load]");
+    };
+    if let Some(body) = map.get(name).and_then(|v| v.as_str()) {
+        return body.to_string();
+    }
+    // Case-insensitive second chance: a slightly-off name still resolves rather than
+    // failing the turn (mirrors the delegate's forgiving persona lookup).
+    let lower = name.to_ascii_lowercase();
+    if let Some(body) = map
+        .iter()
+        .find(|(k, _)| k.to_ascii_lowercase() == lower)
+        .and_then(|(_, v)| v.as_str())
+    {
+        return body.to_string();
+    }
+    let mut available: Vec<&str> = map.keys().map(String::as_str).collect();
+    available.sort_unstable();
+    if available.is_empty() {
+        format!("[no skill named '{name}' — no skills are available to load]")
+    } else {
+        format!(
+            "[no skill named '{name}'. Available skills: {}]",
+            available.join(", ")
+        )
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -137,5 +182,51 @@ mod tests {
         assert!(section.contains("deploy-runbook — how to ship"));
         std::env::remove_var("MODEL_SKILLS");
         assert_eq!(super::skill_prompts_for_prompt(), None);
+    }
+
+    // ── resolve_skill_body (the load_skill payload) ─────────────────────────────
+    use super::resolve_skill_body;
+
+    // Built with serde so the JSON escaping is exact (the bodies contain '#' and
+    // newlines, which a hand-written raw string makes easy to get wrong).
+    fn bodies() -> String {
+        serde_json::json!({
+            "pdf-fill": "# Fill a PDF\nUse pdftk...",
+            "git-triage": "# Triage\nStart with git log",
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn loads_a_known_skill_body() {
+        assert_eq!(resolve_skill_body(&bodies(), "pdf-fill"), "# Fill a PDF\nUse pdftk...");
+    }
+
+    #[test]
+    fn resolve_is_case_insensitive_on_a_near_miss() {
+        assert_eq!(resolve_skill_body(&bodies(), "Git-Triage"), "# Triage\nStart with git log");
+    }
+
+    #[test]
+    fn unknown_skill_lists_what_is_available() {
+        let out = resolve_skill_body(&bodies(), "ghost");
+        assert!(out.contains("no skill named 'ghost'"));
+        assert!(out.contains("git-triage") && out.contains("pdf-fill"));
+    }
+
+    #[test]
+    fn empty_name_is_an_actionable_error() {
+        assert!(resolve_skill_body(&bodies(), "   ").contains("requires a `name`"));
+    }
+
+    #[test]
+    fn no_map_means_nothing_loadable() {
+        assert!(resolve_skill_body("", "pdf-fill").contains("no skills are available"));
+        assert!(resolve_skill_body("not json", "pdf-fill").contains("no skills are available"));
+    }
+
+    #[test]
+    fn resolve_trims_the_requested_name() {
+        assert_eq!(resolve_skill_body(&bodies(), "  pdf-fill  "), "# Fill a PDF\nUse pdftk...");
     }
 }

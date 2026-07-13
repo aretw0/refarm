@@ -32,6 +32,36 @@ export function buildSkillDisclosureEnv(skills: readonly SkillDisclosure[]): str
 		.join("\n");
 }
 
+/** A skill whose FULL body (SKILL.md instructions) is available — the second half of
+ * progressive disclosure. `injectSkillEnv` packs these into `MODEL_SKILL_BODIES` so the
+ * agent's `load_skill` tool can return the full text on demand. */
+export interface SkillBody extends SkillDisclosure {
+	/** The full SKILL.md instructions (the parsed body). */
+	instructions: string;
+}
+
+/**
+ * Pack skill name → full instructions into the JSON map the agent's `load_skill` tool
+ * reads (`MODEL_SKILL_BODIES`). This is the ON-DEMAND half of progressive disclosure:
+ * the body is kept OUT of `MODEL_SKILLS` (the cheap always-present index) so the model
+ * pays body tokens only when it actually opens a skill. JSON (not a bespoke delimiter)
+ * because a SKILL.md body contains anything — headings, newlines, quotes — and JSON
+ * escaping is exact. Skills without a name or with an empty body are dropped. Returns
+ * `"{}"` (a valid empty map) when there is nothing to pack, so the agent always parses
+ * cleanly.
+ */
+export function buildSkillBodiesEnv(skills: readonly SkillBody[]): string {
+	const map: Record<string, string> = {};
+	for (const skill of skills) {
+		const name = skill.name?.trim() ?? "";
+		const body = skill.instructions ?? "";
+		if (name.length > 0 && body.length > 0) {
+			map[name] = body;
+		}
+	}
+	return JSON.stringify(map);
+}
+
 /**
  * Read the plugin-declared skills under `pluginsDir` and set `MODEL_SKILLS` on `env`
  * to their disclosure index, so the agent's system prompt lists them. A no-op (env
@@ -47,14 +77,19 @@ export function injectSkillEnv(
 	pluginsDir: string,
 	env: NodeJS.ProcessEnv = process.env,
 ): { count: number } {
-	let disclosures: SkillDisclosure[] = [];
+	let skills: SkillBody[] = [];
 	try {
-		disclosures = loadSkillsFromPluginsDir(pluginsDir).skills;
+		// DiscoveredSkill extends LoadedSkill, so it carries `instructions` (the body) —
+		// enough for both the cheap index and the on-demand bodies map below.
+		skills = loadSkillsFromPluginsDir(pluginsDir).skills;
 	} catch {
 		return { count: 0 }; // never fatal to boot
 	}
-	const packed = buildSkillDisclosureEnv(disclosures);
+	const packed = buildSkillDisclosureEnv(skills);
 	if (packed.length === 0) return { count: 0 };
 	env.MODEL_SKILLS = packed;
+	// The on-demand bodies for `load_skill` — packed only when there IS an index, so
+	// the two envs stay in lockstep (a skill in the index is loadable).
+	env.MODEL_SKILL_BODIES = buildSkillBodiesEnv(skills);
 	return { count: packed.split("\n").length };
 }

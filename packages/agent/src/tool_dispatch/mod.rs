@@ -3,6 +3,7 @@ mod fs_tools;
 #[cfg(target_arch = "wasm32")]
 mod plugin_tools;
 mod shell_tools;
+mod skill_tools;
 mod structured_tools;
 mod task_tools;
 
@@ -65,6 +66,10 @@ pub(crate) fn dispatch_tool(name: &str, input: &serde_json::Value) -> String {
         // Task introspection
         "list_tasks" => task_tools::list_tasks(input),
         "task_status" => task_tools::task_status(input),
+
+        // Progressive disclosure: load a skill's full SKILL.md instructions on
+        // demand (the second jump after the cheap index in the system prompt).
+        "load_skill" => skill_tools::load_skill(input),
 
         // LSP code ops (find_references / rename_symbol) are no longer built in:
         // they were extracted into the @refarm/lsp-code-ops core-plugin, which
