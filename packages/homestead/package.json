@@ -63,7 +63,9 @@
 	},
 	"dependencies": {
 		"@refarm.dev/capabilities": "workspace:*",
+		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/ds": "workspace:*",
+		"@refarm.dev/effort-contract-v1": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
@@ -73,7 +75,6 @@
 		"astro": "^7.0.0"
 	},
 	"devDependencies": {
-		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*"

@@ -1165,9 +1165,15 @@ importers:
       '@refarm.dev/capabilities':
         specifier: workspace:*
         version: link:../capabilities
+      '@refarm.dev/config':
+        specifier: workspace:*
+        version: link:../config
       '@refarm.dev/ds':
         specifier: workspace:*
         version: link:../ds
+      '@refarm.dev/effort-contract-v1':
+        specifier: workspace:*
+        version: link:../effort-contract-v1
       '@refarm.dev/identity-contract-v1':
         specifier: workspace:*
         version: link:../identity-contract-v1
@@ -1190,9 +1196,6 @@ importers:
         specifier: ^7.0.0
         version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
     devDependencies:
-      '@refarm.dev/config':
-        specifier: workspace:*
-        version: link:../config
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
