@@ -1,4 +1,9 @@
 export {
+	graphToSvg,
+	renderGraphSvg,
+	type RenderGraphSvgOptions,
+} from "./svg.js";
+export {
 	extractWikilinks,
 	graphFromRecords,
 	type GraphFromRecordsOptions,
