@@ -40,10 +40,15 @@ export function buildWalletHost(options: WalletHostOptions = {}): CapabilityHost
 		description: "Digital Gardening Kit - sovereign wallet",
 		version: "0.0.0",
 		capabilities: () => {
-			const { deps, records, credentialsProvider, identity } = walletCapabilityBundle(options);
+			const { deps, records, credentialsProvider, identity, authorizationProvider } =
+				walletCapabilityBundle(options);
 			return {
 				deps,
-				extensions: createWalletCapabilities(records, { credentialsProvider, identity }),
+				extensions: createWalletCapabilities(records, {
+					credentialsProvider,
+					identity,
+					authorizationProvider,
+				}),
 			};
 		},
 		operatorStatus: {

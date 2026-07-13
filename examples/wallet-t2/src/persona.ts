@@ -7,11 +7,20 @@ import {
 import { createLocalRecordsCapabilityDeps } from "@refarm.dev/capability-host/node";
 import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import {
+	createInMemoryAuthorizationProviderFixture,
+	type AuthorizationProvider,
+} from "@refarm.dev/authorization-contract-v1";
+import {
 	createInMemoryCredentialsProviderFixture,
 	type CredentialsProvider,
 } from "@refarm.dev/credentials-contract-v1";
 import type { IdentityProvider } from "@refarm.dev/identity-contract-v1";
 
+import {
+	createWalletAuthorizeCapability,
+	createWalletPresentCapability,
+	createWalletRevokeCapability,
+} from "./authorization.js";
 import {
 	createWalletImportCapability,
 	createWalletShareCapability,
@@ -40,6 +49,9 @@ export interface WalletBundleOptions extends WalletStateOptions {
 	/** The citizen's identity provider — the holder's key(s) that sign a presentation. Paired
 	 * with credentialsProvider from the same fixture out of the box. */
 	identity?: IdentityProvider;
+	/** The authorization journey provider (consent/present/revoke). In-memory fixture out of
+	 * the box; inject a real/WASM-signed one in a deployment. */
+	authorizationProvider?: AuthorizationProvider;
 	/** Deterministic clock for `review.at` in tests. */
 	now?: () => string;
 }
@@ -56,10 +68,16 @@ export function walletCapabilityBundle(options: WalletBundleOptions = {}) {
 		options.credentialsProvider && options.identity
 			? { provider: options.credentialsProvider, identity: options.identity }
 			: createInMemoryCredentialsProviderFixture();
+	// The authorization journey provider (consent/present/revoke). Out of the box an
+	// in-memory fixture (deterministic signer + clock); a deployment injects one bound to
+	// the citizen's identity or a WASM signer.
+	const authorizationProvider =
+		options.authorizationProvider ?? createInMemoryAuthorizationProviderFixture().provider;
 	return {
 		...deps,
 		credentialsProvider: fixture.provider,
 		identity: fixture.identity,
+		authorizationProvider,
 		now: options.now,
 	};
 }
@@ -217,6 +235,8 @@ export interface WalletCapabilitiesOptions {
 	credentialsProvider?: CredentialsProvider;
 	/** The citizen's identity provider for `share` (signs the presentation). */
 	identity?: IdentityProvider;
+	/** The authorization journey provider for `authorize` / `present` / `revoke`. */
+	authorizationProvider?: AuthorizationProvider;
 	/** Deterministic clock for import/verify `review.at` in tests. */
 	now?: () => string;
 }
@@ -242,6 +262,15 @@ export function createWalletCapabilities(
 				createWalletShareCapability(recordsDeps, options.credentialsProvider, options.identity),
 			);
 		}
+	}
+	// The consent journey: authorize a service for a scoped purpose, present only that
+	// scope, revoke it later — the citizen's sovereign control over their own disclosure.
+	if (options.authorizationProvider) {
+		capabilities.push(
+			createWalletAuthorizeCapability(recordsDeps, options.authorizationProvider, { now: options.now }),
+			createWalletPresentCapability(recordsDeps, options.authorizationProvider),
+			createWalletRevokeCapability(recordsDeps, options.authorizationProvider, { now: options.now }),
+		);
 	}
 	return capabilities;
 }

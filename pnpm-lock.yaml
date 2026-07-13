@@ -553,6 +553,9 @@ importers:
 
   examples/wallet-t2:
     dependencies:
+      '@refarm.dev/authorization-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/authorization-contract-v1
       '@refarm.dev/capability-homestead-surface':
         specifier: workspace:*
         version: link:../../packages/capability-homestead-surface
