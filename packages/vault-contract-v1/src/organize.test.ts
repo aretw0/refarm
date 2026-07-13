@@ -41,11 +41,12 @@ describe("recordToVaultNote", () => {
 		expect(note.text).toContain("sistema: EFD");
 	});
 
-	it("skips object/array fields (routing reads scalars)", () => {
-		const note = recordToVaultNote(record("r", { tipo: "demanda", nested: { a: 1 }, tags: ["x"] }));
+	it("renders object/array fields as a present JSON scalar (a gate sees the key; routing skips it)", () => {
+		const note = recordToVaultNote(record("r", { tipo: "demanda", provenance: { channel: "pull" }, tags: ["x"] }));
 		expect(note.text).toContain("tipo: demanda");
-		expect(note.text).not.toContain("nested");
-		expect(note.text).not.toContain("tags");
+		// The KEY is present (so frontmatter-required sees it) and the value is readable JSON.
+		expect(note.text).toContain('provenance: {"channel":"pull"}');
+		expect(note.text).toContain('tags: ["x"]');
 	});
 });
 

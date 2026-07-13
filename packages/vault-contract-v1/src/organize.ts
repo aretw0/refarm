@@ -47,8 +47,11 @@ function fieldsToFrontmatter(fields: Record<string, unknown>): string {
 	const lines: string[] = ["---"];
 	for (const [key, value] of Object.entries(fields)) {
 		if (value === null || value === undefined) continue;
-		if (typeof value === "object") continue; // routing reads scalars
-		lines.push(`${key}: ${String(value)}`);
+		// Object/array fields (e.g. a nested `provenance`) render as a compact JSON scalar:
+		// the KEY is present (so a `frontmatter-required` gate sees it) and its value is
+		// readable. A routing axis reads a plain string value, so it simply won't match an
+		// object field — forward-safe. Scalars render as-is.
+		lines.push(`${key}: ${typeof value === "object" ? JSON.stringify(value) : String(value)}`);
 	}
 	lines.push("---", "");
 	return lines.join("\n");
