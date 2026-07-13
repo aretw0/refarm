@@ -33,6 +33,20 @@ export {
 	type DownloadAttachmentOptions,
 } from "./attachment.js";
 export {
+	conditionalValidators,
+	decideSync,
+	emptyCacheManifest,
+	normalizeCacheManifest,
+	recordSync,
+	syncManifest,
+	type CacheEntry,
+	type CacheManifest,
+	type ObservedResource,
+	type SyncDecision,
+	type SyncReport,
+	type SyncStatus,
+} from "./cache.js";
+export {
 	decodeHtmlEntities,
 	htmlToMarkdown,
 	minimalHtmlToMarkdown,
