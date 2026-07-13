@@ -9,6 +9,7 @@ import {
 import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
 
 import { createProcessHandoffExecutor } from "@refarm.dev/lab-contract-v1";
+import { createRecordFileWriter } from "@refarm.dev/vault-contract-v1/node";
 import { normalizeCacheManifest, type CacheManifest } from "@refarm.dev/source-web";
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -88,31 +89,16 @@ async function hashLabOutput(cwd: string, relativePath: string): Promise<{ algor
 	return { algorithm: "sha256", value: createHash("sha256").update(readFileSync(file)).digest("hex") };
 }
 
-/** Drop the volatile `alm_last_sync_at` line so two notes that differ ONLY in their sync
- * timestamp compare equal — otherwise every re-materialize rewrites every note (the timestamp
- * always changes) and the incremental skip is worthless. */
-function withoutSyncTimestamp(text: string): string {
-	return text.replace(/^alm_last_sync_at:.*$\n?/m, "");
-}
-
-/** An IDEMPOTENT note writer: write `<vaultRoot>/<relativePath>` only when its MEANINGFUL content
- * differs from what's on disk — the sync timestamp alone never forces a rewrite (skip-if-identical,
- * mirroring the operational scraper). Returns true if it wrote, false if it skipped an unchanged
- * note. */
+/** An IDEMPOTENT note writer via the substrate's createRecordFileWriter. The only example-specific
+ * bit is `normalizeForCompare`: drop the volatile `alm_last_sync_at` line so a note that differs
+ * ONLY in its sync timestamp is kept (else every re-materialize rewrites everything). Returns true
+ * if it wrote, false if it skipped an unchanged note. */
 function makeNoteWriter(root: string): (relativePath: string, text: string) => boolean {
-	return (relativePath, text) => {
-		const file = path.join(root, relativePath);
-		try {
-			if (withoutSyncTimestamp(readFileSync(file, "utf8")) === withoutSyncTimestamp(text)) {
-				return false; // unchanged but for the timestamp → keep the old note, skip
-			}
-		} catch {
-			// absent → write it
-		}
-		mkdirSync(path.dirname(file), { recursive: true });
-		writeFileSync(file, text, "utf8");
-		return true;
-	};
+	const write = createRecordFileWriter({
+		root,
+		normalizeForCompare: (text) => text.replace(/^alm_last_sync_at:.*$\n?/m, ""),
+	});
+	return (relativePath, text) => write(relativePath, text) === "written";
 }
 
 const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND });
