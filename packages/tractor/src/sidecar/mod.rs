@@ -639,6 +639,7 @@ pub async fn post_plugin_respond(
     }
 }
 
+mod cors;
 mod dispatch;
 pub(crate) use dispatch::*;
 // The agent terminal-result contract is part of the crate's PUBLIC surface: the
@@ -1496,6 +1497,19 @@ pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Resu
         .route("/plugins/:id/respond", post(post_plugin_respond))
         .route("/providers/liveness", get(get_provider_liveness))
         .with_state(state);
+
+    // ADR-088: layer OPT-IN CORS only when REFARM_SIDECAR_CORS_ORIGINS is set. The
+    // default (unset) leaves the router untouched — no CORS surface — because the
+    // supported browser path is the same-origin proxy on `refarm serve`.
+    let router = match cors::cors_config_from_env() {
+        Some(policy) => {
+            tracing::info!(?policy, "sidecar CORS enabled (opt-in)");
+            router.layer(axum::middleware::from_fn(move |req, next| {
+                cors::cors_middleware(policy.clone(), req, next)
+            }))
+        }
+        None => router,
+    };
 
     let bind_addr = format!("{host}:{port}");
     let listener = TcpListener::bind(&bind_addr).await?;

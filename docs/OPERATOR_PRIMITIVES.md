@@ -177,6 +177,15 @@ refarm config set runtime.sidecarUrl http://127.0.0.1:42001 --local --json
   the container interface (`0.0.0.0`) so the Docker-published `42001` reaches it
   from host workspaces. Local non-container startup remains loopback-only by
   default (`127.0.0.1`).
+- **Web chat face → sidecar (ADR-088).** A browser chat face submits/cancels
+  efforts on the sidecar. Two paths, one default:
+  - **Default: same-origin proxy.** `refarm serve` proxies `/efforts*` to the
+    sidecar, so the browser talks only to its own origin — no CORS, and the
+    sidecar's network surface stays closed. Nothing to configure.
+  - **Opt-in: sidecar CORS.** To serve the face from another origin *without* a
+    proxy, set `REFARM_SIDECAR_CORS_ORIGINS` to a comma-separated origin
+    allowlist (e.g. `http://localhost:4321`), or `*` for any origin (trusted
+    local/dev only). Unset (the default) means no CORS headers at all.
 - `runtime ensure --wait --json` converges to `resume` when ready.
 - If `runtime ensure --wait --json` starts a runtime but readiness does not
   converge and the startup log has no actionable output, the recovery handoff
