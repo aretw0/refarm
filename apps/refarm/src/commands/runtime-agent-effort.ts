@@ -9,6 +9,13 @@ export interface RuntimeAgentRespondEffortOptions {
 	historyTurns: number;
 	modelProvider?: string;
 	modelId?: string;
+	/**
+	 * ADR-012 routing profile (cheap|balanced|reliable). When set, the guest resolves
+	 * the route by profile against its configured providers. An explicit
+	 * `modelProvider`/`modelId` override still takes precedence, so the caller passes a
+	 * profile INSTEAD of a pinned route — not alongside one.
+	 */
+	profile?: string;
 	now?: () => Date;
 	randomUUID?: () => string;
 }
@@ -21,6 +28,7 @@ export function createRuntimeAgentRespondEffort({
 	historyTurns,
 	modelProvider,
 	modelId,
+	profile,
 	now = () => new Date(),
 	randomUUID = () => crypto.randomUUID(),
 }: RuntimeAgentRespondEffortOptions): Effort {
@@ -32,6 +40,7 @@ export function createRuntimeAgentRespondEffort({
 	};
 	if (modelProvider) args.provider = modelProvider;
 	if (modelId) args.model = modelId;
+	if (profile) args.profile = profile;
 
 	return {
 		id: randomUUID(),

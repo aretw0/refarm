@@ -380,6 +380,10 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 		.option("--new", "Start a fresh session, discarding conversation history")
 		.option("--session <id>", "Use a specific session ID or unique prefix")
 		.option("--scope <scope>", `Model route scope to use (${MODEL_SCOPE_HELP})`)
+		.option(
+			"--profile <profile>",
+			"Route by a named model profile (cheap|balanced|reliable) instead of the pinned provider; the agent picks a configured provider for that intent",
+		)
 		.option("--json", "Output machine-readable ask result")
 		.addHelpText(
 			"after",
@@ -416,6 +420,7 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 					new?: boolean;
 					session?: string;
 					scope?: string;
+					profile?: string;
 					json?: boolean;
 				},
 			) => {
@@ -515,6 +520,14 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 				const routeStatus = buildCurrentModelStatus(await defaultModelDeps().loadTokens());
 				const selectedRoute = resolveRuntimeModelRoute(routeStatus, askScope);
 
+				// ADR-012: a named routing profile is the operator's intent to route BY
+				// intent (cheap/balanced/reliable) rather than a pinned provider. The
+				// --profile flag wins; otherwise an ambient MODEL_PROFILE applies. When a
+				// profile is active we send it to the agent and OMIT the pinned route, so
+				// the guest resolves the route by profile against its configured providers
+				// (instead of the CLI shadowing it with an explicit override).
+				const activeProfile = (opts.profile ?? process.env.MODEL_PROFILE)?.trim() || undefined;
+
 				if (opts.new) {
 					clearActiveSession();
 				}
@@ -582,8 +595,12 @@ export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Comma
 					sessionId,
 					source: sourceForAskScope(askScope),
 					historyTurns: DEFAULT_HISTORY_TURNS,
-					modelProvider: selectedRoute.modelProvider,
-					modelId: selectedRoute.modelId,
+					// A profile routes by intent: send it and leave the route unpinned so
+					// the guest's profile resolver chooses. Without a profile, pin the
+					// scope's resolved provider/model as before.
+					modelProvider: activeProfile ? undefined : selectedRoute.modelProvider,
+					modelId: activeProfile ? undefined : selectedRoute.modelId,
+					profile: activeProfile,
 				});
 
 				if (!opts.json) {

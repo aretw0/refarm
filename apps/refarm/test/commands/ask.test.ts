@@ -78,6 +78,7 @@ describe("refarm ask", () => {
 		delete process.env.REFARM_HOME;
 		delete process.env.REFARM_STREAMS_DIR;
 		delete process.env.REFARM_TASK_RESULTS_DIR;
+		delete process.env.MODEL_PROFILE;
 	});
 
 	afterEach(() => {
@@ -233,6 +234,45 @@ describe("refarm ask", () => {
 		);
 		const allLogs = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(allLogs).toContain("runtime agent (worker)");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("routes by --profile: sends args.profile and omits the pinned route (ADR-012)", async () => {
+		process.env.MODEL_PROVIDER = "openai-codex";
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+		await command.parseAsync(["cheap question", "--profile", "cheap"], { from: "user" });
+
+		const effort = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls[0][0];
+		const args = effort.tasks[0].args as Record<string, unknown>;
+		expect(args.profile).toBe("cheap");
+		// The profile REPLACES the pinned route so the guest resolver isn't shadowed.
+		expect(args.provider).toBeUndefined();
+		expect(args.model).toBeUndefined();
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("honors an ambient MODEL_PROFILE when no --profile flag is given (ADR-012)", async () => {
+		process.env.MODEL_PROVIDER = "openai-codex";
+		process.env.MODEL_PROFILE = "reliable";
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+		await command.parseAsync(["q"], { from: "user" });
+
+		const effort = (deps.submitEffort as ReturnType<typeof vi.fn>).mock.calls[0][0];
+		const args = effort.tasks[0].args as Record<string, unknown>;
+		expect(args.profile).toBe("reliable");
+		expect(args.provider).toBeUndefined();
 
 		logSpy.mockRestore();
 		outSpy.mockRestore();
