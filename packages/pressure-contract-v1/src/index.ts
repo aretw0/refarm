@@ -1,28 +1,28 @@
-export interface PressureSnapshot {
+import type { EffortSummary } from "@refarm.dev/effort-contract-v1";
+
+/**
+ * A point-in-time runtime pressure snapshot. Extends `EffortSummary` (the single source of the
+ * effort tally fields — total/pending/…/delivered/partial/timedOut) so the PRODUCER (a runtime's
+ * telemetry endpoint) and the CONSUMER (the operator's pressure client) agree on the WHOLE wire
+ * shape. Before this it copied only 6 of the 9 summary fields inline, so a producer that spread a
+ * full EffortSummary sent 3 fields the consumer silently dropped — a wire drift. The pressure-
+ * specific fields (queue depth, in-flight, cancel requests) are added on top.
+ */
+export interface PressureSnapshot extends EffortSummary {
 	queueDepth: number;
 	inFlight: number;
 	cancelRequests: number;
 	generatedAt: string;
-	total: number;
-	pending: number;
-	inProgress: number;
-	done: number;
-	failed: number;
-	cancelled: number;
 }
 
-export interface PressureWindow {
+/** A windowed pressure summary — the same EffortSummary tally over a time window, plus the window
+ * metadata. Extends EffortSummary for the same single-source reason as PressureSnapshot. */
+export interface PressureWindow extends EffortSummary {
 	windowMinutes: number;
 	since: string;
 	terminal: number;
 	failureRatePct: number | null;
 	generatedAt: string;
-	total: number;
-	pending: number;
-	inProgress: number;
-	done: number;
-	failed: number;
-	cancelled: number;
 }
 
 export type PressureDiagnostic =

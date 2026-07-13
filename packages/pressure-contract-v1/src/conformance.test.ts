@@ -18,7 +18,10 @@ function snapshot(overrides: Partial<PressureSnapshot> = {}): PressureSnapshot {
 		pending: 0,
 		inProgress: 0,
 		done: 0,
+		delivered: 0,
+		partial: 0,
 		failed: 0,
+		timedOut: 0,
 		cancelled: 0,
 		...overrides,
 	};
@@ -35,7 +38,10 @@ function window(overrides: Partial<PressureWindow> = {}): PressureWindow {
 		pending: 0,
 		inProgress: 0,
 		done: 4,
+		delivered: 0,
+		partial: 0,
 		failed: 0,
+		timedOut: 0,
 		cancelled: 0,
 		...overrides,
 	};

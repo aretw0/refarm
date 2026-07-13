@@ -10,6 +10,7 @@ import type {
 	Task,
 	TaskResult,
 } from "@refarm.dev/effort-contract-v1";
+import type { PressureSnapshot, PressureWindow } from "@refarm.dev/pressure-contract-v1";
 
 export type TaskExecutorFn = (
 	task: Task,
@@ -30,20 +31,12 @@ export interface FileTransportOptions {
 const DEFAULT_MAX_ATTEMPTS = 2;
 const TERMINAL_STATUSES = new Set<EffortStatus>(["done", "failed", "cancelled"]);
 
-export interface RuntimeTelemetrySnapshot extends EffortSummary {
-	queueDepth: number;
-	inFlight: number;
-	cancelRequests: number;
-	generatedAt: string;
-}
-
-export interface RuntimeTelemetryWindow extends EffortSummary {
-	windowMinutes: number;
-	since: string;
-	terminal: number;
-	failureRatePct: number | null;
-	generatedAt: string;
-}
+// The telemetry endpoint's wire shapes ARE the pressure:v1 contract's — this producer emits the
+// exact PressureSnapshot / PressureWindow the operator's pressure client consumes (single source,
+// no more local redeclaration that could drift on the EffortSummary fields). Aliased to the local
+// names so the rest of this transport is untouched.
+export type RuntimeTelemetrySnapshot = PressureSnapshot;
+export type RuntimeTelemetryWindow = PressureWindow;
 
 function nowIso(): string {
 	return new Date().toISOString();

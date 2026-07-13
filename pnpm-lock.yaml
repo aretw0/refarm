@@ -211,6 +211,9 @@ importers:
       '@refarm.dev/plugin-surface-loader':
         specifier: workspace:*
         version: link:../../packages/plugin-surface-loader
+      '@refarm.dev/pressure-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/pressure-contract-v1
       '@refarm.dev/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
@@ -1549,6 +1552,10 @@ importers:
         version: 6.0.3
 
   packages/pressure-contract-v1:
+    dependencies:
+      '@refarm.dev/effort-contract-v1':
+        specifier: workspace:*
+        version: link:../effort-contract-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*

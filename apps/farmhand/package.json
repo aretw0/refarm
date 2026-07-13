@@ -33,6 +33,7 @@
 		"@refarm.dev/agent": "workspace:*",
 		"@refarm.dev/lsp-code-ops": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
+		"@refarm.dev/pressure-contract-v1": "workspace:*",
 		"@refarm.dev/plugin-surface-loader": "workspace:*",
 		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/silo": "workspace:*",

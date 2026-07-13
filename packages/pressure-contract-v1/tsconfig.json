@@ -1,7 +1,7 @@
 {
   "extends": ["../../tsconfig.json", "@refarm.dev/tsconfig/buildable.json"],
   "compilerOptions": {
-    "rootDir": "src",
+    "rootDir": "..",
     "outDir": "dist",
     "baseUrl": "../.."
   },
