@@ -109,6 +109,38 @@ export function createOslcCrawlExtractor(options: OslcCrawlOptions = {}) {
 	};
 }
 
+// --- Attachment coordinate — a Jazz RM artifact that wraps a binary file ---
+
+/** The attachment a Jazz RM artifact wraps, when it is a file artifact: the binary's own URI
+ * (to GET the bytes), its declared content type, and a title for the filename/extension. */
+export interface OslcAttachmentRef {
+	/** The wrapped binary's resource URI — the URL to download the bytes from. */
+	wrappedResourceUri: string;
+	contentType?: string;
+	title?: string;
+}
+
+/** Extract the attachment coordinate from an artifact RDF body — a Jazz RM file artifact carries
+ * `public_rm_10:wrappedResource` (the binary URI) + `wrappedResourceContentType`. Returns
+ * undefined for a plain (text) requirement. Mirrors the operational scraper's field names. */
+export function extractAttachmentRef(body: string): OslcAttachmentRef | undefined {
+	const wrappedResourceUri = firstMatch(
+		/<public_rm_10:wrappedResource\s+rdf:resource="([^"]+)"\s*\/>/,
+		body,
+	);
+	if (!wrappedResourceUri) return undefined;
+	const contentType = firstMatch(
+		/<public_rm_10:wrappedResourceContentType[^>]*>([^<]+)<\/public_rm_10:wrappedResourceContentType>/,
+		body,
+	)?.trim();
+	const title = firstMatch(/dcterms:title[^>]*>([^<]*)</, body)?.trim();
+	return {
+		wrappedResourceUri,
+		...(contentType ? { contentType } : {}),
+		...(title ? { title } : {}),
+	};
+}
+
 // --- RDF/XML → requirement records (mirrors the vault's parseArtifactRdf, by regex) ---
 
 function firstMatch(re: RegExp, text: string): string | undefined {

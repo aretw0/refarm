@@ -1,4 +1,9 @@
-import { HttpFetchError, type WebFetchDriver, type WebSourceSessionEvidence } from "@refarm.dev/source-web";
+import {
+	HttpFetchError,
+	type BinaryFetchDriver,
+	type WebFetchDriver,
+	type WebSourceSessionEvidence,
+} from "@refarm.dev/source-web";
 import { describe, expect, it } from "vitest";
 
 import { crawlRequirements } from "./persona.js";
@@ -111,5 +116,51 @@ describe("crawlRequirements — whole-project scrape", () => {
 		});
 		expect(result.seen).toBeGreaterThan(2);
 		expect(result.truncated).toBe(true);
+	});
+
+	it("downloads a file artifact's attachment and stamps it on the record", async () => {
+		const BIN = "https://alm.example/rm/resources/BIN_1";
+		// Artifact A is a file artifact wrapping a PNG binary.
+		const fileArtifact = `<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dcterms="http://purl.org/dc/terms/"
+         xmlns:jazz_rm="http://jazz.net/ns/rm#">
+  <rdf:Description rdf:about="${ART_A}">
+    <dcterms:identifier>RN-1</dcterms:identifier>
+    <dcterms:title>diagrama.png</dcterms:title>
+    <rdf:type rdf:resource="http://jazz.net/ns/rm#BusinessRule"/>
+    <jazz_rm:primaryText><div>Anexo.</div></jazz_rm:primaryText>
+    <public_rm_10:wrappedResource rdf:resource="${BIN}"/>
+    <public_rm_10:wrappedResourceContentType>image/png</public_rm_10:wrappedResourceContentType>
+  </rdf:Description>
+</rdf:RDF>`;
+		const bytes = new Uint8Array([137, 80, 78, 71]);
+		const binaryFetcher: BinaryFetchDriver = async () => ({ bytes, mediaType: "image/png" });
+
+		const result = await crawlRequirements({
+			fetcher: projectDriver({ [ART_A]: fileArtifact }),
+			seeds: [{ url: ROOT }],
+			session,
+			ref: "web:efd",
+			binaryFetcher,
+		});
+		// The attachment was materialized (one PNG), and its fingerprint stamped on the record.
+		expect(result.attachments).toHaveLength(1);
+		expect(result.attachments[0]?.kind).toBe("materialized");
+		expect(result.attachments[0]?.extension).toBe(".png");
+		const rn1 = result.records.find((r) => r.fields.externalKey === "RN-1");
+		expect(rn1?.fields.attachmentKind).toBe("materialized");
+		expect(rn1?.fields.attachmentExtension).toBe(".png");
+		expect(rn1?.fields.attachmentHash).toBeTruthy();
+	});
+
+	it("does not fetch attachments without a binaryFetcher (text-only crawl)", async () => {
+		const result = await crawlRequirements({
+			fetcher: projectDriver(),
+			seeds: [{ url: ROOT }],
+			session,
+			ref: "web:efd",
+		});
+		expect(result.attachments).toEqual([]);
 	});
 });

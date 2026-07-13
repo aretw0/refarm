@@ -5,6 +5,7 @@ import type { CrawledPage } from "@refarm.dev/source-web";
 import {
 	createOslcCrawlExtractor,
 	createOslcFetchDriver,
+	extractAttachmentRef,
 	oslcRequestHeaders,
 	parseRequirementsFromRdf,
 } from "./oslc.js";
@@ -155,5 +156,25 @@ describe("createOslcCrawlExtractor — walking a Jazz RM project", () => {
 		// A ".coll" is walked; a ".artifact" is a leaf.
 		expect(extract(page("root.coll", `<x rdf:resource="child.artifact"/>`))).toHaveLength(1);
 		expect(extract(page("leaf.artifact", `<x rdf:resource="other"/>`))).toEqual([]);
+	});
+});
+
+describe("extractAttachmentRef — a file artifact's wrapped binary", () => {
+	it("extracts the wrappedResource URI, content type, and title", () => {
+		const body = `<rdf:Description>
+			<dcterms:title>diagrama-fluxo.png</dcterms:title>
+			<public_rm_10:wrappedResource rdf:resource="https://alm.example/rm/resources/BIN_1"/>
+			<public_rm_10:wrappedResourceContentType>image/png</public_rm_10:wrappedResourceContentType>
+		</rdf:Description>`;
+		expect(extractAttachmentRef(body)).toEqual({
+			wrappedResourceUri: "https://alm.example/rm/resources/BIN_1",
+			contentType: "image/png",
+			title: "diagrama-fluxo.png",
+		});
+	});
+
+	it("returns undefined for a plain text requirement (no wrappedResource)", () => {
+		const body = `<rdf:Description><dcterms:title>Regra</dcterms:title></rdf:Description>`;
+		expect(extractAttachmentRef(body)).toBeUndefined();
 	});
 });

@@ -42,13 +42,17 @@ import {
 import {
 	crawlSource,
 	createWebSourceProvider,
+	downloadAttachment,
 	emptyCacheManifest,
+	HttpFetchError,
 	ensureAuthenticatedSession,
 	fixtureLogin,
 	loadWebSourceTargetsSync,
 	normalizeCacheManifest,
 	syncManifest,
 	withReauth,
+	type AttachmentResult,
+	type BinaryFetchDriver,
 	type CacheManifest,
 	type CrawlSeed,
 	type InteractiveLogin,
@@ -61,7 +65,12 @@ import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { createOslcCrawlExtractor, createOslcFetchDriver, parseRequirementsFromRdf } from "./oslc.js";
+import {
+	createOslcCrawlExtractor,
+	createOslcFetchDriver,
+	extractAttachmentRef,
+	parseRequirementsFromRdf,
+} from "./oslc.js";
 import { reqManifest } from "./fixture.js";
 
 /**
@@ -266,6 +275,13 @@ export interface CrawlRequirementsOptions {
 	syncedAt?: string;
 	/** Progress hook — one call per fetched page. */
 	onPage?: (url: string, depth: number) => void;
+	/** OPTIONAL binary fetch driver — when present, an artifact that wraps a file (Jazz RM
+	 * `wrappedResource`) has its attachment downloaded under the substrate's size/type policy,
+	 * and the outcome (materialized hash+extension, or a skip reason) is recorded on the record.
+	 * Absent → attachments are not fetched (text-only crawl). Injected so tests stay offline. */
+	binaryFetcher?: BinaryFetchDriver;
+	/** Max bytes to materialize an attachment (default from the substrate policy). */
+	maxAttachmentBytes?: number;
 }
 
 export interface CrawlRequirementsResult {
@@ -278,6 +294,9 @@ export interface CrawlRequirementsResult {
 	truncated: boolean;
 	/** How many distinct URLs the crawl saw. */
 	seen: number;
+	/** The attachments encountered on file artifacts (materialized or skipped placeholders). Empty
+	 * when no binaryFetcher was injected. The caller persists the materialized bytes. */
+	attachments: AttachmentResult[];
 }
 
 /**
@@ -318,17 +337,47 @@ export async function crawlRequirements(
 	const changedByUri = new Map(sync.decisions.map((d) => [d.uri, d.status]));
 
 	const records: KnowledgeRecord[] = [];
+	const attachments: AttachmentResult[] = [];
 	for (const page of crawl.pages) {
 		if (changedByUri.get(page.url) === "unchanged") continue; // already ingested; skip re-parse
 		const parsed = parseRequirementsFromRdf(page.body, {
 			ref: options.ref,
 			location: page.url,
 			mediaType: page.mediaType,
-		});
-		records.push(...(parsed as KnowledgeRecord[]));
+		}) as KnowledgeRecord[];
+
+		// A file artifact wraps a binary (Jazz RM wrappedResource). When a binary driver is wired,
+		// download it under the substrate's size/type policy and stamp the outcome on the record so
+		// the analyst's note links the attachment (materialized → hash+extension; skipped → reason).
+		if (options.binaryFetcher) {
+			const att = extractAttachmentRef(page.body);
+			if (att) {
+				const result = await downloadAttachment(att.wrappedResourceUri, {
+					session: options.session,
+					title: att.title ?? att.wrappedResourceUri,
+					fetcher: options.binaryFetcher,
+					...(options.maxAttachmentBytes !== undefined ? { maxBytes: options.maxAttachmentBytes } : {}),
+				});
+				attachments.push(result);
+				for (const record of parsed) {
+					record.fields.attachmentKind = result.kind;
+					record.fields.attachmentExtension = result.extension;
+					if (result.hash) record.fields.attachmentHash = result.hash;
+					if (result.skipReason) record.fields.attachmentSkipReason = result.skipReason;
+				}
+			}
+		}
+		records.push(...parsed);
 	}
 
-	return { records, manifest: sync.manifest, sync, truncated: crawl.truncated, seen: crawl.seen };
+	return {
+		records,
+		manifest: sync.manifest,
+		sync,
+		truncated: crawl.truncated,
+		seen: crawl.seen,
+		attachments,
+	};
 }
 
 /**
@@ -736,9 +785,29 @@ export function createRequirementsPullCapability(
  * the session evidence. Built by a `liveCrawlerFactory` (browser-backed) or injected in a test. */
 export interface LiveCrawlContext {
 	fetcher: WebFetchDriver;
+	/** The authenticated BINARY fetch driver (same cookies, bytes not text) for attachments. */
+	binaryFetcher?: BinaryFetchDriver;
 	seeds: CrawlSeed[];
 	session: WebSourceSessionEvidence;
 	streamURI?: string;
+}
+
+/** Build an authenticated binary GET from the browser's cookie `fetchImpl` — the attachment
+ * download seam. Same session as the OSLC text fetch; returns raw bytes + media type. A non-OK
+ * response throws HttpFetchError so a 401 mid-crawl still triggers re-auth on the text path. */
+export function liveBinaryFetcher(fetchImpl: typeof fetch): BinaryFetchDriver {
+	return async (request) => {
+		const response = await fetchImpl(request.url, { method: "GET", headers: request.headers ?? {} });
+		if (!response.ok) throw new HttpFetchError(response.status, request.url);
+		const buffer = new Uint8Array(await response.arrayBuffer());
+		const mediaType = response.headers.get("content-type") ?? "application/octet-stream";
+		const declared = response.headers.get("content-length");
+		return {
+			bytes: buffer,
+			mediaType,
+			...(declared ? { declaredSize: Number(declared) } : {}),
+		};
+	};
 }
 
 /**
@@ -790,6 +859,7 @@ export function createLiveCrawlerFactory(
 		const fetchImpl = await openLiveFetch(false);
 		return {
 			fetcher: liveOslcFetcher(fetchImpl, () => openLiveFetch(true)),
+			binaryFetcher: liveBinaryFetcher(fetchImpl),
 			seeds: [{ url: seedUrl, ...(streamURI ? { attributes: { streamURI } } : {}) }],
 			session: { kind: "authenticated", authenticated: true },
 			...(streamURI ? { streamURI } : {}),
@@ -880,6 +950,7 @@ export function createRequirementsCrawlCapability(
 				const prior = options.loadCacheManifest?.(ref) ?? emptyCacheManifest();
 				const result = await crawlRequirements({
 					fetcher: ctx.fetcher,
+					...(ctx.binaryFetcher ? { binaryFetcher: ctx.binaryFetcher } : {}),
 					seeds: ctx.seeds,
 					session: ctx.session,
 					ref,
@@ -899,6 +970,10 @@ export function createRequirementsCrawlCapability(
 					truncated: result.truncated,
 					sync: result.sync.counts,
 					ingested: result.records.length,
+					attachments: {
+						materialized: result.attachments.filter((a) => a.kind === "materialized").length,
+						skipped: result.attachments.filter((a) => a.kind === "placeholder").length,
+					},
 					loggedIn: auth.loggedIn,
 					principal: auth.session.principal,
 				};
