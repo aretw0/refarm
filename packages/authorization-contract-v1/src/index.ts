@@ -11,4 +11,12 @@ export {
 	type AuthorizationSigner,
 	type ReferenceAuthorizationProviderOptions,
 } from "./reference.js";
+export {
+	CONSENT_AUTHORIZE_ACTION_ID,
+	CONSENT_REVOKE_ACTION_ID,
+	renderAuthorizationConsentCard,
+	renderAuthorizationList,
+	renderConsentPrompt,
+	type AuthorizationRenderTranslator,
+} from "./render.js";
 export * from "./types.js";
