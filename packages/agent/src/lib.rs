@@ -99,7 +99,8 @@ pub(crate) use utils::{
 #[cfg(test)]
 pub(crate) use provider_config::{
     choose_model, configured_providers, openai_compat_defaults, profile_candidates,
-    provider_capabilities, resolve_profile, CostTier, ANTHROPIC_DEFAULT_MODEL,
+    profile_capability_requirement, provider_capabilities, resolve_profile, CostTier,
+    ANTHROPIC_DEFAULT_MODEL,
 };
 #[cfg(test)]
 pub(crate) use response_nodes::{

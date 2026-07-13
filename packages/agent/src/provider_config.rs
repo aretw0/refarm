@@ -143,13 +143,32 @@ pub(crate) fn profile_candidates(profile: &str) -> Option<&'static [&'static str
     }
 }
 
+/// The CAPABILITY requirement a profile imposes on a candidate, beyond cost/order. This
+/// is where the capability map earns its keep: a profile does not just prefer a tier, it
+/// REQUIRES the route actually support what that intent needs. Returns `true` if `caps`
+/// satisfy the profile. Unknown profiles impose nothing (caller already guards). PURE.
+///
+/// - `cheap`    — no capability floor: cost dominates, the keyless local model is fine
+///   even without reliable structured JSON.
+/// - `balanced` — must support tool-calling (an agent turn calls tools).
+/// - `reliable` — must support tool-calling AND structured JSON (robustness intent).
+pub(crate) fn profile_capability_requirement(profile: &str, caps: &ModelCapabilities) -> bool {
+    match profile {
+        "cheap" => true,
+        "balanced" => caps.tool_call,
+        "reliable" => caps.tool_call && caps.structured_json,
+        _ => true,
+    }
+}
+
 /// Resolve a profile name to a chosen provider, given which providers are configured.
-/// Walks the profile's best-first candidates and returns the first the operator has
-/// actually configured, plus its capabilities for the audit trail. Returns `None` when
-/// the profile is unknown OR no candidate is configured (caller then falls back to the
-/// explicit/env resolution — the profile is a preference, never a hard requirement that
-/// can strand a run). PURE — `is_configured` is injected so the config source stays out
-/// of this logic and it is unit-testable.
+/// Walks the profile's best-first candidates and returns the first that is BOTH
+/// configured AND satisfies the profile's capability requirement (via the capability
+/// map), plus its capabilities for the audit trail. Returns `None` when the profile is
+/// unknown OR no candidate qualifies (caller then falls back to the explicit/env
+/// resolution — the profile is a preference, never a hard requirement that can strand a
+/// run). PURE — `is_configured` is injected so the config source stays out of this logic
+/// and it is unit-testable.
 pub(crate) fn resolve_profile(
     profile: &str,
     is_configured: impl Fn(&str) -> bool,
@@ -157,8 +176,9 @@ pub(crate) fn resolve_profile(
     let candidates = profile_candidates(profile)?;
     candidates
         .iter()
-        .find(|p| is_configured(p))
-        .map(|p| ((*p).to_owned(), provider_capabilities(p)))
+        .map(|p| (*p, provider_capabilities(p)))
+        .find(|(p, caps)| is_configured(p) && profile_capability_requirement(profile, caps))
+        .map(|(p, caps)| (p.to_owned(), caps))
 }
 
 /// Parse the host-injected `MODEL_CONFIGURED_PROVIDERS` list into a set of provider

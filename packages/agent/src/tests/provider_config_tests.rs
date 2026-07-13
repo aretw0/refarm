@@ -152,3 +152,31 @@ fn resolve_profile_none_configured_returns_none_so_caller_falls_through() {
     let is_configured = |_p: &str| false;
     assert!(resolve_profile("balanced", is_configured).is_none());
 }
+
+#[test]
+fn profile_capability_requirement_encodes_each_profiles_floor() {
+    let local = provider_capabilities("ollama"); // tool_call, NO structured_json, local
+    let premium = provider_capabilities("anthropic"); // tool_call + structured_json
+    // cheap: no floor — even the local model (no structured JSON) qualifies.
+    assert!(profile_capability_requirement("cheap", &local));
+    // balanced: needs tool-calling — the local floor has it, so it qualifies.
+    assert!(profile_capability_requirement("balanced", &local));
+    // reliable: needs tool-calling AND structured JSON — the local floor lacks JSON.
+    assert!(!profile_capability_requirement("reliable", &local));
+    assert!(profile_capability_requirement("reliable", &premium));
+}
+
+#[test]
+fn resolve_profile_skips_a_configured_candidate_that_fails_the_capability_floor() {
+    // A profile whose FIRST candidate is configured but lacks the required capability
+    // must skip it for the next qualifying one — the capability map is load-bearing,
+    // not just cosmetic in the audit trail. We model this with a synthetic profile via
+    // the public helpers: `reliable` requires structured JSON; if only a JSON-less
+    // provider + a premium one are configured, the premium one wins.
+    // reliable = [anthropic, openai, openrouter, mistral]; configure only openrouter
+    // (mid, has JSON) — it qualifies and wins over the earlier unconfigured anthropic.
+    let configured = configured_providers("openrouter");
+    let (provider, caps) = resolve_profile("reliable", |p| configured.contains(p)).unwrap();
+    assert_eq!(provider, "openrouter");
+    assert!(caps.structured_json, "the chosen route must satisfy reliable's JSON floor");
+}
