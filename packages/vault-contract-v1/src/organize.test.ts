@@ -1,7 +1,7 @@
 import type { KnowledgeRecord } from "@refarm.dev/records-contract-v1";
 import { describe, expect, it } from "vitest";
 
-import { organizeRecords, recordToVaultNote } from "./organize.js";
+import { organizeRecords, planRecordFiles, recordToVaultNote } from "./organize.js";
 import { createReferenceVaultSurface } from "./reference.js";
 import type { VaultProfile } from "./types.js";
 
@@ -86,5 +86,37 @@ describe("organizeRecords — one-call PARA routing over records", () => {
 		};
 		const plans = await organizeRecords(surface, [record("r", { tipo: "outro" })], noFallback);
 		expect(plans).toHaveLength(0);
+	});
+});
+
+describe("planRecordFiles — records → writable note files (pure)", () => {
+	it("places a routed record in its organize plan's destination + fileName", () => {
+		const rec = record("record:req-rn1", { title: "Regra Um", tipo: "regra-de-negocio" });
+		const files = planRecordFiles([rec], {
+			plans: [
+				{ recordId: "record:req-rn1", destination: "1-Projetos/EFD", fileName: "RN-1.md", path: "x", ruleId: "route" },
+			],
+		});
+		expect(files).toHaveLength(1);
+		expect(files[0]?.destination).toBe("1-Projetos/EFD");
+		expect(files[0]?.fileName).toBe("RN-1.md");
+		expect(files[0]?.relativePath).toBe("1-Projetos/EFD/RN-1.md");
+		// The text is frontmatter + body (the note render).
+		expect(files[0]?.text).toContain("title: Regra Um");
+	});
+
+	it("materializes an unrouted record at the root with a slugified name", () => {
+		const files = planRecordFiles([record("r1", { title: "Título com Acentuação!" })]);
+		expect(files[0]?.destination).toBe("");
+		expect(files[0]?.fileName).toBe("titulo-com-acentuacao.md");
+		expect(files[0]?.relativePath).toBe("titulo-com-acentuacao.md");
+	});
+
+	it("honors a fileNameFor override (e.g. the ALM external key)", () => {
+		const rec = record("r1", { title: "x", externalKey: "RN-632504" });
+		const files = planRecordFiles([rec], {
+			fileNameFor: (r) => `${String(r.fields.externalKey)}.md`,
+		});
+		expect(files[0]?.fileName).toBe("RN-632504.md");
 	});
 });

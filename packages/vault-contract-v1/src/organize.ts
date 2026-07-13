@@ -105,3 +105,64 @@ export async function organizeRecords(
 	}
 	return plans;
 }
+
+/** A writable note file: where it goes + what it contains, keyed back to its record. PURE data —
+ * a filesystem writer (or an OPFS/store writer) consumes these; the planner never touches I/O. */
+export interface RecordFilePlan {
+	/** The record this file materializes. */
+	recordId: string;
+	/** The destination folder (the organize plan's PARA area), relative to the vault root. Empty
+	 * string = the vault root (an unrouted record). */
+	destination: string;
+	/** The file name (with extension). */
+	fileName: string;
+	/** The relative path `destination/fileName` — the write target under the vault root. */
+	relativePath: string;
+	/** The full note content: YAML frontmatter (from the record's fields) + body. */
+	text: string;
+}
+
+/** Slugify a title/id into a safe file-name stem (lowercase, ascii-ish, dash-separated). */
+function slugify(value: string): string {
+	return (
+		value
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "")
+			.slice(0, 80) || "note"
+	);
+}
+
+export interface PlanRecordFilesOptions {
+	/** Organize plans (from `organizeRecords`) that give a record its destination folder + file
+	 * name. A record with no matching plan is materialized at the root with a slugified name. */
+	plans?: readonly RecordOrganizePlan[];
+	/** Override the file name for a record (else the plan's fileName, else `<slug>.md`). */
+	fileNameFor?: (record: KnowledgeRecord) => string;
+}
+
+/**
+ * Plan the note FILES for a set of records — the pure step before materializing a vault to disk.
+ * Each record becomes a `RecordFilePlan` (destination + fileName + relativePath + rendered text),
+ * using its organize plan for placement when one exists. No I/O: a filesystem writer (or any
+ * store) consumes these, so the planner is testable and substrate-pure. This is the reusable
+ * half of "records → Obsidian notes on disk"; the consumer supplies the writer + idempotency.
+ */
+export function planRecordFiles(
+	records: readonly KnowledgeRecord[],
+	options: PlanRecordFilesOptions = {},
+): RecordFilePlan[] {
+	const planByRecord = new Map((options.plans ?? []).map((p) => [p.recordId, p]));
+	return records.map((record) => {
+		const note = recordToVaultNote(record);
+		const plan = planByRecord.get(record.id);
+		const destination = plan?.destination ?? "";
+		const titleForName =
+			typeof record.fields?.title === "string" ? (record.fields.title as string) : record.id;
+		const fileName = options.fileNameFor?.(record) ?? plan?.fileName ?? `${slugify(titleForName)}.md`;
+		const relativePath = destination ? `${destination}/${fileName}` : fileName;
+		return { recordId: record.id, destination, fileName, relativePath, text: note.text };
+	});
+}
