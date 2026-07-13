@@ -1,0 +1,14 @@
+export { canonicalJson } from "./canonical.js";
+export { runAuthorizationV1Conformance } from "./conformance.js";
+export {
+	createDeterministicSigner,
+	createInMemoryAuthorizationProviderFixture,
+	type InMemoryAuthorizationProviderFixture,
+} from "./in-memory.js";
+export {
+	ReferenceAuthorizationProvider,
+	createReferenceAuthorizationProvider,
+	type AuthorizationSigner,
+	type ReferenceAuthorizationProviderOptions,
+} from "./reference.js";
+export * from "./types.js";
