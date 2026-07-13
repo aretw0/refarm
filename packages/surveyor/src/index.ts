@@ -4,6 +4,12 @@ export {
 	type RenderGraphSvgOptions,
 } from "./svg.js";
 export {
+	interactiveStyles,
+	mountGraph,
+	type GraphHandle,
+	type MountGraphOptions,
+} from "./interactive.js";
+export {
 	extractWikilinks,
 	graphFromRecords,
 	type GraphFromRecordsOptions,

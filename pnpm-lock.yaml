@@ -2110,6 +2110,9 @@ importers:
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
+      jsdom:
+        specifier: ^29.0.2
+        version: 29.1.1(@noble/hashes@2.0.1)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

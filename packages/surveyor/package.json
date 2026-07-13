@@ -32,6 +32,7 @@
 		"@refarm.dev/tsconfig": "workspace:*",
 		"typescript": "catalog:",
 		"@refarm.dev/vtconfig": "workspace:*",
-		"@refarm.dev/eslint-config": "workspace:*"
+		"@refarm.dev/eslint-config": "workspace:*",
+		"jsdom": "^29.0.2"
 	}
 }
