@@ -543,16 +543,22 @@ export function renderRequirementsMocHtml(env: RecordsAnalyzeEnvelope): string {
  * generic Surveyor: each record becomes a GraphRecord (its externalKey is the label + a wikilink
  * alias), and the records' OSLC relations become the graph edges. The layout + SVG are the
  * substrate's; this only supplies the domain data. Deterministic → a stable graph per corpus. */
-export function renderRequirementsGraphSvg(env: RecordsAnalyzeEnvelope): string {
+/** Build the requirement graph DATA from the analyze envelope: the `{nodes,links}` plus a
+ * label-by-id map. Shared by the static SVG render and the interactive web face (which mounts
+ * the same graph client-side). Each record → a GraphRecord; wikilinks + OSLC relations → edges. */
+export function buildRequirementsGraph(env: RecordsAnalyzeEnvelope): {
+	graph: ReturnType<typeof graphFromRecords>;
+	labels: Record<string, string>;
+} {
 	const records: GraphRecord[] = [];
 	const extraLinks: Array<{ source: string; target: string }> = [];
-	const labelById = new Map<string, string>();
+	const labels: Record<string, string> = {};
 	for (const group of env.groups) {
 		for (const record of group.records) {
 			const externalKey =
 				typeof record.fields?.externalKey === "string" ? (record.fields.externalKey as string) : undefined;
 			const body = typeof record.fields?.body === "string" ? (record.fields.body as string) : "";
-			labelById.set(record.id, externalKey ?? record.title);
+			labels[record.id] = externalKey ?? record.title;
 			records.push({
 				id: record.id,
 				title: record.title,
@@ -565,9 +571,13 @@ export function renderRequirementsGraphSvg(env: RecordsAnalyzeEnvelope): string 
 			}
 		}
 	}
-	const graph = graphFromRecords(records, { extraLinks });
+	return { graph: graphFromRecords(records, { extraLinks }), labels };
+}
+
+export function renderRequirementsGraphSvg(env: RecordsAnalyzeEnvelope): string {
+	const { graph, labels } = buildRequirementsGraph(env);
 	return graphToSvg(graph, {
-		labelFor: (id) => labelById.get(id) ?? id,
+		labelFor: (id) => labels[id] ?? id,
 		hrefFor: (id) => `#${id}`,
 		title: `Rede de Requisitos (${env.summary.total})`,
 	});
@@ -1115,10 +1125,17 @@ export function createRequirementsGraphCapability(recordsDeps: RecordsCommandDep
 			tui: { section: "requirements" },
 			web: { route: "/requirements/graph", icon: "requirements" },
 		},
-		project: (analyzed) => ({
-			total: analyzed.summary.total,
-			svg: renderRequirementsGraphSvg(analyzed),
-		}),
+		project: (analyzed) => {
+			const { graph, labels } = buildRequirementsGraph(analyzed);
+			return {
+				total: analyzed.summary.total,
+				svg: renderRequirementsGraphSvg(analyzed),
+				// The raw graph + labels, so the WEB face mounts the SAME graph interactively
+				// (pan/zoom/drag) client-side via the substrate's mountGraph — no re-derivation.
+				graph,
+				labels,
+			};
+		},
 	});
 }
 

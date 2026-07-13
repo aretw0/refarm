@@ -196,6 +196,30 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(after.moc as string).toContain("Identificador do CNPJ da Escrituração");
 	});
 
+	it("`requirements-graph` projects the graph DATA (for the interactive web face) + an SVG", async () => {
+		// Pull records, then run the graph verb — it must expose the raw {nodes,links} + labels the
+		// web face mounts interactively (mountGraph), not only the static SVG string.
+		const statePath = tempStatePath();
+		const pull = buildRegistry({ statePath }).get("requirements-pull");
+		if (!pull || "actions" in pull) throw new Error("requirements-pull verb not mounted");
+		await pull.run({ args: { ref: REQ_SYSTEM_REF }, options: {}, json: true });
+
+		const graphVerb = buildRegistry({ statePath }).get("requirements-graph");
+		if (!graphVerb || "actions" in graphVerb) throw new Error("requirements-graph verb not mounted");
+		const res = (await graphVerb.run({ args: {}, options: {}, json: true })) as unknown as {
+			total: number;
+			svg: string;
+			graph: { nodes: Array<{ id: string }>; links: unknown[] };
+			labels: Record<string, string>;
+		};
+		expect(res.total).toBe(3);
+		// The static SVG face.
+		expect(res.svg).toContain("<svg");
+		// The DATA face: {nodes,links} + labels the client mounts interactively.
+		expect(res.graph.nodes).toHaveLength(3);
+		expect(Object.values(res.labels)).toContain("RN-632504");
+	});
+
 	it("LOGIN-GARANTIDO: pull runs the login when the ledger has no valid session", async () => {
 		// The analyst points at a system with no cached session → the injected driver signs
 		// in before scraping. Here we prove the gate FIRES: a temp ledger with a session-less

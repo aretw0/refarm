@@ -1,0 +1,24 @@
+---
+import { Layout } from "@refarm.dev/homestead/ui";
+---
+
+<Layout title="Rede de Requisitos — Grafo">
+  <main class="refarm-stack" style="height: 100vh; display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem;">
+    <header class="refarm-stack">
+      <p class="refarm-eyebrow">Bancada de Requisitos</p>
+      <h1>Rede de Requisitos</h1>
+      <p id="graph-caption" class="refarm-muted">Carregando o grafo…</p>
+    </header>
+    <div id="graph-mount" style="flex: 1; min-height: 0; border: 1px solid var(--refarm-hairline, #ccc); border-radius: 8px; overflow: hidden;">
+      <div id="loading-overlay" class="refarm-loading-state">
+        <div class="refarm-spinner" aria-hidden="true"></div>
+        <p>Montando o grafo…</p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import { bootRequirementsGraph } from "../web/graph-boot";
+  bootRequirementsGraph();
+</script>
