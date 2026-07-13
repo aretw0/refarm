@@ -49,18 +49,31 @@ O Surveyor tem **dois eixos complementares**. Só um está implementado hoje:
 
 | Eixo | Estado | O quê |
 | --- | --- | --- |
-| **Visualização** (headless) | ✅ **Implementado** (veja acima) | layout force-directed + adapter `records → {nodes,links}` + render SVG/DOM. TS puro, sem WASM. Alimenta qualquer face 2D. |
-| **Travessia soberana** (WIT/WASM) | 🔮 **Fase futura** (spec abaixo) | plugin WASM que lê nós JSON-LD do SQLite via `tractor` e resolve conexões (`get-stats`/`query-by-type`/`get-connections`). |
+| **Visualização** (headless) | ✅ **Implementado** | layout force-directed + adapter `records → {nodes,links}` + render SVG/DOM. TS puro. Alimenta qualquer face 2D. |
+| **Travessia soberana** (do store) | ✅ **Implementado** (`traverseGraph`) | lê nós do store real (uma NodeView/ledger) por `@type`, resolve conexões e produz `{nodes,links}` + stats — o `get-stats`/`query-by-type`/`get-connections` em TS, sobre a fonte da verdade. |
+| **Empacotamento WIT/WASM** | 🔮 **Fase futura** (spec abaixo) | o MESMO mapper acima, exposto como plugin WASM soberano (`world surveyor`, `import tractor-bridge`) para consumo cross-plugin. |
 
-Os dois são independentes: a camada de visualização consome **qualquer** `{nodes,links}` (de
-records em memória, como faz o exemplo T3 hoje), e **não depende** do plugin WIT. O eixo WIT
-passa a valer quando o grafo precisar vir de **múltiplos plugins soberanos** consultando o store
-compartilhado — será implementado quando um trabalho concreto pedir essa travessia (a spec abaixo
-é o alvo, não código atual).
+Os três compõem: `traverseGraph` (store → `{nodes,links}`) alimenta a visualização (→ SVG/DOM),
+e ambos são TS puro hoje. O eixo WIT/WASM é só o **empacotamento** do mapper como plugin soberano —
+a lógica de travessia já existe e é testada e2e contra uma `NodeView` real
+(`src/traverse.integration.test.ts`).
 
-## Especificações Iniciais (SDD) — 🔮 fase futura (travessia soberana, ainda não implementada)
+### `traverseGraph` — travessia do store (implementado)
 
-### WIT Interface (`refarm-surveyor.wit`) — planejado, não existe ainda
+```ts
+import { traverseGraph, graphToSvg } from "@refarm.dev/surveyor";
+
+// Qualquer NodeView (ou store estrutural) → grafo + stats, lendo a fonte da verdade.
+const graph = await traverseGraph(nodeView, {
+  types: "Requirement",
+  resolveConnections: (node) => (node.related as string[]) ?? [],
+});
+const svg = graphToSvg(graph, { labelFor: (id) => graph.byId.get(id)?.title as string });
+```
+
+## Especificações Iniciais (SDD) — 🔮 fase futura (empacotamento WIT/WASM)
+
+### WIT Interface (`refarm-surveyor.wit`) — o mapper acima como plugin WASM (planejado)
 
 ```wit
 package plugin:surveyor@0.1.0;
@@ -97,18 +110,20 @@ world surveyor {
 
 ## Roadmap
 
-### ✅ Feito — camada de visualização (headless)
+### ✅ Feito — visualização + travessia (TS)
 
 - [x] Layout force-directed puro (`layoutGraph` / `computeForces` / `seedLayout`), determinístico.
 - [x] Adapter `graphFromRecords` (records → `{nodes,links}`, arestas de wikilinks + relações).
 - [x] Render SVG estático (`graphToSvg`) e DOM interativo (`mountGraph`: pan/zoom/drag/hover/click).
+- [x] Travessia do store: `traverseGraph` / `getConnections` (`get-stats`/`query-by-type`/
+      `get-connections`) — lê uma `NodeView` real; e2e em `src/traverse.integration.test.ts`.
 
-### 🔮 Futuro — travessia soberana (WIT/WASM), quando um trabalho pedir
+### 🔮 Futuro — empacotamento WIT/WASM do mapper
 
 - [ ] Spec: Definição completa do WIT e Esquema de Consulta.
-- [ ] BDD: Testes de integração para travessia de grafo no Studio.
-- [ ] TDD: Implementação da lógica de mapeamento em TypeScript/WASM.
-- [ ] DDD: Integração com o Tractor para consultas diretas ao SQLite.
+- [ ] DDD: Empacotar `traverseGraph` como plugin WASM soberano (`world surveyor` + tractor-bridge).
+- [ ] DDD: Integração com o Tractor para consultas diretas ao SQLite (hoje a travessia usa a
+      NodeView; a variante WASM lê o SQLite via tractor).
 
 ## Licença
 

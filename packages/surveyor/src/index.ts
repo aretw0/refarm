@@ -16,6 +16,16 @@ export {
 	type GraphRecord,
 } from "./adapter.js";
 export {
+	getConnections,
+	traverseGraph,
+	type GraphStats,
+	type NodeSource,
+	type ResolveConnections,
+	type SovereignNode,
+	type TraversedGraph,
+	type TraverseOptions,
+} from "./traverse.js";
+export {
 	LAYOUT_DEFAULTS,
 	VIEWBOX_SIZE,
 	computeForces,
