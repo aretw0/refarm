@@ -114,6 +114,33 @@ mod tests {
         assert_eq!(finished_payload("a", "L", "k", false)["ok"], false);
     }
 
+    /// The SHARED golden fixture pins the Rust encoders against the TS encoder (activity.ts):
+    /// both load `capabilities/fixtures/process-activity.json` and must reproduce each case's
+    /// payload byte-for-byte. This replaces the old hand-transcribed field asserts, so the two
+    /// independent encoders of the process:* wire shape can no longer drift apart silently.
+    #[test]
+    fn payloads_match_the_shared_cross_language_fixture() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../capabilities/fixtures/process-activity.json"
+        ))
+        .expect("valid process-activity fixture");
+        for event in fixture["events"].as_array().expect("events array") {
+            let case = event["case"].as_str().expect("case");
+            let want = &event["payload"];
+            let got = match case {
+                "started" => started_payload("a-1", "Agent responding", "agent"),
+                "progress-minimal" => progress_payload("a-1", "Agent responding", "agent", None, None),
+                "progress-full" => {
+                    progress_payload("a-1", "Agent responding", "agent", Some("step 2"), Some(0.5))
+                }
+                "finished-ok" => finished_payload("a-1", "Agent responding", "agent", true),
+                "finished-failed" => finished_payload("a-1", "Agent responding", "agent", false),
+                other => panic!("unknown fixture case: {other}"),
+            };
+            assert_eq!(&got, want, "process-activity fixture case `{case}` drifted");
+        }
+    }
+
     #[tokio::test]
     async fn shaped_payloads_reach_a_bus_subscriber() {
         // The dispatch site publishes these shaped payloads over the bus (and the file);

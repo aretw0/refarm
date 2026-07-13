@@ -1,0 +1,55 @@
+{
+	"_comment": "Golden cross-language fixture for the process:* activity wire shape (ProcessActivity). Loaded by BOTH the TS encoder test (packages/capabilities/src/activity.test.ts) and the Rust encoder test (packages/tractor/src/telemetry/process_activity.rs) so the two independent encoders are pinned to move together — the same remedy applied to the pressure/telemetry snapshot. Each `event` is a phase's canonical payload; a producer's payload for that phase MUST deep-equal it (given the same inputs).",
+	"schemaVersion": 1,
+	"events": [
+		{
+			"case": "started",
+			"payload": {
+				"activityRef": "a-1",
+				"phase": "started",
+				"label": "Agent responding",
+				"kind": "agent"
+			}
+		},
+		{
+			"case": "progress-minimal",
+			"payload": {
+				"activityRef": "a-1",
+				"phase": "progress",
+				"label": "Agent responding",
+				"kind": "agent"
+			}
+		},
+		{
+			"case": "progress-full",
+			"payload": {
+				"activityRef": "a-1",
+				"phase": "progress",
+				"label": "Agent responding",
+				"kind": "agent",
+				"note": "step 2",
+				"fraction": 0.5
+			}
+		},
+		{
+			"case": "finished-ok",
+			"payload": {
+				"activityRef": "a-1",
+				"phase": "finished",
+				"label": "Agent responding",
+				"kind": "agent",
+				"ok": true
+			}
+		},
+		{
+			"case": "finished-failed",
+			"payload": {
+				"activityRef": "a-1",
+				"phase": "finished",
+				"label": "Agent responding",
+				"kind": "agent",
+				"ok": false
+			}
+		}
+	]
+}
