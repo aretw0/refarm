@@ -12,6 +12,15 @@ export {
 	type WithReauthOptions,
 } from "./fetch.js";
 export {
+	crawlSource,
+	type CrawlLink,
+	type CrawlLinkExtractor,
+	type CrawlOptions,
+	type CrawlResult,
+	type CrawlSeed,
+	type CrawledPage,
+} from "./crawl.js";
+export {
 	loadWebSourceTargets,
 	loadWebSourceTargetsSync,
 	parseWebSourceTargetsConfig,
