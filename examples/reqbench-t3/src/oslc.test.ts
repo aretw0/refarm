@@ -79,8 +79,9 @@ describe("parseRequirementsFromRdf", () => {
 		expect(rn?.id).toBe("record:req-rn632504");
 		expect(rn?.fields.tipo).toBe("regra-de-negocio");
 		expect(rn?.fields.title).toBe("Identificador do CNPJ da Escrituração");
-		// primaryText HTML is flattened to plain text (mentions CNPJ → enrichment can tag it).
-		expect(rn?.fields.body).toContain("CNPJ");
+		// primaryText XHTML is rendered to Markdown — structure preserved (the <b> becomes
+		// **CNPJ**, not a stripped tag), and enrichment still tags the CNPJ mention.
+		expect(rn?.fields.body).toBe("O **CNPJ** identifica a escrituração.");
 		expect(rn?.fields.body).not.toContain("<b>");
 		// the Jazz artifact URI is preserved on the record.
 		expect(rn?.fields.artifactUri).toBe("https://alm.example/rm/resources/TX_10");

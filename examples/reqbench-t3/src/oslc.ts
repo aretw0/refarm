@@ -1,6 +1,6 @@
 import type { SourceRecordParser } from "@refarm.dev/capability-host/node";
 import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
-import { HttpFetchError, type WebFetchDriver } from "@refarm.dev/source-web";
+import { HttpFetchError, htmlToMarkdown, type WebFetchDriver } from "@refarm.dev/source-web";
 import { createHash } from "node:crypto";
 
 /**
@@ -68,14 +68,13 @@ function tipoFromRdf(block: string): string {
 	return "unspecified";
 }
 
-/** Strip tags from a jazz_rm:primaryText HTML blob into plain text (the requirement body). */
+/** Render a jazz_rm:primaryText XHTML blob into Markdown — an ALM primaryText carries the
+ * requirement's rich body (tables of acceptance criteria, links to related requirements), so
+ * the substrate's htmlToMarkdown preserves that structure instead of the old flat tag-strip. */
 function textFromPrimary(block: string): string {
 	const primary = firstMatch(/jazz_rm:primaryText[^>]*>([\s\S]*?)<\/jazz_rm:primaryText>/, block);
 	if (!primary) return "";
-	return primary
-		.replace(/<[^>]+>/g, " ")
-		.replace(/\s+/g, " ")
-		.trim();
+	return htmlToMarkdown(primary);
 }
 
 /**
