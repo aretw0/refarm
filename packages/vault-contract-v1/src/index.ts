@@ -15,6 +15,7 @@ export { createInMemoryVaultSurface, type InMemoryVaultSurfaceOptions } from "./
 export {
 	organizeRecords,
 	recordToVaultNote,
+	type OrganizeDispatcher,
 	type RecordOrganizePlan,
 } from "./organize.js";
 export {

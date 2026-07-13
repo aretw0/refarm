@@ -1,7 +1,36 @@
 import type { KnowledgeRecord } from "@refarm.dev/records-contract-v1";
 
 import { profileForVerb } from "./profile.js";
-import type { VaultNote, VaultOrganizePlan, VaultProfile, VaultSurface } from "./types.js";
+import type { VaultNote, VaultOrganizePlan, VaultProfile } from "./types.js";
+
+/** The minimal ORGANIZE plan `organizeRecords` reads — the concrete fields, no index
+ * signature, so a `VaultOrganizePlan` AND a WASM component's `SurfaceOrganizePlan` (which
+ * lacks the `[key: string]` catch-all) both satisfy it. */
+interface DispatchOrganizePlan {
+	path: string;
+	ruleId: string;
+	destination: string;
+	fileName: string;
+}
+
+/** The minimal dispatch result `organizeRecords` reads: only the `plans`. Structural so a
+ * full `VaultResult` AND a loaded WASM component's result (whose `verb` is a bare string)
+ * both satisfy it — no cast at the call site. */
+interface OrganizeDispatchResult {
+	plans: DispatchOrganizePlan[];
+}
+
+/** The minimal surface `organizeRecords` needs: dispatch a verb and get back something with
+ * `plans`. `verb` is a bare string (the four verb names) so a VaultSurface AND a WASM
+ * component surface (which types verb as string) both satisfy it — the caller passes either
+ * with no wrapper and no cast. */
+export interface OrganizeDispatcher {
+	run(
+		verb: string,
+		note: VaultNote,
+		profile: VaultProfile,
+	): OrganizeDispatchResult | Promise<OrganizeDispatchResult>;
+}
 
 /**
  * DX helpers for the common "organize a set of records into PARA destinations" flow, so a
@@ -58,7 +87,7 @@ export interface RecordOrganizePlan extends VaultOrganizePlan {
  * call. That is the DX point: one await, any surface.
  */
 export async function organizeRecords(
-	surface: VaultSurface,
+	surface: OrganizeDispatcher,
 	records: readonly KnowledgeRecord[],
 	profile: VaultProfile,
 ): Promise<RecordOrganizePlan[]> {
