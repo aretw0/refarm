@@ -12,6 +12,7 @@
 //!   GET    /nodes/:id                  — graph node by id
 //!   GET    /plugins                    — installed/loaded plugin state
 //!   POST   /plugins/reload             — report reload readiness for loaded plugins
+//!   GET    /stream/activity            — live SSE of process:* / agent:* activity
 //!
 //! Effort execution is async: each effort is dispatched in a separate tokio
 //! task. Results and stream chunks are written to the filesystem so that
@@ -641,6 +642,7 @@ pub async fn post_plugin_respond(
 
 mod agent_activity;
 pub(crate) use agent_activity::agent_event_to_activity;
+mod activity_sse;
 mod cors;
 mod dispatch;
 pub(crate) use dispatch::*;
@@ -1498,6 +1500,7 @@ pub async fn start(state: SidecarState, host: String, port: u16) -> anyhow::Resu
         .route("/plugins/load-by-hash", post(post_plugins_load_by_hash))
         .route("/plugins/:id/respond", post(post_plugin_respond))
         .route("/providers/liveness", get(get_provider_liveness))
+        .route("/stream/activity", get(activity_sse::get_stream_activity))
         .with_state(state);
 
     // ADR-088: layer OPT-IN CORS only when REFARM_SIDECAR_CORS_ORIGINS is set. The
