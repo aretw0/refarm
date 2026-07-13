@@ -33,7 +33,11 @@ import { createReferenceVaultSurfaceComponent } from "@refarm.dev/vault-surface-
 import { graphFromRecords, graphToSvg, type GraphRecord } from "@refarm.dev/surveyor";
 import {
 	buildLabManifest,
+	exportHashes,
+	runNotebookExports,
 	type LabCatalog,
+	type NotebookExportResult,
+	type ProcessExecutor,
 } from "@refarm.dev/lab-contract-v1";
 import {
 	checkNotes,
@@ -1177,6 +1181,14 @@ export interface RequirementsLabOptions {
 	now?: () => string;
 	/** Fingerprint the dataset payload (default sha256 via node:crypto, injected so pure in tests). */
 	hashData?: (json: string) => string;
+	/** Execute a command (the marimo export). Injected by the CLI (a uvx spawn). When present AND
+	 * `--export` is passed, the notebooks are exported to HTML+WASM for real and the manifest
+	 * fingerprints the produced files. Absent → the verb only PLANS the export (records the command). */
+	executor?: ProcessExecutor;
+	/** Fingerprint a produced notebook HTML file (injected — reads the file, returns its sha256). */
+	hashOutput?: (outputPath: string) => Promise<{ algorithm: "sha256"; value: string }>;
+	/** The dir exports run from / write under (the CLI resolves it beside the state file). */
+	labCwd?: string;
 }
 
 /**
@@ -1202,8 +1214,11 @@ export function createRequirementsLabCapability(
 		records: recordsDeps,
 		httpPath: "/requirements/lab",
 		groupBy: "field:tipo",
+		options: [
+			{ name: "export", kind: "boolean", summary: "Actually run the Marimo→WASM export (needs uvx/marimo)" },
+		],
 		renderers: { tui: { section: "requirements" } },
-		project: (analyzed) => {
+		project: async (analyzed, input) => {
 			const { graph, labels } = buildRequirementsGraph(analyzed);
 			const dataset = {
 				schemaVersion: 1,
@@ -1215,20 +1230,34 @@ export function createRequirementsLabCapability(
 			};
 			const datasetJson = JSON.stringify(dataset, null, 2);
 			const datasetHash = hashData(datasetJson);
-			// Side effect: persist the snapshot the notebook reads (best-effort; fire-and-forget so
-			// project stays sync — the fingerprint above already made the manifest deterministic).
-			void options.writeDataset?.(".dgk/lab/grafo-de-requisitos.json", datasetJson);
+			// Persist the snapshot the notebook reads (before an export, so the notebook can load it).
+			await options.writeDataset?.(".dgk/lab/grafo-de-requisitos.json", datasetJson);
+
+			// --export: actually produce the HTML+WASM (when a runner is wired), fingerprinting each.
+			const wantExport = input.options?.export === true;
+			let exportResults: NotebookExportResult[] = [];
+			let notebookHashes: Record<string, { algorithm: "sha256"; value: string }> = {};
+			if (wantExport && options.executor) {
+				exportResults = await runNotebookExports(REQUIREMENTS_LAB_CATALOG.notebooks, {
+					executor: options.executor,
+					...(options.hashOutput ? { hashOutput: options.hashOutput } : {}),
+					...(options.labCwd ? { cwd: options.labCwd } : {}),
+				});
+				notebookHashes = exportHashes(exportResults) as Record<string, { algorithm: "sha256"; value: string }>;
+			}
 
 			const manifest = buildLabManifest(REQUIREMENTS_LAB_CATALOG, {
 				producer: "reqbench",
 				producedAt: now(),
-				hashes: { "grafo-de-requisitos": { algorithm: "sha256", value: datasetHash } },
+				hashes: { "grafo-de-requisitos": { algorithm: "sha256", value: datasetHash }, ...notebookHashes },
 			});
 			return {
 				nodeCount: dataset.nodeCount,
 				linkCount: dataset.linkCount,
+				exported: wantExport,
+				exportResults: exportResults.map((r) => ({ id: r.notebookId, ok: r.ok, output: r.outputPath, error: r.error })),
 				artifacts: manifest.artifacts.map((a) => ({ id: a.id, role: a.role, uri: a.uri })),
-				// The export commands the runner would execute (Marimo→WASM), for the operator.
+				// The export commands (Marimo→WASM), for the operator (or the runner, when not --export).
 				exports: manifest.artifacts
 					.filter((a) => a.role === "report")
 					.map((a) => a.provenance.process?.display),

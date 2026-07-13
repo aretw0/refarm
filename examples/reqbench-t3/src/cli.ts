@@ -9,6 +9,7 @@ import {
 import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
 
 import { normalizeCacheManifest, type CacheManifest } from "@refarm.dev/source-web";
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -66,6 +67,42 @@ function saveCrawlCache(statePath: string, ref: string, manifest: CacheManifest)
  * beside the records manifest. */
 function vaultRoot(statePath: string): string {
 	return process.env.DGK_VAULT_ROOT ?? path.join(path.dirname(statePath), "vault");
+}
+
+/** Where the Lab export runs + writes — DGK_LAB_CWD, else the process cwd (the example dir, where
+ * `lab/*.py` sources live and the `lab/*.html` outputs land). */
+function labExportCwd(): string {
+	return process.env.DGK_LAB_CWD ?? process.cwd();
+}
+
+/** The Marimo export executor: `uvx --from marimo marimo export html-wasm …`. uv resolves marimo
+ * on demand (no global install). DGK_MARIMO_CMD overrides the whole launcher (space-separated). */
+function makeMarimoExecutor(): (
+	command: string,
+	args: readonly string[],
+	options?: { cwd?: string },
+) => Promise<{ code: number; stdout?: string; stderr?: string }> {
+	return async (command, args, opts) => {
+		const { spawn } = await import("node:child_process");
+		const override = process.env.DGK_MARIMO_CMD?.trim();
+		const [exe, ...prefix] = override ? override.split(/\s+/) : ["uvx", "--from", "marimo", command];
+		const finalArgs = [...prefix, ...args];
+		return await new Promise((resolve) => {
+			const child = spawn(exe!, finalArgs, { cwd: opts?.cwd, stdio: ["ignore", "pipe", "pipe"] });
+			let stdout = "";
+			let stderr = "";
+			child.stdout?.on("data", (d) => (stdout += String(d)));
+			child.stderr?.on("data", (d) => (stderr += String(d)));
+			child.on("error", (err) => resolve({ code: -1, stderr: err.message }));
+			child.on("close", (code) => resolve({ code: code ?? -1, stdout, stderr }));
+		});
+	};
+}
+
+/** Fingerprint a produced notebook HTML (sha256), resolved under the lab cwd. */
+async function hashLabOutput(cwd: string, relativePath: string): Promise<{ algorithm: "sha256"; value: string }> {
+	const file = path.join(cwd, relativePath);
+	return { algorithm: "sha256", value: createHash("sha256").update(readFileSync(file)).digest("hex") };
 }
 
 /** Drop the volatile `alm_last_sync_at` line so two notes that differ ONLY in their sync
@@ -161,6 +198,12 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 							mkdirSync(path.dirname(file), { recursive: true });
 							writeFileSync(file, json, "utf8");
 						},
+						// The REAL export runner: `uvx --from marimo marimo …` (uv resolves marimo on
+						// demand; no global install). Runs from the example dir so `lab/*.py` resolve.
+						// DGK_MARIMO_CMD overrides the launcher (a pinned wrapper, a container exec).
+						labCwd: labExportCwd(),
+						executor: makeMarimoExecutor(),
+						hashOutput: (rel) => hashLabOutput(labExportCwd(), rel),
 					}),
 					// Route pulled requirements to their PARA areas (taxonomy-as-data via vault:v1).
 					// The bundle injects the (sovereign) vault surface — the verb never picks one.
