@@ -104,6 +104,10 @@ pub(crate) struct TaskArgs {
     pub(crate) history_turns: Option<u64>,
     pub(crate) provider: Option<String>,
     pub(crate) model: Option<String>,
+    /// ADR-012 routing profile (cheap|balanced|reliable). Passed through verbatim to
+    /// the responder's payload so the guest resolves the route by profile. The host
+    /// does not interpret it — it is a neutral field forwarded like provider/model.
+    pub(crate) profile: Option<String>,
 }
 
 /// Describes the terminal RESULT node a dispatch awaits, so the watcher is
@@ -180,6 +184,12 @@ pub(crate) fn extract_task_args(task: &EffortTask) -> Result<TaskArgs, String> {
             .map(|s| s.to_string()),
         model: args
             .get("model")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string()),
+        profile: args
+            .get("profile")
             .and_then(|v| v.as_str())
             .map(str::trim)
             .filter(|s| !s.is_empty())
@@ -379,6 +389,9 @@ pub(crate) fn dispatch_effort(state: SidecarState, effort: Effort) {
         }
         if let Some(model) = args.model {
             payload_obj["model"] = Value::String(model);
+        }
+        if let Some(profile) = args.profile {
+            payload_obj["profile"] = Value::String(profile);
         }
         let payload = payload_obj.to_string();
 

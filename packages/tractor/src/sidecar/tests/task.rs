@@ -22,6 +22,26 @@ fn sidecar_extract_task_args_accepts_prompt() {
     assert_eq!(args.history_turns, Some(4));
     assert_eq!(args.provider.as_deref(), Some("openai-codex"));
     assert_eq!(args.model.as_deref(), Some("gpt-5.3-codex-spark"));
+    assert!(args.profile.is_none(), "profile absent when not supplied");
+}
+
+#[test]
+fn sidecar_extract_task_args_passes_through_routing_profile() {
+    // ADR-012: the host forwards a routing profile verbatim to the responder — it is a
+    // neutral field, not host-interpreted, so the guest can resolve the route by intent.
+    let args = extract_task_args(&test_task(serde_json::json!({
+        "prompt": "ping",
+        "profile": "  cheap  "
+    })))
+    .expect("prompt+profile args must parse");
+    assert_eq!(args.profile.as_deref(), Some("cheap"));
+    // A blank profile is treated as absent (same rule as provider/model).
+    let blank = extract_task_args(&test_task(serde_json::json!({
+        "prompt": "ping",
+        "profile": "   "
+    })))
+    .expect("blank profile still parses");
+    assert!(blank.profile.is_none());
 }
 
 #[test]
