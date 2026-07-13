@@ -4,8 +4,10 @@ export {
 	type WebSourceProviderOptions,
 } from "./provider.js";
 export {
+	ConnectivityError,
 	HttpFetchError,
 	createHttpFetchDriver,
+	isConnectivityError,
 	isRecoverableAuthStatus,
 	withReauth,
 	type Reauthenticate,

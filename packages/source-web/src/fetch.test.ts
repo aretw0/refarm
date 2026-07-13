@@ -4,9 +4,11 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+	ConnectivityError,
 	HttpFetchError,
 	createHttpFetchDriver,
 	createWebSourceProvider,
+	isConnectivityError,
 	isRecoverableAuthStatus,
 	withReauth,
 	type WebFetchDriver,
@@ -249,5 +251,65 @@ describe("withReauth — recover from a session expiring mid-pull", () => {
 		await expect(wrapped(req)).rejects.toMatchObject({ status: 403 });
 		expect(inner).toHaveBeenCalledOnce();
 		expect(reauth).not.toHaveBeenCalled();
+	});
+
+	it("does NOT re-auth a connectivity loss (VPN down) — re-login can't reach the server", async () => {
+		const inner = vi.fn<WebFetchDriver>(async (r) => {
+			throw new ConnectivityError(r.url);
+		});
+		const reauth = vi.fn(async () => req.session);
+		const wrapped = withReauth(inner, { reauth });
+
+		await expect(wrapped(req)).rejects.toBeInstanceOf(ConnectivityError);
+		expect(inner).toHaveBeenCalledOnce();
+		expect(reauth).not.toHaveBeenCalled();
+	});
+});
+
+describe("isConnectivityError — VPN/network loss vs application error", () => {
+	it("is true for a ConnectivityError", () => {
+		expect(isConnectivityError(new ConnectivityError("https://alm/x"))).toBe(true);
+	});
+
+	it("is false for an HttpFetchError (the server answered)", () => {
+		expect(isConnectivityError(new HttpFetchError(401, "https://alm/x"))).toBe(false);
+		expect(isConnectivityError(new HttpFetchError(500, "https://alm/x"))).toBe(false);
+	});
+
+	it("recognizes a raw fetch() network failure and its errno cause", () => {
+		const fetchFailed = new TypeError("fetch failed");
+		(fetchFailed as { cause?: unknown }).cause = Object.assign(new Error("getaddrinfo EAI_AGAIN alm"), {
+			code: "EAI_AGAIN",
+		});
+		expect(isConnectivityError(fetchFailed)).toBe(true);
+		expect(isConnectivityError(new Error("connect ECONNREFUSED 10.0.0.5:443"))).toBe(true);
+		expect(isConnectivityError(new Error("socket hang up"))).toBe(true);
+	});
+
+	it("is false for an unrelated application error", () => {
+		expect(isConnectivityError(new Error("bad RDF: unexpected token"))).toBe(false);
+	});
+});
+
+describe("createHttpFetchDriver — connectivity classification", () => {
+	const req = {
+		url: "https://example.invalid/rm/resources/TX_1",
+		session: { kind: "authenticated" as const, authenticated: true },
+	};
+
+	it("wraps a network throw (VPN dropped) into a ConnectivityError carrying the cause", async () => {
+		const cause = Object.assign(new Error("fetch failed"), { code: "ENOTFOUND" });
+		const fetchImpl = vi.fn(async () => {
+			throw cause;
+		});
+		const driver = createHttpFetchDriver({ fetchImpl: fetchImpl as unknown as typeof fetch });
+		await expect(driver(req)).rejects.toBeInstanceOf(ConnectivityError);
+		await expect(driver(req)).rejects.toMatchObject({ url: req.url, cause });
+	});
+
+	it("does NOT reclassify a 401 as connectivity (the server did answer)", async () => {
+		const fetchImpl = vi.fn(async () => new Response("nope", { status: 401 }));
+		const driver = createHttpFetchDriver({ fetchImpl: fetchImpl as unknown as typeof fetch });
+		await expect(driver(req)).rejects.toBeInstanceOf(HttpFetchError);
 	});
 });

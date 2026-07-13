@@ -23,6 +23,62 @@ export function isRecoverableAuthStatus(status: number): boolean {
 	return status === 401 || status === 419;
 }
 
+/**
+ * A CONNECTIVITY failure — the request never reached the server: the VPN dropped, DNS failed,
+ * the connection was refused/reset, or it timed out. Distinct from HttpFetchError (the server
+ * answered, just not with what we wanted): a connectivity loss is NOT re-authenticable — retrying
+ * or re-logging in won't help until the human reconnects. A scraper on a VPN-gated system must
+ * tell the operator "reconnect the VPN" instead of looping re-auth or crashing cryptically.
+ */
+export class ConnectivityError extends Error {
+	readonly url: string;
+	readonly cause?: unknown;
+	constructor(url: string, message?: string, cause?: unknown) {
+		super(message ?? `Connectivity failure fetching ${url} (VPN down? network unreachable?)`);
+		this.name = "ConnectivityError";
+		this.url = url;
+		this.cause = cause;
+	}
+}
+
+/** Substrings/codes that mark a thrown fetch error as a CONNECTIVITY loss (VPN/network) rather
+ * than an application error. `fetch()` surfaces these as a TypeError ("fetch failed") whose
+ * `cause` carries a Node errno; DNS/refused/reset/unreachable/timeout all mean "never reached
+ * the server". Matched case-insensitively against the error + its cause. */
+const CONNECTIVITY_MARKERS = [
+	"fetch failed",
+	"network",
+	"econnrefused",
+	"econnreset",
+	"enotfound",
+	"eai_again", // DNS temporary failure — classic VPN-just-dropped signal
+	"ehostunreach",
+	"enetunreach",
+	"etimedout",
+	"und_err_connect_timeout",
+	"socket hang up",
+];
+
+/** Classify a thrown error as a connectivity loss. True for a ConnectivityError, or a raw
+ * fetch/network error whose message or `cause` matches a connectivity marker. HttpFetchError is
+ * never connectivity (the server answered). PURE. */
+export function isConnectivityError(error: unknown): boolean {
+	if (error instanceof ConnectivityError) return true;
+	if (error instanceof HttpFetchError) return false;
+	const parts: string[] = [];
+	if (error instanceof Error) {
+		parts.push(error.message);
+		const cause = (error as { cause?: unknown }).cause;
+		if (cause instanceof Error) parts.push(cause.message, (cause as { code?: string }).code ?? "");
+		else if (typeof cause === "string") parts.push(cause);
+		parts.push((error as { code?: string }).code ?? "");
+	} else if (typeof error === "string") {
+		parts.push(error);
+	}
+	const haystack = parts.join(" ").toLowerCase();
+	return CONNECTIVITY_MARKERS.some((marker) => haystack.includes(marker));
+}
+
 /** Re-authenticate after a recoverable failure: given the request that failed (its session +
  * url identify what to re-login to), return a FRESH session to retry with. The consumer wires
  * this to their login (the same driver login-garantido uses). */
@@ -74,10 +130,18 @@ export function withReauth(fetcher: WebFetchDriver, options: WithReauthOptions):
 export function createHttpFetchDriver(options: { fetchImpl?: typeof fetch } = {}): WebFetchDriver {
 	const doFetch = options.fetchImpl ?? fetch;
 	return async (request: WebFetchRequest): Promise<WebFetchResult> => {
-		const response = await doFetch(request.url, {
-			method: "GET",
-			headers: request.headers ?? {},
-		});
+		let response: Response;
+		try {
+			response = await doFetch(request.url, {
+				method: "GET",
+				headers: request.headers ?? {},
+			});
+		} catch (error) {
+			// The request never reached the server (VPN dropped, DNS/connection failure) → a
+			// connectivity loss the caller must surface to the operator, not a retryable HTTP error.
+			if (isConnectivityError(error)) throw new ConnectivityError(request.url, undefined, error);
+			throw error;
+		}
 		if (!response.ok) {
 			throw new HttpFetchError(response.status, request.url);
 		}
