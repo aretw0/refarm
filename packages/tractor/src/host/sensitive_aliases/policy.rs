@@ -203,13 +203,18 @@ pub(crate) fn is_forwardable_model_env_value(value: &str) -> bool {
 }
 
 /// A `MODEL_*` key whose value is TEXT CONTENT the model reads, not a credential:
-/// the skill disclosure index (`MODEL_SKILLS`) and the on-demand skill bodies map
-/// (`MODEL_SKILL_BODIES`). Their values legitimately contain whitespace, newlines,
-/// unicode, and are much larger than a token — so they need a text-shaped forward
-/// policy, not the credential-shaped default. This is a CLOSED allowlist (not a
-/// pattern) so it can never accidentally widen to a real secret key.
+/// the skill disclosure index (`MODEL_SKILLS`), the on-demand skill bodies map
+/// (`MODEL_SKILL_BODIES`), and the ADR-012 routing config list of which providers are
+/// configured (`MODEL_CONFIGURED_PROVIDERS` — a space/comma-separated list of provider
+/// NAMES, never the keys themselves). Their values legitimately contain whitespace and
+/// are more than a single token — so they need a text-shaped forward policy, not the
+/// credential-shaped default. This is a CLOSED allowlist (not a pattern) so it can never
+/// accidentally widen to a real secret key.
 pub(crate) fn is_text_content_model_env_key(key: &str) -> bool {
-    matches!(key, "MODEL_SKILLS" | "MODEL_SKILL_BODIES")
+    matches!(
+        key,
+        "MODEL_SKILLS" | "MODEL_SKILL_BODIES" | "MODEL_CONFIGURED_PROVIDERS"
+    )
 }
 
 /// The value policy for a text-content key: much larger cap (a bodies map holds

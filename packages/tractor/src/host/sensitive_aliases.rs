@@ -350,6 +350,26 @@ mod tests {
     }
 
     #[test]
+    fn configured_providers_list_forwards_as_text_content() {
+        // ADR-012: the host tells the guest which providers are configured via a
+        // space/comma-separated list of NAMES (never the keys). The whitespace in the
+        // list would trip the credential-shaped default, so it goes through the
+        // text-content rule — but it's still just provider names, no secret.
+        let list = "anthropic, groq, ollama, openrouter";
+        assert!(
+            is_forwardable_model_env_pair("MODEL_CONFIGURED_PROVIDERS", list),
+            "the configured-providers list must reach the guest so profiles resolve"
+        );
+        // The default (credential) rule would block it because of the spaces.
+        assert!(!is_forwardable_model_env_value(list));
+        // No NUL/C0 smuggling even under the text key.
+        assert!(!is_forwardable_model_env_pair(
+            "MODEL_CONFIGURED_PROVIDERS",
+            "anthropic\0groq"
+        ));
+    }
+
+    #[test]
     fn spawn_sensitive_env_key_helper_matches_expected_cases() {
         let blocked = [
             "AWS_SECRET_ACCESS_KEY",
