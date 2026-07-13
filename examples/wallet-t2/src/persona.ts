@@ -8,7 +8,9 @@ import { createLocalRecordsCapabilityDeps } from "@refarm.dev/capability-host/no
 import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import {
 	createInMemoryAuthorizationProviderFixture,
+	renderAuthorizationList,
 	type AuthorizationProvider,
+	type AuthorizationReceipt,
 } from "@refarm.dev/authorization-contract-v1";
 import {
 	createInMemoryCredentialsProviderFixture,
@@ -162,20 +164,36 @@ function renderWalletCard(
  * not a list of launcher buttons. This is the `content` the web surface projects ABOVE the verb
  * cards (the generic content seam). `nowMs` is injected for a deterministic expiry check. */
 export function renderWalletHtml(env: RecordsAnalyzeEnvelope, nowMs: number = Date.now()): string {
+	// An authorization item renders as a consent card (framework renderer), not a wallet
+	// item card — so pull them out and render the consent list separately below.
+	const isAuthorization = (record: { fields?: Record<string, unknown> }): boolean =>
+		Boolean(record.fields?.authorization);
 	const groups = env.groups
 		.map((group) => {
-			const items = group.records.map((record) => renderWalletCard(record, nowMs)).join("");
+			const items = group.records
+				.filter((record) => !isAuthorization(record))
+				.map((record) => renderWalletCard(record, nowMs))
+				.join("");
+			if (!items) return "";
 			return `<section class="refarm-stack" data-wallet-group="${esc(group.key)}">
 				<p class="refarm-eyebrow">${esc(STATE_LABELS[group.key] ?? group.label)} · ${group.count}</p>
 				${items}
 			</section>`;
 		})
 		.join("");
+	// The citizen's consent history — their authorizations, rendered by the framework's
+	// authorization:v1 renderer (the example only feeds it the receipts it holds).
+	const receipts = env.groups
+		.flatMap((group) => group.records)
+		.filter(isAuthorization)
+		.map((record) => (record.fields as { authorization: AuthorizationReceipt }).authorization);
+	const consent = renderAuthorizationList(receipts);
 	return `<section class="refarm-stack" data-wallet-html>
 		<p class="refarm-eyebrow">Minha Carteira Digital</p>
 		<h1>👜 ${env.summary.total} itens</h1>
 		<p>Você é dono dos seus dados — soberano, local-first. Importe, verifique e compartilhe só o necessário.</p>
 		${groups}
+		${consent}
 	</section>`;
 }
 
