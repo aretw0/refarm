@@ -1,6 +1,6 @@
 import type { SourceRecordParser } from "@refarm.dev/capability-host/node";
 import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
-import { HttpFetchError, htmlToMarkdown, type WebFetchDriver } from "@refarm.dev/source-web";
+import { HttpFetchError, htmlToMarkdown, type CrawlLink, type CrawledPage, type WebFetchDriver } from "@refarm.dev/source-web";
 import { createHash } from "node:crypto";
 
 /**
@@ -45,6 +45,67 @@ export function createOslcFetchDriver(options: { fetchImpl?: typeof fetch } = {}
 		const body = await response.text();
 		const mediaType = response.headers.get("content-type") ?? "application/rdf+xml";
 		return { body, mediaType };
+	};
+}
+
+// --- OSLC project discovery — the CrawlLinkExtractor that walks a Jazz RM project ---
+
+/** Collect every distinct `rdf:resource="…"` URL referenced in a body (the way Jazz RM folder
+ * listings, query-capability results, and `/rm/links` documents point at children and
+ * artifacts). Deduped, order-preserving. */
+function resourceRefs(body: string): string[] {
+	const seen = new Set<string>();
+	const re = /rdf:resource="([^"]+)"/g;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(body)) !== null) {
+		const url = m[1]!;
+		if (!seen.has(url)) seen.add(url);
+	}
+	return [...seen];
+}
+
+/** Does this URL look like a Jazz RM ARTIFACT resource (a leaf to parse) vs a folder/collection
+ * (a node to descend)? Jazz artifact URLs live under `/rm/resources/`; folders/queries under
+ * `/rm/folders/`, `/rm/views/`, `/rm/query…`. Heuristic + overridable via options. */
+function isArtifactUrl(url: string): boolean {
+	return /\/rm\/resources\//i.test(url);
+}
+function isCollectionUrl(url: string): boolean {
+	return /\/rm\/(folders|views|query|collections)/i.test(url);
+}
+
+export interface OslcCrawlOptions {
+	/** The Configuration-Context (streamURI) to carry on every discovered request. */
+	streamURI?: string;
+	/** Override the artifact-URL test (a deployment with a different URL scheme). */
+	isArtifact?: (url: string) => boolean;
+	/** Override the collection-URL test. */
+	isCollection?: (url: string) => boolean;
+}
+
+/**
+ * Build the OSLC `CrawlLinkExtractor` that turns a fetched folder/collection body into the next
+ * URLs to crawl — the domain half of a whole-project scrape. From each page it emits every
+ * referenced resource: artifact URLs and collection URLs alike are enqueued (the crawl engine
+ * dedupes and depth-caps). Each link carries the target's `Configuration-Context` so a
+ * discovered artifact GET authenticates against the same Jazz configuration.
+ *
+ * The engine is domain-blind (it only fetches + dedupes); THIS decides what an ALM project's
+ * link graph is. An artifact leaf yields no further links (its body is parsed, not walked); a
+ * collection yields its children. Unknown-shaped URLs are still enqueued once (forward-safe) so
+ * a deployment whose URL scheme differs is not silently skipped.
+ */
+export function createOslcCrawlExtractor(options: OslcCrawlOptions = {}) {
+	const isArtifact = options.isArtifact ?? isArtifactUrl;
+	const isCollection = options.isCollection ?? isCollectionUrl;
+	const attributes = options.streamURI ? { streamURI: options.streamURI } : undefined;
+	return (page: CrawledPage): CrawlLink[] => {
+		// An artifact leaf is parsed for records, not walked for more links.
+		if (isArtifact(page.url) && !isCollection(page.url)) return [];
+		return resourceRefs(page.body).map((url) => ({
+			url,
+			...(attributes ? { attributes } : {}),
+		}));
 	};
 }
 

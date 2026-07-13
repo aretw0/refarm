@@ -8,10 +8,16 @@ import {
 } from "@refarm.dev/capability-host";
 import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
 
+import { normalizeCacheManifest, type CacheManifest } from "@refarm.dev/source-web";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
+
 import {
+	createLiveCrawlerFactory,
 	createLiveRequirementsProviderFactory,
 	createRequirementsCapability,
 	createRequirementsCheckCapability,
+	createRequirementsCrawlCapability,
 	createRequirementsOrganizeCapability,
 	createRequirementsPullCapability,
 	reqCapabilityBundle,
@@ -29,6 +35,29 @@ const requirementsAppDefaults = createLocalRecordsAppDefaults({
 });
 export const defaultRequirementsStatePath = requirementsAppDefaults.statePath;
 export interface ReqbenchHostOptions extends RequirementsCapabilityOptions, HostCommandOptions {}
+
+/** Where the crawl's accumulative cache manifest lives — a sibling of the records manifest, so a
+ * re-crawl of a project is incremental (only changed artifacts re-ingested). One file per ref. */
+function crawlCachePath(statePath: string, ref: string): string {
+	const safeRef = ref.replace(/[^a-z0-9]+/gi, "-");
+	return path.join(path.dirname(statePath), `requirements.crawl-cache.${safeRef}.json`);
+}
+
+/** Load the accumulative cache manifest for a ref (empty if the file is absent/unreadable). */
+function loadCrawlCache(statePath: string, ref: string): CacheManifest {
+	try {
+		return normalizeCacheManifest(JSON.parse(readFileSync(crawlCachePath(statePath, ref), "utf8")));
+	} catch {
+		return { version: 1, entries: {} };
+	}
+}
+
+/** Persist the accumulative cache manifest for a ref (creating the state dir if needed). */
+function saveCrawlCache(statePath: string, ref: string, manifest: CacheManifest): void {
+	const file = crawlCachePath(statePath, ref);
+	mkdirSync(path.dirname(file), { recursive: true });
+	writeFileSync(file, JSON.stringify(manifest, null, 2), "utf8");
+}
 
 const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND });
 
@@ -77,6 +106,8 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 		capabilities: () => {
 			const { deps, records, sourceProvider, vaultSurface } = reqCapabilityBundle(options);
 			const loginSignals = loginSignalsFromEnv();
+			// The records manifest path — the crawl cache lands beside it (one file per ref).
+			const statePath = options.statePath ?? requirementsAppDefaults.defaultOptions().statePath;
 			return {
 				deps,
 				extensions: [
@@ -103,6 +134,26 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 							// Login-detection knobs — tune these on the real SSO WITHOUT recompiling, so a
 							// login that hangs (auth-in-the-URL) or false-positives (an auth interstitial
 							// already on the ALM host) can be fixed from the environment. See the README.
+							...(loginSignals ? { loginSignals } : {}),
+							...(process.env.DGK_LOGIN_TIMEOUT_MS
+								? { loginTimeoutMs: Number(process.env.DGK_LOGIN_TIMEOUT_MS) }
+								: {}),
+						}),
+					}),
+					// Whole-project crawl: `requirements-crawl <system> [--live]` walks the ALM
+					// project's OSLC link graph and ingests EVERY requirement, incrementally (a
+					// re-crawl re-ingests only what changed, gated by an accumulative cache manifest
+					// persisted per ref alongside the records manifest). This is the "grosso da
+					// raspagem" — the single-resource pull's whole-project sibling.
+					createRequirementsCrawlCapability(records, {
+						sourcesConfigPath: options.sourcesConfigPath,
+						loadCacheManifest: (ref) => loadCrawlCache(statePath, ref),
+						saveCacheManifest: (ref, manifest) => saveCrawlCache(statePath, ref, manifest),
+						liveCrawlerFactory: createLiveCrawlerFactory({
+							sourcesConfigPath: options.sourcesConfigPath,
+							chromePath: process.env.DGK_CHROME_PATH,
+							sessionDir: process.env.DGK_SESSION_DIR,
+							headless: process.env.DGK_HEADLESS === "1",
 							...(loginSignals ? { loginSignals } : {}),
 							...(process.env.DGK_LOGIN_TIMEOUT_MS
 								? { loginTimeoutMs: Number(process.env.DGK_LOGIN_TIMEOUT_MS) }

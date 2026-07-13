@@ -40,12 +40,20 @@ import {
 	type EnrichmentRule,
 } from "@refarm.dev/enrichment-contract-v1";
 import {
+	crawlSource,
 	createWebSourceProvider,
+	emptyCacheManifest,
 	ensureAuthenticatedSession,
 	fixtureLogin,
 	loadWebSourceTargetsSync,
+	normalizeCacheManifest,
+	syncManifest,
 	withReauth,
+	type CacheManifest,
+	type CrawlSeed,
 	type InteractiveLogin,
+	type SyncReport,
+	type WebFetchDriver,
 	type WebSourceSessionEvidence,
 } from "@refarm.dev/source-web";
 import { fileURLToPath } from "node:url";
@@ -53,7 +61,7 @@ import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { createOslcFetchDriver, parseRequirementsFromRdf } from "./oslc.js";
+import { createOslcCrawlExtractor, createOslcFetchDriver, parseRequirementsFromRdf } from "./oslc.js";
 import { reqManifest } from "./fixture.js";
 
 /**
@@ -205,7 +213,7 @@ export function createRequirementsSourceProvider(options: RequirementsCapability
  * and returns a new cookie-carrying `fetchImpl`, which we swap in before retrying. Without a
  * `reauthenticate` (offline/tests), a 401 is not recoverable (it just propagates).
  */
-function liveOslcFetcher(fetchImpl: typeof fetch, reauthenticate?: () => Promise<typeof fetch>) {
+export function liveOslcFetcher(fetchImpl: typeof fetch, reauthenticate?: () => Promise<typeof fetch>) {
 	// A mutable fetch cell so re-auth can replace the cookies the OSLC driver uses.
 	let current = fetchImpl;
 	const oslc = createOslcFetchDriver({ fetchImpl: (input, init) => current(input, init) });
@@ -231,6 +239,96 @@ function declaredHostsFrom(fixtures: Record<string, { url: string }>): string[] 
 		}
 	}
 	return [...hosts];
+}
+
+// --- Whole-project crawl: walk a Jazz RM project and ingest EVERY requirement (block: crawl) ---
+
+export interface CrawlRequirementsOptions {
+	/** The authenticated OSLC fetch driver — offline tests inject a fixture site; a live run
+	 * passes `liveOslcFetcher(fetchImpl, reauthenticate)` (cookies + OSLC contract + re-auth). */
+	fetcher: WebFetchDriver;
+	/** The seed URL(s) to start the crawl from — a project folder/dashboard root. */
+	seeds: readonly CrawlSeed[];
+	/** The session evidence (from login-garantido) to fetch under. */
+	session: WebSourceSessionEvidence;
+	/** The Configuration-Context (streamURI) carried onto every discovered request. */
+	streamURI?: string;
+	/** The ref the ingested records attribute to (their sourceRef). */
+	ref: string;
+	/** The accumulative cache manifest from the prior run (incremental sync). Default: empty. */
+	priorManifest?: CacheManifest;
+	/** BFS depth / page caps (bound an unbounded project tree). */
+	maxDepth?: number;
+	maxPages?: number;
+	/** Polite pacing between fetches, ms. */
+	pacingMs?: number;
+	/** ISO timestamp stamped on synced cache entries (injected — no ambient clock). */
+	syncedAt?: string;
+	/** Progress hook — one call per fetched page. */
+	onPage?: (url: string, depth: number) => void;
+}
+
+export interface CrawlRequirementsResult {
+	records: KnowledgeRecord[];
+	/** The updated accumulative cache manifest — persist it for the next incremental run. */
+	manifest: CacheManifest;
+	/** The sync report: per-URI new|changed|unchanged decisions + aggregate counts. */
+	sync: SyncReport;
+	/** True if the crawl hit its page budget with links still unvisited. */
+	truncated: boolean;
+	/** How many distinct URLs the crawl saw. */
+	seen: number;
+}
+
+/**
+ * Crawl a whole Jazz RM project and ingest every requirement — the "grosso da raspagem" the
+ * single-resource pull can't do. This is the DOMAIN assembly of five generic substrate blocks:
+ * `crawlSource` (BFS engine) drives the OSLC link extractor (`createOslcCrawlExtractor`, the
+ * project's link graph), each artifact page is parsed with `parseRequirementsFromRdf`, and the
+ * accumulative cache (`syncManifest`) classifies each artifact new|changed|unchanged so a
+ * re-run only re-ingests what moved. The fetcher is injected, so an offline fixture drives the
+ * whole flow in a test and a browser-backed OSLC fetch scrapes the real VPN system unchanged.
+ *
+ * Nothing here is a new mechanism — the crawl, the sync, the parse are all the substrate's; the
+ * analyst supplies only the seeds, the OSLC extractor's URL heuristics, and the RDF parser.
+ */
+export async function crawlRequirements(
+	options: CrawlRequirementsOptions,
+): Promise<CrawlRequirementsResult> {
+	const extractLinks = createOslcCrawlExtractor(
+		options.streamURI ? { streamURI: options.streamURI } : {},
+	);
+	const crawl = await crawlSource(options.fetcher, options.seeds, {
+		session: options.session,
+		extractLinks,
+		...(options.maxDepth !== undefined ? { maxDepth: options.maxDepth } : {}),
+		...(options.maxPages !== undefined ? { maxPages: options.maxPages } : {}),
+		...(options.pacingMs !== undefined ? { pacingMs: options.pacingMs } : {}),
+		...(options.onPage ? { onPage: (p): void => options.onPage!(p.url, p.depth) } : {}),
+	});
+
+	// Fold every fetched page into the accumulative cache (incremental sync), then parse only the
+	// pages whose content is new or changed into requirement records. An unchanged artifact is
+	// already ingested — re-parsing it would be wasted work (and is exactly what the cache buys).
+	const sync = syncManifest(
+		normalizeCacheManifest(options.priorManifest ?? emptyCacheManifest()),
+		crawl.pages.map((page) => ({ uri: page.url, content: page.body })),
+		options.syncedAt,
+	);
+	const changedByUri = new Map(sync.decisions.map((d) => [d.uri, d.status]));
+
+	const records: KnowledgeRecord[] = [];
+	for (const page of crawl.pages) {
+		if (changedByUri.get(page.url) === "unchanged") continue; // already ingested; skip re-parse
+		const parsed = parseRequirementsFromRdf(page.body, {
+			ref: options.ref,
+			location: page.url,
+			mediaType: page.mediaType,
+		});
+		records.push(...(parsed as KnowledgeRecord[]));
+	}
+
+	return { records, manifest: sync.manifest, sync, truncated: crawl.truncated, seen: crawl.seen };
 }
 
 /**
@@ -630,6 +728,228 @@ export function createRequirementsPullCapability(
 				});
 			}
 		},
+	};
+}
+
+/** What a live crawl needs, resolved for one ref: the authenticated OSLC fetcher (browser
+ * cookies + OSLC contract + re-auth), the seed URL(s) to start from, the stream context, and
+ * the session evidence. Built by a `liveCrawlerFactory` (browser-backed) or injected in a test. */
+export interface LiveCrawlContext {
+	fetcher: WebFetchDriver;
+	seeds: CrawlSeed[];
+	session: WebSourceSessionEvidence;
+	streamURI?: string;
+}
+
+/**
+ * Build a `liveCrawlerFactory` for the crawl verb — the whole-project analogue of
+ * createLiveRequirementsProviderFactory. It resolves the target from the ledger, drives the
+ * analyst's Chrome through the SSO/VPN login (the GENERIC browser-driver, reusing a persisted
+ * cookie session), and returns the OSLC fetcher + the seed(s) to crawl from. The seed is the
+ * target's `componentURI` (the project root) when declared, else its `url`. The browser is
+ * constructed only when `--live` is used (puppeteer imported lazily inside the driver).
+ */
+export function createLiveCrawlerFactory(
+	options: LiveProviderOptions = {},
+): (ref: string) => Promise<LiveCrawlContext> {
+	return async (ref: string) => {
+		const identity = ref.includes(":") ? ref.slice(ref.indexOf(":") + 1) : ref;
+		const snapshots = loadWebSourceTargetsSync(options.sourcesConfigPath ?? sourcesConfigPath());
+		const target = snapshots[identity];
+		if (!target) {
+			throw new Error(
+				`LIVE_NO_TARGET: no target "${identity}" in your ledger — see \`dgk source discover\`.`,
+			);
+		}
+		const base = new URL(target.url);
+		const baseUrl = `${base.protocol}//${base.host}`;
+		const streamURI = target.attributes?.streamURI;
+		// The project root to crawl from: the declared componentURI (a project/folder root) if the
+		// analyst set one, else the single resource url (a one-artifact crawl, still valid).
+		const seedUrl = target.attributes?.componentURI ?? target.url;
+
+		const openLiveFetch = async (forceRelogin: boolean): Promise<typeof fetch> => {
+			const { createLiveFetch } = await import("@refarm.dev/browser-driver");
+			const { createPuppeteerSession } = await import("@refarm.dev/browser-driver/puppeteer");
+			const statePath = options.sessionDir ? path.join(options.sessionDir, "auth-state.json") : undefined;
+			const session = await createPuppeteerSession({
+				executablePath: options.chromePath,
+				userDataDir: options.sessionDir,
+				headless: options.headless,
+				...(options.loginTimeoutMs ? { loginTimeoutMs: options.loginTimeoutMs } : {}),
+				...(options.loginSignals ? { signals: options.loginSignals } : {}),
+			});
+			const live = await createLiveFetch({
+				session,
+				baseUrl,
+				...(forceRelogin ? {} : statePath ? { statePath } : {}),
+			});
+			return live.fetchImpl;
+		};
+
+		const fetchImpl = await openLiveFetch(false);
+		return {
+			fetcher: liveOslcFetcher(fetchImpl, () => openLiveFetch(true)),
+			seeds: [{ url: seedUrl, ...(streamURI ? { attributes: { streamURI } } : {}) }],
+			session: { kind: "authenticated", authenticated: true },
+			...(streamURI ? { streamURI } : {}),
+		};
+	};
+}
+
+export interface RequirementsCrawlOptions {
+	login?: InteractiveLogin;
+	sourcesConfigPath?: string;
+	/** Build the LIVE crawl context (browser-backed) for `--live`. Absent → `--live` reports that
+	 * live mode isn't wired. Injected by the CLI (the browser driver); a test injects a fixture. */
+	liveCrawlerFactory?: (ref: string) => Promise<LiveCrawlContext>;
+	/** Load/persist the accumulative cache manifest across runs (incremental sync). Absent → the
+	 * crawl still runs but is not incremental (every run starts from an empty manifest). */
+	loadCacheManifest?: (ref: string) => CacheManifest;
+	saveCacheManifest?: (ref: string, manifest: CacheManifest) => void | Promise<void>;
+	/** BFS caps for a large project. */
+	maxDepth?: number;
+	maxPages?: number;
+	pacingMs?: number;
+	/** Injected clock (ISO) for the cache's syncedAt — defaults to Date.now() at run time. */
+	now?: () => string;
+}
+
+/**
+ * The T3 persona verb: `requirements-crawl <ref> [--live]` — walk a WHOLE ALM project and ingest
+ * every requirement, incrementally. Where `requirements-pull` fetches one declared resource, this
+ * seeds from the project root, follows the OSLC link graph (folders → artifacts) via the generic
+ * crawl engine, parses each artifact, and syncs against the accumulative cache so a re-run only
+ * re-ingests what changed. This is the "grosso da raspagem" for the Serpro/VPN run.
+ */
+export function createRequirementsCrawlCapability(
+	recordsDeps: RecordsCommandDeps,
+	options: RequirementsCrawlOptions = {},
+): CapabilityDescriptor {
+	const login = options.login ?? fixtureLogin();
+	const now = options.now ?? ((): string => new Date().toISOString());
+	return {
+		name: "requirements-crawl",
+		summary: "Crawl a whole ALM project and ingest every requirement (incremental sync)",
+		args: [{ name: "ref", required: true }],
+		options: [
+			{
+				name: "live",
+				kind: "boolean",
+				summary: "Crawl the real system via the browser login (else the offline fixture project)",
+			},
+		],
+		transports: { http: { path: "/requirements/crawl" } },
+		renderers: { tui: { section: "requirements" } },
+		async run(input): Promise<CapabilityEnvelope> {
+			const ref = String(input.args.ref ?? "");
+			if (!ref) {
+				return buildJsonErrorEnvelope({
+					command: "requirements-crawl",
+					operation: "crawl",
+					error: "no_ref",
+					message: "Pass a system ref to crawl (e.g. web:efd — see `dgk source discover`).",
+					nextAction: "dgk source discover",
+				});
+			}
+			const live = input.options.live === true;
+			if (live && !options.liveCrawlerFactory) {
+				return buildJsonErrorEnvelope({
+					command: "requirements-crawl",
+					operation: "crawl",
+					error: "live_unavailable",
+					message:
+						"--live needs a browser driver wired (puppeteer-core + Chrome). This build has none.",
+					nextAction: "dgk requirements-crawl " + ref,
+				});
+			}
+			try {
+				// LOGIN-GARANTIDO: authenticate before scraping (reuse a valid declared session).
+				const declared = declaredSessionForRef(ref, options.sourcesConfigPath);
+				const auth = await ensureAuthenticatedSession({
+					target: { identity: declared.identity, credentialRef: declared.credentialRef },
+					existing: declared.existing,
+					login,
+				});
+				// The crawl context: live (browser) or the fixture project.
+				const ctx =
+					live && options.liveCrawlerFactory
+						? await options.liveCrawlerFactory(ref)
+						: fixtureCrawlContext(ref, options.sourcesConfigPath);
+
+				const prior = options.loadCacheManifest?.(ref) ?? emptyCacheManifest();
+				const result = await crawlRequirements({
+					fetcher: ctx.fetcher,
+					seeds: ctx.seeds,
+					session: ctx.session,
+					ref,
+					...(ctx.streamURI ? { streamURI: ctx.streamURI } : {}),
+					priorManifest: prior,
+					syncedAt: now(),
+					...(options.maxDepth !== undefined ? { maxDepth: options.maxDepth } : {}),
+					...(options.maxPages !== undefined ? { maxPages: options.maxPages } : {}),
+					...(options.pacingMs !== undefined ? { pacingMs: options.pacingMs } : {}),
+				});
+				await options.saveCacheManifest?.(ref, result.manifest);
+
+				const summary = {
+					ref,
+					live,
+					pagesSeen: result.seen,
+					truncated: result.truncated,
+					sync: result.sync.counts,
+					ingested: result.records.length,
+					loggedIn: auth.loggedIn,
+					principal: auth.session.principal,
+				};
+				if (!recordsDeps.saveManifest) {
+					return buildJsonSuccessEnvelope({
+						command: "requirements-crawl",
+						operation: "crawl",
+						nextCommand: "dgk requirements",
+						nextCommands: ["dgk requirements"],
+						extra: { ...summary, persisted: false, dryRun: true },
+					});
+				}
+				const merged = mergeRecords(recordsDeps.loadManifest(), result.records);
+				await recordsDeps.saveManifest(merged);
+				return buildJsonSuccessEnvelope({
+					command: "requirements-crawl",
+					operation: "crawl",
+					nextCommand: "dgk requirements",
+					nextCommands: ["dgk requirements"],
+					extra: { ...summary, persisted: true, total: merged.records.length },
+				});
+			} catch (error) {
+				return buildJsonErrorEnvelope({
+					command: "requirements-crawl",
+					operation: "crawl",
+					error: "crawl_failed",
+					message: error instanceof Error ? error.message : String(error),
+					nextAction: "Check the ref is one `dgk source discover` lists, and the VPN is connected.",
+				});
+			}
+		},
+	};
+}
+
+/** The offline crawl context: a fixture "project" the crawl walks without a browser — the target's
+ * declared body served for its own url, so a no-`--live` crawl still exercises the whole pipeline
+ * (seed → parse) against the analyst's fixture. */
+function fixtureCrawlContext(ref: string, configPath?: string): LiveCrawlContext {
+	const identity = ref.includes(":") ? ref.slice(ref.indexOf(":") + 1) : ref;
+	const snapshots = loadWebSourceTargetsSync(configPath ?? sourcesConfigPath());
+	const target = snapshots[identity];
+	const url = target?.url ?? ref;
+	const body = target?.body ?? "";
+	const mediaType = target?.mediaType ?? "text/html";
+	const streamURI = target?.attributes?.streamURI;
+	const fetcher: WebFetchDriver = async (req) => ({ body: req.url === url ? body : "", mediaType });
+	return {
+		fetcher,
+		seeds: [{ url, ...(streamURI ? { attributes: { streamURI } } : {}) }],
+		session: { kind: "fixture", authenticated: true },
+		...(streamURI ? { streamURI } : {}),
 	};
 }
 

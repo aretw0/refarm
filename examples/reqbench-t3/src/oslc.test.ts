@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createOslcFetchDriver, oslcRequestHeaders, parseRequirementsFromRdf } from "./oslc.js";
+import type { CrawledPage } from "@refarm.dev/source-web";
+
+import {
+	createOslcCrawlExtractor,
+	createOslcFetchDriver,
+	oslcRequestHeaders,
+	parseRequirementsFromRdf,
+} from "./oslc.js";
 
 // A minimal but realistic Jazz RM RDF/XML document: two requirements (a business rule and a
 // use case), each an rdf:Description carrying dcterms:identifier/title, a jazz_rm:primaryText
@@ -94,5 +101,59 @@ describe("parseRequirementsFromRdf", () => {
 	it("returns no records for RDF with no requirement resources", () => {
 		const empty = `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"></rdf:RDF>`;
 		expect(parseRequirementsFromRdf(empty, { ref: "web:efd", location: "/x" })).toEqual([]);
+	});
+});
+
+describe("createOslcCrawlExtractor — walking a Jazz RM project", () => {
+	const page = (url: string, body: string): CrawledPage => ({ url, body, mediaType: "application/rdf+xml", depth: 0 });
+
+	it("emits every referenced resource from a folder listing", () => {
+		const extract = createOslcCrawlExtractor({ streamURI: "urn:stream:efd" });
+		const folder = page(
+			"https://alm.example/rm/folders/F1",
+			`<rdf:RDF>
+				<rdf:Description rdf:resource="https://alm.example/rm/folders/F2"/>
+				<rdf:Description rdf:resource="https://alm.example/rm/resources/TX_10"/>
+			</rdf:RDF>`,
+		);
+		const links = extract(folder);
+		expect(links.map((l) => l.url)).toEqual([
+			"https://alm.example/rm/folders/F2",
+			"https://alm.example/rm/resources/TX_10",
+		]);
+		// Every discovered link carries the target's Configuration-Context.
+		expect(links[0]?.attributes).toEqual({ streamURI: "urn:stream:efd" });
+	});
+
+	it("dedupes repeated resource references", () => {
+		const extract = createOslcCrawlExtractor();
+		const links = extract(
+			page(
+				"https://alm.example/rm/folders/F1",
+				`<x rdf:resource="https://alm.example/rm/resources/TX_1"/>
+				 <y rdf:resource="https://alm.example/rm/resources/TX_1"/>`,
+			),
+		);
+		expect(links).toHaveLength(1);
+	});
+
+	it("does NOT walk an artifact leaf (its body is parsed, not crawled)", () => {
+		const extract = createOslcCrawlExtractor();
+		const artifact = page(
+			"https://alm.example/rm/resources/TX_10",
+			// even if the artifact body references others, a leaf is terminal for the crawl
+			`<x rdf:resource="https://alm.example/rm/resources/TX_99"/>`,
+		);
+		expect(extract(artifact)).toEqual([]);
+	});
+
+	it("respects overridden artifact/collection tests", () => {
+		const extract = createOslcCrawlExtractor({
+			isArtifact: (u) => u.endsWith(".artifact"),
+			isCollection: (u) => u.endsWith(".coll"),
+		});
+		// A ".coll" is walked; a ".artifact" is a leaf.
+		expect(extract(page("root.coll", `<x rdf:resource="child.artifact"/>`))).toHaveLength(1);
+		expect(extract(page("leaf.artifact", `<x rdf:resource="other"/>`))).toEqual([]);
 	});
 });
