@@ -20,6 +20,7 @@ export {
 } from "./gallery.js";
 export {
 	availableNotebookArtifacts,
+	createProcessHandoffExecutor,
 	exportHashes,
 	runNotebookExport,
 	runNotebookExports,

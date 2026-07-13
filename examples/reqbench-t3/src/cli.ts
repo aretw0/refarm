@@ -8,6 +8,7 @@ import {
 } from "@refarm.dev/capability-host";
 import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
 
+import { createProcessHandoffExecutor } from "@refarm.dev/lab-contract-v1";
 import { normalizeCacheManifest, type CacheManifest } from "@refarm.dev/source-web";
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -75,28 +76,10 @@ function labExportCwd(): string {
 	return process.env.DGK_LAB_CWD ?? process.cwd();
 }
 
-/** The Marimo export executor: `uvx --from marimo marimo export html-wasm …`. uv resolves marimo
- * on demand (no global install). DGK_MARIMO_CMD overrides the whole launcher (space-separated). */
-function makeMarimoExecutor(): (
-	command: string,
-	args: readonly string[],
-	options?: { cwd?: string },
-) => Promise<{ code: number; stdout?: string; stderr?: string }> {
-	return async (command, args, opts) => {
-		const { spawn } = await import("node:child_process");
-		const override = process.env.DGK_MARIMO_CMD?.trim();
-		const [exe, ...prefix] = override ? override.split(/\s+/) : ["uvx", "--from", "marimo", command];
-		const finalArgs = [...prefix, ...args];
-		return await new Promise((resolve) => {
-			const child = spawn(exe!, finalArgs, { cwd: opts?.cwd, stdio: ["ignore", "pipe", "pipe"] });
-			let stdout = "";
-			let stderr = "";
-			child.stdout?.on("data", (d) => (stdout += String(d)));
-			child.stderr?.on("data", (d) => (stderr += String(d)));
-			child.on("error", (err) => resolve({ code: -1, stderr: err.message }));
-			child.on("close", (code) => resolve({ code: code ?? -1, stdout, stderr }));
-		});
-	};
+/** The Marimo export launcher: `uvx --from marimo` prefixes the `marimo export …` command so uv
+ * resolves marimo on demand (no global install). DGK_MARIMO_CMD overrides the whole launcher. */
+function marimoLauncher(): string {
+	return process.env.DGK_MARIMO_CMD?.trim() || "uvx --from marimo";
 }
 
 /** Fingerprint a produced notebook HTML (sha256), resolved under the lab cwd. */
@@ -202,7 +185,10 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 						// demand; no global install). Runs from the example dir so `lab/*.py` resolve.
 						// DGK_MARIMO_CMD overrides the launcher (a pinned wrapper, a container exec).
 						labCwd: labExportCwd(),
-						executor: makeMarimoExecutor(),
+						// The REAL export runner is the substrate's reference executor (over
+						// @refarm.dev/process-handoff), launched via `uvx --from marimo`. No hand-rolled
+						// spawn — reqbench reuses the canonical block.
+						executor: createProcessHandoffExecutor({ launcher: marimoLauncher() }),
 						hashOutput: (rel) => hashLabOutput(labExportCwd(), rel),
 					}),
 					// Route pulled requirements to their PARA areas (taxonomy-as-data via vault:v1).

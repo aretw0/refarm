@@ -29,7 +29,8 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@refarm.dev/artifact-contract-v1": "workspace:*"
+		"@refarm.dev/artifact-contract-v1": "workspace:*",
+		"@refarm.dev/process-handoff": "workspace:*"
 	},
 	"devDependencies": {
 		"@refarm.dev/tsconfig": "workspace:*",

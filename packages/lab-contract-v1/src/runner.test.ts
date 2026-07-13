@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildLabManifest, type LabCatalog, type LabNotebook } from "./catalog.js";
 import {
 	availableNotebookArtifacts,
+	createProcessHandoffExecutor,
 	exportHashes,
 	runNotebookExport,
 	runNotebookExports,
@@ -100,5 +101,30 @@ describe("runNotebookExports (batch)", () => {
 		results[1]!.ok = false;
 		const available = availableNotebookArtifacts(manifest.artifacts, results);
 		expect(available.map((a) => a.id)).toEqual(["analise-grafo"]);
+	});
+});
+
+describe("createProcessHandoffExecutor — the reference executor over @refarm.dev/process-handoff", () => {
+	it("runs a real command and captures its exit code + stdout (no launcher)", async () => {
+		// Use node itself as a harmless 'export' stand-in: prints then exits 0.
+		const exec = createProcessHandoffExecutor();
+		const result = await exec("node", ["-e", "process.stdout.write('ok')"]);
+		expect(result.code).toBe(0);
+		expect(result.stdout).toBe("ok");
+	});
+
+	it("surfaces a non-zero exit code", async () => {
+		const exec = createProcessHandoffExecutor();
+		const result = await exec("node", ["-e", "process.exit(3)"]);
+		expect(result.code).toBe(3);
+	});
+
+	it("applies a launcher prefix (the uvx --from marimo pattern) — exe+prefix wrap the command", async () => {
+		// Launcher "printf" prefixes; the command ("hello") + args ("world") become printf's args,
+		// so the composition is: printf hello world (printf prints "hello", ignoring extra args).
+		const exec = createProcessHandoffExecutor({ launcher: "printf" });
+		const result = await exec("hi\\n", []);
+		expect(result.code).toBe(0);
+		expect(result.stdout).toBe("hi\n");
 	});
 });

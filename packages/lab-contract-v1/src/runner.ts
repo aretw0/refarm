@@ -1,4 +1,9 @@
 import type { ArtifactHash, TaskArtifactReference } from "@refarm.dev/artifact-contract-v1";
+import {
+	createProcessHandoffDisplay,
+	runProcessHandoff,
+	splitProcessHandoffCommand,
+} from "@refarm.dev/process-handoff";
 
 import { notebookExportProcess, type LabNotebook, type NotebookExportOptions } from "./catalog.js";
 
@@ -104,6 +109,40 @@ export function exportHashes(results: readonly NotebookExportResult[]): Record<s
 	const hashes: Record<string, ArtifactHash> = {};
 	for (const r of results) if (r.ok && r.hash) hashes[r.notebookId] = r.hash;
 	return hashes;
+}
+
+/**
+ * The REFERENCE ProcessExecutor — run the export via the canonical `@refarm.dev/process-handoff`
+ * block (the substrate's spawn wrapper) instead of a hand-rolled child_process. A consumer that
+ * wants "just run the marimo export for real" passes this; only a consumer with a special executor
+ * (a container exec, a remote runner) writes its own.
+ *
+ * `launcher` is an optional command PREFIX so `marimo …` becomes `uvx --from marimo marimo …`
+ * (uv resolves marimo on demand — no global install). Pass a string like `"uvx --from marimo"` or
+ * read one from the environment. When absent, the notebook's `command` (default "marimo") runs
+ * directly. This is exactly the pattern reqbench needed, now reusable by any Lab consumer.
+ */
+export function createProcessHandoffExecutor(options: { launcher?: string; env?: NodeJS.ProcessEnv } = {}): ProcessExecutor {
+	return async (command, args, runOptions) => {
+		// A launcher prefix (uvx --from marimo) wraps the export command; split it into exe + prefix.
+		const prefix = options.launcher?.trim() ? splitProcessHandoffCommand(options.launcher) : null;
+		const exe = prefix ? prefix.command : command;
+		const finalArgs = prefix ? [...prefix.args, command, ...args] : [...args];
+		const result = await runProcessHandoff(
+			{
+				command: exe,
+				args: finalArgs,
+				display: createProcessHandoffDisplay(exe, finalArgs),
+				...(runOptions?.cwd ? { cwd: runOptions.cwd } : {}),
+			},
+			{ capture: true, ...(options.env ? { env: options.env } : {}) },
+		);
+		return {
+			code: result.exitCode,
+			...(result.stdout !== undefined ? { stdout: result.stdout } : {}),
+			...(result.stderr !== undefined ? { stderr: result.stderr } : {}),
+		};
+	};
 }
 
 /** Narrow a manifest artifact list to the notebook reports that actually exported OK — for a
