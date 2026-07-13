@@ -13,6 +13,12 @@ export {
 	type NotebookExportOptions,
 } from "./catalog.js";
 export {
+	buildLabGallery,
+	type LabGallery,
+	type LabGalleryDataset,
+	type LabGalleryNotebook,
+} from "./gallery.js";
+export {
 	availableNotebookArtifacts,
 	exportHashes,
 	runNotebookExport,
