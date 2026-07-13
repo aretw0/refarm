@@ -65,7 +65,9 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
         {"name":"task_status","description":"Get full details of a single Task including its title, status, timestamps, and all associated TaskEvents (created, status_changed).",
          "input_schema":{"type":"object","properties":{"task_id":{"type":"string","description":"Task URN (urn:sovereign:task:v1:...)"}},"required":["task_id"]}},
         {"name":"load_skill","description":"Load the full instructions for a skill listed in 'Skills available to you'. The system prompt shows only each skill's name + when-to-use; call this with the skill's name to get its complete SKILL.md guidance BEFORE doing a task that matches it, then follow those instructions.",
-         "input_schema":{"type":"object","properties":{"name":{"type":"string","description":"The skill name, exactly as shown in the skills list"}},"required":["name"]}}
+         "input_schema":{"type":"object","properties":{"name":{"type":"string","description":"The skill name, exactly as shown in the skills list"}},"required":["name"]}},
+        {"name":"update_plan","description":"Record or update your task plan as a checklist. For a multi-step task, write the steps here first, then call this again to update statuses as you go — it REPLACES the whole plan each time (a living list, not an append). Keep it short and high-signal. Skip it for trivial single-step tasks.",
+         "input_schema":{"type":"object","properties":{"steps":{"type":"array","description":"The ordered plan steps. Passing an empty array clears the plan.","items":{"type":"object","properties":{"step":{"type":"string","description":"The step, a short imperative phrase"},"status":{"type":"string","enum":["pending","in_progress","done","blocked"],"description":"Step status (default pending)"}},"required":["step"]}}},"required":["steps"]}}
     ])
 }
 
@@ -96,6 +98,8 @@ pub(crate) fn tools_openai() -> serde_json::Value {
         {"type":"function","function":{"name":"task_status","description":"Get full details of a single Task by its URN, including all TaskEvents.",
          "parameters":{"type":"object","properties":{"task_id":{"type":"string"}},"required":["task_id"]}}},
         {"type":"function","function":{"name":"load_skill","description":"Load the full instructions for a skill listed in 'Skills available to you'. The prompt shows only name + when-to-use; call this with the skill name to get its complete SKILL.md guidance before a matching task, then follow it.",
-         "parameters":{"type":"object","properties":{"name":{"type":"string","description":"The skill name, exactly as shown in the skills list"}},"required":["name"]}}}
+         "parameters":{"type":"object","properties":{"name":{"type":"string","description":"The skill name, exactly as shown in the skills list"}},"required":["name"]}}},
+        {"type":"function","function":{"name":"update_plan","description":"Record/update your task plan as a checklist. For a multi-step task, write the steps first, then call again to update statuses — REPLACES the whole plan each time. Keep it short. Skip for trivial single-step tasks.",
+         "parameters":{"type":"object","properties":{"steps":{"type":"array","description":"Ordered plan steps; empty array clears the plan.","items":{"type":"object","properties":{"step":{"type":"string"},"status":{"type":"string","enum":["pending","in_progress","done","blocked"]}},"required":["step"]}}},"required":["steps"]}}}
     ])
 }

@@ -48,6 +48,7 @@ wit_bindgen::generate!({
 #[allow(dead_code)]
 mod agent_events;
 mod compress;
+mod plan;
 #[cfg(target_arch = "wasm32")]
 mod provider;
 #[cfg(target_arch = "wasm32")]

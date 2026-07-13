@@ -1,6 +1,8 @@
 mod fs_shell;
 mod fs_tools;
 #[cfg(target_arch = "wasm32")]
+mod plan_tools;
+#[cfg(target_arch = "wasm32")]
 mod plugin_tools;
 mod shell_tools;
 mod skill_tools;
@@ -70,6 +72,11 @@ pub(crate) fn dispatch_tool(name: &str, input: &serde_json::Value) -> String {
         // Progressive disclosure: load a skill's full SKILL.md instructions on
         // demand (the second jump after the cheap index in the system prompt).
         "load_skill" => skill_tools::load_skill(input),
+
+        // Task plan (the TodoWrite of the references): the agent writes/updates an
+        // AgentPlan node for the session. wasm-only (writes via the host store-node).
+        #[cfg(target_arch = "wasm32")]
+        "update_plan" => plan_tools::update_plan(input),
 
         // LSP code ops (find_references / rename_symbol) are no longer built in:
         // they were extracted into the @refarm/lsp-code-ops core-plugin, which

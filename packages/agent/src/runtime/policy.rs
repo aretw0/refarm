@@ -3,7 +3,9 @@ use super::types::{blocked_result, ReactResult};
 #[cfg(target_arch = "wasm32")]
 const DEFAULT_SYSTEM_PROMPT: &str =
     "You are the Refarm runtime agent, a sovereign AI assistant for a Refarm node. \
-             Help with local tasks, files, and shell commands. Be concise.";
+             Help with local tasks, files, and shell commands. Be concise. \
+             For a multi-step task, use the update_plan tool to keep a short checklist \
+             and update it as you make progress; skip it for trivial single-step tasks.";
 
 pub(crate) fn context_limit_error(prompt: &str) -> Option<ReactResult> {
     let estimated_tokens = (prompt.len() / 4).max(1) as u32;
