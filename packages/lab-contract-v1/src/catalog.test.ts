@@ -135,3 +135,12 @@ describe("buildLabManifest — a catalog becomes an artifact:v1 manifest", () =>
 		expect(graph?.hash?.value).toBe("deadbeef");
 	});
 });
+
+describe("buildLabManifest ⊢ artifact:v1 conformance (the producer is contract-conformant)", () => {
+	it("a built Lab manifest passes the artifact:v1 conformance suite", async () => {
+		const { runArtifactV1Conformance } = await import("@refarm.dev/artifact-contract-v1");
+		const result = runArtifactV1Conformance(() => buildLabManifest(catalog, { producer, producedAt: now }));
+		expect(result.failures).toEqual([]);
+		expect(result.pass).toBe(true);
+	});
+});

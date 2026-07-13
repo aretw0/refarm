@@ -10,6 +10,11 @@ export {
 	selectTaskArtifacts,
 	validateTaskArtifactManifest,
 } from "./types.js";
+export {
+	runArtifactV1Conformance,
+	type ArtifactConformanceResult,
+	type ArtifactManifestProducer,
+} from "./conformance.js";
 export type {
 	ArtifactHash,
 	ArtifactManifestValidationIssue,
