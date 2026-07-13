@@ -528,6 +528,9 @@ importers:
       '@refarm.dev/playbook':
         specifier: workspace:*
         version: link:../../packages/playbook
+      '@refarm.dev/provenance-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/provenance-contract-v1
       '@refarm.dev/records-contract-v1':
         specifier: workspace:*
         version: link:../../packages/records-contract-v1

@@ -14,7 +14,9 @@ import {
 	type SourceRecordParser,
 } from "@refarm.dev/capability-host/node";
 import type { KnowledgeRecord, RecordsManifest } from "@refarm.dev/records-contract-v1";
+import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
 import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
+import { createHash } from "node:crypto";
 import {
 	createRulesEnrichmentProvider,
 	type EnrichmentRule,
@@ -72,6 +74,11 @@ const REQ_ENRICHMENT_RULES: EnrichmentRule[] = [
  * analyst's system would ship a different parser. */
 export const parseRequirementsFromHtml: SourceRecordParser = (body, context) => {
 	const records: ReturnType<SourceRecordParser> = [];
+	// Provenance is the same for every record pulled in this ingest — WHERE they came from.
+	// Stamped generically via provenance:v1 (a refarm block), so the analyst's product is
+	// auditable ("this requirement came from THIS system, at THIS time, fingerprinted").
+	const contentSha256 = createHash("sha256").update(body).digest("hex");
+	const collectedAt = new Date().toISOString();
 	const re =
 		/<article data-req="([^"]+)" data-type="([^"]+)" data-title="([^"]+)">([^<]*)<\/article>/g;
 	let match: RegExpExecArray | null;
@@ -85,7 +92,17 @@ export const parseRequirementsFromHtml: SourceRecordParser = (body, context) => 
 			schemaVersion: 1,
 			"@type": ["KnowledgeRecord", "Requirement"],
 			"@context": "https://refarm.dev/contexts/records/v1",
-			fields: { title, tipo, status: "draft", externalKey: key, body: text },
+			fields: stampProvenance(
+				{ title, tipo, status: "draft", externalKey: key, body: text },
+				{
+					channel: "requirements-pull",
+					originLink: context.ref,
+					sourcePath: context.location,
+					...(context.mediaType ? { mediaType: context.mediaType } : {}),
+					collectedAt,
+					contentSha256,
+				},
+			),
 			sections: [{ key: "conteudo", content: text }],
 			sourceRefs: [context.ref],
 			review: { state: "draft" },

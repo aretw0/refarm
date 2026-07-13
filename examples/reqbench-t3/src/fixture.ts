@@ -1,4 +1,5 @@
 import { computeRecordContentHash, type RecordsManifest } from "@refarm.dev/records-contract-v1";
+import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
 
 /**
  * The T3 work layer — the requirements analyst's OWN data. reqbench is a white-label host:
@@ -95,13 +96,22 @@ export function reqManifest(): RecordsManifest {
 			schemaVersion: 1,
 			"@type": ["KnowledgeRecord", "Requirement"],
 			"@context": "https://refarm.dev/contexts/records/v1",
-			fields: {
-				title: req.title,
-				tipo: req.tipo,
-				status: req.status,
-				externalKey: req.externalKey,
-				body: req.body,
-			},
+			// The seed is the analyst's ALREADY-PULLED corpus, so it carries provenance too
+			// (provenance:v1) — where each requirement came from — like a fresh pull does.
+			fields: stampProvenance(
+				{
+					title: req.title,
+					tipo: req.tipo,
+					status: req.status,
+					externalKey: req.externalKey,
+					body: req.body,
+				},
+				{
+					channel: "requirements-pull",
+					originLink: REQ_SYSTEM_REF,
+					collectedAt: "2026-07-07T00:00:00.000Z",
+				},
+			),
 			sections: [req.section],
 			...(req.relations ? { relations: req.relations } : {}),
 			sourceRefs: [REQ_SYSTEM_REF],

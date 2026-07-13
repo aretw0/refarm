@@ -1,5 +1,7 @@
 import type { SourceRecordParser } from "@refarm.dev/capability-host/node";
+import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
 import { HttpFetchError, type WebFetchDriver } from "@refarm.dev/source-web";
+import { createHash } from "node:crypto";
 
 /**
  * The analyst's OSLC/Jazz driver — the DOMAIN half of a live requirements pull. The substrate
@@ -84,6 +86,8 @@ function textFromPrimary(block: string): string {
  */
 export const parseRequirementsFromRdf: SourceRecordParser = (body, context) => {
 	const records: ReturnType<SourceRecordParser> = [];
+	const contentSha256 = createHash("sha256").update(body).digest("hex");
+	const collectedAt = new Date().toISOString();
 	// Split into per-resource blocks on rdf:Description / oslc_rm:Requirement boundaries.
 	const blocks = body.split(/(?=<(?:rdf:Description|oslc_rm:Requirement)\b)/);
 	for (const block of blocks) {
@@ -98,15 +102,27 @@ export const parseRequirementsFromRdf: SourceRecordParser = (body, context) => {
 			schemaVersion: 1,
 			"@type": ["KnowledgeRecord", "Requirement"],
 			"@context": "https://refarm.dev/contexts/records/v1",
-			fields: {
-				title,
-				tipo,
-				status: "draft",
-				externalKey: key,
-				body: text,
-				// The Jazz coordinate, preserved on the record (the vault's alm_artifact_uri).
-				...(artifactUri ? { artifactUri } : {}),
-			},
+			// Provenance (provenance:v1): a LIVE pull's origin link is the artifact's own
+			// Jazz/ALM URI — the exact coordinate to re-fetch it, fingerprinted and timed.
+			fields: stampProvenance(
+				{
+					title,
+					tipo,
+					status: "draft",
+					externalKey: key,
+					body: text,
+					// The Jazz coordinate, preserved on the record (the vault's alm_artifact_uri).
+					...(artifactUri ? { artifactUri } : {}),
+				},
+				{
+					channel: "requirements-pull",
+					originLink: artifactUri ?? context.ref,
+					sourcePath: context.location,
+					...(context.mediaType ? { mediaType: context.mediaType } : {}),
+					collectedAt,
+					contentSha256,
+				},
+			),
 			sections: [{ key: "conteudo", content: text }],
 			sourceRefs: [context.ref],
 			review: { state: "draft" },

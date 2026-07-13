@@ -25,6 +25,7 @@
 		"@refarm.dev/enrichment-contract-v1": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/playbook": "workspace:*",
+		"@refarm.dev/provenance-contract-v1": "workspace:*",
 		"@refarm.dev/records-contract-v1": "workspace:*",
 		"@refarm.dev/source-web": "workspace:*"
 	},
