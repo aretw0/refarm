@@ -1,7 +1,3 @@
-fn is_forwardable_model_env_value(value: &str) -> bool {
-    crate::host::sensitive_aliases::is_forwardable_model_env_value(value)
-}
-
 /// Build plugin env vars with project config override semantics:
 /// process MODEL_* vars first, then `.refarm/config.json` overwrites them.
 fn plugin_env_vars_from(base: &std::path::Path, sync: Option<&NativeSync>) -> Vec<(String, String)> {

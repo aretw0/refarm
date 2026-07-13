@@ -187,6 +187,11 @@ pub(crate) fn is_forwardable_model_env_key(key: &str) -> bool {
 }
 
 /// Shared plugin-forwarding policy for `MODEL_*` env values.
+///
+/// The default rule is deliberately CREDENTIAL-shaped: a forwardable value is a single
+/// non-whitespace ASCII token under 4 KiB. That is right for the keys this policy was
+/// built for (provider base URLs, model ids, flags) and is a cheap second line against
+/// forwarding a secret-looking blob — but it is WRONG for keys whose value is prose.
 pub(crate) fn is_forwardable_model_env_value(value: &str) -> bool {
     const MAX_MODEL_ENV_VALUE_LEN: usize = 4096;
     !value.trim().is_empty()
@@ -195,6 +200,44 @@ pub(crate) fn is_forwardable_model_env_value(value: &str) -> bool {
         && value.is_ascii()
         && !value.chars().any(|c| c.is_whitespace())
         && !value.chars().any(|c| c.is_control())
+}
+
+/// A `MODEL_*` key whose value is TEXT CONTENT the model reads, not a credential:
+/// the skill disclosure index (`MODEL_SKILLS`) and the on-demand skill bodies map
+/// (`MODEL_SKILL_BODIES`). Their values legitimately contain whitespace, newlines,
+/// unicode, and are much larger than a token — so they need a text-shaped forward
+/// policy, not the credential-shaped default. This is a CLOSED allowlist (not a
+/// pattern) so it can never accidentally widen to a real secret key.
+pub(crate) fn is_text_content_model_env_key(key: &str) -> bool {
+    matches!(key, "MODEL_SKILLS" | "MODEL_SKILL_BODIES")
+}
+
+/// The value policy for a text-content key: much larger cap (a bodies map holds
+/// several SKILL.md files), and whitespace/newlines/unicode allowed — but still
+/// non-empty and free of NUL / other C0 control chars except the ordinary `\t`/`\n`/`\r`
+/// that text carries (a NUL in an env value is a real red flag, never legitimate text).
+fn is_forwardable_text_content_value(value: &str) -> bool {
+    const MAX_TEXT_CONTENT_VALUE_LEN: usize = 256 * 1024;
+    !value.trim().is_empty()
+        && value.len() <= MAX_TEXT_CONTENT_VALUE_LEN
+        && !value
+            .chars()
+            .any(|c| c.is_control() && !matches!(c, '\t' | '\n' | '\r'))
+}
+
+/// The forwarding decision for a `MODEL_*` (key, value) PAIR — the key-aware entry
+/// point. A text-content key (skills) gets the text policy; everything else gets the
+/// credential-shaped default. Keeping the split here means a caller can't forward a
+/// prose value under a non-text key, nor a token-shaped bypass under a text key.
+pub(crate) fn is_forwardable_model_env_pair(key: &str, value: &str) -> bool {
+    if !is_forwardable_model_env_key(key) {
+        return false;
+    }
+    if is_text_content_model_env_key(key) {
+        is_forwardable_text_content_value(value)
+    } else {
+        is_forwardable_model_env_value(value)
+    }
 }
 
 /// Shared spawn boundary env-key policy (exact keys + prefixes + shared alias catalogs).

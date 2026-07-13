@@ -40,14 +40,26 @@ pub(crate) fn is_disallowed_model_forward_env_upper(upper: &str) -> bool {
     policy::is_disallowed_model_forward_env_upper(upper)
 }
 
-/// Shared plugin-forwarding policy for `MODEL_*` env keys.
+/// Per-axis plugin-forwarding policy for `MODEL_*` env keys. Production forwarding goes
+/// through `is_forwardable_model_env_pair` (key-aware); this per-axis wrapper is retained
+/// for the policy tests that pin the key rule independently.
+#[cfg(test)]
 pub(crate) fn is_forwardable_model_env_key(key: &str) -> bool {
     policy::is_forwardable_model_env_key(key)
 }
 
-/// Shared plugin-forwarding policy for `MODEL_*` env values.
+/// Per-axis plugin-forwarding policy for `MODEL_*` env values (credential-shaped default).
+/// Production goes through the pair; this per-axis wrapper is retained for the tests.
+#[cfg(test)]
 pub(crate) fn is_forwardable_model_env_value(value: &str) -> bool {
     policy::is_forwardable_model_env_value(value)
+}
+
+/// Key-aware plugin-forwarding decision for a `MODEL_*` (key, value) pair — text-content
+/// keys (skill index/bodies) get a text policy; the rest get the credential-shaped default.
+/// This is the entry point production forwarding uses.
+pub(crate) fn is_forwardable_model_env_pair(key: &str, value: &str) -> bool {
+    policy::is_forwardable_model_env_pair(key, value)
 }
 
 /// Shared spawn boundary env-key policy (exact keys + prefixes + shared alias catalogs).
@@ -314,6 +326,27 @@ mod tests {
                 "expected MODEL env value to be blocked: {value:?}"
             );
         }
+    }
+
+    #[test]
+    fn text_content_keys_forward_prose_that_the_default_would_block() {
+        // The skill index/bodies carry whitespace, newlines and are large — the
+        // credential-shaped default blocks all of that, so they must go through the
+        // key-aware pair policy with the text rule.
+        let index = "greet-protocol — the greeting convention. Use when asked to greet.";
+        let bodies = "{\"greet-protocol\":\"# Greeting\\nRespond with the token.\"}";
+        assert!(is_forwardable_model_env_pair("MODEL_SKILLS", index));
+        assert!(is_forwardable_model_env_pair("MODEL_SKILL_BODIES", bodies));
+        // The SAME prose under a non-text key is still blocked (no bypass).
+        assert!(!is_forwardable_model_env_pair("MODEL_PROVIDER_BASE_URL", index));
+        // A text-content key still can't smuggle a NUL / C0 control (real red flag).
+        assert!(!is_forwardable_model_env_pair("MODEL_SKILLS", "has\0nul"));
+        // And a secret-shaped key stays blocked even with a token-clean value.
+        assert!(!is_forwardable_model_env_pair("MODEL_GITHUB_TOKEN", "abc123"));
+        // A large body (past the 4 KiB credential cap) is fine as text content.
+        let big = "x".repeat(50_000);
+        assert!(is_forwardable_model_env_pair("MODEL_SKILL_BODIES", &big));
+        assert!(!is_forwardable_model_env_value(&big)); // but not under the default rule
     }
 
     #[test]

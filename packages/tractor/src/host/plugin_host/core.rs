@@ -284,7 +284,11 @@ where
         if out.len() >= MAX_FORWARDED_MODEL_ENV_VARS {
             break;
         }
-        if !is_forwardable_model_env_key(&k) || !is_forwardable_model_env_value(&v) {
+        // Key-aware: a text-content key (MODEL_SKILLS / MODEL_SKILL_BODIES) carries prose
+        // the model reads, so it gets a text policy (whitespace/newlines/larger cap);
+        // every other MODEL_* key gets the credential-shaped default. The secret-key
+        // blocklist (*TOKEN*/*SECRET*/…) still applies to both via the key check inside.
+        if !is_forwardable_model_env_pair(&k, &v) {
             continue;
         }
         if seen_keys.contains(&k) {
@@ -302,6 +306,19 @@ where
     out
 }
 
+// Thin local wrappers over the shared env-forward policy. `is_forwardable_model_env_pair`
+// is the one production forwarding uses (key-aware: text-content keys get the text rule);
+// the `_key`/`_value` wrappers remain the per-axis policy the env_policy_core tests pin.
+fn is_forwardable_model_env_pair(key: &str, value: &str) -> bool {
+    crate::host::sensitive_aliases::is_forwardable_model_env_pair(key, value)
+}
+
+#[cfg(test)]
 fn is_forwardable_model_env_key(key: &str) -> bool {
     crate::host::sensitive_aliases::is_forwardable_model_env_key(key)
+}
+
+#[cfg(test)]
+fn is_forwardable_model_env_value(value: &str) -> bool {
+    crate::host::sensitive_aliases::is_forwardable_model_env_value(value)
 }
