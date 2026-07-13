@@ -27,7 +27,8 @@
 		"@refarm.dev/playbook": "workspace:*",
 		"@refarm.dev/provenance-contract-v1": "workspace:*",
 		"@refarm.dev/records-contract-v1": "workspace:*",
-		"@refarm.dev/source-web": "workspace:*"
+		"@refarm.dev/source-web": "workspace:*",
+		"@refarm.dev/vault-contract-v1": "workspace:*"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.9",

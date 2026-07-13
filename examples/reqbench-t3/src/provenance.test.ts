@@ -50,3 +50,18 @@ describe("seed corpus provenance", () => {
 		}
 	});
 });
+
+describe("requirements-organize (PARA routing via vault:v1)", () => {
+	it("routes seed requirements to PARA areas by tipo", async () => {
+		const { createRequirementsOrganizeCapability, reqCapabilityBundle } = await import("./persona.js");
+		const { records } = reqCapabilityBundle();
+		const verb = createRequirementsOrganizeCapability(records);
+		const env = (await verb.run!({ args: {}, options: {}, json: true })) as Record<string, unknown>;
+		expect(env.ok).toBe(true);
+		const plans = env.plans as { id: string; destination: string }[];
+		const byId = Object.fromEntries(plans.map((p) => [p.id, p.destination]));
+		// regra-de-negocio + funcional → Resources; caso-de-uso → Projects (the taxonomy data).
+		expect(byId["record:req-rn632504"]).toBe("40 - Resources");
+		expect(byId["record:req-cdu282405"]).toBe("20 - Projects");
+	});
+});

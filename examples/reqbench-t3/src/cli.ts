@@ -11,6 +11,7 @@ import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node"
 import {
 	createLiveRequirementsProviderFactory,
 	createRequirementsCapability,
+	createRequirementsOrganizeCapability,
 	createRequirementsPullCapability,
 	reqCapabilityBundle,
 	type RequirementsCapabilityOptions,
@@ -79,6 +80,8 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 				deps,
 				extensions: [
 					createRequirementsCapability(records),
+					// Route pulled requirements to their PARA areas (taxonomy-as-data via vault:v1).
+					createRequirementsOrganizeCapability(records),
 					// The real ingest step: `requirements-pull <system>` LOGS IN then materializes
 					// + ingests + persists, so the journey (discover → pull → analyze/MOC) runs as
 					// commands. It reads the analyst's declared session from the SAME ledger the

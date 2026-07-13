@@ -15,6 +15,11 @@ import {
 } from "@refarm.dev/capability-host/node";
 import type { KnowledgeRecord, RecordsManifest } from "@refarm.dev/records-contract-v1";
 import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
+import {
+	createReferenceVaultSurface,
+	organizeRecords,
+	type VaultProfile,
+} from "@refarm.dev/vault-contract-v1";
 import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 import { createHash } from "node:crypto";
 import {
@@ -621,6 +626,67 @@ export function createRequirementsCapability(
 			groupCount: analyzed.groups.length,
 		}),
 	});
+}
+
+/** The analyst's PARA taxonomy — pure DATA: which area a requirement lands in, by its
+ * `tipo` first, then its source `sistema`, else a triage fallback. Editing THIS (not code)
+ * re-routes the whole bench — the point of taxonomy-as-data. */
+const REQUIREMENTS_TAXONOMY: VaultProfile = {
+	name: "requirements-para",
+	rules: [
+		{
+			id: "route-para",
+			verb: "organize",
+			match: JSON.stringify({
+				type: "taxonomy-route",
+				axes: [
+					{
+						field: "tipo",
+						map: {
+							"regra-de-negocio": "40 - Resources",
+							funcional: "40 - Resources",
+							"caso-de-uso": "20 - Projects",
+						},
+					},
+					{ field: "sistema", map: { EFD: "20 - Projects/EFD" } },
+				],
+				fallback: "40 - Resources/Triagem",
+			}),
+		},
+	],
+};
+
+/** The T3 persona verb: `requirements-organize` — route the pulled requirements to their
+ * PARA areas. The analyst brings a taxonomy (data) and the records; the vault:v1 organize
+ * verb does the routing (dry-run: show the plan). The example is thin BECAUSE the framework
+ * carries the plumbing — organizeRecords is one call over the sovereign surface. */
+export function createRequirementsOrganizeCapability(
+	recordsDeps: RecordsCommandDeps,
+): CapabilityDescriptor {
+	return {
+		name: "requirements-organize",
+		summary: "Route the pulled requirements to their PARA areas (by tipo/sistema)",
+		transports: { http: { path: "/requirements/organize" } },
+		renderers: { tui: { section: "requirements" } },
+		async run(): Promise<CapabilityEnvelope> {
+			const records = recordsDeps.loadManifest().records;
+			const plans = await organizeRecords(
+				createReferenceVaultSurface(),
+				records,
+				REQUIREMENTS_TAXONOMY,
+			);
+			return buildJsonSuccessEnvelope({
+				command: "requirements-organize",
+				operation: "organize",
+				nextCommand: "dgk requirements",
+				nextCommands: ["dgk requirements"],
+				extra: {
+					routed: plans.length,
+					plans: plans.map((p) => ({ id: p.recordId, destination: p.destination })),
+				},
+			});
+		},
+	};
 }
 
 /** The requirements bench web surface — T3 RESULT mode as a web PRODUCT. The bridge

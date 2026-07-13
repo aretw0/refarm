@@ -537,6 +537,9 @@ importers:
       '@refarm.dev/source-web':
         specifier: workspace:*
         version: link:../../packages/source-web
+      '@refarm.dev/vault-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/vault-contract-v1
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.9
