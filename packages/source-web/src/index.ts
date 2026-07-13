@@ -33,6 +33,14 @@ export {
 	type DownloadAttachmentOptions,
 } from "./attachment.js";
 export {
+	decodeHtmlEntities,
+	htmlToMarkdown,
+	minimalHtmlToMarkdown,
+	stripNonContentHtml,
+	type HtmlToMarkdownConverter,
+	type HtmlToMarkdownOptions,
+} from "./html-markdown.js";
+export {
 	loadWebSourceTargets,
 	loadWebSourceTargetsSync,
 	parseWebSourceTargetsConfig,
