@@ -30,6 +30,7 @@ import {
 	type VaultProfile,
 } from "@refarm.dev/vault-contract-v1";
 import { createReferenceVaultSurfaceComponent } from "@refarm.dev/vault-surface-ref";
+import { graphFromRecords, graphToSvg, type GraphRecord } from "@refarm.dev/surveyor";
 import {
 	checkNotes,
 	createNoteQualityChecker,
@@ -535,6 +536,41 @@ export function renderRequirementsMocHtml(env: RecordsAnalyzeEnvelope): string {
 		<p>${escapeHtml(summary)}</p>
 		${groups}
 	</nav>`;
+}
+
+/** Render the requirements as a force-directed GRAPH (SVG) — the analyst's requirement network
+ * drawn spatially, so a hub requirement (many relations) reads bigger and central. Assembles the
+ * generic Surveyor: each record becomes a GraphRecord (its externalKey is the label + a wikilink
+ * alias), and the records' OSLC relations become the graph edges. The layout + SVG are the
+ * substrate's; this only supplies the domain data. Deterministic → a stable graph per corpus. */
+export function renderRequirementsGraphSvg(env: RecordsAnalyzeEnvelope): string {
+	const records: GraphRecord[] = [];
+	const extraLinks: Array<{ source: string; target: string }> = [];
+	const labelById = new Map<string, string>();
+	for (const group of env.groups) {
+		for (const record of group.records) {
+			const externalKey =
+				typeof record.fields?.externalKey === "string" ? (record.fields.externalKey as string) : undefined;
+			const body = typeof record.fields?.body === "string" ? (record.fields.body as string) : "";
+			labelById.set(record.id, externalKey ?? record.title);
+			records.push({
+				id: record.id,
+				title: record.title,
+				text: body, // any [[wikilinks]] in the requirement body become edges
+				...(externalKey ? { aliases: [externalKey] } : {}),
+			});
+			// The record's typed OSLC relations are structural edges (target is another record id).
+			for (const rel of record.relations ?? []) {
+				extraLinks.push({ source: record.id, target: rel.target });
+			}
+		}
+	}
+	const graph = graphFromRecords(records, { extraLinks });
+	return graphToSvg(graph, {
+		labelFor: (id) => labelById.get(id) ?? id,
+		hrefFor: (id) => `#${id}`,
+		title: `Rede de Requisitos (${env.summary.total})`,
+	});
 }
 
 /** Merge freshly-ingested records into a manifest by id (new ones added, existing ones
@@ -1060,6 +1096,28 @@ export function createRequirementsCapability(
 			moc: renderRequirementsMoc(analyzed),
 			mocHtml: renderRequirementsMocHtml(analyzed),
 			groupCount: analyzed.groups.length,
+		}),
+	});
+}
+
+/** The T3 persona verb: `requirements-graph` — the analyst's requirement network as a
+ * force-directed SVG (a hub requirement reads bigger and central). Same neutral `records analyze`
+ * envelope as the MOC, projected through the generic Surveyor (graphFromRecords → layout → SVG)
+ * instead of a list. The SVG is self-contained (a diagram to embed, screenshot, or serve). */
+export function createRequirementsGraphCapability(recordsDeps: RecordsCommandDeps): CapabilityDescriptor {
+	return defineRecordsViewCapability({
+		name: "requirements-graph",
+		summary: "The analyst's requirement network as a force-directed graph (SVG)",
+		records: recordsDeps,
+		httpPath: "/requirements/graph",
+		groupBy: "field:tipo",
+		renderers: {
+			tui: { section: "requirements" },
+			web: { route: "/requirements/graph", icon: "requirements" },
+		},
+		project: (analyzed) => ({
+			total: analyzed.summary.total,
+			svg: renderRequirementsGraphSvg(analyzed),
 		}),
 	});
 }

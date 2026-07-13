@@ -17,6 +17,7 @@ import {
 	createRequirementsSourceProvider,
 	parseRequirements,
 	parseRequirementsFromHtml,
+	renderRequirementsGraphSvg,
 	renderRequirementsMocHtml,
 	reqCapabilityBundle,
 	reqWebSurface,
@@ -553,6 +554,43 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		} as never);
 		expect(html).toContain('data-relation="references"');
 		expect(html).toContain('href="rn.md"');
+	});
+
+	it("renders the requirement network as a force-directed SVG with edges from relations", () => {
+		const svg = renderRequirementsGraphSvg({
+			by: "field:tipo",
+			summary: { total: 2, byState: { draft: 2 } },
+			groups: [
+				{
+					key: "caso-de-uso",
+					label: "caso-de-uso",
+					count: 2,
+					records: [
+						{
+							id: "record:req-cdu282405",
+							title: "Receber Aviso de Tratamento Manual",
+							link: "cdu.md",
+							fields: { externalKey: "CDU-282405", body: "aplica [[RN-632504]]" },
+							relations: [{ type: "references", target: "record:req-rn632504" }],
+						},
+						{
+							id: "record:req-rn632504",
+							title: "Identificador do CNPJ",
+							link: "rn.md",
+							fields: { externalKey: "RN-632504", body: "" },
+						},
+					],
+				},
+			],
+		} as never);
+		expect(svg).toContain("<svg");
+		expect(svg).toContain("Rede de Requisitos (2)");
+		// Two nodes drawn, labelled by their external keys.
+		expect((svg.match(/<circle/g) ?? []).length).toBe(2);
+		expect(svg).toContain(">CDU-282405<");
+		expect(svg).toContain(">RN-632504<");
+		// The relation (and the wikilink) become an edge — the network is connected.
+		expect((svg.match(/<line/g) ?? []).length).toBeGreaterThanOrEqual(1);
 	});
 
 	it("the requirements MOC is a navigable product, and reflects a correction", async () => {
