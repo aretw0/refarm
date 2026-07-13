@@ -12,3 +12,13 @@ export {
 	type LabNotebook,
 	type NotebookExportOptions,
 } from "./catalog.js";
+export {
+	availableNotebookArtifacts,
+	exportHashes,
+	runNotebookExport,
+	runNotebookExports,
+	type HashOutput,
+	type NotebookExportResult,
+	type ProcessExecutor,
+	type RunNotebookExportOptions,
+} from "./runner.js";
