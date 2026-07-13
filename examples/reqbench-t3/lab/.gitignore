@@ -1,0 +1,11 @@
+# The Lab exports (Marimo → HTML+WASM) are DERIVED artifacts — the `.py` notebook source is
+# the truth. A `requirements-lab --export` run (or a stray marimo export) writes the `.html` +
+# its WASM/Pyodide assets here; never commit them. Set DGK_LAB_CWD to export elsewhere.
+*.html
+assets/
+*.png
+*.ico
+*.webmanifest
+manifest.json
+.nojekyll
+site.webmanifest
