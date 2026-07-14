@@ -1,0 +1,22 @@
+{
+	"name": "@refarm.dev/identity-provider-ref",
+	"version": "0.1.0",
+	"description": "Sovereign identity provider (WASM): the Ed25519 private key is generated and held inside the sandbox and never crosses the boundary.",
+	"type": "module",
+	"files": [
+		"pkg",
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"build:wasm": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_identity_provider_ref.wasm dist/identity_provider.wasm component build --target wasm32-wasip1 --release",
+		"build:transpile": "jco transpile dist/identity_provider.wasm -o pkg --name identity_provider --no-wasi-shim --instantiation async",
+		"build": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_identity_provider_ref.wasm dist/identity_provider.wasm component build --target wasm32-wasip1 --release && jco transpile dist/identity_provider.wasm -o pkg --name identity_provider --no-wasi-shim --instantiation async",
+		"test": "node ../../scripts/ci/cargo-run.mjs test -- --test-threads=1",
+		"test:unit": "node ../../scripts/ci/cargo-run.mjs test -- --test-threads=1"
+	},
+	"devDependencies": {
+		"@bytecodealliance/jco": "catalog:",
+		"@refarm.dev/deps": "workspace:*"
+	}
+}

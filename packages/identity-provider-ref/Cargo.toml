@@ -1,0 +1,32 @@
+[package]
+name = "refarm-identity-provider-ref"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.41.0"
+wit-bindgen-rt = "0.41.0"
+# Same ed25519 primitive the heartwood core uses — but here the SigningKey lives
+# inside the module and is never returned across the WIT boundary.
+ed25519-dalek = "2.2"
+sha2 = "0.10"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+
+[package.metadata.component]
+package = "plugin:host"
+
+[package.metadata.component.target]
+# The identity-plugin world: `include plugin` (imports only tractor-bridge,
+# exports integration) + exports identity-provider. Smallest world that carries
+# the sovereign signer — no host-fs/shell/model, so the key has nowhere to leak
+# even if the code tried.
+path = "../plugin-wit/wit"
+world = "identity-plugin"
