@@ -47,4 +47,27 @@ describe.skipIf(!enabled)("T1 governance-audit, executed on the Rust runtime", (
 		expect(env.auditLineCount).toBeGreaterThan(0);
 		expect(env.hostEffects.some((e) => e.event === "host-effect:fs:read")).toBe(true);
 	}, 120_000);
+
+	it("the SANDBOXED scarecrow observer witnesses the effect and records a verdict", async () => {
+		const { createGovernanceAuditCapability } = await import("./live-audit.js");
+		const env = (await createGovernanceAuditCapability().run({
+			args: {},
+			options: { mock: true, observer: true },
+			json: true,
+		})) as unknown as {
+			ok: boolean;
+			pluginsLoaded: string[];
+			observerLoaded: boolean;
+			observations: Array<{ effect: string; risk: string; verdict: string }>;
+		};
+		expect(env.ok).toBe(true);
+		// The governor is itself a loaded, least-privileged extension.
+		expect(env.pluginsLoaded).toContain("scarecrow");
+		expect(env.observerLoaded).toBe(true);
+		// It witnessed the agent's fs read and recorded a verdict — governance IN sandbox.
+		const read = env.observations.find((o) => o.effect === "host-effect:fs:read");
+		expect(read).toBeTruthy();
+		expect(read?.risk).toBe("low");
+		expect(read?.verdict).toBe("noted");
+	}, 120_000);
 });

@@ -1,0 +1,29 @@
+[package]
+name = "scarecrow-plugin"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.41.0"
+wit-bindgen-rt = "0.41.0"
+serde_json = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+
+[package.metadata.component]
+package = "plugin:host"
+
+[package.metadata.component.target]
+# The base `plugin` world: imports only tractor-bridge (store-node, emit-telemetry) +
+# exports integration. The scarecrow observer needs no host-fs/shell/model — it only
+# WATCHES the host-effect events the host forwards to it and records a verdict. Smallest
+# world = tightest sandbox: the governor is itself the least-privileged citizen.
+path = "../plugin-wit/wit"
+world = "plugin"

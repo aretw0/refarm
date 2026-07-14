@@ -1,0 +1,27 @@
+{
+	"_note": "Template only — entry and integrity are injected at build/install time. The sandboxed host-effect observer: it declares `observe-host-effects`, so the tractor host forwards every host-effect:* event to it. It records each with a risk verdict as a ScarecrowObservation node. The governor is itself the least-privileged citizen (world imports only tractor-bridge — no fs/shell/net).",
+	"id": "@refarm/scarecrow",
+	"name": "Scarecrow",
+	"version": "0.1.0",
+	"capabilities": {
+		"requires": [],
+		"provides": ["observe-host-effects"]
+	},
+	"permissions": [],
+	"observability": {
+		"hooks": ["onLoad", "onInit", "onRequest", "onError", "onTeardown"]
+	},
+	"targets": ["server"],
+	"executionContext": {
+		"preferred": "node",
+		"allowed": ["node"]
+	},
+	"certification": {
+		"license": "AGPL-3.0-only",
+		"a11yLevel": 0,
+		"languages": ["en"]
+	},
+	"trust": {
+		"profile": "strict"
+	}
+}

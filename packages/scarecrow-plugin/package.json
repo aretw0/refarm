@@ -1,0 +1,20 @@
+{
+	"name": "@refarm.dev/scarecrow-plugin",
+	"version": "0.1.0",
+	"description": "Sandboxed host-effect observer (WASM): declares observe-host-effects, records every fs/shell effect with a risk verdict — the governor is itself the least-privileged extension.",
+	"type": "module",
+	"files": ["dist", "plugin.json", "scripts", "README.md"],
+	"scripts": {
+		"build": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/scarecrow_plugin.wasm dist/plugin.wasm component build --target wasm32-wasip1 --release && node scripts/write-plugin-manifest.mjs",
+		"build:wasm": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/scarecrow_plugin.wasm dist/plugin.wasm component build --target wasm32-wasip1 --release && node scripts/write-plugin-manifest.mjs",
+		"test": "node ../../scripts/ci/cargo-run.mjs test -- --test-threads=1",
+		"test:unit": "node ../../scripts/ci/cargo-run.mjs test -- --test-threads=1"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/deps": "workspace:*",
+		"@refarm.dev/plugin-manifest": "workspace:*"
+	}
+}
