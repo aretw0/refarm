@@ -11,6 +11,13 @@ export {
 	vaultRecordToNode,
 	type VaultEmitOptions,
 } from "./emit.js";
+export {
+	analyzeCorpusHealth,
+	type CorpusHealthFinding,
+	type CorpusHealthKind,
+	type CorpusHealthOptions,
+	type CorpusHealthReport,
+} from "./health.js";
 export { createInMemoryVaultSurface, type InMemoryVaultSurfaceOptions } from "./in-memory.js";
 export {
 	organizeRecords,
