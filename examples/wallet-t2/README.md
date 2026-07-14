@@ -13,8 +13,11 @@ The citizen imports, verifies, holds and curates their own items:
 ```bash
 dgk wallet                                       # my wallet - the items I hold
 dgk import ./minha-credencial.json               # import a credential I hold (local-first)
-dgk verify record:cred-<id>                      # verify it FOR REAL (signature/issuer/validity)
+dgk verify record:cred-<id>                      # verify it FOR REAL (signature + validity)
+dgk verify record:cred-<id> --strict             # + revocation status + issuer trust
 dgk share record:cred-<id>,record:cred-<other>   # SHARE only the ones I choose (a signed presentation)
+dgk verify-presentation ./presented.json         # THE OTHER SIDE: the service validates a shared presentation
+dgk recover <session-secret>                     # lost device → recover my sovereign identity
 dgk wallet                                       # a verified credential now shows as verified
 dgk serve                                        # my wallet on a web surface
 ```
@@ -41,6 +44,21 @@ disclosed. The receiving party then verifies the presentation — each credentia
 the holder who presents is who signed it. Selection is per-credential (revealing individual
 fields within a credential, SD-JWT/BBS+ style, isn't in the substrate's VC model yet); even so,
 it is private-by-default sharing under the citizen's control.
+
+`verify` enforces a real policy (not signature alone): the default requires **validity** (an
+expired credential is rejected — a bare signature check silently accepted it); `--strict` adds
+**revocation status** (re-reading the issuer's signed status list) and **issuer trust**. A
+deployment pins its trusted civic issuers. Both sides of the exchange ship: `verify-presentation`
+is the **receiving service's** verb — it validates a presentation the citizen shared (holder-binding
+always; `--strict` for revocation + trust), so the demo shows *present AND accept*, not presenting
+into the void. The revocation chain is proven end to end: an issuer revokes a credential and the
+wallet's `--strict` re-verify then rejects it, discovered from the status list with no re-import.
+
+`recover <session-secret>` is the **sovereignty guarantee made concrete**: a lost device does not
+lose the identity. The citizen re-authenticates (OPAQUE/WebAuthn → a session secret) and the
+provider's `deriveFromSession` deterministically re-derives the SAME identity — same id, same
+public key — restoring the ability to sign *without ever exposing the key*. Your identity is
+yours, not the device's.
 
 `dgk status --base --json` is the manual exploratory entrypoint for the shared
 operator-state contract. The app declares a white-label `dgk` host with
