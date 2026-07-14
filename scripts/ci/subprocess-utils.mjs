@@ -5,6 +5,7 @@ import { createPackageScriptCommand } from "../../packages/config/src/package-ma
 
 const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/root",
+	"packages/std",
 	"packages/capabilities",
 	"packages/effort-contract-v1",
 	"packages/dispatch-surface",

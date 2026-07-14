@@ -68,8 +68,6 @@ export interface SyncDecision {
 	previous?: CacheEntry;
 }
 
-const EMPTY_MANIFEST: CacheManifest = { version: 1, entries: {} };
-
 /** Start an empty manifest (or normalize a loaded one that may be missing fields). */
 export function emptyCacheManifest(): CacheManifest {
 	return { version: 1, entries: {} };
