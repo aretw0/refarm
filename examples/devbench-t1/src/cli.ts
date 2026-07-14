@@ -23,6 +23,7 @@ import { createExtensionDevelopCapability } from "./maturity-verb.js";
 import { createExtensionVerifyCapability } from "./integrity-verb.js";
 import { createXyzzyCapability } from "./easter-egg.js";
 import { createIdeCapability } from "./ide-verb.js";
+import { createVscodeManifestCapability } from "./vscode-verb.js";
 import { resolveDevbenchTheme } from "./theme.js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -105,6 +106,15 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// The IDE surface: project the bench as an editor command set + tree (the same registry
 				// the CLI/TUI/web derive from). A VS Code extension consumes this. CLI + TUI + IDE.
 				createIdeCapability(() => host.registry(), command),
+				// Generate the VS Code extension's package.json from the bench — "develop the editor
+				// extension" without hand-writing its manifest (declare once → the editor contributes).
+				createVscodeManifestCapability(() => host.registry(), command, {
+					writeManifest: (json) => {
+						const pkgPath = path.join(process.cwd(), "vscode", "package.json");
+						mkdirSync(path.dirname(pkgPath), { recursive: true });
+						writeFileSync(pkgPath, json, "utf8");
+					},
+				}),
 			],
 		}),
 		operatorStatus: {

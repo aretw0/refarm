@@ -2,3 +2,6 @@ dist-web/
 .astro/
 # Generated governance-poc artifacts (policy decisions, sandbox reports, evidence) — derived.
 .dgk/
+# The VS Code extension's package.json is GENERATED from the bench (dgk vscode-manifest --apply).
+vscode/package.json
+vscode/dist/
