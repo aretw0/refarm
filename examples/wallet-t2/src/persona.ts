@@ -31,6 +31,7 @@ import {
 } from "./consent.js";
 import { createDisclosureGraphCapability } from "./disclosure-graph.js";
 import { createVerifyPresentationCapability } from "./verifier.js";
+import { createRecoverCapability } from "./recovery.js";
 import {
 	createWalletImportCapability,
 	createWalletShareCapability,
@@ -303,6 +304,11 @@ export function createWalletCapabilities(
 		capabilities.push(
 			createVerifyPresentationCapability(options.credentialsProvider, { policy: options.verifyPolicy }),
 		);
+	}
+	// Recovery is identity-only (no credentials needed): re-derive the sovereign identity from a
+	// re-authenticated session — "lost device → recover who you were".
+	if (options.identity) {
+		capabilities.push(createRecoverCapability(options.identity));
 	}
 	// The consent journey: authorize a service for a scoped purpose, present only that
 	// scope, revoke it later — the citizen's sovereign control over their own disclosure.
