@@ -151,7 +151,8 @@ quickly, then:
 1. **discovering the systems they can access** (`source discover`),
 2. **scraping** one of them,
 3. **promoting corrections** (`records correct`),
-4. **enriching** (a CNPJ / external-registry lookup — the enrichment WASM provider),
+4. **enriching** (the analyst's domain rules tag a requirement from its text — the
+   generic `enrichment:v1` engine driven by the analyst's own ruleset),
 5. reading the **requirements MOC** (Obsidian markdown) — and, as an extra, an **Astro**
    frontend over the scraped requirements (the equivalent of the SERPRO
    `modelo-de-repositorio-para-requisitos` mkdocs SSG, but Astro).
