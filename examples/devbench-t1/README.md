@@ -41,6 +41,29 @@ not bridge defaults.
   manifest is inline, but dispatch still goes through a platform-compatible sidecar so
   the example dogfoods the daemon path.
 
+## Governance, executed — and runtime tinkering
+
+The governance quartet is not asserted, it is EXECUTED on the Rust runtime:
+
+```bash
+dgk governance-poc           # DECIDE — grant/deny/review, risk-tiered policy (decideCapabilityGrants)
+dgk governance-audit --mock  # RECORD — the host's tamper-evidence trail of the effects that ran
+dgk governance-enforce       # ENFORCE — the host REFUSES an undeclared effect at the sandbox boundary
+dgk plugin-reload            # RUNTIME TINKERING — hot-reload a plugin without restarting the host
+dgk delegate-run "…" --chain # a scout→planner→worker pipeline: one extension orchestrating sub-agents
+```
+
+`governance-enforce` is the third face the quartet was missing: it boots the SAME agent under
+`securityMode: "strict"` with `fs:read` dropped from its manifest, scripts a read, and shows NO
+`host-effect:fs:read` line reached the audit trail — the host's `enforce_permission` denied the
+effect before it ran — contrasted with a granted baseline that DOES produce one. Same plugin, same
+read, two grant postures: governance is not a parecer, the host **recuses** the effect.
+`plugin-reload` hot-swaps a plugin's code via `POST /plugins/reload` (`TractorNative::reload_plugin`)
+and proves the host stayed up (the agent dispatches again after) — the developer editing an
+extension live, the machine never coming down. `delegate-run --chain` runs the delegate plugin's
+multi-level pipeline (each persona refines the previous step's output), all sandboxed. Each of
+these is proven live in a `*.execution.test.ts` gated on `RUN_RUNTIME_EXECUTION=1`.
+
 ## Run it
 
 ```bash
