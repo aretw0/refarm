@@ -38,5 +38,10 @@ export {
 	pluginKeyFromId,
 } from "./capabilities-normalize.js";
 export { decidePluginPolicy, evaluateCapabilityGrant } from "./policy.js";
+export {
+	MATURITY_TRAIL,
+	assessExtensionMaturity,
+	describeMaturity,
+} from "./maturity-vocab.js";
 export { REQUIRED_TELEMETRY_HOOKS } from "./types.js";
 export { assertValidPluginManifest, validatePluginManifest } from "./validate.js";

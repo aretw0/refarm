@@ -26,6 +26,40 @@ export const KNOWN_PERMISSIONS: ReadonlySet<string>;
 export function isKnownPermission(id: string): boolean;
 export function unknownPermissions(declared: readonly string[]): string[];
 export function describePermission(id: string): PermissionSpec | undefined;
+
+export type MaturityLevel = "experiment" | "productive" | "sensitive" | "catalog";
+export interface MaturityCriterion {
+	id: string;
+	label: string;
+	detail: string;
+}
+export interface MaturitySpec {
+	level: MaturityLevel;
+	rank: number;
+	label: string;
+	description: string;
+	criteria: MaturityCriterion[];
+}
+export const MATURITY_TRAIL: readonly MaturitySpec[];
+export function describeMaturity(level: MaturityLevel): MaturitySpec | undefined;
+export interface MaturityEvidence {
+	manifestConformant?: boolean;
+	integrity?: string;
+	wasmEntry?: boolean;
+	telemetryHooks?: readonly string[];
+	capabilitiesStrict?: boolean;
+	version?: string;
+	approvalTrail?: boolean;
+	revocable?: boolean;
+}
+export interface MaturityAssessment {
+	level: MaturityLevel;
+	next: MaturityLevel | null;
+	missing: Array<{ id: string; label: string; detail: string }>;
+	trail: Array<{ level: MaturityLevel; met: boolean }>;
+}
+export function assessExtensionMaturity(evidence: MaturityEvidence): MaturityAssessment;
+
 export type ExecutionContextType =
 	| "main-thread"
 	| "worker"

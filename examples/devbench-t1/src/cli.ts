@@ -19,6 +19,7 @@ import {
 } from "./persona.js";
 import { createAgentRunCapability } from "./live-recursion.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
+import { createExtensionDevelopCapability } from "./maturity-verb.js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -81,6 +82,10 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 						writeFileSync(file, json, "utf8");
 					},
 				}),
+				// SIMULATE developing an extension through the governed maturity trail (experiment →
+				// productive → sensitive → catalog) — the platform's maturity vocabulary consumed to
+				// show the lifecycle the writeup's Figura 3 describes, with objective promotion gates.
+				createExtensionDevelopCapability(),
 			],
 		},
 		operatorStatus: {
