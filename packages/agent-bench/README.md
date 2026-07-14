@@ -39,7 +39,7 @@ bench needs the same host machinery to load `agent.wasm`, so it depends on
 rather than adding a `bin` inside the protected crate. The token regression-net is
 its own thing, and adding it touches no protected code.
 
-Its `Cargo.lock` is pinned from tractor's (notably `loro`) so the transitive
+Its `Cargo.lock` is pinned from tractor's (especially `loro`) so the transitive
 resolution matches the host it links against.
 
 ## Metrics (designed to grow)

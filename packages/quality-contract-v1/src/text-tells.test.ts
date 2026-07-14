@@ -38,28 +38,44 @@ describe("runTextTellsRules — banned words / stock phrases / transitions", () 
 });
 
 describe("em-dash-density", () => {
+	// Low floors so the density logic itself is what's under test (not the short-text guard).
 	const emDashProfile: QualityProfile = {
 		name: "t",
-		rules: [{ id: "em", severity: "warn", description: "d", check: { type: "em-dash-density", words: 300, maxPer: 1 } }],
+		rules: [{ id: "em", severity: "warn", description: "d", check: { type: "em-dash-density", words: 300, maxPer: 1, minWords: 3, minDashes: 3 } }],
 	};
 
-	it("flags text with too many em dashes for its length", () => {
-		// A short text with 3 em dashes → over the 1-per-300-words budget.
+	it("flags text with too many prose em dashes for its length", () => {
 		const f = runTextTellsRules(subject("A — b — c — d."), emDashProfile);
 		expect(f).toHaveLength(1);
 		expect(f[0]!.locus).toMatchObject({ dashes: 3, allowed: 1 });
 	});
 
-	it("allows an occasional em dash", () => {
-		expect(runTextTellsRules(subject("A single dash — used once — is fine here."), emDashProfile).length).toBe(1);
-		expect(runTextTellsRules(subject("One dash — only."), emDashProfile)).toEqual([]);
+	it("does NOT count structural dashes (markdown definition/list markers)", () => {
+		// `**term** —` and a line-leading `—` are structure, not AI asides.
+		const md = "- **registry** — the descriptor.\n- **surface** — the projector.\n— a note here.";
+		expect(runTextTellsRules(subject(md), emDashProfile)).toEqual([]);
+	});
+
+	it("does not judge a short text (below minWords)", () => {
+		const shortProfile: QualityProfile = {
+			name: "t",
+			rules: [{ id: "em", severity: "warn", description: "d", check: { type: "em-dash-density", words: 300, maxPer: 1, minWords: 200, minDashes: 3 } }],
+		};
+		expect(runTextTellsRules(subject("A — b — c — d — e."), shortProfile)).toEqual([]);
+	});
+
+	it("does not flag below the absolute minimum dashes", () => {
+		const words = `${"word ".repeat(250)}one dash — here and — two.`;
+		// 2 prose dashes over 250 words: over the ratio budget but below minDashes:3 → quiet.
+		expect(runTextTellsRules(subject(words), emDashProfile).length).toBe(0);
 	});
 });
 
 describe("sentence-burstiness", () => {
+	// Low minWords so the cadence logic is what's under test, not the short-text guard.
 	const burstProfile: QualityProfile = {
 		name: "t",
-		rules: [{ id: "burst", severity: "warn", description: "d", check: { type: "sentence-burstiness", minStdev: 4, minSentences: 4 } }],
+		rules: [{ id: "burst", severity: "warn", description: "d", check: { type: "sentence-burstiness", minStdev: 4, minSentences: 5, minWords: 40 } }],
 	};
 
 	it("flags uniform sentence lengths (AI cadence)", () => {
@@ -68,6 +84,15 @@ describe("sentence-burstiness", () => {
 		const f = runTextTellsRules(subject(uniform), burstProfile);
 		expect(f).toHaveLength(1);
 		expect(f[0]!.ruleId).toBe("burst");
+	});
+
+	it("does not judge a short text (below minWords)", () => {
+		const shortProfile: QualityProfile = {
+			name: "t",
+			rules: [{ id: "burst", severity: "warn", description: "d", check: { type: "sentence-burstiness", minStdev: 4, minSentences: 5, minWords: 120 } }],
+		};
+		const uniform = "The cat sat. The dog ran. The bird flew. The fish swam. The fox hid. The owl slept.";
+		expect(runTextTellsRules(subject(uniform), shortProfile)).toEqual([]);
 	});
 
 	it("stays quiet on bursty (varied) sentence lengths", () => {

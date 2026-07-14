@@ -4,7 +4,7 @@ Sync-Loro is Refarm's core synchronization engine, leveraging the Loro CRDT libr
 
 ## Features
 
-- **Binary Interop**: Seamless delta replication between JavaScript and Rust.
+- **Binary Interop**: Direct delta replication between JavaScript and Rust.
 - **CQRS Projector**: Efficiently materializes CRDT states into relational SQLite tables.
 - **Offline-First**: Guaranteed convergence even after extended periods of isolation.
 

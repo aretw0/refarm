@@ -85,14 +85,17 @@ export const HUMANIZER_TELLS_PROFILE: QualityProfile = {
 			severity: "warn",
 			category: "punctuation",
 			description: "Em dashes above the human baseline (AI runs 3–5×) — replace most with periods",
-			check: { type: "em-dash-density", words: 300, maxPer: 1 },
+			// Budget: ~1 prose em dash per 150 words (dense technical writing runs higher than casual
+			// prose). Structural/list dashes aren't counted, and short docs (<200 words) aren't judged,
+			// so this fires only on genuine mid-sentence-aside overuse, not a considered style.
+			check: { type: "em-dash-density", words: 150, maxPer: 1, minWords: 200, minDashes: 3 },
 		},
 		{
 			id: "sentence-burstiness",
 			severity: "warn",
 			category: "cadence",
 			description: "Sentence lengths too uniform — human writing varies (short then long)",
-			check: { type: "sentence-burstiness", minStdev: 4, minSentences: 4 },
+			check: { type: "sentence-burstiness", minStdev: 4, minSentences: 5, minWords: 120 },
 		},
 	],
 };

@@ -92,29 +92,47 @@ export function runTextTellsRules(subject: TextQualitySubject, profile: QualityP
 			}
 			case "em-dash-density": {
 				// AI prose runs em dashes 3–5× the human baseline. Flag when density exceeds
-				// `maxPer` dashes per `words` words.
+				// `maxPer` dashes per `words` words. Calibrated so it doesn't cry wolf on short docs:
+				// only judge texts over `minWords`, and never flag below `minDashes` absolute.
 				const per = num(check, "words") ?? 300;
 				const maxPer = num(check, "maxPer") ?? 1;
-				const dashes = (text.match(/—/g) ?? []).length;
+				const minWords = num(check, "minWords") ?? 200;
+				const minDashes = num(check, "minDashes") ?? 3;
 				const words = wordCount(text);
+				// Count PROSE em dashes only — not those used as a list/definition marker (a `—` at a
+				// line start or right after markdown bold/heading is structure, not an AI aside).
+				// Structural dashes (not counted): a `—` on a MARKDOWN LIST line (`- x — y`, `* x — y`,
+				// `1. x — y`), a line-leading `—`, or a `**term** —` / heading definition. These are
+				// layout, not the AI mid-sentence aside the tell targets. Count per LINE so a list of
+				// definitions contributes zero prose dashes.
+				let proseDashes = 0;
+				for (const line of text.split("\n")) {
+					const lineDashes = (line.match(/—/g) ?? []).length;
+					if (lineDashes === 0) continue;
+					const isListOrDef = /^\s*(?:[-*+]|\d+\.)\s/.test(line) || /^\s*—/.test(line) || /\*\*[^*]+\*\*\s*—/.test(line);
+					// On a list/definition line the FIRST dash is structural; extra dashes are prose.
+					proseDashes += isListOrDef ? Math.max(0, lineDashes - 1) : lineDashes;
+				}
 				const allowed = Math.max(maxPer, Math.ceil((words / per) * maxPer));
-				if (dashes > allowed) {
+				if (words >= minWords && proseDashes >= minDashes && proseDashes > allowed) {
 					findings.push({
 						severity: rule.severity,
 						ruleId: rule.id,
-						message: rule.description || `too many em dashes: ${dashes} > ${allowed} for ${words} words`,
-						locus: { path: subject.path, dashes, allowed, words },
+						message: rule.description || `too many em dashes: ${proseDashes} > ${allowed} for ${words} words`,
+						locus: { path: subject.path, dashes: proseDashes, allowed, words },
 					});
 				}
 				break;
 			}
 			case "sentence-burstiness": {
 				// Human writing varies sentence length; AI is uniform. Flag when the stdev of
-				// sentence word-counts is below `minStdev` (only for texts with enough sentences).
+				// sentence word-counts is below `minStdev` — only for texts with enough sentences AND
+				// enough words (a short blurb has no meaningful cadence to judge).
 				const minStdev = num(check, "minStdev") ?? 4;
-				const minSentences = num(check, "minSentences") ?? 4;
+				const minSentences = num(check, "minSentences") ?? 5;
+				const minWords = num(check, "minWords") ?? 120;
 				const lengths = sentences(text).map(wordCount);
-				if (lengths.length >= minSentences) {
+				if (lengths.length >= minSentences && wordCount(text) >= minWords) {
 					const sd = stdev(lengths);
 					if (sd < minStdev) {
 						findings.push({

@@ -1,6 +1,6 @@
 # @refarm.dev/quality-checker-ref
 
-The **reference `quality:v1` checker** — a pure-compute WASM component that proves
+The **reference `quality:v1` checker**: a pure-compute WASM component that proves
 the sovereign checker boundary (`world quality-checker`, package
 `plugin:quality@0.1.0`, defined in
 [`../quality-contract-v1/wit/quality.wit`](../quality-contract-v1/wit/quality.wit))
@@ -20,7 +20,7 @@ transpiled component with **deny-all** wasi imports: no environment, no argument
 findings — proving the checker is pure compute that never needs the filesystem,
 and that if it *tried* to reach fs or the network it could not, because the host
 provides no capability to try. **The host enforces the boundary** by choosing what
-to provide — here, nothing but the subject. That is the "even an untrusted checker
+to provide; here, nothing but the subject. That is the "even an untrusted checker
 cannot exfiltrate" claim, run for real (`src/checker.test.ts`).
 
 This loader is the reusable analog a real plugin host (a skill quality gate, etc.)
@@ -37,5 +37,5 @@ pnpm test              # vitest — real WASM dispatch + the sandbox proof
 ```
 
 `build:component` transpiles with `--no-wasi-shim --instantiation async` so the
-loader — not jco — supplies the (denied) imports. The test suite skips when `pkg/`
+loader (not jco) supplies the (denied) imports. The test suite skips when `pkg/`
 is absent, so a repo-wide run without the heavy component build stays green.
