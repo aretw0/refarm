@@ -1,5 +1,9 @@
 # POC Prize Readiness
 
+> **Nota (2026-07):** a Proposal Evidence Matrix abaixo segue válida como guia de **postura**. A
+> evidência canônica dos trabalhos migrou de `validations/*-poc/` para os **exemplos executáveis**
+> — ver [docs/works/](works/INDEX.md), que liga cada trabalho à sua prova, figuras e números.
+
 Status: local validation note for keeping Refarm POCs useful as product pressure
 without copying or writing into external proposal vaults.
 

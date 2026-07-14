@@ -1,5 +1,9 @@
 # POC Demonstration Packet
 
+> **Nota (2026-07):** o "Packet Shape" abaixo é um template reusável e segue válido. A evidência
+> canônica dos trabalhos migrou de `validations/*-poc/` para os **exemplos executáveis** — ver
+> [docs/works/](works/INDEX.md).
+
 Status: source guidance for turning validation evidence into reader-ready
 demonstration packets without moving proposal writing into Refarm.
 

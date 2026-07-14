@@ -1,5 +1,9 @@
 # POC Writing Handoff
 
+> **Nota (2026-07):** este guia é de **postura de escrita** (claim promotion, non-claims, boundary)
+> e segue válido. A evidência canônica dos trabalhos migrou das fixtures sintéticas
+> (`validations/*-poc/`) para os **exemplos executáveis** — ver [docs/works/](works/INDEX.md).
+
 Status: sanitized handoff for continuing proposal writing outside this
 repository. This is not submission text and should not be copied as-is.
 

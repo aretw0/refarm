@@ -5,6 +5,13 @@
 
 ---
 
+## 🏆 Trabalhos (Prêmio) — material por trabalho
+
+- **[Trabalhos — índice](works/INDEX.md)** — cada trabalho ligado ao seu exemplo executável (a prova), às figuras, ao verbo `report` (os números), e à postura de escrita (`POC_*.md`).
+  - [T1 — Plugins WASM / máquina extensível](works/T1-devbench.md) → `examples/devbench-t1`
+  - [T2 — Cidadão Digital / carteira soberana](works/T2-wallet.md) → `examples/wallet-t2`
+  - [T3 — Caixa de Notas / vault de requisitos](works/T3-reqbench.md) → `examples/reqbench-t3`
+
 ## 🏛 Philosophy & Vision
 
 - **[ARCHITECTURE](ARCHITECTURE.md)** — System design, layers, evolutionary roadmap.
