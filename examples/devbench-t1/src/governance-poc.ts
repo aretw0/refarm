@@ -1,4 +1,4 @@
-import { PERMISSIONS, type Permission, type PermissionRisk } from "@refarm.dev/plugin-manifest";
+import { decideCapabilityGrants, type Permission, type PermissionRisk } from "@refarm.dev/plugin-manifest";
 
 /**
  * The GOVERNANCE PoC — extensibility treated as a RISK DECISION, not just a coupling mechanism.
@@ -19,12 +19,6 @@ import { PERMISSIONS, type Permission, type PermissionRisk } from "@refarm.dev/p
  * promotion criteria. It does NOT execute real WASM — the capability-policy decision is the point;
  * the adjacent real WASM-component validation lives elsewhere (the runtime recursion demo).
  */
-
-/** The capability risk matrix, sourced from the platform's permission vocabulary (fs:read=low,
- * fs:write=medium, shell:spawn=high, network:outbound=medium). The example does not invent it. */
-const RISK_BY_PERMISSION: Record<string, PermissionRisk> = Object.fromEntries(
-	PERMISSIONS.map((p) => [p.id, p.risk]),
-);
 
 /** How strict the host is about a denied capability: tolerant isolates a failing extension and
  * keeps going; strict aborts the whole flow on any denial or failure. */
@@ -47,7 +41,6 @@ export interface PolicyProfile {
 	maxAutoRisk: PermissionRisk;
 }
 
-const RISK_RANK: Record<PermissionRisk, number> = { low: 0, medium: 1, high: 2 };
 
 /** One capability's decision. */
 export interface CapabilityDecision {
@@ -71,18 +64,14 @@ export interface PolicyDecisionArtifact {
  * the auto-risk ceiling; review-required if in the grant set but above the ceiling (human gate);
  * denied otherwise. PURE. This is the "separate before promotion" step. */
 export function decidePolicy(extension: ExtensionUnderTest, profile: PolicyProfile, mode: PolicyMode): PolicyDecisionArtifact {
-	const grantSet = new Set(profile.granted);
-	const ceiling = RISK_RANK[profile.maxAutoRisk];
-	const decisions: CapabilityDecision[] = extension.requests.map((capability) => {
-		const risk = RISK_BY_PERMISSION[capability] ?? "high";
-		if (!grantSet.has(capability)) {
-			return { capability, risk, decision: "denied", reason: `capability outside the environment grant` };
-		}
-		if (RISK_RANK[risk] > ceiling) {
-			return { capability, risk, decision: "review-required", reason: `${risk}-risk capability exceeds auto-grant ceiling (${profile.maxAutoRisk}); needs human review` };
-		}
-		return { capability, risk, decision: "granted", reason: `within the grant, at or below the ${profile.maxAutoRisk} auto ceiling` };
-	});
+	// The risk-tiered grant/deny/review decision is a FRAMEWORK capability
+	// (@refarm.dev/plugin-manifest decideCapabilityGrants), sourcing risk from the same
+	// permission vocabulary — the example CONSUMES it, it does not reimplement the policy.
+	// The governance PoC then wraps the decision in its artifact shape (extension + mode).
+	const decisions = decideCapabilityGrants(extension.requests, {
+		granted: profile.granted,
+		maxAutoRisk: profile.maxAutoRisk,
+	}) as CapabilityDecision[];
 	return {
 		extension: extension.id,
 		mode,

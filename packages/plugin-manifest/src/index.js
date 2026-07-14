@@ -37,7 +37,7 @@ export {
 	normalizeManifest,
 	pluginKeyFromId,
 } from "./capabilities-normalize.js";
-export { decidePluginPolicy, evaluateCapabilityGrant } from "./policy.js";
+export { decideCapabilityGrants, decidePluginPolicy, evaluateCapabilityGrant } from "./policy.js";
 export {
 	MATURITY_TRAIL,
 	assessExtensionMaturity,

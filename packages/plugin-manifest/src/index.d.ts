@@ -310,6 +310,20 @@ export function decidePluginPolicy(
 	options: { grantedCapabilities: string[]; policyMode: PluginPolicyMode },
 ): PluginPolicyDecision;
 
+export type CapabilityGrantDecision = "granted" | "denied" | "review-required";
+
+export interface CapabilityGrantResult {
+	capability: string;
+	risk: PermissionRisk;
+	decision: CapabilityGrantDecision;
+	reason: string;
+}
+
+export function decideCapabilityGrants(
+	requests: string[],
+	options: { granted: string[]; maxAutoRisk: PermissionRisk },
+): CapabilityGrantResult[];
+
 export interface ParsedIntegrity {
 	algorithm: "sha256";
 	encoding: "hex" | "base64";

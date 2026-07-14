@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMockManifest } from "./fixtures.js";
-import { decidePluginPolicy, evaluateCapabilityGrant } from "./policy.js";
+import { decideCapabilityGrants, decidePluginPolicy, evaluateCapabilityGrant } from "./policy.js";
 
 function manifestRequiring(requires) {
 	return createMockManifest({
@@ -77,5 +77,42 @@ describe("decidePluginPolicy", () => {
 			missingCapabilities: [],
 		});
 		expect(decision.manifestErrors.length).toBeGreaterThan(0);
+	});
+});
+
+describe("decideCapabilityGrants — risk-tiered grant/deny/review decision", () => {
+	const profile = { granted: ["fs:read", "fs:write", "network:outbound"], maxAutoRisk: "medium" };
+
+	it("grants a capability inside the grant, at or below the risk ceiling", () => {
+		const [d] = decideCapabilityGrants(["fs:read"], profile);
+		expect(d.decision).toBe("granted");
+		expect(d.risk).toBe("low");
+	});
+
+	it("denies a capability outside the grant", () => {
+		const [d] = decideCapabilityGrants(["shell:spawn"], profile);
+		expect(d.decision).toBe("denied");
+	});
+
+	it("requires review for an in-grant capability above the auto ceiling", () => {
+		// A grant that includes shell:spawn (high) but only auto-approves up to low.
+		const strict = { granted: ["fs:read", "shell:spawn"], maxAutoRisk: "low" };
+		const [d] = decideCapabilityGrants(["shell:spawn"], strict);
+		expect(d.decision).toBe("review-required");
+		expect(d.risk).toBe("high");
+	});
+
+	it("sources risk from the permission vocabulary, and fails closed for unknown capabilities", () => {
+		const [known] = decideCapabilityGrants(["network:outbound"], profile);
+		expect(known.risk).toBe("medium"); // from PERMISSIONS, not hardcoded here
+		// An unknown capability is high-risk (fail-closed) and, being outside the grant, denied.
+		const [unknown] = decideCapabilityGrants(["mystery:cap"], profile);
+		expect(unknown.risk).toBe("high");
+		expect(unknown.decision).toBe("denied");
+	});
+
+	it("decides each requested capability independently", () => {
+		const decisions = decideCapabilityGrants(["fs:read", "shell:spawn"], profile);
+		expect(decisions.map((d) => d.decision)).toEqual(["granted", "denied"]);
 	});
 });
