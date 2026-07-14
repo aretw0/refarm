@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { createLocalDispatchStep, type LocalVerb } from "./capability.js";
 import { runPlaybook, type Playbook } from "./index.js";

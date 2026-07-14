@@ -289,16 +289,27 @@ const WIT_COMPONENT_DISTRIBUTION_TARGETS = [
     exports: ["host-fs", "host-shell", "structured-io"],
   },
   {
-    id: "refarm-plugin",
+    id: "host-plugin",
     packageDir: "packages/plugin-wit",
     cargoPackage: "plugin:host",
     targetPath: "wit",
     // Canonical package is split across wit/*.wit; the host world + its
-    // imports/exports live in worlds.wit (see ADR-083).
+    // imports/exports live in worlds.wit (see ADR-083). The world is named
+    // `host-plugin` (not `plugin-host`) so bindgen! yields `HostPlugin`, which
+    // does not collide with the host's own `PluginHost` struct (see the WIT
+    // rename sweep that moved refarm-plugin → host-plugin across the ABI).
     witPath: "wit/worlds.wit",
     witPackage: "plugin:host@0.1.0",
-    world: "refarm-plugin-host",
-    imports: ["tractor-bridge", "model-bridge", "host-fs", "host-shell", "structured-io", "code-ops"],
+    world: "host-plugin",
+    imports: [
+      "tractor-bridge",
+      "model-bridge",
+      "host-fs",
+      "host-shell",
+      "structured-io",
+      "code-ops",
+      "capability-tools",
+    ],
     exports: ["integration"],
   },
 ];

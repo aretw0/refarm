@@ -20,6 +20,7 @@
 		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
 		"test": "vitest run",
 		"test:unit": "vitest run",
+		"test:conformance": "vitest run src/conformance.test.ts",
 		"clean": "rm -rf dist"
 	},
 	"files": ["dist", "!dist/**/*.tsbuildinfo", "README.md"],

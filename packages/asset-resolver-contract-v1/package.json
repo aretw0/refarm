@@ -30,6 +30,8 @@
 		"lint": "eslint src",
 		"type-check": "tsc --noEmit",
 		"test": "vitest run",
+		"test:unit": "vitest run",
+		"test:conformance": "vitest run src/conformance.test.ts",
 		"clean": "rm -rf dist"
 	},
 	"keywords": [

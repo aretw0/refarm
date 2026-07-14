@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { runProvenanceV1Conformance } from "./conformance.js";
+import { createInMemoryProvenanceCarrier } from "./in-memory.js";
 import { readProvenance, stampProvenance, verifyProvenance } from "./provenance.js";
 import { PROVENANCE_FIELD, type NoteProvenance } from "./types.js";
 
@@ -9,6 +10,28 @@ describe("provenance:v1 conformance", () => {
 		const result = runProvenanceV1Conformance();
 		expect(result.failures).toEqual([]);
 		expect(result.pass).toBe(true);
+	});
+});
+
+describe("in-memory reference carrier", () => {
+	it("stamps on write, reads provenance back, and verifies against the contract", () => {
+		const carrier = createInMemoryProvenanceCarrier();
+		carrier.put(
+			"nota-42",
+			{ title: "Demanda 42" },
+			{ channel: "web-scrape", originLink: "https://alm.example/artifact/42" },
+		);
+
+		expect(carrier.get("nota-42")?.title).toBe("Demanda 42");
+		expect(carrier.provenanceOf("nota-42")?.channel).toBe("web-scrape");
+		expect(carrier.verify("nota-42").valid).toBe(true);
+		expect(carrier.ids()).toEqual(["nota-42"]);
+	});
+
+	it("returns null provenance for an absent note", () => {
+		const carrier = createInMemoryProvenanceCarrier();
+		expect(carrier.get("missing")).toBeNull();
+		expect(carrier.provenanceOf("missing")).toBeNull();
 	});
 });
 

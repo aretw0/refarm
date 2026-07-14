@@ -15,6 +15,13 @@ export {
 	type ArtifactConformanceResult,
 	type ArtifactManifestProducer,
 } from "./conformance.js";
+export {
+	createInMemoryArtifactManifestProducer,
+	createInMemoryArtifactRegistry,
+	referenceArtifactManifest,
+	type InMemoryArtifactManifestOverrides,
+	type InMemoryArtifactRegistry,
+} from "./in-memory.js";
 export type {
 	ArtifactHash,
 	ArtifactManifestValidationIssue,

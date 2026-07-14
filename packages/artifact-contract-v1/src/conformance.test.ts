@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { runArtifactV1Conformance } from "./conformance.js";
+import {
+	createInMemoryArtifactManifestProducer,
+	createInMemoryArtifactRegistry,
+} from "./in-memory.js";
 import type { TaskArtifactManifest } from "./types.js";
 
 function goodManifest(): TaskArtifactManifest {
@@ -75,5 +79,22 @@ describe("runArtifactV1Conformance", () => {
 		});
 		expect(result.pass).toBe(false);
 		expect(result.failures[0]).toContain("producer threw");
+	});
+
+	it("the reference in-memory producer conforms", () => {
+		const result = runArtifactV1Conformance(createInMemoryArtifactManifestProducer());
+		expect(result.pass).toBe(true);
+		expect(result.failures).toEqual([]);
+	});
+});
+
+describe("createInMemoryArtifactRegistry", () => {
+	it("reads the reference manifest through the contract helpers", () => {
+		const registry = createInMemoryArtifactRegistry();
+		expect(registry.ids()).toEqual(["dataset-grafo", "report-analise"]);
+		expect(registry.get("dataset-grafo")?.role).toBe("dataset");
+		expect(registry.get("no-such-id")).toBeUndefined();
+		expect(registry.select({ roles: ["report"] }).map((a) => a.id)).toEqual(["report-analise"]);
+		expect(registry.select().length).toBe(registry.manifest().artifacts.length);
 	});
 });

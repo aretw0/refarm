@@ -5,6 +5,7 @@
 	"type": "module",
 	"files": [
 		"dist",
+		"!dist/**/*.tsbuildinfo",
 		"plugin.json",
 		"scripts",
 		"README.md"

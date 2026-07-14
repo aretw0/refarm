@@ -4,7 +4,30 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { runAssetResolverV1Conformance, type AssetResolverConformanceHarness } from "./conformance.js";
+import {
+	createInMemoryAssetResolverConformanceHarness,
+	runInMemoryAssetResolverConformance,
+	webCryptoSha256Hex,
+} from "./in-memory.js";
 import { createFsAssetResolver, createPeerAssetResolver, nodeSha256Hex } from "./node.js";
+
+describe("runAssetResolverV1Conformance — the in-memory reference backend is contract-conformant", () => {
+	it("the reference resolver passes every invariant (incl. hash-mismatch)", async () => {
+		const result = await runAssetResolverV1Conformance(
+			createInMemoryAssetResolverConformanceHarness(webCryptoSha256Hex),
+			webCryptoSha256Hex,
+		);
+		expect(result.failures).toEqual([]);
+		expect(result.pass).toBe(true);
+		expect(result.skipped).toEqual([]); // the in-memory backend can tamper, so nothing skipped
+	});
+
+	it("the runInMemoryAssetResolverConformance convenience runner is green", async () => {
+		const result = await runInMemoryAssetResolverConformance();
+		expect(result.pass).toBe(true);
+		expect(result.failed).toBe(0);
+	});
+});
 
 describe("runAssetResolverV1Conformance — the fs backend is contract-conformant", () => {
 	let root: string;

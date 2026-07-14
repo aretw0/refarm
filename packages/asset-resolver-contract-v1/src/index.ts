@@ -86,3 +86,12 @@ export {
 	type AssetResolverConformanceHarness,
 	type AssetResolverConformanceResult,
 } from "./conformance.js";
+
+export {
+	webCryptoSha256Hex,
+	createInMemoryAssetResolver,
+	createInMemoryAssetStore,
+	createInMemoryAssetResolverConformanceHarness,
+	runInMemoryAssetResolverConformance,
+	type InMemoryAssetStore,
+} from "./in-memory.js";
