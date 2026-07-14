@@ -149,9 +149,18 @@ export class Barn {
 	/** Optional durable install-ledger (node graph). Absent → in-memory only. */
 	private readonly ledger: PluginLedger | null;
 
-	constructor(options: { ledger?: PluginLedger } = {}) {
-		console.log("[barn] Barn initialized.");
+	/** How the Barn fetches a plugin artifact. When unset, the global `fetch` is resolved at
+	 * INSTALL time (so a test's later `global.fetch` mock is honoured, and http/https work).
+	 * Inject a file-reading fetch to install a LOCAL built plugin (a `file://` URL) — global
+	 * fetch does not support `file://`, so a local-first install (dev, test, an offline demo)
+	 * supplies its own. */
+	private readonly fetchFn?: typeof globalThis.fetch;
+
+	constructor(options: { ledger?: PluginLedger; fetchFn?: typeof globalThis.fetch } = {}) {
+		// (No stdout logging — the Barn is a library; a consumer's JSON output must not be
+		// polluted by a construction banner.)
 		this.ledger = options.ledger ?? null;
+		this.fetchFn = options.fetchFn;
 
 		this.cacheAdapter = {
 			get: async (pluginId: string) => this._cacheByPluginId.get(pluginId)?.bytes ?? null,
@@ -206,7 +215,9 @@ export class Barn {
 			},
 			{
 				cache: this.cacheAdapter,
-				fetchFn: globalThis.fetch.bind(globalThis),
+				// Resolve the global fetch lazily (so a test's mock installed after construction
+				// is honoured); an injected fetchFn (file://) wins.
+				fetchFn: this.fetchFn ?? globalThis.fetch,
 			},
 		);
 
