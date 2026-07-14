@@ -218,7 +218,7 @@ export function createDelegateRunCapability(): CapabilityDescriptor {
 					error: "artifacts_missing",
 					message: `Build the runtime artifacts first (missing: ${missing.join(", ")}).`,
 					nextAction:
-						"cargo build --release -p tractor && cargo component build --release -p agent && pnpm --filter delegate run build:wasm",
+						"pnpm --filter @refarm.dev/tractor run build && pnpm --filter @refarm.dev/agent run build:wasm && pnpm --filter @refarm.dev/delegate run build:wasm",
 				});
 			}
 			const useMock = input.options?.mock === true;

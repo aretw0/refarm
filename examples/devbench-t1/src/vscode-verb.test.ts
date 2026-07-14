@@ -25,4 +25,30 @@ describe("vscode-manifest verb — generate the extension package.json from the 
 		expect(env.manifest.activationEvents).toContain("onCommand:dgk.agent-run");
 		expect(env.viewContainer).toBe("dgk-bench");
 	});
+
+	it("DRIFT GUARD: every verb declaring renderers.ide reaches the manifest (declare once → IDE)", async () => {
+		// The projection must never SILENTLY DROP a verb that opted into the editor. This
+		// catches the exact class of bug where a new verb declares renderers.ide but the
+		// generated manifest (or a stale checked-out one) lacks its command.
+		const reg = buildRegistry();
+		const idIde = reg
+			.list()
+			.filter((e): e is typeof e & { renderers: { ide: { command: string } } } => {
+				const ide = (e as { renderers?: { ide?: { command?: string } } }).renderers?.ide;
+				return typeof ide?.command === "string";
+			})
+			.map((e) => e.renderers.ide.command);
+		// The bench declares IDE commands for its live verbs — the set must be non-empty.
+		expect(idIde.length).toBeGreaterThanOrEqual(3);
+
+		const verb = reg.get("vscode-manifest");
+		if (!verb || "actions" in verb) throw new Error("vscode-manifest verb not mounted");
+		const env = (await verb.run({ args: {}, options: {}, json: true })) as unknown as {
+			manifest: { contributes: { commands: Array<{ command: string }> } };
+		};
+		const emitted = new Set(env.manifest.contributes.commands.map((c) => c.command));
+		for (const command of idIde) {
+			expect(emitted.has(command), `IDE-declared verb ${command} must reach the vscode manifest`).toBe(true);
+		}
+	});
 });

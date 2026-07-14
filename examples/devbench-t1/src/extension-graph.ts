@@ -100,8 +100,10 @@ export function createExtensionGraphCapability(
 					pluginCount: graph.nodes.length,
 					// The recursion as data: which plugin consumes which via the SPI.
 					spiEdges: apiEdges,
-					...(input.options?.svg === true ? { svg } : { svgAvailable: true }),
-					// The web face mounts this to show the graph interactively.
+					// `svg` is the CLI-explicit copy (only under --svg, to keep JSON output lean).
+					...(input.options?.svg === true ? { svg } : {}),
+					// `graphSvg` is the content-seam field the web boot reads to mount the graph
+					// ABOVE the launcher cards (bootDevbench: content { verb, field: "graphSvg" }).
 					graphSvg: svg,
 				},
 			});

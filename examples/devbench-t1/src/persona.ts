@@ -103,15 +103,22 @@ export function createExtensionCapability(
 
 /**
  * The T1 web face — the SAME registry, projected into a Homestead surface plugin by the
- * bridge. T1 is PROCESS mode: this proves "declare `renderers.web` once → a real web panel
- * for free", MINIMAL by design. It is not a rich product UI (that's T2/T3); it's the least
- * that shows the multi-surface effect reaching the web. A host registers the returned
- * handle; here the headless `handle.call("renderHomesteadSurface", …)` render is the proof.
+ * bridge. T1 is PROCESS mode: it proves "declare `renderers.web` once → a real web panel
+ * for free". ABOVE the launcher cards it renders the plugin dependency GRAPH (the SPI
+ * recursion the writeup describes) via the generic content seam — the "shows well"
+ * artifact, mounted, not just returned as a string. A host registers the returned handle;
+ * the headless `handle.call("renderHomesteadSurface", …)` render is the proof.
  */
 export function devWebSurface(registry: BridgeRegistry) {
 	return createCapabilityWebSurfacePlugin(registry, {
 		pluginId: "@devbench/extension-web",
 		name: "Extension Bench",
 		title: "Extension bench (declare once → here)",
+		// The content seam: the boot runs `extension-graph` and puts its SVG on
+		// host.data.graphSvg; render it ABOVE the cards so the SPI recursion is SEEN.
+		content: (data) =>
+			typeof data.graphSvg === "string" && data.graphSvg.length > 0
+				? `<section class="refarm-stack" data-extension-graph>${data.graphSvg}</section>`
+				: "",
 	});
 }

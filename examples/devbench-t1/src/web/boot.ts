@@ -4,9 +4,9 @@ import { devbenchApp } from "../cli.js";
 import { devWebSurface } from "../persona.js";
 
 /**
- * The devbench WEB face — T1 PROCESS mode. Unlike T2/T3, the web face shows the extension
- * MECHANISM: the bridge projects the manifest-declared verbs into launcher cards. No content
- * seam (the cards ARE the point) — so bootCapabilityWebFace just mounts the surface.
+ * The devbench WEB face — T1 PROCESS mode. The bridge projects the manifest-declared verbs
+ * into launcher cards; ABOVE them, the content seam runs `extension-graph` and mounts its
+ * SVG — the plugin dependency graph (the SPI recursion) SEEN, not just returned as a string.
  */
 export async function bootDevbench(): Promise<void> {
 	const overlay = document.getElementById("loading-overlay");
@@ -18,6 +18,8 @@ export async function bootDevbench(): Promise<void> {
 			registry,
 			surfaceContext: devbenchApp.surfaceContext(),
 			surface: devWebSurface(registry),
+			// Run extension-graph and feed its SVG to the surface's content projector.
+			content: { verb: "extension-graph", field: "graphSvg" },
 		});
 		overlay?.remove();
 	} catch (error) {

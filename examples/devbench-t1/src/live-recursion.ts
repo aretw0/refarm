@@ -100,6 +100,10 @@ export async function runLiveRecursion(options: RunLiveRecursionOptions): Promis
 			httpPort: options.httpPort ?? 42065,
 			securityMode: "none",
 			readyTimeoutMs: 40_000,
+			// No namespace override → the default `:memory:` store, and that is CORRECT here:
+			// agent-run reads the agent's response from the `POST /efforts` RESPONSE BODY
+			// directly, never from `GET /nodes`. (delegate-run/code-ops DO read a DispatchResult
+			// node back, so they MUST use a file-backed namespace — see their comments.)
 			...(options.modelEnv ? { env: options.modelEnv } : {}),
 		});
 		options.onDaemon?.(daemon);
@@ -162,7 +166,8 @@ export function createAgentRunCapability(): CapabilityDescriptor {
 					operation: "agent-run",
 					error: "artifacts_missing",
 					message: `Build the runtime artifacts first (missing: ${missing.join(", ")}).`,
-					nextAction: "cargo build --release -p tractor && cargo component build --release -p agent && pnpm --filter @refarm.dev/source-provider-ref run build:plugin",
+					nextAction:
+						"pnpm --filter @refarm.dev/tractor run build && pnpm --filter @refarm.dev/agent run build:wasm && pnpm --filter @refarm.dev/source-provider-ref run build:plugin",
 				});
 			}
 			const useMock = input.options?.mock === true;

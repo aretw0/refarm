@@ -218,7 +218,7 @@ export function createCodeOpsCapability(): CapabilityDescriptor {
 					error: "artifacts_missing",
 					message: `Build the runtime artifacts first (missing: ${missing.join(", ")}).`,
 					nextAction:
-						"cargo build --release -p tractor && pnpm --filter @refarm.dev/lsp-code-ops run build:wasm",
+						"pnpm --filter @refarm.dev/tractor run build && pnpm --filter @refarm.dev/lsp-code-ops run build:wasm",
 				});
 			}
 			const line = Number(input.options?.line ?? 1);

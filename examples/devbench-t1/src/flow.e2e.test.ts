@@ -310,6 +310,27 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		expect(result.html).toContain("refarm-surface-card");
 	});
 
+	it("the content seam mounts the SPI graph SVG ABOVE the cards (the recursion, SEEN)", async () => {
+		// The web boot runs extension-graph and feeds graphSvg to the surface's content
+		// projector; render the surface WITH that content and assert the graph appears.
+		const wall = await import("./extension-graph.js");
+		const { graphSvg } = (await wall.createExtensionGraphCapability(
+			[
+				{ id: "@x/agent", capabilities: { requiresApi: ["Api"] } },
+				{ id: "@x/provider", capabilities: { providesApi: ["Api"] } },
+			] as never,
+		).run({ args: {}, options: {}, json: true })) as unknown as { graphSvg: string };
+		expect(graphSvg).toContain("<svg");
+
+		const handle = devWebSurface(buildRegistry());
+		const rendered = (await handle.call?.("renderHomesteadSurface", {
+			host: { data: { graphSvg } },
+		})) as { html: string };
+		// The graph is mounted (its container + the SVG), ABOVE the launcher cards.
+		expect(rendered.html).toContain("data-extension-graph");
+		expect(rendered.html).toContain("surveyor-graph");
+	});
+
 	it("multiple manifests dispatch to plugin dispatch with valid task envelopes", async () => {
 		const submitEffort = createMemorySubmitEffort();
 		const env = await harness.runVerb<{
