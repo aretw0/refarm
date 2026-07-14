@@ -1,7 +1,13 @@
 import type { KnowledgeRecord } from "@refarm.dev/records-contract-v1";
 import { describe, expect, it } from "vitest";
 
-import { organizeRecords, planRecordFiles, recordToVaultNote } from "./organize.js";
+import {
+	organizeRecords,
+	planRecordFiles,
+	recordToVaultNote,
+	searchProfileForQuery,
+	searchRecords,
+} from "./organize.js";
 import { createReferenceVaultSurface } from "./reference.js";
 import type { VaultProfile } from "./types.js";
 
@@ -86,6 +92,55 @@ describe("organizeRecords — one-call PARA routing over records", () => {
 		};
 		const plans = await organizeRecords(surface, [record("r", { tipo: "outro" })], noFallback);
 		expect(plans).toHaveLength(0);
+	});
+});
+
+describe("searchRecords — one-call query over records (the same surface that routes, searches)", () => {
+	const surface = createReferenceVaultSurface();
+
+	function reqWithBody(id: string, fields: Record<string, unknown>, body: string): KnowledgeRecord {
+		return {
+			id,
+			schemaVersion: 1,
+			"@type": ["KnowledgeRecord"],
+			fields,
+			sections: [{ key: "description", content: body }],
+			contentHash: "x",
+		} as KnowledgeRecord;
+	}
+
+	it("searchProfileForQuery turns a query into one contains-rule per term (matcher-is-data)", () => {
+		const profile = searchProfileForQuery("nota fiscal");
+		expect(profile.rules).toHaveLength(2);
+		expect(profile.rules.every((r) => r.verb === "search")).toBe(true);
+		expect(profile.rules[0]?.match).toContain("contains");
+		expect(profile.rules[0]?.match).toContain("nota");
+		// An empty query yields no rules.
+		expect(searchProfileForQuery("   ").rules).toHaveLength(0);
+	});
+
+	it("finds records whose note text (frontmatter OR body) contains the term, keyed back to the record", async () => {
+		const records = [
+			reqWithBody("record:req-1", { tipo: "requisito", sistema: "EFD" }, "O sistema deve emitir a nota fiscal eletrônica."),
+			reqWithBody("record:req-2", { tipo: "demanda", sistema: "SPED" }, "Cálculo de imposto sobre serviços."),
+			reqWithBody("record:req-3", { tipo: "requisito", sistema: "EFD" }, "Validação da nota de entrada."),
+		];
+		// Body-term match.
+		const fiscalHits = await searchRecords(surface, records, "fiscal");
+		expect(fiscalHits.map((h) => h.recordId)).toEqual(["record:req-1"]);
+		// Frontmatter-term match (the field value is in the note text).
+		const efdHits = await searchRecords(surface, records, "EFD");
+		expect(new Set(efdHits.map((h) => h.recordId))).toEqual(new Set(["record:req-1", "record:req-3"]));
+		// Multi-term: "nota" is in req-1 and req-3.
+		const notaHits = await searchRecords(surface, records, "nota");
+		expect(new Set(notaHits.map((h) => h.recordId))).toEqual(new Set(["record:req-1", "record:req-3"]));
+		// Each hit carries a locus the host can render.
+		expect(fiscalHits[0]?.locus).toBeTruthy();
+	});
+
+	it("an empty query returns no hits (no dispatch)", async () => {
+		const hits = await searchRecords(surface, [record("r", { tipo: "requisito" })], "");
+		expect(hits).toHaveLength(0);
 	});
 });
 

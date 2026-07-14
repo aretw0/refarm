@@ -2,7 +2,7 @@ import type { KnowledgeRecord } from "@refarm.dev/records-contract-v1";
 import { slugify as stdSlugify } from "@refarm.dev/std";
 
 import { profileForVerb } from "./profile.js";
-import type { VaultNote, VaultOrganizePlan, VaultProfile } from "./types.js";
+import type { VaultNote, VaultOrganizePlan, VaultProfile, VaultSearchHit } from "./types.js";
 
 /** The minimal ORGANIZE plan `organizeRecords` reads — the concrete fields, no index
  * signature, so a `VaultOrganizePlan` AND a WASM component's `SurfaceOrganizePlan` (which
@@ -105,6 +105,86 @@ export async function organizeRecords(
 		}
 	}
 	return plans;
+}
+
+/** The minimal SEARCH hit `searchRecords` reads — concrete fields only, so a full `VaultSearchHit`
+ * AND a WASM component's `SurfaceSearchHit` (no `[key: string]` catch-all) both satisfy it. */
+interface DispatchSearchHit {
+	path: string;
+	ruleId: string;
+	locus?: string;
+	score?: number;
+}
+
+/** The minimal dispatch result `searchRecords` reads: only the `hits`. Structural so a full
+ * `VaultResult` AND a loaded WASM component's result both satisfy it — no cast at the call site. */
+interface SearchDispatchResult {
+	hits: DispatchSearchHit[];
+}
+
+/** The minimal surface `searchRecords` needs: dispatch `search` and get back something with
+ * `hits`. `verb` is a bare string so a VaultSurface AND a WASM component surface both satisfy it. */
+export interface SearchDispatcher {
+	run(
+		verb: string,
+		note: VaultNote,
+		profile: VaultProfile,
+	): SearchDispatchResult | Promise<SearchDispatchResult>;
+}
+
+/** One search hit tied back to the record it came from. */
+export interface RecordSearchHit extends VaultSearchHit {
+	/** The id of the record this hit is in. */
+	recordId: string;
+}
+
+/**
+ * Build a `search` profile from a plain query — one `contains` rule per query term (AND across
+ * terms is the caller's concern; each term is its own rule, so a note matching ANY term yields a
+ * hit for that term). Matcher-is-data: the query becomes rules the sovereign surface interprets,
+ * never code. PURE.
+ */
+export function searchProfileForQuery(query: string): VaultProfile {
+	const terms = query
+		.split(/\s+/)
+		.map((t) => t.trim())
+		.filter(Boolean);
+	return {
+		name: "requirements-search",
+		rules: terms.map((term, i) => ({
+			id: `q-${i}`,
+			verb: "search" as const,
+			match: JSON.stringify({ type: "contains", value: term }),
+		})),
+	};
+}
+
+/**
+ * Search a set of records in ONE call: render each to a note, dispatch the `search` verb through
+ * `surface` under a query-derived profile, and return the hits keyed back to their records. The
+ * SAME sovereign surface that routes (`organize`) also searches — the query is data the surface
+ * interprets, not a code path the host owns.
+ *
+ * Async for the same reason as `organizeRecords`: a WASM surface dispatches asynchronously; a sync
+ * reference surface is awaited transparently, so the caller chooses sovereignty without changing
+ * this call.
+ */
+export async function searchRecords(
+	surface: SearchDispatcher,
+	records: readonly KnowledgeRecord[],
+	query: string,
+): Promise<RecordSearchHit[]> {
+	const profile = searchProfileForQuery(query);
+	if (profile.rules.length === 0) return [];
+	const hits: RecordSearchHit[] = [];
+	for (const record of records) {
+		const note = recordToVaultNote(record);
+		const result = await surface.run("search", note, profile);
+		for (const hit of result.hits) {
+			hits.push({ ...hit, recordId: record.id });
+		}
+	}
+	return hits;
 }
 
 /** A writable note file: where it goes + what it contains, keyed back to its record. PURE data —

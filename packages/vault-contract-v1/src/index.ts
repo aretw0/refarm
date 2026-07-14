@@ -16,10 +16,14 @@ export {
 	organizeRecords,
 	planRecordFiles,
 	recordToVaultNote,
+	searchProfileForQuery,
+	searchRecords,
 	type OrganizeDispatcher,
 	type PlanRecordFilesOptions,
 	type RecordFilePlan,
 	type RecordOrganizePlan,
+	type RecordSearchHit,
+	type SearchDispatcher,
 } from "./organize.js";
 export {
 	buildVaultPluginManifest,
