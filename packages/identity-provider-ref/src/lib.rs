@@ -21,9 +21,13 @@ use bindings::plugin::host::types::PluginError;
 /// the module, lives in module-local state, and is exported by NO function.
 /// `sign` takes only the payload; `public-key` returns only the public half.
 ///
-/// The sandbox is the absence of imports: the `identity-plugin` world imports
-/// only `tractor-bridge` — no filesystem, no sockets, no env. Even if this code
-/// wanted to exfiltrate the key it has no import to do it through.
+/// The guarantee has two layers. (1) The API shape: no exported function returns
+/// key material — unconditional, holds however the component is instantiated.
+/// (2) The import surface: the `identity-plugin` world's only plugin-host import
+/// is `tractor-bridge` — no `host-fs`/`host-net`/`model-bridge`, so a signer has
+/// no data channel to a keystore or the network. (The standard `wasm32-wasip1`
+/// runtime-adapter WASI imports are present as in every Rust component here; the
+/// host wires them to a denied table.)
 struct SovereignIdentity;
 
 // The one identity this provider manages, held module-local. `None` until the

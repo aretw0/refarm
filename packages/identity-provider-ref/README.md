@@ -30,14 +30,28 @@ private key never leaves the WASM sandbox."* Here that promise is structural:
   the identity *inside* the sandbox, returning an opaque handle. The host can
   then `sign`/`verify` but cannot extract the private key.
 
-## The sandbox is the absence of imports
+## Two layers to the guarantee
 
-This crate targets the smallest world that carries a signer — `identity-plugin`,
-which `include`s the base `plugin` world (imports only `tractor-bridge`) and adds
+**1. The API shape (structural, unconditional).** No exported function returns
+private key material — not `sign`, not `public-key`, not `derive-from-session`.
+This holds no matter how the component is instantiated or what the host wires
+into it. It is the property the TS provider structurally cannot have, because its
+`sign` reads `secretKeyHex` out of a JS map.
+
+**2. The import surface (host-enforced).** This crate targets `identity-plugin`,
+the smallest world that carries a signer: it `include`s the base `plugin` world
+(the only *plugin-host* capability is `tractor-bridge`) and adds
 `export identity-provider`. It imports **no** `host-fs`, `host-shell`,
-`host-net`, or env. Even if the code wanted to exfiltrate the key, there is no
-import through which it could. The guarantee is enforced by what the component
-*cannot reach*, not by what it promises.
+`host-net`, or `model-bridge` — a signer has no data channel to a keystore or the
+network. (Like every Rust component in this repo — `quality-checker-ref`,
+`heartwood` — it does carry the standard `wasm32-wasip1` runtime adapter imports,
+`wasi:cli`/`wasi:io`/`wasi:filesystem`; the real host wires those to a
+denied/no-op table, so they are not a live capability. `default-features = false`
+on the crypto deps keeps even `getrandom` out, since the keys are seed-derived,
+never randomly generated.)
+
+Together: the host cannot extract the key (layer 1), and the plugin cannot reach
+out to leak it (layer 2).
 
 ## Build
 

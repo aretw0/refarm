@@ -1,0 +1,12 @@
+{
+	"extends": [
+		"./tsconfig.json",
+		"@refarm.dev/tsconfig/build.json"
+	],
+	"compilerOptions": {
+		"rootDir": "..",
+		"outDir": "dist"
+	},
+	"include": ["src/**/*"],
+	"exclude": ["node_modules", "dist", "pkg", "**/*.test.ts"]
+}
