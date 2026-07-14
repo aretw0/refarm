@@ -23,6 +23,7 @@ import { createCodeOpsCapability } from "./live-code-ops.js";
 import { createExtensionGraphCapability } from "./extension-graph.js";
 import { createGovernanceAuditCapability } from "./live-audit.js";
 import { createExtensionQualityCapability } from "./extension-quality.js";
+import { createExtensionLifecycleCapability } from "./extension-lifecycle.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
 import { createExtensionDevelopCapability } from "./maturity-verb.js";
 import { createExtensionVerifyCapability } from "./integrity-verb.js";
@@ -128,6 +129,10 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// manifests with a hygiene profile — the fourth governance axis (integrity + maturity
 				// + policy + quality), a real sandboxed analysis of how the extension is declared.
 				createExtensionQualityCapability(manifests),
+				// The full plugin LIFECYCLE as one flow (author → integrity → maturity → Barn install)
+				// over a real built plugin — the 'scenario to record' the README asks for, unifying the
+				// scattered integrity/maturity/load verbs through the real lifecycle manager.
+				createExtensionLifecycleCapability(),
 				// The easter egg: `xyzzy` (a playful capability like any other) reveals the hidden
 				// T1→T3 continuity — a wink that even a whimsical extension goes through the governed surface.
 				createXyzzyCapability(),

@@ -485,6 +485,9 @@ importers:
 
   examples/devbench-t1:
     dependencies:
+      '@refarm.dev/barn':
+        specifier: workspace:*
+        version: link:../../packages/barn
       '@refarm.dev/capabilities':
         specifier: workspace:*
         version: link:../../packages/capabilities
