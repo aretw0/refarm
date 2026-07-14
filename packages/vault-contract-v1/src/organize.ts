@@ -77,9 +77,18 @@ function fieldsToFrontmatter(fields: Record<string, unknown>): string {
 export function recordToVaultNote(record: KnowledgeRecord): VaultNote {
 	const path =
 		typeof record.fields?.path === "string" ? (record.fields.path as string) : record.id;
-	const body = (record.sections ?? [])
+	const parts = (record.sections ?? [])
 		.map((s) => (typeof s.content === "string" ? s.content : ""))
-		.join("\n\n");
+		.filter(Boolean);
+	// Traceability: render the record's relations as a markdown block, so a MATERIALIZED note
+	// carries its links (deriva-de / satisfaz / referencia …), not only the aggregate MOC/graph.
+	// A wikilink for an in-corpus target (another record id); the raw target otherwise.
+	const relations = record.relations ?? [];
+	if (relations.length > 0) {
+		const links = relations.map((rel) => `- ${rel.type} → [[${rel.target}]]`).join("\n");
+		parts.push(`## Rastreabilidade\n${links}`);
+	}
+	const body = parts.join("\n\n");
 	return { path, text: `${fieldsToFrontmatter(record.fields ?? {})}${body}\n` };
 }
 

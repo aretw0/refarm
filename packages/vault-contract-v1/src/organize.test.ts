@@ -55,6 +55,25 @@ describe("recordToVaultNote", () => {
 		expect(note.text).toContain('tags: ["x"]');
 	});
 
+	it("renders a record's relations as a Rastreabilidade block (traceability survives into the note)", () => {
+		const rec = {
+			...record("record:req-1", { tipo: "requisito" }),
+			relations: [
+				{ type: "elaborates", target: "record:req-2" },
+				{ type: "references", target: "record:req-3" },
+			],
+		} as KnowledgeRecord;
+		const note = recordToVaultNote(rec);
+		expect(note.text).toContain("## Rastreabilidade");
+		expect(note.text).toContain("- elaborates → [[record:req-2]]");
+		expect(note.text).toContain("- references → [[record:req-3]]");
+	});
+
+	it("omits the Rastreabilidade block when there are no relations", () => {
+		const note = recordToVaultNote(record("record:req-1", { tipo: "requisito" }));
+		expect(note.text).not.toContain("Rastreabilidade");
+	});
+
 	it("a MULTI-LINE field value stays on ONE frontmatter line (never breaks the --- fence)", () => {
 		// The real trigger: fields.body = htmlToMarkdown(primaryText) is multi-line markdown. A raw
 		// String(value) would split the block; it must be JSON-encoded so the newline escapes to \n.
