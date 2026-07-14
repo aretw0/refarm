@@ -10,6 +10,7 @@ import type {
 	AttributeSet,
 	AuthorizationProvider,
 	AuthorizationReceipt,
+	RevocationEvent,
 	ServiceRequest,
 } from "@refarm.dev/authorization-contract-v1";
 import {
@@ -31,6 +32,45 @@ import {
 
 /** The record `@type` for a stored authorization receipt — a wallet item the citizen holds. */
 const AUTHORIZATION_TYPE = ["KnowledgeRecord", "WalletItem", "AuthorizationReceipt"];
+
+/** The record `@type` for a persisted revocation event — the durable audit trail entry. */
+const REVOCATION_EVENT_TYPE = ["KnowledgeRecord", "RevocationEvent"];
+
+/** A stable record id for a revocation event (one per authorization revoked). */
+function revocationEventRecordId(event: RevocationEvent): string {
+	return `record:revocation-${event.authorizationId.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
+}
+
+/**
+ * Persist a RevocationEvent as a durable audit record — the "auditable trail" the module
+ * promises, made real. The revoked receipt only records the CURRENT status (revoked); this
+ * captures WHEN and WHY (revokedAt, statusBefore/After, reason), so the citizen's sovereign
+ * history survives the command. Mirrors receiptToRecord's shape. PURE.
+ */
+export function revocationEventToRecord(event: RevocationEvent, now: () => string): KnowledgeRecord {
+	const record = {
+		id: revocationEventRecordId(event),
+		schemaVersion: 1,
+		"@type": REVOCATION_EVENT_TYPE,
+		"@context": "https://refarm.dev/contexts/records/v1",
+		fields: {
+			title: `Revogação → ${event.authorizationId}`,
+			kind: "revogação",
+			authorizationId: event.authorizationId,
+			holder: event.holder,
+			revokedAt: event.revokedAt,
+			statusBefore: event.statusBefore,
+			statusAfter: event.statusAfter,
+			...(event.reason ? { reason: event.reason } : {}),
+			// The full event, so a history view re-reads it exactly.
+			event: event as unknown as Record<string, unknown>,
+		},
+		review: { state: "verified", at: now(), notes: event.reason ?? "revogado pelo cidadão" },
+		contentHash: "",
+	} as unknown as KnowledgeRecord;
+	record.contentHash = computeRecordContentHash(record);
+	return record;
+}
 
 /** The citizen's held attributes — the source a presentation discloses FROM. Out of the box
  * a small synthetic set (the wallet is a demo); a deployment binds this to the citizen's
@@ -268,6 +308,9 @@ export function createWalletRevokeCapability(
 			const reason = input.options?.reason ? String(input.options.reason) : undefined;
 			const { event, receipt: revoked } = await provider.revoke(receipt, reason);
 			const revokedRecord = receiptToRecord(revoked, now);
+			// Persist the event as a durable audit record (not just the status flip) — the
+			// revocation's when/why survives the command, so the history is real.
+			const eventRecord = revocationEventToRecord(event, now);
 
 			if (!recordsDeps.saveManifest) {
 				return buildJsonSuccessEnvelope({
@@ -276,7 +319,7 @@ export function createWalletRevokeCapability(
 					extra: { id, event, persisted: false, dryRun: true },
 				});
 			}
-			await recordsDeps.saveManifest(mergeRecords(manifest, [revokedRecord]));
+			await recordsDeps.saveManifest(mergeRecords(manifest, [revokedRecord, eventRecord]));
 			return buildJsonSuccessEnvelope({
 				command: "revoke",
 				operation: "revoke",

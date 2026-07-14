@@ -23,7 +23,7 @@ function walletVerbs() {
 		now,
 	});
 	const byName = Object.fromEntries(verbs.map((v) => [v.name, v]));
-	return byName;
+	return Object.assign(byName, { __records: bundle.records });
 }
 
 const request = {
@@ -81,5 +81,22 @@ describe("wallet authorization journey", () => {
 		const present = (await verbs.present!.run!({ args: { id }, options: {}, json: true })) as Record<string, unknown>;
 		expect(present.ok).toBe(false);
 		expect(present.error).toBe("not_usable");
+	});
+
+	it("revoke PERSISTS a durable RevocationEvent record (the auditable trail survives the command)", async () => {
+		const authz = (await verbs.authorize!.run!(request)) as Record<string, unknown>;
+		const id = authz.id as string;
+		await verbs.revoke!.run!({ args: { id }, options: { reason: "mudei de ideia" }, json: true });
+
+		// The event is a durable record in the wallet — not just returned in the envelope.
+		const records = (verbs as unknown as { __records: { loadManifest: () => { records: Array<Record<string, unknown>> } } })
+			.__records.loadManifest().records;
+		const eventRecord = records.find((r) => (r["@type"] as string[])?.includes("RevocationEvent"));
+		expect(eventRecord).toBeTruthy();
+		const fields = eventRecord!.fields as Record<string, unknown>;
+		expect(fields.statusBefore).toBe("active");
+		expect(fields.statusAfter).toBe("revoked");
+		expect(fields.reason).toBe("mudei de ideia");
+		expect(fields.revokedAt).toBeTruthy();
 	});
 });
