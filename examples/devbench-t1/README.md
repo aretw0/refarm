@@ -51,7 +51,15 @@ dgk governance-audit --mock  # RECORD — the host's tamper-evidence trail of th
 dgk governance-enforce       # ENFORCE — the host REFUSES an undeclared effect at the sandbox boundary
 dgk plugin-reload            # RUNTIME TINKERING — hot-reload a plugin without restarting the host
 dgk delegate-run "…" --chain # a scout→planner→worker pipeline: one extension orchestrating sub-agents
+dgk agent-telemetry --mock   # OBSERVABILITY — the run's timeline: route, iterations, tool calls, tokens
 ```
+
+`agent-telemetry` makes a run legible: it reads the agent's own `agent:*` lifecycle events from
+the audit trail and projects the timeline — which model was routed and WHY (the ADR-012 audit),
+each react-loop iteration, each tool call, and the final tokens. The reusable core
+(`parseAgentTimeline`) is pure and unit-tested offline; the verb proves it live. It is honest about
+the runtime: events correlate by the run's `prompt_ref` (not effortId), and USD cost is not an
+event — only tokens (real when the model reports usage).
 
 `governance-enforce` is the third face the quartet was missing: it boots the SAME agent under
 `securityMode: "strict"` with `fs:read` dropped from its manifest, scripts a read, and shows NO
