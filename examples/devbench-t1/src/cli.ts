@@ -22,6 +22,7 @@ import { createDelegateRunCapability } from "./live-delegation.js";
 import { createCodeOpsCapability } from "./live-code-ops.js";
 import { createExtensionGraphCapability } from "./extension-graph.js";
 import { createGovernanceAuditCapability } from "./live-audit.js";
+import { createGovernanceEnforceCapability } from "./live-enforce.js";
 import { createExtensionQualityCapability } from "./extension-quality.js";
 import { createExtensionLifecycleCapability } from "./extension-lifecycle.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
@@ -117,6 +118,11 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// the agent LIVE, drives a real fs effect, and reports the tamper-evidence audit log
 				// the HOST wrote (scarecrow-audit.ndjson) — evidence from the runtime, not a TS literal.
 				createGovernanceAuditCapability(),
+				// GOVERNANCE, ENFORCED: the third face of the quartet. governance-poc decides,
+				// governance-audit records; this boots the agent under STRICT mode without fs:read
+				// and shows the host REFUSING the effect at the sandbox boundary (no fs:read line in
+				// the audit trail), contrasted with a granted baseline that does produce one.
+				createGovernanceEnforceCapability(),
 				// SIMULATE developing an extension through the governed maturity trail (experiment →
 				// productive → sensitive → catalog) — the platform's maturity vocabulary consumed to
 				// show the lifecycle the writeup's Figura 3 describes, with objective promotion gates.
