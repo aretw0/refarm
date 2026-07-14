@@ -196,6 +196,42 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(after.moc as string).toContain("Identificador do CNPJ da Escrituração");
 	});
 
+	it("MULTI-SOURCE: aggregates two systems in one vault and organizes each by its `sistema`", async () => {
+		// The analyst works across MORE than one ALM. Pull EFD and NFE into the same vault; each
+		// requirement is stamped with its source system, and the taxonomy routes each system's
+		// requirements into its own project area — the `sistema` axis, now live.
+		const statePath = tempStatePath();
+		const pull = buildRegistry({ statePath }).get("requirements-pull");
+		if (!pull || "actions" in pull) throw new Error("requirements-pull verb not mounted");
+		await pull.run({ args: { ref: "web:efd" }, options: {}, json: true });
+		await pull.run({ args: { ref: "web:nfe" }, options: {}, json: true });
+
+		// Both systems' requirements now live in ONE vault (3 EFD + 2 NFE = 5).
+		const wallet = await harness.runVerb(buildRegistry({ statePath }), "requirements");
+		expect(wallet.total).toBe(5);
+
+		// Each record carries its source system (the previously-inert field, now stamped).
+		const organize = buildRegistry({ statePath }).get("requirements-organize");
+		if (!organize || "actions" in organize) throw new Error("requirements-organize verb not mounted");
+		const routed = (await organize.run({ args: {}, options: {}, json: true })) as unknown as {
+			plans: Array<{ id: string; destination: string }>;
+		};
+		const byId = Object.fromEntries(routed.plans.map((p) => [p.id, p.destination]));
+		// EFD requirements route into the EFD area, NFE into the NFE area — grouped by system.
+		expect(byId["record:req-rn632504"]).toBe("20 - Projects/EFD");
+		expect(byId["record:req-rn771002"]).toBe("20 - Projects/NFE");
+		expect(byId["record:req-fun771050"]).toBe("20 - Projects/NFE");
+		// A facet-scoped search confirms the aggregation: only NFE requirements when scoped to it.
+		const searchVerb = buildRegistry({ statePath }).get("requirements-search");
+		if (!searchVerb || "actions" in searchVerb) throw new Error("requirements-search verb not mounted");
+		const nfeHits = (await searchVerb.run({
+			args: { query: "nota fiscal" },
+			options: { sistema: "NFE" },
+			json: true,
+		})) as unknown as { results: Array<{ recordId: string }>; scope: { searched: number } };
+		expect(nfeHits.scope.searched).toBe(2); // only the 2 NFE records were searched
+	});
+
 	it("`requirements-graph` projects the graph DATA (for the interactive web face) + an SVG", async () => {
 		// Pull records, then run the graph verb — it must expose the raw {nodes,links} + labels the
 		// web face mounts interactively (mountGraph), not only the static SVG string.

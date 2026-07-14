@@ -148,6 +148,17 @@ function firstMatch(re: RegExp, text: string): string | undefined {
 	return m?.[1];
 }
 
+/**
+ * The source SYSTEM a requirement belongs to, derived from its ingest ref (e.g. `web:efd` → `EFD`,
+ * `web:nfe` → `NFE`). Stamped as `fields.sistema` so the analyst's taxonomy can route/group a
+ * multi-source vault by system (the second axis, otherwise inert because nothing wrote the field).
+ * The identity segment after the transport prefix, upper-cased. PURE.
+ */
+export function sistemaFromRef(ref: string): string {
+	const identity = ref.includes(":") ? ref.slice(ref.indexOf(":") + 1) : ref;
+	return identity.toUpperCase();
+}
+
 /** Map an RDF `rdf:type` (or a Jazz artifact-format hint) to the analyst's `tipo` vocabulary
  * (regra-de-negocio / caso-de-uso / funcional …). Kept small and explicit — the taxonomy is
  * the analyst's, not the substrate's. */
@@ -269,6 +280,9 @@ export const parseRequirementsFromRdf: SourceRecordParser = (body, context) => {
 						status: "draft",
 						externalKey: key,
 						body: text,
+						// The source SYSTEM (from the ingest ref) — powers the taxonomy's `sistema` axis
+						// so a multi-source vault routes/groups by system.
+						sistema: sistemaFromRef(context.ref),
 						// The Jazz coordinate, preserved on the record (the vault's alm_artifact_uri).
 						...(artifactUri ? { artifactUri } : {}),
 					},

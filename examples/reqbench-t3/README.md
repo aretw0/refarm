@@ -35,6 +35,14 @@ live OSLC/RDF parse now extracts the ALM's link predicates (elaboratedBy / decom
 satisfiedBy / references …) as typed relations, so the graph and the health audit populate from
 a real pull — not only the offline fixture.
 
+The vault is **multi-source**: the analyst pulls from more than one ALM (the sample ledger ships
+EFD and NFE), each requirement is stamped with its source `sistema`, and the taxonomy groups each
+system's requirements into its own project area (`20 - Projects/EFD` vs `…/NFE`). A file
+artifact's **attachment** (a diagram, a spreadsheet the Jazz RM requirement wraps) is downloaded
+under a size/type policy, **materialized into the vault** at a content-addressed path
+(`attachments/<hash>.<ext>`), recorded as a typed `RecordAttachment`, and **linked in the note**
+(`[[attachments/…]]`) — so the materialized markdown carries the binary, instead of losing it.
+
 The CLI persists local curation to `.dgk/requirements.manifest.json` by default, so a
 correction made in one process is visible to the next command. Set
 `DGK_REQUIREMENTS_STATE_PATH=/path/to/manifest.json` to record an isolated run.

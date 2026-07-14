@@ -85,6 +85,7 @@ import {
 	createOslcFetchDriver,
 	extractAttachmentRef,
 	parseRequirementsFromRdf,
+	sistemaFromRef,
 } from "./oslc.js";
 import { reqManifest } from "./fixture.js";
 
@@ -143,7 +144,7 @@ export const parseRequirementsFromHtml: SourceRecordParser = (body, context) => 
 			"@type": ["KnowledgeRecord", "Requirement"],
 			"@context": "https://refarm.dev/contexts/records/v1",
 			fields: stampProvenance(
-				{ title, tipo, status: "draft", externalKey: key, body: text },
+				{ title, tipo, status: "draft", externalKey: key, body: text, sistema: sistemaFromRef(context.ref) },
 				{
 					channel: "requirements-pull",
 					originLink: context.ref,
@@ -1332,7 +1333,11 @@ const REQUIREMENTS_TAXONOMY: VaultProfile = {
 			verb: "organize",
 			match: JSON.stringify({
 				type: "taxonomy-route",
+				// The SYSTEM is the primary axis, so a multi-source vault groups each system's
+				// requirements into its own project area (EFD vs NFE); `tipo` refines within a
+				// system-less record. This is what makes the aggregated vault legible per source.
 				axes: [
+					{ field: "sistema", map: { EFD: "20 - Projects/EFD", NFE: "20 - Projects/NFE" } },
 					{
 						field: "tipo",
 						map: {
@@ -1341,7 +1346,6 @@ const REQUIREMENTS_TAXONOMY: VaultProfile = {
 							"caso-de-uso": "20 - Projects",
 						},
 					},
-					{ field: "sistema", map: { EFD: "20 - Projects/EFD" } },
 				],
 				fallback: "40 - Resources/Triagem",
 			}),

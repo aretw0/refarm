@@ -16,6 +16,22 @@
 				"streamURI": "https://alm.example/rm/cm/stream/_REPLACE"
 			},
 			"body": "<!doctype html><html><body><article data-req=\"RN-632504\" data-type=\"regra-de-negocio\" data-title=\"Identificador do CNPJ da Escrituração\">A escrituração é identificada pelo CNPJ do estabelecimento. Validar e formatar o CNPJ conforme o layout.</article><article data-req=\"CDU-282405\" data-type=\"caso-de-uso\" data-title=\"Receber Aviso de Tratamento Manual\">O sistema deve avisar o analista quando o crédito exigir tratamento manual, a partir do CNPJ.</article><article data-req=\"FUN-284853\" data-type=\"funcional\" data-title=\"Selecionar o crédito para análise a partir do CNPJ\">Permitir selecionar o crédito para análise informando o CNPJ e o período de apuração.</article></body></html>"
+		},
+		{
+			"identity": "nfe",
+			"label": "NFE — Nota Fiscal Eletrônica",
+			"url": "https://alm.example/rm/resources/NFE_REPLACE_WITH_REAL_ARTIFACT_ID",
+			"session": {
+				"kind": "authenticated",
+				"principal": "analyst",
+				"credentialRef": "silo://analyst/alm-session"
+			},
+			"attributes": {
+				"_comment": "A SECOND source system — the vault aggregates requirements from both EFD and NFE, and the taxonomy routes each by its `sistema`. Same live-run replacements apply.",
+				"componentURI": "https://alm.example/rm/rm-projects/_REPLACE/components/_REPLACE",
+				"streamURI": "https://alm.example/rm/cm/stream/_REPLACE"
+			},
+			"body": "<!doctype html><html><body><article data-req=\"RN-771002\" data-type=\"regra-de-negocio\" data-title=\"Validação da chave de acesso da NFE\">A chave de acesso da nota fiscal eletrônica tem 44 dígitos e deve ser validada pelo dígito verificador.</article><article data-req=\"FUN-771050\" data-type=\"funcional\" data-title=\"Emitir a nota fiscal eletrônica\">Permitir a emissão da NFE informando emitente, destinatário e itens, com autorização pela SEFAZ.</article></body></html>"
 		}
 	]
 }
