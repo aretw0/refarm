@@ -79,6 +79,90 @@ export interface RunLiveDelegationOptions {
 	resultTimeoutMs?: number;
 }
 
+/** One step of a delegation CHAIN: a persona and its task. The delegate threads each step's
+ * output into the next step's task (a scout→planner→worker→reviewer pipeline). */
+export interface ChainStep {
+	persona: string;
+	task: string;
+}
+
+export interface RunLiveChainOptions {
+	steps: ChainStep[];
+	artifacts?: LiveDelegationArtifacts;
+	modelEnv?: NodeJS.ProcessEnv;
+	wsPort?: number;
+	httpPort?: number;
+	resultTimeoutMs?: number;
+}
+
+/**
+ * Boot the runtime with [agent, delegate] and dispatch a `delegate:chain` — a PIPELINE of
+ * personas, each step's output threaded into the next. Returns the final step's result. One
+ * extension orchestrating a multi-level pipeline of governed sub-agents, all sandboxed. Always
+ * stops the daemon.
+ */
+export async function runLiveChain(options: RunLiveChainOptions): Promise<LiveDelegationResult> {
+	const artifacts = options.artifacts ?? defaultDelegationArtifacts();
+	const agentInstall = installPluginForRuntime({
+		wasmPath: artifacts.agentWasm,
+		manifestTemplatePath: artifacts.agentManifest,
+		installDir: mkdtempSync(join(tmpdir(), "t1-chain-agent-")),
+	});
+	const delegateInstall = installPluginForRuntime({
+		wasmPath: artifacts.delegateWasm,
+		manifestTemplatePath: artifacts.delegateManifest,
+		installDir: mkdtempSync(join(tmpdir(), "t1-chain-plugin-")),
+	});
+
+	let daemon: RuntimeDaemonHandle | undefined;
+	try {
+		daemon = await startRuntimeDaemon({
+			binaryPath: artifacts.tractorBinary,
+			plugins: [agentInstall.wasmPath, delegateInstall.wasmPath],
+			wsPort: options.wsPort ?? 42068,
+			httpPort: options.httpPort ?? 42069,
+			securityMode: "none",
+			readyTimeoutMs: 40_000,
+			// File-backed namespace so the delegate's stored DispatchResult is readable (same as single).
+			namespace: mkdtempSync(join(tmpdir(), "t1-chain-store-")),
+			...(options.modelEnv ? { env: options.modelEnv } : {}),
+		});
+		const plugins = (await (await fetch(`${daemon.sidecarBaseUrl}/plugins`)).json()) as { loaded?: string[] };
+		const pluginsLoaded = Array.isArray(plugins.loaded) ? plugins.loaded : [];
+
+		const replyRef = `t1-chain-${Date.now()}`;
+		const res = await fetch(`${daemon.sidecarBaseUrl}/efforts`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({
+				id: replyRef,
+				direction: "dispatch",
+				source: "operator",
+				submittedAt: new Date().toISOString(),
+				tasks: [
+					{
+						id: `${replyRef}-task-0`,
+						pluginId: "delegate",
+						fn: "chain",
+						args: { steps: options.steps, replyRef },
+					},
+				],
+			}),
+		});
+		if (!res.ok) return { pluginsLoaded, dispatched: false };
+
+		const node = await awaitDispatchResult(daemon.sidecarBaseUrl, replyRef, options.resultTimeoutMs ?? 30_000);
+		const result = node?.result as Record<string, unknown> | undefined;
+		return {
+			pluginsLoaded,
+			dispatched: true,
+			content: typeof result?.content === "string" ? result.content : undefined,
+		};
+	} finally {
+		await daemon?.stop();
+	}
+}
+
 
 /**
  * Boot the runtime with [agent, delegate], dispatch a `delegate:single` for the given
@@ -173,6 +257,7 @@ export function createDelegateRunCapability(): CapabilityDescriptor {
 		args: [{ name: "task", required: true }],
 		options: [
 			{ name: "persona", kind: "string", summary: "The persona to run under (scout/planner/worker/reviewer)" },
+			{ name: "chain", kind: "boolean", summary: "Run a scout→planner→worker pipeline (each step's output feeds the next)" },
 			{ name: "mock", kind: "boolean", summary: "Script a deterministic model (offline demo, no real LLM)" },
 		],
 		transports: { http: { path: "/delegate/run" } },
@@ -189,6 +274,13 @@ export function createDelegateRunCapability(): CapabilityDescriptor {
 				});
 			}
 			const persona = typeof input.options?.persona === "string" ? input.options.persona : "scout";
+			const isChain = input.options?.chain === true;
+			// The pipeline: each persona refines the previous step's output (the delegate threads it).
+			const chainSteps: ChainStep[] = [
+				{ persona: "scout", task },
+				{ persona: "planner", task: "Turn the scout's findings into a plan." },
+				{ persona: "worker", task: "Execute the plan and summarize the result." },
+			];
 			const artifacts = defaultDelegationArtifacts();
 			const missing = missingDelegationArtifacts(artifacts);
 			if (missing.length > 0) {
@@ -208,11 +300,35 @@ export function createDelegateRunCapability(): CapabilityDescriptor {
 				if (useMock) {
 					const { ModelMockServer, says } = await import("@refarm.dev/model-mock");
 					const mock = await new ModelMockServer({ repeatLast: true }).start();
-					mock.queue(says(`[${persona}] handled: ${task}`));
+					// Each chain step gets its own scripted line so the threading is visible; single reuses one.
+					if (isChain) {
+						for (const step of chainSteps) mock.queue(says(`[${step.persona}] refined the input`));
+					} else {
+						mock.queue(says(`[${persona}] handled: ${task}`));
+					}
 					modelEnv = mock.env;
 					mockStop = () => mock.stop();
 				}
 				try {
+					if (isChain) {
+						const result = await runLiveChain({ steps: chainSteps, ...(modelEnv ? { modelEnv } : {}) });
+						return buildJsonSuccessEnvelope({
+							command: "delegate-run",
+							operation: "delegate-run",
+							nextCommand: "dgk agent-run",
+							nextCommands: ["dgk agent-run"],
+							extra: {
+								mode: "chain",
+								mock: useMock,
+								pluginsLoaded: result.pluginsLoaded,
+								// A multi-level pipeline: one extension orchestrating N governed sub-agents.
+								pipeline: chainSteps.map((s) => s.persona),
+								recursion: "delegate:chain → N× agent:respond, each step's output threaded into the next",
+								dispatched: result.dispatched,
+								...(result.content ? { content: result.content } : {}),
+							},
+						});
+					}
 					const result = await runLiveDelegation({ persona, task, ...(modelEnv ? { modelEnv } : {}) });
 					return buildJsonSuccessEnvelope({
 						command: "delegate-run",
@@ -220,6 +336,7 @@ export function createDelegateRunCapability(): CapabilityDescriptor {
 						nextCommand: "dgk agent-run",
 						nextCommands: ["dgk agent-run"],
 						extra: {
+							mode: "single",
 							task,
 							persona,
 							mock: useMock,

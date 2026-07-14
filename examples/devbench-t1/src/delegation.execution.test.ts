@@ -50,4 +50,28 @@ describe.skipIf(!enabled)("T1 delegation, executed on the Rust runtime", () => {
 		// The sub-agent's scripted reply threaded back through the delegate.
 		expect(env.content).toContain("scout");
 	}, 120_000);
+
+	it("`delegate-run --chain` runs a multi-level scout→planner→worker pipeline", async () => {
+		const { createDelegateRunCapability } = await import("./live-delegation.js");
+		const env = (await createDelegateRunCapability().run({
+			args: { task: "map the extension surface" },
+			options: { chain: true, mock: true },
+			json: true,
+		})) as unknown as {
+			ok: boolean;
+			mode: string;
+			pluginsLoaded: string[];
+			dispatched: boolean;
+			pipeline: string[];
+			content?: string;
+		};
+		expect(env.ok).toBe(true);
+		expect(env.mode).toBe("chain");
+		expect(env.pluginsLoaded).toContain("delegate");
+		expect(env.dispatched).toBe(true);
+		// A multi-level pipeline — the delegate threads each step's output into the next.
+		expect(env.pipeline).toEqual(["scout", "planner", "worker"]);
+		// The final step (worker) produced the chain's result.
+		expect(env.content).toContain("worker");
+	}, 180_000);
 });
