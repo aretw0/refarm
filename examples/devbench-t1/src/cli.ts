@@ -18,6 +18,7 @@ import {
 	devCapabilityDeps,
 } from "./persona.js";
 import { createAgentRunCapability } from "./live-recursion.js";
+import { createDelegateRunCapability } from "./live-delegation.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
 import { createExtensionDevelopCapability } from "./maturity-verb.js";
 import { createExtensionVerifyCapability } from "./integrity-verb.js";
@@ -82,6 +83,11 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// respond while calling the provider's verb as a tool (recursion, host-mediated). Not
 				// a fixture — the WASM runtime. `--mock` scripts a deterministic model for an offline demo.
 				createAgentRunCapability(),
+				// One turn DEEPER: a plugin orchestrating the agent. The `delegate` plugin (real,
+				// sandboxed WASM) runs a task through the agent under a PERSONA via host-mediated
+				// call_plugin — plugin → plugin, neither privileged. The framework ships delegate;
+				// the bench simulates using it. `--mock` for an offline demo.
+				createDelegateRunCapability(),
 				// The GOVERNANCE PoC: extensibility as a risk decision — 2 policy modes × 3 extensions
 				// → policy decisions, sandbox reports, runtime evidence, metrics, and a scorecard. The
 				// forcing function that produces the verifiable artifacts the writeup cites.
