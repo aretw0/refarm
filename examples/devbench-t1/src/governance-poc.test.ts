@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { createGovernancePocCapability } from "./governance-verb.js";
 import { decidePolicy, runCombination, runGovernancePoc, type ExtensionUnderTest, type PolicyProfile } from "./governance-poc.js";
 
 const profile: PolicyProfile = { granted: ["fs:read", "fs:write", "network:outbound"], maxAutoRisk: "medium" };
@@ -78,5 +79,54 @@ describe("runGovernancePoc — the full 2 modes × 3 extensions = 6 combinations
 			expect(c.sandbox.summary).toBeTruthy();
 			expect(c.evidence.capabilityTrail.length).toBeGreaterThan(0);
 		}
+	});
+});
+
+describe("governance-poc --apply — the verifiable artifacts written to disk (shape locked)", () => {
+	it("writes one policy-decision/sandbox-report/runtime-evidence per combination + scorecard + metrics", async () => {
+		const written = new Map<string, string>();
+		const verb = createGovernancePocCapability({
+			writeArtifact: (rel, json) => {
+				written.set(rel, json);
+			},
+		});
+		const env = (await verb.run({ args: {}, options: { apply: true }, json: true })) as unknown as {
+			ok: boolean;
+			artifactsWritten: number;
+			artifactCount: number;
+		};
+		expect(env.ok).toBe(true);
+		// 6 combinations × 3 files + scorecard + metrics = 20.
+		expect(env.artifactCount).toBe(20);
+		expect(env.artifactsWritten).toBe(20);
+		expect(written.size).toBe(20);
+
+		// The paths follow the documented .dgk/governance/ layout.
+		const paths = [...written.keys()];
+		expect(paths.filter((p) => p.endsWith(".policy-decision.json"))).toHaveLength(6);
+		expect(paths.filter((p) => p.endsWith(".sandbox-report.json"))).toHaveLength(6);
+		expect(paths.filter((p) => p.endsWith(".runtime-evidence.json"))).toHaveLength(6);
+		expect(written.has(".dgk/governance/scorecard.json")).toBe(true);
+		expect(written.has(".dgk/governance/metrics.json")).toBe(true);
+
+		// The artifact SHAPES are load-bearing (the writeup cites them) — assert the keys.
+		const scorecard = JSON.parse(written.get(".dgk/governance/scorecard.json")!);
+		expect(scorecard).toHaveProperty("criteria");
+		expect(scorecard).toHaveProperty("score");
+		expect(scorecard).toHaveProperty("gate");
+		const anyPolicy = JSON.parse(paths.filter((p) => p.endsWith(".policy-decision.json")).map((p) => written.get(p))[0]!);
+		expect(Array.isArray(anyPolicy.decisions)).toBe(true);
+	});
+
+	it("without --apply, reports the artifacts but writes NOTHING", async () => {
+		let calls = 0;
+		const verb = createGovernancePocCapability({ writeArtifact: () => { calls += 1; } });
+		const env = (await verb.run({ args: {}, options: {}, json: true })) as unknown as {
+			artifactsWritten: number;
+			artifactCount: number;
+		};
+		expect(calls).toBe(0);
+		expect(env.artifactsWritten).toBe(0);
+		expect(env.artifactCount).toBe(20); // still reports how many it WOULD write
 	});
 });
