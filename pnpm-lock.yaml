@@ -485,6 +485,9 @@ importers:
 
   examples/devbench-t1:
     dependencies:
+      '@refarm.dev/capabilities':
+        specifier: workspace:*
+        version: link:../../packages/capabilities
       '@refarm.dev/capability-homestead-surface':
         specifier: workspace:*
         version: link:../../packages/capability-homestead-surface

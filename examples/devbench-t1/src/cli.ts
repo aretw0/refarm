@@ -22,6 +22,7 @@ import { createGovernancePocCapability } from "./governance-verb.js";
 import { createExtensionDevelopCapability } from "./maturity-verb.js";
 import { createExtensionVerifyCapability } from "./integrity-verb.js";
 import { createXyzzyCapability } from "./easter-egg.js";
+import { createIdeCapability } from "./ide-verb.js";
 import { resolveDevbenchTheme } from "./theme.js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -58,12 +59,15 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 	const peerManifests = manifests.slice(1);
 	// An OPTIONAL brand/context skin (DGK_THEME) — the substrate stays neutral; the app themes.
 	const theme = resolveDevbenchTheme();
-	return defineCapabilityHost({
+	// A holder so the `ide` verb can resolve the host's OWN registry lazily (at run time) — the
+	// ide verb is itself in that registry, so it can't reference the host until it's built.
+	let host: CapabilityHost;
+	host = defineCapabilityHost({
 		id: "examples/devbench-t1",
 		command,
 		description: theme.description,
 		version: "0.0.0",
-		capabilities: {
+		capabilities: () => ({
 			deps: devCapabilityDeps(),
 			// The extension path: the active manifest's verbs surface themselves
 			// via the bridge (e.g. agent:code/agent:review by default).
@@ -98,8 +102,11 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// The easter egg: `xyzzy` (a playful capability like any other) reveals the hidden
 				// T1→T3 continuity — a wink that even a whimsical extension goes through the governed surface.
 				createXyzzyCapability(),
+				// The IDE surface: project the bench as an editor command set + tree (the same registry
+				// the CLI/TUI/web derive from). A VS Code extension consumes this. CLI + TUI + IDE.
+				createIdeCapability(() => host.registry(), command),
 			],
-		},
+		}),
 		operatorStatus: {
 			summary: "Show extension bench operator status",
 			httpPath: "/extension/status",
@@ -118,6 +125,7 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 			openApiTitle: `${command} Extension Bench API`,
 		},
 	});
+	return host;
 }
 
 export const devbenchApp = defineCapabilityApp({
