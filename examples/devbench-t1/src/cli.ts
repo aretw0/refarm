@@ -21,6 +21,8 @@ import { createAgentRunCapability } from "./live-recursion.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
 import { createExtensionDevelopCapability } from "./maturity-verb.js";
 import { createExtensionVerifyCapability } from "./integrity-verb.js";
+import { createXyzzyCapability } from "./easter-egg.js";
+import { resolveDevbenchTheme } from "./theme.js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -54,10 +56,12 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 	const manifests = [...(options.manifests ?? DEVBENCH_DEFAULT_MANIFESTS)] as SurfaceableManifest[];
 	const extensionManifest = manifests[0] ?? DEVBENCH_DEFAULT_MANIFESTS[0]!;
 	const peerManifests = manifests.slice(1);
+	// An OPTIONAL brand/context skin (DGK_THEME) — the substrate stays neutral; the app themes.
+	const theme = resolveDevbenchTheme();
 	return defineCapabilityHost({
 		id: "examples/devbench-t1",
 		command,
-		description: "Digital Gardening Kit - extension bench",
+		description: theme.description,
 		version: "0.0.0",
 		capabilities: {
 			deps: devCapabilityDeps(),
@@ -91,6 +95,9 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// (the platform's verifyBufferIntegrity, sha256) — "integridade reduz risco de artefatos
 				// adulterados". Completes the manifest → integrity → maturity governance triad.
 				createExtensionVerifyCapability(),
+				// The easter egg: `xyzzy` (a playful capability like any other) reveals the hidden
+				// T1→T3 continuity — a wink that even a whimsical extension goes through the governed surface.
+				createXyzzyCapability(),
 			],
 		},
 		operatorStatus: {
