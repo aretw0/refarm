@@ -15,6 +15,8 @@ import { createSidecarSubmitEffort } from "@refarm.dev/capability-host/node";
 import {
 	createExtensionCapability,
 	DEVBENCH_DEFAULT_MANIFESTS,
+	DEVBENCH_LIVE_MANIFESTS,
+	DEVBENCH_LIVE_PLUGIN_IDS,
 	devCapabilityDeps,
 } from "./persona.js";
 import { createAgentRunCapability } from "./live-recursion.js";
@@ -89,9 +91,12 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 			extensions: [
 				createExtensionCapability(extensionManifest, pluginDeps, peerManifests),
 				// DRAW the recursion: the plugin dependency graph the writeup describes in prose.
-				// The manifests declare it (requiresApi→providesApi = the SPI edge, agent →
-				// notes-indexer); Surveyor renders it to an SVG a screenshot/web face shows.
-				createExtensionGraphCapability(manifests),
+				// Includes the REAL, executed SPI edge (delegate → agent via AgentRespond, proven
+				// live by delegate-run --chain), marked `executed`, alongside the illustrative
+				// coding-agent → notes-indexer edge; Surveyor renders it to an SVG.
+				createExtensionGraphCapability([...manifests, ...DEVBENCH_LIVE_MANIFESTS], {
+					livePluginIds: DEVBENCH_LIVE_PLUGIN_IDS,
+				}),
 				// The HEADLINE, live: boot the real agent.wasm + a provider plugin and have the agent
 				// respond while calling the provider's verb as a tool (recursion, host-mediated). Not
 				// a fixture — the WASM runtime. `--mock` scripts a deterministic model for an offline demo.

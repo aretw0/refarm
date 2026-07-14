@@ -24,17 +24,30 @@ export function pluginShortName(id: string): string {
 export interface ExtensionGraph {
 	graph: GraphInput;
 	labels: Record<string, string>;
-	/** The SPI edges, as `{from, to, api}` — what the recursion IS, for the JSON envelope. */
-	apiEdges: Array<{ from: string; to: string; api: string }>;
+	/** The SPI edges. `executed: true` means BOTH endpoints are real, built plugins and the
+	 * runtime actually drives this edge (e.g. delegate → agent, live via delegate-run --chain);
+	 * `false` is an illustrative edge declared by synthetic manifests (drawn, not executed). */
+	apiEdges: Array<{ from: string; to: string; api: string; executed: boolean }>;
+}
+
+export interface BuildExtensionGraphOptions {
+	/** Ids of plugins backed by a real, built .wasm. An SPI edge whose BOTH endpoints are in
+	 * this set is marked `executed` — the runtime drives it, it isn't merely drawn. */
+	livePluginIds?: readonly string[];
 }
 
 /**
  * Build the plugin dependency graph from the manifests. Nodes = plugin ids; links = the
  * SPI edges (a plugin's `requiresApi` → the plugin that `providesApi` it). A plugin's
  * `provides`/`subscribes` count toward its degree so a well-connected plugin renders
- * larger. Pure — unit-tested.
+ * larger. An edge between two `livePluginIds` is flagged `executed` (drawn AND run) vs a
+ * synthetic edge (drawn only). Pure — unit-tested.
  */
-export function buildExtensionGraph(manifests: readonly SurfaceableManifest[]): ExtensionGraph {
+export function buildExtensionGraph(
+	manifests: readonly SurfaceableManifest[],
+	options: BuildExtensionGraphOptions = {},
+): ExtensionGraph {
+	const live = new Set(options.livePluginIds ?? []);
 	const labels: Record<string, string> = {};
 	// Map each provided API name → the plugin id that provides it, so a requiresApi can
 	// resolve to its provider (the SPI edge target).
@@ -46,7 +59,7 @@ export function buildExtensionGraph(manifests: readonly SurfaceableManifest[]): 
 		}
 	}
 
-	const apiEdges: Array<{ from: string; to: string; api: string }> = [];
+	const apiEdges: Array<{ from: string; to: string; api: string; executed: boolean }> = [];
 	const links: Array<{ source: string; target: string }> = [];
 	const degree = new Map<string, number>();
 	const bump = (id: string, n = 1) => degree.set(id, (degree.get(id) ?? 0) + n);
@@ -60,7 +73,8 @@ export function buildExtensionGraph(manifests: readonly SurfaceableManifest[]): 
 			const provider = providerOf.get(api);
 			if (provider && provider !== m.id) {
 				links.push({ source: m.id, target: provider });
-				apiEdges.push({ from: m.id, to: provider, api });
+				// Executed iff both endpoints are real, built plugins the runtime drives.
+				apiEdges.push({ from: m.id, to: provider, api, executed: live.has(m.id) && live.has(provider) });
 				bump(m.id);
 				bump(provider);
 			}
@@ -78,19 +92,21 @@ export function buildExtensionGraph(manifests: readonly SurfaceableManifest[]): 
  */
 export function createExtensionGraphCapability(
 	manifests: readonly SurfaceableManifest[],
+	options: BuildExtensionGraphOptions = {},
 ): CapabilityDescriptor {
 	return {
 		name: "extension-graph",
-		summary: "Draw the plugin dependency graph — the SPI recursion (agent → notes-indexer), as SVG",
+		summary: "Draw the plugin dependency graph — the SPI edges (requiresApi → providesApi), as SVG",
 		options: [{ name: "svg", kind: "boolean", summary: "Return the rendered SVG instead of the JSON graph" }],
 		transports: { http: { path: "/extension/graph" } },
 		renderers: { tui: { section: "extension" }, web: { route: "/extension-graph", icon: "share" }, ide: { command: "dgk.extension-graph" } },
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
-			const { graph, labels, apiEdges } = buildExtensionGraph(manifests);
+			const { graph, labels, apiEdges } = buildExtensionGraph(manifests, options);
 			const svg = graphToSvg(graph, {
 				labelFor: (id) => labels[id] ?? id,
 				title: "Plugin dependency graph — SPI edges (requiresApi → providesApi)",
 			});
+			const executedEdges = apiEdges.filter((e) => e.executed);
 			return buildJsonSuccessEnvelope({
 				command: "extension-graph",
 				operation: "extension-graph",
@@ -98,8 +114,11 @@ export function createExtensionGraphCapability(
 				nextCommands: ["dgk extension"],
 				extra: {
 					pluginCount: graph.nodes.length,
-					// The recursion as data: which plugin consumes which via the SPI.
+					// The recursion as data: which plugin consumes which via the SPI, and whether the
+					// runtime actually EXECUTES that edge (delegate → agent) vs merely declares it.
 					spiEdges: apiEdges,
+					executedEdges,
+					executedCount: executedEdges.length,
 					// `svg` is the CLI-explicit copy (only under --svg, to keep JSON output lean).
 					...(input.options?.svg === true ? { svg } : {}),
 					// `graphSvg` is the content-seam field the web boot reads to mount the graph

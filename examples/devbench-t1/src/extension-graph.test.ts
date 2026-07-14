@@ -16,12 +16,27 @@ describe("extension-graph — the plugin dependency graph (the SPI recursion, dr
 			"@devbench/coding-agent",
 			"@devbench/notes-indexer",
 		]);
-		// The recursion: coding-agent consumes notes-indexer via the NotesLookup API.
+		// The recursion: coding-agent consumes notes-indexer via the NotesLookup API. Not executed
+		// (these are illustrative synthetic manifests, not backed by a built .wasm).
 		expect(apiEdges).toEqual([
-			{ from: "@devbench/coding-agent", to: "@devbench/notes-indexer", api: "NotesLookup" },
+			{ from: "@devbench/coding-agent", to: "@devbench/notes-indexer", api: "NotesLookup", executed: false },
 		]);
 		expect(graph.links).toEqual([
 			{ source: "@devbench/coding-agent", target: "@devbench/notes-indexer" },
+		]);
+	});
+
+	it("marks an SPI edge `executed` when BOTH endpoints are real, built plugins", () => {
+		const real: SurfaceableManifest[] = [
+			{ id: "@refarm/agent", capabilities: { providesApi: ["AgentRespond"] } },
+			{ id: "@refarm/delegate", capabilities: { requiresApi: ["AgentRespond"] } },
+		];
+		const { apiEdges } = buildExtensionGraph(real, {
+			livePluginIds: ["@refarm/agent", "@refarm/delegate"],
+		});
+		// The delegate → agent edge is the one the runtime actually drives (delegate-run --chain).
+		expect(apiEdges).toEqual([
+			{ from: "@refarm/delegate", to: "@refarm/agent", api: "AgentRespond", executed: true },
 		]);
 	});
 
@@ -48,12 +63,17 @@ describe("extension-graph — the plugin dependency graph (the SPI recursion, dr
 		const env = (await verb.run({ args: {}, options: { svg: true }, json: true })) as unknown as {
 			ok: boolean;
 			pluginCount: number;
-			spiEdges: Array<{ api: string }>;
+			spiEdges: Array<{ api: string; executed: boolean }>;
+			executedEdges: Array<{ from: string; to: string; api: string }>;
+			executedCount: number;
 			svg: string;
 		};
 		expect(env.ok).toBe(true);
 		expect(env.pluginCount).toBeGreaterThanOrEqual(2);
 		expect(env.spiEdges.some((e) => e.api === "NotesLookup")).toBe(true);
+		// The graph now carries the REAL, executed edge (delegate → agent), not only the synthetic one.
+		expect(env.executedCount).toBeGreaterThanOrEqual(1);
+		expect(env.executedEdges.some((e) => e.api === "AgentRespond" && e.from === "@refarm/delegate")).toBe(true);
 		expect(env.svg).toContain("<svg");
 		expect(env.svg).toContain("surveyor-graph__edges");
 	});
