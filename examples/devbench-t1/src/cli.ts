@@ -19,6 +19,7 @@ import {
 } from "./persona.js";
 import { createAgentRunCapability } from "./live-recursion.js";
 import { createDelegateRunCapability } from "./live-delegation.js";
+import { createCodeOpsCapability } from "./live-code-ops.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
 import { createExtensionDevelopCapability } from "./maturity-verb.js";
 import { createExtensionVerifyCapability } from "./integrity-verb.js";
@@ -88,6 +89,10 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// call_plugin — plugin → plugin, neither privileged. The framework ships delegate;
 				// the bench simulates using it. `--mock` for an offline demo.
 				createDelegateRunCapability(),
+				// The EDITOR plugin, live: rename / find-references arrive as a loaded, sandboxed
+				// WASM extension (lsp-code-ops), not built into the host. This is what the IDE
+				// surface contributes — proven end to end against a self-contained fake LSP.
+				createCodeOpsCapability(),
 				// The GOVERNANCE PoC: extensibility as a risk decision — 2 policy modes × 3 extensions
 				// → policy decisions, sandbox reports, runtime evidence, metrics, and a scorecard. The
 				// forcing function that produces the verifiable artifacts the writeup cites.
