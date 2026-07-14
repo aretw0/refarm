@@ -28,6 +28,7 @@ import {
 	createWalletDeclineCapability,
 	createWalletRequestCapability,
 } from "./consent.js";
+import { createDisclosureGraphCapability } from "./disclosure-graph.js";
 import {
 	createWalletImportCapability,
 	createWalletShareCapability,
@@ -298,6 +299,8 @@ export function createWalletCapabilities(
 			createWalletAuthorizeCapability(recordsDeps, options.authorizationProvider, { now: options.now }),
 			createWalletPresentCapability(recordsDeps, options.authorizationProvider),
 			createWalletRevokeCapability(recordsDeps, options.authorizationProvider, { now: options.now }),
+			// SEE the disclosure surface: with whom the citizen shared what, as a graph.
+			createDisclosureGraphCapability(recordsDeps),
 		);
 	}
 	return capabilities;

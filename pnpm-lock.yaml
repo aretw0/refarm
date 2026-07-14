@@ -619,6 +619,9 @@ importers:
       '@refarm.dev/storage-contract-v1':
         specifier: workspace:*
         version: link:../../packages/storage-contract-v1
+      '@refarm.dev/surveyor':
+        specifier: workspace:*
+        version: link:../../packages/surveyor
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.9

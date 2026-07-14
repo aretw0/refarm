@@ -28,7 +28,8 @@
 		"@refarm.dev/identity-contract-v1": "workspace:*",
 		"@refarm.dev/identity-provider-ref": "workspace:*",
 		"@refarm.dev/records-contract-v1": "workspace:*",
-		"@refarm.dev/storage-contract-v1": "workspace:*"
+		"@refarm.dev/storage-contract-v1": "workspace:*",
+		"@refarm.dev/surveyor": "workspace:*"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.9",
