@@ -103,6 +103,19 @@ function makeNoteWriter(root: string): (relativePath: string, text: string) => b
 	return (relativePath, text) => write(relativePath, text) === "written";
 }
 
+/** A binary attachment writer under the vault root — persists a materialized attachment's BYTES
+ * (content-addressed path from the crawl) beside the notes. Idempotent by content-address: the
+ * same bytes hash to the same path, so a re-crawl overwrites with identical content. Returns the
+ * relative path (what the record's RecordAttachment.ref points at). */
+function makeAttachmentWriter(root: string): (relativePath: string, bytes: Uint8Array) => string {
+	return (relativePath, bytes) => {
+		const dest = path.join(root, relativePath);
+		mkdirSync(path.dirname(dest), { recursive: true });
+		writeFileSync(dest, bytes);
+		return relativePath;
+	};
+}
+
 const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND });
 
 /** Build login-detection signals from DGK_LOGIN_* env, or undefined if none set. These let the
@@ -222,6 +235,8 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 						sourcesConfigPath: options.sourcesConfigPath,
 						loadCacheManifest: (ref) => loadCrawlCache(statePath, ref),
 						saveCacheManifest: (ref, manifest) => saveCrawlCache(statePath, ref, manifest),
+						// Persist materialized attachment bytes into the vault, beside the notes.
+						writeAttachment: makeAttachmentWriter(vaultRoot(statePath)),
 						liveCrawlerFactory: createLiveCrawlerFactory({
 							sourcesConfigPath: options.sourcesConfigPath,
 							chromePath: process.env.DGK_CHROME_PATH,

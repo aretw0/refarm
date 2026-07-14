@@ -137,12 +137,18 @@ describe("crawlRequirements — whole-project scrape", () => {
 		const bytes = new Uint8Array([137, 80, 78, 71]);
 		const binaryFetcher: BinaryFetchDriver = async () => ({ bytes, mediaType: "image/png" });
 
+		// Capture the attachment writes (the vault persistence seam).
+		const written = new Map<string, Uint8Array>();
 		const result = await crawlRequirements({
 			fetcher: projectDriver({ [ART_A]: fileArtifact }),
 			seeds: [{ url: ROOT }],
 			session,
 			ref: "web:efd",
 			binaryFetcher,
+			writeAttachment: (relPath, b) => {
+				written.set(relPath, b);
+				return relPath;
+			},
 		});
 		// The attachment was materialized (one PNG), and its fingerprint stamped on the record.
 		expect(result.attachments).toHaveLength(1);
@@ -152,6 +158,58 @@ describe("crawlRequirements — whole-project scrape", () => {
 		expect(rn1?.fields.attachmentKind).toBe("materialized");
 		expect(rn1?.fields.attachmentExtension).toBe(".png");
 		expect(rn1?.fields.attachmentHash).toBeTruthy();
+
+		// The BYTES were persisted into the vault (content-addressed by hash) — not discarded.
+		expect(written.size).toBe(1);
+		const [storedPath, storedBytes] = [...written.entries()][0]!;
+		expect(storedPath).toMatch(/^attachments\/.+\.png$/);
+		expect(Array.from(storedBytes)).toEqual([137, 80, 78, 71]);
+
+		// The record carries a TYPED RecordAttachment pointing at the stored file …
+		expect(rn1?.attachments).toHaveLength(1);
+		expect(rn1?.attachments?.[0]?.ref).toBe(storedPath);
+		expect(rn1?.attachments?.[0]?.mediaType).toBe("image/png");
+		expect(rn1?.attachments?.[0]?.hash).toBe(rn1?.fields.attachmentHash);
+		// … and the note body LINKS the attachment (a wikilink to the stored file).
+		const anexo = rn1?.sections?.find((s) => s.key === "anexo");
+		expect(anexo?.content).toContain(`[[${storedPath}]]`);
+	});
+
+	it("stamps a placeholder attachment (no bytes) when the writer is absent, still typed", async () => {
+		const BIN = "https://alm.example/rm/resources/BIN_2";
+		const fileArtifact = `<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dcterms="http://purl.org/dc/terms/"
+         xmlns:jazz_rm="http://jazz.net/ns/rm#">
+  <rdf:Description rdf:about="${ART_A}">
+    <dcterms:identifier>RN-2</dcterms:identifier>
+    <dcterms:title>huge.bin</dcterms:title>
+    <rdf:type rdf:resource="http://jazz.net/ns/rm#BusinessRule"/>
+    <jazz_rm:primaryText><div>Anexo grande.</div></jazz_rm:primaryText>
+    <public_rm_10:wrappedResource rdf:resource="${BIN}"/>
+    <public_rm_10:wrappedResourceContentType>application/octet-stream</public_rm_10:wrappedResourceContentType>
+  </rdf:Description>
+</rdf:RDF>`;
+		// An unsupported type → the download is a placeholder (skipped), no bytes.
+		const binaryFetcher: BinaryFetchDriver = async () => ({
+			bytes: new Uint8Array([0, 1, 2]),
+			mediaType: "application/octet-stream",
+		});
+		const result = await crawlRequirements({
+			fetcher: projectDriver({ [ART_A]: fileArtifact }),
+			seeds: [{ url: ROOT }],
+			session,
+			ref: "web:efd",
+			binaryFetcher,
+			// No writeAttachment injected.
+		});
+		const rn2 = result.records.find((r) => r.fields.externalKey === "RN-2");
+		// A typed attachment is still recorded (ref = the source URI, a traceable placeholder).
+		expect(rn2?.attachments).toHaveLength(1);
+		expect(rn2?.attachments?.[0]?.ref).toBe(BIN);
+		// The note explains it was not materialized.
+		const anexo = rn2?.sections?.find((s) => s.key === "anexo");
+		expect(anexo?.content).toContain("não materializado");
 	});
 
 	it("does not fetch attachments without a binaryFetcher (text-only crawl)", async () => {

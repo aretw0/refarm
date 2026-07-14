@@ -17,6 +17,7 @@ import {
 import {
 	computeRecordContentHash,
 	type KnowledgeRecord,
+	type RecordAttachment,
 	type RecordsManifest,
 } from "@refarm.dev/records-contract-v1";
 import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
@@ -296,6 +297,20 @@ export interface CrawlRequirementsOptions {
 	binaryFetcher?: BinaryFetchDriver;
 	/** Max bytes to materialize an attachment (default from the substrate policy). */
 	maxAttachmentBytes?: number;
+	/** OPTIONAL attachment writer — when present, a materialized attachment's BYTES are persisted
+	 * (given a vault-relative path + the bytes) beside the notes, and the record gets a typed
+	 * `RecordAttachment` pointing at that path. Absent → bytes are returned in the result but not
+	 * written (the caller decides). Injected so a test drives it in memory. Returns the relative
+	 * path actually written (usually the one passed), for the record's `ref`. */
+	writeAttachment?: (relativePath: string, bytes: Uint8Array) => string | Promise<string>;
+}
+
+/** The vault-relative path a materialized attachment is stored at — content-addressed by its
+ * hash so identical bytes dedupe and the name is stable across re-crawls. PURE. */
+export function attachmentRelativePath(result: AttachmentResult): string {
+	const stem = result.hash ?? "attachment";
+	const ext = result.extension?.replace(/^\./, "") ?? "bin";
+	return `attachments/${stem}.${ext}`;
 }
 
 export interface CrawlRequirementsResult {
@@ -373,7 +388,33 @@ export async function crawlRequirements(
 					...(options.maxAttachmentBytes !== undefined ? { maxBytes: options.maxAttachmentBytes } : {}),
 				});
 				attachments.push(result);
+
+				// Persist the BYTES (when materialized + a writer is injected), so the attachment
+				// lives IN the vault beside the note — not discarded. Content-addressed by hash.
+				let storedRef: string | undefined;
+				if (result.kind === "materialized" && result.bytes && options.writeAttachment) {
+					storedRef = await options.writeAttachment(attachmentRelativePath(result), result.bytes);
+				}
+
 				for (const record of parsed) {
+					// The TYPED attachment (RecordAttachment) — the contract the vault validates and
+					// serializes, not loose fields. `ref` points at the stored file when written, else
+					// the source URI (a placeholder the analyst can still trace).
+					const attachment: RecordAttachment = {
+						id: result.hash ? `att-${result.hash.slice(0, 16)}` : `att-${att.wrappedResourceUri}`,
+						ref: storedRef ?? att.wrappedResourceUri,
+						...(result.mimeType ? { mediaType: result.mimeType } : {}),
+						...(result.hash ? { hash: result.hash } : {}),
+					};
+					record.attachments = [...(record.attachments ?? []), attachment];
+					// Link the attachment IN the note body, so the materialized markdown references
+					// the file the analyst can open (a wikilink for a stored file, else the reason).
+					const linkContent =
+						result.kind === "materialized" && storedRef
+							? `Anexo: [[${storedRef}]] (${result.mimeType || result.extension}, sha256:${result.hash})`
+							: `Anexo não materializado: ${att.title ?? att.wrappedResourceUri} (${result.skipReason ?? "no writer"})`;
+					record.sections = [...(record.sections ?? []), { key: "anexo", content: linkContent }];
+					// Keep the loose fields too (back-compat with existing counts/summary).
 					record.fields.attachmentKind = result.kind;
 					record.fields.attachmentExtension = result.extension;
 					if (result.hash) record.fields.attachmentHash = result.hash;
@@ -945,6 +986,10 @@ export interface RequirementsCrawlOptions {
 	maxDepth?: number;
 	maxPages?: number;
 	pacingMs?: number;
+	/** Persist a materialized attachment's bytes into the vault (relative path + bytes → the path
+	 * written). Injected by the CLI (a filesystem writer under the vault root); a test drives it in
+	 * memory. Absent → attachment bytes are downloaded/fingerprinted but not stored on disk. */
+	writeAttachment?: (relativePath: string, bytes: Uint8Array) => string | Promise<string>;
 	/** Injected clock (ISO) for the cache's syncedAt — defaults to Date.now() at run time. */
 	now?: () => string;
 }
@@ -1024,6 +1069,7 @@ export function createRequirementsCrawlCapability(
 					...(options.maxDepth !== undefined ? { maxDepth: options.maxDepth } : {}),
 					...(options.maxPages !== undefined ? { maxPages: options.maxPages } : {}),
 					...(options.pacingMs !== undefined ? { pacingMs: options.pacingMs } : {}),
+					...(options.writeAttachment ? { writeAttachment: options.writeAttachment } : {}),
 				});
 				await options.saveCacheManifest?.(ref, result.manifest);
 
