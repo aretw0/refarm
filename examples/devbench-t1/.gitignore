@@ -1,2 +1,4 @@
 dist-web/
 .astro/
+# Generated governance-poc artifacts (policy decisions, sandbox reports, evidence) — derived.
+.dgk/

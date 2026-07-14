@@ -18,6 +18,9 @@ import {
 	devCapabilityDeps,
 } from "./persona.js";
 import { createAgentRunCapability } from "./live-recursion.js";
+import { createGovernancePocCapability } from "./governance-verb.js";
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
 
 export const DGK_DEVBENCH_SIDECAR_URL_ENV = "DGK_DEVBENCH_SIDECAR_URL";
 export const DGK_DEVBENCH_DEFAULT_SIDECAR_URL = "http://127.0.0.1:42123";
@@ -68,6 +71,16 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// respond while calling the provider's verb as a tool (recursion, host-mediated). Not
 				// a fixture — the WASM runtime. `--mock` scripts a deterministic model for an offline demo.
 				createAgentRunCapability(),
+				// The GOVERNANCE PoC: extensibility as a risk decision — 2 policy modes × 3 extensions
+				// → policy decisions, sandbox reports, runtime evidence, metrics, and a scorecard. The
+				// forcing function that produces the verifiable artifacts the writeup cites.
+				createGovernancePocCapability({
+					writeArtifact: (rel, json) => {
+						const file = path.join(process.cwd(), rel);
+						mkdirSync(path.dirname(file), { recursive: true });
+						writeFileSync(file, json, "utf8");
+					},
+				}),
 			],
 		},
 		operatorStatus: {

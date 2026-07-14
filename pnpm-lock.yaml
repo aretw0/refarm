@@ -494,6 +494,9 @@ importers:
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../../packages/homestead
+      '@refarm.dev/plugin-manifest':
+        specifier: workspace:*
+        version: link:../../packages/plugin-manifest
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.9
