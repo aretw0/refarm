@@ -232,11 +232,11 @@ async function installAgentPlugin(tempHome, wasmSourcePath) {
 			providesApi: [],
 			requiresApi: [],
 		},
-		permissions: [
-			"store:UserPrompt",
-			"store:AgentResponse",
-			"store:UsageRecord",
-		],
+		// Mirror the real agent plugin's declared host-effect permissions
+		// (packages/agent/plugin.json). These are the closed WASI-capability vocabulary
+		// the host validates against; the smoke previously requested `store:*` ids that
+		// were never in that vocabulary, so the mock plugin failed to load.
+		permissions: ["fs:read", "fs:write", "shell:spawn", "network:outbound"],
 	});
 
 	await writeFile(
