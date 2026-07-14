@@ -4,7 +4,7 @@
 		"@refarm.dev/tsconfig/build.json"
 	],
 	"compilerOptions": {
-		"rootDir": "..",
+		"rootDir": "src",
 		"outDir": "dist"
 	},
 	"include": ["src/**/*"],

@@ -607,9 +607,15 @@ importers:
       '@refarm.dev/identity-contract-v1':
         specifier: workspace:*
         version: link:../../packages/identity-contract-v1
+      '@refarm.dev/identity-provider-ref':
+        specifier: workspace:*
+        version: link:../../packages/identity-provider-ref
       '@refarm.dev/records-contract-v1':
         specifier: workspace:*
         version: link:../../packages/records-contract-v1
+      '@refarm.dev/storage-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/storage-contract-v1
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.9
@@ -1305,6 +1311,25 @@ importers:
       nostr-tools:
         specifier: 'catalog:'
         version: 2.23.3(typescript@6.0.3)
+
+  packages/identity-provider-ref:
+    dependencies:
+      '@refarm.dev/identity-contract-v1':
+        specifier: workspace:*
+        version: link:../identity-contract-v1
+    devDependencies:
+      '@bytecodealliance/jco':
+        specifier: 'catalog:'
+        version: 1.19.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
 
   packages/infra-cloudflare:
     dependencies:
