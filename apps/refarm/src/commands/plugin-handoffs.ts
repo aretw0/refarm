@@ -9,3 +9,9 @@ export const RUNTIME_AGENT_RELOAD_JSON_COMMAND = refarmCommand([
 	"agent",
 	"--json",
 ]);
+export const RUNTIME_RESTART_JSON_COMMAND = refarmCommand([
+	"runtime",
+	"restart",
+	"--wait",
+	"--json",
+]);

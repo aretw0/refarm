@@ -140,15 +140,21 @@ describe("refarm tree switch and guards", () => {
 
 	it("switches active session pointers explicitly", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
-		vi.spyOn(fs, "readFileSync")
-			.mockReturnValueOnce("urn:sovereign:session:v1:previous0001")
-			.mockReturnValueOnce(SESSION["@id"]);
+		// The session-lock reads the active pointer BEFORE the write and again to VERIFY after.
+		// Make the read reflect the persisted state (write-aware) rather than a brittle positional
+		// sequence — session-lock reads a variable number of times across fallback paths.
+		let persisted = "urn:sovereign:session:v1:previous0001";
+		vi.spyOn(fs, "readFileSync").mockImplementation(() => persisted);
+		vi.spyOn(fs, "accessSync").mockImplementation(() => undefined);
 		const mkdirSpy = vi
 			.spyOn(fs, "mkdirSync")
 			.mockImplementation(() => undefined as string | undefined);
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
-			.mockImplementation(() => undefined);
+			.mockImplementation((_path, data) => {
+				if (typeof data === "string" && data.length > 0) persisted = data;
+				return undefined;
+			});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -221,10 +227,18 @@ describe("refarm tree switch and guards", () => {
 
 	it("prints session switch verification failures as JSON", async () => {
 		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
-		vi.spyOn(fs, "readFileSync")
-			.mockReturnValueOnce("urn:sovereign:session:v1:previous0001")
-			.mockReturnValueOnce("urn:sovereign:session:v1:other00000001");
-		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+		// Simulate a VERIFY failure: the write "succeeds" but the pointer reads back a DIFFERENT
+		// session (a lost/raced write). Before the write reads `previous0001`; after, the wrong
+		// `other00000001` — so writeActiveSessionIdAndVerify throws and the error envelope prints.
+		let wrote = false;
+		vi.spyOn(fs, "readFileSync").mockImplementation(() =>
+			wrote ? "urn:sovereign:session:v1:other00000001" : "urn:sovereign:session:v1:previous0001",
+		);
+		vi.spyOn(fs, "accessSync").mockImplementation(() => undefined);
+		vi.spyOn(fs, "writeFileSync").mockImplementation((_path, data) => {
+			if (typeof data === "string" && data.length > 0) wrote = true;
+			return undefined;
+		});
 		vi.spyOn(fs, "mkdirSync").mockImplementation(
 			() => undefined as string | undefined,
 		);

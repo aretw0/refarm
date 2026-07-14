@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { readGitCommand } from "@refarm.dev/cli";
 
 import { printJson } from "@refarm.dev/capabilities/envelope";
 import { lintFiles, summarizeLintReport, type LintFilesReport } from "@refarm.dev/quality-contract-v1/node";
@@ -22,13 +22,14 @@ const VERDICT_RANK: Record<string, number> = {
 	ai: 4,
 };
 
-/** The default file set: tracked markdown + stylesheets, via git (so it respects .gitignore). */
+/** The default file set: tracked markdown + stylesheets, via git (so it respects .gitignore).
+ * Routes the git call through @refarm.dev/cli's readGitCommand so no child_process lives in the
+ * app source (the process-execution boundary). */
 function defaultFiles(cwd: string): string[] {
 	try {
-		const out = execFileSync(
-			"git",
+		const out = readGitCommand(
 			["ls-files", "*.md", "*.markdown", "*.txt", "*.css", "*.astro", "*.html"],
-			{ cwd, encoding: "utf8" },
+			{ cwd },
 		);
 		return out.split("\n").map((f) => f.trim()).filter(Boolean);
 	} catch {

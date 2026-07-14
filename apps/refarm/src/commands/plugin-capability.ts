@@ -35,7 +35,7 @@ import { normalizePluginId } from "@refarm.dev/config/plugin-identity";
 import os from "node:os";
 import { pluginsBaseDir } from "../utils/refarm-home.js";
 import { buildBundleReport, type RunBundleProcess } from "./plugin-bundle.js";
-import { PLUGIN_INSTALL_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND } from "./plugin-handoffs.js";
+import { PLUGIN_INSTALL_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND, RUNTIME_RESTART_JSON_COMMAND } from "./plugin-handoffs.js";
 import { buildGitInstallReport } from "./plugin-install-from-git.js";
 import { buildNpmInstallReport } from "./plugin-install-from-npm.js";
 import { buildExtensionInstallReport } from "./plugin-install-from-path.js";
@@ -903,8 +903,8 @@ export function createPluginCapabilityGroup(
 				operation: "trust",
 				// Trust gates LOADING, which only takes effect at the next runtime start —
 				// point the operator at the reload so a fresh grant actually admits the plugin.
-				nextCommand: "refarm runtime restart --wait --json",
-				nextCommands: ["refarm runtime restart --wait --json", PLUGIN_STATUS_JSON_COMMAND],
+				nextCommand: RUNTIME_RESTART_JSON_COMMAND,
+				nextCommands: [RUNTIME_RESTART_JSON_COMMAND, PLUGIN_STATUS_JSON_COMMAND],
 				extra: {
 					pluginId: result.pluginId,
 					scope,
