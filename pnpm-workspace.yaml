@@ -23,6 +23,14 @@ shamefullyHoist: false
 strictPeerDependencies: false
 linkWorkspacePackages: true
 
+# GHSA-mp2f-45pm-3cg9 (decompress <=4.2.1, CVE-2026-53486) has NO patched version and
+# reaches us only through the build-time WASM toolchain (@bytecodealliance/jco >
+# componentize-js > weval > decompress, a devDependency). It never touches shipped runtime
+# code or untrusted archives. Re-evaluate when jco/weval drop the decompress transitive.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-mp2f-45pm-3cg9
+
 packages:
   - "packages/*"
   - "apps/*"
