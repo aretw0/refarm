@@ -27,6 +27,7 @@ import { Command } from "commander";
 
 import type { CapabilityDeps } from "./builtin-capabilities.js";
 import { mountCapabilities, mountedCliCommands, serveCapabilities } from "./mount.js";
+import { runTui } from "./tui.js";
 import { createBaseStatusCapability } from "./operator-state-capability.js";
 import type { PluginDescriptorDeps, SurfaceableManifest } from "./plugin-bridge.js";
 import type { RecordsCommandDeps } from "./records-capability.js";
@@ -292,6 +293,7 @@ export function defineCapabilityHost(definition: CapabilityHostDefinition): Capa
 				program.addCommand(command);
 			}
 			addServeCommand(program, definition, bundle.registry);
+			addTuiCommand(program, definition, bundle.registry);
 			return program;
 		},
 		serve(options: CapabilityHostServeCallOptions = {}) {
@@ -707,6 +709,24 @@ function addServeCommand(
 			});
 			const { port } = await listening;
 			console.log(JSON.stringify(buildCapabilityHostServeInfo(port, options)));
+		});
+}
+
+/**
+ * Mount the `tui` command — an interactive terminal loop over the SAME registry the CLI + web
+ * derive from, so every capability app gets a real TUI face from its one declaration (each verb's
+ * `renderers.tui.section` places it in the menu). Runs `runTui` (surface-terminal's readline
+ * shell). No per-app wiring: declare `renderers.tui` on a verb and it appears here.
+ */
+function addTuiCommand(program: Command, definition: CapabilityHostDefinition, registry: CapabilityRegistry): void {
+	program
+		.command("tui")
+		.description(`Open ${definition.command} as an interactive terminal UI (the verbs' tui surface)`)
+		.action(async () => {
+			await runTui(registry, {
+				title: definition.command,
+				...(definition.description ? { subtitle: definition.description } : {}),
+			});
 		});
 }
 
