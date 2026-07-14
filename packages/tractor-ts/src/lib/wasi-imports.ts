@@ -533,6 +533,15 @@ export class WasiImports {
 					};
 				},
 			},
+			// The EFFECT-PRODUCING host imports (fs/shell/structured-io/code-ops) are inert
+			// no-ops on the TS host BY DESIGN: per the Rust×TS boundary doctrine (ADR-059,
+			// "bytes→Rust, fluxo→TS"), the authoritative tractor host PRODUCES these effects
+			// (a real filesystem, a spawned shell, an LSP subprocess); tractor-ts COORDINATES
+			// and cannot run them (no LSP process in a browser/edge TS runtime). A plugin that
+			// depends on real code-ops/fs/shell must run on the Rust host. These stubs keep an
+			// effect-capable plugin INSTANTIABLE on the TS host (its imports resolve) without
+			// pretending to perform the effect — they return an empty/zero result, never an
+			// error, so a plugin that gracefully handles "no effect available" still loads.
 			"plugin:host/host-fs": {
 				read: (_path: string) => new Uint8Array(),
 				write: (_path: string, _content: Uint8Array) => undefined,
@@ -555,6 +564,10 @@ export class WasiImports {
 				) => JSON.stringify({ value: null }),
 				"write-structured": (_path: string, _content: string, _format: unknown) => undefined,
 			},
+			// code-ops (rename/find-references/move-symbol) needs a live LSP server — a Rust-host
+			// effect. On the TS host it resolves to an empty edit (files/edits = 0, no
+			// references), so lsp-code-ops loads but does no work here; the real op runs on the
+			// Rust host (packages/tractor/src/host/lsp_bridge.rs).
 			"plugin:host/code-ops": {
 				"rename-symbol": (_loc: unknown, _newName: string) => ({
 					filesChanged: 0,
