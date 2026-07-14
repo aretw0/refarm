@@ -31,6 +31,7 @@ import {
 	createWalletRequestCapability,
 } from "./consent.js";
 import { createDisclosureGraphCapability } from "./disclosure-graph.js";
+import { createSovereigntyCapability } from "./sovereignty.js";
 import { createVerifyPresentationCapability } from "./verifier.js";
 import { createRecoverCapability } from "./recovery.js";
 import {
@@ -342,6 +343,9 @@ export function createWalletCapabilities(
 			// The sovereign HISTORY of a consent: active → revoked as durable revisions of the
 			// same authorization (history:v1), when and by which verb.
 			createWalletHistoryCapability(recordsDeps),
+			// The whole sovereign posture in ONE view (the analog of T1's plugin-ops): credentials
+			// + consent + disclosure + timeline, mounted above the cards by the web content seam.
+			createSovereigntyCapability(recordsDeps),
 		);
 	}
 	return capabilities;
@@ -356,9 +360,13 @@ export function walletWebSurface(registry: Parameters<typeof createCapabilityWeb
 		name: "Minha Carteira Digital",
 		title: "Minha Carteira Digital",
 		surfaceId: "wallet-panel",
-		// The content seam: the boot runs the `wallet` verb and puts its rendered HTML on
-		// host.data.walletHtml, so the citizen sees their actual wallet ABOVE the verb cards
-		// — the generic content path (same shape reqbench uses for its MOC), no bespoke UI.
-		content: (data) => (typeof data.walletHtml === "string" ? data.walletHtml : ""),
+		// The content seam renders the SOVEREIGNTY dashboard (credentials + consent + disclosure +
+		// timeline) as the headline ABOVE the verb cards when the content verb carried it, else the
+		// wallet HTML — the generic content path (same shape reqbench/devbench use), no bespoke UI.
+		content: (data) => {
+			const sovereignty = typeof data.sovereigntyHtml === "string" ? data.sovereigntyHtml : "";
+			const wallet = typeof data.walletHtml === "string" ? data.walletHtml : "";
+			return sovereignty + wallet;
+		},
 	});
 }

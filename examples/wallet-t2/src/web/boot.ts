@@ -18,7 +18,10 @@ export async function bootWallet(): Promise<void> {
 			namespace: "wallet",
 			registry,
 			surfaceContext: walletApp.surfaceContext(),
-			content: { verb: "wallet", field: "walletHtml" },
+			// The content seam runs the SOVEREIGNTY dashboard (credentials + consent + disclosure +
+			// timeline) as the headline above the verb cards — the citizen's whole posture in one
+			// photograph. The wallet item list stays reachable via its own card.
+			content: { verb: "sovereignty" },
 			surface: walletWebSurface(registry),
 		});
 		overlay?.remove();

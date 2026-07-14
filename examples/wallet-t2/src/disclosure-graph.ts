@@ -22,11 +22,19 @@ import { recordToReceipt } from "./authorization.js";
 /** The stable node id for the citizen (the holder) at the centre of their graph. */
 export const CITIZEN_NODE = "me";
 
+/** When/why a disclosure was revoked — the time dimension the graph alone lacks (from the
+ * persisted RevocationEvent, keyed by the authorization id). */
+export interface RevocationInfo {
+	revokedAt?: string;
+	reason?: string;
+}
+
 export interface DisclosureGraph {
 	graph: GraphInput;
 	labels: Record<string, string>;
-	/** The disclosure edges, as data for the JSON envelope: who got what, and its status. */
-	disclosures: Array<{ requester: string; scope: string[]; status: string }>;
+	/** The disclosure edges, as data for the JSON envelope: who got what, its status, and — for a
+	 * revoked one — WHEN and WHY (enriched from the RevocationEvent). */
+	disclosures: Array<{ requester: string; scope: string[]; status: string; revokedAt?: string; reason?: string }>;
 }
 
 /** A stable node id for a requester (a service the citizen disclosed to). */
@@ -40,10 +48,13 @@ function requesterNode(requester: string): string {
  * citizen → requester. A requester's degree reflects how many disclosures it holds.
  * Pure — unit-tested.
  */
-export function buildDisclosureGraph(receipts: readonly AuthorizationReceipt[]): DisclosureGraph {
+export function buildDisclosureGraph(
+	receipts: readonly AuthorizationReceipt[],
+	revocations: ReadonlyMap<string, RevocationInfo> = new Map(),
+): DisclosureGraph {
 	const labels: Record<string, string> = { [CITIZEN_NODE]: "Eu (cidadão)" };
 	const links: Array<{ source: string; target: string }> = [];
-	const disclosures: Array<{ requester: string; scope: string[]; status: string }> = [];
+	const disclosures: DisclosureGraph["disclosures"] = [];
 	const degree = new Map<string, number>([[CITIZEN_NODE, 0]]);
 	const bump = (id: string) => degree.set(id, (degree.get(id) ?? 0) + 1);
 
@@ -51,7 +62,16 @@ export function buildDisclosureGraph(receipts: readonly AuthorizationReceipt[]):
 		const node = requesterNode(receipt.requester);
 		if (!(node in labels)) labels[node] = receipt.requester;
 		links.push({ source: CITIZEN_NODE, target: node });
-		disclosures.push({ requester: receipt.requester, scope: receipt.scope, status: receipt.status });
+		// A revoked disclosure gains WHEN/WHY from its RevocationEvent — the graph edge alone shows
+		// only THAT it's revoked; this enriches it with the time dimension (the B2 join).
+		const revocation = receipt.status === "revoked" ? revocations.get(receipt.id) : undefined;
+		disclosures.push({
+			requester: receipt.requester,
+			scope: receipt.scope,
+			status: receipt.status,
+			...(revocation?.revokedAt ? { revokedAt: revocation.revokedAt } : {}),
+			...(revocation?.reason ? { reason: revocation.reason } : {}),
+		});
 		bump(CITIZEN_NODE);
 		bump(node);
 	}
@@ -69,6 +89,25 @@ export function loadReceipts(recordsDeps: RecordsCommandDeps): AuthorizationRece
 		.filter((r): r is AuthorizationReceipt => r !== null);
 }
 
+/** Read the persisted RevocationEvents into a map (authorizationId → when/why), so a revoked
+ * disclosure can show WHEN and WHY it was revoked. */
+export function loadRevocations(recordsDeps: RecordsCommandDeps): Map<string, RevocationInfo> {
+	const map = new Map<string, RevocationInfo>();
+	for (const record of recordsDeps.loadManifest().records) {
+		const types = record["@type"];
+		const isEvent = Array.isArray(types) ? types.includes("RevocationEvent") : types === "RevocationEvent";
+		if (!isEvent) continue;
+		const fields = record.fields as Record<string, unknown> | undefined;
+		const authorizationId = typeof fields?.authorizationId === "string" ? fields.authorizationId : undefined;
+		if (!authorizationId) continue;
+		map.set(authorizationId, {
+			...(typeof fields?.revokedAt === "string" ? { revokedAt: fields.revokedAt } : {}),
+			...(typeof fields?.reason === "string" ? { reason: fields.reason } : {}),
+		});
+	}
+	return map;
+}
+
 /**
  * `disclosure-graph [--svg]` — render the citizen's disclosure surface: with whom they
  * shared what. Default (JSON) reports the disclosures as data; `--svg` returns the SVG
@@ -83,7 +122,7 @@ export function createDisclosureGraphCapability(recordsDeps: RecordsCommandDeps)
 		renderers: { tui: { section: "wallet" }, web: { route: "/disclosure-graph", icon: "share" } },
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const receipts = loadReceipts(recordsDeps);
-			const { graph, labels, disclosures } = buildDisclosureGraph(receipts);
+			const { graph, labels, disclosures } = buildDisclosureGraph(receipts, loadRevocations(recordsDeps));
 			const svg = graphToSvg(graph, {
 				labelFor: (id) => labels[id] ?? id,
 				title: "Minha superfície de compartilhamento — com quem compartilhei o quê",
