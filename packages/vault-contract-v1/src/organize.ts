@@ -40,19 +40,29 @@ export interface OrganizeDispatcher {
  * the consumer brings its records + a taxonomy profile (data) and gets back the plans.
  */
 
+/** Render one frontmatter value as a SINGLE YAML line — never breaking out of the `---` fence.
+ * Objects/arrays become compact JSON; a scalar whose string form contains a newline (a multi-line
+ * `body`, an embedded markdown field) is JSON-encoded so the newline is escaped to `\n` instead of
+ * splitting the frontmatter. A plain single-line scalar renders as-is. PURE. */
+function frontmatterValue(value: unknown): string {
+	if (typeof value === "object") return JSON.stringify(value);
+	const str = String(value);
+	// A newline (or a leading YAML-significant char) would corrupt the block — quote via JSON.
+	return /[\n\r]/.test(str) ? JSON.stringify(str) : str;
+}
+
 /** Render a record's `fields` as a minimal YAML frontmatter block — enough for a matcher
- * that routes by frontmatter (taxonomy-route reads `tipo`/`sistema`/… from here). Scalar
- * fields only (the routing keys are scalars); nested/array fields are skipped, since a
- * routing axis reads a string value. PURE. */
+ * that routes by frontmatter (taxonomy-route reads `tipo`/`sistema`/… from here). Every value is
+ * emitted as a single line (multi-line/object values are JSON-encoded), so a field carrying
+ * markdown (e.g. `body`) can never break the `---` fence. PURE. */
 function fieldsToFrontmatter(fields: Record<string, unknown>): string {
 	const lines: string[] = ["---"];
 	for (const [key, value] of Object.entries(fields)) {
 		if (value === null || value === undefined) continue;
-		// Object/array fields (e.g. a nested `provenance`) render as a compact JSON scalar:
-		// the KEY is present (so a `frontmatter-required` gate sees it) and its value is
-		// readable. A routing axis reads a plain string value, so it simply won't match an
-		// object field — forward-safe. Scalars render as-is.
-		lines.push(`${key}: ${typeof value === "object" ? JSON.stringify(value) : String(value)}`);
+		// The KEY is always present (so a `frontmatter-required` gate sees it); the value is a
+		// single, fence-safe line. A routing axis reads a plain string, so it simply won't match a
+		// JSON-encoded object/multiline value — forward-safe.
+		lines.push(`${key}: ${frontmatterValue(value)}`);
 	}
 	lines.push("---", "");
 	return lines.join("\n");

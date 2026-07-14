@@ -54,6 +54,23 @@ describe("recordToVaultNote", () => {
 		expect(note.text).toContain('provenance: {"channel":"pull"}');
 		expect(note.text).toContain('tags: ["x"]');
 	});
+
+	it("a MULTI-LINE field value stays on ONE frontmatter line (never breaks the --- fence)", () => {
+		// The real trigger: fields.body = htmlToMarkdown(primaryText) is multi-line markdown. A raw
+		// String(value) would split the block; it must be JSON-encoded so the newline escapes to \n.
+		const body = "Linha um.\n\n## Critérios\n- Linha três.";
+		const note = recordToVaultNote(record("r", { tipo: "requisito", body }));
+		// Exactly TWO `---` fences — the block is intact (a mid-value newline would add spurious ones).
+		expect(note.text.match(/^---$/gm)).toHaveLength(2);
+		// The body renders as a single quoted line with the newline ESCAPED to \n (not a real break).
+		expect(note.text).toContain(`body: ${JSON.stringify(body)}`);
+		// No BARE `## Critérios` line inside the frontmatter block — it only appears escaped in the
+		// quoted value. (A raw String(value) would have put it on its own line, breaking the fence.)
+		const block = note.text.slice(note.text.indexOf("---") + 3, note.text.lastIndexOf("---"));
+		expect(block).not.toMatch(/^## Critérios$/m);
+		// tipo is still a routable plain scalar.
+		expect(note.text).toContain("tipo: requisito");
+	});
 });
 
 describe("organizeRecords — one-call PARA routing over records", () => {
