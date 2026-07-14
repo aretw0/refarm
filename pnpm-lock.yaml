@@ -500,6 +500,9 @@ importers:
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../../packages/plugin-manifest
+      '@refarm.dev/surveyor':
+        specifier: workspace:*
+        version: link:../../packages/surveyor
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.9

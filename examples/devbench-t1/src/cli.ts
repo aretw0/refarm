@@ -20,6 +20,7 @@ import {
 import { createAgentRunCapability } from "./live-recursion.js";
 import { createDelegateRunCapability } from "./live-delegation.js";
 import { createCodeOpsCapability } from "./live-code-ops.js";
+import { createExtensionGraphCapability } from "./extension-graph.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
 import { createExtensionDevelopCapability } from "./maturity-verb.js";
 import { createExtensionVerifyCapability } from "./integrity-verb.js";
@@ -80,6 +81,10 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 			// against the notes-indexer's providesApi — the recursion, made visible.
 			extensions: [
 				createExtensionCapability(extensionManifest, pluginDeps, peerManifests),
+				// DRAW the recursion: the plugin dependency graph the writeup describes in prose.
+				// The manifests declare it (requiresApi→providesApi = the SPI edge, agent →
+				// notes-indexer); Surveyor renders it to an SVG a screenshot/web face shows.
+				createExtensionGraphCapability(manifests),
 				// The HEADLINE, live: boot the real agent.wasm + a provider plugin and have the agent
 				// respond while calling the provider's verb as a tool (recursion, host-mediated). Not
 				// a fixture — the WASM runtime. `--mock` scripts a deterministic model for an offline demo.

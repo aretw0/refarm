@@ -23,7 +23,8 @@
 		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
-		"@refarm.dev/homestead": "workspace:*"
+		"@refarm.dev/homestead": "workspace:*",
+		"@refarm.dev/surveyor": "workspace:*"
 	},
 	"devDependencies": {
 		"@astrojs/check": "^0.9.9",

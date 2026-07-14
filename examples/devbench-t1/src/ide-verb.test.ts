@@ -32,8 +32,9 @@ describe("ide verb — the editor surface of the bench", () => {
 		for (const name of headline) {
 			const entry = reg.get(name);
 			if (!entry || "actions" in entry) throw new Error(`${name} not mounted`);
+			const ide = entry.renderers?.ide as { command?: string } | undefined;
 			expect(entry.renderers?.web?.route, `${name} must declare a web route`).toBeTruthy();
-			expect(entry.renderers?.ide?.command, `${name} must declare an IDE command`).toBeTruthy();
+			expect(ide?.command, `${name} must declare an IDE command`).toBeTruthy();
 			expect(entry.renderers?.tui?.section, `${name} must keep its TUI section`).toBeTruthy();
 		}
 	});
