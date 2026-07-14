@@ -626,6 +626,12 @@ fn validate_stream_text_field(label: &str, value: &str, max_len: usize) -> Resul
     Ok(())
 }
 
+// The model-HTTP call carries two natural groups — the request target
+// (provider/base_url/path/headers/body) and the route guardrail
+// (expected/fallback/configured, ADR-012) — passed positionally to keep this a thin
+// internal seam. The guardrail's `configured` arg pushed it to 8; grouping into structs
+// would ripple through the model bridge for no behavioural gain.
+#[allow(clippy::too_many_arguments)]
 fn model_complete_http(
     provider: &str,
     base_url: &str,
@@ -678,6 +684,9 @@ fn enforce_model_route_any(
     }
 }
 
+// Same request-target + route-guardrail parameter grouping as model_complete_http; the
+// ADR-012 `configured` arg pushed it to 8. See that function's note.
+#[allow(clippy::too_many_arguments)]
 fn send_model_http_post(
     provider: &str,
     base_url: &str,
