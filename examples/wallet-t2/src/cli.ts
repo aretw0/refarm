@@ -11,10 +11,16 @@ import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node"
 import {
 	createWalletCapabilities,
 	walletCapabilityBundle,
+	type WalletBundleOptions,
 	type WalletStateOptions,
 } from "./persona.js";
+import { createSovereignWalletBundle } from "./sovereign.js";
 
 export const DGK_WALLET_STATE_PATH_ENV = "DGK_WALLET_STATE_PATH";
+/** Opt-in: back the wallet with the sovereign WASM signer (the citizen's Ed25519 key
+ * lives inside the sandbox, never in JS). Off by default so the in-memory fixture
+ * keeps the wallet offline + deterministic for tests. */
+export const DGK_SOVEREIGN_ENV = "DGK_SOVEREIGN";
 export const DGK_COMMAND = "dgk";
 
 const walletAppDefaults = createLocalRecordsAppDefaults({
@@ -23,7 +29,10 @@ const walletAppDefaults = createLocalRecordsAppDefaults({
 	fileName: "wallet.manifest.json",
 });
 export const defaultWalletStatePath = walletAppDefaults.statePath;
-export interface WalletHostOptions extends WalletStateOptions, HostCommandOptions {}
+export interface WalletHostOptions
+	extends WalletStateOptions,
+		HostCommandOptions,
+		Pick<WalletBundleOptions, "credentialsProvider" | "identity"> {}
 
 const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND });
 
@@ -97,6 +106,24 @@ export const buildRegistry = walletApp.registry;
 export const buildWalletBaseModel = walletApp.baseModel;
 export const buildProgram = walletApp.program;
 
-void walletApp.runCli(import.meta.url, {
-	compiledFileName: "cli.js",
-});
+/**
+ * Resolve the wallet's default options, activating the SOVEREIGN backing when
+ * `DGK_SOVEREIGN=1`: the citizen's identity becomes the sandboxed WASM signer
+ * (@refarm.dev/identity-provider-ref) and the credentials provider signs through it,
+ * so every `share`/`present` is signed inside the sandbox — the wallet process holds
+ * no private key. Off by default: the in-memory fixture keeps the wallet offline and
+ * deterministic for tests. Async because instantiating the component is async.
+ */
+async function resolveWalletDefaultOptions(): Promise<WalletHostOptions> {
+	const base = walletAppDefaults.defaultOptions as WalletHostOptions;
+	if (process.env[DGK_SOVEREIGN_ENV] !== "1") return base;
+	const { credentialsProvider, identity } = await createSovereignWalletBundle();
+	return { ...base, credentialsProvider, identity };
+}
+
+void resolveWalletDefaultOptions().then((defaultOptions) =>
+	defineCapabilityApp<WalletHostOptions>({
+		host: buildWalletHost,
+		defaultOptions,
+	}).runCli(import.meta.url, { compiledFileName: "cli.js" }),
+);

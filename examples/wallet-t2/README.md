@@ -27,8 +27,12 @@ actually verifies is promoted to `verified` (the state the wallet shows); a tamp
 credential is rejected and stays draft, with the failed checks reported. This is a real
 verification — not a review-state flip. Out of the box the verifier is an in-memory fixture (so
 `import`→`verify` works offline and is testable); a real deployment binds it to the citizen's
-identity/storage or a trust registry (and could run it as a sandboxed WASM verifier). QR import
-is not yet supported — file-JSON import is the first path.
+identity/storage or a trust registry. **Sovereign mode is shipped:** run with `DGK_SOVEREIGN=1`
+and the citizen's identity becomes a sandboxed Ed25519 WASM signer
+(`@refarm.dev/identity-provider-ref`) — every presentation `share`/`present` builds is signed
+*inside the sandbox*, the wallet process never holding the private key. The difference between
+"my data, my wallet" as a slogan and as a guarantee. QR import parses a QR payload behind the
+`import --qr` flag (raw / base64url / offer-url); file-JSON import is the default path.
 
 `share` is the sovereignty move — the point of the whole Carteira Digital: the citizen
 **compartilha apenas o estritamente necessário**. They pick which credentials go into a

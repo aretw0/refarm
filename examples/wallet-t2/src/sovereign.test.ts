@@ -55,4 +55,59 @@ describe("T2 sovereign wallet — presentations are signed inside the WASM sandb
 		const b = await identity.sign(who.id, "same");
 		expect(a.signature).toBe(b.signature);
 	});
+
+	it("the wallet's own `share` verb signs the presentation inside the sandbox (CLI path)", async () => {
+		const { mkdtempSync } = await import("node:fs");
+		const os = await import("node:os");
+		const path = await import("node:path");
+		const { walletCapabilityBundle, createWalletCapabilities } = await import("./persona.js");
+
+		// Build the wallet capabilities the CLI builds — but backed by the sovereign
+		// bundle (the DGK_SOVEREIGN=1 path), so `import`/`share` route through the WASM
+		// signer, not the in-memory fixture.
+		const statePath = path.join(mkdtempSync(path.join(os.tmpdir(), "wallet-sov-")), "state.json");
+		const sovereign = await createSovereignWalletBundle();
+		const bundle = walletCapabilityBundle({
+			statePath,
+			credentialsProvider: sovereign.credentialsProvider,
+			identity: sovereign.identity,
+		});
+		const verbs = Object.fromEntries(
+			createWalletCapabilities(bundle.records, {
+				credentialsProvider: bundle.credentialsProvider,
+				identity: bundle.identity,
+			}).map((v) => [v.name, v]),
+		);
+
+		// Import a credential the citizen holds, then verify it (so it becomes shareable),
+		// then share it — the presentation `share` builds is signed by the sovereign key.
+		const vc = {
+			"@context": ["https://www.w3.org/ns/credentials/v2"],
+			type: ["VerifiableCredential", "DiplomaCredential"],
+			issuer: "did:example:univ",
+			issuanceDate: "2026-01-01T00:00:00Z",
+			credentialSubject: { id: "did:example:cidadao", curso: "Engenharia" },
+		};
+		const vcFile = path.join(mkdtempSync(path.join(os.tmpdir(), "wallet-sov-vc-")), "vc.json");
+		const { writeFileSync } = await import("node:fs");
+		writeFileSync(vcFile, JSON.stringify(vc));
+
+		const imported = (await verbs.import!.run!({ args: { file: vcFile }, options: {}, json: true })) as Record<
+			string,
+			unknown
+		>;
+		expect(imported.ok).toBe(true);
+		const credId = imported.id as string;
+
+		// Share the held credential — the presentation `share` builds is signed by the
+		// sovereign key.
+		const shared = (await verbs.share!.run!({ args: { ids: credId }, options: {}, json: true })) as Record<
+			string,
+			unknown
+		>;
+		// The share produced a presentation; its proof was made by the sovereign key.
+		expect(shared.ok).toBe(true);
+		const presentation = shared.presentation as { proof?: { signature?: string } };
+		expect(presentation?.proof?.signature).toContain("ed25519-wasm-sovereign");
+	});
 });
