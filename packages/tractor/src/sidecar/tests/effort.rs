@@ -1175,3 +1175,84 @@ fn find_terminal_result_matches_by_descriptor_and_surfaces_is_error() {
 
     let _ = std::fs::remove_file(&ns);
 }
+
+/// The effort log maps activity-stream phases to EffortLogEntry events. PURE.
+#[test]
+fn effort_log_entry_maps_activity_phases() {
+    let started = serde_json::json!({
+        "activityRef": "e-1", "phase": "started", "label": "Agent responding", "kind": "agent", "ts": "2026-01-01T00:00:00.000Z"
+    });
+    let e = super::effort_log_entry_from_activity(&started, "e-1").expect("started maps");
+    assert_eq!(e["event"], "processing_started");
+    assert_eq!(e["level"], "info");
+    assert_eq!(e["message"], "Agent responding");
+    assert_eq!(e["timestamp"], "2026-01-01T00:00:00.000Z");
+    assert_eq!(e["effortId"], "e-1");
+
+    // A failed finish → error level.
+    let failed = serde_json::json!({"activityRef":"e-1","phase":"finished","label":"","kind":"dispatch","ok":false});
+    let f = super::effort_log_entry_from_activity(&failed, "e-1").expect("finished maps");
+    assert_eq!(f["event"], "processing_finished");
+    assert_eq!(f["level"], "error");
+
+    // A successful finish → info.
+    let okf = serde_json::json!({"activityRef":"e-1","phase":"finished","label":"","kind":"dispatch","ok":true});
+    assert_eq!(super::effort_log_entry_from_activity(&okf, "e-1").unwrap()["level"], "info");
+
+    // A phase with no log counterpart → None.
+    let prog = serde_json::json!({"activityRef":"e-1","phase":"progress","label":"x","kind":"agent"});
+    assert!(super::effort_log_entry_from_activity(&prog, "e-1").is_none());
+}
+
+/// GET /efforts/:id/logs returns the effort's slice of the activity stream — no longer
+/// a hardcoded empty array. Writing two activity lines for an effort and one for another
+/// yields exactly the two matching entries, timestamps stamped at write.
+#[tokio::test]
+async fn sidecar_effort_logs_read_the_activity_stream() {
+    let (state, port, _tmp) = start_test_sidecar().await;
+    let client = reqwest::Client::new();
+
+    // Two lifecycle lines for e-1, one for e-2 — as the dispatcher's publish_activity writes.
+    super::write_activity_line(
+        &state.streams_dir,
+        &serde_json::json!({"activityRef":"e-1","phase":"started","label":"Agent responding","kind":"agent"}),
+    )
+    .unwrap();
+    super::write_activity_line(
+        &state.streams_dir,
+        &serde_json::json!({"activityRef":"e-2","phase":"started","label":"Other","kind":"agent"}),
+    )
+    .unwrap();
+    super::write_activity_line(
+        &state.streams_dir,
+        &serde_json::json!({"activityRef":"e-1","phase":"finished","label":"","kind":"agent","ok":true}),
+    )
+    .unwrap();
+
+    let logs: serde_json::Value = client
+        .get(format!("{}/efforts/e-1/logs", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let arr = logs.as_array().expect("logs is an array");
+    assert_eq!(arr.len(), 2, "only e-1's two lines, not e-2's");
+    assert_eq!(arr[0]["event"], "processing_started");
+    assert_eq!(arr[1]["event"], "processing_finished");
+    // The write side stamped an ISO-8601 timestamp.
+    let ts = arr[0]["timestamp"].as_str().unwrap();
+    assert!(ts.ends_with('Z') && ts.contains('T'), "stamped ISO-8601: {ts}");
+
+    // An unknown effort yields [] (not a 404) — matches the file-reader contract.
+    let empty: serde_json::Value = client
+        .get(format!("{}/efforts/nope/logs", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(empty.as_array().unwrap().len(), 0);
+}

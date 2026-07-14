@@ -399,8 +399,50 @@ pub(crate) fn write_activity_line(streams_dir: &Path, payload: &Value) -> std::i
         .create(true)
         .append(true)
         .open(&path)?;
-    writeln!(file, "{}", payload)?;
+    // Stamp the DURABLE line with the write time (ISO-8601) — the pure activity payload
+    // stays time-free (the telemetry bus carries its own event time), but a file read
+    // back later needs a timestamp, so `get_effort_logs` can order + report it. Added
+    // only when absent, so a payload that already carries `ts` is respected.
+    let line = match payload {
+        Value::Object(map) if !map.contains_key("ts") => {
+            let mut stamped = map.clone();
+            stamped.insert("ts".to_string(), Value::String(now_iso8601()));
+            Value::Object(stamped)
+        }
+        other => other.clone(),
+    };
+    writeln!(file, "{}", line)?;
     Ok(())
+}
+
+/// Current time as an ISO-8601 UTC string (`YYYY-MM-DDTHH:MM:SS.sssZ`) for durable
+/// activity lines. Uses the system clock at the file-write boundary only.
+fn now_iso8601() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let dur = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let secs = dur.as_secs();
+    let millis = dur.subsec_millis();
+    // Civil-date from unix seconds (proleptic Gregorian), no external crate.
+    let days = (secs / 86_400) as i64;
+    let secs_of_day = secs % 86_400;
+    let (h, mi, s) = (secs_of_day / 3600, (secs_of_day % 3600) / 60, secs_of_day % 60);
+    let (y, m, d) = civil_from_days(days);
+    format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}.{millis:03}Z")
+}
+
+/// Convert a day count since the Unix epoch to (year, month, day). Howard Hinnant's
+/// public-domain `civil_from_days` algorithm — no chrono dependency for one timestamp.
+fn civil_from_days(z: i64) -> (i64, u32, u32) {
+    let z = z + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
 async fn get_plugins(State(state): State<SidecarState>) -> impl IntoResponse {
@@ -699,14 +741,60 @@ async fn get_effort(
 }
 
 async fn get_effort_logs(
-    State(_state): State<SidecarState>,
-    AxumPath(_id): AxumPath<String>,
+    State(state): State<SidecarState>,
+    AxumPath(id): AxumPath<String>,
 ) -> impl IntoResponse {
-    // STUB: per-effort log entries are not persisted yet, so this always returns
-    // an empty array and does NOT validate the id (a bad id gets `[]`, not 404) —
-    // a client can't yet distinguish "no logs" from "unknown effort". Kept as a
-    // documented placeholder until effort logs are stored.
-    (StatusCode::OK, Json(Value::Array(vec![])))
+    // The effort's log is its slice of the append-only activity stream
+    // (`streams/activity.ndjson`) — the SAME lines the telemetry bus and a tailing
+    // surface see, filtered to this effort's `activityRef` and mapped to the
+    // `EffortLogEntry` contract (effort-contract-v1). The activity stream carries the
+    // lifecycle phases the substrate already knows (started/finished); richer
+    // per-attempt events populate as the producer emits them.
+    let entries = read_effort_log_entries(&state.streams_dir, &id);
+    (StatusCode::OK, Json(Value::Array(entries)))
+}
+
+/// Read `streams/activity.ndjson`, keep the lines whose `activityRef == effort_id`, and
+/// map each to an `EffortLogEntry` JSON value. Returns `[]` when the file is absent or no
+/// line matches — the endpoint never fails on a missing/unknown effort (a bad id yields
+/// `[]`, matching the file-based `logs` reader on the TS side). PURE over the file.
+fn read_effort_log_entries(streams_dir: &Path, effort_id: &str) -> Vec<Value> {
+    let path = streams_dir.join(format!("{ACTIVITY_STREAM_NAME}.ndjson"));
+    let Ok(content) = fs::read_to_string(&path) else {
+        return Vec::new();
+    };
+    content
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .filter(|v| v.get("activityRef").and_then(Value::as_str) == Some(effort_id))
+        .filter_map(|v| effort_log_entry_from_activity(&v, effort_id))
+        .collect()
+}
+
+/// Map one activity line (`{activityRef, phase, label, kind, ok?, ts?}`) to an
+/// `EffortLogEntry`. Returns None for phases with no log counterpart. PURE — unit-tested.
+fn effort_log_entry_from_activity(activity: &Value, effort_id: &str) -> Option<Value> {
+    let phase = activity.get("phase").and_then(Value::as_str)?;
+    let label = activity.get("label").and_then(Value::as_str).unwrap_or("");
+    let ok = activity.get("ok").and_then(Value::as_bool);
+    let (event, level) = match phase {
+        "started" => ("processing_started", "info"),
+        "finished" => (
+            "processing_finished",
+            if ok == Some(false) { "error" } else { "info" },
+        ),
+        _ => return None, // progress/other phases have no EffortLogEntry event today
+    };
+    // The write side stamps `ts` (ISO-8601) at append; older lines without it fall back
+    // to an empty string rather than a fabricated time.
+    let timestamp = activity.get("ts").and_then(Value::as_str).unwrap_or("");
+    Some(serde_json::json!({
+        "effortId": effort_id,
+        "timestamp": timestamp,
+        "level": level,
+        "event": event,
+        "message": label,
+    }))
 }
 
 async fn post_effort_retry(
