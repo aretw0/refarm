@@ -55,7 +55,18 @@ dgk agent-telemetry --mock   # OBSERVABILITY — the run's timeline: route, iter
 dgk plugin-resilience        # RESILIENCE — a runaway plugin is trapped + respawned; the host keeps serving
 dgk plugin-catalog           # CATALOG — install the built plugins through the Barn + list the verified inventory
 dgk plugin-resolve           # PROVENANCE — a plugin is its SHA-256; a tampered copy is rejected (hash-mismatch)
+dgk plugin-ops               # UNIFIED — one panel: provenance → inventory → lifecycle → recursion (offline)
+dgk agent-telemetry --with-effects  # the CAUSAL run trace: each tool call ⋈ the host effect it caused
 ```
+
+`plugin-ops` aggregates the four daemon-free blocks into one dashboard — provenance (content-address
++ tamper rejection), inventory (the verified catalog), lifecycle (integrity→maturity→install), and
+recursion (the SPI edges) — as JSON and an HTML panel the web content seam mounts, so the plugin's
+sovereign story reads as a whole. `agent-telemetry --with-effects` is the causal composition: the
+agent timeline and the host-effect audit read the *same* audit file, and this joins them by
+timestamp so each tool call is annotated with the host effect it fired
+(`agent:tool:call{read_file}` → `host-effect:fs:read`) — the link neither view shows alone. The
+live verbs poll the audit trail (no blind sleeps), so a slow runner never reads a partial trace.
 
 `plugin-catalog` installs the real built plugins through the Barn (fetch + sha256 verify + cache)
 and lists the sovereign inventory (id, integrity, wasmHash, cacheStatus), proving integrity-verify

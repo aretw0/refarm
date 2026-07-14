@@ -158,7 +158,9 @@ export function devWebSurface(registry: BridgeRegistry) {
 				typeof data.graphSvg === "string" && data.graphSvg.length > 0
 					? `<section class="refarm-stack" data-extension-graph>${data.graphSvg}</section>`
 					: "";
-			return dashboard + graph;
+			// The unified plugin-operations dashboard, when the content verb carried it.
+			const ops = typeof data.pluginOpsHtml === "string" ? data.pluginOpsHtml : "";
+			return dashboard + ops + graph;
 		},
 	});
 }

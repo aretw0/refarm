@@ -30,6 +30,7 @@ import { createAgentTelemetryCapability } from "./live-telemetry.js";
 import { createPluginResilienceCapability } from "./live-resilience.js";
 import { createPluginCatalogCapability } from "./live-catalog.js";
 import { createPluginResolveCapability } from "./live-resolver.js";
+import { createPluginOpsCapability } from "./plugin-ops.js";
 import { createExtensionQualityCapability } from "./extension-quality.js";
 import { createExtensionLifecycleCapability } from "./extension-lifecycle.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
@@ -99,6 +100,12 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// live by delegate-run --chain), marked `executed`, alongside the illustrative
 				// coding-agent → notes-indexer edge; Surveyor renders it to an SVG.
 				createExtensionGraphCapability([...manifests, ...DEVBENCH_LIVE_MANIFESTS], {
+					livePluginIds: DEVBENCH_LIVE_PLUGIN_IDS,
+				}),
+				// UNIFY the daemon-free plugin blocks into one dashboard: provenance (content-address
+				// + tamper rejection) → inventory (verified catalog) → lifecycle (integrity→maturity→
+				// install) → recursion (SPI edges). One narrative panel the web content seam mounts.
+				createPluginOpsCapability([...manifests, ...DEVBENCH_LIVE_MANIFESTS], {
 					livePluginIds: DEVBENCH_LIVE_PLUGIN_IDS,
 				}),
 				// The HEADLINE, live: boot the real agent.wasm + a provider plugin and have the agent
