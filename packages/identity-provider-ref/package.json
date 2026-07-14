@@ -12,9 +12,9 @@
 		}
 	},
 	"scripts": {
-		"build:wasm": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_identity_provider_ref.wasm dist/identity_provider.wasm component build --target wasm32-wasip1 --release",
+		"build:wasm": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_identity_provider_ref.wasm dist/identity_provider.wasm component build --target wasm32-wasip1 --release && node scripts/write-plugin-manifest.mjs",
 		"build:transpile": "jco transpile dist/identity_provider.wasm -o pkg --name identity_provider --no-wasi-shim --instantiation async",
-		"build:component": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_identity_provider_ref.wasm dist/identity_provider.wasm component build --target wasm32-wasip1 --release && jco transpile dist/identity_provider.wasm -o pkg --name identity_provider --no-wasi-shim --instantiation async",
+		"build:component": "node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/refarm_identity_provider_ref.wasm dist/identity_provider.wasm component build --target wasm32-wasip1 --release && node scripts/write-plugin-manifest.mjs && jco transpile dist/identity_provider.wasm -o pkg --name identity_provider --no-wasi-shim --instantiation async",
 		"build": "tsc --project tsconfig.build.json",
 		"type-check": "tsc --noEmit",
 		"test": "vitest run",
@@ -23,6 +23,8 @@
 	"files": [
 		"pkg",
 		"dist",
+		"plugin.json",
+		"scripts",
 		"!dist/**/*.tsbuildinfo",
 		"README.md"
 	],
@@ -35,6 +37,7 @@
 	"devDependencies": {
 		"@bytecodealliance/jco": "catalog:",
 		"@refarm.dev/deps": "workspace:*",
+		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"typescript": "catalog:"
 	}

@@ -526,6 +526,7 @@ name = "refarm-identity-provider-ref"
 version = "0.1.0"
 dependencies = [
  "ed25519-dalek",
+ "serde_json",
  "sha2",
  "wit-bindgen",
  "wit-bindgen-rt",

@@ -1328,6 +1328,9 @@ importers:
       '@refarm.dev/deps':
         specifier: workspace:*
         version: link:../deps
+      '@refarm.dev/plugin-manifest':
+        specifier: workspace:*
+        version: link:../plugin-manifest
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig

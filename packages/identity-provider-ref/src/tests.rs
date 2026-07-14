@@ -80,3 +80,47 @@ fn public_key_is_32_bytes() {
     let pubkey = SovereignIdentity::public_key().expect("pub");
     assert_eq!(pubkey.len(), 32);
 }
+
+// ── identity:whoami dispatch (the SPI provider half of the host's get_identity) ──
+
+/// `whoami` reports a sovereign identity whose identifier is the DID form of the
+/// PUBLIC key — never the private half.
+#[test]
+fn whoami_reports_sovereign_identity_with_public_did() {
+    KEY.with(|c| *c.borrow_mut() = Some(signing_key_from_seed(b"citizen")));
+    let info = whoami();
+    assert_eq!(info["identity_type"], "sovereign");
+    assert_eq!(info["storage_tier"], "persistent");
+    let id = info["identifier"].as_str().expect("identifier");
+    assert!(id.starts_with("did:refarm-wasm:"));
+    // The identifier carries the 64-hex public key, and matches public_key().
+    let pub_hex = to_hex(&SovereignIdentity::public_key().expect("pub"));
+    assert_eq!(id, format!("did:refarm-wasm:{pub_hex}"));
+}
+
+/// A dispatch payload parses into (verb, replyRef); a malformed one is ignored.
+#[test]
+fn parse_dispatch_reads_verb_and_reply_ref() {
+    let parsed = parse_dispatch(r#"{"verb":"whoami","replyRef":"r-1"}"#);
+    assert_eq!(parsed, Some(("whoami".to_string(), "r-1".to_string())));
+    assert_eq!(parse_dispatch(r#"{"verb":"whoami"}"#), None); // no replyRef
+    assert_eq!(parse_dispatch("not json"), None);
+}
+
+/// An unknown verb yields an `{error}` result — the caller's await gets a node, never hangs.
+#[test]
+fn unknown_verb_yields_error_result_not_silence() {
+    let result = run_dispatched_verb("delete-everything");
+    assert!(result.get("error").is_some());
+    // whoami still routes to a real answer.
+    assert_eq!(run_dispatched_verb("whoami")["identity_type"], "sovereign");
+}
+
+/// The dispatch result node carries the canonical shape the host reads back by replyRef.
+#[test]
+fn dispatch_result_node_has_canonical_shape() {
+    let node = build_dispatch_result_node("r-42", whoami());
+    assert_eq!(node["@type"], "DispatchResult");
+    assert_eq!(node["replyRef"], "r-42");
+    assert_eq!(node["result"]["identity_type"], "sovereign");
+}

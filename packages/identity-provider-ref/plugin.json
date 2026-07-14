@@ -1,0 +1,39 @@
+{
+	"_note": "Template only — entry and integrity are injected at build/install time. The sovereign identity provider: the host's get_identity resolves this plugin via the SPI (providesApi identity:v1) and dispatches identity:whoami to it. It answers with the citizen's sovereign identity (the DID of the PUBLIC key); the private key never leaves the sandbox.",
+	"id": "@refarm/identity-provider-ref",
+	"name": "Sovereign Identity",
+	"version": "0.1.0",
+	"capabilities": {
+		"requires": [],
+		"providesApi": ["identity:v1"],
+		"verbs": {
+			"key": "identity",
+			"list": {
+				"whoami": {
+					"doc": "Report the current sovereign identity: its type, storage tier, and identifier (the DID form of the managed PUBLIC key). The private key never leaves the WASM sandbox. Advisory only — a caller must not gate a capability on this.",
+					"schema": {
+						"type": "object",
+						"properties": {}
+					}
+				}
+			}
+		}
+	},
+	"permissions": [],
+	"observability": {
+		"hooks": ["onLoad", "onInit", "onRequest", "onError", "onTeardown"]
+	},
+	"targets": ["server"],
+	"executionContext": {
+		"preferred": "node",
+		"allowed": ["node"]
+	},
+	"certification": {
+		"license": "AGPL-3.0-only",
+		"a11yLevel": 0,
+		"languages": ["en"]
+	},
+	"trust": {
+		"profile": "strict"
+	}
+}

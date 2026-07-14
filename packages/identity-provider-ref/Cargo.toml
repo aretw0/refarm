@@ -18,6 +18,9 @@ wit-bindgen-rt = "0.41.0"
 # the plugin bridge. Absence of imports IS the sandbox.
 ed25519-dalek = { version = "2.2", default-features = false }
 sha2 = { version = "0.10", default-features = false }
+# For the identity:whoami dispatch handler: parse the {verb, replyRef} payload and
+# build the DispatchResult node. default-features off keeps it no_std-friendly (alloc).
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 
 [profile.release]
 opt-level = "z"

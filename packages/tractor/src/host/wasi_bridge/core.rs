@@ -232,6 +232,46 @@ mod permission_grant_tests {
     }
 }
 
+#[cfg(test)]
+mod get_identity_tests {
+    use super::{guest_identity, identity_from_whoami};
+
+    #[test]
+    fn guest_is_the_least_privileged_fallback() {
+        let g = guest_identity();
+        assert_eq!(g.identity_type, "guest");
+        assert_eq!(g.storage_tier, "ephemeral");
+        assert_eq!(g.identifier, "");
+    }
+
+    #[test]
+    fn whoami_result_maps_to_identity_info() {
+        // The provider's DispatchResult node, shape as identity-provider-ref builds it.
+        let node = r#"{"@type":"DispatchResult","replyRef":"r-1","result":{
+            "identity_type":"sovereign","storage_tier":"persistent",
+            "identifier":"did:refarm-wasm:abcd"}}"#;
+        let info = identity_from_whoami(node).expect("maps");
+        assert_eq!(info.identity_type, "sovereign");
+        assert_eq!(info.storage_tier, "persistent");
+        assert_eq!(info.identifier, "did:refarm-wasm:abcd");
+    }
+
+    #[test]
+    fn error_result_yields_none_so_caller_falls_back_to_guest() {
+        let node = r#"{"@type":"DispatchResult","replyRef":"r","result":{"error":"unknown verb"}}"#;
+        assert!(identity_from_whoami(node).is_none());
+    }
+
+    #[test]
+    fn malformed_or_incomplete_replies_yield_none() {
+        assert!(identity_from_whoami("not json").is_none());
+        assert!(identity_from_whoami(r#"{"noResult":true}"#).is_none());
+        // Missing a required field (storage_tier) → None, never a fabricated identity.
+        let partial = r#"{"result":{"identity_type":"sovereign"}}"#;
+        assert!(identity_from_whoami(partial).is_none());
+    }
+}
+
 impl TractorNativeBindings {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -353,15 +393,44 @@ impl TractorBridgeHost for TractorNativeBindings {
 
     /// Return the current user's identity information.
     ///
-    /// STUB: the tractor host has no identity/user/session source yet, so this
-    /// always reports an anonymous ephemeral guest. A guest that branches on
-    /// `storage_tier` is told a fixed value — do not treat it as authoritative
-    /// until a real identity source is wired.
+    /// Resolves an `identity:v1` provider via the SPI (`plugin_providing_api`, the same
+    /// discovery `get_plugin_api` uses) and dispatches `identity:whoami` to it (the same
+    /// dispatch `call_plugin` uses). When a provider is loaded, the identity it reports
+    /// (type/tier/identifier, e.g. the DID of a sovereign key) is returned; otherwise —
+    /// no registry, no provider, or ANY failure — this falls back to the anonymous guest.
+    ///
+    /// ADVISORY, not authoritative. The value is sourced from another untrusted plugin
+    /// (whichever registered `api:identity:v1` first), so a caller must NOT gate a
+    /// capability on it — capability gating stays with the manifest-backed permission
+    /// system (`request_permission`). Fail-closed: any error yields the LEAST-privileged
+    /// guest/ephemeral, never a fabricated elevated tier.
     async fn get_identity(&mut self) -> Result<IdentityInfo, PluginError> {
-        Ok(IdentityInfo {
-            identity_type: "guest".to_string(),
-            storage_tier: "ephemeral".to_string(),
-            identifier: "".to_string(),
+        let Some(cross) = self.cross_plugin.as_ref() else {
+            return Ok(guest_identity());
+        };
+        let Some(provider_id) = cross.registry.plugin_providing_api("identity:v1") else {
+            return Ok(guest_identity());
+        };
+        // Dispatch identity:whoami to the resolved provider — the same seam as call_plugin.
+        let plugin_key = provider_id.rsplit('/').next().unwrap_or(&provider_id).to_string();
+        let reply = crate::host::host_effects_bridge::dispatch_to_plugin(
+            cross,
+            &self.sync,
+            &self.telemetry,
+            crate::host::host_effects_bridge::DispatchTarget {
+                caller_id: &self.plugin_id,
+                plugin_id: &provider_id,
+                plugin_key: &plugin_key,
+                verb: "whoami",
+            },
+            serde_json::json!({}),
+        )
+        .await;
+        // Any failure — dispatch error, malformed result, missing fields, an {error}
+        // result — resolves to the guest. get_identity must never fail a caller.
+        Ok(match reply {
+            Ok(json) => identity_from_whoami(&json).unwrap_or_else(guest_identity),
+            Err(_) => guest_identity(),
         })
     }
 
@@ -494,6 +563,35 @@ impl ModelBridgeHost for TractorNativeBindings {
             stored_chunks,
         ))
     }
+}
+
+/// The anonymous, least-privileged identity — the fail-closed fallback for
+/// `get_identity` (no provider loaded, or any resolution/dispatch failure).
+fn guest_identity() -> IdentityInfo {
+    IdentityInfo {
+        identity_type: "guest".to_string(),
+        storage_tier: "ephemeral".to_string(),
+        identifier: String::new(),
+    }
+}
+
+/// Map an identity provider's `whoami` reply (a `DispatchResult` node JSON) into
+/// `IdentityInfo`. Returns None on any shape mismatch or an `{error}` result — the
+/// caller then falls back to the guest. Pure — unit-tested. The three string fields
+/// mirror the WIT `identity-info` record and the provider's whoami result.
+fn identity_from_whoami(node_json: &str) -> Option<IdentityInfo> {
+    let node: serde_json::Value = serde_json::from_str(node_json).ok()?;
+    let result = node.get("result")?;
+    // An `{error}` result (unknown verb, provider failure) is not an identity.
+    if result.get("error").is_some() {
+        return None;
+    }
+    let field = |k: &str| result.get(k).and_then(|v| v.as_str()).map(str::to_string);
+    Some(IdentityInfo {
+        identity_type: field("identity_type")?,
+        storage_tier: field("storage_tier")?,
+        identifier: field("identifier").unwrap_or_default(),
+    })
 }
 
 fn buffered_stream_response_result(

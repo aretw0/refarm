@@ -10,7 +10,39 @@ use bindings::exports::plugin::host::identity_provider::Guest as IdentityGuest;
 use bindings::exports::plugin::host::integration::{
     Guest as IntegrationGuest, PluginMetadata,
 };
+use bindings::plugin::host::tractor_bridge;
 use bindings::plugin::host::types::PluginError;
+
+/// The dispatch routing key for this plugin's verbs — the host derives
+/// `identity:dispatch` from `capabilities.verbs.key = "identity"` in the manifest,
+/// and delivers it here. Keep in lockstep with plugin.json.
+const DISPATCH_KEY: &str = "identity";
+
+/// Hex-encode bytes (lowercase) — for the public-key identifier. The crate carries no
+/// hex dep; this is a 3-line encoder over the 32-byte key.
+fn to_hex(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        out.push(char::from_digit((b >> 4) as u32, 16).unwrap());
+        out.push(char::from_digit((b & 0xf) as u32, 16).unwrap());
+    }
+    out
+}
+
+/// Answer `identity:whoami` — the host's `get_identity` resolves this provider via the
+/// SPI and dispatches here. Reports the SOVEREIGN identity: type `sovereign`, tier
+/// `persistent` (a real key, not an ephemeral guest), and the identifier = the DID form
+/// of the managed PUBLIC key. The private key never leaves the sandbox — only the public
+/// half crosses, exactly as `public-key()` guarantees. Advisory (see the host's
+/// get_identity doc): a caller must NOT gate a capability on this.
+fn whoami() -> serde_json::Value {
+    let pubkey = ensure_key(|key| key.verifying_key().to_bytes().to_vec());
+    serde_json::json!({
+        "identity_type": "sovereign",
+        "storage_tier": "persistent",
+        "identifier": format!("did:refarm-wasm:{}", to_hex(&pubkey)),
+    })
+}
 
 /// The reference sovereign identity provider.
 ///
@@ -138,12 +170,57 @@ impl IntegrationGuest for SovereignIdentity {
             required_capabilities: vec!["tractor-bridge".to_string()],
         }
     }
-    fn on_event(_event: String, _payload: Option<String>) {}
+    fn on_event(event: String, payload: Option<String>) {
+        // The dispatch channel: the host's `get_identity` (or any caller) invoked a verb,
+        // routed here as `identity:dispatch` with `{ verb, replyRef, ...args }`. Run it and
+        // store a `DispatchResult` node the caller's await polls for.
+        if event != format!("{DISPATCH_KEY}:dispatch") {
+            return;
+        }
+        let Some(payload) = payload else { return };
+        let Some((verb, reply_ref)) = parse_dispatch(&payload) else {
+            return;
+        };
+        let result = run_dispatched_verb(&verb);
+        let node = build_dispatch_result_node(&reply_ref, result);
+        let _ = tractor_bridge::store_node(&node.to_string());
+    }
     fn respond(_payload: String) -> Result<String, PluginError> {
         Err(PluginError::NotPermitted(
             "identity-provider-ref signs; it does not respond".to_string(),
         ))
     }
+}
+
+/// Parse a `{verb, replyRef, ...}` dispatch payload into `(verb, replyRef)`. Returns
+/// None if the payload is not the expected object (a malformed dispatch is ignored,
+/// not answered). Pure — unit-tested.
+fn parse_dispatch(payload: &str) -> Option<(String, String)> {
+    let value: serde_json::Value = serde_json::from_str(payload).ok()?;
+    let obj = value.as_object()?;
+    let verb = obj.get("verb")?.as_str()?.to_string();
+    let reply_ref = obj.get("replyRef")?.as_str()?.to_string();
+    Some((verb, reply_ref))
+}
+
+/// Route a dispatched verb to its JSON result. Only `whoami` is served; an unknown verb
+/// yields an `{error}` result (so the caller's await never hangs — it gets a node).
+fn run_dispatched_verb(verb: &str) -> serde_json::Value {
+    match verb {
+        "whoami" => whoami(),
+        other => serde_json::json!({ "error": format!("unknown identity verb '{other}'") }),
+    }
+}
+
+/// Wrap a verb result in the canonical `DispatchResult` node the host's
+/// `await_dispatch_result` reads back by `replyRef`. Same shape as the agent/delegate.
+fn build_dispatch_result_node(reply_ref: &str, result: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "@id": format!("urn:sovereign:dispatch-result:{reply_ref}"),
+        "@type": "DispatchResult",
+        "replyRef": reply_ref,
+        "result": result,
+    })
 }
 
 bindings::export!(SovereignIdentity with_types_in bindings);
