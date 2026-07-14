@@ -52,6 +52,42 @@ describe("requirements-materialize — records → Obsidian notes on disk", () =
 		expect(rn1).toContain("title: Regra Um");
 	});
 
+	it("a requirement with a MULTI-LINE body materializes with INTACT frontmatter", async () => {
+		// The real T3 case: fields.body = htmlToMarkdown(primaryText) is multi-line markdown. The
+		// materialized note must NOT have its --- fence broken by that body (the frontmatter-corruption
+		// bug). recordToVaultNote JSON-encodes multi-line values, so the block stays valid.
+		const multi: KnowledgeRecord = {
+			id: "record:req-rn9",
+			schemaVersion: 1,
+			"@type": ["KnowledgeRecord", "Requirement"],
+			fields: {
+				externalKey: "RN-9",
+				title: "Regra Multilinha",
+				tipo: "regra-de-negocio",
+				body: "Primeira linha.\n\n## Critérios de aceitação\n- Item A\n- Item B",
+			},
+			sections: [{ key: "conteudo", content: "corpo" }],
+			contentHash: "x",
+		} as KnowledgeRecord;
+		const written = new Map<string, string>();
+		const cap = createRequirementsMaterializeCapability(recordsDeps([multi]), noRouteSurface, {
+			vaultRoot: "/vault",
+			writeNote: (rel, text) => {
+				written.set(rel, text);
+				return true;
+			},
+			now: () => "2026-07-13T00:00:00Z",
+		});
+		await cap.run({ args: {}, options: { apply: true } } as never);
+		const note = written.get("RN-9.md")!;
+		// The frontmatter block is intact: exactly two `---` fences, the routable scalars readable.
+		expect(note.match(/^---$/gm)).toHaveLength(2);
+		expect(note).toContain("tipo: regra-de-negocio");
+		// The multi-line body did NOT leak a bare markdown heading into the frontmatter block.
+		const block = note.slice(note.indexOf("---") + 3, note.lastIndexOf("---"));
+		expect(block).not.toMatch(/^## Critérios de aceitação$/m);
+	});
+
 	it("dry-runs (plans without writing) when --apply is absent", async () => {
 		let writes = 0;
 		const cap = createRequirementsMaterializeCapability(recordsDeps(records), noRouteSurface, {
