@@ -11,7 +11,7 @@
 		"build:wasm": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/agent.wasm dist/agent.wasm component build --target wasm32-wasip1 --release && node -e \"const t=JSON.parse(require('fs').readFileSync('plugin.json','utf-8'));delete t._note;require('fs').writeFileSync('dist/plugin.json',JSON.stringify(t,null,2)+'\\n');\"",
 		"build:jco": "jco transpile dist/agent.wasm --name _refarm_agent --out-dir dist/jco --no-nodejs-compat --import-bindings hybrid",
 		"build": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs --copy wasm32-wasip1/release/agent.wasm dist/agent.wasm component build --target wasm32-wasip1 --release && node -e \"const t=JSON.parse(require('fs').readFileSync('plugin.json','utf-8'));delete t._note;require('fs').writeFileSync('dist/plugin.json',JSON.stringify(t,null,2)+'\\n');\" && jco transpile dist/agent.wasm --name _refarm_agent --out-dir dist/jco --no-nodejs-compat --import-bindings hybrid",
-		"test": "node ../../scripts/ci/cargo-run.mjs test -- --test-threads=1",
+		"test": "echo 'covered by test:unit + test:integration (avoids double cargo test — see CLAUDE.md §7)'",
 		"test:unit": "node ../../scripts/ci/cargo-run.mjs test -- --test-threads=1",
 		"test:integration": "echo 'No integration tests for this crate'"
 	},

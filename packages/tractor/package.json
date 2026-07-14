@@ -5,7 +5,7 @@
 	"scripts": {
 		"check:wit": "node ../../scripts/ci/check-agent-wit-sync.mjs",
 		"build": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs build --release",
-		"test": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --lib && node ../../scripts/ci/cargo-run.mjs test --test ws_integration",
+		"test": "echo 'covered by test:unit + test:integration (avoids double cargo test — see CLAUDE.md §7)'",
 		"lint": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs clippy -- -D warnings",
 		"lint:prepush": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs clippy --lib -- -D warnings",
 		"test:unit": "pnpm run check:wit && node ../../scripts/ci/cargo-run.mjs test --lib -- --test-threads=1",
