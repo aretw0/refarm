@@ -24,6 +24,7 @@
 		"@refarm.dev/capability-host": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
+		"@refarm.dev/asset-resolver-contract-v1": "workspace:*",
 		"@refarm.dev/barn": "workspace:*",
 		"@refarm.dev/quality-checker-ref": "workspace:*",
 		"@refarm.dev/surveyor": "workspace:*"

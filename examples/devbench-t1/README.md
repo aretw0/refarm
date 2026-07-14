@@ -53,7 +53,17 @@ dgk plugin-reload            # RUNTIME TINKERING — hot-reload a plugin without
 dgk delegate-run "…" --chain # a scout→planner→worker pipeline: one extension orchestrating sub-agents
 dgk agent-telemetry --mock   # OBSERVABILITY — the run's timeline: route, iterations, tool calls, tokens
 dgk plugin-resilience        # RESILIENCE — a runaway plugin is trapped + respawned; the host keeps serving
+dgk plugin-catalog           # CATALOG — install the built plugins through the Barn + list the verified inventory
+dgk plugin-resolve           # PROVENANCE — a plugin is its SHA-256; a tampered copy is rejected (hash-mismatch)
 ```
+
+`plugin-catalog` installs the real built plugins through the Barn (fetch + sha256 verify + cache)
+and lists the sovereign inventory (id, integrity, wasmHash, cacheStatus), proving integrity-verify
+on install and cache dedup (a re-install of the same bytes is a hit). `plugin-resolve` shows
+content-addressed provenance: it stores a plugin by its SHA-256, resolves it back verified, then
+tampers the stored bytes and the resolver REFUSES them (`hash-mismatch`) — the resolver never
+returns bytes whose hash doesn't match the ref, so adulterated (or p2p) bytes never reach the
+runtime. Both run offline (no daemon).
 
 `plugin-resilience` proves a bad extension does not bring the machine down: it boots the agent
 beside a crash-plugin whose `on_event` spins forever, dispatches the runaway event, and the host

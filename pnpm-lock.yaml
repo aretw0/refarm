@@ -485,6 +485,9 @@ importers:
 
   examples/devbench-t1:
     dependencies:
+      '@refarm.dev/asset-resolver-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/asset-resolver-contract-v1
       '@refarm.dev/barn':
         specifier: workspace:*
         version: link:../../packages/barn
