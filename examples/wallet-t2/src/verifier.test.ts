@@ -70,6 +70,25 @@ describe("verify-presentation — the receiving service validates what the citiz
 		expect(parsePresentationFile(JSON.stringify({ presentation: vp })).holder).toBe(holder.id);
 		// Non-VP is rejected.
 		expect(() => parsePresentationFile('{"foo":1}')).toThrow(/INVALID_PRESENTATION/);
+		// A presentation disclosing ZERO credentials is rejected (not "valid, accepted nothing").
+		const empty = { type: ["VerifiablePresentation"], holder: "did:x", verifiableCredential: [] };
+		expect(() => parsePresentationFile(JSON.stringify(empty))).toThrow(/empty|no credentials/i);
+	});
+
+	it("verify-presentation REJECTS an empty presentation (discloses nothing)", async () => {
+		const statePath = path.join(dir, "wallet.json");
+		const vpFile = path.join(dir, "empty.json");
+		writeFileSync(
+			vpFile,
+			JSON.stringify({ type: ["VerifiablePresentation"], holder: "did:x", verifiableCredential: [], proof: { signature: "s" } }),
+		);
+		const res = (await bundle(statePath).byName.get("verify-presentation")!.run({
+			args: { file: vpFile },
+			options: {},
+			json: true,
+		})) as unknown as { ok: boolean; error: string };
+		expect(res.ok).toBe(false);
+		expect(res.error).toBe("invalid_presentation");
 	});
 
 	it("the full loop: citizen SHARES → the service ACCEPTS the presentation", async () => {

@@ -153,13 +153,14 @@ export const DEFAULT_WALLET_VERIFY_POLICY: CredentialVerificationPolicy = { vali
  */
 export function strictWalletVerifyPolicy(
 	base: CredentialVerificationPolicy,
-	credentialIssuer: string,
+	credentialIssuer: string | string[],
 ): CredentialVerificationPolicy {
+	const selfIssuers = Array.isArray(credentialIssuer) ? credentialIssuer : [credentialIssuer];
 	return {
 		...base,
 		validity: "required",
 		revocation: "required",
-		trustedIssuers: base.trustedIssuers ?? [credentialIssuer],
+		trustedIssuers: base.trustedIssuers ?? selfIssuers,
 	};
 }
 

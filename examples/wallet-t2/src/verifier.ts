@@ -12,7 +12,7 @@ import type {
 } from "@refarm.dev/credentials-contract-v1";
 import { readFileSync } from "node:fs";
 
-import { DEFAULT_WALLET_VERIFY_POLICY } from "./credentials.js";
+import { DEFAULT_WALLET_VERIFY_POLICY, strictWalletVerifyPolicy } from "./credentials.js";
 
 /**
  * The VERIFIER side — the other end of the sovereignty loop.
@@ -52,6 +52,11 @@ export function parsePresentationFile(content: string): VerifiablePresentation {
 		throw new Error(
 			"INVALID_PRESENTATION: not a Verifiable Presentation (needs type, holder, verifiableCredential)",
 		);
+	}
+	// A presentation that discloses ZERO credentials is not something to accept — the credential
+	// loop + holder-binding would both no-op and the VP would verify as "valid" disclosing nothing.
+	if (vp.verifiableCredential.length === 0) {
+		throw new Error("INVALID_PRESENTATION: presentation discloses no credentials (empty)");
 	}
 	return vp;
 }
@@ -104,17 +109,13 @@ export function createVerifyPresentationCapability(
 			}
 
 			const strict = input.options?.strict === true;
-			// Holder-binding is the essence of a presentation — always required here. Strict raises
-			// each credential to revocation + issuer-trust (issuers pinned from the VP's own issuers
-			// when no allow-list is configured — self-consistent, deployment overrides).
+			// Holder-binding is the essence of a presentation — always required here. Strict reuses
+			// the SAME strict floor as `verify --strict` (strictWalletVerifyPolicy — one source of
+			// truth), pinning the VP's own issuers when no registry is configured.
 			const issuers = Array.from(new Set(vp.verifiableCredential.map((c) => c.issuer)));
-			const policy: CredentialVerificationPolicy = {
-				...basePolicy,
-				holderBinding: true,
-				...(strict
-					? { validity: "required", revocation: "required", trustedIssuers: basePolicy.trustedIssuers ?? issuers }
-					: {}),
-			};
+			const policy: CredentialVerificationPolicy = strict
+				? { ...strictWalletVerifyPolicy(basePolicy, issuers), holderBinding: true }
+				: { ...basePolicy, holderBinding: true };
 			const result = await provider.verify(vp, policy);
 
 			if (!result.valid) {
