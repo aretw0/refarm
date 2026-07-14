@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { defaultArtifacts, missingArtifacts, type LiveRecursionArtifacts } from "./live-recursion.js";
-import { awaitAuditLine } from "./live-runtime.js";
+import { awaitAuditLine, readAuditLines } from "./live-runtime.js";
 
 /**
  * OBSERVABILITY — the machine shows what it does, turn by turn.
@@ -143,12 +143,69 @@ export function parseAgentTimeline(events: AgentEventLine[], promptRef?: string)
 	return timeline;
 }
 
+/** One step of a run trace: an agent tool-call ANNOTATED with the host effects it caused — the
+ * causal link (`agent:tool:call{read_file}` → `host-effect:fs:read`) that neither the agent
+ * timeline nor the host-effect audit shows alone. */
+export interface RunTraceStep {
+	/** ISO/epoch ts of the tool call. */
+	ts?: number;
+	/** The tool the model invoked. */
+	tool: string;
+	ok: boolean;
+	/** The host effects that fired AFTER this tool call and BEFORE the next one — what the call
+	 * actually did at the sandbox boundary (event + which plugin). */
+	effects: Array<{ event: string; pluginId?: string }>;
+}
+
+/** The unified trace of a run: the agent's timeline + the host effects each tool call caused. */
+export interface RunTrace {
+	promptRef?: string;
+	steps: RunTraceStep[];
+	/** Host effects that fired outside any tool call (e.g. before the first, or from another path). */
+	unattributedEffects: Array<{ event: string; pluginId?: string }>;
+	/** Total host effects seen. */
+	effectCount: number;
+}
+
+/**
+ * Correlate an agent run's tool calls with the host effects they caused, from the interleaved
+ * audit lines (both `agent:*` and `host-effect:*`, sorted by ts). Each `host-effect:*` is
+ * attributed to the most recent preceding `agent:tool:call` of the SAME run (prompt_ref); effects
+ * before the first tool call are unattributed. This is the causal join the two readers each drop.
+ * PURE — takes the raw lines, no I/O.
+ */
+export function buildRunTrace(
+	lines: Array<{ event: string; ts?: number; prompt_ref?: string; plugin_id?: string; tool?: unknown; ok?: unknown }>,
+	promptRef?: string,
+): RunTrace {
+	const sorted = lines.slice().sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0));
+	const ref = promptRef ?? sorted.find((l) => l.event.startsWith("agent:") && l.prompt_ref)?.prompt_ref;
+	const steps: RunTraceStep[] = [];
+	const unattributedEffects: RunTrace["unattributedEffects"] = [];
+	let effectCount = 0;
+	let current: RunTraceStep | undefined;
+	for (const line of sorted) {
+		if (line.event === "agent:tool:call" && (!ref || line.prompt_ref === ref)) {
+			current = { ts: line.ts, tool: String(line.tool ?? "?"), ok: line.ok !== false, effects: [] };
+			steps.push(current);
+		} else if (line.event.startsWith("host-effect:")) {
+			effectCount += 1;
+			const effect = { event: line.event, ...(line.plugin_id ? { pluginId: line.plugin_id } : {}) };
+			if (current) current.effects.push(effect);
+			else unattributedEffects.push(effect);
+		}
+	}
+	return { ...(ref ? { promptRef: ref } : {}), steps, unattributedEffects, effectCount };
+}
+
 export interface RunTelemetryOptions {
 	artifacts?: LiveRecursionArtifacts;
 	modelEnv?: NodeJS.ProcessEnv;
 	targetFile?: string;
 	wsPort?: number;
 	httpPort?: number;
+	/** Also correlate host effects to tool calls (the unified run trace). */
+	withEffects?: boolean;
 }
 
 export interface TelemetryResult {
@@ -156,6 +213,8 @@ export interface TelemetryResult {
 	timeline: AgentTimeline;
 	/** How many agent:* events the run produced (before projection). */
 	eventCount: number;
+	/** The unified run trace (tool calls ⋈ host effects), when requested. */
+	trace?: RunTrace;
 }
 
 /**
@@ -208,7 +267,16 @@ export async function runTelemetry(options: RunTelemetryOptions): Promise<Teleme
 		);
 		const promptRef = typeof terminal?.prompt_ref === "string" ? terminal.prompt_ref : undefined;
 		const events = readAgentEvents(refarmDir);
-		return { pluginsLoaded, timeline: parseAgentTimeline(events, promptRef), eventCount: events.length };
+		const result: TelemetryResult = {
+			pluginsLoaded,
+			timeline: parseAgentTimeline(events, promptRef),
+			eventCount: events.length,
+		};
+		if (options.withEffects) {
+			// The unified trace needs BOTH families — read all lines (not just agent:*) and correlate.
+			result.trace = buildRunTrace(readAuditLines(refarmDir), promptRef);
+		}
+		return result;
 	} finally {
 		await daemon?.stop();
 	}
@@ -225,6 +293,7 @@ export function createAgentTelemetryCapability(): CapabilityDescriptor {
 		summary: "Run the agent live and report the execution timeline (route, iterations, tool calls, tokens)",
 		options: [
 			{ name: "mock", kind: "boolean", summary: "Script a deterministic multi-turn model (offline, real iterations)" },
+			{ name: "with-effects", kind: "boolean", summary: "Also correlate each tool call with the host effects it caused (the unified run trace)" },
 		],
 		transports: { http: { path: "/agent/telemetry" } },
 		renderers: { tui: { section: "agent" }, web: { route: "/agent-telemetry", icon: "activity" }, ide: { command: "dgk.agent-telemetry" } },
@@ -261,10 +330,12 @@ export function createAgentTelemetryCapability(): CapabilityDescriptor {
 					modelEnv = mock.env;
 					mockStop = () => mock.stop();
 				}
+				const withEffects = input.options?.["with-effects"] === true;
 				try {
 					const result = await runTelemetry({
 						...(modelEnv ? { modelEnv } : {}),
 						...(sampleFile ? { targetFile: sampleFile } : {}),
+						...(withEffects ? { withEffects: true } : {}),
 					});
 					const t = result.timeline;
 					return buildJsonSuccessEnvelope({
@@ -288,7 +359,19 @@ export function createAgentTelemetryCapability(): CapabilityDescriptor {
 								durationMs: t.durationMs,
 								...(t.error ? { error: t.error } : {}),
 							},
-							source: "scarecrow-audit.ndjson (agent:* lifecycle, full payload — host-written)",
+							// The unified run TRACE (--with-effects): each tool call annotated with the host
+							// effects it caused — the causal link neither the agent timeline nor the
+							// host-effect audit shows alone (agent:tool:call{read_file} → host-effect:fs:read).
+							...(result.trace
+								? {
+										trace: {
+											steps: result.trace.steps,
+											effectCount: result.trace.effectCount,
+											unattributedEffects: result.trace.unattributedEffects,
+										},
+									}
+								: {}),
+							source: "scarecrow-audit.ndjson (agent:* lifecycle + host-effect:* — host-written, one file)",
 							note: "USD cost is not an event; tokens are real only when the model reports usage.",
 						},
 					});

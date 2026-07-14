@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseAgentTimeline, type AgentEventLine } from "./live-telemetry.js";
+import { buildRunTrace, parseAgentTimeline, type AgentEventLine } from "./live-telemetry.js";
 
 /**
  * The reusable core of the observability block — parseAgentTimeline — is pure and runs offline
@@ -80,5 +80,45 @@ describe("parseAgentTimeline — project an agent run's timeline from its agent:
 		// Sorted by ts → iteration is processed before response:done regardless of input order.
 		expect(out.sequence).toEqual(["agent:iteration", "agent:response:done"]);
 		expect(out.outcome).toBe("done");
+	});
+});
+
+describe("buildRunTrace — correlate tool calls with the host effects they caused", () => {
+	it("attributes each host-effect to the preceding tool call of the run (the causal join)", () => {
+		const lines = [
+			{ ts: 1, event: "agent:prompt:start", prompt_ref: "p1" },
+			{ ts: 2, event: "agent:tool:call", prompt_ref: "p1", tool: "read_file", ok: true },
+			{ ts: 3, event: "host-effect:fs:read", plugin_id: "agent" }, // caused by the read_file call
+			{ ts: 4, event: "agent:tool:call", prompt_ref: "p1", tool: "write_file", ok: true },
+			{ ts: 5, event: "host-effect:fs:write", plugin_id: "agent" }, // caused by the write_file call
+			{ ts: 6, event: "agent:response:done", prompt_ref: "p1" },
+		];
+		const trace = buildRunTrace(lines);
+		expect(trace.promptRef).toBe("p1");
+		expect(trace.steps).toHaveLength(2);
+		expect(trace.steps[0]).toMatchObject({ tool: "read_file" });
+		expect(trace.steps[0]!.effects).toEqual([{ event: "host-effect:fs:read", pluginId: "agent" }]);
+		expect(trace.steps[1]!.effects).toEqual([{ event: "host-effect:fs:write", pluginId: "agent" }]);
+		expect(trace.effectCount).toBe(2);
+	});
+
+	it("host-effects before the first tool call are unattributed", () => {
+		const lines = [
+			{ ts: 1, event: "host-effect:fs:read", plugin_id: "x" }, // before any tool call
+			{ ts: 2, event: "agent:tool:call", prompt_ref: "p1", tool: "grep", ok: true },
+		];
+		const trace = buildRunTrace(lines, "p1");
+		expect(trace.unattributedEffects).toEqual([{ event: "host-effect:fs:read", pluginId: "x" }]);
+		expect(trace.steps[0]!.effects).toEqual([]);
+	});
+
+	it("a run with tool calls but no effects (denied/blocked) yields empty effect lists", () => {
+		const lines = [
+			{ ts: 1, event: "agent:tool:call", prompt_ref: "p1", tool: "read_file", ok: true },
+			{ ts: 2, event: "agent:error", prompt_ref: "p1" },
+		];
+		const trace = buildRunTrace(lines, "p1");
+		expect(trace.steps[0]!.effects).toEqual([]);
+		expect(trace.effectCount).toBe(0);
 	});
 });

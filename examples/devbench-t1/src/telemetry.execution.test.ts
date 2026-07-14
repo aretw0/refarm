@@ -55,4 +55,24 @@ describe.skipIf(!enabled)("T1 agent-telemetry, executed on the Rust runtime", ()
 		expect(env.timeline.outcome).toBe("done");
 		expect(env.timeline.tokensIn).toBeGreaterThan(0);
 	}, 180_000);
+
+	it("--with-effects correlates the read_file tool call to the host-effect:fs:read it caused", async () => {
+		const { createAgentTelemetryCapability } = await import("./live-telemetry.js");
+		const env = (await createAgentTelemetryCapability().run({
+			args: {},
+			options: { mock: true, "with-effects": true },
+			json: true,
+		})) as unknown as {
+			ok: boolean;
+			trace?: { steps: Array<{ tool: string; effects: Array<{ event: string }> }>; effectCount: number };
+		};
+		expect(env.ok).toBe(true);
+		expect(env.trace).toBeTruthy();
+		// The unified trace: a read_file tool call is annotated with the fs:read effect it fired —
+		// the causal link neither the agent timeline nor the host-effect audit shows alone.
+		const readStep = env.trace!.steps.find((s) => s.tool === "read_file" && s.effects.length > 0);
+		expect(readStep).toBeTruthy();
+		expect(readStep!.effects.some((e) => e.event === "host-effect:fs:read")).toBe(true);
+		expect(env.trace!.effectCount).toBeGreaterThan(0);
+	}, 180_000);
 });
