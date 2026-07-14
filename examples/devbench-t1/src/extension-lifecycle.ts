@@ -40,7 +40,7 @@ export function computeIntegrity(bytes: Uint8Array): string {
 
 /** A fetch that reads a local file:// URL — the Barn's global fetch does not support file://,
  * so a local-first install supplies its own. Returns a minimal Response with the bytes. */
-function fileFetch(): typeof globalThis.fetch {
+export function fileFetch(): typeof globalThis.fetch {
 	return (async (input: unknown) => {
 		const url = typeof input === "string" ? input : String((input as { url?: string }).url);
 		const bytes = readFileSync(fileURLToPath(url));

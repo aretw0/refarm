@@ -28,6 +28,7 @@ import { createGovernanceEnforceCapability } from "./live-enforce.js";
 import { createPluginReloadCapability } from "./live-reload.js";
 import { createAgentTelemetryCapability } from "./live-telemetry.js";
 import { createPluginResilienceCapability } from "./live-resilience.js";
+import { createPluginCatalogCapability } from "./live-catalog.js";
 import { createExtensionQualityCapability } from "./extension-quality.js";
 import { createExtensionLifecycleCapability } from "./extension-lifecycle.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
@@ -143,6 +144,9 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// budget + respawned; the host keeps serving (the agent responds after). A bad
 				// extension does not bring the sovereign machine down.
 				createPluginResilienceCapability(),
+				// CATALOG: install the built plugins through the Barn and list the sovereign inventory
+				// (id, integrity, wasmHash, cacheStatus) — integrity-verify on install + cache dedup.
+				createPluginCatalogCapability(),
 				// SIMULATE developing an extension through the governed maturity trail (experiment →
 				// productive → sensitive → catalog) — the platform's maturity vocabulary consumed to
 				// show the lifecycle the writeup's Figura 3 describes, with objective promotion gates.
