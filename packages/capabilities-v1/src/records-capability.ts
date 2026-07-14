@@ -183,6 +183,16 @@ export interface RecordsCommandDeps {
 	 * → `correct` runs dry-run (reports the change without writing). A host injects
 	 * where a corrected manifest lands (the vault, a file, a store). */
 	saveManifest?: (manifest: RecordsManifest) => void | Promise<void>;
+	/** OPTIONAL revision recorder — INJECTED by a host that tracks history (history:v1). Given the
+	 * current manifest and the changed record, returns the manifest with an appended revision
+	 * (origin labels the mutation, e.g. "correct"). Absent → `correct` replaces in place with no
+	 * history (unchanged legacy behaviour). This is the seam that keeps the neutral block free of a
+	 * history dependency while letting a correction land in the timeline. */
+	recordRevision?: (
+		manifest: RecordsManifest,
+		changed: ManifestRecord,
+		origin: string,
+	) => RecordsManifest;
 }
 
 /** Default deps: an EMPTY manifest + the reference enrichment/records providers.
@@ -335,10 +345,15 @@ export function createRecordsCapabilityGroup(
 					contentHash: "",
 				};
 				corrected.contentHash = computeRecordContentHash(corrected);
-				const nextManifest = {
-					...manifest,
-					records: manifest.records.map((r: ManifestRecord) => (r.id === id ? corrected : r)),
-				};
+				// When a history recorder is injected, the correction lands as a REVISION (origin
+				// "correct") — so the timeline's "pull/crawl/correct" claim is true, not a lie. Absent
+				// → replace in place (legacy, no history).
+				const nextManifest = deps.recordRevision
+					? deps.recordRevision(manifest, corrected, "correct")
+					: {
+							...manifest,
+							records: manifest.records.map((r: ManifestRecord) => (r.id === id ? corrected : r)),
+						};
 				const validation = deps.recordsProvider.validate(nextManifest);
 
 				let persisted = false;

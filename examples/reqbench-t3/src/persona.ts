@@ -484,6 +484,11 @@ export function reqCapabilityBundle(options: RequirementsCapabilityOptions = {})
 			rules: REQ_ENRICHMENT_RULES,
 			tagField: "req.tags",
 		}),
+		// Inject the history recorder so a `records correct` lands in the timeline (origin
+		// "correct") — otherwise a correction silently drops out of history and the
+		// "pull/crawl/correct" claim the timeline makes would be a lie.
+		recordRevision: (manifest, changed, origin) =>
+			mergeAndRecord(manifest, [changed], () => new Date().toISOString(), origin),
 		source: { sourceProvider },
 	});
 	// The vault surface the organize verb routes with — resolved by the bundle (sovereign

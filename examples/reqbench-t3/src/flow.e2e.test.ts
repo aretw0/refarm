@@ -289,6 +289,22 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 			expect(diff.ok).toBe(true);
 			const titleChange = diff.changes.find((c) => c.path === "fields.title");
 			expect(titleChange).toMatchObject({ kind: "changed", before: "Título original", after: "Título revisado" });
+
+			// CORRECT lands in history too (origin "correct") — the timeline's "pull/crawl/correct"
+			// claim is real, not a lie. A review no longer silently drops out of history.
+			const corrected = await harness.runGroup(
+				buildRegistry({ statePath, sourcesConfigPath: configPath }),
+				"records",
+				["correct", id, "reviewed", "--apply"],
+			);
+			expect(corrected.persisted).toBe(true);
+			const histVerb = buildRegistry({ statePath, sourcesConfigPath: configPath }).get("requirements-history");
+			if (!histVerb || "actions" in histVerb) throw new Error("requirements-history not mounted");
+			const afterCorrect = (await histVerb.run({ args: { id }, options: {}, json: true })) as unknown as {
+				timeline: Array<{ seq: number; origin: string }>;
+			};
+			// Three versions now: pull, pull, correct.
+			expect(afterCorrect.timeline.map((t) => t.origin)).toEqual(["pull", "pull", "correct"]);
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}

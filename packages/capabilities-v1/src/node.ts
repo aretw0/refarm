@@ -36,6 +36,9 @@ export interface LocalRecordsCommandDepsOptions {
 	statePath?: string;
 	enrichmentProvider?: RecordsCommandDeps["enrichmentProvider"];
 	recordsProvider?: RecordsCommandDeps["recordsProvider"];
+	/** OPTIONAL history recorder (history:v1) — when supplied, a `records correct` lands in the
+	 * timeline (origin "correct") instead of replacing in place. Absent → legacy no-history. */
+	recordRevision?: RecordsCommandDeps["recordRevision"];
 }
 
 export function localRecordsStatePath(options: LocalRecordsStatePathOptions): string {
@@ -78,6 +81,7 @@ export function createLocalRecordsCommandDeps(
 		},
 		enrichmentProvider: options.enrichmentProvider ?? createReferenceEnrichmentProvider(),
 		recordsProvider: options.recordsProvider ?? createReferenceRecordsProvider(),
+		...(options.recordRevision ? { recordRevision: options.recordRevision } : {}),
 	};
 }
 
