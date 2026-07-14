@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const WORKFLOWS_DIR = join(ROOT, ".github", "workflows");
 const ACTIONS_DIR = join(ROOT, ".github", "actions");
+const WORKFLOW_TEMPLATES_DIR = join(ROOT, ".github", "workflow-templates");
 const SHA_40 = /^[0-9a-f]{40}$/i;
 
 const violations = [];
@@ -41,6 +42,7 @@ function listYamlFiles(dir, prefix = "") {
 for (const file of [
 	...listYamlFiles(WORKFLOWS_DIR, ".github/workflows"),
 	...listYamlFiles(ACTIONS_DIR, ".github/actions"),
+	...listYamlFiles(WORKFLOW_TEMPLATES_DIR, ".github/workflow-templates"),
 ]) {
 	const lines = readFileSync(file.full, "utf8").split("\n");
 
@@ -53,6 +55,17 @@ for (const file of [
 
 		const spec = match[1];
 		if (spec.startsWith("./")) return;
+
+		// Workflow templates are scaffolds users copy into their own plugin repos; a
+		// self-repo reusable-workflow reference (aretw0/refarm/.github/workflows/…) is meant
+		// to track the published workflow, so a floating ref there is intentional. Third-party
+		// actions in templates are still enforced below.
+		if (
+			file.rel.startsWith(".github/workflow-templates/") &&
+			spec.startsWith("aretw0/refarm/.github/workflows/")
+		) {
+			return;
+		}
 
 		const at = spec.lastIndexOf("@");
 		if (at === -1) {
