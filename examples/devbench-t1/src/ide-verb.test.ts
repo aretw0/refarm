@@ -22,4 +22,19 @@ describe("ide verb — the editor surface of the bench", () => {
 		const governance = env.tree.find((t) => t.group === "governance");
 		expect(governance?.commands).toEqual(expect.arrayContaining(["dgk.extension-develop", "dgk.extension-verify"]));
 	});
+
+	it("declare once → everywhere: the headline live verbs reach BOTH web and IDE", () => {
+		// T1's central claim, as a regression guard: the WASM-recursion + governance verbs
+		// each declare renderers.web (a route) AND renderers.ide (a command) — so one
+		// declaration lights them up on the web face and the editor, not just the TUI.
+		const reg = buildRegistry();
+		const headline = ["agent-run", "delegate-run", "code-ops", "governance-poc", "extension-develop", "extension-verify"];
+		for (const name of headline) {
+			const entry = reg.get(name);
+			if (!entry || "actions" in entry) throw new Error(`${name} not mounted`);
+			expect(entry.renderers?.web?.route, `${name} must declare a web route`).toBeTruthy();
+			expect(entry.renderers?.ide?.command, `${name} must declare an IDE command`).toBeTruthy();
+			expect(entry.renderers?.tui?.section, `${name} must keep its TUI section`).toBeTruthy();
+		}
+	});
 });

@@ -196,7 +196,7 @@ export function createDelegateRunCapability(): CapabilityDescriptor {
 			{ name: "mock", kind: "boolean", summary: "Script a deterministic model (offline demo, no real LLM)" },
 		],
 		transports: { http: { path: "/delegate/run" } },
-		renderers: { tui: { section: "agent" }, ide: { command: "dgk.delegate-run" } },
+		renderers: { tui: { section: "agent" }, web: { route: "/delegate", icon: "organization" }, ide: { command: "dgk.delegate-run" } },
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const task = String(input.args.task ?? "");
 			if (!task) {

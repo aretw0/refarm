@@ -67,7 +67,7 @@ export function createExtensionDevelopCapability(): CapabilityDescriptor {
 		name: "extension-develop",
 		summary: "Simulate developing an extension through the governed maturity trail (experiment → catalog)",
 		transports: { http: { path: "/extension/develop" } },
-		renderers: { tui: { section: "governance" } },
+		renderers: { tui: { section: "governance" }, web: { route: "/maturity", icon: "milestone" }, ide: { command: "dgk.extension-develop" } },
 		async run(): Promise<CapabilityEnvelope> {
 			const progression = DEVELOPMENT_STAGES.map(({ stage, note, evidence }) => {
 				const assessment = assessExtensionMaturity(evidence);

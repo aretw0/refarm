@@ -29,7 +29,7 @@ export function createGovernancePocCapability(options: GovernanceVerbOptions = {
 		summary: "Run the extensibility-as-risk-decision PoC (policy modes × extensions → artifacts + scorecard)",
 		options: [{ name: "apply", kind: "boolean", summary: "Write the artifacts to disk (else report only)" }],
 		transports: { http: { path: "/governance/poc" } },
-		renderers: { tui: { section: "governance" } },
+		renderers: { tui: { section: "governance" }, web: { route: "/governance", icon: "shield" }, ide: { command: "dgk.governance-poc" } },
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const result = runGovernancePoc();
 			const apply = input.options?.apply === true;

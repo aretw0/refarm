@@ -142,7 +142,7 @@ export function createAgentRunCapability(): CapabilityDescriptor {
 		args: [{ name: "prompt", required: true }],
 		options: [{ name: "mock", kind: "boolean", summary: "Script a deterministic model (offline demo, no real LLM)" }],
 		transports: { http: { path: "/agent/run" } },
-		renderers: { tui: { section: "agent" } },
+		renderers: { tui: { section: "agent" }, web: { route: "/agent", icon: "play" }, ide: { command: "dgk.agent-run" } },
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const prompt = String(input.args.prompt ?? "");
 			if (!prompt) {

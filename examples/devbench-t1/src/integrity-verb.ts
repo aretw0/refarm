@@ -35,7 +35,7 @@ export function createExtensionVerifyCapability(): CapabilityDescriptor {
 		name: "extension-verify",
 		summary: "Simulate the integrity gate: an intact artifact promotes, a tampered one is rejected",
 		transports: { http: { path: "/extension/verify" } },
-		renderers: { tui: { section: "governance" } },
+		renderers: { tui: { section: "governance" }, web: { route: "/integrity", icon: "verified" }, ide: { command: "dgk.extension-verify" } },
 		async run(): Promise<CapabilityEnvelope> {
 			// A synthetic extension artifact + the integrity a publisher would record for it.
 			const artifact = new TextEncoder().encode("synthetic-extension-artifact-bytes-v1");

@@ -192,7 +192,7 @@ export function createCodeOpsCapability(): CapabilityDescriptor {
 			{ name: "new-name", kind: "string", summary: "The new name (rename-symbol only)" },
 		],
 		transports: { http: { path: "/code-ops" } },
-		renderers: { tui: { section: "agent" }, ide: { command: "dgk.code-ops" } },
+		renderers: { tui: { section: "agent" }, web: { route: "/code-ops", icon: "edit" }, ide: { command: "dgk.code-ops" } },
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const verb = String(input.args.verb ?? "");
 			if (verb !== "find-references" && verb !== "rename-symbol") {
