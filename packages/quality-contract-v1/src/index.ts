@@ -1,5 +1,7 @@
 export * from "./conformance.js";
+export * from "./design-tells.js";
 export * from "./humanizer-profile.js";
+export * from "./impeccable-profile.js";
 export * from "./in-memory.js";
 export * from "./notes.js";
 export * from "./text-tells.js";
