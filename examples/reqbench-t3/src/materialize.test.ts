@@ -88,6 +88,34 @@ describe("requirements-materialize — records → Obsidian notes on disk", () =
 		expect(block).not.toMatch(/^## Critérios de aceitação$/m);
 	});
 
+	it("a requirement's RELATIONS survive into the materialized note (traceability)", async () => {
+		// The RDF-live parse extracts OSLC relations onto records; the materialized per-note markdown
+		// must carry them (not only the aggregate MOC/graph). recordToVaultNote renders a
+		// Rastreabilidade block.
+		const withRel: KnowledgeRecord = {
+			id: "record:req-cdu2",
+			schemaVersion: 1,
+			"@type": ["KnowledgeRecord", "Requirement"],
+			fields: { externalKey: "CDU-2", title: "Caso com rastreio", tipo: "caso-de-uso" },
+			sections: [{ key: "conteudo", content: "corpo" }],
+			relations: [{ type: "elaborates", target: "record:req-rn1", attrs: { direction: "outgoing" } }],
+			contentHash: "x",
+		} as KnowledgeRecord;
+		const written = new Map<string, string>();
+		const cap = createRequirementsMaterializeCapability(recordsDeps([withRel]), noRouteSurface, {
+			vaultRoot: "/vault",
+			writeNote: (rel, text) => {
+				written.set(rel, text);
+				return true;
+			},
+			now: () => "2026-07-13T00:00:00Z",
+		});
+		await cap.run({ args: {}, options: { apply: true } } as never);
+		const note = written.get("CDU-2.md")!;
+		expect(note).toContain("## Rastreabilidade");
+		expect(note).toContain("- elaborates → [[record:req-rn1]]");
+	});
+
 	it("dry-runs (plans without writing) when --apply is absent", async () => {
 		let writes = 0;
 		const cap = createRequirementsMaterializeCapability(recordsDeps(records), noRouteSurface, {
