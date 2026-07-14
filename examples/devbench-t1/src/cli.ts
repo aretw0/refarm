@@ -17,6 +17,7 @@ import {
 	DEVBENCH_DEFAULT_MANIFESTS,
 	devCapabilityDeps,
 } from "./persona.js";
+import { createAgentRunCapability } from "./live-recursion.js";
 
 export const DGK_DEVBENCH_SIDECAR_URL_ENV = "DGK_DEVBENCH_SIDECAR_URL";
 export const DGK_DEVBENCH_DEFAULT_SIDECAR_URL = "http://127.0.0.1:42123";
@@ -61,7 +62,13 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 			pluginDeps,
 			// Peers are passed so the inspector resolves the coding-agent's requiresApi
 			// against the notes-indexer's providesApi — the recursion, made visible.
-			extensions: [createExtensionCapability(extensionManifest, pluginDeps, peerManifests)],
+			extensions: [
+				createExtensionCapability(extensionManifest, pluginDeps, peerManifests),
+				// The HEADLINE, live: boot the real agent.wasm + a provider plugin and have the agent
+				// respond while calling the provider's verb as a tool (recursion, host-mediated). Not
+				// a fixture — the WASM runtime. `--mock` scripts a deterministic model for an offline demo.
+				createAgentRunCapability(),
+			],
 		},
 		operatorStatus: {
 			summary: "Show extension bench operator status",

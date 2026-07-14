@@ -110,4 +110,21 @@ describe.skipIf(!enabled)("T1 recursion, executed on the Rust runtime", () => {
 		}
 		expect(mock.requests.length).toBeGreaterThan(0);
 	}, 80_000);
+
+	it("the `agent-run --mock` VERB drives the live recursion end to end (CLI → runtime)", async () => {
+		// The user-facing command, not the daemon directly: agent-run boots the runtime with
+		// [provider, agent], drives the agent with a prompt, and reports the recursion. Proves the
+		// example DEMONSTRATES the headline as a command, not just in a wiring test.
+		const { createAgentRunCapability } = await import("./live-recursion.js");
+		const verb = createAgentRunCapability();
+		const env = (await verb.run({
+			args: { prompt: "What sources are available?" },
+			options: { mock: true },
+			json: true,
+		})) as unknown as { ok: boolean; pluginsLoaded: string[]; reachedModel: boolean; recursion: string };
+		expect(env.ok).toBe(true);
+		expect(env.pluginsLoaded).toContain("agent");
+		expect(env.reachedModel).toBe(true);
+		expect(env.recursion).toContain("agent → source-provider");
+	}, 120_000);
 });
