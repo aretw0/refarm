@@ -5,6 +5,7 @@ export {
 	makeRevision,
 	revisionAt,
 	timeline,
+	type AppendRevisionOptions,
 } from "./revision.js";
 export {
 	manifestRevisions,

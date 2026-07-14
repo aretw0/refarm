@@ -72,14 +72,22 @@ export function diffRecords(before: KnowledgeRecord | undefined, after: Knowledg
 	diffMap("relations", relationsByLocator(before?.relations), relationsByLocator(after.relations), changes);
 	diffMap("attachments", attachmentsById(before?.attachments), attachmentsById(after.attachments), changes);
 
-	// review + sourceRefs are single values compared whole.
-	if (!deepEqual(before?.review, after.review)) {
-		if (before?.review === undefined) changes.push({ kind: "added", path: "review", after: after.review });
-		else if (after.review === undefined) changes.push({ kind: "removed", path: "review", before: before.review });
-		else changes.push({ kind: "changed", path: "review", before: before.review, after: after.review });
-	}
-	if (!deepEqual(before?.sourceRefs, after.sourceRefs)) {
-		changes.push({ kind: "changed", path: "sourceRefs", before: before?.sourceRefs, after: after.sourceRefs });
+	// Top-level single values compared whole: review, sourceRefs, and the record's own identity
+	// facets (@type / schemaVersion / @context). The last three live OUTSIDE `fields`, so a schema
+	// migration (an upcast that changes @type or schemaVersion) would otherwise be invisible to the
+	// diff even though it changed the record — exactly the "what changed" a migration most needs.
+	const whole: Array<[string, unknown, unknown]> = [
+		["review", before?.review, after.review],
+		["sourceRefs", before?.sourceRefs, after.sourceRefs],
+		["@type", before?.["@type"], after["@type"]],
+		["schemaVersion", before?.schemaVersion, after.schemaVersion],
+		["@context", before?.["@context"], after["@context"]],
+	];
+	for (const [path, b, a] of whole) {
+		if (deepEqual(b, a)) continue;
+		if (b === undefined) changes.push({ kind: "added", path, after: a });
+		else if (a === undefined) changes.push({ kind: "removed", path, before: b });
+		else changes.push({ kind: "changed", path, before: b, after: a });
 	}
 
 	return {

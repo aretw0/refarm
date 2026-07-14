@@ -18,6 +18,7 @@ import {
 	type KnowledgeRecord,
 	type RecordsManifest,
 } from "@refarm.dev/records-contract-v1";
+import { mergeAndRecord } from "@refarm.dev/history-contract-v1";
 import { readFileSync } from "node:fs";
 
 /**
@@ -92,13 +93,16 @@ export function recordToCredential(record: KnowledgeRecord): VerifiableCredentia
 }
 
 /** Merge records into a manifest by id (new added, existing replaced). */
+/** Merge by id AND append a revision for each changed record (history:v1) — so a credential's
+ * lifecycle (imported draft → verified) leaves a durable "what changed" trail like every other
+ * merge. `now`/`origin` optional for back-compat. */
 export function mergeRecords(
 	manifest: RecordsManifest,
 	incoming: KnowledgeRecord[],
+	now: () => string = () => new Date().toISOString(),
+	origin?: string,
 ): RecordsManifest {
-	const byId = new Map(manifest.records.map((r) => [r.id, r]));
-	for (const record of incoming) byId.set(record.id, record);
-	return { ...manifest, records: [...byId.values()] };
+	return mergeAndRecord(manifest, incoming, now, origin);
 }
 
 /** Parse a credential file's text into a VerifiableCredential. Throws on non-JSON or a shape
@@ -228,7 +232,7 @@ export function createWalletImportCapability(
 					extra: { id: record.id, title: record.fields.title, persisted: false, dryRun: true },
 				});
 			}
-			const merged = mergeRecords(recordsDeps.loadManifest(), [record]);
+			const merged = mergeRecords(recordsDeps.loadManifest(), [record], now, "import");
 			await recordsDeps.saveManifest(merged);
 			return buildJsonSuccessEnvelope({
 				command: "import",
@@ -336,7 +340,7 @@ export function createWalletVerifyCapability(
 					extra: { id, valid: true, checks: result.checks, enforced, strict, persisted: false, dryRun: true },
 				});
 			}
-			await recordsDeps.saveManifest(mergeRecords(manifest, [verified]));
+			await recordsDeps.saveManifest(mergeRecords(manifest, [verified], now, "verify"));
 			return buildJsonSuccessEnvelope({
 				command: "verify",
 				operation: "verify",

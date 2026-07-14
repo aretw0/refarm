@@ -122,10 +122,17 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 		expect(verRes.checks.signature?.ok).toBe(true);
 
 		// The record is now verified in the persisted wallet.
-		const after = bundle(statePath)
-			.records.loadManifest()
-			.records.find((r) => r.id === id);
+		const manifest = bundle(statePath).records.loadManifest();
+		const after = manifest.records.find((r) => r.id === id);
 		expect(after?.review?.state).toBe("verified");
+
+		// HISTORY (consistency fix): the credential's lifecycle left TWO durable revisions —
+		// imported (draft) then verified — of the SAME record, via history:v1.
+		const { timeline, manifestRevisions } = await import("@refarm.dev/history-contract-v1");
+		const revs = timeline(manifestRevisions(manifest), id);
+		expect(revs.map((r) => r.origin)).toEqual(["import", "verify"]);
+		expect(revs[0]!.snapshot.review?.state).toBe("draft");
+		expect(revs[1]!.snapshot.review?.state).toBe("verified");
 	});
 
 	it("verify REJECTS a tampered credential and does NOT promote it", async () => {

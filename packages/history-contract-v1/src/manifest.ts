@@ -26,6 +26,7 @@ export function manifestRevisions(manifest: RecordsManifest): RecordHistoryStore
  * `mergeAndRecord(m, incoming, now, origin)`.
  *
  * `now` is injected (no ambient clock). `origin` labels what produced the change (the verb).
+ * `maxRevisions` bounds the per-record history (root + newest); absent → unbounded.
  * Unchanged re-saves do not create a version (dedup by contentHash, inside appendRevision). PURE.
  */
 export function mergeAndRecord(
@@ -33,12 +34,13 @@ export function mergeAndRecord(
 	incoming: readonly KnowledgeRecord[],
 	now: () => string,
 	origin?: string,
+	maxRevisions?: number,
 ): VersionedRecordsManifest {
 	const byId = new Map(manifest.records.map((r) => [r.id, r]));
 	let revisions = manifestRevisions(manifest);
 	for (const record of incoming) {
 		byId.set(record.id, record);
-		revisions = appendRevision(revisions, record, now, origin);
+		revisions = appendRevision(revisions, record, now, { origin, ...(maxRevisions ? { maxRevisions } : {}) });
 	}
 	return { ...manifest, records: [...byId.values()], revisions };
 }

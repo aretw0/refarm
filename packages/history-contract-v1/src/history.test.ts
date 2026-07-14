@@ -59,6 +59,15 @@ describe("diffRecords — structural field-level diff", () => {
 		const b = rec("r", { title: "Same" });
 		expect(diffRecords(a, b).changes).toEqual([]);
 	});
+
+	it("detects a schema migration — @type / schemaVersion change (top-level, outside fields)", () => {
+		const before = rec("r", { title: "T" }, { "@type": ["KnowledgeRecord"], schemaVersion: 1 });
+		const after = rec("r", { title: "T" }, { "@type": ["KnowledgeRecord", "Requirement"], schemaVersion: 2 });
+		const diff = diffRecords(before, after);
+		const byPath = Object.fromEntries(diff.changes.map((c) => [c.path, c]));
+		expect(byPath["@type"]).toMatchObject({ kind: "changed" });
+		expect(byPath["schemaVersion"]).toMatchObject({ kind: "changed", before: 1, after: 2 });
+	});
 });
 
 describe("appendRevision — append-only chain with dedup", () => {
@@ -75,6 +84,19 @@ describe("appendRevision — append-only chain with dedup", () => {
 		expect(history[0]!.parentHash).toBeUndefined(); // root
 		expect(history[1]).toMatchObject({ seq: 2, origin: "correct", parentHash: v1Hash });
 		expect(history[1]!.revisionId).toBe(`r@${history[1]!.contentHash}`);
+	});
+
+	it("maxRevisions bounds the store — keeps the root + the newest, prunes the middle", () => {
+		let history: ReturnType<typeof appendRevision> = [];
+		for (let n = 1; n <= 5; n++) {
+			history = appendRevision(history, rec("r", { n }), now, { origin: "pull", maxRevisions: 3 });
+		}
+		const t = timeline(history, "r");
+		// 5 distinct versions, capped to 3: the root (seq 1) + the two newest (seq 4, 5).
+		expect(t).toHaveLength(3);
+		expect(t.map((x) => x.seq)).toEqual([1, 4, 5]);
+		expect(t[0]!.snapshot.fields.n).toBe(1); // root preserved
+		expect(t[2]!.snapshot.fields.n).toBe(5); // newest preserved
 	});
 
 	it("timeline / latestRevision / revisionAt read the chain", () => {

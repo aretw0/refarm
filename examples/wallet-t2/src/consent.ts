@@ -13,6 +13,7 @@ import {
 	type KnowledgeRecord,
 	type RecordsManifest,
 } from "@refarm.dev/records-contract-v1";
+import { mergeAndRecord } from "@refarm.dev/history-contract-v1";
 
 import { receiptToRecord } from "./authorization.js";
 
@@ -73,10 +74,15 @@ export function isPendingRequest(record: { fields?: Record<string, unknown> }): 
 	return Boolean(record.fields?.pendingRequest);
 }
 
-function mergeRecords(manifest: RecordsManifest, incoming: KnowledgeRecord[]): RecordsManifest {
-	const byId = new Map(manifest.records.map((r) => [r.id, r]));
-	for (const record of incoming) byId.set(record.id, record);
-	return { ...manifest, records: [...byId.values()] };
+/** Merge by id AND append a revision for each changed record (history:v1) — so a pending consent
+ * request that is later re-requested/updated leaves a durable trail, like every other merge. */
+function mergeRecords(
+	manifest: RecordsManifest,
+	incoming: KnowledgeRecord[],
+	now: () => string = () => new Date().toISOString(),
+	origin?: string,
+): RecordsManifest {
+	return mergeAndRecord(manifest, incoming, now, origin);
 }
 
 function removeRecord(manifest: RecordsManifest, id: string): RecordsManifest {
@@ -142,7 +148,7 @@ export function createWalletRequestCapability(
 					extra: { id: record.id, request, persisted: false, dryRun: true },
 				});
 			}
-			await recordsDeps.saveManifest(mergeRecords(recordsDeps.loadManifest(), [record]));
+			await recordsDeps.saveManifest(mergeRecords(recordsDeps.loadManifest(), [record], now, "request"));
 			return buildJsonSuccessEnvelope({
 				command: "request",
 				operation: "request",
