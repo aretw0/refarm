@@ -47,8 +47,12 @@ it is private-by-default sharing under the citizen's control.
 
 `verify` enforces a real policy (not signature alone): the default requires **validity** (an
 expired credential is rejected — a bare signature check silently accepted it); `--strict` adds
-**revocation status** (re-reading the issuer's signed status list) and **issuer trust**. A
-deployment pins its trusted civic issuers. Both sides of the exchange ship: `verify-presentation`
+**revocation status** (re-reading the issuer's signed status list) and **issuer trust** against a
+**trust registry**. The registry is the allow-list of civic issuers a deployment pins (via the
+bundle's `verifyPolicy`): a credential whose signature is perfectly valid but whose issuer is NOT
+on the list is **rejected** — the anti-fraud point ("emissor não-confiável recusado mesmo com
+assinatura válida"). With no registry configured the wallet self-trusts (offline default), so the
+rejection is reachable exactly when a real deployment pins its list. Both sides of the exchange ship: `verify-presentation`
 is the **receiving service's** verb — it validates a presentation the citizen shared (holder-binding
 always; `--strict` for revocation + trust), so the demo shows *present AND accept*, not presenting
 into the void. The revocation chain is proven end to end: an issuer revokes a credential and the

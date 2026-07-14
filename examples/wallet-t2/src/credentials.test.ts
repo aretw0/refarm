@@ -69,7 +69,7 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 		// temp dir left for the OS to reap; deterministic per test
 	});
 
-	function bundle(statePath: string) {
+	function bundle(statePath: string, verifyPolicy?: import("@refarm.dev/credentials-contract-v1").CredentialVerificationPolicy) {
 		// The SAME provider + identity issue the test VC and back verify/share, so a genuine
 		// signature (and holder-signed presentation) checks out.
 		const b = walletCapabilityBundle({
@@ -82,6 +82,8 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 			credentialsProvider: b.credentialsProvider,
 			identity: b.identity,
 			now,
+			// A deployment pins its trusted civic issuers here — the trust registry.
+			...(verifyPolicy ? { verifyPolicy } : {}),
 		});
 		const byName = new Map(verbs.map((v) => [v.name, v]));
 		return { records: b.records, byName };
@@ -252,6 +254,68 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 		expect(res.checks.issuerTrusted?.ok).toBe(true);
 		expect(res.enforced).toContain("notRevoked");
 		expect(res.enforced).toContain("issuerTrusted");
+	});
+
+	it("TRUST REGISTRY: rejects a validly-signed credential from an issuer NOT in the allow-list", async () => {
+		// The anti-fraud money shot: a credential whose signature is perfectly valid, but whose
+		// issuer is NOT one the deployment trusts, is REJECTED. Without a configured registry the
+		// wallet self-trusts (offline default), so the rejection is only reachable when a civic
+		// allow-list is pinned — exactly what a real deployment does.
+		const vc = await issueTestCredential(fixture); // issued by a fresh, unknown issuer
+		const file = path.join(dir, "cred.json");
+		writeFileSync(file, JSON.stringify(vc));
+		const statePath = path.join(dir, "wallet.json");
+
+		// A trust registry that pins a DIFFERENT (civic) issuer — the credential's issuer is not in it.
+		const registry = { trustedIssuers: ["did:gov:br:serpro-civic-issuer"] };
+		const imp = bundle(statePath, registry).byName.get("import")!;
+		const id = ((await imp.run({ args: { file }, options: {}, json: true })) as unknown as { id: string }).id;
+
+		const res = (await bundle(statePath, registry).byName.get("verify")!.run({
+			args: { id },
+			options: { strict: true },
+			json: true,
+		})) as unknown as { ok: boolean; error?: string; failures?: string[]; checks?: { signature?: { ok: boolean } } };
+		// The SIGNATURE is valid …
+		expect(res.checks?.signature?.ok).toBe(true);
+		// … but the issuer is untrusted → the whole verification fails, and it stays draft.
+		expect(res.ok).toBe(false);
+		expect(res.error).toBe("verification_failed");
+		expect(res.failures?.join(" ")).toMatch(/not trusted|untrusted/i);
+		const rec = bundle(statePath, registry).records.loadManifest().records.find((r) => r.id === id);
+		expect(rec?.review?.state).not.toBe("verified");
+	});
+
+	it("TRUST REGISTRY: accepts a credential whose issuer IS in the allow-list", async () => {
+		// Same registry mechanism, positive path: when the credential's own issuer is pinned as a
+		// trusted civic issuer, strict verify passes the issuer-trust check.
+		const issuer = await fixture.identity.create("Emissor cívico confiável");
+		const subject = await fixture.identity.create("Cidadão");
+		const vc = await fixture.provider.issue(
+			{
+				"@context": ["https://www.w3.org/2018/credentials/v1"],
+				type: ["VerifiableCredential", "CarteiraDigital"],
+				issuer: issuer.id,
+				issuanceDate: "2026-01-01T00:00:00.000Z",
+				credentialSubject: { id: subject.id, name: "Fulano" },
+			},
+			issuer.id,
+		);
+		const file = path.join(dir, "cred.json");
+		writeFileSync(file, JSON.stringify(vc));
+		const statePath = path.join(dir, "wallet.json");
+		const registry = { trustedIssuers: [issuer.id] }; // the credential's issuer IS trusted
+		const imp = bundle(statePath, registry).byName.get("import")!;
+		const id = ((await imp.run({ args: { file }, options: {}, json: true })) as unknown as { id: string }).id;
+
+		const res = (await bundle(statePath, registry).byName.get("verify")!.run({
+			args: { id },
+			options: { strict: true },
+			json: true,
+		})) as unknown as { ok: boolean; valid: boolean; checks: { issuerTrusted?: { ok: boolean } } };
+		expect(res.ok).toBe(true);
+		expect(res.valid).toBe(true);
+		expect(res.checks.issuerTrusted?.ok).toBe(true);
 	});
 
 	it("REVOCATION chain: issuer issues → wallet passes --strict → issuer revokes → --strict rejects", async () => {

@@ -144,9 +144,12 @@ export const DEFAULT_WALLET_VERIFY_POLICY: CredentialVerificationPolicy = { vali
 
 /**
  * The STRICT policy a real civic wallet enforces: signature + validity + revocation + issuer
- * trust. `trustedIssuers` pins the issuers the deployment accepts; when none are supplied the
- * credential's OWN issuer is trusted (self-consistent — proves the wire without a registry),
- * which a deployment overrides with a real allow-list of civic issuers.
+ * trust. `trustedIssuers` is the TRUST REGISTRY — the allow-list of civic issuers the deployment
+ * accepts. When the deployment pins one (via the bundle's `verifyPolicy`), a validly-signed
+ * credential from an issuer OUTSIDE it is REJECTED (the anti-fraud point of a registry). When NO
+ * registry is configured, the wallet self-trusts the credential's own issuer — an OFFLINE default
+ * that proves the wire without a registry, NOT a real trust decision; a deployment always pins a
+ * real list. (So issuer-trust only ever REJECTS when a registry is configured — as it must.)
  */
 export function strictWalletVerifyPolicy(
 	base: CredentialVerificationPolicy,
