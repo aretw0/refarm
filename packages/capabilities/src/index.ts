@@ -36,6 +36,12 @@ export {
 } from "./surface-model.js";
 export { buildPaletteModel, type PaletteModel, type PaletteEntry } from "./palette-projector.js";
 export { buildIdeModel, type IdeModel, type IdeCommand } from "./ide-projector.js";
+export {
+	buildVscodeManifest,
+	type BuildVscodeManifestOptions,
+	type VscodeContributes,
+	type VscodeExtensionManifest,
+} from "./vscode-manifest.js";
 export { resolveGroupAction, type ResolvedGroupAction } from "./group-dispatch.js";
 export {
 	ActivitySink,
