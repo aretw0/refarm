@@ -48,6 +48,15 @@ correction made in one process is visible to the next command. Set
 `DGK_REQUIREMENTS_STATE_PATH=/path/to/manifest.json` to record an isolated run.
 Set `DGK_COMMAND=/path/to/cli-name` to change the CLI command root.
 
+## Diagramas / material de registro
+
+- [`diagrams/composition.svg`](diagrams/composition.svg) — arquitetura em camadas (app do analista + SDK genérico).
+- [`diagrams/flow.svg`](diagrams/flow.svg) — a jornada do analista (múltiplos ALMs → puxar → organizar → materializar → analisar).
+
+`dgk requirements-report --apply` materializa o material de registro em `.dgk/report/`: um
+`report.md` com o estado do vault e os números reais (cobertura por sistema/tipo/status,
+rastreabilidade, saúde, histórico) — alimenta a escrita, não é um painel decorativo.
+
 ## Running live (a real scrape)
 
 Out of the box, `dgk requirements-pull web:efd` replays the **offline sample** in

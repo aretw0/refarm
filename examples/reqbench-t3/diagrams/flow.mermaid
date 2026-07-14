@@ -1,0 +1,36 @@
+%% Caixa de Notas de Requisitos — a jornada do analista como comandos. De múltiplos sistemas ALM
+%% ao vault navegável: puxar → organizar → materializar, e então buscar/auditar/versionar. Cada
+%% requisito guarda sua provência, rastreabilidade (relações), anexos e histórico.
+flowchart LR
+    subgraph fontes["Sistemas ALM (OSLC/RDF)"]
+        direction TB
+        efd["EFD"]
+        nfe["NFE"]
+    end
+
+    subgraph bancada["Bancada (local-first)"]
+        direction TB
+        pull["puxar\n→ requisitos + relações + anexos"]
+        organize["organizar (PARA)\npor sistema/tipo"]
+        materialize["materializar\n→ notas Obsidian + rastreabilidade"]
+    end
+
+    subgraph analise["Análise sobre o corpus"]
+        direction TB
+        search["buscar\ntexto · faceta (tipo/sistema)"]
+        health["saúde\nórfãos · duplicados · danglings"]
+        history["histórico / diff\no que mudou entre pulls"]
+        overview["overview\no vault numa visão"]
+    end
+
+    efd --> pull
+    nfe --> pull
+    pull --> organize --> materialize
+    materialize --> search
+    materialize --> health
+    pull --> history
+    health --> overview
+    history --> overview
+
+    classDef analiseCls fill:#eef, stroke:#5b6b9a
+    class search,health,history,overview analiseCls

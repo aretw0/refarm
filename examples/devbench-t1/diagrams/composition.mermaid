@@ -1,0 +1,27 @@
+%% Bancada de Plugins WASM — arquitetura em camadas. O aplicativo (específico) é fino: declara
+%% um manifesto de extensão e o inspetor. A plataforma genérica embaixo carrega o host WASM
+%% soberano (tractor), o agente e os plugins como componentes WIT — só a declaração é do app.
+flowchart TB
+    subgraph app["Aplicativo — Bancada do Desenvolvedor (dgk)"]
+        direction TB
+        manifesto["Manifesto de extensão\n(coding-agent: provides agent:code/review)"]
+        inspetor["Inspetor + grafo SPI\n(a recursão, visível)"]
+    end
+
+    subgraph plataforma["Plataforma — host WASM soberano (genérica)"]
+        direction TB
+        ponte["Ponte de capabilities\n(declara 1x → CLI · HTTP · Web · IDE)"]
+        host["Host tractor (Rust · wasmtime)\ngrants por-fronteira · epoch-trap · respawn"]
+        agente["Agente (agent.wasm)\nprovides AgentRespond"]
+        plugins["Plugins WASM (WIT)\ndelegate · lsp-code-ops · source-provider"]
+    end
+
+    manifesto --> ponte
+    inspetor --> host
+    ponte --> host
+    host --> agente
+    host --> plugins
+    plugins -->|"requiresApi → providesApi\n(call_plugin, host-mediado)"| agente
+
+    classDef especifico fill:#f8, stroke:#c9a227
+    class app especifico

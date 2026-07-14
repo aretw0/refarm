@@ -35,6 +35,7 @@ import {
 } from "./persona.js";
 import { createRequirementsPlaybookCapability } from "./playbook.js";
 import { createRequirementsOverviewCapability } from "./vault-overview.js";
+import { createRequirementsReportCapability } from "./report.js";
 
 export const DGK_REQUIREMENTS_STATE_PATH_ENV = "DGK_REQUIREMENTS_STATE_PATH";
 export const DGK_COMMAND = "dgk";
@@ -212,6 +213,15 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 					// The vault in ONE view: coverage + traceability + health + last change — the
 					// analog of T1's plugin-ops, mounted above the MOC by the web content seam.
 					createRequirementsOverviewCapability(records),
+					// RECORD MATERIAL: a report.md of the vault's state (coverage/traceability/health/
+					// history) with the real numbers, for the writeup. `--apply` writes to .dgk/report/.
+					createRequirementsReportCapability(records, {
+						writeReport: (rel, content) => {
+							const file = path.join(process.cwd(), rel);
+							mkdirSync(path.dirname(file), { recursive: true });
+							writeFileSync(file, content, "utf8");
+						},
+					}),
 					createRequirementsDiffCapability(records),
 					// The real ingest step: `requirements-pull <system>` LOGS IN then materializes
 					// + ingests + persists, so the journey (discover → pull → analyze/MOC) runs as

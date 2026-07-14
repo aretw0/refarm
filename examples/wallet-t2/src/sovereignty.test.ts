@@ -36,7 +36,7 @@ describe("sovereignty — the citizen's whole posture in one view", () => {
 	it("aggregates credentials + consent + disclosure + last change", async () => {
 		// Authorize then revoke → one revoked consent + a durable history + a RevocationEvent.
 		const authz = (await verbs.authorize!.run!(request)) as Record<string, unknown>;
-		await verbs.revoke!.run!({ args: { id: authz.id }, options: { reason: "mudei de ideia" }, json: true });
+		await verbs.revoke!.run!({ args: { id: authz.id as string }, options: { reason: "mudei de ideia" }, json: true });
 
 		const env = (await verbs.sovereignty!.run!({ args: {}, options: {}, json: true })) as unknown as {
 			ok: boolean;

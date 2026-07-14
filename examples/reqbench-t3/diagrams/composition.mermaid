@@ -1,0 +1,30 @@
+%% Caixa de Notas de Requisitos — arquitetura em camadas. O aplicativo do analista (específico)
+%% traz só a taxonomia, o driver do ALM e a face; as camadas abaixo são blocos reutilizáveis do
+%% SDK genérico (raspagem web, contrato de vault, registros, histórico, superfície).
+flowchart TB
+    subgraph app["Aplicativo — Bancada do Analista (dgk)"]
+        direction TB
+        driver["Driver OSLC/RDF + login\n(o ALM específico do analista)"]
+        taxonomia["Taxonomia PARA (dado)\n+ regras de enriquecimento"]
+        face["Visão do vault\n(MOC + overview)"]
+    end
+
+    subgraph sdk["SDK — plataforma multi-superfície (genérica)"]
+        direction TB
+        web["Raspagem web\ncrawl · sessão · anexos · cache"]
+        vault["Vault (vault:v1)\nroteia · busca · saúde (matcher-é-dado)"]
+        registros["Registros + provência\nestado, fingerprint"]
+        historia["Histórico (history:v1)\nrevisões + diff"]
+        superficie["Superfície\nCLI · HTTP · Web · Marimo"]
+    end
+
+    driver --> web
+    taxonomia --> vault
+    face --> superficie
+    face --> vault
+    web --> registros
+    registros --> historia
+    vault --> registros
+
+    classDef especifico fill:#f8, stroke:#c9a227
+    class app especifico

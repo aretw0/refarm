@@ -41,6 +41,17 @@ not bridge defaults.
   manifest is inline, but dispatch still goes through a platform-compatible sidecar so
   the example dogfoods the daemon path.
 
+## Diagramas / material de registro
+
+A arquitetura e o fluxo do exemplo, como figuras (Mermaid → SVG, pipeline determinístico do repo):
+
+- [`diagrams/composition.svg`](diagrams/composition.svg) — arquitetura em camadas (plataforma neutra + a extensão coding-agent via a ponte).
+- [`diagrams/flow.svg`](diagrams/flow.svg) — a governança EXECUTADA (decide → registra → recusa) + resiliência.
+
+`dgk report --apply` materializa o material de registro em `.dgk/report/`: o grafo SPI como `.svg`
+e um `report.md` com o que o exemplo prova e os números reais (arestas executadas, scorecard) —
+alimenta a escrita, não é um painel decorativo.
+
 ## Governance, executed — and runtime tinkering
 
 The governance quartet is not asserted, it is EXECUTED on the Rust runtime:

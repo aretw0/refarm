@@ -31,6 +31,7 @@ import { createPluginResilienceCapability } from "./live-resilience.js";
 import { createPluginCatalogCapability } from "./live-catalog.js";
 import { createPluginResolveCapability } from "./live-resolver.js";
 import { createPluginOpsCapability } from "./plugin-ops.js";
+import { createReportCapability } from "./report.js";
 import { createExtensionQualityCapability } from "./extension-quality.js";
 import { createExtensionLifecycleCapability } from "./extension-lifecycle.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
@@ -108,6 +109,20 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				createPluginOpsCapability([...manifests, ...DEVBENCH_LIVE_MANIFESTS], {
 					livePluginIds: DEVBENCH_LIVE_PLUGIN_IDS,
 				}),
+				// RECORD MATERIAL: materialize the writeup's evidence to disk — the SPI graph as a
+				// standalone .svg figure + a report.md narrating what the example proves with the
+				// real numbers (governance scorecard, executed edges). `--apply` writes it.
+				createReportCapability(
+					[...manifests, ...DEVBENCH_LIVE_MANIFESTS],
+					{ livePluginIds: DEVBENCH_LIVE_PLUGIN_IDS },
+					{
+						writeReport: (rel, content) => {
+							const file = path.join(process.cwd(), rel);
+							mkdirSync(path.dirname(file), { recursive: true });
+							writeFileSync(file, content, "utf8");
+						},
+					},
+				),
 				// The HEADLINE, live: boot the real agent.wasm + a provider plugin and have the agent
 				// respond while calling the provider's verb as a tool (recursion, host-mediated). Not
 				// a fixture — the WASM runtime. `--mock` scripts a deterministic model for an offline demo.

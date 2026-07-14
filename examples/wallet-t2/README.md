@@ -90,6 +90,15 @@ product view. It reads the neutral `records analyze` envelope; the citizen never
 that engine. The focus is the benefit ("my data, my wallet"), the opposite of T1's
 process view.
 
+## Diagramas / material de registro
+
+- [`diagrams/composition.svg`](diagrams/composition.svg) — arquitetura em camadas (app do cidadão + SDK genérico).
+- [`diagrams/flow.svg`](diagrams/flow.svg) — a jornada do cidadão como comandos (importar → verificar → compartilhar → ver).
+
+`dgk report --apply` materializa o material de registro em `.dgk/report/`: o grafo de disclosure
+como `.svg` e um `report.md` com a postura soberana e os números reais (credenciais verificadas,
+consentimentos ativos/revogados) — alimenta a escrita, não é um painel decorativo.
+
 ## Two layers
 
 - **Generic (platform, unchanged):** the neutral `source` / `records` / `vault` chain.

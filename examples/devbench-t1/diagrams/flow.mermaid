@@ -1,0 +1,24 @@
+%% Bancada de Plugins WASM — governança EXECUTADA (não afirmada) sobre um plugin. O quarteto
+%% decide → registra → recusa, e o host isola/reinstancia um plugin ruim. Cada seta é provada
+%% ao vivo no runtime Rust (execution tests), não um parecer em texto.
+flowchart LR
+    plugin["Extensão (plugin WASM)\npede uma capability"]
+
+    subgraph governanca["Governança do host (em sandbox)"]
+        direction TB
+        decide["DECIDE\npolicy: grant/deny/review\n(risco por permissão)"]
+        registra["REGISTRA\ntrilha tamper-evidence\n(host-effect:* no audit)"]
+        recusa["RECUSA\nenforce na fronteira\n(strict: efeito não-declarado negado)"]
+    end
+
+    resiliencia["RESILIÊNCIA\non_event em loop → epoch-trap\n→ respawn → host segue servindo"]
+    observabilidade["OBSERVABILIDADE\ntimeline do run: rota · iterações\n· tool-call ⋈ host-effect"]
+
+    plugin --> decide
+    decide -->|"concedido"| registra
+    decide -->|"não-declarado (strict)"| recusa
+    registra --> observabilidade
+    plugin -.->|"plugin ruim"| resiliencia
+
+    classDef enforce fill:#fee, stroke:#b3541e
+    class recusa,resiliencia enforce

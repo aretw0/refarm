@@ -7,6 +7,8 @@ import {
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
 import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
 
 import {
 	createWalletCapabilities,
@@ -15,6 +17,7 @@ import {
 	type WalletStateOptions,
 } from "./persona.js";
 import { createSovereignWalletBundle } from "./sovereign.js";
+import { createWalletReportCapability } from "./report.js";
 
 export const DGK_WALLET_STATE_PATH_ENV = "DGK_WALLET_STATE_PATH";
 /** Opt-in: back the wallet with the sovereign WASM signer (the citizen's Ed25519 key
@@ -53,14 +56,25 @@ export function buildWalletHost(options: WalletHostOptions = {}): CapabilityHost
 				walletCapabilityBundle(options);
 			return {
 				deps,
-				extensions: createWalletCapabilities(records, {
-					credentialsProvider,
-					identity,
-					authorizationProvider,
-					// The trust registry, threaded end to end: verify --strict now rejects an
-					// untrusted issuer in the shipped CLI (DGK_TRUSTED_ISSUERS), not only in tests.
-					...(verifyPolicy ? { verifyPolicy } : {}),
-				}),
+				extensions: [
+					...createWalletCapabilities(records, {
+						credentialsProvider,
+						identity,
+						authorizationProvider,
+						// The trust registry, threaded end to end: verify --strict now rejects an
+						// untrusted issuer in the shipped CLI (DGK_TRUSTED_ISSUERS), not only in tests.
+						...(verifyPolicy ? { verifyPolicy } : {}),
+					}),
+					// RECORD MATERIAL: the disclosure graph SVG + a report.md of the sovereign posture
+					// with the real numbers, for the writeup. `--apply` writes to .dgk/report/.
+					createWalletReportCapability(records, {
+						writeReport: (rel, content) => {
+							const file = path.join(process.cwd(), rel);
+							mkdirSync(path.dirname(file), { recursive: true });
+							writeFileSync(file, content, "utf8");
+						},
+					}),
+				],
 			};
 		},
 		operatorStatus: {
