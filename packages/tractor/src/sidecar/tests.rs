@@ -54,6 +54,38 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
     (state, port, tmp)
 }
 
+/// Like `start_test_sidecar` but with a plugin registry wired in, so the effort
+/// dispatch path can resolve a verb NAMESPACE (`code-ops`) back to a plugin RUNTIME
+/// ID (`lsp-code-ops`) — the two differ when a manifest declares an explicit
+/// `verbs.key`. Used to regression-test that key ≠ id dispatch reaches the plugin.
+async fn start_test_sidecar_with_registry(
+    registry: crate::host::PluginRegistry,
+) -> (SidecarState, u16, PathBuf) {
+    let tmp = std::env::temp_dir().join(format!("tractor-sidecar-test-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp).unwrap();
+
+    let state = SidecarState::for_test(&tmp, ":memory:")
+        .unwrap()
+        .with_registry(registry);
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+
+    let router = axum::Router::new()
+        .route(
+            "/efforts",
+            axum::routing::post(post_efforts).get(get_efforts),
+        )
+        .route("/efforts/:id", axum::routing::get(get_effort))
+        .with_state(state.clone());
+
+    tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+
+    (state, port, tmp)
+}
+
 /// Like start_test_sidecar but backed by a real SQLite FILE namespace, so nodes
 /// written by test setup are visible to the respond watcher's own NativeStorage
 /// connection (a :memory: db is isolated per connection). Returns the state and

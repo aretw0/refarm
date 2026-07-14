@@ -218,6 +218,26 @@ pub(crate) fn dispatch_event_effort(
     let plugin_key = task.plugin_id.rsplit('/').next().unwrap_or(&task.plugin_id);
     let event = format!("{plugin_key}:dispatch");
 
+    // Resolve the DELIVERY TARGET (the runner channel key) from the verb NAMESPACE.
+    // A plugin subscribes to `<key>:dispatch` but its channel is keyed by its RUNTIME
+    // ID — and the two differ when a manifest declares an explicit `verbs.key` (e.g.
+    // lsp-code-ops's id is `lsp-code-ops` but its key is `code-ops`). The agent invoke
+    // path keeps these separate (capability_tools: event from key, target from id); the
+    // effort path only carries one `plugin_id`, so resolve the runtime id here via the
+    // registry's dispatchable verbs (which carry both). Falls back to the incoming id
+    // when there is no registry or no match — preserving behaviour for the common case
+    // where key == id (e.g. `vault`, `delegate`).
+    let target_id = state
+        .plugin_registry
+        .as_ref()
+        .and_then(|reg| {
+            reg.dispatchable_verbs()
+                .into_iter()
+                .find(|v| v.plugin_key == plugin_key)
+                .map(|v| v.plugin_id)
+        })
+        .unwrap_or_else(|| task.plugin_id.clone());
+
     // The payload carries the verb (the effort's fn) plus the task args, so the
     // plugin's on-event handler knows which verb to run.
     let mut payload_obj = serde_json::json!({ "verb": fn_name });
@@ -237,7 +257,7 @@ pub(crate) fn dispatch_event_effort(
         &state.plugin_channels,
         &state.telemetry,
         &event,
-        Some(&task.plugin_id),
+        Some(&target_id),
         Some(payload),
     );
 

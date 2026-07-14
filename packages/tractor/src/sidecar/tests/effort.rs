@@ -509,6 +509,76 @@ async fn sidecar_non_respond_effort_dispatches_via_router() {
     );
 }
 
+/// REGRESSION: a dispatch effort reaches a plugin whose verb NAMESPACE differs from
+/// its runtime ID. `lsp-code-ops` declares an explicit `verbs.key = "code-ops"`, so it
+/// subscribes to `code-ops:dispatch` but its runner channel is keyed by the runtime id
+/// `lsp-code-ops`. The effort names the namespace (`code-ops`); the dispatch path must
+/// resolve that back to the runtime id via the registry to deliver — not use the
+/// namespace as the channel key (which fails with "no plugin subscribed"). The bug was
+/// masked for plugins where key == id (vault, delegate).
+#[tokio::test]
+async fn sidecar_dispatch_resolves_verb_namespace_to_runtime_id() {
+    // A registry mapping the verb namespace to the runtime id: the plugin `lsp-code-ops`
+    // provides `code-ops:find-references` guarded by `code-ops:dispatch` in subscribes.
+    let registry = crate::host::PluginRegistry::default();
+    registry.register(
+        "lsp-code-ops",
+        crate::host::plugin_registry::PluginCapabilityProfile {
+            provides: vec![
+                "code-ops:find-references".into(),
+                "code-ops:dispatch".into(),
+            ],
+            subscribes: vec!["code-ops:dispatch".into()],
+            ..Default::default()
+        },
+    );
+
+    let (state, port, _tmp) = start_test_sidecar_with_registry(registry).await;
+    let client = reqwest::Client::new();
+
+    // The plugin's runner channel is keyed by its RUNTIME ID and subscribes to
+    // `code-ops:dispatch` (what register_for_events does for verbs.key = "code-ops").
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<crate::EventEnvelope>();
+    state
+        .plugin_channels
+        .write()
+        .unwrap()
+        .insert("lsp-code-ops".to_string(), tx);
+    state.event_router.subscribe("code-ops:dispatch", "lsp-code-ops");
+
+    // The effort names the verb NAMESPACE `code-ops` (the tool's `<key>`), not the
+    // runtime id — that is all a caller knows from the tool schema.
+    let effort = serde_json::json!({
+        "id": uuid::Uuid::new_v4().to_string(),
+        "direction": "dispatch",
+        "tasks": [{
+            "id": uuid::Uuid::new_v4().to_string(),
+            "pluginId": "code-ops",
+            "fn": "find-references",
+            "args": { "file": "lib.rs", "line": 1, "column": 5 }
+        }],
+        "source": "operator",
+        "submittedAt": "2026-01-01T00:00:00Z"
+    });
+    let res = client
+        .post(format!("{}/efforts", base(port)))
+        .json(&effort)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+
+    // Delivery reached the plugin — resolved code-ops -> lsp-code-ops (the channel key).
+    let msg = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
+        .await
+        .expect("router must deliver code-ops:dispatch to lsp-code-ops within 2s")
+        .expect("the lsp-code-ops channel must receive the dispatch");
+    assert_eq!(msg.event, "code-ops:dispatch");
+    let payload: serde_json::Value = serde_json::from_str(msg.payload.as_deref().unwrap()).unwrap();
+    assert_eq!(payload["verb"], "find-references");
+    assert_eq!(payload["file"], "lib.rs");
+}
+
 /// A non-respond effort for a plugin that subscribes to NOTHING fails honestly —
 /// no optimistic done-with-empty-result, an actual error naming the missing
 /// subscription.
