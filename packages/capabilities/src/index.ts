@@ -35,6 +35,7 @@ export {
 	type SurfaceHint,
 } from "./surface-model.js";
 export { buildPaletteModel, type PaletteModel, type PaletteEntry } from "./palette-projector.js";
+export { buildIdeModel, type IdeModel, type IdeCommand } from "./ide-projector.js";
 export { resolveGroupAction, type ResolvedGroupAction } from "./group-dispatch.js";
 export {
 	ActivitySink,
