@@ -23,6 +23,7 @@ import { createCodeOpsCapability } from "./live-code-ops.js";
 import { createExtensionGraphCapability } from "./extension-graph.js";
 import { createGovernanceAuditCapability } from "./live-audit.js";
 import { createGovernanceEnforceCapability } from "./live-enforce.js";
+import { createPluginReloadCapability } from "./live-reload.js";
 import { createExtensionQualityCapability } from "./extension-quality.js";
 import { createExtensionLifecycleCapability } from "./extension-lifecycle.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
@@ -123,6 +124,10 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// and shows the host REFUSING the effect at the sandbox boundary (no fs:read line in
 				// the audit trail), contrasted with a granted baseline that does produce one.
 				createGovernanceEnforceCapability(),
+				// RUNTIME TINKERING: hot-reload a loaded plugin without restarting the host
+				// (POST /plugins/reload → real code swap), then prove it still dispatches — the
+				// developer editing an extension live, the machine never coming down.
+				createPluginReloadCapability(),
 				// SIMULATE developing an extension through the governed maturity trail (experiment →
 				// productive → sensitive → catalog) — the platform's maturity vocabulary consumed to
 				// show the lifecycle the writeup's Figura 3 describes, with objective promotion gates.
