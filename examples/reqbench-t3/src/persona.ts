@@ -22,6 +22,13 @@ import {
 } from "@refarm.dev/records-contract-v1";
 import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
 import {
+	diffRecords,
+	manifestRevisions,
+	mergeAndRecord,
+	revisionAt,
+	timeline,
+} from "@refarm.dev/history-contract-v1";
+import {
 	analyzeCorpusHealth,
 	createReferenceVaultSurface,
 	organizeRecords,
@@ -641,12 +648,17 @@ export function renderRequirementsGraphSvg(env: RecordsAnalyzeEnvelope): string 
 	});
 }
 
-/** Merge freshly-ingested records into a manifest by id (new ones added, existing ones
- * REPLACED with the pulled version — a re-pull refreshes). */
-function mergeRecords(manifest: RecordsManifest, incoming: KnowledgeRecord[]): RecordsManifest {
-	const byId = new Map(manifest.records.map((r) => [r.id, r]));
-	for (const record of incoming) byId.set(record.id, record);
-	return { ...manifest, records: [...byId.values()] };
+/** Merge freshly-ingested records into a manifest by id (new ones added, existing ones REPLACED
+ * with the pulled version) AND append an append-only REVISION for each record whose content
+ * changed — so a re-pull that changes a requirement leaves a durable "what changed" trail
+ * (history:v1). `now` is injected; `origin` labels the source verb. */
+function mergeRecords(
+	manifest: RecordsManifest,
+	incoming: KnowledgeRecord[],
+	now: () => string = () => new Date().toISOString(),
+	origin = "pull",
+): RecordsManifest {
+	return mergeAndRecord(manifest, incoming, now, origin);
 }
 
 /** Options for the pull verb. `login` is the LOGIN-GARANTIDO driver — the fixture logs in
@@ -1097,7 +1109,7 @@ export function createRequirementsCrawlCapability(
 						extra: { ...summary, persisted: false, dryRun: true },
 					});
 				}
-				const merged = mergeRecords(recordsDeps.loadManifest(), result.records);
+				const merged = mergeRecords(recordsDeps.loadManifest(), result.records, now, "crawl");
 				await recordsDeps.saveManifest(merged);
 				return buildJsonSuccessEnvelope({
 					command: "requirements-crawl",
@@ -1675,6 +1687,120 @@ export function createRequirementsHealthCapability(
 						message: f.message,
 						...(f.detail ? { detail: f.detail } : {}),
 					})),
+				},
+			});
+		},
+	};
+}
+
+/** The T3 persona verb: `requirements-history <id>` — the TIMELINE of a requirement's revisions.
+ * Between two pulls, a requirement that changed leaves a durable trail (history:v1); this shows
+ * WHEN each version was recorded, by which verb (pull/crawl/correct), and its content hash. Thin:
+ * one timeline() call over the manifest's revisions. */
+export function createRequirementsHistoryCapability(
+	recordsDeps: RecordsCommandDeps,
+): CapabilityDescriptor {
+	return {
+		name: "requirements-history",
+		summary: "Show the revision timeline of a requirement (what versions, when, from which pull)",
+		args: [{ name: "id", required: true }],
+		transports: { http: { path: "/requirements/history" } },
+		renderers: { tui: { section: "requirements" }, web: { route: "/history", icon: "history" } },
+		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
+			const id = String(input.args.id ?? "");
+			if (!id) {
+				return buildJsonErrorEnvelope({
+					command: "requirements-history",
+					operation: "history",
+					error: "no_id",
+					message: "Pass a requirement id (e.g. requirements-history record:req-rn632504).",
+					nextAction: "requirements-history <id>",
+				});
+			}
+			const revisions = timeline(manifestRevisions(recordsDeps.loadManifest()), id);
+			return buildJsonSuccessEnvelope({
+				command: "requirements-history",
+				operation: "history",
+				nextCommand: `dgk requirements-diff ${id}`,
+				nextCommands: [`dgk requirements-diff ${id}`],
+				extra: {
+					id,
+					versions: revisions.length,
+					// The timeline: each revision's seq, when, origin, and content hash.
+					timeline: revisions.map((r) => ({
+						seq: r.seq,
+						contentHash: r.contentHash,
+						parentHash: r.parentHash,
+						recordedAt: r.recordedAt,
+						origin: r.origin,
+						title: String(r.snapshot.fields?.title ?? id),
+					})),
+				},
+			});
+		},
+	};
+}
+
+/** The T3 persona verb: `requirements-diff <id> [--from <hash>] [--to <hash>]` — WHAT changed
+ * between two versions of a requirement (fields/sections/relations added/removed/changed).
+ * Defaults to the last two revisions (the most recent change). Thin: one diffRecords() call. */
+export function createRequirementsDiffCapability(
+	recordsDeps: RecordsCommandDeps,
+): CapabilityDescriptor {
+	return {
+		name: "requirements-diff",
+		summary: "Show what changed between two versions of a requirement (field-level diff)",
+		args: [{ name: "id", required: true }],
+		options: [
+			{ name: "from", kind: "string", summary: "The base version's content hash (default: the previous one)" },
+			{ name: "to", kind: "string", summary: "The target version's content hash (default: the latest)" },
+		],
+		transports: { http: { path: "/requirements/diff" } },
+		renderers: { tui: { section: "requirements" }, web: { route: "/diff", icon: "git-compare" } },
+		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
+			const id = String(input.args.id ?? "");
+			const revisions = timeline(manifestRevisions(recordsDeps.loadManifest()), id);
+			if (revisions.length === 0) {
+				return buildJsonErrorEnvelope({
+					command: "requirements-diff",
+					operation: "diff",
+					error: "no_history",
+					message: `No revision history for "${id}" — pull it (again) to record a version.`,
+					nextAction: "dgk requirements-pull <system>",
+				});
+			}
+			// Default: the last two revisions (the most recent change). A single revision diffs
+			// against nothing (the creation).
+			const toHash = input.options?.to ? String(input.options.to) : revisions[revisions.length - 1]!.contentHash;
+			const fromHash = input.options?.from
+				? String(input.options.from)
+				: revisions.length >= 2
+					? revisions[revisions.length - 2]!.contentHash
+					: undefined;
+			const store = manifestRevisions(recordsDeps.loadManifest());
+			const to = revisionAt(store, id, toHash);
+			const from = fromHash ? revisionAt(store, id, fromHash) : undefined;
+			if (!to) {
+				return buildJsonErrorEnvelope({
+					command: "requirements-diff",
+					operation: "diff",
+					error: "revision_not_found",
+					message: `No revision "${toHash}" for "${id}".`,
+					nextAction: `dgk requirements-history ${id}`,
+				});
+			}
+			const diff = diffRecords(from?.snapshot, to.snapshot);
+			return buildJsonSuccessEnvelope({
+				command: "requirements-diff",
+				operation: "diff",
+				nextCommand: `dgk requirements-history ${id}`,
+				nextCommands: [`dgk requirements-history ${id}`],
+				extra: {
+					id,
+					from: diff.from,
+					to: diff.to,
+					changeCount: diff.changes.length,
+					changes: diff.changes,
 				},
 			});
 		},

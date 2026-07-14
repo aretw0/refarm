@@ -232,6 +232,68 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(nfeHits.scope.searched).toBe(2); // only the 2 NFE records were searched
 	});
 
+	it("HISTORY: a requirement that changes between two pulls has a revision timeline + a diff", async () => {
+		// The NORTE: "what changed between two pulls?" — durable history (history:v1), no longer
+		// lost to merge. Pull v1, then pull a MODIFIED body for the same requirement, and the
+		// timeline shows two versions with a field-level diff of what changed.
+		const statePath = tempStatePath();
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reqbench-history-"));
+		const configPath = path.join(dir, "sources.json");
+		const target = (title: string) => ({
+			targets: [
+				{
+					identity: "efd",
+					url: "https://alm.example/efd",
+					session: { kind: "authenticated", principal: "analyst", credentialRef: "silo://analyst/s" },
+					body: `<!doctype html><html><body><article data-req="RN-1" data-type="regra-de-negocio" data-title="${title}">O CNPJ identifica a escrituração.</article></body></html>`,
+					mediaType: "text/html",
+				},
+			],
+		});
+		try {
+			// First pull — v1.
+			fs.writeFileSync(configPath, JSON.stringify(target("Título original")));
+			const pull1 = buildRegistry({ statePath, sourcesConfigPath: configPath }).get("requirements-pull");
+			if (!pull1 || "actions" in pull1) throw new Error("pull not mounted");
+			await pull1.run({ args: { ref: "web:efd" }, options: {}, json: true });
+
+			// Second pull — the SAME requirement, MODIFIED title → a new version.
+			fs.writeFileSync(configPath, JSON.stringify(target("Título revisado")));
+			const pull2 = buildRegistry({ statePath, sourcesConfigPath: configPath }).get("requirements-pull");
+			if (!pull2 || "actions" in pull2) throw new Error("pull not mounted");
+			await pull2.run({ args: { ref: "web:efd" }, options: {}, json: true });
+
+			const id = "record:req-rn1";
+			// The timeline has TWO versions, in order, each stamped with its origin.
+			const historyVerb = buildRegistry({ statePath, sourcesConfigPath: configPath }).get("requirements-history");
+			if (!historyVerb || "actions" in historyVerb) throw new Error("requirements-history not mounted");
+			const hist = (await historyVerb.run({ args: { id }, options: {}, json: true })) as unknown as {
+				ok: boolean;
+				versions: number;
+				timeline: Array<{ seq: number; origin: string; parentHash?: string }>;
+			};
+			expect(hist.ok).toBe(true);
+			expect(hist.versions).toBe(2);
+			expect(hist.timeline[0]?.seq).toBe(1);
+			expect(hist.timeline[1]?.seq).toBe(2);
+			expect(hist.timeline[1]?.parentHash).toBe(hist.timeline[0] && (hist.timeline[0] as unknown as { contentHash: string }).contentHash);
+
+			// The diff (default: last two versions) shows the title changed.
+			const diffVerb = buildRegistry({ statePath, sourcesConfigPath: configPath }).get("requirements-diff");
+			if (!diffVerb || "actions" in diffVerb) throw new Error("requirements-diff not mounted");
+			const diff = (await diffVerb.run({ args: { id }, options: {}, json: true })) as unknown as {
+				ok: boolean;
+				changeCount: number;
+				changes: Array<{ kind: string; path: string; before?: unknown; after?: unknown }>;
+			};
+			expect(diff.ok).toBe(true);
+			const titleChange = diff.changes.find((c) => c.path === "fields.title");
+			expect(titleChange).toMatchObject({ kind: "changed", before: "Título original", after: "Título revisado" });
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
 	it("`requirements-graph` projects the graph DATA (for the interactive web face) + an SVG", async () => {
 		// Pull records, then run the graph verb — it must expose the raw {nodes,links} + labels the
 		// web face mounts interactively (mountGraph), not only the static SVG string.

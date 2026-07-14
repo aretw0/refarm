@@ -20,7 +20,9 @@ import {
 	createLiveRequirementsProviderFactory,
 	createRequirementsCapability,
 	createRequirementsCheckCapability,
+	createRequirementsDiffCapability,
 	createRequirementsHealthCapability,
+	createRequirementsHistoryCapability,
 	createRequirementsCrawlCapability,
 	createRequirementsGraphCapability,
 	createRequirementsLabCapability,
@@ -203,6 +205,10 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 					// Audit the corpus for cross-record defects note-gates can't see: orphans,
 					// duplicates, dangling traceability links (analyzeCorpusHealth).
 					createRequirementsHealthCapability(records),
+					// The revision TIMELINE + field-level DIFF of a requirement across pulls: "what
+					// changed between two pulls?" — durable history (history:v1), no longer lost to merge.
+					createRequirementsHistoryCapability(records),
+					createRequirementsDiffCapability(records),
 					// The real ingest step: `requirements-pull <system>` LOGS IN then materializes
 					// + ingests + persists, so the journey (discover → pull → analyze/MOC) runs as
 					// commands. It reads the analyst's declared session from the SAME ledger the
