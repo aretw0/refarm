@@ -22,6 +22,7 @@ import { createDelegateRunCapability } from "./live-delegation.js";
 import { createCodeOpsCapability } from "./live-code-ops.js";
 import { createExtensionGraphCapability } from "./extension-graph.js";
 import { createGovernanceAuditCapability } from "./live-audit.js";
+import { createExtensionQualityCapability } from "./extension-quality.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
 import { createExtensionDevelopCapability } from "./maturity-verb.js";
 import { createExtensionVerifyCapability } from "./integrity-verb.js";
@@ -123,6 +124,10 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// (the platform's verifyBufferIntegrity, sha256) — "integridade reduz risco de artefatos
 				// adulterados". Completes the manifest → integrity → maturity governance triad.
 				createExtensionVerifyCapability(),
+				// The QUALITY gate: run the sovereign quality:v1 WASM checker over the extension
+				// manifests with a hygiene profile — the fourth governance axis (integrity + maturity
+				// + policy + quality), a real sandboxed analysis of how the extension is declared.
+				createExtensionQualityCapability(manifests),
 				// The easter egg: `xyzzy` (a playful capability like any other) reveals the hidden
 				// T1→T3 continuity — a wink that even a whimsical extension goes through the governed surface.
 				createXyzzyCapability(),
