@@ -54,6 +54,7 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/asset-resolver-contract-v1",
 	"packages/enrichment-contract-v1",
 	"packages/records-contract-v1",
+	"packages/history-contract-v1",
 	"packages/source-contract-v1",
 	"packages/source-web",
 	"packages/surface-terminal",
