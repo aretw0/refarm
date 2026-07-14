@@ -1,0 +1,26 @@
+{
+  "_note": "Template only — entry and integrity are injected at install time. A DELIBERATELY misbehaving fixture: its on_event spins forever. Dispatching `crash:hang` traps the store under the epoch budget; the respawn supervisor reinstantiates it, so a runaway extension does not bring the host down.",
+  "id": "@refarm/crash-plugin",
+  "name": "Crash Plugin",
+  "version": "0.1.0",
+  "capabilities": {
+    "requires": [],
+    "verbs": {
+      "key": "crash",
+      "list": {
+        "hang": {
+          "doc": "Spin forever (a runaway extension) — the host traps it under the epoch budget and respawns a fresh instance.",
+          "schema": { "type": "object", "properties": {} }
+        }
+      }
+    }
+  },
+  "permissions": [],
+  "observability": {
+    "hooks": ["onLoad", "onInit", "onRequest", "onError", "onTeardown"]
+  },
+  "targets": ["server"],
+  "executionContext": { "preferred": "node", "allowed": ["node"] },
+  "certification": { "license": "AGPL-3.0-only", "a11yLevel": 0, "languages": ["en"] },
+  "trust": { "profile": "strict" }
+}
