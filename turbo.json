@@ -123,6 +123,17 @@
       ],
       "env": ["VITEST_USE_DIST", "VITEST_FORCE_DIST"]
     },
+    "web:build": {
+      "dependsOn": ["build", "^build"],
+      "inputs": [
+        "src/**",
+        "public/**",
+        "astro.config.*",
+        "*.config.*",
+        "tsconfig*.json"
+      ],
+      "outputs": ["dist-web/**", ".astro/**"]
+    },
     "test:e2e": {
       "dependsOn": ["build"],
       "inputs": [
