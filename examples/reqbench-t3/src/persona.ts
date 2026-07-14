@@ -21,6 +21,7 @@ import {
 } from "@refarm.dev/records-contract-v1";
 import { stampProvenance } from "@refarm.dev/provenance-contract-v1";
 import {
+	analyzeCorpusHealth,
 	createReferenceVaultSurface,
 	organizeRecords,
 	planRecordFiles,
@@ -1583,6 +1584,43 @@ export function createRequirementsCheckCapability(
 						rule: f.ruleId,
 						severity: f.severity,
 						message: f.message,
+					})),
+				},
+			});
+		},
+	};
+}
+
+/** The T3 persona verb: `requirements-health` — the CORPUS health the analyst hunts, which
+ * per-note gates can't see: requirements that link to nothing that exists (dangling traceability),
+ * requirements alone in the graph (orphans), and the same requirement ingested twice (duplicates).
+ * Thin: one analyzeCorpusHealth call over the manifest. Complements requirements-check (per-note). */
+export function createRequirementsHealthCapability(
+	recordsDeps: RecordsCommandDeps,
+): CapabilityDescriptor {
+	return {
+		name: "requirements-health",
+		summary: "Audit the corpus: orphans, duplicates, and dangling traceability links",
+		transports: { http: { path: "/requirements/health" } },
+		renderers: { tui: { section: "requirements" }, web: { route: "/health", icon: "activity" } },
+		async run(): Promise<CapabilityEnvelope> {
+			const records = recordsDeps.loadManifest().records;
+			const report = analyzeCorpusHealth(records);
+			return buildJsonSuccessEnvelope({
+				command: "requirements-health",
+				operation: "health",
+				nextCommand: "dgk requirements-graph",
+				nextCommands: ["dgk requirements-graph"],
+				extra: {
+					total: report.total,
+					healthy: report.healthy,
+					counts: report.counts,
+					// Each finding keyed to its requirement — the analyst's corpus governance view.
+					findings: report.findings.map((f) => ({
+						id: f.recordId,
+						kind: f.kind,
+						message: f.message,
+						...(f.detail ? { detail: f.detail } : {}),
 					})),
 				},
 			});

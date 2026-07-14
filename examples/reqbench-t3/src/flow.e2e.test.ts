@@ -287,6 +287,27 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(empty.error).toBe("no_query");
 	});
 
+	it("`requirements-health` audits the corpus (orphans / duplicates / dangling links)", async () => {
+		const statePath = tempStatePath();
+		const healthVerb = buildRegistry({ statePath }).get("requirements-health");
+		if (!healthVerb || "actions" in healthVerb) throw new Error("requirements-health verb not mounted");
+
+		// The seed corpus: two requirements reference the CNPJ business rule (RN-632504), so the
+		// three are connected in the traceability graph — no orphans, no dangling, no duplicates.
+		const seed = (await healthVerb.run({ args: {}, options: {}, json: true })) as unknown as {
+			ok: boolean;
+			total: number;
+			healthy: boolean;
+			counts: { orphan: number; duplicate: number; "dangling-relation": number };
+		};
+		expect(seed.ok).toBe(true);
+		expect(seed.total).toBe(3);
+		expect(seed.healthy).toBe(true);
+		expect(seed.counts.orphan).toBe(0);
+		expect(seed.counts.duplicate).toBe(0);
+		expect(seed.counts["dangling-relation"]).toBe(0);
+	});
+
 	it("LOGIN-GARANTIDO: pull runs the login when the ledger has no valid session", async () => {
 		// The analyst points at a system with no cached session → the injected driver signs
 		// in before scraping. Here we prove the gate FIRES: a temp ledger with a session-less
