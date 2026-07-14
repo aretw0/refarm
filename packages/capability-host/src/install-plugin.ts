@@ -19,6 +19,12 @@ export interface InstallPluginOptions {
 	/** Directory to install into (created if missing). Its `plugin.wasm` + `plugin.json`
 	 * are what the runtime loads. */
 	installDir: string;
+	/** Shallow manifest field overrides, merged OVER the template (after entry/integrity are
+	 * injected). Lets a demo install the SAME wasm under a tightened manifest — e.g. drop a
+	 * permission to show the host DENY the effect under strict mode. A field set here replaces
+	 * the template's (no deep merge), so pass the full desired value (e.g. the whole
+	 * `permissions` array). */
+	manifestOverrides?: Record<string, unknown>;
 }
 
 export interface InstalledPlugin {
@@ -53,6 +59,9 @@ export function installPluginForRuntime(options: InstallPluginOptions): Installe
 		// the install dir relocatable.
 		entry: "./plugin.wasm",
 		integrity,
+		// A demo may tighten the manifest (e.g. drop a permission) — overrides win over the
+		// template (but never over entry/integrity, which are structural).
+		...(options.manifestOverrides ?? {}),
 	};
 
 	const manifestPath = join(options.installDir, "plugin.json");
