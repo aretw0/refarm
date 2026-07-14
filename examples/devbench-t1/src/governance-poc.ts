@@ -16,8 +16,12 @@ import { decideCapabilityGrants, type Permission, type PermissionRisk } from "@r
  *
  * This is a LOCAL, SYNTHETIC, self-contained proof: no real or sensitive data, no institutional
  * deployment claimed. It demonstrates viability for an incremental pilot with objective
- * promotion criteria. It does NOT execute real WASM — the capability-policy decision is the point;
- * the adjacent real WASM-component validation lives elsewhere (the runtime recursion demo).
+ * promotion criteria. The policy DECISION here runs through the platform's real capability
+ * policy (@refarm.dev/plugin-manifest decideCapabilityGrants — the example consumes it, it
+ * does not invent it). The synthetic part is only the sandbox outcome per mode; the ADJACENT
+ * `governance-audit` verb executes real WASM and reports the tamper-evidence audit trail the
+ * host actually wrote (host-effect:* → scarecrow-audit.ndjson) — so the runtime evidence is
+ * available FROM the runtime, not asserted.
  */
 
 /** How strict the host is about a denied capability: tolerant isolates a failing extension and
