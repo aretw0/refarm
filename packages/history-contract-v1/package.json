@@ -1,0 +1,61 @@
+{
+	"name": "@refarm.dev/history-contract-v1",
+	"version": "0.1.0",
+	"description": "Record history capability contract (history:v1) — append-only revisions of a KnowledgeRecord: what changed between versions and the timeline of changes",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run",
+		"clean": "rm -rf dist",
+		"test:conformance": "vitest run src/conformance.test.ts"
+	},
+	"keywords": [
+		"history",
+		"revision",
+		"diff",
+		"timeline",
+		"version",
+		"contract",
+		"conformance"
+	],
+	"author": "Refarm Contributors",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/history-contract-v1"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev",
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@refarm.dev/records-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}

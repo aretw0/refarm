@@ -1230,6 +1230,22 @@ importers:
         specifier: workspace:*
         version: link:../deps
 
+  packages/history-contract-v1:
+    dependencies:
+      '@refarm.dev/records-contract-v1':
+        specifier: workspace:*
+        version: link:../records-contract-v1
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/homestead:
     dependencies:
       '@refarm.dev/capabilities':
