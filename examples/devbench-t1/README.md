@@ -52,7 +52,13 @@ dgk governance-enforce       # ENFORCE — the host REFUSES an undeclared effect
 dgk plugin-reload            # RUNTIME TINKERING — hot-reload a plugin without restarting the host
 dgk delegate-run "…" --chain # a scout→planner→worker pipeline: one extension orchestrating sub-agents
 dgk agent-telemetry --mock   # OBSERVABILITY — the run's timeline: route, iterations, tool calls, tokens
+dgk plugin-resilience        # RESILIENCE — a runaway plugin is trapped + respawned; the host keeps serving
 ```
+
+`plugin-resilience` proves a bad extension does not bring the machine down: it boots the agent
+beside a crash-plugin whose `on_event` spins forever, dispatches the runaway event, and the host
+traps the store under its epoch budget, respawns a fresh instance, and still serves — the agent
+responds after the crash. The sovereign machine isolates a misbehaving extension.
 
 `agent-telemetry` makes a run legible: it reads the agent's own `agent:*` lifecycle events from
 the audit trail and projects the timeline — which model was routed and WHY (the ADR-012 audit),
