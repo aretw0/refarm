@@ -27,7 +27,7 @@ import { createExtensionVerifyCapability } from "./integrity-verb.js";
 import { createXyzzyCapability } from "./easter-egg.js";
 import { createIdeCapability } from "./ide-verb.js";
 import { createVscodeManifestCapability } from "./vscode-verb.js";
-import { resolveDevbenchTheme } from "./theme.js";
+import { DEVBENCH_THEMES, resolveDevbenchTheme } from "./theme.js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -63,13 +63,15 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 	const peerManifests = manifests.slice(1);
 	// An OPTIONAL brand/context skin (DGK_THEME) — the substrate stays neutral; the app themes.
 	const theme = resolveDevbenchTheme();
+	// The description carries a discovery hint of the available themes so `dgk --help` shows them.
+	const description = `${theme.description} (DGK_THEME: ${DEVBENCH_THEMES.join(" | ")})`;
 	// A holder so the `ide` verb can resolve the host's OWN registry lazily (at run time) — the
 	// ide verb is itself in that registry, so it can't reference the host until it's built.
 	let host: CapabilityHost;
 	host = defineCapabilityHost({
 		id: "examples/devbench-t1",
 		command,
-		description: theme.description,
+		description,
 		version: "0.0.0",
 		capabilities: () => ({
 			deps: devCapabilityDeps(),

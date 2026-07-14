@@ -21,6 +21,23 @@ describe("resolveDevbenchTheme — optional brand overlay", () => {
 	it("lists the known themes for discovery", () => {
 		expect(DEVBENCH_THEMES).toEqual(expect.arrayContaining(["neutral", "serpro"]));
 	});
+
+	it("the tagline is CONSUMED — it reaches the web face header (not a dead export)", async () => {
+		const { devWebSurface } = await import("./persona.js");
+		const { buildRegistry } = await import("./cli.js");
+		const handle = devWebSurface(buildRegistry());
+		const result = (await handle.call?.("renderHomesteadSurface", {})) as { html: string };
+		// The neutral tagline frames the web header (DGK_THEME unset in test → neutral).
+		expect(result.html).toContain(resolveDevbenchTheme({}).tagline);
+	});
+
+	it("DEVBENCH_THEMES is CONSUMED — the CLI description surfaces the discovery hint", async () => {
+		const { buildProgram } = await import("./cli.js");
+		const program = buildProgram();
+		// The host description carries "(DGK_THEME: neutral | serpro)" so --help lists them.
+		expect(program.description()).toContain("DGK_THEME:");
+		for (const name of DEVBENCH_THEMES) expect(program.description()).toContain(name);
+	});
 });
 
 describe("xyzzy easter egg", () => {

@@ -8,6 +8,8 @@ import {
 } from "@refarm.dev/capability-host";
 import { createCapabilityWebSurfacePlugin } from "@refarm.dev/capability-homestead-surface";
 
+import { resolveDevbenchTheme } from "./theme.js";
+
 /** The registry type the bridge accepts — inferred from the bridge so the example doesn't
  * import the cli/capabilities type directly (it reaches the bridge, not cli). */
 type BridgeRegistry = Parameters<typeof createCapabilityWebSurfacePlugin>[0];
@@ -110,10 +112,13 @@ export function createExtensionCapability(
  * the headless `handle.call("renderHomesteadSurface", …)` render is the proof.
  */
 export function devWebSurface(registry: BridgeRegistry) {
+	// The web header carries the theme's tagline (DGK_THEME: neutral | serpro) — the same
+	// overlay that themes the CLI, so the web face is framed for its context too.
+	const theme = resolveDevbenchTheme();
 	return createCapabilityWebSurfacePlugin(registry, {
 		pluginId: "@devbench/extension-web",
 		name: "Extension Bench",
-		title: "Extension bench (declare once → here)",
+		title: theme.tagline,
 		// The content seam: the boot runs `extension-graph` and puts its SVG on
 		// host.data.graphSvg; render it ABOVE the cards so the SPI recursion is SEEN.
 		content: (data) =>
