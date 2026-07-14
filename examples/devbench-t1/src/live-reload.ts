@@ -37,7 +37,8 @@ export interface ReloadResult {
 	respondedAfterReload: boolean;
 }
 
-/** POST /plugins/reload for the given ids (or all loaded when omitted). */
+/** POST /plugins/reload for the given ids (or all loaded when omitted). Surfaces the sidecar's
+ * `errors[]` and an HTTP failure as a thrown error — a failed reload must NOT read as success. */
 async function reloadPlugins(
 	sidecarBaseUrl: string,
 	pluginIds?: string[],
@@ -47,8 +48,18 @@ async function reloadPlugins(
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(pluginIds ? { plugin_ids: pluginIds } : {}),
 	});
-	if (!res.ok) return { reloaded: [], skipped: [] };
-	const body = (await res.json()) as { reloaded?: string[]; skipped?: string[] };
+	if (!res.ok) {
+		throw new Error(`reload endpoint failed: HTTP ${res.status}`);
+	}
+	const body = (await res.json()) as {
+		reloaded?: string[];
+		skipped?: string[];
+		errors?: Array<{ pluginId?: string; error?: string }>;
+	};
+	if (Array.isArray(body.errors) && body.errors.length > 0) {
+		const detail = body.errors.map((e) => `${e.pluginId ?? "?"}: ${e.error ?? "unknown"}`).join("; ");
+		throw new Error(`reload reported errors: ${detail}`);
+	}
 	return {
 		reloaded: Array.isArray(body.reloaded) ? body.reloaded : [],
 		skipped: Array.isArray(body.skipped) ? body.skipped : [],
