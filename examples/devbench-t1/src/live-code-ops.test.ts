@@ -25,4 +25,12 @@ describe("code-ops verb — the editor plugin as a loaded extension (mount + gua
 		const artifacts = defaultCodeOpsArtifacts();
 		expect(artifacts.lspCodeOpsWasm).toContain("packages/lsp-code-ops/dist/plugin.wasm");
 	});
+
+	it("declares move-symbol as the third editor op (verb + target-file option)", () => {
+		const verb = createCodeOpsCapability();
+		if ("actions" in verb) throw new Error("expected a descriptor");
+		// The third op is surfaced: the summary names it and the target-file option exists.
+		expect(verb.summary).toContain("move-symbol");
+		expect(verb.options?.some((o) => o.name === "target-file")).toBe(true);
+	});
 });

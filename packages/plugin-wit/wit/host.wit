@@ -215,4 +215,10 @@ interface code-ops {
 
     /// Find all references to symbol at loc (LSP textDocument/references).
     find-references: func(loc: symbol-location) -> result<list<code-reference>, string>;
+
+    /// Move a top-level item at loc to `target-file` (an LSP workspace edit). Like rename,
+    /// the server returns a WorkspaceEdit (changes/documentChanges) the host applies; the
+    /// result summarises the files changed + edits applied. Move is server-dependent (not
+    /// every LSP implements it) — a server that does not support it returns an error.
+    move-symbol: func(loc: symbol-location, target-file: string) -> result<rename-result, string>;
 }

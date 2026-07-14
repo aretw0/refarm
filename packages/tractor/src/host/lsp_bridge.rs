@@ -199,6 +199,29 @@ impl LspBridge {
         parse_references_response(&response)
     }
 
+    /// Move a top-level item at `loc` to `target_file`. Like rename, the server returns a
+    /// WorkspaceEdit (changes/documentChanges) — so the response is parsed and applied by
+    /// the SAME machinery as rename. Move is server-dependent; a server that doesn't
+    /// support the request replies with an error (or an empty edit), surfaced as such.
+    pub(crate) fn move_symbol(
+        &self,
+        loc: &SymbolLocation,
+        target_file: &str,
+    ) -> Result<RenameResult, String> {
+        let mut slot = Self::lock_session()?;
+        Self::ensure_lsp_session_locked(&mut slot, &self.lsp_cmd)?;
+        let session = slot
+            .as_mut()
+            .ok_or_else(|| "lsp session unavailable after start".to_string())?;
+
+        ensure_initialized(session)?;
+        let response =
+            session.request_response(&move_request(4, loc, target_file), LSP_REQUEST_TIMEOUT)?;
+        // A move returns a WorkspaceEdit exactly like rename — reuse the parse + apply.
+        let edits = parse_rename_response(&response)?;
+        apply_lsp_text_edits(&edits)
+    }
+
     fn session_slot() -> &'static Mutex<Option<LspServerProcess>> {
         LSP_SESSION.get_or_init(|| Mutex::new(None))
     }
@@ -388,6 +411,23 @@ fn rename_request(id: u64, loc: &SymbolLocation, new_name: &str) -> serde_json::
             "textDocument": { "uri": file_uri(&loc.file) },
             "position": lsp_position(loc),
             "newName": new_name
+        }
+    })
+}
+
+/// The move request. LSP has no standard `textDocument/move`; servers expose it via an
+/// experimental method or a command. We use `experimental/moveSymbol` with the symbol
+/// position + the destination `targetUri`; a server that implements it returns a
+/// WorkspaceEdit (parsed like rename). A server that does not returns an error/empty.
+fn move_request(id: u64, loc: &SymbolLocation, target_file: &str) -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "experimental/moveSymbol",
+        "params": {
+            "textDocument": { "uri": file_uri(&loc.file) },
+            "position": lsp_position(loc),
+            "targetUri": file_uri(target_file)
         }
     })
 }

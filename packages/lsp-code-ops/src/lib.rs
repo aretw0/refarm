@@ -149,6 +149,16 @@ mod guest {
                     Err(e) => error_result(&e),
                 }
             }
+            "move-symbol" => {
+                let Some(target_file) = args.get("target_file").and_then(|v| v.as_str()) else {
+                    return error_result("move-symbol requires target_file");
+                };
+                // Move returns the same rename-result shape (files-changed, edits-applied).
+                match code_ops::move_symbol(&loc, target_file) {
+                    Ok(r) => rename_result(r.files_changed, r.edits_applied),
+                    Err(e) => error_result(&e),
+                }
+            }
             other => error_result(&format!("unknown verb '{other}'")),
         }
     }

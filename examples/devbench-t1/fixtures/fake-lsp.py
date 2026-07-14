@@ -67,3 +67,20 @@ while True:
                 },
             }
         )
+    elif method == "experimental/moveSymbol":
+        # A move is a WorkspaceEdit like rename: delete the symbol at the source and
+        # insert it at the target. The host parses this exactly like a rename response.
+        src = message["params"]["textDocument"]["uri"]
+        target = message["params"]["targetUri"]
+        send(
+            {
+                "jsonrpc": "2.0",
+                "id": message["id"],
+                "result": {
+                    "changes": {
+                        src: [{"range": REF_RANGES[0], "newText": ""}],
+                        target: [{"range": REF_RANGES[0], "newText": "moved"}],
+                    }
+                },
+            }
+        )

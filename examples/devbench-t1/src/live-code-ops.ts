@@ -65,11 +65,14 @@ export interface LiveCodeOpsResult {
 }
 
 export interface RunLiveCodeOpsOptions {
-	verb: "find-references" | "rename-symbol";
+	verb: "find-references" | "rename-symbol" | "move-symbol";
 	file: string;
 	line: number;
 	column: number;
 	newName?: string;
+	/** move-symbol: the destination file (must already exist — the workspace edit machinery
+	 * edits existing files; a real server that creates the file uses documentChanges/CreateFile). */
+	targetFile?: string;
 	artifacts?: LiveCodeOpsArtifacts;
 	wsPort?: number;
 	httpPort?: number;
@@ -144,6 +147,7 @@ export async function runLiveCodeOps(options: RunLiveCodeOpsOptions): Promise<Li
 			replyRef,
 		};
 		if (options.verb === "rename-symbol") args.new_name = options.newName ?? "renamed";
+		if (options.verb === "move-symbol") args.target_file = options.targetFile ?? "";
 
 		const effort = {
 			id: replyRef,
@@ -183,24 +187,25 @@ export async function runLiveCodeOps(options: RunLiveCodeOpsOptions): Promise<Li
 export function createCodeOpsCapability(): CapabilityDescriptor {
 	return {
 		name: "code-ops",
-		summary: "Run rename / find-references through the sandboxed lsp-code-ops plugin (an editor extension)",
+		summary: "Run rename / find-references / move-symbol through the sandboxed lsp-code-ops plugin (an editor extension)",
 		args: [{ name: "verb", required: true }],
 		options: [
 			{ name: "file", kind: "string", summary: "The source file the symbol is in" },
 			{ name: "line", kind: "string", summary: "1-based line of the symbol" },
 			{ name: "column", kind: "string", summary: "1-based column of the symbol" },
 			{ name: "new-name", kind: "string", summary: "The new name (rename-symbol only)" },
+			{ name: "target-file", kind: "string", summary: "The destination file (move-symbol only)" },
 		],
 		transports: { http: { path: "/code-ops" } },
 		renderers: { tui: { section: "agent" }, web: { route: "/code-ops", icon: "edit" }, ide: { command: "dgk.code-ops" } },
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const verb = String(input.args.verb ?? "");
-			if (verb !== "find-references" && verb !== "rename-symbol") {
+			if (verb !== "find-references" && verb !== "rename-symbol" && verb !== "move-symbol") {
 				return buildJsonErrorEnvelope({
 					command: "code-ops",
 					operation: "code-ops",
 					error: "bad_verb",
-					message: "Pass a verb: find-references or rename-symbol.",
+					message: "Pass a verb: find-references, rename-symbol, or move-symbol.",
 					nextAction: 'dgk code-ops find-references --line 1 --column 5',
 				});
 			}
@@ -226,6 +231,9 @@ export function createCodeOpsCapability(): CapabilityDescriptor {
 					column,
 					...(typeof input.options?.["new-name"] === "string"
 						? { newName: input.options["new-name"] as string }
+						: {}),
+					...(typeof input.options?.["target-file"] === "string"
+						? { targetFile: input.options["target-file"] as string }
 						: {}),
 				});
 				return buildJsonSuccessEnvelope({

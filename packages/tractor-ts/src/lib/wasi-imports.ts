@@ -561,6 +561,10 @@ export class WasiImports {
 					editsApplied: 0,
 				}),
 				"find-references": (_loc: unknown) => [],
+				"move-symbol": (_loc: unknown, _targetFile: string) => ({
+					filesChanged: 0,
+					editsApplied: 0,
+				}),
 			},
 		};
 

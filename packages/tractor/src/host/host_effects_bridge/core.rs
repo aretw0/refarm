@@ -621,4 +621,13 @@ impl CodeOpsHost for TractorNativeBindings {
         crate::host::lsp_bridge::LspBridge::with_cmd(self.effect_policy.lsp_cmd())
             .find_references(&loc)
     }
+
+    async fn move_symbol(
+        &mut self,
+        loc: SymbolLocation,
+        target_file: String,
+    ) -> Result<RenameResult, String> {
+        crate::host::lsp_bridge::LspBridge::with_cmd(self.effect_policy.lsp_cmd())
+            .move_symbol(&loc, &target_file)
+    }
 }
