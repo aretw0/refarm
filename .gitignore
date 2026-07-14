@@ -174,3 +174,13 @@ __pycache__/
 
 # Claude agent settings (keep local overrides, ignore global settings)
 .claude/settings.json
+
+# Generated WIT bindings — wit-bindgen writes src/bindings.rs during `cargo component
+# build`; it is NOT source (regenerated on every build) and must never be committed for a
+# product package (matches the delegate/lsp-code-ops/agent convention). The
+# packages/health `no-tracked-generated-bindings` test enforces this. EXCEPTION: the
+# frozen plugin fixtures under tractor/tests/fixtures commit theirs on purpose (a static
+# snapshot with no build step, so tests run without a component build).
+packages/*/src/bindings.rs
+validations/**/src/bindings.rs
+!packages/tractor/tests/fixtures/**/src/bindings.rs
