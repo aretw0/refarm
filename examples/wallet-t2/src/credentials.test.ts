@@ -254,6 +254,59 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 		expect(res.enforced).toContain("issuerTrusted");
 	});
 
+	it("REVOCATION chain: issuer issues → wallet passes --strict → issuer revokes → --strict rejects", async () => {
+		// The canonical SSI story: a credential can be KILLED after issuance, and the wallet
+		// detects it. The issuer issues (auto status list), the citizen verifies strictly (passes),
+		// the ISSUER revokes it (flips the bit), and the SAME credential re-verified strictly now
+		// fails — no re-import, no new file: the revocation is discovered from the status list.
+		const issuer = await fixture.identity.create("Emissor civil");
+		const subject = await fixture.identity.create("Cidadão");
+		const vc = await fixture.provider.issue(
+			{
+				"@context": ["https://www.w3.org/2018/credentials/v1"],
+				type: ["VerifiableCredential", "CarteiraDigital"],
+				issuer: issuer.id,
+				issuanceDate: "2026-01-01T00:00:00.000Z",
+				credentialSubject: { id: subject.id, name: "Fulano" },
+			},
+			issuer.id,
+		);
+		const file = path.join(dir, "cred.json");
+		writeFileSync(file, JSON.stringify(vc));
+
+		// Before revocation, in a fresh wallet — strict verify PASSES (status list resolves, bit unset).
+		const beforePath = path.join(dir, "before.json");
+		const impBefore = bundle(beforePath).byName.get("import")!;
+		const beforeId = ((await impBefore.run({ args: { file }, options: {}, json: true })) as unknown as { id: string }).id;
+		const before = (await bundle(beforePath).byName.get("verify")!.run({
+			args: { id: beforeId },
+			options: { strict: true },
+			json: true,
+		})) as unknown as { ok: boolean; checks: { notRevoked?: { ok: boolean } } };
+		expect(before.ok).toBe(true);
+		expect(before.checks.notRevoked?.ok).toBe(true);
+
+		// The ISSUER revokes it (only the issuer can — the wallet just detects it).
+		const revocation = await fixture.provider.revoke(vc, issuer.id);
+		expect(revocation.revoked).toBe(true);
+
+		// After revocation, a fresh import + strict verify — the SAME credential is now REJECTED.
+		const afterPath = path.join(dir, "after.json");
+		const impAfter = bundle(afterPath).byName.get("import")!;
+		const afterId = ((await impAfter.run({ args: { file }, options: {}, json: true })) as unknown as { id: string }).id;
+		const after = (await bundle(afterPath).byName.get("verify")!.run({
+			args: { id: afterId },
+			options: { strict: true },
+			json: true,
+		})) as unknown as { ok: boolean; error?: string; failures?: string[] };
+		expect(after.ok).toBe(false);
+		expect(after.error).toBe("verification_failed");
+		expect(after.failures?.join(" ")).toMatch(/revoked/i);
+		// It stays draft — a revoked credential is never promoted.
+		const rec = bundle(afterPath).records.loadManifest().records.find((r) => r.id === afterId);
+		expect(rec?.review?.state).not.toBe("verified");
+	});
+
 	it("import errors helpfully on a bad file", async () => {
 		const file = path.join(dir, "bad.json");
 		writeFileSync(file, "not a credential");
