@@ -15,6 +15,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { awaitDispatchResult } from "./live-runtime.js";
+
 /**
  * LIVE CODE-OPS — the editor plugin as a real, sandboxed component. `lsp-code-ops`
  * (a WASM plugin, tested in tractor's agent_harness, until now with no consumer)
@@ -82,24 +84,6 @@ export interface RunLiveCodeOpsOptions {
 	lspCmd?: string;
 }
 
-async function awaitDispatchResult(
-	sidecarBaseUrl: string,
-	replyRef: string,
-	timeoutMs: number,
-): Promise<Record<string, unknown> | undefined> {
-	const deadline = Date.now() + timeoutMs;
-	while (Date.now() < deadline) {
-		const res = await fetch(`${sidecarBaseUrl}/nodes?type=DispatchResult`);
-		if (res.ok) {
-			const body = (await res.json()) as { nodes?: Array<Record<string, unknown>> };
-			const nodes = Array.isArray(body.nodes) ? body.nodes : [];
-			const match = nodes.find((n) => n.replyRef === replyRef);
-			if (match) return match;
-		}
-		await new Promise((r) => setTimeout(r, 150));
-	}
-	return undefined;
-}
 
 /**
  * Boot [lsp-code-ops] with the code-ops LSP backing, dispatch the verb, and return

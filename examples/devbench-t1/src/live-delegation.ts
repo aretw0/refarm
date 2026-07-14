@@ -15,6 +15,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { awaitDispatchResult } from "./live-runtime.js";
+
 /**
  * LIVE DELEGATION — T1's recursion, one turn deeper. `agent-run` shows the agent
  * calling ONE plugin (a source provider) as a tool. This shows a plugin
@@ -77,28 +79,6 @@ export interface RunLiveDelegationOptions {
 	resultTimeoutMs?: number;
 }
 
-/** Poll `GET /nodes?type=DispatchResult` for the node correlated by `replyRef`. The
- * delegate stores its result out of band (the dispatch is `delivered`, not `done`);
- * this reads it back the way tractor's harness does with `query_nodes`. */
-async function awaitDispatchResult(
-	sidecarBaseUrl: string,
-	replyRef: string,
-	timeoutMs: number,
-): Promise<Record<string, unknown> | undefined> {
-	const deadline = Date.now() + timeoutMs;
-	while (Date.now() < deadline) {
-		const res = await fetch(`${sidecarBaseUrl}/nodes?type=DispatchResult`);
-		if (res.ok) {
-			// The sidecar wraps the list: { nodes: [...], total }.
-			const body = (await res.json()) as { nodes?: Array<Record<string, unknown>> };
-			const nodes = Array.isArray(body.nodes) ? body.nodes : [];
-			const match = nodes.find((n) => n.replyRef === replyRef);
-			if (match) return match;
-		}
-		await new Promise((r) => setTimeout(r, 150));
-	}
-	return undefined;
-}
 
 /**
  * Boot the runtime with [agent, delegate], dispatch a `delegate:single` for the given
