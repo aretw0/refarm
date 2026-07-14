@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 import { defaultArtifacts, missingArtifacts, type LiveRecursionArtifacts } from "./live-recursion.js";
+import { awaitAuditLine } from "./live-runtime.js";
 
 /**
  * GOVERNANCE, EXECUTED — the runtime evidence made REAL. The governance PoC's runtime
@@ -149,9 +150,16 @@ export async function runGovernanceAudit(options: RunGovernanceAuditOptions): Pr
 			body: JSON.stringify(effort),
 		});
 
-		// The audit log + the observer's nodes are written as the effect executes; give the
-		// append + the observer's store_node a moment to flush.
-		await new Promise((r) => setTimeout(r, 500));
+		// Poll the audit trail for the run's terminal signal (a host-effect from the scripted
+		// read_file, or the agent finishing) instead of a blind sleep — robust to a slow runner.
+		// The observer's store_node rides the same effect, so once the effect line is present its
+		// observation is (near-)ready; a short settle covers the observer's separate async path.
+		await awaitAuditLine(
+			refarmDir,
+			(l) => l.event.startsWith("host-effect:") || l.event === "agent:response:done" || l.event === "agent:error",
+			8_000,
+		);
+		if (observer) await new Promise((r) => setTimeout(r, 200));
 		return {
 			pluginsLoaded,
 			reachedModel: res.ok,

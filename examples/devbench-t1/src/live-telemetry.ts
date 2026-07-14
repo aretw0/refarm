@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { defaultArtifacts, missingArtifacts, type LiveRecursionArtifacts } from "./live-recursion.js";
+import { awaitAuditLine } from "./live-runtime.js";
 
 /**
  * OBSERVABILITY — the machine shows what it does, turn by turn.
@@ -196,10 +197,18 @@ export async function runTelemetry(options: RunTelemetryOptions): Promise<Teleme
 				tasks: [{ id: "t1-telemetry-task-0", pluginId: "agent", fn: "respond", args: { prompt: `Read ${targetFile}` } }],
 			}),
 		});
-		// Let the run's events + the audit appends flush.
-		await new Promise((r) => setTimeout(r, 600));
+		// Poll for the run's terminal event instead of a blind sleep — robust to a slow runner,
+		// and it hands us the run's prompt_ref so the timeline is scoped to THIS run (not folded
+		// across any run that shared the file — the exported parseAgentTimeline is safe only when
+		// scoped, so we always pass the ref).
+		const terminal = await awaitAuditLine(
+			refarmDir,
+			(l) => l.event === "agent:response:done" || l.event === "agent:error",
+			8_000,
+		);
+		const promptRef = typeof terminal?.prompt_ref === "string" ? terminal.prompt_ref : undefined;
 		const events = readAgentEvents(refarmDir);
-		return { pluginsLoaded, timeline: parseAgentTimeline(events), eventCount: events.length };
+		return { pluginsLoaded, timeline: parseAgentTimeline(events, promptRef), eventCount: events.length };
 	} finally {
 		await daemon?.stop();
 	}

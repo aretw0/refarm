@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { defaultArtifacts, missingArtifacts, type LiveRecursionArtifacts } from "./live-recursion.js";
-import { readAuditTrail } from "./live-audit.js";
+import { awaitAuditLine } from "./live-runtime.js";
 
 /**
  * GOVERNANCE, ENFORCED — the third face of the governance quartet, and the one that was missing.
@@ -91,10 +91,12 @@ async function runPosture(options: {
 				tasks: [{ id: "t1-enforce-task-0", pluginId: "agent", fn: "respond", args: { prompt: `Read ${targetFile}` } }],
 			}),
 		});
-		// Let the effect (or its denial) + the audit append flush.
-		await new Promise((r) => setTimeout(r, 500));
-		const producedFsRead = readAuditTrail(refarmDir).some((l) => l.event === "host-effect:fs:read");
-		return { pluginsLoaded, producedFsRead };
+		// Poll the audit trail for the fs:read effect instead of a blind sleep: the BASELINE
+		// (granted) produces the line quickly → the poll returns fast; the DENIED posture never
+		// produces it → the poll waits out its bounded deadline, then we read false. Robust to a
+		// slow runner (a fixed 500ms could miss a late flush → a false "denied").
+		const fsRead = await awaitAuditLine(refarmDir, (l) => l.event === "host-effect:fs:read", 5_000);
+		return { pluginsLoaded, producedFsRead: fsRead !== undefined };
 	} finally {
 		await daemon?.stop();
 		await mock.stop();
