@@ -65,6 +65,23 @@ export interface WalletBundleOptions extends WalletStateOptions {
 	authorizationProvider?: AuthorizationProvider;
 	/** Deterministic clock for `review.at` in tests. */
 	now?: () => string;
+	/** The base verification policy `verify` enforces — a deployment PINS its trusted civic
+	 * issuers here (the trust registry). Absent → resolved from `DGK_TRUSTED_ISSUERS` (a
+	 * comma-separated allow-list), else the wallet's `--strict` self-trust default. */
+	verifyPolicy?: CredentialVerificationPolicy;
+}
+
+/** Resolve the deployment's trust registry from the environment: `DGK_TRUSTED_ISSUERS` is a
+ * comma-separated allow-list of civic issuer ids. When set, `verify --strict` REJECTS a
+ * validly-signed credential from an issuer outside it. Absent → no registry (the wallet
+ * self-trusts as the offline default). This is the seam a real deployment configures. */
+export function resolveVerifyPolicyFromEnv(
+	env: NodeJS.ProcessEnv = process.env,
+): CredentialVerificationPolicy | undefined {
+	const raw = env.DGK_TRUSTED_ISSUERS?.trim();
+	if (!raw) return undefined;
+	const trustedIssuers = raw.split(",").map((s) => s.trim()).filter(Boolean);
+	return trustedIssuers.length > 0 ? { trustedIssuers } : undefined;
 }
 
 export function walletCapabilityBundle(options: WalletBundleOptions = {}) {
@@ -90,6 +107,8 @@ export function walletCapabilityBundle(options: WalletBundleOptions = {}) {
 		identity: fixture.identity,
 		authorizationProvider,
 		now: options.now,
+		// The trust registry: explicit option wins, else the env-configured allow-list.
+		verifyPolicy: options.verifyPolicy ?? resolveVerifyPolicyFromEnv(),
 	};
 }
 

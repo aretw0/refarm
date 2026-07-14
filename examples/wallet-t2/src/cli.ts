@@ -32,7 +32,7 @@ export const defaultWalletStatePath = walletAppDefaults.statePath;
 export interface WalletHostOptions
 	extends WalletStateOptions,
 		HostCommandOptions,
-		Pick<WalletBundleOptions, "credentialsProvider" | "identity"> {}
+		Pick<WalletBundleOptions, "credentialsProvider" | "identity" | "verifyPolicy"> {}
 
 const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND });
 
@@ -49,7 +49,7 @@ export function buildWalletHost(options: WalletHostOptions = {}): CapabilityHost
 		description: "Digital Gardening Kit - sovereign wallet",
 		version: "0.0.0",
 		capabilities: () => {
-			const { deps, records, credentialsProvider, identity, authorizationProvider } =
+			const { deps, records, credentialsProvider, identity, authorizationProvider, verifyPolicy } =
 				walletCapabilityBundle(options);
 			return {
 				deps,
@@ -57,6 +57,9 @@ export function buildWalletHost(options: WalletHostOptions = {}): CapabilityHost
 					credentialsProvider,
 					identity,
 					authorizationProvider,
+					// The trust registry, threaded end to end: verify --strict now rejects an
+					// untrusted issuer in the shipped CLI (DGK_TRUSTED_ISSUERS), not only in tests.
+					...(verifyPolicy ? { verifyPolicy } : {}),
 				}),
 			};
 		},
