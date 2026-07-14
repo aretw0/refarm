@@ -314,6 +314,14 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(scoped.matched).toBe(1);
 		expect(scoped.scope.searched).toBe(1); // only one funcional record was even searched
 
+		// The facet filter is CASE-INSENSITIVE: `--tipo FUNCIONAL` matches the lower-kebab stored value.
+		const scopedUpper = (await searchVerb.run({
+			args: { query: "CNPJ" },
+			options: { tipo: "FUNCIONAL" },
+			json: true,
+		})) as unknown as { scope: { searched: number } };
+		expect(scopedUpper.scope.searched).toBe(1);
+
 		// An empty query is a helpful error, not a crash.
 		const empty = (await searchVerb.run({ args: { query: "  " }, options: {}, json: true })) as unknown as {
 			ok: boolean;

@@ -802,7 +802,7 @@ export function createRequirementsPullCapability(
 					nextAction: "dgk source discover",
 				});
 			}
-			const live = input.options.live === true;
+			const live = input.options?.live === true;
 			if (live && !options.liveProviderFactory) {
 				return buildJsonErrorEnvelope({
 					command: "requirements-pull",
@@ -1032,7 +1032,7 @@ export function createRequirementsCrawlCapability(
 					nextAction: "dgk source discover",
 				});
 			}
-			const live = input.options.live === true;
+			const live = input.options?.live === true;
 			if (live && !options.liveCrawlerFactory) {
 				return buildJsonErrorEnvelope({
 					command: "requirements-crawl",
@@ -1436,12 +1436,15 @@ export function createRequirementsSearchCapability(
 			const manifest = recordsDeps.loadManifest();
 			// Optional facet filter — narrow the corpus BEFORE searching (a real analyst scopes by
 			// system/type). Applied to the records, not the query, so it composes with any term.
-			const tipo = input.options?.tipo ? String(input.options.tipo) : undefined;
-			const sistema = input.options?.sistema ? String(input.options.sistema) : undefined;
+			// Case-INSENSITIVE: `sistema` is stored upper-cased and `tipo` lower-kebab, so `--sistema
+			// efd` / `--tipo Funcional` must still match (else the analyst gets an empty result with
+			// no error and assumes "nothing there").
+			const tipo = input.options?.tipo ? String(input.options.tipo).toLowerCase() : undefined;
+			const sistema = input.options?.sistema ? String(input.options.sistema).toLowerCase() : undefined;
 			const scoped = manifest.records.filter(
 				(r) =>
-					(!tipo || String(r.fields?.tipo ?? "") === tipo) &&
-					(!sistema || String(r.fields?.sistema ?? "") === sistema),
+					(!tipo || String(r.fields?.tipo ?? "").toLowerCase() === tipo) &&
+					(!sistema || String(r.fields?.sistema ?? "").toLowerCase() === sistema),
 			);
 
 			const hits = await searchRecords(await vaultSurface(), scoped, query);
