@@ -381,6 +381,9 @@ importers:
       '@refarm.dev/quality-checker-ref':
         specifier: workspace:*
         version: link:../../packages/quality-checker-ref
+      '@refarm.dev/quality-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/quality-contract-v1
       '@refarm.dev/records-contract-v1':
         specifier: workspace:*
         version: link:../../packages/records-contract-v1

@@ -6,6 +6,7 @@ import { capabilitiesCommand } from "./commands/capabilities.js";
 import { capabilityCliCommands } from "./commands/capability-registry.js";
 import { chatCommand } from "./commands/chat.js";
 import { checkCommand } from "./commands/check.js";
+import { lintCommand } from "./commands/lint.js";
 import { configCommand } from "./commands/config.js";
 import { configureCommand } from "./commands/configure.js";
 import { deployCommand } from "./commands/deploy.js";
@@ -207,6 +208,7 @@ program.addCommand(
 program.addCommand(provisionCommand);
 program.addCommand(guideCommand);
 program.addCommand(checkCommand);
+program.addCommand(lintCommand);
 program.addCommand(configCommand);
 program.addCommand(configureCommand);
 program.addCommand(releaseCommand);

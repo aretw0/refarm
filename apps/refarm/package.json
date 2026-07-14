@@ -35,6 +35,7 @@
 		"@refarm.dev/barn": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
 		"@refarm.dev/prompt-contract-v1": "workspace:*",
+		"@refarm.dev/quality-contract-v1": "workspace:*",
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/context-provider-v1": "workspace:*",
 		"@refarm.dev/ds": "workspace:*",
