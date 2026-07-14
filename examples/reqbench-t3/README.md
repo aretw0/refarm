@@ -15,6 +15,8 @@ dgk source pull web:reqbench-alm          # scrape one into a local snapshot
 dgk records enrich                        # add domain fields (dry-run)
 dgk records correct record:req-cadastro reviewed --apply   # promote a review
 dgk requirements                          # read the requirements MOC (the product)
+dgk requirements-search "nota fiscal"     # find requirements by text (--tipo/--sistema)
+dgk requirements-health                   # audit the corpus: orphans, duplicates, dangling links
 dgk actions --json                        # selectable multi-surface actions
 dgk serve                                 # the same verbs on a web surface
 ```
@@ -22,6 +24,16 @@ dgk serve                                 # the same verbs on a web surface
 `requirements` renders a navigable **Map of Content** (Obsidian markdown) grouped by
 review state — the analyst's product. A correction persisted via `records correct` shows
 up in it, because the persona view reads the same records state.
+
+`requirements-search <query>` finds requirements across the corpus (frontmatter, body, and
+section text) through the SAME sovereign vault surface that routes them — the query is data the
+surface interprets, `--tipo`/`--sistema` scope it to a facet. `requirements-health` is the
+corpus-level audit note-gates can't do: **orphans** (a requirement alone in the traceability
+graph), **duplicates** (the same requirement ingested twice), and **dangling links** (a relation
+to a requirement that doesn't exist). Traceability comes from the requirements themselves: the
+live OSLC/RDF parse now extracts the ALM's link predicates (elaboratedBy / decomposedBy /
+satisfiedBy / references …) as typed relations, so the graph and the health audit populate from
+a real pull — not only the offline fixture.
 
 The CLI persists local curation to `.dgk/requirements.manifest.json` by default, so a
 correction made in one process is visible to the next command. Set
