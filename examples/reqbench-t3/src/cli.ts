@@ -26,6 +26,7 @@ import {
 	createRequirementsMaterializeCapability,
 	createRequirementsOrganizeCapability,
 	createRequirementsPullCapability,
+	createRequirementsSearchCapability,
 	reqCapabilityBundle,
 	type RequirementsCapabilityOptions,
 } from "./persona.js";
@@ -180,6 +181,9 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 					// Route pulled requirements to their PARA areas (taxonomy-as-data via vault:v1).
 					// The bundle injects the (sovereign) vault surface — the verb never picks one.
 					createRequirementsOrganizeCapability(records, vaultSurface),
+					// Find requirements by text (the same sovereign surface that routes, searches):
+					// "onde escrevi sobre nota fiscal?" — filtered by tipo/sistema facets.
+					createRequirementsSearchCapability(records, vaultSurface),
 					// Validate the corpus against the analyst's gates (quality:v1 note gates).
 					createRequirementsCheckCapability(records),
 					// The real ingest step: `requirements-pull <system>` LOGS IN then materializes

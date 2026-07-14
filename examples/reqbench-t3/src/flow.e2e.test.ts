@@ -244,6 +244,49 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		expect(res.exports[0]).toContain("marimo export html-wasm lab/analise-grafo.py");
 	});
 
+	it("`requirements-search` finds requirements by text over the sovereign vault surface", async () => {
+		// Pull the corpus, then search it — the same surface that ROUTES (organize) also SEARCHES.
+		const statePath = tempStatePath();
+		const pull = buildRegistry({ statePath }).get("requirements-pull");
+		if (!pull || "actions" in pull) throw new Error("requirements-pull verb not mounted");
+		await pull.run({ args: { ref: REQ_SYSTEM_REF }, options: {}, json: true });
+
+		const searchVerb = buildRegistry({ statePath }).get("requirements-search");
+		if (!searchVerb || "actions" in searchVerb) throw new Error("requirements-search verb not mounted");
+
+		// "CNPJ" appears in all three requirements (in a title, a body, or a section paragraph).
+		const cnpj = (await searchVerb.run({ args: { query: "CNPJ" }, options: {}, json: true })) as unknown as {
+			ok: boolean;
+			matched: number;
+			results: Array<{ recordId: string; title: string; tipo?: string }>;
+		};
+		expect(cnpj.ok).toBe(true);
+		expect(cnpj.matched).toBe(3);
+		expect(cnpj.results.some((r) => r.title.includes("CNPJ"))).toBe(true);
+		// A term that is NOT in the corpus matches nothing.
+		const none = (await searchVerb.run({ args: { query: "blockchain" }, options: {}, json: true })) as unknown as {
+			matched: number;
+		};
+		expect(none.matched).toBe(0);
+
+		// Facet filter: the same query, scoped to tipo=funcional → only the credit-selection req.
+		const scoped = (await searchVerb.run({
+			args: { query: "CNPJ" },
+			options: { tipo: "funcional" },
+			json: true,
+		})) as unknown as { matched: number; scope: { searched: number } };
+		expect(scoped.matched).toBe(1);
+		expect(scoped.scope.searched).toBe(1); // only one funcional record was even searched
+
+		// An empty query is a helpful error, not a crash.
+		const empty = (await searchVerb.run({ args: { query: "  " }, options: {}, json: true })) as unknown as {
+			ok: boolean;
+			error: string;
+		};
+		expect(empty.ok).toBe(false);
+		expect(empty.error).toBe("no_query");
+	});
+
 	it("LOGIN-GARANTIDO: pull runs the login when the ledger has no valid session", async () => {
 		// The analyst points at a system with no cached session → the injected driver signs
 		// in before scraping. Here we prove the gate FIRES: a temp ledger with a session-less

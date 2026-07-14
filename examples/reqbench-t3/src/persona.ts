@@ -25,8 +25,10 @@ import {
 	organizeRecords,
 	planRecordFiles,
 	recordToVaultNote,
+	searchRecords,
 	type OrganizeDispatcher,
 	type RecordFilePlan,
+	type SearchDispatcher,
 	type VaultProfile,
 } from "@refarm.dev/vault-contract-v1";
 import { createReferenceVaultSurfaceComponent } from "@refarm.dev/vault-surface-ref";
@@ -398,12 +400,17 @@ export async function crawlRequirements(
  * or chooses one). This is the DX move: the example is agnostic to how routing is
  * sandboxed. Cached so the WASM component loads at most once.
  */
-let cachedVaultSurface: Promise<OrganizeDispatcher> | undefined;
-export function resolveVaultSurface(): Promise<OrganizeDispatcher> {
-	cachedVaultSurface ??= (async (): Promise<OrganizeDispatcher> => {
+/** The surface the bench dispatches through — a reference/WASM surface whose `run` returns a full
+ * result, so it satisfies BOTH the organize and search dispatchers (its result has `.plans` AND
+ * `.hits`). A verb narrows to the dispatcher it needs; the surface serves any vault verb. */
+type VaultDispatcher = OrganizeDispatcher & SearchDispatcher;
+
+let cachedVaultSurface: Promise<VaultDispatcher> | undefined;
+export function resolveVaultSurface(): Promise<VaultDispatcher> {
+	cachedVaultSurface ??= (async (): Promise<VaultDispatcher> => {
 		try {
-			// The sovereign, zero-import WASM surface when its component is built. It
-			// satisfies OrganizeDispatcher structurally (its result has `.plans`), so no
+			// The sovereign, zero-import WASM surface when its component is built. Its `run` returns
+			// the full result (`.plans` AND `.hits`), so it satisfies every vault dispatcher — no
 			// wrapper/cast — the DX point: the sovereign surface drops straight in.
 			return await createReferenceVaultSurfaceComponent();
 		} catch {
@@ -1339,6 +1346,81 @@ export function createRequirementsOrganizeCapability(
 					routed: plans.length,
 					applied: apply,
 					plans: plans.map((p) => ({ id: p.recordId, destination: p.destination })),
+				},
+			});
+		},
+	};
+}
+
+/** The T3 persona verb: `requirements-search <query> [--tipo --sistema]` — find requirements in
+ * the vault by text, filtered by frontmatter facets. The analyst asks "where did I write about
+ * nota fiscal?"; the SAME sovereign vault surface that ROUTES also SEARCHES (the query is data
+ * the surface interprets). Thin BECAUSE the framework carries the search — one searchRecords call.
+ * `--tipo`/`--sistema` post-filter the hit records by their frontmatter facet. */
+export function createRequirementsSearchCapability(
+	recordsDeps: RecordsCommandDeps,
+	vaultSurface: () => Promise<SearchDispatcher>,
+): CapabilityDescriptor {
+	return {
+		name: "requirements-search",
+		summary: "Search the requirements vault by text, filtered by tipo/sistema",
+		args: [{ name: "query", required: true }],
+		options: [
+			{ name: "tipo", kind: "string", summary: "Only requirements of this tipo (e.g. requisito)" },
+			{ name: "sistema", kind: "string", summary: "Only requirements of this sistema (e.g. EFD)" },
+		],
+		transports: { http: { path: "/requirements/search" } },
+		renderers: { tui: { section: "requirements" }, web: { route: "/search", icon: "search" } },
+		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
+			const query = String(input.args.query ?? "").trim();
+			if (!query) {
+				return buildJsonErrorEnvelope({
+					command: "requirements-search",
+					operation: "search",
+					error: "no_query",
+					message: "Pass a search query (e.g. requirements-search \"nota fiscal\").",
+					nextAction: "requirements-search <query>",
+				});
+			}
+			const manifest = recordsDeps.loadManifest();
+			// Optional facet filter — narrow the corpus BEFORE searching (a real analyst scopes by
+			// system/type). Applied to the records, not the query, so it composes with any term.
+			const tipo = input.options?.tipo ? String(input.options.tipo) : undefined;
+			const sistema = input.options?.sistema ? String(input.options.sistema) : undefined;
+			const scoped = manifest.records.filter(
+				(r) =>
+					(!tipo || String(r.fields?.tipo ?? "") === tipo) &&
+					(!sistema || String(r.fields?.sistema ?? "") === sistema),
+			);
+
+			const hits = await searchRecords(await vaultSurface(), scoped, query);
+			// One entry per matched record (a record can match several terms → dedup, keep best score).
+			const byRecord = new Map<string, { recordId: string; title: string; tipo?: string; sistema?: string; score: number }>();
+			for (const hit of hits) {
+				const record = manifest.records.find((r) => r.id === hit.recordId);
+				const existing = byRecord.get(hit.recordId);
+				const score = (existing?.score ?? 0) + (hit.score ?? 1);
+				byRecord.set(hit.recordId, {
+					recordId: hit.recordId,
+					title: String(record?.fields?.title ?? hit.recordId),
+					tipo: record?.fields?.tipo ? String(record.fields.tipo) : undefined,
+					sistema: record?.fields?.sistema ? String(record.fields.sistema) : undefined,
+					score,
+				});
+			}
+			// Most-relevant first (more matched terms = higher score).
+			const results = [...byRecord.values()].sort((a, b) => b.score - a.score);
+
+			return buildJsonSuccessEnvelope({
+				command: "requirements-search",
+				operation: "search",
+				nextCommand: "dgk requirements",
+				nextCommands: ["dgk requirements"],
+				extra: {
+					query,
+					scope: { tipo, sistema, searched: scoped.length },
+					matched: results.length,
+					results,
 				},
 			});
 		},
