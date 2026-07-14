@@ -30,6 +30,7 @@ import {
 	createWalletRequestCapability,
 } from "./consent.js";
 import { createDisclosureGraphCapability } from "./disclosure-graph.js";
+import { createVerifyPresentationCapability } from "./verifier.js";
 import {
 	createWalletImportCapability,
 	createWalletShareCapability,
@@ -298,6 +299,10 @@ export function createWalletCapabilities(
 				createWalletShareCapability(recordsDeps, options.credentialsProvider, options.identity),
 			);
 		}
+		// The OTHER side of the loop: the receiving service validates a shared presentation.
+		capabilities.push(
+			createVerifyPresentationCapability(options.credentialsProvider, { policy: options.verifyPolicy }),
+		);
 	}
 	// The consent journey: authorize a service for a scoped purpose, present only that
 	// scope, revoke it later — the citizen's sovereign control over their own disclosure.

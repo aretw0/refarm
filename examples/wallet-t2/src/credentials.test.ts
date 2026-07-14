@@ -181,7 +181,7 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 		writeFileSync(file, JSON.stringify(vc));
 		const statePath = path.join(dir, "wallet.json");
 		const imp = bundle(statePath).byName.get("import")!;
-		const id = ((await imp.run({ args: { file }, options: {}, json: true })) as { id: string }).id;
+		const id = ((await imp.run({ args: { file }, options: {}, json: true })) as unknown as { id: string }).id;
 
 		const ver = bundle(statePath).byName.get("verify")!;
 		const res = (await ver.run({ args: { id }, options: {}, json: true })) as unknown as {
@@ -210,7 +210,7 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 		writeFileSync(file, JSON.stringify(vc));
 		const statePath = path.join(dir, "wallet.json");
 		const imp = bundle(statePath).byName.get("import")!;
-		const id = ((await imp.run({ args: { file }, options: {}, json: true })) as { id: string }).id;
+		const id = ((await imp.run({ args: { file }, options: {}, json: true })) as unknown as { id: string }).id;
 
 		const ver = bundle(statePath).byName.get("verify")!;
 		const res = (await ver.run({ args: { id }, options: {}, json: true })) as unknown as {
@@ -234,7 +234,7 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 		writeFileSync(file, JSON.stringify(vc));
 		const statePath = path.join(dir, "wallet.json");
 		const imp = bundle(statePath).byName.get("import")!;
-		const id = ((await imp.run({ args: { file }, options: {}, json: true })) as { id: string }).id;
+		const id = ((await imp.run({ args: { file }, options: {}, json: true })) as unknown as { id: string }).id;
 
 		const ver = bundle(statePath).byName.get("verify")!;
 		const res = (await ver.run({ args: { id }, options: { strict: true }, json: true })) as unknown as {
