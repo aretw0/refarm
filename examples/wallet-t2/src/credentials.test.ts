@@ -172,6 +172,88 @@ describe("wallet import + REAL verify (end-to-end)", () => {
 		expect(res.error).toBe("not_a_credential");
 	});
 
+	it("the DEFAULT policy enforces validity — verify runs the withinValidity check, not signature alone", async () => {
+		// The regression this guards: verify used to pass NO policy, so only the signature was
+		// checked. The default policy (validity: required) must now make the substrate run the
+		// validity check — proven by its presence in the reported checks.
+		const vc = await issueTestCredential(fixture);
+		const file = path.join(dir, "cred.json");
+		writeFileSync(file, JSON.stringify(vc));
+		const statePath = path.join(dir, "wallet.json");
+		const imp = bundle(statePath).byName.get("import")!;
+		const id = ((await imp.run({ args: { file }, options: {}, json: true })) as { id: string }).id;
+
+		const ver = bundle(statePath).byName.get("verify")!;
+		const res = (await ver.run({ args: { id }, options: {}, json: true })) as unknown as {
+			ok: boolean;
+			valid: boolean;
+			checks: { withinValidity?: { ok: boolean }; notRevoked?: unknown };
+			enforced: string[];
+		};
+		expect(res.ok).toBe(true);
+		expect(res.valid).toBe(true);
+		// Validity WAS evaluated (the wire works) …
+		expect(res.checks.withinValidity?.ok).toBe(true);
+		expect(res.enforced).toContain("withinValidity");
+		// … but revocation is NOT in the default (opt-in via --strict).
+		expect(res.checks.notRevoked).toBeUndefined();
+	});
+
+	it("verify REJECTS an expired credential under the default policy", async () => {
+		// An expired credential has a valid signature but must fail validity — the exact case a
+		// signature-only check silently accepted before the policy was wired.
+		const vc = await issueTestCredential(fixture, {
+			issuanceDate: "2020-01-01T00:00:00.000Z",
+			expirationDate: "2021-01-01T00:00:00.000Z", // well before the `now` clock (2026)
+		});
+		const file = path.join(dir, "expired.json");
+		writeFileSync(file, JSON.stringify(vc));
+		const statePath = path.join(dir, "wallet.json");
+		const imp = bundle(statePath).byName.get("import")!;
+		const id = ((await imp.run({ args: { file }, options: {}, json: true })) as { id: string }).id;
+
+		const ver = bundle(statePath).byName.get("verify")!;
+		const res = (await ver.run({ args: { id }, options: {}, json: true })) as unknown as {
+			ok: boolean;
+			error?: string;
+			failures?: string[];
+		};
+		expect(res.ok).toBe(false);
+		expect(res.error).toBe("verification_failed");
+		expect(res.failures?.join(" ")).toMatch(/expired/i);
+		// The expired credential stays draft — never promoted.
+		const after = bundle(statePath).records.loadManifest().records.find((r) => r.id === id);
+		expect(after?.review?.state).toBe("draft");
+	});
+
+	it("--strict additionally enforces revocation + issuer trust (a provider-issued credential passes)", async () => {
+		// A credential issued through the provider carries a signed status list, so --strict's
+		// revocation + issuer-trust checks resolve and pass — proving the strict wire end to end.
+		const vc = await issueTestCredential(fixture);
+		const file = path.join(dir, "cred.json");
+		writeFileSync(file, JSON.stringify(vc));
+		const statePath = path.join(dir, "wallet.json");
+		const imp = bundle(statePath).byName.get("import")!;
+		const id = ((await imp.run({ args: { file }, options: {}, json: true })) as { id: string }).id;
+
+		const ver = bundle(statePath).byName.get("verify")!;
+		const res = (await ver.run({ args: { id }, options: { strict: true }, json: true })) as unknown as {
+			ok: boolean;
+			valid: boolean;
+			strict: boolean;
+			checks: { notRevoked?: { ok: boolean }; issuerTrusted?: { ok: boolean } };
+			enforced: string[];
+		};
+		expect(res.ok).toBe(true);
+		expect(res.valid).toBe(true);
+		expect(res.strict).toBe(true);
+		// The strict-only checks ran and passed.
+		expect(res.checks.notRevoked?.ok).toBe(true);
+		expect(res.checks.issuerTrusted?.ok).toBe(true);
+		expect(res.enforced).toContain("notRevoked");
+		expect(res.enforced).toContain("issuerTrusted");
+	});
+
 	it("import errors helpfully on a bad file", async () => {
 		const file = path.join(dir, "bad.json");
 		writeFileSync(file, "not a credential");

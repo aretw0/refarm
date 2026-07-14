@@ -15,6 +15,7 @@ import {
 import {
 	createInMemoryCredentialsProviderFixture,
 	type CredentialsProvider,
+	type CredentialVerificationPolicy,
 } from "@refarm.dev/credentials-contract-v1";
 import type { IdentityProvider } from "@refarm.dev/identity-contract-v1";
 
@@ -263,6 +264,9 @@ export interface WalletCapabilitiesOptions {
 	authorizationProvider?: AuthorizationProvider;
 	/** Deterministic clock for import/verify `review.at` in tests. */
 	now?: () => string;
+	/** The base verification policy `verify` enforces (a deployment pins its trusted civic
+	 * issuers here). Absent → the wallet default (validity required; --strict adds the rest). */
+	verifyPolicy?: CredentialVerificationPolicy;
 }
 
 export function createWalletCapabilities(
@@ -283,7 +287,10 @@ export function createWalletCapabilities(
 	];
 	if (options.credentialsProvider) {
 		capabilities.push(
-			createWalletVerifyCapability(recordsDeps, options.credentialsProvider, { now: options.now }),
+			createWalletVerifyCapability(recordsDeps, options.credentialsProvider, {
+				now: options.now,
+				policy: options.verifyPolicy,
+			}),
 		);
 		// Sharing needs the citizen's identity to SIGN the presentation.
 		if (options.identity) {

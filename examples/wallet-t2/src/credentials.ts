@@ -128,6 +128,39 @@ export interface WalletCredentialOptions {
 }
 
 /**
+ * The wallet's DEFAULT verification policy — the honest floor for "verified".
+ *
+ * `validity: "required"` is universally safe: a credential with no expiry is never expired, so
+ * this never rejects a legitimate credential, and it DOES catch an expired one (which a bare
+ * signature check misses). Signature + issuer-signature-match are always enforced by the
+ * provider regardless of policy.
+ *
+ * Revocation and issuer-trust are NOT in the default: they require the credential to carry a
+ * resolvable status list and the deployment to pin trusted issuers — sensible for a real
+ * civic wallet, but they would reject an arbitrary imported credential that lacks a status ref.
+ * They are opt-in via `--strict` (see `strictWalletVerifyPolicy`).
+ */
+export const DEFAULT_WALLET_VERIFY_POLICY: CredentialVerificationPolicy = { validity: "required" };
+
+/**
+ * The STRICT policy a real civic wallet enforces: signature + validity + revocation + issuer
+ * trust. `trustedIssuers` pins the issuers the deployment accepts; when none are supplied the
+ * credential's OWN issuer is trusted (self-consistent — proves the wire without a registry),
+ * which a deployment overrides with a real allow-list of civic issuers.
+ */
+export function strictWalletVerifyPolicy(
+	base: CredentialVerificationPolicy,
+	credentialIssuer: string,
+): CredentialVerificationPolicy {
+	return {
+		...base,
+		validity: "required",
+		revocation: "required",
+		trustedIssuers: base.trustedIssuers ?? [credentialIssuer],
+	};
+}
+
+/**
  * `import <file>` — import a Verifiable Credential from a file into the wallet, local-first.
  * Reads the file, maps it to a wallet record (draft), merges into the manifest, and persists.
  */
@@ -223,11 +256,21 @@ export function createWalletVerifyCapability(
 	options: WalletCredentialOptions & { policy?: CredentialVerificationPolicy } = {},
 ): CapabilityDescriptor {
 	const now = options.now ?? (() => new Date().toISOString());
+	// The policy the wallet actually enforces (was previously undefined → signature-only). The
+	// default requires validity; `--strict` additionally requires revocation + issuer trust.
+	const basePolicy = options.policy ?? DEFAULT_WALLET_VERIFY_POLICY;
 	return {
 		name: "verify",
 		summary:
-			"Verify a wallet credential for real (signature, issuer, validity) and mark it verified",
+			"Verify a wallet credential for real (signature + validity; --strict adds revocation + issuer trust)",
 		args: [{ name: "id", required: true }],
+		options: [
+			{
+				name: "strict",
+				kind: "boolean",
+				summary: "Enforce revocation status + issuer trust, not just signature + validity",
+			},
+		],
 		transports: { http: { path: "/wallet/verify" } },
 		renderers: { tui: { section: "wallet" } },
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
@@ -254,7 +297,12 @@ export function createWalletVerifyCapability(
 				});
 			}
 
-			const result = await provider.verify(vc, options.policy);
+			// Enforce the real policy — revocation/validity/issuer-trust are evaluated by the
+			// substrate ONLY when the policy asks for them. `--strict` raises the bar for a real
+			// civic wallet; the default already lifts verify above a bare signature check.
+			const strict = input.options?.strict === true;
+			const policy = strict ? strictWalletVerifyPolicy(basePolicy, vc.issuer) : basePolicy;
+			const result = await provider.verify(vc, policy);
 			if (!result.valid) {
 				return buildJsonErrorEnvelope({
 					command: "verify",
@@ -266,10 +314,14 @@ export function createWalletVerifyCapability(
 				});
 			}
 
+			// The checks that actually ran (policy-gated), so the notes/envelope don't overclaim.
+			const enforced = Object.keys(result.checks).filter(
+				(k) => (result.checks as Record<string, { ok?: boolean }>)[k]?.ok === true,
+			);
 			// Verified for real → promote to the state the wallet shows, recording the checks.
 			const verified: KnowledgeRecord = {
 				...record,
-				review: { state: "verified", at: now(), notes: "verified: signature + issuer + validity" },
+				review: { state: "verified", at: now(), notes: `verified: ${enforced.join(", ")}` },
 			} as KnowledgeRecord;
 			verified.contentHash = computeRecordContentHash(verified);
 
@@ -277,7 +329,7 @@ export function createWalletVerifyCapability(
 				return buildJsonSuccessEnvelope({
 					command: "verify",
 					operation: "verify",
-					extra: { id, valid: true, checks: result.checks, persisted: false, dryRun: true },
+					extra: { id, valid: true, checks: result.checks, enforced, strict, persisted: false, dryRun: true },
 				});
 			}
 			await recordsDeps.saveManifest(mergeRecords(manifest, [verified]));
@@ -286,7 +338,7 @@ export function createWalletVerifyCapability(
 				operation: "verify",
 				nextCommand: "wallet",
 				nextCommands: ["wallet"],
-				extra: { id, valid: true, state: "verified", checks: result.checks, issuer: result.issuer },
+				extra: { id, valid: true, state: "verified", checks: result.checks, enforced, strict, issuer: result.issuer },
 			});
 		},
 	};
