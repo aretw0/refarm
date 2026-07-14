@@ -28,6 +28,8 @@ const RDF = `<?xml version="1.0"?>
     <dcterms:title>Receber Aviso de Tratamento Manual</dcterms:title>
     <rdf:type rdf:resource="http://open-services.net/ns/rm#UseCase"/>
     <jazz_rm:primaryText>Fluxo do caso de uso.</jazz_rm:primaryText>
+    <oslc_rm:elaboratedBy rdf:resource="https://alm.example/rm/resources/TX_10"/>
+    <dcterms:references rdf:resource="https://alm.example/rm/resources/OUTSIDE_99"/>
   </rdf:Description>
 </rdf:RDF>`;
 
@@ -97,6 +99,26 @@ describe("parseRequirementsFromRdf", () => {
 
 		const cdu = records.find((r) => r.fields.externalKey === "CDU-282405");
 		expect(cdu?.fields.tipo).toBe("caso-de-uso");
+	});
+
+	it("extracts OSLC-RM traceability links as relations (in-corpus resolved, external kept as URI)", () => {
+		const records = parseRequirementsFromRdf(RDF, { ref: "web:efd", location: "/x" }) as Array<{
+			fields: Record<string, unknown>;
+			relations?: Array<{ type: string; target: string; attrs?: Record<string, unknown> }>;
+		}>;
+		const cdu = records.find((r) => r.fields.externalKey === "CDU-282405");
+		// The elaboratedBy link points at TX_10, which IS in this document → resolved to its id.
+		const elaborates = cdu?.relations?.find((rel) => rel.type === "elaborates");
+		expect(elaborates?.target).toBe("record:req-rn632504");
+		expect(elaborates?.attrs?.external).toBeUndefined();
+		// The references link points OUTSIDE the pulled set → kept as a URI, stamped external.
+		const references = cdu?.relations?.find((rel) => rel.type === "references");
+		expect(references?.target).toBe("https://alm.example/rm/resources/OUTSIDE_99");
+		expect(references?.attrs?.external).toBe(true);
+
+		// The RN requirement has no outgoing links → no relations (not an empty array we must guard).
+		const rn = records.find((r) => r.fields.externalKey === "RN-632504");
+		expect(rn?.relations).toBeUndefined();
 	});
 
 	it("returns no records for RDF with no requirement resources", () => {

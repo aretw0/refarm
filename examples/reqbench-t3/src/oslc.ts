@@ -170,6 +170,60 @@ function textFromPrimary(block: string): string {
 	return htmlToMarkdown(primary);
 }
 
+/** The record id derivation from an ALM requirement key — the SINGLE source of truth so a
+ * relation target resolves to the exact id its target record is created with. */
+function recordIdFromKey(key: string): string {
+	return `record:req-${key.toLowerCase().replace(/[^a-z0-9]+/g, "")}`;
+}
+
+/**
+ * OSLC-RM (and common Jazz) link predicates → the analyst's relation vocabulary. Traceability is
+ * the heart of requirements management ("deriva de / satisfaz / decompõe / referencia"); these are
+ * the canonical predicates a Jazz RM system emits between artifacts. The local name (after `:` or
+ * `#`) is matched, so both `oslc_rm:elaboratedBy` and a fully-qualified form resolve. Data, not
+ * code — an analyst extends the map for their ALM's dialect.
+ */
+const OSLC_RELATION_PREDICATES: Record<string, string> = {
+	elaboratedby: "elaborates",
+	elaborates: "elaborates",
+	decomposedby: "decomposes",
+	decomposes: "decomposes",
+	satisfiedby: "satisfies",
+	satisfies: "satisfies",
+	trackedby: "tracked-by",
+	affectedby: "affected-by",
+	constrainedby: "constrained-by",
+	references: "references",
+	validatedby: "validated-by",
+};
+
+/** One raw link parsed from a block: the OSLC predicate's mapped relation type + the target
+ * artifact URI (resolved to a record id in a second pass, once all keys are known). */
+interface RawRdfLink {
+	type: string;
+	targetUri: string;
+}
+
+/**
+ * Extract the OSLC-RM traceability links from one RDF block — every `<ns:predicate
+ * rdf:resource="URI"/>` whose predicate local-name is a known relation predicate. The
+ * requirement's OWN type/about triples are not links (they're captured elsewhere), so only the
+ * mapped predicates yield relations. PURE.
+ */
+function extractRdfLinks(block: string): RawRdfLink[] {
+	const links: RawRdfLink[] = [];
+	// Match `<prefix:localName ... rdf:resource="URI" ... />` — capture the local name + URI.
+	const re = /<[a-zA-Z0-9_]+:([a-zA-Z0-9_]+)\b[^>]*\brdf:resource="([^"]+)"[^>]*\/?>/g;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(block)) !== null) {
+		const localName = (m[1] ?? "").toLowerCase();
+		const targetUri = m[2] ?? "";
+		const type = OSLC_RELATION_PREDICATES[localName];
+		if (type && targetUri) links.push({ type, targetUri });
+	}
+	return links;
+}
+
 /**
  * Parse a Jazz RM RDF/XML document into requirement records. Each `oslc_rm:Requirement` (or
  * `rdf:Description` carrying a dcterms:identifier) becomes a record with the same shape the
@@ -177,11 +231,19 @@ function textFromPrimary(block: string): string {
  * whether the body came from the offline fixture or a live OSLC fetch.
  */
 export const parseRequirementsFromRdf: SourceRecordParser = (body, context) => {
-	const records: ReturnType<SourceRecordParser> = [];
 	const contentSha256 = createHash("sha256").update(body).digest("hex");
 	const collectedAt = new Date().toISOString();
 	// Split into per-resource blocks on rdf:Description / oslc_rm:Requirement boundaries.
 	const blocks = body.split(/(?=<(?:rdf:Description|oslc_rm:Requirement)\b)/);
+
+	// PASS 1 — parse each requirement + its raw links, and map every artifact URI to the record id
+	// it becomes, so PASS 2 can resolve a link's target URI to a concrete record id.
+	interface Parsed {
+		record: ReturnType<SourceRecordParser>[number];
+		links: RawRdfLink[];
+	}
+	const parsed: Parsed[] = [];
+	const idByUri = new Map<string, string>();
 	for (const block of blocks) {
 		const key = firstMatch(/dcterms:identifier>([^<]+)</, block);
 		if (!key) continue; // not a requirement resource
@@ -189,36 +251,57 @@ export const parseRequirementsFromRdf: SourceRecordParser = (body, context) => {
 		const artifactUri = firstMatch(/rdf:about="([^"]+)"/, block);
 		const tipo = tipoFromRdf(block);
 		const text = textFromPrimary(block);
-		records.push({
-			id: `record:req-${key.toLowerCase().replace(/[^a-z0-9]+/g, "")}`,
-			schemaVersion: 1,
-			"@type": ["KnowledgeRecord", "Requirement"],
-			"@context": "https://refarm.dev/contexts/records/v1",
-			// Provenance (provenance:v1): a LIVE pull's origin link is the artifact's own
-			// Jazz/ALM URI — the exact coordinate to re-fetch it, fingerprinted and timed.
-			fields: stampProvenance(
-				{
-					title,
-					tipo,
-					status: "draft",
-					externalKey: key,
-					body: text,
-					// The Jazz coordinate, preserved on the record (the vault's alm_artifact_uri).
-					...(artifactUri ? { artifactUri } : {}),
-				},
-				{
-					channel: "requirements-pull",
-					originLink: artifactUri ?? context.ref,
-					sourcePath: context.location,
-					...(context.mediaType ? { mediaType: context.mediaType } : {}),
-					collectedAt,
-					contentSha256,
-				},
-			),
-			sections: [{ key: "conteudo", content: text }],
-			sourceRefs: [context.ref],
-			review: { state: "draft" },
+		const id = recordIdFromKey(key);
+		if (artifactUri) idByUri.set(artifactUri, id);
+		parsed.push({
+			links: extractRdfLinks(block),
+			record: {
+				id,
+				schemaVersion: 1,
+				"@type": ["KnowledgeRecord", "Requirement"],
+				"@context": "https://refarm.dev/contexts/records/v1",
+				// Provenance (provenance:v1): a LIVE pull's origin link is the artifact's own
+				// Jazz/ALM URI — the exact coordinate to re-fetch it, fingerprinted and timed.
+				fields: stampProvenance(
+					{
+						title,
+						tipo,
+						status: "draft",
+						externalKey: key,
+						body: text,
+						// The Jazz coordinate, preserved on the record (the vault's alm_artifact_uri).
+						...(artifactUri ? { artifactUri } : {}),
+					},
+					{
+						channel: "requirements-pull",
+						originLink: artifactUri ?? context.ref,
+						sourcePath: context.location,
+						...(context.mediaType ? { mediaType: context.mediaType } : {}),
+						collectedAt,
+						contentSha256,
+					},
+				),
+				sections: [{ key: "conteudo", content: text }],
+				sourceRefs: [context.ref],
+				review: { state: "draft" },
+			},
 		});
 	}
-	return records;
+
+	// PASS 2 — resolve each raw link to a RecordRelation. A link whose target artifact is in THIS
+	// document resolves to that record's id (an in-corpus edge the graph/MOC draw); a link to an
+	// artifact outside the document keeps its URI as the target (a dangling edge a health check can
+	// surface), stamped so the analyst sees it points outside the pulled set.
+	for (const { record, links } of parsed) {
+		if (links.length === 0) continue;
+		const relations = links.map((link) => {
+			const resolved = idByUri.get(link.targetUri);
+			return resolved
+				? { type: link.type, target: resolved, attrs: { direction: "outgoing" as const } }
+				: { type: link.type, target: link.targetUri, attrs: { direction: "outgoing" as const, external: true } };
+		});
+		record.relations = relations;
+	}
+
+	return parsed.map((p) => p.record);
 };
