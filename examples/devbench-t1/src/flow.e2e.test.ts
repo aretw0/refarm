@@ -331,6 +331,26 @@ describe("devbench T1 — the developer's extension bench (process mode)", () =>
 		expect(rendered.html).toContain("surveyor-graph");
 	});
 
+	it("the content seam mounts the GOVERNANCE DASHBOARD (scorecard + outcomes) ABOVE the cards", async () => {
+		// The web boot runs governance-poc; its governanceHtml is the dashboard the surface
+		// mounts — the scorecard table, the gate verdict, per-combination outcomes.
+		const gov = buildRegistry().get("governance-poc");
+		if (!gov || "actions" in gov) throw new Error("governance-poc not mounted");
+		const { governanceHtml } = (await gov.run({ args: {}, options: {}, json: true })) as unknown as {
+			governanceHtml: string;
+		};
+		expect(governanceHtml).toContain("governance-scorecard");
+
+		const handle = devWebSurface(buildRegistry());
+		const rendered = (await handle.call?.("renderHomesteadSurface", {
+			host: { data: { governanceHtml } },
+		})) as { html: string };
+		// The dashboard is mounted: its container, the scorecard table, and the gate verdict.
+		expect(rendered.html).toContain("data-governance-dashboard");
+		expect(rendered.html).toContain("governance-scorecard");
+		expect(rendered.html).toContain("governance-gate");
+	});
+
 	it("multiple manifests dispatch to plugin dispatch with valid task envelopes", async () => {
 		const submitEffort = createMemorySubmitEffort();
 		const env = await harness.runVerb<{

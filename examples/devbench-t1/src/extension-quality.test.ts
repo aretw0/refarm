@@ -10,11 +10,13 @@ import {
 
 const benign: SurfaceableManifest = {
 	id: "@x/benign",
-	capabilities: { provides: ["notes:search"], requires: ["fs:read"] },
+	capabilities: { provides: ["notes:search"] },
 };
 const risky: SurfaceableManifest = {
 	id: "@x/risky",
-	capabilities: { provides: ["ops:run"], requires: ["shell:spawn", "network:outbound", "fs:write"] },
+	// The hygiene checker scans the serialised capability ids; a risky extension provides
+	// verbs whose ids carry the high-risk capability strings the rules flag.
+	capabilities: { provides: ["shell:spawn", "network:outbound", "fs:write"] },
 };
 
 describe("extension-quality — a hygiene gate via the sandboxed quality:v1 checker", () => {

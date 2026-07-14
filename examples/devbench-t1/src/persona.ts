@@ -119,11 +119,17 @@ export function devWebSurface(registry: BridgeRegistry) {
 		pluginId: "@devbench/extension-web",
 		name: "Extension Bench",
 		title: theme.tagline,
-		// The content seam: the boot runs `extension-graph` and puts its SVG on
-		// host.data.graphSvg; render it ABOVE the cards so the SPI recursion is SEEN.
-		content: (data) =>
-			typeof data.graphSvg === "string" && data.graphSvg.length > 0
-				? `<section class="refarm-stack" data-extension-graph>${data.graphSvg}</section>`
-				: "",
+		// The content seam: the boot runs a content verb and puts its result on host.data;
+		// render ABOVE the cards whatever governance content it carried — the governance
+		// DASHBOARD (scorecard + outcomes + metrics) and/or the SPI dependency GRAPH. Both
+		// are the "shows well" artifacts the writeup photographs.
+		content: (data) => {
+			const dashboard = typeof data.governanceHtml === "string" ? data.governanceHtml : "";
+			const graph =
+				typeof data.graphSvg === "string" && data.graphSvg.length > 0
+					? `<section class="refarm-stack" data-extension-graph>${data.graphSvg}</section>`
+					: "";
+			return dashboard + graph;
+		},
 	});
 }

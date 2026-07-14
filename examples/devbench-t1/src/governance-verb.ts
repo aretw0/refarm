@@ -5,6 +5,7 @@ import {
 	type CapabilityInput,
 } from "@refarm.dev/capability-host";
 
+import { governanceToHtml } from "./governance-html.js";
 import { runGovernancePoc } from "./governance-poc.js";
 
 /**
@@ -63,6 +64,9 @@ export function createGovernancePocCapability(options: GovernanceVerbOptions = {
 					combinations: result.combinations.map((c) => ({ extension: c.extension, mode: c.mode, outcome: c.outcome })),
 					metrics: result.metrics,
 					scorecard: result.scorecard,
+					// The dashboard the web face mounts (scorecard + outcomes + metrics, rendered) —
+					// the "shows well" governance artifact, via the same content seam as the graph.
+					governanceHtml: governanceToHtml(result),
 					artifactsWritten: written,
 					artifactCount: artifacts.length,
 					disclaimer: "PoC local, sintética e autocontida — sem dados institucionais sensíveis; viabilidade para piloto incremental, não implantação.",
