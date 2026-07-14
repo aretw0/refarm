@@ -29,6 +29,9 @@
 	"publishConfig": {
 		"access": "public"
 	},
+	"dependencies": {
+		"@refarm.dev/enrichment-contract-v1": "workspace:*"
+	},
 	"devDependencies": {
 		"@bytecodealliance/jco": "catalog:",
 		"@refarm.dev/deps": "workspace:*",

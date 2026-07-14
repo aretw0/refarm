@@ -43,11 +43,20 @@ function enrich(inputs, mode) {
 
 	for (const input of Array.isArray(inputs) ? inputs : []) {
 		const key = input?.fields?.[KEY_FIELD];
-		const entry = typeof key === "string" ? LOOKUP[key] : undefined;
+		// Canonical enrichment:v1 skip codes (EnrichmentErrorCode): NO_KEY when the
+		// input carries no usable key field, NO_MATCH when it has a key the registry
+		// doesn't know. Distinguishing them is what the contract conformance asserts.
+		if (typeof key !== "string" || key.length === 0) {
+			skipped += 1;
+			byCode.NO_KEY = (byCode.NO_KEY ?? 0) + 1;
+			records.push({ id: input?.id ?? "", changes: [], skipped: { code: "NO_KEY" } });
+			continue;
+		}
+		const entry = LOOKUP[key];
 		if (!entry) {
 			skipped += 1;
-			byCode["no-key"] = (byCode["no-key"] ?? 0) + 1;
-			records.push({ id: input?.id ?? "", changes: [], skipped: { code: "no-key" } });
+			byCode.NO_MATCH = (byCode.NO_MATCH ?? 0) + 1;
+			records.push({ id: input?.id ?? "", changes: [], skipped: { code: "NO_MATCH" } });
 			continue;
 		}
 		const changes = Object.entries(entry).map(([field, after]) => ({

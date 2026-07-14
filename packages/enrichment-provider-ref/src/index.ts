@@ -17,3 +17,12 @@ export const ENRICHMENT_PROVIDER_WASM_PATH = join(distDir, "enrichment_provider.
 
 /** The generated runtime manifest (id, provides: enrichment:v1, integrity). */
 export const ENRICHMENT_PROVIDER_MANIFEST_PATH = join(distDir, "plugin.json");
+
+// The host-side adapter that presents this loaded plugin AS an enrichment:v1
+// provider — via the plugin's `respond`, no import of provider code.
+export {
+	createWasmEnrichmentProvider,
+	createWasmEnrichmentProviderWith,
+	type CallRespond,
+	type WasmEnrichmentProviderOptions,
+} from "./provider.js";

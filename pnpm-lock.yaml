@@ -1107,6 +1107,10 @@ importers:
         version: link:../vtconfig
 
   packages/enrichment-provider-ref:
+    dependencies:
+      '@refarm.dev/enrichment-contract-v1':
+        specifier: workspace:*
+        version: link:../enrichment-contract-v1
     devDependencies:
       '@bytecodealliance/jco':
         specifier: 'catalog:'
