@@ -83,6 +83,24 @@ describe("wallet authorization journey", () => {
 		expect(present.error).toBe("not_usable");
 	});
 
+	it("HISTORY: an authorization authorized then revoked has TWO revisions (active → revoked)", async () => {
+		const authz = (await verbs.authorize!.run!(request)) as Record<string, unknown>;
+		const id = authz.id as string;
+		await verbs.revoke!.run!({ args: { id }, options: { reason: "withdrew" }, json: true });
+
+		// The SAME authorization record went through two versions — a durable sovereign history,
+		// not just its current status.
+		const hist = (await verbs.history!.run!({ args: { id }, options: {}, json: true })) as unknown as {
+			ok: boolean;
+			versions: number;
+			timeline: Array<{ seq: number; origin: string; status: string }>;
+		};
+		expect(hist.ok).toBe(true);
+		expect(hist.versions).toBe(2);
+		expect(hist.timeline[0]).toMatchObject({ seq: 1, origin: "authorize", status: "active" });
+		expect(hist.timeline[1]).toMatchObject({ seq: 2, origin: "revoke", status: "revoked" });
+	});
+
 	it("revoke PERSISTS a durable RevocationEvent record (the auditable trail survives the command)", async () => {
 		const authz = (await verbs.authorize!.run!(request)) as Record<string, unknown>;
 		const id = authz.id as string;

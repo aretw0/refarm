@@ -21,6 +21,7 @@ import type { IdentityProvider } from "@refarm.dev/identity-contract-v1";
 
 import {
 	createWalletAuthorizeCapability,
+	createWalletHistoryCapability,
 	createWalletPresentCapability,
 	createWalletRevokeCapability,
 } from "./authorization.js";
@@ -338,6 +339,9 @@ export function createWalletCapabilities(
 			createWalletRevokeCapability(recordsDeps, options.authorizationProvider, { now: options.now }),
 			// SEE the disclosure surface: with whom the citizen shared what, as a graph.
 			createDisclosureGraphCapability(recordsDeps),
+			// The sovereign HISTORY of a consent: active → revoked as durable revisions of the
+			// same authorization (history:v1), when and by which verb.
+			createWalletHistoryCapability(recordsDeps),
 		);
 	}
 	return capabilities;

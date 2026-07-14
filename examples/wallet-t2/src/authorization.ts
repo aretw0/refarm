@@ -18,6 +18,7 @@ import {
 	type KnowledgeRecord,
 	type RecordsManifest,
 } from "@refarm.dev/records-contract-v1";
+import { manifestRevisions, mergeAndRecord, timeline } from "@refarm.dev/history-contract-v1";
 
 /**
  * The citizen's AUTHORIZATION journey — the sovereign move the wallet was missing: a
@@ -132,10 +133,17 @@ export function recordToReceipt(record: KnowledgeRecord): AuthorizationReceipt |
 	return authz as unknown as AuthorizationReceipt;
 }
 
-function mergeRecords(manifest: RecordsManifest, updates: KnowledgeRecord[]): RecordsManifest {
-	const byId = new Map(manifest.records.map((r) => [r.id, r]));
-	for (const record of updates) byId.set(record.id, record);
-	return { ...manifest, records: [...byId.values()] };
+/** Merge updated receipt/event records into the manifest by id AND append an append-only REVISION
+ * for each changed record (history:v1). So an authorization the citizen authorizes then revokes
+ * becomes TWO revisions of the SAME record (active → revoked) — the sovereign history of a
+ * consent, not just its current status. `now` injected; `origin` labels the verb. */
+function mergeRecords(
+	manifest: RecordsManifest,
+	updates: KnowledgeRecord[],
+	now: () => string = () => new Date().toISOString(),
+	origin?: string,
+): RecordsManifest {
+	return mergeAndRecord(manifest, updates, now, origin);
 }
 
 /** Parse the `--scope` arg (comma-separated attribute names). */
@@ -200,7 +208,7 @@ export function createWalletAuthorizeCapability(
 					extra: { id: record.id, receipt, persisted: false, dryRun: true },
 				});
 			}
-			await recordsDeps.saveManifest(mergeRecords(recordsDeps.loadManifest(), [record]));
+			await recordsDeps.saveManifest(mergeRecords(recordsDeps.loadManifest(), [record], now, "authorize"));
 			return buildJsonSuccessEnvelope({
 				command: "authorize",
 				operation: "authorize",
@@ -319,7 +327,7 @@ export function createWalletRevokeCapability(
 					extra: { id, event, persisted: false, dryRun: true },
 				});
 			}
-			await recordsDeps.saveManifest(mergeRecords(manifest, [revokedRecord, eventRecord]));
+			await recordsDeps.saveManifest(mergeRecords(manifest, [revokedRecord, eventRecord], now, "revoke"));
 			return buildJsonSuccessEnvelope({
 				command: "revoke",
 				operation: "revoke",
@@ -330,6 +338,52 @@ export function createWalletRevokeCapability(
 					statusBefore: event.statusBefore,
 					statusAfter: event.statusAfter,
 					event,
+				},
+			});
+		},
+	};
+}
+
+/**
+ * `history <id>` — the citizen's sovereign HISTORY of an authorization: every version it went
+ * through (active → revoked) as durable revisions, with WHEN and by which verb. The audit trail
+ * the trabalho names, made legible per-authorization. Thin: one timeline() over the manifest's
+ * revisions.
+ */
+export function createWalletHistoryCapability(recordsDeps: RecordsCommandDeps): CapabilityDescriptor {
+	return {
+		name: "history",
+		summary: "Show an authorization's revision timeline — every version it went through (active → revoked)",
+		args: [{ name: "id", required: true }],
+		transports: { http: { path: "/wallet/history" } },
+		renderers: { tui: { section: "wallet" }, web: { route: "/history", icon: "history" } },
+		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
+			const id = String(input.args.id ?? "");
+			if (!id) {
+				return buildJsonErrorEnvelope({
+					command: "history",
+					operation: "history",
+					error: "no_id",
+					message: "Pass an authorization id.",
+					nextAction: "wallet",
+				});
+			}
+			const revisions = timeline(manifestRevisions(recordsDeps.loadManifest()), id);
+			return buildJsonSuccessEnvelope({
+				command: "history",
+				operation: "history",
+				nextCommand: "wallet",
+				nextCommands: ["wallet"],
+				extra: {
+					id,
+					versions: revisions.length,
+					// Each version's status (from the receipt snapshot), when, and which verb produced it.
+					timeline: revisions.map((r) => ({
+						seq: r.seq,
+						at: r.recordedAt,
+						origin: r.origin,
+						status: String((r.snapshot.fields as Record<string, unknown> | undefined)?.status ?? ""),
+					})),
 				},
 			});
 		},

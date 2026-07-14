@@ -20,6 +20,7 @@
 	},
 	"dependencies": {
 		"@refarm.dev/authorization-contract-v1": "workspace:*",
+		"@refarm.dev/history-contract-v1": "workspace:*",
 		"@refarm.dev/capability-homestead-surface": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
 		"@refarm.dev/credentials-contract-v1": "workspace:*",
