@@ -401,7 +401,7 @@ export function isSha256DigestMatch(
 	actual: Sha256Digest,
 ): boolean;
 export function verifyBufferIntegrity(
-	bytes: ArrayBuffer,
+	bytes: ArrayBuffer | Uint8Array,
 	integrity: string,
 ): Promise<Sha256Digest>;
 

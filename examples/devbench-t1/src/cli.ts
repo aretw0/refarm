@@ -20,6 +20,7 @@ import {
 import { createAgentRunCapability } from "./live-recursion.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
 import { createExtensionDevelopCapability } from "./maturity-verb.js";
+import { createExtensionVerifyCapability } from "./integrity-verb.js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -86,6 +87,10 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// productive → sensitive → catalog) — the platform's maturity vocabulary consumed to
 				// show the lifecycle the writeup's Figura 3 describes, with objective promotion gates.
 				createExtensionDevelopCapability(),
+				// SIMULATE the integrity gate: an intact artifact promotes, a tampered one is REJECTED
+				// (the platform's verifyBufferIntegrity, sha256) — "integridade reduz risco de artefatos
+				// adulterados". Completes the manifest → integrity → maturity governance triad.
+				createExtensionVerifyCapability(),
 			],
 		},
 		operatorStatus: {
