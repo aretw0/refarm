@@ -41,6 +41,11 @@ export interface RuntimeDaemonOptions {
 	readyTimeoutMs?: number;
 	/** Poll interval while waiting for readiness (ms). */
 	readyPollMs?: number;
+	/** The sovereign base dir (`--refarm-dir`) — where the daemon writes its scarecrow
+	 * audit log (`{refarmDir}/scarecrow-audit.ndjson`, the tamper-evidence record of every
+	 * host effect). Set this to a temp dir to read the audit trail back deterministically;
+	 * unset, the daemon uses the machine's default sovereign dir. */
+	refarmDir?: string;
 	/** Extra environment for the daemon process. */
 	env?: NodeJS.ProcessEnv;
 }
@@ -102,6 +107,9 @@ export async function startRuntimeDaemon(
 	];
 	for (const plugin of options.plugins ?? []) {
 		args.push("--plugin", plugin);
+	}
+	if (options.refarmDir) {
+		args.push("--refarm-dir", options.refarmDir);
 	}
 
 	const child = spawn(binaryPath, args, {

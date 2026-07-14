@@ -21,6 +21,7 @@ import { createAgentRunCapability } from "./live-recursion.js";
 import { createDelegateRunCapability } from "./live-delegation.js";
 import { createCodeOpsCapability } from "./live-code-ops.js";
 import { createExtensionGraphCapability } from "./extension-graph.js";
+import { createGovernanceAuditCapability } from "./live-audit.js";
 import { createGovernancePocCapability } from "./governance-verb.js";
 import { createExtensionDevelopCapability } from "./maturity-verb.js";
 import { createExtensionVerifyCapability } from "./integrity-verb.js";
@@ -110,6 +111,10 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 						writeFileSync(file, json, "utf8");
 					},
 				}),
+				// GOVERNANCE, EXECUTED: the governance-poc's runtime evidence is synthetic; this boots
+				// the agent LIVE, drives a real fs effect, and reports the tamper-evidence audit log
+				// the HOST wrote (scarecrow-audit.ndjson) — evidence from the runtime, not a TS literal.
+				createGovernanceAuditCapability(),
 				// SIMULATE developing an extension through the governed maturity trail (experiment →
 				// productive → sensitive → catalog) — the platform's maturity vocabulary consumed to
 				// show the lifecycle the writeup's Figura 3 describes, with objective promotion gates.
