@@ -34,6 +34,7 @@ import {
 	type RequirementsCapabilityOptions,
 } from "./persona.js";
 import { createRequirementsPlaybookCapability } from "./playbook.js";
+import { createRequirementsOverviewCapability } from "./vault-overview.js";
 
 export const DGK_REQUIREMENTS_STATE_PATH_ENV = "DGK_REQUIREMENTS_STATE_PATH";
 export const DGK_COMMAND = "dgk";
@@ -208,6 +209,9 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 					// The revision TIMELINE + field-level DIFF of a requirement across pulls: "what
 					// changed between two pulls?" — durable history (history:v1), no longer lost to merge.
 					createRequirementsHistoryCapability(records),
+					// The vault in ONE view: coverage + traceability + health + last change — the
+					// analog of T1's plugin-ops, mounted above the MOC by the web content seam.
+					createRequirementsOverviewCapability(records),
 					createRequirementsDiffCapability(records),
 					// The real ingest step: `requirements-pull <system>` LOGS IN then materializes
 					// + ingests + persists, so the journey (discover → pull → analyze/MOC) runs as

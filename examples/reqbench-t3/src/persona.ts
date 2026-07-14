@@ -1824,6 +1824,12 @@ export function reqWebSurface(registry: Parameters<typeof createCapabilityWebSur
 		name: "Bancada de Requisitos",
 		title: "Bancada de Requisitos do Analista",
 		surfaceId: "requirements-panel",
-		content: (data) => (typeof data.mocHtml === "string" ? data.mocHtml : ""),
+		// The content seam renders the vault OVERVIEW dashboard (when the content verb carried it)
+		// ABOVE the navigable MOC — the whole vault state in one photograph, then the map.
+		content: (data) => {
+			const overview = typeof data.overviewHtml === "string" ? data.overviewHtml : "";
+			const moc = typeof data.mocHtml === "string" ? data.mocHtml : "";
+			return overview + moc;
+		},
 	});
 }

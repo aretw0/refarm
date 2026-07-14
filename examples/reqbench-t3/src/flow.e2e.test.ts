@@ -230,6 +230,23 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 			json: true,
 		})) as unknown as { results: Array<{ recordId: string }>; scope: { searched: number } };
 		expect(nfeHits.scope.searched).toBe(2); // only the 2 NFE records were searched
+
+		// The OVERVIEW dashboard aggregates the whole (multi-source) vault in one view.
+		const overviewVerb = buildRegistry({ statePath }).get("requirements-overview");
+		if (!overviewVerb || "actions" in overviewVerb) throw new Error("requirements-overview not mounted");
+		const overview = (await overviewVerb.run({ args: {}, options: {}, json: true })) as unknown as {
+			ok: boolean;
+			total: number;
+			bySistema: Record<string, number>;
+			health: { orphans: number };
+			overviewHtml: string;
+		};
+		expect(overview.ok).toBe(true);
+		expect(overview.total).toBe(5);
+		// Coverage by system reflects both ALMs.
+		expect(overview.bySistema).toMatchObject({ EFD: 3, NFE: 2 });
+		// The dashboard HTML the web content seam mounts.
+		expect(overview.overviewHtml).toContain("data-vault-overview");
 	});
 
 	it("HISTORY: a requirement that changes between two pulls has a revision timeline + a diff", async () => {

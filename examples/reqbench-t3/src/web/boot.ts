@@ -17,7 +17,10 @@ export async function bootReqbench(): Promise<void> {
 			namespace: "reqbench",
 			registry,
 			surfaceContext: reqbenchApp.surfaceContext(),
-			content: { verb: "requirements", field: "mocHtml" },
+			// The content seam runs the vault OVERVIEW (coverage + health + traceability + last
+			// change) as the headline dashboard above the launcher cards — the whole vault state in
+			// one photograph. The navigable MOC stays reachable via its own card/route.
+			content: { verb: "requirements-overview" },
 			surface: reqWebSurface(registry),
 		});
 		overlay?.remove();
