@@ -36,15 +36,24 @@ function refarmPluginModuleSource(specifier) {
 			lines.push(
 				"export const read = (...args) => call('read', args);",
 				"export const write = (...args) => call('write', args);",
+				"export const edit = (...args) => call('edit', args);",
 			);
 			break;
 		case "plugin:host/host-shell":
 			lines.push("export const spawn = (...args) => call('spawn', args);");
 			break;
+		case "plugin:host/capability-tools":
+			lines.push(
+				"export const listTools = (...args) => call('list-tools', args);",
+				"export const listToolPrompts = (...args) => call('list-tool-prompts', args);",
+				"export const invokeTool = (...args) => call('invoke-tool', args);",
+			);
+			break;
 		case "plugin:host/code-ops":
 			lines.push(
 				"export const findReferences = (...args) => call('find-references', args);",
 				"export const renameSymbol = (...args) => call('rename-symbol', args);",
+				"export const moveSymbol = (...args) => call('move-symbol', args);",
 			);
 			break;
 		case "plugin:host/model-bridge":
