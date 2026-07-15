@@ -291,6 +291,30 @@ runs:
           cargo install --locked cargo-component --version 0.21.1
         fi
 
+    # wasm-tools is the standalone binary check:wit uses to parse WIT packages
+    # (`wasm-tools component wit`). cargo-component bundles its own copy but does
+    # not expose it on PATH, so the Rust plugin builds (which gate on check:wit)
+    # need this alongside cargo-component.
+    - name: Cache wasm-tools
+      if: ${{ inputs.cache-mode != 'off' && inputs.rust-target != '' }}
+      id: cache-wasm-tools
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: |
+          ~/.cargo/bin/wasm-tools
+          ~/.cargo/bin/wasm-tools.exe
+        key: ${{ runner.os }}-wasm-tools-1.245.1
+
+    - name: Install wasm-tools
+      if: ${{ inputs.rust-target != '' && (inputs.cache-mode == 'off' || steps.cache-wasm-tools.outputs.cache-hit != 'true') }}
+      shell: bash
+      run: |
+        if wasm-tools --version >/dev/null 2>&1; then
+          echo "wasm-tools already installed"
+        else
+          cargo install --locked wasm-tools --version 1.245.1
+        fi
+
     - name: Cache cargo-llvm-cov
       if: ${{ inputs.cache-mode != 'off' && inputs.rust-coverage == 'true' }}
       id: cache-cargo-llvm-cov

@@ -298,11 +298,55 @@ jobs:
       - name: Validate GitHub Action contracts
         run: node scripts/ci/check-github-actions-contracts.mjs
 
+  # The Rust → WASM plugin packages (agent, tractor-rs, delegate, heartwood,
+  # lsp-code-ops, scarecrow-plugin) build through `cargo component` + a `check:wit`
+  # gate that needs the Rust toolchain and the standalone wasm-tools binary. The
+  # JS `quality` job has neither, so their `build` only ever succeeded there on a
+  # warm Turbo remote-cache hit — a cold cache failed the whole Verify step. This
+  # job gives those builds a real home: it provisions the toolchain (rust-target)
+  # and runs their Turbo `build`, populating the shared remote cache so `quality`
+  # (which depends on it) resolves them as cache hits instead of rebuilding blind.
+  build-wasm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: changes
+    if: needs.changes.outputs.skip_duplicate_push != 'true' && (needs.changes.outputs.code_changes == 'true' || needs.changes.outputs.run_task_smoke == 'true')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: "0"
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          rust-target: "wasm32-wasip1"
+          turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
+          turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
+
+      - name: Build Rust/WASM plugin packages (warms the Turbo remote cache)
+        run: >-
+          pnpm turbo run build
+          --filter=@refarm.dev/agent
+          --filter=@refarm.dev/tractor-rs
+          --filter=@refarm.dev/delegate
+          --filter=@refarm.dev/heartwood
+          --filter=@refarm.dev/lsp-code-ops
+          --filter=@refarm.dev/scarecrow-plugin
+          --cache-dir=.turbo --output-logs=new-only --ui=stream
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: changes
-    if: needs.changes.outputs.skip_duplicate_push != 'true'
+    needs: [changes, build-wasm]
+    # Run whether build-wasm ran or was skipped (docs-only commits skip it), but
+    # not if it FAILED — a broken Rust/WASM build must block quality rather than
+    # let it rebuild blind. `!failure() && !cancelled()` allows the skipped case
+    # through; the skip_duplicate_push gate is preserved.
+    if: ${{ !failure() && !cancelled() && needs.changes.outputs.skip_duplicate_push != 'true' }}
     env:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -921,6 +965,7 @@ jobs:
     needs:
       [
         changes,
+        build-wasm,
         quality,
         platform-compat,
         build,
@@ -961,6 +1006,13 @@ jobs:
 
           if [ "${{ steps.carry_forward.outputs.has_failure }}" = "true" ]; then
             echo "::error::One or more skipped gates reused a prior failing status."
+            exit 1
+          fi
+
+          # build-wasm is skipped on docs-only commits (result "skipped" is fine);
+          # only a real "failure" here is a gate breach.
+          if [ "${{ needs.build-wasm.result }}" = "failure" ]; then
+            echo "::error::Rust/WASM plugin build failed"
             exit 1
           fi
 
