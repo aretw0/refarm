@@ -41,7 +41,11 @@ import {
 } from "./model-routes.js";
 import { PluginUsageTracker } from "./plugin-usage-tracker.js";
 import { createSiloModelEnvInjector, type OAuthCreds } from "./silo-model-env.js";
-import { shouldProjectStreamChunk, toStreamChunk } from "./stream-chunk-mapper.js";
+import {
+	projectStreamChunk,
+	shouldProjectStreamChunk,
+	toStreamChunk,
+} from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
 import { createTaskMemoryBridge } from "./task-memory-bridge.js";
@@ -467,11 +471,13 @@ async function main() {
 	streamRegistry.register(wsStreamTransport);
 	runtime.onNode("StreamChunk", async (node) => {
 		const chunk = toStreamChunk(node as Record<string, unknown>);
-		// Project the host's partials only; the guest owns the final ndjson line.
-		// (See shouldProjectStreamChunk — this drops the host's whole-answer final
-		// for agent-response streams to avoid double-counting the response.)
+		// The tractor-ts guest cannot write the final ndjson line (its wasi:filesystem
+		// is an inert stub), so the host projects it here. projectStreamChunk mirrors the
+		// guest's single-owner rule: the agent-response FINAL keeps the whole answer only
+		// on the single-shot path (sequence 0) and is blanked to a pure end-marker when
+		// partials already carried the deltas, so the answer is filed exactly once.
 		if (shouldProjectStreamChunk(chunk)) {
-			streamRegistry.dispatch(chunk);
+			streamRegistry.dispatch(projectStreamChunk(chunk));
 		}
 	});
 	console.log("[farmhand] Stream transports registered (File, SSE, WebSocket).");

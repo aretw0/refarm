@@ -1,6 +1,10 @@
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import { describe, expect, it } from "vitest";
-import { shouldProjectStreamChunk, toStreamChunk } from "./stream-chunk-mapper.js";
+import {
+	projectStreamChunk,
+	shouldProjectStreamChunk,
+	toStreamChunk,
+} from "./stream-chunk-mapper.js";
 
 function chunk(overrides: Partial<StreamChunk> = {}): StreamChunk {
 	return {
@@ -12,27 +16,61 @@ function chunk(overrides: Partial<StreamChunk> = {}): StreamChunk {
 	};
 }
 
-describe("shouldProjectStreamChunk (farmhand dedup)", () => {
+describe("shouldProjectStreamChunk (farmhand)", () => {
 	it("projects partial agent-response chunks", () => {
 		expect(shouldProjectStreamChunk(chunk({ is_final: false }))).toBe(true);
 	});
 
-	it("drops the host whole-answer final for agent-response streams", () => {
-		// The guest writes the single final ndjson line; projecting the host's
-		// is_final observation too would double the answer in {stream_ref}.ndjson.
-		expect(shouldProjectStreamChunk(chunk({ is_final: true, content: "the whole answer" }))).toBe(
-			false,
-		);
+	it("projects the agent-response final (the tractor-ts guest cannot write it)", () => {
+		// On the Rust host the guest owns the final ndjson line, but the tractor-ts
+		// guest's wasi:filesystem is an inert stub — dropping the host's final here
+		// would leave the stream with no terminal line at all.
+		expect(shouldProjectStreamChunk(chunk({ is_final: true }))).toBe(true);
 	});
 
 	it("projects final chunks for NON-agent-response streams", () => {
-		// Other stream families own their own final line — only agent-response is
-		// deduped against the guest writer.
 		expect(
 			shouldProjectStreamChunk(
 				chunk({ stream_ref: "urn:tractor:stream:vault:v1", is_final: true }),
 			),
 		).toBe(true);
+	});
+});
+
+describe("projectStreamChunk (single-owner final rule)", () => {
+	it("passes single-shot agent-response finals through with the whole answer", () => {
+		// No partials preceded (sequence 0): the final carries the full answer, which
+		// the accumulating CLI files exactly once.
+		const projected = projectStreamChunk(
+			chunk({ is_final: true, sequence: 0, content: "the whole answer" }),
+		);
+		expect(projected.content).toBe("the whole answer");
+	});
+
+	it("blanks the agent-response final when partials preceded it", () => {
+		// Partials (sequence > 0) already carried the deltas; the final becomes a pure
+		// end-marker so sum(partials) + final.content == answer, exactly once.
+		const projected = projectStreamChunk(
+			chunk({ is_final: true, sequence: 3, content: "the whole answer" }),
+		);
+		expect(projected.content).toBe("");
+		expect(projected.is_final).toBe(true);
+		expect(projected.sequence).toBe(3);
+	});
+
+	it("passes partial agent-response chunks through unchanged", () => {
+		const partial = chunk({ is_final: false, sequence: 2, content: "delta" });
+		expect(projectStreamChunk(partial)).toEqual(partial);
+	});
+
+	it("does not blank finals for NON-agent-response streams", () => {
+		const other = chunk({
+			stream_ref: "urn:tractor:stream:vault:v1",
+			is_final: true,
+			sequence: 5,
+			content: "keep me",
+		});
+		expect(projectStreamChunk(other).content).toBe("keep me");
 	});
 });
 

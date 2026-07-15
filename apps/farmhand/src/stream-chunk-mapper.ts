@@ -2,18 +2,49 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 
 const AGENT_RESPONSE_STREAM_PREFIX = "urn:tractor:stream:response:";
 
+function isAgentResponseStream(streamRef: string): boolean {
+	return streamRef.startsWith(AGENT_RESPONSE_STREAM_PREFIX);
+}
+
 /**
  * Whether a host StreamChunk CRDT node should be projected to the ndjson/SSE/WS
- * transports. Drops the host's WHOLE-ANSWER final observation for agent-response
- * streams: for those, the guest writes the single final ndjson line (an empty
- * end-marker when partials preceded it), while the host ALSO emits an is_final
- * StreamChunk carrying the whole assembled answer. Projecting both files the
- * answer twice into {stream_ref}.ndjson, so a CLI that accumulates
- * `content += chunk.content` would double it. Project the host's PARTIALS only;
- * the guest owns the final line. Non-agent-response streams project as before.
+ * transports.
+ *
+ * Every host chunk is projected. The historical concern was double-counting the
+ * agent-response FINAL: on the Rust host the guest writes the final ndjson line
+ * itself (via `std::fs`), so the host's is_final observation was dropped to avoid
+ * filing the answer twice. But on the tractor-ts host (farmhand) the guest's
+ * `wasi:filesystem`/`wasi:cli/environment` are inert stubs — the guest CANNOT
+ * write the ndjson file, so dropping the host's final left the stream with no
+ * terminal line at all (see `projectStreamChunk`, which now blanks the final's
+ * content instead of dropping it, mirroring the guest's own end-marker rule).
  */
-export function shouldProjectStreamChunk(chunk: StreamChunk): boolean {
-	return !(chunk.is_final && chunk.stream_ref.startsWith(AGENT_RESPONSE_STREAM_PREFIX));
+export function shouldProjectStreamChunk(_chunk: StreamChunk): boolean {
+	return true;
+}
+
+/**
+ * Normalize a host StreamChunk before it is projected to the ndjson/SSE/WS spine.
+ *
+ * Mirrors the guest's single-owner final-line rule (see the Rust
+ * `final_stream_chunk_ndjson`): a CLI accumulates `content += chunk.content` over
+ * EVERY projected line, so the agent-response FINAL must carry the whole answer
+ * only when NO partials preceded it (single-shot, sequence 0). When partials
+ * already carried the deltas (sequence > 0), the final is emitted as a pure
+ * end-marker with empty content so `sum(partials) + final.content` equals the
+ * answer exactly once. Non-final and non-agent-response chunks pass through
+ * unchanged.
+ */
+export function projectStreamChunk(chunk: StreamChunk): StreamChunk {
+	if (
+		chunk.is_final &&
+		isAgentResponseStream(chunk.stream_ref) &&
+		chunk.sequence > 0 &&
+		chunk.content.length > 0
+	) {
+		return { ...chunk, content: "" };
+	}
+	return chunk;
 }
 
 export function toStreamChunk(node: Record<string, unknown>): StreamChunk {
