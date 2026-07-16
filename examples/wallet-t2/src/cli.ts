@@ -124,6 +124,20 @@ export const buildWalletBaseModel = walletApp.baseModel;
 export const buildProgram = walletApp.program;
 
 /**
+ * Compose the wallet's default options as a *resolver thunk*. `walletAppDefaults.defaultOptions`
+ * is itself a resolver (it reads the state-path env at call time), so it must be COMPOSED, never
+ * spread: `{ ...fn }` yields no own keys and silently drops `statePath`, leaving the wallet with
+ * nowhere to persist. Both the plain and sovereign paths funnel through here so the bug can't
+ * come back on only one branch.
+ */
+export function composeWalletDefaultOptions(
+	base: () => WalletStateOptions,
+	sovereign?: Pick<WalletHostOptions, "credentialsProvider" | "identity">,
+): () => WalletHostOptions {
+	return () => ({ ...base(), ...(sovereign ?? {}) });
+}
+
+/**
  * Resolve the wallet's default options, activating the SOVEREIGN backing when
  * `DGK_SOVEREIGN=1`: the citizen's identity becomes the sandboxed WASM signer
  * (@refarm.dev/identity-provider-ref) and the credentials provider signs through it,
@@ -131,11 +145,11 @@ export const buildProgram = walletApp.program;
  * no private key. Off by default: the in-memory fixture keeps the wallet offline and
  * deterministic for tests. Async because instantiating the component is async.
  */
-async function resolveWalletDefaultOptions(): Promise<WalletHostOptions> {
-	const base = walletAppDefaults.defaultOptions as WalletHostOptions;
-	if (process.env[DGK_SOVEREIGN_ENV] !== "1") return base;
+async function resolveWalletDefaultOptions(): Promise<() => WalletHostOptions> {
+	const base = () => walletAppDefaults.defaultOptions();
+	if (process.env[DGK_SOVEREIGN_ENV] !== "1") return composeWalletDefaultOptions(base);
 	const { credentialsProvider, identity } = await createSovereignWalletBundle();
-	return { ...base, credentialsProvider, identity };
+	return composeWalletDefaultOptions(base, { credentialsProvider, identity });
 }
 
 void resolveWalletDefaultOptions().then((defaultOptions) =>
