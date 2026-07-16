@@ -12,11 +12,11 @@ import path from "node:path";
 
 import {
 	createWalletCapabilities,
-	createSovereignWalletBundle,
 	walletCapabilityBundle,
 	type WalletBundleOptions,
 	type WalletStateOptions,
 } from "@refarm.dev/wallet";
+import { createSovereignWalletBundle } from "@refarm.dev/wallet/sovereign";
 import { createWalletReportCapability } from "./report.js";
 
 export const DGK_WALLET_STATE_PATH_ENV = "DGK_WALLET_STATE_PATH";

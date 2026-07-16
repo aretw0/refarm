@@ -9,6 +9,10 @@
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
+		},
+		"./sovereign": {
+			"import": "./dist/sovereign.js",
+			"types": "./dist/sovereign.d.ts"
 		}
 	},
 	"scripts": {

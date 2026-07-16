@@ -359,12 +359,28 @@ export function createWalletCapabilities(
 /** The wallet's web surface — the SAME registry projected into a Homestead panel of
  * cards (the dashboard). T2 is RESULT mode: this is the citizen's wallet as a real web
  * product, rich via the declared views above, mounted by a host that registers the handle. */
-export function walletWebSurface(registry: Parameters<typeof createCapabilityWebSurfacePlugin>[0]) {
+export interface WalletWebSurfaceOptions {
+	/** The plugin id the surface mounts under — override so a HOST (the example vs the citizen hub)
+	 * gives it a host-appropriate id instead of the neutral default. */
+	pluginId?: string;
+	name?: string;
+	title?: string;
+	surfaceId?: string;
+	/** The Homestead slot to mount into (default "main"). A hub mounting the wallet alongside other
+	 * panels can place it in its own slot. */
+	slot?: string;
+}
+
+export function walletWebSurface(
+	registry: Parameters<typeof createCapabilityWebSurfacePlugin>[0],
+	options: WalletWebSurfaceOptions = {},
+) {
 	return createCapabilityWebSurfacePlugin(registry, {
-		pluginId: "wallet-t2/web",
-		name: "Minha Carteira Digital",
-		title: "Minha Carteira Digital",
-		surfaceId: "wallet-panel",
+		pluginId: options.pluginId ?? "@refarm.dev/wallet/web",
+		name: options.name ?? "Minha Carteira Digital",
+		title: options.title ?? "Minha Carteira Digital",
+		surfaceId: options.surfaceId ?? "wallet-panel",
+		...(options.slot ? { slot: options.slot } : {}),
 		// The content seam renders the SOVEREIGNTY dashboard (credentials + consent + disclosure +
 		// timeline) as the headline ABOVE the verb cards when the content verb carried it, else the
 		// wallet HTML — the generic content path (same shape reqbench/devbench use), no bespoke UI.

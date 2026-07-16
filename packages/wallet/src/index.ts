@@ -5,9 +5,12 @@
  * selective disclosure of the citizen's VERIFIED attributes, auditable revocation, a sandboxed WASM
  * signer, and the interactive web surface. Both the `wallet-t2` example and the citizen hub compose
  * from these exports — neither depends on the other.
+ *
+ * The sandboxed WASM signer bundle lives behind the `@refarm.dev/wallet/sovereign` subpath (like a
+ * `/node` entry): it eagerly loads the WASM identity component, so consumers that only need the
+ * in-memory-backed wallet (e.g. mounting a panel) import from here and never pay for it.
  */
 export * from "./persona.js";
-export * from "./sovereign.js";
 export * from "./sovereignty.js";
 export * from "./authorization.js";
 export * from "./credentials.js";
