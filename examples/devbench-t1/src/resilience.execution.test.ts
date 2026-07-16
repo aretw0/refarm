@@ -43,7 +43,9 @@ describe.skipIf(!enabled)("T1 plugin-resilience, executed on the Rust runtime", 
 		// Both the agent and the crash plugin loaded.
 		expect(env.pluginsLoaded).toContain("agent");
 		expect(env.pluginsLoaded).toContain("crash-plugin");
-		// The runaway was dispatched, and the host STILL responds after trapping+respawning it.
+		// The runaway was dispatched (POST accepted), and — the real proof — the agent COMPLETED a
+		// respond cycle AFTER the crash (agent:response:done observed in the audit trail), not just a
+		// 200 on an async dispatch. The host trapped+respawned the runaway and kept serving.
 		expect(env.crashDispatched).toBe(true);
 		expect(env.survivedAndResponds).toBe(true);
 		expect(env.resilient).toBe(true);

@@ -15,6 +15,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { awaitAuditLine, readAuditLines } from "./live-runtime.js";
+
 /**
  * LIVE RECURSION — T1's headline as a real command. The coding-agent is itself a WASM plugin, and
  * it uses ANOTHER plugin (a source provider) through the host as a tool — no import, no privilege
@@ -90,6 +92,11 @@ export async function runLiveRecursion(options: RunLiveRecursionOptions): Promis
 		manifestTemplatePath: artifacts.agentManifest,
 		installDir: mkdtempSync(join(tmpdir(), "t1-agent-")),
 	});
+	// A refarmDir for the AUDIT TRAIL only — the agent's `agent:*` lifecycle events land in
+	// scarecrow-audit.ndjson here, so the recursion (which tool the agent called) is OBSERVED,
+	// not asserted. This is a FILE the observer writes; it does NOT change the `:memory:` node
+	// store, which stays correct: agent-run reads the response from the POST body, not GET /nodes.
+	const refarmDir = mkdtempSync(join(tmpdir(), "t1-recursion-audit-"));
 
 	let daemon: RuntimeDaemonHandle | undefined;
 	try {
@@ -100,10 +107,7 @@ export async function runLiveRecursion(options: RunLiveRecursionOptions): Promis
 			httpPort: options.httpPort ?? 42065,
 			securityMode: "none",
 			readyTimeoutMs: 40_000,
-			// No namespace override → the default `:memory:` store, and that is CORRECT here:
-			// agent-run reads the agent's response from the `POST /efforts` RESPONSE BODY
-			// directly, never from `GET /nodes`. (delegate-run/code-ops DO read a DispatchResult
-			// node back, so they MUST use a file-backed namespace — see their comments.)
+			refarmDir,
 			...(options.modelEnv ? { env: options.modelEnv } : {}),
 		});
 		options.onDaemon?.(daemon);
@@ -123,9 +127,25 @@ export async function runLiveRecursion(options: RunLiveRecursionOptions): Promis
 		});
 		const body = res.ok ? ((await res.json()) as Record<string, unknown>) : {};
 
+		// OBSERVE the recursion from the audit trail: wait for the run's terminal event, then read
+		// which tool the model actually invoked (`agent:tool:call` → the provider verb). reachedModel
+		// is now the presence of real agent events, not a bare HTTP 200.
+		const terminal = await awaitAuditLine(
+			refarmDir,
+			(l) => l.event === "agent:response:done" || l.event === "agent:error",
+			10_000,
+		);
+		const promptRef = typeof terminal?.prompt_ref === "string" ? terminal.prompt_ref : undefined;
+		const lines = readAuditLines(refarmDir);
+		const toolCall = lines.find(
+			(l) => l.event === "agent:tool:call" && (promptRef === undefined || l.prompt_ref === promptRef),
+		);
+		const toolCalled = typeof toolCall?.tool === "string" ? toolCall.tool : undefined;
+
 		return {
 			pluginsLoaded,
-			reachedModel: res.ok,
+			reachedModel: terminal !== undefined || toolCalled !== undefined,
+			...(toolCalled ? { toolCalled } : {}),
 			response: typeof body.response === "string" ? body.response : undefined,
 		};
 	} finally {
@@ -198,6 +218,9 @@ export function createAgentRunCapability(): CapabilityDescriptor {
 							pluginsLoaded: result.pluginsLoaded,
 							recursion: "agent → source-provider (host-mediated, under the provider's grant)",
 							reachedModel: result.reachedModel,
+							// The OBSERVED tool the agent called on the provider (from the audit trail) — the
+							// recursion as evidence, not just the descriptive line above.
+							...(result.toolCalled ? { toolCalled: result.toolCalled } : {}),
 							...(result.response ? { response: result.response } : {}),
 						},
 					});

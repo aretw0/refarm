@@ -16,6 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { defaultArtifacts, missingArtifacts, type LiveRecursionArtifacts } from "./live-recursion.js";
+import { awaitAuditLine } from "./live-runtime.js";
 
 /**
  * RESILIENCE — a bad extension does NOT bring the sovereign machine down.
@@ -41,9 +42,10 @@ export function defaultCrashArtifacts(): { wasm: string; manifest: string } {
 
 export interface ResilienceResult {
 	pluginsLoaded: string[];
-	/** Did dispatching the runaway event NOT hang the host (the request returned)? */
+	/** Was the runaway effort ACCEPTED for dispatch (the POST returned ok, the host was not blocked)? */
 	crashDispatched: boolean;
-	/** Did the AGENT still respond AFTER the crash — proving the host survived + kept serving? */
+	/** Did the AGENT complete a full respond cycle AFTER the crash — an `agent:response:done` in the
+	 * audit trail, proving the host trapped+respawned the runaway and kept serving (not just a 200)? */
 	survivedAndResponds: boolean;
 }
 
@@ -83,6 +85,11 @@ export async function runResilience(options: RunResilienceOptions): Promise<Resi
 		installDir: mkdtempSync(join(tmpdir(), "t1-resil-crash-")),
 	});
 
+	// A refarmDir for the audit trail: the post-crash agent run writes `agent:response:done` here,
+	// which is how survival is OBSERVED (the POST body carries only an effortId — the response is
+	// delivered async, so a bare 200 proves nothing about the agent actually completing).
+	const refarmDir = mkdtempSync(join(tmpdir(), "t1-resil-audit-"));
+
 	let daemon: RuntimeDaemonHandle | undefined;
 	try {
 		daemon = await startRuntimeDaemon({
@@ -92,6 +99,7 @@ export async function runResilience(options: RunResilienceOptions): Promise<Resi
 			httpPort: options.httpPort ?? 42097,
 			securityMode: "none",
 			readyTimeoutMs: 40_000,
+			refarmDir,
 			// A short epoch budget so the runaway on_event is trapped in ~1-2s (not the 60s default).
 			env: { ...mock.env, REFARM_ON_EVENT_TIMEOUT_MS: String(options.onEventTimeoutMs ?? 1500) },
 		});
@@ -102,7 +110,9 @@ export async function runResilience(options: RunResilienceOptions): Promise<Resi
 		// the store under the epoch budget and the supervisor respawns it. The dispatch POST itself
 		// returns (the effort is delivered async), so the host is never blocked waiting on the guest.
 		const replyRef = `t1-resil-crash-${Date.now()}`;
-		await fetch(`${daemon.sidecarBaseUrl}/efforts`, {
+		// Dispatch the runaway. The POST returns (the effort is delivered async), so the host is never
+		// blocked on the guest; CAPTURE that the effort was accepted — observed, not assumed true.
+		const crashRes = await fetch(`${daemon.sidecarBaseUrl}/efforts`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({
@@ -113,13 +123,16 @@ export async function runResilience(options: RunResilienceOptions): Promise<Resi
 				tasks: [{ id: `${replyRef}-task-0`, pluginId: "crash", fn: "hang", args: { replyRef } }],
 			}),
 		}).catch(() => undefined);
-		const crashDispatched = true;
+		const crashDispatched = crashRes?.ok === true;
 
 		// Give the epoch trap + respawn a moment (budget + supervisor cooldown).
 		await new Promise((r) => setTimeout(r, (options.onEventTimeoutMs ?? 1500) + 1500));
 
-		// The proof: the host is still up and serving — the agent responds AFTER the crash.
-		const res = await fetch(`${daemon.sidecarBaseUrl}/efforts`, {
+		// The proof: the host is still up and serving — dispatch to the AGENT after the crash and
+		// wait for its `agent:response:done` in the audit trail. A completed respond cycle (not a
+		// bare 200 on an async dispatch) is the observed evidence the host trapped+respawned the
+		// runaway and kept serving.
+		await fetch(`${daemon.sidecarBaseUrl}/efforts`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({
@@ -127,8 +140,9 @@ export async function runResilience(options: RunResilienceOptions): Promise<Resi
 				submittedAt: new Date().toISOString(),
 				tasks: [{ id: "t1-resil-check-0", pluginId: "agent", fn: "respond", args: { prompt: "still alive?" } }],
 			}),
-		});
-		return { pluginsLoaded, crashDispatched, survivedAndResponds: res.ok };
+		}).catch(() => undefined);
+		const done = await awaitAuditLine(refarmDir, (l) => l.event === "agent:response:done", 15_000);
+		return { pluginsLoaded, crashDispatched, survivedAndResponds: done !== undefined };
 	} finally {
 		await daemon?.stop();
 		await mock.stop();
@@ -172,7 +186,8 @@ export function createPluginResilienceCapability(): CapabilityDescriptor {
 						pluginsLoaded: result.pluginsLoaded,
 						// The runaway was dispatched (its on_event spun forever) …
 						crashDispatched: result.crashDispatched,
-						// … the host trapped it, respawned, and STILL serves — the agent responded after.
+						// … the host trapped it, respawned, and STILL serves — the agent COMPLETED a respond
+						// cycle after the crash (agent:response:done in the audit trail), not just a 200.
 						survivedAndResponds: result.survivedAndResponds,
 						resilient: result.crashDispatched && result.survivedAndResponds,
 						mechanism: "epoch budget traps the runaway store mid-event; the respawn supervisor reinstantiates a fresh instance — the host never stops serving",

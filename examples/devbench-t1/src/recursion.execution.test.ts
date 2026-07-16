@@ -69,8 +69,12 @@ describe.skipIf(!enabled)("T1 recursion, executed on the Rust runtime", () => {
 		daemon = await startRuntimeDaemon({
 			binaryPath: BINARY,
 			plugins: [SOURCE_WASM, agentInstall.wasmPath],
-			wsPort: 42064,
-			httpPort: 42065,
+			// Distinct ports from the `agent-run` verb's default (42064/42065): this daemon lives until
+			// afterAll, so if it shared ports with the verb test below, the verb would bind/observe the
+			// WRONG daemon (this one has no refarmDir → its audit trail lands elsewhere → the verb reads
+			// an empty dir). Different ports keep the two runs isolated.
+			wsPort: 42074,
+			httpPort: 42075,
 			securityMode: "none",
 			readyTimeoutMs: 40_000,
 			env: mock.env,
@@ -121,10 +125,19 @@ describe.skipIf(!enabled)("T1 recursion, executed on the Rust runtime", () => {
 			args: { prompt: "What sources are available?" },
 			options: { mock: true },
 			json: true,
-		})) as unknown as { ok: boolean; pluginsLoaded: string[]; reachedModel: boolean; recursion: string };
+		})) as unknown as {
+			ok: boolean;
+			pluginsLoaded: string[];
+			reachedModel: boolean;
+			recursion: string;
+			toolCalled?: string;
+		};
 		expect(env.ok).toBe(true);
 		expect(env.pluginsLoaded).toContain("agent");
 		expect(env.reachedModel).toBe(true);
-		expect(env.recursion).toContain("agent → source-provider");
+		// The recursion is OBSERVED, not asserted: the audit trail shows the agent invoked the
+		// provider's verb as a tool. The mock scripts `toolCall("source-discover")`, so that is
+		// exactly the tool the timeline must report.
+		expect(env.toolCalled).toBe("source-discover");
 	}, 120_000);
 });
