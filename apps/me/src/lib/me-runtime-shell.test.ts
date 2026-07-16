@@ -9,6 +9,7 @@ import {
 	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
 	REFARM_ME_SYNC_STATUS,
 } from "./me-surfaces";
+import { REFARM_ME_WALLET_SURFACE_PLUGIN_ID } from "./me-wallet";
 
 describe("refarm.me real shell runtime", () => {
 	beforeEach(() => {
@@ -89,7 +90,18 @@ describe("refarm.me real shell runtime", () => {
 				pluginId: REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
 			}),
 		);
-		expect(workbench.surfacePluginIds).toEqual([REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID]);
+		// The hub mounts the personal surface AND the wallet — one panel among several.
+		expect(workbench.surfacePluginIds).toEqual([
+			REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
+			REFARM_ME_WALLET_SURFACE_PLUGIN_ID,
+		]);
+		// The wallet (from the reusable @refarm.dev/wallet block) mounted as a real panel in the hub.
+		const walletSurface = document.querySelector(
+			`[data-refarm-plugin-id="${REFARM_ME_WALLET_SURFACE_PLUGIN_ID}"]`,
+		);
+		expect(walletSurface).not.toBeNull();
+		expect(walletSurface?.getAttribute("data-refarm-slot-id")).toBe("main");
+		expect(walletSurface?.textContent).toContain("Minha Carteira Digital");
 	});
 });
 

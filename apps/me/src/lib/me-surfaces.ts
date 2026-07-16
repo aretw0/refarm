@@ -13,6 +13,8 @@ import {
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 
+import { createRefarmMeWalletSurface } from "./me-wallet";
+
 export const REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID = "refarm-me-personal-surface";
 export const REFARM_ME_PERSONAL_SURFACE_ID = "personal-vault-panel";
 export const REFARM_ME_OPEN_VAULT_ACTION_ID = "open-personal-vault";
@@ -71,6 +73,11 @@ export function createRefarmMeSurfacePlugins(
 			emitTelemetry: (event, payload) =>
 				emitTelemetry(REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID, event, payload),
 		}),
+		// The citizen's WALLET — ONE surface of the hub (alongside the personal panel + chat, and
+		// future panels), composed from the reusable @refarm.dev/wallet block. The hub consumes the
+		// framework directly; it depends on no example. Interactive out of the box (dispatch loop +
+		// arg forms), it lets the citizen import → verify → authorize → present inside their own hub.
+		createRefarmMeWalletSurface(),
 	];
 }
 

@@ -272,6 +272,9 @@ importers:
 
   apps/me:
     dependencies:
+      '@refarm.dev/capability-host':
+        specifier: workspace:*
+        version: link:../../packages/capability-host
       '@refarm.dev/cli':
         specifier: workspace:*
         version: link:../../packages/cli
@@ -290,6 +293,9 @@ importers:
       '@refarm.dev/tractor':
         specifier: workspace:*
         version: link:../../packages/tractor-ts
+      '@refarm.dev/wallet':
+        specifier: workspace:*
+        version: link:../../packages/wallet
       astro:
         specifier: ^7.0.0
         version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
