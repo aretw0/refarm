@@ -73,8 +73,12 @@ describe.skipIf(!enabled)("T1 recursion, executed on the Rust runtime", () => {
 			// afterAll, so if it shared ports with the verb test below, the verb would bind/observe the
 			// WRONG daemon (this one has no refarmDir → its audit trail lands elsewhere → the verb reads
 			// an empty dir). Different ports keep the two runs isolated.
-			wsPort: 42074,
-			httpPort: 42075,
+			//
+			// PORT MAP (each execution test FILE owns a distinct block so a parallel run never collides):
+			// recursion 42064/65 (verb) + 42078/79 (here) · delegation 42066-69 · code-ops 42070-75 ·
+			// audit 42076/77 · enforce 42088-91 · reload 42092/93 · telemetry 42094/95 · resilience 42096/97.
+			wsPort: 42078,
+			httpPort: 42079,
 			securityMode: "none",
 			readyTimeoutMs: 40_000,
 			env: mock.env,
