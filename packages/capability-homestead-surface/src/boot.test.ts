@@ -172,6 +172,17 @@ describe("bootCapabilityWebFace — runs the verb, mounts the surface, renders c
 		expect(mounted()?.textContent).toContain("count: 1");
 		// The surface was updated in place — exactly ONE mount for the plugin (no duplicate wrap).
 		expect(document.querySelectorAll('[data-refarm-plugin-id="disp/web"]')).toHaveLength(1);
+
+		// Click AGAIN after the rerender: the action listener is bound ONCE on the reused wrap, so a
+		// second click bumps to exactly 2. A stacked listener (broken one-shot guard) would give 3.
+		mounted()?.querySelector<HTMLElement>('[data-refarm-surface-action-id="bump"]')!.click();
+		const deadline2 = Date.now() + 1000;
+		while (Date.now() < deadline2 && !mounted()?.textContent?.includes("count: 2")) {
+			await new Promise((r) => setTimeout(r, 5));
+		}
+		expect(count).toBe(2);
+		expect(mounted()?.textContent).toContain("count: 2");
+		expect(document.querySelectorAll('[data-refarm-plugin-id="disp/web"]')).toHaveLength(1);
 	});
 
 	it("a card for a verb with args renders inputs, and Run dispatches with the collected values", async () => {

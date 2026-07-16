@@ -419,29 +419,34 @@ export class StudioShell {
 			pluginWrap.setAttribute("data-refarm-state", plugin.state || "running");
 		}
 
-		if (isNewWrap) container.appendChild(pluginWrap);
+		// MOUNT-TIME, once per wrap. A re-render reuses the wrap, so appending, the surface_mounted
+		// telemetry, and the A11y MutationObserver must NOT repeat — re-observing would stack a new
+		// observer every rerender (never disconnected) and re-emit a mount event on every update.
+		if (isNewWrap) {
+			container.appendChild(pluginWrap);
 
-		this.tractor.emitTelemetry({
-			event: "ui:surface_mounted",
-			pluginId,
-			payload: {
-				slotId,
-				mountSource: mount.source,
-				surfaceId: mount.surface?.id,
-				surfaceKind: mount.surface?.kind,
-				surfaceLayer: mount.surface?.layer,
-				surfaceCapabilities: mount.surface?.capabilities,
-			},
-		});
-
-		// Monitoring: Convert DOM pulse to telemetry
-		A11yGuard.monitorElement(pluginWrap, (velocity: number) => {
 			this.tractor.emitTelemetry({
-				event: "ui:performance",
+				event: "ui:surface_mounted",
 				pluginId,
-				payload: { updateVelocity: velocity, slotId },
+				payload: {
+					slotId,
+					mountSource: mount.source,
+					surfaceId: mount.surface?.id,
+					surfaceKind: mount.surface?.kind,
+					surfaceLayer: mount.surface?.layer,
+					surfaceCapabilities: mount.surface?.capabilities,
+				},
 			});
-		});
+
+			// Monitoring: Convert DOM pulse to telemetry
+			A11yGuard.monitorElement(pluginWrap, (velocity: number) => {
+				this.tractor.emitTelemetry({
+					event: "ui:performance",
+					pluginId,
+					payload: { updateVelocity: velocity, slotId },
+				});
+			});
+		}
 
 		try {
 			const plugin = this.tractor.plugins.get(pluginId);
