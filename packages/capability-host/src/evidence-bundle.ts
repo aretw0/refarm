@@ -33,6 +33,53 @@ export interface EvidenceStamp {
 	sha256: string;
 }
 
+/** A set of files stamped for the record: when, where, and the fingerprint of each file's bytes. */
+export interface StampedEvidence {
+	stampedAt: string;
+	environment: string;
+	stamps: EvidenceStamp[];
+	/** The manifest JSON written as the `evidence.json` sidecar. */
+	manifestJson: string;
+}
+
+/**
+ * Stamp a set of evidence files — bind each to the SHA-256 of its exact bytes, with a timestamp and
+ * environment label — and produce the sidecar manifest JSON. PURE. Shared by the evidence-bundle
+ * verb AND any verb that drives the real runtime and wants to persist stamped evidence of its run.
+ */
+export function stampEvidence(
+	files: readonly EvidenceFile[],
+	options: { now?: () => string; environment?: string } = {},
+): StampedEvidence {
+	const stampedAt = (options.now ?? (() => new Date().toISOString()))();
+	const environment = options.environment ?? "local";
+	const stamps = files.map((f) => ({ path: f.path, bytes: f.content.length, sha256: sha256(f.content) }));
+	return { stampedAt, environment, stamps, manifestJson: JSON.stringify({ stampedAt, environment, files: stamps }, null, 2) };
+}
+
+/**
+ * Write each evidence file plus the `evidence.json` stamp manifest via the injected writer, and
+ * report how many files landed. The one place the "files + a fingerprint manifest" write happens.
+ */
+export async function writeEvidenceFiles(
+	files: readonly EvidenceFile[],
+	stamped: StampedEvidence,
+	writeFile: (relativePath: string, content: string) => void | Promise<void>,
+	options: { stampPath?: string } = {},
+): Promise<{ written: number; stampFile?: string }> {
+	let written = 0;
+	for (const f of files) {
+		await writeFile(f.path, f.content);
+		written += 1;
+	}
+	const stampFile = options.stampPath ?? defaultStampPath(files);
+	if (stampFile) {
+		await writeFile(stampFile, stamped.manifestJson);
+		written += 1;
+	}
+	return { written, ...(stampFile ? { stampFile } : {}) };
+}
+
 export interface EvidenceBundleCapabilityOptions {
 	/** The verb name (e.g. "report", "requirements-report"). */
 	name: string;
@@ -88,27 +135,17 @@ export function createEvidenceBundleCapability(
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const files = await options.build();
 			const apply = input.options?.apply === true;
-			const stampedAt = now();
-			const stamps: EvidenceStamp[] = files.map((f) => ({
-				path: f.path,
-				bytes: f.content.length,
-				sha256: sha256(f.content),
-			}));
+			// Stamp once (so report-only and --apply report the same fingerprints), then write.
+			const stamped = stampEvidence(files, { now, environment });
 
 			let written = 0;
 			let stampFile: string | undefined;
 			if (apply && options.writeFile) {
-				for (const f of files) {
-					await options.writeFile(f.path, f.content);
-					written += 1;
-				}
-				// The execution stamp: a manifest binding each produced file to the SHA-256 of its
-				// bytes, plus when + where — the runtime-evidence record, made real.
-				stampFile = options.stampPath ?? defaultStampPath(files);
-				if (stampFile) {
-					await options.writeFile(stampFile, JSON.stringify({ stampedAt, environment, files: stamps }, null, 2));
-					written += 1;
-				}
+				const result = await writeEvidenceFiles(files, stamped, options.writeFile, {
+					...(options.stampPath ? { stampPath: options.stampPath } : {}),
+				});
+				written = result.written;
+				stampFile = result.stampFile;
 			}
 
 			const markdown = files.find((f) => f.path.endsWith(".md"))?.content;
@@ -124,9 +161,9 @@ export function createEvidenceBundleCapability(
 				extra: {
 					applied: apply,
 					written,
-					stampedAt,
-					environment,
-					files: stamps,
+					stampedAt: stamped.stampedAt,
+					environment: stamped.environment,
+					files: stamped.stamps,
 					...(stampFile ? { evidence: stampFile } : {}),
 					...(apply ? {} : markdown ? { markdown } : {}),
 				},

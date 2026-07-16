@@ -31,9 +31,12 @@ export {
 export { createSidecarCallRespond, type SidecarRespondOptions } from "./sidecar-respond.js";
 export {
 	createEvidenceBundleCapability,
+	stampEvidence,
+	writeEvidenceFiles,
 	type EvidenceBundleCapabilityOptions,
 	type EvidenceFile,
 	type EvidenceStamp,
+	type StampedEvidence,
 } from "./evidence-bundle.js";
 export {
 	ingestSourceToRecords,
