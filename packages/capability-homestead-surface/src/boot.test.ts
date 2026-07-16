@@ -121,4 +121,56 @@ describe("bootCapabilityWebFace — runs the verb, mounts the surface, renders c
 		expect(holder.runCalls).toBe(0);
 		expect(document.querySelector('[data-refarm-plugin-id="cards/web"]')).not.toBeNull();
 	});
+
+	it("a clicked card RUNS its verb and re-renders the surface with fresh content (the dispatch loop)", async () => {
+		// A registry with two web verbs: `page` (content, renders the current count) and `bump`
+		// (mutates the count). Both surface as cards; the action id is the verb name.
+		let count = 0;
+		const page = {
+			name: "page",
+			summary: "the page",
+			renderers: { web: { route: "/page" } },
+			run: async () => ({ pageHtml: `<p data-count>count: ${count}</p>` }),
+		};
+		const bump = {
+			name: "bump",
+			summary: "increment",
+			renderers: { web: { route: "/bump" } },
+			run: async () => {
+				count += 1;
+				return { ok: true };
+			},
+		};
+		const entries = [page, bump];
+		const registry = {
+			get: (name: string) => entries.find((e) => e.name === name),
+			list: () => entries,
+		} as unknown as CapabilityRegistry;
+
+		await bootCapabilityWebFace({
+			databaseName: "test-dispatch",
+			namespace: "test",
+			registry,
+			content: { verb: "page", field: "pageHtml" },
+			surface: { pluginId: "disp/web", content: (d) => String(d.pageHtml ?? "") },
+			bootRuntime: async () => mockRuntime(),
+		});
+
+		const mounted = () => document.querySelector('[data-refarm-plugin-id="disp/web"]');
+		// Initial render: count 0, and the launcher carries a clickable `bump` card.
+		expect(mounted()?.textContent).toContain("count: 0");
+		const bumpCard = mounted()?.querySelector<HTMLElement>('[data-refarm-surface-action-id="bump"]');
+		expect(bumpCard).not.toBeNull();
+
+		// Click it → the verb runs (count → 1), content re-runs, and the surface re-renders IN PLACE.
+		bumpCard!.click();
+		const deadline = Date.now() + 1000;
+		while (Date.now() < deadline && !mounted()?.textContent?.includes("count: 1")) {
+			await new Promise((r) => setTimeout(r, 5));
+		}
+		expect(count).toBe(1);
+		expect(mounted()?.textContent).toContain("count: 1");
+		// The surface was updated in place — exactly ONE mount for the plugin (no duplicate wrap).
+		expect(document.querySelectorAll('[data-refarm-plugin-id="disp/web"]')).toHaveLength(1);
+	});
 });
