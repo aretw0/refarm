@@ -5,6 +5,10 @@ multi-surface substrate for **one persona** — a requirements analyst. Presente
 **result mode**: the analyst runs a verb and gets a finished product, never the machine.
 Set `DGK_COMMAND` to run this example under a white-label executable name.
 
+> **O que isto prova — livro-razão de evidências:** ver [`EVIDENCE.md`](./EVIDENCE.md) — JSON-LD servido,
+> histórico/diff e gate de publicação marcados **REAL**, e os limites honestos (a cadeia de hash é FNV-1a
+> 32-bit, **não** sha256; `--live` é smoke de artefato único; sem validação de interop JSON-LD).
+
 ## What it demonstrates
 
 The T3 chain, end to end, from the analyst's chair:

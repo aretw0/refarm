@@ -6,6 +6,10 @@ multi-surface substrate for **one persona** — a sovereign citizen. Presented i
 machine. Local-first — the citizen's data lives with them.
 Set `DGK_COMMAND` when you want a different binary name for white-label use.
 
+> **O que isto prova — livro-razão de evidências:** ver [`EVIDENCE.md`](./EVIDENCE.md) — o signer
+> soberano (chave WASM no sandbox) marcado **REAL** vs a cadeia de fixture **SINTÉTICA**, e os limites
+> honestos e obrigatórios (sem conformidade EUDI/W3C/OpenID; dados em texto puro, não criptografados).
+
 ## What it demonstrates
 
 The citizen imports, verifies, holds and curates their own items:

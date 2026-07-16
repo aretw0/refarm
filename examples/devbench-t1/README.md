@@ -7,6 +7,10 @@ itself and its verbs surface by themselves. The angle is technical and general �
 "declare once → it appears everywhere".
 Set `DGK_COMMAND` to white-label the command when needed.
 
+> **O que isto prova — livro-razão de evidências:** ver [`EVIDENCE.md`](./EVIDENCE.md) — cada capacidade
+> marcada **REAL** (executa ao vivo no runtime WASM) vs **SINTÉTICO** (fixture), os artefatos que emite
+> (incluindo `enforce-evidence.json` com carimbo SHA-256), e os limites honestos.
+
 ## What it demonstrates
 
 Extending the platform the platform way — not importing a package, but declaring an extension
