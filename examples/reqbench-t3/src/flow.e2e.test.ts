@@ -327,6 +327,59 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 		}
 	});
 
+	it("CURATION SURVIVES A RE-PULL: a reviewed requirement is not reverted by a routine pull", async () => {
+		// The bug this guards: a pull re-declared review:draft and the merge replaced the whole
+		// record, so a routine refresh silently reverted a review a human had made. Now a pull never
+		// declares review, and mergeRecords preserves it. Pull → review → re-pull → still reviewed.
+		const statePath = tempStatePath();
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reqbench-repull-review-"));
+		const configPath = path.join(dir, "sources.json");
+		const target = () => ({
+			targets: [
+				{
+					identity: "efd",
+					url: "https://alm.example/efd",
+					session: { kind: "authenticated", principal: "analyst", credentialRef: "silo://analyst/s" },
+					body: `<!doctype html><html><body><article data-req="RN-1" data-type="regra-de-negocio" data-title="Título">O CNPJ identifica a escrituração.</article></body></html>`,
+					mediaType: "text/html",
+				},
+			],
+		});
+		try {
+			fs.writeFileSync(configPath, JSON.stringify(target()));
+			const id = "record:req-rn1";
+
+			// Pull v1 — RN-1 arrives UNREVIEWED (a pull declares no review state).
+			const pull1 = buildRegistry({ statePath, sourcesConfigPath: configPath }).get("requirements-pull");
+			if (!pull1 || "actions" in pull1) throw new Error("requirements-pull not mounted");
+			await pull1.run({ args: { ref: "web:efd" }, options: {}, json: true });
+			const afterPull = JSON.parse(fs.readFileSync(statePath, "utf-8")) as {
+				records: Array<{ id: string; review?: { state?: string } }>;
+			};
+			expect(afterPull.records.find((r) => r.id === id)?.review?.state).toBeUndefined();
+
+			// A human reviews it.
+			const reviewed = await harness.runGroup(
+				buildRegistry({ statePath, sourcesConfigPath: configPath }),
+				"records",
+				["correct", id, "reviewed", "--apply"],
+			);
+			expect(reviewed.persisted).toBe(true);
+
+			// A ROUTINE re-pull (identical content) must NOT revert the review.
+			const pull2 = buildRegistry({ statePath, sourcesConfigPath: configPath }).get("requirements-pull");
+			if (!pull2 || "actions" in pull2) throw new Error("requirements-pull not mounted");
+			await pull2.run({ args: { ref: "web:efd" }, options: {}, json: true });
+
+			const afterRepull = JSON.parse(fs.readFileSync(statePath, "utf-8")) as {
+				records: Array<{ id: string; review?: { state?: string } }>;
+			};
+			expect(afterRepull.records.find((r) => r.id === id)?.review?.state).toBe("reviewed");
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
 	it("`requirements-graph` projects the graph DATA (for the interactive web face) + an SVG", async () => {
 		// Pull records, then run the graph verb — it must expose the raw {nodes,links} + labels the
 		// web face mounts interactively (mountGraph), not only the static SVG string.

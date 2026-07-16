@@ -297,7 +297,8 @@ export const parseRequirementsFromRdf: SourceRecordParser = (body, context) => {
 				),
 				sections: [{ key: "conteudo", content: text }],
 				sourceRefs: [context.ref],
-				review: { state: "draft" },
+				// A pull does NOT declare review state (a human's call); mergeRecords preserves any
+				// existing review across a re-pull. New records arrive unreviewed.
 			},
 		});
 	}

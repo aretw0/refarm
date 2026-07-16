@@ -163,7 +163,9 @@ export const parseRequirementsFromHtml: SourceRecordParser = (body, context) => 
 			),
 			sections: [{ key: "conteudo", content: text }],
 			sourceRefs: [context.ref],
-			review: { state: "draft" },
+			// A pull does NOT declare review state — that is a human's call. New records arrive
+			// unreviewed (no review field); a re-pull preserves the existing review via mergeRecords,
+			// so a routine refresh can never revert a requirement a human already reviewed.
 		});
 	}
 	return records;
@@ -663,17 +665,36 @@ export function renderRequirementsGraphSvg(env: RecordsAnalyzeEnvelope): string 
 	});
 }
 
-/** Merge freshly-ingested records into a manifest by id (new ones added, existing ones REPLACED
- * with the pulled version) AND append an append-only REVISION for each record whose content
- * changed — so a re-pull that changes a requirement leaves a durable "what changed" trail
- * (history:v1). `now` is injected; `origin` labels the source verb. */
+/** Carry forward the curation a routine pull has no business overwriting: a human's REVIEW state
+ * and RDF-derived RELATIONS. When the freshly-pulled record omits these, keep the existing
+ * record's — so a re-pull refreshes content without reverting a review or wiping a traceability
+ * graph that only the RDF pull populates (the HTML pull never parses relations). PURE. */
+export function preserveCuration(existing: KnowledgeRecord, incoming: KnowledgeRecord): KnowledgeRecord {
+	const merged: KnowledgeRecord = { ...incoming };
+	if (incoming.review === undefined && existing.review !== undefined) merged.review = existing.review;
+	if ((incoming.relations === undefined || incoming.relations.length === 0) && existing.relations?.length) {
+		merged.relations = existing.relations;
+	}
+	return merged;
+}
+
+/** Merge freshly-ingested records into a manifest by id (new ones added, existing ones refreshed
+ * with the pulled version — but their human curation preserved, see preserveCuration) AND append
+ * an append-only REVISION for each record whose content changed — so a re-pull that changes a
+ * requirement leaves a durable "what changed" trail (history:v1). `now` is injected; `origin`
+ * labels the source verb. */
 function mergeRecords(
 	manifest: RecordsManifest,
 	incoming: KnowledgeRecord[],
 	now: () => string = () => new Date().toISOString(),
 	origin = "pull",
 ): RecordsManifest {
-	return mergeAndRecord(manifest, incoming, now, origin);
+	const byId = new Map(manifest.records.map((r) => [r.id, r]));
+	const preserved = incoming.map((rec) => {
+		const existing = byId.get(rec.id);
+		return existing ? preserveCuration(existing, rec) : rec;
+	});
+	return mergeAndRecord(manifest, preserved, now, origin);
 }
 
 /** Options for the pull verb. `login` is the LOGIN-GARANTIDO driver — the fixture logs in
