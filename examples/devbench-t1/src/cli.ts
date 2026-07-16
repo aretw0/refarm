@@ -154,7 +154,13 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 				// governance-audit records; this boots the agent under STRICT mode without fs:read
 				// and shows the host REFUSING the effect at the sandbox boundary (no fs:read line in
 				// the audit trail), contrasted with a granted baseline that does produce one.
-				createGovernanceEnforceCapability(),
+				createGovernanceEnforceCapability({
+					writeEvidence: (rel, content) => {
+						const file = path.join(process.cwd(), rel);
+						mkdirSync(path.dirname(file), { recursive: true });
+						writeFileSync(file, content, "utf8");
+					},
+				}),
 				// RUNTIME TINKERING: hot-reload a loaded plugin without restarting the host
 				// (POST /plugins/reload → real code swap), then prove it still dispatches — the
 				// developer editing an extension live, the machine never coming down.

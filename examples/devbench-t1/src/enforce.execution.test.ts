@@ -29,17 +29,26 @@ const enabled =
 	existsSync(SOURCE_WASM);
 
 describe.skipIf(!enabled)("T1 governance-enforce, executed on the Rust runtime", () => {
-	it("REFUSES an undeclared fs:read under strict, but allows it when granted", async () => {
+	it("REFUSES an undeclared fs:read under strict, but allows it when granted — and stamps the evidence", async () => {
 		const { createGovernanceEnforceCapability } = await import("./live-enforce.js");
-		const env = (await createGovernanceEnforceCapability().run({
+		const { createHash } = await import("node:crypto");
+		// Drive with --apply + an in-memory writer so the REAL runtime evidence is persisted.
+		const written = new Map<string, string>();
+		const env = (await createGovernanceEnforceCapability({
+			writeEvidence: (path, content) => {
+				written.set(path, content);
+			},
+		}).run({
 			args: {},
-			options: {},
+			options: { apply: true },
 			json: true,
 		})) as unknown as {
 			ok: boolean;
 			enforced: boolean;
 			denied: { producedFsReadEffect: boolean };
 			baseline: { producedFsReadEffect: boolean };
+			evidence?: string;
+			evidenceFiles: Array<{ path: string; sha256: string }>;
 		};
 		expect(env.ok).toBe(true);
 		// The DENIED run (strict, no fs:read grant) produced NO effect — the host refused it.
@@ -48,5 +57,15 @@ describe.skipIf(!enabled)("T1 governance-enforce, executed on the Rust runtime",
 		expect(env.baseline.producedFsReadEffect).toBe(true);
 		// Enforcement holds: refused when undeclared, allowed when granted.
 		expect(env.enforced).toBe(true);
+
+		// The REAL runtime evidence was persisted + stamped (not the synthetic governance-poc's).
+		expect(env.evidence).toBe(".dgk/enforce/evidence.json");
+		const evidenceContent = written.get(".dgk/enforce/enforce-evidence.json");
+		expect(evidenceContent).toBeTruthy();
+		expect(JSON.parse(evidenceContent!)).toMatchObject({ verb: "governance-enforce", enforced: true });
+		// The stamp binds the file to the SHA-256 of its exact bytes.
+		expect(env.evidenceFiles[0]?.sha256).toBe(createHash("sha256").update(evidenceContent!, "utf8").digest("hex"));
+		// The manifest sidecar landed too.
+		expect(written.has(".dgk/enforce/evidence.json")).toBe(true);
 	}, 180_000);
 });

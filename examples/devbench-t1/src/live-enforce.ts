@@ -8,6 +8,9 @@ import {
 import {
 	installPluginForRuntime,
 	startRuntimeDaemon,
+	stampEvidence,
+	writeEvidenceFiles,
+	type EvidenceFile,
 	type RuntimeDaemonHandle,
 } from "@refarm.dev/capability-host/node";
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -145,19 +148,30 @@ export async function runEnforce(artifacts?: LiveRecursionArtifacts): Promise<En
 	};
 }
 
+export interface GovernanceEnforceOptions {
+	/** Persist the enforcement evidence (injected by the CLI — a node fs writer). Absent → the
+	 * verdict is returned in the envelope only, nothing written. */
+	writeEvidence?: (relativePath: string, content: string) => void | Promise<void>;
+}
+
 /**
- * `governance-enforce` — prove the host REFUSES an undeclared effect at the sandbox boundary.
- * Boots the agent under strict mode without `fs:read`, scripts a read, and shows no fs:read
- * effect reached the audit trail — contrasted with a granted baseline that does. The missing
- * third face of the quartet: decide (governance-poc) → record (governance-audit) → ENFORCE.
+ * `governance-enforce [--apply]` — prove the host REFUSES an undeclared effect at the sandbox
+ * boundary. Boots the agent under strict mode without `fs:read`, scripts a read, and shows no
+ * fs:read effect reached the audit trail — contrasted with a granted baseline that does. The
+ * missing third face of the quartet: decide (governance-poc) → record (governance-audit) → ENFORCE.
+ *
+ * Unlike governance-poc's SYNTHETIC runtime evidence, this drives the real Rust runtime. `--apply`
+ * persists that as `enforce-evidence.json` with a SHA-256 execution stamp — a runtime-evidence
+ * artifact that came from an actual boundary refusal, not a TS literal.
  */
-export function createGovernanceEnforceCapability(): CapabilityDescriptor {
+export function createGovernanceEnforceCapability(options: GovernanceEnforceOptions = {}): CapabilityDescriptor {
 	return {
 		name: "governance-enforce",
 		summary: "Prove the host REFUSES an undeclared effect at the sandbox boundary (strict mode)",
+		options: [{ name: "apply", kind: "boolean", summary: "Persist the real runtime evidence (enforce-evidence.json + stamp)" }],
 		transports: { http: { path: "/governance/enforce" } },
 		renderers: { tui: { section: "governance" }, web: { route: "/governance-enforce", icon: "shield-x" }, ide: { command: "dgk.governance-enforce" } },
-		async run(_input: CapabilityInput): Promise<CapabilityEnvelope> {
+		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const artifacts = defaultArtifacts();
 			const missing = missingArtifacts(artifacts);
 			if (missing.length > 0) {
@@ -174,6 +188,39 @@ export function createGovernanceEnforceCapability(): CapabilityDescriptor {
 				const result = await runEnforce(artifacts);
 				// The enforcement holds iff the denied run produced NO effect but the baseline did.
 				const enforced = !result.deniedProducedEffect && result.baselineProducedEffect;
+				const denied = {
+					securityMode: "strict" as const,
+					grantedFsRead: false,
+					producedFsReadEffect: result.deniedProducedEffect, // expected: false (host refused)
+				};
+				const baseline = {
+					securityMode: "strict" as const,
+					grantedFsRead: true,
+					producedFsReadEffect: result.baselineProducedEffect, // expected: true (effect ran)
+				};
+				const boundary = "enforce_permission denies an undeclared capability BEFORE the effect runs (host owns the gate)";
+
+				// The REAL runtime evidence: the A/B from an actual boundary refusal on the Rust host,
+				// stamped with the SHA-256 of its bytes. `--apply` persists it (distinct from the
+				// report's `.dgk/report/` so the two never clobber a shared evidence.json).
+				const apply = input.options?.apply === true;
+				const evidenceFiles: EvidenceFile[] = [
+					{
+						path: ".dgk/enforce/enforce-evidence.json",
+						content: JSON.stringify(
+							{ verb: "governance-enforce", runtime: "tractor (Rust/wasmtime) — agent.wasm executed live", enforced, denied, baseline, deniedPluginsLoaded: result.deniedPluginsLoaded, baselinePluginsLoaded: result.baselinePluginsLoaded, boundary },
+							null,
+							2,
+						),
+					},
+				];
+				const stamped = stampEvidence(evidenceFiles);
+				let evidence: string | undefined;
+				if (apply && options.writeEvidence) {
+					const w = await writeEvidenceFiles(evidenceFiles, stamped, options.writeEvidence);
+					evidence = w.stampFile;
+				}
+
 				return buildJsonSuccessEnvelope({
 					command: "governance-enforce",
 					operation: "governance-enforce",
@@ -182,17 +229,13 @@ export function createGovernanceEnforceCapability(): CapabilityDescriptor {
 					extra: {
 						enforced,
 						// The A/B: same plugin, same scripted read, two grant postures.
-						denied: {
-							securityMode: "strict",
-							grantedFsRead: false,
-							producedFsReadEffect: result.deniedProducedEffect, // expected: false (host refused)
-						},
-						baseline: {
-							securityMode: "strict",
-							grantedFsRead: true,
-							producedFsReadEffect: result.baselineProducedEffect, // expected: true (effect ran)
-						},
-						boundary: "enforce_permission denies an undeclared capability BEFORE the effect runs (host owns the gate)",
+						denied,
+						baseline,
+						boundary,
+						// The execution stamp of the persisted evidence (present whether or not --apply wrote it).
+						stampedAt: stamped.stampedAt,
+						evidenceFiles: stamped.stamps,
+						...(evidence ? { evidence } : {}),
 					},
 				});
 			} catch (error) {
