@@ -137,7 +137,25 @@ export class StudioShell {
 
 		this.setupStreamObservationSubscriber();
 
-		// 1. Check for active UI plugins
+		await this.renderMountedSurfaces();
+
+		this.updateStatus(this.l8n.t("core/status_ready"));
+	}
+
+	/**
+	 * Re-render every mounted capability surface in place — the surface's `renderHomesteadSurface`
+	 * runs again against the CURRENT `surfaceContext` (fresh `host.data`), and injectPluginIntoSlot
+	 * reuses the existing wrap. This is what turns a clicked action into a live update: a host
+	 * refreshes its data, calls `rerender()`, and the panel reflects the new state. Safe to call
+	 * repeatedly (wrap reuse + one-shot action binding).
+	 */
+	async rerender(): Promise<void> {
+		await this.renderMountedSurfaces();
+	}
+
+	/** Resolve each plugin's surface mounts and (re)render them into their slots. Returns whether
+	 * any UI surface mounted; when none does, falls back to Experience Mode (System Help). */
+	private async renderMountedSurfaces(): Promise<boolean> {
 		const apps = this.tractor.plugins.getAllPlugins();
 		let hasUi = false;
 
@@ -158,12 +176,10 @@ export class StudioShell {
 			}
 		}
 
-		// 2. If no UI plugins, trigger "Experience Mode" (System Help)
 		if (!hasUi) {
 			await this.renderSystemHelp();
 		}
-
-		this.updateStatus(this.l8n.t("core/status_ready"));
+		return hasUi;
 	}
 
 	private resolveSurfaceTrustStatus(plugin: StudioHostPlugin) {
@@ -372,19 +388,28 @@ export class StudioShell {
 			container.innerHTML = "";
 		}
 
-		const pluginWrap = document.createElement("div");
 		const pluginIdSanitized = pluginId.replace(/[^a-z0-9]/g, "-");
-		pluginWrap.className = `plugin-view plugin-${pluginIdSanitized}`;
-		pluginWrap.dataset.refarmPluginId = pluginId;
-		pluginWrap.dataset.refarmSlotId = slotId;
-		pluginWrap.dataset.refarmMountSource = mount.source;
-		if (mount.surface) {
-			pluginWrap.dataset.refarmSurfaceLayer = mount.surface.layer;
-			pluginWrap.dataset.refarmSurfaceKind = mount.surface.kind;
-			pluginWrap.dataset.refarmSurfaceId = mount.surface.id;
-			pluginWrap.dataset.refarmSurfaceRenderMode = "wrapper";
-			if (mount.surface.capabilities?.length) {
-				pluginWrap.dataset.refarmSurfaceCapabilities = mount.surface.capabilities.join(" ");
+		// Reuse an existing wrap for this plugin+slot so a RE-RENDER (rerender()) updates in place
+		// instead of appending a duplicate. On the first render none exists → create + append, exactly
+		// as before; the reuse path only engages once a wrap is already mounted.
+		let pluginWrap = container.querySelector<HTMLElement>(
+			`.plugin-${pluginIdSanitized}[data-refarm-slot-id="${slotId}"]`,
+		);
+		const isNewWrap = pluginWrap === null;
+		if (pluginWrap === null) {
+			pluginWrap = document.createElement("div");
+			pluginWrap.className = `plugin-view plugin-${pluginIdSanitized}`;
+			pluginWrap.dataset.refarmPluginId = pluginId;
+			pluginWrap.dataset.refarmSlotId = slotId;
+			pluginWrap.dataset.refarmMountSource = mount.source;
+			if (mount.surface) {
+				pluginWrap.dataset.refarmSurfaceLayer = mount.surface.layer;
+				pluginWrap.dataset.refarmSurfaceKind = mount.surface.kind;
+				pluginWrap.dataset.refarmSurfaceId = mount.surface.id;
+				pluginWrap.dataset.refarmSurfaceRenderMode = "wrapper";
+				if (mount.surface.capabilities?.length) {
+					pluginWrap.dataset.refarmSurfaceCapabilities = mount.surface.capabilities.join(" ");
+				}
 			}
 		}
 
@@ -394,7 +419,7 @@ export class StudioShell {
 			pluginWrap.setAttribute("data-refarm-state", plugin.state || "running");
 		}
 
-		container.appendChild(pluginWrap);
+		if (isNewWrap) container.appendChild(pluginWrap);
 
 		this.tractor.emitTelemetry({
 			event: "ui:surface_mounted",
@@ -493,6 +518,11 @@ export class StudioShell {
 		host: HomesteadSurfaceRenderHostContext | undefined,
 	) {
 		if (!this.options.surfaceAction || !host?.actions?.length) return;
+		// Bind ONCE per wrap: injectPluginIntoSlot reuses the wrap across re-renders, so re-binding
+		// would stack listeners and fire an action N times. The listener resolves the clicked
+		// action id fresh from `host` at click time, so a single binding stays correct.
+		if (pluginWrap.dataset.refarmSurfaceActionBound === "true") return;
+		pluginWrap.dataset.refarmSurfaceActionBound = "true";
 
 		pluginWrap.addEventListener("click", (event) => {
 			const target = event.target;
