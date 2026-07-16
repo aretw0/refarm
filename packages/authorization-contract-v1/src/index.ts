@@ -19,4 +19,8 @@ export {
 	renderConsentPrompt,
 	type AuthorizationRenderTranslator,
 } from "./render.js";
+export {
+	createSovereignAuthorizationSigner,
+	type IdentitySignerLike,
+} from "./sovereign-signer.js";
 export * from "./types.js";

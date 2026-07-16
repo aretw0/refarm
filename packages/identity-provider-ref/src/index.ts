@@ -128,7 +128,9 @@ function hexToBytes(hex: string): Uint8Array {
 }
 const enc = new TextEncoder();
 
-const WASM_IDENTITY_ALGORITHM = "ed25519-wasm-sovereign";
+/** The suite label the sovereign WASM signer stamps on every signature. Exported so consumers
+ * (e.g. a sovereign authorization signer) can label proofs with the same suite, not a duplicate. */
+export const WASM_IDENTITY_ALGORITHM = "ed25519-wasm-sovereign";
 
 /**
  * Adapt the sovereign WASM signer to the `IdentityProvider` contract so T2 (and
