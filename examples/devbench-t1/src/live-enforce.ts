@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { defaultArtifacts, missingArtifacts, type LiveRecursionArtifacts } from "./live-recursion.js";
-import { awaitAuditLine } from "./live-runtime.js";
+import { awaitAuditLine, readAuditLines } from "./live-runtime.js";
 
 /**
  * GOVERNANCE, ENFORCED — the third face of the governance quartet, and the one that was missing.
@@ -95,8 +95,20 @@ async function runPosture(options: {
 		// (granted) produces the line quickly → the poll returns fast; the DENIED posture never
 		// produces it → the poll waits out its bounded deadline, then we read false. Robust to a
 		// slow runner (a fixed 500ms could miss a late flush → a false "denied").
-		const fsRead = await awaitAuditLine(refarmDir, (l) => l.event === "host-effect:fs:read", 5_000);
-		return { pluginsLoaded, producedFsRead: fsRead !== undefined };
+		// Wait for the run to COMPLETE (its terminal agent event), THEN check whether the fs:read
+		// effect landed — do not race a fixed short deadline against the effect. The old approach
+		// (await the fs:read line for a fixed 5s) was flaky: on a cold boot the BASELINE's granted
+		// read arrived after the deadline, reading a false "no effect", which collapses the A/B (both
+		// postures then look denied, indistinguishable from real enforcement). Waiting for the terminal
+		// event is adaptive — as long as the run takes — and deterministic: once the run is done, the
+		// effect (if the grant allowed it) has already been written to the trail.
+		await awaitAuditLine(
+			refarmDir,
+			(l) => l.event === "agent:response:done" || l.event === "agent:error",
+			30_000,
+		);
+		const producedFsRead = readAuditLines(refarmDir).some((l) => l.event === "host-effect:fs:read");
+		return { pluginsLoaded, producedFsRead };
 	} finally {
 		await daemon?.stop();
 		await mock.stop();
