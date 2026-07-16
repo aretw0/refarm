@@ -42,6 +42,11 @@ describe("createEvidenceBundleCapability", () => {
 		const md = env.files.find((f) => f.path.endsWith(".md"))!;
 		expect(md.sha256).toBe(createHash("sha256").update("# Title\nreal numbers", "utf8").digest("hex"));
 		expect(env.stampedAt).toBe("2026-07-16T00:00:00.000Z");
+		// `bytes` is the UTF-8 BYTE length, not string.length: the svg fixture's "…" is 3 bytes / 1
+		// UTF-16 unit, so the two differ — a real report (accented pt-BR, SVG) would be undercounted.
+		const svg = env.files.find((f) => f.path.endsWith(".svg"))!;
+		expect(svg.bytes).toBe(Buffer.byteLength("<svg>…</svg>", "utf8"));
+		expect(svg.bytes).toBeGreaterThan("<svg>…</svg>".length);
 	});
 
 	it("--apply writes each file AND an evidence.json stamp manifest alongside", async () => {

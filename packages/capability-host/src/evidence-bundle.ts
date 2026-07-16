@@ -53,7 +53,13 @@ export function stampEvidence(
 ): StampedEvidence {
 	const stampedAt = (options.now ?? (() => new Date().toISOString()))();
 	const environment = options.environment ?? "local";
-	const stamps = files.map((f) => ({ path: f.path, bytes: f.content.length, sha256: sha256(f.content) }));
+	const stamps = files.map((f) => ({
+		path: f.path,
+		// Byte length of the UTF-8 content (not string.length, which counts UTF-16 code units and
+		// undercounts every non-ASCII file — the pt-BR reports + SVGs the examples emit).
+		bytes: Buffer.byteLength(f.content, "utf8"),
+		sha256: sha256(f.content),
+	}));
 	return { stampedAt, environment, stamps, manifestJson: JSON.stringify({ stampedAt, environment, files: stamps }, null, 2) };
 }
 
