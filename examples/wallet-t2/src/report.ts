@@ -1,7 +1,7 @@
 import { type CapabilityDescriptor, type RecordsCommandDeps } from "@refarm.dev/capability-host";
 import { createEvidenceBundleCapability, type EvidenceFile } from "@refarm.dev/capability-host/node";
 
-import { buildSovereigntyReport } from "./sovereignty.js";
+import { buildSovereigntyReport } from "@refarm.dev/wallet";
 
 /**
  * REPORT — materialize the T2 record material to disk (the citizen-wallet evidence for the

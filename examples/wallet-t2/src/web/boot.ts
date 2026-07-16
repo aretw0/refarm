@@ -1,7 +1,7 @@
 import { bootCapabilityWebFace } from "@refarm.dev/capability-homestead-surface/boot";
 
 import { walletApp } from "../cli.js";
-import { walletWebSurface } from "../persona.js";
+import { walletWebSurface } from "@refarm.dev/wallet";
 
 /**
  * The wallet's WEB face — a capability app gets a real Astro/Homestead page from the SAME

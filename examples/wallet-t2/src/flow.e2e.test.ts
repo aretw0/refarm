@@ -42,7 +42,7 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		// T2 RESULT mode: the SAME registry becomes a citizen wallet dashboard on the web.
 		// The three wallet views (main + verified + draft), all in the "wallet" section,
 		// render as DS cards in one panel — richness from declarations, not a hand-rolled UI.
-		const { walletWebSurface } = await import("./persona.js");
+		const { walletWebSurface } = await import("@refarm.dev/wallet");
 		const handle = walletWebSurface(buildRegistry());
 		const result = (await handle.call?.("renderHomesteadSurface", {})) as { html: string };
 		expect(result.html).toContain("Minha Carteira Digital");
@@ -56,7 +56,7 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		// The web face is a real product, not a menu: the boot runs the `wallet` verb, whose
 		// projection carries walletHtml, and feeds it to the surface's content seam. Prove the
 		// verb produces the wallet content, and that the surface renders it when given that data.
-		const { walletWebSurface, renderWalletHtml } = await import("./persona.js");
+		const { walletWebSurface, renderWalletHtml } = await import("@refarm.dev/wallet");
 		const wallet = buildRegistry().get("wallet");
 		if (!wallet || "actions" in wallet) throw new Error("wallet verb not mounted");
 		const env = (await wallet.run({ args: {}, options: {}, json: true })) as unknown as {

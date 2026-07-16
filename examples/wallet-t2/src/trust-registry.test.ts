@@ -5,7 +5,7 @@ import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { buildWalletHost } from "./cli.js";
-import { resolveVerifyPolicyFromEnv } from "./persona.js";
+import { resolveVerifyPolicyFromEnv } from "@refarm.dev/wallet";
 
 /**
  * The trust registry is reachable through the SHIPPED CLI (buildWalletHost), not only the test

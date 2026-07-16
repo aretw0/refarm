@@ -59,6 +59,14 @@ New package `@refarm.dev/wallet` (name TBD): exports `buildWalletRegistry(option
 4. **(Optional) sovereign backing in the hub.** Wire `DGK_SOVEREIGN`-equivalent so the hub's wallet
    signs inside the WASM sandbox, not the fixture.
 
+## apps/me is a HUB, not a wallet (Arthur, 2026-07-16)
+
+The wallet is ONE of several functionalities of `apps/me` — the citizen hub already has a chat face,
+and is expected to grow beyond that. So slice 3 mounts the wallet as ONE surface among others (next
+to chat, and future panels), never as the whole hub. Slice 2 (deriving apps/me's surfaces from a
+registry) must PRESERVE that breadth — the personal hub, chat, and wallet coexist as distinct
+surfaces; the refactor is about the mounting mechanism, not collapsing the hub into a single panel.
+
 ## Why this is the long-term-right shape
 
 - No product↔example coupling; the block is the single source both consume.

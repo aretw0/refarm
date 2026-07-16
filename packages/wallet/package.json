@@ -1,0 +1,66 @@
+{
+	"name": "@refarm.dev/wallet",
+	"version": "0.1.0",
+	"description": "The sovereign citizen's wallet as a reusable capability block — import/verify/hold credentials, purpose-bound consent with selective disclosure of verified attributes, and a sandboxed WASM signer. Consumed by both the example POC and the citizen hub.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist"
+	},
+	"keywords": [
+		"wallet",
+		"sovereign",
+		"credentials",
+		"consent",
+		"selective-disclosure",
+		"identity"
+	],
+	"author": "Refarm Contributors",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/wallet"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev",
+	"files": [
+		"dist",
+		"!dist/**/*.tsbuildinfo",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@refarm.dev/authorization-contract-v1": "workspace:*",
+		"@refarm.dev/capability-homestead-surface": "workspace:*",
+		"@refarm.dev/capability-host": "workspace:*",
+		"@refarm.dev/credentials-contract-v1": "workspace:*",
+		"@refarm.dev/history-contract-v1": "workspace:*",
+		"@refarm.dev/identity-contract-v1": "workspace:*",
+		"@refarm.dev/identity-provider-ref": "workspace:*",
+		"@refarm.dev/records-contract-v1": "workspace:*",
+		"@refarm.dev/storage-contract-v1": "workspace:*",
+		"@refarm.dev/surveyor": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
+}

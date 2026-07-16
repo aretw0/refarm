@@ -613,27 +613,15 @@ importers:
       '@refarm.dev/credentials-contract-v1':
         specifier: workspace:*
         version: link:../../packages/credentials-contract-v1
-      '@refarm.dev/history-contract-v1':
-        specifier: workspace:*
-        version: link:../../packages/history-contract-v1
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../../packages/homestead
-      '@refarm.dev/identity-contract-v1':
-        specifier: workspace:*
-        version: link:../../packages/identity-contract-v1
       '@refarm.dev/identity-provider-ref':
         specifier: workspace:*
         version: link:../../packages/identity-provider-ref
-      '@refarm.dev/records-contract-v1':
+      '@refarm.dev/wallet':
         specifier: workspace:*
-        version: link:../../packages/records-contract-v1
-      '@refarm.dev/storage-contract-v1':
-        specifier: workspace:*
-        version: link:../../packages/storage-contract-v1
-      '@refarm.dev/surveyor':
-        specifier: workspace:*
-        version: link:../../packages/surveyor
+        version: link:../../packages/wallet
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.9
@@ -2529,6 +2517,49 @@ importers:
       vitest:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@25.9.4)(@vitest/coverage-v8@4.1.9)(@vitest/ui@4.1.9)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
+
+  packages/wallet:
+    dependencies:
+      '@refarm.dev/authorization-contract-v1':
+        specifier: workspace:*
+        version: link:../authorization-contract-v1
+      '@refarm.dev/capability-homestead-surface':
+        specifier: workspace:*
+        version: link:../capability-homestead-surface
+      '@refarm.dev/capability-host':
+        specifier: workspace:*
+        version: link:../capability-host
+      '@refarm.dev/credentials-contract-v1':
+        specifier: workspace:*
+        version: link:../credentials-contract-v1
+      '@refarm.dev/history-contract-v1':
+        specifier: workspace:*
+        version: link:../history-contract-v1
+      '@refarm.dev/identity-contract-v1':
+        specifier: workspace:*
+        version: link:../identity-contract-v1
+      '@refarm.dev/identity-provider-ref':
+        specifier: workspace:*
+        version: link:../identity-provider-ref
+      '@refarm.dev/records-contract-v1':
+        specifier: workspace:*
+        version: link:../records-contract-v1
+      '@refarm.dev/storage-contract-v1':
+        specifier: workspace:*
+        version: link:../storage-contract-v1
+      '@refarm.dev/surveyor':
+        specifier: workspace:*
+        version: link:../surveyor
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/windmill:
     dependencies:
