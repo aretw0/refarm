@@ -1,5 +1,6 @@
 import { hostCommandOverrideEnv } from "@refarm.dev/capability-host";
 import { createCapabilityTestHarness } from "@refarm.dev/capability-host/testing";
+import { computeRecordContentHash, type KnowledgeRecord } from "@refarm.dev/records-contract-v1";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -375,6 +376,14 @@ describe("reqbench T3 — the analyst's requirements bench (result mode)", () =>
 				records: Array<{ id: string; review?: { state?: string } }>;
 			};
 			expect(afterRepull.records.find((r) => r.id === id)?.review?.state).toBe("reviewed");
+
+			// And the persisted record's hash stays CONSISTENT with its content — the curation carry
+			// recomputed it, so it neither violates the records-contract invariant nor spawns a phantom
+			// revision. Before the fix, the preserved record shipped a review-less (stale) hash.
+			const rn1 = (
+				JSON.parse(fs.readFileSync(statePath, "utf-8")) as { records: KnowledgeRecord[] }
+			).records.find((r) => r.id === id) as KnowledgeRecord;
+			expect(rn1.contentHash).toBe(computeRecordContentHash(rn1));
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}

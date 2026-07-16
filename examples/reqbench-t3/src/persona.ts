@@ -671,10 +671,20 @@ export function renderRequirementsGraphSvg(env: RecordsAnalyzeEnvelope): string 
  * graph that only the RDF pull populates (the HTML pull never parses relations). PURE. */
 export function preserveCuration(existing: KnowledgeRecord, incoming: KnowledgeRecord): KnowledgeRecord {
 	const merged: KnowledgeRecord = { ...incoming };
-	if (incoming.review === undefined && existing.review !== undefined) merged.review = existing.review;
+	let changed = false;
+	if (incoming.review === undefined && existing.review !== undefined) {
+		merged.review = existing.review;
+		changed = true;
+	}
 	if ((incoming.relations === undefined || incoming.relations.length === 0) && existing.relations?.length) {
 		merged.relations = existing.relations;
+		changed = true;
 	}
+	// review + relations are BOTH inputs to the content hash, so carrying them changes it: recompute,
+	// else the record ships a stale hash — validateContentHash fails, and appendRevision sees a hash
+	// mismatch and records a PHANTOM 'pull' revision (the exact spurious revision preserving review is
+	// meant to prevent). The incoming record's hash was computed review-less by the parser.
+	if (changed) merged.contentHash = computeRecordContentHash(merged);
 	return merged;
 }
 

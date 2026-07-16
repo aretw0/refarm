@@ -1,4 +1,4 @@
-import type { KnowledgeRecord } from "@refarm.dev/records-contract-v1";
+import { computeRecordContentHash, type KnowledgeRecord } from "@refarm.dev/records-contract-v1";
 import { describe, expect, it } from "vitest";
 
 import { preserveCuration } from "./persona.js";
@@ -36,6 +36,20 @@ describe("preserveCuration — a re-pull refreshes content without reverting hum
 		expect(merged.review).toEqual({ state: "reviewed", at: "2026-07-10T00:00:00Z" });
 		// … but the content was refreshed.
 		expect(merged.fields.title).toBe("atualizado");
+	});
+
+	it("recomputes the content hash when curation is carried (no stale hash → no phantom revision)", () => {
+		// review is an input to the content hash; a parser computes the incoming hash review-less.
+		// Carrying review must RECOMPUTE the hash — else the record ships a hash that neither validates
+		// nor dedups, and appendRevision records a phantom 'pull' revision on an unchanged re-pull.
+		const existing = rec("record:req-1", { review: { state: "reviewed", at: "2026-07-10T00:00:00Z" } });
+		const incoming = rec("record:req-1", {}); // a pull declares no review
+
+		const merged = preserveCuration(existing, incoming);
+
+		// The hash is CONSISTENT with the merged content (not the stale "x" fixture value).
+		expect(merged.contentHash).toBe(computeRecordContentHash(merged));
+		expect(merged.contentHash).not.toBe("x");
 	});
 
 	it("keeps existing relations when the pulled record has none (an HTML pull never parses them)", () => {
