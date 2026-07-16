@@ -24,7 +24,6 @@
 		"@refarm.dev/capability-homestead-surface": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
 		"@refarm.dev/credentials-contract-v1": "workspace:*",
-		"@refarm.dev/enrichment-contract-v1": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
 		"@refarm.dev/identity-provider-ref": "workspace:*",

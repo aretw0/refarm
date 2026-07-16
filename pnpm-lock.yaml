@@ -613,9 +613,6 @@ importers:
       '@refarm.dev/credentials-contract-v1':
         specifier: workspace:*
         version: link:../../packages/credentials-contract-v1
-      '@refarm.dev/enrichment-contract-v1':
-        specifier: workspace:*
-        version: link:../../packages/enrichment-contract-v1
       '@refarm.dev/history-contract-v1':
         specifier: workspace:*
         version: link:../../packages/history-contract-v1
