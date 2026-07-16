@@ -502,6 +502,16 @@ const STATE_LABELS: Record<string, string> = {
 	unreviewed: "Sem revisão",
 };
 
+/** The one review state that clears a requirement for publication. Materialize holds everything
+ * else back so a routine pull can't publish a note a human hasn't reviewed. */
+const REVIEWED_STATE = "reviewed";
+
+/** Read a record's review state (`undefined` = never reviewed). */
+function reviewStateOf(record: KnowledgeRecord): string | undefined {
+	const state = (record.review as { state?: unknown } | undefined)?.state;
+	return typeof state === "string" ? state : undefined;
+}
+
 /** Labels for the requirement TYPES (the default MOC grouping = field:tipo). */
 const TYPE_LABELS: Record<string, string> = {
 	"regra-de-negocio": "Regras de Negócio",
@@ -1545,14 +1555,27 @@ export function createRequirementsMaterializeCapability(
 		summary: "Write the requirements to Obsidian notes on disk (organize + frontmatter + idempotent)",
 		options: [
 			{ name: "apply", kind: "boolean", summary: "Actually write the notes (else dry-run: plan only)" },
+			{
+				name: "include-drafts",
+				kind: "boolean",
+				summary: "Also publish unreviewed drafts (default: only reviewed requirements are materialized)",
+			},
 		],
 		transports: { http: { path: "/requirements/materialize" } },
 		renderers: { tui: { section: "requirements" } },
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const manifest = recordsDeps.loadManifest();
 			const syncedAt = now();
+			// The publication gate: only human-reviewed requirements are materialized. A routine pull
+			// leaves new records as drafts, so it can never publish a note a human hasn't cleared —
+			// the review-before-publish invariant the bench promises. `--include-drafts` overrides it.
+			const includeDrafts = input.options?.["include-drafts"] === true;
+			const publishable = includeDrafts
+				? manifest.records
+				: manifest.records.filter((r) => reviewStateOf(r as KnowledgeRecord) === REVIEWED_STATE);
+			const skippedDrafts = manifest.records.length - publishable.length;
 			// Stamp ALM frontmatter, then organize for PARA placement, then plan the files (pure).
-			const stamped = manifest.records.map((r) => stampAlmFrontmatter(r as KnowledgeRecord, syncedAt));
+			const stamped = publishable.map((r) => stampAlmFrontmatter(r as KnowledgeRecord, syncedAt));
 			const plans = await organizeRecords(await vaultSurface(), stamped, REQUIREMENTS_TAXONOMY);
 			const files: RecordFilePlan[] = planRecordFiles(stamped, {
 				plans,
@@ -1582,6 +1605,8 @@ export function createRequirementsMaterializeCapability(
 					applied: apply,
 					written,
 					skipped,
+					skippedDrafts,
+					includeDrafts,
 					dryRun: !apply || !options.writeNote,
 					files: files.map((f) => ({ id: f.recordId, path: f.relativePath })),
 				},

@@ -17,6 +17,20 @@ function req(externalKey: string, title: string, tipo: string, artifactUri: stri
 		"@type": ["KnowledgeRecord", "Requirement"],
 		fields: { externalKey, title, tipo, artifactUri, body: "corpo" },
 		sections: [{ key: "conteudo", content: "corpo" }],
+		// A publishable requirement is a reviewed one — the mechanics tests below drive the write path.
+		review: { state: "reviewed" },
+		contentHash: "x",
+	} as KnowledgeRecord;
+}
+
+function draft(externalKey: string, title: string, tipo: string): KnowledgeRecord {
+	return {
+		id: `record:req-${externalKey.toLowerCase()}`,
+		schemaVersion: 1,
+		"@type": ["KnowledgeRecord", "Requirement"],
+		fields: { externalKey, title, tipo, body: "corpo" },
+		sections: [{ key: "conteudo", content: "corpo" }],
+		review: { state: "draft" },
 		contentHash: "x",
 	} as KnowledgeRecord;
 }
@@ -67,6 +81,7 @@ describe("requirements-materialize — records → Obsidian notes on disk", () =
 				body: "Primeira linha.\n\n## Critérios de aceitação\n- Item A\n- Item B",
 			},
 			sections: [{ key: "conteudo", content: "corpo" }],
+			review: { state: "reviewed" },
 			contentHash: "x",
 		} as KnowledgeRecord;
 		const written = new Map<string, string>();
@@ -99,6 +114,7 @@ describe("requirements-materialize — records → Obsidian notes on disk", () =
 			fields: { externalKey: "CDU-2", title: "Caso com rastreio", tipo: "caso-de-uso" },
 			sections: [{ key: "conteudo", content: "corpo" }],
 			relations: [{ type: "elaborates", target: "record:req-rn1", attrs: { direction: "outgoing" } }],
+			review: { state: "reviewed" },
 			contentHash: "x",
 		} as KnowledgeRecord;
 		const written = new Map<string, string>();
@@ -131,6 +147,54 @@ describe("requirements-materialize — records → Obsidian notes on disk", () =
 		expect(extra.written).toBe(0);
 		expect(extra.dryRun).toBe(true);
 		expect(writes).toBe(0);
+	});
+
+	it("the publication gate holds drafts back — only reviewed requirements are materialized", async () => {
+		// The bench's promise: a routine pull can't publish a note a human hasn't reviewed. With one
+		// reviewed record and two drafts, --apply writes only the reviewed one and reports the held drafts.
+		const mixed = [
+			req("RN-1", "Regra Revisada", "regra-de-negocio", "https://alm.example/rm/resources/TX_10"),
+			draft("RN-2", "Rascunho Um", "regra-de-negocio"),
+			draft("CDU-3", "Rascunho Dois", "caso-de-uso"),
+		];
+		const written = new Map<string, string>();
+		const cap = createRequirementsMaterializeCapability(recordsDeps(mixed), noRouteSurface, {
+			vaultRoot: "/vault",
+			writeNote: (rel, text) => {
+				written.set(rel, text);
+				return true;
+			},
+			now: () => "2026-07-13T00:00:00Z",
+		});
+		const env = await cap.run({ args: {}, options: { apply: true } } as never);
+		const extra = env as unknown as { planned: number; written: number; skippedDrafts: number; includeDrafts: boolean };
+		expect(extra.planned).toBe(1);
+		expect(extra.written).toBe(1);
+		expect(extra.skippedDrafts).toBe(2);
+		expect(extra.includeDrafts).toBe(false);
+		expect([...written.keys()]).toEqual(["RN-1.md"]);
+	});
+
+	it("--include-drafts overrides the gate and materializes the drafts too", async () => {
+		const mixed = [
+			req("RN-1", "Regra Revisada", "regra-de-negocio", "https://alm.example/rm/resources/TX_10"),
+			draft("RN-2", "Rascunho Um", "regra-de-negocio"),
+		];
+		const written = new Map<string, string>();
+		const cap = createRequirementsMaterializeCapability(recordsDeps(mixed), noRouteSurface, {
+			vaultRoot: "/vault",
+			writeNote: (rel, text) => {
+				written.set(rel, text);
+				return true;
+			},
+			now: () => "2026-07-13T00:00:00Z",
+		});
+		const env = await cap.run({ args: {}, options: { apply: true, "include-drafts": true } } as never);
+		const extra = env as unknown as { planned: number; written: number; skippedDrafts: number; includeDrafts: boolean };
+		expect(extra.planned).toBe(2);
+		expect(extra.written).toBe(2);
+		expect(extra.skippedDrafts).toBe(0);
+		expect(extra.includeDrafts).toBe(true);
 	});
 
 	it("is idempotent — a second materialize of unchanged records skips every write", async () => {
