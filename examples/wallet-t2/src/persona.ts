@@ -24,6 +24,7 @@ import {
 	createWalletHistoryCapability,
 	createWalletPresentCapability,
 	createWalletRevokeCapability,
+	verifiedAttributes,
 } from "./authorization.js";
 import {
 	createWalletConsentCapability,
@@ -336,7 +337,11 @@ export function createWalletCapabilities(
 	if (options.authorizationProvider) {
 		capabilities.push(
 			createWalletAuthorizeCapability(recordsDeps, options.authorizationProvider, { now: options.now }),
-			createWalletPresentCapability(recordsDeps, options.authorizationProvider),
+			createWalletPresentCapability(recordsDeps, options.authorizationProvider, {
+				// Disclose FROM the citizen's actually-verified credentials (falls back to the synthetic
+				// baseline until they've verified one) — import→verify→authorize→present is one loop.
+				attributes: verifiedAttributes(recordsDeps),
+			}),
 			createWalletRevokeCapability(recordsDeps, options.authorizationProvider, { now: options.now }),
 			// SEE the disclosure surface: with whom the citizen shared what, as a graph.
 			createDisclosureGraphCapability(recordsDeps),

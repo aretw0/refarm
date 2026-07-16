@@ -20,6 +20,8 @@ import {
 } from "@refarm.dev/records-contract-v1";
 import { manifestRevisions, mergeAndRecord, timeline } from "@refarm.dev/history-contract-v1";
 
+import { recordToCredential } from "./credentials.js";
+
 /**
  * The citizen's AUTHORIZATION journey — the sovereign move the wallet was missing: a
  * service asks for attributes FOR a purpose, the citizen AUTHORIZES a named subset (a
@@ -73,9 +75,9 @@ export function revocationEventToRecord(event: RevocationEvent, now: () => strin
 	return record;
 }
 
-/** The citizen's held attributes — the source a presentation discloses FROM. Out of the box
- * a small synthetic set (the wallet is a demo); a deployment binds this to the citizen's
- * verified credentials. */
+/** The citizen's held attributes — the source a presentation discloses FROM. A small synthetic
+ * baseline (the wallet is a demo) used ONLY until the citizen has verified a real credential; see
+ * `verifiedAttributes`, which binds disclosure to the citizen's actually-verified data. */
 export function citizenAttributes(): AttributeSet {
 	return {
 		subject: "citizen-local",
@@ -87,6 +89,41 @@ export function citizenAttributes(): AttributeSet {
 			municipio: "Cidade Fictícia",
 			vinculo: "servidor-fictício",
 		},
+	};
+}
+
+/**
+ * The source a presentation discloses FROM, bound to the citizen's VERIFIED credentials — the join
+ * that closes the sovereign loop. Loads the manifest, takes every credential the citizen has
+ * VERIFIED (`review.state === "verified"`), and projects its `credentialSubject` fields (except the
+ * subject id) into disclosable attributes. Falls back to the synthetic baseline ONLY when nothing is
+ * verified yet — so `present` discloses the citizen's REAL data the moment import→verify produces it,
+ * never more than the receipt's scope. The substrate still filters to scope; this only decides FROM
+ * WHAT the disclosure draws.
+ */
+export function verifiedAttributes(recordsDeps: RecordsCommandDeps): () => AttributeSet {
+	return () => {
+		const verified = recordsDeps
+			.loadManifest()
+			.records.filter(
+				(r) => (r.review as { state?: string } | undefined)?.state === "verified" && recordToCredential(r) !== null,
+			);
+		if (verified.length === 0) return citizenAttributes();
+		const attributes: Record<string, unknown> = {};
+		let subject = "citizen-local";
+		let issuer = "self-presented";
+		let issuedAt = citizenAttributes().issuedAt;
+		for (const record of verified) {
+			const vc = recordToCredential(record);
+			const subj = (vc?.credentialSubject ?? {}) as Record<string, unknown>;
+			if (typeof subj.id === "string") subject = subj.id;
+			if (typeof vc?.issuer === "string") issuer = vc.issuer;
+			if (typeof vc?.issuanceDate === "string") issuedAt = vc.issuanceDate;
+			for (const [key, value] of Object.entries(subj)) {
+				if (key !== "id") attributes[key] = value;
+			}
+		}
+		return { subject, issuer, issuedAt, attributes };
 	};
 }
 
