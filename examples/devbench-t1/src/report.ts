@@ -1,10 +1,5 @@
-import {
-	buildJsonSuccessEnvelope,
-	type CapabilityDescriptor,
-	type CapabilityEnvelope,
-	type CapabilityInput,
-	type SurfaceableManifest,
-} from "@refarm.dev/capability-host";
+import { type CapabilityDescriptor, type SurfaceableManifest } from "@refarm.dev/capability-host";
+import { createEvidenceBundleCapability, type EvidenceFile } from "@refarm.dev/capability-host/node";
 import { graphToSvg } from "@refarm.dev/surveyor";
 
 import { runGovernancePoc } from "./governance-poc.js";
@@ -21,17 +16,11 @@ import { buildExtensionGraph, pluginShortName, type BuildExtensionGraphOptions }
  * without it the report is returned in the envelope. NOT a panel — a document that feeds the text.
  */
 
-/** One output file: a relative path + its content (markdown or svg). PURE. */
-export interface ReportFile {
-	path: string;
-	content: string;
-}
-
 /** Build the T1 record material: the SPI graph SVG + a markdown report of what the example proves. */
 export function buildDevbenchReport(
 	manifests: readonly SurfaceableManifest[],
 	graphOptions: BuildExtensionGraphOptions,
-): ReportFile[] {
+): EvidenceFile[] {
 	const governance = runGovernancePoc();
 	const { graph, labels, apiEdges } = buildExtensionGraph(manifests, graphOptions);
 	const graphSvg = graphToSvg(graph, {
@@ -97,42 +86,22 @@ export interface ReportVerbOptions {
 
 /**
  * `report [--apply]` — generate the T1 record material (the SPI graph SVG + a markdown report of
- * what the example proves, with the real numbers). `--apply` writes it; else it is returned.
+ * what the example proves, with the real numbers). `--apply` writes it (with a SHA-256 execution
+ * stamp); else it is returned. The verb shape is the shared evidence-bundle capability.
  */
 export function createReportCapability(
 	manifests: readonly SurfaceableManifest[],
 	graphOptions: BuildExtensionGraphOptions = {},
 	options: ReportVerbOptions = {},
 ): CapabilityDescriptor {
-	return {
+	return createEvidenceBundleCapability({
 		name: "report",
 		summary: "Generate the record material — the SPI graph SVG + a report of what T1 proves (real numbers)",
-		options: [{ name: "apply", kind: "boolean", summary: "Write the report files to disk (else report only)" }],
-		transports: { http: { path: "/report" } },
+		command: "dgk",
+		httpPath: "/report",
 		renderers: { tui: { section: "extension" }, ide: { command: "dgk.report" } },
-		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
-			const files = buildDevbenchReport(manifests, graphOptions);
-			const apply = input.options?.apply === true;
-			let written = 0;
-			if (apply && options.writeReport) {
-				for (const f of files) {
-					await options.writeReport(f.path, f.content);
-					written += 1;
-				}
-			}
-			return buildJsonSuccessEnvelope({
-				command: "report",
-				operation: "report",
-				nextCommand: apply ? "dgk extension-graph" : "dgk report --apply",
-				nextCommands: apply ? [] : ["dgk report --apply"],
-				extra: {
-					applied: apply,
-					written,
-					files: files.map((f) => ({ path: f.path, bytes: f.content.length })),
-					// The markdown, so a caller can read it without writing (report-only mode).
-					...(apply ? {} : { markdown: files.find((f) => f.path.endsWith(".md"))?.content }),
-				},
-			});
-		},
-	};
+		build: () => buildDevbenchReport(manifests, graphOptions),
+		...(options.writeReport ? { writeFile: options.writeReport } : {}),
+		nextVerb: "extension-graph",
+	});
 }

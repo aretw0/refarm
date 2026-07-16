@@ -1,10 +1,5 @@
-import {
-	buildJsonSuccessEnvelope,
-	type CapabilityDescriptor,
-	type CapabilityEnvelope,
-	type CapabilityInput,
-	type RecordsCommandDeps,
-} from "@refarm.dev/capability-host";
+import { type CapabilityDescriptor, type RecordsCommandDeps } from "@refarm.dev/capability-host";
+import { createEvidenceBundleCapability, type EvidenceFile } from "@refarm.dev/capability-host/node";
 
 import { buildVaultOverview } from "./vault-overview.js";
 
@@ -17,13 +12,8 @@ import { buildVaultOverview } from "./vault-overview.js";
  * writes it (a caller injects the writer). NOT a panel — a document that feeds the text.
  */
 
-export interface ReportFile {
-	path: string;
-	content: string;
-}
-
 /** Build the T3 record material: a markdown report of the vault's state with real numbers. */
-export function buildReqbenchReport(recordsDeps: RecordsCommandDeps): ReportFile[] {
+export function buildReqbenchReport(recordsDeps: RecordsCommandDeps): EvidenceFile[] {
 	const o = buildVaultOverview(recordsDeps.loadManifest());
 	const coverage = (label: string, counts: Record<string, number>): string =>
 		`- **${label}:** ${Object.entries(counts).map(([k, n]) => `${k} (${n})`).join(" · ") || "—"}`;
@@ -86,40 +76,21 @@ export interface ReportVerbOptions {
 
 /**
  * `requirements-report [--apply]` — generate the T3 record material: a markdown report of the
- * vault's state (coverage, traceability, health, history) with the real numbers. `--apply` writes.
+ * vault's state (coverage, traceability, health, history) with the real numbers. `--apply` writes
+ * (with a SHA-256 execution stamp). The verb shape is the shared evidence-bundle capability.
  */
 export function createRequirementsReportCapability(
 	recordsDeps: RecordsCommandDeps,
 	options: ReportVerbOptions = {},
 ): CapabilityDescriptor {
-	return {
+	return createEvidenceBundleCapability({
 		name: "requirements-report",
 		summary: "Generate the record material — a report of the vault's state (coverage/traceability/health/history)",
-		options: [{ name: "apply", kind: "boolean", summary: "Write the report to disk (else report only)" }],
-		transports: { http: { path: "/requirements/report" } },
+		command: "dgk",
+		httpPath: "/requirements/report",
 		renderers: { tui: { section: "requirements" }, ide: { command: "dgk.requirements-report" } },
-		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
-			const files = buildReqbenchReport(recordsDeps);
-			const apply = input.options?.apply === true;
-			let written = 0;
-			if (apply && options.writeReport) {
-				for (const f of files) {
-					await options.writeReport(f.path, f.content);
-					written += 1;
-				}
-			}
-			return buildJsonSuccessEnvelope({
-				command: "requirements-report",
-				operation: "report",
-				nextCommand: apply ? "dgk requirements" : "dgk requirements-report --apply",
-				nextCommands: apply ? [] : ["dgk requirements-report --apply"],
-				extra: {
-					applied: apply,
-					written,
-					files: files.map((f) => ({ path: f.path, bytes: f.content.length })),
-					...(apply ? {} : { markdown: files[0]?.content }),
-				},
-			});
-		},
-	};
+		build: () => buildReqbenchReport(recordsDeps),
+		...(options.writeReport ? { writeFile: options.writeReport } : {}),
+		nextVerb: "requirements",
+	});
 }

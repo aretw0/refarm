@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createXyzzyCapability } from "./easter-egg.js";
 import { DEVBENCH_THEMES, resolveDevbenchTheme } from "./theme.js";
+
+// Two tests here dynamically import the whole cli.js + persona.js graph and render the web surface;
+// on-demand transform of that graph can exceed the default 5s budget under load. Give it room so a
+// slow transform is not read as a failure (the assertions themselves are instant).
+vi.setConfig({ testTimeout: 30_000 });
 
 describe("resolveDevbenchTheme — optional brand overlay", () => {
 	it("defaults to the neutral bench when no theme is set", () => {

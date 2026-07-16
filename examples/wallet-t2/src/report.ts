@@ -1,10 +1,5 @@
-import {
-	buildJsonSuccessEnvelope,
-	type CapabilityDescriptor,
-	type CapabilityEnvelope,
-	type CapabilityInput,
-	type RecordsCommandDeps,
-} from "@refarm.dev/capability-host";
+import { type CapabilityDescriptor, type RecordsCommandDeps } from "@refarm.dev/capability-host";
+import { createEvidenceBundleCapability, type EvidenceFile } from "@refarm.dev/capability-host/node";
 
 import { buildSovereigntyReport } from "./sovereignty.js";
 
@@ -16,13 +11,8 @@ import { buildSovereigntyReport } from "./sovereignty.js";
  * computed. `--apply` writes it. NOT a panel — a document that feeds the text.
  */
 
-export interface ReportFile {
-	path: string;
-	content: string;
-}
-
 /** Build the T2 record material: the disclosure graph SVG + a markdown report of the posture. */
-export function buildWalletReport(recordsDeps: RecordsCommandDeps): ReportFile[] {
+export function buildWalletReport(recordsDeps: RecordsCommandDeps): EvidenceFile[] {
 	const r = buildSovereigntyReport(recordsDeps);
 	const disclosures = r.disclosures.length
 		? r.disclosures
@@ -86,40 +76,21 @@ export interface ReportVerbOptions {
 
 /**
  * `report [--apply]` — generate the T2 record material: the disclosure graph SVG + a markdown
- * report of the citizen's sovereign posture with the real numbers. `--apply` writes.
+ * report of the citizen's sovereign posture with the real numbers. `--apply` writes (with a
+ * SHA-256 execution stamp). The verb shape is the shared evidence-bundle capability.
  */
 export function createWalletReportCapability(
 	recordsDeps: RecordsCommandDeps,
 	options: ReportVerbOptions = {},
 ): CapabilityDescriptor {
-	return {
+	return createEvidenceBundleCapability({
 		name: "report",
 		summary: "Generate the record material — the disclosure graph SVG + a report of the sovereign posture",
-		options: [{ name: "apply", kind: "boolean", summary: "Write the report files to disk (else report only)" }],
-		transports: { http: { path: "/report" } },
+		command: "dgk",
+		httpPath: "/report",
 		renderers: { tui: { section: "wallet" }, ide: { command: "dgk.report" } },
-		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
-			const files = buildWalletReport(recordsDeps);
-			const apply = input.options?.apply === true;
-			let written = 0;
-			if (apply && options.writeReport) {
-				for (const f of files) {
-					await options.writeReport(f.path, f.content);
-					written += 1;
-				}
-			}
-			return buildJsonSuccessEnvelope({
-				command: "report",
-				operation: "report",
-				nextCommand: apply ? "dgk wallet" : "dgk report --apply",
-				nextCommands: apply ? [] : ["dgk report --apply"],
-				extra: {
-					applied: apply,
-					written,
-					files: files.map((f) => ({ path: f.path, bytes: f.content.length })),
-					...(apply ? {} : { markdown: files.find((f) => f.path.endsWith(".md"))?.content }),
-				},
-			});
-		},
-	};
+		build: () => buildWalletReport(recordsDeps),
+		...(options.writeReport ? { writeFile: options.writeReport } : {}),
+		nextVerb: "wallet",
+	});
 }
