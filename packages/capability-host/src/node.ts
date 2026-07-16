@@ -30,6 +30,12 @@ export {
 } from "./install-plugin.js";
 export { createSidecarCallRespond, type SidecarRespondOptions } from "./sidecar-respond.js";
 export {
+	createEvidenceBundleCapability,
+	type EvidenceBundleCapabilityOptions,
+	type EvidenceFile,
+	type EvidenceStamp,
+} from "./evidence-bundle.js";
+export {
 	ingestSourceToRecords,
 	type IngestSourceProvider,
 	type IngestSourceResult,
