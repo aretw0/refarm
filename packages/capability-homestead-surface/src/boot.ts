@@ -77,6 +77,35 @@ export interface BootCapabilityWebFaceOptions {
 	bootRuntime?: BootCapabilityWebShellOptions["bootRuntime"];
 }
 
+/** Collect a verb's form input from its rendered card (`[data-refarm-verb]`) — the args + options
+ * a persona typed before clicking Run. Reads `[data-refarm-arg]` / `[data-refarm-option]` inputs;
+ * an empty field is omitted, a checkbox contributes only when checked. Runs in the browser. */
+function collectVerbInput(verb: string): {
+	args: Record<string, string>;
+	options: Record<string, string | boolean>;
+} {
+	const args: Record<string, string> = {};
+	const options: Record<string, string | boolean> = {};
+	if (typeof document === "undefined") return { args, options };
+	const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(verb) : verb.replace(/"/g, '\\"');
+	const card = document.querySelector(`[data-refarm-verb="${escaped}"]`);
+	if (!card) return { args, options };
+	card.querySelectorAll<HTMLInputElement>("[data-refarm-arg]").forEach((el) => {
+		const name = el.getAttribute("data-refarm-arg");
+		if (name && el.value !== "") args[name] = el.value;
+	});
+	card.querySelectorAll<HTMLInputElement>("[data-refarm-option]").forEach((el) => {
+		const name = el.getAttribute("data-refarm-option");
+		if (!name) return;
+		if (el.type === "checkbox") {
+			if (el.checked) options[name] = true;
+		} else if (el.value !== "") {
+			options[name] = el.value;
+		}
+	});
+	return { args, options };
+}
+
 export async function bootCapabilityWebFace(
 	options: BootCapabilityWebFaceOptions,
 ): Promise<CapabilityWebShell> {
@@ -134,8 +163,10 @@ export async function bootCapabilityWebFace(
 		if (!verb) return false;
 		const entry = registry.get(verb);
 		if (!entry || !("run" in entry) || typeof entry.run !== "function") return false;
+		// Collect what the persona typed into this verb's card (empty for a no-arg verb).
+		const { args, options } = collectVerbInput(verb);
 		try {
-			await entry.run({ args: {}, options: {}, json: true });
+			await entry.run({ args, options, json: true });
 		} catch {
 			// A verb that needs input throws/returns an error envelope; the refresh below still runs.
 		}

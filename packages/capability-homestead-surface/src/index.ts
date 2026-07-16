@@ -60,6 +60,36 @@ function escape(value: string): string {
 		.replace(/"/g, "&quot;");
 }
 
+/** Render the input fields for a verb's args + options (or "" when it takes none), so a card can
+ * collect them before dispatching. Args + non-boolean options become text inputs; a boolean option
+ * a checkbox. The boot dispatch handler reads these back by `data-refarm-arg` / `data-refarm-option`
+ * and passes them to the verb's run(). */
+function renderVerbInputs(registry: CapabilityRegistry, verbName: string): string {
+	const entry = registry.get(verbName) as
+		| {
+				args?: Array<{ name: string; required?: boolean }>;
+				options?: Array<{ name: string; kind?: string; summary?: string }>;
+		  }
+		| undefined;
+	const args = entry?.args ?? [];
+	const options = entry?.options ?? [];
+	if (args.length === 0 && options.length === 0) return "";
+	const argInputs = args
+		.map(
+			(a) =>
+				`<input class="refarm-input" type="text" data-refarm-arg="${escape(a.name)}" placeholder="${escape(a.name)}${a.required ? " *" : ""}" />`,
+		)
+		.join("");
+	const optInputs = options
+		.map((o) =>
+			o.kind === "boolean"
+				? `<label class="refarm-check"><input type="checkbox" data-refarm-option="${escape(o.name)}" /> --${escape(o.name)}</label>`
+				: `<input class="refarm-input" type="text" data-refarm-option="${escape(o.name)}" placeholder="--${escape(o.name)}" />`,
+		)
+		.join("");
+	return `${argInputs}${optInputs}`;
+}
+
 /** Render the registry's web verbs as DS-styled cards — one per verb, grouped by section.
  * Uses the shared DS classes (refarm-surface-card / refarm-stack / refarm-btn) so the
  * panel matches every other Homestead surface, no bespoke palette. */
@@ -83,10 +113,22 @@ function renderCapabilityWebPanel(
 					const route = typeof web.route === "string" ? web.route : "";
 					const http = item.surfaces.http as { method?: string; path?: string } | undefined;
 					const endpoint = http?.path ? `${http.method ?? "POST"} ${http.path}` : "";
-					return `<button type="button" class="refarm-btn refarm-btn-pill" data-refarm-surface-action-id="${escape(item.name)}"${route ? ` data-route="${escape(route)}"` : ""}${endpoint ? ` data-endpoint="${escape(endpoint)}"` : ""}>
+					const dataAttrs = `${route ? ` data-route="${escape(route)}"` : ""}${endpoint ? ` data-endpoint="${escape(endpoint)}"` : ""}`;
+					const inputs = renderVerbInputs(registry, item.name);
+					// A verb with no args/options stays a single clickable pill; one that takes input
+					// becomes a small form (its fields collected on Run) — inert launchers no longer.
+					if (!inputs) {
+						return `<button type="button" class="refarm-btn refarm-btn-pill" data-refarm-surface-action-id="${escape(item.name)}"${dataAttrs}>
 						<span class="refarm-card-name">${escape(item.name)}</span>
 						<span class="refarm-card-summary">${escape(item.summary)}</span>
 					</button>`;
+					}
+					return `<div class="refarm-stack" data-refarm-verb="${escape(item.name)}"${dataAttrs}>
+						<span class="refarm-card-name">${escape(item.name)}</span>
+						<span class="refarm-card-summary">${escape(item.summary)}</span>
+						${inputs}
+						<button type="button" class="refarm-btn refarm-btn-pill" data-refarm-surface-action-id="${escape(item.name)}">Run ${escape(item.name)}</button>
+					</div>`;
 				})
 				.join("");
 			return `<div class="refarm-stack" data-section="${escape(section.section)}">

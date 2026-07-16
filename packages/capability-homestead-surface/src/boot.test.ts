@@ -173,4 +173,58 @@ describe("bootCapabilityWebFace — runs the verb, mounts the surface, renders c
 		// The surface was updated in place — exactly ONE mount for the plugin (no duplicate wrap).
 		expect(document.querySelectorAll('[data-refarm-plugin-id="disp/web"]')).toHaveLength(1);
 	});
+
+	it("a card for a verb with args renders inputs, and Run dispatches with the collected values", async () => {
+		// `echo` takes a required `msg` arg; `page` renders the last echoed message.
+		let last = "";
+		const page = {
+			name: "page",
+			summary: "page",
+			renderers: { web: { route: "/page" } },
+			run: async () => ({ pageHtml: `<p data-msg>msg: ${last}</p>` }),
+		};
+		const echo = {
+			name: "echo",
+			summary: "echo a message",
+			args: [{ name: "msg", required: true }],
+			renderers: { web: { route: "/echo" } },
+			run: async (input: { args?: { msg?: unknown } }) => {
+				last = String(input.args?.msg ?? "");
+				return { ok: true };
+			},
+		};
+		const entries = [page, echo];
+		const registry = {
+			get: (name: string) => entries.find((e) => e.name === name),
+			list: () => entries,
+		} as unknown as CapabilityRegistry;
+
+		await bootCapabilityWebFace({
+			databaseName: "test-arg",
+			namespace: "test",
+			registry,
+			content: { verb: "page", field: "pageHtml" },
+			surface: { pluginId: "arg/web", content: (d) => String(d.pageHtml ?? "") },
+			bootRuntime: async () => mockRuntime(),
+		});
+
+		const mounted = () => document.querySelector('[data-refarm-plugin-id="arg/web"]');
+		// The echo card rendered a text input for its `msg` arg + a Run button.
+		const input = mounted()?.querySelector<HTMLInputElement>('[data-refarm-arg="msg"]');
+		expect(input).not.toBeNull();
+		const runBtn = mounted()?.querySelector<HTMLElement>(
+			'[data-refarm-verb="echo"] [data-refarm-surface-action-id="echo"]',
+		);
+		expect(runBtn).not.toBeNull();
+
+		// Type a value, click Run → the verb runs WITH the typed arg, and the content reflects it.
+		input!.value = "hello";
+		runBtn!.click();
+		const deadline = Date.now() + 1000;
+		while (Date.now() < deadline && !mounted()?.textContent?.includes("msg: hello")) {
+			await new Promise((r) => setTimeout(r, 5));
+		}
+		expect(last).toBe("hello");
+		expect(mounted()?.textContent).toContain("msg: hello");
+	});
 });
