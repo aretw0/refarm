@@ -35,7 +35,7 @@ export const defaultWalletStatePath = walletAppDefaults.statePath;
 export interface WalletHostOptions
 	extends WalletStateOptions,
 		HostCommandOptions,
-		Pick<WalletBundleOptions, "credentialsProvider" | "identity" | "verifyPolicy"> {}
+		Pick<WalletBundleOptions, "credentialsProvider" | "identity" | "verifyPolicy" | "authorizationProvider"> {}
 
 const resolveCommand = createHostCommandResolver({ defaultCommand: DGK_COMMAND });
 
@@ -132,7 +132,7 @@ export const buildProgram = walletApp.program;
  */
 export function composeWalletDefaultOptions(
 	base: () => WalletStateOptions,
-	sovereign?: Pick<WalletHostOptions, "credentialsProvider" | "identity">,
+	sovereign?: Pick<WalletHostOptions, "credentialsProvider" | "identity" | "authorizationProvider">,
 ): () => WalletHostOptions {
 	return () => ({ ...base(), ...(sovereign ?? {}) });
 }
@@ -148,8 +148,8 @@ export function composeWalletDefaultOptions(
 async function resolveWalletDefaultOptions(): Promise<() => WalletHostOptions> {
 	const base = () => walletAppDefaults.defaultOptions();
 	if (process.env[DGK_SOVEREIGN_ENV] !== "1") return composeWalletDefaultOptions(base);
-	const { credentialsProvider, identity } = await createSovereignWalletBundle();
-	return composeWalletDefaultOptions(base, { credentialsProvider, identity });
+	const { credentialsProvider, identity, authorizationProvider } = await createSovereignWalletBundle();
+	return composeWalletDefaultOptions(base, { credentialsProvider, identity, authorizationProvider });
 }
 
 void resolveWalletDefaultOptions().then((defaultOptions) =>

@@ -1,7 +1,12 @@
 import type { VerifiableCredential } from "@refarm.dev/credentials-contract-v1";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createSovereignWalletBundle } from "./sovereign.js";
+
+// Every test here instantiates the real WASM identity component (async, and slower under a loaded
+// machine). The default 5s budget was marginal — one test tipped over it once a fourth was added.
+// Give the sandbox room so the suite is a signal, not a flake.
+vi.setConfig({ testTimeout: 20_000 });
 
 /** A minimal signed-nothing VC the citizen holds (issuer-signed VC verification is
  * out of scope here — we prove the HOLDER's presentation signature, which is the
@@ -40,6 +45,26 @@ describe("T2 sovereign wallet — presentations are signed inside the WASM sandb
 		// proof — both made in the sandbox, both check out.
 		const result = await credentialsProvider.verify(presentation);
 		expect(result.valid).toBe(true);
+	});
+
+	it("the consent journey is signed by the sovereign WASM key, and a tampered receipt fails", async () => {
+		// T2's inverted ceiling closed: the authorize→verify journey no longer signs with a forgeable
+		// in-memory digest — it signs through the sandboxed Ed25519 identity, and the proof carries
+		// that suite. A tampered receipt fails because the signature covers the exact payload.
+		const { authorizationProvider } = await createSovereignWalletBundle();
+		const receipt = await authorizationProvider.authorize({
+			id: "req-sovereign-1",
+			requester: "gov:service-x",
+			subject: "cidadao",
+			purpose: "prove eligibility",
+			requestedAttributes: ["faixa_etaria"],
+			expiresAt: "2999-01-01T00:00:00.000Z",
+		});
+		expect(receipt.proof.algorithm).toBe("ed25519-wasm-sovereign");
+		expect((await authorizationProvider.verify(receipt)).valid).toBe(true);
+
+		const tampered = { ...receipt, requester: "attacker:evil" };
+		expect((await authorizationProvider.verify(tampered)).valid).toBe(false);
 	});
 
 	it("the wallet holds no private key — only the identity provider (a WASM boundary) does", async () => {

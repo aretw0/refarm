@@ -1,9 +1,14 @@
 import {
+	createReferenceAuthorizationProvider,
+	createSovereignAuthorizationSigner,
+	type AuthorizationProvider,
+} from "@refarm.dev/authorization-contract-v1";
+import {
 	ReferenceCredentialsProvider,
 	type CredentialsProvider,
 } from "@refarm.dev/credentials-contract-v1";
 import type { IdentityProvider } from "@refarm.dev/identity-contract-v1";
-import { createReferenceWasmIdentityProvider } from "@refarm.dev/identity-provider-ref";
+import { WASM_IDENTITY_ALGORITHM, createReferenceWasmIdentityProvider } from "@refarm.dev/identity-provider-ref";
 import { createInMemoryStorageProvider } from "@refarm.dev/storage-contract-v1";
 
 /**
@@ -22,6 +27,9 @@ import { createInMemoryStorageProvider } from "@refarm.dev/storage-contract-v1";
 export interface SovereignWalletBundle {
 	credentialsProvider: CredentialsProvider;
 	identity: IdentityProvider;
+	/** The consent journey (authorize/present/revoke) signed by the sovereign key — not the
+	 * forgeable in-memory fixture digest. */
+	authorizationProvider: AuthorizationProvider;
 }
 
 /**
@@ -38,5 +46,13 @@ export async function createSovereignWalletBundle(): Promise<SovereignWalletBund
 	// identity changed — from keys-in-JS to keys-in-sandbox.
 	const storage = createInMemoryStorageProvider();
 	const credentialsProvider = new ReferenceCredentialsProvider({ identity, storage });
-	return { credentialsProvider, identity };
+	// The citizen's sovereign holder identity — its private key is born and dies in the sandbox.
+	// The consent journey (authorize → present → verify → revoke) signs each receipt through it,
+	// so the authorization proof is a real sandboxed signature, not the offline fixture digest.
+	const holder = await identity.create("Cidadão Soberano");
+	const authorizationProvider = createReferenceAuthorizationProvider({
+		signer: createSovereignAuthorizationSigner(identity, holder.id, WASM_IDENTITY_ALGORITHM),
+		holderId: holder.id,
+	});
+	return { credentialsProvider, identity, authorizationProvider };
 }
