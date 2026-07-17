@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { runIdentityV1Conformance } from "@refarm.dev/identity-contract-v1";
 import { describe, expect, it } from "vitest";
 
@@ -7,7 +10,16 @@ import {
 	createWasmIdentityProvider,
 } from "./index.js";
 
-describe("sovereign identity WASM plugin — the key never leaves the sandbox", () => {
+// This suite drives the REAL transpiled sovereign identity component, so it needs
+// `pnpm build:component` (cargo component build + jco transpile) to have produced
+// `pkg/`. Gitignored + rebuilt, so — like vault-surface-ref/quality-checker-ref —
+// this SKIPS when the pkg is absent instead of failing the repo-wide test run. The
+// factories in ./index.js import `pkg/` lazily, so importing this module is safe;
+// only entering these bodies would touch the WASM.
+const pkgEntry = fileURLToPath(new URL("../pkg/identity_provider.js", import.meta.url));
+const componentBuilt = existsSync(pkgEntry);
+
+describe.skipIf(!componentBuilt)("sovereign identity WASM plugin — the key never leaves the sandbox", () => {
 	it("passes the identity:v1 conformance suite (parity with the reference provider)", async () => {
 		const provider = await createReferenceWasmIdentityProvider();
 		const result = await runIdentityV1Conformance(provider);
