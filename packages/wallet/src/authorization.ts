@@ -110,20 +110,25 @@ export function verifiedAttributes(recordsDeps: RecordsCommandDeps): () => Attri
 			);
 		if (verified.length === 0) return citizenAttributes();
 		const attributes: Record<string, unknown> = {};
-		let subject = "citizen-local";
+		let subject: string | undefined;
 		let issuer = "self-presented";
 		let issuedAt = citizenAttributes().issuedAt;
 		for (const record of verified) {
 			const vc = recordToCredential(record);
 			const subj = (vc?.credentialSubject ?? {}) as Record<string, unknown>;
-			if (typeof subj.id === "string") subject = subj.id;
+			const subjectId = typeof subj.id === "string" ? subj.id : undefined;
+			// Only the CITIZEN's OWN verified attributes are disclosable. The first verified subject
+			// fixes the holder; a credential for a DIFFERENT subject id is SKIPPED — never silently
+			// adopt another holder's identity into the citizen's presentation.
+			if (subject === undefined) subject = subjectId;
+			else if (subjectId !== undefined && subjectId !== subject) continue;
 			if (typeof vc?.issuer === "string") issuer = vc.issuer;
 			if (typeof vc?.issuanceDate === "string") issuedAt = vc.issuanceDate;
 			for (const [key, value] of Object.entries(subj)) {
 				if (key !== "id") attributes[key] = value;
 			}
 		}
-		return { subject, issuer, issuedAt, attributes };
+		return { subject: subject ?? "citizen-local", issuer, issuedAt, attributes };
 	};
 }
 

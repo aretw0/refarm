@@ -61,6 +61,23 @@ describe("verifiedAttributes — present discloses from the citizen's verified c
 		expect(attrs.attributes).toMatchObject({ faixa_etaria: "30-39", curso: "Engenharia" });
 	});
 
+	it("SKIPS a verified credential for a different holder (never adopts another subject's identity)", () => {
+		const attrs = verifiedAttributes(
+			deps([
+				credentialRecord("verified", { faixa_etaria: "30-39" }), // the citizen: did:citizen:me
+				// A verified credential whose SUBJECT is a different holder (spread overrides the id).
+				{
+					...credentialRecord("verified", { id: "did:someone:else", curso: "Engenharia" }),
+					id: "record:cred-other",
+				} as KnowledgeRecord,
+			]),
+		)();
+		// Only the citizen's OWN attribute is disclosed; the other holder's is skipped.
+		expect(attrs.subject).toBe("did:citizen:me");
+		expect(attrs.attributes).toEqual({ faixa_etaria: "30-39" });
+		expect((attrs.attributes as Record<string, unknown>).curso).toBeUndefined();
+	});
+
 	it("falls back to the synthetic baseline until a credential is verified", () => {
 		// A DRAFT (imported, not yet verified) credential is NOT disclosed from.
 		expect(verifiedAttributes(deps([credentialRecord("draft", { curso: "X" })]))()).toEqual(citizenAttributes());

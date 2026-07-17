@@ -9,6 +9,11 @@ verbo, o teste e o arquivo.
 > memória. Com `DGK_SOVEREIGN=1`, a identidade vira o **signer WASM soberano** — e é aí que as
 > assinaturas passam a ser criptograficamente reais.
 
+> **Nota (pós-extração).** O núcleo reutilizável (`persona`, `authorization`, `credentials`, `verifier`,
+> `sovereignty`, `sovereign` + suas suítes como `sovereign.test.ts`) mora no bloco **`@refarm.dev/wallet`**;
+> o `createDeterministicSigner`/`in-memory.ts` mora em `@refarm.dev/authorization-contract-v1`. Os nomes de
+> arquivo/teste abaixo referem-se a esses módulos. As afirmações de capacidade permanecem verdadeiras.
+
 ## O que prova (por capacidade)
 
 | Capacidade | O que prova (frase honesta) | Selo | Como prova |
@@ -17,7 +22,7 @@ verbo, o teste e o arquivo.
 | **Jornada de consentimento soberana** (`authorize → present → verify`) | Sob modo soberano, o recibo de autorização é **assinado pela chave WASM soberana** (`ed25519-wasm-sovereign`), não pelo digest de fixture. Um recibo **adulterado falha** na verificação. | **REAL** (sob `DGK_SOVEREIGN=1`) | `sovereign.test.ts` ("the consent journey is signed by the sovereign WASM key…"); `createSovereignAuthorizationSigner` liga o `AuthorizationSigner` à identidade WASM. |
 | `wallet share` / `present` (soberano) | A apresentação que a carteira constrói é **assinada dentro do sandbox** (`ed25519-wasm-sovereign` no `proof.signature`). | **REAL** (sob `DGK_SOVEREIGN=1`) | `sovereign.test.ts` ("the wallet's own `share` verb signs the presentation inside the sandbox"). |
 | Cadeia de consentimento (padrão) | A trilha mínima **autorizar → apresentar → verificar → revogar** funciona em cenário determinístico offline. | **SINTÉTICO** (fixture `fixture-fnv1a`) | `authorization.test.ts` (6/6, sem passo de import); `in-memory.ts` (`createDeterministicSigner`). |
-| Apresentação seletiva | O cidadão autoriza um **escopo** para um **propósito** e divulga **só esse escopo** — nunca mais que o autorizado. | **REAL** (lógica de escopo) | `authorization.ts` — escopo `faixa_etaria` divulga **só** `faixa_etaria`; os 4 atributos disponíveis em `authorization.ts:85-88` (`nome_social`, `faixa_etaria`, `municipio`, `vinculo`, **fictícios**). |
+| Apresentação seletiva | O cidadão autoriza um **escopo** para um **propósito** e divulga **só esse escopo** — nunca mais que o autorizado. | **REAL** (lógica de escopo) | `authorization.ts` — escopo `faixa_etaria` divulga **só** `faixa_etaria`; os 4 atributos disponíveis em `authorization.ts` (`nome_social`, `faixa_etaria`, `municipio`, `vinculo`, **fictícios**). |
 | Revogação auditável | O cidadão revoga; `present` pós-revogação **recusa**; a revogação vira uma **revisão durável** (ativa → revogada, mesma id). | **REAL** (lógica) | `authorization.ts` (`revoke`), `history` — authorize→revoke = 2 revisões. |
 | `verify` (credencial) | Uma credencial expirada / revogada / de emissor não confiável é **RECUSADA** — não só a assinatura: validade + revogação (via status list no `--strict`) + confiança no emissor. | **REAL** (motor de política) | `credentials`/`trust`; `verify --strict`. **Ver limite abaixo sobre assinatura de terceiro.** |
 | `report [--apply]` | O grafo de divulgação como `.svg` + um `report.md` da postura soberana, com carimbo **SHA-256** por arquivo + manifesto `evidence.json`. | derivado (+ stamp REAL) | `report.ts` → `createEvidenceBundleCapability`. |
