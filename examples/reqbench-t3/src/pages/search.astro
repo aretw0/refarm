@@ -1,0 +1,15 @@
+---
+import { Layout } from "@refarm.dev/homestead/ui";
+---
+
+<Layout title="Buscar Requisitos — Bancada do Analista">
+  <div id="loading-overlay" class="refarm-loading-state">
+    <div class="refarm-spinner" aria-hidden="true"></div>
+    <p>Abrindo a busca de requisitos…</p>
+  </div>
+</Layout>
+
+<script>
+  import { bootSearch } from "../web/search-boot";
+  bootSearch();
+</script>

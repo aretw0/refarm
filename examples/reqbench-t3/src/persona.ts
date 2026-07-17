@@ -34,7 +34,6 @@ import {
 	organizeRecords,
 	planRecordFiles,
 	recordToVaultNote,
-	searchRecords,
 	type OrganizeDispatcher,
 	type RecordFilePlan,
 	type SearchDispatcher,
@@ -1461,83 +1460,10 @@ export function createRequirementsOrganizeCapability(
 	};
 }
 
-/** The T3 persona verb: `requirements-search <query> [--tipo --sistema]` — find requirements in
- * the vault by text, filtered by frontmatter facets. The analyst asks "where did I write about
- * nota fiscal?"; the SAME sovereign vault surface that ROUTES also SEARCHES (the query is data
- * the surface interprets). Thin BECAUSE the framework carries the search — one searchRecords call.
- * `--tipo`/`--sistema` post-filter the hit records by their frontmatter facet. */
-export function createRequirementsSearchCapability(
-	recordsDeps: RecordsCommandDeps,
-	vaultSurface: () => Promise<SearchDispatcher>,
-): CapabilityDescriptor {
-	return {
-		name: "requirements-search",
-		summary: "Search the requirements vault by text, filtered by tipo/sistema",
-		args: [{ name: "query", required: true }],
-		options: [
-			{ name: "tipo", kind: "string", summary: "Only requirements of this tipo (e.g. requisito)" },
-			{ name: "sistema", kind: "string", summary: "Only requirements of this sistema (e.g. EFD)" },
-		],
-		transports: { http: { path: "/requirements/search" } },
-		renderers: { tui: { section: "requirements" }, web: { route: "/search", icon: "search" } },
-		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
-			const query = String(input.args.query ?? "").trim();
-			if (!query) {
-				return buildJsonErrorEnvelope({
-					command: "requirements-search",
-					operation: "search",
-					error: "no_query",
-					message: "Pass a search query (e.g. requirements-search \"nota fiscal\").",
-					nextAction: "requirements-search <query>",
-				});
-			}
-			const manifest = recordsDeps.loadManifest();
-			// Optional facet filter — narrow the corpus BEFORE searching (a real analyst scopes by
-			// system/type). Applied to the records, not the query, so it composes with any term.
-			// Case-INSENSITIVE: `sistema` is stored upper-cased and `tipo` lower-kebab, so `--sistema
-			// efd` / `--tipo Funcional` must still match (else the analyst gets an empty result with
-			// no error and assumes "nothing there").
-			const tipo = input.options?.tipo ? String(input.options.tipo).toLowerCase() : undefined;
-			const sistema = input.options?.sistema ? String(input.options.sistema).toLowerCase() : undefined;
-			const scoped = manifest.records.filter(
-				(r) =>
-					(!tipo || String(r.fields?.tipo ?? "").toLowerCase() === tipo) &&
-					(!sistema || String(r.fields?.sistema ?? "").toLowerCase() === sistema),
-			);
-
-			const hits = await searchRecords(await vaultSurface(), scoped, query);
-			// One entry per matched record (a record can match several terms → dedup, keep best score).
-			const byRecord = new Map<string, { recordId: string; title: string; tipo?: string; sistema?: string; score: number }>();
-			for (const hit of hits) {
-				const record = manifest.records.find((r) => r.id === hit.recordId);
-				const existing = byRecord.get(hit.recordId);
-				const score = (existing?.score ?? 0) + (hit.score ?? 1);
-				byRecord.set(hit.recordId, {
-					recordId: hit.recordId,
-					title: String(record?.fields?.title ?? hit.recordId),
-					tipo: record?.fields?.tipo ? String(record.fields.tipo) : undefined,
-					sistema: record?.fields?.sistema ? String(record.fields.sistema) : undefined,
-					score,
-				});
-			}
-			// Most-relevant first (more matched terms = higher score).
-			const results = [...byRecord.values()].sort((a, b) => b.score - a.score);
-
-			return buildJsonSuccessEnvelope({
-				command: "requirements-search",
-				operation: "search",
-				nextCommand: "dgk requirements",
-				nextCommands: ["dgk requirements"],
-				extra: {
-					query,
-					scope: { tipo, sistema, searched: scoped.length },
-					matched: results.length,
-					results,
-				},
-			});
-		},
-	};
-}
+// `requirements-search` lives in its own browser-safe module (./search.ts) so the WEB face can
+// import the factory without dragging node:crypto + the WASM vault component (which this file pulls
+// at module load) into the browser bundle. Re-exported here so the CLI import path is unchanged.
+export { createRequirementsSearchCapability } from "./search.js";
 
 /** Stamp the ALM CANONICAL frontmatter onto a record's fields before it is written to a note —
  * the coordinates a later incremental sync reads back (the artifact's own URI, its ALM modified
