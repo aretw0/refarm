@@ -104,7 +104,9 @@ async function requestRaw(
 
 describe("sessions route handler", () => {
 	let sidecar: HttpSidecar;
-	const PORT = 42109;
+	// Ephemeral port per test (see http.test.ts) — a fixed port races the previous test's
+	// stop() releasing it under CI load.
+	let PORT = 0;
 	const adapter = makeAdapter();
 	const store = {
 		queryNodes: vi.fn(),
@@ -113,9 +115,11 @@ describe("sessions route handler", () => {
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
-		sidecar = new HttpSidecar(PORT, adapter);
+		sidecar = new HttpSidecar(0, adapter);
 		sidecar.addRouteHandler(createSessionsRouteHandler(store));
 		await sidecar.start();
+		const address = sidecar.httpServer.address();
+		PORT = typeof address === "object" && address !== null ? address.port : 0;
 	});
 
 	afterEach(async () => {

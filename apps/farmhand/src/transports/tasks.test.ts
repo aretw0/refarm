@@ -87,7 +87,9 @@ async function seedTask(
 describe("tasks route handler", () => {
 	let sidecar: HttpSidecar;
 	let taskAdapter: TaskContractAdapter;
-	const PORT = 42115;
+	// Ephemeral port per test (see http.test.ts) — a fixed port races the previous test's
+	// stop() releasing it under CI load.
+	let PORT = 0;
 
 	beforeEach(async () => {
 		taskAdapter = createInMemoryTaskAdapter({
@@ -101,9 +103,11 @@ describe("tasks route handler", () => {
 				return () => ns++;
 			})(),
 		});
-		sidecar = new HttpSidecar(PORT, makeAdapter());
+		sidecar = new HttpSidecar(0, makeAdapter());
 		sidecar.addRouteHandler(createTasksRouteHandler(taskAdapter));
 		await sidecar.start();
+		const address = sidecar.httpServer.address();
+		PORT = typeof address === "object" && address !== null ? address.port : 0;
 	});
 
 	afterEach(async () => {

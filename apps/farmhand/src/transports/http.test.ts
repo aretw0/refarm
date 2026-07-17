@@ -158,13 +158,19 @@ function withDisabledChannelCapabilities(
 describe("HttpSidecar", () => {
 	let sidecar: HttpSidecar;
 	let adapter: ReturnType<typeof makeAdapter>;
-	const PORT = 42099;
+	// Bind an EPHEMERAL port (0) per test and read back the OS-assigned one, instead of a
+	// fixed 42099 that every test rebinds. A fixed port makes `start()` race the previous
+	// test's `stop()` releasing it under CI load (EADDRINUSE / refused connection) — the
+	// flake behind "POST /efforts returns effortId". An ephemeral port cannot collide.
+	let PORT = 0;
 
 	beforeEach(async () => {
 		adapter = makeAdapter();
-		sidecar = new HttpSidecar(PORT, adapter);
+		sidecar = new HttpSidecar(0, adapter);
 		sidecar.addRouteHandler(createControlSurfaceRouteHandler(adapter));
 		await sidecar.start();
+		const address = sidecar.httpServer.address();
+		PORT = typeof address === "object" && address ? address.port : 0;
 	});
 
 	afterEach(async () => {
