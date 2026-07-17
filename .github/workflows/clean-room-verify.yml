@@ -14,12 +14,19 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 4 * * *" # Daily at 04:00 UTC
+  # PRE-MERGE GATE: run cache-cold on every PR targeting main (the develop→main promotion), so a
+  # latent failure the warm-cache per-push runs hide is surfaced BEFORE it merges into a release —
+  # not a day later on the schedule. Mark this job a required status check in branch protection to
+  # actually block the merge (that lives in repo settings, not this file).
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: clean-room-verify
+  # Per-ref so a PR run, another PR, and the scheduled run don't cancel each other.
+  group: clean-room-verify-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
