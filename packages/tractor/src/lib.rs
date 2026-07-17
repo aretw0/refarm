@@ -1366,14 +1366,15 @@ mod event_router_tests {
 mod pool_tests {
     use super::plugin_pool_size_from_env;
 
-    // This module tests the env PARSER (plugin_pool_size_from_env) — the one place
-    // REFARM_PLUGIN_POOL is read, and only ONCE at boot in production
-    // (TractorNativeConfig::from_env). No production hot path or other test reads
-    // this var, so mutating it here is not a cross-thread hazard for any other
-    // test; the two cases here are serialized within one #[test] each. The
-    // migrated read site (stage_pool_stores) now reads self.config.plugin_pool_size,
-    // never env.
+    // This module tests the env PARSER (plugin_pool_size_from_env). REFARM_PLUGIN_POOL is
+    // process-global, and the SIBLING tests here mutate it too (one sets "4", another removes
+    // it), so under `cargo test --lib` (multi-thread) the two #[test]s race on it — one reads the
+    // other's value and the assertion flakes. Take the crate's single env lane, like every other
+    // env-touching test, so the whole set/read/remove is serialized. (Production reads it ONCE at
+    // boot via TractorNativeConfig::from_env; the migrated read site stage_pool_stores reads
+    // self.config.plugin_pool_size, never env.)
     fn with_pool_env<T>(value: Option<&str>, f: impl FnOnce() -> T) -> T {
+        let _env = crate::test_support::env_lock();
         match value {
             Some(v) => std::env::set_var("REFARM_PLUGIN_POOL", v),
             None => std::env::remove_var("REFARM_PLUGIN_POOL"),
