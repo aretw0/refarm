@@ -209,7 +209,14 @@ export function createWalletDeclineCapability(recordsDeps: RecordsCommandDeps): 
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const id = String(input.args.id ?? "");
 			const manifest = recordsDeps.loadManifest();
-			const record = manifest.records.find((r) => r.id === id && isPendingRequest(r));
+			// Match by record id (the `consent` list) OR by the embedded request id (what
+			// renderConsentPrompt's Decline control carries) — same verb for CLI and web.
+			const record = manifest.records.find(
+				(r) =>
+					(r.id === id ||
+						(r.fields as { pendingRequest?: { id?: string } } | undefined)?.pendingRequest?.id === id) &&
+					isPendingRequest(r),
+			);
 			if (!record) {
 				return buildJsonErrorEnvelope({
 					command: "decline",
@@ -226,7 +233,7 @@ export function createWalletDeclineCapability(recordsDeps: RecordsCommandDeps): 
 					extra: { id, declined: true, persisted: false, dryRun: true },
 				});
 			}
-			await recordsDeps.saveManifest(removeRecord(manifest, id));
+			await recordsDeps.saveManifest(removeRecord(manifest, record.id));
 			return buildJsonSuccessEnvelope({
 				command: "decline",
 				operation: "decline",

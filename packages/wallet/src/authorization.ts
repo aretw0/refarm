@@ -232,11 +232,18 @@ export function createWalletAuthorizeCapability(
 			let expiresAt: string;
 			let pendingToClear: string | null = null;
 			if (pendingId) {
+				// Match the pending item by its record id (the `consent` list) OR by the embedded
+				// request id (what renderConsentPrompt's Authorize button carries) — so the same
+				// verb serves the CLI and the web screen. Clear by the record's actual id.
 				const record = recordsDeps
 					.loadManifest()
-					.records.find((r) => r.id === pendingId);
+					.records.find(
+						(r) =>
+							r.id === pendingId ||
+							(r.fields as { pendingRequest?: ServiceRequest } | undefined)?.pendingRequest?.id === pendingId,
+					);
 				const pending = (record?.fields as { pendingRequest?: ServiceRequest } | undefined)?.pendingRequest;
-				if (!pending) {
+				if (!record || !pending) {
 					return buildJsonErrorEnvelope({
 						command: "authorize",
 						operation: "authorize",
@@ -249,7 +256,7 @@ export function createWalletAuthorizeCapability(
 				purpose = pending.purpose;
 				scope = pending.requestedAttributes;
 				expiresAt = pending.expiresAt;
-				pendingToClear = pendingId;
+				pendingToClear = record.id;
 			} else {
 				requester = String(input.args.requester ?? "").trim();
 				purpose = String(input.options?.purpose ?? "").trim();
