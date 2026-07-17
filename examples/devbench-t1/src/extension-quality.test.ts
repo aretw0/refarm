@@ -1,4 +1,6 @@
 import type { SurfaceableManifest } from "@refarm.dev/capability-host";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { buildRegistry } from "./cli.js";
@@ -7,6 +9,14 @@ import {
 	EXTENSION_HYGIENE_PROFILE,
 	manifestToQualitySubject,
 } from "./extension-quality.js";
+
+// checkExtensionQuality drives the REAL quality-checker-ref WASM component, whose transpiled
+// pkg/ is a gitignored build artifact absent in CI's quality job (no Rust toolchain). Gate those
+// cases on it — matching the component packages' own suites — while the pure manifest/profile
+// checks always run. Without this the suite hits ERR_MODULE_NOT_FOUND on a clean build.
+const componentBuilt = existsSync(
+	fileURLToPath(new URL("../../../packages/quality-checker-ref/pkg/quality_checker_ref.js", import.meta.url)),
+);
 
 const benign: SurfaceableManifest = {
 	id: "@x/benign",
@@ -32,19 +42,21 @@ describe("extension-quality — a hygiene gate via the sandboxed quality:v1 chec
 		expect(shellRule?.severity).toBe("warning");
 	});
 
-	it("a benign extension passes the sandboxed checker clean", async () => {
-		const report = await checkExtensionQuality(benign);
-		expect(report.clean).toBe(true);
-		expect(report.findings).toEqual([]);
-	});
+	describe.skipIf(!componentBuilt)("real findings via the sandboxed WASM checker (needs pkg/)", () => {
+		it("a benign extension passes the sandboxed checker clean", async () => {
+			const report = await checkExtensionQuality(benign);
+			expect(report.clean).toBe(true);
+			expect(report.findings).toEqual([]);
+		});
 
-	it("a risky extension is flagged by the sandboxed WASM checker (real findings)", async () => {
-		const report = await checkExtensionQuality(risky);
-		expect(report.clean).toBe(false);
-		const ruleIds = report.findings.map((f) => f.ruleId);
-		expect(ruleIds).toContain("declares-high-risk-shell");
-		expect(ruleIds).toContain("declares-network");
-		expect(ruleIds).toContain("declares-fs-write");
+		it("a risky extension is flagged by the sandboxed WASM checker (real findings)", async () => {
+			const report = await checkExtensionQuality(risky);
+			expect(report.clean).toBe(false);
+			const ruleIds = report.findings.map((f) => f.ruleId);
+			expect(ruleIds).toContain("declares-high-risk-shell");
+			expect(ruleIds).toContain("declares-network");
+			expect(ruleIds).toContain("declares-fs-write");
+		});
 	});
 
 	it("is mounted in the bench with a governance section + IDE command", () => {
