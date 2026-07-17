@@ -34,6 +34,7 @@ jobs:
       tractor_heavy_gates: ${{ steps.detect.outputs.tractor_heavy_gates }}
       run_build: ${{ steps.detect.outputs.run_build }}
       run_e2e: ${{ steps.detect.outputs.run_e2e }}
+      run_web_smoke: ${{ steps.detect.outputs.run_web_smoke }}
       run_task_smoke: ${{ steps.detect.outputs.run_task_smoke }}
       run_dispatch_surface_ci: ${{ steps.detect.outputs.run_dispatch_surface_ci }}
       run_audit: ${{ steps.detect.outputs.run_audit }}
@@ -173,6 +174,14 @@ jobs:
             run_task_smoke=true
           fi
 
+          # The examples' web faces boot in a REAL browser only — jsdom cannot catch the B1 class
+          # (a node import that crashes a browser bundle at module-init). Fire the real-browser
+          # smoke when a face, its browser-safe framework, or the smoke itself changes.
+          run_web_smoke=false
+          if has_match '^(examples/|packages/capability-homestead-surface/|packages/capabilities/|scripts/ci/web-face-smoke\.mjs|\.github/workflows/test\.yml$)'; then
+            run_web_smoke=true
+          fi
+
           dispatch_surface_change_check=$(bash scripts/ci/release-dispatch-surface-build.sh "$BASE_SHA" "$HEAD_SHA" --check)
           run_dispatch_surface_ci=false
           if echo "$dispatch_surface_change_check" | grep -q '^run_dispatch_surface_ci=true'; then
@@ -207,6 +216,7 @@ jobs:
           echo "tractor_heavy_gates=$tractor_heavy_gates" >> "$GITHUB_OUTPUT"
           echo "run_build=$run_build" >> "$GITHUB_OUTPUT"
           echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
+          echo "run_web_smoke=$run_web_smoke" >> "$GITHUB_OUTPUT"
           echo "run_task_smoke=$run_task_smoke" >> "$GITHUB_OUTPUT"
           echo "run_dispatch_surface_ci=$run_dispatch_surface_ci" >> "$GITHUB_OUTPUT"
           echo "run_audit=$run_audit" >> "$GITHUB_OUTPUT"
@@ -969,6 +979,33 @@ jobs:
       - name: Deep regression (full stack)
         run: pnpm turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo --output-logs=new-only --ui=stream
 
+  web-face-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: changes
+    if: needs.changes.outputs.run_web_smoke == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+        with:
+          playwright-setup: "true"
+          turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
+          turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
+
+      - name: Build the example web faces
+        run: pnpm turbo run web:build --filter=devbench-t1 --filter=wallet-t2 --filter=reqbench-t3 --cache-dir=.turbo --output-logs=new-only --ui=stream
+
+      - name: Real-browser web-face smoke (boots each declared face in headless Chromium)
+        run: pnpm web:smoke
+
   audit-moderate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1027,6 +1064,7 @@ jobs:
         platform-compat,
         build,
         e2e,
+        web-face-smoke,
         audit-moderate,
         deep-regression,
       ]
@@ -1104,6 +1142,11 @@ jobs:
 
           if [ "${{ needs.changes.outputs.run_e2e }}" = "true" ] && [ "${{ needs.e2e.result }}" != "success" ]; then
             echo "::error::E2E tests failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.changes.outputs.run_web_smoke }}" = "true" ] && [ "${{ needs.web-face-smoke.result }}" != "success" ]; then
+            echo "::error::Web-face smoke failed"
             exit 1
           fi
 
