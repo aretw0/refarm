@@ -338,6 +338,62 @@ jobs:
           --filter=@refarm.dev/scarecrow-plugin
           --cache-dir=.turbo --output-logs=new-only --ui=stream
 
+  # Proof-in-CI for the WASM component features. The reference components
+  # (sovereign identity, vault surface, quality checker) transpile their WASM to
+  # a gitignored `pkg/`; their suites SKIP (describe.skipIf(!componentBuilt)) when
+  # it is absent — which is every other job (no Rust toolchain). This job BUILDS
+  # the components, so those suites actually RUN here: it is the only place the T2
+  # sovereign-identity + T3 vault + quality-checker claims are verified in CI.
+  wasm-component-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: changes
+    if: needs.changes.outputs.skip_duplicate_push != 'true' && (needs.changes.outputs.code_changes == 'true' || needs.changes.outputs.run_task_smoke == 'true')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: "0"
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          rust-target: "wasm32-wasip1"
+          turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
+          turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          trusted-pr-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
+
+      - name: Build the component packages + their TS consumers
+        run: >-
+          pnpm turbo run build
+          --filter=@refarm.dev/identity-provider-ref
+          --filter=@refarm.dev/vault-surface-ref
+          --filter=@refarm.dev/quality-checker-ref
+          --filter=@refarm.dev/quality-checker-plugin
+          --filter=@refarm.dev/wallet
+          --cache-dir=.turbo --output-logs=new-only --ui=stream
+
+      - name: Transpile the WASM components (produces the pkg/ the suites gate on)
+        run: >-
+          pnpm --workspace-concurrency=1
+          --filter=@refarm.dev/identity-provider-ref
+          --filter=@refarm.dev/vault-surface-ref
+          --filter=@refarm.dev/quality-checker-ref
+          --filter=@refarm.dev/quality-checker-plugin
+          run build:component
+
+      - name: Run the gated WASM component suites (now that pkg/ exists)
+        run: >-
+          pnpm --workspace-concurrency=1
+          --filter=@refarm.dev/identity-provider-ref
+          --filter=@refarm.dev/vault-surface-ref
+          --filter=@refarm.dev/quality-checker-ref
+          --filter=@refarm.dev/quality-checker-plugin
+          --filter=@refarm.dev/wallet
+          run test
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -966,6 +1022,7 @@ jobs:
       [
         changes,
         build-wasm,
+        wasm-component-tests,
         quality,
         platform-compat,
         build,
@@ -1013,6 +1070,13 @@ jobs:
           # only a real "failure" here is a gate breach.
           if [ "${{ needs.build-wasm.result }}" = "failure" ]; then
             echo "::error::Rust/WASM plugin build failed"
+            exit 1
+          fi
+
+          # wasm-component-tests skips on docs-only commits too; only a real
+          # "failure" (a sovereign/vault/quality component suite broke) is a breach.
+          if [ "${{ needs.wasm-component-tests.result }}" = "failure" ]; then
+            echo "::error::WASM component suites failed"
             exit 1
           fi
 
