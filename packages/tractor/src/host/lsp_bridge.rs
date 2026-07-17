@@ -1008,6 +1008,283 @@ mod tests {
     }
 
     #[test]
+    fn encode_lsp_message_frames_exact_content_length() {
+        let message = serde_json::json!({"a":1});
+        let body = message.to_string(); // {"a":1} => 7 bytes
+        let framed = encode_lsp_message(&message);
+
+        assert_eq!(
+            String::from_utf8(framed).unwrap(),
+            format!("Content-Length: {}\r\n\r\n{}", body.len(), body)
+        );
+    }
+
+    #[test]
+    fn find_header_end_locates_crlf_crlf_separator() {
+        let buffer = b"Content-Length: 2\r\n\r\n{}";
+        // The separator begins right after "Content-Length: 2" (17 bytes).
+        assert_eq!(find_header_end(buffer), Some(17));
+    }
+
+    #[test]
+    fn find_header_end_is_none_without_full_separator() {
+        assert_eq!(find_header_end(b"Content-Length: 2\r\n"), None);
+        assert_eq!(find_header_end(b""), None);
+    }
+
+    #[test]
+    fn content_length_parses_valid_header() {
+        assert_eq!(content_length("Content-Length: 42").unwrap(), 42);
+    }
+
+    #[test]
+    fn content_length_is_case_insensitive_and_trims() {
+        assert_eq!(content_length("content-length:  7  ").unwrap(), 7);
+        assert_eq!(content_length("CONTENT-LENGTH: 9").unwrap(), 9);
+    }
+
+    #[test]
+    fn content_length_errors_when_header_missing() {
+        let err = content_length("Content-Type: application/json").unwrap_err();
+        assert!(err.contains("missing Content-Length"));
+    }
+
+    #[test]
+    fn content_length_errors_when_value_unparseable() {
+        let err = content_length("Content-Length: not-a-number").unwrap_err();
+        assert!(err.contains("Content-Length parse"));
+    }
+
+    #[test]
+    fn drain_lsp_messages_returns_single_full_frame_and_empties_buffer() {
+        let message = serde_json::json!({"jsonrpc":"2.0","id":1,"result":{"ok":true}});
+        let mut buffer = encode_lsp_message(&message);
+
+        let messages = drain_lsp_messages(&mut buffer).unwrap();
+
+        assert_eq!(messages, vec![message]);
+        assert!(buffer.is_empty());
+    }
+
+    #[test]
+    fn drain_lsp_messages_leaves_partial_frame_buffered() {
+        // A complete header promising 999 bytes but only one body byte present.
+        let mut buffer = b"Content-Length: 999\r\n\r\n{".to_vec();
+
+        let messages = drain_lsp_messages(&mut buffer).unwrap();
+
+        assert!(messages.is_empty());
+        assert_eq!(buffer, b"Content-Length: 999\r\n\r\n{".to_vec());
+    }
+
+    #[test]
+    fn move_request_uses_experimental_move_symbol_with_target_uri() {
+        let loc = SymbolLocation {
+            file: "src/lib.rs".to_string(),
+            line: 3,
+            column: 9,
+        };
+
+        let request = move_request(4, &loc, "src/moved.rs");
+
+        assert_eq!(request["id"], 4);
+        assert_eq!(request["method"], "experimental/moveSymbol");
+        assert_eq!(
+            request["params"]["position"],
+            serde_json::json!({"line":2,"character":8})
+        );
+        assert!(request["params"]["textDocument"]["uri"]
+            .as_str()
+            .unwrap()
+            .ends_with("/src/lib.rs"));
+        assert!(request["params"]["targetUri"]
+            .as_str()
+            .unwrap()
+            .ends_with("/src/moved.rs"));
+    }
+
+    #[test]
+    fn parse_rename_response_surfaces_error() {
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "error": { "code": -32601, "message": "no rename" }
+        });
+
+        let err = parse_rename_response(&response).unwrap_err();
+
+        assert!(err.contains("no rename"));
+    }
+
+    #[test]
+    fn parse_rename_response_without_result_is_empty() {
+        let response = serde_json::json!({ "jsonrpc": "2.0", "id": 3 });
+
+        assert_eq!(parse_rename_response(&response).unwrap(), Vec::new());
+    }
+
+    #[test]
+    fn parse_rename_response_errors_when_changes_value_not_array() {
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "result": {
+                "changes": { "file:///workspace/src/lib.rs": { "not": "an array" } }
+            }
+        });
+
+        let err = parse_rename_response(&response).unwrap_err();
+
+        assert!(err.contains("must be an array"));
+    }
+
+    #[test]
+    fn parse_rename_response_errors_when_document_change_missing_uri() {
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "result": {
+                "documentChanges": [
+                    { "textDocument": { "version": 1 }, "edits": [] }
+                ]
+            }
+        });
+
+        let err = parse_rename_response(&response).unwrap_err();
+
+        assert!(err.contains("missing textDocument.uri"));
+    }
+
+    #[test]
+    fn parse_rename_response_errors_when_document_change_edits_not_array() {
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "result": {
+                "documentChanges": [
+                    {
+                        "textDocument": { "uri": "file:///workspace/src/lib.rs" },
+                        "edits": { "not": "an array" }
+                    }
+                ]
+            }
+        });
+
+        let err = parse_rename_response(&response).unwrap_err();
+
+        assert!(err.contains("edits for"));
+        assert!(err.contains("must be an array"));
+    }
+
+    #[test]
+    fn text_edit_from_lsp_value_parses_valid_edit() {
+        let value = serde_json::json!({
+            "range": {
+                "start": { "line": 2, "character": 4 },
+                "end": { "line": 2, "character": 9 }
+            },
+            "newText": "renamed"
+        });
+
+        let edit = text_edit_from_lsp_value("/workspace/src/lib.rs", &value).unwrap();
+
+        assert_eq!(
+            edit,
+            LspTextEdit {
+                file: "/workspace/src/lib.rs".to_string(),
+                start_line: 2,
+                start_character: 4,
+                end_line: 2,
+                end_character: 9,
+                new_text: "renamed".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn text_edit_from_lsp_value_errors_when_range_missing() {
+        let value = serde_json::json!({ "newText": "x" });
+
+        let err = text_edit_from_lsp_value("f.rs", &value).unwrap_err();
+
+        assert!(err.contains("missing range"));
+    }
+
+    #[test]
+    fn text_edit_from_lsp_value_errors_when_range_start_missing() {
+        let value = serde_json::json!({
+            "range": { "end": { "line": 0, "character": 1 } },
+            "newText": "x"
+        });
+
+        let err = text_edit_from_lsp_value("f.rs", &value).unwrap_err();
+
+        assert!(err.contains("missing range.start"));
+    }
+
+    #[test]
+    fn text_edit_from_lsp_value_errors_when_range_end_missing() {
+        let value = serde_json::json!({
+            "range": { "start": { "line": 0, "character": 1 } },
+            "newText": "x"
+        });
+
+        let err = text_edit_from_lsp_value("f.rs", &value).unwrap_err();
+
+        assert!(err.contains("missing range.end"));
+    }
+
+    #[test]
+    fn text_edit_from_lsp_value_errors_when_new_text_missing() {
+        let value = serde_json::json!({
+            "range": {
+                "start": { "line": 0, "character": 1 },
+                "end": { "line": 0, "character": 2 }
+            }
+        });
+
+        let err = text_edit_from_lsp_value("f.rs", &value).unwrap_err();
+
+        assert!(err.contains("missing newText"));
+    }
+
+    #[test]
+    fn file_uri_to_path_strips_file_scheme() {
+        assert_eq!(
+            file_uri_to_path("file:///workspace/src/lib.rs"),
+            "/workspace/src/lib.rs"
+        );
+    }
+
+    #[test]
+    fn file_uri_to_path_passes_through_non_file_uri() {
+        assert_eq!(file_uri_to_path("/already/a/path"), "/already/a/path");
+        assert_eq!(file_uri_to_path("relative/path.rs"), "relative/path.rs");
+    }
+
+    #[test]
+    fn lsp_position_converts_one_based_to_zero_based() {
+        let loc = SymbolLocation {
+            file: "src/lib.rs".to_string(),
+            line: 5,
+            column: 3,
+        };
+
+        assert_eq!(lsp_position(&loc), serde_json::json!({"line":4,"character":2}));
+    }
+
+    #[test]
+    fn lsp_position_saturates_zero_input_to_zero() {
+        let loc = SymbolLocation {
+            file: "src/lib.rs".to_string(),
+            line: 0,
+            column: 0,
+        };
+
+        assert_eq!(lsp_position(&loc), serde_json::json!({"line":0,"character":0}));
+    }
+
+    #[test]
     #[ignore = "requires rust-analyzer and indexes the local crate"]
     fn live_rust_analyzer_find_references_returns_locations() {
         if !rust_analyzer_is_available_for_test() {

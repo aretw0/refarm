@@ -292,3 +292,199 @@ async fn await_dispatch_result(
         "tool dispatch timed out after {INVOKE_TIMEOUT_MS}ms waiting for result (replyRef {reply_ref})"
     ))
 }
+
+#[cfg(test)]
+mod capability_tools_pure_tests {
+    use super::*;
+
+    /// Build a `DispatchableVerb` with the given identity, no doc, no schema.
+    fn verb(plugin_id: &str, plugin_key: &str, name: &str) -> DispatchableVerb {
+        DispatchableVerb {
+            plugin_id: plugin_id.to_string(),
+            plugin_key: plugin_key.to_string(),
+            verb: name.to_string(),
+            doc: None,
+            schema: None,
+        }
+    }
+
+    /// The variadic `{ args }` parameters render_tool_schema emits when a verb
+    /// declares no schema — mirrors the source object exactly for comparison.
+    fn variadic_params() -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "args": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Verb arguments as key=value strings, e.g. note={\"path\":\"n.md\"}."
+                }
+            }
+        })
+    }
+
+    // ---- render_tool_schema -------------------------------------------------
+
+    #[test]
+    fn render_tool_schema_openai_declared_uses_schema_verbatim_under_function_envelope() {
+        let mut v = verb("@scope/vault", "vault", "search");
+        let declared = serde_json::json!({
+            "type": "object",
+            "properties": { "query": { "type": "string" } },
+            "required": ["query"]
+        });
+        v.schema = Some(declared.clone());
+
+        let rendered: serde_json::Value =
+            serde_json::from_str(&render_tool_schema(&v, "openai")).unwrap();
+
+        assert_eq!(
+            rendered,
+            serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": "vault_search",
+                    "description": "search — dispatched to the @scope/vault plugin.",
+                    "parameters": declared
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn render_tool_schema_anthropic_declared_uses_input_schema_envelope() {
+        let mut v = verb("@scope/vault", "vault", "search");
+        let declared = serde_json::json!({
+            "type": "object",
+            "properties": { "query": { "type": "string" } }
+        });
+        v.schema = Some(declared.clone());
+
+        // Any non-"openai" provider selects the anthropic envelope.
+        let rendered: serde_json::Value =
+            serde_json::from_str(&render_tool_schema(&v, "anthropic")).unwrap();
+
+        assert_eq!(
+            rendered,
+            serde_json::json!({
+                "name": "vault_search",
+                "description": "search — dispatched to the @scope/vault plugin.",
+                "input_schema": declared
+            })
+        );
+    }
+
+    #[test]
+    fn render_tool_schema_openai_absent_schema_emits_variadic_args_and_keyvalue_hint() {
+        let v = verb("@scope/notes", "notes", "append");
+
+        let rendered: serde_json::Value =
+            serde_json::from_str(&render_tool_schema(&v, "openai")).unwrap();
+
+        assert_eq!(
+            rendered,
+            serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": "notes_append",
+                    "description": "append — dispatched to the @scope/notes plugin. Pass args as key=value strings.",
+                    "parameters": variadic_params()
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn render_tool_schema_anthropic_absent_schema_emits_variadic_input_schema() {
+        let v = verb("@scope/notes", "notes", "append");
+
+        let rendered: serde_json::Value =
+            serde_json::from_str(&render_tool_schema(&v, "claude")).unwrap();
+
+        assert_eq!(
+            rendered,
+            serde_json::json!({
+                "name": "notes_append",
+                "description": "append — dispatched to the @scope/notes plugin. Pass args as key=value strings.",
+                "input_schema": variadic_params()
+            })
+        );
+    }
+
+    #[test]
+    fn render_tool_schema_name_is_key_underscore_verb_not_plugin_id() {
+        // The model-facing name derives from the routing KEY, not the (scoped) id.
+        let v = verb("@long/scope/vault", "vault", "read-note");
+        let rendered: serde_json::Value =
+            serde_json::from_str(&render_tool_schema(&v, "openai")).unwrap();
+        assert_eq!(rendered["function"]["name"], "vault_read-note");
+    }
+
+    // ---- render_tool_prompt -------------------------------------------------
+
+    #[test]
+    fn render_tool_prompt_authored_doc_wins_verbatim() {
+        let mut v = verb("@scope/vault", "vault", "search");
+        v.doc = Some("Use vault_search to find notes by full-text query.".to_string());
+        // A declared schema must NOT override authored prose.
+        v.schema = Some(serde_json::json!({ "type": "object" }));
+
+        assert_eq!(
+            render_tool_prompt(&v),
+            "Use vault_search to find notes by full-text query."
+        );
+    }
+
+    #[test]
+    fn render_tool_prompt_typed_verb_boilerplate_points_at_schema() {
+        let mut v = verb("@scope/vault", "vault", "search");
+        v.schema = Some(serde_json::json!({ "type": "object" }));
+
+        assert_eq!(
+            render_tool_prompt(&v),
+            "Tool `vault_search` dispatches to the `@scope/vault` plugin — pass its \
+             arguments per the tool's schema. Prefer it over shell/fs for anything the \
+             @scope/vault plugin owns."
+        );
+    }
+
+    #[test]
+    fn render_tool_prompt_variadic_verb_boilerplate_points_at_args_strings() {
+        let v = verb("@scope/notes", "notes", "append");
+
+        assert_eq!(
+            render_tool_prompt(&v),
+            "Tool `notes_append` dispatches to the `@scope/notes` plugin — pass its \
+             arguments as `args` (key=value strings). Prefer it over shell/fs for \
+             anything the @scope/notes plugin owns."
+        );
+    }
+
+    // ---- resolve_tool -------------------------------------------------------
+
+    #[test]
+    fn resolve_tool_finds_verb_by_key_underscore_verb_name() {
+        let verbs = vec![
+            verb("@scope/vault", "vault", "search"),
+            verb("@scope/notes", "notes", "append"),
+        ];
+
+        let found = resolve_tool(&verbs, "notes_append").expect("should resolve");
+        assert_eq!(found.plugin_id, "@scope/notes");
+        assert_eq!(found.verb, "append");
+    }
+
+    #[test]
+    fn resolve_tool_returns_none_for_unknown_tool_name() {
+        let verbs = vec![verb("@scope/vault", "vault", "search")];
+        assert!(resolve_tool(&verbs, "vault_missing").is_none());
+        // A bare verb without the key prefix does not match either.
+        assert!(resolve_tool(&verbs, "search").is_none());
+    }
+
+    #[test]
+    fn resolve_tool_on_empty_registry_is_none() {
+        let verbs: Vec<DispatchableVerb> = Vec::new();
+        assert!(resolve_tool(&verbs, "vault_search").is_none());
+    }
+}

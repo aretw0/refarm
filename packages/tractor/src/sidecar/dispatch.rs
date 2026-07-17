@@ -783,3 +783,333 @@ pub(crate) fn month_lengths(leap: bool) -> [u64; 12] {
 }
 
 // ── route handlers ────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::env_lock;
+    use serde_json::json;
+
+    // ── input builders ────────────────────────────────────────────────────────
+
+    fn task(plugin_id: &str, fn_name: Option<&str>, args: Value) -> EffortTask {
+        EffortTask {
+            id: "t-1".to_string(),
+            plugin_id: plugin_id.to_string(),
+            fn_name: fn_name.map(str::to_string),
+            args,
+        }
+    }
+
+    fn effort_with(tasks: Vec<EffortTask>) -> Effort {
+        Effort {
+            id: "e-1".to_string(),
+            direction: None,
+            tasks,
+            source: None,
+            submitted_at: "2026-01-01T00:00:00Z".to_string(),
+        }
+    }
+
+    // ── effort_activity_label ─────────────────────────────────────────────────
+
+    #[test]
+    fn label_reads_respond_task_as_agent_responding() {
+        let e = effort_with(vec![task("@refarm/agent", Some("respond"), Value::Null)]);
+        assert_eq!(effort_activity_label(&e), "Agent responding");
+    }
+
+    #[test]
+    fn label_treats_missing_fn_name_as_respond() {
+        // fn_name None defaults to "respond" via unwrap_or.
+        let e = effort_with(vec![task("@refarm/agent", None, Value::Null)]);
+        assert_eq!(effort_activity_label(&e), "Agent responding");
+    }
+
+    #[test]
+    fn label_bare_fn_without_plugin_id_omits_namespace() {
+        let e = effort_with(vec![task("", Some("extract"), Value::Null)]);
+        assert_eq!(effort_activity_label(&e), "Running extract");
+    }
+
+    #[test]
+    fn label_qualifies_verb_with_plugin_id() {
+        let e = effort_with(vec![task("vault", Some("extract"), Value::Null)]);
+        assert_eq!(effort_activity_label(&e), "Running vault::extract");
+    }
+
+    #[test]
+    fn label_taskless_effort_reads_working() {
+        let e = effort_with(vec![]);
+        assert_eq!(effort_activity_label(&e), "Working");
+    }
+
+    // ── effort_activity_kind ──────────────────────────────────────────────────
+
+    #[test]
+    fn kind_respond_is_agent() {
+        let e = effort_with(vec![task("@refarm/agent", Some("respond"), Value::Null)]);
+        assert_eq!(effort_activity_kind(&e), "agent");
+    }
+
+    #[test]
+    fn kind_missing_fn_name_is_agent() {
+        // first().and_then(fn_name) yields None → agent arm.
+        let e = effort_with(vec![task("@refarm/agent", None, Value::Null)]);
+        assert_eq!(effort_activity_kind(&e), "agent");
+    }
+
+    #[test]
+    fn kind_taskless_effort_is_agent() {
+        let e = effort_with(vec![]);
+        assert_eq!(effort_activity_kind(&e), "agent");
+    }
+
+    #[test]
+    fn kind_other_verb_is_dispatch() {
+        let e = effort_with(vec![task("vault", Some("extract"), Value::Null)]);
+        assert_eq!(effort_activity_kind(&e), "dispatch");
+    }
+
+    // ── effort_status_is_ok ───────────────────────────────────────────────────
+
+    #[test]
+    fn status_done_delivered_partial_are_ok() {
+        assert!(effort_status_is_ok("done"));
+        assert!(effort_status_is_ok("delivered"));
+        assert!(effort_status_is_ok("partial"));
+    }
+
+    #[test]
+    fn status_failure_states_are_not_ok() {
+        assert!(!effort_status_is_ok("failed"));
+        assert!(!effort_status_is_ok("timed-out"));
+        assert!(!effort_status_is_ok("cancelled"));
+        assert!(!effort_status_is_ok("in-progress"));
+        assert!(!effort_status_is_ok(""));
+    }
+
+    // ── extract_task_args ─────────────────────────────────────────────────────
+
+    #[test]
+    fn extract_args_reads_prompt_and_trims_it() {
+        let t = task("@refarm/agent", Some("respond"), json!({ "prompt": "  hello  " }));
+        let args = extract_task_args(&t).expect("prompt present");
+        assert_eq!(args.prompt, "hello");
+        assert_eq!(args.system, None);
+        assert_eq!(args.session_id, None);
+        assert_eq!(args.history_turns, None);
+        assert_eq!(args.provider, None);
+        assert_eq!(args.model, None);
+        assert_eq!(args.profile, None);
+    }
+
+    #[test]
+    fn extract_args_falls_back_to_query_field() {
+        let t = task("@refarm/agent", Some("respond"), json!({ "query": "who am i" }));
+        let args = extract_task_args(&t).expect("query is a prompt alias");
+        assert_eq!(args.prompt, "who am i");
+    }
+
+    #[test]
+    fn extract_args_populates_all_optional_fields() {
+        let t = task(
+            "@refarm/agent",
+            Some("respond"),
+            json!({
+                "prompt": "hi",
+                "system": "be terse",
+                "session_id": "s-1",
+                "history_turns": 7,
+                "provider": "  openai  ",
+                "model": " gpt-5.5 ",
+                "profile": " cheap "
+            }),
+        );
+        let args = extract_task_args(&t).unwrap();
+        assert_eq!(args.system.as_deref(), Some("be terse"));
+        assert_eq!(args.session_id.as_deref(), Some("s-1"));
+        assert_eq!(args.history_turns, Some(7));
+        // provider/model/profile are trimmed.
+        assert_eq!(args.provider.as_deref(), Some("openai"));
+        assert_eq!(args.model.as_deref(), Some("gpt-5.5"));
+        assert_eq!(args.profile.as_deref(), Some("cheap"));
+    }
+
+    #[test]
+    fn extract_args_filters_empty_session_and_whitespace_provider() {
+        let t = task(
+            "@refarm/agent",
+            Some("respond"),
+            json!({
+                "prompt": "hi",
+                "session_id": "",
+                "provider": "   ",
+                "model": "",
+                "profile": "  "
+            }),
+        );
+        let args = extract_task_args(&t).unwrap();
+        assert_eq!(args.session_id, None);
+        assert_eq!(args.provider, None);
+        assert_eq!(args.model, None);
+        assert_eq!(args.profile, None);
+    }
+
+    #[test]
+    fn extract_args_errors_when_prompt_missing() {
+        let t = task("@refarm/agent", Some("respond"), json!({ "system": "x" }));
+        let err = extract_task_args(&t).unwrap_err();
+        assert!(err.contains("requires args.prompt"), "got: {err}");
+    }
+
+    #[test]
+    fn extract_args_errors_when_prompt_blank() {
+        let t = task("@refarm/agent", Some("respond"), json!({ "prompt": "   " }));
+        assert!(extract_task_args(&t).is_err());
+    }
+
+    // ── respond_watch_*_from_env ──────────────────────────────────────────────
+
+    #[test]
+    fn respond_watch_timeout_reads_env_and_defaults() {
+        let _guard = env_lock();
+        let key = "REFARM_RESPOND_WATCH_TIMEOUT_MS";
+        let prev = std::env::var(key).ok();
+
+        std::env::remove_var(key);
+        assert_eq!(respond_watch_timeout_ms_from_env(), 45_000, "absent → default");
+
+        std::env::set_var(key, "1234");
+        assert_eq!(respond_watch_timeout_ms_from_env(), 1234, "valid value passes through");
+
+        std::env::set_var(key, "0");
+        assert_eq!(respond_watch_timeout_ms_from_env(), 45_000, "zero filtered → default");
+
+        std::env::set_var(key, "not-a-number");
+        assert_eq!(respond_watch_timeout_ms_from_env(), 45_000, "unparseable → default");
+
+        match prev {
+            Some(v) => std::env::set_var(key, v),
+            None => std::env::remove_var(key),
+        }
+    }
+
+    #[test]
+    fn respond_watch_interval_reads_env_and_defaults() {
+        let _guard = env_lock();
+        let key = "REFARM_RESPOND_WATCH_INTERVAL_MS";
+        let prev = std::env::var(key).ok();
+
+        std::env::remove_var(key);
+        assert_eq!(respond_watch_interval_ms_from_env(), 100, "absent → default");
+
+        std::env::set_var(key, "250");
+        assert_eq!(respond_watch_interval_ms_from_env(), 250, "valid value passes through");
+
+        std::env::set_var(key, "0");
+        assert_eq!(respond_watch_interval_ms_from_env(), 100, "zero filtered → default");
+
+        std::env::set_var(key, "abc");
+        assert_eq!(respond_watch_interval_ms_from_env(), 100, "unparseable → default");
+
+        match prev {
+            Some(v) => std::env::set_var(key, v),
+            None => std::env::remove_var(key),
+        }
+    }
+
+    // ── find_terminal_result ──────────────────────────────────────────────────
+
+    /// Run `f` with `XDG_DATA_HOME` pointed at a throwaway temp dir, so
+    /// `NativeStorage::open(namespace)` reads/writes an isolated on-disk db that
+    /// is deleted when the temp dir drops. Serialized via `env_lock`.
+    fn with_isolated_storage<R>(f: impl FnOnce() -> R) -> R {
+        let _guard = env_lock();
+        let dir = tempfile::tempdir().unwrap();
+        let prev = std::env::var("XDG_DATA_HOME").ok();
+        std::env::set_var("XDG_DATA_HOME", dir.path());
+        let out = f();
+        match prev {
+            Some(v) => std::env::set_var("XDG_DATA_HOME", v),
+            None => std::env::remove_var("XDG_DATA_HOME"),
+        }
+        out
+    }
+
+    fn store_response_node(namespace: &str, id: &str, payload: Value) {
+        let store = crate::storage::NativeStorage::open(namespace).unwrap();
+        store
+            .store_node(id, AGENT_RESPONSE_NODE_TYPE, None, &payload.to_string(), None)
+            .unwrap();
+    }
+
+    #[test]
+    fn find_terminal_result_returns_matching_final_node() {
+        with_isolated_storage(|| {
+            let ns = "ftr-match";
+            store_response_node(
+                ns,
+                "urn:resp:1",
+                json!({ "prompt_ref": "p-1", "is_final": true, "content": "the answer" }),
+            );
+            let spec = TerminalResultSpec::agent_response("p-1");
+            let found = find_terminal_result(ns, &spec).expect("a terminal node exists");
+            assert_eq!(found.content, "the answer");
+            assert!(!found.is_error);
+        });
+    }
+
+    #[test]
+    fn find_terminal_result_flags_error_nodes() {
+        with_isolated_storage(|| {
+            let ns = "ftr-error";
+            store_response_node(
+                ns,
+                "urn:resp:1",
+                json!({ "prompt_ref": "p-1", "is_final": true, "content": "boom", "is_error": true }),
+            );
+            let spec = TerminalResultSpec::agent_response("p-1");
+            let found = find_terminal_result(ns, &spec).unwrap();
+            assert_eq!(found.content, "boom");
+            assert!(found.is_error);
+        });
+    }
+
+    #[test]
+    fn find_terminal_result_ignores_other_correlations() {
+        with_isolated_storage(|| {
+            let ns = "ftr-other-corr";
+            // A terminal node, but for a DIFFERENT prompt_ref.
+            store_response_node(
+                ns,
+                "urn:resp:1",
+                json!({ "prompt_ref": "p-OTHER", "is_final": true, "content": "not mine" }),
+            );
+            let spec = TerminalResultSpec::agent_response("p-1");
+            assert!(find_terminal_result(ns, &spec).is_none());
+        });
+    }
+
+    #[test]
+    fn find_terminal_result_ignores_non_final_nodes() {
+        with_isolated_storage(|| {
+            let ns = "ftr-non-final";
+            // Correct correlation, but not yet terminal.
+            store_response_node(
+                ns,
+                "urn:resp:1",
+                json!({ "prompt_ref": "p-1", "is_final": false, "content": "streaming" }),
+            );
+            let spec = TerminalResultSpec::agent_response("p-1");
+            assert!(find_terminal_result(ns, &spec).is_none());
+        });
+    }
+
+    #[test]
+    fn find_terminal_result_none_on_empty_store() {
+        // `:memory:` opens a fresh, empty in-memory db (no disk) → no rows → None.
+        let spec = TerminalResultSpec::agent_response("p-1");
+        assert!(find_terminal_result(":memory:", &spec).is_none());
+    }
+}

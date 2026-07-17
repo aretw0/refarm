@@ -174,4 +174,44 @@ mod tests {
         );
         assert_eq!(policy.allow_origin_for(""), None);
     }
+
+    #[test]
+    fn cors_config_from_env_unset_or_blank_is_none() {
+        let _guard = crate::test_support::env_lock();
+        std::env::remove_var(CORS_ORIGINS_ENV);
+        assert_eq!(cors_config_from_env(), None, "unset env ⇒ CORS disabled");
+
+        std::env::set_var(CORS_ORIGINS_ENV, "   ,\t ");
+        assert_eq!(
+            cors_config_from_env(),
+            None,
+            "blank/separator-only env ⇒ CORS disabled"
+        );
+        std::env::remove_var(CORS_ORIGINS_ENV);
+    }
+
+    #[test]
+    fn cors_config_from_env_star_is_any() {
+        let _guard = crate::test_support::env_lock();
+        std::env::set_var(CORS_ORIGINS_ENV, "*");
+        assert_eq!(cors_config_from_env(), Some(CorsPolicy::Any));
+        std::env::remove_var(CORS_ORIGINS_ENV);
+    }
+
+    #[test]
+    fn cors_config_from_env_explicit_origins_become_allowlist() {
+        let _guard = crate::test_support::env_lock();
+        std::env::set_var(
+            CORS_ORIGINS_ENV,
+            "http://localhost:4321, http://127.0.0.1:4321",
+        );
+        assert_eq!(
+            cors_config_from_env(),
+            Some(CorsPolicy::Allowlist(vec![
+                "http://localhost:4321".to_string(),
+                "http://127.0.0.1:4321".to_string(),
+            ]))
+        );
+        std::env::remove_var(CORS_ORIGINS_ENV);
+    }
 }

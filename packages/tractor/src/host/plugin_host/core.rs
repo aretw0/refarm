@@ -322,3 +322,188 @@ fn is_forwardable_model_env_key(key: &str) -> bool {
 fn is_forwardable_model_env_value(value: &str) -> bool {
     crate::host::sensitive_aliases::is_forwardable_model_env_value(value)
 }
+
+#[cfg(test)]
+mod core_env_forward_tests {
+    use super::*;
+
+    // ── forwarded_model_env_vars_from_iter ─────────────────────────────────────
+    //
+    // Pure over an explicit (String, String) iterator — never touches real env.
+
+    fn owned(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn forwards_only_model_keys_and_drops_non_model_and_bad_values() {
+        let input = owned(&[
+            ("MODEL_PROVIDER", "openai"),
+            ("MODEL_PROVIDER_BASE_URL", "https://api.example.com"),
+            ("HOME", "/root"),                 // not MODEL_* → dropped
+            ("PATH", "/usr/bin"),              // not MODEL_* → dropped
+            ("MODEL_PROVIDER_ID", "has space"), // whitespace value → dropped
+        ]);
+        let out = forwarded_model_env_vars_from_iter(input);
+        assert_eq!(
+            out,
+            vec![
+                ("MODEL_PROVIDER".to_string(), "openai".to_string()),
+                (
+                    "MODEL_PROVIDER_BASE_URL".to_string(),
+                    "https://api.example.com".to_string()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn blocks_token_and_secret_shaped_model_keys() {
+        let input = owned(&[
+            ("MODEL_SESSION_TOKEN", "abc123"), // *_TOKEN segment → blocked
+            ("MODEL_API_SECRET", "shh"),       // *_SECRET segment → blocked
+            ("MODEL_API_KEY", "sk-xxx"),       // *_KEY suffix → blocked
+            ("MODEL_PROVIDER", "openai"),      // clean → forwarded
+        ]);
+        let out = forwarded_model_env_vars_from_iter(input);
+        assert_eq!(
+            out,
+            vec![("MODEL_PROVIDER".to_string(), "openai".to_string())]
+        );
+    }
+
+    #[test]
+    fn dedupes_repeated_keys_keeping_first_value() {
+        let input = owned(&[
+            ("MODEL_PROVIDER", "openai"),
+            ("MODEL_PROVIDER", "anthropic"), // duplicate key → dropped
+            ("MODEL_ID", "gpt-4"),
+        ]);
+        let out = forwarded_model_env_vars_from_iter(input);
+        assert_eq!(
+            out,
+            vec![
+                ("MODEL_PROVIDER".to_string(), "openai".to_string()),
+                ("MODEL_ID".to_string(), "gpt-4".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn forwards_text_content_key_with_whitespace_value() {
+        // MODEL_SKILLS is a text-content key: its value carries newlines/whitespace
+        // that the credential-shaped default value rule would reject.
+        let input = owned(&[("MODEL_SKILLS", "skill-a\nskill-b description")]);
+        let out = forwarded_model_env_vars_from_iter(input);
+        assert_eq!(
+            out,
+            vec![(
+                "MODEL_SKILLS".to_string(),
+                "skill-a\nskill-b description".to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn count_cap_limits_to_128_forwarded_vars() {
+        // 130 distinct, clean MODEL_* vars — small enough to never hit the byte cap,
+        // few enough to never hit the scan cap — so the 128 count cap is what bites.
+        let input: Vec<(String, String)> = (0..130)
+            .map(|i| (format!("MODEL_N{i}"), "v".to_string()))
+            .collect();
+        let out = forwarded_model_env_vars_from_iter(input);
+        assert_eq!(out.len(), 128);
+        // The first 128 (in iteration order) are the ones kept.
+        assert_eq!(out[0].0, "MODEL_N0");
+        assert_eq!(out[127].0, "MODEL_N127");
+        assert!(!out.iter().any(|(k, _)| k == "MODEL_N128"));
+    }
+
+    #[test]
+    fn scan_cap_ignores_entries_beyond_512() {
+        // 512 non-forwardable junk entries fill the entire scan window; a valid
+        // MODEL_* var placed at index 512 is never reached.
+        let mut beyond: Vec<(String, String)> = (0..512)
+            .map(|i| (format!("JUNK_{i}"), "x".to_string()))
+            .collect();
+        beyond.push(("MODEL_PROVIDER".to_string(), "openai".to_string()));
+        let out = forwarded_model_env_vars_from_iter(beyond);
+        assert!(out.is_empty(), "var at index 512 is beyond the scan cap");
+
+        // Control: the SAME valid var at index 511 is inside the window → forwarded.
+        let mut within: Vec<(String, String)> = (0..511)
+            .map(|i| (format!("JUNK_{i}"), "x".to_string()))
+            .collect();
+        within.push(("MODEL_PROVIDER".to_string(), "openai".to_string()));
+        let out = forwarded_model_env_vars_from_iter(within);
+        assert_eq!(
+            out,
+            vec![("MODEL_PROVIDER".to_string(), "openai".to_string())]
+        );
+    }
+
+    #[test]
+    fn total_bytes_cap_stops_forwarding_past_64_kib() {
+        // Each var is key(8) + value(4000) = 4008 bytes. 16 vars = 64128 ≤ 65536;
+        // the 17th would push the running total to 68136 > 65536, so it (and the
+        // 18th) are skipped. The count cap (128) never bites here — the byte cap does.
+        let big = "a".repeat(4000);
+        let letters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R"];
+        let input: Vec<(String, String)> = letters
+            .iter()
+            .map(|l| (format!("MODEL_K{l}"), big.clone()))
+            .collect();
+        let out = forwarded_model_env_vars_from_iter(input);
+        assert_eq!(out.len(), 16);
+        assert_eq!(out[0].0, "MODEL_KA");
+        assert_eq!(out[15].0, "MODEL_KP");
+        assert!(!out.iter().any(|(k, _)| k == "MODEL_KQ"));
+    }
+
+    #[test]
+    fn empty_iterator_forwards_nothing() {
+        let out = forwarded_model_env_vars_from_iter(Vec::<(String, String)>::new());
+        assert!(out.is_empty());
+    }
+
+    // ── per-axis policy wrappers ───────────────────────────────────────────────
+
+    #[test]
+    fn per_axis_key_and_value_wrappers_agree_with_policy() {
+        assert!(is_forwardable_model_env_key("MODEL_PROVIDER"));
+        assert!(!is_forwardable_model_env_key("MODEL_API_KEY"));
+        assert!(!is_forwardable_model_env_key("HOME"));
+
+        assert!(is_forwardable_model_env_value("openai"));
+        assert!(!is_forwardable_model_env_value("has space"));
+        assert!(!is_forwardable_model_env_value(""));
+    }
+
+    #[test]
+    fn is_forwardable_pair_matches_key_and_value_axes() {
+        assert!(is_forwardable_model_env_pair("MODEL_PROVIDER", "openai"));
+        assert!(!is_forwardable_model_env_pair("MODEL_PROVIDER", "has space"));
+        assert!(!is_forwardable_model_env_pair("MODEL_API_KEY", "sk-xxx"));
+        // Text-content key admits a whitespace value the default rule rejects.
+        assert!(is_forwardable_model_env_pair("MODEL_SKILLS", "a\nb"));
+    }
+
+    // ── EpochGuard ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn epoch_guard_new_starts_uncancelled_with_no_deadline() {
+        let g = EpochGuard::new();
+        assert!(!g.cancel.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(g.wall_deadline.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn epoch_guard_default_matches_new() {
+        let g = EpochGuard::default();
+        assert!(!g.cancel.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(g.wall_deadline.lock().unwrap().is_none());
+    }
+}

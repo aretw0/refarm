@@ -631,3 +631,399 @@ impl CodeOpsHost for TractorNativeBindings {
             .move_symbol(&loc, &target_file)
     }
 }
+
+// NOTE: the sibling `include!`d file (`policy_and_fs.rs`) already declares
+// `#[cfg(test)] mod tests` for this same (flattened) module, so a second module
+// named `tests` here would collide (E0428). These pure-helper tests live in a
+// distinctly-named module. `super::*` resolves to the flattened `host_effects_bridge`
+// module, which contains every private helper below (core.rs + policy_and_fs.rs).
+#[cfg(test)]
+mod core_pure_tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    // ── contains_control_chars ───────────────────────────────────────────────
+
+    #[test]
+    fn contains_control_chars_false_for_plain_ascii() {
+        assert!(!contains_control_chars("plain-text_123"));
+    }
+
+    #[test]
+    fn contains_control_chars_false_for_empty_string() {
+        assert!(!contains_control_chars(""));
+    }
+
+    #[test]
+    fn contains_control_chars_false_for_non_ascii_letters() {
+        // Accented letters are not control characters.
+        assert!(!contains_control_chars("café"));
+    }
+
+    #[test]
+    fn contains_control_chars_true_for_newline() {
+        assert!(contains_control_chars("a\nb"));
+    }
+
+    #[test]
+    fn contains_control_chars_true_for_tab() {
+        assert!(contains_control_chars("a\tb"));
+    }
+
+    #[test]
+    fn contains_control_chars_true_for_null_byte() {
+        assert!(contains_control_chars("a\u{0}b"));
+    }
+
+    // ── contains_whitespace ──────────────────────────────────────────────────
+
+    #[test]
+    fn contains_whitespace_false_for_no_spaces() {
+        assert!(!contains_whitespace("no_whitespace_here"));
+    }
+
+    #[test]
+    fn contains_whitespace_false_for_empty_string() {
+        assert!(!contains_whitespace(""));
+    }
+
+    #[test]
+    fn contains_whitespace_true_for_space() {
+        assert!(contains_whitespace("a b"));
+    }
+
+    #[test]
+    fn contains_whitespace_true_for_tab() {
+        assert!(contains_whitespace("a\tb"));
+    }
+
+    #[test]
+    fn contains_whitespace_true_for_newline() {
+        assert!(contains_whitespace("a\nb"));
+    }
+
+    // ── is_safe_spawn_env_key ────────────────────────────────────────────────
+
+    #[test]
+    fn is_safe_spawn_env_key_rejects_empty() {
+        assert!(!is_safe_spawn_env_key(""));
+    }
+
+    #[test]
+    fn is_safe_spawn_env_key_rejects_overlong_key() {
+        // MAX_SPAWN_ENV_KEY_LEN is 128; 129 chars must be rejected.
+        let key = "A".repeat(MAX_SPAWN_ENV_KEY_LEN + 1);
+        assert!(!is_safe_spawn_env_key(&key));
+    }
+
+    #[test]
+    fn is_safe_spawn_env_key_accepts_max_length_key() {
+        // Exactly at the cap (128 chars) starting with a letter is still valid.
+        let key = "A".repeat(MAX_SPAWN_ENV_KEY_LEN);
+        assert!(is_safe_spawn_env_key(&key));
+    }
+
+    #[test]
+    fn is_safe_spawn_env_key_rejects_control_char() {
+        assert!(!is_safe_spawn_env_key("KEY\u{1}"));
+    }
+
+    #[test]
+    fn is_safe_spawn_env_key_rejects_whitespace() {
+        assert!(!is_safe_spawn_env_key("KEY VAR"));
+    }
+
+    #[test]
+    fn is_safe_spawn_env_key_rejects_leading_digit() {
+        assert!(!is_safe_spawn_env_key("1KEY"));
+    }
+
+    #[test]
+    fn is_safe_spawn_env_key_rejects_hyphen() {
+        // Only ascii alphanumeric and underscore are allowed after the first char.
+        assert!(!is_safe_spawn_env_key("MY-KEY"));
+    }
+
+    #[test]
+    fn is_safe_spawn_env_key_rejects_dot() {
+        assert!(!is_safe_spawn_env_key("MY.KEY"));
+    }
+
+    #[test]
+    fn is_safe_spawn_env_key_accepts_leading_underscore() {
+        assert!(is_safe_spawn_env_key("_PRIVATE"));
+    }
+
+    #[test]
+    fn is_safe_spawn_env_key_accepts_alphanumeric_and_underscore() {
+        assert!(is_safe_spawn_env_key("PATH_VAR_2"));
+    }
+
+    // ── is_blocked_spawn_env_key (delegates to sensitive_aliases policy) ──────
+
+    #[test]
+    fn is_blocked_spawn_env_key_blocks_path() {
+        assert!(is_blocked_spawn_env_key("PATH"));
+    }
+
+    #[test]
+    fn is_blocked_spawn_env_key_blocks_ld_prefix() {
+        assert!(is_blocked_spawn_env_key("LD_PRELOAD"));
+    }
+
+    #[test]
+    fn is_blocked_spawn_env_key_blocks_dyld_prefix() {
+        assert!(is_blocked_spawn_env_key("DYLD_INSERT_LIBRARIES"));
+    }
+
+    #[test]
+    fn is_blocked_spawn_env_key_allows_benign_single_token() {
+        // "GREETING" has no `_` boundary and is not an exact-match sensitive key,
+        // so no prefix/suffix/segment/namespace rule can fire.
+        assert!(!is_blocked_spawn_env_key("GREETING"));
+    }
+
+    // ── host_detect_format ───────────────────────────────────────────────────
+
+    #[test]
+    fn host_detect_format_toml_extension() {
+        assert_eq!(host_detect_format("config.toml"), "toml");
+    }
+
+    #[test]
+    fn host_detect_format_yaml_extension() {
+        assert_eq!(host_detect_format("config.yaml"), "yaml");
+    }
+
+    #[test]
+    fn host_detect_format_yml_extension() {
+        assert_eq!(host_detect_format("config.yml"), "yaml");
+    }
+
+    #[test]
+    fn host_detect_format_json_extension() {
+        assert_eq!(host_detect_format("config.json"), "json");
+    }
+
+    #[test]
+    fn host_detect_format_defaults_to_json_for_unknown_extension() {
+        assert_eq!(host_detect_format("notes.txt"), "json");
+    }
+
+    #[test]
+    fn host_detect_format_defaults_to_json_without_extension() {
+        assert_eq!(host_detect_format("Makefile"), "json");
+    }
+
+    // ── host_validate_structured ─────────────────────────────────────────────
+
+    #[test]
+    fn host_validate_structured_json_ok() {
+        assert!(host_validate_structured("{\"a\": 1}", "json").is_ok());
+    }
+
+    #[test]
+    fn host_validate_structured_json_err() {
+        let err = host_validate_structured("{ not json", "json").unwrap_err();
+        assert!(err.contains("JSON parse error"), "unexpected: {err}");
+    }
+
+    #[test]
+    fn host_validate_structured_toml_ok() {
+        assert!(host_validate_structured("key = \"value\"", "toml").is_ok());
+    }
+
+    #[test]
+    fn host_validate_structured_toml_err() {
+        let err = host_validate_structured("= = =", "toml").unwrap_err();
+        assert!(err.contains("TOML parse error"), "unexpected: {err}");
+    }
+
+    #[test]
+    fn host_validate_structured_yaml_ok() {
+        assert!(host_validate_structured("key: value", "yaml").is_ok());
+    }
+
+    #[test]
+    fn host_validate_structured_yaml_err() {
+        // Unterminated flow sequence — invalid YAML.
+        let err = host_validate_structured("[unclosed", "yaml").unwrap_err();
+        assert!(err.contains("YAML parse error"), "unexpected: {err}");
+    }
+
+    #[test]
+    fn host_validate_structured_unsupported_format() {
+        let err = host_validate_structured("<x/>", "xml").unwrap_err();
+        assert_eq!(err, "unsupported format: xml");
+    }
+
+    // ── host_read_structured_parse ───────────────────────────────────────────
+
+    #[test]
+    fn host_read_structured_parse_json_valid() {
+        let out = host_read_structured_parse(br#"{"name":"x"}"#, "json", 0, 0);
+        assert!(out.starts_with("[read_structured | json |"), "unexpected: {out}");
+        assert!(out.contains("complete]"), "unexpected: {out}");
+        assert!(out.contains("\"name\""), "unexpected: {out}");
+    }
+
+    #[test]
+    fn host_read_structured_parse_json_invalid_utf8() {
+        let out = host_read_structured_parse(&[0xff, 0xfe], "json", 0, 0);
+        assert_eq!(out, "[read_structured | json | invalid UTF-8]");
+    }
+
+    #[test]
+    fn host_read_structured_parse_json_parse_error() {
+        let out = host_read_structured_parse(b"{ not json", "json", 0, 0);
+        assert_eq!(out, "[read_structured | json | parse error]");
+    }
+
+    #[test]
+    fn host_read_structured_parse_toml_valid() {
+        let out = host_read_structured_parse(b"name = \"x\"\n", "toml", 0, 0);
+        assert!(out.starts_with("[read_structured | toml |"), "unexpected: {out}");
+        assert!(out.contains("complete]"), "unexpected: {out}");
+        assert!(out.contains("\"name\""), "unexpected: {out}");
+    }
+
+    #[test]
+    fn host_read_structured_parse_toml_invalid_utf8() {
+        let out = host_read_structured_parse(&[0xff, 0xfe], "toml", 0, 0);
+        assert_eq!(out, "[read_structured | toml | invalid UTF-8]");
+    }
+
+    #[test]
+    fn host_read_structured_parse_toml_parse_error() {
+        let out = host_read_structured_parse(b"= = =", "toml", 0, 0);
+        assert_eq!(out, "[read_structured | toml | parse error]");
+    }
+
+    #[test]
+    fn host_read_structured_parse_yaml_valid() {
+        let out = host_read_structured_parse(b"name: x\n", "yaml", 0, 0);
+        assert!(out.starts_with("[read_structured | yaml |"), "unexpected: {out}");
+        assert!(out.contains("complete]"), "unexpected: {out}");
+        assert!(out.contains("\"name\""), "unexpected: {out}");
+    }
+
+    #[test]
+    fn host_read_structured_parse_yaml_invalid_utf8() {
+        let out = host_read_structured_parse(&[0xff, 0xfe], "yaml", 0, 0);
+        assert_eq!(out, "[read_structured | yaml | invalid UTF-8]");
+    }
+
+    #[test]
+    fn host_read_structured_parse_yaml_parse_error() {
+        let out = host_read_structured_parse(b"[unclosed", "yaml", 0, 0);
+        assert_eq!(out, "[read_structured | yaml | parse error]");
+    }
+
+    #[test]
+    fn host_read_structured_parse_unknown_format() {
+        let out = host_read_structured_parse(b"anything", "xml", 0, 0);
+        assert_eq!(out, "[read_structured | unknown format: xml]");
+    }
+
+    // ── host_page_json ───────────────────────────────────────────────────────
+
+    #[test]
+    fn host_page_json_object_complete_when_page_size_zero() {
+        let val = serde_json::json!({"a": 1, "b": 2});
+        let out = host_page_json(&val, 10, "json", 0, 0);
+        assert!(out.starts_with("[read_structured | json | 10B | complete]"), "unexpected: {out}");
+        assert!(out.contains("\"a\""), "unexpected: {out}");
+        assert!(out.contains("\"b\""), "unexpected: {out}");
+    }
+
+    #[test]
+    fn host_page_json_object_paged_subset() {
+        let val = serde_json::json!({"a": 1, "b": 2, "c": 3});
+        let out = host_page_json(&val, 9, "json", 2, 0);
+        assert!(out.contains("keys 0..2 of 3"), "unexpected: {out}");
+        assert!(out.contains("\"a\""), "unexpected: {out}");
+        assert!(out.contains("\"b\""), "unexpected: {out}");
+        assert!(!out.contains("\"c\""), "third key should be beyond the page: {out}");
+    }
+
+    #[test]
+    fn host_page_json_array_complete_when_page_covers_all() {
+        let val = serde_json::json!([1, 2]);
+        // page_size >= total at offset 0 => complete branch.
+        let out = host_page_json(&val, 5, "json", 5, 0);
+        assert!(out.starts_with("[read_structured | json | 5B | complete]"), "unexpected: {out}");
+    }
+
+    #[test]
+    fn host_page_json_array_paged_subset_with_offset() {
+        let val = serde_json::json!([10, 20, 30, 40]);
+        let out = host_page_json(&val, 12, "json", 2, 1);
+        assert!(out.contains("items 1..3 of 4"), "unexpected: {out}");
+        assert!(out.contains("20"), "unexpected: {out}");
+        assert!(out.contains("30"), "unexpected: {out}");
+        assert!(!out.contains("40"), "last item should be beyond the page: {out}");
+    }
+
+    #[test]
+    fn host_page_json_scalar_branch() {
+        let val = serde_json::json!(42);
+        let out = host_page_json(&val, 2, "json", 0, 0);
+        assert_eq!(out, "[read_structured | json | 2B | scalar]\n42");
+    }
+
+    // ── enforce_trusted_plugin_for_shell_with ────────────────────────────────
+
+    #[test]
+    fn trusted_plugin_none_allowlist_is_permissive() {
+        assert!(enforce_trusted_plugin_for_shell_with("any.plugin", None).is_ok());
+    }
+
+    #[test]
+    fn trusted_plugin_empty_id_is_blocked() {
+        let allowed: HashSet<String> = HashSet::from(["myplugin".to_string()]);
+        // A whitespace-only id trims to empty.
+        let err = enforce_trusted_plugin_for_shell_with("   ", Some(&allowed)).unwrap_err();
+        assert_eq!(err, "[blocked: plugin id is empty]");
+    }
+
+    #[test]
+    fn trusted_plugin_control_chars_are_blocked() {
+        let allowed: HashSet<String> = HashSet::from(["*".to_string()]);
+        let err = enforce_trusted_plugin_for_shell_with("bad\u{1}id", Some(&allowed)).unwrap_err();
+        assert_eq!(err, "[blocked: plugin id contains control characters]");
+    }
+
+    #[test]
+    fn trusted_plugin_invalid_token_is_blocked() {
+        let allowed: HashSet<String> = HashSet::from(["*".to_string()]);
+        // '@' is not an allowed plugin-id character.
+        let err = enforce_trusted_plugin_for_shell_with("bad@id", Some(&allowed)).unwrap_err();
+        assert_eq!(err, "[blocked: plugin id has invalid characters]");
+    }
+
+    #[test]
+    fn trusted_plugin_wildcard_allows_any_id() {
+        let allowed: HashSet<String> = HashSet::from(["*".to_string()]);
+        assert!(enforce_trusted_plugin_for_shell_with("some.plugin-id", Some(&allowed)).is_ok());
+    }
+
+    #[test]
+    fn trusted_plugin_exact_match_is_allowed() {
+        let allowed: HashSet<String> = HashSet::from(["myplugin".to_string()]);
+        assert!(enforce_trusted_plugin_for_shell_with("myplugin", Some(&allowed)).is_ok());
+    }
+
+    #[test]
+    fn trusted_plugin_match_is_case_insensitive() {
+        let allowed: HashSet<String> = HashSet::from(["myplugin".to_string()]);
+        // The id is normalized to ascii-lowercase before the allowlist lookup.
+        assert!(enforce_trusted_plugin_for_shell_with("MyPlugin", Some(&allowed)).is_ok());
+    }
+
+    #[test]
+    fn trusted_plugin_not_in_allowlist_is_denied() {
+        let allowed: HashSet<String> = HashSet::from(["other".to_string()]);
+        let err = enforce_trusted_plugin_for_shell_with("myplugin", Some(&allowed)).unwrap_err();
+        assert_eq!(err, "[blocked: plugin 'myplugin' not allowed to use host-shell]");
+    }
+}

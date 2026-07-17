@@ -606,6 +606,83 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    #[test]
+    fn sealed_segment_path_appends_secs_stamp_beside_live_file() {
+        // .../scarecrow-audit.ndjson -> .../scarecrow-audit.<secs>.ndjson
+        let sealed = sealed_segment_path(Path::new("/var/log/scarecrow-audit.ndjson"), 1_700_000_000);
+        assert_eq!(
+            sealed,
+            PathBuf::from("/var/log/scarecrow-audit.1700000000.ndjson")
+        );
+    }
+
+    #[test]
+    fn sealed_segment_path_defaults_parentless_path_to_dot() {
+        // A path whose parent() is None (the filesystem root) falls back to ".".
+        let sealed = sealed_segment_path(Path::new("/"), 42);
+        assert_eq!(sealed, PathBuf::from("./scarecrow-audit.42.ndjson"));
+    }
+
+    #[test]
+    fn sealed_segment_path_and_secs_round_trip() {
+        // The path the rotator builds must be recognised by the pruner's parser.
+        let secs = 1_650_123_456u64;
+        let sealed = sealed_segment_path(Path::new("/x/scarecrow-audit.ndjson"), secs);
+        assert_eq!(sealed_segment_secs(&sealed), Some(secs));
+    }
+
+    #[test]
+    fn sealed_segment_secs_rejects_wrong_stem_and_extension() {
+        // Right stem, wrong extension.
+        assert_eq!(
+            sealed_segment_secs(Path::new("/x/scarecrow-audit.123.log")),
+            None
+        );
+        // Right extension, wrong stem prefix.
+        assert_eq!(
+            sealed_segment_secs(Path::new("/x/audit.123.ndjson")),
+            None
+        );
+        // A zero stamp is still a valid sealed segment.
+        assert_eq!(
+            sealed_segment_secs(Path::new("/x/scarecrow-audit.0.ndjson")),
+            Some(0)
+        );
+        // Mixed digits and letters are not a digit-only run.
+        assert_eq!(
+            sealed_segment_secs(Path::new("/x/scarecrow-audit.12a3.ndjson")),
+            None
+        );
+    }
+
+    #[test]
+    fn format_audit_line_omits_plugin_id_when_absent() {
+        // The None plugin_id branch: the key must simply be absent, not null.
+        let ev = TelemetryEvent::new("host-effect:fs:read", None);
+        let line = format_audit_line(&ev).expect("should format");
+        let parsed: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
+        assert_eq!(parsed["event"], "host-effect:fs:read");
+        assert!(parsed.get("plugin_id").is_none());
+        assert!(parsed["ts"].is_number());
+    }
+
+    #[test]
+    fn format_audit_line_ignores_non_object_payload() {
+        // A non-object payload (here an array) hits the `as_object() == None` branch:
+        // no fields are merged, but the base object still serialises cleanly.
+        let ev = make_event(
+            "host-effect:fs:read",
+            Some("agent"),
+            serde_json::json!(["not", "an", "object"]),
+        );
+        let line = format_audit_line(&ev).expect("should format");
+        let parsed: serde_json::Value = serde_json::from_str(&line).expect("valid JSON");
+        assert_eq!(parsed["event"], "host-effect:fs:read");
+        assert_eq!(parsed["plugin_id"], "agent");
+        // Only the base keys are present; nothing from the array was merged.
+        assert!(parsed.as_object().unwrap().len() == 3);
+    }
+
     #[tokio::test]
     async fn prune_keeps_newest_segments_only() {
         let dir = std::env::temp_dir().join(format!("audit-prune-{}", uuid::Uuid::new_v4()));
