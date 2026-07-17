@@ -295,6 +295,82 @@ describe("bootCapabilityWebFace — runs the verb, mounts the surface, renders c
 		expect(mounted()?.textContent).toContain("dashboard");
 	});
 
+	it("paints a content verb's *Html field with NO declared resultField (the generic fallback)", async () => {
+		// `dashboard` returns `dashboardHtml` but declares no resultField — the loop's *Html scan
+		// must still paint it (so wallet/sovereignty/governance content cards render on a click).
+		const page = {
+			name: "page",
+			summary: "page",
+			renderers: { web: { route: "/page" } },
+			run: async () => ({ pageHtml: `<p>dash</p>` }),
+		};
+		const dashboard = {
+			name: "dashboard",
+			summary: "open the dashboard",
+			renderers: { web: { route: "/dashboard" } },
+			run: async () => ({ ok: true, dashboardHtml: `<div data-dash-render>the dashboard render</div>` }),
+		};
+		const entries = [page, dashboard];
+		const registry = {
+			get: (name: string) => entries.find((e) => e.name === name),
+			list: () => entries,
+		} as unknown as CapabilityRegistry;
+
+		await bootCapabilityWebFace({
+			databaseName: "test-b2-fallback",
+			namespace: "test",
+			registry,
+			content: { verb: "page", field: "pageHtml" },
+			surface: { pluginId: "b2f/web", content: (d) => String(d.pageHtml ?? "") },
+			bootRuntime: async () => mockRuntime(),
+		});
+		const mounted = () => document.querySelector('[data-refarm-plugin-id="b2f/web"]');
+		mounted()?.querySelector<HTMLElement>('[data-refarm-surface-action-id="dashboard"]')!.click();
+		const deadline = Date.now() + 1000;
+		while (Date.now() < deadline && !mounted()?.querySelector("[data-refarm-action-result]")) {
+			await new Promise((r) => setTimeout(r, 5));
+		}
+		expect(mounted()?.querySelector("[data-refarm-action-result]")?.textContent).toContain("the dashboard render");
+	});
+
+	it("tolerates a verb whose run() resolves null/undefined (no uncaught throw, reports a status)", async () => {
+		const page = {
+			name: "page",
+			summary: "page",
+			renderers: { web: { route: "/page" } },
+			run: async () => ({ pageHtml: `<p>dash</p>` }),
+		};
+		const nullish = {
+			name: "nullish",
+			summary: "returns nothing",
+			renderers: { web: { route: "/nullish" } },
+			run: async () => undefined,
+		};
+		const entries = [page, nullish];
+		const registry = {
+			get: (name: string) => entries.find((e) => e.name === name),
+			list: () => entries,
+		} as unknown as CapabilityRegistry;
+
+		await bootCapabilityWebFace({
+			databaseName: "test-b2-null",
+			namespace: "test",
+			registry,
+			content: { verb: "page", field: "pageHtml" },
+			surface: { pluginId: "b2n/web", content: (d) => String(d.pageHtml ?? "") },
+			bootRuntime: async () => mockRuntime(),
+		});
+		const mounted = () => document.querySelector('[data-refarm-plugin-id="b2n/web"]');
+		// The click must NOT throw uncaught — the region appears with a status and the dashboard stands.
+		mounted()?.querySelector<HTMLElement>('[data-refarm-surface-action-id="nullish"]')!.click();
+		const deadline = Date.now() + 1000;
+		while (Date.now() < deadline && !mounted()?.querySelector("[data-refarm-action-result]")) {
+			await new Promise((r) => setTimeout(r, 5));
+		}
+		expect(mounted()?.querySelector('[data-refarm-action-result][data-refarm-action-verb="nullish"]')).not.toBeNull();
+		expect(mounted()?.textContent).toContain("dash");
+	});
+
 	it("a dispatched verb with no HTML result still reports a status (never a silent click)", async () => {
 		// `ping` returns a bare error envelope (no resultField, no html) — the loop surfaces its message.
 		const page = {

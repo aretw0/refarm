@@ -110,8 +110,10 @@ function collectVerbInput(verb: string): {
 
 /** Run a card-dispatched verb and reduce its envelope to the {@link CapabilityActionResult} the
  * panel paints. The HTML comes from the verb's declared `renderers.web.resultField` (a search verb
- * says its matches live in `resultsHtml`), else the envelope's own `html` field; when neither
- * exists the click still yields an `ok`/`message` status so it is never silent. A verb that needs
+ * says its matches live in `resultsHtml`), else the envelope's own `html`, else the first
+ * `*Html`-suffixed string field it carries — so a content verb (walletHtml, sovereigntyHtml,
+ * governanceHtml) paints its render on a click WITHOUT declaring resultField. When there is no HTML
+ * at all the click still yields an `ok`/`message` status so it is never silent. A verb that needs
  * missing input returns an error envelope — surfaced here as its message, not swallowed. */
 async function runVerbForResult(
 	entry: { run: (input: CapabilityInput) => unknown; renderers?: { web?: { resultField?: string } } },
@@ -124,13 +126,28 @@ async function runVerbForResult(
 	} catch (error) {
 		return { verb, ok: false, message: error instanceof Error ? error.message : String(error) };
 	}
+	// A contract-conforming verb always returns an object; tolerate a null/undefined return (the
+	// pre-B2 loop discarded the result entirely) rather than throwing an uncaught TypeError below.
+	if (envelope == null || typeof envelope !== "object") return { verb, ok: true, message: "OK" };
 	const ok = envelope.ok !== false;
 	const resultField = entry.renderers?.web?.resultField;
-	const declared = resultField ? envelope[resultField] : undefined;
-	const html = typeof declared === "string" ? declared : typeof envelope.html === "string" ? envelope.html : undefined;
+	const declared = resultField && typeof envelope[resultField] === "string" ? (envelope[resultField] as string) : undefined;
+	const html =
+		declared ??
+		(typeof envelope.html === "string" ? envelope.html : undefined) ??
+		firstHtmlField(envelope);
 	if (html) return { verb, ok, html };
 	const message = typeof envelope.message === "string" ? envelope.message : typeof envelope.error === "string" ? envelope.error : ok ? "OK" : "Falhou";
 	return { verb, ok, message };
+}
+
+/** The first `*Html`-suffixed string field on an envelope (insertion order) — the generic content
+ * seam so a verb that renders HTML need not also declare `renderers.web.resultField`. */
+function firstHtmlField(envelope: Record<string, unknown>): string | undefined {
+	for (const [key, value] of Object.entries(envelope)) {
+		if (/Html$/.test(key) && typeof value === "string") return value;
+	}
+	return undefined;
 }
 
 export async function bootCapabilityWebFace(
