@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import type { VerifiableCredential } from "@refarm.dev/credentials-contract-v1";
 import { describe, expect, it, vi } from "vitest";
 
@@ -7,6 +10,13 @@ import { createSovereignWalletBundle } from "./sovereign.js";
 // machine). The default 5s budget was marginal — one test tipped over it once a fourth was added.
 // Give the sandbox room so the suite is a signal, not a flake.
 vi.setConfig({ testTimeout: 20_000 });
+
+// The bundle loads @refarm.dev/identity-provider-ref's transpiled WASM component, whose `pkg/` is a
+// gitignored build artifact absent in CI's quality job (no Rust toolchain). Gate on that sibling
+// artifact — SKIP when it isn't built, RUN when it is — matching identity-provider-ref's own
+// identity.test.ts. Without this the whole suite hits ERR_MODULE_NOT_FOUND and reds develop.
+const identityWasm = fileURLToPath(new URL("../../identity-provider-ref/pkg/identity_provider.js", import.meta.url));
+const componentBuilt = existsSync(identityWasm);
 
 /** A minimal signed-nothing VC the citizen holds (issuer-signed VC verification is
  * out of scope here — we prove the HOLDER's presentation signature, which is the
@@ -21,7 +31,7 @@ function heldCredential(issuerId: string): VerifiableCredential {
 	} as VerifiableCredential;
 }
 
-describe("T2 sovereign wallet — presentations are signed inside the WASM sandbox", () => {
+describe.skipIf(!componentBuilt)("T2 sovereign wallet — presentations are signed inside the WASM sandbox", () => {
 	it("issue → present → verify, every signature produced inside the WASM sandbox", async () => {
 		const { credentialsProvider, identity } = await createSovereignWalletBundle();
 
