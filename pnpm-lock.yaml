@@ -534,9 +534,12 @@ importers:
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../../packages/vtconfig
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.8.0
       astro:
         specifier: ^7.0.0
-        version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
+        version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.8.0)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
   examples/reqbench-t3:
     dependencies:
@@ -601,9 +604,12 @@ importers:
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../../packages/vtconfig
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.8.0
       astro:
         specifier: ^7.0.0
-        version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
+        version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.8.0)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
   examples/wallet-t2:
     dependencies:
@@ -635,9 +641,12 @@ importers:
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../../packages/vtconfig
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.8.0
       astro:
         specifier: ^7.0.0
-        version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
+        version: 7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.8.0)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
 
   packages/agent:
     devDependencies:
@@ -12084,6 +12093,102 @@ snapshots:
       estree-walker: 3.0.3
       js-tokens: 10.0.0
 
+  astro@7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.8.0)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0):
+    dependencies:
+      '@astrojs/compiler-rs': 0.2.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
+      '@astrojs/internal-helpers': 0.10.0
+      '@astrojs/markdown-satteri': 0.3.2
+      '@astrojs/telemetry': 3.3.2
+      '@capsizecss/unpack': 4.0.0
+      '@clack/prompts': 1.4.0
+      '@oslojs/encoding': 1.1.0
+      '@rollup/pluginutils': 5.3.0(rollup@4.60.3)
+      am-i-vibing: 0.4.0
+      aria-query: 5.3.2
+      axobject-query: 4.1.0
+      ci-info: 4.4.0
+      clsx: 2.1.1
+      common-ancestor-path: 2.0.0
+      cookie: 1.1.1
+      devalue: 5.8.1
+      diff: 8.0.4
+      dset: 3.1.4
+      es-module-lexer: 2.1.0
+      esbuild: 0.28.1
+      flattie: 1.1.1
+      fontace: 0.4.1
+      get-tsconfig: 5.0.0-beta.4
+      github-slugger: 2.0.0
+      html-escaper: 3.0.3
+      http-cache-semantics: 4.2.0
+      js-yaml: 4.2.0
+      jsonc-parser: 3.3.1
+      magic-string: 0.30.21
+      magicast: 0.5.3
+      mrmime: 2.0.1
+      neotraverse: 0.6.18
+      obug: 2.1.1
+      p-limit: 7.3.0
+      p-queue: 9.2.0
+      package-manager-detector: 1.6.0
+      piccolore: 0.1.3
+      picomatch: 4.0.4
+      rehype: 13.0.2
+      semver: 7.8.4
+      shiki: 4.0.2
+      smol-toml: 1.6.1
+      svgo: 4.0.1
+      tinyclip: 0.1.12
+      tinyexec: 1.1.2
+      tinyglobby: 0.2.17
+      ultrahtml: 1.6.0
+      unifont: 0.7.4
+      unist-util-visit: 5.1.0
+      unstorage: 1.17.5
+      vfile: 6.0.3
+      vite: 8.0.16(@types/node@25.8.0)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
+      vitefu: 1.1.3(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0))
+      xxhash-wasm: 1.1.0
+      yargs-parser: 22.0.0
+      zod: 4.4.3
+    optionalDependencies:
+      '@astrojs/markdown-remark': 7.2.0
+      sharp: 0.34.5
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@emnapi/core'
+      - '@emnapi/runtime'
+      - '@netlify/blobs'
+      - '@planetscale/database'
+      - '@types/node'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - '@vitejs/devtools'
+      - aws4fetch
+      - db0
+      - idb-keyval
+      - ioredis
+      - jiti
+      - less
+      - rollup
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - uploadthing
+      - yaml
+
   astro@7.0.3(@astrojs/markdown-remark@7.2.0)(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.9.4)(jiti@1.21.7)(rollup@4.60.3)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0):
     dependencies:
       '@astrojs/compiler-rs': 0.2.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
@@ -16250,6 +16355,22 @@ snapshots:
   vite-plugin-wasm@3.6.0(vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)):
     dependencies:
       vite: 8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0)
+
+  vite@8.0.16(@types/node@25.8.0)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0):
+    dependencies:
+      lightningcss: 1.32.0
+      picomatch: 4.0.4
+      postcss: 8.5.15
+      rolldown: 1.0.3
+      tinyglobby: 0.2.17
+    optionalDependencies:
+      '@types/node': 25.8.0
+      esbuild: 0.28.1
+      fsevents: 2.3.3
+      jiti: 1.21.7
+      terser: 5.47.1
+      tsx: 4.23.0
+      yaml: 2.9.0
 
   vite@8.0.16(@types/node@25.9.4)(esbuild@0.28.1)(jiti@1.21.7)(terser@5.47.1)(tsx@4.23.0)(yaml@2.9.0):
     dependencies:

@@ -30,6 +30,7 @@
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
+		"@types/node": "catalog:",
 		"astro": "^7.0.0"
 	}
 }
