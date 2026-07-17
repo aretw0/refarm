@@ -1,0 +1,15 @@
+---
+import { Layout } from "@refarm.dev/homestead/ui";
+---
+
+<Layout title="Governança de Extensões — Bancada">
+  <div id="loading-overlay" class="refarm-loading-state">
+    <div class="refarm-spinner" aria-hidden="true"></div>
+    <p>Abrindo a governança de extensões…</p>
+  </div>
+</Layout>
+
+<script>
+  import { bootGovernance } from "../web/governance-boot";
+  bootGovernance();
+</script>

@@ -1,9 +1,10 @@
-import {
-	buildJsonSuccessEnvelope,
-	type CapabilityDescriptor,
-	type CapabilityEnvelope,
-	type CapabilityInput,
-} from "@refarm.dev/capability-host";
+// The envelope builder comes from the browser-safe origin (@refarm.dev/capabilities/envelope), not
+// the @refarm.dev/capability-host barrel, so this factory can be imported by the WEB face without
+// pulling node into the bundle. The disk write is injected (options.writeArtifact) — absent in the
+// browser — so the verb itself is otherwise pure (runGovernancePoc + governanceToHtml). The types
+// are erased.
+import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
+import type { CapabilityDescriptor, CapabilityEnvelope, CapabilityInput } from "@refarm.dev/capability-host";
 
 import { governanceToHtml } from "./governance-html.js";
 import { runGovernancePoc } from "./governance-poc.js";
