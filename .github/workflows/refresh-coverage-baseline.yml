@@ -14,7 +14,14 @@ name: Refresh tractor coverage baseline
 # in a normal commit. (`permissions: contents: read` — no push, no branch mutation.)
 
 on:
+  # workflow_dispatch is the intended trigger once this file reaches the default branch (main).
+  # Until then, a push that touches THIS file (on develop) self-triggers a refresh — so the
+  # baseline can be regenerated in the CI environment without a develop→main merge first.
   workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - ".github/workflows/refresh-coverage-baseline.yml"
 
 permissions:
   contents: read
