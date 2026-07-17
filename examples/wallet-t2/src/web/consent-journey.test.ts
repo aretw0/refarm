@@ -52,19 +52,42 @@ describe("consent journey web controller — the T2-F7 decision is LIVE", () => 
 		expect(mount.textContent).toContain("faixa_etaria");
 	});
 
-	it("clicking Authorize grants the pending request and it disappears from the screen", async () => {
-		const { mount, registry } = await mountWithPending();
-		mount.querySelector<HTMLElement>('[data-refarm-surface-action-id="authorization-authorize"]')!.click();
-		// The prompt disappears once the async grant + re-render settles.
-		await vi.waitFor(() => expect(mount.textContent).not.toContain("Loja Fictícia"));
-		// And it is genuinely granted — the pending queue is empty.
-		const consent = registry.get("consent");
-		const after = (await (consent as { run: (i: unknown) => Promise<unknown> }).run({
+	async function consentState(registry: CapabilityRegistry): Promise<{ pendingCount: number; authorizationCount: number }> {
+		return (await (registry.get("consent") as { run: (i: unknown) => Promise<unknown> }).run({
 			args: {},
 			options: {},
 			json: true,
-		})) as { pendingCount: number };
+		})) as { pendingCount: number; authorizationCount: number };
+	}
+
+	it("clicking Authorize turns the prompt into a granted, revocable authorization", async () => {
+		const { mount, registry } = await mountWithPending();
+		mount.querySelector<HTMLElement>('[data-refarm-surface-action-id="authorization-authorize"]')!.click();
+		// The pending prompt's Authorize control disappears (the request is granted) …
+		await vi.waitFor(() =>
+			expect(mount.querySelector('[data-refarm-surface-action-id="authorization-authorize"]')).toBeNull(),
+		);
+		// … and the authorization now shows in the granted list with a Revoke control.
+		expect(mount.querySelector('[data-refarm-surface-action-id="authorization-revoke"]')).toBeTruthy();
+		expect(mount.textContent).toContain("Loja Fictícia"); // still there — now as a granted authorization
+		const after = await consentState(registry);
 		expect(after.pendingCount).toBe(0);
+		expect(after.authorizationCount).toBe(1);
+	});
+
+	it("clicking Revoke on a granted authorization revokes it (the control disappears)", async () => {
+		const { mount } = await mountWithPending();
+		// Grant it first, then revoke it.
+		mount.querySelector<HTMLElement>('[data-refarm-surface-action-id="authorization-authorize"]')!.click();
+		await vi.waitFor(() =>
+			expect(mount.querySelector('[data-refarm-surface-action-id="authorization-revoke"]')).toBeTruthy(),
+		);
+		mount.querySelector<HTMLElement>('[data-refarm-surface-action-id="authorization-revoke"]')!.click();
+		// Revoked → the Revoke control is gone and the status reads "Revogada".
+		await vi.waitFor(() =>
+			expect(mount.querySelector('[data-refarm-surface-action-id="authorization-revoke"]')).toBeNull(),
+		);
+		expect(mount.textContent).toContain("Revogada");
 	});
 
 	it("clicking Decline removes the pending request (the sovereign no)", async () => {

@@ -1,4 +1,4 @@
-import { CONSENT_AUTHORIZE_ACTION_ID } from "@refarm.dev/authorization-contract-v1";
+import { CONSENT_AUTHORIZE_ACTION_ID, CONSENT_REVOKE_ACTION_ID } from "@refarm.dev/authorization-contract-v1";
 import type { CapabilityRegistry } from "@refarm.dev/capabilities";
 
 /**
@@ -41,7 +41,11 @@ export async function mountConsentJourney(
 	async function render(): Promise<void> {
 		const consent = await runVerb(registry, "consent", { args: {}, options: {} });
 		const pendingCount = Number(consent?.pendingCount ?? 0);
-		mount.innerHTML = (consent?.consentHtml as string) || emptyHtml;
+		// Both sides of the screen: pending prompts to decide, then the granted authorizations
+		// (each with a Revoke control). Empty pending falls back to a reassuring line.
+		const pendingHtml = (consent?.consentHtml as string) || emptyHtml;
+		const grantedHtml = (consent?.authorizationsHtml as string) || "";
+		mount.innerHTML = pendingHtml + grantedHtml;
 		if (options.caption) {
 			options.caption.textContent = pendingCount
 				? `${pendingCount} pedido(s) aguardando sua decisão`
@@ -54,16 +58,16 @@ export async function mountConsentJourney(
 			"[data-refarm-surface-action-id], [data-consent-decline]",
 		);
 		if (!el || !mount.contains(el)) return;
-		const authorizeId =
-			el.getAttribute("data-refarm-surface-action-id") === CONSENT_AUTHORIZE_ACTION_ID
-				? el.getAttribute("data-consent-request")
-				: null;
+		const actionId = el.getAttribute("data-refarm-surface-action-id");
+		const authorizeId = actionId === CONSENT_AUTHORIZE_ACTION_ID ? el.getAttribute("data-consent-request") : null;
+		const revokeId = actionId === CONSENT_REVOKE_ACTION_ID ? el.getAttribute("data-authorization-id") : null;
 		const declineId = el.getAttribute("data-consent-decline");
-		if (!authorizeId && !declineId) return;
+		if (!authorizeId && !declineId && !revokeId) return;
 		event.preventDefault();
 		el.setAttribute("disabled", "true"); // no double-submit while the verb runs
 		try {
 			if (authorizeId) await runVerb(registry, "authorize", { args: {}, options: { request: authorizeId } });
+			else if (revokeId) await runVerb(registry, "revoke", { args: { id: revokeId }, options: {} });
 			else if (declineId) await runVerb(registry, "decline", { args: { id: declineId }, options: {} });
 		} finally {
 			await render();

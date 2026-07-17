@@ -390,7 +390,9 @@ export function createWalletRevokeCapability(
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const id = String(input.args.id ?? "");
 			const manifest = recordsDeps.loadManifest();
-			const record = manifest.records.find((r) => r.id === id);
+			// Match by record id (the wallet list) OR by the receipt id (what renderAuthorizationList's
+			// Revoke control carries) — the same verb serves the CLI and the web screen.
+			const record = manifest.records.find((r) => r.id === id || recordToReceipt(r)?.id === id);
 			const receipt = record ? recordToReceipt(record) : null;
 			if (!record || !receipt) {
 				return buildJsonErrorEnvelope({

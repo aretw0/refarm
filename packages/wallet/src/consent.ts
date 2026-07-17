@@ -6,8 +6,8 @@ import {
 	type CapabilityInput,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capability-host";
-import type { ServiceRequest } from "@refarm.dev/authorization-contract-v1";
-import { renderConsentPrompt } from "@refarm.dev/authorization-contract-v1";
+import type { AuthorizationReceipt, ServiceRequest } from "@refarm.dev/authorization-contract-v1";
+import { renderAuthorizationList, renderConsentPrompt } from "@refarm.dev/authorization-contract-v1";
 import {
 	computeRecordContentHash,
 	type KnowledgeRecord,
@@ -15,7 +15,7 @@ import {
 } from "@refarm.dev/records-contract-v1";
 import { mergeAndRecord } from "@refarm.dev/history-contract-v1";
 
-import { receiptToRecord } from "./authorization.js";
+import { receiptToRecord, recordToReceipt } from "./authorization.js";
 
 /**
  * The CONSENT-PROMPT journey — the moment the wallet was missing (T2-F7): a service SUBMITS a
@@ -180,6 +180,13 @@ export function createWalletConsentCapability(recordsDeps: RecordsCommandDeps): 
 			const consentHtml = pending.length
 				? pending.map((request) => renderConsentPrompt(request)).join("\n")
 				: `<p class="refarm-muted">Nenhum pedido pendente. Você está em dia.</p>`;
+			// The DECIDED side of the screen: authorizations the citizen has already granted, active
+			// first, each with a Revoke control (renderAuthorizationList). So the consent screen shows
+			// the whole picture — what awaits a decision, and what is already shared and can be pulled.
+			const authorizations = manifest.records
+				.map((r) => recordToReceipt(r))
+				.filter((r): r is AuthorizationReceipt => r !== null);
+			const authorizationsHtml = renderAuthorizationList(authorizations);
 			return buildJsonSuccessEnvelope({
 				command: "consent",
 				operation: "consent",
@@ -188,6 +195,8 @@ export function createWalletConsentCapability(recordsDeps: RecordsCommandDeps): 
 				extra: {
 					pendingCount: pending.length,
 					consentHtml,
+					authorizationCount: authorizations.length,
+					authorizationsHtml,
 					pending: pending.map((r) => ({ id: pendingRecordId(r), requester: r.requester, purpose: r.purpose })),
 				},
 			});
