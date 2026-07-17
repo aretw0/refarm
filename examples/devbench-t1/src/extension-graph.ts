@@ -129,7 +129,7 @@ export function createExtensionGraphCapability(
 					// `svg` is the CLI-explicit copy (only under --svg, to keep JSON output lean).
 					...(input.options?.svg === true ? { svg } : {}),
 					// `graphSvg` is the content-seam field the web boot reads to mount the graph
-					// ABOVE the launcher cards (bootDevbench: content { verb, field: "graphSvg" }).
+					// (extension-graph-boot: content { verb: "extension-graph", field: "graphSvg" }).
 					graphSvg: svg,
 				},
 			});

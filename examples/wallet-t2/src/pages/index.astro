@@ -1,15 +1,64 @@
 ---
 import { Layout } from "@refarm.dev/homestead/ui";
+
+// The landing HUB — a browser-safe front door that links to the wallet's live faces. It replaces
+// the old dashboard boot (which imported the node-bound CLI and hung on the spinner in a browser).
+const faces = [
+  {
+    href: "/consent/",
+    name: "Consentimento",
+    summary:
+      "O momento da decisão: um serviço pede acesso a um atributo verificado; autorize com escopo e finalidade, ou revogue — tudo ao vivo.",
+  },
+];
 ---
 
-<Layout title="Minha Carteira Digital">
-  <div id="loading-overlay" class="refarm-loading-state">
-    <div class="refarm-spinner" aria-hidden="true"></div>
-    <p>Abrindo sua carteira…</p>
-  </div>
+<Layout title="Minha Carteira Digital — consentimento soberano">
+  <main class="refarm-hub refarm-stack">
+    <header class="refarm-stack">
+      <p class="refarm-eyebrow">Carteira do cidadão · T2</p>
+      <h1>Sua carteira, seu consentimento</h1>
+      <p class="refarm-muted">
+        A mesma declaração de verbo que dirige o CLI acende esta face web. Ela roda no navegador de
+        verdade — abra e interaja.
+      </p>
+    </header>
+    <div class="refarm-face-grid" data-face-hub>
+      {faces.map((face) => (
+        <a class="refarm-surface-card refarm-stack refarm-face-card" href={face.href}>
+          <span class="refarm-card-name">{face.name}</span>
+          <span class="refarm-card-summary">{face.summary}</span>
+          <span class="refarm-face-open" aria-hidden="true">Abrir →</span>
+        </a>
+      ))}
+    </div>
+  </main>
 </Layout>
 
-<script>
-  import { bootWallet } from "../web/boot";
-  bootWallet();
-</script>
+<style>
+  .refarm-hub {
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: clamp(1.5rem, 4vw, 3rem) 1rem;
+    gap: 2rem;
+  }
+  .refarm-face-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    gap: 1rem;
+  }
+  .refarm-face-card {
+    text-decoration: none;
+    color: inherit;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+  .refarm-face-card:hover,
+  .refarm-face-card:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  }
+  .refarm-face-open {
+    font-weight: 600;
+    opacity: 0.75;
+  }
+</style>

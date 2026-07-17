@@ -26,6 +26,10 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 // interact (optional): { fill?: [selector, value], click: selector, expect: selector } — a minimal
 // user action whose result must appear (proves the dispatch loop / B2 in a real browser).
 const FACES = [
+	// The landing hubs — the browser-safe front door of each example, linking to its live faces.
+	{ work: "T1", example: "devbench-t1", route: "/", mustHave: ["[data-face-hub]", 'a[href="/governance/"]', 'a[href="/extension-graph/"]'] },
+	{ work: "T2", example: "wallet-t2", route: "/", mustHave: ["[data-face-hub]", 'a[href="/consent/"]'] },
+	{ work: "T3", example: "reqbench-t3", route: "/", mustHave: ["[data-face-hub]", 'a[href="/search/"]', 'a[href="/graph/"]'] },
 	{
 		work: "T2",
 		example: "wallet-t2",
