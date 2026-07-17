@@ -21,6 +21,7 @@
 		"toolbox:test": "node scripts/ci/run-workspace-script.mjs packages/toolbox test",
 		"test": "turbo run test",
 		"test:watch": "vitest --watch",
+		"web:smoke": "node scripts/ci/web-face-smoke.mjs",
 		"validate-packages": "node scripts/validate-packages.mjs",
 		"validate-packages:test": "node --test scripts/ci/test-validate-packages-lib.mjs",
 		"scaffold:inventory": "node scripts/ci/check-scaffold-inventory.mjs",
