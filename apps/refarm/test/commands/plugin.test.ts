@@ -56,19 +56,29 @@ vi.mock("node:crypto", () => ({
 	}),
 }));
 
-vi.mock("node:module", () => ({
-	createRequire: vi.fn().mockReturnValue(
-		Object.assign(
-			vi.fn().mockImplementation((id: string) => {
-				if (id.endsWith("/package.json")) return `/fake/node_modules/${id}`;
-				throw new Error(`unexpected require(${id})`);
-			}),
-			{
-				resolve: mockRequireResolve,
-			},
+vi.mock("node:module", async () => {
+	// The CLI projector (surface-terminal/cli-projector.ts) and capabilities-v1 host now
+	// lazy-load commander via createRequire so their barrels are browser-safe (a static
+	// `import { Command } from "commander"` crashes a browser bundle at module-init, where
+	// node:events is a stub). Building the projected `plugin` group below therefore issues a
+	// legitimate `require("commander")` — return the REAL module; anything else unexpected is
+	// still a bug this guard should surface.
+	const commander = await vi.importActual<typeof import("commander")>("commander");
+	return {
+		createRequire: vi.fn().mockReturnValue(
+			Object.assign(
+				vi.fn().mockImplementation((id: string) => {
+					if (id === "commander") return commander;
+					if (id.endsWith("/package.json")) return `/fake/node_modules/${id}`;
+					throw new Error(`unexpected require(${id})`);
+				}),
+				{
+					resolve: mockRequireResolve,
+				},
+			),
 		),
-	),
-}));
+	};
+});
 
 vi.mock("@refarm.dev/cli/process-handoff", async () => {
 	const actual = await vi.importActual<typeof import("@refarm.dev/cli/process-handoff")>(
