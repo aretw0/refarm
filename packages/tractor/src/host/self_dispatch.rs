@@ -159,6 +159,9 @@ mod tests {
 
     #[test]
     fn depth_guard_sets_and_restores() {
+        // DepthGuard mutates the process-global SUBAGENT_DEPTH_ENV; take the crate env lane so the
+        // set/remove here doesn't data-race the other env-mutating tests under parallel cargo test.
+        let _env = crate::test_support::env_lock();
         std::env::remove_var(SUBAGENT_DEPTH_ENV);
         assert_eq!(current_depth(), 0);
         {

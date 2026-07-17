@@ -653,6 +653,9 @@
 
     #[test]
     fn plugin_runtime_env_vars_forwards_streams_dir() {
+        // REFARM_STREAMS_DIR is process-global; take the crate env lane so this doesn't race the
+        // other env-mutating tests under `cargo test --lib` (multi-thread).
+        let _env = crate::test_support::env_lock();
         let previous = std::env::var("REFARM_STREAMS_DIR").ok();
         std::env::set_var("REFARM_STREAMS_DIR", "/tmp/refarm-streams-test");
 
