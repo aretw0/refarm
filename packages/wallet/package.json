@@ -13,6 +13,10 @@
 		"./sovereign": {
 			"import": "./dist/sovereign.js",
 			"types": "./dist/sovereign.d.ts"
+		},
+		"./browser": {
+			"import": "./dist/browser.js",
+			"types": "./dist/browser.d.ts"
 		}
 	},
 	"scripts": {
@@ -52,6 +56,7 @@
 	},
 	"dependencies": {
 		"@refarm.dev/authorization-contract-v1": "workspace:*",
+		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/capability-homestead-surface": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
 		"@refarm.dev/credentials-contract-v1": "workspace:*",

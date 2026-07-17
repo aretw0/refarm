@@ -1,10 +1,13 @@
-import {
-	buildJsonErrorEnvelope,
-	buildJsonSuccessEnvelope,
-	type CapabilityDescriptor,
-	type CapabilityEnvelope,
-	type CapabilityInput,
-	type RecordsCommandDeps,
+// Envelope BUILDERS from their browser-safe origin (@refarm.dev/capabilities/envelope), NOT the
+// @refarm.dev/capability-host barrel — that barrel also exports defineCapabilityApp, which pulls
+// Commander (`Command extends EventEmitter`), crashing a browser bundle at module init. Types are
+// erased at build, so they can stay on the barrel.
+import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
+import type {
+	CapabilityDescriptor,
+	CapabilityEnvelope,
+	CapabilityInput,
+	RecordsCommandDeps,
 } from "@refarm.dev/capability-host";
 import type { AuthorizationReceipt, ServiceRequest } from "@refarm.dev/authorization-contract-v1";
 import { renderAuthorizationList, renderConsentPrompt } from "@refarm.dev/authorization-contract-v1";

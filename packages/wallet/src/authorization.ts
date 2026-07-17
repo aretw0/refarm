@@ -1,10 +1,11 @@
-import {
-	buildJsonErrorEnvelope,
-	buildJsonSuccessEnvelope,
-	type CapabilityDescriptor,
-	type CapabilityEnvelope,
-	type CapabilityInput,
-	type RecordsCommandDeps,
+// Envelope builders from their browser-safe origin — NOT the capability-host barrel, which pulls
+// Commander via defineCapabilityApp and crashes a browser bundle (see consent.ts). Types are erased.
+import { buildJsonErrorEnvelope, buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
+import type {
+	CapabilityDescriptor,
+	CapabilityEnvelope,
+	CapabilityInput,
+	RecordsCommandDeps,
 } from "@refarm.dev/capability-host";
 import type {
 	AttributeSet,

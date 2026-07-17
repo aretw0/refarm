@@ -631,6 +631,9 @@ importers:
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../../packages/homestead
+      '@refarm.dev/records-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/records-contract-v1
       '@refarm.dev/wallet':
         specifier: workspace:*
         version: link:../../packages/wallet
@@ -2541,6 +2544,9 @@ importers:
       '@refarm.dev/authorization-contract-v1':
         specifier: workspace:*
         version: link:../authorization-contract-v1
+      '@refarm.dev/capabilities':
+        specifier: workspace:*
+        version: link:../capabilities
       '@refarm.dev/capability-homestead-surface':
         specifier: workspace:*
         version: link:../capability-homestead-surface

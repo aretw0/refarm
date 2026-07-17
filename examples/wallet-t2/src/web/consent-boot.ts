@@ -1,4 +1,6 @@
-import { walletApp } from "../cli.js";
+import type { CapabilityRegistry } from "@refarm.dev/capabilities";
+
+import { createConsentWebRegistry } from "./consent-app.js";
 import { mountConsentJourney } from "./consent-journey.js";
 
 /**
@@ -23,7 +25,7 @@ export async function bootConsent(): Promise<void> {
 	const mount = document.getElementById("consent-mount");
 	try {
 		if (!mount) throw new Error("no #consent-mount");
-		const registry = walletApp.registry();
+		const registry = createConsentWebRegistry();
 		const journey = await mountConsentJourney(registry, mount, {
 			caption: document.getElementById("consent-caption"),
 		});
@@ -41,11 +43,7 @@ export async function bootConsent(): Promise<void> {
 
 /** A "simulate a request" button that submits a fictitious service request through the real
  * `request` verb, then refreshes — the demo entry point into the T2-F7 decision. */
-function mountDemoSeed(
-	registry: ReturnType<typeof walletApp.registry>,
-	mount: HTMLElement,
-	refresh: () => Promise<void>,
-): void {
+function mountDemoSeed(registry: CapabilityRegistry, mount: HTMLElement, refresh: () => Promise<void>): void {
 	let next = 0;
 	const button = document.createElement("button");
 	button.type = "button";
