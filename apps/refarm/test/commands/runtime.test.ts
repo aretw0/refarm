@@ -1,13 +1,32 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRuntimeCommand } from "../../src/commands/runtime.js";
 import type { LaunchRuntimeSelection } from "../../src/commands/session-launch.js";
 
 describe("runtime command", () => {
+	// Point REFARM_PROC_ROOT at a fresh EMPTY dir so the runtime-stop /proc scan is HERMETIC by
+	// default: a stop test that writes pid files (e.g. 111/222) must not have its outcome depend on
+	// whether those PIDs happen to be live processes on the runner. runtime-stop's procCmdline falls
+	// back to the real /proc when REFARM_PROC_ROOT is unset — so on a busy CI runner pid 111/222 can
+	// resolve to a real (non-tractor) process, flipping the target to "different process, not
+	// stopped" and failing the assertion (a CI-only flake, invisible locally). Tests that need
+	// specific proc entries set REFARM_PROC_ROOT themselves; afterEach restores the original.
+	let originalProcRoot: string | undefined;
+	let hermeticProcRoot = "";
+	let procRootCounter = 0;
 	beforeEach(() => {
 		process.exitCode = undefined;
+		originalProcRoot = process.env.REFARM_PROC_ROOT;
+		hermeticProcRoot = join(tmpdir(), `refarm-hermetic-proc-${Date.now()}-${procRootCounter++}`);
+		mkdirSync(hermeticProcRoot, { recursive: true });
+		process.env.REFARM_PROC_ROOT = hermeticProcRoot;
+	});
+	afterEach(() => {
+		if (originalProcRoot === undefined) delete process.env.REFARM_PROC_ROOT;
+		else process.env.REFARM_PROC_ROOT = originalProcRoot;
+		rmSync(hermeticProcRoot, { recursive: true, force: true });
 	});
 
 	it("prints runtime engine selection", async () => {
