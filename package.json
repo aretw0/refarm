@@ -120,6 +120,7 @@
 		"task:execution:smoke": "node scripts/ci/smoke-task-execution-loop.mjs",
 		"task:build-order:check": "node -e \"import('./scripts/ci/subprocess-utils.mjs').then(m => m.assertTaskSmokeBuildOrderIntegrity()).catch(e => { console.error(e.message); process.exit(1); })\"",
 		"deps:vitest-config-check": "node scripts/ci/check-vitest-config-deps.mjs",
+		"ci:workspace-coverage:check": "node scripts/ci/check-ci-workspace-coverage.mjs",
 		"deps:src-manifest-check": "node scripts/ci/check-src-dep-manifest.mjs",
 		"deps:src-manifest-check:test": "node --test scripts/ci/test-check-src-dep-manifest.mjs",
 		"task:execution:smoke:agent": "node scripts/ci/smoke-task-agent-respond.mjs",
