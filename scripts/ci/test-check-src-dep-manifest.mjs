@@ -104,6 +104,46 @@ test("computeWorkspaceDrift clears UNUSED when the dep is used via a path-map on
 	assert.deepEqual(drift.unused, [], "a dep referenced by a path-map counts as used");
 });
 
+test("computeWorkspaceDrift flags MISSING @types/node for a node: import with no node types", () => {
+	const drift = computeWorkspaceDrift({
+		ownName: "@refarm.dev/self",
+		declared: new Set(),
+		runtimeDeps: [],
+		importedBases: new Map(),
+		pathMapBases: new Set(),
+		workspaceIndex: new Set(),
+		nodeBuiltinSample: "src/cli.ts",
+		nodeTypesProvided: false,
+	});
+	assert.deepEqual(drift.missingNodeTypes, { sampleFile: "src/cli.ts" });
+});
+
+test("computeWorkspaceDrift does NOT flag @types/node when node types are provided", () => {
+	const provided = computeWorkspaceDrift({
+		ownName: "@refarm.dev/self",
+		declared: new Set(["@types/node"]),
+		runtimeDeps: [],
+		importedBases: new Map(),
+		pathMapBases: new Set(),
+		workspaceIndex: new Set(),
+		nodeBuiltinSample: "src/cli.ts",
+		nodeTypesProvided: true,
+	});
+	assert.equal(provided.missingNodeTypes, null);
+	// …and never flags a package that imports no node: builtin.
+	const noNode = computeWorkspaceDrift({
+		ownName: "@refarm.dev/self",
+		declared: new Set(),
+		runtimeDeps: [],
+		importedBases: new Map(),
+		pathMapBases: new Set(),
+		workspaceIndex: new Set(),
+		nodeBuiltinSample: null,
+		nodeTypesProvided: false,
+	});
+	assert.equal(noNode.missingNodeTypes, null);
+});
+
 test("the real monorepo is clean — no MISSING deps or STALE path-maps (regression guard)", () => {
 	const result = spawnSync("node", [scriptPath, "--json"], { encoding: "utf8" });
 	assert.equal(result.status, 0, `checker exited ${result.status}:\n${result.stdout}\n${result.stderr}`);

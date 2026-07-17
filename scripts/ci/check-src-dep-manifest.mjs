@@ -38,7 +38,7 @@
  */
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
@@ -138,6 +138,55 @@ function collectPathMapSpecifiers(pkgDir) {
 	return specs;
 }
 
+/** A `node:` builtin import in TYPE-CHECKED source — `from`/`import`/`require` of a
+ * `node:*` specifier. Its presence means the package needs `@types/node` in scope. */
+const NODE_BUILTIN_IMPORT = /(?:\bfrom|\bimport|\brequire)\s*\(?\s*["'](node:[^"']+)["']/;
+
+/** The first type-checked source file that imports a `node:` builtin, or null. Only
+ * `.ts(x)/.mts/.cts` — the files a `tsc --noEmit` type-check actually sees. */
+function sourceUsingNodeBuiltins(pkgDir) {
+	for (const file of collectSourceFiles(join(pkgDir, "src"))) {
+		if (!/\.(ts|tsx|mts|cts)$/.test(file)) continue;
+		if (NODE_BUILTIN_IMPORT.test(readFileSync(file, "utf8"))) return relative(ROOT, file);
+	}
+	return null;
+}
+
+/** Resolve a tsconfig `extends` entry to an absolute path — relative paths and the
+ * `@refarm.dev/tsconfig/*` base package (which lives at packages/tsconfig). Other
+ * package extends are not modeled (returns null → not followed). */
+function resolveExtends(entry, fromDir) {
+	if (entry.startsWith("@refarm.dev/tsconfig/")) {
+		return join(ROOT, "packages/tsconfig", entry.slice("@refarm.dev/tsconfig/".length));
+	}
+	if (entry.startsWith(".")) return join(fromDir, entry);
+	return null;
+}
+
+/** Does a package's type-check tsconfig put `node` in `compilerOptions.types`? That is
+ * the reliable signal that node types RESOLVE under a strict pnpm install: an explicit
+ * `types:["node"]` (from node.json, the repo-root config, or the package itself) makes tsc
+ * resolve the NAMED "@types/node" package — which pnpm satisfies. With `types` unset, tsc
+ * instead directory-scans typeRoots for `@types/*`, and pnpm does not surface @types/node
+ * there — so a package that imports node builtins under a `types`-unset config (e.g. the
+ * examples' dom.json → base.json chain) fails a clean build. Resolves only tsconfig.json
+ * (what a bare `tsc --noEmit` type-check uses) and its extends chain. */
+function tsconfigDeclaresNodeType(pkgDir) {
+	const seen = new Set();
+	const visit = (cfgPath) => {
+		if (!cfgPath || seen.has(cfgPath)) return false;
+		seen.add(cfgPath);
+		const cfg = readJson(cfgPath);
+		if (!cfg) return false;
+		const types = cfg.compilerOptions?.types;
+		if (Array.isArray(types) && types.includes("node")) return true;
+		const ext = cfg.extends;
+		const list = Array.isArray(ext) ? ext : ext ? [ext] : [];
+		return list.some((e) => visit(resolveExtends(e, dirname(cfgPath))));
+	};
+	return visit(join(pkgDir, "tsconfig.json"));
+}
+
 /**
  * The PURE decision core — no filesystem, so it is directly unit-testable. Given a
  * workspace's declared deps, its actual src imports, its tsconfig path-map bases, and
@@ -153,8 +202,19 @@ function collectPathMapSpecifiers(pkgDir) {
  * @param {Map<string,string>} p.importedBases  base package → a sample source file
  * @param {Set<string>} p.pathMapBases          base packages referenced in tsconfig paths
  * @param {Set<string>|Map<string,unknown>} p.workspaceIndex  every real workspace name
+ * @param {string|null} p.nodeBuiltinSample     a src file importing `node:*`, or null
+ * @param {boolean} p.nodeTypesProvided         @types/node declared OR tsconfig gives node
  */
-export function computeWorkspaceDrift({ ownName, declared, runtimeDeps, importedBases, pathMapBases, workspaceIndex }) {
+export function computeWorkspaceDrift({
+	ownName,
+	declared,
+	runtimeDeps,
+	importedBases,
+	pathMapBases,
+	workspaceIndex,
+	nodeBuiltinSample = null,
+	nodeTypesProvided = true,
+}) {
 	const missing = [];
 	for (const [base, sampleFile] of importedBases) {
 		if (base === ownName) continue; // a package importing its own subpath is fine
@@ -177,7 +237,13 @@ export function computeWorkspaceDrift({ ownName, declared, runtimeDeps, imported
 		unused.push({ base: dep });
 	}
 
-	return { missing, stalePathMaps, unused };
+	// MISSING @types/node: the package imports a `node:` builtin but nothing puts node
+	// types in scope — no `@types/node` and no tsconfig that provides them. It type-checks
+	// locally through an ancestor @types typeRoot and stays green in CI via a stale
+	// type-check cache, then fails on a clean strict build (TS2591). Deterministic kill.
+	const missingNodeTypes = nodeBuiltinSample && !nodeTypesProvided ? { sampleFile: nodeBuiltinSample } : null;
+
+	return { missing, stalePathMaps, unused, missingNodeTypes };
 }
 
 function checkWorkspace(rel, workspaceIndex) {
@@ -210,7 +276,21 @@ function checkWorkspace(rel, workspaceIndex) {
 
 	const pathMapBases = new Set([...collectPathMapSpecifiers(pkgDir)].map(basePackage));
 
-	const drift = computeWorkspaceDrift({ ownName, declared, runtimeDeps, importedBases, pathMapBases, workspaceIndex });
+	const nodeBuiltinSample = sourceUsingNodeBuiltins(pkgDir);
+	// Node types resolve if @types/node is declared OR the tsconfig names it in `types`
+	// (node.json / root / own). Neither → a clean build can't resolve node builtins.
+	const nodeTypesProvided = declared.has("@types/node") || tsconfigDeclaresNodeType(pkgDir);
+
+	const drift = computeWorkspaceDrift({
+		ownName,
+		declared,
+		runtimeDeps,
+		importedBases,
+		pathMapBases,
+		workspaceIndex,
+		nodeBuiltinSample,
+		nodeTypesProvided,
+	});
 	return { rel, ownName, ...drift };
 }
 
@@ -231,7 +311,7 @@ function main() {
 		if (report) reports.push(report);
 	}
 
-	const withErrors = reports.filter((r) => r.missing.length || r.stalePathMaps.length);
+	const withErrors = reports.filter((r) => r.missing.length || r.stalePathMaps.length || r.missingNodeTypes);
 	const withUnused = reports.filter((r) => r.unused.length);
 
 	if (asJson) {
@@ -240,7 +320,7 @@ function main() {
 	}
 
 	if (withErrors.length === 0) {
-		console.log(`${colors.green}✓ src dep manifest: no missing deps or stale path-maps${colors.reset}`);
+		console.log(`${colors.green}✓ src dep manifest: no missing deps, stale path-maps, or node-type gaps${colors.reset}`);
 	} else {
 		console.error(`${colors.red}✗ src dependency manifest drift detected${colors.reset}\n`);
 		for (const r of withErrors) {
@@ -257,6 +337,14 @@ function main() {
 				);
 				console.error(
 					`      ${colors.dim}Fix: declare "${base}" or remove its tsconfig paths entry in ${r.rel}${colors.reset}`,
+				);
+			}
+			if (r.missingNodeTypes) {
+				console.error(
+					`    ${colors.red}MISSING @types/node${colors.reset} ${colors.dim}imports a node: builtin in ${r.missingNodeTypes.sampleFile}, no node types in scope${colors.reset}`,
+				);
+				console.error(
+					`      ${colors.dim}Fix: add "@types/node": "catalog:" to ${r.rel}/package.json (or extend a tsconfig with types:["node"])${colors.reset}`,
 				);
 			}
 			console.error("");
