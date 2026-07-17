@@ -54,6 +54,21 @@ function denyAllWasiImports(): Any {
 			getArguments: () => [],
 			initialCwd: () => undefined,
 		},
+		// The identity-plugin world `include plugin`, so it carries the `tractor-bridge`
+		// host import — but the SIGNER surface never uses it (store-node lives in the
+		// integration export, which this loader never invokes). Provide a deny-all stub so
+		// jco's --instantiation can satisfy the import; any actual call throws. Without it a
+		// freshly transpiled `pkg/` fails to instantiate ("Cannot destructure … storeNode").
+		"plugin:host/tractor-bridge": new Proxy(
+			{},
+			{
+				get:
+					(_t, prop) =>
+					(...__args: Any[]) => {
+						throw new Error(`capability denied: plugin:host/tractor-bridge.${String(prop)} (sovereign signer)`);
+					},
+			},
+		),
 		"wasi:cli/exit": { exit: noop },
 		"wasi:cli/stderr": { getStderr: () => new emptyOut() },
 		"wasi:cli/stdin": { getStdin: () => ({}) },
