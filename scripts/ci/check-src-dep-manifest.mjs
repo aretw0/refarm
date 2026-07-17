@@ -277,9 +277,13 @@ function checkWorkspace(rel, workspaceIndex) {
 	const pathMapBases = new Set([...collectPathMapSpecifiers(pkgDir)].map(basePackage));
 
 	const nodeBuiltinSample = sourceUsingNodeBuiltins(pkgDir);
-	// Node types resolve if @types/node is declared OR the tsconfig names it in `types`
-	// (node.json / root / own). Neither → a clean build can't resolve node builtins.
-	const nodeTypesProvided = declared.has("@types/node") || tsconfigDeclaresNodeType(pkgDir);
+	// Node types resolve reliably in a strict pnpm CI install ONLY when the tsconfig NAMES
+	// "node" in `types` (node.json / root / own compilerOptions) — that makes tsc resolve the
+	// named @types/node package via module resolution. Merely DECLARING @types/node with a
+	// `types`-unset config is NOT enough: tsc then directory-scans typeRoots, where pnpm does
+	// not surface it, and the build fails (the examples passed locally + cached-green, then
+	// broke on a clean run). So the gate requires `types:["node"]`, not just the dependency.
+	const nodeTypesProvided = tsconfigDeclaresNodeType(pkgDir);
 
 	const drift = computeWorkspaceDrift({
 		ownName,
