@@ -1,5 +1,15 @@
 import chalk from "chalk";
-import { Command } from "commander";
+import { createRequire } from "node:module";
+
+// Commander is loaded LAZILY (CLI-only) — a static top-level import evaluates its
+// `Command extends EventEmitter`, which crashes a browser bundle where node:events is a stub.
+// See @refarm.dev/capabilities-v1 host.ts. The type import is erased; the value is required on
+// demand inside the (node-only) command builders below.
+import type { Command } from "commander";
+
+function loadCommanderCommand(): typeof import("commander").Command {
+	return (createRequire(import.meta.url)("commander") as typeof import("commander")).Command;
+}
 
 import { printJson } from "@refarm.dev/capabilities/envelope";
 import {
@@ -92,7 +102,7 @@ export function toCommanderCommand(
 	descriptor: CapabilityDescriptor,
 	hooks: CapabilitySurfaceHooks = {},
 ): Command {
-	const command = new Command(descriptor.name).description(descriptor.summary);
+	const command = new (loadCommanderCommand())(descriptor.name).description(descriptor.summary);
 
 	for (const arg of descriptor.args ?? []) {
 		const token = arg.variadic
@@ -149,7 +159,7 @@ export function toCommanderGroup(
 	group: CapabilityGroup,
 	hooksFor: (subVerb: string) => CapabilitySurfaceHooks = () => ({}),
 ): Command {
-	const command = new Command(group.name).description(group.summary);
+	const command = new (loadCommanderCommand())(group.name).description(group.summary);
 
 	for (const [subVerb, child] of Object.entries(group.actions)) {
 		command.addCommand(toCommanderCommand(child, hooksFor(subVerb)));

@@ -23,7 +23,14 @@ import {
 	type CapabilitySurfaceUnitOptions,
 	type ReviewQueueSurfaceUnitOptions,
 } from "@refarm.dev/operator-state";
-import { Command } from "commander";
+import { createRequire } from "node:module";
+// Commander is loaded LAZILY (only inside program(), a CLI-only path) — never as a static
+// top-level import. Commander's `Command extends EventEmitter` evaluates at module load, and in a
+// browser bundle `node:events` is a stub (undefined), so a static import crashes ANY consumer of
+// this module at init (`Class extends value undefined`). Importing the TYPE is erased; the value
+// is required on demand in a node context. This keeps @refarm.dev/capabilities-v1 (and everything
+// that re-exports it) browser-safe.
+import type { Command } from "commander";
 
 import type { CapabilityDeps } from "./builtin-capabilities.js";
 import { mountCapabilities, mountedCliCommands, serveCapabilities } from "./mount.js";
@@ -284,6 +291,8 @@ export function defineCapabilityHost(definition: CapabilityHostDefinition): Capa
 		},
 		program() {
 			const bundle = createBundle();
+			// Lazily resolve commander in this CLI-only path (see the top-of-file note).
+			const { Command } = createRequire(import.meta.url)("commander") as typeof import("commander");
 			const program = new Command().name(definition.command).description(definition.description);
 			if (definition.version) program.version(definition.version);
 			for (const command of mountedCliCommands(
