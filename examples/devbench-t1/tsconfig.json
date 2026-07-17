@@ -20,9 +20,6 @@
 			],
 			"@refarm.dev/capability-homestead-surface": [
 				"packages/capability-homestead-surface/dist/index.d.ts"
-			],
-			"@refarm.dev/tractor/browser": [
-				"packages/tractor-ts/src/index.browser.ts"
 			]
 		}
 	},

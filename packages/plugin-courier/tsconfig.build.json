@@ -7,11 +7,7 @@
 		"rootDir": "src",
 		"composite": true,
 		"outDir": "dist",
-		"paths": {
-			"@refarm.dev/plugin-manifest": [
-				"./packages/plugin-manifest/dist/index.d.ts"
-			]
-		}
+		"paths": {}
 	},
 	"include": [
 		"src/**/*"

@@ -35,9 +35,6 @@
 			],
 			"@refarm.dev/playbook/capability": [
 				"packages/playbook/dist/capability.d.ts"
-			],
-			"@refarm.dev/tractor/browser": [
-				"packages/tractor-ts/src/index.browser.ts"
 			]
 		}
 	},
