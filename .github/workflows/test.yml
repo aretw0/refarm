@@ -510,10 +510,6 @@ jobs:
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
         run: pnpm -C packages/tractor-ts run runtime-module:ci
 
-      - name: Runtime descriptor release-path smoke (Tractor TS)
-        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
-        run: pnpm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
-
       - name: Revocation diagnostics report smoke (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
         run: pnpm run runtime-descriptor:revocation-report:sample
@@ -560,6 +556,16 @@ jobs:
       - name: Verify (Full Turbo) skipped
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes != 'true'
         run: echo "::notice::Skipping Full Turbo verification (no code-impacting changes detected)."
+
+      # Runs AFTER Verify (the build phase): it is a release-path validation whose tractor-ts
+      # resolver tests import workspace packages via their built dist, so it belongs after the build,
+      # not before it. Verify's build is FILTERED (--filter=...[base]) and so does not guarantee a
+      # dependency like @refarm.dev/registry is built for a tractor-rs-only change — the smoke keeps
+      # its own `turbo run build --filter=@refarm.dev/tractor` guarantee, which here is a warm
+      # cache-hit rather than the cold build it used to be when this step ran before Verify.
+      - name: Runtime descriptor release-path smoke (Tractor TS)
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        run: pnpm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
 
       - name: Append detailed Vitest report
         if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
