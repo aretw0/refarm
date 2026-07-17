@@ -4,8 +4,8 @@
   "tool": "cargo-llvm-cov",
   "threshold_pct_points": 0.1,
   "lines": {
-    "found": 13006,
-    "hit": 11867,
-    "percent": 91.28
+    "found": 21294,
+    "hit": 19441,
+    "percent": 91.3
   }
 }
