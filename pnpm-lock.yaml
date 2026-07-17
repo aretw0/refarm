@@ -1194,6 +1194,9 @@ importers:
 
   packages/health:
     dependencies:
+      '@refarm.dev/config':
+        specifier: workspace:*
+        version: link:../config
       isomorphic-git:
         specifier: 'catalog:'
         version: 1.37.6

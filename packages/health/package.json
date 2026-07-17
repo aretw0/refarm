@@ -12,6 +12,7 @@
 		"lint": "eslint src"
 	},
 	"dependencies": {
+		"@refarm.dev/config": "workspace:*",
 		"isomorphic-git": "catalog:"
 	},
 	"license": "AGPL-3.0-only",
@@ -20,6 +21,8 @@
 		"ROADMAP.md",
 		"dist/auditors/complexity.js",
 		"dist/auditors/complexity.d.ts",
+		"dist/auditors/config-node.js",
+		"dist/auditors/config-node.d.ts",
 		"dist/auditors/generic.js",
 		"dist/auditors/generic.d.ts",
 		"dist/auditors/project.js",
