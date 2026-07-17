@@ -44,7 +44,10 @@ jobs:
           rust-coverage: "true"
 
       - name: Save tractor coverage baseline (CI environment)
-        run: pnpm --filter @refarm.dev/tractor run coverage:save
+        # @refarm.dev/tractor-rs is packages/tractor (the Rust crate); its coverage:save runs
+        # `cargo llvm-cov --lib` + writes benchmarks/coverage-baseline.json. (@refarm.dev/tractor,
+        # unsuffixed, is packages/tractor-ts — a vitest package; not this gate.)
+        run: pnpm --filter @refarm.dev/tractor-rs run coverage:save
 
       - name: Upload refreshed baseline
         uses: ./.github/actions/upload-artifact
