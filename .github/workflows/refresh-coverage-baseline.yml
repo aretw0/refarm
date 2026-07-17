@@ -1,0 +1,58 @@
+name: Refresh tractor coverage baseline
+
+# Manually-triggered refresh of the tractor Rust coverage gate baseline. It runs `coverage:save`
+# (cargo llvm-cov --lib → benchmarks/coverage-baseline.json) in the SAME environment as the gate,
+# so the committed baseline carries NO local↔CI measurement gap.
+#
+# Why this exists: the gate compares `cargo llvm-cov --lib` against a committed baseline with a
+# 0.1pp threshold, but the identical source measures ~0.7pp lower in CI than on a dev box (rustc /
+# LLVM instrumentation differences), and the crate keeps growing — so a baseline captured locally
+# drifts out of the gate's tolerance. Refreshing here keeps the baseline honest to CI.
+#
+# It does NOT write to git: the refreshed baseline is uploaded as an artifact + printed to the run
+# summary; a maintainer downloads it and commits packages/tractor/benchmarks/coverage-baseline.json
+# in a normal commit. (`permissions: contents: read` — no push, no branch mutation.)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-coverage-baseline
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup (Rust toolchain + cargo-llvm-cov)
+        uses: ./.github/actions/setup
+        with:
+          rust-coverage: "true"
+
+      - name: Save tractor coverage baseline (CI environment)
+        run: pnpm --filter @refarm.dev/tractor run coverage:save
+
+      - name: Upload refreshed baseline
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: tractor-coverage-baseline
+          path: packages/tractor/benchmarks/coverage-baseline.json
+          retention-days: 14
+
+      - name: Print refreshed baseline to summary
+        run: |
+          {
+            echo "### Refreshed tractor coverage baseline (CI environment)"
+            echo "Download the \`tractor-coverage-baseline\` artifact and commit"
+            echo "\`packages/tractor/benchmarks/coverage-baseline.json\`."
+            echo '```json'
+            cat packages/tractor/benchmarks/coverage-baseline.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
