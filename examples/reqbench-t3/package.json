@@ -21,6 +21,7 @@
 	"dependencies": {
 		"@refarm.dev/browser-driver": "workspace:*",
 		"@refarm.dev/capabilities": "workspace:*",
+		"@refarm.dev/capabilities-v1": "workspace:*",
 		"@refarm.dev/capability-homestead-surface": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
 		"@refarm.dev/enrichment-contract-v1": "workspace:*",

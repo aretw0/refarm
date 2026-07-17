@@ -1,19 +1,20 @@
 import { interactiveStyles, mountGraph, type GraphInput } from "@refarm.dev/surveyor";
 
-import { reqbenchApp } from "../cli.js";
+import { createGraphWebRegistry } from "./graph-app.js";
 
 /**
  * The requirement-network WEB face — the interactive graph. It runs the SAME `requirements-graph`
  * verb the CLI exposes, takes its `{graph, labels}` projection, and mounts the substrate's
  * interactive Surveyor (pan/zoom/drag/hover, click → focus a node). The example writes no graph
  * code: the layout, render, and interaction are all `@refarm.dev/surveyor`; this only runs the
- * verb and wires the result to a mount element.
+ * verb and wires the result to a mount element. The registry is browser-safe (graph-app.ts) — this
+ * boots in a real browser with no node/WASM in the bundle (it imports nothing from ../cli.js).
  */
 export async function bootRequirementsGraph(): Promise<void> {
 	const overlay = document.getElementById("loading-overlay");
 	const mount = document.getElementById("graph-mount");
 	try {
-		const registry = reqbenchApp.registry();
+		const registry = createGraphWebRegistry();
 		const entry = registry.get("requirements-graph");
 		if (!entry || !("run" in entry) || typeof entry.run !== "function") {
 			throw new Error("requirements-graph verb not found in the registry");

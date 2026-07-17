@@ -45,6 +45,13 @@ const FACES = [
 		},
 	},
 	{
+		work: "T3",
+		example: "reqbench-t3",
+		route: "/graph/",
+		// The interactive force-directed network mounts into #graph-mount as an SVG (Surveyor).
+		mustHave: ["#graph-mount svg"],
+	},
+	{
 		work: "T1",
 		example: "devbench-t1",
 		route: "/governance/",
