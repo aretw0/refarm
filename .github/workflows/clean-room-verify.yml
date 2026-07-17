@@ -1,0 +1,55 @@
+name: Clean-room Verify
+
+# The deterministic backstop for the local↔CI gap. Per-push runs lean on a WARM Turbo
+# cache: a package whose inputs did not change serves its last green result, so a latent
+# failure (an undeclared @types/node, a stale build artifact, a drifted contract) stays
+# hidden until some unrelated change invalidates its cache and it surfaces at a random
+# time. This job runs cache-COLD — fresh install, `--force`, a throwaway cache dir — so
+# every type-check / test / lint re-executes and ALL such latent failures surface together
+# on a schedule, not one-by-one via cache roulette.
+#
+# Scheduled runs verify the default branch; use the manual dispatch to verify any branch.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * *" # Daily at 04:00 UTC
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clean-room-verify
+  cancel-in-progress: true
+
+jobs:
+  clean-room:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: "0"
+
+      # Deliberately NO turbo-cache-api/token: the remote cache is left unset so this run
+      # cannot restore a prior result. Combined with `--force` + a fresh cache dir below,
+      # the whole task graph re-executes from a clean install.
+      - name: Setup (fresh install, cache-cold)
+        uses: ./.github/actions/setup
+        with:
+          rust-target: "wasm32-wasip1"
+
+      - name: Cache-cold verify (type-check + test + lint, --force)
+        run: >-
+          pnpm turbo run type-check test lint
+          --force
+          --cache-dir=.turbo-clean-room
+          --output-logs=new-only
+          --ui=stream
+
+      - name: Note on failure
+        if: failure()
+        run: |
+          echo "::error::Clean-room verify found a latent failure the warm-cache per-push runs hide."
+          echo "A red here means a type-check/test/lint that only fails on a clean build — fix at the source (declare the dep, rebuild the artifact, reconcile the contract)." >> "$GITHUB_STEP_SUMMARY"
