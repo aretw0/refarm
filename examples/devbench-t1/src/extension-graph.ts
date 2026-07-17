@@ -1,9 +1,12 @@
-import {
-	buildJsonSuccessEnvelope,
-	type CapabilityDescriptor,
-	type CapabilityEnvelope,
-	type CapabilityInput,
-	type SurfaceableManifest,
+// The envelope builder comes from the browser-safe origin (@refarm.dev/capabilities/envelope), not
+// the @refarm.dev/capability-host barrel, so the WEB face can import this factory without pulling
+// node into the bundle. buildExtensionGraph + graphToSvg are pure; the types are erased.
+import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
+import type {
+	CapabilityDescriptor,
+	CapabilityEnvelope,
+	CapabilityInput,
+	SurfaceableManifest,
 } from "@refarm.dev/capability-host";
 import { graphToSvg, type GraphInput } from "@refarm.dev/surveyor";
 
@@ -99,7 +102,11 @@ export function createExtensionGraphCapability(
 		summary: "Draw the plugin dependency graph — the SPI edges (requiresApi → providesApi), as SVG",
 		options: [{ name: "svg", kind: "boolean", summary: "Return the rendered SVG instead of the JSON graph" }],
 		transports: { http: { path: "/extension/graph" } },
-		renderers: { tui: { section: "extension" }, web: { route: "/extension-graph", icon: "share" }, ide: { command: "dgk.extension-graph" } },
+		renderers: {
+			tui: { section: "extension" },
+			web: { route: "/extension-graph", icon: "share", resultField: "graphSvg" },
+			ide: { command: "dgk.extension-graph" },
+		},
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
 			const { graph, labels, apiEdges } = buildExtensionGraph(manifests, options);
 			const svg = graphToSvg(graph, {

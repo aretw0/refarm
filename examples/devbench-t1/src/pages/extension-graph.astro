@@ -1,0 +1,15 @@
+---
+import { Layout } from "@refarm.dev/homestead/ui";
+---
+
+<Layout title="Grafo de Extensões (SPI) — Bancada">
+  <div id="loading-overlay" class="refarm-loading-state">
+    <div class="refarm-spinner" aria-hidden="true"></div>
+    <p>Desenhando o grafo de extensões…</p>
+  </div>
+</Layout>
+
+<script>
+  import { bootExtensionGraph } from "../web/extension-graph-boot";
+  bootExtensionGraph();
+</script>

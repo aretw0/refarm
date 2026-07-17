@@ -51,6 +51,13 @@ const FACES = [
 		mustHave: ["[data-governance-dashboard]"],
 		interact: { click: '[data-refarm-surface-action-id="governance-poc"]', expect: "[data-refarm-action-result]" },
 	},
+	{
+		work: "T1",
+		example: "devbench-t1",
+		route: "/extension-graph/",
+		mustHave: ["svg"],
+		interact: { click: '[data-refarm-surface-action-id="extension-graph"]', expect: "[data-refarm-action-result] svg" },
+	},
 ];
 
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".woff2": "font/woff2", ".woff": "font/woff" };
