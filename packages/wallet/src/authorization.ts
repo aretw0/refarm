@@ -210,25 +210,58 @@ export function createWalletAuthorizeCapability(
 	return {
 		name: "authorize",
 		summary: "Authorize a service to see a named subset of my attributes, for a stated purpose",
-		args: [{ name: "requester", required: true }],
+		// `requester` is required for a fresh grant; omit it and pass `--request <id>` to
+		// authorize a PENDING request straight from the consent screen (the T2-F7 "yes").
+		args: [{ name: "requester", required: false }],
 		options: [
 			{ name: "purpose", kind: "string", summary: "Why the service needs the attributes" },
 			{ name: "scope", kind: "string", summary: "Comma-separated attribute names to authorize" },
 			{ name: "expires", kind: "string", summary: "When the authorization lapses (ISO 8601)" },
+			{ name: "request", kind: "string", summary: "Grant a PENDING request by id (from `consent`) — the sovereign yes" },
 		],
 		transports: { http: { path: "/wallet/authorize" } },
 		renderers: { tui: { section: "wallet" } },
 		async run(input: CapabilityInput): Promise<CapabilityEnvelope> {
-			const requester = String(input.args.requester ?? "");
-			const purpose = String(input.options?.purpose ?? "").trim();
-			const scope = parseScope(input.options?.scope);
-			const expiresAt = String(input.options?.expires ?? "").trim();
-			if (!purpose || scope.length === 0 || !expiresAt) {
+			// The sovereign "yes" to a pending request: load it, grant exactly what it asked,
+			// and clear the pending item (the decision is spent). This is the authorize half of
+			// the consent journey `decline` already had — Authorize on the T2-F7 screen.
+			const pendingId = String(input.options?.request ?? "").trim();
+			let requester: string;
+			let purpose: string;
+			let scope: string[];
+			let expiresAt: string;
+			let pendingToClear: string | null = null;
+			if (pendingId) {
+				const record = recordsDeps
+					.loadManifest()
+					.records.find((r) => r.id === pendingId);
+				const pending = (record?.fields as { pendingRequest?: ServiceRequest } | undefined)?.pendingRequest;
+				if (!pending) {
+					return buildJsonErrorEnvelope({
+						command: "authorize",
+						operation: "authorize",
+						error: "no_pending_request",
+						message: `No pending request "${pendingId}" to authorize.`,
+						nextAction: "consent",
+					});
+				}
+				requester = pending.requester;
+				purpose = pending.purpose;
+				scope = pending.requestedAttributes;
+				expiresAt = pending.expiresAt;
+				pendingToClear = pendingId;
+			} else {
+				requester = String(input.args.requester ?? "").trim();
+				purpose = String(input.options?.purpose ?? "").trim();
+				scope = parseScope(input.options?.scope);
+				expiresAt = String(input.options?.expires ?? "").trim();
+			}
+			if (!requester || !purpose || scope.length === 0 || !expiresAt) {
 				return buildJsonErrorEnvelope({
 					command: "authorize",
 					operation: "authorize",
 					error: "missing_consent_fields",
-					message: "Authorization needs --purpose, --scope a,b and --expires <iso>.",
+					message: "Authorization needs a requester, --purpose, --scope a,b and --expires <iso> (or --request <id>).",
 					nextAction: "Consent must state purpose, scope and expiry — it is never open-ended.",
 				});
 			}
@@ -250,7 +283,12 @@ export function createWalletAuthorizeCapability(
 					extra: { id: record.id, receipt, persisted: false, dryRun: true },
 				});
 			}
-			await recordsDeps.saveManifest(mergeRecords(recordsDeps.loadManifest(), [record], now, "authorize"));
+			// Clear the spent pending request (if this was the sovereign yes) in the SAME write.
+			const base = recordsDeps.loadManifest();
+			const manifest = pendingToClear
+				? { ...base, records: base.records.filter((r) => r.id !== pendingToClear) }
+				: base;
+			await recordsDeps.saveManifest(mergeRecords(manifest, [record], now, "authorize"));
 			return buildJsonSuccessEnvelope({
 				command: "authorize",
 				operation: "authorize",
@@ -263,6 +301,7 @@ export function createWalletAuthorizeCapability(
 					scope,
 					status: receipt.status,
 					receipt,
+					...(pendingToClear ? { authorizedPending: pendingToClear } : {}),
 				},
 			});
 		},

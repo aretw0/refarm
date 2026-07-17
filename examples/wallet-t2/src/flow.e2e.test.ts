@@ -300,4 +300,36 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		const after = await run("consent", {});
 		expect(after.pendingCount).toBe(0);
 	});
+
+	it("the T2-F7 consent journey: the citizen AUTHORIZES a pending request (the sovereign yes)", async () => {
+		const reg = buildRegistry({ statePath: tempStatePath() });
+		const run = async (
+			name: string,
+			args: Record<string, string>,
+			options: Record<string, string> = {},
+		): Promise<Record<string, unknown>> => {
+			const verb = reg.get(name);
+			if (!verb || "actions" in verb) throw new Error(`${name} verb not mounted`);
+			return (await verb.run({ args, options, json: true })) as unknown as Record<string, unknown>;
+		};
+
+		// A service submits a request → it lands pending.
+		await run(
+			"request",
+			{ requester: "Órgão Fictício" },
+			{ purpose: "Emitir 2ª via", scope: "faixa_etaria,municipio", expires: "2026-12-31T00:00:00Z" },
+		);
+		const pendingId = ((await run("consent", {})).pending as Array<{ id: string }>)[0]!.id;
+
+		// The citizen AUTHORIZES the pending request by id — no re-typing of purpose/scope.
+		const authorized = await run("authorize", {}, { request: pendingId });
+		expect(authorized.status).toBe("active");
+		expect(authorized.authorizedPending).toBe(pendingId);
+		expect(authorized.scope).toEqual(["faixa_etaria", "municipio"]); // exactly what was asked
+
+		// The pending queue is spent (empty), and the granted authorization can now be presented.
+		expect(((await run("consent", {})).pendingCount as number)).toBe(0);
+		const present = await run("present", { id: authorized.id as string });
+		expect(present.ok).not.toBe(false);
+	});
 });
