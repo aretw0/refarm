@@ -42,14 +42,14 @@ async function main() {
 		"--dry-run",
 	]);
 
-	// Build tractor-ts's workspace dependencies FIRST. The resolver tests below run vitest inside
-	// packages/tractor-ts, which imports `@refarm.dev/registry` (and siblings) as workspace
-	// packages resolved via their built dist (reso PUBLISHED/dist mode). This smoke runs in the
-	// quality job BEFORE the main turbo build step, so on a cache-cold run those dists do not exist
-	// yet and Vite fails with "Failed to resolve entry for package @refarm.dev/registry". Turbo
-	// builds tractor-ts + its dependency graph (a cache hit when already built), so the vitest
-	// resolves every workspace import — the smoke is self-contained, not order-dependent on a prior
-	// build step that a turbo cache-hit could skip.
+	// Ensure tractor-ts's workspace dependencies are built. The resolver tests below run vitest
+	// inside packages/tractor-ts, which imports `@refarm.dev/registry` (and siblings) as workspace
+	// packages resolved via their built dist (reso PUBLISHED/dist mode). In CI this smoke now runs
+	// AFTER the Verify build step, but Verify builds FILTERED (--filter=...[base]) and so does not
+	// guarantee a transitive dependency like @refarm.dev/registry is built for a tractor-rs-only
+	// change — so the smoke still makes its own deps explicit here (a warm cache-hit after Verify).
+	// Self-contained: it never fails with "Failed to resolve entry for package @refarm.dev/registry"
+	// no matter what the surrounding build did.
 	const buildCommand = packageBinaryCommand("turbo", [
 		"run",
 		"build",
