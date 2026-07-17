@@ -232,3 +232,35 @@ export async function bootCapabilityWebFace(
 	});
 	return shellRef.current;
 }
+
+export interface MountCapabilityWebFaceOptions extends BootCapabilityWebFaceOptions {
+	/** The loading-overlay element id to remove once the face boots (default "loading-overlay"). */
+	overlayId?: string;
+	/** Prefix for the console error + the overlay's failure message (e.g. "Falha ao abrir a busca").
+	 * Given a page's own language, so the overlay reads naturally on failure. */
+	errorLabel?: string;
+}
+
+/**
+ * Boot a capability web face AND own the page's loading lifecycle — the whole example boot.ts, in
+ * one call. It removes the `#loading-overlay` on success and, on failure, logs + paints the error
+ * into that overlay (so a boot crash is never a blank spinner). This is the seam every example's
+ * `<page>-boot.ts` reduces to: build a browser-safe registry, then `mountCapabilityWebFace(...)` —
+ * no hand-rolled overlay try/catch per face (see each example's `src/web` boot modules). A new face is a
+ * browser-safe registry + one call here + an Astro page, so faces proliferate WITHOUT copy-pasting
+ * boot boilerplate that could drift. Runs in the BROWSER; call it from an Astro page's <script>.
+ */
+export async function mountCapabilityWebFace(options: MountCapabilityWebFaceOptions): Promise<void> {
+	const overlayId = options.overlayId ?? "loading-overlay";
+	const errorLabel = options.errorLabel ?? "Falha ao abrir";
+	const overlay = typeof document !== "undefined" ? document.getElementById(overlayId) : null;
+	try {
+		await bootCapabilityWebFace(options);
+		overlay?.remove();
+	} catch (error) {
+		console.error(`[${options.namespace}] web face boot failed`, error);
+		if (overlay) {
+			overlay.textContent = `${errorLabel}: ${error instanceof Error ? error.message : String(error)}`;
+		}
+	}
+}
