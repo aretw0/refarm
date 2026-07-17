@@ -146,6 +146,15 @@ export interface CapabilityWebRenderer {
 	route?: string;
 	/** Icon token (a ds/theme token or icon name — never an inline asset path). */
 	icon?: string;
+	/**
+	 * The envelope field that holds this verb's HTML result, e.g. "resultsHtml" for a
+	 * search verb. When a persona runs the verb from its web card, the dispatch loop reads
+	 * `envelope[resultField]` and paints it into the surface's action-result region — so a
+	 * query verb SHOWS its output instead of silently refreshing the dashboard. Omit for a
+	 * verb whose only effect is on the content dashboard (the loop falls back to the
+	 * envelope's `html`/`*Html` field, else a one-line ok/error status).
+	 */
+	resultField?: string;
 }
 
 /** TUI renderer hints. Read only by a TUI projector. */

@@ -238,4 +238,101 @@ describe("bootCapabilityWebFace — runs the verb, mounts the surface, renders c
 		expect(last).toBe("hello");
 		expect(mounted()?.textContent).toContain("msg: hello");
 	});
+
+	it("paints a dispatched verb's OWN result (declared resultField) into the action-result region (B2)", async () => {
+		// `search` declares its HTML result lives in `resultsHtml`; `page` is the dashboard content.
+		const page = {
+			name: "page",
+			summary: "page",
+			renderers: { web: { route: "/page" } },
+			run: async () => ({ pageHtml: `<p data-dash>dashboard</p>` }),
+		};
+		const search = {
+			name: "search",
+			summary: "search the corpus",
+			args: [{ name: "query", required: true }],
+			renderers: { web: { route: "/search", resultField: "resultsHtml" } },
+			run: async (input: { args?: { query?: unknown } }) => {
+				const q = String(input.args?.query ?? "");
+				return { ok: true, matched: 1, resultsHtml: `<ul data-hits><li>hit for ${q}</li></ul>` };
+			},
+		};
+		const entries = [page, search];
+		const registry = {
+			get: (name: string) => entries.find((e) => e.name === name),
+			list: () => entries,
+		} as unknown as CapabilityRegistry;
+
+		await bootCapabilityWebFace({
+			databaseName: "test-b2",
+			namespace: "test",
+			registry,
+			content: { verb: "page", field: "pageHtml" },
+			surface: { pluginId: "b2/web", content: (d) => String(d.pageHtml ?? "") },
+			bootRuntime: async () => mockRuntime(),
+		});
+
+		const mounted = () => document.querySelector('[data-refarm-plugin-id="b2/web"]');
+		// Nothing dispatched yet → no action-result region, but the dashboard is present.
+		expect(mounted()?.querySelector("[data-refarm-action-result]")).toBeNull();
+		expect(mounted()?.textContent).toContain("dashboard");
+
+		const input = mounted()?.querySelector<HTMLInputElement>('[data-refarm-arg="query"]');
+		input!.value = "CNPJ";
+		mounted()?.querySelector<HTMLElement>('[data-refarm-verb="search"] [data-refarm-surface-action-id="search"]')!.click();
+
+		const deadline = Date.now() + 1000;
+		while (Date.now() < deadline && !mounted()?.querySelector("[data-refarm-action-result]")) {
+			await new Promise((r) => setTimeout(r, 5));
+		}
+		// The search verb's OWN HTML result is painted into the action-result region — the query
+		// SHOWS its matches, not just a refreshed dashboard. And the dashboard still stands.
+		const region = mounted()?.querySelector("[data-refarm-action-result]");
+		expect(region).not.toBeNull();
+		expect(region?.getAttribute("data-refarm-action-verb")).toBe("search");
+		expect(region?.getAttribute("data-refarm-action-ok")).toBe("true");
+		expect(region?.textContent).toContain("hit for CNPJ");
+		expect(mounted()?.textContent).toContain("dashboard");
+	});
+
+	it("a dispatched verb with no HTML result still reports a status (never a silent click)", async () => {
+		// `ping` returns a bare error envelope (no resultField, no html) — the loop surfaces its message.
+		const page = {
+			name: "page",
+			summary: "page",
+			renderers: { web: { route: "/page" } },
+			run: async () => ({ pageHtml: `<p>dash</p>` }),
+		};
+		const ping = {
+			name: "ping",
+			summary: "ping",
+			renderers: { web: { route: "/ping" } },
+			run: async () => ({ ok: false, message: "runtime unreachable" }),
+		};
+		const entries = [page, ping];
+		const registry = {
+			get: (name: string) => entries.find((e) => e.name === name),
+			list: () => entries,
+		} as unknown as CapabilityRegistry;
+
+		await bootCapabilityWebFace({
+			databaseName: "test-b2-status",
+			namespace: "test",
+			registry,
+			content: { verb: "page", field: "pageHtml" },
+			surface: { pluginId: "b2s/web", content: (d) => String(d.pageHtml ?? "") },
+			bootRuntime: async () => mockRuntime(),
+		});
+
+		const mounted = () => document.querySelector('[data-refarm-plugin-id="b2s/web"]');
+		mounted()?.querySelector<HTMLElement>('[data-refarm-surface-action-id="ping"]')!.click();
+		const deadline = Date.now() + 1000;
+		while (Date.now() < deadline && !mounted()?.querySelector('[data-refarm-action-result][data-refarm-action-ok="false"]')) {
+			await new Promise((r) => setTimeout(r, 5));
+		}
+		const region = mounted()?.querySelector("[data-refarm-action-result]");
+		expect(region?.getAttribute("data-refarm-action-verb")).toBe("ping");
+		expect(region?.getAttribute("data-refarm-action-ok")).toBe("false");
+		expect(region?.textContent).toContain("runtime unreachable");
+	});
 });

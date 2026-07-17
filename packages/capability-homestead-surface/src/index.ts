@@ -52,6 +52,29 @@ const DEFAULTS = {
 	title: "Capabilities",
 } as const;
 
+/**
+ * The host.data key under which the boot dispatch loop stashes the LAST verb a persona ran
+ * from a card, so the panel can paint its result ABOVE the launcher cards. A framework-owned
+ * key (distinct from any app's content projector fields) — the seam that turns inert launcher
+ * cards into a query→result loop (see boot.ts defaultSurfaceAction). */
+export const CAPABILITY_ACTION_RESULT_KEY = "__refarmCapabilityActionResult";
+
+/** The result of the last card-dispatched verb — what {@link renderCapabilityWebPanel} paints
+ * into the action-result region. `html` is the verb's own projected render (from its
+ * `renderers.web.resultField`, else the envelope's `html`); when neither exists the loop still
+ * reports `ok` + `message` so a click is never silent. */
+export interface CapabilityActionResult {
+	/** The verb that ran. */
+	verb: string;
+	/** Whether its envelope reported success (`ok !== false`). */
+	ok: boolean;
+	/** The verb's projected HTML result, when it declares/carries one. Trusted as the verb's
+	 * own render (already DS-shaped), not escaped. */
+	html?: string;
+	/** A one-line human status when there is no HTML to show (an error message, or a bare ok). */
+	message?: string;
+}
+
 function escape(value: string): string {
 	return value
 		.replace(/&/g, "&amp;")
@@ -93,13 +116,30 @@ function renderVerbInputs(registry: CapabilityRegistry, verbName: string): strin
 /** Render the registry's web verbs as DS-styled cards — one per verb, grouped by section.
  * Uses the shared DS classes (refarm-surface-card / refarm-stack / refarm-btn) so the
  * panel matches every other Homestead surface, no bespoke palette. */
+/** Render the action-result region — the output of the last card-dispatched verb, shown ABOVE
+ * the launcher cards so a query verb (search, materialize) SHOWS its result in place. Returns ""
+ * when nothing has run yet. The verb's `html` is trusted as its own DS-shaped render; a bare
+ * status (no html) is escaped. */
+function renderActionResult(result: CapabilityActionResult | undefined): string {
+	if (!result) return "";
+	const body = result.html
+		? result.html
+		: `<p class="${result.ok ? "refarm-note" : "refarm-error"}">${escape(result.message ?? (result.ok ? "OK" : "Falhou"))}</p>`;
+	return `<div class="refarm-surface-card refarm-stack" data-refarm-action-result data-refarm-action-verb="${escape(result.verb)}" data-refarm-action-ok="${result.ok}">
+			<p class="refarm-eyebrow">${escape(result.verb)}</p>
+			${body}
+		</div>`;
+}
+
 function renderCapabilityWebPanel(
 	registry: CapabilityRegistry,
 	title: string,
 	content = "",
+	actionResult?: CapabilityActionResult,
 ): string {
 	const model = webSurfaceModel(registry);
-	if (model.sections.length === 0 && !content) {
+	const actionHtml = renderActionResult(actionResult);
+	if (model.sections.length === 0 && !content && !actionHtml) {
 		return `<section class="refarm-surface-card refarm-stack" data-capability-web-surface>
 			<p class="refarm-eyebrow">${escape(title)}</p>
 			<p>No verb declares a web surface yet. Add <code class="refarm-code">renderers.web</code> to a verb.</p>
@@ -139,10 +179,13 @@ function renderCapabilityWebPanel(
 		.join("");
 	// Content (a verb's structured result — e.g. a MOC) renders ABOVE the launcher cards:
 	// what the surface IS, then how to act on it. The content HTML is host-supplied and
-	// already DS-shaped; it is trusted as the host's own render, not escaped here.
+	// already DS-shaped; it is trusted as the host's own render, not escaped here. The
+	// action-result region sits between content and cards — a just-run verb's output shows
+	// right where the persona is looking, then the cards to act again.
 	return `<section class="refarm-surface-card refarm-stack" data-capability-web-surface>
 		<p class="refarm-eyebrow">${escape(title)}</p>
 		${content}
+		${actionHtml}
 		${sections}
 	</section>`;
 }
@@ -184,7 +227,10 @@ export function createCapabilityWebSurfacePlugin(
 			// structured result for the content projector to turn into HTML.
 			const data = (args as HomesteadSurfaceRenderRequest | undefined)?.host?.data ?? {};
 			const content = options.content ? options.content(data) : "";
-			return { html: renderCapabilityWebPanel(registry, title, content) };
+			// The last card-dispatched verb's result (stashed by the boot dispatch loop under the
+			// framework-owned key) — painted into the action-result region above the cards.
+			const actionResult = data[CAPABILITY_ACTION_RESULT_KEY] as CapabilityActionResult | undefined;
+			return { html: renderCapabilityWebPanel(registry, title, content, actionResult) };
 		},
 	});
 }

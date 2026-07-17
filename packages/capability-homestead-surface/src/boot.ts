@@ -11,6 +11,8 @@ import type {
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 
 import {
+	CAPABILITY_ACTION_RESULT_KEY,
+	type CapabilityActionResult,
 	capabilityWebSurfaceActions,
 	createCapabilityWebSurfacePlugin,
 	type CapabilityWebSurfaceOptions,
@@ -106,6 +108,31 @@ function collectVerbInput(verb: string): {
 	return { args, options };
 }
 
+/** Run a card-dispatched verb and reduce its envelope to the {@link CapabilityActionResult} the
+ * panel paints. The HTML comes from the verb's declared `renderers.web.resultField` (a search verb
+ * says its matches live in `resultsHtml`), else the envelope's own `html` field; when neither
+ * exists the click still yields an `ok`/`message` status so it is never silent. A verb that needs
+ * missing input returns an error envelope — surfaced here as its message, not swallowed. */
+async function runVerbForResult(
+	entry: { run: (input: CapabilityInput) => unknown; renderers?: { web?: { resultField?: string } } },
+	verb: string,
+	input: { args: Record<string, string>; options: Record<string, string | boolean> },
+): Promise<CapabilityActionResult> {
+	let envelope: Record<string, unknown>;
+	try {
+		envelope = (await entry.run({ ...input, json: true })) as Record<string, unknown>;
+	} catch (error) {
+		return { verb, ok: false, message: error instanceof Error ? error.message : String(error) };
+	}
+	const ok = envelope.ok !== false;
+	const resultField = entry.renderers?.web?.resultField;
+	const declared = resultField ? envelope[resultField] : undefined;
+	const html = typeof declared === "string" ? declared : typeof envelope.html === "string" ? envelope.html : undefined;
+	if (html) return { verb, ok, html };
+	const message = typeof envelope.message === "string" ? envelope.message : typeof envelope.error === "string" ? envelope.error : ok ? "OK" : "Falhou";
+	return { verb, ok, message };
+}
+
 export async function bootCapabilityWebFace(
 	options: BootCapabilityWebFaceOptions,
 ): Promise<CapabilityWebShell> {
@@ -156,9 +183,10 @@ export async function bootCapabilityWebFace(
 	const shellRef: { current?: CapabilityWebShell } = {};
 
 	// THE DISPATCH LOOP (the default; a caller can override with its own surfaceAction). A clicked
-	// card runs its verb, the content verb re-runs, and the surface re-renders in place — inert
-	// launcher cards become a live action loop. Verbs that need arguments run with empty args here
-	// (a minimal input form is a follow-on); their envelope simply reports what they need.
+	// card runs its verb, its result is painted into the action-result region, the content verb
+	// re-runs, and the surface re-renders in place — inert launcher cards become a live query→result
+	// loop. Args typed into the card's inputs reach the verb (collectVerbInput), so a search shows
+	// its matches, not just a refreshed dashboard.
 	const defaultSurfaceAction: HomesteadSurfaceRenderActionHandler = async (request) => {
 		const verb = request.action?.id;
 		if (!verb) return false;
@@ -166,12 +194,10 @@ export async function bootCapabilityWebFace(
 		if (!entry || !("run" in entry) || typeof entry.run !== "function") return false;
 		// Collect what the persona typed into this verb's card (empty for a no-arg verb).
 		const { args, options } = collectVerbInput(verb);
-		try {
-			await entry.run({ args, options, json: true });
-		} catch {
-			// A verb that needs input throws/returns an error envelope; the refresh below still runs.
-		}
-		liveData = await computeContent();
+		const actionResult = await runVerbForResult(entry, verb, { args, options });
+		// Recompute the dashboard content (a mutating verb may have changed it) AND carry the just-run
+		// verb's own result — both land on host.data for the panel to paint.
+		liveData = { ...(await computeContent()), [CAPABILITY_ACTION_RESULT_KEY]: actionResult };
 		await shellRef.current?.shell.rerender();
 		return true;
 	};
