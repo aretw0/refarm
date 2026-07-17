@@ -695,6 +695,30 @@ else
 fi
 echo ""
 
+# 4c. Src dependency-manifest check (always runs — scans src/** imports + tsconfig path-maps
+# against declared deps; catches missing deps and stale path-maps, incl. .js packages and
+# examples/ that the narrower checks skip)
+echo "📦 Checking src dependency manifest (missing deps / stale path-maps)..."
+if timeout 20 $PACKAGE_RUN_SILENT deps:src-manifest-check 2>/tmp/prepush-srcmanifest.err; then
+  echo "   ✅ No missing deps or stale path-maps"
+else
+  SM_STATUS=$?
+  SM_MSG=$(cat /tmp/prepush-srcmanifest.err 2>/dev/null || true)
+  if [ "$SM_STATUS" -eq 124 ]; then
+    echo "   ⚠️  Src manifest check timed out (non-blocking)"
+    WARNINGS=1
+  elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+    echo "   ❌ Src dependency-manifest drift found (blocking in strict mode)"
+    echo "$SM_MSG"
+    BLOCKING_FAILED=1
+  else
+    echo "   ⚠️  Src dependency-manifest drift found (warning — will fail in CI)"
+    echo "$SM_MSG"
+    WARNINGS=1
+  fi
+fi
+echo ""
+
 # 4. Quality Gate (SDD->BDD->TDD->DDD)
 echo "🔍 Checking Refarm Quality Gate..."
 if [ $NEEDS_QUALITY_GATE -eq 0 ]; then
