@@ -151,8 +151,9 @@ export async function bootCapabilityWebFace(
 		};
 	};
 
-	// Late-bound so the default dispatch handler can rerender the shell it is part of.
-	let shell: CapabilityWebShell | undefined;
+	// Late-bound so the default dispatch handler can rerender the shell it is part of (the handler is
+	// passed INTO the boot below, before the shell exists — a ref holder breaks the chicken-and-egg).
+	const shellRef: { current?: CapabilityWebShell } = {};
 
 	// THE DISPATCH LOOP (the default; a caller can override with its own surfaceAction). A clicked
 	// card runs its verb, the content verb re-runs, and the surface re-renders in place — inert
@@ -171,11 +172,11 @@ export async function bootCapabilityWebFace(
 			// A verb that needs input throws/returns an error envelope; the refresh below still runs.
 		}
 		liveData = await computeContent();
-		await shell?.shell.rerender();
+		await shellRef.current?.shell.rerender();
 		return true;
 	};
 
-	shell = await bootCapabilityWebShell({
+	shellRef.current = await bootCapabilityWebShell({
 		databaseName: options.databaseName,
 		namespace: options.namespace,
 		...(options.identityId ? { identityId: options.identityId } : {}),
@@ -186,5 +187,5 @@ export async function bootCapabilityWebFace(
 		...(options.envMetadata ? { envMetadata: options.envMetadata } : {}),
 		...(options.bootRuntime ? { bootRuntime: options.bootRuntime } : {}),
 	});
-	return shell;
+	return shellRef.current;
 }

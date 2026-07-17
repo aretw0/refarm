@@ -6,7 +6,7 @@ import {
 	type CapabilityInput,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capability-host";
-import type { AuthorizationProvider, ServiceRequest } from "@refarm.dev/authorization-contract-v1";
+import type { ServiceRequest } from "@refarm.dev/authorization-contract-v1";
 import { renderConsentPrompt } from "@refarm.dev/authorization-contract-v1";
 import {
 	computeRecordContentHash,
