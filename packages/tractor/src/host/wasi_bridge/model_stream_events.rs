@@ -914,4 +914,310 @@ mod partial_ndjson_tests {
             .collect();
         assert_eq!(reconstructed, "Olá stream", "content += yields the answer once");
     }
+
+    fn meta_family(prompt_ref: &str, family: &str) -> StreamResponseMetadata {
+        StreamResponseMetadata {
+            prompt_ref: prompt_ref.to_string(),
+            model: "m-1".to_string(),
+            provider_family: family.to_string(),
+            last_sequence: None,
+        }
+    }
+
+    // ---- usage_u32 --------------------------------------------------------
+
+    #[test]
+    fn usage_u32_reads_present_valid_field() {
+        let v = serde_json::json!({ "prompt_tokens": 42 });
+        assert_eq!(usage_u32(&v, "prompt_tokens"), Some(42));
+    }
+
+    #[test]
+    fn usage_u32_none_for_absent_non_numeric_negative_and_oversize() {
+        let v = serde_json::json!({
+            "text": "not-a-number",
+            "neg": -1,
+            "big": u64::from(u32::MAX) + 1,
+        });
+        assert_eq!(usage_u32(&v, "missing"), None, "absent key -> None");
+        assert_eq!(usage_u32(&v, "text"), None, "non-numeric -> None");
+        assert_eq!(usage_u32(&v, "neg"), None, "negative (not u64) -> None");
+        assert_eq!(usage_u32(&v, "big"), None, "exceeds u32 -> None");
+    }
+
+    // ---- apply_usage_object / apply_stream_usage --------------------------
+
+    #[test]
+    fn apply_usage_object_sets_every_present_field() {
+        let mut usage = ModelStreamUsage::default();
+        let v = serde_json::json!({
+            "prompt_tokens": 3,
+            "completion_tokens": 5,
+            "total_tokens": 8,
+            "input_tokens": 11,
+            "output_tokens": 13,
+        });
+        apply_usage_object(&v, &mut usage);
+        assert_eq!(usage.prompt_tokens, Some(3));
+        assert_eq!(usage.completion_tokens, Some(5));
+        assert_eq!(usage.total_tokens, Some(8));
+        assert_eq!(usage.input_tokens, Some(11));
+        assert_eq!(usage.output_tokens, Some(13));
+        assert!(usage.has_observations());
+    }
+
+    #[test]
+    fn apply_usage_object_leaves_absent_fields_none() {
+        let mut usage = ModelStreamUsage::default();
+        let v = serde_json::json!({ "completion_tokens": 7 });
+        apply_usage_object(&v, &mut usage);
+        assert_eq!(usage.completion_tokens, Some(7));
+        assert_eq!(usage.prompt_tokens, None);
+        assert_eq!(usage.total_tokens, None);
+        assert_eq!(usage.input_tokens, None);
+        assert_eq!(usage.output_tokens, None);
+    }
+
+    #[test]
+    fn apply_stream_usage_reads_top_level_usage() {
+        let mut assembly = ModelStreamFinalAssembly::default();
+        let v = serde_json::json!({ "usage": { "prompt_tokens": 2, "completion_tokens": 4 } });
+        apply_stream_usage(&v, &mut assembly);
+        assert_eq!(assembly.usage.prompt_tokens, Some(2));
+        assert_eq!(assembly.usage.completion_tokens, Some(4));
+    }
+
+    #[test]
+    fn apply_stream_usage_reads_nested_message_usage() {
+        let mut assembly = ModelStreamFinalAssembly::default();
+        let v = serde_json::json!({ "message": { "usage": { "input_tokens": 9, "output_tokens": 6 } } });
+        apply_stream_usage(&v, &mut assembly);
+        assert_eq!(assembly.usage.input_tokens, Some(9));
+        assert_eq!(assembly.usage.output_tokens, Some(6));
+    }
+
+    #[test]
+    fn apply_stream_usage_noop_when_no_usage_present() {
+        let mut assembly = ModelStreamFinalAssembly::default();
+        apply_stream_usage(&serde_json::json!({ "choices": [] }), &mut assembly);
+        assert!(!assembly.usage.has_observations());
+    }
+
+    // ---- parse_stream_text_deltas(_from_sse) ------------------------------
+
+    #[test]
+    fn parse_stream_text_deltas_extracts_openai_and_anthropic_skips_malformed() {
+        let payloads = vec![
+            r#"{"choices":[{"delta":{"content":"Hel"}}]}"#.to_string(),
+            r#"{"type":"content_block_delta","delta":{"text":"lo"}}"#.to_string(),
+            "not json at all".to_string(),
+            r#"{"type":"other"}"#.to_string(),
+        ];
+        assert_eq!(parse_stream_text_deltas(&payloads), vec!["Hel", "lo"]);
+    }
+
+    #[test]
+    fn parse_stream_text_deltas_empty_input_is_empty() {
+        assert!(parse_stream_text_deltas(&[]).is_empty());
+    }
+
+    #[test]
+    fn parse_stream_text_deltas_from_sse_parses_data_frames() {
+        let bytes = b"data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}\n\ndata: [DONE]\n\n";
+        assert_eq!(parse_stream_text_deltas_from_sse(bytes), vec!["Hi"]);
+    }
+
+    // ---- last_stream_text_chunk_sequence ----------------------------------
+
+    #[test]
+    fn last_stream_text_chunk_sequence_none_when_empty() {
+        assert_eq!(last_stream_text_chunk_sequence(&[]), None);
+    }
+
+    #[test]
+    fn last_stream_text_chunk_sequence_returns_last() {
+        let chunks = vec![
+            ModelStreamTextChunkDraft { sequence: 0, content_delta: "a".to_string() },
+            ModelStreamTextChunkDraft { sequence: 7, content_delta: "b".to_string() },
+        ];
+        assert_eq!(last_stream_text_chunk_sequence(&chunks), Some(7));
+    }
+
+    // ---- apply_openai_tool_call_deltas ------------------------------------
+
+    #[test]
+    fn apply_openai_tool_call_deltas_accumulates_by_index() {
+        let mut assembly = ModelStreamFinalAssembly::default();
+        apply_openai_tool_call_deltas(
+            &serde_json::json!({
+                "choices": [{ "delta": { "tool_calls": [{
+                    "index": 0,
+                    "id": "call_1",
+                    "type": "function",
+                    "function": { "name": "get_weather", "arguments": "{\"ci" }
+                }]}}]
+            }),
+            &mut assembly,
+        );
+        apply_openai_tool_call_deltas(
+            &serde_json::json!({
+                "choices": [{ "delta": { "tool_calls": [{
+                    "index": 0,
+                    "function": { "arguments": "ty\":\"SP\"}" }
+                }]}}]
+            }),
+            &mut assembly,
+        );
+        assert_eq!(assembly.openai_tool_calls.len(), 1);
+        let call = &assembly.openai_tool_calls[0];
+        assert_eq!(call.id, "call_1");
+        assert_eq!(call.call_type, "function");
+        assert_eq!(call.name, "get_weather");
+        assert_eq!(call.arguments, "{\"city\":\"SP\"}");
+    }
+
+    #[test]
+    fn apply_openai_tool_call_deltas_noop_without_choices() {
+        let mut assembly = ModelStreamFinalAssembly::default();
+        apply_openai_tool_call_deltas(&serde_json::json!({ "usage": {} }), &mut assembly);
+        assert!(assembly.openai_tool_calls.is_empty());
+    }
+
+    #[test]
+    fn apply_openai_tool_call_deltas_drops_pathological_index() {
+        let mut assembly = ModelStreamFinalAssembly::default();
+        apply_openai_tool_call_deltas(
+            &serde_json::json!({
+                "choices": [{ "delta": { "tool_calls": [{
+                    "index": 4_000_000_000u64,
+                    "id": "boom"
+                }]}}]
+            }),
+            &mut assembly,
+        );
+        assert!(
+            assembly.openai_tool_calls.is_empty(),
+            "index beyond MAX_OPENAI_TOOL_CALL_INDEX must not grow the Vec"
+        );
+    }
+
+    // ---- synthesize_stream_final_response_body ----------------------------
+
+    #[test]
+    fn synthesize_openai_body_computes_total_and_omits_tool_calls() {
+        let mut assembly = ModelStreamFinalAssembly::default();
+        assembly.content = "Hello".to_string();
+        assembly.usage.prompt_tokens = Some(3);
+        assembly.usage.completion_tokens = Some(5);
+        // total_tokens absent -> derived as prompt + completion
+
+        let bytes = synthesize_stream_final_response_body(&meta_family("p", "openai"), &assembly)
+            .unwrap();
+        let got: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(
+            got,
+            serde_json::json!({
+                "choices": [{
+                    "message": { "role": "assistant", "content": "Hello" },
+                    "finish_reason": "stop",
+                }],
+                "usage": {
+                    "prompt_tokens": 3,
+                    "completion_tokens": 5,
+                    "total_tokens": 8,
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn synthesize_openai_body_includes_tool_calls_with_default_type() {
+        let mut assembly = ModelStreamFinalAssembly::default();
+        assembly.openai_tool_calls.push(OpenAiStreamToolCall {
+            id: "call_9".to_string(),
+            call_type: String::new(), // empty -> defaults to "function"
+            name: "lookup".to_string(),
+            arguments: "{\"q\":1}".to_string(),
+        });
+
+        let bytes = synthesize_stream_final_response_body(&meta_family("p", "openai"), &assembly)
+            .unwrap();
+        let got: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(
+            got["choices"][0]["message"]["tool_calls"],
+            serde_json::json!([{
+                "id": "call_9",
+                "type": "function",
+                "function": { "name": "lookup", "arguments": "{\"q\":1}" },
+            }])
+        );
+    }
+
+    #[test]
+    fn synthesize_anthropic_body_assembles_text_and_tool_use_blocks() {
+        let mut assembly = ModelStreamFinalAssembly::default();
+        assembly.content = "Hi".to_string();
+        assembly.anthropic_tool_uses.insert(
+            0,
+            AnthropicStreamToolUse {
+                id: "toolu_1".to_string(),
+                name: "search".to_string(),
+                partial_json: "{\"q\":\"x\"}".to_string(),
+            },
+        );
+        assembly.usage.input_tokens = Some(12);
+        assembly.usage.output_tokens = Some(4);
+
+        let bytes =
+            synthesize_stream_final_response_body(&meta_family("p", "Anthropic "), &assembly)
+                .unwrap();
+        let got: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(
+            got,
+            serde_json::json!({
+                "content": [
+                    { "type": "text", "text": "Hi" },
+                    {
+                        "type": "tool_use",
+                        "id": "toolu_1",
+                        "name": "search",
+                        "input": { "q": "x" },
+                    },
+                ],
+                "usage": { "input_tokens": 12, "output_tokens": 4 },
+            })
+        );
+    }
+
+    #[test]
+    fn synthesize_anthropic_body_defaults_usage_and_skips_empty_text() {
+        // Empty content -> no text block; malformed tool json -> input {}.
+        let mut assembly = ModelStreamFinalAssembly::default();
+        assembly.anthropic_tool_uses.insert(
+            0,
+            AnthropicStreamToolUse {
+                id: "toolu_2".to_string(),
+                name: "noop".to_string(),
+                partial_json: "not-json".to_string(),
+            },
+        );
+        let bytes =
+            synthesize_stream_final_response_body(&meta_family("p", "anthropic"), &assembly)
+                .unwrap();
+        let got: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(
+            got,
+            serde_json::json!({
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": "toolu_2",
+                        "name": "noop",
+                        "input": {},
+                    },
+                ],
+                "usage": { "input_tokens": 0, "output_tokens": 0 },
+            })
+        );
+    }
 }

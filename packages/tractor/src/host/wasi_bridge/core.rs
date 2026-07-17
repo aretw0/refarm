@@ -1258,3 +1258,222 @@ fn normalize_path(path: &str) -> String {
 
     normalized
 }
+
+#[cfg(test)]
+mod core_pure_tests {
+    use super::*;
+
+    // ── provider_base_url_for_liveness ──────────────────────────────────────
+    // Reads MODEL_BASE_URL via ModelRoute::for_provider, so guard the env and
+    // resolve with MODEL_BASE_URL unset to exercise the per-provider defaults.
+
+    #[test]
+    fn liveness_base_url_covers_each_provider_family() {
+        let _guard = crate::test_support::env_lock();
+        let prev = std::env::var("MODEL_BASE_URL").ok();
+        std::env::remove_var("MODEL_BASE_URL");
+
+        // Resolve everything while the env is controlled, then restore, then assert.
+        let anthropic = provider_base_url_for_liveness("anthropic");
+        let codex = provider_base_url_for_liveness("openai-codex");
+        let groq = provider_base_url_for_liveness("groq");
+        let gemini = provider_base_url_for_liveness("gemini");
+        let openai = provider_base_url_for_liveness("openai");
+        let openai_family = provider_base_url_for_liveness("openai-foo");
+        let unknown = provider_base_url_for_liveness("ollama");
+        let messy = provider_base_url_for_liveness("  GROQ  ");
+
+        match prev {
+            Some(v) => std::env::set_var("MODEL_BASE_URL", v),
+            None => std::env::remove_var("MODEL_BASE_URL"),
+        }
+
+        assert_eq!(anthropic, "https://api.anthropic.com");
+        assert_eq!(codex, "https://chatgpt.com");
+        assert_eq!(groq, "https://api.groq.com");
+        assert_eq!(gemini, "https://generativelanguage.googleapis.com");
+        // openai + openai-family (starts_with "openai-") fall to the openai floor.
+        assert_eq!(openai, "https://api.openai.com");
+        assert_eq!(openai_family, "https://api.openai.com");
+        // An unknown provider gets the localhost floor.
+        assert_eq!(unknown, "http://localhost:11434");
+        // Surrounding whitespace + case are normalized before resolution.
+        assert_eq!(messy, "https://api.groq.com");
+    }
+
+    #[test]
+    fn liveness_base_url_honors_model_base_url_override_for_non_anthropic() {
+        let _guard = crate::test_support::env_lock();
+        let prev = std::env::var("MODEL_BASE_URL").ok();
+        std::env::set_var("MODEL_BASE_URL", "https://proxy.example.com");
+
+        let groq = provider_base_url_for_liveness("groq");
+        // Anthropic is hardcoded and ignores MODEL_BASE_URL.
+        let anthropic = provider_base_url_for_liveness("anthropic");
+
+        match prev {
+            Some(v) => std::env::set_var("MODEL_BASE_URL", v),
+            None => std::env::remove_var("MODEL_BASE_URL"),
+        }
+
+        assert_eq!(groq, "https://proxy.example.com");
+        assert_eq!(anthropic, "https://api.anthropic.com");
+    }
+
+    // ── use_anthropic_auth / use_openai_codex_auth ──────────────────────────
+
+    #[test]
+    fn anthropic_auth_selector_is_case_and_whitespace_insensitive() {
+        assert!(use_anthropic_auth("anthropic"));
+        assert!(use_anthropic_auth("Anthropic"));
+        assert!(use_anthropic_auth("  ANTHROPIC  "));
+        assert!(!use_anthropic_auth("openai"));
+        assert!(!use_anthropic_auth("openai-codex"));
+        assert!(!use_anthropic_auth(""));
+    }
+
+    #[test]
+    fn openai_codex_auth_selector_is_case_and_whitespace_insensitive() {
+        assert!(use_openai_codex_auth("openai-codex"));
+        assert!(use_openai_codex_auth("OpenAI-Codex"));
+        assert!(use_openai_codex_auth("  openai-codex  "));
+        assert!(!use_openai_codex_auth("openai"));
+        assert!(!use_openai_codex_auth("anthropic"));
+        assert!(!use_openai_codex_auth(""));
+    }
+
+    // ── validate_stream_text_field ──────────────────────────────────────────
+
+    #[test]
+    fn stream_text_field_accepts_valid_within_limit_and_at_boundary() {
+        assert!(validate_stream_text_field("prompt-ref", "r-123", 512).is_ok());
+        // Exactly max_len is allowed; one over is rejected.
+        assert!(validate_stream_text_field("model", "abcd", 4).is_ok());
+        assert_eq!(
+            validate_stream_text_field("model", "abcde", 4),
+            Err("[blocked: invalid stream model]".to_string())
+        );
+    }
+
+    #[test]
+    fn stream_text_field_rejects_empty_and_whitespace_only() {
+        assert_eq!(
+            validate_stream_text_field("prompt-ref", "", 512),
+            Err("[blocked: stream prompt-ref is empty]".to_string())
+        );
+        assert_eq!(
+            validate_stream_text_field("prompt-ref", "   ", 512),
+            Err("[blocked: stream prompt-ref is empty]".to_string())
+        );
+    }
+
+    #[test]
+    fn stream_text_field_rejects_surrounding_whitespace_nonascii_and_control() {
+        // Surrounding whitespace: value.trim() != value.
+        assert_eq!(
+            validate_stream_text_field("model", " gpt-4", 512),
+            Err("[blocked: invalid stream model]".to_string())
+        );
+        // Non-ascii.
+        assert_eq!(
+            validate_stream_text_field("model", "café", 512),
+            Err("[blocked: invalid stream model]".to_string())
+        );
+        // Interior control character (tab is not trimmed away from the middle).
+        assert_eq!(
+            validate_stream_text_field("model", "a\tb", 512),
+            Err("[blocked: invalid stream model]".to_string())
+        );
+    }
+
+    // ── validate_stream_response_metadata ───────────────────────────────────
+
+    fn meta(prompt_ref: &str, model: &str, provider_family: &str) -> StreamResponseMetadata {
+        StreamResponseMetadata {
+            prompt_ref: prompt_ref.to_string(),
+            model: model.to_string(),
+            provider_family: provider_family.to_string(),
+            last_sequence: None,
+        }
+    }
+
+    #[test]
+    fn stream_metadata_accepts_valid_shape() {
+        assert!(validate_stream_response_metadata(&meta("r-1", "gpt-4", "openai")).is_ok());
+    }
+
+    #[test]
+    fn stream_metadata_rejects_empty_prompt_ref_and_model() {
+        assert_eq!(
+            validate_stream_response_metadata(&meta("", "gpt-4", "openai")),
+            Err("[blocked: stream prompt-ref is empty]".to_string())
+        );
+        assert_eq!(
+            validate_stream_response_metadata(&meta("r-1", "", "openai")),
+            Err("[blocked: stream model is empty]".to_string())
+        );
+    }
+
+    #[test]
+    fn stream_metadata_rejects_oversize_prompt_ref() {
+        // prompt-ref cap is 512.
+        let long = "a".repeat(513);
+        assert_eq!(
+            validate_stream_response_metadata(&meta(&long, "gpt-4", "openai")),
+            Err("[blocked: invalid stream prompt-ref]".to_string())
+        );
+    }
+
+    #[test]
+    fn stream_metadata_rejects_invalid_provider_family() {
+        // Uppercase: normalized differs from the trimmed original.
+        assert_eq!(
+            validate_stream_response_metadata(&meta("r-1", "gpt-4", "OpenAI")),
+            Err("[blocked: invalid stream provider-family]".to_string())
+        );
+        // An unsafe token (interior space) fails is_safe_provider_token.
+        assert_eq!(
+            validate_stream_response_metadata(&meta("r-1", "gpt-4", "open ai")),
+            Err("[blocked: invalid stream provider-family]".to_string())
+        );
+        // Empty provider-family is unsafe too.
+        assert_eq!(
+            validate_stream_response_metadata(&meta("r-1", "gpt-4", "")),
+            Err("[blocked: invalid stream provider-family]".to_string())
+        );
+    }
+
+    // ── model_error_body_preview ────────────────────────────────────────────
+
+    #[test]
+    fn error_body_preview_passes_short_utf8_through_unchanged() {
+        assert_eq!(model_error_body_preview(b"boom"), "boom");
+        assert_eq!(model_error_body_preview(b""), "");
+    }
+
+    #[test]
+    fn error_body_preview_lossily_decodes_non_utf8() {
+        let bytes = [0xff_u8, 0xfe, 0x41]; // invalid lead bytes + 'A'
+        assert_eq!(
+            model_error_body_preview(&bytes),
+            String::from_utf8_lossy(&bytes).to_string()
+        );
+    }
+
+    #[test]
+    fn error_body_preview_truncates_oversize_body_with_marker() {
+        const MAX: usize = 8 * 1024;
+        // Exactly at the cap: returned whole, no truncation marker.
+        let at_cap = vec![b'a'; MAX];
+        assert_eq!(model_error_body_preview(&at_cap), "a".repeat(MAX));
+
+        // One over the cap: prefix + truncation marker.
+        let over = vec![b'a'; MAX + 100];
+        let preview = model_error_body_preview(&over);
+        let expected = format!(
+            "{}\n[truncated: model-bridge error body exceeded {MAX} bytes]",
+            "a".repeat(MAX)
+        );
+        assert_eq!(preview, expected);
+    }
+}
