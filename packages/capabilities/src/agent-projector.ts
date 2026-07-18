@@ -95,6 +95,9 @@ function optionProperty(option: CapabilityOptionSpec): Record<string, unknown> {
 				items: { type: "string" },
 				description: option.summary,
 			};
+		case "number":
+		case "integer":
+			return { type: option.kind, description: option.summary };
 		default:
 			return { type: "string", description: option.summary };
 	}

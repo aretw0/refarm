@@ -178,8 +178,8 @@ export function createCodeOpsCapability(): CapabilityDescriptor {
 		args: [{ name: "verb", required: true, enum: ["find-references", "rename-symbol", "move-symbol"] }],
 		options: [
 			{ name: "file", kind: "string", summary: "The source file the symbol is in" },
-			{ name: "line", kind: "string", summary: "1-based line of the symbol" },
-			{ name: "column", kind: "string", summary: "1-based column of the symbol" },
+			{ name: "line", kind: "integer", summary: "1-based line of the symbol" },
+			{ name: "column", kind: "integer", summary: "1-based column of the symbol" },
 			{ name: "new-name", kind: "string", summary: "The new name (rename-symbol only)" },
 			{ name: "target-file", kind: "string", summary: "The destination file (move-symbol only)" },
 		],

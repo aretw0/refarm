@@ -116,11 +116,14 @@ function renderVerbInputs(registry: CapabilityRegistry, verbName: string): strin
 	if (args.length === 0 && options.length === 0) return "";
 	const argInputs = args.map((a) => argInput(a)).join("");
 	const optInputs = options
-		.map((o) =>
-			o.kind === "boolean"
-				? `<label class="refarm-check"><input type="checkbox" data-refarm-option="${escape(o.name)}" /> --${escape(o.name)}</label>`
-				: `<input class="refarm-input" type="text" data-refarm-option="${escape(o.name)}" placeholder="--${escape(o.name)}" />`,
-		)
+		.map((o) => {
+			if (o.kind === "boolean") {
+				return `<label class="refarm-check"><input type="checkbox" data-refarm-option="${escape(o.name)}" /> --${escape(o.name)}</label>`;
+			}
+			const numeric = o.kind === "number" || o.kind === "integer";
+			const step = o.kind === "integer" ? ` step="1"` : "";
+			return `<input class="refarm-input" type="${numeric ? "number" : "text"}"${step} data-refarm-option="${escape(o.name)}" placeholder="--${escape(o.name)}" />`;
+		})
 		.join("");
 	return `${argInputs}${optInputs}`;
 }

@@ -70,6 +70,8 @@ describe("capabilityToolParameters — schema derivation", () => {
 					{ name: "json", kind: "boolean", summary: "JSON output" },
 					{ name: "policy", kind: "string", summary: "Policy name" },
 					{ name: "tags", kind: "string[]", summary: "Tags" },
+					{ name: "line", kind: "integer", summary: "1-based line" },
+					{ name: "ratio", kind: "number", summary: "A ratio" },
 				],
 			}),
 		);
@@ -86,6 +88,8 @@ describe("capabilityToolParameters — schema derivation", () => {
 			items: { type: "string" },
 			description: "Tags",
 		});
+		expect(schema.properties.line).toEqual({ type: "integer", description: "1-based line" });
+		expect(schema.properties.ratio).toEqual({ type: "number", description: "A ratio" });
 		// Options are never required — flags are optional by nature.
 		expect(schema.required).toBeUndefined();
 	});

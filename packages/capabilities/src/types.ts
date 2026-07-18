@@ -248,7 +248,7 @@ export interface CapabilityArgSpec {
 	description?: string;
 }
 
-export type CapabilityOptionKind = "boolean" | "string" | "string[]";
+export type CapabilityOptionKind = "boolean" | "string" | "string[]" | "number" | "integer";
 
 export interface CapabilityOptionSpec {
 	/** Long name without dashes, e.g. "policy" (flag becomes `--policy`). */
