@@ -1,3 +1,4 @@
+import { mountCapabilityWebView } from "@refarm.dev/capability-homestead-surface/boot";
 import type { CapabilityRegistry } from "@refarm.dev/capabilities";
 
 import { createConsentWebRegistry } from "./consent-app.js";
@@ -21,24 +22,23 @@ const DEMO_REQUESTS = [
 ];
 
 export async function bootConsent(): Promise<void> {
-	const overlay = document.getElementById("loading-overlay");
-	const mount = document.getElementById("consent-mount");
-	try {
-		if (!mount) throw new Error("no #consent-mount");
-		const registry = createConsentWebRegistry();
-		const journey = await mountConsentJourney(registry, mount, {
-			caption: document.getElementById("consent-caption"),
-		});
-		mountDemoSeed(registry, mount, journey.refresh);
-		overlay?.remove();
-	} catch (error) {
-		console.error("[wallet-t2] consent boot failed", error);
-		if (overlay) {
-			overlay.textContent = `Falha ao abrir o consentimento: ${
-				error instanceof Error ? error.message : String(error)
-			}`;
-		}
-	}
+	// No content verb — the consent journey reads the wallet's verbs itself (pending prompts +
+	// granted authorizations), so `mountCapabilityWebView` hands render the registry + mount and owns
+	// only the overlay lifecycle + error display (no hand-rolled try/catch here anymore).
+	await mountCapabilityWebView({
+		namespace: "wallet-t2",
+		registry: createConsentWebRegistry(),
+		errorLabel: "Falha ao abrir o consentimento",
+		view: {
+			mount: "consent-mount",
+			render: async ({ mount, registry }) => {
+				const journey = await mountConsentJourney(registry, mount, {
+					caption: document.getElementById("consent-caption"),
+				});
+				mountDemoSeed(registry, mount, journey.refresh);
+			},
+		},
+	});
 }
 
 /** A "simulate a request" button that submits a fictitious service request through the real
