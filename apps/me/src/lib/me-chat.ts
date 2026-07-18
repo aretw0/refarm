@@ -62,6 +62,9 @@ export interface MountRefarmMeChatOptions {
 	mountId?: string;
 	/** Session id for the turns (defaults to a fresh web session). */
 	sessionId?: string;
+	/** Injected EventSource factory for the activity SSE (defaults to the global EventSource) — the
+	 * seam a jsdom test uses, since jsdom has no EventSource. */
+	eventSourceFactory?: (url: string) => unknown;
 }
 
 export interface RefarmMeChatHandle {
@@ -97,8 +100,9 @@ export function mountRefarmMeChat(options: MountRefarmMeChatOptions = {}): Refar
 	const cancelBtn = root.querySelector<HTMLButtonElement>(".refarm-chat-composer-cancel")!;
 
 	// Live activity pills over the same-origin SSE stream.
+	const eventSourceFactory = options.eventSourceFactory ?? ((url: string) => new EventSource(url));
 	const activityStream = mountLiveActivityStream(activityNode, {
-		eventSourceFactory: (url) => new EventSource(url) as unknown as never,
+		eventSourceFactory: (url) => eventSourceFactory(url) as never,
 	});
 
 	const transport = createBrowserComposerTransport({ fetchImpl });
