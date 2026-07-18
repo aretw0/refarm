@@ -140,6 +140,33 @@ function renderVerbInputs(registry: CapabilityRegistry, verbName: string): strin
 	return `${argInputs}${optInputs}`;
 }
 
+/**
+ * Render a capability verb as a self-contained INLINE FORM — its summary, the TYPED inputs
+ * (`renderVerbInputs`: a `<select>` for an enum, a number field for integer/number), and a submit
+ * button, wrapped in a `<form data-refarm-verb>`. This is the "agent offers a tool as a form in the
+ * conversation" seam: a chat hosts the returned html as a message, and on the form's `submit` reads it
+ * back with `collectVerbInput` + dispatches with the host's registry. Returns "" for an unknown/non-run
+ * verb. The value elements carry the same `data-refarm-arg` / `data-refarm-option` hooks as a surface
+ * card, so `collectVerbInput` reads a conversation form identically.
+ */
+export function renderCapabilityFormMessage(
+	registry: CapabilityRegistry,
+	verbName: string,
+	options: { submitLabel?: string } = {},
+): string {
+	const entry = registry.get(verbName);
+	if (!entry || !("run" in entry) || typeof entry.run !== "function") return "";
+	const summary = "summary" in entry && typeof entry.summary === "string" ? entry.summary : "";
+	const label = escape(options.submitLabel ?? verbName);
+	return [
+		`<form class="refarm-capability-form" data-refarm-verb="${escape(verbName)}">`,
+		summary ? `<p class="refarm-capability-form-summary">${escape(summary)}</p>` : "",
+		renderVerbInputs(registry, verbName),
+		`<button type="submit" class="refarm-btn refarm-capability-form-submit">${label}</button>`,
+		`</form>`,
+	].join("");
+}
+
 /** Render the registry's web verbs as DS-styled cards — one per verb, grouped by section.
  * Uses the shared DS classes (refarm-surface-card / refarm-stack / refarm-btn) so the
  * panel matches every other Homestead surface, no bespoke palette. */

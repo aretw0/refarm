@@ -2,7 +2,8 @@
 import type { CapabilityRegistry } from "@refarm.dev/capabilities";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { bootCapabilityWebFace, mountCapabilityWebView } from "./boot.js";
+import { bootCapabilityWebFace, mountCapabilityWebView, wireCapabilityFormDispatch } from "./boot.js";
+import { renderCapabilityFormMessage } from "./index.js";
 
 /** The registered-plugin shape the mock tractor stores — just an id-bearing handle. */
 type RegisteredPlugin = { id: string };
@@ -537,6 +538,47 @@ describe("mountCapabilityWebView — custom substrate view, framework-owned load
 		const overlay = document.getElementById("loading-overlay");
 		expect(overlay?.textContent).toContain("Falha ao abrir a visão");
 		expect(overlay?.textContent).toContain("render blew up");
+	});
+
+	it("renders a capability verb as an inline conversation FORM and dispatches it on submit (pattern B)", async () => {
+		const registry = {
+			get: (name: string) =>
+				name === "search"
+					? {
+							name: "search",
+							summary: "Search things",
+							args: [{ name: "query", required: true }],
+							renderers: { web: { resultField: "resultsHtml" } },
+							run: async (input: { args?: { query?: unknown } }) => ({
+								ok: true,
+								resultsHtml: `<ul data-hits>hit for ${String(input.args?.query ?? "")}</ul>`,
+							}),
+						}
+					: undefined,
+			list: () => [{ name: "search" }],
+		} as unknown as CapabilityRegistry;
+
+		document.body.innerHTML = `<div id="convo"></div>`;
+		const container = document.getElementById("convo")!;
+		// The agent "offers" the search verb as an inline form message.
+		container.innerHTML = renderCapabilityFormMessage(registry, "search", { submitLabel: "Buscar" });
+		expect(container.querySelector('form.refarm-capability-form[data-refarm-verb="search"]')).not.toBeNull();
+		expect(container.querySelector('[data-refarm-arg="query"]')).not.toBeNull();
+		expect(container.querySelector("button.refarm-capability-form-submit")?.textContent).toBe("Buscar");
+
+		// Wire dispatch: the user fills + submits → the verb runs → the result is reported back.
+		const results: Array<{ verb: string; html?: string }> = [];
+		wireCapabilityFormDispatch(container, registry, (verb, result) => {
+			results.push({ verb, html: result.html });
+		});
+		(container.querySelector('[data-refarm-arg="query"]') as HTMLInputElement).value = "CNPJ";
+		container.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+
+		const deadline = Date.now() + 1000;
+		while (Date.now() < deadline && results.length === 0) await new Promise((r) => setTimeout(r, 5));
+		expect(results).toHaveLength(1);
+		expect(results[0]!.verb).toBe("search");
+		expect(results[0]!.html).toContain("hit for CNPJ");
 	});
 
 	it("throws (→ overlay error) when the content verb is not in the registry", async () => {

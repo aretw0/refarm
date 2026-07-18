@@ -28,8 +28,13 @@ export interface ConversationMessage {
 	sender: ConversationSender;
 	/** When the message was sent, ms. */
 	at: number;
-	/** The message body text. Rich content (inline forms) rides a later slice. */
+	/** The message body text (always present — the accessible/fallback rendering, and what a plain
+	 * message shows). */
 	text: string;
+	/** A TRUSTED, app-rendered HTML fragment shown as the body INSTEAD of `text` when present — the
+	 * rich-content seam for an inline element the agent generates (e.g. a capability form). The caller
+	 * owns its safety (it built it); `text` stays the escaped fallback. */
+	html?: string;
 }
 
 export interface RenderConversationTranscriptOptions extends ConversationTimeOptions {
@@ -54,11 +59,17 @@ function renderMessage(message: ConversationMessage, options: RenderConversation
 	const name = escapeHtml(message.sender.name);
 	// Others show a sender name; the viewer's own messages don't (they know who they are).
 	const senderLine = self ? "" : `<span class="refarm-convo-sender">${name}</span>`;
+	// A rich message renders the app's TRUSTED html (an inline form) as a block; a plain message
+	// renders its escaped text inline with the time.
+	const rich = message.html !== undefined;
+	const body = rich
+		? `<div class="refarm-convo-rich">${message.html}</div>`
+		: `<span class="refarm-convo-body">${escapeHtml(message.text)}</span>`;
 	return [
-		`<div class="refarm-convo-msg" data-kind="${escapeHtml(message.sender.kind)}"${self ? " data-self" : ""}>`,
+		`<div class="refarm-convo-msg" data-kind="${escapeHtml(message.sender.kind)}"${self ? " data-self" : ""}${rich ? " data-rich" : ""}>`,
 		senderLine,
 		`<div class="refarm-convo-bubble">`,
-		`<span class="refarm-convo-body">${escapeHtml(message.text)}</span>`,
+		body,
 		`<time class="refarm-convo-time">${time}</time>`,
 		`</div>`,
 		`</div>`,
@@ -103,6 +114,9 @@ export function conversationTranscriptStyles(): string {
 		.refarm-convo-bubble { display: inline-flex; align-items: baseline; gap: 0.5rem; padding: 0.375rem 0.625rem; border-radius: var(--refarm-radius-md); background: var(--refarm-bg-secondary); color: var(--refarm-text-primary); line-height: 1.45; }
 		.refarm-convo-msg[data-self] .refarm-convo-bubble { background: var(--refarm-accent-muted); }
 		.refarm-convo-body { white-space: pre-wrap; word-break: break-word; }
+		.refarm-convo-msg[data-rich] { max-width: 100%; align-self: stretch; }
+		.refarm-convo-msg[data-rich] .refarm-convo-bubble { flex-direction: column; align-items: stretch; }
+		.refarm-convo-rich { display: flex; flex-direction: column; gap: 0.5rem; }
 		.refarm-convo-time { flex: 0 0 auto; font-size: 0.6875rem; color: var(--refarm-text-muted); font-variant-numeric: tabular-nums; }
 		.refarm-convo-system { margin: 0.375rem auto; text-align: center; font-size: 0.75rem; color: var(--refarm-text-muted); }
 	`;

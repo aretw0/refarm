@@ -81,16 +81,23 @@ export interface BootCapabilityWebFaceOptions {
 
 /** Collect a verb's form input from its rendered card (`[data-refarm-verb]`) — the args + options
  * a persona typed before clicking Run. Reads `[data-refarm-arg]` / `[data-refarm-option]` inputs;
- * an empty field is omitted, a checkbox contributes only when checked. Runs in the browser. */
-function collectVerbInput(verb: string): {
+ * an empty field is omitted, a checkbox contributes only when checked. Runs in the browser. Pass the
+ * exact `card` element (e.g. the submitted `<form>`) to scope collection to it — the conversation form
+ * path, where several forms for the same verb may coexist; omit it to find the card by verb. */
+export function collectVerbInput(
+	verb: string,
+	card?: Element | null,
+): {
 	args: Record<string, string>;
 	options: Record<string, string | boolean>;
 } {
 	const args: Record<string, string> = {};
 	const options: Record<string, string | boolean> = {};
-	if (typeof document === "undefined") return { args, options };
-	const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(verb) : verb.replace(/"/g, '\\"');
-	const card = document.querySelector(`[data-refarm-verb="${escaped}"]`);
+	if (card === undefined && typeof document === "undefined") return { args, options };
+	if (card === undefined) {
+		const escaped = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(verb) : verb.replace(/"/g, '\\"');
+		card = document.querySelector(`[data-refarm-verb="${escaped}"]`);
+	}
 	if (!card) return { args, options };
 	card.querySelectorAll<HTMLInputElement>("[data-refarm-arg]").forEach((el) => {
 		const name = el.getAttribute("data-refarm-arg");
@@ -115,7 +122,7 @@ function collectVerbInput(verb: string): {
  * governanceHtml) paints its render on a click WITHOUT declaring resultField. When there is no HTML
  * at all the click still yields an `ok`/`message` status so it is never silent. A verb that needs
  * missing input returns an error envelope — surfaced here as its message, not swallowed. */
-async function runVerbForResult(
+export async function runVerbForResult(
 	entry: { run: (input: CapabilityInput) => unknown; renderers?: { web?: { resultField?: string } } },
 	verb: string,
 	input: { args: Record<string, string>; options: Record<string, string | boolean> },
@@ -148,6 +155,37 @@ function firstHtmlField(envelope: Record<string, unknown>): string | undefined {
 		if (/Html$/.test(key) && typeof value === "string") return value;
 	}
 	return undefined;
+}
+
+/**
+ * Wire a container so any capability form submitted inside it (a `renderCapabilityFormMessage` form)
+ * collects its TYPED input from that exact form, runs the verb, and reports the result to `onResult` —
+ * the seam that lets a conversation dispatch an inline form the agent offered: the host appends the
+ * result as a message. Event-delegated on the container (a form added later is covered), scoped to the
+ * submitted form (several forms of the same verb can coexist). Returns a detach fn. Runs in the browser.
+ */
+export function wireCapabilityFormDispatch(
+	container: HTMLElement,
+	registry: CapabilityRegistry,
+	onResult: (verb: string, result: CapabilityActionResult) => void | Promise<void>,
+): () => void {
+	const handler = (event: Event): void => {
+		const form = (event.target as HTMLElement | null)?.closest?.("form.refarm-capability-form") as HTMLFormElement | null;
+		if (!form) return;
+		event.preventDefault();
+		const verb = form.getAttribute("data-refarm-verb");
+		if (!verb) return;
+		const entry = registry.get(verb);
+		if (!entry || !("run" in entry) || typeof entry.run !== "function") return;
+		const input = collectVerbInput(verb, form);
+		void runVerbForResult(
+			entry as { run: (i: CapabilityInput) => unknown; renderers?: { web?: { resultField?: string } } },
+			verb,
+			input,
+		).then((result) => onResult(verb, result));
+	};
+	container.addEventListener("submit", handler);
+	return () => container.removeEventListener("submit", handler);
 }
 
 export async function bootCapabilityWebFace(

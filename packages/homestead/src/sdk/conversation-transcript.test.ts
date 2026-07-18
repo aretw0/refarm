@@ -49,6 +49,24 @@ describe("renderConversationTranscript", () => {
 		expect(html).not.toContain("refarm-convo-bubble");
 	});
 
+	it("renders a rich (html) message body verbatim as a block, marked data-rich (the inline-form seam)", () => {
+		const html = renderConversationTranscript(
+			[
+				{
+					sender: agent,
+					at: NOW,
+					text: "form fallback",
+					html: '<form data-refarm-verb="search"><input data-refarm-arg="query" /></form>',
+				},
+			],
+			{ now: NOW },
+		);
+		expect(html).toContain("data-rich");
+		expect(html).toContain('<form data-refarm-verb="search">'); // verbatim, NOT escaped
+		expect(html).toContain('<input data-refarm-arg="query" />');
+		expect(html).not.toContain("form fallback"); // the html replaces the text body
+	});
+
 	it("escapes message text and sender names (no HTML injection)", () => {
 		const html = renderConversationTranscript(
 			[{ sender: { id: "x", name: "<b>x</b>", kind: "person" }, at: NOW, text: "<script>alert(1)</script>" }],
