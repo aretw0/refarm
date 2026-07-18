@@ -86,21 +86,24 @@ function toolNameOf(descriptor: CapabilityDescriptor): string {
 /** Map a capability option's kind to its JSON-Schema property. `string[]` becomes
  * an array of strings — the same shape a variadic arg or a repeated flag takes. */
 function optionProperty(option: CapabilityOptionSpec): Record<string, unknown> {
+	let property: Record<string, unknown>;
 	switch (option.kind) {
 		case "boolean":
-			return { type: "boolean", description: option.summary };
+			property = { type: "boolean" };
+			break;
 		case "string[]":
-			return {
-				type: "array",
-				items: { type: "string" },
-				description: option.summary,
-			};
+			property = { type: "array", items: { type: "string" } };
+			break;
 		case "number":
 		case "integer":
-			return { type: option.kind, description: option.summary };
+			property = { type: option.kind };
+			break;
 		default:
-			return { type: "string", description: option.summary };
+			property = { type: "string" };
 	}
+	property.description = option.summary;
+	if (option.enum && option.enum.length > 0) property.enum = [...option.enum];
+	return property;
 }
 
 /** Map a positional arg to its JSON-Schema property, honoring its declared `type`/`enum`/`items`

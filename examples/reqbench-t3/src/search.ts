@@ -69,7 +69,15 @@ export function createRequirementsSearchCapability(
 		summary: "Search the requirements vault by text, filtered by tipo/sistema",
 		args: [{ name: "query", required: true }],
 		options: [
-			{ name: "tipo", kind: "string", summary: "Only requirements of this tipo (e.g. requisito)" },
+			// `tipo` is a closed taxonomy (see REQUIREMENTS_TAXONOMY) — declaring the enum makes the web
+			// face render a <select> of the real types and the agent tool offer them, instead of a text
+			// box you must know the values for.
+			{
+				name: "tipo",
+				kind: "string",
+				enum: ["regra-de-negocio", "funcional", "caso-de-uso"],
+				summary: "Only requirements of this tipo",
+			},
 			{ name: "sistema", kind: "string", summary: "Only requirements of this sistema (e.g. EFD)" },
 		],
 		transports: { http: { path: "/requirements/search" } },

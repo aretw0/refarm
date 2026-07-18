@@ -73,9 +73,11 @@ describe("capabilityToolParameters — schema derivation", () => {
 					{ name: "tags", kind: "string[]", summary: "Tags" },
 					{ name: "line", kind: "integer", summary: "1-based line" },
 					{ name: "ratio", kind: "number", summary: "A ratio" },
+					{ name: "tipo", kind: "string", enum: ["a", "b"], summary: "The tipo" },
 				],
 			}),
 		);
+		expect(schema.properties.tipo).toEqual({ type: "string", description: "The tipo", enum: ["a", "b"] });
 		expect(schema.properties.json).toEqual({
 			type: "boolean",
 			description: "JSON output",

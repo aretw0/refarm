@@ -44,9 +44,14 @@ export const FACES = [
 		work: "T3",
 		example: "reqbench-t3",
 		route: "/search/",
-		mustHave: ['[data-refarm-verb="requirements-search"]', '[data-refarm-arg="query"]'],
+		// The typed `--tipo` option renders a real <select> of the requirement taxonomy — the live
+		// proof that the enum→<select> path works in a browser (not just jsdom).
+		mustHave: ['[data-refarm-verb="requirements-search"]', '[data-refarm-arg="query"]', 'select[data-refarm-option="tipo"]'],
 		interact: {
 			fill: ['[data-refarm-arg="query"]', "CNPJ"],
+			// Choose a real tipo (the CNPJ record is a regra-de-negocio) → the typed form → collect →
+			// dispatch → filtered result loop, proven end to end in a real browser.
+			select: ['select[data-refarm-option="tipo"]', "regra-de-negocio"],
 			click: '[data-refarm-verb="requirements-search"] [data-refarm-surface-action-id="requirements-search"]',
 			expect: "[data-refarm-action-result] [data-search-results]",
 		},
@@ -168,6 +173,11 @@ async function checkFace(browser, port, face) {
 				const [sel, value] = face.interact.fill;
 				await page.$eval(sel, (el) => (el.value = "")).catch(() => {});
 				await page.type(sel, value);
+			}
+			if (face.interact.select) {
+				// A typed enum arg/option renders a <select> — choose an option (page.type can't).
+				const [sel, value] = face.interact.select;
+				await page.select(sel, value).catch((e) => failures.push(`select ${sel} failed: ${e.message}`));
 			}
 			await page.click(face.interact.click).catch((e) => failures.push(`click ${face.interact.click} failed: ${e.message}`));
 			// Wait for the expected result to appear (the dispatch loop / B2 render).

@@ -83,47 +83,59 @@ function escape(value: string): string {
 		.replace(/"/g, "&quot;");
 }
 
-/** A typed input for one arg: a `<select>` for an `enum`, a number field for `integer`/`number`, else
- * a text input. The dispatch handler reads the value back by `data-refarm-arg` (always a string — a
- * number field's `.value` is its numeric string, a select's is the chosen option), so `collectVerbInput`
- * is unchanged; this only picks the RIGHT widget from the arg's declared type. */
-function argInput(a: { name: string; required?: boolean; type?: string; enum?: string[] }): string {
-	const attrs = `data-refarm-arg="${escape(a.name)}"`;
-	const placeholder = `${escape(a.name)}${a.required ? " *" : ""}`;
-	if (a.enum && a.enum.length > 0) {
-		const options = [`<option value="">${placeholder}</option>`, ...a.enum.map((v) => `<option value="${escape(v)}">${escape(v)}</option>`)].join("");
-		return `<select class="refarm-input" ${attrs}>${options}</select>`;
+/** The RIGHT widget for a typed field: a `<select>` for an `enum`, a number field for `integer`/`number`,
+ * else a text input. Shared by args AND options (a boolean option is a checkbox, handled by the caller).
+ * The value reads back as a string — a select's chosen option, a number field's numeric string — so
+ * `collectVerbInput` is unchanged; this only picks the widget from the declared type/enum. */
+function typedInput(field: { dataAttr: string; placeholder: string; kind?: string; enumValues?: string[] }): string {
+	if (field.enumValues && field.enumValues.length > 0) {
+		const options = [
+			`<option value="">${field.placeholder}</option>`,
+			...field.enumValues.map((v) => `<option value="${escape(v)}">${escape(v)}</option>`),
+		].join("");
+		return `<select class="refarm-input" ${field.dataAttr}>${options}</select>`;
 	}
-	const numeric = a.type === "number" || a.type === "integer";
-	const step = a.type === "integer" ? ` step="1"` : "";
-	return `<input class="refarm-input" type="${numeric ? "number" : "text"}"${step} ${attrs} placeholder="${placeholder}" />`;
+	const numeric = field.kind === "number" || field.kind === "integer";
+	const step = field.kind === "integer" ? ` step="1"` : "";
+	return `<input class="refarm-input" type="${numeric ? "number" : "text"}"${step} ${field.dataAttr} placeholder="${field.placeholder}" />`;
 }
 
 /** Render the input fields for a verb's args + options (or "" when it takes none), so a card can
- * collect them before dispatching. Args become TYPED inputs by their declared type (select for enum,
- * number for integer/number, else text); a boolean option a checkbox, other options a text input. The
+ * collect them before dispatching. Args AND non-boolean options become TYPED inputs by their declared
+ * type (select for enum, number for integer/number, else text); a boolean option is a checkbox. The
  * boot dispatch handler reads these back by `data-refarm-arg` / `data-refarm-option` and passes them to
  * the verb's run(). */
 function renderVerbInputs(registry: CapabilityRegistry, verbName: string): string {
 	const entry = registry.get(verbName) as
 		| {
 				args?: Array<{ name: string; required?: boolean; type?: string; enum?: string[] }>;
-				options?: Array<{ name: string; kind?: string; summary?: string }>;
+				options?: Array<{ name: string; kind?: string; summary?: string; enum?: string[] }>;
 		  }
 		| undefined;
 	const args = entry?.args ?? [];
 	const options = entry?.options ?? [];
 	if (args.length === 0 && options.length === 0) return "";
-	const argInputs = args.map((a) => argInput(a)).join("");
+	const argInputs = args
+		.map((a) =>
+			typedInput({
+				dataAttr: `data-refarm-arg="${escape(a.name)}"`,
+				placeholder: `${escape(a.name)}${a.required ? " *" : ""}`,
+				kind: a.type,
+				enumValues: a.enum,
+			}),
+		)
+		.join("");
 	const optInputs = options
-		.map((o) => {
-			if (o.kind === "boolean") {
-				return `<label class="refarm-check"><input type="checkbox" data-refarm-option="${escape(o.name)}" /> --${escape(o.name)}</label>`;
-			}
-			const numeric = o.kind === "number" || o.kind === "integer";
-			const step = o.kind === "integer" ? ` step="1"` : "";
-			return `<input class="refarm-input" type="${numeric ? "number" : "text"}"${step} data-refarm-option="${escape(o.name)}" placeholder="--${escape(o.name)}" />`;
-		})
+		.map((o) =>
+			o.kind === "boolean"
+				? `<label class="refarm-check"><input type="checkbox" data-refarm-option="${escape(o.name)}" /> --${escape(o.name)}</label>`
+				: typedInput({
+						dataAttr: `data-refarm-option="${escape(o.name)}"`,
+						placeholder: `--${escape(o.name)}`,
+						kind: o.kind,
+						enumValues: o.enum,
+					}),
+		)
 		.join("");
 	return `${argInputs}${optInputs}`;
 }

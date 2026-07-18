@@ -25,7 +25,10 @@ const typedArgsVerb: CapabilityDescriptor = {
 		{ name: "verb", required: true, enum: ["find-references", "rename-symbol"] },
 		{ name: "line", type: "integer" },
 	],
-	options: [{ name: "column", kind: "integer", summary: "1-based column" }],
+	options: [
+		{ name: "column", kind: "integer", summary: "1-based column" },
+		{ name: "tipo", kind: "string", enum: ["x", "y"], summary: "The tipo" },
+	],
 	renderers: { web: { route: "/code-ops" } },
 	run: () => ({ ok: true }) as never,
 };
@@ -77,6 +80,9 @@ describe("capability → homestead web bridge (ADR-085)", () => {
 		expect(result.html).toContain('type="number" step="1" data-refarm-arg="line"');
 		// An integer OPTION also becomes a number input.
 		expect(result.html).toContain('type="number" step="1" data-refarm-option="column"');
+		// An enum OPTION becomes a <select> too (the option-side twin of the enum arg).
+		expect(result.html).toContain('<select class="refarm-input" data-refarm-option="tipo">');
+		expect(result.html).toContain('<option value="x">x</option>');
 	});
 
 	it("injects a content projector's HTML (from host.data) above the cards — the MOC seam", async () => {

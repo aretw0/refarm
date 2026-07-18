@@ -263,6 +263,9 @@ export interface CapabilityOptionSpec {
 	short?: string;
 	/** Default when the flag is absent. */
 	defaultValue?: string | string[] | boolean;
+	/** Allowed values (a string enum) → the tool schema's `enum` + a `<select>` in the web form —
+	 * the option-side twin of {@link CapabilityArgSpec.enum}. */
+	enum?: string[];
 }
 
 /** Already-parsed input handed to `run()`. Never argv, never a readline handle. */
