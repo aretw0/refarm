@@ -991,8 +991,10 @@ jobs:
     # parses, and their whole value is being unskippable: a --no-verify, a fresh clone, or a
     # GitHub-UI merge must not be able to bypass them. Home for the workspace-coverage checker (every
     # pnpm root must be wired into code_changes + the quality signature, so no root silently skips
-    # Verify or rides a stale cache) and the phantom-dep / test-runner-contract checkers that until
-    # now lived only in the never-invoked gate:full:colony bundle + a bypassable pre-push hook.
+    # Verify or rides a stale cache), the face-smoke-coverage checker (every example page has a
+    # web-face smoke entry, so a new face can't silently go un-browser-tested), and the phantom-dep /
+    # test-runner-contract checkers that until now lived only in the never-invoked gate:full:colony
+    # bundle + a bypassable pre-push hook.
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: changes
@@ -1012,6 +1014,9 @@ jobs:
 
       - name: CI workspace coverage (every pnpm root wired into code_changes + quality signature)
         run: pnpm run ci:workspace-coverage:check
+
+      - name: Face smoke coverage (every example page has a web-face smoke entry)
+        run: pnpm run ci:face-smoke-coverage:check
 
       - name: Phantom workspace deps in tool configs
         run: pnpm run deps:vitest-config-check

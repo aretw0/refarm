@@ -7,7 +7,9 @@
 //
 // ADD A FACE: append one entry to FACES below. A new browser-safe face is then covered by
 // construction — no bespoke harness, no way to silently regress. That is the whole point: faces
-// proliferate WITHOUT proliferating untested regressions.
+// proliferate WITHOUT proliferating untested regressions. check-face-smoke-coverage.mjs imports the
+// exported FACES and asserts every example page (src/pages/*.astro) has an entry, so a NEW page that
+// forgets its FACES entry fails CI deterministically (the /lab/ hole can never recur).
 //
 // GATED: if no Chromium (CHROME_PATH / puppeteer cache / playwright cache / system) or puppeteer-core
 // is resolvable, it SKIPS with a notice and exits 0 — so it never reds CI where a browser is absent
@@ -16,7 +18,7 @@ import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { existsSync, readdirSync } from "node:fs";
 import { join, extname, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -25,7 +27,8 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 // example: dir under examples/; route: the built page; mustHave: selectors present on boot;
 // interact (optional): { fill?: [selector, value], click: selector, expect: selector } — a minimal
 // user action whose result must appear (proves the dispatch loop / B2 in a real browser).
-const FACES = [
+// Exported so check-face-smoke-coverage.mjs can assert every example page has an entry.
+export const FACES = [
 	// The landing hubs — the browser-safe front door of each example, linking to its live faces.
 	{ work: "T1", example: "devbench-t1", route: "/", mustHave: ["[data-face-hub]", 'a[href="/governance/"]', 'a[href="/extension-graph/"]'] },
 	{ work: "T2", example: "wallet-t2", route: "/", mustHave: ["[data-face-hub]", 'a[href="/consent/"]'] },
@@ -236,7 +239,11 @@ async function main() {
 	console.log(`web-face-smoke — all ${FACES.length} faces booted + interacted in a real browser ✓`);
 }
 
-main().catch((e) => {
-	console.error("::error::web-face-smoke crashed", e);
-	process.exit(1);
-});
+// Run only when invoked directly (`node web-face-smoke.mjs`), not when imported for its FACES export
+// (check-face-smoke-coverage.mjs) — importing must not launch Chromium.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+	main().catch((e) => {
+		console.error("::error::web-face-smoke crashed", e);
+		process.exit(1);
+	});
+}
