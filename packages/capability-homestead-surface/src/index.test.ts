@@ -18,6 +18,17 @@ const tuiOnlyVerb: CapabilityDescriptor = {
 	run: () => ({ ok: true }) as never,
 };
 
+const typedArgsVerb: CapabilityDescriptor = {
+	name: "code-ops",
+	summary: "Run a code operation",
+	args: [
+		{ name: "verb", required: true, enum: ["find-references", "rename-symbol"] },
+		{ name: "line", type: "integer" },
+	],
+	renderers: { web: { route: "/code-ops" } },
+	run: () => ({ ok: true }) as never,
+};
+
 describe("capability → homestead web bridge (ADR-085)", () => {
 	const registry = createCapabilityRegistry([walletVerb, tuiOnlyVerb]);
 
@@ -52,6 +63,17 @@ describe("capability → homestead web bridge (ADR-085)", () => {
 		const handle = createCapabilityWebSurfacePlugin(createCapabilityRegistry([tuiOnlyVerb]));
 		const result = (await handle.call?.("renderHomesteadSurface", {})) as { html: string };
 		expect(result.html).toContain("No verb declares a web surface");
+	});
+
+	it("renders a TYPED arg form — <select> for an enum arg, number input for an integer arg", async () => {
+		const handle = createCapabilityWebSurfacePlugin(createCapabilityRegistry([typedArgsVerb]));
+		const result = (await handle.call?.("renderHomesteadSurface", {})) as { html: string };
+		// The enum arg becomes a <select> of its allowed values — not a text box you must guess.
+		expect(result.html).toContain('<select class="refarm-input" data-refarm-arg="verb">');
+		expect(result.html).toContain('<option value="find-references">find-references</option>');
+		expect(result.html).toContain('<option value="rename-symbol">rename-symbol</option>');
+		// The integer arg becomes a number input.
+		expect(result.html).toContain('type="number" step="1" data-refarm-arg="line"');
 	});
 
 	it("injects a content projector's HTML (from host.data) above the cards — the MOC seam", async () => {

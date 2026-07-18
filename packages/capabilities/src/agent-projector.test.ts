@@ -47,6 +47,22 @@ describe("capabilityToolParameters — schema derivation", () => {
 		});
 	});
 
+	it("honors a declared arg `type`/`enum`/`items`/`description` (mirrors the manifest derivation)", () => {
+		const schema = capabilityToolParameters(
+			descriptor({
+				args: [
+					{ name: "line", type: "integer", required: true, description: "1-based line" },
+					{ name: "kind", type: "string", enum: ["note", "task"] },
+					{ name: "tags", type: "array", items: "string" },
+				],
+			}),
+		);
+		expect(schema.properties.line).toEqual({ type: "integer", description: "1-based line" });
+		expect(schema.properties.kind).toEqual({ type: "string", enum: ["note", "task"] });
+		expect(schema.properties.tags).toEqual({ type: "array", items: { type: "string" } });
+		expect(schema.required).toEqual(["line"]);
+	});
+
 	it("maps option kinds to boolean/string/array and never marks them required", () => {
 		const schema = capabilityToolParameters(
 			descriptor({

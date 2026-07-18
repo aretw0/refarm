@@ -83,26 +83,38 @@ function escape(value: string): string {
 		.replace(/"/g, "&quot;");
 }
 
+/** A typed input for one arg: a `<select>` for an `enum`, a number field for `integer`/`number`, else
+ * a text input. The dispatch handler reads the value back by `data-refarm-arg` (always a string — a
+ * number field's `.value` is its numeric string, a select's is the chosen option), so `collectVerbInput`
+ * is unchanged; this only picks the RIGHT widget from the arg's declared type. */
+function argInput(a: { name: string; required?: boolean; type?: string; enum?: string[] }): string {
+	const attrs = `data-refarm-arg="${escape(a.name)}"`;
+	const placeholder = `${escape(a.name)}${a.required ? " *" : ""}`;
+	if (a.enum && a.enum.length > 0) {
+		const options = [`<option value="">${placeholder}</option>`, ...a.enum.map((v) => `<option value="${escape(v)}">${escape(v)}</option>`)].join("");
+		return `<select class="refarm-input" ${attrs}>${options}</select>`;
+	}
+	const numeric = a.type === "number" || a.type === "integer";
+	const step = a.type === "integer" ? ` step="1"` : "";
+	return `<input class="refarm-input" type="${numeric ? "number" : "text"}"${step} ${attrs} placeholder="${placeholder}" />`;
+}
+
 /** Render the input fields for a verb's args + options (or "" when it takes none), so a card can
- * collect them before dispatching. Args + non-boolean options become text inputs; a boolean option
- * a checkbox. The boot dispatch handler reads these back by `data-refarm-arg` / `data-refarm-option`
- * and passes them to the verb's run(). */
+ * collect them before dispatching. Args become TYPED inputs by their declared type (select for enum,
+ * number for integer/number, else text); a boolean option a checkbox, other options a text input. The
+ * boot dispatch handler reads these back by `data-refarm-arg` / `data-refarm-option` and passes them to
+ * the verb's run(). */
 function renderVerbInputs(registry: CapabilityRegistry, verbName: string): string {
 	const entry = registry.get(verbName) as
 		| {
-				args?: Array<{ name: string; required?: boolean }>;
+				args?: Array<{ name: string; required?: boolean; type?: string; enum?: string[] }>;
 				options?: Array<{ name: string; kind?: string; summary?: string }>;
 		  }
 		| undefined;
 	const args = entry?.args ?? [];
 	const options = entry?.options ?? [];
 	if (args.length === 0 && options.length === 0) return "";
-	const argInputs = args
-		.map(
-			(a) =>
-				`<input class="refarm-input" type="text" data-refarm-arg="${escape(a.name)}" placeholder="${escape(a.name)}${a.required ? " *" : ""}" />`,
-		)
-		.join("");
+	const argInputs = args.map((a) => argInput(a)).join("");
 	const optInputs = options
 		.map((o) =>
 			o.kind === "boolean"

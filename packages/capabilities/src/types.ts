@@ -235,6 +235,17 @@ export interface CapabilityArgSpec {
 	required?: boolean;
 	/** Collects the rest of the positionals into a string[]. */
 	variadic?: boolean;
+	/** JSON-Schema scalar type — feeds the derived agent-tool schema AND a typed web input (default
+	 * "string"). "array" pairs with `items`; a `variadic` arg is always an array of `items`. Mirrors
+	 * the plugin manifest's `PluginVerbArg`, so a verb declares its arg types ONCE and every surface
+	 * (CLI, web form, agent tool) reads them. */
+	type?: "string" | "number" | "integer" | "boolean" | "array";
+	/** Allowed values (a string enum) → the tool schema's `enum` + a `<select>` in the web form. */
+	enum?: string[];
+	/** Element type when `type: "array"` (or variadic) — default "string". */
+	items?: "string" | "number" | "integer" | "boolean";
+	/** One-line description → the derived tool schema property's `description`. */
+	description?: string;
 }
 
 export type CapabilityOptionKind = "boolean" | "string" | "string[]";

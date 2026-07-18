@@ -100,14 +100,18 @@ function optionProperty(option: CapabilityOptionSpec): Record<string, unknown> {
 	}
 }
 
-/** Map a positional arg to its JSON-Schema property. A variadic arg collects the
- * rest into a string[]; a scalar arg is a string (capability args are untyped
- * strings — the surface parses them). */
+/** Map a positional arg to its JSON-Schema property, honoring its declared `type`/`enum`/`items`
+ * (default `string`). A variadic arg — or an explicit `type: "array"` — is a list of `items`. This
+ * mirrors the plugin manifest's `deriveVerbSchemaFromArgs`, so a descriptor arg and a manifest verb
+ * arg with the same declaration produce the same tool-schema property. */
 function argProperty(arg: CapabilityArgSpec): Record<string, unknown> {
-	if (arg.variadic) {
-		return { type: "array", items: { type: "string" } };
+	if (arg.variadic || arg.type === "array") {
+		return { type: "array", items: { type: arg.items ?? "string" } };
 	}
-	return { type: "string" };
+	const property: Record<string, unknown> = { type: arg.type ?? "string" };
+	if (arg.description) property.description = arg.description;
+	if (arg.enum && arg.enum.length > 0) property.enum = [...arg.enum];
+	return property;
 }
 
 /**
