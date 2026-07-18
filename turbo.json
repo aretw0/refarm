@@ -11,7 +11,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**", ".astro/**", "pkg/**", "target/**"]
+      "outputs": ["dist/**", ".astro/**", "pkg/**", "target/**", "src/bindings.rs"]
     },
     "dev": {
       "cache": false,
