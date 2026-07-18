@@ -8,6 +8,9 @@
 
 import {
 	COMPOSER_SUBMIT_ACTION_ID,
+	conversationDayKey,
+	conversationDayLabel,
+	conversationMessageTime,
 	createBrowserComposerTransport,
 	createChatComposerActionBridge,
 	mountLiveActivityStream,
@@ -108,10 +111,22 @@ export function mountRefarmMeChat(options: MountRefarmMeChatOptions = {}): Refar
 	const transport = createBrowserComposerTransport({ fetchImpl });
 	let pending: ComposerTurnHandle | null = null;
 
+	// Messenger basics: a "Hoje"/"Ontem"/date separator when the day changes, and a per-message time.
+	let lastDayKey = "";
 	const appendTranscript = (who: string, text: string, cls: string) => {
+		const now = Date.now();
+		const dayKey = conversationDayKey(now);
+		if (dayKey !== lastDayKey) {
+			lastDayKey = dayKey;
+			const separator = doc.createElement("div");
+			separator.className = "refarm-me-chat-day";
+			separator.setAttribute("role", "separator");
+			separator.textContent = conversationDayLabel(now, { now });
+			transcript.appendChild(separator);
+		}
 		const line = doc.createElement("p");
 		line.className = `refarm-me-chat-line ${cls}`;
-		line.innerHTML = `<strong>${escapeHtml(who)}:</strong> ${escapeHtml(text)}`;
+		line.innerHTML = `<strong>${escapeHtml(who)}:</strong> ${escapeHtml(text)} <time class="refarm-me-chat-time">${escapeHtml(conversationMessageTime(now))}</time>`;
 		transcript.appendChild(line);
 	};
 

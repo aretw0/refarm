@@ -44,6 +44,9 @@ describe("mountRefarmMeChat — the apps/me agent chat wiring (ADR-088)", () => 
 		// The user's line lands immediately; the textarea clears.
 		expect(transcript.textContent).toContain("hello agent");
 		expect(textarea.value).toBe("");
+		// Messenger basics: a day separator ("Hoje" today) and a per-message time are rendered.
+		expect(handle.root.querySelector(".refarm-me-chat-day")?.textContent).toBe("Hoje");
+		expect(handle.root.querySelector(".refarm-me-chat-time")).not.toBeNull();
 
 		// The effort was submitted over the proxy...
 		expect(fetchImpl).toHaveBeenCalledWith("/efforts", expect.objectContaining({ method: "POST" }));
