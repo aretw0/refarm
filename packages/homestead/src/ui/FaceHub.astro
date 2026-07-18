@@ -1,0 +1,85 @@
+---
+/**
+ * FaceHub — the shared landing HUB for a capability app's web faces.
+ *
+ * Every example's `index.astro` was the SAME page: a Layout wrapping a header (eyebrow + heading +
+ * intro) and a grid of face cards, with ~27 lines of IDENTICAL hub CSS copy-pasted per example.
+ * This lifts that markup + CSS into one component so a hub is just its data: the faces to link and
+ * the three lines of copy. A new face is one entry in `faces`; the grid, cards, hover, and styling
+ * live here once and cannot drift between examples.
+ */
+import Layout from "./Layout.astro";
+
+export interface HubFace {
+	/** The route the card links to (e.g. "/consent/"). */
+	href: string;
+	/** The face's display name. */
+	name: string;
+	/** One line describing what the face does. */
+	summary: string;
+}
+
+interface Props {
+	/** The <title> for the page (passed through to Layout). */
+	title: string;
+	/** The small kicker above the heading (e.g. "Carteira do cidadão · T2"). */
+	eyebrow: string;
+	/** The hub's H1. */
+	heading: string;
+	/** The intro paragraph under the heading. */
+	intro: string;
+	/** The faces this app links to. */
+	faces: HubFace[];
+}
+
+const { title, eyebrow, heading, intro, faces } = Astro.props;
+---
+
+<Layout title={title}>
+	<main class="refarm-hub refarm-stack">
+		<header class="refarm-stack">
+			<p class="refarm-eyebrow">{eyebrow}</p>
+			<h1>{heading}</h1>
+			<p class="refarm-muted">{intro}</p>
+		</header>
+		<div class="refarm-face-grid" data-face-hub>
+			{
+				faces.map((face) => (
+					<a class="refarm-surface-card refarm-stack refarm-face-card" href={face.href}>
+						<span class="refarm-card-name">{face.name}</span>
+						<span class="refarm-card-summary">{face.summary}</span>
+						<span class="refarm-face-open" aria-hidden="true">Abrir →</span>
+					</a>
+				))
+			}
+		</div>
+	</main>
+</Layout>
+
+<style>
+	.refarm-hub {
+		max-width: 64rem;
+		margin: 0 auto;
+		padding: clamp(1.5rem, 4vw, 3rem) 1rem;
+		gap: 2rem;
+	}
+	.refarm-face-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+		gap: 1rem;
+	}
+	.refarm-face-card {
+		text-decoration: none;
+		color: inherit;
+		transition: transform 120ms ease, box-shadow 120ms ease;
+	}
+	.refarm-face-card:hover,
+	.refarm-face-card:focus-visible {
+		transform: translateY(-2px);
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+	}
+	.refarm-face-open {
+		font-weight: 600;
+		opacity: 0.75;
+	}
+</style>

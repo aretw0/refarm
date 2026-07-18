@@ -1,8 +1,9 @@
 ---
-import { Layout } from "@refarm.dev/homestead/ui";
+import { FaceHub } from "@refarm.dev/homestead/ui";
 
 // The landing HUB — a browser-safe front door that links to the bench's live faces. It replaces
 // the old dashboard boot (which imported the node-bound CLI and hung on the spinner in a browser).
+// The grid + cards + hub CSS live once in FaceHub (@refarm.dev/homestead/ui); here it is just data.
 const faces = [
   {
     href: "/search/",
@@ -25,52 +26,10 @@ const faces = [
 ];
 ---
 
-<Layout title="Bancada de Requisitos — declare uma vez → em toda superfície">
-  <main class="refarm-hub refarm-stack">
-    <header class="refarm-stack">
-      <p class="refarm-eyebrow">Bancada de requisitos · T3</p>
-      <h1>Os requisitos, navegáveis</h1>
-      <p class="refarm-muted">
-        A mesma declaração de verbo que dirige o CLI acende estas faces web. Cada uma roda no
-        navegador de verdade — abra e interaja.
-      </p>
-    </header>
-    <div class="refarm-face-grid" data-face-hub>
-      {faces.map((face) => (
-        <a class="refarm-surface-card refarm-stack refarm-face-card" href={face.href}>
-          <span class="refarm-card-name">{face.name}</span>
-          <span class="refarm-card-summary">{face.summary}</span>
-          <span class="refarm-face-open" aria-hidden="true">Abrir →</span>
-        </a>
-      ))}
-    </div>
-  </main>
-</Layout>
-
-<style>
-  .refarm-hub {
-    max-width: 64rem;
-    margin: 0 auto;
-    padding: clamp(1.5rem, 4vw, 3rem) 1rem;
-    gap: 2rem;
-  }
-  .refarm-face-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
-    gap: 1rem;
-  }
-  .refarm-face-card {
-    text-decoration: none;
-    color: inherit;
-    transition: transform 120ms ease, box-shadow 120ms ease;
-  }
-  .refarm-face-card:hover,
-  .refarm-face-card:focus-visible {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-  }
-  .refarm-face-open {
-    font-weight: 600;
-    opacity: 0.75;
-  }
-</style>
+<FaceHub
+  title="Bancada de Requisitos — declare uma vez → em toda superfície"
+  eyebrow="Bancada de requisitos · T3"
+  heading="Os requisitos, navegáveis"
+  intro="A mesma declaração de verbo que dirige o CLI acende estas faces web. Cada uma roda no navegador de verdade — abra e interaja."
+  faces={faces}
+/>
