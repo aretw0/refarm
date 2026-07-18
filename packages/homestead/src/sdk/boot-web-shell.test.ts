@@ -7,7 +7,7 @@ import {
 	type BootCapabilityWebShellOptions,
 } from "./boot-web-shell.js";
 import { createHomesteadSurfacePluginHandle } from "./plugin-handle.js";
-import type { StudioRuntime } from "./runtime.js";
+import type { BootStudioRuntimeOptions, StudioRuntime } from "./runtime.js";
 
 /** The minimal Homestead slot markup a shell mounts into (mirrors the real Layout). */
 function shellMarkup(): string {
@@ -104,5 +104,46 @@ describe("bootCapabilityWebShell — the surface actually mounts and renders int
 		expect(emitted).toContainEqual(
 			expect.objectContaining({ event: "ui:surface_mounted", pluginId: "test/web" }),
 		);
+	});
+
+	it("forwards identityPublicKey, tractorSync, and browserSync to the runtime boot", async () => {
+		// The fields an app-under-a-stable-key with live CRDT sync (apps/me) needs — the shell must
+		// NOT drop them, or it cannot replace that app's bespoke boot without losing sync + identity.
+		const { runtime } = mockRuntime();
+		let captured: BootStudioRuntimeOptions | undefined;
+		const onEvent = (): void => {};
+		await bootCapabilityWebShell({
+			databaseName: "me-web",
+			namespace: "citizen",
+			identityId: "citizen",
+			identityPublicKey: "me",
+			tractorSync: true,
+			browserSync: { wsUrl: "ws://daemon", onEvent },
+			surfaces: [contentSurface("me/web", "hi")],
+			bootRuntime: async (opts) => {
+				captured = opts;
+				return runtime;
+			},
+		});
+		expect(captured?.identityPublicKey).toBe("me");
+		expect(captured?.tractorSync).toBe(true);
+		expect(captured?.browserSync).toEqual({ wsUrl: "ws://daemon", onEvent });
+	});
+
+	it("omits the sync fields when not given (a plain surface app is unaffected)", async () => {
+		const { runtime } = mockRuntime();
+		let captured: BootStudioRuntimeOptions | undefined;
+		await bootCapabilityWebShell({
+			databaseName: "test-web",
+			namespace: "test",
+			surfaces: [contentSurface("test/web", "hi")],
+			bootRuntime: async (opts) => {
+				captured = opts;
+				return runtime;
+			},
+		});
+		expect(captured).not.toHaveProperty("identityPublicKey");
+		expect(captured).not.toHaveProperty("tractorSync");
+		expect(captured).not.toHaveProperty("browserSync");
 	});
 });

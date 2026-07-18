@@ -31,6 +31,14 @@ export interface BootCapabilityWebShellOptions {
 	namespace: string;
 	/** The identity this shell runs under. A stable per-app id; defaults to `namespace`. */
 	identityId?: string;
+	/** The identity's public key, forwarded to the runtime boot — an app that runs under a stable
+	 * key (e.g. apps/me's "me") passes it here so the shell doesn't drop it. */
+	identityPublicKey?: string;
+	/** Sync the runtime's CRDT graph into the tractor. Forwarded to the runtime boot. */
+	tractorSync?: boolean;
+	/** Live browser-sync wiring — the daemon ws url + an `onEvent` an app uses to render a sync-status
+	 * readout. Forwarded to the runtime boot (apps/me feeds its sync telemetry through this). */
+	browserSync?: BootStudioRuntimeOptions["browserSync"];
 	/**
 	 * The surface plugin(s) to mount — typically ONE `createCapabilityWebSurfacePlugin(...)`
 	 * handle. Accepts an array so an app can mount several panels. A factory form receives a
@@ -90,7 +98,10 @@ export async function bootCapabilityWebShell(
 		databaseName: options.databaseName,
 		namespace: options.namespace,
 		identityId: options.identityId ?? options.namespace,
+		...(options.identityPublicKey ? { identityPublicKey: options.identityPublicKey } : {}),
 		connectBrowserSync: options.connectBrowserSync ?? false,
+		...(options.tractorSync ? { tractorSync: options.tractorSync } : {}),
+		...(options.browserSync ? { browserSync: options.browserSync } : {}),
 		...(options.envMetadata ? { envMetadata: options.envMetadata } : {}),
 	});
 
