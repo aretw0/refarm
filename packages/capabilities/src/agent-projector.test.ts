@@ -53,13 +53,14 @@ describe("capabilityToolParameters — schema derivation", () => {
 				args: [
 					{ name: "line", type: "integer", required: true, description: "1-based line" },
 					{ name: "kind", type: "string", enum: ["note", "task"] },
-					{ name: "tags", type: "array", items: "string" },
+					{ name: "tags", type: "array", items: "string", description: "labels" },
 				],
 			}),
 		);
 		expect(schema.properties.line).toEqual({ type: "integer", description: "1-based line" });
 		expect(schema.properties.kind).toEqual({ type: "string", enum: ["note", "task"] });
-		expect(schema.properties.tags).toEqual({ type: "array", items: { type: "string" } });
+		// An ARRAY arg keeps its description too (the array branch appends the tail, not an early return).
+		expect(schema.properties.tags).toEqual({ type: "array", items: { type: "string" }, description: "labels" });
 		expect(schema.required).toEqual(["line"]);
 	});
 

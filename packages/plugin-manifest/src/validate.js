@@ -98,6 +98,11 @@ function validateVerbsBlock(verbs, manifestId, errors) {
 					);
 				} else {
 					const ARG_TYPES = ["string", "number", "integer", "boolean", "array"];
+					// `items` is the ELEMENT type of an array, so it is scalar-only — mirrors the CORE
+					// CapabilityArgSpec.items vocabulary (no "array"); an array-of-arrays would derive an
+					// under-specified inner array with no items.
+					const ITEM_TYPES = ["string", "number", "integer", "boolean"];
+					const argNames = [];
 					entry.args.forEach((arg, i) => {
 						const at = `capabilities.verbs.list["${verb}"].args[${i}]`;
 						if (typeof arg !== "object" || arg === null || Array.isArray(arg)) {
@@ -105,11 +110,15 @@ function validateVerbsBlock(verbs, manifestId, errors) {
 							return;
 						}
 						if (!isNonEmptyString(arg.name)) errors.push(`${at}.name must be a non-empty string`);
+						else argNames.push(arg.name);
 						if (arg.type !== undefined && !ARG_TYPES.includes(arg.type)) {
 							errors.push(`${at}.type must be one of ${ARG_TYPES.join("/")} when provided`);
 						}
-						if (arg.items !== undefined && !ARG_TYPES.includes(arg.items)) {
-							errors.push(`${at}.items must be one of ${ARG_TYPES.join("/")} when provided`);
+						if (arg.items !== undefined && !ITEM_TYPES.includes(arg.items)) {
+							errors.push(`${at}.items must be one of ${ITEM_TYPES.join("/")} when provided`);
+						}
+						if (arg.items !== undefined && arg.type !== "array") {
+							errors.push(`${at}.items is only valid when type is "array"`);
 						}
 						if (arg.required !== undefined && typeof arg.required !== "boolean") {
 							errors.push(`${at}.required must be a boolean when provided`);
@@ -118,6 +127,12 @@ function validateVerbsBlock(verbs, manifestId, errors) {
 							errors.push(`${at}.enum must be an array of strings when provided`);
 						}
 					});
+					// Arg names become the derived schema's property keys AND its `required` entries — a
+					// duplicate collapses one property (last wins) and emits a non-unique `required`, a
+					// malformed schema. Reject it, like every sibling list is de-dup-checked.
+					if (hasDuplicates(argNames)) {
+						errors.push(`capabilities.verbs.list["${verb}"].args must not contain duplicate arg names`);
+					}
 				}
 			}
 		}

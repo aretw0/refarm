@@ -513,6 +513,42 @@ describe("verbs authoring block (lowers to raw vocab)", () => {
 		);
 	});
 
+	it("rejects duplicate arg names in a verb (they would derive a malformed non-unique `required`)", () => {
+		const manifest = createMockManifest({
+			id: "@example/vault",
+			capabilities: {
+				requires: [],
+				verbs: { list: { search: { args: [{ name: "q", required: true }, { name: "q", type: "integer" }] } } },
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors.some((e) => e.includes("must not contain duplicate arg names"))).toBe(true);
+	});
+
+	it("rejects a non-scalar arg `items`, and `items` on a non-array arg", () => {
+		const manifest = createMockManifest({
+			id: "@example/vault",
+			capabilities: {
+				requires: [],
+				verbs: {
+					list: {
+						search: {
+							args: [
+								{ name: "a", type: "array", items: "array" },
+								{ name: "b", type: "string", items: "number" },
+							],
+						},
+					},
+				},
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors.some((e) => e.includes(".items must be one of string/number/integer/boolean"))).toBe(true);
+		expect(result.errors.some((e) => e.includes('.items is only valid when type is "array"'))).toBe(true);
+	});
+
 	it("requires a resolvable key (an unscoped id with no explicit key fails on a non-empty list)", () => {
 		// id without a "/" segment → pluginKeyFromId gives the whole id; but an empty id
 		// cannot resolve. Here we force the no-key path with an id that yields empty.

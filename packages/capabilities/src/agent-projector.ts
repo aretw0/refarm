@@ -108,11 +108,16 @@ function optionProperty(option: CapabilityOptionSpec): Record<string, unknown> {
  * mirrors the plugin manifest's `deriveVerbSchemaFromArgs`, so a descriptor arg and a manifest verb
  * arg with the same declaration produce the same tool-schema property. */
 function argProperty(arg: CapabilityArgSpec): Record<string, unknown> {
-	if (arg.variadic || arg.type === "array") {
-		return { type: "array", items: { type: arg.items ?? "string" } };
-	}
-	const property: Record<string, unknown> = { type: arg.type ?? "string" };
-	if (arg.description) property.description = arg.description;
+	// Build the base property (array or scalar), THEN append description/enum in one tail — so an
+	// array/variadic arg keeps its description + enum, byte-for-byte matching deriveVerbSchemaFromArgs
+	// (an early-return for the array branch would drop them, diverging from the manifest hosts). The
+	// `typeof === "string"` guard (not truthy) keeps an explicit empty description, as the JS/Rust
+	// derivations do.
+	const property: Record<string, unknown> =
+		arg.variadic || arg.type === "array"
+			? { type: "array", items: { type: arg.items ?? "string" } }
+			: { type: arg.type ?? "string" };
+	if (typeof arg.description === "string") property.description = arg.description;
 	if (arg.enum && arg.enum.length > 0) property.enum = [...arg.enum];
 	return property;
 }

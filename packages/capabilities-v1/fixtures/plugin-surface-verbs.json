@@ -23,6 +23,15 @@
 						"merge": {
 							"schema": { "type": "object", "properties": { "ids": { "type": "array", "items": { "type": "string" } } } },
 							"args": [{ "name": "ignored", "type": "string" }]
+						},
+						"locate": {
+							"doc": "Locate a symbol.",
+							"args": [
+								{ "name": "file", "type": "string", "required": true },
+								{ "name": "line", "type": "integer", "required": true },
+								{ "name": "column", "type": "integer", "required": true },
+								{ "name": "target_file", "type": "string", "required": true }
+							]
 						}
 					}
 				}
@@ -96,6 +105,25 @@
 			"surfaceName": "notes-index",
 			"doc": null,
 			"schema": null
+		},
+		{
+			"pluginId": "@local/notes",
+			"pluginKey": "notes",
+			"verb": "locate",
+			"target": "notes:locate",
+			"dispatchEvent": "notes:dispatch",
+			"surfaceName": "notes-locate",
+			"doc": "Locate a symbol.",
+			"schema": {
+				"type": "object",
+				"properties": {
+					"file": { "type": "string" },
+					"line": { "type": "integer" },
+					"column": { "type": "integer" },
+					"target_file": { "type": "string" }
+				},
+				"required": ["file", "line", "column", "target_file"]
+			}
 		},
 		{
 			"pluginId": "@local/notes",
