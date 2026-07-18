@@ -15,6 +15,7 @@ export * from "./stream-observer.js";
 export * from "./chat-composer.js";
 export * from "./chat-composer-bridge.js";
 export * from "./conversation-time.js";
+export * from "./conversation-transcript.js";
 export * from "./activity-web-live.js";
 export * from "./activity-web.js";
 export * from "./A11yGuard.js";

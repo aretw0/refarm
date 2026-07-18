@@ -8,14 +8,15 @@
 
 import {
 	COMPOSER_SUBMIT_ACTION_ID,
-	conversationDayKey,
-	conversationDayLabel,
-	conversationMessageTime,
+	conversationTranscriptStyles,
 	createBrowserComposerTransport,
 	createChatComposerActionBridge,
 	mountLiveActivityStream,
 	renderChatComposerHtml,
+	renderConversationTranscript,
 	type ComposerTurnHandle,
+	type ConversationMessage,
+	type ConversationSender,
 } from "@refarm.dev/homestead/sdk";
 
 /** Poll cadence + cap for reading back an effort result over the same-origin proxy. */
@@ -47,14 +48,20 @@ async function pollEffortResult(effortId: string, fetchImpl: typeof fetch): Prom
 	return "(timed out waiting for reply)";
 }
 
-/** A newline-safe text escape for injecting reply/prompt text into the transcript. */
-function escapeHtml(value: string): string {
-	return value
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
+/** The conversation participants: the operator (the viewer — their lines align right), the agent, and
+ * a system voice for lifecycle notices. Identities (not just roles) so the same transcript renders a
+ * person-to-person thread too. */
+const ME: ConversationSender = { id: "me", name: "Você", kind: "operator" };
+const AGENT: ConversationSender = { id: "agent", name: "Agente", kind: "agent" };
+const SYSTEM: ConversationSender = { id: "system", name: "sistema", kind: "system" };
+
+/** Inject the transcript's DS-token styles once per document. */
+function ensureTranscriptStyles(doc: Document): void {
+	if (doc.getElementById("refarm-me-chat-styles")) return;
+	const style = doc.createElement("style");
+	style.id = "refarm-me-chat-styles";
+	style.textContent = conversationTranscriptStyles();
+	doc.head.appendChild(style);
 }
 
 export interface MountRefarmMeChatOptions {
@@ -95,6 +102,7 @@ export function mountRefarmMeChat(options: MountRefarmMeChatOptions = {}): Refar
 		renderChatComposerHtml(),
 	].join("\n");
 	host.appendChild(root);
+	ensureTranscriptStyles(doc);
 
 	const activityNode = root.querySelector<HTMLElement>("[data-refarm-activity]")!;
 	const transcript = root.querySelector<HTMLElement>("[data-refarm-transcript]")!;
@@ -111,23 +119,14 @@ export function mountRefarmMeChat(options: MountRefarmMeChatOptions = {}): Refar
 	const transport = createBrowserComposerTransport({ fetchImpl });
 	let pending: ComposerTurnHandle | null = null;
 
-	// Messenger basics: a "Hoje"/"Ontem"/date separator when the day changes, and a per-message time.
-	let lastDayKey = "";
-	const appendTranscript = (who: string, text: string, cls: string) => {
-		const now = Date.now();
-		const dayKey = conversationDayKey(now);
-		if (dayKey !== lastDayKey) {
-			lastDayKey = dayKey;
-			const separator = doc.createElement("div");
-			separator.className = "refarm-me-chat-day";
-			separator.setAttribute("role", "separator");
-			separator.textContent = conversationDayLabel(now, { now });
-			transcript.appendChild(separator);
-		}
-		const line = doc.createElement("p");
-		line.className = `refarm-me-chat-line ${cls}`;
-		line.innerHTML = `<strong>${escapeHtml(who)}:</strong> ${escapeHtml(text)} <time class="refarm-me-chat-time">${escapeHtml(conversationMessageTime(now))}</time>`;
-		transcript.appendChild(line);
+	// The transcript is a RE-RENDER of the message list — day separators ("Hoje"/"Ontem"/date), the
+	// per-message time, and sender identity all come from the shared conversation substrate, so this
+	// is the same render a person-to-person thread would use.
+	const messages: ConversationMessage[] = [];
+	const pushMessage = (sender: ConversationSender, text: string) => {
+		messages.push({ sender, at: Date.now(), text });
+		transcript.innerHTML = renderConversationTranscript(messages, { now: Date.now(), selfId: ME.id });
+		transcript.scrollTop = transcript.scrollHeight;
 	};
 
 	const setPending = (on: boolean, effortId?: string) => {
@@ -147,18 +146,18 @@ export function mountRefarmMeChat(options: MountRefarmMeChatOptions = {}): Refar
 			pending = handle;
 			setPending(true, handle.effortId);
 			void pollEffortResult(handle.effortId, fetchImpl).then((reply) => {
-				appendTranscript("agent", reply, "refarm-me-chat-agent");
+				pushMessage(AGENT, reply);
 				pending = null;
 				setPending(false);
 			});
 		},
 		onCancelled: () => {
-			appendTranscript("system", "turn cancelled", "refarm-me-chat-system");
+			pushMessage(SYSTEM, "turno cancelado");
 			pending = null;
 			setPending(false);
 		},
 		onError: (error) => {
-			appendTranscript("system", `error: ${String(error)}`, "refarm-me-chat-system");
+			pushMessage(SYSTEM, `erro: ${String(error)}`);
 			pending = null;
 			setPending(false);
 		},
@@ -168,7 +167,7 @@ export function mountRefarmMeChat(options: MountRefarmMeChatOptions = {}): Refar
 		event.preventDefault();
 		const prompt = textarea.value.trim();
 		if (!prompt || pending) return;
-		appendTranscript("you", prompt, "refarm-me-chat-you");
+		pushMessage(ME, prompt);
 		textarea.value = "";
 		void bridge({ action: { id: COMPOSER_SUBMIT_ACTION_ID, payload: { prompt } } });
 	});
