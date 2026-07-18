@@ -10,41 +10,29 @@
       "list": {
         "find-references": {
           "doc": "Find all references to a symbol at a source location (file, line, column) via the language server. Returns each reference's file/line/column/kind. Prefer this over text search for accurate symbol references.",
-          "schema": {
-            "type": "object",
-            "properties": {
-              "file": { "type": "string", "description": "Source file path" },
-              "line": { "type": "integer", "description": "1-based line of the symbol" },
-              "column": { "type": "integer", "description": "1-based column of the symbol" }
-            },
-            "required": ["file", "line", "column"]
-          }
+          "args": [
+            { "name": "file", "type": "string", "required": true, "description": "Source file path" },
+            { "name": "line", "type": "integer", "required": true, "description": "1-based line of the symbol" },
+            { "name": "column", "type": "integer", "required": true, "description": "1-based column of the symbol" }
+          ]
         },
         "rename-symbol": {
           "doc": "Rename a symbol at a source location across the entire project via the language server (workspace rename). Returns files-changed and edit count. Prefer this over manual find-and-replace for correctness.",
-          "schema": {
-            "type": "object",
-            "properties": {
-              "file": { "type": "string", "description": "Source file path" },
-              "line": { "type": "integer", "description": "1-based line of the symbol" },
-              "column": { "type": "integer", "description": "1-based column of the symbol" },
-              "new_name": { "type": "string", "description": "The new symbol name" }
-            },
-            "required": ["file", "line", "column", "new_name"]
-          }
+          "args": [
+            { "name": "file", "type": "string", "required": true, "description": "Source file path" },
+            { "name": "line", "type": "integer", "required": true, "description": "1-based line of the symbol" },
+            { "name": "column", "type": "integer", "required": true, "description": "1-based column of the symbol" },
+            { "name": "new_name", "type": "string", "required": true, "description": "The new symbol name" }
+          ]
         },
         "move-symbol": {
           "doc": "Move a top-level item at a source location to another file via the language server (workspace edit). Returns files-changed and edit count. Move is server-dependent — a language server that does not implement it returns an error. Prefer this over cut-and-paste for correctness.",
-          "schema": {
-            "type": "object",
-            "properties": {
-              "file": { "type": "string", "description": "Source file path" },
-              "line": { "type": "integer", "description": "1-based line of the symbol" },
-              "column": { "type": "integer", "description": "1-based column of the symbol" },
-              "target_file": { "type": "string", "description": "Destination file path" }
-            },
-            "required": ["file", "line", "column", "target_file"]
-          }
+          "args": [
+            { "name": "file", "type": "string", "required": true, "description": "Source file path" },
+            { "name": "line", "type": "integer", "required": true, "description": "1-based line of the symbol" },
+            { "name": "column", "type": "integer", "required": true, "description": "1-based column of the symbol" },
+            { "name": "target_file", "type": "string", "required": true, "description": "Destination file path" }
+          ]
         }
       }
     }
