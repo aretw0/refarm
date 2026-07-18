@@ -546,13 +546,16 @@ jobs:
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_heavy_gates == 'true' && steps.tractor_heavy_cache.outputs.cache-hit == 'true'
         run: echo "::notice::Reusing previous successful Tractor benchmark/coverage validation for unchanged heavy inputs."
 
+      # --continue: run ALL tasks even after one fails, so a cache-invalidation that surfaces several
+      # latent failures reports them in ONE run instead of one-per-push (the "cache roulette"). The gate
+      # still fails if any task fails; it just no longer stops at the first.
       - name: Verify (Full Turbo)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
-        run: pnpm turbo run build web:build lint type-check test test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo --output-logs=new-only --ui=stream
+        run: pnpm turbo run build web:build lint type-check test test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo --output-logs=new-only --ui=stream --continue
 
       - name: Verify (Full Turbo fallback)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter == ''
-        run: pnpm turbo run build web:build lint type-check test test:coverage test:unit test:integration --cache-dir=.turbo --output-logs=new-only --ui=stream
+        run: pnpm turbo run build web:build lint type-check test test:coverage test:unit test:integration --cache-dir=.turbo --output-logs=new-only --ui=stream --continue
 
       - name: Verify (Full Turbo) skipped
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes != 'true'
