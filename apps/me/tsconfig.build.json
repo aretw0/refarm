@@ -10,6 +10,9 @@
       "@refarm.dev/homestead/sdk/plugin-handle": [
         "../../packages/homestead/dist/sdk/plugin-handle.d.ts"
       ],
+      "@refarm.dev/homestead/sdk/register-surfaces": [
+        "../../packages/homestead/dist/sdk/register-surfaces.d.ts"
+      ],
       "@refarm.dev/homestead/sdk/runtime": [
         "../../packages/homestead/dist/sdk/runtime.d.ts"
       ],

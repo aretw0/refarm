@@ -4,8 +4,8 @@ import {
 	bootStudioRuntime,
 	type BootStudioRuntimeOptions,
 } from "@refarm.dev/homestead/sdk/runtime";
+import { registerSurfacePlugins } from "@refarm.dev/homestead/sdk/register-surfaces";
 import type { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
-import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 import {
 	installRefarmMeContentPlugins,
 	type RefarmMeContentPluginInstallInput,
@@ -20,7 +20,6 @@ import {
 	REFARM_ME_IDENTITY_STATUS,
 	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
 	REFARM_ME_SYNC_STATUS,
-	type RefarmMeSurfaceTelemetry,
 } from "./me-surfaces";
 
 export const REFARM_ME_LOADING_ID = "loading-overlay";
@@ -151,7 +150,10 @@ export async function bootRefarmMeWorkbench(
 		)
 	).map((plugin) => plugin.pluginId);
 
-	const surfacePluginIds = registerRefarmMeSurfacePlugins(
+	// The surface-registration phase is the framework's (registerSurfacePlugins) — apps/me can't use
+	// the atomic bootCapabilityWebShell because it installs content plugins (above) BETWEEN the runtime
+	// boot and this registration, but it shares the register phase so the loop isn't copied here.
+	const surfacePluginIds = registerSurfacePlugins(
 		tractor,
 		options.createSurfacePlugins ?? createRefarmMeSurfacePlugins,
 	);
@@ -423,19 +425,6 @@ export function renderRefarmMeBootFailure(
 	wrapper.appendChild(message);
 
 	loading.replaceChildren(wrapper);
-}
-
-function registerRefarmMeSurfacePlugins(
-	tractor: RefarmMeTractor,
-	createSurfacePlugins: typeof createRefarmMeSurfacePlugins,
-): string[] {
-	const emitTelemetry: RefarmMeSurfaceTelemetry = (pluginId, event, payload) =>
-		tractor.emitTelemetry({ event, payload, pluginId });
-	const plugins = createSurfacePlugins(emitTelemetry);
-	for (const plugin of plugins) {
-		tractor.plugins.registerInternal(plugin as RuntimePluginHandle);
-	}
-	return plugins.map((plugin) => plugin.id);
 }
 
 function emitRefarmMeBrowserSyncTelemetry(

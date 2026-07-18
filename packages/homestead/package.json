@@ -24,6 +24,10 @@
 			"types": "./dist/sdk/boot-web-shell.d.ts",
 			"import": "./dist/sdk/boot-web-shell.js"
 		},
+		"./sdk/register-surfaces": {
+			"types": "./dist/sdk/register-surfaces.d.ts",
+			"import": "./dist/sdk/register-surfaces.js"
+		},
 		"./sdk/host-renderer": {
 			"types": "./dist/sdk/host-renderer.d.ts",
 			"import": "./dist/sdk/host-renderer.js"

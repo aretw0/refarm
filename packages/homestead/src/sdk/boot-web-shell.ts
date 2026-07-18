@@ -1,5 +1,3 @@
-import type { RuntimePluginHandle } from "@refarm.dev/runtime";
-
 import { bootStudioRuntime, type BootStudioRuntimeOptions, type StudioRuntime } from "./runtime.js";
 import { setupStudioShell, type StudioShell } from "./Shell.js";
 import type {
@@ -7,6 +5,7 @@ import type {
 	HomesteadSurfaceRenderContextProvider,
 	HomesteadSurfaceRenderHostContext,
 } from "./surface-renderer.js";
+import { registerSurfacePlugins, type SurfacePluginSource } from "./register-surfaces.js";
 
 /**
  * The ONE call that boots a Homestead web shell and mounts capability surfaces — the boot
@@ -44,9 +43,7 @@ export interface BootCapabilityWebShellOptions {
 	 * handle. Accepts an array so an app can mount several panels. A factory form receives a
 	 * telemetry emitter so surfaces can report `ui:*` events through the runtime.
 	 */
-	surfaces:
-		| RuntimePluginHandle[]
-		| ((emitTelemetry: (pluginId: string, event: string, payload?: unknown) => void) => RuntimePluginHandle[]);
+	surfaces: SurfacePluginSource;
 	/**
 	 * Per-render host context — where the app puts a verb's structured result (`host.data`)
 	 * and its actions (`host.actions`) for the surface to render. Accepts EITHER a provider
@@ -105,15 +102,7 @@ export async function bootCapabilityWebShell(
 		...(options.envMetadata ? { envMetadata: options.envMetadata } : {}),
 	});
 
-	const emitTelemetry = (pluginId: string, event: string, payload?: unknown): void => {
-		runtime.tractor.emitTelemetry({ event, payload, pluginId });
-	};
-	const surfaces =
-		typeof options.surfaces === "function" ? options.surfaces(emitTelemetry) : options.surfaces;
-
-	for (const surface of surfaces) {
-		runtime.tractor.plugins.registerInternal(surface);
-	}
+	const surfacePluginIds = registerSurfacePlugins(runtime.tractor, options.surfaces);
 
 	// Accept a static context object as well as a provider: wrap the object so the shell
 	// always gets a function. For a static object, merge `hostData` into its `data` so the
@@ -143,6 +132,6 @@ export async function bootCapabilityWebShell(
 	return {
 		runtime,
 		shell,
-		surfacePluginIds: surfaces.map((surface) => surface.id),
+		surfacePluginIds,
 	};
 }

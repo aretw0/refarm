@@ -22,6 +22,10 @@ export function coreAstroAliases(root) {
 			root,
 			"packages/homestead/src/sdk/plugin-handle.ts",
 		),
+		"@refarm.dev/homestead/sdk/register-surfaces": path.resolve(
+			root,
+			"packages/homestead/src/sdk/register-surfaces.ts",
+		),
 		"@refarm.dev/homestead/sdk/runtime": path.resolve(
 			root,
 			"packages/homestead/src/sdk/runtime.ts",
