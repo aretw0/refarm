@@ -172,7 +172,10 @@ export function createCodeOpsCapability(): CapabilityDescriptor {
 	return {
 		name: "code-ops",
 		summary: "Run rename / find-references / move-symbol through the sandboxed lsp-code-ops plugin (an editor extension)",
-		args: [{ name: "verb", required: true }],
+		// `verb` is a closed set (run() rejects anything else) — declaring the enum surfaces the three
+		// choices to the agent tool schema (the model picks one, not a free string) and the web form
+		// (a <select>, not a text box you must know the magic strings for).
+		args: [{ name: "verb", required: true, enum: ["find-references", "rename-symbol", "move-symbol"] }],
 		options: [
 			{ name: "file", kind: "string", summary: "The source file the symbol is in" },
 			{ name: "line", kind: "string", summary: "1-based line of the symbol" },
