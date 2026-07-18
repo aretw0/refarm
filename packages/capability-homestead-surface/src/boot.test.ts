@@ -2,7 +2,7 @@
 import type { CapabilityRegistry } from "@refarm.dev/capabilities";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { bootCapabilityWebFace } from "./boot.js";
+import { bootCapabilityWebFace, mountCapabilityWebView } from "./boot.js";
 
 /** The registered-plugin shape the mock tractor stores — just an id-bearing handle. */
 type RegisteredPlugin = { id: string };
@@ -410,5 +410,144 @@ describe("bootCapabilityWebFace — runs the verb, mounts the surface, renders c
 		expect(region?.getAttribute("data-refarm-action-verb")).toBe("ping");
 		expect(region?.getAttribute("data-refarm-action-ok")).toBe("false");
 		expect(region?.textContent).toContain("runtime unreachable");
+	});
+});
+
+/** A registry with one verb returning `payload`, and a way to see how many times it ran. */
+function viewRegistry(payload: unknown): { registry: CapabilityRegistry; runCalls: () => number } {
+	let runCalls = 0;
+	const descriptor = {
+		name: "view",
+		renderers: { web: { route: "/view" } },
+		run: async () => {
+			runCalls += 1;
+			return payload;
+		},
+	};
+	const registry = {
+		get: (name: string) => (name === "view" ? descriptor : undefined),
+		list: () => [{ name: "view" }],
+	} as unknown as CapabilityRegistry;
+	return { registry, runCalls: () => runCalls };
+}
+
+describe("mountCapabilityWebView — custom substrate view, framework-owned loading lifecycle", () => {
+	beforeEach(() => {
+		document.body.innerHTML = `<div id="loading-overlay">carregando…</div><div id="view-mount"></div>`;
+		vi.spyOn(console, "error").mockImplementation(() => {});
+	});
+	afterEach(() => {
+		vi.restoreAllMocks();
+		document.body.innerHTML = "";
+	});
+
+	it("runs the content verb, hands its result to render, and removes the overlay", async () => {
+		const holder = viewRegistry({ items: ["a", "b"] });
+		let seen: unknown;
+		await mountCapabilityWebView<{ items: string[] }>({
+			namespace: "test",
+			registry: holder.registry,
+			content: { verb: "view" },
+			view: {
+				mount: "view-mount",
+				render: ({ result, mount }) => {
+					seen = result;
+					mount.innerHTML = `<ul data-items>${result.items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
+				},
+			},
+		});
+		expect(holder.runCalls()).toBe(1);
+		expect(seen).toEqual({ items: ["a", "b"] });
+		expect(document.querySelector("[data-items]")?.textContent).toBe("ab");
+		expect(document.getElementById("loading-overlay")).toBeNull(); // overlay removed on success
+	});
+
+	it("paints emptyHtml and SKIPS render when isEmpty(result) is true — a graceful empty state, overlay still cleared", async () => {
+		const holder = viewRegistry({ items: [] });
+		let rendered = false;
+		await mountCapabilityWebView<{ items: string[] }>({
+			namespace: "test",
+			registry: holder.registry,
+			content: { verb: "view" },
+			view: {
+				mount: "view-mount",
+				isEmpty: (r) => r.items.length === 0,
+				emptyHtml: `<p data-empty>Nada ainda</p>`,
+				render: () => {
+					rendered = true;
+				},
+			},
+		});
+		expect(rendered).toBe(false); // render skipped
+		expect(document.querySelector("[data-empty]")?.textContent).toBe("Nada ainda");
+		expect(document.getElementById("loading-overlay")).toBeNull(); // empty is not an error → overlay cleared
+	});
+
+	it("with NO content verb, render gets result=undefined + the registry (a live journey view)", async () => {
+		const holder = viewRegistry({ never: "run" });
+		let ctxRegistry: unknown;
+		let ctxResult: unknown = "sentinel";
+		await mountCapabilityWebView({
+			namespace: "test",
+			registry: holder.registry,
+			view: {
+				mount: "view-mount",
+				render: ({ result, registry, mount }) => {
+					ctxResult = result;
+					ctxRegistry = registry;
+					mount.innerHTML = `<div data-journey>mounted</div>`;
+				},
+			},
+		});
+		expect(holder.runCalls()).toBe(0); // no content verb ran
+		expect(ctxResult).toBeUndefined();
+		expect(ctxRegistry).toBe(holder.registry);
+		expect(document.querySelector("[data-journey]")).not.toBeNull();
+		expect(document.getElementById("loading-overlay")).toBeNull();
+	});
+
+	it("paints the error into the overlay when the mount element is missing (never a silent blank)", async () => {
+		const holder = viewRegistry({ items: [] });
+		await mountCapabilityWebView({
+			namespace: "test",
+			registry: holder.registry,
+			errorLabel: "Falha ao abrir a visão",
+			view: { mount: "does-not-exist", render: () => {} },
+		});
+		const overlay = document.getElementById("loading-overlay");
+		expect(overlay).not.toBeNull(); // overlay is KEPT on failure, now showing the error
+		expect(overlay?.textContent).toContain("Falha ao abrir a visão");
+		expect(overlay?.textContent).toContain("does-not-exist");
+	});
+
+	it("paints the error into the overlay when render throws (the boot crash is visible)", async () => {
+		const holder = viewRegistry({ items: ["x"] });
+		await mountCapabilityWebView({
+			namespace: "test",
+			registry: holder.registry,
+			errorLabel: "Falha ao abrir a visão",
+			content: { verb: "view" },
+			view: {
+				mount: "view-mount",
+				render: () => {
+					throw new Error("render blew up");
+				},
+			},
+		});
+		const overlay = document.getElementById("loading-overlay");
+		expect(overlay?.textContent).toContain("Falha ao abrir a visão");
+		expect(overlay?.textContent).toContain("render blew up");
+	});
+
+	it("throws (→ overlay error) when the content verb is not in the registry", async () => {
+		const holder = viewRegistry({ items: [] });
+		await mountCapabilityWebView({
+			namespace: "test",
+			registry: holder.registry,
+			content: { verb: "missing" },
+			view: { mount: "view-mount", render: () => {} },
+		});
+		const overlay = document.getElementById("loading-overlay");
+		expect(overlay?.textContent).toContain("missing verb not found in the registry");
 	});
 });

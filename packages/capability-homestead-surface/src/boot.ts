@@ -241,6 +241,39 @@ export interface MountCapabilityWebFaceOptions extends BootCapabilityWebFaceOpti
 	errorLabel?: string;
 }
 
+/** Options every overlay-owning mount shares — the page's loading lifecycle knobs. */
+interface LoadingOverlayOptions {
+	/** Namespace, used to prefix the console error on a boot crash. */
+	namespace: string;
+	/** The loading-overlay element id to remove once the face boots (default "loading-overlay"). */
+	overlayId?: string;
+	/** Prefix for the console error + the overlay's failure message (e.g. "Falha ao abrir a busca").
+	 * Given a page's own language, so the overlay reads naturally on failure. */
+	errorLabel?: string;
+}
+
+/**
+ * Own the page's loading overlay around a boot `body`: remove the `#loading-overlay` on success,
+ * and on failure log + paint the error into that overlay (so a boot crash is never a blank spinner).
+ * The single lifecycle both `mountCapabilityWebFace` (card panel) and `mountCapabilityWebView`
+ * (custom substrate view) share — a face author gets overlay-removal + error-painting for free
+ * whichever mount they pick, and the two mounts cannot drift on how a boot failure looks.
+ */
+async function withLoadingOverlay(options: LoadingOverlayOptions, body: () => Promise<void>): Promise<void> {
+	const overlayId = options.overlayId ?? "loading-overlay";
+	const errorLabel = options.errorLabel ?? "Falha ao abrir";
+	const overlay = typeof document !== "undefined" ? document.getElementById(overlayId) : null;
+	try {
+		await body();
+		overlay?.remove();
+	} catch (error) {
+		console.error(`[${options.namespace}] web face boot failed`, error);
+		if (overlay) {
+			overlay.textContent = `${errorLabel}: ${error instanceof Error ? error.message : String(error)}`;
+		}
+	}
+}
+
 /**
  * Boot a capability web face AND own the page's loading lifecycle — the whole example boot.ts, in
  * one call. It removes the `#loading-overlay` on success and, on failure, logs + paints the error
@@ -251,16 +284,78 @@ export interface MountCapabilityWebFaceOptions extends BootCapabilityWebFaceOpti
  * boot boilerplate that could drift. Runs in the BROWSER; call it from an Astro page's <script>.
  */
 export async function mountCapabilityWebFace(options: MountCapabilityWebFaceOptions): Promise<void> {
-	const overlayId = options.overlayId ?? "loading-overlay";
-	const errorLabel = options.errorLabel ?? "Falha ao abrir";
-	const overlay = typeof document !== "undefined" ? document.getElementById(overlayId) : null;
-	try {
+	await withLoadingOverlay(options, async () => {
 		await bootCapabilityWebFace(options);
-		overlay?.remove();
-	} catch (error) {
-		console.error(`[${options.namespace}] web face boot failed`, error);
-		if (overlay) {
-			overlay.textContent = `${errorLabel}: ${error instanceof Error ? error.message : String(error)}`;
+	});
+}
+
+/** How a custom-view face renders its verb result into a mount element (the substrate view). */
+export interface CapabilityWebView<TResult = Record<string, unknown>> {
+	/** The element id to render the view into (e.g. "graph-mount", "lab-mount"). */
+	mount: string;
+	/** Render the (non-empty) content into the mount. `result` is the content verb's result, or
+	 * `undefined` when no `content` verb is declared (a view that reads the registry itself, e.g. a
+	 * live journey). Runs in the browser; may be async (mounting an interactive substrate). */
+	render: (context: { result: TResult; mount: HTMLElement; registry: CapabilityRegistry }) => void | Promise<void>;
+	/** True when the content result is "empty" → paint `emptyHtml` into the mount INSTEAD of render
+	 * (e.g. no requirements pulled yet). Only consulted when a `content` verb ran. */
+	isEmpty?: (result: TResult) => boolean;
+	/** HTML painted into the mount when `isEmpty(result)` is true — the graceful empty state. */
+	emptyHtml?: string;
+}
+
+export interface MountCapabilityWebViewOptions<TResult = Record<string, unknown>> extends LoadingOverlayOptions {
+	/** The browser-safe capability registry whose verb produces the view's data. */
+	registry: CapabilityRegistry;
+	/** Run this verb for the view's content, then hand its result to `view.render`. Omit for a view
+	 * that reads the registry itself (render gets `result: undefined` + the registry). */
+	content?: CapabilityWebFaceContent;
+	/** The custom substrate view — where the result lands and how it renders. */
+	view: CapabilityWebView<TResult>;
+}
+
+/**
+ * Mount a capability web face whose body is a CUSTOM substrate view rather than the capability card
+ * panel — an interactive graph, a lab gallery, a live consent journey. It owns the SAME loading
+ * lifecycle as `mountCapabilityWebFace` (overlay removal + error painting via {@link withLoadingOverlay}),
+ * plus the "run one verb → guard empty → render into a mount element" shape those faces all hand-rolled:
+ *
+ *   await mountCapabilityWebView({
+ *     namespace: "reqbench-t3",
+ *     registry: createGraphWebRegistry(),
+ *     content: { verb: "requirements-graph" },
+ *     view: {
+ *       mount: "graph-mount",
+ *       isEmpty: (r) => !r.graph || r.graph.nodes.length === 0,
+ *       emptyHtml: `<p class="refarm-muted">Nenhum requisito ainda…</p>`,
+ *       render: ({ result, mount }) => mountGraph(mount, result.graph, { … }),
+ *     },
+ *   });
+ *
+ * The example writes no overlay try/catch, no registry-run boilerplate, no missing-mount guard — only
+ * the substrate render. A verb result that `isEmpty` paints `emptyHtml` and still clears the overlay
+ * (a graceful empty state, not an error). Runs in the BROWSER; call it from an Astro page's <script>.
+ */
+export async function mountCapabilityWebView<TResult = Record<string, unknown>>(
+	options: MountCapabilityWebViewOptions<TResult>,
+): Promise<void> {
+	await withLoadingOverlay(options, async () => {
+		const mount = typeof document !== "undefined" ? document.getElementById(options.view.mount) : null;
+		if (!mount) throw new Error(`no #${options.view.mount} element to mount the view into`);
+
+		let result = undefined as TResult;
+		if (options.content) {
+			const entry = options.registry.get(options.content.verb);
+			if (!entry || !("run" in entry) || typeof entry.run !== "function") {
+				throw new Error(`${options.content.verb} verb not found in the registry`);
+			}
+			const input: CapabilityInput = options.content.input ?? { args: {}, options: {}, json: true };
+			result = (await entry.run(input)) as unknown as TResult;
+			if (options.view.isEmpty?.(result)) {
+				mount.innerHTML = options.view.emptyHtml ?? "";
+				return;
+			}
 		}
-	}
+		await options.view.render({ result, mount, registry: options.registry });
+	});
 }
