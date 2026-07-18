@@ -586,6 +586,27 @@ pub(crate) struct RuntimePluginCapabilities {
     verbs: Option<RuntimeVerbsBlock>,
 }
 
+/// A typed argument for a verb — the ergonomic alternative to a hand-authored `schema`. Mirrors JS
+/// `PluginVerbArg`. When a verb declares `args` and no explicit `schema`, the schema is DERIVED.
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+struct RuntimeVerbArg {
+    /// The argument name — the JSON-Schema property key.
+    name: String,
+    /// JSON-Schema scalar type (default "string"). "array" → a list whose element type is `items`.
+    #[serde(rename = "type")]
+    ty: Option<String>,
+    /// Marks the arg required in the derived schema's `required`.
+    #[serde(default)]
+    required: bool,
+    /// Allowed values (a string enum) → the property's `enum`.
+    #[serde(rename = "enum")]
+    enum_values: Option<Vec<String>>,
+    /// One-line description → the property's `description`.
+    description: Option<String>,
+    /// Element type when `type: "array"` (default "string").
+    items: Option<String>,
+}
+
 /// One verb's entry in the `verbs` block: WHERE it goes (flags) + its per-verb metadata,
 /// keyed by the SHORT verb name. Mirrors JS `PluginVerbEntry`.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -597,8 +618,52 @@ struct RuntimeVerbEntry {
     subscribes: bool,
     /// Per-verb prose → verbDocs["<key>:<verb>"].
     doc: Option<String>,
-    /// Per-verb JSON-Schema → verbSchemas["<key>:<verb>"].
+    /// Per-verb JSON-Schema → verbSchemas["<key>:<verb>"]. Wins over `args` (the escape hatch).
     schema: Option<serde_json::Value>,
+    /// Typed args → DERIVED into verbSchemas when no explicit `schema` is given.
+    args: Option<Vec<RuntimeVerbArg>>,
+}
+
+/// Derive a verb's JSON-Schema from its typed `args` — the Rust mirror of JS
+/// `deriveVerbSchemaFromArgs`, kept identical (property order is irrelevant — both hosts compare
+/// parsed JSON, asserted by the shared conformance fixture — but the `required` array is in
+/// declaration order on both sides). Used when a verb declares `args` and no explicit `schema`.
+fn derive_verb_schema_from_args(args: &[RuntimeVerbArg]) -> serde_json::Value {
+    let mut properties = serde_json::Map::new();
+    let mut required: Vec<serde_json::Value> = Vec::new();
+    for arg in args {
+        if arg.name.is_empty() {
+            continue;
+        }
+        let ty = arg.ty.as_deref().unwrap_or("string");
+        let mut property = serde_json::Map::new();
+        if ty == "array" {
+            let items_ty = arg.items.as_deref().unwrap_or("string");
+            property.insert("type".to_string(), serde_json::json!("array"));
+            property.insert("items".to_string(), serde_json::json!({ "type": items_ty }));
+        } else {
+            property.insert("type".to_string(), serde_json::json!(ty));
+        }
+        if let Some(desc) = &arg.description {
+            property.insert("description".to_string(), serde_json::json!(desc));
+        }
+        if let Some(values) = &arg.enum_values {
+            if !values.is_empty() {
+                property.insert("enum".to_string(), serde_json::json!(values));
+            }
+        }
+        properties.insert(arg.name.clone(), serde_json::Value::Object(property));
+        if arg.required {
+            required.push(serde_json::json!(arg.name));
+        }
+    }
+    let mut schema = serde_json::Map::new();
+    schema.insert("type".to_string(), serde_json::json!("object"));
+    schema.insert("properties".to_string(), serde_json::Value::Object(properties));
+    if !required.is_empty() {
+        schema.insert("required".to_string(), serde_json::Value::Array(required));
+    }
+    serde_json::Value::Object(schema)
 }
 
 /// The `verbs` authoring block. Mirrors JS `PluginVerbsBlock`. A non-empty block always
@@ -669,8 +734,13 @@ pub(crate) fn capability_profile_from_manifest(
             if let Some(doc) = &entry.doc {
                 verb_docs.insert(target.clone(), doc.clone());
             }
+            // An explicit `schema` WINS (the escape hatch); else derive it from typed `args`.
             if let Some(schema) = &entry.schema {
                 verb_schemas.insert(target.clone(), schema.clone());
+            } else if let Some(args) = &entry.args {
+                if !args.is_empty() {
+                    verb_schemas.insert(target.clone(), derive_verb_schema_from_args(args));
+                }
             }
         }
         // A non-empty block IS a dispatchable surface — derive the <key>:dispatch routing

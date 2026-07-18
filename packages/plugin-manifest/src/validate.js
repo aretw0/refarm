@@ -91,6 +91,35 @@ function validateVerbsBlock(verbs, manifestId, errors) {
 					`capabilities.verbs.list["${verb}"].schema must be a JSON-Schema object when provided`,
 				);
 			}
+			if (entry.args !== undefined) {
+				if (!Array.isArray(entry.args)) {
+					errors.push(
+						`capabilities.verbs.list["${verb}"].args must be an array of typed args when provided`,
+					);
+				} else {
+					const ARG_TYPES = ["string", "number", "integer", "boolean", "array"];
+					entry.args.forEach((arg, i) => {
+						const at = `capabilities.verbs.list["${verb}"].args[${i}]`;
+						if (typeof arg !== "object" || arg === null || Array.isArray(arg)) {
+							errors.push(`${at} must be an object`);
+							return;
+						}
+						if (!isNonEmptyString(arg.name)) errors.push(`${at}.name must be a non-empty string`);
+						if (arg.type !== undefined && !ARG_TYPES.includes(arg.type)) {
+							errors.push(`${at}.type must be one of ${ARG_TYPES.join("/")} when provided`);
+						}
+						if (arg.items !== undefined && !ARG_TYPES.includes(arg.items)) {
+							errors.push(`${at}.items must be one of ${ARG_TYPES.join("/")} when provided`);
+						}
+						if (arg.required !== undefined && typeof arg.required !== "boolean") {
+							errors.push(`${at}.required must be a boolean when provided`);
+						}
+						if (arg.enum !== undefined && (!Array.isArray(arg.enum) || arg.enum.some((v) => typeof v !== "string"))) {
+							errors.push(`${at}.enum must be an array of strings when provided`);
+						}
+					});
+				}
+			}
 		}
 	}
 }

@@ -10,7 +10,20 @@
 							"doc": "Look up a note by title.",
 							"schema": { "type": "object", "properties": { "title": { "type": "string" } } }
 						},
-						"index": {}
+						"index": {},
+						"find": {
+							"doc": "Find notes by text.",
+							"args": [
+								{ "name": "query", "type": "string", "required": true },
+								{ "name": "limit", "type": "integer" },
+								{ "name": "kind", "type": "string", "enum": ["note", "task"] },
+								{ "name": "tags", "type": "array" }
+							]
+						},
+						"merge": {
+							"schema": { "type": "object", "properties": { "ids": { "type": "array", "items": { "type": "string" } } } },
+							"args": [{ "name": "ignored", "type": "string" }]
+						}
 					}
 				}
 			}
@@ -58,6 +71,25 @@
 		{
 			"pluginId": "@local/notes",
 			"pluginKey": "notes",
+			"verb": "find",
+			"target": "notes:find",
+			"dispatchEvent": "notes:dispatch",
+			"surfaceName": "notes-find",
+			"doc": "Find notes by text.",
+			"schema": {
+				"type": "object",
+				"properties": {
+					"query": { "type": "string" },
+					"limit": { "type": "integer" },
+					"kind": { "type": "string", "enum": ["note", "task"] },
+					"tags": { "type": "array", "items": { "type": "string" } }
+				},
+				"required": ["query"]
+			}
+		},
+		{
+			"pluginId": "@local/notes",
+			"pluginKey": "notes",
 			"verb": "index",
 			"target": "notes:index",
 			"dispatchEvent": "notes:dispatch",
@@ -74,6 +106,16 @@
 			"surfaceName": "notes-lookup",
 			"doc": "Look up a note by title.",
 			"schema": { "type": "object", "properties": { "title": { "type": "string" } } }
+		},
+		{
+			"pluginId": "@local/notes",
+			"pluginKey": "notes",
+			"verb": "merge",
+			"target": "notes:merge",
+			"dispatchEvent": "notes:dispatch",
+			"surfaceName": "notes-merge",
+			"doc": null,
+			"schema": { "type": "object", "properties": { "ids": { "type": "array", "items": { "type": "string" } } } }
 		},
 		{
 			"pluginId": "@local/vault",

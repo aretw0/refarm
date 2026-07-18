@@ -27,6 +27,35 @@ function qualify(key, verb) {
 }
 
 /**
+ * Derive a verb's JSON-Schema from its typed `args` — the ergonomic alternative to a hand-authored
+ * `schema`. Each arg becomes a property (`type`, `items` for arrays, `description`, `enum`); a
+ * `required: true` arg lands in the schema's `required`, in DECLARATION order. Skips a malformed arg
+ * (no string `name`). Mirrored byte-for-byte by the Rust host (`derive_verb_schema_from_args`) and
+ * asserted by the shared plugin-surface-verbs conformance fixture, so the two hosts can never derive
+ * a different schema. (Property order is irrelevant — both sides compare parsed JSON, not text — but
+ * `required` is an array, so its order must match: declaration order on both sides.)
+ */
+function deriveVerbSchemaFromArgs(args) {
+	const properties = {};
+	const required = [];
+	for (const arg of args) {
+		if (!arg || typeof arg.name !== "string" || arg.name.length === 0) continue;
+		const type = typeof arg.type === "string" ? arg.type : "string";
+		const property =
+			type === "array"
+				? { type: "array", items: { type: typeof arg.items === "string" ? arg.items : "string" } }
+				: { type };
+		if (typeof arg.description === "string") property.description = arg.description;
+		if (Array.isArray(arg.enum) && arg.enum.length > 0) property.enum = [...arg.enum];
+		properties[arg.name] = property;
+		if (arg.required === true) required.push(arg.name);
+	}
+	const schema = { type: "object", properties };
+	if (required.length > 0) schema.required = required;
+	return schema;
+}
+
+/**
  * The routing key inferred from a plugin id: the LAST path segment, scope-stripped —
  * `@scope/vault → vault`, `plain-id → plain-id`. This is the canonical key convention
  * the hosts already use (plugin_registry: "the last path segment"). Used as the DEFAULT
@@ -102,7 +131,12 @@ export function normalizeCapabilities(capabilities, id) {
 		if (s.provides !== false) pushUnique(provides, target);
 		if (s.subscribes === true) pushUnique(subscribes, target);
 		if (typeof s.doc === "string") verbDocs[target] = s.doc;
-		if (s.schema && typeof s.schema === "object") verbSchemas[target] = s.schema;
+		// An explicit hand-authored `schema` WINS (the escape hatch); else derive it from typed `args`.
+		if (s.schema && typeof s.schema === "object") {
+			verbSchemas[target] = s.schema;
+		} else if (Array.isArray(s.args) && s.args.length > 0) {
+			verbSchemas[target] = deriveVerbSchemaFromArgs(s.args);
+		}
 	}
 
 	// A non-empty verbs block IS a dispatchable surface — derive the `<key>:dispatch`

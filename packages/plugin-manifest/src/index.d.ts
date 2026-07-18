@@ -107,8 +107,28 @@ export interface PluginExtensions {
 	surfaces?: ExtensionSurfaceDeclaration[];
 }
 
+/** A typed argument for a verb — the ergonomic alternative to hand-writing the full `schema`. When a
+ * verb declares `args` (and no explicit `schema`), `normalizeCapabilities` DERIVES the JSON-Schema
+ * from them: each arg becomes a property (its `type`, `enum`, `description`), and a `required` arg
+ * lands in the schema's `required`. A verb whose shape the arg list can't express (nested objects,
+ * oneOf) keeps hand-authoring `schema`, which always wins. */
+export interface PluginVerbArg {
+	/** The argument name — the JSON-Schema property key. */
+	name: string;
+	/** JSON-Schema scalar type (default `"string"`). `"array"` is a list whose element type is `items`. */
+	type?: "string" | "number" | "integer" | "boolean" | "array";
+	/** Marks the arg required in the derived schema's `required`. */
+	required?: boolean;
+	/** Allowed values (a string enum) → the property's `enum`. */
+	enum?: string[];
+	/** One-line description → the property's `description`. */
+	description?: string;
+	/** Element type when `type: "array"` (default `"string"`). */
+	items?: "string" | "number" | "integer" | "boolean";
+}
+
 /** One verb's entry in the `verbs` authoring block: WHERE it goes (list flags) plus its
- * per-verb metadata (doc/schema), all keyed by the SHORT verb name (no `<key>:` prefix —
+ * per-verb metadata (doc/schema/args), all keyed by the SHORT verb name (no `<key>:` prefix —
  * the block's key qualifies it). `provides` defaults true (a listed verb is offered);
  * set `provides: false` for a verb the plugin only subscribes to. */
 export interface PluginVerbEntry {
@@ -118,8 +138,12 @@ export interface PluginVerbEntry {
 	subscribes?: boolean;
 	/** Per-verb usage prose → lowered to `verbDocs["<key>:<verb>"]`. */
 	doc?: string;
-	/** Per-verb argument JSON-Schema → lowered to `verbSchemas["<key>:<verb>"]`. */
+	/** Per-verb argument JSON-Schema → lowered to `verbSchemas["<key>:<verb>"]`. The escape hatch:
+	 * an explicit `schema` always wins over `args` (for shapes the arg list can't express). */
 	schema?: Record<string, unknown>;
+	/** Typed arguments → DERIVED into `verbSchemas["<key>:<verb>"]` when no explicit `schema` is given,
+	 * so the agent gets a typed tool without hand-writing JSON-Schema. Ignored when `schema` is set. */
+	args?: PluginVerbArg[];
 }
 
 /** The ergonomic authoring block for a plugin's dispatchable verbs — the high-level form
