@@ -1,0 +1,27 @@
+---
+import { Layout } from "@refarm.dev/homestead/ui";
+---
+
+<Layout title="Conversa — o assistente oferece a busca como formulário">
+  <main class="refarm-stack" style="max-width: 48rem; margin: 0 auto; padding: clamp(1rem, 3vw, 2rem) 1rem;">
+    <header class="refarm-stack">
+      <p class="refarm-eyebrow">Bancada de requisitos · T3</p>
+      <h1>Conversa com o assistente</h1>
+      <p class="refarm-muted">
+        O assistente oferece a busca de requisitos como um formulário na própria conversa — escolha o
+        tipo, digite o termo e envie; a resposta chega como a próxima mensagem.
+      </p>
+    </header>
+    <div id="convo-mount" style="display: flex; flex-direction: column; min-height: 20rem;"></div>
+  </main>
+
+  <div id="loading-overlay" class="refarm-loading-state">
+    <div class="refarm-spinner" aria-hidden="true"></div>
+    <p>Abrindo a conversa…</p>
+  </div>
+</Layout>
+
+<script>
+  import { bootConversa } from "../web/conversa-boot";
+  bootConversa();
+</script>

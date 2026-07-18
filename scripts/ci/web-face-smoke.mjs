@@ -32,7 +32,7 @@ export const FACES = [
 	// The landing hubs — the browser-safe front door of each example, linking to its live faces.
 	{ work: "T1", example: "devbench-t1", route: "/", mustHave: ["[data-face-hub]", 'a[href="/governance/"]', 'a[href="/extension-graph/"]'] },
 	{ work: "T2", example: "wallet-t2", route: "/", mustHave: ["[data-face-hub]", 'a[href="/consent/"]'] },
-	{ work: "T3", example: "reqbench-t3", route: "/", mustHave: ["[data-face-hub]", 'a[href="/search/"]', 'a[href="/graph/"]', 'a[href="/lab/"]'] },
+	{ work: "T3", example: "reqbench-t3", route: "/", mustHave: ["[data-face-hub]", 'a[href="/search/"]', 'a[href="/graph/"]', 'a[href="/lab/"]', 'a[href="/conversa/"]'] },
 	{
 		work: "T2",
 		example: "wallet-t2",
@@ -62,6 +62,20 @@ export const FACES = [
 		route: "/graph/",
 		// The interactive force-directed network mounts into #graph-mount as an SVG (Surveyor).
 		mustHave: ["#graph-mount svg"],
+	},
+	{
+		work: "T3",
+		example: "reqbench-t3",
+		route: "/conversa/",
+		// Pattern B live: the assistant offers requirements-search as an INLINE FORM in the conversation;
+		// the user fills the typed form and submits, and the result comes back as the next message.
+		mustHave: ["#convo-mount", "form.refarm-capability-form", '[data-refarm-arg="query"]', 'select[data-refarm-option="tipo"]'],
+		interact: {
+			fill: ['[data-refarm-arg="query"]', "CNPJ"],
+			select: ['select[data-refarm-option="tipo"]', "regra-de-negocio"],
+			click: 'form.refarm-capability-form button[type="submit"]',
+			expect: "[data-search-results]",
+		},
 	},
 	{
 		work: "T3",
