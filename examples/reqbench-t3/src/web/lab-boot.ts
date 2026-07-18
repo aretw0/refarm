@@ -1,50 +1,39 @@
+import { mountCapabilityWebView } from "@refarm.dev/capability-homestead-surface/boot";
 import { buildLabGallery } from "@refarm.dev/lab-contract-v1";
 import type { TaskArtifactManifest } from "@refarm.dev/artifact-contract-v1";
 
-import { reqbenchApp } from "../cli.js";
+import { createLabWebRegistry } from "./lab-app.js";
+
+/** The `requirements-lab` verb's projection — the Lab's artifact:v1 manifest. */
+type LabResult = { manifest?: TaskArtifactManifest };
 
 /**
  * The Lab GALLERY web face — lists the requirement Lab's notebooks (a card each) + datasets. It
  * runs the `requirements-lab` verb, takes its artifact:v1 manifest, and renders the gallery via
- * the substrate's buildLabGallery. Each notebook card HEAD-probes its exported HTML so it shows
- * "Disponível / Abrir" only when the notebook was actually exported — graceful when it wasn't.
- * The example writes no gallery logic; the view-model is @refarm.dev/lab-contract-v1.
+ * the substrate's buildLabGallery. A notebook card shows "Abrir" only when the manifest marks it
+ * exported (it carries a content hash); otherwise "Aguardando exportação…" — the manifest is the
+ * single source of truth, recomputed live from the corpus on every boot, so no runtime probe is
+ * needed. The example writes no gallery logic AND no boot boilerplate: the view-model is
+ * @refarm.dev/lab-contract-v1, and the overlay lifecycle + empty state + error display are the
+ * framework's mountCapabilityWebView. The registry is browser-safe (lab-app.ts → ../lab.ts), so
+ * this boots in a real browser with no node/WASM in the bundle (nothing from ../cli.js).
  */
 export async function bootLabGallery(): Promise<void> {
-	const overlay = document.getElementById("loading-overlay");
-	const mount = document.getElementById("lab-mount");
-	try {
-		const registry = reqbenchApp.registry();
-		const entry = registry.get("requirements-lab");
-		if (!entry || !("run" in entry) || typeof entry.run !== "function") {
-			throw new Error("requirements-lab verb not found");
-		}
-		const result = (await entry.run({ args: {}, options: {}, json: true })) as unknown as {
-			manifest?: TaskArtifactManifest;
-		};
-		if (!mount) throw new Error("no #lab-mount");
-		if (!result.manifest) {
-			mount.innerHTML = `<p class="refarm-muted">Nenhum Lab ainda — faça um <code>pull</code> primeiro.</p>`;
-			overlay?.remove();
-			return;
-		}
-		const gallery = buildLabGallery(result.manifest);
-		mount.innerHTML = renderGallery(gallery);
-		overlay?.remove();
-
-		// HEAD-probe each notebook href: flip "aguardando" → "Abrir" when the export exists.
-		for (const card of mount.querySelectorAll<HTMLElement>("[data-notebook-href]")) {
-			const href = card.dataset.notebookHref!;
-			void fetch(href, { method: "HEAD" })
-				.then((r) => {
-					if (r.ok) card.dataset.available = "1";
-				})
-				.catch(() => {});
-		}
-	} catch (error) {
-		console.error("[reqbench-t3] lab boot failed", error);
-		if (overlay) overlay.textContent = `Falha ao abrir o Lab: ${error instanceof Error ? error.message : String(error)}`;
-	}
+	await mountCapabilityWebView<LabResult>({
+		namespace: "reqbench-t3",
+		registry: createLabWebRegistry(),
+		content: { verb: "requirements-lab" },
+		errorLabel: "Falha ao abrir o Lab",
+		view: {
+			mount: "lab-mount",
+			isEmpty: (r) => !r.manifest,
+			emptyHtml: `<p class="refarm-muted">Nenhum Lab ainda — faça um <code>pull</code> primeiro.</p>`,
+			render: ({ result, mount }) => {
+				const gallery = buildLabGallery(result.manifest!); // isEmpty guards manifest presence
+				mount.innerHTML = renderGallery(gallery);
+			},
+		},
+	});
 }
 
 function esc(value: string): string {

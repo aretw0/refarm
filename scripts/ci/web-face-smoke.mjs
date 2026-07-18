@@ -29,7 +29,7 @@ const FACES = [
 	// The landing hubs — the browser-safe front door of each example, linking to its live faces.
 	{ work: "T1", example: "devbench-t1", route: "/", mustHave: ["[data-face-hub]", 'a[href="/governance/"]', 'a[href="/extension-graph/"]'] },
 	{ work: "T2", example: "wallet-t2", route: "/", mustHave: ["[data-face-hub]", 'a[href="/consent/"]'] },
-	{ work: "T3", example: "reqbench-t3", route: "/", mustHave: ["[data-face-hub]", 'a[href="/search/"]', 'a[href="/graph/"]'] },
+	{ work: "T3", example: "reqbench-t3", route: "/", mustHave: ["[data-face-hub]", 'a[href="/search/"]', 'a[href="/graph/"]', 'a[href="/lab/"]'] },
 	{
 		work: "T2",
 		example: "wallet-t2",
@@ -54,6 +54,15 @@ const FACES = [
 		route: "/graph/",
 		// The interactive force-directed network mounts into #graph-mount as an SVG (Surveyor).
 		mustHave: ["#graph-mount svg"],
+	},
+	{
+		work: "T3",
+		example: "reqbench-t3",
+		route: "/lab/",
+		// The Lab gallery renders notebook cards ([data-notebook-href]) into #lab-mount from the
+		// requirements-lab manifest — now a browser-safe registry (lab-app.ts → ../lab.ts), so it
+		// boots without dragging the node-bound CLI into the bundle (the reason it had no smoke).
+		mustHave: ["#lab-mount [data-notebook-href]"],
 	},
 	{
 		work: "T1",

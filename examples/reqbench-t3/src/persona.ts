@@ -40,15 +40,6 @@ import {
 	type VaultProfile,
 } from "@refarm.dev/vault-contract-v1";
 import { createReferenceVaultSurfaceComponent } from "@refarm.dev/vault-surface-ref";
-import { buildRequirementsGraph } from "./graph.js";
-import {
-	buildLabManifest,
-	exportHashes,
-	runNotebookExports,
-	type LabCatalog,
-	type NotebookExportResult,
-	type ProcessExecutor,
-} from "@refarm.dev/lab-contract-v1";
 import {
 	checkNotes,
 	createNoteQualityChecker,
@@ -621,8 +612,8 @@ export function renderRequirementsMocHtml(env: RecordsAnalyzeEnvelope): string {
 
 // buildRequirementsGraph + renderRequirementsGraphSvg + createRequirementsGraphCapability moved to
 // ./graph.ts (browser-safe) so the WEB face mounts the network without pulling this file's node
-// deps. buildRequirementsGraph is imported above for the lab dataset; both are re-exported so
-// existing consumers (flow.e2e.test.ts) are unchanged.
+// deps; the lab dataset (./lab.ts) imports buildRequirementsGraph from there directly. Re-exported
+// here so existing consumers (flow.e2e.test.ts) are unchanged.
 export { buildRequirementsGraph, renderRequirementsGraphSvg } from "./graph.js";
 
 /** Carry forward the curation a routine pull has no business overwriting: a human's REVIEW state
@@ -1195,125 +1186,10 @@ export function createRequirementsCapability(
 // path (cli.ts) is unchanged.
 export { createRequirementsGraphCapability } from "./graph.js";
 
-/** The analyst's LAB catalog — DATA: the requirement graph is published as a dataset a reactive
- * Marimo notebook analyses (orphan requirements, hubs, relation density), and the notebook is
- * exported to HTML+WASM the browser runs. Editing THIS (not code) adds a notebook/dataset. The
- * notebook source ships in `lab/`; the dataset is produced from the corpus at run time. */
-const REQUIREMENTS_LAB_CATALOG: LabCatalog = {
-	datasets: [
-		{
-			id: "grafo-de-requisitos",
-			title: "Grafo de Requisitos",
-			description: "A rede de requisitos (nós + relações) para análise no notebook.",
-			source: ".dgk/lab/grafo-de-requisitos.json",
-			output: "grafo-de-requisitos.json",
-			format: "json",
-		},
-	],
-	notebooks: [
-		{
-			id: "analise-grafo",
-			title: "Análise do Grafo de Requisitos",
-			description: "Hubs, órfãos e densidade de relações — reativo, roda no navegador (WASM).",
-			source: "lab/analise-grafo.py",
-			output: "analise-grafo.html",
-		},
-	],
-};
-
-export interface RequirementsLabOptions {
-	/** Persist the dataset snapshot to disk (the file a notebook reads). Given the relative path +
-	 * JSON, writes it. Optional — absent → the manifest is still built (the dataset is fingerprinted
-	 * in-process either way). Injected by the CLI (a node fs writer). */
-	writeDataset?: (relativePath: string, json: string) => void | Promise<void>;
-	now?: () => string;
-	/** Fingerprint the dataset payload (default sha256 via node:crypto, injected so pure in tests). */
-	hashData?: (json: string) => string;
-	/** Execute a command (the marimo export). Injected by the CLI (a uvx spawn). When present AND
-	 * `--export` is passed, the notebooks are exported to HTML+WASM for real and the manifest
-	 * fingerprints the produced files. Absent → the verb only PLANS the export (records the command). */
-	executor?: ProcessExecutor;
-	/** Fingerprint a produced notebook HTML file (injected — reads the file, returns its sha256). */
-	hashOutput?: (outputPath: string) => Promise<{ algorithm: "sha256"; value: string }>;
-	/** The dir exports run from / write under (the CLI resolves it beside the state file). */
-	labCwd?: string;
-}
-
-/**
- * The T3 persona verb: `requirements-lab` — publish the requirement graph as a Lab dataset and
- * emit the artifact:v1 manifest for the Lab (the dataset + the analysis notebook, with the
- * Marimo→WASM export recorded as provenance). This is the "notebooks marimo" step: the corpus
- * becomes a reactive, browser-runnable analysis. The example DECLARES the catalog (data) and
- * builds the graph; the manifest machinery is the substrate's lab-contract-v1.
- *
- * Uses defineRecordsViewCapability's project (which hands us the analyze envelope). The dataset is
- * fingerprinted in-process, so the manifest always carries a real hash; the fs write is a side
- * effect the CLI wires (the same payload).
- */
-export function createRequirementsLabCapability(
-	recordsDeps: RecordsCommandDeps,
-	options: RequirementsLabOptions = {},
-): CapabilityDescriptor {
-	const now = options.now ?? ((): string => new Date().toISOString());
-	const hashData = options.hashData ?? ((json: string): string => createHash("sha256").update(json).digest("hex"));
-	return defineRecordsViewCapability({
-		name: "requirements-lab",
-		summary: "Publish the requirement graph as a Lab dataset + notebook (Marimo→WASM manifest)",
-		records: recordsDeps,
-		httpPath: "/requirements/lab",
-		groupBy: "field:tipo",
-		options: [
-			{ name: "export", kind: "boolean", summary: "Actually run the Marimo→WASM export (needs uvx/marimo)" },
-		],
-		renderers: { tui: { section: "requirements" } },
-		project: async (analyzed, input) => {
-			const { graph, labels } = buildRequirementsGraph(analyzed);
-			const dataset = {
-				schemaVersion: 1,
-				source: "requirements-lab",
-				nodeCount: graph.nodes.length,
-				linkCount: graph.links.length,
-				nodes: graph.nodes.map((n) => ({ ...n, label: labels[n.id] ?? n.id })),
-				links: graph.links,
-			};
-			const datasetJson = JSON.stringify(dataset, null, 2);
-			const datasetHash = hashData(datasetJson);
-			// Persist the snapshot the notebook reads (before an export, so the notebook can load it).
-			await options.writeDataset?.(".dgk/lab/grafo-de-requisitos.json", datasetJson);
-
-			// --export: actually produce the HTML+WASM (when a runner is wired), fingerprinting each.
-			const wantExport = input.options?.export === true;
-			let exportResults: NotebookExportResult[] = [];
-			let notebookHashes: Record<string, { algorithm: "sha256"; value: string }> = {};
-			if (wantExport && options.executor) {
-				exportResults = await runNotebookExports(REQUIREMENTS_LAB_CATALOG.notebooks, {
-					executor: options.executor,
-					...(options.hashOutput ? { hashOutput: options.hashOutput } : {}),
-					...(options.labCwd ? { cwd: options.labCwd } : {}),
-				});
-				notebookHashes = exportHashes(exportResults) as Record<string, { algorithm: "sha256"; value: string }>;
-			}
-
-			const manifest = buildLabManifest(REQUIREMENTS_LAB_CATALOG, {
-				producer: "reqbench",
-				producedAt: now(),
-				hashes: { "grafo-de-requisitos": { algorithm: "sha256", value: datasetHash }, ...notebookHashes },
-			});
-			return {
-				nodeCount: dataset.nodeCount,
-				linkCount: dataset.linkCount,
-				exported: wantExport,
-				exportResults: exportResults.map((r) => ({ id: r.notebookId, ok: r.ok, output: r.outputPath, error: r.error })),
-				artifacts: manifest.artifacts.map((a) => ({ id: a.id, role: a.role, uri: a.uri })),
-				// The export commands (Marimo→WASM), for the operator (or the runner, when not --export).
-				exports: manifest.artifacts
-					.filter((a) => a.role === "report")
-					.map((a) => a.provenance.process?.display),
-				manifest,
-			};
-		},
-	});
-}
+// `requirements-lab` moved to ./lab.ts (browser-safe: node-free lab-contract-v1 + a Web Crypto
+// hash default) so the WEB face can render the Lab gallery without dragging node:crypto / the
+// WASM vault into the bundle. Re-exported here so the CLI import path (cli.ts) is unchanged.
+export { createRequirementsLabCapability, type RequirementsLabOptions } from "./lab.js";
 
 /** The analyst's PARA taxonomy — pure DATA: which area a requirement lands in, by its
  * `tipo` first, then its source `sistema`, else a triage fallback. Editing THIS (not code)

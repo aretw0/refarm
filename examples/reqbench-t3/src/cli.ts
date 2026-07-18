@@ -181,6 +181,9 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 					// manifest (dataset + notebook, Marimo→WASM export as provenance). The dataset
 					// snapshot is written beside the manifest for the notebook to read.
 					createRequirementsLabCapability(records, {
+						// Fingerprint the dataset with node:crypto (the module defaults to Web Crypto for the
+						// browser face; the CLI keeps the node hasher so the manifest is byte-identical).
+						hashData: (json) => createHash("sha256").update(json).digest("hex"),
 						writeDataset: (rel, json) => {
 							const file = path.join(path.dirname(statePath), rel);
 							mkdirSync(path.dirname(file), { recursive: true });
