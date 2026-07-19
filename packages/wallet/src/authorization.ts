@@ -21,6 +21,8 @@ import {
 } from "@refarm.dev/records-contract-v1";
 import { manifestRevisions, mergeAndRecord, timeline } from "@refarm.dev/history-contract-v1";
 
+import { renderTableHtml } from "@refarm.dev/capability-homestead-surface";
+
 import { recordToCredential } from "./credentials.js";
 
 /**
@@ -460,6 +462,13 @@ export function createWalletHistoryCapability(recordsDeps: RecordsCommandDeps): 
 				});
 			}
 			const revisions = timeline(manifestRevisions(recordsDeps.loadManifest()), id);
+			// Each version's status (from the receipt snapshot), when, and which verb produced it.
+			const rows = revisions.map((r) => ({
+				seq: r.seq,
+				at: r.recordedAt,
+				origin: r.origin,
+				status: String((r.snapshot.fields as Record<string, unknown> | undefined)?.status ?? ""),
+			}));
 			return buildJsonSuccessEnvelope({
 				command: "history",
 				operation: "history",
@@ -468,13 +477,18 @@ export function createWalletHistoryCapability(recordsDeps: RecordsCommandDeps): 
 				extra: {
 					id,
 					versions: revisions.length,
-					// Each version's status (from the receipt snapshot), when, and which verb produced it.
-					timeline: revisions.map((r) => ({
-						seq: r.seq,
-						at: r.recordedAt,
-						origin: r.origin,
-						status: String((r.snapshot.fields as Record<string, unknown> | undefined)?.status ?? ""),
-					})),
+					timeline: rows,
+					// The timeline as an accessible web <table> (renderTableHtml — the web twin of the TUI renderTable).
+					html: renderTableHtml(
+						[
+							{ key: "seq", header: "Rev" },
+							{ key: "at", header: "When" },
+							{ key: "origin", header: "Verb" },
+							{ key: "status", header: "Status" },
+						],
+						rows,
+						{ caption: `Authorization ${id} — ${revisions.length} revision(s)` },
+					),
 				},
 			});
 		},

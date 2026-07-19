@@ -5,6 +5,7 @@ import {
 	type CapabilityInput,
 	type RecordsCommandDeps,
 } from "@refarm.dev/capability-host";
+import { renderTableHtml } from "@refarm.dev/capability-homestead-surface";
 import type { KnowledgeRecord, RecordsManifest } from "@refarm.dev/records-contract-v1";
 import { analyzeCorpusHealth } from "@refarm.dev/vault-contract-v1";
 import { manifestRevisions } from "@refarm.dev/history-contract-v1";
@@ -122,7 +123,8 @@ export function createRequirementsOverviewCapability(recordsDeps: RecordsCommand
 		transports: { http: { path: "/requirements/overview" } },
 		renderers: { tui: { section: "requirements" }, web: { route: "/overview", icon: "layout-dashboard" } },
 		async run(_input: CapabilityInput): Promise<CapabilityEnvelope> {
-			const overview = buildVaultOverview(recordsDeps.loadManifest());
+			const manifest = recordsDeps.loadManifest();
+			const overview = buildVaultOverview(manifest);
 			return buildJsonSuccessEnvelope({
 				command: "requirements-overview",
 				operation: "overview",
@@ -138,7 +140,20 @@ export function createRequirementsOverviewCapability(recordsDeps: RecordsCommand
 					health: overview.health,
 					lastChange: overview.lastChange,
 					// The content-seam field the web boot reads to mount the dashboard above the cards.
-					overviewHtml: vaultOverviewToHtml(overview),
+					// The summary dashboard, plus the requirements themselves as an accessible <table>
+					// (renderTableHtml — the web twin of the TUI renderTable, one data declaration per surface).
+					overviewHtml:
+						vaultOverviewToHtml(overview) +
+						renderTableHtml(
+							[
+								{ key: "id", header: "ID" },
+								{ key: "sistema", header: "Sistema" },
+								{ key: "tipo", header: "Tipo" },
+								{ key: "status", header: "Status" },
+							],
+							manifest.records,
+							{ caption: `Requisitos no vault (${manifest.records.length})` },
+						),
 				},
 			});
 		},
