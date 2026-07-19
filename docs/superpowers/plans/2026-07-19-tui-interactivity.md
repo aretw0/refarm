@@ -1,9 +1,9 @@
 # TUI Interactivity — Plan (Task 4 of the layout engine, its own slice)
 
-> **Status: PREPARATION.** Deferred from the layout-engine plan on purpose — interactivity is a distinct
-> subsystem (input + focus + redraw), the genuinely-hard "interactive widget" the reinventing-the-wheel
-> verdict said to LEARN-FROM Textual/ratatui/Ink. This plan is the runway: what we already have, the
-> adopt-vs-build decision, and the slices — so when we act on it we start prepared, not from scratch.
+> **Status: EXECUTED (2026-07-19).** Built as three TDD slices in `packages/surface-terminal` (+ the
+> `dashboard -i` wiring in `@refarm.dev/capabilities-v1`): a thin own loop over our Yoga tree (React-free),
+> with an injectable input seam. The layout engine's positioned boxes supplied the focus/hit-test data, so
+> this added only input + focus + redraw. The runway (below) was the plan; it's now landed.
 
 ## Why it is separate (and was right to defer)
 
@@ -43,25 +43,25 @@ positioned tree keeps the stack coherent and React-free. LEARN-FROM Textual/rata
 
 ## Slices (when we act)
 
-### Slice 1 — Input seam + focus model (TDD)
-- [ ] `TerminalInput` seam: a `readKey(): Promise<Key>` / event stream over `process.stdin` raw mode,
-  INJECTABLE (a scripted key list) so the loop is testable headless — mirror how `TuiIo` injects lines.
-- [ ] `focusOrder(positioned, isFocusable)`: extract focusable boxes in a stable order from the
-  PositionedNode tree; `moveFocus(order, current, key)` (next/prev/2D by x,y). Pure, unit-tested.
-- [ ] Mark focusables: add an optional `focusable`/`id` to `LayoutNode` (cards set it) — wired NOW only
-  because this slice is its consumer (no speculative field before its use).
+### Slice 1 — Input seam + focus model (TDD) — ✅ DONE
+- [x] `tui-input.ts`: the `Key` + `TerminalInput` seam + `scriptedInput` (a headless, deterministic key
+  source) so a loop is testable with no TTY — mirrors how `TuiIo` injects lines.
+- [x] `tui-focus.ts`: `focusOrder(positioned)` collects focusable boxes in reading order; `moveFocus(order,
+  current, key)` — reading-order for left/right/tab (wrapping), geometric nearest for up/down. Pure, tested.
+- [x] `LayoutNode`/`PositionedNode` gained optional `id` + `focusable`, carried through `computeTuiLayout`
+  — wired NOW because `focusOrder` is their consumer, not speculatively.
 
-### Slice 2 — Redraw loop (TDD)
-- [ ] `runInteractiveLayout(root, {input, render, onSelect})`: alt-screen enter, hide cursor, render,
-  read key → move focus → re-render (repaint the focused frame), Enter → `onSelect(focusedId)`, Esc →
-  exit + restore (leave alt-screen, show cursor) — cleanup guaranteed even on throw. Test with scripted
-  keys asserting the focused id sequence + that a select fires.
+### Slice 2 — Redraw loop (TDD) — ✅ DONE
+- [x] `runInteractiveLayout({targets, render, input, output, onSelect})`: the PURE core — render, read key,
+  move focus (repaint on change), Enter → `onSelect`, Esc/Ctrl-C/exhausted → exit. Input+output injected →
+  unit-tested headless. `createStdinInput` (raw-mode keypress, restores on close) + `runInteractiveTerminal`
+  (alt-screen + cursor, ALWAYS restores, even on throw) are the node-only wiring the pure core drives.
 
-### Slice 3 — Focusable dashboard (the payoff)
-- [ ] `runCapabilityDashboard(registry)`: the `dashboard` command gains an interactive mode — cards are
-  focusable, arrows navigate, Enter dispatches the verb (via `dispatchCapability`, the shared loop).
-  A focused card renders with a highlight colorizer. Test: scripted arrows land focus on a known verb,
-  Enter dispatches it.
+### Slice 3 — Focusable dashboard (the payoff) — ✅ DONE
+- [x] `runInteractiveDashboard(model)`: cards are focusable (id = verb name), a focused card's name
+  highlights (`colors.focused` = chalk.inverse), arrows navigate, Enter fires `onSelect(verb)`. The
+  `dashboard -i` command dispatches the picked verb (via `dispatchCapability`, the shared outcome contract)
+  on a real TTY; a pipe/CI falls back to the one-shot print. Tested headless (navigate + dispatch).
 
 ## Risks / open questions
 - **Raw mode is node-only + must restore** on every exit path (throw, Ctrl-C, Esc) — the loop owns
