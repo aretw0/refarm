@@ -121,6 +121,34 @@ fn resolve_tool<'a>(
         .find(|v| format!("{}_{}", v.plugin_key, v.verb) == tool_name)
 }
 
+/// Validate a model's tool-call `input` against the verb's DECLARED JSON Schema — the
+/// SAME schema `render_tool_schema` shows the model — for parity with the web/HTTP/CLI/TUI
+/// surfaces, which validate capability args via Ajv (`validateCapabilityArgs`) before
+/// dispatch. Returns `Err(message)` ONLY when the input definitely violates the schema, so
+/// the agent leg rejects a malformed tool call up front (the error flows back to the model
+/// as the tool result) instead of spreading bad args into the plugin payload.
+///
+/// Fail-OPEN on a schema that will not compile: a plugin-authored schema bug can enforce
+/// nothing, and the model already saw that schema verbatim — better to let the call through
+/// (unvalidated, as before this gate) than to wedge the tool on the author's mistake.
+fn validate_tool_input(
+    schema: &serde_json::Value,
+    input: &serde_json::Value,
+) -> Result<(), String> {
+    let Ok(validator) = jsonschema::validator_for(schema) else {
+        return Ok(()); // uncompilable schema → nothing enforceable; fail open
+    };
+    if validator.is_valid(input) {
+        return Ok(());
+    }
+    // Fold the violations into one compact, deterministic, model-readable line.
+    let mut messages: Vec<String> =
+        validator.iter_errors(input).map(|e| e.to_string()).collect();
+    messages.sort();
+    messages.dedup();
+    Err(format!("invalid tool input: {}", messages.join("; ")))
+}
+
 #[wasmtime::component::__internal::async_trait]
 impl CapabilityToolsHost for TractorNativeBindings {
     async fn list_tools(&mut self, provider: String) -> Vec<String> {
@@ -170,6 +198,15 @@ impl CapabilityToolsHost for TractorNativeBindings {
             serde_json::from_str(&input_json)
                 .map_err(|e| format!("invalid tool input JSON: {e}"))?
         };
+
+        // PARITY with the web/HTTP/CLI/TUI surfaces: when the verb DECLARED a schema —
+        // the one render_tool_schema showed the model — validate the model's input against
+        // it before dispatch, so a malformed tool call is rejected up front (the error
+        // returns to the model) instead of spreading bad args into the plugin payload. A
+        // verb with no declared schema (the variadic `{args}` tool) has nothing to enforce.
+        if let Some(schema) = &verb.schema {
+            validate_tool_input(schema, &input)?;
+        }
 
         // Everything after name→verb resolution is the shared dispatch — the SAME
         // path a plugin-to-plugin `call-plugin` uses. One protocol, two callers.
@@ -486,5 +523,75 @@ mod capability_tools_pure_tests {
     fn resolve_tool_on_empty_registry_is_none() {
         let verbs: Vec<DispatchableVerb> = Vec::new();
         assert!(resolve_tool(&verbs, "vault_search").is_none());
+    }
+
+    // ---- validate_tool_input (agent-leg arg parity) -------------------------
+
+    /// A typed schema shaped like the ones `deriveVerbSchemaFromArgs` /
+    /// `capabilityToolParameters` emit: a required string arg + an optional integer.
+    fn typed_schema() -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "query": { "type": "string" },
+                "limit": { "type": "integer" }
+            },
+            "required": ["query"]
+        })
+    }
+
+    #[test]
+    fn validate_tool_input_accepts_input_matching_the_declared_schema() {
+        let input = serde_json::json!({ "query": "notes", "limit": 5 });
+        assert!(validate_tool_input(&typed_schema(), &input).is_ok());
+    }
+
+    #[test]
+    fn validate_tool_input_accepts_when_only_the_required_arg_is_present() {
+        let input = serde_json::json!({ "query": "notes" });
+        assert!(validate_tool_input(&typed_schema(), &input).is_ok());
+    }
+
+    #[test]
+    fn validate_tool_input_rejects_missing_required_arg_and_names_it() {
+        let input = serde_json::json!({ "limit": 5 }); // no `query`
+        let err = validate_tool_input(&typed_schema(), &input).unwrap_err();
+        assert!(err.starts_with("invalid tool input:"), "got: {err}");
+        // The message names the offending property, so the model can self-correct.
+        assert!(err.contains("query"), "expected the missing field named, got: {err}");
+    }
+
+    #[test]
+    fn validate_tool_input_rejects_a_wrongly_typed_arg() {
+        // `limit` must be an integer; the model sent a string.
+        let input = serde_json::json!({ "query": "notes", "limit": "five" });
+        assert!(validate_tool_input(&typed_schema(), &input).is_err());
+    }
+
+    #[test]
+    fn validate_tool_input_rejects_an_enum_violation() {
+        let schema = serde_json::json!({
+            "type": "object",
+            "properties": { "mode": { "type": "string", "enum": ["fast", "slow"] } },
+            "required": ["mode"]
+        });
+        let input = serde_json::json!({ "mode": "sideways" });
+        assert!(validate_tool_input(&schema, &input).is_err());
+    }
+
+    #[test]
+    fn validate_tool_input_fails_open_on_an_uncompilable_schema() {
+        // A plugin-authored schema bug (`type` names a nonexistent type) enforces nothing —
+        // let the call through rather than wedge the tool on the author's mistake.
+        let broken = serde_json::json!({ "type": "banana" });
+        let input = serde_json::json!({ "anything": true });
+        assert!(validate_tool_input(&broken, &input).is_ok());
+    }
+
+    #[test]
+    fn validate_tool_input_open_object_schema_accepts_any_object() {
+        // The bare `{type:object}` shape enforces only "is an object" — a no-arg/opaque verb.
+        let schema = serde_json::json!({ "type": "object" });
+        assert!(validate_tool_input(&schema, &serde_json::json!({ "x": 1 })).is_ok());
     }
 }

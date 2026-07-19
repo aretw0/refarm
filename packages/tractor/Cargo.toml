@@ -57,6 +57,10 @@ sha2          = "0.10"   # SHA-256 for wasm_hash
 # Serialization
 serde      = { version = "1", features = ["derive"] }
 serde_json = "1"
+# JSON Schema validation — the agent leg validates a model's tool-call args against the
+# verb's declared schema (the SAME schema render_tool_schema shows the model), for parity
+# with the TS surfaces that validate capability args via Ajv before dispatch.
+jsonschema = { version = "0.48", default-features = false }
 toml       = { version = "0.8", default-features = false, features = ["parse", "display"] }
 serde_yaml = "0.9"
 
