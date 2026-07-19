@@ -42,13 +42,13 @@ export interface RenderTableOptions {
 	colors?: TableColors;
 }
 
-const cellText = (row: TableRow, key: string): string => {
-	const value = row[key];
+const cellText = (row: object, key: string): string => {
+	const value = (row as Record<string, unknown>)[key];
 	return value === undefined || value === null ? "" : String(value);
 };
 
 /** Compute each column's width: its declared width, else the widest of header + cells, capped. */
-function columnWidths(columns: TableColumn[], rows: TableRow[], maxColumnWidth: number): number[] {
+function columnWidths(columns: TableColumn[], rows: readonly object[], maxColumnWidth: number): number[] {
 	return columns.map((column) => {
 		if (typeof column.width === "number") return column.width;
 		const widest = Math.max(stringWidth(column.header), 0, ...rows.map((row) => stringWidth(cellText(row, column.key))));
@@ -57,7 +57,11 @@ function columnWidths(columns: TableColumn[], rows: TableRow[], maxColumnWidth: 
 }
 
 /** Map columns + rows to a flex layout: a column of rows, each a row of fixed-width cells. Pure. */
-export function tableToLayout(columns: TableColumn[], rows: TableRow[], opts: RenderTableOptions): LayoutNode {
+export function tableToLayout<Row extends object>(
+	columns: TableColumn[],
+	rows: readonly Row[],
+	opts: RenderTableOptions,
+): LayoutNode {
 	const gap = opts.gap ?? 2;
 	const header = opts.colors?.header ?? identity;
 	const separatorColor = opts.colors?.separator ?? identity;
@@ -80,9 +84,9 @@ export function tableToLayout(columns: TableColumn[], rows: TableRow[], opts: Re
 }
 
 /** Render columns + rows as a laid-out ANSI table: project → Yoga layout → ANSI grid. */
-export async function renderTable(
+export async function renderTable<Row extends object>(
 	columns: TableColumn[],
-	rows: TableRow[],
+	rows: readonly Row[],
 	opts: RenderTableOptions,
 ): Promise<string> {
 	const layout = tableToLayout(columns, rows, opts);

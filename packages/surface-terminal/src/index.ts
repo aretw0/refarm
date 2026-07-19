@@ -26,6 +26,13 @@ export {
 } from "./tui-layout.js";
 export { renderTuiLayout, type RenderTuiLayoutOptions } from "./tui-render.js";
 export {
+	runLiveView,
+	runLiveTerminal,
+	arrayLiveSource,
+	type LiveSource,
+	type RunLiveViewOptions,
+} from "./tui-live.js";
+export {
 	tableToLayout,
 	renderTable,
 	type TableColumn,
