@@ -26,6 +26,14 @@ export {
 } from "./tui-layout.js";
 export { renderTuiLayout, type RenderTuiLayoutOptions } from "./tui-render.js";
 export {
+	tableToLayout,
+	renderTable,
+	type TableColumn,
+	type TableRow,
+	type TableColors,
+	type RenderTableOptions,
+} from "./tui-table.js";
+export {
 	surfaceModelToLayout,
 	renderCapabilityDashboard,
 	runInteractiveDashboard,
