@@ -474,6 +474,16 @@ impl TractorBridgeHost for TractorNativeBindings {
         } else {
             serde_json::from_str(&input_json).map_err(|e| PluginError::InvalidSchema(e.to_string()))?
         };
+        // PARITY with the agent leg (invoke_tool): validate the caller's input against the target verb's
+        // DECLARED schema before dispatch, so a plugin→plugin call with bad args is rejected up front —
+        // not spread into the callee's payload. A verb with no declared schema has nothing to enforce.
+        let verbs = cross.registry.dispatchable_verbs();
+        if let Some(schema) =
+            crate::host::host_effects_bridge::resolve_verb_schema(&verbs, &plugin_id, &verb)
+        {
+            crate::host::host_effects_bridge::validate_tool_input(schema, &input)
+                .map_err(PluginError::InvalidSchema)?;
+        }
         // A plugin_id carries no routing key; derive it the sidecar's canonical way
         // (last path segment): `@refarm.dev/quality` → `quality` for `quality:dispatch`.
         let plugin_key = plugin_id.rsplit('/').next().unwrap_or(&plugin_id).to_string();

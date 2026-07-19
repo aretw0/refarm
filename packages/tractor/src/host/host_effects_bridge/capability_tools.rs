@@ -131,7 +131,7 @@ fn resolve_tool<'a>(
 /// Fail-OPEN on a schema that will not compile: a plugin-authored schema bug can enforce
 /// nothing, and the model already saw that schema verbatim — better to let the call through
 /// (unvalidated, as before this gate) than to wedge the tool on the author's mistake.
-fn validate_tool_input(
+pub(crate) fn validate_tool_input(
     schema: &serde_json::Value,
     input: &serde_json::Value,
 ) -> Result<(), String> {
@@ -147,6 +147,20 @@ fn validate_tool_input(
     messages.sort();
     messages.dedup();
     Err(format!("invalid tool input: {}", messages.join("; ")))
+}
+
+/// Find a dispatchable verb by its plugin id + verb name and return its declared schema, if any — the
+/// lookup the SPI `call_plugin` path uses to validate a plugin→plugin call. (The agent leg's
+/// `invoke_tool` resolves by the model tool-name instead; both end at the same `verb.schema`.)
+pub(crate) fn resolve_verb_schema<'a>(
+    verbs: &'a [DispatchableVerb],
+    plugin_id: &str,
+    verb: &str,
+) -> Option<&'a serde_json::Value> {
+    verbs
+        .iter()
+        .find(|v| v.plugin_id == plugin_id && v.verb == verb)
+        .and_then(|v| v.schema.as_ref())
 }
 
 #[wasmtime::component::__internal::async_trait]
@@ -523,6 +537,25 @@ mod capability_tools_pure_tests {
     fn resolve_tool_on_empty_registry_is_none() {
         let verbs: Vec<DispatchableVerb> = Vec::new();
         assert!(resolve_tool(&verbs, "vault_search").is_none());
+    }
+
+    #[test]
+    fn resolve_verb_schema_finds_the_declared_schema_by_plugin_id_and_verb() {
+        let mut search = verb("@scope/vault", "vault", "search");
+        let schema = serde_json::json!({
+            "type": "object",
+            "properties": { "query": { "type": "string" } },
+            "required": ["query"]
+        });
+        search.schema = Some(schema.clone());
+        let verbs = vec![search, verb("@scope/notes", "notes", "append")];
+
+        assert_eq!(resolve_verb_schema(&verbs, "@scope/vault", "search"), Some(&schema));
+        // A verb with no declared schema (notes:append) resolves to None — nothing to enforce.
+        assert!(resolve_verb_schema(&verbs, "@scope/notes", "append").is_none());
+        // Unknown verb / unknown plugin resolve to None (the SPI dispatch then fails honestly downstream).
+        assert!(resolve_verb_schema(&verbs, "@scope/vault", "missing").is_none());
+        assert!(resolve_verb_schema(&verbs, "@scope/other", "search").is_none());
     }
 
     // ---- validate_tool_input (agent-leg arg parity) -------------------------
