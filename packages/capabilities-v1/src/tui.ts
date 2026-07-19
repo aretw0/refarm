@@ -1,7 +1,5 @@
 import {
-	isCapabilityGroup,
-	resolveGroupAction,
-	type CapabilityInput,
+	dispatchCapability,
 	type CapabilityRegistry,
 } from "@refarm.dev/capabilities";
 import { parseChatLine } from "@refarm.dev/cli/chat-repl";
@@ -92,17 +90,17 @@ export async function handleTuiLine(
 		const entry = registry.list().find((e) => e.name.toLowerCase() === command.name);
 		if (!entry) return { output: `unknown verb: ${command.name}` };
 		try {
-			let result: unknown;
-			if (isCapabilityGroup(entry)) {
-				const resolved = resolveGroupAction(entry, command.argv);
-				result = resolved
-					? await resolved.action.run(resolved.input)
-					: { ok: false, error: "could not resolve group action" };
-			} else {
-				const input: CapabilityInput = { args: {}, options: {}, json: true };
-				result = await entry.run(input);
+			// One shared dispatch: resolve (a flat verb's argv is parsed too — it used to run with empty
+			// input), validate against the derived schema, then run. Render the outcome as text.
+			const outcome = await dispatchCapability(entry, command.argv);
+			if (outcome.status === "unresolved") return { output: `could not resolve ${command.name}` };
+			if (outcome.status === "invalid") {
+				const detail = outcome.validation?.errors
+					.map((e) => (e.field ? `${e.field} ${e.message}` : e.message))
+					.join("; ");
+				return { output: `invalid input: ${detail ?? "invalid"}` };
 			}
-			return { output: JSON.stringify(result, null, 2) };
+			return { output: JSON.stringify(outcome.envelope, null, 2) };
 		} catch (e) {
 			return { output: `verb error: ${String(e)}` };
 		}

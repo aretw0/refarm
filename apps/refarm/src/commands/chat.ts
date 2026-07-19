@@ -1,7 +1,7 @@
 import {
+	dispatchCapability,
 	isCapabilityGroup,
-	parseCapabilityArgv,
-	resolveGroupAction,
+	type CapabilityEnvelope,
 } from "@refarm.dev/capabilities";
 import {
 	loadChatHistory,
@@ -609,34 +609,32 @@ export async function runSessionRepl(
 					rl.pause();
 					void (async () => {
 						try {
-							// A group resolves `/verb <sub> …args` to a child + its input;
-							// a flat verb parses its own argv. Both end in child.run().
-							let descriptor;
-							let input;
-							let hookName = command.name;
-							if (isCapabilityGroup(entry)) {
-								const resolved = resolveGroupAction(entry, command.argv);
-								if (!resolved) {
-									console.log(`Usage: /${entry.name} <action>`);
-									console.log();
-									rl.resume();
-									rl.prompt();
-									return;
-								}
-								descriptor = resolved.action;
-								input = resolved.input;
-								hookName = `${entry.name} ${resolved.key}`;
-							} else {
-								descriptor = entry;
-								input = parseCapabilityArgv(entry, command.argv);
+							// One shared dispatch: resolve (a group's sub-action or a flat verb's argv),
+							// validate against the derived schema, then run — the same path the TUI and web use.
+							const outcome = await dispatchCapability(entry, command.argv);
+							if (outcome.status === "unresolved") {
+								console.log(`Usage: /${entry.name} <action>`);
+								console.log();
+								rl.resume();
+								rl.prompt();
+								return;
 							}
-							const envelope = await descriptor.run(input);
-							const hooks = capabilityHooksFor(hookName);
-							console.log(
-								hooks.renderText
-									? hooks.renderText(envelope, input)
-									: JSON.stringify(envelope, null, 2),
-							);
+							if (outcome.status === "invalid") {
+								const detail = outcome.validation?.errors
+									.map((e) => (e.field ? `${e.field} ${e.message}` : e.message))
+									.join("; ");
+								console.error(chalk.red(`✗  invalid input: ${detail ?? "invalid"}`));
+							} else {
+								const hookName = isCapabilityGroup(entry)
+									? `${entry.name} ${outcome.invocation!.key}`
+									: command.name;
+								const hooks = capabilityHooksFor(hookName);
+								console.log(
+									hooks.renderText
+										? hooks.renderText(outcome.envelope as CapabilityEnvelope, outcome.invocation!.input)
+										: JSON.stringify(outcome.envelope, null, 2),
+								);
+							}
 						} catch (error) {
 							const message = error instanceof Error ? error.message : String(error);
 							console.error(chalk.red(`✗  ${message}`));

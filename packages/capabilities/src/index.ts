@@ -28,6 +28,12 @@ export {
 	type CapabilityArgValidation,
 } from "./arg-validator.js";
 export {
+	dispatchCapability,
+	resolveCapabilityInvocation,
+	type CapabilityInvocation,
+	type CapabilityDispatchOutcome,
+} from "./dispatch.js";
+export {
 	surfaceModel,
 	projectSurface,
 	tuiSurfaceModel,
