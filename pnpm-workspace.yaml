@@ -45,7 +45,13 @@ packages:
   - "examples/devbench-t1"
   - "examples/wallet-t2"
   - "examples/reqbench-t3"
+# `allowBuilds` (pnpm 11) is a map of package matchers to `true` (approve build scripts) / `false`
+# (disallow). It replaces v10's onlyBuiltDependencies/ignoredBuiltDependencies. Under the pinned pnpm 11
+# (strictDepBuilds defaults true), a dependency with build scripts that is NOT listed here is "unreviewed"
+# and the frozen/CI install HARD-ERRORS (ERR_PNPM_IGNORED_BUILDS). style-dictionary + its bundled glob
+# (dev-only token tooling) are approved so the deterministic CI install stays green.
 allowBuilds:
+  "@bundled-es-modules/glob": true
   "@loro-crdt/base": true
   "@playwright/test": true
   better-sqlite3: true
@@ -53,15 +59,9 @@ allowBuilds:
   playwright: true
   puppeteer: true
   sharp: true
+  style-dictionary: true
   unrs-resolver: true
   workerd: true
-# The build-script allowlist pnpm actually enforces (unlike `allowBuilds` above, which pnpm 10 does
-# not read): pnpm 10 errors on un-acknowledged ignored builds under a frozen/CI install. Approve
-# style-dictionary + its bundled glob (dev-only token tooling) so the deterministic CI install stays
-# green.
-onlyBuiltDependencies:
-  - "@bundled-es-modules/glob"
-  - style-dictionary
 overrides:
   "@babel/core": 7.29.6
   "@zenuml/core": 3.50.1
