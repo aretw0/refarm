@@ -214,12 +214,14 @@ de-facto source. Now each theme is authored ONCE as a **W3C DTCG (Design Tokens)
 (`src/tokens/<id>.tokens.json`), and the shipped `themes/*.css` **and** the `DsTheme` objects are
 **generated** from it (`scripts/generate-tokens.ts`, run via `pnpm -C packages/ds run generate`).
 
-- **Standard source, bespoke emit.** DTCG is the adopted source format (vendor-neutral, stable
-  2025.10, Figma/Tokens Studio interop). The emitter is a thin, pure, in-repo transform because
-  refarm's CSS conventions are bespoke (`@layer ds.theme` + the white-label dual
-  `:where([data-ds-theme], [data-refarm-theme])` selector + light/dark mode blocks). **Style
-  Dictionary is deferred** to the first native-platform (iOS/Android/Flutter) target, where its
-  format library pays; DTCG-as-source is exactly what lets it drop in then without re-authoring.
+- **Two engines, one source, clean division.** DTCG is the adopted source format (vendor-neutral,
+  stable 2025.10, Figma/Tokens Studio interop). A thin, pure, in-repo emitter owns the bespoke web
+  CSS (`@layer ds.theme` + the white-label dual `:where([data-ds-theme], [data-refarm-theme])`
+  selector + light/dark mode blocks) and the `BUILTIN_THEMES` JS objects. **Style Dictionary** owns
+  the platform exports it does best — SCSS, iOS (Swift/UIColor), Android (XML), Flutter (Dart) —
+  transforming colors to each platform's native type. Both read the same `src/tokens/*.tokens.json`,
+  so nothing diverges. Native exports (`src/platforms/`, shipped via `./platforms/*`) use the base
+  palette; modes stay a web concern.
 - **Byte-fidelity guaranteed.** A drift-guard test asserts `emit(DTCG source) === committed
   themes/*.css`, byte for byte, for every theme (incl. verde-jardim's mode blocks). The generated
   files are DERIVED — never hand-edit them; edit the DTCG source and regenerate.

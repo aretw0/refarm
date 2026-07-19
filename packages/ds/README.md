@@ -57,6 +57,43 @@ agnostic presentation. For example, Homestead owns stream node rendering while
 the DS owns the generic pill, panel, card, badge, workbench, and scroll-region
 styling.
 
+## Token source (DTCG) & multi-platform exports
+
+Themes are authored **once** as W3C [DTCG](https://www.designtokens.org/) token files
+(`src/tokens/<theme>.tokens.json`) — the single source of truth. Everything else is
+**generated** from it (`pnpm -C packages/ds run generate`), so one design decision projects to
+every surface:
+
+| Surface | Output | Consume |
+|---|---|---|
+| Web (CSS) | `src/themes/<theme>.css` | `@refarm.dev/ds/themes/<theme>.css` |
+| JS / TUI / agent | `BUILTIN_THEMES` (`DsTheme` objects) | `import { BUILTIN_THEMES } from "@refarm.dev/ds"` |
+| Sass | `src/platforms/scss/<theme>.scss` | `@refarm.dev/ds/platforms/scss/<theme>.scss` |
+| iOS | `src/platforms/ios/<Theme>Tokens.swift` | `@refarm.dev/ds/platforms/ios/<Theme>Tokens.swift` |
+| Android | `src/platforms/android/<theme>.xml` | `@refarm.dev/ds/platforms/android/<theme>.xml` |
+| Flutter | `src/platforms/flutter/<theme>.dart` | `@refarm.dev/ds/platforms/flutter/<theme>.dart` |
+
+Division of labour: a small in-repo emitter owns the bespoke web CSS (the scoped `@layer` +
+white-label dual selector) and the `DsTheme` objects; **Style Dictionary** owns the platform
+exports (SCSS/iOS/Android/Flutter), where it transforms colors to each platform's native type
+(`#238636` → `UIColor(red: 0.137, …)`, `#ff238636`, `Color(0xFF238636)`). Both read the same DTCG
+source, so nothing can diverge — a drift-guard test re-runs each generator and asserts byte
+equality with the committed files. Native exports use each theme's base palette.
+
+To change a token, edit the DTCG source and regenerate — never hand-edit a generated file. See the
+projection live across every surface:
+
+```bash
+pnpm -C packages/ds run demo
+```
+
+Consuming a built-in theme on a non-web surface (no CSS involved):
+
+```ts
+import { BUILTIN_THEMES, projectThemeToTui } from "@refarm.dev/ds";
+const terminal = projectThemeToTui(BUILTIN_THEMES["verde-jardim"]); // ANSI colors for a TUI
+```
+
 ## HTML helpers
 
 Use `@refarm.dev/ds/html` when a consumer needs build-free HTML strings over DS

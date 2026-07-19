@@ -96,6 +96,7 @@
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
 		"generate": "tsx scripts/generate-tokens.ts && tsx scripts/generate-platforms.ts",
+		"demo": "tsx scripts/show-multiplatform.ts",
 		"type-check": "tsc --noEmit",
 		"test": "vitest run",
 		"storybook": "storybook dev -p 6006",

@@ -9,5 +9,10 @@ CSS-is-source direction (the `DsTheme` was reverse-extracted from CSS by regex).
 test proves the emit is byte-faithful for every theme, including verde-jardim's light/dark mode
 blocks. Built-ins now reach non-CSS surfaces from the source directly
 (`projectThemeToTui(BUILTIN_THEMES[id])`, `ThemeRegistry.register(id, BUILTIN_THEMES[id],
-"built-in")`). New exports: `BUILTIN_THEMES`, `dtcgToDsTheme`. Style Dictionary is deferred to the
-first native-platform target; the DTCG source is what lets it drop in then.
+"built-in")`). New exports: `BUILTIN_THEMES`, `dtcgToDsTheme`.
+
+From the same DTCG source, Style Dictionary emits platform token exports — SCSS, iOS (Swift),
+Android (XML), Flutter (Dart) — shipped via `@refarm.dev/ds/platforms/*`, so the design system
+distributes to any platform, not just web. A drift-guard test re-runs each generator and asserts
+byte-equality with the committed outputs. Run `pnpm -C packages/ds run demo` to see one source
+projected to every surface.
