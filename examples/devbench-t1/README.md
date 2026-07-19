@@ -128,6 +128,28 @@ If unset, `dgk` targets `http://127.0.0.1:42123`.
 Set `DGK_COMMAND=/path/to/cli-name` to change the CLI command root (for example
 `DGK_COMMAND=devbench-acme`).
 
+## Laid-out faces — dashboard, status, tables
+
+Declare once → the machine shows itself in richer terminal + web faces, no per-verb wiring (all from the
+framework's layout engine, `@refarm.dev/surface-terminal`):
+
+```bash
+pnpm --filter devbench-t1 dgk dashboard        # every verb as a bordered card grid, grouped by section
+pnpm --filter devbench-t1 dgk dashboard -i     # navigate the cards (arrows), Enter runs the focused verb
+                                               #   — a verb with args opens an inline input form first
+pnpm --filter devbench-t1 dgk status-panel     # operator status as severity-colored stat-cards + Next steps
+```
+
+- **`dashboard`** projects the SAME surface model the web panel + agent tools read (`renderers.tui.section`
+  places each verb) as a laid-out card grid — the multi-region composition a flat menu can't express.
+  `-i` adds keyboard navigation + dispatch; an args-needing verb (e.g. `agent-telemetry --mock`) is filled
+  through an inline form.
+- **`status-panel`** renders the host's `operatorStatus` units as a panel (label colored by severity).
+- **Web tables (real runtime data):** the `agent-telemetry` verb renders its run timeline (route,
+  iterations, tool calls, tokens — from the runtime's own `agent:*` events) and `plugin-catalog` renders
+  the Barn's verified inventory (plugin · cache · sha256) as accessible `<table>`s in the web face — the
+  same tabular data the terminal `renderTable` lays out. One data declaration, projected per surface.
+
 ## White-label to the core — one brand, every layer
 
 devbench runs under its OWN brand (`DGK`), and that brand reaches every layer of
