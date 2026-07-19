@@ -92,8 +92,18 @@ function shortcutOf(item: SurfaceItem): string | undefined {
 	return typeof shortcut === "string" && shortcut.length > 0 ? shortcut : undefined;
 }
 
-/** Render the menu (sections as headings, items as numbered rows). */
+/** The visible cell width of an item's name + optional shortcut hint (raw text, ANSI-free), so the
+ * summary column can be aligned. Item names are plain text today; swap `.length` for a wcwidth
+ * measure if a name ever carries wide/zero-width glyphs. */
+function nameCellWidth(item: SurfaceItem): number {
+	const shortcut = shortcutOf(item);
+	return item.name.length + (shortcut ? ` (${shortcut})`.length : 0);
+}
+
+/** Render the menu (sections as headings, items as numbered rows with an aligned summary column). */
 function renderMenu(numbered: NumberedItem[], write: (line: string) => void): void {
+	// Align the summary column: pad each name+hint block to the widest, so summaries line up.
+	const nameColumn = numbered.reduce((max, { item }) => Math.max(max, nameCellWidth(item)), 0);
 	let currentSection: string | null = null;
 	for (const { index, section, item } of numbered) {
 		if (section !== currentSection) {
@@ -103,8 +113,9 @@ function renderMenu(numbered: NumberedItem[], write: (line: string) => void): vo
 		}
 		const shortcut = shortcutOf(item);
 		const hint = shortcut ? chalk.dim(` (${shortcut})`) : "";
+		const gap = " ".repeat(nameColumn - nameCellWidth(item) + 2);
 		write(
-			`  ${chalk.yellow(String(index).padStart(2))}  ${item.name}${hint}  ${chalk.dim(item.summary)}`,
+			`  ${chalk.yellow(String(index).padStart(2))}  ${item.name}${hint}${gap}${chalk.dim(item.summary)}`,
 		);
 	}
 	write("");

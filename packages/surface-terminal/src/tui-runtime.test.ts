@@ -55,6 +55,18 @@ describe("runTui (the interactive TUI runtime)", () => {
 		expect(text).toContain("status");
 	});
 
+	it("aligns the summary column across items of different name widths", async () => {
+		const { io, output } = scriptedIo(["q"]);
+		await runTui(fixtureRegistry(), { io, title: "Test Bench" });
+		const stripAnsi = (line: string) => line.replace(/\x1b\[[0-9;]*m/g, "");
+		const lines = output.flatMap((o) => o.split("\n")).map(stripAnsi);
+		const pingRow = lines.find((l) => l.includes("ping") && l.includes("Ping the thing"))!;
+		const statusRow = lines.find((l) => l.includes("status") && l.includes("Show status"))!;
+		// `ping` (4 chars) and `status (s)` (10 chars) differ in width, but their summaries start at the
+		// same column — the aligned menu.
+		expect(pingRow.indexOf("Ping the thing")).toBe(statusRow.indexOf("Show status"));
+	});
+
 	it("invokes a verb selected by 1-based index and renders its envelope", async () => {
 		const { io, output } = scriptedIo(["1", "q"]);
 		await runTui(fixtureRegistry(), { io });
