@@ -38,6 +38,15 @@ export {
 	type RenderCapabilityDashboardOptions,
 	type RunInteractiveDashboardOptions,
 } from "./tui-dashboard.js";
+export {
+	statusPanelToLayout,
+	renderStatusPanel,
+	defaultStatusColors,
+	type StatusPanelUnit,
+	type StatusPanelModel,
+	type StatusPanelColors,
+	type RenderStatusPanelOptions,
+} from "./tui-status.js";
 export { scriptedInput, type Key, type TerminalInput } from "./tui-input.js";
 export { focusOrder, moveFocus, type FocusTarget } from "./tui-focus.js";
 export {
