@@ -55,6 +55,13 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   workerd: true
+# The build-script allowlist pnpm actually enforces (unlike `allowBuilds` above, which pnpm 10 does
+# not read): pnpm 10 errors on un-acknowledged ignored builds under a frozen/CI install. Approve
+# style-dictionary + its bundled glob (dev-only token tooling) so the deterministic CI install stays
+# green.
+onlyBuiltDependencies:
+  - "@bundled-es-modules/glob"
+  - style-dictionary
 overrides:
   "@babel/core": 7.29.6
   "@zenuml/core": 3.50.1
