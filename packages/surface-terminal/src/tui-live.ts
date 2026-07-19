@@ -56,8 +56,10 @@ const CLEAR_HOME = `${ESC}[2J${ESC}[H`;
  * and ALWAYS restore (leave alt-screen, show cursor) — including on Ctrl-C (SIGINT), which would otherwise
  * bypass the `finally`. Node-only. Ctrl-C is how the user quits a never-ending stream.
  */
-export async function runLiveTerminal<T>(opts: Omit<RunLiveViewOptions<T>, "output">): Promise<readonly T[]> {
-	const write = (bytes: string): void => void process.stdout.write(bytes);
+export async function runLiveTerminal<T>(
+	opts: Omit<RunLiveViewOptions<T>, "output"> & { write?: (bytes: string) => void },
+): Promise<readonly T[]> {
+	const write = opts.write ?? ((bytes: string): void => void process.stdout.write(bytes));
 	const restore = (): void => write(SHOW_CURSOR + ALT_SCREEN_LEAVE);
 	const onSigint = (): void => {
 		restore();

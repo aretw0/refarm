@@ -123,8 +123,8 @@ export interface RunInteractiveTerminalOptions extends Omit<RunInteractiveLayout
 export async function withInteractiveTerminal<T>(
 	run: (input: TerminalInput, output: (frame: string) => void) => Promise<T>,
 	rawWrite: (bytes: string) => void = (bytes: string) => void process.stdout.write(bytes),
+	input: TerminalInput = createStdinInput(),
 ): Promise<T> {
-	const input = createStdinInput();
 	rawWrite(ALT_SCREEN_ENTER + HIDE_CURSOR);
 	try {
 		return await run(input, (frame) => rawWrite(CLEAR_HOME + frame));

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { arrayLiveSource, runLiveView } from "./tui-live.js";
+import { arrayLiveSource, runLiveTerminal, runLiveView } from "./tui-live.js";
 import { renderTable } from "./tui-table.js";
 
 describe("runLiveView (stream-driven redraw)", () => {
@@ -48,5 +48,21 @@ describe("runLiveView (stream-driven redraw)", () => {
 		expect(last).toContain("route:selected");
 		expect(last).toContain("tool:call");
 		expect(last.indexOf("prompt:start")).toBeLessThan(last.indexOf("tool:call"));
+	});
+
+	it("runLiveTerminal frames the live view in the alt-screen and restores on exit", async () => {
+		const ESC = String.fromCharCode(27);
+		const bytes: string[] = [];
+		await runLiveTerminal({
+			source: arrayLiveSource(["x", "y"]),
+			render: (xs) => xs.join(""),
+			write: (b) => bytes.push(b),
+		});
+		const all = bytes.join("");
+		expect(all).toContain(`${ESC}[?1049h`); // entered the alt-screen
+		expect(all).toContain(`${ESC}[?25l`); // hid the cursor
+		expect(all).toContain("xy"); // the final accumulated frame
+		expect(all).toContain(`${ESC}[?25h`); // restored the cursor
+		expect(all).toContain(`${ESC}[?1049l`); // left the alt-screen
 	});
 });

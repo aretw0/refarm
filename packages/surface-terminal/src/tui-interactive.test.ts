@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { focusOrder } from "./tui-focus.js";
 import { scriptedInput } from "./tui-input.js";
-import { runInteractiveLayout } from "./tui-interactive.js";
+import { runInteractiveLayout, withInteractiveTerminal } from "./tui-interactive.js";
 import type { PositionedNode } from "./tui-layout.js";
 
 const card = (id: string, x: number, y: number): PositionedNode => ({
@@ -85,5 +85,36 @@ describe("runInteractiveLayout", () => {
 			output: (frame) => frames.push(frame),
 		});
 		expect(frames).toEqual(["a"]); // only the initial render
+	});
+
+	it("withInteractiveTerminal enters the alt-screen + hides the cursor, then ALWAYS restores (even on throw)", async () => {
+		const ESC = String.fromCharCode(27);
+		const bytes: string[] = [];
+		const write = (b: string) => bytes.push(b);
+		const result = await withInteractiveTerminal(
+			(_input, output) => {
+				output("frame");
+				return Promise.resolve(42);
+			},
+			write,
+			scriptedInput([]),
+		);
+		expect(result).toBe(42);
+		let all = bytes.join("");
+		expect(all).toContain(`${ESC}[?1049h`); // entered the alt-screen
+		expect(all).toContain(`${ESC}[?25l`); // hid the cursor
+		expect(all).toContain("frame"); // the painted frame
+		expect(all).toContain(`${ESC}[?25h`); // showed the cursor (restored)
+		expect(all).toContain(`${ESC}[?1049l`); // left the alt-screen (restored)
+		expect(all.indexOf(`${ESC}[?1049h`)).toBeLessThan(all.indexOf(`${ESC}[?1049l`));
+
+		// Restore even when the run throws.
+		bytes.length = 0;
+		await expect(
+			withInteractiveTerminal(() => Promise.reject(new Error("boom")), write, scriptedInput([])),
+		).rejects.toThrow("boom");
+		all = bytes.join("");
+		expect(all).toContain(`${ESC}[?25h`); // cursor restored despite the throw
+		expect(all).toContain(`${ESC}[?1049l`); // alt-screen left despite the throw
 	});
 });
