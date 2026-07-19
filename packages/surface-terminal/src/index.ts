@@ -28,10 +28,12 @@ export { renderTuiLayout, type RenderTuiLayoutOptions } from "./tui-render.js";
 export {
 	surfaceModelToLayout,
 	renderCapabilityDashboard,
+	runInteractiveDashboard,
 	defaultDashboardColors,
 	type SurfaceDashboardColors,
 	type SurfaceDashboardOptions,
 	type RenderCapabilityDashboardOptions,
+	type RunInteractiveDashboardOptions,
 } from "./tui-dashboard.js";
 export { scriptedInput, type Key, type TerminalInput } from "./tui-input.js";
 export { focusOrder, moveFocus, type FocusTarget } from "./tui-focus.js";

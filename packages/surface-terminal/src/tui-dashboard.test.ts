@@ -1,7 +1,8 @@
 import type { SurfaceModel } from "@refarm.dev/capabilities";
 import { describe, expect, it } from "vitest";
 
-import { renderCapabilityDashboard, surfaceModelToLayout } from "./tui-dashboard.js";
+import { renderCapabilityDashboard, runInteractiveDashboard, surfaceModelToLayout } from "./tui-dashboard.js";
+import { scriptedInput } from "./tui-input.js";
 
 const model: SurfaceModel = {
 	sections: [
@@ -58,5 +59,33 @@ describe("renderCapabilityDashboard (model → Yoga layout → ANSI)", () => {
 		expect(nameRow).toContain("trust");
 		// "trust" sits to the RIGHT of "wallet" (a second column, not stacked).
 		expect(nameRow!.indexOf("trust")).toBeGreaterThan(nameRow!.indexOf("wallet"));
+	});
+});
+
+describe("surfaceModelToLayout focusable cards", () => {
+	it("marks each card focusable with its verb name as id", () => {
+		const layout = surfaceModelToLayout(model);
+		const cardRow = layout.children![0]!.children![1]!;
+		expect(cardRow.children!.map((card) => card.id)).toEqual(["wallet", "trust"]);
+		expect(cardRow.children!.every((card) => card.focusable === true)).toBe(true);
+	});
+});
+
+describe("runInteractiveDashboard (headless)", () => {
+	it("navigates cards with arrows and dispatches the focused verb on Enter", async () => {
+		const selected: string[] = [];
+		const frames: string[] = [];
+		const last = await runInteractiveDashboard(model, {
+			width: 80,
+			input: scriptedInput([{ name: "right" }, { name: "return" }, { name: "escape" }]),
+			output: (frame) => frames.push(frame),
+			onSelect: (verb) => {
+				selected.push(verb);
+			},
+		});
+		// initial focus = wallet (first card) → right → trust → Enter dispatches "trust".
+		expect(selected).toEqual(["trust"]);
+		expect(last).toBe("trust");
+		expect(frames.length).toBeGreaterThanOrEqual(2); // initial + after the move
 	});
 });

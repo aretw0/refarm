@@ -1,5 +1,6 @@
 import {
 	createCapabilityRegistry,
+	dispatchCapability,
 	isCapabilityGroup,
 	tuiSurfaceModel,
 	type CapabilityDescriptor,
@@ -756,14 +757,55 @@ function addDashboardCommand(
 	program
 		.command("dashboard")
 		.description(`Print ${definition.command} as a laid-out terminal dashboard (the verbs' tui surface)`)
-		.action(async () => {
-			const { renderCapabilityDashboard, defaultDashboardColors } = await import("@refarm.dev/surface-terminal");
-			const dashboard = await renderCapabilityDashboard(tuiSurfaceModel(registry), {
-				width: process.stdout.columns ?? 80,
-				colors: defaultDashboardColors,
+		.option("-i, --interactive", "navigate cards with arrow keys; Enter runs the focused verb")
+		.action(async (options: { interactive?: boolean }) => {
+			const surface = await import("@refarm.dev/surface-terminal");
+			const model = tuiSurfaceModel(registry);
+			const width = process.stdout.columns ?? 80;
+			// Interactive only with a real TTY on both ends — a pipe/CI falls back to the one-shot print.
+			if (options.interactive && process.stdin.isTTY && process.stdout.isTTY) {
+				let chosen: string | null = null;
+				await surface.runInteractiveDashboard(model, {
+					width,
+					colors: surface.defaultDashboardColors,
+					onSelect: (verb) => {
+						chosen = verb; // Enter picks the focused verb and exits the alt-screen
+						return false;
+					},
+				});
+				if (chosen) await runDashboardSelection(registry, definition, chosen);
+				return;
+			}
+			const dashboard = await surface.renderCapabilityDashboard(model, {
+				width,
+				colors: surface.defaultDashboardColors,
 			});
 			process.stdout.write(`${dashboard}\n`);
 		});
+}
+
+/** Dispatch the verb the user picked in the interactive dashboard (no args), back on the normal
+ * screen: run it and print the envelope, or — if it needs arguments (the shared validator) — say so
+ * and point at the CLI form that takes them. One pick → one dispatch, via the same outcome contract. */
+async function runDashboardSelection(
+	registry: CapabilityRegistry,
+	definition: CapabilityHostDefinition,
+	verb: string,
+): Promise<void> {
+	const entry = registry.list().find((candidate) => candidate.name === verb);
+	if (!entry) {
+		process.stdout.write(`could not resolve ${verb}\n`);
+		return;
+	}
+	const outcome = await dispatchCapability(entry, []);
+	if (outcome.status === "invalid") {
+		const detail = (outcome.validation?.errors ?? [])
+			.map((error) => (error.field ? `${error.field} ${error.message}` : error.message))
+			.join("; ");
+		process.stdout.write(`${verb} needs arguments: ${detail}\nRun: ${definition.command} ${verb} <args>\n`);
+		return;
+	}
+	process.stdout.write(`${JSON.stringify(outcome.envelope, null, 2)}\n`);
 }
 
 function serveUrl(origin: string, path: string): string {
