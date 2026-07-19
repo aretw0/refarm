@@ -40,15 +40,17 @@ describe("focusOrder", () => {
 });
 
 describe("moveFocus", () => {
-	it("tab / right advances in reading order and wraps", () => {
-		expect(moveFocus(order, "a", { name: "right" })).toBe("b");
-		expect(moveFocus(order, "a", { name: "tab" })).toBe("b");
-		expect(moveFocus(order, "d", { name: "right" })).toBe("a"); // wraps past the end
+	it("arrows move spatially — right/left within the row, clamping at the edges", () => {
+		expect(moveFocus(order, "a", { name: "right" })).toBe("b"); // next box in the row
+		expect(moveFocus(order, "b", { name: "right" })).toBe("b"); // row end → clamp
+		expect(moveFocus(order, "b", { name: "left" })).toBe("a");
+		expect(moveFocus(order, "a", { name: "left" })).toBe("a"); // row start → clamp
 	});
 
-	it("left steps back and wraps", () => {
-		expect(moveFocus(order, "b", { name: "left" })).toBe("a");
-		expect(moveFocus(order, "a", { name: "left" })).toBe("d"); // wraps past the start
+	it("tab cycles in reading order and wraps", () => {
+		expect(moveFocus(order, "a", { name: "tab" })).toBe("b");
+		expect(moveFocus(order, "b", { name: "tab" })).toBe("c"); // into the next row
+		expect(moveFocus(order, "d", { name: "tab" })).toBe("a"); // wraps past the end
 	});
 
 	it("down / up move to the geometrically nearest box in that direction", () => {

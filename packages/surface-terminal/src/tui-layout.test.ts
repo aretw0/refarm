@@ -65,6 +65,11 @@ describe("computeTuiLayout (Yoga flex → positioned terminal cells)", () => {
 		expect(out.children[1]!.height).toBe(3);
 	});
 
+	it("measures a wide (CJK) text leaf at 2 cells per glyph", async () => {
+		const out = await computeTuiLayout({ align: "start", children: [{ text: "你好" }] }, { width: 40 });
+		expect(out.children[0]!.width).toBe(4); // 2 wide glyphs × 2 cells
+	});
+
 	it("defaultMeasureText strips ANSI before counting cells", () => {
 		expect(defaultMeasureText(`${String.fromCharCode(27)}[31mred${String.fromCharCode(27)}[0m`)).toEqual({
 			width: 3,

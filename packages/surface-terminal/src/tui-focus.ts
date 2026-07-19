@@ -44,10 +44,19 @@ function nearestVertical(order: readonly FocusTarget[], from: FocusTarget, dir: 
 	});
 }
 
+/** The nearest target in a horizontal direction WITHIN the same row (same y): smallest column delta.
+ * Null if none — arrow nav clamps at a row's edge (tab is the cross-row cycle). */
+function nearestHorizontal(order: readonly FocusTarget[], from: FocusTarget, dir: 1 | -1): FocusTarget | null {
+	const sameRow = order.filter((target) => target.y === from.y && (dir > 0 ? target.x > from.x : target.x < from.x));
+	if (sameRow.length === 0) return null;
+	return sameRow.reduce((best, target) => (Math.abs(target.x - from.x) < Math.abs(best.x - from.x) ? target : best));
+}
+
 /**
- * Move focus by a key over the ordered targets: reading-order prev/next for left/right/tab (wrapping),
- * geometric nearest for up/down. Returns the new focused id — unchanged for a non-navigating key, the
- * first target when nothing is focused yet, or null only when there are no targets.
+ * Move focus by a key: `tab` cycles in reading order (wrapping); the ARROWS are spatial — left/right
+ * move within the row (clamping at its edge), up/down to the geometrically nearest box. Returns the new
+ * focused id — unchanged for a non-navigating key, the first target when nothing is focused yet, or null
+ * only when there are no targets.
  */
 export function moveFocus(order: readonly FocusTarget[], currentId: string | null, key: Key): string | null {
 	if (order.length === 0) return null;
@@ -55,11 +64,12 @@ export function moveFocus(order: readonly FocusTarget[], currentId: string | nul
 	if (index < 0) return order[0]!.id; // nothing focused yet → first target
 	const current = order[index]!;
 	switch (key.name) {
-		case "right":
 		case "tab":
-			return order[(index + 1) % order.length]!.id;
+			return order[(index + 1) % order.length]!.id; // reading-order cycle (wraps)
+		case "right":
+			return (nearestHorizontal(order, current, 1) ?? current).id; // within-row, clamps at the edge
 		case "left":
-			return order[(index - 1 + order.length) % order.length]!.id;
+			return (nearestHorizontal(order, current, -1) ?? current).id;
 		case "down":
 			return (nearestVertical(order, current, 1) ?? current).id;
 		case "up":

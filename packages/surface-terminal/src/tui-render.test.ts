@@ -57,6 +57,12 @@ describe("renderTuiLayout (positioned boxes → ANSI grid)", () => {
 		expect(renderTuiLayout(boxed)).toBe("┌────┐\n│    │\n└────┘");
 	});
 
+	it("truncates on grapheme boundaries — a wide glyph is never split", () => {
+		// "你好世界" is 8 cells; a width-5 box keeps "你好" (4), not a half-glyph straddling cell 5.
+		const root = box(0, 0, 5, 1, [leaf(0, 0, 5, 1, "你好世界")]);
+		expect(renderTuiLayout(root)).toBe("你好");
+	});
+
 	it("renders a computed layout end to end (compute → render)", async () => {
 		const layout = await computeTuiLayout(
 			{ direction: "row", gap: 2, align: "start", children: [{ text: "L" }, { text: "R" }] },

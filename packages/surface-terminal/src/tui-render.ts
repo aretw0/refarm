@@ -8,22 +8,37 @@
  * before a segment is padded by the running VISIBLE cursor, so a colored run lands on the same column a
  * plain one would. Non-overlapping by construction (flex layouts don't overlap siblings). Brand-neutral.
  */
+import stringWidth from "string-width";
+
 import type { PositionedNode } from "./tui-layout.js";
 
 // ESC[…m sequences, built without a control char in the literal (no-control-regex).
 const ANSI_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
 
-/** Visible width of a string in terminal cells: ANSI stripped, code points counted. */
+/** Visible width of a string in terminal cells (`string-width`: ANSI-stripped, East-Asian-width +
+ * emoji + zero-width aware). */
 function visibleWidth(text: string): number {
-	return [...text.replace(ANSI_PATTERN, "")].length;
+	return stringWidth(text);
 }
 
+/** Grapheme segmenter so truncation cuts on visible glyph boundaries (emoji ZWJ sequences stay whole). */
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
 /** Truncate a line to `width` visible cells. If it already fits, it is returned verbatim (color kept);
- * otherwise it falls back to the plain (ANSI-stripped) prefix — styling past the cut is dropped. */
+ * otherwise the plain (ANSI-stripped) prefix is accumulated by GRAPHEME width, so a wide (CJK/emoji)
+ * glyph is never split across the cut. Styling past the cut is dropped. */
 function truncateToWidth(text: string, width: number, measure: (t: string) => number): string {
 	if (measure(text) <= width) return text;
 	const plain = text.replace(ANSI_PATTERN, "");
-	return [...plain].slice(0, Math.max(0, width)).join("");
+	let out = "";
+	let used = 0;
+	for (const { segment } of GRAPHEMES.segment(plain)) {
+		const cellWidth = measure(segment);
+		if (used + cellWidth > width) break;
+		out += segment;
+		used += cellWidth;
+	}
+	return out;
 }
 
 export interface RenderTuiLayoutOptions {

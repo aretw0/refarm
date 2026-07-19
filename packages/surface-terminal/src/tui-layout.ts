@@ -22,6 +22,7 @@ import {
 	Wrap,
 	type Yoga,
 } from "yoga-layout/load";
+import stringWidth from "string-width";
 
 /** A flex box OR a text leaf — the surface-neutral input to the engine. A node either wraps `children`
  * (a box) or carries `text` (a measured leaf, which ignores `children`). Every size/spacing is in
@@ -87,14 +88,11 @@ export interface ComputeTuiLayoutOptions {
 	measureText?: MeasureText;
 }
 
-// ESC[…m color/style sequences, built without a control char in the literal (no-control-regex).
-const ANSI_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
-
-/** Default cell measurer: strip ANSI, count code points per line; width = widest line, height = lines.
- * A reasonable FLOOR (not grapheme / east-asian-width aware) — the documented refinement seam. */
+/** Default cell measurer: `string-width` (the de-facto measurer — ANSI-stripped, East-Asian-width +
+ * emoji + zero-width aware) per line; width = widest line, height = line count. */
 export const defaultMeasureText: MeasureText = (text) => {
-	const lines = text.replace(ANSI_PATTERN, "").split("\n");
-	const width = Math.max(0, ...lines.map((line) => [...line].length));
+	const lines = text.split("\n");
+	const width = Math.max(0, ...lines.map((line) => stringWidth(line)));
 	return { width, height: lines.length };
 };
 
