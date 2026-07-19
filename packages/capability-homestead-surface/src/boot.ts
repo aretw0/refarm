@@ -165,23 +165,52 @@ function firstHtmlField(envelope: Record<string, unknown>): string | undefined {
  * result as a message. Event-delegated on the container (a form added later is covered), scoped to the
  * submitted form (several forms of the same verb can coexist). Returns a detach fn. Runs in the browser.
  */
+/** A monotonic id source for field-error notes, so `aria-describedby` can reference each note by a
+ * document-unique id — two coexisting forms, or repeated submits, never collide on an IDREF. */
+let fieldErrorSeq = 0;
+
+/** Remove painted field errors AND the ARIA state that pointed at them, so a re-validate starts clean:
+ * drop the `data-refarm-field-error` notes and clear `aria-invalid` / `aria-describedby` from the
+ * fields they annotated (this renderer only ever sets those two for errors). */
+function clearFieldErrors(form: HTMLFormElement): void {
+	form.querySelectorAll("[data-refarm-field-error]").forEach((el) => el.remove());
+	form.querySelectorAll("[aria-invalid]").forEach((el) => {
+		el.removeAttribute("aria-invalid");
+		el.removeAttribute("aria-describedby");
+	});
+}
+
 /** Paint each validation error next to its field: a `data-refarm-field-error` note after the matching
  * `data-refarm-arg`/`data-refarm-option` input (a whole-input error goes at the form's end), so the form
  * stays open with inline, field-scoped feedback. Surface-neutral field/message from the shared validator. */
 function paintFieldErrors(form: HTMLFormElement, errors: readonly { field: string; message: string }[]): void {
 	const doc = form.ownerDocument;
 	const esc = (v: string) => (typeof CSS !== "undefined" && CSS.escape ? CSS.escape(v) : v.replace(/"/g, '\\"'));
+	let firstInvalid: HTMLElement | null = null;
 	for (const error of errors) {
 		const note = doc.createElement("p");
+		const noteId = `refarm-field-error-${fieldErrorSeq++}`;
+		note.id = noteId;
 		note.className = "refarm-error";
 		note.setAttribute("data-refarm-field-error", error.field);
 		note.textContent = error.field ? `${error.field}: ${error.message}` : error.message;
 		const target = error.field
-			? form.querySelector(`[data-refarm-arg="${esc(error.field)}"], [data-refarm-option="${esc(error.field)}"]`)
+			? (form.querySelector(`[data-refarm-arg="${esc(error.field)}"], [data-refarm-option="${esc(error.field)}"]`) as HTMLElement | null)
 			: null;
-		if (target) target.insertAdjacentElement("afterend", note);
-		else form.appendChild(note);
+		if (target) {
+			// Tie the field to its message programmatically: aria-invalid + aria-describedby → the note,
+			// so assistive tech announces the field as invalid and reads the reason when focus lands.
+			target.setAttribute("aria-invalid", "true");
+			const prior = target.getAttribute("aria-describedby");
+			target.setAttribute("aria-describedby", prior ? `${prior} ${noteId}` : noteId);
+			target.insertAdjacentElement("afterend", note);
+			if (!firstInvalid) firstInvalid = target;
+		} else {
+			form.appendChild(note);
+		}
 	}
+	// Move focus to the first invalid field so keyboard + screen-reader users land on what to fix.
+	firstInvalid?.focus();
 }
 
 export function wireCapabilityFormDispatch(
@@ -202,7 +231,7 @@ export function wireCapabilityFormDispatch(
 		// tool exposes) BEFORE dispatch — so a form rejects bad input the way a CLI or a tool call would.
 		// On failure, report the field-scoped errors through the existing result seam and block the run.
 		// Clear any errors painted on a previous submit before re-validating.
-		form.querySelectorAll("[data-refarm-field-error]").forEach((el) => el.remove());
+		clearFieldErrors(form);
 		const validation = validateCapabilityArgs(
 			entry as unknown as Parameters<typeof validateCapabilityArgs>[0],
 			{ ...input.args, ...input.options },

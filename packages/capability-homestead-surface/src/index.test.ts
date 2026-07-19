@@ -1,7 +1,11 @@
 import { createCapabilityRegistry, type CapabilityDescriptor } from "@refarm.dev/capabilities";
 import { describe, expect, it } from "vitest";
 
-import { capabilityWebSurfaceActions, createCapabilityWebSurfacePlugin } from "./index.js";
+import {
+	capabilityWebSurfaceActions,
+	createCapabilityWebSurfacePlugin,
+	renderCapabilityFormMessage,
+} from "./index.js";
 
 const walletVerb: CapabilityDescriptor = {
 	name: "wallet",
@@ -73,16 +77,33 @@ describe("capability → homestead web bridge (ADR-085)", () => {
 		const handle = createCapabilityWebSurfacePlugin(createCapabilityRegistry([typedArgsVerb]));
 		const result = (await handle.call?.("renderHomesteadSurface", {})) as { html: string };
 		// The enum arg becomes a <select> of its allowed values — not a text box you must guess.
-		expect(result.html).toContain('<select class="refarm-input" data-refarm-arg="verb">');
+		expect(result.html).toContain('<select class="refarm-input" aria-label="verb" data-refarm-arg="verb" required>');
 		expect(result.html).toContain('<option value="find-references">find-references</option>');
 		expect(result.html).toContain('<option value="rename-symbol">rename-symbol</option>');
 		// The integer arg becomes a number input.
-		expect(result.html).toContain('type="number" step="1" data-refarm-arg="line"');
+		expect(result.html).toContain('type="number" step="1" aria-label="line" data-refarm-arg="line"');
 		// An integer OPTION also becomes a number input.
-		expect(result.html).toContain('type="number" step="1" data-refarm-option="column"');
+		expect(result.html).toContain('type="number" step="1" aria-label="column" data-refarm-option="column"');
 		// An enum OPTION becomes a <select> too (the option-side twin of the enum arg).
-		expect(result.html).toContain('<select class="refarm-input" data-refarm-option="tipo">');
+		expect(result.html).toContain('<select class="refarm-input" aria-label="tipo" data-refarm-option="tipo">');
 		expect(result.html).toContain('<option value="x">x</option>');
+	});
+
+	it("labels every control + marks required args for assistive tech, and the inline form is novalidate (a11y)", () => {
+		const registry = createCapabilityRegistry([typedArgsVerb]);
+		const form = renderCapabilityFormMessage(registry, "code-ops");
+		// Every control gets a programmatic accessible name — the compact inline form has no visible <label>.
+		expect(form).toContain('aria-label="verb"');
+		expect(form).toContain('aria-label="line"');
+		expect(form).toContain('aria-label="column"');
+		expect(form).toContain('aria-label="tipo"');
+		// The required arg carries native `required` (preferred over aria-required for native controls);
+		// the optional arg does not.
+		expect(form).toContain('data-refarm-arg="verb" required>');
+		expect(form).not.toContain('data-refarm-arg="line" required');
+		// novalidate keeps our shared validator authoritative — native bubbles never pre-empt the
+		// accessible inline errors that validateCapabilityArgs drives.
+		expect(form).toContain('data-refarm-verb="code-ops" novalidate');
 	});
 
 	it("injects a content projector's HTML (from host.data) above the cards — the MOC seam", async () => {

@@ -87,17 +87,31 @@ function escape(value: string): string {
  * else a text input. Shared by args AND options (a boolean option is a checkbox, handled by the caller).
  * The value reads back as a string — a select's chosen option, a number field's numeric string — so
  * `collectVerbInput` is unchanged; this only picks the widget from the declared type/enum. */
-function typedInput(field: { dataAttr: string; placeholder: string; kind?: string; enumValues?: string[] }): string {
+function typedInput(field: {
+	dataAttr: string;
+	placeholder: string;
+	name: string;
+	required?: boolean;
+	kind?: string;
+	enumValues?: string[];
+}): string {
+	// A programmatic accessible name — this compact inline form has no visible <label>, and a
+	// placeholder is NOT a label (it vanishes on input). A required arg carries the native `required`
+	// (preferred over aria-required for native controls; it exposes the state to assistive tech); the
+	// form itself is `novalidate` so our shared validator stays authoritative and native bubbles never
+	// pre-empt the accessible inline errors. The visual `*` stays in the placeholder.
+	const aria = `aria-label="${escape(field.name)}"`;
+	const req = field.required ? " required" : "";
 	if (field.enumValues && field.enumValues.length > 0) {
 		const options = [
 			`<option value="">${field.placeholder}</option>`,
 			...field.enumValues.map((v) => `<option value="${escape(v)}">${escape(v)}</option>`),
 		].join("");
-		return `<select class="refarm-input" ${field.dataAttr}>${options}</select>`;
+		return `<select class="refarm-input" ${aria} ${field.dataAttr}${req}>${options}</select>`;
 	}
 	const numeric = field.kind === "number" || field.kind === "integer";
 	const step = field.kind === "integer" ? ` step="1"` : "";
-	return `<input class="refarm-input" type="${numeric ? "number" : "text"}"${step} ${field.dataAttr} placeholder="${field.placeholder}" />`;
+	return `<input class="refarm-input" type="${numeric ? "number" : "text"}"${step} ${aria} ${field.dataAttr}${req} placeholder="${field.placeholder}" />`;
 }
 
 /** Render the input fields for a verb's args + options (or "" when it takes none), so a card can
@@ -120,6 +134,8 @@ function renderVerbInputs(registry: CapabilityRegistry, verbName: string): strin
 			typedInput({
 				dataAttr: `data-refarm-arg="${escape(a.name)}"`,
 				placeholder: `${escape(a.name)}${a.required ? " *" : ""}`,
+				name: a.name,
+				required: a.required,
 				kind: a.type,
 				enumValues: a.enum,
 			}),
@@ -132,6 +148,7 @@ function renderVerbInputs(registry: CapabilityRegistry, verbName: string): strin
 				: typedInput({
 						dataAttr: `data-refarm-option="${escape(o.name)}"`,
 						placeholder: `--${escape(o.name)}`,
+						name: o.name,
 						kind: o.kind,
 						enumValues: o.enum,
 					}),
@@ -159,7 +176,7 @@ export function renderCapabilityFormMessage(
 	const summary = "summary" in entry && typeof entry.summary === "string" ? entry.summary : "";
 	const label = escape(options.submitLabel ?? verbName);
 	return [
-		`<form class="refarm-capability-form" data-refarm-verb="${escape(verbName)}">`,
+		`<form class="refarm-capability-form" data-refarm-verb="${escape(verbName)}" novalidate>`,
 		summary ? `<p class="refarm-capability-form-summary">${escape(summary)}</p>` : "",
 		renderVerbInputs(registry, verbName),
 		`<button type="submit" class="refarm-btn refarm-capability-form-submit">${label}</button>`,

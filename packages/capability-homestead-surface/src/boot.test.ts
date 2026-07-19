@@ -649,6 +649,44 @@ describe("mountCapabilityWebView — custom substrate view, framework-owned load
 		expect(container.querySelector('form.refarm-capability-form[data-refarm-verb="search"]')).not.toBeNull();
 	});
 
+	it("wires ARIA for a field error (aria-invalid + aria-describedby → the note), focuses the first invalid field, and clears it all on a valid re-submit", () => {
+		const registry = {
+			get: (name: string) =>
+				name === "search"
+					? {
+							name: "search",
+							summary: "Search things",
+							args: [{ name: "query", required: true }],
+							renderers: { web: {} },
+							run: async () => ({ ok: true }),
+						}
+					: undefined,
+			list: () => [{ name: "search" }],
+		} as unknown as CapabilityRegistry;
+
+		document.body.innerHTML = `<div id="convo-aria"></div>`;
+		const container = document.getElementById("convo-aria")!;
+		container.innerHTML = renderCapabilityFormMessage(registry, "search");
+		wireCapabilityFormDispatch(container, registry, () => {});
+		const field = container.querySelector('[data-refarm-arg="query"]') as HTMLInputElement;
+
+		// Submit empty → the required `query` is invalid: the field is flagged, tied to its error, and focused.
+		container.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+		expect(field.getAttribute("aria-invalid")).toBe("true");
+		const noteId = field.getAttribute("aria-describedby");
+		expect(noteId).toBeTruthy();
+		// aria-describedby is a valid IDREF to the actual error note, so AT reads the reason on focus.
+		expect(container.querySelector(`#${noteId}`)?.getAttribute("data-refarm-field-error")).toBe("query");
+		expect(document.activeElement).toBe(field); // focus moved to the first invalid field
+
+		// Fix it and re-submit → the ARIA error state is fully cleared (no stale aria-invalid/describedby/note).
+		field.value = "notes";
+		container.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+		expect(field.getAttribute("aria-invalid")).toBeNull();
+		expect(field.getAttribute("aria-describedby")).toBeNull();
+		expect(container.querySelector("[data-refarm-field-error]")).toBeNull();
+	});
+
 	it("throws (→ overlay error) when the content verb is not in the registry", async () => {
 		const holder = viewRegistry({ items: [] });
 		await mountCapabilityWebView({
