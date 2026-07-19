@@ -16,3 +16,11 @@ export {
 	type CapabilitySurfaceHooks,
 } from "./cli-projector.js";
 export { runTui, createReadlineTuiIo, type TuiIo, type RunTuiOptions } from "./tui-runtime.js";
+export {
+	computeTuiLayout,
+	defaultMeasureText,
+	type LayoutNode,
+	type PositionedNode,
+	type MeasureText,
+	type ComputeTuiLayoutOptions,
+} from "./tui-layout.js";
