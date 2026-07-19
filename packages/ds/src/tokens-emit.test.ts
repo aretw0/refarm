@@ -15,12 +15,15 @@ function committedCss(name: string): string {
 	return readFileSync(fileURLToPath(new URL(`./themes/${name}`, import.meta.url)), "utf8");
 }
 
+/** The base (single-mode) themes — each a DTCG source file that emits one themes/<id>.css. */
+const BASE_THEMES = ["tractor-green", "oceano", "terracota"] as const;
+
 describe("token emit is byte-faithful to the shipped CSS (drift guard)", () => {
 	// If this fails, the DTCG source and the generated CSS diverged: run `pnpm -C packages/ds run generate`
 	// (or someone hand-edited the generated CSS). This re-proves fidelity in CI, where generate isn't run.
-	it("tractor-green: emit(DTCG source) === committed themes/tractor-green.css, byte for byte", () => {
-		const css = emitThemeCss({ id: "tractor-green", base: loadTokens("tractor-green.tokens.json") });
-		expect(css).toBe(committedCss("tractor-green.css"));
+	it.each(BASE_THEMES)("%s: emit(DTCG source) === committed themes/%s.css, byte for byte", (id) => {
+		const css = emitThemeCss({ id, base: loadTokens(`${id}.tokens.json`) });
+		expect(css).toBe(committedCss(`${id}.css`));
 	});
 });
 

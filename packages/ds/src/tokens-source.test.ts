@@ -20,15 +20,18 @@ const DTCG_TYPES = new Set([
 	"strokeStyle", "border", "transition", "shadow", "gradient", "typography",
 ]);
 
+/** The base (single-mode) DTCG source files. */
+const BASE_THEMES = ["tractor-green", "oceano", "terracota"] as const;
+
 describe("DTCG token source → DsTheme", () => {
-	it("tractor-green DTCG source flattens to a conformant DsTheme (all 30 contract tokens)", () => {
-		const result = runDsThemeConformance(dtcgToDsTheme(loadTokens("tractor-green.tokens.json")));
+	it.each(BASE_THEMES)("%s DTCG source flattens to a conformant DsTheme (all 30 contract tokens)", (id) => {
+		const result = runDsThemeConformance(dtcgToDsTheme(loadTokens(`${id}.tokens.json`)));
 		expect(result.pass).toBe(true);
 		expect(result.missing).toEqual([]);
 	});
 
-	it("is valid DTCG: every contract token is a { $type, $value } leaf with a standard $type", () => {
-		const file = loadTokens("tractor-green.tokens.json");
+	it.each(BASE_THEMES)("%s is valid DTCG: every contract token is a { $type, $value } leaf with a standard $type", (id) => {
+		const file = loadTokens(`${id}.tokens.json`);
 		for (const token of REQUIRED_TOKENS) {
 			const entry = file[token];
 			expect(entry, `${token} is present`).toBeTypeOf("object");
