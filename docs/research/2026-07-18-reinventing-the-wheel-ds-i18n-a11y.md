@@ -227,3 +227,79 @@ a primitive strategy.
   lets the T-examples theme across web+TUI.
 - SERPRO/EFD/ALM framing stays in **T3 only**; the rest stays agnostic and refarm assimilates any
   specifics as generic.
+
+---
+
+## Addendum (2026-07-19): schema-forms verdict + TUI composition
+
+> The schema-forms deep-research ran its fan-out + adversarial verification (**12 verified claims**) but
+> the synthesis hit the session limit again; this verdict is reconstructed from those claims + refarm's
+> actual pattern-B code. The TUI verdict is established art + run B's cross-surface findings — **no new
+> heavy research** (quota-conscious). Raw schema-forms claims were ephemeral (`/tmp/.../w9bl0dv7a.output`).
+
+### Schema-driven forms (closes the gap flagged above)
+
+refarm already has: a capability verb declares typed args → `verbSchemas` derives a JSON Schema
+(JS+Rust byte-identical, fixture-guarded) → `renderCapabilityFormMessage` projects it as an inline web
+form + `wireCapabilityFormDispatch` runs the verb; the agent sees the same schema as a typed tool. So
+the source→schema→(web-form + agent-tool) pipeline exists. Verdict, ranked by payoff:
+
+1. **Validation — ADOPT Ajv (low-effort, high-payoff).** JSONForms uses Ajv for JSON Schema handling
+   with an injectable custom Ajv instance (3-0). Ajv is THE JSON Schema validator; validate form input
+   against the derived schema with it, not hand-rolled checks. Bounded, clear win.
+2. **Data-schema ⊕ UI-schema split — LEARN-FROM JSONForms.** JSONForms cleanly separates `schema`
+   (data) from `uischema` (rendering) via a swappable renderer-set registry (3-0). That IS refarm's
+   split: the derived JSON Schema is the data model; each surface (web/CLI/agent) is a renderer. Adopt
+   the model + registry pattern; keep authorship of the cross-surface renderers JSONForms lacks (it
+   targets React/Angular/Vue — all web).
+3. **Adaptive Cards — LEARN-FROM (closest analog to "one definition → many surfaces"), with a hard
+   cautionary lesson.** Verified (3-0): host-agnostic JSON → native UI per host via a single renderer
+   SPEC implemented per platform + a shared **Host Config** separating content from per-host styling +
+   host-agnostic actions (Action.Submit collects inputs, delegates semantics to the host). refarm's
+   invariant, proven at scale. **BUT** (3-0, load-bearing): host fragmentation was a REAL problem even
+   for Adaptive Cards — hosts diverged on action models, forcing a NEW **unified universal action
+   model** — and "same card renders with NO extra author work" was **refuted (1-2)**. Lesson: a
+   host-agnostic UI schema is powerful but cross-surface consistency is NOT free — encode refarm's
+   projection as an explicit contract (a Host-Config-like styling seam + a unified action/dispatch
+   model), don't assume free parity. Pattern to learn, not a dep.
+4. **Vercel AI SDK generative UI — LEARN-FROM the pattern, do NOT adopt.** Verified (3-0): it maps
+   agent tool calls → React Server Components via a `render` method — so "agent tool-call → rendered
+   UI" IS a proven first-class concern (validates pattern B). But it is React/RSC-bound (web-only) and
+   Vercel has been steering users off AI SDK RSC (maintenance risk). It does NOT serve web+TUI+agent.
+5. **Cross-surface form derivation (one schema → web + CLI + agent) — MAINTAIN-AUTHORSHIP; genuinely
+   novel.** No verified player does web + terminal/TUI + agent-as-a-tool from one schema:
+   rjsf/JSONForms are multi-*web*-framework, Adaptive Cards is host-agnostic-but-card/native-mobile
+   (and itself struggled with consistency), Vercel is React-only. refarm's projection is genuine
+   authorship — KEEP it, over an adopted SOURCE (JSON Schema) + validation (Ajv), with an explicit
+   cross-surface contract à la Host Config.
+6. **Form-control a11y/i18n (Zag vs React Aria) — under-evidenced again; signal favors React Aria for
+   web controls.** The run fetched (not fully verified — session limit) that React Aria ships localized
+   strings for 30+ locales + RTL + Intl. Consistent with §2 of the main verdict: React Aria is richest
+   for the hard web widgets (combobox/date-picker/select) but React-coupled; Zag's framework-agnostic
+   FSM fits refarm's non-React surfaces. refarm's current form controls are structural (text/select) —
+   authorship fine; adopt Zag machines only for the hard interactive widgets.
+
+**Low-effort/high-payoff:** Ajv for validation; formalize the schema ⊕ per-surface-renderer split.
+**The trap:** hand-rolling JSON Schema *validation* (adopt Ajv). **Not** a trap: the cross-surface
+*projection* (genuine authorship — no one serves web+TUI+agent). The hard part Adaptive Cards proves —
+design cross-surface *consistency* explicitly (Host Config + a unified action model).
+
+### TUI composition — converge internal + external effort (established art, no new research)
+
+Serve TUI composition/assembly the way DTCG + Style Dictionary served tokens — converge with proven
+external effort. Landscape (run B + known art): **Ink** (a custom React reconciler → terminal; layout
+via Facebook's **Yoga** flexbox engine), **Textual** (Python, CSS-like TUI), **ratatui** / **Bubble
+Tea** (Rust/Go immediate-mode). run B's pattern: a component's logic/state separate from its per-surface
+renderer (Zag's FSM+adapter; RSD's strict shared layer + per-surface renderer). Verdict:
+
+- **MAINTAIN-AUTHORSHIP** the projection (capability → TUI) and the token/ANSI layer
+  (`projectThemeToTui` exists). web+TUI+agent from one definition stays novel (nobody does the agent
+  surface).
+- **LEARN-FROM** the reconciler/adapter discipline (Ink, Zag, RSD) — refarm's transport×renderer axis
+  already matches it.
+- **ADOPT (candidate)** a **layout engine** instead of hand-rolling terminal flexbox math: Ink uses
+  **Yoga**; a Rust surface could use **taffy**. This is the concrete "converge external effort" win for
+  TUI composition — one layout primitive feeds the TUI renderer, exactly as Style Dictionary feeds the
+  platform exports. Interactive widgets (focus, input) LEARN-FROM Textual/ratatui — a hard interactive
+  TUI widget is where authorship cost is real; mirror proven behavior, don't invent. Merits its own
+  slice/plan before implementing.
