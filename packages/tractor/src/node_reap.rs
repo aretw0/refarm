@@ -209,50 +209,10 @@ fn now_unix_secs() -> u64 {
         .as_secs()
 }
 
-/// Parse a SQL `datetime('now')` string — `YYYY-MM-DD HH:MM:SS` (space, no T/Z,
-/// UTC) — to unix seconds. Distinct from the ISO parser in sidecar/reap.rs (the
-/// nodes column format differs). Returns None on any malformed input => keep.
+/// Parse a SQL `datetime('now')` string — `YYYY-MM-DD HH:MM:SS` (space, no T/Z, UTC) — to unix seconds,
+/// via the shared `time`-backed `timefmt` module. `None` on any malformed input => keep.
 pub(crate) fn parse_sql_datetime_to_epoch_secs(s: &str) -> Option<u64> {
-    let bytes = s.as_bytes();
-    if bytes.len() != 19
-        || bytes[4] != b'-'
-        || bytes[7] != b'-'
-        || bytes[10] != b' '
-        || bytes[13] != b':'
-        || bytes[16] != b':'
-    {
-        return None;
-    }
-    let num = |slice: &str| slice.parse::<u64>().ok();
-    let year = num(&s[0..4])?;
-    let month = num(&s[5..7])?;
-    let day = num(&s[8..10])?;
-    let hour = num(&s[11..13])?;
-    let min = num(&s[14..16])?;
-    let sec = num(&s[17..19])?;
-    if !(1970..=9999).contains(&year)
-        || !(1..=12).contains(&month)
-        || !(1..=31).contains(&day)
-        || hour > 23
-        || min > 59
-        || sec > 60
-    {
-        return None;
-    }
-    // Reuse the exact days<->date algorithm from the effort timestamp path
-    // (re-exported from sidecar via `pub(crate) use dispatch::*`).
-    use crate::sidecar::{is_leap_year, month_lengths};
-    let mut days: u64 = 0;
-    for y in 1970..year {
-        days += if is_leap_year(y) { 366 } else { 365 };
-    }
-    let ml = month_lengths(is_leap_year(year));
-    days += ml
-        .iter()
-        .take(month.saturating_sub(1) as usize)
-        .sum::<u64>();
-    days += day.saturating_sub(1);
-    Some(days * 86_400 + hour * 3_600 + min * 60 + sec)
+    crate::timefmt::sql_datetime_to_epoch_secs(s)
 }
 
 #[cfg(test)]

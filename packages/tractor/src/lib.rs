@@ -35,6 +35,7 @@ pub mod storage;
 pub(crate) mod streaming;
 pub mod sync;
 pub mod telemetry;
+mod timefmt;
 pub mod trust;
 
 /// Shared test-only helpers for the whole crate. Kept behind `#[cfg(test)]` so it

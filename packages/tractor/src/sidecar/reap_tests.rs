@@ -24,8 +24,7 @@ fn effort(id: &str, status: &str, completed_at: Option<&str>) -> EffortResult {
 /// ISO string for `NOW - age_secs`, matching chrono_now_iso's format.
 fn iso_ago(age_secs: u64) -> String {
     let secs = NOW - age_secs;
-    let (y, mo, d, h, mi, s) = crate::sidecar::dispatch::epoch_to_parts(secs);
-    format!("{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:{s:02}Z")
+    crate::timefmt::epoch_secs_to_iso(secs)
 }
 
 // ── parse_iso_to_epoch_secs (the age clock) ──────────────────────────────────
@@ -35,8 +34,7 @@ fn iso_round_trips_through_epoch() {
     // parts -> iso -> secs must recover the original secs for the values
     // chrono_now_iso emits.
     for secs in [0u64, 1_000_000, NOW, NOW - DAY_MS / 1000, 4_000_000_000] {
-        let (y, mo, d, h, mi, s) = crate::sidecar::dispatch::epoch_to_parts(secs);
-        let iso = format!("{y:04}-{mo:02}-{d:02}T{h:02}:{mi:02}:{s:02}Z");
+        let iso = crate::timefmt::epoch_secs_to_iso(secs);
         assert_eq!(
             parse_iso_to_epoch_secs(&iso),
             Some(secs),

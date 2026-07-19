@@ -23,14 +23,13 @@ fn ttls(ms: u64) -> NodeTtls {
 /// datetime format the nodes column uses.
 fn row(id: &str, type_: &str, age_secs: u64, payload: &str) -> NodeRow {
     let secs = NOW - age_secs;
-    let (y, mo, d, h, mi, s) = crate::sidecar::epoch_to_parts(secs);
     NodeRow {
         id: id.to_string(),
         type_: type_.to_string(),
         context: None,
         payload: payload.to_string(),
         source_plugin: None,
-        updated_at: format!("{y:04}-{mo:02}-{d:02} {h:02}:{mi:02}:{s:02}"),
+        updated_at: crate::timefmt::epoch_secs_to_iso(secs).replace('T', " ").trim_end_matches('Z').to_string(),
     }
 }
 
@@ -39,8 +38,7 @@ fn row(id: &str, type_: &str, age_secs: u64, payload: &str) -> NodeRow {
 #[test]
 fn sql_datetime_round_trips() {
     for secs in [0u64, 1_000_000, NOW, 4_000_000_000] {
-        let (y, mo, d, h, mi, s) = crate::sidecar::epoch_to_parts(secs);
-        let sql = format!("{y:04}-{mo:02}-{d:02} {h:02}:{mi:02}:{s:02}");
+        let sql = crate::timefmt::epoch_secs_to_iso(secs).replace('T', " ").trim_end_matches('Z').to_string();
         assert_eq!(parse_sql_datetime_to_epoch_secs(&sql), Some(secs), "{sql}");
     }
 }

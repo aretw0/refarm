@@ -262,58 +262,10 @@ fn now_unix_secs() -> u64 {
         .as_secs()
 }
 
-/// Parse an ISO-8601 `YYYY-MM-DDThh:mm:ssZ` timestamp (as produced by
-/// chrono_now_iso) back to unix seconds. Pure, no chrono dep. Returns None on
-/// any malformed input so the caller treats it as "keep".
+/// Parse an ISO-8601 `YYYY-MM-DDThh:mm:ssZ` timestamp (as chrono_now_iso emits) back to unix seconds,
+/// via the shared `time`-backed `timefmt` module. `None` on any malformed input so the caller keeps it.
 pub(crate) fn parse_iso_to_epoch_secs(iso: &str) -> Option<u64> {
-    // Expect exactly: YYYY-MM-DDThh:mm:ssZ
-    let bytes = iso.as_bytes();
-    if bytes.len() != 20
-        || bytes[4] != b'-'
-        || bytes[7] != b'-'
-        || bytes[10] != b'T'
-        || bytes[13] != b':'
-        || bytes[16] != b':'
-        || bytes[19] != b'Z'
-    {
-        return None;
-    }
-    let num = |s: &str| s.parse::<u64>().ok();
-    let year = num(&iso[0..4])?;
-    let month = num(&iso[5..7])?;
-    let day = num(&iso[8..10])?;
-    let hour = num(&iso[11..13])?;
-    let min = num(&iso[14..16])?;
-    let sec = num(&iso[17..19])?;
-    if !(1970..=9999).contains(&year)
-        || !(1..=12).contains(&month)
-        || !(1..=31).contains(&day)
-        || hour > 23
-        || min > 59
-        || sec > 60
-    {
-        return None;
-    }
-    Some(parts_to_epoch_secs(year, month, day, hour, min, sec))
-}
-
-/// The inverse of dispatch::epoch_to_parts: (Y,M,D,h,m,s) -> unix seconds.
-/// Reuses the same leap/month helpers as the forward direction, so a round-trip
-/// is exact for every value chrono_now_iso emits.
-fn parts_to_epoch_secs(year: u64, month: u64, day: u64, hour: u64, min: u64, sec: u64) -> u64 {
-    use super::dispatch::{is_leap_year, month_lengths};
-    // Days from 1970-01-01 to the given date.
-    let mut days: u64 = 0;
-    for y in 1970..year {
-        days += if is_leap_year(y) { 366 } else { 365 };
-    }
-    let month_days = month_lengths(is_leap_year(year));
-    days += month_days
-        .iter()
-        .take(month.saturating_sub(1) as usize)
-        .sum::<u64>();
-    days += day.saturating_sub(1);
-    days * 86_400 + hour * 3_600 + min * 60 + sec
+    crate::timefmt::iso_to_epoch_secs(iso)
 }
 
 #[cfg(test)]

@@ -63,6 +63,10 @@ serde_json = "1"
 jsonschema = { version = "0.48", default-features = false }
 toml       = { version = "0.8", default-features = false, features = ["parse", "display"] }
 serde_yaml = "0.9"
+# Calendar-correct date formatting/parsing (ISO-8601 + SQL datetime) — one place via a battle-tested
+# crate, replacing four hand-rolled proleptic-Gregorian implementations (two distinct algorithms) that
+# had already produced a real leap-year bug. Native crate, so no WASM-size motivation to hand-roll.
+time = { version = "0.3", default-features = false, features = ["std", "formatting", "parsing", "macros"] }
 
 # Observability
 tracing            = "0.1"
