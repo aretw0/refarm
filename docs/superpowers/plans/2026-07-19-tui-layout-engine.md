@@ -1,9 +1,14 @@
 # TUI Layout Engine — Plan (for approval)
 
-> **Status: DRAFT for approval.** From the TUI-composition verdict in
-> `docs/research/2026-07-18-reinventing-the-wheel-ds-i18n-a11y.md` (§ "TUI composition — converge
-> internal + external effort"). Requested by Arthur: serve TUI composition the way DTCG + Style
-> Dictionary served tokens — converge with proven external effort, plan-first before code.
+> **Status: EXECUTED (2026-07-19).** From the TUI-composition verdict in
+> `docs/research/2026-07-18-reinventing-the-wheel-ds-i18n-a11y.md`. Task 0 first gated Yoga as premature
+> for the flat menu; Arthur then overrode the "wait for a rich face" deferral — _"não quero esperar
+> surgir face TUI rica, criemos essas faces nos apps e exemplos"_ — so Tasks 1–4 were un-deferred and
+> built: the Yoga engine (`computeTuiLayout` + `renderTuiLayout`), the `surfaceModelToLayout` projection
+> + `renderCapabilityDashboard`, and a framework `dashboard` command in `@refarm.dev/capabilities-v1`
+> that gives EVERY capability app/example the laid-out terminal face (no per-app wiring). All in
+> `packages/surface-terminal` + the framework, brand-neutral, tested; `yoga-layout` validated clean for
+> pnpm 11 (no build scripts).
 
 **Goal:** Give refarm's terminal surface a **layout engine** — the missing half of TUI composition.
 Today `projectThemeToTui` (`@refarm.dev/ds`) handles the COLOR half (tokens → ANSI), and
@@ -71,30 +76,36 @@ text measurement + the surface→layout→ANSI projection** (terminal-specific, 
   tables*. Tasks 1–4 (Yoga adoption) are **deferred** until such a face exists. This keeps the reusable
   terminal-text-measurement idea alive without a speculative dependency.
 
-### Task 1 — Adopt Yoga, deterministically (TDD)
-- [ ] Validate the dependency the pnpm-11 way FIRST: does `yoga-layout` trip `ERR_PNPM_IGNORED_BUILDS`
-  under the pinned pnpm 11? It ships prebuilt WASM/asm.js — confirm; if it has a build script, add it
-  to `allowBuilds` in `pnpm-workspace.yaml` (see the CI-hardening memory). Regenerate lockfile with the
-  pinned pnpm.
-- [ ] `computeTuiLayout`: a Yoga wrapper + a terminal measure function. Unit test: a flex row of two
-  fixed-width boxes computes the expected x/y/w/h; a column stacks; padding/gap offset children;
-  align/justify place them. Async Yoga init handled once (module-level `await loadYoga()`), Node-safe.
+### Task 1 — Adopt Yoga, deterministically (TDD) — ✅ DONE
+- [x] Validated the dependency the pnpm-11 way FIRST (against the npm registry, before adding):
+  `yoga-layout` 3.2.1 ships prebuilt WASM with NO install/build scripts, so it does NOT trip
+  `ERR_PNPM_IGNORED_BUILDS` and needs no `allowBuilds` entry. Installed with the pinned pnpm 11.7.0.
+- [x] `computeTuiLayout` (`packages/surface-terminal/src/tui-layout.ts`): a Yoga wrapper + a terminal
+  measure function, from a brand-neutral `LayoutNode` → `PositionedNode` (absolute cells). Async Yoga
+  init cached module-level (`loadYoga()`), Node-safe. Tests: row side-by-side, column stack by
+  height+gap, padding offset, flex-grow fills, text-leaf cell measurement.
 
-### Task 2 — Render positioned boxes to ANSI (TDD)
-- [ ] `renderTuiLayout(positioned, theme)`: paint text into its box (wrap/truncate by cell width),
-  color via `projectThemeToTui`. Unit test: snapshot the ANSI grid for a known layout; assert text
-  lands in the right cells and colors come from the theme (no invented ANSI).
+### Task 2 — Render positioned boxes to ANSI (TDD) — ✅ DONE
+- [x] `renderTuiLayout` (`tui-render.ts`): paints each text leaf into its box (truncate by cell width,
+  clip by line count), ANSI-aware by VISIBLE width (a colored run lands on the column a plain one would,
+  color preserved) — no cell buffer, position-sorted row segments. Tests: placement, gap padding by
+  visible width, truncation, ANSI preservation, height clip, compute→render. NOTE: color is via INJECTED
+  colorizers (default identity), not yet `projectThemeToTui` — a token-theme refinement seam left open.
 
-### Task 3 — Project a real surface-model (TDD)
-- [ ] `surfaceModelToLayout` + wire a real capability surface-model → layout → render. Test: the SAME
-  `tuiSurfaceModel` a web face uses renders a laid-out terminal view — proving "declare once → web CSS
-  flex + TUI Yoga flex, one layout semantics." This is the payoff, analogous to the multi-platform
-  token demo.
+### Task 3 — Project a real surface-model (TDD) — ✅ DONE
+- [x] `surfaceModelToLayout` + `renderCapabilityDashboard` (`tui-dashboard.ts`): the SAME
+  `tuiSurfaceModel` a web face reads → a wrapping card grid → laid-out ANSI. Then wired at the FRAMEWORK
+  level (`@refarm.dev/capabilities-v1` `host.program()`): a `dashboard` command so EVERY app/example
+  gets the face with zero per-app wiring (declare once → CLI + web + agent + `tui` + `dashboard`). Tests
+  + a fixture smoke confirm a real registry lays out as a multi-column grid. This is the payoff,
+  analogous to the multi-platform token demo.
 
-### Task 4 — (optional, own slice) interactivity
+### Task 4 — (optional, own slice) interactivity — DEFERRED
 - [ ] Focus/keyboard/input for interactive TUI widgets — LEARN-FROM Textual/ratatui; a hard interactive
-  widget is where authorship cost is real (mirror proven behavior, don't invent). Deferred to its own
-  plan unless a face needs it.
+  widget is where authorship cost is real (mirror proven behavior, don't invent). Still deferred to its
+  own plan: today's `dashboard` is a one-shot render; the interactive loop stays the readline `tui`.
+  Other open refinements: `projectThemeToTui` color (Task 2), a wcwidth measure (wide/zero-width glyphs),
+  and box borders in the renderer.
 
 ---
 
