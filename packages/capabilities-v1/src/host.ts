@@ -785,9 +785,10 @@ function addDashboardCommand(
 		});
 }
 
-/** Dispatch the verb the user picked in the interactive dashboard (no args), back on the normal
- * screen: run it and print the envelope, or — if it needs arguments (the shared validator) — say so
- * and point at the CLI form that takes them. One pick → one dispatch, via the same outcome contract. */
+/** Dispatch the verb the user picked in the interactive dashboard, back on the normal screen. If the
+ * verb declares args, prompt them first with the interactive input form (Esc cancels), build the argv
+ * from the collected values, then dispatch via the same outcome contract every surface shares — print
+ * the envelope, or the field-scoped errors if the shared validator rejects it. */
 async function runDashboardSelection(
 	registry: CapabilityRegistry,
 	definition: CapabilityHostDefinition,
@@ -798,12 +799,31 @@ async function runDashboardSelection(
 		process.stdout.write(`could not resolve ${verb}\n`);
 		return;
 	}
-	const outcome = await dispatchCapability(entry, []);
+	const args = (entry as { args?: Array<{ name: string; required?: boolean }> }).args ?? [];
+	const tokens: string[] = [];
+	if (args.length > 0) {
+		const surface = await import("@refarm.dev/surface-terminal");
+		const values = await surface.runInteractiveForm({
+			title: `${definition.command} ${verb}`,
+			fields: args.map((arg) => ({ name: arg.name, ...(arg.required ? { required: true } : {}) })),
+		});
+		if (!values) {
+			process.stdout.write(`${verb} cancelled\n`);
+			return;
+		}
+		// Positional argv, in declared order; a trailing empty optional ends the list.
+		for (const arg of args) {
+			const value = (values[arg.name] ?? "").trim();
+			if (value === "") break;
+			tokens.push(value);
+		}
+	}
+	const outcome = await dispatchCapability(entry, tokens);
 	if (outcome.status === "invalid") {
 		const detail = (outcome.validation?.errors ?? [])
 			.map((error) => (error.field ? `${error.field} ${error.message}` : error.message))
 			.join("; ");
-		process.stdout.write(`${verb} needs arguments: ${detail}\nRun: ${definition.command} ${verb} <args>\n`);
+		process.stdout.write(`${verb} invalid: ${detail}\n`);
 		return;
 	}
 	process.stdout.write(`${JSON.stringify(outcome.envelope, null, 2)}\n`);
