@@ -83,6 +83,43 @@ function escape(value: string): string {
 		.replace(/"/g, "&quot;");
 }
 
+/** One column of a web table: the row key it reads + its header label. */
+export interface HtmlTableColumn {
+	key: string;
+	header: string;
+}
+
+/**
+ * Render tabular data as a semantic, accessible HTML <table> — the WEB TWIN of surface-terminal's
+ * renderTable: the SAME `columns` + `rows` render as a laid-out terminal table AND this native table,
+ * one data declaration projected per surface (the declare-once invariant, at the DATA level — no shared
+ * layout tree, each surface in its own idiom). Proper semantics (<thead>/<tbody>, <th scope="col">,
+ * optional <caption>) so it is screen-reader navigable; DS classes so it matches the other surfaces.
+ */
+export function renderTableHtml(
+	columns: HtmlTableColumn[],
+	rows: ReadonlyArray<Record<string, unknown>>,
+	options: { caption?: string } = {},
+): string {
+	const cell = (row: Record<string, unknown>, key: string): string => {
+		const value = row[key];
+		return value === undefined || value === null ? "" : String(value);
+	};
+	const caption = options.caption
+		? `<caption class="refarm-table-caption">${escape(options.caption)}</caption>`
+		: "";
+	const head = columns.map((column) => `<th scope="col" class="refarm-th">${escape(column.header)}</th>`).join("");
+	const body = rows
+		.map(
+			(row) =>
+				`<tr class="refarm-tr">${columns
+					.map((column) => `<td class="refarm-td">${escape(cell(row, column.key))}</td>`)
+					.join("")}</tr>`,
+		)
+		.join("");
+	return `<table class="refarm-table">${caption}<thead><tr class="refarm-tr">${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
 /** The RIGHT widget for a typed field: a `<select>` for an `enum`, a number field for `integer`/`number`,
  * else a text input. Shared by args AND options (a boolean option is a checkbox, handled by the caller).
  * The value reads back as a string — a select's chosen option, a number field's numeric string — so

@@ -5,6 +5,7 @@ import {
 	capabilityWebSurfaceActions,
 	createCapabilityWebSurfacePlugin,
 	renderCapabilityFormMessage,
+	renderTableHtml,
 } from "./index.js";
 
 const walletVerb: CapabilityDescriptor = {
@@ -118,5 +119,34 @@ describe("capability → homestead web bridge (ADR-085)", () => {
 		expect(result.html).toContain("<nav data-moc>REQ-1 · REQ-2</nav>");
 		// Content sits ABOVE the launcher cards.
 		expect(result.html.indexOf("data-moc")).toBeLessThan(result.html.indexOf("refarm-btn-pill"));
+	});
+});
+
+describe("renderTableHtml (web twin of the TUI renderTable)", () => {
+	it("renders a semantic accessible table — thead th[scope=col], tbody td, optional caption", () => {
+		const html = renderTableHtml(
+			[
+				{ key: "id", header: "ID" },
+				{ key: "status", header: "Status" },
+			],
+			[
+				{ id: "REQ-1", status: "open" },
+				{ id: "REQ-2", status: 42 },
+			],
+			{ caption: "Requirements" },
+		);
+		expect(html).toContain('<caption class="refarm-table-caption">Requirements</caption>');
+		expect(html).toContain('<th scope="col" class="refarm-th">ID</th>');
+		expect(html).toContain('<td class="refarm-td">REQ-1</td>');
+		expect(html).toContain('<td class="refarm-td">open</td>');
+		expect(html).toContain('<td class="refarm-td">42</td>'); // number stringified
+		expect(html).toContain("<thead>");
+		expect(html).toContain("<tbody>");
+	});
+
+	it("escapes header + cell content", () => {
+		const html = renderTableHtml([{ key: "x", header: "<H>" }], [{ x: "<b>" }]);
+		expect(html).toContain("&lt;H&gt;");
+		expect(html).toContain("&lt;b&gt;");
 	});
 });
