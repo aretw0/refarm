@@ -115,25 +115,40 @@ export interface RunInteractiveTerminalOptions extends Omit<RunInteractiveLayout
 }
 
 /**
- * Run an interactive laid-out face against the real terminal: enter the alt-screen + hide the cursor,
- * drive `runInteractiveLayout` over raw-mode stdin, and ALWAYS restore (leave alt-screen, show cursor)
- * even on throw. Node-only. Returns the last-focused id.
+ * Frame an interactive loop against the real terminal: create a raw-mode stdin source, enter the
+ * alt-screen + hide the cursor, run `run(input, output)` (output clears + paints a frame), and ALWAYS
+ * restore (leave alt-screen, show cursor, close input) even on throw. The shared node-only wrapper both
+ * the focus loop and the input form drive.
  */
-export async function runInteractiveTerminal(opts: RunInteractiveTerminalOptions): Promise<string | null> {
-	const write = opts.write ?? ((bytes: string) => void process.stdout.write(bytes));
+export async function withInteractiveTerminal<T>(
+	run: (input: TerminalInput, output: (frame: string) => void) => Promise<T>,
+	rawWrite: (bytes: string) => void = (bytes: string) => void process.stdout.write(bytes),
+): Promise<T> {
 	const input = createStdinInput();
-	write(ALT_SCREEN_ENTER + HIDE_CURSOR);
+	rawWrite(ALT_SCREEN_ENTER + HIDE_CURSOR);
 	try {
-		return await runInteractiveLayout({
-			targets: opts.targets,
-			render: opts.render,
-			input,
-			output: (frame) => write(CLEAR_HOME + frame),
-			...(opts.onSelect ? { onSelect: opts.onSelect } : {}),
-			...(opts.initialFocusId !== undefined ? { initialFocusId: opts.initialFocusId } : {}),
-		});
+		return await run(input, (frame) => rawWrite(CLEAR_HOME + frame));
 	} finally {
 		input.close();
-		write(SHOW_CURSOR + ALT_SCREEN_LEAVE);
+		rawWrite(SHOW_CURSOR + ALT_SCREEN_LEAVE);
 	}
+}
+
+/**
+ * Run an interactive laid-out face against the real terminal: alt-screen + raw-mode stdin drive
+ * `runInteractiveLayout`, always restoring on exit. Node-only. Returns the last-focused id.
+ */
+export async function runInteractiveTerminal(opts: RunInteractiveTerminalOptions): Promise<string | null> {
+	return withInteractiveTerminal(
+		(input, output) =>
+			runInteractiveLayout({
+				targets: opts.targets,
+				render: opts.render,
+				input,
+				output,
+				...(opts.onSelect ? { onSelect: opts.onSelect } : {}),
+				...(opts.initialFocusId !== undefined ? { initialFocusId: opts.initialFocusId } : {}),
+			}),
+		opts.write,
+	);
 }

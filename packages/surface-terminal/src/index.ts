@@ -52,7 +52,14 @@ export { focusOrder, moveFocus, type FocusTarget } from "./tui-focus.js";
 export {
 	runInteractiveLayout,
 	runInteractiveTerminal,
+	withInteractiveTerminal,
 	createStdinInput,
 	type RunInteractiveLayoutOptions,
 	type RunInteractiveTerminalOptions,
 } from "./tui-interactive.js";
+export {
+	runInteractiveForm,
+	type FormField,
+	type FormColors,
+	type RunInteractiveFormOptions,
+} from "./tui-form.js";
