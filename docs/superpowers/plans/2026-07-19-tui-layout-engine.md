@@ -100,12 +100,15 @@ text measurement + the surface→layout→ANSI projection** (terminal-specific, 
   + a fixture smoke confirm a real registry lays out as a multi-column grid. This is the payoff,
   analogous to the multi-platform token demo.
 
-### Task 4 — (optional, own slice) interactivity — DEFERRED
-- [ ] Focus/keyboard/input for interactive TUI widgets — LEARN-FROM Textual/ratatui; a hard interactive
-  widget is where authorship cost is real (mirror proven behavior, don't invent). Still deferred to its
-  own plan: today's `dashboard` is a one-shot render; the interactive loop stays the readline `tui`.
-  Other open refinements: `projectThemeToTui` color (Task 2), a wcwidth measure (wide/zero-width glyphs),
-  and box borders in the renderer.
+### Task 4 — interactivity — DEFERRED WITH A PLAN (its own slice)
+- [ ] Focus/keyboard/input for an interactive, navigable dashboard — a distinct subsystem (input +
+  focus + redraw), the genuinely-hard "interactive widget" the verdict said to LEARN-FROM
+  Textual/ratatui. Deferred not as a punt but as **preparation**: the layout engine already hands it the
+  positioned boxes (hit-test + focus order) it needs, so it starts from a prepared base. The runway —
+  adopt-vs-build (leaning thin-own-loop over our Yoga tree, React-free), the input seam, focus model, and
+  redraw slices — is planned in **`2026-07-19-tui-interactivity.md`**.
+- Other open refinements (smaller, not Task 4): `projectThemeToTui` color (Task 2 uses injected
+  colorizers), a wcwidth measure (wide/zero-width glyphs), and box borders in the renderer.
 
 ---
 
