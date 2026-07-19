@@ -24,3 +24,4 @@ export {
 	type MeasureText,
 	type ComputeTuiLayoutOptions,
 } from "./tui-layout.js";
+export { renderTuiLayout, type RenderTuiLayoutOptions } from "./tui-render.js";
