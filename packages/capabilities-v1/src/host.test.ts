@@ -218,6 +218,7 @@ describe("defineCapabilityHost", () => {
 				"serve",
 				"tui",
 				"dashboard",
+				"status-panel",
 			]),
 		);
 

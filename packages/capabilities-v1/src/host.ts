@@ -306,6 +306,7 @@ export function defineCapabilityHost(definition: CapabilityHostDefinition): Capa
 			addServeCommand(program, definition, bundle.registry);
 			addTuiCommand(program, definition, bundle.registry);
 			addDashboardCommand(program, definition, bundle.registry);
+			addStatusPanelCommand(program, definition, bundle.registry);
 			return program;
 		},
 		serve(options: CapabilityHostServeCallOptions = {}) {
@@ -806,6 +807,40 @@ async function runDashboardSelection(
 		return;
 	}
 	process.stdout.write(`${JSON.stringify(outcome.envelope, null, 2)}\n`);
+}
+
+/** Mount the `status-panel` command (only when the host declares operatorStatus): run the status verb,
+ * then render its BaseSurfaceModel as a laid-out terminal panel — severity-colored stat-cards over the
+ * recommended next commands. surface-terminal is imported LAZILY (node-only), like the dashboard command. */
+function addStatusPanelCommand(
+	program: Command,
+	definition: CapabilityHostDefinition,
+	registry: CapabilityRegistry,
+): void {
+	if (!definition.operatorStatus) return;
+	const statusName = definition.operatorStatus.name ?? "status";
+	program
+		.command("status-panel")
+		.description(`Print ${definition.command} operator status as a laid-out terminal panel`)
+		.action(async () => {
+			const entry = registry.list().find((candidate) => candidate.name === statusName);
+			if (!entry) {
+				process.stdout.write(`no ${statusName} capability to render\n`);
+				return;
+			}
+			const outcome = await dispatchCapability(entry, []);
+			if (outcome.status !== "ran") {
+				process.stdout.write(`could not read ${statusName}\n`);
+				return;
+			}
+			const model = outcome.envelope as BaseSurfaceModel;
+			const surface = await import("@refarm.dev/surface-terminal");
+			const panel = await surface.renderStatusPanel(
+				{ units: model.units, nextCommands: model.nextCommands },
+				{ width: process.stdout.columns ?? 80, colors: surface.defaultStatusColors },
+			);
+			process.stdout.write(`${panel}\n`);
+		});
 }
 
 function serveUrl(origin: string, path: string): string {
