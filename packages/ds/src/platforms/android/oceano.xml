@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<resources>
+  <color name="background">#ff0f1623</color>
+  <color name="foreground">#ffeef2f8</color>
+  <color name="card">#ff181c26</color>
+  <color name="card_foreground">#ffeef2f8</color>
+  <color name="popover">#ff181c26</color>
+  <color name="popover_foreground">#ffeef2f8</color>
+  <color name="muted">#ff232936</color>
+  <color name="muted_foreground">#ffc0cad8</color>
+  <color name="primary">#ff90b4e8</color>
+  <color name="primary_foreground">#ff0f1623</color>
+  <color name="secondary">#ff0d2040</color>
+  <color name="secondary_foreground">#ffeef2f8</color>
+  <color name="accent">#ffc5d9f5</color>
+  <color name="accent_foreground">#ff0f1623</color>
+  <color name="border">#ff445060</color>
+  <color name="input">#ff445060</color>
+  <color name="ring">#ff90b4e8</color>
+  <color name="error">#ffff6b6b</color>
+  <color name="warning">#ffffd166</color>
+  <color name="success">#ff90b4e8</color>
+  <color name="info">#ff90dbf4</color>
+  <dimen name="radius_sm">64.00dp</dimen>
+  <dimen name="radius_md">128.00dp</dimen>
+  <dimen name="radius_lg">192.00dp</dimen>
+  <string name="shadow_sm">0 1px 0 rgba(15, 22, 35, 0.08)</string>
+  <string name="shadow_md">0 4px 12px rgba(15, 22, 35, 0.3)</string>
+  <string name="shadow_lg">0 24px 80px rgba(15, 22, 35, 0.32)</string>
+  <string name="font_sans">-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif</string>
+  <string name="font_mono">"Fira Code", "Cascadia Code", "Source Code Pro", monospace</string>
+</resources>
