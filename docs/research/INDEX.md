@@ -116,6 +116,16 @@ Simultaneously extends the plugin manifest architecture to formally support arbi
 
 ### Frontend & Design System
 
+#### [Reinventing the Wheel? — DS tokens, i18n, a11y, conversation model, schema-forms](./2026-07-18-reinventing-the-wheel-ds-i18n-a11y.md)
+**Date**: 2026-07-18 | **Status**: Research consolidated (verdict)
+
+Consolidated verdict from two deep-research runs (design system + multi-surface; and chat/i18n/a11y/schema-forms) whose synthesis step was cut by a session limit — reconstructed from the surviving verified claims and grounded in refarm's actual `@refarm.dev/ds`/messenger code.
+KEEP-AUTHORING the surface-neutral token registry, TUI projection, cross-surface (web+TUI+agent) architecture, and shadcn-style code ownership; ADOPT DTCG + Style Dictionary as the token *source* (built-ins are still CSS-authored today), `Intl.RelativeTimeFormat` for Hoje/Ontem, and `role="log"` on the transcript; LEARN-FROM Zag.js's machine+adapter split and Matrix's conversation invariants. Flags schema-driven forms as the one genuine gap needing a fresh pass.
+
+**ADR**: No ADR yet — feeds `@refarm.dev/ds` token-source pipeline, messenger substrate a11y/i18n, and the headless-primitive strategy.
+
+---
+
 #### [Design System Bootstrap Discussion](./design-system-bootstrap-discussion.md)
 **Date**: 2026-03-07
 
