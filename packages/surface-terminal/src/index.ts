@@ -35,3 +35,10 @@ export {
 } from "./tui-dashboard.js";
 export { scriptedInput, type Key, type TerminalInput } from "./tui-input.js";
 export { focusOrder, moveFocus, type FocusTarget } from "./tui-focus.js";
+export {
+	runInteractiveLayout,
+	runInteractiveTerminal,
+	createStdinInput,
+	type RunInteractiveLayoutOptions,
+	type RunInteractiveTerminalOptions,
+} from "./tui-interactive.js";
