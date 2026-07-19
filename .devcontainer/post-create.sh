@@ -67,11 +67,10 @@ ensure_pnpm() {
 
   corepack prepare --activate || warn "corepack prepare failed"
 
-  if command -v pnpm >/dev/null 2>&1 && pnpm --version >/dev/null 2>&1; then
-    return
-  fi
-
-  warn "pnpm command is missing or broken; installing corepack-backed wrapper"
+  # Always install a corepack-backed pnpm shim in PNPM_HOME/bin (first on PATH) so the pinned
+  # packageManager version (package.json) wins over the pnpm baked into the base image. Without this
+  # the base image's global pnpm shadows corepack and a devcontainer rebuild regresses to the wrong
+  # version (e.g. pnpm 10 vs the pinned 11), which breaks the deterministic CI-matching install.
   for target in "$pnpm_home/pnpm" "$pnpm_home/bin/pnpm"; do
     cat > "$target" <<'SH'
 #!/usr/bin/env bash

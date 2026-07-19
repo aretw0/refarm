@@ -73,11 +73,9 @@ ensure_pnpm() {
 
 	corepack prepare --activate || true
 
-	if command -v pnpm >/dev/null 2>&1 && pnpm --version >/dev/null 2>&1; then
-		return
-	fi
-
-	echo "[refarm-devcontainer][warn] pnpm command is missing or broken; installing corepack-backed wrapper"
+	# Always install a corepack-backed pnpm shim in PNPM_HOME/bin (first on PATH) so the pinned
+	# packageManager version (package.json) wins over the pnpm baked into the base image — otherwise a
+	# devcontainer rebuild regresses to the base image's pnpm (e.g. 10 vs the pinned 11).
 	for target in "$pnpm_home/pnpm" "$pnpm_home/bin/pnpm"; do
 		cat >"$target" <<'SH'
 #!/usr/bin/env bash
