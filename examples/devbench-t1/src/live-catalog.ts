@@ -6,6 +6,7 @@ import {
 	type CapabilityInput,
 } from "@refarm.dev/capability-host";
 import { Barn } from "@refarm.dev/barn";
+import { renderTableHtml } from "@refarm.dev/capability-homestead-surface";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -129,6 +130,16 @@ export function createPluginCatalogCapability(): CapabilityDescriptor {
 						// The content cache dedups: a re-install of the same bytes is a hit.
 						reinstallCacheStatus: report.reinstallCacheStatus,
 						source: "the Barn (@refarm.dev/barn) — fetch + sha256 verify + cache; listPlugins() inventory",
+						// The catalog as an accessible web <table> — the web twin of the TUI renderTable.
+						html: renderTableHtml(
+							[
+								{ key: "name", header: "Plugin" },
+								{ key: "cacheStatus", header: "Cache" },
+								{ key: "integrity", header: "Integrity (sha256)" },
+							],
+							report.installed,
+							{ caption: "Sovereign plugin catalog — Barn-verified (integrity + cache)" },
+						),
 					},
 				});
 			} catch (error) {

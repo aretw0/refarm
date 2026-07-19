@@ -14,6 +14,8 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { renderTableHtml } from "@refarm.dev/capability-homestead-surface";
+
 import { defaultArtifacts, missingArtifacts, type LiveRecursionArtifacts } from "./live-recursion.js";
 import { awaitAuditLine, readAuditLines } from "./live-runtime.js";
 
@@ -359,6 +361,23 @@ export function createAgentTelemetryCapability(): CapabilityDescriptor {
 								durationMs: t.durationMs,
 								...(t.error ? { error: t.error } : {}),
 							},
+							// The run timeline as an accessible web <table> — the web twin of the TUI renderTable.
+							html: renderTableHtml(
+								[
+									{ key: "metric", header: "Metric" },
+									{ key: "value", header: "Value" },
+								],
+								[
+									{ metric: "route", value: t.route },
+									{ metric: "iterations", value: t.iterations },
+									{ metric: "tool calls", value: t.toolCalls },
+									{ metric: "outcome", value: t.outcome },
+									{ metric: "tokens in", value: t.tokensIn },
+									{ metric: "tokens out", value: t.tokensOut },
+									{ metric: "duration (ms)", value: t.durationMs },
+								],
+								{ caption: "Agent run timeline — from the runtime's own agent:* events" },
+							),
 							// The unified run TRACE (--with-effects): each tool call annotated with the host
 							// effects it caused — the causal link neither the agent timeline nor the
 							// host-effect audit shows alone (agent:tool:call{read_file} → host-effect:fs:read).

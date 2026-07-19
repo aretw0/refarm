@@ -96,13 +96,13 @@ export interface HtmlTableColumn {
  * layout tree, each surface in its own idiom). Proper semantics (<thead>/<tbody>, <th scope="col">,
  * optional <caption>) so it is screen-reader navigable; DS classes so it matches the other surfaces.
  */
-export function renderTableHtml(
+export function renderTableHtml<Row extends object>(
 	columns: HtmlTableColumn[],
-	rows: ReadonlyArray<Record<string, unknown>>,
+	rows: ReadonlyArray<Row>,
 	options: { caption?: string } = {},
 ): string {
-	const cell = (row: Record<string, unknown>, key: string): string => {
-		const value = row[key];
+	const cell = (row: Row, key: string): string => {
+		const value = (row as Record<string, unknown>)[key];
 		return value === undefined || value === null ? "" : String(value);
 	};
 	const caption = options.caption
