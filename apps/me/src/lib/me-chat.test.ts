@@ -44,6 +44,9 @@ describe("mountRefarmMeChat — the apps/me agent chat wiring (ADR-088)", () => 
 		// The user's line lands immediately (self-aligned, no sender name); the textarea clears.
 		expect(transcript.textContent).toContain("hello agent");
 		expect(textarea.value).toBe("");
+		// The transcript is the canonical role="log" container (keeps an explicit aria-live too).
+		expect(transcript.getAttribute("role")).toBe("log");
+		expect(transcript.getAttribute("aria-live")).toBe("polite");
 		// Messenger basics: a day separator ("Hoje" today), a per-message time, and the operator's own
 		// message marked self.
 		expect(handle.root.querySelector(".refarm-convo-day")?.textContent).toBe("Hoje");

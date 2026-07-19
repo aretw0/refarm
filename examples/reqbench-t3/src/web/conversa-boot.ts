@@ -1,6 +1,7 @@
 import { renderCapabilityFormMessage } from "@refarm.dev/capability-homestead-surface";
 import { mountCapabilityWebView, wireCapabilityFormDispatch } from "@refarm.dev/capability-homestead-surface/boot";
 import {
+	applyConversationTranscriptRegion,
 	conversationTranscriptStyles,
 	renderConversationTranscript,
 	type ConversationMessage,
@@ -35,6 +36,8 @@ export async function bootConversa(): Promise<void> {
 					style.textContent = conversationTranscriptStyles();
 					document.head.appendChild(style);
 				}
+				// The mount IS the transcript container — give it the canonical role="log" a11y contract.
+				applyConversationTranscriptRegion(mount);
 				const now = Date.now();
 				const messages: ConversationMessage[] = [
 					{ sender: ASSISTANT, at: now, text: "Posso buscar requisitos por você — preencha e envie:" },

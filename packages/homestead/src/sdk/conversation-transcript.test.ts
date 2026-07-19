@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+	applyConversationTranscriptRegion,
+	CONVERSATION_TRANSCRIPT_REGION_ATTRS,
+	conversationTranscriptRegionAttrs,
 	conversationTranscriptStyles,
 	renderConversationTranscript,
 	type ConversationMessage,
@@ -75,6 +78,25 @@ describe("renderConversationTranscript", () => {
 		expect(html).not.toContain("<script>");
 		expect(html).toContain("&lt;script&gt;");
 		expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
+	});
+});
+
+describe("the transcript container a11y contract (role=\"log\", one source → two projections)", () => {
+	it("is the canonical role=\"log\" container, keeping an EXPLICIT aria-live=\"polite\" (belt-and-braces)", () => {
+		// W3C ARIA23 / MDN chat-log role for the role; explicit aria-live because SR support for a role's
+		// implicit live region is inconsistent.
+		expect(CONVERSATION_TRANSCRIPT_REGION_ATTRS).toEqual({ role: "log", "aria-live": "polite" });
+	});
+
+	it("projects to a markup attribute string for template consumers", () => {
+		const html = `<div data-refarm-transcript ${conversationTranscriptRegionAttrs()}></div>`;
+		expect(html).toBe('<div data-refarm-transcript role="log" aria-live="polite"></div>');
+	});
+
+	it("projects to a DOM applier for consumers that own the element", () => {
+		const set: Record<string, string> = {};
+		applyConversationTranscriptRegion({ setAttribute: (n, v) => { set[n] = v; } });
+		expect(set).toEqual({ role: "log", "aria-live": "polite" });
 	});
 });
 

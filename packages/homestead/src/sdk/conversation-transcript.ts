@@ -98,6 +98,47 @@ export function renderConversationTranscript(
 	return out.join("");
 }
 
+/** The minimal DOM target `applyConversationTranscriptRegion` needs — kept structural so the substrate
+ * carries no DOM-lib dependency (it renders to any surface, only the web one is a DOM). */
+interface AttributeTarget {
+	setAttribute(name: string, value: string): void;
+}
+
+/**
+ * The a11y contract for the ELEMENT that holds a rendered transcript (the consumer owns the element it
+ * re-renders into; the substrate owns its accessibility contract — the companion of
+ * conversationTranscriptStyles). ONE source of truth, two projections below (a markup string and a
+ * DOM applier) so every messenger consumer states the same contract.
+ *
+ * A chat/message history is the canonical `role="log"` container: W3C technique ARIA23 ("Using role=log
+ * to identify sequential information updates") uses a chat log as its flagship example, and MDN names
+ * "Chat logs, Messaging history" as the log role's canonical use. Over a bare live region, `log` adds
+ * append-only sequential semantics — new items land at the end — that a transcript has and a generic
+ * region cannot express. We KEEP an explicit `aria-live="polite"` alongside the role (belt-and-braces):
+ * screen-reader support for a role's IMPLICIT live region is inconsistent, so stating the politeness is
+ * the robust choice.
+ */
+export const CONVERSATION_TRANSCRIPT_REGION_ATTRS: Readonly<Record<string, string>> = {
+	role: "log",
+	"aria-live": "polite",
+};
+
+/** The transcript-container contract as an HTML attribute string, to interpolate into a container's
+ * markup: `<div ${conversationTranscriptRegionAttrs()}>…`. For consumers that build markup as a string. */
+export function conversationTranscriptRegionAttrs(): string {
+	return Object.entries(CONVERSATION_TRANSCRIPT_REGION_ATTRS)
+		.map(([name, value]) => `${name}="${value}"`)
+		.join(" ");
+}
+
+/** Apply the transcript-container contract to a live DOM element — for consumers that own the element
+ * itself (they re-render into `el.innerHTML`) rather than its markup. Idempotent. */
+export function applyConversationTranscriptRegion(el: AttributeTarget): void {
+	for (const [name, value] of Object.entries(CONVERSATION_TRANSCRIPT_REGION_ATTRS)) {
+		el.setAttribute(name, value);
+	}
+}
+
 /**
  * The transcript's companion CSS — DS-token only (no invented colors), restrained (no gradients or
  * glassmorphism), dense + legible. Inject ONCE (a consumer appends a <style> with this). Self messages

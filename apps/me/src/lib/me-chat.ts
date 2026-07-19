@@ -8,6 +8,7 @@
 
 import {
 	COMPOSER_SUBMIT_ACTION_ID,
+	conversationTranscriptRegionAttrs,
 	conversationTranscriptStyles,
 	createBrowserComposerTransport,
 	createChatComposerActionBridge,
@@ -98,7 +99,7 @@ export function mountRefarmMeChat(options: MountRefarmMeChatOptions = {}): Refar
 	root.setAttribute("aria-label", "Chat with the agent");
 	root.innerHTML = [
 		`<div class="refarm-me-chat-activity" data-refarm-activity></div>`,
-		`<div class="refarm-me-chat-transcript" data-refarm-transcript aria-live="polite"></div>`,
+		`<div class="refarm-me-chat-transcript" data-refarm-transcript ${conversationTranscriptRegionAttrs()}></div>`,
 		renderChatComposerHtml(),
 	].join("\n");
 	host.appendChild(root);
