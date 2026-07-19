@@ -619,6 +619,36 @@ describe("mountCapabilityWebView — custom substrate view, framework-owned load
 		expect(runCalls).toBe(0); // the verb never ran — validation blocked the dispatch
 	});
 
+	it("paints an inline field-scoped error next to the field and keeps the form open (pattern B field errors)", async () => {
+		const registry = {
+			get: (name: string) =>
+				name === "search"
+					? {
+							name: "search",
+							summary: "Search things",
+							args: [{ name: "query", required: true }],
+							renderers: { web: {} },
+							run: async () => ({ ok: true }),
+						}
+					: undefined,
+			list: () => [{ name: "search" }],
+		} as unknown as CapabilityRegistry;
+
+		document.body.innerHTML = `<div id="convo-fe"></div>`;
+		const container = document.getElementById("convo-fe")!;
+		container.innerHTML = renderCapabilityFormMessage(registry, "search");
+		wireCapabilityFormDispatch(container, registry, () => {});
+		// Submit without the required `query` — the error is painted inline next to its field.
+		container.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+
+		const fieldError = container.querySelector('[data-refarm-field-error="query"]');
+		expect(fieldError).not.toBeNull();
+		expect(fieldError?.textContent).toContain("query");
+		// The field error sits right after the query input, and the form stays open to fix.
+		expect(container.querySelector('[data-refarm-arg="query"]')?.nextElementSibling).toBe(fieldError);
+		expect(container.querySelector('form.refarm-capability-form[data-refarm-verb="search"]')).not.toBeNull();
+	});
+
 	it("throws (→ overlay error) when the content verb is not in the registry", async () => {
 		const holder = viewRegistry({ items: [] });
 		await mountCapabilityWebView({

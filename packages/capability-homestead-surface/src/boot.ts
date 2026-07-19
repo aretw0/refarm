@@ -165,6 +165,25 @@ function firstHtmlField(envelope: Record<string, unknown>): string | undefined {
  * result as a message. Event-delegated on the container (a form added later is covered), scoped to the
  * submitted form (several forms of the same verb can coexist). Returns a detach fn. Runs in the browser.
  */
+/** Paint each validation error next to its field: a `data-refarm-field-error` note after the matching
+ * `data-refarm-arg`/`data-refarm-option` input (a whole-input error goes at the form's end), so the form
+ * stays open with inline, field-scoped feedback. Surface-neutral field/message from the shared validator. */
+function paintFieldErrors(form: HTMLFormElement, errors: readonly { field: string; message: string }[]): void {
+	const doc = form.ownerDocument;
+	const esc = (v: string) => (typeof CSS !== "undefined" && CSS.escape ? CSS.escape(v) : v.replace(/"/g, '\\"'));
+	for (const error of errors) {
+		const note = doc.createElement("p");
+		note.className = "refarm-error";
+		note.setAttribute("data-refarm-field-error", error.field);
+		note.textContent = error.field ? `${error.field}: ${error.message}` : error.message;
+		const target = error.field
+			? form.querySelector(`[data-refarm-arg="${esc(error.field)}"], [data-refarm-option="${esc(error.field)}"]`)
+			: null;
+		if (target) target.insertAdjacentElement("afterend", note);
+		else form.appendChild(note);
+	}
+}
+
 export function wireCapabilityFormDispatch(
 	container: HTMLElement,
 	registry: CapabilityRegistry,
@@ -182,11 +201,15 @@ export function wireCapabilityFormDispatch(
 		// Validate the collected input against the verb's DERIVED JSON Schema (the same schema the agent
 		// tool exposes) BEFORE dispatch — so a form rejects bad input the way a CLI or a tool call would.
 		// On failure, report the field-scoped errors through the existing result seam and block the run.
+		// Clear any errors painted on a previous submit before re-validating.
+		form.querySelectorAll("[data-refarm-field-error]").forEach((el) => el.remove());
 		const validation = validateCapabilityArgs(
 			entry as unknown as Parameters<typeof validateCapabilityArgs>[0],
 			{ ...input.args, ...input.options },
 		);
 		if (!validation.valid) {
+			// Paint each error next to its field so the form stays open with inline, fixable feedback.
+			paintFieldErrors(form, validation.errors);
 			const detail = validation.errors
 				.map((e) => (e.field ? `${e.field} ${e.message}` : e.message))
 				.join("; ");
