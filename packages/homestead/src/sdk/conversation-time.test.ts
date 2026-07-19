@@ -20,6 +20,16 @@ describe("conversationDayLabel — the messenger day-separator convention", () =
 		expect(conversationDayLabel(at(2026, 7, 17, 23, 59), { now: NOW })).toBe("Ontem");
 	});
 
+	it("derives today/yesterday from the locale via Intl.RelativeTimeFormat, not a hard-coded pt-BR word", () => {
+		// The whole point of the adopt: the today/yesterday words now honor `locale` like every other
+		// branch does — the hand-rolled version returned pt-BR "Hoje"/"Ontem" even for `locale: "en"`.
+		expect(conversationDayLabel(at(2026, 7, 18, 9, 0), { now: NOW, locale: "en" })).toBe("Today");
+		expect(conversationDayLabel(at(2026, 7, 17, 23, 59), { now: NOW, locale: "en" })).toBe("Yesterday");
+		expect(conversationDayLabel(at(2026, 7, 18, 9, 0), { now: NOW, locale: "es" })).toBe("Hoy");
+		// Capitalized for a header (RelativeTimeFormat itself yields a lowercase word).
+		expect(conversationDayLabel(at(2026, 7, 17, 9, 0), { now: NOW, locale: "fr" })).toBe("Hier");
+	});
+
 	it("labels 2–6 days ago with the weekday name", () => {
 		const three = at(2026, 7, 15, 10, 0);
 		const expected = new Intl.DateTimeFormat("pt-BR", { weekday: "long" }).format(new Date(three));

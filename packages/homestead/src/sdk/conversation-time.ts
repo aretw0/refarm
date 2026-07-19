@@ -24,7 +24,8 @@ export interface ConversationTimeOptions {
 	now: number;
 	/** BCP-47 locale for the weekday/date/time formatting (default "pt-BR"). */
 	locale?: string;
-	/** Overrides for the relative day words (default pt-BR "Hoje"/"Ontem"). */
+	/** Overrides for the today/yesterday words. Default: the locale-correct word from
+	 * Intl.RelativeTimeFormat (pt-BR → "Hoje"/"Ontem", en → "Today"/"Yesterday", …). */
 	todayLabel?: string;
 	yesterdayLabel?: string;
 }
@@ -52,16 +53,33 @@ function calendarDaysAgo(at: number, now: number): number {
 	return Math.round((midB - midA) / 86_400_000);
 }
 
+/** Capitalize the first character for a header — Intl.RelativeTimeFormat yields a lowercase word
+ * ("hoje", "today"), but a day separator reads as a heading. Locale-aware upper-casing. */
+function capitalizeFirst(value: string, locale: string): string {
+	return value.length === 0 ? value : value.charAt(0).toLocaleUpperCase(locale) + value.slice(1);
+}
+
+/** The locale-correct relative-day WORD for an offset (0 → "hoje"/"today", -1 → "ontem"/"yesterday"),
+ * from CLDR data via Intl.RelativeTimeFormat. `numeric: "auto"` is what turns the integer offset into a
+ * word instead of "in 0 days" / "1 day ago" — so we don't hand-roll a per-locale string table. */
+function relativeDayWord(offset: number, locale: string): string {
+	return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(offset, "day");
+}
+
 /**
  * The day separator label for a message instant relative to `now`, the messenger convention:
  * today → "Hoje", yesterday → "Ontem", 2–6 days ago → the weekday name, same year → day+month, older
  * → day+month+year. `future` instants (clock skew) fall through to a date so they never read "Hoje".
+ *
+ * Today/yesterday come from Intl.RelativeTimeFormat (CLDR), so they are locale-correct like every other
+ * branch — a caller passing `locale: "en"` gets "Today"/"Yesterday", not a hard-coded pt-BR word. An
+ * explicit todayLabel/yesterdayLabel still wins.
  */
 export function conversationDayLabel(at: number, options: ConversationTimeOptions): string {
 	const locale = options.locale ?? DEFAULT_LOCALE;
 	const daysAgo = calendarDaysAgo(at, options.now);
-	if (daysAgo === 0) return options.todayLabel ?? "Hoje";
-	if (daysAgo === 1) return options.yesterdayLabel ?? "Ontem";
+	if (daysAgo === 0) return options.todayLabel ?? capitalizeFirst(relativeDayWord(0, locale), locale);
+	if (daysAgo === 1) return options.yesterdayLabel ?? capitalizeFirst(relativeDayWord(-1, locale), locale);
 	const d = new Date(at);
 	if (daysAgo >= 2 && daysAgo <= 6) {
 		return new Intl.DateTimeFormat(locale, { weekday: "long" }).format(d);
