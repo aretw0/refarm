@@ -1,7 +1,13 @@
 import type { SurfaceModel } from "@refarm.dev/capabilities";
 import { describe, expect, it } from "vitest";
 
-import { renderCapabilityDashboard, runInteractiveDashboard, surfaceModelToLayout } from "./tui-dashboard.js";
+import {
+	dashboardColorsFromTuiTheme,
+	defaultDashboardColors,
+	renderCapabilityDashboard,
+	runInteractiveDashboard,
+	surfaceModelToLayout,
+} from "./tui-dashboard.js";
 import { scriptedInput } from "./tui-input.js";
 
 const model: SurfaceModel = {
@@ -88,5 +94,24 @@ describe("runInteractiveDashboard (headless)", () => {
 		expect(selected).toEqual(["trust"]);
 		expect(last).toBe("trust");
 		expect(frames.length).toBeGreaterThanOrEqual(2); // initial + after the move
+	});
+});
+
+describe("dashboardColorsFromTuiTheme (DS tokens → dashboard colorizers)", () => {
+	it("maps a present token to a themed colorizer and falls back to the default for a missing one", () => {
+		const colors = dashboardColorsFromTuiTheme({ primary: { ansi256: 33 }, "muted-foreground": { ansi256: 244 } });
+		// primary + muted-foreground present → themed (not the chalk default reference).
+		expect(colors.heading).not.toBe(defaultDashboardColors.heading);
+		expect(colors.summary).not.toBe(defaultDashboardColors.summary);
+		// foreground absent → the default name colorizer; focus stays the reliable inverse indicator.
+		expect(colors.name).toBe(defaultDashboardColors.name);
+		expect(colors.focused).toBe(defaultDashboardColors.focused);
+	});
+
+	it("an empty theme yields all default colorizers (graceful, no throw)", () => {
+		const colors = dashboardColorsFromTuiTheme({});
+		expect(colors.heading).toBe(defaultDashboardColors.heading);
+		expect(colors.name).toBe(defaultDashboardColors.name);
+		expect(colors.summary).toBe(defaultDashboardColors.summary);
 	});
 });

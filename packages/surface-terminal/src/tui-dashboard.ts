@@ -39,6 +39,32 @@ export const defaultDashboardColors: SurfaceDashboardColors = {
 	focused: (text) => chalk.inverse(text),
 };
 
+/** One color token projected for the terminal — the shape `projectThemeToTui` (@refarm.dev/ds) emits.
+ * Accepted as DATA so surface-terminal needs no dependency on the design-system package. */
+export interface TuiThemeColor {
+	ansi256: number;
+}
+export type TuiThemeLike = Partial<Record<string, TuiThemeColor | undefined>>;
+
+/** Build dashboard colorizers from a projected DS theme (`projectThemeToTui` output), mapping the
+ * shared SEMANTIC tokens to the dashboard roles: `primary`→heading, `foreground`→name,
+ * `muted-foreground`→summary. A missing token falls back to `defaultDashboardColors`, so a partial
+ * theme still renders; the focus highlight stays inverse (a reliable state indicator across themes).
+ * This is the token pipeline reaching the terminal: declare tokens once → web CSS + this TUI, one
+ * source (the color half of the same convergence Yoga gave the space half). */
+export function dashboardColorsFromTuiTheme(theme: TuiThemeLike): SurfaceDashboardColors {
+	const roleColor = (token: string, fallback: Colorize): Colorize => {
+		const color = theme[token];
+		return color ? (text) => chalk.ansi256(color.ansi256)(text) : fallback;
+	};
+	return {
+		heading: roleColor("primary", defaultDashboardColors.heading!),
+		name: roleColor("foreground", defaultDashboardColors.name!),
+		summary: roleColor("muted-foreground", defaultDashboardColors.summary!),
+		focused: defaultDashboardColors.focused,
+	};
+}
+
 export interface SurfaceDashboardOptions {
 	/** Fixed card width in cells (default 24). */
 	cardWidth?: number;
