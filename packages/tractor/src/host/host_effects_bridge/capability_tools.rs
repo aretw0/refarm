@@ -326,8 +326,12 @@ async fn await_dispatch_result(
     sync: &crate::sync::NativeSync,
     reply_ref: &str,
 ) -> Result<String, String> {
-    let deadline = INVOKE_TIMEOUT_MS / INVOKE_POLL_INTERVAL_MS;
-    for _ in 0..deadline {
+    // A WALL-CLOCK deadline, not an iteration count: a slow `query_nodes` must not let the real timeout
+    // drift past INVOKE_TIMEOUT_MS (previously `TIMEOUT/INTERVAL` iterations, each of unbounded query cost).
+    // Same deadline idiom as readers.rs's poll loops. The deadline is checked AFTER the query, so a result
+    // that lands right at the boundary is still returned.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(INVOKE_TIMEOUT_MS);
+    loop {
         if let Ok(rows) = sync.query_nodes(DISPATCH_RESULT_TYPE) {
             for row in rows {
                 if let Ok(node) = serde_json::from_str::<serde_json::Value>(&row.payload) {
@@ -337,11 +341,13 @@ async fn await_dispatch_result(
                 }
             }
         }
+        if std::time::Instant::now() >= deadline {
+            return Err(format!(
+                "tool dispatch timed out after {INVOKE_TIMEOUT_MS}ms waiting for result (replyRef {reply_ref})"
+            ));
+        }
         tokio::time::sleep(std::time::Duration::from_millis(INVOKE_POLL_INTERVAL_MS)).await;
     }
-    Err(format!(
-        "tool dispatch timed out after {INVOKE_TIMEOUT_MS}ms waiting for result (replyRef {reply_ref})"
-    ))
 }
 
 #[cfg(test)]
