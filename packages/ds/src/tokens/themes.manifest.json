@@ -1,0 +1,6 @@
+{
+	"$description": "Drives scripts/generate-tokens.ts: which DTCG token files emit which shipped themes/*.css (+ DsTheme objects). The CSS layer + white-label dual selector convention are fixed in the emitter (tokens-emit.ts). `modes` (added for verde-jardim) maps a mode name to its DTCG override file, or null for a marker-only mode.",
+	"themes": [
+		{ "id": "tractor-green", "base": "tractor-green.tokens.json" }
+	]
+}
