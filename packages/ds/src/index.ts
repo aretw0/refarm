@@ -1,4 +1,10 @@
 export { runDsThemeConformance } from "./theme-conformance.js";
+export { BUILTIN_THEMES } from "./builtin-themes.generated.js";
+export {
+	dtcgToDsTheme,
+	type DtcgToken,
+	type DtcgTokenFile,
+} from "./tokens-source.js";
 export {
 	registerThemePacks,
 	resolveThemePacksFromSurfaces,

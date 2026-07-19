@@ -7,12 +7,14 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { emitThemeCss } from "../src/tokens-emit.js";
+import { type DsTheme } from "../src/contract.js";
+import { emitBuiltinThemesModule, emitThemeCss } from "../src/tokens-emit.js";
 import { resolveThemeEntry, type ThemesManifest } from "../src/tokens-manifest.js";
-import type { DtcgTokenFile } from "../src/tokens-source.js";
+import { dtcgToDsTheme, type DtcgTokenFile } from "../src/tokens-source.js";
 
 const TOKENS_DIR = new URL("../src/tokens/", import.meta.url);
 const THEMES_DIR = new URL("../src/themes/", import.meta.url);
+const SRC_DIR = new URL("../src/", import.meta.url);
 
 const loadTokens = (fileName: string): DtcgTokenFile =>
 	JSON.parse(readFileSync(fileURLToPath(new URL(fileName, TOKENS_DIR)), "utf8")) as DtcgTokenFile;
@@ -21,8 +23,13 @@ const manifest = JSON.parse(
 	readFileSync(fileURLToPath(new URL("themes.manifest.json", TOKENS_DIR)), "utf8"),
 ) as ThemesManifest;
 
+const builtins: Record<string, DsTheme> = {};
 for (const theme of manifest.themes) {
-	const css = emitThemeCss(resolveThemeEntry(theme, loadTokens));
-	writeFileSync(fileURLToPath(new URL(`${theme.id}.css`, THEMES_DIR)), css);
+	const entry = resolveThemeEntry(theme, loadTokens);
+	writeFileSync(fileURLToPath(new URL(`${theme.id}.css`, THEMES_DIR)), emitThemeCss(entry));
 	console.log(`generated themes/${theme.id}.css`);
+	builtins[theme.id] = dtcgToDsTheme(entry.base) as DsTheme;
 }
+
+writeFileSync(fileURLToPath(new URL("builtin-themes.generated.ts", SRC_DIR)), emitBuiltinThemesModule(builtins));
+console.log("generated builtin-themes.generated.ts");
