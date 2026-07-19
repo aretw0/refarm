@@ -44,6 +44,10 @@ export interface LayoutNode {
 	justify?: "start" | "center" | "end" | "between" | "around";
 	/** Wrap children onto multiple lines when they overflow the main axis. */
 	wrap?: boolean;
+	/** A stable id — set on a node the interactive loop can focus + select. */
+	id?: string;
+	/** Whether the interactive loop may focus this node (a focus target also needs an `id`). */
+	focusable?: boolean;
 	/** A text leaf's content (sized via `measureText`); mutually exclusive with `children`. */
 	text?: string;
 	children?: LayoutNode[];
@@ -57,6 +61,10 @@ export interface PositionedNode {
 	width: number;
 	height: number;
 	text?: string;
+	/** Mirrors the LayoutNode's `id` — the handle the focus model reports. */
+	id?: string;
+	/** Mirrors the LayoutNode's `focusable` — whether the focus model includes this box. */
+	focusable?: boolean;
 	children: PositionedNode[];
 }
 
@@ -147,7 +155,11 @@ function read(node: YogaNode, spec: LayoutNode, offsetX: number, offsetY: number
 		const childSpec = spec.children?.[index] ?? {};
 		children.push(read(node.getChild(index), childSpec, x, y));
 	}
-	return { x, y, width: layout.width, height: layout.height, text: spec.text, children };
+	const positioned: PositionedNode = { x, y, width: layout.width, height: layout.height, children };
+	if (spec.text !== undefined) positioned.text = spec.text;
+	if (spec.id !== undefined) positioned.id = spec.id;
+	if (spec.focusable !== undefined) positioned.focusable = spec.focusable;
+	return positioned;
 }
 
 /**

@@ -33,3 +33,5 @@ export {
 	type SurfaceDashboardOptions,
 	type RenderCapabilityDashboardOptions,
 } from "./tui-dashboard.js";
+export { scriptedInput, type Key, type TerminalInput } from "./tui-input.js";
+export { focusOrder, moveFocus, type FocusTarget } from "./tui-focus.js";
