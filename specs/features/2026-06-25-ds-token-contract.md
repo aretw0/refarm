@@ -203,3 +203,32 @@ export function runDsThemeConformance(theme: Partial<DsTheme>): DsThemeConforman
   and #6 (changeset) when implementing.
 - **Consumer proof consumption:** the `vault-seed` adoption in §5 uses the local-tarball path in
   `docs/DEV_CROSS_REPO_CONSUMPTION.md` (build → `pnpm pack` → `file:` tarball in `vault-seed`).
+
+---
+
+## Addendum (2026-07-19): DTCG token source (fatia 2)
+
+The token **source of truth** is inverted. Previously the built-in themes were authored as
+`.css` and the surface-neutral `DsTheme` was reverse-extracted from CSS by regex — CSS was the
+de-facto source. Now each theme is authored ONCE as a **W3C DTCG (Design Tokens) JSON**
+(`src/tokens/<id>.tokens.json`), and the shipped `themes/*.css` **and** the `DsTheme` objects are
+**generated** from it (`scripts/generate-tokens.ts`, run via `pnpm -C packages/ds run generate`).
+
+- **Standard source, bespoke emit.** DTCG is the adopted source format (vendor-neutral, stable
+  2025.10, Figma/Tokens Studio interop). The emitter is a thin, pure, in-repo transform because
+  refarm's CSS conventions are bespoke (`@layer ds.theme` + the white-label dual
+  `:where([data-ds-theme], [data-refarm-theme])` selector + light/dark mode blocks). **Style
+  Dictionary is deferred** to the first native-platform (iOS/Android/Flutter) target, where its
+  format library pays; DTCG-as-source is exactly what lets it drop in then without re-authoring.
+- **Byte-fidelity guaranteed.** A drift-guard test asserts `emit(DTCG source) === committed
+  themes/*.css`, byte for byte, for every theme (incl. verde-jardim's mode blocks). The generated
+  files are DERIVED — never hand-edit them; edit the DTCG source and regenerate.
+- **Multi-surface dividend.** `BUILTIN_THEMES` (generated `DsTheme` objects) lets a built-in theme
+  reach a non-CSS surface from the DTCG source directly — `projectThemeToTui(BUILTIN_THEMES[id])`
+  colors a terminal with no CSS regex, and `ThemeRegistry.register(id, BUILTIN_THEMES[id],
+  "built-in")` is conformance-gated. The old CSS-regex conformance (`theme-css.test.ts`) is retired.
+- **Contract unchanged.** `REQUIRED_TOKENS` (30) and `ds-tokens:v1` are identical — this changes
+  where the values come from, not the contract.
+
+Plan: `docs/superpowers/plans/2026-07-19-ds-dtcg-token-source.md`. Verdict:
+`docs/research/2026-07-18-reinventing-the-wheel-ds-i18n-a11y.md` (§ Design tokens).

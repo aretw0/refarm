@@ -38,6 +38,14 @@
 		"dist/html.js.map",
 		"dist/html.d.ts",
 		"dist/html.d.ts.map",
+		"dist/tokens-source.js",
+		"dist/tokens-source.js.map",
+		"dist/tokens-source.d.ts",
+		"dist/tokens-source.d.ts.map",
+		"dist/builtin-themes.generated.js",
+		"dist/builtin-themes.generated.js.map",
+		"dist/builtin-themes.generated.d.ts",
+		"dist/builtin-themes.generated.d.ts.map",
 		"src/*.css",
 		"src/themes/*.css"
 	],
@@ -82,6 +90,7 @@
 	},
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
+		"generate": "tsx scripts/generate-tokens.ts",
 		"type-check": "tsc --noEmit",
 		"test": "vitest run",
 		"storybook": "storybook dev -p 6006",
@@ -99,7 +108,8 @@
 		"@storybook/html-vite": "^10.3.5",
 		"storybook": "^10.3.5",
 		"@refarm.dev/tsconfig": "workspace:*",
-		"@refarm.dev/vtconfig": "workspace:*"
+		"@refarm.dev/vtconfig": "workspace:*",
+		"tsx": "^4.23.0"
 	},
 	"license": "MIT",
 	"publishConfig": {

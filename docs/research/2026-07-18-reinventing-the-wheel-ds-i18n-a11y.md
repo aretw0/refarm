@@ -82,6 +82,15 @@ Dictionary format/transform. Keep the semantic names, the scoping discipline, an
 conformance contract (it now validates the DTCG source). This closes the memory note
 `tema-geral-multi-superficie` ("DsTheme acoplado CSS") at the root.
 
+> **LANDED (2026-07-19).** Implemented in `@refarm.dev/ds`: DTCG source
+> (`src/tokens/*.tokens.json`) → a thin in-repo emitter generates the byte-identical
+> `themes/*.css` + `BUILTIN_THEMES` (`DsTheme` objects for TUI/agent). Refinement earned by
+> measuring the code: refarm's CSS is bespoke (`@layer ds.theme` + white-label dual selector +
+> modes), so **Style Dictionary's stock formats don't fit** — we adopt DTCG as the *source*
+> (the interop/lock-in-avoidance win) and **defer Style Dictionary to the first native
+> (iOS/Android/Flutter) target**, where its format library actually pays; DTCG-as-source is what
+> lets it drop in then. Plan: `docs/superpowers/plans/2026-07-19-ds-dtcg-token-source.md`.
+
 ### 2. Headless primitives — LEARN-FROM Zag's machine+adapter; KEEP structural, don't hand-roll the hard widgets
 
 **Verdict: KEEP-AUTHORING** structural primitives (card, transcript, hub/layout, form-from-schema);
