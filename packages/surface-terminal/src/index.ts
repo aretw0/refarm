@@ -25,3 +25,11 @@ export {
 	type ComputeTuiLayoutOptions,
 } from "./tui-layout.js";
 export { renderTuiLayout, type RenderTuiLayoutOptions } from "./tui-render.js";
+export {
+	surfaceModelToLayout,
+	renderCapabilityDashboard,
+	defaultDashboardColors,
+	type SurfaceDashboardColors,
+	type SurfaceDashboardOptions,
+	type RenderCapabilityDashboardOptions,
+} from "./tui-dashboard.js";
