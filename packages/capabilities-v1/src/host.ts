@@ -1,6 +1,7 @@
 import {
 	createCapabilityRegistry,
 	isCapabilityGroup,
+	tuiSurfaceModel,
 	type CapabilityDescriptor,
 	type CapabilityEntry,
 	type CapabilityEnvelope,
@@ -303,6 +304,7 @@ export function defineCapabilityHost(definition: CapabilityHostDefinition): Capa
 			}
 			addServeCommand(program, definition, bundle.registry);
 			addTuiCommand(program, definition, bundle.registry);
+			addDashboardCommand(program, definition, bundle.registry);
 			return program;
 		},
 		serve(options: CapabilityHostServeCallOptions = {}) {
@@ -736,6 +738,31 @@ function addTuiCommand(program: Command, definition: CapabilityHostDefinition, r
 				title: definition.command,
 				...(definition.description ? { subtitle: definition.description } : {}),
 			});
+		});
+}
+
+/**
+ * Mount the `dashboard` command — the SAME registry the CLI/web/TUI derive from, printed ONCE as a
+ * laid-out terminal dashboard (surface-terminal's Yoga layout engine: sections → a wrapping card
+ * grid). Unlike the interactive `tui`, it is a one-shot render. Declare `renderers.tui` on a verb
+ * and it appears as a card here too — no per-app wiring. surface-terminal is imported LAZILY
+ * (node-only: commander/readline/yoga) so this module stays browser-safe, per the commander note above.
+ */
+function addDashboardCommand(
+	program: Command,
+	definition: CapabilityHostDefinition,
+	registry: CapabilityRegistry,
+): void {
+	program
+		.command("dashboard")
+		.description(`Print ${definition.command} as a laid-out terminal dashboard (the verbs' tui surface)`)
+		.action(async () => {
+			const { renderCapabilityDashboard, defaultDashboardColors } = await import("@refarm.dev/surface-terminal");
+			const dashboard = await renderCapabilityDashboard(tuiSurfaceModel(registry), {
+				width: process.stdout.columns ?? 80,
+				colors: defaultDashboardColors,
+			});
+			process.stdout.write(`${dashboard}\n`);
 		});
 }
 

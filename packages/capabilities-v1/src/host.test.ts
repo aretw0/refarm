@@ -217,6 +217,7 @@ describe("defineCapabilityHost", () => {
 				"actions",
 				"serve",
 				"tui",
+				"dashboard",
 			]),
 		);
 
