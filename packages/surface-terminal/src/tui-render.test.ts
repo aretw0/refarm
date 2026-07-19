@@ -52,6 +52,11 @@ describe("renderTuiLayout (positioned boxes → ANSI grid)", () => {
 		expect(renderTuiLayout(root)).toBe("a\nb");
 	});
 
+	it("draws a box outline around a bordered node", () => {
+		const boxed: PositionedNode = { x: 0, y: 0, width: 6, height: 3, border: true, children: [] };
+		expect(renderTuiLayout(boxed)).toBe("┌────┐\n│    │\n└────┘");
+	});
+
 	it("renders a computed layout end to end (compute → render)", async () => {
 		const layout = await computeTuiLayout(
 			{ direction: "row", gap: 2, align: "start", children: [{ text: "L" }, { text: "R" }] },

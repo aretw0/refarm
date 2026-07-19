@@ -48,6 +48,8 @@ export interface LayoutNode {
 	id?: string;
 	/** Whether the interactive loop may focus this node (a focus target also needs an `id`). */
 	focusable?: boolean;
+	/** Draw a box border (┌─┐│└┘) around this node; reserves a 1-cell ring in the layout. */
+	border?: boolean;
 	/** A text leaf's content (sized via `measureText`); mutually exclusive with `children`. */
 	text?: string;
 	children?: LayoutNode[];
@@ -65,6 +67,8 @@ export interface PositionedNode {
 	id?: string;
 	/** Mirrors the LayoutNode's `focusable` — whether the focus model includes this box. */
 	focusable?: boolean;
+	/** Mirrors the LayoutNode's `border` — whether the renderer draws a box outline. */
+	border?: boolean;
 	children: PositionedNode[];
 }
 
@@ -128,6 +132,7 @@ function build(yoga: Yoga, spec: LayoutNode, measureText: MeasureText): YogaNode
 	if (spec.align) node.setAlignItems(ALIGN[spec.align]);
 	if (spec.justify) node.setJustifyContent(JUSTIFY[spec.justify]);
 	if (spec.wrap) node.setFlexWrap(Wrap.Wrap);
+	if (spec.border) node.setBorder(Edge.All, 1); // reserve the border ring so content insets by 1
 	if (typeof spec.text === "string") {
 		const text = spec.text;
 		node.setMeasureFunc((availableWidth, widthMode) => {
@@ -159,6 +164,7 @@ function read(node: YogaNode, spec: LayoutNode, offsetX: number, offsetY: number
 	if (spec.text !== undefined) positioned.text = spec.text;
 	if (spec.id !== undefined) positioned.id = spec.id;
 	if (spec.focusable !== undefined) positioned.focusable = spec.focusable;
+	if (spec.border !== undefined) positioned.border = spec.border;
 	return positioned;
 }
 

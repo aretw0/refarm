@@ -68,6 +68,7 @@ describe("surfaceModelToLayout focusable cards", () => {
 		const cardRow = layout.children![0]!.children![1]!;
 		expect(cardRow.children!.map((card) => card.id)).toEqual(["wallet", "trust"]);
 		expect(cardRow.children!.every((card) => card.focusable === true)).toBe(true);
+		expect(cardRow.children!.every((card) => card.border === true)).toBe(true);
 	});
 });
 

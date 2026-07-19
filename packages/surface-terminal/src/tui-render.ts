@@ -37,9 +37,26 @@ interface Segment {
 	text: string;
 }
 
-/** Collect each text leaf's lines as positioned segments, clipped to the leaf's box (height in rows,
- * width in cells). Coordinates are rounded to the integer cell grid. */
+/** Emit the box-outline segments for a bordered node: ┌─┐ / │ │ / └─┘ around its rect. Content leaves
+ * are already inset by Yoga's reserved border ring, so the outline never overlaps them. */
+function collectBorder(node: PositionedNode, segments: Segment[]): void {
+	const x = Math.round(node.x);
+	const y = Math.round(node.y);
+	const w = Math.max(0, Math.round(node.width));
+	const h = Math.max(0, Math.round(node.height));
+	if (w < 2 || h < 2) return; // too small to outline
+	segments.push({ row: y, col: x, text: `┌${"─".repeat(w - 2)}┐` });
+	segments.push({ row: y + h - 1, col: x, text: `└${"─".repeat(w - 2)}┘` });
+	for (let row = y + 1; row < y + h - 1; row++) {
+		segments.push({ row, col: x, text: "│" });
+		segments.push({ row, col: x + w - 1, text: "│" });
+	}
+}
+
+/** Collect a node's outline (if bordered) + each text leaf's lines as positioned segments, clipped to
+ * the box (height in rows, width in cells). Coordinates are rounded to the integer cell grid. */
 function collect(node: PositionedNode, segments: Segment[], measure: (t: string) => number): void {
+	if (node.border) collectBorder(node, segments);
 	if (typeof node.text === "string") {
 		const rows = Math.max(0, Math.round(node.height));
 		const width = Math.max(0, Math.round(node.width));

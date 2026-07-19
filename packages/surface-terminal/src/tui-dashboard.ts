@@ -72,6 +72,7 @@ export function surfaceModelToLayout(model: SurfaceModel, opts: SurfaceDashboard
 					direction: "column",
 					width: cardWidth,
 					padding: 1,
+					border: true,
 					// The card is a focus target (interactive dashboard); its name highlights when focused.
 					id: item.name,
 					focusable: true,
