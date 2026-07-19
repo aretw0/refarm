@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { validateCapabilityArgs } from "./arg-validator.js";
 import type { CapabilityDescriptor, CapabilityEntry, CapabilityInput } from "./types.js";
 import { isCapabilityGroup } from "./types.js";
 
@@ -23,6 +24,9 @@ interface CapabilityRoute {
 	method: string;
 	path: string;
 	invoke: CapabilityDescriptor["run"];
+	/** The action the route dispatches — its args/options derive the JSON Schema the handler validates
+	 * the request body against, so the HTTP surface enforces the same contract the web form and agent do. */
+	descriptor: CapabilityDescriptor;
 }
 
 /** The action a group's HTTP route runs: its default action, else the group
@@ -48,6 +52,7 @@ export function buildCapabilityRoutes(
 			method: (http.method ?? "POST").toUpperCase(),
 			path: `${prefix}${http.path}`,
 			invoke: action.run,
+			descriptor: action,
 		});
 	}
 	return routes;
@@ -108,6 +113,19 @@ export function createCapabilityRouteHandler(
 					ok: false,
 					error: "invalid-request-body",
 					message: "Request body must be JSON: {args?, options?}.",
+				});
+				return;
+			}
+			// Validate the request body against the verb's DERIVED JSON Schema before running it — the
+			// same contract the web form and agent tool enforce. Invalid input is a 422 with field-scoped
+			// errors, never a run with bad args.
+			const validation = validateCapabilityArgs(route.descriptor, { ...input.args, ...input.options });
+			if (!validation.valid) {
+				writeJson(res, 422, {
+					ok: false,
+					error: "invalid-input",
+					message: validation.errors.map((e) => (e.field ? `${e.field} ${e.message}` : e.message)).join("; "),
+					errors: validation.errors,
 				});
 				return;
 			}

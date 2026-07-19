@@ -9,5 +9,7 @@ capability's DERIVED JSON Schema — the same schema the agent tool exposes — 
 handles string form values; the derived `required` list is enforced). The pattern-B inline form
 dispatch (`wireCapabilityFormDispatch`) now runs this as a gate: invalid input is rejected against
 the schema and reported as a field-scoped error through the existing result seam, blocking the
-verb run — so a web form rejects the same bad input a CLI or an agent tool call would. One derived
-schema, one validation contract, every surface.
+verb run — so a web form rejects the same bad input a CLI or an agent tool call would. The HTTP
+surface (`createCapabilityRouteHandler`) enforces the same gate: a request body that fails the
+derived schema is a 422 with field-scoped errors, never a run with bad args. One derived schema,
+one validation contract, every surface.

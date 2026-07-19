@@ -139,6 +139,29 @@ describe("createCapabilityRouteHandler", () => {
 		});
 	});
 
+	it("rejects a body that fails the verb's derived schema with 422 + field errors, and accepts a valid one (validation gate)", async () => {
+		const vh = createCapabilityRouteHandler([
+			descriptor("search", {
+				args: [{ name: "query", required: true, type: "string" }],
+				transports: { http: { method: "POST", path: "/search" } },
+			}),
+		]);
+		// Missing the required `query` → 422 invalid-input, never a run with bad args.
+		const bad = fakeRes();
+		vh(fakeReq("POST", "/search", { args: {} }), bad);
+		await new Promise((r) => setImmediate(r));
+		expect(bad.statusCode).toBe(422);
+		const badBody = JSON.parse(bad.body);
+		expect(badBody).toMatchObject({ ok: false, error: "invalid-input" });
+		expect(badBody.errors).toContainEqual({ field: "query", message: "is required" });
+
+		// A valid body passes the gate and runs → 200.
+		const good = fakeRes();
+		vh(fakeReq("POST", "/search", { args: { query: "reqs" } }), good);
+		await new Promise((r) => setImmediate(r));
+		expect(good.statusCode).toBe(200);
+	});
+
 	it("rejects a malformed JSON body with 400", async () => {
 		const res = fakeRes();
 		const req = Readable.from(["{ not json"]) as unknown as import("node:http").IncomingMessage;
