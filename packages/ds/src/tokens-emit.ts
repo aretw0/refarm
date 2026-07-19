@@ -25,19 +25,48 @@ function declarations(values: Partial<Record<string, string>>): string {
 		.join("\n");
 }
 
-/** One theme to emit: an id and its base DTCG token file. (Mode overrides are added in a later slice.) */
+/** One mode of a theme (e.g. light / dark): the `data-mode` value it matches, the `color-scheme` it
+ * declares, and its token OVERRIDES (a partial DTCG file) — or none, for a marker-only mode. */
+export interface ThemeModeEmit {
+	name: string;
+	colorScheme: string;
+	override?: DtcgTokenFile;
+}
+
+/** One theme to emit: an id, its complete base DTCG file, and any mode overrides (light/dark). */
 export interface ThemeEmitEntry {
 	id: string;
 	base: DtcgTokenFile;
+	modes?: readonly ThemeModeEmit[];
+}
+
+/** The base declarations block for a theme: `\t<selector> {\n<body>\n\t}`. */
+function baseBlock(id: string, base: DtcgTokenFile): string {
+	return `\t${themeSelector(id)} {\n${declarations(dtcgToDsTheme(base))}\n\t}`;
+}
+
+/** A mode block: the dual `[data-mode="X"]` selector (both `selector[data-mode]` and
+ * `[data-mode] selector`), a `color-scheme`, then this mode's token overrides in contract order. */
+function modeBlock(id: string, mode: ThemeModeEmit): string {
+	const selector = themeSelector(id);
+	const head = `\t${selector}[data-mode="${mode.name}"],\n\t[data-mode="${mode.name}"] ${selector} {`;
+	const lines = [`\t\tcolor-scheme: ${mode.colorScheme};`];
+	const overrides = mode.override ? declarations(dtcgToDsTheme(mode.override)) : "";
+	if (overrides) lines.push(overrides);
+	return `${head}\n${lines.join("\n")}\n\t}`;
 }
 
 /**
- * Emit the scoped CSS for a base theme, byte-faithful to the hand-authored `themes/<id>.css`:
- * `@layer ds.theme { <dual-selector> { --token: value; … } }`, tabs, contract-token order, trailing
- * newline. The drift-guard test asserts this equals the committed file, so a change to the DTCG source
- * that is not regenerated (or a hand-edit of the generated CSS) is caught.
+ * Emit the scoped CSS for a theme, byte-faithful to the hand-authored `themes/<id>.css`:
+ * `@layer ds.theme { <base block> [\n\n<mode block>…] }`, tabs, contract-token order, blocks separated by
+ * a blank line, trailing newline. A base-only theme emits just the base block (identical to before modes).
+ * The drift-guard test asserts this equals the committed file, so a DTCG-source change that is not
+ * regenerated (or a hand-edit of the generated CSS) is caught.
  */
 export function emitThemeCss(entry: ThemeEmitEntry): string {
-	const body = declarations(dtcgToDsTheme(entry.base));
-	return `@layer ${LAYER} {\n\t${themeSelector(entry.id)} {\n${body}\n\t}\n}\n`;
+	const blocks = [
+		baseBlock(entry.id, entry.base),
+		...(entry.modes ?? []).map((mode) => modeBlock(entry.id, mode)),
+	];
+	return `@layer ${LAYER} {\n${blocks.join("\n\n")}\n}\n`;
 }

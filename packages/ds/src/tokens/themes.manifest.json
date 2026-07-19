@@ -3,6 +3,14 @@
 	"themes": [
 		{ "id": "tractor-green", "base": "tractor-green.tokens.json" },
 		{ "id": "oceano", "base": "oceano.tokens.json" },
-		{ "id": "terracota", "base": "terracota.tokens.json" }
+		{ "id": "terracota", "base": "terracota.tokens.json" },
+		{
+			"id": "verde-jardim",
+			"base": "verde-jardim.tokens.json",
+			"modes": [
+				{ "name": "light", "colorScheme": "light", "override": "verde-jardim.light.tokens.json" },
+				{ "name": "dark", "colorScheme": "dark" }
+			]
+		}
 	]
 }

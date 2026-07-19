@@ -8,29 +8,21 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { emitThemeCss } from "../src/tokens-emit.js";
+import { resolveThemeEntry, type ThemesManifest } from "../src/tokens-manifest.js";
 import type { DtcgTokenFile } from "../src/tokens-source.js";
 
 const TOKENS_DIR = new URL("../src/tokens/", import.meta.url);
 const THEMES_DIR = new URL("../src/themes/", import.meta.url);
 
-interface ManifestTheme {
-	id: string;
-	base: string;
-	modes?: Record<string, string | null>;
-}
-interface Manifest {
-	themes: ManifestTheme[];
-}
+const loadTokens = (fileName: string): DtcgTokenFile =>
+	JSON.parse(readFileSync(fileURLToPath(new URL(fileName, TOKENS_DIR)), "utf8")) as DtcgTokenFile;
 
-function readJson<T>(url: URL): T {
-	return JSON.parse(readFileSync(fileURLToPath(url), "utf8")) as T;
-}
-
-const manifest = readJson<Manifest>(new URL("themes.manifest.json", TOKENS_DIR));
+const manifest = JSON.parse(
+	readFileSync(fileURLToPath(new URL("themes.manifest.json", TOKENS_DIR)), "utf8"),
+) as ThemesManifest;
 
 for (const theme of manifest.themes) {
-	const base = readJson<DtcgTokenFile>(new URL(theme.base, TOKENS_DIR));
-	const css = emitThemeCss({ id: theme.id, base });
+	const css = emitThemeCss(resolveThemeEntry(theme, loadTokens));
 	writeFileSync(fileURLToPath(new URL(`${theme.id}.css`, THEMES_DIR)), css);
 	console.log(`generated themes/${theme.id}.css`);
 }

@@ -4,27 +4,34 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { emitThemeCss, themeSelector } from "./tokens-emit.js";
+import { resolveThemeEntry, type ThemesManifest } from "./tokens-manifest.js";
 import type { DtcgTokenFile } from "./tokens-source.js";
 
-function loadTokens(name: string): DtcgTokenFile {
+function loadTokens(fileName: string): DtcgTokenFile {
 	return JSON.parse(
-		readFileSync(fileURLToPath(new URL(`./tokens/${name}`, import.meta.url)), "utf8"),
+		readFileSync(fileURLToPath(new URL(`./tokens/${fileName}`, import.meta.url)), "utf8"),
 	) as DtcgTokenFile;
 }
 function committedCss(name: string): string {
 	return readFileSync(fileURLToPath(new URL(`./themes/${name}`, import.meta.url)), "utf8");
 }
 
-/** The base (single-mode) themes — each a DTCG source file that emits one themes/<id>.css. */
-const BASE_THEMES = ["tractor-green", "oceano", "terracota"] as const;
+const manifest = JSON.parse(
+	readFileSync(fileURLToPath(new URL("./tokens/themes.manifest.json", import.meta.url)), "utf8"),
+) as ThemesManifest;
 
 describe("token emit is byte-faithful to the shipped CSS (drift guard)", () => {
-	// If this fails, the DTCG source and the generated CSS diverged: run `pnpm -C packages/ds run generate`
-	// (or someone hand-edited the generated CSS). This re-proves fidelity in CI, where generate isn't run.
-	it.each(BASE_THEMES)("%s: emit(DTCG source) === committed themes/%s.css, byte for byte", (id) => {
-		const css = emitThemeCss({ id, base: loadTokens(`${id}.tokens.json`) });
-		expect(css).toBe(committedCss(`${id}.css`));
-	});
+	// The exact inverse of scripts/generate-tokens.ts: resolve every manifest theme and assert its emit
+	// equals the committed CSS, byte for byte. If this fails, the DTCG source and the generated CSS
+	// diverged — run `pnpm -C packages/ds run generate` (or a generated CSS was hand-edited). This
+	// re-proves fidelity in CI, where generate does not run.
+	it.each(manifest.themes.map((theme) => theme.id))(
+		"%s: emit(DTCG source, via manifest) === committed themes/%s.css",
+		(id) => {
+			const theme = manifest.themes.find((entry) => entry.id === id)!;
+			expect(emitThemeCss(resolveThemeEntry(theme, loadTokens))).toBe(committedCss(`${id}.css`));
+		},
+	);
 });
 
 describe("themeSelector — white-label dual selector", () => {
