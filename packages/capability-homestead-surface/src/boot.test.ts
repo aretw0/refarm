@@ -581,6 +581,44 @@ describe("mountCapabilityWebView — custom substrate view, framework-owned load
 		expect(results[0]!.html).toContain("hit for CNPJ");
 	});
 
+	it("blocks dispatch and reports a field-scoped validation error when a required arg is missing (pattern B gate)", async () => {
+		let runCalls = 0;
+		const registry = {
+			get: (name: string) =>
+				name === "search"
+					? {
+							name: "search",
+							summary: "Search things",
+							args: [{ name: "query", required: true }],
+							renderers: { web: { resultField: "resultsHtml" } },
+							run: async () => {
+								runCalls++;
+								return { ok: true, resultsHtml: "<ul>x</ul>" };
+							},
+						}
+					: undefined,
+			list: () => [{ name: "search" }],
+		} as unknown as CapabilityRegistry;
+
+		document.body.innerHTML = `<div id="convo-gate"></div>`;
+		const container = document.getElementById("convo-gate")!;
+		container.innerHTML = renderCapabilityFormMessage(registry, "search");
+
+		const results: Array<{ verb: string; ok: boolean; message?: string }> = [];
+		wireCapabilityFormDispatch(container, registry, (verb, result) => {
+			results.push({ verb, ok: result.ok, message: result.message });
+		});
+		// Submit WITHOUT filling the required `query` — the gate must reject it against the derived schema.
+		container.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+
+		const deadline = Date.now() + 1000;
+		while (Date.now() < deadline && results.length === 0) await new Promise((r) => setTimeout(r, 5));
+		expect(results).toHaveLength(1);
+		expect(results[0]!.ok).toBe(false);
+		expect(results[0]!.message).toContain("query is required");
+		expect(runCalls).toBe(0); // the verb never ran — validation blocked the dispatch
+	});
+
 	it("throws (→ overlay error) when the content verb is not in the registry", async () => {
 		const holder = viewRegistry({ items: [] });
 		await mountCapabilityWebView({

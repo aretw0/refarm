@@ -23,6 +23,11 @@ export {
 	type ToolParameterSchema,
 } from "./agent-projector.js";
 export {
+	validateCapabilityArgs,
+	type CapabilityArgError,
+	type CapabilityArgValidation,
+} from "./arg-validator.js";
+export {
 	surfaceModel,
 	projectSurface,
 	tuiSurfaceModel,

@@ -1,3 +1,4 @@
+import { validateCapabilityArgs } from "@refarm.dev/capabilities";
 import type { CapabilityInput, CapabilityRegistry } from "@refarm.dev/capabilities";
 import {
 	bootCapabilityWebShell,
@@ -178,6 +179,20 @@ export function wireCapabilityFormDispatch(
 		const entry = registry.get(verb);
 		if (!entry || !("run" in entry) || typeof entry.run !== "function") return;
 		const input = collectVerbInput(verb, form);
+		// Validate the collected input against the verb's DERIVED JSON Schema (the same schema the agent
+		// tool exposes) BEFORE dispatch — so a form rejects bad input the way a CLI or a tool call would.
+		// On failure, report the field-scoped errors through the existing result seam and block the run.
+		const validation = validateCapabilityArgs(
+			entry as unknown as Parameters<typeof validateCapabilityArgs>[0],
+			{ ...input.args, ...input.options },
+		);
+		if (!validation.valid) {
+			const detail = validation.errors
+				.map((e) => (e.field ? `${e.field} ${e.message}` : e.message))
+				.join("; ");
+			void Promise.resolve(onResult(verb, { verb, ok: false, message: `Invalid input: ${detail}` }));
+			return;
+		}
 		void runVerbForResult(
 			entry as { run: (i: CapabilityInput) => unknown; renderers?: { web?: { resultField?: string } } },
 			verb,
