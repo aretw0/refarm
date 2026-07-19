@@ -12,6 +12,10 @@ export interface FormField {
 	name: string;
 	required?: boolean;
 	value?: string;
+	/** Field kind: "text" (typed, default), "boolean" (space toggles a checkbox), "enum" (←/→ cycle). */
+	kind?: "text" | "boolean" | "enum";
+	/** The allowed values for an enum field. */
+	options?: string[];
 }
 
 export interface FormColors {
@@ -47,6 +51,15 @@ interface FieldState {
 	name: string;
 	required: boolean;
 	value: string;
+	kind: "text" | "boolean" | "enum";
+	options: string[];
+}
+
+/** Cycle an enum field's value through `["", ...options]` ("" = unset), wrapping. */
+function cycleEnum(options: string[], current: string, dir: 1 | -1): string {
+	const cycle = ["", ...options];
+	const index = cycle.indexOf(current);
+	return cycle[(index + dir + cycle.length) % cycle.length]!;
 }
 
 function renderForm(title: string | undefined, fields: FieldState[], focused: number, colors: FormColors): string {
@@ -59,8 +72,11 @@ function renderForm(title: string | undefined, fields: FieldState[], focused: nu
 	fields.forEach((field, index) => {
 		const isFocused = index === focused;
 		const label = `${isFocused ? "> " : "  "}${field.name}${field.required ? "*" : ""}: `;
-		const cursor = isFocused ? "_" : "";
-		lines.push(`${(isFocused ? focusedColor : labelColor)(label)}${valueColor(field.value)}${cursor}`);
+		let display: string;
+		if (field.kind === "boolean") display = field.value === "true" ? "[x]" : "[ ]";
+		else if (field.kind === "enum") display = `< ${field.value || "(unset)"} >`;
+		else display = `${field.value}${isFocused ? "_" : ""}`; // text: value + cursor
+		lines.push(`${(isFocused ? focusedColor : labelColor)(label)}${valueColor(display)}`);
 	});
 	return lines.join("\n");
 }
@@ -75,7 +91,9 @@ export async function runInteractiveForm(opts: RunInteractiveFormOptions): Promi
 	const fields: FieldState[] = opts.fields.map((field) => ({
 		name: field.name,
 		required: Boolean(field.required),
-		value: field.value ?? "",
+		kind: field.kind ?? "text",
+		options: field.options ?? [],
+		value: field.value ?? (field.kind === "boolean" ? "false" : ""),
 	}));
 	if (fields.length === 0) return {}; // nothing to collect
 	const colors = opts.colors ?? {};
@@ -99,13 +117,24 @@ export async function runInteractiveForm(opts: RunInteractiveFormOptions): Promi
 				}
 				return Object.fromEntries(fields.map((field) => [field.name, field.value]));
 			}
+			const current = fields[focused]!;
 			if (key.name === "tab" || key.name === "down") focused = (focused + 1) % fields.length;
 			else if (key.name === "up") focused = (focused - 1 + fields.length) % fields.length;
-			else if (key.name === "backspace") fields[focused]!.value = fields[focused]!.value.slice(0, -1);
+			else if (current.kind === "boolean") {
+				// space / ←→ toggle the checkbox; typing is ignored.
+				if (key.name === "space" || key.name === "left" || key.name === "right")
+					current.value = current.value === "true" ? "false" : "true";
+				else continue;
+			} else if (current.kind === "enum") {
+				// ←→ cycle the allowed values (incl. unset); typing is ignored.
+				if (key.name === "left") current.value = cycleEnum(current.options, current.value, -1);
+				else if (key.name === "right") current.value = cycleEnum(current.options, current.value, 1);
+				else continue;
+			} else if (key.name === "backspace") current.value = current.value.slice(0, -1);
 			else {
 				const char = printableChar(key);
 				if (char === null) continue; // other control keys: ignore, no repaint
-				fields[focused]!.value += char;
+				current.value += char;
 			}
 			output(renderForm(opts.title, fields, focused, colors));
 		}

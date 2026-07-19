@@ -799,23 +799,46 @@ async function runDashboardSelection(
 		process.stdout.write(`could not resolve ${verb}\n`);
 		return;
 	}
-	const args = (entry as { args?: Array<{ name: string; required?: boolean }> }).args ?? [];
+	const descriptor = entry as {
+		args?: Array<{ name: string; required?: boolean }>;
+		options?: Array<{ name: string; kind?: string; enum?: string[] }>;
+	};
+	const args = descriptor.args ?? [];
+	const options = descriptor.options ?? [];
 	const tokens: string[] = [];
-	if (args.length > 0) {
+	if (args.length > 0 || options.length > 0) {
 		const surface = await import("@refarm.dev/surface-terminal");
 		const values = await surface.runInteractiveForm({
 			title: `${definition.command} ${verb}`,
-			fields: args.map((arg) => ({ name: arg.name, ...(arg.required ? { required: true } : {}) })),
+			fields: [
+				...args.map((arg) => ({ name: arg.name, ...(arg.required ? { required: true } : {}) })),
+				...options.map((option) =>
+					option.kind === "boolean"
+						? { name: option.name, kind: "boolean" as const }
+						: option.enum
+							? { name: option.name, kind: "enum" as const, options: option.enum }
+							: { name: option.name },
+				),
+			],
 		});
 		if (!values) {
 			process.stdout.write(`${verb} cancelled\n`);
 			return;
 		}
-		// Positional argv, in declared order; a trailing empty optional ends the list.
+		// Positional args first, in declared order (a trailing empty optional ends the list)...
 		for (const arg of args) {
 			const value = (values[arg.name] ?? "").trim();
 			if (value === "") break;
 			tokens.push(value);
+		}
+		// ...then --options: a true boolean is a bare flag; a set enum/string is `--name value`; unset omits.
+		for (const option of options) {
+			const value = (values[option.name] ?? "").trim();
+			if (option.kind === "boolean") {
+				if (value === "true") tokens.push(`--${option.name}`);
+			} else if (value !== "") {
+				tokens.push(`--${option.name}`, value);
+			}
 		}
 	}
 	const outcome = await dispatchCapability(entry, tokens);

@@ -66,4 +66,34 @@ describe("runInteractiveForm (headless)", () => {
 		});
 		expect(result).toEqual({ q: "a b" });
 	});
+
+	it("toggles a boolean field with space and returns true/false", async () => {
+		const on = await runInteractiveForm({
+			fields: [{ name: "verbose", kind: "boolean" }],
+			input: scriptedInput([{ name: "space" }, { name: "return" }]),
+			output: () => {},
+		});
+		expect(on).toEqual({ verbose: "true" });
+		const off = await runInteractiveForm({
+			fields: [{ name: "verbose", kind: "boolean" }],
+			input: scriptedInput([{ name: "return" }]), // untouched → false
+			output: () => {},
+		});
+		expect(off).toEqual({ verbose: "false" });
+	});
+
+	it("cycles an enum field with the arrow keys, including back to unset", async () => {
+		const chosen = await runInteractiveForm({
+			fields: [{ name: "mode", kind: "enum", options: ["fast", "slow"] }],
+			input: scriptedInput([{ name: "right" }, { name: "return" }]), // "" → "fast"
+			output: () => {},
+		});
+		expect(chosen).toEqual({ mode: "fast" });
+		const unset = await runInteractiveForm({
+			fields: [{ name: "mode", kind: "enum", options: ["fast", "slow"] }],
+			input: scriptedInput([{ name: "right" }, { name: "left" }, { name: "return" }]), // ""→fast→""
+			output: () => {},
+		});
+		expect(unset).toEqual({ mode: "" });
+	});
 });
