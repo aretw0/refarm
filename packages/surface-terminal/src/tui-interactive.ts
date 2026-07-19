@@ -63,8 +63,7 @@ const CLEAR_HOME = `${ESC}[2J${ESC}[H`;
 
 /** A raw-mode key source over `process.stdin` — the real terminal input the loop reads. Node-only:
  * enables keypress events + raw mode, queues keys, restores the terminal on `close()`. */
-export function createStdinInput(): TerminalInput {
-	const stdin = process.stdin;
+export function createStdinInput(stdin: NodeJS.ReadStream = process.stdin): TerminalInput {
 	readline.emitKeypressEvents(stdin);
 	if (stdin.isTTY) stdin.setRawMode(true);
 	stdin.resume();

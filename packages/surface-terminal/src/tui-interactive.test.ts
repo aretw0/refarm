@@ -1,8 +1,10 @@
+import { EventEmitter } from "node:events";
+
 import { describe, expect, it } from "vitest";
 
 import { focusOrder } from "./tui-focus.js";
 import { scriptedInput } from "./tui-input.js";
-import { runInteractiveLayout, withInteractiveTerminal } from "./tui-interactive.js";
+import { createStdinInput, runInteractiveLayout, withInteractiveTerminal } from "./tui-interactive.js";
 import type { PositionedNode } from "./tui-layout.js";
 
 const card = (id: string, x: number, y: number): PositionedNode => ({
@@ -116,5 +118,32 @@ describe("runInteractiveLayout", () => {
 		all = bytes.join("");
 		expect(all).toContain(`${ESC}[?25h`); // cursor restored despite the throw
 		expect(all).toContain(`${ESC}[?1049l`); // alt-screen left despite the throw
+	});
+
+	it("createStdinInput normalizes + queues keys and closes cleanly (over an injected stdin)", async () => {
+		const stdin = Object.assign(new EventEmitter(), {
+			isTTY: false,
+			resume() {},
+			pause() {},
+			setRawMode() {},
+		}) as unknown as NodeJS.ReadStream;
+		const input = createStdinInput(stdin);
+
+		// Keys that arrive BEFORE readKey are queued, then dequeued in order (normalized).
+		stdin.emit("keypress", "a", { name: "a", sequence: "a", ctrl: false });
+		stdin.emit("keypress", undefined, { name: "up" });
+		expect(await input.readKey()).toEqual({ name: "a", ctrl: false, shift: false, meta: false, sequence: "a" });
+		expect(await input.readKey()).toEqual({ name: "up", ctrl: false, shift: false, meta: false });
+
+		// readKey BEFORE the key: the waiter resolves when the key arrives (no lost key).
+		const pending = input.readKey();
+		stdin.emit("keypress", "b", { name: "b", sequence: "b" });
+		expect(await pending).toMatchObject({ name: "b", sequence: "b" });
+
+		// close() resolves a pending readKey with null (no hang), and stays null after.
+		const afterClose = input.readKey();
+		input.close();
+		expect(await afterClose).toBeNull();
+		expect(await input.readKey()).toBeNull();
 	});
 });
