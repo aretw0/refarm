@@ -573,18 +573,23 @@ fn byte_offset_for_lsp_position(content: &str, line: u32, character: u32) -> Res
 
 fn byte_offset_in_line(line: &str, character: u32) -> Result<usize, String> {
     let without_newline = line.trim_end_matches(['\r', '\n']);
-    if character == 0 {
-        return Ok(0);
+    // LSP positions count UTF-16 CODE UNITS (the spec's default position encoding), not Unicode scalars:
+    // a non-BMP char (e.g. an emoji, or a supplementary-plane CJK glyph) is TWO units. Walk the line
+    // accumulating each char's utf-16 length; the byte offset is where the running unit count reaches
+    // `character`. A `character` that lands inside a surrogate pair, or past the line, is out of range.
+    let target = character as usize;
+    let mut units = 0usize;
+    for (idx, ch) in without_newline.char_indices() {
+        if units == target {
+            return Ok(idx);
+        }
+        units += ch.len_utf16();
     }
-
-    without_newline
-        .char_indices()
-        .nth(character as usize)
-        .map(|(idx, _)| idx)
-        .or_else(|| {
-            (without_newline.chars().count() == character as usize).then_some(without_newline.len())
-        })
-        .ok_or_else(|| format!("lsp position character out of range: {character}"))
+    // `character` at the end of the line maps to the line's byte length (LSP allows an end-of-line column).
+    if units == target {
+        return Ok(without_newline.len());
+    }
+    Err(format!("lsp position character out of range: {character}"))
 }
 
 fn parse_references_response(response: &serde_json::Value) -> Result<Vec<CodeReference>, String> {
@@ -674,6 +679,24 @@ pub(crate) fn configured_lsp_command() -> String {
 mod tests {
     use super::*;
     use crate::test_support::env_lock;
+
+    #[test]
+    fn byte_offset_counts_utf16_code_units_not_scalars() {
+        // ASCII: an LSP character == the byte offset.
+        assert_eq!(byte_offset_in_line("let x = 1;", 4), Ok(4));
+        // A non-BMP char (😀 = U+1F600) is TWO UTF-16 units and FOUR UTF-8 bytes. In "a😀b":
+        //   'a' at utf16 0 / byte 0; '😀' at utf16 1 / byte 1; 'b' at utf16 3 / byte 5.
+        assert_eq!(byte_offset_in_line("a😀b", 0), Ok(0));
+        assert_eq!(byte_offset_in_line("a😀b", 1), Ok(1)); // '😀' starts here
+        assert_eq!(byte_offset_in_line("a😀b", 3), Ok(5)); // 'b' — utf16 3 (the emoji added 2 units)
+        // A position INSIDE the surrogate pair (utf16 2) has no char boundary → out of range.
+        assert!(byte_offset_in_line("a😀b", 2).is_err());
+        // The end-of-line column maps to the byte length; past it is out of range.
+        assert_eq!(byte_offset_in_line("a😀b", 4), Ok("a😀b".len()));
+        assert!(byte_offset_in_line("a😀b", 5).is_err());
+        // A trailing newline is trimmed before mapping.
+        assert_eq!(byte_offset_in_line("ab\n", 2), Ok(2));
+    }
 
     #[test]
     fn bridge_defaults_command() {
