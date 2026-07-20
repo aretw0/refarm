@@ -79,6 +79,20 @@ the engine. No human is needed for any rendering/tailing LOGIC.
   the screen (item 4). This is the only part a headless suite can't drive (a real second process + a real
   signal).
 
+## 6. `agent-activity` — the WEB twin of agent-watch (live SSE table in a browser)
+
+The same "watch the machine work" face, projected to the DOM: `mountLiveEventTable`
+(`@refarm.dev/capability-homestead-surface`) grows an HTML table one row per `agent:*` event — the browser
+twin of the TUI live view. T1's `mountAgentActivity`/`replayAgentActivity`/`followAgentActivity`
+(`examples/devbench-t1/src/web/agent-activity.ts`) wire it to the agent's events.
+- **Logic unit-tested in jsdom** (`live-events.test.ts` + `agent-activity.test.ts`): the empty→grow table,
+  the `maxRows` rolling window, and the `arrayEventSource` replay to completion are all asserted headless
+  with a scripted/array source — no real `EventSource`. The row mapping (`agentActivityRow`) too.
+- **Manual pass (a real browser + a live SSE endpoint only):** serve the `agent:*` events as an SSE stream
+  and call `followAgentActivity(container, "/agent/events")` on a page; as an agent runs, rows must appear
+  live in the browser. Only the `EventSource` wiring + the SSE server tail stay manual — the twin of item
+  5's fs.watch tail. `replayAgentActivity(container, events)` needs no server (offline demo).
+
 ---
 
 > The rule (see the memory `feedback-testabilidade-primeiro-seams-ou-plano`): inject the seam and test it;

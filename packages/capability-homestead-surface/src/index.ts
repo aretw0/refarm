@@ -350,3 +350,11 @@ export function capabilityWebSurfaceActions(registry: CapabilityRegistry) {
 }
 
 export type { HomesteadSurfaceRenderRequest };
+
+export {
+	mountLiveEventTable,
+	arrayEventSource,
+	eventSourceStream,
+	type LiveEventSource,
+	type MountLiveEventTableOptions,
+} from "./live-events.js";
