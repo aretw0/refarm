@@ -1,3 +1,4 @@
+import { BUILTIN_THEMES } from "./builtin-themes.generated.js";
 import { REQUIRED_TOKENS, type DsTheme, type DsToken } from "./contract.js";
 
 /**
@@ -164,4 +165,15 @@ export function projectThemeToTui(theme: Partial<DsTheme>): TuiTheme {
 		};
 	}
 	return projected;
+}
+
+/**
+ * Resolve a BUILT-IN theme name to a projected TUI theme — the shape a TUI face's `*ColorsFromTuiTheme`
+ * reads. An unknown `name` falls back to `fallback`; an unknown `fallback` yields an empty theme (the
+ * neutral face colours). The shared helper so every app themes its TUI faces from ONE declaration
+ * (`tuiTheme: resolveBuiltinTuiTheme(env.X_TUI_THEME, "tractor-green")`) instead of re-deriving the pipeline.
+ */
+export function resolveBuiltinTuiTheme(name: string | undefined, fallback: string): TuiTheme {
+	const theme = BUILTIN_THEMES[name ?? fallback] ?? BUILTIN_THEMES[fallback] ?? {};
+	return projectThemeToTui(theme);
 }

@@ -6,6 +6,7 @@ import {
 	rgbToAnsi16,
 	rgbToAnsi256,
 	TUI_COLOR_TOKENS,
+	resolveBuiltinTuiTheme,
 } from "./theme-tui.js";
 
 function completeTheme(overrides: Partial<DsTheme> = {}): DsTheme {
@@ -79,5 +80,24 @@ describe("projectThemeToTui", () => {
 		const theme = completeTheme({ error: "#ff6b6b" });
 		const tui = projectThemeToTui(theme);
 		expect(tui.error?.rgb).toEqual({ r: 255, g: 107, b: 107 });
+	});
+});
+
+describe("resolveBuiltinTuiTheme (name → projected TUI theme, shared by every app)", () => {
+	it("projects a named builtin theme to ansi256 tokens", () => {
+		const t = resolveBuiltinTuiTheme("tractor-green", "tractor-green");
+		expect(typeof t.primary?.ansi256).toBe("number");
+		expect(typeof t.foreground?.ansi256).toBe("number");
+	});
+	it("falls back to the fallback theme for an unknown/undefined name", () => {
+		expect(resolveBuiltinTuiTheme("no-such", "tractor-green")).toEqual(
+			resolveBuiltinTuiTheme("tractor-green", "tractor-green"),
+		);
+		expect(resolveBuiltinTuiTheme(undefined, "tractor-green")).toEqual(
+			resolveBuiltinTuiTheme("tractor-green", "tractor-green"),
+		);
+	});
+	it("yields an empty theme (neutral) when even the fallback is unknown", () => {
+		expect(resolveBuiltinTuiTheme("x", "also-missing")).toEqual({});
 	});
 });

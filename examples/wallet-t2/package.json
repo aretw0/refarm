@@ -23,6 +23,7 @@
 		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/capability-homestead-surface": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
+		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/credentials-contract-v1": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/records-contract-v1": "workspace:*",

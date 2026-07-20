@@ -24,6 +24,7 @@
 		"@refarm.dev/capabilities-v1": "workspace:*",
 		"@refarm.dev/capability-homestead-surface": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
+		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/enrichment-contract-v1": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/playbook": "workspace:*",

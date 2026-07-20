@@ -17,6 +17,7 @@ export {
 export {
 	parseColorToRgb,
 	projectThemeToTui,
+	resolveBuiltinTuiTheme,
 	rgbToAnsi16,
 	rgbToAnsi256,
 	TUI_COLOR_TOKENS,

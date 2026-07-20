@@ -7,6 +7,7 @@ import {
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
 import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
+import { resolveBuiltinTuiTheme } from "@refarm.dev/ds";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -51,6 +52,8 @@ export function buildWalletHost(options: WalletHostOptions = {}): CapabilityHost
 		command,
 		description: "Digital Gardening Kit - sovereign wallet",
 		version: "0.0.0",
+		// One declared DS theme → the dashboard + status-panel TUI faces render with the app's colors.
+		tuiTheme: resolveBuiltinTuiTheme(process.env.DGK_TUI_THEME, "tractor-green"),
 		capabilities: () => {
 			const { deps, records, credentialsProvider, identity, authorizationProvider, verifyPolicy } =
 				walletCapabilityBundle(options);

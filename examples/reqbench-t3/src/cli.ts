@@ -7,6 +7,7 @@ import {
 	type CapabilityHost,
 } from "@refarm.dev/capability-host";
 import { createLocalRecordsAppDefaults } from "@refarm.dev/capability-host/node";
+import { resolveBuiltinTuiTheme } from "@refarm.dev/ds";
 
 import { createProcessHandoffExecutor } from "@refarm.dev/lab-contract-v1";
 import { createRecordFileWriter } from "@refarm.dev/vault-contract-v1/node";
@@ -158,12 +159,13 @@ export function buildReqbenchHost(options: ReqbenchHostOptions = {}): Capability
 	// A holder so the `playbook:run` verb's dispatch can resolve the host's OWN registry lazily
 	// (at run time) — the playbook verb is itself in that registry, so it can't reference the
 	// host until it's built.
-	let host: CapabilityHost;
-	host = defineCapabilityHost({
+	const host: CapabilityHost = defineCapabilityHost({
 		id: "examples/reqbench-t3",
 		command,
 		description: "Digital Gardening Kit - requirements bench",
 		version: "0.0.0",
+		// One declared DS theme → the dashboard + status-panel TUI faces render with the app's colors.
+		tuiTheme: resolveBuiltinTuiTheme(process.env.DGK_TUI_THEME, "tractor-green"),
 		capabilities: () => {
 			const { deps, records, sourceProvider, vaultSurface } = reqCapabilityBundle(options);
 			const loginSignals = loginSignalsFromEnv();
