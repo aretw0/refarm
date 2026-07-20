@@ -56,18 +56,21 @@ this is the one path a unit test can't drive (a real signal that ends the proces
 - _Logic already unit-tested:_ the alt-screen enter/paint/restore framing (`tui-live.test` drives
   `runLiveTerminal` with an injected write). Only the SIGINT branch is manual.
 
-## 5. FEATURE (not yet built) — live agent watch (`<t1-cli> agent-telemetry --watch` or `agent-watch`)
+## 5. `agent-watch` — live agent event table (real TTY)
 
-**Spec:** a T1 command that tails the agent's `agent:*` event file (`{refarmDir}/scarecrow-audit.ndjson`)
-and renders the events as a LIVE, growing table via `runLiveTerminal` — "watch the machine work". The
-live-view engine already exists (`runLiveView` + `runLiveTerminal` + `renderTable`, all tested); this is
-the node-only wiring: a `LiveSource` that watches the file (fs.watch or a short poll) and yields each new
-`agent:*` line as a row.
-- **When built, verify:** in one terminal run an agent (`<t1-cli> agent-telemetry --mock`); in another run
-  the watch command — rows appear live as the run progresses; `Ctrl-C` restores the screen (item 4).
-- **Testable seam to build it behind:** the `LiveSource` is injectable, so a REPLAY mode (read a recorded
-  run's events, replay through `runLiveView`) is unit-testable with a fixture ndjson; only the fs.watch
-  tail + the real run stay manual.
+**Built.** T1's `agent-watch` (`examples/devbench-t1/src/agent-watch.ts`, bin
+`pnpm --filter devbench-t1 agent-watch`) reads the agent's `agent:*` event file
+(`{refarmDir}/scarecrow-audit.ndjson`, `refarmDir = DGK_REFARM_DIR ?? ".dgk"`) and REPLAYS it as a LIVE,
+growing table via `runLiveTerminal` + `renderTable` — "watch the machine work".
+- **The replay pipeline is unit-tested** (`agent-watch.test.ts`): `agentEventRows` (event→row) and
+  `watchAgentEvents({events, output})` — the growing table is asserted frame-by-frame headless from fixture
+  events (the `output` seam). No human needed for the rendering logic.
+- **Manual pass (real TTY only):** after a real run wrote events, run `pnpm --filter devbench-t1 agent-watch`
+  in a real terminal — the recorded events paint as a table; `Ctrl-C` restores the screen (item 4).
+- **Remaining follow-up (deferred, node-only):** a true LIVE tail — a `LiveSource` backed by `fs.watch` (or
+  a short poll) that yields each newly-appended `agent:*` line while a run is in progress, so two terminals
+  (one running the agent, one watching) update in real time. The seam is ready (`LiveSource` is injectable,
+  same as the replay `arrayLiveSource`); only the fs.watch wiring + the two-terminal check stay manual.
 
 ---
 

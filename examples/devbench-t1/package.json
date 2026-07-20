@@ -12,6 +12,7 @@
 		"type-check": "tsc --noEmit",
 		"test": "vitest run",
 		"dgk": "node dist/cli.js",
+		"agent-watch": "node dist/agent-watch-cli.js",
 		"web:dev": "astro dev",
 		"web:build": "astro build",
 		"web:preview": "astro preview",
@@ -19,14 +20,15 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@refarm.dev/capability-homestead-surface": "workspace:*",
-		"@refarm.dev/capabilities": "workspace:*",
-		"@refarm.dev/capability-host": "workspace:*",
-		"@refarm.dev/plugin-manifest": "workspace:*",
-		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/asset-resolver-contract-v1": "workspace:*",
 		"@refarm.dev/barn": "workspace:*",
+		"@refarm.dev/capabilities": "workspace:*",
+		"@refarm.dev/capability-homestead-surface": "workspace:*",
+		"@refarm.dev/capability-host": "workspace:*",
+		"@refarm.dev/homestead": "workspace:*",
+		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/quality-checker-ref": "workspace:*",
+		"@refarm.dev/surface-terminal": "workspace:*",
 		"@refarm.dev/surveyor": "workspace:*"
 	},
 	"devDependencies": {
