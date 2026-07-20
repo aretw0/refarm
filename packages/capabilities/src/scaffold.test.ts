@@ -71,6 +71,41 @@ describe("buildCapabilityScaffold", () => {
 		expect(content).toContain("the HTTP route rejects it with 422, naming `path`");
 	});
 
+	it("skips a reserved-flag-named option (json) as a vector, falling back to the required arg", () => {
+		const scaffold = buildCapabilityScaffold({
+			name: "search",
+			args: [{ name: "query", required: true, type: "string" }],
+			options: [{ name: "json", kind: "integer", summary: "reserved by dispatch" }],
+		});
+		expect(scaffold.invalidField).toBe("query"); // NOT "json" (reserved → unvalidatable via argv)
+	});
+
+	it("uses a sentinel NOT in the enum when the enum already contains __invalid__", () => {
+		const scaffold = buildCapabilityScaffold({
+			name: "sort",
+			options: [{ name: "order", kind: "string", summary: "o", enum: ["asc", "__invalid__"] }],
+		});
+		expect(scaffold.test.content).toContain('"order": "__invalid___"'); // appended _ to dodge the real member
+	});
+
+	it("skips a VARIADIC required arg (dispatch does not enforce it) → schema-only", () => {
+		const scaffold = buildCapabilityScaffold({ name: "grep", args: [{ name: "files", required: true, variadic: true }] });
+		expect(scaffold.invalidField).toBeNull();
+		expect(scaffold.test.content).toContain("add a required arg or a numeric/enum option");
+	});
+
+	it("rejects an invalid capability/arg/option name (slug contract → no source injection)", () => {
+		expect(() => buildCapabilityScaffold({ name: 'ev"il' })).toThrow(/invalid capability name/);
+		expect(() => buildCapabilityScaffold({ name: "ok", args: [{ name: "a b", required: true }] })).toThrow(/invalid arg name/);
+	});
+
+	it("escapes a free-text summary (quotes → valid TS literal; comment-ender → neutralized JSDoc)", () => {
+		const { content } = buildCapabilityScaffold({ name: "x", summary: 'a "quoted" close */ here' }).descriptor;
+		expect(content).toContain('summary: "a \\"quoted\\" close */ here"'); // JSON.stringify escaped the literal
+		const jsdocLine = content.split("\n").find((line) => line.includes("close"));
+		expect(jsdocLine).not.toContain("*/"); // the JSDoc block can't close early
+	});
+
 	it("emits a schema-only test when there is neither a typed option nor a required arg", () => {
 		const scaffold = buildCapabilityScaffold({ name: "ping" });
 		expect(scaffold.invalidField).toBeNull();

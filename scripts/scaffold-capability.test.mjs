@@ -47,3 +47,9 @@ test("requires a name", () => {
 test("rejects an unknown flag", () => {
 	assert.throws(() => parseScaffoldArgs(["x", "--nope"]), /unknown flag "--nope"/);
 });
+
+test("a value-taking flag with no value is a clear error (not a TypeError / lost default)", () => {
+	assert.throws(() => parseScaffoldArgs(["x", "--arg"]), /--arg needs a value/);
+	assert.throws(() => parseScaffoldArgs(["x", "--dir"]), /--dir needs a value/);
+	assert.throws(() => parseScaffoldArgs(["x", "--option"]), /--option needs a value/);
+});

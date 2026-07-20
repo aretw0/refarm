@@ -54,17 +54,47 @@ type InvalidPlan =
 	| { field: string; strategy: "missing-arg" }
 	| null;
 
+/** The CLI/TUI dispatch reserves these flag names (parse-argv), so an option so named can't be validated
+ * through argv — the generator won't drive a rejection through one. */
+const RESERVED_OPTION_NAMES = new Set(["json"]);
+
+/** A sentinel value guaranteed NOT to be a member of `values` (so it genuinely violates an enum). */
+function enumSentinel(values: readonly string[]): string {
+	let sentinel = "__invalid__";
+	while (values.includes(sentinel)) sentinel += "_";
+	return sentinel;
+}
+
+/** A capability/arg/option name must be a slug so it interpolates safely into the generated TS identifiers,
+ * paths, and assertion strings (no quotes/newlines/comment-enders to escape, no injection). */
+const SCAFFOLD_NAME_RE = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+function assertScaffoldName(kind: string, name: string): void {
+	if (!SCAFFOLD_NAME_RE.test(name)) {
+		throw new Error(`invalid ${kind} name ${JSON.stringify(name)} — a letter followed by letters, digits, - or _`);
+	}
+}
+
+/** Make free text safe inside a `/* *` + JSDoc block comment (no early close, single line). */
+function jsdocSafe(text: string): string {
+	return text.replace(/\*\//g, "*\\/").replace(/[\r\n]+/g, " ");
+}
+
 function chooseInvalidPlan(spec: CapabilityScaffoldSpec): InvalidPlan {
+	// The dispatch surface reserves `--json`, so an option so named can't be violated through argv — skip it.
 	const typedOption = (spec.options ?? []).find(
-		(o) => o.kind === "integer" || o.kind === "number" || (o.enum?.length ?? 0) > 0,
+		(o) =>
+			!RESERVED_OPTION_NAMES.has(o.name) &&
+			(o.kind === "integer" || o.kind === "number" || (o.enum?.length ?? 0) > 0),
 	);
 	if (typedOption) {
-		// A non-numeric string violates integer/number (coercion-stable — Ajv cannot coerce it); a sentinel
-		// violates an enum. Either is rejected identically by every surface, naming the option.
-		const badValue = typedOption.enum?.length ? "__invalid__" : "not-a-number";
+		// A non-numeric string violates integer/number (coercion-stable — Ajv cannot coerce it); a sentinel NOT
+		// in the enum violates an enum. Either is rejected identically by every surface, naming the option.
+		const badValue = typedOption.enum?.length ? enumSentinel(typedOption.enum) : "not-a-number";
 		return { field: typedOption.name, strategy: "option", badValue };
 	}
-	const requiredArg = (spec.args ?? []).find((a) => a.required);
+	// Only a NON-variadic required arg is enforced at dispatch (a variadic binds to an empty slice and is not
+	// required-checked), so a variadic-required arg can't drive the "dispatch rejects" assertion.
+	const requiredArg = (spec.args ?? []).find((a) => a.required && !a.variadic);
 	if (requiredArg) return { field: requiredArg.name, strategy: "missing-arg" };
 	return null;
 }
@@ -81,6 +111,10 @@ function dummyRequiredArgs(args: readonly CapabilityArgSpec[]): { object: Record
 	const argv: string[] = [];
 	for (const arg of args) {
 		if (!arg.required) continue;
+		if (arg.variadic) {
+			object[arg.name] = []; // an empty variadic satisfies {type:array}; it consumes no argv token
+			continue;
+		}
 		let objectValue: unknown;
 		let argvValue: string;
 		if (arg.enum?.length) {
@@ -117,7 +151,7 @@ function descriptorContent(spec: CapabilityScaffoldSpec, camel: string): string 
 import type { CapabilityDescriptor, CapabilityEnvelope, CapabilityInput } from "@refarm.dev/capabilities";
 
 /**
- * \`${spec.name}\` — ${summary}.
+ * \`${spec.name}\` — ${jsdocSafe(summary)}.
  *
  * Declared ONCE. This descriptor projects to the CLI, a web form, an agent tool, and an HTTP route; its
  * typed args/options derive one JSON Schema that validates the SAME on every surface (see ${spec.name}.test.ts).
@@ -125,7 +159,7 @@ import type { CapabilityDescriptor, CapabilityEnvelope, CapabilityInput } from "
  */
 export const ${camel}Capability: CapabilityDescriptor = {
 	name: "${spec.name}",
-	summary: "${summary}",
+	summary: ${JSON.stringify(summary)},
 ${renderSpecArray("args", spec.args ?? [])}${renderSpecArray("options", spec.options ?? [])}\ttransports: { http: { method: "POST", path: "/${spec.name}" } },
 	renderers: { web: {}, tui: { section: "actions" } },
 	run(_input: CapabilityInput): CapabilityEnvelope {
@@ -295,6 +329,9 @@ ${schemaTest}
  * identically across the validator, the CLI/TUI dispatch, the HTTP route (422), and the agent tool schema.
  */
 export function buildCapabilityScaffold(spec: CapabilityScaffoldSpec): CapabilityScaffold {
+	assertScaffoldName("capability", spec.name);
+	for (const arg of spec.args ?? []) assertScaffoldName("arg", arg.name);
+	for (const option of spec.options ?? []) assertScaffoldName("option", option.name);
 	const camel = toCamelCase(spec.name);
 	const plan = chooseInvalidPlan(spec);
 	return {

@@ -60,11 +60,18 @@ export function parseScaffoldArgs(argv) {
 	const options = [];
 	for (let i = 0; i < argv.length; i++) {
 		const token = argv[i];
+		// Read the value that FOLLOWS a value-taking flag; a missing one (flag was the last token) is a clear
+		// error, not a `TypeError`/silent `undefined` that loses the default or crashes downstream.
+		const value = () => {
+			const v = argv[++i];
+			if (v === undefined) throw new Error(`${token} needs a value`);
+			return v;
+		};
 		if (token === "--") continue; // the standard "end of options" separator (e.g. forwarded by pnpm)
-		else if (token === "--dir") dir = argv[++i];
-		else if (token === "--summary") summary = argv[++i];
-		else if (token === "--arg") args.push(parseArg(argv[++i]));
-		else if (token === "--option") options.push(parseOption(argv[++i]));
+		else if (token === "--dir") dir = value();
+		else if (token === "--summary") summary = value();
+		else if (token === "--arg") args.push(parseArg(value()));
+		else if (token === "--option") options.push(parseOption(value()));
 		else if (token.startsWith("--")) throw new Error(`unknown flag "${token}"`);
 		else if (!name) name = token;
 		else throw new Error(`unexpected argument "${token}" (name already set to "${name}")`);
