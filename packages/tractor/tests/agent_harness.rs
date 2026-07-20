@@ -1345,6 +1345,86 @@ async fn harness_find_references_tool_dispatches_to_lsp_code_ops_plugin() {
     clean_model_env();
 }
 
+/// The invariant's LIVE sixth surface: an agent invokes a plugin verb surfaced as a tool
+/// (`code-ops_find-references`) with INVALID arguments, and the host rejects it at the capability-tools
+/// boundary — NAMING the offending field — BEFORE any dispatch, THROUGH the real WASM runtime. This proves
+/// end-to-end what `validate_tool_input`'s unit tests + the cross-language conformance fixture prove
+/// per-language: the agent-tool leg validates the SAME derived schema and names the SAME field as the web
+/// form, HTTP (422), CLI/TUI dispatch, and the TS validator. No LSP/python is needed — validation precedes
+/// dispatch, so the malformed call never reaches the plugin.
+#[tokio::test]
+#[ignore = "requires agent.wasm + lsp-code-ops build:wasm; run with --ignored --test-threads=1"]
+async fn harness_bad_tool_input_rejected_naming_field_through_wasm() {
+    let _env = env_lock();
+    clean_model_env();
+
+    // The model calls `code-ops_find-references`, but `line` is a non-numeric string where the plugin
+    // schema (plugin.json: line = integer, required) demands an integer — coercion-stable, so the host
+    // rejects it exactly as every other surface does, naming `line`. (`column` is also required + absent;
+    // either violation suffices — we assert on `line`.)
+    let arguments = serde_json::json!({ "file": "/tmp/does-not-matter.rs", "line": "not-an-integer" }).to_string();
+    let tool_call_resp = serde_json::json!({
+        "id": "harness-bad-input",
+        "object": "chat.completion",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": serde_json::Value::Null,
+                "tool_calls": [{
+                    "id": "call_bad",
+                    "type": "function",
+                    "function": { "name": "code-ops_find-references", "arguments": arguments }
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    });
+    // A second response for after the field-named rejection is fed back to the model (the react loop
+    // returns tool errors to the model per invoke_tool's contract).
+    let final_resp = openai_response("acknowledged the validation error", 20, 6);
+
+    let (port, mut rx) = mock_llm_server_capturing(vec![tool_call_resp, final_resp]).await;
+    std::env::set_var("MODEL_PROVIDER", "ollama");
+    std::env::set_var("MODEL_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let Some((tractor, agent_id)) = boot_agent_plus_lsp_code_ops().await else {
+        clean_model_env();
+        return;
+    };
+
+    let sent = tractor.deliver("user:prompt", Some(&agent_id), Some("find references".to_string()));
+    assert_eq!(sent, 1, "the prompt must reach the agent runner");
+
+    let v = await_agent_response(&tractor).await;
+
+    // The tool outcome on the AgentResponse carries the host's rejection, naming the field — the malformed
+    // call was rejected at the capability-tools boundary, live, not spread into the plugin.
+    let response_json = v.to_string();
+    assert!(
+        response_json.contains("invalid tool input"),
+        "the host must reject the malformed tool call at the capability-tools boundary: {response_json}"
+    );
+    assert!(
+        response_json.contains("line"),
+        "the rejection must NAME the offending field `line`: {response_json}"
+    );
+
+    // And it genuinely reached the MODEL: the SECOND LLM request carries the field-named rejection as the
+    // tool result — the same field every other surface names, seen live by the agent.
+    let _first = rx.recv().await.expect("first LLM request (the initial prompt)");
+    let second = rx.recv().await.expect("second LLM request (after the tool error is fed back)");
+    let second_str = second.to_string();
+    assert!(
+        second_str.contains("invalid tool input") && second_str.contains("line"),
+        "the model must SEE the field-named rejection as the tool result: {second_str}"
+    );
+
+    tractor.shutdown().await.expect("shutdown");
+    clean_model_env();
+}
+
 /// The rename companion of the find-references end-to-end: the agent invokes
 /// `code-ops_rename-symbol`, dispatched to the loaded lsp-code-ops plugin, which runs
 /// the host LSP workspace-rename (fake python LSP). The host bridge writes the edited
