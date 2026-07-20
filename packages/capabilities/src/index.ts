@@ -29,6 +29,13 @@ export {
 	type CapabilityArgValidation,
 } from "./arg-validator.js";
 export {
+	buildCapabilityScaffold,
+	toCamelCase,
+	type CapabilityScaffoldSpec,
+	type CapabilityScaffold,
+	type ScaffoldFile,
+} from "./scaffold.js";
+export {
 	dispatchCapability,
 	resolveCapabilityInvocation,
 	type CapabilityInvocation,

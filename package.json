@@ -74,6 +74,8 @@
 		"type-check": "turbo type-check --output-logs=new-only --ui=stream",
 		"verify": "node scripts/verify-changed.mjs",
 		"verify:test": "node --test scripts/verify-changed.test.mjs",
+		"scaffold:capability": "node scripts/scaffold-capability.mjs",
+		"scaffold:capability:test": "node --test scripts/scaffold-capability.test.mjs",
 		"type-check:dist": "turbo type-check:dist --output-logs=new-only --ui=stream",
 		"tsconfig:guard": "node scripts/ci/tsconfig-guard.mjs",
 		"tsconfig:guard:test": "node --test scripts/ci/test-tsconfig-guard.mjs",
