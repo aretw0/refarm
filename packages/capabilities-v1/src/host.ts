@@ -1,3 +1,5 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+
 import {
 	createCapabilityRegistry,
 	dispatchCapability,
@@ -130,6 +132,10 @@ export interface CapabilityHostServeOptions {
 	openApiPath?: string;
 	openApiTitle?: string;
 	openApiVersion?: string;
+	/** Extra node:http handlers mounted after the capability routes (an SSE stream, a webhook, …) — a
+	 * `(req,res) => boolean` returning true when it handled the request. The app declares them once and
+	 * `serve` stands them up beside the verb routes. See mount.ts's serveCapabilities. */
+	routeHandlers?: Array<(req: IncomingMessage, res: ServerResponse) => boolean>;
 }
 
 export interface CapabilityHostSurfaceActionsOptions {
@@ -319,6 +325,7 @@ export function defineCapabilityHost(definition: CapabilityHostDefinition): Capa
 				openApiPath: options.openApiPath ?? serveOptions.openApiPath,
 				openApiTitle: options.openApiTitle ?? serveOptions.openApiTitle,
 				openApiVersion: options.openApiVersion ?? serveOptions.openApiVersion,
+				...(serveOptions.routeHandlers ? { routeHandlers: serveOptions.routeHandlers } : {}),
 			});
 		},
 	};
@@ -719,6 +726,7 @@ function addServeCommand(
 				openApiPath: options.openApiPath,
 				openApiTitle: options.openApiTitle,
 				openApiVersion: options.openApiVersion,
+				...(options.routeHandlers ? { routeHandlers: options.routeHandlers } : {}),
 			});
 			const { port } = await listening;
 			console.log(JSON.stringify(buildCapabilityHostServeInfo(port, options)));

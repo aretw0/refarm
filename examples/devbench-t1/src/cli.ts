@@ -19,6 +19,7 @@ import {
 	DEVBENCH_LIVE_PLUGIN_IDS,
 	devCapabilityDeps,
 } from "./persona.js";
+import { createAgentEventStreamHandler } from "./agent-event-stream.js";
 import { createAgentRunCapability } from "./live-recursion.js";
 import { createDelegateRunCapability } from "./live-delegation.js";
 import { createCodeOpsCapability } from "./live-code-ops.js";
@@ -229,6 +230,9 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 			description: `Serve ${command} extension verbs over HTTP (their transports.http routes)`,
 			openApiPath: "/docs/openapi.json",
 			openApiTitle: `${command} Extension Bench API`,
+			// The live web face's server tail: GET /agent/events streams the agent's agent:* lifecycle
+			// events as SSE, so a browser's followAgentActivity() grows the live table as a run progresses.
+			routeHandlers: [createAgentEventStreamHandler(process.env.DGK_REFARM_DIR ?? ".dgk")],
 		},
 	});
 	return host;

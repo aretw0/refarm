@@ -1,6 +1,7 @@
 export { CapabilityRegistry, createCapabilityRegistry } from "./registry.js";
 export { parseCapabilityArgv } from "./parse-argv.js";
 export { buildCapabilityRoutes, createCapabilityRouteHandler } from "./http-projector.js";
+export { createEventStreamHandler, type EventStreamSource } from "./event-stream.js";
 export {
 	buildCapabilityOpenApiDocument,
 	type CapabilityOpenApiDocument,

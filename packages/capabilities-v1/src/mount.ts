@@ -98,6 +98,10 @@ export function mountedHttpHandler(
 		openApiPath?: string;
 		openApiTitle?: string;
 		openApiVersion?: string;
+		/** Extra node:http handlers tried (in order) after the capability routes — a `(req,res) => boolean`
+		 * returning true when it handled the request. Lets an app mount non-verb transports beside the
+		 * routes: an SSE stream (createEventStreamHandler), a webhook, a health probe. */
+		routeHandlers?: Array<(req: IncomingMessage, res: ServerResponse) => boolean>;
 	} = {},
 ): (req: IncomingMessage, res: ServerResponse) => void {
 	const entries = registry.list();
@@ -105,9 +109,13 @@ export function mountedHttpHandler(
 	const routeHandler = createCapabilityRouteHandler(entries, {
 		prefix,
 	});
+	const extraHandlers = options.routeHandlers ?? [];
 	const openApiPath = options.openApiPath ?? "/openapi.json";
 	return (req, res) => {
 		if (routeHandler(req, res)) return;
+		for (const handler of extraHandlers) {
+			if (handler(req, res)) return;
+		}
 		const url = new URL(req.url ?? "/", "http://127.0.0.1");
 		const method = (req.method ?? "GET").toUpperCase();
 		if (method === "GET" && url.pathname === "/agent-tools") {
@@ -166,6 +174,8 @@ export function serveCapabilities(
 		openApiPath?: string;
 		openApiTitle?: string;
 		openApiVersion?: string;
+		/** Extra handlers (e.g. an SSE stream) mounted after the capability routes. See mountedHttpHandler. */
+		routeHandlers?: Array<(req: IncomingMessage, res: ServerResponse) => boolean>;
 	} = {},
 ): {
 	server: Server;
@@ -177,19 +187,21 @@ export function serveCapabilities(
 		openApiPath: options.openApiPath,
 		openApiTitle: options.openApiTitle,
 		openApiVersion: options.openApiVersion,
+		...(options.routeHandlers ? { routeHandlers: options.routeHandlers } : {}),
 	});
 	const requestTimeoutMs = options.requestTimeoutMs ?? 15_000;
 
 	const server = createServer((req, res) => {
-		// Net against a run() that never resolves: if nothing was written in time, 504.
+		// Net against a run() that never resolves: if nothing was written in time, 504. A STREAMING response
+		// (SSE) sends headers immediately and stays open by design, so once headers are sent the request is
+		// in progress — the timeout must NOT kill it. Only a run that never began responding is a hang.
 		const timer = setTimeout(() => {
-			if (!res.headersSent) {
-				writeJson(res, 504, {
-					ok: false,
-					error: "capability-timeout",
-					message: `No response within ${requestTimeoutMs}ms.`,
-				});
-			}
+			if (res.headersSent) return;
+			writeJson(res, 504, {
+				ok: false,
+				error: "capability-timeout",
+				message: `No response within ${requestTimeoutMs}ms.`,
+			});
 			res.destroy();
 		}, requestTimeoutMs);
 		if (typeof timer.unref === "function") timer.unref();

@@ -1,4 +1,9 @@
-import { isCapabilityGroup, type CapabilityDescriptor } from "@refarm.dev/capabilities";
+import {
+	createEventStreamHandler,
+	isCapabilityGroup,
+	type CapabilityDescriptor,
+	type EventStreamSource,
+} from "@refarm.dev/capabilities";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -140,6 +145,39 @@ describe("mountCapabilities — the consumer-mount seam", () => {
 			const body = (await res.json()) as { ok: boolean; error: string };
 			expect(body.ok).toBe(false);
 			expect(body.error).toBe("capability-timeout");
+		} finally {
+			await close();
+		}
+	});
+
+	it("streams SSE via a routeHandler and the stream survives the request timeout until it ends", async () => {
+		// The source sends one event, then (PAST the short request timeout) a second event + ends. If the
+		// streaming-timeout fix regressed, the server would destroy the socket at 150ms and res.text() would
+		// reject / miss the second frame; with the fix the stream lives until the source ends at ~250ms.
+		const source: EventStreamSource = {
+			subscribe(send, end) {
+				send({ event: "agent:prompt:start", ts: 1 });
+				const timer = setTimeout(() => {
+					send({ event: "agent:tool:call", ts: 2 });
+					end();
+				}, 250);
+				return () => clearTimeout(timer);
+			},
+		};
+		const registry = mountCapabilities({ deps: deps(), verbs: [] });
+		const { listening, close } = serveCapabilities(registry, {
+			port: 0,
+			requestTimeoutMs: 150, // an SSE stream must OUTLIVE this, not get 504'd + destroyed
+			routeHandlers: [createEventStreamHandler("/agent/events", source)],
+		});
+		try {
+			const { port } = await listening;
+			const res = await fetch(`http://127.0.0.1:${port}/agent/events`);
+			expect(res.status).toBe(200);
+			expect(res.headers.get("content-type")).toBe("text/event-stream");
+			const body = await res.text(); // resolves when the source ends (~250ms), well past the 150ms timeout
+			expect(body).toContain('data: {"event":"agent:prompt:start","ts":1}');
+			expect(body).toContain('data: {"event":"agent:tool:call","ts":2}');
 		} finally {
 			await close();
 		}

@@ -88,10 +88,17 @@ twin of the TUI live view. T1's `mountAgentActivity`/`replayAgentActivity`/`foll
 - **Logic unit-tested in jsdom** (`live-events.test.ts` + `agent-activity.test.ts`): the empty→grow table,
   the `maxRows` rolling window, and the `arrayEventSource` replay to completion are all asserted headless
   with a scripted/array source — no real `EventSource`. The row mapping (`agentActivityRow`) too.
-- **Manual pass (a real browser + a live SSE endpoint only):** serve the `agent:*` events as an SSE stream
-  and call `followAgentActivity(container, "/agent/events")` on a page; as an agent runs, rows must appear
-  live in the browser. Only the `EventSource` wiring + the SSE server tail stay manual — the twin of item
-  5's fs.watch tail. `replayAgentActivity(container, events)` needs no server (offline demo).
+- **The SSE server tail is now WIRED + tested:** `dgk serve` auto-mounts `GET /agent/events`, which streams
+  the `agent:*` events as Server-Sent Events (`createAgentEventStreamHandler` → the generic
+  `createEventStreamHandler` mounted via serveCapabilities' `routeHandlers` hook). The streaming (frames,
+  unsubscribe-on-disconnect) is unit-tested (`event-stream.test`), the poll (new-events-since-seen) is
+  unit-tested (`agent-event-stream.test`), and an integration test stands up a REAL server and proves the
+  SSE stream survives the request timeout (`mount.test`). serveCapabilities' request timeout no longer
+  destroys a streaming (headers-sent) response.
+- **Manual pass (a real browser + a live run only):** `dgk serve`, then open a page that calls
+  `followAgentActivity(container, "http://localhost:4323/agent/events")` and run an agent — rows must appear
+  live in the browser as the run progresses. Only the browser page + the real run stay manual — the twin of
+  item 5's two-terminal check. `replayAgentActivity(container, events)` needs no server (offline demo).
 
 ---
 
