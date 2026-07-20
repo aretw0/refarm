@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { agentEventStreamSource } from "./agent-event-stream.js";
+import type { IncomingMessage, ServerResponse } from "node:http";
+
+import { agentEventStreamSource, createAgentEventStreamHandler } from "./agent-event-stream.js";
 import type { AgentEventLine } from "./live-telemetry.js";
 
 describe("agentEventStreamSource (SSE server tail)", () => {
@@ -53,5 +55,57 @@ describe("agentEventStreamSource (SSE server tail)", () => {
 		);
 		unsubscribe();
 		expect(cancelled).toBe(true);
+	});
+});
+
+
+/** A mock GET /agent/events connection capturing the SSE writes. */
+function mockConn(): { req: IncomingMessage; res: ServerResponse; writes: string[] } {
+	const writes: string[] = [];
+	const req = {
+		url: "/agent/events",
+		method: "GET",
+		on() {
+			return this;
+		},
+	} as unknown as IncomingMessage;
+	const res = {
+		writeHead() {
+			return this;
+		},
+		write(chunk: string) {
+			writes.push(chunk);
+			return true;
+		},
+		end() {},
+		on() {
+			return this;
+		},
+	} as unknown as ServerResponse;
+	return { req, res, writes };
+}
+
+describe("createAgentEventStreamHandler (broadcast to many browsers over ONE poll)", () => {
+	it("shares a single file poll across connections and fans each new event to all", () => {
+		const events: AgentEventLine[] = [];
+		let tick: () => void = () => {};
+		let schedules = 0;
+		const handler = createAgentEventStreamHandler(".dgk", {
+			snapshot: () => events.slice(),
+			schedule: (fn) => {
+				schedules += 1;
+				tick = fn;
+				return () => {};
+			},
+		});
+		const c1 = mockConn();
+		const c2 = mockConn();
+		expect(handler(c1.req, c1.res)).toBe(true);
+		expect(handler(c2.req, c2.res)).toBe(true);
+		expect(schedules).toBe(1); // ONE shared poll for both connections, not one per browser
+		events.push({ event: "agent:tool:call", ts: 1 });
+		tick();
+		expect(c1.writes.join("")).toContain('"agent:tool:call"');
+		expect(c2.writes.join("")).toContain('"agent:tool:call"');
 	});
 });

@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { describe, expect, it } from "vitest";
 
-import { createEventStreamHandler, type EventStreamSource } from "./event-stream.js";
+import { broadcastEventSource, createEventStreamHandler, type EventStreamSource } from "./event-stream.js";
 
 /** A mock req that can fire "close", + a mock res capturing head/writes/end + firing "close". */
 function mocks(method: string, path: string): {
@@ -103,5 +103,96 @@ describe("createEventStreamHandler (SSE projector)", () => {
 		expect(unsubscribed).toBe(true);
 		sendRef?.({ event: "after-close" }); // a late send is a no-op (connection closed)
 		expect(captured.writes.length).toBe(1);
+	});
+});
+
+/** A controllable underlying source: capture its send/end, count subscriptions, track unsubscribe. */
+function manualUnderlying(): {
+	source: EventStreamSource;
+	emit: (event: unknown) => void;
+	subscribeCount: () => number;
+	unsubscribed: () => boolean;
+} {
+	let sendRef: ((event: unknown) => void) | undefined;
+	let subs = 0;
+	let unsub = true;
+	const source: EventStreamSource = {
+		subscribe(send) {
+			subs += 1;
+			unsub = false;
+			sendRef = send;
+			return () => {
+				unsub = true;
+				sendRef = undefined;
+			};
+		},
+	};
+	return {
+		source,
+		emit: (event) => sendRef?.(event),
+		subscribeCount: () => subs,
+		unsubscribed: () => unsub,
+	};
+}
+
+describe("broadcastEventSource (fan one stream out to many clients)", () => {
+	it("subscribes the underlying ONCE and fans each event to every client", () => {
+		const u = manualUnderlying();
+		const hub = broadcastEventSource(u.source);
+		const a: unknown[] = [];
+		const b: unknown[] = [];
+		hub.subscribe((e) => a.push(e), () => {});
+		hub.subscribe((e) => b.push(e), () => {});
+		expect(u.subscribeCount()).toBe(1); // one underlying subscription for both clients
+		u.emit({ n: 1 });
+		u.emit({ n: 2 });
+		expect(a).toEqual([{ n: 1 }, { n: 2 }]);
+		expect(b).toEqual([{ n: 1 }, { n: 2 }]);
+	});
+
+	it("replays the run-so-far to a late joiner, then fans live events", () => {
+		const u = manualUnderlying();
+		const hub = broadcastEventSource(u.source);
+		const early: unknown[] = [];
+		hub.subscribe((e) => early.push(e), () => {});
+		u.emit({ n: 1 });
+		u.emit({ n: 2 });
+		const late: unknown[] = [];
+		hub.subscribe((e) => late.push(e), () => {}); // joins after two events
+		expect(late).toEqual([{ n: 1 }, { n: 2 }]); // history replayed
+		u.emit({ n: 3 });
+		expect(late).toEqual([{ n: 1 }, { n: 2 }, { n: 3 }]);
+		expect(early).toEqual([{ n: 1 }, { n: 2 }, { n: 3 }]);
+	});
+
+	it("unsubscribes the underlying only when the LAST client leaves", () => {
+		const u = manualUnderlying();
+		const hub = broadcastEventSource(u.source);
+		const stop1 = hub.subscribe(() => {}, () => {});
+		const stop2 = hub.subscribe(() => {}, () => {});
+		stop1();
+		expect(u.unsubscribed()).toBe(false); // one client remains
+		stop2();
+		expect(u.unsubscribed()).toBe(true); // last left → underlying stopped
+	});
+
+	it("on reconnect, re-subscribes + skips the re-flushed history prefix (no duplicates)", () => {
+		const u = manualUnderlying();
+		const hub = broadcastEventSource(u.source);
+		const stop1 = hub.subscribe(() => {}, () => {});
+		u.emit({ n: 1 });
+		u.emit({ n: 2 });
+		stop1(); // history = [1,2]; underlying unsubscribed
+		expect(u.subscribeCount()).toBe(1);
+
+		const got: unknown[] = [];
+		hub.subscribe((e) => got.push(e), () => {});
+		expect(u.subscribeCount()).toBe(2); // re-subscribed for the newcomer
+		expect(got).toEqual([{ n: 1 }, { n: 2 }]); // history replayed
+		u.emit({ n: 1 }); // a fresh poll re-flushes the prefix...
+		u.emit({ n: 2 });
+		expect(got).toEqual([{ n: 1 }, { n: 2 }]); // ...which is SKIPPED
+		u.emit({ n: 3 }); // a genuinely new event flows through
+		expect(got).toEqual([{ n: 1 }, { n: 2 }, { n: 3 }]);
 	});
 });

@@ -6,7 +6,7 @@
  * shape (subscribe/unsubscribe) the browser + the SSE projector share. The poll (new-events-since-seen) is
  * behind injectable seams (snapshot + schedule), so it is unit-tested without a socket or a real timer.
  */
-import { createEventStreamHandler, type EventStreamSource } from "@refarm.dev/capabilities";
+import { broadcastEventSource, createEventStreamHandler, type EventStreamSource } from "@refarm.dev/capabilities";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { readAgentEvents, type AgentEventLine } from "./live-telemetry.js";
@@ -52,7 +52,9 @@ export function agentEventStreamSource(opts: AgentEventStreamOptions = {}): Even
 /**
  * A node:http handler that streams the agent's `agent:*` events as SSE on GET `/agent/events` — mount it on
  * T1's face server beside createCapabilityRouteHandler; a browser page then calls
- * `followAgentActivity(container, "/agent/events")`.
+ * `followAgentActivity(container, "/agent/events")`. The file poll is shared across all connected browsers
+ * via a broadcast hub (ONE poll fans out to N clients; a late joiner gets the run-so-far replayed), so ten
+ * open tabs do not become ten file polls.
  */
 export function createAgentEventStreamHandler(
 	refarmDir: string,
@@ -61,7 +63,7 @@ export function createAgentEventStreamHandler(
 	const { prefix, ...sourceOptions } = options;
 	return createEventStreamHandler(
 		"/agent/events",
-		agentEventStreamSource({ refarmDir, ...sourceOptions }),
+		broadcastEventSource(agentEventStreamSource({ refarmDir, ...sourceOptions })),
 		prefix !== undefined ? { prefix } : {},
 	);
 }
