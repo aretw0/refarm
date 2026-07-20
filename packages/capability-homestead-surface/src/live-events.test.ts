@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it } from "vitest";
 
-import { arrayEventSource, mountLiveEventTable, type LiveEventSource } from "./live-events.js";
+import { arrayEventSource, eventSourceStream, mountLiveEventTable, type LiveEventSource } from "./live-events.js";
 
 interface Ev {
 	event: string;
@@ -91,5 +91,68 @@ describe("mountLiveEventTable (browser twin of the TUI live view)", () => {
 		});
 		expect(rowCount(container)).toBe(3);
 		expect(container.textContent).toContain("agent:response:done");
+	});
+});
+
+describe("mountLiveEventTable — monotonic index under maxRows (regression)", () => {
+	it("passes the event's ABSOLUTE index to toRow, not the capped window size", () => {
+		document.body.innerHTML = `<div id="idx"></div>`;
+		const container = document.getElementById("idx")!;
+		const { source, emit } = manualSource<Ev>();
+		// toRow uses the index as the "#" column (like the T1 agent-activity face).
+		mountLiveEventTable<Ev>({
+			container,
+			source,
+			columns: [{ key: "#", header: "#" }, { key: "event", header: "E" }],
+			toRow: (e, i) => ({ "#": i + 1, event: e.event }),
+			maxRows: 3,
+		});
+		for (let n = 1; n <= 7; n++) emit({ event: `e${n}`, ts: n });
+		// window shows the last 3 (e5,e6,e7); their "#" must be their ABSOLUTE positions 5,6,7 — not 4,4,4.
+		const cells = [...container.querySelectorAll("tbody tr")].map((tr) => tr.querySelector("td")?.textContent);
+		expect(cells).toEqual(["5", "6", "7"]);
+	});
+});
+
+describe("eventSourceStream — reconnect safety (regression)", () => {
+	const instances: MockEventSource[] = [];
+	class MockEventSource {
+		static readonly CONNECTING = 0;
+		static readonly CLOSED = 2;
+		readyState = MockEventSource.CONNECTING;
+		onmessage: ((e: { data: string }) => void) | null = null;
+		onerror: (() => void) | null = null;
+		constructor() {
+			instances.push(this); // pushing to an array is not a `this` alias
+		}
+		close(): void {
+			this.readyState = MockEventSource.CLOSED;
+		}
+	}
+
+	it("ends only on a CLOSED stream, not on a recoverable (auto-reconnecting) error", () => {
+		const original = (globalThis as { EventSource?: unknown }).EventSource;
+		(globalThis as { EventSource?: unknown }).EventSource = MockEventSource;
+		try {
+			let ended = false;
+			const source = eventSourceStream<{ n: number }>("/x", (d) => JSON.parse(d));
+			source.subscribe(
+				() => {},
+				() => {
+					ended = true;
+				},
+			);
+			const created = instances.at(-1)!;
+			// a recoverable blip: still CONNECTING → the browser will auto-reconnect, so we must NOT end
+			created.readyState = MockEventSource.CONNECTING;
+			created.onerror?.();
+			expect(ended).toBe(false);
+			// a fatal error: the stream is CLOSED → end
+			created.readyState = MockEventSource.CLOSED;
+			created.onerror?.();
+			expect(ended).toBe(true);
+		} finally {
+			(globalThis as { EventSource?: unknown }).EventSource = original;
+		}
 	});
 });

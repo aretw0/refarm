@@ -46,8 +46,9 @@ export function eventSourceStream<T>(url: string, parse: (data: string) => T): L
 			const source = new EventSource(url);
 			source.onmessage = (message) => onEvent(parse(message.data));
 			source.onerror = () => {
-				source.close();
-				onEnd?.();
+				// EventSource.onerror ALSO fires on recoverable drops the browser will auto-reconnect from —
+				// only treat a CLOSED stream as the end, so a momentary blip doesn't permanently kill the tail.
+				if (source.readyState === EventSource.CLOSED) onEnd?.();
 			};
 			return () => source.close();
 		},
@@ -61,7 +62,8 @@ export interface MountLiveEventTableOptions<T> {
 	source: LiveEventSource<T>;
 	/** Table columns (same shape renderTableHtml + the TUI renderTable read). */
 	columns: HtmlTableColumn[];
-	/** Map an event (+ its index) to a table row. */
+	/** Map an event to a table row. The index is a MONOTONIC event counter (0,1,2,…) — the event's absolute
+	 * position in the run, NOT the visible-window slot, so it stays correct under `maxRows`. */
 	toRow: (event: T, index: number) => Record<string, unknown>;
 	caption?: string;
 	/** Keep only the last N rows — a rolling window; default unbounded. */
@@ -76,6 +78,7 @@ export interface MountLiveEventTableOptions<T> {
  */
 export function mountLiveEventTable<T>(opts: MountLiveEventTableOptions<T>): () => void {
 	const rows: Array<Record<string, unknown>> = [];
+	let count = 0; // a MONOTONIC event counter — NOT rows.length, which is capped by maxRows
 	const render = (): void => {
 		opts.container.innerHTML = renderTableHtml(
 			opts.columns,
@@ -85,7 +88,7 @@ export function mountLiveEventTable<T>(opts: MountLiveEventTableOptions<T>): () 
 	};
 	render();
 	return opts.source.subscribe((event) => {
-		rows.push(opts.toRow(event, rows.length));
+		rows.push(opts.toRow(event, count++));
 		if (opts.maxRows !== undefined && rows.length > opts.maxRows) rows.shift();
 		render();
 	});

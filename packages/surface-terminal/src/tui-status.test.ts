@@ -83,6 +83,15 @@ describe("statusPanelToLayout — focus highlighting", () => {
 		const layout = statusPanelToLayout({ units: [], nextCommands: ["dgk check"] }, { width: 40 });
 		expect(JSON.stringify(layout)).toContain('"id":"dgk check","focusable":true');
 	});
+
+	it("dedupes duplicate Next: commands so id-based focus does not collide", () => {
+		const layout = statusPanelToLayout(
+			{ units: [], nextCommands: ["dgk check", "dgk check", "dgk doctor"] },
+			{ width: 40 },
+		);
+		const ids = JSON.stringify(layout).match(/"id":"[^"]+"/g) ?? [];
+		expect(ids).toEqual(['"id":"dgk check"', '"id":"dgk doctor"']); // the duplicate is dropped
+	});
 });
 
 describe("runInteractiveStatusPanel", () => {

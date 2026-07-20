@@ -153,7 +153,9 @@ export function statusPanelToLayout(model: StatusPanelModel, opts: RenderStatusP
 	};
 
 	const children: LayoutNode[] = [cards];
-	const nextCommands = model.nextCommands ?? [];
+	// Dedupe: a focusable command's id IS its string, so two identical "Next:" commands would collide —
+	// both highlight, and focus can't advance past the first. A repeated recommendation is noise anyway.
+	const nextCommands = [...new Set(model.nextCommands ?? [])];
 	if (nextCommands.length > 0) {
 		const focus = opts.colors?.focus ?? next;
 		const focusedId = opts.focusedCommandId;
