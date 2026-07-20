@@ -33,8 +33,12 @@ manual pass is only the signal a machine can't see).
 ```
 - **Verify:** each stat-card's label is coloured by severity — red for error/critical, yellow for
   warn, green for ok/verified/ready — and the "Next:" footer lists the recommended commands.
-- _Logic already unit-tested:_ the panel layout + the severity→colorizer map (`tui-status.test`). The
-  manual pass is that the colours actually render.
+- **Interactive (`status-panel -i`, real TTY):** arrow keys navigate the "Next:" commands (the focused one
+  is highlighted); `Enter` picks it and the chosen command prints on the normal screen (`▶ <command>`);
+  `Esc` exits with none selected. A pipe/CI (no TTY) falls back to the one-shot render.
+- _Logic already unit-tested:_ the panel layout + severity→colorizer map, the focus highlighting, and the
+  interactive navigation/select loop (`runInteractiveStatusPanel`) — all in `tui-status.test`. The manual
+  pass is the real keyboard + the colours + the screen restore.
 
 ## 3. Dashboard / table colours + wrapping (real TTY)
 

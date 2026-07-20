@@ -873,7 +873,8 @@ function addStatusPanelCommand(
 	program
 		.command("status-panel")
 		.description(`Print ${definition.command} operator status as a laid-out terminal panel`)
-		.action(async () => {
+		.option("-i, --interactive", "Navigate the Next: commands + pick one (a real terminal)")
+		.action(async (opts: { interactive?: boolean }) => {
 			const entry = registry.list().find((candidate) => candidate.name === statusName);
 			if (!entry) {
 				process.stdout.write(`no ${statusName} capability to render\n`);
@@ -886,10 +887,26 @@ function addStatusPanelCommand(
 			}
 			const model = outcome.envelope as BaseSurfaceModel;
 			const surface = await import("@refarm.dev/surface-terminal");
-			const panel = await surface.renderStatusPanel(
-				{ units: model.units, nextCommands: model.nextCommands },
-				{ width: process.stdout.columns ?? 80, colors: surface.defaultStatusColors },
-			);
+			const panelModel = { units: model.units, nextCommands: model.nextCommands };
+			// Interactive: navigate the Next: commands, Enter picks one. A pipe/CI has no TTY → fall back to
+			// the one-shot render (the keyless loop would exit immediately anyway).
+			if (opts.interactive && process.stdout.isTTY) {
+				let picked: string | undefined;
+				await surface.runInteractiveStatusPanelTerminal(panelModel, {
+					width: process.stdout.columns ?? 80,
+					colors: surface.defaultStatusColors,
+					onSelect: (command) => {
+						picked = command;
+						return false; // Enter picks the focused command + leaves the panel
+					},
+				});
+				process.stdout.write(picked ? `▶ ${picked}\n` : "(no command selected)\n");
+				return;
+			}
+			const panel = await surface.renderStatusPanel(panelModel, {
+				width: process.stdout.columns ?? 80,
+				colors: surface.defaultStatusColors,
+			});
 			process.stdout.write(`${panel}\n`);
 		});
 }

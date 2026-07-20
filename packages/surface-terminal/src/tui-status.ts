@@ -11,6 +11,9 @@
  */
 import chalk from "chalk";
 
+import { focusOrder } from "./tui-focus.js";
+import type { TerminalInput } from "./tui-input.js";
+import { runInteractiveLayout, withInteractiveTerminal } from "./tui-interactive.js";
 import { computeTuiLayout, type LayoutNode } from "./tui-layout.js";
 import { renderTuiLayout } from "./tui-render.js";
 
@@ -36,6 +39,8 @@ export interface StatusPanelColors {
 	label?: Colorize;
 	summary?: Colorize;
 	next?: Colorize;
+	/** The focused "Next:" command in the interactive panel (default: inverse of `next`). */
+	focus?: Colorize;
 	/** Maps a unit's severity to a colorizer for its label (the status indicator). */
 	severity?: (severity: string | undefined) => Colorize;
 }
@@ -45,6 +50,7 @@ export const defaultStatusColors: StatusPanelColors = {
 	label: (text) => chalk.bold(text),
 	summary: (text) => chalk.dim(text),
 	next: (text) => chalk.cyan(text),
+	focus: (text) => chalk.inverse(chalk.cyan(text)),
 	severity: (severity) => {
 		switch ((severity ?? "").toLowerCase()) {
 			case "error":
@@ -74,6 +80,8 @@ export interface RenderStatusPanelOptions {
 	gap?: number;
 	/** Injected colorizers (default identity — plain text). */
 	colors?: StatusPanelColors;
+	/** The "Next:" command currently focused (interactive panel) — rendered with the `focus` colorizer. */
+	focusedCommandId?: string;
 }
 
 /** Map a status model to a flex layout: a wrapping row of bordered stat-cards over a "Next:" footer.
@@ -106,9 +114,21 @@ export function statusPanelToLayout(model: StatusPanelModel, opts: RenderStatusP
 	const children: LayoutNode[] = [cards];
 	const nextCommands = model.nextCommands ?? [];
 	if (nextCommands.length > 0) {
+		const focus = opts.colors?.focus ?? next;
+		const focusedId = opts.focusedCommandId;
 		children.push({
 			direction: "column",
-			children: [{ text: next("Next:") }, ...nextCommands.map((command) => ({ text: next(`  → ${command}`) }))],
+			children: [
+				{ text: next("Next:") },
+				// Each recommended command is a FOCUSABLE target (id = the command), so the interactive panel
+				// navigates them and Enter runs the focused one. Harmless for the static render (id/focusable
+				// are layout metadata renderTuiLayout ignores); the focused one gets the `focus` style.
+				...nextCommands.map((command) => ({
+					id: command,
+					focusable: true,
+					text: (command === focusedId ? focus : next)(`  → ${command}`),
+				})),
+			],
 		});
 	}
 
@@ -120,4 +140,62 @@ export async function renderStatusPanel(model: StatusPanelModel, opts: RenderSta
 	const layout = statusPanelToLayout(model, opts);
 	const positioned = await computeTuiLayout(layout, { width: opts.width });
 	return renderTuiLayout(positioned);
+}
+
+export interface RunInteractiveStatusPanelOptions extends RenderStatusPanelOptions {
+	/** Key source (injectable — `scriptedInput` for tests, `createStdinInput` for a real terminal). */
+	input: TerminalInput;
+	/** Write a rendered frame (injectable; default stdout). */
+	output?: (frame: string) => void;
+	/** Fires when Enter is pressed on the focused "Next:" command. Return `false` to exit the loop. */
+	onSelect?: (command: string) => void | boolean | Promise<void | boolean>;
+}
+
+/**
+ * Run the status panel as an INTERACTIVE face: the "Next:" commands are focusable, arrows navigate them,
+ * and Enter fires `onSelect` with the focused command — so an operator ACTS on the recommendation (runs the
+ * next command) without retyping it. PURE given injected input + output, so it is unit-testable with
+ * scripted keys. Returns the last-focused command id.
+ */
+export async function runInteractiveStatusPanel(
+	model: StatusPanelModel,
+	opts: RunInteractiveStatusPanelOptions,
+): Promise<string | null> {
+	const render = async (focusedId: string | null): Promise<string> => {
+		const layout = statusPanelToLayout(model, {
+			...opts,
+			...(focusedId !== null ? { focusedCommandId: focusedId } : {}),
+		});
+		const positioned = await computeTuiLayout(layout, { width: opts.width });
+		return renderTuiLayout(positioned);
+	};
+	const positioned = await computeTuiLayout(statusPanelToLayout(model, opts), { width: opts.width });
+	const targets = focusOrder(positioned);
+	return runInteractiveLayout({
+		targets,
+		render,
+		input: opts.input,
+		...(opts.output ? { output: opts.output } : {}),
+		...(opts.onSelect ? { onSelect: opts.onSelect } : {}),
+	});
+}
+
+export interface RunInteractiveStatusPanelTerminalOptions
+	extends Omit<RunInteractiveStatusPanelOptions, "input" | "output"> {
+	/** Write raw terminal bytes (injectable for tests; default = stdout). */
+	write?: (bytes: string) => void;
+}
+
+/**
+ * Run the interactive status panel against the real terminal: alt-screen + raw-mode stdin drive the loop,
+ * always restoring on exit (incl. Ctrl-C). Node-only. Returns the last-focused command id.
+ */
+export async function runInteractiveStatusPanelTerminal(
+	model: StatusPanelModel,
+	opts: RunInteractiveStatusPanelTerminalOptions,
+): Promise<string | null> {
+	return withInteractiveTerminal(
+		(input, output) => runInteractiveStatusPanel(model, { ...opts, input, output }),
+		opts.write,
+	);
 }

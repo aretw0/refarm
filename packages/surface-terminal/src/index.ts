@@ -58,11 +58,15 @@ export {
 export {
 	statusPanelToLayout,
 	renderStatusPanel,
+	runInteractiveStatusPanel,
+	runInteractiveStatusPanelTerminal,
 	defaultStatusColors,
 	type StatusPanelUnit,
 	type StatusPanelModel,
 	type StatusPanelColors,
 	type RenderStatusPanelOptions,
+	type RunInteractiveStatusPanelOptions,
+	type RunInteractiveStatusPanelTerminalOptions,
 } from "./tui-status.js";
 export { scriptedInput, type Key, type TerminalInput } from "./tui-input.js";
 export { focusOrder, moveFocus, type FocusTarget } from "./tui-focus.js";

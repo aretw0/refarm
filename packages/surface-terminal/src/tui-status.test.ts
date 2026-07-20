@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { defaultStatusColors, renderStatusPanel, statusPanelToLayout, type StatusPanelModel } from "./tui-status.js";
+import { scriptedInput } from "./tui-input.js";
+import {
+	defaultStatusColors,
+	renderStatusPanel,
+	runInteractiveStatusPanel,
+	statusPanelToLayout,
+	type StatusPanelModel,
+} from "./tui-status.js";
 
 const model: StatusPanelModel = {
 	units: [
@@ -55,5 +62,57 @@ describe("renderStatusPanel", () => {
 		// The two cards sit side by side: the row holding "Wallet" also holds "Runtime".
 		const nameRow = out.split("\n").find((line) => line.includes("Wallet"));
 		expect(nameRow).toContain("Runtime");
+	});
+});
+
+describe("statusPanelToLayout — focus highlighting", () => {
+	it("styles the focused Next: command with the focus colorizer, others with next", () => {
+		const layout = statusPanelToLayout(
+			{ units: [], nextCommands: ["a", "b"] },
+			{ width: 40, focusedCommandId: "b", colors: { focus: (t) => `<${t}>`, next: (t) => t } },
+		);
+		const json = JSON.stringify(layout);
+		expect(json).toContain("<  → b>"); // focused, wrapped by the focus colorizer
+		expect(json).toContain("  → a"); // not focused, plain
+	});
+
+	it("makes each Next: command a focusable target (id = the command)", () => {
+		const layout = statusPanelToLayout({ units: [], nextCommands: ["dgk check"] }, { width: 40 });
+		expect(JSON.stringify(layout)).toContain('"id":"dgk check","focusable":true');
+	});
+});
+
+describe("runInteractiveStatusPanel", () => {
+	const interactiveModel: StatusPanelModel = {
+		units: [{ label: "Runtime", summary: "ready", severity: "ok" }],
+		nextCommands: ["dgk check", "dgk doctor"],
+	};
+
+	it("navigates the Next: commands and fires onSelect with the focused one", async () => {
+		const selected: string[] = [];
+		const last = await runInteractiveStatusPanel(interactiveModel, {
+			width: 60,
+			input: scriptedInput([{ name: "down" }, { name: "return" }, { name: "escape" }]),
+			output: () => {},
+			onSelect: (command) => {
+				selected.push(command);
+			},
+		});
+		// initial focus = first command; ↓ moves to the second; Enter selects it.
+		expect(selected).toEqual(["dgk doctor"]);
+		expect(last).toBe("dgk doctor");
+	});
+
+	it("Enter on the initially-focused command runs it", async () => {
+		const selected: string[] = [];
+		await runInteractiveStatusPanel(interactiveModel, {
+			width: 60,
+			input: scriptedInput([{ name: "return" }, { name: "escape" }]),
+			output: () => {},
+			onSelect: (command) => {
+				selected.push(command);
+			},
+		});
+		expect(selected).toEqual(["dgk check"]);
 	});
 });
