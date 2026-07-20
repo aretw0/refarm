@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { arrayLiveSource, runLiveTerminal, runLiveView } from "./tui-live.js";
+import { arrayLiveSource, pollingSnapshotSource, runLiveTerminal, runLiveView } from "./tui-live.js";
 import { renderTable } from "./tui-table.js";
 
 describe("runLiveView (stream-driven redraw)", () => {
@@ -64,5 +64,48 @@ describe("runLiveView (stream-driven redraw)", () => {
 		expect(all).toContain("xy"); // the final accumulated frame
 		expect(all).toContain(`${ESC}[?25h`); // restored the cursor
 		expect(all).toContain(`${ESC}[?1049l`); // left the alt-screen
+	});
+});
+
+describe("pollingSnapshotSource (tail a growing snapshot)", () => {
+	it("yields new items as the snapshot grows, waiting when nothing is new, ending on done()", async () => {
+		const data: number[] = [1];
+		const pending = [2, 3];
+		let waits = 0;
+		const source = pollingSnapshotSource<number>({
+			snapshot: () => data.slice(),
+			// Each wait() simulates a new item being appended to the source between polls.
+			wait: () => {
+				waits++;
+				const n = pending.shift();
+				if (n !== undefined) data.push(n);
+				return Promise.resolve();
+			},
+			done: () => pending.length === 0,
+		});
+		const seen: (number | null)[] = [];
+		for (let i = 0; i < 5; i++) seen.push(await source());
+		expect(seen).toEqual([1, 2, 3, null, null]); // yielded present + appended items, then ended
+		expect(waits).toBe(2); // waited once per not-yet-present item, not after each yield
+	});
+
+	it("drives runLiveView into a GROWING view from a live snapshot", async () => {
+		const data: string[] = [];
+		const pending = ["a", "b", "c"];
+		const frames: string[] = [];
+		await runLiveView<string>({
+			source: pollingSnapshotSource<string>({
+				snapshot: () => data.slice(),
+				wait: () => {
+					const n = pending.shift();
+					if (n !== undefined) data.push(n);
+					return Promise.resolve();
+				},
+				done: () => pending.length === 0,
+			}),
+			render: (xs) => xs.join(","),
+			output: (f) => frames.push(f),
+		});
+		expect(frames).toEqual(["", "a", "a,b", "a,b,c"]);
 	});
 });

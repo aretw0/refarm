@@ -62,15 +62,22 @@ this is the one path a unit test can't drive (a real signal that ends the proces
 `pnpm --filter devbench-t1 agent-watch`) reads the agent's `agent:*` event file
 (`{refarmDir}/scarecrow-audit.ndjson`, `refarmDir = DGK_REFARM_DIR ?? ".dgk"`) and REPLAYS it as a LIVE,
 growing table via `runLiveTerminal` + `renderTable` — "watch the machine work".
-- **The replay pipeline is unit-tested** (`agent-watch.test.ts`): `agentEventRows` (event→row) and
-  `watchAgentEvents({events, output})` — the growing table is asserted frame-by-frame headless from fixture
-  events (the `output` seam). No human needed for the rendering logic.
-- **Manual pass (real TTY only):** after a real run wrote events, run `pnpm --filter devbench-t1 agent-watch`
-  in a real terminal — the recorded events paint as a table; `Ctrl-C` restores the screen (item 4).
-- **Remaining follow-up (deferred, node-only):** a true LIVE tail — a `LiveSource` backed by `fs.watch` (or
-  a short poll) that yields each newly-appended `agent:*` line while a run is in progress, so two terminals
-  (one running the agent, one watching) update in real time. The seam is ready (`LiveSource` is injectable,
-  same as the replay `arrayLiveSource`); only the fs.watch wiring + the two-terminal check stay manual.
+Two modes, both behind testable seams:
+- **REPLAY** (default): `pnpm --filter devbench-t1 agent-watch` — render what's already recorded.
+- **FOLLOW** (`--follow`): tail the file live — re-read the growing event file each poll and paint each
+  newly-appended `agent:*` line as it arrives (poll-based `pollingSnapshotSource`, so no fs.watch needed).
+
+**Both pipelines are unit-tested** (`agent-watch.test.ts` + `tui-live.test.ts`): `agentEventRows`
+(event→row), `watchAgentEvents({events, output})` (replay), and `followAgentEvents({snapshot, wait, done,
+output})` — the growing table AND the live tail are asserted frame-by-frame headless (the `output` seam;
+the tail drives a growing in-memory snapshot + an instant `wait`, and one case reads a REAL ndjson file to
+prove the fs path + the `agent:*` filter). The generic tail primitive `pollingSnapshotSource` is tested in
+the engine. No human is needed for any rendering/tailing LOGIC.
+- **Manual pass (real TTY + a live run only):** in one terminal run an agent (`<t1-cli> agent-telemetry
+  --mock` writes `agent:*` events); in another run `pnpm --filter devbench-t1 agent-watch --follow
+  DGK_REFARM_DIR=<that run's dir>` — rows must appear live as the run progresses, and `Ctrl-C` must restore
+  the screen (item 4). This is the only part a headless suite can't drive (a real second process + a real
+  signal).
 
 ---
 

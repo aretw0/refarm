@@ -29,8 +29,10 @@ export {
 	runLiveView,
 	runLiveTerminal,
 	arrayLiveSource,
+	pollingSnapshotSource,
 	type LiveSource,
 	type RunLiveViewOptions,
+	type PollingSnapshotSourceOptions,
 } from "./tui-live.js";
 export {
 	tableToLayout,

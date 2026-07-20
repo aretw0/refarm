@@ -15,6 +15,39 @@ export function arrayLiveSource<T>(items: readonly T[]): LiveSource<T> {
 	return () => Promise.resolve(index < items.length ? items[index++]! : null);
 }
 
+/** Options for {@link pollingSnapshotSource}. */
+export interface PollingSnapshotSourceOptions<T> {
+	/** Snapshot ALL items available right now (e.g. re-read + parse a growing file). Called each poll. */
+	snapshot: () => readonly T[] | Promise<readonly T[]>;
+	/** Await before the next poll when nothing new is ready (injectable; real = a setTimeout delay). */
+	wait: () => Promise<void>;
+	/**
+	 * Return true to END the stream (resolve `null`) — a deadline, an abort flag, or (tests) a settle
+	 * condition. Omit for a never-ending tail (quit with Ctrl-C). Checked only when nothing new is ready,
+	 * AFTER any pending item is yielded — so ending never drops an item already appended.
+	 */
+	done?: () => boolean;
+}
+
+/**
+ * A LiveSource that TAILS a growing snapshot: each poll re-reads the whole snapshot and yields the next
+ * not-yet-seen item (by count); when nothing new is ready it awaits `wait()` and re-polls, until `done()`
+ * (if given) returns true. Append-only by contract — if the snapshot shrinks it simply yields nothing
+ * until it grows past the seen count again (never throws). PURE given injected snapshot/wait/done, so a
+ * real file tail is unit-testable headless by driving snapshot + wait in memory.
+ */
+export function pollingSnapshotSource<T>(opts: PollingSnapshotSourceOptions<T>): LiveSource<T> {
+	let seen = 0;
+	return async () => {
+		for (;;) {
+			const all = await opts.snapshot();
+			if (all.length > seen) return all[seen++]!;
+			if (opts.done?.()) return null;
+			await opts.wait();
+		}
+	};
+}
+
 export interface RunLiveViewOptions<T> {
 	/** Pull the next item; `null` ends the view. */
 	source: LiveSource<T>;
