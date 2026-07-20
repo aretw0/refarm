@@ -12,7 +12,7 @@ function mocks(method: string, path: string): {
 } {
 	const reqHandlers: Record<string, () => void> = {};
 	const resHandlers: Record<string, () => void> = {};
-	const captured = { status: undefined as number | undefined, headers: undefined as Record<string, string> | undefined, writes: [] as string[], ended: false };
+	const captured = { status: undefined as number | undefined, headers: undefined as Record<string, string> | undefined, writes: [] as string[], ended: false, flushed: false };
 	const req = {
 		url: path,
 		method,
@@ -26,6 +26,9 @@ function mocks(method: string, path: string): {
 			captured.status = status;
 			captured.headers = headers;
 			return this;
+		},
+		flushHeaders() {
+			captured.flushed = true;
 		},
 		write(chunk: string) {
 			captured.writes.push(chunk);
@@ -69,6 +72,7 @@ describe("createEventStreamHandler (SSE projector)", () => {
 		expect(handler(req, res)).toBe(true);
 		expect(captured.status).toBe(200);
 		expect(captured.headers?.["content-type"]).toBe("text/event-stream");
+		expect(captured.flushed).toBe(true); // headers flushed immediately so the client connects before any event
 		expect(captured.writes).toEqual([
 			'data: {"event":"agent:prompt:start","ts":1}\n\n',
 			'data: {"event":"agent:tool:call","ts":2}\n\n',
@@ -176,23 +180,48 @@ describe("broadcastEventSource (fan one stream out to many clients)", () => {
 		expect(u.unsubscribed()).toBe(true); // last left → underlying stopped
 	});
 
-	it("on reconnect, re-subscribes + skips the re-flushed history prefix (no duplicates)", () => {
+	it("clears the buffer when idle; a reconnecting client re-reads via a fresh subscription (no dup)", () => {
 		const u = manualUnderlying();
 		const hub = broadcastEventSource(u.source);
 		const stop1 = hub.subscribe(() => {}, () => {});
 		u.emit({ n: 1 });
 		u.emit({ n: 2 });
-		stop1(); // history = [1,2]; underlying unsubscribed
+		stop1(); // last client left → underlying unsubscribed + buffer cleared
 		expect(u.subscribeCount()).toBe(1);
 
 		const got: unknown[] = [];
 		hub.subscribe((e) => got.push(e), () => {});
-		expect(u.subscribeCount()).toBe(2); // re-subscribed for the newcomer
-		expect(got).toEqual([{ n: 1 }, { n: 2 }]); // history replayed
-		u.emit({ n: 1 }); // a fresh poll re-flushes the prefix...
+		expect(u.subscribeCount()).toBe(2); // re-subscribed fresh
+		expect(got).toEqual([]); // buffer was cleared → nothing replayed on join
+		u.emit({ n: 1 }); // a fresh poll re-reads the file...
 		u.emit({ n: 2 });
-		expect(got).toEqual([{ n: 1 }, { n: 2 }]); // ...which is SKIPPED
-		u.emit({ n: 3 }); // a genuinely new event flows through
-		expect(got).toEqual([{ n: 1 }, { n: 2 }, { n: 3 }]);
+		expect(got).toEqual([{ n: 1 }, { n: 2 }]); // ...delivered ONCE (nothing to skip)
+	});
+
+	it("does NOT drop live events on reconnect with a NON-replaying (push) source", () => {
+		// The case the old skip logic silently dropped: a push source that resumes with NEW events only.
+		const u = manualUnderlying();
+		const hub = broadcastEventSource(u.source);
+		const stop1 = hub.subscribe(() => {}, () => {});
+		u.emit({ n: 1 });
+		u.emit({ n: 2 });
+		stop1();
+		const got: unknown[] = [];
+		hub.subscribe((e) => got.push(e), () => {});
+		u.emit({ n: 3 }); // NEW events (not a replay) — every one must reach the client
+		u.emit({ n: 4 });
+		expect(got).toEqual([{ n: 3 }, { n: 4 }]); // e3,e4 NOT dropped
+	});
+
+	it("bounds the replay buffer at maxHistory (a late joiner sees the last N)", () => {
+		const u = manualUnderlying();
+		const hub = broadcastEventSource(u.source, { maxHistory: 2 });
+		hub.subscribe(() => {}, () => {}); // keep the underlying alive
+		u.emit({ n: 1 });
+		u.emit({ n: 2 });
+		u.emit({ n: 3 });
+		const late: unknown[] = [];
+		hub.subscribe((e) => late.push(e), () => {});
+		expect(late).toEqual([{ n: 2 }, { n: 3 }]); // the oldest fell out of the ring
 	});
 });

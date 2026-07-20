@@ -34,6 +34,9 @@ export function agentEventStreamSource(opts: AgentEventStreamOptions = {}): Even
 		opts.schedule ??
 		((tick: () => void, ms: number): (() => void) => {
 			const id = setInterval(tick, ms);
+			// Don't let the poll timer keep the process alive on its own — every subscription is cancelled on
+			// socket close, but unref means a forgotten unsubscribe degrades to wasted CPU, not a hung exit.
+			if (typeof id.unref === "function") id.unref();
 			return () => clearInterval(id);
 		});
 	return {
@@ -41,6 +44,9 @@ export function agentEventStreamSource(opts: AgentEventStreamOptions = {}): Even
 			let seen = 0;
 			const tick = (): void => {
 				const all = snapshot();
+				// If the file shrank (truncated / rotated / rewritten), `seen` is now past its end — resync
+				// from the start instead of going permanently silent + misaligned against the new content.
+				if (all.length < seen) seen = 0;
 				for (; seen < all.length; seen++) send(all[seen]);
 			};
 			tick(); // flush what's already there immediately

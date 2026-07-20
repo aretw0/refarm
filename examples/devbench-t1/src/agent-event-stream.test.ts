@@ -41,6 +41,33 @@ describe("agentEventStreamSource (SSE server tail)", () => {
 		unsubscribe();
 	});
 
+	it("resyncs when the snapshot SHRINKS (file truncated / rotated), instead of going silent", () => {
+		let events: AgentEventLine[] = [
+			{ event: "agent:prompt:start", ts: 1 },
+			{ event: "agent:tool:call", ts: 2 },
+		];
+		let tick: () => void = () => {};
+		const source = agentEventStreamSource({
+			snapshot: () => events.slice(),
+			schedule: (fn) => {
+				tick = fn;
+				return () => {};
+			},
+		});
+		const sent: AgentEventLine[] = [];
+		source.subscribe(
+			(e) => sent.push(e as AgentEventLine),
+			() => {},
+		);
+		expect(sent.length).toBe(2); // initial flush, seen=2
+
+		// The audit file is rewritten SHORTER (a new run / rotation) — seen(2) is now past its end.
+		events = [{ event: "agent:prompt:start", ts: 3 }];
+		tick(); // must reset seen=0 and re-flush the new content, not go permanently silent
+		expect(sent.at(-1)).toEqual({ event: "agent:prompt:start", ts: 3 });
+		expect(sent.length).toBe(3);
+	});
+
 	it("stops polling when unsubscribed", () => {
 		let cancelled = false;
 		const source = agentEventStreamSource({

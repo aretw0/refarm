@@ -24,30 +24,30 @@ export interface EventStreamSource {
  * subscribes the underlying source independently (N clients → N file polls / N upstream connections); with
  * it, the underlying is subscribed ONCE (lazily, on the first client) and every event is fanned to all
  * connected clients. A late joiner gets the run-so-far replayed (a buffered history) then live events, so
- * every browser sees the whole timeline regardless of when it connected. When the last client leaves the
- * underlying is unsubscribed; if a client later reconnects it re-subscribes and the re-flushed prefix
- * (a fresh poll replays from the start) is skipped, so history never duplicates. Pure given an injected
- * underlying — testable without a socket.
+ * every browser sees the whole timeline regardless of when it connected. When the LAST client leaves the
+ * underlying is unsubscribed and the buffer is dropped, so a later reconnect re-subscribes fresh: a poll
+ * source re-reads the file, a push source resumes with new events — no stale prefix to reconcile either
+ * way (correct for BOTH source kinds). `maxHistory` bounds the replay buffer so a long run's memory is
+ * capped. Pure given an injected underlying — testable without a socket.
  */
-export function broadcastEventSource(underlying: EventStreamSource): EventStreamSource {
+export function broadcastEventSource(
+	underlying: EventStreamSource,
+	options: { maxHistory?: number } = {},
+): EventStreamSource {
 	interface Client {
 		send: (event: unknown) => void;
 		end: () => void;
 	}
+	const maxHistory = options.maxHistory ?? 1024;
 	const clients = new Set<Client>();
-	const history: unknown[] = [];
+	let history: unknown[] = [];
 	let unsubscribe: (() => void) | undefined;
 
 	const start = (): void => {
-		// A fresh (re)subscribe replays the underlying from the start; skip what history already holds so a
-		// reconnect after everyone left does not re-broadcast (or re-buffer) events we already have.
-		let received = 0;
-		const skip = history.length;
 		unsubscribe = underlying.subscribe(
 			(event) => {
-				received += 1;
-				if (received <= skip) return;
 				history.push(event);
+				if (history.length > maxHistory) history.shift(); // bounded replay buffer (a ring)
 				for (const client of clients) client.send(event);
 			},
 			() => {
@@ -68,6 +68,9 @@ export function broadcastEventSource(underlying: EventStreamSource): EventStream
 				if (clients.size === 0 && unsubscribe) {
 					unsubscribe();
 					unsubscribe = undefined;
+					// Drop the buffer when idle: a reconnect re-subscribes the underlying fresh, so there is no
+					// stale prefix to skip — a poll re-reads the file, a push source resumes with new events.
+					history = [];
 				}
 			};
 		},
@@ -95,6 +98,9 @@ export function createEventStreamHandler(
 			"cache-control": "no-cache",
 			connection: "keep-alive",
 		});
+		// Flush the headers NOW so the client establishes the SSE connection immediately, even before the
+		// first event — otherwise Node buffers the (bodyless) chunked headers until the first write.
+		res.flushHeaders?.();
 
 		let closed = false;
 		const send = (event: unknown): void => {
