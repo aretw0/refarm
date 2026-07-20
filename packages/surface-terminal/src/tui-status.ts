@@ -11,6 +11,7 @@
  */
 import chalk from "chalk";
 
+import type { TuiThemeLike } from "./tui-dashboard.js";
 import { focusOrder } from "./tui-focus.js";
 import type { TerminalInput } from "./tui-input.js";
 import { runInteractiveLayout, withInteractiveTerminal } from "./tui-interactive.js";
@@ -70,6 +71,46 @@ export const defaultStatusColors: StatusPanelColors = {
 		}
 	},
 };
+
+/**
+ * Build status-panel colorizers from a projected DS theme (`projectThemeToTui` output) — the SAME token set
+ * the dashboard themes from (`dashboardColorsFromTuiTheme`). `foreground`→label, `muted-foreground`→summary,
+ * `primary`→next; SEVERITY maps to the theme's semantic status tokens (error→`error`, warn→`warning`,
+ * ok→`success`), each falling back to the default red/yellow/green when a token is absent. So ONE declared
+ * theme colors every TUI face consistently — the status half of the dashboard's token convergence.
+ */
+export function statusColorsFromTuiTheme(theme: TuiThemeLike): StatusPanelColors {
+	const roleColor = (token: string, fallback: Colorize): Colorize => {
+		const color = theme[token];
+		return color ? (text) => chalk.ansi256(color.ansi256)(text) : fallback;
+	};
+	const defaultSeverity = defaultStatusColors.severity!;
+	const next = roleColor("primary", defaultStatusColors.next!);
+	return {
+		label: roleColor("foreground", defaultStatusColors.label!),
+		summary: roleColor("muted-foreground", defaultStatusColors.summary!),
+		next,
+		focus: (text) => chalk.inverse(next(text)),
+		severity: (severity) => {
+			switch ((severity ?? "").toLowerCase()) {
+				case "error":
+				case "critical":
+				case "fail":
+					return roleColor("error", defaultSeverity("error"));
+				case "warn":
+				case "warning":
+					return roleColor("warning", defaultSeverity("warn"));
+				case "ok":
+				case "success":
+				case "verified":
+				case "ready":
+					return roleColor("success", defaultSeverity("ok"));
+				default:
+					return defaultSeverity(severity);
+			}
+		},
+	};
+}
 
 export interface RenderStatusPanelOptions {
 	/** Terminal width in cells. */

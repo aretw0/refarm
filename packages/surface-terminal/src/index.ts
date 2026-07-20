@@ -60,6 +60,7 @@ export {
 	renderStatusPanel,
 	runInteractiveStatusPanel,
 	runInteractiveStatusPanelTerminal,
+	statusColorsFromTuiTheme,
 	defaultStatusColors,
 	type StatusPanelUnit,
 	type StatusPanelModel,

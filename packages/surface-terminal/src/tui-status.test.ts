@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { scriptedInput } from "./tui-input.js";
+import chalk from "chalk";
+
 import {
 	defaultStatusColors,
 	renderStatusPanel,
 	runInteractiveStatusPanel,
+	statusColorsFromTuiTheme,
 	statusPanelToLayout,
 	type StatusPanelModel,
 } from "./tui-status.js";
@@ -114,5 +117,37 @@ describe("runInteractiveStatusPanel", () => {
 			},
 		});
 		expect(selected).toEqual(["dgk check"]);
+	});
+});
+
+
+describe("statusColorsFromTuiTheme (DS tokens → status colorizers, the same set the dashboard themes from)", () => {
+	it("themes label/summary/next from role tokens, falling back to defaults for missing ones", () => {
+		const colors = statusColorsFromTuiTheme({ primary: { ansi256: 33 }, foreground: { ansi256: 15 } });
+		// present tokens → themed (a new colorizer, not the chalk default reference)
+		expect(colors.label).not.toBe(defaultStatusColors.label);
+		expect(colors.next).not.toBe(defaultStatusColors.next);
+		// muted-foreground absent → the default summary colorizer
+		expect(colors.summary).toBe(defaultStatusColors.summary);
+	});
+
+	it("maps SEVERITY to the theme's semantic status tokens (error/warning/success)", () => {
+		const colors = statusColorsFromTuiTheme({
+			error: { ansi256: 196 },
+			warning: { ansi256: 214 },
+			success: { ansi256: 46 },
+		});
+		expect(colors.severity!("critical")("X")).toBe(chalk.ansi256(196)("X"));
+		expect(colors.severity!("warn")("X")).toBe(chalk.ansi256(214)("X"));
+		expect(colors.severity!("verified")("X")).toBe(chalk.ansi256(46)("X"));
+	});
+
+	it("falls back to the default red/yellow/green when a severity token is absent", () => {
+		const colors = statusColorsFromTuiTheme({});
+		const fallback = defaultStatusColors.severity!;
+		expect(colors.severity!("error")("X")).toBe(fallback("error")("X"));
+		expect(colors.severity!("ok")("X")).toBe(fallback("ok")("X"));
+		// an unknown severity is identity on both
+		expect(colors.severity!("chatter")("X")).toBe("X");
 	});
 });
