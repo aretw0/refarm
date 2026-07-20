@@ -7,7 +7,7 @@ import { broadcastEventSource, createEventStreamHandler, type EventStreamSource 
 function mocks(method: string, path: string): {
 	req: IncomingMessage;
 	res: ServerResponse;
-	captured: { status?: number; headers?: Record<string, string>; writes: string[]; ended: boolean };
+	captured: { status?: number; headers?: Record<string, string>; writes: string[]; ended: boolean; flushed: boolean };
 	closeClient: () => void;
 } {
 	const reqHandlers: Record<string, () => void> = {};
