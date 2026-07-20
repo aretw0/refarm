@@ -15,6 +15,7 @@
 ## 🏛 Philosophy & Vision
 
 - **[ARCHITECTURE](ARCHITECTURE.md)** — System design, layers, evolutionary roadmap.
+- **[Declare Once, Project Everywhere](DECLARE_ONCE_INVARIANT.md)** — the capability invariant (one declaration → 6 surfaces, validated identically), the live-view engine, the scaffold, and the theme pipeline — with an honest proven/seam/manual ledger.
 - **[Refarm as Personal OS Boot](REFARM_AS_OS_BOOT.md)** — Boot sequence L0–L5: Shell Load → Tractor Ignition → Identity → Graph → Plugins → System Live.
 - **[User Story](USER_STORY.md)** — The "why" and user personas.
 - **[Inspirations](INSPIRATIONS.md)** — Technical and conceptual foundations.
