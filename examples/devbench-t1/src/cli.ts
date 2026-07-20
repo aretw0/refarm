@@ -20,6 +20,7 @@ import {
 	devCapabilityDeps,
 } from "./persona.js";
 import { createAgentEventStreamHandler } from "./agent-event-stream.js";
+import { resolveDevbenchTuiTheme } from "./tui-theme.js";
 import { createAgentRunCapability } from "./live-recursion.js";
 import { createDelegateRunCapability } from "./live-delegation.js";
 import { createCodeOpsCapability } from "./live-code-ops.js";
@@ -81,12 +82,14 @@ export function buildDevbenchHost(options: DevbenchHostOptions = {}): Capability
 	const description = `${theme.description} (DGK_THEME: ${DEVBENCH_THEMES.join(" | ")})`;
 	// A holder so the `ide` verb can resolve the host's OWN registry lazily (at run time) — the
 	// ide verb is itself in that registry, so it can't reference the host until it's built.
-	let host: CapabilityHost;
-	host = defineCapabilityHost({
+	const host: CapabilityHost = defineCapabilityHost({
 		id: "examples/devbench-t1",
 		command,
 		description,
 		version: "0.0.0",
+		// Declare the TUI theme ONCE (a projected DS token theme) → the dashboard + status-panel faces
+		// render with the app's colors instead of the chalk defaults. DGK_TUI_THEME selects a builtin.
+		tuiTheme: resolveDevbenchTuiTheme(),
 		capabilities: () => ({
 			deps: devCapabilityDeps(),
 			// The extension path: the active manifest's verbs surface themselves

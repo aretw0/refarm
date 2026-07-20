@@ -25,6 +25,7 @@
 		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/capability-homestead-surface": "workspace:*",
 		"@refarm.dev/capability-host": "workspace:*",
+		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
 		"@refarm.dev/quality-checker-ref": "workspace:*",

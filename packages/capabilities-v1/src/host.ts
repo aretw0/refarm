@@ -11,7 +11,7 @@ import {
 	type CapabilityInput,
 	type CapabilityRegistry,
 } from "@refarm.dev/capabilities";
-import type { CapabilityHooksResolver } from "@refarm.dev/surface-terminal";
+import type { CapabilityHooksResolver, TuiThemeLike } from "@refarm.dev/surface-terminal";
 import { applicationCommand } from "@refarm.dev/cli/command-handoff";
 import { buildJsonSuccessEnvelope } from "@refarm.dev/capabilities/envelope";
 import {
@@ -155,6 +155,10 @@ export interface CapabilityHostDefinition {
 	hooksFor?: CapabilityHooksResolver;
 	serve?: false | CapabilityHostServeOptions;
 	surfaceActions?: false | CapabilityHostSurfaceActionsOptions;
+	/** A projected DS theme (`projectThemeToTui` output) applied to the TUI faces (`dashboard`,
+	 * `status-panel`): declare the theme ONCE and both faces render with the app's colors instead of the
+	 * chalk defaults. Omit → the neutral defaults. The app owns theme resolution (host stays ds-free). */
+	tuiTheme?: TuiThemeLike;
 }
 
 export interface CapabilityHostServeCallOptions {
@@ -771,12 +775,16 @@ function addDashboardCommand(
 			const surface = await import("@refarm.dev/surface-terminal");
 			const model = tuiSurfaceModel(registry);
 			const width = process.stdout.columns ?? 80;
+			// One declared theme -> the app's colors on this face; omit -> the neutral chalk defaults.
+			const colors = definition.tuiTheme
+				? surface.dashboardColorsFromTuiTheme(definition.tuiTheme)
+				: surface.defaultDashboardColors;
 			// Interactive only with a real TTY on both ends — a pipe/CI falls back to the one-shot print.
 			if (options.interactive && process.stdin.isTTY && process.stdout.isTTY) {
 				let chosen: string | null = null;
 				await surface.runInteractiveDashboard(model, {
 					width,
-					colors: surface.defaultDashboardColors,
+					colors,
 					onSelect: (verb) => {
 						chosen = verb; // Enter picks the focused verb and exits the alt-screen
 						return false;
@@ -787,7 +795,7 @@ function addDashboardCommand(
 			}
 			const dashboard = await surface.renderCapabilityDashboard(model, {
 				width,
-				colors: surface.defaultDashboardColors,
+				colors,
 			});
 			process.stdout.write(`${dashboard}\n`);
 		});
@@ -888,13 +896,16 @@ function addStatusPanelCommand(
 			const model = outcome.envelope as BaseSurfaceModel;
 			const surface = await import("@refarm.dev/surface-terminal");
 			const panelModel = { units: model.units, nextCommands: model.nextCommands };
+			const statusColors = definition.tuiTheme
+				? surface.statusColorsFromTuiTheme(definition.tuiTheme)
+				: surface.defaultStatusColors;
 			// Interactive: navigate the Next: commands, Enter picks one. A pipe/CI has no TTY → fall back to
 			// the one-shot render (the keyless loop would exit immediately anyway).
 			if (opts.interactive && process.stdout.isTTY) {
 				let picked: string | undefined;
 				await surface.runInteractiveStatusPanelTerminal(panelModel, {
 					width: process.stdout.columns ?? 80,
-					colors: surface.defaultStatusColors,
+					colors: statusColors,
 					onSelect: (command) => {
 						picked = command;
 						return false; // Enter picks the focused command + leaves the panel
@@ -905,7 +916,7 @@ function addStatusPanelCommand(
 			}
 			const panel = await surface.renderStatusPanel(panelModel, {
 				width: process.stdout.columns ?? 80,
-				colors: surface.defaultStatusColors,
+				colors: statusColors,
 			});
 			process.stdout.write(`${panel}\n`);
 		});
