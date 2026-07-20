@@ -8,12 +8,7 @@
  * ready-to-run seam (point it at a real pull's `/requirements/events` SSE); the REPLAY path works here with
  * the seed corpus and is unit-tested.
  */
-import {
-	arrayEventSource,
-	eventSourceStream,
-	mountLiveEventTable,
-	type LiveEventSource,
-} from "@refarm.dev/capability-homestead-surface";
+import { createLiveActivityFace, type LiveEventSource } from "@refarm.dev/capability-homestead-surface";
 
 /** One pulled requirement, structurally — what a pull/crawl yields (or the seed corpus carries). */
 export interface RequirementActivityLine {
@@ -43,6 +38,13 @@ export function requirementActivityRow(req: RequirementActivityLine, index: numb
 	};
 }
 
+// One declaration → the mount / replay / follow trio (the shared live-activity face factory).
+const face = createLiveActivityFace<RequirementActivityLine>({
+	columns: COLUMNS,
+	toRow: requirementActivityRow,
+	caption: "Requirements — live",
+});
+
 export interface MountRequirementsActivityOptions {
 	container: HTMLElement;
 	source: LiveEventSource<RequirementActivityLine>;
@@ -52,14 +54,7 @@ export interface MountRequirementsActivityOptions {
 
 /** Mount the live requirements table into `container`, growing a row per requirement from `source`. */
 export function mountRequirementsActivity(opts: MountRequirementsActivityOptions): () => void {
-	return mountLiveEventTable({
-		container: opts.container,
-		source: opts.source,
-		columns: COLUMNS,
-		toRow: requirementActivityRow,
-		caption: "Requirements — live",
-		...(opts.maxRows !== undefined ? { maxRows: opts.maxRows } : {}),
-	});
+	return face.mount(opts);
 }
 
 /** REPLAY a corpus of requirements into the live table (the offline/demo path — testable headless). */
@@ -68,16 +63,11 @@ export function replayRequirementsActivity(
 	requirements: readonly RequirementActivityLine[],
 	maxRows?: number,
 ): () => void {
-	return mountRequirementsActivity({
-		container,
-		source: arrayEventSource(requirements),
-		...(maxRows !== undefined ? { maxRows } : {}),
-	});
+	return face.replay(container, requirements, maxRows);
 }
 
 /** FOLLOW a live SSE stream of pull progress (browser-only; the server tail). Each SSE message is one JSON
  * requirement line. The render/grow logic it feeds is proven by replayRequirementsActivity's tests. */
 export function followRequirementsActivity(container: HTMLElement, url: string): () => void {
-	const source = eventSourceStream<RequirementActivityLine>(url, (data) => JSON.parse(data) as RequirementActivityLine);
-	return mountRequirementsActivity({ container, source });
+	return face.follow(container, url);
 }

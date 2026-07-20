@@ -93,3 +93,41 @@ export function mountLiveEventTable<T>(opts: MountLiveEventTableOptions<T>): () 
 		render();
 	});
 }
+
+/** A live "watch the machine work" face declared ONCE: given the columns, a row mapper, and a caption, it
+ * returns the `mount` / `replay` / `follow` trio every domain face repeats (agent activity, requirements
+ * activity, …). Converges that boilerplate — a domain face is now just `{columns, toRow}` + the three
+ * one-liners below, so the live-view engine is declared per DATA, not re-wired per app. */
+export interface LiveActivityFaceConfig<T> {
+	columns: HtmlTableColumn[];
+	toRow: (event: T, index: number) => Record<string, unknown>;
+	caption?: string;
+}
+
+export interface LiveActivityFace<T> {
+	/** Mount the live table from any source. */
+	mount(opts: { container: HTMLElement; source: LiveEventSource<T>; maxRows?: number }): () => void;
+	/** REPLAY a fixed array (the offline/demo path). */
+	replay(container: HTMLElement, items: readonly T[], maxRows?: number): () => void;
+	/** FOLLOW a live SSE stream (`parse` defaults to JSON.parse). */
+	follow(container: HTMLElement, url: string, parse?: (data: string) => T): () => void;
+}
+
+export function createLiveActivityFace<T>(config: LiveActivityFaceConfig<T>): LiveActivityFace<T> {
+	const mount = (opts: { container: HTMLElement; source: LiveEventSource<T>; maxRows?: number }): (() => void) =>
+		mountLiveEventTable({
+			container: opts.container,
+			source: opts.source,
+			columns: config.columns,
+			toRow: config.toRow,
+			...(config.caption !== undefined ? { caption: config.caption } : {}),
+			...(opts.maxRows !== undefined ? { maxRows: opts.maxRows } : {}),
+		});
+	return {
+		mount,
+		replay: (container, items, maxRows) =>
+			mount({ container, source: arrayEventSource(items), ...(maxRows !== undefined ? { maxRows } : {}) }),
+		follow: (container, url, parse) =>
+			mount({ container, source: eventSourceStream(url, parse ?? ((data) => JSON.parse(data) as T)) }),
+	};
+}

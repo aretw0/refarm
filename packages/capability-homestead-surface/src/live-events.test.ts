@@ -1,7 +1,13 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it } from "vitest";
 
-import { arrayEventSource, eventSourceStream, mountLiveEventTable, type LiveEventSource } from "./live-events.js";
+import {
+	arrayEventSource,
+	createLiveActivityFace,
+	eventSourceStream,
+	mountLiveEventTable,
+	type LiveEventSource,
+} from "./live-events.js";
 
 interface Ev {
 	event: string;
@@ -154,5 +160,31 @@ describe("eventSourceStream — reconnect safety (regression)", () => {
 		} finally {
 			(globalThis as { EventSource?: unknown }).EventSource = original;
 		}
+	});
+});
+
+
+describe("createLiveActivityFace (declare-once mount/replay/follow trio)", () => {
+	it("mounts + replays a corpus from one {columns, toRow, caption} declaration", async () => {
+		document.body.innerHTML = `<div id="face"></div>`;
+		const container = document.getElementById("face")!;
+		const face = createLiveActivityFace<{ e: string }>({
+			columns: [{ key: "#", header: "#" }, { key: "e", header: "E" }],
+			toRow: (x, i) => ({ "#": i + 1, e: x.e }),
+			caption: "Face",
+		});
+		await new Promise<void>((resolve) => {
+			const drained: LiveEventSource<{ e: string }> = {
+				subscribe: (onEvent, onEnd) =>
+					arrayEventSource([{ e: "a" }, { e: "b" }, { e: "c" }]).subscribe(onEvent, () => {
+						onEnd?.();
+						resolve();
+					}),
+			};
+			face.mount({ container, source: drained });
+		});
+		expect(container.querySelectorAll("tbody tr").length).toBe(3);
+		expect(container.querySelector("caption")?.textContent).toBe("Face");
+		expect(container.textContent).toContain("c");
 	});
 });

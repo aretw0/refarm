@@ -353,8 +353,11 @@ export type { HomesteadSurfaceRenderRequest };
 
 export {
 	mountLiveEventTable,
+	createLiveActivityFace,
 	arrayEventSource,
 	eventSourceStream,
 	type LiveEventSource,
 	type MountLiveEventTableOptions,
+	type LiveActivityFaceConfig,
+	type LiveActivityFace,
 } from "./live-events.js";

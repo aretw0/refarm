@@ -6,12 +6,7 @@
  * an injectable source, so the growing table is unit-tested headless in jsdom (agent-activity.test.ts);
  * only the real SSE server tail stays a manual/integration concern.
  */
-import {
-	arrayEventSource,
-	eventSourceStream,
-	mountLiveEventTable,
-	type LiveEventSource,
-} from "@refarm.dev/capability-homestead-surface";
+import { createLiveActivityFace, type LiveEventSource } from "@refarm.dev/capability-homestead-surface";
 
 import type { AgentEventLine } from "../live-telemetry.js";
 
@@ -26,6 +21,13 @@ export function agentActivityRow(event: AgentEventLine, index: number): Record<s
 	return { "#": index + 1, event: event.event, ts: event.ts !== undefined ? String(event.ts) : "" };
 }
 
+// One declaration → the mount / replay / follow trio (the shared live-activity face factory).
+const face = createLiveActivityFace<AgentEventLine>({
+	columns: COLUMNS,
+	toRow: agentActivityRow,
+	caption: "Agent activity — live",
+});
+
 export interface MountAgentActivityOptions {
 	container: HTMLElement;
 	source: LiveEventSource<AgentEventLine>;
@@ -35,14 +37,7 @@ export interface MountAgentActivityOptions {
 
 /** Mount the live agent-activity table into `container`, growing a row per event from `source`. */
 export function mountAgentActivity(opts: MountAgentActivityOptions): () => void {
-	return mountLiveEventTable({
-		container: opts.container,
-		source: opts.source,
-		columns: COLUMNS,
-		toRow: agentActivityRow,
-		caption: "Agent activity — live",
-		...(opts.maxRows !== undefined ? { maxRows: opts.maxRows } : {}),
-	});
+	return face.mount(opts);
 }
 
 /** REPLAY a recorded run's events into the live table (the demo/offline path — testable headless). */
@@ -51,16 +46,11 @@ export function replayAgentActivity(
 	events: readonly AgentEventLine[],
 	maxRows?: number,
 ): () => void {
-	return mountAgentActivity({
-		container,
-		source: arrayEventSource(events),
-		...(maxRows !== undefined ? { maxRows } : {}),
-	});
+	return face.replay(container, events, maxRows);
 }
 
 /** FOLLOW a live SSE stream of `agent:*` events (browser-only; the server tail). Each SSE message is one
  * JSON event line. The render/grow logic it feeds is proven by replayAgentActivity's tests. */
 export function followAgentActivity(container: HTMLElement, url: string): () => void {
-	const source = eventSourceStream<AgentEventLine>(url, (data) => JSON.parse(data) as AgentEventLine);
-	return mountAgentActivity({ container, source });
+	return face.follow(container, url);
 }
