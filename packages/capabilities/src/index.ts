@@ -24,6 +24,7 @@ export {
 } from "./agent-projector.js";
 export {
 	validateCapabilityArgs,
+	validateAgainstSchema,
 	type CapabilityArgError,
 	type CapabilityArgValidation,
 } from "./arg-validator.js";

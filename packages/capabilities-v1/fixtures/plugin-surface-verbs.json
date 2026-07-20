@@ -179,5 +179,28 @@
 			"doc": null,
 			"schema": null
 		}
+	],
+	"validationNote": "Cross-language validation conformance: the SAME schema (resolved from `expected` by pluginId+verb) rejects/accepts the SAME input identically in TS (Ajv) and Rust (jsonschema). Cases are COERCION-STABLE — the TS Ajv coerces string form-input (limit=\"5\" -> 5) while the Rust host does not, so cases avoid inputs whose verdict depends on coercion (e.g. limit=\"5.5\"/\"abc\" are non-integer strings both reject; a bare \"5\" would diverge and is intentionally absent).",
+	"validation": [
+		{
+			"pluginId": "@local/notes",
+			"verb": "find",
+			"cases": [
+				{ "input": { "query": "notes" }, "valid": true },
+				{ "input": { "query": "notes", "limit": 5, "kind": "note", "tags": ["a"] }, "valid": true },
+				{ "input": { "limit": 5 }, "valid": false, "errorField": "query" },
+				{ "input": { "query": "notes", "limit": "5.5" }, "valid": false, "errorField": "limit" },
+				{ "input": { "query": "notes", "limit": "abc" }, "valid": false, "errorField": "limit" },
+				{ "input": { "query": "notes", "kind": "wrong" }, "valid": false, "errorField": "kind" }
+			]
+		},
+		{
+			"pluginId": "@local/vault",
+			"verb": "search",
+			"cases": [
+				{ "input": { "query": "x" }, "valid": true },
+				{ "input": {}, "valid": false, "errorField": "query" }
+			]
+		}
 	]
 }

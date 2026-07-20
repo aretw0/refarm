@@ -41,6 +41,25 @@ function toArgError(error: ErrorObject): CapabilityArgError {
 }
 
 /**
+ * Validate an input object against a raw JSON Schema with the shared form-tuned Ajv — the primitive
+ * {@link validateCapabilityArgs} builds on, and the exact TS twin of the Rust host's `validate_tool_input`
+ * (jsonschema). A cross-language conformance test drives BOTH with the SAME schema bytes + inputs (see
+ * capabilities-v1's verb-schema-validation.test and tractor's validate_tool_input_matches_ts_conformance_
+ * fixture). ONE deliberate difference: this Ajv COERCES string form-input to the schema's types (a web
+ * `<input>` yields "42"), while the Rust host does not (an agent/plugin sends already-typed JSON) — so
+ * the shared cases stay coercion-stable.
+ */
+export function validateAgainstSchema(
+	schema: object,
+	input: Record<string, unknown>,
+): CapabilityArgValidation {
+	const validate = ajv.compile(schema);
+	const data: Record<string, unknown> = { ...input };
+	if (validate(data)) return { valid: true, errors: [] };
+	return { valid: false, errors: (validate.errors ?? []).map(toArgError) };
+}
+
+/**
  * Validate a flat `{ ...args, ...options }` input against the capability's DERIVED JSON Schema — the same
  * schema the agent sees, so every surface enforces one contract. Ajv `coerceTypes` handles string-typed
  * inputs; validation is read-only for the caller (it checks a shallow copy, so the caller's object is
@@ -50,8 +69,5 @@ export function validateCapabilityArgs(
 	descriptor: Pick<CapabilityDescriptor, "args" | "options">,
 	input: Record<string, unknown>,
 ): CapabilityArgValidation {
-	const validate = ajv.compile(capabilityToolParameters(descriptor as CapabilityDescriptor));
-	const data: Record<string, unknown> = { ...input };
-	if (validate(data)) return { valid: true, errors: [] };
-	return { valid: false, errors: (validate.errors ?? []).map(toArgError) };
+	return validateAgainstSchema(capabilityToolParameters(descriptor as CapabilityDescriptor), input);
 }

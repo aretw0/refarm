@@ -141,9 +141,21 @@ pub(crate) fn validate_tool_input(
     if validator.is_valid(input) {
         return Ok(());
     }
-    // Fold the violations into one compact, deterministic, model-readable line.
-    let mut messages: Vec<String> =
-        validator.iter_errors(input).map(|e| e.to_string()).collect();
+    // Fold the violations into one compact, deterministic, model-readable line. Prefix each with its
+    // JSON-pointer instance path (e.g. `/limit`) so a type/enum error NAMES the offending field — the way
+    // a `required` error already names the missing property in its message. This lets the model (and the
+    // cross-language conformance fixture) pin the fault to a field identically to every TS surface.
+    let mut messages: Vec<String> = validator
+        .iter_errors(input)
+        .map(|e| {
+            let path = e.instance_path().as_str();
+            if path.is_empty() {
+                e.to_string()
+            } else {
+                format!("{path}: {e}")
+            }
+        })
+        .collect();
     messages.sort();
     messages.dedup();
     Err(format!("invalid tool input: {}", messages.join("; ")))
@@ -601,10 +613,12 @@ mod capability_tools_pure_tests {
     }
 
     #[test]
-    fn validate_tool_input_rejects_a_wrongly_typed_arg() {
+    fn validate_tool_input_rejects_a_wrongly_typed_arg_and_names_it() {
         // `limit` must be an integer; the model sent a string.
         let input = serde_json::json!({ "query": "notes", "limit": "five" });
-        assert!(validate_tool_input(&typed_schema(), &input).is_err());
+        let err = validate_tool_input(&typed_schema(), &input).unwrap_err();
+        // The JSON-pointer path names the offending field, so the model can self-correct.
+        assert!(err.contains("limit"), "expected the field named, got: {err}");
     }
 
     #[test]
@@ -615,7 +629,8 @@ mod capability_tools_pure_tests {
             "required": ["mode"]
         });
         let input = serde_json::json!({ "mode": "sideways" });
-        assert!(validate_tool_input(&schema, &input).is_err());
+        let err = validate_tool_input(&schema, &input).unwrap_err();
+        assert!(err.contains("mode"), "expected the field named, got: {err}");
     }
 
     #[test]
@@ -632,5 +647,56 @@ mod capability_tools_pure_tests {
         // The bare `{type:object}` shape enforces only "is an object" — a no-arg/opaque verb.
         let schema = serde_json::json!({ "type": "object" });
         assert!(validate_tool_input(&schema, &serde_json::json!({ "x": 1 })).is_ok());
+    }
+
+    #[test]
+    fn validate_tool_input_matches_ts_conformance_fixture() {
+        // The SAME fixture the TS Ajv validator drives in capabilities-v1's verb-schema-validation.test:
+        // one schema (resolved from `expected` by pluginId+verb), the SAME inputs, the SAME per-field
+        // verdicts. This proves the Rust host (the agent-tool + plugin→plugin legs) validates identically
+        // to every TS surface — the "declare once → validated the same on every surface" invariant made
+        // executable across the RS↔TS boundary. Cases are coercion-stable (the fixture's `validationNote`).
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../capabilities-v1/fixtures/plugin-surface-verbs.json"
+        ))
+        .expect("valid plugin surface verb fixture");
+
+        let expected = fixture["expected"].as_array().expect("expected array");
+        let resolve_schema = |plugin_id: &str, verb: &str| -> serde_json::Value {
+            expected
+                .iter()
+                .find(|e| e["pluginId"] == plugin_id && e["verb"] == verb)
+                .map(|e| e["schema"].clone())
+                .filter(|s| !s.is_null())
+                .unwrap_or_else(|| panic!("fixture has no schema for {plugin_id}:{verb}"))
+        };
+
+        let entries = fixture["validation"].as_array().expect("validation array");
+        assert!(entries.len() >= 2, "expected validation cases in the fixture");
+        for entry in entries {
+            let plugin_id = entry["pluginId"].as_str().expect("pluginId");
+            let verb = entry["verb"].as_str().expect("verb");
+            let schema = resolve_schema(plugin_id, verb);
+            for case in entry["cases"].as_array().expect("cases array") {
+                let input = &case["input"];
+                let want_valid = case["valid"].as_bool().expect("valid flag");
+                let result = validate_tool_input(&schema, input);
+                assert_eq!(
+                    result.is_ok(),
+                    want_valid,
+                    "{plugin_id}:{verb} input {input} — want valid={want_valid}, got {result:?}"
+                );
+                if !want_valid {
+                    let field = case["errorField"]
+                        .as_str()
+                        .expect("errorField on an invalid case");
+                    let err = result.unwrap_err();
+                    assert!(
+                        err.contains(field),
+                        "{plugin_id}:{verb} input {input} — error must name `{field}`, got: {err}"
+                    );
+                }
+            }
+        }
     }
 }
