@@ -76,6 +76,13 @@ esac
 
 PACKAGE_AUDIT_HIGH=$(audit_high_command_for_package_manager "$PACKAGE_MANAGER" 2>/dev/null || printf "%s audit" "$PACKAGE_MANAGER")
 TURBO_LOCAL_CONCURRENCY_ARGS="--concurrency=2"
+# Type-check (tsc --noEmit) is memory-light (~300-500MB/pkg) and does NOT share the RAM
+# constraint that keeps the Rust-compiling lint/test steps at 2. A core-package change makes
+# the scoped type-check cover ~50 dependents; at concurrency=2 that exceeded the timeout on
+# GREEN code (a false STRICT block). Higher concurrency for type-check only keeps it well under
+# budget while staying within the ~8GB envelope (4 workers × ~400-800MB tsc peak). See
+# docs + 'pnpm run verify' for the durable full-fidelity reproduction of this gate.
+TURBO_TYPECHECK_CONCURRENCY_ARGS="--concurrency=4"
 TURBO_CACHE_DIR="\${TURBO_CACHE_DIR:-\${TMPDIR:-/tmp}/refarm-turbo-cache}"
 export TURBO_CACHE_DIR
 mkdir -p "$TURBO_CACHE_DIR" 2>/dev/null || true
@@ -487,7 +494,7 @@ else
 
     if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_TYPECHECK -eq 0 ]; then
       echo "   🔎 Turbo scoped type-check for changed workspaces"
-      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run type-check $TURBO_LOCAL_CONCURRENCY_ARGS $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+      if timeout 420 env CI=1 $PACKAGE_EXEC turbo run type-check $TURBO_TYPECHECK_CONCURRENCY_ARGS $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
         echo "   ✅ Turbo type-check passed"
         mark_lane_validated "type-check"
       else
@@ -511,7 +518,7 @@ else
         fi
       fi
     else
-      if timeout 300 env CI=1 $PACKAGE_EXEC turbo run type-check $TURBO_LOCAL_CONCURRENCY_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+      if timeout 420 env CI=1 $PACKAGE_EXEC turbo run type-check $TURBO_TYPECHECK_CONCURRENCY_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
         echo "   ✅ Global Turbo type-check passed"
         mark_lane_validated "type-check"
       else

@@ -72,6 +72,8 @@
 		"test:coverage": "turbo run test:coverage --",
 		"perf:baseline:prepush": "node scripts/perf/prepush-baseline.mjs --out artifacts/perf/prepush-baseline.csv",
 		"type-check": "turbo type-check --output-logs=new-only --ui=stream",
+		"verify": "node scripts/verify-changed.mjs",
+		"verify:test": "node --test scripts/verify-changed.test.mjs",
 		"type-check:dist": "turbo type-check:dist --output-logs=new-only --ui=stream",
 		"tsconfig:guard": "node scripts/ci/tsconfig-guard.mjs",
 		"tsconfig:guard:test": "node --test scripts/ci/test-tsconfig-guard.mjs",

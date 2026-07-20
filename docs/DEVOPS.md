@@ -54,6 +54,35 @@ interrupted after a lane passes, the next attempt skips that lane for the same
 SHA instead of recomputing it. Full successful pre-push runs are still recorded
 in `.git/.refarm-prepush-validated-shas`.
 
+### `pnpm run verify` — faithful gate reproduction (no timeout box)
+
+The pre-push type-check is time-boxed. A change to a **core package** (e.g.
+`@refarm.dev/capabilities`) fans out the scoped type-check to ~50 dependents;
+under the hook's conservative concurrency this could exceed the box and STRICT-block
+**green** code — a false negative, not a real failure. Two things address this:
+
+1. **The hook gives type-check its own concurrency.** `tsc --noEmit` is
+   memory-light and does not share the RAM constraint that keeps the Rust-compiling
+   lint/test lanes at `--concurrency=2`. Type-check runs at `--concurrency=4`
+   (`TURBO_TYPECHECK_CONCURRENCY_ARGS` in `scripts/install-git-hooks.mjs`), so the
+   scoped run stays well under budget. Re-install after editing the hook source:
+   `pnpm run hooks:install`.
+2. **`pnpm run verify` reproduces the whole gate on demand, without the timeout.**
+   It runs the SAME turbo tasks (type-check → lint → test) over the changed packages
+   **and their dependents**, each at the concurrency it can afford. If it's green,
+   the code is genuinely green:
+
+   ```bash
+   pnpm run verify                              # changed-since-origin/develop + dependents
+   pnpm run verify @refarm.dev/capabilities     # a specific package + its dependents
+   pnpm run verify --base main --no-tests       # different base ref, skip the test lane
+   ```
+
+   If the hook's type-check still times out on an unusually large change, run
+   `pnpm run verify` first; once it is green, `git push --no-verify` is justified —
+   the gate has already passed. (The filter-building core is unit-tested:
+   `pnpm run verify:test`.)
+
 ## Dev Container Setup
 
 ### Overview
