@@ -87,6 +87,7 @@
 		"repo:complexity:test": "node --test scripts/ci/test-repo-complexity-check.mjs",
 		"text-quality:test": "node --test scripts/ci/test-text-quality-lib.mjs",
 		"docs:text-quality": "node scripts/ci/check-text-quality.mjs docs/ENVIRONMENT_SUBSTRATE_INVENTORY.md docs/NIXOS_CURATED_RUNTIME_STRATEGY.md docs/POC_VALIDATION_PRESSURE.md docs/POC_PRIZE_READINESS.md docs/POC_WRITING_HANDOFF.md docs/POC_DEMONSTRATION_PACKET.md docs/TEXT_QUALITY_CONFIG.md docs/VAULT_SEED_CONVERGENCE.md",
+		"writeup:captures": "node scripts/capture-writeup-assets.mjs",
 		"docs:actionability:check": "node scripts/ci/check-spec-actionability.mjs",
 		"docs:actionability:check:all": "node scripts/ci/check-spec-actionability.mjs --all",
 		"docs:actionability:check:strict": "node scripts/ci/check-spec-actionability.mjs --strict",
