@@ -7,6 +7,36 @@ CLI is built (`pnpm --filter <example> build`); swap `<cli>` for `dgk` (or a whi
 > Convention: **PRINT** = terminal screenshot · **SHOT** = browser screenshot · **FILE** = keep the
 > emitted artifact (path noted). Prefer a real TTY for terminal shots so color + borders render.
 
+## Automação rápida
+
+Para gerar um pacote regenerável de prints + registros para o agente escritor:
+
+```bash
+pnpm run writeup:captures
+# ou, sem depender do wrapper pnpm:
+node scripts/capture-writeup-assets.mjs
+```
+
+Saída padrão: `.dgk/writeup-captures/<timestamp>/` (ignorado pelo git), com:
+
+- `png/` — screenshots prontos para colar no vault ou documento;
+- `html/` — fonte reprodutível de cada screenshot;
+- `svg/` e `diagrams/` — grafos/diagramas vetoriais;
+- `records/` — `T1-report.md`, `T2-report.md`, `T3-report.md` e SVGs de relatório;
+- `INDEX.md` — tabela com legenda curta, claim sustentado e comando de origem.
+
+Opções úteis:
+
+```bash
+node scripts/capture-writeup-assets.mjs --out "$HOME/git/vault/20 - Projects/Prêmio Serpro de Inovação/refarm-captures"
+node scripts/capture-writeup-assets.mjs --only t3
+node scripts/capture-writeup-assets.mjs --no-screenshots   # gera HTML/SVG/records sem Chrome
+```
+
+O script usa os CLIs já compilados em `examples/*/dist/cli.js` e `google-chrome` em modo headless
+para transformar os fragments HTML/SVG dos exemplos em PNG. Se um CLI ainda não existir, rode o build
+escopado do exemplo ou use `--build`.
+
 ## 1. One declaration → every surface (the invariant)
 
 The spine of the whole system: a verb declared once appears on the CLI, the web, the agent, and the
