@@ -92,10 +92,30 @@ export class FileSystemAuditor {
 		);
 	}
 
+	/**
+	 * The pattern dialect this audit understands: `**\/*<suffix>` (any path ending in suffix),
+	 * `**\/<path>` (that path at any depth), `<prefix>/**` (anything under prefix), or an exact
+	 * path.
+	 *
+	 * `**\/<path>` was added because without it a caller writing `**\/src/bindings.rs` — a valid
+	 * glob elsewhere — fell through to exact equality and silently matched nothing. A pattern
+	 * language that treats what it does not understand as a literal gives back a rule that looks
+	 * configured and does nothing.
+	 */
+	/** Test seam for the pattern dialect — the rule is private, its behaviour is worth asserting. */
+	static __testMatchesPattern(value, pattern) {
+		return FileSystemAuditor.#matchesPattern(value, pattern);
+	}
+
 	static #matchesPattern(value, pattern) {
 		const normalizedPattern = pattern.split(path.sep).join("/");
+		// `**/*` first: its tail is a SUFFIX (".d.ts"), not a path segment.
 		if (normalizedPattern.startsWith("**/*")) {
 			return value.endsWith(normalizedPattern.slice(4));
+		}
+		if (normalizedPattern.startsWith("**/")) {
+			const tail = normalizedPattern.slice(3);
+			return value === tail || value.endsWith(`/${tail}`);
 		}
 		if (normalizedPattern.endsWith("/**")) {
 			return value.startsWith(normalizedPattern.slice(0, -2));

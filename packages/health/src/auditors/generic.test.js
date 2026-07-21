@@ -13,6 +13,19 @@ function writeFile(relativePath, content = "") {
 }
 
 describe("FileSystemAuditor", () => {
+	it("matches a path at any depth with a leading **/ — and still matches nothing it should not", async () => {
+		// A generated bindings file lives at packages/<any>/src/bindings.rs. Before `**/` was a
+		// supported form, this pattern fell through to exact equality and quietly matched nothing,
+		// so every WASM package added kept showing up as a finding.
+		// Called unconditionally: a guard here would let the test pass by skipping itself.
+		const matches = (value) =>
+			FileSystemAuditor.__testMatchesPattern(value, "**/src/bindings.rs");
+		expect(matches("packages/agent/src/bindings.rs")).toBe(true);
+		expect(matches("src/bindings.rs")).toBe(true);
+		expect(matches("packages/agent/src/other.rs")).toBe(false);
+		expect(matches("packages/agent/generated/bindings.rs")).toBe(false);
+	});
+
 	beforeEach(() => {
 		rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-health-fs-"));
 		fs.mkdirSync(path.join(rootDir, ".git"));

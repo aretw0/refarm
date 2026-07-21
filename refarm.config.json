@@ -1,992 +1,992 @@
 {
-  "providers": {
-    "github": {
-      "scopes": "repo read:org"
-    }
-  },
-  "brand": {
-    "scopes": {
-      "dev": "@aretw0",
-      "me": "@aretw0",
-      "social": "@aretw0"
-    },
-    "scopeProfiles": {
-      "personal": {
-        "dev": "@aretw0",
-        "me": "@aretw0",
-        "social": "@aretw0"
-      },
-      "organization": {
-        "dev": "@refarm.dev",
-        "me": "@refarm.me",
-        "social": "@refarm.social"
-      }
-    },
-    "activeScopeProfile": "personal",
-    "scopeAssignments": {
-      "default": "dev",
-      "apps/me": "me",
-      "packages/identity-nostr": "me"
-    }
-  },
-  "mode": "persistent",
-  "storage": "opfs",
-  "health": {
-    "workspaceRoots": [
-      "packages",
-      "apps"
-    ],
-    "exemptPackageIds": [
-      "packages/deps",
-      "packages/heartwood",
-      "packages/tsconfig"
-    ],
-    "ignoredGitVisibilityPatterns": [
-      "**/*.d.ts",
-      "packages/agent/src/bindings.rs",
-      "packages/enrichment-provider-ref/pkg-plugin/**",
-      "packages/quality-checker-plugin/pkg-plugin/**",
-      "packages/source-provider-ref/pkg-plugin/**",
-      "packages/vault-surface-ref/pkg-plugin/**",
-      "validations/sqlite-benchmark/browser/public/sqlite3-opfs-async-proxy.js",
-      "validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs"
-    ],
-    "title": "Refarm Monorepo Health"
-  },
-  "workspaceProtection": {
-    "enabled": true,
-    "hostWriteLock": true,
-    "marker": ".refarm/devcontainer-workspace.env",
-    "roots": [
-      ".cargo",
-      ".changeset",
-      ".devcontainer",
-      ".github",
-      ".git",
-      ".refarm",
-      "apps",
-      "docs",
-      "locales",
-      "packages",
-      "roadmaps",
-      "scripts",
-      "specs",
-      "validations",
-      "wit"
-    ],
-    "pruneDirNames": [
-      "node_modules",
-      ".cache",
-      ".turbo",
-      "dist",
-      "build",
-      "target"
-    ]
-  },
-  "environmentCeilings": {
-    "schemaVersion": 1,
-    "status": "enforced",
-    "source": "ADR-078",
-    "scope": "local-devcontainer",
-    "enforcement": "cgroup-v2",
-    "cgroupVersion": 2,
-    "slices": {
-      "control": {
-        "purpose": "Keep agent controllers and the refarm runtime responsive while workloads fail in their own slice.",
-        "pidsMax": 256,
-        "memoryMinMiB": 1024,
-        "memoryHighMiB": 2048,
-        "memoryMaxMiB": 2048,
-        "cpuWeight": 100,
-        "oomScoreAdj": -500
-      },
-      "workload": {
-        "purpose": "Contain builds, tests, package-manager work, cargo, and turbo fan-out.",
-        "pidsMax": 768,
-        "memoryHighMiB": 3072,
-        "memoryMaxMiB": 4096,
-        "cpuWeight": 200,
-        "oomScoreAdj": 500
-      },
-      "agent": {
-        "purpose": "Bound each individual coding-agent session beneath the shared control plane.",
-        "pidsMax": 192,
-        "memoryMinMiB": 512,
-        "memoryHighMiB": 1024,
-        "memoryMaxMiB": 1536,
-        "cpuWeight": 100,
-        "oomScoreAdj": -250
-      }
-    },
-    "heavyLanes": {
-      "strictPressureGate": true,
-      "serializedLock": ".refarm/locks/heavy-lane.lock",
-      "maxConcurrency": 1,
-      "workClasses": [
-        "package-check",
-        "broad-check",
-        "worker-fanout",
-        "mutation"
-      ]
-    }
-  },
-  "workspaceNamespaces": {
-    ".pi": {
-      "owner": "pi-stack",
-      "purpose": "Versioned Pi monitors and companion agent guardrails used while Refarm remains compatible with Pi workflows.",
-      "persistence": "versioned",
-      "access": "readWrite"
-    },
-    ".pi-lens": {
-      "owner": "pi-lens",
-      "purpose": "Ignored local analysis cache produced by Pi Lens integrations.",
-      "persistence": "ignored",
-      "access": "readWrite"
-    },
-    ".project": {
-      "owner": "pi-project-workflows",
-      "purpose": "Versioned project planning, handoff, decision, task, and verification state shared with Pi project workflows.",
-      "persistence": "versioned",
-      "access": "readWrite"
-    },
-    ".vscode": {
-      "owner": "workspace-editor",
-      "purpose": "Versioned editor task definitions for the shared development workspace.",
-      "persistence": "versioned",
-      "access": "readWrite"
-    },
-    ".workflows": {
-      "owner": "pi-project-workflows",
-      "purpose": "Ignored local workflow integration state that may be produced by project workflow tools.",
-      "persistence": "ignored",
-      "access": "readWrite"
-    }
-  },
-  "plugins": {
-    "autoInstall": []
-  },
-  "releasePolicy": {
-    "policyVersion": "2026-01",
-    "mode": "changeset",
-    "providers": [
-      {
-        "id": "changesets",
-        "type": "changesets",
-        "supportsPublish": true,
-        "supportsDryRun": true,
-        "publishCommands": [
-          "pnpm changeset version",
-          "pnpm changeset publish"
-        ],
-        "publishDryRunCommands": [
-          "pnpm changeset version"
-        ],
-        "publishRequiresManualApproval": true
-      },
-      {
-        "id": "legacy-tags",
-        "type": "legacy-tag",
-        "supportsPublish": false,
-        "supportsDryRun": false
-      }
-    ],
-    "defaultSelection": "kernel-candidates",
-    "selections": [
-      {
-        "id": "kernel-candidates",
-        "description": "First-release kernel candidates for daily-driver planning.",
-        "profileTags": [
-          "kernel",
-          "candidate"
-        ]
-      },
-      {
-        "id": "kernel-contracts",
-        "description": "All kernel contract packages tracked by release policy.",
-        "profileTags": [
-          "kernel-contract"
-        ]
-      },
-      {
-        "id": "vault-seed-ready",
-        "description": "Consumer-pulled packages that vault-seed can adopt before the full daily-driver release.",
-        "audienceBoundary": {
-          "consumer": "vault-seed",
-          "naming": "product-neutral-sdk",
-          "productLocal": "Vault-specific CLI labels, copy, notebooks, routes, and UX stay downstream-owned."
-        },
-        "profileTags": [
-          "vault-seed-ready"
-        ]
-      }
-    ],
-    "packageProfiles": [
-      {
-        "id": "@refarm.dev/storage-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "tags": [
-          "contract",
-          "kernel",
-          "kernel-contract",
-          "candidate",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "consumer-proven"
-        ],
-        "consumerPull": {
-          "proofId": "credentials-storage-contract.transitive-wallet-support",
-          "downstreamUse": "storage:v1 contract support for credentials:v1 wallet store/list/remove",
-          "proofTarget": "vault-seed vendors storage-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present -> wallet",
-          "ownershipBoundary": "Durable wallet persistence, retention, encryption policy, and wallet UX remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/sync-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "tags": [
-          "contract",
-          "kernel",
-          "kernel-contract",
-          "candidate"
-        ]
-      },
-      {
-        "id": "@refarm.dev/identity-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "tags": [
-          "contract",
-          "kernel",
-          "kernel-contract",
-          "candidate",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "consumer-proven"
-        ],
-        "consumerPull": {
-          "proofId": "credentials-identity-contract.transitive-signature-support",
-          "downstreamUse": "identity:v1 contract support for credentials:v1 issuer and holder proofs",
-          "proofTarget": "vault-seed vendors identity-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present",
-          "ownershipBoundary": "Issuer trust, DID methods, account recovery, and identity UX remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/storage-memory",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/storage-memory run lint",
-          "pnpm --filter @refarm.dev/storage-memory run test:conformance",
-          "pnpm --filter @refarm.dev/storage-memory run build"
-        ],
-        "tags": [
-          "storage",
-          "reference-implementation",
-          "t2-reference",
-          "reference-proven",
-          "boundary-review",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "consumer-proven"
-        ],
-        "consumerPull": {
-          "proofId": "credentials-storage-memory.reference-wallet",
-          "downstreamUse": "Volatile storage:v1 implementation for credentials smoke and consumer-contract wallet proofs",
-          "proofTarget": "sovereign-citizen:reference:test stores and lists the issued credential through storage-memory",
-          "ownershipBoundary": "Production durability, synchronization, encryption-at-rest, and wallet UX remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/identity-heartwood",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/identity-heartwood run lint",
-          "pnpm --filter @refarm.dev/identity-heartwood run type-check",
-          "pnpm --filter @refarm.dev/identity-heartwood run test:conformance",
-          "pnpm --filter @refarm.dev/identity-heartwood run build"
-        ],
-        "tags": [
-          "identity",
-          "crypto",
-          "t2-reference",
-          "reference-proven",
-          "boundary-review",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "consumer-proven"
-        ],
-        "consumerPull": {
-          "proofId": "credentials-identity-heartwood.reference-signature",
-          "downstreamUse": "Heartwood-backed identity:v1 issuer and holder signatures for the credentials smoke",
-          "proofTarget": "sovereign-citizen:reference:test proves real Ed25519 issue and present signatures through identity:v1",
-          "ownershipBoundary": "Trust registry, default identity provider choice, secret persistence, and DID resolution remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/credentials-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/credentials-contract-v1 run lint",
-          "pnpm --filter @refarm.dev/credentials-contract-v1 run type-check",
-          "pnpm --filter @refarm.dev/credentials-contract-v1 run test:conformance",
-          "pnpm --filter @refarm.dev/credentials-contract-v1 run build",
-          "pnpm run sovereign-citizen:reference:test"
-        ],
-        "tags": [
-          "credentials",
-          "contract",
-          "t2-reference",
-          "reference-proven",
-          "boundary-review",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "consumer-proven"
-        ],
-        "consumerPull": {
-          "proofId": "credentials-contract.issue-verify-present-wallet",
-          "downstreamUse": "credentials:v1 contract for issue, policy-driven verify, present, store, list, remove, and revoke seams before VC UX",
-          "proofTarget": "vault-seed vendors credentials-contract-v1 early and proves issuer/verifier/wallet seams with trustedIssuers, trustSelf, holder-binding, and local signed status-list revocation checks before headspace UX",
-          "ownershipBoundary": "Issuer authorities, credential schemas, trust registry sources, remote status-list distribution, trust UI, and domain vocabulary remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/artifact-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "tags": [
-          "contract",
-          "kernel",
-          "kernel-contract",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "review"
-        ],
-        "consumerPull": {
-          "proofId": "artifact-contract.lab-outbox-evidence",
-          "downstreamUse": "Lab datasets, publication outbox, and notebook snapshot evidence",
-          "proofTarget": "vault-seed emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
-          "ownershipBoundary": "Vault schemas, notebook UX, and frontmatter remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/channel-policy-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "tags": [
-          "contract",
-          "kernel",
-          "kernel-contract",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "candidate"
-        ],
-        "consumerPull": {
-          "proofId": "channel-policy.telegram-delivery-envelope",
-          "downstreamUse": "Channel destinations, rate limits, receipts, dry-run, and review gates",
-          "proofTarget": "vault-seed Telegram adapter emits refarm.channel-delivery-envelope.v1",
-          "ownershipBoundary": "Provider API calls, copy formatting, and inbox/outbox UX remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/automation-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "tags": [
-          "contract",
-          "kernel",
-          "kernel-contract",
-          "review"
-        ]
-      },
-      {
-        "id": "@refarm.dev/effort-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "tags": [
-          "contract",
-          "kernel",
-          "kernel-contract",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "review"
-        ],
-        "consumerPull": {
-          "proofId": "effort-contract.dgk-effort-evidence",
-          "downstreamUse": "Reusable task/effort evidence for dgk operations and handoffs",
-          "proofTarget": "dgk process flows attach effort identifiers to emitted evidence",
-          "ownershipBoundary": "dgk command vocabulary and operator UX remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/quality-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/quality-contract-v1 run lint",
-          "pnpm --filter @refarm.dev/quality-contract-v1 run type-check",
-          "pnpm --filter @refarm.dev/quality-contract-v1 run test:conformance",
-          "pnpm --filter @refarm.dev/quality-contract-v1 run build"
-        ],
-        "tags": [
-          "quality",
-          "contract",
-          "sdk-primitive",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "boundary-review"
-        ],
-        "consumerPull": {
-          "proofId": "quality-contract.declared-lint-envelope",
-          "downstreamUse": "Declared quality/lint profiles and reports for text, UI, and checker plugin POCs",
-          "proofTarget": "vault-seed and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
-          "ownershipBoundary": "Rule catalogs, severity policy, product copy, personas, and rendered-subject collection remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/local-surface",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/local-surface run lint",
-          "pnpm --filter @refarm.dev/local-surface run type-check",
-          "pnpm --filter @refarm.dev/local-surface run test",
-          "pnpm --filter @refarm.dev/local-surface run build",
-          "pnpm run local-surface:docs:test"
-        ],
-        "tags": [
-          "local-surface",
-          "ui",
-          "consumer-pulled",
-          "consumer-proven",
-          "vault-seed-ready",
-          "candidate"
-        ],
-        "consumerPull": {
-          "proofId": "local-surface.white-label-operator-proof",
-          "downstreamUse": "Local-first white-label operator surface for vault tasks and agent handoffs",
-          "proofTarget": "vault-seed can build a local-surface:v1 manifest, DS-backed HTML, white-label launch plan, and quality:v1 report while keeping routes, screenshots, provider adapters, and product vocabulary downstream-owned",
-          "ownershipBoundary": "Server binding, route branding, storage adapters, provider setup, screenshots, and product UX remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/session-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "tags": [
-          "contract",
-          "kernel",
-          "kernel-contract",
-          "integration-hold"
-        ]
-      },
-      {
-        "id": "@refarm.dev/task-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "tags": [
-          "contract",
-          "kernel",
-          "kernel-contract",
-          "integration-hold"
-        ]
-      },
-      {
-        "id": "@refarm.dev/stream-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "tags": [
-          "contract",
-          "kernel",
-          "kernel-contract",
-          "review"
-        ]
-      },
-      {
-        "id": "@refarm.dev/context-provider-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "tags": [
-          "contract",
-          "kernel",
-          "kernel-contract",
-          "review"
-        ]
-      },
-      {
-        "id": "@refarm.dev/source-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/source-contract-v1 run test:conformance",
-          "pnpm --filter @refarm.dev/source-contract-v1 run build"
-        ],
-        "tags": [
-          "librarian",
-          "source",
-          "contract",
-          "sdk-primitive",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "boundary-review",
-          "consumer-proven"
-        ],
-        "consumerPull": {
-          "proofId": "requirements-source-contract.transitive-source-web-support",
-          "downstreamUse": "source:v1 contract support for the source-web vendor packet",
-          "proofTarget": "vault-seed vendors source-contract-v1 as the source-web transitive override while proving source-web -> records:v1 -> enrichment:v1 composition",
-          "ownershipBoundary": "Concrete login, selectors, and source profile vocabulary remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/source-git",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/source-git run test:conformance",
-          "pnpm --filter @refarm.dev/source-git run build"
-        ],
-        "tags": [
-          "librarian",
-          "source",
-          "adapter",
-          "sdk-primitive",
-          "boundary-review",
-          "candidate-hold"
-        ]
-      },
-      {
-        "id": "@refarm.dev/source-local",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/source-local run test:conformance",
-          "pnpm --filter @refarm.dev/source-local run build"
-        ],
-        "tags": [
-          "librarian",
-          "source",
-          "adapter",
-          "sdk-primitive",
-          "boundary-review",
-          "candidate-hold"
-        ]
-      },
-      {
-        "id": "@refarm.dev/source-web",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/source-web run lint",
-          "pnpm --filter @refarm.dev/source-web run type-check",
-          "pnpm --filter @refarm.dev/source-web run test:conformance",
-          "pnpm --filter @refarm.dev/source-web run build"
-        ],
-        "tags": [
-          "librarian",
-          "source",
-          "adapter",
-          "sdk-primitive",
-          "requirements-supply",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "boundary-review",
-          "consumer-proven"
-        ],
-        "consumerPull": {
-          "proofId": "requirements-source-web.authenticated-capture",
-          "downstreamUse": "Authenticated source capture fixture feeding requirement-like records",
-          "proofTarget": "vault-seed wraps source-web with real checkout-owned source behavior and proves redacted source:v1 snapshots compose into records:v1 and enrichment:v1",
-          "ownershipBoundary": "Real credentials, discovery, selectors, pacing values, and source-specific ETL profiles remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/enrichment-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/enrichment-contract-v1 run lint",
-          "pnpm --filter @refarm.dev/enrichment-contract-v1 run type-check",
-          "pnpm --filter @refarm.dev/enrichment-contract-v1 run test:conformance",
-          "pnpm --filter @refarm.dev/enrichment-contract-v1 run build"
-        ],
-        "tags": [
-          "contract",
-          "sdk-primitive",
-          "requirements-supply",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "boundary-review",
-          "consumer-proven"
-        ],
-        "consumerPull": {
-          "proofId": "requirements-enrichment.private-provider-wrapper",
-          "downstreamUse": "Deterministic enrichment report contract for records and note projections",
-          "proofTarget": "vault-seed emits enrichment:v1 reports from checkout-owned providers while the package supplies only the neutral contract and fixture provider",
-          "ownershipBoundary": "Private registries, lookup adapters, tag vocabulary, and domain enrichment rules remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/records-contract-v1",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/records-contract-v1 run lint",
-          "pnpm --filter @refarm.dev/records-contract-v1 run type-check",
-          "pnpm --filter @refarm.dev/records-contract-v1 run test:conformance",
-          "pnpm --filter @refarm.dev/records-contract-v1 run test:unit",
-          "pnpm --filter @refarm.dev/records-contract-v1 run build"
-        ],
-        "tags": [
-          "contract",
-          "sdk-primitive",
-          "requirements-supply",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "boundary-review",
-          "consumer-proven"
-        ],
-        "consumerPull": {
-          "proofId": "requirements-records.knowledge-manifest",
-          "downstreamUse": "Neutral records:v1 manifest for source-linked knowledge/content evidence",
-          "proofTarget": "vault-seed validates requirement-like records and notes-to-records projections through records:v1 with a clean reference-vault composition proof",
-          "ownershipBoundary": "PARA placement, editorial model, note rendering, and domain labels remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/content-projection",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/content-projection run lint",
-          "pnpm --filter @refarm.dev/content-projection run type-check",
-          "pnpm --filter @refarm.dev/content-projection run test:conformance",
-          "pnpm --filter @refarm.dev/content-projection run build"
-        ],
-        "tags": [
-          "projection",
-          "sdk-primitive",
-          "requirements-supply",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "boundary-review",
-          "candidate"
-        ],
-        "consumerPull": {
-          "proofId": "content-projection.markdown-mdx-records",
-          "downstreamUse": "Markdown/MDX frontmatter, wikilink, and inline-link projection into records:v1",
-          "proofTarget": "vault-seed can replace local note-to-record, wikilink, and inline-link projection helpers with the generic projection block while retaining its product configuration",
-          "ownershipBoundary": "PARA folder mapping, note vocabulary, Obsidian/Foam conventions, and rendering remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/ds-astro",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/ds-astro run lint",
-          "pnpm --filter @refarm.dev/ds-astro run type-check",
-          "pnpm --filter @refarm.dev/ds-astro run test",
-          "pnpm --filter @refarm.dev/ds-astro run build",
-          "node scripts/ci/test-ds-astro-mdx-proof.mjs",
-          "pnpm -C apps/site run build"
-        ],
-        "tags": [
-          "ui",
-          "render-adapter",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "boundary-review",
-          "candidate"
-        ],
-        "consumerPull": {
-          "proofId": "ds-astro.mdx-render-adapter",
-          "downstreamUse": "Sanctioned Astro/MDX component embed set over Refarm DS classes and CSS",
-          "proofTarget": "vault-seed can replace local dgk/vault/astro block packages with @refarm.dev/ds-astro imports while keeping product-specific MDX copy and route semantics downstream",
-          "ownershipBoundary": "PARA labels, notebook/editorial vocabulary, custom routes, and product-specific blocks remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/cli",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/cli run build",
-          "pnpm --filter @refarm.dev/cli exec vitest run"
-        ],
-        "tags": [
-          "kernel",
-          "kernel-primitive",
-          "boundary-review"
-        ]
-      },
-      {
-        "id": "@refarm.dev/process-handoff",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/process-handoff run lint",
-          "pnpm --filter @refarm.dev/process-handoff run type-check",
-          "pnpm --filter @refarm.dev/process-handoff run test",
-          "pnpm --filter @refarm.dev/process-handoff run build"
-        ],
-        "tags": [
-          "process",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "candidate",
-          "build-free"
-        ],
-        "consumerPull": {
-          "proofId": "process-handoff.dgk-runner-adapter",
-          "downstreamUse": "Structured process runner primitive for dgk-runner and dgk-cli internals",
-          "proofTarget": "dgk-runner keeps run(cmd, args, opts) while using process-handoff internally",
-          "ownershipBoundary": "dgk package names, binary, commands, and product labels remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/config",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/config exec vitest run"
-        ],
-        "tags": [
-          "kernel",
-          "kernel-primitive",
-          "boundary-review"
-        ]
-      },
-      {
-        "id": "@refarm.dev/health",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/health run lint",
-          "pnpm --filter @refarm.dev/health run test",
-          "pnpm --filter @refarm.dev/health run build"
-        ],
-        "tags": [
-          "health",
-          "kernel-primitive",
-          "sdk-primitive",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "boundary-review"
-        ],
-        "consumerPull": {
-          "proofId": "health.toolchain-environment-auditor",
-          "downstreamUse": "Generic doctor/substrate checks for node, pnpm, uv, Python, node_modules, executable shims, and devcontainer mounts",
-          "proofTarget": "vault-seed can replace dgk check-substrate internals with ToolchainAuditor while keeping dgk doctor UX and recovery copy downstream",
-          "ownershipBoundary": "Project-specific command names, setup recommendations, required file policy, and health+quality composition remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/release-engine",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/release-engine run test"
-        ],
-        "tags": [
-          "kernel",
-          "kernel-primitive",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "dogfood"
-        ],
-        "consumerPull": {
-          "proofId": "release-engine.package-acceptance",
-          "downstreamUse": "Package acceptance, release planning, and publish dry-run policy",
-          "proofTarget": "vault-seed release/package smoke consumes release-engine acceptance output",
-          "ownershipBoundary": "Distribution identity, prose, and changelog content remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/ds",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/ds run lint",
-          "pnpm --filter @refarm.dev/ds run type-check",
-          "pnpm --filter @refarm.dev/ds run test",
-          "pnpm --filter @refarm.dev/ds run build"
-        ],
-        "tags": [
-          "ui",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "candidate"
-        ],
-        "consumerPull": {
-          "proofId": "ds.lab-admin-static-document",
-          "downstreamUse": "Lab/admin tokens, verde-jardim theme source, and build-free DS HTML document helpers",
-          "proofTarget": "vault-seed Lab/admin UI imports ds tokens and renders documentHtml through @refarm.dev/ds/html without pulling Homestead",
-          "ownershipBoundary": "PARA vocabulary, editorial copy, and content semantics remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/dispatch-surface",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/dispatch-surface run lint",
-          "pnpm --filter @refarm.dev/dispatch-surface run type-check",
-          "pnpm --filter @refarm.dev/dispatch-surface run test",
-          "pnpm --filter @refarm.dev/dispatch-surface run test:parity",
-          "pnpm run agent-demo:release-proof"
-        ],
-        "tags": [
-          "dispatch",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "candidate"
-        ],
-        "consumerPull": {
-          "proofId": "dispatch-surface.dgk-descriptor",
-          "downstreamUse": "Multi-surface command/action descriptor substrate",
-          "proofTarget": "dgk exposes product commands through dispatch-surface-compatible descriptors",
-          "ownershipBoundary": "Surface labels, routes, and product-specific actions remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/heartwood",
-        "risk": "core",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/heartwood run test"
-        ],
-        "tags": [
-          "crypto",
-          "silo-dependency",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "candidate"
-        ],
-        "consumerPull": {
-          "proofId": "heartwood.silo-crypto-substrate",
-          "downstreamUse": "Shared crypto substrate needed by silo-backed credentials",
-          "proofTarget": "vault-seed credential flow uses silo without local crypto stand-ins",
-          "ownershipBoundary": "Credential policy choices and publishing identities remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/silo",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/silo run lint",
-          "pnpm --filter @refarm.dev/silo run test",
-          "pnpm --filter @refarm.dev/silo run build"
-        ],
-        "tags": [
-          "credentials",
-          "consumer-pulled",
-          "vault-seed-ready",
-          "candidate"
-        ],
-        "consumerPull": {
-          "proofId": "silo.credential-namespaces",
-          "downstreamUse": "Scoped credential collection and secret namespace separation",
-          "proofTarget": "vault-seed stores model/runtime/publishing credentials through silo namespaces",
-          "ownershipBoundary": "Provider-specific publishing adapters and approval workflow remain downstream"
-        }
-      },
-      {
-        "id": "@refarm.dev/trust",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/trust run lint",
-          "pnpm --filter @refarm.dev/trust run type-check",
-          "pnpm --filter @refarm.dev/trust run test",
-          "pnpm --filter @refarm.dev/trust run build"
-        ],
-        "tags": [
-          "trust",
-          "cli-dependency",
-          "candidate"
-        ]
-      },
-      {
-        "id": "@refarm.dev/homestead",
-        "risk": "shared",
-        "mustPassChecks": [
-          "pnpm --filter @refarm.dev/homestead run lint",
-          "pnpm --filter @refarm.dev/homestead run type-check",
-          "pnpm --filter @refarm.dev/homestead run test",
-          "pnpm --filter @refarm.dev/homestead run build"
-        ],
-        "tags": [
-          "ui",
-          "consumer-pulled",
-          "vault-seed-blocked",
-          "dependency-closure-hold"
-        ]
-      },
-      {
-        "id": "@refarm.dev/plugin-manifest",
-        "risk": "plugin",
-        "mustPassChecks": [
-          "pnpm run type-check",
-          "pnpm run test:unit"
-        ],
-        "tags": [
-          "plugin-contract",
-          "reference-hold",
-          "multi-layer-plugin-hold"
-        ]
-      }
-    ],
-    "phases": [
-      {
-        "id": "preflight",
-        "name": "Preflight",
-        "commands": [
-          "git status --porcelain"
-        ],
-        "required": true,
-        "riskWeight": 1
-      },
-      {
-        "id": "quality",
-        "name": "Quality Gates",
-        "commands": [
-          "pnpm run lint",
-          "pnpm run type-check"
-        ],
-        "required": true,
-        "riskWeight": 5
-      },
-      {
-        "id": "contracts",
-        "name": "Contract Smoke",
-        "commands": [
-          "pnpm run gate:smoke:contracts"
-        ],
-        "required": true,
-        "riskWeight": 6
-      },
-      {
-        "id": "runtime-descriptor",
-        "name": "Runtime Descriptor Release Smoke",
-        "commands": [
-          "pnpm run runtime-descriptor:release-smoke -- --sha local"
-        ],
-        "required": true,
-        "riskWeight": 4
-      },
-      {
-        "id": "telemetry",
-        "name": "Telemetry gate",
-        "commands": [
-          "pnpm run refarm:telemetry:gate:ci -- --out .artifacts/release-engine/telemetry-gate.json --timeout-ms 20000"
-        ],
-        "required": false,
-        "riskWeight": 2
-      }
-    ]
-  }
+	"providers": {
+		"github": {
+			"scopes": "repo read:org"
+		}
+	},
+	"brand": {
+		"scopes": {
+			"dev": "@aretw0",
+			"me": "@aretw0",
+			"social": "@aretw0"
+		},
+		"scopeProfiles": {
+			"personal": {
+				"dev": "@aretw0",
+				"me": "@aretw0",
+				"social": "@aretw0"
+			},
+			"organization": {
+				"dev": "@refarm.dev",
+				"me": "@refarm.me",
+				"social": "@refarm.social"
+			}
+		},
+		"activeScopeProfile": "personal",
+		"scopeAssignments": {
+			"default": "dev",
+			"apps/me": "me",
+			"packages/identity-nostr": "me"
+		}
+	},
+	"mode": "persistent",
+	"storage": "opfs",
+	"health": {
+		"workspaceRoots": [
+			"packages",
+			"apps"
+		],
+		"exemptPackageIds": [
+			"packages/deps",
+			"packages/heartwood",
+			"packages/tsconfig"
+		],
+		"ignoredGitVisibilityPatterns": [
+			"**/*.d.ts",
+			"**/src/bindings.rs",
+			"packages/enrichment-provider-ref/pkg-plugin/**",
+			"packages/quality-checker-plugin/pkg-plugin/**",
+			"packages/source-provider-ref/pkg-plugin/**",
+			"packages/vault-surface-ref/pkg-plugin/**",
+			"validations/sqlite-benchmark/browser/public/sqlite3-opfs-async-proxy.js",
+			"validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs"
+		],
+		"title": "Refarm Monorepo Health"
+	},
+	"workspaceProtection": {
+		"enabled": true,
+		"hostWriteLock": true,
+		"marker": ".refarm/devcontainer-workspace.env",
+		"roots": [
+			".cargo",
+			".changeset",
+			".devcontainer",
+			".github",
+			".git",
+			".refarm",
+			"apps",
+			"docs",
+			"locales",
+			"packages",
+			"roadmaps",
+			"scripts",
+			"specs",
+			"validations",
+			"wit"
+		],
+		"pruneDirNames": [
+			"node_modules",
+			".cache",
+			".turbo",
+			"dist",
+			"build",
+			"target"
+		]
+	},
+	"environmentCeilings": {
+		"schemaVersion": 1,
+		"status": "enforced",
+		"source": "ADR-078",
+		"scope": "local-devcontainer",
+		"enforcement": "cgroup-v2",
+		"cgroupVersion": 2,
+		"slices": {
+			"control": {
+				"purpose": "Keep agent controllers and the refarm runtime responsive while workloads fail in their own slice.",
+				"pidsMax": 256,
+				"memoryMinMiB": 1024,
+				"memoryHighMiB": 2048,
+				"memoryMaxMiB": 2048,
+				"cpuWeight": 100,
+				"oomScoreAdj": -500
+			},
+			"workload": {
+				"purpose": "Contain builds, tests, package-manager work, cargo, and turbo fan-out.",
+				"pidsMax": 768,
+				"memoryHighMiB": 3072,
+				"memoryMaxMiB": 4096,
+				"cpuWeight": 200,
+				"oomScoreAdj": 500
+			},
+			"agent": {
+				"purpose": "Bound each individual coding-agent session beneath the shared control plane.",
+				"pidsMax": 192,
+				"memoryMinMiB": 512,
+				"memoryHighMiB": 1024,
+				"memoryMaxMiB": 1536,
+				"cpuWeight": 100,
+				"oomScoreAdj": -250
+			}
+		},
+		"heavyLanes": {
+			"strictPressureGate": true,
+			"serializedLock": ".refarm/locks/heavy-lane.lock",
+			"maxConcurrency": 1,
+			"workClasses": [
+				"package-check",
+				"broad-check",
+				"worker-fanout",
+				"mutation"
+			]
+		}
+	},
+	"workspaceNamespaces": {
+		".pi": {
+			"owner": "pi-stack",
+			"purpose": "Versioned Pi monitors and companion agent guardrails used while Refarm remains compatible with Pi workflows.",
+			"persistence": "versioned",
+			"access": "readWrite"
+		},
+		".pi-lens": {
+			"owner": "pi-lens",
+			"purpose": "Ignored local analysis cache produced by Pi Lens integrations.",
+			"persistence": "ignored",
+			"access": "readWrite"
+		},
+		".project": {
+			"owner": "pi-project-workflows",
+			"purpose": "Versioned project planning, handoff, decision, task, and verification state shared with Pi project workflows.",
+			"persistence": "versioned",
+			"access": "readWrite"
+		},
+		".vscode": {
+			"owner": "workspace-editor",
+			"purpose": "Versioned editor task definitions for the shared development workspace.",
+			"persistence": "versioned",
+			"access": "readWrite"
+		},
+		".workflows": {
+			"owner": "pi-project-workflows",
+			"purpose": "Ignored local workflow integration state that may be produced by project workflow tools.",
+			"persistence": "ignored",
+			"access": "readWrite"
+		}
+	},
+	"plugins": {
+		"autoInstall": []
+	},
+	"releasePolicy": {
+		"policyVersion": "2026-01",
+		"mode": "changeset",
+		"providers": [
+			{
+				"id": "changesets",
+				"type": "changesets",
+				"supportsPublish": true,
+				"supportsDryRun": true,
+				"publishCommands": [
+					"pnpm changeset version",
+					"pnpm changeset publish"
+				],
+				"publishDryRunCommands": [
+					"pnpm changeset version"
+				],
+				"publishRequiresManualApproval": true
+			},
+			{
+				"id": "legacy-tags",
+				"type": "legacy-tag",
+				"supportsPublish": false,
+				"supportsDryRun": false
+			}
+		],
+		"defaultSelection": "kernel-candidates",
+		"selections": [
+			{
+				"id": "kernel-candidates",
+				"description": "First-release kernel candidates for daily-driver planning.",
+				"profileTags": [
+					"kernel",
+					"candidate"
+				]
+			},
+			{
+				"id": "kernel-contracts",
+				"description": "All kernel contract packages tracked by release policy.",
+				"profileTags": [
+					"kernel-contract"
+				]
+			},
+			{
+				"id": "vault-seed-ready",
+				"description": "Consumer-pulled packages that vault-seed can adopt before the full daily-driver release.",
+				"audienceBoundary": {
+					"consumer": "vault-seed",
+					"naming": "product-neutral-sdk",
+					"productLocal": "Vault-specific CLI labels, copy, notebooks, routes, and UX stay downstream-owned."
+				},
+				"profileTags": [
+					"vault-seed-ready"
+				]
+			}
+		],
+		"packageProfiles": [
+			{
+				"id": "@refarm.dev/storage-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"tags": [
+					"contract",
+					"kernel",
+					"kernel-contract",
+					"candidate",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"consumer-proven"
+				],
+				"consumerPull": {
+					"proofId": "credentials-storage-contract.transitive-wallet-support",
+					"downstreamUse": "storage:v1 contract support for credentials:v1 wallet store/list/remove",
+					"proofTarget": "vault-seed vendors storage-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present -> wallet",
+					"ownershipBoundary": "Durable wallet persistence, retention, encryption policy, and wallet UX remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/sync-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"tags": [
+					"contract",
+					"kernel",
+					"kernel-contract",
+					"candidate"
+				]
+			},
+			{
+				"id": "@refarm.dev/identity-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"tags": [
+					"contract",
+					"kernel",
+					"kernel-contract",
+					"candidate",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"consumer-proven"
+				],
+				"consumerPull": {
+					"proofId": "credentials-identity-contract.transitive-signature-support",
+					"downstreamUse": "identity:v1 contract support for credentials:v1 issuer and holder proofs",
+					"proofTarget": "vault-seed vendors identity-contract-v1 as credentials-contract-v1 support while proving issue -> verify -> present",
+					"ownershipBoundary": "Issuer trust, DID methods, account recovery, and identity UX remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/storage-memory",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/storage-memory run lint",
+					"pnpm --filter @refarm.dev/storage-memory run test:conformance",
+					"pnpm --filter @refarm.dev/storage-memory run build"
+				],
+				"tags": [
+					"storage",
+					"reference-implementation",
+					"t2-reference",
+					"reference-proven",
+					"boundary-review",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"consumer-proven"
+				],
+				"consumerPull": {
+					"proofId": "credentials-storage-memory.reference-wallet",
+					"downstreamUse": "Volatile storage:v1 implementation for credentials smoke and consumer-contract wallet proofs",
+					"proofTarget": "sovereign-citizen:reference:test stores and lists the issued credential through storage-memory",
+					"ownershipBoundary": "Production durability, synchronization, encryption-at-rest, and wallet UX remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/identity-heartwood",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/identity-heartwood run lint",
+					"pnpm --filter @refarm.dev/identity-heartwood run type-check",
+					"pnpm --filter @refarm.dev/identity-heartwood run test:conformance",
+					"pnpm --filter @refarm.dev/identity-heartwood run build"
+				],
+				"tags": [
+					"identity",
+					"crypto",
+					"t2-reference",
+					"reference-proven",
+					"boundary-review",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"consumer-proven"
+				],
+				"consumerPull": {
+					"proofId": "credentials-identity-heartwood.reference-signature",
+					"downstreamUse": "Heartwood-backed identity:v1 issuer and holder signatures for the credentials smoke",
+					"proofTarget": "sovereign-citizen:reference:test proves real Ed25519 issue and present signatures through identity:v1",
+					"ownershipBoundary": "Trust registry, default identity provider choice, secret persistence, and DID resolution remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/credentials-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/credentials-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/credentials-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/credentials-contract-v1 run test:conformance",
+					"pnpm --filter @refarm.dev/credentials-contract-v1 run build",
+					"pnpm run sovereign-citizen:reference:test"
+				],
+				"tags": [
+					"credentials",
+					"contract",
+					"t2-reference",
+					"reference-proven",
+					"boundary-review",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"consumer-proven"
+				],
+				"consumerPull": {
+					"proofId": "credentials-contract.issue-verify-present-wallet",
+					"downstreamUse": "credentials:v1 contract for issue, policy-driven verify, present, store, list, remove, and revoke seams before VC UX",
+					"proofTarget": "vault-seed vendors credentials-contract-v1 early and proves issuer/verifier/wallet seams with trustedIssuers, trustSelf, holder-binding, and local signed status-list revocation checks before headspace UX",
+					"ownershipBoundary": "Issuer authorities, credential schemas, trust registry sources, remote status-list distribution, trust UI, and domain vocabulary remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/artifact-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"tags": [
+					"contract",
+					"kernel",
+					"kernel-contract",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"review"
+				],
+				"consumerPull": {
+					"proofId": "artifact-contract.lab-outbox-evidence",
+					"downstreamUse": "Lab datasets, publication outbox, and notebook snapshot evidence",
+					"proofTarget": "vault-seed emits refarm.task-artifacts.v1 manifests from Lab/outbox/notebook producers",
+					"ownershipBoundary": "Vault schemas, notebook UX, and frontmatter remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/channel-policy-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"tags": [
+					"contract",
+					"kernel",
+					"kernel-contract",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"candidate"
+				],
+				"consumerPull": {
+					"proofId": "channel-policy.telegram-delivery-envelope",
+					"downstreamUse": "Channel destinations, rate limits, receipts, dry-run, and review gates",
+					"proofTarget": "vault-seed Telegram adapter emits refarm.channel-delivery-envelope.v1",
+					"ownershipBoundary": "Provider API calls, copy formatting, and inbox/outbox UX remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/automation-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"tags": [
+					"contract",
+					"kernel",
+					"kernel-contract",
+					"review"
+				]
+			},
+			{
+				"id": "@refarm.dev/effort-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"tags": [
+					"contract",
+					"kernel",
+					"kernel-contract",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"review"
+				],
+				"consumerPull": {
+					"proofId": "effort-contract.dgk-effort-evidence",
+					"downstreamUse": "Reusable task/effort evidence for dgk operations and handoffs",
+					"proofTarget": "dgk process flows attach effort identifiers to emitted evidence",
+					"ownershipBoundary": "dgk command vocabulary and operator UX remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/quality-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/quality-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/quality-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/quality-contract-v1 run test:conformance",
+					"pnpm --filter @refarm.dev/quality-contract-v1 run build"
+				],
+				"tags": [
+					"quality",
+					"contract",
+					"sdk-primitive",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"boundary-review"
+				],
+				"consumerPull": {
+					"proofId": "quality-contract.declared-lint-envelope",
+					"downstreamUse": "Declared quality/lint profiles and reports for text, UI, and checker plugin POCs",
+					"proofTarget": "vault-seed and agent-demo POCs can declare quality intentions through quality:v1 while keeping domain profiles downstream-owned",
+					"ownershipBoundary": "Rule catalogs, severity policy, product copy, personas, and rendered-subject collection remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/local-surface",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/local-surface run lint",
+					"pnpm --filter @refarm.dev/local-surface run type-check",
+					"pnpm --filter @refarm.dev/local-surface run test",
+					"pnpm --filter @refarm.dev/local-surface run build",
+					"pnpm run local-surface:docs:test"
+				],
+				"tags": [
+					"local-surface",
+					"ui",
+					"consumer-pulled",
+					"consumer-proven",
+					"vault-seed-ready",
+					"candidate"
+				],
+				"consumerPull": {
+					"proofId": "local-surface.white-label-operator-proof",
+					"downstreamUse": "Local-first white-label operator surface for vault tasks and agent handoffs",
+					"proofTarget": "vault-seed can build a local-surface:v1 manifest, DS-backed HTML, white-label launch plan, and quality:v1 report while keeping routes, screenshots, provider adapters, and product vocabulary downstream-owned",
+					"ownershipBoundary": "Server binding, route branding, storage adapters, provider setup, screenshots, and product UX remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/session-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"tags": [
+					"contract",
+					"kernel",
+					"kernel-contract",
+					"integration-hold"
+				]
+			},
+			{
+				"id": "@refarm.dev/task-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"tags": [
+					"contract",
+					"kernel",
+					"kernel-contract",
+					"integration-hold"
+				]
+			},
+			{
+				"id": "@refarm.dev/stream-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"tags": [
+					"contract",
+					"kernel",
+					"kernel-contract",
+					"review"
+				]
+			},
+			{
+				"id": "@refarm.dev/context-provider-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"tags": [
+					"contract",
+					"kernel",
+					"kernel-contract",
+					"review"
+				]
+			},
+			{
+				"id": "@refarm.dev/source-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/source-contract-v1 run test:conformance",
+					"pnpm --filter @refarm.dev/source-contract-v1 run build"
+				],
+				"tags": [
+					"librarian",
+					"source",
+					"contract",
+					"sdk-primitive",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"boundary-review",
+					"consumer-proven"
+				],
+				"consumerPull": {
+					"proofId": "requirements-source-contract.transitive-source-web-support",
+					"downstreamUse": "source:v1 contract support for the source-web vendor packet",
+					"proofTarget": "vault-seed vendors source-contract-v1 as the source-web transitive override while proving source-web -> records:v1 -> enrichment:v1 composition",
+					"ownershipBoundary": "Concrete login, selectors, and source profile vocabulary remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/source-git",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/source-git run test:conformance",
+					"pnpm --filter @refarm.dev/source-git run build"
+				],
+				"tags": [
+					"librarian",
+					"source",
+					"adapter",
+					"sdk-primitive",
+					"boundary-review",
+					"candidate-hold"
+				]
+			},
+			{
+				"id": "@refarm.dev/source-local",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/source-local run test:conformance",
+					"pnpm --filter @refarm.dev/source-local run build"
+				],
+				"tags": [
+					"librarian",
+					"source",
+					"adapter",
+					"sdk-primitive",
+					"boundary-review",
+					"candidate-hold"
+				]
+			},
+			{
+				"id": "@refarm.dev/source-web",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/source-web run lint",
+					"pnpm --filter @refarm.dev/source-web run type-check",
+					"pnpm --filter @refarm.dev/source-web run test:conformance",
+					"pnpm --filter @refarm.dev/source-web run build"
+				],
+				"tags": [
+					"librarian",
+					"source",
+					"adapter",
+					"sdk-primitive",
+					"requirements-supply",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"boundary-review",
+					"consumer-proven"
+				],
+				"consumerPull": {
+					"proofId": "requirements-source-web.authenticated-capture",
+					"downstreamUse": "Authenticated source capture fixture feeding requirement-like records",
+					"proofTarget": "vault-seed wraps source-web with real checkout-owned source behavior and proves redacted source:v1 snapshots compose into records:v1 and enrichment:v1",
+					"ownershipBoundary": "Real credentials, discovery, selectors, pacing values, and source-specific ETL profiles remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/enrichment-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/enrichment-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/enrichment-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/enrichment-contract-v1 run test:conformance",
+					"pnpm --filter @refarm.dev/enrichment-contract-v1 run build"
+				],
+				"tags": [
+					"contract",
+					"sdk-primitive",
+					"requirements-supply",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"boundary-review",
+					"consumer-proven"
+				],
+				"consumerPull": {
+					"proofId": "requirements-enrichment.private-provider-wrapper",
+					"downstreamUse": "Deterministic enrichment report contract for records and note projections",
+					"proofTarget": "vault-seed emits enrichment:v1 reports from checkout-owned providers while the package supplies only the neutral contract and fixture provider",
+					"ownershipBoundary": "Private registries, lookup adapters, tag vocabulary, and domain enrichment rules remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/records-contract-v1",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/records-contract-v1 run lint",
+					"pnpm --filter @refarm.dev/records-contract-v1 run type-check",
+					"pnpm --filter @refarm.dev/records-contract-v1 run test:conformance",
+					"pnpm --filter @refarm.dev/records-contract-v1 run test:unit",
+					"pnpm --filter @refarm.dev/records-contract-v1 run build"
+				],
+				"tags": [
+					"contract",
+					"sdk-primitive",
+					"requirements-supply",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"boundary-review",
+					"consumer-proven"
+				],
+				"consumerPull": {
+					"proofId": "requirements-records.knowledge-manifest",
+					"downstreamUse": "Neutral records:v1 manifest for source-linked knowledge/content evidence",
+					"proofTarget": "vault-seed validates requirement-like records and notes-to-records projections through records:v1 with a clean reference-vault composition proof",
+					"ownershipBoundary": "PARA placement, editorial model, note rendering, and domain labels remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/content-projection",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/content-projection run lint",
+					"pnpm --filter @refarm.dev/content-projection run type-check",
+					"pnpm --filter @refarm.dev/content-projection run test:conformance",
+					"pnpm --filter @refarm.dev/content-projection run build"
+				],
+				"tags": [
+					"projection",
+					"sdk-primitive",
+					"requirements-supply",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"boundary-review",
+					"candidate"
+				],
+				"consumerPull": {
+					"proofId": "content-projection.markdown-mdx-records",
+					"downstreamUse": "Markdown/MDX frontmatter, wikilink, and inline-link projection into records:v1",
+					"proofTarget": "vault-seed can replace local note-to-record, wikilink, and inline-link projection helpers with the generic projection block while retaining its product configuration",
+					"ownershipBoundary": "PARA folder mapping, note vocabulary, Obsidian/Foam conventions, and rendering remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/ds-astro",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/ds-astro run lint",
+					"pnpm --filter @refarm.dev/ds-astro run type-check",
+					"pnpm --filter @refarm.dev/ds-astro run test",
+					"pnpm --filter @refarm.dev/ds-astro run build",
+					"node scripts/ci/test-ds-astro-mdx-proof.mjs",
+					"pnpm -C apps/site run build"
+				],
+				"tags": [
+					"ui",
+					"render-adapter",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"boundary-review",
+					"candidate"
+				],
+				"consumerPull": {
+					"proofId": "ds-astro.mdx-render-adapter",
+					"downstreamUse": "Sanctioned Astro/MDX component embed set over Refarm DS classes and CSS",
+					"proofTarget": "vault-seed can replace local dgk/vault/astro block packages with @refarm.dev/ds-astro imports while keeping product-specific MDX copy and route semantics downstream",
+					"ownershipBoundary": "PARA labels, notebook/editorial vocabulary, custom routes, and product-specific blocks remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/cli",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/cli run build",
+					"pnpm --filter @refarm.dev/cli exec vitest run"
+				],
+				"tags": [
+					"kernel",
+					"kernel-primitive",
+					"boundary-review"
+				]
+			},
+			{
+				"id": "@refarm.dev/process-handoff",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/process-handoff run lint",
+					"pnpm --filter @refarm.dev/process-handoff run type-check",
+					"pnpm --filter @refarm.dev/process-handoff run test",
+					"pnpm --filter @refarm.dev/process-handoff run build"
+				],
+				"tags": [
+					"process",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"candidate",
+					"build-free"
+				],
+				"consumerPull": {
+					"proofId": "process-handoff.dgk-runner-adapter",
+					"downstreamUse": "Structured process runner primitive for dgk-runner and dgk-cli internals",
+					"proofTarget": "dgk-runner keeps run(cmd, args, opts) while using process-handoff internally",
+					"ownershipBoundary": "dgk package names, binary, commands, and product labels remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/config",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/config exec vitest run"
+				],
+				"tags": [
+					"kernel",
+					"kernel-primitive",
+					"boundary-review"
+				]
+			},
+			{
+				"id": "@refarm.dev/health",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/health run lint",
+					"pnpm --filter @refarm.dev/health run test",
+					"pnpm --filter @refarm.dev/health run build"
+				],
+				"tags": [
+					"health",
+					"kernel-primitive",
+					"sdk-primitive",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"boundary-review"
+				],
+				"consumerPull": {
+					"proofId": "health.toolchain-environment-auditor",
+					"downstreamUse": "Generic doctor/substrate checks for node, pnpm, uv, Python, node_modules, executable shims, and devcontainer mounts",
+					"proofTarget": "vault-seed can replace dgk check-substrate internals with ToolchainAuditor while keeping dgk doctor UX and recovery copy downstream",
+					"ownershipBoundary": "Project-specific command names, setup recommendations, required file policy, and health+quality composition remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/release-engine",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/release-engine run test"
+				],
+				"tags": [
+					"kernel",
+					"kernel-primitive",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"dogfood"
+				],
+				"consumerPull": {
+					"proofId": "release-engine.package-acceptance",
+					"downstreamUse": "Package acceptance, release planning, and publish dry-run policy",
+					"proofTarget": "vault-seed release/package smoke consumes release-engine acceptance output",
+					"ownershipBoundary": "Distribution identity, prose, and changelog content remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/ds",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/ds run lint",
+					"pnpm --filter @refarm.dev/ds run type-check",
+					"pnpm --filter @refarm.dev/ds run test",
+					"pnpm --filter @refarm.dev/ds run build"
+				],
+				"tags": [
+					"ui",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"candidate"
+				],
+				"consumerPull": {
+					"proofId": "ds.lab-admin-static-document",
+					"downstreamUse": "Lab/admin tokens, verde-jardim theme source, and build-free DS HTML document helpers",
+					"proofTarget": "vault-seed Lab/admin UI imports ds tokens and renders documentHtml through @refarm.dev/ds/html without pulling Homestead",
+					"ownershipBoundary": "PARA vocabulary, editorial copy, and content semantics remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/dispatch-surface",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/dispatch-surface run lint",
+					"pnpm --filter @refarm.dev/dispatch-surface run type-check",
+					"pnpm --filter @refarm.dev/dispatch-surface run test",
+					"pnpm --filter @refarm.dev/dispatch-surface run test:parity",
+					"pnpm run agent-demo:release-proof"
+				],
+				"tags": [
+					"dispatch",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"candidate"
+				],
+				"consumerPull": {
+					"proofId": "dispatch-surface.dgk-descriptor",
+					"downstreamUse": "Multi-surface command/action descriptor substrate",
+					"proofTarget": "dgk exposes product commands through dispatch-surface-compatible descriptors",
+					"ownershipBoundary": "Surface labels, routes, and product-specific actions remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/heartwood",
+				"risk": "core",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/heartwood run test"
+				],
+				"tags": [
+					"crypto",
+					"silo-dependency",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"candidate"
+				],
+				"consumerPull": {
+					"proofId": "heartwood.silo-crypto-substrate",
+					"downstreamUse": "Shared crypto substrate needed by silo-backed credentials",
+					"proofTarget": "vault-seed credential flow uses silo without local crypto stand-ins",
+					"ownershipBoundary": "Credential policy choices and publishing identities remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/silo",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/silo run lint",
+					"pnpm --filter @refarm.dev/silo run test",
+					"pnpm --filter @refarm.dev/silo run build"
+				],
+				"tags": [
+					"credentials",
+					"consumer-pulled",
+					"vault-seed-ready",
+					"candidate"
+				],
+				"consumerPull": {
+					"proofId": "silo.credential-namespaces",
+					"downstreamUse": "Scoped credential collection and secret namespace separation",
+					"proofTarget": "vault-seed stores model/runtime/publishing credentials through silo namespaces",
+					"ownershipBoundary": "Provider-specific publishing adapters and approval workflow remain downstream"
+				}
+			},
+			{
+				"id": "@refarm.dev/trust",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/trust run lint",
+					"pnpm --filter @refarm.dev/trust run type-check",
+					"pnpm --filter @refarm.dev/trust run test",
+					"pnpm --filter @refarm.dev/trust run build"
+				],
+				"tags": [
+					"trust",
+					"cli-dependency",
+					"candidate"
+				]
+			},
+			{
+				"id": "@refarm.dev/homestead",
+				"risk": "shared",
+				"mustPassChecks": [
+					"pnpm --filter @refarm.dev/homestead run lint",
+					"pnpm --filter @refarm.dev/homestead run type-check",
+					"pnpm --filter @refarm.dev/homestead run test",
+					"pnpm --filter @refarm.dev/homestead run build"
+				],
+				"tags": [
+					"ui",
+					"consumer-pulled",
+					"vault-seed-blocked",
+					"dependency-closure-hold"
+				]
+			},
+			{
+				"id": "@refarm.dev/plugin-manifest",
+				"risk": "plugin",
+				"mustPassChecks": [
+					"pnpm run type-check",
+					"pnpm run test:unit"
+				],
+				"tags": [
+					"plugin-contract",
+					"reference-hold",
+					"multi-layer-plugin-hold"
+				]
+			}
+		],
+		"phases": [
+			{
+				"id": "preflight",
+				"name": "Preflight",
+				"commands": [
+					"git status --porcelain"
+				],
+				"required": true,
+				"riskWeight": 1
+			},
+			{
+				"id": "quality",
+				"name": "Quality Gates",
+				"commands": [
+					"pnpm run lint",
+					"pnpm run type-check"
+				],
+				"required": true,
+				"riskWeight": 5
+			},
+			{
+				"id": "contracts",
+				"name": "Contract Smoke",
+				"commands": [
+					"pnpm run gate:smoke:contracts"
+				],
+				"required": true,
+				"riskWeight": 6
+			},
+			{
+				"id": "runtime-descriptor",
+				"name": "Runtime Descriptor Release Smoke",
+				"commands": [
+					"pnpm run runtime-descriptor:release-smoke -- --sha local"
+				],
+				"required": true,
+				"riskWeight": 4
+			},
+			{
+				"id": "telemetry",
+				"name": "Telemetry gate",
+				"commands": [
+					"pnpm run refarm:telemetry:gate:ci -- --out .artifacts/release-engine/telemetry-gate.json --timeout-ms 20000"
+				],
+				"required": false,
+				"riskWeight": 2
+			}
+		]
+	}
 }
