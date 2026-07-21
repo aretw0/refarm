@@ -19,6 +19,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@refarm.dev/artifact-contract-v1": "workspace:*",
 		"@refarm.dev/browser-driver": "workspace:*",
 		"@refarm.dev/capabilities": "workspace:*",
 		"@refarm.dev/capabilities-v1": "workspace:*",
@@ -26,15 +27,14 @@
 		"@refarm.dev/capability-host": "workspace:*",
 		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/enrichment-contract-v1": "workspace:*",
-		"@refarm.dev/homestead": "workspace:*",
-		"@refarm.dev/playbook": "workspace:*",
 		"@refarm.dev/history-contract-v1": "workspace:*",
+		"@refarm.dev/homestead": "workspace:*",
+		"@refarm.dev/lab-contract-v1": "workspace:*",
+		"@refarm.dev/playbook": "workspace:*",
 		"@refarm.dev/provenance-contract-v1": "workspace:*",
 		"@refarm.dev/quality-contract-v1": "workspace:*",
 		"@refarm.dev/records-contract-v1": "workspace:*",
 		"@refarm.dev/source-web": "workspace:*",
-		"@refarm.dev/artifact-contract-v1": "workspace:*",
-		"@refarm.dev/lab-contract-v1": "workspace:*",
 		"@refarm.dev/surveyor": "workspace:*",
 		"@refarm.dev/vault-contract-v1": "workspace:*",
 		"@refarm.dev/vault-surface-ref": "workspace:*"
@@ -44,7 +44,9 @@
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
+		"@types/jsonld": "^1.5.15",
 		"@types/node": "catalog:",
-		"astro": "^7.0.0"
+		"astro": "^7.0.0",
+		"jsonld": "^9.0.0"
 	}
 }
