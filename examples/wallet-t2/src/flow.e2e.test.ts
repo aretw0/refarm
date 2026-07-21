@@ -379,6 +379,53 @@ describe("wallet T2 — the sovereign citizen's digital wallet (result mode)", (
 		expect(refused.message).not.toContain("not-revoked");
 	});
 
+	// "Prioridade local" is the claim the product repeats most, and the one easiest to assert
+	// loosely. Here it is a behaviour: with fetch removed from the runtime, the citizen still
+	// holds, curates, authorizes, presents and revokes. A wallet that needs the network to show
+	// what you already hold is not local-first, however it is described.
+	it("the whole journey completes with the network gone (local-first, not local-flavoured)", async () => {
+		const realFetch = globalThis.fetch;
+		// Any network reach becomes a failure with a name, so a silent fallback cannot hide one.
+		globalThis.fetch = (() => {
+			throw new Error("network unavailable: this journey must not need it");
+		}) as unknown as typeof fetch;
+
+		try {
+			const reg = buildRegistry({ statePath: tempStatePath() });
+			const run = async (name: string, args: Record<string, string> = {}, options: Record<string, string> = {}) => {
+				const verb = reg.get(name);
+				if (!verb || "actions" in verb) throw new Error(`${name} verb not mounted`);
+				return (await verb.run({ args, options, json: true })) as unknown as Record<string, unknown>;
+			};
+
+			// Hold: the citizen sees what is theirs.
+			const held = await run("wallet");
+			expect(held.ok).not.toBe(false);
+			expect(held.total).toBeGreaterThan(0);
+
+			// Decide: a service asks, the citizen grants exactly what was asked.
+			await run(
+				"request",
+				{ requester: "Órgão Fictício" },
+				{ purpose: "Emitir 2ª via", scope: "faixa_etaria,municipio", expires: "2026-12-31T00:00:00Z" },
+			);
+			const pending = (await run("consent")).pending as Array<{ id: string }>;
+			expect(pending).toHaveLength(1);
+			const granted = await run("authorize", {}, { request: pending[0]!.id });
+			expect(granted.status).toBe("active");
+
+			// Present and revoke: the two moments that decide whether control is real.
+			expect((await run("present", { id: granted.id as string })).ok).not.toBe(false);
+			await run("revoke", { id: granted.id as string });
+			expect((await run("present", { id: granted.id as string })).ok).toBe(false);
+
+			// And the record of it all is readable without reaching anywhere.
+			expect((await run("sovereignty")).ok).not.toBe(false);
+		} finally {
+			globalThis.fetch = realFetch;
+		}
+	});
+
 	it("a revoked authorization is refused, and the refusal names revocation alongside the signature", async () => {
 		const statePath = tempStatePath();
 		const reg = buildRegistry({ statePath });
